@@ -1,1 +1,1 @@
-# vanillameta
+# VanillaMeta
