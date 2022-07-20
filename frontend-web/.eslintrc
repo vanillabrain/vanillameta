@@ -1,0 +1,67 @@
+{
+  "env": {
+    "browser": true,
+    "es6": true,
+    "node": true
+  },
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["@typescript-eslint","prettier"],
+  "extends": [
+    "plugin:import/errors",
+    "plugin:import/warnings",
+    "plugin:import/typescript",
+    "plugin:prettier/recommended",
+    "plugin:@typescript-eslint/recommended",
+    "prettier"
+  ],
+  "globals": {
+    "Atomics": "readonly",
+    "SharedArrayBuffer": "readonly"
+  },
+  "parserOptions": {
+    "ecmaVersion": 2020,
+    "sourceType": "module",
+    "ecmaFeatures": {
+      "jsx": true
+    }
+  },
+  "rules": {
+    "linebreak-style": 0,
+    "import/no-dynamic-require": 0,
+    "import/no-unresolved": 0,
+    "import/prefer-default-export": 0,
+    "global-require": 0,
+    "import/no-extraneous-dependencies": 0,
+    "jsx-quotes": ["error", "prefer-double"],
+    "react/jsx-props-no-spreading": 0,
+    "react/forbid-prop-types": 0,
+    "react-hooks/exhaustive-deps": 0,
+    "react/react-in-jsx-scope": "off",
+    "import/extensions": 0,
+    "no-use-before-define": 0,
+    "@typescript-eslint/no-empty-interface": 0,
+    "@typescript-eslint/no-explicit-any": 0,
+    "@typescript-eslint/no-var-requires": 0,
+    "no-shadow": "off",
+    "react/prop-types": 0,
+    "no-empty-pattern": 0,
+    "no-alert": 0,
+    "no-nested-ternary": 0,
+    "no-param-reassign": ["error", { "props": false }],
+    "react/destructuring-assignment": 0,
+    "react/no-array-index-key": 0,
+    "no-plusplus": ["error", { "allowForLoopAfterthoughts": true }],
+    "react/no-unescaped-entities": 0,
+    "react/require-default-props": 0
+  },
+  "settings": {
+    "import/parsers": {
+      "@typescript-eslint/parser": [".ts", ".tsx", ".js"]
+    },
+    "import/resolver": {
+      "node": {
+        "extensions": [".js", ".jsx", ".ts", ".tsx"]
+      }
+    }
+  }
+}
