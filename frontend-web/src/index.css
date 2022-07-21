@@ -1,0 +1,70 @@
+@font-face {
+    font-family: 'Noto Sans KR';
+    font-style: normal;
+    font-weight: 100;
+    src: url("assets/fonts/NotoSansKR-Light.woff2") format('woff2'),
+    url("assets/fonts/NotoSansKR-Light.woff") format('woff'),
+    url("assets/fonts/NotoSansKR-Light.otf") format('truetype')
+}
+
+@font-face {
+    font-family: 'Noto Sans KR';
+    font-style: normal;
+    font-weight: normal;
+    src: url("assets/fonts/NotoSansKR-Regular.woff2") format('woff2'),
+    url("assets/fonts/NotoSansKR-Regular.woff") format('woff'),
+    url("assets/fonts/NotoSansKR-Regular.otf") format('truetype')
+}
+
+
+@font-face {
+    font-family: 'Noto Sans KR';
+    font-style: normal;
+    font-weight: 500;
+    src: url("assets/fonts/NotoSansKR-Medium.woff2") format('woff2'),
+    url("assets/fonts/NotoSansKR-Medium.woff") format('woff'),
+    url("assets/fonts/NotoSansKR-Medium.otf") format('truetype')
+}
+
+@font-face {
+    font-family: 'Noto Sans KR';
+    font-style: normal;
+    font-weight: bold;
+    src: url("assets/fonts/NotoSansKR-Bold.woff2") format('woff2'),
+    url("assets/fonts/NotoSansKR-Bold.woff") format('woff'),
+    url("assets/fonts/NotoSansKR-Bold.otf") format('truetype')
+}
+
+/* Roboto */
+@font-face {
+    font-family: "Roboto";
+    font-style: normal;
+    font-weight: 100;
+    src: url("assets/fonts/Roboto-Regular.woff2") format('woff2'),
+    url("assets/fonts/Roboto-Regular.woff") format('woff'),
+    url("assets/fonts/Roboto-Regular.otf") format('truetype')
+}
+
+@font-face {
+    font-family: "Roboto";
+    font-weight: 400;
+    src: url("assets/fonts/Roboto-Regular.woff2") format('woff2'),
+    url("assets/fonts/Roboto-Regular.woff") format('woff'),
+    url("assets/fonts/Roboto-Regular.otf") format('truetype')
+}
+
+@font-face {
+    font-family: "Roboto";
+    font-weight: 500;
+    src: url("assets/fonts/Roboto-Medium.woff2") format('woff2'),
+    url("assets/fonts/Roboto-Medium.woff") format('woff'),
+    url("assets/fonts/Roboto-Medium.otf") format('truetype')
+}
+
+@font-face {
+    font-family: "Roboto Bold";
+    font-weight: 700;
+    src: url("assets/fonts/Roboto-Bold.woff2") format('woff2'),
+    url("assets/fonts/Roboto-Bold.woff") format('woff'),
+    url("assets/fonts/Roboto-Bold.otf") format('truetype')
+}

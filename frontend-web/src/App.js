@@ -2,7 +2,7 @@ import React from 'react';
 import { CssBaseline } from '@mui/material';
 
 import Layout from './layouts/Layout';
-import Router from './routes/Router';
+import Router from './router/Router';
 
 function App() {
   return (
