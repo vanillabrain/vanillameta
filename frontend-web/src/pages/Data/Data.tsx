@@ -29,7 +29,7 @@ function Data() {
           <Typography variant="h4">제목 h4</Typography>
           <Typography variant="h5">제목 h5</Typography>
           <Typography variant="h6">제목 h6</Typography>
-          <Typography variant="p">내용</Typography>
+          {/* <Typography variant="p">내용</Typography> */}
         </CardContent>
         <Box sx={{ minWidth: 120 }}>
           <FormControl fullWidth>
