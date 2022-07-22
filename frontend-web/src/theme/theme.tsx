@@ -27,6 +27,11 @@ export default createTheme({
       defaultProps: {
         color: 'transparent',
       },
+      styleOverrides: {
+        root: {
+          backgroundColor: '#fff',
+        },
+      },
     },
     MuiList: {
       defaultProps: {
