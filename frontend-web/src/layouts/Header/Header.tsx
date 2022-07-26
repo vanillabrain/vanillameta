@@ -10,17 +10,24 @@ import {
   ListItemButton,
   ListItemText,
   Toolbar,
-  Typography,
   Button,
-  Avatar,
+  Stack,
+  Link,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
-import DropButton from './DropButton';
 
-const drawerWidth = 240;
-const navItems = ['대시보드', '위젯', '데이터'];
+import DropButton from './DropButton';
+import Logo from './Logo';
 
 function Header(props) {
+  const headerHeight = props.height;
+  const drawerWidth = 240;
+  const navItems = [
+    { id: 1, name: '대시보드', url: '/' },
+    { id: 2, name: '위젯', url: 'widget' },
+    { id: 3, name: '데이터', url: 'data' },
+  ];
+
   const { window } = props;
   const [mobileOpen, setMobileOpen] = React.useState(false);
 
@@ -29,16 +36,14 @@ function Header(props) {
   };
 
   const drawer = (
-    <Box onClick={handleDrawerToggle} sx={{ textAlign: 'center' }}>
-      <Typography variant="h6" sx={{ my: 2 }}>
-        Vanilla Meta
-      </Typography>
-      <Divider />
+    <Box onClick={handleDrawerToggle} mt={5} sx={{ textAlign: 'center' }}>
+      {/*<Logo />*/}
+      {/*<Divider />*/}
       <List>
         {navItems.map(item => (
-          <ListItem key={item} disablePadding>
-            <ListItemButton sx={{ textAlign: 'center' }}>
-              <ListItemText primary={item} />
+          <ListItem key={item.id} disablePadding>
+            <ListItemButton href={item.url} sx={{ textAlign: 'center' }}>
+              <ListItemText primary={item.name} />
             </ListItemButton>
           </ListItem>
         ))}
@@ -50,8 +55,8 @@ function Header(props) {
 
   return (
     <Box sx={{ display: 'flex' }}>
-      <AppBar component="nav">
-        <Toolbar sx={{ justifyContent: 'space-between', gap: '80px' }}>
+      <AppBar elevation={0} component="nav">
+        <Toolbar variant="dense" sx={{ height: headerHeight, justifyContent: 'space-between', columnGap: '80px' }}>
           <IconButton
             color="inherit"
             aria-label="open drawer"
@@ -61,23 +66,17 @@ function Header(props) {
           >
             <MenuIcon />
           </IconButton>
-          {/*<Box component="h1">*/}
-          {/*  <Typography component="span" sx={{ width: 0, height: 0 }}>*/}
-          {/*    Vanilla Meta 로고*/}
-          {/*  </Typography>*/}
-          {/*</Box>*/}
-          <Typography variant="h6" component="div" sx={{ display: { xs: 'none', sm: 'block' } }}>
-            Vanilla Meta
-          </Typography>
-          <Box sx={{ display: { xs: 'none', sm: 'block', flexGrow: 1 } }}>
+          <Logo />
+          <Stack direction="row" spacing={2} sx={{ display: { xs: 'none', sm: 'flex', flexGrow: 1 } }}>
             {navItems.map(item => (
-              <Button key={item} sx={{ color: 'inherit' }}>
-                {item}
+              <Button href={item.url} size="large" key={item.id} sx={{ color: 'inherit' }}>
+                {item.name}
               </Button>
             ))}
-          </Box>
+          </Stack>
           <DropButton />
         </Toolbar>
+        <Divider />
       </AppBar>
 
       <Box component="nav">

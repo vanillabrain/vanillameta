@@ -1,77 +1,52 @@
 import React from 'react';
-import { ButtonGroup, Button, Popper, ClickAwayListener, Grow, Paper, MenuItem, MenuList } from '@mui/material';
+import { Box, Button, Menu, MenuItem } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 
-const options = ['데이터 소스', '데이터 셋', '위젯', '대시보드'];
+const menuList = ['데이터 소스', '데이터 셋', '위젯', '대시보드'];
+const menuWidth = 200;
 
 function DropButton() {
-  const [open, setOpen] = React.useState(false);
-  const anchorRef = React.useRef(null);
-  const [selectedIndex, setSelectedIndex] = React.useState(1);
-
-  const handleClick = () => {
-    console.info(`You clicked ${options[selectedIndex]}`);
+  const [anchorEl, setAnchorEl] = React.useState(null);
+  const open = Boolean(anchorEl);
+  const handleClick = event => {
+    setAnchorEl(event.currentTarget);
   };
-
-  const handleMenuItemClick = (event, index) => {
-    setSelectedIndex(index);
-    setOpen(false);
-  };
-
-  const handleToggle = () => {
-    setOpen(prevOpen => !prevOpen);
-  };
-
-  const handleClose = event => {
-    if (anchorRef.current && anchorRef.current.contains(event.target)) {
-      return;
-    }
-
-    setOpen(false);
+  const handleClose = () => {
+    setAnchorEl(null);
   };
 
   return (
-    <React.Fragment>
-      <ButtonGroup variant="contained" ref={anchorRef} aria-label="위젯 추가" sx={{ display: { xs: 'none', sm: 'block' } }}>
-        <Button
-          size="small"
-          aria-controls={open ? 'split-button-menu' : undefined}
-          aria-expanded={open ? 'true' : undefined}
-          aria-label="select merge strategy"
-          aria-haspopup="menu"
-          onClick={handleToggle}
-        >
-          <AddIcon />
-        </Button>
-      </ButtonGroup>
+    <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+      <Button
+        id="추가 버튼"
+        aria-controls={open ? 'styled-menu' : undefined}
+        aria-haspopup="true"
+        aria-expanded={open ? 'true' : undefined}
+        variant="contained"
+        disableElevation
+        onClick={handleClick}
+        sx={{ minWidth: 0 }}
+      >
+        <AddIcon />
+      </Button>
 
-      <Popper open={open} anchorEl={anchorRef.current} role={undefined} transition disablePortal>
-        {({ TransitionProps, placement }) => (
-          <Grow
-            {...TransitionProps}
-            style={{
-              transformOrigin: placement === 'bottom' ? 'center top' : 'center bottom',
-            }}
-          >
-            <Paper>
-              <ClickAwayListener onClickAway={handleClose}>
-                <MenuList id="split-button-menu" autoFocusItem>
-                  {options.map((option, index) => (
-                    <MenuItem
-                      key={option}
-                      selected={index === selectedIndex}
-                      onClick={event => handleMenuItemClick(event, index)}
-                    >
-                      {option}
-                    </MenuItem>
-                  ))}
-                </MenuList>
-              </ClickAwayListener>
-            </Paper>
-          </Grow>
-        )}
-      </Popper>
-    </React.Fragment>
+      <Menu
+        id="styled-menu"
+        MenuListProps={{
+          'aria-labelledby': '추가 버튼',
+        }}
+        anchorEl={anchorEl}
+        open={open}
+        onClose={handleClose}
+        sx={{ width: menuWidth }}
+      >
+        {menuList.map(menu => (
+          <MenuItem key={menu} onClick={handleClose} disableRipple sx={{ width: menuWidth }}>
+            {menu}
+          </MenuItem>
+        ))}
+      </Menu>
+    </Box>
   );
 }
 
