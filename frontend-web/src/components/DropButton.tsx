@@ -5,7 +5,7 @@ import AddIcon from '@mui/icons-material/Add';
 const menuList = ['데이터 소스', '데이터 셋', '위젯', '대시보드'];
 const menuWidth = 200;
 
-function DropButton() {
+function DropButton(props) {
   const [anchorEl, setAnchorEl] = React.useState(null);
   const open = Boolean(anchorEl);
   const handleClick = event => {
@@ -25,7 +25,7 @@ function DropButton() {
         variant="contained"
         disableElevation
         onClick={handleClick}
-        sx={{ minWidth: 0 }}
+        sx={{ minWidth: 0, p: 0.5 }}
       >
         <AddIcon />
       </Button>

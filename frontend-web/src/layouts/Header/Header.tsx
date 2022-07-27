@@ -16,7 +16,7 @@ import {
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 
-import DropButton from './DropButton';
+import DropButton from '../../components/DropButton';
 import Logo from './Logo';
 
 function Header(props) {

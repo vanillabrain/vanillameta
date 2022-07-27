@@ -148,16 +148,16 @@ export default createTheme({
   },
 
   typography: {
+    h6: {
+      fontWeight: 500,
+    },
     h5: {
       fontSize: '1.4rem',
-      fontWeight: 700,
-    },
-    h6: {
-      fontWeight: 700,
+      fontWeight: 500,
     },
     h4: {
       fontSize: '1.7rem',
-      fontWeight: 700,
+      fontWeight: 500,
     },
     h3: {
       fontSize: '2.5rem',
