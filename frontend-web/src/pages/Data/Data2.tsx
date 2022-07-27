@@ -1,48 +1,12 @@
 import React from 'react';
 import { Box, Container, Divider, Grid, Paper, Typography, Chip, styled, Stack, IconButton } from '@mui/material';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
-import EditIcon from '@mui/icons-material/Edit';
-import CancelIcon from '@mui/icons-material/Cancel';
 
 import DropButton from '../../components/DropButton';
+import ChipList from '../../components/ChipList';
 
 const title = 'Data';
 
-const StyledListItem = styled('li')(({ theme }) => ({
-  margin: theme.spacing(0.8),
-  '& > div': {
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    minWidth: 250,
-    minHeight: 40,
-    padding: 5,
-    paddingLeft: 20,
-    borderRadius: 30,
-    fontSize: 16,
-    // color: '#fff',
-    backgroundColor: theme.palette.grey['200'],
-    // backgroundColor: theme.palette.primary.dark,
-    boxShadow: 0,
-
-    '& .MuiIconButton-root': {
-      // color: 'rgba(255, 255, 255, 0.7)',
-    },
-  },
-}));
-
 function Data2(props) {
-  const [chipData, setChipData] = React.useState([
-    { key: 0, label: 'Angular' },
-    { key: 1, label: 'jQuery' },
-    { key: 2, label: 'Polymer' },
-    { key: 3, label: 'React' },
-    { key: 4, label: 'Vue.js' },
-  ]);
-
-  const handleDelete = chipToDelete => () => {
-    setChipData(chips => chips.filter(chip => chip.key !== chipToDelete.key));
-  };
-
   return (
     <Box sx={{ minHeight: 600, backgroundColor: '#f3f4f6' }}>
       <Container sx={{ maxWidth: 1152, m: 'auto', p: 9 }}>
@@ -73,36 +37,7 @@ function Data2(props) {
                   }}
                   component="ul"
                 >
-                  {chipData.map(data => (
-                    <StyledListItem key={data.key}>
-                      <Stack direction="row" spacing={0.5}>
-                        <Typography>{data.label}</Typography>
-                        <Box>
-                          <IconButton>
-                            <AutoAwesomeIcon />
-                          </IconButton>
-                          <IconButton>
-                            <EditIcon />
-                          </IconButton>
-                          <IconButton>
-                            <CancelIcon />
-                          </IconButton>
-                        </Box>
-                      </Stack>
-                      {/*<Chip*/}
-                      {/*  icon={*/}
-                      {/*    <React.Fragment>*/}
-                      {/*      <AutoAwesomeIcon />*/}
-                      {/*      <EditIcon />*/}
-                      {/*    </React.Fragment>*/}
-                      {/*  }*/}
-                      {/*  color="primary"*/}
-                      {/*  clickable={true}*/}
-                      {/*  label={data.label}*/}
-                      {/*  onDelete={handleDelete(data)}*/}
-                      {/*/>*/}
-                    </StyledListItem>
-                  ))}
+                  <ChipList />
                 </Box>
               </Paper>
             </Grid>
