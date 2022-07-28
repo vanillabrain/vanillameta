@@ -77,7 +77,7 @@ function Header(props) {
                 </Button>
               ))}
             </Stack>
-            <DropMenu />
+            <DropMenu button="big" />
           </Toolbar>
         </ResponsiveContainer>
         <Divider />

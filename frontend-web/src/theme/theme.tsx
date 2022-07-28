@@ -84,6 +84,14 @@ export default createTheme({
         size: 'small',
       },
     },
+    MuiSvgIcon: {
+      styleOverrides: {
+        root: {
+          width: '0.8em',
+          height: '0.8em',
+        },
+      },
+    },
     MuiInputBase: {
       defaultProps: {
         margin: 'dense',

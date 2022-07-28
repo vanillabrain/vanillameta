@@ -24,22 +24,21 @@ const StyledListItem = styled('li')(({ theme }) => ({
   },
 }));
 
-const chipData = [
-  { key: 0, label: 'Angular' },
-  { key: 1, label: 'jQuery' },
-  { key: 2, label: 'Polymer' },
-  { key: 3, label: 'React' },
-  { key: 4, label: 'Angular' },
-  { key: 5, label: 'jQuery' },
-  { key: 6, label: 'Polymer' },
-  { key: 7, label: 'React' },
-  { key: 8, label: 'Vue.js' },
-];
-
 function ChipList(props) {
   return (
-    <React.Fragment>
-      {chipData.map(data => (
+    <Box
+      sx={{
+        display: 'flex',
+        justifyContent: 'center',
+        flexWrap: 'wrap',
+        listStyle: 'none',
+        p: 0,
+        px: 3,
+        pb: 4,
+      }}
+      component="ul"
+    >
+      {props.data.map(data => (
         <StyledListItem key={data.key}>
           <Stack direction="row" spacing={0.5}>
             <Typography sx={{ fontSize: 14 }}>{data.label}</Typography>
@@ -65,7 +64,7 @@ function ChipList(props) {
           </Stack>
         </StyledListItem>
       ))}
-    </React.Fragment>
+    </Box>
   );
 }
 
