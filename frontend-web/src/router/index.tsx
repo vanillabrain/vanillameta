@@ -1,21 +1,20 @@
 import React from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 
-import Dashboard from '../pages/Dashboard/Dashboard';
-import Widget from '../pages/Widget/Widget';
-// import Data from '../pages/Data/Data';
-import Data2 from '../pages/Data/Data2';
+import Dashboard from '../pages/Dashboard/index';
+import Widget from '../pages/Widget/index';
+import Data from '../pages/Data/index';
 
-function Router() {
+function Index() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="widget" element={<Widget />} />
-        <Route path="data" element={<Data2 />} />
+        <Route path="data" element={<Data />} />
       </Routes>
     </BrowserRouter>
   );
 }
 
-export default Router;
+export default Index;

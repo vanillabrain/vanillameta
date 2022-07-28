@@ -13,11 +13,13 @@ import {
   Button,
   Stack,
   Link,
+  Container,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 
-import DropButton from '../../components/DropButton';
+import DropMenu from '../../components/DropMenu';
 import Logo from './Logo';
+import ResponsiveContainer from '../../components/ResponsiveContainer';
 
 function Header(props) {
   const headerHeight = props.height;
@@ -28,7 +30,7 @@ function Header(props) {
     { id: 3, name: '데이터', url: 'data' },
   ];
 
-  const { window } = props;
+  // const { window } = props;
   const [mobileOpen, setMobileOpen] = React.useState(false);
 
   const handleDrawerToggle = () => {
@@ -51,37 +53,39 @@ function Header(props) {
     </Box>
   );
 
-  const container = window !== undefined ? () => window().document.body : undefined;
+  // const container = window !== undefined ? () => window().document.body : undefined;
 
   return (
     <Box sx={{ display: 'flex' }}>
       <AppBar elevation={0} component="nav">
-        <Toolbar variant="dense" sx={{ height: headerHeight, justifyContent: 'space-between', columnGap: '80px' }}>
-          <IconButton
-            color="inherit"
-            aria-label="open drawer"
-            edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { sm: 'none' } }}
-          >
-            <MenuIcon />
-          </IconButton>
-          <Logo />
-          <Stack direction="row" spacing={2} sx={{ display: { xs: 'none', sm: 'flex', flexGrow: 1 } }}>
-            {navItems.map(item => (
-              <Button href={item.url} size="large" key={item.id} sx={{ color: 'inherit' }}>
-                {item.name}
-              </Button>
-            ))}
-          </Stack>
-          <DropButton />
-        </Toolbar>
+        <ResponsiveContainer maxWidth={1152}>
+          <Toolbar variant="dense" sx={{ height: headerHeight, justifyContent: 'space-between', columnGap: '80px' }}>
+            <IconButton
+              color="inherit"
+              aria-label="open drawer"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ mr: 2, display: { sm: 'none' } }}
+            >
+              <MenuIcon />
+            </IconButton>
+            <Logo />
+            <Stack direction="row" spacing={2} sx={{ display: { xs: 'none', sm: 'flex', flexGrow: 1 } }}>
+              {navItems.map(item => (
+                <Button href={item.url} size="large" key={item.id} sx={{ color: 'inherit' }}>
+                  {item.name}
+                </Button>
+              ))}
+            </Stack>
+            <DropMenu />
+          </Toolbar>
+        </ResponsiveContainer>
         <Divider />
       </AppBar>
 
       <Box component="nav">
         <Drawer
-          container={container}
+          // container={container}
           variant="temporary"
           open={mobileOpen}
           onClose={handleDrawerToggle}

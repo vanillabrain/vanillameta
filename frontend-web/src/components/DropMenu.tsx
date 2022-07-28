@@ -5,7 +5,7 @@ import AddIcon from '@mui/icons-material/Add';
 const menuList = ['데이터 소스', '데이터 셋', '위젯', '대시보드'];
 const menuWidth = 200;
 
-function DropButton(props) {
+function DropMenu(props) {
   const [anchorEl, setAnchorEl] = React.useState(null);
   const open = Boolean(anchorEl);
   const handleClick = event => {
@@ -50,4 +50,4 @@ function DropButton(props) {
   );
 }
 
-export default DropButton;
+export default DropMenu;

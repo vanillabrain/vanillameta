@@ -1,8 +1,8 @@
 import React from 'react';
 import { Box } from '@mui/material';
 
-function Widget() {
+function Index() {
   return <Box p={3}>Widget</Box>;
 }
 
-export default Widget;
+export default Index;

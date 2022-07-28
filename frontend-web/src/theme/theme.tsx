@@ -139,7 +139,7 @@ export default createTheme({
           width: '100%',
           height: '100%',
           // minWidth: isDesktop ? '1280px' : 0,
-          // backgroundColor: colors.layout.general.bodyBg,
+          backgroundColor: '#f3f4f6',
           fontFamily: 'Noto Sans KR',
           color: '#1F2123',
         },

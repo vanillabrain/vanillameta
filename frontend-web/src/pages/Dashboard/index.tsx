@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Typography } from '@mui/material';
 
-function Dashboard(props) {
+function Index(props) {
   return (
     <Box component="main" sx={{ p: 3 }}>
       Dashboard
@@ -9,4 +9,4 @@ function Dashboard(props) {
   );
 }
 
-export default Dashboard;
+export default Index;
