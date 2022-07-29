@@ -8,8 +8,13 @@ function DataTable(props) {
   const minHeight: number = props.minHeight ? props.minHeight : '100%';
 
   return (
-    <Box sx={{ minHeight: minHeight, width: '100%' }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ width: '100%', py: 2 }}>
+    <Box
+      sx={{
+        // minHeight: minHeight,
+        width: '100%',
+      }}
+    >
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ width: '100%', py: 1 }}>
         <Typography variant="subtitle1" component="h3" sx={{ fontWeight: 500 }}>
           {title}
         </Typography>

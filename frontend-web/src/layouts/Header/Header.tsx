@@ -10,20 +10,16 @@ import {
   ListItemButton,
   ListItemText,
   Toolbar,
-  Button,
-  Stack,
-  Link,
-  Container,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
-
 import DropMenu from '../../components/DropMenu';
 import Logo from './Logo';
-import ResponsiveContainer from '../../components/ResponsiveContainer';
+import NavBar from './NavBar';
 
 function Header(props) {
   const headerHeight = props.height;
   const drawerWidth = 240;
+
   const navItems = [
     { id: 1, name: '대시보드', url: '/' },
     { id: 2, name: '위젯', url: 'widget' },
@@ -58,28 +54,21 @@ function Header(props) {
   return (
     <Box sx={{ display: 'flex' }}>
       <AppBar elevation={0} component="nav">
-        <ResponsiveContainer maxWidth={1152}>
-          <Toolbar variant="dense" sx={{ height: headerHeight, justifyContent: 'space-between', columnGap: '80px' }}>
-            <IconButton
-              color="inherit"
-              aria-label="open drawer"
-              edge="start"
-              onClick={handleDrawerToggle}
-              sx={{ mr: 2, display: { sm: 'none' } }}
-            >
-              <MenuIcon />
-            </IconButton>
-            <Logo />
-            <Stack direction="row" spacing={2} sx={{ display: { xs: 'none', sm: 'flex', flexGrow: 1 } }}>
-              {navItems.map(item => (
-                <Button href={item.url} size="large" key={item.id} sx={{ color: 'inherit' }}>
-                  {item.name}
-                </Button>
-              ))}
-            </Stack>
-            <DropMenu button="big" />
-          </Toolbar>
-        </ResponsiveContainer>
+        <Toolbar variant="dense" sx={{ height: headerHeight, justifyContent: 'space-between', columnGap: '80px' }}>
+          <IconButton
+            color="inherit"
+            aria-label="open drawer"
+            edge="start"
+            onClick={handleDrawerToggle}
+            sx={{ mr: 2, display: { sm: 'none' } }}
+          >
+            <MenuIcon />
+          </IconButton>
+          <Logo />
+
+          <NavBar navItems={navItems} />
+          <DropMenu button="big" />
+        </Toolbar>
         <Divider />
       </AppBar>
 

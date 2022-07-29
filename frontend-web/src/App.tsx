@@ -2,14 +2,14 @@ import React from 'react';
 import { CssBaseline } from '@mui/material';
 
 import Layout from './layouts/Layout';
-import Index from './router';
+import Router from './router';
 
 function App() {
   return (
     <React.Fragment>
       <CssBaseline />
       <Layout>
-        <Index />
+        <Router />
       </Layout>
     </React.Fragment>
   );

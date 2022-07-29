@@ -5,7 +5,7 @@ import Dashboard from '../pages/Dashboard/index';
 import Widget from '../pages/Widget/index';
 import Data from '../pages/Data/index';
 
-function Index() {
+function Router() {
   return (
     <BrowserRouter>
       <Routes>
@@ -17,4 +17,4 @@ function Index() {
   );
 }
 
-export default Index;
+export default Router;

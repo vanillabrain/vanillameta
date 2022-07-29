@@ -1,9 +1,6 @@
 import React from 'react';
-import { Box, Grid } from '@mui/material';
-
+import { Box, styled } from '@mui/material';
 import DataTable from './DataTable';
-import ResponsiveContainer from '../../components/ResponsiveContainer';
-import PageTitle from '../../components/PageTitle';
 
 const title = '데이터';
 const subTitle = 'Data';
@@ -30,27 +27,58 @@ const dataList = [
   { key: 6, label: '데이터 목록 7' },
 ];
 
+const ResponsiveDiv = styled('div')(({ theme }) => ({
+  padding: theme.spacing(1),
+  display: 'flex',
+  rowGap: '30px',
+
+  [theme.breakpoints.down('sm')]: {
+    flexDirection: 'column',
+  },
+
+  [theme.breakpoints.up('sm')]: {
+    flexDirection: 'row',
+    display: 'flex',
+    columnGap: '60px',
+
+    '& > .MuiBox-root:nth-of-type(2n-1) ': {
+      width: '30%',
+    },
+    '& > .MuiBox-root:nth-of-type(2n) ': {
+      width: '70%',
+      ul: { display: 'flex', flexWrap: 'wrap', columnGap: 12 },
+      li: { width: 'calc(50% - 8px)', marginBottom: 0 },
+    },
+  },
+
+  [theme.breakpoints.up('md')]: {
+    flexDirection: 'row',
+    display: 'flex',
+    columnGap: '60px',
+
+    '& > .MuiBox-root:nth-of-type(2n-1) ': {
+      width: '27%',
+    },
+    '& > .MuiBox-root:nth-of-type(2n) ': {
+      width: '73%',
+      ul: { display: 'flex', flexWrap: 'wrap', columnGap: 12 },
+      li: { width: 'calc(33.3333% - 8px)', marginBottom: 0 },
+    },
+  },
+}));
+
 function Data(props) {
   return (
-    <Box sx={{ pb: 2 }}>
-      <ResponsiveContainer>
-        <PageTitle title={title} subTitle={subTitle} />
-        <Box my={3}>
-          <Grid container spacing={3} sx={{ justifyContent: 'space-between', minHeight: 700 }}>
-            <Grid item xs={3}>
-              <DataTable title={'데이터 소스'} data={dataSource} dropMenu fastCreate edit delete />
-            </Grid>
-            <Grid item xs={8} spacing={3}>
-              <Grid item>
-                <DataTable title={'데이터 셋'} data={dataSet} dropMenu edit delete cardWidth="30%" />
-              </Grid>
-              <Grid item>
-                <DataTable title={'데이터 목록'} data={dataList} cardWidth="30%" />
-              </Grid>
-            </Grid>
-          </Grid>
-        </Box>
-      </ResponsiveContainer>
+    <Box sx={{ p: 4, px: 8 }}>
+      <Box>
+        <ResponsiveDiv>
+          <DataTable title={'데이터 소스'} data={dataSource} dropMenu fastCreate edit delete />
+          <Box sx={{ display: 'flex', flexDirection: 'column', rowGap: 5 }}>
+            <DataTable title={'데이터 셋'} data={dataSet} dropMenu edit delete />
+            <DataTable title={'데이터 목록'} data={dataList} />
+          </Box>
+        </ResponsiveDiv>
+      </Box>
     </Box>
   );
 }

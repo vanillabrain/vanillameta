@@ -13,15 +13,15 @@ export default createTheme({
       dark: '#cb0047',
     },
   },
-  breakpoints: {
-    values: {
-      xs: 0,
-      sm: 1020,
-      md: 1280,
-      lg: 1920,
-      xl: 1920,
-    },
-  },
+  // breakpoints: {
+  //   values: {
+  //     xs: 0,
+  //     sm: 1020,
+  //     md: 1280,
+  //     lg: 1920,
+  //     xl: 1920,
+  //   },
+  // },
   components: {
     MuiAppBar: {
       defaultProps: {
@@ -87,8 +87,8 @@ export default createTheme({
     MuiSvgIcon: {
       styleOverrides: {
         root: {
-          width: '0.8em',
-          height: '0.8em',
+          width: '0.9em',
+          height: '0.9em',
         },
       },
     },
