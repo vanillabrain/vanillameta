@@ -12,9 +12,11 @@ import {
   Toolbar,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
-import DropMenu from '../../components/DropMenu';
+import DropMenuButton from '../../components/DropMenuButton';
 import Logo from './Logo';
 import NavBar from './NavBar';
+
+const addMenuList = ['데이터 소스', '데이터 셋', '위젯', '대시보드'];
 
 function Header(props) {
   const headerHeight = props.height;
@@ -67,7 +69,7 @@ function Header(props) {
           <Logo />
 
           <NavBar navItems={navItems} />
-          <DropMenu button="big" />
+          <DropMenuButton button="big" menuList={addMenuList} />
         </Toolbar>
         <Divider />
       </AppBar>

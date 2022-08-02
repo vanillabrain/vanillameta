@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Link } from '@mui/material';
 
-const logo = '../../assets/images/logo.png';
+const logo = '../../assets/images/logo/vanilla-meta-logo.png';
 
 function Logo(props) {
   return (

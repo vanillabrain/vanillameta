@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Box, Button, Menu, MenuItem } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import { useNavigate } from 'react-router-dom';
 
 const menuWidth = 200;
 
-function DropMenu(props) {
+function DropMenuButton(props) {
+  // 1. props.menuList 가 있는 경우
   const menuList = props.menuList ? props.menuList : ['메뉴'];
 
   const [anchorEl, setAnchorEl] = React.useState(null);
@@ -16,6 +18,16 @@ function DropMenu(props) {
     setAnchorEl(null);
   };
 
+  // 2. props.menuNavigate 이 있는 경우
+  const [navigateUrl, setNavigateUrl] = useState('');
+  const navigate = useNavigate();
+  const handleNavigateClick = () => navigate(navigateUrl);
+
+  useEffect(() => {
+    setNavigateUrl(props.menuNavigate);
+    console.log(props.menuNavigate);
+  }, [navigateUrl]);
+
   const bigButton = (
     <Button
       id="추가 버튼"
@@ -24,7 +36,7 @@ function DropMenu(props) {
       aria-expanded={open ? 'true' : undefined}
       variant="contained"
       disableElevation
-      onClick={handleClick}
+      onClick={props.menuNavigate ? handleNavigateClick : handleClick}
       sx={{ minWidth: 0, p: 0.5 }}
     >
       <AddIcon />
@@ -40,7 +52,7 @@ function DropMenu(props) {
       variant="text"
       color="inherit"
       disableElevation
-      onClick={handleClick}
+      onClick={props.menuNavigate ? handleNavigateClick : handleClick}
       sx={{ minWidth: 0, p: 0.5 }}
     >
       <AddIcon />
@@ -71,4 +83,4 @@ function DropMenu(props) {
   );
 }
 
-export default DropMenu;
+export default DropMenuButton;

@@ -67,6 +67,7 @@ function CardList(props) {
             <CardActionArea sx={{ minHeight: 80, px: 2 }}>
               <CardContent sx={{ p: 0, pl: 1 }}>
                 <Typography
+                  component="span"
                   variant="subtitle2"
                   sx={{ width: '40%', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}
                 >

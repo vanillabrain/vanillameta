@@ -147,7 +147,7 @@ export default createTheme({
           width: '100%',
           height: '100%',
           // minWidth: isDesktop ? '1280px' : 0,
-          backgroundColor: '#f3f4f6',
+          backgroundColor: '#F8FBFC',
           fontFamily: 'Noto Sans KR',
           color: '#1F2123',
         },
@@ -174,6 +174,9 @@ export default createTheme({
     h2: {
       fontSize: '3rem',
       fontWeight: 500,
+    },
+    body1: {
+      fontSize: '0.9rem',
     },
   },
 });

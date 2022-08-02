@@ -1,9 +1,11 @@
 import React from 'react';
 import { Box, styled } from '@mui/material';
-import DataTable from './DataTable';
+import FrameItemBox from '../../components/FrameItemBox';
+import CardList from '../../components/CardList';
 
 const title = '데이터';
 const subTitle = 'Data';
+const navigateUrl = '/data/connect';
 
 const dataSource = [
   { key: 0, label: '데이터베이스 1' },
@@ -28,9 +30,8 @@ const dataList = [
 ];
 
 const ResponsiveDiv = styled('div')(({ theme }) => ({
-  padding: theme.spacing(1),
   display: 'flex',
-  rowGap: '30px',
+  rowGap: theme.spacing(3),
 
   [theme.breakpoints.down('sm')]: {
     flexDirection: 'column',
@@ -39,43 +40,54 @@ const ResponsiveDiv = styled('div')(({ theme }) => ({
   [theme.breakpoints.up('sm')]: {
     flexDirection: 'row',
     display: 'flex',
-    columnGap: '60px',
+    columnGap: theme.spacing(7),
+    ul: { display: 'flex', columnGap: 12 },
+    li: { marginBottom: 0 },
 
     '& > .MuiBox-root:nth-of-type(2n-1) ': {
       width: '30%',
+      ul: { flexDirection: 'column' },
     },
     '& > .MuiBox-root:nth-of-type(2n) ': {
       width: '70%',
-      ul: { display: 'flex', flexWrap: 'wrap', columnGap: 12 },
-      li: { width: 'calc(50% - 8px)', marginBottom: 0 },
+      ul: { flexWrap: 'wrap' },
+      li: { width: 'calc(50% - 8px)' },
     },
   },
 
   [theme.breakpoints.up('md')]: {
     flexDirection: 'row',
     display: 'flex',
-    columnGap: '60px',
+    columnGap: theme.spacing(8),
+    ul: { display: 'flex', columnGap: 12 },
+    li: { marginBottom: 0 },
 
     '& > .MuiBox-root:nth-of-type(2n-1) ': {
       width: '27%',
     },
     '& > .MuiBox-root:nth-of-type(2n) ': {
       width: '73%',
-      ul: { display: 'flex', flexWrap: 'wrap', columnGap: 12 },
-      li: { width: 'calc(33.3333% - 8px)', marginBottom: 0 },
+      ul: { flexWrap: 'wrap' },
+      li: { width: 'calc(33.3333% - 8px)' },
     },
   },
 }));
 
-function Data(props) {
+function Data() {
   return (
     <Box sx={{ p: 4, px: 8 }}>
       <Box>
         <ResponsiveDiv>
-          <DataTable title={'데이터 소스'} data={dataSource} dropMenu fastCreate edit delete />
+          <FrameItemBox title={'데이터 소스'} menuNavigate={navigateUrl} fastCreate edit delete>
+            <CardList data={dataSource} fastCreate edit delete />
+          </FrameItemBox>
           <Box sx={{ display: 'flex', flexDirection: 'column', rowGap: 5 }}>
-            <DataTable title={'데이터 셋'} data={dataSet} dropMenu edit delete />
-            <DataTable title={'데이터 목록'} data={dataList} />
+            <FrameItemBox title={'데이터 셋'}>
+              <CardList data={dataSet} edit delete />
+            </FrameItemBox>
+            <FrameItemBox title={'데이터 목록'} data={dataList}>
+              <CardList data={dataList} />
+            </FrameItemBox>
           </Box>
         </ResponsiveDiv>
       </Box>
