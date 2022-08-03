@@ -1,5 +1,5 @@
 import React from 'react';
-import { Divider, Box, Stack, Typography, ListItem, Button } from '@mui/material';
+import { Divider, Box, Stack, Typography } from '@mui/material';
 import ConfirmButton from './ConfirmButton';
 
 function FramePageBox(props) {
@@ -12,15 +12,20 @@ function FramePageBox(props) {
         width: '100%',
       }}
     >
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ width: '100%', py: 1 }}>
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        sx={{
+          width: '100%',
+          py: 1,
+          // alignItems: { xs: 'flex-start', md: 'center' },
+          // flexDirection: { xs: 'column', md: 'row' },
+        }}
+      >
         <Typography variant="h5" component="span" sx={{ fontWeight: 500 }}>
           {title}
         </Typography>
-        {/*{props.menuList || props.menuNavigate ? (*/}
-        {/*  <DropMenuButton menuList={props.menuList || false} menuNavigate={props.menuNavigate || false} />*/}
-        {/*) : (*/}
-        {/*  ''*/}
-        {/*)}*/}
         <ConfirmButton />
       </Stack>
       <Divider sx={{ marginBottom: 5 }} />

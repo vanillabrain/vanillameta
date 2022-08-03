@@ -57,9 +57,9 @@ function CardList(props) {
   };
 
   return (
-    <Box component="ul" sx={{ listStyle: 'none', m: '0 auto', p: 0 }}>
+    <Box component="ul" sx={{ listStyle: 'none', m: '0 auto', p: 0, gap: 2 }}>
       {props.data.map(data => (
-        <Box component="li" key={data.key} sx={{ my: 2 }}>
+        <Box component="li" key={data.key}>
           <Card
             sx={{ position: 'relative' }}
             // onMouseOver={onMouseHandler} onMouseLeave={offMouseHandler}

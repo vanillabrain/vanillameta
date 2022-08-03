@@ -4,6 +4,7 @@ import { styled } from '@mui/material/styles';
 import FramePageBox from '../../components/FramePageBox';
 import FrameItemBox from '../../components/FrameItemBox';
 import ImgCardList from '../../components/ImgCardList';
+import LabelInputForm from '../../components/LabelInputForm';
 
 const typeList = [
   { key: 0, label: 'MySQL', src: 'mysql-logo.svg' },
@@ -20,41 +21,24 @@ const typeList = [
 
 const formList = [
   { key: 0, label: '이름', id: 'userName' },
-  { key: 1, label: 'HOST', id: 'userHost' },
-  { key: 2, label: 'Port', id: 'userPort' },
+  { key: 1, label: 'HOST', id: 'userHost', width: '50%' },
+  { key: 2, label: 'Port', id: 'userPort', width: '50%' },
   { key: 3, label: 'User', id: 'userId' },
   { key: 4, label: 'Password', id: 'userPassword', type: 'password' },
   { key: 5, label: 'Schema', id: 'userSchema' },
 ];
 
-const StyledListItem = styled(ListItem)(({ theme }) => ({
-  '& .MuiTypography-root': {
-    display: 'block',
-    minWidth: 120,
-  },
-  '& .MuiTextField-root': {
-    backgroundColor: '#fff',
-  },
-}));
-
 function DataConnect(props) {
   return (
-    <Stack sx={{ p: 4, px: 8 }}>
+    <Stack sx={{ p: { xs: 3, sm: 4 }, px: 8 }}>
       <FramePageBox title={'데이터 소스 연결'} dropmenu>
         <Stack spacing={3}>
           <FrameItemBox title={'step.01 타입 설정'}>
-            <ImgCardList data={typeList} fastCreate edit delete />
+            <ImgCardList data={typeList} />
           </FrameItemBox>
           <FrameItemBox title={'step.02 연결 정보 입력'}>
-            <Stack component="form" sx={{ width: 600, mx: 'auto', mt: 3 }}>
-              <List>
-                {formList.map(item => (
-                  <StyledListItem>
-                    <Typography variant="body2">{item.label}</Typography>
-                    <TextField id={item.id} label={item.label} type={item.type || 'none'} required fullWidth />
-                  </StyledListItem>
-                ))}
-              </List>
+            <Stack component="form" sx={{ maxWidth: 600, mx: 'auto', mt: 3 }}>
+              <LabelInputForm data={formList} />
               <Button variant="contained" size="large" sx={{ mt: 3, mx: 2 }}>
                 Test Connect
               </Button>

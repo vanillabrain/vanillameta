@@ -146,6 +146,7 @@ export default createTheme({
         'html, body, #root': {
           width: '100%',
           height: '100%',
+          minWidth: 340,
           // minWidth: isDesktop ? '1280px' : 0,
           backgroundColor: '#F8FBFC',
           fontFamily: 'Noto Sans KR',

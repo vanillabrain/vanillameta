@@ -30,8 +30,7 @@ const dataList = [
 ];
 
 const ResponsiveDiv = styled('div')(({ theme }) => ({
-  display: 'flex',
-  rowGap: theme.spacing(3),
+  rowGap: theme.spacing(5),
 
   [theme.breakpoints.down('sm')]: {
     flexDirection: 'column',
@@ -42,7 +41,7 @@ const ResponsiveDiv = styled('div')(({ theme }) => ({
     display: 'flex',
     columnGap: theme.spacing(7),
     ul: { display: 'flex', columnGap: 12 },
-    li: { marginBottom: 0 },
+    // li: { marginBottom: 0 },
 
     '& > .MuiBox-root:nth-of-type(2n-1) ': {
       width: '30%',

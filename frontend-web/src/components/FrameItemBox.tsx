@@ -22,7 +22,7 @@ function FrameItemBox(props) {
           ''
         )}
       </Stack>
-      <Divider sx={{ marginBottom: 1 }} />
+      <Divider sx={{ marginBottom: 3 }} />
       {props.children}
     </Box>
   );
