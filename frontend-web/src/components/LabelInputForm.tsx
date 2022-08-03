@@ -1,5 +1,15 @@
 import React from 'react';
-import { List, ListItem, TextField, Typography } from '@mui/material';
+import {
+  FormControl,
+  FormHelperText,
+  Input,
+  InputLabel,
+  List,
+  ListItem,
+  OutlinedInput,
+  TextField,
+  Typography,
+} from '@mui/material';
 import { styled } from '@mui/material/styles';
 
 // const StyledListItem = styled(ListItem)(({ theme }) => ({
@@ -22,14 +32,7 @@ function LabelInputForm(props) {
           {/*<Typography variant="body2" sx={{ minWidth: 100 }}>*/}
           {/*  {item.label}*/}
           {/*</Typography>*/}
-          <TextField
-            id={item.id}
-            label={item.label}
-            type={item.type || 'none'}
-            sx={{ backgroundColor: '#fff' }}
-            required
-            fullWidth
-          />
+          <TextField id={item.id} label={item.label} type={item.type || 'none'} required fullWidth />
         </ListItem>
       ))}
     </List>

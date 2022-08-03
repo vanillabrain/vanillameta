@@ -2,7 +2,7 @@ import React from 'react';
 import { Divider, Box, Stack, Typography } from '@mui/material';
 import ConfirmButton from './ConfirmButton';
 
-function FramePageBox(props) {
+function PageTitleBox(props) {
   const title: string = props.title ? props.title : '';
   const minHeight: number = props.minHeight ? props.minHeight : '100%';
 
@@ -34,4 +34,4 @@ function FramePageBox(props) {
   );
 }
 
-export default FramePageBox;
+export default PageTitleBox;

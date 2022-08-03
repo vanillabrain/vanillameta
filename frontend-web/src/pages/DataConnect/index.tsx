@@ -1,8 +1,8 @@
 import React from 'react';
-import { Box, Button, List, ListItem, Stack, TextField, Typography } from '@mui/material';
-import { styled } from '@mui/material/styles';
-import FramePageBox from '../../components/FramePageBox';
-import FrameItemBox from '../../components/FrameItemBox';
+import { Button, Stack } from '@mui/material';
+import PageContainer from '../../components/PageContainer';
+import PageTitleBox from '../../components/PageTitleBox';
+import TitleBox from '../../components/TitleBox';
 import ImgCardList from '../../components/ImgCardList';
 import LabelInputForm from '../../components/LabelInputForm';
 
@@ -30,23 +30,23 @@ const formList = [
 
 function DataConnect(props) {
   return (
-    <Stack sx={{ p: { xs: 3, sm: 4 }, px: 8 }}>
-      <FramePageBox title={'데이터 소스 연결'} dropmenu>
+    <PageContainer>
+      <PageTitleBox title={'데이터 소스 연결'} dropmenu>
         <Stack spacing={3}>
-          <FrameItemBox title={'step.01 타입 설정'}>
+          <TitleBox title={'step.01 타입 설정'}>
             <ImgCardList data={typeList} />
-          </FrameItemBox>
-          <FrameItemBox title={'step.02 연결 정보 입력'}>
-            <Stack component="form" sx={{ maxWidth: 600, mx: 'auto', mt: 3 }}>
+          </TitleBox>
+          <TitleBox title={'step.02 연결 정보 입력'}>
+            <Stack component="form" sx={{ maxWidth: 500, mx: 'auto', mt: 3 }}>
               <LabelInputForm data={formList} />
               <Button variant="contained" size="large" sx={{ mt: 3, mx: 2 }}>
                 Test Connect
               </Button>
             </Stack>
-          </FrameItemBox>
+          </TitleBox>
         </Stack>
-      </FramePageBox>
-    </Stack>
+      </PageTitleBox>
+    </PageContainer>
   );
 }
 

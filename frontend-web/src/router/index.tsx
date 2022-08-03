@@ -5,6 +5,7 @@ import Dashboard from '../pages/Dashboard';
 import Widget from '../pages/Widget';
 import Data from '../pages/Data';
 import DataConnect from '../pages/DataConnect';
+import DataSet from '../pages/DataSet';
 import Status404 from '../pages/Status404';
 
 function Router(props) {
@@ -14,7 +15,7 @@ function Router(props) {
       <Route path="/widget" element={<Widget />} />
       <Route path="/data" element={<Data />} />
       <Route path="/data/connect" element={<DataConnect />} />
-      <Route path="/data/test" element={<Widget />} />
+      <Route path="/data/set" element={<DataSet />} />
       <Route path="/*" element={<Status404 />} />
     </Routes>
   );

@@ -2,7 +2,7 @@ import React from 'react';
 import { Divider, Box, Stack, Typography } from '@mui/material';
 import DropMenuButton from './DropMenuButton';
 
-function FrameItemBox(props) {
+function TitleBox(props) {
   const title: string = props.title ? props.title : '';
   const minHeight: number = props.minHeight ? props.minHeight : '100%';
 
@@ -28,4 +28,4 @@ function FrameItemBox(props) {
   );
 }
 
-export default FrameItemBox;
+export default TitleBox;

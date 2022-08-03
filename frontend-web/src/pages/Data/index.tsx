@@ -1,7 +1,8 @@
 import React from 'react';
 import { Box, Grid, styled } from '@mui/material';
-import FrameItemBox from '../../components/FrameItemBox';
+import TitleBox from '../../components/TitleBox';
 import CardList from '../../components/CardList';
+import PageContainer from '../../components/PageContainer';
 
 const title = '데이터';
 const subTitle = 'Data';
@@ -31,31 +32,31 @@ const dataList = [
 
 function Data() {
   return (
-    <Box sx={{ p: 4, px: 8 }}>
+    <PageContainer>
       <Box>
         <Grid container spacing={5}>
           <Grid item xs={12} md={4}>
-            <FrameItemBox title={'데이터 소스'} menuNavigate={navigateUrl} fastCreate edit delete>
+            <TitleBox title={'데이터 소스'} menuNavigate={navigateUrl} fastCreate edit delete>
               <CardList data={dataSource} fastCreate edit delete minWidth="100%" />
-            </FrameItemBox>
+            </TitleBox>
           </Grid>
           <Grid item xs={12} md>
             <Grid container spacing={5}>
               <Grid item xs={12}>
-                <FrameItemBox title={'데이터 셋'}>
+                <TitleBox title={'데이터 셋'}>
                   <CardList data={dataSet} edit delete />
-                </FrameItemBox>
+                </TitleBox>
               </Grid>
               <Grid item xs={12}>
-                <FrameItemBox title={'데이터 목록'} data={dataList}>
+                <TitleBox title={'데이터 목록'} data={dataList}>
                   <CardList data={dataList} />
-                </FrameItemBox>
+                </TitleBox>
               </Grid>
             </Grid>
           </Grid>
         </Grid>
       </Box>
-    </Box>
+    </PageContainer>
   );
 }
 

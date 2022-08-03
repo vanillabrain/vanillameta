@@ -104,6 +104,11 @@ export default createTheme({
       },
     },
     MuiOutlinedInput: {
+      styleOverrides: {
+        root: {
+          backgroundColor: '#fff',
+        },
+      },
       defaultProps: {
         margin: 'none',
       },
@@ -119,6 +124,13 @@ export default createTheme({
       },
     },
     MuiTextField: {
+      styleOverrides: {
+        root: {
+          '& .MuiInputBase-root': {
+            backgroundColor: '#fff',
+          },
+        },
+      },
       defaultProps: {
         margin: 'dense',
         size: 'small',
@@ -146,7 +158,7 @@ export default createTheme({
         'html, body, #root': {
           width: '100%',
           height: '100%',
-          minWidth: 340,
+          minWidth: 400,
           // minWidth: isDesktop ? '1280px' : 0,
           backgroundColor: '#F8FBFC',
           fontFamily: 'Noto Sans KR',
