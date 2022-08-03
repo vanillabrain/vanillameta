@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, IconButton, Card, Typography, CardContent, CardActionArea, CardActions } from '@mui/material';
+import { Box, Grid, IconButton, Card, Typography, CardContent, CardActionArea, CardActions } from '@mui/material';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -57,9 +57,19 @@ function CardList(props) {
   };
 
   return (
-    <Box component="ul" sx={{ listStyle: 'none', m: '0 auto', p: 0, gap: 2 }}>
+    <Grid
+      container
+      spacing={2}
+      component="ul"
+      sx={{
+        listStyle: 'none',
+        pl: 0,
+        display: 'grid',
+        gridTemplateColumns: { xs: '1fr', md: `repeat(${props.minWidth || '3, 1fr'})` },
+      }}
+    >
       {props.data.map(data => (
-        <Box component="li" key={data.key}>
+        <Grid item xs={12} md component="li" key={data.key}>
           <Card
             sx={{ position: 'relative' }}
             // onMouseOver={onMouseHandler} onMouseLeave={offMouseHandler}
@@ -77,9 +87,9 @@ function CardList(props) {
             </CardActionArea>
             {iconActionArea}
           </Card>
-        </Box>
+        </Grid>
       ))}
-    </Box>
+    </Grid>
   );
 }
 
