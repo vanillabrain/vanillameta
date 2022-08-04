@@ -37,7 +37,7 @@ function DataConnect(props) {
             <ImgCardList data={typeList} />
           </TitleBox>
           <TitleBox title={'step.02 연결 정보 입력'}>
-            <Stack component="form" sx={{ maxWidth: 500, mx: 'auto', mt: 3 }}>
+            <Stack component="form" sx={{ maxWidth: 700, mx: 'auto', mt: 3 }}>
               <LabelInputForm data={formList} />
               <Button variant="contained" size="large" sx={{ mt: 3, mx: 2 }}>
                 Test Connect

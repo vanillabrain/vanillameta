@@ -21,7 +21,7 @@ function ImgCardList(props) {
       justifyContent="center"
       flexWrap="wrap"
       component="ul"
-      sx={{ maxWidth: 800, listStyle: 'none', m: '16px auto', p: 0, gap: { xs: 2, md: 3 } }}
+      sx={{ maxWidth: '100%', listStyle: 'none', m: '16px auto', p: 0, gap: { xs: 2, md: 3 } }}
     >
       {props.data.map(item => (
         <Box component="li" key={item.key} sx={{ minWidth: { xs: 100, md: 130 }, my: 0 }}>

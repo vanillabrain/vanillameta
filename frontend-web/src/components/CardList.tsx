@@ -22,26 +22,20 @@ function CardList(props) {
         p: 0,
       }}
     >
-      {props.fastCreate ? (
+      {props.fastCreate && (
         <IconButton size="small">
           <AutoAwesomeIcon />
         </IconButton>
-      ) : (
-        ''
       )}
-      {props.edit ? (
+      {props.edit && (
         <IconButton size="small">
           <EditIcon />
         </IconButton>
-      ) : (
-        ''
       )}
-      {props.delete ? (
+      {props.delete && (
         <IconButton size="small">
           <DeleteIcon />
         </IconButton>
-      ) : (
-        ''
       )}
     </CardActions>
   );

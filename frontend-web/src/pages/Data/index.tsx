@@ -6,7 +6,8 @@ import PageContainer from '../../components/PageContainer';
 
 const title = '데이터';
 const subTitle = 'Data';
-const navigateUrl = '/data/connect';
+const dataConnectUrl = '/data/connect';
+const dataSetUrl = '/data/set';
 
 const dataSource = [
   { key: 0, label: '데이터베이스 1' },
@@ -36,14 +37,14 @@ function Data() {
       <Box>
         <Grid container spacing={5}>
           <Grid item xs={12} md={4}>
-            <TitleBox title={'데이터 소스'} menuNavigate={navigateUrl} fastCreate edit delete>
+            <TitleBox title={'데이터 소스'} menuNavigate={dataConnectUrl} fastCreate edit delete>
               <CardList data={dataSource} fastCreate edit delete minWidth="100%" />
             </TitleBox>
           </Grid>
           <Grid item xs={12} md>
             <Grid container spacing={5}>
               <Grid item xs={12}>
-                <TitleBox title={'데이터 셋'}>
+                <TitleBox title={'데이터 셋'} menuNavigate={dataSetUrl}>
                   <CardList data={dataSet} edit delete />
                 </TitleBox>
               </Grid>
