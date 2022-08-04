@@ -5,9 +5,9 @@ import TitleBox from '../../components/TitleBox';
 import BoardList from '../../components/BoardList';
 
 const title = '위젯';
-const menuNavigate = '/widget/';
+const menuNavigate = '/widget/create';
 
-const menuList = [
+const postList = [
   {
     id: 1,
     title: '위젯1',
@@ -98,7 +98,7 @@ function Widget() {
   return (
     <PageContainer>
       <TitleBox title={title} menuNavigate={menuNavigate}>
-        <BoardList menuList={menuList} />
+        <BoardList postList={postList} />
       </TitleBox>
     </PageContainer>
   );

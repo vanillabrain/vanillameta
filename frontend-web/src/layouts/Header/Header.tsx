@@ -16,7 +16,12 @@ import DropMenuButton from '../../components/DropMenuButton';
 import Logo from './Logo';
 import NavBar from './NavBar';
 
-const addMenuList = ['데이터 소스', '데이터 셋', '위젯', '대시보드'];
+const menuList = [
+  { label: '데이터 소스', url: '/data/connect' },
+  { label: '데이터 셋', url: '/data/set' },
+  { label: '위젯', url: '/widget/create' },
+  { label: '대시보드', url: '/dashboard' },
+];
 
 function Header(props) {
   const headerHeight = props.height;
@@ -69,7 +74,7 @@ function Header(props) {
           <Logo />
 
           <NavBar navItems={navItems} />
-          <DropMenuButton button="big" menuList={addMenuList} />
+          <DropMenuButton button="big" menuList={menuList} />
         </Toolbar>
         <Divider />
       </AppBar>

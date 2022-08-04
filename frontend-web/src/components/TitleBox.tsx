@@ -3,8 +3,7 @@ import { Divider, Box, Stack, Typography } from '@mui/material';
 import DropMenuButton from './DropMenuButton';
 
 function TitleBox(props) {
-  const title: string = props.title ? props.title : '';
-  const minHeight: number = props.minHeight ? props.minHeight : '100%';
+  const title: string = props.title || '';
 
   return (
     <Box
@@ -16,8 +15,8 @@ function TitleBox(props) {
         <Typography variant="subtitle1" component="span" sx={{ fontWeight: 500 }}>
           {title}
         </Typography>
-        {props.menuList || props.menuNavigate ? (
-          <DropMenuButton menuList={props.menuList || false} menuNavigate={props.menuNavigate || false} />
+        {props.menuList || props.naviUrl ? (
+          <DropMenuButton menuList={props.menuList || false} naviUrl={props.naviUrl || false} />
         ) : (
           ''
         )}

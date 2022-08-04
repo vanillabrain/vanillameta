@@ -7,7 +7,7 @@ const tableBorder = '1px solid #DADDDD';
 function BoardListItem(props) {
   return (
     <ListItem
-      key={props.menuList.id}
+      key={props.postList.id}
       secondaryAction={
         <React.Fragment>
           <IconButton size="large">
@@ -29,9 +29,9 @@ function BoardListItem(props) {
           <Dashboard />
         </ListItemIcon>
         <ListItemText
-          primary={props.menuList.title}
+          primary={props.postList.title}
           primaryTypographyProps={{ fontWeight: 500 }}
-          secondary={props.menuList.date}
+          secondary={props.postList.date}
           sx={{
             display: { xs: 'block', sm: 'flex' },
             justifyContent: 'space-between',

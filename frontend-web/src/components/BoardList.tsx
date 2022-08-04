@@ -45,8 +45,8 @@ function BoardList(props) {
         <Grid item>{matches && <Typography variant="body2">수정한 날짜</Typography>}</Grid>
       </Grid>
       <List sx={{ m: 'auto', border: tableBorder, borderRadius: 2, backgroundColor: '#fff' }} disablePadding>
-        {props.menuList.map(item => (
-          <BoardListItem menuList={item} />
+        {props.postList.map(item => (
+          <BoardListItem postList={item} key={item.id} />
         ))}
       </List>
       <Stack alignItems="center" mt={4}>

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Button, Menu, MenuItem, useMediaQuery, useTheme } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import { useNavigate } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 
 const menuWidth = 200;
 
@@ -9,9 +9,16 @@ function DropMenuButton(props) {
   const theme = useTheme();
   const machesMd = useMediaQuery(theme.breakpoints.down('md'));
 
-  // 1. props.menuList 가 있는 경우
-  const menuList = props.menuList ? props.menuList : ['메뉴'];
+  // 1. props.naviUrl 이 있는 경우
+  const [navigateUrl, setNavigateUrl] = useState('');
+  const navigate = useNavigate();
+  const handleNavigateClick = () => navigate(navigateUrl);
 
+  useEffect(() => {
+    setNavigateUrl(props.naviUrl);
+  }, [navigateUrl]);
+
+  // 2. props.menuList 가 있는 경우
   const [anchorEl, setAnchorEl] = React.useState(null);
   const open = Boolean(anchorEl);
   const handleClick = event => {
@@ -21,16 +28,6 @@ function DropMenuButton(props) {
     setAnchorEl(null);
   };
 
-  // 2. props.menuNavigate 이 있는 경우
-  const [navigateUrl, setNavigateUrl] = useState('');
-  const navigate = useNavigate();
-  const handleNavigateClick = () => navigate(navigateUrl);
-
-  useEffect(() => {
-    setNavigateUrl(props.menuNavigate);
-    console.log(props.menuNavigate);
-  }, [navigateUrl]);
-
   const bigButton = (
     <Button
       id="추가 버튼"
@@ -38,7 +35,7 @@ function DropMenuButton(props) {
       aria-haspopup="true"
       aria-expanded={open ? 'true' : undefined}
       variant="outlined"
-      onClick={props.menuNavigate ? handleNavigateClick : handleClick}
+      onClick={props.naviUrl ? handleNavigateClick : handleClick}
       sx={{ minWidth: { xs: 0 } }}
       startIcon={machesMd ? false : <AddIcon />}
     >
@@ -55,12 +52,14 @@ function DropMenuButton(props) {
       variant="text"
       color="inherit"
       disableElevation
-      onClick={props.menuNavigate ? handleNavigateClick : handleClick}
+      onClick={props.naviUrl ? handleNavigateClick : handleClick}
       sx={{ minWidth: 0, p: 0.5 }}
     >
       <AddIcon />
     </Button>
   );
+
+  console.log(props.menuList.label);
 
   return (
     <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
@@ -76,11 +75,11 @@ function DropMenuButton(props) {
         onClose={handleClose}
         sx={{ width: menuWidth }}
       >
-        {menuList.map(menu => (
-          <MenuItem key={menu} onClick={handleClose} disableRipple sx={{ width: menuWidth }}>
-            {menu}
-          </MenuItem>
-        ))}
+        {/*{props.menuList.map(item => (*/}
+        {/*  <MenuItem onClick={handleClose} disableRipple sx={{ width: menuWidth }}>*/}
+        {/*    /!*<RouterLink to={item.url} />*!/*/}
+        {/*  </MenuItem>*/}
+        {/*))}*/}
       </Menu>
     </Box>
   );
