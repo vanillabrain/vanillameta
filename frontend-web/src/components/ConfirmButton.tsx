@@ -7,7 +7,7 @@ function ConfirmButton(props) {
       <Button variant="outlined" sx={{ minWidth: { xs: 60, sm: 100 } }}>
         취소
       </Button>
-      <Button variant="contained" sx={{ minWidth: { xs: 60, sm: 100 } }}>
+      <Button variant="contained" disabled={!!props.disabled} sx={{ minWidth: { xs: 60, sm: 100 } }}>
         저장
       </Button>
     </Stack>

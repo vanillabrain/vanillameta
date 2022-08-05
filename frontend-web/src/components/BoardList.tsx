@@ -1,19 +1,5 @@
 import React from 'react';
-import {
-  Box,
-  Grid,
-  IconButton,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Pagination,
-  Stack,
-  Typography,
-  useMediaQuery,
-  useTheme,
-} from '@mui/material';
+import { Box, Grid, List, Pagination, Stack, Typography, useMediaQuery, useTheme } from '@mui/material';
 import BoardListItem from './BoardListItem';
 
 function BoardList(props) {

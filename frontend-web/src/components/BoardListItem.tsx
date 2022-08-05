@@ -1,10 +1,23 @@
 import React from 'react';
 import { IconButton, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import { Dashboard, Delete, Edit } from '@mui/icons-material';
-
+import { BarChart, PieChart, Dashboard, Delete, Edit } from '@mui/icons-material';
+// import PieChartIcon from '@mui/icons-material/PieChart';
 const tableBorder = '1px solid #DADDDD';
 
 function BoardListItem(props) {
+  const IconType = () => {
+    switch (props.postList.type) {
+      case 'dashboard':
+        return <Dashboard />;
+      case 'barChart':
+        return <BarChart />;
+      case 'pieChart':
+        return <PieChart />;
+      default:
+        return;
+    }
+  };
+
   return (
     <ListItem
       key={props.postList.id}
@@ -25,9 +38,7 @@ function BoardListItem(props) {
       }}
     >
       <ListItemButton sx={{ py: 0.8 }}>
-        <ListItemIcon>
-          <Dashboard />
-        </ListItemIcon>
+        <ListItemIcon>{IconType()}</ListItemIcon>
         <ListItemText
           primary={props.postList.title}
           primaryTypographyProps={{ fontWeight: 500 }}

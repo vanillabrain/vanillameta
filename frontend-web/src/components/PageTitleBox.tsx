@@ -19,14 +19,12 @@ function PageTitleBox(props) {
         sx={{
           width: '100%',
           py: 1,
-          // alignItems: { xs: 'flex-start', md: 'center' },
-          // flexDirection: { xs: 'column', md: 'row' },
         }}
       >
         <Typography variant="h5" component="span" sx={{ fontWeight: 500 }}>
           {title}
         </Typography>
-        <ConfirmButton />
+        <ConfirmButton disabled={props.disabled} />
       </Stack>
       <Divider sx={{ marginBottom: 5 }} />
       {props.children}

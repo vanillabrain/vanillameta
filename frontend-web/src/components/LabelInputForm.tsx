@@ -1,41 +1,34 @@
 import React from 'react';
-import {
-  FormControl,
-  FormHelperText,
-  Input,
-  InputLabel,
-  List,
-  ListItem,
-  OutlinedInput,
-  TextField,
-  Typography,
-} from '@mui/material';
-import { styled } from '@mui/material/styles';
-
-// const StyledListItem = styled(ListItem)(({ theme }) => ({
-//   // width: `${props.width} && '100%'`,
-//
-//   '& .MuiTypography-root': {
-//     display: 'block',
-//     minWidth: 120,
-//   },
-//   '& .MuiTextField-root': {
-//     backgroundColor: '#fff',
-//   },
-// }));
+import { List, ListItem, Stack, TextField } from '@mui/material';
+import SubmitButton from './SubmitButton';
 
 function LabelInputForm(props) {
+  const handleSubmit = data => {
+    data.preventDefault();
+    const userData = {
+      userName: data.target.userName.value,
+      userHost: data.target.userHost.value,
+      userPort: data.target.userPort.value,
+      userId: data.target.userId.value,
+      userPassword: data.target.userPassword.value,
+      userSchema: data.target.userSchema.value,
+    };
+    console.log(userData);
+  };
+
   return (
-    <List sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-      {props.data.map(item => (
-        <ListItem sx={{ width: { xs: '100%', sm: item.width || '100%' } }}>
-          {/*<Typography variant="body2" sx={{ minWidth: 100 }}>*/}
-          {/*  {item.label}*/}
-          {/*</Typography>*/}
-          <TextField id={item.id} label={item.label} type={item.type || 'none'} required fullWidth />
+    <Stack component="form" sx={{ maxWidth: 700, mx: 'auto', mt: 3 }} onSubmit={handleSubmit}>
+      <List sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+        {props.data.map(item => (
+          <ListItem key={item.id} sx={{ width: { xs: '100%', sm: item.width || '100%' } }}>
+            <TextField id={item.id} label={item.label} type={item.type || 'none'} required fullWidth />
+          </ListItem>
+        ))}
+        <ListItem>
+          <SubmitButton label="Test Connect" type="submit" />
         </ListItem>
-      ))}
-    </List>
+      </List>
+    </Stack>
   );
 }
 

@@ -1,31 +1,26 @@
-import React from 'react';
-import { Box, Button, Stack, TextField, Snackbar, Alert } from '@mui/material';
-// import MuiAlert from '@mui/material/Alert';
+import React, { useState } from 'react';
+import { Stack, TextField } from '@mui/material';
 import PageContainer from '../../components/PageContainer';
 import PageTitleBox from '../../components/PageTitleBox';
-
-// const Alert = React.forwardRef(function Alert(props, ref) {
-//   return <MuiAlert elevation={6} ref={ref} variant="filled" {...props} />;
-// });
+import SubmitButton from '../../components/SubmitButton';
 
 function DataSet(props) {
-  const [open, setOpen] = React.useState(false);
+  const [isConnected, setIsConnected] = useState(false);
 
-  const handleClick = () => {
-    setOpen(true);
-  };
-
-  const handleClose = (event: React.SyntheticEvent | Event, reason?: string) => {
-    if (reason === 'clickaway') {
-      return;
-    }
-    setOpen(false);
+  const handleSubmit = data => {
+    data.preventDefault();
+    const userData = {
+      userSetName: data.target.userSetName.value,
+      userSetContent: data.target.userSetContent.value,
+    };
+    console.log(userData);
+    setIsConnected(true);
   };
 
   return (
     <PageContainer>
-      <PageTitleBox title="데이터셋 생성">
-        <Stack component="form" flexDirection="column" spacing={3} sx={{ maxWidth: 800, m: 'auto' }}>
+      <PageTitleBox title="데이터셋 생성" disabled={!isConnected}>
+        <Stack component="form" flexDirection="column" spacing={3} sx={{ maxWidth: 800, m: 'auto' }} onSubmit={handleSubmit}>
           <TextField
             id="userSetName"
             label="데이터셋 이름"
@@ -43,16 +38,7 @@ function DataSet(props) {
             required
             // helperText="데이터셋의 내용을 입력해 주세요"
           />
-          <Box>
-            <Button variant="contained" size="large" sx={{ mt: 3, mx: 2, ml: 0 }} fullWidth onClick={handleClick}>
-              Test Query
-            </Button>
-            <Snackbar open={open} autoHideDuration={6000} onClose={handleClose}>
-              <Alert onClose={handleClose} elevation={2} severity="success" sx={{ width: '100%' }}>
-                Success!
-              </Alert>
-            </Snackbar>
-          </Box>
+          <SubmitButton label="Test Connect" type="submit" />
         </Stack>
       </PageTitleBox>
     </PageContainer>

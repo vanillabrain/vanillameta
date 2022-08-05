@@ -20,7 +20,7 @@ const menuList = [
   { label: '데이터 소스', url: '/data/connect' },
   { label: '데이터 셋', url: '/data/set' },
   { label: '위젯', url: '/widget/create' },
-  { label: '대시보드', url: '/dashboard' },
+  { label: '대시보드', url: '/' },
 ];
 
 function Header(props) {

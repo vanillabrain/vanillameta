@@ -59,28 +59,35 @@ function DropMenuButton(props) {
     </Button>
   );
 
-  console.log(props.menuList.label);
-
   return (
     <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
       {props.button === 'big' ? bigButton : smallButton}
 
-      <Menu
-        id="styled-menu"
-        MenuListProps={{
-          'aria-labelledby': '추가 버튼',
-        }}
-        anchorEl={anchorEl}
-        open={open}
-        onClose={handleClose}
-        sx={{ width: menuWidth }}
-      >
-        {/*{props.menuList.map(item => (*/}
-        {/*  <MenuItem onClick={handleClose} disableRipple sx={{ width: menuWidth }}>*/}
-        {/*    /!*<RouterLink to={item.url} />*!/*/}
-        {/*  </MenuItem>*/}
-        {/*))}*/}
-      </Menu>
+      {props.menuList && (
+        <Menu
+          id="styled-menu"
+          MenuListProps={{
+            'aria-labelledby': '추가 버튼',
+          }}
+          anchorEl={anchorEl}
+          open={open}
+          onClose={handleClose}
+          sx={{ width: menuWidth }}
+        >
+          {props.menuList.map(item => (
+            <MenuItem
+              key={item.label}
+              component={RouterLink}
+              to={item.url}
+              onClick={handleClose}
+              disableRipple
+              sx={{ width: menuWidth }}
+            >
+              {item.label}
+            </MenuItem>
+          ))}
+        </Menu>
+      )}
     </Box>
   );
 }

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Box, Grid } from '@mui/material';
 import TitleBox from './TitleBox';
 import CardList from './CardList';
@@ -26,6 +26,8 @@ const dataList = [
 ];
 
 function DataTable(props) {
+  const [selectedData, setSelectedData] = useState('');
+
   return (
     <Box>
       <Grid container spacing={5}>

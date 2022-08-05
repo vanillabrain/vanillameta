@@ -1,19 +1,18 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Box, Card, Typography, CardContent, CardActionArea, Stack } from '@mui/material';
 
 function ImgCardList(props) {
   const srcUrl = '/assets/images/logo/';
-  // const cardWidth = props.cardWidth ? props.cardWidth : 200;
-  // const [hoverButton, setHoverButton] = useState(null);
-  //
-  // const onMouseHandler = event => {
-  //   event.preventDefault();
-  // };
-  //
-  // const offMouseHandler = event => {
-  //   event.preventDefault();
-  //   setHoverButton(null);
-  // };
+  const [selectedValue, setSelectedValue] = useState('');
+
+  // useEffect(() => {
+  //   props.inputValue(selectedValue);
+  // }, [selectedValue]);
+
+  const handleClick = event => {
+    setSelectedValue(event.currentTarget.value);
+    console.log(selectedValue);
+  };
 
   return (
     <Stack
@@ -26,7 +25,13 @@ function ImgCardList(props) {
       {props.data.map(item => (
         <Box component="li" key={item.key} sx={{ minWidth: { xs: 100, md: 130 }, my: 0 }}>
           <Card>
-            <CardActionArea>
+            <CardActionArea
+              onClick={handleClick}
+              value={item.value}
+              sx={{
+                boxShadow: selectedValue === item.value ? theme => `0 0 0 3px ${theme.palette.primary.main} inset` : 'none',
+              }}
+            >
               <CardContent
                 sx={{
                   display: 'flex',
@@ -42,7 +47,7 @@ function ImgCardList(props) {
                   sx={{ width: 80, height: 60, objectFit: 'contain', mb: 2, border: 0 }}
                 />
                 <Typography variant="subtitle2" component="span">
-                  {item.label}
+                  {item.value}
                 </Typography>
               </CardContent>
             </CardActionArea>
