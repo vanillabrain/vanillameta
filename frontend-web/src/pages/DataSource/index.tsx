@@ -7,16 +7,16 @@ import ImgCardList from '../../components/ImgCardList';
 import LabelInputForm from '../../components/LabelInputForm';
 
 const typeList = [
-  { key: 0, value: 'MySQL', src: 'mysql-logo.svg' },
-  { key: 1, value: 'MariaDB', src: 'mariadb-logo.svg' },
-  { key: 2, value: 'PostgreSQL', src: 'pgsql-logo.svg' },
-  { key: 3, value: 'Oracle', src: 'oracle-logo.svg' },
-  { key: 4, value: 'Db2', src: 'db2-logo.svg' },
-  { key: 5, value: 'Redshift', src: 'redshift-logo.svg' },
-  { key: 6, value: 'BigQuery', src: 'bigquery-logo.svg' },
-  { key: 7, value: 'SQLite', src: 'sqlite-logo.svg' },
-  { key: 8, value: 'MSSQL', src: 'mssql-logo.svg' },
-  { key: 9, value: 'AltiBase', src: 'altibase-logo.png' },
+  { key: 0, value: 'MySQL', src: 'logo/mysql-logo.svg' },
+  { key: 1, value: 'MariaDB', src: 'logo/mariadb-logo.svg' },
+  { key: 2, value: 'PostgreSQL', src: 'logo/pgsql-logo.svg' },
+  { key: 3, value: 'Oracle', src: 'logo/oracle-logo.svg' },
+  { key: 4, value: 'Db2', src: 'logo/db2-logo.svg' },
+  { key: 5, value: 'Redshift', src: 'logo/redshift-logo.svg' },
+  { key: 6, value: 'BigQuery', src: 'logo/bigquery-logo.svg' },
+  { key: 7, value: 'SQLite', src: 'logo/sqlite-logo.svg' },
+  { key: 8, value: 'MSSQL', src: 'logo/mssql-logo.svg' },
+  { key: 9, value: 'AltiBase', src: 'logo/altibase-logo.png' },
 ];
 
 const formList = [

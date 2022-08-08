@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Box, Card, Typography, CardContent, CardActionArea, Stack } from '@mui/material';
 
 function ImgCardList(props) {
-  const srcUrl = '/assets/images/logo/';
+  const srcUrl = '/assets/images/';
   const [selectedValue, setSelectedValue] = useState('');
 
   // useEffect(() => {
@@ -14,6 +14,8 @@ function ImgCardList(props) {
     console.log(selectedValue);
   };
 
+  console.log(props.data.icon);
+
   return (
     <Stack
       direction="row"
@@ -23,7 +25,7 @@ function ImgCardList(props) {
       sx={{ maxWidth: '100%', listStyle: 'none', m: '16px auto', p: 0, gap: { xs: 2, md: 3 } }}
     >
       {props.data.map(item => (
-        <Box component="li" key={item.key} sx={{ minWidth: { xs: 100, md: 130 }, my: 0 }}>
+        <Box component="li" key={item.key} sx={props.large ? { width: { xs: 100, md: 130 }, my: 0 } : { width: 150 }}>
           <Card>
             <CardActionArea
               onClick={handleClick}
@@ -38,16 +40,19 @@ function ImgCardList(props) {
                   flexDirection: 'column',
                   justifyContent: 'center',
                   alignItems: 'center',
-                  minHeight: { xs: 140, md: 170 },
+                  height: props.large ? { xs: 140, md: 170 } : 200,
                 }}
               >
                 <Box
                   component="img"
                   src={srcUrl + item.src}
-                  sx={{ width: 80, height: 60, objectFit: 'contain', mb: 2, border: 0 }}
+                  sx={{ width: 80, height: 60, objectFit: 'contain', mb: 3, border: 0 }}
                 />
                 <Typography variant="subtitle2" component="span">
                   {item.value}
+                </Typography>
+                <Typography variant="caption" sx={{ textAlign: 'center', color: theme => theme.palette.grey.A700 }}>
+                  {item.caption}
                 </Typography>
               </CardContent>
             </CardActionArea>

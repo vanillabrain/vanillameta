@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Box, Grid } from '@mui/material';
 import TitleBox from './TitleBox';
 import CardList from './CardList';
-
 const dataSource = [
   { key: 0, label: '데이터베이스 1' },
   { key: 1, label: '데이터베이스 2' },
