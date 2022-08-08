@@ -1,11 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Box, Button, Grid, Stack, Step, StepLabel, Stepper, Typography } from '@mui/material';
 import PageTitleBox from '../../components/PageTitleBox';
-import DataTable from '../../components/DataTable';
 import PageContainer from '../../components/PageContainer';
 import ConfirmButton from '../../components/ConfirmButton';
-import TitleBox from '../../components/TitleBox';
-import CardList from '../../components/CardList';
+import WidgetDataSelect from './WidgetDataSelect';
 
 // TODO: 리팩토링
 
@@ -35,7 +33,8 @@ const dataList = [
 ];
 
 function WidgetCreate(props) {
-  const [activeStep, setActiveStep] = React.useState(0);
+  const [activeStep, setActiveStep] = useState(0);
+  const [isFinished, setIsFinished] = useState(false);
 
   const handleNext = () => {
     if (activeStep < steps.length - 1) {
@@ -49,10 +48,14 @@ function WidgetCreate(props) {
     }
   };
 
+  const handleFinish = () => {
+    setIsFinished(true);
+    console.log('finished');
+  };
+
   return (
     <PageContainer>
-      <PageTitleBox title={title} disabled>
-        {/*//---*/}
+      <PageTitleBox title={title} disabled={!isFinished}>
         <Box>
           <Stepper activeStep={activeStep} sx={{ width: '70%', m: 'auto', mt: 8, mb: 6 }}>
             {steps.map((label, index) => {
@@ -67,35 +70,13 @@ function WidgetCreate(props) {
               );
             })}
           </Stepper>
-          {/*//---*/}
-          {/*{activeStep === steps.length ? (*/}
-          {/*  <React.Fragment>*/}
-          {/*    <Typography sx={{ mt: 2, mb: 1 }}>All steps completed - you&apos;re finished</Typography>*/}
-          {/*    <Box sx={{ display: 'flex', flexDirection: 'row', pt: 2 }}>*/}
-          {/*      <Box sx={{ flex: '1 1 auto' }} />*/}
-          {/*      <Button onClick={handleReset}>Reset</Button>*/}
-          {/*    </Box>*/}
-          {/*  </React.Fragment>*/}
-          {/*) : (*/}
-          {/*  <React.Fragment>*/}
-          {/*    /!*<Typography sx={{ mt: 2, mb: 1 }}>Step {activeStep + 1}</Typography>*!/*/}
 
-          {/*    /!*<Box sx={{ display: 'flex', flexDirection: 'row', pt: 2 }}>*!/*/}
-          {/*    /!*  <Button color="inherit" disabled={activeStep === 0} onClick={handleBack} sx={{ mr: 1 }}>*!/*/}
-          {/*    /!*    Back*!/*/}
-          {/*    /!*  </Button>*!/*/}
-          {/*    /!*  <Box sx={{ flex: '1 1 auto' }} />*!/*/}
-
-          {/*    /!*  <Button onClick={handleNext}>{activeStep === steps.length - 1 ? 'Finish' : 'Next'}</Button>*!/*/}
-          {/*    /!*</Box>*!/*/}
-          {/*  </React.Fragment>*/}
-          {/*)}*/}
           <Stack alignItems="flex-end" sx={{ width: '100%' }}>
             <ConfirmButton
               primary={{
-                label: '다음',
-                onClick: handleNext,
-                disabled: activeStep === steps.length - 1,
+                label: activeStep === steps.length - 1 ? '완료' : '다음',
+                onClick: activeStep === steps.length - 1 ? handleFinish : handleNext,
+                disabled: activeStep === steps.length,
               }}
               secondary={{
                 label: '이전',
@@ -106,39 +87,7 @@ function WidgetCreate(props) {
           </Stack>
         </Box>
         {/*<Typography sx={{ mt: 2, mb: 1 }}>Step {activeStep + 1}</Typography>*/}
-
-        {/*//---*/}
-        {/*<DataTable />*/}
-        <Box>
-          <Grid container spacing={5}>
-            <Grid item xs={12} md={4}>
-              <TitleBox
-                title={'데이터 소스'}
-                naviUrl={props.naviUrl ? props.naviUrl.dataConnectUrl : false}
-                fastCreate
-                edit
-                delete
-              >
-                <CardList data={dataSource} minWidth="100%" />
-              </TitleBox>
-            </Grid>
-            <Grid item xs={12} md>
-              <Grid container spacing={5}>
-                <Grid item xs={12}>
-                  <TitleBox title={'데이터 셋'} naviUrl={props.naviUrl ? props.naviUrl.dataSetUrl : false}>
-                    <CardList data={dataSet} />
-                  </TitleBox>
-                </Grid>
-                <Grid item xs={12}>
-                  <TitleBox title={'데이터 목록'} data={dataList}>
-                    <CardList data={dataList} />
-                  </TitleBox>
-                </Grid>
-              </Grid>
-            </Grid>
-          </Grid>
-        </Box>
-        {/*  */}
+        {activeStep === 0 ? <WidgetDataSelect dataSource={dataSource} dataSet={dataSet} dataList={dataList} /> : ''}
       </PageTitleBox>
     </PageContainer>
   );
