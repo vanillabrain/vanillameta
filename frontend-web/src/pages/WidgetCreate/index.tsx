@@ -26,14 +26,34 @@ function WidgetCreate(props) {
     }
   };
 
-  const handleFinish = () => {
+  const handleSubmit = event => {
+    event.preventDefault();
     setIsFinished(true);
     console.log('finished');
   };
 
   return (
     <PageContainer>
-      <PageTitleBox title={title} disabled={!isFinished}>
+      <PageTitleBox
+        title={title}
+        button={
+          <Stack>
+            <ConfirmButton
+              primary={{
+                form: 'widgetAttribute',
+                label: activeStep === steps.length - 1 ? '저장' : '다음',
+                onClick: activeStep === steps.length - 1 ? handleSubmit : handleNext,
+                disabled: activeStep === steps.length,
+              }}
+              secondary={{
+                label: '이전',
+                onClick: handleBack,
+                disabled: activeStep === 0,
+              }}
+            />
+          </Stack>
+        }
+      >
         <Box>
           <Stepper activeStep={activeStep} sx={{ width: '70%', m: 'auto', mt: 8, mb: 6 }}>
             {steps.map((label, index) => {
@@ -48,23 +68,8 @@ function WidgetCreate(props) {
               );
             })}
           </Stepper>
-
-          <Stack alignItems="flex-end" sx={{ width: '100%' }}>
-            <ConfirmButton
-              primary={{
-                label: activeStep === steps.length - 1 ? '완료' : '다음',
-                onClick: activeStep === steps.length - 1 ? handleFinish : handleNext,
-                disabled: activeStep === steps.length,
-              }}
-              secondary={{
-                label: '이전',
-                onClick: handleBack,
-                disabled: activeStep === 0,
-              }}
-            />
-          </Stack>
         </Box>
-        {/*<Typography sx={{ mt: 2, mb: 1 }}>Step {activeStep + 1}</Typography>*/}
+
         {activeStep === 0 ? <WidgetDataSelect /> : activeStep === 1 ? <WidgetTypeSelect /> : <WidgetAttributeSelect />}
       </PageTitleBox>
     </PageContainer>

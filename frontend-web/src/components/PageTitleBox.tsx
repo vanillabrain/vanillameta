@@ -3,8 +3,8 @@ import { Divider, Box, Stack, Typography } from '@mui/material';
 import ConfirmButton from './ConfirmButton';
 
 function PageTitleBox(props) {
-  const title: string = props.title ? props.title : '';
-  const minHeight: number = props.minHeight ? props.minHeight : '100%';
+  const title: string = props.title || '';
+  const button = props.button ? props.button : <ConfirmButton disabled={props.disabled} />;
 
   return (
     <Box
@@ -24,7 +24,7 @@ function PageTitleBox(props) {
         <Typography variant="h5" component="span" sx={{ fontWeight: 500 }}>
           {title}
         </Typography>
-        <ConfirmButton disabled={props.disabled} />
+        {button}
       </Stack>
       <Divider sx={{ marginBottom: 5 }} />
       {props.children}

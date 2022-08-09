@@ -4,11 +4,12 @@ import DropMenuButton from './DropMenuButton';
 
 function TitleBox(props) {
   const title: string = props.title || '';
+  const width = props.width || '100%';
 
   return (
     <Box
       sx={{
-        width: '100%',
+        width: width,
       }}
     >
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ width: '100%', py: 1 }}>
