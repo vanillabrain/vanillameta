@@ -1,7 +1,6 @@
 import React from 'react';
 import ImgCardList from '../../components/ImgCardList';
 import TitleBox from '../../components/TitleBox';
-import { BarChart } from '@mui/icons-material';
 
 const data = [
   { key: 1, value: '영역형 차트', caption: 'Area Chart', src: 'icon/area-chart.png' },

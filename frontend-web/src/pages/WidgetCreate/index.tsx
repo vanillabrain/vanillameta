@@ -43,7 +43,7 @@ function WidgetCreate(props) {
                 form: 'widgetAttribute',
                 label: activeStep === steps.length - 1 ? '저장' : '다음',
                 onClick: activeStep === steps.length - 1 ? handleSubmit : handleNext,
-                disabled: activeStep === steps.length,
+                disabled: activeStep === steps.length - 1,
               }}
               secondary={{
                 label: '이전',
@@ -71,6 +71,7 @@ function WidgetCreate(props) {
         </Box>
 
         {activeStep === 0 ? <WidgetDataSelect /> : activeStep === 1 ? <WidgetTypeSelect /> : <WidgetAttributeSelect />}
+        {/*<WidgetAttributeSelect />*/}
       </PageTitleBox>
     </PageContainer>
   );
