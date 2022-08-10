@@ -18,7 +18,7 @@ function BoardList(props) {
           m: 'auto',
           ml: 2,
           mr: 18,
-          py: 1,
+          pb: 1,
           '& .MuiGrid-root': { p: 0 },
         }}
       >

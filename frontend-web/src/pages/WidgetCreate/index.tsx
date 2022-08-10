@@ -55,7 +55,7 @@ function WidgetCreate(props) {
         }
       >
         <Box>
-          <Stepper activeStep={activeStep} sx={{ width: '70%', m: 'auto', mt: 8, mb: 6 }}>
+          <Stepper activeStep={activeStep} sx={{ width: { xs: '100%', sm: '70%' }, m: 'auto', mt: 8, mb: 6 }}>
             {steps.map((label, index) => {
               const stepProps: { completed?: boolean } = {};
               const labelProps: {

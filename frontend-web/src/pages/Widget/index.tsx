@@ -1,5 +1,5 @@
 import React from 'react';
-import { useTheme, useMediaQuery } from '@mui/material';
+import { Outlet, useParams } from 'react-router-dom';
 import PageContainer from '../../components/PageContainer';
 import TitleBox from '../../components/TitleBox';
 import BoardList from '../../components/BoardList';
@@ -95,11 +95,17 @@ const postList = [
 ];
 
 function Widget() {
+  const params = useParams();
+
   return (
     <PageContainer>
-      <TitleBox title={title} naviUrl={naviUrl}>
-        <BoardList postList={postList} />
-      </TitleBox>
+      {!params.id ? (
+        <TitleBox title={title} naviUrl={naviUrl}>
+          <BoardList postList={postList} />
+        </TitleBox>
+      ) : (
+        <Outlet />
+      )}
     </PageContainer>
   );
 }

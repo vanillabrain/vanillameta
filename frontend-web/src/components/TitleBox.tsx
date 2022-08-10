@@ -6,6 +6,15 @@ function TitleBox(props) {
   const title: string = props.title || '';
   const width = props.width || '100%';
 
+  let button = null;
+  if (props.menuList) {
+    button = <DropMenuButton menuList={props.menuList} />;
+  } else if (props.naviUrl) {
+    button = <DropMenuButton naviUrl={props.naviUrl} />;
+  } else {
+    button = props.button;
+  }
+
   return (
     <Box
       sx={{
@@ -16,13 +25,9 @@ function TitleBox(props) {
         <Typography variant="subtitle1" component="span" sx={{ fontWeight: 500 }}>
           {title}
         </Typography>
-        {props.menuList || props.naviUrl ? (
-          <DropMenuButton menuList={props.menuList || false} naviUrl={props.naviUrl || false} />
-        ) : (
-          ''
-        )}
+        {button}
       </Stack>
-      <Divider sx={{ marginBottom: 3 }} />
+      <Divider sx={{ marginBottom: 4 }} />
       {props.children}
     </Box>
   );

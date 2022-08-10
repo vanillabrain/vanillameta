@@ -1,7 +1,8 @@
 import React from 'react';
 import { IconButton, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { BarChart, PieChart, Dashboard, Delete, Edit } from '@mui/icons-material';
-// import PieChartIcon from '@mui/icons-material/PieChart';
+import { Link as RouterLink } from 'react-router-dom';
+
 const tableBorder = '1px solid #DADDDD';
 
 function BoardListItem(props) {
@@ -23,7 +24,7 @@ function BoardListItem(props) {
       key={props.postList.id}
       secondaryAction={
         <React.Fragment>
-          <IconButton size="large">
+          <IconButton size="large" component={RouterLink} to={'/widget/modify'}>
             <Edit />
           </IconButton>
           <IconButton size="large">
@@ -37,7 +38,7 @@ function BoardListItem(props) {
         '&:last-of-type': { borderBottom: 0 },
       }}
     >
-      <ListItemButton sx={{ py: 0.8 }}>
+      <ListItemButton sx={{ py: 0.8 }} component={RouterLink} to={`/widget/${props.postList.id}`}>
         <ListItemIcon>{IconType()}</ListItemIcon>
         <ListItemText
           primary={props.postList.title}

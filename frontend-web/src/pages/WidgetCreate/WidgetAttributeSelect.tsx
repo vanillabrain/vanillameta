@@ -8,15 +8,12 @@ import {
   Stack,
   TextField,
   FormControl,
-  InputLabel,
   MenuItem,
   SelectChangeEvent,
   RadioGroup,
   FormControlLabel,
   FormLabel,
   Radio,
-  styled,
-  ButtonBase,
   IconButton,
 } from '@mui/material';
 import TitleBox from '../../components/TitleBox';
@@ -48,11 +45,10 @@ function WidgetAttributeSelect(props) {
   };
 
   return (
-    <Stack flexDirection="column" spacing={3}>
-      <TitleBox title="위젯 속성 설정" />
-      <Grid container component="form" id="widgetAttribute" justifyContent="space-around">
-        <Grid item xs={12} md={8}>
-          <Box sx={{ width: '100%', height: 500, borderRadius: 1, backgroundColor: '#eee' }} />
+    <TitleBox title="위젯 속성 설정">
+      <Grid container component="form" id="widgetAttribute" sx={{ justifyContent: { xs: 'center', md: 'space-between' } }}>
+        <Grid item xs={12} md={8.5}>
+          <Box sx={{ width: '100%', height: '50vw', borderRadius: 1, backgroundColor: '#eee' }} />
         </Grid>
         <Grid item xs={10} md={3}>
           <TextField
@@ -106,7 +102,7 @@ function WidgetAttributeSelect(props) {
           </List>
         </Grid>
       </Grid>
-    </Stack>
+    </TitleBox>
   );
 }
 
