@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Grid, List, Pagination, Stack, Typography, useMediaQuery, useTheme } from '@mui/material';
+import { Box, List, Pagination, Stack, Typography, useMediaQuery, useTheme } from '@mui/material';
 import BoardListItem from './BoardListItem';
 
 function BoardList(props) {
@@ -7,32 +7,29 @@ function BoardList(props) {
   const matches = useMediaQuery(theme.breakpoints.up('sm'));
   const tableBorder = '1px solid #DADDDD';
 
+  const hasType = props.postList.filter(item => item.type).length !== 0;
+
   return (
     <Box>
-      <Grid
-        container
-        spacing={2}
-        gridTemplateColumns={{ xs: '58px auto', sm: '74px auto 240px' }} // TODO: 하드코딩 고칠 수 있으면 고칠 것
-        sx={{
-          display: 'grid',
-          m: 'auto',
-          ml: 2,
-          mr: 18,
-          pb: 1,
-          '& .MuiGrid-root': { p: 0 },
-        }}
-      >
-        <Grid item>
-          <Typography variant="body2">종류</Typography>
-        </Grid>
-        <Grid item>
-          <Typography variant="body2">이름</Typography>
-        </Grid>
-        <Grid item>{matches && <Typography variant="body2">수정한 날짜</Typography>}</Grid>
-      </Grid>
+      <Stack flexDirection="row" justifyContent="space-between" px={4} pb={1}>
+        {hasType && (
+          <Typography variant="body2" sx={{ ml: -2 }}>
+            종류
+          </Typography>
+        )}
+        <Typography variant="body2" sx={{ flexGrow: 1, pl: hasType ? { xs: 4, sm: 6 } : 0 }}>
+          이름
+        </Typography>
+        {matches && (
+          <Typography variant="body2" sx={{ mr: '112px' }}>
+            수정한 날짜
+          </Typography>
+        )}
+      </Stack>
+
       <List sx={{ m: 'auto', border: tableBorder, borderRadius: 2, backgroundColor: '#fff' }} disablePadding>
         {props.postList.map(item => (
-          <BoardListItem postList={item} key={item.id} />
+          <BoardListItem postList={item} key={item.id} url={props.url} />
         ))}
       </List>
       <Stack alignItems="center" mt={4}>

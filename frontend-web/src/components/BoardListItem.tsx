@@ -6,25 +6,27 @@ import { Link as RouterLink } from 'react-router-dom';
 const tableBorder = '1px solid #DADDDD';
 
 function BoardListItem(props) {
-  const IconType = () => {
-    switch (props.postList.type) {
-      case 'dashboard':
-        return <Dashboard />;
-      case 'barChart':
-        return <BarChart />;
-      case 'pieChart':
-        return <PieChart />;
-      default:
-        return;
-    }
-  };
+  let iconType;
+  switch (props.postList.type) {
+    case 'dashboard':
+      iconType = <Dashboard />;
+      break;
+    case 'barChart':
+      iconType = <BarChart />;
+      break;
+    case 'pieChart':
+      iconType = <PieChart />;
+      break;
+    default:
+      break;
+  }
 
   return (
     <ListItem
       key={props.postList.id}
       secondaryAction={
         <React.Fragment>
-          <IconButton size="large" component={RouterLink} to={'/widget/modify'}>
+          <IconButton size="large" component={RouterLink} to={`/${props.url}/modify`}>
             <Edit />
           </IconButton>
           <IconButton size="large">
@@ -38,8 +40,8 @@ function BoardListItem(props) {
         '&:last-of-type': { borderBottom: 0 },
       }}
     >
-      <ListItemButton sx={{ py: 0.8 }} component={RouterLink} to={`/widget/${props.postList.id}`}>
-        <ListItemIcon>{IconType()}</ListItemIcon>
+      <ListItemButton sx={{ py: 0.8 }} component={RouterLink} to={`/${props.url}/${props.postList.id}`}>
+        {props.postList.type ? <ListItemIcon>{iconType}</ListItemIcon> : ''}
         <ListItemText
           primary={props.postList.title}
           primaryTypographyProps={{ fontWeight: 500 }}

@@ -101,7 +101,7 @@ function Widget() {
     <PageContainer>
       {!params.id ? (
         <TitleBox title={title} naviUrl={naviUrl}>
-          <BoardList postList={postList} />
+          <BoardList postList={postList} url="widget" />
         </TitleBox>
       ) : (
         <Outlet />

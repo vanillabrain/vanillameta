@@ -1,5 +1,5 @@
 import React from 'react';
-import { Route, Routes, useParams } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 
 import Dashboard from '../pages/Dashboard';
 import Widget from '../pages/Widget';
@@ -10,11 +10,15 @@ import Status404 from '../pages/Status404';
 import WidgetCreate from '../pages/WidgetCreate';
 import WidgetView from '../pages/WidgetView';
 import WidgetModify from '../pages/WidgetModify';
+import DashboardCreate from '../pages/DashboardCreate';
 
 function Router(props) {
   return (
     <Routes>
-      <Route path="/" element={<Dashboard />} />
+      <Route path="/" element={<Navigate to="/dashboard" />} />
+      <Route path="/dashboard" element={<Dashboard />}>
+        <Route path=":id" element={<DashboardCreate />} />
+      </Route>
       <Route path="/widget" element={<Widget />}>
         <Route path=":id" element={<WidgetView />} />
       </Route>
