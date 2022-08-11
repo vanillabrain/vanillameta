@@ -1,5 +1,5 @@
 import React from 'react';
-import TitleBox from '../../components/TitleBox';
+import PageTitleBox from '../../components/PageTitleBox';
 import { Box, Button, ButtonGroup, Grid, Icon, IconButton, Stack } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
@@ -19,7 +19,7 @@ function WidgetView(props) {
   };
 
   return (
-    <TitleBox
+    <PageTitleBox
       title={title}
       button={
         <Stack direction="row" spacing={1}>
@@ -36,7 +36,7 @@ function WidgetView(props) {
       }
     >
       <Box sx={{ width: '100%', height: '50vw', borderRadius: 1, backgroundColor: '#eee' }} />
-    </TitleBox>
+    </PageTitleBox>
   );
 }
 

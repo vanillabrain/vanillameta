@@ -1,7 +1,7 @@
 import React from 'react';
 import { Outlet, useParams } from 'react-router-dom';
 import PageContainer from '../../components/PageContainer';
-import TitleBox from '../../components/TitleBox';
+import PageTitleBox from '../../components/PageTitleBox';
 import BoardList from '../../components/BoardList';
 
 const title = '위젯';
@@ -100,9 +100,9 @@ function Widget() {
   return (
     <PageContainer>
       {!params.id ? (
-        <TitleBox title={title} naviUrl={naviUrl}>
+        <PageTitleBox title={title} naviUrl={naviUrl}>
           <BoardList postList={postList} url="widget" />
-        </TitleBox>
+        </PageTitleBox>
       ) : (
         <Outlet />
       )}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Divider, Box, Stack, Typography } from '@mui/material';
-import DropMenuButton from './DropMenuButton';
+import AddButton from './AddButton';
 
 function TitleBox(props) {
   const title: string = props.title || '';
@@ -8,12 +8,23 @@ function TitleBox(props) {
 
   let button = null;
   if (props.menuList) {
-    button = <DropMenuButton menuList={props.menuList} />;
+    button = <AddButton menuList={props.menuList} />;
   } else if (props.naviUrl) {
-    button = <DropMenuButton naviUrl={props.naviUrl} />;
+    button = <AddButton naviUrl={props.naviUrl} />;
   } else {
     button = props.button;
   }
+
+  // let button = undefined;
+  // if (props.menuList) {
+  //   button = <AddButton menuList={props.menuList} />;
+  // } else if (props.naviUrl) {
+  //   button = <AddButton naviUrl={props.naviUrl} />;
+  // } else if (props.button) {
+  //   button = props.button;
+  // } else {
+  //   return;
+  // }
 
   return (
     <Box

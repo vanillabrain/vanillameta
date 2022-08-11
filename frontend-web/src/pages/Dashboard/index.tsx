@@ -1,6 +1,6 @@
 import React from 'react';
 import PageContainer from '../../components/PageContainer';
-import TitleBox from '../../components/TitleBox';
+import PageTitleBox from '../../components/PageTitleBox';
 import BoardList from '../../components/BoardList';
 import { Outlet, useParams } from 'react-router-dom';
 
@@ -86,9 +86,9 @@ function Dashboard(props) {
   return (
     <PageContainer>
       {!params.id ? (
-        <TitleBox title={title} naviUrl={naviUrl}>
+        <PageTitleBox title={title} naviUrl={naviUrl}>
           <BoardList postList={postList} url="dashboard" />
-        </TitleBox>
+        </PageTitleBox>
       ) : (
         <Outlet />
       )}

@@ -12,7 +12,7 @@ import {
   Toolbar,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
-import DropMenuButton from '../../components/DropMenuButton';
+import AddButton from '../../components/AddButton';
 import Logo from './Logo';
 import NavBar from './NavBar';
 
@@ -74,7 +74,9 @@ function Header(props) {
           <Logo />
 
           <NavBar navItems={navItems} />
-          <DropMenuButton button="big" menuList={menuList} />
+          <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+            <AddButton label menuList={menuList} />
+          </Box>
         </Toolbar>
         <Divider />
       </AppBar>
