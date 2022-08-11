@@ -3,6 +3,7 @@ import { Box, Button, Grid, Stack, Step, StepLabel, Stepper, Typography } from '
 import PageTitleBox from '../../components/PageTitleBox';
 import PageContainer from '../../components/PageContainer';
 import ConfirmButton from '../../components/ConfirmButton';
+import TitleBox from '../../components/TitleBox';
 import WidgetDataSelect from './WidgetDataSelect';
 import WidgetTypeSelect from './WidgetTypeSelect';
 import WidgetAttributeSelect from './WidgetAttributeSelect';
@@ -70,7 +71,15 @@ function WidgetCreate(props) {
           </Stepper>
         </Box>
 
-        {activeStep === 0 ? <WidgetDataSelect /> : activeStep === 1 ? <WidgetTypeSelect /> : <WidgetAttributeSelect />}
+        {activeStep === 0 ? (
+          <WidgetDataSelect />
+        ) : activeStep === 1 ? (
+          <WidgetTypeSelect />
+        ) : (
+          <TitleBox title="위젯 속성 설정">
+            <WidgetAttributeSelect />
+          </TitleBox>
+        )}
         {/*<WidgetAttributeSelect />*/}
       </PageTitleBox>
     </PageContainer>

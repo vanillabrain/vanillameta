@@ -6,7 +6,7 @@ import PageTitleBox from '../../components/PageTitleBox';
 function WidgetModify(props) {
   return (
     <PageContainer>
-      <PageTitleBox title="위젯 조회">
+      <PageTitleBox title="위젯 수정" button="confirm">
         <WidgetAttributeSelect />
       </PageTitleBox>
     </PageContainer>

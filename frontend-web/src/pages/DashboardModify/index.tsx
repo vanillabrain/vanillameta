@@ -1,12 +1,15 @@
 import React from 'react';
 import PageContainer from '../../components/PageContainer';
 import PageTitleBox from '../../components/PageTitleBox';
-import { Box, Stack, TextField, Button } from '@mui/material';
+import { Box, Button, Stack, TextField } from '@mui/material';
+import TitleBox from '@/components/TitleBox';
+import { Add } from '@mui/icons-material';
 import ModalButton from '../../components/ModalButton';
 
+const naviUrl = '/dashboard/addwidget';
 // DashboardCreate.tsx 와 동일
 
-function DashboardCreate(props) {
+function DashboardModify(props) {
   return (
     <PageContainer>
       <PageTitleBox title="대시보드 편집" button="confirm" disabled>
@@ -15,7 +18,7 @@ function DashboardCreate(props) {
             id="userDashboardName"
             label="대시보드 이름"
             placeholder="대시보드의 이름을 입력해 주세요"
-            // required
+            required
             autoFocus
             sx={{ width: '50%' }}
           />
@@ -27,4 +30,4 @@ function DashboardCreate(props) {
   );
 }
 
-export default DashboardCreate;
+export default DashboardModify;

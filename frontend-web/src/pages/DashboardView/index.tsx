@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Button, ButtonGroup, Grid, Icon, IconButton, Stack } from '@mui/material';
+import { Box, IconButton, Stack } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
 import EditIcon from '@mui/icons-material/Edit';
@@ -7,9 +7,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import PageTitleBox from '../../components/PageTitleBox';
 import TitleBox from '../../components/TitleBox';
 
-const title = '위젯 조회';
-
-function WidgetView(props) {
+function DashboardView(props) {
   const handleRenewClick = () => {
     console.log('renew');
   };
@@ -19,15 +17,15 @@ function WidgetView(props) {
   };
 
   return (
-    <PageTitleBox title={title} button={''}>
+    <PageTitleBox title="대시보드 조회">
       <TitleBox
-        title="위젯 이름"
+        title="대시보드 이름"
         button={
           <Stack direction="row" spacing={1}>
             <IconButton onClick={handleRenewClick} aria-label="새로고침" color="primary">
               <AutorenewIcon />
             </IconButton>
-            <IconButton component={RouterLink} to="/widget/modify" aria-label="수정">
+            <IconButton component={RouterLink} to="/dashboard/modify" aria-label="수정">
               <EditIcon />
             </IconButton>
             <IconButton onClick={handleDeleteClick} aria-label="수정">
@@ -42,4 +40,4 @@ function WidgetView(props) {
   );
 }
 
-export default WidgetView;
+export default DashboardView;

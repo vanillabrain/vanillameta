@@ -10,10 +10,10 @@ function PageTitleBox(props) {
   let button = null;
   if (props.naviUrl) {
     button = <AddButton naviUrl={props.naviUrl} />;
-  } else if (props.button) {
-    button = props.button;
-  } else {
+  } else if (props.button === 'confirm') {
     button = <ConfirmButton disabled={props.disabled} />;
+  } else {
+    button = props.button;
   }
 
   return (

@@ -16,7 +16,7 @@ function ConfirmButton(props) {
   };
 
   return (
-    <Stack direction="row-reverse" flexWrap="wrap" component="ul" spacing={{ xs: 1, md: 2 }} p={0} m={1}>
+    <Stack direction="row-reverse" flexWrap="wrap" component="ul" spacing={{ xs: 1, md: 2 }} p={0}>
       <Box component="li" sx={{ listStyle: 'none' }}>
         <Button
           form={primary.form}

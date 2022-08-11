@@ -17,7 +17,10 @@ function BoardList(props) {
             종류
           </Typography>
         )}
-        <Typography variant="body2" sx={{ flexGrow: 1, pl: hasType ? { xs: 4, sm: 6 } : 0 }}>
+        <Typography
+          variant="body2"
+          sx={{ flexGrow: 1, pl: hasType ? { xs: 4, sm: 6 } : 0, ml: hasType ? 0 : { xs: -2, sm: 0 } }}
+        >
           이름
         </Typography>
         {matches && (

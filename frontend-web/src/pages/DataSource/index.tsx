@@ -41,7 +41,7 @@ function DataSource(props) {
 
   return (
     <PageContainer>
-      <PageTitleBox title={'데이터 소스 연결'} disabled={!isConnected}>
+      <PageTitleBox title={'데이터 소스 연결'} button="confirm" disabled={!isConnected}>
         <Stack spacing={3}>
           <TitleBox title={'step.01 타입 설정'}>
             <ImgCardList

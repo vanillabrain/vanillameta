@@ -10,15 +10,19 @@ import Status404 from '../pages/Status404';
 import WidgetCreate from '../pages/WidgetCreate';
 import WidgetView from '../pages/WidgetView';
 import WidgetModify from '../pages/WidgetModify';
+import DashboardView from '../pages/DashboardView';
 import DashboardCreate from '../pages/DashboardCreate';
+import DashboardModify from '../pages/DashboardModify';
 
 function Router(props) {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/dashboard" />} />
       <Route path="/dashboard" element={<Dashboard />}>
-        <Route path=":id" element={<DashboardCreate />} />
+        <Route path=":id" element={<DashboardView />} />
       </Route>
+      <Route path="/dashboard/create" element={<DashboardCreate />} />
+      <Route path="/dashboard/modify" element={<DashboardModify />} />
       <Route path="/widget" element={<Widget />}>
         <Route path=":id" element={<WidgetView />} />
       </Route>

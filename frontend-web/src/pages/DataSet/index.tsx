@@ -19,7 +19,7 @@ function DataSet(props) {
 
   return (
     <PageContainer>
-      <PageTitleBox title="데이터셋 생성" disabled={!isConnected}>
+      <PageTitleBox title="데이터셋 생성" button="confirm" disabled={!isConnected}>
         <Stack component="form" flexDirection="column" spacing={3} sx={{ maxWidth: 800, m: 'auto' }} onSubmit={handleSubmit}>
           <TextField
             id="userSetName"
