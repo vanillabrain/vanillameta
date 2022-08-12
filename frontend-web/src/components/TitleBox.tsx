@@ -10,7 +10,7 @@ function TitleBox(props) {
 
   let button = null;
   if (menuList) {
-    // menuList 가 있을 경우 onClik 시 menuList 가 펼쳐지는 dropMenu 버튼
+    // menuList 가 있을 경우 onClick 시 menuList 가 펼쳐지는 dropMenu 버튼
     button = <AddButton menuList={menuList} />;
   } else if (naviUrl) {
     // naviUrl 이 있을 경우 onClick 시 naviUrl 로 이동하는 버튼

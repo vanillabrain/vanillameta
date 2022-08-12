@@ -6,6 +6,15 @@ import { Link as RouterLink } from 'react-router-dom';
 const tableBorder = '1px solid #DADDDD';
 
 function BoardListItem(props) {
+  const name = props.postList.name;
+  const dateData = data => {
+    const userDate = new Date(data);
+    const year = userDate.getFullYear();
+    const month = userDate.getMonth() + 1;
+    const date = userDate.getDate();
+    return `${year}-${month >= 10 ? month : '0' + month}-${date >= 10 ? date : '0' + date}`;
+  };
+
   let iconType;
   switch (props.postList.type) {
     case 'dashboard':
@@ -43,9 +52,9 @@ function BoardListItem(props) {
       <ListItemButton sx={{ py: 0.8 }} component={RouterLink} to={`/${props.url}/${props.postList.id}`}>
         {props.postList.type ? <ListItemIcon>{iconType}</ListItemIcon> : ''}
         <ListItemText
-          primary={props.postList.title}
+          primary={name}
           primaryTypographyProps={{ fontWeight: 500 }}
-          secondary={props.postList.date}
+          secondary={dateData(props.postList.date)}
           sx={{
             display: { xs: 'block', sm: 'flex' },
             justifyContent: 'space-between',
