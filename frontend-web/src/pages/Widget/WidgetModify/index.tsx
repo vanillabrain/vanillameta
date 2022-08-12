@@ -1,7 +1,7 @@
 import React from 'react';
 import WidgetAttributeSelect from '../WidgetCreate/WidgetAttributeSelect';
-import PageContainer from '../../components/PageContainer';
-import PageTitleBox from '../../components/PageTitleBox';
+import PageContainer from '../../../components/PageContainer';
+import PageTitleBox from '../../../components/PageTitleBox';
 
 function WidgetModify(props) {
   return (

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Box, Button, Grid, Stack, Step, StepLabel, Stepper, Typography } from '@mui/material';
-import PageTitleBox from '../../components/PageTitleBox';
-import PageContainer from '../../components/PageContainer';
-import ConfirmButton from '../../components/ConfirmButton';
-import TitleBox from '../../components/TitleBox';
+import PageTitleBox from '../../../components/PageTitleBox';
+import PageContainer from '../../../components/PageContainer';
+import ConfirmButton from '../../../components/ConfirmButton';
+import TitleBox from '../../../components/TitleBox';
 import WidgetDataSelect from './WidgetDataSelect';
 import WidgetTypeSelect from './WidgetTypeSelect';
 import WidgetAttributeSelect from './WidgetAttributeSelect';

@@ -16,7 +16,7 @@ import {
   Radio,
   IconButton,
 } from '@mui/material';
-import TitleBox from '../../components/TitleBox';
+import TitleBox from '../../../components/TitleBox';
 import PaletteIcon from '@mui/icons-material/Palette';
 
 function WidgetAttributeSelect(props) {

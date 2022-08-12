@@ -4,15 +4,15 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import Dashboard from '../pages/Dashboard';
 import Widget from '../pages/Widget';
 import Data from '../pages/Data';
-import DataSource from '../pages/DataSource';
-import DataSet from '../pages/DataSet';
+import DataSource from '../pages/Data/DataSource';
+import DataSet from '../pages/Data/DataSet';
 import Status404 from '../pages/Status404';
-import WidgetCreate from '../pages/WidgetCreate';
-import WidgetView from '../pages/WidgetView';
-import WidgetModify from '../pages/WidgetModify';
-import DashboardView from '../pages/DashboardView';
-import DashboardCreate from '../pages/DashboardCreate';
-import DashboardModify from '../pages/DashboardModify';
+import WidgetCreate from '../pages/Widget/WidgetCreate';
+import WidgetView from '../pages/Widget/WidgetView';
+import WidgetModify from '../pages/Widget/WidgetModify';
+import DashboardView from '../pages/Dashboard/DashboardView';
+import DashboardCreate from '../pages/Dashboard/DashboardCreate';
+import DashboardModify from '../pages/Dashboard/DashboardModify';
 
 function Router(props) {
   return (

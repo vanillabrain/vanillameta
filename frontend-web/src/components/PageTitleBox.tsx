@@ -5,13 +5,15 @@ import AddButton from './AddButton';
 
 function PageTitleBox(props) {
   const title: string = props.title || '';
-  // const button = props.button ? props.button : <ConfirmButton disabled={props.disabled} />;
+  const naviUrl = props.naviUrl || false;
 
   let button = null;
-  if (props.naviUrl) {
-    button = <AddButton naviUrl={props.naviUrl} />;
+  if (naviUrl) {
+    // naviUrl 이 있을 경우 onClick 시 naviUrl 로 이동하는 버튼
+    button = <AddButton naviUrl={naviUrl} />;
   } else if (props.button === 'confirm') {
-    button = <ConfirmButton disabled={props.disabled} />;
+    // button='confirm' 일 경우 confirm / cancel 선택 버튼, disabled 로 confirm 버튼 비활성
+    button = <ConfirmButton primary={{ disabled: props.disabled }} />;
   } else {
     button = props.button;
   }

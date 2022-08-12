@@ -4,8 +4,8 @@ import { Link as RouterLink } from 'react-router-dom';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import PageTitleBox from '../../components/PageTitleBox';
-import TitleBox from '../../components/TitleBox';
+import PageTitleBox from '../../../components/PageTitleBox';
+import TitleBox from '../../../components/TitleBox';
 
 const title = '위젯 조회';
 

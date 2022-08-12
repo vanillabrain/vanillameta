@@ -1,72 +1,74 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Button, Menu, MenuItem, useMediaQuery, useTheme, IconButton } from '@mui/material';
+import { Box, Button, Menu, MenuItem, useMediaQuery, useTheme } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 
 const menuWidth = 200;
 
 function AddButton(props) {
-  const theme = useTheme();
-  const maches = useMediaQuery(theme.breakpoints.up('md'));
+  const naviUrl = props.naviUrl || false;
+  const menuList = props.menuList || false;
+  const label = props.label || false;
 
-  // 1. props.naviUrl 이 있는 경우
+  const [anchorEl, setAnchorEl] = useState(null);
   const [navigateUrl, setNavigateUrl] = useState('');
+  const open = Boolean(anchorEl);
   const navigate = useNavigate();
-  const handleNavigateClick = () => navigate(navigateUrl);
+
+  const theme = useTheme();
+  const matches = useMediaQuery(theme.breakpoints.up('md'));
 
   useEffect(() => {
-    setNavigateUrl(props.naviUrl);
+    if (naviUrl) {
+      setNavigateUrl(naviUrl);
+    }
   }, [navigateUrl]);
 
-  // 2. props.menuList 가 있는 경우
-  const [anchorEl, setAnchorEl] = React.useState(null);
-  const open = Boolean(anchorEl);
   const handleClick = event => {
     setAnchorEl(event.currentTarget);
   };
   const handleClose = () => {
     setAnchorEl(null);
   };
+  const handleNavigateClick = () => {
+    navigate(navigateUrl);
+  };
 
   const largeButton = (
     <Button
-      {...props}
       id="추가 버튼"
       aria-controls={open ? 'styled-menu' : undefined}
       aria-haspopup="true"
       aria-expanded={open ? 'true' : undefined}
-      onClick={props.naviUrl ? handleNavigateClick : handleClick}
-      startIcon={maches ? <AddIcon /> : false}
+      onClick={naviUrl ? handleNavigateClick : handleClick}
+      startIcon={matches ? <AddIcon /> : false}
       variant="outlined"
       sx={{ minWidth: { xs: 0 } }}
     >
-      {maches ? '생성 바로가기' : <AddIcon />}
+      {matches ? label : <AddIcon />}
     </Button>
   );
 
   const smallButton = (
     <Button
-      {...props}
       id="추가 버튼"
       aria-controls={open ? 'styled-menu' : undefined}
       aria-haspopup="true"
       aria-expanded={open ? 'true' : undefined}
       disableElevation
-      onClick={props.naviUrl ? handleNavigateClick : handleClick}
+      onClick={naviUrl ? handleNavigateClick : handleClick}
       color="primary"
-      // size="medium"
       sx={{ minWidth: { xs: 0 } }}
     >
       <AddIcon sx={{ width: 28, height: 28, m: 0 }} />
-      {/*<AddIcon />*/}
     </Button>
   );
 
   return (
     <Box>
-      {props.label ? largeButton : smallButton}
+      {label ? largeButton : smallButton}
 
-      {props.menuList && (
+      {menuList && (
         <Menu
           id="styled-menu"
           MenuListProps={{
@@ -77,7 +79,7 @@ function AddButton(props) {
           onClose={handleClose}
           sx={{ width: menuWidth }}
         >
-          {props.menuList.map(item => (
+          {menuList.map(item => (
             <MenuItem
               key={item.label}
               component={RouterLink}

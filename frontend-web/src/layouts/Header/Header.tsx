@@ -33,7 +33,6 @@ function Header(props) {
     { id: 3, name: '데이터', url: 'data' },
   ];
 
-  // const { window } = props;
   const [mobileOpen, setMobileOpen] = React.useState(false);
 
   const handleDrawerToggle = () => {
@@ -42,8 +41,6 @@ function Header(props) {
 
   const drawer = (
     <Box onClick={handleDrawerToggle} mt={5} sx={{ textAlign: 'center' }}>
-      {/*<Logo />*/}
-      {/*<Divider />*/}
       <List>
         {navItems.map(item => (
           <ListItem key={item.id} disablePadding>
@@ -55,8 +52,6 @@ function Header(props) {
       </List>
     </Box>
   );
-
-  // const container = window !== undefined ? () => window().document.body : undefined;
 
   return (
     <Box sx={{ display: 'flex' }}>
@@ -75,7 +70,7 @@ function Header(props) {
 
           <NavBar navItems={navItems} />
           <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
-            <AddButton label menuList={menuList} />
+            <AddButton label="생성 바로가기" menuList={menuList} />
           </Box>
         </Toolbar>
         <Divider />
@@ -83,7 +78,6 @@ function Header(props) {
 
       <Box component="nav">
         <Drawer
-          // container={container}
           variant="temporary"
           open={mobileOpen}
           onClose={handleDrawerToggle}

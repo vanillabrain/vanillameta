@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import PageContainer from '../../components/PageContainer';
 import PageTitleBox from '../../components/PageTitleBox';
 import BoardList from '../../components/BoardList';
@@ -81,6 +81,16 @@ const postList = [
 ];
 
 function Dashboard(props) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [LoadedWidgetData, setLoadedWidgetData] = useState([]);
+
+  // useEffect(() => {
+  //   setIsLoading(true);
+  //   fetch('/data/dummyWidgetList.json')
+  //     .then(response => response.json())
+  //     .then(data => console.log(data));
+  // });
+
   const params = useParams();
 
   return (

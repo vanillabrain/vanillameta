@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Grid } from '@mui/material';
-import TitleBox from '../../components/TitleBox';
-import CardList from '../../components/CardList';
+import TitleBox from '../../../components/TitleBox';
+import CardList from '../../../components/CardList';
 
 const dataSource = [
   { key: 0, label: '데이터베이스 1', value: '데이터베이스 1' },
