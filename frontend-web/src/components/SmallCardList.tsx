@@ -51,12 +51,10 @@ function CardList(props) {
       sx={{
         listStyle: 'none',
         pl: 0,
-        display: 'grid',
-        gridTemplateColumns: { xs: '1fr', md: `repeat(${props.minWidth || '3, 1fr'})` },
       }}
     >
       {props.data.map(item => (
-        <Grid item xs={12} md component="li" key={item.key}>
+        <Grid item xs={12} sm={4} md={2} component="li" key={item.key}>
           <Card
             sx={{
               position: 'relative',
@@ -67,7 +65,7 @@ function CardList(props) {
               value={item.value}
               sx={{
                 boxShadow: selectedValue === item.value ? theme => `0 0 0 3px ${theme.palette.primary.main} inset` : 'none',
-                minHeight: 80,
+                minHeight: 60,
                 px: 2,
               }}
             >
@@ -75,7 +73,7 @@ function CardList(props) {
                 <Typography
                   component="span"
                   variant="subtitle2"
-                  sx={{ width: '40%', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}
+                  sx={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}
                 >
                   {item.label}
                 </Typography>

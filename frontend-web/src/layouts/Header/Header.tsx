@@ -20,7 +20,7 @@ const menuList = [
   { label: '데이터 소스', url: '/data/connect' },
   { label: '데이터 셋', url: '/data/set' },
   { label: '위젯', url: '/widget/create' },
-  { label: '대시보드', url: '/' },
+  { label: '대시보드', url: '/dashboard' },
 ];
 
 function Header(props) {
@@ -28,7 +28,7 @@ function Header(props) {
   const drawerWidth = 240;
 
   const navItems = [
-    { id: 1, name: '대시보드', url: '/' },
+    { id: 1, name: '대시보드', url: 'dashboard' },
     { id: 2, name: '위젯', url: 'widget' },
     { id: 3, name: '데이터', url: 'data' },
   ];

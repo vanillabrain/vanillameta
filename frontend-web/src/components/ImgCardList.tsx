@@ -3,7 +3,7 @@ import { Box, Card, Typography, CardContent, CardActionArea, Stack } from '@mui/
 
 function ImgCardList(props) {
   const srcUrl = '/assets/images/';
-  const [selectedValue, setSelectedValue] = useState('');
+  const [selectedValue, setSelectedValue] = useState('init');
 
   // useEffect(() => {
   //   props.inputValue(selectedValue);
@@ -11,10 +11,9 @@ function ImgCardList(props) {
 
   const handleClick = event => {
     setSelectedValue(event.currentTarget.value);
-    console.log(selectedValue);
+    console.log(selectedValue, 'state');
+    console.log(event.currentTarget.value, 'event');
   };
-
-  console.log(props.data.icon);
 
   return (
     <Stack
