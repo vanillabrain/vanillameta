@@ -19,7 +19,7 @@ function DashboardModify(props) {
           />
           <DialogButton label="위젯 추가" />
         </Stack>
-        <Box sx={{ width: '80%', height: '50vw', borderRadius: 1, backgroundColor: '#eee' }} />
+        <Box sx={{ width: '100%', height: '46.875vw', maxHeight: '70vh', borderRadius: 1, backgroundColor: '#eee' }} />
       </PageTitleBox>
     </PageContainer>
   );

@@ -28,16 +28,16 @@ import RecommendTable from './RecommendTable';
 import PageTitleBox from '@/components/PageTitleBox';
 
 const dataSource = [
-  { key: 0, label: '데이터베이스 1' },
-  { key: 1, label: '데이터베이스 2' },
-  { key: 2, label: '데이터베이스 3' },
+  { key: 0, label: '데이터베이스 1', value: '데이터베이스 1' },
+  { key: 1, label: '데이터베이스 2', value: '데이터베이스 2' },
+  { key: 2, label: '데이터베이스 3', value: '데이터베이스 3' },
 ];
 const dataSet = [
-  { key: 0, label: '데이터 셋 1' },
-  { key: 1, label: '데이터 셋 2' },
-  { key: 2, label: '데이터 셋 3' },
-  { key: 3, label: '데이터 셋 4' },
-  { key: 4, label: '데이터 셋 5' },
+  { key: 0, label: '데이터 셋 1', value: '데이터 셋 1' },
+  { key: 1, label: '데이터 셋 2', value: '데이터 셋 2' },
+  { key: 2, label: '데이터 셋 3', value: '데이터 셋 3' },
+  { key: 3, label: '데이터 셋 4', value: '데이터 셋 4' },
+  { key: 4, label: '데이터 셋 5', value: '데이터 셋 5' },
 ];
 
 const Transition = React.forwardRef(function Transition(
@@ -76,7 +76,9 @@ function Recommend(props) {
     setOpenFormDialog(true);
   };
   const handleCreateClose = () => {
+    setIsNextSlide(false);
     setOpenFormDialog(false);
+    setOpen(false);
   };
 
   return (
@@ -102,7 +104,16 @@ function Recommend(props) {
             <Typography variant="h6" component="p">
               Layout1
             </Typography>
-            <Box sx={{ width: '100%', height: '50vw', borderRadius: 1, backgroundColor: '#eee' }} />
+            <Box
+              sx={{
+                width: '100%',
+                height: '46.875vw',
+                maxHeight: 'calc(70vh - 200px)',
+                m: 'auto',
+                borderRadius: 1,
+                backgroundColor: '#eee',
+              }}
+            />
           </Stack>
         )}
 
@@ -116,24 +127,22 @@ function Recommend(props) {
             secondary={!isNextSlide ? {} : { label: '이전', onClick: handleSlideToggleClick }}
           />
           <Dialog open={openFormDialog} onClose={handleClose}>
-            <DialogTitle>Subscribe</DialogTitle>
+            <DialogTitle>대시보드 생성</DialogTitle>
             <DialogContent>
-              <DialogContentText>
-                To subscribe to this website, please enter your email address here. We will send updates occasionally.
-              </DialogContentText>
+              <DialogContentText>생성할 대시보드의 이름을 작성해주세요.</DialogContentText>
               <TextField
                 autoFocus
                 margin="dense"
-                id="name"
-                label="Email Address"
-                type="email"
+                id="dashboardName"
+                label="대시보드 이름"
+                type="text"
                 fullWidth
                 variant="standard"
               />
             </DialogContent>
             <DialogActions>
-              <Button onClick={handleCreateClose}>Cancel</Button>
-              <Button onClick={handleCreateClose}>Subscribe</Button>
+              <Button onClick={handleCreateClose}>취소</Button>
+              <Button onClick={handleCreateClose}>대시보드 생성</Button>
             </DialogActions>
           </Dialog>
         </DialogActions>
