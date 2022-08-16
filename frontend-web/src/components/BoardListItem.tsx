@@ -1,7 +1,20 @@
 import React from 'react';
-import { IconButton, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import { BarChart, PieChart, Dashboard, Delete, Edit } from '@mui/icons-material';
+import {
+  IconButton,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Button,
+} from '@mui/material';
+import { BarChart, PieChart, Dashboard, Delete, Edit, Close } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
+import DialogAlert from './DialogAlert';
 
 const tableBorder = '1px solid #DADDDD';
 
@@ -38,9 +51,10 @@ function BoardListItem(props) {
           <IconButton size="large" component={RouterLink} to={`/${props.url}/modify`}>
             <Edit />
           </IconButton>
-          <IconButton size="large">
-            <Delete />
-          </IconButton>
+          <DialogAlert postList={props.postList} iconButton={<Delete />} size="large">
+            {`삭제시 N개의 대시보드에 반영됩니다.`}
+            <br /> {`<${props.postList.name}>을 삭제하시겠습니까?`}
+          </DialogAlert>
         </React.Fragment>
       }
       disablePadding

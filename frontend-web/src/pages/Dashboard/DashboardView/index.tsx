@@ -6,6 +6,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PageTitleBox from '../../../components/PageTitleBox';
 import TitleBox from '../../../components/TitleBox';
+import DialogAlert from '../../../components/DialogAlert';
 
 function DashboardView(props) {
   const handleRenewClick = () => {
@@ -28,9 +29,9 @@ function DashboardView(props) {
             <IconButton component={RouterLink} to="/dashboard/modify" aria-label="수정">
               <EditIcon />
             </IconButton>
-            <IconButton onClick={handleDeleteClick} aria-label="수정">
-              <DeleteIcon />
-            </IconButton>
+            <DialogAlert size="small" iconButton={<DeleteIcon />}>
+              &lt;대시보드 이름&gt;을 삭제하시겠습니까?
+            </DialogAlert>
           </Stack>
         }
       >
