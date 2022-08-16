@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Box, Stack, TextField } from '@mui/material';
 import PageContainer from '../../../components/PageContainer';
 import PageTitleBox from '../../../components/PageTitleBox';
-import DialogButton from '../../../components/DialogButton';
+import DialogButton from '../../../components/button/DialogButton';
 
 function DashboardModify(props) {
   return (

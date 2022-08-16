@@ -1,6 +1,6 @@
 import React from 'react';
 import { Divider, Box, Stack, Typography } from '@mui/material';
-import AddButton from './AddButton';
+import AddButton from './button/AddButton';
 
 function TitleBox(props) {
   const title: string = props.title || '';

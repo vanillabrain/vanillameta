@@ -1,6 +1,6 @@
 import React from 'react';
 import { List, ListItem, Stack, TextField } from '@mui/material';
-import SubmitButton from './SubmitButton';
+import SubmitButton from '../button/SubmitButton';
 
 function LabelInputForm(props) {
   const handleSubmit = data => {

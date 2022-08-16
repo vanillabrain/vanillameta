@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Box, Button, Grid, Stack, Step, StepLabel, Stepper, Typography } from '@mui/material';
 import PageTitleBox from '../../../components/PageTitleBox';
 import PageContainer from '../../../components/PageContainer';
-import ConfirmButton from '../../../components/ConfirmButton';
+import ConfirmButton from '../../../components/button/ConfirmButton';
 import TitleBox from '../../../components/TitleBox';
 import WidgetDataSelect from './WidgetDataSelect';
 import WidgetTypeSelect from './WidgetTypeSelect';

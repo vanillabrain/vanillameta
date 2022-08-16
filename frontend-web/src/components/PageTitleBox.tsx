@@ -1,7 +1,7 @@
 import React from 'react';
 import { Divider, Box, Stack, Typography } from '@mui/material';
-import ConfirmButton from './ConfirmButton';
-import AddButton from './AddButton';
+import ConfirmButton from './button/ConfirmButton';
+import AddButton from './button/AddButton';
 
 function PageTitleBox(props) {
   const title: string = props.title || '';

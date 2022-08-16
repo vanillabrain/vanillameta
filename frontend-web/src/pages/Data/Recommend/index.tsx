@@ -23,7 +23,7 @@ import {
 import { TransitionProps } from '@mui/material/transitions';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import CloseIcon from '@mui/icons-material/Close';
-import ConfirmButton from '../../../components/ConfirmButton';
+import ConfirmButton from '../../../components/button/ConfirmButton';
 import RecommendTable from './RecommendTable';
 import PageTitleBox from '@/components/PageTitleBox';
 

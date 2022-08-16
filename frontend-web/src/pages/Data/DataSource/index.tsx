@@ -4,7 +4,7 @@ import PageContainer from '../../../components/PageContainer';
 import PageTitleBox from '../../../components/PageTitleBox';
 import TitleBox from '../../../components/TitleBox';
 import ImgCardList from '../../../components/ImgCardList';
-import LabelInputForm from '../../../components/LabelInputForm';
+import LabelInputForm from '../../../components/form/LabelInputForm';
 
 const typeList = [
   { key: 0, value: 'MySQL', src: 'logo/mysql-logo.svg' },

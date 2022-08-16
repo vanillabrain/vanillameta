@@ -41,7 +41,7 @@ function DialogAlert(props) {
           <DialogContentText id="경고 문구">{props.children}</DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClose} color="inherit" autoFocus>
+          <Button onClick={handleClose} color="inherit">
             취소
           </Button>
           <Button onClick={handleClose} color="error">
