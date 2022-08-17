@@ -1,14 +1,14 @@
 import React from 'react';
 import { FormControl, FormControlLabel, FormLabel, Radio, RadioGroup } from '@mui/material';
 
-function RadioForm(props) {
+function RadioForm({ label, ...props }) {
   return (
     <FormControl
       fullWidth
       sx={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-start' }}
     >
-      <FormLabel htmlFor="userInputRadio" sx={{ width: '40%', mt: 1 }}>
-        {props.label}
+      <FormLabel htmlFor={props.id} sx={{ width: '40%', mt: 1 }}>
+        {label}
       </FormLabel>
       <RadioGroup
         row
@@ -17,7 +17,7 @@ function RadioForm(props) {
         sx={{ justifyContent: 'space-between', width: '60%' }}
       >
         {props.option.map(item => (
-          <FormControlLabel id="userInputRadio" key={item} value={item} control={<Radio />} label={item} />
+          <FormControlLabel {...props} key={item.id} value={item.value} control={<Radio />} label={item.label} />
         ))}
       </RadioGroup>
     </FormControl>

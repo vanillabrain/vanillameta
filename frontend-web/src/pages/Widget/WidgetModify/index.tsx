@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import WidgetAttributeSelect from '../WidgetCreate/WidgetAttributeSelect';
 import PageContainer from '../../../components/PageContainer';
 import PageTitleBox from '../../../components/PageTitleBox';

@@ -13,70 +13,47 @@ import {
   useTheme,
 } from '@mui/material';
 
-const ITEM_HEIGHT = 48;
-const ITEM_PADDING_TOP = 8;
-const MenuProps = {
-  PaperProps: {
-    style: {
-      maxHeight: ITEM_HEIGHT * 4.5 + ITEM_PADDING_TOP,
-      width: 250,
-    },
-  },
-};
-
-function getStyles(name: string, personName: readonly string[], theme: Theme) {
-  return {
-    fontWeight: personName.indexOf(name) === -1 ? theme.typography.fontWeightRegular : theme.typography.fontWeightMedium,
-  };
+interface SelectChipForm {
+  label: string;
+  color: string;
+  props: object;
 }
 
 function SelectChipForm(props) {
-  const theme = useTheme();
-  const [personName, setPersonName] = React.useState<string[]>([]);
-
-  const handleChange = (event: SelectChangeEvent<typeof personName>) => {
-    const {
-      target: { value },
-    } = event;
-    setPersonName(
-      // On autofill we get a stringified value.
-      typeof value === 'string' ? value.split(',') : value,
-    );
-  };
+  const { label, color, ...rest } = props;
 
   return (
     <FormControl fullWidth sx={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-      {props.label && (
+      {label && (
         <FormLabel htmlFor="userInputSelect" sx={{ width: '40%' }}>
-          {props.label}
+          {label}
         </FormLabel>
       )}
       <Select
-        multiple
-        id="userInputSelect"
-        // value={props.value || ''}
-        // onChange={props.onChange || undefined}
-        value={personName}
-        onChange={handleChange}
         size="small"
-        sx={{ width: '60%' }}
-        renderValue={selected => (
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-            {selected.map(value => (
-              <Chip key={value} label={value} />
-            ))}
-          </Box>
+        sx={{ width: '60%', height: '37.7px' }}
+        renderValue={(selected: any) => (
+          <Chip
+            label={props.option.map(item => item.value === selected && item.label)}
+            size="small"
+            sx={{ bgcolor: color }}
+          />
         )}
-        MenuProps={MenuProps}
+        {...rest}
       >
         {props.option.map(item => (
-          <MenuItem key={item} value={item}>
-            {item}
+          <MenuItem key={item.value} value={item.value}>
+            {item.label}
           </MenuItem>
         ))}
       </Select>
     </FormControl>
   );
 }
+
+SelectChipForm.defaultProps = {
+  label: 'label',
+  color: '#eee',
+};
 
 export default SelectChipForm;
