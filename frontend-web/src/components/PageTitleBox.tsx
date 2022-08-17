@@ -4,8 +4,7 @@ import ConfirmButton from './button/ConfirmButton';
 import AddButton from './button/AddButton';
 
 function PageTitleBox(props) {
-  const title: string = props.title || '';
-  const naviUrl = props.naviUrl || false;
+  const { title, naviUrl, ...rest } = props;
 
   let button = null;
   if (naviUrl) {
@@ -13,7 +12,7 @@ function PageTitleBox(props) {
     button = <AddButton naviUrl={naviUrl} />;
   } else if (props.button === 'confirm') {
     // button='confirm' 일 경우 confirm / cancel 선택 버튼, disabled 로 confirm 버튼 비활성
-    button = <ConfirmButton primary={{ disabled: props.disabled }} />;
+    button = <ConfirmButton confirm={{ disabled: props.disabled }} />;
   } else {
     button = props.button;
   }
@@ -44,5 +43,10 @@ function PageTitleBox(props) {
     </Box>
   );
 }
+
+PageTitleBox.defaultProps = {
+  title: '',
+  naviUrl: false,
+};
 
 export default PageTitleBox;

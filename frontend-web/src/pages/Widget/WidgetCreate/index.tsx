@@ -40,14 +40,14 @@ function WidgetCreate(props) {
         button={
           <Stack>
             <ConfirmButton
-              primary={{
+              confirmLabel={activeStep === steps.length - 1 ? '저장' : '다음'}
+              cancelLabel="이전"
+              confirm={{
                 form: 'widgetAttribute',
-                label: activeStep === steps.length - 1 ? '저장' : '다음',
                 onClick: activeStep === steps.length - 1 ? handleSubmit : handleNext,
                 disabled: activeStep === steps.length - 1,
               }}
-              secondary={{
-                label: '이전',
+              cancel={{
                 onClick: handleBack,
                 disabled: activeStep === 0,
               }}

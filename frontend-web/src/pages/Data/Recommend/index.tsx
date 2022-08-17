@@ -119,12 +119,10 @@ function Recommend(props) {
 
         <DialogActions sx={{ px: 4, pb: 3 }}>
           <ConfirmButton
-            primary={
-              !isNextSlide
-                ? { label: '다음', disabled: false, onClick: handleSlideToggleClick }
-                : { label: '대시보드 생성', onClick: handleCreateClick }
-            }
-            secondary={!isNextSlide ? {} : { label: '이전', onClick: handleSlideToggleClick }}
+            confirmLabel={!isNextSlide ? '다음' : '대시보드 생성'}
+            cancelLabel={!isNextSlide ? '취소' : '이전'}
+            confirm={!isNextSlide ? { disabled: false, onClick: handleSlideToggleClick } : { onClick: handleCreateClick }}
+            cancel={!isNextSlide ? {} : { onClick: handleSlideToggleClick }}
           />
           <Dialog open={openFormDialog} onClose={handleClose}>
             <DialogTitle>대시보드 생성</DialogTitle>
