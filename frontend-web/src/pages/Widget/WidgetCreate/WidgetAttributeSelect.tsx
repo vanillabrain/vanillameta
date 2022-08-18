@@ -19,7 +19,7 @@ import SelectChipForm from '../../../components/form/SelectChipForm';
 import RadioForm from '../../../components/form/RadioForm';
 import CheckForm from '../../../components/form/CheckForm';
 import TextFieldForm from '../../../components/form/TextFieldForm';
-import { Style } from '@mui/icons-material';
+import ColorFieldForm from '../../../components/form/ColorFieldForm';
 
 function WidgetAttributeSelect(props) {
   // const {
@@ -60,12 +60,13 @@ function WidgetAttributeSelect(props) {
     value3: '',
     value4: '',
     value5: '',
-    value6: '',
-    value7: '',
+    value6: [],
+    value7: [],
     value8: [],
     value9: false,
     value10: '',
     value11: '',
+    value12: '',
   });
 
   const handleChange = event => {
@@ -74,9 +75,18 @@ function WidgetAttributeSelect(props) {
         ? { ...prevState, [event.target.name]: event.target.value }
         : { ...prevState, [event.target.name]: event.target.checked },
     );
-    console.log(event.target.checked, 'value');
-    console.log(userValue, 'userValue');
+    props.onUpdate(userValue);
+    // console.log(userValue, 'userValue');
   };
+
+  const handleUpdate = enteredData => {
+    setUserValue(prevState => ({ ...prevState, ...enteredData }));
+    // console.log(userValue, 'update');
+  };
+
+  // useEffect(() => {
+  //   props.onUpdate(userValue);
+  // }, [userValue]);
 
   // const { control, handleSubmit } = useForm({
   //   defaultValues: {
@@ -114,7 +124,7 @@ function WidgetAttributeSelect(props) {
           label="위젯 이름"
           placeholder="위젯의 이름을 입력해 주세요"
           required
-          autoFocus
+          // autoFocus
           fullWidth
           sx={{ mt: { xs: 5, md: 0 } }}
           // ref={register}
@@ -229,7 +239,7 @@ function WidgetAttributeSelect(props) {
               ]}
               value={userValue.value7}
               onChange={handleChange}
-              color="#fab"
+              // color
             />
           </ListItem>
           <ListItem divider>
@@ -267,7 +277,15 @@ function WidgetAttributeSelect(props) {
               value={userValue.value11}
               onChange={handleChange}
             />
-            {/*TODO: TextFieldForm 작동 이상하게 되는거 고치기*/}
+            <ColorFieldForm
+              id="value12"
+              name="value12"
+              label="컬러 입력"
+              value={userValue.value12}
+              onChange={handleChange}
+              onUpdate={handleUpdate}
+            />
+            {/*TODO: TextFieldForm/ColorFieldForm 작동 이상하게 되는거 고치기*/}
           </ListItem>
         </StyledList>
       </Grid>

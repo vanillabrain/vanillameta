@@ -3,6 +3,7 @@ import { Stack, TextField } from '@mui/material';
 import PageContainer from '../../../components/PageContainer';
 import PageTitleBox from '../../../components/PageTitleBox';
 import SubmitButton from '../../../components/button/SubmitButton';
+import ConfirmButton from '../../../components/button/ConfirmButton';
 
 function DataSet(props) {
   const [isConnected, setIsConnected] = useState(false);
@@ -19,7 +20,7 @@ function DataSet(props) {
 
   return (
     <PageContainer>
-      <PageTitleBox title="데이터셋 생성" button="confirm" disabled={!isConnected}>
+      <PageTitleBox title="데이터셋 생성" button={<ConfirmButton confirm={{ disabled: !isConnected }} />}>
         <Stack component="form" flexDirection="column" spacing={3} sx={{ maxWidth: 800, m: 'auto' }} onSubmit={handleSubmit}>
           <TextField
             id="userSetName"

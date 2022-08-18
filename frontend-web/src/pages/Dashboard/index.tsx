@@ -4,6 +4,7 @@ import PageTitleBox from '../../components/PageTitleBox';
 import BoardList from '../../components/BoardList';
 import { Outlet, useParams } from 'react-router-dom';
 import axios from 'axios';
+import AddButton from '../../components/button/AddButton';
 
 const title = '대시보드';
 const naviUrl = '/dashboard/create';
@@ -25,7 +26,7 @@ function Dashboard(props) {
   return (
     <PageContainer>
       {!params.id ? (
-        <PageTitleBox title={title} naviUrl={naviUrl}>
+        <PageTitleBox title={title} button={<AddButton naviUrl={naviUrl} />}>
           <BoardList postList={loadedWidgetData} url="dashboard" />
         </PageTitleBox>
       ) : (

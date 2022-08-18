@@ -15,6 +15,13 @@ function WidgetCreate(props) {
   const [activeStep, setActiveStep] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
 
+  const [data, setData] = useState({});
+
+  const handleUpdate = enteredData => {
+    return setData(prevState => ({ ...prevState, ...enteredData }));
+    console.log(data);
+  };
+
   const handleNext = () => {
     if (activeStep < steps.length - 1) {
       setActiveStep(prevActiveStep => prevActiveStep + 1);
@@ -77,7 +84,7 @@ function WidgetCreate(props) {
           <WidgetTypeSelect />
         ) : (
           <TitleBox title="위젯 속성 설정">
-            <WidgetAttributeSelect />
+            <WidgetAttributeSelect onUpdate={handleUpdate} />
           </TitleBox>
         )}
         {/*<WidgetAttributeSelect />*/}

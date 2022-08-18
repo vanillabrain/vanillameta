@@ -2,12 +2,24 @@ import React, { useState } from 'react';
 import WidgetAttributeSelect from '../WidgetCreate/WidgetAttributeSelect';
 import PageContainer from '../../../components/PageContainer';
 import PageTitleBox from '../../../components/PageTitleBox';
+import ConfirmButton from '../../../components/button/ConfirmButton';
 
 function WidgetModify(props) {
+  const [data, setData] = useState({});
+
+  const handleUpdate = enteredData => {
+    return setData(prevState => ({ ...prevState, ...enteredData }));
+  };
+
+  const handleSubmit = event => {
+    event.preventDefault();
+    console.log(data, 'submit!');
+  };
+
   return (
     <PageContainer>
-      <PageTitleBox title="위젯 수정" button="confirm">
-        <WidgetAttributeSelect />
+      <PageTitleBox title="위젯 수정" button={<ConfirmButton confirm={{ onClick: handleSubmit }} />}>
+        <WidgetAttributeSelect onUpdate={handleUpdate} />
       </PageTitleBox>
     </PageContainer>
   );

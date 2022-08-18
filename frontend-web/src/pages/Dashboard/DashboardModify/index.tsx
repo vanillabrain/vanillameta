@@ -3,11 +3,12 @@ import { Box, Stack, TextField } from '@mui/material';
 import PageContainer from '../../../components/PageContainer';
 import PageTitleBox from '../../../components/PageTitleBox';
 import DialogButton from '../../../components/button/DialogButton';
+import ConfirmButton from '../../../components/button/ConfirmButton';
 
 function DashboardModify(props) {
   return (
     <PageContainer>
-      <PageTitleBox title="대시보드 편집" button="confirm" disabled>
+      <PageTitleBox title="대시보드 편집" button={<ConfirmButton confirm={{ disabled: true }} />}>
         <Stack flexDirection="row" justifyContent="space-between" alignItems="baseline" mb={3}>
           <TextField
             id="userDashboardName"
