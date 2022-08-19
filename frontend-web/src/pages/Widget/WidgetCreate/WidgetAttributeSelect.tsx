@@ -24,12 +24,11 @@ import ColorFieldForm from '../../../components/form/ColorFieldForm';
 function WidgetAttributeSelect(props) {
   // const {
   //   register,
-  //   handleSubmit,
   //   watch,
   //   formState: { errors },
   //   control,
   // } = useForm();
-  //
+
   // console.log(watch('example'));
 
   const StyledList = styled(List)({

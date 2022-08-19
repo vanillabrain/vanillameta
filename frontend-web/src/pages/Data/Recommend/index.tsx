@@ -5,16 +5,9 @@ import {
   AppBar,
   Toolbar,
   Typography,
-  List,
-  ListItem,
-  ListItemText,
-  Divider,
   Button,
   Slide,
   DialogTitle,
-  Grid,
-  Stack,
-  Box,
   DialogActions,
   TextField,
   DialogContent,
@@ -24,21 +17,8 @@ import { TransitionProps } from '@mui/material/transitions';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import CloseIcon from '@mui/icons-material/Close';
 import ConfirmButton from '../../../components/button/ConfirmButton';
-import RecommendTable from './RecommendTable';
-import PageTitleBox from '@/components/PageTitleBox';
-
-const dataSource = [
-  { key: 0, label: '데이터베이스 1', value: '데이터베이스 1' },
-  { key: 1, label: '데이터베이스 2', value: '데이터베이스 2' },
-  { key: 2, label: '데이터베이스 3', value: '데이터베이스 3' },
-];
-const dataSet = [
-  { key: 0, label: '데이터 셋 1', value: '데이터 셋 1' },
-  { key: 1, label: '데이터 셋 2', value: '데이터 셋 2' },
-  { key: 2, label: '데이터 셋 3', value: '데이터 셋 3' },
-  { key: 3, label: '데이터 셋 4', value: '데이터 셋 4' },
-  { key: 4, label: '데이터 셋 5', value: '데이터 셋 5' },
-];
+import FirstStep from './FirstStep';
+import SecondStep from './SecondStep';
 
 const Transition = React.forwardRef(function Transition(
   props: TransitionProps & {
@@ -51,10 +31,8 @@ const Transition = React.forwardRef(function Transition(
 
 function Recommend(props) {
   const [open, setOpen] = useState(false);
-  const [openFormDialog, setOpenFormDialog] = useState(false);
-  const [selectedData, setSelectedData] = useState('');
-
-  const [isNextSlide, setIsNextSlide] = useState(false);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [isFirstStep, setFirstStep] = useState(true);
 
   const handleClickOpen = () => {
     setOpen(true);
@@ -64,20 +42,25 @@ function Recommend(props) {
     setOpen(false);
   };
 
-  const handleSlideToggleClick = () => {
-    if (!isNextSlide) {
-      setIsNextSlide(true);
+  const handleStepToggleClick = () => {
+    if (isFirstStep) {
+      setFirstStep(false);
     } else {
-      setIsNextSlide(false);
+      setFirstStep(true);
     }
   };
 
-  const handleCreateClick = () => {
-    setOpenFormDialog(true);
+  const handleClickComplete = () => {
+    setOpenDialog(true);
   };
-  const handleCreateClose = () => {
-    setIsNextSlide(false);
-    setOpenFormDialog(false);
+
+  const handleCloseComplete = () => {
+    setOpenDialog(false);
+  };
+
+  const handleSubmit = () => {
+    setFirstStep(true);
+    setOpenDialog(false);
     setOpen(false);
   };
 
@@ -97,34 +80,18 @@ function Recommend(props) {
             </Typography>
           </Toolbar>
         </AppBar>
-        {!isNextSlide ? (
-          <RecommendTable dataSource={dataSource} dataSet={dataSet} />
-        ) : (
-          <Stack p={4} pb={0} spacing={3}>
-            <Typography variant="h6" component="p">
-              Layout1
-            </Typography>
-            <Box
-              sx={{
-                width: '100%',
-                height: '46.875vw',
-                maxHeight: 'calc(70vh - 200px)',
-                m: 'auto',
-                borderRadius: 1,
-                backgroundColor: '#eee',
-              }}
-            />
-          </Stack>
-        )}
+
+        {isFirstStep ? <FirstStep /> : <SecondStep />}
 
         <DialogActions sx={{ px: 4, pb: 3 }}>
           <ConfirmButton
-            confirmLabel={!isNextSlide ? '다음' : '대시보드 생성'}
-            cancelLabel={!isNextSlide ? '취소' : '이전'}
-            confirm={!isNextSlide ? { disabled: false, onClick: handleSlideToggleClick } : { onClick: handleCreateClick }}
-            cancel={!isNextSlide ? {} : { onClick: handleSlideToggleClick }}
+            confirmLabel={isFirstStep ? '다음' : '대시보드 생성'}
+            cancelLabel={isFirstStep ? '취소' : '이전'}
+            confirm={isFirstStep ? { disabled: false, onClick: handleStepToggleClick } : { onClick: handleClickComplete }}
+            cancel={isFirstStep ? {} : { onClick: handleStepToggleClick }}
           />
-          <Dialog open={openFormDialog} onClose={handleClose}>
+
+          <Dialog open={openDialog} onClose={handleClose}>
             <DialogTitle>대시보드 생성</DialogTitle>
             <DialogContent>
               <DialogContentText>생성할 대시보드의 이름을 작성해주세요.</DialogContentText>
@@ -139,8 +106,8 @@ function Recommend(props) {
               />
             </DialogContent>
             <DialogActions>
-              <Button onClick={handleCreateClose}>취소</Button>
-              <Button onClick={handleCreateClose}>대시보드 생성</Button>
+              <Button onClick={handleCloseComplete}>취소</Button>
+              <Button onClick={handleSubmit}>대시보드 생성</Button>
             </DialogActions>
           </Dialog>
         </DialogActions>

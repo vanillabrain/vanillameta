@@ -37,7 +37,7 @@ function WidgetCreate(props) {
   const handleSubmit = event => {
     event.preventDefault();
     setIsFinished(true);
-    console.log('finished');
+    console.log(data, 'finished');
   };
 
   return (
@@ -52,7 +52,7 @@ function WidgetCreate(props) {
               confirm={{
                 form: 'widgetAttribute',
                 onClick: activeStep === steps.length - 1 ? handleSubmit : handleNext,
-                disabled: activeStep === steps.length - 1,
+                // disabled: activeStep === steps.length - 1,
               }}
               cancel={{
                 onClick: handleBack,
