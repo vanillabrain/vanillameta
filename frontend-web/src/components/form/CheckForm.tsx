@@ -17,3 +17,5 @@ function CheckForm(props) {
 }
 
 export default CheckForm;
+
+CheckForm.defaultProps = {};

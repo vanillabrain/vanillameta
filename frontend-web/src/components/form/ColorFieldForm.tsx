@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { FormControl, FormLabel, IconButton, OutlinedInput, Popover, Stack, Typography } from '@mui/material';
 import CircleIcon from '@mui/icons-material/Circle';
-import { SketchPicker, SwatchesPicker } from 'react-color';
+import { SketchPicker } from 'react-color';
 
 function ColorFieldForm(props) {
   const { id, label, value, onUpdate, ...rest } = props;
@@ -52,23 +52,6 @@ function ColorFieldForm(props) {
           <SketchPicker color={color} onChangeComplete={handleChangeComplete} />
         </Popover>
         <OutlinedInput id={id} value={value} type="text" margin="dense" fullWidth {...rest} />
-
-        {/*<OutlinedInput*/}
-        {/*  id={id}*/}
-        {/*  value={value}*/}
-        {/*  type="color"*/}
-        {/*  margin="dense"*/}
-        {/*  fullWidth*/}
-        {/*  sx={{*/}
-        {/*    width: '37.7px',*/}
-        {/*    height: '37.7px',*/}
-        {/*    flexShrink: 0,*/}
-        {/*    p: 0.5,*/}
-        {/*    '& .MuiOutlinedInput-input': { height: '100%', p: 0 },*/}
-        {/*  }}*/}
-        {/*  {...rest}*/}
-        {/*/>*/}
-        {/*<Typography> {value}</Typography>*/}
       </Stack>
     </FormControl>
   );
