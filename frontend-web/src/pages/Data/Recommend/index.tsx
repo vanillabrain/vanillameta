@@ -16,7 +16,7 @@ import {
 import { TransitionProps } from '@mui/material/transitions';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import CloseIcon from '@mui/icons-material/Close';
-import ConfirmButton from '../../../components/button/ConfirmButton';
+import ConfirmCancelButton from '../../../components/button/ConfirmCancelButton';
 import FirstStep from './FirstStep';
 import SecondStep from './SecondStep';
 
@@ -84,11 +84,13 @@ function Recommend(props) {
         {isFirstStep ? <FirstStep /> : <SecondStep />}
 
         <DialogActions sx={{ px: 4, pb: 3 }}>
-          <ConfirmButton
+          <ConfirmCancelButton
             confirmLabel={isFirstStep ? '다음' : '대시보드 생성'}
             cancelLabel={isFirstStep ? '취소' : '이전'}
-            confirm={isFirstStep ? { disabled: false, onClick: handleStepToggleClick } : { onClick: handleClickComplete }}
-            cancel={isFirstStep ? {} : { onClick: handleStepToggleClick }}
+            confirmProps={
+              isFirstStep ? { disabled: false, onClick: handleStepToggleClick } : { onClick: handleClickComplete }
+            }
+            cancelProps={isFirstStep ? {} : { onClick: handleStepToggleClick }}
           />
 
           <Dialog open={openDialog} onClose={handleClose}>

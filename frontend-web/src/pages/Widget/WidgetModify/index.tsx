@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import WidgetAttributeSelect from '../WidgetCreate/WidgetAttributeSelect';
 import PageContainer from '../../../components/PageContainer';
 import PageTitleBox from '../../../components/PageTitleBox';
-import ConfirmButton from '../../../components/button/ConfirmButton';
+import ConfirmCancelButton from '../../../components/button/ConfirmCancelButton';
 
 function WidgetModify(props) {
   const [data, setData] = useState({});
@@ -18,7 +18,7 @@ function WidgetModify(props) {
 
   return (
     <PageContainer>
-      <PageTitleBox title="위젯 수정" button={<ConfirmButton confirm={{ onClick: handleSubmit }} />}>
+      <PageTitleBox title="위젯 수정" button={<ConfirmCancelButton confirmProps={{ onClick: handleSubmit }} />}>
         <WidgetAttributeSelect onUpdate={handleUpdate} />
       </PageTitleBox>
     </PageContainer>

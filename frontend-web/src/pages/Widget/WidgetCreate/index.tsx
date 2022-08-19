@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Box, Button, Grid, Stack, Step, StepLabel, Stepper, Typography } from '@mui/material';
 import PageTitleBox from '../../../components/PageTitleBox';
 import PageContainer from '../../../components/PageContainer';
-import ConfirmButton from '../../../components/button/ConfirmButton';
+import ConfirmCancelButton from '../../../components/button/ConfirmCancelButton';
 import TitleBox from '../../../components/TitleBox';
 import WidgetDataSelect from './WidgetDataSelect';
 import WidgetTypeSelect from './WidgetTypeSelect';
@@ -46,15 +46,15 @@ function WidgetCreate(props) {
         title={title}
         button={
           <Stack>
-            <ConfirmButton
+            <ConfirmCancelButton
               confirmLabel={activeStep === steps.length - 1 ? '저장' : '다음'}
               cancelLabel="이전"
-              confirm={{
+              confirmProps={{
                 form: 'widgetAttribute',
                 onClick: activeStep === steps.length - 1 ? handleSubmit : handleNext,
                 // disabled: activeStep === steps.length - 1,
               }}
-              cancel={{
+              cancelProps={{
                 onClick: handleBack,
                 disabled: activeStep === 0,
               }}
@@ -87,7 +87,6 @@ function WidgetCreate(props) {
             <WidgetAttributeSelect onUpdate={handleUpdate} />
           </TitleBox>
         )}
-        {/*<WidgetAttributeSelect />*/}
       </PageTitleBox>
     </PageContainer>
   );

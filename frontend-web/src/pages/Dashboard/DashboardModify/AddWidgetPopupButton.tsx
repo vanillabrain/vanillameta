@@ -33,7 +33,7 @@ const iconType = item => {
   }
 };
 
-function DialogButton(props) {
+function AddWidgetPopupButton(props) {
   const [open, setOpen] = useState(false);
   const [scroll, setScroll] = useState<DialogProps['scroll']>('paper');
   const [isSelected, setIsSelected] = useState(0);
@@ -160,4 +160,4 @@ function DialogButton(props) {
   );
 }
 
-export default DialogButton;
+export default AddWidgetPopupButton;

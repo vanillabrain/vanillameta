@@ -14,7 +14,7 @@ import {
 } from '@mui/material';
 import { BarChart, PieChart, Dashboard, Delete, Edit, Close } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
-import DialogAlert from './DialogAlert';
+import { DialogAlertIconButton } from './button/DialogAlertButton';
 
 const tableBorder = '1px solid #DADDDD';
 
@@ -51,10 +51,10 @@ function BoardListItem(props) {
           <IconButton size="large" component={RouterLink} to={`/${props.url}/modify`}>
             <Edit />
           </IconButton>
-          <DialogAlert postList={props.postList} iconButton={<Delete />} size="large">
+          <DialogAlertIconButton icon={<Delete />} size="large">
             {`삭제시 N개의 대시보드에 반영됩니다.`}
             <br /> {`<${props.postList.name}>을 삭제하시겠습니까?`}
-          </DialogAlert>
+          </DialogAlertIconButton>
         </React.Fragment>
       }
       disablePadding

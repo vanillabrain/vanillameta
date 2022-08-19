@@ -107,9 +107,16 @@ function SecondStep(props) {
           </StyledSwiperNavigation>
 
           <StyledSwiper {...swiperParams}>
-            {slideData.map(item => (
+            {slideData.map((item, index) => (
               <SwiperSlide key={item}>
-                <Card elevation={3} sx={{ height: 'calc(100% - 16px)', m: 1 }}>
+                <Card
+                  elevation={3}
+                  sx={{
+                    height: 'calc(100% - 16px)',
+                    m: 1,
+                    outline: activeSlide === index && '3px solid #000',
+                  }}
+                >
                   <CardActionArea name={item} sx={{ height: '100%', textAlign: 'center' }} onClick={handleClick}>
                     {item}
                   </CardActionArea>

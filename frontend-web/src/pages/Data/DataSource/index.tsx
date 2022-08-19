@@ -5,7 +5,7 @@ import PageTitleBox from '../../../components/PageTitleBox';
 import TitleBox from '../../../components/TitleBox';
 import ImgCardList from '../../../components/ImgCardList';
 import LabelInputForm from '../../../components/form/LabelInputForm';
-import ConfirmButton from '../../../components/button/ConfirmButton';
+import ConfirmCancelButton from '../../../components/button/ConfirmCancelButton';
 
 const typeList = [
   { key: 0, value: 'MySQL', src: 'logo/mysql-logo.svg' },
@@ -42,7 +42,7 @@ function DataSource(props) {
 
   return (
     <PageContainer>
-      <PageTitleBox title={'데이터 소스 연결'} button={<ConfirmButton confirm={{ disabled: !isConnected }} />}>
+      <PageTitleBox title={'데이터 소스 연결'} button={<ConfirmCancelButton confirmProps={{ disabled: !isConnected }} />}>
         <Stack spacing={3}>
           <TitleBox title={'step.01 타입 설정'}>
             <ImgCardList

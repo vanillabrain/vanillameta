@@ -1,8 +1,35 @@
 import React, { useState } from 'react';
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, IconButton } from '@mui/material';
-import { Close, Delete } from '@mui/icons-material';
+import {
+  Button,
+  ButtonBase,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  IconButton,
+} from '@mui/material';
+import { Close } from '@mui/icons-material';
 
-function DialogAlert(props) {
+export const DialogAlertIconButton = props => {
+  const { icon, size, children } = props;
+  const iconButton = (
+    <IconButton component="div" size={size}>
+      {icon}
+    </IconButton>
+  );
+
+  return <DialogAlertButton button={iconButton} children={children} />;
+};
+
+DialogAlertIconButton.defaultProps = {
+  icon: undefined,
+  size: 'medium',
+  children: '',
+};
+
+const DialogAlertButton = props => {
+  const { button, children } = props;
   const [open, setOpen] = useState(false);
 
   const handleClickOpen = () => {
@@ -13,15 +40,10 @@ function DialogAlert(props) {
     setOpen(false);
   };
 
-  const button = props.button || (
-    <IconButton size={props.size || 'medium'} onClick={handleClickOpen}>
-      {props.iconButton || false}
-    </IconButton>
-  );
-
   return (
     <React.Fragment>
-      {button}
+      <ButtonBase onClick={handleClickOpen}>{button}</ButtonBase>
+
       <Dialog open={open} onClose={handleClose} aria-labelledby="경고" aria-describedby="경고 문구">
         <DialogTitle id="경고" sx={{ mb: 2 }}>
           <IconButton
@@ -38,7 +60,7 @@ function DialogAlert(props) {
           </IconButton>
         </DialogTitle>
         <DialogContent>
-          <DialogContentText id="경고 문구">{props.children}</DialogContentText>
+          <DialogContentText id="경고 문구">{children}</DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose} color="inherit">
@@ -51,6 +73,11 @@ function DialogAlert(props) {
       </Dialog>
     </React.Fragment>
   );
-}
+};
 
-export default DialogAlert;
+DialogAlertButton.defaultProps = {
+  button: undefined,
+  children: '',
+};
+
+export default DialogAlertButton;
