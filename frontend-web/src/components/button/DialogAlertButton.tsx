@@ -29,7 +29,7 @@ DialogAlertIconButton.defaultProps = {
 };
 
 const DialogAlertButton = props => {
-  const { button, children } = props;
+  const { button, children, ref } = props;
   const [open, setOpen] = useState(false);
 
   const handleClickOpen = () => {

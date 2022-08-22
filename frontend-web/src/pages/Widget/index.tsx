@@ -6,17 +6,16 @@ import BoardList from '../../components/BoardList';
 import AddButton from '../../components/button/AddButton';
 
 const title = '위젯';
-const naviUrl = '/widget/create';
 
 function Widget() {
-  const params = useParams();
+  const { widget_id } = useParams();
 
   const [isLoading, setIsLoading] = useState(false);
   const [loadedWidgetData, setLoadedWidgetData] = useState([]);
   const [loadedCount, setLoadedCount] = useState(1);
 
   useEffect(() => {
-    fetch('data/dummyWidgetList.json')
+    fetch('/data/dummyWidgetList.json')
       .then(response => response.json())
       .then(data => setLoadedWidgetData(data.filter((list, idx) => idx <= 10 * loadedCount)));
     setIsLoading(true);
@@ -24,9 +23,9 @@ function Widget() {
 
   return (
     <PageContainer>
-      {!params.id ? (
-        <PageTitleBox title={title} button={<AddButton naviUrl={naviUrl} />}>
-          <BoardList postList={loadedWidgetData} url="widget" />
+      {!widget_id ? (
+        <PageTitleBox title={title} button={<AddButton naviUrl="/widget/create" />}>
+          <BoardList postList={loadedWidgetData} />
         </PageTitleBox>
       ) : (
         <Outlet />

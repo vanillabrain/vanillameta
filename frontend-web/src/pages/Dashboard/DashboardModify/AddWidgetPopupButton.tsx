@@ -33,7 +33,7 @@ const iconType = item => {
   }
 };
 
-function AddWidgetPopupButton(props) {
+function AddWidgetPopupButton({ label }) {
   const [open, setOpen] = useState(false);
   const [scroll, setScroll] = useState<DialogProps['scroll']>('paper');
   const [isSelected, setIsSelected] = useState(0);
@@ -46,7 +46,7 @@ function AddWidgetPopupButton(props) {
 
   const getItems = () => {
     setIsLoading(true);
-    fetch('../data/dummyWidgetList.json')
+    fetch('/data/dummyWidgetList.json')
       .then(response => response.json())
       .then(data => data.filter((list, idx) => idx < 10 * page))
       .then(data => setLoadedWidgetData(data));
@@ -93,7 +93,7 @@ function AddWidgetPopupButton(props) {
   return (
     <React.Fragment>
       <Button onClick={handleClickOpen('paper')} variant="contained" endIcon={<AddIcon />} color="primary">
-        {props.label}
+        {label}
       </Button>
       <Dialog
         open={open}
@@ -103,7 +103,7 @@ function AddWidgetPopupButton(props) {
         aria-describedby="scroll-dialog-description"
       >
         <DialogTitle id="scroll-dialog-title">
-          {props.label}
+          {label}
           <IconButton
             aria-label="close"
             onClick={handleClose}
@@ -139,7 +139,9 @@ function AddWidgetPopupButton(props) {
                 onClick={() => handleSelect(item.id)}
                 sx={isSelected === item.id ? { p: 1, px: 3, backgroundColor: '#eee', fontWeight: 500 } : { p: 1, px: 3 }}
               >
-                <ListItemIcon sx={isSelected === item.id && { color: '#000' }}>{iconType(item.type)}</ListItemIcon>
+                <ListItemIcon sx={isSelected === item.id ? { color: '#000' } : undefined}>
+                  {iconType(item.type)}
+                </ListItemIcon>
                 <ListItemText primaryTypographyProps={{ fontWeight: 'inherit' }} primary={item.name} />
               </ListItem>
             ))}

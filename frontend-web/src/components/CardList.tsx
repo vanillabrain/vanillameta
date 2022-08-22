@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { Box, Grid, IconButton, Card, Typography, CardContent, CardActionArea, CardActions } from '@mui/material';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import Recommend from '../pages/Data/Recommend';
 
-function CardList(props) {
+const CardList = props => {
+  const { subActions, ...rest } = props;
   const [selectedValue, setSelectedValue] = useState('');
 
   const handleClick = async event => {
@@ -15,7 +15,59 @@ function CardList(props) {
     console.log(selectedValue, 'state');
   };
 
-  const iconActionArea = (
+  return (
+    <Grid
+      container
+      spacing={2}
+      component="ul"
+      sx={{
+        listStyle: 'none',
+        pl: 0,
+        display: 'grid',
+        gridTemplateColumns: { xs: '1fr', md: `repeat(${rest.minWidth || '3, 1fr'})` },
+      }}
+    >
+      {rest.data.map(item => (
+        <Grid item xs={12} md component="li" key={item.key}>
+          <Card
+            sx={{
+              position: 'relative',
+            }}
+          >
+            <CardActionArea
+              onClick={handleClick}
+              value={item.value}
+              sx={{
+                boxShadow: selectedValue === item.value ? theme => `0 0 0 3px ${theme.palette.primary.main} inset` : 'none',
+                minHeight: 80,
+                px: 2,
+              }}
+            >
+              <CardContent sx={{ p: 0, pl: 1 }}>
+                <Typography
+                  component="span"
+                  variant="subtitle2"
+                  sx={{ width: '40%', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}
+                >
+                  {item.label}
+                </Typography>
+              </CardContent>
+            </CardActionArea>
+            {subActions}
+          </Card>
+        </Grid>
+      ))}
+    </Grid>
+  );
+};
+CardList.defaultProps = {
+  subActions: '',
+};
+
+export default CardList;
+
+export const IconCardList = props => {
+  const iconButton = (
     <CardActions
       disableSpacing
       sx={{
@@ -43,50 +95,5 @@ function CardList(props) {
     </CardActions>
   );
 
-  return (
-    <Grid
-      container
-      spacing={2}
-      component="ul"
-      sx={{
-        listStyle: 'none',
-        pl: 0,
-        display: 'grid',
-        gridTemplateColumns: { xs: '1fr', md: `repeat(${props.minWidth || '3, 1fr'})` },
-      }}
-    >
-      {props.data.map(item => (
-        <Grid item xs={12} md component="li" key={item.key}>
-          <Card
-            sx={{
-              position: 'relative',
-            }}
-          >
-            <CardActionArea
-              onClick={handleClick}
-              value={item.value}
-              sx={{
-                boxShadow: selectedValue === item.value ? theme => `0 0 0 3px ${theme.palette.primary.main} inset` : 'none',
-                minHeight: 80,
-                px: 2,
-              }}
-            >
-              <CardContent sx={{ p: 0, pl: 1 }}>
-                <Typography
-                  component="span"
-                  variant="subtitle2"
-                  sx={{ width: '40%', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}
-                >
-                  {item.label}
-                </Typography>
-              </CardContent>
-            </CardActionArea>
-            {iconActionArea}
-          </Card>
-        </Grid>
-      ))}
-    </Grid>
-  );
-}
-
-export default CardList;
+  return <CardList subActions={iconButton} />;
+};

@@ -3,10 +3,11 @@ import WidgetAttributeSelect from '../WidgetCreate/WidgetAttributeSelect';
 import PageContainer from '../../../components/PageContainer';
 import PageTitleBox from '../../../components/PageTitleBox';
 import ConfirmCancelButton from '../../../components/button/ConfirmCancelButton';
+import { useParams } from 'react-router-dom';
 
 function WidgetModify(props) {
   const [data, setData] = useState({});
-  console.log(data, 'WidgetModify');
+  // console.log(data, 'WidgetModify');
 
   const handleUpdate = enteredData => {
     return setData(prevState => ({ ...prevState, ...enteredData }));
@@ -16,6 +17,9 @@ function WidgetModify(props) {
     event.preventDefault();
     console.log(data, 'submit!');
   };
+
+  const { widget_id } = useParams();
+  console.log(widget_id, 'params');
 
   return (
     <PageContainer>

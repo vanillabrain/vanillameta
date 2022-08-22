@@ -3,23 +3,25 @@ import { Box, List, Pagination, Stack, Typography, useMediaQuery, useTheme } fro
 import BoardListItem from './BoardListItem';
 
 function BoardList(props) {
+  const { postList, ...rest } = props;
+
   const theme = useTheme();
   const matches = useMediaQuery(theme.breakpoints.up('sm'));
   const tableBorder = '1px solid #DADDDD';
 
-  const hasType = props.postList.filter(item => item.type).length !== 0;
+  const hasItType = postList.filter(item => item.type).length !== 0;
 
   return (
     <Box>
       <Stack flexDirection="row" justifyContent="space-between" px={4} pb={1}>
-        {hasType && (
+        {hasItType && (
           <Typography variant="body2" sx={{ ml: -2 }}>
             종류
           </Typography>
         )}
         <Typography
           variant="body2"
-          sx={{ flexGrow: 1, pl: hasType ? { xs: 4, sm: 6 } : 0, ml: hasType ? 0 : { xs: -2, sm: 0 } }}
+          sx={{ flexGrow: 1, pl: hasItType ? { xs: 4, sm: 6 } : 0, ml: hasItType ? 0 : { xs: -2, sm: 0 } }}
         >
           이름
         </Typography>
@@ -31,8 +33,8 @@ function BoardList(props) {
       </Stack>
 
       <List sx={{ m: 'auto', border: tableBorder, borderRadius: 2, backgroundColor: '#fff' }} disablePadding>
-        {props.postList.map(item => (
-          <BoardListItem postList={item} key={item.id} url={props.url} />
+        {postList.map(item => (
+          <BoardListItem postItem={item} key={item.id} />
         ))}
       </List>
       <Stack alignItems="center" mt={4}>

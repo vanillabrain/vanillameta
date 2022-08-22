@@ -15,20 +15,24 @@ import DashboardCreate from '../pages/Dashboard/DashboardCreate';
 import DashboardModify from '../pages/Dashboard/DashboardModify';
 import Recommend from '../pages/Data/Recommend';
 
-function Router(props) {
+function Router() {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/dashboard" />} />
       <Route path="/dashboard" element={<Dashboard />}>
-        <Route path=":id" element={<DashboardView />} />
+        <Route path=":dashboard_id" element={<DashboardView />} />
       </Route>
       <Route path="/dashboard/create" element={<DashboardCreate />} />
-      <Route path="/dashboard/modify" element={<DashboardModify />} />
+      <Route path="/dashboard/modify" element={<DashboardModify />}>
+        <Route path=":dashboard_id" element={<DashboardModify />} />
+      </Route>
       <Route path="/widget" element={<Widget />}>
-        <Route path=":id" element={<WidgetView />} />
+        <Route path=":widget_id" element={<WidgetView />} />
       </Route>
       <Route path="/widget/create" element={<WidgetCreate />} />
-      <Route path="/widget/modify" element={<WidgetModify />} />
+      <Route path="/widget/modify" element={<WidgetModify />}>
+        <Route path=":widget_id" element={<WidgetModify />} />
+      </Route>
       <Route path="/data" element={<Data />} />
       <Route path="/data/connect" element={<DataSource />} />
       <Route path="/data/set" element={<DataSet />} />

@@ -1,25 +1,15 @@
 import React from 'react';
-import {
-  IconButton,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions,
-  Button,
-} from '@mui/material';
-import { BarChart, PieChart, Dashboard, Delete, Edit, Close } from '@mui/icons-material';
+import { IconButton, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { BarChart, PieChart, Dashboard, Delete, Edit } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
 import { DialogAlertIconButton } from './button/DialogAlertButton';
 
 const tableBorder = '1px solid #DADDDD';
 
 function BoardListItem(props) {
-  const name = props.postList.name;
+  const { postItem, ...rest } = props;
+
+  const name = postItem.name;
   const dateData = data => {
     const userDate = new Date(data);
     const year = userDate.getFullYear();
@@ -29,7 +19,7 @@ function BoardListItem(props) {
   };
 
   let iconType;
-  switch (props.postList.type) {
+  switch (postItem.type) {
     case 'dashboard':
       iconType = <Dashboard />;
       break;
@@ -45,15 +35,15 @@ function BoardListItem(props) {
 
   return (
     <ListItem
-      key={props.postList.id}
+      key={postItem.id}
       secondaryAction={
         <React.Fragment>
-          <IconButton size="large" component={RouterLink} to={`/${props.url}/modify`}>
+          <IconButton size="large" component={RouterLink} to={`modify/${postItem.id}`}>
             <Edit />
           </IconButton>
           <DialogAlertIconButton icon={<Delete />} size="large">
             {`삭제시 N개의 대시보드에 반영됩니다.`}
-            <br /> {`<${props.postList.name}>을 삭제하시겠습니까?`}
+            <br /> {`<${postItem.name}>을 삭제하시겠습니까?`}
           </DialogAlertIconButton>
         </React.Fragment>
       }
@@ -63,12 +53,12 @@ function BoardListItem(props) {
         '&:last-of-type': { borderBottom: 0 },
       }}
     >
-      <ListItemButton sx={{ py: 0.8 }} component={RouterLink} to={`/${props.url}/${props.postList.id}`}>
-        {props.postList.type ? <ListItemIcon>{iconType}</ListItemIcon> : ''}
+      <ListItemButton sx={{ py: 0.8 }} component={RouterLink} to={postItem.id}>
+        {postItem.type ? <ListItemIcon>{iconType}</ListItemIcon> : ''}
         <ListItemText
           primary={name}
           primaryTypographyProps={{ fontWeight: 500 }}
-          secondary={dateData(props.postList.date)}
+          secondary={dateData(postItem.date)}
           sx={{
             display: { xs: 'block', sm: 'flex' },
             justifyContent: 'space-between',

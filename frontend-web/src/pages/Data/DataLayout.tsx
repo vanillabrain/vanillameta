@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Box, Grid } from '@mui/material';
-import TitleBox from './TitleBox';
-import CardList from './CardList';
+import TitleBox from '../../components/TitleBox';
+import CardList from '../../components/CardList';
 const dataSource = [
   { key: 0, label: '데이터베이스 1' },
   { key: 1, label: '데이터베이스 2' },
@@ -24,32 +24,25 @@ const dataList = [
   { key: 6, label: '데이터 목록 7' },
 ];
 
-function DataTable(props) {
-  const [selectedData, setSelectedData] = useState('');
-
+function DataLayout({ data, naviUrl }) {
+  // console.log(data);
   return (
     <Box>
       <Grid container spacing={5}>
         <Grid item xs={12} md={4}>
-          <TitleBox
-            title={'데이터 소스'}
-            naviUrl={props.naviUrl ? props.naviUrl.dataConnectUrl : false}
-            fastCreate
-            edit
-            delete
-          >
+          <TitleBox title="데이터 소스" naviUrl={naviUrl.dataConnectUrl} fastCreate edit delete>
             <CardList data={dataSource} fastCreate edit delete minWidth="100%" />
           </TitleBox>
         </Grid>
         <Grid item xs={12} md>
           <Grid container spacing={5}>
             <Grid item xs={12}>
-              <TitleBox title={'데이터 셋'} naviUrl={props.naviUrl ? props.naviUrl.dataSetUrl : false}>
+              <TitleBox title="데이터 셋" naviUrl={naviUrl.dataSetUrl}>
                 <CardList data={dataSet} edit delete />
               </TitleBox>
             </Grid>
             <Grid item xs={12}>
-              <TitleBox title={'데이터 목록'} data={dataList}>
+              <TitleBox title="데이터 목록" data={dataList}>
                 <CardList data={dataList} />
               </TitleBox>
             </Grid>
@@ -60,4 +53,9 @@ function DataTable(props) {
   );
 }
 
-export default DataTable;
+DataLayout.defaultProps = {
+  data: {},
+  naviUrl: {},
+};
+
+export default DataLayout;

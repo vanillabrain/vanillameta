@@ -5,8 +5,12 @@ import PageTitleBox from '../../../components/PageTitleBox';
 import AddWidgetPopupButton from './AddWidgetPopupButton';
 import ConfirmCancelButton, { CancelButton } from '../../../components/button/ConfirmCancelButton';
 import DialogAlertButton from '../../../components/button/DialogAlertButton';
+import { useParams } from 'react-router-dom';
 
 function DashboardModify(props) {
+  const { dashboard_id } = useParams();
+  console.log(dashboard_id, 'params');
+
   return (
     <PageContainer>
       <PageTitleBox
