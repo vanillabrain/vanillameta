@@ -61,7 +61,7 @@ function SelectChipForm(props) {
           multiple
           size="small"
           // sx={{ width: '60%', }}
-          sx={{ height: '37.7px', width: color ? 'calc(100% - 38px)' : '100%' }}
+          sx={{ height: 'auto', width: color ? 'calc(100% - 38px)' : '100%' }}
           renderValue={(selected: any) => (
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
               {selected.map(item => (

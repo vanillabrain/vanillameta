@@ -1,18 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import {
-  Box,
-  Grid,
-  Stack,
-  List,
-  ListItem,
-  TextField,
-  SelectChangeEvent,
-  styled,
-  Button,
-  Divider,
-  ListItemText,
-  Select,
-} from '@mui/material';
+import { Box, Grid, List, ListItem, TextField, styled, ListItemText } from '@mui/material';
 import { useForm } from 'react-hook-form';
 import SelectForm from '../../../components/form/SelectForm';
 import SelectChipForm from '../../../components/form/SelectChipForm';
@@ -20,6 +7,27 @@ import RadioForm from '../../../components/form/RadioForm';
 import CheckForm from '../../../components/form/CheckForm';
 import TextFieldForm from '../../../components/form/TextFieldForm';
 import ColorFieldForm from '../../../components/form/ColorFieldForm';
+
+const StyledList = styled(List)({
+  display: 'flex',
+  flexWrap: 'wrap',
+  '& .MuiListItemText-root': {
+    width: '100%',
+  },
+  '& .MuiListItemText-primary': {
+    mb: 1,
+    textAlign: 'left',
+    fontWeight: 500,
+    fontSize: 14,
+  },
+  '& .MuiListItem-root': {
+    display: 'flex',
+    flexDirection: ' column',
+    rowGap: 8,
+    width: '100%',
+    padding: '30px 0 30px',
+  },
+});
 
 function WidgetAttributeSelect(props) {
   // const {
@@ -30,27 +38,6 @@ function WidgetAttributeSelect(props) {
   // } = useForm();
 
   // console.log(watch('example'));
-
-  const StyledList = styled(List)({
-    display: 'flex',
-    flexWrap: 'wrap',
-    '& .MuiListItemText-root': {
-      width: '100%',
-    },
-    '& .MuiListItemText-primary': {
-      mb: 1,
-      textAlign: 'left',
-      fontWeight: 500,
-      fontSize: 14,
-    },
-    '& .MuiListItem-root': {
-      display: 'flex',
-      flexDirection: ' column',
-      rowGap: 8,
-      width: '100%',
-      padding: '30px 0 30px',
-    },
-  });
 
   const [userValue, setUserValue] = useState({
     widgetName: '',
@@ -75,17 +62,11 @@ function WidgetAttributeSelect(props) {
         : { ...prevState, [event.target.name]: event.target.checked },
     );
     props.onUpdate(userValue);
-    console.log(userValue, 'userValue');
   };
 
   const handleUpdate = enteredData => {
     setUserValue(prevState => ({ ...prevState, ...enteredData }));
-    // console.log(userValue, 'update');
   };
-
-  // useEffect(() => {
-  //   props.onUpdate(userValue);
-  // }, [userValue]);
 
   // const { control, handleSubmit } = useForm({
   //   defaultValues: {
@@ -96,11 +77,6 @@ function WidgetAttributeSelect(props) {
   // const onSubmit = data => {
   //   console.log('data: ', data);
   // };
-
-  const handleSubmit = event => {
-    event.preventDefault();
-    console.log(userValue);
-  };
 
   return (
     <Grid
@@ -114,9 +90,6 @@ function WidgetAttributeSelect(props) {
         <Box sx={{ width: '100%', height: '50vw', borderRadius: 1, backgroundColor: '#eee' }} />
       </Grid>
       <Grid item xs={10} md={3} sx={{ display: 'flex', flexDirection: 'column' }}>
-        {/*<button type="submit" onClick={handleSubmit}>*/}
-        {/*  submit*/}
-        {/*</button>*/}
         <TextField
           id="widgetName"
           name="widgetName"
@@ -179,40 +152,39 @@ function WidgetAttributeSelect(props) {
               onChange={handleChange}
             />
           </ListItem>
+          {/*<ListItem divider>*/}
+          {/*  <ListItemText primary="컬러피커 오른쪽 선택 상자" />*/}
+          {/*  <SelectForm*/}
+          {/*    id="value4"*/}
+          {/*    name="value4"*/}
+          {/*    label="X축"*/}
+          {/*    option={[*/}
+          {/*      { value: 1, label: 'value1' },*/}
+          {/*      { value: 2, label: 'value2' },*/}
+          {/*      { value: 3, label: 'value3' },*/}
+          {/*      { value: 4, label: 'value4' },*/}
+          {/*    ]}*/}
+          {/*    value={userValue.value4}*/}
+          {/*    onChange={handleChange}*/}
+          {/*    color="#fab"*/}
+          {/*  />*/}
+          {/*  <SelectForm*/}
+          {/*    id="value5"*/}
+          {/*    name="value5"*/}
+          {/*    label="Y축"*/}
+          {/*    option={[*/}
+          {/*      { value: 1, label: 'value1' },*/}
+          {/*      { value: 2, label: 'value2' },*/}
+          {/*      { value: 3, label: 'value3' },*/}
+          {/*      { value: 4, label: 'value4' },*/}
+          {/*    ]}*/}
+          {/*    value={userValue.value5}*/}
+          {/*    onChange={handleChange}*/}
+          {/*    color="#abf"*/}
+          {/*  />*/}
+          {/*</ListItem>*/}
           <ListItem divider>
-            <ListItemText primary="컬러피커 오른쪽 선택 상자" />
-
-            <SelectForm
-              id="value4"
-              name="value4"
-              label="X축"
-              option={[
-                { value: 1, label: 'value1' },
-                { value: 2, label: 'value2' },
-                { value: 3, label: 'value3' },
-                { value: 4, label: 'value4' },
-              ]}
-              value={userValue.value4}
-              onChange={handleChange}
-              color="#fab"
-            />
-            <SelectForm
-              id="value5"
-              name="value5"
-              label="Y축"
-              option={[
-                { value: 1, label: 'value1' },
-                { value: 2, label: 'value2' },
-                { value: 3, label: 'value3' },
-                { value: 4, label: 'value4' },
-              ]}
-              value={userValue.value5}
-              onChange={handleChange}
-              color="#abf"
-            />
-          </ListItem>
-          <ListItem divider>
-            <ListItemText primary="칩 모양 선택 상자" />
+            <ListItemText primary="칩 모양 다중 선택 상자" />
             <SelectChipForm
               id="value6"
               name="value6"
@@ -238,7 +210,7 @@ function WidgetAttributeSelect(props) {
               ]}
               value={userValue.value7}
               onChange={handleChange}
-              // color
+              color
             />
           </ListItem>
           <ListItem divider>
@@ -284,7 +256,6 @@ function WidgetAttributeSelect(props) {
               onChange={handleChange}
               onUpdate={handleUpdate}
             />
-            {/*TODO: TextFieldForm/ColorFieldForm 작동 이상하게 되는거 고치기*/}
           </ListItem>
         </StyledList>
       </Grid>

@@ -6,6 +6,7 @@ import ConfirmCancelButton from '../../../components/button/ConfirmCancelButton'
 
 function WidgetModify(props) {
   const [data, setData] = useState({});
+  console.log(data, 'WidgetModify');
 
   const handleUpdate = enteredData => {
     return setData(prevState => ({ ...prevState, ...enteredData }));
@@ -19,7 +20,7 @@ function WidgetModify(props) {
   return (
     <PageContainer>
       <PageTitleBox title="위젯 수정" button={<ConfirmCancelButton confirmProps={{ onClick: handleSubmit }} />}>
-        <WidgetAttributeSelect onUpdate={handleUpdate} />
+        <WidgetAttributeSelect data={data} onUpdate={handleUpdate} />
       </PageTitleBox>
     </PageContainer>
   );

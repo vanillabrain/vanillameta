@@ -20,7 +20,7 @@ export const CancelButton = props => {
 };
 
 const ConfirmCancelButton = props => {
-  const { confirmButton, cancelButton, confirmLabel, cancelLabel, confirmProps, cancelProps } = props;
+  const { confirmButton, cancelButton, confirmLabel, cancelLabel, confirmProps, cancelProps, ...rest } = props;
 
   const initialConfirm = <ConfirmButton confirmLabel={confirmLabel} confirmProps={confirmProps} />;
   const initialCancel = <CancelButton cancelLabel={cancelLabel} cancelProps={cancelProps} />;
