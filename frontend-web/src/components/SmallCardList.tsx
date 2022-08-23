@@ -1,9 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Grid, IconButton, Card, Typography, CardContent, CardActionArea, CardActions } from '@mui/material';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
-import Recommend from '../pages/Data/Recommend';
+import { Grid, Card, Typography, CardContent, CardActionArea, CardActions } from '@mui/material';
 
 function CardList(props) {
   const [selectedValue, setSelectedValue] = useState('');
@@ -28,19 +24,7 @@ function CardList(props) {
         m: 0,
         p: 0,
       }}
-    >
-      {props.fastCreate && <Recommend />}
-      {props.edit && (
-        <IconButton size="small">
-          <EditIcon />
-        </IconButton>
-      )}
-      {props.delete && (
-        <IconButton size="small">
-          <DeleteIcon />
-        </IconButton>
-      )}
-    </CardActions>
+    ></CardActions>
   );
 
   return (

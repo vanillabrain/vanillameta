@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Box, Stack, Typography } from '@mui/material';
 import TitleBox from '../../../components/TitleBox';
 import SmallCardList from '../../../components/SmallCardList';
@@ -17,6 +17,39 @@ const dataSet = [
 ];
 
 function FirstStep(props) {
+  // 데이터베이스 정보 fetch
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadedData, setLoadedData] = useState([]);
+
+  useEffect(() => {
+    fetch('/data/dummyDataList.json')
+      .then(response => response.json())
+      .then(data => setLoadedData(data));
+    setIsLoading(true);
+  }, []);
+
+  // 선택한 데이터베이스 값을 SmallCardList 에서 가져와서 저장하는 state
+  const [selectedData, setSelectedData] = useState({
+    dataSource: 0,
+    dataList: '',
+    dataSet: '',
+  });
+
+  const handleUpdate = enteredData => {
+    return setSelectedData(prevState => ({ ...prevState, ...enteredData }));
+  };
+  console.log(selectedData);
+
+  useEffect(() => {
+    loadedData.filter((item, index) => {
+      if (selectedData.dataSource === item.id) {
+        const selectedArray = loadedData[index];
+        handleUpdate({ dataList: selectedArray.dataList, dataSet: selectedArray.dataSet });
+        console.log(selectedData);
+      }
+    });
+  }, [selectedData.dataSource]);
+
   return (
     <Stack p={4} pb={0} spacing={3}>
       <Typography mb={2}>대시보드 생성에 사용할 데이터를 선택하세요.</Typography>

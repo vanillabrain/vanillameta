@@ -2,14 +2,13 @@ import React, { useEffect, useState } from 'react';
 import PageContainer from '../../components/PageContainer';
 import DataLayout from './DataLayout';
 
-const dataConnectUrl = '/data/connect';
+const dataSourceUrl = '/data/source';
 const dataSetUrl = '/data/set';
-const naviUrl = { dataConnectUrl, dataSetUrl };
+const naviUrl = { dataSourceUrl, dataSetUrl };
 
 function Data(props) {
   const [isLoading, setIsLoading] = useState(false);
   const [loadedData, setLoadedData] = useState([]);
-  const [selectedData, setSelectedData] = useState('');
 
   useEffect(() => {
     fetch('/data/dummyDataList.json')

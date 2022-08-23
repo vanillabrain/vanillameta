@@ -1,49 +1,92 @@
-import React from 'react';
-import { Box, Grid } from '@mui/material';
+import React, { useEffect, useState } from 'react';
+import { Box, Grid, IconButton } from '@mui/material';
+import { Delete, Edit, Bolt } from '@mui/icons-material';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
+
 import TitleBox from '../../components/TitleBox';
-import CardList from '../../components/CardList';
-const dataSource = [
-  { key: 0, label: '데이터베이스 1' },
-  { key: 1, label: '데이터베이스 2' },
-  { key: 2, label: '데이터베이스 3' },
-];
-const dataSet = [
-  { key: 0, label: '데이터 셋 1' },
-  { key: 1, label: '데이터 셋 2' },
-  { key: 2, label: '데이터 셋 3' },
-  { key: 3, label: '데이터 셋 4' },
-  { key: 4, label: '데이터 셋 5' },
-];
-const dataList = [
-  { key: 0, label: '데이터 목록 1' },
-  { key: 1, label: '데이터 목록 2' },
-  { key: 2, label: '데이터 목록 3' },
-  { key: 3, label: '데이터 목록 4' },
-  { key: 4, label: '데이터 목록 5' },
-  { key: 5, label: '데이터 목록 6' },
-  { key: 6, label: '데이터 목록 7' },
-];
+import Recommend from './Recommend';
+import CardList, { IconCardList } from '../../components/CardList';
 
 function DataLayout({ data, naviUrl }) {
-  // console.log(data);
+  const navigate = useNavigate();
+
+  // 선택한 데이터베이스를 CardList 에서 가져와서 저장하는 state
+  const [selectedData, setSelectedData] = useState({
+    dataSource: 0,
+    dataList: '',
+    dataSet: '',
+  });
+
+  const handleUpdate = enteredData => {
+    return setSelectedData(prevState => ({ ...prevState, ...enteredData }));
+  };
+  console.log(selectedData);
+
+  useEffect(() => {
+    data.filter((item, index) => {
+      if (selectedData.dataSource === item.id) {
+        const selectedArray = data[index];
+        handleUpdate({ dataList: selectedArray.dataList, dataSet: selectedArray.dataSet });
+        console.log(selectedData);
+      }
+    });
+  }, [selectedData.dataSource]);
+
+  const handleDataListClick = event => {
+    // selectedData.event.target.value;
+  };
+
+  // 아이콘 버튼 그룹 컴포넌트
+  const dataSetIconButton = (
+    <React.Fragment>
+      <IconButton size="small" component={RouterLink} to={`/data/set/${selectedData.dataSource}`}>
+        <Edit />
+      </IconButton>
+      <IconButton size="small">
+        <Delete />
+      </IconButton>
+    </React.Fragment>
+  );
+
+  const dataSourceIconButton = (
+    <React.Fragment>
+      <Recommend
+      // selected={}
+      // link={`/data/recommend/${selectedData.dataSource}`}
+      />
+      <IconButton size="small" component={RouterLink} to={`/data/source/${selectedData.dataSource}`}>
+        <Edit />
+      </IconButton>
+      <IconButton size="small">
+        <Delete />
+      </IconButton>
+    </React.Fragment>
+  );
+
   return (
     <Box>
       <Grid container spacing={5}>
         <Grid item xs={12} md={4}>
-          <TitleBox title="데이터 소스" naviUrl={naviUrl.dataConnectUrl} fastCreate edit delete>
-            <CardList data={dataSource} fastCreate edit delete minWidth="100%" />
+          <TitleBox title="데이터 소스" naviUrl={naviUrl.dataSourceUrl}>
+            <IconCardList
+              data={data}
+              selectedData={selectedData}
+              button={dataSourceIconButton}
+              minWidth="100%"
+              onUpdate={handleUpdate}
+            />
           </TitleBox>
         </Grid>
         <Grid item xs={12} md>
           <Grid container spacing={5}>
             <Grid item xs={12}>
               <TitleBox title="데이터 셋" naviUrl={naviUrl.dataSetUrl}>
-                <CardList data={dataSet} edit delete />
+                <IconCardList data={selectedData.dataSet} button={dataSetIconButton} />
               </TitleBox>
             </Grid>
             <Grid item xs={12}>
-              <TitleBox title="데이터 목록" data={dataList}>
-                <CardList data={dataList} />
+              <TitleBox title="데이터 목록">
+                <CardList data={selectedData.dataList} onClick={handleDataListClick} />
               </TitleBox>
             </Grid>
           </Grid>

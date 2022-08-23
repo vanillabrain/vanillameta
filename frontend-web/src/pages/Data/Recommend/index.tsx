@@ -66,7 +66,7 @@ function Recommend(props) {
 
   return (
     <React.Fragment>
-      <IconButton autoFocus onClick={handleClickOpen} size="small">
+      <IconButton onClick={handleClickOpen} size="small">
         <AutoAwesomeIcon />
       </IconButton>
       <Dialog open={open} onClose={handleClose} TransitionComponent={Transition} fullWidth maxWidth="xl">

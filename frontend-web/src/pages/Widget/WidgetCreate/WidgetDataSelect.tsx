@@ -30,7 +30,7 @@ function WidgetDataSelect(props) {
     <Box>
       <Grid container spacing={5}>
         <Grid item xs={12} md={4}>
-          <TitleBox title={'데이터 소스'} fastCreate edit delete>
+          <TitleBox title={'데이터 소스'}>
             <CardList data={dataSource} minWidth="100%" />
           </TitleBox>
         </Grid>
@@ -42,7 +42,7 @@ function WidgetDataSelect(props) {
               </TitleBox>
             </Grid>
             <Grid item xs={12}>
-              <TitleBox title={'데이터 목록'} data={dataList}>
+              <TitleBox title={'데이터 목록'}>
                 <CardList data={dataList} />
               </TitleBox>
             </Grid>
