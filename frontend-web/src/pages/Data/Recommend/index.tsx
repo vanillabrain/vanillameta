@@ -32,7 +32,9 @@ const Transition = React.forwardRef(function Transition(
 function Recommend(props) {
   const [open, setOpen] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
-  const [isFirstStep, setFirstStep] = useState(true);
+  const [isFirstStep, setIsFirstStep] = useState(true);
+
+  console.log(isFirstStep);
 
   const handleClickOpen = () => {
     setOpen(true);
@@ -40,13 +42,16 @@ function Recommend(props) {
 
   const handleClose = () => {
     setOpen(false);
+    setIsFirstStep(true);
   };
 
   const handleStepToggleClick = () => {
     if (isFirstStep) {
-      setFirstStep(false);
+      setIsFirstStep(false);
+      console.log('두번쨰');
     } else {
-      setFirstStep(true);
+      setIsFirstStep(true);
+      console.log('첫번쨰');
     }
   };
 
@@ -59,14 +64,14 @@ function Recommend(props) {
   };
 
   const handleSubmit = () => {
-    setFirstStep(true);
+    setIsFirstStep(true);
     setOpenDialog(false);
     setOpen(false);
   };
 
   return (
     <React.Fragment>
-      <IconButton onClick={handleClickOpen} size="small">
+      <IconButton onClick={handleClickOpen} size="small" {...props}>
         <AutoAwesomeIcon />
       </IconButton>
       <Dialog open={open} onClose={handleClose} TransitionComponent={Transition} fullWidth maxWidth="xl">
@@ -87,10 +92,8 @@ function Recommend(props) {
           <ConfirmCancelButton
             confirmLabel={isFirstStep ? '다음' : '대시보드 생성'}
             cancelLabel={isFirstStep ? '취소' : '이전'}
-            confirmProps={
-              isFirstStep ? { disabled: false, onClick: handleStepToggleClick } : { onClick: handleClickComplete }
-            }
-            cancelProps={isFirstStep ? {} : { onClick: handleStepToggleClick }}
+            confirmProps={isFirstStep ? { onClick: handleStepToggleClick } : { onClick: handleClickComplete }}
+            cancelProps={isFirstStep ? { onClick: handleClose } : { onClick: handleStepToggleClick }}
           />
 
           <Dialog open={openDialog} onClose={handleClose}>

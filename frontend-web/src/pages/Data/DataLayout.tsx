@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Grid, IconButton } from '@mui/material';
-import { Delete, Edit, Bolt } from '@mui/icons-material';
+import { Delete, Edit } from '@mui/icons-material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 
 import TitleBox from '../../components/TitleBox';
 import Recommend from './Recommend';
-import CardList, { IconCardList } from '../../components/CardList';
+import CardList, { IconCardList, DataSetCard, DataSourceCard } from '../../components/CardList';
+import DataSource from '@/pages/Data/DataSource';
 
 function DataLayout({ data, naviUrl }) {
   const navigate = useNavigate();
@@ -68,25 +69,28 @@ function DataLayout({ data, naviUrl }) {
       <Grid container spacing={5}>
         <Grid item xs={12} md={4}>
           <TitleBox title="데이터 소스" naviUrl={naviUrl.dataSourceUrl}>
-            <IconCardList
-              data={data}
-              selectedData={selectedData}
-              button={dataSourceIconButton}
-              minWidth="100%"
-              onUpdate={handleUpdate}
-            />
+            {/*<IconCardList*/}
+            {/*  data={data}*/}
+            {/*  selectedData={selectedData}*/}
+            {/*  button={dataSourceIconButton}*/}
+            {/*  minWidth="100%"*/}
+            {/*  onUpdate={handleUpdate}*/}
+            {/*/>*/}
+            <DataSourceCard data={data} selectedData={selectedData} minWidth="100%" onUpdate={handleUpdate} />
           </TitleBox>
         </Grid>
         <Grid item xs={12} md>
           <Grid container spacing={5}>
             <Grid item xs={12}>
               <TitleBox title="데이터 셋" naviUrl={naviUrl.dataSetUrl}>
-                <IconCardList data={selectedData.dataSet} button={dataSetIconButton} />
+                {/*<IconCardList data={selectedData.dataSet} button={dataSetIconButton} disabled />*/}
+                <DataSetCard data={selectedData.dataSet} />
               </TitleBox>
             </Grid>
             <Grid item xs={12}>
               <TitleBox title="데이터 목록">
-                <CardList data={selectedData.dataList} onClick={handleDataListClick} />
+                <CardList data={selectedData.dataList} onClick={handleDataListClick} disabled />
+                {/*<DataSourceCard data={selectedData.dataList} />*/}
               </TitleBox>
             </Grid>
           </Grid>

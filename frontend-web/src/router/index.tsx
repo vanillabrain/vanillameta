@@ -26,6 +26,7 @@ function Router() {
       <Route path="/dashboard/modify" element={<DashboardModify />}>
         <Route path=":dashboard_id" element={<DashboardModify />} />
       </Route>
+
       <Route path="/widget" element={<Widget />}>
         <Route path=":widget_id" element={<WidgetView />} />
       </Route>
@@ -33,15 +34,16 @@ function Router() {
       <Route path="/widget/modify" element={<WidgetModify />}>
         <Route path=":widget_id" element={<WidgetModify />} />
       </Route>
+
       <Route path="/data" element={<Data />} />
-      <Route path="/data/source" element={<DataSource />}>
-        <Route path=":datasource_id" element={<DataSource />} />
+      <Route path="/data/source/create" element={<DataSource />} />
+      <Route path="/data/source/modify" element={<DataSource />}>
+        <Route path=":source_id" element={<DataSource />} />
       </Route>
-      <Route path="/data/set" element={<DataSet />}>
-        <Route path=":dataset_id" element={<DataSet />} />
-      </Route>
-      <Route path="/data/recommend" element={<Recommend />}>
-        <Route path=":recommend_id" element={<Recommend />} />
+
+      <Route path="/data/set/create" element={<DataSet />} />
+      <Route path="/data/set/modify" element={<DataSet />}>
+        <Route path=":set_id" element={<DataSet />} />
       </Route>
       <Route path="/*" element={<Status404 />} />
     </Routes>
