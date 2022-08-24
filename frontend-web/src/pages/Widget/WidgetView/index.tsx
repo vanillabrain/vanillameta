@@ -4,7 +4,6 @@ import { Link as RouterLink, useParams, useSearchParams } from 'react-router-dom
 import AutorenewIcon from '@mui/icons-material/Autorenew';
 import EditIcon from '@mui/icons-material/Edit';
 import { Delete } from '@mui/icons-material';
-import ReactECharts from 'echarts-for-react';
 import PageTitleBox from '../../../components/PageTitleBox';
 import TitleBox from '../../../components/TitleBox';
 import { DialogAlertIconButton } from '../../../components/button/DialogAlertButton';
@@ -13,27 +12,6 @@ function WidgetView(props) {
   const [searchParams, setSearchParams] = useSearchParams();
   const widgetId = searchParams.get('id');
   const widgetName = searchParams.get('name');
-
-  const options = {
-    grid: { top: 8, right: 8, bottom: 24, left: 36 },
-    xAxis: {
-      type: 'category',
-      data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-    },
-    yAxis: {
-      type: 'value',
-    },
-    series: [
-      {
-        data: [820, 932, 901, 934, 1290, 1330, 1320],
-        type: 'line',
-        smooth: true,
-      },
-    ],
-    tooltip: {
-      trigger: 'axis',
-    },
-  };
 
   const handleRenewClick = () => {
     console.log('renew');
@@ -58,9 +36,7 @@ function WidgetView(props) {
           </Stack>
         }
       >
-        <Box sx={{ width: '100%', height: '50vw', borderRadius: 1, backgroundColor: '#eee' }}>
-          <ReactECharts option={options} style={{ height: '100%', width: '100%' }} />
-        </Box>
+        <Box sx={{ width: '100%', height: '50vw', borderRadius: 1, backgroundColor: '#eee' }} />
       </TitleBox>
     </PageTitleBox>
   );
