@@ -7,6 +7,9 @@ import RadioForm from '../../../components/form/RadioForm';
 import CheckForm from '../../../components/form/CheckForm';
 import TextFieldForm from '../../../components/form/TextFieldForm';
 import ColorFieldForm from '../../../components/form/ColorFieldForm';
+import ReactECharts from 'echarts-for-react';
+import WidgetBox from '../../../components/widget/WidgetBox';
+import { widgetList } from '../../../data/widget';
 
 const StyledList = styled(List)({
   display: 'flex',
@@ -56,6 +59,8 @@ function WidgetAttributeSelect(props) {
   });
 
   const handleChange = event => {
+    console.log('handleChange event : ', event.target);
+    setOptions(widgetList[event.target.value].option);
     setUserValue(prevState =>
       event.target.type !== 'checkbox'
         ? { ...prevState, [event.target.name]: event.target.value }
@@ -63,6 +68,8 @@ function WidgetAttributeSelect(props) {
     );
     props.onUpdate(userValue);
   };
+
+  const [options, setOptions] = useState(null);
 
   const handleUpdate = enteredData => {
     setUserValue(prevState => ({ ...prevState, ...enteredData }));
@@ -87,7 +94,7 @@ function WidgetAttributeSelect(props) {
       sx={{ justifyContent: { xs: 'center', md: 'space-between' } }}
     >
       <Grid item xs={12} md={8.5}>
-        <Box sx={{ width: '100%', height: '50vw', borderRadius: 1, backgroundColor: '#eee' }} />
+        <WidgetBox>{options && <ReactECharts option={options} style={{ height: '100%', width: '100%' }} />}</WidgetBox>
       </Grid>
       <Grid item xs={10} md={3} sx={{ display: 'flex', flexDirection: 'column' }}>
         <TextField
@@ -112,10 +119,7 @@ function WidgetAttributeSelect(props) {
             <SelectForm
               id="value1"
               name="value1"
-              option={[
-                { value: 1, label: '막대형 차트' },
-                { value: 2, label: '원형 차트' },
-              ]}
+              option={widgetList}
               // ref={register}
               //{...register('example')}
               value={userValue.value1}

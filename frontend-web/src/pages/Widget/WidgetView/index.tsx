@@ -8,6 +8,7 @@ import ReactECharts from 'echarts-for-react';
 import PageTitleBox from '../../../components/PageTitleBox';
 import TitleBox from '../../../components/TitleBox';
 import { DialogAlertIconButton } from '../../../components/button/DialogAlertButton';
+import WidgetBox from '../../../components/widget/WidgetBox';
 
 function WidgetView(props) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -58,9 +59,9 @@ function WidgetView(props) {
           </Stack>
         }
       >
-        <Box sx={{ width: '100%', height: '50vw', borderRadius: 1, backgroundColor: '#eee' }}>
+        <WidgetBox>
           <ReactECharts option={options} style={{ height: '100%', width: '100%' }} />
-        </Box>
+        </WidgetBox>
       </TitleBox>
     </PageTitleBox>
   );
