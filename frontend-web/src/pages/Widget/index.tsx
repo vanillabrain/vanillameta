@@ -3,7 +3,7 @@ import { Outlet, useParams } from 'react-router-dom';
 import PageContainer from '../../components/PageContainer';
 import PageTitleBox from '../../components/PageTitleBox';
 import BoardList from '../../components/BoardList';
-import AddButton from '../../components/button/AddButton';
+import AddIconButton from '../../components/button/AddIconButton';
 
 const title = '위젯';
 
@@ -24,7 +24,7 @@ function Widget() {
   return (
     <PageContainer>
       {!widget_id ? (
-        <PageTitleBox title={title} button={<AddButton naviUrl="/widget/create" />}>
+        <PageTitleBox title={title} button={<AddIconButton link="create" />}>
           <BoardList postList={loadedWidgetData} />
         </PageTitleBox>
       ) : (

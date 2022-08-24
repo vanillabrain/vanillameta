@@ -17,7 +17,7 @@ function ColorFieldForm(props) {
     setAnchorEl(null);
   };
 
-  const handleChangeComplete = color => {
+  const handleCompleteChange = color => {
     setColor(color.hex);
     setAnchorEl(null);
     onUpdate({ [id]: color.hex });
@@ -49,7 +49,7 @@ function ColorFieldForm(props) {
             horizontal: 'left',
           }}
         >
-          <SketchPicker color={color} onChangeComplete={handleChangeComplete} />
+          <SketchPicker color={color} onChangeComplete={handleCompleteChange} />
         </Popover>
         <OutlinedInput id={id} value={value} type="text" margin="dense" fullWidth {...rest} />
       </Stack>

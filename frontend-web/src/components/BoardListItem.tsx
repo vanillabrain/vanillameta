@@ -9,7 +9,6 @@ const tableBorder = '1px solid #DADDDD';
 function BoardListItem(props) {
   const { postItem, ...rest } = props;
 
-  const name = postItem.name;
   const dateData = data => {
     const userDate = new Date(data);
     const year = userDate.getFullYear();
@@ -53,10 +52,10 @@ function BoardListItem(props) {
         '&:last-of-type': { borderBottom: 0 },
       }}
     >
-      <ListItemButton sx={{ py: 0.8 }} component={RouterLink} to={postItem.id}>
+      <ListItemButton sx={{ py: 0.8 }} component={RouterLink} to={`detail?id=${postItem.id}&name=${postItem.name}`}>
         {postItem.type ? <ListItemIcon>{iconType}</ListItemIcon> : ''}
         <ListItemText
-          primary={name}
+          primary={postItem.name}
           primaryTypographyProps={{ fontWeight: 500 }}
           secondary={dateData(postItem.date)}
           sx={{

@@ -9,7 +9,6 @@ import { useParams } from 'react-router-dom';
 
 function DashboardModify(props) {
   const { dashboard_id } = useParams();
-  console.log(dashboard_id, 'params');
 
   return (
     <PageContainer>

@@ -25,24 +25,13 @@ const ConfirmCancelButton = props => {
   const initialConfirm = <ConfirmButton confirmLabel={confirmLabel} confirmProps={confirmProps} />;
   const initialCancel = <CancelButton cancelLabel={cancelLabel} cancelProps={cancelProps} />;
 
-  const [changeConfirm, setChangeConfirm] = useState(initialConfirm);
-  const [changeCancel, setChangeCancel] = useState(initialCancel);
-
-  useEffect(() => {
-    if (confirmButton !== undefined) {
-      setChangeConfirm(confirmButton);
-    } else if (cancelButton !== undefined) {
-      setChangeCancel(cancelButton);
-    }
-  }, [confirmButton, cancelButton]);
-
   return (
     <Stack direction="row-reverse" flexWrap="wrap" component="ul" spacing={{ xs: 1, md: 2 }} p={0}>
       <Box component="li" sx={{ listStyle: 'none' }}>
-        {changeConfirm}
+        {confirmButton !== undefined ? confirmButton : initialConfirm}
       </Box>
       <Box component="li" sx={{ listStyle: 'none' }}>
-        {changeCancel}
+        {cancelButton !== undefined ? cancelButton : initialCancel}
       </Box>
     </Stack>
   );

@@ -13,7 +13,6 @@ import WidgetModify from '../pages/Widget/WidgetModify';
 import DashboardView from '../pages/Dashboard/DashboardView';
 import DashboardCreate from '../pages/Dashboard/DashboardCreate';
 import DashboardModify from '../pages/Dashboard/DashboardModify';
-import Recommend from '../pages/Data/Recommend';
 
 function Router() {
   return (

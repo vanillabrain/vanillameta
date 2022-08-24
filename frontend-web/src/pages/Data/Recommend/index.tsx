@@ -30,13 +30,13 @@ const Transition = React.forwardRef(function Transition(
 });
 
 function Recommend(props) {
+  const { data, ...rest } = props;
+
   const [open, setOpen] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const [isFirstStep, setIsFirstStep] = useState(true);
 
-  console.log(isFirstStep);
-
-  const handleClickOpen = () => {
+  const handleOpenClick = () => {
     setOpen(true);
   };
 
@@ -45,21 +45,23 @@ function Recommend(props) {
     setIsFirstStep(true);
   };
 
-  const handleStepToggleClick = () => {
+  const handleNextClick = () => {
     if (isFirstStep) {
       setIsFirstStep(false);
-      console.log('두번쨰');
-    } else {
-      setIsFirstStep(true);
-      console.log('첫번쨰');
     }
   };
 
-  const handleClickComplete = () => {
+  const handlePrevClick = () => {
+    if (!isFirstStep) {
+      setIsFirstStep(true);
+    }
+  };
+
+  const handleCompleteClick = () => {
     setOpenDialog(true);
   };
 
-  const handleCloseComplete = () => {
+  const handleCompleteClose = () => {
     setOpenDialog(false);
   };
 
@@ -71,7 +73,7 @@ function Recommend(props) {
 
   return (
     <React.Fragment>
-      <IconButton onClick={handleClickOpen} size="small" {...props}>
+      <IconButton onClick={handleOpenClick} size="small">
         <AutoAwesomeIcon />
       </IconButton>
       <Dialog open={open} onClose={handleClose} TransitionComponent={Transition} fullWidth maxWidth="xl">
@@ -86,14 +88,14 @@ function Recommend(props) {
           </Toolbar>
         </AppBar>
 
-        {isFirstStep ? <FirstStep /> : <SecondStep />}
+        {isFirstStep ? <FirstStep data={data} /> : <SecondStep />}
 
         <DialogActions sx={{ px: 4, pb: 3 }}>
           <ConfirmCancelButton
             confirmLabel={isFirstStep ? '다음' : '대시보드 생성'}
             cancelLabel={isFirstStep ? '취소' : '이전'}
-            confirmProps={isFirstStep ? { onClick: handleStepToggleClick } : { onClick: handleClickComplete }}
-            cancelProps={isFirstStep ? { onClick: handleClose } : { onClick: handleStepToggleClick }}
+            confirmProps={isFirstStep ? { onClick: handleNextClick } : { onClick: handleCompleteClick }}
+            cancelProps={isFirstStep ? { onClick: handleClose } : { onClick: handlePrevClick }}
           />
 
           <Dialog open={openDialog} onClose={handleClose}>
@@ -111,7 +113,7 @@ function Recommend(props) {
               />
             </DialogContent>
             <DialogActions>
-              <Button onClick={handleCloseComplete}>취소</Button>
+              <Button onClick={handleCompleteClose}>취소</Button>
               <Button onClick={handleSubmit}>대시보드 생성</Button>
             </DialogActions>
           </Dialog>

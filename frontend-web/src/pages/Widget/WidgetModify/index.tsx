@@ -7,7 +7,6 @@ import { useParams } from 'react-router-dom';
 
 function WidgetModify(props) {
   const [data, setData] = useState({});
-  // console.log(data, 'WidgetModify');
 
   const handleUpdate = enteredData => {
     return setData(prevState => ({ ...prevState, ...enteredData }));
@@ -19,7 +18,6 @@ function WidgetModify(props) {
   };
 
   const { widget_id } = useParams();
-  console.log(widget_id, 'params');
 
   return (
     <PageContainer>

@@ -3,13 +3,12 @@ import PageContainer from '../../components/PageContainer';
 import PageTitleBox from '../../components/PageTitleBox';
 import BoardList from '../../components/BoardList';
 import { Outlet, useParams } from 'react-router-dom';
-import AddButton from '../../components/button/AddButton';
+import AddIconButton from '../../components/button/AddIconButton';
 
 const title = '대시보드';
 
 function Dashboard(props) {
   const { dashboard_id } = useParams();
-  console.log(dashboard_id);
 
   const [isLoading, setIsLoading] = useState(false);
   const [loadedWidgetData, setLoadedWidgetData] = useState([]);
@@ -25,7 +24,7 @@ function Dashboard(props) {
   return (
     <PageContainer>
       {!dashboard_id ? (
-        <PageTitleBox title={title} button={<AddButton naviUrl="/dashboard/create" />}>
+        <PageTitleBox title={title} button={<AddIconButton link="/dashboard/create" />}>
           <BoardList postList={loadedWidgetData} />
         </PageTitleBox>
       ) : (

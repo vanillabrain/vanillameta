@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button, Stack, ListItem } from '@mui/material';
-import { NavLink as RouterLink } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 
 function NavBar(props) {
   return (
@@ -15,7 +15,7 @@ function NavBar(props) {
           key={item.id}
           sx={{ width: 'auto', minWidth: 80, justifyContent: 'center', padding: 0, '& .active': { fontWeight: 800 } }}
         >
-          <Button component={RouterLink} to={item.url} size="large" sx={{ color: 'inherit' }}>
+          <Button component={NavLink} to={item.link} size="large" sx={{ color: 'inherit' }}>
             {item.name}
           </Button>
         </ListItem>

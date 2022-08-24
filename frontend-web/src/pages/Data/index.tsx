@@ -2,11 +2,7 @@ import React, { useEffect, useState } from 'react';
 import PageContainer from '../../components/PageContainer';
 import DataLayout from './DataLayout';
 
-const dataSourceUrl = '/data/source';
-const dataSetUrl = '/data/set';
-const naviUrl = { dataSourceUrl, dataSetUrl };
-
-function Data(props) {
+function Data() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadedData, setLoadedData] = useState([]);
 
@@ -19,7 +15,7 @@ function Data(props) {
 
   return (
     <PageContainer>
-      <DataLayout data={loadedData} naviUrl={naviUrl} />
+      <DataLayout data={loadedData} />
     </PageContainer>
   );
 }

@@ -1,38 +1,38 @@
 import React from 'react';
 import { Box, Button, ButtonGroup, Grid, Icon, IconButton, Stack } from '@mui/material';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useParams, useSearchParams } from 'react-router-dom';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
 import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
+import { Delete } from '@mui/icons-material';
 import PageTitleBox from '../../../components/PageTitleBox';
 import TitleBox from '../../../components/TitleBox';
-
-const title = '위젯 조회';
+import { DialogAlertIconButton } from '../../../components/button/DialogAlertButton';
 
 function WidgetView(props) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const widgetId = searchParams.get('id');
+  const widgetName = searchParams.get('name');
+
   const handleRenewClick = () => {
     console.log('renew');
   };
 
-  const handleDeleteClick = () => {
-    console.log('delete');
-  };
-
   return (
-    <PageTitleBox title={title} button={''}>
+    <PageTitleBox title="위젯 조회">
       <TitleBox
-        title="위젯 이름"
+        title={widgetName}
         button={
           <Stack direction="row" spacing={1}>
             <IconButton onClick={handleRenewClick} aria-label="새로고침" color="primary">
               <AutorenewIcon />
             </IconButton>
-            <IconButton component={RouterLink} to="/widget/modify" aria-label="수정">
+            <IconButton component={RouterLink} to={`/widget/modify?id=${widgetId}&name=${widgetName}`} aria-label="수정">
               <EditIcon />
             </IconButton>
-            <IconButton onClick={handleDeleteClick} aria-label="수정">
-              <DeleteIcon />
-            </IconButton>
+            <DialogAlertIconButton icon={<Delete />} size="small">
+              {`삭제시 N개의 대시보드에 반영됩니다.`}
+              <br /> {`<${widgetName}>을 삭제하시겠습니까?`}
+            </DialogAlertIconButton>
           </Stack>
         }
       >

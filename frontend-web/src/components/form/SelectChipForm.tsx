@@ -41,7 +41,7 @@ function SelectChipForm(props) {
     setAnchorEl(null);
   };
 
-  const handleChangeComplete = color => {
+  const handleCompleteChange = color => {
     setChipColor(color.hex);
     setAnchorEl(null);
   };
@@ -97,7 +97,7 @@ function SelectChipForm(props) {
                 horizontal: 'left',
               }}
             >
-              <SketchPicker color={chipColor} onChangeComplete={handleChangeComplete} />
+              <SketchPicker color={chipColor} onChangeComplete={handleCompleteChange} />
             </Popover>
           </React.Fragment>
         )}

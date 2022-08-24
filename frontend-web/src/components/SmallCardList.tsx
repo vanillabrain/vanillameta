@@ -1,31 +1,13 @@
 import React, { useState } from 'react';
-import { Grid, Card, Typography, CardContent, CardActionArea, CardActions } from '@mui/material';
+import { Grid, Card, Typography, CardContent, CardActionArea } from '@mui/material';
 
-function CardList(props) {
+function SmallCardList(props) {
   const [selectedValue, setSelectedValue] = useState('');
 
-  const handleClick = async event => {
-    // await setSelectedValue(event.currentTarget.value);
-    console.log(event.currentTarget.value, 'value');
-    await setSelectedValue(event.currentTarget.value);
-    console.log(selectedValue, 'state');
+  const handleClick = event => {
+    console.log(event.currentTarget.value);
+    setSelectedValue(event.currentTarget.value);
   };
-
-  const iconActionArea = (
-    <CardActions
-      disableSpacing
-      sx={{
-        position: 'absolute',
-        top: 0,
-        bottom: 0,
-        right: 10,
-        display: 'flex',
-        justifyContent: 'flex-end,',
-        m: 0,
-        p: 0,
-      }}
-    ></CardActions>
-  );
 
   return (
     <Grid
@@ -38,7 +20,7 @@ function CardList(props) {
       }}
     >
       {props.data.map(item => (
-        <Grid item xs={12} sm={4} md={2} component="li" key={item.key}>
+        <Grid item xs={12} sm={4} md={2} component="li" key={item.id}>
           <Card
             sx={{
               position: 'relative',
@@ -46,9 +28,9 @@ function CardList(props) {
           >
             <CardActionArea
               onClick={handleClick}
-              value={item.value}
+              value={item.id}
               sx={{
-                boxShadow: selectedValue === item.value ? theme => `0 0 0 3px ${theme.palette.primary.main} inset` : 'none',
+                boxShadow: selectedValue === item.id ? theme => `0 0 0 3px ${theme.palette.primary.main} inset` : 'none',
                 minHeight: 60,
                 px: 2,
               }}
@@ -59,11 +41,10 @@ function CardList(props) {
                   variant="subtitle2"
                   sx={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}
                 >
-                  {item.label}
+                  {item.name}
                 </Typography>
               </CardContent>
             </CardActionArea>
-            {iconActionArea}
           </Card>
         </Grid>
       ))}
@@ -71,4 +52,4 @@ function CardList(props) {
   );
 }
 
-export default CardList;
+export default SmallCardList;

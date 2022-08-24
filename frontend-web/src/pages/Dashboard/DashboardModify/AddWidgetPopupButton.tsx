@@ -65,7 +65,7 @@ function AddWidgetPopupButton({ label }) {
 
   const descriptionElementRef = useRef<HTMLElement>(null);
 
-  const handleClickOpen = (scrollType: DialogProps['scroll']) => () => {
+  const handleOpenClick = (scrollType: DialogProps['scroll']) => () => {
     getItems();
     setOpen(true);
     setScroll(scrollType);
@@ -92,7 +92,7 @@ function AddWidgetPopupButton({ label }) {
 
   return (
     <React.Fragment>
-      <Button onClick={handleClickOpen('paper')} variant="contained" endIcon={<AddIcon />} color="primary">
+      <Button onClick={handleOpenClick('paper')} variant="contained" endIcon={<AddIcon />} color="primary">
         {label}
       </Button>
       <Dialog

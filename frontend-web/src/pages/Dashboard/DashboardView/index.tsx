@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, IconButton, Stack } from '@mui/material';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -9,28 +9,32 @@ import TitleBox from '../../../components/TitleBox';
 import { DialogAlertIconButton } from '../../../components/button/DialogAlertButton';
 
 function DashboardView(props) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const dashboardId = searchParams.get('id');
+  const dashboardName = searchParams.get('name');
+
   const handleRenewClick = () => {
     console.log('renew');
-  };
-
-  const handleDeleteClick = () => {
-    console.log('delete');
   };
 
   return (
     <PageTitleBox title="대시보드 조회">
       <TitleBox
-        title="대시보드 이름"
+        title={dashboardName}
         button={
           <Stack direction="row" spacing={1}>
             <IconButton onClick={handleRenewClick} aria-label="새로고침" color="primary">
               <AutorenewIcon />
             </IconButton>
-            <IconButton component={RouterLink} to="/dashboard/modify" aria-label="수정">
+            <IconButton
+              component={RouterLink}
+              to={`/dashboard/modify?id=${dashboardId}&name=${dashboardName}`}
+              aria-label="수정"
+            >
               <EditIcon />
             </IconButton>
             <DialogAlertIconButton size="small" icon={<DeleteIcon />}>
-              &lt;대시보드 이름&gt;을 삭제하시겠습니까?
+              {`<${dashboardName}>을 삭제하시겠습니까?`}
             </DialogAlertIconButton>
           </Stack>
         }

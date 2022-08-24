@@ -11,7 +11,6 @@ function ImgCardList(props) {
 
   const handleClick = event => {
     setSelectedValue(event.currentTarget.value);
-    console.log(selectedValue, 'state');
     console.log(event.currentTarget.value, 'event');
   };
 

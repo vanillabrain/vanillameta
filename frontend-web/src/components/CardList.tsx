@@ -5,16 +5,7 @@ import { Delete, Edit } from '@mui/icons-material';
 import { DialogAlertIconButton } from './button/DialogAlertButton';
 import Recommend from '../pages/Data/Recommend';
 
-const CardList = props => {
-  const { subActions, ...rest } = props;
-
-  const handleClick = event => {
-    if (rest.onUpdate !== undefined) {
-      rest.onUpdate({ dataSource: event.currentTarget.value });
-    }
-    // console.log(rest.selectedValue, 'selected');
-  };
-
+const CardListWrapper = ({ children, minWidth }) => {
   return (
     <Grid
       container
@@ -24,11 +15,32 @@ const CardList = props => {
         listStyle: 'none',
         pl: 0,
         display: 'grid',
-        gridTemplateColumns: { xs: '1fr', md: `repeat(${rest.minWidth || '3, 1fr'})` },
+        gridTemplateColumns: { xs: '1fr', md: `repeat(${minWidth || '3, 1fr'})` },
       }}
     >
-      {rest.data.map !== undefined
-        ? rest.data.map(item => (
+      {children}
+    </Grid>
+  );
+};
+
+CardListWrapper.defaultProps = {
+  children: '',
+  minWidth: false,
+};
+
+const CardList = props => {
+  const { subActions, minWidth, data, ...rest } = props;
+
+  const handleClick = event => {
+    if (rest.onUpdate !== undefined) {
+      rest.onUpdate({ dataSource: event.currentTarget.value });
+    }
+  };
+
+  return (
+    <CardListWrapper minWidth={minWidth}>
+      {data.map !== undefined
+        ? data.map(item => (
             <Grid item xs={12} md component="li" key={item.id}>
               <Card
                 sx={{
@@ -37,12 +49,7 @@ const CardList = props => {
               >
                 <CardActionArea
                   onClick={handleClick}
-                  value={item.id}
                   sx={{
-                    boxShadow:
-                      rest.selectedData.dataSource === item.id
-                        ? theme => `0 0 0 3px ${theme.palette.primary.main} inset`
-                        : 'none',
                     minHeight: 80,
                     px: 2,
                   }}
@@ -63,68 +70,23 @@ const CardList = props => {
             </Grid>
           ))
         : ''}
-    </Grid>
+    </CardListWrapper>
   );
 };
 
 CardList.defaultProps = {
-  // data: [{ id: 0, name: '' }],
+  data: [{ id: 0, name: '' }],
   subActions: '',
-  selectedData: '',
-  dataSource: 0,
+  minWidth: false,
 };
 
 export default CardList;
 
-export const IconCardList = props => {
-  const { button, ...rest } = props;
-
-  return (
-    <CardList
-      subActions={
-        <CardActions
-          disableSpacing
-          sx={{
-            position: 'absolute',
-            top: 0,
-            bottom: 0,
-            right: 10,
-            display: 'flex',
-            justifyContent: 'flex-end,',
-            m: 0,
-            p: 0,
-          }}
-        >
-          {button}
-        </CardActions>
-      }
-      {...rest}
-    />
-  );
-};
-
 export const DataSetCard = props => {
-  const { data, ...rest } = props;
-  console.log(rest);
+  const { data, minWidth, disabledIcons, ...rest } = props;
 
-  // const handleClick = event => {
-  //   if (rest.onUpdate !== undefined) {
-  //     rest.onUpdate({ dataSource: event.currentTarget.value });
-  //   }
-  //   // console.log(rest.selectedValue, 'selected');
-  // };
   return (
-    <Grid
-      container
-      spacing={2}
-      component="ul"
-      sx={{
-        listStyle: 'none',
-        pl: 0,
-        display: 'grid',
-        gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
-      }}
-    >
+    <CardListWrapper minWidth={minWidth}>
       {data.map
         ? data.map(item => (
             <Grid item xs={12} md component="li" key={item.id}>
@@ -147,7 +109,7 @@ export const DataSetCard = props => {
                     component="span"
                     variant="subtitle2"
                     sx={{
-                      width: '40%',
+                      width: disabledIcons ? '100%' : '40%',
                       textOverflow: 'ellipsis',
                       overflow: 'hidden',
                       whiteSpace: 'nowrap',
@@ -158,29 +120,33 @@ export const DataSetCard = props => {
                 </CardContent>
 
                 {/* 아이콘 */}
-                <CardActions
-                  disableSpacing
-                  sx={{
-                    position: 'absolute',
-                    top: 0,
-                    bottom: 0,
-                    right: 10,
-                    display: 'flex',
-                    justifyContent: 'flex-end,',
-                    m: 0,
-                    p: 0,
-                  }}
-                >
-                  <IconButton size="medium" component={RouterLink} to={`/data/set/modify/${item.id}`}>
-                    <Edit />
-                  </IconButton>
-                  <DialogAlertIconButton icon={<Delete />}>{item.name} 을 삭제하시겠습니까?</DialogAlertIconButton>
-                </CardActions>
+                {disabledIcons ? (
+                  ''
+                ) : (
+                  <CardActions
+                    disableSpacing
+                    sx={{
+                      position: 'absolute',
+                      top: 0,
+                      bottom: 0,
+                      right: 10,
+                      display: 'flex',
+                      justifyContent: 'flex-end,',
+                      m: 0,
+                      p: 0,
+                    }}
+                  >
+                    <IconButton size="medium" component={RouterLink} to={`/data/set/modify/${item.id}`}>
+                      <Edit />
+                    </IconButton>
+                    <DialogAlertIconButton icon={<Delete />}>{item.name} 을 삭제하시겠습니까?</DialogAlertIconButton>
+                  </CardActions>
+                )}
               </Card>
             </Grid>
           ))
         : ''}
-    </Grid>
+    </CardListWrapper>
   );
 };
 
@@ -189,31 +155,21 @@ DataSetCard.defaultProps = {
     id: '',
     name: '',
   },
+  minWidth: false,
+  disabledIcons: false,
 };
 
 export const DataSourceCard = props => {
-  const { data, onUpdate, selectedData, ...rest } = props;
-  console.log(rest);
+  const { data, onUpdate, selectedData, minWidth, disabledIcons, ...rest } = props;
 
   const handleClick = event => {
     if (onUpdate !== undefined) {
       onUpdate({ dataSource: event.currentTarget.value });
     }
-    // console.log(rest.selectedValue, 'selected');
   };
 
   return (
-    <Grid
-      container
-      spacing={2}
-      component="ul"
-      sx={{
-        listStyle: 'none',
-        pl: 0,
-        display: 'grid',
-        gridTemplateColumns: { xs: '1fr', md: 'repeat("100%")' },
-      }}
-    >
+    <CardListWrapper minWidth={minWidth}>
       {data.map
         ? data.map(item => (
             <Grid item xs={12} md component="li" key={item.id}>
@@ -239,7 +195,12 @@ export const DataSourceCard = props => {
                     <Typography
                       component="span"
                       variant="subtitle2"
-                      sx={{ width: '40%', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}
+                      sx={{
+                        width: disabledIcons ? '100%' : '40%',
+                        textOverflow: 'ellipsis',
+                        overflow: 'hidden',
+                        whiteSpace: 'nowrap',
+                      }}
                     >
                       {item.name}
                     </Typography>
@@ -247,30 +208,35 @@ export const DataSourceCard = props => {
                 </CardActionArea>
 
                 {/* 아이콘 */}
-                <CardActions
-                  disableSpacing
-                  sx={{
-                    position: 'absolute',
-                    top: 0,
-                    bottom: 0,
-                    right: 10,
-                    display: 'flex',
-                    justifyContent: 'flex-end,',
-                    m: 0,
-                    p: 0,
-                  }}
-                >
-                  <Recommend name={item.id} />
-                  <IconButton size="medium" component={RouterLink} to={`/data/set/modify/${item.id}`}>
-                    <Edit />
-                  </IconButton>
-                  <DialogAlertIconButton icon={<Delete />}>{item.name} 을 삭제하시겠습니까?</DialogAlertIconButton>
-                </CardActions>
+                {disabledIcons ? (
+                  ''
+                ) : (
+                  <CardActions
+                    disableSpacing
+                    sx={{
+                      position: 'absolute',
+                      top: 0,
+                      bottom: 0,
+                      right: 10,
+                      display: 'flex',
+                      justifyContent: 'flex-end,',
+                      m: 0,
+                      p: 0,
+                    }}
+                    onClick={handleClick}
+                  >
+                    <Recommend data={item} />
+                    <IconButton size="medium" component={RouterLink} to={`/data/source/modify/${item.id}`}>
+                      <Edit />
+                    </IconButton>
+                    <DialogAlertIconButton icon={<Delete />}>{item.name} 을 삭제하시겠습니까?</DialogAlertIconButton>
+                  </CardActions>
+                )}
               </Card>
             </Grid>
           ))
         : ''}
-    </Grid>
+    </CardListWrapper>
   );
 };
 
@@ -279,4 +245,6 @@ DataSourceCard.defaultProps = {
     id: '',
     name: '',
   },
+  minWidth: false,
+  disabledIcons: false,
 };

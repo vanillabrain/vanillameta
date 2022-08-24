@@ -12,15 +12,15 @@ import {
   Toolbar,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
-import AddButton from '../../components/button/AddButton';
+import { AddMenuButton } from '../../components/button/AddIconButton';
 import Logo from './Logo';
 import NavBar from './NavBar';
 
 const menuList = [
-  { label: '데이터 소스', url: '/data/source' },
-  { label: '데이터 셋', url: '/data/set' },
-  { label: '위젯', url: '/widget/create' },
-  { label: '대시보드', url: '/dashboard' },
+  { name: '데이터 소스', link: '/data/source/create' },
+  { name: '데이터 셋', link: '/data/set/create' },
+  { name: '위젯', link: '/widget/create' },
+  { name: '대시보드', link: '/dashboard/create' },
 ];
 
 function Header(props) {
@@ -28,9 +28,9 @@ function Header(props) {
   const drawerWidth = 240;
 
   const navItems = [
-    { id: 1, name: '대시보드', url: 'dashboard' },
-    { id: 2, name: '위젯', url: 'widget' },
-    { id: 3, name: '데이터', url: 'data' },
+    { id: 1, name: '대시보드', link: 'dashboard' },
+    { id: 2, name: '위젯', link: 'widget' },
+    { id: 3, name: '데이터', link: 'data' },
   ];
 
   const [mobileOpen, setMobileOpen] = React.useState(false);
@@ -44,7 +44,7 @@ function Header(props) {
       <List>
         {navItems.map(item => (
           <ListItem key={item.id} disablePadding>
-            <ListItemButton href={item.url} sx={{ textAlign: 'center' }}>
+            <ListItemButton sx={{ textAlign: 'center' }}>
               <ListItemText primary={item.name} />
             </ListItemButton>
           </ListItem>
@@ -70,7 +70,7 @@ function Header(props) {
 
           <NavBar navItems={navItems} />
           <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
-            <AddButton label="생성 바로가기" menuList={menuList} />
+            <AddMenuButton label="생성 바로가기" menuList={menuList} />
           </Box>
         </Toolbar>
         <Divider />

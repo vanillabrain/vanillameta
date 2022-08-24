@@ -32,7 +32,7 @@ const DialogAlertButton = props => {
   const { button, children, ref } = props;
   const [open, setOpen] = useState(false);
 
-  const handleClickOpen = () => {
+  const handleOpenClick = () => {
     setOpen(true);
   };
 
@@ -42,7 +42,7 @@ const DialogAlertButton = props => {
 
   return (
     <React.Fragment>
-      <ButtonBase onClick={handleClickOpen}>{button}</ButtonBase>
+      <ButtonBase onClick={handleOpenClick}>{button}</ButtonBase>
 
       <Dialog open={open} onClose={handleClose} aria-labelledby="경고" aria-describedby="경고 문구">
         <DialogTitle id="경고" sx={{ mb: 2 }}>
