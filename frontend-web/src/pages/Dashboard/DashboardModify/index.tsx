@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Stack, TextField } from '@mui/material';
-import PageContainer from '../../../components/PageContainer';
-import PageTitleBox from '../../../components/PageTitleBox';
-import AddWidgetPopupButton from './AddWidgetPopupButton';
-import ConfirmCancelButton, { CancelButton } from '../../../components/button/ConfirmCancelButton';
-import DialogAlertButton from '../../../components/button/DialogAlertButton';
+import PageContainer from '@/components/PageContainer';
+import PageTitleBox from '@/components/PageTitleBox';
+import AddWidgetPopupButton from '@/pages/Dashboard/DashboardModify/AddWidgetPopupButton';
+import ConfirmCancelButton, { CancelButton } from '@/components/button/ConfirmCancelButton';
+import DialogAlertButton from '@/components/button/DialogAlertButton';
 import { useParams } from 'react-router-dom';
 
 function DashboardModify(props) {

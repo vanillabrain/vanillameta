@@ -4,9 +4,9 @@ import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import PageTitleBox from '../../../components/PageTitleBox';
-import TitleBox from '../../../components/TitleBox';
-import { DialogAlertIconButton } from '../../../components/button/DialogAlertButton';
+import PageTitleBox from '@/components/PageTitleBox';
+import TitleBox from '@/components/TitleBox';
+import { DialogAlertIconButton } from '@/components/button/DialogAlertButton';
 
 function DashboardView(props) {
   const [searchParams, setSearchParams] = useSearchParams();

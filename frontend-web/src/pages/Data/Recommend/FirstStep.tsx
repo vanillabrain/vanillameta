@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Stack, Typography } from '@mui/material';
-import TitleBox from '../../../components/TitleBox';
-import SmallCardList from '../../../components/SmallCardList';
+import TitleBox from '@/components/TitleBox';
+import SmallCardList from '@/components/SmallCardList';
 
 function FirstStep(props) {
   const { data } = props;

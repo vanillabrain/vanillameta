@@ -1,14 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Box, Grid, List, ListItem, TextField, styled, ListItemText } from '@mui/material';
 import { useForm } from 'react-hook-form';
-import SelectForm from '../../../components/form/SelectForm';
-import SelectChipForm from '../../../components/form/SelectChipForm';
-import RadioForm from '../../../components/form/RadioForm';
-import CheckForm from '../../../components/form/CheckForm';
-import TextFieldForm from '../../../components/form/TextFieldForm';
-import ColorFieldForm from '../../../components/form/ColorFieldForm';
+import SelectForm from '@/components/form/SelectForm';
+import SelectChipForm from '@/components/form/SelectChipForm';
+import RadioForm from '@/components/form/RadioForm';
+import CheckForm from '@/components/form/CheckForm';
+import TextFieldForm from '@/components/form/TextFieldForm';
+import ColorFieldForm from '@/components/form/ColorFieldForm';
 import ReactECharts from 'echarts-for-react';
-import WidgetBox from '../../../components/widget/WidgetBox';
+import WidgetBox from '@/components/widget/WidgetBox';
 import { widgetList } from '../../../data/widget';
 
 const StyledList = styled(List)({

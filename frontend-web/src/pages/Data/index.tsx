@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import PageContainer from '../../components/PageContainer';
+import PageContainer from '@/components/PageContainer';
 import DataLayout from './DataLayout';
 
 function Data() {

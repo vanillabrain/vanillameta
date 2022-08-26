@@ -16,7 +16,7 @@ import {
 import { TransitionProps } from '@mui/material/transitions';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import CloseIcon from '@mui/icons-material/Close';
-import ConfirmCancelButton from '../../../components/button/ConfirmCancelButton';
+import ConfirmCancelButton from '@/components/button/ConfirmCancelButton';
 import FirstStep from './FirstStep';
 import SecondStep from './SecondStep';
 

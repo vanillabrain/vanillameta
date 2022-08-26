@@ -5,10 +5,10 @@ import AutorenewIcon from '@mui/icons-material/Autorenew';
 import EditIcon from '@mui/icons-material/Edit';
 import { Delete } from '@mui/icons-material';
 import ReactECharts from 'echarts-for-react';
-import PageTitleBox from '../../../components/PageTitleBox';
-import TitleBox from '../../../components/TitleBox';
-import { DialogAlertIconButton } from '../../../components/button/DialogAlertButton';
-import WidgetBox from '../../../components/widget/WidgetBox';
+import PageTitleBox from '@/components/PageTitleBox';
+import TitleBox from '@/components/TitleBox';
+import { DialogAlertIconButton } from '@/components/button/DialogAlertButton';
+import WidgetBox from '@/components/widget/WidgetBox';
 
 function WidgetView(props) {
   const [searchParams, setSearchParams] = useSearchParams();

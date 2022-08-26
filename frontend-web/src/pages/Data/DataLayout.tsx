@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Grid } from '@mui/material';
-import TitleBox from '../../components/TitleBox';
-import AddIconButton from '../../components/button/AddIconButton';
-import CardList, { DataSetCard, DataSourceCard } from '../../components/CardList';
+import TitleBox from '@/components/TitleBox';
+import AddIconButton from '@/components/button/AddIconButton';
+import CardList, { DataSetCard, DataSourceCard } from '@/components/CardList';
 
 function DataLayout({ data }) {
   // 선택한 데이터베이스를 CardList 에서 가져와서 저장하는 state

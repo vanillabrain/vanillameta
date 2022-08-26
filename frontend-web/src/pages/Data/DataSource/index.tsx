@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { Stack } from '@mui/material';
-import PageContainer from '../../../components/PageContainer';
-import PageTitleBox from '../../../components/PageTitleBox';
-import TitleBox from '../../../components/TitleBox';
-import ImgCardList from '../../../components/ImgCardList';
-import LabelInputForm from '../../../components/form/LabelInputForm';
-import ConfirmCancelButton from '../../../components/button/ConfirmCancelButton';
+import PageContainer from '@/components/PageContainer';
+import PageTitleBox from '@/components/PageTitleBox';
+import TitleBox from '@/components/TitleBox';
+import ImgCardList from '@/components/ImgCardList';
+import LabelInputForm from '@/components/form/LabelInputForm';
+import ConfirmCancelButton from '@/components/button/ConfirmCancelButton';
 
 const typeList = [
   { key: 0, value: 'MySQL', src: 'logo/mysql-logo.svg' },

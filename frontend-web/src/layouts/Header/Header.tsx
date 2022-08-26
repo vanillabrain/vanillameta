@@ -12,7 +12,7 @@ import {
   Toolbar,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
-import { AddMenuButton } from '../../components/button/AddIconButton';
+import { AddMenuButton } from '@/components/button/AddIconButton';
 import Logo from './Logo';
 import NavBar from './NavBar';
 

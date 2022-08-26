@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Grid } from '@mui/material';
-import TitleBox from '../../../components/TitleBox';
-import CardList, { DataSetCard, DataSourceCard } from '../../../components/CardList';
+import TitleBox from '@/components/TitleBox';
+import CardList, { DataSetCard, DataSourceCard } from '@/components/CardList';
 
 function WidgetDataSelect(props) {
   const [isLoading, setIsLoading] = useState(false);

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import WidgetAttributeSelect from '../WidgetCreate/WidgetAttributeSelect';
-import PageContainer from '../../../components/PageContainer';
-import PageTitleBox from '../../../components/PageTitleBox';
-import ConfirmCancelButton from '../../../components/button/ConfirmCancelButton';
+import PageContainer from '@/components/PageContainer';
+import PageTitleBox from '@/components/PageTitleBox';
+import ConfirmCancelButton from '@/components/button/ConfirmCancelButton';
 import { useParams } from 'react-router-dom';
+import WidgetAttributeSelect from '@/pages/Widget/WidgetCreate/WidgetAttributeSelect';
 
 function WidgetModify(props) {
   const [data, setData] = useState({});

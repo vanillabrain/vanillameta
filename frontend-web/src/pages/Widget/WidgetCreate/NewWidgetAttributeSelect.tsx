@@ -14,12 +14,12 @@ import {
   Select,
 } from '@mui/material';
 import { useForm, Controller } from 'react-hook-form';
-import SelectForm from '../../../components/form/SelectForm';
-import SelectChipForm from '../../../components/form/SelectChipForm';
-import RadioForm from '../../../components/form/RadioForm';
-import CheckForm from '../../../components/form/CheckForm';
-import TextFieldForm from '../../../components/form/TextFieldForm';
-import ColorFieldForm from '../../../components/form/ColorFieldForm';
+import SelectForm from '@/components/form/SelectForm';
+import SelectChipForm from '@/components/form/SelectChipForm';
+import RadioForm from '@/components/form/RadioForm';
+import CheckForm from '@/components/form/CheckForm';
+import TextFieldForm from '@/components/form/TextFieldForm';
+import ColorFieldForm from '@/components/form/ColorFieldForm';
 
 function WidgetAttributeSelect(props) {
   const StyledList = styled(List)({

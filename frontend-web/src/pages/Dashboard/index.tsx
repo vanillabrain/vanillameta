@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import PageContainer from '../../components/PageContainer';
-import PageTitleBox from '../../components/PageTitleBox';
-import BoardList from '../../components/BoardList';
+import PageContainer from '@/components/PageContainer';
+import PageTitleBox from '@/components/PageTitleBox';
+import BoardList from '@/components/BoardList';
 import { Outlet, useParams } from 'react-router-dom';
-import AddIconButton from '../../components/button/AddIconButton';
+import AddIconButton from '@/components/button/AddIconButton';
 
 const title = '대시보드';
 

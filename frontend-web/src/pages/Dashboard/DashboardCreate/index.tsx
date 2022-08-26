@@ -1,5 +1,5 @@
 import React from 'react';
-import DashboardModify from '../DashboardModify';
+import DashboardModify from '@/pages/Dashboard/DashboardModify';
 
 // TODO : 추후 기능 구현시 컴포넌트 분리하기
 

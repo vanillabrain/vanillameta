@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Outlet, useParams } from 'react-router-dom';
-import PageContainer from '../../components/PageContainer';
-import PageTitleBox from '../../components/PageTitleBox';
-import BoardList from '../../components/BoardList';
-import AddIconButton from '../../components/button/AddIconButton';
+import PageContainer from '@/components/PageContainer';
+import PageTitleBox from '@/components/PageTitleBox';
+import BoardList from '@/components/BoardList';
+import AddIconButton from '@/components/button/AddIconButton';
 
 const title = '위젯';
 

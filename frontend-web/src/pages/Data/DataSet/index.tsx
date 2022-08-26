@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Stack, TextField } from '@mui/material';
-import PageContainer from '../../../components/PageContainer';
-import PageTitleBox from '../../../components/PageTitleBox';
-import SubmitButton from '../../../components/button/SubmitButton';
-import ConfirmCancelButton from '../../../components/button/ConfirmCancelButton';
+import PageContainer from '@/components/PageContainer';
+import PageTitleBox from '@/components/PageTitleBox';
+import SubmitButton from '@/components/button/SubmitButton';
+import ConfirmCancelButton from '@/components/button/ConfirmCancelButton';
 
 function DataSet(props) {
   const [isConnected, setIsConnected] = useState(false);

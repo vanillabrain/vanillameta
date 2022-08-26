@@ -1,6 +1,6 @@
 import React from 'react';
-import ImgCardList from '../../../components/ImgCardList';
-import TitleBox from '../../../components/TitleBox';
+import ImgCardList from '@/components/ImgCardList';
+import TitleBox from '@/components/TitleBox';
 
 const data = [
   { key: 1, value: '영역형 차트', caption: 'Area Chart', src: 'icon/area-chart.png' },

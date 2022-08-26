@@ -35,10 +35,10 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject",
+    "start": "craco start",
+    "build": "craco build",
+    "test": "craco test",
+    "eject": "craco eject",
     "storybook": "start-storybook -p 6006",
     "build-storybook": "build-storybook"
   },
@@ -72,6 +72,7 @@
   },
   "devDependencies": {
     "@babel/eslint-parser": "^7.18.9",
+    "@craco/craco": "^6.4.5",
     "@storybook/addon-actions": "^6.5.9",
     "@storybook/addon-essentials": "^6.5.9",
     "@storybook/addon-interactions": "^6.5.9",
@@ -89,6 +90,7 @@
     "@typescript-eslint/parser": "^5.30.7",
     "babel-loader": "^8.2.5",
     "babel-plugin-named-exports-order": "0.0.2",
+    "craco-alias": "^3.0.1",
     "eslint": "7.31.0",
     "eslint-config-airbnb": "^19.0.4",
     "eslint-config-airbnb-typescript": "^17.0.0",
