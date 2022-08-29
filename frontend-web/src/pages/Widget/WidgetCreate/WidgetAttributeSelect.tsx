@@ -1,6 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Box, Grid, List, ListItem, TextField, styled, ListItemText } from '@mui/material';
-import { useForm } from 'react-hook-form';
+import React, { useState } from 'react';
+import { Grid, List, ListItem, ListItemText, styled, TextField } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import SelectChipForm from '@/components/form/SelectChipForm';
 import RadioForm from '@/components/form/RadioForm';
@@ -9,7 +8,7 @@ import TextFieldForm from '@/components/form/TextFieldForm';
 import ColorFieldForm from '@/components/form/ColorFieldForm';
 import ReactECharts from 'echarts-for-react';
 import WidgetBox from '@/components/widget/WidgetBox';
-import { widgetList } from '../../../data/widget';
+import { componentList } from '@/data/component';
 
 const StyledList = styled(List)({
   display: 'flex',
@@ -59,8 +58,8 @@ function WidgetAttributeSelect(props) {
   });
 
   const handleChange = event => {
-    console.log('handleChange event : ', event.target);
-    setOptions(widgetList[event.target.value].option);
+    console.log('handleChange event : ', event, event.target);
+    setOptions(componentList[event.target.value].option);
     setUserValue(prevState =>
       event.target.type !== 'checkbox'
         ? { ...prevState, [event.target.name]: event.target.value }
@@ -119,7 +118,7 @@ function WidgetAttributeSelect(props) {
             <SelectForm
               id="value1"
               name="value1"
-              option={widgetList}
+              option={componentList}
               // ref={register}
               //{...register('example')}
               value={userValue.value1}
