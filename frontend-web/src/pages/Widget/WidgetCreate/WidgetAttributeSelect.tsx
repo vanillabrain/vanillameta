@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Grid, List, ListItem, ListItemText, styled, TextField } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import SelectChipForm from '@/components/form/SelectChipForm';
@@ -8,7 +8,8 @@ import TextFieldForm from '@/components/form/TextFieldForm';
 import ColorFieldForm from '@/components/form/ColorFieldForm';
 import ReactECharts from 'echarts-for-react';
 import WidgetBox from '@/components/widget/WidgetBox';
-import { componentList } from '@/data/component';
+import { componentList, getComponent } from '@/data/component';
+import chartData from '@/data/sample/chart.json';
 
 const StyledList = styled(List)({
   display: 'flex',
@@ -43,6 +44,8 @@ function WidgetAttributeSelect(props) {
 
   const [userValue, setUserValue] = useState({
     widgetName: '',
+    xField: '',
+    yField: '',
     value1: '',
     value2: '',
     value3: '',
@@ -57,18 +60,66 @@ function WidgetAttributeSelect(props) {
     value12: '',
   });
 
-  const handleChange = event => {
-    console.log('handleChange event : ', event, event.target);
-    setOptions(componentList[event.target.value].option);
-    setUserValue(prevState =>
-      event.target.type !== 'checkbox'
-        ? { ...prevState, [event.target.name]: event.target.value }
-        : { ...prevState, [event.target.name]: event.target.checked },
-    );
-    props.onUpdate(userValue);
+  const [widgetOption, setWidgetOption] = useState({
+    xField: '',
+    yField: '',
+    yField1: '',
+  });
+
+  const [widgetType, setWidgetType] = useState('lineChart');
+  const [options, setOptions] = useState(null);
+
+  useEffect(() => {
+    setOptions(makeWidgetOption());
+  }, [widgetOption]);
+
+  const makeWidgetOption = () => {
+    let newOption = {};
+    switch (widgetType) {
+      case 'lineChart':
+        newOption = {
+          grid: { top: 8, right: 8, bottom: 24, left: 36 },
+          xAxis: {
+            type: 'category',
+            data: chartData.map(item => item[widgetOption.xField]),
+          },
+          yAxis: {
+            type: 'value',
+          },
+          series: [
+            {
+              data: chartData.map(item => item[widgetOption.yField]),
+              type: 'line',
+              smooth: true,
+            },
+            {
+              data: chartData.map(item => item[widgetOption.yField1]),
+              type: 'line',
+              smooth: true,
+            },
+          ],
+          tooltip: {
+            trigger: 'axis',
+          },
+        };
+        break;
+    }
+    return newOption;
   };
 
-  const [options, setOptions] = useState(null);
+  const handleChange = event => {
+    console.log('handleChange event : ', event, event.target);
+
+    // setUserValue(prevState =>
+    //   event.target.type !== 'checkbox'
+    //     ? { ...prevState, [event.target.name]: event.target.value }
+    //     : { ...prevState, [event.target.name]: event.target.checked },
+    // );
+
+    setWidgetOption({ ...widgetOption, [event.target.name]: event.target.value });
+
+    props.onUpdate(userValue);
+  };
 
   const handleUpdate = enteredData => {
     setUserValue(prevState => ({ ...prevState, ...enteredData }));
@@ -118,7 +169,12 @@ function WidgetAttributeSelect(props) {
             <SelectForm
               id="value1"
               name="value1"
-              option={componentList}
+              option={[
+                { value: 1, label: 'value1' },
+                { value: 2, label: 'value2' },
+                { value: 3, label: 'value3' },
+                { value: 4, label: 'value4' },
+              ]}
               // ref={register}
               //{...register('example')}
               value={userValue.value1}
@@ -129,29 +185,36 @@ function WidgetAttributeSelect(props) {
           <ListItem divider>
             <ListItemText primary="오른쪽 선택 상자" />
             <SelectForm
-              id="value2"
-              name="value2"
+              id="xField"
+              name="xField"
               label="X축"
               option={[
-                { value: 1, label: 'value1' },
-                { value: 2, label: 'value2' },
-                { value: 3, label: 'value3' },
-                { value: 4, label: 'value4' },
+                { value: 'id', label: 'id' },
+                { value: 'name', label: 'name' },
               ]}
-              value={userValue.value2}
+              value={userValue.xField}
               onChange={handleChange}
             />
             <SelectForm
-              id="value3"
-              name="value3"
+              id="yField"
+              name="yField"
               label="Y축"
               option={[
-                { value: 1, label: 'value1' },
-                { value: 2, label: 'value2' },
-                { value: 3, label: 'value3' },
-                { value: 4, label: 'value4' },
+                { value: 'high', label: 'high' },
+                { value: 'low', label: 'low' },
               ]}
-              value={userValue.value3}
+              value={userValue.yField}
+              onChange={handleChange}
+            />
+            <SelectForm
+              id="yField1"
+              name="yField1"
+              label="Y축"
+              option={[
+                { value: 'high', label: 'high' },
+                { value: 'low', label: 'low' },
+              ]}
+              value={userValue.yField}
               onChange={handleChange}
             />
           </ListItem>
