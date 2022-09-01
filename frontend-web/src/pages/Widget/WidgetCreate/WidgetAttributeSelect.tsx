@@ -1,16 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Grid, List, ListItem, ListItemText, styled, TextField } from '@mui/material';
-import SelectForm from '@/components/form/SelectForm';
-import SelectChipForm from '@/components/form/SelectChipForm';
-import RadioForm from '@/components/form/RadioForm';
-import CheckForm from '@/components/form/CheckForm';
-import TextFieldForm from '@/components/form/TextFieldForm';
-import ColorFieldForm from '@/components/form/ColorFieldForm';
-import ReactECharts from 'echarts-for-react';
-import WidgetBox from '@/components/widget/WidgetBox';
-import { componentList, getComponent } from '@/data/component';
+import { Grid, List, styled } from '@mui/material';
 import chartData from '@/data/sample/chart.json';
 import LineChartSetting from '@/widget/settings/LineChartSetting';
+import LineChart from '@/modules/LineChart';
+import WidgetBox from '@/components/widget/WidgetBox';
+import data from '@/pages/Data';
 
 const StyledList = styled(List)({
   display: 'flex',
@@ -67,12 +61,18 @@ function WidgetAttributeSelect(props) {
     yField1: '',
   });
 
+  const sampleOption = {
+    xField: 'name',
+    series: [{ field: 'high' }, { field: 'low' }],
+    legendPosition: 'left',
+  };
+
   const [widgetType, setWidgetType] = useState('lineChart');
-  const [options, setOptions] = useState(null);
+  const [options, setOptions] = useState(sampleOption);
 
   useEffect(() => {
-    setOptions(makeWidgetOption());
-  }, [widgetOption]);
+    setOptions(sampleOption);
+  }, []);
 
   const makeWidgetOption = () => {
     let newOption = {};
@@ -137,9 +137,9 @@ function WidgetAttributeSelect(props) {
       sx={{ justifyContent: { xs: 'center', md: 'space-between' } }}
     >
       <Grid item xs={12} md={8.5}>
-        <WidgetBox>{options && <ReactECharts option={options} style={{ height: '100%', width: '100%' }} />}</WidgetBox>
+        <WidgetBox>{options && <LineChart option={options} dataSet={chartData} />}</WidgetBox>
       </Grid>
-      <LineChartSetting option={widgetOption} setOptions={setWidgetOption} />
+      <LineChartSetting option={options} setOptions={setOptions} />
     </Grid>
   );
 }

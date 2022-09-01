@@ -1,15 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Grid, List, ListItem, ListItemText, styled, TextField } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
-import SelectChipForm from '@/components/form/SelectChipForm';
-import RadioForm from '@/components/form/RadioForm';
-import CheckForm from '@/components/form/CheckForm';
-import TextFieldForm from '@/components/form/TextFieldForm';
-import ColorFieldForm from '@/components/form/ColorFieldForm';
-import ReactECharts from 'echarts-for-react';
-import WidgetBox from '@/components/widget/WidgetBox';
-import { componentList, getComponent } from '@/data/component';
-import chartData from '@/data/sample/chart.json';
 
 const StyledList = styled(List)({
   display: 'flex',
@@ -35,34 +26,9 @@ const StyledList = styled(List)({
 const LineChartSetting = props => {
   const { option, setOptions } = props;
 
-  const makeWidgetOption = () => {
-    const newOption = {
-      grid: { top: 8, right: 8, bottom: 24, left: 36 },
-      xAxis: {
-        type: 'category',
-        data: chartData.map(item => item[option.xField]),
-      },
-      yAxis: {
-        type: 'value',
-      },
-      series: [
-        {
-          data: chartData.map(item => item[option.yField]),
-          type: 'line',
-          smooth: true,
-        },
-        {
-          data: chartData.map(item => item[option.yField1]),
-          type: 'line',
-          smooth: true,
-        },
-      ],
-      tooltip: {
-        trigger: 'axis',
-      },
-    };
-    return newOption;
-  };
+  useEffect(() => {
+    console.log('test', option);
+  }, [option]);
 
   const handleChange = event => {
     setOptions({ ...option, [event.target.name]: event.target.value });
