@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Grid, List, styled } from '@mui/material';
 import chartData from '@/data/sample/chart.json';
 import LineChartSetting from '@/widget/settings/LineChartSetting';
-import LineChart from '@/modules/LineChart';
+import LineChart from '@/modules/linechart/LineChart';
 import WidgetBox from '@/components/widget/WidgetBox';
 import data from '@/pages/Data';
 

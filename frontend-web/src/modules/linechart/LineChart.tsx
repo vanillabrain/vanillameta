@@ -4,13 +4,7 @@ import ReactECharts from 'echarts-for-react';
 const LineChart = props => {
   const { option, dataSet } = props;
 
-  const sampleOption = {
-    xField: 'name',
-    series: [{ field: 'high' }, { field: 'low' }],
-    legendPosition: 'left',
-  };
-
-  const [chartOption, setChartOption] = useState({});
+  const [componentOption, setComponentOption] = useState({});
 
   const defaultComponentOption = {
     grid: { top: 8, right: 8, bottom: 24, left: 36 },
@@ -37,9 +31,14 @@ const LineChart = props => {
 
   useEffect(() => {
     console.log('LineChart ', option, dataSet);
-    setChartOption(createComponentOption());
+    setComponentOption(createComponentOption());
   }, [option, dataSet]);
 
+  /**
+   *
+   * 위젯옵션과 데이터로
+   * 컴포넌트에 맞는 형태로 생성
+   */
   const createComponentOption = () => {
     let newOption = defaultComponentOption;
     if (dataSet) {
@@ -67,7 +66,7 @@ const LineChart = props => {
     return newOption;
   };
 
-  return <ReactECharts option={chartOption} style={{ height: '100%', width: '100%' }} />;
+  return <ReactECharts option={componentOption} style={{ height: '100%', width: '100%' }} />;
 };
 
 export default LineChart;
