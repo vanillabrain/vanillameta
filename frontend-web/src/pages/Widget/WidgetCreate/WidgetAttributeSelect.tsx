@@ -68,10 +68,10 @@ function WidgetAttributeSelect(props) {
   };
 
   const [widgetType, setWidgetType] = useState('lineChart');
-  const [options, setOptions] = useState(sampleOption);
+  const [option, setOption] = useState(sampleOption);
 
   useEffect(() => {
-    setOptions(sampleOption);
+    setOption(sampleOption);
   }, []);
 
   const makeWidgetOption = () => {
@@ -137,9 +137,9 @@ function WidgetAttributeSelect(props) {
       sx={{ justifyContent: { xs: 'center', md: 'space-between' } }}
     >
       <Grid item xs={12} md={8.5}>
-        <WidgetBox>{options && <LineChart option={options} dataSet={chartData} />}</WidgetBox>
+        <WidgetBox>{option && <LineChart option={option} dataSet={chartData} />}</WidgetBox>
       </Grid>
-      <LineChartSetting option={options} setOptions={setOptions} />
+      <LineChartSetting option={option} setOption={setOption} />
     </Grid>
   );
 }

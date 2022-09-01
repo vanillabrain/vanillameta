@@ -24,14 +24,14 @@ const StyledList = styled(List)({
 });
 
 const LineChartSetting = props => {
-  const { option, setOptions } = props;
+  const { option, setOption } = props;
 
   useEffect(() => {
     console.log('test', option);
   }, [option]);
 
   const handleChange = event => {
-    setOptions({ ...option, [event.target.name]: event.target.value });
+    setOption({ ...option, [event.target.name]: event.target.value });
   };
 
   return (
