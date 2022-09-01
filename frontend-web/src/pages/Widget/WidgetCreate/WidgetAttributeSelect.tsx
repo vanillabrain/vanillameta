@@ -10,6 +10,7 @@ import ReactECharts from 'echarts-for-react';
 import WidgetBox from '@/components/widget/WidgetBox';
 import { componentList, getComponent } from '@/data/component';
 import chartData from '@/data/sample/chart.json';
+import LineChartSetting from '@/widget/settings/LineChartSetting';
 
 const StyledList = styled(List)({
   display: 'flex',
@@ -107,16 +108,8 @@ function WidgetAttributeSelect(props) {
     return newOption;
   };
 
-  const handleChange = event => {
-    console.log('handleChange event : ', event, event.target);
-
-    // setUserValue(prevState =>
-    //   event.target.type !== 'checkbox'
-    //     ? { ...prevState, [event.target.name]: event.target.value }
-    //     : { ...prevState, [event.target.name]: event.target.checked },
-    // );
-
-    setWidgetOption({ ...widgetOption, [event.target.name]: event.target.value });
+  const handleChange = newOption => {
+    setWidgetOption(newOption);
 
     props.onUpdate(userValue);
   };
@@ -146,185 +139,7 @@ function WidgetAttributeSelect(props) {
       <Grid item xs={12} md={8.5}>
         <WidgetBox>{options && <ReactECharts option={options} style={{ height: '100%', width: '100%' }} />}</WidgetBox>
       </Grid>
-      <Grid item xs={10} md={3} sx={{ display: 'flex', flexDirection: 'column' }}>
-        <TextField
-          id="widgetName"
-          name="widgetName"
-          label="위젯 이름"
-          placeholder="위젯의 이름을 입력해 주세요"
-          required
-          // autoFocus
-          fullWidth
-          sx={{ mt: { xs: 5, md: 0 } }}
-          // ref={register}
-          //{...register('example')}
-          value={userValue.widgetName}
-          onChange={handleChange}
-        />
-        {/*{errors.exampleRequired && <span>This field is required</span>}*/}
-        {/*<input type="submit" />*/}
-        <StyledList>
-          <ListItem divider>
-            <ListItemText primary="꽉 찬 선택 상자" />
-            <SelectForm
-              id="value1"
-              name="value1"
-              option={[
-                { value: 1, label: 'value1' },
-                { value: 2, label: 'value2' },
-                { value: 3, label: 'value3' },
-                { value: 4, label: 'value4' },
-              ]}
-              // ref={register}
-              //{...register('example')}
-              value={userValue.value1}
-              onChange={handleChange}
-              label={false}
-            />
-          </ListItem>
-          <ListItem divider>
-            <ListItemText primary="오른쪽 선택 상자" />
-            <SelectForm
-              id="xField"
-              name="xField"
-              label="X축"
-              option={[
-                { value: 'id', label: 'id' },
-                { value: 'name', label: 'name' },
-              ]}
-              value={userValue.xField}
-              onChange={handleChange}
-            />
-            <SelectForm
-              id="yField"
-              name="yField"
-              label="Y축"
-              option={[
-                { value: 'high', label: 'high' },
-                { value: 'low', label: 'low' },
-              ]}
-              value={userValue.yField}
-              onChange={handleChange}
-            />
-            <SelectForm
-              id="yField1"
-              name="yField1"
-              label="Y축"
-              option={[
-                { value: 'high', label: 'high' },
-                { value: 'low', label: 'low' },
-              ]}
-              value={userValue.yField}
-              onChange={handleChange}
-            />
-          </ListItem>
-          {/*<ListItem divider>*/}
-          {/*  <ListItemText primary="컬러피커 오른쪽 선택 상자" />*/}
-          {/*  <SelectForm*/}
-          {/*    id="value4"*/}
-          {/*    name="value4"*/}
-          {/*    label="X축"*/}
-          {/*    option={[*/}
-          {/*      { value: 1, label: 'value1' },*/}
-          {/*      { value: 2, label: 'value2' },*/}
-          {/*      { value: 3, label: 'value3' },*/}
-          {/*      { value: 4, label: 'value4' },*/}
-          {/*    ]}*/}
-          {/*    value={userValue.value4}*/}
-          {/*    onChange={handleChange}*/}
-          {/*    color="#fab"*/}
-          {/*  />*/}
-          {/*  <SelectForm*/}
-          {/*    id="value5"*/}
-          {/*    name="value5"*/}
-          {/*    label="Y축"*/}
-          {/*    option={[*/}
-          {/*      { value: 1, label: 'value1' },*/}
-          {/*      { value: 2, label: 'value2' },*/}
-          {/*      { value: 3, label: 'value3' },*/}
-          {/*      { value: 4, label: 'value4' },*/}
-          {/*    ]}*/}
-          {/*    value={userValue.value5}*/}
-          {/*    onChange={handleChange}*/}
-          {/*    color="#abf"*/}
-          {/*  />*/}
-          {/*</ListItem>*/}
-          <ListItem divider>
-            <ListItemText primary="칩 모양 다중 선택 상자" />
-            <SelectChipForm
-              id="value6"
-              name="value6"
-              label="X축"
-              option={[
-                { value: 1, label: 'value1' },
-                { value: 2, label: 'value2' },
-                { value: 3, label: 'value3' },
-                { value: 4, label: 'value4' },
-              ]}
-              value={userValue.value6}
-              onChange={handleChange}
-            />
-            <SelectChipForm
-              id="value7"
-              name="value7"
-              label="Y축"
-              option={[
-                { value: 1, label: 'value1' },
-                { value: 2, label: 'value2' },
-                { value: 3, label: 'value3' },
-                { value: 4, label: 'value4' },
-              ]}
-              value={userValue.value7}
-              onChange={handleChange}
-              color
-            />
-          </ListItem>
-          <ListItem divider>
-            <ListItemText primary="라디오 버튼 선택" />
-            <RadioForm
-              id="value8"
-              name="value8"
-              label="범례 방향"
-              option={[
-                { value: 1, label: '상' },
-                { value: 2, label: '하' },
-                { value: 3, label: '좌' },
-                { value: 4, label: '우' },
-              ]}
-              value={userValue.value8}
-              onChange={handleChange}
-            />
-          </ListItem>
-          <ListItem>
-            <ListItemText primary="체크박스와 텍스트필드" />
-            <CheckForm id="value9" name="value9" label="X축 표시" checked={userValue.value9} onChange={handleChange} />
-            <TextFieldForm
-              type="text"
-              id="value10"
-              name="value10"
-              label="문자 입력"
-              value={userValue.value10}
-              onChange={handleChange}
-            />
-            <TextFieldForm
-              type="number"
-              id="value11"
-              name="value11"
-              label="숫자 입력"
-              value={userValue.value11}
-              onChange={handleChange}
-            />
-            <ColorFieldForm
-              id="value12"
-              name="value12"
-              label="컬러 입력"
-              value={userValue.value12}
-              onChange={handleChange}
-              onUpdate={handleUpdate}
-            />
-          </ListItem>
-        </StyledList>
-      </Grid>
+      <LineChartSetting option={widgetOption} setOptions={setWidgetOption} />
     </Grid>
   );
 }
