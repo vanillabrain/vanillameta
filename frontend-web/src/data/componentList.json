@@ -3,6 +3,7 @@
     "componentId": "0001",
     "title": "선형 차트",
     "icon": "icon/line-chart.png",
+    "caption": "",
     "options": {
       "xField": "label",
       "series": [
@@ -26,6 +27,7 @@
     "componentId": "0002",
     "title": "막대형 차트",
     "icon": "icon/bar-chart.png",
+    "caption": "",
     "options": {
       "xField": "label",
       "series": [

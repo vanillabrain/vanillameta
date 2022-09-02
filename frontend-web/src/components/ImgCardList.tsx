@@ -32,9 +32,10 @@ function ImgCardList(props) {
           <Card>
             <CardActionArea
               onClick={handleClick}
-              value={item.title}
+              value={item.componentId}
               sx={{
-                boxShadow: selectedValue === item.value ? theme => `0 0 0 3px ${theme.palette.primary.main} inset` : 'none',
+                boxShadow:
+                  selectedValue === item.componentId ? theme => `0 0 0 3px ${theme.palette.primary.main} inset` : 'none',
               }}
             >
               <CardContent
