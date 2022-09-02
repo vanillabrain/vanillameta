@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Box, Card, Typography, CardContent, CardActionArea, Stack } from '@mui/material';
 
 function ImgCardList(props) {
+  const { data, size } = props;
   const srcUrl = '/assets/images/';
   const [selectedValue, setSelectedValue] = useState('init');
 
@@ -22,12 +23,16 @@ function ImgCardList(props) {
       component="ul"
       sx={{ maxWidth: '100%', listStyle: 'none', m: '16px auto', p: 0, gap: { xs: 2, md: 3 } }}
     >
-      {props.data.map(item => (
-        <Box component="li" key={item.key} sx={props.large ? { width: { xs: 100, md: 130 }, my: 0 } : { width: 150 }}>
+      {data.map(item => (
+        <Box
+          component="li"
+          key={item.componentId}
+          sx={size === 'large' ? { width: { xs: 100, md: 130 }, my: 0 } : { width: 150 }}
+        >
           <Card>
             <CardActionArea
               onClick={handleClick}
-              value={item.value}
+              value={item.title}
               sx={{
                 boxShadow: selectedValue === item.value ? theme => `0 0 0 3px ${theme.palette.primary.main} inset` : 'none',
               }}
@@ -43,11 +48,11 @@ function ImgCardList(props) {
               >
                 <Box
                   component="img"
-                  src={srcUrl + item.src}
+                  src={srcUrl + item.icon}
                   sx={{ width: 80, height: 60, objectFit: 'contain', mb: 3, border: 0 }}
                 />
                 <Typography variant="subtitle2" component="span">
-                  {item.value}
+                  {item.title}
                 </Typography>
                 <Typography variant="caption" sx={{ textAlign: 'center', color: theme => theme.palette.grey.A700 }}>
                   {item.caption}

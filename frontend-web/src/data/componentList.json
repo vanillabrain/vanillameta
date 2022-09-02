@@ -1,0 +1,48 @@
+[
+  {
+    "componentId": "0001",
+    "title": "선형 차트",
+    "icon": "icon/line-chart.png",
+    "options": {
+      "xField": "label",
+      "series": [
+        {
+          "field": "value1",
+          "color": "#43afef"
+        },
+        {
+          "field": "value2",
+          "color": "#b9e7ff"
+        }
+      ,
+        {
+          "field": "value2",
+          "color": "#d9d9d9"
+        }
+      ]
+    }
+  },
+  {
+    "componentId": "0002",
+    "title": "막대형 차트",
+    "icon": "icon/bar-chart.png",
+    "options": {
+      "xField": "label",
+      "series": [
+        {
+          "field": "value1",
+          "color": "#43afef"
+        },
+        {
+          "field": "value2",
+          "color": "#b9e7ff"
+        }
+      ,
+        {
+          "field": "value2",
+          "color": "#d9d9d9"
+        }
+      ]
+    }
+  }
+]
