@@ -4,6 +4,7 @@ import TitleBox from '@/components/TitleBox';
 import CardList, { DataSetCard, DataSourceCard } from '@/components/CardList';
 
 function WidgetDataSelect(props) {
+  const { datasetId, setDatasetId } = props;
   const [isLoading, setIsLoading] = useState(false);
   const [loadedData, setLoadedData] = useState([]);
 
@@ -36,6 +37,10 @@ function WidgetDataSelect(props) {
     });
   }, [selectedData.dataSource]);
 
+  const handleSelectDataset = datesetId => {
+    setDatasetId(datesetId);
+  };
+
   return (
     <Box>
       <Grid container spacing={5}>
@@ -59,7 +64,7 @@ function WidgetDataSelect(props) {
             </Grid>
             <Grid item xs={12}>
               <TitleBox title={'데이터 목록'}>
-                <CardList data={selectedData.dataList} disabled />
+                <CardList data={selectedData.dataList} onUpdate={handleSelectDataset} />
               </TitleBox>
             </Grid>
           </Grid>

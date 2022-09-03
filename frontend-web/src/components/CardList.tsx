@@ -33,7 +33,9 @@ const CardList = props => {
 
   const handleClick = event => {
     if (rest.onUpdate !== undefined) {
-      rest.onUpdate({ dataSource: event.currentTarget.value });
+      // rest.onUpdate({ dataSource: event.currentTarget.value });
+      // for test
+      rest.onUpdate('data0001');
     }
   };
 

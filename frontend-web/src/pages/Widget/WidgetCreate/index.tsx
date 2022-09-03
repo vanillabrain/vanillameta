@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Box, Button, Grid, Stack, Step, StepLabel, Stepper, Typography } from '@mui/material';
 import PageTitleBox from '@/components/PageTitleBox';
 import PageContainer from '@/components/PageContainer';
@@ -17,12 +17,32 @@ function WidgetCreate(props) {
 
   const [data, setData] = useState({});
 
+  const [datesetId, setDatasetId] = useState(null);
+  const [componentId, setComponentId] = useState(null);
+  const [title, setTitle] = useState(null);
+  const [option, setOption] = useState(null);
+
   const handleUpdate = enteredData => {
     return setData(prevState => ({ ...prevState, ...enteredData }));
     console.log(data);
   };
 
   const handleNext = () => {
+    switch (activeStep) {
+      case 0:
+        // 데이터셋 선택
+        if (!datesetId) {
+          return;
+        }
+        break;
+      case 1:
+        //
+        break;
+      case 2:
+        break;
+      default:
+    }
+    console.log(activeStep);
     if (activeStep < steps.length - 1) {
       setActiveStep(prevActiveStep => prevActiveStep + 1);
     }
@@ -34,11 +54,17 @@ function WidgetCreate(props) {
     }
   };
 
+  // 위젯 속성 저장
   const handleSubmit = event => {
+    // datasetId , componentId, widgetTitle, option
     event.preventDefault();
     setIsFinished(true);
     console.log(data, 'finished');
   };
+
+  useEffect(() => {
+    console.log('datesetId : ', datesetId);
+  }, [datesetId]);
 
   return (
     <PageContainer>
@@ -79,7 +105,7 @@ function WidgetCreate(props) {
         </Box>
 
         {activeStep === 0 ? (
-          <WidgetDataSelect />
+          <WidgetDataSelect datesetId={datesetId} setDatasetId={setDatasetId} />
         ) : activeStep === 1 ? (
           <WidgetTypeSelect />
         ) : (

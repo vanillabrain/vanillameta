@@ -28,6 +28,7 @@ const StyledList = styled(List)({
 });
 
 function WidgetAttributeSelect(props) {
+  const { dataSetId, componentType } = props;
   // const {
   //   register,
   //   watch,
