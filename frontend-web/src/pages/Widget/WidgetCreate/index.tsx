@@ -35,7 +35,7 @@ function WidgetCreate(props) {
     switch (activeStep) {
       case 0:
         // 데이터셋 선택
-        if (!datesetId) {
+        if (!selectedData) {
           return;
         }
         break;
@@ -67,8 +67,8 @@ function WidgetCreate(props) {
   };
 
   useEffect(() => {
-    console.log('datesetId : ', datesetId);
-  }, [datesetId]);
+    console.log('datesetId : ', selectedData);
+  }, [selectedData]);
 
   return (
     <PageContainer>

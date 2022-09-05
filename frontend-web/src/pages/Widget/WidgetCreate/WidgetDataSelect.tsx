@@ -47,7 +47,7 @@ function WidgetDataSelect(props) {
   }, [presentedData.dataSource]);
 
   const handleSelectDataset = datesetId => {
-    setDatasetId(datesetId);
+    setSelectedData(datesetId);
   };
 
   return (
