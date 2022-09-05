@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Button, Grid, Stack, Step, StepLabel, Stepper, Typography } from '@mui/material';
 import PageTitleBox from '@/components/PageTitleBox';
 import PageContainer from '@/components/PageContainer';
@@ -14,12 +14,21 @@ const steps = ['데이터 선택', '위젯 타입 선택', '위젯 속성 설정
 function WidgetCreate(props) {
   const [activeStep, setActiveStep] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
+  const [selectedData, setSelectedData] = useState(null);
+  const [selectedWidgetType, setSelectedWidgetType] = useState(null);
+  const [widgetAttrData, setWidgetAttrData] = useState({});
 
-  const [data, setData] = useState({});
+  useEffect(() => {
+    console.log(selectedData);
+  }, [selectedData]);
 
-  const handleUpdate = enteredData => {
-    return setData(prevState => ({ ...prevState, ...enteredData }));
-    console.log(data);
+  const handleDataUpdate = enteredData => {
+    setSelectedData(enteredData);
+  };
+
+  const handleWidgetAttrUpdate = enteredData => {
+    return setWidgetAttrData(prevState => ({ ...prevState, ...enteredData }));
+    console.log(widgetAttrData);
   };
 
   const handleNext = () => {
@@ -37,7 +46,7 @@ function WidgetCreate(props) {
   const handleSubmit = event => {
     event.preventDefault();
     setIsFinished(true);
-    console.log(data, 'finished');
+    console.log(widgetAttrData, 'finished');
   };
 
   return (
@@ -79,12 +88,12 @@ function WidgetCreate(props) {
         </Box>
 
         {activeStep === 0 ? (
-          <WidgetDataSelect />
+          <WidgetDataSelect onUpdate={handleDataUpdate} />
         ) : activeStep === 1 ? (
           <WidgetTypeSelect />
         ) : (
           <TitleBox title="위젯 속성 설정">
-            <WidgetAttributeSelect onUpdate={handleUpdate} />
+            <WidgetAttributeSelect onUpdate={handleWidgetAttrUpdate} />
           </TitleBox>
         )}
       </PageTitleBox>
