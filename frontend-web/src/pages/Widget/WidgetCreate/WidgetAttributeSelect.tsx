@@ -1,34 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { Grid, List, styled } from '@mui/material';
+import { Grid } from '@mui/material';
 import chartData from '@/data/sample/chart.json';
 import LineChartSetting from '@/widget/settings/LineChartSetting';
 import LineChart from '@/modules/linechart/LineChart';
 import WidgetBox from '@/components/widget/WidgetBox';
-import data from '@/pages/Data';
-
-const StyledList = styled(List)({
-  display: 'flex',
-  flexWrap: 'wrap',
-  '& .MuiListItemText-root': {
-    width: '100%',
-  },
-  '& .MuiListItemText-primary': {
-    mb: 1,
-    textAlign: 'left',
-    fontWeight: 500,
-    fontSize: 14,
-  },
-  '& .MuiListItem-root': {
-    display: 'flex',
-    flexDirection: ' column',
-    rowGap: 8,
-    width: '100%',
-    padding: '30px 0 30px',
-  },
-});
 
 function WidgetAttributeSelect(props) {
-  const { dataSetId, componentType } = props;
+  const { dataSetId, componentType, setWidgetOption } = props;
+
+  // 1. dataSetId와 일치하는 data(chart.json)를 DB에서 가져오기(axios)
+  // 2. componentType과 일치하는 차트 타입 컴포넌트 한 쌍을 가져와서 option 객체 넣어주기
+  // 3. DB에 기존 value가 있으면 가져오고 없으면 빈 value 가져오기
+
   // const {
   //   register,
   //   watch,
@@ -38,86 +21,87 @@ function WidgetAttributeSelect(props) {
 
   // console.log(watch('example'));
 
-  const [userValue, setUserValue] = useState({
-    widgetName: '',
-    xField: '',
-    yField: '',
-    value1: '',
-    value2: '',
-    value3: '',
-    value4: '',
-    value5: '',
-    value6: [],
-    value7: [],
-    value8: [],
-    value9: false,
-    value10: '',
-    value11: '',
-    value12: '',
-  });
-
-  const [widgetOption, setWidgetOption] = useState({
+  const sampleOption = {
+    title: '',
     xField: '',
     yField: '',
     yField1: '',
-  });
-
-  const sampleOption = {
-    xField: 'name',
-    series: [{ field: 'high' }, { field: 'low' }],
-    legendPosition: 'left',
   };
 
-  const [widgetType, setWidgetType] = useState('lineChart');
   const [option, setOption] = useState(sampleOption);
+  const [switchChart, setSwitchChart] = useState(null);
+  const [switchChartSetting, setSwitchChartSetting] = useState(null);
 
   useEffect(() => {
-    setOption(sampleOption);
-  }, []);
-
-  const makeWidgetOption = () => {
-    let newOption = {};
-    switch (widgetType) {
+    switch (componentType) {
       case 'lineChart':
-        newOption = {
-          grid: { top: 8, right: 8, bottom: 24, left: 36 },
-          xAxis: {
-            type: 'category',
-            data: chartData.map(item => item[widgetOption.xField]),
-          },
-          yAxis: {
-            type: 'value',
-          },
-          series: [
-            {
-              data: chartData.map(item => item[widgetOption.yField]),
-              type: 'line',
-              smooth: true,
-            },
-            {
-              data: chartData.map(item => item[widgetOption.yField1]),
-              type: 'line',
-              smooth: true,
-            },
-          ],
-          tooltip: {
-            trigger: 'axis',
-          },
-        };
+        setSwitchChart(<LineChart option={option} dataSet={chartData} />);
+        setSwitchChartSetting(<LineChartSetting option={option} setOption={setOption} dataSet={chartData} />);
+        break;
+      default:
+        setSwitchChart('LineChart 이외 추가중');
+        setSwitchChartSetting('LineChart 이외 추가중');
         break;
     }
-    return newOption;
-  };
+  }, [option, componentType]);
 
-  const handleChange = newOption => {
-    setWidgetOption(newOption);
+  useEffect(() => {
+    setWidgetOption(option);
+  }, [option]);
 
-    props.onUpdate(userValue);
-  };
+  // useEffect(() => {
+  //   setOption(sampleOption);
+  // }, []);
 
-  const handleUpdate = enteredData => {
-    setUserValue(prevState => ({ ...prevState, ...enteredData }));
-  };
+  // const [widgetOption, setWidgetOption] = useState({
+  //   xField: '',
+  //   yField: '',
+  //   yField1: '',
+  // });
+
+  // const makeWidgetOption = () => {
+  //   let newOption = {};
+  //   switch (componentType) {
+  //     case 'lineChart':
+  //       newOption = {
+  //         grid: { top: 8, right: 8, bottom: 24, left: 36 },
+  //         xAxis: {
+  //           type: 'category',
+  //           data: chartData.map(item => item[widgetOption.xField]),
+  //         },
+  //         yAxis: {
+  //           type: 'value',
+  //         },
+  //         series: [
+  //           {
+  //             data: chartData.map(item => item[widgetOption.yField]),
+  //             type: 'line',
+  //             smooth: true,
+  //           },
+  //           {
+  //             data: chartData.map(item => item[widgetOption.yField1]),
+  //             type: 'line',
+  //             smooth: true,
+  //           },
+  //         ],
+  //         tooltip: {
+  //           trigger: 'axis',
+  //         },
+  //       };
+  //       break;
+  //   }
+  //   return newOption;
+  // };
+
+  // const handleChange = newOption => {
+  //   setWidgetOption(newOption);
+  //
+  //   props.onUpdate(userValue);
+  // };
+  //
+  // const handleUpdate = enteredData => {
+  //   setUserValue(prevState => ({ ...prevState, ...enteredData }));
+  // };
 
   // const { control, handleSubmit } = useForm({
   //   defaultValues: {
@@ -138,9 +122,9 @@ function WidgetAttributeSelect(props) {
       sx={{ justifyContent: { xs: 'center', md: 'space-between' } }}
     >
       <Grid item xs={12} md={8.5}>
-        <WidgetBox>{option && <LineChart option={option} dataSet={chartData} />}</WidgetBox>
+        <WidgetBox>{switchChart}</WidgetBox>
       </Grid>
-      <LineChartSetting option={option} setOption={setOption} />
+      {switchChartSetting}
     </Grid>
   );
 }

@@ -35,7 +35,7 @@ function WidgetDataSelect(props) {
       if (presentedData.dataSource === item.id) {
         const selectedArray = loadedData[index];
         handleUpdate({ dataList: selectedArray.dataList, dataSet: selectedArray.dataSet });
-        console.log(presentedData);
+        // console.log(presentedData);
       }
     });
   }, [presentedData.dataSource]);

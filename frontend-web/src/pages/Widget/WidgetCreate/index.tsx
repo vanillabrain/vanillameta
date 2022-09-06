@@ -14,19 +14,16 @@ const steps = ['데이터 선택', '위젯 타입 선택', '위젯 속성 설정
 function WidgetCreate(props) {
   const [activeStep, setActiveStep] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
+
   const [dataSet, setDataSet] = useState(null); // step 1
   const [widgetType, setWidgetType] = useState(null); // step 2
-  const [widgetAttr, setWidgetAttr] = useState({}); // step 3
+  const [widgetOption, setWidgetOption] = useState({}); // step 3
 
-  useEffect(() => {
-    console.log('datesetId : ', dataSet);
-    console.log('widgetType : ', widgetType);
-  }, [dataSet, widgetType]);
-
-  const handleWidgetAttrUpdate = enteredData => {
-    setWidgetAttr(prevState => ({ ...prevState, ...enteredData }));
-    console.log(widgetAttr);
-  };
+  // useEffect(() => {
+  //   console.log('datesetId:', dataSet);
+  //   console.log('widgetType:', widgetType);
+  //   console.log('widgetOption:', widgetOption);
+  // }, [dataSet, widgetType, widgetOption]);
 
   const handleNext = () => {
     // switch (activeStep) {
@@ -60,7 +57,9 @@ function WidgetCreate(props) {
     // datasetId , componentId, widgetTitle, option
     event.preventDefault();
     setIsFinished(true);
-    console.log(widgetAttr, 'finished');
+    console.log('datesetId:', dataSet);
+    console.log('widgetType:', widgetType);
+    console.log('widgetOption:', widgetOption);
   };
 
   return (
@@ -107,7 +106,7 @@ function WidgetCreate(props) {
           <WidgetTypeSelect widgetType={widgetType} setWidgetType={setWidgetType} />
         ) : (
           <TitleBox title="위젯 속성 설정">
-            <WidgetAttributeSelect onUpdate={handleWidgetAttrUpdate} />
+            <WidgetAttributeSelect dataSetId={dataSet} componentType={widgetType} setWidgetOption={setWidgetOption} />
           </TitleBox>
         )}
       </PageTitleBox>
