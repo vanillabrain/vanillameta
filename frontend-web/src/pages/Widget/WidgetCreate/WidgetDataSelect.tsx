@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Grid } from '@mui/material';
 import TitleBox from '@/components/TitleBox';
-import CardList, { DataSetCard, DataSourceCard } from '@/components/CardList';
+import CardList, { DataSourceCard } from '@/components/CardList';
 
 function WidgetDataSelect(props) {
-  const { onUpdate, ...rest } = props;
+  const { setDataSet } = props;
+
   const [isLoading, setIsLoading] = useState(false);
   const [loadedData, setLoadedData] = useState([]);
-  const [selectedData, setSelectedData] = useState(null);
 
-  // data fetch
+  // data fetch // TODO: axios로 수정
   useEffect(() => {
     fetch('/data/dummyDataList.json')
       .then(response => response.json())
@@ -25,14 +25,8 @@ function WidgetDataSelect(props) {
   });
 
   const handleUpdate = enteredData => {
-    // DataSource 클릭하면 실행
     if (typeof enteredData === 'object') {
       setPresentedData(prevState => ({ ...prevState, ...enteredData }));
-    }
-
-    // DataSet of DataList 클릭하면 실행
-    if (typeof enteredData === 'number') {
-      onUpdate({ dataSource: presentedData.dataSource, dataId: enteredData });
     }
   };
 
@@ -41,14 +35,10 @@ function WidgetDataSelect(props) {
       if (presentedData.dataSource === item.id) {
         const selectedArray = loadedData[index];
         handleUpdate({ dataList: selectedArray.dataList, dataSet: selectedArray.dataSet });
-        // console.log(presentedData);
+        console.log(presentedData);
       }
     });
   }, [presentedData.dataSource]);
-
-  const handleSelectDataset = datesetId => {
-    setSelectedData(datesetId);
-  };
 
   return (
     <Box>
@@ -68,12 +58,12 @@ function WidgetDataSelect(props) {
           <Grid container spacing={5}>
             <Grid item xs={12}>
               <TitleBox title="데이터 셋">
-                <CardList data={presentedData.dataSet} onUpdate={handleUpdate} />
+                <CardList data={presentedData.dataSet} setValue={setDataSet} />
               </TitleBox>
             </Grid>
             <Grid item xs={12}>
               <TitleBox title="데이터 목록">
-                <CardList data={presentedData.dataList} onUpdate={handleUpdate} />
+                <CardList data={presentedData.dataList} setValue={setDataSet} />
               </TitleBox>
             </Grid>
           </Grid>

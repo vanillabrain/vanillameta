@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Button, Grid, Stack, Step, StepLabel, Stepper, Typography } from '@mui/material';
+import { Box, Stack, Step, StepLabel, Stepper } from '@mui/material';
 import PageTitleBox from '@/components/PageTitleBox';
 import PageContainer from '@/components/PageContainer';
 import ConfirmCancelButton from '@/components/button/ConfirmCancelButton';
@@ -14,39 +14,36 @@ const steps = ['데이터 선택', '위젯 타입 선택', '위젯 속성 설정
 function WidgetCreate(props) {
   const [activeStep, setActiveStep] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
-  const [selectedData, setSelectedData] = useState(null);
-  const [selectedWidgetType, setSelectedWidgetType] = useState(null);
-  const [widgetAttrData, setWidgetAttrData] = useState({});
+  const [dataSet, setDataSet] = useState(null); // step 1
+  const [widgetType, setWidgetType] = useState(null); // step 2
+  const [widgetAttr, setWidgetAttr] = useState({}); // step 3
 
   useEffect(() => {
-    console.log(selectedData);
-  }, [selectedData]);
-
-  const handleDataUpdate = enteredData => {
-    setSelectedData(enteredData);
-  };
+    console.log('datesetId : ', dataSet);
+    console.log('widgetType : ', widgetType);
+  }, [dataSet, widgetType]);
 
   const handleWidgetAttrUpdate = enteredData => {
-    return setWidgetAttrData(prevState => ({ ...prevState, ...enteredData }));
-    console.log(widgetAttrData);
+    setWidgetAttr(prevState => ({ ...prevState, ...enteredData }));
+    console.log(widgetAttr);
   };
 
   const handleNext = () => {
-    switch (activeStep) {
-      case 0:
-        // 데이터셋 선택
-        if (!selectedData) {
-          return;
-        }
-        break;
-      case 1:
-        //
-        break;
-      case 2:
-        break;
-      default:
-    }
-    console.log(activeStep);
+    // switch (activeStep) {
+    //   case 0:
+    //     // 데이터셋 선택
+    //     if (!dataSet) {
+    //       return;
+    //     }
+    //     break;
+    //   case 1:
+    //     //
+    //     break;
+    //   case 2:
+    //     break;
+    //   default:
+    // }
+    // console.log(activeStep);
     if (activeStep < steps.length - 1) {
       setActiveStep(prevActiveStep => prevActiveStep + 1);
     }
@@ -63,12 +60,8 @@ function WidgetCreate(props) {
     // datasetId , componentId, widgetTitle, option
     event.preventDefault();
     setIsFinished(true);
-    console.log(widgetAttrData, 'finished');
+    console.log(widgetAttr, 'finished');
   };
-
-  useEffect(() => {
-    console.log('datesetId : ', selectedData);
-  }, [selectedData]);
 
   return (
     <PageContainer>
@@ -109,9 +102,9 @@ function WidgetCreate(props) {
         </Box>
 
         {activeStep === 0 ? (
-          <WidgetDataSelect onUpdate={handleDataUpdate} />
+          <WidgetDataSelect setDataSet={setDataSet} />
         ) : activeStep === 1 ? (
-          <WidgetTypeSelect />
+          <WidgetTypeSelect widgetType={widgetType} setWidgetType={setWidgetType} />
         ) : (
           <TitleBox title="위젯 속성 설정">
             <WidgetAttributeSelect onUpdate={handleWidgetAttrUpdate} />
