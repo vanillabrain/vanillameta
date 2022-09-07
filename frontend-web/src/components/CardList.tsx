@@ -29,11 +29,11 @@ CardListWrapper.defaultProps = {
 };
 
 const CardList = props => {
-  const { subActions, minWidth, data, ...rest } = props;
+  const { subActions, minWidth, data, setValue, ...rest } = props;
 
   const handleClick = event => {
-    if (rest.onUpdate !== undefined) {
-      rest.onUpdate({ dataSource: event.currentTarget.value });
+    if (setValue !== undefined) {
+      setValue(event.currentTarget.value);
     }
   };
 
@@ -53,6 +53,7 @@ const CardList = props => {
                     minHeight: 80,
                     px: 2,
                   }}
+                  value={item.id}
                   {...rest}
                 >
                   <CardContent sx={{ p: 0, pl: 1 }}>

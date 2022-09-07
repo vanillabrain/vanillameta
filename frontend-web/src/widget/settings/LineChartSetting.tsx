@@ -37,8 +37,8 @@ const LineChartSetting = props => {
   return (
     <Grid item xs={10} md={3} sx={{ display: 'flex', flexDirection: 'column' }}>
       <TextField
-        id="widgetName"
-        name="widgetName"
+        id="title"
+        name="title"
         label="위젯 이름"
         placeholder="위젯의 이름을 입력해 주세요"
         required

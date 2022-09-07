@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Box, Button, Grid, Stack, Step, StepLabel, Stepper, Typography } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { Box, Stack, Step, StepLabel, Stepper } from '@mui/material';
 import PageTitleBox from '@/components/PageTitleBox';
 import PageContainer from '@/components/PageContainer';
 import ConfirmCancelButton from '@/components/button/ConfirmCancelButton';
@@ -15,14 +15,32 @@ function WidgetCreate(props) {
   const [activeStep, setActiveStep] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
 
-  const [data, setData] = useState({});
+  const [dataSet, setDataSet] = useState(null); // step 1
+  const [widgetType, setWidgetType] = useState(null); // step 2
+  const [widgetOption, setWidgetOption] = useState({}); // step 3
 
-  const handleUpdate = enteredData => {
-    return setData(prevState => ({ ...prevState, ...enteredData }));
-    console.log(data);
-  };
+  // useEffect(() => {
+  //   console.log('datesetId:', dataSet);
+  //   console.log('widgetType:', widgetType);
+  //   console.log('widgetOption:', widgetOption);
+  // }, [dataSet, widgetType, widgetOption]);
 
   const handleNext = () => {
+    // switch (activeStep) {
+    //   case 0:
+    //     // 데이터셋 선택
+    //     if (!dataSet) {
+    //       return;
+    //     }
+    //     break;
+    //   case 1:
+    //     //
+    //     break;
+    //   case 2:
+    //     break;
+    //   default:
+    // }
+    // console.log(activeStep);
     if (activeStep < steps.length - 1) {
       setActiveStep(prevActiveStep => prevActiveStep + 1);
     }
@@ -34,10 +52,14 @@ function WidgetCreate(props) {
     }
   };
 
+  // 위젯 속성 저장
   const handleSubmit = event => {
+    // datasetId , componentId, widgetTitle, option
     event.preventDefault();
     setIsFinished(true);
-    console.log(data, 'finished');
+    console.log('datesetId:', dataSet);
+    console.log('widgetType:', widgetType);
+    console.log('widgetOption:', widgetOption);
   };
 
   return (
@@ -79,12 +101,12 @@ function WidgetCreate(props) {
         </Box>
 
         {activeStep === 0 ? (
-          <WidgetDataSelect />
+          <WidgetDataSelect setDataSet={setDataSet} />
         ) : activeStep === 1 ? (
-          <WidgetTypeSelect />
+          <WidgetTypeSelect widgetType={widgetType} setWidgetType={setWidgetType} />
         ) : (
           <TitleBox title="위젯 속성 설정">
-            <WidgetAttributeSelect onUpdate={handleUpdate} />
+            <WidgetAttributeSelect dataSetId={dataSet} componentType={widgetType} setWidgetOption={setWidgetOption} />
           </TitleBox>
         )}
       </PageTitleBox>

@@ -2,17 +2,18 @@ import React, { useEffect, useState } from 'react';
 import { Box, Card, Typography, CardContent, CardActionArea, Stack } from '@mui/material';
 
 function ImgCardList(props) {
-  const { data, size } = props;
+  const { data, size, selectedType, setSelectedType } = props;
   const srcUrl = '/assets/images/';
-  const [selectedValue, setSelectedValue] = useState('init');
+  // const [selectedValue, setSelectedValue] = useState('');
 
   // useEffect(() => {
   //   props.inputValue(selectedValue);
   // }, [selectedValue]);
 
   const handleClick = event => {
-    setSelectedValue(event.currentTarget.value);
-    console.log(event.currentTarget.value, 'event');
+    // setSelectedValue(event.currentTarget.value);
+    setSelectedType(event.currentTarget.value);
+    // console.log(event.currentTarget.value, 'event');
   };
 
   return (
@@ -24,18 +25,13 @@ function ImgCardList(props) {
       sx={{ maxWidth: '100%', listStyle: 'none', m: '16px auto', p: 0, gap: { xs: 2, md: 3 } }}
     >
       {data.map(item => (
-        <Box
-          component="li"
-          key={item.componentId}
-          sx={size === 'large' ? { width: { xs: 100, md: 130 }, my: 0 } : { width: 150 }}
-        >
+        <Box component="li" key={item.id} sx={size === 'large' ? { width: { xs: 100, md: 130 }, my: 0 } : { width: 150 }}>
           <Card>
             <CardActionArea
               onClick={handleClick}
-              value={item.componentId}
+              value={item.id}
               sx={{
-                boxShadow:
-                  selectedValue === item.componentId ? theme => `0 0 0 3px ${theme.palette.primary.main} inset` : 'none',
+                boxShadow: selectedType === item.id ? theme => `0 0 0 3px ${theme.palette.primary.main} inset` : 'none',
               }}
             >
               <CardContent
@@ -66,5 +62,10 @@ function ImgCardList(props) {
     </Stack>
   );
 }
+
+ImgCardList.defaultProps = {
+  selectedWidgetType: undefined,
+  setSelectedWidgetType: undefined,
+};
 
 export default ImgCardList;
