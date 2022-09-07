@@ -39,6 +39,7 @@ const LineChart = props => {
    * 위젯옵션과 데이터로
    * 컴포넌트에 맞는 형태로 생성
    */
+
   const createComponentOption = () => {
     let newOption = defaultComponentOption;
     if (dataSet) {

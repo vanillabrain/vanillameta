@@ -24,11 +24,29 @@ const StyledList = styled(List)({
 });
 
 const LineChartSetting = props => {
-  const { option, setOption } = props;
+  const { option, setOption, dataSet } = props;
+  const [typeOption, setTypeOption] = useState({ number: [], string: [] });
 
   useEffect(() => {
-    console.log('test', option);
-  }, [option]);
+    const numKeys = [];
+    const strKeys = [];
+    const keys = Object.keys(dataSet[0]);
+
+    // dataSet의 배열을 순회하며 keys 요소들을 프로퍼티 key로 가지는 값들의 타입 확인
+    for (let i = 0; i < keys.length; i++) {
+      const rel = dataSet.map(item => item[keys[i]]);
+      if (rel.every(value => typeof value === 'number')) {
+        numKeys.push(keys[i]);
+      } else {
+        strKeys.push(keys[i]);
+      }
+    }
+
+    setTypeOption({ number: numKeys, string: strKeys });
+  }, [dataSet]);
+
+  const strOption = typeOption.string.map(item => ({ value: item, label: item }));
+  const numOption = typeOption.number.map(item => ({ value: item, label: item }));
 
   const handleChange = event => {
     setOption({ ...option, [event.target.name]: event.target.value });
@@ -59,10 +77,7 @@ const LineChartSetting = props => {
             id="xField"
             name="xField"
             label="X축"
-            option={[
-              { value: 'id', label: 'id' },
-              { value: 'name', label: 'name' },
-            ]}
+            option={strOption}
             value={option.xField}
             onChange={handleChange}
           />
@@ -70,10 +85,7 @@ const LineChartSetting = props => {
             id="yField"
             name="yField"
             label="Y축"
-            option={[
-              { value: 'high', label: 'high' },
-              { value: 'low', label: 'low' },
-            ]}
+            option={numOption}
             value={option.yField}
             onChange={handleChange}
           />
@@ -81,10 +93,7 @@ const LineChartSetting = props => {
             id="yField1"
             name="yField1"
             label="Y축"
-            option={[
-              { value: 'high', label: 'high' },
-              { value: 'low', label: 'low' },
-            ]}
+            option={numOption}
             value={option.yField1}
             onChange={handleChange}
           />

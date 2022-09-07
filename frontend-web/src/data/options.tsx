@@ -1,6 +1,10 @@
 export const lineChartOption = {
+  // xField: '',
+  // yField: [],
+  title: '',
   xField: '',
-  yField: [],
+  yField: '',
+  yField1: '',
 };
 
 export const areaChartOption = {

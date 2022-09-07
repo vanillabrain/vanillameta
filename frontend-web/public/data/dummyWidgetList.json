@@ -3,240 +3,325 @@
     "id": "935503",
     "name": "Harriett Thompson",
     "date": "2022-04-11T18:27:45+09:00",
-    "type": "barChart"
+    "dataId": "",
+    "type": "lineChart",
+    "options": {
+      "title": "위젯이름",
+      "xField": "name",
+      "yField": "high",
+      "yField1": "low"
+    }
   },
   {
     "id": "367901",
     "name": "Minerva Lewis",
     "date": "2022-01-20T13:51:43+09:00",
-    "type": "pieChart"
+    "dataId": "",
+    "type": "pieChart",
+    "options": {}
   },
   {
     "id": "713407",
     "name": "Curtis Scott",
     "date": "2022-12-02T04:08:37+09:00",
-    "type": "dashboard"
+    "dataId": "",
+    "type": "dashboard",
+    "options": {}
   },
   {
     "id": "878488",
     "name": "Leah Andrews",
     "date": "2022-05-04T16:20:14+09:00",
-    "type": "barChart"
+    "dataId": "",
+    "type": "barChart",
+    "options": {}
   },
   {
     "id": "935404",
     "name": "Manuel Wilkins",
     "date": "2022-09-21T01:21:05+09:00",
-    "type": "pieChart"
+    "dataId": "",
+    "type": "pieChart",
+    "options": {}
   },
   {
     "id": "480728",
     "name": "Christina Chavez",
     "date": "2022-09-27T15:36:58+09:00",
-    "type": "dashboard"
+    "dataId": "",
+    "type": "dashboard",
+    "options": {}
   },
   {
     "id": "634024",
     "name": "Victoria Gutierrez",
     "date": "2022-03-13T23:36:08+09:00",
-    "type": "barChart"
+    "dataId": "",
+    "type": "barChart",
+    "options": {}
   },
   {
     "id": "566724",
     "name": "Roger Welch",
     "date": "2022-01-14T21:48:35+09:00",
-    "type": "pieChart"
+    "dataId": "",
+    "type": "pieChart",
+    "options": {}
   },
   {
     "id": "390212",
     "name": "Olga McDaniel",
     "date": "2022-09-15T22:39:14+09:00",
-    "type": "dashboard"
+    "dataId": "",
+    "type": "dashboard",
+    "options": {}
   },
   {
     "id": "908840",
     "name": "Roger Vargas",
     "date": "2022-09-09T22:21:59+09:00",
-    "type": "pieChart"
+    "dataId": "",
+    "type": "pieChart",
+    "options": {}
   },
   {
     "id": "037085",
     "name": "Ida Williams",
     "date": "2022-08-24T23:56:20+09:00",
-    "type": "dashboard"
+    "dataId": "",
+    "type": "dashboard",
+    "options": {}
   },
   {
     "id": "023578",
     "name": "Aiden Burgess",
     "date": "2022-11-19T02:29:01+09:00",
-    "type": "barChart"
+    "dataId": "",
+    "type": "barChart",
+    "options": {}
   },
   {
     "id": "283149",
     "name": "Herbert Hansen",
     "date": "2022-04-14T08:06:11+09:00",
-    "type": "barChart"
+    "dataId": "",
+    "type": "barChart",
+    "options": {}
   },
   {
     "id": "597438",
     "name": "Cora Wolfe",
     "date": "2022-08-17T11:07:03+09:00",
-    "type": "barChart"
+    "dataId": "",
+    "type": "barChart",
+    "options": {}
   },
   {
     "id": "470301",
     "name": "Ellen Warren",
     "date": "2022-06-14T07:22:47+09:00",
-    "type": "barChart"
+    "dataId": "",
+    "type": "barChart",
+    "options": {}
   },
   {
     "id": "634983",
     "name": "Garrett Austin",
     "date": "2022-03-17T16:59:33+09:00",
-    "type": "pieChart"
+    "dataId": "",
+    "type": "pieChart",
+    "options": {}
   },
   {
     "id": "783063",
     "name": "Marguerite Gordon",
     "date": "2022-02-01T14:31:57+09:00",
-    "type": "dashboard"
+    "dataId": "",
+    "type": "dashboard",
+    "options": {}
   },
   {
     "id": "331909",
     "name": "Zachary Watts",
     "date": "2022-10-24T04:57:41+09:00",
-    "type": "barChart"
+    "dataId": "",
+    "type": "barChart",
+    "options": {}
   },
   {
     "id": "014858",
     "name": "Russell Clarke",
     "date": "2022-12-19T16:33:35+09:00",
-    "type": "barChart"
+    "dataId": "",
+    "type": "barChart",
+    "options": {}
   },
   {
     "id": "002249",
     "name": "Shawn Hampton",
     "date": "2022-10-28T09:34:53+09:00",
-    "type": "pieChart"
+    "dataId": "",
+    "type": "pieChart",
+    "options": {}
   },
   {
     "id": "222424",
     "name": "William Warner",
     "date": "2022-06-24T18:50:40+09:00",
-    "type": "dashboard"
+    "dataId": "",
+    "type": "dashboard",
+    "options": {}
   },
   {
     "id":"548853",
     "name":"Todd Alvarez",
     "date":"2021-07-08T23:28:19+09:00",
-    "type":"barChart"
+    "dataId": "",
+    "type":"barChart",
+    "options": {}
   },
   {
     "id":"256275",
     "name":"Theodore Dean",
     "date":"2021-02-19T07:13:15+09:00",
-    "type":"barChart"
+    "dataId": "",
+    "type":"barChart",
+    "options": {}
   },
   {
     "id":"624051",
     "name":"Daisy Osborne",
     "date":"2021-08-04T13:41:57+09:00",
-    "type":"barChart"
+    "dataId": "",
+    "type":"barChart",
+    "options": {}
   },
   {
     "id":"715858",
     "name":"Donald Anderson",
     "date":"2021-08-17T07:03:14+09:00",
-    "type":"barChart"
+    "dataId": "",
+    "type":"barChart",
+    "options": {}
   },
   {
     "id":"822409",
     "name":"Ada Brooks",
     "date":"2021-10-22T18:09:46+09:00",
-    "type":"barChart"
+    "dataId": "",
+    "type":"barChart",
+    "options": {}
   },
   {
     "id":"999635",
     "name":"Georgia Reid",
     "date":"2021-01-04T20:25:32+09:00",
-    "type":"barChart"
+    "dataId": "",
+    "type":"barChart",
+    "options": {}
   },
   {
     "id":"736888",
     "name":"Lester Poole",
     "date":"2021-07-10T09:42:51+09:00",
-    "type":"barChart"
+    "dataId": "",
+    "type":"barChart",
+    "options": {}
   },
   {
     "id":"004276",
     "name":"Lawrence Evans",
     "date":"2021-02-06T23:14:26+09:00",
-    "type":"barChart"
+    "dataId": "",
+    "type":"barChart",
+    "options": {}
   },
   {
     "id":"094810",
     "name":"Stella Brown",
     "date":"2021-06-21T01:17:59+09:00",
-    "type":"barChart"
+    "dataId": "",
+    "type":"barChart",
+    "options": {}
   },
   {
     "id":"655265",
     "name":"Alma Welch",
     "date":"2021-11-27T07:40:59+09:00",
-    "type":"barChart"
+    "dataId": "",
+    "type":"barChart",
+    "options": {}
   },
   {
     "id":"568796",
     "name":"Lester Bennett",
     "date":"2021-04-25T06:58:05+09:00",
-    "type":"barChart"
+    "dataId": "",
+    "type":"barChart",
+    "options": {}
   },
   {
     "id":"561078",
     "name":"Lettie Weaver",
     "date":"2021-11-08T23:19:48+09:00",
-    "type":"barChart"
+    "dataId": "",
+    "type":"barChart",
+    "options": {}
   },
   {
     "id":"764433",
     "name":"Lettie Gregory",
     "date":"2021-07-29T14:45:36+09:00",
-    "type":"barChart"
+    "dataId": "",
+    "type":"barChart",
+    "options": {}
   },
   {
     "id":"441302",
     "name":"Peter Terry",
     "date":"2021-04-27T13:27:44+09:00",
-    "type":"barChart"
+    "dataId": "",
+    "type":"barChart",
+    "options": {}
   },
   {
     "id":"812254",
     "name":"Effie Watts",
     "date":"2021-01-09T02:21:44+09:00",
-    "type":"barChart"
+    "dataId": "",
+    "type":"barChart",
+    "options": {}
   },
   {
     "id":"219844",
     "name":"Dustin Moss",
     "date":"2021-08-20T05:27:27+09:00",
-    "type":"barChart"
+    "dataId": "",
+    "type":"barChart",
+    "options": {}
   },
   {
     "id":"096290",
     "name":"Charlotte Wise",
     "date":"2021-12-22T00:09:57+09:00",
-    "type":"barChart"
+    "dataId": "",
+    "type":"barChart",
+    "options": {}
   },
   {
     "id":"173714",
     "name":"Millie Ramos",
     "date":"2021-06-11T13:18:06+09:00",
-    "type":"barChart"
+    "dataId": "",
+    "type":"barChart",
+    "options": {}
   },
   {
     "id":"115819",
     "name":"Dale Phillips",
     "date":"2021-11-01T15:04:22+09:00",
-    "type":"barChart"
+    "dataId": "",
+    "type":"barChart",
+    "options": {}
   }
 ]
