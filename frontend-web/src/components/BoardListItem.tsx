@@ -1,6 +1,6 @@
 import React from 'react';
 import { IconButton, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import { BarChart, PieChart, Dashboard, Delete, Edit } from '@mui/icons-material';
+import { BarChart, PieChart, Dashboard, StackedLineChart, Delete, Edit } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
 import { DialogAlertIconButton } from './button/DialogAlertButton';
 
@@ -22,6 +22,9 @@ function BoardListItem(props) {
     case 'dashboard':
       iconType = <Dashboard />;
       break;
+    case 'lineChart':
+      iconType = <StackedLineChart />;
+      break;
     case 'barChart':
       iconType = <BarChart />;
       break;
@@ -37,7 +40,7 @@ function BoardListItem(props) {
       key={postItem.id}
       secondaryAction={
         <React.Fragment>
-          <IconButton size="large" component={RouterLink} to={`modify/${postItem.id}`}>
+          <IconButton size="large" component={RouterLink} to={`modify?id=${postItem.id}&name=${postItem.name}`}>
             <Edit />
           </IconButton>
           <DialogAlertIconButton icon={<Delete />} size="large">

@@ -9,6 +9,8 @@ function BoardList(props) {
   const matches = useMediaQuery(theme.breakpoints.up('sm'));
   const tableBorder = '1px solid #DADDDD';
 
+  // 위젯 종류 아이콘이 있는 위젯 목록과 없는 대시보드의 레이아웃이 다르므로
+  // 종류 항목 여부를 기준으로 레이아웃을 다르게 구현
   const hasItType = postList.filter(item => item.type).length !== 0;
 
   return (

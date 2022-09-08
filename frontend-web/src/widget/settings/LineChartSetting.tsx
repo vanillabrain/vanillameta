@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Grid, List, ListItem, ListItemText, styled, TextField } from '@mui/material';
+import { Grid, List, ListItem, ListItemText, styled, TextField, Button } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
+import ColorFieldForm from '@/components/form/ColorFieldForm';
 
 const StyledList = styled(List)({
   display: 'flex',
@@ -27,9 +28,13 @@ const LineChartSetting = props => {
   const { option, setOption, dataSet } = props;
   const [typeOption, setTypeOption] = useState({ number: [], string: [] });
 
+  // data 성격에 따라 분류하기
+  // 1. X축: string, 날짜,
+  // 2. series: number
+
   useEffect(() => {
-    const numKeys = [];
-    const strKeys = [];
+    const numKeys = [''];
+    const strKeys = [''];
     const keys = Object.keys(dataSet[0]);
 
     // dataSet의 배열을 순회하며 keys 요소들을 프로퍼티 key로 가지는 값들의 타입 확인
@@ -52,6 +57,10 @@ const LineChartSetting = props => {
     setOption({ ...option, [event.target.name]: event.target.value });
   };
 
+  const handleAddClick = event => {
+    console.log('click');
+  };
+
   return (
     <Grid item xs={10} md={3} sx={{ display: 'flex', flexDirection: 'column' }}>
       <TextField
@@ -71,8 +80,8 @@ const LineChartSetting = props => {
       {/*{errors.exampleRequired && <span>This field is required</span>}*/}
       {/*<input type="submit" />*/}
       <StyledList>
+        {/*<ListItemText primary="오른쪽 선택 상자" />*/}
         <ListItem divider>
-          <ListItemText primary="오른쪽 선택 상자" />
           <SelectForm
             id="xField"
             name="xField"
@@ -85,16 +94,74 @@ const LineChartSetting = props => {
             id="yField"
             name="yField"
             label="Y축"
-            option={numOption}
+            option={[{ value: 'count', label: 'count' }]}
             value={option.yField}
             onChange={handleChange}
           />
+        </ListItem>
+        <ListItem divider>
           <SelectForm
-            id="yField1"
-            name="yField1"
-            label="Y축"
+            id="series1"
+            name="series1"
+            label="series1"
             option={numOption}
-            value={option.yField1}
+            value={option.series1}
+            onChange={handleChange}
+            color
+          />
+          <SelectForm
+            // id="series1Aggregation"
+            // name="series1Aggregation"
+            label=" "
+            // option={[
+            //   { value: 'sum', label: '합계' },
+            //   { value: 'avg', label: '평균' },
+            //   { value: 'max', label: '최대' },
+            //   { value: 'min', label: '최소' },
+            // ]}
+            // value={option.series1Aggregation}
+            value={''}
+            // onChange={handleChange}
+          />
+          {/*<ColorFieldForm />*/}
+          <SelectForm
+            id="series2"
+            name="series2"
+            label="series2"
+            option={numOption}
+            value={option.series2}
+            onChange={handleChange}
+            color
+          />
+          <SelectForm
+            // id="series2Aggregation"
+            // name="series2Aggregation"
+            label=" "
+            // option={[
+            //   { value: 'sum', label: '합계' },
+            //   { value: 'avg', label: '평균' },
+            //   { value: 'max', label: '최대' },
+            //   { value: 'min', label: '최소' },
+            // ]}
+            // value={option.series2Aggregation}
+            value={''}
+            // onChange={handleChange}
+          />
+          {/*<ColorFieldForm />*/}
+          <Button onClick={handleAddClick}>추가</Button>
+        </ListItem>
+        <ListItem>
+          <SelectForm
+            id="legendPosition"
+            name="legendPosition"
+            label="legend 방향"
+            option={[
+              { value: 'left', label: '왼쪽' },
+              { value: 'right', label: '오른쪽' },
+              { value: 'top', label: '위쪽' },
+              { value: 'bottom', label: '아래쪽' },
+            ]}
+            value={option.legendPosition}
             onChange={handleChange}
           />
         </ListItem>

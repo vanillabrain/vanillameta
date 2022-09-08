@@ -6,10 +6,25 @@
     "dataId": "",
     "type": "lineChart",
     "options": {
-      "title": "위젯이름",
+      "title": "Harriett Thompson",
       "xField": "name",
-      "yField": "high",
-      "yField1": "low"
+      "yField": "count",
+      "series": [
+        {
+          "field": "high",
+          "color": "#43afef"
+        },
+        {
+          "field": "low",
+          "color": "#b9e7ff"
+        }
+      ,
+        {
+          "field": "avg",
+          "color": "#d9d9d9"
+        }
+      ],
+      "legendPosition": "left"
     }
   },
   {
@@ -41,8 +56,13 @@
     "name": "Manuel Wilkins",
     "date": "2022-09-21T01:21:05+09:00",
     "dataId": "",
-    "type": "pieChart",
-    "options": {}
+    "type": "lineChart",
+    "options": {
+      "title": "Manuel Wilkins",
+      "xField": "name",
+      "series1": "high",
+      "series2": "low"
+    }
   },
   {
     "id": "480728",
@@ -73,8 +93,13 @@
     "name": "Olga McDaniel",
     "date": "2022-09-15T22:39:14+09:00",
     "dataId": "",
-    "type": "dashboard",
-    "options": {}
+    "type": "lineChart",
+    "options": {
+      "title": "Olga McDaniel",
+      "xField": "name",
+      "series1": "high",
+      "series2": "low"
+    }
   },
   {
     "id": "908840",

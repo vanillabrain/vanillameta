@@ -5,22 +5,15 @@
     "icon": "icon/line-chart.png",
     "caption": "Line Chart",
     "options": {
-      "xField": "label",
+      "xField": "",
+      "yField": "count",
       "series": [
         {
-          "field": "value1",
-          "color": "#43afef"
-        },
-        {
-          "field": "value2",
-          "color": "#b9e7ff"
+          "field": "",
+          "color": "#000"
         }
-      ,
-        {
-          "field": "value2",
-          "color": "#d9d9d9"
-        }
-      ]
+      ],
+      "legendPosition": "left"
     }
   },
   {

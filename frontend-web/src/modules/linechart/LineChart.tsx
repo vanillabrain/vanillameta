@@ -48,18 +48,23 @@ const LineChart = props => {
           type: 'category',
           data: dataSet.map(item => item[option.xField]),
         },
+        yAxis: {
+          type: 'value',
+          data: dataSet.map(item => item[option.yField]),
+        },
         series: [
           {
-            data: dataSet.map(item => item[option.yField]),
+            data: dataSet.map(item => item[option.series1]),
             type: 'line',
             smooth: true,
           },
           {
-            data: dataSet.map(item => item[option.yField1]),
+            data: dataSet.map(item => item[option.series2]),
             type: 'line',
             smooth: true,
           },
         ],
+        legendPosition: 'left', // echart 참고해서 형태 맞게 넣기
       };
       newOption = { ...defaultComponentOption, ...op };
     }
