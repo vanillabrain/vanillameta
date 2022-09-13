@@ -5,7 +5,6 @@ import PageTitleBox from '@/components/PageTitleBox';
 import AddWidgetPopupButton from '@/pages/Dashboard/DashboardModify/AddWidgetPopupButton';
 import ConfirmCancelButton, { CancelButton } from '@/components/button/ConfirmCancelButton';
 import DialogAlertButton from '@/components/button/DialogAlertButton';
-import { useParams } from 'react-router-dom';
 import GridLayout, { Responsive, WidthProvider } from 'react-grid-layout';
 
 import '/node_modules/react-grid-layout/css/styles.css';
@@ -14,13 +13,25 @@ import '/node_modules/react-resizable/css/styles.css';
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 function DashboardModify(props) {
-  const { dashboard_id } = useParams();
-
   const layout = [
     { i: 'a', x: 0, y: 0, w: 1, h: 2, static: true },
     { i: 'b', x: 1, y: 0, w: 3, h: 2, minW: 2, maxW: 4 },
     { i: 'c', x: 4, y: 0, w: 1, h: 2 },
   ];
+
+  const [selectedWidgets, setSelectedWidgets] = useState([]);
+  useEffect(() => {
+    // 여기서 처리
+    if (selectedWidgets.length > 0) {
+      // todo 동적으로 위젯 붙이기
+    }
+  }, [selectedWidgets]);
+
+  const handleWidgetSelect = item => {
+    console.log('handleWidgetSelect');
+    console.log(item);
+    setSelectedWidgets([item]);
+  };
 
   return (
     <PageContainer>
@@ -48,24 +59,17 @@ function DashboardModify(props) {
             autoFocus
             sx={{ width: '50%' }}
           />
-          <AddWidgetPopupButton label="위젯 추가" />
+          <AddWidgetPopupButton label="위젯 추가" widgetSelect={handleWidgetSelect} />
         </Stack>
         <Box
           sx={{
-            width: '100%',
-            // height: '46.875vw',
-            maxHeight: '70vh',
+            width: '1280px',
+            minHeight: '1080px',
             borderRadius: 1,
             backgroundColor: '#eee',
           }}
         >
-          <ResponsiveGridLayout
-            layout={layout}
-            rowHeight={30}
-            width={1200}
-            breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
-            cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
-          >
+          <ResponsiveGridLayout layout={layout} rowHeight={54} compactType={null} cols={{ lg: 20 }}>
             <Card key="a">a</Card>
             <Card key="b">b</Card>
             <Card key="c">c</Card>
