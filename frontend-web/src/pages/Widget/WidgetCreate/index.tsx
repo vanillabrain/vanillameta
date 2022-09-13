@@ -16,7 +16,7 @@ function WidgetCreate(props) {
   const [isFinished, setIsFinished] = useState(false);
 
   const [dataSet, setDataSet] = useState(null); // step 1
-  const [widgetType, setWidgetType] = useState(null); // step 2
+  const [widgetType, setWidgetType] = useState('lineChart'); // step 2 : 개발 편의상 임시로 lineChart 적용
   const [widgetOption, setWidgetOption] = useState({}); // step 3
 
   // useEffect(() => {
@@ -85,7 +85,15 @@ function WidgetCreate(props) {
         }
       >
         <Box>
-          <Stepper activeStep={activeStep} sx={{ width: { xs: '100%', sm: '70%' }, m: 'auto', mt: 8, mb: 6 }}>
+          <Stepper
+            activeStep={activeStep}
+            sx={{
+              width: { xs: '100%', sm: '70%' },
+              m: 'auto',
+              mt: 8,
+              mb: 6,
+            }}
+          >
             {steps.map((label, index) => {
               const stepProps: { completed?: boolean } = {};
               const labelProps: {

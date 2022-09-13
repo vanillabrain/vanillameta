@@ -53,18 +53,21 @@ const LineChart = props => {
           data: dataSet.map(item => item[option.yField]),
         },
         series: [
+          // 설정창에 있는 Input 개수대로 늘어나야 함 => map
           {
+            name: option.series1,
             data: dataSet.map(item => item[option.series1]),
             type: 'line',
             smooth: true,
           },
           {
+            name: option.series2,
             data: dataSet.map(item => item[option.series2]),
             type: 'line',
             smooth: true,
           },
         ],
-        legendPosition: 'left', // echart 참고해서 형태 맞게 넣기
+        legend: {}, // TODO: legend 위치 조정기능 추가
       };
       newOption = { ...defaultComponentOption, ...op };
     }

@@ -5,11 +5,15 @@
     "icon": "icon/line-chart.png",
     "caption": "Line Chart",
     "options": {
-      "xField": "",
+      "xField": "name",
       "yField": "count",
       "series": [
         {
-          "field": "",
+          "field": "test1",
+          "color": "#000"
+        },
+        {
+          "field": "test2",
           "color": "#000"
         }
       ],
