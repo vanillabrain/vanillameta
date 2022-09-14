@@ -4,7 +4,8 @@ import PageContainer from '@/components/PageContainer';
 import PageTitleBox from '@/components/PageTitleBox';
 import BoardList from '@/components/BoardList';
 import AddIconButton from '@/components/button/AddIconButton';
-import { get } from '@/helpers/apiHelper';
+// import { get } from '@/helpers/apiHelper';
+import axios from 'axios';
 
 const title = '위젯';
 
@@ -16,8 +17,9 @@ function Widget() {
   const [loadedCount, setLoadedCount] = useState(1);
 
   useEffect(() => {
-    get('/data/dummyWidgetList.json')
-      .then(response => response.data.json())
+    axios
+      .get('/data/dummyWidgetList.json')
+      .then(response => response.data)
       .then(data => setLoadedWidgetData(data.filter((list, idx) => idx <= 10 * loadedCount)));
     setIsLoading(true);
   }, []);

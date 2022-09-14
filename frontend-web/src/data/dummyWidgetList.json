@@ -61,28 +61,10 @@
     "dataId": "",
     "type": "lineChart",
     "options": {
-      "title": "Harriett Thompson",
+      "title": "Manuel Wilkins",
       "xField": "name",
-      "yField": "count",
-      "series": [
-        {
-          "field": "high",
-          "color": "#43afef",
-          "aggregation":""
-        },
-        {
-          "field": "low",
-          "color": "#b9e7ff",
-          "aggregation": ""
-        }
-      ,
-        {
-          "field": "avg",
-          "color": "#d9d9d9",
-          "aggregation": ""
-        }
-      ],
-      "legendPosition": "left"
+      "series1": "high",
+      "series2": "low"
     }
   },
   {
@@ -116,43 +98,10 @@
     "dataId": "",
     "type": "lineChart",
     "options": {
-      "title": "Harriett Thompson",
+      "title": "Olga McDaniel",
       "xField": "name",
-      "yField": "count",
-      "series": [
-        {
-          "field": "high",
-          "color": "#43afef",
-          "aggregation":""
-        },
-        {
-          "field": "low",
-          "color": "#b9e7ff",
-          "aggregation": ""
-        }
-      ,     {
-          "field": "low",
-          "color": "#b9e7ff",
-          "aggregation": ""
-        }
-      ,     {
-          "field": "low",
-          "color": "#b9e7ff",
-          "aggregation": ""
-        }
-      ,     {
-          "field": "low",
-          "color": "#b9e7ff",
-          "aggregation": ""
-        }
-      ,
-        {
-          "field": "avg",
-          "color": "#d9d9d9",
-          "aggregation": ""
-        }
-      ],
-      "legendPosition": "left"
+      "series1": "high",
+      "series2": "low"
     }
   },
   {

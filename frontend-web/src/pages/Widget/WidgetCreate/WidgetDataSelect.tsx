@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Box, Grid } from '@mui/material';
 import TitleBox from '@/components/TitleBox';
 import CardList, { DataSourceCard } from '@/components/CardList';
-import { get } from '@/helpers/apiHelper';
+// import { get } from '@/helpers/apiHelper';
+import axios from 'axios';
 
 function WidgetDataSelect(props) {
   const { setDataSet } = props;
@@ -12,8 +13,9 @@ function WidgetDataSelect(props) {
 
   // data fetch // TODO: axios로 수정
   useEffect(() => {
-    get('/data/dummyDataList.json')
-      .then(response => response.data.json())
+    axios
+      .get('/data/dummyDataList.json')
+      .then(response => response.data)
       .then(data => setLoadedData(data));
     setIsLoading(true);
   }, []);

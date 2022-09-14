@@ -76,21 +76,39 @@ const LineChartSetting = props => {
     setOption({ ...option, [event.target.name]: event.target.value });
   };
 
+  const handleSelectChange = event => {
+    const _key = event.target.name.slice(0, -1);
+    const _index = Number(event.target.name.slice(-1)[0]) - 1;
+
+    setOption(prevState => {
+      const _tempOption = { ...prevState };
+
+      // onChange 일어난 요소 key와 index로 식별해서 value 주기
+      _tempOption.series.forEach((series, index) => {
+        if (_index === index) {
+          series[_key] = event.target.value;
+        }
+      });
+      return _tempOption;
+    });
+  };
+
   const handleAddClick = () => {
     if (addedSeriesLength === typeOption.series.length) {
       return;
     }
     setAddedSeriesLength(prevState => prevState + 1);
 
-    const tempOption = { ...option };
-    const addItem = {
-      field: '',
-      color: '',
-      aggregation: '',
-    };
-    tempOption.series.push(addItem);
-
-    setOption(prevState => ({ ...prevState, ...tempOption }));
+    setOption(prevState => {
+      const _tempOption = { ...prevState };
+      const _newItem = {
+        field: '',
+        color: '',
+        aggregation: '',
+      };
+      _tempOption.series.push(_newItem);
+      return _tempOption;
+    });
     console.log(option);
   };
 
@@ -139,12 +157,12 @@ const LineChartSetting = props => {
           {option.series.map((item, index) => (
             <React.Fragment key={index}>
               <SelectForm
-                id={`series${index + 1}`}
-                name={`series${index + 1}`}
+                id={`field${index + 1}`}
+                name={`field${index + 1}`}
                 label={`Series ${index + 1}`}
                 option={seriesDropList}
                 value={item.field}
-                onChange={handleChange}
+                onChange={handleSelectChange}
                 color
               />
               <SelectForm
@@ -153,7 +171,7 @@ const LineChartSetting = props => {
                 label={' '}
                 option={aggregationDropList}
                 value={item.aggregation}
-                onChange={handleChange}
+                onChange={handleSelectChange}
               />
               <Divider />
             </React.Fragment>
