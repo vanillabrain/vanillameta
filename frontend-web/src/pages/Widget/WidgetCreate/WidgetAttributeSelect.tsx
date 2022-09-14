@@ -43,7 +43,6 @@ function WidgetAttributeSelect(props) {
     const ChartSettingProps = {
       option: option,
       setOption: setOption,
-      dataSet: chartData,
     };
 
     switch (componentType) {

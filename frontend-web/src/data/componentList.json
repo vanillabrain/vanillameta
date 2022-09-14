@@ -5,16 +5,13 @@
     "icon": "icon/line-chart.png",
     "caption": "Line Chart",
     "options": {
-      "xField": "name",
-      "yField": "count",
+      "xField": "",
+      "yField": "",
       "series": [
         {
-          "field": "test1",
-          "color": "#000"
-        },
-        {
-          "field": "test2",
-          "color": "#000"
+          "field": "",
+          "color": "",
+          "aggregation": ""
         }
       ],
       "legendPosition": "left"
@@ -30,16 +27,19 @@
       "series": [
         {
           "field": "value1",
-          "color": "#43afef"
+          "color": "#43afef",
+          "aggregation": ""
         },
         {
           "field": "value2",
-          "color": "#b9e7ff"
+          "color": "#b9e7ff",
+          "aggregation": ""
         }
       ,
         {
           "field": "value2",
-          "color": "#d9d9d9"
+          "color": "#d9d9d9",
+          "aggregation": ""
         }
       ]
     }
@@ -54,16 +54,19 @@
     "series": [
       {
         "field": "value1",
-        "color": "#43afef"
+        "color": "#43afef",
+        "aggregation": ""
       },
       {
         "field": "value2",
-        "color": "#b9e7ff"
+        "color": "#b9e7ff",
+        "aggregation": ""
       }
     ,
       {
         "field": "value2",
-        "color": "#d9d9d9"
+        "color": "#d9d9d9",
+        "aggregation": ""
       }
     ]
   }
@@ -78,16 +81,19 @@
       "series": [
         {
           "field": "value1",
-          "color": "#43afef"
+          "color": "#43afef",
+          "aggregation": ""
         },
         {
           "field": "value2",
-          "color": "#b9e7ff"
+          "color": "#b9e7ff",
+          "aggregation": ""
         }
       ,
         {
           "field": "value2",
-          "color": "#d9d9d9"
+          "color": "#d9d9d9",
+          "aggregation": ""
         }
       ]
     }
@@ -102,16 +108,19 @@
       "series": [
         {
           "field": "value1",
-          "color": "#43afef"
+          "color": "#43afef",
+          "aggregation": ""
         },
         {
           "field": "value2",
-          "color": "#b9e7ff"
+          "color": "#b9e7ff",
+          "aggregation": ""
         }
       ,
         {
           "field": "value2",
-          "color": "#d9d9d9"
+          "color": "#d9d9d9",
+          "aggregation": ""
         }
       ]
     }
@@ -126,16 +135,19 @@
       "series": [
         {
           "field": "value1",
-          "color": "#43afef"
+          "color": "#43afef",
+          "aggregation": ""
         },
         {
           "field": "value2",
-          "color": "#b9e7ff"
+          "color": "#b9e7ff",
+          "aggregation": ""
         }
       ,
         {
           "field": "value2",
-          "color": "#d9d9d9"
+          "color": "#d9d9d9",
+          "aggregation": ""
         }
       ]
     }
@@ -150,16 +162,19 @@
       "series": [
         {
           "field": "value1",
-          "color": "#43afef"
+          "color": "#43afef",
+          "aggregation": ""
         },
         {
           "field": "value2",
-          "color": "#b9e7ff"
+          "color": "#b9e7ff",
+          "aggregation": ""
         }
       ,
         {
           "field": "value2",
-          "color": "#d9d9d9"
+          "color": "#d9d9d9",
+          "aggregation": ""
         }
       ]
     }
@@ -174,16 +189,19 @@
       "series": [
         {
           "field": "value1",
-          "color": "#43afef"
+          "color": "#43afef",
+          "aggregation": ""
         },
         {
           "field": "value2",
-          "color": "#b9e7ff"
+          "color": "#b9e7ff",
+          "aggregation": ""
         }
       ,
         {
           "field": "value2",
-          "color": "#d9d9d9"
+          "color": "#d9d9d9",
+          "aggregation": ""
         }
       ]
     }
@@ -198,16 +216,19 @@
       "series": [
         {
           "field": "value1",
-          "color": "#43afef"
+          "color": "#43afef",
+          "aggregation": ""
         },
         {
           "field": "value2",
-          "color": "#b9e7ff"
+          "color": "#b9e7ff",
+          "aggregation": ""
         }
       ,
         {
           "field": "value2",
-          "color": "#d9d9d9"
+          "color": "#d9d9d9",
+          "aggregation": ""
         }
       ]
     }

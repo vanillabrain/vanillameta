@@ -3,7 +3,7 @@ import { FormControl, FormLabel, IconButton, MenuItem, Select, Stack } from '@mu
 import PaletteIcon from '@mui/icons-material/Palette';
 
 function SelectForm(props) {
-  const { label, option, color, ...rest } = props;
+  const { label, option, color, value, ...rest } = props;
 
   return (
     <FormControl fullWidth sx={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -13,9 +13,15 @@ function SelectForm(props) {
         </FormLabel>
       )}
       <Stack flexDirection="row" justifyContent="space-between" sx={{ width: label ? '60%' : '100%' }}>
-        <Select fullWidth size="small" sx={color ? { width: 'calc(100% - 38px)' } : { width: '100%' }} {...rest}>
+        <Select
+          fullWidth
+          size="small"
+          sx={color ? { width: 'calc(100% - 38px)' } : { width: '100%' }}
+          value={value ?? ''}
+          {...rest}
+        >
           {option.map(item => (
-            <MenuItem key={item.value} value={item.value}>
+            <MenuItem key={item.value} value={item.value ?? ''}>
               {item.label}
             </MenuItem>
           ))}

@@ -12,16 +12,19 @@
       "series": [
         {
           "field": "high",
-          "color": "#43afef"
+          "color": "#43afef",
+          "aggregation":""
         },
         {
           "field": "low",
-          "color": "#b9e7ff"
+          "color": "#b9e7ff",
+          "aggregation": ""
         }
       ,
         {
           "field": "avg",
-          "color": "#d9d9d9"
+          "color": "#d9d9d9",
+          "aggregation": ""
         }
       ],
       "legendPosition": "left"
