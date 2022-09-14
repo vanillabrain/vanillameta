@@ -1,27 +1,21 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { BarChart, Dashboard, PieChart } from '@mui/icons-material';
 import {
-  Box,
   Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   IconButton,
   List,
-  ListItem,
+  ListItemButton,
+  ListItemIcon,
   ListItemText,
   Typography,
-  ListItemIcon,
-  Dialog,
-  DialogTitle,
-  DialogProps,
-  DialogContent,
-  DialogActions,
-  CircularProgress,
-  ListItemButton,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
-import { useInView } from 'react-intersection-observer';
-// import { get } from '@/helpers/apiHelper';
-import axios from 'axios';
+import { get } from '@/helpers/apiHelper';
 
 const iconType = item => {
   switch (item) {
@@ -38,77 +32,38 @@ const iconType = item => {
 
 function AddWidgetPopupButton({ label, widgetSelect }) {
   const [open, setOpen] = useState(false);
-  const [scroll, setScroll] = useState<DialogProps['scroll']>('paper');
-  // const [selectedIds, setSelectedIds] = React.useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [selectedIndex, setSelectedIndex] = React.useState(1);
   const [loadedWidgetData, setLoadedWidgetData] = useState([]);
-  const [page, setPage] = useState(1);
-  const selectedIds = [];
-
-  const [ref, inView] = useInView();
 
   const getItems = () => {
-    setIsLoading(true);
-    axios
-      .get('/data/dummyWidgetList.json')
+    get('/data/dummyWidgetList.json')
       .then(response => response.data)
-      .then(data => data.filter((list, idx) => idx < 10 * page))
       .then(data => setLoadedWidgetData(data));
-    setIsLoading(false);
   };
-
-  useEffect(() => {
-    getItems();
-  }, [getItems]);
-
-  useEffect(() => {
-    if (inView && !isLoading) {
-      setPage(prevState => prevState + 1);
-    }
-  }, [inView, isLoading]);
 
   const descriptionElementRef = useRef<HTMLElement>(null);
 
-  const handleOpenClick = (scrollType: DialogProps['scroll']) => () => {
-    // getItems();
+  const handleOpenClick = () => {
+    console.log('핸들 오픈 클릭');
+    getItems();
     setOpen(true);
-    setScroll(scrollType);
   };
 
   const handleClose = () => {
     setOpen(false);
   };
 
-  const handleClick = item => {
-    // setSelectedIndex(index);
-    const isSelect = isItemSelection(item);
-    if (isSelect) {
-      const index = selectedIds.indexOf(item.id);
-      if (index > -1) {
-        selectedIds.splice(index, 1);
-      }
-    }
+  const handleClick = index => {
+    setSelectedIndex(index);
   };
 
   const handleDoubleClick = item => {
-    // handleSelect(item);
+    handleSelect(item);
   };
 
   const handleSelect = item => {
-    // widgetSelect(item);
-    // handleClose();
-  };
-
-  const isItemSelection = item => {
-    let isSelect = false;
-    for (let i = 0; i < loadedWidgetData.length; i++) {
-      if (loadedWidgetData[i].id == item.id) {
-        isSelect = true;
-        selectedIds.push(item.id);
-        break;
-      }
-    }
-    return isSelect;
+    widgetSelect(item);
+    handleClose();
   };
 
   useEffect(() => {
@@ -122,13 +77,13 @@ function AddWidgetPopupButton({ label, widgetSelect }) {
 
   return (
     <React.Fragment>
-      <Button onClick={handleOpenClick('paper')} variant="contained" endIcon={<AddIcon />} color="primary">
+      <Button onClick={handleOpenClick} variant="contained" endIcon={<AddIcon />} color="primary">
         {label}
       </Button>
       <Dialog
         open={open}
         onClose={handleClose}
-        scroll={scroll}
+        // scroll={scroll}
         aria-labelledby="scroll-dialog-title"
         aria-describedby="scroll-dialog-description"
       >
@@ -164,17 +119,14 @@ function AddWidgetPopupButton({ label, widgetSelect }) {
             {loadedWidgetData.map((item, index) => (
               <ListItemButton
                 key={index}
-                selected={isItemSelection(item)}
-                onClick={() => handleClick(item)}
-                // onDoubleClick={() => handleDoubleClick(item)}
+                selected={selectedIndex == index}
+                onClick={() => handleClick(index)}
+                onDoubleClick={() => handleDoubleClick(item)}
               >
                 <ListItemIcon>{iconType(item.type)}</ListItemIcon>
                 <ListItemText primary={item.name} />
               </ListItemButton>
             ))}
-            <Box ref={ref} sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
-              <CircularProgress sx={{ color: theme => theme.palette.grey[500] }} />
-            </Box>
           </List>
         </DialogContent>
 
@@ -182,7 +134,7 @@ function AddWidgetPopupButton({ label, widgetSelect }) {
           <Button onClick={handleClose} color="inherit">
             취소
           </Button>
-          {/*<Button onClick={() => handleSelect(loadedWidgetData[selectedIndex])}>위젯 추가</Button>*/}
+          <Button onClick={() => handleSelect(loadedWidgetData[selectedIndex])}>위젯 추가</Button>
         </DialogActions>
       </Dialog>
     </React.Fragment>
