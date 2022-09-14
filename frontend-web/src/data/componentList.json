@@ -5,6 +5,7 @@
     "icon": "icon/line-chart.png",
     "caption": "Line Chart",
     "options": {
+      "title": "",
       "xField": "",
       "yField": "",
       "series": [
