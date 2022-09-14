@@ -40,6 +40,9 @@ const LineChart = props => {
    * 컴포넌트에 맞는 형태로 생성
    */
 
+  const seriesLength = option.series.length;
+  console.log(seriesLength);
+
   const createComponentOption = () => {
     let newOption = defaultComponentOption;
     if (dataSet) {
@@ -53,19 +56,19 @@ const LineChart = props => {
           data: dataSet.map(item => item[option.yField]),
         },
         series: [
-          // 설정창에 있는 Input 개수대로 늘어나야 함 => map
+          // TODO: seriesLength 만큼 series 길이 늘어나게 하고 값 받아오기
           {
-            name: option.series1,
-            data: dataSet.map(item => item[option.series1]),
+            name: option.field1,
+            data: dataSet.map(item => item[option.series[0].field]),
             type: 'line',
             smooth: true,
           },
-          {
-            name: option.series2,
-            data: dataSet.map(item => item[option.series2]),
-            type: 'line',
-            smooth: true,
-          },
+          // {
+          //   name: option.field2,
+          //   // data: dataSet.map(item => item[option.series[1].field]),
+          //   type: 'line',
+          //   smooth: true,
+          // },
         ],
         legend: {}, // TODO: legend 위치 조정기능 추가
       };

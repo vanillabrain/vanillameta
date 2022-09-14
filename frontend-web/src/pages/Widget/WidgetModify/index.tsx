@@ -5,6 +5,7 @@ import ConfirmCancelButton from '@/components/button/ConfirmCancelButton';
 import { useSearchParams } from 'react-router-dom';
 import WidgetAttributeSelect from '@/pages/Widget/WidgetCreate/WidgetAttributeSelect';
 import axios from 'axios';
+// import { get } from '@/helpers/apiHelper';
 
 function WidgetModify(props) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -23,7 +24,8 @@ function WidgetModify(props) {
   useEffect(() => {
     axios
       .get('/data/dummyWidgetList.json')
-      .then(response => setData(response.data.find(element => element.id === widgetId)))
+      .then(response => response.data)
+      .then(data => setData(data.find(element => element.id === widgetId)))
       .then(() => setIsLoaded(true));
   }, []);
 
