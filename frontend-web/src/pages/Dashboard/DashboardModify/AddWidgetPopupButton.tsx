@@ -15,6 +15,7 @@ import {
   DialogContent,
   DialogActions,
   CircularProgress,
+  ListItemButton,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
@@ -34,11 +35,10 @@ const iconType = item => {
   }
 };
 
-function AddWidgetPopupButton({ label }) {
+function AddWidgetPopupButton({ label, widgetSelect }) {
   const [open, setOpen] = useState(false);
   const [scroll, setScroll] = useState<DialogProps['scroll']>('paper');
-  const [isSelected, setIsSelected] = useState(0);
-
+  const [selectedIndex, setSelectedIndex] = React.useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [loadedWidgetData, setLoadedWidgetData] = useState([]);
   const [page, setPage] = useState(1);
@@ -76,10 +76,17 @@ function AddWidgetPopupButton({ label }) {
     setOpen(false);
   };
 
-  const handleSelect = (value: number) => {
-    setIsSelected(value);
-    console.log(isSelected);
-    // setOpen(false);
+  const handleClick = index => {
+    setSelectedIndex(index);
+  };
+
+  const handleDoubleClick = item => {
+    handleSelect(item);
+  };
+
+  const handleSelect = item => {
+    widgetSelect(item);
+    handleClose();
   };
 
   useEffect(() => {
@@ -132,19 +139,16 @@ function AddWidgetPopupButton({ label }) {
               maxHeight: 300,
             }}
           >
-            {loadedWidgetData.map(item => (
-              <ListItem
-                button
-                component="li"
-                key={item.id}
-                onClick={() => handleSelect(item.id)}
-                sx={isSelected === item.id ? { p: 1, px: 3, backgroundColor: '#eee', fontWeight: 500 } : { p: 1, px: 3 }}
+            {loadedWidgetData.map((item, index) => (
+              <ListItemButton
+                key={index}
+                selected={selectedIndex == index}
+                onClick={() => handleClick(index)}
+                onDoubleClick={() => handleDoubleClick(item)}
               >
-                <ListItemIcon sx={isSelected === item.id ? { color: '#000' } : undefined}>
-                  {iconType(item.type)}
-                </ListItemIcon>
-                <ListItemText primaryTypographyProps={{ fontWeight: 'inherit' }} primary={item.name} />
-              </ListItem>
+                <ListItemIcon>{iconType(item.type)}</ListItemIcon>
+                <ListItemText primary={item.name} />
+              </ListItemButton>
             ))}
             <Box ref={ref} sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
               <CircularProgress sx={{ color: theme => theme.palette.grey[500] }} />
@@ -156,7 +160,7 @@ function AddWidgetPopupButton({ label }) {
           <Button onClick={handleClose} color="inherit">
             취소
           </Button>
-          <Button onClick={handleClose}>위젯 추가</Button>
+          <Button onClick={() => handleSelect(loadedWidgetData[selectedIndex])}>위젯 추가</Button>
         </DialogActions>
       </Dialog>
     </React.Fragment>
