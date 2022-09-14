@@ -14,8 +14,7 @@ import {
   Divider,
 } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
-import ColorFieldForm from '@/components/form/ColorFieldForm';
-import { type } from '@testing-library/user-event/dist/type';
+import ColorButtonForm from '@/components/form/ColorButtonForm';
 
 const StyledList = styled(List)({
   position: 'relative',
@@ -70,7 +69,12 @@ const LineChartSetting = props => {
     { value: 'max', label: '최대' },
     { value: 'min', label: '최소' },
   ];
-  const aggregationDropList = aggregationList.map(item => item);
+  const legendList = [
+    { value: 'left', label: '왼쪽' },
+    { value: 'right', label: '오른쪽' },
+    { value: 'top', label: '위쪽' },
+    { value: 'bottom', label: '아래쪽' },
+  ];
 
   const handleChange = event => {
     setOption({ ...option, [event.target.name]: event.target.value });
@@ -153,7 +157,6 @@ const LineChartSetting = props => {
         <ListItem divider>
           <ListItemText primary="Series 설정" />
           <AddIconButton onClick={handleAddClick} />
-
           {option.series.map((item, index) => (
             <React.Fragment key={index}>
               <SelectForm
@@ -163,81 +166,27 @@ const LineChartSetting = props => {
                 option={seriesDropList}
                 value={item.field}
                 onChange={handleSelectChange}
-                color
+                colorButton={<ColorButtonForm index={index} option={option} setOption={setOption} />}
               />
               <SelectForm
                 id={`aggregation${index + 1}`}
                 name={`aggregation${index + 1}`}
                 label={' '}
-                option={aggregationDropList}
+                option={aggregationList.map(item => item)}
                 value={item.aggregation}
                 onChange={handleSelectChange}
               />
               <Divider />
             </React.Fragment>
           ))}
-
-          {/*<SelectForm*/}
-          {/*  id="series1"*/}
-          {/*  name="series1"*/}
-          {/*  label="series1"*/}
-          {/*  option={seriesDropList}*/}
-          {/*  value={option.series1}*/}
-          {/*  onChange={handleChange}*/}
-          {/*  color*/}
-          {/*/>*/}
-          {/*<SelectForm*/}
-          {/*  // id="series1Aggregation"*/}
-          {/*  // name="series1Aggregation"*/}
-          {/*  label=" "*/}
-          {/*  // option={[*/}
-          {/*  //   { value: 'sum', label: '합계' },*/}
-          {/*  //   { value: 'avg', label: '평균' },*/}
-          {/*  //   { value: 'max', label: '최대' },*/}
-          {/*  //   { value: 'min', label: '최소' },*/}
-          {/*  // ]}*/}
-          {/*  // value={option.series1Aggregation}*/}
-          {/*  value={''}*/}
-          {/*  // onChange={handleChange}*/}
-          {/*/>*/}
-          {/*/!*<ColorFieldForm />*!/*/}
-          {/*<SelectForm*/}
-          {/*  id="series2"*/}
-          {/*  name="series2"*/}
-          {/*  label="series2"*/}
-          {/*  option={seriesDropList}*/}
-          {/*  value={option.series2}*/}
-          {/*  onChange={handleChange}*/}
-          {/*  color*/}
-          {/*/>*/}
-          {/*<SelectForm*/}
-          {/*  // id="series2Aggregation"*/}
-          {/*  // name="series2Aggregation"*/}
-          {/*  label=" "*/}
-          {/*  // option={[*/}
-          {/*  //   { value: 'sum', label: '합계' },*/}
-          {/*  //   { value: 'avg', label: '평균' },*/}
-          {/*  //   { value: 'max', label: '최대' },*/}
-          {/*  //   { value: 'min', label: '최소' },*/}
-          {/*  // ]}*/}
-          {/*  // value={option.series2Aggregation}*/}
-          {/*  value={''}*/}
-          {/*  // onChange={handleChange}*/}
-          {/*/>*/}
-          {/*<ColorFieldForm />*/}
         </ListItem>
         <ListItem>
           <ListItemText>Legend 설정</ListItemText>
           <SelectForm
             id="legendPosition"
             name="legendPosition"
-            label="legend 방향"
-            option={[
-              { value: 'left', label: '왼쪽' },
-              { value: 'right', label: '오른쪽' },
-              { value: 'top', label: '위쪽' },
-              { value: 'bottom', label: '아래쪽' },
-            ]}
+            label="위치"
+            option={legendList.map(item => item)}
             value={option.legendPosition}
             onChange={handleChange}
           />
