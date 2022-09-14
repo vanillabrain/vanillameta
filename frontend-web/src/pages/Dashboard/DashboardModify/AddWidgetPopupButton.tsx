@@ -19,6 +19,7 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
 import { useInView } from 'react-intersection-observer';
+import { get } from '@/helpers/apiHelper';
 
 const iconType = item => {
   switch (item) {
@@ -46,8 +47,8 @@ function AddWidgetPopupButton({ label }) {
 
   const getItems = () => {
     setIsLoading(true);
-    fetch('/data/dummyWidgetList.json')
-      .then(response => response.json())
+    get('/data/dummyWidgetList.json')
+      .then(response => response.data.json())
       .then(data => data.filter((list, idx) => idx < 10 * page))
       .then(data => setLoadedWidgetData(data));
     setIsLoading(false);

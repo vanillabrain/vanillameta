@@ -1,14 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import PageContainer from '@/components/PageContainer';
 import DataLayout from './DataLayout';
+import { get } from '@/helpers/apiHelper';
 
 function Data() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadedData, setLoadedData] = useState([]);
 
   useEffect(() => {
-    fetch('/data/dummyDataList.json')
-      .then(response => response.json())
+    get('/data/dummyDataList.json')
+      .then(response => response.data.json())
       .then(data => setLoadedData(data));
     setIsLoading(true);
   }, []);
