@@ -32,9 +32,8 @@ const iconType = item => {
 
 function AddWidgetPopupButton({ label, widgetSelect }) {
   const [open, setOpen] = useState(false);
-  const [selectedIndex, setSelectedIndex] = React.useState(1);
+  const [selectedIndex, setSelectedIndex] = React.useState([]);
   const [loadedWidgetData, setLoadedWidgetData] = useState([]);
-
   const getItems = () => {
     get('/data/dummyWidgetList.json')
       .then(response => response.data)
@@ -44,7 +43,8 @@ function AddWidgetPopupButton({ label, widgetSelect }) {
   const descriptionElementRef = useRef<HTMLElement>(null);
 
   const handleOpenClick = () => {
-    console.log('핸들 오픈 클릭');
+    setSelectedIndex([]);
+    setLoadedWidgetData([]);
     getItems();
     setOpen(true);
   };
@@ -53,16 +53,46 @@ function AddWidgetPopupButton({ label, widgetSelect }) {
     setOpen(false);
   };
 
-  const handleClick = index => {
-    setSelectedIndex(index);
+  const handleClick = item => {
+    const isSelect = isItemSelection(item, selectedIndex);
+    let isDelete = false;
+    console.log(selectedIndex);
+    if (isSelect) {
+      const index = selectedIndex.indexOf(item.id);
+      if (index > -1) {
+        selectedIndex.splice(index, 1);
+        isDelete = true;
+      }
+    }
+
+    if (isDelete) {
+      setSelectedIndex([...selectedIndex]);
+    } else {
+      const addItem = [item.id];
+      setSelectedIndex([...addItem, ...selectedIndex]);
+    }
   };
 
-  const handleDoubleClick = item => {
-    handleSelect(item);
+  const isItemSelection = (item, items) => {
+    let isSelect = false;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i] == item.id) {
+        isSelect = true;
+        break;
+      }
+    }
+    return isSelect;
   };
 
-  const handleSelect = item => {
-    widgetSelect(item);
+  const handleSelect = () => {
+    const widgets = [];
+    for (let i = 0; i < loadedWidgetData.length; i++) {
+      if (selectedIndex.indexOf(loadedWidgetData[i].id) > -1) {
+        widgets.push(loadedWidgetData[i]);
+      }
+    }
+
+    widgetSelect(widgets);
     handleClose();
   };
 
@@ -117,12 +147,7 @@ function AddWidgetPopupButton({ label, widgetSelect }) {
             }}
           >
             {loadedWidgetData.map((item, index) => (
-              <ListItemButton
-                key={index}
-                selected={selectedIndex == index}
-                onClick={() => handleClick(index)}
-                onDoubleClick={() => handleDoubleClick(item)}
-              >
+              <ListItemButton key={index} selected={isItemSelection(item, selectedIndex)} onClick={() => handleClick(item)}>
                 <ListItemIcon>{iconType(item.type)}</ListItemIcon>
                 <ListItemText primary={item.name} />
               </ListItemButton>
@@ -134,7 +159,7 @@ function AddWidgetPopupButton({ label, widgetSelect }) {
           <Button onClick={handleClose} color="inherit">
             취소
           </Button>
-          <Button onClick={() => handleSelect(loadedWidgetData[selectedIndex])}>위젯 추가</Button>
+          <Button onClick={() => handleSelect()}>위젯 추가</Button>
         </DialogActions>
       </Dialog>
     </React.Fragment>

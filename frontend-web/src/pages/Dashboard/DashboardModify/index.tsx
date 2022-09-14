@@ -27,10 +27,10 @@ function DashboardModify(props) {
     }
   }, [selectedWidgets]);
 
-  const handleWidgetSelect = item => {
+  const handleWidgetSelect = items => {
     console.log('handleWidgetSelect');
-    console.log(item);
-    setSelectedWidgets([item]);
+    console.log(items);
+    setSelectedWidgets(items);
   };
 
   return (
