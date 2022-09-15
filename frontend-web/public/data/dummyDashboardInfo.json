@@ -1,0 +1,36 @@
+{
+  "dashboardId": "0001",
+  "title": "대시보드 1",
+  "templateId": null,
+  "widgets": [
+    {
+      "id": "0001",
+      "title": "라인차트 위젯",
+      "date": "2022-04-11T18:27:45+09:00",
+      "dataSetId": "",
+      "type": "lineChart",
+      "options": {
+        "xField": "name",
+        "series": [
+          {
+            "field": "high",
+            "color": "#43afef",
+            "aggregation": ""
+          },
+          {
+            "field": "low",
+            "color": "#b9e7ff",
+            "aggregation": ""
+          }
+        ,
+          {
+            "field": "avg",
+            "color": "#d9d9d9",
+            "aggregation": ""
+          }
+        ],
+        "legendPosition": "left"
+      }
+    }
+  ]
+}

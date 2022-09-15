@@ -36,7 +36,7 @@ function BoardList(props) {
 
       <List sx={{ m: 'auto', border: tableBorder, borderRadius: 2, backgroundColor: '#fff' }} disablePadding>
         {postList.map(item => (
-          <BoardListItem postItem={item} key={item.id} />
+          <BoardListItem postItem={item} key={item.dashboardId} />
         ))}
       </List>
       <Stack alignItems="center" mt={4}>
