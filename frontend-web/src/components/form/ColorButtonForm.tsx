@@ -5,7 +5,6 @@ import { SketchPicker } from 'react-color';
 
 function ColorFieldForm(props) {
   const { id, label, value, option, setOption, index, ...rest } = props;
-  // const defaultColor = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc'];
 
   const color = option.series[index].color || '#eee';
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
@@ -27,9 +26,6 @@ function ColorFieldForm(props) {
           series.color = selectColor.hex;
         }
       });
-
-
-
 
       return _tempOption;
     });
