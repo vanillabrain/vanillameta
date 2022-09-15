@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Box, IconButton, Stack } from '@mui/material';
-import { Link as RouterLink, useSearchParams } from 'react-router-dom';
+import { Link as RouterLink, useLocation, useSearchParams } from 'react-router-dom';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -8,10 +8,15 @@ import PageTitleBox from '@/components/PageTitleBox';
 import TitleBox from '@/components/TitleBox';
 import { DialogAlertIconButton } from '@/components/button/DialogAlertButton';
 
-function DashboardView(props) {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const dashboardId = searchParams.get('id');
-  const dashboardName = searchParams.get('name');
+const DashboardView = props => {
+  const location = useLocation();
+  const dashboardId = '222';
+  const dashboardName = '111';
+
+  useEffect(() => {
+    console.log('location : ', location);
+    console.log('props.match : ', props);
+  }, []);
 
   const handleRenewClick = () => {
     console.log('renew');
@@ -43,6 +48,6 @@ function DashboardView(props) {
       </TitleBox>
     </PageTitleBox>
   );
-}
+};
 
 export default DashboardView;

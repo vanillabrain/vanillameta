@@ -7,7 +7,7 @@ import { DialogAlertIconButton } from './button/DialogAlertButton';
 const tableBorder = '1px solid #DADDDD';
 
 function BoardListItem(props) {
-  const { postItem, ...rest } = props;
+  const { postItem } = props;
 
   const dateData = data => {
     const userDate = new Date(data);
@@ -40,12 +40,16 @@ function BoardListItem(props) {
       key={postItem.id}
       secondaryAction={
         <React.Fragment>
-          <IconButton size="large" component={RouterLink} to={`modify?id=${postItem.id}&name=${postItem.name}`}>
+          <IconButton
+            size="large"
+            component={RouterLink}
+            to={`modify?dashboardId=${postItem.dashboardId}&title=${postItem.title}`}
+          >
             <Edit />
           </IconButton>
           <DialogAlertIconButton icon={<Delete />} size="large">
             {`삭제시 N개의 대시보드에 반영됩니다.`}
-            <br /> {`<${postItem.name}>을 삭제하시겠습니까?`}
+            <br /> {`<${postItem.title}>을 삭제하시겠습니까?`}
           </DialogAlertIconButton>
         </React.Fragment>
       }
@@ -55,12 +59,12 @@ function BoardListItem(props) {
         '&:last-of-type': { borderBottom: 0 },
       }}
     >
-      <ListItemButton sx={{ py: 0.8 }} component={RouterLink} to={`detail?id=${postItem.id}&name=${postItem.name}`}>
+      <ListItemButton sx={{ py: 0.8 }} component={RouterLink} to={`${postItem.dashboardId}`}>
         {postItem.type ? <ListItemIcon>{iconType}</ListItemIcon> : ''}
         <ListItemText
-          primary={postItem.name}
+          primary={postItem.title}
           primaryTypographyProps={{ fontWeight: 500 }}
-          secondary={dateData(postItem.date)}
+          secondary={dateData(postItem.createDate)}
           sx={{
             display: { xs: 'block', sm: 'flex' },
             justifyContent: 'space-between',
