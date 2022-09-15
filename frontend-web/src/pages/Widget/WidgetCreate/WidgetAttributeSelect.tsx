@@ -9,20 +9,6 @@ import WidgetBox from '@/components/widget/WidgetBox';
 function WidgetAttributeSelect(props) {
   const { dataSetId, componentType, prevOption, setWidgetOption } = props;
 
-  // 임시 메모 TODO
-  // 1. series에 해당하는 타입(숫자)이 남아 있으면 추가 버튼으로 input을 추가하기
-  // 2. 위젯 속성창 퍼블리싱
-  // 3. react-hook-form 적용하기
-
-  // const {
-  //   register,
-  //   watch,
-  //   formState: { errors },
-  //   control,
-  // } = useForm();
-
-  // console.log(watch('example'));
-
   const defaultComponentData = componentList.find(item => item.id === componentType && item);
   const [option, setOption] = useState(defaultComponentData.options);
 
@@ -75,25 +61,9 @@ function WidgetAttributeSelect(props) {
     setWidgetOption(option);
   }, [option]);
 
-  // const { control, handleSubmit } = useForm({
-  //   defaultValues: {
-  //     firstName: '',
-  //     select: {},
-  //   },
-  // });
-  // const onSubmit = data => {
-  //   console.log('data: ', data);
-  // };
-
   return (
-    <Grid
-      container
-      component="form"
-      // onSubmit={handleSubmit(onSubmit)}
-      id="widgetAttribute"
-      sx={{ justifyContent: { xs: 'center', md: 'space-between' } }}
-    >
-      <Grid item xs={12} md={8.5}>
+    <Grid container component="form" id="widgetAttribute" sx={{ justifyContent: { xs: 'center', md: 'space-between' } }}>
+      <Grid item xs={12} md={7.5} lg={8.5}>
         <WidgetBox>{switchChart.chart}</WidgetBox>
       </Grid>
       {switchChart.chartSetting}

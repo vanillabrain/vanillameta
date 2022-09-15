@@ -1,13 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Grid,
   List,
   ListItem,
   ListItemText,
-  ListItemButton,
   styled,
   TextField,
-  Button,
   IconButton,
   IconButtonProps,
   SvgIcon,
@@ -39,19 +37,24 @@ const StyledList = styled(List)({
   },
 });
 
-const AddIconButton = styled((props: IconButtonProps) => (
-  <IconButton {...props}>
-    <SvgIcon fontSize="small">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512">
-        <path d="M256 80c0-17.7-14.3-32-32-32s-32 14.3-32 32V224H48c-17.7 0-32 14.3-32 32s14.3 32 32 32H192V432c0 17.7 14.3 32 32 32s32-14.3 32-32V288H400c17.7 0 32-14.3 32-32s-14.3-32-32-32H256V80z" />
-      </svg>
-    </SvgIcon>
-  </IconButton>
-))({
-  position: 'absolute',
-  top: 30,
-  right: 0,
-});
+const DefaultIconButton = icon =>
+  styled((props: IconButtonProps) => (
+    <IconButton size="small" sx={{ width: '34px', height: '34px' }} {...props}>
+      <SvgIcon fontSize="small">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512">
+          {icon}
+        </svg>
+      </SvgIcon>
+    </IconButton>
+  ))({ flex: 'none' });
+
+const AddIconButton = DefaultIconButton(
+  <path d="M256 80c0-17.7-14.3-32-32-32s-32 14.3-32 32V224H48c-17.7 0-32 14.3-32 32s14.3 32 32 32H192V432c0 17.7 14.3 32 32 32s32-14.3 32-32V288H400c17.7 0 32-14.3 32-32s-14.3-32-32-32H256V80z" />,
+);
+
+const RemoveIconButton = DefaultIconButton(
+  <path d="M432 256c0 17.7-14.3 32-32 32L48 288c-17.7 0-32-14.3-32-32s14.3-32 32-32l352 0c17.7 0 32 14.3 32 32z" />,
+);
 
 const LineChartSetting = props => {
   const { option, setOption } = props;
@@ -124,11 +127,23 @@ const LineChartSetting = props => {
       tempOption.series.push(newItem);
       return tempOption;
     });
-    console.log(option);
+  };
+
+  const handleRemoveClick = event => {
+    console.log(event.target.id);
+    if (addedSeriesLength === 0) {
+      return;
+    }
+    setAddedSeriesLength(prevState => prevState - 1);
+    setOption(prevState => {
+      const tempOption = { ...prevState };
+      tempOption.series.pop();
+      return tempOption;
+    });
   };
 
   return (
-    <Grid item xs={10} md={3} sx={{ display: 'flex', flexDirection: 'column' }}>
+    <Grid item xs={10} md={4} lg={3} sx={{ display: 'flex', flexDirection: 'column' }}>
       <TextField
         id="title"
         name="title"
@@ -156,18 +171,17 @@ const LineChartSetting = props => {
             value={option.xField}
             onChange={handleChange}
           />
-          <SelectForm
-            id="yField"
-            name="yField"
-            label="Y축"
-            option={[{ value: 'count', label: 'count' }]}
-            value={option.yField}
-            onChange={handleChange}
-          />
         </ListItem>
         <ListItem divider>
           <ListItemText primary="Series 설정" />
-          <AddIconButton onClick={handleAddClick} />
+          <AddIconButton
+            onClick={handleAddClick}
+            sx={{
+              position: 'absolute',
+              top: 30,
+              right: 0,
+            }}
+          />
           {option.series.map((item, index) => (
             <React.Fragment key={index}>
               <SelectForm
@@ -186,6 +200,7 @@ const LineChartSetting = props => {
                 option={aggregationList.map(item => item)}
                 value={item.aggregation}
                 onChange={handleSelectChange}
+                colorButton={0 < index ? <RemoveIconButton onClick={handleRemoveClick} id={index} /> : ' '}
               />
               <Divider />
             </React.Fragment>

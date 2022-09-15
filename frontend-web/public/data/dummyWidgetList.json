@@ -8,12 +8,11 @@
     "options": {
       "title": "Harriett Thompson",
       "xField": "name",
-      "yField": "count",
       "series": [
         {
           "field": "high",
           "color": "#43afef",
-          "aggregation":""
+          "aggregation": ""
         },
         {
           "field": "low",
@@ -63,7 +62,6 @@
     "options": {
       "title": "Harriett Thompson",
       "xField": "name",
-      "yField": "count",
       "series": [
         {
           "field": "high",
@@ -118,7 +116,6 @@
     "options": {
       "title": "Harriett Thompson",
       "xField": "name",
-      "yField": "count",
       "series": [
         {
           "field": "high",

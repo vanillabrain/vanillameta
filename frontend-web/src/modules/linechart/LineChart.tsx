@@ -5,6 +5,7 @@ const LineChart = props => {
   const { option, dataSet } = props;
 
   const [componentOption, setComponentOption] = useState({});
+  console.log(componentOption);
 
   const defaultComponentOption = {
     grid: { top: 8, right: 8, bottom: 24, left: 36 },
@@ -56,10 +57,6 @@ const LineChart = props => {
         xAxis: {
           type: 'category',
           data: !!option.xField ? dataSet.map(item => item[option.xField]) : '',
-        },
-        yAxis: {
-          type: 'value',
-          data: dataSet.map(item => item[option.yField]),
         },
         series: getOption(),
         color: option.series.map(item => item.color), // TODO: color 매칭이 꼬이는 문제 해결

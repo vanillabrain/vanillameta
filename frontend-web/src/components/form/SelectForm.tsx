@@ -15,7 +15,7 @@ function SelectForm(props) {
           {label}
         </FormLabel>
       )}
-      <Stack flexDirection="row" justifyContent="space-between" sx={{ width: label ? '65%' : '100%' }}>
+      <Stack flexDirection="row" justifyContent="space-between" alignItems="center" sx={{ width: label ? '65%' : '100%' }}>
         <Select
           fullWidth
           size="small"
