@@ -61,29 +61,33 @@ const LineChartSetting = props => {
 
   // props로부터 받기
   const typeOption = { series: ['high', 'low', 'avg'], xField: ['name', 'color'] };
+
+  const aggregationList = { value: ['sum', 'avg', 'max', 'min'], label: ['합계', '평균', '최대', '최소'] };
+  const legendList = { value: ['left', 'right', 'top', 'bottom'], label: ['왼쪽', '오른쪽', '위쪽', '아래쪽'] };
   const [addedSeriesLength, setAddedSeriesLength] = useState(1);
 
-  const xFieldDropList = typeOption.xField.map(item => ({ value: item, label: item }));
-  const seriesDropList = typeOption.series.map(item => ({ value: item, label: item }));
-
-  const aggregationList = [
-    { value: 'sum', label: '합계' },
-    { value: 'avg', label: '평균' },
-    { value: 'max', label: '최대' },
-    { value: 'min', label: '최소' },
-  ];
-  const legendList = [
-    { value: 'left', label: '왼쪽' },
-    { value: 'right', label: '오른쪽' },
-    { value: 'top', label: '위쪽' },
-    { value: 'bottom', label: '아래쪽' },
-  ];
+  const getDropList = (list: any[] | { value: any[]; label: any[] }) => {
+    let dropList;
+    if (Array.isArray(list)) {
+      // value와 label이 같을 경우 배열
+      const arr = list.map(item => ({ value: item, label: item }));
+      dropList = arr;
+    } else {
+      // value와 label이 다를 경우 객체
+      const value = list.value; // ['sum', 'avg']
+      const label = list.label; // ['합계', '평균']
+      const arr = value.map((item, index) => ({ value: item, label: label[index] }));
+      dropList = arr;
+    }
+    dropList.unshift({ value: '', label: '선택 안함' });
+    return dropList;
+  };
 
   const handleChange = event => {
     setOption({ ...option, [event.target.name]: event.target.value });
   };
 
-  const handleSelectChange = event => {
+  const handleSeriesChange = event => {
     const key = event.target.name.slice(0, -1);
     const index = Number(event.target.name.slice(-1)[0]) - 1;
 
@@ -150,16 +154,11 @@ const LineChartSetting = props => {
         label="위젯 이름"
         placeholder="위젯의 이름을 입력해 주세요"
         required
-        // autoFocus
         fullWidth
         sx={{ mt: { xs: 5, md: 0 } }}
-        // ref={register}
-        //{...register('example')}
         value={option.title}
         onChange={handleChange}
       />
-      {/*{errors.exampleRequired && <span>This field is required</span>}*/}
-      {/*<input type="submit" />*/}
       <StyledList>
         <ListItem divider>
           <ListItemText primary="축 설정" />
@@ -167,7 +166,7 @@ const LineChartSetting = props => {
             id="xField"
             name="xField"
             label="X축"
-            option={xFieldDropList}
+            option={getDropList(typeOption.xField)}
             value={option.xField}
             onChange={handleChange}
           />
@@ -188,18 +187,18 @@ const LineChartSetting = props => {
                 id={`field${index + 1}`}
                 name={`field${index + 1}`}
                 label={`Series ${index + 1}`}
-                option={seriesDropList}
+                option={getDropList(typeOption.series)}
                 value={item.field}
-                onChange={handleSelectChange}
+                onChange={handleSeriesChange}
                 colorButton={<ColorButtonForm index={index} option={option} setOption={setOption} />}
               />
               <SelectForm
                 id={`aggregation${index + 1}`}
                 name={`aggregation${index + 1}`}
                 label={' '}
-                option={aggregationList.map(item => item)}
+                option={getDropList(aggregationList)}
                 value={item.aggregation}
-                onChange={handleSelectChange}
+                onChange={handleSeriesChange}
                 colorButton={0 < index ? <RemoveIconButton onClick={handleRemoveClick} id={index} /> : ' '}
               />
               <Divider />
@@ -212,7 +211,7 @@ const LineChartSetting = props => {
             id="legendPosition"
             name="legendPosition"
             label="위치"
-            option={legendList.map(item => item)}
+            option={getDropList(legendList)}
             value={option.legendPosition}
             onChange={handleChange}
           />

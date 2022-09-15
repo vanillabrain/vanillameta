@@ -17,13 +17,8 @@ function WidgetCreate(props) {
 
   const [dataSet, setDataSet] = useState(null); // step 1
   const [widgetType, setWidgetType] = useState('lineChart'); // step 2 : 개발 편의상 임시로 lineChart 적용
-  const [widgetOption, setWidgetOption] = useState({}); // step 3
-
-  // useEffect(() => {
-  //   console.log('datesetId:', dataSet);
-  //   console.log('widgetType:', widgetType);
-  //   console.log('widgetOption:', widgetOption);
-  // }, [dataSet, widgetType, widgetOption]);
+  const [widgetOption, setWidgetOption] = useState(null); // step 3
+  const [widgetTitle, setWidgetTitle] = useState(null);
 
   const handleNext = () => {
     // switch (activeStep) {
@@ -54,12 +49,11 @@ function WidgetCreate(props) {
 
   // 위젯 속성 저장
   const handleSubmit = event => {
-    // datasetId , componentId, widgetTitle, option
     event.preventDefault();
-    setIsFinished(true);
     console.log('datesetId:', dataSet);
     console.log('widgetType:', widgetType);
     console.log('widgetOption:', widgetOption);
+    // console.log('widgetTitle:', widgetTitle);
   };
 
   return (
