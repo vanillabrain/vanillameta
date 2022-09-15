@@ -81,19 +81,19 @@ const LineChartSetting = props => {
   };
 
   const handleSelectChange = event => {
-    const _key = event.target.name.slice(0, -1);
-    const _index = Number(event.target.name.slice(-1)[0]) - 1;
+    const key = event.target.name.slice(0, -1);
+    const index = Number(event.target.name.slice(-1)[0]) - 1;
 
     setOption(prevState => {
-      const _tempOption = { ...prevState };
+      const tempOption = { ...prevState };
 
       // onChange 일어난 요소 key와 index로 식별해서 value 주기
-      _tempOption.series.forEach((series, index) => {
-        if (_index === index) {
-          series[_key] = event.target.value;
+      tempOption.series.forEach((item, idx) => {
+        if (index === idx) {
+          item[key] = event.target.value;
         }
       });
-      return _tempOption;
+      return tempOption;
     });
   };
 
@@ -104,14 +104,25 @@ const LineChartSetting = props => {
     setAddedSeriesLength(prevState => prevState + 1);
 
     setOption(prevState => {
-      const _tempOption = { ...prevState };
-      const _newItem = {
+      const tempOption = { ...prevState };
+      const defaultColor = [
+        '#5470c6',
+        '#91cc75',
+        '#fac858',
+        '#ee6666',
+        '#73c0de',
+        '#3ba272',
+        '#fc8452',
+        '#9a60b4',
+        '#ea7ccc',
+      ];
+      const newItem = {
         field: '',
-        color: '',
+        color: defaultColor[addedSeriesLength],
         aggregation: '',
       };
-      _tempOption.series.push(_newItem);
-      return _tempOption;
+      tempOption.series.push(newItem);
+      return tempOption;
     });
     console.log(option);
   };

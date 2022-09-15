@@ -41,9 +41,9 @@ const LineChart = props => {
 
   const createComponentOption = () => {
     let newOption = defaultComponentOption;
-    const _seriesLength = option.series.length;
+    const seriesLength = option.series.length;
 
-    const defaultColor = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc'];
+    // const defaultColor = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc'];
 
     if (dataSet) {
       const op = {
@@ -64,43 +64,43 @@ const LineChart = props => {
             smooth: true,
           },
           {
-            name: !!option.series[1] && option.series[1].field,
+            name: !!option.series[1] ? option.series[1].field : '',
             data: !!option.series[1] ? dataSet.map(item => item[option.series[1].field]) : '',
             type: 'line',
             smooth: true,
           },
           {
-            name: !!option.series[2] && option.series[2].field,
+            name: !!option.series[2] ? option.series[2].field : '',
             data: !!option.series[2] ? dataSet.map(item => item[option.series[2].field]) : '',
             type: 'line',
             smooth: true,
           },
           {
-            name: !!option.series[3] && option.series[3].field,
+            name: !!option.series[3] ? option.series[3].field : '',
             data: !!option.series[3] ? dataSet.map(item => item[option.series[3].field]) : '',
             type: 'line',
             smooth: true,
           },
           {
-            name: !!option.series[4] && option.series[4].field,
+            name: !!option.series[4] ? option.series[4].field : '',
             data: !!option.series[4] ? dataSet.map(item => item[option.series[4].field]) : '',
             type: 'line',
             smooth: true,
           },
           {
-            name: !!option.series[5] && option.series[5].field,
+            name: !!option.series[5] ? option.series[5].field : '',
             data: !!option.series[5] ? dataSet.map(item => item[option.series[5].field]) : '',
             type: 'line',
             smooth: true,
           },
           {
-            name: !!option.series[6] && option.series[6].field,
+            name: !!option.series[6] ? option.series[6].field : '',
             data: !!option.series[6] ? dataSet.map(item => item[option.series[6].field]) : '',
             type: 'line',
             smooth: true,
           },
         ],
-        color: option.series.map((item, index) => item.color || defaultColor[index]),
+        color: option.series.map((item, index) => item.color),
         legend: {}, // TODO: legend 위치 조정기능 추가
       };
 
@@ -109,6 +109,7 @@ const LineChart = props => {
 
     return newOption;
   };
+  console.log(option.series.map(item => item.color));
 
   return <ReactECharts option={componentOption} style={{ height: '100%', width: '100%' }} />;
 };
