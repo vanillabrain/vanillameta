@@ -5,7 +5,6 @@ const LineChart = props => {
   const { option, dataSet } = props;
 
   const [componentOption, setComponentOption] = useState({});
-  console.log(componentOption);
 
   const defaultComponentOption = {
     grid: { top: 8, right: 8, bottom: 24, left: 36 },
