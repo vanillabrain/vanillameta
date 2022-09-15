@@ -1,10 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 
-const componentType = 'line';
-
 const LineChart = props => {
-  const { option, dataSet } = props;
+  const { option, dataSet, ...rest } = props;
 
   const [componentOption, setComponentOption] = useState({});
 
@@ -21,11 +19,11 @@ const LineChart = props => {
     },
     series: [
       {
-        type: componentType,
+        type: rest.componentType,
         smooth: true,
       },
       {
-        type: componentType,
+        type: rest.componentType,
         smooth: true,
       },
     ],
@@ -49,7 +47,7 @@ const LineChart = props => {
       option.series.map(item => ({
         name: item.field,
         data: dataSet.map(dataItem => dataItem[item.field]),
-        type: componentType,
+        type: rest.componentType,
         smooth: true,
       }));
 

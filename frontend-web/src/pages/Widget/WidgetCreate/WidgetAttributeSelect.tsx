@@ -1,11 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Grid } from '@mui/material';
+import { Grid, Typography } from '@mui/material';
 import chartData from '@/data/sample/chart.json';
 import componentList from '@/data/componentList.json';
 import LineChartSetting from '@/widget/settings/LineChartSetting';
 import LineChart from '@/modules/linechart/LineChart';
-import BarChartSetting from '@/widget/settings/BarChartSetting';
-import BarChart from '@/modules/barchart/BarChart';
 import WidgetBox from '@/components/widget/WidgetBox';
 
 function WidgetAttributeSelect(props) {
@@ -37,22 +35,22 @@ function WidgetAttributeSelect(props) {
       case 'lineChart':
         setSwitchChart({
           ...switchChart,
-          chart: <LineChart {...ChartProps} />,
+          chart: <LineChart {...ChartProps} componentType="line" />,
           chartSetting: <LineChartSetting {...ChartSettingProps} />,
         });
         break;
       case 'barChart':
         setSwitchChart({
           ...switchChart,
-          chart: <BarChart {...ChartProps} />,
-          chartSetting: <BarChartSetting {...ChartSettingProps} />,
+          chart: <LineChart {...ChartProps} componentType="bar" />,
+          chartSetting: <LineChartSetting {...ChartSettingProps} />,
         });
         break;
 
       default:
         setSwitchChart({
           ...switchChart,
-          chart: <LineChart {...ChartProps} />,
+          chart: <LineChart {...ChartProps} componentType="line" />,
           chartSetting: <LineChartSetting {...ChartSettingProps} />,
         });
         break;
