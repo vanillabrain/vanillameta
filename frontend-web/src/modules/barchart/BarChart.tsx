@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 
-const componentType = 'line';
+const componentType = 'bar';
 
-const LineChart = props => {
+const BarChart = props => {
   const { option, dataSet } = props;
 
   const [componentOption, setComponentOption] = useState({});
@@ -73,4 +73,4 @@ const LineChart = props => {
   return <ReactECharts option={componentOption} style={{ height: '100%', width: '100%' }} />;
 };
 
-export default LineChart;
+export default BarChart;
