@@ -8,29 +8,27 @@ const PieChart = props => {
 
   const defaultComponentOption = {
     grid: { top: 8, right: 8, bottom: 24, left: 36 },
-    yAxis: {
-      type: 'value',
-    },
     tooltip: {
-      trigger: 'axis',
+      trigger: 'item',
     },
-    xAxis: {
-      type: 'category',
+    legend: {
+      orient: 'vertical',
+      left: 'left',
     },
     series: [
       {
-        type: 'line',
+        type: 'pie',
         smooth: true,
       },
       {
-        type: 'line',
+        type: 'pie',
         smooth: true,
       },
     ],
   };
 
   useEffect(() => {
-    console.log('LineChart ', option, dataSet);
+    console.log('PieChart ', option, dataSet);
     setComponentOption(createComponentOption());
   }, [option, dataSet]);
 
@@ -41,25 +39,34 @@ const PieChart = props => {
    */
   const createComponentOption = () => {
     let newOption = defaultComponentOption;
+
+    // series option에서 가져오기
+    // const getOption = () =>
+    //   option.series.map(item => ({
+    //     name: item.field,
+    //     data: dataSet.map(dataItem => dataItem[item.field]),
+    //     type: 'pie',
+    //     smooth: true,
+    //   }));
+
     if (dataSet) {
       const op = {
-        xAxis: {
-          type: 'category',
-          data: dataSet.map(item => item[option.xField]),
-        },
         series: [
           {
-            data: dataSet.map(item => item[option.yField]),
-            type: 'line',
+            type: 'pie',
             smooth: true,
-          },
-          {
-            data: dataSet.map(item => item[option.yField1]),
-            type: 'line',
-            smooth: true,
+            data: [
+              { value: 1048, name: 'Search Engine' },
+              { value: 735, name: 'Direct' },
+              { value: 580, name: 'Email' },
+              { value: 484, name: 'Union Ads' },
+              { value: 300, name: 'Video Ads' },
+            ],
+            color: ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc'],
           },
         ],
       };
+
       newOption = { ...defaultComponentOption, ...op };
     }
 

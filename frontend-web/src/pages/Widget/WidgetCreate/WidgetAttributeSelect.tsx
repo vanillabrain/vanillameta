@@ -4,6 +4,8 @@ import chartData from '@/data/sample/chart.json';
 import componentList from '@/data/componentList.json';
 import LineChartSetting from '@/widget/settings/LineChartSetting';
 import LineChart from '@/modules/linechart/LineChart';
+import PieChart from '@/modules/piechart/PieChart';
+import PieChartSetting from '@/widget/settings/PieChartSetting';
 import WidgetBox from '@/components/widget/WidgetBox';
 
 function WidgetAttributeSelect(props) {
@@ -44,6 +46,13 @@ function WidgetAttributeSelect(props) {
           ...switchChart,
           chart: <LineChart {...ChartProps} componentType="bar" />,
           chartSetting: <LineChartSetting {...ChartSettingProps} />,
+        });
+        break;
+      case 'pieChart':
+        setSwitchChart({
+          ...switchChart,
+          chart: <PieChart {...ChartProps} />,
+          chartSetting: <PieChartSetting {...ChartSettingProps} />,
         });
         break;
 
