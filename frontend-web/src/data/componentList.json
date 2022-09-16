@@ -4,7 +4,7 @@
     "title": "선형 차트",
     "icon": "icon/line-chart.png",
     "caption": "Line Chart",
-    "options": {
+    "option": {
       "title": "",
       "xField": "",
       "series": [
@@ -22,7 +22,7 @@
     "title": "막대형 차트",
     "icon": "icon/bar-chart.png",
     "caption": "Bar Chart",
-    "options": {
+    "option": {
       "title": "",
       "xField": "",
       "series": [
@@ -39,7 +39,7 @@
   "title": "거품형 차트",
   "icon": "icon/bubble-chart.png",
   "caption": "Bubble Chart",
-  "options": {
+  "option": {
     "xField": "label",
     "series": [
       {
@@ -66,7 +66,7 @@
     "title": "영역형 차트",
     "icon": "icon/area-chart.png",
     "caption": "Area Chart",
-    "options": {
+    "option": {
       "xField": "label",
       "series": [
         {
@@ -93,11 +93,12 @@
     "title": "원형 차트",
     "icon": "icon/doughnut-chart.png",
     "caption": "Pie Chart",
-    "options": {
+    "option": {
       "series": {
-        "field": "value1",
-        "color": [ "#5470c6" ],
-        "aggregation": ""
+        "field": "",
+        "color": [],
+        "aggregation": "",
+        "label": ""
       }
     }
   },
@@ -106,7 +107,7 @@
     "title": "복합 차트",
     "icon": "icon/mixed-chart.png",
     "caption": "Mixed Chart",
-    "options": {
+    "option": {
       "xField": "label",
       "series": [
         {
@@ -133,7 +134,7 @@
     "title": "극좌표형 차트",
     "icon": "icon/polar-chart.png",
     "caption": "Polar Area Chart",
-    "options": {
+    "option": {
       "xField": "label",
       "series": [
         {
@@ -160,7 +161,7 @@
     "title": "방사형 차트",
     "icon": "icon/radar-chart.png",
     "caption": "Radar Chart",
-    "options": {
+    "option": {
       "xField": "label",
       "series": [
         {
@@ -187,7 +188,7 @@
     "title": "분산형 차트",
     "icon": "icon/scatter-chart.png",
     "caption": "Scatter Chart",
-    "options": {
+    "option": {
       "xField": "label",
       "series": [
         {

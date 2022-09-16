@@ -17,7 +17,7 @@ function WidgetModify(props) {
   const [data, setData] = useState({
     dataId: 0,
     type: '',
-    options: {},
+    option: {},
   });
   const [widgetOption, setWidgetOption] = useState({});
 
@@ -37,7 +37,7 @@ function WidgetModify(props) {
     event.preventDefault();
     console.log('datesetId:', data.dataId);
     console.log('widgetType:', data.type);
-    console.log('widgetOption:', data.options);
+    console.log('widgetOption:', data.option);
   };
 
   return (
@@ -47,7 +47,7 @@ function WidgetModify(props) {
           <WidgetAttributeSelect
             dataSetId={data.dataId}
             componentType={data.type}
-            prevOption={data.options}
+            prevOption={data.option}
             setWidgetOption={setWidgetOption}
           />
         ) : (

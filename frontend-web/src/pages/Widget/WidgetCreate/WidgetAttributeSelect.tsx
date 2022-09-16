@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Grid, Typography } from '@mui/material';
+import { Grid } from '@mui/material';
 import chartData from '@/data/sample/chart.json';
 import componentList from '@/data/componentList.json';
 import LineChartSetting from '@/widget/settings/LineChartSetting';
@@ -12,12 +12,12 @@ function WidgetAttributeSelect(props) {
   const { dataSetId, componentType, prevOption, setWidgetOption } = props;
 
   const defaultComponentData = componentList.find(item => item.id === componentType && item);
-  const [option, setOption] = useState(defaultComponentData.options);
+  const [option, setOption] = useState(defaultComponentData.option);
 
   const defaultChart = {
     chart: null,
     chartSetting: null,
-    chartOptions: option,
+    chartOption: option,
   };
 
   const [switchChart, setSwitchChart] = useState(defaultChart);

@@ -25,10 +25,17 @@ const PieChart = props => {
         smooth: true,
       },
     ],
+    emphasis: {
+      itemStyle: {
+        shadowBlur: 10,
+        shadowOffsetX: 0,
+        shadowColor: 'rgba(0, 0, 0, 0.5)',
+      },
+    },
   };
 
   useEffect(() => {
-    console.log('PieChart ', option, dataSet);
+    // console.log('PieChart ', option, dataSet);
     setComponentOption(createComponentOption());
   }, [option, dataSet]);
 
@@ -40,33 +47,25 @@ const PieChart = props => {
   const createComponentOption = () => {
     let newOption = defaultComponentOption;
 
-    // series option에서 가져오기
-    // const getOption = () =>
-    //   option.series.map(item => ({
-    //     name: item.field,
-    //     data: dataSet.map(dataItem => dataItem[item.field]),
-    //     type: 'pie',
-    //     smooth: true,
-    //   }));
+    const getData = () =>
+      dataSet.map(item => ({
+        value: item[option.series.field],
+        name: item[option.series.label],
+      }));
 
     if (dataSet) {
       const op = {
+        type: 'pie',
+        smooth: true,
         series: [
           {
             type: 'pie',
             smooth: true,
-            data: [
-              { value: 1048, name: 'Search Engine' },
-              { value: 735, name: 'Direct' },
-              { value: 580, name: 'Email' },
-              { value: 484, name: 'Union Ads' },
-              { value: 300, name: 'Video Ads' },
-            ],
-            color: ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc'],
+            data: getData(),
+            color: option.series.color, // 옵션값은 바뀌는데 색은 왜 제때 안 바뀔까요..
           },
         ],
       };
-
       newOption = { ...defaultComponentOption, ...op };
     }
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Grid,
   List,
@@ -38,35 +38,19 @@ const StyledList = styled(List)({
   },
 });
 
-// const DefaultIconButton = icon =>
-//   styled((props: IconButtonProps) => (
-//     <IconButton size="small" sx={{ width: '34px', height: '34px' }} {...props}>
-//       <SvgIcon fontSize="small">
-//         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512">
-//           {icon}
-//         </svg>
-//       </SvgIcon>
-//     </IconButton>
-//   ))({ flex: 'none' });
-//
-// const AddIconButton = DefaultIconButton(
-//   <path d="M256 80c0-17.7-14.3-32-32-32s-32 14.3-32 32V224H48c-17.7 0-32 14.3-32 32s14.3 32 32 32H192V432c0 17.7 14.3 32 32 32s32-14.3 32-32V288H400c17.7 0 32-14.3 32-32s-14.3-32-32-32H256V80z" />,
-// );
-//
-// const RemoveIconButton = DefaultIconButton(
-//   <path d="M432 256c0 17.7-14.3 32-32 32L48 288c-17.7 0-32-14.3-32-32s14.3-32 32-32l352 0c17.7 0 32 14.3 32 32z" />,
-// );
-
 const PieChartSetting = props => {
   const { option, setOption } = props;
 
-  // props로부터 받기
-  const typeOption = { series: ['high', 'low', 'avg'], xField: ['name', 'color'] };
+  // props로부터 받기 ------------------------------------
+  const typeOption = { series: ['high', 'low', 'avg'], label: ['name', 'color'] }; // series type
+  const dataLength = 12; // color length
+  const dataLabel = ['jan', 'fab', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']; // color label
+  // ----------------------------------------------------
 
   const aggregationList = { value: ['sum', 'avg', 'max', 'min'], label: ['합계', '평균', '최대', '최소'] };
   const legendList = { value: ['left', 'right', 'top', 'bottom'], label: ['왼쪽', '오른쪽', '위쪽', '아래쪽'] };
-  const [addedSeriesLength, setAddedSeriesLength] = useState(1);
 
+  // select input의 option list를 생성
   const getDropList = (list: any[] | { value: any[]; label: any[] }) => {
     let dropList;
     if (Array.isArray(list)) {
@@ -84,67 +68,39 @@ const PieChartSetting = props => {
     return dropList;
   };
 
+  // color 생성
+  const getColor = () => {
+    const defaultColor = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc'];
+    if (!!option.series.field) {
+      return;
+    }
+    const colorArr = [];
+    // defaultColor의 배열을 돌면서 data의 길이만큼 요소를 순서대로 반환
+    for (let i = 0; i < dataLength; i++) {
+      colorArr.push(defaultColor[i % 9]);
+    }
+    setOption(prevState => ({
+      ...prevState,
+      series: { ...prevState.series, color: colorArr },
+    }));
+  };
+
+  useEffect(() => {
+    getColor();
+  }, [option.series.field]);
+
   const handleChange = event => {
     setOption({ ...option, [event.target.name]: event.target.value });
   };
 
   const handleSeriesChange = event => {
-    const key = event.target.name.slice(0, -1);
-    const index = Number(event.target.name.slice(-1)[0]) - 1;
-
-    setOption(prevState => {
-      const tempOption = { ...prevState };
-
-      // onChange 일어난 요소 key와 index로 식별해서 value 주기
-      tempOption.series.forEach((item, idx) => {
-        if (index === idx) {
-          item[key] = event.target.value;
-        }
-      });
-      return tempOption;
-    });
-  };
-
-  const handleAddClick = () => {
-    if (addedSeriesLength === typeOption.series.length) {
-      return;
-    }
-    setAddedSeriesLength(prevState => prevState + 1);
-
-    setOption(prevState => {
-      const tempOption = { ...prevState };
-      const defaultColor = [
-        '#5470c6',
-        '#91cc75',
-        '#fac858',
-        '#ee6666',
-        '#73c0de',
-        '#3ba272',
-        '#fc8452',
-        '#9a60b4',
-        '#ea7ccc',
-      ];
-      const newItem = {
-        field: '',
-        color: defaultColor[addedSeriesLength],
-        aggregation: '',
-      };
-      tempOption.series.push(newItem);
-      return tempOption;
-    });
-  };
-
-  const handleRemoveClick = event => {
-    console.log(event.target.id);
-    if (addedSeriesLength === 0) {
-      return;
-    }
-    setAddedSeriesLength(prevState => prevState - 1);
-    setOption(prevState => {
-      const tempOption = { ...prevState };
-      tempOption.series.pop();
-      return tempOption;
-    });
+    setOption(prevState => ({
+      ...prevState,
+      series: {
+        ...prevState.series,
+        [event.target.name]: event.target.value,
+      },
+    }));
   };
 
   return (
@@ -162,37 +118,49 @@ const PieChartSetting = props => {
       />
       <StyledList>
         <ListItem divider>
-          <ListItemText primary="데이터(Series) 설정" />
+          <ListItemText primary="시리즈 설정" />
           <SelectForm
             id="field"
             name="field"
-            label="Series"
-            // option={getDropList(typeOption.series)}
-            value={option.series}
+            label="필드"
+            option={getDropList(typeOption.series)}
+            value={option.series.field}
             onChange={handleSeriesChange}
           />
           <SelectForm
             id="aggregation"
             name="aggregation"
-            label={' '}
-            // option={getDropList(aggregationList)}
-            value={option.aggregation}
+            label="집계 방식"
+            option={getDropList(aggregationList)}
+            value={option.series.aggregation}
+            onChange={handleSeriesChange}
+          />{' '}
+          <SelectForm
+            id="label"
+            name="label"
+            label="이름"
+            option={getDropList(typeOption.label)}
+            value={option.series.label}
             onChange={handleSeriesChange}
           />
-          <Divider />
         </ListItem>
         <ListItem divider>
           <ListItemText primary="항목 별 색상 설정" />
-          {/*{option.series.color.map((item, index) => (*/}
-          {/*  <React.Fragment key={index}>*/}
-          <ColorFieldForm label="Search Engine" />
-          <ColorFieldForm label="Search Engine" />
-          <ColorFieldForm label="Search Engine" />
-          <ColorFieldForm label="Search Engine" />
-          <ColorFieldForm label="Search Engine" />
-          <Divider />
-          {/*</React.Fragment>*/}
-          {/*))}*/}
+          {!!option.series.field &&
+            option.series.color.map((item, index) => (
+              <React.Fragment key={index}>
+                <ColorFieldForm
+                  id={`color${index + 1}`}
+                  name={`color${index + 1}`}
+                  value={option.series.color[index]}
+                  label={dataLabel}
+                  option={option}
+                  setOption={setOption}
+                  index={index}
+                />
+                <Divider />
+              </React.Fragment>
+            ))}
         </ListItem>
         <ListItem>
           <ListItemText>범례 설정</ListItemText>

@@ -15,7 +15,7 @@ function WidgetView(props) {
   const widgetId = searchParams.get('id');
   const widgetName = searchParams.get('name');
 
-  const options = {
+  const option = {
     grid: { top: 8, right: 8, bottom: 24, left: 36 },
     xAxis: {
       type: 'category',
@@ -60,7 +60,7 @@ function WidgetView(props) {
         }
       >
         <WidgetBox>
-          <ReactECharts option={options} style={{ height: '100%', width: '100%' }} />
+          <ReactECharts option={option} style={{ height: '100%', width: '100%' }} />
         </WidgetBox>
       </TitleBox>
     </PageTitleBox>

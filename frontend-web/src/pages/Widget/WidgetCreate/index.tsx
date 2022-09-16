@@ -16,7 +16,7 @@ function WidgetCreate(props) {
   const [isFinished, setIsFinished] = useState(false);
 
   const [dataSet, setDataSet] = useState(null); // step 1
-  const [widgetType, setWidgetType] = useState(null); // step 2 : 개발 편의상 임시로 적용
+  const [widgetType, setWidgetType] = useState('pieChart'); // step 2 : 개발 편의상 임시로 적용
   const [widgetOption, setWidgetOption] = useState(null); // step 3
   const [widgetTitle, setWidgetTitle] = useState(null);
 

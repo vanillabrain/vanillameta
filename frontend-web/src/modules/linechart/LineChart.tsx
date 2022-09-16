@@ -27,6 +27,10 @@ const LineChart = props => {
         smooth: true,
       },
     ],
+    emphasis: {
+      focus: 'series',
+      blurScope: 'coordinateSystem',
+    },
   };
 
   useEffect(() => {

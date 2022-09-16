@@ -39,7 +39,7 @@ const StyledList = styled(List)({
 
 const DefaultIconButton = icon =>
   styled((props: IconButtonProps) => (
-    <IconButton size="small" sx={{ width: '34px', height: '34px' }} {...props}>
+    <IconButton size="small" sx={{ width: '38px', height: '34px' }} {...props}>
       <SvgIcon fontSize="small">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512">
           {icon}
@@ -59,8 +59,9 @@ const RemoveIconButton = DefaultIconButton(
 const LineChartSetting = props => {
   const { option, setOption } = props;
 
-  // props로부터 받기
-  const typeOption = { series: ['high', 'low', 'avg'], xField: ['name', 'color'] };
+  // props로부터 받기 ------------------------------------
+  const typeOption = { series: ['high', 'low', 'avg'], xField: ['name', 'color'] }; // series type
+  // ----------------------------------------------------
 
   const aggregationList = { value: ['sum', 'avg', 'max', 'min'], label: ['합계', '평균', '최대', '최소'] };
   const legendList = { value: ['left', 'right', 'top', 'bottom'], label: ['왼쪽', '오른쪽', '위쪽', '아래쪽'] };
@@ -161,7 +162,7 @@ const LineChartSetting = props => {
       />
       <StyledList>
         <ListItem divider>
-          <ListItemText primary="축 설정" />
+          <ListItemText primary="X축 설정" />
           <SelectForm
             id="xField"
             name="xField"
@@ -172,7 +173,7 @@ const LineChartSetting = props => {
           />
         </ListItem>
         <ListItem divider>
-          <ListItemText primary="Series 설정" />
+          <ListItemText primary="시리즈 설정" />
           <AddIconButton
             onClick={handleAddClick}
             sx={{
@@ -186,7 +187,7 @@ const LineChartSetting = props => {
               <SelectForm
                 id={`field${index + 1}`}
                 name={`field${index + 1}`}
-                label={`Series ${index + 1}`}
+                label={`필드 ${index + 1}`}
                 option={getDropList(typeOption.series)}
                 value={item.field}
                 onChange={handleSeriesChange}
@@ -206,7 +207,7 @@ const LineChartSetting = props => {
           ))}
         </ListItem>
         <ListItem>
-          <ListItemText>Legend 설정</ListItemText>
+          <ListItemText>범례 설정</ListItemText>
           <SelectForm
             id="legendPosition"
             name="legendPosition"

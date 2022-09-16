@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { FormControl, FormLabel, IconButton, OutlinedInput, Popover, Stack, Typography } from '@mui/material';
+import { FormControl, FormLabel, IconButton, OutlinedInput, Popover, Select, Stack, Typography } from '@mui/material';
 import CircleIcon from '@mui/icons-material/Circle';
 import { SketchPicker } from 'react-color';
 
 function ColorFieldForm(props) {
-  const { id, label, value, onUpdate, ...rest } = props;
+  const { id, label, value, option, setOption, index, endButton, ...rest } = props;
 
-  const [color, setColor] = useState('#000000');
+  const color = !!option ? option.series.color[index] : '#eee';
+  const labelItem = label[index] || '';
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -17,10 +18,21 @@ function ColorFieldForm(props) {
     setAnchorEl(null);
   };
 
-  const handleCompleteChange = color => {
-    setColor(color.hex);
+  const handleChange = event => {
+    setOption(prevState => {
+      const _tempOption = { ...prevState };
+      _tempOption.series.color.splice(index, 1, event.target.value);
+      return _tempOption;
+    });
+  };
+
+  const handleCompleteChange = selectColor => {
     setAnchorEl(null);
-    onUpdate({ [id]: color.hex });
+    setOption(prevState => {
+      const _tempOption = { ...prevState };
+      _tempOption.series.color.splice(index, 1, selectColor.hex);
+      return _tempOption;
+    });
   };
 
   const open = Boolean(anchorEl);
@@ -28,10 +40,13 @@ function ColorFieldForm(props) {
 
   return (
     <FormControl fullWidth sx={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-      <FormLabel htmlFor={id} sx={{ width: '40%' }}>
-        {label}
+      <FormLabel
+        htmlFor={id}
+        sx={{ width: '35%', pr: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+      >
+        {labelItem}
       </FormLabel>
-      <Stack flexDirection="row" sx={{ width: '60%' }} justifyContent="space-between" alignItems="center">
+      <Stack flexDirection="row" sx={{ width: label ? '65%' : '100%' }} justifyContent="space-between" alignItems="center">
         <IconButton
           aria-label="색상 선택"
           sx={{ mr: 1, border: '1px solid #c4c4c4', bgcolor: '#fff' }}
@@ -51,14 +66,29 @@ function ColorFieldForm(props) {
         >
           <SketchPicker color={color} onChangeComplete={handleCompleteChange} />
         </Popover>
-        <OutlinedInput id={id} value={value} type="text" margin="dense" fullWidth {...rest} />
+        <OutlinedInput
+          id={id}
+          value={value}
+          type="text"
+          margin="dense"
+          fullWidth
+          sx={endButton ? { width: 'calc(100% - 38px)', flexShrink: 0 } : { width: '100%' }}
+          onChange={handleChange}
+          {...rest}
+        />
       </Stack>
     </FormControl>
   );
 }
 
 ColorFieldForm.defaultProps = {
-  value: '#000000',
+  value: '#eee',
+  endButton: undefined,
+  id: '',
+  label: [],
+  index: 0,
+  option: '',
+  setOption: '',
 };
 
 export default ColorFieldForm;

@@ -35,7 +35,7 @@ function ColorFieldForm(props) {
   const popoverId = open ? '색상 선택 팝업' : undefined;
 
   return (
-    <FormControl fullWidth sx={{ alignItems: 'flex-end', justifyContent: 'center' }}>
+    <FormControl sx={{ alignItems: 'flex-end', justifyContent: 'center' }}>
       <IconButton aria-label="색상 선택" sx={{ border: '1px solid #c4c4c4', bgcolor: '#fff' }} onClick={handleClick}>
         <CircleIcon sx={{ color: color }} />
       </IconButton>
