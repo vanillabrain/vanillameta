@@ -1,6 +1,6 @@
 [
   {
-    "id": "lineChart",
+    "id": "WIDGET_LINECHART",
     "title": "선형 차트",
     "icon": "icon/line-chart.png",
     "caption": "Line Chart",
@@ -18,7 +18,7 @@
     }
   },
   {
-    "id": "barChart",
+    "id": "WIDGET_BARCHART",
     "title": "막대형 차트",
     "icon": "icon/bar-chart.png",
     "caption": "Bar Chart",
@@ -35,7 +35,7 @@
     }
   },
   {
-  "id": "bubbleChart",
+  "id": "WIDGET_BUBBLECHART",
   "title": "거품형 차트",
   "icon": "icon/bubble-chart.png",
   "caption": "Bubble Chart",
@@ -89,7 +89,7 @@
     }
   },
   {
-    "id": "pieChart",
+    "id": "WIDGET_PIECHART",
     "title": "원형 차트",
     "icon": "icon/doughnut-chart.png",
     "caption": "Pie Chart",
