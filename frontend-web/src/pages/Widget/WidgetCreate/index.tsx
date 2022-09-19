@@ -15,9 +15,16 @@ function WidgetCreate(props) {
   const [activeStep, setActiveStep] = useState(0);
 
   const [dataSet, setDataSet] = useState(null); // step 1
-  const [widgetType, setWidgetType] = useState(null); // step 2 : 개발 편의상 임시로 적용
+  const [widgetType, setWidgetType] = useState(null); // step 2
   const [widgetOption, setWidgetOption] = useState(null); // step 3
   const [widgetTitle, setWidgetTitle] = useState(null);
+
+  // 개발 편의상 임시로 적용
+  useEffect(() => {
+    setDataSet(688279);
+    setWidgetType('CHART_LINE');
+    setActiveStep(2);
+  }, []);
 
   useEffect(() => {
     if (!widgetOption) {
@@ -25,14 +32,6 @@ function WidgetCreate(props) {
     }
     setWidgetTitle(widgetOption.title);
   }, [widgetOption]);
-
-  // validation
-  // 1. dataSet === null 이면 다음 단계로 넘어가지 않음(버튼 비활성)
-  // 2. widgetType === null 이면 다음 단계로 넘어가지 않음(버튼 비활성)
-
-  // 3. widgetOption이 유효하지 않으면 onSubmit 못하게(버튼은 활성되지만 저장하면 error 상태 보여주기)
-  //   3-1. widgetTitle이 없으면 error (form에 error css)
-  //   3-2. widgetAttr 필요한 속성이 없으면 error (해당 form 구분하여 error css)
 
   const [isWidgetValueValid, setIsWidgetValueValid] = useState(false);
   const [isNextButtonDisabled, setIsNextButtonDisabled] = useState(true);

@@ -201,6 +201,11 @@ const LineChartSetting = props => {
     if (addedSeriesLength === 0) {
       return;
     }
+
+    // error state 초기화
+    setIsAttrTouched({});
+    setCheckAttrValid({});
+
     setAddedSeriesLength(prevState => prevState - 1);
     setOption(prevState => {
       const tempOption = { ...prevState };
