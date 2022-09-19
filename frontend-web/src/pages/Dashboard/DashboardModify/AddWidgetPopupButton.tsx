@@ -32,7 +32,7 @@ const iconType = item => {
 
 function AddWidgetPopupButton({ label, widgetSelect }) {
   const [open, setOpen] = useState(false);
-  const [selectedIndex, setSelectedIndex] = React.useState([]);
+  const [selectedIds, setSelectedIds] = useState([]);
   const [loadedWidgetData, setLoadedWidgetData] = useState([]);
   const getItems = () => {
     get('/data/dummyWidgetList.json')
@@ -43,7 +43,7 @@ function AddWidgetPopupButton({ label, widgetSelect }) {
   const descriptionElementRef = useRef<HTMLElement>(null);
 
   const handleOpenClick = () => {
-    setSelectedIndex([]);
+    setSelectedIds([]);
     setLoadedWidgetData([]);
     getItems();
     setOpen(true);
@@ -54,40 +54,26 @@ function AddWidgetPopupButton({ label, widgetSelect }) {
   };
 
   const handleClick = item => {
-    const isSelect = isItemSelection(item, selectedIndex);
-    let isDelete = false;
-    console.log(selectedIndex);
+    const isSelect = isItemSelection(item);
+    const newIds = [...selectedIds];
     if (isSelect) {
-      const index = selectedIndex.indexOf(item.id);
-      if (index > -1) {
-        selectedIndex.splice(index, 1);
-        isDelete = true;
-      }
-    }
-
-    if (isDelete) {
-      setSelectedIndex([...selectedIndex]);
+      const index = newIds.indexOf(item.id);
+      newIds.splice(index, 1);
+      setSelectedIds(newIds);
     } else {
-      const addItem = [item.id];
-      setSelectedIndex([...addItem, ...selectedIndex]);
+      newIds.push(item.id);
+      setSelectedIds(newIds);
     }
   };
 
-  const isItemSelection = (item, items) => {
-    let isSelect = false;
-    for (let i = 0; i < items.length; i++) {
-      if (items[i] == item.id) {
-        isSelect = true;
-        break;
-      }
-    }
-    return isSelect;
+  const isItemSelection = item => {
+    return !!selectedIds.find(id => id === item.id);
   };
 
   const handleSelect = () => {
     const widgets = [];
     for (let i = 0; i < loadedWidgetData.length; i++) {
-      if (selectedIndex.indexOf(loadedWidgetData[i].id) > -1) {
+      if (selectedIds.indexOf(loadedWidgetData[i].id) > -1) {
         widgets.push(loadedWidgetData[i]);
       }
     }
@@ -132,7 +118,7 @@ function AddWidgetPopupButton({ label, widgetSelect }) {
             <CloseIcon />
           </IconButton>
           <Typography variant="body2" mt={1}>
-            추가할 위젯을 선택해주세요.
+            추가할 위젯을 선택해주세요. {selectedIds.length}개
           </Typography>
         </DialogTitle>
 
@@ -147,7 +133,7 @@ function AddWidgetPopupButton({ label, widgetSelect }) {
             }}
           >
             {loadedWidgetData.map((item, index) => (
-              <ListItemButton key={index} selected={isItemSelection(item, selectedIndex)} onClick={() => handleClick(item)}>
+              <ListItemButton key={index} selected={isItemSelection(item)} onClick={() => handleClick(item)}>
                 <ListItemIcon>{iconType(item.type)}</ListItemIcon>
                 <ListItemText primary={item.name} />
               </ListItemButton>
