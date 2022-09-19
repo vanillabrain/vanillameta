@@ -9,7 +9,7 @@ import PieChartSetting from '@/widget/settings/PieChartSetting';
 import WidgetBox from '@/components/widget/WidgetBox';
 
 function WidgetAttributeSelect(props) {
-  const { dataSetId, componentType, prevOption, setWidgetOption } = props;
+  const { dataSetId, componentType, prevOption, setWidgetOption, setIsValid } = props;
 
   const defaultComponentData = componentList.find(item => item.id === componentType && item);
   const [option, setOption] = useState(defaultComponentData.option);
@@ -31,6 +31,7 @@ function WidgetAttributeSelect(props) {
     const ChartSettingProps = {
       option: option,
       setOption: setOption,
+      setIsValid: setIsValid,
     };
 
     switch (componentType) {

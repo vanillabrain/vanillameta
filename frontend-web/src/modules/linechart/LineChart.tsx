@@ -35,6 +35,7 @@ const LineChart = props => {
 
   useEffect(() => {
     setComponentOption(createComponentOption());
+    console.log(option, componentOption);
   }, [option, dataSet]);
 
   /**

@@ -16,26 +16,48 @@ function WidgetCreate(props) {
   const [isFinished, setIsFinished] = useState(false);
 
   const [dataSet, setDataSet] = useState(null); // step 1
-  const [widgetType, setWidgetType] = useState('pieChart'); // step 2 : 개발 편의상 임시로 적용
+  const [widgetType, setWidgetType] = useState(null); // step 2 : 개발 편의상 임시로 적용
   const [widgetOption, setWidgetOption] = useState(null); // step 3
   const [widgetTitle, setWidgetTitle] = useState(null);
 
+  useEffect(() => {
+    if (!widgetOption) {
+      return;
+    }
+    setWidgetTitle(widgetOption.title);
+    setIsWidgetValueValid(true);
+  }, [widgetOption]);
+
+  // validation
+  // 1. dataSet === null 이면 다음 단계로 넘어가지 않음(버튼 비활성)
+  // 2. widgetType === null 이면 다음 단계로 넘어가지 않음(버튼 비활성)
+  // 3. widgetOption이 유효하지 않으면 onSubmit 못하게(버튼은 활성되지만 저장하면 error 상태 보여주기)
+  //   3-1. widgetTitle이 없으면 error
+  //   3-2. widgetAttr 필요한 속성이 없으면 error
+
+  const [isWidgetValueValid, setIsWidgetValueValid] = useState(false);
+  const [isNextButtonDisabled, setIsNextButtonDisabled] = useState(true);
+
+  useEffect(() => {
+    if (activeStep === 0 && !!dataSet) {
+      setIsNextButtonDisabled(false);
+      return;
+    }
+
+    if (activeStep === 1 && !!widgetType) {
+      setIsNextButtonDisabled(false);
+      return;
+    }
+
+    if (activeStep === steps.length - 1) {
+      setIsNextButtonDisabled(false);
+      return;
+    }
+
+    setIsNextButtonDisabled(true);
+  }, [activeStep, dataSet, widgetType, isWidgetValueValid]);
+
   const handleNext = () => {
-    // switch (activeStep) {
-    //   case 0:
-    //     // 데이터셋 선택
-    //     if (!dataSet) {
-    //       return;
-    //     }
-    //     break;
-    //   case 1:
-    //     //
-    //     break;
-    //   case 2:
-    //     break;
-    //   default:
-    // }
-    // console.log(activeStep);
     if (activeStep < steps.length - 1) {
       setActiveStep(prevActiveStep => prevActiveStep + 1);
     }
@@ -50,10 +72,21 @@ function WidgetCreate(props) {
   // 위젯 속성 저장
   const handleSubmit = event => {
     event.preventDefault();
+
+    // if (!!widgetOption) {
+    //   if (widgetOption.title.trim() === '') {
+    //     setIsWidgetValueValid(false);
+    //     return;
+    //   }
+    //   if (widgetOption.title.length > 20) {
+    //     setIsWidgetValueValid(false);
+    //     return;
+    //   }
+    // }
     console.log('datesetId:', dataSet);
     console.log('widgetType:', widgetType);
+    console.log('widgetTitle:', widgetTitle);
     console.log('widgetOption:', widgetOption);
-    // console.log('widgetTitle:', widgetTitle);
   };
 
   return (
@@ -68,7 +101,7 @@ function WidgetCreate(props) {
               confirmProps={{
                 form: 'widgetAttribute',
                 onClick: activeStep === steps.length - 1 ? handleSubmit : handleNext,
-                // disabled: activeStep === steps.length - 1,
+                disabled: isNextButtonDisabled,
               }}
               cancelProps={{
                 onClick: handleBack,
@@ -108,7 +141,12 @@ function WidgetCreate(props) {
           <WidgetTypeSelect widgetType={widgetType} setWidgetType={setWidgetType} />
         ) : (
           <TitleBox title="위젯 속성 설정">
-            <WidgetAttributeSelect dataSetId={dataSet} componentType={widgetType} setWidgetOption={setWidgetOption} />
+            <WidgetAttributeSelect
+              dataSetId={dataSet}
+              componentType={widgetType}
+              setWidgetOption={setWidgetOption}
+              setIsValid={setIsWidgetValueValid}
+            />
           </TitleBox>
         )}
       </PageTitleBox>

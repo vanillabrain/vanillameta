@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Grid,
   List,
@@ -57,7 +57,7 @@ const RemoveIconButton = DefaultIconButton(
 );
 
 const LineChartSetting = props => {
-  const { option, setOption } = props;
+  const { option, setOption, setIsValid } = props;
 
   // props로부터 받기 ------------------------------------
   const typeOption = { series: ['high', 'low', 'avg'], xField: ['name', 'color'] }; // series type
@@ -83,6 +83,34 @@ const LineChartSetting = props => {
     dropList.unshift({ value: '', label: '선택 안함' });
     return dropList;
   };
+
+  const [isTitleValid, setIsTitleValid] = useState(true);
+  const [isAttrValid, setIsAttrValid] = useState({});
+
+  // useEffect(() => {
+  //   if (!!option) {
+  //     if (option.title.trim() === '' || option.title.length > 20) {
+  //       console.log('widget title error');
+  //       setIsTitleValid(false);
+  //       setIsValid(false);
+  //       return;
+  //     }
+  //
+  //     if (
+  //       option.series.forEach(item => {
+  //         if (item.field === '') {
+  //           console.log('widget title error');
+  //           setIsAttrValid(prevState => ({
+  //             ...prevState,
+  //             []:
+  //           }));
+  //           setIsValid(false);
+  //         }
+  //       })
+  //     )
+  //       return;
+  //   }
+  // }, [option]);
 
   const handleChange = event => {
     setOption({ ...option, [event.target.name]: event.target.value });
@@ -156,6 +184,7 @@ const LineChartSetting = props => {
         placeholder="위젯의 이름을 입력해 주세요"
         required
         fullWidth
+        error={!isTitleValid}
         sx={{ mt: { xs: 5, md: 0 } }}
         value={option.title}
         onChange={handleChange}
@@ -192,6 +221,7 @@ const LineChartSetting = props => {
                 value={item.field}
                 onChange={handleSeriesChange}
                 colorButton={<ColorButtonForm index={index} option={option} setOption={setOption} />}
+                error={!isAttrValid ? !item.field && false : false}
               />
               <SelectForm
                 id={`aggregation${index + 1}`}
