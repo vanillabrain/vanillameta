@@ -25,8 +25,9 @@ const LineChart = props => {
   };
 
   useEffect(() => {
-    setComponentOption(createComponentOption());
-    console.log(option, componentOption);
+    const newOption = createComponentOption();
+    console.log(option, newOption);
+    setComponentOption(newOption);
   }, [option, dataSet]);
 
   /**
@@ -37,8 +38,6 @@ const LineChart = props => {
 
   const createComponentOption = () => {
     let newOption = defaultComponentOption;
-
-    console.log('createComponentOption', option);
 
     // series option에서 가져오기
     const newSeries = [];
@@ -63,18 +62,20 @@ const LineChart = props => {
           data: !!option.xField ? dataSet.map(item => item[option.xField]) : '',
         },
         series: newSeries,
-        color: newColors, // TODO: color 매칭이 꼬이는 문제 해결
+        color: newColors,
         legend: {}, // TODO: legend 위치 조정기능 추가
       };
 
-      console.log('op', op);
       newOption = { ...defaultComponentOption, ...op };
     }
 
+    console.log('newOption', newOption);
     return newOption;
   };
 
-  return <ReactECharts option={componentOption} style={{ height: '100%', width: '100%' }} />;
+  return (
+    <ReactECharts option={componentOption} style={{ height: '100%', width: '100%' }} lazyUpdate={true} notMerge={true} />
+  );
 };
 
 export default LineChart;
