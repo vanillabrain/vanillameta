@@ -1,35 +1,35 @@
 [
   {
-    "dashboardId": "0001",
+    "id": "0001",
     "title": "대시보드1",
     "createDate": "2022-03-14T08:06:11+09:00"
   },
   {
-    "dashboardId": "0002",
+    "id": "0002",
     "title": "대시보드2",
     "createDate": "2022-04-14T08:06:11+09:00"
   },
   {
-    "dashboardId": "0003",
+    "id": "0003",
     "title": "대시보드3",
     "createDate": "2022-08-17T11:07:03+09:00"
   },{
-    "dashboardId": "0004",
+    "id": "0004",
     "title": "대시보드4",
     "createDate": "2022-11-19T02:29:01+09:00"
   },
   {
-    "dashboardId": "0005",
+    "id": "0005",
     "title": "대시보드5",
     "createDate": "2022-04-14T08:06:11+09:00"
   },
   {
-    "dashboardId": "0006",
+    "id": "0006",
     "title": "대시보드6",
     "createDate": "2022-08-17T11:07:03+09:00"
   },
   {
-    "dashboardId": "0007",
+    "id": "0007",
     "title": "대시보드7",
     "createDate": "2022-08-17T11:07:03+09:00"
   }

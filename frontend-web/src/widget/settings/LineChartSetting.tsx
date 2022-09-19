@@ -125,6 +125,7 @@ const LineChartSetting = props => {
 
       // onChange 일어난 요소 key와 index로 식별해서 value 주기
       tempOption.series.forEach((item, idx) => {
+        console.log('item', item);
         if (index === idx) {
           item[key] = event.target.value;
         }

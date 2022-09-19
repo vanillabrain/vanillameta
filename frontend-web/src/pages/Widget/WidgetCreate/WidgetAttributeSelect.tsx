@@ -7,6 +7,7 @@ import LineChart from '@/modules/linechart/LineChart';
 import PieChart from '@/modules/piechart/PieChart';
 import PieChartSetting from '@/widget/settings/PieChartSetting';
 import WidgetBox from '@/components/widget/WidgetBox';
+import { WIDGET_TYPE } from '@/constant';
 
 function WidgetAttributeSelect(props) {
   const { dataSetId, componentType, prevOption, setWidgetOption, setIsValid } = props;
@@ -35,21 +36,21 @@ function WidgetAttributeSelect(props) {
     };
 
     switch (componentType) {
-      case 'lineChart':
+      case WIDGET_TYPE.LINECHART:
         setSwitchChart({
           ...switchChart,
           chart: <LineChart {...ChartProps} componentType="line" />,
           chartSetting: <LineChartSetting {...ChartSettingProps} />,
         });
         break;
-      case 'barChart':
+      case WIDGET_TYPE.BARCHART:
         setSwitchChart({
           ...switchChart,
           chart: <LineChart {...ChartProps} componentType="bar" />,
           chartSetting: <LineChartSetting {...ChartSettingProps} />,
         });
         break;
-      case 'pieChart':
+      case WIDGET_TYPE.PIECHART:
         setSwitchChart({
           ...switchChart,
           chart: <PieChart {...ChartProps} />,

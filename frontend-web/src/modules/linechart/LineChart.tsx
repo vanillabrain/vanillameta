@@ -17,16 +17,7 @@ const LineChart = props => {
     xAxis: {
       type: 'category',
     },
-    series: [
-      {
-        type: rest.componentType,
-        smooth: true,
-      },
-      {
-        type: rest.componentType,
-        smooth: true,
-      },
-    ],
+    series: [],
     emphasis: {
       focus: 'series',
       blurScope: 'coordinateSystem',
@@ -34,8 +25,9 @@ const LineChart = props => {
   };
 
   useEffect(() => {
-    setComponentOption(createComponentOption());
-    console.log(option, componentOption);
+    const newOption = createComponentOption();
+    console.log(option, newOption);
+    setComponentOption(newOption);
   }, [option, dataSet]);
 
   /**
@@ -48,32 +40,42 @@ const LineChart = props => {
     let newOption = defaultComponentOption;
 
     // series option에서 가져오기
-    const getOption = () =>
-      option.series.map(item => ({
-        name: item.field,
-        data: dataSet.map(dataItem => dataItem[item.field]),
-        type: rest.componentType,
-        smooth: true,
-      }));
-
+    const newSeries = [];
+    const newColors = [];
+    option.series.forEach((item, index) => {
+      console.log(item, index);
+      if (item.field) {
+        const series = {
+          name: item.field,
+          data: dataSet.map(dataItem => dataItem[item.field]),
+          type: rest.componentType,
+          smooth: true,
+        };
+        newSeries.push(series);
+        newColors.push(item.color);
+      }
+    });
     if (dataSet) {
       const op = {
         xAxis: {
           type: 'category',
           data: !!option.xField ? dataSet.map(item => item[option.xField]) : '',
         },
-        series: getOption(),
-        color: option.series.map(item => item.color), // TODO: color 매칭이 꼬이는 문제 해결
+        series: newSeries,
+        color: newColors,
         legend: {}, // TODO: legend 위치 조정기능 추가
       };
 
       newOption = { ...defaultComponentOption, ...op };
     }
 
+    console.log('newOption', newOption);
     return newOption;
   };
 
-  return <ReactECharts option={componentOption} style={{ height: '100%', width: '100%' }} />;
+  return (
+    <ReactECharts option={componentOption} style={{ height: '100%', width: '100%' }} lazyUpdate={true} notMerge={true} />
+  );
 };
 
 export default LineChart;
