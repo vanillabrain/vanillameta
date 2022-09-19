@@ -40,11 +40,7 @@ function BoardListItem(props) {
       key={postItem.id}
       secondaryAction={
         <React.Fragment>
-          <IconButton
-            size="large"
-            component={RouterLink}
-            to={`modify?dashboardId=${postItem.dashboardId}&title=${postItem.title}`}
-          >
+          <IconButton size="large" component={RouterLink} to={`modify?id=${postItem.id}&title=${postItem.title}`}>
             <Edit />
           </IconButton>
           <DialogAlertIconButton icon={<Delete />} size="large">
@@ -59,7 +55,7 @@ function BoardListItem(props) {
         '&:last-of-type': { borderBottom: 0 },
       }}
     >
-      <ListItemButton sx={{ py: 0.8 }} component={RouterLink} to={`${postItem.dashboardId}`}>
+      <ListItemButton sx={{ py: 0.8 }} component={RouterLink} to={`${postItem.id}`}>
         {postItem.type ? <ListItemIcon>{iconType}</ListItemIcon> : ''}
         <ListItemText
           primary={postItem.title}
