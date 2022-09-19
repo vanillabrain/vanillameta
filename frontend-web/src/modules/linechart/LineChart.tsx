@@ -17,16 +17,7 @@ const LineChart = props => {
     xAxis: {
       type: 'category',
     },
-    series: [
-      {
-        type: rest.componentType,
-        smooth: true,
-      },
-      {
-        type: rest.componentType,
-        smooth: true,
-      },
-    ],
+    series: [],
     emphasis: {
       focus: 'series',
       blurScope: 'coordinateSystem',
@@ -35,6 +26,7 @@ const LineChart = props => {
 
   useEffect(() => {
     setComponentOption(createComponentOption());
+    console.log(option, componentOption);
   }, [option, dataSet]);
 
   /**
@@ -46,26 +38,36 @@ const LineChart = props => {
   const createComponentOption = () => {
     let newOption = defaultComponentOption;
 
-    // series option에서 가져오기
-    const getOption = () =>
-      option.series.map(item => ({
-        name: item.field,
-        data: dataSet.map(dataItem => dataItem[item.field]),
-        type: rest.componentType,
-        smooth: true,
-      }));
+    console.log('createComponentOption', option);
 
+    // series option에서 가져오기
+    const newSeries = [];
+    const newColors = [];
+    option.series.forEach((item, index) => {
+      console.log(item, index);
+      if (item.field) {
+        const series = {
+          name: item.field,
+          data: dataSet.map(dataItem => dataItem[item.field]),
+          type: rest.componentType,
+          smooth: true,
+        };
+        newSeries.push(series);
+        newColors.push(item.color);
+      }
+    });
     if (dataSet) {
       const op = {
         xAxis: {
           type: 'category',
           data: !!option.xField ? dataSet.map(item => item[option.xField]) : '',
         },
-        series: getOption(),
-        color: option.series.map(item => item.color), // TODO: color 매칭이 꼬이는 문제 해결
+        series: newSeries,
+        color: newColors, // TODO: color 매칭이 꼬이는 문제 해결
         legend: {}, // TODO: legend 위치 조정기능 추가
       };
 
+      console.log('op', op);
       newOption = { ...defaultComponentOption, ...op };
     }
 
