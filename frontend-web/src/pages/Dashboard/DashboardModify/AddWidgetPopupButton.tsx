@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { BarChart, Dashboard, PieChart } from '@mui/icons-material';
+import { BarChart, Dashboard, PieChart, MultilineChart } from '@mui/icons-material';
 import {
   Button,
   Dialog,
@@ -18,13 +18,15 @@ import CloseIcon from '@mui/icons-material/Close';
 import { get } from '@/helpers/apiHelper';
 
 const iconType = item => {
-  switch (item) {
-    case 'dashboard':
+  switch (item.toUpperCase()) {
+    case 'DASHBOARD':
       return <Dashboard />;
-    case 'barChart':
+    case 'BARCHART':
       return <BarChart />;
-    case 'pieChart':
+    case 'PIECHART':
       return <PieChart />;
+    case 'LINECHART':
+      return <MultilineChart />;
     default:
       return;
   }
@@ -135,7 +137,7 @@ function AddWidgetPopupButton({ label, widgetSelect }) {
             {loadedWidgetData.map((item, index) => (
               <ListItemButton key={index} selected={isItemSelection(item)} onClick={() => handleClick(item)}>
                 <ListItemIcon>{iconType(item.type)}</ListItemIcon>
-                <ListItemText primary={item.name} />
+                <ListItemText primary={item.title} />
               </ListItemButton>
             ))}
           </List>
