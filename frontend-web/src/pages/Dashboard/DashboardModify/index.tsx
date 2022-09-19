@@ -23,13 +23,11 @@ function DashboardModify(props) {
   useEffect(() => {
     // 여기서 처리
     if (selectedWidgets.length > 0) {
-      // todo 동적으로 위젯 붙이기
+      console.log(selectedWidgets);
     }
   }, [selectedWidgets]);
 
   const handleWidgetSelect = items => {
-    console.log('handleWidgetSelect');
-    console.log(items);
     setSelectedWidgets(items);
   };
 
