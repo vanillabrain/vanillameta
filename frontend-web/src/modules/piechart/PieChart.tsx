@@ -72,7 +72,9 @@ const PieChart = props => {
     return newOption;
   };
 
-  return <ReactECharts option={componentOption} style={{ height: '100%', width: '100%' }} />;
+  return (
+    <ReactECharts option={componentOption} style={{ height: '100%', width: '100%' }} lazyUpdate={true} notMerge={true} />
+  );
 };
 
 export default PieChart;

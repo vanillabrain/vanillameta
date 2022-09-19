@@ -10,7 +10,7 @@ import WidgetBox from '@/components/widget/WidgetBox';
 import { WIDGET_TYPE } from '@/constant';
 
 function WidgetAttributeSelect(props) {
-  const { dataSetId, componentType, prevOption, setWidgetOption, setIsValid } = props;
+  const { dataSetId, componentType, prevOption, setWidgetOption, setIsValid, isSubmit } = props;
 
   const defaultComponentData = componentList.find(item => item.id === componentType && item);
   const [option, setOption] = useState(defaultComponentData.option);
@@ -33,6 +33,7 @@ function WidgetAttributeSelect(props) {
       option: option,
       setOption: setOption,
       setIsValid: setIsValid,
+      isSubmit: isSubmit,
     };
 
     switch (componentType) {
@@ -66,7 +67,7 @@ function WidgetAttributeSelect(props) {
         });
         break;
     }
-  }, [option, componentType]);
+  }, [option, componentType, chartData, isSubmit]);
 
   // 이미 저장된 위젯값이 있는 경우 불러오기
   useEffect(() => {

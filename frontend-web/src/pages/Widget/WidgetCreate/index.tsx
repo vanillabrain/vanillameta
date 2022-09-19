@@ -13,7 +13,6 @@ const steps = ['데이터 선택', '위젯 타입 선택', '위젯 속성 설정
 
 function WidgetCreate(props) {
   const [activeStep, setActiveStep] = useState(0);
-  const [isFinished, setIsFinished] = useState(false);
 
   const [dataSet, setDataSet] = useState(null); // step 1
   const [widgetType, setWidgetType] = useState(null); // step 2 : 개발 편의상 임시로 적용
@@ -25,18 +24,19 @@ function WidgetCreate(props) {
       return;
     }
     setWidgetTitle(widgetOption.title);
-    setIsWidgetValueValid(true);
   }, [widgetOption]);
 
   // validation
   // 1. dataSet === null 이면 다음 단계로 넘어가지 않음(버튼 비활성)
   // 2. widgetType === null 이면 다음 단계로 넘어가지 않음(버튼 비활성)
+
   // 3. widgetOption이 유효하지 않으면 onSubmit 못하게(버튼은 활성되지만 저장하면 error 상태 보여주기)
-  //   3-1. widgetTitle이 없으면 error
-  //   3-2. widgetAttr 필요한 속성이 없으면 error
+  //   3-1. widgetTitle이 없으면 error (form에 error css)
+  //   3-2. widgetAttr 필요한 속성이 없으면 error (해당 form 구분하여 error css)
 
   const [isWidgetValueValid, setIsWidgetValueValid] = useState(false);
   const [isNextButtonDisabled, setIsNextButtonDisabled] = useState(true);
+  const [isSubmit, setIsSubmit] = useState(false);
 
   useEffect(() => {
     if (activeStep === 0 && !!dataSet) {
@@ -55,7 +55,7 @@ function WidgetCreate(props) {
     }
 
     setIsNextButtonDisabled(true);
-  }, [activeStep, dataSet, widgetType, isWidgetValueValid]);
+  }, [activeStep, dataSet, widgetType]);
 
   const handleNext = () => {
     if (activeStep < steps.length - 1) {
@@ -72,17 +72,11 @@ function WidgetCreate(props) {
   // 위젯 속성 저장
   const handleSubmit = event => {
     event.preventDefault();
+    setIsSubmit(true);
 
-    // if (!!widgetOption) {
-    //   if (widgetOption.title.trim() === '') {
-    //     setIsWidgetValueValid(false);
-    //     return;
-    //   }
-    //   if (widgetOption.title.length > 20) {
-    //     setIsWidgetValueValid(false);
-    //     return;
-    //   }
-    // }
+    if (!isWidgetValueValid) {
+      return;
+    }
     console.log('datesetId:', dataSet);
     console.log('widgetType:', widgetType);
     console.log('widgetTitle:', widgetTitle);
@@ -146,6 +140,7 @@ function WidgetCreate(props) {
               componentType={widgetType}
               setWidgetOption={setWidgetOption}
               setIsValid={setIsWidgetValueValid}
+              isSubmit={isSubmit}
             />
           </TitleBox>
         )}

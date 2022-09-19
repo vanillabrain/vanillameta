@@ -26,7 +26,6 @@ const LineChart = props => {
 
   useEffect(() => {
     const newOption = createComponentOption();
-    console.log(option, newOption);
     setComponentOption(newOption);
   }, [option, dataSet]);
 
@@ -43,7 +42,7 @@ const LineChart = props => {
     const newSeries = [];
     const newColors = [];
     option.series.forEach((item, index) => {
-      console.log(item, index);
+      // console.log(item, index);
       if (item.field) {
         const series = {
           name: item.field,
@@ -69,7 +68,6 @@ const LineChart = props => {
       newOption = { ...defaultComponentOption, ...op };
     }
 
-    console.log('newOption', newOption);
     return newOption;
   };
 
