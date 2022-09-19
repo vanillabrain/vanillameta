@@ -35,21 +35,21 @@ function WidgetAttributeSelect(props) {
     };
 
     switch (componentType) {
-      case WIDGET_TYPE.LINECHART:
+      case WIDGET_TYPE.CHART_LINE:
         setSwitchChart({
           ...switchChart,
           chart: <LineChart {...ChartProps} componentType="line" />,
           chartSetting: <LineChartSetting {...ChartSettingProps} />,
         });
         break;
-      case WIDGET_TYPE.BARCHART:
+      case WIDGET_TYPE.CHART_BAR:
         setSwitchChart({
           ...switchChart,
           chart: <LineChart {...ChartProps} componentType="bar" />,
           chartSetting: <LineChartSetting {...ChartSettingProps} />,
         });
         break;
-      case WIDGET_TYPE.PIECHART:
+      case WIDGET_TYPE.CHART_PIE:
         setSwitchChart({
           ...switchChart,
           chart: <PieChart {...ChartProps} />,
