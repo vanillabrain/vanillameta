@@ -56,9 +56,14 @@ const DashboardView = props => {
   const generateWidget = () => {
     console.log('generateWidget', dashboardInfo.widgets);
     return dashboardInfo.widgets.map((item, index) => {
+      console.log('data', item);
       return (
-        <Card key={index}>
-          <WidgetWrapper data={item} />
+        <Card key={index} sx={{ width: '100%', height: '100%', borderRadius: 1 }}>
+          <WidgetWrapper
+            widgetOption={item}
+            dataSetId={item.dataSetId}
+            sx={{ width: '100%', height: '100%', borderRadius: 1 }}
+          />
         </Card>
       );
     });
@@ -94,15 +99,7 @@ const DashboardView = props => {
             backgroundColor: '#eee',
           }}
         >
-          <ReactGridLayout layout={layout}>
-            {dashboardInfo.widgets.map((item, index) => {
-              return (
-                <Card key={index}>
-                  <WidgetWrapper data={item} />
-                </Card>
-              );
-            })}
-          </ReactGridLayout>
+          <ReactGridLayout layout={layout}>{generateWidget()}</ReactGridLayout>
         </Box>
       </TitleBox>
     </PageTitleBox>
