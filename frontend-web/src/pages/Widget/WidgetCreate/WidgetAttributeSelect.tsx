@@ -38,15 +38,16 @@ function WidgetAttributeSelect(props) {
   useEffect(() => {
     // console.log('option changed', option);
 
-    const ChartProps = {
-      option: option,
-      dataSet: chartData,
-    };
+    if (option && data) {
+      const ChartProps = {
+        option: option,
+        dataSet: data,
+      };
 
-    const ChartSettingProps = {
-      option: option,
-      setOption: setOption,
-    };
+      const ChartSettingProps = {
+        option: option,
+        setOption: setOption,
+      };
 
       switch (componentType) {
         case WIDGET_TYPE.CHART_LINE:
