@@ -23,7 +23,7 @@ function DashboardModify(props) {
   useEffect(() => {
     // 여기서 처리
     if (selectedWidgets.length > 0) {
-      console.log(selectedWidgets);
+      // console.log(selectedWidgets);
     }
   }, [selectedWidgets]);
 
