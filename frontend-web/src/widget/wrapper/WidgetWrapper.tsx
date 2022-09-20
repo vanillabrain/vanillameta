@@ -3,6 +3,9 @@ import { Box, Divider, Stack, Typography } from '@mui/material';
 import { WIDGET_TYPE } from '@/constant';
 import LineChart from '@/modules/linechart/LineChart';
 import { get } from '@/helpers/apiHelper';
+import LineChartSetting from '@/widget/settings/LineChartSetting';
+import PieChart from '@/modules/piechart/PieChart';
+import PieChartSetting from '@/widget/settings/PieChartSetting';
 
 const WidgetWrapper = props => {
   const { widgetOption, dataSetId } = props;
@@ -26,6 +29,14 @@ const WidgetWrapper = props => {
         switch (widgetType) {
           case WIDGET_TYPE.CHART_LINE:
             module = <LineChart option={widgetOption.option} dataSet={response.data} />;
+            break;
+          case WIDGET_TYPE.CHART_BAR:
+            break;
+          case WIDGET_TYPE.CHART_PIE:
+            module = <PieChart option={widgetOption.option} dataSet={response.data} />;
+            break;
+
+          default:
         }
         setWidget(module);
       }

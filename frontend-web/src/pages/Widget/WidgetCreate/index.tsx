@@ -72,7 +72,7 @@ function WidgetCreate(props) {
   const handleSubmit = event => {
     event.preventDefault();
     setIsSubmit(true);
-
+    console.log('widgetOption:', widgetOption);
     if (!isWidgetValueValid) {
       return;
     }
