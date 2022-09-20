@@ -4,6 +4,7 @@ import PageContainer from '@/components/PageContainer';
 import PageTitleBox from '@/components/PageTitleBox';
 import SubmitButton from '@/components/button/SubmitButton';
 import ConfirmCancelButton from '@/components/button/ConfirmCancelButton';
+import AceEditor from 'react-ace/types';
 
 function DataSet(props) {
   const [isConnected, setIsConnected] = useState(false);
@@ -30,6 +31,22 @@ function DataSet(props) {
             required
             // helperText="데이터셋의 이름을 입력해 주세요"
           />
+          {/*<AceEditor*/}
+          {/*  // style={styles}*/}
+          {/*  // className="problem-code-input"*/}
+          {/*  // placeholder=''*/}
+          {/*  mode="c_cpp"*/}
+          {/*  theme="tomorrow"*/}
+          {/*  name="codeInput"*/}
+          {/*  // onLoad={onLoad}*/}
+          {/*  onChange={this.onChange}*/}
+          {/*  fontSize={18}*/}
+          {/*  showPrintMargin*/}
+          {/*  showGutter*/}
+          {/*  highlightActiveLine*/}
+          {/*  value=""*/}
+          {/*  // setOptions=*/}
+          {/*/>*/}
           <TextField
             id="userSetContent"
             label="데이터셋 입력"
