@@ -4,7 +4,7 @@
     "title": "위젯1",
     "createDate": "2022-04-11T18:27:45+09:00",
     "dataId": "",
-    "type": "LINECHART",
+    "type": "CHART_LINE",
     "option": {
       "xField": "title",
       "series": [
@@ -33,7 +33,7 @@
     "title": "위젯2",
     "createDate": "2022-01-20T13:51:43+09:00",
     "dataId": "",
-    "type": "PIECHART",
+    "type": "CHART_PIE",
     "option": {}
   }
 ]

@@ -2,13 +2,29 @@
   "dashboardId": "0001",
   "title": "대시보드 1",
   "templateId": null,
+  "layout": [
+    {
+      "x": 0,
+      "y": 0,
+      "w": 3,
+      "h": 1,
+      "i": "000001"
+    },
+    {
+      "x": 0,
+      "y": 10,
+      "w": 5,
+      "h": 2,
+      "i": "000002"
+    }
+  ],
   "widgets": [
     {
-      "id": "000001",
+      "widgetId": "000001",
       "title": "라인차트 위젯",
       "date": "2022-04-11T18:27:45+09:00",
-      "dataSetId": "",
-      "type": "lineChart",
+      "dataSetId": "000001",
+      "type": "CHART_LINE",
       "option": {
         "xField": "name",
         "series": [
@@ -30,6 +46,36 @@
           }
         ],
         "legendPosition": "left"
+      }
+    },
+    {
+      "widgetId": "000002",
+      "title": "파이차트 위젯",
+      "date": "2022-04-11T18:27:45+09:00",
+      "dataSetId": "00001",
+      "type": "CHART_PIE",
+      "option": {
+        "xField": "name",
+        "series": {
+          "field": "high",
+          "color": [
+            "#5470c6",
+            "#91cc75",
+            "#fac858",
+            "#ee6666",
+            "#73c0de",
+            "#3ba272",
+            "#fc8452",
+            "#9a60b4",
+            "#ea7ccc",
+            "#5470c6",
+            "#91cc75",
+            "#fac858"
+          ],
+          "aggregation": "",
+          "label": "name"
+        },
+        "legendPosition": "right"
       }
     }
   ]

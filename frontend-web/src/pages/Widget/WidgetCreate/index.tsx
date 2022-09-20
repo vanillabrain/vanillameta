@@ -35,8 +35,7 @@ function WidgetCreate(props) {
 
   const [isWidgetValueValid, setIsWidgetValueValid] = useState(false);
   const [isNextButtonDisabled, setIsNextButtonDisabled] = useState(true);
-  // const [isSubmit, setIsSubmit] = useState(false);
-  const isSubmit = false;
+  const [isSubmit, setIsSubmit] = useState(false);
 
   useEffect(() => {
     if (activeStep === 0 && !!dataSet) {
@@ -65,20 +64,17 @@ function WidgetCreate(props) {
   };
 
   // 위젯 속성 저장
-  const handleSubmitClick = event => {
+  const handleSubmit = event => {
     event.preventDefault();
-    // isSubmit = true;
-
-    console.log(event);
-
-    return false;
-    // if (!isWidgetValueValid) {
-    //   return;
-    // }
-    // console.log('datesetId:', dataSet);
-    // console.log('widgetType:', widgetType);
-    // console.log('widgetTitle:', widgetTitle);
-    // console.log('widgetOption:', widgetOption);
+    setIsSubmit(true);
+    console.log('widgetOption:', widgetOption);
+    if (!isWidgetValueValid) {
+      return;
+    }
+    console.log('datesetId:', dataSet);
+    console.log('widgetType:', widgetType);
+    console.log('widgetTitle:', widgetTitle);
+    console.log('widgetOption:', widgetOption);
   };
 
   return (

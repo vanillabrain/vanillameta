@@ -33,7 +33,7 @@ function WidgetModify(props) {
 
   // 위젯 속성 저장
   const handleSubmit = event => {
-    // datasetId , componentId, widgetTitle, option
+    // dataSetId , componentId, widgetTitle, option
     event.preventDefault();
     console.log('datesetId:', data.dataId);
     console.log('widgetType:', data.type);

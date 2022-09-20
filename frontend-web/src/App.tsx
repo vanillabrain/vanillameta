@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { CssBaseline } from '@mui/material';
 import Layout from './layouts/Layout';
 import Router from './router';

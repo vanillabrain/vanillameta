@@ -4,8 +4,7 @@ import PageTitleBox from '@/components/PageTitleBox';
 import BoardList from '@/components/BoardList';
 import { Outlet, useParams } from 'react-router-dom';
 import AddIconButton from '@/components/button/AddIconButton';
-// import { get } from '@/helpers/apiHelper';
-import axios from 'axios';
+import { get } from '@/helpers/apiHelper';
 
 const title = '대시보드';
 
@@ -17,8 +16,7 @@ function Dashboard(props) {
   const [loadedCount, setLoadedCount] = useState(1);
 
   useEffect(() => {
-    axios
-      .get('/data/dummyDashboardList.json')
+    get('/data/dummyDashboardList.json')
       .then(response => response.data)
       .then(data => setLoadedWidgetData(data.filter((list, idx) => idx <= 10 * loadedCount)));
     setIsLoading(true);

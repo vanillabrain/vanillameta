@@ -13,22 +13,49 @@ import '/node_modules/react-resizable/css/styles.css';
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 function DashboardModify(props) {
-  const layout = [
-    { i: 'a', x: 0, y: 0, w: 1, h: 2, static: true },
-    { i: 'b', x: 1, y: 0, w: 3, h: 2, minW: 2, maxW: 4 },
-    { i: 'c', x: 4, y: 0, w: 1, h: 2 },
-  ];
-
+  // const layout = [
+  //   { i: 'a', x: 0, y: 0, w: 1, h: 2, static: true },
+  //   { i: 'b', x: 1, y: 0, w: 3, h: 2, minW: 2, maxW: 4 },
+  //   { i: 'c', x: 4, y: 0, w: 1, h: 2 },
+  // ];
+  // 현재 선택된 widget 목록
   const [selectedWidgets, setSelectedWidgets] = useState([]);
+  // 화면에 그려질 widget 목록
+  const [widgets, setWidgets] = useState([]);
+
   useEffect(() => {
     // 여기서 처리
     if (selectedWidgets.length > 0) {
-      console.log(selectedWidgets);
+      // console.log(selectedWidgets);
     }
   }, [selectedWidgets]);
 
+  useEffect(() => {
+    // 여기서 처리
+    if (widgets.length > 0) {
+      console.log(widgets);
+    }
+  }, [widgets]);
+
+  // 현재 위젯 선택창에서 선택된 위젯 목록 callback
   const handleWidgetSelect = items => {
     setSelectedWidgets(items);
+  };
+
+  const onAddItems = items => {
+    // console.log('adding', 'n' + this.state.newCounter);
+    // this.setState({
+    //     // Add a new item. It must have a unique key!
+    //     items: this.state.items.concat({
+    //         i: "n" + this.state.newCounter,
+    //         x: (this.state.items.length * 2) % (this.state.cols || 12),
+    //         y: Infinity, // puts it at the bottom
+    //         w: 2,
+    //         h: 2
+    //     }),
+    //     // Increment the counter to ensure key is always unique.
+    //     newCounter: this.state.newCounter + 1
+    // });
   };
 
   return (
@@ -67,10 +94,10 @@ function DashboardModify(props) {
             backgroundColor: '#eee',
           }}
         >
-          <ResponsiveGridLayout layout={layout} rowHeight={54} compactType={null} cols={{ lg: 20 }}>
-            <Card key="a">a</Card>
-            <Card key="b">b</Card>
-            <Card key="c">c</Card>
+          <ResponsiveGridLayout rowHeight={54} compactType={null} cols={{ lg: 20 }}>
+            {/*<Card key="a">a</Card>*/}
+            {/*<Card key="b">b</Card>*/}
+            {/*<Card key="c">c</Card>*/}
           </ResponsiveGridLayout>
         </Box>
       </PageTitleBox>
