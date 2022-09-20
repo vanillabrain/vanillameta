@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 
 const PieChart = props => {
@@ -15,16 +15,7 @@ const PieChart = props => {
       orient: 'vertical',
       left: 'left',
     },
-    series: [
-      {
-        type: 'pie',
-        smooth: true,
-      },
-      {
-        type: 'pie',
-        smooth: true,
-      },
-    ],
+    series: [],
     emphasis: {
       itemStyle: {
         shadowBlur: 10,
@@ -35,7 +26,7 @@ const PieChart = props => {
   };
 
   useEffect(() => {
-    // console.log('PieChart ', option, dataSet);
+    setComponentOption(defaultComponentOption);
     setComponentOption(createComponentOption());
   }, [option, dataSet]);
 
@@ -45,30 +36,28 @@ const PieChart = props => {
    * 컴포넌트에 맞는 형태로 생성
    */
   const createComponentOption = () => {
-    let newOption = defaultComponentOption;
+    let newOption = { ...defaultComponentOption };
 
     const getData = () =>
       dataSet.map(item => ({
         value: item[option.series.field],
         name: item[option.series.label],
       }));
-
     if (dataSet) {
       const op = {
         type: 'pie',
         smooth: true,
+        color: [...option.series.color],
         series: [
           {
             type: 'pie',
             smooth: true,
             data: getData(),
-            color: option.series.color, // 옵션값은 바뀌는데 색은 왜 제때 안 바뀔까요..
           },
         ],
       };
       newOption = { ...defaultComponentOption, ...op };
     }
-
     return newOption;
   };
 

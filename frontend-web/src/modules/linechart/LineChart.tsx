@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
+import { Box } from '@mui/material';
 
 const LineChart = props => {
   const { option, dataSet, ...rest } = props;
@@ -25,8 +26,10 @@ const LineChart = props => {
   };
 
   useEffect(() => {
-    const newOption = createComponentOption();
-    setComponentOption(newOption);
+    if (option && dataSet) {
+      const newOption = createComponentOption();
+      setComponentOption(newOption);
+    }
   }, [option, dataSet]);
 
   /**
@@ -41,13 +44,12 @@ const LineChart = props => {
     // series option에서 가져오기
     const newSeries = [];
     const newColors = [];
-    option.series.forEach((item, index) => {
-      // console.log(item, index);
+    option.series.forEach(item => {
       if (item.field) {
         const series = {
           name: item.field,
           data: dataSet.map(dataItem => dataItem[item.field]),
-          type: rest.componentType,
+          type: 'line',
           smooth: true,
         };
         newSeries.push(series);
@@ -72,7 +74,14 @@ const LineChart = props => {
   };
 
   return (
-    <ReactECharts option={componentOption} style={{ height: '100%', width: '100%' }} lazyUpdate={true} notMerge={true} />
+    <Box
+      sx={{
+        width: '100%',
+        height: '100%',
+      }}
+    >
+      <ReactECharts option={componentOption} style={{ height: '100%', width: '100%' }} lazyUpdate={true} notMerge={true} />
+    </Box>
   );
 };
 

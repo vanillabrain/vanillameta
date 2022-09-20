@@ -24,7 +24,24 @@ const DashboardView = props => {
   const [dashboardId, setDashboardId] = useState(null);
 
   const ReactGridLayout = WidthProvider(RGL);
-
+  const layout = [
+    {
+      x: 0,
+      y: 0,
+      w: 6,
+      h: 2,
+      i: '0',
+      static: true,
+    },
+    {
+      x: 6,
+      y: 0,
+      w: 6,
+      h: 3,
+      i: '1',
+      static: true,
+    },
+  ];
   useEffect(() => {
     setDashboardId(match.params.dashboard_id);
     getDashboardInfo(match.params.dashboard_id);
@@ -38,6 +55,22 @@ const DashboardView = props => {
 
   const handleRefreshClick = () => {
     getDashboardInfo(match.params.dashboard_id);
+  };
+
+  const generateWidget = () => {
+    console.log('generateWidget', dashboardInfo.widgets);
+    return dashboardInfo.widgets.map((item, index) => {
+      console.log('data', item);
+      return (
+        <Card key={index} sx={{ width: '100%', height: '100%', borderRadius: 1 }}>
+          <WidgetWrapper
+            widgetOption={item}
+            dataSetId={item.dataSetId}
+            sx={{ width: '100%', height: '100%', borderRadius: 1 }}
+          />
+        </Card>
+      );
+    });
   };
 
   return (
@@ -70,15 +103,7 @@ const DashboardView = props => {
             backgroundColor: '#eee',
           }}
         >
-          <ResponsiveGridLayout layout={dashboardInfo.layout} rowHeight={54} compactType={null} cols={{ lg: 18 }}>
-            {dashboardInfo.widgets.map((item, index) => {
-              return (
-                <Card key={index}>
-                  <WidgetWrapper data={item} />
-                </Card>
-              );
-            })}
-          </ResponsiveGridLayout>
+          <ReactGridLayout layout={layout}>{generateWidget()}</ReactGridLayout>
         </Box>
       </TitleBox>
     </PageTitleBox>
