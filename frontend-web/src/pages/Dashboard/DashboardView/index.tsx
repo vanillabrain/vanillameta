@@ -11,33 +11,20 @@ import WidgetWrapper from '@/widget/wrapper/WidgetWrapper';
 import { get } from '@/helpers/apiHelper';
 import BoardListItem from '@/components/BoardListItem';
 import RGL, { Responsive, WidthProvider } from 'react-grid-layout';
+import '/node_modules/react-grid-layout/css/styles.css';
+import '/node_modules/react-resizable/css/styles.css';
+
+const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const DashboardView = props => {
   const location = useLocation();
   const match = useMatch('/dashboard/:dashboard_id');
-  const [dashboardInfo, setDashboardInfo] = useState({ title: '', widgets: [] });
+  const [dashboardInfo, setDashboardInfo] = useState({ title: '', widgets: [], layout: [] });
 
   const [dashboardId, setDashboardId] = useState(null);
 
   const ReactGridLayout = WidthProvider(RGL);
-  const layout = [
-    {
-      x: 0,
-      y: 0,
-      w: 6,
-      h: 2,
-      i: '0',
-      static: true,
-    },
-    {
-      x: 6,
-      y: 0,
-      w: 6,
-      h: 3,
-      i: '1',
-      static: true,
-    },
-  ];
+
   useEffect(() => {
     setDashboardId(match.params.dashboard_id);
     getDashboardInfo(match.params.dashboard_id);
@@ -51,17 +38,6 @@ const DashboardView = props => {
 
   const handleRefreshClick = () => {
     getDashboardInfo(match.params.dashboard_id);
-  };
-
-  const generateWidget = () => {
-    console.log('generateWidget', dashboardInfo.widgets);
-    return dashboardInfo.widgets.map((item, index) => {
-      return (
-        <Card key={index}>
-          <WidgetWrapper data={item} />
-        </Card>
-      );
-    });
   };
 
   return (
@@ -94,7 +70,7 @@ const DashboardView = props => {
             backgroundColor: '#eee',
           }}
         >
-          <ReactGridLayout layout={layout}>
+          <ResponsiveGridLayout layout={dashboardInfo.layout} rowHeight={54} compactType={null} cols={{ lg: 18 }}>
             {dashboardInfo.widgets.map((item, index) => {
               return (
                 <Card key={index}>
@@ -102,7 +78,7 @@ const DashboardView = props => {
                 </Card>
               );
             })}
-          </ReactGridLayout>
+          </ResponsiveGridLayout>
         </Box>
       </TitleBox>
     </PageTitleBox>
