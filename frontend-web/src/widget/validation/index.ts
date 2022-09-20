@@ -7,10 +7,9 @@ export const validateTitle = title => {
   return;
 };
 /**
- * widget title validation
- * @param title
+ * widget series validation
+ * @param seriesArr
  */
-export const validateSeries = title => {
-  const result = false;
-  return;
+export const validateSeries = series => {
+  return series.field.trim() !== '';
 };

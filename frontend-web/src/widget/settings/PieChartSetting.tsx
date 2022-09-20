@@ -1,19 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import {
-  Grid,
-  List,
-  ListItem,
-  ListItemText,
-  styled,
-  TextField,
-  IconButton,
-  IconButtonProps,
-  SvgIcon,
-  Divider,
-} from '@mui/material';
+import React, { useEffect } from 'react';
+import { Grid, List, ListItem, ListItemText, styled, Divider } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
-import ColorButtonForm from '@/components/form/ColorButtonForm';
 import ColorFieldForm from '@/components/form/ColorFieldForm';
+import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
 
 const StyledList = styled(List)({
   position: 'relative',
@@ -50,24 +39,6 @@ const PieChartSetting = props => {
   const aggregationList = { value: ['sum', 'avg', 'max', 'min'], label: ['합계', '평균', '최대', '최소'] };
   const legendList = { value: ['left', 'right', 'top', 'bottom'], label: ['왼쪽', '오른쪽', '위쪽', '아래쪽'] };
 
-  // select input의 option list를 생성
-  const getDropList = (list: any[] | { value: any[]; label: any[] }) => {
-    let dropList;
-    if (Array.isArray(list)) {
-      // value와 label이 같을 경우 배열
-      const arr = list.map(item => ({ value: item, label: item }));
-      dropList = arr;
-    } else {
-      // value와 label이 다를 경우 객체
-      const value = list.value; // ['sum', 'avg']
-      const label = list.label; // ['합계', '평균']
-      const arr = value.map((item, index) => ({ value: item, label: label[index] }));
-      dropList = arr;
-    }
-    dropList.unshift({ value: '', label: '선택 안함' });
-    return dropList;
-  };
-
   // color 생성
   const getColor = () => {
     const defaultColor = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc'];
@@ -103,27 +74,32 @@ const PieChartSetting = props => {
     }));
   };
 
+  const handleSubmit = event => {
+    event.preventDefault();
+    console.log(option);
+  };
+
   return (
-    <Grid item xs={10} md={4} lg={3} sx={{ display: 'flex', flexDirection: 'column' }}>
-      <TextField
-        id="title"
-        name="title"
-        label="위젯 이름"
-        placeholder="위젯의 이름을 입력해 주세요"
-        required
-        fullWidth
-        sx={{ mt: { xs: 5, md: 0 } }}
-        value={option.title}
-        onChange={handleChange}
-      />
+    <Grid
+      onSubmit={handleSubmit}
+      component="form"
+      id="widgetAttribute"
+      item
+      xs={10}
+      md={4}
+      lg={3}
+      sx={{ display: 'flex', flexDirection: 'column' }}
+    >
+      <WidgetTitleForm value={option.title} onChange={handleChange} />
       <StyledList>
         <ListItem divider>
           <ListItemText primary="시리즈 설정" />
           <SelectForm
+            required={true}
             id="field"
             name="field"
             label="필드"
-            option={getDropList(typeOption.series)}
+            option={typeOption.series}
             value={option.series.field}
             onChange={handleSeriesChange}
           />
@@ -131,15 +107,15 @@ const PieChartSetting = props => {
             id="aggregation"
             name="aggregation"
             label="집계 방식"
-            option={getDropList(aggregationList)}
+            optionList={aggregationList}
             value={option.series.aggregation}
             onChange={handleSeriesChange}
-          />{' '}
+          />
           <SelectForm
             id="label"
             name="label"
             label="이름"
-            option={getDropList(typeOption.label)}
+            optionList={typeOption.label}
             value={option.series.label}
             onChange={handleSeriesChange}
           />
@@ -154,7 +130,7 @@ const PieChartSetting = props => {
                   name={`color${index + 1}`}
                   value={option.series.color[index]}
                   label={dataLabel}
-                  option={option}
+                  optionList={option}
                   setOption={setOption}
                   index={index}
                 />
@@ -168,7 +144,7 @@ const PieChartSetting = props => {
             id="legendPosition"
             name="legendPosition"
             label="위치"
-            option={getDropList(legendList)}
+            optionList={legendList}
             value={option.legendPosition}
             onChange={handleChange}
           />

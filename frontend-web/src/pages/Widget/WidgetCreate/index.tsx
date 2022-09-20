@@ -35,7 +35,8 @@ function WidgetCreate(props) {
 
   const [isWidgetValueValid, setIsWidgetValueValid] = useState(false);
   const [isNextButtonDisabled, setIsNextButtonDisabled] = useState(true);
-  const [isSubmit, setIsSubmit] = useState(false);
+  // const [isSubmit, setIsSubmit] = useState(false);
+  const isSubmit = false;
 
   useEffect(() => {
     if (activeStep === 0 && !!dataSet) {
@@ -44,11 +45,6 @@ function WidgetCreate(props) {
     }
 
     if (activeStep === 1 && !!widgetType) {
-      setIsNextButtonDisabled(false);
-      return;
-    }
-
-    if (activeStep === steps.length - 1) {
       setIsNextButtonDisabled(false);
       return;
     }
@@ -69,17 +65,20 @@ function WidgetCreate(props) {
   };
 
   // 위젯 속성 저장
-  const handleSubmit = event => {
+  const handleSubmitClick = event => {
     event.preventDefault();
-    setIsSubmit(true);
+    // isSubmit = true;
 
-    if (!isWidgetValueValid) {
-      return;
-    }
-    console.log('datesetId:', dataSet);
-    console.log('widgetType:', widgetType);
-    console.log('widgetTitle:', widgetTitle);
-    console.log('widgetOption:', widgetOption);
+    console.log(event);
+
+    return false;
+    // if (!isWidgetValueValid) {
+    //   return;
+    // }
+    // console.log('datesetId:', dataSet);
+    // console.log('widgetType:', widgetType);
+    // console.log('widgetTitle:', widgetTitle);
+    // console.log('widgetOption:', widgetOption);
   };
 
   return (
@@ -89,13 +88,13 @@ function WidgetCreate(props) {
         button={
           <Stack>
             <ConfirmCancelButton
-              confirmLabel={activeStep === steps.length - 1 ? '저장' : '다음'}
+              confirmLabel={activeStep !== steps.length - 1 ? '다음' : '저장'}
               cancelLabel="이전"
-              confirmProps={{
-                form: 'widgetAttribute',
-                onClick: activeStep === steps.length - 1 ? handleSubmit : handleNext,
-                disabled: isNextButtonDisabled,
-              }}
+              confirmProps={
+                activeStep !== steps.length - 1
+                  ? { type: 'button', onClick: handleNext, disabled: isNextButtonDisabled }
+                  : { form: 'widgetAttribute', type: 'submit' }
+              }
               cancelProps={{
                 onClick: handleBack,
                 disabled: activeStep === 0,

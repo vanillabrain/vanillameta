@@ -81,7 +81,7 @@ function WidgetAttributeSelect(props) {
   }, [option]);
 
   return (
-    <Grid container component="form" id="widgetAttribute" sx={{ justifyContent: { xs: 'center', md: 'space-between' } }}>
+    <Grid container sx={{ justifyContent: { xs: 'center', md: 'space-between' } }}>
       <Grid item xs={12} md={7.5} lg={8.5}>
         <WidgetBox>{switchChart.chart}</WidgetBox>
       </Grid>

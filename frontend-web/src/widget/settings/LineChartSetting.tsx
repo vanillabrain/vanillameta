@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import ColorButtonForm from '@/components/form/ColorButtonForm';
+import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
 
 const StyledList = styled(List)({
   position: 'relative',
@@ -39,7 +40,7 @@ const StyledList = styled(List)({
 
 const DefaultIconButton = icon =>
   styled((props: IconButtonProps) => (
-    <IconButton size="small" sx={{ width: '38px', height: '34px' }} {...props}>
+    <IconButton size="small" sx={{ width: '38px', height: '38px' }} {...props}>
       <SvgIcon fontSize="small">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512">
           {icon}
@@ -67,27 +68,11 @@ const LineChartSetting = props => {
   const legendList = { value: ['left', 'right', 'top', 'bottom'], label: ['왼쪽', '오른쪽', '위쪽', '아래쪽'] };
   const [addedSeriesLength, setAddedSeriesLength] = useState(1);
 
-  const getDropList = (list: any[] | { value: any[]; label: any[] }) => {
-    let dropList;
-    if (Array.isArray(list)) {
-      // value와 label이 같을 경우 배열
-      const arr = list.map(item => ({ value: item, label: item }));
-      dropList = arr;
-    } else {
-      // value와 label이 다를 경우 객체
-      const value = list.value; // ['sum', 'avg']
-      const label = list.label; // ['합계', '평균']
-      const arr = value.map((item, index) => ({ value: item, label: label[index] }));
-      dropList = arr;
-    }
-    dropList.unshift({ value: '', label: '선택 안함' });
-    return dropList;
-  };
-
   // validation
-  const [isTitleValid, setIsTitleValid] = useState(true);
-  // const [checkAttrValid, setCheckAttrValid] = useState({});
+  // const [isTitleValid, setIsTitleValid] = useState(true);
   const [invalidSeries, setInvalidSeries] = useState([]);
+
+  // console.log(invalidSeries);
 
   const handleChange = event => {
     setOption({ ...option, [event.target.name]: event.target.value });
@@ -97,8 +82,8 @@ const LineChartSetting = props => {
     const key = event.target.name.slice(0, -1);
     const index = Number(event.target.name.slice(-1)[0]) - 1;
 
-    console.log('index ', index);
-    checkSeries(index);
+    // console.log('index ', index);
+    // checkSeries(index);
 
     setOption(prevState => {
       const tempOption = { ...prevState };
@@ -150,10 +135,6 @@ const LineChartSetting = props => {
       return;
     }
 
-    // error state 초기화
-    // setCheckAttrValid({});
-    // setInvalidSeries;
-
     setAddedSeriesLength(prevState => prevState - 1);
     setOption(prevState => {
       const tempOption = { ...prevState };
@@ -162,42 +143,41 @@ const LineChartSetting = props => {
     });
   };
 
-  const checkTitle = () => {
-    const emptyInput = option.title.trim() === '';
-    const overLength = option.title.length > 20;
+  // const checkTitle = () => {
+  //   const emptyInput = option.title.trim() === '';
+  //   const overLength = option.title.length > 20;
+  //
+  //   if (emptyInput || overLength) {
+  //     setIsTitleValid(false);
+  //     return;
+  //   }
+  //   setIsTitleValid(true);
+  // };
 
-    if (emptyInput || overLength) {
-      setIsTitleValid(false);
-      return;
-    }
-    setIsTitleValid(true);
-  };
+  // const checkSeries = index => {
+  //   option.series.forEach(item => {
+  //     setInvalidSeries(prevState => {
+  //       return [...prevState, index];
+  //     });
+  //   });
+  // };
 
-  const checkSeries = index => {
-    option.series.forEach(
-      () => {
-        setInvalidSeries(prevState => {
-          return [...prevState, index];
-        });
-      }, // valid value 여부
-    );
+  const handleSubmit = event => {
+    console.log(option);
   };
 
   return (
-    <Grid item xs={10} md={4} lg={3} sx={{ display: 'flex', flexDirection: 'column' }}>
-      <TextField
-        id="title"
-        name="title"
-        label="위젯 이름"
-        placeholder="위젯의 이름을 입력해 주세요"
-        required
-        fullWidth
-        error={!isTitleValid}
-        sx={{ mt: { xs: 5, md: 0 } }}
-        value={option.title}
-        onBlur={checkTitle}
-        onChange={handleChange}
-      />
+    <Grid
+      onSubmit={handleSubmit}
+      component="form"
+      id="widgetAttribute"
+      item
+      xs={10}
+      md={4}
+      lg={3}
+      sx={{ display: 'flex', flexDirection: 'column' }}
+    >
+      <WidgetTitleForm value={option.title} onChange={handleChange} />
       <StyledList>
         <ListItem divider>
           <ListItemText primary="X축 설정" />
@@ -205,7 +185,7 @@ const LineChartSetting = props => {
             id="xField"
             name="xField"
             label="X축"
-            option={getDropList(typeOption.xField)}
+            optionList={typeOption.xField}
             value={option.xField}
             onChange={handleChange}
           />
@@ -223,20 +203,20 @@ const LineChartSetting = props => {
           {option.series.map((item, index) => (
             <React.Fragment key={index}>
               <SelectForm
+                required={true}
                 id={`field${index + 1}`}
                 name={`field${index + 1}`}
                 label={`필드 ${index + 1}`}
-                option={getDropList(typeOption.series)}
+                optionList={typeOption.series}
                 value={item.field}
                 onChange={handleSeriesChange}
                 colorButton={<ColorButtonForm index={index} option={option} setOption={setOption} />}
-                error={invalidSeries.find(item => item === index)}
               />
               <SelectForm
                 id={`aggregation${index + 1}`}
                 name={`aggregation${index + 1}`}
                 label={' '}
-                option={getDropList(aggregationList)}
+                optionList={aggregationList}
                 value={item.aggregation}
                 onChange={handleSeriesChange}
                 colorButton={0 < index ? <RemoveIconButton onClick={handleRemoveClick} id={index} /> : ' '}
@@ -251,7 +231,7 @@ const LineChartSetting = props => {
             id="legendPosition"
             name="legendPosition"
             label="위치"
-            option={getDropList(legendList)}
+            optionList={legendList}
             value={option.legendPosition}
             onChange={handleChange}
           />
