@@ -4,9 +4,9 @@ import CircleIcon from '@mui/icons-material/Circle';
 import { SketchPicker } from 'react-color';
 
 function ColorFieldForm(props) {
-  const { id, label, value, option, setOption, index, endButton, ...rest } = props;
+  const { id, label, value, optionList, setOption, index, endButton, ...rest } = props;
 
-  const color = !!option ? option.series.color[index] : '#eee';
+  const color = !!optionList ? optionList.series.color[index] : '#eee';
   const labelItem = label[index] || '';
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
 
@@ -87,7 +87,7 @@ ColorFieldForm.defaultProps = {
   id: '',
   label: [],
   index: 0,
-  option: '',
+  optionList: '',
   setOption: '',
 };
 

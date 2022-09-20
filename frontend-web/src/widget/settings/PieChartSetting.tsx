@@ -74,22 +74,8 @@ const PieChartSetting = props => {
     }));
   };
 
-  const handleSubmit = event => {
-    event.preventDefault();
-    console.log(option);
-  };
-
   return (
-    <Grid
-      onSubmit={handleSubmit}
-      component="form"
-      id="widgetAttribute"
-      item
-      xs={10}
-      md={4}
-      lg={3}
-      sx={{ display: 'flex', flexDirection: 'column' }}
-    >
+    <Grid item xs={10} md={4} lg={3} sx={{ display: 'flex', flexDirection: 'column' }}>
       <WidgetTitleForm value={option.title} onChange={handleChange} />
       <StyledList>
         <ListItem divider>
@@ -99,7 +85,7 @@ const PieChartSetting = props => {
             id="field"
             name="field"
             label="필드"
-            option={typeOption.series}
+            optionList={typeOption.series}
             value={option.series.field}
             onChange={handleSeriesChange}
           />

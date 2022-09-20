@@ -10,7 +10,7 @@ import WidgetBox from '@/components/widget/WidgetBox';
 import { WIDGET_TYPE } from '@/constant';
 
 function WidgetAttributeSelect(props) {
-  const { dataSetId, componentType, prevOption, setWidgetOption, setIsValid, isSubmit } = props;
+  const { dataSetId, componentType, prevOption } = props;
 
   const defaultComponentData = componentList.find(item => item.id === componentType && item);
   const [option, setOption] = useState(defaultComponentData.option);
@@ -24,7 +24,7 @@ function WidgetAttributeSelect(props) {
   const [switchChart, setSwitchChart] = useState(defaultChart);
 
   useEffect(() => {
-    console.log('option changed', option);
+    // console.log('option changed', option);
 
     const ChartProps = {
       option: option,
@@ -34,8 +34,6 @@ function WidgetAttributeSelect(props) {
     const ChartSettingProps = {
       option: option,
       setOption: setOption,
-      setIsValid: setIsValid,
-      isSubmit: isSubmit,
     };
 
     switch (componentType) {
@@ -69,7 +67,7 @@ function WidgetAttributeSelect(props) {
         });
         break;
     }
-  }, [option, componentType, chartData, isSubmit]);
+  }, [option, componentType, chartData]);
 
   // 이미 저장된 위젯값이 있는 경우 불러오기
   useEffect(() => {
@@ -78,12 +76,27 @@ function WidgetAttributeSelect(props) {
     }
   }, [prevOption]);
 
-  useEffect(() => {
-    setWidgetOption(option);
-  }, [option]);
+  const handleSubmit = event => {
+    event.preventDefault();
+
+    if (option.title === '') {
+      return;
+    }
+
+    console.log('widgetTitle:', option.title);
+    console.log('datesetId:', dataSetId);
+    console.log('widgetType:', componentType);
+    console.log('widgetOption:', option);
+  };
 
   return (
-    <Grid container sx={{ justifyContent: { xs: 'center', md: 'space-between' } }}>
+    <Grid
+      onSubmit={handleSubmit}
+      component="form"
+      id="widgetAttribute"
+      container
+      sx={{ justifyContent: { xs: 'center', md: 'space-between' } }}
+    >
       <Grid item xs={12} md={7.5} lg={8.5}>
         <WidgetBox>{switchChart.chart}</WidgetBox>
       </Grid>

@@ -16,8 +16,6 @@ function WidgetCreate(props) {
 
   const [dataSet, setDataSet] = useState(null); // step 1
   const [widgetType, setWidgetType] = useState(null); // step 2
-  const [widgetOption, setWidgetOption] = useState(null); // step 3
-  const [widgetTitle, setWidgetTitle] = useState(null);
 
   // 개발 편의상 임시로 적용
   useEffect(() => {
@@ -26,16 +24,7 @@ function WidgetCreate(props) {
     setActiveStep(2);
   }, []);
 
-  useEffect(() => {
-    if (!widgetOption) {
-      return;
-    }
-    setWidgetTitle(widgetOption.title);
-  }, [widgetOption]);
-
-  const [isWidgetValueValid, setIsWidgetValueValid] = useState(false);
   const [isNextButtonDisabled, setIsNextButtonDisabled] = useState(true);
-  const [isSubmit, setIsSubmit] = useState(false);
 
   useEffect(() => {
     if (activeStep === 0 && !!dataSet) {
@@ -53,28 +42,14 @@ function WidgetCreate(props) {
 
   const handleNext = () => {
     if (activeStep < steps.length - 1) {
-      setActiveStep(prevActiveStep => prevActiveStep + 1);
+      setActiveStep(prevState => prevState + 1);
     }
   };
 
   const handleBack = () => {
     if (activeStep > 0) {
-      setActiveStep(prevActiveStep => prevActiveStep - 1);
+      setActiveStep(prevState => prevState - 1);
     }
-  };
-
-  // 위젯 속성 저장
-  const handleSubmit = event => {
-    event.preventDefault();
-    setIsSubmit(true);
-    console.log('widgetOption:', widgetOption);
-    if (!isWidgetValueValid) {
-      return;
-    }
-    console.log('datesetId:', dataSet);
-    console.log('widgetType:', widgetType);
-    console.log('widgetTitle:', widgetTitle);
-    console.log('widgetOption:', widgetOption);
   };
 
   return (
@@ -109,7 +84,7 @@ function WidgetCreate(props) {
               mb: 6,
             }}
           >
-            {steps.map((label, index) => {
+            {steps.map(label => {
               const stepProps: { completed?: boolean } = {};
               const labelProps: {
                 optional?: React.ReactNode;
@@ -129,13 +104,7 @@ function WidgetCreate(props) {
           <WidgetTypeSelect widgetType={widgetType} setWidgetType={setWidgetType} />
         ) : (
           <TitleBox title="위젯 속성 설정">
-            <WidgetAttributeSelect
-              dataSetId={dataSet}
-              componentType={widgetType}
-              setWidgetOption={setWidgetOption}
-              setIsValid={setIsWidgetValueValid}
-              isSubmit={isSubmit}
-            />
+            <WidgetAttributeSelect dataSetId={dataSet} componentType={widgetType} />
           </TitleBox>
         )}
       </PageTitleBox>
