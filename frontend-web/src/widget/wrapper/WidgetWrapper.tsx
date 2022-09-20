@@ -2,12 +2,12 @@ import React, { useEffect } from 'react';
 import { Box } from '@mui/material';
 
 const WidgetWrapper = props => {
-  const { widgetId } = props;
+  const { data } = props;
   useEffect(() => {
-    if (widgetId) {
-      console.log('widgetId : ', widgetId);
+    if (data) {
+      console.log('widgetId : ', data);
     }
-  }, [widgetId]);
+  }, [data]);
   return <Box></Box>;
 };
 
