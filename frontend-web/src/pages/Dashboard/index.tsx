@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import PageContainer from '@/components/PageContainer';
 import PageTitleBox from '@/components/PageTitleBox';
 import BoardList from '@/components/BoardList';

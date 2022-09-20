@@ -49,8 +49,8 @@ const DashboardView = props => {
     });
   };
 
-  const handleRenewClick = () => {
-    console.log('renew');
+  const handleRefreshClick = () => {
+    getDashboardInfo(match.params.dashboard_id);
   };
 
   const generateWidget = () => {
@@ -75,7 +75,7 @@ const DashboardView = props => {
         title={dashboardInfo.title}
         button={
           <Stack direction="row" spacing={1}>
-            <IconButton onClick={handleRenewClick} aria-label="새로고침" color="primary">
+            <IconButton onClick={handleRefreshClick} aria-label="새로고침" color="primary">
               <AutorenewIcon />
             </IconButton>
             <IconButton
