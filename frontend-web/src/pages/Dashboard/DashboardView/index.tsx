@@ -1,55 +1,73 @@
 import React, { useEffect, useState } from 'react';
-import { Box, IconButton, Stack, Card } from '@mui/material';
-import { Link as RouterLink, useLocation, useSearchParams } from 'react-router-dom';
+import { Box, Card, IconButton, Stack } from '@mui/material';
+import { Link as RouterLink, useLocation, useMatch, useSearchParams } from 'react-router-dom';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PageTitleBox from '@/components/PageTitleBox';
 import TitleBox from '@/components/TitleBox';
-import { Outlet, useParams } from 'react-router-dom';
 import { DialogAlertIconButton } from '@/components/button/DialogAlertButton';
+import WidgetWrapper from '@/widget/wrapper/WidgetWrapper';
 import { get } from '@/helpers/apiHelper';
-import GridLayout, { Responsive, WidthProvider } from 'react-grid-layout';
-import '/node_modules/react-grid-layout/css/styles.css';
-import '/node_modules/react-resizable/css/styles.css';
-
-const ResponsiveGridLayout = WidthProvider(Responsive);
+import BoardListItem from '@/components/BoardListItem';
+import RGL, { Responsive, WidthProvider } from 'react-grid-layout';
 
 const DashboardView = props => {
-  const [dashboardInfo, setDashboardInfo] = useState({});
-  const [dashboardName, setDashboardName] = useState('');
-  const { dashboard_id } = useParams();
   const location = useLocation();
+  const match = useMatch('/dashboard/:dashboard_id');
+  const [dashboardInfo, setDashboardInfo] = useState({ title: '', widgets: [] });
 
-  console.log('대시보드 view 호출 ', dashboard_id);
+  const [dashboardId, setDashboardId] = useState(null);
 
+  const ReactGridLayout = WidthProvider(RGL);
+  const layout = [
+    {
+      x: 0,
+      y: 0,
+      w: 6,
+      h: 2,
+      i: '0',
+      static: true,
+    },
+    {
+      x: 6,
+      y: 0,
+      w: 6,
+      h: 3,
+      i: '1',
+      static: true,
+    },
+  ];
   useEffect(() => {
-    // dashboard 호출
-    // todo 서비스 연결시 dashboard_id 값을 이용하여 호출
-    getDashboardInfo(dashboard_id);
+    setDashboardId(match.params.dashboard_id);
+    getDashboardInfo(match.params.dashboard_id);
   }, []);
 
-  useEffect(() => {
-    console.log(dashboardInfo);
-    setDashboardName(dashboardInfo['title']);
-  }, [dashboardInfo]);
-
-  // dashboard 조회
-  const getDashboardInfo = dashboardId => {
-    get('/data/dummyDashboardInfo.json')
-      .then(response => response.data)
-      .then(data => setDashboardInfo(data));
+  const getDashboardInfo = id => {
+    get('/data/dummyDashboardInfo.json').then(response => {
+      setDashboardInfo(response.data);
+    });
   };
 
-  // 대시보드 재조회
-  const handleRefreshClick = dashboardId => {
-    getDashboardInfo(dashboard_id);
+  const handleRefreshClick = () => {
+    getDashboardInfo(match.params.dashboard_id);
+  };
+
+  const generateWidget = () => {
+    console.log('generateWidget', dashboardInfo.widgets);
+    return dashboardInfo.widgets.map((item, index) => {
+      return (
+        <Card key={index}>
+          <WidgetWrapper data={item} />
+        </Card>
+      );
+    });
   };
 
   return (
     <PageTitleBox title="대시보드 조회">
       <TitleBox
-        title={dashboardName}
+        title={dashboardInfo.title}
         button={
           <Stack direction="row" spacing={1}>
             <IconButton onClick={handleRefreshClick} aria-label="새로고침" color="primary">
@@ -57,18 +75,17 @@ const DashboardView = props => {
             </IconButton>
             <IconButton
               component={RouterLink}
-              to={`/dashboard/modify?id=${dashboard_id}&name=${dashboardName}`}
+              to={`/dashboard/modify?id=${dashboardId}&name=${dashboardInfo.title}`}
               aria-label="수정"
             >
               <EditIcon />
             </IconButton>
             <DialogAlertIconButton size="small" icon={<DeleteIcon />}>
-              {`<${dashboardName}>을 삭제하시겠습니까?`}
+              {`<${dashboardInfo.title}>을 삭제하시겠습니까?`}
             </DialogAlertIconButton>
           </Stack>
         }
       >
-        {/*<Box sx={{ width: '100%', height: '50vw', borderRadius: 1, backgroundColor: '#eee' }}>*/}
         <Box
           sx={{
             width: '1280px',
@@ -77,24 +94,18 @@ const DashboardView = props => {
             backgroundColor: '#eee',
           }}
         >
-          <ResponsiveGridLayout rowHeight={54} compactType={null} cols={{ lg: 20 }}>
-            {/*<Card key="a">a</Card>*/}
-            {/*<Card key="b">b</Card>*/}
-            {/*<Card key="c">c</Card>*/}
-          </ResponsiveGridLayout>
+          <ReactGridLayout layout={layout}>
+            {dashboardInfo.widgets.map((item, index) => {
+              return (
+                <Card key={index}>
+                  <WidgetWrapper data={item} />
+                </Card>
+              );
+            })}
+          </ReactGridLayout>
         </Box>
       </TitleBox>
     </PageTitleBox>
-  );
-};
-
-// widget 생성
-const createWidgetElement = props => {
-  console.log('위젯을 생성한다.');
-  return (
-    <>
-      <Card key="a">a</Card>
-    </>
   );
 };
 

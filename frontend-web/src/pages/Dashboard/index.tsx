@@ -5,7 +5,6 @@ import BoardList from '@/components/BoardList';
 import { Outlet, useParams } from 'react-router-dom';
 import AddIconButton from '@/components/button/AddIconButton';
 import { get } from '@/helpers/apiHelper';
-import axios from 'axios';
 
 const title = '대시보드';
 
