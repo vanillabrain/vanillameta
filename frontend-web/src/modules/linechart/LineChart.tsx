@@ -44,8 +44,7 @@ const LineChart = props => {
     // series option에서 가져오기
     const newSeries = [];
     const newColors = [];
-    option.series.forEach((item, index) => {
-      // console.log(item, index);
+    option.series.forEach(item => {
       if (item.field) {
         const series = {
           name: item.field,

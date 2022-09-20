@@ -24,6 +24,8 @@ function WidgetAttributeSelect(props) {
   const [switchChart, setSwitchChart] = useState(defaultChart);
 
   useEffect(() => {
+    console.log('option changed', option);
+
     const ChartProps = {
       option: option,
       dataSet: chartData,
