@@ -8,7 +8,7 @@
       "title": "라인차트 위젯",
       "date": "2022-04-11T18:27:45+09:00",
       "dataSetId": "",
-      "type": "lineChart",
+      "type": "CHART_LINE",
       "option": {
         "xField": "name",
         "series": [
@@ -29,7 +29,7 @@
             "aggregation": ""
           }
         ],
-        "legendPosition": "left"
+        "legendPosition": "top"
       }
     }
   ]
