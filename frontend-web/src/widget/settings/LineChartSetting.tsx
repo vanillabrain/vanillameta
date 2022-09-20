@@ -85,64 +85,9 @@ const LineChartSetting = props => {
   };
 
   // validation
-  const [isTitleTouched, setIsTitleTouched] = useState(false);
-  const [isTitleValid, setIsTitleValid] = useState(false);
-  const [isAttrTouched, setIsAttrTouched] = useState({});
-  const [isAttrValid, setIsAttrValid] = useState(false);
-  const [checkAttrValid, setCheckAttrValid] = useState({});
-
-  // submit 되었을 때 모든 input touched
-  useEffect(() => {
-    if (isSubmit) {
-      setIsTitleTouched(true);
-      option.series.forEach((item, index) => {
-        setIsAttrTouched(prevState => ({ ...prevState, [index]: true }));
-      });
-    }
-  }, [isSubmit, option]);
-
-  // widget title이 유효하지 않을 때 error
-  useEffect(() => {
-    if (isTitleTouched) {
-      const emptyInput = option.title.trim() === '';
-      const overLength = option.title.length > 20;
-
-      if ((isTitleTouched && emptyInput) || overLength) {
-        setIsTitleValid(false);
-        setIsValid(false);
-        return;
-      }
-      setIsTitleValid(true);
-    }
-  }, [option, isTitleTouched]);
-
-  // widget series 중 빈 값이 있다면 error
-  useEffect(() => {
-    // widget 속성 중 필수 값 series를 돌면서 validation check
-    if (!!isAttrTouched) {
-      option.series.forEach(
-        (item, index) => {
-          if (isAttrTouched[index]) {
-            setCheckAttrValid(prevState => ({ ...prevState, [index]: item.field !== '' }));
-          }
-        }, // valid value 여부
-      );
-
-      if (Object.values(checkAttrValid).every(item => item)) {
-        // widget 속성이 모두 true면
-        setIsAttrValid(true);
-      } else {
-        setIsAttrValid(false);
-      }
-    }
-  }, [option, isAttrTouched]);
-
-  // 모든 값이 유효할 때
-  useEffect(() => {
-    if (isTitleValid && isAttrValid) {
-      setIsValid(true);
-    }
-  }, [isTitleValid, isAttrValid]);
+  const [isTitleValid, setIsTitleValid] = useState(true);
+  // const [checkAttrValid, setCheckAttrValid] = useState({});
+  const [invalidSeries, setInvalidSeries] = useState([]);
 
   const handleChange = event => {
     setOption({ ...option, [event.target.name]: event.target.value });
@@ -151,6 +96,9 @@ const LineChartSetting = props => {
   const handleSeriesChange = event => {
     const key = event.target.name.slice(0, -1);
     const index = Number(event.target.name.slice(-1)[0]) - 1;
+
+    console.log('index ', index);
+    checkSeries(index);
 
     setOption(prevState => {
       const tempOption = { ...prevState };
@@ -203,8 +151,8 @@ const LineChartSetting = props => {
     }
 
     // error state 초기화
-    setIsAttrTouched({});
-    setCheckAttrValid({});
+    // setCheckAttrValid({});
+    // setInvalidSeries;
 
     setAddedSeriesLength(prevState => prevState - 1);
     setOption(prevState => {
@@ -212,6 +160,27 @@ const LineChartSetting = props => {
       tempOption.series.pop();
       return tempOption;
     });
+  };
+
+  const checkTitle = () => {
+    const emptyInput = option.title.trim() === '';
+    const overLength = option.title.length > 20;
+
+    if (emptyInput || overLength) {
+      setIsTitleValid(false);
+      return;
+    }
+    setIsTitleValid(true);
+  };
+
+  const checkSeries = index => {
+    option.series.forEach(
+      () => {
+        setInvalidSeries(prevState => {
+          return [...prevState, index];
+        });
+      }, // valid value 여부
+    );
   };
 
   return (
@@ -223,10 +192,10 @@ const LineChartSetting = props => {
         placeholder="위젯의 이름을 입력해 주세요"
         required
         fullWidth
-        error={isTitleTouched && !isTitleValid}
+        error={!isTitleValid}
         sx={{ mt: { xs: 5, md: 0 } }}
         value={option.title}
-        onBlur={() => setIsTitleTouched(true)}
+        onBlur={checkTitle}
         onChange={handleChange}
       />
       <StyledList>
@@ -259,10 +228,9 @@ const LineChartSetting = props => {
                 label={`필드 ${index + 1}`}
                 option={getDropList(typeOption.series)}
                 value={item.field}
-                onBlur={() => setIsAttrTouched(prevState => ({ ...prevState, [index]: true }))}
                 onChange={handleSeriesChange}
                 colorButton={<ColorButtonForm index={index} option={option} setOption={setOption} />}
-                error={isAttrTouched[index] && !checkAttrValid[index]}
+                error={invalidSeries.find(item => item === index)}
               />
               <SelectForm
                 id={`aggregation${index + 1}`}
