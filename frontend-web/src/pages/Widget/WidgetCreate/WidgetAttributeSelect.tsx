@@ -53,14 +53,28 @@ function WidgetAttributeSelect(props) {
         case WIDGET_TYPE.CHART_LINE:
           setSwitchChart({
             ...switchChart,
-            chart: <LineChart {...ChartProps} componentType="line" />,
+            chart: <LineChart {...ChartProps} type="line" />,
+            chartSetting: <LineChartSetting {...ChartSettingProps} />,
+          });
+          break;
+        case WIDGET_TYPE.CHART_AREA:
+          setSwitchChart({
+            ...switchChart,
+            chart: <LineChart {...ChartProps} type="line" areaStyle={{}} />,
             chartSetting: <LineChartSetting {...ChartSettingProps} />,
           });
           break;
         case WIDGET_TYPE.CHART_BAR:
           setSwitchChart({
             ...switchChart,
-            chart: <LineChart {...ChartProps} componentType="bar" />,
+            chart: <LineChart {...ChartProps} type="bar" />,
+            chartSetting: <LineChartSetting {...ChartSettingProps} />,
+          });
+          break;
+        case WIDGET_TYPE.CHART_COLUMN:
+          setSwitchChart({
+            ...switchChart,
+            chart: <LineChart {...ChartProps} type="bar" />,
             chartSetting: <LineChartSetting {...ChartSettingProps} />,
           });
           break;

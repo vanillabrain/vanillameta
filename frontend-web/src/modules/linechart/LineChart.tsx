@@ -51,6 +51,7 @@ const LineChart = props => {
           data: dataSet.map(dataItem => dataItem[item.field]),
           type: 'line',
           smooth: true,
+          ...rest,
         };
         newSeries.push(series);
         newColors.push(item.color);
@@ -61,6 +62,7 @@ const LineChart = props => {
         xAxis: {
           type: 'category',
           data: !!option.xField ? dataSet.map(item => item[option.xField]) : '',
+          boundaryGap: false,
         },
         series: newSeries,
         color: newColors,

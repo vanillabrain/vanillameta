@@ -18,8 +18,26 @@
     }
   },
   {
+    "id": "CHART_AREA",
+    "title": "영역형 차트",
+    "icon": "icon/area-chart.png",
+    "caption": "Area Chart",
+    "option": {
+      "title": "",
+      "xField": "",
+      "series": [
+        {
+          "field": "",
+          "color": "#5470c6",
+          "aggregation": ""
+        }
+      ],
+      "legendPosition": "left"
+    }
+  },
+  {
     "id": "CHART_BAR",
-    "title": "막대형 차트",
+    "title": "막대형 세로 차트",
     "icon": "icon/bar-chart.png",
     "caption": "Bar Chart",
     "option": {
@@ -35,37 +53,27 @@
     }
   },
   {
-  "id": "CHART_BUBBLE",
-  "title": "거품형 차트",
-  "icon": "icon/bubble-chart.png",
-  "caption": "Bubble Chart",
-  "option": {
-    "xField": "label",
-    "series": [
-      {
-        "field": "value1",
-        "color": "#43afef",
-        "aggregation": ""
-      },
-      {
-        "field": "value2",
-        "color": "#b9e7ff",
-        "aggregation": ""
-      }
-    ,
-      {
-        "field": "value2",
-        "color": "#d9d9d9",
-        "aggregation": ""
-      }
-    ]
-  }
-},
+    "id": "CHART_COLUMN",
+    "title": "막대형 가로 차트",
+    "icon": "icon/bar-chart.png",
+    "caption": "Column Chart",
+    "option": {
+      "title": "",
+      "xField": "",
+      "series": [
+        {
+          "field": "",
+          "color": "#5470c6",
+          "aggregation": ""
+        }
+      ]
+    }
+  },
   {
-    "id": "areaChart",
-    "title": "영역형 차트",
-    "icon": "icon/area-chart.png",
-    "caption": "Area Chart",
+    "id": "mixedLineBarChart",
+    "title": "복합 차트",
+    "icon": "icon/mixed-chart.png",
+    "caption": "Mixed Chart",
     "option": {
       "xField": "label",
       "series": [
@@ -104,10 +112,10 @@
     }
   },
   {
-    "id": "mixedLineBarChart",
-    "title": "복합 차트",
-    "icon": "icon/mixed-chart.png",
-    "caption": "Mixed Chart",
+    "id": "polarAreaChart",
+    "title": "극좌표형 차트",
+    "icon": "icon/polar-chart.png",
+    "caption": "Polar Area Chart",
     "option": {
       "xField": "label",
       "series": [
@@ -131,10 +139,10 @@
     }
   },
   {
-    "id": "polarAreaChart",
-    "title": "극좌표형 차트",
-    "icon": "icon/polar-chart.png",
-    "caption": "Polar Area Chart",
+    "id": "CHART_BUBBLE",
+    "title": "거품형 차트",
+    "icon": "icon/bubble-chart.png",
+    "caption": "Bubble Chart",
     "option": {
       "xField": "label",
       "series": [
