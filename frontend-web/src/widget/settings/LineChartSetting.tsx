@@ -58,10 +58,10 @@ const RemoveIconButton = DefaultIconButton(
 );
 
 const LineChartSetting = props => {
-  const { option, setOption } = props;
+  const { option, setOption, axisReverse, ...rest } = props;
 
   // props로부터 받기 ------------------------------------
-  const typeOption = { series: ['high', 'low', 'avg'], xField: ['name', 'color'] }; // series type
+  const typeOption = { series: ['high', 'low', 'avg'], [!axisReverse ? 'xField' : 'yField']: ['name', 'color'] }; // series type
   // ----------------------------------------------------
 
   const aggregationList = { value: ['sum', 'avg', 'max', 'min'], label: ['합계', '평균', '최대', '최소'] };
@@ -132,11 +132,11 @@ const LineChartSetting = props => {
         <ListItem divider>
           <ListItemText primary="X축 설정" />
           <SelectForm
-            id="xField"
-            name="xField"
-            label="X축"
-            optionList={typeOption.xField}
-            value={option.xField}
+            id={!axisReverse ? 'xField' : 'yField'}
+            name={!axisReverse ? 'xField' : 'yField'}
+            label={!axisReverse ? 'X축' : 'Y축'}
+            optionList={typeOption[!axisReverse ? 'xField' : 'yField']}
+            value={option[!axisReverse ? 'xField' : 'yField']}
             onChange={handleChange}
           />
         </ListItem>

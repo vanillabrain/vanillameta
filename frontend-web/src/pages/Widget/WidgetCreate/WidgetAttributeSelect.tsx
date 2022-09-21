@@ -53,29 +53,51 @@ function WidgetAttributeSelect(props) {
         case WIDGET_TYPE.CHART_LINE:
           setSwitchChart({
             ...switchChart,
-            chart: <LineChart {...ChartProps} type="line" />,
+            chart: <LineChart {...ChartProps} />,
             chartSetting: <LineChartSetting {...ChartSettingProps} />,
           });
           break;
         case WIDGET_TYPE.CHART_AREA:
           setSwitchChart({
             ...switchChart,
-            chart: <LineChart {...ChartProps} type="line" areaStyle={{}} />,
+            chart: <LineChart {...ChartProps} seriesOp={{ areaStyle: {} }} />,
             chartSetting: <LineChartSetting {...ChartSettingProps} />,
           });
           break;
         case WIDGET_TYPE.CHART_BAR:
           setSwitchChart({
             ...switchChart,
-            chart: <LineChart {...ChartProps} type="bar" />,
+            chart: (
+              <LineChart
+                {...ChartProps}
+                seriesOp={{ type: 'bar' }}
+                defaultOp={{
+                  tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                  yAxis: { boundaryGap: [0, 0.01] },
+                  emphasis: { focus: 'none' },
+                }}
+              />
+            ),
             chartSetting: <LineChartSetting {...ChartSettingProps} />,
           });
           break;
         case WIDGET_TYPE.CHART_COLUMN:
           setSwitchChart({
             ...switchChart,
-            chart: <LineChart {...ChartProps} type="bar" />,
-            chartSetting: <LineChartSetting {...ChartSettingProps} />,
+            chart: (
+              <LineChart
+                {...ChartProps}
+                axisReverse={true}
+                seriesOp={{ type: 'bar' }}
+                defaultOp={{
+                  grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+                  tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                  xAxis: { boundaryGap: [0, 0.01] },
+                  emphasis: { focus: 'none' },
+                }}
+              />
+            ),
+            chartSetting: <LineChartSetting {...ChartSettingProps} axisReverse={true} />,
           });
           break;
         case WIDGET_TYPE.CHART_PIE:

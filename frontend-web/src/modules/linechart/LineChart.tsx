@@ -3,26 +3,26 @@ import ReactECharts from 'echarts-for-react';
 import { Box } from '@mui/material';
 
 const LineChart = props => {
-  const { option, dataSet, ...rest } = props;
+  const { option, dataSet, axisReverse, seriesOp, defaultOp, createOp, ...rest } = props;
+  console.log(seriesOp);
 
   const [componentOption, setComponentOption] = useState({});
 
   const defaultComponentOption = {
     grid: { top: 8, right: 8, bottom: 24, left: 36 },
-    yAxis: {
-      type: 'value',
-    },
-    tooltip: {
-      trigger: 'axis',
-    },
-    xAxis: {
+    tooltip: { trigger: 'axis' },
+    [!axisReverse ? 'xAxis' : 'yAxis']: {
       type: 'category',
+    },
+    [!axisReverse ? 'yAxis' : 'xAxis']: {
+      type: 'value',
     },
     series: [],
     emphasis: {
       focus: 'series',
       blurScope: 'coordinateSystem',
     },
+    ...defaultOp,
   };
 
   useEffect(() => {
@@ -51,7 +51,7 @@ const LineChart = props => {
           data: dataSet.map(dataItem => dataItem[item.field]),
           type: 'line',
           smooth: true,
-          ...rest,
+          ...seriesOp,
         };
         newSeries.push(series);
         newColors.push(item.color);
@@ -59,14 +59,17 @@ const LineChart = props => {
     });
     if (dataSet) {
       const op = {
-        xAxis: {
+        [!axisReverse ? 'xAxis' : 'yAxis']: {
           type: 'category',
-          data: !!option.xField ? dataSet.map(item => item[option.xField]) : '',
-          boundaryGap: false,
+          data: !!option[!axisReverse ? 'xField' : 'yField']
+            ? dataSet.map(item => item[option[!axisReverse ? 'xField' : 'yField']])
+            : '',
+          // boundaryGap: false,
         },
         series: newSeries,
         color: newColors,
         legend: {}, // TODO: legend 위치 조정기능 추가
+        ...createOp,
       };
 
       newOption = { ...defaultComponentOption, ...op };

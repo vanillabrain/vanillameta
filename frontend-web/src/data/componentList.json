@@ -55,11 +55,11 @@
   {
     "id": "CHART_COLUMN",
     "title": "막대형 가로 차트",
-    "icon": "icon/bar-chart.png",
+    "icon": "icon/column-chart.png",
     "caption": "Column Chart",
     "option": {
       "title": "",
-      "xField": "",
+      "yField": "",
       "series": [
         {
           "field": "",
