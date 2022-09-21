@@ -28,7 +28,7 @@ const StyledList = styled(List)({
 });
 
 const PieChartSetting = props => {
-  const { option, setOption } = props;
+  const { option, setOption, listItem } = props;
 
   // props로부터 받기 ------------------------------------
   const typeOption = { series: ['high', 'low', 'avg'], label: ['name', 'color'] }; // series type
@@ -124,6 +124,15 @@ const PieChartSetting = props => {
               </React.Fragment>
             ))}
         </ListItem>
+
+        {/* 추가되는 아이템 */}
+        {!!listItem && (
+          <ListItem divider>
+            <ListItemText primary={listItem.title} />
+            {listItem.children}
+          </ListItem>
+        )}
+
         <ListItem>
           <ListItemText>범례 설정</ListItemText>
           <SelectForm

@@ -99,8 +99,23 @@
   {
     "id": "CHART_PIE",
     "title": "원형 차트",
-    "icon": "icon/doughnut-chart.png",
+    "icon": "icon/pie-chart.png",
     "caption": "Pie Chart",
+    "option": {
+      "title": "",
+      "series": {
+        "field": "",
+        "color": [],
+        "aggregation": "",
+        "label": ""
+      }
+    }
+  },
+  {
+    "id": "CHART_DONUT",
+    "title": "도넛형 차트",
+    "icon": "icon/doughnut-chart.png",
+    "caption": "Donut Chart",
     "option": {
       "title": "",
       "series": {

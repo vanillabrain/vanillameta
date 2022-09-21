@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 
 const PieChart = props => {
-  const { option, dataSet } = props;
+  const { option, dataSet, seriesOp } = props;
 
   const [componentOption, setComponentOption] = useState({});
 
@@ -51,8 +51,10 @@ const PieChart = props => {
         series: [
           {
             type: 'pie',
+            label: { show: !!option.series.label && true },
             smooth: true,
             data: getData(),
+            ...seriesOp,
           },
         ],
       };
