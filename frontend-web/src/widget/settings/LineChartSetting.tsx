@@ -66,7 +66,6 @@ const LineChartSetting = props => {
 
   const aggregationList = { value: ['sum', 'avg', 'max', 'min'], label: ['합계', '평균', '최대', '최소'] };
   const legendList = { value: ['left', 'right', 'top', 'bottom'], label: ['왼쪽', '오른쪽', '위쪽', '아래쪽'] };
-  const [addedSeriesLength, setAddedSeriesLength] = useState(1);
 
   const handleChange = event => {
     setOption({ ...option, [event.target.name]: event.target.value });
@@ -91,12 +90,6 @@ const LineChartSetting = props => {
   };
 
   const handleAddClick = () => {
-    if (addedSeriesLength === typeOption.series.length) {
-      return;
-    }
-
-    setAddedSeriesLength(prevState => prevState + 1);
-
     setOption(prevState => {
       const tempOption = { ...prevState };
       const defaultColor = [
@@ -112,7 +105,7 @@ const LineChartSetting = props => {
       ];
       const newItem = {
         field: '',
-        color: defaultColor[addedSeriesLength],
+        color: defaultColor[option.series.length % 9],
         aggregation: '',
       };
       tempOption.series.push(newItem);
@@ -120,17 +113,15 @@ const LineChartSetting = props => {
     });
   };
 
-  const handleRemoveClick = event => {
-    console.log(event.target.id);
-    if (addedSeriesLength === 0) {
+  const handleRemoveClick = (event, index) => {
+    if (option.series.length === 1) {
       return;
     }
 
-    setAddedSeriesLength(prevState => prevState - 1);
     setOption(prevState => {
-      const tempOption = { ...prevState };
-      tempOption.series.pop();
-      return tempOption;
+      const obj = { ...prevState };
+      obj.series.splice(index, 1);
+      return obj;
     });
   };
 
@@ -178,7 +169,9 @@ const LineChartSetting = props => {
                 optionList={aggregationList}
                 value={item.aggregation}
                 onChange={handleSeriesChange}
-                colorButton={0 < index ? <RemoveIconButton onClick={handleRemoveClick} id={index} /> : ' '}
+                colorButton={
+                  0 < index ? <RemoveIconButton onClick={event => handleRemoveClick(event, index)} id={index} /> : ' '
+                }
               />
               <Divider />
             </React.Fragment>
