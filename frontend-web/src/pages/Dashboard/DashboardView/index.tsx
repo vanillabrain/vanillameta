@@ -19,48 +19,41 @@ const ResponsiveGridLayout = WidthProvider(Responsive);
 const DashboardView = props => {
   const location = useLocation();
   const match = useMatch('/dashboard/:dashboard_id');
-  const [dashboardInfo, setDashboardInfo] = useState({ title: '', widgets: [], layout: [] });
-
-  const [dashboardId, setDashboardId] = useState(null);
+  const [dashboardInfo, setDashboardInfo] = useState({ title: '', widgets: [], layout: [] }); // dashboard 정보
+  const [layout, setLayout] = useState([]); // grid layout
+  const [dashboardId, setDashboardId] = useState(null); // dashboard id
 
   const ReactGridLayout = WidthProvider(RGL);
-  const layout = [
-    {
-      x: 0,
-      y: 0,
-      w: 6,
-      h: 2,
-      i: '0',
-      static: true,
-    },
-    {
-      x: 6,
-      y: 0,
-      w: 6,
-      h: 3,
-      i: '1',
-      static: true,
-    },
-  ];
+
+  // init useEffect
   useEffect(() => {
     setDashboardId(match.params.dashboard_id);
     getDashboardInfo(match.params.dashboard_id);
   }, []);
 
+  // dashboardInfo useEffect
+  useEffect(() => {
+    dashboardInfo.layout.map((item, index) => {
+      item.static = true;
+    });
+    setLayout(dashboardInfo.layout);
+  }, [dashboardInfo]);
+
+  // dashboard info 조회
   const getDashboardInfo = id => {
     get('/data/dummyDashboardInfo.json').then(response => {
       setDashboardInfo(response.data);
     });
   };
 
+  // refrech 버튼 클릭
   const handleRefreshClick = () => {
     getDashboardInfo(match.params.dashboard_id);
   };
 
+  // widget 생성
   const generateWidget = () => {
-    console.log('generateWidget', dashboardInfo.widgets);
     return dashboardInfo.widgets.map((item, index) => {
-      console.log('data', item);
       return (
         <Card key={index} sx={{ width: '100%', height: '100%', borderRadius: 1 }}>
           <WidgetWrapper
@@ -103,7 +96,9 @@ const DashboardView = props => {
             backgroundColor: '#eee',
           }}
         >
-          <ReactGridLayout layout={layout}>{generateWidget()}</ReactGridLayout>
+          <ResponsiveGridLayout rowHeight={54} compactType={null} cols={{ lg: 20 }} layouts={{ lg: layout }}>
+            {generateWidget()}
+          </ResponsiveGridLayout>
         </Box>
       </TitleBox>
     </PageTitleBox>

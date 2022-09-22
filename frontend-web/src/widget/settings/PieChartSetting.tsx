@@ -28,7 +28,7 @@ const StyledList = styled(List)({
 });
 
 const PieChartSetting = props => {
-  const { option, setOption } = props;
+  const { option, setOption, listItem } = props;
 
   // props로부터 받기 ------------------------------------
   const typeOption = { series: ['high', 'low', 'avg'], label: ['name', 'color'] }; // series type
@@ -74,22 +74,8 @@ const PieChartSetting = props => {
     }));
   };
 
-  const handleSubmit = event => {
-    event.preventDefault();
-    console.log(option);
-  };
-
   return (
-    <Grid
-      onSubmit={handleSubmit}
-      component="form"
-      id="widgetAttribute"
-      item
-      xs={10}
-      md={4}
-      lg={3}
-      sx={{ display: 'flex', flexDirection: 'column' }}
-    >
+    <Grid item xs={10} md={4} lg={3} sx={{ display: 'flex', flexDirection: 'column' }}>
       <WidgetTitleForm value={option.title} onChange={handleChange} />
       <StyledList>
         <ListItem divider>
@@ -99,7 +85,7 @@ const PieChartSetting = props => {
             id="field"
             name="field"
             label="필드"
-            option={typeOption.series}
+            optionList={typeOption.series}
             value={option.series.field}
             onChange={handleSeriesChange}
           />
@@ -138,6 +124,15 @@ const PieChartSetting = props => {
               </React.Fragment>
             ))}
         </ListItem>
+
+        {/* 추가되는 아이템 */}
+        {!!listItem && (
+          <ListItem divider>
+            <ListItemText primary={listItem.title} />
+            {listItem.children}
+          </ListItem>
+        )}
+
         <ListItem>
           <ListItemText>범례 설정</ListItemText>
           <SelectForm

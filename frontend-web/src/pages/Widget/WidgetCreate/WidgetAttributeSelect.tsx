@@ -8,9 +8,10 @@ import PieChartSetting from '@/widget/settings/PieChartSetting';
 import WidgetBox from '@/components/widget/WidgetBox';
 import { WIDGET_TYPE } from '@/constant';
 import { get } from '@/helpers/apiHelper';
+import TextFieldForm from '@/components/form/TextFieldForm';
 
 function WidgetAttributeSelect(props) {
-  const { dataSetId, componentType, prevOption, setWidgetOption, setIsValid, isSubmit } = props;
+  const { dataSetId, componentType, prevOption } = props;
 
   const defaultComponentData = componentList.find(item => item.id === componentType && item);
   const [option, setOption] = useState(defaultComponentData.option);
@@ -36,7 +37,7 @@ function WidgetAttributeSelect(props) {
   };
 
   useEffect(() => {
-    console.log('option changed', option);
+    // console.log('option changed', option);
 
     if (option && data) {
       const ChartProps = {
@@ -47,23 +48,57 @@ function WidgetAttributeSelect(props) {
       const ChartSettingProps = {
         option: option,
         setOption: setOption,
-        setIsValid: setIsValid,
-        isSubmit: isSubmit,
       };
 
       switch (componentType) {
         case WIDGET_TYPE.CHART_LINE:
           setSwitchChart({
             ...switchChart,
-            chart: <LineChart {...ChartProps} componentType="line" />,
+            chart: <LineChart {...ChartProps} />,
+            chartSetting: <LineChartSetting {...ChartSettingProps} />,
+          });
+          break;
+        case WIDGET_TYPE.CHART_AREA:
+          setSwitchChart({
+            ...switchChart,
+            chart: <LineChart {...ChartProps} seriesOp={{ areaStyle: {} }} />,
             chartSetting: <LineChartSetting {...ChartSettingProps} />,
           });
           break;
         case WIDGET_TYPE.CHART_BAR:
           setSwitchChart({
             ...switchChart,
-            chart: <LineChart {...ChartProps} componentType="bar" />,
+            chart: (
+              <LineChart
+                {...ChartProps}
+                seriesOp={{ type: 'bar' }}
+                defaultOp={{
+                  tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                  yAxis: { boundaryGap: [0, 0.01] },
+                  emphasis: { focus: 'none' },
+                }}
+              />
+            ),
             chartSetting: <LineChartSetting {...ChartSettingProps} />,
+          });
+          break;
+        case WIDGET_TYPE.CHART_COLUMN:
+          setSwitchChart({
+            ...switchChart,
+            chart: (
+              <LineChart
+                {...ChartProps}
+                axisReverse={true}
+                seriesOp={{ type: 'bar' }}
+                defaultOp={{
+                  grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+                  tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                  xAxis: { boundaryGap: [0, 0.01] },
+                  emphasis: { focus: 'none' },
+                }}
+              />
+            ),
+            chartSetting: <LineChartSetting {...ChartSettingProps} axisReverse={true} />,
           });
           break;
         case WIDGET_TYPE.CHART_PIE:
@@ -71,6 +106,21 @@ function WidgetAttributeSelect(props) {
             ...switchChart,
             chart: <PieChart {...ChartProps} />,
             chartSetting: <PieChartSetting {...ChartSettingProps} />,
+          });
+          break;
+        case WIDGET_TYPE.CHART_DONUT:
+          setSwitchChart({
+            ...switchChart,
+            chart: <PieChart {...ChartProps} seriesOp={{ radius: ['30%', '75%'] }} />,
+            chartSetting: (
+              <PieChartSetting
+                {...ChartSettingProps}
+                listItem={{
+                  title: '도넛 차트 설정',
+                  children: <TextFieldForm label="빈 공간 크기" value="만드는 중..." />,
+                }}
+              />
+            ),
           });
           break;
 
@@ -92,12 +142,27 @@ function WidgetAttributeSelect(props) {
     }
   }, [prevOption]);
 
-  useEffect(() => {
-    setWidgetOption(option);
-  }, [option]);
+  const handleSubmit = event => {
+    event.preventDefault();
+
+    if (option.title === '') {
+      return;
+    }
+
+    console.log('widgetTitle:', option.title);
+    console.log('datesetId:', dataSetId);
+    console.log('widgetType:', componentType);
+    console.log('widgetOption:', option);
+  };
 
   return (
-    <Grid container sx={{ justifyContent: { xs: 'center', md: 'space-between' } }}>
+    <Grid
+      onSubmit={handleSubmit}
+      component="form"
+      id="widgetAttribute"
+      container
+      sx={{ justifyContent: { xs: 'center', md: 'space-between' } }}
+    >
       <Grid item xs={12} md={7.5} lg={8.5}>
         <WidgetBox>{switchChart.chart}</WidgetBox>
       </Grid>

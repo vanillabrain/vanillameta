@@ -18,8 +18,26 @@
     }
   },
   {
+    "id": "CHART_AREA",
+    "title": "영역형 차트",
+    "icon": "icon/area-chart.png",
+    "caption": "Area Chart",
+    "option": {
+      "title": "",
+      "xField": "",
+      "series": [
+        {
+          "field": "",
+          "color": "#5470c6",
+          "aggregation": ""
+        }
+      ],
+      "legendPosition": "left"
+    }
+  },
+  {
     "id": "CHART_BAR",
-    "title": "막대형 차트",
+    "title": "막대형 세로 차트",
     "icon": "icon/bar-chart.png",
     "caption": "Bar Chart",
     "option": {
@@ -35,71 +53,20 @@
     }
   },
   {
-  "id": "CHART_BUBBLE",
-  "title": "거품형 차트",
-  "icon": "icon/bubble-chart.png",
-  "caption": "Bubble Chart",
-  "option": {
-    "xField": "label",
-    "series": [
-      {
-        "field": "value1",
-        "color": "#43afef",
-        "aggregation": ""
-      },
-      {
-        "field": "value2",
-        "color": "#b9e7ff",
-        "aggregation": ""
-      }
-    ,
-      {
-        "field": "value2",
-        "color": "#d9d9d9",
-        "aggregation": ""
-      }
-    ]
-  }
-},
-  {
-    "id": "areaChart",
-    "title": "영역형 차트",
-    "icon": "icon/area-chart.png",
-    "caption": "Area Chart",
+    "id": "CHART_COLUMN",
+    "title": "막대형 가로 차트",
+    "icon": "icon/column-chart.png",
+    "caption": "Column Chart",
     "option": {
-      "xField": "label",
+      "title": "",
+      "yField": "",
       "series": [
         {
-          "field": "value1",
-          "color": "#43afef",
-          "aggregation": ""
-        },
-        {
-          "field": "value2",
-          "color": "#b9e7ff",
-          "aggregation": ""
-        }
-      ,
-        {
-          "field": "value2",
-          "color": "#d9d9d9",
+          "field": "",
+          "color": "#5470c6",
           "aggregation": ""
         }
       ]
-    }
-  },
-  {
-    "id": "CHART_PIE",
-    "title": "원형 차트",
-    "icon": "icon/doughnut-chart.png",
-    "caption": "Pie Chart",
-    "option": {
-      "series": {
-        "field": "",
-        "color": [],
-        "aggregation": "",
-        "label": ""
-      }
     }
   },
   {
@@ -130,10 +97,67 @@
     }
   },
   {
+    "id": "CHART_PIE",
+    "title": "원형 차트",
+    "icon": "icon/pie-chart.png",
+    "caption": "Pie Chart",
+    "option": {
+      "title": "",
+      "series": {
+        "field": "",
+        "color": [],
+        "aggregation": "",
+        "label": ""
+      }
+    }
+  },
+  {
+    "id": "CHART_DONUT",
+    "title": "도넛형 차트",
+    "icon": "icon/doughnut-chart.png",
+    "caption": "Donut Chart",
+    "option": {
+      "title": "",
+      "series": {
+        "field": "",
+        "color": [],
+        "aggregation": "",
+        "label": ""
+      }
+    }
+  },
+  {
     "id": "polarAreaChart",
     "title": "극좌표형 차트",
     "icon": "icon/polar-chart.png",
     "caption": "Polar Area Chart",
+    "option": {
+      "xField": "label",
+      "series": [
+        {
+          "field": "value1",
+          "color": "#43afef",
+          "aggregation": ""
+        },
+        {
+          "field": "value2",
+          "color": "#b9e7ff",
+          "aggregation": ""
+        }
+      ,
+        {
+          "field": "value2",
+          "color": "#d9d9d9",
+          "aggregation": ""
+        }
+      ]
+    }
+  },
+  {
+    "id": "CHART_BUBBLE",
+    "title": "거품형 차트",
+    "icon": "icon/bubble-chart.png",
+    "caption": "Bubble Chart",
     "option": {
       "xField": "label",
       "series": [

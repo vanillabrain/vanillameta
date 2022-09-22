@@ -58,21 +58,14 @@ const RemoveIconButton = DefaultIconButton(
 );
 
 const LineChartSetting = props => {
-  const { option, setOption, setIsValid, isSubmit } = props;
+  const { option, setOption, axisReverse, ...rest } = props;
 
   // props로부터 받기 ------------------------------------
-  const typeOption = { series: ['high', 'low', 'avg'], xField: ['name', 'color'] }; // series type
+  const typeOption = { series: ['high', 'low', 'avg'], [!axisReverse ? 'xField' : 'yField']: ['name', 'color'] }; // series type
   // ----------------------------------------------------
 
   const aggregationList = { value: ['sum', 'avg', 'max', 'min'], label: ['합계', '평균', '최대', '최소'] };
   const legendList = { value: ['left', 'right', 'top', 'bottom'], label: ['왼쪽', '오른쪽', '위쪽', '아래쪽'] };
-  const [addedSeriesLength, setAddedSeriesLength] = useState(1);
-
-  // validation
-  // const [isTitleValid, setIsTitleValid] = useState(true);
-  const [invalidSeries, setInvalidSeries] = useState([]);
-
-  // console.log(invalidSeries);
 
   const handleChange = event => {
     setOption({ ...option, [event.target.name]: event.target.value });
@@ -81,9 +74,6 @@ const LineChartSetting = props => {
   const handleSeriesChange = event => {
     const key = event.target.name.slice(0, -1);
     const index = Number(event.target.name.slice(-1)[0]) - 1;
-
-    // console.log('index ', index);
-    // checkSeries(index);
 
     setOption(prevState => {
       const tempOption = { ...prevState };
@@ -100,12 +90,6 @@ const LineChartSetting = props => {
   };
 
   const handleAddClick = () => {
-    if (addedSeriesLength === typeOption.series.length) {
-      return;
-    }
-
-    setAddedSeriesLength(prevState => prevState + 1);
-
     setOption(prevState => {
       const tempOption = { ...prevState };
       const defaultColor = [
@@ -121,7 +105,7 @@ const LineChartSetting = props => {
       ];
       const newItem = {
         field: '',
-        color: defaultColor[addedSeriesLength],
+        color: defaultColor[option.series.length % 9],
         aggregation: '',
       };
       tempOption.series.push(newItem);
@@ -129,64 +113,30 @@ const LineChartSetting = props => {
     });
   };
 
-  const handleRemoveClick = event => {
-    console.log(event.target.id);
-    if (addedSeriesLength === 0) {
+  const handleRemoveClick = (event, index) => {
+    if (option.series.length === 1) {
       return;
     }
 
-    setAddedSeriesLength(prevState => prevState - 1);
     setOption(prevState => {
-      const tempOption = { ...prevState };
-      tempOption.series.pop();
-      return tempOption;
+      const obj = { ...prevState };
+      obj.series.splice(index, 1);
+      return obj;
     });
   };
 
-  // const checkTitle = () => {
-  //   const emptyInput = option.title.trim() === '';
-  //   const overLength = option.title.length > 20;
-  //
-  //   if (emptyInput || overLength) {
-  //     setIsTitleValid(false);
-  //     return;
-  //   }
-  //   setIsTitleValid(true);
-  // };
-
-  // const checkSeries = index => {
-  //   option.series.forEach(item => {
-  //     setInvalidSeries(prevState => {
-  //       return [...prevState, index];
-  //     });
-  //   });
-  // };
-
-  const handleSubmit = event => {
-    console.log(option);
-  };
-
   return (
-    <Grid
-      onSubmit={handleSubmit}
-      component="form"
-      id="widgetAttribute"
-      item
-      xs={10}
-      md={4}
-      lg={3}
-      sx={{ display: 'flex', flexDirection: 'column' }}
-    >
+    <Grid item xs={10} md={4} lg={3} sx={{ display: 'flex', flexDirection: 'column' }}>
       <WidgetTitleForm value={option.title} onChange={handleChange} />
       <StyledList>
         <ListItem divider>
           <ListItemText primary="X축 설정" />
           <SelectForm
-            id="xField"
-            name="xField"
-            label="X축"
-            optionList={typeOption.xField}
-            value={option.xField}
+            id={!axisReverse ? 'xField' : 'yField'}
+            name={!axisReverse ? 'xField' : 'yField'}
+            label={!axisReverse ? 'X축' : 'Y축'}
+            optionList={typeOption[!axisReverse ? 'xField' : 'yField']}
+            value={option[!axisReverse ? 'xField' : 'yField']}
             onChange={handleChange}
           />
         </ListItem>
@@ -219,7 +169,9 @@ const LineChartSetting = props => {
                 optionList={aggregationList}
                 value={item.aggregation}
                 onChange={handleSeriesChange}
-                colorButton={0 < index ? <RemoveIconButton onClick={handleRemoveClick} id={index} /> : ' '}
+                colorButton={
+                  0 < index ? <RemoveIconButton onClick={event => handleRemoveClick(event, index)} id={index} /> : ' '
+                }
               />
               <Divider />
             </React.Fragment>

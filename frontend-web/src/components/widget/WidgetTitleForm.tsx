@@ -6,7 +6,6 @@ function WidgetTitleForm(props) {
 
   const validateTitle = title => {
     if (title === undefined) {
-      console.log(title);
       return;
     }
     return title.trim() === '' || title.length > 20;
