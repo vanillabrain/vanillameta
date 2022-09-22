@@ -50,7 +50,7 @@ custom:
   DB_CONFIG: ${file(./config.serverless.yml):DB_CONFIG}
   DOMAINS:
     prod: vanillameta-api.vanillabrain.com
-    dev: dev.vanillameta-api.vanillabrain.com
+    dev: dev-vanillameta-api.vanillabrain.com
   customDomain:
     domainName: ${self:custom.DOMAINS.${self:custom.STAGE}}
     basePath: 'v1'
@@ -70,13 +70,13 @@ package:
     - .env.prod
     - src/templates/**
   exclude:
-    - node_modules/**
+#    - node_modules/**
     - .git/**
     - test/**
     - e2e/**
     - nodemon.json
     - README.md
-#    - src/**
+#    - src/**cd
 
 
 functions:
