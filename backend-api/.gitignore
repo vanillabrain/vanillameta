@@ -1,3 +1,8 @@
+#db정보
+config.serverless.yml
+.env.dev
+.env.prod
+
 # compiled output
 /dist
 /node_modules
