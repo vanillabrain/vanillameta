@@ -4,6 +4,11 @@ import {AppService} from './app.service';
 import {SampleModule} from './sample/sample.module';
 import {ConfigModule} from '@nestjs/config';
 import {TypeOrmModule} from '@nestjs/typeorm';
+import { DatabaseModule } from './database/database.module';
+import { DatasetModule } from './dataset/dataset.module';
+import { WidgetModule } from './widget/widget.module';
+import { DashboardModule } from './dashboard/dashboard.module';
+import { TemplateModule } from './template/template.module';
 
 @Module({
     imports: [
@@ -24,7 +29,7 @@ import {TypeOrmModule} from '@nestjs/typeorm';
             logging: process.env.NODE_ENV == 'dev',
             retryAttempts: 1,
         })
-        , SampleModule
+        , SampleModule, DatabaseModule, DatasetModule, WidgetModule, DashboardModule, TemplateModule
     ],
     controllers: [AppController],
     providers: [AppService],
