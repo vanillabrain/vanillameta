@@ -9,7 +9,6 @@ import TitleBox from '@/components/TitleBox';
 import { DialogAlertIconButton } from '@/components/button/DialogAlertButton';
 import WidgetWrapper from '@/widget/wrapper/WidgetWrapper';
 import { get } from '@/helpers/apiHelper';
-import BoardListItem from '@/components/BoardListItem';
 import RGL, { Responsive, WidthProvider } from 'react-grid-layout';
 import '/node_modules/react-grid-layout/css/styles.css';
 import '/node_modules/react-resizable/css/styles.css';
@@ -22,8 +21,6 @@ const DashboardView = props => {
   const [dashboardInfo, setDashboardInfo] = useState({ title: '', widgets: [], layout: [] }); // dashboard 정보
   const [layout, setLayout] = useState([]); // grid layout
   const [dashboardId, setDashboardId] = useState(null); // dashboard id
-
-  const ReactGridLayout = WidthProvider(RGL);
 
   // init useEffect
   useEffect(() => {
@@ -55,7 +52,7 @@ const DashboardView = props => {
   const generateWidget = () => {
     return dashboardInfo.widgets.map((item, index) => {
       return (
-        <Card key={index} sx={{ width: '100%', height: '100%', borderRadius: 1 }}>
+        <Card key={item.widgetId} sx={{ width: '100%', height: '100%', borderRadius: 1 }}>
           <WidgetWrapper
             widgetOption={item}
             dataSetId={item.dataSetId}

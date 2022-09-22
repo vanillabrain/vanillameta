@@ -1,6 +1,6 @@
 [
   {
-    "id": "000001",
+    "widgetId": "000001",
     "title": "위젯1",
     "createDate": "2022-04-11T18:27:45+09:00",
     "dataId": "",
@@ -29,11 +29,63 @@
     }
   },
   {
-    "id": "000002",
-    "title": "위젯2",
-    "createDate": "2022-01-20T13:51:43+09:00",
-    "dataId": "",
+    "widgetId": "000002",
+    "title": "파이차트 위젯",
+    "date": "2022-04-11T18:27:45+09:00",
+    "dataSetId": "00001",
     "type": "CHART_PIE",
-    "option": {}
+    "option": {
+      "xField": "name",
+      "series": {
+        "field": "high",
+        "color": [
+          "#5470c6",
+          "#91cc75",
+          "#fac858",
+          "#ee6666",
+          "#73c0de",
+          "#3ba272",
+          "#fc8452",
+          "#9a60b4",
+          "#ea7ccc",
+          "#5470c6",
+          "#91cc75",
+          "#fac858"
+        ],
+        "aggregation": "",
+        "label": "name"
+      },
+      "legendPosition": "right"
+    }
+  },
+  {
+    "widgetId": "000003",
+    "title": "파이차트 위젯 이닷",
+    "date": "2022-04-11T18:27:45+09:00",
+    "dataSetId": "00001",
+    "type": "CHART_PIE",
+    "option": {
+      "xField": "name",
+      "series": {
+        "field": "high",
+        "color": [
+          "#5470c6",
+          "#91cc75",
+          "#fac858",
+          "#ee6666",
+          "#73c0de",
+          "#3ba272",
+          "#fc8452",
+          "#9a60b4",
+          "#ea7ccc",
+          "#5470c6",
+          "#91cc75",
+          "#fac858"
+        ],
+        "aggregation": "",
+        "label": "name"
+      },
+      "legendPosition": "right"
+    }
   }
 ]
