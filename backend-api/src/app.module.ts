@@ -1,7 +1,7 @@
 import {Module} from '@nestjs/common';
 import {AppController} from './app.controller';
 import {AppService} from './app.service';
-import {TestModule} from './test/test.module';
+import {SampleModule} from './sample/sample.module';
 import {ConfigModule} from '@nestjs/config';
 import {TypeOrmModule} from '@nestjs/typeorm';
 
@@ -24,7 +24,7 @@ import {TypeOrmModule} from '@nestjs/typeorm';
             logging: process.env.NODE_ENV == 'dev',
             retryAttempts: 1,
         })
-        , TestModule
+        , SampleModule
     ],
     controllers: [AppController],
     providers: [AppService],
