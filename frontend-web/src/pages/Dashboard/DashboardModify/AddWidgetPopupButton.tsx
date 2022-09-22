@@ -19,27 +19,31 @@ import { get } from '@/helpers/apiHelper';
 
 const iconType = item => {
   switch (item.toUpperCase()) {
-    case 'DASHBOARD':
-      return <Dashboard />;
-    case 'BARCHART':
+    case 'CHART_BAR':
       return <BarChart />;
-    case 'PIECHART':
+    case 'CHART_PIE':
       return <PieChart />;
-    case 'LINECHART':
+    case 'CHART_LINE':
       return <MultilineChart />;
     default:
       return;
   }
 };
 
-function AddWidgetPopupButton({ label, widgetSelect }) {
+function AddWidgetPopupButton({ label, widgetSelect, useWidgetIds }) {
   const [open, setOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
   const [loadedWidgetData, setLoadedWidgetData] = useState([]);
   const getItems = () => {
     get('/data/dummyWidgetList.json')
       .then(response => response.data)
-      .then(data => setLoadedWidgetData(data));
+      .then(data => {
+        const widgetList = data.filter(item => {
+          return !useWidgetIds.find(useItem => useItem == item.widgetId);
+        });
+
+        setLoadedWidgetData(widgetList);
+      });
   };
 
   const descriptionElementRef = useRef<HTMLElement>(null);
@@ -59,23 +63,23 @@ function AddWidgetPopupButton({ label, widgetSelect }) {
     const isSelect = isItemSelection(item);
     const newIds = [...selectedIds];
     if (isSelect) {
-      const index = newIds.indexOf(item.id);
+      const index = newIds.indexOf(item.widgetId);
       newIds.splice(index, 1);
       setSelectedIds(newIds);
     } else {
-      newIds.push(item.id);
+      newIds.push(item.widgetId);
       setSelectedIds(newIds);
     }
   };
 
   const isItemSelection = item => {
-    return !!selectedIds.find(id => id === item.id);
+    return !!selectedIds.find(widgetId => widgetId === item.widgetId);
   };
 
   const handleSelect = () => {
     const widgets = [];
     for (let i = 0; i < loadedWidgetData.length; i++) {
-      if (selectedIds.indexOf(loadedWidgetData[i].id) > -1) {
+      if (selectedIds.indexOf(loadedWidgetData[i].widgetId) > -1) {
         widgets.push(loadedWidgetData[i]);
       }
     }
