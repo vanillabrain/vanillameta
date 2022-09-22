@@ -38,8 +38,6 @@ function WidgetAttributeSelect(props) {
   };
 
   useEffect(() => {
-    // console.log('option changed', option);
-
     if (option && data) {
       const ChartProps = {
         option: option,
@@ -59,10 +57,33 @@ function WidgetAttributeSelect(props) {
             chartSetting: <LineChartSetting {...ChartSettingProps} />,
           });
           break;
+        case WIDGET_TYPE.CHART_STACKED_LINE:
+          setSwitchChart({
+            ...switchChart,
+            chart: <LineChart {...ChartProps} seriesOp={{ stack: 'total', label: { show: true, position: 'top' } }} />,
+            chartSetting: <LineChartSetting {...ChartSettingProps} />,
+          });
+          break;
         case WIDGET_TYPE.CHART_AREA:
           setSwitchChart({
             ...switchChart,
             chart: <LineChart {...ChartProps} seriesOp={{ areaStyle: {} }} />,
+            chartSetting: <LineChartSetting {...ChartSettingProps} />,
+          });
+          break;
+        case WIDGET_TYPE.CHART_STACKED_AREA:
+          setSwitchChart({
+            ...switchChart,
+            chart: (
+              <LineChart
+                {...ChartProps}
+                seriesOp={{
+                  areaStyle: {},
+                  stack: 'total',
+                  label: { show: true, position: 'top' },
+                }}
+              />
+            ),
             chartSetting: <LineChartSetting {...ChartSettingProps} />,
           });
           break;
@@ -83,6 +104,13 @@ function WidgetAttributeSelect(props) {
             chartSetting: <LineChartSetting {...ChartSettingProps} />,
           });
           break;
+        case WIDGET_TYPE.CHART_STACKED_BAR:
+          setSwitchChart({
+            ...switchChart,
+            chart: <LineChart {...ChartProps} seriesOp={{ type: 'bar', stack: 'total', label: { show: true } }} />,
+            chartSetting: <LineChartSetting {...ChartSettingProps} />,
+          });
+          break;
         case WIDGET_TYPE.CHART_COLUMN:
           setSwitchChart({
             ...switchChart,
@@ -96,6 +124,22 @@ function WidgetAttributeSelect(props) {
                   tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
                   xAxis: { boundaryGap: [0, 0.01] },
                   emphasis: { focus: 'none' },
+                }}
+              />
+            ),
+            chartSetting: <LineChartSetting {...ChartSettingProps} axisReverse={true} />,
+          });
+          break;
+        case WIDGET_TYPE.CHART_STACKED_COLUMN:
+          setSwitchChart({
+            ...switchChart,
+            chart: (
+              <LineChart
+                {...ChartProps}
+                axisReverse={true}
+                seriesOp={{ type: 'bar', stack: 'total', label: { show: true } }}
+                defaultOp={{
+                  grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
                 }}
               />
             ),

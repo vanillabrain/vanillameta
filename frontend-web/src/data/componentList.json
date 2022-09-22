@@ -18,10 +18,46 @@
     }
   },
   {
+    "id": "CHART_STACKED_LINE",
+    "title": "누적 선형 차트",
+    "icon": "icon/line-chart.png",
+    "caption": "Stacked Line Chart",
+    "option": {
+      "title": "",
+      "xField": "",
+      "series": [
+        {
+          "field": "",
+          "color": "#5470c6",
+          "aggregation": ""
+        }
+      ],
+      "legendPosition": "left"
+    }
+  },
+  {
     "id": "CHART_AREA",
     "title": "영역형 차트",
     "icon": "icon/area-chart.png",
     "caption": "Area Chart",
+    "option": {
+      "title": "",
+      "xField": "",
+      "series": [
+        {
+          "field": "",
+          "color": "#5470c6",
+          "aggregation": ""
+        }
+      ],
+      "legendPosition": "left"
+    }
+  },
+  {
+    "id": "CHART_STACKED_AREA",
+    "title": "누적 영역형 차트",
+    "icon": "icon/area-chart.png",
+    "caption": "Stacked Area Chart",
     "option": {
       "title": "",
       "xField": "",
@@ -53,10 +89,44 @@
     }
   },
   {
+    "id": "CHART_STACKED_BAR",
+    "title": "누적 막대형 세로 차트",
+    "icon": "icon/bar-chart.png",
+    "caption": "Stacked Bar Chart",
+    "option": {
+      "title": "",
+      "xField": "",
+      "series": [
+        {
+          "field": "",
+          "color": "#5470c6",
+          "aggregation": ""
+        }
+      ]
+    }
+  },
+  {
     "id": "CHART_COLUMN",
     "title": "막대형 가로 차트",
     "icon": "icon/column-chart.png",
     "caption": "Column Chart",
+    "option": {
+      "title": "",
+      "yField": "",
+      "series": [
+        {
+          "field": "",
+          "color": "#5470c6",
+          "aggregation": ""
+        }
+      ]
+    }
+  },
+  {
+    "id": "CHART_STACKED_COLUMN",
+    "title": "누적 막대형 가로 차트",
+    "icon": "icon/column-chart.png",
+    "caption": "Stacked Column Chart",
     "option": {
       "title": "",
       "yField": "",
