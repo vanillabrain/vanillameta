@@ -8,7 +8,8 @@ import PieChartSetting from '@/widget/settings/PieChartSetting';
 import WidgetBox from '@/components/widget/WidgetBox';
 import { WIDGET_TYPE } from '@/constant';
 import { get } from '@/helpers/apiHelper';
-import TextFieldForm from '@/components/form/TextFieldForm';
+import DonutChartSetting from '@/widget/settings/DonutChartSetting';
+import DonutChart from '@/modules/piechart/DonutChart';
 
 function WidgetAttributeSelect(props) {
   const { dataSetId, componentType, prevOption } = props;
@@ -111,16 +112,23 @@ function WidgetAttributeSelect(props) {
         case WIDGET_TYPE.CHART_DONUT:
           setSwitchChart({
             ...switchChart,
-            chart: <PieChart {...ChartProps} seriesOp={{ radius: ['30%', '75%'] }} />,
-            chartSetting: (
-              <PieChartSetting
-                {...ChartSettingProps}
-                listItem={{
-                  title: '도넛 차트 설정',
-                  children: <TextFieldForm label="빈 공간 크기" value="만드는 중..." />,
+            chart: <DonutChart {...ChartProps} />,
+            chartSetting: <DonutChartSetting {...ChartSettingProps} />,
+          });
+          break;
+        case WIDGET_TYPE.CHART_NIGHTINGALE:
+          setSwitchChart({
+            ...switchChart,
+            chart: (
+              <DonutChart
+                {...ChartProps}
+                seriesOp={{
+                  roseType: 'area',
+                  itemStyle: { borderRadius: 8 },
                 }}
               />
             ),
+            chartSetting: <DonutChartSetting {...ChartSettingProps} />,
           });
           break;
 

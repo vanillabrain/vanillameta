@@ -122,35 +122,25 @@
         "field": "",
         "color": [],
         "aggregation": "",
-        "label": ""
+        "label": "",
+        "radius": ["30%", "75%"]
       }
     }
   },
   {
-    "id": "polarAreaChart",
-    "title": "극좌표형 차트",
-    "icon": "icon/polar-chart.png",
-    "caption": "Polar Area Chart",
+    "id": "CHART_NIGHTINGALE",
+    "title": "나이팅게일 차트",
+    "icon": "icon/nightingale-chart.png",
+    "caption": "Nightingale Chart",
     "option": {
-      "xField": "label",
-      "series": [
-        {
-          "field": "value1",
-          "color": "#43afef",
-          "aggregation": ""
-        },
-        {
-          "field": "value2",
-          "color": "#b9e7ff",
-          "aggregation": ""
-        }
-      ,
-        {
-          "field": "value2",
-          "color": "#d9d9d9",
-          "aggregation": ""
-        }
-      ]
+      "title": "",
+      "series": {
+        "field": "",
+        "color": [],
+        "aggregation": "",
+        "label": "",
+        "radius": ["10%", "90%"]
+      }
     }
   },
   {

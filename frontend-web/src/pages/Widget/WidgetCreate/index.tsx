@@ -20,7 +20,7 @@ function WidgetCreate(props) {
   // 개발 편의상 임시로 적용
   useEffect(() => {
     setDataSet(688279);
-    setWidgetType('CHART_LINE');
+    setWidgetType('CHART_DONUT');
     setActiveStep(2);
   }, []);
 
