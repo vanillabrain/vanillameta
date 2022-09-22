@@ -4,7 +4,6 @@ import { Box } from '@mui/material';
 
 const LineChart = props => {
   const { option, dataSet, axisReverse, seriesOp, defaultOp, createOp, ...rest } = props;
-  console.log(seriesOp);
 
   const [componentOption, setComponentOption] = useState({});
 
@@ -49,7 +48,8 @@ const LineChart = props => {
         const series = {
           name: item.field,
           data: dataSet.map(dataItem => dataItem[item.field]),
-          type: 'line',
+          // type: 'line',
+          type: item.type ?? 'line',
           smooth: true,
           ...seriesOp,
         };
@@ -64,7 +64,6 @@ const LineChart = props => {
           data: !!option[!axisReverse ? 'xField' : 'yField']
             ? dataSet.map(item => item[option[!axisReverse ? 'xField' : 'yField']])
             : '',
-          // boundaryGap: false,
         },
         series: newSeries,
         color: newColors,

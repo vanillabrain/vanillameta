@@ -1,16 +1,17 @@
 import React from 'react';
-import { FormControl, FormLabel, OutlinedInput, Stack } from '@mui/material';
+import { FormControl, FormHelperText, FormLabel, OutlinedInput, Stack } from '@mui/material';
 
 function TextFieldForm(props) {
-  const { id, label, type, ...rest } = props;
+  const { id, label, type, helperText, ...rest } = props;
 
   return (
     <FormControl fullWidth sx={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-      <FormLabel htmlFor={id} sx={{ width: '40%' }}>
+      <FormLabel htmlFor={id} sx={{ width: '35%' }}>
         {label}
       </FormLabel>
-      <Stack flexDirection="row" sx={{ width: '60%' }}>
+      <Stack sx={{ width: '65%' }}>
         <OutlinedInput id={id} type={type} margin="dense" fullWidth {...rest} />
+        <FormHelperText>{helperText}</FormHelperText>
       </Stack>
     </FormControl>
   );

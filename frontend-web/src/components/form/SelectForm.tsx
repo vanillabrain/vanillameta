@@ -60,9 +60,7 @@ function SelectForm(props) {
 }
 
 SelectForm.defaultProps = {
-  label: 'label',
   optionList: [],
-  colorButton: undefined,
   required: false,
 };
 

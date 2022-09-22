@@ -8,7 +8,9 @@ import PieChartSetting from '@/widget/settings/PieChartSetting';
 import WidgetBox from '@/components/widget/WidgetBox';
 import { WIDGET_TYPE } from '@/constant';
 import { get } from '@/helpers/apiHelper';
-import TextFieldForm from '@/components/form/TextFieldForm';
+import DonutChartSetting from '@/widget/settings/DonutChartSetting';
+import DonutChart from '@/modules/piechart/DonutChart';
+import MixedLineBarChartSetting from '@/widget/settings/MixedLineBarChartSetting';
 
 function WidgetAttributeSelect(props) {
   const { dataSetId, componentType, prevOption } = props;
@@ -37,8 +39,6 @@ function WidgetAttributeSelect(props) {
   };
 
   useEffect(() => {
-    // console.log('option changed', option);
-
     if (option && data) {
       const ChartProps = {
         option: option,
@@ -58,10 +58,33 @@ function WidgetAttributeSelect(props) {
             chartSetting: <LineChartSetting {...ChartSettingProps} />,
           });
           break;
+        case WIDGET_TYPE.CHART_STACKED_LINE:
+          setSwitchChart({
+            ...switchChart,
+            chart: <LineChart {...ChartProps} seriesOp={{ stack: 'total', label: { show: true, position: 'top' } }} />,
+            chartSetting: <LineChartSetting {...ChartSettingProps} />,
+          });
+          break;
         case WIDGET_TYPE.CHART_AREA:
           setSwitchChart({
             ...switchChart,
             chart: <LineChart {...ChartProps} seriesOp={{ areaStyle: {} }} />,
+            chartSetting: <LineChartSetting {...ChartSettingProps} />,
+          });
+          break;
+        case WIDGET_TYPE.CHART_STACKED_AREA:
+          setSwitchChart({
+            ...switchChart,
+            chart: (
+              <LineChart
+                {...ChartProps}
+                seriesOp={{
+                  areaStyle: {},
+                  stack: 'total',
+                  label: { show: true, position: 'top' },
+                }}
+              />
+            ),
             chartSetting: <LineChartSetting {...ChartSettingProps} />,
           });
           break;
@@ -79,6 +102,13 @@ function WidgetAttributeSelect(props) {
                 }}
               />
             ),
+            chartSetting: <LineChartSetting {...ChartSettingProps} />,
+          });
+          break;
+        case WIDGET_TYPE.CHART_STACKED_BAR:
+          setSwitchChart({
+            ...switchChart,
+            chart: <LineChart {...ChartProps} seriesOp={{ type: 'bar', stack: 'total', label: { show: true } }} />,
             chartSetting: <LineChartSetting {...ChartSettingProps} />,
           });
           break;
@@ -101,6 +131,39 @@ function WidgetAttributeSelect(props) {
             chartSetting: <LineChartSetting {...ChartSettingProps} axisReverse={true} />,
           });
           break;
+        case WIDGET_TYPE.CHART_STACKED_COLUMN:
+          setSwitchChart({
+            ...switchChart,
+            chart: (
+              <LineChart
+                {...ChartProps}
+                axisReverse={true}
+                seriesOp={{ type: 'bar', stack: 'total', label: { show: true } }}
+                defaultOp={{
+                  grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+                }}
+              />
+            ),
+            chartSetting: <LineChartSetting {...ChartSettingProps} axisReverse={true} />,
+          });
+          break;
+        case WIDGET_TYPE.CHART_MIXED_LINE_BAR:
+          setSwitchChart({
+            ...switchChart,
+            chart: (
+              <LineChart
+                {...ChartProps}
+                defaultOp={{
+                  tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                  yAxis: { boundaryGap: [0, 0.01] },
+                  emphasis: { focus: 'none' },
+                }}
+                seriesOp={{ smooth: false }}
+              />
+            ),
+            chartSetting: <MixedLineBarChartSetting {...ChartSettingProps} />,
+          });
+          break;
         case WIDGET_TYPE.CHART_PIE:
           setSwitchChart({
             ...switchChart,
@@ -111,16 +174,23 @@ function WidgetAttributeSelect(props) {
         case WIDGET_TYPE.CHART_DONUT:
           setSwitchChart({
             ...switchChart,
-            chart: <PieChart {...ChartProps} seriesOp={{ radius: ['30%', '75%'] }} />,
-            chartSetting: (
-              <PieChartSetting
-                {...ChartSettingProps}
-                listItem={{
-                  title: '도넛 차트 설정',
-                  children: <TextFieldForm label="빈 공간 크기" value="만드는 중..." />,
+            chart: <DonutChart {...ChartProps} />,
+            chartSetting: <DonutChartSetting {...ChartSettingProps} />,
+          });
+          break;
+        case WIDGET_TYPE.CHART_NIGHTINGALE:
+          setSwitchChart({
+            ...switchChart,
+            chart: (
+              <DonutChart
+                {...ChartProps}
+                seriesOp={{
+                  roseType: 'area',
+                  itemStyle: { borderRadius: 8 },
                 }}
               />
             ),
+            chartSetting: <DonutChartSetting {...ChartSettingProps} />,
           });
           break;
 

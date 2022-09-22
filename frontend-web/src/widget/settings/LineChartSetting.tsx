@@ -58,7 +58,7 @@ const RemoveIconButton = DefaultIconButton(
 );
 
 const LineChartSetting = props => {
-  const { option, setOption, axisReverse, ...rest } = props;
+  const { option, setOption, seriesItem, axisReverse } = props;
 
   // props로부터 받기 ------------------------------------
   const typeOption = { series: ['high', 'low', 'avg'], [!axisReverse ? 'xField' : 'yField']: ['name', 'color'] }; // series type
@@ -130,7 +130,7 @@ const LineChartSetting = props => {
       <WidgetTitleForm value={option.title} onChange={handleChange} />
       <StyledList>
         <ListItem divider>
-          <ListItemText primary="X축 설정" />
+          <ListItemText primary={`${!axisReverse ? 'X' : 'Y'}축 설정`} />
           <SelectForm
             id={!axisReverse ? 'xField' : 'yField'}
             name={!axisReverse ? 'xField' : 'yField'}
@@ -165,7 +165,7 @@ const LineChartSetting = props => {
               <SelectForm
                 id={`aggregation${index + 1}`}
                 name={`aggregation${index + 1}`}
-                label={' '}
+                label="집계 방식"
                 optionList={aggregationList}
                 value={item.aggregation}
                 onChange={handleSeriesChange}
@@ -173,6 +173,16 @@ const LineChartSetting = props => {
                   0 < index ? <RemoveIconButton onClick={event => handleRemoveClick(event, index)} id={index} /> : ' '
                 }
               />
+              {!!seriesItem && (
+                <SelectForm
+                  id={`${seriesItem.id}${index + 1}`}
+                  name={`${seriesItem.name}${index + 1}`}
+                  label={seriesItem.label}
+                  optionList={seriesItem.optionList}
+                  value={item[seriesItem.value]}
+                  onChange={handleSeriesChange}
+                />
+              )}
               <Divider />
             </React.Fragment>
           ))}
