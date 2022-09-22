@@ -140,28 +140,24 @@
     }
   },
   {
-    "id": "mixedLineBarChart",
+    "id": "CHART_MIXED_LINE_BAR",
     "title": "복합 차트",
     "icon": "icon/mixed-chart.png",
     "caption": "Mixed Chart",
     "option": {
-      "xField": "label",
+      "xField": "",
       "series": [
         {
-          "field": "value1",
-          "color": "#43afef",
-          "aggregation": ""
+          "field": "",
+          "color": "#5470c6",
+          "aggregation": "",
+          "type": ""
         },
         {
-          "field": "value2",
-          "color": "#b9e7ff",
-          "aggregation": ""
-        }
-      ,
-        {
-          "field": "value2",
-          "color": "#d9d9d9",
-          "aggregation": ""
+          "field": "",
+          "color": "#91cc75",
+          "aggregation": "",
+          "type": ""
         }
       ]
     }

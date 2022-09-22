@@ -10,6 +10,7 @@ import { WIDGET_TYPE } from '@/constant';
 import { get } from '@/helpers/apiHelper';
 import DonutChartSetting from '@/widget/settings/DonutChartSetting';
 import DonutChart from '@/modules/piechart/DonutChart';
+import MixedLineBarChartSetting from '@/widget/settings/MixedLineBarChartSetting';
 
 function WidgetAttributeSelect(props) {
   const { dataSetId, componentType, prevOption } = props;
@@ -144,6 +145,23 @@ function WidgetAttributeSelect(props) {
               />
             ),
             chartSetting: <LineChartSetting {...ChartSettingProps} axisReverse={true} />,
+          });
+          break;
+        case WIDGET_TYPE.CHART_MIXED_LINE_BAR:
+          setSwitchChart({
+            ...switchChart,
+            chart: (
+              <LineChart
+                {...ChartProps}
+                defaultOp={{
+                  tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                  yAxis: { boundaryGap: [0, 0.01] },
+                  emphasis: { focus: 'none' },
+                }}
+                seriesOp={{ smooth: false }}
+              />
+            ),
+            chartSetting: <MixedLineBarChartSetting {...ChartSettingProps} />,
           });
           break;
         case WIDGET_TYPE.CHART_PIE:
