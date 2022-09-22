@@ -130,7 +130,7 @@ const LineChartSetting = props => {
       <WidgetTitleForm value={option.title} onChange={handleChange} />
       <StyledList>
         <ListItem divider>
-          <ListItemText primary="X축 설정" />
+          <ListItemText primary={`${!axisReverse ? 'X' : 'Y'}축 설정`} />
           <SelectForm
             id={!axisReverse ? 'xField' : 'yField'}
             name={!axisReverse ? 'xField' : 'yField'}

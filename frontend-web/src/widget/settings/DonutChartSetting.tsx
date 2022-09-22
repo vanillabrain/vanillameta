@@ -5,7 +5,6 @@ import { InputAdornment } from '@mui/material';
 
 function DonutChartSetting(props) {
   const { option, setOption } = props;
-  console.log(option.series.radius);
 
   const innerRadius = option.series.radius[0];
   const outerRadius = option.series.radius[1];
@@ -13,8 +12,10 @@ function DonutChartSetting(props) {
   const handleChange = event => {
     setOption(prevState => {
       const obj = { ...prevState };
+      const radius = [...prevState.series.radius];
       const index = Number(event.target.name.slice(-1)) - 1;
-      obj.series.radius[index] = event.target.value + '%';
+      radius[index] = event.target.value + '%';
+      obj.series.radius = radius;
       return obj;
     });
   };
