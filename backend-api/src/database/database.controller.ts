@@ -12,6 +12,11 @@ export class DatabaseController {
     return this.databaseService.create(createDatabaseDto);
   }
 
+  @Post('test')
+  testConnection(@Body() createDatabaseDto: CreateDatabaseDto) {
+    return this.databaseService.create(createDatabaseDto);
+  }
+
   @Get()
   findAll() {
     return this.databaseService.findAll();
