@@ -11,25 +11,25 @@ import { get } from '@/helpers/apiHelper';
 import DonutChartSetting from '@/widget/settings/DonutChartSetting';
 import DonutChart from '@/modules/piechart/DonutChart';
 import MixedLineBarChartSetting from '@/widget/settings/MixedLineBarChartSetting';
+import ScatterChart from '@/modules/scatterchart/ScatterChart';
+import ScatterChartSetting from '@/widget/settings/ScatterChartSetting';
 
 function WidgetAttributeSelect(props) {
   const { dataSetId, componentType, prevOption } = props;
 
-  const defaultComponentData = componentList.find(item => item.id === componentType && item);
-  const [option, setOption] = useState(defaultComponentData.option);
+  const [option, setOption] = useState(null);
   const [data, setData] = useState(null);
 
-  const defaultChart = {
-    chart: null,
-    chartSetting: null,
-    chartOption: option,
-  };
-
-  const [switchChart, setSwitchChart] = useState(defaultChart);
+  const [switchChart, setSwitchChart] = useState({ chart: undefined, chartSetting: undefined });
 
   useEffect(() => {
     getData();
   }, []);
+
+  useEffect(() => {
+    const defaultComponentData = [...componentList].find(item => item.id === componentType && { ...item });
+    setOption(JSON.parse(JSON.stringify(defaultComponentData.option)));
+  }, [componentType]);
 
   const getData = () => {
     // dataSetId 로 데이터 조회
@@ -193,11 +193,18 @@ function WidgetAttributeSelect(props) {
             chartSetting: <DonutChartSetting {...ChartSettingProps} />,
           });
           break;
+        case WIDGET_TYPE.CHART_SCATTER:
+          setSwitchChart({
+            ...switchChart,
+            chart: <ScatterChart {...ChartProps} />,
+            chartSetting: <ScatterChartSetting {...ChartSettingProps} />,
+          });
+          break;
 
         default:
           setSwitchChart({
             ...switchChart,
-            chart: <LineChart {...ChartProps} componentType="line" />,
+            chart: <LineChart {...ChartProps} />,
             chartSetting: <LineChartSetting {...ChartSettingProps} />,
           });
           break;

@@ -41,16 +41,26 @@ function WidgetCreate(props) {
   }, [activeStep, dataSet, widgetType]);
 
   const handleNext = () => {
-    if (activeStep < steps.length - 1) {
-      setActiveStep(prevState => prevState + 1);
+    if (activeStep === steps.length - 1) {
+      return;
     }
+    setActiveStep(prevState => prevState + 1);
   };
 
   const handleBack = () => {
-    if (activeStep > 0) {
-      setActiveStep(prevState => prevState - 1);
+    if (activeStep === 0) {
+      return;
     }
+    if (activeStep === 1) {
+      setDataSet(null);
+    }
+    if (activeStep === 2) {
+      setWidgetType(null);
+    }
+    setActiveStep(prevState => prevState - 1);
   };
+
+  console.log('activeStep', activeStep);
 
   return (
     <PageContainer>
@@ -63,8 +73,8 @@ function WidgetCreate(props) {
               cancelLabel="이전"
               confirmProps={
                 activeStep !== steps.length - 1
-                  ? { type: 'button', onClick: handleNext, disabled: isNextButtonDisabled }
-                  : { form: 'widgetAttribute', type: 'submit' }
+                  ? { type: 'button', onClick: handleNext, disabled: isNextButtonDisabled, variant: 'outlined' }
+                  : { form: 'widgetAttribute', type: 'submit', variant: 'contained' }
               }
               cancelProps={{
                 onClick: handleBack,
