@@ -50,10 +50,10 @@ export const getGridSize = position => {
       option = { top: 50, right: 100, bottom: 50, left: 10 };
       break;
     case 'top':
-      option = { top: 80, right: 50, bottom: 20, left: 50 };
+      option = { top: 80, right: 30, bottom: 20, left: 50 };
       break;
     case 'bottom':
-      option = { top: 20, right: 50, bottom: 80, left: 50 };
+      option = { top: 20, right: 30, bottom: 80, left: 50 };
       break;
   }
   return option;

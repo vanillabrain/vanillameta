@@ -4,7 +4,7 @@ import { Box } from '@mui/material';
 import { getGridSize, getLegendOtion } from '@/modules/utils/chartUtil';
 
 const LineChart = props => {
-  const { option, dataSet, axisReverse, seriesOp, defaultOp, createOp, ...rest } = props;
+  const { option, dataSet, axisReverse, seriesOp, defaultOp, createOp } = props;
 
   const [componentOption, setComponentOption] = useState({});
 
@@ -44,21 +44,20 @@ const LineChart = props => {
 
     // series option에서 가져오기
     const newSeries = [];
-    const newColors = [];
     option.series.forEach(item => {
       if (item.field) {
         const series = {
           name: item.field,
           data: dataSet.map(dataItem => dataItem[item.field]),
-          // type: 'line',
-          type: item.type ?? 'line',
+          type: item.type === null ? item.type : 'line',
+          color: item.color,
           smooth: true,
           ...seriesOp,
         };
         newSeries.push(series);
-        newColors.push(item.color);
       }
     });
+    console.log('new series', newSeries);
     if (dataSet) {
       const op = {
         [!axisReverse ? 'xAxis' : 'yAxis']: {
@@ -68,7 +67,6 @@ const LineChart = props => {
             : '',
         },
         series: newSeries,
-        color: newColors,
         grid: getGridSize(option.legendPosition),
         legend: getLegendOtion(option.legendPosition),
         ...createOp,
