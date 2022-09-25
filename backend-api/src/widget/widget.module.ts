@@ -4,6 +4,6 @@ import { WidgetController } from './widget.controller';
 
 @Module({
   controllers: [WidgetController],
-  providers: [WidgetService]
+  providers: [WidgetService],
 })
 export class WidgetModule {}

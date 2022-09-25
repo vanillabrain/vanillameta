@@ -4,6 +4,6 @@ import { DashboardController } from './dashboard.controller';
 
 @Module({
   controllers: [DashboardController],
-  providers: [DashboardService]
+  providers: [DashboardService],
 })
 export class DashboardModule {}
