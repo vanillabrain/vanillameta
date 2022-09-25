@@ -1,21 +1,14 @@
-import { Entity, Column, PrimaryColumn } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { BaseEntity } from '../../common/entities/base.entity';
 
 @Entity('Sample')
-export class Sample {
-    @PrimaryColumn()
-    id: number;
+export class Sample extends BaseEntity {
+  @PrimaryGeneratedColumn()
+  id: number;
 
-    @Column({ length: 300 })
-    title: string;
+  @Column({ length: 300 })
+  title: string;
 
-    @Column({ length: 20 })
-    description: string;
-
-    @Column('timestamp')
-    createdAt: Date;
-
-    @Column('timestamp')
-    updatedAt: Date;
-
-
+  @Column({ length: 20 })
+  description: string;
 }

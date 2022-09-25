@@ -16,11 +16,7 @@ import cookieParser from 'cookie-parser';
 // due to a compressed response (e.g. gzip) which has not been handled correctly
 // by aws-serverless-express and/or API Gateway. Add the necessary MIME types to
 // binaryMimeTypes below
-const binaryMimeTypes: string[] = [
-  'application/octet-stream',
-  'image/png',
-  'image/jpeg',
-];
+const binaryMimeTypes: string[] = ['application/octet-stream', 'image/png', 'image/jpeg'];
 
 let cachedServer: Server;
 
@@ -28,14 +24,9 @@ async function bootstrapServer(): Promise<Server> {
   // some legacy browsers (IE11, various SmartTVs) choke on 204
   if (!cachedServer) {
     const expressApp = express();
-    const nestApp = await NestFactory.create(
-      AppModule,
-      new ExpressAdapter(expressApp),
-      {
-        logger: console,
-
-      },
-    );
+    const nestApp = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), {
+      logger: console,
+    });
     nestApp.setGlobalPrefix('v1');
     nestApp.use(cookieParser());
     nestApp.use(eventContext());
