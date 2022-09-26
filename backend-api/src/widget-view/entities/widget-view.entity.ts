@@ -4,12 +4,9 @@ import {BaseEntity} from "../../common/entities/base.entity";
 import {Widget} from "../../widget/entities/widget.entity";
 
 @Entity()
-export class Dataset extends BaseEntity {
-    @PrimaryGeneratedColumn({comment: '데이터셋 ID'})
+export class WidgetView extends BaseEntity {
+    @PrimaryGeneratedColumn({comment: '위젯 데이터셋 ID'})
     id: number
-
-    @Column({comment: '데이터셋명', nullable: true})
-    title: string
 
     @Column({comment: '데이터베이스 ID'})
     databaseId: number
@@ -19,9 +16,9 @@ export class Dataset extends BaseEntity {
 
     @ManyToMany(type => Database)
     @JoinTable({
-        name: 'database_dataset',
+        name: 'database_widget_view',
         joinColumn: {
-            name: 'datasetId',
+            name: 'widgetViewId',
             referencedColumnName: 'databaseId'
         },
         inverseJoinColumn: {
@@ -36,5 +33,4 @@ export class Dataset extends BaseEntity {
         (widget) => widget.datasetId
     )
     widgets!: Widget
-
 }

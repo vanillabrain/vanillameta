@@ -1,40 +1,42 @@
-import {Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn, JoinColumn, OneToOne } from "typeorm";
-import {Dataset} from "../../dataset/entities/dataset.entity";
+import {Column, Entity, PrimaryGeneratedColumn} from 'typeorm';
+import {BaseEntity} from '../../common/entities/base.entity';
+import {CreateDatabaseDto} from '../dto/create-database.dto';
 
 @Entity()
-export class Database {
-  @PrimaryGeneratedColumn()
-  id: number
+export class Database extends BaseEntity {
+    @PrimaryGeneratedColumn({comment: '데이터베이스 ID'})
+    id: number;
 
-  @Column()
-  title: string
+    @Column({length: 300, comment: '데이터베이스명'})
+    name: string;
 
-  @Column()
-  type: string
+    @Column({length: 1000, nullable: true, comment: '설명'})
+    description: string;
 
-  @Column()
-  host: string
+    @Column({type: 'text', comment: '속성'})
+    details: string; // 기타 속성 json으로 .. host, schema, filePath...
 
-  @Column()
-  port: string
+    @Column({length: 100, comment: '데이터베이스 구분'})
+    engine: string;
 
-  @Column()
-  userId: string
+    @Column({length: 100, comment: '타임존', nullable: true})
+    timezone: string;
 
-  @Column()
-  userPassword: string
+    static of(name: string, description: string, details: string, engine: string, timezone: string): Database {
+        const obj = new Database();
+        obj.name = name;
+        obj.description = description;
+        obj.details = details;
+        obj.engine = engine;
+        obj.timezone = timezone;
+        return obj;
+    }
 
-  @Column()
-  schema: string
+    static toDto(dto: CreateDatabaseDto): Database {
+        return Database.of(dto.name, dto.description, dto.details, dto.engine, dto.timezone);
+    }
 
-  @CreateDateColumn()
-  created_at: Date;
-
-  @UpdateDateColumn()
-  updated_at: Date;
-
-  @OneToOne(() => Dataset, (dataset) => dataset.database)
-  @JoinColumn({'name': 'databaseId'})
-  dataset: Dataset;
-
+    getFullDescription(): string {
+        return `${this.name} ${this.description}`;
+    }
 }

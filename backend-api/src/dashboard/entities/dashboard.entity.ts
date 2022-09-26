@@ -1,23 +1,32 @@
-import { Column, Entity, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn } from "typeorm";
+import {Column, Entity, ManyToOne, PrimaryGeneratedColumn} from "typeorm";
+import {BaseEntity} from "../../common/entities/base.entity";
+import {YesNo} from "../../common/enum/yn.enum";
+import {Template} from "../../template/entities/template.entity";
 
 @Entity()
-export class Dashboard {
-    @PrimaryGeneratedColumn()
+export class Dashboard extends BaseEntity {
+    @PrimaryGeneratedColumn({comment: '대시보드 ID'})
     id: number
 
-    @Column()
-    layout: string
-
-    @Column()
+    @Column({length: 300, comment: '대시보드명'})
     title: string
 
-    @Column()
-    widgets: string
+    @Column({nullable: true, comment: '템플릿 ID'})
+    templateId: number
 
-    @CreateDateColumn()
-    created_at: Date;
+    @Column({type: 'text', nullable: true, comment: '레이아웃 정보'})
+    layout: string
 
-    @UpdateDateColumn()
-    updated_at: Date;
+    @Column({comment: '순서', nullable: true})
+    seq: number
+
+    @Column({length: 1, default: YesNo.NO, comment: '삭제여부'})
+    delYn: YesNo
+
+    @ManyToOne(
+        (type) => Template,
+        (template) => template.dashboards
+    )
+    template!: Template
 
 }
