@@ -44,12 +44,14 @@ const LineChart = props => {
 
     // series option에서 가져오기
     const newSeries = [];
+    console.log('option.series.', option.series);
     option.series.forEach(item => {
+      // console.log('linehchart option item:', item);
       if (item.field) {
         const series = {
           name: item.field,
           data: dataSet.map(dataItem => dataItem[item.field]),
-          type: item.type === null ? item.type : 'line',
+          type: item.type === null ? 'line' : item.type,
           color: item.color,
           smooth: true,
           ...seriesOp,
@@ -57,7 +59,7 @@ const LineChart = props => {
         newSeries.push(series);
       }
     });
-    console.log('new series', newSeries);
+    // console.log('new series', newSeries);
     if (dataSet) {
       const op = {
         [!axisReverse ? 'xAxis' : 'yAxis']: {
