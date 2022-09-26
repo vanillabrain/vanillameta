@@ -11,6 +11,10 @@ import { get } from '@/helpers/apiHelper';
 import DonutChartSetting from '@/widget/settings/DonutChartSetting';
 import DonutChart from '@/modules/piechart/DonutChart';
 import MixedLineBarChartSetting from '@/widget/settings/MixedLineBarChartSetting';
+import NumericBoard from '@/modules/ board/NumericBoard';
+import NumericBoardSetting from '@/widget/settings/NumericBoardSetting';
+import TableBoard from '@/modules/ board/TableBoard';
+import TableBoardSetting from '@/widget/settings/TableBoardSetting';
 
 function WidgetAttributeSelect(props) {
   const { dataSetId, componentType, prevOption } = props;
@@ -51,6 +55,20 @@ function WidgetAttributeSelect(props) {
       };
 
       switch (componentType) {
+        case WIDGET_TYPE.BOARD_NUMERIC:
+          setSwitchChart({
+            ...switchChart,
+            chart: <NumericBoard {...ChartProps} />,
+            chartSetting: <NumericBoardSetting {...ChartSettingProps} />,
+          });
+          break;
+        case WIDGET_TYPE.BOARD_TABLE:
+          setSwitchChart({
+            ...switchChart,
+            chart: <TableBoard {...ChartProps} />,
+            chartSetting: <TableBoardSetting {...ChartSettingProps} />,
+          });
+          break;
         case WIDGET_TYPE.CHART_LINE:
           setSwitchChart({
             ...switchChart,

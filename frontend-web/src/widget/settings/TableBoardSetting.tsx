@@ -1,19 +1,21 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import {
+  Divider,
+  FormControl,
+  FormLabel,
   Grid,
+  IconButton,
+  IconButtonProps,
   List,
   ListItem,
   ListItemText,
   styled,
-  TextField,
-  IconButton,
-  IconButtonProps,
   SvgIcon,
-  Divider,
+  TextField,
 } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
-import ColorButtonForm from '@/components/form/ColorButtonForm';
 import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
+import { ALIGN_LIST, TABLE_ALIGN } from '@/constant';
 
 const StyledList = styled(List)({
   position: 'relative',
@@ -37,7 +39,6 @@ const StyledList = styled(List)({
     padding: '30px 0 30px',
   },
 });
-
 const DefaultIconButton = icon =>
   styled((props: IconButtonProps) => (
     <IconButton size="small" sx={{ width: '38px', height: '38px' }} {...props}>
@@ -57,23 +58,19 @@ const RemoveIconButton = DefaultIconButton(
   <path d="M432 256c0 17.7-14.3 32-32 32L48 288c-17.7 0-32-14.3-32-32s14.3-32 32-32l352 0c17.7 0 32 14.3 32 32z" />,
 );
 
-const LineChartSetting = props => {
+const TableBoardSetting = props => {
   const { option, setOption, seriesItem, axisReverse } = props;
 
   // props로부터 받기 ------------------------------------
   const typeOption = { series: ['high', 'low', 'avg'], [!axisReverse ? 'xField' : 'yField']: ['name', 'color'] }; // series type
   // ----------------------------------------------------
 
-  const aggregationList = { value: ['sum', 'avg', 'max', 'min'], label: ['합계', '평균', '최대', '최소'] };
-
-  [{ label: '합계', value: 'sum' }];
-  const legendList = { value: ['left', 'right', 'top', 'bottom'], label: ['왼쪽', '오른쪽', '위쪽', '아래쪽'] };
-
   const handleChange = event => {
+    console.log('event', event);
     setOption({ ...option, [event.target.name]: event.target.value });
   };
 
-  const handleSeriesChange = event => {
+  const handleColumnChange = event => {
     const key = event.target.name.slice(0, -1);
     const index = Number(event.target.name.slice(-1)[0]) - 1;
 
@@ -81,7 +78,7 @@ const LineChartSetting = props => {
       const tempOption = { ...prevState };
 
       // onChange 일어난 요소 key와 index로 식별해서 value 주기
-      tempOption.series.forEach((item, idx) => {
+      tempOption.columns.forEach((item, idx) => {
         console.log('item', item);
         console.log('key: ', key, ', value: ', event.target.value);
         if (index === idx) {
@@ -95,35 +92,25 @@ const LineChartSetting = props => {
   const handleAddClick = () => {
     setOption(prevState => {
       const tempOption = { ...prevState };
-      const defaultColor = [
-        '#5470c6',
-        '#91cc75',
-        '#fac858',
-        '#ee6666',
-        '#73c0de',
-        '#3ba272',
-        '#fc8452',
-        '#9a60b4',
-        '#ea7ccc',
-      ];
       const newItem = {
-        field: '',
-        color: defaultColor[option.series.length % 9],
-        aggregation: '',
+        name: '',
+        header: '',
+        align: TABLE_ALIGN.LEFT,
+        sortable: true,
       };
-      tempOption.series.push(newItem);
+      tempOption.columns.push(newItem);
       return tempOption;
     });
   };
 
   const handleRemoveClick = (event, index) => {
-    if (option.series.length === 1) {
+    if (option.columns.length === 1) {
       return;
     }
 
     setOption(prevState => {
       const obj = { ...prevState };
-      obj.series.splice(index, 1);
+      obj.columns.splice(index, 1);
       return obj;
     });
   };
@@ -133,18 +120,7 @@ const LineChartSetting = props => {
       <WidgetTitleForm value={option.title} onChange={handleChange} />
       <StyledList>
         <ListItem divider>
-          <ListItemText primary={`${!axisReverse ? 'X' : 'Y'}축 설정`} />
-          <SelectForm
-            id={!axisReverse ? 'xField' : 'yField'}
-            name={!axisReverse ? 'xField' : 'yField'}
-            label={!axisReverse ? 'X축' : 'Y축'}
-            optionList={typeOption[!axisReverse ? 'xField' : 'yField']}
-            value={option[!axisReverse ? 'xField' : 'yField']}
-            onChange={handleChange}
-          />
-        </ListItem>
-        <ListItem divider>
-          <ListItemText primary="시리즈 설정" />
+          <ListItemText primary="Columns" />
           <AddIconButton
             onClick={handleAddClick}
             sx={{
@@ -153,57 +129,52 @@ const LineChartSetting = props => {
               right: 0,
             }}
           />
-          {option.series.map((item, index) => (
+          {option.columns.map((item, index) => (
             <React.Fragment key={index}>
               <SelectForm
                 required={true}
-                id={`field${index + 1}`}
-                name={`field${index + 1}`}
+                id={`name${index + 1}`}
+                name={`name${index + 1}`}
                 label={`필드 ${index + 1}`}
                 optionList={typeOption.series}
-                value={item.field}
-                onChange={handleSeriesChange}
-                colorButton={<ColorButtonForm index={index} option={option} setOption={setOption} />}
+                value={item.name}
+                onChange={handleColumnChange}
               />
+              <FormControl
+                required
+                fullWidth
+                sx={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+              >
+                <FormLabel sx={{ width: '35%', pr: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  Header
+                </FormLabel>
+                <TextField
+                  type="none"
+                  required
+                  fullWidth
+                  name={`header${index + 1}`}
+                  value={item.header}
+                  onChange={handleColumnChange}
+                />
+              </FormControl>
               <SelectForm
-                id={`aggregation${index + 1}`}
-                name={`aggregation${index + 1}`}
-                label="집계 방식"
-                optionList={aggregationList}
-                value={item.aggregation}
-                onChange={handleSeriesChange}
+                id={`align${index + 1}`}
+                name={`align${index + 1}`}
+                label="Align"
+                optionList={ALIGN_LIST}
+                value={item.align}
+                onChange={handleColumnChange}
                 colorButton={
                   0 < index ? <RemoveIconButton onClick={event => handleRemoveClick(event, index)} id={index} /> : ' '
                 }
               />
-              {!!seriesItem && (
-                <SelectForm
-                  id={`${seriesItem.id}${index + 1}`}
-                  name={`${seriesItem.name}${index + 1}`}
-                  label={seriesItem.label}
-                  optionList={seriesItem.optionList}
-                  value={item[seriesItem.value]}
-                  onChange={handleSeriesChange}
-                />
-              )}
               <Divider />
             </React.Fragment>
           ))}
-        </ListItem>
-        <ListItem>
-          <ListItemText>범례 설정</ListItemText>
-          <SelectForm
-            id="legendPosition"
-            name="legendPosition"
-            label="위치"
-            optionList={legendList}
-            value={option.legendPosition}
-            onChange={handleChange}
-          />
         </ListItem>
       </StyledList>
     </Grid>
   );
 };
 
-export default LineChartSetting;
+export default TableBoardSetting;
