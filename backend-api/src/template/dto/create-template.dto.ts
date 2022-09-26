@@ -1,1 +1,3 @@
-export class CreateTemplateDto {}
+export class CreateTemplateDto {
+    layout: string;
+}

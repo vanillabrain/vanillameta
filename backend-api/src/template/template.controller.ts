@@ -8,8 +8,8 @@ export class TemplateController {
   constructor(private readonly templateService: TemplateService) {}
 
   @Post()
-  create(@Body() createTemplateDto: CreateTemplateDto) {
-    return this.templateService.create(createTemplateDto);
+  create(@Body() body:any) {
+    return this.templateService.create(body);
   }
 
   @Get()
