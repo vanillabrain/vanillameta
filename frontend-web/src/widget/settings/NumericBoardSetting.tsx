@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Grid, List, ListItem, ListItemText, styled, TextField, FormLabel, FormControl } from '@mui/material';
+import React from 'react';
+import { FormControl, FormLabel, Grid, List, ListItem, ListItemText, styled, TextField } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
 import ColorPickerForm from '@/components/form/ColorPickerForm';

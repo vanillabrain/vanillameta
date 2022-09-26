@@ -1,8 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import ReactECharts from 'echarts-for-react';
-import { Box, Stack, Typography } from '@mui/material';
-import { getAggregationData, getGridSize, getLegendOtion } from '@/modules/utils/chartUtil';
-import { WIDGET_AGGREGATION } from '@/constant';
+import { Stack } from '@mui/material';
 import DataGrid from '@/components/DataGrid';
 
 const TableBoard = props => {
@@ -14,12 +11,9 @@ const TableBoard = props => {
 
   const [columns, setColumns] = useState([]);
 
-  const [componentOption, setComponentOption] = useState(defaultComponentOption);
-
   useEffect(() => {
     if (option && dataSet) {
       const newOption = createComponentOption();
-      setComponentOption(newOption);
       setColumns([...option.columns]);
     }
   }, [option, dataSet]);

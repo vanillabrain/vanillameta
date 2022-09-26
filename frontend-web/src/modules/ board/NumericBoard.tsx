@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import ReactECharts from 'echarts-for-react';
-import { Box, Stack, Typography } from '@mui/material';
-import { getAggregationData, getGridSize, getLegendOtion } from '@/modules/utils/chartUtil';
-import { WIDGET_AGGREGATION } from '@/constant';
+import { Stack, Typography } from '@mui/material';
+import { getAggregationData } from '@/modules/utils/chartUtil';
 
 const NumericBoard = props => {
   const { option, dataSet } = props;
