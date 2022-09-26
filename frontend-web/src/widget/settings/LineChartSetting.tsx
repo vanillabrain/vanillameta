@@ -65,6 +65,8 @@ const LineChartSetting = props => {
   // ----------------------------------------------------
 
   const aggregationList = { value: ['sum', 'avg', 'max', 'min'], label: ['합계', '평균', '최대', '최소'] };
+
+  [{ label: '합계', value: 'sum' }];
   const legendList = { value: ['left', 'right', 'top', 'bottom'], label: ['왼쪽', '오른쪽', '위쪽', '아래쪽'] };
 
   const handleChange = event => {

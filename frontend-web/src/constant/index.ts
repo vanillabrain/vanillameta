@@ -1,4 +1,5 @@
 export const WIDGET_TYPE = {
+  BOARD_NUMERIC: 'BOARD_NUMERIC',
   CHART_LINE: 'CHART_LINE',
   CHART_STACKED_LINE: 'CHART_STACKED_LINE',
   CHART_AREA: 'CHART_AREA',
@@ -12,3 +13,17 @@ export const WIDGET_TYPE = {
   CHART_NIGHTINGALE: 'CHART_NIGHTINGALE',
   CHART_MIXED_LINE_BAR: 'CHART_MIXED_LINE_BAR',
 };
+
+export const WIDGET_AGGREGATION = {
+  SUM: 'sum',
+  AVG: 'avg',
+  MAX: 'max',
+  MIN: 'min',
+};
+
+export const AGGREGATION_LIST = [
+  { label: '합계', value: WIDGET_AGGREGATION.SUM },
+  { label: '평균', value: WIDGET_AGGREGATION.AVG },
+  { label: '최대', value: WIDGET_AGGREGATION.MAX },
+  { label: '최소', value: WIDGET_AGGREGATION.MIN },
+];

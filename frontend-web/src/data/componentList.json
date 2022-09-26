@@ -1,5 +1,15 @@
 [
   {
+    "id": "BOARD_NUMERIC",
+    "title": "숫자판",
+    "icon": null,
+    "caption": "Score Board",
+    "option": {
+      "header": { "title": "타이틀을 입력하세요", "fontSize": 20, "color": "#4A4A4A" },
+      "content": { "field": null, "aggregation": null, "fontSize": 20, "color": "#4A4A4A", "prefix": "", "suffix": "" }
+    }
+  },
+  {
     "id": "CHART_LINE",
     "title": "선형 차트",
     "icon": "icon/line-chart.png",

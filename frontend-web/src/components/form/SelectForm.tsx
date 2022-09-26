@@ -10,9 +10,13 @@ function SelectForm(props) {
       return;
     }
     if (Array.isArray(list)) {
-      // value와 label이 같을 경우 배열
-      const arr = list.map(item => ({ value: item, label: item }));
-      dropDownList = arr;
+      if (list.length > 0 && list[0] instanceof Object) {
+        dropDownList = [...list];
+      } else {
+        // value와 label이 같을 경우 배열
+        const arr = list.map(item => ({ value: item, label: item }));
+        dropDownList = arr;
+      }
     } else {
       // value와 label이 다를 경우 객체
       const value = list.value; // ['sum', 'avg']

@@ -51,7 +51,7 @@ const LineChart = props => {
         const series = {
           name: item.field,
           data: dataSet.map(dataItem => dataItem[item.field]),
-          type: item.type === null ? 'line' : item.type,
+          type: item.type ? item.type : 'line',
           color: item.color,
           smooth: true,
           ...seriesOp,

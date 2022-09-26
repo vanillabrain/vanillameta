@@ -7,6 +7,7 @@ import TitleBox from '@/components/TitleBox';
 import WidgetDataSelect from './WidgetDataSelect';
 import WidgetTypeSelect from './WidgetTypeSelect';
 import WidgetAttributeSelect from './WidgetAttributeSelect';
+import { WIDGET_TYPE } from '@/constant';
 
 const title = '위젯 생성';
 const steps = ['데이터 선택', '위젯 타입 선택', '위젯 속성 설정'];
@@ -20,7 +21,7 @@ function WidgetCreate(props) {
   // 개발 편의상 임시로 적용
   useEffect(() => {
     setDataSet(688279);
-    setWidgetType('CHART_MIXED_LINE_BAR');
+    setWidgetType(WIDGET_TYPE.BOARD_NUMERIC);
     setActiveStep(2);
   }, []);
 
