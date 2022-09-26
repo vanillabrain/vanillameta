@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { Box } from '@mui/material';
+import { getGridSize, getLegendOtion } from '@/modules/utils/chartUtil';
 
 const LineChart = props => {
   const { option, dataSet, axisReverse, seriesOp, defaultOp, createOp, ...rest } = props;
@@ -8,7 +9,7 @@ const LineChart = props => {
   const [componentOption, setComponentOption] = useState({});
 
   const defaultComponentOption = {
-    grid: { top: 8, right: 8, bottom: 24, left: 36 },
+    grid: { top: 50, right: 50, bottom: 50, left: 50 },
     tooltip: { trigger: 'axis' },
     [!axisReverse ? 'xAxis' : 'yAxis']: {
       type: 'category',
@@ -27,6 +28,7 @@ const LineChart = props => {
   useEffect(() => {
     if (option && dataSet) {
       const newOption = createComponentOption();
+      console.log('linechart new option', newOption);
       setComponentOption(newOption);
     }
   }, [option, dataSet]);
@@ -38,7 +40,7 @@ const LineChart = props => {
    */
 
   const createComponentOption = () => {
-    let newOption = defaultComponentOption;
+    let newOption = {};
 
     // series option에서 가져오기
     const newSeries = [];
@@ -66,7 +68,8 @@ const LineChart = props => {
         },
         series: newSeries,
         color: newColors,
-        legend: {}, // TODO: legend 위치 조정기능 추가
+        grid: getGridSize(option.legendPosition),
+        legend: getLegendOtion(option.legendPosition),
         ...createOp,
       };
 
