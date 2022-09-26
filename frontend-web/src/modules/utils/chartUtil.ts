@@ -2,7 +2,7 @@
  *
  * @param position
  */
-export const getLegendOtion = position => {
+export const getLegendOption = position => {
   let option = {};
   switch (position) {
     case 'left':

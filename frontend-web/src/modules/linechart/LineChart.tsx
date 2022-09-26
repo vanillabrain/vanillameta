@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { Box } from '@mui/material';
-import { getGridSize, getLegendOtion } from '@/modules/utils/chartUtil';
+import { getGridSize, getLegendOption } from '@/modules/utils/chartUtil';
 
 const LineChart = props => {
   const { option, dataSet, axisReverse, seriesOp, defaultOp, createOp, ...rest } = props;
@@ -69,7 +69,7 @@ const LineChart = props => {
         series: newSeries,
         color: newColors,
         grid: getGridSize(option.legendPosition),
-        legend: getLegendOtion(option.legendPosition),
+        legend: getLegendOption(option.legendPosition),
         ...createOp,
       };
 

@@ -215,23 +215,12 @@
     "icon": "icon/scatter-chart.png",
     "caption": "Scatter Chart",
     "option": {
-      "xField": "label",
       "series": [
         {
-          "field": "value1",
-          "color": "#43afef",
-          "aggregation": ""
-        },
-        {
-          "field": "value2",
-          "color": "#b9e7ff",
-          "aggregation": ""
-        }
-      ,
-        {
-          "field": "value2",
-          "color": "#d9d9d9",
-          "aggregation": ""
+          "xField": "",
+          "yField": "",
+          "symbolSize": "20",
+          "color": "#5470c6"
         }
       ]
     }
