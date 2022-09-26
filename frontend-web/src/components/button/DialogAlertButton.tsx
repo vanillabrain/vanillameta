@@ -12,14 +12,14 @@ import {
 import { Close } from '@mui/icons-material';
 
 export const DialogAlertIconButton = props => {
-  const { icon, size, children } = props;
+  const { icon, size, children, handleDialogSelect } = props;
   const iconButton = (
     <IconButton component="div" size={size}>
       {icon}
     </IconButton>
   );
 
-  return <DialogAlertButton button={iconButton} children={children} />;
+  return <DialogAlertButton button={iconButton} children={children} handleDialogSelect={handleDialogSelect} />;
 };
 
 DialogAlertIconButton.defaultProps = {
@@ -41,7 +41,6 @@ const DialogAlertButton = props => {
   };
 
   const handleConfirmCancelClick = detail => {
-    console.log('1 = 확인, 0 = 취소', detail);
     setOpen(false);
     if (handleDialogSelect) {
       handleDialogSelect(detail);

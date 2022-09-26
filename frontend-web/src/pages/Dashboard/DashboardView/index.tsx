@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Card, IconButton, Stack } from '@mui/material';
+import { Delete } from '@mui/icons-material';
 import { Link as RouterLink, useLocation, useMatch, useSearchParams } from 'react-router-dom';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
 import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
 import PageTitleBox from '@/components/PageTitleBox';
 import TitleBox from '@/components/TitleBox';
 import { DialogAlertIconButton } from '@/components/button/DialogAlertButton';
@@ -63,6 +63,12 @@ const DashboardView = props => {
     });
   };
 
+  const handleDialogSelect = detail => {
+    if (detail == 1) {
+      console.log('대시보드 조회화면에서 삭제 버튼을 눌렀다');
+    }
+  };
+
   return (
     <PageTitleBox title="대시보드 조회">
       <TitleBox
@@ -79,21 +85,21 @@ const DashboardView = props => {
             >
               <EditIcon />
             </IconButton>
-            <DialogAlertIconButton size="small" icon={<DeleteIcon />}>
-              {`<${dashboardInfo.title}>을 삭제하시겠습니까?`}
+            <DialogAlertIconButton size="small" icon={<Delete />} handleDialogSelect={handleDialogSelect}>
+              {`'<${dashboardInfo.title}>'을(를) 삭제하시겠습니까?`}
             </DialogAlertIconButton>
           </Stack>
         }
       >
         <Box
           sx={{
-            width: '1280px',
+            width: '1440px',
             minHeight: '1080px',
             borderRadius: 1,
             backgroundColor: '#eee',
           }}
         >
-          <ResponsiveGridLayout rowHeight={54} compactType={null} cols={{ lg: 20 }} layouts={{ lg: layout }}>
+          <ResponsiveGridLayout rowHeight={54} compactType={null} cols={{ lg: 12 }} layouts={{ lg: layout }}>
             {generateWidget()}
           </ResponsiveGridLayout>
         </Box>
