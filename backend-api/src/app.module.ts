@@ -10,6 +10,7 @@ import { WidgetModule } from './widget/widget.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { TemplateModule } from './template/template.module';
 import { CommonModule } from './common/common.module';
+import { ComponentModule } from './component/component.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { CommonModule } from './common/common.module';
     DashboardModule,
     TemplateModule,
     CommonModule,
+    ComponentModule,
   ],
   controllers: [AppController],
   providers: [AppService],

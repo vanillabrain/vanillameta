@@ -1,42 +1,40 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
-import { BaseEntity } from '../../common/entities/base.entity';
-import { CreateDatabaseDto } from '../dto/create-database.dto';
+import {Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn, JoinColumn, OneToOne } from "typeorm";
+import {Dataset} from "../../dataset/entities/dataset.entity";
 
 @Entity()
-export class Database extends BaseEntity {
+export class Database {
   @PrimaryGeneratedColumn()
-  id: number;
+  id: number
 
   @Column()
-  name: string;
+  title: string
 
   @Column()
-  description: string;
+  type: string
 
   @Column()
-  details: string;
+  host: string
 
   @Column()
-  engine: string;
+  port: string
 
   @Column()
-  timezone: string;
+  userId: string
 
-  static of(name: string, description: string, details: string, engine: string, timezone: string): Database {
-    const obj = new Database();
-    obj.name = name;
-    obj.description = description;
-    obj.details = details;
-    obj.engine = engine;
-    obj.timezone = timezone;
-    return obj;
-  }
+  @Column()
+  userPassword: string
 
-  static toDto(dto: CreateDatabaseDto): Database {
-    return Database.of(dto.name, dto.description, dto.details, dto.engine, dto.timezone);
-  }
+  @Column()
+  schema: string
 
-  getFullDescription(): string {
-    return `${this.name} ${this.description}`;
-  }
+  @CreateDateColumn()
+  created_at: Date;
+
+  @UpdateDateColumn()
+  updated_at: Date;
+
+  @OneToOne(() => Dataset, (dataset) => dataset.database)
+  @JoinColumn({'name': 'databaseId'})
+  dataset: Dataset;
+
 }
