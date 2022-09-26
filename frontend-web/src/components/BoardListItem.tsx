@@ -7,7 +7,7 @@ import { DialogAlertIconButton } from './button/DialogAlertButton';
 const tableBorder = '1px solid #DADDDD';
 
 function BoardListItem(props) {
-  const { postItem } = props;
+  const { postItem, message, handleDeleteSelect } = props;
 
   const dateData = data => {
     const userDate = new Date(data);
@@ -35,6 +35,15 @@ function BoardListItem(props) {
       break;
   }
 
+  const handleDialogSelect = detail => {
+    if (detail == 1) {
+      if (handleDeleteSelect) {
+        console.log('삭제를 눌러버렸어');
+        handleDeleteSelect(postItem);
+      }
+    }
+  };
+
   return (
     <ListItem
       key={postItem.id}
@@ -43,9 +52,16 @@ function BoardListItem(props) {
           <IconButton size="large" component={RouterLink} to={`modify?id=${postItem.id}&title=${postItem.title}`}>
             <Edit />
           </IconButton>
-          <DialogAlertIconButton icon={<Delete />} size="large">
-            {`삭제시 N개의 대시보드에 반영됩니다.`}
-            <br /> {`<${postItem.title}>을 삭제하시겠습니까?`}
+          <DialogAlertIconButton
+            icon={<Delete />}
+            size="large"
+            confirmLabel="삭제"
+            cancelLabel="취소"
+            handleDialogSelect={handleDialogSelect}
+          >
+            {message ? message : ``}
+            {message ? <br /> : ``}
+            {`'<${postItem.title}>'을(를) 삭제하시겠습니까?`}
           </DialogAlertIconButton>
         </React.Fragment>
       }

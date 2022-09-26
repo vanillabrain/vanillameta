@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Card, Stack, TextField } from '@mui/material';
-import { Link as RouterLink, useLocation, useMatch, useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import PageContainer from '@/components/PageContainer';
 import PageTitleBox from '@/components/PageTitleBox';
 import AddWidgetPopupButton from '@/pages/Dashboard/DashboardModify/AddWidgetPopupButton';
@@ -17,11 +17,18 @@ const ResponsiveGridLayout = WidthProvider(Responsive);
 
 function DashboardModify(props) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [dashboardId, setDashboardId] = useState(null); // dashboard id
   const [dashboardTitle, setDashboardTitle] = useState(''); // dashboard 제목
   const [widgets, setWidgets] = useState([]); // widget 정보
   const [layout, setLayout] = useState([]); // layout 정보
   const useWidgetIds = [];
+  const dashboardInfo = {
+    dashboardId: null,
+    title: '',
+    layout: [],
+    widgets: [],
+  };
 
   // init useEffect
   useEffect(() => {
@@ -81,7 +88,6 @@ function DashboardModify(props) {
 
     return widgets.map((item, index) => {
       useWidgetIds.push(item.widgetId); // 현재 widget id 를 담는다.
-      console.log('삭제 했으니 다시 그려보자');
       return (
         <Card key={item.widgetId} sx={{ width: '100%', height: '100%', borderRadius: 1 }}>
           <span
@@ -114,15 +120,29 @@ function DashboardModify(props) {
     });
   };
 
+  // 저장 여부 버튼 이벤트
   const handleSaveDialogSelect = detail => {
     if (detail == 1) {
+      // validation 체크
+      // title null 체크, widgets 수 체크 (0개면 저장 못함)
       // 저장 로직
+      dashboardInfo.dashboardId = dashboardId;
+      dashboardInfo.title = dashboardTitle;
+      dashboardInfo.layout = layout;
+      dashboardInfo.widgets = widgets;
+
+      console.log('대시보드 저장');
+      console.log(dashboardInfo);
     }
     console.log('저장한다 안한다', detail);
   };
 
+  // 취소 여부 버튼 이벤트
   const handleCancelDialogSelect = detail => {
-    console.log('취소한다 안한다', detail);
+    if (detail == 1) {
+      // 이전 페이지로 이동
+      navigate(-1);
+    }
   };
 
   return (
@@ -174,7 +194,7 @@ function DashboardModify(props) {
         </Stack>
         <Box
           sx={{
-            width: '1280px',
+            width: '1440px',
             minHeight: '1080px',
             borderRadius: 1,
             backgroundColor: '#eee',
@@ -183,8 +203,9 @@ function DashboardModify(props) {
           <ResponsiveGridLayout
             rowHeight={54}
             compactType={null}
-            cols={{ lg: 20 }}
+            cols={{ lg: 12 }}
             layouts={{ lg: layout }}
+            margin={[10, 10]}
             onLayoutChange={onLayoutChange}
           >
             {generateWidget()}
