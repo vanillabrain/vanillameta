@@ -4,7 +4,7 @@ import { Link as RouterLink, useLocation, useMatch, useSearchParams } from 'reac
 import PageContainer from '@/components/PageContainer';
 import PageTitleBox from '@/components/PageTitleBox';
 import AddWidgetPopupButton from '@/pages/Dashboard/DashboardModify/AddWidgetPopupButton';
-import ConfirmCancelButton, { CancelButton } from '@/components/button/ConfirmCancelButton';
+import ConfirmCancelButton, { ConfirmButton, CancelButton } from '@/components/button/ConfirmCancelButton';
 import DialogAlertButton from '@/components/button/DialogAlertButton';
 import GridLayout, { Responsive, WidthProvider } from 'react-grid-layout';
 
@@ -114,6 +114,17 @@ function DashboardModify(props) {
     });
   };
 
+  const handleSaveDialogSelect = detail => {
+    if (detail == 1) {
+      // 저장 로직
+    }
+    console.log('저장한다 안한다', detail);
+  };
+
+  const handleCancelDialogSelect = detail => {
+    console.log('취소한다 안한다', detail);
+  };
+
   return (
     <PageContainer>
       <PageTitleBox
@@ -121,9 +132,24 @@ function DashboardModify(props) {
         button={
           <React.Fragment>
             <ConfirmCancelButton
-              confirmProps={{ disabled: true }}
+              // confirmProps={{ disabled: true }}
+              confirmButton={
+                <DialogAlertButton
+                  cancelLabel="취소"
+                  confirmLabel="저장"
+                  handleDialogSelect={handleSaveDialogSelect}
+                  button={<ConfirmButton confirmLabel="저장" cancelProps={{ component: 'div' }} />}
+                >
+                  저장하시겠습니까?
+                </DialogAlertButton>
+              }
               cancelButton={
-                <DialogAlertButton button={<CancelButton cancelLabel="취소" cancelProps={{ component: 'div' }} />}>
+                <DialogAlertButton
+                  cancelLabel="취소"
+                  confirmLabel="확인"
+                  handleDialogSelect={handleCancelDialogSelect}
+                  button={<CancelButton cancelLabel="취소" cancelProps={{ component: 'div' }} />}
+                >
                   변경사항을 저장하지 않고 작업을 취소하시겠습니까?
                 </DialogAlertButton>
               }
