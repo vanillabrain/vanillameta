@@ -28,7 +28,7 @@ const LineChart = props => {
   useEffect(() => {
     if (option && dataSet) {
       const newOption = createComponentOption();
-      console.log('linechart new option', newOption);
+      // console.log('linechart new option', newOption);
       setComponentOption(newOption);
     }
   }, [option, dataSet]);

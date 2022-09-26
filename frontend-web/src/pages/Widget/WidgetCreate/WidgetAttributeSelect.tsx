@@ -13,21 +13,23 @@ import DonutChart from '@/modules/piechart/DonutChart';
 import MixedLineBarChartSetting from '@/widget/settings/MixedLineBarChartSetting';
 import ScatterChart from '@/modules/scatterchart/ScatterChart';
 import ScatterChartSetting from '@/widget/settings/ScatterChartSetting';
+import TitleBox from '@/components/TitleBox';
 
 function WidgetAttributeSelect(props) {
   const { dataSetId, componentType, prevOption } = props;
 
   const [option, setOption] = useState(null);
   const [data, setData] = useState(null);
-
   const [switchChart, setSwitchChart] = useState({ chart: undefined, chartSetting: undefined });
+
+  const defaultComponentData = [...componentList].find(item => item.id === componentType && { ...item });
+  const widgetTypeText = defaultComponentData.title;
 
   useEffect(() => {
     getData();
   }, []);
 
   useEffect(() => {
-    const defaultComponentData = [...componentList].find(item => item.id === componentType && { ...item });
     setOption(JSON.parse(JSON.stringify(defaultComponentData.option)));
   }, [componentType]);
 
@@ -222,7 +224,7 @@ function WidgetAttributeSelect(props) {
   const handleSubmit = event => {
     event.preventDefault();
 
-    if (option.title === '') {
+    if (option === null) {
       return;
     }
 
@@ -233,18 +235,20 @@ function WidgetAttributeSelect(props) {
   };
 
   return (
-    <Grid
-      onSubmit={handleSubmit}
-      component="form"
-      id="widgetAttribute"
-      container
-      sx={{ justifyContent: { xs: 'center', md: 'space-between' } }}
-    >
-      <Grid item xs={12} md={7.5} lg={8.5}>
-        <WidgetBox>{switchChart.chart}</WidgetBox>
+    <TitleBox title={widgetTypeText}>
+      <Grid
+        onSubmit={handleSubmit}
+        component="form"
+        id="widgetAttribute"
+        container
+        sx={{ justifyContent: { xs: 'center', md: 'space-between' } }}
+      >
+        <Grid item xs={12} md={7.5} lg={8.5}>
+          <WidgetBox>{switchChart.chart}</WidgetBox>
+        </Grid>
+        {switchChart.chartSetting}
       </Grid>
-      {switchChart.chartSetting}
-    </Grid>
+    </TitleBox>
   );
 }
 
