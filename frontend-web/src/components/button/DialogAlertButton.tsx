@@ -12,14 +12,14 @@ import {
 import { Close } from '@mui/icons-material';
 
 export const DialogAlertIconButton = props => {
-  const { icon, size, children } = props;
+  const { icon, size, children, handleDialogSelect } = props;
   const iconButton = (
     <IconButton component="div" size={size}>
       {icon}
     </IconButton>
   );
 
-  return <DialogAlertButton button={iconButton} children={children} />;
+  return <DialogAlertButton button={iconButton} children={children} handleDialogSelect={handleDialogSelect} />;
 };
 
 DialogAlertIconButton.defaultProps = {
@@ -29,7 +29,7 @@ DialogAlertIconButton.defaultProps = {
 };
 
 const DialogAlertButton = props => {
-  const { button, children, ref } = props;
+  const { button, children, confirmLabel, cancelLabel, handleDialogSelect, ref } = props;
   const [open, setOpen] = useState(false);
 
   const handleOpenClick = () => {
@@ -38,6 +38,13 @@ const DialogAlertButton = props => {
 
   const handleClose = () => {
     setOpen(false);
+  };
+
+  const handleConfirmCancelClick = detail => {
+    setOpen(false);
+    if (handleDialogSelect) {
+      handleDialogSelect(detail);
+    }
   };
 
   return (
@@ -63,11 +70,11 @@ const DialogAlertButton = props => {
           <DialogContentText id="경고 문구">{children}</DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClose} color="inherit">
-            취소
+          <Button onClick={() => handleConfirmCancelClick(1)} color="inherit">
+            {confirmLabel}
           </Button>
-          <Button onClick={handleClose} color="error">
-            삭제
+          <Button onClick={() => handleConfirmCancelClick(0)} color="error">
+            {cancelLabel}
           </Button>
         </DialogActions>
       </Dialog>
@@ -78,6 +85,8 @@ const DialogAlertButton = props => {
 DialogAlertButton.defaultProps = {
   button: undefined,
   children: '',
+  confirmLabel: '삭제',
+  cancelLabel: '취소',
 };
 
 export default DialogAlertButton;
