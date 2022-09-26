@@ -10,6 +10,15 @@
     }
   },
   {
+    "id": "BOARD_TABLE",
+    "title": "표",
+    "icon": null,
+    "caption": "DataGrid",
+    "option": {
+      "columns": []
+    }
+  },
+  {
     "id": "CHART_LINE",
     "title": "선형 차트",
     "icon": "icon/line-chart.png",
