@@ -1,4 +1,4 @@
 export enum DatasetType {
     DATASET = 'DATASET',
-    WIDGET = 'WIDGET_DATASET'
+    WIDGET = 'WIDGET_VIEW'
 }

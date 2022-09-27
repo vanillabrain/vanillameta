@@ -5,6 +5,8 @@ import { UpdateWidgetViewDto } from './dto/update-widget-view.dto';
 @Injectable()
 export class WidgetViewService {
   create(createWidgetViewDto: CreateWidgetViewDto) {
+
+
     return 'This action adds a new widgetView';
   }
 
