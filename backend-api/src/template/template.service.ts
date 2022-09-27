@@ -8,6 +8,8 @@ import {YesNo} from "../common/enum/yn.enum";
 import {TemplateItem} from "./entities/template-item.entity";
 import {CreateTemplateItemDto} from "./dto/create-template-item.dto";
 import {UpdateTemplateItemDto} from "./dto/update-template-item.dto";
+import {TemplateInfoDto} from "./dto/template-info.dto";
+import {ItemInfoDto} from "./dto/item-info.dto";
 
 @Injectable()
 export class TemplateService {
@@ -23,10 +25,11 @@ export class TemplateService {
      * 템플릿 추가
      * @param createTemplate
      */
-    async create(createTemplate: CreateTemplateDto) {
+    async create(createTemplate: CreateTemplateDto): Promise<Template> {
         const insertItem = await this.templateRepository.save({
             title: createTemplate.title,
             description: createTemplate.description,
+
         })
         return insertItem;
     }
@@ -35,7 +38,7 @@ export class TemplateService {
      * 템플릿 상세 아이템 추가
      * @param createTemplateItem
      */
-    async createItem(createTemplateItem: CreateTemplateItemDto) {
+    async createItem(createTemplateItem: CreateTemplateItemDto): Promise<TemplateItem> {
         const insertItem = await this.templateItemRepository.save({
             templateId: createTemplateItem.templateId,
             x: createTemplateItem.x,
@@ -69,8 +72,9 @@ export class TemplateService {
      * 템플릿 단건 조회
      * @param id
      */
-    async findOne(id: number) {
-        let returnObj: any;
+    async findOne(id: number): Promise<TemplateInfoDto> {
+        let returnObj: TemplateInfoDto;
+
         // 템플릿 기본 정보 조회
         const templateInfo = await this.templateRepository.findOne({
             select: {
@@ -83,9 +87,9 @@ export class TemplateService {
                 id: id,
             }
         });
-        returnObj = templateInfo;
 
         if(templateInfo.id){
+            returnObj = new TemplateInfoDto(templateInfo);
             // 템플릿 상세 아이템 조회(layout 조회 및 가공)
             const layoutList = await this.templateItemRepository.find({
                 where: {
@@ -94,7 +98,8 @@ export class TemplateService {
             });
             const layout = [];
             layoutList.map((item) => {
-                layout.push({x: item.x, y: item.y, w:item.width, h:item.height, category:item.recommendCategory, type:item.recommendType});
+                const itemInfo:ItemInfoDto = new ItemInfoDto(item);
+                layout.push(itemInfo);
             })
             returnObj.layout = layout;
         }
@@ -174,7 +179,13 @@ export class TemplateService {
      * 선택된 위젯목록으로 추천될 template 목록
      * @param widgets
      */
-    findRecommendTemplates(widgets: any[]) {
+    async findRecommendTemplates(widgets: any[]): Promise<TemplateInfoDto[]> {
+        const returnArr = [];
+        const tempTemplateInfo = new TemplateItem();
+        returnArr.push(tempTemplateInfo);
 
+        
+
+        return returnArr;
     }
 }

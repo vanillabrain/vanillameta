@@ -17,15 +17,15 @@ export class WidgetService {
     if(find_widget){
       return 'exist same widget'
     } else {
-      await this.widgetRepository.save({
-        title: body.title,
-        description: body.description,
-        componentId: body.componentId,
-        datasetType: body.datasetType,
-        datasetId: body.datasetId,
-        option: JSON.stringify(body.option),
-        delYn: body.delYn
-      })
+      // await this.widgetRepository.save({
+      //   title: body.title,
+      //   description: body.description,
+      //   componentId: body.componentId,
+      //   datasetType: body.datasetType,
+      //   datasetId: body.datasetId,
+      //   option: JSON.stringify(body.option),
+      //   delYn: body.delYn
+      // })
     }
     return 'This action adds a new widget';
   }
