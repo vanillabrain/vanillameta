@@ -1,0 +1,62 @@
+[
+  {
+  "templateId": "0001",
+  "title": "템플릿 1",
+    "type": "A",
+  "description": "템플릿 설명1"
+  },
+  {
+  "templateId": "0002",
+  "title": "템플릿 2",
+    "type": "B",
+  "description": "템플릿 설명2"
+  },
+  {
+    "templateId": "0003",
+    "title": "템플릿 3",
+    "type": "C",
+    "description": "템플릿 설명3"
+  },
+  {
+    "templateId": "0004",
+    "title": "템플릿 4",
+    "type": "D",
+    "description": "템플릿 설명4"
+  },
+  {
+    "templateId": "0005",
+    "title": "템플릿 5",
+    "type": "E",
+    "description": "템플릿 설명5"
+  },
+  {
+    "templateId": "0006",
+    "title": "템플릿 6",
+    "type": "F",
+    "description": "템플릿 설명6"
+  },
+  {
+    "templateId": "0007",
+    "title": "템플릿 7",
+    "type": "G",
+    "description": "템플릿 설명7"
+  },
+  {
+    "templateId": "0008",
+    "title": "템플릿 8",
+    "type": "H",
+    "description": "템플릿 설명8"
+  },
+  {
+    "templateId": "0009",
+    "title": "템플릿 9",
+    "type": "I",
+    "description": "템플릿 설명9"
+  },
+  {
+    "templateId": "0010",
+    "title": "템플릿 10",
+    "type": "J",
+    "description": "템플릿 설명10"
+  }
+]

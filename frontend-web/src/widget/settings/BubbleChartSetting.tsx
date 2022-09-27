@@ -3,9 +3,9 @@ import { Divider, Grid, List, ListItem, ListItemText, styled } from '@mui/materi
 import SelectForm from '@/components/form/SelectForm';
 import ColorButtonForm from '@/components/form/ColorButtonForm';
 import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
+import TextFieldForm from '@/components/form/TextFieldForm';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
 import { handleChange, handleSeriesChange, handleAddClick, handleRemoveClick } from '@/widget/utils/handler';
-import { AGGREGATION_LIST, COLUMN_TYPE, WIDGET_AGGREGATION } from '@/constant';
 
 const StyledList = styled(List)({
   position: 'relative',
@@ -31,40 +31,27 @@ const StyledList = styled(List)({
 });
 
 const LineChartSetting = props => {
-  const { option, setOption, seriesItem, axis = 'x', spec } = props;
+  const { option, setOption, seriesItem } = props;
 
   // props로부터 받기 ------------------------------------
   const typeOption = { series: ['high', 'low', 'avg'], axis: ['name', 'color'] }; // series type
   // ----------------------------------------------------
 
-  const aggregationList = { value: ['sum', 'avg', 'max', 'min'], label: ['합계', '평균', '최대', '최소'] };
-
   const legendList = { value: ['left', 'right', 'top', 'bottom'], label: ['왼쪽', '오른쪽', '위쪽', '아래쪽'] };
 
   // 컴포넌트 별 default series
   const defaultSeries = {
-    field: '',
+    name: '',
+    xField: '',
+    yField: '',
     color: '',
-    aggregation: '',
+    symbolSize: '',
   };
 
   return (
     <Grid item xs={10} md={4} lg={3} sx={{ display: 'flex', flexDirection: 'column' }}>
       <WidgetTitleForm value={option.title} onChange={event => handleChange(event, setOption)} />
       <StyledList>
-        <ListItem divider>
-          <ListItemText primary={`${axis}축 설정`} sx={{ textTransform: 'uppercase' }} />
-          <SelectForm
-            id={axis + 'Field'}
-            name={axis + 'Field'}
-            label={axis + '축'}
-            optionList={spec.map(item => item.columnName)}
-            labelField="columnName"
-            valueField="columnType"
-            value={option[`${axis}Field`]}
-            onChange={event => handleChange(event, setOption)}
-          />
-        </ListItem>
         <ListItem divider>
           <ListItemText primary="시리즈 설정" />
           <AddButton
@@ -77,30 +64,45 @@ const LineChartSetting = props => {
           />
           {option.series.map((item, index) => (
             <React.Fragment key={index}>
-              <SelectForm
-                required={true}
-                id={`field${index + 1}`}
-                name={`field${index + 1}`}
-                label={`필드 ${index + 1}`}
-                labelField="columnName"
-                valueField="columnType"
-                optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
-                value={item.field}
+              <TextFieldForm
+                id={`name${index + 1}`}
+                name={`name${index + 1}`}
+                label={`필드 ${index + 1} 이름`}
+                value={item.name}
                 onChange={event => handleSeriesChange(event, setOption)}
                 endButton={<ColorButtonForm index={index} option={option} setOption={setOption} />}
               />
               <SelectForm
-                id={`aggregation${index + 1}`}
-                name={`aggregation${index + 1}`}
-                label="집계 방식"
-                optionList={AGGREGATION_LIST}
-                value={item.aggregation}
+                required={true}
+                id={`xField${index + 1}`}
+                name={`xField${index + 1}`}
+                label={`X축`}
+                optionList={typeOption.series}
+                value={item.xField}
+                onChange={event => handleSeriesChange(event, setOption)}
+              />
+              <SelectForm
+                required={true}
+                id={`yField${index + 1}`}
+                name={`yField${index + 1}`}
+                label={`Y축`}
+                optionList={typeOption.series}
+                value={item.yField}
+                onChange={event => handleSeriesChange(event, setOption)}
+              />
+              <SelectForm
+                required={true}
+                id={`symbolSize${index + 1}`}
+                name={`symbolSize${index + 1}`}
+                label={`사이즈`}
+                optionList={typeOption.series}
+                value={item.symbolSize}
                 onChange={event => handleSeriesChange(event, setOption)}
                 endButton={
                   0 < index ? (
                     <RemoveButton onClick={event => handleRemoveClick(event, index, option, setOption)} id={index} />
                   ) : (
-                    ' '
+                    false
                   )
                 }
               />

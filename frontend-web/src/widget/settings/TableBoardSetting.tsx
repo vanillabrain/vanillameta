@@ -1,21 +1,10 @@
 import React from 'react';
-import {
-  Divider,
-  FormControl,
-  FormLabel,
-  Grid,
-  IconButton,
-  IconButtonProps,
-  List,
-  ListItem,
-  ListItemText,
-  styled,
-  SvgIcon,
-  TextField,
-} from '@mui/material';
+import { Divider, FormControl, FormLabel, Grid, List, ListItem, ListItemText, styled, TextField } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
 import { ALIGN_LIST, TABLE_ALIGN } from '@/constant';
+import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
+import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
 
 const StyledList = styled(List)({
   position: 'relative',
@@ -39,90 +28,29 @@ const StyledList = styled(List)({
     padding: '30px 0 30px',
   },
 });
-const DefaultIconButton = icon =>
-  styled((props: IconButtonProps) => (
-    <IconButton size="small" sx={{ width: '38px', height: '38px' }} {...props}>
-      <SvgIcon fontSize="small">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512">
-          {icon}
-        </svg>
-      </SvgIcon>
-    </IconButton>
-  ))({ flex: 'none' });
-
-const AddIconButton = DefaultIconButton(
-  <path d="M256 80c0-17.7-14.3-32-32-32s-32 14.3-32 32V224H48c-17.7 0-32 14.3-32 32s14.3 32 32 32H192V432c0 17.7 14.3 32 32 32s32-14.3 32-32V288H400c17.7 0 32-14.3 32-32s-14.3-32-32-32H256V80z" />,
-);
-
-const RemoveIconButton = DefaultIconButton(
-  <path d="M432 256c0 17.7-14.3 32-32 32L48 288c-17.7 0-32-14.3-32-32s14.3-32 32-32l352 0c17.7 0 32 14.3 32 32z" />,
-);
 
 const TableBoardSetting = props => {
-  const { option, setOption, seriesItem, axisReverse } = props;
+  const { option, setOption, seriesItem } = props;
 
   // props로부터 받기 ------------------------------------
-  const typeOption = { series: ['high', 'low', 'avg'], [!axisReverse ? 'xField' : 'yField']: ['name', 'color'] }; // series type
+  const typeOption = { series: ['high', 'low', 'avg'], axis: ['name', 'color'] }; // series type
   // ----------------------------------------------------
 
-  const handleChange = event => {
-    console.log('event', event);
-    setOption({ ...option, [event.target.name]: event.target.value });
-  };
-
-  const handleColumnChange = event => {
-    const key = event.target.name.slice(0, -1);
-    const index = Number(event.target.name.slice(-1)[0]) - 1;
-
-    setOption(prevState => {
-      const tempOption = { ...prevState };
-
-      // onChange 일어난 요소 key와 index로 식별해서 value 주기
-      tempOption.columns.forEach((item, idx) => {
-        console.log('item', item);
-        console.log('key: ', key, ', value: ', event.target.value);
-        if (index === idx) {
-          item[key] = event.target.value;
-        }
-      });
-      return tempOption;
-    });
-  };
-
-  const handleAddClick = () => {
-    setOption(prevState => {
-      const tempOption = { ...prevState };
-      const newItem = {
-        name: '',
-        header: '',
-        align: TABLE_ALIGN.LEFT,
-        sortable: true,
-      };
-      tempOption.columns.push(newItem);
-      return tempOption;
-    });
-  };
-
-  const handleRemoveClick = (event, index) => {
-    if (option.columns.length === 1) {
-      return;
-    }
-
-    setOption(prevState => {
-      const obj = { ...prevState };
-      obj.columns.splice(index, 1);
-      return obj;
-    });
+  const defaultSeries = {
+    name: '',
+    header: '',
+    align: TABLE_ALIGN.LEFT,
+    sortable: true,
   };
 
   return (
     <Grid item xs={10} md={4} lg={3} sx={{ display: 'flex', flexDirection: 'column' }}>
-      <WidgetTitleForm value={option.title} onChange={handleChange} />
+      <WidgetTitleForm value={option.title} onChange={event => handleChange(event, setOption)} />
       <StyledList>
         <ListItem divider>
           <ListItemText primary="Columns" />
-          <AddIconButton
-            onClick={handleAddClick}
+          <AddButton
+            onClick={event => handleAddClick(event, option, setOption, defaultSeries, 'columns')}
             sx={{
               position: 'absolute',
               top: 30,
@@ -138,7 +66,7 @@ const TableBoardSetting = props => {
                 label={`필드 ${index + 1}`}
                 optionList={typeOption.series}
                 value={item.name}
-                onChange={handleColumnChange}
+                onChange={event => handleSeriesChange(event, setOption, 'columns')}
               />
               <FormControl
                 required
@@ -154,7 +82,7 @@ const TableBoardSetting = props => {
                   fullWidth
                   name={`header${index + 1}`}
                   value={item.header}
-                  onChange={handleColumnChange}
+                  onChange={event => handleSeriesChange(event, setOption, 'columns')}
                 />
               </FormControl>
               <SelectForm
@@ -163,9 +91,16 @@ const TableBoardSetting = props => {
                 label="Align"
                 optionList={ALIGN_LIST}
                 value={item.align}
-                onChange={handleColumnChange}
+                onChange={event => handleSeriesChange(event, setOption, 'columns')}
                 endButton={
-                  0 < index ? <RemoveIconButton onClick={event => handleRemoveClick(event, index)} id={index} /> : ' '
+                  0 < index ? (
+                    <RemoveButton
+                      onClick={event => handleRemoveClick(event, index, option, setOption, 'columns')}
+                      id={index}
+                    />
+                  ) : (
+                    ' '
+                  )
                 }
               />
               <Divider />
