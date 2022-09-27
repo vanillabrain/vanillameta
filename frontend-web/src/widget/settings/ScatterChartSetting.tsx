@@ -70,6 +70,7 @@ const LineChartSetting = props => {
 
   // 컴포넌트 별 default series
   const defaultSeries = {
+    name: '',
     xField: '',
     yField: '',
     color: '',
@@ -152,8 +153,10 @@ const LineChartSetting = props => {
               <TextFieldForm
                 id={`name${index + 1}`}
                 name={`name${index + 1}`}
-                label={`필드 ${index + 1}`}
+                label={`필드 ${index + 1} 이름`}
+                value={item.name}
                 onChange={handleSeriesChange}
+                endButton={<ColorButtonForm index={index} option={option} setOption={setOption} />}
               />
               <SelectForm
                 required={true}
@@ -163,7 +166,6 @@ const LineChartSetting = props => {
                 optionList={typeOption.series}
                 value={item.xField}
                 onChange={handleSeriesChange}
-                colorButton={<ColorButtonForm index={index} option={option} setOption={setOption} />}
               />
               <SelectForm
                 required={true}
@@ -173,9 +175,6 @@ const LineChartSetting = props => {
                 optionList={typeOption.series}
                 value={item.yField}
                 onChange={handleSeriesChange}
-                colorButton={
-                  0 < index ? <RemoveIconButton onClick={event => handleRemoveClick(event, index)} id={index} /> : ' '
-                }
               />
               <TextFieldForm
                 id={`symbolSize${index + 1}`}
@@ -184,6 +183,9 @@ const LineChartSetting = props => {
                 type="number"
                 value={item.symbolSize}
                 onChange={handleSeriesChange}
+                endButton={
+                  0 < index ? <RemoveIconButton onClick={event => handleRemoveClick(event, index)} id={index} /> : false
+                }
               />
               {!!seriesItem && (
                 <SelectForm

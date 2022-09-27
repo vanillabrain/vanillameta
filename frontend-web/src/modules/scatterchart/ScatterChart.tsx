@@ -47,7 +47,7 @@ function ScatterChart(props) {
       if (item.xField || item.yField) {
         const series = {
           type: 'scatter',
-          name: 'test',
+          name: item.name,
           data: dataSet.map(dataItem => [dataItem[item.xField], dataItem[item.yField]]),
           symbolSize: item.symbolSize,
           color: item.color,

@@ -1,8 +1,18 @@
 import React from 'react';
 import { IconButton, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import { BarChart, PieChart, Dashboard, StackedLineChart, Delete, Edit } from '@mui/icons-material';
+import {
+  BarChart,
+  PieChart,
+  Dashboard,
+  StackedLineChart,
+  Delete,
+  Edit,
+  BubbleChart,
+  ScatterPlot,
+} from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
 import { DialogAlertIconButton } from './button/DialogAlertButton';
+import DonutChart from '@/modules/piechart/DonutChart';
 
 const tableBorder = '1px solid #DADDDD';
 
@@ -19,17 +29,26 @@ function BoardListItem(props) {
 
   let iconType;
   switch (postItem.type) {
-    case 'dashboard':
+    case 'DASHBOARD':
       iconType = <Dashboard />;
       break;
-    case 'lineChart':
+    case 'CHART_LINE':
       iconType = <StackedLineChart />;
       break;
-    case 'barChart':
+    case 'CHART_BAR':
       iconType = <BarChart />;
       break;
-    case 'pieChart':
+    case 'CHART_BUBBLE':
+      iconType = <BubbleChart />;
+      break;
+    case 'CHART_SCATTER':
+      iconType = <ScatterPlot />;
+      break;
+    case 'CHART_PIE':
       iconType = <PieChart />;
+      break;
+    case 'CHART_DONUT':
+      iconType = <DonutChart />;
       break;
     default:
       break;

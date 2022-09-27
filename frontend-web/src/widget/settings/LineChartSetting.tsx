@@ -152,7 +152,7 @@ const LineChartSetting = props => {
                 optionList={typeOption.series}
                 value={item.field}
                 onChange={handleSeriesChange}
-                colorButton={<ColorButtonForm index={index} option={option} setOption={setOption} />}
+                endButton={<ColorButtonForm index={index} option={option} setOption={setOption} />}
               />
               <SelectForm
                 id={`aggregation${index + 1}`}
@@ -161,7 +161,7 @@ const LineChartSetting = props => {
                 optionList={aggregationList}
                 value={item.aggregation}
                 onChange={handleSeriesChange}
-                colorButton={
+                endButton={
                   0 < index ? <RemoveIconButton onClick={event => handleRemoveClick(event, index)} id={index} /> : ' '
                 }
               />

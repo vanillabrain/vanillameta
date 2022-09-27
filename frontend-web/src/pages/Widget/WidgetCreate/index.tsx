@@ -3,7 +3,6 @@ import { Box, Stack, Step, StepLabel, Stepper } from '@mui/material';
 import PageTitleBox from '@/components/PageTitleBox';
 import PageContainer from '@/components/PageContainer';
 import ConfirmCancelButton, { ConfirmButton } from '@/components/button/ConfirmCancelButton';
-import TitleBox from '@/components/TitleBox';
 import WidgetDataSelect from './WidgetDataSelect';
 import WidgetTypeSelect from './WidgetTypeSelect';
 import WidgetAttributeSelect from './WidgetAttributeSelect';

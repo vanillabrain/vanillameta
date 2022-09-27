@@ -164,7 +164,7 @@ const TableBoardSetting = props => {
                 optionList={ALIGN_LIST}
                 value={item.align}
                 onChange={handleColumnChange}
-                colorButton={
+                endButton={
                   0 < index ? <RemoveIconButton onClick={event => handleRemoveClick(event, index)} id={index} /> : ' '
                 }
               />
