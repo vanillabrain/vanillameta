@@ -3,6 +3,7 @@ import { Grid, List, ListItem, ListItemText, styled, Divider } from '@mui/materi
 import SelectForm from '@/components/form/SelectForm';
 import ColorFieldForm from '@/components/form/ColorFieldForm';
 import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
+import { handleChange } from '@/widget/utils/handler';
 
 const StyledList = styled(List)({
   position: 'relative',
@@ -62,10 +63,6 @@ const PieChartSetting = props => {
     getColor();
   }, [option.series.field]);
 
-  const handleChange = event => {
-    setOption({ ...option, [event.target.name]: event.target.value });
-  };
-
   const handleSeriesChange = event => {
     setOption(prevState => ({
       ...prevState,
@@ -78,7 +75,7 @@ const PieChartSetting = props => {
 
   return (
     <Grid item xs={10} md={4} lg={3} sx={{ display: 'flex', flexDirection: 'column' }}>
-      <WidgetTitleForm value={option.title} onChange={handleChange} />
+      <WidgetTitleForm value={option.title} onChange={event => handleChange(event, setOption)} />
       <StyledList>
         <ListItem divider>
           <ListItemText primary="시리즈 설정" />
@@ -143,7 +140,7 @@ const PieChartSetting = props => {
             label="위치"
             optionList={legendList}
             value={option.legendPosition}
-            onChange={handleChange}
+            onChange={event => handleChange(event, setOption)}
           />
         </ListItem>
       </StyledList>
