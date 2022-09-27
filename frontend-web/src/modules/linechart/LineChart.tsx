@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { Box } from '@mui/material';
-import { getGridSize, getLegendOption } from '@/modules/utils/chartUtil';
+import { getAggregationData, getAggregationDataForChart, getGridSize, getLegendOption } from '@/modules/utils/chartUtil';
+import data from '@/pages/Data';
 
 const LineChart = props => {
   const { option, dataSet, axis = 'x', seriesOp, defaultOp, createOp } = props;
@@ -41,18 +42,19 @@ const LineChart = props => {
    * 위젯옵션과 데이터로
    * 컴포넌트에 맞는 형태로 생성
    */
-
   const createComponentOption = () => {
     let newOption = {};
 
     // series option에서 가져오기
     const newSeries = [];
-    console.log('option.series.', option.series);
+    console.log('option.series.', option.xField);
+    let aggrData = [];
     option.series.forEach(item => {
+      aggrData = getAggregationDataForChart(dataSet, option.xField, item.field, item.aggregation);
       if (item.field) {
         const series = {
           name: item.field,
-          data: dataSet.map(dataItem => dataItem[item.field]),
+          data: aggrData.map(dataItem => dataItem[item.field]),
           type: item.type ? item.type : 'line',
           color: item.color,
           smooth: true,
@@ -62,11 +64,11 @@ const LineChart = props => {
       }
     });
 
-    if (dataSet) {
+    if (aggrData) {
       const op = {
         [axis + 'Axis']: {
           type: 'category',
-          data: !!option[axis + 'Field'] ? dataSet.map(item => item[option[axis + 'Field']]) : '',
+          data: !!option[axis + 'Field'] ? aggrData.map(item => item[option[axis + 'Field']]) : '',
         },
         series: newSeries,
         grid: getGridSize(option.legendPosition),

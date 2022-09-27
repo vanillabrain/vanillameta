@@ -5,7 +5,7 @@ import ColorButtonForm from '@/components/form/ColorButtonForm';
 import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
 import { handleChange, handleSeriesChange, handleAddClick, handleRemoveClick } from '@/widget/utils/handler';
-import { AGGREGATION_LIST, COLUMN_TYPE } from '@/constant';
+import { AGGREGATION_LIST, COLUMN_TYPE, WIDGET_AGGREGATION } from '@/constant';
 
 const StyledList = styled(List)({
   position: 'relative',

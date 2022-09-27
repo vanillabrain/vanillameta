@@ -2,6 +2,7 @@
   "data": [
     {
       "id": 1,
+      "month": 1,
       "name": "january",
       "color": "#00BFFF",
       "high": 18,
@@ -11,6 +12,7 @@
     },
     {
       "id": 2,
+      "month": 1,
       "name": "february",
       "color": "#4682B4",
       "high": 23,
@@ -20,6 +22,7 @@
     },
     {
       "id": 3,
+      "month": 1,
       "name": "march",
       "color": "#00CED1",
       "high": 25,
@@ -29,6 +32,7 @@
     },
     {
       "id": 4,
+      "month": 2,
       "name": "april",
       "color": "#3CB371",
       "high": 23,
@@ -38,6 +42,7 @@
     },
     {
       "id": 5,
+      "month": 2,
       "name": "may",
       "color": "#9ACD32",
       "high": 26,
@@ -47,6 +52,7 @@
     },
     {
       "id": 6,
+      "month": 3,
       "name": "june",
       "color": "#BDB76B",
       "high": 32,
@@ -56,6 +62,7 @@
     },
     {
       "id": 7,
+      "month": 3,
       "name": "july",
       "color": "#FFD700",
       "high": 33,
@@ -65,6 +72,7 @@
     },
     {
       "id": 8,
+      "month": 4,
       "name": "august",
       "color": "#FF8C00",
       "high": 33,
@@ -74,6 +82,7 @@
     },
     {
       "id": 9,
+      "month": 5,
       "name": "september",
       "color": "#FF7F50",
       "high": 32,
@@ -83,6 +92,7 @@
     },
     {
       "id": 10,
+      "month": 5,
       "name": "october",
       "color": "#F4A460",
       "high": 28,
@@ -92,6 +102,7 @@
     },
     {
       "id": 11,
+      "month": 6,
       "name": "november",
       "color": "#8B4513",
       "high": 25,
@@ -101,6 +112,7 @@
     },
     {
       "id": 12,
+      "month": 6,
       "name": "december",
       "color": "#778899",
       "high": 22,
@@ -117,6 +129,10 @@
     {
       "columnName": "name",
       "columnType": "STRING"
+    },
+    {
+      "columnName": "month",
+      "columnType": "NUMBER"
     },
     {
       "columnName": "color",

@@ -30,7 +30,7 @@
         {
           "field": "",
           "color": "#5470c6",
-          "aggregation": ""
+          "aggregation": "sum"
         }
       ],
       "legendPosition": "left"
