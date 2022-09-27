@@ -1,9 +1,10 @@
-import {Body, Controller, Delete, Get, Param, Post, Put} from '@nestjs/common';
+import {Body, Controller, Delete, Get, HttpStatus, Param, Post, Put, Res} from '@nestjs/common';
 import {TemplateService} from './template.service';
 import {CreateTemplateDto} from './dto/create-template.dto';
 import {UpdateTemplateDto} from './dto/update-template.dto';
 import {CreateTemplateItemDto} from "./dto/create-template-item.dto";
 import {UpdateTemplateItemDto} from "./dto/update-template-item.dto";
+import {TemplateInfoDto} from "./dto/template-info.dto";
 
 @Controller('template')
 export class TemplateController {
@@ -41,8 +42,9 @@ export class TemplateController {
      * @param id
      */
     @Get(':id')
-    findOne(@Param('id') id: number) {
-        return this.templateService.findOne(id);
+    async findOne(@Res() res, @Param('id') id: number) {
+        const resultTemplate: TemplateInfoDto = await this.templateService.findOne(id);
+        return res.status(HttpStatus.OK).json(resultTemplate);
     }
 
     /**
@@ -81,7 +83,6 @@ export class TemplateController {
     //todo:: yhs:: 추천 알고리즘 적용해서 조회해 와야함
     @Post('/recommend')
     findRecommendAll(@Body() widgets: any[]) {
-        this.templateService.findRecommendTemplates(widgets);
-        return null;
+        return this.templateService.findRecommendTemplates(widgets);
     }
 }

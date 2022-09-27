@@ -180,7 +180,12 @@ export class TemplateService {
      * @param widgets
      */
     async findRecommendTemplates(widgets: any[]): Promise<TemplateInfoDto[]> {
+        const returnArr = [];
+        const tempTemplateInfo = new TemplateItem();
+        returnArr.push(tempTemplateInfo);
 
-        return [];
+        
+
+        return returnArr;
     }
 }
