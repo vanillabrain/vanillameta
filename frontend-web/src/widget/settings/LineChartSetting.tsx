@@ -5,6 +5,7 @@ import ColorButtonForm from '@/components/form/ColorButtonForm';
 import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
 import { handleChange, handleSeriesChange, handleAddClick, handleRemoveClick } from '@/widget/utils/handler';
+import { AGGREGATION_LIST, COLUMN_TYPE } from '@/constant';
 
 const StyledList = styled(List)({
   position: 'relative',
@@ -30,7 +31,7 @@ const StyledList = styled(List)({
 });
 
 const LineChartSetting = props => {
-  const { option, setOption, seriesItem, axis = 'x' } = props;
+  const { option, setOption, seriesItem, axis = 'x', spec } = props;
 
   // props로부터 받기 ------------------------------------
   const typeOption = { series: ['high', 'low', 'avg'], axis: ['name', 'color'] }; // series type
@@ -57,7 +58,9 @@ const LineChartSetting = props => {
             id={axis + 'Field'}
             name={axis + 'Field'}
             label={axis + '축'}
-            optionList={typeOption.axis}
+            optionList={spec.map(item => item.columnName)}
+            labelField="columnName"
+            valueField="columnType"
             value={option[`${axis}Field`]}
             onChange={event => handleChange(event, setOption)}
           />
@@ -79,7 +82,9 @@ const LineChartSetting = props => {
                 id={`field${index + 1}`}
                 name={`field${index + 1}`}
                 label={`필드 ${index + 1}`}
-                optionList={typeOption.series}
+                labelField="columnName"
+                valueField="columnType"
+                optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
                 value={item.field}
                 onChange={event => handleSeriesChange(event, setOption)}
                 endButton={<ColorButtonForm index={index} option={option} setOption={setOption} />}
@@ -88,7 +93,7 @@ const LineChartSetting = props => {
                 id={`aggregation${index + 1}`}
                 name={`aggregation${index + 1}`}
                 label="집계 방식"
-                optionList={aggregationList}
+                optionList={AGGREGATION_LIST}
                 value={item.aggregation}
                 onChange={event => handleSeriesChange(event, setOption)}
                 endButton={
