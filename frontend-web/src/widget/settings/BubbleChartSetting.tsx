@@ -62,7 +62,7 @@ const LineChartSetting = props => {
     xField: '',
     yField: '',
     color: '',
-    symbolSize: 20,
+    symbolSize: '',
   };
 
   const handleChange = event => {
@@ -164,11 +164,12 @@ const LineChartSetting = props => {
                 value={item.yField}
                 onChange={handleSeriesChange}
               />
-              <TextFieldForm
+              <SelectForm
+                required={true}
                 id={`symbolSize${index + 1}`}
                 name={`symbolSize${index + 1}`}
                 label={`사이즈`}
-                type="number"
+                optionList={typeOption.series}
                 value={item.symbolSize}
                 onChange={handleSeriesChange}
                 endButton={

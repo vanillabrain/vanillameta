@@ -18,6 +18,8 @@ import TableBoardSetting from '@/widget/settings/TableBoardSetting';
 import ScatterChart from '@/modules/scatterchart/ScatterChart';
 import ScatterChartSetting from '@/widget/settings/ScatterChartSetting';
 import TitleBox from '@/components/TitleBox';
+import BubbleChart from '@/modules/scatterchart/BubbleChart';
+import BubbleChartSetting from '@/widget/settings/BubbleChartSetting';
 
 function WidgetAttributeSelect(props) {
   const { dataSetId, componentType, prevOption } = props;
@@ -218,6 +220,13 @@ function WidgetAttributeSelect(props) {
             ...switchChart,
             chart: <ScatterChart {...ChartProps} />,
             chartSetting: <ScatterChartSetting {...ChartSettingProps} />,
+          });
+          break;
+        case WIDGET_TYPE.CHART_BUBBLE:
+          setSwitchChart({
+            ...switchChart,
+            chart: <BubbleChart {...ChartProps} />,
+            chartSetting: <BubbleChartSetting {...ChartSettingProps} />,
           });
           break;
 
