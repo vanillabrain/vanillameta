@@ -45,6 +45,7 @@
     "mustache": "^4.2.0",
     "mysql2": "^2.3.3",
     "nest-winston": "^1.7.0",
+    "nestjs-seeder": "^0.2.0",
     "pg": "^8.8.0",
     "reflect-metadata": "^0.1.13",
     "rimraf": "^3.0.2",
@@ -54,6 +55,7 @@
     "ts-jenum": "^2.2.2",
     "typeorm": "^0.3.9",
     "typeorm-naming-strategies": "^4.1.0",
+    "typeorm-seeding": "^1.6.1",
     "winston": "^3.8.2"
   },
   "devDependencies": {
