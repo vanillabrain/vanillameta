@@ -4,7 +4,6 @@ import { UpdateDatabaseDto } from './dto/update-database.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Database } from './entities/database.entity';
 import { Repository } from 'typeorm';
-import { QueryExecuteDto } from './dto/query-execute.dto';
 
 @Injectable()
 export class DatabaseService {
@@ -18,10 +17,6 @@ export class DatabaseService {
     const database = Database.toDto(createDatabaseDto);
     return await this.databaseRepository.save(database);
   }
-
-  async testConnection(createDatabaseDto: CreateDatabaseDto) {}
-
-  async executeQuery(queryExecuteDto: QueryExecuteDto) {}
 
   async findAll(): Promise<Database[]> {
     return await this.databaseRepository.find();
