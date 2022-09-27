@@ -2,7 +2,9 @@
 /config.serverless.yml
 /.env.dev
 /.env.prod
-
+/.ormconfig.json
+/vanillameta
+.
 # compiled output
 /dist
 /node_modules
