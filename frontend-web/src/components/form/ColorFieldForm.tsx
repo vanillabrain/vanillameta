@@ -7,7 +7,7 @@ function ColorFieldForm(props) {
   const { id, label, value, optionList, setOption, index, endButton, ...rest } = props;
 
   const color = !!optionList ? optionList.series.color[index] : '#eee';
-  const labelItem = label[index] || '';
+  const labelItem = Array.isArray(label) ? label[index] : label;
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {

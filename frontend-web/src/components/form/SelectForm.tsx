@@ -2,7 +2,7 @@ import React from 'react';
 import { Box, FormControl, FormLabel, MenuItem, Select, Stack } from '@mui/material';
 
 function SelectForm(props) {
-  const { label, optionList, colorButton, value, required, ...rest } = props;
+  const { label, optionList, endButton, value, required, ...rest } = props;
 
   const getDropList = (list: any[] | { value: any[]; label: any[] }) => {
     let dropDownList;
@@ -47,7 +47,7 @@ function SelectForm(props) {
         <Select
           fullWidth
           size="small"
-          sx={colorButton ? { width: 'calc(100% - 38px)', flexShrink: 1 } : { width: '100%' }}
+          sx={endButton ? { width: 'calc(100% - 38px)', flexShrink: 1 } : { width: '100%' }}
           value={value ?? ''}
           {...rest}
         >
@@ -57,7 +57,7 @@ function SelectForm(props) {
             </MenuItem>
           ))}
         </Select>
-        {!!colorButton ? <Box sx={{ width: '38px', ml: 1 }}>{colorButton}</Box> : ''}
+        {!!endButton ? <Box sx={{ width: '38px', ml: 1 }}>{endButton}</Box> : ''}
       </Stack>
     </FormControl>
   );

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Box, Button, Stack } from '@mui/material';
 
 export const ConfirmButton = props => {
@@ -20,18 +20,15 @@ export const CancelButton = props => {
 };
 
 const ConfirmCancelButton = props => {
-  const { confirmButton, cancelButton, confirmLabel, cancelLabel, confirmProps, cancelProps, ...rest } = props;
-
-  const initialConfirm = <ConfirmButton confirmLabel={confirmLabel} confirmProps={confirmProps} />;
-  const initialCancel = <CancelButton cancelLabel={cancelLabel} cancelProps={cancelProps} />;
+  const { secondButton, firstButton, confirmLabel, cancelLabel, confirmProps, cancelProps } = props;
 
   return (
     <Stack direction="row-reverse" flexWrap="wrap" component="ul" spacing={{ xs: 1, md: 2 }} p={0}>
       <Box component="li" sx={{ listStyle: 'none' }}>
-        {confirmButton !== undefined ? confirmButton : initialConfirm}
+        {secondButton ?? <ConfirmButton confirmLabel={confirmLabel} confirmProps={confirmProps} />}
       </Box>
       <Box component="li" sx={{ listStyle: 'none' }}>
-        {cancelButton !== undefined ? cancelButton : initialCancel}
+        {firstButton ?? <CancelButton cancelLabel={cancelLabel} cancelProps={cancelProps} />}
       </Box>
     </Stack>
   );

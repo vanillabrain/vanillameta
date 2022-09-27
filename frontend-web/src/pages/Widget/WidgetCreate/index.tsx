@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Box, Stack, Step, StepLabel, Stepper } from '@mui/material';
 import PageTitleBox from '@/components/PageTitleBox';
 import PageContainer from '@/components/PageContainer';
-import ConfirmCancelButton from '@/components/button/ConfirmCancelButton';
-import TitleBox from '@/components/TitleBox';
+import ConfirmCancelButton, { ConfirmButton } from '@/components/button/ConfirmCancelButton';
 import WidgetDataSelect from './WidgetDataSelect';
 import WidgetTypeSelect from './WidgetTypeSelect';
 import WidgetAttributeSelect from './WidgetAttributeSelect';
@@ -42,15 +41,26 @@ function WidgetCreate(props) {
   }, [activeStep, dataSet, widgetType]);
 
   const handleNext = () => {
-    if (activeStep < steps.length - 1) {
-      setActiveStep(prevState => prevState + 1);
+    if (activeStep === steps.length - 1) {
+      return;
     }
+    setActiveStep(prevState => prevState + 1);
   };
 
   const handleBack = () => {
-    if (activeStep > 0) {
-      setActiveStep(prevState => prevState - 1);
+    if (activeStep === 0) {
+      return;
     }
+
+    if (activeStep === 1) {
+      setDataSet(null);
+    }
+
+    if (activeStep === 2) {
+      setWidgetType(null);
+    }
+
+    setActiveStep(prevState => prevState - 1);
   };
 
   return (
@@ -60,17 +70,34 @@ function WidgetCreate(props) {
         button={
           <Stack>
             <ConfirmCancelButton
-              confirmLabel={activeStep !== steps.length - 1 ? '다음' : '저장'}
               cancelLabel="이전"
-              confirmProps={
-                activeStep !== steps.length - 1
-                  ? { type: 'button', onClick: handleNext, disabled: isNextButtonDisabled }
-                  : { form: 'widgetAttribute', type: 'submit' }
-              }
               cancelProps={{
                 onClick: handleBack,
                 disabled: activeStep === 0,
               }}
+              secondButton={
+                <React.Fragment>
+                  {activeStep !== steps.length - 1 ? (
+                    <ConfirmButton
+                      confirmLabel="다음"
+                      confirmProps={{
+                        type: 'button',
+                        onClick: handleNext,
+                        disabled: isNextButtonDisabled,
+                      }}
+                    />
+                  ) : (
+                    <ConfirmButton
+                      confirmLabel="저장"
+                      confirmProps={{
+                        form: 'widgetAttribute',
+                        type: 'submit',
+                        variant: 'contained',
+                      }}
+                    />
+                  )}
+                </React.Fragment>
+              }
             />
           </Stack>
         }
@@ -104,9 +131,7 @@ function WidgetCreate(props) {
         ) : activeStep === 1 ? (
           <WidgetTypeSelect widgetType={widgetType} setWidgetType={setWidgetType} />
         ) : (
-          <TitleBox title="위젯 속성 설정">
-            <WidgetAttributeSelect dataSetId={dataSet} componentType={widgetType} />
-          </TitleBox>
+          <WidgetAttributeSelect dataSetId={dataSet} componentType={widgetType} />
         )}
       </PageTitleBox>
     </PageContainer>

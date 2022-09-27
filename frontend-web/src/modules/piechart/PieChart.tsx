@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { getGridSize, getLegendOtion } from '@/modules/utils/chartUtil';
+import { getGridSize, getLegendOption } from '@/modules/utils/chartUtil';
 
 const PieChart = props => {
   const { option, dataSet, seriesOp } = props;
@@ -59,7 +59,7 @@ const PieChart = props => {
           },
         ],
         grid: getGridSize(option.legendPosition),
-        legend: getLegendOtion(option.legendPosition),
+        legend: getLegendOption(option.legendPosition),
       };
       newOption = { ...defaultComponentOption, ...op };
     }

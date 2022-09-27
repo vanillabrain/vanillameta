@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Box } from '@mui/material';
 import ReactECharts from 'echarts-for-react';
+import { getGridSize, getLegendOption } from '@/modules/utils/chartUtil';
 
 function ScatterChart(props) {
   const { option, dataSet, seriesOp, defaultOp, createOp, ...rest } = props;
@@ -8,13 +9,13 @@ function ScatterChart(props) {
   const [componentOption, setComponentOption] = useState({});
 
   const defaultComponentOption = {
-    grid: { top: 8, right: 8, bottom: 24, left: 36 },
+    grid: { top: 50, right: 50, bottom: 50, left: 50 },
     tooltip: { trigger: 'axis' },
     xAxis: {
-      type: 'category',
+      scale: true,
     },
     yAxis: {
-      type: 'value',
+      scale: true,
     },
     series: [],
     emphasis: {
@@ -38,32 +39,28 @@ function ScatterChart(props) {
    */
 
   const createComponentOption = () => {
-    let newOption = defaultComponentOption;
+    let newOption = {};
 
     // series option에서 가져오기
     const newSeries = [];
-    const newColors = [];
     option.series.forEach(item => {
-      if (item.field) {
+      if (item.xField || item.yField) {
         const series = {
-          name: item.field,
-          data: dataSet.map(dataItem => dataItem[item.field]),
           type: 'scatter',
+          name: item.name,
+          data: dataSet.map(dataItem => [dataItem[item.xField], dataItem[item.yField]]),
+          symbolSize: item.symbolSize,
+          color: item.color,
           ...seriesOp,
         };
         newSeries.push(series);
-        newColors.push(item.color);
       }
     });
     if (dataSet) {
       const op = {
-        xAxis: {
-          type: 'category',
-          data: !!option.xField ? dataSet.map(item => item[option.xField]) : '',
-        },
         series: newSeries,
-        color: newColors,
-        legend: {}, // TODO: legend 위치 조정기능 추가
+        grid: getGridSize(option.legendPosition),
+        legend: getLegendOption(option.legendPosition),
         ...createOp,
       };
 

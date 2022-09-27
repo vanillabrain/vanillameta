@@ -15,25 +15,27 @@ import NumericBoard from '@/modules/ board/NumericBoard';
 import NumericBoardSetting from '@/widget/settings/NumericBoardSetting';
 import TableBoard from '@/modules/ board/TableBoard';
 import TableBoardSetting from '@/widget/settings/TableBoardSetting';
+import ScatterChart from '@/modules/scatterchart/ScatterChart';
+import ScatterChartSetting from '@/widget/settings/ScatterChartSetting';
+import TitleBox from '@/components/TitleBox';
 
 function WidgetAttributeSelect(props) {
   const { dataSetId, componentType, prevOption } = props;
 
-  const defaultComponentData = componentList.find(item => item.id === componentType && item);
-  const [option, setOption] = useState(defaultComponentData.option);
+  const [option, setOption] = useState(null);
   const [data, setData] = useState(null);
+  const [switchChart, setSwitchChart] = useState({ chart: undefined, chartSetting: undefined });
 
-  const defaultChart = {
-    chart: null,
-    chartSetting: null,
-    chartOption: option,
-  };
-
-  const [switchChart, setSwitchChart] = useState(defaultChart);
+  const defaultComponentData = [...componentList].find(item => item.id === componentType && { ...item });
+  const widgetTypeText = defaultComponentData.title;
 
   useEffect(() => {
     getData();
   }, []);
+
+  useEffect(() => {
+    setOption(JSON.parse(JSON.stringify(defaultComponentData.option)));
+  }, [componentType]);
 
   const getData = () => {
     // dataSetId 로 데이터 조회
@@ -211,11 +213,18 @@ function WidgetAttributeSelect(props) {
             chartSetting: <DonutChartSetting {...ChartSettingProps} />,
           });
           break;
+        case WIDGET_TYPE.CHART_SCATTER:
+          setSwitchChart({
+            ...switchChart,
+            chart: <ScatterChart {...ChartProps} />,
+            chartSetting: <ScatterChartSetting {...ChartSettingProps} />,
+          });
+          break;
 
         default:
           setSwitchChart({
             ...switchChart,
-            chart: <LineChart {...ChartProps} componentType="line" />,
+            chart: <LineChart {...ChartProps} />,
             chartSetting: <LineChartSetting {...ChartSettingProps} />,
           });
           break;
@@ -233,7 +242,7 @@ function WidgetAttributeSelect(props) {
   const handleSubmit = event => {
     event.preventDefault();
 
-    if (option.title === '') {
+    if (option === null) {
       return;
     }
 
@@ -244,18 +253,20 @@ function WidgetAttributeSelect(props) {
   };
 
   return (
-    <Grid
-      onSubmit={handleSubmit}
-      component="form"
-      id="widgetAttribute"
-      container
-      sx={{ justifyContent: { xs: 'center', md: 'space-between' } }}
-    >
-      <Grid item xs={12} md={7.5} lg={8.5}>
-        <WidgetBox>{switchChart.chart}</WidgetBox>
+    <TitleBox title={widgetTypeText}>
+      <Grid
+        onSubmit={handleSubmit}
+        component="form"
+        id="widgetAttribute"
+        container
+        sx={{ justifyContent: { xs: 'center', md: 'space-between' } }}
+      >
+        <Grid item xs={12} md={7.5} lg={8.5}>
+          <WidgetBox>{switchChart.chart}</WidgetBox>
+        </Grid>
+        {switchChart.chartSetting}
       </Grid>
-      {switchChart.chartSetting}
-    </Grid>
+    </TitleBox>
   );
 }
 
