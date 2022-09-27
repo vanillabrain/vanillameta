@@ -48,13 +48,13 @@ const LineChart = props => {
     // series option에서 가져오기
     const newSeries = [];
     console.log('option.series.', option.xField);
-    let data = [];
+    let aggrData = [];
     option.series.forEach(item => {
-      data = getAggregationDataForChart(dataSet, option.xField, item.field, item.aggregation);
+      aggrData = getAggregationDataForChart(dataSet, option.xField, item.field, item.aggregation);
       if (item.field) {
         const series = {
           name: item.field,
-          data: data.map(dataItem => dataItem[item.field]),
+          data: aggrData.map(dataItem => dataItem[item.field]),
           type: item.type ? item.type : 'line',
           color: item.color,
           smooth: true,
@@ -64,11 +64,11 @@ const LineChart = props => {
       }
     });
 
-    if (dataSet) {
+    if (aggrData) {
       const op = {
         [axis + 'Axis']: {
           type: 'category',
-          data: !!option[axis + 'Field'] ? dataSet.map(item => item[option[axis + 'Field']]) : '',
+          data: !!option[axis + 'Field'] ? aggrData.map(item => item[option[axis + 'Field']]) : '',
         },
         series: newSeries,
         grid: getGridSize(option.legendPosition),
