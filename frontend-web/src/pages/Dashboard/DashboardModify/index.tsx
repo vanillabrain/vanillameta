@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Card, Stack, TextField } from '@mui/material';
+import { Box, Button, Card, Stack, TextField } from '@mui/material';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import PageContainer from '@/components/PageContainer';
 import PageTitleBox from '@/components/PageTitleBox';
-import AddWidgetPopupButton from '@/pages/Dashboard/DashboardModify/AddWidgetPopupButton';
+import AddWidgetPopup from '@/pages/Dashboard/Components/AddWidgetPopup';
 import ConfirmCancelButton, { ConfirmButton, CancelButton } from '@/components/button/ConfirmCancelButton';
 import DialogAlertButton from '@/components/button/DialogAlertButton';
 import GridLayout, { Responsive, WidthProvider } from 'react-grid-layout';
@@ -12,16 +12,21 @@ import '/node_modules/react-grid-layout/css/styles.css';
 import '/node_modules/react-resizable/css/styles.css';
 import { get } from '@/helpers/apiHelper';
 import WidgetWrapper from '@/widget/wrapper/WidgetWrapper';
+import AddIcon from '@mui/icons-material/Add';
+import RecommendDashboardPopup from '@/pages/Dashboard/Components/RecommendDashboardPopup';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
-function DashboardModify(props) {
+function DashboardModify() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [dashboardId, setDashboardId] = useState(null); // dashboard id
   const [dashboardTitle, setDashboardTitle] = useState(''); // dashboard 제목
   const [widgets, setWidgets] = useState([]); // widget 정보
   const [layout, setLayout] = useState([]); // layout 정보
+  const [topTitle, setTopTitle] = useState('대시보드');
+  const [widgetOpen, setWidgetOpen] = useState(false);
+  const [recommendOpen, setRecommendOpen] = useState(false);
   const useWidgetIds = [];
   const dashboardInfo = {
     dashboardId: null,
@@ -32,10 +37,24 @@ function DashboardModify(props) {
 
   // init useEffect
   useEffect(() => {
-    if (searchParams.get('id') != null) {
-      setDashboardId(searchParams.get('id'));
-      getDashboardInfo(searchParams.get('id'));
+    // create 와 modify 에 따라 초기 설정을 변경
+    console.log(' ============ : ', searchParams.get('create_type'));
+    if (searchParams.get('create_type') != null) {
+      if (searchParams.get('create_type') == 'recommend') {
+        console.log('나는 추천할거야');
+        setRecommendOpen(true);
+      } else {
+        // create
+        console.log('나는 생성할거야');
+        handleWidgetOpen();
+      }
+    } else {
+      if (searchParams.get('id') != null) {
+        setDashboardId(searchParams.get('id'));
+        getDashboardInfo(searchParams.get('id'));
+      }
     }
+    setTopTitle(searchParams.get('id') == null ? '대시보드 추가' : '대시보드 수정');
   }, []);
 
   // dashboard info 조회
@@ -56,8 +75,10 @@ function DashboardModify(props) {
 
   // 현재 위젯 선택창에서 선택된 위젯 목록 callback
   const handleWidgetSelect = items => {
-    // setSelectedWidgets(items);
-    setWidgets([...widgets, ...items]);
+    setWidgetOpen(false);
+    if (items != null) {
+      setWidgets([...widgets, ...items]);
+    }
   };
 
   // 레이아웃 변경 이벤트
@@ -145,10 +166,21 @@ function DashboardModify(props) {
     }
   };
 
+  const handleWidgetOpen = () => {
+    setWidgetOpen(true);
+  };
+
+  const handleCompleteRecommend = dashboardInfo => {
+    console.log(dashboardInfo);
+    setWidgets(dashboardInfo.widgets);
+    setLayout(dashboardInfo.layout);
+    setRecommendOpen(false);
+  };
+
   return (
     <PageContainer>
       <PageTitleBox
-        title="대시보드 편집"
+        title={topTitle}
         button={
           <React.Fragment>
             <ConfirmCancelButton
@@ -190,7 +222,16 @@ function DashboardModify(props) {
               setDashboardTitle(event.target.value);
             }}
           />
-          <AddWidgetPopupButton label="위젯 추가" widgetSelect={handleWidgetSelect} useWidgetIds={useWidgetIds} />
+          <Button onClick={handleWidgetOpen} variant="contained" endIcon={<AddIcon />} color="primary">
+            위젯 추가
+          </Button>
+          <AddWidgetPopup
+            label="위젯 추가"
+            widgetSelect={handleWidgetSelect}
+            useWidgetIds={useWidgetIds}
+            widgetOpen={widgetOpen}
+          />
+          <RecommendDashboardPopup recommendOpen={recommendOpen} handleComplete={handleCompleteRecommend} />
         </Stack>
         <Box
           sx={{

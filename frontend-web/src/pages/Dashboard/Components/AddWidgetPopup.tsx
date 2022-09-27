@@ -8,6 +8,7 @@ import {
   DialogTitle,
   IconButton,
   List,
+  Alert,
   ListItemButton,
   ListItemIcon,
   ListItemText,
@@ -30,8 +31,8 @@ const iconType = item => {
   }
 };
 
-function AddWidgetPopupButton({ label, widgetSelect, useWidgetIds }) {
-  const [open, setOpen] = useState(false);
+function AddWidgetPopup({ label, useWidgetIds = [], widgetOpen = false, widgetSelect = null }) {
+  const [open, setOpen] = useState(widgetOpen);
   const [selectedIds, setSelectedIds] = useState([]);
   const [loadedWidgetData, setLoadedWidgetData] = useState([]);
   const getItems = () => {
@@ -48,14 +49,27 @@ function AddWidgetPopupButton({ label, widgetSelect, useWidgetIds }) {
 
   const descriptionElementRef = useRef<HTMLElement>(null);
 
-  const handleOpenClick = () => {
-    setSelectedIds([]);
-    setLoadedWidgetData([]);
-    getItems();
-    setOpen(true);
-  };
+  useEffect(() => {
+    setOpen(widgetOpen);
+  }, [widgetOpen]);
+
+  useEffect(() => {
+    if (open) {
+      const { current: descriptionElement } = descriptionElementRef;
+      if (descriptionElement !== null) {
+        descriptionElement.focus();
+      }
+
+      setSelectedIds([]);
+      setLoadedWidgetData([]);
+      getItems();
+    }
+  }, [open]);
 
   const handleClose = () => {
+    if (widgetSelect) {
+      widgetSelect(null);
+    }
     setOpen(false);
   };
 
@@ -84,24 +98,18 @@ function AddWidgetPopupButton({ label, widgetSelect, useWidgetIds }) {
       }
     }
 
-    widgetSelect(widgets);
-    handleClose();
-  };
-
-  useEffect(() => {
-    if (open) {
-      const { current: descriptionElement } = descriptionElementRef;
-      if (descriptionElement !== null) {
-        descriptionElement.focus();
+    if (widgets.length > 0) {
+      if (widgetSelect) {
+        widgetSelect(widgets);
       }
+      setOpen(false);
+    } else {
+      // todo alert 호출 "위젯을 선택하세요"
     }
-  }, [open]);
+  };
 
   return (
     <React.Fragment>
-      <Button onClick={handleOpenClick} variant="contained" endIcon={<AddIcon />} color="primary">
-        {label}
-      </Button>
       <Dialog
         open={open}
         onClose={handleClose}
@@ -158,4 +166,4 @@ function AddWidgetPopupButton({ label, widgetSelect, useWidgetIds }) {
   );
 }
 
-export default AddWidgetPopupButton;
+export default AddWidgetPopup;
