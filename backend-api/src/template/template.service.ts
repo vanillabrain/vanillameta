@@ -27,14 +27,13 @@ export class TemplateService {
         const insertItem = await this.templateRepository.save({
             title: createTemplate.title,
             description: createTemplate.description,
-            layout: createTemplate.layout,
         })
         return insertItem;
     }
 
     /**
      * 템플릿 상세 아이템 추가
-     * @param CreateTemplateItemDto
+     * @param createTemplateItem
      */
     async createItem(createTemplateItem: CreateTemplateItemDto) {
         const insertItem = await this.templateItemRepository.save({
@@ -51,37 +50,56 @@ export class TemplateService {
     /**
      * 템플릿 목록 조회
      */
-    findAll() {
-        return this.templateRepository.find({
+    async findAll() {
+        const result = await this.templateRepository.find({
             select: {
                 id: true,
                 title: true,
                 description: true,
-                // layout: true
             },
             where: {
                 useYn: YesNo.YES
             }
         });
+
+        return result;
     }
 
     /**
      * 템플릿 단건 조회
      * @param id
      */
-    findOne(id: number) {
-        return this.templateRepository.findOne({
+    async findOne(id: number) {
+        let returnObj: any;
+        // 템플릿 기본 정보 조회
+        const templateInfo = await this.templateRepository.findOne({
             select: {
                 id: true,
                 title: true,
                 description: true,
-                // layout: true
             },
             where: {
                 useYn: YesNo.YES,
                 id: id,
             }
         });
+        returnObj = templateInfo;
+
+        if(templateInfo.id){
+            // 템플릿 상세 아이템 조회(layout 조회 및 가공)
+            const layoutList = await this.templateItemRepository.find({
+                where: {
+                    templateId: templateInfo.id
+                }
+            });
+            const layout = [];
+            layoutList.map((item) => {
+                layout.push({x: item.x, y: item.y, w:item.width, h:item.height, category:item.recommendCategory, type:item.recommendType});
+            })
+            returnObj.layout = layout;
+        }
+
+        return returnObj;
     }
 
     /**
@@ -96,9 +114,7 @@ export class TemplateService {
         }, {
             title: updateTemplateDto.title,
             description: updateTemplateDto.description,
-            // layout: updateTemplateDto.layout
         });
-        console.log("update result", updateItem);
 
         let msg = `This action updates a #${id} template`
         if (updateItem.affected < 1) {
@@ -110,7 +126,7 @@ export class TemplateService {
     }
 
     /**
-     * 템플릿 상세 아이템 추가
+     * 템플릿 상세 아이템 수정
      * @param id
      * @param updateTemplateItem
      */
@@ -124,7 +140,6 @@ export class TemplateService {
             height: updateTemplateItem.height,
             recommendCategory: updateTemplateItem.recommendCategory
         });
-        console.log("update result", updateItem);
 
         let msg = `This action updates a #${id} templateItem`
         if (updateItem.affected < 1) {
