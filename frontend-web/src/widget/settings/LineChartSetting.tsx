@@ -14,6 +14,7 @@ import {
 import SelectForm from '@/components/form/SelectForm';
 import ColorButtonForm from '@/components/form/ColorButtonForm';
 import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
+import { AGGREGATION_LIST, COLUMN_TYPE } from '@/constant';
 
 const StyledList = styled(List)({
   position: 'relative',
@@ -58,15 +59,12 @@ const RemoveIconButton = DefaultIconButton(
 );
 
 const LineChartSetting = props => {
-  const { option, setOption, seriesItem, axisReverse } = props;
+  const { option, setOption, spec, seriesItem, axisReverse } = props;
 
   // props로부터 받기 ------------------------------------
-  const typeOption = { series: ['high', 'low', 'avg'], [!axisReverse ? 'xField' : 'yField']: ['name', 'color'] }; // series type
+  const typeOption = { [!axisReverse ? 'xField' : 'yField']: ['name', 'color'] };
+
   // ----------------------------------------------------
-
-  const aggregationList = { value: ['sum', 'avg', 'max', 'min'], label: ['합계', '평균', '최대', '최소'] };
-
-  [{ label: '합계', value: 'sum' }];
   const legendList = { value: ['left', 'right', 'top', 'bottom'], label: ['왼쪽', '오른쪽', '위쪽', '아래쪽'] };
 
   const handleChange = event => {
@@ -76,14 +74,12 @@ const LineChartSetting = props => {
   const handleSeriesChange = event => {
     const key = event.target.name.slice(0, -1);
     const index = Number(event.target.name.slice(-1)[0]) - 1;
-
+    console.log('', key, index);
     setOption(prevState => {
       const tempOption = { ...prevState };
 
       // onChange 일어난 요소 key와 index로 식별해서 value 주기
       tempOption.series.forEach((item, idx) => {
-        console.log('item', item);
-        console.log('key: ', key, ', value: ', event.target.value);
         if (index === idx) {
           item[key] = event.target.value;
         }
@@ -138,7 +134,9 @@ const LineChartSetting = props => {
             id={!axisReverse ? 'xField' : 'yField'}
             name={!axisReverse ? 'xField' : 'yField'}
             label={!axisReverse ? 'X축' : 'Y축'}
-            optionList={typeOption[!axisReverse ? 'xField' : 'yField']}
+            optionList={spec.map(item => item.columnName)}
+            labelField="columnName"
+            valueField="columnType"
             value={option[!axisReverse ? 'xField' : 'yField']}
             onChange={handleChange}
           />
@@ -160,7 +158,9 @@ const LineChartSetting = props => {
                 id={`field${index + 1}`}
                 name={`field${index + 1}`}
                 label={`필드 ${index + 1}`}
-                optionList={typeOption.series}
+                labelField="columnName"
+                valueField="columnType"
+                optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
                 value={item.field}
                 onChange={handleSeriesChange}
                 colorButton={<ColorButtonForm index={index} option={option} setOption={setOption} />}
@@ -169,7 +169,7 @@ const LineChartSetting = props => {
                 id={`aggregation${index + 1}`}
                 name={`aggregation${index + 1}`}
                 label="집계 방식"
-                optionList={aggregationList}
+                optionList={AGGREGATION_LIST}
                 value={item.aggregation}
                 onChange={handleSeriesChange}
                 colorButton={

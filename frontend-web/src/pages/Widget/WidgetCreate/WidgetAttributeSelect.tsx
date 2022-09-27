@@ -22,6 +22,7 @@ function WidgetAttributeSelect(props) {
   const defaultComponentData = componentList.find(item => item.id === componentType && item);
   const [option, setOption] = useState(defaultComponentData.option);
   const [data, setData] = useState(null);
+  const [spec, setSpec] = useState(null);
 
   const defaultChart = {
     chart: null,
@@ -37,8 +38,9 @@ function WidgetAttributeSelect(props) {
 
   const getData = () => {
     // dataSetId 로 데이터 조회
-    get('/data/sample/chart.json').then(response => {
-      setData(response.data);
+    get('/data/sample/chartFull.json').then(response => {
+      setData(response.data.data);
+      setSpec(response.data.spec);
     });
   };
 
@@ -52,6 +54,7 @@ function WidgetAttributeSelect(props) {
       const ChartSettingProps = {
         option: option,
         setOption: setOption,
+        spec: spec,
       };
 
       switch (componentType) {

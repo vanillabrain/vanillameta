@@ -40,3 +40,9 @@ export const ALIGN_LIST = [
   { label: 'Center', value: TABLE_ALIGN.CENTER },
   { label: 'Right', value: TABLE_ALIGN.RIGHT },
 ];
+
+export const COLUMN_TYPE = {
+  STRING: 'STRING',
+  NUMBER: 'NUMBER',
+  DATE: 'DATE',
+};
