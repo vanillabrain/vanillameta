@@ -1,9 +1,21 @@
 import React from 'react';
-import { Grid, List, ListItem, ListItemText, styled, IconButton, IconButtonProps, SvgIcon, Divider } from '@mui/material';
+import {
+  Grid,
+  List,
+  ListItem,
+  ListItemText,
+  styled,
+  TextField,
+  IconButton,
+  IconButtonProps,
+  SvgIcon,
+  Divider,
+} from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import ColorButtonForm from '@/components/form/ColorButtonForm';
 import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
-import { AGGREGATION_LIST, COLUMN_TYPE } from '@/constant';
+import ColorFieldForm from '@/components/form/ColorFieldForm';
+import TextFieldForm from '@/components/form/TextFieldForm';
 
 const StyledList = styled(List)({
   position: 'relative',
@@ -48,13 +60,22 @@ const RemoveIconButton = DefaultIconButton(
 );
 
 const LineChartSetting = props => {
-  const { option, setOption, spec, seriesItem, axisReverse } = props;
+  const { option, setOption, seriesItem } = props;
 
   // props로부터 받기 ------------------------------------
-  const typeOption = { [!axisReverse ? 'xField' : 'yField']: ['name', 'color'] };
-
+  const typeOption = { series: ['high', 'low', 'avg'], axis: ['name', 'color'] }; // series type
   // ----------------------------------------------------
+
   const legendList = { value: ['left', 'right', 'top', 'bottom'], label: ['왼쪽', '오른쪽', '위쪽', '아래쪽'] };
+
+  // 컴포넌트 별 default series
+  const defaultSeries = {
+    name: '',
+    xField: '',
+    yField: '',
+    color: '',
+    symbolSize: 20,
+  };
 
   const handleChange = event => {
     setOption({ ...option, [event.target.name]: event.target.value });
@@ -63,12 +84,13 @@ const LineChartSetting = props => {
   const handleSeriesChange = event => {
     const key = event.target.name.slice(0, -1);
     const index = Number(event.target.name.slice(-1)[0]) - 1;
-    console.log('', key, index);
+
     setOption(prevState => {
       const tempOption = { ...prevState };
 
       // onChange 일어난 요소 key와 index로 식별해서 value 주기
       tempOption.series.forEach((item, idx) => {
+        console.log('item', item);
         if (index === idx) {
           item[key] = event.target.value;
         }
@@ -79,7 +101,7 @@ const LineChartSetting = props => {
 
   const handleAddClick = () => {
     setOption(prevState => {
-      const tempOption = { ...prevState };
+      const obj = { ...prevState };
       const defaultColor = [
         '#5470c6',
         '#91cc75',
@@ -92,12 +114,11 @@ const LineChartSetting = props => {
         '#ea7ccc',
       ];
       const newItem = {
-        field: '',
+        ...defaultSeries,
         color: defaultColor[option.series.length % 9],
-        aggregation: '',
       };
-      tempOption.series.push(newItem);
-      return tempOption;
+      obj.series.push(newItem);
+      return obj;
     });
   };
 
@@ -118,19 +139,6 @@ const LineChartSetting = props => {
       <WidgetTitleForm value={option.title} onChange={handleChange} />
       <StyledList>
         <ListItem divider>
-          <ListItemText primary={`${!axisReverse ? 'X' : 'Y'}축 설정`} />
-          <SelectForm
-            id={!axisReverse ? 'xField' : 'yField'}
-            name={!axisReverse ? 'xField' : 'yField'}
-            label={!axisReverse ? 'X축' : 'Y축'}
-            optionList={spec.map(item => item.columnName)}
-            labelField="columnName"
-            valueField="columnType"
-            value={option[!axisReverse ? 'xField' : 'yField']}
-            onChange={handleChange}
-          />
-        </ListItem>
-        <ListItem divider>
           <ListItemText primary="시리즈 설정" />
           <AddIconButton
             onClick={handleAddClick}
@@ -142,27 +150,41 @@ const LineChartSetting = props => {
           />
           {option.series.map((item, index) => (
             <React.Fragment key={index}>
-              <SelectForm
-                required={true}
-                id={`field${index + 1}`}
-                name={`field${index + 1}`}
-                label={`필드 ${index + 1}`}
-                labelField="columnName"
-                valueField="columnType"
-                optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
-                value={item.field}
+              <TextFieldForm
+                id={`name${index + 1}`}
+                name={`name${index + 1}`}
+                label={`필드 ${index + 1} 이름`}
+                value={item.name}
                 onChange={handleSeriesChange}
                 endButton={<ColorButtonForm index={index} option={option} setOption={setOption} />}
               />
               <SelectForm
-                id={`aggregation${index + 1}`}
-                name={`aggregation${index + 1}`}
-                label="집계 방식"
-                optionList={AGGREGATION_LIST}
-                value={item.aggregation}
+                required={true}
+                id={`xField${index + 1}`}
+                name={`xField${index + 1}`}
+                label={`X축`}
+                optionList={typeOption.series}
+                value={item.xField}
+                onChange={handleSeriesChange}
+              />
+              <SelectForm
+                required={true}
+                id={`yField${index + 1}`}
+                name={`yField${index + 1}`}
+                label={`Y축`}
+                optionList={typeOption.series}
+                value={item.yField}
+                onChange={handleSeriesChange}
+              />
+              <TextFieldForm
+                id={`symbolSize${index + 1}`}
+                name={`symbolSize${index + 1}`}
+                label={`사이즈`}
+                type="number"
+                value={item.symbolSize}
                 onChange={handleSeriesChange}
                 endButton={
-                  0 < index ? <RemoveIconButton onClick={event => handleRemoveClick(event, index)} id={index} /> : ' '
+                  0 < index ? <RemoveIconButton onClick={event => handleRemoveClick(event, index)} id={index} /> : false
                 }
               />
               {!!seriesItem && (

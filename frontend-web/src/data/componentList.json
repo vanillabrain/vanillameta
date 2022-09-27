@@ -170,13 +170,13 @@
           "field": "",
           "color": "#5470c6",
           "aggregation": "",
-          "type": ""
+          "type": "line"
         },
         {
           "field": "",
           "color": "#91cc75",
           "aggregation": "",
-          "type": ""
+          "type": "bar"
         }
       ]
     }
@@ -229,6 +229,22 @@
     }
   },
   {
+    "id": "CHART_SCATTER",
+    "title": "분산형 차트",
+    "icon": "icon/scatter-chart.png",
+    "caption": "Scatter Chart",
+    "option": {
+      "series": [
+        {
+          "xField": "",
+          "yField": "",
+          "symbolSize": "20",
+          "color": "#5470c6"
+        }
+      ]
+    }
+  },
+  {
     "id": "CHART_BUBBLE",
     "title": "거품형 차트",
     "icon": "icon/bubble-chart.png",
@@ -260,33 +276,6 @@
     "title": "방사형 차트",
     "icon": "icon/radar-chart.png",
     "caption": "Radar Chart",
-    "option": {
-      "xField": "label",
-      "series": [
-        {
-          "field": "value1",
-          "color": "#43afef",
-          "aggregation": ""
-        },
-        {
-          "field": "value2",
-          "color": "#b9e7ff",
-          "aggregation": ""
-        }
-      ,
-        {
-          "field": "value2",
-          "color": "#d9d9d9",
-          "aggregation": ""
-        }
-      ]
-    }
-  },
-  {
-    "id": "scatterChart",
-    "title": "분산형 차트",
-    "icon": "icon/scatter-chart.png",
-    "caption": "Scatter Chart",
     "option": {
       "xField": "label",
       "series": [

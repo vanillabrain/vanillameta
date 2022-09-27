@@ -86,7 +86,7 @@ const NumericBoardSetting = props => {
             optionList={fontSizeList}
             value={option.header.fontSize}
             onChange={handleHeaderChange}
-            colorButton={<ColorPickerForm color={option.header.color} name="color" onChange={handleHeaderChange} />}
+            endButton={<ColorPickerForm color={option.header.color} name="color" onChange={handleHeaderChange} />}
           />
         </ListItem>
         <ListItem divider>
@@ -114,7 +114,7 @@ const NumericBoardSetting = props => {
             optionList={fontSizeList}
             value={option.content.fontSize}
             onChange={handleContentChange}
-            colorButton={<ColorPickerForm color={option.content.color} name="color" onChange={handleContentChange} />}
+            endButton={<ColorPickerForm color={option.content.color} name="color" onChange={handleContentChange} />}
           />
           <FormControl
             required
