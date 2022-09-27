@@ -2,7 +2,7 @@ import React from 'react';
 import { Box, FormControl, FormLabel, MenuItem, Select, Stack } from '@mui/material';
 
 function SelectForm(props) {
-  const { label, optionList, endButton, value, required, ...rest } = props;
+  const { label, optionList, endButton, value, labelField = 'label', valueField = 'value', required, ...rest } = props;
 
   const getDropList = (list: any[] | { value: any[]; label: any[] }) => {
     let dropDownList;
