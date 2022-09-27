@@ -17,6 +17,9 @@ export class Template extends BaseEntity {
     @Column({type: 'text', comment: '레이아웃'})
     layout: string
 
+    @Column({length:300, nullable:true, comment: '레이아웃 이미지 경로'})
+    layoutImg: string
+
     @Column({length: 1, default: YesNo.YES, comment: '사용여부'})
     useYn: YesNo
 

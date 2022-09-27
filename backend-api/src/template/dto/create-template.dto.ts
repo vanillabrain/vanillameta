@@ -1,3 +1,11 @@
+import {IsOptional, IsString} from "class-validator";
+
 export class CreateTemplateDto {
-    layout: string;
+    @IsString()
+    readonly title: string;
+    @IsString()
+    @IsOptional()
+    readonly description: string;
+    @IsString()
+    readonly layout: string;
 }
