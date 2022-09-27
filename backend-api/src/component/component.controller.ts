@@ -7,17 +7,15 @@ export class ComponentController {
   constructor(private readonly componentService: ComponentService,
   ) {}
 
-  @Post()
-  async multipleCreate(@Body() body:[]) {
-    return this.componentService.multipleCreate(body);
+  @Post('/seed')
+  async multipleCreate(@Body() createComponents:CreateComponentDto[]) {
+    return this.componentService.multipleCreate(createComponents);
   }
-  // multiple cases
 
-  // @Post('/short')
-  // async shortCreate(@Body() body:CreateComponentDto) {
-  //   return this.componentService.shortCreate(body)
-  // }
-  // short cases
+  @Post()
+  async create(@Body() createComponent:CreateComponentDto) {
+    return this.componentService.create(createComponent);
+  }
 
   @Get()
   findAll() {
