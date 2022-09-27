@@ -1,9 +1,15 @@
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
+import {NestFactory} from '@nestjs/core';
+import {AppModule} from './app.module';
+import express from "express";
+import {ExpressAdapter} from "@nestjs/platform-express";
+import {HttpExceptionFilter} from "./nest-utils/http-exception.filter";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  await app.listen(3000);
+    const expressApp = express();
+    const app = await NestFactory.create(AppModule, new ExpressAdapter(expressApp));
+    app.useGlobalFilters(new HttpExceptionFilter());
+    // const app = await NestFactory.create(AppModule);
+    await app.listen(3000);
 }
 
 bootstrap();

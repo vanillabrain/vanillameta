@@ -32,7 +32,7 @@ export class TemplateController {
    */
   @Get()
   findAll() {
-    return this.templateService.findAll();
+    return this.templateService.findAll();;
   }
 
   /**
