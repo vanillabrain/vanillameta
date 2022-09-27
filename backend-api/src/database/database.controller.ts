@@ -2,6 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/commo
 import { DatabaseService } from './database.service';
 import { CreateDatabaseDto } from './dto/create-database.dto';
 import { UpdateDatabaseDto } from './dto/update-database.dto';
+import { QueryExecuteDto } from './dto/query-execute.dto';
 
 @Controller('database')
 export class DatabaseController {
@@ -14,7 +15,12 @@ export class DatabaseController {
 
   @Post('test')
   testConnection(@Body() createDatabaseDto: CreateDatabaseDto) {
-    return this.databaseService.create(createDatabaseDto);
+    return this.databaseService.testConnection(createDatabaseDto);
+  }
+
+  @Post('execute')
+  executeQuery(@Body() queryExecuteDto: QueryExecuteDto) {
+    return this.databaseService.executeQuery(queryExecuteDto);
   }
 
   @Get()
