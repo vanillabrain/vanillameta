@@ -140,7 +140,7 @@ function WidgetAttributeSelect(props) {
             chart: (
               <LineChart
                 {...ChartProps}
-                axisReverse={true}
+                axis="y"
                 seriesOp={{ type: 'bar' }}
                 defaultOp={{
                   grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
@@ -150,7 +150,7 @@ function WidgetAttributeSelect(props) {
                 }}
               />
             ),
-            chartSetting: <LineChartSetting {...ChartSettingProps} axisReverse={true} />,
+            chartSetting: <LineChartSetting {...ChartSettingProps} axis="y" />,
           });
           break;
         case WIDGET_TYPE.CHART_STACKED_COLUMN:
@@ -159,14 +159,14 @@ function WidgetAttributeSelect(props) {
             chart: (
               <LineChart
                 {...ChartProps}
-                axisReverse={true}
+                axis="y"
                 seriesOp={{ type: 'bar', stack: 'total', label: { show: true } }}
                 defaultOp={{
                   grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
                 }}
               />
             ),
-            chartSetting: <LineChartSetting {...ChartSettingProps} axisReverse={true} />,
+            chartSetting: <LineChartSetting {...ChartSettingProps} axis="y" />,
           });
           break;
         case WIDGET_TYPE.CHART_MIXED_LINE_BAR:

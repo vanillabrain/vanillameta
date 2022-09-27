@@ -38,7 +38,14 @@ function SelectForm(props) {
       {label && (
         <FormLabel
           htmlFor="userInputSelect"
-          sx={{ width: '35%', pr: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+          sx={{
+            width: '35%',
+            pr: 2,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            textTransform: 'capitalize',
+            whiteSpace: 'nowrap',
+          }}
         >
           {label}
         </FormLabel>

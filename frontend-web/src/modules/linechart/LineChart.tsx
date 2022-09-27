@@ -4,17 +4,20 @@ import { Box } from '@mui/material';
 import { getGridSize, getLegendOption } from '@/modules/utils/chartUtil';
 
 const LineChart = props => {
-  const { option, dataSet, axisReverse, seriesOp, defaultOp, createOp } = props;
+  const { option, dataSet, axis = 'x', seriesOp, defaultOp, createOp } = props;
+  const reverseAxis = axis === 'x' ? 'y' : 'x';
 
   const [componentOption, setComponentOption] = useState({});
+
+  console.log(option);
 
   const defaultComponentOption = {
     grid: { top: 50, right: 50, bottom: 50, left: 50 },
     tooltip: { trigger: 'axis' },
-    [!axisReverse ? 'xAxis' : 'yAxis']: {
+    [axis + 'Axis']: {
       type: 'category',
     },
-    [!axisReverse ? 'yAxis' : 'xAxis']: {
+    [reverseAxis + 'Axis']: {
       type: 'value',
     },
     series: [],
@@ -28,7 +31,7 @@ const LineChart = props => {
   useEffect(() => {
     if (option && dataSet) {
       const newOption = createComponentOption();
-      // console.log('linechart new option', newOption);
+
       setComponentOption(newOption);
     }
   }, [option, dataSet]);
@@ -46,7 +49,6 @@ const LineChart = props => {
     const newSeries = [];
     console.log('option.series.', option.series);
     option.series.forEach(item => {
-      // console.log('linehchart option item:', item);
       if (item.field) {
         const series = {
           name: item.field,
@@ -59,14 +61,12 @@ const LineChart = props => {
         newSeries.push(series);
       }
     });
-    // console.log('new series', newSeries);
+
     if (dataSet) {
       const op = {
-        [!axisReverse ? 'xAxis' : 'yAxis']: {
+        [axis + 'Axis']: {
           type: 'category',
-          data: !!option[!axisReverse ? 'xField' : 'yField']
-            ? dataSet.map(item => item[option[!axisReverse ? 'xField' : 'yField']])
-            : '',
+          data: !!option[axis + 'Field'] ? dataSet.map(item => item[option[axis + 'Field']]) : '',
         },
         series: newSeries,
         grid: getGridSize(option.legendPosition),
