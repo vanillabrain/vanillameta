@@ -21,7 +21,9 @@ function Router() {
       <Route path="/dashboard" element={<Dashboard />}>
         <Route path=":dashboard_id" element={<DashboardView />} />
       </Route>
-      <Route path="/dashboard/create" element={<DashboardCreate />} />
+      <Route path="/dashboard/create" element={<DashboardCreate />}>
+        <Route path=":create_type" element={<DashboardCreate />} />
+      </Route>
       <Route path="/dashboard/modify" element={<DashboardModify />}>
         <Route path=":dashboard_id" element={<DashboardModify />} />
       </Route>

@@ -78,7 +78,11 @@ export const AddMenuIconButton = ({ menuList, ...props }) => {
   const handleClick = event => {
     setAnchorEl(event.currentTarget);
   };
-  const handleClose = () => {
+  const handleClose = item => {
+    if (props.handleSelect) {
+      props.handleSelect(item);
+    }
+
     setAnchorEl(null);
   };
 
@@ -99,14 +103,7 @@ export const AddMenuIconButton = ({ menuList, ...props }) => {
       </Button>
       <Menu id="styled-menu" anchorEl={anchorEl} open={open} onClose={handleClose} sx={{ width: menuWidth }}>
         {menuList.map(item => (
-          <MenuItem
-            key={item.name}
-            component={RouterLink}
-            to={item.link}
-            onClick={handleClose}
-            disableRipple
-            sx={{ width: menuWidth }}
-          >
+          <MenuItem key={item.name} onClick={() => handleClose(item)} disableRipple sx={{ width: menuWidth }}>
             {item.name}
           </MenuItem>
         ))}
@@ -117,6 +114,5 @@ export const AddMenuIconButton = ({ menuList, ...props }) => {
 AddMenuIconButton.defaultProps = {
   menuList: {
     name: '',
-    link: '',
   },
 };
