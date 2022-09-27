@@ -3,7 +3,7 @@ import { Grid, List, ListItem, ListItemText, styled, IconButton, IconButtonProps
 import SelectForm from '@/components/form/SelectForm';
 import ColorButtonForm from '@/components/form/ColorButtonForm';
 import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
-import { AGGREGATION_LIST, COLUMN_TYPE } from '@/constant';
+import { AGGREGATION_LIST, COLUMN_TYPE, WIDGET_AGGREGATION } from '@/constant';
 
 const StyledList = styled(List)({
   position: 'relative',
@@ -94,7 +94,7 @@ const LineChartSetting = props => {
       const newItem = {
         field: '',
         color: defaultColor[option.series.length % 9],
-        aggregation: '',
+        aggregation: WIDGET_AGGREGATION.SUM,
       };
       tempOption.series.push(newItem);
       return tempOption;

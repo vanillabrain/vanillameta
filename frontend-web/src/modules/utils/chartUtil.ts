@@ -107,3 +107,54 @@ export const getAggregationData = (type, data, field) => {
   }
   return result;
 };
+
+/**
+ * getAggregationDataForChart
+ * @param array
+ * @param keys
+ * @param variable
+ */
+export const getAggregationDataForChart = (array, keys, variable, aggr = WIDGET_AGGREGATION.SUM) => {
+  let key, temp;
+  const countInfo = {};
+  array.forEach(item => {
+    const group = item[keys];
+    console.log('group ', group);
+    if (!countInfo[group]) {
+      countInfo[group] = 1;
+    } else {
+      countInfo[group] = countInfo[group] + 1;
+    }
+  });
+  console.log('countInfo', countInfo);
+  const data = array.reduce((result, currentValue) => {
+    console.log(result, currentValue);
+    key = currentValue[keys];
+    if (!result[key]) {
+      result[key] = 0;
+    }
+    if (aggr === WIDGET_AGGREGATION.AVG) {
+      result[key] += parseFloat(currentValue[variable]);
+    } else if (aggr === WIDGET_AGGREGATION.MAX) {
+      result[key] = !result[key] ? currentValue[variable] : Math.max(result[key], currentValue[variable]);
+    } else if (aggr === WIDGET_AGGREGATION.MIN) {
+      result[key] = !result[key] ? currentValue[variable] : Math.min(result[key], currentValue[variable]);
+    } else {
+      result[key] += parseFloat(currentValue[variable]);
+    }
+    return result;
+  }, {});
+
+  const grouped = [];
+  Object.keys(data).forEach(function (key) {
+    temp = {};
+    temp[keys] = key;
+    if (aggr === WIDGET_AGGREGATION.AVG) {
+      temp[variable] = data[key] / countInfo[key];
+    } else {
+      temp[variable] = data[key];
+    }
+    grouped.push(temp);
+  });
+  return grouped;
+};
