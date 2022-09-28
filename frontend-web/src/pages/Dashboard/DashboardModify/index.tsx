@@ -185,7 +185,7 @@ function DashboardModify() {
           <React.Fragment>
             <ConfirmCancelButton
               // confirmProps={{ disabled: true }}
-              confirmButton={
+              secondButton={
                 <DialogAlertButton
                   cancelLabel="취소"
                   confirmLabel="저장"
@@ -195,7 +195,7 @@ function DashboardModify() {
                   저장하시겠습니까?
                 </DialogAlertButton>
               }
-              cancelButton={
+              firstButton={
                 <DialogAlertButton
                   cancelLabel="취소"
                   confirmLabel="확인"
