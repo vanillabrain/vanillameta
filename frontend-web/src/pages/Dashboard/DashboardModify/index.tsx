@@ -10,10 +10,11 @@ import GridLayout, { Responsive, WidthProvider } from 'react-grid-layout';
 
 import '/node_modules/react-grid-layout/css/styles.css';
 import '/node_modules/react-resizable/css/styles.css';
-import { get } from '@/helpers/apiHelper';
+import axios from 'axios';
 import WidgetWrapper from '@/widget/wrapper/WidgetWrapper';
 import AddIcon from '@mui/icons-material/Add';
 import RecommendDashboardPopup from '@/pages/Dashboard/Components/RecommendDashboardPopup';
+import DashboardService from '@/api/dashboardService';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -56,7 +57,9 @@ function DashboardModify() {
 
   // dashboard info 조회
   const getDashboardInfo = id => {
-    get('/data/dummyDashboardInfo.json').then(response => {
+    // todo 서비스 완료시 연결
+    // DashboardService.selectDashboard(id).then(response => {
+    axios.get('/data/dummyDashboardInfo.json').then(response => {
       setDashboardTitle(response.data.title);
       setWidgets(response.data.widgets);
       setLayout(response.data.layout);

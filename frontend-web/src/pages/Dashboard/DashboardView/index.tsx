@@ -8,7 +8,7 @@ import PageTitleBox from '@/components/PageTitleBox';
 import TitleBox from '@/components/TitleBox';
 import { DialogAlertIconButton } from '@/components/button/DialogAlertButton';
 import WidgetWrapper from '@/widget/wrapper/WidgetWrapper';
-import { get } from '@/helpers/apiHelper';
+import axios from 'axios';
 import RGL, { Responsive, WidthProvider } from 'react-grid-layout';
 import '/node_modules/react-grid-layout/css/styles.css';
 import '/node_modules/react-resizable/css/styles.css';
@@ -38,7 +38,7 @@ const DashboardView = props => {
 
   // dashboard info 조회
   const getDashboardInfo = id => {
-    get('/data/dummyDashboardInfo.json').then(response => {
+    axios.get('/data/dummyDashboardInfo.json').then(response => {
       setDashboardInfo(response.data);
     });
   };

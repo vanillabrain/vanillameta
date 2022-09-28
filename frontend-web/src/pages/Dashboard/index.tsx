@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import PageContainer from '@/components/PageContainer';
 import PageTitleBox from '@/components/PageTitleBox';
 import BoardList from '@/components/BoardList';
-import { Outlet, useParams } from 'react-router-dom';
+import { Outlet, useParams, useNavigate } from 'react-router-dom';
 import { AddMenuIconButton } from '@/components/button/AddIconButton';
-import { get } from '@/helpers/apiHelper';
 import { Box } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import DashboardService from '@/api/dashboardService';
+import axios from 'axios';
 
 const title = '대시보드';
 
@@ -24,7 +24,10 @@ function Dashboard(props) {
   ];
 
   useEffect(() => {
-    get('/data/dummyDashboardList.json')
+    // todo 서비스 완료시 연결
+    // DashboardService.selectDashboardList()
+    axios
+      .get('/data/dummyDashboardList.json')
       .then(response => response.data)
       .then(data => {
         setLoadedWidgetData(data.filter((list, idx) => idx <= 10 * loadedCount));
