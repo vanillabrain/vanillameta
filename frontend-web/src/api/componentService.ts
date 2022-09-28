@@ -8,7 +8,7 @@ const createComponent = (data: unknown): Promise<any> => post(URL_COMPONENT, dat
 const updateComponent = (data: unknown): Promise<any> => put(URL_COMPONENT, data);
 const deleteComponent = (data: unknown): Promise<any> => del(URL_COMPONENT, data);
 
-const componentService = {
+const ComponentService = {
   selectComponentList,
   selectComponent,
   createComponent,
@@ -16,4 +16,4 @@ const componentService = {
   deleteComponent,
 };
 
-export default componentService;
+export default ComponentService;

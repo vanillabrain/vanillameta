@@ -7,6 +7,8 @@ import WidgetDataSelect from './WidgetDataSelect';
 import WidgetTypeSelect from './WidgetTypeSelect';
 import WidgetAttributeSelect from './WidgetAttributeSelect';
 import { WIDGET_TYPE } from '@/constant';
+import { get } from '@/helpers/apiHelper';
+import componentService from '@/api/componentService';
 
 const title = '위젯 생성';
 const steps = ['데이터 선택', '위젯 타입 선택', '위젯 속성 설정'];
@@ -14,6 +16,7 @@ const steps = ['데이터 선택', '위젯 타입 선택', '위젯 속성 설정
 function WidgetCreate(props) {
   const [activeStep, setActiveStep] = useState(0);
 
+  const [componentList, setComponentList] = useState([]); // step 1
   const [dataSet, setDataSet] = useState(null); // step 1
   const [widgetType, setWidgetType] = useState(null); // step 2
 
@@ -21,7 +24,8 @@ function WidgetCreate(props) {
   useEffect(() => {
     setDataSet(688279);
     setWidgetType(WIDGET_TYPE.CHART_LINE);
-    setActiveStep(2);
+    setActiveStep(1);
+    getComponentList();
   }, []);
 
   const [isNextButtonDisabled, setIsNextButtonDisabled] = useState(true);
@@ -40,7 +44,15 @@ function WidgetCreate(props) {
     setIsNextButtonDisabled(true);
   }, [activeStep, dataSet, widgetType]);
 
-  const handleNext = () => {
+  const getComponentList = () => {
+    componentService.selectComponentList().then(res => {
+      console.log(res);
+      setComponentList(res.data);
+    });
+  };
+
+  const handleNext = event => {
+    event.preventDefault();
     if (activeStep === steps.length - 1) {
       return;
     }
@@ -77,7 +89,7 @@ function WidgetCreate(props) {
               }}
               secondButton={
                 <React.Fragment>
-                  {activeStep !== steps.length - 1 ? (
+                  {activeStep !== 2 ? (
                     <ConfirmButton
                       confirmLabel="다음"
                       confirmProps={{
@@ -129,7 +141,7 @@ function WidgetCreate(props) {
         {activeStep === 0 ? (
           <WidgetDataSelect setDataSet={setDataSet} />
         ) : activeStep === 1 ? (
-          <WidgetTypeSelect widgetType={widgetType} setWidgetType={setWidgetType} />
+          <WidgetTypeSelect widgetType={widgetType} setWidgetType={setWidgetType} componentList={componentList} />
         ) : (
           <WidgetAttributeSelect dataSetId={dataSet} componentType={widgetType} />
         )}
