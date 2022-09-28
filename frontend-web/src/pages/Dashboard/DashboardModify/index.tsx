@@ -38,15 +38,12 @@ function DashboardModify() {
   // init useEffect
   useEffect(() => {
     // create 와 modify 에 따라 초기 설정을 변경
-    console.log(' ============ : ', searchParams.get('create_type'));
     if (searchParams.get('create_type') != null) {
       if (searchParams.get('create_type') == 'recommend') {
-        console.log('나는 추천할거야');
-        setRecommendOpen(true);
+        setRecommendOpen(true); // 추천 프로세스 시작
       } else {
         // create
-        console.log('나는 생성할거야');
-        handleWidgetOpen();
+        handleWidgetOpen(); // 신규 생성 프로세스 시작
       }
     } else {
       if (searchParams.get('id') != null) {
@@ -146,14 +143,22 @@ function DashboardModify() {
     if (detail == 1) {
       // validation 체크
       // title null 체크, widgets 수 체크 (0개면 저장 못함)
-      // 저장 로직
-      dashboardInfo.dashboardId = dashboardId;
-      dashboardInfo.title = dashboardTitle;
-      dashboardInfo.layout = layout;
-      dashboardInfo.widgets = widgets;
+      if (dashboardTitle == null || dashboardTitle.trim() == '') {
+        // title 이 없을 경우
+        alert('제목을 입력하세요');
+      } else if (layout.length == 0 || widgets.length == 0) {
+        // 배치된 widget 이 없을경우
+        alert('배치된 위젯이 없습니다');
+      } else {
+        // 저장 로직
+        dashboardInfo.dashboardId = dashboardId;
+        dashboardInfo.title = dashboardTitle;
+        dashboardInfo.layout = layout;
+        dashboardInfo.widgets = widgets;
 
-      console.log('대시보드 저장');
-      console.log(dashboardInfo);
+        console.log('대시보드 저장');
+        console.log(dashboardInfo);
+      }
     }
     console.log('저장한다 안한다', detail);
   };
@@ -246,7 +251,9 @@ function DashboardModify() {
             compactType={null}
             cols={{ lg: 12 }}
             layouts={{ lg: layout }}
-            margin={[10, 10]}
+            margin={[16, 16]}
+            preventCollision={true}
+            containerPadding={[16, 16]}
             onLayoutChange={onLayoutChange}
           >
             {generateWidget()}
