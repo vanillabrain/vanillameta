@@ -8,7 +8,7 @@ const createWidget = (data: unknown): Promise<any> => post(URL_WIDGET, data);
 const updateWidget = (data: unknown): Promise<any> => put(URL_WIDGET, data);
 const deleteWidget = (data: unknown): Promise<any> => del(URL_WIDGET, data);
 
-const widgetService = {
+const WidgetService = {
   selectWidgetList,
   selectWidget,
   createWidget,
@@ -16,4 +16,4 @@ const widgetService = {
   deleteWidget,
 };
 
-export default widgetService;
+export default WidgetService;

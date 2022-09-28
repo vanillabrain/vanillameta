@@ -125,14 +125,12 @@ export const getAggregationDataForChart = (array, keys, variable, aggr = WIDGET_
   const countInfo = {};
   array.forEach(item => {
     const group = item[keys];
-    console.log('group ', group);
     if (!countInfo[group]) {
       countInfo[group] = 1;
     } else {
       countInfo[group] = countInfo[group] + 1;
     }
   });
-  console.log('countInfo', countInfo);
   const data = array.reduce((result, currentValue) => {
     console.log(result, currentValue);
     key = currentValue[keys];

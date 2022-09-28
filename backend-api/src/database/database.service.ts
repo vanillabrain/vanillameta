@@ -14,8 +14,9 @@ export class DatabaseService {
   }
 
   async create(createDatabaseDto: CreateDatabaseDto): Promise<Database> {
-    const database = Database.toDto(createDatabaseDto);
-    return await this.databaseRepository.save(database);
+    const databaseDto = Database.toDto(createDatabaseDto);
+    databaseDto.knexConfig = JSON.stringify(databaseDto.knexConfig);
+    return await this.databaseRepository.save(databaseDto);
   }
 
   async findAll(): Promise<Database[]> {

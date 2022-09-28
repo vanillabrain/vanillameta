@@ -7,6 +7,10 @@ import { UpdateDatasetDto } from './dto/update-dataset.dto';
 export class DatasetController {
   constructor(private readonly datasetService: DatasetService) {}
 
+  /**
+   * 데이터셋 생성
+   * @param createDatasetDto
+   */
   @Post()
   create(@Body() createDatasetDto: CreateDatasetDto) {
     return this.datasetService.create(createDatasetDto);
