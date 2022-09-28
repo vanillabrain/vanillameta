@@ -20,30 +20,31 @@ import TitleBox from '@/components/TitleBox';
 import BubbleChart from '@/modules/scatterchart/BubbleChart';
 import BubbleChartSetting from '@/widget/settings/BubbleChartSetting';
 import { useAlert } from 'react-alert';
+import axios from 'axios';
 
 function WidgetAttributeSelect(props) {
   const alert = useAlert();
 
-  const { dataSetId, componentType, prevOption, defaultComponentData } = props;
+  const { dataSetId, componentType, prevOption } = props;
 
   const [option, setOption] = useState(null);
   const [data, setData] = useState(null);
   const [switchChart, setSwitchChart] = useState({ chart: undefined, chartSetting: undefined });
   const [spec, setSpec] = useState(null);
 
-  const widgetTypeText = defaultComponentData.title;
+  const widgetTypeText = componentType.title;
 
   useEffect(() => {
     getData();
   }, []);
 
   useEffect(() => {
-    setOption(JSON.parse(JSON.stringify(defaultComponentData.option)));
+    setOption(JSON.parse(JSON.stringify(componentType.option)));
   }, [componentType]);
 
   const getData = () => {
     // dataSetId 로 데이터 조회
-    get('/data/sample/chartFull.json').then(response => {
+    axios.get('/data/sample/chartFull.json').then(response => {
       setData(response.data.data);
       setSpec(response.data.spec);
     });
