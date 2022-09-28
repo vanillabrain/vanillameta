@@ -143,7 +143,7 @@ function WidgetCreate(props) {
         ) : activeStep === 1 ? (
           <WidgetTypeSelect widgetType={widgetType} setWidgetType={setWidgetType} componentList={componentList} />
         ) : (
-          <WidgetAttributeSelect dataSetId={dataSet} componentType={widgetType} />
+          <WidgetAttributeSelect dataSetId={dataSet} componentType={widgetType} com />
         )}
       </PageTitleBox>
     </PageContainer>

@@ -21,6 +21,7 @@
     "@testing-library/react": "^13.3.0",
     "@testing-library/user-event": "^13.5.0",
     "@toast-ui/react-grid": "^4.21.4",
+    "@types/react-alert": "^7.0.2",
     "ace-builds": "^1.10.1",
     "axios": "^0.27.2",
     "echarts": "^5.3.3",
@@ -35,6 +36,7 @@
     "react-intersection-observer": "^9.4.0",
     "react-router-dom": "^6.3.0",
     "react-scripts": "5.0.1",
+    "save": "^2.9.0",
     "styled-components": "^5.3.5",
     "swiper": "^8.3.2",
     "web-vitals": "^2.1.4"
