@@ -11,7 +11,7 @@ import { useAlert } from 'react-alert';
 
 import '/node_modules/react-grid-layout/css/styles.css';
 import '/node_modules/react-resizable/css/styles.css';
-import axios from 'axios';
+import { get } from '@/helpers/apiHelper';
 import WidgetWrapper from '@/widget/wrapper/WidgetWrapper';
 import AddIcon from '@mui/icons-material/Add';
 import RecommendDashboardPopup from '@/pages/Dashboard/Components/RecommendDashboardPopup';
@@ -61,7 +61,7 @@ function DashboardModify() {
   const getDashboardInfo = id => {
     // todo 서비스 완료시 연결
     // DashboardService.selectDashboard(id).then(response => {
-    axios.get('/data/dummyDashboardInfo.json').then(response => {
+    get('/data/dummyDashboardInfo.json').then(response => {
       setDashboardTitle(response.data.title);
       setWidgets(response.data.widgets);
       setLayout(response.data.layout);

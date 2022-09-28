@@ -6,7 +6,7 @@ import { Outlet, useParams, useNavigate } from 'react-router-dom';
 import { AddMenuIconButton } from '@/components/button/AddIconButton';
 import { Box } from '@mui/material';
 import DashboardService from '@/api/dashboardService';
-import axios from 'axios';
+import { get } from '@/helpers/apiHelper';
 
 const title = '대시보드';
 
@@ -26,8 +26,7 @@ function Dashboard(props) {
   useEffect(() => {
     // todo 서비스 완료시 연결
     // DashboardService.selectDashboardList()
-    axios
-      .get('/data/dummyDashboardList.json')
+    get('/data/dummyDashboardList.json')
       .then(response => response.data)
       .then(data => {
         setLoadedWidgetData(data.filter((list, idx) => idx <= 10 * loadedCount));
