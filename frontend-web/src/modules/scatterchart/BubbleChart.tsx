@@ -43,11 +43,11 @@ function BubbleChart(props) {
 
     // series option에서 가져오기
     const newSeries = [];
-    option.series.forEach((item, index) => {
+    option.series.forEach(item => {
       if (item.xField || item.yField) {
         const series = {
           type: 'scatter',
-          name: !item.name ? `필드 ${index + 1}` : item.name,
+          name: item.name,
           data: dataSet.map(dataItem => [dataItem[item.xField], dataItem[item.yField], dataItem[item.symbolSize], 'text']),
           symbolSize: function (data) {
             return Math.sqrt(data[2]);

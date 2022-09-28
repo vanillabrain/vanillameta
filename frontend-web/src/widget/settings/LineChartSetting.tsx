@@ -102,9 +102,7 @@ const LineChartSetting = props => {
                   id={`${seriesItem.id}${index + 1}`}
                   name={`${seriesItem.name}${index + 1}`}
                   label={seriesItem.label}
-                  labelField="columnName"
-                  valueField="columnType"
-                  optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
+                  optionList={seriesItem.optionList}
                   value={item[seriesItem.value]}
                   onChange={event => handleSeriesChange(event, setOption)}
                   disabledDefaultValue={seriesItem.disabledDefaultValue}

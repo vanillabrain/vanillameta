@@ -3,8 +3,8 @@ import LineChartSetting from '@/widget/settings/LineChartSetting';
 
 function MixedLineBarChartSetting({ ...ChartSettingProps }) {
   const chartTypeList = [
-    { label: '선형', value: 'line' },
-    { label: '막대형', value: 'bar' },
+    { value: 'line', label: '선형' },
+    { value: 'bar', label: '막대형' },
   ];
 
   return (
@@ -16,7 +16,6 @@ function MixedLineBarChartSetting({ ...ChartSettingProps }) {
         label: '종류',
         optionList: chartTypeList,
         value: 'type',
-        disabledDefaultValue: true,
       }}
     />
   );

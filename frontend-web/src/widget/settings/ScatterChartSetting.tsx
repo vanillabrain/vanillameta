@@ -63,6 +63,8 @@ const LineChartSetting = props => {
                 id={`name${index + 1}`}
                 name={`name${index + 1}`}
                 label={`필드 ${index + 1} 이름`}
+                labelField="columnName"
+                valueField="columnType"
                 value={item.name}
                 onChange={event => handleSeriesChange(event, setOption)}
                 endButton={<ColorButtonForm index={index} option={option} setOption={setOption} />}
