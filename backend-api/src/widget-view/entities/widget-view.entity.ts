@@ -14,20 +14,6 @@ export class WidgetView extends BaseEntity {
     @Column({type: 'text', comment: '조회 sql'})
     query: string
 
-    @ManyToMany(type => Database)
-    @JoinTable({
-        name: 'database_widget_view',
-        joinColumn: {
-            name: 'widgetViewId',
-            referencedColumnName: 'databaseId'
-        },
-        inverseJoinColumn: {
-            name: 'databaseId',
-            referencedColumnName: 'id'
-        }
-    })
-    databases: Database[];
-
     @OneToMany(
         (type) => Widget,
         (widget) => widget.datasetId

@@ -17,20 +17,6 @@ export class Dataset extends BaseEntity {
     @Column({type: 'text', comment: '조회 sql'})
     query: string
 
-    @ManyToMany(type => Database)
-    @JoinTable({
-        name: 'database_dataset',
-        joinColumn: {
-            name: 'datasetId',
-            referencedColumnName: 'databaseId'
-        },
-        inverseJoinColumn: {
-            name: 'databaseId',
-            referencedColumnName: 'id'
-        }
-    })
-    databases: Database[];
-
     @OneToMany(
         (type) => Widget,
         (widget) => widget.datasetId
