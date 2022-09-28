@@ -1,46 +1,23 @@
 # VanillaMeta
 
-## 바닐라메타 - 통합 데이터 분석/시각화 시스템
+/// image ///
 
-- 데이터 소스 연결
-- 적합한 템플릿 추천
-- 데이터 시각화 편집
+intro
 
-## Git Commit 작성하기
+## Navigation
+[How to Use](https://github.com/godyuo/Algorithm/edit/main/README.md#How%20to%20Use)<br/>
+[Development Status]()<br/>
+[Things that helped contribute]()<br/>
+[Wiki]()<br/>
 
+## How to Use
 ```
-[commitType] 작업내용을 작성합니다 #2
-
-1. 필요시 본문을 부연 작성합니다.
-2. 필요시 본문을 부연 작성합니다.
-```
-
-### commit에 들어갈 내용
-
-- 제목에는 작업내용이 무엇인지 명확히 작성합니다.
-- 제목의 마지막에 마침표를 붙이지 않습니다.
-- 필요시 제목의 뒤에 이슈 번호를 붙입니다.
-- 필요시 본문을 덧붙여 작성하며, 번호를 붙여 작업내용을 정리합니다.
-- 본문은 '어떻게' 보다 '무엇을', '왜'에 맞춰 작성합니다.
-
-### commit 방법
-
-```shell
-git commit -m "[commitType] 작업내용을 작성합니다 #2
-
-1. 필요시 본문을 부연 작성합니다.
-2. 필요시 본문을 부연 작성합니다."
 ```
 
-### commit type 목록
+## Development Status
 
+## Things that helped contribute
 ```
-feat     : 기능 (새로운 기능)
-fix      : 버그 (버그 수정)
-refactor : 리팩토링
-style    : 스타일 (코드 형식, 세미콜론 추가: 비즈니스 로직에 변경 없음)
-docs     : 문서 (문서 추가, 수정, 삭제)
-test     : 테스트 (테스트 코드 추가, 수정, 삭제: 비즈니스 로직에 변경 없음)
-chore    : 기타 변경사항 (package.json, 빌드 스크립트 수정 등)
-remove   : 코드, 파일, 폴더 등 삭제
 ```
+
+## Wiki

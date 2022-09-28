@@ -1,0 +1,17 @@
+AWS_REGION: ap-northeast-2
+STAGE: dev
+DB_CONFIG:
+  dev:
+    DB_TYPE: mysql
+    DB_HOST: localhost
+    DB_PORT: 3306
+    DB_USER: vanillameta
+    DB_PASSWORD: pw
+    DB_NAME: vanillameta
+  prod:
+    DB_TYPE: mysql
+    DB_HOST: localhost
+    DB_PORT: 3306
+    DB_USER: vanillameta
+    DB_PASSWORD: pw
+    DB_NAME: vanillameta
