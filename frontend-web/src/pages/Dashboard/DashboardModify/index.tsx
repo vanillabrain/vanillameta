@@ -7,6 +7,7 @@ import AddWidgetPopup from '@/pages/Dashboard/Components/AddWidgetPopup';
 import ConfirmCancelButton, { ConfirmButton, CancelButton } from '@/components/button/ConfirmCancelButton';
 import DialogAlertButton from '@/components/button/DialogAlertButton';
 import GridLayout, { Responsive, WidthProvider } from 'react-grid-layout';
+import { useAlert } from 'react-alert';
 
 import '/node_modules/react-grid-layout/css/styles.css';
 import '/node_modules/react-resizable/css/styles.css';
@@ -18,6 +19,7 @@ import RecommendDashboardPopup from '@/pages/Dashboard/Components/RecommendDashb
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 function DashboardModify() {
+  const alert = useAlert();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [dashboardId, setDashboardId] = useState(null); // dashboard id
@@ -145,7 +147,11 @@ function DashboardModify() {
       // title null 체크, widgets 수 체크 (0개면 저장 못함)
       if (dashboardTitle == null || dashboardTitle.trim() == '') {
         // title 이 없을 경우
-        alert('제목을 입력하세요');
+        alert.info('제목을 입력 해주세요.', {
+          onClose: () => {
+            console.log('test alert');
+          },
+        });
       } else if (layout.length == 0 || widgets.length == 0) {
         // 배치된 widget 이 없을경우
         alert('배치된 위젯이 없습니다');
@@ -172,6 +178,11 @@ function DashboardModify() {
   };
 
   const handleWidgetOpen = () => {
+    alert.info('위젯을 선택', {
+      onClose: () => {
+        console.log('test alert');
+      },
+    });
     setWidgetOpen(true);
   };
 
