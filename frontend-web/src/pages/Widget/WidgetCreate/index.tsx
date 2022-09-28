@@ -7,7 +7,6 @@ import WidgetDataSelect from './WidgetDataSelect';
 import WidgetTypeSelect from './WidgetTypeSelect';
 import WidgetAttributeSelect from './WidgetAttributeSelect';
 import { WIDGET_TYPE } from '@/constant';
-import { get } from '@/helpers/apiHelper';
 import componentService from '@/api/componentService';
 
 const title = '위젯 생성';
@@ -23,7 +22,6 @@ function WidgetCreate(props) {
   // 개발 편의상 임시로 적용
   useEffect(() => {
     setDataSet(688279);
-    setWidgetType(WIDGET_TYPE.CHART_LINE);
     setActiveStep(1);
     getComponentList();
   }, []);
@@ -31,6 +29,7 @@ function WidgetCreate(props) {
   const [isNextButtonDisabled, setIsNextButtonDisabled] = useState(true);
 
   useEffect(() => {
+    console.log('widgetType', widgetType);
     if (activeStep === 0 && !!dataSet) {
       setIsNextButtonDisabled(false);
       return;
@@ -46,7 +45,7 @@ function WidgetCreate(props) {
 
   const getComponentList = () => {
     componentService.selectComponentList().then(res => {
-      console.log(res);
+      console.log(res.data);
       setComponentList(res.data);
     });
   };

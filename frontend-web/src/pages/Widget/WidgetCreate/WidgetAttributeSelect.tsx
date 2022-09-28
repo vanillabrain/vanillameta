@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { Grid } from '@mui/material';
-import componentList from '@/data/componentList.json';
 import LineChartSetting from '@/widget/settings/LineChartSetting';
 import LineChart from '@/modules/linechart/LineChart';
 import PieChart from '@/modules/piechart/PieChart';
@@ -21,6 +20,7 @@ import TitleBox from '@/components/TitleBox';
 import BubbleChart from '@/modules/scatterchart/BubbleChart';
 import BubbleChartSetting from '@/widget/settings/BubbleChartSetting';
 import { useAlert } from 'react-alert';
+import axios from 'axios';
 
 function WidgetAttributeSelect(props) {
   const alert = useAlert();
@@ -32,20 +32,19 @@ function WidgetAttributeSelect(props) {
   const [switchChart, setSwitchChart] = useState({ chart: undefined, chartSetting: undefined });
   const [spec, setSpec] = useState(null);
 
-  const defaultComponentData = [...componentList].find(item => item.id === componentType && { ...item });
-  const widgetTypeText = defaultComponentData.title;
+  const widgetTypeText = componentType.title;
 
   useEffect(() => {
     getData();
   }, []);
 
   useEffect(() => {
-    setOption(JSON.parse(JSON.stringify(defaultComponentData.option)));
+    setOption(JSON.parse(JSON.stringify(componentType.option)));
   }, [componentType]);
 
   const getData = () => {
     // dataSetId 로 데이터 조회
-    get('/data/sample/chartFull.json').then(response => {
+    axios.get('/data/sample/chartFull.json').then(response => {
       setData(response.data.data);
       setSpec(response.data.spec);
     });
@@ -265,18 +264,7 @@ function WidgetAttributeSelect(props) {
     // });
 
     // confirm sample
-    alert.success('위젯 속성을 저장하시겠습니까?', {
-      title: '위젯 저장',
-      closeCopy: '취소',
-      actions: [
-        {
-          copy: '저장',
-          onClick: () => {
-            console.log('저장클릭');
-          },
-        },
-      ],
-    });
+    alert.success('위젯 속성을 저장하시겠습니까?');
 
     console.log('widgetTitle:', option.title);
     console.log('datesetId:', dataSetId);

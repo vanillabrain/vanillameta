@@ -10,9 +10,9 @@ function ImgCardList(props) {
   //   props.inputValue(selectedValue);
   // }, [selectedValue]);
 
-  const handleClick = event => {
+  const handleClick = item => {
     // setSelectedValue(event.currentTarget.value);
-    setSelectedType(event.currentTarget.value);
+    setSelectedType(item);
     // console.log(event.currentTarget.value, 'event');
   };
 
@@ -28,10 +28,10 @@ function ImgCardList(props) {
         <Box component="li" key={item.id} sx={size === 'large' ? { width: { xs: 100, md: 130 }, my: 0 } : { width: 150 }}>
           <Card>
             <CardActionArea
-              onClick={handleClick}
+              onClick={() => handleClick(item)}
               value={item.id}
               sx={{
-                boxShadow: selectedType === item.id ? theme => `0 0 0 3px ${theme.palette.primary.main} inset` : 'none',
+                boxShadow: selectedType.id === item.id ? theme => `0 0 0 3px ${theme.palette.primary.main} inset` : 'none',
               }}
             >
               <CardContent
