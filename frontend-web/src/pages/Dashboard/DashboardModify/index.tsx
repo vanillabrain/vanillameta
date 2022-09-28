@@ -1,34 +1,70 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Card, Stack, TextField } from '@mui/material';
+import { Box, Button, Card, Stack, TextField } from '@mui/material';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import PageContainer from '@/components/PageContainer';
 import PageTitleBox from '@/components/PageTitleBox';
-import AddWidgetPopupButton from '@/pages/Dashboard/DashboardModify/AddWidgetPopupButton';
-import ConfirmCancelButton, { CancelButton } from '@/components/button/ConfirmCancelButton';
+import AddWidgetPopup from '@/pages/Dashboard/Components/AddWidgetPopup';
+import ConfirmCancelButton, { ConfirmButton, CancelButton } from '@/components/button/ConfirmCancelButton';
 import DialogAlertButton from '@/components/button/DialogAlertButton';
 import GridLayout, { Responsive, WidthProvider } from 'react-grid-layout';
 
 import '/node_modules/react-grid-layout/css/styles.css';
 import '/node_modules/react-resizable/css/styles.css';
+import { get } from '@/helpers/apiHelper';
+import WidgetWrapper from '@/widget/wrapper/WidgetWrapper';
+import AddIcon from '@mui/icons-material/Add';
+import RecommendDashboardPopup from '@/pages/Dashboard/Components/RecommendDashboardPopup';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
-function DashboardModify(props) {
-  // const layout = [
-  //   { i: 'a', x: 0, y: 0, w: 1, h: 2, static: true },
-  //   { i: 'b', x: 1, y: 0, w: 3, h: 2, minW: 2, maxW: 4 },
-  //   { i: 'c', x: 4, y: 0, w: 1, h: 2 },
-  // ];
-  // 현재 선택된 widget 목록
-  const [selectedWidgets, setSelectedWidgets] = useState([]);
-  // 화면에 그려질 widget 목록
-  const [widgets, setWidgets] = useState([]);
+function DashboardModify() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const [dashboardId, setDashboardId] = useState(null); // dashboard id
+  const [dashboardTitle, setDashboardTitle] = useState(''); // dashboard 제목
+  const [widgets, setWidgets] = useState([]); // widget 정보
+  const [layout, setLayout] = useState([]); // layout 정보
+  const [topTitle, setTopTitle] = useState('대시보드');
+  const [widgetOpen, setWidgetOpen] = useState(false);
+  const [recommendOpen, setRecommendOpen] = useState(false);
+  const useWidgetIds = [];
+  const dashboardInfo = {
+    dashboardId: null,
+    title: '',
+    layout: [],
+    widgets: [],
+  };
 
+  // init useEffect
   useEffect(() => {
-    // 여기서 처리
-    if (selectedWidgets.length > 0) {
-      // console.log(selectedWidgets);
+    // create 와 modify 에 따라 초기 설정을 변경
+    console.log(' ============ : ', searchParams.get('create_type'));
+    if (searchParams.get('create_type') != null) {
+      if (searchParams.get('create_type') == 'recommend') {
+        console.log('나는 추천할거야');
+        setRecommendOpen(true);
+      } else {
+        // create
+        console.log('나는 생성할거야');
+        handleWidgetOpen();
+      }
+    } else {
+      if (searchParams.get('id') != null) {
+        setDashboardId(searchParams.get('id'));
+        getDashboardInfo(searchParams.get('id'));
+      }
     }
-  }, [selectedWidgets]);
+    setTopTitle(searchParams.get('id') == null ? '대시보드 추가' : '대시보드 수정');
+  }, []);
+
+  // dashboard info 조회
+  const getDashboardInfo = id => {
+    get('/data/dummyDashboardInfo.json').then(response => {
+      setDashboardTitle(response.data.title);
+      setWidgets(response.data.widgets);
+      setLayout(response.data.layout);
+    });
+  };
 
   useEffect(() => {
     // 여기서 처리
@@ -39,35 +75,133 @@ function DashboardModify(props) {
 
   // 현재 위젯 선택창에서 선택된 위젯 목록 callback
   const handleWidgetSelect = items => {
-    setSelectedWidgets(items);
+    setWidgetOpen(false);
+    if (items != null) {
+      setWidgets([...widgets, ...items]);
+    }
   };
 
-  const onAddItems = items => {
-    // console.log('adding', 'n' + this.state.newCounter);
-    // this.setState({
-    //     // Add a new item. It must have a unique key!
-    //     items: this.state.items.concat({
-    //         i: "n" + this.state.newCounter,
-    //         x: (this.state.items.length * 2) % (this.state.cols || 12),
-    //         y: Infinity, // puts it at the bottom
-    //         w: 2,
-    //         h: 2
-    //     }),
-    //     // Increment the counter to ensure key is always unique.
-    //     newCounter: this.state.newCounter + 1
-    // });
+  // 레이아웃 변경 이벤트
+  const onLayoutChange = changeLayout => {
+    console.log('레이아웃이 바꼇어요');
+    setLayout(changeLayout);
+  };
+
+  // widget 생성
+  const generateWidget = () => {
+    useWidgetIds.length = 0;
+    const addLayouts = [];
+    widgets.map((item, index) => {
+      if (layout.length <= index) {
+        addLayouts.push({
+          x: 0,
+          y: 0,
+          w: 5,
+          h: 5,
+          i: item.widgetId,
+        });
+      }
+    });
+
+    if (addLayouts.length > 0) {
+      setLayout([...layout, ...addLayouts]);
+    }
+
+    return widgets.map((item, index) => {
+      useWidgetIds.push(item.widgetId); // 현재 widget id 를 담는다.
+      return (
+        <Card key={item.widgetId} sx={{ width: '100%', height: '100%', borderRadius: 1 }}>
+          <span
+            style={{ position: 'absolute', right: '2px', top: 0, cursor: 'pointer' }}
+            onClick={() => {
+              // 아이템 삭제
+              console.log(item);
+              const tempWidgets = [...widgets];
+              const tempLayout = [...layout];
+              const index = widgets.findIndex(widgetItem => widgetItem.widgetId == item.widgetId);
+              console.log('index L: ', index);
+              if (index > -1) {
+                tempWidgets.splice(index, 1);
+                tempLayout.splice(index, 1);
+
+                setLayout([...tempLayout]);
+                setWidgets([...tempWidgets]);
+              }
+            }}
+          >
+            X
+          </span>
+          <WidgetWrapper
+            widgetOption={item}
+            dataSetId={item.dataSetId}
+            sx={{ width: '100%', height: '100%', borderRadius: 1 }}
+          />
+        </Card>
+      );
+    });
+  };
+
+  // 저장 여부 버튼 이벤트
+  const handleSaveDialogSelect = detail => {
+    if (detail == 1) {
+      // validation 체크
+      // title null 체크, widgets 수 체크 (0개면 저장 못함)
+      // 저장 로직
+      dashboardInfo.dashboardId = dashboardId;
+      dashboardInfo.title = dashboardTitle;
+      dashboardInfo.layout = layout;
+      dashboardInfo.widgets = widgets;
+
+      console.log('대시보드 저장');
+      console.log(dashboardInfo);
+    }
+    console.log('저장한다 안한다', detail);
+  };
+
+  // 취소 여부 버튼 이벤트
+  const handleCancelDialogSelect = detail => {
+    if (detail == 1) {
+      // 이전 페이지로 이동
+      navigate(-1);
+    }
+  };
+
+  const handleWidgetOpen = () => {
+    setWidgetOpen(true);
+  };
+
+  const handleCompleteRecommend = dashboardInfo => {
+    console.log(dashboardInfo);
+    setWidgets(dashboardInfo.widgets);
+    setLayout(dashboardInfo.layout);
+    setRecommendOpen(false);
   };
 
   return (
     <PageContainer>
       <PageTitleBox
-        title="대시보드 편집"
+        title={topTitle}
         button={
           <React.Fragment>
             <ConfirmCancelButton
-              confirmProps={{ disabled: true }}
-              cancelButton={
-                <DialogAlertButton button={<CancelButton cancelLabel="취소" cancelProps={{ component: 'div' }} />}>
+              // confirmProps={{ disabled: true }}
+              secondButton={
+                <DialogAlertButton
+                  cancelLabel="취소"
+                  confirmLabel="저장"
+                  handleDialogSelect={handleSaveDialogSelect}
+                  button={<ConfirmButton confirmLabel="저장" cancelProps={{ component: 'div' }} />}
+                >
+                  저장하시겠습니까?
+                </DialogAlertButton>
+              }
+              firstButton={
+                <DialogAlertButton
+                  cancelLabel="취소"
+                  confirmLabel="확인"
+                  handleDialogSelect={handleCancelDialogSelect}
+                  button={<CancelButton cancelLabel="취소" cancelProps={{ component: 'div' }} />}
+                >
                   변경사항을 저장하지 않고 작업을 취소하시겠습니까?
                 </DialogAlertButton>
               }
@@ -79,25 +213,43 @@ function DashboardModify(props) {
           <TextField
             id="userDashboardName"
             label=""
-            placeholder="대시보드의 이름을 입력해 주세요"
             required
             autoFocus
             sx={{ width: '50%' }}
+            placeholder="대시보드의 이름을 입력해 주세요"
+            value={dashboardTitle}
+            onChange={event => {
+              setDashboardTitle(event.target.value);
+            }}
           />
-          <AddWidgetPopupButton label="위젯 추가" widgetSelect={handleWidgetSelect} />
+          <Button onClick={handleWidgetOpen} variant="contained" endIcon={<AddIcon />} color="primary">
+            위젯 추가
+          </Button>
+          <AddWidgetPopup
+            label="위젯 추가"
+            widgetSelect={handleWidgetSelect}
+            useWidgetIds={useWidgetIds}
+            widgetOpen={widgetOpen}
+          />
+          <RecommendDashboardPopup recommendOpen={recommendOpen} handleComplete={handleCompleteRecommend} />
         </Stack>
         <Box
           sx={{
-            width: '1280px',
+            width: '1440px',
             minHeight: '1080px',
             borderRadius: 1,
             backgroundColor: '#eee',
           }}
         >
-          <ResponsiveGridLayout rowHeight={54} compactType={null} cols={{ lg: 20 }}>
-            {/*<Card key="a">a</Card>*/}
-            {/*<Card key="b">b</Card>*/}
-            {/*<Card key="c">c</Card>*/}
+          <ResponsiveGridLayout
+            rowHeight={54}
+            compactType={null}
+            cols={{ lg: 12 }}
+            layouts={{ lg: layout }}
+            margin={[10, 10]}
+            onLayoutChange={onLayoutChange}
+          >
+            {generateWidget()}
           </ResponsiveGridLayout>
         </Box>
       </PageTitleBox>

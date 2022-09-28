@@ -3,7 +3,7 @@ import { Box, List, Pagination, Stack, Typography, useMediaQuery, useTheme } fro
 import BoardListItem from './BoardListItem';
 
 function BoardList(props) {
-  const { postList, ...rest } = props;
+  const { postList, handleDeleteSelect, ...rest } = props;
 
   const theme = useTheme();
   const matches = useMediaQuery(theme.breakpoints.up('sm'));
@@ -36,7 +36,7 @@ function BoardList(props) {
 
       <List sx={{ m: 'auto', border: tableBorder, borderRadius: 2, backgroundColor: '#fff' }} disablePadding>
         {postList.map(item => (
-          <BoardListItem postItem={item} key={item.id} />
+          <BoardListItem postItem={item} key={item.id} handleDeleteSelect={handleDeleteSelect} />
         ))}
       </List>
       <Stack alignItems="center" mt={4}>

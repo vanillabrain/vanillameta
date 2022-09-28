@@ -2,7 +2,8 @@ import React from 'react';
 import { Alert, Box, Button, IconButton, Stack } from '@mui/material';
 import { Close } from '@mui/icons-material';
 
-function SubmitButton(props) {
+const SubmitButton = props => {
+  const { onClick } = props;
   const [open, setOpen] = React.useState(false);
 
   const handleClick = event => {
@@ -23,7 +24,7 @@ function SubmitButton(props) {
         size="large"
         sx={{ mt: 3, mx: 2, ml: 0 }}
         fullWidth
-        onClick={handleClick}
+        onClick={onClick}
       >
         {props.label}
       </Button>
@@ -43,6 +44,6 @@ function SubmitButton(props) {
       )}
     </Box>
   );
-}
+};
 
 export default SubmitButton;

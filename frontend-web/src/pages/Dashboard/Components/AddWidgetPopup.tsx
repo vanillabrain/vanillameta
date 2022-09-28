@@ -8,6 +8,7 @@ import {
   DialogTitle,
   IconButton,
   List,
+  Alert,
   ListItemButton,
   ListItemIcon,
   ListItemText,
@@ -19,70 +20,38 @@ import { get } from '@/helpers/apiHelper';
 
 const iconType = item => {
   switch (item.toUpperCase()) {
-    case 'DASHBOARD':
-      return <Dashboard />;
-    case 'BARCHART':
+    case 'CHART_BAR':
       return <BarChart />;
-    case 'PIECHART':
+    case 'CHART_PIE':
       return <PieChart />;
-    case 'LINECHART':
+    case 'CHART_LINE':
       return <MultilineChart />;
     default:
       return;
   }
 };
 
-function AddWidgetPopupButton({ label, widgetSelect }) {
-  const [open, setOpen] = useState(false);
+function AddWidgetPopup({ label, useWidgetIds = [], widgetOpen = false, widgetSelect = null }) {
+  const [open, setOpen] = useState(widgetOpen);
   const [selectedIds, setSelectedIds] = useState([]);
   const [loadedWidgetData, setLoadedWidgetData] = useState([]);
   const getItems = () => {
     get('/data/dummyWidgetList.json')
       .then(response => response.data)
-      .then(data => setLoadedWidgetData(data));
+      .then(data => {
+        const widgetList = data.filter(item => {
+          return !useWidgetIds.find(useItem => useItem == item.widgetId);
+        });
+
+        setLoadedWidgetData(widgetList);
+      });
   };
 
   const descriptionElementRef = useRef<HTMLElement>(null);
 
-  const handleOpenClick = () => {
-    setSelectedIds([]);
-    setLoadedWidgetData([]);
-    getItems();
-    setOpen(true);
-  };
-
-  const handleClose = () => {
-    setOpen(false);
-  };
-
-  const handleClick = item => {
-    const isSelect = isItemSelection(item);
-    const newIds = [...selectedIds];
-    if (isSelect) {
-      const index = newIds.indexOf(item.id);
-      newIds.splice(index, 1);
-      setSelectedIds(newIds);
-    } else {
-      newIds.push(item.id);
-      setSelectedIds(newIds);
-    }
-  };
-
-  const isItemSelection = item => {
-    return !!selectedIds.find(id => id === item.id);
-  };
-
-  const handleSelect = () => {
-    const widgets = [];
-    for (let i = 0; i < loadedWidgetData.length; i++) {
-      if (selectedIds.indexOf(loadedWidgetData[i].id) > -1) {
-        widgets.push(loadedWidgetData[i]);
-      }
-    }
-
-    widgetSelect(widgets);
-    handleClose();
-  };
+  useEffect(() => {
+    setOpen(widgetOpen);
+  }, [widgetOpen]);
 
   useEffect(() => {
     if (open) {
@@ -90,14 +59,57 @@ function AddWidgetPopupButton({ label, widgetSelect }) {
       if (descriptionElement !== null) {
         descriptionElement.focus();
       }
+
+      setSelectedIds([]);
+      setLoadedWidgetData([]);
+      getItems();
     }
   }, [open]);
 
+  const handleClose = () => {
+    if (widgetSelect) {
+      widgetSelect(null);
+    }
+    setOpen(false);
+  };
+
+  const handleClick = item => {
+    const isSelect = isItemSelection(item);
+    const newIds = [...selectedIds];
+    if (isSelect) {
+      const index = newIds.indexOf(item.widgetId);
+      newIds.splice(index, 1);
+      setSelectedIds(newIds);
+    } else {
+      newIds.push(item.widgetId);
+      setSelectedIds(newIds);
+    }
+  };
+
+  const isItemSelection = item => {
+    return !!selectedIds.find(widgetId => widgetId === item.widgetId);
+  };
+
+  const handleSelect = () => {
+    const widgets = [];
+    for (let i = 0; i < loadedWidgetData.length; i++) {
+      if (selectedIds.indexOf(loadedWidgetData[i].widgetId) > -1) {
+        widgets.push(loadedWidgetData[i]);
+      }
+    }
+
+    if (widgets.length > 0) {
+      if (widgetSelect) {
+        widgetSelect(widgets);
+      }
+      setOpen(false);
+    } else {
+      // todo alert 호출 "위젯을 선택하세요"
+    }
+  };
+
   return (
     <React.Fragment>
-      <Button onClick={handleOpenClick} variant="contained" endIcon={<AddIcon />} color="primary">
-        {label}
-      </Button>
       <Dialog
         open={open}
         onClose={handleClose}
@@ -154,4 +166,4 @@ function AddWidgetPopupButton({ label, widgetSelect }) {
   );
 }
 
-export default AddWidgetPopupButton;
+export default AddWidgetPopup;

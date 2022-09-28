@@ -1,15 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Card, IconButton, Stack } from '@mui/material';
+import { Delete } from '@mui/icons-material';
 import { Link as RouterLink, useLocation, useMatch, useSearchParams } from 'react-router-dom';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
 import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
 import PageTitleBox from '@/components/PageTitleBox';
 import TitleBox from '@/components/TitleBox';
 import { DialogAlertIconButton } from '@/components/button/DialogAlertButton';
 import WidgetWrapper from '@/widget/wrapper/WidgetWrapper';
 import { get } from '@/helpers/apiHelper';
-import BoardListItem from '@/components/BoardListItem';
 import RGL, { Responsive, WidthProvider } from 'react-grid-layout';
 import '/node_modules/react-grid-layout/css/styles.css';
 import '/node_modules/react-resizable/css/styles.css';
@@ -19,50 +18,41 @@ const ResponsiveGridLayout = WidthProvider(Responsive);
 const DashboardView = props => {
   const location = useLocation();
   const match = useMatch('/dashboard/:dashboard_id');
-  const [dashboardInfo, setDashboardInfo] = useState({ title: '', widgets: [], layout: [] });
+  const [dashboardInfo, setDashboardInfo] = useState({ title: '', widgets: [], layout: [] }); // dashboard 정보
+  const [layout, setLayout] = useState([]); // grid layout
+  const [dashboardId, setDashboardId] = useState(null); // dashboard id
 
-  const [dashboardId, setDashboardId] = useState(null);
-
-  const ReactGridLayout = WidthProvider(RGL);
-  const layout = [
-    {
-      x: 0,
-      y: 0,
-      w: 6,
-      h: 2,
-      i: '0',
-      static: true,
-    },
-    {
-      x: 6,
-      y: 0,
-      w: 6,
-      h: 3,
-      i: '1',
-      static: true,
-    },
-  ];
+  // init useEffect
   useEffect(() => {
     setDashboardId(match.params.dashboard_id);
     getDashboardInfo(match.params.dashboard_id);
   }, []);
 
+  // dashboardInfo useEffect
+  useEffect(() => {
+    dashboardInfo.layout.map((item, index) => {
+      item.static = true;
+    });
+    setLayout(dashboardInfo.layout);
+  }, [dashboardInfo]);
+
+  // dashboard info 조회
   const getDashboardInfo = id => {
     get('/data/dummyDashboardInfo.json').then(response => {
       setDashboardInfo(response.data);
     });
   };
 
+  // refrech 버튼 클릭
   const handleRefreshClick = () => {
     getDashboardInfo(match.params.dashboard_id);
   };
 
+  // widget 생성
   const generateWidget = () => {
-    console.log('generateWidget', dashboardInfo.widgets);
     return dashboardInfo.widgets.map((item, index) => {
-      console.log('data', item);
       return (
-        <Card key={index} sx={{ width: '100%', height: '100%', borderRadius: 1 }}>
+        <Card key={item.widgetId} sx={{ width: '100%', height: '100%', borderRadius: 1 }}>
           <WidgetWrapper
             widgetOption={item}
             dataSetId={item.dataSetId}
@@ -71,6 +61,12 @@ const DashboardView = props => {
         </Card>
       );
     });
+  };
+
+  const handleDialogSelect = detail => {
+    if (detail == 1) {
+      console.log('대시보드 조회화면에서 삭제 버튼을 눌렀다');
+    }
   };
 
   return (
@@ -89,21 +85,23 @@ const DashboardView = props => {
             >
               <EditIcon />
             </IconButton>
-            <DialogAlertIconButton size="small" icon={<DeleteIcon />}>
-              {`<${dashboardInfo.title}>을 삭제하시겠습니까?`}
+            <DialogAlertIconButton size="small" icon={<Delete />} handleDialogSelect={handleDialogSelect}>
+              {`'<${dashboardInfo.title}>'을(를) 삭제하시겠습니까?`}
             </DialogAlertIconButton>
           </Stack>
         }
       >
         <Box
           sx={{
-            width: '1280px',
+            width: '1440px',
             minHeight: '1080px',
             borderRadius: 1,
             backgroundColor: '#eee',
           }}
         >
-          <ReactGridLayout layout={layout}>{generateWidget()}</ReactGridLayout>
+          <ResponsiveGridLayout rowHeight={54} compactType={null} cols={{ lg: 12 }} layouts={{ lg: layout }}>
+            {generateWidget()}
+          </ResponsiveGridLayout>
         </Box>
       </TitleBox>
     </PageTitleBox>

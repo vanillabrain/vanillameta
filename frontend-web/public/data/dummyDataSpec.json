@@ -1,0 +1,30 @@
+[
+  {
+    "columnName": "id",
+    "columnType": "STRING"
+  },
+  {
+    "columnName": "name",
+    "columnType": "STRING"
+  },
+  {
+    "columnName": "color",
+    "columnType": "STRING"
+  },
+  {
+    "columnName": "high",
+    "columnType": "NUMBER"
+  },
+  {
+    "columnName": "low",
+    "columnType": "NUMBER"
+  },
+  {
+    "columnName": "avg",
+    "columnType": "NUMBER"
+  },
+  {
+    "columnName": "cDate",
+    "columnType": "DATE"
+  }
+]
