@@ -20,7 +20,7 @@ const menuList = [
   { name: '데이터 소스', link: '/data/source/create' },
   { name: '데이터 셋', link: '/data/set/create' },
   { name: '위젯', link: '/widget/create' },
-  { name: '대시보드', link: '/dashboard/create' },
+  { name: '대시보드', link: '/dashboard/create?create_type=dashboard' },
 ];
 
 function Header(props) {
