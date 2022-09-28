@@ -1,26 +1,39 @@
-import { Injectable } from '@nestjs/common';
-import { CreateDatasetDto } from './dto/create-dataset.dto';
-import { UpdateDatasetDto } from './dto/update-dataset.dto';
+import {Injectable} from '@nestjs/common';
+import {CreateDatasetDto} from './dto/create-dataset.dto';
+import {UpdateDatasetDto} from './dto/update-dataset.dto';
+import {InjectRepository} from "@nestjs/typeorm";
+import {Repository} from "typeorm";
+import {Dataset} from "@google-cloud/bigquery";
 
 @Injectable()
 export class DatasetService {
-  create(createDatasetDto: CreateDatasetDto) {
-    return 'This action adds a new dataset';
-  }
+    constructor(
+        @InjectRepository(Dataset)
+        private readonly datasetRepository: Repository<Dataset>
+    ) {
+    }
 
-  findAll() {
-    return `This action returns all dataset`;
-  }
+    /**
+     * 데이터셋 추가
+     * @param createDatasetDto
+     */
+    async create(createDatasetDto: CreateDatasetDto) {
+        return await this.datasetRepository.save(createDatasetDto);
+    }
 
-  findOne(id: number) {
-    return `This action returns a #${id} dataset`;
-  }
+    findAll() {
+        return `This action returns all dataset`;
+    }
 
-  update(id: number, updateDatasetDto: UpdateDatasetDto) {
-    return `This action updates a #${id} dataset`;
-  }
+    findOne(id: number) {
+        return `This action returns a #${id} dataset`;
+    }
 
-  remove(id: number) {
-    return `This action removes a #${id} dataset`;
-  }
+    update(id: number, updateDatasetDto: UpdateDatasetDto) {
+        return `This action updates a #${id} dataset`;
+    }
+
+    remove(id: number) {
+        return `This action removes a #${id} dataset`;
+    }
 }

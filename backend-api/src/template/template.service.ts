@@ -156,17 +156,17 @@ export class TemplateService {
     }
 
     /**
-     * 템플릿 비활성화(useYn='Y')
+     * 템플릿 비활성화(useYn='N')
      * @param id
      */
     async remove(id: number) {
         const deleteItem = await this.templateRepository.update({
             id: id
         }, {
-            useYn: YesNo.YES
+            useYn: YesNo.NO
         });
 
-        let msg = `#${id} template useYn='Y' 변경완료 `
+        let msg = `#${id} template useYn='N' 변경완료 `
         if (deleteItem.affected < 1) {
             msg = '변동사항 없음';
         } else if (deleteItem.affected > 1) {
