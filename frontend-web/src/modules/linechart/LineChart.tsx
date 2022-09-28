@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { Box } from '@mui/material';
-import { getAggregationData, getAggregationDataForChart, getGridSize, getLegendOption } from '@/modules/utils/chartUtil';
-import data from '@/pages/Data';
+import { getAggregationDataForChart, getGridSize, getLegendOption } from '@/modules/utils/chartUtil';
 
 const LineChart = props => {
   const { option, dataSet, axis = 'x', seriesOp, defaultOp, createOp } = props;

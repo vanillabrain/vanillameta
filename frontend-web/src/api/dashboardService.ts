@@ -8,7 +8,7 @@ const createDashboard = (data: unknown): Promise<any> => post(URL_DASHBOARD, dat
 const updateDashboard = (data: unknown): Promise<any> => put(URL_DASHBOARD, data);
 const deleteDashboard = (data: unknown): Promise<any> => del(URL_DASHBOARD, data);
 
-const dashboardService = {
+const DashboardService = {
   selectDashboardList,
   selectDashboard,
   createDashboard,
@@ -16,4 +16,4 @@ const dashboardService = {
   deleteDashboard,
 };
 
-export default dashboardService;
+export default DashboardService;
