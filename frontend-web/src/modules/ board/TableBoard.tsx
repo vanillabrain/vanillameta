@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Stack } from '@mui/material';
-import DataGrid from '@/components/DataGrid';
+import DataGrid from '@/components/dataGrid';
 
 const TableBoard = props => {
   const { option, dataSet } = props;

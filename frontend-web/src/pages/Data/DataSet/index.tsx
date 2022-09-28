@@ -10,7 +10,7 @@ import 'ace-builds/src-noconflict/theme-tomorrow';
 import 'ace-builds/src-noconflict/snippets/mysql';
 import 'ace-builds/src-min-noconflict/ext-language_tools';
 import { get, post } from '@/helpers/apiHelper';
-import DataGrid from '@/components/DataGrid';
+import DataGrid from '@/components/dataGrid';
 import { OptColumn } from 'tui-grid/types/options';
 
 const DataSet = props => {
