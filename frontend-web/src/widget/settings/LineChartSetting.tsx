@@ -4,8 +4,8 @@ import SelectForm from '@/components/form/SelectForm';
 import ColorButtonForm from '@/components/form/ColorButtonForm';
 import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
-import { handleChange, handleSeriesChange, handleAddClick, handleRemoveClick } from '@/widget/utils/handler';
-import { AGGREGATION_LIST, COLUMN_TYPE, WIDGET_AGGREGATION } from '@/constant';
+import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
+import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST, WIDGET_AGGREGATION } from '@/constant';
 
 const StyledList = styled(List)({
   position: 'relative',
@@ -33,19 +33,11 @@ const StyledList = styled(List)({
 const LineChartSetting = props => {
   const { option, setOption, seriesItem, axis = 'x', spec } = props;
 
-  // props로부터 받기 ------------------------------------
-  const typeOption = { series: ['high', 'low', 'avg'], axis: ['name', 'color'] }; // series type
-  // ----------------------------------------------------
-
-  const aggregationList = { value: ['sum', 'avg', 'max', 'min'], label: ['합계', '평균', '최대', '최소'] };
-
-  const legendList = { value: ['left', 'right', 'top', 'bottom'], label: ['왼쪽', '오른쪽', '위쪽', '아래쪽'] };
-
   // 컴포넌트 별 default series
   const defaultSeries = {
     field: '',
     color: '',
-    aggregation: '',
+    aggregation: WIDGET_AGGREGATION.SUM,
   };
 
   return (
@@ -96,6 +88,7 @@ const LineChartSetting = props => {
                 optionList={AGGREGATION_LIST}
                 value={item.aggregation}
                 onChange={event => handleSeriesChange(event, setOption)}
+                disabledDefaultValue
                 endButton={
                   0 < index ? (
                     <RemoveButton onClick={event => handleRemoveClick(event, index, option, setOption)} id={index} />
@@ -109,9 +102,12 @@ const LineChartSetting = props => {
                   id={`${seriesItem.id}${index + 1}`}
                   name={`${seriesItem.name}${index + 1}`}
                   label={seriesItem.label}
-                  optionList={seriesItem.optionList}
+                  labelField="columnName"
+                  valueField="columnType"
+                  optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
                   value={item[seriesItem.value]}
                   onChange={event => handleSeriesChange(event, setOption)}
+                  disabledDefaultValue={seriesItem.disabledDefaultValue}
                 />
               )}
               <Divider />
@@ -124,7 +120,7 @@ const LineChartSetting = props => {
             id="legendPosition"
             name="legendPosition"
             label="위치"
-            optionList={legendList}
+            optionList={LEGEND_LIST}
             value={option.legendPosition}
             onChange={event => handleChange(event, setOption)}
           />

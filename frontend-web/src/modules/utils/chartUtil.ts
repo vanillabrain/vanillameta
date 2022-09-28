@@ -33,6 +33,9 @@ export const getLegendOption = position => {
         top: 'bottom',
       };
       break;
+    case '':
+      option = false;
+      break;
   }
   return option;
 };
@@ -56,6 +59,9 @@ export const getGridSize = position => {
       break;
     case 'bottom':
       option = { top: 20, right: 30, bottom: 80, left: 50 };
+      break;
+    case '':
+      option = false;
       break;
   }
   return option;

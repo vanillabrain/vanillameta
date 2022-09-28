@@ -33,7 +33,7 @@
           "aggregation": "sum"
         }
       ],
-      "legendPosition": "left"
+      "legendPosition": ""
     }
   },
   {
@@ -48,10 +48,10 @@
         {
           "field": "",
           "color": "#5470c6",
-          "aggregation": ""
+          "aggregation": "sum"
         }
       ],
-      "legendPosition": "left"
+      "legendPosition": ""
     }
   },
   {
@@ -66,10 +66,10 @@
         {
           "field": "",
           "color": "#5470c6",
-          "aggregation": ""
+          "aggregation": "sum"
         }
       ],
-      "legendPosition": "left"
+      "legendPosition": ""
     }
   },
   {
@@ -84,10 +84,10 @@
         {
           "field": "",
           "color": "#5470c6",
-          "aggregation": ""
+          "aggregation": "sum"
         }
       ],
-      "legendPosition": "left"
+      "legendPosition": ""
     }
   },
   {
@@ -102,9 +102,10 @@
         {
           "field": "",
           "color": "#5470c6",
-          "aggregation": ""
+          "aggregation": "sum"
         }
-      ]
+      ],
+      "legendPosition": ""
     }
   },
   {
@@ -119,9 +120,10 @@
         {
           "field": "",
           "color": "#5470c6",
-          "aggregation": ""
+          "aggregation": "sum"
         }
-      ]
+      ],
+      "legendPosition": ""
     }
   },
   {
@@ -136,9 +138,10 @@
         {
           "field": "",
           "color": "#5470c6",
-          "aggregation": ""
+          "aggregation": "sum"
         }
-      ]
+      ],
+      "legendPosition": ""
     }
   },
   {
@@ -153,9 +156,10 @@
         {
           "field": "",
           "color": "#5470c6",
-          "aggregation": ""
+          "aggregation": "sum"
         }
-      ]
+      ],
+      "legendPosition": ""
     }
   },
   {
@@ -169,16 +173,17 @@
         {
           "field": "",
           "color": "#5470c6",
-          "aggregation": "",
+          "aggregation": "sum",
           "type": "line"
         },
         {
           "field": "",
           "color": "#91cc75",
-          "aggregation": "",
+          "aggregation": "sum",
           "type": "bar"
         }
-      ]
+      ],
+      "legendPosition": ""
     }
   },
   {
@@ -191,9 +196,10 @@
       "series": {
         "field": "",
         "color": [],
-        "aggregation": "",
+        "aggregation": "sum",
         "label": ""
-      }
+      },
+      "legendPosition": ""
     }
   },
   {
@@ -206,10 +212,11 @@
       "series": {
         "field": "",
         "color": [],
-        "aggregation": "",
+        "aggregation": "sum",
         "label": "",
         "radius": ["30%", "75%"]
-      }
+      },
+      "legendPosition": ""
     }
   },
   {
@@ -222,10 +229,11 @@
       "series": {
         "field": "",
         "color": [],
-        "aggregation": "",
+        "aggregation": "sum",
         "label": "",
         "radius": ["10%", "90%"]
-      }
+      },
+      "legendPosition": ""
     }
   },
   {
@@ -241,7 +249,8 @@
           "symbolSize": "20",
           "color": "#5470c6"
         }
-      ]
+      ],
+      "legendPosition": ""
     }
   },
   {
@@ -257,7 +266,8 @@
           "symbolSize": "",
           "color": "#5470c6"
         }
-      ]
+      ],
+      "legendPosition": ""
     }
   },
   {
@@ -266,25 +276,26 @@
     "icon": "icon/radar-chart.png",
     "caption": "Radar Chart",
     "option": {
-      "xField": "label",
+      "xField": "",
       "series": [
         {
-          "field": "value1",
+          "field": "",
           "color": "#43afef",
-          "aggregation": ""
+          "aggregation": "sum"
         },
         {
-          "field": "value2",
+          "field": "",
           "color": "#b9e7ff",
-          "aggregation": ""
+          "aggregation": "sum"
         }
       ,
         {
-          "field": "value2",
+          "field": "",
           "color": "#d9d9d9",
-          "aggregation": ""
+          "aggregation": "sum"
         }
-      ]
+      ],
+      "legendPosition": ""
     }
   }
 ]

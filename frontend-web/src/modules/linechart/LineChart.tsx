@@ -1,16 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { Box } from '@mui/material';
-import { getAggregationData, getAggregationDataForChart, getGridSize, getLegendOption } from '@/modules/utils/chartUtil';
-import data from '@/pages/Data';
+import { getAggregationDataForChart, getGridSize, getLegendOption } from '@/modules/utils/chartUtil';
 
 const LineChart = props => {
   const { option, dataSet, axis = 'x', seriesOp, defaultOp, createOp } = props;
   const reverseAxis = axis === 'x' ? 'y' : 'x';
 
   const [componentOption, setComponentOption] = useState({});
-
-  console.log(option);
 
   const defaultComponentOption = {
     grid: { top: 50, right: 50, bottom: 50, left: 50 },
@@ -47,10 +44,9 @@ const LineChart = props => {
 
     // series option에서 가져오기
     const newSeries = [];
-    console.log('option.series.', option.xField);
     let aggrData = [];
     option.series.forEach(item => {
-      aggrData = getAggregationDataForChart(dataSet, option.xField, item.field, item.aggregation);
+      aggrData = getAggregationDataForChart(dataSet, option[axis + 'Field'], item.field, item.aggregation);
       if (item.field) {
         const series = {
           name: item.field,
@@ -79,6 +75,7 @@ const LineChart = props => {
       newOption = { ...defaultComponentOption, ...op };
     }
 
+    console.log(newOption);
     return newOption;
   };
 

@@ -6,6 +6,7 @@ import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
 import TextFieldForm from '@/components/form/TextFieldForm';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
 import { handleChange, handleSeriesChange, handleAddClick, handleRemoveClick } from '@/widget/utils/handler';
+import { COLUMN_TYPE, LEGEND_LIST } from '@/constant';
 
 const StyledList = styled(List)({
   position: 'relative',
@@ -31,13 +32,7 @@ const StyledList = styled(List)({
 });
 
 const LineChartSetting = props => {
-  const { option, setOption, seriesItem } = props;
-
-  // props로부터 받기 ------------------------------------
-  const typeOption = { series: ['high', 'low', 'avg'], axis: ['name', 'color'] }; // series type
-  // ----------------------------------------------------
-
-  const legendList = { value: ['left', 'right', 'top', 'bottom'], label: ['왼쪽', '오른쪽', '위쪽', '아래쪽'] };
+  const { option, setOption, seriesItem, spec } = props;
 
   // 컴포넌트 별 default series
   const defaultSeries = {
@@ -77,7 +72,9 @@ const LineChartSetting = props => {
                 id={`xField${index + 1}`}
                 name={`xField${index + 1}`}
                 label={`X축`}
-                optionList={typeOption.series}
+                labelField="columnName"
+                valueField="columnType"
+                optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
                 value={item.xField}
                 onChange={event => handleSeriesChange(event, setOption)}
               />
@@ -86,7 +83,9 @@ const LineChartSetting = props => {
                 id={`yField${index + 1}`}
                 name={`yField${index + 1}`}
                 label={`Y축`}
-                optionList={typeOption.series}
+                labelField="columnName"
+                valueField="columnType"
+                optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
                 value={item.yField}
                 onChange={event => handleSeriesChange(event, setOption)}
               />
@@ -94,6 +93,8 @@ const LineChartSetting = props => {
                 id={`symbolSize${index + 1}`}
                 name={`symbolSize${index + 1}`}
                 label={`사이즈`}
+                labelField="columnName"
+                valueField="columnType"
                 type="number"
                 value={item.symbolSize}
                 onChange={event => handleSeriesChange(event, setOption)}
@@ -110,7 +111,9 @@ const LineChartSetting = props => {
                   id={`${seriesItem.id}${index + 1}`}
                   name={`${seriesItem.name}${index + 1}`}
                   label={seriesItem.label}
-                  optionList={seriesItem.optionList}
+                  labelField="columnName"
+                  valueField="columnType"
+                  optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
                   value={item[seriesItem.value]}
                   onChange={event => handleSeriesChange(event, setOption)}
                 />
@@ -125,7 +128,7 @@ const LineChartSetting = props => {
             id="legendPosition"
             name="legendPosition"
             label="위치"
-            optionList={legendList}
+            optionList={LEGEND_LIST}
             value={option.legendPosition}
             onChange={event => handleChange(event, setOption)}
           />
