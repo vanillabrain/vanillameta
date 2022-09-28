@@ -28,13 +28,20 @@ export class DatabaseController {
   }
 
   @Get()
-  findAll() {
-    return this.databaseService.findAll();
+  async findAll() {
+    const resultList = await this.databaseService.findAll();
+
+    resultList.forEach(db => {
+      db.knexConfig = JSON.parse(db.knexConfig);
+    });
+    return resultList;
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.databaseService.findOne(+id);
+  async findOne(@Param('id') id: string) {
+    const resultDB = await this.databaseService.findOne(+id);
+    resultDB.knexConfig = JSON.parse(resultDB.knexConfig);
+    return resultDB;
   }
 
   @Patch(':id')
