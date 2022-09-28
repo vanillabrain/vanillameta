@@ -7,11 +7,18 @@ import { UpdateWidgetDto } from './dto/update-widget.dto';
 export class WidgetController {
   constructor(private readonly widgetService: WidgetService) {}
 
+  /**
+   * 위젯 생성
+   * @param createWidgetDto
+   */
   @Post()
   create(@Body() createWidgetDto: CreateWidgetDto) {
     return this.widgetService.create(createWidgetDto);
   }
 
+  /**
+   * 위젯 목록 조회
+   */
   @Get()
   findAll() {
     return this.widgetService.findAll();

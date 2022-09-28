@@ -5,7 +5,7 @@ import { ExpressAdapter } from '@nestjs/platform-express';
 import { HttpExceptionFilter } from './nest-utils/http-exception.filter';
 
 async function bootstrap() {
-  const expressApp = express();
+const expressApp = express();
   const app = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), {
     logger: console,
     cors: {

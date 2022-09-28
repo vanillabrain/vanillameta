@@ -21,7 +21,7 @@ export class Widget extends BaseEntity {
     @Column({comment: '컴포넌트 ID'})
     componentId: number
 
-    @Column({comment: '데이터셋 구분(데이터셋, 위젯 데이터셋)', default: DatasetType.WIDGET})
+    @Column({comment: '데이터셋 구분(데이터셋, 위젯 뷰)', default: DatasetType.WIDGET})
     datasetType: DatasetType
 
     @Column({comment: '데이터셋 ID'})
