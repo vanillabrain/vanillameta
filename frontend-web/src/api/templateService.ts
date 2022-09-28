@@ -1,11 +1,12 @@
-import { get } from '@/helpers/apiHelper';
+import { get, post } from '@/helpers/apiHelper';
 
 export const URL_TEMPLATE = '/template';
 
-const selectTemplateList = (): Promise<any> => get(URL_TEMPLATE);
+// 추천 template 목록 조회
+const selectRecommendTemplateList = (data: unknown): Promise<any> => post(URL_TEMPLATE + '/recommend', data);
 
-const dashboardService = {
-  selectTemplateList,
+const TemplateService = {
+  selectRecommendTemplateList,
 };
 
-export default dashboardService;
+export default TemplateService;

@@ -16,6 +16,7 @@ import {
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { get } from '@/helpers/apiHelper';
+import TemplateService from '@/api/templateService';
 
 const iconType = item => {
   switch (item.toUpperCase()) {
@@ -135,13 +136,14 @@ export const WidgetList = ({ handleWidgetConfirm = null, handleWidgetCancel = nu
   );
 };
 
-export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = null }) => {
+export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = null, selectedWidgetIds = null }) => {
   const [loadedTemplateDataList, setLoadedTemplateDataList] = useState([]);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [selectedItem, setSelectedItem] = useState(null);
 
   const getItems = () => {
-    get('/data/dummyTemplateList.json')
+    console.log('selectedWidgetIds : ', selectedWidgetIds);
+    TemplateService.selectRecommendTemplateList({ widgets: selectedWidgetIds })
       .then(response => response.data)
       .then(data => setLoadedTemplateDataList(data));
   };
@@ -302,7 +304,11 @@ function RecommendDashboardPopup({ recommendOpen = false, handleComplete = null 
             selectedWidgetIds={selectedWidgetIds}
           />
         ) : (
-          <TemplateList handleWidgetConfirm={handleConfirmClick} handleWidgetCancel={handleCancelClick} />
+          <TemplateList
+            handleWidgetConfirm={handleConfirmClick}
+            handleWidgetCancel={handleCancelClick}
+            selectedWidgetIds={selectedWidgetIds}
+          />
         )}
         ;
       </Dialog>
