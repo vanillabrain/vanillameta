@@ -20,8 +20,11 @@ import ScatterChartSetting from '@/widget/settings/ScatterChartSetting';
 import TitleBox from '@/components/TitleBox';
 import BubbleChart from '@/modules/scatterchart/BubbleChart';
 import BubbleChartSetting from '@/widget/settings/BubbleChartSetting';
+import { useAlert } from 'react-alert';
 
 function WidgetAttributeSelect(props) {
+  const alert = useAlert();
+
   const { dataSetId, componentType, prevOption } = props;
 
   const [option, setOption] = useState(null);
@@ -254,9 +257,26 @@ function WidgetAttributeSelect(props) {
   const handleSubmit = event => {
     event.preventDefault();
 
-    if (option === null) {
-      return;
-    }
+    // alert sample
+    // alert.info('위젯 속성을 저장하시겠습니까?', {
+    //   onClose: () => {
+    //     console.log('test alert');
+    //   },
+    // });
+
+    // confirm sample
+    alert.success('위젯 속성을 저장하시겠습니까?', {
+      title: '위젯 저장',
+      closeCopy: '취소',
+      actions: [
+        {
+          copy: '저장',
+          onClick: () => {
+            console.log('저장클릭');
+          },
+        },
+      ],
+    });
 
     console.log('widgetTitle:', option.title);
     console.log('datesetId:', dataSetId);

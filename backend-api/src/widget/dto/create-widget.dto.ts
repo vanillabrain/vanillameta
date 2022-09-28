@@ -1,34 +1,33 @@
-import {IsNotEmpty, IsNumber, IsString} from "class-validator";
-import {DatasetType} from "../../common/enum/dataset-type.enum";
-import {YesNo} from "../../common/enum/yn.enum";
+import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { DatasetType } from '../../common/enum/dataset-type.enum';
+import { YesNo } from '../../common/enum/yn.enum';
 
 export class CreateWidgetDto {
-    @IsString()
-    @IsNotEmpty()
-    title: string;
+  @IsString()
+  @IsOptional()
+  title: string;
 
-    @IsString()
-    description: string;
+  @IsString()
+  @IsOptional()
+  description: string;
 
-    @IsNumber()
-    @IsNotEmpty()
-    componentId: number;
+  @IsNumber()
+  @IsNotEmpty()
+  componentId: number;
 
-    @IsString()
-    @IsNotEmpty()
-    datasetType: DatasetType
+  @IsString()
+  @IsNotEmpty()
+  datasetType: DatasetType;
 
-    @IsNumber()
-    @IsNotEmpty()
-    datasetId: number
+  @IsNumber()
+  @IsOptional()
+  datasetId: number;
 
-    @IsString()
-    @IsNotEmpty()
-    option: string
+  @IsString()
+  @IsOptional()
+  tableName: string;
 
-    @IsString()
-    delYn: YesNo
-
-    @IsNumber()
-    widgetViewId: number
+  @IsString()
+  @IsNotEmpty()
+  option: string;
 }
