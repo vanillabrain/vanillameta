@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { Grid } from '@mui/material';
-import componentList from '@/data/componentList.json';
 import LineChartSetting from '@/widget/settings/LineChartSetting';
 import LineChart from '@/modules/linechart/LineChart';
 import PieChart from '@/modules/piechart/PieChart';
@@ -25,14 +24,13 @@ import { useAlert } from 'react-alert';
 function WidgetAttributeSelect(props) {
   const alert = useAlert();
 
-  const { dataSetId, componentType, prevOption } = props;
+  const { dataSetId, componentType, prevOption, defaultComponentData } = props;
 
   const [option, setOption] = useState(null);
   const [data, setData] = useState(null);
   const [switchChart, setSwitchChart] = useState({ chart: undefined, chartSetting: undefined });
   const [spec, setSpec] = useState(null);
 
-  const defaultComponentData = [...componentList].find(item => item.id === componentType && { ...item });
   const widgetTypeText = defaultComponentData.title;
 
   useEffect(() => {
@@ -265,18 +263,7 @@ function WidgetAttributeSelect(props) {
     // });
 
     // confirm sample
-    alert.success('위젯 속성을 저장하시겠습니까?', {
-      title: '위젯 저장',
-      closeCopy: '취소',
-      actions: [
-        {
-          copy: '저장',
-          onClick: () => {
-            console.log('저장클릭');
-          },
-        },
-      ],
-    });
+    alert.success('위젯 속성을 저장하시겠습니까?');
 
     console.log('widgetTitle:', option.title);
     console.log('datesetId:', dataSetId);

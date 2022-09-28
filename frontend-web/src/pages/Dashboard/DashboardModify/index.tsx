@@ -154,7 +154,7 @@ function DashboardModify() {
         });
       } else if (layout.length == 0 || widgets.length == 0) {
         // 배치된 widget 이 없을경우
-        alert('배치된 위젯이 없습니다');
+        // alert('배치된 위젯이 없습니다');
       } else {
         // 저장 로직
         dashboardInfo.dashboardId = dashboardId;
