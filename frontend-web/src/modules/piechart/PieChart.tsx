@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { getGridSize, getLegendOption } from '@/modules/utils/chartUtil';
+import { getCenter, getLegendOption } from '@/modules/utils/chartUtil';
 
 const PieChart = props => {
   const { option, dataSet, seriesOp } = props;
@@ -55,10 +55,10 @@ const PieChart = props => {
             label: { show: !!option.series.label && true },
             smooth: true,
             data: getData(),
+            center: getCenter(option.legendPosition).center,
             ...seriesOp,
           },
         ],
-        grid: getGridSize(option.legendPosition),
         legend: getLegendOption(option.legendPosition),
       };
       newOption = { ...defaultComponentOption, ...op };

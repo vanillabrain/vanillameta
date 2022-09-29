@@ -6,7 +6,6 @@ import PieChart from '@/modules/piechart/PieChart';
 import PieChartSetting from '@/widget/settings/PieChartSetting';
 import WidgetBox from '@/components/widget/WidgetBox';
 import { WIDGET_TYPE } from '@/constant';
-import { get } from '@/helpers/apiHelper';
 import DonutChartSetting from '@/widget/settings/DonutChartSetting';
 import DonutChart from '@/modules/piechart/DonutChart';
 import MixedLineBarChartSetting from '@/widget/settings/MixedLineBarChartSetting';
@@ -21,6 +20,8 @@ import BubbleChart from '@/modules/scatterchart/BubbleChart';
 import BubbleChartSetting from '@/widget/settings/BubbleChartSetting';
 import { useAlert } from 'react-alert';
 import axios from 'axios';
+import RadarChartSetting from '@/widget/settings/RadarChartSetting';
+import RadarChart from '@/modules/radarchart/RadarChart';
 
 function WidgetAttributeSelect(props) {
   const alert = useAlert();
@@ -232,6 +233,13 @@ function WidgetAttributeSelect(props) {
             ...switchChart,
             chart: <BubbleChart {...ChartProps} />,
             chartSetting: <BubbleChartSetting {...ChartSettingProps} />,
+          });
+          break;
+        case WIDGET_TYPE.CHART_RADAR:
+          setSwitchChart({
+            ...switchChart,
+            chart: <RadarChart {...ChartProps} />,
+            chartSetting: <RadarChartSetting {...ChartSettingProps} />,
           });
           break;
 
