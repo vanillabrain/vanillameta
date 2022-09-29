@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Box, Card, Typography, CardContent, CardActionArea, Stack } from '@mui/material';
+import React from 'react';
+import { Box, Card, CardActionArea, CardContent, Stack, Typography } from '@mui/material';
 
 function ImgCardList(props) {
   const { data, size, selectedType, setSelectedType } = props;
@@ -31,7 +31,10 @@ function ImgCardList(props) {
               onClick={() => handleClick(item)}
               value={item.id}
               sx={{
-                boxShadow: selectedType.id === item.id ? theme => `0 0 0 3px ${theme.palette.primary.main} inset` : 'none',
+                boxShadow:
+                  selectedType && selectedType.id === item.id
+                    ? theme => `0 0 0 3px ${theme.palette.primary.main} inset`
+                    : 'none',
               }}
             >
               <CardContent
@@ -52,7 +55,7 @@ function ImgCardList(props) {
                   {item.title}
                 </Typography>
                 <Typography variant="caption" sx={{ textAlign: 'center', color: theme => theme.palette.grey.A700 }}>
-                  {item.caption}
+                  {item.description}
                 </Typography>
               </CardContent>
             </CardActionArea>

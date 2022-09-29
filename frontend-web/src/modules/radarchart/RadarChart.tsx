@@ -1,27 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { Box } from '@mui/material';
-import { getAggregationDataForChart, getGridSize, getLegendOption } from '@/modules/utils/chartUtil';
+import { getAggregationDataForChart, getCenter, getLegendOption } from '@/modules/utils/chartUtil';
 
-const LineChart = props => {
-  const { option, dataSet, axis = 'x', seriesOp, defaultOp, createOp } = props;
-  const reverseAxis = axis === 'x' ? 'y' : 'x';
+const RadarChart = props => {
+  const { option, dataSet, seriesOp, defaultOp, createOp } = props;
 
   const [componentOption, setComponentOption] = useState({});
 
   const defaultComponentOption = {
-    grid: { top: 50, right: 50, bottom: 50, left: 50 },
-    tooltip: { trigger: 'axis' },
-    [axis + 'Axis']: {
-      type: 'category',
-    },
-    [reverseAxis + 'Axis']: {
-      type: 'value',
-    },
+    tooltip: { trigger: 'item' },
     series: [],
     emphasis: {
-      focus: 'series',
-      blurScope: 'coordinateSystem',
+      lineStyle: {
+        width: 4,
+      },
     },
     ...defaultOp,
   };
@@ -39,35 +32,43 @@ const LineChart = props => {
    * 위젯옵션과 데이터로
    * 컴포넌트에 맞는 형태로 생성
    */
+
   const createComponentOption = () => {
     let newOption = {};
 
     // series option에서 가져오기
-    const newSeries = [];
+    const newSeriesData = [];
     let aggrData = [];
+
     option.series.forEach(item => {
-      aggrData = getAggregationDataForChart(dataSet, option[axis + 'Field'], item.field, item.aggregation);
+      aggrData = getAggregationDataForChart(dataSet, option.field, item.field, item.aggregation);
+
       if (item.field) {
-        const series = {
+        const seriesData = {
+          value: aggrData.map(dataItem => dataItem[item.field]),
           name: item.field,
-          data: aggrData.map(dataItem => dataItem[item.field]),
-          type: item.type ? item.type : 'line',
-          color: item.color,
-          smooth: true,
+          itemStyle: {
+            color: item.color,
+          },
           ...seriesOp,
         };
-        newSeries.push(series);
+        newSeriesData.push(seriesData);
       }
     });
 
+    console.log(getCenter(option.legendPosition).center);
     if (aggrData) {
       const op = {
-        [axis + 'Axis']: {
-          type: 'category',
-          data: !!option[axis + 'Field'] ? aggrData.map(item => item[option[axis + 'Field']]) : '',
+        radar: {
+          indicator: !!option.field ? aggrData.map(item => ({ name: item[option.field] })) : '',
+          center: getCenter(option.legendPosition).center,
         },
-        series: newSeries,
-        grid: getGridSize(option.legendPosition),
+        series: [
+          {
+            type: 'radar',
+            data: newSeriesData,
+          },
+        ],
         legend: getLegendOption(option.legendPosition),
         ...createOp,
       };
@@ -75,7 +76,6 @@ const LineChart = props => {
       newOption = { ...defaultComponentOption, ...op };
     }
 
-    console.log(newOption);
     return newOption;
   };
 
@@ -91,4 +91,4 @@ const LineChart = props => {
   );
 };
 
-export default LineChart;
+export default RadarChart;

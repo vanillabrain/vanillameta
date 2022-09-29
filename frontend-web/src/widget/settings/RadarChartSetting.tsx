@@ -3,10 +3,9 @@ import { Divider, Grid, List, ListItem, ListItemText, styled } from '@mui/materi
 import SelectForm from '@/components/form/SelectForm';
 import ColorButtonForm from '@/components/form/ColorButtonForm';
 import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
-import TextFieldForm from '@/components/form/TextFieldForm';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
-import { handleChange, handleSeriesChange, handleAddClick, handleRemoveClick } from '@/widget/utils/handler';
-import { COLUMN_TYPE, LEGEND_LIST } from '@/constant';
+import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
+import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST, WIDGET_AGGREGATION } from '@/constant';
 
 const StyledList = styled(List)({
   position: 'relative',
@@ -31,22 +30,46 @@ const StyledList = styled(List)({
   },
 });
 
-const LineChartSetting = props => {
+const RadarChartSetting = props => {
   const { option, setOption, seriesItem, spec } = props;
 
   // 컴포넌트 별 default series
   const defaultSeries = {
-    name: '',
-    xField: '',
-    yField: '',
+    field: '',
+    maxValue: '',
     color: '',
-    symbolSize: 20,
+    aggregation: WIDGET_AGGREGATION.SUM,
   };
+
+  console.log(option.maxValue, 'max');
 
   return (
     <Grid item xs={10} md={4} lg={3} sx={{ display: 'flex', flexDirection: 'column' }}>
       <WidgetTitleForm value={option.title} onChange={event => handleChange(event, setOption)} />
       <StyledList>
+        <ListItem divider>
+          <ListItemText primary={'축 설정'} sx={{ textTransform: 'uppercase' }} />
+          <SelectForm
+            id="field"
+            name="field"
+            label="축 이름"
+            optionList={spec.map(item => item.columnName)}
+            labelField="columnName"
+            valueField="columnType"
+            value={option.field}
+            onChange={event => handleChange(event, setOption)}
+          />
+          {/*<SelectForm*/}
+          {/*  id="maxValue"*/}
+          {/*  name="maxValue"*/}
+          {/*  label="최대값"*/}
+          {/*  optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}*/}
+          {/*  labelField="columnName"*/}
+          {/*  valueField="columnType"*/}
+          {/*  value={option.maxValue}*/}
+          {/*  onChange={event => handleChange(event, setOption)}*/}
+          {/*/>*/}
+        </ListItem>
         <ListItem divider>
           <ListItemText primary="시리즈 설정" />
           <AddButton
@@ -59,52 +82,31 @@ const LineChartSetting = props => {
           />
           {option.series.map((item, index) => (
             <React.Fragment key={index}>
-              <TextFieldForm
-                id={`name${index + 1}`}
-                name={`name${index + 1}`}
-                label={`필드 ${index + 1} 이름`}
+              <SelectForm
+                required={true}
+                id={`field${index + 1}`}
+                name={`field${index + 1}`}
+                label={`필드 ${index + 1}`}
                 labelField="columnName"
                 valueField="columnType"
-                value={item.name}
+                optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
+                value={item.field}
                 onChange={event => handleSeriesChange(event, setOption)}
                 endButton={<ColorButtonForm index={index} option={option} setOption={setOption} />}
               />
               <SelectForm
-                required={true}
-                id={`xField${index + 1}`}
-                name={`xField${index + 1}`}
-                label={`X축`}
-                labelField="columnName"
-                valueField="columnType"
-                optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
-                value={item.xField}
+                id={`aggregation${index + 1}`}
+                name={`aggregation${index + 1}`}
+                label="집계 방식"
+                optionList={AGGREGATION_LIST}
+                value={item.aggregation}
                 onChange={event => handleSeriesChange(event, setOption)}
-              />
-              <SelectForm
-                required={true}
-                id={`yField${index + 1}`}
-                name={`yField${index + 1}`}
-                label={`Y축`}
-                labelField="columnName"
-                valueField="columnType"
-                optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
-                value={item.yField}
-                onChange={event => handleSeriesChange(event, setOption)}
-              />
-              <TextFieldForm
-                id={`symbolSize${index + 1}`}
-                name={`symbolSize${index + 1}`}
-                label={`사이즈`}
-                labelField="columnName"
-                valueField="columnType"
-                type="number"
-                value={item.symbolSize}
-                onChange={event => handleSeriesChange(event, setOption)}
+                disabledDefaultValue
                 endButton={
                   0 < index ? (
                     <RemoveButton onClick={event => handleRemoveClick(event, index, option, setOption)} id={index} />
                   ) : (
-                    false
+                    ' '
                   )
                 }
               />
@@ -113,11 +115,10 @@ const LineChartSetting = props => {
                   id={`${seriesItem.id}${index + 1}`}
                   name={`${seriesItem.name}${index + 1}`}
                   label={seriesItem.label}
-                  labelField="columnName"
-                  valueField="columnType"
-                  optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
+                  optionList={seriesItem.optionList}
                   value={item[seriesItem.value]}
                   onChange={event => handleSeriesChange(event, setOption)}
+                  disabledDefaultValue={seriesItem.disabledDefaultValue}
                 />
               )}
               <Divider />
@@ -140,4 +141,4 @@ const LineChartSetting = props => {
   );
 };
 
-export default LineChartSetting;
+export default RadarChartSetting;

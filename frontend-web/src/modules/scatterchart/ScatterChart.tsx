@@ -43,7 +43,7 @@ function ScatterChart(props) {
 
     // series option에서 가져오기
     const newSeries = [];
-    option.series.forEach(item => {
+    option.series.forEach((item, index) => {
       if (item.xField || item.yField) {
         const series = {
           type: 'scatter',

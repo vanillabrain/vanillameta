@@ -15,6 +15,7 @@ export const WIDGET_TYPE = {
   CHART_MIXED_LINE_BAR: 'CHART_MIXED_LINE_BAR',
   CHART_SCATTER: 'CHART_SCATTER',
   CHART_BUBBLE: 'CHART_BUBBLE',
+  CHART_RADAR: 'CHART_RADAR',
 };
 
 export const WIDGET_AGGREGATION = {
@@ -48,3 +49,10 @@ export const COLUMN_TYPE = {
   NUMBER: 'NUMBER',
   DATE: 'DATE',
 };
+
+export const LEGEND_LIST = [
+  { label: '위쪽', value: 'top' },
+  { label: '왼쪽', value: 'left' },
+  { label: '오른쪽', value: 'right' },
+  { label: '아래쪽', value: 'bottom' },
+];

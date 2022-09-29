@@ -4,6 +4,7 @@ import SelectForm from '@/components/form/SelectForm';
 import ColorFieldForm from '@/components/form/ColorFieldForm';
 import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
 import { handleChange } from '@/widget/utils/handler';
+import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST } from '@/constant';
 
 const StyledList = styled(List)({
   position: 'relative',
@@ -29,18 +30,12 @@ const StyledList = styled(List)({
 });
 
 const PieChartSetting = props => {
-  const { option, setOption, listItem } = props;
+  const { option, setOption, listItem, spec } = props;
 
   // props로부터 받기 ------------------------------------
-  const typeOption = { series: ['high', 'low', 'avg'], label: ['name', 'color'] }; // series type
   const dataLength = 12; // color length
   const dataLabel = ['jan', 'fab', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']; // color label
   // ----------------------------------------------------
-
-  const aggregationList = { value: ['sum', 'avg', 'max', 'min'], label: ['합계', '평균', '최대', '최소'] };
-  const legendList = { value: ['left', 'right', 'top', 'bottom'], label: ['왼쪽', '오른쪽', '위쪽', '아래쪽'] };
-
-  console.log('test');
 
   // color 생성
   const getColor = () => {
@@ -84,7 +79,9 @@ const PieChartSetting = props => {
             id="field"
             name="field"
             label="필드"
-            optionList={typeOption.series}
+            labelField="columnName"
+            valueField="columnType"
+            optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
             value={option.series.field}
             onChange={handleSeriesChange}
           />
@@ -92,15 +89,18 @@ const PieChartSetting = props => {
             id="aggregation"
             name="aggregation"
             label="집계 방식"
-            optionList={aggregationList}
+            optionList={AGGREGATION_LIST}
             value={option.series.aggregation}
             onChange={handleSeriesChange}
+            disabledDefaultValue
           />
           <SelectForm
             id="label"
             name="label"
             label="이름"
-            optionList={typeOption.label}
+            labelField="columnName"
+            valueField="columnType"
+            optionList={spec.map(item => item.columnName)}
             value={option.series.label}
             onChange={handleSeriesChange}
           />
@@ -138,7 +138,7 @@ const PieChartSetting = props => {
             id="legendPosition"
             name="legendPosition"
             label="위치"
-            optionList={legendList}
+            optionList={LEGEND_LIST}
             value={option.legendPosition}
             onChange={event => handleChange(event, setOption)}
           />
