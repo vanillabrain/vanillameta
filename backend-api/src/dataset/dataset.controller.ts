@@ -27,7 +27,7 @@ export class DatasetController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateDatasetDto: UpdateDatasetDto) {
+  update(@Param('id') id: number, @Body() updateDatasetDto: UpdateDatasetDto) {
     return this.datasetService.update(+id, updateDatasetDto);
   }
 

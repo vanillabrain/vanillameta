@@ -4,6 +4,7 @@ import {InjectRepository} from "@nestjs/typeorm";
 import {Component} from "./entities/component.entity";
 import {Repository} from "typeorm";
 import {YesNo} from "../common/enum/yn.enum";
+import {UpdateComponentDto} from "./dto/update-component.dto";
 
 @Injectable()
 export class ComponentService {
@@ -94,22 +95,24 @@ export class ComponentService {
         return find_component_one;
     }
 
-    async update(id: number, body: any) {
+    async update(id: number, updateComponent: UpdateComponentDto) {
 
         const find_component = await this.componentRepository.findOne({where: {id: id}})
         if (!find_component) {
             return 'No exist type'
         } else {
-            find_component.type = body.type;
-            find_component.title = body.title;
-            find_component.description = body.description;
-            find_component.category = body.category;
-            find_component.option = JSON.stringify(body.option);
-            find_component.icon = body.icon;
-            find_component.seq = body.seq;
-            find_component.useYn = body.useYn;
+            const updateObj: UpdateComponentDto = new UpdateComponentDto();
 
-            await this.componentRepository.save(find_component)
+            updateObj.type = updateComponent.type;
+            updateObj.title = updateComponent.title;
+            updateObj.category = updateComponent.category;
+            updateObj.description = updateComponent.description;
+            updateObj.option = JSON.stringify(updateComponent.option);
+            updateObj.icon = updateComponent.icon;
+            updateObj.seq = updateComponent.seq;
+            updateObj.useYn = updateComponent.useYn;
+
+            await this.componentRepository.save(updateObj)
 
             return 'Success update'
         }

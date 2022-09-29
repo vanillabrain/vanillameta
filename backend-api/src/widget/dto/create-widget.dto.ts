@@ -12,6 +12,10 @@ export class CreateWidgetDto {
   description: string;
 
   @IsNumber()
+  @IsOptional()
+  databaseId: number;
+
+  @IsNumber()
   @IsNotEmpty()
   componentId: number;
 
@@ -30,4 +34,12 @@ export class CreateWidgetDto {
   @IsString()
   @IsNotEmpty()
   option: string;
+
+  @IsNumber()
+  @IsOptional()
+  widgetViewId: number;
+
+  @IsString()
+  @IsOptional()
+  delYn: YesNo
 }

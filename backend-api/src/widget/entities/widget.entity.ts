@@ -41,10 +41,10 @@ export class Widget extends BaseEntity {
     @ManyToMany(type => Dashboard)
     @JoinTable({
         name: 'dashboard_widget',
-        joinColumn: {
-            name: 'widgetId',
-            referencedColumnName: 'id'
-        },
+        // joinColumn: {
+        //     name: 'widgetId',
+        //     referencedColumnName: 'id'
+        // },
         inverseJoinColumn: {
             name: 'dashboardId',
             referencedColumnName: 'id'
@@ -58,16 +58,16 @@ export class Widget extends BaseEntity {
     )
     component!: Component
 
-    @ManyToOne(
-        (type => Dataset),
-        (dataset) => dataset
-    )
-    dataset!: Dataset[]
-
-    @ManyToOne(
-        (type => WidgetView),
-        (widgetView) => widgetView
-    )
-    widgetView!: WidgetView[]
+    // @ManyToOne(
+    //     (type => Dataset),
+    //     (dataset) => dataset
+    // )
+    // dataset!: Dataset[]
+    //
+    // @ManyToOne(
+    //     (type => WidgetView),
+    //     (widgetView) => widgetView
+    // )
+    // widgetView!: WidgetView[]
 
 }

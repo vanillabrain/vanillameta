@@ -1,28 +1,61 @@
-import { Injectable } from '@nestjs/common';
-import { CreateWidgetViewDto } from './dto/create-widget-view.dto';
-import { UpdateWidgetViewDto } from './dto/update-widget-view.dto';
+import {Injectable} from '@nestjs/common';
+import {CreateWidgetViewDto} from './dto/create-widget-view.dto';
+import {InjectRepository} from "@nestjs/typeorm";
+import {Repository} from "typeorm";
+import {WidgetView} from "./entities/widget-view.entity";
 
 @Injectable()
 export class WidgetViewService {
-  create(createWidgetViewDto: CreateWidgetViewDto) {
+    constructor(
+        @InjectRepository(WidgetView)
+        private widgetViewRepository: Repository<WidgetView>,
+    ) {
+    }
 
+    async create(createWidgetView: CreateWidgetViewDto) {
 
-    return 'This action adds a new widgetView';
-  }
+        const saveObj: CreateWidgetViewDto = new CreateWidgetViewDto();
+        saveObj.databaseId = createWidgetView.databaseId;
+        saveObj.query = 'SELECT * FROM widget_view';
+        return await this.widgetViewRepository.save(saveObj)
 
-  findAll() {
-    return `This action returns all widgetView`;
-  }
+    }
 
-  findOne(id: number) {
-    return `This action returns a #${id} widgetView`;
-  }
+    async findAll() {
 
-  update(id: number, updateWidgetViewDto: UpdateWidgetViewDto) {
-    return `This action updates a #${id} widgetView`;
-  }
+        return await this.widgetViewRepository.find();
+    }
 
-  remove(id: number) {
-    return `This action removes a #${id} widgetView`;
-  }
+    async findOne(id: number) {
+        const find_widget_view = await this.widgetViewRepository.findOne({where: {id: id}})
+        if (find_widget_view) {
+            return 'not exist'
+        } else {
+            return find_widget_view
+        }
+    }
+
+    // async update(id: number, updateWidgetView: UpdateWidgetViewDto) {
+    //
+    //     const find_widget_view = await this.widgetViewRepository.findOne({where: {id: id}})
+    //     if (!find_widget_view) {
+    //         return 'No exist widget'
+    //     } else {
+    //         const updateObj: UpdateWidgetViewDto = new UpdateWidgetViewDto();
+    //
+    //         updateObj.databaseId = updateWidgetView.databaseId; // TODO 필요한가?
+    //     }
+    //     return `This action updates a #${id} widgetView`;
+    // }
+
+    async remove(id: number) {
+        const find_widget_view = await this.widgetViewRepository.findOne({where: {id: id}});
+        if (!find_widget_view) {
+            return 'No exist'
+        } else {
+            await this.widgetViewRepository.delete(find_widget_view)
+        }
+
+        return `This action removes a #${id} widgetView`;
+    }
 }
