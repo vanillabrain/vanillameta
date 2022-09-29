@@ -72,22 +72,22 @@ export const getGridSize = position => {
  * @param position
  */
 export const getCenter = position => {
-  const option = { center: [], radius: '' };
+  let option = [];
   switch (position) {
     case 'left':
-      option.center = ['60%', '50%'];
+      option = ['60%', '50%'];
       break;
     case 'right':
-      option.center = ['40%', '50%'];
+      option = ['40%', '50%'];
       break;
     case 'top':
-      option.center = ['50%', '60%'];
+      option = ['50%', '60%'];
       break;
     case 'bottom':
-      option.center = ['50%', '40%'];
+      option = ['50%', '40%'];
       break;
     case '':
-      option.center = ['50%', '50%'];
+      option = ['50%', '50%'];
       break;
     default:
       break;

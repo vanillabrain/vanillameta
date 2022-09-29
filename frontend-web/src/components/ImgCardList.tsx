@@ -2,18 +2,11 @@ import React from 'react';
 import { Box, Card, CardActionArea, CardContent, Stack, Typography } from '@mui/material';
 
 function ImgCardList(props) {
-  const { data, size, selectedType, setSelectedType } = props;
+  const { data, size, selectedType, setSelectedType, handleNext } = props;
   const srcUrl = '/assets/images/';
-  // const [selectedValue, setSelectedValue] = useState('');
-
-  // useEffect(() => {
-  //   props.inputValue(selectedValue);
-  // }, [selectedValue]);
 
   const handleClick = item => {
-    // setSelectedValue(event.currentTarget.value);
     setSelectedType(item);
-    // console.log(event.currentTarget.value, 'event');
   };
 
   return (
@@ -28,7 +21,7 @@ function ImgCardList(props) {
         <Box component="li" key={item.id} sx={size === 'large' ? { width: { xs: 100, md: 130 }, my: 0 } : { width: 150 }}>
           <Card>
             <CardActionArea
-              onClick={() => handleClick(item)}
+              onClick={!handleNext ? () => handleClick(item) : event => handleNext(event, item)}
               value={item.id}
               sx={{
                 boxShadow:
@@ -65,10 +58,5 @@ function ImgCardList(props) {
     </Stack>
   );
 }
-
-ImgCardList.defaultProps = {
-  selectedWidgetType: undefined,
-  setSelectedWidgetType: undefined,
-};
 
 export default ImgCardList;

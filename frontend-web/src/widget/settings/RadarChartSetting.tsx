@@ -36,12 +36,10 @@ const RadarChartSetting = props => {
   // 컴포넌트 별 default series
   const defaultSeries = {
     field: '',
-    maxValue: '',
+    // maxValue: '',
     color: '',
     aggregation: WIDGET_AGGREGATION.SUM,
   };
-
-  console.log(option.maxValue, 'max');
 
   return (
     <Grid item xs={10} md={4} lg={3} sx={{ display: 'flex', flexDirection: 'column' }}>
