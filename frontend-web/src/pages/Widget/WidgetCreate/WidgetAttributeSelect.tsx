@@ -63,7 +63,7 @@ function WidgetAttributeSelect(props) {
         spec: spec,
       };
 
-      switch (componentType) {
+      switch (componentType.type) {
         case WIDGET_TYPE.BOARD_NUMERIC:
           setSwitchChart({
             ...switchChart,
@@ -236,11 +236,6 @@ function WidgetAttributeSelect(props) {
           break;
 
         default:
-          setSwitchChart({
-            ...switchChart,
-            chart: <LineChart {...ChartProps} />,
-            chartSetting: <LineChartSetting {...ChartSettingProps} />,
-          });
           break;
       }
     }

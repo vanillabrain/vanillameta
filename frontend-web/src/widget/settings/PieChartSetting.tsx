@@ -33,7 +33,6 @@ const PieChartSetting = props => {
   const { option, setOption, listItem, spec } = props;
 
   // props로부터 받기 ------------------------------------
-  const typeOption = { series: ['high', 'low', 'avg'], label: ['name', 'color'] }; // series type
   const dataLength = 12; // color length
   const dataLabel = ['jan', 'fab', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']; // color label
   // ----------------------------------------------------
@@ -80,6 +79,8 @@ const PieChartSetting = props => {
             id="field"
             name="field"
             label="필드"
+            labelField="columnName"
+            valueField="columnType"
             optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
             value={option.series.field}
             onChange={handleSeriesChange}
@@ -97,6 +98,8 @@ const PieChartSetting = props => {
             id="label"
             name="label"
             label="이름"
+            labelField="columnName"
+            valueField="columnType"
             optionList={spec.map(item => item.columnName)}
             value={option.series.label}
             onChange={handleSeriesChange}

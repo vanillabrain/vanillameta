@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Box, Stack, Step, StepLabel, Stepper } from '@mui/material';
 import PageTitleBox from '@/components/PageTitleBox';
 import PageContainer from '@/components/PageContainer';
@@ -6,7 +6,6 @@ import ConfirmCancelButton, { ConfirmButton } from '@/components/button/ConfirmC
 import WidgetDataSelect from './WidgetDataSelect';
 import WidgetTypeSelect from './WidgetTypeSelect';
 import WidgetAttributeSelect from './WidgetAttributeSelect';
-import { WIDGET_TYPE } from '@/constant';
 import componentService from '@/api/componentService';
 
 const title = '위젯 생성';
@@ -29,7 +28,7 @@ function WidgetCreate(props) {
   const [isNextButtonDisabled, setIsNextButtonDisabled] = useState(true);
 
   useEffect(() => {
-    console.log('widgetType', widgetType);
+    // console.log('widgetType', widgetType);
     if (activeStep === 0 && !!dataSet) {
       setIsNextButtonDisabled(false);
       return;
@@ -45,7 +44,7 @@ function WidgetCreate(props) {
 
   const getComponentList = () => {
     componentService.selectComponentList().then(res => {
-      console.log(res.data);
+      // console.log(res.data);
       setComponentList(res.data);
     });
   };
