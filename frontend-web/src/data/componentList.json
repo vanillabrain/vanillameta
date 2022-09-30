@@ -287,5 +287,56 @@
       ],
       "legendPosition": ""
     }
+  },
+  {
+    "type": "CHART_TREEMAP",
+    "title": "트리맵 차트",
+    "category": "TREEMAP",
+    "icon": "icon/treemap-chart.png",
+    "caption": "Treemap Chart",
+    "option": {
+      "title": "",
+      "series": {
+        "field": "",
+        "color": [],
+        "aggregation": "sum",
+        "label": ""
+      },
+      "legendPosition": ""
+    }
+  },
+  {
+    "type ": "CHART_GAUGE",
+    "title": "게이지 차트",
+    "category": "GAUGE",
+    "icon": "icon/gauge-chart.png",
+    "caption": "Gauge Chart",
+    "option": {
+      "title": "",
+      "series": {
+        "field": "",
+        "color": [],
+        "aggregation": "sum",
+        "label": ""
+      },
+     "legendPosition": ""
+    }
+  },
+  {
+    "type": "CHART_CANDLESTICK",
+    "title": "캔들스틱 차트",
+    "category": "CANDLESTICK",
+    "icon": "icon/candlestick-chart.png",
+    "caption": "Candlestick Chart",
+    "option": {
+      "title": "",
+      "series": {
+        "field": "",
+        "color": [],
+        "aggregation": "sum",
+        "label": ""
+      },
+      "legendPosition": ""
+    }
   }
 ]

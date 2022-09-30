@@ -1,13 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { Grid } from '@mui/material';
-import LineChartSetting from '@/widget/settings/LineChartSetting';
+import axios from 'axios';
+import { useAlert } from 'react-alert';
+
+import { WIDGET_TYPE } from '@/constant';
+import TitleBox from '@/components/TitleBox';
+import WidgetBox from '@/components/widget/WidgetBox';
 import LineChart from '@/modules/linechart/LineChart';
+import LineChartSetting from '@/widget/settings/LineChartSetting';
 import PieChart from '@/modules/piechart/PieChart';
 import PieChartSetting from '@/widget/settings/PieChartSetting';
-import WidgetBox from '@/components/widget/WidgetBox';
-import { WIDGET_TYPE } from '@/constant';
-import DonutChartSetting from '@/widget/settings/DonutChartSetting';
 import DonutChart from '@/modules/piechart/DonutChart';
+import DonutChartSetting from '@/widget/settings/DonutChartSetting';
 import MixedLineBarChartSetting from '@/widget/settings/MixedLineBarChartSetting';
 import NumericBoard from '@/modules/ board/NumericBoard';
 import NumericBoardSetting from '@/widget/settings/NumericBoardSetting';
@@ -15,13 +19,16 @@ import TableBoard from '@/modules/ board/TableBoard';
 import TableBoardSetting from '@/widget/settings/TableBoardSetting';
 import ScatterChart from '@/modules/scatterchart/ScatterChart';
 import ScatterChartSetting from '@/widget/settings/ScatterChartSetting';
-import TitleBox from '@/components/TitleBox';
 import BubbleChart from '@/modules/scatterchart/BubbleChart';
 import BubbleChartSetting from '@/widget/settings/BubbleChartSetting';
-import { useAlert } from 'react-alert';
-import axios from 'axios';
-import RadarChartSetting from '@/widget/settings/RadarChartSetting';
 import RadarChart from '@/modules/radarchart/RadarChart';
+import RadarChartSetting from '@/widget/settings/RadarChartSetting';
+import TreemapChart from '@/modules/treemapchart/TreemapChart';
+import TreemapChartSetting from '@/widget/settings/TreemapChartSetting';
+import GaugeChart from '@/modules/gaugechart/GaugeChart';
+import GaugeChartSetting from '@/widget/settings/GaugeChartSetting';
+import CandlestickChart from '@/modules/candlestickchart/CandlestickChart';
+import CandlestickChartSetting from '@/widget/settings/CandlestickChartSetting';
 
 function WidgetAttributeSelect(props) {
   const alert = useAlert();
@@ -240,6 +247,27 @@ function WidgetAttributeSelect(props) {
             ...switchChart,
             chart: <RadarChart {...ChartProps} />,
             chartSetting: <RadarChartSetting {...ChartSettingProps} />,
+          });
+          break;
+        case WIDGET_TYPE.CHART_TREEMAP:
+          setSwitchChart({
+            ...switchChart,
+            chart: <TreemapChart {...ChartProps} />,
+            chartSetting: <TreemapChartSetting {...ChartSettingProps} />,
+          });
+          break;
+        case WIDGET_TYPE.CHART_GAUGE:
+          setSwitchChart({
+            ...switchChart,
+            chart: <GaugeChart {...ChartProps} />,
+            chartSetting: <GaugeChartSetting {...ChartSettingProps} />,
+          });
+          break;
+        case WIDGET_TYPE.CHART_CANDLESTICK:
+          setSwitchChart({
+            ...switchChart,
+            chart: <CandlestickChart {...ChartProps} />,
+            chartSetting: <CandlestickChartSetting {...ChartSettingProps} />,
           });
           break;
 
