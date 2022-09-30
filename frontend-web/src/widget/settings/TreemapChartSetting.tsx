@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Divider, Grid, List, ListItem, ListItemText, styled } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import ColorButtonForm from '@/components/form/ColorButtonForm';
@@ -6,6 +6,7 @@ import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
 import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
 import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST, WIDGET_AGGREGATION } from '@/constant';
+import ColorFieldForm from '@/components/form/ColorFieldForm';
 
 const StyledList = styled(List)({
   position: 'relative',
@@ -31,13 +32,42 @@ const StyledList = styled(List)({
 });
 
 const TreemapChartSetting = props => {
-  const { option, setOption, seriesItem, axis = 'x', spec } = props;
+  const { option, setOption, listItem, spec } = props;
 
-  // 컴포넌트 별 default series
-  const defaultSeries = {
-    field: '',
-    color: '',
-    aggregation: WIDGET_AGGREGATION.SUM,
+  // props로부터 받기 ------------------------------------
+  const dataLength = 12; // color length
+  const dataLabel = ['jan', 'fab', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']; // color label
+  // ----------------------------------------------------
+
+  // color 생성
+  const getColor = () => {
+    const defaultColor = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc'];
+    if (!!option.series.field) {
+      return;
+    }
+    const colorArr = [];
+    // defaultColor의 배열을 돌면서 data의 길이만큼 요소를 순서대로 반환
+    for (let i = 0; i < dataLength; i++) {
+      colorArr.push(defaultColor[i % 9]);
+    }
+    setOption(prevState => ({
+      ...prevState,
+      series: { ...prevState.series, color: colorArr },
+    }));
+  };
+
+  useEffect(() => {
+    getColor();
+  }, [option.series.field]);
+
+  const handleSeriesChange = event => {
+    setOption(prevState => ({
+      ...prevState,
+      series: {
+        ...prevState.series,
+        [event.target.name]: event.target.value,
+      },
+    }));
   };
 
   return (
@@ -45,73 +75,65 @@ const TreemapChartSetting = props => {
       <WidgetTitleForm value={option.title} onChange={event => handleChange(event, setOption)} />
       <StyledList>
         <ListItem divider>
-          <ListItemText primary={`${axis}축 설정`} sx={{ textTransform: 'uppercase' }} />
+          <ListItemText primary="시리즈 설정" />
           <SelectForm
-            id={axis + 'Field'}
-            name={axis + 'Field'}
-            label={axis + '축'}
-            optionList={spec.map(item => item.columnName)}
+            required={true}
+            id="field"
+            name="field"
+            label="필드"
             labelField="columnName"
             valueField="columnType"
-            value={option[`${axis}Field`]}
-            onChange={event => handleChange(event, setOption)}
+            optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
+            value={option.series.field}
+            onChange={handleSeriesChange}
+          />
+          <SelectForm
+            id="aggregation"
+            name="aggregation"
+            label="집계 방식"
+            optionList={AGGREGATION_LIST}
+            value={option.series.aggregation}
+            onChange={handleSeriesChange}
+            disabledDefaultValue
+          />
+          <SelectForm
+            id="label"
+            name="label"
+            label="이름"
+            labelField="columnName"
+            valueField="columnType"
+            optionList={spec.map(item => item.columnName)}
+            value={option.series.label}
+            onChange={handleSeriesChange}
           />
         </ListItem>
         <ListItem divider>
-          <ListItemText primary="시리즈 설정" />
-          <AddButton
-            onClick={event => handleAddClick(event, option, setOption, defaultSeries)}
-            sx={{
-              position: 'absolute',
-              top: 30,
-              right: 0,
-            }}
-          />
-          {option.series.map((item, index) => (
-            <React.Fragment key={index}>
-              <SelectForm
-                required={true}
-                id={`field${index + 1}`}
-                name={`field${index + 1}`}
-                label={`필드 ${index + 1}`}
-                labelField="columnName"
-                valueField="columnType"
-                optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
-                value={item.field}
-                onChange={event => handleSeriesChange(event, setOption)}
-                endButton={<ColorButtonForm index={index} option={option} setOption={setOption} />}
-              />
-              <SelectForm
-                id={`aggregation${index + 1}`}
-                name={`aggregation${index + 1}`}
-                label="집계 방식"
-                optionList={AGGREGATION_LIST}
-                value={item.aggregation}
-                onChange={event => handleSeriesChange(event, setOption)}
-                disabledDefaultValue
-                endButton={
-                  0 < index ? (
-                    <RemoveButton onClick={event => handleRemoveClick(event, index, option, setOption)} id={index} />
-                  ) : (
-                    ' '
-                  )
-                }
-              />
-              {!!seriesItem && (
-                <SelectForm
-                  id={`${seriesItem.id}${index + 1}`}
-                  name={`${seriesItem.name}${index + 1}`}
-                  label={seriesItem.label}
-                  optionList={seriesItem.optionList}
-                  value={item[seriesItem.value]}
-                  onChange={event => handleSeriesChange(event, setOption)}
-                  disabledDefaultValue={seriesItem.disabledDefaultValue}
+          <ListItemText primary="항목 별 색상 설정" />
+          {!!option.series.field &&
+            option.series.color.map((item, index) => (
+              <React.Fragment key={index}>
+                <ColorFieldForm
+                  id={`color${index + 1}`}
+                  name={`color${index + 1}`}
+                  value={option.series.color[index]}
+                  label={dataLabel}
+                  optionList={option}
+                  setOption={setOption}
+                  index={index}
                 />
-              )}
-              <Divider />
-            </React.Fragment>
-          ))}
+                <Divider />
+              </React.Fragment>
+            ))}
         </ListItem>
+
+        {/* 추가되는 아이템 */}
+        {!!listItem && (
+          <ListItem divider>
+            <ListItemText primary={listItem.title} />
+            {listItem.children}
+          </ListItem>
+        )}
+
         <ListItem>
           <ListItemText>범례 설정</ListItemText>
           <SelectForm

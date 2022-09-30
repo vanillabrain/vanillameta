@@ -1,31 +1,35 @@
 import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { Box } from '@mui/material';
-import { getAggregationDataForChart, getGridSize, getLegendOption } from '@/modules/utils/chartUtil';
+import { getAggregationDataForChart, getCenter, getGridSize, getLegendOption } from '@/modules/utils/chartUtil';
 
 const TreemapChart = props => {
-  const { option, dataSet, axis = 'x', seriesOp, defaultOp, createOp } = props;
-  const reverseAxis = axis === 'x' ? 'y' : 'x';
+  const { option, dataSet, seriesOp } = props;
 
   const [componentOption, setComponentOption] = useState({});
 
   const defaultComponentOption = {
     grid: { top: 50, right: 50, bottom: 50, left: 50 },
-    tooltip: { trigger: 'axis' },
+    tooltip: {
+      trigger: 'item',
+    },
+    legend: {
+      orient: 'vertical',
+      left: 'left',
+    },
     series: [],
     emphasis: {
-      focus: 'series',
-      blurScope: 'coordinateSystem',
+      itemStyle: {
+        shadowBlur: 10,
+        shadowOffsetX: 0,
+        shadowColor: 'rgba(0, 0, 0, 0.5)',
+      },
     },
-    ...defaultOp,
   };
 
   useEffect(() => {
-    if (option && dataSet) {
-      const newOption = createComponentOption();
-
-      setComponentOption(newOption);
-    }
+    setComponentOption(defaultComponentOption);
+    setComponentOption(createComponentOption());
   }, [option, dataSet]);
 
   /**
@@ -36,18 +40,27 @@ const TreemapChart = props => {
   const createComponentOption = () => {
     let newOption = {};
 
-    // series option에서 가져오기
-    const newSeries = [];
-    let aggrData = [];
-    option.series.forEach(item => {
-      aggrData = getAggregationDataForChart(dataSet, option[axis + 'Field'], item.field, item.aggregation);
-      if (item.field) {
-        const series =
-          // name: item.field,
-          // data: aggrData.map(dataItem => dataItem[item.field]),
-          // type: item.type ? item.type : 'line',
-          // color: item.color,
-          // smooth: true,
+    const getData = () =>
+      dataSet.map(item => ({
+        value: item[option.series.field],
+        name: item[option.series.label],
+      }));
+    if (dataSet) {
+      const op = {
+        type: 'pie',
+        smooth: true,
+        color: [...option.series.color],
+        // series: [
+        //   {
+        //     type: 'pie',
+        //     label: { show: !!option.series.label && true },
+        //     smooth: true,
+        //     data: getData(),
+        //     center: getCenter(option.legendPosition),
+        //     ...seriesOp,
+        //   },
+        // ],
+        series: [
           {
             type: 'treemap',
             data: [
@@ -82,28 +95,12 @@ const TreemapChart = props => {
                 ],
               },
             ],
-            ...seriesOp,
-          };
-        newSeries.push(series);
-      }
-    });
-
-    if (aggrData) {
-      const op = {
-        [axis + 'Axis']: {
-          type: 'category',
-          data: !!option[axis + 'Field'] ? aggrData.map(item => item[option[axis + 'Field']]) : '',
-        },
-        series: newSeries,
-        grid: getGridSize(option.legendPosition),
+          },
+        ],
         legend: getLegendOption(option.legendPosition),
-        ...createOp,
       };
-
       newOption = { ...defaultComponentOption, ...op };
     }
-
-    console.log(newOption);
     return newOption;
   };
 

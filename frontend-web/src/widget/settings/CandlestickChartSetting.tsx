@@ -6,6 +6,7 @@ import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
 import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
 import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST, WIDGET_AGGREGATION } from '@/constant';
+import ColorPickerForm from '@/components/form/ColorPickerForm';
 
 const StyledList = styled(List)({
   position: 'relative',
@@ -31,14 +32,7 @@ const StyledList = styled(List)({
 });
 
 const CandlestickChartSetting = props => {
-  const { option, setOption, seriesItem, axis = 'x', spec } = props;
-
-  // 컴포넌트 별 default series
-  const defaultSeries = {
-    field: '',
-    color: '',
-    aggregation: WIDGET_AGGREGATION.SUM,
-  };
+  const { option, setOption, axis = 'x', spec } = props;
 
   return (
     <Grid item xs={10} md={4} lg={3} sx={{ display: 'flex', flexDirection: 'column' }}>
@@ -59,58 +53,64 @@ const CandlestickChartSetting = props => {
         </ListItem>
         <ListItem divider>
           <ListItemText primary="시리즈 설정" />
-          <AddButton
-            onClick={event => handleAddClick(event, option, setOption, defaultSeries)}
-            sx={{
-              position: 'absolute',
-              top: 30,
-              right: 0,
-            }}
+
+          <SelectForm
+            required={true}
+            id="fieldUp"
+            name="fieldUp"
+            label="필드 Up"
+            labelField="columnName"
+            valueField="columnType"
+            optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
+            // value={option.series.fieldUp}
+            // onChange={event => handleSeriesChange(event, setOption)}
+            // endButton={<ColorPickerForm color={option.series.color} setOption={setOption} />}
           />
-          {option.series.map((item, index) => (
-            <React.Fragment key={index}>
-              <SelectForm
-                required={true}
-                id={`field${index + 1}`}
-                name={`field${index + 1}`}
-                label={`필드 ${index + 1}`}
-                labelField="columnName"
-                valueField="columnType"
-                optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
-                value={item.field}
-                onChange={event => handleSeriesChange(event, setOption)}
-                endButton={<ColorButtonForm index={index} option={option} setOption={setOption} />}
-              />
-              <SelectForm
-                id={`aggregation${index + 1}`}
-                name={`aggregation${index + 1}`}
-                label="집계 방식"
-                optionList={AGGREGATION_LIST}
-                value={item.aggregation}
-                onChange={event => handleSeriesChange(event, setOption)}
-                disabledDefaultValue
-                endButton={
-                  0 < index ? (
-                    <RemoveButton onClick={event => handleRemoveClick(event, index, option, setOption)} id={index} />
-                  ) : (
-                    ' '
-                  )
-                }
-              />
-              {!!seriesItem && (
-                <SelectForm
-                  id={`${seriesItem.id}${index + 1}`}
-                  name={`${seriesItem.name}${index + 1}`}
-                  label={seriesItem.label}
-                  optionList={seriesItem.optionList}
-                  value={item[seriesItem.value]}
-                  onChange={event => handleSeriesChange(event, setOption)}
-                  disabledDefaultValue={seriesItem.disabledDefaultValue}
-                />
-              )}
-              <Divider />
-            </React.Fragment>
-          ))}
+          <SelectForm
+            required={true}
+            id="fieldDown"
+            name="fieldDown"
+            label="필드 Down"
+            labelField="columnName"
+            valueField="columnType"
+            optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
+            // value={option.series.fieldDown}
+            // onChange={event => handleSeriesChange(event, setOption)}
+            // endButton={<ColorPickerForm color={option.series.color} setOption={setOption} />}
+          />
+          <SelectForm
+            required={true}
+            id="fieldUpBorder"
+            name="fieldUpBorder"
+            label="필드 UpBorder"
+            labelField="columnName"
+            valueField="columnType"
+            optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
+            // value={option.series.fieldUpBorder}
+            // onChange={event => handleSeriesChange(event, setOption)}
+            // endButton={<ColorPickerForm color={option.series.color} setOption={setOption} />}
+          />
+          <SelectForm
+            required={true}
+            id="fieldDownBorder"
+            name="fieldDownBorder"
+            label="필드 DownBorder"
+            labelField="columnName"
+            valueField="columnType"
+            optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
+            // value={option.series.fieldDownBorder}
+            // onChange={event => handleSeriesChange(event, setOption)}
+            // endButton={<ColorPickerForm color={option.series.color} setOption={setOption} />}
+          />
+          <SelectForm
+            id="aggregation1"
+            name="aggregation1"
+            label="집계 방식"
+            optionList={AGGREGATION_LIST}
+            // value={option.series.aggregation}
+            // onChange={event => handleSeriesChange(event, setOption)}
+            disabledDefaultValue
+          />
         </ListItem>
         <ListItem>
           <ListItemText>범례 설정</ListItemText>

@@ -317,9 +317,8 @@
         "field": "",
         "color": [],
         "aggregation": "sum",
-        "label": ""
-      },
-     "legendPosition": ""
+        "suffix": ""
+      }
     }
   },
   {
@@ -330,12 +329,16 @@
     "caption": "Candlestick Chart",
     "option": {
       "title": "",
-      "series": {
-        "field": "",
-        "color": [],
-        "aggregation": "sum",
-        "label": ""
-      },
+      "series": [
+        {
+          "fieldUp": "",
+          "fieldDown": "",
+          "fieldUpBorder": "",
+          "fieldDownBorder": "",
+          "color": "",
+          "aggregation": "sum"
+        }
+      ],
       "legendPosition": ""
     }
   }

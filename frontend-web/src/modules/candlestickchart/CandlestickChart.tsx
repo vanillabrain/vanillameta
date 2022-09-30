@@ -11,13 +11,16 @@ const CandlestickChart = props => {
 
   const defaultComponentOption = {
     grid: { top: 50, right: 50, bottom: 50, left: 50 },
-    tooltip: { trigger: 'axis' },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'cross',
+      },
+    },
     [axis + 'Axis']: {
       type: 'category',
     },
-    [reverseAxis + 'Axis']: {
-      type: 'value',
-    },
+    [reverseAxis + 'Axis']: {},
     series: [],
     emphasis: {
       focus: 'series',
@@ -44,27 +47,58 @@ const CandlestickChart = props => {
 
     // series option에서 가져오기
     const newSeries = [];
-    let aggrData = [];
-    option.series.forEach(item => {
-      aggrData = getAggregationDataForChart(dataSet, option[axis + 'Field'], item.field, item.aggregation);
-      if (item.field) {
-        const series = {
-          name: item.field,
-          data: aggrData.map(dataItem => dataItem[item.field]),
-          type: item.type ? item.type : 'line',
-          color: item.color,
-          smooth: true,
-          ...seriesOp,
-        };
-        newSeries.push(series);
-      }
-    });
+    const aggrData = [];
+
+    // option.series.forEach(item => {
+    //   const field1 = getAggregationDataForChart(dataSet, option[axis + 'Field'], item.fieldUp, item.aggregationUp);
+    //   const field2 = getAggregationDataForChart(dataSet, option[axis + 'Field'], item.fieldDown, item.aggregationDown);
+    //   const field3 = getAggregationDataForChart(
+    //     dataSet,
+    //     option[axis + 'Field'],
+    //     item.fieldUpBorder,
+    //     item.aggregationUpBorder,
+    //   );
+    //   const field4 = getAggregationDataForChart(
+    //     dataSet,
+    //     option[axis + 'Field'],
+    //     item.fieldDownBorder,
+    //     item.aggregationDownBorder,
+    //   );
+    //   aggrData = [field1, field2, field3, field4];
+    //   if (item.field) {
+    //     const series = {
+    //       name: item.field,
+    //       type: 'candlestick',
+    //       data: aggrData,
+    //       itemStyle: {
+    //         color: item.color,
+    //         color0: '#fab',
+    //         borderColor: '#eee',
+    //         borderColor0: '#121212',
+    //       },
+    //       smooth: true,
+    //       ...seriesOp,
+    //     };
+    //     newSeries.push(series);
+    //   }
+    // });
 
     if (aggrData) {
       const op = {
         [axis + 'Axis']: {
           type: 'category',
-          data: !!option[axis + 'Field'] ? aggrData.map(item => item[option[axis + 'Field']]) : '',
+          // data: !!option[axis + 'Field'] ? aggrData.map(item => item[option[axis + 'Field']]) : '',
+          boundaryGap: false,
+          axisLine: { onZero: false },
+          splitLine: { show: false },
+          min: 'dataMin',
+          max: 'dataMax',
+        },
+        [reverseAxis + 'Axis']: {
+          scale: true,
+          splitArea: {
+            show: true,
+          },
         },
         series: newSeries,
         grid: getGridSize(option.legendPosition),
