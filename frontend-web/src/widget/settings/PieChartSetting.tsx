@@ -34,7 +34,6 @@ const PieChartSetting = props => {
 
   // props로부터 받기 ------------------------------------
   const dataLength = 12; // color length
-  const dataLabel = ['jan', 'fab', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']; // color label
   // ----------------------------------------------------
 
   // color 생성
@@ -114,7 +113,6 @@ const PieChartSetting = props => {
                   id={`color${index + 1}`}
                   name={`color${index + 1}`}
                   value={option.series.color[index]}
-                  label={dataLabel}
                   optionList={option}
                   setOption={setOption}
                   index={index}

@@ -66,7 +66,7 @@ const TreemapChart = props => {
             data: [
               {
                 name: 'nodeA',
-                value: 10,
+                value: 20,
                 children: [
                   {
                     name: 'nodeAa',

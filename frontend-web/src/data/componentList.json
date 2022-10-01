@@ -5,8 +5,19 @@
     "icon": null,
     "caption": "Score Board",
     "option": {
-      "header": { "title": "타이틀을 입력하세요", "fontSize": 20, "color": "#4A4A4A" },
-      "content": { "field": null, "aggregation": null, "fontSize": 20, "color": "#4A4A4A", "prefix": "", "suffix": "" }
+      "header": {
+        "title": "타이틀을 입력하세요",
+        "fontSize": 20,
+        "color": "#4A4A4A"
+      },
+      "content": {
+        "field": null,
+        "aggregation": null,
+        "fontSize": 20,
+        "color": "#4A4A4A",
+        "prefix": "",
+        "suffix": ""
+      }
     }
   },
   {
@@ -15,7 +26,9 @@
     "icon": null,
     "caption": "DataGrid",
     "option": {
-      "columns": []
+      "columns": [
+
+      ]
     }
   },
   {
@@ -195,7 +208,9 @@
       "title": "",
       "series": {
         "field": "",
-        "color": [],
+        "color": [
+
+        ],
         "aggregation": "sum",
         "label": ""
       },
@@ -211,10 +226,15 @@
       "title": "",
       "series": {
         "field": "",
-        "color": [],
+        "color": [
+
+        ],
         "aggregation": "sum",
         "label": "",
-        "radius": ["30%", "75%"]
+        "radius": [
+          "30%",
+          "75%"
+        ]
       },
       "legendPosition": ""
     }
@@ -228,10 +248,15 @@
       "title": "",
       "series": {
         "field": "",
-        "color": [],
+        "color": [
+
+        ],
         "aggregation": "sum",
         "label": "",
-        "radius": ["10%", "90%"]
+        "radius": [
+          "10%",
+          "90%"
+        ]
       },
       "legendPosition": ""
     }
@@ -298,7 +323,9 @@
       "title": "",
       "series": {
         "field": "",
-        "color": [],
+        "color": [
+
+        ],
         "aggregation": "sum",
         "label": ""
       },
@@ -315,7 +342,9 @@
       "title": "",
       "series": {
         "field": "",
-        "color": [],
+        "color": [
+
+        ],
         "aggregation": "sum",
         "suffix": ""
       }
@@ -329,13 +358,26 @@
     "caption": "Candlestick Chart",
     "option": {
       "title": "",
+      "xField": "",
       "series": [
+         {
+          "field": "",
+          "color": "#5470c6",
+          "aggregation": "sum"
+        },
+         {
+          "field": "",
+          "color": "#91cc75",
+          "aggregation": "sum"
+        },
+         {
+          "field": "",
+          "color": "#fac858",
+          "aggregation": "sum"
+        },
         {
-          "fieldUp": "",
-          "fieldDown": "",
-          "fieldUpBorder": "",
-          "fieldDownBorder": "",
-          "color": "",
+          "field": "",
+          "color": "#ee6666",
           "aggregation": "sum"
         }
       ],

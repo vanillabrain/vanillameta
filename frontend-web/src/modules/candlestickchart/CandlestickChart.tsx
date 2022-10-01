@@ -4,8 +4,7 @@ import { Box } from '@mui/material';
 import { getAggregationDataForChart, getGridSize, getLegendOption } from '@/modules/utils/chartUtil';
 
 const CandlestickChart = props => {
-  const { option, dataSet, axis = 'x', seriesOp, defaultOp, createOp } = props;
-  const reverseAxis = axis === 'x' ? 'y' : 'x';
+  const { option, dataSet } = props;
 
   const [componentOption, setComponentOption] = useState({});
 
@@ -17,16 +16,11 @@ const CandlestickChart = props => {
         type: 'cross',
       },
     },
-    [axis + 'Axis']: {
+    xAxis: {
       type: 'category',
     },
-    [reverseAxis + 'Axis']: {},
+    yAxis: {},
     series: [],
-    emphasis: {
-      focus: 'series',
-      blurScope: 'coordinateSystem',
-    },
-    ...defaultOp,
   };
 
   useEffect(() => {
@@ -45,71 +39,65 @@ const CandlestickChart = props => {
   const createComponentOption = () => {
     let newOption = {};
 
-    // series option에서 가져오기
     const newSeries = [];
-    const aggrData = [];
+    let aggrData = [];
 
-    // option.series.forEach(item => {
-    //   const field1 = getAggregationDataForChart(dataSet, option[axis + 'Field'], item.fieldUp, item.aggregationUp);
-    //   const field2 = getAggregationDataForChart(dataSet, option[axis + 'Field'], item.fieldDown, item.aggregationDown);
-    //   const field3 = getAggregationDataForChart(
-    //     dataSet,
-    //     option[axis + 'Field'],
-    //     item.fieldUpBorder,
-    //     item.aggregationUpBorder,
-    //   );
-    //   const field4 = getAggregationDataForChart(
-    //     dataSet,
-    //     option[axis + 'Field'],
-    //     item.fieldDownBorder,
-    //     item.aggregationDownBorder,
-    //   );
-    //   aggrData = [field1, field2, field3, field4];
-    //   if (item.field) {
-    //     const series = {
-    //       name: item.field,
-    //       type: 'candlestick',
-    //       data: aggrData,
-    //       itemStyle: {
-    //         color: item.color,
-    //         color0: '#fab',
-    //         borderColor: '#eee',
-    //         borderColor0: '#121212',
-    //       },
-    //       smooth: true,
-    //       ...seriesOp,
-    //     };
-    //     newSeries.push(series);
-    //   }
-    // });
+    if (option.xField && newSeries) {
+      option.series.forEach(item => {
+        const aggrItem = getAggregationDataForChart(dataSet, option.xField, item.field, item.aggregation);
+        aggrData = aggrItem;
+
+        // console.log(aggrItem, 'aggritem');
+        aggrItem.forEach((element, idx) => {
+          if (!newSeries[idx]) {
+            newSeries[idx] = [];
+          }
+          if (item.field) {
+            newSeries[idx].push(element[item.field]);
+          }
+        });
+        // console.log(newSeries, 'aggrData');
+      });
+    }
 
     if (aggrData) {
       const op = {
-        [axis + 'Axis']: {
+        xAxis: {
           type: 'category',
-          // data: !!option[axis + 'Field'] ? aggrData.map(item => item[option[axis + 'Field']]) : '',
+          data: !!option.xField ? aggrData.map(item => item[option.xField]) : '',
           boundaryGap: false,
           axisLine: { onZero: false },
           splitLine: { show: false },
           min: 'dataMin',
           max: 'dataMax',
         },
-        [reverseAxis + 'Axis']: {
+        yAxis: {
           scale: true,
           splitArea: {
             show: true,
           },
         },
-        series: newSeries,
+        series: [
+          {
+            name: 'name',
+            type: 'candlestick',
+            data: newSeries,
+            itemStyle: {
+              color: option.series[0].color,
+              color0: option.series[1].color,
+              borderColor: option.series[2].color,
+              borderColor0: option.series[3].color,
+            },
+          },
+        ],
         grid: getGridSize(option.legendPosition),
         legend: getLegendOption(option.legendPosition),
-        ...createOp,
       };
 
       newOption = { ...defaultComponentOption, ...op };
     }
 
-    console.log(newOption);
+    // console.log(newOption);
     return newOption;
   };
 

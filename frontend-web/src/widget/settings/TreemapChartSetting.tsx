@@ -32,11 +32,10 @@ const StyledList = styled(List)({
 });
 
 const TreemapChartSetting = props => {
-  const { option, setOption, listItem, spec } = props;
+  const { option, setOption, spec } = props;
 
   // props로부터 받기 ------------------------------------
   const dataLength = 12; // color length
-  const dataLabel = ['jan', 'fab', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']; // color label
   // ----------------------------------------------------
 
   // color 생성
@@ -116,7 +115,6 @@ const TreemapChartSetting = props => {
                   id={`color${index + 1}`}
                   name={`color${index + 1}`}
                   value={option.series.color[index]}
-                  label={dataLabel}
                   optionList={option}
                   setOption={setOption}
                   index={index}
@@ -125,14 +123,6 @@ const TreemapChartSetting = props => {
               </React.Fragment>
             ))}
         </ListItem>
-
-        {/* 추가되는 아이템 */}
-        {!!listItem && (
-          <ListItem divider>
-            <ListItemText primary={listItem.title} />
-            {listItem.children}
-          </ListItem>
-        )}
 
         <ListItem>
           <ListItemText>범례 설정</ListItemText>
