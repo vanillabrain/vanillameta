@@ -1,10 +1,12 @@
 import React, { useEffect } from 'react';
-import { Grid, List, ListItem, ListItemText, styled, Divider } from '@mui/material';
+import { Divider, Grid, List, ListItem, ListItemText, styled } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
-import ColorFieldForm from '@/components/form/ColorFieldForm';
+import ColorButtonForm from '@/components/form/ColorButtonForm';
 import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
-import { handleChange } from '@/widget/utils/handler';
-import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST } from '@/constant';
+import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
+import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
+import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST, WIDGET_AGGREGATION } from '@/constant';
+import ColorFieldForm from '@/components/form/ColorFieldForm';
 
 const StyledList = styled(List)({
   position: 'relative',
@@ -29,8 +31,8 @@ const StyledList = styled(List)({
   },
 });
 
-const PieChartSetting = props => {
-  const { option, setOption, listItem, spec } = props;
+const TreemapChartSetting = props => {
+  const { option, setOption, spec } = props;
 
   // props로부터 받기 ------------------------------------
   const dataLength = 12; // color length
@@ -122,14 +124,6 @@ const PieChartSetting = props => {
             ))}
         </ListItem>
 
-        {/* 추가되는 아이템 */}
-        {!!listItem && (
-          <ListItem divider>
-            <ListItemText primary={listItem.title} />
-            {listItem.children}
-          </ListItem>
-        )}
-
         <ListItem>
           <ListItemText>범례 설정</ListItemText>
           <SelectForm
@@ -146,4 +140,4 @@ const PieChartSetting = props => {
   );
 };
 
-export default PieChartSetting;
+export default TreemapChartSetting;

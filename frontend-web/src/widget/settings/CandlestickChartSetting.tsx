@@ -1,11 +1,10 @@
 import React from 'react';
 import { Divider, Grid, List, ListItem, ListItemText, styled } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
-import ColorButtonForm from '@/components/form/ColorButtonForm';
 import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
-import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
-import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
-import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST, WIDGET_AGGREGATION } from '@/constant';
+import { handleChange, handleSeriesChange } from '@/widget/utils/handler';
+import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST } from '@/constant';
+import ColorPickerForm from '@/components/form/ColorPickerForm';
 
 const StyledList = styled(List)({
   position: 'relative',
@@ -30,15 +29,23 @@ const StyledList = styled(List)({
   },
 });
 
-const RadarChartSetting = props => {
-  const { option, setOption, seriesItem, spec } = props;
+const CandlestickChartSetting = props => {
+  const { option, setOption, spec } = props;
+  const candlestickLabel = ['open', 'close', 'lowest', 'highest'];
 
-  // 컴포넌트 별 default series
-  const defaultSeries = {
-    field: '',
-    // maxValue: '',
-    color: '',
-    aggregation: WIDGET_AGGREGATION.SUM,
+  const handleCandlestickChange = event => {
+    const key = event.target.name.slice(0, -1);
+    const index = Number(event.target.name.slice(-1)[0]) - 1;
+
+    setOption(prevState => {
+      const obj = { ...prevState };
+      obj.series.data.forEach((item, idx) => {
+        if (index === idx) {
+          item[key] = event.target.value;
+        }
+      });
+      return obj;
+    });
   };
 
   return (
@@ -46,51 +53,44 @@ const RadarChartSetting = props => {
       <WidgetTitleForm value={option.title} onChange={event => handleChange(event, setOption)} />
       <StyledList>
         <ListItem divider>
-          <ListItemText primary={'축 설정'} sx={{ textTransform: 'uppercase' }} />
+          <ListItemText primary="X축 설정" sx={{ textTransform: 'uppercase' }} />
           <SelectForm
-            id="field"
-            name="field"
-            label="축 이름"
+            id="xField"
+            name="xField"
+            label="x축"
             optionList={spec.map(item => item.columnName)}
             labelField="columnName"
             valueField="columnType"
-            value={option.field}
+            value={option.xField}
             onChange={event => handleChange(event, setOption)}
           />
-          {/*<SelectForm*/}
-          {/*  id="maxValue"*/}
-          {/*  name="maxValue"*/}
-          {/*  label="최대값"*/}
-          {/*  optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}*/}
-          {/*  labelField="columnName"*/}
-          {/*  valueField="columnType"*/}
-          {/*  value={option.maxValue}*/}
-          {/*  onChange={event => handleChange(event, setOption)}*/}
-          {/*/>*/}
         </ListItem>
         <ListItem divider>
           <ListItemText primary="시리즈 설정" />
-          <AddButton
-            onClick={event => handleAddClick(event, option, setOption, defaultSeries)}
-            sx={{
-              position: 'absolute',
-              top: 30,
-              right: 0,
-            }}
-          />
           {option.series.map((item, index) => (
             <React.Fragment key={index}>
               <SelectForm
                 required={true}
                 id={`field${index + 1}`}
                 name={`field${index + 1}`}
-                label={`필드 ${index + 1}`}
+                label={candlestickLabel[index]}
                 labelField="columnName"
                 valueField="columnType"
                 optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
-                value={item.field}
+                value={option.series[index].field}
+                // onChange={event => handleCandlestickChange(event)}
                 onChange={event => handleSeriesChange(event, setOption)}
-                endButton={<ColorButtonForm index={index} option={option} setOption={setOption} />}
+                endButton={
+                  <ColorPickerForm
+                    name={`color${index + 1}`}
+                    color={option.series[index].color}
+                    // onChange={event => handleCandlestickChange(event)}
+                    index={index}
+                    option={option}
+                    setOption={setOption}
+                    // onChange={event => handleSeriesChange(event, setOption)}
+                  />
+                }
               />
               <SelectForm
                 id={`aggregation${index + 1}`}
@@ -100,28 +100,19 @@ const RadarChartSetting = props => {
                 value={item.aggregation}
                 onChange={event => handleSeriesChange(event, setOption)}
                 disabledDefaultValue
-                endButton={
-                  0 < index ? (
-                    <RemoveButton onClick={event => handleRemoveClick(event, index, option, setOption)} id={index} />
-                  ) : (
-                    ' '
-                  )
-                }
               />
-              {!!seriesItem && (
-                <SelectForm
-                  id={`${seriesItem.id}${index + 1}`}
-                  name={`${seriesItem.name}${index + 1}`}
-                  label={seriesItem.label}
-                  optionList={seriesItem.optionList}
-                  value={item[seriesItem.value]}
-                  onChange={event => handleSeriesChange(event, setOption)}
-                  disabledDefaultValue={seriesItem.disabledDefaultValue}
-                />
-              )}
               <Divider />
             </React.Fragment>
           ))}
+          {/*<SelectForm*/}
+          {/*  id="aggregation1"*/}
+          {/*  name="aggregation1"*/}
+          {/*  label="집계 방식"*/}
+          {/*  optionList={AGGREGATION_LIST}*/}
+          {/*  value={option.series.aggregation}*/}
+          {/*  onChange={event => handleSeriesChange(event, setOption)}*/}
+          {/*  disabledDefaultValue*/}
+          {/*/>*/}
         </ListItem>
         <ListItem>
           <ListItemText>범례 설정</ListItemText>
@@ -139,4 +130,4 @@ const RadarChartSetting = props => {
   );
 };
 
-export default RadarChartSetting;
+export default CandlestickChartSetting;

@@ -11,7 +11,7 @@ import componentService from '@/api/componentService';
 const title = '위젯 생성';
 const steps = ['데이터 선택', '위젯 타입 선택', '위젯 속성 설정'];
 
-function WidgetCreate(props) {
+function WidgetCreate() {
   const [activeStep, setActiveStep] = useState(0);
 
   const [componentList, setComponentList] = useState([]); // step 1
@@ -49,10 +49,16 @@ function WidgetCreate(props) {
     });
   };
 
-  const handleNext = event => {
+  const handleNext = (event, item) => {
     event.preventDefault();
     if (activeStep === steps.length - 1) {
       return;
+    }
+    if (activeStep === 0) {
+      setDataSet(item);
+    }
+    if (activeStep === 1) {
+      setWidgetType(item);
     }
     setActiveStep(prevState => prevState + 1);
   };
@@ -137,9 +143,14 @@ function WidgetCreate(props) {
         </Box>
 
         {activeStep === 0 ? (
-          <WidgetDataSelect setDataSet={setDataSet} />
+          <WidgetDataSelect setDataSet={setDataSet} handleNext={handleNext} />
         ) : activeStep === 1 ? (
-          <WidgetTypeSelect widgetType={widgetType} setWidgetType={setWidgetType} componentList={componentList} />
+          <WidgetTypeSelect
+            widgetType={widgetType}
+            setWidgetType={setWidgetType}
+            componentList={componentList}
+            handleNext={handleNext}
+          />
         ) : (
           <WidgetAttributeSelect dataSetId={dataSet} componentType={widgetType} />
         )}

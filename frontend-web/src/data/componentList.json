@@ -5,8 +5,19 @@
     "icon": null,
     "caption": "Score Board",
     "option": {
-      "header": { "title": "타이틀을 입력하세요", "fontSize": 20, "color": "#4A4A4A" },
-      "content": { "field": null, "aggregation": null, "fontSize": 20, "color": "#4A4A4A", "prefix": "", "suffix": "" }
+      "header": {
+        "title": "타이틀을 입력하세요",
+        "fontSize": 20,
+        "color": "#4A4A4A"
+      },
+      "content": {
+        "field": null,
+        "aggregation": null,
+        "fontSize": 20,
+        "color": "#4A4A4A",
+        "prefix": "",
+        "suffix": ""
+      }
     }
   },
   {
@@ -15,7 +26,9 @@
     "icon": null,
     "caption": "DataGrid",
     "option": {
-      "columns": []
+      "columns": [
+
+      ]
     }
   },
   {
@@ -195,7 +208,9 @@
       "title": "",
       "series": {
         "field": "",
-        "color": [],
+        "color": [
+
+        ],
         "aggregation": "sum",
         "label": ""
       },
@@ -211,10 +226,15 @@
       "title": "",
       "series": {
         "field": "",
-        "color": [],
+        "color": [
+
+        ],
         "aggregation": "sum",
         "label": "",
-        "radius": ["30%", "75%"]
+        "radius": [
+          "30%",
+          "75%"
+        ]
       },
       "legendPosition": ""
     }
@@ -228,10 +248,15 @@
       "title": "",
       "series": {
         "field": "",
-        "color": [],
+        "color": [
+
+        ],
         "aggregation": "sum",
         "label": "",
-        "radius": ["10%", "90%"]
+        "radius": [
+          "10%",
+          "90%"
+        ]
       },
       "legendPosition": ""
     }
@@ -282,6 +307,77 @@
         {
           "field": "",
           "color": "#5470c6",
+          "aggregation": "sum"
+        }
+      ],
+      "legendPosition": ""
+    }
+  },
+  {
+    "type": "CHART_TREEMAP",
+    "title": "트리맵 차트",
+    "category": "TREEMAP",
+    "icon": "icon/treemap-chart.png",
+    "caption": "Treemap Chart",
+    "option": {
+      "title": "",
+      "series": {
+        "field": "",
+        "color": [
+
+        ],
+        "aggregation": "sum",
+        "label": ""
+      },
+      "legendPosition": ""
+    }
+  },
+  {
+    "type ": "CHART_GAUGE",
+    "title": "게이지 차트",
+    "category": "GAUGE",
+    "icon": "icon/gauge-chart.png",
+    "caption": "Gauge Chart",
+    "option": {
+      "title": "",
+      "series": {
+        "field": "",
+        "color": [
+
+        ],
+        "aggregation": "sum",
+        "suffix": ""
+      }
+    }
+  },
+  {
+    "type": "CHART_CANDLESTICK",
+    "title": "캔들스틱 차트",
+    "category": "CANDLESTICK",
+    "icon": "icon/candlestick-chart.png",
+    "caption": "Candlestick Chart",
+    "option": {
+      "title": "",
+      "xField": "",
+      "series": [
+         {
+          "field": "",
+          "color": "#5470c6",
+          "aggregation": "sum"
+        },
+         {
+          "field": "",
+          "color": "#91cc75",
+          "aggregation": "sum"
+        },
+         {
+          "field": "",
+          "color": "#fac858",
+          "aggregation": "sum"
+        },
+        {
+          "field": "",
+          "color": "#ee6666",
           "aggregation": "sum"
         }
       ],

@@ -56,12 +56,11 @@ const RadarChart = props => {
       }
     });
 
-    console.log(getCenter(option.legendPosition).center);
     if (aggrData) {
       const op = {
         radar: {
           indicator: !!option.field ? aggrData.map(item => ({ name: item[option.field] })) : '',
-          center: getCenter(option.legendPosition).center,
+          center: getCenter(option.legendPosition),
         },
         series: [
           {

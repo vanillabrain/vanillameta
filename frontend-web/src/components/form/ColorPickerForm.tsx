@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { FormControl, FormLabel, IconButton, OutlinedInput, Popover, Stack, Typography } from '@mui/material';
+import React, { useState } from 'react';
+import { FormControl, IconButton, Popover } from '@mui/material';
 import CircleIcon from '@mui/icons-material/Circle';
 import { SketchPicker } from 'react-color';
 
 const ColorPickerForm = props => {
-  const { id, name, value, color, setOption, index, onChange } = props;
+  const { name, color, onChange } = props;
 
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
 

@@ -29,13 +29,13 @@ const formList = [
   { id: '5', label: 'Schema', name: 'userSchema' },
 ];
 
-function DataSource(props) {
+function DataSource() {
   const [isConnected, setIsConnected] = useState(false);
   const [dataType, setDataType] = useState(null);
 
   useEffect(() => {
     if (dataType) {
-      console.log('type:', typeList[dataType].title);
+      console.log('type:', dataType.title);
     }
   }, [dataType]);
 

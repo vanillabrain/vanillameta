@@ -55,7 +55,7 @@ const PieChart = props => {
             label: { show: !!option.series.label && true },
             smooth: true,
             data: getData(),
-            center: getCenter(option.legendPosition).center,
+            center: getCenter(option.legendPosition),
             ...seriesOp,
           },
         ],
