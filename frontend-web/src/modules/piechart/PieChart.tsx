@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { getCenter, getLegendOption } from '@/modules/utils/chartUtil';
+import { getAggregationDataForChart, getCenter, getLegendOption } from '@/modules/utils/chartUtil';
 
 const PieChart = props => {
   const { option, dataSet, seriesOp } = props;
@@ -39,26 +39,31 @@ const PieChart = props => {
   const createComponentOption = () => {
     let newOption = {};
 
-    const getData = () =>
-      dataSet.map(item => ({
-        value: item[option.series.field],
-        name: item[option.series.label],
-      }));
+    const newSeries = [];
+    let aggrData = [];
+
+    aggrData = getAggregationDataForChart(dataSet, option.series.label, option.series.field, option.series.aggregation);
+
+    if (option.series.label) {
+      const series = {
+        name: option.series.label,
+        data: aggrData.map(item => ({
+          value: item[option.series.field],
+          name: item[option.series.label],
+        })),
+        type: 'pie',
+        color: [...option.series.color],
+        label: { show: !!option.series.label && true },
+        center: getCenter(option.legendPosition),
+        ...seriesOp,
+      };
+      newSeries.push(series);
+    }
+
     if (dataSet) {
       const op = {
-        type: 'pie',
-        smooth: true,
         color: [...option.series.color],
-        series: [
-          {
-            type: 'pie',
-            label: { show: !!option.series.label && true },
-            smooth: true,
-            data: getData(),
-            center: getCenter(option.legendPosition),
-            ...seriesOp,
-          },
-        ],
+        series: newSeries,
         legend: getLegendOption(option.legendPosition),
       };
       newOption = { ...defaultComponentOption, ...op };

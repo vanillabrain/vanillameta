@@ -1,11 +1,9 @@
 import React, { useEffect } from 'react';
 import { Divider, Grid, List, ListItem, ListItemText, styled } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
-import ColorButtonForm from '@/components/form/ColorButtonForm';
 import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
-import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
-import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
-import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST, WIDGET_AGGREGATION } from '@/constant';
+import { handleChange } from '@/widget/utils/handler';
+import { AGGREGATION_LIST, COLUMN_TYPE } from '@/constant';
 import ColorFieldForm from '@/components/form/ColorFieldForm';
 
 const StyledList = styled(List)({
@@ -106,7 +104,7 @@ const TreemapChartSetting = props => {
             onChange={handleSeriesChange}
           />
         </ListItem>
-        <ListItem divider>
+        <ListItem>
           <ListItemText primary="항목 별 색상 설정" />
           {!!option.series.field &&
             option.series.color.map((item, index) => (
@@ -122,18 +120,6 @@ const TreemapChartSetting = props => {
                 <Divider />
               </React.Fragment>
             ))}
-        </ListItem>
-
-        <ListItem>
-          <ListItemText>범례 설정</ListItemText>
-          <SelectForm
-            id="legendPosition"
-            name="legendPosition"
-            label="위치"
-            optionList={LEGEND_LIST}
-            value={option.legendPosition}
-            onChange={event => handleChange(event, setOption)}
-          />
         </ListItem>
       </StyledList>
     </Grid>

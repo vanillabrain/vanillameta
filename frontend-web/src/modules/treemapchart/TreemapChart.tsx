@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { Box } from '@mui/material';
-import { getAggregationDataForChart, getCenter, getGridSize, getLegendOption } from '@/modules/utils/chartUtil';
+import { getAggregationDataForChart, getCenter } from '@/modules/utils/chartUtil';
 
 const TreemapChart = props => {
   const { option, dataSet, seriesOp } = props;
@@ -12,10 +12,6 @@ const TreemapChart = props => {
     grid: { top: 50, right: 50, bottom: 50, left: 50 },
     tooltip: {
       trigger: 'item',
-    },
-    legend: {
-      orient: 'vertical',
-      left: 'left',
     },
     series: [],
     emphasis: {
@@ -32,72 +28,34 @@ const TreemapChart = props => {
     setComponentOption(createComponentOption());
   }, [option, dataSet]);
 
-  /**
-   *
-   * 위젯옵션과 데이터로
-   * 컴포넌트에 맞는 형태로 생성
-   */
   const createComponentOption = () => {
     let newOption = {};
 
-    const getData = () =>
-      dataSet.map(item => ({
-        value: item[option.series.field],
-        name: item[option.series.label],
-      }));
+    const newSeries = [];
+    let aggrData = [];
+
+    aggrData = getAggregationDataForChart(dataSet, option.series.label, option.series.field, option.series.aggregation);
+
+    if (option.series.label) {
+      const series = {
+        name: option.series.label,
+        data: aggrData.map(item => ({
+          value: item[option.series.field],
+          name: item[option.series.label],
+        })),
+        type: 'treemap',
+        color: [...option.series.color],
+        label: { show: true },
+        center: getCenter(option.legendPosition),
+        ...seriesOp,
+      };
+      newSeries.push(series);
+    }
+
     if (dataSet) {
       const op = {
-        type: 'pie',
-        smooth: true,
         color: [...option.series.color],
-        // series: [
-        //   {
-        //     type: 'pie',
-        //     label: { show: !!option.series.label && true },
-        //     smooth: true,
-        //     data: getData(),
-        //     center: getCenter(option.legendPosition),
-        //     ...seriesOp,
-        //   },
-        // ],
-        series: [
-          {
-            type: 'treemap',
-            data: [
-              {
-                name: 'nodeA',
-                value: 20,
-                children: [
-                  {
-                    name: 'nodeAa',
-                    value: 4,
-                  },
-                  {
-                    name: 'nodeAb',
-                    value: 6,
-                  },
-                ],
-              },
-              {
-                name: 'nodeB',
-                value: 20,
-                children: [
-                  {
-                    name: 'nodeBa',
-                    value: 20,
-                    children: [
-                      {
-                        name: 'nodeBa1',
-                        value: 20,
-                      },
-                    ],
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-        legend: getLegendOption(option.legendPosition),
+        series: newSeries,
       };
       newOption = { ...defaultComponentOption, ...op };
     }
