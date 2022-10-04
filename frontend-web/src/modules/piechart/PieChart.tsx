@@ -3,7 +3,7 @@ import ReactECharts from 'echarts-for-react';
 import { getAggregationDataForChart, getCenter, getLegendOption } from '@/modules/utils/chartUtil';
 
 const PieChart = props => {
-  const { option, dataSet, seriesOp } = props;
+  const { option, dataSet, seriesOp, setDataLength } = props;
 
   const [componentOption, setComponentOption] = useState({});
 
@@ -27,8 +27,10 @@ const PieChart = props => {
   };
 
   useEffect(() => {
-    setComponentOption(defaultComponentOption);
-    setComponentOption(createComponentOption());
+    if (option && dataSet) {
+      const newOption = createComponentOption();
+      setComponentOption(newOption);
+    }
   }, [option, dataSet]);
 
   /**
@@ -36,15 +38,18 @@ const PieChart = props => {
    * 위젯옵션과 데이터로
    * 컴포넌트에 맞는 형태로 생성
    */
+
   const createComponentOption = () => {
     let newOption = {};
 
     const newSeries = [];
     let aggrData = [];
 
-    aggrData = getAggregationDataForChart(dataSet, option.series.label, option.series.field, option.series.aggregation);
-
     if (option.series.label) {
+      aggrData = getAggregationDataForChart(dataSet, option.series.label, option.series.field, option.series.aggregation);
+      setDataLength(aggrData.length);
+      console.log(aggrData);
+
       const series = {
         name: option.series.label,
         data: aggrData.map(item => ({
@@ -62,7 +67,6 @@ const PieChart = props => {
 
     if (dataSet) {
       const op = {
-        color: [...option.series.color],
         series: newSeries,
         legend: getLegendOption(option.legendPosition),
       };

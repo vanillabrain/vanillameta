@@ -39,6 +39,7 @@ function WidgetAttributeSelect(props) {
   const [data, setData] = useState(null);
   const [switchChart, setSwitchChart] = useState({ chart: undefined, chartSetting: undefined });
   const [spec, setSpec] = useState(null);
+  const [dataLength, setDataLength] = useState(null);
 
   const widgetTypeText = componentType.title;
 
@@ -61,14 +62,16 @@ function WidgetAttributeSelect(props) {
   useEffect(() => {
     if (option && data) {
       const ChartProps = {
-        option: option,
+        option,
         dataSet: data,
+        setDataLength,
       };
 
       const ChartSettingProps = {
-        option: option,
-        setOption: setOption,
-        spec: spec,
+        option,
+        setOption,
+        spec,
+        dataLength,
       };
 
       switch (componentType.type) {

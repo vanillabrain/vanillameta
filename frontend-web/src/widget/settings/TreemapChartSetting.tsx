@@ -5,6 +5,7 @@ import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
 import { handleChange } from '@/widget/utils/handler';
 import { AGGREGATION_LIST, COLUMN_TYPE } from '@/constant';
 import ColorFieldForm from '@/components/form/ColorFieldForm';
+import { getColorArr } from '@/modules/utils/chartUtil';
 
 const StyledList = styled(List)({
   position: 'relative',
@@ -30,32 +31,15 @@ const StyledList = styled(List)({
 });
 
 const TreemapChartSetting = props => {
-  const { option, setOption, spec } = props;
+  const { option, setOption, spec, dataLength } = props;
 
-  // props로부터 받기 ------------------------------------
-  const dataLength = 12; // color length
-  // ----------------------------------------------------
-
-  // color 생성
-  const getColor = () => {
-    const defaultColor = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc'];
-    if (!!option.series.field) {
-      return;
-    }
-    const colorArr = [];
-    // defaultColor의 배열을 돌면서 data의 길이만큼 요소를 순서대로 반환
-    for (let i = 0; i < dataLength; i++) {
-      colorArr.push(defaultColor[i % 9]);
-    }
+  useEffect(() => {
+    const colorArr = getColorArr(option.series.field, dataLength);
     setOption(prevState => ({
       ...prevState,
       series: { ...prevState.series, color: colorArr },
     }));
-  };
-
-  useEffect(() => {
-    getColor();
-  }, [option.series.field]);
+  }, [option.series.field, option.series.label, dataLength]);
 
   const handleSeriesChange = event => {
     setOption(prevState => ({
@@ -106,7 +90,7 @@ const TreemapChartSetting = props => {
         </ListItem>
         <ListItem>
           <ListItemText primary="항목 별 색상 설정" />
-          {!!option.series.field &&
+          {option.series.field &&
             option.series.color.map((item, index) => (
               <React.Fragment key={index}>
                 <ColorFieldForm

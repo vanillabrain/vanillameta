@@ -191,3 +191,18 @@ export const getAggregationDataForChart = (array, keys, variable, aggr = WIDGET_
   });
   return grouped;
 };
+
+/**
+ * field 갯수에 따라 color array 생성
+ * @param field
+ * @param length
+ */
+export const getColorArr = (field, length) => {
+  const defaultColor = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc'];
+  const colorArr = [];
+
+  for (let i = 0; i < length; i++) {
+    colorArr.push(defaultColor[i % 9]);
+  }
+  return colorArr;
+};
