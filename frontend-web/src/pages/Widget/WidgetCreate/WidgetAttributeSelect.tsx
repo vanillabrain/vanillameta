@@ -259,6 +259,13 @@ function WidgetAttributeSelect(props) {
             chartSetting: <TreemapChartSetting {...ChartSettingProps} />,
           });
           break;
+        case WIDGET_TYPE.CHART_SUNBURST:
+          setSwitchChart({
+            ...switchChart,
+            chart: <TreemapChart {...ChartProps} seriesOp={{ type: 'sunburst', label: { rotate: 'radial' } }} />,
+            chartSetting: <TreemapChartSetting {...ChartSettingProps} />,
+          });
+          break;
         case WIDGET_TYPE.CHART_GAUGE:
           setSwitchChart({
             ...switchChart,

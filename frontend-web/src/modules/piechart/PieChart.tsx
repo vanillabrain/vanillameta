@@ -48,7 +48,6 @@ const PieChart = props => {
     if (option.series.label) {
       aggrData = getAggregationDataForChart(dataSet, option.series.label, option.series.field, option.series.aggregation);
       setDataLength(aggrData.length);
-      console.log(aggrData);
 
       const series = {
         name: option.series.label,

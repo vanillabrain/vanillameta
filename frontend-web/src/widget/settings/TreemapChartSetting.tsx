@@ -5,7 +5,6 @@ import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
 import { handleChange } from '@/widget/utils/handler';
 import { AGGREGATION_LIST, COLUMN_TYPE } from '@/constant';
 import ColorFieldForm from '@/components/form/ColorFieldForm';
-import { getColorArr } from '@/modules/utils/chartUtil';
 
 const StyledList = styled(List)({
   position: 'relative',
@@ -34,7 +33,7 @@ const TreemapChartSetting = props => {
   const { option, setOption, spec, dataLength } = props;
 
   useEffect(() => {
-    const colorArr = getColorArr(option.series.field, dataLength);
+    const colorArr = ['#2F93C8', '#AEC48F', '#FFDB5C', '#F98862'];
     setOption(prevState => ({
       ...prevState,
       series: { ...prevState.series, color: colorArr },
@@ -89,21 +88,20 @@ const TreemapChartSetting = props => {
           />
         </ListItem>
         <ListItem>
-          <ListItemText primary="항목 별 색상 설정" />
-          {option.series.field &&
-            option.series.color.map((item, index) => (
-              <React.Fragment key={index}>
-                <ColorFieldForm
-                  id={`color${index + 1}`}
-                  name={`color${index + 1}`}
-                  value={option.series.color[index]}
-                  optionList={option}
-                  setOption={setOption}
-                  index={index}
-                />
-                <Divider />
-              </React.Fragment>
-            ))}
+          <ListItemText primary="색상 범위 설정" />
+          {option.series.color.map((item, index) => (
+            <React.Fragment key={index}>
+              <ColorFieldForm
+                id={`color${index + 1}`}
+                name={`color${index + 1}`}
+                value={option.series.color[index]}
+                optionList={option}
+                setOption={setOption}
+                index={index}
+              />
+              <Divider />
+            </React.Fragment>
+          ))}
         </ListItem>
       </StyledList>
     </Grid>

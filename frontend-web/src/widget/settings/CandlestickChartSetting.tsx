@@ -33,21 +33,6 @@ const CandlestickChartSetting = props => {
   const { option, setOption, spec } = props;
   const candlestickLabel = ['open', 'close', 'lowest', 'highest'];
 
-  const handleCandlestickChange = event => {
-    const key = event.target.name.slice(0, -1);
-    const index = Number(event.target.name.slice(-1)[0]) - 1;
-
-    setOption(prevState => {
-      const obj = { ...prevState };
-      obj.series.data.forEach((item, idx) => {
-        if (index === idx) {
-          item[key] = event.target.value;
-        }
-      });
-      return obj;
-    });
-  };
-
   return (
     <Grid item xs={10} md={4} lg={3} sx={{ display: 'flex', flexDirection: 'column' }}>
       <WidgetTitleForm value={option.title} onChange={event => handleChange(event, setOption)} />
@@ -78,17 +63,14 @@ const CandlestickChartSetting = props => {
                 valueField="columnType"
                 optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
                 value={option.series[index].field}
-                // onChange={event => handleCandlestickChange(event)}
                 onChange={event => handleSeriesChange(event, setOption)}
                 endButton={
                   <ColorPickerForm
                     name={`color${index + 1}`}
                     color={option.series[index].color}
-                    // onChange={event => handleCandlestickChange(event)}
                     index={index}
                     option={option}
                     setOption={setOption}
-                    // onChange={event => handleSeriesChange(event, setOption)}
                   />
                 }
               />
@@ -104,15 +86,6 @@ const CandlestickChartSetting = props => {
               <Divider />
             </React.Fragment>
           ))}
-          {/*<SelectForm*/}
-          {/*  id="aggregation1"*/}
-          {/*  name="aggregation1"*/}
-          {/*  label="집계 방식"*/}
-          {/*  optionList={AGGREGATION_LIST}*/}
-          {/*  value={option.series.aggregation}*/}
-          {/*  onChange={event => handleSeriesChange(event, setOption)}*/}
-          {/*  disabledDefaultValue*/}
-          {/*/>*/}
         </ListItem>
         <ListItem>
           <ListItemText>범례 설정</ListItemText>

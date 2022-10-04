@@ -89,7 +89,7 @@ const PieChartSetting = props => {
           />
         </ListItem>
         <ListItem divider>
-          <ListItemText primary="항목 별 색상 설정" />
+          <ListItemText primary="색상 항목 설정" />
           {option.series.field &&
             option.series.color.map((item, index) => (
               <React.Fragment key={index}>

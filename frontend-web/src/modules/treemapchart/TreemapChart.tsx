@@ -45,26 +45,44 @@ const TreemapChart = props => {
     if (option.series.label) {
       aggrData = getAggregationDataForChart(dataSet, option.series.label, option.series.field, option.series.aggregation);
       setDataLength(aggrData.length);
+      console.log(aggrData);
 
       const series = {
         name: option.series.label,
         data: aggrData.map((item, index) => ({
           value: item[option.series.field],
           name: item[option.series.label],
-          itemStyle: {
-            color: option.series.color[index],
-          },
+          // itemStyle: {
+          //   color: option.series.color[index],
+          // },
         })),
         type: 'treemap',
         ...seriesOp,
       };
-      console.log(series);
+
       newSeries.push(series);
     }
 
     if (dataSet) {
+      let minValue = 0;
+      let maxValue = 1;
+      if (aggrData.length) {
+        const arr = aggrData.map(item => item[option.series.field]);
+        minValue = Math.min(...arr);
+        maxValue = Math.max(...arr);
+      }
+      // console.log('minVal: ', minValue, 'maxVal: ', maxValue);
+
       const op = {
         series: newSeries,
+        visualMap: {
+          type: 'continuous',
+          min: minValue,
+          max: maxValue,
+          inRange: {
+            color: option.series.color.map(item => item),
+          },
+        },
       };
       newOption = { ...defaultComponentOption, ...op };
     }
