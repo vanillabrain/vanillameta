@@ -48,12 +48,14 @@ const TreemapChart = props => {
 
       const series = {
         name: option.series.label,
-        data: aggrData.map(item => ({
+        data: aggrData.map((item, index) => ({
           value: item[option.series.field],
           name: item[option.series.label],
+          itemStyle: {
+            color: option.series.color[index],
+          },
         })),
         type: 'treemap',
-        color: [...option.series.color],
         ...seriesOp,
       };
       console.log(series);
