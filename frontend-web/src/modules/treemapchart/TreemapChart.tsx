@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { Box } from '@mui/material';
-import { getAggregationDataForChart, getCenter, getGridSize, getLegendOption } from '@/modules/utils/chartUtil';
+import { getAggregationDataForChart } from '@/modules/utils/chartUtil';
 
 const TreemapChart = props => {
-  const { option, dataSet, seriesOp } = props;
+  const { option, dataSet, seriesOp, setDataLength } = props;
 
   const [componentOption, setComponentOption] = useState({});
 
@@ -12,10 +12,6 @@ const TreemapChart = props => {
     grid: { top: 50, right: 50, bottom: 50, left: 50 },
     tooltip: {
       trigger: 'item',
-    },
-    legend: {
-      orient: 'vertical',
-      left: 'left',
     },
     series: [],
     emphasis: {
@@ -28,8 +24,10 @@ const TreemapChart = props => {
   };
 
   useEffect(() => {
-    setComponentOption(defaultComponentOption);
-    setComponentOption(createComponentOption());
+    if (option && dataSet) {
+      const newOption = createComponentOption();
+      setComponentOption(newOption);
+    }
   }, [option, dataSet]);
 
   /**
@@ -37,67 +35,54 @@ const TreemapChart = props => {
    * 위젯옵션과 데이터로
    * 컴포넌트에 맞는 형태로 생성
    */
+
   const createComponentOption = () => {
     let newOption = {};
 
-    const getData = () =>
-      dataSet.map(item => ({
-        value: item[option.series.field],
-        name: item[option.series.label],
-      }));
+    const newSeries = [];
+    let aggrData = [];
+
+    if (option.series.label) {
+      aggrData = getAggregationDataForChart(dataSet, option.series.label, option.series.field, option.series.aggregation);
+      setDataLength(aggrData.length);
+      console.log(aggrData);
+
+      const series = {
+        name: option.series.label,
+        data: aggrData.map((item, index) => ({
+          value: item[option.series.field],
+          name: item[option.series.label],
+          // itemStyle: {
+          //   color: option.series.color[index],
+          // },
+        })),
+        type: 'treemap',
+        ...seriesOp,
+      };
+
+      newSeries.push(series);
+    }
+
     if (dataSet) {
+      let minValue = 0;
+      let maxValue = 1;
+      if (aggrData.length) {
+        const arr = aggrData.map(item => item[option.series.field]);
+        minValue = Math.min(...arr);
+        maxValue = Math.max(...arr);
+      }
+      // console.log('minVal: ', minValue, 'maxVal: ', maxValue);
+
       const op = {
-        type: 'pie',
-        smooth: true,
-        color: [...option.series.color],
-        // series: [
-        //   {
-        //     type: 'pie',
-        //     label: { show: !!option.series.label && true },
-        //     smooth: true,
-        //     data: getData(),
-        //     center: getCenter(option.legendPosition),
-        //     ...seriesOp,
-        //   },
-        // ],
-        series: [
-          {
-            type: 'treemap',
-            data: [
-              {
-                name: 'nodeA',
-                value: 20,
-                children: [
-                  {
-                    name: 'nodeAa',
-                    value: 4,
-                  },
-                  {
-                    name: 'nodeAb',
-                    value: 6,
-                  },
-                ],
-              },
-              {
-                name: 'nodeB',
-                value: 20,
-                children: [
-                  {
-                    name: 'nodeBa',
-                    value: 20,
-                    children: [
-                      {
-                        name: 'nodeBa1',
-                        value: 20,
-                      },
-                    ],
-                  },
-                ],
-              },
-            ],
+        series: newSeries,
+        visualMap: {
+          type: 'continuous',
+          min: minValue,
+          max: maxValue,
+          inRange: {
+            color: option.series.color.map(item => item),
           },
-        ],
-        legend: getLegendOption(option.legendPosition),
+        },
       };
       newOption = { ...defaultComponentOption, ...op };
     }

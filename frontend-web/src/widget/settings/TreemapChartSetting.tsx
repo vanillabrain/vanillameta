@@ -1,11 +1,9 @@
 import React, { useEffect } from 'react';
 import { Divider, Grid, List, ListItem, ListItemText, styled } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
-import ColorButtonForm from '@/components/form/ColorButtonForm';
 import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
-import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
-import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
-import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST, WIDGET_AGGREGATION } from '@/constant';
+import { handleChange } from '@/widget/utils/handler';
+import { AGGREGATION_LIST, COLUMN_TYPE } from '@/constant';
 import ColorFieldForm from '@/components/form/ColorFieldForm';
 
 const StyledList = styled(List)({
@@ -32,32 +30,15 @@ const StyledList = styled(List)({
 });
 
 const TreemapChartSetting = props => {
-  const { option, setOption, spec } = props;
+  const { option, setOption, spec, dataLength } = props;
 
-  // props로부터 받기 ------------------------------------
-  const dataLength = 12; // color length
-  // ----------------------------------------------------
-
-  // color 생성
-  const getColor = () => {
-    const defaultColor = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc'];
-    if (!!option.series.field) {
-      return;
-    }
-    const colorArr = [];
-    // defaultColor의 배열을 돌면서 data의 길이만큼 요소를 순서대로 반환
-    for (let i = 0; i < dataLength; i++) {
-      colorArr.push(defaultColor[i % 9]);
-    }
+  useEffect(() => {
+    const colorArr = ['#2F93C8', '#AEC48F', '#FFDB5C', '#F98862'];
     setOption(prevState => ({
       ...prevState,
       series: { ...prevState.series, color: colorArr },
     }));
-  };
-
-  useEffect(() => {
-    getColor();
-  }, [option.series.field]);
+  }, [option.series.field, option.series.label, dataLength]);
 
   const handleSeriesChange = event => {
     setOption(prevState => ({
@@ -106,34 +87,21 @@ const TreemapChartSetting = props => {
             onChange={handleSeriesChange}
           />
         </ListItem>
-        <ListItem divider>
-          <ListItemText primary="항목 별 색상 설정" />
-          {!!option.series.field &&
-            option.series.color.map((item, index) => (
-              <React.Fragment key={index}>
-                <ColorFieldForm
-                  id={`color${index + 1}`}
-                  name={`color${index + 1}`}
-                  value={option.series.color[index]}
-                  optionList={option}
-                  setOption={setOption}
-                  index={index}
-                />
-                <Divider />
-              </React.Fragment>
-            ))}
-        </ListItem>
-
         <ListItem>
-          <ListItemText>범례 설정</ListItemText>
-          <SelectForm
-            id="legendPosition"
-            name="legendPosition"
-            label="위치"
-            optionList={LEGEND_LIST}
-            value={option.legendPosition}
-            onChange={event => handleChange(event, setOption)}
-          />
+          <ListItemText primary="색상 범위 설정" />
+          {option.series.color.map((item, index) => (
+            <React.Fragment key={index}>
+              <ColorFieldForm
+                id={`color${index + 1}`}
+                name={`color${index + 1}`}
+                value={option.series.color[index]}
+                optionList={option}
+                setOption={setOption}
+                index={index}
+              />
+              <Divider />
+            </React.Fragment>
+          ))}
         </ListItem>
       </StyledList>
     </Grid>
