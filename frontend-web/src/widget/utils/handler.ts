@@ -11,8 +11,8 @@ export const handleSeriesChange = (event, setOption, prop = 'series') => {
 
     // onChange 일어난 요소 key와 index로 식별해서 value 주기
     obj[prop].forEach((item, idx) => {
-      console.log('item', item);
-      console.log('key: ', key, ', value: ', event.target.value);
+      // console.log('item', item);
+      // console.log('key: ', key, ', value: ', event.target.value);
       if (index === idx) {
         item[key] = event.target.value;
       }
@@ -24,10 +24,23 @@ export const handleSeriesChange = (event, setOption, prop = 'series') => {
 export const handleAddClick = (event, option, setOption, defaultSeries, prop = 'series') => {
   setOption(prevState => {
     const obj = { ...prevState };
-    const defaultColor = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc'];
+    const defaultColor = [
+      '#2870c5',
+      '#47a8ea',
+      '#4ecef6',
+      '#9e9e9f',
+      '#506175',
+      '#994ff6',
+      '#bf6fff',
+      '#fa5b5b',
+      '#fca136',
+      '#fccc25',
+      '#95ce5b',
+      '#2dab66',
+    ];
     const newItem = {
       ...defaultSeries,
-      color: defaultColor[option[prop].length % 9],
+      color: defaultColor[option[prop].length % 12],
     };
     obj[prop].push(newItem);
     return obj;

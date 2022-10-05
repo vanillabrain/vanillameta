@@ -1,26 +1,29 @@
 import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { Box } from '@mui/material';
-import { getAggregationDataForChart } from '@/modules/utils/chartUtil';
+import { getAggregationDataForChart, getCenter, getLegendOption } from '@/modules/utils/chartUtil';
 
-const TreemapChart = props => {
-  const { option, dataSet, seriesOp, setDataLength } = props;
+const FunnelChart = props => {
+  const { option, dataSet, axis = 'x', seriesOp, defaultOp, setDataLength } = props;
 
   const [componentOption, setComponentOption] = useState({});
 
   const defaultComponentOption = {
     grid: { top: 50, right: 50, bottom: 50, left: 50 },
-    tooltip: {
-      trigger: 'item',
+    tooltip: { trigger: 'item' },
+    toolbox: {
+      feature: {
+        dataView: { readOnly: false },
+        restore: {},
+        saveAsImage: {},
+      },
     },
     series: [],
     emphasis: {
-      itemStyle: {
-        shadowBlur: 10,
-        shadowOffsetX: 0,
-        shadowColor: 'rgba(0, 0, 0, 0.5)',
-      },
+      focus: 'series',
+      blurScope: 'coordinateSystem',
     },
+    ...defaultOp,
   };
 
   useEffect(() => {
@@ -35,7 +38,6 @@ const TreemapChart = props => {
    * 위젯옵션과 데이터로
    * 컴포넌트에 맞는 형태로 생성
    */
-
   const createComponentOption = () => {
     let newOption = {};
 
@@ -44,45 +46,27 @@ const TreemapChart = props => {
 
     if (option.series.name) {
       aggrData = getAggregationDataForChart(dataSet, option.series.name, option.series.field, option.series.aggregation);
-      setDataLength(aggrData.length);
-      // console.log(aggrData);
+      setDataLength(aggrData.length); // data 길이를 setting으로 전달해서 컬러 설정
 
       const series = {
         name: option.series.name,
-        data: aggrData.map((item, index) => ({
+        data: aggrData.map(item => ({
           value: item[option.series.field],
           name: item[option.series.name],
-          // itemStyle: {
-          //   color: option.series.color[index],
-          // },
         })),
-        type: 'treemap',
+        type: 'funnel',
+        color: [...option.series.color],
+        label: { show: !!option.series.name && true },
+        center: getCenter(option.legendPosition),
         ...seriesOp,
       };
-
       newSeries.push(series);
     }
 
     if (dataSet) {
-      let minValue = 0;
-      let maxValue = 1;
-      if (aggrData.length) {
-        const arr = aggrData.map(item => item[option.series.field]);
-        minValue = Math.min(...arr);
-        maxValue = Math.max(...arr);
-      }
-      // console.log('minVal: ', minValue, 'maxVal: ', maxValue);
-
       const op = {
         series: newSeries,
-        visualMap: {
-          type: 'continuous',
-          min: minValue,
-          max: maxValue,
-          inRange: {
-            color: option.series.color.map(item => item),
-          },
-        },
+        legend: getLegendOption(option.legendPosition),
       };
       newOption = { ...defaultComponentOption, ...op };
     }
@@ -101,4 +85,4 @@ const TreemapChart = props => {
   );
 };
 
-export default TreemapChart;
+export default FunnelChart;

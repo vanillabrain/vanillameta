@@ -39,7 +39,7 @@ const PieChartSetting = props => {
       ...prevState,
       series: { ...prevState.series, color: colorArr },
     }));
-  }, [option.series.field, option.series.label, dataLength]);
+  }, [option.series.field, option.series.name, dataLength]);
 
   const handleSeriesChange = event => {
     setOption(prevState => ({
@@ -78,13 +78,13 @@ const PieChartSetting = props => {
             disabledDefaultValue
           />
           <SelectForm
-            id="label"
-            name="label"
+            id="name"
+            name="name"
             label="이름"
             labelField="columnName"
             valueField="columnType"
             optionList={spec.map(item => item.columnName)}
-            value={option.series.label}
+            value={option.series.name}
             onChange={handleSeriesChange}
           />
         </ListItem>

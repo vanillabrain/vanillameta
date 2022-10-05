@@ -3,7 +3,7 @@ import { FormControl, FormLabel, Grid, List, ListItem, ListItemText, styled, Tex
 import SelectForm from '@/components/form/SelectForm';
 import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
 import ColorPickerForm from '@/components/form/ColorPickerForm';
-import { AGGREGATION_LIST } from '@/constant';
+import { AGGREGATION_LIST, COLUMN_TYPE } from '@/constant';
 
 const StyledList = styled(List)({
   position: 'relative',
@@ -30,13 +30,7 @@ const StyledList = styled(List)({
 const fontSizeList = [10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 40, 50, 60, 70, 80, 85, 90, 95, 100];
 
 const NumericBoardSetting = props => {
-  const { option, setOption, seriesItem } = props;
-
-  // props로부터 받기 ------------------------------------
-  const typeOption = { series: ['high', 'low', 'avg'], axis: ['name', 'color'] }; // series type
-  // ----------------------------------------------------
-
-  const legendList = { value: ['left', 'right', 'top', 'bottom'], label: ['왼쪽', '오른쪽', '위쪽', '아래쪽'] };
+  const { option, setOption, spec } = props;
 
   const handleChange = event => {
     console.log('event', event);
@@ -96,7 +90,9 @@ const NumericBoardSetting = props => {
             id="field"
             name="field"
             label="필드"
-            optionList={typeOption.series}
+            labelField="columnName"
+            valueField="columnType"
+            optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
             value={option.content.field}
             onChange={handleContentChange}
           />
@@ -107,6 +103,7 @@ const NumericBoardSetting = props => {
             optionList={AGGREGATION_LIST}
             value={option.content.aggregation}
             onChange={handleContentChange}
+            disabledDefaultValue
           />
           <SelectForm
             name="fontSize"

@@ -25,10 +25,14 @@ import RadarChart from '@/modules/radarchart/RadarChart';
 import RadarChartSetting from '@/widget/settings/RadarChartSetting';
 import TreemapChart from '@/modules/treemapchart/TreemapChart';
 import TreemapChartSetting from '@/widget/settings/TreemapChartSetting';
+import HeatmapChart from '@/modules/heatmapchart/HeatmapChart';
+import HeatmapChartSetting from '@/widget/settings/HeatmapChartSetting';
 import GaugeChart from '@/modules/gaugechart/GaugeChart';
 import GaugeChartSetting from '@/widget/settings/GaugeChartSetting';
 import CandlestickChart from '@/modules/candlestickchart/CandlestickChart';
 import CandlestickChartSetting from '@/widget/settings/CandlestickChartSetting';
+import FunnelChart from '@/modules/funnelchart/FunnelChart';
+import FunnelChartSetting from '@/widget/settings/FunnelChartSetting';
 
 function WidgetAttributeSelect(props) {
   const alert = useAlert();
@@ -259,6 +263,13 @@ function WidgetAttributeSelect(props) {
             chartSetting: <TreemapChartSetting {...ChartSettingProps} />,
           });
           break;
+        case WIDGET_TYPE.CHART_HEATMAP:
+          setSwitchChart({
+            ...switchChart,
+            chart: <HeatmapChart {...ChartProps} />,
+            chartSetting: <HeatmapChartSetting {...ChartSettingProps} />,
+          });
+          break;
         case WIDGET_TYPE.CHART_SUNBURST:
           setSwitchChart({
             ...switchChart,
@@ -278,6 +289,13 @@ function WidgetAttributeSelect(props) {
             ...switchChart,
             chart: <CandlestickChart {...ChartProps} />,
             chartSetting: <CandlestickChartSetting {...ChartSettingProps} />,
+          });
+          break;
+        case WIDGET_TYPE.CHART_FUNNEL:
+          setSwitchChart({
+            ...switchChart,
+            chart: <FunnelChart {...ChartProps} />,
+            chartSetting: <FunnelChartSetting {...ChartSettingProps} />,
           });
           break;
 

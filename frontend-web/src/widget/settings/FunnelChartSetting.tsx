@@ -3,7 +3,8 @@ import { Divider, Grid, List, ListItem, ListItemText, styled } from '@mui/materi
 import SelectForm from '@/components/form/SelectForm';
 import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
 import { handleChange } from '@/widget/utils/handler';
-import { AGGREGATION_LIST, COLUMN_TYPE } from '@/constant';
+import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST } from '@/constant';
+import { getColorArr } from '@/modules/utils/chartUtil';
 import ColorFieldForm from '@/components/form/ColorFieldForm';
 
 const StyledList = styled(List)({
@@ -29,16 +30,16 @@ const StyledList = styled(List)({
   },
 });
 
-const TreemapChartSetting = props => {
-  const { option, setOption, spec } = props;
+const FunnelChartSetting = props => {
+  const { option, setOption, listItem, spec, dataLength } = props;
 
   useEffect(() => {
-    const colorArr = ['#2F93C8', '#AEC48F', '#FFDB5C', '#F98862'];
+    const colorArr = getColorArr(option.series.field, dataLength);
     setOption(prevState => ({
       ...prevState,
       series: { ...prevState.series, color: colorArr },
     }));
-  }, [option.series.field, option.series.name]);
+  }, [option.series.field, option.series.name, dataLength]);
 
   const handleSeriesChange = event => {
     setOption(prevState => ({
@@ -87,25 +88,46 @@ const TreemapChartSetting = props => {
             onChange={handleSeriesChange}
           />
         </ListItem>
+        <ListItem divider>
+          <ListItemText primary="색상 항목 설정" />
+          {option.series.field &&
+            option.series.color.map((item, index) => (
+              <React.Fragment key={index}>
+                <ColorFieldForm
+                  id={`color${index + 1}`}
+                  name={`color${index + 1}`}
+                  value={option.series.color[index]}
+                  optionList={option}
+                  setOption={setOption}
+                  index={index}
+                />
+                <Divider />
+              </React.Fragment>
+            ))}
+        </ListItem>
+
+        {/* 추가되는 아이템 */}
+        {!!listItem && (
+          <ListItem divider>
+            <ListItemText primary={listItem.title} />
+            {listItem.children}
+          </ListItem>
+        )}
+
         <ListItem>
-          <ListItemText primary="색상 범위 설정" />
-          {option.series.color.map((item, index) => (
-            <React.Fragment key={index}>
-              <ColorFieldForm
-                id={`color${index + 1}`}
-                name={`color${index + 1}`}
-                value={option.series.color[index]}
-                optionList={option}
-                setOption={setOption}
-                index={index}
-              />
-              <Divider />
-            </React.Fragment>
-          ))}
+          <ListItemText>범례 설정</ListItemText>
+          <SelectForm
+            id="legendPosition"
+            name="legendPosition"
+            label="위치"
+            optionList={LEGEND_LIST}
+            value={option.legendPosition}
+            onChange={event => handleChange(event, setOption)}
+          />
         </ListItem>
       </StyledList>
     </Grid>
   );
 };
 
-export default TreemapChartSetting;
+export default FunnelChartSetting;

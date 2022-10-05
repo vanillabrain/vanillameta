@@ -29,7 +29,7 @@ const StyledList = styled(List)({
   },
 });
 
-const TreemapChartSetting = props => {
+const HeatmapChartSetting = props => {
   const { option, setOption, spec } = props;
 
   useEffect(() => {
@@ -108,4 +108,4 @@ const TreemapChartSetting = props => {
   );
 };
 
-export default TreemapChartSetting;
+export default HeatmapChartSetting;

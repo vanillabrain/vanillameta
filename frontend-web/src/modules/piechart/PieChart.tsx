@@ -26,7 +26,7 @@ const PieChart = props => {
     },
   };
 
-  console.log(option);
+  // console.log(option);
 
   useEffect(() => {
     if (option && dataSet) {
@@ -47,19 +47,19 @@ const PieChart = props => {
     const newSeries = [];
     let aggrData = [];
 
-    if (option.series.label) {
-      aggrData = getAggregationDataForChart(dataSet, option.series.label, option.series.field, option.series.aggregation);
-      setDataLength(aggrData.length);
+    if (option.series.name) {
+      aggrData = getAggregationDataForChart(dataSet, option.series.name, option.series.field, option.series.aggregation);
+      setDataLength(aggrData.length); // data 길이를 setting으로 전달해서 컬러 설정
 
       const series = {
-        name: option.series.label,
+        name: option.series.name,
         data: aggrData.map(item => ({
           value: item[option.series.field],
-          name: item[option.series.label],
+          name: item[option.series.name],
         })),
         type: 'pie',
         color: [...option.series.color],
-        label: { show: !!option.series.label && true },
+        label: { show: !!option.series.name && true },
         center: getCenter(option.legendPosition),
         ...seriesOp,
       };
