@@ -59,7 +59,6 @@ const GaugeChart = props => {
       newOption = { ...defaultComponentOption, ...op };
     }
 
-    console.log(newOption);
     return newOption;
   };
 

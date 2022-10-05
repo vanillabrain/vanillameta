@@ -39,7 +39,7 @@ const PieChartSetting = props => {
       ...prevState,
       series: { ...prevState.series, color: colorArr },
     }));
-  }, [option.series.field, option.series.label, dataLength]);
+  }, [option.series.field, option.series.name, dataLength]);
 
   const handleSeriesChange = event => {
     setOption(prevState => ({
@@ -69,6 +69,17 @@ const PieChartSetting = props => {
             onChange={handleSeriesChange}
           />
           <SelectForm
+            required={true}
+            id="name"
+            name="name"
+            label="이름"
+            labelField="columnName"
+            valueField="columnType"
+            optionList={spec.map(item => item.columnName)}
+            value={option.series.name}
+            onChange={handleSeriesChange}
+          />
+          <SelectForm
             id="aggregation"
             name="aggregation"
             label="집계 방식"
@@ -76,16 +87,6 @@ const PieChartSetting = props => {
             value={option.series.aggregation}
             onChange={handleSeriesChange}
             disabledDefaultValue
-          />
-          <SelectForm
-            id="label"
-            name="label"
-            label="이름"
-            labelField="columnName"
-            valueField="columnType"
-            optionList={spec.map(item => item.columnName)}
-            value={option.series.label}
-            onChange={handleSeriesChange}
           />
         </ListItem>
         <ListItem divider>

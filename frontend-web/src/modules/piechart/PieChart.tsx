@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { getAggregationDataForChart, getCenter, getLegendOption } from '@/modules/utils/chartUtil';
+import { getAggregationDataForChart, getCenter, getGridSize, getLegendOption } from '@/modules/utils/chartUtil';
 
 const PieChart = props => {
   const { option, dataSet, seriesOp, setDataLength } = props;
@@ -8,6 +8,13 @@ const PieChart = props => {
   const [componentOption, setComponentOption] = useState({});
 
   const defaultComponentOption = {
+    // toolbox: {
+    //   feature: {
+    //     dataView: { readOnly: false },
+    //     restore: {},
+    //     saveAsImage: {},
+    //   },
+    // },
     grid: { top: 50, right: 50, bottom: 50, left: 50 },
     tooltip: {
       trigger: 'item',
@@ -45,19 +52,19 @@ const PieChart = props => {
     const newSeries = [];
     let aggrData = [];
 
-    if (option.series.label) {
-      aggrData = getAggregationDataForChart(dataSet, option.series.label, option.series.field, option.series.aggregation);
-      setDataLength(aggrData.length);
+    if (option.series.name) {
+      aggrData = getAggregationDataForChart(dataSet, option.series.name, option.series.field, option.series.aggregation);
+      setDataLength(aggrData.length); // data 길이를 setting으로 전달해서 컬러 설정
 
       const series = {
-        name: option.series.label,
+        name: option.series.name,
         data: aggrData.map(item => ({
           value: item[option.series.field],
-          name: item[option.series.label],
+          name: item[option.series.name],
         })),
         type: 'pie',
         color: [...option.series.color],
-        label: { show: !!option.series.label && true },
+        label: { show: !!option.series.name && true },
         center: getCenter(option.legendPosition),
         ...seriesOp,
       };
@@ -67,6 +74,7 @@ const PieChart = props => {
     if (dataSet) {
       const op = {
         series: newSeries,
+        grid: getGridSize(option.legendPosition),
         legend: getLegendOption(option.legendPosition),
       };
       newOption = { ...defaultComponentOption, ...op };

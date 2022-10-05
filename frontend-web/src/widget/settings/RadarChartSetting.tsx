@@ -46,11 +46,11 @@ const RadarChartSetting = props => {
       <WidgetTitleForm value={option.title} onChange={event => handleChange(event, setOption)} />
       <StyledList>
         <ListItem divider>
-          <ListItemText primary={'축 설정'} sx={{ textTransform: 'uppercase' }} />
+          <ListItemText primary="카테고리 설정" sx={{ textTransform: 'uppercase' }} />
           <SelectForm
             id="field"
             name="field"
-            label="축 이름"
+            label="방사형 축"
             optionList={spec.map(item => item.columnName)}
             labelField="columnName"
             valueField="columnType"

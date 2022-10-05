@@ -2,7 +2,7 @@ import React from 'react';
 import { Divider, FormControl, FormLabel, Grid, List, ListItem, ListItemText, styled, TextField } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
-import { ALIGN_LIST, TABLE_ALIGN } from '@/constant';
+import { ALIGN_LIST, COLUMN_TYPE, TABLE_ALIGN } from '@/constant';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
 import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
 
@@ -30,11 +30,7 @@ const StyledList = styled(List)({
 });
 
 const TableBoardSetting = props => {
-  const { option, setOption, seriesItem } = props;
-
-  // props로부터 받기 ------------------------------------
-  const typeOption = { series: ['high', 'low', 'avg'], axis: ['name', 'color'] }; // series type
-  // ----------------------------------------------------
+  const { option, setOption, spec } = props;
 
   const defaultSeries = {
     name: '',
@@ -64,7 +60,9 @@ const TableBoardSetting = props => {
                 id={`name${index + 1}`}
                 name={`name${index + 1}`}
                 label={`필드 ${index + 1}`}
-                optionList={typeOption.series}
+                labelField="columnName"
+                valueField="columnType"
+                optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
                 value={item.name}
                 onChange={event => handleSeriesChange(event, setOption, 'columns')}
               />

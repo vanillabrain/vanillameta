@@ -4,7 +4,7 @@ import ReactECharts from 'echarts-for-react';
 import { getGridSize, getLegendOption } from '@/modules/utils/chartUtil';
 
 function BubbleChart(props) {
-  const { option, dataSet, seriesOp, defaultOp, createOp, ...rest } = props;
+  const { option, dataSet, seriesOp, defaultOp, createOp } = props;
 
   const [componentOption, setComponentOption] = useState({});
 
@@ -47,7 +47,7 @@ function BubbleChart(props) {
       if (item.xField || item.yField) {
         const series = {
           type: 'scatter',
-          name: item.name,
+          name: item.title,
           data: dataSet.map(dataItem => [dataItem[item.xField], dataItem[item.yField], dataItem[item.symbolSize], 'text']),
           symbolSize: function (data) {
             return Math.sqrt(data[2]);

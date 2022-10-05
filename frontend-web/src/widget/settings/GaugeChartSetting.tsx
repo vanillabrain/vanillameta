@@ -33,8 +33,6 @@ const StyledList = styled(List)({
 const GaugeChartSetting = props => {
   const { option, setOption, spec } = props;
 
-  console.log(option);
-
   return (
     <Grid item xs={10} md={4} lg={3} sx={{ display: 'flex', flexDirection: 'column' }}>
       <WidgetTitleForm value={option.title} onChange={event => handleChange(event, setOption)} />
@@ -62,7 +60,6 @@ const GaugeChartSetting = props => {
             }
           />
           <SelectForm
-            required={true}
             id="aggregation"
             name="aggregation"
             label="집계 방식"

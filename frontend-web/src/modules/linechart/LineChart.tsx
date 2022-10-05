@@ -60,11 +60,11 @@ const LineChart = props => {
       }
     });
 
-    if (aggrData) {
+    if (aggrData && option[axis + 'Field']) {
       const op = {
         [axis + 'Axis']: {
           type: 'category',
-          data: !!option[axis + 'Field'] ? aggrData.map(item => item[option[axis + 'Field']]) : '',
+          data: option[axis + 'Field'] ? aggrData.map(item => item[option[axis + 'Field']]) : '',
         },
         series: newSeries,
         grid: getGridSize(option.legendPosition),
@@ -75,7 +75,7 @@ const LineChart = props => {
       newOption = { ...defaultComponentOption, ...op };
     }
 
-    console.log(newOption);
+    // console.log(newOption);
     return newOption;
   };
 

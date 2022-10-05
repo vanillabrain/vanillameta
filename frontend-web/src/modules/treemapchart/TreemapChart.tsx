@@ -42,16 +42,16 @@ const TreemapChart = props => {
     const newSeries = [];
     let aggrData = [];
 
-    if (option.series.label) {
-      aggrData = getAggregationDataForChart(dataSet, option.series.label, option.series.field, option.series.aggregation);
+    if (option.series.name) {
+      aggrData = getAggregationDataForChart(dataSet, option.series.name, option.series.field, option.series.aggregation);
       setDataLength(aggrData.length);
-      console.log(aggrData);
+      // console.log(aggrData);
 
       const series = {
-        name: option.series.label,
+        name: option.series.name,
         data: aggrData.map((item, index) => ({
           value: item[option.series.field],
-          name: item[option.series.label],
+          name: item[option.series.name],
           // itemStyle: {
           //   color: option.series.color[index],
           // },

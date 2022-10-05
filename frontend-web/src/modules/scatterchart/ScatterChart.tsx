@@ -4,7 +4,7 @@ import ReactECharts from 'echarts-for-react';
 import { getGridSize, getLegendOption } from '@/modules/utils/chartUtil';
 
 function ScatterChart(props) {
-  const { option, dataSet, seriesOp, defaultOp, createOp, ...rest } = props;
+  const { option, dataSet, seriesOp, defaultOp, createOp } = props;
 
   const [componentOption, setComponentOption] = useState({});
 
@@ -43,11 +43,11 @@ function ScatterChart(props) {
 
     // series option에서 가져오기
     const newSeries = [];
-    option.series.forEach((item, index) => {
+    option.series.forEach(item => {
       if (item.xField || item.yField) {
         const series = {
           type: 'scatter',
-          name: item.name,
+          name: item.title,
           data: dataSet.map(dataItem => [dataItem[item.xField], dataItem[item.yField]]),
           symbolSize: item.symbolSize,
           color: item.color,

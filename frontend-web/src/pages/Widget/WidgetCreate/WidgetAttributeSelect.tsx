@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Grid } from '@mui/material';
+import { Grid, useMediaQuery, useTheme } from '@mui/material';
 import axios from 'axios';
 import { useAlert } from 'react-alert';
 
@@ -25,13 +25,20 @@ import RadarChart from '@/modules/radarchart/RadarChart';
 import RadarChartSetting from '@/widget/settings/RadarChartSetting';
 import TreemapChart from '@/modules/treemapchart/TreemapChart';
 import TreemapChartSetting from '@/widget/settings/TreemapChartSetting';
+import HeatmapChart from '@/modules/heatmapchart/HeatmapChart';
+import HeatmapChartSetting from '@/widget/settings/HeatmapChartSetting';
 import GaugeChart from '@/modules/gaugechart/GaugeChart';
 import GaugeChartSetting from '@/widget/settings/GaugeChartSetting';
 import CandlestickChart from '@/modules/candlestickchart/CandlestickChart';
 import CandlestickChartSetting from '@/widget/settings/CandlestickChartSetting';
+import useScrollTrigger from '@mui/material/useScrollTrigger';
 
 function WidgetAttributeSelect(props) {
   const alert = useAlert();
+  const theme = useTheme();
+  const matchesMd = useMediaQuery(theme.breakpoints.up('md'));
+  const matchesLg = useMediaQuery(theme.breakpoints.up('lg'));
+  const trigger = useScrollTrigger({ threshold: 300, disableHysteresis: true });
 
   const { dataSetId, componentType, prevOption } = props;
 
@@ -259,6 +266,13 @@ function WidgetAttributeSelect(props) {
             chartSetting: <TreemapChartSetting {...ChartSettingProps} />,
           });
           break;
+        case WIDGET_TYPE.CHART_HEATMAP:
+          setSwitchChart({
+            ...switchChart,
+            chart: <HeatmapChart {...ChartProps} />,
+            chartSetting: <HeatmapChartSetting {...ChartSettingProps} />,
+          });
+          break;
         case WIDGET_TYPE.CHART_SUNBURST:
           setSwitchChart({
             ...switchChart,
@@ -278,6 +292,26 @@ function WidgetAttributeSelect(props) {
             ...switchChart,
             chart: <CandlestickChart {...ChartProps} />,
             chartSetting: <CandlestickChartSetting {...ChartSettingProps} />,
+          });
+          break;
+        case WIDGET_TYPE.CHART_FUNNEL:
+          setSwitchChart({
+            ...switchChart,
+            chart: (
+              <PieChart
+                {...ChartProps}
+                seriesOp={{
+                  type: 'funnel',
+                  width: '70%',
+                  gap: 4,
+                  label: {
+                    show: option.series.name && true,
+                    position: 'inside',
+                  },
+                }}
+              />
+            ),
+            chartSetting: <PieChartSetting {...ChartSettingProps} />,
           });
           break;
 
@@ -323,7 +357,9 @@ function WidgetAttributeSelect(props) {
         sx={{ justifyContent: { xs: 'center', md: 'space-between' } }}
       >
         <Grid item xs={12} md={7.5} lg={8.5}>
-          <WidgetBox>{switchChart.chart}</WidgetBox>
+          <WidgetBox sx={matchesMd && trigger ? { position: 'fixed', top: 80, maxWidth: matchesLg ? '65%' : '57%' } : {}}>
+            {switchChart.chart}
+          </WidgetBox>
         </Grid>
         {switchChart.chartSetting}
       </Grid>

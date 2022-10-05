@@ -26,9 +26,7 @@
     "icon": null,
     "description": "DataGrid",
     "option": {
-      "columns": [
-
-      ]
+      "columns": []
     }
   },
   {
@@ -42,7 +40,7 @@
       "series": [
         {
           "field": "",
-          "color": "#5470c6",
+          "color": "#2870c5",
           "aggregation": "sum"
         }
       ],
@@ -60,7 +58,7 @@
       "series": [
         {
           "field": "",
-          "color": "#5470c6",
+          "color": "#2870c5",
           "aggregation": "sum"
         }
       ],
@@ -78,7 +76,7 @@
       "series": [
         {
           "field": "",
-          "color": "#5470c6",
+          "color": "#2870c5",
           "aggregation": "sum"
         }
       ],
@@ -96,7 +94,7 @@
       "series": [
         {
           "field": "",
-          "color": "#5470c6",
+          "color": "#2870c5",
           "aggregation": "sum"
         }
       ],
@@ -114,7 +112,7 @@
       "series": [
         {
           "field": "",
-          "color": "#5470c6",
+          "color": "#2870c5",
           "aggregation": "sum"
         }
       ],
@@ -132,7 +130,7 @@
       "series": [
         {
           "field": "",
-          "color": "#5470c6",
+          "color": "#2870c5",
           "aggregation": "sum"
         }
       ],
@@ -150,7 +148,7 @@
       "series": [
         {
           "field": "",
-          "color": "#5470c6",
+          "color": "#2870c5",
           "aggregation": "sum"
         }
       ],
@@ -168,7 +166,7 @@
       "series": [
         {
           "field": "",
-          "color": "#5470c6",
+          "color": "#2870c5",
           "aggregation": "sum"
         }
       ],
@@ -177,21 +175,22 @@
   },
   {
     "type": "CHART_MIXED_LINE_BAR",
-    "title": "복합 차트",
+    "title": "복합형 차트",
     "icon": "icon/mixed-chart.png",
     "description": "Mixed Chart",
     "option": {
+      "title": "",
       "xField": "",
       "series": [
         {
           "field": "",
-          "color": "#5470c6",
+          "color": "#2870c5",
           "aggregation": "sum",
           "type": "line"
         },
         {
           "field": "",
-          "color": "#91cc75",
+          "color": "#47a8ea",
           "aggregation": "sum",
           "type": "bar"
         }
@@ -208,11 +207,9 @@
       "title": "",
       "series": {
         "field": "",
-        "color": [
-
-        ],
+        "color": [],
         "aggregation": "sum",
-        "label": ""
+        "name": ""
       },
       "legendPosition": ""
     }
@@ -226,11 +223,9 @@
       "title": "",
       "series": {
         "field": "",
-        "color": [
-
-        ],
+        "color": [],
         "aggregation": "sum",
-        "label": "",
+        "name": "",
         "radius": [
           "30%",
           "75%"
@@ -248,15 +243,30 @@
       "title": "",
       "series": {
         "field": "",
-        "color": [
-
-        ],
+        "color": [],
         "aggregation": "sum",
-        "label": "",
+        "name": "",
         "radius": [
           "10%",
           "90%"
         ]
+      },
+      "legendPosition": ""
+    }
+  },
+  {
+    "type": "CHART_FUNNEL",
+    "title": "깔때기형 차트",
+    "category": "FUNNEL",
+    "icon": "icon/funnel-chart.png",
+    "description": "Funnel Chart",
+    "option": {
+      "title": "",
+      "series": {
+        "field": "",
+        "color": [],
+        "aggregation": "sum",
+        "name": ""
       },
       "legendPosition": ""
     }
@@ -267,12 +277,14 @@
     "icon": "icon/scatter-chart.png",
     "description": "Scatter Chart",
     "option": {
+      "title": "",
       "series": [
         {
+          "title": "",
           "xField": "",
           "yField": "",
           "symbolSize": "20",
-          "color": "#5470c6"
+          "color": "#2870c5"
         }
       ],
       "legendPosition": ""
@@ -284,12 +296,14 @@
     "icon": "icon/bubble-chart.png",
     "description": "Bubble Chart",
     "option": {
+      "title": "",
       "series": [
         {
+          "title": "",
           "xField": "",
           "yField": "",
           "symbolSize": "",
-          "color": "#5470c6"
+          "color": "#2870c5"
         }
       ],
       "legendPosition": ""
@@ -306,7 +320,7 @@
       "series": [
         {
           "field": "",
-          "color": "#5470c6",
+          "color": "#2870c5",
           "aggregation": "sum"
         }
       ],
@@ -323,11 +337,9 @@
       "title": "",
       "series": {
         "field": "",
-        "color": [
-
-        ],
+        "color": ["#2F93C8", "AEC48F", "#FFDB5C", "#F98862"],
         "aggregation": "sum",
-        "label": ""
+        "name": ""
       }
     }
   },
@@ -341,17 +353,31 @@
       "title": "",
       "series": {
         "field": "",
-        "color": [
-
-        ],
+        "color": ["#2F93C8", "AEC48F", "#FFDB5C", "#F98862"],
         "aggregation": "sum",
-        "label": ""
+        "name": ""
+      }
+    }
+  },
+  {
+    "type": "CHART_HEATMAP",
+    "title": "히트맵 차트",
+    "category": "HEATMAP",
+    "icon": "icon/heatmap-chart.svg",
+    "description": "Heatmap Chart",
+    "option": {
+      "title": "",
+      "series": {
+        "field": "",
+        "color": ["#2F93C8", "AEC48F", "#FFDB5C", "#F98862"],
+        "aggregation": "sum",
+        "name": ""
       }
     }
   },
   {
     "type ": "CHART_GAUGE",
-    "title": "게이지 차트",
+    "title": "계기판 차트",
     "category": "GAUGE",
     "icon": "icon/gauge-chart.png",
     "description": "Gauge Chart",
@@ -359,9 +385,7 @@
       "title": "",
       "series": {
         "field": "",
-        "color": [
-
-        ],
+        "color": "#2870c5",
         "aggregation": "sum",
         "suffix": ""
       }
@@ -379,22 +403,22 @@
       "series": [
          {
           "field": "",
-          "color": "#5470c6",
+          "color": "#FA5A5A",
           "aggregation": "sum"
         },
          {
           "field": "",
-          "color": "#91cc75",
+          "color": "#2870C4",
           "aggregation": "sum"
         },
          {
           "field": "",
-          "color": "#fac858",
+          "color": "#E03B3B",
           "aggregation": "sum"
         },
         {
           "field": "",
-          "color": "#ee6666",
+          "color": "#215DA3",
           "aggregation": "sum"
         }
       ],
