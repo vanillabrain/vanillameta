@@ -75,7 +75,7 @@ const LineChart = props => {
       newOption = { ...defaultComponentOption, ...op };
     }
 
-    console.log(newOption);
+    // console.log(newOption);
     return newOption;
   };
 

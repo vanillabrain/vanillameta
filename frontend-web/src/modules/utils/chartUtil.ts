@@ -215,7 +215,7 @@ export const getColorArr = (field, length) => {
   const colorArr = [];
 
   for (let i = 0; i < length; i++) {
-    colorArr.push(defaultColor[i % 9]);
+    colorArr.push(defaultColor[i % 12]);
   }
   return colorArr;
 };

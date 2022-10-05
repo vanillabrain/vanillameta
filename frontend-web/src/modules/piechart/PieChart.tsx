@@ -26,6 +26,8 @@ const PieChart = props => {
     },
   };
 
+  console.log(option);
+
   useEffect(() => {
     if (option && dataSet) {
       const newOption = createComponentOption();
