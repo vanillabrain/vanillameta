@@ -198,7 +198,20 @@ export const getAggregationDataForChart = (array, keys, variable, aggr = WIDGET_
  * @param length
  */
 export const getColorArr = (field, length) => {
-  const defaultColor = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc'];
+  const defaultColor = [
+    '#2870c5',
+    '#47a8ea',
+    '#4ecef6',
+    '#9e9e9f',
+    '#506175',
+    '#994ff6',
+    '#bf6fff',
+    '#fa5b5b',
+    '#fca136',
+    '#fccc25',
+    '#95ce5b',
+    '#2dab66',
+  ];
   const colorArr = [];
 
   for (let i = 0; i < length; i++) {
