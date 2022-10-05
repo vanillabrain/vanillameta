@@ -69,15 +69,7 @@ const PieChartSetting = props => {
             onChange={handleSeriesChange}
           />
           <SelectForm
-            id="aggregation"
-            name="aggregation"
-            label="집계 방식"
-            optionList={AGGREGATION_LIST}
-            value={option.series.aggregation}
-            onChange={handleSeriesChange}
-            disabledDefaultValue
-          />
-          <SelectForm
+            required={true}
             id="name"
             name="name"
             label="이름"
@@ -86,6 +78,15 @@ const PieChartSetting = props => {
             optionList={spec.map(item => item.columnName)}
             value={option.series.name}
             onChange={handleSeriesChange}
+          />
+          <SelectForm
+            id="aggregation"
+            name="aggregation"
+            label="집계 방식"
+            optionList={AGGREGATION_LIST}
+            value={option.series.aggregation}
+            onChange={handleSeriesChange}
+            disabledDefaultValue
           />
         </ListItem>
         <ListItem divider>

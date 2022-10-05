@@ -64,7 +64,7 @@ const CandlestickChart = props => {
       const op = {
         xAxis: {
           type: 'category',
-          data: !!option.xField ? aggrData.map(item => item[option.xField]) : '',
+          data: option.xField ? aggrData.map(item => item[option.xField]) : '',
           boundaryGap: false,
           axisLine: { onZero: false },
           splitLine: { show: false },
@@ -96,7 +96,6 @@ const CandlestickChart = props => {
 
       newOption = { ...defaultComponentOption, ...op };
     }
-
     // console.log(newOption);
     return newOption;
   };

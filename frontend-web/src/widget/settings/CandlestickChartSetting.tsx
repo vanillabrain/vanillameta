@@ -38,8 +38,9 @@ const CandlestickChartSetting = props => {
       <WidgetTitleForm value={option.title} onChange={event => handleChange(event, setOption)} />
       <StyledList>
         <ListItem divider>
-          <ListItemText primary="X축 설정" sx={{ textTransform: 'uppercase' }} />
+          <ListItemText primary="카테고리 설정" sx={{ textTransform: 'uppercase' }} />
           <SelectForm
+            required={true}
             id="xField"
             name="xField"
             label="x축"
@@ -71,6 +72,7 @@ const CandlestickChartSetting = props => {
                     index={index}
                     option={option}
                     setOption={setOption}
+                    onChange={event => handleSeriesChange(event, setOption)}
                   />
                 }
               />

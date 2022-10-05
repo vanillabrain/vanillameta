@@ -62,7 +62,7 @@ const LineChartSetting = props => {
               <TextFieldForm
                 id={`title${index + 1}`}
                 name={`title${index + 1}`}
-                label={`필드 ${index + 1} 이름`}
+                label={`시리즈 ${index + 1} 이름`}
                 value={item.title}
                 onChange={event => handleSeriesChange(event, setOption)}
                 endButton={<ColorButtonForm index={index} option={option} setOption={setOption} />}
@@ -71,7 +71,7 @@ const LineChartSetting = props => {
                 required={true}
                 id={`xField${index + 1}`}
                 name={`xField${index + 1}`}
-                label="X축"
+                label="X 필드"
                 labelField="columnName"
                 valueField="columnType"
                 optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
@@ -82,7 +82,7 @@ const LineChartSetting = props => {
                 required={true}
                 id={`yField${index + 1}`}
                 name={`yField${index + 1}`}
-                label="Y축"
+                label="Y 필드"
                 labelField="columnName"
                 valueField="columnType"
                 optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}

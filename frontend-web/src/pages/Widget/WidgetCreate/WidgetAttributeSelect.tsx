@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Grid } from '@mui/material';
+import { Grid, useMediaQuery, useTheme } from '@mui/material';
 import axios from 'axios';
 import { useAlert } from 'react-alert';
 
@@ -31,11 +31,14 @@ import GaugeChart from '@/modules/gaugechart/GaugeChart';
 import GaugeChartSetting from '@/widget/settings/GaugeChartSetting';
 import CandlestickChart from '@/modules/candlestickchart/CandlestickChart';
 import CandlestickChartSetting from '@/widget/settings/CandlestickChartSetting';
-import FunnelChart from '@/modules/funnelchart/FunnelChart';
-import FunnelChartSetting from '@/widget/settings/FunnelChartSetting';
+import useScrollTrigger from '@mui/material/useScrollTrigger';
 
 function WidgetAttributeSelect(props) {
   const alert = useAlert();
+  const theme = useTheme();
+  const matchesMd = useMediaQuery(theme.breakpoints.up('md'));
+  const matchesLg = useMediaQuery(theme.breakpoints.up('lg'));
+  const trigger = useScrollTrigger({ threshold: 300, disableHysteresis: true });
 
   const { dataSetId, componentType, prevOption } = props;
 
@@ -294,8 +297,21 @@ function WidgetAttributeSelect(props) {
         case WIDGET_TYPE.CHART_FUNNEL:
           setSwitchChart({
             ...switchChart,
-            chart: <FunnelChart {...ChartProps} />,
-            chartSetting: <FunnelChartSetting {...ChartSettingProps} />,
+            chart: (
+              <PieChart
+                {...ChartProps}
+                seriesOp={{
+                  type: 'funnel',
+                  width: '70%',
+                  gap: 4,
+                  label: {
+                    show: option.series.name && true,
+                    position: 'inside',
+                  },
+                }}
+              />
+            ),
+            chartSetting: <PieChartSetting {...ChartSettingProps} />,
           });
           break;
 
@@ -341,7 +357,9 @@ function WidgetAttributeSelect(props) {
         sx={{ justifyContent: { xs: 'center', md: 'space-between' } }}
       >
         <Grid item xs={12} md={7.5} lg={8.5}>
-          <WidgetBox>{switchChart.chart}</WidgetBox>
+          <WidgetBox sx={matchesMd && trigger ? { position: 'fixed', top: 80, maxWidth: matchesLg ? '65%' : '57%' } : {}}>
+            {switchChart.chart}
+          </WidgetBox>
         </Grid>
         {switchChart.chartSetting}
       </Grid>

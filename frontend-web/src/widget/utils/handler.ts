@@ -2,22 +2,37 @@ export const handleChange = (event, setOption) => {
   setOption(prevState => ({ ...prevState, [event.target.name]: event.target.value }));
 };
 
-export const handleSeriesChange = (event, setOption, prop = 'series') => {
-  const key = event.target.name.slice(0, -1);
-  const index = Number(event.target.name.slice(-1)[0]) - 1;
+export const handleSeriesChange = (event, setOption, prop = 'series', innerProp = undefined) => {
+  let key, index;
+
+  if (!isNaN(event.target.name.slice(-1))) {
+    // e.t.name에 숫자가 붙어 있을 경우
+    key = event.target.name.slice(0, -1);
+    index = Number(event.target.name.slice(-1)[0]) - 1;
+  } else {
+    key = event.target.name;
+    index = 0;
+  }
 
   setOption(prevState => {
     const obj = { ...prevState };
 
-    // onChange 일어난 요소 key와 index로 식별해서 value 주기
-    obj[prop].forEach((item, idx) => {
-      // console.log('item', item);
-      // console.log('key: ', key, ', value: ', event.target.value);
-      if (index === idx) {
-        item[key] = event.target.value;
-      }
-    });
-    return obj;
+    if (Array.isArray(obj[prop])) {
+      // onChange 일어난 요소 key와 index로 식별해서 value 주기
+      obj[prop].forEach((item, idx) => {
+        // console.log('item', item);
+        console.log('key: ', key, ', value: ', event.target.value);
+        if (index === idx) {
+          item[key] = event.target.value;
+        }
+      });
+      return obj;
+    }
+
+    if (obj[prop] instanceof Object) {
+      obj[prop][innerProp] = event.target.value;
+      return obj;
+    }
   });
 };
 

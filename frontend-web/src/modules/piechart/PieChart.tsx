@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { getAggregationDataForChart, getCenter, getLegendOption } from '@/modules/utils/chartUtil';
+import { getAggregationDataForChart, getCenter, getGridSize, getLegendOption } from '@/modules/utils/chartUtil';
 
 const PieChart = props => {
   const { option, dataSet, seriesOp, setDataLength } = props;
@@ -8,6 +8,13 @@ const PieChart = props => {
   const [componentOption, setComponentOption] = useState({});
 
   const defaultComponentOption = {
+    // toolbox: {
+    //   feature: {
+    //     dataView: { readOnly: false },
+    //     restore: {},
+    //     saveAsImage: {},
+    //   },
+    // },
     grid: { top: 50, right: 50, bottom: 50, left: 50 },
     tooltip: {
       trigger: 'item',
@@ -25,8 +32,6 @@ const PieChart = props => {
       },
     },
   };
-
-  // console.log(option);
 
   useEffect(() => {
     if (option && dataSet) {
@@ -69,6 +74,7 @@ const PieChart = props => {
     if (dataSet) {
       const op = {
         series: newSeries,
+        grid: getGridSize(option.legendPosition),
         legend: getLegendOption(option.legendPosition),
       };
       newOption = { ...defaultComponentOption, ...op };

@@ -60,7 +60,6 @@ const GaugeChartSetting = props => {
             }
           />
           <SelectForm
-            required={true}
             id="aggregation"
             name="aggregation"
             label="집계 방식"
