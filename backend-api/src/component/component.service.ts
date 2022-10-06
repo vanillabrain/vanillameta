@@ -10,7 +10,8 @@ import {UpdateComponentDto} from "./dto/update-component.dto";
 export class ComponentService {
     constructor(
         @InjectRepository(Component)
-        private componentRepository: Repository<Component>) {
+        private componentRepository: Repository<Component>
+    ) {
     }
 
     async multipleCreate(createComponents: CreateComponentDto[]) {

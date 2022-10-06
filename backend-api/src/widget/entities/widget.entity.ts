@@ -70,4 +70,7 @@ export class Widget extends BaseEntity {
     // )
     // widgetView!: WidgetView[]
 
+    // static toDto(CreateWidgetDto: CreateWidgetDto) {
+    //
+    // }
 }

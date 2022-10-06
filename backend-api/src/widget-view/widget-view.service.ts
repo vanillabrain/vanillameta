@@ -21,9 +21,18 @@ export class WidgetViewService {
 
     }
 
+    async widgetcreate(createWidgetView: number) {
+
+        const saveObj: CreateWidgetViewDto = new CreateWidgetViewDto();
+        saveObj.databaseId = createWidgetView;
+        saveObj.query = 'SELECT * FROM widget_view';
+        return await this.widgetViewRepository.save(saveObj)
+
+    }
+
     async findAll() {
 
-        return await this.widgetViewRepository.find();
+        return JSON.stringify(await this.widgetViewRepository.find());
     }
 
     async findOne(id: number) {
@@ -53,7 +62,7 @@ export class WidgetViewService {
         if (!find_widget_view) {
             return 'No exist'
         } else {
-            await this.widgetViewRepository.delete(find_widget_view)
+            await this.widgetViewRepository.delete(find_widget_view.id)
         }
 
         return `This action removes a #${id} widgetView`;

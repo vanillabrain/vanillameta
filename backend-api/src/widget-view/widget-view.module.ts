@@ -7,6 +7,7 @@ import {WidgetView} from "./entities/widget-view.entity";
 @Module({
   imports: [TypeOrmModule.forFeature([WidgetView])],
   controllers: [WidgetViewController],
-  providers: [WidgetViewService]
+  providers: [WidgetViewService, WidgetViewController],
+  exports: [WidgetViewController]
 })
 export class WidgetViewModule {}

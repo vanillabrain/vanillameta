@@ -41,19 +41,18 @@ export class DatasetService {
         if (!find_dataset) {
             return 'No exist widget'
         } else {
-            const updateObj: UpdateDatasetDto = new UpdateDatasetDto();
 
             if (updateDataset.databaseId) {
-                updateObj.databaseId = updateDataset.databaseId
+                find_dataset.databaseId = updateDataset.databaseId
             }
             if (updateDataset.title) {
-                updateObj.title = updateDataset.title
+                find_dataset.title = updateDataset.title
             }
             if (updateDataset.query) {
-                updateObj.query = updateDataset.query
+                find_dataset.query = updateDataset.query
             }
 
-            await this.datasetRepository.save(updateObj)
+            await this.datasetRepository.save(find_dataset)
             return `This action updates a #${id} dataset`;
         }
 

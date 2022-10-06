@@ -5,7 +5,7 @@ import {Repository} from 'typeorm';
 import {Widget} from './entities/widget.entity';
 import {InjectRepository} from '@nestjs/typeorm';
 import {DatasetType} from '../common/enum/dataset-type.enum';
-import axios from "axios";
+import {WidgetViewController} from "../widget-view/widget-view.controller";
 
 
 @Injectable()
@@ -13,25 +13,11 @@ export class WidgetService {
     constructor(
         @InjectRepository(Widget)
         private widgetRepository: Repository<Widget>,
+        private widgetViewController: WidgetViewController
     ) {
     }
 
     async create(createWidget: CreateWidgetDto) {
-        // const find_widget = await this.widgetRepository.findOne({where: { title: createWidgetDto.title }})
-        // if(find_widget){
-        //   return 'exist same widget'
-        // } else {
-        // await this.widgetRepository.save({
-        //   title: body.title,
-        //   description: body.description,
-        //   componentId: body.componentId,
-        //   datasetType: body.datasetType,
-        //   datasetId: body.datasetId,
-        //   option: JSON.stringify(body.option),
-        //   delYn: body.delYn
-        // })
-        // }
-
         if (
             createWidget.datasetType === DatasetType.WIDGET &&
             createWidget.tableName.length <= 0
@@ -51,21 +37,14 @@ export class WidgetService {
 
         // todo:: 테이블 선택해서 생성할 경우(DatasetType : WIDGET), 위젯 뷰 아이템을 추가하고 추가된 id값을 넣어줘야 한다.
         // todo:: 데이터셋 선택해서 생성할 경우 그대로 insert(DatasetType : DATASET)
-        const find_widget = await this.widgetRepository.findOne({where: {datasetId: createWidget.datasetId}})
 
-        createWidget.option = JSON.stringify(createWidget.option);
-        const url = process.env.DB_HOTS
-        const test_url = 'http://localhost:4000/widget-view'
-        const res = await axios.post(test_url, {
-            databaseId: createWidget.databaseId
-        })
-
-
+        const res = await this.widgetViewController.widgetcreate(createWidget.databaseId)
         const saveObj: CreateWidgetDto = new CreateWidgetDto();
+
         saveObj.componentId = createWidget.componentId;
         saveObj.datasetType = createWidget.datasetType;
-        saveObj.option = createWidget.option;
-        saveObj.widgetViewId = res.data.id;
+        saveObj.option = JSON.stringify(createWidget.option);
+        saveObj.widgetViewId = res.id
 
         if (createWidget.title) {
             saveObj.title = createWidget.title
@@ -85,23 +64,25 @@ export class WidgetService {
         if (createWidget.databaseId) {
             saveObj.databaseId = createWidget.databaseId;
         } else {
-            saveObj.databaseId = res.data.id;
+            // saveObj.databaseId = res.data.id;
         }
 
 
         await this.widgetRepository.save(saveObj)
         return 'This action adds a new widget';
-
-
     }
 
     async findAll() {
         const find_all = await this.widgetRepository.find();
+        find_all.forEach(el => {
+            el.option = JSON.parse(el.option)
+        })
         return find_all;
     }
 
     async findOne(id: number) {
         const find_widget = await this.widgetRepository.findOne({where: {id: id}});
+        find_widget.option = JSON.parse(find_widget.option)
         return find_widget;
     }
 
@@ -110,22 +91,17 @@ export class WidgetService {
         if (!find_widget) {
             return 'No exist widget';
         } else {
-            const updateObj: UpdateWidgetDto = new UpdateWidgetDto();
 
-            updateObj.title = updateWidget.title;
-            updateObj.componentId = updateWidget.componentId;
-            updateObj.datasetType = updateWidget.datasetType;
-            updateObj.datasetId = updateWidget.datasetId;
-            updateObj.option = JSON.stringify(updateWidget.option)
+            find_widget.datasetType = updateWidget.datasetType;
+            find_widget.datasetId = updateWidget.datasetId;
+            find_widget.option = JSON.stringify(updateWidget.option);
+
+            if (updateWidget.delYn) { find_widget.delYn = updateWidget.delYn };
+            if (updateWidget.title) { find_widget.title = updateWidget.title };
+            if (updateWidget.componentId) { find_widget.componentId = updateWidget.componentId };
 
 
-            if (updateWidget.delYn) {
-                updateObj.delYn = updateWidget.delYn
-            }
-
-            // find_widget.widgetViewId = body.widgetViewId;
-
-            await this.widgetRepository.save(updateObj);
+            await this.widgetRepository.save(find_widget);
 
             return `This action updates a #${id} widget`;
         }
@@ -137,6 +113,7 @@ export class WidgetService {
         if (!find_widget) {
             return 'No exist'
         } else {
+            await this.widgetViewController.remove(String(find_widget.widgetViewId))
             await this.widgetRepository.delete(find_widget.id)
         }
         return `This action removes a #${id} widget`;

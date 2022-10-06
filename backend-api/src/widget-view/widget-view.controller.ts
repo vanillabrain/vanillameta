@@ -12,6 +12,11 @@ export class WidgetViewController {
     return this.widgetViewService.create(createWidgetViewDto);
   }
 
+  @Post('/widgetcreate')
+  widgetcreate(@Body() data: number) {
+    return this.widgetViewService.widgetcreate(data);
+  }
+
   @Get()
   findAll() {
     return this.widgetViewService.findAll();
