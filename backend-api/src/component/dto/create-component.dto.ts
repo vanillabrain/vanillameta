@@ -1,4 +1,4 @@
-import {IsNotEmpty, IsNumber, IsString} from "class-validator";
+import {IsNotEmpty, IsNumber, IsOptional, IsString} from "class-validator";
 import {YesNo} from "../../common/enum/yn.enum";
 
 export class CreateComponentDto {
@@ -10,7 +10,7 @@ export class CreateComponentDto {
     title: string;
 
     @IsString()
-    @IsNotEmpty()
+    @IsOptional()
     description: string;
 
     @IsString()
@@ -22,14 +22,15 @@ export class CreateComponentDto {
     option: string
 
     @IsString()
-    @IsNotEmpty()
+    @IsOptional()
     icon: string
 
     @IsNumber()
-    @IsNotEmpty()
+    @IsOptional()
     seq: number
 
     @IsString()
+    @IsOptional()
     useYn: YesNo
 
 }

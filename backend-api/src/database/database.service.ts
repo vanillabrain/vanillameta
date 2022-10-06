@@ -9,10 +9,6 @@ import { Repository } from 'typeorm';
 export class DatabaseService {
   constructor(@InjectRepository(Database) private databaseRepository: Repository<Database>) {}
 
-  getHello() {
-    return 'Hello';
-  }
-
   async create(createDatabaseDto: CreateDatabaseDto): Promise<Database> {
     const databaseDto = Database.toDto(createDatabaseDto);
     databaseDto.knexConfig = JSON.stringify(databaseDto.knexConfig);
@@ -20,7 +16,8 @@ export class DatabaseService {
   }
 
   async findAll(): Promise<Database[]> {
-    return await this.databaseRepository.find();
+      const result = await this.databaseRepository.find();
+    return result
   }
 
   async findOne(id: number): Promise<Database> {

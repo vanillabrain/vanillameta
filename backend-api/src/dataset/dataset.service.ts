@@ -3,13 +3,13 @@ import {CreateDatasetDto} from './dto/create-dataset.dto';
 import {UpdateDatasetDto} from './dto/update-dataset.dto';
 import {InjectRepository} from "@nestjs/typeorm";
 import {Repository} from "typeorm";
-import {Dataset} from "@google-cloud/bigquery";
+import {Dataset} from "./entities/dataset.entity";
 
 @Injectable()
 export class DatasetService {
     constructor(
         @InjectRepository(Dataset)
-        private readonly datasetRepository: Repository<Dataset>
+        private datasetRepository: Repository<Dataset>
     ) {
     }
 
@@ -17,23 +17,56 @@ export class DatasetService {
      * 데이터셋 추가
      * @param createDatasetDto
      */
-    async create(createDatasetDto: CreateDatasetDto) {
-        return await this.datasetRepository.save(createDatasetDto);
+    async create(createDataset: CreateDatasetDto) {
+        const saveObj: CreateDatasetDto = new CreateDatasetDto();
+        saveObj.title = createDataset.title;
+        saveObj.query = createDataset.query;
+        saveObj.databaseId = createDataset.databaseId;
+
+        return await this.datasetRepository.save(createDataset);
     }
 
-    findAll() {
-        return `This action returns all dataset`;
+    async findAll() {
+
+        return await this.datasetRepository.find();
     }
 
-    findOne(id: number) {
-        return `This action returns a #${id} dataset`;
+    async findOne(id: number) {
+        const find_dataset = await this.datasetRepository.findOne({where: {id: id}});
+        return find_dataset
     }
 
-    update(id: number, updateDatasetDto: UpdateDatasetDto) {
-        return `This action updates a #${id} dataset`;
+    async update(id: number, updateDataset: UpdateDatasetDto) {
+        const find_dataset = await this.datasetRepository.findOne({where: {id: id}});
+        if (!find_dataset) {
+            return 'No exist widget'
+        } else {
+
+            if (updateDataset.databaseId) {
+                find_dataset.databaseId = updateDataset.databaseId
+            }
+            if (updateDataset.title) {
+                find_dataset.title = updateDataset.title
+            }
+            if (updateDataset.query) {
+                find_dataset.query = updateDataset.query
+            }
+
+            await this.datasetRepository.save(find_dataset)
+            return `This action updates a #${id} dataset`;
+        }
+
+
     }
 
-    remove(id: number) {
+    async remove(id: number) {
+        const find_dataset = await this.datasetRepository.findOne({where: {id: id}});
+
+        if (!find_dataset) {
+            return 'Not exist dataset'
+        } else {
+            await this.datasetRepository.delete(find_dataset.id)
+        }
         return `This action removes a #${id} dataset`;
     }
 }
