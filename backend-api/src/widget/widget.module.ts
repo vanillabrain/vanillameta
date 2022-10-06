@@ -9,7 +9,7 @@ import {WidgetViewModule} from "../widget-view/widget-view.module";
 
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Widget, WidgetView]),
+  imports: [TypeOrmModule.forFeature([Widget]),
     WidgetViewModule],
   controllers: [WidgetController],
   providers: [WidgetService],

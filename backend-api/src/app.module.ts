@@ -11,7 +11,8 @@ import {TemplateModule} from './template/template.module';
 import {CommonModule} from './common/common.module';
 import {ComponentModule} from './component/component.module';
 import {WidgetViewModule} from './widget-view/widget-view.module';
-import {WidgetViewController} from "./widget-view/widget-view.controller";
+import { DashboardWidgetModule } from './dashboard-widget/dashboard-widget.module';
+
 
 @Module({
     imports: [
@@ -42,6 +43,7 @@ import {WidgetViewController} from "./widget-view/widget-view.controller";
         CommonModule,
         ComponentModule,
         WidgetViewModule,
+        DashboardWidgetModule,
     ],
     controllers: [AppController],
     providers: [AppService],

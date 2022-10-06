@@ -23,10 +23,4 @@ export class Dashboard extends BaseEntity {
     @Column({length: 1, default: YesNo.NO, comment: '삭제여부'})
     delYn: YesNo
 
-    @ManyToOne(
-        (type) => Template,
-        (template) => template.dashboards
-    )
-    template!: Template
-
 }
