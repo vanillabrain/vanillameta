@@ -11,7 +11,6 @@ import {TemplateModule} from './template/template.module';
 import {CommonModule} from './common/common.module';
 import {ComponentModule} from './component/component.module';
 import {WidgetViewModule} from './widget-view/widget-view.module';
-import {WidgetViewController} from "./widget-view/widget-view.controller";
 
 @Module({
     imports: [
