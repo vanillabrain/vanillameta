@@ -1,7 +1,8 @@
-import {Column, Entity, ManyToOne, PrimaryGeneratedColumn} from "typeorm";
+import {Column, Entity, ManyToOne, PrimaryColumn, PrimaryGeneratedColumn} from "typeorm";
+import { BaseEntity } from "../../common/entities/base.entity"
 
 @Entity()
-export class DashboardWidget {
+export class DashboardWidget extends BaseEntity{
 
     @PrimaryGeneratedColumn()
     id: number
@@ -10,5 +11,5 @@ export class DashboardWidget {
     dashboardId: number;
 
     @Column()
-    widgetId: string;
+    widgetIds: string;
 }

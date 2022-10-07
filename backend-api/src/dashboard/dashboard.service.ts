@@ -21,12 +21,12 @@ export class DashboardService {
     } else {
       const saveObj = createDashboardDto
       saveObj.layout = JSON.stringify(saveObj.layout)
-      // await this.dashboardRepository.save(saveObj)
+      await this.dashboardRepository.save(saveObj)
       // TODO 테스트 끝나고 실제 실행 시 주석 제거
 
       const saveObjDW = {
         dashboardId: saveObj.dashboardId,
-        widgetId: saveObj.layout
+        widgetIds: saveObj.layout
       }
       await this.dashboardWidgetController.create(saveObjDW)
     }
@@ -35,18 +35,44 @@ export class DashboardService {
 
   async findAll() {
     const find_all = await this.dashboardRepository.find();
+    find_all.forEach(el => {
+      el.layout = JSON.parse(el.layout)
+    })
     return find_all
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} dashboard`;
+  async findOne(id: number) {
+
+    return await this.dashboardWidgetController.findOne(String(id));
   }
 
-  update(id: number, updateDashboardDto: UpdateDashboardDto) {
-    return `This action updates a #${id} dashboard`;
+  async update(id: number, updateDashboardDto: UpdateDashboardDto) {
+    const find_dashboard = await this.dashboardRepository.findOne({ where: { id : id}})
+
+
+    if(!find_dashboard) { return 'Not exist dashboard' }
+    else {
+
+      if (updateDashboardDto.title) { find_dashboard.title = updateDashboardDto.title };
+      if (updateDashboardDto.layout) { find_dashboard.layout = JSON.stringify( updateDashboardDto.layout )}
+      const saveObj = {
+        widgetIds: JSON.stringify(updateDashboardDto.layout)
+      }
+      await this.dashboardWidgetController.update(String(id), saveObj)
+      return await this.dashboardRepository.save(find_dashboard);
+    }
+
+
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} dashboard`;
+  async remove(id: number) {
+    const find_dashboard = await this.dashboardRepository.findOne({ where: { id: id }})
+    if (!find_dashboard) { return 'No exist dashboard' }
+    else {
+      await this.dashboardRepository.delete(id)
+      await this.dashboardWidgetController.remove(String(id))
+      return `This action removes a #${id} dashboard`
+    };
+
   }
 }

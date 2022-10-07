@@ -114,7 +114,7 @@ export class WidgetService {
             return 'No exist'
         } else {
             await this.widgetViewController.remove(String(find_widget.widgetViewId))
-            await this.widgetRepository.delete(find_widget.id)
+            await this.widgetRepository.delete(id)
         }
         return `This action removes a #${id} widget`;
     }

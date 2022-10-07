@@ -8,6 +8,6 @@ export class CreateDashboardWidgetDto {
 
     @IsString()
     @IsNotEmpty()
-    widgetId: string;
+    widgetIds: string;
 }
 
