@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getAggregationDataForChart } from '@/modules/utils/chartUtil';
+import { getAggregationDataForChart, getLegendOption } from '@/modules/utils/chartUtil';
 import { Box } from '@mui/material';
 import ReactECharts from 'echarts-for-react';
 import 'echarts-gl';
@@ -18,17 +18,7 @@ function Line3DChart(props) {
   }, []);
 
   const defaultComponentOption = {
-    grid3D: {
-      // top: 50, right: 50, bottom: 50, left: 50
-      viewControl: {},
-      light: {
-        main: {
-          shadow: true,
-          quality: 'ultra',
-          intensity: 1.5,
-        },
-      },
-    },
+    grid3D: {},
     tooltip: {
       // trigger: 'axis'
     },
@@ -43,42 +33,21 @@ function Line3DChart(props) {
       max: 1e8,
       dimension: 'Population',
     },
-    // dataset: {},
-    // series: [],
+    dataset: {},
+    series: [],
     // emphasis: {
     //   focus: 'series',
     //   blurScope: 'coordinateSystem',
     // // },
-    // dataset: {
-    //   dimensions: ['Income', 'Life Expectancy', 'Population', 'Country', { name: 'Year', type: 'ordinal' }],
-    //   source: data && data,
-    // },
-    series: [
-      {
-        type: 'bar3D',
-        shading: 'lambert',
-        data: [
-          [-1, -1, -1],
-          [0, 0, 0],
-          [1, 1, 1],
-        ],
-        encode: {
-          x: 'Year',
-          y: 'Country',
-          z: 'Life Expectancy',
-          tooltip: [0, 1, 2, 3, 4],
-        },
-      },
-    ],
+
     ...defaultOp,
   };
 
   useEffect(() => {
-    if (option && dataSet) {
-      const newOption = createComponentOption();
-
-      setComponentOption(newOption);
-    }
+    // if (option && dataSet) {
+    const newOption = createComponentOption();
+    setComponentOption(newOption);
+    // }
   }, [option, dataSet]);
 
   /**
@@ -108,27 +77,29 @@ function Line3DChart(props) {
     // });
 
     console.log(componentOption);
-    if (true) {
+    if (data) {
       const op = {
-        // [axis + 'Axis']: {
-        //   data: option[axis + 'Field'] ? aggrData.map(item => item[option[axis + 'Field']]) : '',
-        // },
-        // dataset: {
-        //   dimensions: ['Income', 'Life Expectancy', 'Population', 'Country', { name: 'Year', type: 'ordinal' }],
-        //   source: data,
-        // },
-        // series: [
-        //   {
-        //     type: 'bar3D',
-        //     shading: 'lambert',
-        //     encode: {
-        //       x: 'Year',
-        //       y: 'Country',
-        //       z: 'Life Expectancy',
-        //       tooltip: [0, 1, 2, 3, 4],
-        //     },
-        //   },
-        // ],
+        dataset: {
+          dimension: ['Income', 'Life Expectancy', 'Population', 'Country', { name: 'Year', type: 'ordinal' }],
+          source: data,
+        },
+        series: [
+          {
+            type: 'bar3D',
+            shading: 'lambert',
+            // data: [
+            //   [-1, -1, -1],
+            //   [0, 0, 0],
+            //   [1, 1, 1],
+            // ],
+            encode: {
+              x: 'Year',
+              y: 'Country',
+              z: 'Life Expectancy',
+              tooltip: [0, 1, 2, 3, 4],
+            },
+          },
+        ],
         // series: newSeries,
         // grid: getGridSize(option.legendPosition),
         // legend: getLegendOption(option.legendPosition),
