@@ -32,6 +32,8 @@ import CandlestickChart from '@/modules/candlestickchart/CandlestickChart';
 import CandlestickChartSetting from '@/widget/settings/CandlestickChartSetting';
 import useScrollTrigger from '@mui/material/useScrollTrigger';
 import { ChartComponent } from '@/modules/utils/switchChart';
+import Line3DChart from '@/modules/3dchart/Line3dChart';
+import Line3DChartSetting from '@/widget/settings/Line3DChartSetting';
 
 function WidgetAttributeSelect(props) {
   const { dataSetId, componentType, prevOption } = props;
@@ -311,6 +313,13 @@ function WidgetAttributeSelect(props) {
               />
             ),
             chartSetting: <PieChartSetting {...chartSettingProps} />,
+          });
+          break;
+
+        case WIDGET_TYPE.CHART_3D_LINE:
+          setSwitchChart({
+            chart: <Line3DChart {...chartProps} />,
+            chartSetting: <Line3DChartSetting {...chartSettingProps} />,
           });
           break;
 

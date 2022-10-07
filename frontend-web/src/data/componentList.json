@@ -424,5 +424,25 @@
       ],
       "legendPosition": ""
     }
+  },
+  {
+    "type": "CHART_LINE_3D",
+    "title": "3D 선형 차트",
+    "category": "3D",
+    "icon": "icon/line-chart.png",
+    "description": "3D Line Chart",
+    "option": {
+      "title": "",
+      "xField": "",
+      "zField": "",
+      "series": [
+        {
+          "field": "",
+          "color": "#2870c5",
+          "aggregation": "sum"
+        }
+      ],
+      "legendPosition": ""
+    }
   }
 ]
