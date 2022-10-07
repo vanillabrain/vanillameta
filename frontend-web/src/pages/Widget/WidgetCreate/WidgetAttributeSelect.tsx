@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { Grid, useMediaQuery, useTheme } from '@mui/material';
 import axios from 'axios';
 import { useAlert } from 'react-alert';
-
 import { WIDGET_TYPE } from '@/constant';
 import TitleBox from '@/components/TitleBox';
 import WidgetBox from '@/components/widget/WidgetBox';
@@ -13,9 +12,9 @@ import PieChartSetting from '@/widget/settings/PieChartSetting';
 import DonutChart from '@/modules/piechart/DonutChart';
 import DonutChartSetting from '@/widget/settings/DonutChartSetting';
 import MixedLineBarChartSetting from '@/widget/settings/MixedLineBarChartSetting';
-import NumericBoard from '@/modules/ board/NumericBoard';
+import NumericBoard from '@/modules/board/NumericBoard';
 import NumericBoardSetting from '@/widget/settings/NumericBoardSetting';
-import TableBoard from '@/modules/ board/TableBoard';
+import TableBoard from '@/modules/board/TableBoard';
 import TableBoardSetting from '@/widget/settings/TableBoardSetting';
 import ScatterChart from '@/modules/scatterchart/ScatterChart';
 import ScatterChartSetting from '@/widget/settings/ScatterChartSetting';
@@ -32,15 +31,16 @@ import GaugeChartSetting from '@/widget/settings/GaugeChartSetting';
 import CandlestickChart from '@/modules/candlestickchart/CandlestickChart';
 import CandlestickChartSetting from '@/widget/settings/CandlestickChartSetting';
 import useScrollTrigger from '@mui/material/useScrollTrigger';
+import { ChartComponent } from '@/modules/utils/switchChart';
 
 function WidgetAttributeSelect(props) {
+  const { dataSetId, componentType, prevOption } = props;
+
   const alert = useAlert();
   const theme = useTheme();
   const matchesMd = useMediaQuery(theme.breakpoints.up('md'));
   const matchesLg = useMediaQuery(theme.breakpoints.up('lg'));
   const trigger = useScrollTrigger({ threshold: 300, disableHysteresis: true });
-
-  const { dataSetId, componentType, prevOption } = props;
 
   const [option, setOption] = useState(null);
   const [data, setData] = useState(null);
@@ -66,63 +66,62 @@ function WidgetAttributeSelect(props) {
     });
   };
 
+  const chartProps = {
+    option,
+    dataSet: data,
+    setDataLength,
+  };
+
+  const chartSettingProps = {
+    option,
+    setOption,
+    spec,
+    dataLength,
+  };
+
   useEffect(() => {
     if (option && data) {
-      const ChartProps = {
-        option,
-        dataSet: data,
-        setDataLength,
-      };
-
-      const ChartSettingProps = {
-        option,
-        setOption,
-        spec,
-        dataLength,
-      };
-
       switch (componentType.type) {
         case WIDGET_TYPE.BOARD_NUMERIC:
           setSwitchChart({
-            ...switchChart,
-            chart: <NumericBoard {...ChartProps} />,
-            chartSetting: <NumericBoardSetting {...ChartSettingProps} />,
+            chart: <NumericBoard {...chartProps} />,
+            chartSetting: <NumericBoardSetting {...chartSettingProps} />,
           });
           break;
+
         case WIDGET_TYPE.BOARD_TABLE:
           setSwitchChart({
-            ...switchChart,
-            chart: <TableBoard {...ChartProps} />,
-            chartSetting: <TableBoardSetting {...ChartSettingProps} />,
+            chart: <TableBoard {...chartProps} />,
+            chartSetting: <TableBoardSetting {...chartSettingProps} />,
           });
           break;
+
         case WIDGET_TYPE.CHART_LINE:
           setSwitchChart({
-            ...switchChart,
-            chart: <LineChart {...ChartProps} />,
-            chartSetting: <LineChartSetting {...ChartSettingProps} />,
+            chart: <LineChart {...chartProps} />,
+            chartSetting: <LineChartSetting {...chartSettingProps} />,
           });
           break;
+
         case WIDGET_TYPE.CHART_STACKED_LINE:
           setSwitchChart({
-            ...switchChart,
-            chart: <LineChart {...ChartProps} seriesOp={{ stack: 'total', label: { show: true, position: 'top' } }} />,
-            chartSetting: <LineChartSetting {...ChartSettingProps} />,
+            chart: <LineChart {...chartProps} seriesOp={{ stack: 'total', label: { show: true, position: 'top' } }} />,
+            chartSetting: <LineChartSetting {...chartSettingProps} />,
           });
           break;
+
         case WIDGET_TYPE.CHART_AREA:
           setSwitchChart({
-            ...switchChart,
-            chart: <LineChart {...ChartProps} seriesOp={{ areaStyle: {} }} />,
-            chartSetting: <LineChartSetting {...ChartSettingProps} />,
+            chart: <LineChart {...chartProps} seriesOp={{ areaStyle: {} }} />,
+            chartSetting: <LineChartSetting {...chartSettingProps} />,
           });
           break;
+
         case WIDGET_TYPE.CHART_STACKED_AREA:
           setSwitchChart({
-            ...switchChart,
             chart: (
               <LineChart
-                {...ChartProps}
+                {...chartProps}
                 seriesOp={{
                   areaStyle: {},
                   stack: 'total',
@@ -130,15 +129,15 @@ function WidgetAttributeSelect(props) {
                 }}
               />
             ),
-            chartSetting: <LineChartSetting {...ChartSettingProps} />,
+            chartSetting: <LineChartSetting {...chartSettingProps} />,
           });
           break;
+
         case WIDGET_TYPE.CHART_BAR:
           setSwitchChart({
-            ...switchChart,
             chart: (
               <LineChart
-                {...ChartProps}
+                {...chartProps}
                 seriesOp={{ type: 'bar' }}
                 defaultOp={{
                   tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
@@ -147,22 +146,22 @@ function WidgetAttributeSelect(props) {
                 }}
               />
             ),
-            chartSetting: <LineChartSetting {...ChartSettingProps} />,
+            chartSetting: <LineChartSetting {...chartSettingProps} />,
           });
           break;
+
         case WIDGET_TYPE.CHART_STACKED_BAR:
           setSwitchChart({
-            ...switchChart,
-            chart: <LineChart {...ChartProps} seriesOp={{ type: 'bar', stack: 'total', label: { show: true } }} />,
-            chartSetting: <LineChartSetting {...ChartSettingProps} />,
+            chart: <LineChart {...chartProps} seriesOp={{ type: 'bar', stack: 'total', label: { show: true } }} />,
+            chartSetting: <LineChartSetting {...chartSettingProps} />,
           });
           break;
+
         case WIDGET_TYPE.CHART_COLUMN:
           setSwitchChart({
-            ...switchChart,
             chart: (
               <LineChart
-                {...ChartProps}
+                {...chartProps}
                 axis="y"
                 seriesOp={{ type: 'bar' }}
                 defaultOp={{
@@ -173,15 +172,15 @@ function WidgetAttributeSelect(props) {
                 }}
               />
             ),
-            chartSetting: <LineChartSetting {...ChartSettingProps} axis="y" />,
+            chartSetting: <LineChartSetting {...chartSettingProps} axis="y" />,
           });
           break;
+
         case WIDGET_TYPE.CHART_STACKED_COLUMN:
           setSwitchChart({
-            ...switchChart,
             chart: (
               <LineChart
-                {...ChartProps}
+                {...chartProps}
                 axis="y"
                 seriesOp={{ type: 'bar', stack: 'total', label: { show: true } }}
                 defaultOp={{
@@ -189,15 +188,15 @@ function WidgetAttributeSelect(props) {
                 }}
               />
             ),
-            chartSetting: <LineChartSetting {...ChartSettingProps} axis="y" />,
+            chartSetting: <LineChartSetting {...chartSettingProps} axis="y" />,
           });
           break;
+
         case WIDGET_TYPE.CHART_MIXED_LINE_BAR:
           setSwitchChart({
-            ...switchChart,
             chart: (
               <LineChart
-                {...ChartProps}
+                {...chartProps}
                 defaultOp={{
                   tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
                   yAxis: { boundaryGap: [0, 0.01] },
@@ -206,100 +205,100 @@ function WidgetAttributeSelect(props) {
                 seriesOp={{ smooth: false }}
               />
             ),
-            chartSetting: <MixedLineBarChartSetting {...ChartSettingProps} />,
+            chartSetting: <MixedLineBarChartSetting {...chartSettingProps} />,
           });
           break;
+
         case WIDGET_TYPE.CHART_PIE:
           setSwitchChart({
-            ...switchChart,
-            chart: <PieChart {...ChartProps} />,
-            chartSetting: <PieChartSetting {...ChartSettingProps} />,
+            chart: <PieChart {...chartProps} />,
+            chartSetting: <PieChartSetting {...chartSettingProps} />,
           });
           break;
+
         case WIDGET_TYPE.CHART_DONUT:
           setSwitchChart({
-            ...switchChart,
-            chart: <DonutChart {...ChartProps} />,
-            chartSetting: <DonutChartSetting {...ChartSettingProps} />,
+            chart: <DonutChart {...chartProps} />,
+            chartSetting: <DonutChartSetting {...chartSettingProps} />,
           });
           break;
+
         case WIDGET_TYPE.CHART_NIGHTINGALE:
           setSwitchChart({
-            ...switchChart,
             chart: (
               <DonutChart
-                {...ChartProps}
+                {...chartProps}
                 seriesOp={{
                   roseType: 'area',
                   itemStyle: { borderRadius: 8 },
                 }}
               />
             ),
-            chartSetting: <DonutChartSetting {...ChartSettingProps} />,
+            chartSetting: <DonutChartSetting {...chartSettingProps} />,
           });
           break;
+
         case WIDGET_TYPE.CHART_SCATTER:
           setSwitchChart({
-            ...switchChart,
-            chart: <ScatterChart {...ChartProps} />,
-            chartSetting: <ScatterChartSetting {...ChartSettingProps} />,
+            chart: <ScatterChart {...chartProps} />,
+            chartSetting: <ScatterChartSetting {...chartSettingProps} />,
           });
           break;
+
         case WIDGET_TYPE.CHART_BUBBLE:
           setSwitchChart({
-            ...switchChart,
-            chart: <BubbleChart {...ChartProps} />,
-            chartSetting: <BubbleChartSetting {...ChartSettingProps} />,
+            chart: <BubbleChart {...chartProps} />,
+            chartSetting: <BubbleChartSetting {...chartSettingProps} />,
           });
           break;
+
         case WIDGET_TYPE.CHART_RADAR:
           setSwitchChart({
-            ...switchChart,
-            chart: <RadarChart {...ChartProps} />,
-            chartSetting: <RadarChartSetting {...ChartSettingProps} />,
+            chart: <RadarChart {...chartProps} />,
+            chartSetting: <RadarChartSetting {...chartSettingProps} />,
           });
           break;
+
         case WIDGET_TYPE.CHART_TREEMAP:
           setSwitchChart({
-            ...switchChart,
-            chart: <TreemapChart {...ChartProps} />,
-            chartSetting: <TreemapChartSetting {...ChartSettingProps} />,
+            chart: <TreemapChart {...chartProps} />,
+            chartSetting: <TreemapChartSetting {...chartSettingProps} />,
           });
           break;
+
         case WIDGET_TYPE.CHART_HEATMAP:
           setSwitchChart({
-            ...switchChart,
-            chart: <HeatmapChart {...ChartProps} />,
-            chartSetting: <HeatmapChartSetting {...ChartSettingProps} />,
+            chart: <HeatmapChart {...chartProps} />,
+            chartSetting: <HeatmapChartSetting {...chartSettingProps} />,
           });
           break;
+
         case WIDGET_TYPE.CHART_SUNBURST:
           setSwitchChart({
-            ...switchChart,
-            chart: <TreemapChart {...ChartProps} seriesOp={{ type: 'sunburst', label: { rotate: 'radial' } }} />,
-            chartSetting: <TreemapChartSetting {...ChartSettingProps} />,
+            chart: <TreemapChart {...chartProps} seriesOp={{ type: 'sunburst', label: { rotate: 'radial' } }} />,
+            chartSetting: <TreemapChartSetting {...chartSettingProps} />,
           });
           break;
+
         case WIDGET_TYPE.CHART_GAUGE:
           setSwitchChart({
-            ...switchChart,
-            chart: <GaugeChart {...ChartProps} />,
-            chartSetting: <GaugeChartSetting {...ChartSettingProps} />,
+            chart: <GaugeChart {...chartProps} />,
+            chartSetting: <GaugeChartSetting {...chartSettingProps} />,
           });
           break;
+
         case WIDGET_TYPE.CHART_CANDLESTICK:
           setSwitchChart({
-            ...switchChart,
-            chart: <CandlestickChart {...ChartProps} />,
-            chartSetting: <CandlestickChartSetting {...ChartSettingProps} />,
+            chart: <CandlestickChart {...chartProps} />,
+            chartSetting: <CandlestickChartSetting {...chartSettingProps} />,
           });
           break;
+
         case WIDGET_TYPE.CHART_FUNNEL:
           setSwitchChart({
-            ...switchChart,
             chart: (
               <PieChart
-                {...ChartProps}
+                {...chartProps}
                 seriesOp={{
                   type: 'funnel',
                   width: '70%',
@@ -311,7 +310,7 @@ function WidgetAttributeSelect(props) {
                 }}
               />
             ),
-            chartSetting: <PieChartSetting {...ChartSettingProps} />,
+            chartSetting: <PieChartSetting {...chartSettingProps} />,
           });
           break;
 
@@ -359,6 +358,7 @@ function WidgetAttributeSelect(props) {
         <Grid item xs={12} md={7.5} lg={8.5}>
           <WidgetBox sx={matchesMd && trigger ? { position: 'fixed', top: 80, maxWidth: matchesLg ? '65%' : '57%' } : {}}>
             {switchChart.chart}
+            {/*<ChartComponent widgetType={componentType.type} {...chartProps} />*/}
           </WidgetBox>
         </Grid>
         {switchChart.chartSetting}
