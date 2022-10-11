@@ -12,7 +12,9 @@
       "open": 2320,
       "close": 2320.26,
       "lowest": 2287.3,
-      "highest": 2362.94
+      "highest": 2362.94,
+      "person": "Fred Morales",
+      "score": 10
     },
     {
       "id": 2,
@@ -26,7 +28,9 @@
       "open": 2300,
       "close": 2291.3,
       "lowest": 2288.26,
-      "highest": 2308.38
+      "highest": 2308.38,
+      "person": "Lewis Kelley",
+      "score": 10
     },
     {
       "id": 3,
@@ -40,7 +44,9 @@
       "open": 2295,
       "close": 2346.5,
       "lowest": 2295.35,
-      "highest": 2346.92
+      "highest": 2346.92,
+      "person": "Lena Bates",
+      "score": 10
     },
     {
       "id": 4,
@@ -54,7 +60,9 @@
       "open": 2347,
       "close": 2358.98,
       "lowest": 2337.35,
-      "highest": 2363.8
+      "highest": 2363.8,
+      "person": "Olivia Freeman",
+      "score": 10
     },
     {
       "id": 5,
@@ -68,7 +76,9 @@
       "open": 2360,
       "close": 2382.48,
       "lowest": 2347.89,
-      "highest": 2383.76
+      "highest": 2383.76,
+      "person": "Jesse Sims",
+      "score": 10
     },
     {
       "id": 6,
@@ -82,7 +92,9 @@
       "open": 2383,
       "close": 2385.42,
       "lowest": 2371.23,
-      "highest": 2391.82
+      "highest": 2391.82,
+      "person": "Alta Ramirez",
+      "score": 10
     },
     {
       "id": 7,
@@ -96,7 +108,9 @@
       "open": 2377,
       "close": 2419.02,
       "lowest": 2369.57,
-      "highest": 2421.15
+      "highest": 2421.15,
+      "person": "Don Rhodes",
+      "score": 10
     },
     {
       "id": 8,
@@ -110,7 +124,9 @@
       "open": 2425,
       "close": 2428.15,
       "lowest": 2417.58,
-      "highest": 2440.38
+      "highest": 2440.38,
+      "person": "Verna Cortez",
+      "score": 10
     },
     {
       "id": 9,
@@ -124,7 +140,9 @@
       "open": 2411,
       "close": 2433.13,
       "lowest": 2403.3,
-      "highest": 2437.42
+      "highest": 2437.42,
+      "person": "Ola Burgess",
+      "score": 10
     },
     {
       "id": 10,
@@ -138,7 +156,9 @@
       "open": 2432,
       "close": 2434.48,
       "lowest": 2427.7,
-      "highest": 2441.73
+      "highest": 2441.73,
+      "person": "Shawn Flores",
+      "score": 10
     },
     {
       "id": 11,
@@ -152,7 +172,9 @@
       "open": 2430,
       "close": 2418.53,
       "lowest": 2394.22,
-      "highest": 2433.89
+      "highest": 2433.89,
+      "person": "Augusta Houston",
+      "score": 10
     },
     {
       "id": 12,
@@ -166,7 +188,393 @@
       "open": 2416,
       "close": 2432.4,
       "lowest": 2414.4,
-      "highest": 2443.03
+      "highest": 2443.03,
+      "person": "Vera Rodriguez",
+      "score": 10
+    },
+    {
+      "id": 13,
+      "month": 5,
+      "name": "january",
+      "color": "#EA590D",
+      "high": 26,
+      "low": 1,
+      "avg": 3,
+      "cDate": "2022-09-05T19:15:52+09:00",
+      "open": 1930,
+      "close": 3462,
+      "lowest": 7897,
+      "highest": 2475,
+      "person": "Fred Morales",
+      "score": 20
+    },
+    {
+      "id": 14,
+      "month": 5,
+      "name": "february",
+      "color": "#70DBBD",
+      "high": 15,
+      "low": 8,
+      "avg": 12,
+      "cDate": "2022-02-22T11:27:02+09:00",
+      "open": 5521,
+      "close": 8168,
+      "lowest": 6605,
+      "highest": 1002,
+      "person": "Lewis Kelley",
+      "score": 20
+    },
+    {
+      "id": 15,
+      "month": 5,
+      "name": "march",
+      "color": "#45EEE6",
+      "high": 63,
+      "low": 3,
+      "avg": 46,
+      "cDate": "2022-07-25T14:34:18+09:00",
+      "open": 7364,
+      "close": 1981,
+      "lowest": 8150,
+      "highest": 4864,
+      "person": "Lena Bates",
+      "score": 20
+    },
+    {
+      "id": 16,
+      "month": 9,
+      "name": "april",
+      "color": "#13C7E9",
+      "high": 92,
+      "low": 0,
+      "avg": 17,
+      "cDate": "2022-08-24T16:38:58+09:00",
+      "open": 8331,
+      "close": 5074,
+      "lowest": 1986,
+      "highest": 1861,
+      "person": "Olivia Freeman",
+      "score": 20
+    },
+    {
+      "id": 17,
+      "month": 6,
+      "name": "may",
+      "color": "#9D04E7",
+      "high": 33,
+      "low": 1,
+      "avg": 61,
+      "cDate": "2022-06-11T02:13:13+09:00",
+      "open": 1486,
+      "close": 6726,
+      "lowest": 1871,
+      "highest": 8166,
+      "person": "Jesse Sims",
+      "score": 20
+    },
+    {
+      "id": 18,
+      "month": 6,
+      "name": "june",
+      "color": "#FA2FFF",
+      "high": 45,
+      "low": 7,
+      "avg": 76,
+      "cDate": "2022-10-17T15:47:44+09:00",
+      "open": 6154,
+      "close": 6328,
+      "lowest": 6317,
+      "highest": 1773,
+      "person": "Alta Ramirez",
+      "score": 20
+    },
+    {
+      "id": 19,
+      "month": 1,
+      "name": "july",
+      "color": "#0C1171",
+      "high": 23,
+      "low": 5,
+      "avg": 75,
+      "cDate": "2022-06-15T07:04:42+09:00",
+      "open": 7430,
+      "close": 4066,
+      "lowest": 2569,
+      "highest": 1529,
+      "person": "Don Rhodes",
+      "score": 20
+    },
+    {
+      "id": 20,
+      "month": 2,
+      "name": "august",
+      "color": "#6B33A0",
+      "high": 85,
+      "low": 9,
+      "avg": 9,
+      "cDate": "2022-12-30T15:45:47+09:00",
+      "open": 8200,
+      "close": 5570,
+      "lowest": 5144,
+      "highest": 5647,
+      "person": "Verna Cortez",
+      "score": 20
+    },
+    {
+      "id": 21,
+      "month": 5,
+      "name": "september",
+      "color": "#7E9E29",
+      "high": 95,
+      "low": 2,
+      "avg": 53,
+      "cDate": "2022-01-21T13:01:12+09:00",
+      "open": 8762,
+      "close": 1786,
+      "lowest": 8783,
+      "highest": 3567,
+      "person": "Ola Burgess",
+      "score": 20
+    },
+    {
+      "id": 22,
+      "month": 1,
+      "name": "october",
+      "color": "#D699DD",
+      "high": 37,
+      "low": 5,
+      "avg": 27,
+      "cDate": "2022-06-14T01:43:43+09:00",
+      "open": 3891,
+      "close": 2533,
+      "lowest": 4303,
+      "highest": 1551,
+      "person": "Shawn Flores",
+      "score": 20
+    },
+    {
+      "id": 23,
+      "month": 8,
+      "name": "november",
+      "color": "#E4F620",
+      "high": 76,
+      "low": 7,
+      "avg": 2,
+      "cDate": "2022-01-12T06:57:56+09:00",
+      "open": 9271,
+      "close": 4471,
+      "lowest": 3705,
+      "highest": 5830,
+      "person": "Augusta Houston",
+      "score": 20
+    },
+    {
+      "id": 24,
+      "month": 7,
+      "name": "december",
+      "color": "#6E8788",
+      "high": 40,
+      "low": 6,
+      "avg": 76,
+      "cDate": "2022-07-28T20:25:26+09:00",
+      "open": 834,
+      "close": 8914,
+      "lowest": 2339,
+      "highest": 8354,
+      "person": "Vera Rodriguez",
+      "score": 20
+    },
+    {
+      "id": 25,
+      "month": 5,
+      "name": "january",
+      "color": "#BFCF19",
+      "high": 11,
+      "low": 1,
+      "avg": 19,
+      "cDate": "2022-01-22T03:11:51+09:00",
+      "open": 8904,
+      "close": 4056,
+      "lowest": 1931,
+      "highest": 8530,
+      "person": "Fred Morales",
+      "score": 30
+    },
+    {
+      "id": 26,
+      "month": 5,
+      "name": "february",
+      "color": "#F183AD",
+      "high": 13,
+      "low": 1,
+      "avg": 92,
+      "cDate": "2022-02-20T22:11:22+09:00",
+      "open": 2854,
+      "close": 6825,
+      "lowest": 2349,
+      "highest": 6066,
+      "person": "Lewis Kelley",
+      "score": 30
+    },
+    {
+      "id": 27,
+      "month": 4,
+      "name": "march",
+      "color": "#4D35E2",
+      "high": 10,
+      "low": 6,
+      "avg": 31,
+      "cDate": "2022-11-20T00:09:15+09:00",
+      "open": 901,
+      "close": 2407,
+      "lowest": 6395,
+      "highest": 7580,
+      "person": "Lena Bates",
+      "score": 30
+    },
+    {
+      "id": 28,
+      "month": 4,
+      "name": "april",
+      "color": "#1833AF",
+      "high": 28,
+      "low": 8,
+      "avg": 40,
+      "cDate": "2022-10-06T19:56:38+09:00",
+      "open": 1021,
+      "close": 4735,
+      "lowest": 7062,
+      "highest": 9247,
+      "person": "Olivia Freeman",
+      "score": 30
+    },
+    {
+      "id": 29,
+      "month": 5,
+      "name": "may",
+      "color": "#DFA00B",
+      "high": 25,
+      "low": 3,
+      "avg": 9,
+      "cDate": "2022-09-15T00:09:23+09:00",
+      "open": 2215,
+      "close": 856,
+      "lowest": 3935,
+      "highest": 6171,
+      "person": "Jesse Sims",
+      "score": 30
+    },
+    {
+      "id": 30,
+      "month": 5,
+      "name": "june",
+      "color": "#98DFC3",
+      "high": 12,
+      "low": 1,
+      "avg": 35,
+      "cDate": "2022-11-08T19:13:52+09:00",
+      "open": 6801,
+      "close": 6320,
+      "lowest": 604,
+      "highest": 8857,
+      "person": "Alta Ramirez",
+      "score": 30
+    },
+    {
+      "id": 31,
+      "month": 7,
+      "name": "july",
+      "color": "#59543F",
+      "high": 30,
+      "low": 0,
+      "avg": 29,
+      "cDate": "2022-02-18T16:27:21+09:00",
+      "open": 9226,
+      "close": 8752,
+      "lowest": 450,
+      "highest": 8468,
+      "person": "Don Rhodes",
+      "score": 30
+    },
+    {
+      "id": 32,
+      "month": 6,
+      "name": "august",
+      "color": "#832F58",
+      "high": 86,
+      "low": 8,
+      "avg": 44,
+      "cDate": "2022-06-28T01:19:17+09:00",
+      "open": 1234,
+      "close": 9424,
+      "lowest": 4807,
+      "highest": 3242,
+      "person": "Verna Cortez",
+      "score": 30
+    },
+    {
+      "id": 33,
+      "month": 6,
+      "name": "september",
+      "color": "#ACE8B0",
+      "high": 36,
+      "low": 5,
+      "avg": 44,
+      "cDate": "2022-02-24T17:46:34+09:00",
+      "open": 1880,
+      "close": 6353,
+      "lowest": 7890,
+      "highest": 618,
+      "person": "Ola Burgess",
+      "score": 30
+    },
+    {
+      "id": 34,
+      "month": 6,
+      "name": "october",
+      "color": "#A583D4",
+      "high": 57,
+      "low": 5,
+      "avg": 75,
+      "cDate": "2022-11-03T18:39:16+09:00",
+      "open": 9727,
+      "close": 4352,
+      "lowest": 9473,
+      "highest": 2138,
+      "person": "Shawn Flores",
+      "score": 30
+    },
+    {
+      "id": 35,
+      "month": 1,
+      "name": "november",
+      "color": "#265EA2",
+      "high": 87,
+      "low": 9,
+      "avg": 94,
+      "cDate": "2022-03-07T22:41:53+09:00",
+      "open": 4942,
+      "close": 4078,
+      "lowest": 6696,
+      "highest": 3365,
+      "person": "Augusta Houston",
+      "score": 30
+    },
+    {
+      "id": 36,
+      "month": 8,
+      "name": "december",
+      "color": "#B7E104",
+      "high": 45,
+      "low": 3,
+      "avg": 68,
+      "cDate": "2022-12-14T15:39:43+09:00",
+      "open": 5218,
+      "close": 8383,
+      "lowest": 6945,
+      "highest": 645,
+      "person": "Vera Rodriguez",
+      "score": 30
     }
   ],
   "spec": [
@@ -216,6 +624,14 @@
     },
     {
       "columnName": "highest",
+      "columnType": "NUMBER"
+    },
+    {
+      "columnName": "person",
+      "columnType": "STRING"
+    },
+    {
+      "columnName": "score",
       "columnType": "NUMBER"
     }
   ]

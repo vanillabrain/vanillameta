@@ -6,7 +6,7 @@ import { SketchPicker } from 'react-color';
 function ColorFieldForm(props) {
   const { id, label, value, optionList, setOption, index, endButton, ...rest } = props;
 
-  const color = !!optionList ? optionList.series.color[index] : '#eee';
+  const color = optionList ? optionList.color[index] || optionList.series.color[index] : '#eee';
   const labelItem = Array.isArray(label) ? label[index] : label;
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
 
@@ -21,6 +21,10 @@ function ColorFieldForm(props) {
   const handleChange = event => {
     setOption(prevState => {
       const _tempOption = { ...prevState };
+      if (_tempOption.color) {
+        _tempOption.color.splice(index, 1, event.target.value);
+        return _tempOption;
+      }
       _tempOption.series.color.splice(index, 1, event.target.value);
       return _tempOption;
     });
@@ -30,6 +34,10 @@ function ColorFieldForm(props) {
     setAnchorEl(null);
     setOption(prevState => {
       const _tempOption = { ...prevState };
+      if (_tempOption.color) {
+        _tempOption.color.splice(index, 1, selectColor.hex);
+        return _tempOption;
+      }
       _tempOption.series.color.splice(index, 1, selectColor.hex);
       return _tempOption;
     });

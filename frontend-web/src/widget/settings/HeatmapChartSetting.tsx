@@ -2,8 +2,9 @@ import React, { useEffect } from 'react';
 import { Divider, Grid, List, ListItem, ListItemText, styled } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
-import { handleChange, handleSeriesChange } from '@/widget/utils/handler';
-import { COLUMN_TYPE } from '@/constant';
+import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
+import { AGGREGATION_LIST, COLUMN_TYPE } from '@/constant';
+import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
 import ColorFieldForm from '@/components/form/ColorFieldForm';
 
 const StyledList = styled(List)({
@@ -32,14 +33,22 @@ const StyledList = styled(List)({
 const HeatmapChartSetting = props => {
   const { option, setOption, spec } = props;
 
+  console.log(option);
+
+  // 컴포넌트 별 default series
+  const defaultSeries = {
+    field: '',
+  };
+
   useEffect(() => {
     const colorArr = ['#2F93C8', '#AEC48F', '#FFDB5C', '#F98862'];
     setOption(prevState => ({
       ...prevState,
-      series: { ...prevState.series, color: colorArr },
+      color: colorArr,
     }));
-  }, [option.series.field]);
+  }, [option.series, option.xField]);
 
+  console.log(option);
   return (
     <Grid item xs={10} md={4} lg={3} sx={{ display: 'flex', flexDirection: 'column' }}>
       <WidgetTitleForm value={option.title} onChange={event => handleChange(event, setOption)} />
@@ -56,39 +65,56 @@ const HeatmapChartSetting = props => {
             value={option.xField}
             onChange={event => handleChange(event, setOption)}
           />
-          <SelectForm
-            id="yField"
-            name="yField"
-            label="y축"
-            optionList={spec.map(item => item.columnName)}
-            labelField="columnName"
-            valueField="columnType"
-            value={option.yField}
-            onChange={event => handleChange(event, setOption)}
-          />
         </ListItem>
         <ListItem divider>
           <ListItemText primary="시리즈 설정" />
+          <AddButton
+            onClick={event => handleAddClick(event, option, setOption, defaultSeries)}
+            sx={{
+              position: 'absolute',
+              top: 30,
+              right: 0,
+            }}
+          />
+          {option.series.map((item, index) => (
+            <SelectForm
+              key={index}
+              required={true}
+              id={`field${index + 1}`}
+              name={`field${index + 1}`}
+              label={`필드 ${index + 1}`}
+              labelField="columnName"
+              valueField="columnType"
+              optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
+              value={item.field}
+              onChange={event => handleSeriesChange(event, setOption)}
+              endButton={
+                0 < index ? (
+                  <RemoveButton onClick={event => handleRemoveClick(event, index, option, setOption)} id={index} />
+                ) : (
+                  ' '
+                )
+              }
+            />
+          ))}
           <SelectForm
-            required={true}
-            id="field"
-            name="field"
-            label="필드"
-            labelField="columnName"
-            valueField="columnType"
-            optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
-            value={option.series.field}
-            onChange={event => handleSeriesChange(event, setOption, undefined, 'field')}
+            id="aggregation"
+            name="aggregation"
+            label="집계 방식"
+            optionList={AGGREGATION_LIST}
+            value={option.aggregation}
+            onChange={event => handleChange(event, setOption)}
+            disabledDefaultValue
           />
         </ListItem>
         <ListItem>
           <ListItemText primary="색상 범위 설정" />
-          {option.series.color.map((item, index) => (
+          {option.color.map((item, index) => (
             <React.Fragment key={index}>
               <ColorFieldForm
                 id={`color${index + 1}`}
                 name={`color${index + 1}`}
-                value={option.series.color[index]}
+                value={option.color[index]}
                 optionList={option}
                 setOption={setOption}
                 index={index}
