@@ -21,11 +21,7 @@ export class Template extends BaseEntity {
     @Column({length: 1, default: YesNo.YES, comment: '사용여부'})
     useYn: YesNo
 
-    @OneToMany(
-        (type => Dashboard),
-        (dashboard) => dashboard.template
-    )
-    dashboards!: Dashboard[]
+
 
     @OneToMany(
         (type => TemplateItem),

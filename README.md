@@ -8,7 +8,7 @@ intro
 [How to Use](https://github.com/godyuo/Algorithm/edit/main/README.md#How%20to%20Use)<br/>
 [Development Status]()<br/>
 [Things that helped contribute]()<br/>
-[Wiki]()<br/>
+[Wiki](https://github.com/vanillabrain/vanillameta/wiki)<br/>
 
 ## How to Use
 ```

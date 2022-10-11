@@ -1,7 +1,6 @@
 import {Column, Entity, ManyToOne, PrimaryGeneratedColumn} from "typeorm";
 import {BaseEntity} from "../../common/entities/base.entity";
 import {YesNo} from "../../common/enum/yn.enum";
-import {Template} from "../../template/entities/template.entity";
 
 @Entity()
 export class Dashboard extends BaseEntity {
@@ -22,11 +21,5 @@ export class Dashboard extends BaseEntity {
 
     @Column({length: 1, default: YesNo.NO, comment: '삭제여부'})
     delYn: YesNo
-
-    @ManyToOne(
-        (type) => Template,
-        (template) => template.dashboards
-    )
-    template!: Template
 
 }
