@@ -15,26 +15,6 @@ export class ComponentService {
     }
 
     async multipleCreate(createComponents: CreateComponentDto[]) {
-        // await this.componentRepository.save(createComponents);
-        // for(let i =0 ; createComponents.length > i; i ++){
-        //     const createComponentDto = createComponents[i];
-        //     const find_component = await this.componentRepository.findOne({ where: { title: body[i].title }})
-        //
-        //     if(!find_component){
-        //
-        //       await this.componentRepository.save({
-        //         type: body[i].type,
-        //         title: body[i].title,
-        //         description: body[i].description,
-        //         category: body[i].category,
-        //         icon: body[i].icon,
-        //         option: JSON.stringify(body[i].option),
-        //         seq: body[i].seq,
-        //         uesYn: body[i].useYn
-        //       })
-        //       return 'success add a new component'
-        //     }
-        //   }
 
         createComponents.forEach((item) => {
             item.option = JSON.stringify(item.option);
@@ -43,24 +23,6 @@ export class ComponentService {
         return await this.componentRepository.save(createComponents);
     }
 
-    // async shortCreate(body: CreateComponentDto) {
-    //   const find_component = await this.componentRepository.findOne({ where: { title: body.title }})
-    //   if(find_component){
-    //     return 'exist same widget'
-    //   } else {
-    //     await this.componentRepository.save({
-    //       type: body.type,
-    //       title: body.title,
-    //       description: body.description,
-    //       category: body.category,
-    //       icon: body.icon,
-    //       option: JSON.stringify(body.option),
-    //       seq: body.seq,
-    //       uesYn: body.useYn
-    //     })
-    //   }
-    //   return 'This action adds a new widget';
-    // }
 
     async create(createComponent: CreateComponentDto) {
         const find_component = await this.componentRepository.findOne({where: {type: createComponent.type}})
@@ -117,7 +79,6 @@ export class ComponentService {
 
             return 'Success update'
         }
-
 
     }
 

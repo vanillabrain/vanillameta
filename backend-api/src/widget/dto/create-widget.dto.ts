@@ -43,3 +43,4 @@ export class CreateWidgetDto {
   @IsOptional()
   delYn: YesNo
 }
+
