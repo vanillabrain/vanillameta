@@ -10,7 +10,7 @@ import { get } from '@/helpers/apiHelper';
 
 const title = '대시보드';
 
-function Dashboard(props) {
+function Dashboard() {
   const { dashboardId } = useParams();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
@@ -25,8 +25,8 @@ function Dashboard(props) {
 
   useEffect(() => {
     // todo 서비스 완료시 연결
-    DashboardService.selectDashboardList()
-      // get('/data/dummyDashboardList.json')
+    // DashboardService.selectDashboardList()
+    get('/data/dummyDashboardList.json')
       .then(response => response.data)
       .then(data => {
         setLoadedWidgetData(data.filter((list, idx) => idx <= 10 * loadedCount));
@@ -45,9 +45,9 @@ function Dashboard(props) {
     console.log('왜 안타');
     console.log(item);
     if (item.id == 'dashboard') {
-      navigate('/dashboard/create?create_type=dashboard');
+      navigate('/dashboard/create?createType=dashboard');
     } else {
-      navigate('/dashboard/create?create_type=recommend');
+      navigate('/dashboard/create?createType=recommend');
     }
   };
 

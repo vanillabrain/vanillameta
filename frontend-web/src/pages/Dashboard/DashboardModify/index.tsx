@@ -41,8 +41,8 @@ function DashboardModify() {
   // init useEffect
   useEffect(() => {
     // create 와 modify 에 따라 초기 설정을 변경
-    if (searchParams.get('create_type') != null) {
-      if (searchParams.get('create_type') == 'recommend') {
+    if (searchParams.get('createType') != null) {
+      if (searchParams.get('createType') == 'recommend') {
         setRecommendOpen(true); // 추천 프로세스 시작
       } else {
         // create
