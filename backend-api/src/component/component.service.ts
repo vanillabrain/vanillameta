@@ -4,35 +4,17 @@ import {InjectRepository} from "@nestjs/typeorm";
 import {Component} from "./entities/component.entity";
 import {Repository} from "typeorm";
 import {YesNo} from "../common/enum/yn.enum";
+import {UpdateComponentDto} from "./dto/update-component.dto";
 
 @Injectable()
 export class ComponentService {
     constructor(
         @InjectRepository(Component)
-        private componentRepository: Repository<Component>) {
+        private componentRepository: Repository<Component>
+    ) {
     }
 
     async multipleCreate(createComponents: CreateComponentDto[]) {
-        // await this.componentRepository.save(createComponents);
-        // for(let i =0 ; createComponents.length > i; i ++){
-        //     const createComponentDto = createComponents[i];
-        //     const find_component = await this.componentRepository.findOne({ where: { title: body[i].title }})
-        //
-        //     if(!find_component){
-        //
-        //       await this.componentRepository.save({
-        //         type: body[i].type,
-        //         title: body[i].title,
-        //         description: body[i].description,
-        //         category: body[i].category,
-        //         icon: body[i].icon,
-        //         option: JSON.stringify(body[i].option),
-        //         seq: body[i].seq,
-        //         uesYn: body[i].useYn
-        //       })
-        //       return 'success add a new component'
-        //     }
-        //   }
 
         createComponents.forEach((item) => {
             item.option = JSON.stringify(item.option);
@@ -41,24 +23,6 @@ export class ComponentService {
         return await this.componentRepository.save(createComponents);
     }
 
-    // async shortCreate(body: CreateComponentDto) {
-    //   const find_component = await this.componentRepository.findOne({ where: { title: body.title }})
-    //   if(find_component){
-    //     return 'exist same widget'
-    //   } else {
-    //     await this.componentRepository.save({
-    //       type: body.type,
-    //       title: body.title,
-    //       description: body.description,
-    //       category: body.category,
-    //       icon: body.icon,
-    //       option: JSON.stringify(body.option),
-    //       seq: body.seq,
-    //       uesYn: body.useYn
-    //     })
-    //   }
-    //   return 'This action adds a new widget';
-    // }
 
     async create(createComponent: CreateComponentDto) {
         const find_component = await this.componentRepository.findOne({where: {type: createComponent.type}})
@@ -94,26 +58,27 @@ export class ComponentService {
         return find_component_one;
     }
 
-    async update(id: number, body: any) {
+    async update(id: number, updateComponent: UpdateComponentDto) {
 
         const find_component = await this.componentRepository.findOne({where: {id: id}})
         if (!find_component) {
             return 'No exist type'
         } else {
-            find_component.type = body.type;
-            find_component.title = body.title;
-            find_component.description = body.description;
-            find_component.category = body.category;
-            find_component.option = JSON.stringify(body.option);
-            find_component.icon = body.icon;
-            find_component.seq = body.seq;
-            find_component.useYn = body.useYn;
+            const updateObj: UpdateComponentDto = new UpdateComponentDto();
 
-            await this.componentRepository.save(find_component)
+            updateObj.type = updateComponent.type;
+            updateObj.title = updateComponent.title;
+            updateObj.category = updateComponent.category;
+            updateObj.description = updateComponent.description;
+            updateObj.option = JSON.stringify(updateComponent.option);
+            updateObj.icon = updateComponent.icon;
+            updateObj.seq = updateComponent.seq;
+            updateObj.useYn = updateComponent.useYn;
+
+            await this.componentRepository.save(updateObj)
 
             return 'Success update'
         }
-
 
     }
 

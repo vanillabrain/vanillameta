@@ -12,6 +12,11 @@ export class WidgetViewController {
     return this.widgetViewService.create(createWidgetViewDto);
   }
 
+  @Post('/widgetcreate')
+  widgetcreate(@Body() data: number) {
+    return this.widgetViewService.widgetcreate(data);
+  }
+
   @Get()
   findAll() {
     return this.widgetViewService.findAll();
@@ -22,10 +27,10 @@ export class WidgetViewController {
     return this.widgetViewService.findOne(+id);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateWidgetViewDto: UpdateWidgetViewDto) {
-    return this.widgetViewService.update(+id, updateWidgetViewDto);
-  }
+  // @Patch(':id')
+  // update(@Param('id') id: string, @Body() updateWidgetViewDto: UpdateWidgetViewDto) {
+  //   return this.widgetViewService.update(+id, updateWidgetViewDto);
+  // }
 
   @Delete(':id')
   remove(@Param('id') id: string) {

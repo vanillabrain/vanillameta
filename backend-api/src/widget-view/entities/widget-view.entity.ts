@@ -13,9 +13,9 @@ export class WidgetView extends BaseEntity {
     @Column({type: 'text', comment: '조회 sql'})
     query: string
 
-    @OneToMany(
-        (type) => Widget,
-        (widget) => widget.datasetId
-    )
-    widgets!: Widget
+    // @OneToMany(
+    //     (type) => Widget,
+    //     (widget) => widget.datasetId
+    // )
+    // widgets!: Widget
 }
