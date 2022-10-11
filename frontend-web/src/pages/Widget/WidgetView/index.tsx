@@ -1,22 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { IconButton, Stack } from '@mui/material';
+import { Card, IconButton, Stack } from '@mui/material';
 import { Link as RouterLink, useParams } from 'react-router-dom';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
 import EditIcon from '@mui/icons-material/Edit';
 import { Delete } from '@mui/icons-material';
-import ReactECharts from 'echarts-for-react';
 import PageTitleBox from '@/components/PageTitleBox';
 import TitleBox from '@/components/TitleBox';
 import { DialogAlertIconButton } from '@/components/button/DialogAlertButton';
-import WidgetBox from '@/components/widget/WidgetBox';
 import WidgetService from '@/api/widgetService';
 import { WidgetInfo } from '@/api/type';
+import WidgetWrapper from '@/widget/wrapper/WidgetWrapper';
 
 const WidgetView = () => {
-  const { widgetId } = useParams();
-
-  const [loading, setLoading] = useState(false);
-  const defaultWidgetInfo = {
+  const defaultWidgetInfo: WidgetInfo = {
     componentId: '',
     createdAt: '',
     datasetId: '',
@@ -30,6 +26,9 @@ const WidgetView = () => {
     widgetViewId: '',
   };
   const [widgetInfo, setWidgetInfo] = useState<WidgetInfo>(defaultWidgetInfo);
+
+  const { widgetId } = useParams();
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     getWidgetInfo();
@@ -48,27 +47,6 @@ const WidgetView = () => {
       })
       .finally(() => setLoading(false));
     // .then(data => setLoadedWidgetData(data.filter((list, idx) => idx <= 10 * loadedCount)));
-  };
-
-  const option = {
-    grid: { top: 8, right: 8, bottom: 24, left: 36 },
-    xAxis: {
-      type: 'category',
-      data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-    },
-    yAxis: {
-      type: 'value',
-    },
-    series: [
-      {
-        data: [820, 932, 901, 934, 1290, 1330, 1320],
-        type: 'line',
-        smooth: true,
-      },
-    ],
-    tooltip: {
-      trigger: 'axis',
-    },
   };
 
   const handleRenewClick = () => {
@@ -98,9 +76,13 @@ const WidgetView = () => {
           </Stack>
         }
       >
-        <WidgetBox>
-          <ReactECharts option={option} style={{ height: '100%', width: '100%' }} />
-        </WidgetBox>
+        <Card sx={{ width: '100%', height: '100%', minHeight: '500px', borderRadius: 1 }}>
+          <WidgetWrapper
+            widgetOption={widgetInfo}
+            dataSetId={widgetInfo.datasetId}
+            sx={{ width: '100%', height: '100%', borderRadius: 1 }}
+          />
+        </Card>
       </TitleBox>
     </PageTitleBox>
   );
