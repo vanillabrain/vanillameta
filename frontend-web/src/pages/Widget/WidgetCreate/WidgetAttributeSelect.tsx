@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { Grid } from '@mui/material';
-import componentList from '@/data/componentList.json';
-import LineChartSetting from '@/widget/settings/LineChartSetting';
+import axios from 'axios';
+import { useAlert } from 'react-alert';
+
+import { WIDGET_TYPE } from '@/constant';
+import TitleBox from '@/components/TitleBox';
+import WidgetBox from '@/components/widget/WidgetBox';
 import LineChart from '@/modules/linechart/LineChart';
+import LineChartSetting from '@/widget/settings/LineChartSetting';
 import PieChart from '@/modules/piechart/PieChart';
 import PieChartSetting from '@/widget/settings/PieChartSetting';
-import WidgetBox from '@/components/widget/WidgetBox';
-import { WIDGET_TYPE } from '@/constant';
-import { get } from '@/helpers/apiHelper';
-import DonutChartSetting from '@/widget/settings/DonutChartSetting';
 import DonutChart from '@/modules/piechart/DonutChart';
+import DonutChartSetting from '@/widget/settings/DonutChartSetting';
 import MixedLineBarChartSetting from '@/widget/settings/MixedLineBarChartSetting';
 import NumericBoard from '@/modules/ board/NumericBoard';
 import NumericBoardSetting from '@/widget/settings/NumericBoardSetting';
@@ -17,10 +19,16 @@ import TableBoard from '@/modules/ board/TableBoard';
 import TableBoardSetting from '@/widget/settings/TableBoardSetting';
 import ScatterChart from '@/modules/scatterchart/ScatterChart';
 import ScatterChartSetting from '@/widget/settings/ScatterChartSetting';
-import TitleBox from '@/components/TitleBox';
 import BubbleChart from '@/modules/scatterchart/BubbleChart';
 import BubbleChartSetting from '@/widget/settings/BubbleChartSetting';
-import { useAlert } from 'react-alert';
+import RadarChart from '@/modules/radarchart/RadarChart';
+import RadarChartSetting from '@/widget/settings/RadarChartSetting';
+import TreemapChart from '@/modules/treemapchart/TreemapChart';
+import TreemapChartSetting from '@/widget/settings/TreemapChartSetting';
+import GaugeChart from '@/modules/gaugechart/GaugeChart';
+import GaugeChartSetting from '@/widget/settings/GaugeChartSetting';
+import CandlestickChart from '@/modules/candlestickchart/CandlestickChart';
+import CandlestickChartSetting from '@/widget/settings/CandlestickChartSetting';
 
 function WidgetAttributeSelect(props) {
   const alert = useAlert();
@@ -31,21 +39,21 @@ function WidgetAttributeSelect(props) {
   const [data, setData] = useState(null);
   const [switchChart, setSwitchChart] = useState({ chart: undefined, chartSetting: undefined });
   const [spec, setSpec] = useState(null);
+  const [dataLength, setDataLength] = useState(null);
 
-  const defaultComponentData = [...componentList].find(item => item.id === componentType && { ...item });
-  const widgetTypeText = defaultComponentData.title;
+  const widgetTypeText = componentType.title;
 
   useEffect(() => {
     getData();
   }, []);
 
   useEffect(() => {
-    setOption(JSON.parse(JSON.stringify(defaultComponentData.option)));
+    setOption(JSON.parse(JSON.stringify(componentType.option)));
   }, [componentType]);
 
   const getData = () => {
     // dataSetId 로 데이터 조회
-    get('/data/sample/chartFull.json').then(response => {
+    axios.get('/data/sample/chartFull.json').then(response => {
       setData(response.data.data);
       setSpec(response.data.spec);
     });
@@ -54,17 +62,19 @@ function WidgetAttributeSelect(props) {
   useEffect(() => {
     if (option && data) {
       const ChartProps = {
-        option: option,
+        option,
         dataSet: data,
+        setDataLength,
       };
 
       const ChartSettingProps = {
-        option: option,
-        setOption: setOption,
-        spec: spec,
+        option,
+        setOption,
+        spec,
+        dataLength,
       };
 
-      switch (componentType) {
+      switch (componentType.type) {
         case WIDGET_TYPE.BOARD_NUMERIC:
           setSwitchChart({
             ...switchChart,
@@ -235,13 +245,43 @@ function WidgetAttributeSelect(props) {
             chartSetting: <BubbleChartSetting {...ChartSettingProps} />,
           });
           break;
-
-        default:
+        case WIDGET_TYPE.CHART_RADAR:
           setSwitchChart({
             ...switchChart,
-            chart: <LineChart {...ChartProps} />,
-            chartSetting: <LineChartSetting {...ChartSettingProps} />,
+            chart: <RadarChart {...ChartProps} />,
+            chartSetting: <RadarChartSetting {...ChartSettingProps} />,
           });
+          break;
+        case WIDGET_TYPE.CHART_TREEMAP:
+          setSwitchChart({
+            ...switchChart,
+            chart: <TreemapChart {...ChartProps} />,
+            chartSetting: <TreemapChartSetting {...ChartSettingProps} />,
+          });
+          break;
+        case WIDGET_TYPE.CHART_SUNBURST:
+          setSwitchChart({
+            ...switchChart,
+            chart: <TreemapChart {...ChartProps} seriesOp={{ type: 'sunburst', label: { rotate: 'radial' } }} />,
+            chartSetting: <TreemapChartSetting {...ChartSettingProps} />,
+          });
+          break;
+        case WIDGET_TYPE.CHART_GAUGE:
+          setSwitchChart({
+            ...switchChart,
+            chart: <GaugeChart {...ChartProps} />,
+            chartSetting: <GaugeChartSetting {...ChartSettingProps} />,
+          });
+          break;
+        case WIDGET_TYPE.CHART_CANDLESTICK:
+          setSwitchChart({
+            ...switchChart,
+            chart: <CandlestickChart {...ChartProps} />,
+            chartSetting: <CandlestickChartSetting {...ChartSettingProps} />,
+          });
+          break;
+
+        default:
           break;
       }
     }
@@ -265,18 +305,7 @@ function WidgetAttributeSelect(props) {
     // });
 
     // confirm sample
-    alert.success('위젯 속성을 저장하시겠습니까?', {
-      title: '위젯 저장',
-      closeCopy: '취소',
-      actions: [
-        {
-          copy: '저장',
-          onClick: () => {
-            console.log('저장클릭');
-          },
-        },
-      ],
-    });
+    alert.success('위젯 속성을 저장하시겠습니까?');
 
     console.log('widgetTitle:', option.title);
     console.log('datesetId:', dataSetId);

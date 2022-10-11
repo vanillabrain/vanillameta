@@ -2,7 +2,17 @@ import React from 'react';
 import { Box, FormControl, FormLabel, MenuItem, Select, Stack } from '@mui/material';
 
 function SelectForm(props) {
-  const { label, optionList, endButton, value, labelField = 'label', valueField = 'value', required, ...rest } = props;
+  const {
+    label,
+    optionList,
+    endButton,
+    value,
+    labelField = 'label',
+    valueField = 'value',
+    required,
+    disabledDefaultValue,
+    ...rest
+  } = props;
 
   const getDropList = (list: any[] | { value: any[]; label: any[] }) => {
     let dropDownList;
@@ -24,8 +34,9 @@ function SelectForm(props) {
       const arr = value.map((item, index) => ({ value: item, label: label[index] }));
       dropDownList = arr;
     }
-
-    dropDownList.unshift({ [valueField]: '', [labelField]: '선택 안함' });
+    if (!disabledDefaultValue) {
+      dropDownList.unshift({ [valueField]: '', [labelField]: '선택 안함' });
+    }
     return dropDownList;
   };
 
@@ -53,6 +64,7 @@ function SelectForm(props) {
       <Stack flexDirection="row" justifyContent="space-between" alignItems="center" sx={{ width: label ? '65%' : '100%' }}>
         <Select
           fullWidth
+          displayEmpty
           size="small"
           sx={endButton ? { width: 'calc(100% - 38px)', flexShrink: 1 } : { width: '100%' }}
           value={value ?? ''}

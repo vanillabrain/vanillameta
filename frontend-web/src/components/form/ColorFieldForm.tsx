@@ -40,13 +40,20 @@ function ColorFieldForm(props) {
 
   return (
     <FormControl fullWidth sx={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-      <FormLabel
-        htmlFor={id}
-        sx={{ width: '35%', pr: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+      {labelItem && (
+        <FormLabel
+          htmlFor={id}
+          sx={{ width: '35%', pr: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+        >
+          {labelItem}
+        </FormLabel>
+      )}
+      <Stack
+        flexDirection="row"
+        sx={{ width: labelItem ? '65%' : '100%' }}
+        justifyContent="space-between"
+        alignItems="center"
       >
-        {labelItem}
-      </FormLabel>
-      <Stack flexDirection="row" sx={{ width: label ? '65%' : '100%' }} justifyContent="space-between" alignItems="center">
         <IconButton
           aria-label="색상 선택"
           sx={{ mr: 1, border: '1px solid #c4c4c4', bgcolor: '#fff' }}
@@ -83,12 +90,8 @@ function ColorFieldForm(props) {
 
 ColorFieldForm.defaultProps = {
   value: '#eee',
-  endButton: undefined,
   id: '',
-  label: [],
   index: 0,
-  optionList: '',
-  setOption: '',
 };
 
 export default ColorFieldForm;

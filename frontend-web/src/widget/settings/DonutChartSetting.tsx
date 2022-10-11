@@ -4,7 +4,7 @@ import TextFieldForm from '@/components/form/TextFieldForm';
 import { InputAdornment } from '@mui/material';
 
 function DonutChartSetting(props) {
-  const { option, setOption } = props;
+  const { option, setOption, spec, dataLength } = props;
 
   const innerRadius = option.series.radius[0];
   const outerRadius = option.series.radius[1];
@@ -24,6 +24,8 @@ function DonutChartSetting(props) {
     <PieChartSetting
       option={option}
       setOption={setOption}
+      spec={spec}
+      dataLength={dataLength}
       listItem={{
         title: '차트 모양 설정',
         children: (

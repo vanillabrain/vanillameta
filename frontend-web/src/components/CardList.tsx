@@ -29,7 +29,7 @@ CardListWrapper.defaultProps = {
 };
 
 const CardList = props => {
-  const { subActions, minWidth, data, setValue, ...rest } = props;
+  const { subActions, minWidth, data, setValue, handleNext, ...rest } = props;
 
   const handleClick = event => {
     if (setValue !== undefined) {
@@ -48,7 +48,7 @@ const CardList = props => {
                 }}
               >
                 <CardActionArea
-                  onClick={handleClick}
+                  onClick={!handleNext ? handleClick : event => handleNext(event, item)}
                   sx={{
                     minHeight: 80,
                     px: 2,

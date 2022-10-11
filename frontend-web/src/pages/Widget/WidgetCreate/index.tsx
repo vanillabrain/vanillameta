@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Box, Stack, Step, StepLabel, Stepper } from '@mui/material';
 import PageTitleBox from '@/components/PageTitleBox';
 import PageContainer from '@/components/PageContainer';
@@ -6,14 +6,12 @@ import ConfirmCancelButton, { ConfirmButton } from '@/components/button/ConfirmC
 import WidgetDataSelect from './WidgetDataSelect';
 import WidgetTypeSelect from './WidgetTypeSelect';
 import WidgetAttributeSelect from './WidgetAttributeSelect';
-import { WIDGET_TYPE } from '@/constant';
-import { get } from '@/helpers/apiHelper';
 import componentService from '@/api/componentService';
 
 const title = '위젯 생성';
 const steps = ['데이터 선택', '위젯 타입 선택', '위젯 속성 설정'];
 
-function WidgetCreate(props) {
+function WidgetCreate() {
   const [activeStep, setActiveStep] = useState(0);
 
   const [componentList, setComponentList] = useState([]); // step 1
@@ -23,7 +21,6 @@ function WidgetCreate(props) {
   // 개발 편의상 임시로 적용
   useEffect(() => {
     setDataSet(688279);
-    setWidgetType(WIDGET_TYPE.CHART_LINE);
     setActiveStep(1);
     getComponentList();
   }, []);
@@ -31,6 +28,7 @@ function WidgetCreate(props) {
   const [isNextButtonDisabled, setIsNextButtonDisabled] = useState(true);
 
   useEffect(() => {
+    // console.log('widgetType', widgetType);
     if (activeStep === 0 && !!dataSet) {
       setIsNextButtonDisabled(false);
       return;
@@ -46,15 +44,21 @@ function WidgetCreate(props) {
 
   const getComponentList = () => {
     componentService.selectComponentList().then(res => {
-      console.log(res);
+      // console.log(res.data);
       setComponentList(res.data);
     });
   };
 
-  const handleNext = event => {
+  const handleNext = (event, item) => {
     event.preventDefault();
     if (activeStep === steps.length - 1) {
       return;
+    }
+    if (activeStep === 0) {
+      setDataSet(item);
+    }
+    if (activeStep === 1) {
+      setWidgetType(item);
     }
     setActiveStep(prevState => prevState + 1);
   };
@@ -139,9 +143,14 @@ function WidgetCreate(props) {
         </Box>
 
         {activeStep === 0 ? (
-          <WidgetDataSelect setDataSet={setDataSet} />
+          <WidgetDataSelect setDataSet={setDataSet} handleNext={handleNext} />
         ) : activeStep === 1 ? (
-          <WidgetTypeSelect widgetType={widgetType} setWidgetType={setWidgetType} componentList={componentList} />
+          <WidgetTypeSelect
+            widgetType={widgetType}
+            setWidgetType={setWidgetType}
+            componentList={componentList}
+            handleNext={handleNext}
+          />
         ) : (
           <WidgetAttributeSelect dataSetId={dataSet} componentType={widgetType} />
         )}
