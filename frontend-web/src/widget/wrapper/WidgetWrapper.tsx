@@ -12,15 +12,15 @@ const WidgetWrapper = props => {
 
   const [widget, setWidget] = useState(null);
   useEffect(() => {
-    console.log('WidgetWrapper');
+    console.log('WidgetWrapper', dataSetId);
 
     if (dataSetId) {
       getData();
     }
-  }, []);
+  }, [dataSetId]);
 
   const getData = () => {
-    get('/data/sample/chart.json').then(response => {
+    get('http://localhost:3000/data/sample/chart.json').then(response => {
       console.log('res', response.data);
       if (widgetOption) {
         console.log('widget widgetOption : ', widgetOption);
@@ -35,8 +35,8 @@ const WidgetWrapper = props => {
           case WIDGET_TYPE.CHART_PIE:
             module = <PieChart option={widgetOption.option} dataSet={response.data} />;
             break;
-
           default:
+            module = <LineChart option={widgetOption.option} dataSet={response.data} />;
         }
         setWidget(module);
       }
@@ -57,14 +57,7 @@ const WidgetWrapper = props => {
         </Typography>
       </Stack>
       <Divider sx={{ marginBottom: 4 }} />
-      <Box
-        sx={{
-          width: '100%',
-          height: '100%',
-        }}
-      >
-        {widget}
-      </Box>
+      {widget}
     </Stack>
   );
 };
