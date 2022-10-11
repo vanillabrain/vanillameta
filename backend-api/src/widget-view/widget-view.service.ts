@@ -44,18 +44,6 @@ export class WidgetViewService {
         }
     }
 
-    // async update(id: number, updateWidgetView: UpdateWidgetViewDto) {
-    //
-    //     const find_widget_view = await this.widgetViewRepository.findOne({where: {id: id}})
-    //     if (!find_widget_view) {
-    //         return 'No exist widget'
-    //     } else {
-    //         const updateObj: UpdateWidgetViewDto = new UpdateWidgetViewDto();
-    //
-    //         updateObj.databaseId = updateWidgetView.databaseId; // TODO 필요한가?
-    //     }
-    //     return `This action updates a #${id} widgetView`;
-    // }
 
     async remove(id: number) {
         const find_widget_view = await this.widgetViewRepository.findOne({where: {id: id}});
