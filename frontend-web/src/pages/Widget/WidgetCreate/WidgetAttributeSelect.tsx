@@ -33,14 +33,14 @@ import CandlestickChart from '@/modules/candlestickchart/CandlestickChart';
 import CandlestickChartSetting from '@/widget/settings/CandlestickChartSetting';
 import useScrollTrigger from '@mui/material/useScrollTrigger';
 
-function WidgetAttributeSelect(props) {
+const WidgetAttributeSelect = props => {
   const alert = useAlert();
   const theme = useTheme();
   const matchesMd = useMediaQuery(theme.breakpoints.up('md'));
   const matchesLg = useMediaQuery(theme.breakpoints.up('lg'));
   const trigger = useScrollTrigger({ threshold: 300, disableHysteresis: true });
 
-  const { dataSetId, componentType, prevOption } = props;
+  const { componentInfo, prevOption, saveWidgetInfo } = props;
 
   const [option, setOption] = useState(null);
   const [data, setData] = useState(null);
@@ -48,15 +48,15 @@ function WidgetAttributeSelect(props) {
   const [spec, setSpec] = useState(null);
   const [dataLength, setDataLength] = useState(null);
 
-  const widgetTypeText = componentType.title;
+  const widgetTypeText = componentInfo.title;
 
   useEffect(() => {
     getData();
   }, []);
 
   useEffect(() => {
-    setOption(JSON.parse(JSON.stringify(componentType.option)));
-  }, [componentType]);
+    setOption(JSON.parse(JSON.stringify(componentInfo.option)));
+  }, [componentInfo]);
 
   const getData = () => {
     // dataSetId 로 데이터 조회
@@ -81,7 +81,7 @@ function WidgetAttributeSelect(props) {
         dataLength,
       };
 
-      switch (componentType.type) {
+      switch (componentInfo.type) {
         case WIDGET_TYPE.BOARD_NUMERIC:
           setSwitchChart({
             ...switchChart,
@@ -319,7 +319,7 @@ function WidgetAttributeSelect(props) {
           break;
       }
     }
-  }, [option, componentType, data]);
+  }, [option, componentInfo, data]);
 
   // 이미 저장된 위젯값이 있는 경우 불러오기
   useEffect(() => {
@@ -339,12 +339,18 @@ function WidgetAttributeSelect(props) {
     // });
 
     // confirm sample
-    alert.success('위젯 속성을 저장하시겠습니까?');
-
-    console.log('widgetTitle:', option.title);
-    console.log('datesetId:', dataSetId);
-    console.log('widgetType:', componentType);
-    console.log('widgetOption:', option);
+    alert.success('위젯 속성을 저장하시겠습니까?', {
+      title: '위젯 저장',
+      closeCopy: '취소',
+      actions: [
+        {
+          copy: '나가기',
+          onClick: () => {
+            saveWidgetInfo(option);
+          },
+        },
+      ],
+    });
   };
 
   return (
@@ -365,6 +371,6 @@ function WidgetAttributeSelect(props) {
       </Grid>
     </TitleBox>
   );
-}
+};
 
 export default WidgetAttributeSelect;

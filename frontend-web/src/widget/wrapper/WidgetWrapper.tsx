@@ -20,7 +20,7 @@ const WidgetWrapper = props => {
   }, [dataSetId]);
 
   const getData = () => {
-    get('http://localhost:3000/data/sample/chart.json').then(response => {
+    get('http://localhost:3000/data/sample/chartFull.json').then(response => {
       console.log('res', response.data);
       if (widgetOption) {
         console.log('widget widgetOption : ', widgetOption);
@@ -28,15 +28,15 @@ const WidgetWrapper = props => {
         let module = null;
         switch (widgetType) {
           case WIDGET_TYPE.CHART_LINE:
-            module = <LineChart option={widgetOption.option} dataSet={response.data} />;
+            module = <LineChart option={widgetOption.option} dataSet={response.data.data} />;
             break;
           case WIDGET_TYPE.CHART_BAR:
             break;
           case WIDGET_TYPE.CHART_PIE:
-            module = <PieChart option={widgetOption.option} dataSet={response.data} />;
+            module = <PieChart option={widgetOption.option} dataSet={response.data.data} />;
             break;
           default:
-            module = <LineChart option={widgetOption.option} dataSet={response.data} />;
+            module = <LineChart option={widgetOption.option} dataSet={response.data.data} />;
         }
         setWidget(module);
       }

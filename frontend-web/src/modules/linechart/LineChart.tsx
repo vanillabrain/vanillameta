@@ -52,6 +52,7 @@ const LineChart = props => {
       console.log('axis', axis);
       console.log('option[axisField]', option[axis + 'Field']);
       aggrData = getAggregationDataForChart(dataSet, option[axis + 'Field'], item.field, item.aggregation);
+      console.log('aggrData : ', aggrData);
       console.log(aggrData.map(dataItem => dataItem[item.field]));
       if (item.field) {
         const series = {

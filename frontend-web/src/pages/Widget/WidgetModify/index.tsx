@@ -8,25 +8,26 @@ import axios from 'axios';
 // import { get } from '@/helpers/apiHelper';
 
 function WidgetModify(props) {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const widgetId = searchParams.get('id');
   const widgetName = searchParams.get('name');
 
   const [isLoaded, setIsLoaded] = useState(false);
 
   const [data, setData] = useState({
-    dataId: 0,
+    dataId: 11,
     type: '',
     option: {},
   });
   const [widgetOption, setWidgetOption] = useState({});
 
   useEffect(() => {
-    axios
-      .get('/data/dummyWidgetList.json')
-      .then(response => response.data)
-      .then(data => setData(data.find(element => element.id === widgetId)))
-      .then(() => setIsLoaded(true));
+    console.log(widgetId, widgetName);
+    // axios
+    //   .get('/data/dummyWidgetList.json')
+    //   .then(response => response.data)
+    //   .then(data => setData(data.find(element => element.id === widgetId)))
+    //   .then(() => setIsLoaded(true));
   }, []);
 
   console.log(data, 'data');
