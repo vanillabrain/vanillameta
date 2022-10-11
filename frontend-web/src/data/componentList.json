@@ -1,28 +1,41 @@
 [
   {
-    "id": "BOARD_NUMERIC",
+    "type": "BOARD_NUMERIC",
     "title": "숫자판",
     "icon": null,
-    "caption": "Score Board",
+    "description": "Score Board",
     "option": {
-      "header": { "title": "타이틀을 입력하세요", "fontSize": 20, "color": "#4A4A4A" },
-      "content": { "field": null, "aggregation": null, "fontSize": 20, "color": "#4A4A4A", "prefix": "", "suffix": "" }
+      "header": {
+        "title": "타이틀을 입력하세요",
+        "fontSize": 20,
+        "color": "#4A4A4A"
+      },
+      "content": {
+        "field": null,
+        "aggregation": null,
+        "fontSize": 20,
+        "color": "#4A4A4A",
+        "prefix": "",
+        "suffix": ""
+      }
     }
   },
   {
-    "id": "BOARD_TABLE",
+    "type": "BOARD_TABLE",
     "title": "표",
     "icon": null,
-    "caption": "DataGrid",
+    "description": "DataGrid",
     "option": {
-      "columns": []
+      "columns": [
+
+      ]
     }
   },
   {
-    "id": "CHART_LINE",
+    "type": "CHART_LINE",
     "title": "선형 차트",
     "icon": "icon/line-chart.png",
-    "caption": "Line Chart",
+    "description": "Line Chart",
     "option": {
       "title": "",
       "xField": "",
@@ -33,14 +46,14 @@
           "aggregation": "sum"
         }
       ],
-      "legendPosition": "left"
+      "legendPosition": ""
     }
   },
   {
-    "id": "CHART_STACKED_LINE",
+    "type": "CHART_STACKED_LINE",
     "title": "누적 선형 차트",
     "icon": "icon/line-chart.png",
-    "caption": "Stacked Line Chart",
+    "description": "Stacked Line Chart",
     "option": {
       "title": "",
       "xField": "",
@@ -48,17 +61,17 @@
         {
           "field": "",
           "color": "#5470c6",
-          "aggregation": ""
+          "aggregation": "sum"
         }
       ],
-      "legendPosition": "left"
+      "legendPosition": ""
     }
   },
   {
-    "id": "CHART_AREA",
+    "type": "CHART_AREA",
     "title": "영역형 차트",
     "icon": "icon/area-chart.png",
-    "caption": "Area Chart",
+    "description": "Area Chart",
     "option": {
       "title": "",
       "xField": "",
@@ -66,17 +79,17 @@
         {
           "field": "",
           "color": "#5470c6",
-          "aggregation": ""
+          "aggregation": "sum"
         }
       ],
-      "legendPosition": "left"
+      "legendPosition": ""
     }
   },
   {
-    "id": "CHART_STACKED_AREA",
+    "type": "CHART_STACKED_AREA",
     "title": "누적 영역형 차트",
     "icon": "icon/area-chart.png",
-    "caption": "Stacked Area Chart",
+    "description": "Stacked Area Chart",
     "option": {
       "title": "",
       "xField": "",
@@ -84,17 +97,17 @@
         {
           "field": "",
           "color": "#5470c6",
-          "aggregation": ""
+          "aggregation": "sum"
         }
       ],
-      "legendPosition": "left"
+      "legendPosition": ""
     }
   },
   {
-    "id": "CHART_BAR",
+    "type": "CHART_BAR",
     "title": "막대형 세로 차트",
     "icon": "icon/bar-chart.png",
-    "caption": "Bar Chart",
+    "description": "Bar Chart",
     "option": {
       "title": "",
       "xField": "",
@@ -102,16 +115,17 @@
         {
           "field": "",
           "color": "#5470c6",
-          "aggregation": ""
+          "aggregation": "sum"
         }
-      ]
+      ],
+      "legendPosition": ""
     }
   },
   {
-    "id": "CHART_STACKED_BAR",
+    "type": "CHART_STACKED_BAR",
     "title": "누적 막대형 세로 차트",
     "icon": "icon/bar-chart.png",
-    "caption": "Stacked Bar Chart",
+    "description": "Stacked Bar Chart",
     "option": {
       "title": "",
       "xField": "",
@@ -119,16 +133,17 @@
         {
           "field": "",
           "color": "#5470c6",
-          "aggregation": ""
+          "aggregation": "sum"
         }
-      ]
+      ],
+      "legendPosition": ""
     }
   },
   {
-    "id": "CHART_COLUMN",
+    "type": "CHART_COLUMN",
     "title": "막대형 가로 차트",
     "icon": "icon/column-chart.png",
-    "caption": "Column Chart",
+    "description": "Column Chart",
     "option": {
       "title": "",
       "yField": "",
@@ -136,16 +151,17 @@
         {
           "field": "",
           "color": "#5470c6",
-          "aggregation": ""
+          "aggregation": "sum"
         }
-      ]
+      ],
+      "legendPosition": ""
     }
   },
   {
-    "id": "CHART_STACKED_COLUMN",
+    "type": "CHART_STACKED_COLUMN",
     "title": "누적 막대형 가로 차트",
     "icon": "icon/column-chart.png",
-    "caption": "Stacked Column Chart",
+    "description": "Stacked Column Chart",
     "option": {
       "title": "",
       "yField": "",
@@ -153,86 +169,103 @@
         {
           "field": "",
           "color": "#5470c6",
-          "aggregation": ""
+          "aggregation": "sum"
         }
-      ]
+      ],
+      "legendPosition": ""
     }
   },
   {
-    "id": "CHART_MIXED_LINE_BAR",
+    "type": "CHART_MIXED_LINE_BAR",
     "title": "복합 차트",
     "icon": "icon/mixed-chart.png",
-    "caption": "Mixed Chart",
+    "description": "Mixed Chart",
     "option": {
       "xField": "",
       "series": [
         {
           "field": "",
           "color": "#5470c6",
-          "aggregation": "",
+          "aggregation": "sum",
           "type": "line"
         },
         {
           "field": "",
           "color": "#91cc75",
-          "aggregation": "",
+          "aggregation": "sum",
           "type": "bar"
         }
-      ]
+      ],
+      "legendPosition": ""
     }
   },
   {
-    "id": "CHART_PIE",
+    "type": "CHART_PIE",
     "title": "원형 차트",
     "icon": "icon/pie-chart.png",
-    "caption": "Pie Chart",
+    "description": "Pie Chart",
     "option": {
       "title": "",
       "series": {
         "field": "",
-        "color": [],
-        "aggregation": "",
+        "color": [
+
+        ],
+        "aggregation": "sum",
         "label": ""
-      }
+      },
+      "legendPosition": ""
     }
   },
   {
-    "id": "CHART_DONUT",
+    "type": "CHART_DONUT",
     "title": "도넛형 차트",
     "icon": "icon/doughnut-chart.png",
-    "caption": "Donut Chart",
+    "description": "Donut Chart",
     "option": {
       "title": "",
       "series": {
         "field": "",
-        "color": [],
-        "aggregation": "",
+        "color": [
+
+        ],
+        "aggregation": "sum",
         "label": "",
-        "radius": ["30%", "75%"]
-      }
+        "radius": [
+          "30%",
+          "75%"
+        ]
+      },
+      "legendPosition": ""
     }
   },
   {
-    "id": "CHART_NIGHTINGALE",
+    "type": "CHART_NIGHTINGALE",
     "title": "나이팅게일 차트",
     "icon": "icon/nightingale-chart.png",
-    "caption": "Nightingale Chart",
+    "description": "Nightingale Chart",
     "option": {
       "title": "",
       "series": {
         "field": "",
-        "color": [],
-        "aggregation": "",
+        "color": [
+
+        ],
+        "aggregation": "sum",
         "label": "",
-        "radius": ["10%", "90%"]
-      }
+        "radius": [
+          "10%",
+          "90%"
+        ]
+      },
+      "legendPosition": ""
     }
   },
   {
-    "id": "CHART_SCATTER",
+    "type": "CHART_SCATTER",
     "title": "분산형 차트",
     "icon": "icon/scatter-chart.png",
-    "caption": "Scatter Chart",
+    "description": "Scatter Chart",
     "option": {
       "series": [
         {
@@ -241,14 +274,15 @@
           "symbolSize": "20",
           "color": "#5470c6"
         }
-      ]
+      ],
+      "legendPosition": ""
     }
   },
   {
-    "id": "CHART_BUBBLE",
+    "type": "CHART_BUBBLE",
     "title": "거품형 차트",
     "icon": "icon/bubble-chart.png",
-    "caption": "Bubble Chart",
+    "description": "Bubble Chart",
     "option": {
       "series": [
         {
@@ -257,34 +291,114 @@
           "symbolSize": "",
           "color": "#5470c6"
         }
-      ]
+      ],
+      "legendPosition": ""
     }
   },
   {
-    "id": "radarChart",
+    "type": "radarChart",
     "title": "방사형 차트",
     "icon": "icon/radar-chart.png",
-    "caption": "Radar Chart",
+    "description": "Radar Chart",
     "option": {
-      "xField": "label",
+      "title": "",
+      "xField": "",
       "series": [
         {
-          "field": "value1",
-          "color": "#43afef",
-          "aggregation": ""
+          "field": "",
+          "color": "#5470c6",
+          "aggregation": "sum"
+        }
+      ],
+      "legendPosition": ""
+    }
+  },
+  {
+    "type": "CHART_TREEMAP",
+    "title": "트리맵 차트",
+    "category": "TREEMAP",
+    "icon": "icon/treemap-chart.png",
+    "description": "Treemap Chart",
+    "option": {
+      "title": "",
+      "series": {
+        "field": "",
+        "color": [
+
+        ],
+        "aggregation": "sum",
+        "label": ""
+      }
+    }
+  },
+  {
+    "type": "CHART_SUNBURST",
+    "title": "선버스트 차트",
+    "category": "TREEMAP",
+    "icon": "icon/sunburst-chart.png",
+    "description": "Sunburst Chart",
+    "option": {
+      "title": "",
+      "series": {
+        "field": "",
+        "color": [
+
+        ],
+        "aggregation": "sum",
+        "label": ""
+      }
+    }
+  },
+  {
+    "type ": "CHART_GAUGE",
+    "title": "게이지 차트",
+    "category": "GAUGE",
+    "icon": "icon/gauge-chart.png",
+    "description": "Gauge Chart",
+    "option": {
+      "title": "",
+      "series": {
+        "field": "",
+        "color": [
+
+        ],
+        "aggregation": "sum",
+        "suffix": ""
+      }
+    }
+  },
+  {
+    "type": "CHART_CANDLESTICK",
+    "title": "캔들스틱 차트",
+    "category": "CANDLESTICK",
+    "icon": "icon/candlestick-chart.png",
+    "description": "Candlestick Chart",
+    "option": {
+      "title": "",
+      "xField": "",
+      "series": [
+         {
+          "field": "",
+          "color": "#5470c6",
+          "aggregation": "sum"
+        },
+         {
+          "field": "",
+          "color": "#91cc75",
+          "aggregation": "sum"
+        },
+         {
+          "field": "",
+          "color": "#fac858",
+          "aggregation": "sum"
         },
         {
-          "field": "value2",
-          "color": "#b9e7ff",
-          "aggregation": ""
+          "field": "",
+          "color": "#ee6666",
+          "aggregation": "sum"
         }
-      ,
-        {
-          "field": "value2",
-          "color": "#d9d9d9",
-          "aggregation": ""
-        }
-      ]
+      ],
+      "legendPosition": ""
     }
   }
 ]

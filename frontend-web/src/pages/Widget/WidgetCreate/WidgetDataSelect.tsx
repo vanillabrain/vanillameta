@@ -6,7 +6,7 @@ import CardList, { DataSourceCard } from '@/components/CardList';
 import axios from 'axios';
 
 function WidgetDataSelect(props) {
-  const { setDataSet } = props;
+  const { setDataSet, handleNext } = props;
 
   const [isLoading, setIsLoading] = useState(false);
   const [loadedData, setLoadedData] = useState([]);
@@ -61,12 +61,12 @@ function WidgetDataSelect(props) {
           <Grid container spacing={5}>
             <Grid item xs={12}>
               <TitleBox title="데이터 셋">
-                <CardList data={presentedData.dataSet} setValue={setDataSet} />
+                <CardList data={presentedData.dataSet} setValue={setDataSet} handleNext={handleNext} />
               </TitleBox>
             </Grid>
             <Grid item xs={12}>
               <TitleBox title="데이터 목록">
-                <CardList data={presentedData.dataList} setValue={setDataSet} />
+                <CardList data={presentedData.dataList} setValue={setDataSet} handleNext={handleNext} />
               </TitleBox>
             </Grid>
           </Grid>

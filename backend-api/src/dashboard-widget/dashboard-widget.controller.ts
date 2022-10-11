@@ -1,4 +1,4 @@
-import {Controller, Get, Post, Body, Patch, Param, Delete, Put} from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Put } from '@nestjs/common';
 import { DashboardWidgetService } from './dashboard-widget.service';
 import { CreateDashboardWidgetDto } from './dto/create-dashboard-widget.dto';
 import { UpdateDashboardWidgetDto } from './dto/update-dashboard-widget.dto';
@@ -23,12 +23,12 @@ export class DashboardWidgetController {
   }
 
   @Put(':id')
-  update(@Param('id') id: string, @Body() updateDashboardWidgetDto: UpdateDashboardWidgetDto) {
+  update(@Param('id') id: number, @Body() updateDashboardWidgetDto: UpdateDashboardWidgetDto) {
     return this.dashboardWidgetService.update(+id, updateDashboardWidgetDto);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
+  remove(@Param('id') id: number) {
     return this.dashboardWidgetService.remove(+id);
   }
 }

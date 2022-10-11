@@ -33,6 +33,9 @@ export const getLegendOption = position => {
         top: 'bottom',
       };
       break;
+    case '':
+      option = false;
+      break;
   }
   return option;
 };
@@ -57,6 +60,37 @@ export const getGridSize = position => {
     case 'bottom':
       option = { top: 20, right: 30, bottom: 80, left: 50 };
       break;
+    case '':
+      option = false;
+      break;
+  }
+  return option;
+};
+
+/**
+ *
+ * @param position
+ */
+export const getCenter = position => {
+  let option = [];
+  switch (position) {
+    case 'left':
+      option = ['60%', '50%'];
+      break;
+    case 'right':
+      option = ['40%', '50%'];
+      break;
+    case 'top':
+      option = ['50%', '60%'];
+      break;
+    case 'bottom':
+      option = ['50%', '40%'];
+      break;
+    case '':
+      option = ['50%', '50%'];
+      break;
+    default:
+      break;
   }
   return option;
 };
@@ -64,7 +98,7 @@ export const getGridSize = position => {
 /**
  *
  * @param type
- * @param items
+ * @param data
  * @param field
  */
 export const getAggregationData = (type, data, field) => {
@@ -72,7 +106,7 @@ export const getAggregationData = (type, data, field) => {
   switch (type) {
     case WIDGET_AGGREGATION.SUM:
       data.forEach(item => {
-        console.log('item ', item[field]);
+        // console.log('item ', item[field]);
         if (item[field]) {
           result += item[field];
         }
@@ -80,7 +114,7 @@ export const getAggregationData = (type, data, field) => {
       break;
     case WIDGET_AGGREGATION.AVG:
       data.forEach(item => {
-        console.log('item ', item[field]);
+        // console.log('item ', item[field]);
         if (item[field]) {
           result += item[field];
         }
@@ -89,7 +123,7 @@ export const getAggregationData = (type, data, field) => {
       break;
     case WIDGET_AGGREGATION.MAX:
       data.forEach(item => {
-        console.log('item ', item[field]);
+        // console.log('item ', item[field]);
         if (item[field]) {
           result = Math.max(result, item[field]);
         }
@@ -97,7 +131,7 @@ export const getAggregationData = (type, data, field) => {
       break;
     case WIDGET_AGGREGATION.MIN:
       data.forEach(item => {
-        console.log('item ', item[field]);
+        // console.log('item ', item[field]);
         if (item[field]) {
           result = Math.min(result, item[field]);
         }
@@ -109,10 +143,11 @@ export const getAggregationData = (type, data, field) => {
 };
 
 /**
- * getAggregationDataForChart
+ *
  * @param array
  * @param keys
  * @param variable
+ * @param aggr
  */
 export const getAggregationDataForChart = (array, keys, variable, aggr = WIDGET_AGGREGATION.SUM) => {
   let key, temp;
@@ -126,7 +161,7 @@ export const getAggregationDataForChart = (array, keys, variable, aggr = WIDGET_
     }
   });
   const data = array.reduce((result, currentValue) => {
-    console.log(result, currentValue);
+    // console.log(result, currentValue);
     key = currentValue[keys];
     if (!result[key]) {
       result[key] = 0;
@@ -155,4 +190,19 @@ export const getAggregationDataForChart = (array, keys, variable, aggr = WIDGET_
     grouped.push(temp);
   });
   return grouped;
+};
+
+/**
+ * field 갯수에 따라 color array 생성
+ * @param field
+ * @param length
+ */
+export const getColorArr = (field, length) => {
+  const defaultColor = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc'];
+  const colorArr = [];
+
+  for (let i = 0; i < length; i++) {
+    colorArr.push(defaultColor[i % 9]);
+  }
+  return colorArr;
 };

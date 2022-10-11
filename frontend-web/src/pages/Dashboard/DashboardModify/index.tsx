@@ -15,6 +15,7 @@ import { get } from '@/helpers/apiHelper';
 import WidgetWrapper from '@/widget/wrapper/WidgetWrapper';
 import AddIcon from '@mui/icons-material/Add';
 import RecommendDashboardPopup from '@/pages/Dashboard/Components/RecommendDashboardPopup';
+import DashboardService from '@/api/dashboardService';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -58,6 +59,8 @@ function DashboardModify() {
 
   // dashboard info 조회
   const getDashboardInfo = id => {
+    // todo 서비스 완료시 연결
+    // DashboardService.selectDashboard(id).then(response => {
     get('/data/dummyDashboardInfo.json').then(response => {
       setDashboardTitle(response.data.title);
       setWidgets(response.data.widgets);
@@ -154,7 +157,7 @@ function DashboardModify() {
         });
       } else if (layout.length == 0 || widgets.length == 0) {
         // 배치된 widget 이 없을경우
-        alert('배치된 위젯이 없습니다');
+        // alert('배치된 위젯이 없습니다');
       } else {
         // 저장 로직
         dashboardInfo.dashboardId = dashboardId;
