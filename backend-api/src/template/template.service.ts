@@ -205,4 +205,107 @@ export class TemplateService {
 
     return templateList;
   }
+
+  /**
+   * 선택된 템플릿에 맞게 대시보드 레아이웃을 정해서 값을 보내줘야 한다.
+   * @param widgets
+   * @param templateId
+   */
+  async getTemplateDashboardLayout(widgets: number[], templateId: number) {
+    const widget1 = {
+      widgetId: 1,
+      title: '라인차트 위젯',
+      date: '2022-04-11T18:27:45+09:00',
+      dataSetId: '000001',
+      type: 'CHART_LINE',
+      option: {
+        xField: 'name',
+        series: [
+          {
+            field: 'high',
+            color: '#43afef',
+            aggregation: '',
+          },
+          {
+            field: 'low',
+            color: '#b9e7ff',
+            aggregation: '',
+          },
+          {
+            field: 'avg',
+            color: '#d9d9d9',
+            aggregation: '',
+          },
+        ],
+        legendPosition: 'left',
+      },
+    };
+
+    const widget2 = {
+      widgetId: 2,
+      title: '파이차트 위젯',
+      date: '2022-04-11T18:27:45+09:00',
+      dataSetId: '00001',
+      type: 'CHART_PIE',
+      option: {
+        xField: 'name',
+        series: {
+          field: 'high',
+          color: [
+            '#5470c6',
+            '#91cc75',
+            '#fac858',
+            '#ee6666',
+            '#73c0de',
+            '#3ba272',
+            '#fc8452',
+            '#9a60b4',
+            '#ea7ccc',
+            '#5470c6',
+            '#91cc75',
+            '#fac858',
+          ],
+          aggregation: '',
+          label: 'name',
+        },
+        legendPosition: 'right',
+      },
+    };
+
+    let templateInfo: TemplateInfoDto;
+
+    // 템플릿 기본 정보 조회
+    const template = await this.templateRepository.findOne({
+      select: {
+        id: true,
+        title: true,
+        description: true,
+      },
+      where: {
+        useYn: YesNo.YES,
+        id: templateId,
+      },
+    });
+
+    if (template.id) {
+      templateInfo = new TemplateInfoDto(template);
+      // 템플릿 상세 아이템 조회(layout 조회 및 가공)
+      const layoutList = await this.templateItemRepository.find({
+        where: {
+          templateId: templateInfo.id,
+        },
+      });
+      const layout = [];
+      layoutList.map(item => {
+        const itemInfo: ItemInfoDto = new ItemInfoDto(item);
+        layout.push(itemInfo);
+      });
+      templateInfo.layout = layout;
+    }
+
+    templateInfo.widgets = [widget1, widget2];
+    templateInfo.layout[0].i = widget1.widgetId;
+    templateInfo.layout[1].i = widget2.widgetId;
+    return templateInfo;
+  }
 }

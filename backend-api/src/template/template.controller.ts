@@ -84,4 +84,14 @@ export class TemplateController {
   findRecommendAll(@Body() widgets: number[]) {
     return this.templateService.findRecommendTemplates(widgets);
   }
+
+  /**
+   * 선택된 템플릿에 맞게 대시보드 레아이웃을 정해서 값을 보내줘야 한다.
+   * @param widgets
+   * @param templateId
+   */
+  @Post('/dashboard')
+  getTemplateDashboardLayout(@Body() widgets: number[], templateId: number) {
+    return this.templateService.getTemplateDashboardLayout(widgets, templateId);
+  }
 }
