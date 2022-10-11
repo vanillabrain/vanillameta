@@ -11,7 +11,7 @@ import { get } from '@/helpers/apiHelper';
 const title = '대시보드';
 
 function Dashboard(props) {
-  const { dashboard_id } = useParams();
+  const { dashboardId } = useParams();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [loadedWidgetData, setLoadedWidgetData] = useState([]);
@@ -25,8 +25,8 @@ function Dashboard(props) {
 
   useEffect(() => {
     // todo 서비스 완료시 연결
-    // DashboardService.selectDashboardList()
-    get('/data/dummyDashboardList.json')
+    DashboardService.selectDashboardList()
+      // get('/data/dummyDashboardList.json')
       .then(response => response.data)
       .then(data => {
         setLoadedWidgetData(data.filter((list, idx) => idx <= 10 * loadedCount));
@@ -58,7 +58,7 @@ function Dashboard(props) {
 
   return (
     <PageContainer>
-      {!dashboard_id ? (
+      {!dashboardId ? (
         dashboardNoData ? (
           getEmptyDashboard()
         ) : (
