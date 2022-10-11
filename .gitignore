@@ -68,6 +68,11 @@ $RECYCLE.BIN/
 # *.iml
 # *.ipr
 
+.idea/.gitignore
+.idea/misc.xml
+.idea/modules.xml
+.idea/vcs.xml
+
 # CMake
 cmake-build-*/
 
