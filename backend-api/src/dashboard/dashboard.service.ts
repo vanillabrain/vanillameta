@@ -42,8 +42,16 @@ export class DashboardService {
   }
 
   async findOne(id: number) {
+    const find_dashboard = await this.dashboardRepository.findOne({ where: { id: id}})
+    const find_widget = await this.dashboardWidgetController.findOne(String(id));
 
-    return await this.dashboardWidgetController.findOne(String(id));
+    find_dashboard.layout = JSON.parse(find_dashboard.layout)
+    const return_obj ={
+      find_dashboard,
+      widget: find_widget
+    }
+
+    return return_obj
   }
 
   async update(id: number, updateDashboardDto: UpdateDashboardDto) {
@@ -52,7 +60,6 @@ export class DashboardService {
 
     if(!find_dashboard) { return 'Not exist dashboard' }
     else {
-
       if (updateDashboardDto.title) { find_dashboard.title = updateDashboardDto.title };
       if (updateDashboardDto.layout) { find_dashboard.layout = JSON.stringify( updateDashboardDto.layout )}
       const saveObj = {
@@ -61,8 +68,6 @@ export class DashboardService {
       await this.dashboardWidgetController.update(String(id), saveObj)
       return await this.dashboardRepository.save(find_dashboard);
     }
-
-
   }
 
   async remove(id: number) {
