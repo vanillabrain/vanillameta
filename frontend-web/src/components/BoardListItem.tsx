@@ -95,7 +95,7 @@ function BoardListItem(props) {
         <ListItemText
           primary={postItem.title}
           primaryTypographyProps={{ fontWeight: 500 }}
-          secondary={dateData(postItem.createDate)}
+          secondary={dateData(postItem.updatedAt)}
           sx={{
             display: { xs: 'block', sm: 'flex' },
             justifyContent: 'space-between',
