@@ -11,7 +11,7 @@ export class DatabaseService {
 
   async create(createDatabaseDto: CreateDatabaseDto): Promise<Database> {
     const databaseDto = Database.toDto(createDatabaseDto);
-    databaseDto.knexConfig = JSON.stringify(databaseDto.knexConfig);
+    databaseDto.sequelizeConfig = JSON.stringify(databaseDto.sequelizeConfig);
     return await this.databaseRepository.save(databaseDto);
   }
 

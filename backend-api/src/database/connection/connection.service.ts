@@ -3,6 +3,8 @@ import { CreateDatabaseDto } from '../dto/create-database.dto';
 import { QueryExecuteDto } from '../dto/query-execute.dto';
 import { DatabaseService } from '../database.service';
 import { Knex, knex } from 'knex';
+import { Sequelize } from 'sequelize-typescript';
+
 
 const knexConnections = new Map<number, Knex>();
 
@@ -41,30 +43,46 @@ export class ConnectionService {
    * Knex 객체 가져오기 - 만약 없으면 가져오기
    * @param id
    */
-  async getKnex(id: number): Promise<Knex> {
-    if (!this.hasKnex(id)) {
-      const one = await this.databaseService.findOne(id);
-      this.addKnex(id, one.knexConfig as Knex.Config);
-    }
-    return knexConnections.get(id);
-  }
+  // async getKnex(id: number): Promise<Knex> {
+  //   if (!this.hasKnex(id)) {
+  //     const one = await this.databaseService.findOne(id);
+  //     this.addKnex(id, one.knexConfig as Knex.Config);
+  //   }
+  //   return knexConnections.get(id);
+  // }
 
   /**
    * 데이터베이스 연결 테스트
    * @param createDatabaseDto
    */
+  // async testConnection(createDatabaseDto: CreateDatabaseDto): Promise<boolean> {
+  //   let _knex = knex(createDatabaseDto.knexConfig as Knex.Config);
+  //   try {
+  //     await _knex.raw('SELECT 1');
+  //     console.log('knex connected');
+  //     return true;
+  //   } catch (e) {
+  //     console.log('knex not connected');
+  //     console.error(e);
+  //     return false;
+  //   } finally {
+  //     await _knex.destroy();
+  //   }
+  // }
+
   async testConnection(createDatabaseDto: CreateDatabaseDto): Promise<boolean> {
-    let _knex = knex(createDatabaseDto.knexConfig as Knex.Config);
-    try {
-      await _knex.raw('SELECT 1');
-      console.log('knex connected');
+    console.log(createDatabaseDto)
+    const sequelize = new Sequelize(createDatabaseDto.sequelizeConfig)
+    try{
+      await sequelize.authenticate();
+      console.log('sequelize connected');
       return true;
-    } catch (e) {
-      console.log('knex not connected');
+    } catch (e){
+      console.log('sequelize not connected');
       console.error(e);
       return false;
     } finally {
-      await _knex.destroy();
+      await sequelize.close();
     }
   }
 
@@ -72,8 +90,8 @@ export class ConnectionService {
    * 쿼리 실행
    * @param queryExecuteDto
    */
-  async executeQuery(queryExecuteDto: QueryExecuteDto) {
-    const knex = await this.getKnex(queryExecuteDto.id);
-    return knex.raw(queryExecuteDto.query);
-  }
+  // async executeQuery(queryExecuteDto: QueryExecuteDto) {
+  //   const knex = await this.getKnex(queryExecuteDto.id);
+  //   return knex.raw(queryExecuteDto.query);
+  // }
 }
