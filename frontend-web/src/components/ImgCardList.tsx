@@ -6,6 +6,7 @@ function ImgCardList(props) {
   const srcUrl = '/assets/images/';
 
   const handleClick = item => {
+    console.log('component : ', item);
     setSelectedType(item);
   };
 
