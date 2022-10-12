@@ -55,8 +55,11 @@ export const handleAddClick = (event, option, setOption, defaultSeries, prop = '
     ];
     const newItem = {
       ...defaultSeries,
-      color: defaultColor[option[prop].length % 12],
+      // color: defaultColor[option[prop].length % 12],
     };
+    if (newItem.hasOwnProperty('color')) {
+      newItem.color = defaultColor[option[prop].length % 12];
+    }
     obj[prop].push(newItem);
     return obj;
   });

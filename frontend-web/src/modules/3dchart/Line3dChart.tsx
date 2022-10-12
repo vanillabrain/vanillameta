@@ -19,9 +19,7 @@ function Line3DChart(props) {
 
   const defaultComponentOption = {
     grid3D: {},
-    tooltip: {
-      // trigger: 'axis'
-    },
+    tooltip: {},
     [axis + 'Axis3D']: {
       type: 'category',
     },
@@ -29,25 +27,16 @@ function Line3DChart(props) {
       type: 'category',
     },
     zAxis3D: {},
-    visualMap: {
-      max: 1e8,
-      dimension: 'Population',
-    },
-    dataset: {},
     series: [],
-    // emphasis: {
-    //   focus: 'series',
-    //   blurScope: 'coordinateSystem',
-    // // },
 
     ...defaultOp,
   };
 
   useEffect(() => {
-    // if (option && dataSet) {
-    const newOption = createComponentOption();
-    setComponentOption(newOption);
-    // }
+    if (option && dataSet) {
+      const newOption = createComponentOption();
+      setComponentOption(newOption);
+    }
   }, [option, dataSet]);
 
   /**
@@ -58,57 +47,65 @@ function Line3DChart(props) {
   const createComponentOption = () => {
     let newOption = {};
 
-    // series option에서 가져오기
-    // const newSeries = [];
-    // let aggrData = [];
-    // option.series.forEach(item => {
-    //   aggrData = getAggregationDataForChart(dataSet, option[axis + 'Field'], item.field, item.aggregation);
-    //   if (item.field) {
-    //     const series = {
-    //       name: item.field,
-    //       data: aggrData.map(dataItem => dataItem[item.field]),
-    //       type: item.type ? item.type : 'line',
-    //       color: item.color,
-    //       smooth: true,
-    //       ...seriesOp,
-    //     };
-    //     newSeries.push(series);
-    //   }
-    // });
+    let xAxisData = [];
+    const aggrData = [];
+    if (option.xField) {
+      option.series.map((item, index) => {
+        const aggrItem = getAggregationDataForChart(dataSet, option.xField, item.field, item.aggregation);
+        // console.log('aggrData :', aggrData);
+        if (!xAxisData.length) {
+          xAxisData = aggrItem.map(element => element[option.xField]);
+          // console.log(xAxisData, 'xAxisData');
+        }
+        if (item.field) {
+          const result = aggrItem.map((element, idx) => [idx, index, element[item.field]]);
+          aggrData.push(...result);
+          // console.log('aggrData :', aggrData);
+        }
+      });
+    }
 
-    console.log(componentOption);
-    if (data) {
+    let minValue, maxValue;
+    if (aggrData.length) {
+      const arr = aggrData.map(item => item[2]);
+      minValue = Math.min(...arr);
+      maxValue = Math.max(...arr);
+      // console.log('minVal: ', minValue, 'maxVal: ', maxValue);
+
       const op = {
-        dataset: {
-          dimension: ['Income', 'Life Expectancy', 'Population', 'Country', { name: 'Year', type: 'ordinal' }],
-          source: data,
+        [axis + 'Axis3D']: {
+          type: 'category',
+          splitArea: { show: true },
+          data: xAxisData,
+        },
+        [reverseAxis + 'Axis3D']: {
+          type: 'category',
+          splitArea: { show: true },
+          data: option.series.map(item => item.field),
+        },
+        zAxis3D: {
+          type: 'value',
+          min: minValue,
+          max: maxValue,
         },
         series: [
           {
+            data: aggrData,
             type: 'bar3D',
             shading: 'lambert',
-            // data: [
-            //   [-1, -1, -1],
-            //   [0, 0, 0],
-            //   [1, 1, 1],
-            // ],
-            encode: {
-              x: 'Year',
-              y: 'Country',
-              z: 'Life Expectancy',
-              tooltip: [0, 1, 2, 3, 4],
-            },
           },
         ],
-        // series: newSeries,
-        // grid: getGridSize(option.legendPosition),
-        // legend: getLegendOption(option.legendPosition),
-        ...createOp,
+        visualMap: {
+          min: minValue ?? 0,
+          max: maxValue ?? 0,
+          inRange: {
+            color: option.color.map(item => item),
+          },
+        },
       };
 
       newOption = { ...defaultComponentOption, ...op };
     }
-
     // console.log(newOption);
     return newOption;
   };

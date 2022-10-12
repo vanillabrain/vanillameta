@@ -40,14 +40,6 @@ const HeatmapChartSetting = props => {
     field: '',
   };
 
-  useEffect(() => {
-    const colorArr = ['#2F93C8', '#AEC48F', '#FFDB5C', '#F98862'];
-    setOption(prevState => ({
-      ...prevState,
-      color: colorArr,
-    }));
-  }, [option.series, option.xField]);
-
   return (
     <Grid item xs={10} md={4} lg={3} sx={{ display: 'flex', flexDirection: 'column' }}>
       <WidgetTitleForm value={option.title} onChange={event => handleChange(event, setOption)} />

@@ -32,14 +32,6 @@ const StyledList = styled(List)({
 const TreemapChartSetting = props => {
   const { option, setOption, spec } = props;
 
-  useEffect(() => {
-    const colorArr = ['#2F93C8', '#AEC48F', '#FFDB5C', '#F98862'];
-    setOption(prevState => ({
-      ...prevState,
-      series: { ...prevState.series, color: colorArr },
-    }));
-  }, [option.series.field, option.series.name]);
-
   const handleSeriesChange = event => {
     setOption(prevState => ({
       ...prevState,

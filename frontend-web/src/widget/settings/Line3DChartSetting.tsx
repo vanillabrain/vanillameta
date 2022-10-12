@@ -1,11 +1,11 @@
 import React from 'react';
 import { Divider, Grid, List, ListItem, ListItemText, styled } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
-import ColorButtonForm from '@/components/form/ColorButtonForm';
 import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
 import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
-import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST, WIDGET_AGGREGATION } from '@/constant';
+import { AGGREGATION_LIST, COLUMN_TYPE, WIDGET_AGGREGATION } from '@/constant';
+import ColorFieldForm from '@/components/form/ColorFieldForm';
 
 const StyledList = styled(List)({
   position: 'relative',
@@ -33,10 +33,10 @@ const StyledList = styled(List)({
 const Line3DChartSetting = props => {
   const { option, setOption, seriesItem, axis = 'x', spec } = props;
 
+  console.log(option);
   // 컴포넌트 별 default series
   const defaultSeries = {
     field: '',
-    color: '',
     aggregation: WIDGET_AGGREGATION.SUM,
   };
 
@@ -80,7 +80,6 @@ const Line3DChartSetting = props => {
                 optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
                 value={item.field}
                 onChange={event => handleSeriesChange(event, setOption)}
-                endButton={<ColorButtonForm index={index} option={option} setOption={setOption} />}
               />
               <SelectForm
                 id={`aggregation${index + 1}`}
@@ -114,15 +113,20 @@ const Line3DChartSetting = props => {
           ))}
         </ListItem>
         <ListItem>
-          <ListItemText>범례 설정</ListItemText>
-          <SelectForm
-            id="legendPosition"
-            name="legendPosition"
-            label="위치"
-            optionList={LEGEND_LIST}
-            value={option.legendPosition}
-            onChange={event => handleChange(event, setOption)}
-          />
+          <ListItemText primary="색상 범위 설정" />
+          {option.color.map((item, index) => (
+            <React.Fragment key={index}>
+              <ColorFieldForm
+                id={`color${index + 1}`}
+                name={`color${index + 1}`}
+                value={option.color[index]}
+                colorList={option.color}
+                setOption={setOption}
+                index={index}
+              />
+              <Divider />
+            </React.Fragment>
+          ))}
         </ListItem>
       </StyledList>
     </Grid>
