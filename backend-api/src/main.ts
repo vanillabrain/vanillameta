@@ -4,9 +4,12 @@ import express from 'express';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import { HttpExceptionFilter } from './nest-utils/http-exception.filter';
 
+
 async function bootstrap() {
 const expressApp = express();
+
   const app = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), {
+
     logger: console,
     cors: {
       origin: process.env.CORS_ORIGIN,
@@ -14,7 +17,7 @@ const expressApp = express();
       optionsSuccessStatus: 200,
       exposedHeaders: ['Content-Disposition'],
     },
-  });
+  })
   app.useGlobalFilters(new HttpExceptionFilter());
   // const app = await NestFactory.create(AppModule);
   await app.listen(4000);

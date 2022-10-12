@@ -1,0 +1,42 @@
+version: "3.7"
+services:
+  main:
+    build:
+      context: ./
+      dockerfile: ./Dockerfile
+    ports:
+      - "4000:4000"
+    networks:
+      - vanillameta
+    depends_on:
+      - mysql
+    links:
+      - "mysql:mysqldb"
+    env_file:
+      - .env.dev
+    restart: always
+
+  mysql:
+    container_name: vanillameta
+    image: mysql
+    ports:
+      -  "3306:3306"
+    networks:
+      - vanillameta
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_CHARSET: utf8mb4
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      TZ: Asia/Seoul
+    restart: always
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql:/var/lib/mysql
+      - ./db/conf.d:/etc/mysql/conf.d
+
+volumes:
+  mysql:
+networks:
+  vanillameta:

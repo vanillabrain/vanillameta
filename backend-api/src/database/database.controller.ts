@@ -22,17 +22,17 @@ export class DatabaseController {
     return this.connectionService.testConnection(createDatabaseDto);
   }
 
-  @Post('execute')
-  executeQuery(@Body() queryExecuteDto: QueryExecuteDto) {
-    return this.connectionService.executeQuery(queryExecuteDto);
-  }
+  // @Post('execute')
+  // executeQuery(@Body() queryExecuteDto: QueryExecuteDto) {
+  //   return this.connectionService.executeQuery(queryExecuteDto);
+  // }
 
   @Get()
   async findAll() {
     const resultList = await this.databaseService.findAll();
 
     resultList.forEach(db => {
-      db.knexConfig = JSON.parse(db.knexConfig);
+      db.sequelizeConfig = JSON.parse(db.sequelizeConfig);
     });
     return resultList;
   }
@@ -40,7 +40,7 @@ export class DatabaseController {
   @Get(':id')
   async findOne(@Param('id') id: string) {
     const resultDB = await this.databaseService.findOne(+id);
-    resultDB.knexConfig = JSON.parse(resultDB.knexConfig);
+    resultDB.sequelizeConfig = JSON.parse(resultDB.sequelizeConfig);
     return resultDB;
   }
 
