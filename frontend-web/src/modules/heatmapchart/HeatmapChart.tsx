@@ -46,14 +46,15 @@ const HeatmapChart = props => {
     if (option.xField) {
       option.series.map((item, index) => {
         const aggrItem = getAggregationDataForChart(dataSet, option.xField, item.field, option.aggregation);
+        // console.log('aggrData :', aggrData);
         if (!xAxisData.length) {
           xAxisData = aggrItem.map(element => element[option.xField]);
-          console.log(xAxisData, 'xAxisData');
+          // console.log(xAxisData, 'xAxisData');
         }
         if (item.field) {
-          const result = aggrItem.map((element, idx) => [idx, index, element[item.field] <= 0 ? '-' : element[item.field]]);
+          const result = aggrItem.map((element, idx) => [idx, index, element[item.field]]);
           aggrData.push(...result);
-          console.log('aggrData :', aggrData);
+          // console.log('aggrData :', aggrData);
         }
       });
     }
@@ -76,11 +77,13 @@ const HeatmapChart = props => {
           splitArea: { show: true },
           data: option.series.map(item => item.field),
         },
-        series: {
-          data: aggrData,
-          type: 'heatmap',
-          label: { show: true },
-        },
+        series: [
+          {
+            data: aggrData.map(item => [item[0], item[1], item[2] || '-']),
+            type: 'heatmap',
+            label: { show: true },
+          },
+        ],
         visualMap: {
           type: 'continuous',
           min: minValue ?? 0,
@@ -96,7 +99,7 @@ const HeatmapChart = props => {
       newOption = { ...defaultComponentOption, ...op };
     }
 
-    console.log(newOption);
+    // console.log(newOption);
     return newOption;
   };
 

@@ -33,7 +33,7 @@ const StyledList = styled(List)({
 const HeatmapChartSetting = props => {
   const { option, setOption, spec } = props;
 
-  console.log(option);
+  // console.log(option, 'option');
 
   // 컴포넌트 별 default series
   const defaultSeries = {
@@ -48,7 +48,6 @@ const HeatmapChartSetting = props => {
     }));
   }, [option.series, option.xField]);
 
-  console.log(option);
   return (
     <Grid item xs={10} md={4} lg={3} sx={{ display: 'flex', flexDirection: 'column' }}>
       <WidgetTitleForm value={option.title} onChange={event => handleChange(event, setOption)} />
@@ -85,7 +84,17 @@ const HeatmapChartSetting = props => {
               label={`필드 ${index + 1}`}
               labelField="columnName"
               valueField="columnType"
-              optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
+              optionList={spec
+                .filter(item => item.columnType === COLUMN_TYPE.NUMBER)
+                .map(item => item.columnName)
+                .filter(filterItem => {
+                  // 이미 선택한 값은 리스트에서 제외
+                  const list = option.series.map(item => item.field);
+                  if (list[index] === filterItem) {
+                    return true;
+                  }
+                  return !list.includes(filterItem);
+                })}
               value={item.field}
               onChange={event => handleSeriesChange(event, setOption)}
               endButton={
@@ -115,7 +124,7 @@ const HeatmapChartSetting = props => {
                 id={`color${index + 1}`}
                 name={`color${index + 1}`}
                 value={option.color[index]}
-                optionList={option}
+                colorList={option.color}
                 setOption={setOption}
                 index={index}
               />
