@@ -89,7 +89,6 @@ const LineChart = props => {
   return (
     <Stack
       sx={{
-        flex: '1 1 auto',
         width: '100%',
         height: '100%',
       }}
