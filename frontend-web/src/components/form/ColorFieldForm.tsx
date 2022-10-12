@@ -3,10 +3,10 @@ import { FormControl, FormLabel, IconButton, OutlinedInput, Popover, Select, Sta
 import CircleIcon from '@mui/icons-material/Circle';
 import { SketchPicker } from 'react-color';
 
-function ColorFieldForm(props) {
-  const { id, label, value, optionList, setOption, index, endButton, ...rest } = props;
+const ColorFieldForm = props => {
+  const { id, label, value, colorList, setOption, index, endButton, ...rest } = props;
 
-  const color = optionList ? optionList.color[index] || optionList.series.color[index] : '#eee';
+  const color = colorList ? colorList[index] : '#eee';
   const labelItem = Array.isArray(label) ? label[index] : label;
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
 
@@ -94,7 +94,7 @@ function ColorFieldForm(props) {
       </Stack>
     </FormControl>
   );
-}
+};
 
 ColorFieldForm.defaultProps = {
   value: '#eee',

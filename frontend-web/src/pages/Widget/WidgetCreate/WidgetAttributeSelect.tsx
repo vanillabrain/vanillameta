@@ -36,9 +36,6 @@ import { ChartComponent } from '@/modules/utils/switchChart';
 import Line3DChart from '@/modules/3dchart/Line3dChart';
 import Line3DChartSetting from '@/widget/settings/Line3DChartSetting';
 
-function WidgetAttributeSelect(props) {
-  const { dataSetId, componentType, prevOption } = props;
-
 const WidgetAttributeSelect = props => {
   const alert = useAlert();
   const theme = useTheme();

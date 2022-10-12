@@ -11,7 +11,7 @@ function Layout(props) {
     <Stack
       sx={{
         flex: '1 1 auto',
-        height: '100%',
+        // height: '100%',
       }}
     >
       <Header height={headerHeight} />

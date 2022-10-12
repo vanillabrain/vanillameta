@@ -98,7 +98,7 @@ const PieChartSetting = props => {
                   id={`color${index + 1}`}
                   name={`color${index + 1}`}
                   value={option.series.color[index]}
-                  optionList={option}
+                  colorList={option.series.color}
                   setOption={setOption}
                   index={index}
                 />

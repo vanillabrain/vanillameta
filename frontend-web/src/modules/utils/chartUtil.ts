@@ -183,7 +183,7 @@ export const getAggregationDataForChart = (array, keys, variable, aggr = WIDGET_
     temp = {};
     temp[keys] = key;
     if (aggr === WIDGET_AGGREGATION.AVG) {
-      temp[variable] = data[key] / countInfo[key];
+      temp[variable] = Math.round(data[key] / countInfo[key]);
     } else {
       temp[variable] = data[key];
     }
