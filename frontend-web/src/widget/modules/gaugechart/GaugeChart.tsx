@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { Box } from '@mui/material';
-import { getAggregationData } from '@/modules/utils/chartUtil';
+import { getAggregationData } from '@/widget/modules/utils/chartUtil';
 
 const GaugeChart = props => {
   const { option, dataSet } = props;

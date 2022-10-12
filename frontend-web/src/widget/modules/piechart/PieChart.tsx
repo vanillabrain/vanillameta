@@ -1,17 +1,27 @@
 import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { Box } from '@mui/material';
-import { getAggregationDataForChart } from '@/modules/utils/chartUtil';
+import { getAggregationDataForChart, getCenter, getGridSize, getLegendOption } from '@/widget/modules/utils/chartUtil';
 
-const TreemapChart = props => {
+const PieChart = props => {
   const { option, dataSet, seriesOp, setDataLength } = props;
 
   const [componentOption, setComponentOption] = useState({});
 
   const defaultComponentOption = {
+    // toolbox: {
+    //   feature: {
+    //     dataView: { readOnly: false },
+    //     restore: {},
+    //     saveAsImage: {},
+    //   },
+    // },
     grid: { top: 50, right: 50, bottom: 50, left: 50 },
     tooltip: {
       trigger: 'item',
+    },
+    legend: {
+      orient: 'vertical',
+      left: 'left',
     },
     series: [],
     emphasis: {
@@ -44,45 +54,28 @@ const TreemapChart = props => {
 
     if (option.series.name) {
       aggrData = getAggregationDataForChart(dataSet, option.series.name, option.series.field, option.series.aggregation);
-      setDataLength(aggrData.length);
-      // console.log(aggrData);
+      setDataLength(aggrData.length); // data 길이를 setting으로 전달해서 컬러 설정
 
       const series = {
         name: option.series.name,
-        data: aggrData.map((item, index) => ({
+        data: aggrData.map(item => ({
           value: item[option.series.field],
           name: item[option.series.name],
-          // itemStyle: {
-          //   color: option.series.color[index],
-          // },
         })),
-        type: 'treemap',
+        type: 'pie',
+        color: [...option.series.color],
+        label: { show: !!option.series.name && true },
+        center: getCenter(option.legendPosition),
         ...seriesOp,
       };
-
       newSeries.push(series);
     }
 
     if (dataSet) {
-      let minValue = 0;
-      let maxValue = 1;
-      if (aggrData.length) {
-        const arr = aggrData.map(item => item[option.series.field]);
-        minValue = Math.min(...arr);
-        maxValue = Math.max(...arr);
-      }
-      // console.log('minVal: ', minValue, 'maxVal: ', maxValue);
-
       const op = {
         series: newSeries,
-        visualMap: {
-          type: 'continuous',
-          min: minValue,
-          max: maxValue,
-          inRange: {
-            color: option.series.color.map(item => item),
-          },
-        },
+        grid: getGridSize(option.legendPosition),
+        legend: getLegendOption(option.legendPosition),
       };
       newOption = { ...defaultComponentOption, ...op };
     }
@@ -90,15 +83,8 @@ const TreemapChart = props => {
   };
 
   return (
-    <Box
-      sx={{
-        width: '100%',
-        height: '100%',
-      }}
-    >
-      <ReactECharts option={componentOption} style={{ height: '100%', width: '100%' }} lazyUpdate={true} notMerge={true} />
-    </Box>
+    <ReactECharts option={componentOption} style={{ height: '100%', width: '100%' }} lazyUpdate={true} notMerge={true} />
   );
 };
 
-export default TreemapChart;
+export default PieChart;

@@ -1,21 +1,22 @@
 import React, { useEffect, useState } from 'react';
-import { Box } from '@mui/material';
 import ReactECharts from 'echarts-for-react';
-import { getGridSize, getLegendOption } from '@/modules/utils/chartUtil';
+import { Box, Stack } from '@mui/material';
+import { getAggregationDataForChart, getGridSize, getLegendOption } from '@/widget/modules/utils/chartUtil';
 
-function BubbleChart(props) {
-  const { option, dataSet, seriesOp, defaultOp, createOp } = props;
+const LineChart = props => {
+  const { option, dataSet, axis = 'x', seriesOp, defaultOp, createOp } = props;
+  const reverseAxis = axis === 'x' ? 'y' : 'x';
 
   const [componentOption, setComponentOption] = useState({});
 
   const defaultComponentOption = {
     grid: { top: 50, right: 50, bottom: 50, left: 50 },
     tooltip: { trigger: 'axis' },
-    xAxis: {
-      scale: true,
+    [axis + 'Axis']: {
+      type: 'category',
     },
-    yAxis: {
-      scale: true,
+    [reverseAxis + 'Axis']: {
+      type: 'value',
     },
     series: [],
     emphasis: {
@@ -28,6 +29,7 @@ function BubbleChart(props) {
   useEffect(() => {
     if (option && dataSet) {
       const newOption = createComponentOption();
+
       setComponentOption(newOption);
     }
   }, [option, dataSet]);
@@ -37,29 +39,40 @@ function BubbleChart(props) {
    * 위젯옵션과 데이터로
    * 컴포넌트에 맞는 형태로 생성
    */
-
   const createComponentOption = () => {
+    console.log('createComponentOption', option);
     let newOption = {};
 
     // series option에서 가져오기
     const newSeries = [];
+    let aggrData = [];
     option.series.forEach(item => {
-      if (item.xField || item.yField) {
+      console.log('dataSet', dataSet);
+      console.log('item', item);
+      console.log('axis', axis);
+      console.log('option[axisField]', option[axis + 'Field']);
+      aggrData = getAggregationDataForChart(dataSet, option[axis + 'Field'], item.field, item.aggregation);
+      console.log('aggrData : ', aggrData);
+      console.log(aggrData.map(dataItem => dataItem[item.field]));
+      if (item.field) {
         const series = {
-          type: 'scatter',
-          name: item.title,
-          data: dataSet.map(dataItem => [dataItem[item.xField], dataItem[item.yField], dataItem[item.symbolSize], 'text']),
-          symbolSize: function (data) {
-            return Math.sqrt(data[2]);
-          },
+          name: item.field,
+          data: aggrData.map(dataItem => dataItem[item.field]),
+          type: item.type ? item.type : 'line',
           color: item.color,
+          smooth: true,
           ...seriesOp,
         };
         newSeries.push(series);
       }
     });
-    if (dataSet) {
+
+    if (aggrData && option[axis + 'Field']) {
       const op = {
+        [axis + 'Axis']: {
+          type: 'category',
+          data: option[axis + 'Field'] ? aggrData.map(item => item[option[axis + 'Field']]) : '',
+        },
         series: newSeries,
         grid: getGridSize(option.legendPosition),
         legend: getLegendOption(option.legendPosition),
@@ -69,19 +82,20 @@ function BubbleChart(props) {
       newOption = { ...defaultComponentOption, ...op };
     }
 
+    // console.log(newOption);
     return newOption;
   };
 
   return (
-    <Box
+    <Stack
       sx={{
         width: '100%',
         height: '100%',
       }}
     >
       <ReactECharts option={componentOption} style={{ height: '100%', width: '100%' }} lazyUpdate={true} notMerge={true} />
-    </Box>
+    </Stack>
   );
-}
+};
 
-export default BubbleChart;
+export default LineChart;
