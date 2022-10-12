@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { forwardRef, Inject, Injectable } from '@nestjs/common';
 import { CreateDatabaseDto } from '../dto/create-database.dto';
 import { QueryExecuteDto } from '../dto/query-execute.dto';
 import { DatabaseService } from '../database.service';
@@ -8,7 +8,9 @@ const knexConnections = new Map<number, Knex>();
 
 @Injectable()
 export class ConnectionService {
-  constructor(private readonly databaseService: DatabaseService) {}
+  constructor(
+    @Inject(forwardRef(() => DatabaseService)) private databaseService: DatabaseService,
+  ) {}
 
   /**
    * Knex 객체 생성 후 pool에 추가
@@ -43,7 +45,7 @@ export class ConnectionService {
    */
   async getKnex(id: number): Promise<Knex> {
     if (!this.hasKnex(id)) {
-      const one = await this.databaseService.findOne(id);
+      const one = await this.databaseService.findDB(id);
       this.addKnex(id, one.knexConfig as Knex.Config);
     }
     return knexConnections.get(id);
@@ -74,6 +76,25 @@ export class ConnectionService {
    */
   async executeQuery(queryExecuteDto: QueryExecuteDto) {
     const knex = await this.getKnex(queryExecuteDto.id);
-    return knex.raw(queryExecuteDto.query);
+
+    let datas = [];
+    const fields = [];
+
+    try {
+      const result = await knex.raw(queryExecuteDto.query);
+      if (result && result.length > 0) {
+        datas = result[0];
+        const tempFields = result[1];
+        // todo:: fields 속성 가져오기
+        tempFields.map(field => {
+          const fieldInfo = {};
+        });
+      }
+    } catch (e) {
+      console.log(e);
+      console.log(e.sqlMessage);
+    }
+
+    return { datas, fields };
   }
 }
