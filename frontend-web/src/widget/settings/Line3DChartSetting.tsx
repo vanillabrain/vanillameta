@@ -1,10 +1,10 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Divider, Grid, List, ListItem, ListItemText, styled } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
-import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
-import { AGGREGATION_LIST, COLUMN_TYPE } from '@/constant';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
+import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
+import { AGGREGATION_LIST, COLUMN_TYPE, WIDGET_AGGREGATION } from '@/constant';
 import ColorFieldForm from '@/components/form/ColorFieldForm';
 
 const StyledList = styled(List)({
@@ -30,14 +30,14 @@ const StyledList = styled(List)({
   },
 });
 
-const HeatmapChartSetting = props => {
-  const { option, setOption, spec } = props;
+const Line3DChartSetting = props => {
+  const { option, setOption, seriesItem, axis = 'x', spec } = props;
 
-  // console.log(option, 'option');
-
+  console.log(option);
   // 컴포넌트 별 default series
   const defaultSeries = {
     field: '',
+    aggregation: WIDGET_AGGREGATION.SUM,
   };
 
   return (
@@ -47,13 +47,14 @@ const HeatmapChartSetting = props => {
         <ListItem divider>
           <ListItemText primary="카테고리 설정" sx={{ textTransform: 'uppercase' }} />
           <SelectForm
-            id="xField"
-            name="xField"
-            label="x축"
+            required={true}
+            id={axis + 'Field'}
+            name={axis + 'Field'}
+            label={axis + '축'}
             optionList={spec.map(item => item.columnName)}
             labelField="columnName"
             valueField="columnType"
-            value={option.xField}
+            value={option[`${axis}Field`]}
             onChange={event => handleChange(event, setOption)}
           />
         </ListItem>
@@ -68,45 +69,48 @@ const HeatmapChartSetting = props => {
             }}
           />
           {option.series.map((item, index) => (
-            <SelectForm
-              key={index}
-              required={true}
-              id={`field${index + 1}`}
-              name={`field${index + 1}`}
-              label={`필드 ${index + 1}`}
-              labelField="columnName"
-              valueField="columnType"
-              optionList={spec
-                .filter(item => item.columnType === COLUMN_TYPE.NUMBER)
-                .map(item => item.columnName)
-                .filter(filterItem => {
-                  // 이미 선택한 값은 리스트에서 제외
-                  const list = option.series.map(item => item.field);
-                  if (list[index] === filterItem) {
-                    return true;
-                  }
-                  return !list.includes(filterItem);
-                })}
-              value={item.field}
-              onChange={event => handleSeriesChange(event, setOption)}
-              endButton={
-                0 < index ? (
-                  <RemoveButton onClick={event => handleRemoveClick(event, index, option, setOption)} id={index} />
-                ) : (
-                  ' '
-                )
-              }
-            />
+            <React.Fragment key={index}>
+              <SelectForm
+                required={true}
+                id={`field${index + 1}`}
+                name={`field${index + 1}`}
+                label={`필드 ${index + 1}`}
+                labelField="columnName"
+                valueField="columnType"
+                optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
+                value={item.field}
+                onChange={event => handleSeriesChange(event, setOption)}
+              />
+              <SelectForm
+                id={`aggregation${index + 1}`}
+                name={`aggregation${index + 1}`}
+                label="집계 방식"
+                optionList={AGGREGATION_LIST}
+                value={item.aggregation}
+                onChange={event => handleSeriesChange(event, setOption)}
+                disabledDefaultValue
+                endButton={
+                  0 < index ? (
+                    <RemoveButton onClick={event => handleRemoveClick(event, index, option, setOption)} id={index} />
+                  ) : (
+                    ' '
+                  )
+                }
+              />
+              {!!seriesItem && (
+                <SelectForm
+                  id={`${seriesItem.id}${index + 1}`}
+                  name={`${seriesItem.name}${index + 1}`}
+                  label={seriesItem.label}
+                  optionList={seriesItem.optionList}
+                  value={item[seriesItem.value]}
+                  onChange={event => handleSeriesChange(event, setOption)}
+                  disabledDefaultValue={seriesItem.disabledDefaultValue}
+                />
+              )}
+              <Divider />
+            </React.Fragment>
           ))}
-          <SelectForm
-            id="aggregation"
-            name="aggregation"
-            label="집계 방식"
-            optionList={AGGREGATION_LIST}
-            value={option.aggregation}
-            onChange={event => handleChange(event, setOption)}
-            disabledDefaultValue
-          />
         </ListItem>
         <ListItem>
           <ListItemText primary="색상 범위 설정" />
@@ -129,4 +133,4 @@ const HeatmapChartSetting = props => {
   );
 };
 
-export default HeatmapChartSetting;
+export default Line3DChartSetting;

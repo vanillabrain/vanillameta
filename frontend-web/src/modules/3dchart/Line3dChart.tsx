@@ -1,28 +1,35 @@
 import React, { useEffect, useState } from 'react';
-import ReactECharts from 'echarts-for-react';
+import { getAggregationDataForChart, getLegendOption } from '@/modules/utils/chartUtil';
 import { Box } from '@mui/material';
-import { getAggregationDataForChart } from '@/modules/utils/chartUtil';
+import ReactECharts from 'echarts-for-react';
+import 'echarts-gl';
+import axios from 'axios';
 
-const HeatmapChart = props => {
-  const { option, dataSet } = props;
+function Line3DChart(props) {
+  const { option, dataSet, axis = 'x', seriesOp, defaultOp, createOp } = props;
+  const reverseAxis = axis === 'x' ? 'y' : 'x';
 
   const [componentOption, setComponentOption] = useState({});
+  const [data, setData] = useState(null);
+  useEffect(() => {
+    axios.get('/data/sample/chart3d.json').then(response => {
+      setData(response.data);
+    });
+  }, []);
 
   const defaultComponentOption = {
-    grid: { top: 50, right: 50, bottom: 100, left: 50 },
-    tooltip: {
-      trigger: 'item',
+    grid3D: {},
+    tooltip: {},
+    [axis + 'Axis3D']: {
+      type: 'category',
     },
-    xAxis: {},
-    yAxis: {},
+    [reverseAxis + 'Axis3D']: {
+      type: 'category',
+    },
+    zAxis3D: {},
     series: [],
-    emphasis: {
-      itemStyle: {
-        shadowBlur: 10,
-        shadowOffsetX: 0,
-        shadowColor: 'rgba(0, 0, 0, 0.5)',
-      },
-    },
+
+    ...defaultOp,
   };
 
   useEffect(() => {
@@ -37,7 +44,6 @@ const HeatmapChart = props => {
    * 위젯옵션과 데이터로
    * 컴포넌트에 맞는 형태로 생성
    */
-
   const createComponentOption = () => {
     let newOption = {};
 
@@ -45,7 +51,7 @@ const HeatmapChart = props => {
     const aggrData = [];
     if (option.xField) {
       option.series.map((item, index) => {
-        const aggrItem = getAggregationDataForChart(dataSet, option.xField, item.field, option.aggregation);
+        const aggrItem = getAggregationDataForChart(dataSet, option.xField, item.field, item.aggregation);
         // console.log('aggrData :', aggrData);
         if (!xAxisData.length) {
           xAxisData = aggrItem.map(element => element[option.xField]);
@@ -67,38 +73,39 @@ const HeatmapChart = props => {
       // console.log('minVal: ', minValue, 'maxVal: ', maxValue);
 
       const op = {
-        xAxis: {
+        [axis + 'Axis3D']: {
           type: 'category',
           splitArea: { show: true },
           data: xAxisData,
         },
-        yAxis: {
+        [reverseAxis + 'Axis3D']: {
           type: 'category',
           splitArea: { show: true },
           data: option.series.map(item => item.field),
         },
+        zAxis3D: {
+          type: 'value',
+          min: minValue,
+          max: maxValue,
+        },
         series: [
           {
-            data: aggrData.map(item => [item[0], item[1], item[2] || '-']),
-            type: 'heatmap',
-            label: { show: true },
+            data: aggrData,
+            type: 'bar3D',
+            shading: 'lambert',
           },
         ],
         visualMap: {
-          type: 'continuous',
           min: minValue ?? 0,
           max: maxValue ?? 0,
-          calculable: true,
-          orient: 'horizontal',
-          left: 'center',
           inRange: {
             color: option.color.map(item => item),
           },
         },
       };
+
       newOption = { ...defaultComponentOption, ...op };
     }
-
     // console.log(newOption);
     return newOption;
   };
@@ -113,6 +120,6 @@ const HeatmapChart = props => {
       <ReactECharts option={componentOption} style={{ height: '100%', width: '100%' }} lazyUpdate={true} notMerge={true} />
     </Box>
   );
-};
+}
 
-export default HeatmapChart;
+export default Line3DChart;

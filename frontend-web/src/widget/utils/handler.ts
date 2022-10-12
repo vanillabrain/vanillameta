@@ -21,7 +21,7 @@ export const handleSeriesChange = (event, setOption, prop = 'series', innerProp 
       // onChange 일어난 요소 key와 index로 식별해서 value 주기
       obj[prop].forEach((item, idx) => {
         // console.log('item', item);
-        console.log('key: ', key, ', value: ', event.target.value);
+        // console.log('key: ', key, ', value: ', event.target.value);
         if (index === idx) {
           item[key] = event.target.value;
         }
@@ -55,8 +55,11 @@ export const handleAddClick = (event, option, setOption, defaultSeries, prop = '
     ];
     const newItem = {
       ...defaultSeries,
-      color: defaultColor[option[prop].length % 12],
+      // color: defaultColor[option[prop].length % 12],
     };
+    if (newItem.hasOwnProperty('color')) {
+      newItem.color = defaultColor[option[prop].length % 12];
+    }
     obj[prop].push(newItem);
     return obj;
   });
