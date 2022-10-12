@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { getAggregationDataForChart } from '@/modules/utils/chartUtil';
+import { getAggregationDataForChart } from '@/widget/modules/utils/chartUtil';
 import { Box } from '@mui/material';
 import ReactECharts from 'echarts-for-react';
 import 'echarts-gl';
 import axios from 'axios';
 
-function Scatter3DChart(props) {
+function Bar3DChart(props) {
   const { option, dataSet, defaultOp } = props;
 
   const [componentOption, setComponentOption] = useState({});
@@ -49,7 +49,7 @@ function Scatter3DChart(props) {
     let xAxisData = [];
     const aggrData = [];
     if (option.xField) {
-      option.series.map((item, index) => {
+      option.series.forEach((item, index) => {
         const aggrItem = getAggregationDataForChart(dataSet, option.xField, item.field, item.aggregation);
         // console.log('aggrData :', aggrData);
         if (!xAxisData.length) {
@@ -90,7 +90,7 @@ function Scatter3DChart(props) {
         series: [
           {
             data: aggrData,
-            type: 'scatter3D',
+            type: 'bar3D',
             shading: 'lambert',
           },
         ],
@@ -121,4 +121,4 @@ function Scatter3DChart(props) {
   );
 }
 
-export default Scatter3DChart;
+export default Bar3DChart;

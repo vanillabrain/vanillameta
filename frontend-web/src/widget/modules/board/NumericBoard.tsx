@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Stack, Typography } from '@mui/material';
-import { getAggregationData } from '@/modules/utils/chartUtil';
+import { getAggregationData } from '@/widget/modules/utils/chartUtil';
 
 const NumericBoard = props => {
   const { option, dataSet } = props;

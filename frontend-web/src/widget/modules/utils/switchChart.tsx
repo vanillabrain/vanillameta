@@ -1,16 +1,16 @@
 import React, { FC } from 'react';
 import { WIDGET_TYPE } from '@/constant';
-import LineChart from '@/modules/linechart/LineChart';
-import PieChart from '@/modules/piechart/PieChart';
-import ScatterChart from '@/modules/scatterchart/ScatterChart';
-import NumericBoard from '@/modules/board/NumericBoard';
-import TableBoard from '@/modules/board/TableBoard';
-import BubbleChart from '@/modules/scatterchart/BubbleChart';
-import RadarChart from '@/modules/radarchart/RadarChart';
-import HeatmapChart from '@/modules/heatmapchart/HeatmapChart';
-import TreemapChart from '@/modules/treemapchart/TreemapChart';
-import GaugeChart from '@/modules/gaugechart/GaugeChart';
-import CandlestickChart from '@/modules/candlestickchart/CandlestickChart';
+import LineChart from '@/widget/modules/linechart/LineChart';
+import PieChart from '@/widget/modules/piechart/PieChart';
+import ScatterChart from '@/widget/modules/scatterchart/ScatterChart';
+import NumericBoard from '@/widget/modules/board/NumericBoard';
+import TableBoard from '@/widget/modules/board/TableBoard';
+import BubbleChart from '@/widget/modules/scatterchart/BubbleChart';
+import RadarChart from '@/widget/modules/radarchart/RadarChart';
+import HeatmapChart from '@/widget/modules/heatmapchart/HeatmapChart';
+import TreemapChart from '@/widget/modules/treemapchart/TreemapChart';
+import GaugeChart from '@/widget/modules/gaugechart/GaugeChart';
+import CandlestickChart from '@/widget/modules/candlestickchart/CandlestickChart';
 
 // 리팩터링 중...
 // option을 동적으로 받아올 수 없는 문제 해결 필요

@@ -1,26 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { Box } from '@mui/material';
 import ReactECharts from 'echarts-for-react';
-import { getGridSize, getLegendOption } from '@/modules/utils/chartUtil';
+import { Box } from '@mui/material';
+import { getAggregationDataForChart, getCenter, getLegendOption } from '@/widget/modules/utils/chartUtil';
 
-function ScatterChart(props) {
+const RadarChart = props => {
   const { option, dataSet, seriesOp, defaultOp, createOp } = props;
 
   const [componentOption, setComponentOption] = useState({});
 
   const defaultComponentOption = {
-    grid: { top: 50, right: 50, bottom: 50, left: 50 },
-    tooltip: { trigger: 'axis' },
-    xAxis: {
-      scale: true,
-    },
-    yAxis: {
-      scale: true,
-    },
+    tooltip: { trigger: 'item' },
     series: [],
     emphasis: {
-      focus: 'series',
-      blurScope: 'coordinateSystem',
+      lineStyle: {
+        width: 4,
+      },
     },
     ...defaultOp,
   };
@@ -28,6 +22,7 @@ function ScatterChart(props) {
   useEffect(() => {
     if (option && dataSet) {
       const newOption = createComponentOption();
+
       setComponentOption(newOption);
     }
   }, [option, dataSet]);
@@ -42,24 +37,37 @@ function ScatterChart(props) {
     let newOption = {};
 
     // series option에서 가져오기
-    const newSeries = [];
+    const newSeriesData = [];
+    let aggrData = [];
+
     option.series.forEach(item => {
-      if (item.xField || item.yField) {
-        const series = {
-          type: 'scatter',
-          name: item.title,
-          data: dataSet.map(dataItem => [dataItem[item.xField], dataItem[item.yField]]),
-          symbolSize: item.symbolSize,
-          color: item.color,
+      aggrData = getAggregationDataForChart(dataSet, option.field, item.field, item.aggregation);
+
+      if (item.field) {
+        const seriesData = {
+          value: aggrData.map(dataItem => dataItem[item.field]),
+          name: item.field,
+          itemStyle: {
+            color: item.color,
+          },
           ...seriesOp,
         };
-        newSeries.push(series);
+        newSeriesData.push(seriesData);
       }
     });
-    if (dataSet) {
+
+    if (aggrData) {
       const op = {
-        series: newSeries,
-        grid: getGridSize(option.legendPosition),
+        radar: {
+          indicator: !!option.field ? aggrData.map(item => ({ name: item[option.field] })) : '',
+          center: getCenter(option.legendPosition),
+        },
+        series: [
+          {
+            type: 'radar',
+            data: newSeriesData,
+          },
+        ],
         legend: getLegendOption(option.legendPosition),
         ...createOp,
       };
@@ -80,6 +88,6 @@ function ScatterChart(props) {
       <ReactECharts option={componentOption} style={{ height: '100%', width: '100%' }} lazyUpdate={true} notMerge={true} />
     </Box>
   );
-}
+};
 
-export default ScatterChart;
+export default RadarChart;

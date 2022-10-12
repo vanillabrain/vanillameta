@@ -50,10 +50,10 @@ function WidgetCreate() {
     });
   };
 
-  const saveWidgetInfo = option => {
+  const saveWidgetInfo = (option, title) => {
     const param = {
-      title: option.title,
-      description: option.title,
+      title: title,
+      description: title,
       databaseId: 1,
       componentId: componentInfo.id,
       // 'DATASET', 'WIDGET_VIEW'

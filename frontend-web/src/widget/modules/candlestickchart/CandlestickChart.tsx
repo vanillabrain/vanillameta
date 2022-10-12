@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { Box } from '@mui/material';
-import { getAggregationDataForChart, getGridSize, getLegendOption } from '@/modules/utils/chartUtil';
+import { getAggregationDataForChart, getGridSize, getLegendOption } from '@/widget/modules/utils/chartUtil';
 
 const CandlestickChart = props => {
   const { option, dataSet } = props;

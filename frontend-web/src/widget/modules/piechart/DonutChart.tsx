@@ -1,5 +1,5 @@
 import React from 'react';
-import PieChart from '@/modules/piechart/PieChart';
+import PieChart from '@/widget/modules/piechart/PieChart';
 
 function DonutChart(props) {
   const { option, dataSet, seriesOp, setDataLength } = props;

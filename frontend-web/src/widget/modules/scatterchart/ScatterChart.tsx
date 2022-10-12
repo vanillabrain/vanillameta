@@ -1,20 +1,26 @@
 import React, { useEffect, useState } from 'react';
-import ReactECharts from 'echarts-for-react';
 import { Box } from '@mui/material';
-import { getAggregationDataForChart, getCenter, getLegendOption } from '@/modules/utils/chartUtil';
+import ReactECharts from 'echarts-for-react';
+import { getGridSize, getLegendOption } from '@/widget/modules/utils/chartUtil';
 
-const RadarChart = props => {
+function ScatterChart(props) {
   const { option, dataSet, seriesOp, defaultOp, createOp } = props;
 
   const [componentOption, setComponentOption] = useState({});
 
   const defaultComponentOption = {
-    tooltip: { trigger: 'item' },
+    grid: { top: 50, right: 50, bottom: 50, left: 50 },
+    tooltip: { trigger: 'axis' },
+    xAxis: {
+      scale: true,
+    },
+    yAxis: {
+      scale: true,
+    },
     series: [],
     emphasis: {
-      lineStyle: {
-        width: 4,
-      },
+      focus: 'series',
+      blurScope: 'coordinateSystem',
     },
     ...defaultOp,
   };
@@ -22,7 +28,6 @@ const RadarChart = props => {
   useEffect(() => {
     if (option && dataSet) {
       const newOption = createComponentOption();
-
       setComponentOption(newOption);
     }
   }, [option, dataSet]);
@@ -37,37 +42,24 @@ const RadarChart = props => {
     let newOption = {};
 
     // series option에서 가져오기
-    const newSeriesData = [];
-    let aggrData = [];
-
+    const newSeries = [];
     option.series.forEach(item => {
-      aggrData = getAggregationDataForChart(dataSet, option.field, item.field, item.aggregation);
-
-      if (item.field) {
-        const seriesData = {
-          value: aggrData.map(dataItem => dataItem[item.field]),
-          name: item.field,
-          itemStyle: {
-            color: item.color,
-          },
+      if (item.xField || item.yField) {
+        const series = {
+          type: 'scatter',
+          name: item.title,
+          data: dataSet.map(dataItem => [dataItem[item.xField], dataItem[item.yField]]),
+          symbolSize: item.symbolSize,
+          color: item.color,
           ...seriesOp,
         };
-        newSeriesData.push(seriesData);
+        newSeries.push(series);
       }
     });
-
-    if (aggrData) {
+    if (dataSet) {
       const op = {
-        radar: {
-          indicator: !!option.field ? aggrData.map(item => ({ name: item[option.field] })) : '',
-          center: getCenter(option.legendPosition),
-        },
-        series: [
-          {
-            type: 'radar',
-            data: newSeriesData,
-          },
-        ],
+        series: newSeries,
+        grid: getGridSize(option.legendPosition),
         legend: getLegendOption(option.legendPosition),
         ...createOp,
       };
@@ -88,6 +80,6 @@ const RadarChart = props => {
       <ReactECharts option={componentOption} style={{ height: '100%', width: '100%' }} lazyUpdate={true} notMerge={true} />
     </Box>
   );
-};
+}
 
-export default RadarChart;
+export default ScatterChart;

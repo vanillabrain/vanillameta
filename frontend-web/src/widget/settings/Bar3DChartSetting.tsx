@@ -1,7 +1,6 @@
 import React from 'react';
 import { Divider, Grid, List, ListItem, ListItemText, styled } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
-import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
 import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
 import { AGGREGATION_LIST, COLUMN_TYPE, WIDGET_AGGREGATION } from '@/constant';
@@ -42,7 +41,6 @@ const Bar3DChartSetting = props => {
 
   return (
     <Grid item xs={10} md={4} lg={3} sx={{ display: 'flex', flexDirection: 'column' }}>
-      <WidgetTitleForm value={option.title} onChange={event => handleChange(event, setOption)} />
       <StyledList>
         <ListItem divider>
           <ListItemText primary="카테고리 설정" sx={{ textTransform: 'uppercase' }} />

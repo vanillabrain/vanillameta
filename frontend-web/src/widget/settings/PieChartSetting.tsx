@@ -1,11 +1,10 @@
 import React, { useEffect } from 'react';
-import { Grid, List, ListItem, ListItemText, styled, Divider } from '@mui/material';
+import { Divider, Grid, List, ListItem, ListItemText, styled } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import ColorFieldForm from '@/components/form/ColorFieldForm';
-import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
 import { handleChange } from '@/widget/utils/handler';
 import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST } from '@/constant';
-import { getColorArr } from '@/modules/utils/chartUtil';
+import { getColorArr } from '@/widget/modules/utils/chartUtil';
 
 const StyledList = styled(List)({
   position: 'relative',
@@ -53,7 +52,6 @@ const PieChartSetting = props => {
 
   return (
     <Grid item xs={10} md={4} lg={3} sx={{ display: 'flex', flexDirection: 'column' }}>
-      <WidgetTitleForm value={option.title} onChange={event => handleChange(event, setOption)} />
       <StyledList>
         <ListItem divider>
           <ListItemText primary="시리즈 설정" />

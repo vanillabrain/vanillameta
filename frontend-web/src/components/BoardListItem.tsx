@@ -12,7 +12,7 @@ import {
 } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
 import { DialogAlertIconButton } from './button/DialogAlertButton';
-import DonutChart from '@/modules/piechart/DonutChart';
+import DonutChart from '@/widget/modules/piechart/DonutChart';
 
 const tableBorder = '1px solid #DADDDD';
 
@@ -54,13 +54,8 @@ function BoardListItem(props) {
       break;
   }
 
-  const handleDialogSelect = detail => {
-    if (detail == 1) {
-      if (handleDeleteSelect) {
-        console.log('삭제를 눌러버렸어');
-        handleDeleteSelect(postItem);
-      }
-    }
+  const handleDelete = () => {
+    handleDeleteSelect(postItem);
   };
 
   return (
@@ -71,17 +66,9 @@ function BoardListItem(props) {
           <IconButton size="large" component={RouterLink} to={`modify?id=${postItem.id}&title=${postItem.title}`}>
             <Edit />
           </IconButton>
-          <DialogAlertIconButton
-            icon={<Delete />}
-            size="large"
-            confirmLabel="삭제"
-            cancelLabel="취소"
-            handleDialogSelect={handleDialogSelect}
-          >
-            {message ? message : ``}
-            {message ? <br /> : ``}
-            {`'<${postItem.title}>'을(를) 삭제하시겠습니까?`}
-          </DialogAlertIconButton>
+          <IconButton size="large" onClick={handleDelete}>
+            <Delete />
+          </IconButton>
         </React.Fragment>
       }
       disablePadding

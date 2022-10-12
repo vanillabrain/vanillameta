@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getAggregationDataForChart } from '@/modules/utils/chartUtil';
+import { getAggregationDataForChart } from '@/widget/modules/utils/chartUtil';
 import { Box } from '@mui/material';
 import ReactECharts from 'echarts-for-react';
 import 'echarts-gl';

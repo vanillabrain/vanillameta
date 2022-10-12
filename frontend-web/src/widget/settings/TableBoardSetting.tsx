@@ -1,10 +1,9 @@
 import React from 'react';
 import { Divider, FormControl, FormLabel, Grid, List, ListItem, ListItemText, styled, TextField } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
-import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
 import { ALIGN_LIST, COLUMN_TYPE, TABLE_ALIGN } from '@/constant';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
-import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
+import { handleAddClick, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
 
 const StyledList = styled(List)({
   position: 'relative',
@@ -41,7 +40,6 @@ const TableBoardSetting = props => {
 
   return (
     <Grid item xs={10} md={4} lg={3} sx={{ display: 'flex', flexDirection: 'column' }}>
-      <WidgetTitleForm value={option.title} onChange={event => handleChange(event, setOption)} />
       <StyledList>
         <ListItem divider>
           <ListItemText primary="Columns" />

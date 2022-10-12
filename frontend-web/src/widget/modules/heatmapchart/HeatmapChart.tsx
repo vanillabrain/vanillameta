@@ -1,34 +1,28 @@
 import React, { useEffect, useState } from 'react';
-import { getAggregationDataForChart } from '@/modules/utils/chartUtil';
-import { Box } from '@mui/material';
 import ReactECharts from 'echarts-for-react';
-import 'echarts-gl';
-import axios from 'axios';
+import { Box } from '@mui/material';
+import { getAggregationDataForChart } from '@/widget/modules/utils/chartUtil';
 
-function Bar3DChart(props) {
-  const { option, dataSet, defaultOp } = props;
+const HeatmapChart = props => {
+  const { option, dataSet } = props;
 
   const [componentOption, setComponentOption] = useState({});
-  const [data, setData] = useState(null);
-  useEffect(() => {
-    axios.get('/data/sample/chart3d.json').then(response => {
-      setData(response.data);
-    });
-  }, []);
 
   const defaultComponentOption = {
-    grid3D: {},
-    tooltip: {},
-    xAxis3D: {
-      type: 'category',
+    grid: { top: 50, right: 50, bottom: 100, left: 50 },
+    tooltip: {
+      trigger: 'item',
     },
-    yAxis3D: {
-      type: 'category',
-    },
-    zAxis3D: {},
+    xAxis: {},
+    yAxis: {},
     series: [],
-
-    ...defaultOp,
+    emphasis: {
+      itemStyle: {
+        shadowBlur: 10,
+        shadowOffsetX: 0,
+        shadowColor: 'rgba(0, 0, 0, 0.5)',
+      },
+    },
   };
 
   useEffect(() => {
@@ -43,6 +37,7 @@ function Bar3DChart(props) {
    * 위젯옵션과 데이터로
    * 컴포넌트에 맞는 형태로 생성
    */
+
   const createComponentOption = () => {
     let newOption = {};
 
@@ -50,7 +45,7 @@ function Bar3DChart(props) {
     const aggrData = [];
     if (option.xField) {
       option.series.forEach((item, index) => {
-        const aggrItem = getAggregationDataForChart(dataSet, option.xField, item.field, item.aggregation);
+        const aggrItem = getAggregationDataForChart(dataSet, option.xField, item.field, option.aggregation);
         // console.log('aggrData :', aggrData);
         if (!xAxisData.length) {
           xAxisData = aggrItem.map(element => element[option.xField]);
@@ -72,39 +67,38 @@ function Bar3DChart(props) {
       // console.log('minVal: ', minValue, 'maxVal: ', maxValue);
 
       const op = {
-        xAxis3D: {
+        xAxis: {
           type: 'category',
           splitArea: { show: true },
           data: xAxisData,
         },
-        yAxis3D: {
+        yAxis: {
           type: 'category',
           splitArea: { show: true },
           data: option.series.map(item => item.field),
         },
-        zAxis3D: {
-          type: 'value',
-          min: minValue,
-          max: maxValue,
-        },
         series: [
           {
-            data: aggrData,
-            type: 'bar3D',
-            shading: 'lambert',
+            data: aggrData.map(item => [item[0], item[1], item[2] || '-']),
+            type: 'heatmap',
+            label: { show: true },
           },
         ],
         visualMap: {
+          type: 'continuous',
           min: minValue ?? 0,
           max: maxValue ?? 0,
+          calculable: true,
+          orient: 'horizontal',
+          left: 'center',
           inRange: {
             color: option.color.map(item => item),
           },
         },
       };
-
       newOption = { ...defaultComponentOption, ...op };
     }
+
     // console.log(newOption);
     return newOption;
   };
@@ -119,6 +113,6 @@ function Bar3DChart(props) {
       <ReactECharts option={componentOption} style={{ height: '100%', width: '100%' }} lazyUpdate={true} notMerge={true} />
     </Box>
   );
-}
+};
 
-export default Bar3DChart;
+export default HeatmapChart;
