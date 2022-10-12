@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Grid, useMediaQuery, useTheme } from '@mui/material';
 import axios from 'axios';
 import { useAlert } from 'react-alert';
+import { ChartComponent } from '@/modules/utils/switchChart';
 
 import { WIDGET_TYPE } from '@/constant';
 import TitleBox from '@/components/TitleBox';
@@ -32,9 +33,12 @@ import GaugeChartSetting from '@/widget/settings/GaugeChartSetting';
 import CandlestickChart from '@/modules/candlestickchart/CandlestickChart';
 import CandlestickChartSetting from '@/widget/settings/CandlestickChartSetting';
 import useScrollTrigger from '@mui/material/useScrollTrigger';
-import { ChartComponent } from '@/modules/utils/switchChart';
+import Bar3DChart from '@/modules/3dchart/Bar3dChart';
+import Bar3DChartSetting from '@/widget/settings/Bar3DChartSetting';
 import Line3DChart from '@/modules/3dchart/Line3dChart';
 import Line3DChartSetting from '@/widget/settings/Line3DChartSetting';
+import Scatter3DChart from '@/modules/3dchart/Scatter3dChart';
+import Scatter3DChartSetting from '@/widget/settings/Scatter3DChartSetting';
 
 const WidgetAttributeSelect = props => {
   const alert = useAlert();
@@ -317,10 +321,24 @@ const WidgetAttributeSelect = props => {
           });
           break;
 
+        case WIDGET_TYPE.CHART_3D_BAR:
+          setSwitchChart({
+            chart: <Bar3DChart {...chartProps} />,
+            chartSetting: <Bar3DChartSetting {...chartSettingProps} />,
+          });
+          break;
+
         case WIDGET_TYPE.CHART_3D_LINE:
           setSwitchChart({
             chart: <Line3DChart {...chartProps} />,
             chartSetting: <Line3DChartSetting {...chartSettingProps} />,
+          });
+          break;
+
+        case WIDGET_TYPE.CHART_3D_SCATTER:
+          setSwitchChart({
+            chart: <Scatter3DChart {...chartProps} />,
+            chartSetting: <Scatter3DChartSetting {...chartSettingProps} />,
           });
           break;
 

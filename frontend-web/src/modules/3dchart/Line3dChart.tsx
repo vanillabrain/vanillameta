@@ -1,13 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { getAggregationDataForChart, getLegendOption } from '@/modules/utils/chartUtil';
+import { getAggregationDataForChart } from '@/modules/utils/chartUtil';
 import { Box } from '@mui/material';
 import ReactECharts from 'echarts-for-react';
 import 'echarts-gl';
 import axios from 'axios';
 
 function Line3DChart(props) {
-  const { option, dataSet, axis = 'x', seriesOp, defaultOp, createOp } = props;
-  const reverseAxis = axis === 'x' ? 'y' : 'x';
+  const { option, dataSet, defaultOp } = props;
 
   const [componentOption, setComponentOption] = useState({});
   const [data, setData] = useState(null);
@@ -20,14 +19,15 @@ function Line3DChart(props) {
   const defaultComponentOption = {
     grid3D: {},
     tooltip: {},
-    [axis + 'Axis3D']: {
+    xAxis3D: {
       type: 'category',
     },
-    [reverseAxis + 'Axis3D']: {
+    yAxis3D: {
       type: 'category',
     },
     zAxis3D: {},
     series: [],
+    legend: {},
 
     ...defaultOp,
   };
@@ -48,60 +48,45 @@ function Line3DChart(props) {
     let newOption = {};
 
     let xAxisData = [];
-    const aggrData = [];
-    if (option.xField) {
-      option.series.map((item, index) => {
-        const aggrItem = getAggregationDataForChart(dataSet, option.xField, item.field, item.aggregation);
-        // console.log('aggrData :', aggrData);
-        if (!xAxisData.length) {
-          xAxisData = aggrItem.map(element => element[option.xField]);
-          // console.log(xAxisData, 'xAxisData');
-        }
-        if (item.field) {
-          const result = aggrItem.map((element, idx) => [idx, index, element[item.field]]);
-          aggrData.push(...result);
-          // console.log('aggrData :', aggrData);
-        }
-      });
-    }
+    const newSeries = [];
+    let aggrData = [];
+    option.series.forEach((item, index) => {
+      aggrData = getAggregationDataForChart(dataSet, option.xField, item.field, item.aggregation);
+      if (!xAxisData.length) {
+        xAxisData = aggrData.map(element => element[option.xField]);
+        // console.log(xAxisData, 'xAxisData');
+      }
+      if (item.field) {
+        const series = {
+          name: item.field,
+          data: aggrData.map((element, idx) => [idx, index, element[item.field]]),
+          type: 'line3D',
+          color: item.color,
+          shading: 'lambert',
+          lineStyle: {
+            width: 4,
+          },
+        };
+        newSeries.push(series);
+      }
+    });
 
-    let minValue, maxValue;
     if (aggrData.length) {
-      const arr = aggrData.map(item => item[2]);
-      minValue = Math.min(...arr);
-      maxValue = Math.max(...arr);
-      // console.log('minVal: ', minValue, 'maxVal: ', maxValue);
-
       const op = {
-        [axis + 'Axis3D']: {
+        xAxis3D: {
           type: 'category',
           splitArea: { show: true },
           data: xAxisData,
         },
-        [reverseAxis + 'Axis3D']: {
+        yAxis3D: {
           type: 'category',
           splitArea: { show: true },
           data: option.series.map(item => item.field),
         },
         zAxis3D: {
           type: 'value',
-          min: minValue,
-          max: maxValue,
         },
-        series: [
-          {
-            data: aggrData,
-            type: 'bar3D',
-            shading: 'lambert',
-          },
-        ],
-        visualMap: {
-          min: minValue ?? 0,
-          max: maxValue ?? 0,
-          inRange: {
-            color: option.color.map(item => item),
-          },
-        },
+        series: newSeries,
       };
 
       newOption = { ...defaultComponentOption, ...op };
