@@ -45,7 +45,6 @@ const LineChartSetting = props => {
 
   return (
     <Grid item xs={10} md={4} lg={3} sx={{ display: 'flex', flexDirection: 'column' }}>
-      <WidgetTitleForm value={option.title} onChange={event => handleChange(event, setOption)} />
       <StyledList>
         <ListItem divider>
           <ListItemText primary="시리즈 설정" />

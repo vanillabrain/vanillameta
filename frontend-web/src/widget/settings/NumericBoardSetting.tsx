@@ -1,7 +1,6 @@
 import React from 'react';
 import { FormControl, FormLabel, Grid, List, ListItem, ListItemText, styled, TextField } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
-import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
 import ColorPickerForm from '@/components/form/ColorPickerForm';
 import { AGGREGATION_LIST, COLUMN_TYPE } from '@/constant';
 
@@ -53,7 +52,6 @@ const NumericBoardSetting = props => {
 
   return (
     <Grid item xs={10} md={4} lg={3} sx={{ display: 'flex', flexDirection: 'column' }}>
-      <WidgetTitleForm value={option.title} onChange={handleChange} />
       <StyledList>
         <ListItem divider>
           <ListItemText primary="Header" />
