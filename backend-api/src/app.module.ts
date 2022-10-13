@@ -11,7 +11,6 @@ import { TemplateModule } from './template/template.module';
 import { CommonModule } from './common/common.module';
 import { ComponentModule } from './component/component.module';
 import { WidgetViewModule } from './widget-view/widget-view.module';
-import { DashboardWidgetModule } from './dashboard-widget/dashboard-widget.module';
 import { ConnectionModule } from './connection/connection.module';
 
 @Module({
@@ -43,7 +42,6 @@ import { ConnectionModule } from './connection/connection.module';
     CommonModule,
     ComponentModule,
     WidgetViewModule,
-    DashboardWidgetModule,
     ConnectionModule,
   ],
   controllers: [AppController],

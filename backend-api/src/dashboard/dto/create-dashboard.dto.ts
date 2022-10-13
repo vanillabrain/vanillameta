@@ -7,5 +7,13 @@ export class CreateDashboardDto {
 
   @IsString()
   @IsNotEmpty()
-  layout: string;
+  layout: DashboardLayout[];
+}
+
+export class DashboardLayout {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  i: number;
 }

@@ -4,12 +4,15 @@ import { UpdateDatasetDto } from './dto/update-dataset.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Dataset } from './entities/dataset.entity';
+import { ConnectionService } from '../connection/connection.service';
+import { ResponseStatus } from '../common/enum/response-status.enum';
 
 @Injectable()
 export class DatasetService {
   constructor(
     @InjectRepository(Dataset)
     private datasetRepository: Repository<Dataset>,
+    private readonly connectionService: ConnectionService,
   ) {}
 
   /**
@@ -17,12 +20,20 @@ export class DatasetService {
    * @param createDatasetDto
    */
   async create(createDataset: CreateDatasetDto) {
-    const saveObj: CreateDatasetDto = new CreateDatasetDto();
-    saveObj.title = createDataset.title;
-    saveObj.query = createDataset.query;
-    saveObj.databaseId = createDataset.databaseId;
+    // 쿼리를 돌려보고 문제가 있으면 저장 불가 안내
+    const queryResult = await this.connectionService.executeQuery({
+      id: createDataset.databaseId,
+      query: createDataset.query,
+    });
+    if (queryResult.status === ResponseStatus.ERROR) {
+      return { status: ResponseStatus.ERROR, message: queryResult.message };
+    }
 
-    return await this.datasetRepository.save(createDataset);
+    // 쿼리에 문제가 없으면 저장
+    return {
+      status: ResponseStatus.SUCCESS,
+      data: await this.datasetRepository.save(createDataset),
+    };
   }
 
   async findAll() {
@@ -41,20 +52,26 @@ export class DatasetService {
   async update(id: number, updateDataset: UpdateDatasetDto) {
     const find_dataset = await this.datasetRepository.findOne({ where: { id: id } });
     if (!find_dataset) {
-      return 'No exist widget';
+      return { status: ResponseStatus.ERROR, message: 'No exist dataset' };
     } else {
-      if (updateDataset.databaseId) {
-        find_dataset.databaseId = updateDataset.databaseId;
-      }
-      if (updateDataset.title) {
-        find_dataset.title = updateDataset.title;
-      }
-      if (updateDataset.query) {
-        find_dataset.query = updateDataset.query;
-      }
+      // 변경할 쿼리 날려보고, 문제 없으면 저장
+      const queryResult = await this.connectionService.executeQuery({
+        id,
+        query: updateDataset.query,
+      });
+      if (queryResult.status === ResponseStatus.ERROR) {
+        return { status: ResponseStatus.ERROR, message: queryResult.message };
+      } else {
+        if (updateDataset.title) {
+          find_dataset.title = updateDataset.title;
+        }
+        if (updateDataset.query) {
+          find_dataset.query = updateDataset.query;
+        }
 
-      await this.datasetRepository.save(find_dataset);
-      return `This action updates a #${id} dataset`;
+        await this.datasetRepository.save(find_dataset);
+        return { status: ResponseStatus.SUCCESS, message: `This action updates a #${id} dataset` };
+      }
     }
   }
 

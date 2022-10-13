@@ -1,13 +1,10 @@
-
 import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class CreateDashboardWidgetDto {
-    @IsNumber()
-    @IsNotEmpty()
-    dashboardId: number;
+  @IsNumber()
+  @IsNotEmpty()
+  dashboardId: number;
 
-    @IsString()
-    @IsNotEmpty()
-    widgetIds: string;
+  @IsNotEmpty()
+  widgetIds: number[];
 }
-
