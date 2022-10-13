@@ -1,9 +1,9 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { DatabaseService } from './database.service';
 import { CreateDatabaseDto } from './dto/create-database.dto';
 import { UpdateDatabaseDto } from './dto/update-database.dto';
 import { QueryExecuteDto } from './dto/query-execute.dto';
-import { ConnectionService } from './connection/connection.service';
+import { ConnectionService } from '../connection/connection.service';
 
 @Controller('database')
 export class DatabaseController {
@@ -27,21 +27,23 @@ export class DatabaseController {
     return this.connectionService.executeQuery(queryExecuteDto);
   }
 
+  /**
+   * 데이터베이스 목록 조회
+   */
   @Get()
   async findAll() {
     const resultList = await this.databaseService.findAll();
-
-    resultList.forEach(db => {
-      db.knexConfig = JSON.parse(db.knexConfig);
-    });
     return resultList;
   }
 
+  /**
+   * 데이터베이스 상세 조회 - 데이터베이스 연결정보, 테이블, 데이터셋 조회
+   * @param id
+   */
   @Get(':id')
   async findOne(@Param('id') id: string) {
-    const resultDB = await this.databaseService.findOne(+id);
-    resultDB.knexConfig = JSON.parse(resultDB.knexConfig);
-    return resultDB;
+    const databaseInfo = await this.databaseService.findOne(+id);
+    return databaseInfo;
   }
 
   @Patch(':id')

@@ -1,4 +1,4 @@
-import {Controller, Get, Post, Body, Patch, Param, Delete, Put} from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Put } from '@nestjs/common';
 import { DatasetService } from './dataset.service';
 import { CreateDatasetDto } from './dto/create-dataset.dto';
 import { UpdateDatasetDto } from './dto/update-dataset.dto';
@@ -16,6 +16,9 @@ export class DatasetController {
     return this.datasetService.create(createDatasetDto);
   }
 
+  /**
+   * 데이터셋 목록 조회
+   */
   @Get()
   findAll() {
     return this.datasetService.findAll();
