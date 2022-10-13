@@ -1,30 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { getAggregationDataForChart } from '@/widget/modules/utils/chartUtil';
+import { getAggregationDataForChart, getGridSize, getLegendOption } from '@/widget/modules/utils/chartUtil';
 import { Box } from '@mui/material';
 import ReactECharts from 'echarts-for-react';
 import 'echarts-gl';
-import axios from 'axios';
 
 function Line3DChart(props) {
   const { option, dataSet, defaultOp } = props;
-
   const [componentOption, setComponentOption] = useState({});
-  const [data, setData] = useState(null);
-  useEffect(() => {
-    axios.get('/data/sample/chart3d.json').then(response => {
-      setData(response.data);
-    });
-  }, []);
 
   const defaultComponentOption = {
     grid3D: {},
     tooltip: {},
-    xAxis3D: {
-      type: 'category',
-    },
-    yAxis3D: {
-      type: 'category',
-    },
+    xAxis3D: {},
+    yAxis3D: {},
     zAxis3D: {},
     series: [],
     legend: {},
@@ -50,26 +38,28 @@ function Line3DChart(props) {
     let xAxisData = [];
     const newSeries = [];
     let aggrData = [];
-    option.series.forEach((item, index) => {
-      aggrData = getAggregationDataForChart(dataSet, option.xField, item.field, item.aggregation);
-      if (!xAxisData.length) {
-        xAxisData = aggrData.map(element => element[option.xField]);
-        // console.log(xAxisData, 'xAxisData');
-      }
-      if (item.field) {
-        const series = {
-          name: item.field,
-          data: aggrData.map((element, idx) => [idx, index, element[item.field]]),
-          type: 'line3D',
-          color: item.color,
-          shading: 'lambert',
-          lineStyle: {
-            width: 4,
-          },
-        };
-        newSeries.push(series);
-      }
-    });
+    if (option.xField) {
+      option.series.forEach((item, index) => {
+        aggrData = getAggregationDataForChart(dataSet, option.xField, item.field, item.aggregation);
+        if (!xAxisData.length) {
+          xAxisData = aggrData.map(element => element[option.xField]);
+          // console.log(xAxisData, 'xAxisData');
+        }
+        if (item.field) {
+          const series = {
+            name: item.field,
+            data: aggrData.map((element, idx) => [idx, index, element[item.field]]),
+            type: 'line3D',
+            color: item.color,
+            shading: 'lambert',
+            lineStyle: {
+              width: 4,
+            },
+          };
+          newSeries.push(series);
+        }
+      });
+    }
 
     if (aggrData.length) {
       const op = {
@@ -87,6 +77,8 @@ function Line3DChart(props) {
           type: 'value',
         },
         series: newSeries,
+        grid: getGridSize(option.legendPosition),
+        legend: getLegendOption(option.legendPosition),
       };
 
       newOption = { ...defaultComponentOption, ...op };

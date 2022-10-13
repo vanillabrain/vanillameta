@@ -161,7 +161,6 @@ export const getAggregationDataForChart = (array, keys, variable, aggr = WIDGET_
     }
   });
   const data = array.reduce((result, currentValue) => {
-    // console.log(result, currentValue);
     key = currentValue[keys];
     if (!result[key]) {
       result[key] = 0;
@@ -177,7 +176,6 @@ export const getAggregationDataForChart = (array, keys, variable, aggr = WIDGET_
     }
     return result;
   }, {});
-
   const grouped = [];
   Object.keys(data).forEach(function (key) {
     temp = {};
@@ -190,6 +188,81 @@ export const getAggregationDataForChart = (array, keys, variable, aggr = WIDGET_
     grouped.push(temp);
   });
   return grouped;
+};
+
+/**
+ *
+ * @param array
+ * @param keysList
+ * @param variable
+ * @param aggr
+ */
+export const getAggregationDataForChartWithMultipleKeys = (array, keysList, variable, aggr = WIDGET_AGGREGATION.SUM) => {
+  let key, temp;
+  const countInfo = {};
+  array.forEach(arrayItem => {
+    const itemGroup = [];
+    keysList.forEach(keysItem => itemGroup.push(arrayItem[keysItem]));
+    const group = JSON.stringify(itemGroup); // ["a", "b"]
+    if (!countInfo[group]) {
+      countInfo[group] = 1;
+    } else {
+      countInfo[group] = countInfo[group] + 1;
+    }
+  });
+  const data = array.reduce((result, currentValue) => {
+    const keyList = [];
+    keysList.forEach(keysItem => keyList.push(currentValue[keysItem]));
+    key = JSON.stringify(keyList);
+    if (!result[key]) {
+      result[key] = 0;
+    }
+    if (aggr === WIDGET_AGGREGATION.AVG) {
+      result[key] += parseFloat(currentValue[variable]);
+    } else if (aggr === WIDGET_AGGREGATION.MAX) {
+      result[key] = !result[key] ? currentValue[variable] : Math.max(result[key], currentValue[variable]);
+    } else if (aggr === WIDGET_AGGREGATION.MIN) {
+      result[key] = !result[key] ? currentValue[variable] : Math.min(result[key], currentValue[variable]);
+    } else {
+      result[key] += parseFloat(currentValue[variable]);
+    }
+    return result;
+  }, {});
+  const grouped = [];
+  Object.keys(data).forEach(function (key) {
+    temp = {};
+    keysList.forEach((keysItem, keysIndex) => {
+      temp[keysItem] = JSON.parse(key)[keysIndex];
+    });
+    if (aggr === WIDGET_AGGREGATION.AVG) {
+      temp[variable] = data[key] / countInfo[key];
+    } else {
+      temp[variable] = data[key];
+    }
+    grouped.push(temp);
+    // console.log(grouped, 'grouped');
+  });
+  return grouped;
+};
+
+export const testFunc = (array, keys) => {
+  // 필드값을 프로퍼티로 하는 객체 값이 중복되지 않으면 숫자를 부여하고
+  // 중복된 값이 나오면 같은 값을 부여, 중복되지 않은 값이 나오면 +1 값을 부여
+  if (array.length) {
+    let num = 0;
+    const temp = [];
+
+    array.map(item => {
+      if (!temp[item[keys]]) {
+        temp[item[keys]] = num;
+        num += 1;
+      }
+    });
+    // .sort((a, b) => (a - b))
+
+    console.log(temp, 'temp');
+    return temp;
+  }
 };
 
 /**

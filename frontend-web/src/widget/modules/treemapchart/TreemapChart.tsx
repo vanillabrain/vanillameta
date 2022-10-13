@@ -4,7 +4,7 @@ import { Box } from '@mui/material';
 import { getAggregationDataForChart } from '@/widget/modules/utils/chartUtil';
 
 const TreemapChart = props => {
-  const { option, dataSet, seriesOp, setDataLength } = props;
+  const { option, dataSet, seriesOp } = props;
 
   const [componentOption, setComponentOption] = useState({});
 
@@ -44,7 +44,6 @@ const TreemapChart = props => {
 
     if (option.series.name) {
       aggrData = getAggregationDataForChart(dataSet, option.series.name, option.series.field, option.series.aggregation);
-      setDataLength(aggrData.length);
       // console.log(aggrData);
 
       const series = {
