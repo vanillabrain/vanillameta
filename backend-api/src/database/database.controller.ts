@@ -3,7 +3,7 @@ import { DatabaseService } from './database.service';
 import { CreateDatabaseDto } from './dto/create-database.dto';
 import { UpdateDatabaseDto } from './dto/update-database.dto';
 import { QueryExecuteDto } from './dto/query-execute.dto';
-import { ConnectionService } from './connection/connection.service';
+import { ConnectionService } from '../connection/connection.service';
 
 @Controller('database')
 export class DatabaseController {

@@ -1,17 +1,17 @@
-import { forwardRef, Inject, Injectable } from '@nestjs/common';
-import { CreateDatabaseDto } from '../dto/create-database.dto';
-import { QueryExecuteDto } from '../dto/query-execute.dto';
-import { DatabaseService } from '../database.service';
+import { Injectable } from '@nestjs/common';
+import { CreateDatabaseDto } from '../database/dto/create-database.dto';
+import { QueryExecuteDto } from '../database/dto/query-execute.dto';
 import { Knex, knex } from 'knex';
-import { FieldTypeUtil } from '../../utils/field-type.util';
+import { FieldTypeUtil } from '../utils/field-type.util';
+import { Database } from '../database/entities/database.entity';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 
 const knexConnections = new Map<number, Knex>();
 
 @Injectable()
 export class ConnectionService {
-  constructor(
-    @Inject(forwardRef(() => DatabaseService)) private databaseService: DatabaseService,
-  ) {}
+  constructor(@InjectRepository(Database) private databaseRepository: Repository<Database>) {}
 
   /**
    * Knex 객체 생성 후 pool에 추가
@@ -43,10 +43,12 @@ export class ConnectionService {
   /**
    * Knex 객체 가져오기 - 만약 없으면 가져오기
    * @param id
+   * @param databaseInfo
    */
   async getKnex(id: number): Promise<Knex> {
     if (!this.hasKnex(id)) {
-      const one = await this.databaseService.findDB(id);
+      const one = await this.databaseRepository.findOne({ where: { id: id } });
+      one.connectionConfig = JSON.parse(one.connectionConfig);
       this.addKnex(id, one.connectionConfig as Knex.Config);
     }
     return knexConnections.get(id);

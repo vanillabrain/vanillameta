@@ -4,15 +4,15 @@ import { UpdateDatabaseDto } from './dto/update-database.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Database } from './entities/database.entity';
 import { Repository } from 'typeorm';
-import { ConnectionService } from './connection/connection.service';
+import { ConnectionService } from '../connection/connection.service';
 import { Dataset } from '../dataset/entities/dataset.entity';
 
 @Injectable()
 export class DatabaseService {
   constructor(
     @InjectRepository(Database) private databaseRepository: Repository<Database>,
-    @Inject(forwardRef(() => ConnectionService)) private connectionService: ConnectionService,
     @InjectRepository(Dataset) private datasetRepository: Repository<Dataset>,
+    private readonly connectionService: ConnectionService,
   ) {}
 
   async create(createDatabaseDto: CreateDatabaseDto): Promise<Database> {
@@ -21,6 +21,9 @@ export class DatabaseService {
     return await this.databaseRepository.save(databaseDto);
   }
 
+  /**
+   * database 목록 조회
+   */
   async findAll(): Promise<Database[]> {
     const result = await this.databaseRepository.find();
     result.forEach(db => {

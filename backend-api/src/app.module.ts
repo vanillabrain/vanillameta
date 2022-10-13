@@ -12,7 +12,7 @@ import { CommonModule } from './common/common.module';
 import { ComponentModule } from './component/component.module';
 import { WidgetViewModule } from './widget-view/widget-view.module';
 import { DashboardWidgetModule } from './dashboard-widget/dashboard-widget.module';
-import { ConnectionModule } from './database/connection/connection.module';
+import { ConnectionModule } from './connection/connection.module';
 
 @Module({
   imports: [
