@@ -30,15 +30,16 @@ const StyledList = styled(List)({
 });
 
 const PieChartSetting = props => {
-  const { option, setOption, listItem, spec, dataLength } = props;
+  const { option, setOption, listItem, spec, dataSet } = props;
+  console.log(props, 'props');
 
   useEffect(() => {
-    const colorArr = getColorArr(option.series.field, dataLength);
+    const colorArr = getColorArr(option.series.field, dataSet.length);
     setOption(prevState => ({
       ...prevState,
       series: { ...prevState.series, color: colorArr },
     }));
-  }, [option.series.field, option.series.name, dataLength]);
+  }, [option.series.field, option.series.name, dataSet.length]);
 
   const handleSeriesChange = event => {
     setOption(prevState => ({

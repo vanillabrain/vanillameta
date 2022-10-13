@@ -3,18 +3,10 @@ import { getAggregationDataForChart } from '@/widget/modules/utils/chartUtil';
 import { Box } from '@mui/material';
 import ReactECharts from 'echarts-for-react';
 import 'echarts-gl';
-import axios from 'axios';
 
 function Bar3DChart(props) {
   const { option, dataSet, defaultOp } = props;
-
   const [componentOption, setComponentOption] = useState({});
-  const [data, setData] = useState(null);
-  useEffect(() => {
-    axios.get('/data/sample/chart3d.json').then(response => {
-      setData(response.data);
-    });
-  }, []);
 
   const defaultComponentOption = {
     grid3D: {},

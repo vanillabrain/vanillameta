@@ -54,48 +54,30 @@ const HeatmapChartSetting = props => {
             value={option.xField}
             onChange={event => handleChange(event, setOption)}
           />
+          <SelectForm
+            id="yField"
+            name="yField"
+            label="y축"
+            optionList={spec.map(item => item.columnName)}
+            labelField="columnName"
+            valueField="columnType"
+            value={option.yField}
+            onChange={event => handleChange(event, setOption)}
+          />
         </ListItem>
         <ListItem divider>
           <ListItemText primary="시리즈 설정" />
-          <AddButton
-            onClick={event => handleAddClick(event, option, setOption, defaultSeries)}
-            sx={{
-              position: 'absolute',
-              top: 30,
-              right: 0,
-            }}
+          <SelectForm
+            required={true}
+            id="series"
+            name="series"
+            label="필드"
+            labelField="columnName"
+            valueField="columnType"
+            optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
+            value={option.series}
+            onChange={event => handleChange(event, setOption)}
           />
-          {option.series.map((item, index) => (
-            <SelectForm
-              key={index}
-              required={true}
-              id={`field${index + 1}`}
-              name={`field${index + 1}`}
-              label={`필드 ${index + 1}`}
-              labelField="columnName"
-              valueField="columnType"
-              optionList={spec
-                .filter(item => item.columnType === COLUMN_TYPE.NUMBER)
-                .map(item => item.columnName)
-                .filter(filterItem => {
-                  // 이미 선택한 값은 리스트에서 제외
-                  const list = option.series.map(item => item.field);
-                  if (list[index] === filterItem) {
-                    return true;
-                  }
-                  return !list.includes(filterItem);
-                })}
-              value={item.field}
-              onChange={event => handleSeriesChange(event, setOption)}
-              endButton={
-                0 < index ? (
-                  <RemoveButton onClick={event => handleRemoveClick(event, index, option, setOption)} id={index} />
-                ) : (
-                  ' '
-                )
-              }
-            />
-          ))}
           <SelectForm
             id="aggregation"
             name="aggregation"

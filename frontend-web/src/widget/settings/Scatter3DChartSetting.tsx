@@ -3,8 +3,9 @@ import { Divider, Grid, List, ListItem, ListItemText, styled } from '@mui/materi
 import SelectForm from '@/components/form/SelectForm';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
 import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
-import { AGGREGATION_LIST, COLUMN_TYPE, WIDGET_AGGREGATION } from '@/constant';
-import ColorFieldForm from '@/components/form/ColorFieldForm';
+import { COLUMN_TYPE, LEGEND_LIST } from '@/constant';
+import TextFieldForm from '@/components/form/TextFieldForm';
+import ColorButtonForm from '@/components/form/ColorButtonForm';
 
 const StyledList = styled(List)({
   position: 'relative',
@@ -30,32 +31,21 @@ const StyledList = styled(List)({
 });
 
 const Scatter3DChartSetting = props => {
-  const { option, setOption, seriesItem, spec } = props;
+  const { option, setOption, spec } = props;
 
-  console.log(option);
   // 컴포넌트 별 default series
   const defaultSeries = {
-    field: '',
-    aggregation: WIDGET_AGGREGATION.SUM,
+    title: '',
+    xField: '',
+    yField: '',
+    zField: '',
+    color: '',
+    symbolSize: 20,
   };
 
   return (
     <Grid item xs={10} md={4} lg={3} sx={{ display: 'flex', flexDirection: 'column' }}>
       <StyledList>
-        <ListItem divider>
-          <ListItemText primary="카테고리 설정" sx={{ textTransform: 'uppercase' }} />
-          <SelectForm
-            required={true}
-            id="xField"
-            name="xField"
-            label="x축"
-            optionList={spec.map(item => item.columnName)}
-            labelField="columnName"
-            valueField="columnType"
-            value={option.xField}
-            onChange={event => handleChange(event, setOption)}
-          />
-        </ListItem>
         <ListItem divider>
           <ListItemText primary="시리즈 설정" />
           <AddButton
@@ -68,63 +58,76 @@ const Scatter3DChartSetting = props => {
           />
           {option.series.map((item, index) => (
             <React.Fragment key={index}>
+              <TextFieldForm
+                id={`title${index + 1}`}
+                name={`title${index + 1}`}
+                label={`시리즈 ${index + 1} 이름`}
+                value={item.title}
+                onChange={event => handleSeriesChange(event, setOption)}
+                endButton={<ColorButtonForm index={index} option={option} setOption={setOption} />}
+              />
               <SelectForm
                 required={true}
-                id={`field${index + 1}`}
-                name={`field${index + 1}`}
-                label={`필드 ${index + 1}`}
+                id={`xField${index + 1}`}
+                name={`xField${index + 1}`}
+                label="X 필드"
                 labelField="columnName"
                 valueField="columnType"
                 optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
-                value={item.field}
+                value={item.xField}
                 onChange={event => handleSeriesChange(event, setOption)}
               />
               <SelectForm
-                id={`aggregation${index + 1}`}
-                name={`aggregation${index + 1}`}
-                label="집계 방식"
-                optionList={AGGREGATION_LIST}
-                value={item.aggregation}
+                required={true}
+                id={`yField${index + 1}`}
+                name={`yField${index + 1}`}
+                label="Y 필드"
+                labelField="columnName"
+                valueField="columnType"
+                optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
+                value={item.yField}
                 onChange={event => handleSeriesChange(event, setOption)}
-                disabledDefaultValue
+              />
+              <SelectForm
+                required={true}
+                id={`zField${index + 1}`}
+                name={`zField${index + 1}`}
+                label="Z 필드"
+                labelField="columnName"
+                valueField="columnType"
+                optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
+                value={item.zField}
+                onChange={event => handleSeriesChange(event, setOption)}
+              />
+              <TextFieldForm
+                id={`symbolSize${index + 1}`}
+                name={`symbolSize${index + 1}`}
+                label="사이즈"
+                type="number"
+                value={item.symbolSize}
+                onChange={event => handleSeriesChange(event, setOption)}
                 endButton={
                   0 < index ? (
                     <RemoveButton onClick={event => handleRemoveClick(event, index, option, setOption)} id={index} />
                   ) : (
-                    ' '
+                    false
                   )
                 }
               />
-              {!!seriesItem && (
-                <SelectForm
-                  id={`${seriesItem.id}${index + 1}`}
-                  name={`${seriesItem.name}${index + 1}`}
-                  label={seriesItem.label}
-                  optionList={seriesItem.optionList}
-                  value={item[seriesItem.value]}
-                  onChange={event => handleSeriesChange(event, setOption)}
-                  disabledDefaultValue={seriesItem.disabledDefaultValue}
-                />
-              )}
               <Divider />
             </React.Fragment>
           ))}
         </ListItem>
         <ListItem>
-          <ListItemText primary="색상 범위 설정" />
-          {option.color.map((item, index) => (
-            <React.Fragment key={index}>
-              <ColorFieldForm
-                id={`color${index + 1}`}
-                name={`color${index + 1}`}
-                value={option.color[index]}
-                colorList={option.color}
-                setOption={setOption}
-                index={index}
-              />
-              <Divider />
-            </React.Fragment>
-          ))}
+          <ListItemText>범례 설정</ListItemText>
+          <SelectForm
+            id="legendPosition"
+            name="legendPosition"
+            label="위치"
+            optionList={LEGEND_LIST}
+            value={option.legendPosition}
+            onChange={event => handleChange(event, setOption)}
+          />
         </ListItem>
       </StyledList>
     </Grid>
