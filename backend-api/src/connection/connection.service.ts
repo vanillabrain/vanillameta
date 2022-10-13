@@ -6,6 +6,7 @@ import { FieldTypeUtil } from '../utils/field-type.util';
 import { Database } from '../database/entities/database.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { ResponseStatus } from '../common/enum/response-status.enum';
 
 const knexConnections = new Map<number, Knex>();
 
@@ -92,7 +93,7 @@ export class ConnectionService {
 
     let datas = [];
     const fields = [];
-    const resultObj = { status: 200, message: 'success', datas: [], fields: [] };
+    const resultObj = { status: ResponseStatus.SUCCESS, message: 'success', datas: [], fields: [] };
 
     try {
       const queryRes = await knex.raw(queryExecuteDto.query);
@@ -116,7 +117,7 @@ export class ConnectionService {
       resultObj.datas = datas;
       resultObj.fields = fields;
     } catch (e) {
-      resultObj.status = 400;
+      resultObj.status = ResponseStatus.ERROR;
       resultObj.message = e.sqlMessage;
       console.log(e);
       console.log(e.sqlMessage);
