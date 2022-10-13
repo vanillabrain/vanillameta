@@ -17,6 +17,7 @@ import {
 import CloseIcon from '@mui/icons-material/Close';
 import { get } from '@/helpers/apiHelper';
 import TemplateService from '@/api/templateService';
+import WidgetService from '@/api/widgetService';
 
 const iconType = item => {
   switch (item.toUpperCase()) {
@@ -59,7 +60,7 @@ export const WidgetList = ({ handleWidgetConfirm = null, handleWidgetCancel = nu
   }, [selectedWidgetIds]);
 
   const getItems = () => {
-    get('/data/dummyWidgetList.json')
+    WidgetService.selectWidgetList()
       .then(response => response.data)
       .then(data => setLoadedWidgetData(data));
   };
@@ -120,7 +121,7 @@ export const WidgetList = ({ handleWidgetConfirm = null, handleWidgetCancel = nu
         >
           {loadedWidgetData.map((item, index) => (
             <ListItemButton key={index} selected={isItemSelection(item)} onClick={() => handleClick(item)}>
-              <ListItemIcon>{iconType(item.type)}</ListItemIcon>
+              <ListItemIcon>{iconType(item.componentType)}</ListItemIcon>
               <ListItemText primary={item.title} />
             </ListItemButton>
           ))}
@@ -191,7 +192,7 @@ export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = 
         >
           {loadedTemplateDataList.map((item, index) => (
             <ListItemButton key={index} selected={index == selectedIndex} onClick={() => handleClick(item, index)}>
-              <ListItemIcon>{templateIconType(item.type)}</ListItemIcon>
+              <ListItemIcon>{templateIconType(item.componentType)}</ListItemIcon>
               <ListItemText primary={item.title} />
               <ListItemText primary={item.description} />
             </ListItemButton>
