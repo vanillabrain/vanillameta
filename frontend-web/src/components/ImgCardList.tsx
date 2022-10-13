@@ -6,6 +6,7 @@ function ImgCardList(props) {
   const srcUrl = '/assets/images/';
 
   const handleClick = item => {
+    console.log('component : ', item);
     setSelectedType(item);
   };
 
@@ -18,7 +19,7 @@ function ImgCardList(props) {
       sx={{ maxWidth: '100%', listStyle: 'none', m: '16px auto', p: 0, gap: { xs: 2, md: 3 } }}
     >
       {data.map(item => (
-        <Box component="li" key={item.id} sx={size === 'large' ? { width: { xs: 100, md: 130 }, my: 0 } : { width: 150 }}>
+        <Box component="li" key={item.id} sx={size === 'large' ? { width: 130, my: 0 } : { width: 150 }}>
           <Card>
             <CardActionArea
               onClick={!handleNext ? () => handleClick(item) : event => handleNext(event, item)}

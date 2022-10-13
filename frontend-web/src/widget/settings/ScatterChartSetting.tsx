@@ -2,10 +2,9 @@ import React from 'react';
 import { Divider, Grid, List, ListItem, ListItemText, styled } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import ColorButtonForm from '@/components/form/ColorButtonForm';
-import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
 import TextFieldForm from '@/components/form/TextFieldForm';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
-import { handleChange, handleSeriesChange, handleAddClick, handleRemoveClick } from '@/widget/utils/handler';
+import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
 import { COLUMN_TYPE, LEGEND_LIST } from '@/constant';
 
 const StyledList = styled(List)({
@@ -32,11 +31,11 @@ const StyledList = styled(List)({
 });
 
 const LineChartSetting = props => {
-  const { option, setOption, seriesItem, spec } = props;
+  const { option, setOption, spec } = props;
 
   // 컴포넌트 별 default series
   const defaultSeries = {
-    name: '',
+    title: '',
     xField: '',
     yField: '',
     color: '',
@@ -45,7 +44,6 @@ const LineChartSetting = props => {
 
   return (
     <Grid item xs={10} md={4} lg={3} sx={{ display: 'flex', flexDirection: 'column' }}>
-      <WidgetTitleForm value={option.title} onChange={event => handleChange(event, setOption)} />
       <StyledList>
         <ListItem divider>
           <ListItemText primary="시리즈 설정" />
@@ -60,12 +58,10 @@ const LineChartSetting = props => {
           {option.series.map((item, index) => (
             <React.Fragment key={index}>
               <TextFieldForm
-                id={`name${index + 1}`}
-                name={`name${index + 1}`}
-                label={`필드 ${index + 1} 이름`}
-                labelField="columnName"
-                valueField="columnType"
-                value={item.name}
+                id={`title${index + 1}`}
+                name={`title${index + 1}`}
+                label={`시리즈 ${index + 1} 이름`}
+                value={item.title}
                 onChange={event => handleSeriesChange(event, setOption)}
                 endButton={<ColorButtonForm index={index} option={option} setOption={setOption} />}
               />
@@ -73,7 +69,7 @@ const LineChartSetting = props => {
                 required={true}
                 id={`xField${index + 1}`}
                 name={`xField${index + 1}`}
-                label={`X축`}
+                label="X 필드"
                 labelField="columnName"
                 valueField="columnType"
                 optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
@@ -84,7 +80,7 @@ const LineChartSetting = props => {
                 required={true}
                 id={`yField${index + 1}`}
                 name={`yField${index + 1}`}
-                label={`Y축`}
+                label="Y 필드"
                 labelField="columnName"
                 valueField="columnType"
                 optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
@@ -94,9 +90,7 @@ const LineChartSetting = props => {
               <TextFieldForm
                 id={`symbolSize${index + 1}`}
                 name={`symbolSize${index + 1}`}
-                label={`사이즈`}
-                labelField="columnName"
-                valueField="columnType"
+                label="사이즈"
                 type="number"
                 value={item.symbolSize}
                 onChange={event => handleSeriesChange(event, setOption)}
@@ -108,18 +102,6 @@ const LineChartSetting = props => {
                   )
                 }
               />
-              {!!seriesItem && (
-                <SelectForm
-                  id={`${seriesItem.id}${index + 1}`}
-                  name={`${seriesItem.name}${index + 1}`}
-                  label={seriesItem.label}
-                  labelField="columnName"
-                  valueField="columnType"
-                  optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
-                  value={item[seriesItem.value]}
-                  onChange={event => handleSeriesChange(event, setOption)}
-                />
-              )}
               <Divider />
             </React.Fragment>
           ))}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box } from '@mui/material';
+import { Box, Stack } from '@mui/material';
 
 import Header from './Header/Header';
 import Footer from './Footer/Footer';
@@ -8,11 +8,16 @@ function Layout(props) {
   const headerHeight = 60;
 
   return (
-    <React.Fragment>
+    <Stack
+      sx={{
+        width: '100%',
+        height: '100%',
+      }}
+    >
       <Header height={headerHeight} />
-      <Box sx={{ marginTop: headerHeight + 'px' }}>{props.children}</Box>
+      <Stack sx={{ marginTop: headerHeight + 'px', flex: '1 1 auto', height: '100%' }}>{props.children}</Stack>
       <Footer />
-    </React.Fragment>
+    </Stack>
   );
 }
 

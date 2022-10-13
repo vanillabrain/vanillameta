@@ -1,7 +1,6 @@
 import React from 'react';
 import { Divider, Grid, List, ListItem, ListItemText, styled } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
-import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
 import { handleChange, handleSeriesChange } from '@/widget/utils/handler';
 import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST } from '@/constant';
 import ColorPickerForm from '@/components/form/ColorPickerForm';
@@ -35,11 +34,11 @@ const CandlestickChartSetting = props => {
 
   return (
     <Grid item xs={10} md={4} lg={3} sx={{ display: 'flex', flexDirection: 'column' }}>
-      <WidgetTitleForm value={option.title} onChange={event => handleChange(event, setOption)} />
       <StyledList>
         <ListItem divider>
-          <ListItemText primary="X축 설정" sx={{ textTransform: 'uppercase' }} />
+          <ListItemText primary="카테고리 설정" sx={{ textTransform: 'uppercase' }} />
           <SelectForm
+            required={true}
             id="xField"
             name="xField"
             label="x축"
@@ -71,6 +70,7 @@ const CandlestickChartSetting = props => {
                     index={index}
                     option={option}
                     setOption={setOption}
+                    onChange={event => handleSeriesChange(event, setOption)}
                   />
                 }
               />

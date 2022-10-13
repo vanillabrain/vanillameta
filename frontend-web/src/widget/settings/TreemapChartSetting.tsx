@@ -1,8 +1,6 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Divider, Grid, List, ListItem, ListItemText, styled } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
-import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
-import { handleChange } from '@/widget/utils/handler';
 import { AGGREGATION_LIST, COLUMN_TYPE } from '@/constant';
 import ColorFieldForm from '@/components/form/ColorFieldForm';
 
@@ -30,15 +28,7 @@ const StyledList = styled(List)({
 });
 
 const TreemapChartSetting = props => {
-  const { option, setOption, spec, dataLength } = props;
-
-  useEffect(() => {
-    const colorArr = ['#2F93C8', '#AEC48F', '#FFDB5C', '#F98862'];
-    setOption(prevState => ({
-      ...prevState,
-      series: { ...prevState.series, color: colorArr },
-    }));
-  }, [option.series.field, option.series.label, dataLength]);
+  const { option, setOption, spec } = props;
 
   const handleSeriesChange = event => {
     setOption(prevState => ({
@@ -52,7 +42,6 @@ const TreemapChartSetting = props => {
 
   return (
     <Grid item xs={10} md={4} lg={3} sx={{ display: 'flex', flexDirection: 'column' }}>
-      <WidgetTitleForm value={option.title} onChange={event => handleChange(event, setOption)} />
       <StyledList>
         <ListItem divider>
           <ListItemText primary="시리즈 설정" />
@@ -68,6 +57,17 @@ const TreemapChartSetting = props => {
             onChange={handleSeriesChange}
           />
           <SelectForm
+            required={true}
+            id="name"
+            name="name"
+            label="이름"
+            labelField="columnName"
+            valueField="columnType"
+            optionList={spec.map(item => item.columnName)}
+            value={option.series.name}
+            onChange={handleSeriesChange}
+          />
+          <SelectForm
             id="aggregation"
             name="aggregation"
             label="집계 방식"
@@ -75,16 +75,6 @@ const TreemapChartSetting = props => {
             value={option.series.aggregation}
             onChange={handleSeriesChange}
             disabledDefaultValue
-          />
-          <SelectForm
-            id="label"
-            name="label"
-            label="이름"
-            labelField="columnName"
-            valueField="columnType"
-            optionList={spec.map(item => item.columnName)}
-            value={option.series.label}
-            onChange={handleSeriesChange}
           />
         </ListItem>
         <ListItem>
@@ -95,7 +85,7 @@ const TreemapChartSetting = props => {
                 id={`color${index + 1}`}
                 name={`color${index + 1}`}
                 value={option.series.color[index]}
-                optionList={option}
+                colorList={option.series.color}
                 setOption={setOption}
                 index={index}
               />

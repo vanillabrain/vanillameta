@@ -1,7 +1,6 @@
 import React from 'react';
 import { Grid, List, ListItem, ListItemText, styled } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
-import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
 import { handleChange } from '@/widget/utils/handler';
 import { AGGREGATION_LIST, COLUMN_TYPE } from '@/constant';
 import TextFieldForm from '@/components/form/TextFieldForm';
@@ -33,11 +32,8 @@ const StyledList = styled(List)({
 const GaugeChartSetting = props => {
   const { option, setOption, spec } = props;
 
-  console.log(option);
-
   return (
     <Grid item xs={10} md={4} lg={3} sx={{ display: 'flex', flexDirection: 'column' }}>
-      <WidgetTitleForm value={option.title} onChange={event => handleChange(event, setOption)} />
       <StyledList>
         <ListItem divider>
           <ListItemText primary="시리즈 설정" />
@@ -62,7 +58,6 @@ const GaugeChartSetting = props => {
             }
           />
           <SelectForm
-            required={true}
             id="aggregation"
             name="aggregation"
             label="집계 방식"

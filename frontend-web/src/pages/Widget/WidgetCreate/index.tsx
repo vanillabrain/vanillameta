@@ -7,6 +7,7 @@ import WidgetDataSelect from './WidgetDataSelect';
 import WidgetTypeSelect from './WidgetTypeSelect';
 import WidgetAttributeSelect from './WidgetAttributeSelect';
 import componentService from '@/api/componentService';
+import widgetService from '@/api/widgetService';
 
 const title = '위젯 생성';
 const steps = ['데이터 선택', '위젯 타입 선택', '위젯 속성 설정'];
@@ -15,12 +16,12 @@ function WidgetCreate() {
   const [activeStep, setActiveStep] = useState(0);
 
   const [componentList, setComponentList] = useState([]); // step 1
-  const [dataSet, setDataSet] = useState(null); // step 1
-  const [widgetType, setWidgetType] = useState(null); // step 2
+  const [datasetId, setDatasetId] = useState(null); // step 1
+  const [componentInfo, setComponentInfo] = useState(null); // step 2
 
   // 개발 편의상 임시로 적용
   useEffect(() => {
-    setDataSet(688279);
+    setDatasetId(688279);
     setActiveStep(1);
     getComponentList();
   }, []);
@@ -28,19 +29,19 @@ function WidgetCreate() {
   const [isNextButtonDisabled, setIsNextButtonDisabled] = useState(true);
 
   useEffect(() => {
-    // console.log('widgetType', widgetType);
-    if (activeStep === 0 && !!dataSet) {
+    // console.log('componentInfo', componentInfo);
+    if (activeStep === 0 && !!datasetId) {
       setIsNextButtonDisabled(false);
       return;
     }
 
-    if (activeStep === 1 && !!widgetType) {
+    if (activeStep === 1 && !!componentInfo) {
       setIsNextButtonDisabled(false);
       return;
     }
 
     setIsNextButtonDisabled(true);
-  }, [activeStep, dataSet, widgetType]);
+  }, [activeStep, datasetId, componentInfo]);
 
   const getComponentList = () => {
     componentService.selectComponentList().then(res => {
@@ -49,16 +50,33 @@ function WidgetCreate() {
     });
   };
 
+  const saveWidgetInfo = (option, title) => {
+    const param = {
+      title: title,
+      description: title,
+      databaseId: 1,
+      componentId: componentInfo.id,
+      // 'DATASET', 'WIDGET_VIEW'
+      datasetType: 'DATASET',
+      datasetId: '0001',
+      tableName: '',
+      option: option,
+    };
+    console.log(option);
+    widgetService.createWidget(param).then(response => console.log(response));
+  };
+
   const handleNext = (event, item) => {
+    console.log('component : ', item);
     event.preventDefault();
     if (activeStep === steps.length - 1) {
       return;
     }
     if (activeStep === 0) {
-      setDataSet(item);
+      setDatasetId(item);
     }
     if (activeStep === 1) {
-      setWidgetType(item);
+      setComponentInfo(item);
     }
     setActiveStep(prevState => prevState + 1);
   };
@@ -69,11 +87,11 @@ function WidgetCreate() {
     }
 
     if (activeStep === 1) {
-      setDataSet(null);
+      setDatasetId(null);
     }
 
     if (activeStep === 2) {
-      setWidgetType(null);
+      setComponentInfo(null);
     }
 
     setActiveStep(prevState => prevState - 1);
@@ -143,16 +161,16 @@ function WidgetCreate() {
         </Box>
 
         {activeStep === 0 ? (
-          <WidgetDataSelect setDataSet={setDataSet} handleNext={handleNext} />
+          <WidgetDataSelect setDataSet={setDatasetId} handleNext={handleNext} />
         ) : activeStep === 1 ? (
           <WidgetTypeSelect
-            widgetType={widgetType}
-            setWidgetType={setWidgetType}
+            componentInfo={componentInfo}
+            setWidgetType={setComponentInfo}
             componentList={componentList}
             handleNext={handleNext}
           />
         ) : (
-          <WidgetAttributeSelect dataSetId={dataSet} componentType={widgetType} />
+          <WidgetAttributeSelect dataSetId={datasetId} componentInfo={componentInfo} saveWidgetInfo={saveWidgetInfo} />
         )}
       </PageTitleBox>
     </PageContainer>

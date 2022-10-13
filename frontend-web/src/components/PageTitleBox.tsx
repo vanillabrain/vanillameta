@@ -5,7 +5,7 @@ function PageTitleBox(props) {
   const { title, button } = props;
 
   return (
-    <Box
+    <Stack
       sx={{
         width: '100%',
       }}
@@ -27,7 +27,7 @@ function PageTitleBox(props) {
       </Stack>
       <Divider sx={{ marginBottom: 5 }} />
       {props.children}
-    </Box>
+    </Stack>
   );
 }
 

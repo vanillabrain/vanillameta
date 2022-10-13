@@ -10,8 +10,8 @@ import { get } from '@/helpers/apiHelper';
 
 const title = '대시보드';
 
-function Dashboard(props) {
-  const { dashboard_id } = useParams();
+function Dashboard() {
+  const { dashboardId } = useParams();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [loadedWidgetData, setLoadedWidgetData] = useState([]);
@@ -45,9 +45,9 @@ function Dashboard(props) {
     console.log('왜 안타');
     console.log(item);
     if (item.id == 'dashboard') {
-      navigate('/dashboard/create?create_type=dashboard');
+      navigate('/dashboard/create?createType=dashboard');
     } else {
-      navigate('/dashboard/create?create_type=recommend');
+      navigate('/dashboard/create?createType=recommend');
     }
   };
 
@@ -58,7 +58,7 @@ function Dashboard(props) {
 
   return (
     <PageContainer>
-      {!dashboard_id ? (
+      {!dashboardId ? (
         dashboardNoData ? (
           getEmptyDashboard()
         ) : (

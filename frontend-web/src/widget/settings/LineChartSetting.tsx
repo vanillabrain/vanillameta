@@ -42,11 +42,11 @@ const LineChartSetting = props => {
 
   return (
     <Grid item xs={10} md={4} lg={3} sx={{ display: 'flex', flexDirection: 'column' }}>
-      <WidgetTitleForm value={option.title} onChange={event => handleChange(event, setOption)} />
       <StyledList>
         <ListItem divider>
-          <ListItemText primary={`${axis}축 설정`} sx={{ textTransform: 'uppercase' }} />
+          <ListItemText primary="카테고리 설정" sx={{ textTransform: 'uppercase' }} />
           <SelectForm
+            required={true}
             id={axis + 'Field'}
             name={axis + 'Field'}
             label={axis + '축'}

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Card, IconButton, Stack } from '@mui/material';
 import { Delete } from '@mui/icons-material';
-import { Link as RouterLink, useLocation, useMatch, useSearchParams } from 'react-router-dom';
+import { Link as RouterLink, useParams } from 'react-router-dom';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
 import EditIcon from '@mui/icons-material/Edit';
 import PageTitleBox from '@/components/PageTitleBox';
@@ -9,23 +9,24 @@ import TitleBox from '@/components/TitleBox';
 import { DialogAlertIconButton } from '@/components/button/DialogAlertButton';
 import WidgetWrapper from '@/widget/wrapper/WidgetWrapper';
 import { get } from '@/helpers/apiHelper';
-import RGL, { Responsive, WidthProvider } from 'react-grid-layout';
+import { Responsive, WidthProvider } from 'react-grid-layout';
 import '/node_modules/react-grid-layout/css/styles.css';
 import '/node_modules/react-resizable/css/styles.css';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
-const DashboardView = props => {
-  const location = useLocation();
-  const match = useMatch('/dashboard/:dashboard_id');
+const DashboardView = () => {
+  const { dashboardId } = useParams();
+
+  const [loading, setLoading] = useState(false);
+
   const [dashboardInfo, setDashboardInfo] = useState({ title: '', widgets: [], layout: [] }); // dashboard 정보
   const [layout, setLayout] = useState([]); // grid layout
-  const [dashboardId, setDashboardId] = useState(null); // dashboard id
+  // dashboard id
 
   // init useEffect
   useEffect(() => {
-    setDashboardId(match.params.dashboard_id);
-    getDashboardInfo(match.params.dashboard_id);
+    getDashboardInfo(dashboardId);
   }, []);
 
   // dashboardInfo useEffect
@@ -45,7 +46,7 @@ const DashboardView = props => {
 
   // refrech 버튼 클릭
   const handleRefreshClick = () => {
-    getDashboardInfo(match.params.dashboard_id);
+    getDashboardInfo(dashboardId);
   };
 
   // widget 생성

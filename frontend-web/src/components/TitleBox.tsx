@@ -8,6 +8,7 @@ function TitleBox(props) {
     <Box
       sx={{
         width: width,
+        flex: '1 1 auto',
       }}
     >
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ width: '100%', py: 1 }}>
