@@ -17,14 +17,14 @@ export class DatabaseService {
 
   async create(createDatabaseDto: CreateDatabaseDto): Promise<Database> {
     const databaseDto = Database.toDto(createDatabaseDto);
-    databaseDto.knexConfig = JSON.stringify(databaseDto.knexConfig);
+    databaseDto.connectionConfig = JSON.stringify(databaseDto.connectionConfig);
     return await this.databaseRepository.save(databaseDto);
   }
 
   async findAll(): Promise<Database[]> {
     const result = await this.databaseRepository.find();
     result.forEach(db => {
-      db.knexConfig = JSON.parse(db.knexConfig);
+      db.connectionConfig = JSON.parse(db.connectionConfig);
     });
     return result;
   }
@@ -36,7 +36,7 @@ export class DatabaseService {
   async findOne(id: number): Promise<any> {
     // 연동 db 정보
     const databaseInfo = await this.databaseRepository.findOne({ where: { id } });
-    databaseInfo.knexConfig = JSON.parse(databaseInfo.knexConfig);
+    databaseInfo.connectionConfig = JSON.parse(databaseInfo.connectionConfig);
 
     // table 정보 조회
     const tablesInfo = await this.connectionService.executeQuery({ id: +id, query: 'show tables' });
@@ -60,7 +60,7 @@ export class DatabaseService {
   async findDB(id: number): Promise<Database> {
     // 연동 db 정보
     const databaseInfo = await this.databaseRepository.findOne({ where: { id } });
-    databaseInfo.knexConfig = JSON.parse(databaseInfo.knexConfig);
+    databaseInfo.connectionConfig = JSON.parse(databaseInfo.connectionConfig);
     return databaseInfo;
   }
 

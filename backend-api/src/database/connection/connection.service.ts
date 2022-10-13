@@ -3,6 +3,7 @@ import { CreateDatabaseDto } from '../dto/create-database.dto';
 import { QueryExecuteDto } from '../dto/query-execute.dto';
 import { DatabaseService } from '../database.service';
 import { Knex, knex } from 'knex';
+import { FieldTypeUtil } from '../../utils/field-type.util';
 
 const knexConnections = new Map<number, Knex>();
 
@@ -46,7 +47,7 @@ export class ConnectionService {
   async getKnex(id: number): Promise<Knex> {
     if (!this.hasKnex(id)) {
       const one = await this.databaseService.findDB(id);
-      this.addKnex(id, one.knexConfig as Knex.Config);
+      this.addKnex(id, one.connectionConfig as Knex.Config);
     }
     return knexConnections.get(id);
   }
@@ -55,19 +56,29 @@ export class ConnectionService {
    * 데이터베이스 연결 테스트
    * @param createDatabaseDto
    */
-  async testConnection(createDatabaseDto: CreateDatabaseDto): Promise<boolean> {
-    let _knex = knex(createDatabaseDto.knexConfig as Knex.Config);
+  async testConnection(createDatabaseDto: CreateDatabaseDto): Promise<string> {
+    let _knex: Knex;
+    let returnMsg: string;
     try {
-      await _knex.raw('SELECT 1');
-      console.log('knex connected');
-      return true;
+      _knex = knex(createDatabaseDto.connectionConfig as Knex.Config);
     } catch (e) {
       console.log('knex not connected');
       console.error(e);
-      return false;
+      return 'fail';
+    }
+
+    try {
+      _knex = knex(createDatabaseDto.connectionConfig as Knex.Config);
+      await _knex.raw('SELECT 1');
+      returnMsg = 'success';
+    } catch (e) {
+      console.log(e);
+      returnMsg = 'fail';
     } finally {
       await _knex.destroy();
     }
+
+    return returnMsg;
   }
 
   /**
@@ -79,22 +90,36 @@ export class ConnectionService {
 
     let datas = [];
     const fields = [];
+    const resultObj = { status: 200, message: 'success', datas: [], fields: [] };
 
     try {
-      const result = await knex.raw(queryExecuteDto.query);
-      if (result && result.length > 0) {
-        datas = result[0];
-        const tempFields = result[1];
-        // todo:: fields 속성 가져오기
-        tempFields.map(field => {
-          const fieldInfo = {};
-        });
+      const queryRes = await knex.raw(queryExecuteDto.query);
+
+      switch (knex.client.config.client) {
+        case 'mysql':
+          if (queryRes && queryRes.length > 0) {
+            datas = queryRes[0];
+            const tempFields = queryRes[1];
+            tempFields.map(field => {
+              const fieldInfo = {
+                name: field.name,
+                length: field.length,
+                type: FieldTypeUtil.mysqlFieldType(field.type),
+              };
+              fields.push(fieldInfo);
+            });
+          }
       }
+
+      resultObj.datas = datas;
+      resultObj.fields = fields;
     } catch (e) {
+      resultObj.status = 400;
+      resultObj.message = e.sqlMessage;
       console.log(e);
       console.log(e.sqlMessage);
     }
 
-    return { datas, fields };
+    return resultObj;
   }
 }
