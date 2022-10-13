@@ -40,6 +40,7 @@ function DashboardModify() {
 
   // init useEffect
   useEffect(() => {
+    console.log("searchParams.get('createType') : ", searchParams.get('createType'));
     // create 와 modify 에 따라 초기 설정을 변경
     if (searchParams.get('createType') != null) {
       if (searchParams.get('createType') == 'recommend') {
@@ -60,8 +61,7 @@ function DashboardModify() {
   // dashboard info 조회
   const getDashboardInfo = id => {
     // todo 서비스 완료시 연결
-    // DashboardService.selectDashboard(id).then(response => {
-    get('/data/dummyDashboardInfo.json').then(response => {
+    DashboardService.selectDashboard(id).then(response => {
       setDashboardTitle(response.data.title);
       setWidgets(response.data.widgets);
       setLayout(response.data.layout);

@@ -25,13 +25,10 @@ function Dashboard() {
 
   useEffect(() => {
     // todo 서비스 완료시 연결
-    // DashboardService.selectDashboardList()
-    get('/data/dummyDashboardList.json')
-      .then(response => response.data)
-      .then(data => {
-        setLoadedWidgetData(data.filter((list, idx) => idx <= 10 * loadedCount));
-        setDashboardNoData(data.length == 0);
-      });
+    DashboardService.selectDashboardList().then(response => {
+      setLoadedWidgetData(response.data.filter((list, idx) => idx <= 10 * loadedCount));
+      setDashboardNoData(response.data.length == 0);
+    });
     setIsLoading(true);
   }, []);
 
