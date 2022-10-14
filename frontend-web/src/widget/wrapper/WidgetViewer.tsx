@@ -19,6 +19,7 @@ import Scatter3DChart from '@/widget/modules/3dchart/Scatter3dChart';
 import Bubble3dChart from '@/widget/modules/3dchart/Bubble3dChart';
 import WaterfallBarChart from '@/widget/modules/barchart/WaterfallBarChart';
 import PolarBarChart from '@/widget/modules/barchart/PolarBarChart';
+import MixedLinePieChart from '@/widget/modules/mixedchart/mixedLinePieChart';
 
 const WidgetViewer = props => {
   const { title, widgetType, widgetOption, dataSet } = props;
@@ -195,6 +196,9 @@ const WidgetViewer = props => {
         break;
       case WIDGET_TYPE.CHART_POLAR_BAR:
         module = <PolarBarChart {...chartProps} />;
+        break;
+      case WIDGET_TYPE.CHART_MIXED_LINE_PIE:
+        module = <MixedLinePieChart {...chartProps} />;
         break;
       default:
     }
