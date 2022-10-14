@@ -10,7 +10,6 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { TemplateModule } from './template/template.module';
 import { CommonModule } from './common/common.module';
 import { ComponentModule } from './component/component.module';
-import { WidgetViewModule } from './widget-view/widget-view.module';
 import { ConnectionModule } from './connection/connection.module';
 
 @Module({
@@ -41,7 +40,6 @@ import { ConnectionModule } from './connection/connection.module';
     TemplateModule,
     CommonModule,
     ComponentModule,
-    WidgetViewModule,
     ConnectionModule,
   ],
   controllers: [AppController],
