@@ -1,4 +1,4 @@
-import { BadRequestException, HttpException, Injectable, HttpStatus } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { CreateWidgetDto } from './dto/create-widget.dto';
 import { UpdateWidgetDto } from './dto/update-widget.dto';
 import { Repository } from 'typeorm';
@@ -7,6 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DatasetType } from '../common/enum/dataset-type.enum';
 import { WidgetViewController } from '../widget-view/widget-view.controller';
 import { Component } from '../component/entities/component.entity';
+import { ResponseStatus } from '../common/enum/response-status.enum';
 
 @Injectable()
 export class WidgetService {
@@ -66,13 +67,12 @@ export class WidgetService {
       // saveObj.databaseId = res.data.id;
     }
 
-    await this.widgetRepository.save(saveObj);
-    return 'This action adds a new widget';
+    const saveResult = await this.widgetRepository.save(saveObj);
+    saveResult.option = JSON.parse(saveResult.option);
+    return { status: ResponseStatus.SUCCESS, data: saveResult };
   }
 
   async findAll() {
-    // const find_all = await this.widgetRepository.find();
-
     const find_all = await this.widgetRepository
       .createQueryBuilder('widget')
       .innerJoin(Component, 'component', 'component.id = widget.componentId')
@@ -102,19 +102,28 @@ export class WidgetService {
       .setParameter('id', id)
       .getRawOne();
 
-    find_widget.option = JSON.parse(find_widget.option);
-    return find_widget;
+    let resultObj = {};
+    if (!find_widget)
+      resultObj = { status: ResponseStatus.ERROR, message: `${id} 위젯이 존재하지 않습니다.` };
+    else {
+      find_widget.option = JSON.parse(find_widget.option);
+      resultObj = { status: ResponseStatus.SUCCESS, data: find_widget };
+    }
+    return resultObj;
   }
 
+  /**
+   * 위젯 수정
+   * @param id
+   * @param updateWidget
+   */
   async update(id: number, updateWidget: UpdateWidgetDto) {
-    const find_widget = await this.widgetRepository.findOne({ where: { id: id } }); //todo 테이블 확인필요
+    const find_widget = await this.widgetRepository.findOne({ where: { id: id } });
     if (!find_widget) {
-      return 'No exist widget';
+      return { status: ResponseStatus.ERROR, message: `${id} 위젯이 존재하지 않습니다.` };
     } else {
-      find_widget.datasetType = updateWidget.datasetType;
-      find_widget.datasetId = updateWidget.datasetId;
+      // 변경 가능한 항목 넣어주기
       find_widget.option = JSON.stringify(updateWidget.option);
-
       if (updateWidget.delYn) {
         find_widget.delYn = updateWidget.delYn;
       }
@@ -125,21 +134,27 @@ export class WidgetService {
         find_widget.componentId = updateWidget.componentId;
       }
 
-      await this.widgetRepository.save(find_widget);
+      const saveResult = await this.widgetRepository.save(find_widget);
+      saveResult.option = JSON.parse(saveResult.option);
 
-      return `This action updates a #${id} widget`;
+      return { status: ResponseStatus.SUCCESS, data: saveResult };
     }
   }
 
+  /**
+   * widget 삭제
+   * @param id
+   */
   async remove(id: number) {
     const find_widget = await this.widgetRepository.findOne({ where: { id: id } });
 
     if (!find_widget) {
-      return 'No exist';
+      return { status: ResponseStatus.ERROR, message: 'No exist' };
     } else {
-      await this.widgetViewController.remove(String(find_widget.widgetViewId));
+      if (find_widget.datasetType === DatasetType.WIDGET)
+        await this.widgetViewController.remove(find_widget.widgetViewId);
       await this.widgetRepository.delete(id);
+      return { status: ResponseStatus.SUCCESS, message: `This action removes a #${id} widget` };
     }
-    return `This action removes a #${id} widget`;
   }
 }

@@ -33,7 +33,7 @@ export class WidgetViewController {
   // }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
+  remove(@Param('id') id: number) {
     return this.widgetViewService.remove(+id);
   }
 }
