@@ -20,6 +20,7 @@ import Scatter3DChartSetting from '@/widget/settings/Scatter3DChartSetting';
 import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
 import Bubble3DChartSetting from '@/widget/settings/Bubble3DChartSetting';
 import WaterfallChartSetting from '@/widget/settings/WaterfallChartSetting';
+import PolarBarChartSetting from '@/widget/settings/PolarBarChartSetting';
 
 const WidgetSetting = props => {
   const { title, setTitle, widgetOption, setWidgetOption, widgetType, dataSet, spec } = props;
@@ -126,6 +127,9 @@ const WidgetSetting = props => {
         break;
       case WIDGET_TYPE.CHART_WATERFALL_COLUMN:
         module = <WaterfallChartSetting {...chartSettingProps} axis="y" />;
+        break;
+      case WIDGET_TYPE.CHART_POLAR_BAR:
+        module = <PolarBarChartSetting {...chartSettingProps} />;
         break;
 
       default:
