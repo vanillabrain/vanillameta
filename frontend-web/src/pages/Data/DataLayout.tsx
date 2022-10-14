@@ -25,7 +25,7 @@ const DataLayout = () => {
   }, []);
 
   useEffect(() => {
-    getDatabaseInfo();
+    if (selectedData.databaseId) getDatabaseInfo();
   }, [selectedData.databaseId]);
 
   /**
@@ -33,16 +33,16 @@ const DataLayout = () => {
    */
   const getDatabaseList = () => {
     DatabaseService.selectDatabaseList().then(response => {
-      console.log('selectDatabaseList', response.data);
-      setDatabaseList(response.data);
+      console.log('selectDatabaseList', response.data.data);
+      setDatabaseList(response.data.data);
     });
   };
 
   const getDatabaseInfo = () => {
     DatabaseService.selectDatabase(selectedData.databaseId).then(response => {
-      console.log('getDatabaseInfo', response.data);
-      setDatasetList(response.data.datasets);
-      setTableList(response.data.tables);
+      console.log('getDatabaseInfo', response.data.data);
+      setDatasetList(response.data.data.datasets);
+      setTableList(response.data.data.tables);
     });
   };
 
