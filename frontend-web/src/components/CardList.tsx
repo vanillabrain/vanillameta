@@ -165,7 +165,7 @@ export const DataSourceCard = props => {
 
   const handleClick = event => {
     if (onUpdate !== undefined) {
-      onUpdate({ dataSource: event.currentTarget.value });
+      onUpdate({ databaseId: event.currentTarget.value });
     }
   };
 
