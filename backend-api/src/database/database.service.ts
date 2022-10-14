@@ -7,19 +7,28 @@ import { Repository } from 'typeorm';
 import { ConnectionService } from '../connection/connection.service';
 import { Dataset } from '../dataset/entities/dataset.entity';
 import { ResponseStatus } from '../common/enum/response-status.enum';
+import { DatasetType } from '../common/enum/dataset-type.enum';
+import { TableQuery } from '../widget/tabel-query/entity/table-query.entity';
+import { QueryExecuteDto } from './dto/query-execute.dto';
 
 @Injectable()
 export class DatabaseService {
   constructor(
     @InjectRepository(Database) private databaseRepository: Repository<Database>,
     @InjectRepository(Dataset) private datasetRepository: Repository<Dataset>,
+    @InjectRepository(TableQuery) private tableQueryRepository: Repository<TableQuery>,
     private readonly connectionService: ConnectionService,
   ) {}
 
-  async create(createDatabaseDto: CreateDatabaseDto): Promise<Database> {
+  /**
+   * database(데이터소스) 생성
+   * @param createDatabaseDto
+   */
+  async create(createDatabaseDto: CreateDatabaseDto) {
     const databaseDto = Database.toDto(createDatabaseDto);
     databaseDto.connectionConfig = JSON.stringify(databaseDto.connectionConfig);
-    return await this.databaseRepository.save(databaseDto);
+    const saveResult = await this.databaseRepository.save(databaseDto);
+    return { status: ResponseStatus.SUCCESS, data: saveResult };
   }
 
   /**
@@ -89,5 +98,31 @@ export class DatabaseService {
       };
     await this.databaseRepository.remove(one);
     return { status: ResponseStatus.SUCCESS };
+  }
+
+  /**
+   * 데이터 조회
+   * @param datasetType
+   * @param datasetId
+   */
+  async findData(datasetType: DatasetType, datasetId: number) {
+    if (!datasetType || !datasetId)
+      return {
+        status: ResponseStatus.ERROR,
+        message: 'datasetType, datasetId는 필수 입력 param 입니다',
+      };
+
+    const queryExecuteDto = new QueryExecuteDto();
+    if (datasetType === DatasetType.DATASET) {
+      const datasetItem = await this.datasetRepository.findOne({ where: { id: datasetId } });
+      console.log(datasetItem);
+      queryExecuteDto.id = datasetItem.databaseId;
+      queryExecuteDto.query = datasetItem.query;
+    } else if (datasetType === DatasetType.TABLE) {
+      const datasetItem = await this.tableQueryRepository.findOne({ where: { id: datasetId } });
+      queryExecuteDto.id = datasetItem.databaseId;
+      queryExecuteDto.query = datasetItem.query;
+    }
+    return await this.connectionService.executeQuery(queryExecuteDto);
   }
 }
