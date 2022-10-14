@@ -36,16 +36,23 @@ export class DatasetService {
     };
   }
 
+  /**
+   * 데이터셋 전체 조회
+   */
   async findAll() {
     return await this.datasetRepository.find();
   }
 
+  /**
+   * 데이터셋 단건 조회
+   * @param id
+   */
   async findOne(id: number) {
     let returnObj: any;
-    returnObj = await this.datasetRepository.findOne({ where: { id: id } });
+    const dataObj = await this.datasetRepository.findOne({ where: { id: id } });
 
-    if (!returnObj) returnObj = {};
-
+    if (!dataObj) returnObj = {status: ResponseStatus.ERROR, message: `id ${id}의 값이 존재하지 않습니다.`};
+    else returnObj = {status:ResponseStatus.SUCCESS, data: dataObj};
     return returnObj;
   }
 
@@ -56,7 +63,7 @@ export class DatasetService {
     } else {
       // 변경할 쿼리 날려보고, 문제 없으면 저장
       const queryResult = await this.connectionService.executeQuery({
-        id,
+        id: find_dataset.databaseId,
         query: updateDataset.query,
       });
       if (queryResult.status === ResponseStatus.ERROR) {
@@ -69,8 +76,8 @@ export class DatasetService {
           find_dataset.query = updateDataset.query;
         }
 
-        await this.datasetRepository.save(find_dataset);
-        return { status: ResponseStatus.SUCCESS, message: `This action updates a #${id} dataset` };
+        const saveResult = await this.datasetRepository.save(find_dataset);
+        return { status: ResponseStatus.SUCCESS, data: saveResult };
       }
     }
   }
