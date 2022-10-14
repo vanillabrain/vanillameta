@@ -31,9 +31,6 @@ export class Widget extends BaseEntity {
   @Column({ length: 1, default: YesNo.NO, comment: '삭제여부' })
   delYn: YesNo;
 
-  @Column({ comment: '위젯뷰 ID' })
-  widgetViewId: number;
-
   @ManyToMany(type => Dashboard)
   @JoinTable({
     name: 'dashboard_widget',
