@@ -17,6 +17,8 @@ import Bar3DChart from '@/widget/modules/3dchart/Bar3dChart';
 import Line3DChart from '@/widget/modules/3dchart/Line3dChart';
 import Scatter3DChart from '@/widget/modules/3dchart/Scatter3dChart';
 import Bubble3dChart from '@/widget/modules/3dchart/Bubble3dChart';
+import WaterfallBarChart from '@/widget/modules/barchart/WaterfallBarChart';
+import PolarBarChart from '@/widget/modules/barchart/PolarBarChart';
 
 const WidgetViewer = props => {
   const { title, widgetType, widgetOption, dataSet } = props;
@@ -184,6 +186,15 @@ const WidgetViewer = props => {
         break;
       case WIDGET_TYPE.CHART_3D_BUBBLE:
         module = <Bubble3dChart {...chartProps} />;
+        break;
+      case WIDGET_TYPE.CHART_WATERFALL_BAR:
+        module = <WaterfallBarChart {...chartProps} />;
+        break;
+      case WIDGET_TYPE.CHART_WATERFALL_COLUMN:
+        module = <WaterfallBarChart {...chartProps} axis="y" />;
+        break;
+      case WIDGET_TYPE.CHART_POLAR_BAR:
+        module = <PolarBarChart {...chartProps} />;
         break;
       default:
     }
