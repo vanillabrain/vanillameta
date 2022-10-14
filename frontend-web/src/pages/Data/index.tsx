@@ -8,17 +8,9 @@ function Data() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadedData, setLoadedData] = useState([]);
 
-  useEffect(() => {
-    axios
-      .get('/data/dummyDataList.json')
-      .then(response => response.data)
-      .then(data => setLoadedData(data));
-    setIsLoading(true);
-  }, []);
-
   return (
     <PageContainer>
-      <DataLayout data={loadedData} />
+      <DataLayout />
     </PageContainer>
   );
 }

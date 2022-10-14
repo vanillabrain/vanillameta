@@ -8,16 +8,18 @@ import WidgetTypeSelect from './WidgetTypeSelect';
 import WidgetAttributeSelect from './WidgetAttributeSelect';
 import componentService from '@/api/componentService';
 import widgetService from '@/api/widgetService';
+import { useNavigate } from 'react-router-dom';
 
 const title = '위젯 생성';
 const steps = ['데이터 선택', '위젯 타입 선택', '위젯 속성 설정'];
 
-function WidgetCreate() {
+const WidgetCreate = props => {
+  const navigate = useNavigate();
   const [activeStep, setActiveStep] = useState(0);
 
   const [componentList, setComponentList] = useState([]); // step 1
   const [datasetId, setDatasetId] = useState(null); // step 1
-  const [componentInfo, setComponentInfo] = useState(null); // step 2
+  const [widgetInfo, setWidgetInfo] = useState(null); // step 2
 
   // 개발 편의상 임시로 적용
   useEffect(() => {
@@ -29,19 +31,19 @@ function WidgetCreate() {
   const [isNextButtonDisabled, setIsNextButtonDisabled] = useState(true);
 
   useEffect(() => {
-    // console.log('componentInfo', componentInfo);
+    // console.log('widgetInfo', widgetInfo);
     if (activeStep === 0 && !!datasetId) {
       setIsNextButtonDisabled(false);
       return;
     }
 
-    if (activeStep === 1 && !!componentInfo) {
+    if (activeStep === 1 && !!widgetInfo) {
       setIsNextButtonDisabled(false);
       return;
     }
 
     setIsNextButtonDisabled(true);
-  }, [activeStep, datasetId, componentInfo]);
+  }, [activeStep, datasetId, widgetInfo]);
 
   const getComponentList = () => {
     componentService.selectComponentList().then(res => {
@@ -55,7 +57,7 @@ function WidgetCreate() {
       title: title,
       description: title,
       databaseId: 1,
-      componentId: componentInfo.id,
+      componentId: widgetInfo.id,
       // 'DATASET', 'WIDGET_VIEW'
       datasetType: 'DATASET',
       datasetId: '0001',
@@ -63,7 +65,9 @@ function WidgetCreate() {
       option: option,
     };
     console.log(option);
-    widgetService.createWidget(param).then(response => console.log(response));
+    widgetService.createWidget(param).then(response => {
+      navigate('/widget', { replace: true });
+    });
   };
 
   const handleNext = (event, item) => {
@@ -76,7 +80,7 @@ function WidgetCreate() {
       setDatasetId(item);
     }
     if (activeStep === 1) {
-      setComponentInfo(item);
+      setWidgetInfo(item);
     }
     setActiveStep(prevState => prevState + 1);
   };
@@ -91,7 +95,7 @@ function WidgetCreate() {
     }
 
     if (activeStep === 2) {
-      setComponentInfo(null);
+      setWidgetInfo(null);
     }
 
     setActiveStep(prevState => prevState - 1);
@@ -164,17 +168,17 @@ function WidgetCreate() {
           <WidgetDataSelect setDataSet={setDatasetId} handleNext={handleNext} />
         ) : activeStep === 1 ? (
           <WidgetTypeSelect
-            componentInfo={componentInfo}
-            setWidgetType={setComponentInfo}
+            widgetInfo={widgetInfo}
+            setWidgetType={setWidgetInfo}
             componentList={componentList}
             handleNext={handleNext}
           />
         ) : (
-          <WidgetAttributeSelect dataSetId={datasetId} componentInfo={componentInfo} saveWidgetInfo={saveWidgetInfo} />
+          <WidgetAttributeSelect dataSetId={datasetId} widgetInfo={widgetInfo} saveWidgetInfo={saveWidgetInfo} />
         )}
       </PageTitleBox>
     </PageContainer>
   );
-}
+};
 
 export default WidgetCreate;

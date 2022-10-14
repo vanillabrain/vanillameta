@@ -62,7 +62,7 @@ const CardList = props => {
                       variant="subtitle2"
                       sx={{ width: '40%', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}
                     >
-                      {item.name}
+                      {item.id}
                     </Typography>
                   </CardContent>
                 </CardActionArea>
@@ -116,7 +116,7 @@ export const DataSetCard = props => {
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    {item.name}
+                    {item.title}
                   </Typography>
                 </CardContent>
 
@@ -165,7 +165,7 @@ export const DataSourceCard = props => {
 
   const handleClick = event => {
     if (onUpdate !== undefined) {
-      onUpdate({ dataSource: event.currentTarget.value });
+      onUpdate({ databaseId: event.currentTarget.value });
     }
   };
 
