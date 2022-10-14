@@ -12,6 +12,7 @@ import { get } from '@/helpers/apiHelper';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import '/node_modules/react-grid-layout/css/styles.css';
 import '/node_modules/react-resizable/css/styles.css';
+import DashboardService from '@/api/dashboardService';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -34,12 +35,13 @@ const DashboardView = () => {
     dashboardInfo.layout.map((item, index) => {
       item.static = true;
     });
+
     setLayout(dashboardInfo.layout);
   }, [dashboardInfo]);
 
   // dashboard info 조회
   const getDashboardInfo = id => {
-    get('/data/dummyDashboardInfo.json').then(response => {
+    DashboardService.selectDashboard(id).then(response => {
       setDashboardInfo(response.data);
     });
   };
@@ -53,7 +55,7 @@ const DashboardView = () => {
   const generateWidget = () => {
     return dashboardInfo.widgets.map((item, index) => {
       return (
-        <Card key={item.widgetId} sx={{ width: '100%', height: '100%', borderRadius: 1 }}>
+        <Card key={item.id} sx={{ width: '100%', height: '100%', borderRadius: 1 }}>
           <WidgetWrapper
             widgetOption={item}
             dataSetId={item.dataSetId}

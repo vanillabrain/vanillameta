@@ -8,7 +8,7 @@ import WidgetSetting from '@/widget/wrapper/WidgetSetting';
 const WidgetAttributeSelect = props => {
   const alert = useAlert();
 
-  const { componentInfo, prevOption, saveWidgetInfo, datasetId } = props;
+  const { widgetInfo, prevOption, saveWidgetInfo, datasetId } = props;
 
   const [option, setOption] = useState(null);
   const [data, setData] = useState(null);
@@ -20,10 +20,10 @@ const WidgetAttributeSelect = props => {
   }, []);
 
   useEffect(() => {
-    console.log('===== componentInfo ', componentInfo);
-    setTitle(componentInfo.title);
-    setOption(JSON.parse(JSON.stringify(componentInfo.option)));
-  }, [componentInfo]);
+    console.log('===== widgetInfo ', widgetInfo);
+    setTitle(widgetInfo.title);
+    setOption(JSON.parse(JSON.stringify(widgetInfo.option)));
+  }, [widgetInfo]);
 
   const getData = () => {
     // dataSetId 로 데이터 조회
@@ -68,11 +68,11 @@ const WidgetAttributeSelect = props => {
       id="widgetAttribute"
       component="form"
     >
-      <WidgetViewer title={title} widgetType={componentInfo.type} widgetOption={option} dataSet={data} />
+      <WidgetViewer title={title} widgetType={widgetInfo.componentType} widgetOption={option} dataSet={data} />
       <WidgetSetting
         title={title}
         setTitle={setTitle}
-        widgetType={componentInfo.type}
+        widgetType={widgetInfo.componentType}
         widgetOption={option}
         setWidgetOption={setOption}
         dataSet={data}

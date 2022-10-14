@@ -8,11 +8,13 @@ import WidgetTypeSelect from './WidgetTypeSelect';
 import WidgetAttributeSelect from './WidgetAttributeSelect';
 import componentService from '@/api/componentService';
 import widgetService from '@/api/widgetService';
+import { useNavigate } from 'react-router-dom';
 
 const title = '위젯 생성';
 const steps = ['데이터 선택', '위젯 타입 선택', '위젯 속성 설정'];
 
-function WidgetCreate() {
+const WidgetCreate = props => {
+  const navigate = useNavigate();
   const [activeStep, setActiveStep] = useState(0);
 
   const [componentList, setComponentList] = useState([]); // step 1
@@ -63,7 +65,9 @@ function WidgetCreate() {
       option: option,
     };
     console.log(option);
-    widgetService.createWidget(param).then(response => console.log(response));
+    widgetService.createWidget(param).then(response => {
+      navigate('/widget', { replace: true });
+    });
   };
 
   const handleNext = (event, item) => {
@@ -175,6 +179,6 @@ function WidgetCreate() {
       </PageTitleBox>
     </PageContainer>
   );
-}
+};
 
 export default WidgetCreate;

@@ -18,11 +18,10 @@ interface ChartProps {
   widgetType?: string;
   option?: any;
   dataSet?: any[];
-  setDataLength?: any;
 }
 
-export const ChartComponent: FC<ChartProps> = ({ widgetType, option, dataSet, setDataLength }) => {
-  const rest = { option, dataSet, setDataLength };
+export const ChartComponent: FC<ChartProps> = ({ widgetType, option, dataSet }) => {
+  const rest = { option, dataSet };
 
   const {
     area,
@@ -150,6 +149,6 @@ export const ChartComponent: FC<ChartProps> = ({ widgetType, option, dataSet, se
 
   console.log(option);
   // console.log(widgetType, ChartLookUpTable[WIDGET_TYPE[widgetType]]);
-  // console.log(option, dataSet, setDataLength);
+  // console.log(option, dataSet);
   return React.createElement(ChartLookUpTable[widgetType], { ...rest });
 };

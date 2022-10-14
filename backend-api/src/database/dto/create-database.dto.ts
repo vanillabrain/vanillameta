@@ -24,7 +24,7 @@ export class CreateDatabaseDto {
     example: '{}',
     description: '설정 JSON 상세',
   })
-  knexConfig: string;
+  connectionConfig: string;
 
   @IsString()
   @IsOptional()

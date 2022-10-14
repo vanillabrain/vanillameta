@@ -4,27 +4,35 @@ import { UpdateDashboardDto } from './dto/update-dashboard.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Dashboard } from './entities/dashboard.entity';
-import { DashboardWidgetController } from '../dashboard-widget/dashboard-widget.controller';
+import { DashboardWidgetService } from './dashboard-widget/dashboard-widget.service';
+import {ResponseStatus} from "../common/enum/response-status.enum";
 
 @Injectable()
 export class DashboardService {
   constructor(
     @InjectRepository(Dashboard)
     private dashboardRepository: Repository<Dashboard>,
-    private dashboardWidgetController: DashboardWidgetController,
+    private readonly dashboardWidgetService: DashboardWidgetService,
   ) {}
 
   async create(createDashboardDto: CreateDashboardDto) {
-    const saveObj = createDashboardDto;
-    saveObj.layout = JSON.stringify(saveObj.layout);
+    let widgetIds = [];
+    createDashboardDto.layout.map(item => {
+      widgetIds.push(item.i);
+    });
+
+    const saveObj = {
+      title: createDashboardDto.title,
+      layout: JSON.stringify(createDashboardDto.layout),
+    };
     const newDashboard = await this.dashboardRepository.save(saveObj);
-    // TODO 테스트 끝나고 실제 실행 시 주석 제거
 
     const saveObjDW = {
       dashboardId: newDashboard.id,
-      widgetIds: saveObj.layout,
+      widgetIds: widgetIds,
     };
-    await this.dashboardWidgetController.create(saveObjDW);
+
+    await this.dashboardWidgetService.create(saveObjDW);
 
     newDashboard.layout = JSON.parse(newDashboard.layout);
     return newDashboard;
@@ -40,12 +48,13 @@ export class DashboardService {
 
   async findOne(id: number) {
     const find_dashboard = await this.dashboardRepository.findOne({ where: { id: id } });
-    const find_widget = await this.dashboardWidgetController.findOne(String(id));
+    if(!find_dashboard) return {status:ResponseStatus.ERROR, message: '대시보드가 존재하지 않습니다.' };
+    const widgetList = await this.dashboardWidgetService.findWidgets(id);
 
     find_dashboard.layout = JSON.parse(find_dashboard.layout);
-    const return_obj = Object.assign(find_dashboard, { widget: find_widget });
+    const return_obj = Object.assign(find_dashboard, { widgets: widgetList });
 
-    return return_obj;
+    return {status: ResponseStatus.SUCCESS, data:return_obj};
   }
 
   async update(id: number, updateDashboardDto: UpdateDashboardDto) {
@@ -54,17 +63,25 @@ export class DashboardService {
     if (!find_dashboard) {
       return 'Not exist dashboard';
     } else {
+      const widgetIds = [];
+
       if (updateDashboardDto.title) {
         find_dashboard.title = updateDashboardDto.title;
       }
       if (updateDashboardDto.layout) {
+        updateDashboardDto.layout.map(item => {
+          widgetIds.push(item.i);
+        });
         find_dashboard.layout = JSON.stringify(updateDashboardDto.layout);
       }
-      const saveObj = {
-        widgetIds: JSON.stringify(updateDashboardDto.layout),
+
+      const saveObjDW = {
+        dashboardId: id,
+        widgetIds: widgetIds,
       };
-      await this.dashboardWidgetController.update(id, saveObj);
+      await this.dashboardWidgetService.update(id, saveObjDW);
       const updatedDashboard = await this.dashboardRepository.save(find_dashboard);
+
       updatedDashboard.layout = JSON.parse(updatedDashboard.layout);
       return updatedDashboard;
     }
@@ -76,7 +93,7 @@ export class DashboardService {
       return 'No exist dashboard';
     } else {
       await this.dashboardRepository.delete(id);
-      await this.dashboardWidgetController.remove(id);
+      await this.dashboardWidgetService.remove(id);
       return `This action removes a #${id} dashboard`;
     }
   }

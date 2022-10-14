@@ -1,4 +1,10 @@
-import { PartialType } from '@nestjs/mapped-types';
-import { CreateDatasetDto } from './create-dataset.dto';
+import { IsString } from 'class-validator';
 
-export class UpdateDatasetDto extends PartialType(CreateDatasetDto) {}
+export class UpdateDatasetDto {
+  @IsString()
+  title: string;
+
+  @IsString()
+  query: string;
+  // readonly setting before
+}

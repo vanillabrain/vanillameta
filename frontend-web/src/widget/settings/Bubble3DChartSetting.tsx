@@ -1,11 +1,11 @@
 import React from 'react';
 import { Divider, Grid, List, ListItem, ListItemText, styled } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
-import ColorButtonForm from '@/components/form/ColorButtonForm';
-import TextFieldForm from '@/components/form/TextFieldForm';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
 import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
 import { COLUMN_TYPE, LEGEND_LIST } from '@/constant';
+import TextFieldForm from '@/components/form/TextFieldForm';
+import ColorButtonForm from '@/components/form/ColorButtonForm';
 
 const StyledList = styled(List)({
   position: 'relative',
@@ -30,7 +30,7 @@ const StyledList = styled(List)({
   },
 });
 
-const ScatterChartSetting = props => {
+const Bubble3DChartSetting = props => {
   const { option, setOption, spec } = props;
 
   // 컴포넌트 별 default series
@@ -38,8 +38,9 @@ const ScatterChartSetting = props => {
     title: '',
     xField: '',
     yField: '',
+    zField: '',
     color: '',
-    symbolSize: 20,
+    symbolSize: '',
   };
 
   return (
@@ -87,11 +88,25 @@ const ScatterChartSetting = props => {
                 value={item.yField}
                 onChange={event => handleSeriesChange(event, setOption)}
               />
-              <TextFieldForm
+              <SelectForm
+                required={true}
+                id={`zField${index + 1}`}
+                name={`zField${index + 1}`}
+                label="Z 필드"
+                labelField="columnName"
+                valueField="columnType"
+                optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
+                value={item.zField}
+                onChange={event => handleSeriesChange(event, setOption)}
+              />
+              <SelectForm
+                required={true}
                 id={`symbolSize${index + 1}`}
                 name={`symbolSize${index + 1}`}
                 label="사이즈"
-                type="number"
+                labelField="columnName"
+                valueField="columnType"
+                optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
                 value={item.symbolSize}
                 onChange={event => handleSeriesChange(event, setOption)}
                 endButton={
@@ -122,4 +137,4 @@ const ScatterChartSetting = props => {
   );
 };
 
-export default ScatterChartSetting;
+export default Bubble3DChartSetting;
