@@ -6,6 +6,7 @@ import TitleBox from '@/components/TitleBox';
 import ImgCardList from '@/components/ImgCardList';
 import LabelInputForm from '@/components/form/LabelInputForm';
 import ConfirmCancelButton from '@/components/button/ConfirmCancelButton';
+import DatabaseService from '@/api/databaseService';
 
 const typeList = [
   { id: '0', title: 'MySQL', icon: 'logo/mysql-logo.svg' },
@@ -21,12 +22,12 @@ const typeList = [
 ];
 
 const formList = [
-  { id: '0', label: '이름', name: 'userName' },
-  { id: '1', label: 'HOST', name: 'userHost', width: '50%' },
-  { id: '2', label: 'Port', name: 'userPort', width: '50%' },
-  { id: '3', label: 'User', name: 'userId' },
-  { id: '4', label: 'Password', name: 'userPassword', type: 'password' },
-  { id: '5', label: 'Schema', name: 'userSchema' },
+  { id: '0', label: '이름', name: 'databaseName' },
+  { id: '1', label: 'HOST', name: 'host', width: '50%' },
+  { id: '2', label: 'Port', name: 'port', width: '50%' },
+  { id: '3', label: 'User', name: 'user' },
+  { id: '4', label: 'Password', name: 'password', type: 'password' },
+  { id: '5', label: 'Schema', name: 'schema' },
 ];
 
 function DataSource() {
@@ -39,15 +40,40 @@ function DataSource() {
     }
   }, [dataType]);
 
+  const testConnect = item => {
+    console.log('testConnect ', item);
+    const param = {
+      name: item.name,
+      description: item.name,
+      connectionConfig: {
+        client: 'mysql',
+        connection: item,
+      },
+      engine: 'mysql',
+      timezone: 'Asia/Seoul',
+    };
+    DatabaseService.testConnection(param).then(response => {
+      console.log(response);
+      setIsConnected(response.data === 'success');
+    });
+  };
+
+  const handleSaveClick = () => {
+    console.log('save database');
+  };
+
   return (
     <PageContainer>
-      <PageTitleBox title={'데이터 소스 연결'} button={<ConfirmCancelButton confirmProps={{ disabled: !isConnected }} />}>
+      <PageTitleBox
+        title={'데이터 소스 연결'}
+        button={<ConfirmCancelButton confirmProps={{ disabled: !isConnected, onClick: handleSaveClick }} />}
+      >
         <Stack spacing={3}>
           <TitleBox title={'step.01 타입 설정'}>
             <ImgCardList data={typeList} selectedType={dataType} setSelectedType={setDataType} />
           </TitleBox>
           <TitleBox title={'step.02 연결 정보 입력'}>
-            <LabelInputForm data={formList} />
+            <LabelInputForm data={formList} testConnect={testConnect} />
           </TitleBox>
         </Stack>
       </PageTitleBox>

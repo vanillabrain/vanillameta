@@ -16,6 +16,8 @@ const DatabaseService = {
   createDatabase,
   updateDatabase,
   deleteDatabase,
+  testConnection,
+  executeQuery,
 };
 
 export default DatabaseService;
