@@ -24,16 +24,29 @@ export class DatasetController {
     return this.datasetService.findAll();
   }
 
+  /**
+   * 데이터셋 단건 조회
+   * @param id
+   */
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.datasetService.findOne(+id);
   }
 
+  /**
+   * 데이터셋 수정
+   * @param id
+   * @param updateDatasetDto
+   */
   @Put(':id')
   update(@Param('id') id: number, @Body() updateDatasetDto: UpdateDatasetDto) {
     return this.datasetService.update(+id, updateDatasetDto);
   }
 
+  /**
+   * 데이터셋 제거
+   * @param id
+   */
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.datasetService.remove(+id);
