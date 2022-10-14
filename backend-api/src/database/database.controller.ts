@@ -5,7 +5,6 @@ import { UpdateDatabaseDto } from './dto/update-database.dto';
 import { QueryExecuteDto } from './dto/query-execute.dto';
 import { ConnectionService } from '../connection/connection.service';
 import { DatasetType } from '../common/enum/dataset-type.enum';
-import { ResponseStatus } from '../common/enum/response-status.enum';
 
 @Controller('database')
 export class DatabaseController {
@@ -20,7 +19,7 @@ export class DatabaseController {
     @Query('datasetId') datasetId: number,
   ) {
     const res = await this.databaseService.findData(datasetType, datasetId);
-    return { status: ResponseStatus.SUCCESS, data: res };
+    return res;
   }
 
   /**
