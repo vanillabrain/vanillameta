@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import PageContainer from '@/components/PageContainer';
 import PageTitleBox from '@/components/PageTitleBox';
 import ConfirmCancelButton, { ConfirmButton } from '@/components/button/ConfirmCancelButton';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import WidgetAttributeSelect from '@/pages/Widget/WidgetCreate/WidgetAttributeSelect';
 import axios from 'axios';
 import WidgetService from '@/api/widgetService';
@@ -11,11 +11,16 @@ import widgetService from '@/api/widgetService';
 import { Stack } from '@mui/material';
 // import { get } from '@/helpers/apiHelper';
 
+interface CustomizedState {
+  from: string;
+}
+
 const WidgetModify = props => {
   const [searchParams] = useSearchParams();
   const widgetId = searchParams.get('id');
   // const widgetName = searchParams.get('name');
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [loading, setLoading] = useState(false);
 
@@ -76,8 +81,8 @@ const WidgetModify = props => {
     // get('/data/dummyWidgetList.json')
     WidgetService.selectWidget(widgetId)
       .then(response => {
-        setWidgetInfo(response.data);
-        console.log('getWidgetInfo', response.data);
+        setWidgetInfo(response.data.data);
+        console.log('getWidgetInfo', response.data.data);
       })
       .finally(() => setLoading(false));
     // .then(data => setLoadedWidgetData(data.filter((list, idx) => idx <= 10 * loadedCount)));
@@ -88,7 +93,7 @@ const WidgetModify = props => {
       title: title,
       description: title,
       databaseId: 1,
-      componentId: widgetInfo.id,
+      componentId: widgetInfo.componentId,
       // 'DATASET', 'WIDGET_VIEW'
       datasetType: 'DATASET',
       datasetId: '0001',
@@ -97,7 +102,7 @@ const WidgetModify = props => {
     };
     console.log(option);
     widgetService.updateWidget(widgetInfo.id, param).then(response => {
-      navigate('/widget', { replace: true });
+      navigate((location.state as CustomizedState).from || '/');
     });
   };
 

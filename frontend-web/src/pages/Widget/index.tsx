@@ -24,9 +24,9 @@ const Widget = () => {
    * 위젯 목록 조회
    */
   const getWidgetList = () => {
-    // get('/data/dummyWidgetList.json')
-    WidgetService.selectWidgetList().then(response => setWidgetList(response.data));
-    // .then(data => setLoadedWidgetData(data.filter((list, idx) => idx <= 10 * loadedCount)));
+    WidgetService.selectWidgetList().then(response => {
+      setWidgetList(response.data.data);
+    });
     setIsLoading(true);
   };
 
