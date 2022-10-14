@@ -68,11 +68,11 @@ const WidgetAttributeSelect = props => {
       id="widgetAttribute"
       component="form"
     >
-      <WidgetViewer title={title} widgetType={componentInfo.type} widgetOption={option} dataSet={data} />
+      <WidgetViewer title={title} widgetType={componentInfo.componentType} widgetOption={option} dataSet={data} />
       <WidgetSetting
         title={title}
         setTitle={setTitle}
-        widgetType={componentInfo.type}
+        widgetType={componentInfo.componentType}
         widgetOption={option}
         setWidgetOption={setOption}
         dataSet={data}

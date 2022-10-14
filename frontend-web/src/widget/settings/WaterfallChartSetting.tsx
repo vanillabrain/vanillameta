@@ -1,11 +1,9 @@
 import React from 'react';
-import { Divider, Grid, List, ListItem, ListItemText, styled } from '@mui/material';
+import { Grid, List, ListItem, ListItemText, styled } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
-import ColorButtonForm from '@/components/form/ColorButtonForm';
-import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
-import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
-import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
+import { handleChange, handleSeriesChange } from '@/widget/utils/handler';
 import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST, WIDGET_AGGREGATION } from '@/constant';
+import ColorFieldForm from '@/components/form/ColorFieldForm';
 
 const StyledList = styled(List)({
   position: 'relative',
@@ -31,12 +29,11 @@ const StyledList = styled(List)({
 });
 
 const WaterfallChartSetting = props => {
-  const { option, setOption, seriesItem, axis = 'x', spec } = props;
+  const { option, setOption, axis = 'x', spec } = props;
 
   // 컴포넌트 별 default series
   const defaultSeries = {
     field: '',
-    color: '',
     aggregation: WIDGET_AGGREGATION.SUM,
   };
 
@@ -59,84 +56,39 @@ const WaterfallChartSetting = props => {
         </ListItem>
         <ListItem divider>
           <ListItemText primary="시리즈 설정" />
-          <AddButton
-            onClick={event => handleAddClick(event, option, setOption, defaultSeries)}
-            sx={{
-              position: 'absolute',
-              top: 30,
-              right: 0,
-            }}
+          <SelectForm
+            required={true}
+            id="field"
+            name="field"
+            label="필드"
+            labelField="columnName"
+            valueField="columnType"
+            optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
+            value={option.series[0].field}
+            onChange={event => handleSeriesChange(event, setOption)}
           />
-          {option.series.map((item, index) => (
+          <SelectForm
+            id="aggregation"
+            name="aggregation"
+            label="집계 방식"
+            optionList={AGGREGATION_LIST}
+            value={option.series[0].aggregation}
+            onChange={event => handleSeriesChange(event, setOption)}
+            disabledDefaultValue
+          />
+        </ListItem>
+        <ListItem divider>
+          <ListItemText primary="색상 항목 설정" />
+          {option.color.map((item, index) => (
             <React.Fragment key={index}>
-              <SelectForm
-                required={true}
-                id={`field${index + 1}`}
-                name={`field${index + 1}`}
-                label={`필드 ${index + 1}`}
-                labelField="columnName"
-                valueField="columnType"
-                optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
-                value={item.field}
-                onChange={event => handleSeriesChange(event, setOption)}
-                endButton={<ColorButtonForm index={index} option={option} setOption={setOption} />}
+              <ColorFieldForm
+                id={`color${index + 1}`}
+                name={`color${index + 1}`}
+                value={option.color[index]}
+                colorList={option.color}
+                setOption={setOption}
+                index={index}
               />
-              <SelectForm
-                id={`aggregation${index + 1}`}
-                name={`aggregation${index + 1}`}
-                label="집계 방식"
-                optionList={AGGREGATION_LIST}
-                value={item.aggregation}
-                onChange={event => handleSeriesChange(event, setOption)}
-                disabledDefaultValue
-                endButton={
-                  0 < index ? (
-                    <RemoveButton onClick={event => handleRemoveClick(event, index, option, setOption)} id={index} />
-                  ) : (
-                    ' '
-                  )
-                }
-              />
-              <SelectForm
-                required={true}
-                id={`field${index + 1}`}
-                name={`field${index + 1}`}
-                label={`필드 ${index + 1}`}
-                labelField="columnName"
-                valueField="columnType"
-                optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
-                value={item.field}
-                onChange={event => handleSeriesChange(event, setOption)}
-                endButton={<ColorButtonForm index={index} option={option} setOption={setOption} />}
-              />
-              <SelectForm
-                id={`aggregation${index + 1}`}
-                name={`aggregation${index + 1}`}
-                label="집계 방식"
-                optionList={AGGREGATION_LIST}
-                value={item.aggregation}
-                onChange={event => handleSeriesChange(event, setOption)}
-                disabledDefaultValue
-                endButton={
-                  0 < index ? (
-                    <RemoveButton onClick={event => handleRemoveClick(event, index, option, setOption)} id={index} />
-                  ) : (
-                    ' '
-                  )
-                }
-              />
-              {!!seriesItem && (
-                <SelectForm
-                  id={`${seriesItem.id}${index + 1}`}
-                  name={`${seriesItem.name}${index + 1}`}
-                  label={seriesItem.label}
-                  optionList={seriesItem.optionList}
-                  value={item[seriesItem.value]}
-                  onChange={event => handleSeriesChange(event, setOption)}
-                  disabledDefaultValue={seriesItem.disabledDefaultValue}
-                />
-              )}
-              <Divider />
             </React.Fragment>
           ))}
         </ListItem>

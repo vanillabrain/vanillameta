@@ -18,7 +18,6 @@ import Line3DChart from '@/widget/modules/3dchart/Line3dChart';
 import Scatter3DChart from '@/widget/modules/3dchart/Scatter3dChart';
 import Bubble3dChart from '@/widget/modules/3dchart/Bubble3dChart';
 import WaterfallBarChart from '@/widget/modules/waterfallchart/WaterfallBarChart';
-import WaterfallChartSetting from '@/widget/settings/WaterfallChartSetting';
 
 const WidgetViewer = props => {
   const { title, widgetType, widgetOption, dataSet } = props;

@@ -30,7 +30,7 @@ const WaterfallBarChart = props => {
     if (option && dataSet) {
       const newOption = createComponentOption();
       setComponentOption(newOption);
-      console.log('createComponentOption', newOption);
+      // console.log('createComponentOption', newOption);
     }
   }, [option, dataSet]);
 
@@ -40,46 +40,85 @@ const WaterfallBarChart = props => {
    * 컴포넌트에 맞는 형태로 생성
    */
   const createComponentOption = () => {
-    // console.log('createComponentOption', option);
+    console.log('createComponentOption', option);
     let newOption = {};
 
-    // series option에서 가져오기
     const newSeries = [];
     let aggrData = [];
-    option.series.forEach((item, index) => {
+    const transparentSeries = [];
+    const increaseSeries = [];
+    const decreaseSeries = [];
+    option.series.forEach(item => {
       aggrData = getAggregationDataForChart(dataSet, option[axis + 'Field'], item.field, item.aggregation);
-
-      console.log('aggrData : ', aggrData);
-      if (item.field) {
-        const series = {
-          name: item.field,
-          data: aggrData.map(dataItem => dataItem[item.field]),
-          type: 'bar',
-          stack: 'total',
-          color: item.color,
-          ...seriesOp,
-        };
-        if (index % 2) {
-          series.label = {
-            show: true,
-            position: 'inside',
-          };
+      const seriesData = aggrData.map((dataItem, dataIndex) => dataItem[item.field]);
+      let prevData = 0;
+      seriesData.forEach(dataItem => {
+        const gap = Math.round(dataItem - prevData);
+        // console.log(gap, 'gap');
+        if (Math.sign(gap) === 1) {
+          // 증가했을 경우
+          decreaseSeries.push('-');
+          increaseSeries.push(gap);
+          transparentSeries.push(prevData);
+        } else if (Math.sign(gap) === 0) {
+          // 0
+          decreaseSeries.push('-');
+          increaseSeries.push('-');
+          transparentSeries.push(prevData);
         } else {
-          series.itemStyle = {
-            borderColor: 'transparent',
-            color: '#eee',
-          };
-          series.emphasis = {
+          // 감소했을 경우
+          increaseSeries.push('-');
+          decreaseSeries.push(Math.abs(gap));
+          transparentSeries.push(prevData - Math.abs(gap));
+        }
+        prevData = dataItem;
+      });
+      // console.log(transparentSeries, increaseSeries, decreaseSeries);
+      // console.log('aggrData : ', aggrData);
+      if (item.field) {
+        const series = [
+          {
+            name: item.field,
+            data: transparentSeries,
+            type: 'bar',
+            stack: 'total',
             itemStyle: {
               borderColor: 'transparent',
               color: 'transparent',
             },
-          };
-          series.tooltip = {
-            show: false,
-          };
-        }
-        newSeries.push(series);
+            emphasis: {
+              itemStyle: {
+                borderColor: 'transparent',
+                color: 'transparent',
+              },
+            },
+            tooltip: {
+              show: false,
+            },
+          },
+          {
+            name: '상승',
+            type: 'bar',
+            stack: 'total',
+            label: {
+              show: true,
+              position: axis === 'x' ? 'top' : 'right',
+            },
+            data: increaseSeries,
+          },
+          {
+            name: '하강',
+            type: 'bar',
+            stack: 'total',
+            label: {
+              show: true,
+              position: axis === 'x' ? 'bottom' : 'left',
+              formatter: '-{c}',
+            },
+            data: decreaseSeries,
+          },
+        ];
+        newSeries.push(...series);
       }
     });
 
@@ -90,6 +129,7 @@ const WaterfallBarChart = props => {
           data: option[axis + 'Field'] ? aggrData.map(item => item[option[axis + 'Field']]) : '',
         },
         series: newSeries,
+        color: [...option.color],
         grid: getGridSize(option.legendPosition),
         legend: getLegendOption(option.legendPosition),
         ...createOp,
@@ -98,7 +138,7 @@ const WaterfallBarChart = props => {
       newOption = { ...defaultComponentOption, ...op };
     }
 
-    // console.log(newOption);
+    console.log(newOption);
     return newOption;
   };
 
