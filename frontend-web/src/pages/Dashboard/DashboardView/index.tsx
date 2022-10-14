@@ -35,6 +35,7 @@ const DashboardView = () => {
     dashboardInfo.layout.map((item, index) => {
       item.static = true;
     });
+
     setLayout(dashboardInfo.layout);
   }, [dashboardInfo]);
 
@@ -54,7 +55,7 @@ const DashboardView = () => {
   const generateWidget = () => {
     return dashboardInfo.widgets.map((item, index) => {
       return (
-        <Card key={item.widgetId} sx={{ width: '100%', height: '100%', borderRadius: 1 }}>
+        <Card key={item.id} sx={{ width: '100%', height: '100%', borderRadius: 1 }}>
           <WidgetWrapper
             widgetOption={item}
             dataSetId={item.dataSetId}
