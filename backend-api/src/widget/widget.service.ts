@@ -1,13 +1,13 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { CreateWidgetDto } from './dto/create-widget.dto';
 import { UpdateWidgetDto } from './dto/update-widget.dto';
 import { Repository } from 'typeorm';
 import { Widget } from './entities/widget.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DatasetType } from '../common/enum/dataset-type.enum';
-import { WidgetViewController } from '../widget-view/widget-view.controller';
 import { Component } from '../component/entities/component.entity';
 import { ResponseStatus } from '../common/enum/response-status.enum';
+import { TableQueryService } from './tabel-query/table-query.service';
 
 @Injectable()
 export class WidgetService {
@@ -16,62 +16,41 @@ export class WidgetService {
     private widgetRepository: Repository<Widget>,
     @InjectRepository(Component)
     private componentRepository: Repository<Component>,
-    private widgetViewController: WidgetViewController,
+    private tableQueryService: TableQueryService,
   ) {}
 
+  /**
+   * 위젯 생성
+   * @param createWidget
+   */
   async create(createWidget: CreateWidgetDto) {
-    if (createWidget.datasetType === DatasetType.WIDGET && createWidget.tableName.length <= 0) {
-      throw new HttpException(
-        {
-          status: HttpStatus.FORBIDDEN,
-          error: '테이블명이 존재하지 않습니다.',
-        },
-        HttpStatus.FORBIDDEN,
+    if (
+      createWidget.datasetType === DatasetType.TABLE &&
+      createWidget.tableName &&
+      String(createWidget.tableName).length <= 0
+    ) {
+      return { status: ResponseStatus.ERROR, message: '필수 입력사항::::선택한 테이블명 ' };
+    }
+
+    // 테이블 선택해서 생성할 경우(DatasetType : TABLE), tablequery 아이템을 추가하고 추가된 id값을 넣어줘야 한다.
+    if (createWidget.datasetType === DatasetType.TABLE) {
+      const res = await this.tableQueryService.create(
+        createWidget.databaseId,
+        createWidget.tableName,
       );
-    } else if (createWidget.datasetType === DatasetType.DATASET && !createWidget.datasetId) {
-      throw new HttpException(
-        {
-          status: HttpStatus.FORBIDDEN,
-          error: 'datasetId가 존재하지 않아',
-        },
-        HttpStatus.FORBIDDEN,
-      );
+      createWidget.datasetId = res.id;
     }
+    // 데이터셋 선택해서 생성할 경우(DatasetType : DATASET) 그대로 insert
+    createWidget.option = JSON.stringify(createWidget.option);
 
-    // todo:: 테이블 선택해서 생성할 경우(DatasetType : WIDGET), 위젯 뷰 아이템을 추가하고 추가된 id값을 넣어줘야 한다.
-    // todo:: 데이터셋 선택해서 생성할 경우 그대로 insert(DatasetType : DATASET)
-
-    const res = await this.widgetViewController.widgetcreate(createWidget.databaseId);
-    const saveObj: CreateWidgetDto = new CreateWidgetDto();
-
-    saveObj.componentId = createWidget.componentId;
-    saveObj.datasetType = createWidget.datasetType;
-    saveObj.option = JSON.stringify(createWidget.option);
-    saveObj.widgetViewId = res.id;
-
-    if (createWidget.title) {
-      saveObj.title = createWidget.title;
-    }
-    if (createWidget.datasetId) {
-      saveObj.datasetId = createWidget.datasetId;
-    }
-    if (createWidget.description) {
-      saveObj.description = createWidget.description;
-    }
-    if (createWidget.tableName) {
-      saveObj.tableName = createWidget.tableName;
-    }
-    if (createWidget.databaseId) {
-      saveObj.databaseId = createWidget.databaseId;
-    } else {
-      // saveObj.databaseId = res.data.id;
-    }
-
-    const saveResult = await this.widgetRepository.save(saveObj);
+    const saveResult = await this.widgetRepository.save(createWidget);
     saveResult.option = JSON.parse(saveResult.option);
     return { status: ResponseStatus.SUCCESS, data: saveResult };
   }
 
+  /**
+   * 위젯 목록 조회
+   */
   async findAll() {
     const find_all = await this.widgetRepository
       .createQueryBuilder('widget')
@@ -83,7 +62,7 @@ export class WidgetService {
     find_all.forEach(el => {
       el.option = JSON.parse(el.option);
     });
-    return find_all;
+    return { status: ResponseStatus.SUCCESS, data: find_all };
   }
 
   async findOne(id: number) {
@@ -151,8 +130,9 @@ export class WidgetService {
     if (!find_widget) {
       return { status: ResponseStatus.ERROR, message: 'No exist' };
     } else {
-      if (find_widget.datasetType === DatasetType.WIDGET)
-        await this.widgetViewController.remove(find_widget.widgetViewId);
+      // dataset이 아닐경우
+      if (find_widget.datasetType === DatasetType.TABLE)
+        await this.tableQueryService.remove(find_widget.datasetId);
       await this.widgetRepository.delete(id);
       return { status: ResponseStatus.SUCCESS, message: `This action removes a #${id} widget` };
     }

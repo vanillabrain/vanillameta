@@ -24,7 +24,7 @@ export class CreateWidgetDto {
   datasetType: DatasetType;
 
   @IsNumber()
-  @IsOptional()
+  @IsNotEmpty()
   datasetId: number;
 
   @IsString()
@@ -35,12 +35,7 @@ export class CreateWidgetDto {
   @IsNotEmpty()
   option: string;
 
-  @IsNumber()
-  @IsOptional()
-  widgetViewId: number;
-
   @IsString()
   @IsOptional()
-  delYn: YesNo
+  delYn: YesNo;
 }
-
