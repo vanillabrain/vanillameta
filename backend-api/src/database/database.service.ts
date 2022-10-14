@@ -115,7 +115,6 @@ export class DatabaseService {
     const queryExecuteDto = new QueryExecuteDto();
     if (datasetType === DatasetType.DATASET) {
       const datasetItem = await this.datasetRepository.findOne({ where: { id: datasetId } });
-      console.log(datasetItem);
       queryExecuteDto.id = datasetItem.databaseId;
       queryExecuteDto.query = datasetItem.query;
     } else if (datasetType === DatasetType.TABLE) {
@@ -123,6 +122,10 @@ export class DatabaseService {
       queryExecuteDto.id = datasetItem.databaseId;
       queryExecuteDto.query = datasetItem.query;
     }
-    return await this.connectionService.executeQuery(queryExecuteDto);
+    const queryResult = await this.connectionService.executeQuery(queryExecuteDto);
+    return {
+      status: queryResult.status,
+      data: { datas: queryResult.datas, fields: queryResult.fields },
+    };
   }
 }
