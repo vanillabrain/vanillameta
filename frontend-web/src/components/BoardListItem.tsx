@@ -2,22 +2,24 @@ import React from 'react';
 import { IconButton, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import {
   BarChart,
-  PieChart,
+  BubbleChart,
   Dashboard,
-  StackedLineChart,
   Delete,
   Edit,
-  BubbleChart,
+  PieChart,
   ScatterPlot,
+  StackedLineChart,
 } from '@mui/icons-material';
-import { Link as RouterLink } from 'react-router-dom';
-import { DialogAlertIconButton } from './button/DialogAlertButton';
+import { Link as RouterLink, useLocation } from 'react-router-dom';
 import DonutChart from '@/widget/modules/piechart/DonutChart';
 
 const tableBorder = '1px solid #DADDDD';
 
 function BoardListItem(props) {
   const { postItem, message, handleDeleteSelect } = props;
+
+  const location = useLocation();
+  const pathname = location.pathname;
 
   const dateData = data => {
     const userDate = new Date(data);
@@ -28,7 +30,7 @@ function BoardListItem(props) {
   };
 
   let iconType;
-  switch (postItem.type) {
+  switch (postItem.componentType) {
     case 'DASHBOARD':
       iconType = <Dashboard />;
       break;
@@ -63,7 +65,12 @@ function BoardListItem(props) {
       key={postItem.id}
       secondaryAction={
         <React.Fragment>
-          <IconButton size="large" component={RouterLink} to={`modify?id=${postItem.id}&title=${postItem.title}`}>
+          <IconButton
+            size="large"
+            component={RouterLink}
+            to={`modify?id=${postItem.id}&title=${postItem.title}`}
+            state={{ from: pathname }}
+          >
             <Edit />
           </IconButton>
           <IconButton size="large" onClick={handleDelete}>

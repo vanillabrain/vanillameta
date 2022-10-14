@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Card, IconButton, Stack } from '@mui/material';
-import { Link as RouterLink, useParams } from 'react-router-dom';
+import { Link as RouterLink, useLocation, useParams } from 'react-router-dom';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
 import EditIcon from '@mui/icons-material/Edit';
 import { Delete } from '@mui/icons-material';
@@ -12,6 +12,8 @@ import { WidgetInfo } from '@/api/type';
 import WidgetWrapper from '@/widget/wrapper/WidgetWrapper';
 
 const WidgetView = () => {
+  const location = useLocation();
+  const pathname = location.pathname;
   const defaultWidgetInfo: WidgetInfo = {
     componentId: '',
     createdAt: '',
@@ -42,8 +44,7 @@ const WidgetView = () => {
     // get('/data/dummyWidgetList.json')
     WidgetService.selectWidget(widgetId)
       .then(response => {
-        setWidgetInfo(response.data);
-        console.log(response.data);
+        setWidgetInfo(response.data.data);
       })
       .finally(() => setLoading(false));
     // .then(data => setLoadedWidgetData(data.filter((list, idx) => idx <= 10 * loadedCount)));
@@ -65,6 +66,7 @@ const WidgetView = () => {
             <IconButton
               component={RouterLink}
               to={`/widget/modify?id=${widgetId}&name=${widgetInfo.title}`}
+              state={{ from: pathname }}
               aria-label="수정"
             >
               <EditIcon />
