@@ -86,7 +86,7 @@ function DashboardModify() {
   // 레이아웃 변경 이벤트
   const onLayoutChange = changeLayout => {
     console.log('레이아웃이 바꼇어요');
-    setLayout(changeLayout);
+    // setLayout(changeLayout);
   };
 
   // widget 생성
@@ -100,7 +100,7 @@ function DashboardModify() {
           y: 0,
           w: 5,
           h: 5,
-          i: item.widgetId,
+          i: item.id.toString(),
         });
       }
     });
@@ -110,18 +110,15 @@ function DashboardModify() {
     }
 
     return widgets.map((item, index) => {
-      useWidgetIds.push(item.widgetId); // 현재 widget id 를 담는다.
+      useWidgetIds.push(item.id); // 현재 widget id 를 담는다.
       return (
-        <Card key={item.widgetId} sx={{ width: '100%', height: '100%', borderRadius: 1 }}>
+        <Card key={item.id} sx={{ width: '100%', height: '100%', borderRadius: 1 }}>
           <span
             style={{ position: 'absolute', right: '2px', top: 0, cursor: 'pointer' }}
             onClick={() => {
-              // 아이템 삭제
-              console.log(item);
               const tempWidgets = [...widgets];
               const tempLayout = [...layout];
-              const index = widgets.findIndex(widgetItem => widgetItem.widgetId == item.widgetId);
-              console.log('index L: ', index);
+              const index = widgets.findIndex(widgetItem => widgetItem.id == item.id);
               if (index > -1) {
                 tempWidgets.splice(index, 1);
                 tempLayout.splice(index, 1);
@@ -152,7 +149,8 @@ function DashboardModify() {
         // title 이 없을 경우
         alert.info('제목을 입력 해주세요.', {
           onClose: () => {
-            console.log('test alert');
+            // todo 아래 기능 연결하기
+            console.log('title 로 포커스 이동하기');
           },
         });
       } else if (layout.length == 0 || widgets.length == 0) {
@@ -181,11 +179,6 @@ function DashboardModify() {
   };
 
   const handleWidgetOpen = () => {
-    alert.info('위젯을 선택', {
-      onClose: () => {
-        console.log('test alert');
-      },
-    });
     setWidgetOpen(true);
   };
 

@@ -41,7 +41,7 @@ function AddWidgetPopup({ label, useWidgetIds = [], widgetOpen = false, widgetSe
       .then(response => response.data)
       .then(data => {
         const widgetList = data.filter(item => {
-          return !useWidgetIds.find(useItem => useItem == item.widgetId);
+          return !useWidgetIds.find(useItem => useItem == item.id);
         });
 
         setLoadedWidgetData(widgetList);
@@ -78,23 +78,23 @@ function AddWidgetPopup({ label, useWidgetIds = [], widgetOpen = false, widgetSe
     const isSelect = isItemSelection(item);
     const newIds = [...selectedIds];
     if (isSelect) {
-      const index = newIds.indexOf(item.widgetId);
+      const index = newIds.indexOf(item.id);
       newIds.splice(index, 1);
       setSelectedIds(newIds);
     } else {
-      newIds.push(item.widgetId);
+      newIds.push(item.id);
       setSelectedIds(newIds);
     }
   };
 
   const isItemSelection = item => {
-    return !!selectedIds.find(widgetId => widgetId === item.widgetId);
+    return !!selectedIds.find(id => id === item.id);
   };
 
   const handleSelect = () => {
     const widgets = [];
     for (let i = 0; i < loadedWidgetData.length; i++) {
-      if (selectedIds.indexOf(loadedWidgetData[i].widgetId) > -1) {
+      if (selectedIds.indexOf(loadedWidgetData[i].id) > -1) {
         widgets.push(loadedWidgetData[i]);
       }
     }

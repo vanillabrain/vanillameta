@@ -14,6 +14,7 @@ import {
   ListItemText,
   Typography,
 } from '@mui/material';
+import { useAlert } from 'react-alert';
 import CloseIcon from '@mui/icons-material/Close';
 import { get } from '@/helpers/apiHelper';
 import TemplateService from '@/api/templateService';
@@ -46,6 +47,7 @@ const templateIconType = item => {
 };
 
 export const WidgetList = ({ handleWidgetConfirm = null, handleWidgetCancel = null, selectedWidgetIds = [] }) => {
+  const alert = useAlert();
   const [loadedWidgetData, setLoadedWidgetData] = useState([]);
   const [selectedIds, setSelectedIds] = useState(selectedWidgetIds);
 
@@ -103,8 +105,7 @@ export const WidgetList = ({ handleWidgetConfirm = null, handleWidgetCancel = nu
         handleWidgetConfirm(widgets);
       }
     } else {
-      // todo alert 호출 "위젯을 선택하세요"
-      alert('옴마! 위젯을 선택해야지');
+      alert.info('위젯을 선택하세요.');
     }
   };
 
@@ -138,6 +139,7 @@ export const WidgetList = ({ handleWidgetConfirm = null, handleWidgetCancel = nu
 };
 
 export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = null, selectedWidgetIds = null }) => {
+  const alert = useAlert();
   const [loadedTemplateDataList, setLoadedTemplateDataList] = useState([]);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -170,7 +172,7 @@ export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = 
         handleWidgetConfirm(selectedItem);
       }
     } else {
-      alert('으잉! 템플릿을 선택하라!');
+      alert.info('템플릿을 선택하세요.');
     }
   };
 
@@ -256,7 +258,7 @@ function RecommendDashboardPopup({ recommendOpen = false, handleComplete = null 
       // 위젯 선택화면에서 다음 버튼 클릭
       const tempIds = [];
       items.map(item => {
-        tempIds.push(item.widgetId);
+        tempIds.push(item.id);
       });
 
       setSelectedWidgetIds(tempIds);
