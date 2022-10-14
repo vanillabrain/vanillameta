@@ -1,27 +1,26 @@
 import React, { useEffect, useState } from 'react';
 import { Box } from '@mui/material';
 import ReactECharts from 'echarts-for-react';
+import 'echarts-gl';
 import { getGridSize, getLegendOption } from '@/widget/modules/utils/chartUtil';
 
-function ScatterChart(props) {
-  const { option, dataSet, seriesOp, defaultOp, createOp } = props;
-
+function Scatter3DChart(props) {
+  const { option, dataSet, defaultOp } = props;
   const [componentOption, setComponentOption] = useState({});
 
   const defaultComponentOption = {
-    grid: { top: 50, right: 50, bottom: 50, left: 50 },
-    tooltip: { trigger: 'axis' },
-    xAxis: {
+    grid3D: {},
+    tooltip: {},
+    xAxis3D: {
       scale: true,
     },
-    yAxis: {
+    yAxis3D: {
       scale: true,
     },
+    zAxis3D: {},
     series: [],
-    emphasis: {
-      focus: 'series',
-      blurScope: 'coordinateSystem',
-    },
+    legend: {},
+
     ...defaultOp,
   };
 
@@ -38,36 +37,54 @@ function ScatterChart(props) {
    * 컴포넌트에 맞는 형태로 생성
    */
 
-  console.log(option);
   const createComponentOption = () => {
     let newOption = {};
-
-    // series option에서 가져오기
     const newSeries = [];
     option.series.forEach(item => {
-      if (item.xField || item.yField) {
+      if (item.xField && item.yField && item.zField) {
         const series = {
-          type: 'scatter',
           name: item.title,
-          data: dataSet.map(dataItem => [dataItem[item.xField], dataItem[item.yField]]),
-          symbolSize: item.symbolSize,
+          data: dataSet.map(dataItem => [
+            dataItem[item.xField],
+            dataItem[item.yField],
+            dataItem[item.zField],
+            dataItem[item.symbolSize],
+          ]),
+          type: 'scatter3D',
+          symbolSize: function (data) {
+            return Math.sqrt(data[3]);
+          },
           color: item.color,
-          ...seriesOp,
+          itemStyle: {
+            borderWidth: 1,
+            borderColor: 'rgba(255, 255, 255, 0.8)',
+          },
         };
         newSeries.push(series);
       }
     });
+
     if (dataSet) {
       const op = {
+        xAxis3D: {
+          type: 'value',
+          splitArea: { show: true },
+        },
+        yAxis3D: {
+          type: 'value',
+          splitArea: { show: true },
+        },
+        zAxis3D: {
+          type: 'value',
+        },
         series: newSeries,
         grid: getGridSize(option.legendPosition),
         legend: getLegendOption(option.legendPosition),
-        ...createOp,
       };
 
       newOption = { ...defaultComponentOption, ...op };
     }
-
+    // console.log(newOption);
     return newOption;
   };
 
@@ -83,4 +100,4 @@ function ScatterChart(props) {
   );
 }
 
-export default ScatterChart;
+export default Scatter3DChart;

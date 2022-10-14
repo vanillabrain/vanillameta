@@ -12,6 +12,7 @@ import { get } from '@/helpers/apiHelper';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import '/node_modules/react-grid-layout/css/styles.css';
 import '/node_modules/react-resizable/css/styles.css';
+import DashboardService from '@/api/dashboardService';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -39,7 +40,7 @@ const DashboardView = () => {
 
   // dashboard info 조회
   const getDashboardInfo = id => {
-    get('/data/dummyDashboardInfo.json').then(response => {
+    DashboardService.selectDashboard(id).then(response => {
       setDashboardInfo(response.data);
     });
   };

@@ -3,7 +3,7 @@ import ReactECharts from 'echarts-for-react';
 import { getAggregationDataForChart, getCenter, getGridSize, getLegendOption } from '@/widget/modules/utils/chartUtil';
 
 const PieChart = props => {
-  const { option, dataSet, seriesOp, setDataLength } = props;
+  const { option, dataSet, seriesOp } = props;
 
   const [componentOption, setComponentOption] = useState({});
 
@@ -54,7 +54,6 @@ const PieChart = props => {
 
     if (option.series.name) {
       aggrData = getAggregationDataForChart(dataSet, option.series.name, option.series.field, option.series.aggregation);
-      setDataLength(aggrData.length); // data 길이를 setting으로 전달해서 컬러 설정
 
       const series = {
         name: option.series.name,

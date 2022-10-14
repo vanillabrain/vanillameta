@@ -1,40 +1,24 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Divider, Stack, Typography } from '@mui/material';
+import { Stack } from '@mui/material';
 import { WIDGET_TYPE } from '@/constant';
-import LineChart from '@/widget/modules/linechart/LineChart';
-import { get } from '@/helpers/apiHelper';
 import LineChartSetting from '@/widget/settings/LineChartSetting';
-import PieChart from '@/widget/modules/piechart/PieChart';
 import PieChartSetting from '@/widget/settings/PieChartSetting';
-import NumericBoard from '@/widget/modules/board/NumericBoard';
 import NumericBoardSetting from '@/widget/settings/NumericBoardSetting';
-import TableBoard from '@/widget/modules/board/TableBoard';
 import TableBoardSetting from '@/widget/settings/TableBoardSetting';
 import MixedLineBarChartSetting from '@/widget/settings/MixedLineBarChartSetting';
-import DonutChart from '@/widget/modules/piechart/DonutChart';
 import DonutChartSetting from '@/widget/settings/DonutChartSetting';
-import ScatterChart from '@/widget/modules/scatterchart/ScatterChart';
 import ScatterChartSetting from '@/widget/settings/ScatterChartSetting';
-import BubbleChart from '@/widget/modules/scatterchart/BubbleChart';
 import BubbleChartSetting from '@/widget/settings/BubbleChartSetting';
-import RadarChart from '@/widget/modules/radarchart/RadarChart';
 import RadarChartSetting from '@/widget/settings/RadarChartSetting';
-import TreemapChart from '@/widget/modules/treemapchart/TreemapChart';
 import TreemapChartSetting from '@/widget/settings/TreemapChartSetting';
-import HeatmapChart from '@/widget/modules/heatmapchart/HeatmapChart';
 import HeatmapChartSetting from '@/widget/settings/HeatmapChartSetting';
-import GaugeChart from '@/widget/modules/gaugechart/GaugeChart';
 import GaugeChartSetting from '@/widget/settings/GaugeChartSetting';
-import CandlestickChart from '@/widget/modules/candlestickchart/CandlestickChart';
 import CandlestickChartSetting from '@/widget/settings/CandlestickChartSetting';
-import Bar3DChart from '@/widget/modules/3dchart/Bar3dChart';
 import Bar3DChartSetting from '@/widget/settings/Bar3DChartSetting';
-import Line3DChart from '@/widget/modules/3dchart/Line3dChart';
 import Line3DChartSetting from '@/widget/settings/Line3DChartSetting';
-import Scatter3DChart from '@/widget/modules/3dchart/Scatter3dChart';
 import Scatter3DChartSetting from '@/widget/settings/Scatter3DChartSetting';
-import { handleChange } from '@/widget/utils/handler';
 import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
+import Bubble3DChartSetting from '@/widget/settings/Bubble3DChartSetting';
 
 const WidgetSetting = props => {
   const { title, setTitle, widgetOption, setWidgetOption, widgetType, dataSet, spec } = props;
@@ -51,6 +35,7 @@ const WidgetSetting = props => {
       option: widgetOption,
       setOption: setWidgetOption,
       spec,
+      dataSet,
     };
 
     switch (widgetType) {
@@ -132,6 +117,10 @@ const WidgetSetting = props => {
       case WIDGET_TYPE.CHART_3D_SCATTER:
         module = <Scatter3DChartSetting {...chartSettingProps} />;
         break;
+      case WIDGET_TYPE.CHART_3D_BUBBLE:
+        module = <Bubble3DChartSetting {...chartSettingProps} />;
+        break;
+
       default:
         break;
     }

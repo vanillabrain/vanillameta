@@ -2,10 +2,9 @@ import React from 'react';
 import { Divider, Grid, List, ListItem, ListItemText, styled } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import ColorButtonForm from '@/components/form/ColorButtonForm';
-import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
 import TextFieldForm from '@/components/form/TextFieldForm';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
-import { handleChange, handleSeriesChange, handleAddClick, handleRemoveClick } from '@/widget/utils/handler';
+import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
 import { COLUMN_TYPE, LEGEND_LIST } from '@/constant';
 
 const StyledList = styled(List)({
@@ -31,7 +30,7 @@ const StyledList = styled(List)({
   },
 });
 
-const LineChartSetting = props => {
+const BubbleChartSetting = props => {
   const { option, setOption, spec } = props;
 
   // 컴포넌트 별 default series
@@ -126,4 +125,4 @@ const LineChartSetting = props => {
   );
 };
 
-export default LineChartSetting;
+export default BubbleChartSetting;

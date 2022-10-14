@@ -48,7 +48,7 @@ function BubbleChart(props) {
         const series = {
           type: 'scatter',
           name: item.title,
-          data: dataSet.map(dataItem => [dataItem[item.xField], dataItem[item.yField], dataItem[item.symbolSize], 'text']),
+          data: dataSet.map(dataItem => [dataItem[item.xField], dataItem[item.yField], dataItem[item.symbolSize]]),
           symbolSize: function (data) {
             return Math.sqrt(data[2]);
           },
