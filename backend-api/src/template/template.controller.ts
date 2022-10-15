@@ -42,8 +42,7 @@ export class TemplateController {
    */
   @Get(':id')
   async findOne(@Res() res, @Param('id') id: number) {
-    const resultTemplate: TemplateInfoDto = await this.templateService.findOne(id);
-    return res.status(HttpStatus.OK).json(resultTemplate);
+    return await this.templateService.findOne(id);
   }
 
   /**
@@ -91,7 +90,7 @@ export class TemplateController {
    * @param templateId
    */
   @Post('/dashboard')
-  getTemplateDashboardLayout(@Body() widgets: number[], templateId: number) {
-    return this.templateService.getTemplateDashboardLayout(widgets, templateId);
+  getTemplateDashboardLayout(@Body() data) {
+    return this.templateService.getTemplateDashboardLayout(data.widgets, data.templateId);
   }
 }
