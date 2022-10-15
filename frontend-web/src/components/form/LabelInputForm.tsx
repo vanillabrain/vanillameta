@@ -2,18 +2,19 @@ import React from 'react';
 import { List, ListItem, Stack, TextField } from '@mui/material';
 import SubmitButton from '../button/SubmitButton';
 
-function LabelInputForm(props) {
+const LabelInputForm = props => {
+  const { testConnect } = props;
   const handleSubmit = data => {
     data.preventDefault();
-    const userData = {
-      userName: data.target.userName.value,
-      userHost: data.target.userHost.value,
-      userPort: data.target.userPort.value,
-      userId: data.target.userId.value,
-      userPassword: data.target.userPassword.value,
-      userSchema: data.target.userSchema.value,
+    const item = {
+      name: data.target.databaseName.value,
+      host: data.target.host.value,
+      port: data.target.port.value,
+      user: data.target.user.value,
+      password: data.target.password.value,
+      database: data.target.schema.value,
     };
-    console.log(userData);
+    testConnect(item);
   };
 
   return (
@@ -21,7 +22,7 @@ function LabelInputForm(props) {
       <List sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between' }}>
         {props.data.map(item => (
           <ListItem key={item.id} sx={{ width: { xs: '100%', sm: item.width || '100%' } }}>
-            <TextField id={item.id} label={item.label} type={item.type || 'none'} required fullWidth />
+            <TextField id={item.id} label={item.label} type={item.type || 'none'} name={item.name} required fullWidth />
           </ListItem>
         ))}
         <ListItem>
@@ -30,6 +31,6 @@ function LabelInputForm(props) {
       </List>
     </Stack>
   );
-}
+};
 
 export default LabelInputForm;
