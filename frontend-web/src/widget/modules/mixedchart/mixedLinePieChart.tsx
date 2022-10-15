@@ -49,28 +49,6 @@ const MixedLinePieChart = props => {
       aggrData = getAggregationDataForChart(dataSet, option[axis + 'Field'], item.field, item.aggregation);
       console.log('aggrData : ', aggrData);
       if (item.field) {
-        const seriesPie = {
-          name: item.field,
-          // data: aggrData.map(dataItem => dataItem[item.field]),
-          data: aggrData.map(item => ({
-            value: item[option.series[0].field],
-            name: item[option.xField],
-          })),
-          type: 'pie',
-          center: option.series[0].center,
-          // center: getCenter(item.center),
-          color: option.series[0].color,
-          radius: '28%',
-          label: {
-            show: true,
-            // position: 'center',
-            formatter: '{b}: {d}%',
-          },
-          tooltip: {
-            trigger: 'item',
-          },
-          z: 100,
-        };
         const series = {
           name: item.field,
           data: aggrData.map(dataItem => dataItem[item.field]),
@@ -78,10 +56,34 @@ const MixedLinePieChart = props => {
           smooth: true,
           ...seriesOp,
         };
-
-        newSeries.push(seriesPie, series);
+        newSeries.push(series);
       }
     });
+    if (option.pie.field) {
+      const pieAggrData = getAggregationDataForChart(dataSet, option.pie.name, option.pie.field, option.pie.aggregation);
+
+      const series = {
+        name: option.pie.name,
+        data: pieAggrData.map(item => ({
+          value: item[option.pie.field],
+          name: item[option.pie.name],
+        })),
+        type: 'pie',
+        color: [...option.pie.color],
+        center: option.pie.center,
+        radius: option.pie.radius,
+        label: {
+          show: !!option.pie.name && true,
+          // position: 'center',
+          formatter: '{b}: {d}%',
+        },
+        tooltip: {
+          trigger: 'item',
+        },
+        z: 100,
+      };
+      newSeries.unshift(series);
+    }
 
     if (aggrData && option[axis + 'Field']) {
       const op = {
@@ -89,7 +91,31 @@ const MixedLinePieChart = props => {
           type: 'category',
           data: option[axis + 'Field'] ? aggrData.map(item => item[option[axis + 'Field']]) : '',
         },
-        series: newSeries,
+        series: [
+          // {
+          //   // name: item.field,
+          //   // data: aggrData.map(dataItem => dataItem[item.field]),
+          //   data: aggrData.map(item => ({
+          //     value: item[option.pie.field],
+          //     name: item[option.xField],
+          //   })),
+          //   type: 'pie',
+          //   center: option.pie.center,
+          //   // center: getCenter(item.center),
+          //   color: option.pie.color,
+          //   radius: '28%',
+          //   label: {
+          //     show: true,
+          //     // position: 'center',
+          //     formatter: '{b}: {d}%',
+          //   },
+          //   tooltip: {
+          //     trigger: 'item',
+          //   },
+          //   z: 100,
+          // },
+          ...newSeries,
+        ],
 
         grid: getGridSize(option.legendPosition),
         legend: getLegendOption(option.legendPosition),
