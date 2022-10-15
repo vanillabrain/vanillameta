@@ -5,7 +5,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Dashboard } from './entities/dashboard.entity';
 import { DashboardWidgetService } from './dashboard-widget/dashboard-widget.service';
-import {ResponseStatus} from "../common/enum/response-status.enum";
+import { ResponseStatus } from '../common/enum/response-status.enum';
 
 @Injectable()
 export class DashboardService {
@@ -35,7 +35,7 @@ export class DashboardService {
     await this.dashboardWidgetService.create(saveObjDW);
 
     newDashboard.layout = JSON.parse(newDashboard.layout);
-    return newDashboard;
+    return { status: ResponseStatus.SUCCESS, data: newDashboard };
   }
 
   async findAll() {
@@ -43,18 +43,19 @@ export class DashboardService {
     find_all.forEach(el => {
       el.layout = JSON.parse(el.layout);
     });
-    return find_all;
+    return { status: ResponseStatus.SUCCESS, data: find_all };
   }
 
   async findOne(id: number) {
     const find_dashboard = await this.dashboardRepository.findOne({ where: { id: id } });
-    if(!find_dashboard) return {status:ResponseStatus.ERROR, message: '대시보드가 존재하지 않습니다.' };
+    if (!find_dashboard)
+      return { status: ResponseStatus.ERROR, message: '대시보드가 존재하지 않습니다.' };
     const widgetList = await this.dashboardWidgetService.findWidgets(id);
 
     find_dashboard.layout = JSON.parse(find_dashboard.layout);
     const return_obj = Object.assign(find_dashboard, { widgets: widgetList });
 
-    return {status: ResponseStatus.SUCCESS, data:return_obj};
+    return { status: ResponseStatus.SUCCESS, data: return_obj };
   }
 
   async update(id: number, updateDashboardDto: UpdateDashboardDto) {
@@ -83,18 +84,21 @@ export class DashboardService {
       const updatedDashboard = await this.dashboardRepository.save(find_dashboard);
 
       updatedDashboard.layout = JSON.parse(updatedDashboard.layout);
-      return updatedDashboard;
+      return { status: ResponseStatus.SUCCESS, data: updatedDashboard };
     }
   }
 
   async remove(id: number) {
     const find_dashboard = await this.dashboardRepository.findOne({ where: { id: id } });
     if (!find_dashboard) {
-      return 'No exist dashboard';
+      return { status: ResponseStatus.ERROR, message: 'No exist dashboard' };
     } else {
       await this.dashboardRepository.delete(id);
       await this.dashboardWidgetService.remove(id);
-      return `This action removes a #${id} dashboard`;
+      return {
+        status: ResponseStatus.SUCCESS,
+        data: { message: `This action removes a #${id} dashboard` },
+      };
     }
   }
 }

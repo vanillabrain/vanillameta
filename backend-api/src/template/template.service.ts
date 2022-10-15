@@ -3,13 +3,16 @@ import { CreateTemplateDto } from './dto/create-template.dto';
 import { UpdateTemplateDto } from './dto/update-template.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Template } from './entities/template.entity';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { YesNo } from '../common/enum/yn.enum';
 import { TemplateItem } from './entities/template-item.entity';
 import { CreateTemplateItemDto } from './dto/create-template-item.dto';
 import { UpdateTemplateItemDto } from './dto/update-template-item.dto';
 import { TemplateInfoDto } from './dto/template-info.dto';
 import { ItemInfoDto } from './dto/item-info.dto';
+import { async } from 'rxjs';
+import { ResponseStatus } from '../common/enum/response-status.enum';
+import { Widget } from '../widget/entities/widget.entity';
 
 @Injectable()
 export class TemplateService {
@@ -18,25 +21,27 @@ export class TemplateService {
     private readonly templateRepository: Repository<Template>,
     @InjectRepository(TemplateItem)
     private readonly templateItemRepository: Repository<TemplateItem>,
+    @InjectRepository(Widget)
+    private readonly widgetRepository: Repository<Widget>,
   ) {}
 
   /**
    * 템플릿 추가
    * @param createTemplate
    */
-  async create(createTemplate: CreateTemplateDto): Promise<Template> {
+  async create(createTemplate: CreateTemplateDto) {
     const insertItem = await this.templateRepository.save({
       title: createTemplate.title,
       description: createTemplate.description,
     });
-    return insertItem;
+    return { status: ResponseStatus.SUCCESS, data: insertItem };
   }
 
   /**
    * 템플릿 상세 아이템 추가
    * @param createTemplateItem
    */
-  async createItem(createTemplateItem: CreateTemplateItemDto): Promise<TemplateItem> {
+  async createItem(createTemplateItem: CreateTemplateItemDto) {
     const insertItem = await this.templateItemRepository.save({
       templateId: createTemplateItem.templateId,
       x: createTemplateItem.x,
@@ -45,7 +50,7 @@ export class TemplateService {
       height: createTemplateItem.height,
       recommendCategory: createTemplateItem.recommendCategory,
     });
-    return insertItem;
+    return { status: ResponseStatus.SUCCESS, data: insertItem };
   }
 
   /**
@@ -63,14 +68,14 @@ export class TemplateService {
       },
     });
 
-    return result;
+    return { status: ResponseStatus.SUCCESS, data: result };
   }
 
   /**
    * 템플릿 단건 조회
    * @param id
    */
-  async findOne(id: number): Promise<TemplateInfoDto> {
+  async findOne(id: number) {
     let returnObj: TemplateInfoDto;
 
     // 템플릿 기본 정보 조회
@@ -102,7 +107,7 @@ export class TemplateService {
       returnObj.layout = layout;
     }
 
-    return returnObj;
+    return { status: ResponseStatus.SUCCESS, data: returnObj };
   }
 
   /**
@@ -121,13 +126,22 @@ export class TemplateService {
       },
     );
 
-    let msg = `This action updates a #${id} template`;
     if (updateItem.affected < 1) {
-      msg = '변동사항 없음';
+      return {
+        status: ResponseStatus.ERROR,
+        message: '변동사항 없음',
+      };
     } else if (updateItem.affected > 1) {
-      msg = '여러개 바뀜';
+      return {
+        status: ResponseStatus.ERROR,
+        message: '여러개 바뀜',
+      };
+    } else {
+      return {
+        status: ResponseStatus.SUCCESS,
+        data: { message: `This action updates a #${id} template` },
+      };
     }
-    return msg;
   }
 
   /**
@@ -149,13 +163,22 @@ export class TemplateService {
       },
     );
 
-    let msg = `This action updates a #${id} templateItem`;
     if (updateItem.affected < 1) {
-      msg = '변동사항 없음';
+      return {
+        status: ResponseStatus.ERROR,
+        message: '변동사항 없음',
+      };
     } else if (updateItem.affected > 1) {
-      msg = '여러개 바뀜';
+      return {
+        status: ResponseStatus.ERROR,
+        message: '여러개 바뀜',
+      };
+    } else {
+      return {
+        status: ResponseStatus.SUCCESS,
+        data: { message: `This action updates a #${id} templateItem` },
+      };
     }
-    return msg;
   }
 
   /**
@@ -172,13 +195,22 @@ export class TemplateService {
       },
     );
 
-    let msg = `#${id} template useYn='N' 변경완료 `;
     if (deleteItem.affected < 1) {
-      msg = '변동사항 없음';
+      return {
+        status: ResponseStatus.ERROR,
+        message: '변동사항 없음',
+      };
     } else if (deleteItem.affected > 1) {
-      msg = '여러개 바뀜';
+      return {
+        status: ResponseStatus.ERROR,
+        message: '여러개 바뀜',
+      };
+    } else {
+      return {
+        status: ResponseStatus.SUCCESS,
+        data: { message: `#${id} template useYn='N' 변경완료 ` },
+      };
     }
-    return msg;
   }
 
   /**
@@ -201,9 +233,7 @@ export class TemplateService {
       },
     });
 
-    // return result;
-
-    return templateList;
+    return { status: ResponseStatus.SUCCESS, data: templateList };
   }
 
   /**
@@ -212,65 +242,7 @@ export class TemplateService {
    * @param templateId
    */
   async getTemplateDashboardLayout(widgets: number[], templateId: number) {
-    const widget1 = {
-      widgetId: 1,
-      title: '라인차트 위젯',
-      date: '2022-04-11T18:27:45+09:00',
-      dataSetId: '000001',
-      type: 'CHART_LINE',
-      option: {
-        xField: 'name',
-        series: [
-          {
-            field: 'high',
-            color: '#43afef',
-            aggregation: '',
-          },
-          {
-            field: 'low',
-            color: '#b9e7ff',
-            aggregation: '',
-          },
-          {
-            field: 'avg',
-            color: '#d9d9d9',
-            aggregation: '',
-          },
-        ],
-        legendPosition: 'left',
-      },
-    };
-
-    const widget2 = {
-      widgetId: 2,
-      title: '파이차트 위젯',
-      date: '2022-04-11T18:27:45+09:00',
-      dataSetId: '00001',
-      type: 'CHART_PIE',
-      option: {
-        xField: 'name',
-        series: {
-          field: 'high',
-          color: [
-            '#5470c6',
-            '#91cc75',
-            '#fac858',
-            '#ee6666',
-            '#73c0de',
-            '#3ba272',
-            '#fc8452',
-            '#9a60b4',
-            '#ea7ccc',
-            '#5470c6',
-            '#91cc75',
-            '#fac858',
-          ],
-          aggregation: '',
-          label: 'name',
-        },
-        legendPosition: 'right',
-      },
-    };
+    const widgetList = await this.widgetRepository.find({ where: { id: In(widgets) } });
 
     let templateInfo: TemplateInfoDto;
 
@@ -303,9 +275,12 @@ export class TemplateService {
       templateInfo.layout = layout;
     }
 
-    templateInfo.widgets = [widget1, widget2];
-    templateInfo.layout[0].i = widget1.widgetId;
-    templateInfo.layout[1].i = widget2.widgetId;
-    return templateInfo;
+    widgetList[0].option = JSON.parse(widgetList[0].option);
+    widgetList[1].option = JSON.parse(widgetList[1].option);
+
+    templateInfo.widgets = [widgetList[0], widgetList[1]];
+    templateInfo.layout[0].i = widgetList[0].id;
+    templateInfo.layout[1].i = widgetList[1].id;
+    return { status: ResponseStatus.SUCCESS, data: templateInfo };
   }
 }
