@@ -43,7 +43,6 @@ const MixedLinePieChart = props => {
     console.log('createComponentOption', option);
     let newOption = {};
 
-    // series option에서 가져오기
     const newSeries = [];
     let aggrData = [];
     option.series.forEach(item => {
@@ -52,19 +51,23 @@ const MixedLinePieChart = props => {
       if (item.field) {
         const seriesPie = {
           name: item.field,
-          // data: aggrData.map(item => ({
-          //   value: item[option.series.field],
-          //   name: item[option.xField],
-          // })),
-          data: aggrData.map(dataItem => dataItem[item.field]),
+          // data: aggrData.map(dataItem => dataItem[item.field]),
+          data: aggrData.map(item => ({
+            value: item[option.series[0].field],
+            name: item[option.xField],
+          })),
           type: 'pie',
-          center: ['75%', '35%'],
+          center: option.series[0].center,
+          // center: getCenter(item.center),
           color: option.series[0].color,
           radius: '28%',
-          // label: { show: false },
           label: {
-            position: 'inner',
-            fontSize: 14,
+            show: true,
+            // position: 'center',
+            formatter: '{b}: {d}%',
+          },
+          tooltip: {
+            trigger: 'item',
           },
           z: 100,
         };

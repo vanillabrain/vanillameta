@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Divider, Grid, List, ListItem, ListItemText, styled } from '@mui/material';
+import { Divider, Grid, InputAdornment, List, ListItem, ListItemText, styled } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import ColorButtonForm from '@/components/form/ColorButtonForm';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
@@ -7,6 +7,7 @@ import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } f
 import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST, WIDGET_AGGREGATION } from '@/constant';
 import ColorFieldForm from '@/components/form/ColorFieldForm';
 import { getColorArr } from '@/widget/modules/utils/chartUtil';
+import TextFieldForm from '@/components/form/TextFieldForm';
 
 const StyledList = styled(List)({
   position: 'relative',
@@ -34,6 +35,14 @@ const StyledList = styled(List)({
 const MixedLinePieChartSetting = props => {
   const { option, setOption, seriesItem, axis = 'x', spec, dataSet } = props;
 
+  // 컴포넌트 별 default series
+  const defaultSeries = {
+    field: '',
+    color: [],
+    center: ['75%', '35%'],
+    aggregation: WIDGET_AGGREGATION.SUM,
+  };
+
   console.log(option);
   useEffect(() => {
     const colorArr = getColorArr(option.series[0].field, dataSet.length);
@@ -50,11 +59,15 @@ const MixedLinePieChartSetting = props => {
     );
   }, [option.series.field, option.series.name, dataSet.length]);
 
-  // 컴포넌트 별 default series
-  const defaultSeries = {
-    field: '',
-    color: '',
-    aggregation: WIDGET_AGGREGATION.SUM,
+  const handleRadiusChange = event => {
+    setOption(prevState => {
+      const obj = { ...prevState };
+      const center = [...prevState.series[0].center];
+      const index = Number(event.target.name.slice(-1)) - 1;
+      center[index] = event.target.value + '%';
+      obj.series[0].center = center;
+      return obj;
+    });
   };
 
   return (
@@ -129,22 +142,43 @@ const MixedLinePieChartSetting = props => {
             </React.Fragment>
           ))}
         </ListItem>
+        {/*<ListItem divider>*/}
+        {/*  <ListItemText primary="색상 항목 설정" />*/}
+        {/*  {option.series[0].field &&*/}
+        {/*    option.series[0].color.map((item, index) => (*/}
+        {/*      <React.Fragment key={index}>*/}
+        {/*        <ColorFieldForm*/}
+        {/*          id={`color${index + 1}`}*/}
+        {/*          name={`color${index + 1}`}*/}
+        {/*          value={option.series[0].color[index]}*/}
+        {/*          colorList={option.series[0].color}*/}
+        {/*          setOption={setOption}*/}
+        {/*          index={index}*/}
+        {/*        />*/}
+        {/*        <Divider />*/}
+        {/*      </React.Fragment>*/}
+        {/*    ))}*/}
+        {/*</ListItem>*/}
         <ListItem divider>
-          <ListItemText primary="색상 항목 설정" />
-          {option.series[0].field &&
-            option.series[0].color.map((item, index) => (
-              <React.Fragment key={index}>
-                <ColorFieldForm
-                  id={`color${index + 1}`}
-                  name={`color${index + 1}`}
-                  value={option.series[0].color[index]}
-                  colorList={option.series[0].color}
-                  setOption={setOption}
-                  index={index}
-                />
-                <Divider />
-              </React.Fragment>
-            ))}
+          <ListItemText primary="원형 차트 설정" />
+          <TextFieldForm
+            id="center1"
+            name="center1"
+            label="좌우 위치"
+            type="number"
+            value={option.series[0].center[0].slice(0, -1)}
+            onChange={handleRadiusChange}
+            endAdornment={<InputAdornment position="end">%</InputAdornment>}
+          />
+          <TextFieldForm
+            id="center2"
+            name="center2"
+            label="상하 위치"
+            type="number"
+            value={option.series[0].center[1].slice(0, -1)}
+            onChange={handleRadiusChange}
+            endAdornment={<InputAdornment position="end">%</InputAdornment>}
+          />
         </ListItem>
         <ListItem>
           <ListItemText>범례 설정</ListItemText>
