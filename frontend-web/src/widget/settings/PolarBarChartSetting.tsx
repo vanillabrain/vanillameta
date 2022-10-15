@@ -2,9 +2,10 @@ import React from 'react';
 import { Divider, Grid, InputAdornment, List, ListItem, ListItemText, styled } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import ColorButtonForm from '@/components/form/ColorButtonForm';
-import { handleChange, handleSeriesChange } from '@/widget/utils/handler';
+import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
 import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST, WIDGET_AGGREGATION } from '@/constant';
 import TextFieldForm from '@/components/form/TextFieldForm';
+import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
 
 const StyledList = styled(List)({
   position: 'relative',
@@ -72,6 +73,14 @@ const PolarBarChartSetting = props => {
         </ListItem>
         <ListItem divider>
           <ListItemText primary="시리즈 설정" />
+          <AddButton
+            onClick={event => handleAddClick(event, option, setOption, defaultSeries)}
+            sx={{
+              position: 'absolute',
+              top: 30,
+              right: 0,
+            }}
+          />
           {option.series.map((item, index) => (
             <React.Fragment key={index}>
               <SelectForm
@@ -94,6 +103,13 @@ const PolarBarChartSetting = props => {
                 value={item.aggregation}
                 onChange={event => handleSeriesChange(event, setOption)}
                 disabledDefaultValue
+                endButton={
+                  0 < index ? (
+                    <RemoveButton onClick={event => handleRemoveClick(event, index, option, setOption)} id={index} />
+                  ) : (
+                    ' '
+                  )
+                }
               />
               <Divider />
             </React.Fragment>

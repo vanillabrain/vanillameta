@@ -51,6 +51,7 @@ const PolarBarChart = props => {
             show: true,
             position: 'middle',
           },
+          ...seriesOp,
         };
         newSeries.push(series);
       }

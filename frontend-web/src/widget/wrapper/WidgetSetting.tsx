@@ -132,6 +132,9 @@ const WidgetSetting = props => {
       case WIDGET_TYPE.CHART_POLAR_BAR:
         module = <PolarBarChartSetting {...chartSettingProps} />;
         break;
+      case WIDGET_TYPE.CHART_POLAR_STACKED_BAR:
+        module = <PolarBarChartSetting {...chartSettingProps} />;
+        break;
       case WIDGET_TYPE.CHART_MIXED_LINE_PIE:
         module = <MixedLinePieChartSetting {...chartSettingProps} />;
         break;

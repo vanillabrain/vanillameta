@@ -197,6 +197,9 @@ const WidgetViewer = props => {
       case WIDGET_TYPE.CHART_POLAR_BAR:
         module = <PolarBarChart {...chartProps} />;
         break;
+      case WIDGET_TYPE.CHART_POLAR_STACKED_BAR:
+        module = <PolarBarChart {...chartProps} seriesOp={{ stack: 'stack' }} />;
+        break;
       case WIDGET_TYPE.CHART_MIXED_LINE_PIE:
         module = <MixedLinePieChart {...chartProps} />;
         break;
