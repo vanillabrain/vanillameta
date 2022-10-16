@@ -1,11 +1,11 @@
 import React from 'react';
-import { Box, Stack } from '@mui/material';
+import { Stack } from '@mui/material';
 
 import Header from './Header/Header';
 import Footer from './Footer/Footer';
 
 function Layout(props) {
-  const headerHeight = 60;
+  const headerHeight = 65;
 
   return (
     <Stack
