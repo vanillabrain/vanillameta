@@ -42,7 +42,9 @@ function Router() {
         <Route path=":sourceId" element={<DataSource />} />
       </Route>
 
-      <Route path="/data/set/create" element={<DataSet />} />
+      <Route path="/data/set/create" element={<DataSet />}>
+        <Route path=":sourceId" element={<DataSet />} />
+      </Route>
       <Route path="/data/set/modify" element={<DataSet />}>
         <Route path=":setId" element={<DataSet />} />
       </Route>

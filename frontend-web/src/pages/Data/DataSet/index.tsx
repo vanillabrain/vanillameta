@@ -1,5 +1,6 @@
-import React, { useEffect, useLayoutEffect, useState } from 'react';
+import React, { useLayoutEffect, useState } from 'react';
 import { Stack, TextField } from '@mui/material';
+import { useAlert } from 'react-alert';
 import PageContainer from '@/components/PageContainer';
 import PageTitleBox from '@/components/PageTitleBox';
 import SubmitButton from '@/components/button/SubmitButton';
@@ -9,90 +10,40 @@ import 'ace-builds/src-noconflict/mode-mysql';
 import 'ace-builds/src-noconflict/theme-tomorrow';
 import 'ace-builds/src-noconflict/snippets/mysql';
 import 'ace-builds/src-min-noconflict/ext-language_tools';
-import { get, post } from '@/helpers/apiHelper';
 import DataGrid from '@/components/datagrid';
-import { OptColumn } from 'tui-grid/types/options';
+import DatabaseService from '@/api/databaseService';
+import DatasetService from '@/api/datasetService';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { STATUS } from '@/constant';
 
-const DataSet = props => {
-  const [isConnected, setIsConnected] = useState(false);
-  const [editorValue, setEditorValue] = useState<string>('');
+const DataSet = () => {
+  const { setId, sourceId } = useParams();
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const [isModifyMode, setIsModifyMode] = useState(false);
+  const [testCompleted, setTestCompleted] = useState(false);
+  const [datasetInfo, setDatasetInfo] = useState({ databaseId: sourceId, title: '', query: '' });
+  // 'select A.*, C.bizId from UserInfo A, BizUserMap B, BizInfo C where A.userId = B.userId and B.bizId = C.bizId',
   const [data, setData] = useState([]);
   const [columns, setColumns] = useState([]);
-
-  const testColumns = [
-    { name: 'accountName', header: '쇼핑몰', align: 'center', width: 200, sortable: true },
-    { name: 'productId', header: '상품ID', align: 'center', width: 150, className: 'numberCell', sortable: true },
-    { name: 'productName', header: '상품명', align: 'left', minWidth: 300, sortable: true },
-    { name: 'productGroupName', header: '상품그룹명', align: 'left', width: 200, sortable: true },
-    { name: 'saleStatusName', header: '판매상태', align: 'center', width: 120, sortable: true },
-    {
-      name: 'price',
-      header: '판매가',
-      align: 'right',
-      width: 120,
-      className: 'numberCell',
-      sortable: true,
-    },
-    {
-      name: 'pcSalePrice',
-      header: 'PC 할인가',
-      align: 'right',
-      width: 120,
-      className: 'numberCell',
-      sortable: true,
-    },
-    {
-      name: 'mobileSalePrice',
-      header: '모바일 할인가',
-      align: 'right',
-      width: 120,
-      className: 'numberCell',
-      sortable: true,
-    },
-    {
-      name: 'deliveryPrice',
-      header: '배송비',
-      align: 'right',
-      width: 120,
-      className: 'numberCell',
-      sortable: true,
-    },
-    {
-      name: 'productRegDate',
-      header: '상품 등록일',
-      align: 'center',
-      width: 110,
-      className: 'numberCell',
-      sortable: true,
-    },
-    {
-      name: 'productModDate',
-      header: '상품 수정',
-      align: 'center',
-      width: 110,
-      className: 'numberCell',
-      sortable: true,
-    },
-  ];
+  const alert = useAlert();
 
   useLayoutEffect(() => {
-    getData();
+    console.log('modify', pathname.indexOf('modify'));
+    console.log('setId', setId);
+    console.log('sourceId', sourceId);
+
+    if (pathname.indexOf('modify') > 0 && setId) {
+      // 데이터셋 수정일 경우
+      setIsModifyMode(true);
+      getDatasetInfo();
+    }
   }, []);
 
-  useEffect(() => {
-    if (data.length > 0) {
-      // setColumns(createColumns());
-    }
-  }, [data]);
-
-  const getData = () => {
-    console.log(editorValue);
-    get('/data/sample/chart.json').then(response => {
-      setData(response.data);
-      setColumns(createColumns(response.data));
-    });
-  };
-
+  /**
+   * 데이터 그리드 컬럼 생성
+   * @param data
+   */
   const createColumns = data => {
     let target = null;
     if (data instanceof Array && data.length > 0) {
@@ -106,34 +57,136 @@ const DataSet = props => {
     return columns;
   };
 
-  const handleSubmit = data => {
-    data.preventDefault();
-    const userData = {
-      userSetName: data.target.userSetName.value,
-      userSetContent: data.target.userSetContent.value,
-    };
-    console.log(userData);
-    setIsConnected(true);
-  };
-
   const onLoad = e => {
     console.log(e);
   };
 
   const onChange = newValue => {
     console.log('change', newValue);
-    setEditorValue(newValue);
+    setDatasetInfo(prevState => ({ ...prevState, query: newValue }));
+  };
+
+  const onChangeTitle = event => {
+    console.log('onChangeTitle', event.target.value);
+    setDatasetInfo(prevState => ({ ...prevState, title: event.target.value }));
+  };
+
+  const getDatasetInfo = () => {
+    DatasetService.selectDataset(setId).then(response => {
+      console.log('selectDataset', response.data);
+      if (response.data.status === 'SUCCESS') {
+        setDatasetInfo(response.data.data);
+      }
+    });
+  };
+
+  /**
+   * 쿼리 실행
+   */
+  const excuteQuery = () => {
+    const param = {
+      id: 1,
+      query: datasetInfo.query,
+    };
+    console.log('param', param);
+    DatabaseService.executeQuery(param)
+      .then(response => {
+        console.log(response.data);
+        if (response.data.status === 'SUCCESS') {
+          setData(response.data.datas);
+          setTestCompleted(true);
+          setColumns(createColumns(response.data.datas));
+        } else {
+          setTestCompleted(false);
+        }
+      })
+      .catch(() => {
+        setTestCompleted(false);
+      });
+  };
+
+  const saveDataset = event => {
+    event.preventDefault();
+    console.log('저장', datasetInfo);
+
+    alert.success(`데이터셋을 ${isModifyMode ? '수정' : '생성'}하시겠습니까?`, {
+      closeCopy: '취소',
+      actions: [
+        {
+          copy: '확인',
+          onClick: () => {
+            if (isModifyMode) {
+              DatasetService.updateDataset(setId, datasetInfo).then(response => {
+                console.log(response.data);
+                if (response.data.status === STATUS.SUCCESS) {
+                  alert.info('데이터셋이 수정되었습니다.', {
+                    onClose: () => {
+                      navigate('/data');
+                    },
+                  });
+                }
+              });
+            } else {
+              DatasetService.createDataset(datasetInfo).then(response => {
+                console.log(response.data);
+                if (response.data.status === STATUS.SUCCESS) {
+                  alert.info('데이터셋이 생성되었습니다.', {
+                    onClose: () => {
+                      navigate('/data');
+                    },
+                  });
+                }
+              });
+            }
+          },
+        },
+      ],
+    });
+  };
+
+  const handleCancel = () => {
+    console.log('취소');
+    navigate('/data');
   };
 
   return (
     <PageContainer>
-      <PageTitleBox title="데이터셋 생성" button={<ConfirmCancelButton confirmProps={{ disabled: !isConnected }} />}>
-        <Stack component="form" flexDirection="column" spacing={3} sx={{ maxWidth: 800, m: 'auto' }} onSubmit={handleSubmit}>
+      <PageTitleBox
+        title={`데이터셋 ${isModifyMode ? '수정' : '생성'}`}
+        button={
+          <Stack>
+            <ConfirmCancelButton
+              cancelLabel="이전"
+              cancelProps={{
+                onClick: handleCancel,
+              }}
+              confirmLabel="저장"
+              confirmProps={{
+                disabled: !testCompleted,
+                form: 'datasetForm',
+                type: 'submit',
+                variant: 'contained',
+              }}
+            />
+          </Stack>
+        }
+      >
+        <Stack
+          id="datasetForm"
+          component="form"
+          flexDirection="column"
+          spacing={3}
+          sx={{ width: '100%' }}
+          onSubmit={saveDataset}
+        >
           <TextField
             id="userSetName"
             label="데이터셋 이름"
             placeholder="데이터셋의 이름을 입력해 주세요"
+            value={datasetInfo?.title}
+            onChange={onChangeTitle}
             autoFocus
+            required
             // helperText="데이터셋의 이름을 입력해 주세요"
           />
           <AceEditor
@@ -148,7 +201,7 @@ const DataSet = props => {
             showPrintMargin={true}
             showGutter={true}
             highlightActiveLine={true}
-            value={editorValue}
+            value={datasetInfo.query}
             setOptions={{
               enableBasicAutocompletion: true,
               enableLiveAutocompletion: true,
@@ -157,7 +210,7 @@ const DataSet = props => {
               tabSize: 2,
             }}
           />
-          <SubmitButton label="Run" type="button" onClick={getData} />
+          <SubmitButton label="Run" type="button" onClick={excuteQuery} />
           <DataGrid
             minBodyHeight={300}
             bodyHeight={500}

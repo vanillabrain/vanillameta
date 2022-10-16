@@ -11,13 +11,13 @@ const DataLayout = () => {
   const [tableList, setTableList] = useState([]);
 
   // 선택한 데이터베이스를 CardList 에서 가져와서 저장하는 state
-  const [selectedData, setSelectedData] = useState({
+  const [selectedDatabase, setSelectedDatabase] = useState({
     databaseId: null,
   });
 
   const handleSelectDatabase = enteredData => {
     console.log('handleUpdate', enteredData);
-    return setSelectedData(prevState => ({ ...prevState, ...enteredData }));
+    return setSelectedDatabase(prevState => ({ ...prevState, ...enteredData }));
   };
 
   useEffect(() => {
@@ -25,8 +25,8 @@ const DataLayout = () => {
   }, []);
 
   useEffect(() => {
-    if (selectedData.databaseId) getDatabaseInfo();
-  }, [selectedData.databaseId]);
+    if (selectedDatabase.databaseId) getDatabaseInfo();
+  }, [selectedDatabase.databaseId]);
 
   /**
    * 데이터베이스 목록조회
@@ -35,11 +35,14 @@ const DataLayout = () => {
     DatabaseService.selectDatabaseList().then(response => {
       console.log('selectDatabaseList', response.data.data);
       setDatabaseList(response.data.data);
+      if (response.data.data.length > 0) {
+        setSelectedDatabase({ databaseId: response.data.data[0].id });
+      }
     });
   };
 
   const getDatabaseInfo = () => {
-    DatabaseService.selectDatabase(selectedData.databaseId).then(response => {
+    DatabaseService.selectDatabase(selectedDatabase.databaseId).then(response => {
       console.log('getDatabaseInfo', response.data.data);
       setDatasetList(response.data.data.datasets);
       setTableList(response.data.data.tables);
@@ -53,7 +56,7 @@ const DataLayout = () => {
           <TitleBox title="데이터 소스" button={<AddIconButton link="source/create" />}>
             <DataSourceCard
               data={databaseList}
-              selectedData={selectedData}
+              selectedData={selectedDatabase}
               onUpdate={handleSelectDatabase}
               minWidth="100%"
             />
@@ -62,7 +65,7 @@ const DataLayout = () => {
         <Grid item xs={12} md>
           <Grid container spacing={5}>
             <Grid item xs={12}>
-              <TitleBox title="데이터 셋" button={<AddIconButton link="set/create" />}>
+              <TitleBox title="데이터 셋" button={<AddIconButton link={`set/create/${selectedDatabase.databaseId}`} />}>
                 <DataSetCard data={datasetList} />
               </TitleBox>
             </Grid>
