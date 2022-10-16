@@ -72,7 +72,6 @@ function DashboardModify() {
           if (item.i !== undefined) {
             item.i = item.i.toString();
           }
-          item.static = true;
         });
         setLayout(response.data.data.layout);
       } else {
