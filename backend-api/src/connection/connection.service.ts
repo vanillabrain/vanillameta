@@ -59,29 +59,35 @@ export class ConnectionService {
    * 데이터베이스 연결 테스트
    * @param createDatabaseDto
    */
-  async testConnection(createDatabaseDto: CreateDatabaseDto): Promise<string> {
+  async testConnection(createDatabaseDto: CreateDatabaseDto) {
+    const connectionConfig = {
+      client: createDatabaseDto.engine,
+      connection: createDatabaseDto.connectionConfig,
+      useNullAsDefault: true,
+    };
+    createDatabaseDto.connectionConfig = JSON.stringify(connectionConfig);
+
     let _knex: Knex;
-    let returnMsg: string;
+    let returnObj = {};
     try {
-      _knex = knex(createDatabaseDto.connectionConfig as Knex.Config);
+      _knex = knex(connectionConfig as Knex.Config);
     } catch (e) {
       console.log('knex not connected');
       console.error(e);
-      return 'fail';
+      return { status: ResponseStatus.ERROR, message: 'knex not connected' };
     }
 
     try {
-      _knex = knex(createDatabaseDto.connectionConfig as Knex.Config);
       await _knex.raw('SELECT 1');
-      returnMsg = 'success';
+      returnObj = { status: ResponseStatus.SUCCESS, data: { message: 'success' } };
     } catch (e) {
       console.log(e);
-      returnMsg = 'fail';
+      returnObj = { status: ResponseStatus.ERROR, message: e.sqlMessage };
     } finally {
       await _knex.destroy();
     }
 
-    return returnMsg;
+    return returnObj;
   }
 
   /**
