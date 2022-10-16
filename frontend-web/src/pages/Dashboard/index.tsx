@@ -8,7 +8,6 @@ import { Box } from '@mui/material';
 import DashboardService from '@/api/dashboardService';
 import { STATUS } from '@/constant';
 import { useAlert } from 'react-alert';
-import AlertDialog from '@/components/alert';
 
 const title = '대시보드';
 
@@ -71,10 +70,12 @@ function Dashboard() {
 
   const handleMenuSelect = item => {
     console.log(item);
-    if (item.id == 'dashboard') {
-      navigate('/dashboard/create?createType=dashboard');
-    } else {
-      navigate('/dashboard/create?createType=recommend');
+    if (item.id !== undefined) {
+      if (item.id == 'dashboard') {
+        navigate('/dashboard/create?createType=dashboard');
+      } else {
+        navigate('/dashboard/create?createType=recommend');
+      }
     }
   };
 

@@ -4,15 +4,11 @@ import { Box, Link } from '@mui/material';
 const logo = '../../assets/images/logo/vanilla-meta-logo.png';
 
 function Logo(props) {
+  const { sx = { width: 105, height: 20 } } = props;
   return (
-    <Box component="h1" sx={{ width: 'auto', height: 50, display: { xs: 'none', sm: 'block' } }}>
+    <Box sx={sx}>
       <Link href="/">
-        <Box
-          component="img"
-          src={logo}
-          sx={{ width: '100%', height: '100%', objectFit: 'scale-down' }}
-          alt="Vanilla Meta 로고"
-        />
+        <Box component="img" src={logo} sx={{ width: '100%', height: '100%' }} alt="Vanilla Meta 로고" />
       </Link>
     </Box>
   );
