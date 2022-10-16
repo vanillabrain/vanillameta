@@ -70,3 +70,7 @@ export const LEGEND_LIST = [
   { label: '오른쪽', value: 'right' },
   { label: '아래쪽', value: 'bottom' },
 ];
+
+export const STATUS = {
+  SUCCESS: 'SUCCESS',
+};

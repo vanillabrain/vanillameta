@@ -18,6 +18,7 @@ import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
 import { get } from '@/helpers/apiHelper';
 import WidgetService from '@/api/widgetService';
+import { STATUS } from '@/constant';
 
 const iconType = item => {
   switch (item.toUpperCase()) {
@@ -37,15 +38,16 @@ function AddWidgetPopup({ label, useWidgetIds = [], widgetOpen = false, widgetSe
   const [selectedIds, setSelectedIds] = useState([]);
   const [loadedWidgetData, setLoadedWidgetData] = useState([]);
   const getItems = () => {
-    WidgetService.selectWidgetList()
-      .then(response => response.data)
-      .then(data => {
-        const widgetList = data.filter(item => {
+    WidgetService.selectWidgetList().then(response => {
+      if (response.data.status == STATUS.SUCCESS) {
+        const widgetList = response.data.data.filter(item => {
           return !useWidgetIds.find(useItem => useItem == item.id);
         });
-
         setLoadedWidgetData(widgetList);
-      });
+      } else {
+        console.log('조회실패!!!');
+      }
+    });
   };
 
   const descriptionElementRef = useRef<HTMLElement>(null);

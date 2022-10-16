@@ -16,6 +16,8 @@ import WidgetWrapper from '@/widget/wrapper/WidgetWrapper';
 import AddIcon from '@mui/icons-material/Add';
 import RecommendDashboardPopup from '@/pages/Dashboard/Components/RecommendDashboardPopup';
 import DashboardService from '@/api/dashboardService';
+import { STATUS } from '@/constant';
+import TemplateService from '@/api/templateService';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -62,9 +64,20 @@ function DashboardModify() {
   const getDashboardInfo = id => {
     // todo 서비스 완료시 연결
     DashboardService.selectDashboard(id).then(response => {
-      setDashboardTitle(response.data.title);
-      setWidgets(response.data.widgets);
-      setLayout(response.data.layout);
+      if (response.data.status == STATUS.SUCCESS) {
+        setDashboardTitle(response.data.data.title);
+        setWidgets(response.data.data.widgets);
+
+        response.data.data.layout.map((item, index) => {
+          if (item.i !== undefined) {
+            item.i = item.i.toString();
+          }
+          item.static = true;
+        });
+        setLayout(response.data.data.layout);
+      } else {
+        alert.error('조회를 실패하였습니다.');
+      }
     });
   };
 
@@ -86,7 +99,7 @@ function DashboardModify() {
   // 레이아웃 변경 이벤트
   const onLayoutChange = changeLayout => {
     console.log('레이아웃이 바꼇어요');
-    // setLayout(changeLayout);
+    setLayout(changeLayout);
   };
 
   // widget 생성
@@ -155,7 +168,7 @@ function DashboardModify() {
         });
       } else if (layout.length == 0 || widgets.length == 0) {
         // 배치된 widget 이 없을경우
-        // alert('배치된 위젯이 없습니다');
+        alert.info('배치된 위젯이 없습니다.');
       } else {
         // 저장 로직
         dashboardInfo.dashboardId = dashboardId;
@@ -163,8 +176,23 @@ function DashboardModify() {
         dashboardInfo.layout = layout;
         dashboardInfo.widgets = widgets;
 
-        console.log('대시보드 저장');
-        console.log(dashboardInfo);
+        if (dashboardId != null) {
+          DashboardService.updateDashboard(dashboardId, dashboardInfo).then(response => {
+            alert.success('저장하였습니다.', {
+              onClose: () => {
+                navigate('/dashboard');
+              },
+            });
+          });
+        } else {
+          DashboardService.createDashboard(dashboardInfo).then(response => {
+            alert.success('저장하였습니다.', {
+              onClose: () => {
+                navigate('/dashboard');
+              },
+            });
+          });
+        }
       }
     }
     console.log('저장한다 안한다', detail);
@@ -185,6 +213,12 @@ function DashboardModify() {
   const handleCompleteRecommend = dashboardInfo => {
     console.log(dashboardInfo);
     setWidgets(dashboardInfo.widgets);
+
+    dashboardInfo.layout.map((item, index) => {
+      if (item.i !== undefined) {
+        item.i = item.i.toString();
+      }
+    });
     setLayout(dashboardInfo.layout);
     setRecommendOpen(false);
   };

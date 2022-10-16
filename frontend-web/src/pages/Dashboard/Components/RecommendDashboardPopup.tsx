@@ -19,6 +19,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import { get } from '@/helpers/apiHelper';
 import TemplateService from '@/api/templateService';
 import WidgetService from '@/api/widgetService';
+import { STATUS } from '@/constant';
 
 const iconType = item => {
   switch (item.toUpperCase()) {
@@ -62,26 +63,30 @@ export const WidgetList = ({ handleWidgetConfirm = null, handleWidgetCancel = nu
   }, [selectedWidgetIds]);
 
   const getItems = () => {
-    WidgetService.selectWidgetList()
-      .then(response => response.data)
-      .then(data => setLoadedWidgetData(data));
+    WidgetService.selectWidgetList().then(response => {
+      if (response.data.status == STATUS.SUCCESS) {
+        setLoadedWidgetData(response.data.data);
+      } else {
+        console.log('조회 실패!!!!');
+      }
+    });
   };
 
   const handleClick = item => {
     const isSelect = isItemSelection(item);
     const newIds = [...selectedIds];
     if (isSelect) {
-      const index = newIds.indexOf(item.widgetId);
+      const index = newIds.indexOf(item.id);
       newIds.splice(index, 1);
       setSelectedIds(newIds);
     } else {
-      newIds.push(item.widgetId);
+      newIds.push(item.id);
       setSelectedIds(newIds);
     }
   };
 
   const isItemSelection = item => {
-    return !!selectedIds.find(widgetId => widgetId === item.widgetId);
+    return !!selectedIds.find(id => id === item.id);
   };
 
   // 취소 버튼 클릭
@@ -95,7 +100,7 @@ export const WidgetList = ({ handleWidgetConfirm = null, handleWidgetCancel = nu
   const handleConfirmClick = () => {
     const widgets = [];
     for (let i = 0; i < loadedWidgetData.length; i++) {
-      if (selectedIds.indexOf(loadedWidgetData[i].widgetId) > -1) {
+      if (selectedIds.indexOf(loadedWidgetData[i].id) > -1) {
         widgets.push(loadedWidgetData[i]);
       }
     }
@@ -146,9 +151,13 @@ export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = 
 
   const getItems = () => {
     console.log('selectedWidgetIds : ', selectedWidgetIds);
-    TemplateService.selectRecommendTemplateList({ widgets: selectedWidgetIds })
-      .then(response => response.data)
-      .then(data => setLoadedTemplateDataList(data));
+    TemplateService.selectRecommendTemplateList({ widgets: selectedWidgetIds }).then(response => {
+      if (response.data.status == STATUS.SUCCESS) {
+        setLoadedTemplateDataList(response.data.data);
+      } else {
+        console.log('조회 실패!!');
+      }
+    });
   };
 
   useEffect(() => {
@@ -194,7 +203,7 @@ export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = 
         >
           {loadedTemplateDataList.map((item, index) => (
             <ListItemButton key={index} selected={index == selectedIndex} onClick={() => handleClick(item, index)}>
-              <ListItemIcon>{templateIconType(item.componentType)}</ListItemIcon>
+              {/*<ListItemIcon>{templateIconType(item.componentType)}</ListItemIcon>*/}
               <ListItemText primary={item.title} />
               <ListItemText primary={item.description} />
             </ListItemButton>
@@ -267,16 +276,24 @@ function RecommendDashboardPopup({ recommendOpen = false, handleComplete = null 
       // 템플릿 선택화면에서 완료 클릭
       // todo 대시보드에 layout, widgets 정보 전달
       if (handleComplete) {
-        getTemplateResult(items);
+        const item = {
+          templateId: items.id,
+          widgets: selectedWidgetIds,
+        };
+        getTemplateResult(item);
       }
     }
   };
 
   const getTemplateResult = item => {
     console.log('aaa');
-    get('/data/dummyDashboardInfo.json')
-      .then(response => response.data)
-      .then(data => handleComplete(data));
+    TemplateService.selectRecommendTemplateListDashboard(item).then(response => {
+      if (response.data.status == STATUS.SUCCESS) {
+        handleComplete(response.data.data);
+      } else {
+        console.log('조회 실패!!');
+      }
+    });
   };
 
   return (
