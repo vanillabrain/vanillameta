@@ -26,8 +26,17 @@ export class DatabaseService {
    */
   async create(createDatabaseDto: CreateDatabaseDto) {
     const databaseDto = Database.toDto(createDatabaseDto);
-    databaseDto.connectionConfig = JSON.stringify(databaseDto.connectionConfig);
+
+    const connectionConfig = {
+      client: databaseDto.engine,
+      connection: databaseDto.connectionConfig,
+      useNullAsDefault: true,
+    };
+    databaseDto.connectionConfig = JSON.stringify(connectionConfig);
+    databaseDto.timezone = 'Asia/Seoul';
+
     const saveResult = await this.databaseRepository.save(databaseDto);
+    saveResult.connectionConfig = JSON.parse(saveResult.connectionConfig);
     return { status: ResponseStatus.SUCCESS, data: saveResult };
   }
 
