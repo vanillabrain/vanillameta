@@ -1,23 +1,26 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Card, IconButton, Stack } from '@mui/material';
 import { Delete } from '@mui/icons-material';
-import { Link as RouterLink, useParams } from 'react-router-dom';
+import { Link as RouterLink, useParams, useNavigate } from 'react-router-dom';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
 import EditIcon from '@mui/icons-material/Edit';
 import PageTitleBox from '@/components/PageTitleBox';
 import TitleBox from '@/components/TitleBox';
 import { DialogAlertIconButton } from '@/components/button/DialogAlertButton';
 import WidgetWrapper from '@/widget/wrapper/WidgetWrapper';
-import { get } from '@/helpers/apiHelper';
+import { useAlert } from 'react-alert';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import '/node_modules/react-grid-layout/css/styles.css';
 import '/node_modules/react-resizable/css/styles.css';
 import DashboardService from '@/api/dashboardService';
+import { STATUS } from '@/constant';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const DashboardView = () => {
   const { dashboardId } = useParams();
+  const navigate = useNavigate();
+  const alert = useAlert();
 
   const [loading, setLoading] = useState(false);
 
@@ -33,6 +36,9 @@ const DashboardView = () => {
   // dashboardInfo useEffect
   useEffect(() => {
     dashboardInfo.layout.map((item, index) => {
+      if (item.i !== undefined) {
+        item.i = item.i.toString();
+      }
       item.static = true;
     });
 
@@ -42,13 +48,17 @@ const DashboardView = () => {
   // dashboard info 조회
   const getDashboardInfo = id => {
     DashboardService.selectDashboard(id).then(response => {
-      setDashboardInfo(response.data);
+      if (response.data.status == STATUS.SUCCESS) {
+        setDashboardInfo(response.data.data);
+      } else {
+        alert.error('조회 실패하였습니다.');
+      }
     });
   };
 
   // refrech 버튼 클릭
   const handleRefreshClick = () => {
-    getDashboardInfo(dashboardId);
+    navigate(0);
   };
 
   // widget 생성
@@ -68,7 +78,17 @@ const DashboardView = () => {
 
   const handleDialogSelect = detail => {
     if (detail == 1) {
-      console.log('대시보드 조회화면에서 삭제 버튼을 눌렀다');
+      DashboardService.deleteDashboard(dashboardId).then(response => {
+        if (response.data.status == STATUS.SUCCESS) {
+          alert.info('삭제되었습니다.', {
+            onClose: () => {
+              navigate('/dashboard');
+            },
+          });
+        } else {
+          alert.info('삭제 실패하였습니다.');
+        }
+      });
     }
   };
 
