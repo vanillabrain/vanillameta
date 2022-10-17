@@ -1,17 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import PageContainer from '@/components/PageContainer';
 import PageTitleBox from '@/components/PageTitleBox';
 import BoardList from '@/components/BoardList';
-import { Outlet, useParams, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate, useParams } from 'react-router-dom';
 import { AddMenuIconButton } from '@/components/button/AddIconButton';
 import { Box } from '@mui/material';
 import DashboardService from '@/api/dashboardService';
-import { get } from '@/helpers/apiHelper';
+import { STATUS } from '@/constant';
+import { useAlert } from 'react-alert';
 
 const title = '대시보드';
 
 function Dashboard() {
   const { dashboardId } = useParams();
+  const alert = useAlert();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [loadedWidgetData, setLoadedWidgetData] = useState([]);
@@ -24,27 +26,56 @@ function Dashboard() {
   ];
 
   useEffect(() => {
-    // todo 서비스 완료시 연결
-    DashboardService.selectDashboardList().then(response => {
-      setLoadedWidgetData(response.data.filter((list, idx) => idx <= 10 * loadedCount));
-      setDashboardNoData(response.data.length == 0);
-    });
+    getDashboardList();
     setIsLoading(true);
   }, []);
 
+  // dashboard info 조회
+  const getDashboardList = () => {
+    DashboardService.selectDashboardList().then(response => {
+      if (response.data.status == STATUS.SUCCESS) {
+        setLoadedWidgetData(response.data.data.filter((list, idx) => idx <= 10 * loadedCount));
+        setDashboardNoData(response.data.data.length == 0);
+      } else {
+        alert.error('서비스 실패!');
+      }
+    });
+    setIsLoading(true);
+  };
+
   const handleDeleteSelect = item => {
-    // todo 삭제 로직 넣기
-    console.log('삭제버튼 눌렀다');
     console.log(item);
+    alert.success('삭제하겠습니까?', {
+      closeCopy: '취소',
+      actions: [
+        {
+          copy: '확인',
+          onClick: () => {
+            DashboardService.deleteDashboard(item.id).then(response => {
+              if (response.data.status == STATUS.SUCCESS) {
+                alert.info('삭제되었습니다.', {
+                  onClose: () => {
+                    getDashboardList();
+                  },
+                });
+              } else {
+                alert.error('삭제 실패하였습니다.');
+              }
+            });
+          },
+        },
+      ],
+    });
   };
 
   const handleMenuSelect = item => {
-    console.log('왜 안타');
     console.log(item);
-    if (item.id == 'dashboard') {
-      navigate('/dashboard/create?createType=dashboard');
-    } else {
-      navigate('/dashboard/create?createType=recommend');
+    if (item.id !== undefined) {
+      if (item.id == 'dashboard') {
+        navigate('/dashboard/create?createType=dashboard');
+      } else {
+        navigate('/dashboard/create?createType=recommend');
+      }
     }
   };
 

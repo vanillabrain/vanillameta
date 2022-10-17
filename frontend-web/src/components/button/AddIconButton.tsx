@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Button, IconButton, Menu, MenuItem, SvgIcon, useMediaQuery, useTheme } from '@mui/material';
+import { Box, Button, IconButton, Menu, MenuItem, SvgIcon, useMediaQuery, useTheme } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { Link as RouterLink } from 'react-router-dom';
 
@@ -67,7 +67,12 @@ AddMenuButton.defaultProps = {
   },
 };
 
-export const AddMenuIconButton = ({ menuList, ...props }) => {
+export const AddMenuIconButton = ({
+  menuList,
+  handleSelect = null,
+  iconUrl = '../../assets/images/icon/btn-plus.png',
+  sizeOption = { width: 22, height: 22 },
+}) => {
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
 
@@ -75,8 +80,8 @@ export const AddMenuIconButton = ({ menuList, ...props }) => {
     setAnchorEl(event.currentTarget);
   };
   const handleClose = item => {
-    if (props.handleSelect) {
-      props.handleSelect(item);
+    if (handleSelect) {
+      handleSelect(item);
     }
 
     setAnchorEl(null);
@@ -93,7 +98,7 @@ export const AddMenuIconButton = ({ menuList, ...props }) => {
         color="primary"
         sx={{ minWidth: { xs: 0 } }}
       >
-        {<AddIcon />}
+        <Box component="img" src={iconUrl} sx={sizeOption} alt="추가메뉴 활성화" />
       </Button>
       <Menu id="styled-menu" anchorEl={anchorEl} open={open} onClose={handleClose} sx={{ width: menuWidth }}>
         {menuList.map(item => (

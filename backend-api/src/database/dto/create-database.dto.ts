@@ -11,7 +11,7 @@ export class CreateDatabaseDto {
   name: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @ApiProperty({
     example: '상세 내용',
     description: '데이터베이스 상세 내용',
@@ -27,7 +27,7 @@ export class CreateDatabaseDto {
   connectionConfig: string;
 
   @IsString()
-  @IsOptional()
+  @IsNotEmpty()
   @ApiProperty({
     example: 'mysql',
     description: '데이터베이스 엔진',

@@ -26,8 +26,17 @@ export class DatabaseService {
    */
   async create(createDatabaseDto: CreateDatabaseDto) {
     const databaseDto = Database.toDto(createDatabaseDto);
-    databaseDto.connectionConfig = JSON.stringify(databaseDto.connectionConfig);
+
+    const connectionConfig = {
+      client: databaseDto.engine,
+      connection: databaseDto.connectionConfig,
+      useNullAsDefault: true,
+    };
+    databaseDto.connectionConfig = JSON.stringify(connectionConfig);
+    databaseDto.timezone = 'Asia/Seoul';
+
     const saveResult = await this.databaseRepository.save(databaseDto);
+    saveResult.connectionConfig = JSON.parse(saveResult.connectionConfig);
     return { status: ResponseStatus.SUCCESS, data: saveResult };
   }
 
@@ -49,7 +58,7 @@ export class DatabaseService {
   async findOne(id: number): Promise<any> {
     // 연동 db 정보
     const databaseInfo = await this.databaseRepository.findOne({ where: { id } });
-    databaseInfo.connectionConfig = JSON.parse(databaseInfo.connectionConfig);
+    databaseInfo.connectionConfig = JSON.parse(databaseInfo.connectionConfig).connection;
 
     // table 정보 조회
     const tablesInfo = await this.connectionService.executeQuery({ id: +id, query: 'show tables' });
@@ -70,34 +79,49 @@ export class DatabaseService {
    * db config 정보 단순 조회
    * @param id
    */
-  async findDB(id: number) {
+  private async findDB(id: number) {
     // 연동 db 정보
     const databaseInfo = await this.databaseRepository.findOne({ where: { id } });
     databaseInfo.connectionConfig = JSON.parse(databaseInfo.connectionConfig);
-    return { status: ResponseStatus.SUCCESS, data: databaseInfo };
+    return databaseInfo;
   }
 
   async update(id: number, updateDatabaseDto: UpdateDatabaseDto) {
-    const one = await this.findOne(id);
+    const one = await this.findDB(id);
     if (!one)
       return {
         status: ResponseStatus.ERROR,
         message: `조건에 맞는 데이터베이스를 찾지 못했습니다. id:${id}`,
       };
-    one.name = updateDatabaseDto.name;
-    const saveResult = await this.databaseRepository.save(one);
-    return { status: ResponseStatus.SUCCESS, data: saveResult };
+
+    const connectionConfig = {
+      client: one.engine,
+      connection: one.connectionConfig,
+      useNullAsDefault: true,
+    };
+    updateDatabaseDto.connectionConfig = JSON.stringify(connectionConfig);
+
+    const saveResult = await this.databaseRepository.update(
+      { id },
+      { name: updateDatabaseDto.name, connectionConfig: updateDatabaseDto.connectionConfig },
+    );
+
+    if (saveResult.affected === 1) {
+      return { status: ResponseStatus.SUCCESS, data: { message: `${id} 수정 완료` } };
+    } else {
+      return { status: ResponseStatus.ERROR, message: '수정 실패' };
+    }
   }
 
   async remove(id: number) {
-    const one = await this.findOne(id);
+    const one = await this.findDB(id);
     if (!one)
       return {
         status: ResponseStatus.ERROR,
         message: `조건에 맞는 데이터베이스를 찾지 못했습니다. id:${id}`,
       };
     await this.databaseRepository.remove(one);
-    return { status: ResponseStatus.SUCCESS };
+    return { status: ResponseStatus.SUCCESS, data: { message: `${id} 삭제 완료` } };
   }
 
   /**
