@@ -19,7 +19,7 @@ import Scatter3DChart from '@/widget/modules/3dchart/Scatter3dChart';
 import Bubble3dChart from '@/widget/modules/3dchart/Bubble3dChart';
 import WaterfallBarChart from '@/widget/modules/barchart/WaterfallBarChart';
 import PolarBarChart from '@/widget/modules/barchart/PolarBarChart';
-import MixedLinePieChart from '@/widget/modules/mixedchart/mixedLinePieChart';
+import MixedLinePieChart from '@/widget/modules/mixedchart/MixedLinePieChart';
 
 const WidgetViewer = props => {
   const { title, widgetType, widgetOption, dataSet } = props;
@@ -203,6 +203,68 @@ const WidgetViewer = props => {
       case WIDGET_TYPE.CHART_MIXED_LINE_PIE:
         module = <MixedLinePieChart {...chartProps} />;
         break;
+      case WIDGET_TYPE.CHART_MIXED_AREA_PIE:
+        module = <MixedLinePieChart {...chartProps} seriesOp={{ areaStyle: {} }} />;
+        break;
+      case WIDGET_TYPE.CHART_MIXED_BAR_PIE:
+        module = (
+          <MixedLinePieChart
+            {...chartProps}
+            seriesOp={{ type: 'bar' }}
+            defaultOp={{
+              tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+              yAxis: { boundaryGap: [0, 0.01] },
+              emphasis: { focus: 'none' },
+            }}
+          />
+        );
+        break;
+      case WIDGET_TYPE.CHART_MIXED_COLUMN_PIE:
+        module = (
+          <MixedLinePieChart
+            {...chartProps}
+            axis="y"
+            seriesOp={{ type: 'bar' }}
+            defaultOp={{
+              grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+              tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+              xAxis: { boundaryGap: [0, 0.01] },
+              emphasis: { focus: 'none' },
+            }}
+          />
+        );
+        break;
+      case WIDGET_TYPE.CHART_MIXED_STACKED_BAR_PIE:
+        module = <MixedLinePieChart {...chartProps} seriesOp={{ type: 'bar', stack: 'total', label: { show: true } }} />;
+        break;
+      case WIDGET_TYPE.CHART_MIXED_STACKED_COLUMN_PIE:
+        module = (
+          <MixedLinePieChart
+            {...chartProps}
+            axis="y"
+            seriesOp={{ type: 'bar', stack: 'total', label: { show: true } }}
+            defaultOp={{
+              grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+            }}
+          />
+        );
+        break;
+      case WIDGET_TYPE.CHART_MIXED_STACKED_LINE_PIE:
+        module = <MixedLinePieChart {...chartProps} seriesOp={{ stack: 'total', label: { show: true, position: 'top' } }} />;
+        break;
+      case WIDGET_TYPE.CHART_MIXED_STACKED_AREA_PIE:
+        module = (
+          <MixedLinePieChart
+            {...chartProps}
+            seriesOp={{
+              areaStyle: {},
+              stack: 'total',
+              label: { show: true, position: 'top' },
+            }}
+          />
+        );
+        break;
+
       default:
         module = '컴포넌트가 선택되지 않았다!';
         break;

@@ -21,7 +21,7 @@ import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
 import Bubble3DChartSetting from '@/widget/settings/Bubble3DChartSetting';
 import WaterfallChartSetting from '@/widget/settings/WaterfallChartSetting';
 import PolarBarChartSetting from '@/widget/settings/PolarBarChartSetting';
-import MixedLinePieChartSetting from '@/widget/settings/mixedLinePieChartSetting';
+import MixedLinePieChartSetting from '@/widget/settings/MixedLinePieChartSetting';
 
 const WidgetSetting = props => {
   const { title, setTitle, widgetOption, setWidgetOption, widgetType, dataSet, spec } = props;
@@ -136,6 +136,27 @@ const WidgetSetting = props => {
         module = <PolarBarChartSetting {...chartSettingProps} />;
         break;
       case WIDGET_TYPE.CHART_MIXED_LINE_PIE:
+        module = <MixedLinePieChartSetting {...chartSettingProps} />;
+        break;
+      case WIDGET_TYPE.CHART_MIXED_AREA_PIE:
+        module = <MixedLinePieChartSetting {...chartSettingProps} />;
+        break;
+      case WIDGET_TYPE.CHART_MIXED_BAR_PIE:
+        module = <MixedLinePieChartSetting {...chartSettingProps} />;
+        break;
+      case WIDGET_TYPE.CHART_MIXED_COLUMN_PIE:
+        module = <MixedLinePieChartSetting {...chartSettingProps} axis="y" />;
+        break;
+      case WIDGET_TYPE.CHART_MIXED_STACKED_BAR_PIE:
+        module = <MixedLinePieChartSetting {...chartSettingProps} />;
+        break;
+      case WIDGET_TYPE.CHART_MIXED_STACKED_COLUMN_PIE:
+        module = <MixedLinePieChartSetting {...chartSettingProps} axis="y" />;
+        break;
+      case WIDGET_TYPE.CHART_MIXED_STACKED_LINE_PIE:
+        module = <MixedLinePieChartSetting {...chartSettingProps} />;
+        break;
+      case WIDGET_TYPE.CHART_MIXED_STACKED_AREA_PIE:
         module = <MixedLinePieChartSetting {...chartSettingProps} />;
         break;
 
