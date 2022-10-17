@@ -4,7 +4,7 @@ import SelectForm from '@/components/form/SelectForm';
 import ColorFieldForm from '@/components/form/ColorFieldForm';
 import { handleChange } from '@/widget/utils/handler';
 import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST } from '@/constant';
-import { getColorArr } from '@/widget/modules/utils/chartUtil';
+import { getAggregationDataForChart, getColorArr } from '@/widget/modules/utils/chartUtil';
 
 const StyledList = styled(List)({
   position: 'relative',
@@ -34,12 +34,22 @@ const PieChartSetting = props => {
   console.log(props, 'props');
 
   useEffect(() => {
-    const colorArr = getColorArr(option.series.field, dataSet.length);
-    setOption(prevState => ({
-      ...prevState,
-      series: { ...prevState.series, color: colorArr },
-    }));
-  }, [option.series.field, option.series.name, dataSet.length]);
+    let pieAggrData = [];
+    if (option['series'].field) {
+      pieAggrData = getAggregationDataForChart(
+        dataSet,
+        option['series'].name,
+        option['series'].field,
+        option['series'].aggregation,
+      );
+    }
+    const colorArr = getColorArr(option['series'].field, pieAggrData.length);
+    console.log(colorArr);
+    setOption(prevState => {
+      prevState['series'].color = colorArr;
+      return { ...prevState };
+    });
+  }, [option['series'].field, option['series'].name]);
 
   const handleSeriesChange = event => {
     setOption(prevState => ({
