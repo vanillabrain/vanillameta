@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FormControl, FormLabel, IconButton, OutlinedInput, Popover, Select, Stack, Typography } from '@mui/material';
+import { FormControl, FormLabel, IconButton, OutlinedInput, Popover, Stack } from '@mui/material';
 import CircleIcon from '@mui/icons-material/Circle';
 import { SketchPicker } from 'react-color';
 

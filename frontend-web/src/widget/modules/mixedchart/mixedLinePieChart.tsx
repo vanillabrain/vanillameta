@@ -3,20 +3,27 @@ import ReactECharts from 'echarts-for-react';
 import { Stack } from '@mui/material';
 import { getAggregationDataForChart, getGridSize, getLegendOption } from '@/widget/modules/utils/chartUtil';
 
-const PolarBarChart = props => {
-  const { option, dataSet, seriesOp, defaultOp, createOp } = props;
+const MixedLinePieChart = props => {
+  const { option, dataSet, axis = 'x', seriesOp, defaultOp, createOp } = props;
+  const reverseAxis = axis === 'x' ? 'y' : 'x';
 
   const [componentOption, setComponentOption] = useState({});
 
   const defaultComponentOption = {
     grid: { top: 50, right: 50, bottom: 50, left: 50 },
     tooltip: { trigger: 'axis' },
+    [axis + 'Axis']: {
+      type: 'category',
+    },
+    [reverseAxis + 'Axis']: {
+      type: 'value',
+    },
     series: [],
-    angleAxis: {},
     emphasis: {
       focus: 'series',
       blurScope: 'coordinateSystem',
     },
+    ...defaultOp,
   };
 
   useEffect(() => {
@@ -38,42 +45,60 @@ const PolarBarChart = props => {
     const newSeries = [];
     let aggrData = [];
     option.series.forEach(item => {
-      aggrData = getAggregationDataForChart(dataSet, option.axisField, item.field, item.aggregation);
+      aggrData = getAggregationDataForChart(dataSet, option[axis + 'Field'], item.field, item.aggregation);
       console.log('aggrData : ', aggrData);
       if (item.field) {
         const series = {
           name: item.field,
           data: aggrData.map(dataItem => dataItem[item.field]),
-          type: 'bar',
+          type: item.type ? item.type : 'line',
           color: item.color,
-          coordinateSystem: 'polar',
-          label: {
-            show: true,
-            position: 'middle',
-          },
+          smooth: true,
           ...seriesOp,
         };
         newSeries.push(series);
       }
     });
+    if (option.pie.field) {
+      const pieAggrData = getAggregationDataForChart(dataSet, option.pie.name, option.pie.field, option.pie.aggregation);
 
-    if (aggrData && option.axisField) {
-      const op = {
-        radiusAxis: {
-          type: 'category',
-          data: option.andleField ? aggrData.map(item => item[option.andleField]) : '',
+      const series = {
+        name: option.pie.name,
+        data: pieAggrData.map(item => ({
+          value: item[option.pie.field],
+          name: item[option.pie.name],
+        })),
+        type: 'pie',
+        color: [...option.pie.color],
+        center: option.pie.center,
+        radius: option.pie.radius,
+        label: {
+          show: !!option.pie.name && true,
+          // position: 'center',
+          formatter: '{b}: {d}%',
         },
-        series: newSeries,
-        polar: {
-          radius: option.radius,
+        tooltip: {
+          trigger: 'item',
         },
-        grid: getGridSize(option.legendPosition),
-        legend: getLegendOption(option.legendPosition),
-        ...createOp,
+        z: 100,
       };
-
-      newOption = { ...defaultComponentOption, ...op };
+      newSeries.unshift(series);
     }
+
+    // if (aggrData && option[axis + 'Field']) {
+    const op = {
+      [axis + 'Axis']: {
+        type: 'category',
+        data: option[axis + 'Field'] ? aggrData.map(item => item[option[axis + 'Field']]) : '',
+      },
+      series: newSeries,
+      grid: getGridSize(option.legendPosition),
+      legend: getLegendOption(option.legendPosition),
+      ...createOp,
+    };
+
+    newOption = { ...defaultComponentOption, ...op };
+    // }
 
     // console.log(newOption);
     return newOption;
@@ -91,4 +116,4 @@ const PolarBarChart = props => {
   );
 };
 
-export default PolarBarChart;
+export default MixedLinePieChart;

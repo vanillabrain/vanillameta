@@ -19,6 +19,7 @@ import Scatter3DChart from '@/widget/modules/3dchart/Scatter3dChart';
 import Bubble3dChart from '@/widget/modules/3dchart/Bubble3dChart';
 import WaterfallBarChart from '@/widget/modules/barchart/WaterfallBarChart';
 import PolarBarChart from '@/widget/modules/barchart/PolarBarChart';
+import MixedLinePieChart from '@/widget/modules/mixedchart/mixedLinePieChart';
 
 const WidgetViewer = props => {
   const { title, widgetType, widgetOption, dataSet } = props;
@@ -196,7 +197,15 @@ const WidgetViewer = props => {
       case WIDGET_TYPE.CHART_POLAR_BAR:
         module = <PolarBarChart {...chartProps} />;
         break;
+      case WIDGET_TYPE.CHART_POLAR_STACKED_BAR:
+        module = <PolarBarChart {...chartProps} seriesOp={{ stack: 'stack' }} />;
+        break;
+      case WIDGET_TYPE.CHART_MIXED_LINE_PIE:
+        module = <MixedLinePieChart {...chartProps} />;
+        break;
       default:
+        module = '컴포넌트가 선택되지 않았다!';
+        break;
     }
 
     console.log('module', module);
