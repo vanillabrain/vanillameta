@@ -204,6 +204,8 @@ const WidgetViewer = props => {
         module = <MixedLinePieChart {...chartProps} />;
         break;
       default:
+        module = '컴포넌트가 선택되지 않았다!';
+        break;
     }
 
     console.log('module', module);

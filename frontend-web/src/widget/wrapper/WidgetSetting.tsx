@@ -140,6 +140,7 @@ const WidgetSetting = props => {
         break;
 
       default:
+        module = '컴포넌트가 선택되지 않았다!';
         break;
     }
 

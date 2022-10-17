@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { Stack } from '@mui/material';
-import { getAggregationDataForChart, getCenter, getGridSize, getLegendOption } from '@/widget/modules/utils/chartUtil';
+import { getAggregationDataForChart, getGridSize, getLegendOption } from '@/widget/modules/utils/chartUtil';
 
 const MixedLinePieChart = props => {
   const { option, dataSet, axis = 'x', seriesOp, defaultOp, createOp } = props;
@@ -29,7 +29,6 @@ const MixedLinePieChart = props => {
   useEffect(() => {
     if (option && dataSet) {
       const newOption = createComponentOption();
-
       setComponentOption(newOption);
     }
   }, [option, dataSet]);
@@ -53,6 +52,7 @@ const MixedLinePieChart = props => {
           name: item.field,
           data: aggrData.map(dataItem => dataItem[item.field]),
           type: item.type ? item.type : 'line',
+          color: item.color,
           smooth: true,
           ...seriesOp,
         };
@@ -85,45 +85,20 @@ const MixedLinePieChart = props => {
       newSeries.unshift(series);
     }
 
-    if (aggrData && option[axis + 'Field']) {
-      const op = {
-        [axis + 'Axis']: {
-          type: 'category',
-          data: option[axis + 'Field'] ? aggrData.map(item => item[option[axis + 'Field']]) : '',
-        },
-        series: [
-          // {
-          //   // name: item.field,
-          //   // data: aggrData.map(dataItem => dataItem[item.field]),
-          //   data: aggrData.map(item => ({
-          //     value: item[option.pie.field],
-          //     name: item[option.xField],
-          //   })),
-          //   type: 'pie',
-          //   center: option.pie.center,
-          //   // center: getCenter(item.center),
-          //   color: option.pie.color,
-          //   radius: '28%',
-          //   label: {
-          //     show: true,
-          //     // position: 'center',
-          //     formatter: '{b}: {d}%',
-          //   },
-          //   tooltip: {
-          //     trigger: 'item',
-          //   },
-          //   z: 100,
-          // },
-          ...newSeries,
-        ],
+    // if (aggrData && option[axis + 'Field']) {
+    const op = {
+      [axis + 'Axis']: {
+        type: 'category',
+        data: option[axis + 'Field'] ? aggrData.map(item => item[option[axis + 'Field']]) : '',
+      },
+      series: newSeries,
+      grid: getGridSize(option.legendPosition),
+      legend: getLegendOption(option.legendPosition),
+      ...createOp,
+    };
 
-        grid: getGridSize(option.legendPosition),
-        legend: getLegendOption(option.legendPosition),
-        ...createOp,
-      };
-
-      newOption = { ...defaultComponentOption, ...op };
-    }
+    newOption = { ...defaultComponentOption, ...op };
+    // }
 
     // console.log(newOption);
     return newOption;

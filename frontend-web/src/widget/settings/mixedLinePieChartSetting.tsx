@@ -5,8 +5,8 @@ import ColorButtonForm from '@/components/form/ColorButtonForm';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
 import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
 import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST, WIDGET_AGGREGATION } from '@/constant';
-import ColorFieldForm from '@/components/form/ColorFieldForm';
-import { getColorArr } from '@/widget/modules/utils/chartUtil';
+import ColorFieldReForm from '@/components/form/ColorFieldReForm';
+import { getAggregationDataForChart, getColorArr } from '@/widget/modules/utils/chartUtil';
 import TextFieldForm from '@/components/form/TextFieldForm';
 
 const StyledList = styled(List)({
@@ -44,27 +44,33 @@ const MixedLinePieChartSetting = props => {
 
   console.log(option);
   useEffect(() => {
-    const colorArr = getColorArr(option.pie.field, dataSet.length);
+    let pieAggrData = [];
+    if (option.pie.field) {
+      pieAggrData = getAggregationDataForChart(dataSet, option.pie.name, option.pie.field, option.pie.aggregation);
+    }
+    const colorArr = getColorArr(option.pie.field, pieAggrData.length);
     console.log(colorArr);
-    setOption(
-      prevState => {
-        prevState.pie.color = colorArr;
-        return prevState;
-      },
-      //     {
-      //   ...prevState,
-      //   series: { ...prevState.series, color: colorArr },
-      // }
-    );
-  }, [option.series.field, option.series.name, dataSet.length]);
+    setOption(prevState => {
+      prevState.pie.color = colorArr;
+      return { ...prevState };
+    });
+  }, [option.pie.field, option.pie.name]);
 
-  const handleRadiusChange = (event, prop) => {
+  const handleCenterChange = event => {
     setOption(prevState => {
       const obj = { ...prevState };
-      const prop = [...prevState.pie[prop]];
+      const center = [...prevState.pie.center];
       const index = Number(event.target.name.slice(-1)) - 1;
-      prop[index] = event.target.value + '%';
-      obj.pie[prop] = prop;
+      center[index] = event.target.value + '%';
+      obj.pie.center = center;
+      return obj;
+    });
+  };
+
+  const handleRadiusChange = event => {
+    setOption(prevState => {
+      const obj = { ...prevState };
+      obj.pie.radius = event.target.value + '%';
       return obj;
     });
   };
@@ -77,6 +83,13 @@ const MixedLinePieChartSetting = props => {
         [event.target.name]: event.target.value,
       },
     }));
+  };
+
+  const handleColorChange = (event, index) => {
+    console.log('event', event, index);
+    const newOption = { ...option };
+    newOption.pie.color.splice(index, 1, event.target.value);
+    setOption({ ...option, newOption });
   };
 
   return (
@@ -188,12 +201,12 @@ const MixedLinePieChartSetting = props => {
         <ListItem divider>
           <ListItemText primary="원형 차트 위치 설정" />
           <TextFieldForm
-            id="radius1"
-            name="radius1"
+            id="radius"
+            name="radius"
             label="크기"
             type="number"
             value={option.pie.radius.slice(0, -1)}
-            onChange={event => handleRadiusChange(event, 'radius')}
+            onChange={handleRadiusChange}
             endAdornment={<InputAdornment position="end">%</InputAdornment>}
           />
           <TextFieldForm
@@ -202,7 +215,7 @@ const MixedLinePieChartSetting = props => {
             label="좌우 위치"
             type="number"
             value={option.pie.center[0].slice(0, -1)}
-            onChange={event => handleRadiusChange(event, 'center')}
+            onChange={handleCenterChange}
             endAdornment={<InputAdornment position="end">%</InputAdornment>}
           />
           <TextFieldForm
@@ -211,26 +224,18 @@ const MixedLinePieChartSetting = props => {
             label="상하 위치"
             type="number"
             value={option.pie.center[1].slice(0, -1)}
-            onChange={event => handleRadiusChange(event, 'center')}
+            onChange={handleCenterChange}
             endAdornment={<InputAdornment position="end">%</InputAdornment>}
           />
         </ListItem>
         <ListItem divider>
           <ListItemText primary="원형 차트 색상 항목 설정" />
-          {/*  {option.pie.field &&*/}
-          {/*    option.pie.color.map((item, index) => (*/}
-          {/*      <React.Fragment key={index}>*/}
-          {/*        <ColorFieldForm*/}
-          {/*          id={`color${index + 1}`}*/}
-          {/*          name={`color${index + 1}`}*/}
-          {/*          value={option.pie.color[index]}*/}
-          {/*          colorList={option.pie.color}*/}
-          {/*          setOption={setOption}*/}
-          {/*          index={index}*/}
-          {/*        />*/}
-          {/*        <Divider />*/}
-          {/*      </React.Fragment>*/}
-          {/*    ))}*/}
+          {option.pie.field &&
+            option.pie.color.map((item, index) => (
+              <React.Fragment key={index}>
+                <ColorFieldReForm color={item} onChange={event => handleColorChange(event, index)} setOption={setOption} />
+              </React.Fragment>
+            ))}
         </ListItem>
         <ListItem>
           <ListItemText>범례 설정</ListItemText>
