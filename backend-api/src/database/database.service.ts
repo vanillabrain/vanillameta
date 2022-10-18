@@ -10,15 +10,26 @@ import { ResponseStatus } from '../common/enum/response-status.enum';
 import { DatasetType } from '../common/enum/dataset-type.enum';
 import { TableQuery } from '../widget/tabel-query/entity/table-query.entity';
 import { QueryExecuteDto } from './dto/query-execute.dto';
+import {DatabaseType} from "./entities/database_type.entity";
+import {YesNo} from "../common/enum/yn.enum";
 
 @Injectable()
 export class DatabaseService {
   constructor(
     @InjectRepository(Database) private databaseRepository: Repository<Database>,
+    @InjectRepository(DatabaseType) private databaseTypeRepository: Repository<DatabaseType>,
     @InjectRepository(Dataset) private datasetRepository: Repository<Dataset>,
     @InjectRepository(TableQuery) private tableQueryRepository: Repository<TableQuery>,
     private readonly connectionService: ConnectionService,
   ) {}
+
+  /**
+   * database type 목록 조회
+   */
+  async findTypeList(){
+    const result = await this.databaseTypeRepository.find({where:{useYn:YesNo.YES}});
+    return { status: ResponseStatus.SUCCESS, data: result };
+  }
 
   /**
    * database(데이터소스) 생성
