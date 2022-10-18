@@ -42,19 +42,19 @@ const MixedLinePieChartSetting = props => {
     aggregation: WIDGET_AGGREGATION.SUM,
   };
 
-  console.log(option);
+  // console.log(option);
   useEffect(() => {
     let pieAggrData = [];
-    if (option.pie.field) {
-      pieAggrData = getAggregationDataForChart(dataSet, option.pie.name, option.pie.field, option.pie.aggregation);
+    if (option['pie'].field) {
+      pieAggrData = getAggregationDataForChart(dataSet, option['pie'].name, option['pie'].field, option['pie'].aggregation);
     }
-    const colorArr = getColorArr(option.pie.field, pieAggrData.length);
+    const colorArr = getColorArr(pieAggrData.length);
     console.log(colorArr);
     setOption(prevState => {
-      prevState.pie.color = colorArr;
+      prevState['pie'].color = colorArr;
       return { ...prevState };
     });
-  }, [option.pie.field, option.pie.name]);
+  }, [option['pie'].field, option['pie'].name]);
 
   const handleCenterChange = event => {
     setOption(prevState => {
@@ -229,7 +229,7 @@ const MixedLinePieChartSetting = props => {
           />
         </ListItem>
         <ListItem divider>
-          <ListItemText primary="원형 차트 색상 항목 설정" />
+          <ListItemText primary="원형 차트 색상 설정" />
           {option.pie.field &&
             option.pie.color.map((item, index) => (
               <React.Fragment key={index}>
