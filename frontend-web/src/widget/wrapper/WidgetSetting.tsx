@@ -22,6 +22,7 @@ import Bubble3DChartSetting from '@/widget/settings/Bubble3DChartSetting';
 import WaterfallChartSetting from '@/widget/settings/WaterfallChartSetting';
 import PolarBarChartSetting from '@/widget/settings/PolarBarChartSetting';
 import MixedLinePieChartSetting from '@/widget/settings/MixedLinePieChartSetting';
+import MixedDonutPieChartSetting from '@/widget/settings/MixedDonutPieChartSetting';
 
 const WidgetSetting = props => {
   const { title, setTitle, widgetOption, setWidgetOption, widgetType, dataSet, spec } = props;
@@ -158,6 +159,9 @@ const WidgetSetting = props => {
         break;
       case WIDGET_TYPE.CHART_MIXED_STACKED_AREA_PIE:
         module = <MixedLinePieChartSetting {...chartSettingProps} />;
+        break;
+      case WIDGET_TYPE.CHART_MIXED_DONUT_PIE:
+        module = <MixedDonutPieChartSetting {...chartSettingProps} />;
         break;
 
       default:

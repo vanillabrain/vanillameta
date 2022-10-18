@@ -20,6 +20,7 @@ import Bubble3dChart from '@/widget/modules/3dchart/Bubble3dChart';
 import WaterfallBarChart from '@/widget/modules/barchart/WaterfallBarChart';
 import PolarBarChart from '@/widget/modules/barchart/PolarBarChart';
 import MixedLinePieChart from '@/widget/modules/mixedchart/MixedLinePieChart';
+import MixedDonutPieChart from '@/widget/modules/mixedchart/MixedDonutPieChart';
 
 const WidgetViewer = props => {
   const { title, widgetType, widgetOption, dataSet } = props;
@@ -263,6 +264,9 @@ const WidgetViewer = props => {
             }}
           />
         );
+        break;
+      case WIDGET_TYPE.CHART_MIXED_DONUT_PIE:
+        module = <MixedDonutPieChart {...chartProps} />;
         break;
 
       default:

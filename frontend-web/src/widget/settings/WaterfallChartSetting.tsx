@@ -78,7 +78,7 @@ const WaterfallChartSetting = props => {
           />
         </ListItem>
         <ListItem divider>
-          <ListItemText primary="색상 항목 설정" />
+          <ListItemText primary="색상 설정" />
           {option.color.map((item, index) => (
             <React.Fragment key={index}>
               <ColorFieldForm

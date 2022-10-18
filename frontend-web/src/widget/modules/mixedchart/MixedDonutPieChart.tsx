@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { getAggregationDataForChart, getCenter, getGridSize, getLegendOption } from '@/widget/modules/utils/chartUtil';
 
-const PieChart = props => {
+const MixedDonutPieChart = props => {
   const { option, dataSet, seriesOp } = props;
 
   const [componentOption, setComponentOption] = useState({});
@@ -50,10 +50,14 @@ const PieChart = props => {
     let newOption = {};
 
     const newSeries = [];
-    let aggrData = [];
 
-    if (option.series.name) {
-      aggrData = getAggregationDataForChart(dataSet, option.series.name, option.series.field, option.series.aggregation);
+    if (option.series.field) {
+      const aggrData = getAggregationDataForChart(
+        dataSet,
+        option.series.name,
+        option.series.field,
+        option.series.aggregation,
+      );
 
       const series = {
         name: option.series.name,
@@ -63,6 +67,7 @@ const PieChart = props => {
         })),
         type: 'pie',
         color: [...option.series.color],
+        radius: [...option.series.radius],
         label: {
           show: !!option.series.name && true,
           formatter: '{b}: {d}%',
@@ -71,6 +76,29 @@ const PieChart = props => {
         ...seriesOp,
       };
       newSeries.push(series);
+    }
+
+    if (option.pie.field) {
+      const pieAggrData = getAggregationDataForChart(dataSet, option.pie.name, option.pie.field, option.pie.aggregation);
+
+      const series = {
+        name: option.pie.name,
+        data: pieAggrData.map(item => ({
+          value: item[option.pie.field],
+          name: item[option.pie.name],
+        })),
+        type: 'pie',
+        // color: [...option.pie.color],
+        radius: option.pie.radius,
+        label: {
+          show: !!option.pie.name && true,
+          position: 'inside',
+          // formatter: '{b}: {d}%',
+        },
+        center: getCenter(option.legendPosition),
+        z: 100,
+      };
+      newSeries.unshift(series);
     }
 
     if (dataSet) {
@@ -89,4 +117,4 @@ const PieChart = props => {
   );
 };
 
-export default PieChart;
+export default MixedDonutPieChart;
