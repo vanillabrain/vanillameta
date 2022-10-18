@@ -35,36 +35,29 @@ const MixedDonutPieChartSetting = props => {
 
   console.log(option);
 
-  const getColor = prop => {
-    let pieAggrData = [];
-    if (option[prop].field) {
-      pieAggrData = getAggregationDataForChart(dataSet, option[prop].name, option[prop].field, option[prop].aggregation);
+  const getColor = () => {
+    let aggrData = [];
+    if (option.series.field && option.pie.field) {
+      const seriesAggrData = getAggregationDataForChart(
+        dataSet,
+        option.series.name,
+        option.series.field,
+        option.series.aggregation,
+      );
+      const pieAggrData = getAggregationDataForChart(dataSet, option.pie.name, option.pie.field, option.pie.aggregation);
+      aggrData = [...seriesAggrData, ...pieAggrData];
     }
-    const colorArr = getColorArr(option[prop].field, pieAggrData.length);
-    console.log(colorArr);
+    const colorArr = getColorArr(aggrData.length);
+    // console.log(colorArr);
     setOption(prevState => {
-      prevState[prop].color = colorArr;
+      prevState.series.color = colorArr;
       return { ...prevState };
     });
   };
 
   useEffect(() => {
-    getColor('pie');
-  }, [option.pie.field, option.pie.name]);
-
-  useEffect(() => {
-    getColor('series');
-  }, [option.series.field, option.series.name]);
-
-  // const handleSeriesChange = (event, prop) => {
-  //   setOption(prevState => ({
-  //     ...prevState,
-  //     [prop]: {
-  //       ...prevState[prop],
-  //       [event.target.name]: event.target.value,
-  //     },
-  //   }));
-  // };
+    getColor();
+  }, [option.pie.field, option.pie.name, option.series.field, option.series.name]);
 
   const handleRadiusChange = (event, prop) => {
     setOption(prevState => {
@@ -149,19 +142,6 @@ const MixedDonutPieChartSetting = props => {
             endAdornment={<InputAdornment position="end">%</InputAdornment>}
           />
         </ListItem>
-        <ListItem divider>
-          <ListItemText primary="도넛형 차트 색상 설정" />
-          {option.series.field &&
-            option.series.color.map((item, index) => (
-              <React.Fragment key={index}>
-                <ColorFieldReForm
-                  color={item}
-                  onChange={event => handleColorChange(event, index, 'series')}
-                  setOption={setOption}
-                />
-              </React.Fragment>
-            ))}
-        </ListItem>
 
         <ListItem divider>
           <ListItemText primary="원형 차트 시리즈 설정" />
@@ -209,14 +189,15 @@ const MixedDonutPieChartSetting = props => {
             endAdornment={<InputAdornment position="end">%</InputAdornment>}
           />
         </ListItem>
+
         <ListItem divider>
-          <ListItemText primary="원형 차트 색상 설정" />
-          {option.pie.field &&
-            option.pie.color.map((item, index) => (
+          <ListItemText primary="차트 색상 설정" />
+          {option.series.field &&
+            option.series.color.map((item, index) => (
               <React.Fragment key={index}>
                 <ColorFieldReForm
                   color={item}
-                  onChange={event => handleColorChange(event, index, 'pie')}
+                  onChange={event => handleColorChange(event, index, 'series')}
                   setOption={setOption}
                 />
               </React.Fragment>

@@ -43,7 +43,7 @@ const PieChartSetting = props => {
         option['series'].aggregation,
       );
     }
-    const colorArr = getColorArr(option['series'].field, pieAggrData.length);
+    const colorArr = getColorArr(pieAggrData.length);
     console.log(colorArr);
     setOption(prevState => {
       prevState['series'].color = colorArr;

@@ -48,7 +48,7 @@ const MixedLinePieChartSetting = props => {
     if (option['pie'].field) {
       pieAggrData = getAggregationDataForChart(dataSet, option['pie'].name, option['pie'].field, option['pie'].aggregation);
     }
-    const colorArr = getColorArr(option['pie'].field, pieAggrData.length);
+    const colorArr = getColorArr(pieAggrData.length);
     console.log(colorArr);
     setOption(prevState => {
       prevState['pie'].color = colorArr;

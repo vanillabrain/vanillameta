@@ -50,14 +50,12 @@ const MixedDonutPieChart = props => {
     let newOption = {};
 
     const newSeries = [];
+    let aggrData = [];
+    let pieAggrData = [];
+    let legendData = [];
 
     if (option.series.field) {
-      const aggrData = getAggregationDataForChart(
-        dataSet,
-        option.series.name,
-        option.series.field,
-        option.series.aggregation,
-      );
+      aggrData = getAggregationDataForChart(dataSet, option.series.name, option.series.field, option.series.aggregation);
 
       const series = {
         name: option.series.name,
@@ -66,7 +64,7 @@ const MixedDonutPieChart = props => {
           name: item[option.series.name],
         })),
         type: 'pie',
-        color: [...option.series.color],
+        selectedMode: 'single',
         radius: [...option.series.radius],
         label: {
           show: !!option.series.name && true,
@@ -79,7 +77,7 @@ const MixedDonutPieChart = props => {
     }
 
     if (option.pie.field) {
-      const pieAggrData = getAggregationDataForChart(dataSet, option.pie.name, option.pie.field, option.pie.aggregation);
+      pieAggrData = getAggregationDataForChart(dataSet, option.pie.name, option.pie.field, option.pie.aggregation);
 
       const series = {
         name: option.pie.name,
@@ -88,7 +86,7 @@ const MixedDonutPieChart = props => {
           name: item[option.pie.name],
         })),
         type: 'pie',
-        // color: [...option.pie.color],
+        selectedMode: 'single',
         radius: option.pie.radius,
         label: {
           show: !!option.pie.name && true,
@@ -101,14 +99,23 @@ const MixedDonutPieChart = props => {
       newSeries.unshift(series);
     }
 
+    if (aggrData.length && pieAggrData.length) {
+      legendData = [...aggrData.map(item => item[option.series.name]), ...pieAggrData.map(item => item[option.pie.name])];
+    }
+
     if (dataSet) {
       const op = {
         series: newSeries,
         grid: getGridSize(option.legendPosition),
-        legend: getLegendOption(option.legendPosition),
+        legend: {
+          ...getLegendOption(option.legendPosition),
+          ...legendData,
+        },
+        color: [...option.series.color],
       };
       newOption = { ...defaultComponentOption, ...op };
     }
+    console.log(newOption);
     return newOption;
   };
 
