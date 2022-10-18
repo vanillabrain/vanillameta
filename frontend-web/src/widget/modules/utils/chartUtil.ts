@@ -270,7 +270,7 @@ export const testFunc = (array, keys) => {
  * @param field
  * @param length
  */
-export const getColorArr = (field, length) => {
+export const getColorArr = length => {
   const defaultColor = [
     '#2870c5',
     '#47a8ea',

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { getAggregationDataForChart, getCenter, getGridSize, getLegendOption } from '@/widget/modules/utils/chartUtil';
 
-const PieChart = props => {
+const MixedDonutPieChart = props => {
   const { option, dataSet, seriesOp } = props;
 
   const [componentOption, setComponentOption] = useState({});
@@ -51,8 +51,10 @@ const PieChart = props => {
 
     const newSeries = [];
     let aggrData = [];
+    let pieAggrData = [];
+    let legendData = [];
 
-    if (option.series.name) {
+    if (option.series.field) {
       aggrData = getAggregationDataForChart(dataSet, option.series.name, option.series.field, option.series.aggregation);
 
       const series = {
@@ -62,7 +64,8 @@ const PieChart = props => {
           name: item[option.series.name],
         })),
         type: 'pie',
-        color: [...option.series.color],
+        selectedMode: 'single',
+        radius: [...option.series.radius],
         label: {
           show: !!option.series.name && true,
           formatter: '{b}: {d}%',
@@ -73,14 +76,46 @@ const PieChart = props => {
       newSeries.push(series);
     }
 
+    if (option.pie.field) {
+      pieAggrData = getAggregationDataForChart(dataSet, option.pie.name, option.pie.field, option.pie.aggregation);
+
+      const series = {
+        name: option.pie.name,
+        data: pieAggrData.map(item => ({
+          value: item[option.pie.field],
+          name: item[option.pie.name],
+        })),
+        type: 'pie',
+        selectedMode: 'single',
+        radius: option.pie.radius,
+        label: {
+          show: !!option.pie.name && true,
+          position: 'inside',
+          // formatter: '{b}: {d}%',
+        },
+        center: getCenter(option.legendPosition),
+        z: 100,
+      };
+      newSeries.unshift(series);
+    }
+
+    if (aggrData.length && pieAggrData.length) {
+      legendData = [...aggrData.map(item => item[option.series.name]), ...pieAggrData.map(item => item[option.pie.name])];
+    }
+
     if (dataSet) {
       const op = {
         series: newSeries,
         grid: getGridSize(option.legendPosition),
-        legend: getLegendOption(option.legendPosition),
+        legend: {
+          option: getLegendOption(option.legendPosition),
+          data: legendData,
+        },
+        color: option.color.length ? [...option.color] : '#eee',
       };
       newOption = { ...defaultComponentOption, ...op };
     }
+    console.log(newOption);
     return newOption;
   };
 
@@ -89,4 +124,4 @@ const PieChart = props => {
   );
 };
 
-export default PieChart;
+export default MixedDonutPieChart;

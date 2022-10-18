@@ -4,7 +4,7 @@ import SelectForm from '@/components/form/SelectForm';
 import ColorFieldForm from '@/components/form/ColorFieldForm';
 import { handleChange } from '@/widget/utils/handler';
 import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST } from '@/constant';
-import { getColorArr } from '@/widget/modules/utils/chartUtil';
+import { getAggregationDataForChart, getColorArr } from '@/widget/modules/utils/chartUtil';
 
 const StyledList = styled(List)({
   position: 'relative',
@@ -34,12 +34,22 @@ const PieChartSetting = props => {
   console.log(props, 'props');
 
   useEffect(() => {
-    const colorArr = getColorArr(option.series.field, dataSet.length);
-    setOption(prevState => ({
-      ...prevState,
-      series: { ...prevState.series, color: colorArr },
-    }));
-  }, [option.series.field, option.series.name, dataSet.length]);
+    let pieAggrData = [];
+    if (option['series'].field) {
+      pieAggrData = getAggregationDataForChart(
+        dataSet,
+        option['series'].name,
+        option['series'].field,
+        option['series'].aggregation,
+      );
+    }
+    const colorArr = getColorArr(pieAggrData.length);
+    console.log(colorArr);
+    setOption(prevState => {
+      prevState['series'].color = colorArr;
+      return { ...prevState };
+    });
+  }, [option['series'].field, option['series'].name]);
 
   const handleSeriesChange = event => {
     setOption(prevState => ({
@@ -58,17 +68,6 @@ const PieChartSetting = props => {
           <ListItemText primary="시리즈 설정" />
           <SelectForm
             required={true}
-            id="field"
-            name="field"
-            label="필드"
-            labelField="columnName"
-            valueField="columnType"
-            optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
-            value={option.series.field}
-            onChange={handleSeriesChange}
-          />
-          <SelectForm
-            required={true}
             id="name"
             name="name"
             label="이름"
@@ -76,6 +75,17 @@ const PieChartSetting = props => {
             valueField="columnType"
             optionList={spec.map(item => item.columnName)}
             value={option.series.name}
+            onChange={handleSeriesChange}
+          />
+          <SelectForm
+            required={true}
+            id="field"
+            name="field"
+            label="필드"
+            labelField="columnName"
+            valueField="columnType"
+            optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
+            value={option.series.field}
             onChange={handleSeriesChange}
           />
           <SelectForm
@@ -89,7 +99,7 @@ const PieChartSetting = props => {
           />
         </ListItem>
         <ListItem divider>
-          <ListItemText primary="색상 항목 설정" />
+          <ListItemText primary="색상 설정" />
           {option.series.field &&
             option.series.color.map((item, index) => (
               <React.Fragment key={index}>
