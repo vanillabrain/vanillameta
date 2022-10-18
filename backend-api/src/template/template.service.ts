@@ -30,27 +30,20 @@ export class TemplateService {
    * @param createTemplate
    */
   async create(createTemplate: CreateTemplateDto) {
-    const insertItem = await this.templateRepository.save({
+    const insertTemplate = await this.templateRepository.save({
       title: createTemplate.title,
       description: createTemplate.description,
     });
-    return { status: ResponseStatus.SUCCESS, data: insertItem };
-  }
 
-  /**
-   * 템플릿 상세 아이템 추가
-   * @param createTemplateItem
-   */
-  async createItem(createTemplateItem: CreateTemplateItemDto) {
-    const insertItem = await this.templateItemRepository.save({
-      templateId: createTemplateItem.templateId,
-      x: createTemplateItem.x,
-      y: createTemplateItem.y,
-      width: createTemplateItem.width,
-      height: createTemplateItem.height,
-      recommendCategory: createTemplateItem.recommendCategory,
-    });
-    return { status: ResponseStatus.SUCCESS, data: insertItem };
+    // 템플릿 상세
+    const insertItems = [];
+    createTemplate.layout.map(item =>{
+      const tempObj = {templateId: insertTemplate.id, x: item.x, y: item.y, width: item.w, height: item.h, recommendCategory:item.category}
+      insertItems.push(tempObj);
+    })
+    const insertItem = await this.templateItemRepository.save(insertItems);
+
+    return { status: ResponseStatus.SUCCESS, data: insertTemplate };
   }
 
   /**
@@ -113,18 +106,27 @@ export class TemplateService {
   /**
    * 템플릿 업데이트
    * @param id
-   * @param updateTemplateDto
+   * @param updateTemplate
    */
-  async update(id: number, updateTemplateDto: UpdateTemplateDto) {
+  async update(id: number, updateTemplate: UpdateTemplateDto) {
     const updateItem = await this.templateRepository.update(
       {
         id: id,
       },
       {
-        title: updateTemplateDto.title,
-        description: updateTemplateDto.description,
+        title: updateTemplate.title,
+        description: updateTemplate.description,
       },
     );
+
+    // 템플릿 상세
+    await this.templateItemRepository.delete({templateId:id});
+    const insertItems = [];
+    updateTemplate.layout.map(item =>{
+      const tempObj = {templateId: id, x: item.x, y: item.y, width: item.w, height: item.h, recommendCategory:item.category}
+      insertItems.push(tempObj);
+    })
+    await this.templateItemRepository.save(insertItems);
 
     if (updateItem.affected < 1) {
       return {
@@ -140,43 +142,6 @@ export class TemplateService {
       return {
         status: ResponseStatus.SUCCESS,
         data: { message: `This action updates a #${id} template` },
-      };
-    }
-  }
-
-  /**
-   * 템플릿 상세 아이템 수정
-   * @param id
-   * @param updateTemplateItem
-   */
-  async updateItem(id: number, updateTemplateItem: UpdateTemplateItemDto) {
-    const updateItem = await this.templateItemRepository.update(
-      {
-        id: id,
-      },
-      {
-        x: updateTemplateItem.x,
-        y: updateTemplateItem.y,
-        width: updateTemplateItem.width,
-        height: updateTemplateItem.height,
-        recommendCategory: updateTemplateItem.recommendCategory,
-      },
-    );
-
-    if (updateItem.affected < 1) {
-      return {
-        status: ResponseStatus.ERROR,
-        message: '변동사항 없음',
-      };
-    } else if (updateItem.affected > 1) {
-      return {
-        status: ResponseStatus.ERROR,
-        message: '여러개 바뀜',
-      };
-    } else {
-      return {
-        status: ResponseStatus.SUCCESS,
-        data: { message: `This action updates a #${id} templateItem` },
       };
     }
   }
