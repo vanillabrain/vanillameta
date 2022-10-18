@@ -50,7 +50,7 @@ const MixedDonutPieChartSetting = props => {
     const colorArr = getColorArr(aggrData.length);
     // console.log(colorArr);
     setOption(prevState => {
-      prevState.series.color = colorArr;
+      prevState.color = colorArr;
       return { ...prevState };
     });
   };
@@ -77,10 +77,10 @@ const MixedDonutPieChartSetting = props => {
     });
   };
 
-  const handleColorChange = (event, index, prop) => {
+  const handleColorChange = (event, index) => {
     // console.log('event', event, index);
     const newOption = { ...option };
-    newOption[prop].color.splice(index, 1, event.target.value);
+    newOption.color.splice(index, 1, event.target.value);
     setOption({ ...option, ...newOption });
   };
 
@@ -193,14 +193,14 @@ const MixedDonutPieChartSetting = props => {
         <ListItem divider>
           <ListItemText primary="차트 색상 설정" />
           {option.series.field &&
-            option.series.color.map((item, index) => (
-              <React.Fragment key={index}>
-                <ColorFieldReForm
-                  color={item}
-                  onChange={event => handleColorChange(event, index, 'series')}
-                  setOption={setOption}
-                />
-              </React.Fragment>
+            option.pie.field &&
+            option.color.map((item, index) => (
+              <ColorFieldReForm
+                key={index}
+                color={item}
+                onChange={event => handleColorChange(event, index)}
+                setOption={setOption}
+              />
             ))}
         </ListItem>
 

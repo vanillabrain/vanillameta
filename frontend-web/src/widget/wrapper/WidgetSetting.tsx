@@ -163,6 +163,9 @@ const WidgetSetting = props => {
       case WIDGET_TYPE.CHART_MIXED_DONUT_PIE:
         module = <MixedDonutPieChartSetting {...chartSettingProps} />;
         break;
+      case WIDGET_TYPE.CHART_MIXED_NIGHTINGALE_PIE:
+        module = <MixedDonutPieChartSetting {...chartSettingProps} />;
+        break;
 
       default:
         module = '컴포넌트가 선택되지 않았다!';

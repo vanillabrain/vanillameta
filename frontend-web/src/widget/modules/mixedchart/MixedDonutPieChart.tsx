@@ -108,10 +108,10 @@ const MixedDonutPieChart = props => {
         series: newSeries,
         grid: getGridSize(option.legendPosition),
         legend: {
-          ...getLegendOption(option.legendPosition),
-          ...legendData,
+          option: getLegendOption(option.legendPosition),
+          data: legendData,
         },
-        color: [...option.series.color],
+        color: option.color.length ? [...option.color] : '#eee',
       };
       newOption = { ...defaultComponentOption, ...op };
     }

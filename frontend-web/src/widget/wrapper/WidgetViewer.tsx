@@ -268,6 +268,17 @@ const WidgetViewer = props => {
       case WIDGET_TYPE.CHART_MIXED_DONUT_PIE:
         module = <MixedDonutPieChart {...chartProps} />;
         break;
+      case WIDGET_TYPE.CHART_MIXED_NIGHTINGALE_PIE:
+        module = (
+          <MixedDonutPieChart
+            {...chartProps}
+            seriesOp={{
+              roseType: 'area',
+              itemStyle: { borderRadius: 8 },
+            }}
+          />
+        );
+        break;
 
       default:
         module = '컴포넌트가 선택되지 않았다!';
