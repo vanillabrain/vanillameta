@@ -20,15 +20,6 @@ export class TemplateController {
   }
 
   /**
-   * 템플릿 상세 아이템 생성
-   * @param createTemplateItemDto
-   */
-  @Post('/item')
-  createItem(@Body() createTemplateItemDto: CreateTemplateItemDto) {
-    return this.templateService.createItem(createTemplateItemDto);
-  }
-
-  /**
    * 템플릿 목록 조회
    */
   @Get()
@@ -53,16 +44,6 @@ export class TemplateController {
   @Put(':id')
   update(@Param('id') id: string, @Body() updateTemplateDto: UpdateTemplateDto) {
     return this.templateService.update(+id, updateTemplateDto);
-  }
-
-  /**
-   * 템플릿 상세 아이템 단건 업데이트
-   * @param id
-   * @param updateTemplateDto
-   */
-  @Put('/item/:id')
-  updateItem(@Param('id') id: string, @Body() updateTemplateItemDto: UpdateTemplateItemDto) {
-    return this.templateService.updateItem(+id, updateTemplateItemDto);
   }
 
   /**
