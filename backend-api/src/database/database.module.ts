@@ -6,9 +6,10 @@ import { Database } from './entities/database.entity';
 import { ConnectionService } from '../connection/connection.service';
 import { Dataset } from '../dataset/entities/dataset.entity';
 import { TableQuery } from '../widget/tabel-query/entity/table-query.entity';
+import {DatabaseType} from "./entities/database_type.entity";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Database, Dataset, TableQuery])],
+  imports: [TypeOrmModule.forFeature([Database, Dataset, TableQuery, DatabaseType])],
   controllers: [DatabaseController],
   providers: [DatabaseService, ConnectionService],
 })

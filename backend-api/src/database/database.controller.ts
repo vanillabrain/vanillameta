@@ -13,6 +13,14 @@ export class DatabaseController {
     private readonly connectionService: ConnectionService,
   ) {}
 
+  /**
+   * database type 목록 조회
+   */
+  @Get('/type')
+  findTypeList() {
+    return this.databaseService.findTypeList();
+  }
+
   @Get('/data')
   async findData(
     @Query('datasetType') datasetType: DatasetType,
