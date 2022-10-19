@@ -23,6 +23,7 @@ import WaterfallChartSetting from '@/widget/settings/WaterfallChartSetting';
 import PolarBarChartSetting from '@/widget/settings/PolarBarChartSetting';
 import MixedLinePieChartSetting from '@/widget/settings/MixedLinePieChartSetting';
 import MixedDonutPieChartSetting from '@/widget/settings/MixedDonutPieChartSetting';
+import MixedLineStackedBarChartSetting from '@/widget/settings/MixedLineStackedBarChartSetting';
 
 const WidgetSetting = props => {
   const { title, setTitle, widgetOption, setWidgetOption, widgetType, dataSet, spec } = props;
@@ -165,6 +166,9 @@ const WidgetSetting = props => {
         break;
       case WIDGET_TYPE.CHART_MIXED_NIGHTINGALE_PIE:
         module = <MixedDonutPieChartSetting {...chartSettingProps} />;
+        break;
+      case WIDGET_TYPE.CHART_MIXED_LINE_STACKED_BAR:
+        module = <MixedLineStackedBarChartSetting {...chartSettingProps} />;
         break;
 
       default:

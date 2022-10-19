@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { Box, Stack } from '@mui/material';
+import { Stack } from '@mui/material';
 import { getAggregationDataForChart, getGridSize, getLegendOption } from '@/widget/modules/utils/chartUtil';
 
 const LineChart = props => {
@@ -11,17 +11,17 @@ const LineChart = props => {
 
   const defaultComponentOption = {
     grid: { top: 50, right: 50, bottom: 50, left: 50 },
-    tooltip: { trigger: 'axis' },
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
     [axis + 'Axis']: {
       type: 'category',
     },
     [reverseAxis + 'Axis']: {
       type: 'value',
+      boundaryGap: [0, 0.01],
     },
     series: [],
     emphasis: {
-      focus: 'series',
-      blurScope: 'coordinateSystem',
+      focus: 'none',
     },
     ...defaultOp,
   };
@@ -43,7 +43,6 @@ const LineChart = props => {
     console.log('createComponentOption', option);
     let newOption = {};
 
-    // series option에서 가져오기
     const newSeries = [];
     let aggrData = [];
     option.series.forEach(item => {
@@ -54,13 +53,13 @@ const LineChart = props => {
       aggrData = getAggregationDataForChart(dataSet, option[axis + 'Field'], item.field, item.aggregation);
       console.log('aggrData : ', aggrData);
       console.log(aggrData.map(dataItem => dataItem[item.field]));
-      if (item.field) {
+      if (item.field && item.type) {
         const series = {
           name: item.field,
           data: aggrData.map(dataItem => dataItem[item.field]),
-          type: item.type ? item.type : 'line',
+          type: item.type,
           color: item.color,
-          smooth: true,
+          stack: item.type === 'bar' && 'stack',
           ...seriesOp,
         };
         newSeries.push(series);

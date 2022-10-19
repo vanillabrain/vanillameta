@@ -21,6 +21,7 @@ import WaterfallBarChart from '@/widget/modules/barchart/WaterfallBarChart';
 import PolarBarChart from '@/widget/modules/barchart/PolarBarChart';
 import MixedLinePieChart from '@/widget/modules/mixedchart/MixedLinePieChart';
 import MixedDonutPieChart from '@/widget/modules/mixedchart/MixedDonutPieChart';
+import MixedLineStackedBarChart from '@/widget/modules/mixedchart/MixedLineStackedBarChart';
 
 const WidgetViewer = props => {
   const { title, widgetType, widgetOption, dataSet } = props;
@@ -278,6 +279,9 @@ const WidgetViewer = props => {
             }}
           />
         );
+        break;
+      case WIDGET_TYPE.CHART_MIXED_LINE_STACKED_BAR:
+        module = <MixedLineStackedBarChart {...chartProps} />;
         break;
 
       default:
