@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { get } from '@/helpers/apiHelper';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
+import DatabaseService from '@/api/databaseService';
+import { STATUS } from '@/constant';
 
 const WidgetWrapper = props => {
   const { widgetOption, dataSetId } = props;
@@ -15,9 +17,16 @@ const WidgetWrapper = props => {
   }, [dataSetId]);
 
   const getData = () => {
-    get('http://localhost:3000/data/sample/chartFull.json').then(response => {
-      console.log('res', response.data);
-      setDataset(response.data.data);
+    // dataSetId 로 데이터 조회
+    // axios.get('/data/sample/chartFull.json').then(response => {
+    //   setData(response.data.data);
+    //   setSpec(response.data.spec);
+    // });
+    DatabaseService.selectData(widgetOption).then(response => {
+      console.log('selectData', response.data);
+      if (response.data.status === STATUS.SUCCESS) {
+        setDataset(response.data.data.datas);
+      }
     });
   };
 

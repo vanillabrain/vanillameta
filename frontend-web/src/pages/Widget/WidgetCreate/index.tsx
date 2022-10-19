@@ -18,21 +18,22 @@ const WidgetCreate = props => {
   const [activeStep, setActiveStep] = useState(0);
 
   const [componentList, setComponentList] = useState([]); // step 1
-  const [datasetId, setDatasetId] = useState(null); // step 1
+  const [dataset, setDataset] = useState(null); // step 1
   const [widgetInfo, setWidgetInfo] = useState(null); // step 2
 
   // 개발 편의상 임시로 적용
   useEffect(() => {
-    setDatasetId(688279);
-    setActiveStep(1);
+    // setDatasetId(688279);
+    // setActiveStep(1);
     getComponentList();
   }, []);
 
   const [isNextButtonDisabled, setIsNextButtonDisabled] = useState(true);
 
   useEffect(() => {
+    console.log('dataset', dataset);
     // console.log('widgetInfo', widgetInfo);
-    if (activeStep === 0 && !!datasetId) {
+    if (activeStep === 0 && !!dataset) {
       setIsNextButtonDisabled(false);
       return;
     }
@@ -43,7 +44,7 @@ const WidgetCreate = props => {
     }
 
     setIsNextButtonDisabled(true);
-  }, [activeStep, datasetId, widgetInfo]);
+  }, [activeStep, dataset, widgetInfo]);
 
   const getComponentList = () => {
     componentService.selectComponentList().then(res => {
@@ -56,11 +57,11 @@ const WidgetCreate = props => {
     const param = {
       title: title,
       description: title,
-      databaseId: 1,
+      databaseId: dataset.databaseId,
       componentId: widgetInfo.id,
       // 'DATASET', 'WIDGET_VIEW'
-      datasetType: 'DATASET',
-      datasetId: '0001',
+      datasetType: dataset.datasetType,
+      datasetId: dataset.datasetId,
       tableName: '',
       option: option,
     };
@@ -77,7 +78,7 @@ const WidgetCreate = props => {
       return;
     }
     if (activeStep === 0) {
-      setDatasetId(item);
+      // setDataset(item);
     }
     if (activeStep === 1) {
       setWidgetInfo(item);
@@ -91,7 +92,7 @@ const WidgetCreate = props => {
     }
 
     if (activeStep === 1) {
-      setDatasetId(null);
+      setDataset(null);
     }
 
     if (activeStep === 2) {
@@ -165,7 +166,7 @@ const WidgetCreate = props => {
         </Box>
 
         {activeStep === 0 ? (
-          <WidgetDataSelect setDataSet={setDatasetId} handleNext={handleNext} />
+          <WidgetDataSelect setDataSet={setDataset} handleNext={handleNext} />
         ) : activeStep === 1 ? (
           <WidgetTypeSelect
             widgetInfo={widgetInfo}
@@ -174,7 +175,7 @@ const WidgetCreate = props => {
             handleNext={handleNext}
           />
         ) : (
-          <WidgetAttributeSelect dataSetId={datasetId} widgetInfo={widgetInfo} saveWidgetInfo={saveWidgetInfo} />
+          <WidgetAttributeSelect dataset={dataset} widgetInfo={widgetInfo} saveWidgetInfo={saveWidgetInfo} />
         )}
       </PageTitleBox>
     </PageContainer>
