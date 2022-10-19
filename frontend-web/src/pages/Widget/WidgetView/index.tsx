@@ -78,13 +78,11 @@ const WidgetView = () => {
           </Stack>
         }
       >
-        <Card sx={{ width: '100%', height: '100%', minHeight: '500px', borderRadius: 1 }}>
-          <WidgetWrapper
-            widgetOption={widgetInfo}
-            dataSetId={widgetInfo.datasetId}
-            sx={{ width: '100%', height: '100%', borderRadius: 1 }}
-          />
-        </Card>
+        <WidgetWrapper
+          widgetOption={widgetInfo}
+          dataSetId={widgetInfo.datasetId}
+          sx={{ width: '100%', height: '500px', borderRadius: 1 }}
+        />
       </TitleBox>
     </PageTitleBox>
   );

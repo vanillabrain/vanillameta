@@ -8,14 +8,15 @@ function PageTitleBox(props) {
     minWidth: '900px',
     paddingLeft: '25px',
     paddingRight: '25px',
-    width: '1920px',
+    // width: '1920px',
     justifyContent: 'center',
+    height: '100%',
   };
 
   Object.assign(defaultBoxSx, sx);
 
   return (
-    <>
+    <Box sx={{ width: '100%', height: '100%' }}>
       <Stack
         sx={{
           width: '100%',
@@ -52,10 +53,9 @@ function PageTitleBox(props) {
           </Typography>
           {button}
         </Stack>
-        <Divider sx={{ marginBottom: 5 }} />
       </Stack>
       <Box sx={defaultBoxSx}>{props.children}</Box>
-    </>
+    </Box>
   );
 }
 

@@ -1,14 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import PageContainer from '@/components/PageContainer';
 import PageTitleBox from '@/components/PageTitleBox';
-import ConfirmCancelButton, { ConfirmButton } from '@/components/button/ConfirmCancelButton';
+import { ConfirmButton } from '@/components/button/ConfirmCancelButton';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import WidgetAttributeSelect from '@/pages/Widget/WidgetCreate/WidgetAttributeSelect';
-import axios from 'axios';
 import WidgetService from '@/api/widgetService';
-import { WidgetInfo } from '@/api/type';
 import widgetService from '@/api/widgetService';
-import { Stack } from '@mui/material';
+import { WidgetInfo } from '@/api/type';
+
 // import { get } from '@/helpers/apiHelper';
 
 interface CustomizedState {
@@ -121,7 +120,12 @@ const WidgetModify = props => {
           />
         }
       >
-        <WidgetAttributeSelect dataSetId={widgetInfo.datasetId} widgetInfo={widgetInfo} saveWidgetInfo={saveWidgetInfo} />
+        <WidgetAttributeSelect
+          isModifyMode={true}
+          dataSetId={widgetInfo.datasetId}
+          widgetInfo={widgetInfo}
+          saveWidgetInfo={saveWidgetInfo}
+        />
       </PageTitleBox>
     </PageContainer>
   );

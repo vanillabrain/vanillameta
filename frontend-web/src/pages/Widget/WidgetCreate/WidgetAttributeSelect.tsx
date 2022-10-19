@@ -1,14 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { Stack } from '@mui/material';
-import axios from 'axios';
 import { useAlert } from 'react-alert';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
 import WidgetSetting from '@/widget/wrapper/WidgetSetting';
+import DatabaseService from '@/api/databaseService';
+import { STATUS } from '@/constant';
 
 const WidgetAttributeSelect = props => {
   const alert = useAlert();
 
-  const { widgetInfo, prevOption, saveWidgetInfo, datasetId } = props;
+  const { widgetInfo, prevOption, saveWidgetInfo, dataset, isModifyMode = false } = props;
 
   const [option, setOption] = useState(null);
   const [data, setData] = useState(null);
@@ -16,20 +17,29 @@ const WidgetAttributeSelect = props => {
   const [title, setTitle] = useState('');
 
   useEffect(() => {
-    getData();
-  }, []);
+    if (dataset || widgetInfo) {
+      getData();
+    }
+  }, [dataset, widgetInfo]);
 
   useEffect(() => {
-    console.log('===== widgetInfo ', widgetInfo);
     setTitle(widgetInfo.title);
     setOption(JSON.parse(JSON.stringify(widgetInfo.option)));
   }, [widgetInfo]);
 
   const getData = () => {
     // dataSetId 로 데이터 조회
-    axios.get('/data/sample/chartFull.json').then(response => {
-      setData(response.data.data);
-      setSpec(response.data.spec);
+    // axios.get('/data/sample/chartFull.json').then(response => {
+    //   setData(response.data.data);
+    //   setSpec(response.data.spec);
+    // });
+    // DashboardService.selectData(`/data?datasetType=${dataset.datasetType}&datasetId=${dataset.datasetId}`).then(response => {
+    DatabaseService.selectData(isModifyMode ? widgetInfo : dataset).then(response => {
+      console.log('selectData', response.data);
+      if (response.data.status === STATUS.SUCCESS) {
+        setData(response.data.data.datas);
+        setSpec(response.data.data.fields);
+      }
     });
   };
 
@@ -62,7 +72,8 @@ const WidgetAttributeSelect = props => {
     <Stack
       direction="row"
       sx={{
-        flex: '1 1 auto',
+        width: '100%',
+        height: '100%',
       }}
       onSubmit={handleSubmit}
       id="widgetAttribute"

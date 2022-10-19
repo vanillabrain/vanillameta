@@ -7,7 +7,8 @@ import DatabaseService from '@/api/databaseService';
 import { STATUS } from '@/constant';
 import { useAlert } from 'react-alert';
 
-const DataLayout = () => {
+const DataLayout = props => {
+  const { isViewMode, setDataSet } = props;
   const [databaseList, setDatabaseList] = useState([]);
   const [datasetList, setDatasetList] = useState([]);
   const [tableList, setTableList] = useState([]);
@@ -73,6 +74,16 @@ const DataLayout = () => {
     });
   };
 
+  const selectDataset = (datasetType, item) => {
+    const data = {
+      databaseId: item.databaseId,
+      datasetType: datasetType,
+      datasetId: item.id,
+    };
+    setDataSet(data);
+    console.log('selectDataset', data);
+  };
+
   return (
     <Box>
       <Grid container spacing={5}>
@@ -81,6 +92,7 @@ const DataLayout = () => {
             <DataSourceCard
               data={databaseList}
               selectedData={selectedDatabase}
+              disabledIcons={!!isViewMode}
               onUpdate={handleSelectDatabase}
               onRemove={removeDatabase}
               minWidth="100%"
@@ -91,11 +103,13 @@ const DataLayout = () => {
           <Grid container spacing={5}>
             <Grid item xs={12}>
               <TitleBox title="데이터 셋" button={<AddIconButton link={`set/create/${selectedDatabase.databaseId}`} />}>
-                <DataSetCard data={datasetList} />
+                <DataSetCard data={datasetList} selectDataset={selectDataset} disabledIcons={!!isViewMode} />
               </TitleBox>
             </Grid>
             <Grid item xs={12}>
-              <TitleBox title="데이터 목록">{<CardList data={tableList} disabled />}</TitleBox>
+              <TitleBox title="데이터 목록">
+                {<CardList data={tableList} disabled selectDataset={selectDataset} disabledIcons={!!isViewMode} />}
+              </TitleBox>
             </Grid>
           </Grid>
         </Grid>
