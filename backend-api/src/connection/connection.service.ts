@@ -111,9 +111,9 @@ export class ConnectionService {
             const tempFields = queryRes[1];
             tempFields.map(field => {
               const fieldInfo = {
-                name: field.name,
-                length: field.length,
-                type: FieldTypeUtil.mysqlFieldType(field.type),
+                columnName: field.name,
+                columnLength: field.length,
+                columnType: FieldTypeUtil.mysqlFieldType(field.type),
               };
               fields.push(fieldInfo);
             });
