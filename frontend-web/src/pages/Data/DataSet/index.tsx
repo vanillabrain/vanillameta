@@ -1,5 +1,5 @@
 import React, { useLayoutEffect, useState } from 'react';
-import { Stack, TextField } from '@mui/material';
+import { MenuItem, Select, Stack, TextField } from '@mui/material';
 import { useAlert } from 'react-alert';
 import PageContainer from '@/components/PageContainer';
 import PageTitleBox from '@/components/PageTitleBox';
@@ -15,6 +15,7 @@ import DatabaseService from '@/api/databaseService';
 import DatasetService from '@/api/datasetService';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { STATUS } from '@/constant';
+import { getDatabaseIcon } from '@/widget/utils/iconUtil';
 
 const DataSet = () => {
   const { setId, sourceId } = useParams();
@@ -26,12 +27,15 @@ const DataSet = () => {
   // 'select A.*, C.bizId from UserInfo A, BizUserMap B, BizInfo C where A.userId = B.userId and B.bizId = C.bizId',
   const [data, setData] = useState([]);
   const [columns, setColumns] = useState([]);
+  const [databaseId, setDatabaseId] = useState(null);
+  const [typeList, setTypeList] = useState([]);
   const alert = useAlert();
 
   useLayoutEffect(() => {
     console.log('modify', pathname.indexOf('modify'));
     console.log('setId', setId);
     console.log('sourceId', sourceId);
+    getDatabaseTypeList();
 
     if (pathname.indexOf('modify') > 0 && setId) {
       // 데이터셋 수정일 경우
@@ -71,14 +75,39 @@ const DataSet = () => {
     setDatasetInfo(prevState => ({ ...prevState, title: event.target.value }));
   };
 
+  const onChangeDatabaseId = event => {
+    console.log('onChaonChangeDatabaseIdngeTitle', event.target.value);
+    setDatabaseId(event.target.value);
+    setDatasetInfo(prevState => ({ ...prevState, databaseId: event.target.value }));
+  };
+
+  /**
+   * 데이터베이스 타입 목록 조회
+   */
+  const getDatabaseTypeList = () => {
+    DatabaseService.selectDatabaseTypeList().then(response => {
+      console.log('selectDatabaseTypeList', response.data);
+      if (response.data.status === STATUS.SUCCESS) {
+        const list = response.data.data;
+        list.map(item => (item.icon = getDatabaseIcon(item.type)));
+        setTypeList(list);
+        if (!isModifyMode && list.length > 0) {
+          setDatabaseId(list[0].id);
+        }
+      }
+    });
+  };
+
   /**
    * 수정일 경우 데이터셋 정보 조회
    */
   const getDatasetInfo = () => {
     DatasetService.selectDataset(setId).then(response => {
-      console.log('selectDataset', response.data);
+      console.log('selectDataset', response.data.data.datasetId);
       if (response.data.status === 'SUCCESS') {
         setDatasetInfo(response.data.data);
+        setDatabaseId(response.data.data.databaseId);
+        // setDataType(list[0]);
       }
     });
   };
@@ -182,6 +211,22 @@ const DataSet = () => {
           sx={{ width: '100%' }}
           onSubmit={saveDataset}
         >
+          <Select
+            id="databaseId"
+            fullWidth
+            displayEmpty
+            disabled={isModifyMode}
+            size="small"
+            value={databaseId || ''}
+            onChange={onChangeDatabaseId}
+          >
+            {typeList.map(item => (
+              <MenuItem key={item.id} value={item.id ?? ''}>
+                {item.title}
+              </MenuItem>
+            ))}
+          </Select>
+
           <TextField
             id="userSetName"
             label="데이터셋 이름"
