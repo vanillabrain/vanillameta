@@ -71,6 +71,9 @@ const DataSet = () => {
     setDatasetInfo(prevState => ({ ...prevState, title: event.target.value }));
   };
 
+  /**
+   * 수정일 경우 데이터셋 정보 조회
+   */
   const getDatasetInfo = () => {
     DatasetService.selectDataset(setId).then(response => {
       console.log('selectDataset', response.data);

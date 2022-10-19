@@ -7,7 +7,7 @@ const LabelInputForm = props => {
   const handleSubmit = data => {
     data.preventDefault();
     const item = {
-      name: data.target.databaseName.value,
+      name: data.target.name.value,
       host: data.target.host.value,
       port: data.target.port.value,
       user: data.target.user.value,
@@ -24,19 +24,24 @@ const LabelInputForm = props => {
   return (
     <Stack component="form" sx={{ maxWidth: 700, mx: 'auto', mt: 3 }} onSubmit={handleSubmit}>
       <List sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-        {props.data.map(item => (
-          <ListItem key={item.id} sx={{ width: { xs: '100%', sm: item.width || '100%' } }}>
-            <TextField
-              id={item.id}
-              label={item.label}
-              type={item.type || 'none'}
-              name={item.name}
-              required
-              fullWidth
-              onChange={handleChange}
-            />
-          </ListItem>
-        ))}
+        {props.data.map(item => {
+          console.log('item', item);
+          console.log('formData', formData);
+          return (
+            <ListItem key={item.id} sx={{ width: { xs: '100%', sm: item.width || '100%' } }}>
+              <TextField
+                id={item.id}
+                label={item.label}
+                type={item.type || 'none'}
+                name={item.name}
+                value={formData[item.name]}
+                required
+                fullWidth
+                onChange={handleChange}
+              />
+            </ListItem>
+          );
+        })}
         <ListItem>
           <SubmitButton label="Test Connect" type="submit" />
         </ListItem>
