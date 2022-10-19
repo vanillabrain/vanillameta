@@ -132,7 +132,7 @@ export const ChartComponent: FC<ChartProps> = ({ widgetType, option, dataSet }) 
     [WIDGET_TYPE.CHART_STACKED_AREA]: () => LineChart({ stackedArea, ...rest }),
     [WIDGET_TYPE.CHART_STACKED_BAR]: () => LineChart({ stackedBar, ...rest }),
     [WIDGET_TYPE.CHART_STACKED_COLUMN]: () => LineChart({ stackedColumn, ...rest }),
-    [WIDGET_TYPE.CHART_MIXED_LINE_BAR]: () => LineChart({ mixedLineBar, ...rest }),
+    [WIDGET_TYPE.MIXED_CHART_LINE_BAR]: () => LineChart({ mixedLineBar, ...rest }),
     [WIDGET_TYPE.CHART_PIE]: PieChart,
     [WIDGET_TYPE.CHART_DONUT]: () => PieChart({ donut, ...rest }),
     [WIDGET_TYPE.CHART_NIGHTINGALE]: () => PieChart({ nightingale, ...rest }),

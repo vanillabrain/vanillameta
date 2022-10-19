@@ -1,11 +1,15 @@
 import React from 'react';
-import { Box, FormControl, FormHelperText, FormLabel, OutlinedInput, Select, Stack } from '@mui/material';
+import { Box, FormControl, FormLabel, OutlinedInput, Stack } from '@mui/material';
 
 function TextFieldForm(props) {
-  const { id, label, type, endButton, ...rest } = props;
+  const { id, label, type, endButton, required, ...rest } = props;
 
   return (
-    <FormControl fullWidth sx={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+    <FormControl
+      fullWidth
+      required={required}
+      sx={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+    >
       <FormLabel htmlFor={id} sx={{ width: '35%' }}>
         {label}
       </FormLabel>

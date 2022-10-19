@@ -41,15 +41,24 @@ const NumericBoard = props => {
   return (
     <Stack
       sx={{
-        width: '100%',
-        height: '100%',
         padding: 2,
       }}
     >
-      <Typography component="span" sx={{ fontSize: componentOption.header.fontSize, color: componentOption.header.color }}>
+      <Typography
+        component="span"
+        sx={{ fontSize: componentOption.header.fontSize, color: componentOption.header.color, textAlign: 'center' }}
+      >
         {componentOption.header.title}
       </Typography>
-      <Typography component="span" sx={{ fontSize: componentOption.content.fontSize, color: componentOption.content.color }}>
+      <Typography
+        component="span"
+        sx={{
+          fontSize: componentOption.content.fontSize,
+          color: componentOption.content.color,
+          fontWeight: 'bold',
+          textAlign: 'center',
+        }}
+      >
         {score}
       </Typography>
     </Stack>

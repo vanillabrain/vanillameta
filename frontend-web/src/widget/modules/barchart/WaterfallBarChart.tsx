@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { Box, Stack } from '@mui/material';
 import { getAggregationDataForChart, getGridSize, getLegendOption } from '@/widget/modules/utils/chartUtil';
 
 const WaterfallBarChart = props => {
@@ -143,14 +142,7 @@ const WaterfallBarChart = props => {
   };
 
   return (
-    <Stack
-      sx={{
-        width: '100%',
-        height: '100%',
-      }}
-    >
-      <ReactECharts option={componentOption} style={{ height: '100%', width: '100%' }} lazyUpdate={true} notMerge={true} />
-    </Stack>
+    <ReactECharts option={componentOption} style={{ height: '100%', width: '100%' }} lazyUpdate={true} notMerge={true} />
   );
 };
 

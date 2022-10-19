@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { Box } from '@mui/material';
 import {
   getAggregationDataForChart,
   getAggregationDataForChartWithMultipleKeys,
@@ -129,14 +128,7 @@ const HeatmapChart = props => {
   };
 
   return (
-    <Box
-      sx={{
-        width: '100%',
-        height: '100%',
-      }}
-    >
-      <ReactECharts option={componentOption} style={{ height: '100%', width: '100%' }} lazyUpdate={true} notMerge={true} />
-    </Box>
+    <ReactECharts option={componentOption} style={{ height: '100%', width: '100%' }} lazyUpdate={true} notMerge={true} />
   );
 };
 
