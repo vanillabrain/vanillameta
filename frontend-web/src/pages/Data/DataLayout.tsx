@@ -4,11 +4,14 @@ import TitleBox from '@/components/TitleBox';
 import AddIconButton from '@/components/button/AddIconButton';
 import CardList, { DataSetCard, DataSourceCard } from '@/components/CardList';
 import DatabaseService from '@/api/databaseService';
+import { STATUS } from '@/constant';
+import { useAlert } from 'react-alert';
 
 const DataLayout = () => {
   const [databaseList, setDatabaseList] = useState([]);
   const [datasetList, setDatasetList] = useState([]);
   const [tableList, setTableList] = useState([]);
+  const alert = useAlert();
 
   // 선택한 데이터베이스를 CardList 에서 가져와서 저장하는 state
   const [selectedDatabase, setSelectedDatabase] = useState({
@@ -49,6 +52,27 @@ const DataLayout = () => {
     });
   };
 
+  const removeDatabase = (id, name) => {
+    console.log('removeDatabase', id);
+    alert.success(`${name} 데이터베이스를 삭제하시겠습니까?`, {
+      title: '데이터베이스 삭제',
+      closeCopy: '취소',
+      actions: [
+        {
+          copy: '삭제',
+          onClick: () => {
+            DatabaseService.deleteDatabase(id).then(response => {
+              if (response.data.status === STATUS.SUCCESS) {
+                getDatabaseList();
+                console.log(`${name} 데이터 베이스 삭제!`);
+              }
+            });
+          },
+        },
+      ],
+    });
+  };
+
   return (
     <Box>
       <Grid container spacing={5}>
@@ -58,6 +82,7 @@ const DataLayout = () => {
               data={databaseList}
               selectedData={selectedDatabase}
               onUpdate={handleSelectDatabase}
+              onRemove={removeDatabase}
               minWidth="100%"
             />
           </TitleBox>

@@ -29,7 +29,7 @@ CardListWrapper.defaultProps = {
 };
 
 const CardList = props => {
-  const { subActions, minWidth, data, setValue, handleNext, ...rest } = props;
+  const { subActions, minWidth, data, setValue, handleNext, handleRemoveClick, ...rest } = props;
 
   const handleClick = event => {
     if (setValue !== undefined) {
@@ -161,7 +161,7 @@ DataSetCard.defaultProps = {
 };
 
 export const DataSourceCard = props => {
-  const { data, onUpdate, selectedData, minWidth, disabledIcons, ...rest } = props;
+  const { data, onUpdate, selectedData, minWidth, disabledIcons, onRemove, ...rest } = props;
 
   const handleClick = event => {
     if (onUpdate !== undefined) {
@@ -169,6 +169,7 @@ export const DataSourceCard = props => {
     }
   };
 
+  console.log(selectedData.databaseId, data);
   return (
     <CardListWrapper minWidth={minWidth}>
       {data.map
@@ -184,7 +185,7 @@ export const DataSourceCard = props => {
                   value={item.id}
                   sx={{
                     boxShadow:
-                      selectedData.dataSource === item.id
+                      selectedData.databaseId === item.id
                         ? theme => `0 0 0 3px ${theme.palette.primary.main} inset`
                         : 'none',
                     minHeight: 80,
@@ -230,7 +231,16 @@ export const DataSourceCard = props => {
                     <IconButton size="medium" component={RouterLink} to={`/data/source/modify/${item.id}`}>
                       <Edit />
                     </IconButton>
-                    <DialogAlertIconButton icon={<Delete />}>{item.name} 을 삭제하시겠습니까?</DialogAlertIconButton>
+                    <IconButton
+                      size="medium"
+                      onClick={event => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onRemove(item.id, item.name);
+                      }}
+                    >
+                      <Delete />
+                    </IconButton>
                   </CardActions>
                 )}
               </Card>
