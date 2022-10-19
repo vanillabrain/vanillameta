@@ -22,16 +22,14 @@ import PolarBarChart from '@/widget/modules/barchart/PolarBarChart';
 import MixedLinePieChart from '@/widget/modules/mixedchart/MixedLinePieChart';
 import MixedDonutPieChart from '@/widget/modules/mixedchart/MixedDonutPieChart';
 import MixedLineStackedBarChart from '@/widget/modules/mixedchart/MixedLineStackedBarChart';
-import ReactECharts from 'echarts-for-react';
-import testLineChart from '@/widget/modules/linechart/testLineChart';
 
 const WidgetViewer = props => {
   const { title, widgetType, widgetOption, dataSet } = props;
 
   const [module, setModule] = useState(null);
-  const [componentOption, setComponentOption] = useState({});
-  let testModule = null;
-  const chartProps = { option: widgetOption, dataSet: dataSet, seriesOp: undefined, createOp: undefined };
+  // const [componentOption, setComponentOption] = useState({});
+  // let testModule = null;
+  // const chartProps = { option: widgetOption, dataSet: dataSet, seriesOp: undefined, createOp: undefined };
 
   useEffect(() => {
     if (widgetType && widgetOption && dataSet) renderWidget();
@@ -40,6 +38,7 @@ const WidgetViewer = props => {
   const renderWidget = () => {
     console.log('===== renderWidget');
     let module = null;
+    const chartProps = { option: widgetOption, dataSet: dataSet };
 
     switch (widgetType) {
       case WIDGET_TYPE.BOARD_NUMERIC:
@@ -50,8 +49,7 @@ const WidgetViewer = props => {
         break;
       case WIDGET_TYPE.CHART_LINE:
         module = <LineChart {...chartProps} />;
-        testModule = testLineChart;
-
+        // testModule = testLineChart;
         break;
       case WIDGET_TYPE.CHART_STACKED_LINE:
         module = <LineChart {...chartProps} seriesOp={{ stack: 'total', label: { show: true, position: 'top' } }} />;
@@ -292,10 +290,123 @@ const WidgetViewer = props => {
         break;
       case WIDGET_TYPE.MIXED_CHART_LINE_BOARD_NUMERIC:
         module = (
-          <>
+          <React.Fragment>
+            <NumericBoard
+              {...chartProps}
+              // option={widgetOption.numericOption}
+            />
+            <LineChart
+              {...chartProps}
+              // option={widgetOption.chartOption}
+            />
+          </React.Fragment>
+        );
+        break;
+      case WIDGET_TYPE.MIXED_CHART_AREA_BOARD_NUMERIC:
+        module = (
+          <React.Fragment>
             <NumericBoard {...chartProps} />
-            <LineChart {...chartProps} />
-          </>
+            <LineChart {...chartProps} seriesOp={{ areaStyle: {} }} />;
+          </React.Fragment>
+        );
+        break;
+      case WIDGET_TYPE.MIXED_CHART_BAR_BOARD_NUMERIC:
+        module = (
+          <React.Fragment>
+            <NumericBoard {...chartProps} />
+            <LineChart
+              {...chartProps}
+              seriesOp={{ type: 'bar' }}
+              defaultOp={{
+                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                yAxis: { boundaryGap: [0, 0.01] },
+                emphasis: { focus: 'none' },
+              }}
+            />
+          </React.Fragment>
+        );
+        break;
+      case WIDGET_TYPE.MIXED_CHART_COLUMN_BOARD_NUMERIC:
+        module = (
+          <React.Fragment>
+            <NumericBoard {...chartProps} />
+            <LineChart
+              {...chartProps}
+              axis="y"
+              seriesOp={{ type: 'bar' }}
+              defaultOp={{
+                grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                xAxis: { boundaryGap: [0, 0.01] },
+                emphasis: { focus: 'none' },
+              }}
+            />
+          </React.Fragment>
+        );
+        break;
+      case WIDGET_TYPE.MIXED_CHART_STACKED_LINE_BOARD_NUMERIC:
+        module = (
+          <React.Fragment>
+            <NumericBoard {...chartProps} />
+            <LineChart {...chartProps} seriesOp={{ stack: 'total', label: { show: true, position: 'top' } }} />
+          </React.Fragment>
+        );
+        break;
+      case WIDGET_TYPE.MIXED_CHART_STACKED_AREA_BOARD_NUMERIC:
+        module = (
+          <React.Fragment>
+            <NumericBoard {...chartProps} />
+            <LineChart
+              {...chartProps}
+              seriesOp={{
+                areaStyle: {},
+                stack: 'total',
+                label: { show: true, position: 'top' },
+              }}
+            />
+          </React.Fragment>
+        );
+        break;
+      case WIDGET_TYPE.MIXED_CHART_STACKED_BAR_BOARD_NUMERIC:
+        module = (
+          <React.Fragment>
+            <NumericBoard {...chartProps} />
+            <LineChart {...chartProps} seriesOp={{ type: 'bar', stack: 'total', label: { show: true } }} />;
+          </React.Fragment>
+        );
+        break;
+      case WIDGET_TYPE.MIXED_CHART_STACKED_COLUMN_BOARD_NUMERIC:
+        module = (
+          <React.Fragment>
+            <NumericBoard {...chartProps} />
+            <LineChart
+              {...chartProps}
+              axis="y"
+              seriesOp={{ type: 'bar', stack: 'total', label: { show: true } }}
+              defaultOp={{
+                grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+              }}
+            />
+          </React.Fragment>
+        );
+        break;
+      case WIDGET_TYPE.MIXED_CHART_DONUT_BOARD_NUMERIC:
+        module = (
+          <React.Fragment>
+            <NumericBoard
+              {...chartProps}
+              sx={{
+                position: 'absolute',
+                zIndex: 1000,
+                top: '50%',
+                left: 0,
+                right: 0,
+                margin: 'auto',
+                transform: 'translateY(-50%)',
+              }}
+            />
+            <DonutChart {...chartProps} />
+          </React.Fragment>
         );
         break;
 
@@ -308,28 +419,28 @@ const WidgetViewer = props => {
     setModule(module);
   };
 
-  const defaultComponentOption = {
-    grid: { top: 50, right: 50, bottom: 50, left: 50 },
-    tooltip: { trigger: 'axis' },
-    xAxis: {
-      type: 'category',
-    },
-    yAxis: {
-      type: 'value',
-    },
-    series: [],
-    emphasis: {
-      focus: 'series',
-      blurScope: 'coordinateSystem',
-    },
-  };
-
-  useEffect(() => {
-    if (testModule) {
-      const newOption = testModule({ ...chartProps });
-      setComponentOption({ ...defaultComponentOption, ...newOption });
-    }
-  }, [widgetOption, dataSet]);
+  // const defaultComponentOption = {
+  //   grid: { top: 50, right: 50, bottom: 50, left: 50 },
+  //   tooltip: { trigger: 'axis' },
+  //   xAxis: {
+  //     type: 'category',
+  //   },
+  //   yAxis: {
+  //     type: 'value',
+  //   },
+  //   series: [],
+  //   emphasis: {
+  //     focus: 'series',
+  //     blurScope: 'coordinateSystem',
+  //   },
+  // };
+  //
+  // useEffect(() => {
+  //   if (testModule) {
+  //     const newOption = testModule({ ...chartProps });
+  //     setComponentOption({ ...defaultComponentOption, ...newOption });
+  //   }
+  // }, [widgetOption, dataSet]);
 
   return (
     <Stack
@@ -350,15 +461,18 @@ const WidgetViewer = props => {
         sx={{
           width: '100%',
           height: '100%',
+          maxHeight: '600px',
+          position: 'relative',
+          overflow: 'hidden',
         }}
       >
-        {/*{module}*/}
-        <ReactECharts
-          option={componentOption}
-          style={{ height: '100%', maxHeight: '600px', width: '100%' }}
-          lazyUpdate={true}
-          notMerge={true}
-        />
+        {module}
+        {/*<ReactECharts*/}
+        {/*  option={componentOption}*/}
+        {/*  style={{ height: '100%', maxHeight: '600px', width: '100%' }}*/}
+        {/*  lazyUpdate={true}*/}
+        {/*  notMerge={true}*/}
+        {/*/>*/}
       </Stack>
     </Stack>
   );
