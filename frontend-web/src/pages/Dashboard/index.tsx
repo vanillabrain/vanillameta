@@ -16,7 +16,7 @@ function Dashboard() {
   const alert = useAlert();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
-  const [loadedWidgetData, setLoadedWidgetData] = useState([]);
+  const [loadedDashboardData, setLoadedDashboardData] = useState([]);
   const [loadedCount, setLoadedCount] = useState(1);
   const [dashboardNoData, setDashboardNoData] = useState(false);
 
@@ -34,7 +34,7 @@ function Dashboard() {
   const getDashboardList = () => {
     DashboardService.selectDashboardList().then(response => {
       if (response.data.status == STATUS.SUCCESS) {
-        setLoadedWidgetData(response.data.data.filter((list, idx) => idx <= 10 * loadedCount));
+        setLoadedDashboardData(response.data.data.filter((list, idx) => idx <= 10 * loadedCount));
         setDashboardNoData(response.data.data.length == 0);
       } else {
         alert.error('서비스 실패!');
@@ -87,15 +87,26 @@ function Dashboard() {
   return (
     <PageContainer>
       {!dashboardId ? (
-        dashboardNoData ? (
-          getEmptyDashboard()
-        ) : (
-          <>
-            <PageTitleBox title={title} button={<AddMenuIconButton menuList={menuList} handleSelect={handleMenuSelect} />}>
-              <BoardList postList={loadedWidgetData} handleDeleteSelect={handleDeleteSelect} />
-            </PageTitleBox>
-          </>
-        )
+        <>
+          <PageTitleBox
+            title={title}
+            sx={{ width: '100%' }}
+            button={
+              <AddMenuIconButton
+                menuList={menuList}
+                handleSelect={handleMenuSelect}
+                iconUrl={'../../assets/images/icon/btn-icon-default.png'}
+                sizeOption={{ width: 108, height: 32 }}
+              />
+            }
+          >
+            {dashboardNoData ? (
+              getEmptyDashboard()
+            ) : (
+              <BoardList postList={loadedDashboardData} handleDeleteSelect={handleDeleteSelect} />
+            )}
+          </PageTitleBox>
+        </>
       ) : (
         <Outlet />
       )}

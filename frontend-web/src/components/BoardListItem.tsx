@@ -84,7 +84,7 @@ function BoardListItem(props) {
         '&:last-of-type': { borderBottom: 0 },
       }}
     >
-      <ListItemButton sx={{ py: 0.8 }} component={RouterLink} to={`${postItem.id}`}>
+      <ListItemButton sx={{ py: 0.8 }} component={RouterLink} to={`view?id=${postItem.id}`} state={{ from: pathname }}>
         {postItem.type ? <ListItemIcon>{iconType}</ListItemIcon> : ''}
         <ListItemText
           primary={postItem.title}

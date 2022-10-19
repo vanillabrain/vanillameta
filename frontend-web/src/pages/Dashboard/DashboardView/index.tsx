@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Card, IconButton, Stack } from '@mui/material';
 import { Delete } from '@mui/icons-material';
-import { Link as RouterLink, useParams, useNavigate } from 'react-router-dom';
+import { Link as RouterLink, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
 import EditIcon from '@mui/icons-material/Edit';
 import PageTitleBox from '@/components/PageTitleBox';
@@ -19,6 +19,7 @@ const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const DashboardView = () => {
   const { dashboardId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const alert = useAlert();
 
@@ -30,7 +31,7 @@ const DashboardView = () => {
 
   // init useEffect
   useEffect(() => {
-    getDashboardInfo(dashboardId);
+    getDashboardInfo(searchParams.get('id'));
   }, []);
 
   // dashboardInfo useEffect
@@ -78,7 +79,7 @@ const DashboardView = () => {
 
   const handleDialogSelect = detail => {
     if (detail == 1) {
-      DashboardService.deleteDashboard(dashboardId).then(response => {
+      DashboardService.deleteDashboard(searchParams.get('id')).then(response => {
         if (response.data.status == STATUS.SUCCESS) {
           alert.info('삭제되었습니다.', {
             onClose: () => {
@@ -103,7 +104,7 @@ const DashboardView = () => {
             </IconButton>
             <IconButton
               component={RouterLink}
-              to={`/dashboard/modify?id=${dashboardId}&name=${dashboardInfo.title}`}
+              to={`/dashboard/modify?id=${searchParams.get('id')}&name=${dashboardInfo.title}`}
               aria-label="수정"
             >
               <EditIcon />
