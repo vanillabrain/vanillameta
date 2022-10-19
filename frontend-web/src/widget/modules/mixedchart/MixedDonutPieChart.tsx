@@ -120,7 +120,12 @@ const MixedDonutPieChart = props => {
   };
 
   return (
-    <ReactECharts option={componentOption} style={{ height: '100%', width: '100%' }} lazyUpdate={true} notMerge={true} />
+    <ReactECharts
+      option={componentOption}
+      style={{ display: 'flex', alignItems: 'center', height: '100%', width: '100%' }}
+      lazyUpdate={true}
+      notMerge={true}
+    />
   );
 };
 

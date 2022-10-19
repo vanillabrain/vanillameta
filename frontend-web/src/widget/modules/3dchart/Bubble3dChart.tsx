@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { Box } from '@mui/material';
 import ReactECharts from 'echarts-for-react';
 import 'echarts-gl';
 import { getGridSize, getLegendOption } from '@/widget/modules/utils/chartUtil';
@@ -89,14 +88,12 @@ function Scatter3DChart(props) {
   };
 
   return (
-    <Box
-      sx={{
-        width: '100%',
-        height: '100%',
-      }}
-    >
-      <ReactECharts option={componentOption} style={{ height: '100%', width: '100%' }} lazyUpdate={true} notMerge={true} />
-    </Box>
+    <ReactECharts
+      option={componentOption}
+      style={{ display: 'flex', alignItems: 'center', height: '100%', width: '100%' }}
+      lazyUpdate={true}
+      notMerge={true}
+    />
   );
 }
 

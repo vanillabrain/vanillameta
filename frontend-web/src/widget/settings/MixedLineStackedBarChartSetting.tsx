@@ -1,13 +1,25 @@
 import React from 'react';
 import { Divider, ListItem, ListItemText } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
-import { handleChange, handleSeriesChange } from '@/widget/utils/handler';
-import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST } from '@/constant';
-import ColorPickerForm from '@/components/form/ColorPickerForm';
+import ColorButtonForm from '@/components/form/ColorButtonForm';
+import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
+import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
+import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST, WIDGET_AGGREGATION } from '@/constant';
 
-const CandlestickChartSetting = props => {
-  const { option, setOption, spec } = props;
-  const candlestickLabel = ['open', 'close', 'lowest', 'highest'];
+const MixedLineStackedBarChartSetting = props => {
+  const { option, setOption, axis = 'x', spec } = props;
+
+  // 컴포넌트 별 default series
+  const defaultSeries = {
+    field: '',
+    color: '',
+    aggregation: WIDGET_AGGREGATION.SUM,
+    type: 'line',
+  };
+  const chartTypeList = [
+    { value: 'line', label: '선형' },
+    { value: 'bar', label: '막대형' },
+  ];
 
   return (
     <React.Fragment>
@@ -15,40 +27,39 @@ const CandlestickChartSetting = props => {
         <ListItemText primary="카테고리 설정" sx={{ textTransform: 'uppercase' }} />
         <SelectForm
           required={true}
-          id="xField"
-          name="xField"
-          label="x축"
+          id={axis + 'Field'}
+          name={axis + 'Field'}
+          label={axis + '축'}
           optionList={spec.map(item => item.columnName)}
           labelField="columnName"
           valueField="columnType"
-          value={option.xField}
+          value={option[`${axis}Field`]}
           onChange={event => handleChange(event, setOption)}
         />
       </ListItem>
       <ListItem divider>
         <ListItemText primary="시리즈 설정" />
+        <AddButton
+          onClick={event => handleAddClick(event, option, setOption, defaultSeries)}
+          sx={{
+            position: 'absolute',
+            top: 30,
+            right: 0,
+          }}
+        />
         {option.series.map((item, index) => (
           <React.Fragment key={index}>
             <SelectForm
               required={true}
               id={`field${index + 1}`}
               name={`field${index + 1}`}
-              label={candlestickLabel[index]}
+              label={`필드 ${index + 1}`}
               labelField="columnName"
               valueField="columnType"
               optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
-              value={option.series[index].field}
+              value={item.field}
               onChange={event => handleSeriesChange(event, setOption)}
-              endButton={
-                <ColorPickerForm
-                  name={`color${index + 1}`}
-                  color={option.series[index].color}
-                  index={index}
-                  option={option}
-                  setOption={setOption}
-                  onChange={event => handleSeriesChange(event, setOption)}
-                />
-              }
+              endButton={<ColorButtonForm index={index} option={option} setOption={setOption} />}
             />
             <SelectForm
               id={`aggregation${index + 1}`}
@@ -56,6 +67,23 @@ const CandlestickChartSetting = props => {
               label="집계 방식"
               optionList={AGGREGATION_LIST}
               value={item.aggregation}
+              onChange={event => handleSeriesChange(event, setOption)}
+              disabledDefaultValue
+              endButton={
+                0 < index ? (
+                  <RemoveButton onClick={event => handleRemoveClick(event, index, option, setOption)} id={index} />
+                ) : (
+                  ' '
+                )
+              }
+            />
+            <SelectForm
+              required={true}
+              id={`type${index + 1}`}
+              name={`type${index + 1}`}
+              label={`종류 ${index + 1}`}
+              optionList={chartTypeList}
+              value={item.type}
               onChange={event => handleSeriesChange(event, setOption)}
               disabledDefaultValue
             />
@@ -78,4 +106,4 @@ const CandlestickChartSetting = props => {
   );
 };
 
-export default CandlestickChartSetting;
+export default MixedLineStackedBarChartSetting;

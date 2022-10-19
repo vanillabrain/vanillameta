@@ -3,7 +3,7 @@ import { Stack, Typography } from '@mui/material';
 import { getAggregationData } from '@/widget/modules/utils/chartUtil';
 
 const NumericBoard = props => {
-  const { option, dataSet } = props;
+  const { option, dataSet, sx } = props;
 
   const defaultComponentOption = {
     header: { title: '제목입니다', fontSize: 16, color: '#cccccc' },
@@ -41,15 +41,25 @@ const NumericBoard = props => {
   return (
     <Stack
       sx={{
-        width: '100%',
-        height: '100%',
         padding: 2,
+        ...sx,
       }}
     >
-      <Typography component="span" sx={{ fontSize: componentOption.header.fontSize, color: componentOption.header.color }}>
+      <Typography
+        component="span"
+        sx={{ fontSize: componentOption.header.fontSize, color: componentOption.header.color, textAlign: 'center' }}
+      >
         {componentOption.header.title}
       </Typography>
-      <Typography component="span" sx={{ fontSize: componentOption.content.fontSize, color: componentOption.content.color }}>
+      <Typography
+        component="span"
+        sx={{
+          fontSize: componentOption.content.fontSize,
+          color: componentOption.content.color,
+          fontWeight: 'bold',
+          textAlign: 'center',
+        }}
+      >
         {score}
       </Typography>
     </Stack>

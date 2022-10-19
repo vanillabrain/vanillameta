@@ -2,25 +2,33 @@ import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { getAggregationDataForChart, getGridSize, getLegendOption } from '@/widget/modules/utils/chartUtil';
 
-const PolarBarChart = props => {
-  const { option, dataSet, seriesOp, defaultOp, createOp } = props;
+const LineChart = props => {
+  const { option, dataSet, axis = 'x', seriesOp, defaultOp, createOp } = props;
+  const reverseAxis = axis === 'x' ? 'y' : 'x';
 
   const [componentOption, setComponentOption] = useState({});
 
   const defaultComponentOption = {
     grid: { top: 50, right: 50, bottom: 50, left: 50 },
-    tooltip: { trigger: 'axis' },
-    series: [],
-    angleAxis: {},
-    emphasis: {
-      focus: 'series',
-      blurScope: 'coordinateSystem',
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    [axis + 'Axis']: {
+      type: 'category',
     },
+    [reverseAxis + 'Axis']: {
+      type: 'value',
+      boundaryGap: [0, 0.01],
+    },
+    series: [],
+    emphasis: {
+      focus: 'none',
+    },
+    ...defaultOp,
   };
 
   useEffect(() => {
     if (option && dataSet) {
       const newOption = createComponentOption();
+
       setComponentOption(newOption);
     }
   }, [option, dataSet]);
@@ -37,35 +45,33 @@ const PolarBarChart = props => {
     const newSeries = [];
     let aggrData = [];
     option.series.forEach(item => {
-      aggrData = getAggregationDataForChart(dataSet, option.axisField, item.field, item.aggregation);
+      console.log('dataSet', dataSet);
+      console.log('item', item);
+      console.log('axis', axis);
+      console.log('option[axisField]', option[axis + 'Field']);
+      aggrData = getAggregationDataForChart(dataSet, option[axis + 'Field'], item.field, item.aggregation);
       console.log('aggrData : ', aggrData);
-      if (item.field) {
+      console.log(aggrData.map(dataItem => dataItem[item.field]));
+      if (item.field && item.type) {
         const series = {
           name: item.field,
           data: aggrData.map(dataItem => dataItem[item.field]),
-          type: 'bar',
+          type: item.type,
           color: item.color,
-          coordinateSystem: 'polar',
-          label: {
-            show: true,
-            position: 'middle',
-          },
+          stack: item.type === 'bar' && 'stack',
           ...seriesOp,
         };
         newSeries.push(series);
       }
     });
 
-    if (aggrData && option.axisField) {
+    if (aggrData && option[axis + 'Field']) {
       const op = {
-        radiusAxis: {
+        [axis + 'Axis']: {
           type: 'category',
-          data: option.andleField ? aggrData.map(item => item[option.andleField]) : '',
+          data: option[axis + 'Field'] ? aggrData.map(item => item[option[axis + 'Field']]) : '',
         },
         series: newSeries,
-        polar: {
-          radius: option.radius,
-        },
         grid: getGridSize(option.legendPosition),
         legend: getLegendOption(option.legendPosition),
         ...createOp,
@@ -74,7 +80,7 @@ const PolarBarChart = props => {
       newOption = { ...defaultComponentOption, ...op };
     }
 
-    // console.log(newOption);
+    console.log(newOption);
     return newOption;
   };
 
@@ -88,4 +94,4 @@ const PolarBarChart = props => {
   );
 };
 
-export default PolarBarChart;
+export default LineChart;

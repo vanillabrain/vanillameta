@@ -11,6 +11,7 @@ function MixedLineBarChartSetting({ ...ChartSettingProps }) {
     <LineChartSetting
       {...ChartSettingProps}
       seriesItem={{
+        required: true,
         id: 'type',
         name: 'type',
         label: '종류',
