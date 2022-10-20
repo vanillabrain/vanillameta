@@ -44,82 +44,137 @@ const WaterfallBarChart = props => {
 
     const newSeries = [];
     let aggrData = [];
-    const transparentSeries = [];
-    const increaseSeries = [];
-    const decreaseSeries = [];
-    option.series.forEach(item => {
-      aggrData = getAggregationDataForChart(dataSet, option[axis + 'Field'], item.field, item.aggregation);
-      const seriesData = aggrData.map((dataItem, dataIndex) => dataItem[item.field]);
-      let prevData = 0;
-      seriesData.forEach(dataItem => {
-        const gap = Math.round(dataItem - prevData);
-        // console.log(gap, 'gap');
-        if (Math.sign(gap) === 1) {
-          // 증가했을 경우
-          decreaseSeries.push('-');
-          increaseSeries.push(gap);
-          transparentSeries.push(prevData);
-        } else if (Math.sign(gap) === 0) {
-          // 0
-          decreaseSeries.push('-');
-          increaseSeries.push('-');
-          transparentSeries.push(prevData);
-        } else {
-          // 감소했을 경우
-          increaseSeries.push('-');
-          decreaseSeries.push(Math.abs(gap));
-          transparentSeries.push(prevData - Math.abs(gap));
-        }
-        prevData = dataItem;
-      });
-      // console.log(transparentSeries, increaseSeries, decreaseSeries);
-      // console.log('aggrData : ', aggrData);
-      if (item.field) {
-        const series = [
-          {
-            name: item.field,
-            data: transparentSeries,
-            type: 'bar',
-            stack: 'total',
+
+    let incomeData = [];
+    let expensesData = [];
+    let baseData = [];
+    if (option.series.income.field) {
+      aggrData = getAggregationDataForChart(
+        dataSet,
+        option[axis + 'Field'],
+        option.series.income.field,
+        option.series.income.aggregation,
+      );
+
+      incomeData = aggrData.map(item => item[option.series.income.field]);
+      console.log('incomeData :', incomeData);
+    }
+
+    if (option.series.expenses.field) {
+      aggrData = getAggregationDataForChart(
+        dataSet,
+        option[axis + 'Field'],
+        option.series.expenses.field,
+        option.series.expenses.aggregation,
+      );
+      expensesData = aggrData.map(item => -item[option.series.expenses.field]);
+      console.log('expensesData :', expensesData);
+    }
+
+    baseData = incomeData.map((item, index) => expensesData[index] - item);
+    // option.series.forEach(item => {
+    //   aggrData = getAggregationDataForChart(dataSet, option[axis + 'Field'], item.field, item.aggregation);
+    //   const seriesData = aggrData.map((dataItem, dataIndex) => dataItem[item.field]);
+    //   let prevData = 0;
+    //   seriesData.forEach((dataItem, dataIndex) => {
+    //     const gap = Math.round(Math.abs(dataItem) - Math.abs(prevData));
+    //     // console.log(gap, 'gap');
+    //     if (Math.sign(gap) === 1) {
+    //       // 증가했을 경우
+    //       decreaseSeries.push('-');
+    //       increaseSeries.push(dataItem - prevData);
+    //       transparentSeries.push(prevData);
+    //     } else if (Math.sign(dataItem - prevData) === 0) {
+    //       // 0
+    //       decreaseSeries.push('-');
+    //       increaseSeries.push('-');
+    //       transparentSeries.push(prevData);
+    //     } else {
+    //       // 감소했을 경우
+    //       increaseSeries.push('-');
+    //       if (dataIndex === 0) {
+    //         transparentSeries.push(prevData);
+    //         decreaseSeries.push(dataItem - prevData);
+    //       } else {
+    //         decreaseSeries.push(Math.abs(dataItem - prevData));
+    //         // transparentSeries.push(prevData - Math.abs(dataItem - prevData));
+    //         transparentSeries.push(prevData + transparentSeries[dataIndex - 1] - dataItem);
+    //       }
+    //     }
+    //     prevData = dataItem;
+    //   });
+    //   // seriesData.forEach(dataItem => {
+    //   //   const gap = Math.round(dataItem - prevData);
+    //   //   // console.log(gap, 'gap');
+    //   //   if (Math.sign(gap) === 1) {
+    //   //     // 증가했을 경우
+    //   //     decreaseSeries.push('-');
+    //   //     increaseSeries.push(gap);
+    //   //     transparentSeries.push(prevData);
+    //   //   } else if (Math.sign(gap) === 0) {
+    //   //     // 0
+    //   //     decreaseSeries.push('-');
+    //   //     increaseSeries.push('-');
+    //   //     transparentSeries.push(prevData);
+    //   //   } else {
+    //   //     // 감소했을 경우
+    //   //     increaseSeries.push('-');
+    //   //     decreaseSeries.push(Math.abs(gap));
+    //   //     transparentSeries.push(prevData - Math.abs(gap));
+    //   //   }
+    //   //   prevData = dataItem;
+    //   // });
+    //   // console.log(transparentSeries, increaseSeries, decreaseSeries);
+    //   // console.log('aggrData : ', aggrData);
+    if (baseData.length) {
+      const series = [
+        {
+          name: 'placeholder',
+          // data: transparentSeries,
+          data: baseData,
+          type: 'bar',
+          stack: 'total',
+          itemStyle: {
+            borderColor: 'transparent',
+            color: '#eee',
+          },
+          emphasis: {
             itemStyle: {
               borderColor: 'transparent',
               color: 'transparent',
             },
-            emphasis: {
-              itemStyle: {
-                borderColor: 'transparent',
-                color: 'transparent',
-              },
-            },
-            tooltip: {
-              show: false,
-            },
           },
-          {
-            name: '상승',
-            type: 'bar',
-            stack: 'total',
-            label: {
-              show: true,
-              position: axis === 'x' ? 'top' : 'right',
-            },
-            data: increaseSeries,
+          // tooltip: {
+          //   show: false,
+          // },
+        },
+        {
+          name: option.series.income.field,
+          color: option.series.income.color,
+          type: 'bar',
+          stack: 'total',
+          label: {
+            show: true,
+            position: axis === 'x' ? 'top' : 'right',
           },
-          {
-            name: '하강',
-            type: 'bar',
-            stack: 'total',
-            label: {
-              show: true,
-              position: axis === 'x' ? 'bottom' : 'left',
-              formatter: '-{c}',
-            },
-            data: decreaseSeries,
+          data: incomeData,
+        },
+        {
+          name: option.series.expenses.field,
+          color: option.series.expenses.color,
+          type: 'bar',
+          stack: 'total',
+          label: {
+            show: true,
+            position: axis === 'x' ? 'bottom' : 'left',
+            formatter: '-{c}',
           },
-        ];
-        newSeries.push(...series);
-      }
-    });
+          data: expensesData,
+        },
+      ];
+      newSeries.push(...series);
+    }
+    // });
 
     if (aggrData && option[axis + 'Field']) {
       const op = {
@@ -128,7 +183,6 @@ const WaterfallBarChart = props => {
           data: option[axis + 'Field'] ? aggrData.map(item => item[option[axis + 'Field']]) : '',
         },
         series: newSeries,
-        color: [...option.color],
         grid: getGridSize(option.legendPosition),
         legend: getLegendOption(option.legendPosition),
         ...createOp,
