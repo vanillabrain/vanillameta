@@ -1,10 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
-import {
-  getAggregationDataForChart,
-  getAggregationDataForChartWithMultipleKeys,
-  testFunc,
-} from '@/widget/modules/utils/chartUtil';
+import { getAggregationDataForChartWithMultipleKeys } from '@/widget/modules/utils/chartUtil';
 
 const HeatmapChart = props => {
   const { option, dataSet } = props;
@@ -45,43 +41,53 @@ const HeatmapChart = props => {
     let newOption = {};
 
     let aggrData = [];
-    if (option.xField && option.yField) {
+    let newSeries = [];
+    const xAxisData = [];
+    const yAxisData = [];
+
+    if (option.xField && option.yField && option.series) {
       aggrData = getAggregationDataForChartWithMultipleKeys(
         dataSet,
         [option.xField, option.yField],
         option.series,
         option.aggregation,
       );
-      console.log(aggrData);
+      console.log('aggrData', aggrData);
 
-      const newSeries = aggrData.map((item, index) => {
-        // let num = 0;
-        // const temp = [];
-        // if(!temp[item[option.xField]]){
-        //   temp[item[option.xField]] = num;
-        //   num +=1;
-        // }
-        // return []
-        // console.log(Object.values(item[option.xField]));
+      let xIndex = 0;
+      let yIndex = 0;
+      const xItems = {};
+      const yItems = {};
+      newSeries = aggrData.map(item => {
+        const result = [];
+        // console.log('item:', item);
+        // console.log('result :', item[option.xField], item[option.yField], item[option.series]);
+
+        // 1번째 요소
+        if (!xItems.hasOwnProperty(item[option.xField])) {
+          xItems[item[option.xField]] = xIndex;
+          xIndex += 1;
+          xAxisData.push(item[option.xField]);
+        }
+        result.push(xItems[item[option.xField]]);
+
+        // 2번째 요소
+        if (!yItems.hasOwnProperty(item[option.yField])) {
+          yItems[item[option.yField]] = yIndex;
+          yIndex += 1;
+          yAxisData.push(item[option.yField]);
+        }
+        result.push(yItems[item[option.yField]]);
+
+        // 3번째 요소
+        result.push(item[option.series] || '-');
+        return result;
       });
-      // option.series.forEach((item, index) => {
-      //   const aggrItem = getAggregationDataForChart(dataSet, option.xField, item.field, option.aggregation);
-      //   // console.log('aggrData :', aggrData);
-      //   if (!xAxisData.length) {
-      //     xAxisData = aggrItem.map(element => element[option.xField]);
-      //     // console.log(xAxisData, 'xAxisData');
-      //   }
-      //   if (item.field) {
-      //     const result = aggrItem.map((element, idx) => [idx, index, element[item.field]]);
-      //     aggrData.push(...result);
-      //     // console.log('aggrData :', aggrData);
-      //   }
-      // });
     }
+    console.log('newSeries', newSeries);
 
     let minValue, maxValue;
     if (aggrData.length) {
-      // const arr = aggrData.map(item => item[2]);
       const arr = aggrData.map(item => item[option.series]);
       minValue = Math.min(...arr);
       maxValue = Math.max(...arr);
@@ -91,27 +97,24 @@ const HeatmapChart = props => {
         xAxis: {
           type: 'category',
           splitArea: { show: true },
-          // data: aggrData.map(item => item[option.xField]),
+          data: xAxisData,
         },
         yAxis: {
           type: 'category',
           splitArea: { show: true },
-          // data: aggrData.map(item => item[option.yField]),
-          // data: option.series.map(item => item.field),
+          data: yAxisData,
         },
         series: [
           {
-            // data: aggrData.map(item => [item[0], item[1], item[2] || '-']),
-            // data: testFunc(aggrData, option.xField),
-            // data: newSeries,
+            data: newSeries,
             type: 'heatmap',
             label: { show: true },
           },
         ],
         visualMap: {
           type: 'continuous',
-          // min: minValue ?? 0,
-          // max: maxValue ?? 0,
+          min: !Number.isNaN(minValue) && minValue,
+          max: !Number.isNaN(maxValue) && maxValue,
           calculable: true,
           orient: 'horizontal',
           left: 'center',
