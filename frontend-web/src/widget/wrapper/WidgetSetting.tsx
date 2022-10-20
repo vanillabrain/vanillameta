@@ -272,6 +272,14 @@ const WidgetSetting = props => {
           </React.Fragment>
         );
         break;
+      case WIDGET_TYPE.MIXED_CHART_NIGHTINGALE_BOARD_NUMERIC:
+        module = (
+          <React.Fragment>
+            <NumericBoardSetting {...chartSettingProps} />
+            <DonutChartSetting {...chartSettingProps} />
+          </React.Fragment>
+        );
+        break;
 
       default:
         module = '컴포넌트가 선택되지 않았다!';

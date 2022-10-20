@@ -409,6 +409,31 @@ const WidgetViewer = props => {
           </React.Fragment>
         );
         break;
+      case WIDGET_TYPE.MIXED_CHART_NIGHTINGALE_BOARD_NUMERIC:
+        module = (
+          <React.Fragment>
+            <NumericBoard
+              {...chartProps}
+              sx={{
+                position: 'absolute',
+                zIndex: 1000,
+                top: '50%',
+                left: 0,
+                right: 0,
+                margin: 'auto',
+                transform: 'translateY(-50%)',
+              }}
+            />
+            <DonutChart
+              {...chartProps}
+              seriesOp={{
+                roseType: 'area',
+                itemStyle: { borderRadius: 8 },
+              }}
+            />
+          </React.Fragment>
+        );
+        break;
 
       default:
         module = '컴포넌트가 선택되지 않았다!';
