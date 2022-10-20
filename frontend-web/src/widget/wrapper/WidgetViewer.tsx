@@ -446,7 +446,7 @@ const WidgetViewer = props => {
     <Stack
       sx={{
         width: '100%',
-        height: '100%',
+        height: '500px',
         border: '1px solid #DADDDD',
       }}
     >
@@ -462,7 +462,6 @@ const WidgetViewer = props => {
           width: '100%',
           height: '100%',
           maxHeight: '600px',
-          position: 'relative',
           overflow: 'hidden',
         }}
       >

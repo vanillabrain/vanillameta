@@ -19,7 +19,6 @@ const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const DashboardView = () => {
   const { dashboardId } = useParams();
-  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const alert = useAlert();
 
@@ -31,7 +30,7 @@ const DashboardView = () => {
 
   // init useEffect
   useEffect(() => {
-    getDashboardInfo(searchParams.get('id'));
+    getDashboardInfo(dashboardId);
   }, []);
 
   // dashboardInfo useEffect
@@ -79,7 +78,7 @@ const DashboardView = () => {
 
   const handleDialogSelect = detail => {
     if (detail == 1) {
-      DashboardService.deleteDashboard(searchParams.get('id')).then(response => {
+      DashboardService.deleteDashboard(dashboardId).then(response => {
         if (response.data.status == STATUS.SUCCESS) {
           alert.info('삭제되었습니다.', {
             onClose: () => {
@@ -104,7 +103,7 @@ const DashboardView = () => {
             </IconButton>
             <IconButton
               component={RouterLink}
-              to={`/dashboard/modify?id=${searchParams.get('id')}&name=${dashboardInfo.title}`}
+              to={`/dashboard/modify?id=${dashboardId}&name=${dashboardInfo.title}`}
               aria-label="수정"
             >
               <EditIcon />
