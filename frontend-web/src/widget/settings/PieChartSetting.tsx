@@ -77,19 +77,22 @@ const PieChartSetting = props => {
       <ListItem divider>
         <ListItemText primary="색상 설정" />
         {option.series.field &&
-          option.series.color.map((item, index) => (
-            <React.Fragment key={index}>
-              <ColorFieldForm
-                id={`color${index + 1}`}
-                name={`color${index + 1}`}
-                value={option.series.color[index]}
-                colorList={option.series.color}
-                setOption={setOption}
-                index={index}
-              />
-              <Divider />
-            </React.Fragment>
-          ))}
+          option.series.color
+            // 최대 50개까지 제한?
+            .filter((item, index) => index < 50)
+            .map((item, index) => (
+              <React.Fragment key={index}>
+                <ColorFieldForm
+                  id={`color${index + 1}`}
+                  name={`color${index + 1}`}
+                  value={option.series.color[index]}
+                  colorList={option.series.color}
+                  setOption={setOption}
+                  index={index}
+                />
+                <Divider />
+              </React.Fragment>
+            ))}
       </ListItem>
 
       {/* 추가되는 아이템 */}
