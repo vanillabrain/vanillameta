@@ -80,9 +80,9 @@ export const ALIGN_LIST = [
 ];
 
 export const COLUMN_TYPE = {
-  STRING: 'STRING',
-  NUMBER: 'NUMBER',
-  DATE: 'DATE',
+  STRING: 'String',
+  NUMBER: 'number',
+  DATE: 'date',
 };
 
 export const LEGEND_LIST = [

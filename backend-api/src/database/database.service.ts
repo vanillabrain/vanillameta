@@ -76,12 +76,16 @@ export class DatabaseService {
     const tables = [];
     if (tablesInfo && tablesInfo.datas.length > 0) {
       tablesInfo.datas.map(tableObj => {
-        tables.push({ id: Object.values(tableObj)[0], data: Object.values(tableObj)[0] });
+        tables.push({ id: Object.values(tableObj)[0], tableName: Object.values(tableObj)[0], databaseId: id, datasetType:DatasetType.TABLE });
       });
     }
 
     // dataset 정보 조회
-    const datasets = await this.datasetRepository.find({ where: { databaseId: id } });
+    const tempDatasets = await this.datasetRepository.find({ where: { databaseId: id } });
+    const datasets = [];
+    tempDatasets.map(item => {
+      datasets.push(Object.assign({datasetType:DatasetType.DATASET}, item));
+    })
 
     return { status: ResponseStatus.SUCCESS, data: { databaseInfo, tables, datasets } };
   }
@@ -107,7 +111,7 @@ export class DatabaseService {
 
     const connectionConfig = {
       client: one.engine,
-      connection: one.connectionConfig,
+      connection: Object(one.connectionConfig).connection,
       useNullAsDefault: true,
     };
     updateDatabaseDto.connectionConfig = JSON.stringify(connectionConfig);

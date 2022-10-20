@@ -27,7 +27,7 @@ export class CreateDatabaseDto {
   connectionConfig: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @ApiProperty({
     example: 'mysql',
     description: '데이터베이스 엔진',

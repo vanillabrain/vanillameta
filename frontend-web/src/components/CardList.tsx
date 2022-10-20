@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Fragment } from 'react';
 import { Grid, Card, Typography, CardContent, CardActionArea, CardActions, IconButton } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import { Delete, Edit } from '@mui/icons-material';
@@ -29,7 +29,7 @@ CardListWrapper.defaultProps = {
 };
 
 const CardList = props => {
-  const { subActions, minWidth, data, setValue, handleNext, ...rest } = props;
+  const { subActions, minWidth, data, setValue, selectDataset } = props;
 
   const handleClick = event => {
     if (setValue !== undefined) {
@@ -48,13 +48,12 @@ const CardList = props => {
                 }}
               >
                 <CardActionArea
-                  onClick={!handleNext ? handleClick : event => handleNext(event, item)}
+                  onClick={() => selectDataset(item)}
                   sx={{
                     minHeight: 80,
                     px: 2,
                   }}
                   value={item.id}
-                  {...rest}
                 >
                   <CardContent sx={{ p: 0, pl: 1 }}>
                     <Typography
@@ -84,7 +83,7 @@ CardList.defaultProps = {
 export default CardList;
 
 export const DataSetCard = props => {
-  const { data, minWidth, disabledIcons, ...rest } = props;
+  const { data, minWidth, disabledIcons, selectDataset } = props;
 
   return (
     <CardListWrapper minWidth={minWidth}>
@@ -95,7 +94,7 @@ export const DataSetCard = props => {
                 sx={{
                   position: 'relative',
                 }}
-                {...rest}
+                onClick={() => selectDataset('DATASET', item)}
               >
                 <CardContent
                   sx={{
@@ -121,9 +120,7 @@ export const DataSetCard = props => {
                 </CardContent>
 
                 {/* 아이콘 */}
-                {disabledIcons ? (
-                  ''
-                ) : (
+                {disabledIcons ? null : (
                   <CardActions
                     disableSpacing
                     sx={{
@@ -161,7 +158,7 @@ DataSetCard.defaultProps = {
 };
 
 export const DataSourceCard = props => {
-  const { data, onUpdate, selectedData, minWidth, disabledIcons, ...rest } = props;
+  const { data, onUpdate, selectedData, minWidth, disabledIcons, onRemove } = props;
 
   const handleClick = event => {
     if (onUpdate !== undefined) {
@@ -169,6 +166,7 @@ export const DataSourceCard = props => {
     }
   };
 
+  console.log(selectedData.databaseId, data);
   return (
     <CardListWrapper minWidth={minWidth}>
       {data.map
@@ -184,13 +182,12 @@ export const DataSourceCard = props => {
                   value={item.id}
                   sx={{
                     boxShadow:
-                      selectedData.dataSource === item.id
+                      selectedData.databaseId === item.id
                         ? theme => `0 0 0 3px ${theme.palette.primary.main} inset`
                         : 'none',
                     minHeight: 80,
                     px: 2,
                   }}
-                  {...rest}
                 >
                   <CardContent sx={{ p: 0, pl: 1 }}>
                     <Typography
@@ -210,7 +207,7 @@ export const DataSourceCard = props => {
 
                 {/* 아이콘 */}
                 {disabledIcons ? (
-                  ''
+                  <Fragment />
                 ) : (
                   <CardActions
                     disableSpacing
@@ -226,11 +223,19 @@ export const DataSourceCard = props => {
                     }}
                     onClick={handleClick}
                   >
-                    <Recommend data={item} />
                     <IconButton size="medium" component={RouterLink} to={`/data/source/modify/${item.id}`}>
                       <Edit />
                     </IconButton>
-                    <DialogAlertIconButton icon={<Delete />}>{item.name} 을 삭제하시겠습니까?</DialogAlertIconButton>
+                    <IconButton
+                      size="medium"
+                      onClick={event => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onRemove(item.id, item.name);
+                      }}
+                    >
+                      <Delete />
+                    </IconButton>
                   </CardActions>
                 )}
               </Card>

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Card, IconButton, Stack } from '@mui/material';
 import { Delete } from '@mui/icons-material';
-import { Link as RouterLink, useParams, useNavigate } from 'react-router-dom';
+import { Link as RouterLink, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
 import EditIcon from '@mui/icons-material/Edit';
 import PageTitleBox from '@/components/PageTitleBox';

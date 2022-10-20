@@ -26,7 +26,6 @@ import MixedDonutPieChartSetting from '@/widget/settings/MixedDonutPieChartSetti
 import MixedLineStackedBarChartSetting from '@/widget/settings/MixedLineStackedBarChartSetting';
 
 const StyledList = styled(List)({
-  position: 'relative',
   display: 'flex',
   flexWrap: 'wrap',
   '& .MuiListItemText-root': {
