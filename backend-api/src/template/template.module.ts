@@ -5,9 +5,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Template } from './entities/template.entity';
 import { TemplateItem } from './entities/template-item.entity';
 import { Widget } from '../widget/entities/widget.entity';
+import { Component } from '../component/entities/component.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Template, TemplateItem, Widget])],
+  imports: [TypeOrmModule.forFeature([Template, TemplateItem, Widget, Component])],
   controllers: [TemplateController],
   providers: [TemplateService],
 })

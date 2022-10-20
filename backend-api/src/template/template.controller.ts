@@ -61,8 +61,8 @@ export class TemplateController {
    */
   //todo:: yhs:: 추천 알고리즘 적용해서 조회해 와야함
   @Post('/recommend')
-  findRecommendAll(@Body() widgets: number[]) {
-    return this.templateService.findRecommendTemplates(widgets);
+  findRecommendAll(@Body() body) {
+    return this.templateService.findRecommendTemplates(body.widgets);
   }
 
   /**

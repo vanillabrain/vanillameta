@@ -13,6 +13,8 @@ import { ItemInfoDto } from './dto/item-info.dto';
 import { async } from 'rxjs';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import { Widget } from '../widget/entities/widget.entity';
+import { Component } from '../component/entities/component.entity';
+import { ComponentType } from '../common/enum/component-type.enum';
 
 @Injectable()
 export class TemplateService {
@@ -23,6 +25,8 @@ export class TemplateService {
     private readonly templateItemRepository: Repository<TemplateItem>,
     @InjectRepository(Widget)
     private readonly widgetRepository: Repository<Widget>,
+    @InjectRepository(Component)
+    private readonly componentRepository: Repository<Component>,
   ) {}
 
   /**
@@ -37,10 +41,17 @@ export class TemplateService {
 
     // 템플릿 상세
     const insertItems = [];
-    createTemplate.layout.map(item =>{
-      const tempObj = {templateId: insertTemplate.id, x: item.x, y: item.y, width: item.w, height: item.h, recommendCategory:item.category}
+    createTemplate.layout.map(item => {
+      const tempObj = {
+        templateId: insertTemplate.id,
+        x: item.x,
+        y: item.y,
+        width: item.w,
+        height: item.h,
+        recommendCategory: item.category,
+      };
       insertItems.push(tempObj);
-    })
+    });
     const insertItem = await this.templateItemRepository.save(insertItems);
 
     return { status: ResponseStatus.SUCCESS, data: insertTemplate };
@@ -120,12 +131,19 @@ export class TemplateService {
     );
 
     // 템플릿 상세
-    await this.templateItemRepository.delete({templateId:id});
+    await this.templateItemRepository.delete({ templateId: id });
     const insertItems = [];
-    updateTemplate.layout.map(item =>{
-      const tempObj = {templateId: id, x: item.x, y: item.y, width: item.w, height: item.h, recommendCategory:item.category}
+    updateTemplate.layout.map(item => {
+      const tempObj = {
+        templateId: id,
+        x: item.x,
+        y: item.y,
+        width: item.w,
+        height: item.h,
+        recommendCategory: item.category,
+      };
       insertItems.push(tempObj);
-    })
+    });
     await this.templateItemRepository.save(insertItems);
 
     if (updateItem.affected < 1) {
@@ -183,6 +201,35 @@ export class TemplateService {
    * @param widgets
    */
   async findRecommendTemplates(widgets: number[]) {
+    const widgetInfo = this.widgetRepository
+      .createQueryBuilder()
+      .subQuery()
+      .select(['widget.*'])
+      .from(Widget, 'widget')
+      .where('id in (:id)')
+      .getQuery();
+
+    const widgetList = await this.componentRepository
+      .createQueryBuilder('component')
+      .select([
+        'widget.*',
+        'component.category as componentCategory',
+        'component.type as componentType',
+      ])
+      // .select([
+      //   `sum(case when component.category = 'HORIZONTAL' then 1 else 0 end) as horizontalCnt`,
+      //   `sum(case when component.category = 'VERTICAL' then 1 else 0 end) as verticalCnt`,
+      //   `sum(case when component.category = 'SQUARE' then 1 else 0 end) as squareCnt`,
+      //   `sum(case when component.category = 'SCORE' then 1 else 0 end) as scoreCnt`,
+      //   `sum(1) as widgetCnt`,
+      // ])
+      .innerJoin(widgetInfo, 'widget', 'widget.componentId = component.id')
+      .setParameter('id', widgets)
+      .getRawMany();
+    // .getRawOne();
+
+    this.getRecommendTemplates(widgetList);
+
     const returnArr = [];
     const tempTemplateInfo = new TemplateItem();
     returnArr.push(tempTemplateInfo);
@@ -240,12 +287,100 @@ export class TemplateService {
       templateInfo.layout = layout;
     }
 
-    widgetList[0].option = JSON.parse(widgetList[0].option);
-    widgetList[1].option = JSON.parse(widgetList[1].option);
+    widgetList.forEach((item, i) => {
+      item.option = JSON.parse(item.option);
+      // templateInfo.widgets.push(item);
+      templateInfo.layout[i].i = item.id;
+    });
 
-    templateInfo.widgets = [widgetList[0], widgetList[1]];
-    templateInfo.layout[0].i = widgetList[0].id;
-    templateInfo.layout[1].i = widgetList[1].id;
+    templateInfo.widgets = widgetList;
+
+    //
+    // widgetList[0].option = JSON.parse(widgetList[0].option);
+    // widgetList[1].option = JSON.parse(widgetList[1].option);
+    //
+    // templateInfo.widgets = [widgetList[0], widgetList[1]];
+    // templateInfo.layout[0].i = widgetList[0].id;
+    // templateInfo.layout[1].i = widgetList[1].id;
     return { status: ResponseStatus.SUCCESS, data: templateInfo };
+  }
+
+  /**
+   * 템플릿 추천 목록 계산
+   * @param widgetComponentInfo
+   * @private
+   */
+  private async getRecommendTemplates(widgetList) {
+    // widget component별 개수 정리
+    const widgetComponentInfo = {
+      horizontalCnt: 0,
+      verticalCnt: 0,
+      squareCnt: 0,
+      scoreCnt: 0,
+      tableCnt: 0,
+      widgetCnt: widgetList.length,
+    };
+
+    widgetList.map(item => {
+      switch (item.componentCategory) {
+        case ComponentType.HORIZONTAL:
+          widgetComponentInfo.horizontalCnt += 1;
+          break;
+        case ComponentType.VERTICAL:
+          widgetComponentInfo.verticalCnt += 1;
+          break;
+        case ComponentType.SCORE:
+          widgetComponentInfo.scoreCnt += 1;
+          break;
+        case ComponentType.SQUARE:
+          widgetComponentInfo.squareCnt += 1;
+          break;
+        case ComponentType.TABLE:
+          widgetComponentInfo.tableCnt += 1;
+          break;
+        default:
+          break;
+      }
+    });
+
+    const templates = this.templateRepository
+      .createQueryBuilder()
+      .subQuery()
+      .select(['template.id as id'])
+      .from(Template, 'template')
+      .where(`useYn = 'Y'`)
+      .getQuery();
+
+    const templateComponentInfo = await this.templateItemRepository
+      .createQueryBuilder('templateItems')
+      .select([
+        'template.id as id',
+        `sum(case when templateItems.recommendCategory = 'HORIZONTAL' then 1 else 0 end) as horizontalCnt`,
+        `sum(case when templateItems.recommendCategory = 'VERTICAL' then 1 else 0 end) as verticalCnt`,
+        `sum(case when templateItems.recommendCategory = 'SQUARE' then 1 else 0 end) as squareCnt`,
+        `sum(case when templateItems.recommendCategory = 'SCORE' then 1 else 0 end) as scoreCnt`,
+        'sum(1) as totalCnt',
+      ])
+      .innerJoin(templates, 'template', 'template.id = templateItems.templateId')
+      .groupBy('template.id')
+      .getRawMany();
+
+    templateComponentInfo.forEach(item => {
+      // 갯수로 점수 산출
+      let cntScore = 0;
+      if (item.totalCnt === widgetComponentInfo.widgetCnt) {
+        cntScore = 100;
+      } else if (item.totalCnt > widgetComponentInfo.widgetCnt) {
+        cntScore = 100 - (item.totalCnt - widgetComponentInfo.widgetCnt) * 5;
+      } else {
+        cntScore = 100 - (widgetComponentInfo.widgetCnt - item.totalCnt) * 10;
+      }
+      item.cntScore = cntScore;
+
+      // 컴포넌트 타입으로 점수 산출
+      item.recommendScore = 100;
+    });
+
+    console.log(templateComponentInfo);
   }
 }
