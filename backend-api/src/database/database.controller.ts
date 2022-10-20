@@ -76,6 +76,11 @@ export class DatabaseController {
     return databaseInfo;
   }
 
+  /**
+   * database update
+   * @param id
+   * @param updateDatabaseDto
+   */
   @Put(':id')
   update(@Param('id') id: string, @Body() updateDatabaseDto: UpdateDatabaseDto) {
     return this.databaseService.update(+id, updateDatabaseDto);
