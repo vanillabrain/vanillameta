@@ -73,6 +73,14 @@ export const AGGREGATION_LIST = [
   { label: '최소', value: WIDGET_AGGREGATION.MIN },
 ];
 
+export const LABEL_LIST = [{ label: '표시', value: true }];
+
+export const PIE_LABEL_LIST = [
+  { label: '이름', value: '{b}' },
+  { label: '값', value: '{c}' },
+  { label: '퍼센트', value: '{d}' + ' %' },
+];
+
 export const ALIGN_LIST = [
   { label: 'Left', value: TABLE_ALIGN.LEFT },
   { label: 'Center', value: TABLE_ALIGN.CENTER },
@@ -80,7 +88,7 @@ export const ALIGN_LIST = [
 ];
 
 export const COLUMN_TYPE = {
-  STRING: 'String',
+  STRING: 'string',
   NUMBER: 'number',
   DATE: 'date',
 };

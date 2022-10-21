@@ -9,7 +9,7 @@ const LineChart = props => {
   const [componentOption, setComponentOption] = useState({});
 
   const defaultComponentOption = {
-    grid: { top: 50, right: 50, bottom: 50, left: 50 },
+    grid: { top: '3%', right: '3%', bottom: '3%', left: '3%' },
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
     [axis + 'Axis']: {
       type: 'category',
@@ -39,19 +39,14 @@ const LineChart = props => {
    * 컴포넌트에 맞는 형태로 생성
    */
   const createComponentOption = () => {
-    console.log('createComponentOption', option);
+    // console.log('createComponentOption', option);
     let newOption = {};
 
     const newSeries = [];
     let aggrData = [];
     option.series.forEach(item => {
-      console.log('dataSet', dataSet);
-      console.log('item', item);
-      console.log('axis', axis);
-      console.log('option[axisField]', option[axis + 'Field']);
       aggrData = getAggregationDataForChart(dataSet, option[axis + 'Field'], item.field, item.aggregation);
-      console.log('aggrData : ', aggrData);
-      console.log(aggrData.map(dataItem => dataItem[item.field]));
+      // console.log('aggrData : ', aggrData);
       if (item.field && item.type) {
         const series = {
           name: item.field,
@@ -59,6 +54,13 @@ const LineChart = props => {
           type: item.type,
           color: item.color,
           stack: item.type === 'bar' && 'stack',
+          label: { show: option.label },
+          markPoint: option.mark && {
+            data: [
+              { type: 'max', name: 'Max' },
+              { type: 'min', name: 'Min' },
+            ],
+          },
           ...seriesOp,
         };
         newSeries.push(series);
@@ -80,7 +82,7 @@ const LineChart = props => {
       newOption = { ...defaultComponentOption, ...op };
     }
 
-    console.log(newOption);
+    // console.log(newOption);
     return newOption;
   };
 

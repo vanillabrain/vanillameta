@@ -5,7 +5,7 @@ import ColorButtonForm from '@/components/form/ColorButtonForm';
 import TextFieldForm from '@/components/form/TextFieldForm';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
 import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
-import { COLUMN_TYPE, LEGEND_LIST } from '@/constant';
+import { COLUMN_TYPE, LABEL_LIST, LEGEND_LIST } from '@/constant';
 
 const BubbleChartSetting = props => {
   const { option, setOption, spec } = props;
@@ -84,6 +84,13 @@ const BubbleChartSetting = props => {
             <Divider />
           </React.Fragment>
         ))}
+        <SelectForm
+          name="label"
+          label="레이블"
+          optionList={LABEL_LIST}
+          value={option.label}
+          onChange={event => handleChange(event, setOption)}
+        />
       </ListItem>
       <ListItem>
         <ListItemText>범례 설정</ListItemText>
