@@ -27,9 +27,9 @@ const NumericBoardSetting = props => {
   return (
     <React.Fragment>
       <ListItem divider>
-        <ListItemText primary="Header" />
+        <ListItemText primary="메시지 설정" />
         <TextFieldForm
-          label="value"
+          label="메시지 입력"
           name="title"
           required={true}
           value={option.header.title}
@@ -37,7 +37,7 @@ const NumericBoardSetting = props => {
         />
         <SelectForm
           name="fontSize"
-          label="사이즈와 색상"
+          label="사이즈 및 색상"
           optionList={fontSizeList}
           value={option.header.fontSize}
           onChange={handleHeaderChange}
@@ -45,7 +45,7 @@ const NumericBoardSetting = props => {
         />
       </ListItem>
       <ListItem>
-        <ListItemText primary="Content" />
+        <ListItemText primary="숫자값 설정" />
         <SelectForm
           required={true}
           id="field"
@@ -68,7 +68,7 @@ const NumericBoardSetting = props => {
         />
         <SelectForm
           name="fontSize"
-          label="사이즈와 색상"
+          label="사이즈 및 색상"
           optionList={fontSizeList}
           value={option.content.fontSize}
           onChange={handleContentChange}

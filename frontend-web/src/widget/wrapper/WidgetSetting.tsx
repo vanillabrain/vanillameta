@@ -68,7 +68,7 @@ const WidgetSetting = props => {
 
     switch (widgetType) {
       case WIDGET_TYPE.BOARD_NUMERIC:
-        module = <LineChartSetting {...chartSettingProps} />;
+        module = <NumericBoardSetting {...chartSettingProps} />;
         break;
       case WIDGET_TYPE.BOARD_TABLE:
         module = <TableBoardSetting {...chartSettingProps} />;
