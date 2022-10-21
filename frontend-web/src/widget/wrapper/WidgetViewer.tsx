@@ -486,8 +486,8 @@ const WidgetViewer = props => {
         sx={{
           width: '100%',
           height: '100%',
-          maxHeight: '600px',
-          overflow: 'hidden',
+          maxHeight: '500px',
+          position: 'relative',
         }}
       >
         {module}

@@ -8,12 +8,6 @@ import ColorFieldForm from '@/components/form/ColorFieldForm';
 const WaterfallChartSetting = props => {
   const { option, setOption, axis = 'x', spec } = props;
 
-  // 컴포넌트 별 default series
-  const defaultSeries = {
-    field: '',
-    aggregation: WIDGET_AGGREGATION.SUM,
-  };
-
   return (
     <React.Fragment>
       <ListItem divider>

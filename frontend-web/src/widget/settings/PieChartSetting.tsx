@@ -1,14 +1,17 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Divider, ListItem, ListItemText } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import ColorFieldForm from '@/components/form/ColorFieldForm';
 import { handleChange } from '@/widget/utils/handler';
 import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST } from '@/constant';
 import { getAggregationDataForChart, getColorArr } from '@/widget/modules/utils/chartUtil';
+import { AddButton } from '@/components/button/AddIconButton';
 
 const PieChartSetting = props => {
   const { option, setOption, listItem, spec, dataSet } = props;
   console.log(props, 'props');
+
+  const [colorNum, setColorNum] = useState(10);
 
   useEffect(() => {
     let pieAggrData = [];
@@ -36,6 +39,12 @@ const PieChartSetting = props => {
         [event.target.name]: event.target.value,
       },
     }));
+  };
+
+  const handleAddClick = () => {
+    if (option.series.field && option.series.name) {
+      setColorNum(prevState => prevState + 10);
+    }
   };
 
   return (
@@ -74,12 +83,40 @@ const PieChartSetting = props => {
           disabledDefaultValue
         />
       </ListItem>
+
+      {/* 추가되는 아이템 */}
+      {!!listItem && (
+        <ListItem divider>
+          <ListItemText primary={listItem.title} />
+          {listItem.children}
+        </ListItem>
+      )}
+
       <ListItem divider>
+        <ListItemText>범례 설정</ListItemText>
+        <SelectForm
+          id="legendPosition"
+          name="legendPosition"
+          label="위치"
+          optionList={LEGEND_LIST}
+          value={option.legendPosition}
+          onChange={event => handleChange(event, setOption)}
+        />
+      </ListItem>
+      <ListItem>
         <ListItemText primary="색상 설정" />
+        <AddButton
+          onClick={handleAddClick}
+          sx={{
+            position: 'absolute',
+            top: 30,
+            right: 0,
+          }}
+        />
         {option.series.field &&
           option.series.color
             // 최대 50개까지 제한?
-            .filter((item, index) => index < 50)
+            .filter((item, index) => index < colorNum)
             .map((item, index) => (
               <React.Fragment key={index}>
                 <ColorFieldForm
@@ -93,26 +130,6 @@ const PieChartSetting = props => {
                 <Divider />
               </React.Fragment>
             ))}
-      </ListItem>
-
-      {/* 추가되는 아이템 */}
-      {!!listItem && (
-        <ListItem divider>
-          <ListItemText primary={listItem.title} />
-          {listItem.children}
-        </ListItem>
-      )}
-
-      <ListItem>
-        <ListItemText>범례 설정</ListItemText>
-        <SelectForm
-          id="legendPosition"
-          name="legendPosition"
-          label="위치"
-          optionList={LEGEND_LIST}
-          value={option.legendPosition}
-          onChange={event => handleChange(event, setOption)}
-        />
       </ListItem>
     </React.Fragment>
   );

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Grid, List, Stack, styled } from '@mui/material';
+import { Divider, Grid, List, Stack, styled } from '@mui/material';
 import { WIDGET_TYPE } from '@/constant';
 import LineChartSetting from '@/widget/settings/LineChartSetting';
 import PieChartSetting from '@/widget/settings/PieChartSetting';
@@ -26,8 +26,8 @@ import MixedDonutPieChartSetting from '@/widget/settings/MixedDonutPieChartSetti
 import MixedLineStackedBarChartSetting from '@/widget/settings/MixedLineStackedBarChartSetting';
 
 const StyledList = styled(List)({
-  display: 'flex',
-  flexWrap: 'wrap',
+  // display: 'flex',
+  // flexWrap: 'wrap',
   '& .MuiListItemText-root': {
     width: '100%',
     marginBottom: 10,
@@ -200,6 +200,7 @@ const WidgetSetting = props => {
               {...chartSettingProps}
               // option={widgetOption.numericOption}
             />
+            <Divider />
             <LineChartSetting
               {...chartSettingProps}
               // option={widgetOption.chartOption}
@@ -211,6 +212,7 @@ const WidgetSetting = props => {
         module = (
           <React.Fragment>
             <NumericBoardSetting {...chartSettingProps} />
+            <Divider />
             <LineChartSetting {...chartSettingProps} />
           </React.Fragment>
         );
@@ -219,6 +221,7 @@ const WidgetSetting = props => {
         module = (
           <React.Fragment>
             <NumericBoardSetting {...chartSettingProps} />
+            <Divider />
             <LineChartSetting {...chartSettingProps} />
           </React.Fragment>
         );
@@ -227,6 +230,7 @@ const WidgetSetting = props => {
         module = (
           <React.Fragment>
             <NumericBoardSetting {...chartSettingProps} />
+            <Divider />
             <LineChartSetting {...chartSettingProps} axis="y" />
           </React.Fragment>
         );
@@ -235,6 +239,7 @@ const WidgetSetting = props => {
         module = (
           <React.Fragment>
             <NumericBoardSetting {...chartSettingProps} />
+            <Divider />
             <LineChartSetting {...chartSettingProps} />
           </React.Fragment>
         );
@@ -243,6 +248,7 @@ const WidgetSetting = props => {
         module = (
           <React.Fragment>
             <NumericBoardSetting {...chartSettingProps} />
+            <Divider />
             <LineChartSetting {...chartSettingProps} />
           </React.Fragment>
         );
@@ -251,6 +257,7 @@ const WidgetSetting = props => {
         module = (
           <React.Fragment>
             <NumericBoardSetting {...chartSettingProps} />
+            <Divider />
             <LineChartSetting {...chartSettingProps} />
           </React.Fragment>
         );
@@ -259,6 +266,7 @@ const WidgetSetting = props => {
         module = (
           <React.Fragment>
             <NumericBoardSetting {...chartSettingProps} />
+            <Divider />
             <LineChartSetting {...chartSettingProps} axis="y" />
           </React.Fragment>
         );
@@ -267,6 +275,7 @@ const WidgetSetting = props => {
         module = (
           <React.Fragment>
             <NumericBoardSetting {...chartSettingProps} />
+            <Divider />
             <DonutChartSetting {...chartSettingProps} />
           </React.Fragment>
         );
@@ -275,6 +284,7 @@ const WidgetSetting = props => {
         module = (
           <React.Fragment>
             <NumericBoardSetting {...chartSettingProps} />
+            <Divider />
             <DonutChartSetting {...chartSettingProps} />
           </React.Fragment>
         );

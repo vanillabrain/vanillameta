@@ -244,27 +244,6 @@ export const getAggregationDataForChartWithMultipleKeys = (array, keysList, vari
   });
   return grouped;
 };
-
-export const testFunc = (array, keys) => {
-  // 필드값을 프로퍼티로 하는 객체 값이 중복되지 않으면 숫자를 부여하고
-  // 중복된 값이 나오면 같은 값을 부여, 중복되지 않은 값이 나오면 +1 값을 부여
-  if (array.length) {
-    let num = 0;
-    const temp = [];
-
-    array.map(item => {
-      if (!temp[item[keys]]) {
-        temp[item[keys]] = num;
-        num += 1;
-      }
-    });
-    // .sort((a, b) => (a - b))
-
-    console.log(temp, 'temp');
-    return temp;
-  }
-};
-
 /**
  * field 갯수에 따라 color array 생성
  * @param field
