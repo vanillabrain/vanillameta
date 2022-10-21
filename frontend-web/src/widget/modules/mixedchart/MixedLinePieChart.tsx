@@ -9,7 +9,7 @@ const MixedLinePieChart = props => {
   const [componentOption, setComponentOption] = useState({});
 
   const defaultComponentOption = {
-    grid: { top: 50, right: 50, bottom: 50, left: 50 },
+    grid: { top: '3%', right: '3%', bottom: '3%', left: '3%' },
     tooltip: { trigger: 'axis' },
     [axis + 'Axis']: {
       type: 'category',
@@ -52,7 +52,13 @@ const MixedLinePieChart = props => {
           data: aggrData.map(dataItem => dataItem[item.field]),
           type: item.type ? item.type : 'line',
           color: item.color,
-          smooth: true,
+          label: { show: option.label },
+          markPoint: option.mark && {
+            data: [
+              { type: 'max', name: 'Max' },
+              { type: 'min', name: 'Min' },
+            ],
+          },
           ...seriesOp,
         };
         newSeries.push(series);
@@ -72,9 +78,9 @@ const MixedLinePieChart = props => {
         center: option.pie.center,
         radius: option.pie.radius,
         label: {
-          show: !!option.pie.name && true,
-          // position: 'center',
-          formatter: '{b}: {d}%',
+          show: !!option.pie.label,
+          formatter: option.pie.label,
+          bleedMargin: 70,
         },
         tooltip: {
           trigger: 'item',
@@ -92,7 +98,10 @@ const MixedLinePieChart = props => {
       },
       series: newSeries,
       grid: getGridSize(option.legendPosition),
-      legend: getLegendOption(option.legendPosition),
+      legend: option.legendPosition && {
+        ...getLegendOption(option.legendPosition),
+        type: 'scroll',
+      },
       ...createOp,
     };
 

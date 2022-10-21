@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Grid, List, Stack, styled } from '@mui/material';
+import { Divider, Grid, List, Stack, styled } from '@mui/material';
 import { WIDGET_TYPE } from '@/constant';
 import LineChartSetting from '@/widget/settings/LineChartSetting';
 import PieChartSetting from '@/widget/settings/PieChartSetting';
@@ -26,8 +26,8 @@ import MixedDonutPieChartSetting from '@/widget/settings/MixedDonutPieChartSetti
 import MixedLineStackedBarChartSetting from '@/widget/settings/MixedLineStackedBarChartSetting';
 
 const StyledList = styled(List)({
-  display: 'flex',
-  flexWrap: 'wrap',
+  // display: 'flex',
+  // flexWrap: 'wrap',
   '& .MuiListItemText-root': {
     width: '100%',
     marginBottom: 10,
@@ -68,7 +68,7 @@ const WidgetSetting = props => {
 
     switch (widgetType) {
       case WIDGET_TYPE.BOARD_NUMERIC:
-        module = <LineChartSetting {...chartSettingProps} />;
+        module = <NumericBoardSetting {...chartSettingProps} />;
         break;
       case WIDGET_TYPE.BOARD_TABLE:
         module = <TableBoardSetting {...chartSettingProps} />;
@@ -196,13 +196,14 @@ const WidgetSetting = props => {
       case WIDGET_TYPE.MIXED_CHART_LINE_BOARD_NUMERIC:
         module = (
           <React.Fragment>
-            <NumericBoardSetting
-              {...chartSettingProps}
-              // option={widgetOption.numericOption}
-            />
             <LineChartSetting
               {...chartSettingProps}
               // option={widgetOption.chartOption}
+            />
+            <Divider />
+            <NumericBoardSetting
+              {...chartSettingProps}
+              // option={widgetOption.numericOption}
             />
           </React.Fragment>
         );
@@ -210,72 +211,81 @@ const WidgetSetting = props => {
       case WIDGET_TYPE.MIXED_CHART_AREA_BOARD_NUMERIC:
         module = (
           <React.Fragment>
-            <NumericBoardSetting {...chartSettingProps} />
             <LineChartSetting {...chartSettingProps} />
+            <Divider />
+            <NumericBoardSetting {...chartSettingProps} />
           </React.Fragment>
         );
         break;
       case WIDGET_TYPE.MIXED_CHART_BAR_BOARD_NUMERIC:
         module = (
           <React.Fragment>
-            <NumericBoardSetting {...chartSettingProps} />
             <LineChartSetting {...chartSettingProps} />
+            <Divider />
+            <NumericBoardSetting {...chartSettingProps} />
           </React.Fragment>
         );
         break;
       case WIDGET_TYPE.MIXED_CHART_COLUMN_BOARD_NUMERIC:
         module = (
           <React.Fragment>
-            <NumericBoardSetting {...chartSettingProps} />
             <LineChartSetting {...chartSettingProps} axis="y" />
+            <Divider />
+            <NumericBoardSetting {...chartSettingProps} />
           </React.Fragment>
         );
         break;
       case WIDGET_TYPE.MIXED_CHART_STACKED_LINE_BOARD_NUMERIC:
         module = (
           <React.Fragment>
-            <NumericBoardSetting {...chartSettingProps} />
             <LineChartSetting {...chartSettingProps} />
+            <Divider />
+            <NumericBoardSetting {...chartSettingProps} />
           </React.Fragment>
         );
         break;
       case WIDGET_TYPE.MIXED_CHART_STACKED_AREA_BOARD_NUMERIC:
         module = (
           <React.Fragment>
-            <NumericBoardSetting {...chartSettingProps} />
             <LineChartSetting {...chartSettingProps} />
+            <Divider />
+            <NumericBoardSetting {...chartSettingProps} />
           </React.Fragment>
         );
         break;
       case WIDGET_TYPE.MIXED_CHART_STACKED_BAR_BOARD_NUMERIC:
         module = (
           <React.Fragment>
-            <NumericBoardSetting {...chartSettingProps} />
             <LineChartSetting {...chartSettingProps} />
+            <Divider />
+            <NumericBoardSetting {...chartSettingProps} />
           </React.Fragment>
         );
         break;
       case WIDGET_TYPE.MIXED_CHART_STACKED_COLUMN_BOARD_NUMERIC:
         module = (
           <React.Fragment>
-            <NumericBoardSetting {...chartSettingProps} />
             <LineChartSetting {...chartSettingProps} axis="y" />
+            <Divider />
+            <NumericBoardSetting {...chartSettingProps} />
           </React.Fragment>
         );
         break;
       case WIDGET_TYPE.MIXED_CHART_DONUT_BOARD_NUMERIC:
         module = (
           <React.Fragment>
-            <NumericBoardSetting {...chartSettingProps} />
             <DonutChartSetting {...chartSettingProps} />
+            <Divider />
+            <NumericBoardSetting {...chartSettingProps} />
           </React.Fragment>
         );
         break;
       case WIDGET_TYPE.MIXED_CHART_NIGHTINGALE_BOARD_NUMERIC:
         module = (
           <React.Fragment>
-            <NumericBoardSetting {...chartSettingProps} />
             <DonutChartSetting {...chartSettingProps} />
+            <Divider />
+            <NumericBoardSetting {...chartSettingProps} />
           </React.Fragment>
         );
         break;

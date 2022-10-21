@@ -15,13 +15,9 @@ const PieChart = props => {
     //     saveAsImage: {},
     //   },
     // },
-    grid: { top: 50, right: 50, bottom: 50, left: 50 },
+    grid: { top: '3%', right: '3%', bottom: '3%', left: '3%' },
     tooltip: {
       trigger: 'item',
-    },
-    legend: {
-      orient: 'vertical',
-      left: 'left',
     },
     series: [],
     emphasis: {
@@ -64,8 +60,9 @@ const PieChart = props => {
         type: 'pie',
         color: [...option.series.color],
         label: {
-          show: !!option.series.name && true,
-          formatter: '{b}: {d}%',
+          show: !!option.series.label,
+          formatter: option.series.label,
+          bleedMargin: 70,
         },
         center: getCenter(option.legendPosition),
         ...seriesOp,
@@ -77,7 +74,10 @@ const PieChart = props => {
       const op = {
         series: newSeries,
         grid: getGridSize(option.legendPosition),
-        legend: getLegendOption(option.legendPosition),
+        legend: option.legendPosition && {
+          ...getLegendOption(option.legendPosition),
+          type: 'scroll',
+        },
       };
       newOption = { ...defaultComponentOption, ...op };
     }

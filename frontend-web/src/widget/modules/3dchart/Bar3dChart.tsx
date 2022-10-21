@@ -83,6 +83,7 @@ function Bar3DChart(props) {
             data: aggrData,
             type: 'bar3D',
             shading: 'lambert',
+            label: { show: option.label },
           },
         ],
         visualMap: {

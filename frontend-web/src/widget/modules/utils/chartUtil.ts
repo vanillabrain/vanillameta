@@ -10,27 +10,33 @@ export const getLegendOption = position => {
     case 'left':
       option = {
         orient: 'vertical',
-        left: 10,
+        left: 'left',
         top: 'center',
+        padding: 20,
       };
       break;
     case 'right':
       option = {
         orient: 'vertical',
-        right: 10,
+        right: 'right',
         top: 'center',
+        padding: 20,
       };
       break;
     case 'top':
       option = {
         orient: 'horizontal',
+        left: 'center',
         top: 'top',
+        padding: 20,
       };
       break;
     case 'bottom':
       option = {
         orient: 'horizontal',
-        top: 'bottom',
+        left: 'center',
+        bottom: 'bottom',
+        padding: 20,
       };
       break;
     case '':
@@ -49,16 +55,16 @@ export const getGridSize = position => {
   let option = {};
   switch (position) {
     case 'left':
-      option = { top: 50, right: 10, bottom: 50, left: 100 };
+      option = { top: '3%', right: '3%', bottom: '3%', left: 120, containLabel: true };
       break;
     case 'right':
-      option = { top: 50, right: 100, bottom: 50, left: 10 };
+      option = { top: '3%', right: 120, bottom: '3%', left: '3%', containLabel: true };
       break;
     case 'top':
-      option = { top: 80, right: 30, bottom: 20, left: 50 };
+      option = { top: 70, right: '3%', bottom: '3%', left: '3%', containLabel: true };
       break;
     case 'bottom':
-      option = { top: 20, right: 30, bottom: 80, left: 50 };
+      option = { top: '3%', right: '3%', bottom: 70, left: '3%', containLabel: true };
       break;
     case '':
       option = false;
@@ -75,16 +81,16 @@ export const getCenter = position => {
   let option = [];
   switch (position) {
     case 'left':
-      option = ['60%', '50%'];
+      option = ['55%', '50%'];
       break;
     case 'right':
-      option = ['40%', '50%'];
+      option = ['45%', '50%'];
       break;
     case 'top':
-      option = ['50%', '60%'];
+      option = ['50%', '55%'];
       break;
     case 'bottom':
-      option = ['50%', '40%'];
+      option = ['50%', '45%'];
       break;
     case '':
       option = ['50%', '50%'];
@@ -244,27 +250,6 @@ export const getAggregationDataForChartWithMultipleKeys = (array, keysList, vari
   });
   return grouped;
 };
-
-export const testFunc = (array, keys) => {
-  // 필드값을 프로퍼티로 하는 객체 값이 중복되지 않으면 숫자를 부여하고
-  // 중복된 값이 나오면 같은 값을 부여, 중복되지 않은 값이 나오면 +1 값을 부여
-  if (array.length) {
-    let num = 0;
-    const temp = [];
-
-    array.map(item => {
-      if (!temp[item[keys]]) {
-        temp[item[keys]] = num;
-        num += 1;
-      }
-    });
-    // .sort((a, b) => (a - b))
-
-    console.log(temp, 'temp');
-    return temp;
-  }
-};
-
 /**
  * field 갯수에 따라 color array 생성
  * @param field

@@ -3,7 +3,7 @@ import { Divider, InputAdornment, ListItem, ListItemText } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import ColorButtonForm from '@/components/form/ColorButtonForm';
 import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
-import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST, WIDGET_AGGREGATION } from '@/constant';
+import { AGGREGATION_LIST, COLUMN_TYPE, LABEL_LIST, LEGEND_LIST, WIDGET_AGGREGATION } from '@/constant';
 import TextFieldForm from '@/components/form/TextFieldForm';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
 
@@ -44,6 +44,13 @@ const PolarBarChartSetting = props => {
           labelField="columnName"
           valueField="columnType"
           value={option.axisField}
+          onChange={event => handleChange(event, setOption)}
+        />
+        <SelectForm
+          name="label"
+          label="레이블"
+          optionList={LABEL_LIST}
+          value={option.label}
           onChange={event => handleChange(event, setOption)}
         />
       </ListItem>
@@ -92,6 +99,7 @@ const PolarBarChartSetting = props => {
         ))}
       </ListItem>
       <ListItem divider>
+        <ListItemText primary="차트 모양 설정" />
         <TextFieldForm
           id="radius1"
           name="radius1"

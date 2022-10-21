@@ -4,7 +4,7 @@ import SelectForm from '@/components/form/SelectForm';
 import ColorButtonForm from '@/components/form/ColorButtonForm';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
 import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
-import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST, WIDGET_AGGREGATION } from '@/constant';
+import { AGGREGATION_LIST, COLUMN_TYPE, LABEL_LIST, LEGEND_LIST, WIDGET_AGGREGATION } from '@/constant';
 
 const RadarChartSetting = props => {
   const { option, setOption, seriesItem, spec } = props;
@@ -96,6 +96,13 @@ const RadarChartSetting = props => {
             <Divider />
           </React.Fragment>
         ))}
+        <SelectForm
+          name="label"
+          label="레이블"
+          optionList={LABEL_LIST}
+          value={option.label}
+          onChange={event => handleChange(event, setOption)}
+        />
       </ListItem>
       <ListItem>
         <ListItemText>범례 설정</ListItemText>

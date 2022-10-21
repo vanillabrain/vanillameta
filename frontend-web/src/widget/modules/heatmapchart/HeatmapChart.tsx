@@ -88,10 +88,10 @@ const HeatmapChart = props => {
 
     let minValue, maxValue;
     if (aggrData.length) {
-      const arr = aggrData.map(item => item[option.series]);
+      const arr = aggrData.map(item => Number(item[option.series]));
       minValue = Math.min(...arr);
       maxValue = Math.max(...arr);
-      // console.log('minVal: ', minValue, 'maxVal: ', maxValue);
+      console.log('minVal: ', minValue, 'maxVal: ', maxValue);
 
       const op = {
         xAxis: {
@@ -108,7 +108,7 @@ const HeatmapChart = props => {
           {
             data: newSeries,
             type: 'heatmap',
-            label: { show: true },
+            label: { show: option.label },
           },
         ],
         visualMap: {

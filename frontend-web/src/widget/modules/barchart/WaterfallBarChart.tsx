@@ -9,7 +9,7 @@ const WaterfallBarChart = props => {
   const [componentOption, setComponentOption] = useState({});
 
   const defaultComponentOption = {
-    grid: { top: 50, right: 50, bottom: 50, left: 50 },
+    grid: { top: '3%', right: '3%', bottom: '3%', left: '3%' },
     tooltip: { trigger: 'axis' },
     axisPointer: {
       type: 'shadow',
@@ -110,7 +110,7 @@ const WaterfallBarChart = props => {
             stack: 'total',
             itemStyle: {
               borderColor: 'transparent',
-              color: '#eee',
+              color: 'transparent',
             },
             emphasis: {
               itemStyle: {
@@ -118,9 +118,9 @@ const WaterfallBarChart = props => {
                 color: 'transparent',
               },
             },
-            // tooltip: {
-            //   show: false,
-            // },
+            tooltip: {
+              show: false,
+            },
           },
           {
             name: '수입',
@@ -131,6 +131,9 @@ const WaterfallBarChart = props => {
               position: axis === 'x' ? 'top' : 'right',
             },
             data: incomeData,
+            markPoint: option.mark && {
+              data: [{ type: 'max', name: 'Max' }],
+            },
           },
           {
             name: '지출',
@@ -142,28 +145,31 @@ const WaterfallBarChart = props => {
               formatter: '-{c}',
             },
             data: expensesData,
-          },
-          {
-            name: '수입',
-            type: 'bar',
-            stack: 'total',
-            label: {
-              show: true,
-              position: axis === 'x' ? 'top' : 'right',
+            markPoint: option.mark && {
+              data: [{ type: 'min', name: 'Min' }],
             },
-            data: incomeNegativeData,
           },
-          {
-            name: '지출',
-            type: 'bar',
-            stack: 'total',
-            label: {
-              show: true,
-              position: axis === 'x' ? 'bottom' : 'left',
-              formatter: '-{c}',
-            },
-            data: expensesNegativeData,
-          },
+          // {
+          //   name: '수입',
+          //   type: 'bar',
+          //   stack: 'total',
+          //   label: {
+          //     show: true,
+          //     position: axis === 'x' ? 'top' : 'right',
+          //   },
+          //   data: incomeNegativeData,
+          // },
+          // {
+          //   name: '지출',
+          //   type: 'bar',
+          //   stack: 'total',
+          //   label: {
+          //     show: true,
+          //     position: axis === 'x' ? 'bottom' : 'left',
+          //     formatter: '-{c}',
+          //   },
+          //   data: expensesNegativeData,
+          // },
         ];
         newSeries.push(...series);
       }
