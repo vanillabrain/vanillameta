@@ -196,14 +196,14 @@ const WidgetSetting = props => {
       case WIDGET_TYPE.MIXED_CHART_LINE_BOARD_NUMERIC:
         module = (
           <React.Fragment>
-            <LineChartSetting
-              {...chartSettingProps}
-              // option={widgetOption.chartOption}
-            />
-            <Divider />
             <NumericBoardSetting
               {...chartSettingProps}
               // option={widgetOption.numericOption}
+            />
+            <Divider />
+            <LineChartSetting
+              {...chartSettingProps}
+              // option={widgetOption.chartOption}
             />
           </React.Fragment>
         );
@@ -211,81 +211,81 @@ const WidgetSetting = props => {
       case WIDGET_TYPE.MIXED_CHART_AREA_BOARD_NUMERIC:
         module = (
           <React.Fragment>
-            <LineChartSetting {...chartSettingProps} />
-            <Divider />
             <NumericBoardSetting {...chartSettingProps} />
+            <Divider />
+            <LineChartSetting {...chartSettingProps} />
           </React.Fragment>
         );
         break;
       case WIDGET_TYPE.MIXED_CHART_BAR_BOARD_NUMERIC:
         module = (
           <React.Fragment>
-            <LineChartSetting {...chartSettingProps} />
-            <Divider />
             <NumericBoardSetting {...chartSettingProps} />
+            <Divider />
+            <LineChartSetting {...chartSettingProps} />
           </React.Fragment>
         );
         break;
       case WIDGET_TYPE.MIXED_CHART_COLUMN_BOARD_NUMERIC:
         module = (
           <React.Fragment>
-            <LineChartSetting {...chartSettingProps} axis="y" />
-            <Divider />
             <NumericBoardSetting {...chartSettingProps} />
+            <Divider />
+            <LineChartSetting {...chartSettingProps} axis="y" />
           </React.Fragment>
         );
         break;
       case WIDGET_TYPE.MIXED_CHART_STACKED_LINE_BOARD_NUMERIC:
         module = (
           <React.Fragment>
-            <LineChartSetting {...chartSettingProps} />
-            <Divider />
             <NumericBoardSetting {...chartSettingProps} />
+            <Divider />
+            <LineChartSetting {...chartSettingProps} />
           </React.Fragment>
         );
         break;
       case WIDGET_TYPE.MIXED_CHART_STACKED_AREA_BOARD_NUMERIC:
         module = (
           <React.Fragment>
-            <LineChartSetting {...chartSettingProps} />
-            <Divider />
             <NumericBoardSetting {...chartSettingProps} />
+            <Divider />
+            <LineChartSetting {...chartSettingProps} />
           </React.Fragment>
         );
         break;
       case WIDGET_TYPE.MIXED_CHART_STACKED_BAR_BOARD_NUMERIC:
         module = (
           <React.Fragment>
-            <LineChartSetting {...chartSettingProps} />
-            <Divider />
             <NumericBoardSetting {...chartSettingProps} />
+            <Divider />
+            <LineChartSetting {...chartSettingProps} />
           </React.Fragment>
         );
         break;
       case WIDGET_TYPE.MIXED_CHART_STACKED_COLUMN_BOARD_NUMERIC:
         module = (
           <React.Fragment>
-            <LineChartSetting {...chartSettingProps} axis="y" />
-            <Divider />
             <NumericBoardSetting {...chartSettingProps} />
+            <Divider />
+            <LineChartSetting {...chartSettingProps} axis="y" />
           </React.Fragment>
         );
         break;
       case WIDGET_TYPE.MIXED_CHART_DONUT_BOARD_NUMERIC:
         module = (
           <React.Fragment>
-            <DonutChartSetting {...chartSettingProps} />
-            <Divider />
             <NumericBoardSetting {...chartSettingProps} />
+            <Divider />
+            <DonutChartSetting {...chartSettingProps} />
           </React.Fragment>
         );
         break;
       case WIDGET_TYPE.MIXED_CHART_NIGHTINGALE_BOARD_NUMERIC:
         module = (
           <React.Fragment>
-            <DonutChartSetting {...chartSettingProps} />
-            <Divider />
             <NumericBoardSetting {...chartSettingProps} />
+            <Divider />
+            <DonutChartSetting {...chartSettingProps} />
           </React.Fragment>
         );
         break;
