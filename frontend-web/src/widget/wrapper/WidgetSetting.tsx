@@ -49,7 +49,6 @@ const StyledList = styled(List)({
 
 const WidgetSetting = props => {
   const { title, setTitle, widgetOption, setWidgetOption, widgetType, dataSet, spec } = props;
-  console.log(setWidgetOption);
 
   const [module, setModule] = useState(null);
   useEffect(() => {
@@ -57,7 +56,6 @@ const WidgetSetting = props => {
   }, [widgetType, widgetOption, spec, dataSet]);
 
   const renderWidgetSetting = () => {
-    console.log('===== renderWidgetSetting');
     let module = null;
     const chartSettingProps = {
       option: widgetOption,
@@ -295,7 +293,6 @@ const WidgetSetting = props => {
         break;
     }
 
-    console.log('module', module);
     setModule(module);
   };
 
