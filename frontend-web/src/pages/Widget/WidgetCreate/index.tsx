@@ -1,14 +1,14 @@
-import React, { useEffect, useState } from 'react';
-import { Box, Stack, Step, StepLabel, Stepper } from '@mui/material';
+import React, {useEffect, useState} from 'react';
+import {Box, Stack, Step, StepLabel, Stepper} from '@mui/material';
 import PageTitleBox from '@/components/PageTitleBox';
 import PageContainer from '@/components/PageContainer';
-import ConfirmCancelButton, { ConfirmButton } from '@/components/button/ConfirmCancelButton';
+import ConfirmCancelButton, {ConfirmButton} from '@/components/button/ConfirmCancelButton';
 import WidgetDataSelect from './WidgetDataSelect';
 import WidgetTypeSelect from './WidgetTypeSelect';
 import WidgetAttributeSelect from './WidgetAttributeSelect';
 import componentService from '@/api/componentService';
 import widgetService from '@/api/widgetService';
-import { useNavigate } from 'react-router-dom';
+import {useNavigate} from 'react-router-dom';
 
 const title = '위젯 생성';
 const steps = ['데이터 선택', '위젯 타입 선택', '위젯 속성 설정'];
@@ -105,6 +105,8 @@ const WidgetCreate = () => {
     <PageContainer>
       <PageTitleBox
         title={title}
+        upperTitle="위젯"
+        sx={{ paddingLeft: 0, paddingRight: 0, width: '100%', height: '100%' }}
         button={
           <Stack>
             <ConfirmCancelButton
@@ -140,14 +142,19 @@ const WidgetCreate = () => {
           </Stack>
         }
       >
-        <Box>
+        <Box
+          sx={{
+            border: '1px solid #e3e7ea',
+            borderLeft: 0,
+            borderRight: 0,
+          }}
+        >
           <Stepper
             activeStep={activeStep}
             sx={{
-              width: { xs: '100%', sm: '70%' },
+              width: { xs: '80%', sm: '50%' },
+              height: '72px',
               m: 'auto',
-              mt: 8,
-              mb: 6,
             }}
           >
             {steps.map(label => {

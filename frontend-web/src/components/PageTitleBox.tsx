@@ -1,8 +1,8 @@
 import React from 'react';
-import { Divider, Box, Stack, Typography } from '@mui/material';
+import { Box, Stack, Typography } from '@mui/material';
 
 function PageTitleBox(props) {
-  const { title, button, sx = {} } = props;
+  const { title, upperTitle, button, sx = {} } = props;
 
   const defaultBoxSx = {
     minWidth: '900px',
@@ -33,23 +33,44 @@ function PageTitleBox(props) {
             backgroundColor: '#f5f6f8',
           }}
         >
-          <Typography
-            component="span"
-            sx={{
-              height: '19px',
-              fontFamily: 'Pretendard',
-              fontSize: '16px',
-              fontWeight: 'bold',
-              fontStretch: 'normal',
-              fontStyle: 'normal',
-              lineHeight: 'normal',
-              letterSpacing: 'normal',
-              textAlign: 'left',
-              color: '#4a4a4a',
-            }}
-          >
-            {title}
-          </Typography>
+          <Stack direction="row" gap="10px" alignItems="center">
+            {upperTitle && (
+              <React.Fragment>
+                <Typography
+                  component="span"
+                  sx={{
+                    height: '19px',
+                    fontSize: '16px',
+                    fontStretch: 'normal',
+                    fontStyle: 'normal',
+                    lineHeight: 'normal',
+                    letterSpacing: 'normal',
+                    textAlign: 'left',
+                    color: '#4a4a4a',
+                  }}
+                >
+                  {upperTitle}
+                </Typography>
+                <span>/</span>
+              </React.Fragment>
+            )}
+            <Typography
+              component="span"
+              sx={{
+                height: '19px',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                fontStretch: 'normal',
+                fontStyle: 'normal',
+                lineHeight: 'normal',
+                letterSpacing: 'normal',
+                textAlign: 'left',
+                color: '#141414',
+              }}
+            >
+              {title}
+            </Typography>
+          </Stack>
           {button}
         </Stack>
       </Stack>
@@ -62,7 +83,7 @@ function PageTitleBox(props) {
 
 PageTitleBox.defaultProps = {
   title: '',
-  button: undefined,
+  upperTitle: '',
 };
 
 export default PageTitleBox;
