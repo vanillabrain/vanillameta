@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Grid } from '@mui/material';
+import { Box, Grid, Stack, Typography } from '@mui/material';
 import TitleBox from '@/components/TitleBox';
 import AddIconButton from '@/components/button/AddIconButton';
 import DatabaseService from '@/api/databaseService';
@@ -99,45 +99,48 @@ const DataLayout = props => {
 
   return (
     <Box>
-      <Grid container spacing={5}>
-        <Grid item xs={12} md={4}>
-          <TitleBox title="데이터 소스" button={<AddIconButton link="source/create" />}>
-            <DatabaseCardList
-              data={databaseList}
-              selectedDatabase={selectedDatabase}
+      <Stack direction="row">
+        <Stack sx={{ width: '404px', px: '24px', pt: '30px' }}>
+          <Stack direction="row">
+            <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold', fontSize: '16px', color: '#141414' }}>
+              데이터 소스
+            </Typography>
+            <AddIconButton link={`set/create/${selectedDatabase.databaseId}`} />
+          </Stack>
+          <DatabaseCardList
+            data={databaseList}
+            selectedDatabase={selectedDatabase}
+            disabledIcons={!!isViewMode}
+            onUpdate={handleSelectDatabase}
+            onRemove={removeDatabase}
+            minWidth="100%"
+          />
+        </Stack>
+
+        <Stack>
+          <TitleBox
+            title="데이터 셋"
+            width="100%"
+            button={<AddIconButton link={`set/create/${selectedDatabase.databaseId}`} />}
+          >
+            <DatasetCardList
+              data={datasetList}
+              selectedDataset={selectedDataset}
+              onSelectDataset={handleSelectDataset}
+              onDeleteDataset={handleDeleteDataset}
               disabledIcons={!!isViewMode}
-              onUpdate={handleSelectDatabase}
-              onRemove={removeDatabase}
-              minWidth="100%"
             />
           </TitleBox>
-        </Grid>
-        <Grid item xs={12} md>
-          <Grid container spacing={5}>
-            <Grid item xs={12}>
-              <TitleBox title="데이터 셋" button={<AddIconButton link={`set/create/${selectedDatabase.databaseId}`} />}>
-                <DatasetCardList
-                  data={datasetList}
-                  selectedDataset={selectedDataset}
-                  onSelectDataset={handleSelectDataset}
-                  onDeleteDataset={handleDeleteDataset}
-                  disabledIcons={!!isViewMode}
-                />
-              </TitleBox>
-            </Grid>
-            <Grid item xs={12}>
-              <TitleBox title="데이터 목록">
-                <DatasetCardList
-                  data={tableList}
-                  selectedDataset={selectedDataset}
-                  onSelectDataset={handleSelectDataset}
-                  disabledIcons={true}
-                />
-              </TitleBox>
-            </Grid>
-          </Grid>
-        </Grid>
-      </Grid>
+          <TitleBox title="데이터 목록">
+            <DatasetCardList
+              data={tableList}
+              selectedDataset={selectedDataset}
+              onSelectDataset={handleSelectDataset}
+              disabledIcons={true}
+            />
+          </TitleBox>
+        </Stack>
+      </Stack>
     </Box>
   );
 };

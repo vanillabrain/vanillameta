@@ -95,7 +95,7 @@ function Dashboard() {
               <AddMenuIconButton
                 menuList={menuList}
                 handleSelect={handleMenuSelect}
-                iconUrl={'../../assets/images/icon/btn-icon-default.png'}
+                iconUrl={'../../static/images/icon/btn-icon-default.png'}
                 sizeOption={{ width: 108, height: 32 }}
               />
             }

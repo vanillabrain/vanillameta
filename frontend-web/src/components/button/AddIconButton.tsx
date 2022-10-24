@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Box, Button, IconButton, Menu, MenuItem, SvgIcon, useMediaQuery, useTheme } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { Link as RouterLink } from 'react-router-dom';
@@ -30,7 +30,7 @@ export const AddMenuButton = ({ menuList, label, ...props }) => {
   const matches = useMediaQuery(theme.breakpoints.up('md'));
 
   return (
-    <React.Fragment>
+    <>
       <Button
         id="styled-menu"
         aria-controls={open ? 'styled-menu' : undefined}
@@ -57,7 +57,7 @@ export const AddMenuButton = ({ menuList, label, ...props }) => {
           </MenuItem>
         ))}
       </Menu>
-    </React.Fragment>
+    </>
   );
 };
 AddMenuButton.defaultProps = {
@@ -70,7 +70,7 @@ AddMenuButton.defaultProps = {
 export const AddMenuIconButton = ({
   menuList,
   handleSelect = null,
-  iconUrl = '../../assets/images/icon/btn-plus.png',
+  iconUrl = '../../static/images/icon/btn-plus.png',
   sizeOption = { width: 22, height: 22 },
 }) => {
   const [anchorEl, setAnchorEl] = useState(null);
@@ -88,7 +88,7 @@ export const AddMenuIconButton = ({
   };
 
   return (
-    <React.Fragment>
+    <>
       <Button
         id="styled-menu"
         aria-controls={open ? 'styled-menu' : undefined}
@@ -107,7 +107,7 @@ export const AddMenuIconButton = ({
           </MenuItem>
         ))}
       </Menu>
-    </React.Fragment>
+    </>
   );
 };
 AddMenuIconButton.defaultProps = {

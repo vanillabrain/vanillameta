@@ -3,7 +3,7 @@ import { Box, Card, CardActionArea, CardContent, Stack, Typography } from '@mui/
 
 function ImgCardList(props) {
   const { data, size, selectedType, setSelectedType, handleNext } = props;
-  const srcUrl = '/assets/images/';
+  const srcUrl = '/static/images/';
 
   const handleClick = item => {
     console.log('database : ', item);
