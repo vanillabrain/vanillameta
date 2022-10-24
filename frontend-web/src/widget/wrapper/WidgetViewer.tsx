@@ -22,6 +22,7 @@ import PolarBarChart from '@/widget/modules/barchart/PolarBarChart';
 import MixedLinePieChart from '@/widget/modules/mixedchart/MixedLinePieChart';
 import MixedDonutPieChart from '@/widget/modules/mixedchart/MixedDonutPieChart';
 import MixedLineStackedBarChart from '@/widget/modules/mixedchart/MixedLineStackedBarChart';
+import FunnelChart from '@/widget/modules/funnelchart/FunnelChart';
 
 const WidgetViewer = props => {
   const { title, widgetType, widgetOption, dataSet } = props;
@@ -164,19 +165,7 @@ const WidgetViewer = props => {
         module = <CandlestickChart {...chartProps} />;
         break;
       case WIDGET_TYPE.CHART_FUNNEL:
-        module = (
-          <PieChart
-            {...chartProps}
-            seriesOp={{
-              type: 'funnel',
-              width: '70%',
-              gap: 4,
-              // label: {
-              //   position: 'inside',
-              // },
-            }}
-          />
-        );
+        module = <FunnelChart {...chartProps} />;
         break;
       case WIDGET_TYPE.CHART_3D_BAR:
         module = <Bar3DChart {...chartProps} />;
