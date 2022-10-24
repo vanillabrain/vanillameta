@@ -1,20 +1,29 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { Stack } from '@mui/material';
 import { useAlert } from 'react-alert';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
 import WidgetSetting from '@/widget/wrapper/WidgetSetting';
 import DatabaseService from '@/api/databaseService';
 import { STATUS } from '@/constant';
+import { LayoutContext } from '@/contexts/LayoutContext';
 
 const WidgetAttributeSelect = props => {
   const alert = useAlert();
+  const { fixLayout } = useContext(LayoutContext);
 
-  const { widgetOption, prevOption, saveWidgetInfo, dataset, isModifyMode = false } = props;
+  const { widgetOption, prevOption, saveWidgetInfo, dataset, isModifyMode = false, top = 0 } = props;
 
   const [option, setOption] = useState(null);
   const [data, setData] = useState(null);
   const [spec, setSpec] = useState(null);
   const [title, setTitle] = useState('');
+
+  useEffect(() => {
+    fixLayout(true);
+    return () => {
+      fixLayout(false);
+    };
+  }, []);
 
   useEffect(() => {
     if (dataset || widgetOption) {
@@ -28,7 +37,10 @@ const WidgetAttributeSelect = props => {
   }, [widgetOption]);
 
   const getData = () => {
-    const param = isModifyMode ? { datasetType: widgetOption.datasetType, datasetId: widgetOption.datasetId } : dataset;
+    const param = isModifyMode
+      ? { datasetType: widgetOption.datasetType, datasetId: widgetOption.datasetId }
+      : { datasetType: dataset.datasetType, datasetId: dataset.id };
+    console.log('getData param', param);
     DatabaseService.selectData(param).then(response => {
       if (response.data.status === STATUS.SUCCESS) {
         setData(response.data.data.datas);
@@ -67,7 +79,7 @@ const WidgetAttributeSelect = props => {
       direction="row"
       sx={{
         width: '100%',
-        height: '100%',
+        height: `calc(100% - ${top}px)`,
       }}
       onSubmit={handleSubmit}
       id="widgetAttribute"

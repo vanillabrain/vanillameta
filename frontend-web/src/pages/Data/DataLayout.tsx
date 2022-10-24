@@ -106,7 +106,7 @@ const DataLayout = props => {
           <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold', fontSize: '16px', color: '#141414' }}>
             데이터 소스
           </Typography>
-          <AddButton component={RouterLink} to={`source/create`} sx={{ ml: '14px' }} />
+          {!!isViewMode || <AddButton component={RouterLink} to={`source/create`} sx={{ ml: '14px' }} />}
         </Stack>
         <DatabaseCardList
           data={databaseList}
@@ -124,7 +124,9 @@ const DataLayout = props => {
             <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold', fontSize: '16px', color: '#141414' }}>
               데이터 셋
             </Typography>
-            <AddButton component={RouterLink} to={`set/create/${selectedDatabase.databaseId}`} sx={{ ml: '14px' }} />
+            {!!isViewMode || (
+              <AddButton component={RouterLink} to={`set/create/${selectedDatabase.databaseId}`} sx={{ ml: '14px' }} />
+            )}
           </Stack>
           <DatasetCardList
             data={datasetList}
