@@ -1,16 +1,18 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Divider, InputAdornment, ListItem, ListItemText } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import ColorButtonForm from '@/components/form/ColorButtonForm';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
 import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
-import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST, WIDGET_AGGREGATION } from '@/constant';
+import { AGGREGATION_LIST, COLUMN_TYPE, LABEL_LIST, LEGEND_LIST, PIE_LABEL_LIST, WIDGET_AGGREGATION } from '@/constant';
 import ColorFieldReForm from '@/components/form/ColorFieldReForm';
 import { getAggregationDataForChart, getColorArr } from '@/widget/modules/utils/chartUtil';
 import TextFieldForm from '@/components/form/TextFieldForm';
 
 const MixedLinePieChartSetting = props => {
   const { option, setOption, seriesItem, axis = 'x', spec, dataSet } = props;
+
+  const [colorNum, setColorNum] = useState(12);
 
   // 컴포넌트 별 default series
   const defaultSeries = {
@@ -69,10 +71,24 @@ const MixedLinePieChartSetting = props => {
     setOption({ ...option, newOption });
   };
 
+  const handleAddColorClick = () => {
+    if (option.pie.field && option.pie.name) {
+      setColorNum(prevState => prevState + 12);
+    }
+  };
+
   return (
     <React.Fragment>
       <ListItem divider>
-        <ListItemText primary="선형 차트 카테고리 설정" sx={{ textTransform: 'uppercase' }} />
+        <ListItemText primary="선형 차트 시리즈 설정" />
+        <AddButton
+          onClick={event => handleAddClick(event, option, setOption, defaultSeries)}
+          sx={{
+            position: 'absolute',
+            top: 30,
+            right: 0,
+          }}
+        />
         <SelectForm
           required={true}
           id={axis + 'Field'}
@@ -84,17 +100,8 @@ const MixedLinePieChartSetting = props => {
           value={option[`${axis}Field`]}
           onChange={event => handleChange(event, setOption)}
         />
-      </ListItem>
-      <ListItem divider>
-        <ListItemText primary="선형 차트 시리즈 설정" />
-        <AddButton
-          onClick={event => handleAddClick(event, option, setOption, defaultSeries)}
-          sx={{
-            position: 'absolute',
-            top: 30,
-            right: 0,
-          }}
-        />
+        <Divider />
+
         {option.series.map((item, index) => (
           <React.Fragment key={index}>
             <SelectForm
@@ -139,20 +146,23 @@ const MixedLinePieChartSetting = props => {
             <Divider />
           </React.Fragment>
         ))}
+        <SelectForm
+          name="label"
+          label="레이블"
+          optionList={LABEL_LIST}
+          value={option.label}
+          onChange={event => handleChange(event, setOption)}
+        />
+        <SelectForm
+          name="mark"
+          label="마크 포인트"
+          optionList={LABEL_LIST}
+          value={option.mark}
+          onChange={event => handleChange(event, setOption)}
+        />
       </ListItem>
       <ListItem divider>
         <ListItemText primary="원형 차트 시리즈 설정" />
-        <SelectForm
-          required={true}
-          id="field"
-          name="field"
-          label="필드"
-          labelField="columnName"
-          valueField="columnType"
-          optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
-          value={option.pie.field}
-          onChange={handlePieChange}
-        />
         <SelectForm
           required={true}
           id="name"
@@ -162,6 +172,25 @@ const MixedLinePieChartSetting = props => {
           valueField="columnType"
           optionList={spec.map(item => item.columnName)}
           value={option.pie.name}
+          onChange={handlePieChange}
+        />
+        <SelectForm
+          name="label"
+          label="레이블"
+          optionList={PIE_LABEL_LIST}
+          value={option.pie.label}
+          onChange={handlePieChange}
+        />
+        <Divider />
+        <SelectForm
+          required={true}
+          id="field"
+          name="field"
+          label="필드"
+          labelField="columnName"
+          valueField="columnType"
+          optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
+          value={option.pie.field}
           onChange={handlePieChange}
         />
         <SelectForm
@@ -204,16 +233,8 @@ const MixedLinePieChartSetting = props => {
           endAdornment={<InputAdornment position="end">%</InputAdornment>}
         />
       </ListItem>
+
       <ListItem divider>
-        <ListItemText primary="원형 차트 색상 설정" />
-        {option.pie.field &&
-          option.pie.color.map((item, index) => (
-            <React.Fragment key={index}>
-              <ColorFieldReForm color={item} onChange={event => handleColorChange(event, index)} setOption={setOption} />
-            </React.Fragment>
-          ))}
-      </ListItem>
-      <ListItem>
         <ListItemText>범례 설정</ListItemText>
         <SelectForm
           id="legendPosition"
@@ -223,6 +244,26 @@ const MixedLinePieChartSetting = props => {
           value={option.legendPosition}
           onChange={event => handleChange(event, setOption)}
         />
+      </ListItem>
+
+      <ListItem>
+        <ListItemText primary="원형 차트 색상 설정" />
+        <AddButton
+          onClick={handleAddClick}
+          sx={{
+            position: 'absolute',
+            top: 30,
+            right: 0,
+          }}
+        />
+        {option.pie.field &&
+          option.pie.color
+            .filter((item, index) => index < colorNum)
+            .map((item, index) => (
+              <React.Fragment key={index}>
+                <ColorFieldReForm color={item} onChange={event => handleColorChange(event, index)} setOption={setOption} />
+              </React.Fragment>
+            ))}
       </ListItem>
     </React.Fragment>
   );

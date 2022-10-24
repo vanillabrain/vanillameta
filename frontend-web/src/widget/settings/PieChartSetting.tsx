@@ -1,14 +1,17 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Divider, ListItem, ListItemText } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import ColorFieldForm from '@/components/form/ColorFieldForm';
 import { handleChange } from '@/widget/utils/handler';
-import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST } from '@/constant';
+import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST, PIE_LABEL_LIST } from '@/constant';
 import { getAggregationDataForChart, getColorArr } from '@/widget/modules/utils/chartUtil';
+import { AddButton } from '@/components/button/AddIconButton';
 
 const PieChartSetting = props => {
   const { option, setOption, listItem, spec, dataSet } = props;
   console.log(props, 'props');
+
+  const [colorNum, setColorNum] = useState(12);
 
   useEffect(() => {
     let pieAggrData = [];
@@ -38,10 +41,16 @@ const PieChartSetting = props => {
     }));
   };
 
+  const handleAddClick = () => {
+    if (option.series.field && option.series.name) {
+      setColorNum(prevState => prevState + 12);
+    }
+  };
+
   return (
     <React.Fragment>
       <ListItem divider>
-        <ListItemText primary="시리즈 설정" />
+        <ListItemText primary="카테고리 설정" sx={{ textTransform: 'uppercase' }} />
         <SelectForm
           required={true}
           id="name"
@@ -53,6 +62,16 @@ const PieChartSetting = props => {
           value={option.series.name}
           onChange={handleSeriesChange}
         />
+        <SelectForm
+          name="label"
+          label="레이블"
+          optionList={PIE_LABEL_LIST}
+          value={option.series.label}
+          onChange={handleSeriesChange}
+        />
+      </ListItem>
+      <ListItem divider>
+        <ListItemText primary="시리즈 설정" />
         <SelectForm
           required={true}
           id="field"
@@ -74,23 +93,6 @@ const PieChartSetting = props => {
           disabledDefaultValue
         />
       </ListItem>
-      <ListItem divider>
-        <ListItemText primary="색상 설정" />
-        {option.series.field &&
-          option.series.color.map((item, index) => (
-            <React.Fragment key={index}>
-              <ColorFieldForm
-                id={`color${index + 1}`}
-                name={`color${index + 1}`}
-                value={option.series.color[index]}
-                colorList={option.series.color}
-                setOption={setOption}
-                index={index}
-              />
-              <Divider />
-            </React.Fragment>
-          ))}
-      </ListItem>
 
       {/* 추가되는 아이템 */}
       {!!listItem && (
@@ -100,7 +102,7 @@ const PieChartSetting = props => {
         </ListItem>
       )}
 
-      <ListItem>
+      <ListItem divider>
         <ListItemText>범례 설정</ListItemText>
         <SelectForm
           id="legendPosition"
@@ -110,6 +112,33 @@ const PieChartSetting = props => {
           value={option.legendPosition}
           onChange={event => handleChange(event, setOption)}
         />
+      </ListItem>
+      <ListItem>
+        <ListItemText primary="색상 설정" />
+        <AddButton
+          onClick={handleAddClick}
+          sx={{
+            position: 'absolute',
+            top: 30,
+            right: 0,
+          }}
+        />
+        {option.series.field &&
+          option.series.color
+            .filter((item, index) => index < colorNum)
+            .map((item, index) => (
+              <React.Fragment key={index}>
+                <ColorFieldForm
+                  id={`color${index + 1}`}
+                  name={`color${index + 1}`}
+                  value={option.series.color[index]}
+                  colorList={option.series.color}
+                  setOption={setOption}
+                  index={index}
+                />
+                <Divider />
+              </React.Fragment>
+            ))}
       </ListItem>
     </React.Fragment>
   );

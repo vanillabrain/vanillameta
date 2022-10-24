@@ -8,7 +8,7 @@ function ScatterChart(props) {
   const [componentOption, setComponentOption] = useState({});
 
   const defaultComponentOption = {
-    grid: { top: 50, right: 50, bottom: 50, left: 50 },
+    grid: { top: '3%', right: '3%', bottom: '3%', left: '3%' },
     tooltip: { trigger: 'axis' },
     xAxis: {
       scale: true,
@@ -51,6 +51,7 @@ function ScatterChart(props) {
           data: dataSet.map(dataItem => [dataItem[item.xField], dataItem[item.yField]]),
           symbolSize: item.symbolSize,
           color: item.color,
+          label: { show: option.label },
           ...seriesOp,
         };
         newSeries.push(series);

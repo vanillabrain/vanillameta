@@ -12,13 +12,13 @@ function BoardList(props) {
   return (
     <Box>
       <Stack flexDirection="row" justifyContent="space-between" px={4} pb={1}>
-        <Typography variant="body2" sx={{ ml: -2 }}>
-          종류
+        <Typography variant="body2" sx={{ ml: 0 }}>
+          이름
         </Typography>
-        <Typography variant="body2">이름</Typography>
+        <Typography variant="body2"></Typography>
         {matches && (
           <Typography variant="body2" sx={{ mr: '112px' }}>
-            수정한 날짜
+            1 수정한 날짜
           </Typography>
         )}
       </Stack>
@@ -28,7 +28,7 @@ function BoardList(props) {
         ))}
       </List>
       <Stack alignItems="center" mt={4}>
-        <Pagination count={10} />
+        <Pagination count={2} shape="rounded" />
       </Stack>
     </Box>
   );

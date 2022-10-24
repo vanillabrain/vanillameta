@@ -58,6 +58,7 @@ function Scatter3DChart(props) {
             borderWidth: 1,
             borderColor: 'rgba(255, 255, 255, 0.8)',
           },
+          label: { show: option.label },
         };
         newSeries.push(series);
       }

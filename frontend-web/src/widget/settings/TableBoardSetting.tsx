@@ -19,7 +19,7 @@ const TableBoardSetting = props => {
   return (
     <React.Fragment>
       <ListItem>
-        <ListItemText primary="Columns" />
+        <ListItemText primary="테이블 컬럼" />
         <AddButton
           onClick={event => handleAddClick(event, option, setOption, defaultSeries, 'columns')}
           sx={{
@@ -42,8 +42,7 @@ const TableBoardSetting = props => {
               onChange={event => handleSeriesChange(event, setOption, 'columns')}
             />
             <TextFieldForm
-              required
-              label="Header"
+              label="컬럼 제목"
               name={`header${index + 1}`}
               value={item.header}
               onChange={event => handleSeriesChange(event, setOption, 'columns')}
@@ -51,7 +50,7 @@ const TableBoardSetting = props => {
             <SelectForm
               id={`align${index + 1}`}
               name={`align${index + 1}`}
-              label="Align"
+              label="정렬"
               optionList={ALIGN_LIST}
               value={item.align}
               onChange={event => handleSeriesChange(event, setOption, 'columns')}

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card, IconButton, Stack } from '@mui/material';
+import { IconButton, Stack } from '@mui/material';
 import { Link as RouterLink, useLocation, useParams } from 'react-router-dom';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
 import EditIcon from '@mui/icons-material/Edit';
@@ -27,7 +27,7 @@ const WidgetView = () => {
     updatedAt: '',
     widgetViewId: '',
   };
-  const [widgetInfo, setWidgetInfo] = useState<WidgetInfo>(defaultWidgetInfo);
+  const [widgetOption, setWidgetOption] = useState<WidgetInfo>(defaultWidgetInfo);
 
   const { widgetId } = useParams();
   const [loading, setLoading] = useState(false);
@@ -44,7 +44,7 @@ const WidgetView = () => {
     // get('/data/dummyWidgetList.json')
     WidgetService.selectWidget(widgetId)
       .then(response => {
-        setWidgetInfo(response.data.data);
+        setWidgetOption(response.data.data);
       })
       .finally(() => setLoading(false));
     // .then(data => setLoadedWidgetData(data.filter((list, idx) => idx <= 10 * loadedCount)));
@@ -57,7 +57,7 @@ const WidgetView = () => {
   return (
     <PageTitleBox title="위젯 조회">
       <TitleBox
-        title={widgetInfo.title}
+        title={widgetOption.title}
         button={
           <Stack direction="row" spacing={1}>
             <IconButton onClick={handleRenewClick} aria-label="새로고침" color="primary">
@@ -65,7 +65,7 @@ const WidgetView = () => {
             </IconButton>
             <IconButton
               component={RouterLink}
-              to={`/widget/modify?id=${widgetId}&name=${widgetInfo.title}`}
+              to={`/widget/modify?id=${widgetId}&name=${widgetOption.title}`}
               state={{ from: pathname }}
               aria-label="수정"
             >
@@ -73,14 +73,14 @@ const WidgetView = () => {
             </IconButton>
             <DialogAlertIconButton icon={<Delete />} size="small">
               {`삭제시 N개의 대시보드에 반영됩니다.`}
-              <br /> {`<${widgetInfo.title}>을 삭제하시겠습니까?`}
+              <br /> {`<${widgetOption.title}>을 삭제하시겠습니까?`}
             </DialogAlertIconButton>
           </Stack>
         }
       >
         <WidgetWrapper
-          widgetOption={widgetInfo}
-          dataSetId={widgetInfo.datasetId}
+          widgetOption={widgetOption}
+          dataSetId={widgetOption.datasetId}
           sx={{ width: '100%', height: '500px', borderRadius: 1 }}
         />
       </TitleBox>

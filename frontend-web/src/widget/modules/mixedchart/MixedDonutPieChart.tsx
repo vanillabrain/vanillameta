@@ -15,7 +15,7 @@ const MixedDonutPieChart = props => {
     //     saveAsImage: {},
     //   },
     // },
-    grid: { top: 50, right: 50, bottom: 50, left: 50 },
+    grid: { top: '3%', right: '3%', bottom: '3%', left: '3%' },
     tooltip: {
       trigger: 'item',
     },
@@ -67,8 +67,11 @@ const MixedDonutPieChart = props => {
         selectedMode: 'single',
         radius: [...option.series.radius],
         label: {
-          show: !!option.series.name && true,
-          formatter: '{b}: {d}%',
+          show: !!option.series.label,
+          formatter: option.series.label,
+          // show: !!option.series.name && true,
+          // formatter: '{b}: {d}%',
+          bleedMargin: 70,
         },
         center: getCenter(option.legendPosition),
         ...seriesOp,
@@ -89,7 +92,9 @@ const MixedDonutPieChart = props => {
         selectedMode: 'single',
         radius: option.pie.radius,
         label: {
-          show: !!option.pie.name && true,
+          show: !!option.pie.label,
+          formatter: option.pie.label,
+          // show: !!option.pie.name && true,
           position: 'inside',
           // formatter: '{b}: {d}%',
         },
@@ -107,8 +112,9 @@ const MixedDonutPieChart = props => {
       const op = {
         series: newSeries,
         grid: getGridSize(option.legendPosition),
-        legend: {
-          option: getLegendOption(option.legendPosition),
+        legend: option.legendPosition && {
+          ...getLegendOption(option.legendPosition),
+          type: 'scroll',
           data: legendData,
         },
         color: option.color.length ? [...option.color] : '#eee',

@@ -9,7 +9,7 @@ const WaterfallBarChart = props => {
   const [componentOption, setComponentOption] = useState({});
 
   const defaultComponentOption = {
-    grid: { top: 50, right: 50, bottom: 50, left: 50 },
+    grid: { top: '3%', right: '3%', bottom: '3%', left: '3%' },
     tooltip: { trigger: 'axis' },
     axisPointer: {
       type: 'shadow',
@@ -44,41 +44,68 @@ const WaterfallBarChart = props => {
 
     const newSeries = [];
     let aggrData = [];
-    const transparentSeries = [];
-    const increaseSeries = [];
-    const decreaseSeries = [];
+    const baseData = [];
+    const incomeData = [];
+    const expensesData = [];
+    const incomeNegativeData = [];
+    const expensesNegativeData = [];
+    let prevIncrease = true;
     option.series.forEach(item => {
       aggrData = getAggregationDataForChart(dataSet, option[axis + 'Field'], item.field, item.aggregation);
-      const seriesData = aggrData.map((dataItem, dataIndex) => dataItem[item.field]);
-      let prevData = 0;
-      seriesData.forEach(dataItem => {
-        const gap = Math.round(dataItem - prevData);
-        // console.log(gap, 'gap');
-        if (Math.sign(gap) === 1) {
+      const seriesData = aggrData.map(dataItem => dataItem[item.field]);
+      let prevItem = 0;
+      seriesData.forEach((dataItem, idx) => {
+        if (Math.abs(prevItem) < Math.abs(dataItem)) {
           // 증가했을 경우
-          decreaseSeries.push('-');
-          increaseSeries.push(gap);
-          transparentSeries.push(prevData);
-        } else if (Math.sign(gap) === 0) {
-          // 0
-          decreaseSeries.push('-');
-          increaseSeries.push('-');
-          transparentSeries.push(prevData);
+          expensesData.push('-');
+
+          if (prevIncrease) {
+            // 이전 step에도 증가했을 경우
+            baseData.push(prevItem);
+            incomeData.push(dataItem - prevItem);
+          } else {
+            baseData.push(baseData[idx - 1]);
+            incomeData.push(dataItem - baseData[idx - 1]);
+          }
+
+          // 양수에서 음수, 음수에서 양수로 값이 바뀌었을 시 예외 처리
+          if (prevItem * dataItem < 0) {
+            incomeNegativeData.length = idx;
+            incomeNegativeData[idx] = baseData[idx];
+            incomeData[idx] = incomeData[idx] + baseData[idx];
+            baseData[idx] = 0;
+          }
+          prevIncrease = true;
         } else {
           // 감소했을 경우
-          increaseSeries.push('-');
-          decreaseSeries.push(Math.abs(gap));
-          transparentSeries.push(prevData - Math.abs(gap));
+          incomeData.push('-');
+          baseData.push(dataItem);
+          if (!prevIncrease) {
+            // 이전 step에도 감소했을 경우
+            expensesData.push(baseData[idx - 1] - dataItem);
+          } else {
+            expensesData.push(prevItem - dataItem);
+          }
+
+          // 양수에서 음수, 음수에서 양수로 값이 바뀌었을 시 예외 처리
+          if (prevItem * dataItem < 0) {
+            expensesNegativeData.length = idx;
+            expensesNegativeData[idx] = baseData[idx];
+            expensesData[idx] = expensesData[idx] + baseData[idx];
+            baseData[idx] = 0;
+          }
+          prevIncrease = false;
         }
-        prevData = dataItem;
+
+        console.log(dataItem, prevItem, dataItem - prevItem);
+        prevItem = dataItem;
       });
-      // console.log(transparentSeries, increaseSeries, decreaseSeries);
       // console.log('aggrData : ', aggrData);
       if (item.field) {
         const series = [
           {
             name: item.field,
-            data: transparentSeries,
+            data: baseData,
             type: 'bar',
             stack: 'total',
             itemStyle: {
@@ -96,17 +123,20 @@ const WaterfallBarChart = props => {
             },
           },
           {
-            name: '상승',
+            name: '수입',
             type: 'bar',
             stack: 'total',
             label: {
               show: true,
               position: axis === 'x' ? 'top' : 'right',
             },
-            data: increaseSeries,
+            data: incomeData,
+            markPoint: option.mark && {
+              data: [{ type: 'max', name: 'Max' }],
+            },
           },
           {
-            name: '하강',
+            name: '지출',
             type: 'bar',
             stack: 'total',
             label: {
@@ -114,8 +144,32 @@ const WaterfallBarChart = props => {
               position: axis === 'x' ? 'bottom' : 'left',
               formatter: '-{c}',
             },
-            data: decreaseSeries,
+            data: expensesData,
+            markPoint: option.mark && {
+              data: [{ type: 'min', name: 'Min' }],
+            },
           },
+          // {
+          //   name: '수입',
+          //   type: 'bar',
+          //   stack: 'total',
+          //   label: {
+          //     show: true,
+          //     position: axis === 'x' ? 'top' : 'right',
+          //   },
+          //   data: incomeNegativeData,
+          // },
+          // {
+          //   name: '지출',
+          //   type: 'bar',
+          //   stack: 'total',
+          //   label: {
+          //     show: true,
+          //     position: axis === 'x' ? 'bottom' : 'left',
+          //     formatter: '-{c}',
+          //   },
+          //   data: expensesNegativeData,
+          // },
         ];
         newSeries.push(...series);
       }
