@@ -8,18 +8,18 @@ import { LayoutContext } from '@/contexts/LayoutContext';
 
 function Layout(props) {
   const headerHeight = 65;
-  const footerHeight = 50;
+  const footerHeight = 80;
 
   const { fixed } = useContext(LayoutContext);
 
   const defaultSx = {
     width: '100%',
-    height: '100%',
+    // height: '100%',
   };
 
   const fixSx = {
     width: '100%',
-    height: '100%',
+    // height: '100%',
     overflow: 'hidden',
     flex: '1 1 auto',
   };
@@ -30,12 +30,13 @@ function Layout(props) {
       <Stack
         sx={{
           marginTop: headerHeight + 'px',
-          height: `calc(100% - ${headerHeight + footerHeight}px)`,
+          // height: `calc(100% - ${headerHeight + footerHeight}px)`,
+          height: `100%`,
         }}
       >
         {props.children}
       </Stack>
-      <Footer />
+      <Footer height={footerHeight} />
     </Box>
   );
 }

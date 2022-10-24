@@ -1,25 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Button, Card, Stack, TextField } from '@mui/material';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import PageContainer from '@/components/PageContainer';
 import PageTitleBox from '@/components/PageTitleBox';
 import AddWidgetPopup from '@/pages/Dashboard/Components/AddWidgetPopup';
-import ConfirmCancelButton, { ConfirmButton, CancelButton } from '@/components/button/ConfirmCancelButton';
+import ConfirmCancelButton, { CancelButton, ConfirmButton } from '@/components/button/ConfirmCancelButton';
 import DialogAlertButton from '@/components/button/DialogAlertButton';
-import GridLayout, { Responsive, WidthProvider } from 'react-grid-layout';
+import { Responsive, WidthProvider } from 'react-grid-layout';
 import { useAlert } from 'react-alert';
 
 import '/node_modules/react-grid-layout/css/styles.css';
 import '/node_modules/react-resizable/css/styles.css';
-import { get } from '@/helpers/apiHelper';
 import WidgetWrapper from '@/widget/wrapper/WidgetWrapper';
 import AddIcon from '@mui/icons-material/Add';
 import RecommendDashboardPopup from '@/pages/Dashboard/Components/RecommendDashboardPopup';
 import DashboardService from '@/api/dashboardService';
 import { STATUS } from '@/constant';
-import TemplateService from '@/api/templateService';
 import DashboardTitleBox from '../Components/DashboardTitleBox';
-import ModifyButton from '@/components/button/ModifyButton';
 import CloseButton from '@/components/button/CloseButton';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
