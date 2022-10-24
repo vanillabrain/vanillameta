@@ -439,12 +439,34 @@ const WidgetViewer = props => {
         border: '1px solid #DADDDD',
       }}
     >
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ width: '100%', py: 1 }}>
-        <Typography variant="subtitle1" component="span" sx={{ fontWeight: 500 }}>
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        sx={{
+          width: '100%',
+          height: '50px',
+          paddingLeft: '20px',
+        }}
+      >
+        <Typography
+          variant="subtitle1"
+          component="span"
+          sx={{
+            fontFamily: 'Pretendard',
+            fontSize: '16px',
+            fontWeight: '600',
+            fontStretch: 'normal',
+            fontStyle: 'normal',
+            lineHeight: '1.25',
+            letterSpacing: '-0.16px',
+            textAlign: 'left',
+            color: '#333',
+          }}
+        >
           {title}
         </Typography>
       </Stack>
-      <Divider sx={{ marginBottom: 4 }} />
 
       <Stack
         sx={{
@@ -452,6 +474,7 @@ const WidgetViewer = props => {
           height: '100%',
           maxHeight: '500px',
           position: 'relative',
+          padding: '32px 40px 48px 40px',
         }}
       >
         {module}

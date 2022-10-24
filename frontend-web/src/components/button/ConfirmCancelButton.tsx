@@ -4,7 +4,7 @@ import { Box, Button, Stack } from '@mui/material';
 export const ConfirmButton = props => {
   const { confirmLabel, confirmProps } = props;
   return (
-    <Button variant="contained" sx={{ minWidth: { xs: 60, sm: 100 } }} {...confirmProps}>
+    <Button variant="contained" sx={{ minWidth: '55px', minHeight: '32px' }} {...confirmProps}>
       {confirmLabel}
     </Button>
   );
@@ -13,7 +13,7 @@ export const ConfirmButton = props => {
 export const CancelButton = props => {
   const { cancelLabel, cancelProps } = props;
   return (
-    <Button variant="outlined" sx={{ minWidth: { xs: 60, sm: 100 } }} {...cancelProps}>
+    <Button variant="outlined" sx={{ minWidth: '55px', minHeight: '32px' }} {...cancelProps}>
       {cancelLabel}
     </Button>
   );

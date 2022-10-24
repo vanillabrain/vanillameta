@@ -18,6 +18,9 @@ import RecommendDashboardPopup from '@/pages/Dashboard/Components/RecommendDashb
 import DashboardService from '@/api/dashboardService';
 import { STATUS } from '@/constant';
 import TemplateService from '@/api/templateService';
+import DashboardTitleBox from '../Components/DashboardTitleBox';
+import ModifyButton from '@/components/button/ModifyButton';
+import CloseButton from '@/components/button/CloseButton';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -124,24 +127,42 @@ function DashboardModify() {
     return widgets.map((item, index) => {
       useWidgetIds.push(item.id); // 현재 widget id 를 담는다.
       return (
-        <Card key={item.id} sx={{ width: '100%', height: '100%', borderRadius: 1 }}>
-          <span
-            style={{ position: 'absolute', right: '2px', top: 0, cursor: 'pointer' }}
-            onClick={() => {
+        <Card
+          key={item.id}
+          sx={{
+            width: '100%',
+            height: '100%',
+            borderRadius: '8px',
+            boxShadow: '2px 2px 9px 0 rgba(42, 50, 62, 0.1), 0 4px 4px 0 rgba(0, 0, 0, 0.02)',
+            border: 'solid 1px #e2e2e2',
+            backgroundColor: '#fff',
+          }}
+        >
+          <CloseButton
+            sx={{
+              position: 'absolute',
+              right: '0px',
+              top: '0px',
+              paddingRight: '17px',
+              paddingTop: '17px',
+              cursor: 'pointer',
+            }}
+            size="medium"
+            onClick={event => {
+              event.preventDefault();
+              event.stopPropagation();
+
               const tempWidgets = [...widgets];
               const tempLayout = [...layout];
               const index = widgets.findIndex(widgetItem => widgetItem.id == item.id);
               if (index > -1) {
                 tempWidgets.splice(index, 1);
                 tempLayout.splice(index, 1);
-
                 setLayout([...tempLayout]);
                 setWidgets([...tempWidgets]);
               }
             }}
-          >
-            X
-          </span>
+          />
           <WidgetWrapper
             widgetOption={item}
             dataSetId={item.datasetId}
@@ -226,8 +247,9 @@ function DashboardModify() {
     <PageContainer>
       <PageTitleBox
         title={topTitle}
+        sx={{ width: '100%', marginTop: '22px' }}
         button={
-          <React.Fragment>
+          <Stack direction="row" spacing={3} sx={{ marginRight: '20px' }}>
             <ConfirmCancelButton
               // confirmProps={{ disabled: true }}
               secondButton={
@@ -251,54 +273,90 @@ function DashboardModify() {
                 </DialogAlertButton>
               }
             />
-          </React.Fragment>
+          </Stack>
         }
       >
-        <Stack flexDirection="row" justifyContent="space-between" alignItems="baseline" mb={3}>
-          <TextField
-            id="userDashboardName"
-            label=""
-            required
-            autoFocus
-            sx={{ width: '50%' }}
-            placeholder="대시보드의 이름을 입력해 주세요"
-            value={dashboardTitle}
-            onChange={event => {
-              setDashboardTitle(event.target.value);
-            }}
-          />
-          <Button onClick={handleWidgetOpen} variant="contained" endIcon={<AddIcon />} color="primary">
-            위젯 추가
-          </Button>
-          <AddWidgetPopup
-            label="위젯 추가"
-            widgetSelect={handleWidgetSelect}
-            useWidgetIds={useWidgetIds}
-            widgetOpen={widgetOpen}
-          />
-          <RecommendDashboardPopup recommendOpen={recommendOpen} handleComplete={handleCompleteRecommend} />
-        </Stack>
-        <Box
-          sx={{
-            width: '1440px',
-            minHeight: '1080px',
-            borderRadius: 1,
-            backgroundColor: '#eee',
-          }}
+        <DashboardTitleBox
+          title={
+            <TextField
+              id="userDashboardName"
+              label=""
+              required
+              autoFocus
+              sx={{
+                width: '960px',
+                height: '32px',
+                // gap: '10px',
+                marginLeft: '16px',
+                marginTop: 0,
+                // padding: '8px 20px 8px 10px',
+                borderRadius: '4px',
+                backgroundColor: '#fff',
+              }}
+              placeholder="대시보드의 이름을 입력해 주세요"
+              value={dashboardTitle}
+              onChange={event => {
+                setDashboardTitle(event.target.value);
+              }}
+            />
+          }
+          button={
+            <>
+              <Button
+                onClick={handleWidgetOpen}
+                variant="contained"
+                startIcon={<AddIcon />}
+                color="primary"
+                sx={{
+                  borderRadius: '8px',
+                  backgroundColor: '#043f84',
+                  width: '112px',
+                  height: '32px',
+                  display: 'flex',
+                  flexDirection: 'row',
+                  justifyContent: 'flex-start',
+                  alignItems: 'center',
+                  marginRight: '20px',
+                  padding: '0px 14px',
+                  objectFit: 'contain',
+                  border: 'solid 1px #0f5ab2',
+                }}
+              >
+                위젯 추가
+              </Button>
+              <AddWidgetPopup
+                label="위젯 추가"
+                widgetSelect={handleWidgetSelect}
+                useWidgetIds={useWidgetIds}
+                widgetOpen={widgetOpen}
+              />
+              <RecommendDashboardPopup recommendOpen={recommendOpen} handleComplete={handleCompleteRecommend} />
+            </>
+          }
         >
-          <ResponsiveGridLayout
-            rowHeight={54}
-            compactType={null}
-            cols={{ lg: 12 }}
-            layouts={{ lg: layout }}
-            margin={[16, 16]}
-            preventCollision={true}
-            containerPadding={[16, 16]}
-            onLayoutChange={onLayoutChange}
+          <Box
+            sx={{
+              width: '1390px',
+              minWidth: '1390px',
+              minHeight: '1080px',
+              backgroundColor: '#f9f9fa',
+              borderRadius: '0px 0px 6px 6px',
+            }}
           >
-            {generateWidget()}
-          </ResponsiveGridLayout>
-        </Box>
+            <ResponsiveGridLayout
+              rowHeight={88}
+              compactType={null}
+              cols={{ lg: 12 }}
+              layouts={{ lg: layout }}
+              preventCollision={true}
+              containerPadding={{ lg: [24, 24] }}
+              margin={{ lg: [24, 24] }}
+              onLayoutChange={onLayoutChange}
+            >
+              {generateWidget()}
+            </ResponsiveGridLayout>
+          </Box>
+        </DashboardTitleBox>
       </PageTitleBox>
     </PageContainer>
   );
