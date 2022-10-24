@@ -8,8 +8,7 @@ function PageTitleBox(props) {
     minWidth: '900px',
     paddingLeft: '25px',
     paddingRight: '25px',
-    // width: '1920px',
-    justifyContent: 'center',
+    width: '1920px',
     height: '100%',
   };
 
@@ -54,7 +53,9 @@ function PageTitleBox(props) {
           {button}
         </Stack>
       </Stack>
-      <Box sx={defaultBoxSx}>{props.children}</Box>
+      <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+        <Box sx={defaultBoxSx}>{props.children}</Box>
+      </Box>
     </Box>
   );
 }
