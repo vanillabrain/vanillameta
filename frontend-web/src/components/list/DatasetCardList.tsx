@@ -1,9 +1,10 @@
-import { Card, CardActions, CardContent, Grid, IconButton, Typography } from '@mui/material';
+import { CardActions, CardContent, Grid, Typography } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
-import { Delete, Edit } from '@mui/icons-material';
-import React, { useEffect } from 'react';
+import React from 'react';
 import CardListWrapper, { CardWrapper } from '@/components/list/CardListWrapper';
 import { any } from 'prop-types';
+import ModifyButton from '@/components/button/ModifyButton';
+import DeleteButton from '@/components/button/DeleteButton';
 
 export const DatasetCardList = props => {
   const { data, minWidth, disabledIcons, selectedDataset, onSelectDataset, onDeleteDataset } = props;
@@ -18,6 +19,7 @@ export const DatasetCardList = props => {
                 <CardWrapper selected={selected} onClick={() => onSelectDataset(item)}>
                   <CardContent
                     sx={{
+                      p: '0 !important',
                       display: 'flex',
                       alignItems: 'center',
                     }}
@@ -37,33 +39,31 @@ export const DatasetCardList = props => {
                   </CardContent>
 
                   {/* 아이콘 */}
-                  {disabledIcons ? null : (
+                  {disabledIcons ? (
+                    <></>
+                  ) : (
                     <CardActions
                       disableSpacing
                       sx={{
-                        position: 'absolute',
                         top: 0,
                         bottom: 0,
                         right: 10,
                         display: 'flex',
-                        justifyContent: 'flex-end,',
+                        justifyContent: 'end',
+                        width: '100%',
                         m: 0,
                         p: 0,
                       }}
                     >
-                      <IconButton size="medium" component={RouterLink} to={`/data/set/modify/${item.id}`}>
-                        <Edit />
-                      </IconButton>
-                      <IconButton
+                      <ModifyButton size="medium" component={RouterLink} to={`/data/set/modify/${item.id}`} />
+                      <DeleteButton
                         size="medium"
                         onClick={event => {
                           event.preventDefault();
                           event.stopPropagation();
                           onDeleteDataset(item);
                         }}
-                      >
-                        <Delete />
-                      </IconButton>
+                      />
                     </CardActions>
                   )}
                 </CardWrapper>

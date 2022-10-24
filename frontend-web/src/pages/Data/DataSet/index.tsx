@@ -185,6 +185,7 @@ const DataSet = () => {
     <PageContainer>
       <PageTitleBox
         title={`데이터셋 ${isModifyMode ? '수정' : '생성'}`}
+        sx={{ p: 0 }}
         button={
           <Stack>
             <ConfirmCancelButton
@@ -207,8 +208,8 @@ const DataSet = () => {
           id="datasetForm"
           component="form"
           flexDirection="column"
-          spacing={3}
-          sx={{ width: '100%' }}
+          spacing="20px"
+          sx={{ p: '30px 25px 40px 25px' }}
           onSubmit={saveDataset}
         >
           <Select
@@ -239,7 +240,7 @@ const DataSet = () => {
           />
           <AceEditor
             placeholder="Please enter a query."
-            style={{ width: '100%', height: '200px' }}
+            style={{ width: '100%', height: '200px', border: 'solid 1px #ddd' }}
             mode="mysql"
             theme="tomorrow"
             name="codeInput"
@@ -258,7 +259,9 @@ const DataSet = () => {
               tabSize: 2,
             }}
           />
-          <SubmitButton label="Run" type="button" onClick={excuteQuery} />
+          <SubmitButton label="Run" type="button" sx={{ width: '374px', height: '50px' }} onClick={excuteQuery} />
+        </Stack>
+        <Stack sx={{ p: '30px 25px 40px 25px', backgroundColor: '#f5f6f8' }}>
           <DataGrid
             minBodyHeight={300}
             bodyHeight={500}

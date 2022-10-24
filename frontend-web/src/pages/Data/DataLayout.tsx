@@ -8,6 +8,8 @@ import { useAlert } from 'react-alert';
 import { DatabaseCardList } from '@/components/list/DatabaseCardList';
 import { DatasetCardList } from '@/components/list/DatasetCardList';
 import DatasetService from '@/api/datasetService';
+import AddButton from '@/components/button/AddButton';
+import { Link as RouterLink } from 'react-router-dom';
 
 const DataLayout = props => {
   const { isViewMode, setDataSet } = props;
@@ -98,50 +100,55 @@ const DataLayout = props => {
   };
 
   return (
-    <Box>
-      <Stack direction="row">
-        <Stack sx={{ width: '404px', px: '24px', pt: '30px' }}>
-          <Stack direction="row">
+    <Stack sx={{ width: '100%' }} direction="row">
+      <Stack sx={{ width: '404px', px: '24px', pt: '30px' }}>
+        <Stack direction="row" sx={{ mb: '12px' }}>
+          <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold', fontSize: '16px', color: '#141414' }}>
+            데이터 소스
+          </Typography>
+          <AddButton component={RouterLink} to={`source/create`} sx={{ ml: '14px' }} />
+        </Stack>
+        <DatabaseCardList
+          data={databaseList}
+          selectedDatabase={selectedDatabase}
+          disabledIcons={!!isViewMode}
+          onUpdate={handleSelectDatabase}
+          onRemove={removeDatabase}
+          minWidth="100%"
+        />
+      </Stack>
+
+      <Stack sx={{ width: 'calc(100% - 404px)', backgroundColor: '#f5f6f8' }}>
+        <Stack sx={{ width: '100%', px: '24px', pt: '30px' }}>
+          <Stack direction="row" sx={{ mb: '12px' }}>
             <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold', fontSize: '16px', color: '#141414' }}>
-              데이터 소스
+              데이터 셋
             </Typography>
-            <AddIconButton link={`set/create/${selectedDatabase.databaseId}`} />
+            <AddButton component={RouterLink} to={`set/create/${selectedDatabase.databaseId}`} sx={{ ml: '14px' }} />
           </Stack>
-          <DatabaseCardList
-            data={databaseList}
-            selectedDatabase={selectedDatabase}
+          <DatasetCardList
+            data={datasetList}
+            selectedDataset={selectedDataset}
+            onSelectDataset={handleSelectDataset}
+            onDeleteDataset={handleDeleteDataset}
             disabledIcons={!!isViewMode}
-            onUpdate={handleSelectDatabase}
-            onRemove={removeDatabase}
-            minWidth="100%"
           />
         </Stack>
-
-        <Stack>
-          <TitleBox
-            title="데이터 셋"
-            width="100%"
-            button={<AddIconButton link={`set/create/${selectedDatabase.databaseId}`} />}
-          >
-            <DatasetCardList
-              data={datasetList}
-              selectedDataset={selectedDataset}
-              onSelectDataset={handleSelectDataset}
-              onDeleteDataset={handleDeleteDataset}
-              disabledIcons={!!isViewMode}
-            />
-          </TitleBox>
-          <TitleBox title="데이터 목록">
-            <DatasetCardList
-              data={tableList}
-              selectedDataset={selectedDataset}
-              onSelectDataset={handleSelectDataset}
-              disabledIcons={true}
-            />
-          </TitleBox>
+        <Stack sx={{ width: '100%', px: '24px', pt: '30px' }}>
+          <Stack direction="row" sx={{ mb: '12px' }}>
+            <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold', fontSize: '16px', color: '#141414' }}>
+              데이터 목록
+            </Typography>
+          </Stack>
+          <DatasetCardList
+            data={tableList}
+            selectedDataset={selectedDataset}
+            onSelectDataset={handleSelectDataset}
+            disabledIcons={true}
+          />
         </Stack>
       </Stack>
-    </Box>
+    </Stack>
   );
 };
 

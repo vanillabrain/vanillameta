@@ -1,5 +1,5 @@
-import React, { useEffect, useLayoutEffect, useState } from 'react';
-import { Stack } from '@mui/material';
+import React, { useLayoutEffect, useState } from 'react';
+import { Stack, Typography } from '@mui/material';
 import PageContainer from '@/components/PageContainer';
 import PageTitleBox from '@/components/PageTitleBox';
 import TitleBox from '@/components/TitleBox';
@@ -8,9 +8,10 @@ import ConfirmCancelButton from '@/components/button/ConfirmCancelButton';
 import DatabaseService from '@/api/databaseService';
 import { STATUS } from '@/constant';
 import { getDatabaseIcon } from '@/widget/utils/iconUtil';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link as RouterLink, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAlert } from 'react-alert';
 import DatabaseForm from '@/pages/Data/DataSource/form/DatabaseForm';
+import AddButton from '@/components/button/AddButton';
 
 function DataSource() {
   const { sourceId } = useParams();
@@ -146,14 +147,29 @@ function DataSource() {
             cancelProps={{ onClick: handleCancelClick }}
           />
         }
+        sx={{ p: 0 }}
       >
-        <Stack spacing={3}>
-          <TitleBox title={'step.01 타입 설정'}>
+        <Stack sx={{ width: '100%' }}>
+          <Stack sx={{ p: '30px 25px 50px 25px' }}>
+            <Typography
+              variant="subtitle1"
+              component="span"
+              sx={{ fontWeight: 'bold', fontSize: '18px', color: '#141414', mb: '14px' }}
+            >
+              step.01 타입 설정
+            </Typography>
             <ImgCardList data={typeList} selectedType={dataType} setSelectedType={setDataType} />
-          </TitleBox>
-          <TitleBox title={'step.02 연결 정보 입력'}>
+          </Stack>
+          <Stack sx={{ p: '30px 25px 50px 25px', bgcolor: '#f5f6f8' }}>
+            <Typography
+              variant="subtitle1"
+              component="span"
+              sx={{ fontWeight: 'bold', fontSize: '18px', color: '#141414', mb: '14px' }}
+            >
+              step.02 연결 정보 입력
+            </Typography>
             <DatabaseForm testConnect={testConnect} formData={formData} setFormData={setFormData} />
-          </TitleBox>
+          </Stack>
         </Stack>
       </PageTitleBox>
     </PageContainer>
