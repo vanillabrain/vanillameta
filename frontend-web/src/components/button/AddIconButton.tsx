@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Box, Button, IconButton, Menu, MenuItem, SvgIcon, useMediaQuery, useTheme } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { Link as RouterLink } from 'react-router-dom';
@@ -70,7 +70,7 @@ AddMenuButton.defaultProps = {
 export const AddMenuIconButton = ({
   menuList,
   handleSelect = null,
-  iconUrl = '../../assets/images/icon/btn-plus.png',
+  iconUrl = '../../static/images/icon/btn-plus.png',
   sizeOption = { width: 22, height: 22 },
 }) => {
   const [anchorEl, setAnchorEl] = useState(null);

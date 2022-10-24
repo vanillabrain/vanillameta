@@ -47,7 +47,7 @@ function DataSource() {
    */
   const getDatabaseInfo = () => {
     DatabaseService.selectDatabase(sourceId).then(response => {
-      console.log('getDatabaseInfo', response.data.data.databaseInfo);
+      // console.log('getDatabaseInfo', response.data.data.databaseInfo);
       const info = response.data;
       if (info.status === 'SUCCESS') {
         console.log(info.data.databaseInfo.connectionConfig);

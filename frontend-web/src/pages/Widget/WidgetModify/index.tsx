@@ -17,40 +17,10 @@ interface CustomizedState {
 const WidgetModify = props => {
   const [searchParams] = useSearchParams();
   const widgetId = searchParams.get('id');
-  // const widgetName = searchParams.get('name');
   const navigate = useNavigate();
   const location = useLocation();
 
   const [loading, setLoading] = useState(false);
-
-  // const [isLoaded, setIsLoaded] = useState(false);
-  //
-  // const [data, setData] = useState({
-  //   dataId: 11,
-  //   type: '',
-  //   option: {},
-  // });
-  // const [widgetOption, setWidgetOption] = useState({});
-  //
-  // useEffect(() => {
-  //   console.log(widgetId, widgetName);
-  //   // axios
-  //   //   .get('/data/dummyWidgetList.json')
-  //   //   .then(response => response.data)
-  //   //   .then(data => setData(data.find(element => element.id === widgetId)))
-  //   //   .then(() => setIsLoaded(true));
-  // }, []);
-  //
-  // console.log(data, 'data');
-  //
-  // // 위젯 속성 저장
-  // const handleSubmit = event => {
-  //   // dataSetId , componentId, widgetTitle, option
-  //   event.preventDefault();
-  //   console.log('datesetId:', data.dataId);
-  //   console.log('widgetType:', data.type);
-  //   console.log('widgetOption:', data.option);
-  // };
 
   const defaultWidgetInfo: WidgetInfo = {
     componentId: '',

@@ -9,7 +9,8 @@ const WidgetWrapper = props => {
 
   const [dataset, setDataset] = useState(null);
   useEffect(() => {
-    console.log('WidgetWrapper', dataSetId);
+    console.log('WidgetWrapper widgetOption', widgetOption);
+    console.log('WidgetWrapper dataSetId', dataSetId);
 
     if (dataSetId) {
       getData();

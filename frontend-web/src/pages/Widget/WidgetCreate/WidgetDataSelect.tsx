@@ -1,9 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Grid } from '@mui/material';
-import TitleBox from '@/components/TitleBox';
-import CardList, { DataSourceCard } from '@/components/CardList';
-// import { get } from '@/helpers/apiHelper';
-import axios from 'axios';
 import DataLayout from '@/pages/Data/DataLayout';
 
 function WidgetDataSelect(props) {
