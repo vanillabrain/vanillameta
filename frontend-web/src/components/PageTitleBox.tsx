@@ -74,7 +74,7 @@ function PageTitleBox(props) {
           {button}
         </Stack>
       </Stack>
-      <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+      <Box sx={{ width: '100%', height: 'calc(100% - 56px)', display: 'flex', justifyContent: 'center' }}>
         <Box sx={defaultBoxSx}>{props.children}</Box>
       </Box>
     </Box>

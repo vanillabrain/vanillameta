@@ -305,6 +305,10 @@ const WidgetSetting = props => {
         border: '1px solid #DADDDD',
         px: '24px',
         py: '30px',
+        overflowY: 'auto !important',
+        flex: 'auto',
+        minHeight: 0,
+        minWidth: 0,
       }}
     >
       <WidgetTitleForm value={title} onChange={event => setTitle(event.target.value)} />
