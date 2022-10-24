@@ -5,15 +5,18 @@ import ColorFieldForm from '@/components/form/ColorFieldForm';
 import { handleChange } from '@/widget/utils/handler';
 import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST, PIE_LABEL_LIST } from '@/constant';
 import { getAggregationDataForChart, getColorArr } from '@/widget/modules/utils/chartUtil';
-import { AddButton } from '@/components/button/AddIconButton';
+import { AddButton, SmallButton } from '@/components/button/AddIconButton';
+import { InvertColors } from '@mui/icons-material';
 
-const PieChartSetting = props => {
+const FunnelChartSetting = props => {
   const { option, setOption, listItem, spec, dataSet } = props;
   console.log(props, 'props');
 
   const [colorNum, setColorNum] = useState(12);
+  // const [color, setColor] = useState(initState);
+  const [isOneColor, setIsOneColor] = useState(false);
 
-  useEffect(() => {
+  const setColor = () => {
     let pieAggrData = [];
     if (option['series'].field) {
       pieAggrData = getAggregationDataForChart(
@@ -29,6 +32,11 @@ const PieChartSetting = props => {
       prevState['series'].color = colorArr;
       return { ...prevState };
     });
+  };
+  useEffect(() => {
+    if (!isOneColor) {
+      setColor();
+    }
   }, [option['series'].field, option['series'].name]);
 
   const handleSeriesChange = event => {
@@ -42,8 +50,24 @@ const PieChartSetting = props => {
   };
 
   const handleAddColorClick = () => {
-    if (option.series.field && option.series.name) {
+    if (option.series.field && option.series.name && !isOneColor) {
       setColorNum(prevState => prevState + 12);
+    }
+  };
+
+  const handleColorChangeClick = () => {
+    if (!isOneColor) {
+      setIsOneColor(true);
+      setColorNum(1);
+      setOption(prevState => {
+        // prevState['series'].color = prevState['series'].color.reverse();
+        prevState['series'].color = [prevState['series'].color[0]];
+        return { ...prevState };
+      });
+    } else {
+      setIsOneColor(false);
+      setColorNum(12);
+      setColor();
     }
   };
 
@@ -123,6 +147,15 @@ const PieChartSetting = props => {
             right: 0,
           }}
         />
+        <SmallButton
+          onClick={handleColorChangeClick}
+          icon={<InvertColors />}
+          sx={{
+            position: 'absolute',
+            top: 30,
+            right: 30,
+          }}
+        />
         {option.series.field &&
           option.series.color
             .filter((item, index) => index < colorNum)
@@ -144,4 +177,4 @@ const PieChartSetting = props => {
   );
 };
 
-export default PieChartSetting;
+export default FunnelChartSetting;

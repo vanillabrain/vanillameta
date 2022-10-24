@@ -64,7 +64,7 @@ const MixedDonutPieChartSetting = props => {
     setOption({ ...option, ...newOption });
   };
 
-  const handleAddClick = () => {
+  const handleAddColorClick = () => {
     if (option.series.field && option.series.name && option.pie.field && option.pie.name) {
       setColorNum(prevState => prevState + 12);
     }
@@ -208,7 +208,7 @@ const MixedDonutPieChartSetting = props => {
       <ListItem>
         <ListItemText primary="색상 설정" />
         <AddButton
-          onClick={handleAddClick}
+          onClick={handleAddColorClick}
           sx={{
             position: 'absolute',
             top: 30,

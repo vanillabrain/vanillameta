@@ -24,6 +24,7 @@ import PolarBarChartSetting from '@/widget/settings/PolarBarChartSetting';
 import MixedLinePieChartSetting from '@/widget/settings/MixedLinePieChartSetting';
 import MixedDonutPieChartSetting from '@/widget/settings/MixedDonutPieChartSetting';
 import MixedLineStackedBarChartSetting from '@/widget/settings/MixedLineStackedBarChartSetting';
+import FunnelChartSetting from '@/widget/settings/FunnelChartSetting';
 
 const StyledList = styled(List)({
   // display: 'flex',
@@ -132,7 +133,7 @@ const WidgetSetting = props => {
         module = <CandlestickChartSetting {...chartSettingProps} />;
         break;
       case WIDGET_TYPE.CHART_FUNNEL:
-        module = <PieChartSetting {...chartSettingProps} />;
+        module = <FunnelChartSetting {...chartSettingProps} />;
         break;
       case WIDGET_TYPE.CHART_3D_BAR:
         module = <Bar3DChartSetting {...chartSettingProps} />;

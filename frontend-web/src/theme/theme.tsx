@@ -4,7 +4,7 @@ export default createTheme({
   palette: {
     mode: 'light',
     primary: {
-      main: '#043f84',
+      main: '#0f5ab2',
       dark: '#32408c',
       light: '#2fcbef',
     },
@@ -149,7 +149,31 @@ export default createTheme({
       },
       styleOverrides: {
         root: {
-          fontFamily: 'Noto Sans KR',
+          fontFamily: 'Pretendard',
+        },
+      },
+    },
+    MuiStepIcon: {
+      styleOverrides: {
+        root: {
+          color: '#9b9ea9',
+          '&.Mui-completed': {
+            color: '#9b9ea9',
+          },
+        },
+      },
+    },
+    MuiStepLabel: {
+      styleOverrides: {
+        label: {
+          color: '#9b9ea9',
+          '&.Mui-active': {
+            color: '#0f5ab2',
+            fontWeight: 700,
+          },
+          '&.Mui-completed': {
+            color: '#9b9ea9',
+          },
         },
       },
     },
@@ -161,7 +185,7 @@ export default createTheme({
           minWidth: 400,
           // minWidth: isDesktop ? '1280px' : 0,
           backgroundColor: '#FFFFFF',
-          fontFamily: 'Noto Sans KR',
+          fontFamily: 'Pretendard',
           color: '#1F2123',
         },
       },

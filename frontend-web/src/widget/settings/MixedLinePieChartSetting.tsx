@@ -249,7 +249,7 @@ const MixedLinePieChartSetting = props => {
       <ListItem>
         <ListItemText primary="원형 차트 색상 설정" />
         <AddButton
-          onClick={handleAddClick}
+          onClick={handleAddColorClick}
           sx={{
             position: 'absolute',
             top: 30,
