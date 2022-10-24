@@ -30,7 +30,7 @@ export const AddMenuButton = ({ menuList, label, ...props }) => {
   const matches = useMediaQuery(theme.breakpoints.up('md'));
 
   return (
-    <React.Fragment>
+    <>
       <Button
         id="styled-menu"
         aria-controls={open ? 'styled-menu' : undefined}
@@ -57,7 +57,7 @@ export const AddMenuButton = ({ menuList, label, ...props }) => {
           </MenuItem>
         ))}
       </Menu>
-    </React.Fragment>
+    </>
   );
 };
 AddMenuButton.defaultProps = {
@@ -88,7 +88,7 @@ export const AddMenuIconButton = ({
   };
 
   return (
-    <React.Fragment>
+    <>
       <Button
         id="styled-menu"
         aria-controls={open ? 'styled-menu' : undefined}
@@ -107,7 +107,7 @@ export const AddMenuIconButton = ({
           </MenuItem>
         ))}
       </Menu>
-    </React.Fragment>
+    </>
   );
 };
 AddMenuIconButton.defaultProps = {

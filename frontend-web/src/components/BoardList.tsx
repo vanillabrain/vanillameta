@@ -40,7 +40,7 @@ function BoardList(props) {
         <Typography variant="body2"></Typography>
         {matches && (
           <Typography variant="body2" sx={{ mr: '112px' }}>
-            1 수정한 날짜
+            수정한 날짜
           </Typography>
         )}
       </Stack>
