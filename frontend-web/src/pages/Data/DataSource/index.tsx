@@ -150,7 +150,7 @@ function DataSource() {
         sx={{ p: 0 }}
       >
         <Stack sx={{ width: '100%' }}>
-          <Stack sx={{ p: '30px 24px 50px 24px' }}>
+          <Stack sx={{ p: '30px 25px 50px 25px' }}>
             <Typography
               variant="subtitle1"
               component="span"
@@ -160,7 +160,7 @@ function DataSource() {
             </Typography>
             <ImgCardList data={typeList} selectedType={dataType} setSelectedType={setDataType} />
           </Stack>
-          <Stack sx={{ p: '30px 24px 50px 24px', bgcolor: '#f5f6f8' }}>
+          <Stack sx={{ p: '30px 25px 50px 25px', bgcolor: '#f5f6f8' }}>
             <Typography
               variant="subtitle1"
               component="span"
