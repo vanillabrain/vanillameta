@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import PageContainer from '@/components/PageContainer';
 import PageTitleBox from '@/components/PageTitleBox';
 import { ConfirmButton } from '@/components/button/ConfirmCancelButton';
@@ -7,6 +7,7 @@ import WidgetAttributeSelect from '@/pages/Widget/WidgetCreate/WidgetAttributeSe
 import WidgetService from '@/api/widgetService';
 import widgetService from '@/api/widgetService';
 import { WidgetInfo } from '@/api/type';
+import { LayoutContext } from '@/contexts/LayoutContext';
 
 // import { get } from '@/helpers/apiHelper';
 
@@ -19,6 +20,7 @@ const WidgetModify = props => {
   const widgetId = searchParams.get('id');
   const navigate = useNavigate();
   const location = useLocation();
+  const { fixLayout } = useContext(LayoutContext);
 
   const [loading, setLoading] = useState(false);
 
@@ -40,6 +42,10 @@ const WidgetModify = props => {
 
   useEffect(() => {
     getWidgetInfo();
+    fixLayout(true);
+    return () => {
+      fixLayout(false);
+    };
   }, []);
 
   /**

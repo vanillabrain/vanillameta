@@ -181,7 +181,7 @@ const WidgetCreate = () => {
             handleNext={handleNext}
           />
         ) : (
-          <WidgetAttributeSelect dataset={dataset} widgetOption={widgetOption} saveWidgetInfo={saveWidgetInfo} />
+          <WidgetAttributeSelect dataset={dataset} widgetOption={widgetOption} saveWidgetInfo={saveWidgetInfo} top={72} />
         )}
       </PageTitleBox>
     </PageContainer>
