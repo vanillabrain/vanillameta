@@ -5,6 +5,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DashboardWidget } from './entities/dashboard-widget.entity';
 import { In, Repository } from 'typeorm';
 import { Widget } from '../../widget/entities/widget.entity';
+import { Component } from '../../component/entities/component.entity';
 
 @Injectable()
 export class DashboardWidgetService {
@@ -13,6 +14,8 @@ export class DashboardWidgetService {
     private dashboardWidgetRepository: Repository<DashboardWidget>,
     @InjectRepository(Widget)
     private widgetRepository: Repository<Widget>,
+    @InjectRepository(Component)
+    private componentRepository: Repository<Component>,
   ) {}
 
   /**
@@ -42,9 +45,22 @@ export class DashboardWidgetService {
     widgetList.map(item => {
       whereInWidgetList.push(item.widgetId);
     });
-    console.log(whereInWidgetList);
 
-    const result = await this.widgetRepository.findBy({ id: In(whereInWidgetList) });
+    const widgetInfo = this.widgetRepository
+      .createQueryBuilder()
+      .subQuery()
+      .select(['widget.*'])
+      .from(Widget, 'widget')
+      .where('id in (:ids)')
+      .getQuery();
+
+    const result = await this.componentRepository
+      .createQueryBuilder('component')
+      .select(['widgetInfo.*', 'component.type as componentType'])
+      .innerJoin(widgetInfo, 'widgetInfo', 'widgetInfo.componentId = component.id')
+      .setParameter('ids', whereInWidgetList)
+      .getRawMany();
+
     result.map(el => {
       el.option = JSON.parse(el.option);
     });
