@@ -49,8 +49,8 @@ const FunnelChartSetting = props => {
     }));
   };
 
-  const handleAddClick = () => {
-    if (option.series.field && option.series.name) {
+  const handleAddColorClick = () => {
+    if (option.series.field && option.series.name && !isOneColor) {
       setColorNum(prevState => prevState + 12);
     }
   };
@@ -140,7 +140,7 @@ const FunnelChartSetting = props => {
       <ListItem>
         <ListItemText primary="색상 설정" />
         <AddButton
-          onClick={handleAddClick}
+          onClick={handleAddColorClick}
           sx={{
             position: 'absolute',
             top: 30,
