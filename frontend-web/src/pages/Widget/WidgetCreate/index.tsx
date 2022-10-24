@@ -1,14 +1,14 @@
-import React, {useEffect, useState} from 'react';
-import {Box, Stack, Step, StepLabel, Stepper} from '@mui/material';
+import React, { useEffect, useState } from 'react';
+import { Box, Stack, Step, StepLabel, Stepper } from '@mui/material';
 import PageTitleBox from '@/components/PageTitleBox';
 import PageContainer from '@/components/PageContainer';
-import ConfirmCancelButton, {ConfirmButton} from '@/components/button/ConfirmCancelButton';
+import ConfirmCancelButton, { ConfirmButton } from '@/components/button/ConfirmCancelButton';
 import WidgetDataSelect from './WidgetDataSelect';
 import WidgetTypeSelect from './WidgetTypeSelect';
 import WidgetAttributeSelect from './WidgetAttributeSelect';
 import componentService from '@/api/componentService';
 import widgetService from '@/api/widgetService';
-import {useNavigate} from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 const title = '위젯 생성';
 const steps = ['데이터 선택', '위젯 타입 선택', '위젯 속성 설정'];
