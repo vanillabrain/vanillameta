@@ -160,7 +160,7 @@ export default createTheme({
           height: '100%',
           minWidth: 400,
           // minWidth: isDesktop ? '1280px' : 0,
-          backgroundColor: '#F8FBFC',
+          backgroundColor: '#FFFFFF',
           fontFamily: 'Noto Sans KR',
           color: '#1F2123',
         },

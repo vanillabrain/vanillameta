@@ -144,7 +144,7 @@ function DashboardModify() {
           </span>
           <WidgetWrapper
             widgetOption={item}
-            dataSetId={item.dataSetId}
+            dataSetId={item.datasetId}
             sx={{ width: '100%', height: '100%', borderRadius: 1 }}
           />
         </Card>
