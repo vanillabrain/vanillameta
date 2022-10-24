@@ -30,7 +30,6 @@ const WidgetAttributeSelect = props => {
   const getData = () => {
     const param = isModifyMode ? { datasetType: widgetOption.datasetType, datasetId: widgetOption.datasetId } : dataset;
     DatabaseService.selectData(param).then(response => {
-      console.log('selectData', response.data);
       if (response.data.status === STATUS.SUCCESS) {
         setData(response.data.data.datas);
         setSpec(response.data.data.fields);
