@@ -18,14 +18,7 @@ const SubmitButton = props => {
   };
   return (
     <Box width="100%">
-      <Button
-        type={props.type || 'button'}
-        variant="contained"
-        size="large"
-        sx={{ mt: 3, mx: 2, ml: 0 }}
-        fullWidth
-        onClick={onClick}
-      >
+      <Button type={props.type || 'button'} variant="contained" size="large" fullWidth onClick={onClick}>
         {props.label}
       </Button>
       {open && (

@@ -2,7 +2,7 @@ import React from 'react';
 import { Divider, Box, Stack, Typography } from '@mui/material';
 
 function PageTitleBox(props) {
-  const { title, button, sx = {} } = props;
+  const { title, button, sx = null } = props;
 
   const defaultBoxSx = {
     minWidth: '900px',
