@@ -1,12 +1,12 @@
 import { Card, CardActions, CardContent, Grid, IconButton, Typography } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import { Delete, Edit } from '@mui/icons-material';
-import { DialogAlertIconButton } from '@/components/button/DialogAlertButton';
-import React from 'react';
+import React, { useEffect } from 'react';
 import CardListWrapper from '@/components/list/CardListWrapper';
+import { any } from 'prop-types';
 
 export const DatasetCardList = props => {
-  const { data, minWidth, disabledIcons, selectDataset } = props;
+  const { data, minWidth, disabledIcons, selectedDataset, onSelectDataset, onDeleteDataset } = props;
 
   return (
     <CardListWrapper minWidth={minWidth}>
@@ -17,7 +17,7 @@ export const DatasetCardList = props => {
                 sx={{
                   position: 'relative',
                 }}
-                onClick={() => selectDataset('DATASET', item)}
+                onClick={() => onSelectDataset(item)}
               >
                 <CardContent
                   sx={{
@@ -26,6 +26,8 @@ export const DatasetCardList = props => {
                     minHeight: 80,
                     pl: 3,
                     pr: 2,
+                    boxShadow:
+                      selectedDataset?.id == item.id ? theme => `0 0 0 3px ${theme.palette.primary.main} inset` : 'none',
                   }}
                 >
                   <Typography
@@ -38,7 +40,7 @@ export const DatasetCardList = props => {
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    {item.title}
+                    {item.title || item.tableName}
                   </Typography>
                 </CardContent>
 
@@ -60,7 +62,16 @@ export const DatasetCardList = props => {
                     <IconButton size="medium" component={RouterLink} to={`/data/set/modify/${item.id}`}>
                       <Edit />
                     </IconButton>
-                    <DialogAlertIconButton icon={<Delete />}>{item.name} 을 삭제하시겠습니까?</DialogAlertIconButton>
+                    <IconButton
+                      size="medium"
+                      onClick={event => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onDeleteDataset(item);
+                      }}
+                    >
+                      <Delete />
+                    </IconButton>
                   </CardActions>
                 )}
               </Card>
@@ -72,10 +83,7 @@ export const DatasetCardList = props => {
 };
 
 DatasetCardList.defaultProps = {
-  data: {
-    id: '',
-    name: '',
-  },
+  data: any,
   minWidth: false,
   disabledIcons: false,
 };

@@ -7,7 +7,7 @@ import { STATUS } from '@/constant';
 import { useAlert } from 'react-alert';
 import { DatabaseCardList } from '@/components/list/DatabaseCardList';
 import { DatasetCardList } from '@/components/list/DatasetCardList';
-import CardList from '@/components/list/CardList';
+import DatasetService from '@/api/datasetService';
 
 const DataLayout = props => {
   const { isViewMode, setDataSet } = props;
@@ -16,10 +16,11 @@ const DataLayout = props => {
   const [tableList, setTableList] = useState([]);
   const alert = useAlert();
 
-  // 선택한 데이터베이스를 CardList 에서 가져와서 저장하는 state
   const [selectedDatabase, setSelectedDatabase] = useState({
     databaseId: null,
   });
+
+  const [selectedDataset, setSelectedDataset] = useState(null);
 
   const handleSelectDatabase = enteredData => {
     return setSelectedDatabase(prevState => ({ ...prevState, ...enteredData }));
@@ -64,7 +65,6 @@ const DataLayout = props => {
             DatabaseService.deleteDatabase(id).then(response => {
               if (response.data.status === STATUS.SUCCESS) {
                 getDatabaseList();
-                console.log(`${name} 데이터 베이스 삭제!`);
               }
             });
           },
@@ -73,14 +73,28 @@ const DataLayout = props => {
     });
   };
 
-  const selectDataset = (datasetType, item) => {
-    const data = {
-      databaseId: item.databaseId,
-      datasetType: datasetType,
-      datasetId: item.id,
-    };
-    setDataSet(data);
-    console.log('selectDataset', data);
+  const handleSelectDataset = item => {
+    console.log('handleSelectDataset', item);
+    if (setDataSet) setDataSet(item);
+    setSelectedDataset(item);
+  };
+
+  const handleDeleteDataset = item => {
+    console.log('handleDeleteDataset', item);
+    alert.success(`${item.title} 데이터셋를 삭제하시겠습니까?`, {
+      title: '데이터베이스 삭제',
+      closeCopy: '취소',
+      actions: [
+        {
+          copy: '삭제',
+          onClick: () => {
+            DatasetService.deleteDataset(item.id).then(response => {
+              getDatabaseInfo();
+            });
+          },
+        },
+      ],
+    });
   };
 
   return (
@@ -90,7 +104,7 @@ const DataLayout = props => {
           <TitleBox title="데이터 소스" button={<AddIconButton link="source/create" />}>
             <DatabaseCardList
               data={databaseList}
-              selectedData={selectedDatabase}
+              selectedDatabase={selectedDatabase}
               disabledIcons={!!isViewMode}
               onUpdate={handleSelectDatabase}
               onRemove={removeDatabase}
@@ -102,12 +116,23 @@ const DataLayout = props => {
           <Grid container spacing={5}>
             <Grid item xs={12}>
               <TitleBox title="데이터 셋" button={<AddIconButton link={`set/create/${selectedDatabase.databaseId}`} />}>
-                <DatasetCardList data={datasetList} selectDataset={selectDataset} disabledIcons={!!isViewMode} />
+                <DatasetCardList
+                  data={datasetList}
+                  selectedDataset={selectedDataset}
+                  onSelectDataset={handleSelectDataset}
+                  onDeleteDataset={handleDeleteDataset}
+                  disabledIcons={!!isViewMode}
+                />
               </TitleBox>
             </Grid>
             <Grid item xs={12}>
               <TitleBox title="데이터 목록">
-                {<CardList data={tableList} disabled selectDataset={selectDataset} disabledIcons={!!isViewMode} />}
+                <DatasetCardList
+                  data={tableList}
+                  selectedDataset={selectedDataset}
+                  onSelectDataset={handleSelectDataset}
+                  disabledIcons={true}
+                />
               </TitleBox>
             </Grid>
           </Grid>

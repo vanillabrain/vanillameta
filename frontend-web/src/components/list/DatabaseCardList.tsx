@@ -3,9 +3,10 @@ import { Card, CardActionArea, CardActions, CardContent, Grid, IconButton, Typog
 import { Link as RouterLink } from 'react-router-dom';
 import { Delete, Edit } from '@mui/icons-material';
 import CardListWrapper from '@/components/list/CardListWrapper';
+import { any } from 'prop-types';
 
 export const DatabaseCardList = props => {
-  const { data, onUpdate, selectedData, minWidth, disabledIcons, onRemove } = props;
+  const { data, onUpdate, selectedDatabase, minWidth, disabledIcons, onRemove } = props;
 
   const handleClick = event => {
     if (onUpdate !== undefined) {
@@ -28,7 +29,9 @@ export const DatabaseCardList = props => {
                   value={item.id}
                   sx={{
                     boxShadow:
-                      selectedData.databaseId == item.id ? theme => `0 0 0 3px ${theme.palette.primary.main} inset` : 'none',
+                      selectedDatabase.databaseId == item.id
+                        ? theme => `0 0 0 3px ${theme.palette.primary.main} inset`
+                        : 'none',
                     minHeight: 80,
                     px: 2,
                   }}
@@ -91,10 +94,7 @@ export const DatabaseCardList = props => {
 };
 
 DatabaseCardList.defaultProps = {
-  data: {
-    id: '',
-    name: '',
-  },
+  data: any,
   minWidth: false,
   disabledIcons: false,
 };
