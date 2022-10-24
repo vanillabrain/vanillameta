@@ -24,7 +24,7 @@ export const DatabaseCardList = props => {
             return (
               <Grid item xs={12} md component="li" key={item.id}>
                 <CardWrapper selected={selected} onClick={() => handleClick(item.id)}>
-                  <CardContent sx={{ p: 0, alignItems: 'center', display: 'flex' }}>
+                  <CardContent sx={{ p: '0 !important', alignItems: 'center', display: 'flex' }}>
                     <IconDatabase />
                     <Typography
                       component="span"
