@@ -13,6 +13,9 @@ import {
   ListItemIcon,
   ListItemText,
   Typography,
+  Grid,
+  Box,
+  Stack,
 } from '@mui/material';
 import { useAlert } from 'react-alert';
 import CloseIcon from '@mui/icons-material/Close';
@@ -20,6 +23,7 @@ import { get } from '@/helpers/apiHelper';
 import TemplateService from '@/api/templateService';
 import WidgetService from '@/api/widgetService';
 import { STATUS } from '@/constant';
+import CloseButton from '@/components/button/CloseButton';
 
 const iconType = item => {
   switch (item.toUpperCase()) {
@@ -150,8 +154,8 @@ export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = 
   const [selectedItem, setSelectedItem] = useState(null);
 
   const getItems = () => {
-    console.log('selectedWidgetIds : ', selectedWidgetIds);
     TemplateService.selectRecommendTemplateList({ widgets: selectedWidgetIds }).then(response => {
+      // TemplateService.selectRecommendTemplateList({ widgets: [1, 2] }).then(response => {
       if (response.data.status == STATUS.SUCCESS) {
         setLoadedTemplateDataList(response.data.data);
       } else {
@@ -191,24 +195,88 @@ export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = 
   };
 
   return (
-    <React.Fragment>
-      <DialogContent dividers id="scroll-dialog-description" tabIndex={-1} sx={{ p: 0 }}>
-        <List
-          sx={{
-            width: 600,
-            minWidth: 400,
-            height: 500,
-            minHeight: 300,
-          }}
-        >
+    <>
+      <DialogContent dividers id="scroll-dialog-description" tabIndex={-1} sx={{ height: '620px', padding: 0 }}>
+        {/*<List*/}
+        {/*  sx={{*/}
+        {/*    width: 600,*/}
+        {/*    minWidth: 400,*/}
+        {/*    height: 500,*/}
+        {/*    minHeight: 300,*/}
+        {/*  }}*/}
+        {/*>*/}
+        {/*  {loadedTemplateDataList.map((item, index) => (*/}
+        {/*    <ListItemButton key={index} selected={index == selectedIndex} onClick={() => handleClick(item, index)}>*/}
+        {/*      /!*<ListItemIcon>{templateIconType(item.componentType)}</ListItemIcon>*!/*/}
+        {/*      <ListItemText primary={item.title} />*/}
+        {/*      <ListItemText primary={item.description} />*/}
+        {/*    </ListItemButton>*/}
+        {/*  ))}*/}
+        {/*</List>*/}
+        <Grid container sx={{ margin: '12px 12px', height: '602px', padding: 0 }}>
           {loadedTemplateDataList.map((item, index) => (
-            <ListItemButton key={index} selected={index == selectedIndex} onClick={() => handleClick(item, index)}>
-              {/*<ListItemIcon>{templateIconType(item.componentType)}</ListItemIcon>*/}
-              <ListItemText primary={item.title} />
-              <ListItemText primary={item.description} />
-            </ListItemButton>
+            <Stack
+              justifyContent="center"
+              alignItems="center"
+              direction="column"
+              sx={{
+                marginLeft: '12px',
+                marginRight: '12px',
+                marginTop: '12px',
+                marginBottom: '12px',
+                width: '248px',
+                height: '266px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'flex-start',
+                alignItems: 'flex-start',
+                gap: '12px',
+                padding: '12px 12px 20px',
+                backgroundColor: '#eeeeee',
+              }}
+            >
+              <Box sx={{ width: '224px', height: '146px', margin: '0 0 0', backgroundColor: '#0000ff' }}>이미지 자리</Box>
+              <span
+                style={{
+                  height: '20px',
+                  flexGrow: '0',
+                  fontFamily: 'Pretendard',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  fontStretch: 'normal',
+                  fontStyle: 'normal',
+                  lineHeight: '1.43',
+                  letterSpacing: 'normal',
+                  textAlign: 'left',
+                  color: '#333333',
+                }}
+              >
+                {item.title}
+              </span>
+              <span
+                style={{
+                  height: '44px',
+                  flexGrow: '0',
+                  fontFamily: 'Pretendard',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  fontStretch: 'normal',
+                  fontStyle: 'normal',
+                  lineHeight: '1.57',
+                  letterSpacing: 'normal',
+                  textAlign: 'left',
+                  color: '#767676',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  width: '224px',
+                  // whiteSpace: 'nowrap',
+                }}
+              >
+                {item.description}
+              </span>
+            </Stack>
           ))}
-        </List>
+        </Grid>
       </DialogContent>
       <DialogActions>
         <Button onClick={handleCancelClick} color="inherit">
@@ -216,7 +284,7 @@ export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = 
         </Button>
         <Button onClick={handleConfirmClick}>선택완료</Button>
       </DialogActions>
-    </React.Fragment>
+    </>
   );
 };
 
@@ -297,42 +365,165 @@ function RecommendDashboardPopup({ recommendOpen = false, handleComplete = null 
   };
 
   return (
-    <React.Fragment>
-      <Dialog open={open} aria-labelledby="scroll-dialog-title" aria-describedby="scroll-dialog-description">
-        <DialogTitle id="scroll-dialog-title">
-          {title}
-          <IconButton
-            aria-label="close"
-            onClick={handleClose}
-            sx={{
-              position: 'absolute',
-              right: 8,
-              top: 8,
-              color: theme => theme.palette.grey[500],
-            }}
+    <>
+      {step == 1 ? (
+        <Dialog
+          open={open}
+          aria-labelledby="scroll-dialog-title"
+          aria-describedby="scroll-dialog-description"
+          fullWidth={true}
+          sx={{
+            '& .MuiDialog-container': {
+              '& .MuiPaper-root': {
+                width: '100%',
+                maxWidth: '600px', // Set your width here
+              },
+            },
+          }}
+        >
+          <DialogTitle
+            id="scroll-dialog-title"
+            sx={{ width: '100%', paddingLeft: '21px', paddingTop: '13px', height: '87px' }}
           >
-            <CloseIcon />
-          </IconButton>
-          <Typography variant="body2" mt={1}>
-            {subTitle}
-          </Typography>
-        </DialogTitle>
-        {step == 1 ? (
+            <span
+              style={{
+                height: '24px',
+                fontFamily: 'Pretendard',
+                fontSize: '20px',
+                fontWeight: '600',
+                fontStretch: 'normal',
+                fontStyle: 'normal',
+                lineHeight: 'normal',
+                letterSpacing: 'normal',
+                textAlign: 'left',
+                color: '#141414',
+              }}
+            >
+              {title}
+            </span>
+
+            <CloseButton
+              sx={{
+                position: 'absolute',
+                right: '0px',
+                top: '0px',
+                paddingRight: '18.9px',
+                paddingTop: '20.4px',
+                cursor: 'pointer',
+              }}
+              size="medium"
+              onClick={event => {
+                event.preventDefault();
+                event.stopPropagation();
+                handleClose();
+              }}
+            />
+            <Typography
+              variant="body2"
+              sx={{
+                height: '17px',
+                flexGrow: 0,
+                fontFamily: 'Pretendard',
+                fontSize: '14px',
+                fontWeight: 'normal',
+                fontStretch: 'normal',
+                fontStyle: 'normal',
+                lineHeight: 'normal',
+                letterSpacing: 'normal',
+                textAlign: 'left',
+                color: '#767676',
+                paddingTop: '6px',
+              }}
+            >
+              {subTitle}
+            </Typography>
+          </DialogTitle>
           <WidgetList
             handleWidgetConfirm={handleConfirmClick}
             handleWidgetCancel={handleCancelClick}
             selectedWidgetIds={selectedWidgetIds}
           />
-        ) : (
+        </Dialog>
+      ) : (
+        <Dialog
+          open={open}
+          aria-labelledby="scroll-dialog-title"
+          aria-describedby="scroll-dialog-description"
+          fullWidth={true}
+          sx={{
+            '& .MuiDialog-container': {
+              '& .MuiPaper-root': {
+                width: '100%',
+                maxWidth: '1392px', // Set your width here
+              },
+            },
+          }}
+        >
+          <DialogTitle
+            id="scroll-dialog-title"
+            sx={{ width: '100%', paddingLeft: '21px', paddingTop: '13px', height: '87px' }}
+          >
+            <span
+              style={{
+                height: '24px',
+                fontFamily: 'Pretendard',
+                fontSize: '20px',
+                fontWeight: '600',
+                fontStretch: 'normal',
+                fontStyle: 'normal',
+                lineHeight: 'normal',
+                letterSpacing: 'normal',
+                textAlign: 'left',
+                color: '#141414',
+              }}
+            >
+              {title}
+            </span>
+
+            <CloseButton
+              sx={{
+                position: 'absolute',
+                right: '0px',
+                top: '0px',
+                paddingRight: '18.9px',
+                paddingTop: '20.4px',
+                cursor: 'pointer',
+              }}
+              size="medium"
+              onClick={event => {
+                event.preventDefault();
+                event.stopPropagation();
+                handleClose();
+              }}
+            />
+            <Typography
+              variant="body2"
+              sx={{
+                height: '17px',
+                flexGrow: 0,
+                fontFamily: 'Pretendard',
+                fontSize: '14px',
+                fontWeight: 'normal',
+                fontStretch: 'normal',
+                fontStyle: 'normal',
+                lineHeight: 'normal',
+                letterSpacing: 'normal',
+                textAlign: 'left',
+                color: '#767676',
+                paddingTop: '6px',
+              }}
+            >
+              {subTitle}
+            </Typography>
+          </DialogTitle>
           <TemplateList
             handleWidgetConfirm={handleConfirmClick}
             handleWidgetCancel={handleCancelClick}
             selectedWidgetIds={selectedWidgetIds}
           />
-        )}
-        ;
-      </Dialog>
-    </React.Fragment>
+        </Dialog>
+      )}
+    </>
   );
 }
 export default RecommendDashboardPopup;

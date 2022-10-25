@@ -45,14 +45,18 @@ function BoardList(props) {
 
   return (
     <Box>
-      <Stack flexDirection="row" justifyContent="space-between" sx={{ paddingLeft: '20px', paddingRight: '217px' }}>
+      <Stack
+        flexDirection="row"
+        justifyContent="space-between"
+        sx={{ paddingLeft: '20px', paddingRight: '217px', marginBottom: '11px', marginTop: '36px' }}
+      >
         <GTSpan>이름</GTSpan>
         {matches && <GTSpan>수정일</GTSpan>}
       </Stack>
       <List sx={{ m: 'auto', border: tableBorder, borderRadius: 2, backgroundColor: '#fff' }} disablePadding>
         {generateBoardItem()}
       </List>
-      <Stack alignItems="center" mt={4}>
+      <Stack alignItems="center" sx={{ marginTop: '47px' }}>
         <Pagination count={totalCount} page={page} shape="rounded" onChange={handlePageChange} />
       </Stack>
     </Box>

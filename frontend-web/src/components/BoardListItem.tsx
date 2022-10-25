@@ -21,7 +21,7 @@ function BoardListItem(props) {
     const year = userDate.getFullYear();
     const month = userDate.getMonth() + 1;
     const date = userDate.getDate();
-    return `${year}-${month >= 10 ? month : '0' + month}-${date >= 10 ? date : '0' + date}`;
+    return `${year}.${month >= 10 ? month : '0' + month}.${date >= 10 ? date : '0' + date}`;
   };
 
   const TitleSpan = styled('span')({
@@ -108,6 +108,7 @@ function BoardListItem(props) {
           <span style={{ width: '56px' }}></span>
           <ModifyButton
             size="medium"
+            sx={{ padding: 0 }}
             onClick={event => {
               event.preventDefault();
               event.stopPropagation();
@@ -117,6 +118,7 @@ function BoardListItem(props) {
           <span style={{ width: '36px' }}></span>
           <DeleteButton
             size="medium"
+            sx={{ padding: 0 }}
             onClick={event => {
               event.preventDefault();
               event.stopPropagation();

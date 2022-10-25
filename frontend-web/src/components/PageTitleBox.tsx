@@ -39,14 +39,17 @@ function PageTitleBox(props) {
                 <Typography
                   component="span"
                   sx={{
-                    height: '19px',
-                    fontSize: '16px',
+                    fontWeight: 500,
+                    paddingLeft: '18px',
+                    height: '16px',
+                    fontFamily: 'Pretendard',
+                    fontSize: '18px',
                     fontStretch: 'normal',
                     fontStyle: 'normal',
-                    lineHeight: 'normal',
-                    letterSpacing: 'normal',
+                    lineHeight: 0.89,
+                    letterSpacing: '-0.18px',
                     textAlign: 'left',
-                    color: '#4a4a4a',
+                    color: '#141414',
                   }}
                 >
                   {upperTitle}

@@ -104,7 +104,6 @@ function Dashboard() {
               getEmptyDashboard()
             ) : (
               <>
-                <Box sx={{ height: '36px' }} />
                 <BoardList postList={loadedDashboardData} handleDeleteSelect={handleDeleteSelect} />
               </>
             )}

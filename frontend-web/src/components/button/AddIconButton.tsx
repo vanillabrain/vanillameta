@@ -97,7 +97,7 @@ export const AddMenuIconButton = ({
         aria-expanded={open ? 'true' : undefined}
         onClick={handleClick}
         color="primary"
-        sx={{ minWidth: { xs: 0 } }}
+        sx={{ minWidth: 0, padding: 0 }}
       >
         <Box component="img" src={iconUrl} sx={sizeOption} alt="추가메뉴 활성화" />
       </Button>
