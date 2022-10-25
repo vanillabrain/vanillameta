@@ -305,7 +305,7 @@ const WidgetSetting = props => {
     <Stack
       sx={{
         width: '440px',
-        height: '100vh',
+        height: '100%',
         px: '24px',
         py: '30px',
         overflowY: 'auto !important',
@@ -334,7 +334,7 @@ const WidgetSetting = props => {
       <StyledList>{module}</StyledList>
 
       <ConfirmButton
-        sx={{ mt: '30px' }}
+        sx={{ minHeight: '44px', mt: '30px', fontWeight: 'bold', backgroundColor: '#043f84' }}
         confirmLabel="저장"
         confirmProps={{
           form: 'widgetAttribute',

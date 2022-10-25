@@ -94,7 +94,8 @@ const WidgetAttributeSelect = props => {
       <Box
         sx={{
           width: '100%',
-          height: '100%',
+          height: 'auto',
+          minHeight: '500px',
           margin: '54px',
           border: '1px solid #e2e2e2',
           borderRadius: '8px',
