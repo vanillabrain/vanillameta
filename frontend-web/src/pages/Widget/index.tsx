@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { Outlet, useParams } from 'react-router-dom';
 import { useAlert } from 'react-alert';
 import PageContainer from '@/components/PageContainer';
@@ -6,14 +6,15 @@ import PageTitleBox from '@/components/PageTitleBox';
 import BoardList from '@/components/BoardList';
 import AddIconButton from '@/components/button/AddIconButton';
 import WidgetService from '@/api/widgetService';
+import { LoadingContext } from '@/contexts/LoadingContext';
 
 const title = '위젯';
 
 const Widget = () => {
   const { widgetId } = useParams();
   const alert = useAlert();
+  const { showLoading, hideLoading } = useContext(LoadingContext);
 
-  const [isLoading, setIsLoading] = useState(false);
   const [widgetList, setWidgetList] = useState([]);
 
   useEffect(() => {
@@ -24,10 +25,14 @@ const Widget = () => {
    * 위젯 목록 조회
    */
   const getWidgetList = () => {
-    WidgetService.selectWidgetList().then(response => {
-      setWidgetList(response.data.data);
-    });
-    setIsLoading(true);
+    showLoading();
+    WidgetService.selectWidgetList()
+      .then(response => {
+        setWidgetList(response.data.data);
+      })
+      .finally(() => {
+        hideLoading();
+      });
   };
 
   const removeWidget = item => {

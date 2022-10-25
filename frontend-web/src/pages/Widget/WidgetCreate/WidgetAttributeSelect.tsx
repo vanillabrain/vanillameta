@@ -6,10 +6,12 @@ import WidgetSetting from '@/widget/wrapper/WidgetSetting';
 import DatabaseService from '@/api/databaseService';
 import { STATUS } from '@/constant';
 import { LayoutContext } from '@/contexts/LayoutContext';
+import { LoadingContext } from '@/contexts/LoadingContext';
 
 const WidgetAttributeSelect = props => {
   const alert = useAlert();
   const { fixLayout } = useContext(LayoutContext);
+  const { showLoading, hideLoading } = useContext(LoadingContext);
 
   const { widgetOption, prevOption, saveWidgetInfo, dataset, isModifyMode = false, top = 0 } = props;
 
@@ -41,12 +43,17 @@ const WidgetAttributeSelect = props => {
       ? { datasetType: widgetOption.datasetType, datasetId: widgetOption.datasetId }
       : { datasetType: dataset.datasetType, datasetId: dataset.id };
     console.log('getData param', param);
-    DatabaseService.selectData(param).then(response => {
-      if (response.data.status === STATUS.SUCCESS) {
-        setData(response.data.data.datas);
-        setSpec(response.data.data.fields);
-      }
-    });
+    showLoading();
+    DatabaseService.selectData(param)
+      .then(response => {
+        if (response.data.status === STATUS.SUCCESS) {
+          setData(response.data.data.datas);
+          setSpec(response.data.data.fields);
+        }
+      })
+      .finally(() => {
+        hideLoading();
+      });
   };
 
   // 이미 저장된 위젯값이 있는 경우 불러오기

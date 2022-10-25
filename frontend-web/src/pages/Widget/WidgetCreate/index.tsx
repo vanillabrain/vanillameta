@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { Box, Stack, Step, StepLabel, Stepper } from '@mui/material';
 import PageTitleBox from '@/components/PageTitleBox';
 import PageContainer from '@/components/PageContainer';
@@ -9,6 +9,7 @@ import WidgetAttributeSelect from './WidgetAttributeSelect';
 import componentService from '@/api/componentService';
 import widgetService from '@/api/widgetService';
 import { useNavigate } from 'react-router-dom';
+import { LoadingContext } from '@/contexts/LoadingContext';
 
 const title = '위젯 생성';
 const steps = ['데이터 선택', '위젯 타입 선택', '위젯 속성 설정'];
@@ -20,6 +21,7 @@ const WidgetCreate = () => {
   const [componentList, setComponentList] = useState([]); // step 1
   const [dataset, setDataset] = useState(null); // step 1
   const [widgetOption, setWidgetOption] = useState(null); // step 2
+  const { showLoading, hideLoading } = useContext(LoadingContext);
 
   // 개발 편의상 임시로 적용
   useEffect(() => {
@@ -46,28 +48,38 @@ const WidgetCreate = () => {
   }, [activeStep, dataset, widgetOption]);
 
   const getComponentList = () => {
-    componentService.selectComponentList().then(res => {
-      // console.log(res.data);
-      setComponentList(res.data);
-    });
+    showLoading();
+    componentService
+      .selectComponentList()
+      .then(res => {
+        setComponentList(res.data);
+      })
+      .finally(() => {
+        hideLoading();
+      });
   };
 
   const saveWidgetInfo = (option, title) => {
+    // Todo datasetType Table 일 경우 처리
     const param = {
       title: title,
       description: title,
       databaseId: dataset.databaseId,
       componentId: widgetOption.id,
-      // 'DATASET', 'WIDGET_VIEW'
       datasetType: dataset.datasetType,
-      datasetId: dataset.datasetId,
-      tableName: '',
+      datasetId: dataset.id,
+      tableName: dataset.tableName,
       option: option,
     };
-    console.log(option);
-    widgetService.createWidget(param).then(response => {
-      navigate('/widget', { replace: true });
-    });
+    showLoading();
+    widgetService
+      .createWidget(param)
+      .then(() => {
+        navigate('/widget', { replace: true });
+      })
+      .finally(() => {
+        hideLoading();
+      });
   };
 
   const handleNext = (event, item) => {

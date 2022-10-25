@@ -182,6 +182,7 @@ export default createTheme({
         'html, body, #root': {
           width: '100%',
           height: '100%',
+          minWidth: '1440px',
           fontFamily: 'Noto Sans KR',
           backgroundColor: '#FFFFFF',
           color: '#1F2123',
