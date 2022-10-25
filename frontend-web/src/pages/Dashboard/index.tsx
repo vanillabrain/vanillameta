@@ -34,7 +34,7 @@ function Dashboard() {
   const getDashboardList = () => {
     DashboardService.selectDashboardList().then(response => {
       if (response.data.status == STATUS.SUCCESS) {
-        setLoadedDashboardData(response.data.data.filter((list, idx) => idx <= 10 * loadedCount));
+        setLoadedDashboardData(response.data.data);
         setDashboardNoData(response.data.data.length == 0);
       } else {
         alert.error('서비스 실패!');
