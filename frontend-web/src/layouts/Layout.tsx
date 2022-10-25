@@ -14,18 +14,17 @@ function Layout(props) {
 
   const defaultSx = {
     width: '100%',
-    // height: '100%',
+    height: '100%',
+    minWidth: '1440px',
   };
 
   const fixSx = {
-    width: '100%',
-    // height: '100%',
     overflow: 'hidden',
     flex: '1 1 auto',
   };
 
   return (
-    <Box sx={fixed ? fixSx : defaultSx}>
+    <Box sx={fixed ? { ...defaultSx, ...fixSx } : defaultSx}>
       <Header height={headerHeight} />
       <Stack
         sx={{

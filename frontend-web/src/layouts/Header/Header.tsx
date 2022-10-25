@@ -1,18 +1,6 @@
 import React from 'react';
-import {
-  AppBar,
-  Box,
-  Divider,
-  Drawer,
-  IconButton,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemText,
-  Toolbar,
-} from '@mui/material';
-import MenuIcon from '@mui/icons-material/Menu';
-import { AddMenuButton, AddMenuIconButton } from '@/components/button/AddIconButton';
+import { AppBar, Box, Divider, Toolbar } from '@mui/material';
+import { AddMenuIconButton } from '@/components/button/AddIconButton';
 import Logo from './Logo';
 import NavBar from './NavBar';
 import { useNavigate } from 'react-router-dom';
@@ -26,7 +14,6 @@ const menuList = [
 
 function Header(props) {
   const headerHeight = props.height;
-  const drawerWidth = 240;
   const navigate = useNavigate();
 
   const navItems = [
@@ -42,19 +29,16 @@ function Header(props) {
   };
 
   return (
-    <Box sx={{ display: 'flex' }}>
-      <AppBar elevation={0} component="nav">
-        <Toolbar variant="dense" sx={{ height: headerHeight, justifyContent: 'space-between', columnGap: '40px' }}>
-          <Logo sx={{ width: 105, height: 20 }} />
-          <NavBar navItems={navItems} />
-          <Box>
-            {/*<AddMenuButton label="생성 바로가기" menuList={menuList} />*/}
-            <AddMenuIconButton menuList={menuList} handleSelect={handleMenuSelect} />
-          </Box>
-        </Toolbar>
-        <Divider />
-      </AppBar>
-    </Box>
+    <AppBar elevation={0} component="nav" sx={{ minWidth: '1440px', left: 0 }}>
+      <Toolbar variant="dense" sx={{ height: headerHeight, justifyContent: 'space-between', columnGap: '40px' }}>
+        <Logo sx={{ width: 105, height: 20 }} />
+        <NavBar navItems={navItems} />
+        <Box>
+          <AddMenuIconButton menuList={menuList} handleSelect={handleMenuSelect} />
+        </Box>
+      </Toolbar>
+      <Divider />
+    </AppBar>
   );
 }
 
