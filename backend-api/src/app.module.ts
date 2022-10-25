@@ -25,13 +25,12 @@ import { ConnectionModule } from './connection/connection.module';
       username: process.env.DB_USERNAME,
       password: process.env.DB_PASSWORD,
       database: process.env.DB_NAME,
-      // type: 'sqlite',
-      // database: 'vanillameta',
       autoLoadEntities: true,
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
       synchronize: false,
       logging: process.env.NODE_ENV == 'dev',
-      retryAttempts: 1,
+      retryAttempts: 1
+
     }),
     DatabaseModule,
     DatasetModule,
