@@ -281,7 +281,6 @@ function DashboardModify() {
               id="userDashboardName"
               label=""
               required
-              autoFocus
               sx={{
                 width: '960px',
                 height: '32px',

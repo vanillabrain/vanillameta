@@ -91,44 +91,42 @@ function BoardListItem(props) {
         height: '56px',
         paddingRight: 0,
       }}
+      component={RouterLink}
+      to={`${postItem.id}`}
+      state={{ from: pathname }}
     >
-      <ListItemButton
-        sx={{ paddingLeft: 0, paddingRight: 0, height: '100%' }}
-        component={RouterLink}
-        to={`${postItem.id}`}
-        state={{ from: pathname }}
+      {postItem.type ? <ListItemIcon>{iconType}</ListItemIcon> : ''}
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        sx={{ x: 0, paddingLeft: '20px', width: '100%' }}
       >
-        {postItem.type ? <ListItemIcon>{iconType}</ListItemIcon> : ''}
-        <Stack
-          direction="row"
-          alignItems="center"
-          justifyContent="space-between"
-          sx={{ x: 0, paddingLeft: '20px', width: '100%' }}
-        >
-          <TitleSpan>{postItem.title}</TitleSpan>
-          <Stack alignItems="center" direction="row" sx={{ paddingRight: '36px' }}>
-            <SubTitleSpan>{dateData(postItem.updatedAt)}</SubTitleSpan>
-            <span style={{ width: '56px' }}></span>
-            <ModifyButton
-              size="medium"
-              sx={{ padding: 0 }}
-              component={RouterLink}
-              to={`modify?id=${postItem.id}&title=${postItem.title}`}
-              state={{ from: pathname }}
-            />
-            <span style={{ width: '36px' }}></span>
-            <DeleteButton
-              size="medium"
-              sx={{ padding: 0 }}
-              onClick={event => {
-                event.preventDefault();
-                event.stopPropagation();
-                handleDeleteSelect(postItem);
-              }}
-            />
-          </Stack>
+        <TitleSpan>{postItem.title}</TitleSpan>
+        <Stack alignItems="center" direction="row" sx={{ paddingRight: '36px' }}>
+          <SubTitleSpan>{dateData(postItem.updatedAt)}</SubTitleSpan>
+          <span style={{ width: '56px' }}></span>
+          <ModifyButton
+            size="medium"
+            sx={{ padding: 0 }}
+            onClick={event => {
+              event.preventDefault();
+              event.stopPropagation();
+              navigate(`modify?id=${postItem.id}&title=${postItem.title}`, { state: { from: pathname } });
+            }}
+          />
+          <span style={{ width: '36px' }}></span>
+          <DeleteButton
+            size="medium"
+            sx={{ padding: 0 }}
+            onClick={event => {
+              event.preventDefault();
+              event.stopPropagation();
+              handleDeleteSelect(postItem);
+            }}
+          />
         </Stack>
-      </ListItemButton>
+      </Stack>
     </ListItem>
   );
 }
