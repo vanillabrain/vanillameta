@@ -1,20 +1,30 @@
-import React, { useEffect, useState } from 'react';
-import { Stack } from '@mui/material';
+import React, { useContext, useEffect, useState } from 'react';
+import { Box, Stack } from '@mui/material';
 import { useAlert } from 'react-alert';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
 import WidgetSetting from '@/widget/wrapper/WidgetSetting';
 import DatabaseService from '@/api/databaseService';
 import { STATUS } from '@/constant';
+import { LayoutContext } from '@/contexts/LayoutContext';
+import grid from '@/assets/images/grid.svg';
 
 const WidgetAttributeSelect = props => {
   const alert = useAlert();
+  const { fixLayout } = useContext(LayoutContext);
 
-  const { widgetOption, prevOption, saveWidgetInfo, dataset, isModifyMode = false } = props;
+  const { widgetOption, prevOption, saveWidgetInfo, dataset, isModifyMode = false, top = 0 } = props;
 
   const [option, setOption] = useState(null);
   const [data, setData] = useState(null);
   const [spec, setSpec] = useState(null);
   const [title, setTitle] = useState('');
+
+  useEffect(() => {
+    fixLayout(true);
+    return () => {
+      fixLayout(false);
+    };
+  }, []);
 
   useEffect(() => {
     if (dataset || widgetOption) {
@@ -23,14 +33,16 @@ const WidgetAttributeSelect = props => {
   }, [dataset, widgetOption]);
 
   useEffect(() => {
-    setTitle(widgetOption.title);
+    // setTitle(widgetOption.title);
     setOption(JSON.parse(JSON.stringify(widgetOption.option)));
   }, [widgetOption]);
 
   const getData = () => {
-    const param = isModifyMode ? { datasetType: widgetOption.datasetType, datasetId: widgetOption.datasetId } : dataset;
+    const param = isModifyMode
+      ? { datasetType: widgetOption.datasetType, datasetId: widgetOption.datasetId }
+      : { datasetType: dataset.datasetType, datasetId: dataset.id };
+    console.log('getData param', param);
     DatabaseService.selectData(param).then(response => {
-      console.log('selectData', response.data);
       if (response.data.status === STATUS.SUCCESS) {
         setData(response.data.data.datas);
         setSpec(response.data.data.fields);
@@ -66,17 +78,41 @@ const WidgetAttributeSelect = props => {
   return (
     <Stack
       direction="row"
+      justifyContent="space-between"
       sx={{
         width: '100%',
-        height: '100%',
+        height: `calc(100% - ${top}px)`,
+        backgroundColor: '#f5f6f8',
+        backgroundImage: `url(${grid})`,
+        backgroundRepeat: 'repeat',
+        flexGrow: 1,
       }}
       onSubmit={handleSubmit}
       id="widgetAttribute"
       component="form"
     >
-      <WidgetViewer title={title} widgetType={widgetOption.componentType} widgetOption={option} dataSet={data} />
+      <Box
+        sx={{
+          width: '100%',
+          height: 'auto',
+          minHeight: '500px',
+          margin: '54px',
+          border: '1px solid #e2e2e2',
+          borderRadius: '8px',
+          boxShadow: '2px 2px 9px 0 rgba(42, 50, 62, 0.1), 0 4px 4px 0 rgba(0, 0, 0, 0.02)',
+          backgroundColor: '#fff',
+        }}
+      >
+        <WidgetViewer
+          title={widgetOption.title}
+          widgetType={widgetOption.componentType}
+          widgetOption={option}
+          dataSet={data}
+        />
+      </Box>
       <WidgetSetting
-        title={title}
+        widgetName={widgetOption.title}
+        widgetDescription={widgetOption.description}
         setTitle={setTitle}
         widgetType={widgetOption.componentType}
         widgetOption={option}

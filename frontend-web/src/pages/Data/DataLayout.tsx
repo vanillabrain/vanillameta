@@ -1,11 +1,14 @@
-import React, { useEffect, useState } from 'react';
-import { Box, Grid } from '@mui/material';
-import TitleBox from '@/components/TitleBox';
-import AddIconButton from '@/components/button/AddIconButton';
-import CardList, { DataSetCard, DataSourceCard } from '@/components/CardList';
+import React, { useContext, useEffect, useState } from 'react';
+import { Box, Stack, Typography } from '@mui/material';
 import DatabaseService from '@/api/databaseService';
 import { STATUS } from '@/constant';
 import { useAlert } from 'react-alert';
+import { DatabaseCardList } from '@/components/list/DatabaseCardList';
+import { DatasetCardList } from '@/components/list/DatasetCardList';
+import DatasetService from '@/api/datasetService';
+import AddButton from '@/components/button/AddButton';
+import { Link as RouterLink } from 'react-router-dom';
+import { LoadingContext } from '@/contexts/LoadingContext';
 
 const DataLayout = props => {
   const { isViewMode, setDataSet } = props;
@@ -13,14 +16,15 @@ const DataLayout = props => {
   const [datasetList, setDatasetList] = useState([]);
   const [tableList, setTableList] = useState([]);
   const alert = useAlert();
+  const { showLoading, hideLoading } = useContext(LoadingContext);
 
-  // 선택한 데이터베이스를 CardList 에서 가져와서 저장하는 state
   const [selectedDatabase, setSelectedDatabase] = useState({
     databaseId: null,
   });
 
+  const [selectedDataset, setSelectedDataset] = useState(null);
+
   const handleSelectDatabase = enteredData => {
-    console.log('handleUpdate', enteredData);
     return setSelectedDatabase(prevState => ({ ...prevState, ...enteredData }));
   };
 
@@ -36,8 +40,8 @@ const DataLayout = props => {
    * 데이터베이스 목록조회
    */
   const getDatabaseList = () => {
+    showLoading();
     DatabaseService.selectDatabaseList().then(response => {
-      console.log('selectDatabaseList', response.data.data);
       setDatabaseList(response.data.data);
       if (response.data.data.length > 0) {
         setSelectedDatabase({ databaseId: response.data.data[0].id });
@@ -47,9 +51,9 @@ const DataLayout = props => {
 
   const getDatabaseInfo = () => {
     DatabaseService.selectDatabase(selectedDatabase.databaseId).then(response => {
-      console.log('getDatabaseInfo', response.data.data);
       setDatasetList(response.data.data.datasets);
       setTableList(response.data.data.tables);
+      hideLoading();
     });
   };
 
@@ -65,7 +69,6 @@ const DataLayout = props => {
             DatabaseService.deleteDatabase(id).then(response => {
               if (response.data.status === STATUS.SUCCESS) {
                 getDatabaseList();
-                console.log(`${name} 데이터 베이스 삭제!`);
               }
             });
           },
@@ -74,47 +77,86 @@ const DataLayout = props => {
     });
   };
 
-  const selectDataset = (datasetType, item) => {
-    const data = {
-      databaseId: item.databaseId,
-      datasetType: datasetType,
-      datasetId: item.id,
-    };
-    setDataSet(data);
-    console.log('selectDataset', data);
+  const handleSelectDataset = item => {
+    console.log('handleSelectDataset', item);
+    if (setDataSet) setDataSet(item);
+    setSelectedDataset(item);
+  };
+
+  const handleDeleteDataset = item => {
+    console.log('handleDeleteDataset', item);
+    alert.success(`${item.title} 데이터셋를 삭제하시겠습니까?`, {
+      title: '데이터베이스 삭제',
+      closeCopy: '취소',
+      actions: [
+        {
+          copy: '삭제',
+          onClick: () => {
+            DatasetService.deleteDataset(item.id).then(response => {
+              getDatabaseInfo();
+            });
+          },
+        },
+      ],
+    });
   };
 
   return (
-    <Box>
-      <Grid container spacing={5}>
-        <Grid item xs={12} md={4}>
-          <TitleBox title="데이터 소스" button={<AddIconButton link="source/create" />}>
-            <DataSourceCard
-              data={databaseList}
-              selectedData={selectedDatabase}
+    <Stack sx={{ width: '100%' }} direction="row">
+      <Stack sx={{ width: '404px', px: '24px', pt: '30px' }}>
+        <Stack direction="row" sx={{ mb: '12px' }}>
+          <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold', fontSize: '16px', color: '#141414' }}>
+            데이터 소스
+          </Typography>
+          {!!isViewMode || <AddButton component={RouterLink} to={`source/create`} sx={{ ml: '14px' }} />}
+        </Stack>
+        <DatabaseCardList
+          data={databaseList}
+          selectedDatabase={selectedDatabase}
+          disabledIcons={!!isViewMode}
+          onUpdate={handleSelectDatabase}
+          onRemove={removeDatabase}
+          minWidth="100%"
+        />
+      </Stack>
+
+      <Stack sx={{ width: 'calc(100% - 404px)', backgroundColor: '#f5f6f8' }}>
+        <Stack sx={{ width: '100%', px: '24px', pt: '30px' }}>
+          <Stack direction="row" sx={{ mb: '12px' }}>
+            <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold', fontSize: '16px', color: '#141414' }}>
+              데이터 셋
+            </Typography>
+            {!!isViewMode || (
+              <AddButton component={RouterLink} to={`set/create/${selectedDatabase.databaseId}`} sx={{ ml: '14px' }} />
+            )}
+          </Stack>
+          {datasetList.length > 0 ? (
+            <DatasetCardList
+              data={datasetList}
+              selectedDataset={selectedDataset}
+              onSelectDataset={handleSelectDataset}
+              onDeleteDataset={handleDeleteDataset}
               disabledIcons={!!isViewMode}
-              onUpdate={handleSelectDatabase}
-              onRemove={removeDatabase}
-              minWidth="100%"
             />
-          </TitleBox>
-        </Grid>
-        <Grid item xs={12} md>
-          <Grid container spacing={5}>
-            <Grid item xs={12}>
-              <TitleBox title="데이터 셋" button={<AddIconButton link={`set/create/${selectedDatabase.databaseId}`} />}>
-                <DataSetCard data={datasetList} selectDataset={selectDataset} disabledIcons={!!isViewMode} />
-              </TitleBox>
-            </Grid>
-            <Grid item xs={12}>
-              <TitleBox title="데이터 목록">
-                {<CardList data={tableList} disabled selectDataset={selectDataset} disabledIcons={!!isViewMode} />}
-              </TitleBox>
-            </Grid>
-          </Grid>
-        </Grid>
-      </Grid>
-    </Box>
+          ) : (
+            <Box sx={{ height: '100px' }} />
+          )}
+        </Stack>
+        <Stack sx={{ width: '100%', px: '24px', pt: '30px' }}>
+          <Stack direction="row" sx={{ mb: '12px' }}>
+            <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold', fontSize: '16px', color: '#141414' }}>
+              테이블 목록
+            </Typography>
+          </Stack>
+          <DatasetCardList
+            data={tableList}
+            selectedDataset={selectedDataset}
+            onSelectDataset={handleSelectDataset}
+            disabledIcons={true}
+          />
+        </Stack>
+      </Stack>
+    </Stack>
   );
 };
 

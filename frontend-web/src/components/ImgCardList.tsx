@@ -1,9 +1,10 @@
 import React from 'react';
-import { Box, Card, CardActionArea, CardContent, Stack, Typography } from '@mui/material';
+import { Box, Card, CardActionArea, CardContent, Grid, Stack, Typography } from '@mui/material';
+import { CardWrapper } from '@/components/list/CardListWrapper';
 
 function ImgCardList(props) {
-  const { data, size, selectedType, setSelectedType, handleNext } = props;
-  const srcUrl = '/assets/images/';
+  const { data, minWidth, selectedType, setSelectedType, handleNext } = props;
+  const srcUrl = '/static/images/';
 
   const handleClick = item => {
     console.log('database : ', item);
@@ -11,25 +12,31 @@ function ImgCardList(props) {
   };
 
   return (
-    <Stack
-      direction="row"
-      justifyContent="center"
-      flexWrap="wrap"
+    <Grid
+      container
+      spacing={2}
       component="ul"
-      sx={{ maxWidth: '100%', listStyle: 'none', m: '16px auto', p: 0, gap: { xs: 2, md: 3 } }}
+      sx={{
+        listStyle: 'none',
+        pl: 0,
+        display: 'grid',
+        gridTemplateColumns: {
+          xs: `repeat(${minWidth || '4, 1fr'})`,
+          md: `repeat(${minWidth || '6, 1fr'})`,
+          lg: `repeat(${minWidth || '8, 1fr'})`,
+          xl: `repeat(${minWidth || '10, 1fr'})`,
+        },
+      }}
     >
-      {data.map(item => (
-        <Box component="li" key={item.id} sx={size === 'large' ? { width: 130, my: 0 } : { width: 150 }}>
-          <Card>
-            <CardActionArea
+      {data.map(item => {
+        const selected = selectedType && selectedType.id === item.id;
+        return (
+          <Grid item xs={12} md component="li" key={item.id}>
+            {/*// <Box component="li" key={item.id} sx={{ width: '166px', height: '169px' }}>*/}
+            <CardWrapper
+              sx={{ p: 0 }}
+              selected={selected}
               onClick={!handleNext ? () => handleClick(item) : event => handleNext(event, item)}
-              value={item.id}
-              sx={{
-                boxShadow:
-                  selectedType && selectedType.id === item.id
-                    ? theme => `0 0 0 3px ${theme.palette.primary.main} inset`
-                    : 'none',
-              }}
             >
               <CardContent
                 sx={{
@@ -37,7 +44,7 @@ function ImgCardList(props) {
                   flexDirection: 'column',
                   justifyContent: 'center',
                   alignItems: 'center',
-                  height: props.large ? { xs: 140, md: 170 } : 200,
+                  height: 169,
                 }}
               >
                 <Box
@@ -52,11 +59,11 @@ function ImgCardList(props) {
                   {item.description}
                 </Typography>
               </CardContent>
-            </CardActionArea>
-          </Card>
-        </Box>
-      ))}
-    </Stack>
+            </CardWrapper>
+          </Grid>
+        );
+      })}
+    </Grid>
   );
 }
 

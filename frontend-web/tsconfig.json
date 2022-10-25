@@ -24,7 +24,7 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": [
-    "src"
+    "src", "global.d.ts"
   ],
   "extends": "./tsconfig.paths.json"
 }

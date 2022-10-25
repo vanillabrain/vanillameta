@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import PageContainer from '@/components/PageContainer';
 import PageTitleBox from '@/components/PageTitleBox';
 import { ConfirmButton } from '@/components/button/ConfirmCancelButton';
@@ -7,6 +7,7 @@ import WidgetAttributeSelect from '@/pages/Widget/WidgetCreate/WidgetAttributeSe
 import WidgetService from '@/api/widgetService';
 import widgetService from '@/api/widgetService';
 import { WidgetInfo } from '@/api/type';
+import { LayoutContext } from '@/contexts/LayoutContext';
 
 // import { get } from '@/helpers/apiHelper';
 
@@ -17,40 +18,11 @@ interface CustomizedState {
 const WidgetModify = props => {
   const [searchParams] = useSearchParams();
   const widgetId = searchParams.get('id');
-  // const widgetName = searchParams.get('name');
   const navigate = useNavigate();
   const location = useLocation();
+  const { fixLayout } = useContext(LayoutContext);
 
   const [loading, setLoading] = useState(false);
-
-  // const [isLoaded, setIsLoaded] = useState(false);
-  //
-  // const [data, setData] = useState({
-  //   dataId: 11,
-  //   type: '',
-  //   option: {},
-  // });
-  // const [widgetOption, setWidgetOption] = useState({});
-  //
-  // useEffect(() => {
-  //   console.log(widgetId, widgetName);
-  //   // axios
-  //   //   .get('/data/dummyWidgetList.json')
-  //   //   .then(response => response.data)
-  //   //   .then(data => setData(data.find(element => element.id === widgetId)))
-  //   //   .then(() => setIsLoaded(true));
-  // }, []);
-  //
-  // console.log(data, 'data');
-  //
-  // // 위젯 속성 저장
-  // const handleSubmit = event => {
-  //   // dataSetId , componentId, widgetTitle, option
-  //   event.preventDefault();
-  //   console.log('datesetId:', data.dataId);
-  //   console.log('widgetType:', data.type);
-  //   console.log('widgetOption:', data.option);
-  // };
 
   const defaultWidgetInfo: WidgetInfo = {
     componentId: '',
@@ -70,6 +42,10 @@ const WidgetModify = props => {
 
   useEffect(() => {
     getWidgetInfo();
+    fixLayout(true);
+    return () => {
+      fixLayout(false);
+    };
   }, []);
 
   /**

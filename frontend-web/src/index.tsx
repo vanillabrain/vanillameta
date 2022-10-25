@@ -8,6 +8,8 @@ import AlertTemplate from './components/alert';
 import theme from './theme/theme';
 import App from './App';
 import './index.css';
+import { LayoutProvider } from '@/contexts/LayoutContext';
+import { LoadingProvider } from '@/contexts/LoadingContext';
 
 // alert optional configuration
 const options = {
@@ -20,11 +22,15 @@ const options = {
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
-  <BrowserRouter>
-    <ThemeProvider theme={theme}>
-      <AlertProvider template={AlertTemplate} {...options}>
-        <App />
-      </AlertProvider>
-    </ThemeProvider>
-  </BrowserRouter>,
+  <LayoutProvider>
+    <LoadingProvider>
+      <BrowserRouter>
+        <ThemeProvider theme={theme}>
+          <AlertProvider template={AlertTemplate} {...options}>
+            <App />
+          </AlertProvider>
+        </ThemeProvider>
+      </BrowserRouter>
+    </LoadingProvider>
+  </LayoutProvider>,
 );

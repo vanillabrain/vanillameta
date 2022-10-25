@@ -44,6 +44,7 @@
     "class-validator": "^0.13.2",
     "cookie-parser": "^1.4.5",
     "cross-env": "^7.0.3",
+    "dylib-node": "^1.0.10",
     "js-joda": "^1.11.0",
     "knex": "^2.3.0",
     "knex-bigquery": "^2.0.3",

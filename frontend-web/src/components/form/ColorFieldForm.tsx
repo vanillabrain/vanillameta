@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { FormControl, FormLabel, IconButton, OutlinedInput, Popover, Stack } from '@mui/material';
-import CircleIcon from '@mui/icons-material/Circle';
 import { SketchPicker } from 'react-color';
+import PaintButton from '@/components/button/PaintButton';
 
 const ColorFieldForm = props => {
   const { id, label, value, colorList, setOption, index, endButton, ...rest } = props;
@@ -62,12 +62,8 @@ const ColorFieldForm = props => {
         justifyContent="space-between"
         alignItems="center"
       >
-        <IconButton
-          aria-label="색상 선택"
-          sx={{ mr: 1, border: '1px solid #c4c4c4', bgcolor: '#fff' }}
-          onClick={handleClick}
-        >
-          <CircleIcon sx={{ color: value }} />
+        <IconButton aria-label="색상 선택" sx={{ mr: 1 }} onClick={handleClick}>
+          <PaintButton color={value} />
         </IconButton>
         <Popover
           id={popoverId}
@@ -79,7 +75,7 @@ const ColorFieldForm = props => {
             horizontal: 'left',
           }}
         >
-          <SketchPicker color={color} onChangeComplete={handleCompleteChange} />
+          <SketchPicker color={color} onChangeComplete={handleCompleteChange} disableAlpha />
         </Popover>
         <OutlinedInput
           id={id}
