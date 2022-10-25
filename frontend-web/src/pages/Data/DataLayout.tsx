@@ -128,18 +128,22 @@ const DataLayout = props => {
               <AddButton component={RouterLink} to={`set/create/${selectedDatabase.databaseId}`} sx={{ ml: '14px' }} />
             )}
           </Stack>
-          <DatasetCardList
-            data={datasetList}
-            selectedDataset={selectedDataset}
-            onSelectDataset={handleSelectDataset}
-            onDeleteDataset={handleDeleteDataset}
-            disabledIcons={!!isViewMode}
-          />
+          {datasetList.length > 0 ? (
+            <DatasetCardList
+              data={datasetList}
+              selectedDataset={selectedDataset}
+              onSelectDataset={handleSelectDataset}
+              onDeleteDataset={handleDeleteDataset}
+              disabledIcons={!!isViewMode}
+            />
+          ) : (
+            <Box sx={{ height: '100px' }} />
+          )}
         </Stack>
         <Stack sx={{ width: '100%', px: '24px', pt: '30px' }}>
           <Stack direction="row" sx={{ mb: '12px' }}>
             <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold', fontSize: '16px', color: '#141414' }}>
-              데이터 목록
+              테이블 목록
             </Typography>
           </Stack>
           <DatasetCardList

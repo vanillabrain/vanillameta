@@ -3,39 +3,38 @@ import { Box, Stack } from '@mui/material';
 
 import Header from './Header/Header';
 import Footer from './Footer/Footer';
-import { useLocation } from 'react-router-dom';
 import { LayoutContext } from '@/contexts/LayoutContext';
 
 function Layout(props) {
   const headerHeight = 65;
-  const footerHeight = 80;
+  const footerHeight = 50;
 
   const { fixed } = useContext(LayoutContext);
 
   const defaultSx = {
     width: '100%',
-    height: '100%',
-    minWidth: '1440px',
   };
 
   const fixSx = {
+    width: '100%',
+    height: '100%',
     overflow: 'hidden',
     flex: '1 1 auto',
   };
 
   return (
-    <Box sx={fixed ? { ...defaultSx, ...fixSx } : defaultSx}>
+    <Box sx={fixed ? fixSx : defaultSx}>
       <Header height={headerHeight} />
       <Stack
         sx={{
-          marginTop: headerHeight + 'px',
-          // height: `calc(100% - ${headerHeight + footerHeight}px)`,
-          height: `100%`,
+          paddingTop: headerHeight + 'px',
+          // height: '100%',
+          height: `calc(100% - ${headerHeight}px)`,
         }}
       >
         {props.children}
       </Stack>
-      <Footer height={footerHeight} />
+      <Footer />
     </Box>
   );
 }
