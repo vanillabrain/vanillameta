@@ -66,10 +66,10 @@ export class ConnectionService {
       useNullAsDefault: true,
     };
     createDatabaseDto.connectionConfig = JSON.stringify(connectionConfig);
-
     let _knex: Knex;
     let returnObj = {};
     try {
+      console.log(connectionConfig);
       _knex = knex(connectionConfig as Knex.Config);
     } catch (e) {
       console.log('knex not connected');
@@ -106,9 +106,43 @@ export class ConnectionService {
 
       switch (knex.client.config.client) {
         case 'mysql':
-          if (queryRes && queryRes.length > 0) {
+        case 'mysql2':
+          if (queryRes && queryRes[0].length > 0) {
             datas = queryRes[0];
             const tempFields = queryRes[1];
+            tempFields.map(field => {
+              const fieldInfo = {
+                columnName: field.name,
+                columnLength: field._tableLength,
+                columnType: FieldTypeUtil.mysqlFieldType(field.columnType),
+              };
+              fields.push(fieldInfo);
+            });
+            break;
+          }
+
+        case 'pg':
+          if (queryRes && queryRes.rows.length > 0) {
+            datas = queryRes.rows;
+            const tempFields = queryRes.fields;
+            tempFields.map(field => {
+              const fieldInfo = {
+                columnName: field.name,
+                columnLength: field.length,
+                columnType: FieldTypeUtil.mysqlFieldType(field.type),
+              };
+              fields.push(fieldInfo);
+            });
+            break;
+          }
+
+        case 'mssql':
+          if (queryRes && queryRes.length > 0) {
+            datas = queryRes;
+            for (let i = 0; i < Object.keys(queryRes[0]).length; i++) {
+              console.log(Object.keys[i]);
+            }
+            const tempFields = queryRes;
             tempFields.map(field => {
               const fieldInfo = {
                 columnName: field.name,
@@ -118,6 +152,7 @@ export class ConnectionService {
               fields.push(fieldInfo);
             });
           }
+          break;
       }
 
       resultObj.datas = datas;

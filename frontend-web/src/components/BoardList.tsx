@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Box, List, ListItem, Pagination, Stack, Typography, useMediaQuery, useTheme } from '@mui/material';
+import { Box, List, Pagination, Stack, useMediaQuery, useTheme } from '@mui/material';
 import BoardListItem from './BoardListItem';
-import usePagination from '@mui/material/usePagination';
+import { styled } from '@mui/system';
 
 function BoardList(props) {
   const { postList, handleDeleteSelect } = props;
@@ -11,6 +11,18 @@ function BoardList(props) {
   useEffect(() => {
     setTotalCount(Math.ceil(postList.length / 10));
   }, [postList]);
+
+  const GTSpan = styled('span')({
+    fontFamily: 'Pretendard',
+    fontSize: '13px',
+    fontWeight: '500',
+    fontStretch: 'normal',
+    fontStyle: 'normal',
+    lineHeight: '1.23',
+    letterSpacing: 'normal',
+    textAlign: 'left',
+    color: '#767676',
+  });
 
   const theme = useTheme();
   const matches = useMediaQuery(theme.breakpoints.up('sm'));
@@ -33,16 +45,9 @@ function BoardList(props) {
 
   return (
     <Box>
-      <Stack flexDirection="row" justifyContent="space-between" px={4} pb={1}>
-        <Typography variant="body2" sx={{ ml: 0 }}>
-          이름
-        </Typography>
-        <Typography variant="body2"></Typography>
-        {matches && (
-          <Typography variant="body2" sx={{ mr: '112px' }}>
-            수정한 날짜
-          </Typography>
-        )}
+      <Stack flexDirection="row" justifyContent="space-between" sx={{ paddingLeft: '20px', paddingRight: '217px' }}>
+        <GTSpan>이름</GTSpan>
+        {matches && <GTSpan>수정일</GTSpan>}
       </Stack>
       <List sx={{ m: 'auto', border: tableBorder, borderRadius: 2, backgroundColor: '#fff' }} disablePadding>
         {generateBoardItem()}

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Divider, Stack, Typography } from '@mui/material';
+import { Stack, Typography } from '@mui/material';
 import { WIDGET_TYPE } from '@/constant';
 import LineChart from '@/widget/modules/linechart/LineChart';
 import PieChart from '@/widget/modules/piechart/PieChart';
@@ -436,7 +436,6 @@ const WidgetViewer = props => {
       sx={{
         width: '100%',
         height: '500px',
-        border: '1px solid #DADDDD',
       }}
     >
       <Stack
@@ -447,13 +446,14 @@ const WidgetViewer = props => {
           width: '100%',
           height: '50px',
           paddingLeft: '20px',
+          paddingTop: '18px',
+          paddingBottom: '12px',
         }}
       >
         <Typography
           variant="subtitle1"
           component="span"
           sx={{
-            fontFamily: 'Pretendard',
             fontSize: '16px',
             fontWeight: '600',
             fontStretch: 'normal',

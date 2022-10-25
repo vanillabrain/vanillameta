@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Divider, Grid, List, Stack, styled } from '@mui/material';
+import { Divider, List, Stack, styled, Typography } from '@mui/material';
 import { WIDGET_TYPE } from '@/constant';
 import LineChartSetting from '@/widget/settings/LineChartSetting';
 import PieChartSetting from '@/widget/settings/PieChartSetting';
@@ -25,19 +25,18 @@ import MixedLinePieChartSetting from '@/widget/settings/MixedLinePieChartSetting
 import MixedDonutPieChartSetting from '@/widget/settings/MixedDonutPieChartSetting';
 import MixedLineStackedBarChartSetting from '@/widget/settings/MixedLineStackedBarChartSetting';
 import FunnelChartSetting from '@/widget/settings/FunnelChartSetting';
+import { ConfirmButton } from '@/components/button/ConfirmCancelButton';
 
 const StyledList = styled(List)({
-  // display: 'flex',
-  // flexWrap: 'wrap',
+  padding: 0,
+
   '& .MuiListItemText-root': {
     width: '100%',
-    marginBottom: 10,
   },
   '& .MuiListItemText-primary': {
-    mb: 1,
     textAlign: 'left',
-    fontWeight: 500,
-    fontSize: 14,
+    fontWeight: 'bold',
+    fontSize: '14px',
   },
   '& .MuiListItem-root': {
     display: 'flex',
@@ -45,11 +44,16 @@ const StyledList = styled(List)({
     rowGap: 8,
     width: '100%',
     padding: '30px 0 30px',
+    fontSize: '14px',
+
+    hr: {
+      height: '4px',
+    },
   },
 });
 
 const WidgetSetting = props => {
-  const { title, setTitle, widgetOption, setWidgetOption, widgetType, dataSet, spec } = props;
+  const { title, setTitle, widgetOption, setWidgetOption, widgetType, widgetName, widgetDescription, dataSet, spec } = props;
 
   const [module, setModule] = useState(null);
   useEffect(() => {
@@ -302,19 +306,42 @@ const WidgetSetting = props => {
       sx={{
         width: '440px',
         height: '100%',
-        border: '1px solid #DADDDD',
         px: '24px',
         py: '30px',
         overflowY: 'auto !important',
         flex: 'auto',
         minHeight: 0,
         minWidth: 0,
+        backgroundColor: '#fff',
+        flexShrink: 0,
+        flexGrow: 0,
       }}
     >
+      <Typography
+        component="span"
+        sx={{
+          fontWeight: 'bold',
+          color: '#767676',
+          mb: '16px',
+        }}
+      >
+        {widgetName}
+        <Typography component="span">{`(${widgetDescription})`}</Typography>
+      </Typography>
       <WidgetTitleForm value={title} onChange={event => setTitle(event.target.value)} />
-      <Grid item xs={10} md={4} lg={3} sx={{ display: 'flex', flexDirection: 'column' }}>
-        <StyledList>{module}</StyledList>
-      </Grid>
+      <Divider sx={{ mt: '30px' }} />
+
+      <StyledList>{module}</StyledList>
+
+      <ConfirmButton
+        sx={{ minHeight: '44px', mt: '30px', fontWeight: 'bold', backgroundColor: '#043f84' }}
+        confirmLabel="저장"
+        confirmProps={{
+          form: 'widgetAttribute',
+          type: 'submit',
+          variant: 'contained',
+        }}
+      />
     </Stack>
   );
 };

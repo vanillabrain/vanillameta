@@ -56,7 +56,7 @@ export class WidgetService {
       .createQueryBuilder('widget')
       .innerJoin(Component, 'component', 'component.id = widget.componentId')
       .select(['widget.*', 'component.type as componentType'])
-      .orderBy('widget.updatedAt')
+      .orderBy('widget.updatedAt', 'DESC')
       .getRawMany();
 
     find_all.forEach(el => {

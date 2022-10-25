@@ -48,9 +48,24 @@ export default createTheme({
         size: 'small',
       },
     },
+
     MuiButton: {
       defaultProps: {
         size: 'small',
+      },
+      styleOverrides: {
+        root: {
+          height: '32px',
+          borderRadius: '8px',
+          paddingLeft: '14px',
+          paddingRight: '14px',
+          // color: '#fff',
+
+          '&.Mui-disabled': {
+            color: '#fff',
+            backgroundColor: '#9b9ea9',
+          },
+        },
       },
     },
     MuiButtonGroup: {
@@ -72,6 +87,12 @@ export default createTheme({
       defaultProps: {
         margin: 'none',
         size: 'small',
+      },
+      styleOverrides: {
+        root: {
+          height: '32px',
+          margin: 0,
+        },
       },
     },
     MuiFormHelperText: {
@@ -102,10 +123,21 @@ export default createTheme({
         margin: 'dense',
         size: 'small',
       },
+      styleOverrides: {
+        root: {
+          transform: 'translate(14px, 7px) scale(1)',
+          // display: 'flex',
+          // alignItems: 'center',
+        },
+        shrink: {
+          transform: 'translate(14px, -9px) scale(0.75)',
+        },
+      },
     },
     MuiOutlinedInput: {
       styleOverrides: {
         root: {
+          height: '32px',
           backgroundColor: '#fff',
         },
       },
