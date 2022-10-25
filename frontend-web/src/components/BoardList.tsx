@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Box, List, Pagination, Stack, Typography, useMediaQuery, useTheme } from '@mui/material';
+import { Box, List, ListItem, Pagination, Stack, Typography, useMediaQuery, useTheme } from '@mui/material';
 import BoardListItem from './BoardListItem';
 import usePagination from '@mui/material/usePagination';
 

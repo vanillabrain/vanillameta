@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Button, IconButton, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, Button, IconButton, ListItem, ListItemButton, ListItemIcon, ListItemText, Stack } from '@mui/material';
 import {
   BarChart,
   BubbleChart,
@@ -10,59 +10,18 @@ import {
   ScatterPlot,
   StackedLineChart,
 } from '@mui/icons-material';
-import { Link as RouterLink, useLocation } from 'react-router-dom';
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import DonutChart from '@/widget/modules/piechart/DonutChart';
 import AddIcon from '@mui/icons-material/Add';
+import DeleteButton from '@/components/button/DeleteButton';
+import ModifyButton from '@/components/button/ModifyButton';
 
 const tableBorder = '1px solid #DADDDD';
-
-const ModifyButton = () => {
-  return (
-    <Button color="primary" sx={{ minWidth: { xs: 0 } }}>
-      <Button
-        id="styled-menu"
-        aria-controls={open ? 'styled-menu' : undefined}
-        aria-haspopup="true"
-        aria-expanded={open ? 'true' : undefined}
-        color="primary"
-        sx={{ minWidth: { xs: 0 } }}
-      >
-        <Box
-          component="img"
-          src={'../../assets/images/icon/btn-plus.png'}
-          sx={{ width: '20px', height: '20px' }}
-          alt="편집 화면으로 이동"
-        />
-      </Button>
-    </Button>
-  );
-};
-
-const DeleteButton = () => {
-  return (
-    <Button color="primary" sx={{ minWidth: { xs: 0 } }}>
-      <Button
-        id="styled-menu"
-        aria-controls={open ? 'styled-menu' : undefined}
-        aria-haspopup="true"
-        aria-expanded={open ? 'true' : undefined}
-        color="primary"
-        sx={{ minWidth: { xs: 0 } }}
-      >
-        <Box
-          component="img"
-          src={'../../assets/images/icon/btn-plus.png'}
-          sx={{ width: '20px', height: '20px' }}
-          alt="삭제하기"
-        />
-      </Button>
-    </Button>
-  );
-};
 
 function BoardListItem(props) {
   const { postItem, message, handleDeleteSelect } = props;
 
+  const navigate = useNavigate();
   const location = useLocation();
   const pathname = location.pathname;
 
@@ -101,27 +60,27 @@ function BoardListItem(props) {
       break;
   }
 
-  const handleDelete = () => {
-    handleDeleteSelect(postItem);
-  };
-
   return (
     <ListItem
       key={postItem.id}
       secondaryAction={
-        <>
-          <IconButton
-            size="large"
+        <Stack direction="row" spacing={3}>
+          <ModifyButton
+            size="medium"
             component={RouterLink}
             to={`modify?id=${postItem.id}&title=${postItem.title}`}
             state={{ from: pathname }}
-          >
-            <ModifyButton />
-          </IconButton>
-          <IconButton size="large" onClick={handleDelete}>
-            <DeleteButton />
-          </IconButton>
-        </>
+          />
+
+          <DeleteButton
+            size="medium"
+            onClick={event => {
+              event.preventDefault();
+              event.stopPropagation();
+              handleDeleteSelect(postItem);
+            }}
+          />
+        </Stack>
       }
       disablePadding
       sx={{

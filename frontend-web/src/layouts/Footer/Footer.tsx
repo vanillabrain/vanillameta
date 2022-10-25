@@ -1,12 +1,28 @@
 import React from 'react';
 import { Box, Divider, Typography } from '@mui/material';
 
-function Footer() {
+function Footer(props) {
+  const footerHeight = props.height;
+
   return (
-    <Box>
-      <Divider sx={{ marginBottom: 3 }} />
-      <Typography sx={{ textAlign: 'center', color: '#9e9e9e', fontSize: 13, letterSpacing: 2, pb: 6 }}>
-        Vanilla Meta 2022
+    <Box sx={{ height: footerHeight }}>
+      <Typography
+        sx={{
+          width: '100%',
+          height: '16px',
+          margin: '40px 0 0 0',
+          fontFamily: 'Pretendard',
+          fontSize: '13px',
+          fontWeight: 'normal',
+          fontStretch: 'normal',
+          fontStyle: 'normal',
+          lineHeight: 'normal',
+          letterSpacing: 'normal',
+          textAlign: 'center',
+          color: '#767676',
+        }}
+      >
+        @ Vanilla Meta 2022
       </Typography>
     </Box>
   );

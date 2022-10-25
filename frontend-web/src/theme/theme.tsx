@@ -149,7 +149,7 @@ export default createTheme({
       },
       styleOverrides: {
         root: {
-          fontFamily: 'Pretendard',
+          fontFamily: 'Noto Sans KR',
         },
       },
     },
@@ -182,10 +182,8 @@ export default createTheme({
         'html, body, #root': {
           width: '100%',
           height: '100%',
-          minWidth: 400,
-          // minWidth: isDesktop ? '1280px' : 0,
+          fontFamily: 'Noto Sans KR',
           backgroundColor: '#FFFFFF',
-          fontFamily: 'Pretendard',
           color: '#1F2123',
         },
       },
