@@ -7,7 +7,6 @@ import { Database } from '../database/entities/database.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ResponseStatus } from '../common/enum/response-status.enum';
-import { oracledb } from 'oracledb'
 
 const knexConnections = new Map<number, Knex>();
 
@@ -70,7 +69,7 @@ export class ConnectionService {
     let _knex: Knex;
     let returnObj = {};
     try {
-      console.log(connectionConfig)
+      console.log(connectionConfig);
       _knex = knex(connectionConfig as Knex.Config);
     } catch (e) {
       console.log('knex not connected');
@@ -102,15 +101,13 @@ export class ConnectionService {
     const fields = [];
     const resultObj = { status: ResponseStatus.SUCCESS, message: 'success', datas: [], fields: [] };
 
-
-
     try {
       const queryRes = await knex.raw(queryExecuteDto.query);
 
       switch (knex.client.config.client) {
+        case 'mysql':
         case 'mysql2':
           if (queryRes && queryRes[0].length > 0) {
-
             datas = queryRes[0];
             const tempFields = queryRes[1];
             tempFields.map(field => {
@@ -120,14 +117,12 @@ export class ConnectionService {
                 columnType: FieldTypeUtil.mysqlFieldType(field.columnType),
               };
               fields.push(fieldInfo);
-
             });
             break;
           }
 
         case 'pg':
           if (queryRes && queryRes.rows.length > 0) {
-
             datas = queryRes.rows;
             const tempFields = queryRes.fields;
             tempFields.map(field => {
@@ -141,15 +136,11 @@ export class ConnectionService {
             break;
           }
 
-
-
-
         case 'mssql':
           if (queryRes && queryRes.length > 0) {
-
             datas = queryRes;
-            for(let i = 0; i < Object.keys(queryRes[0]).length; i ++){
-              console.log(Object.keys[i])
+            for (let i = 0; i < Object.keys(queryRes[0]).length; i++) {
+              console.log(Object.keys[i]);
             }
             const tempFields = queryRes;
             tempFields.map(field => {
@@ -162,7 +153,7 @@ export class ConnectionService {
             });
           }
           break;
-        }
+      }
 
       resultObj.datas = datas;
       resultObj.fields = fields;
@@ -172,7 +163,6 @@ export class ConnectionService {
       console.log(e);
       console.log(e.sqlMessage);
     }
-
 
     return resultObj;
   }
