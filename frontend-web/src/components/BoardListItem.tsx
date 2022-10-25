@@ -1,20 +1,11 @@
 import React from 'react';
-import { Box, Button, IconButton, ListItem, ListItemButton, ListItemIcon, ListItemText, Stack } from '@mui/material';
-import {
-  BarChart,
-  BubbleChart,
-  Dashboard,
-  Delete,
-  Edit,
-  PieChart,
-  ScatterPlot,
-  StackedLineChart,
-} from '@mui/icons-material';
+import { ListItem, ListItemButton, ListItemIcon, Stack } from '@mui/material';
+import { BarChart, BubbleChart, Dashboard, PieChart, ScatterPlot, StackedLineChart } from '@mui/icons-material';
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import DonutChart from '@/widget/modules/piechart/DonutChart';
-import AddIcon from '@mui/icons-material/Add';
 import DeleteButton from '@/components/button/DeleteButton';
 import ModifyButton from '@/components/button/ModifyButton';
+import { styled } from '@mui/system';
 
 const tableBorder = '1px solid #DADDDD';
 
@@ -32,6 +23,36 @@ function BoardListItem(props) {
     const date = userDate.getDate();
     return `${year}-${month >= 10 ? month : '0' + month}-${date >= 10 ? date : '0' + date}`;
   };
+
+  const TitleSpan = styled('span')({
+    display: 'flex',
+    height: '14px',
+    justifyContent: 'space-between',
+    fontFamily: 'Pretendard',
+    fontSize: '14px',
+    fontWeight: '600',
+    fontStretch: 'normal',
+    fontStyle: 'normal',
+    lineHeight: '1.14',
+    letterSpacing: 'normal',
+    textAlign: 'left',
+    color: '#333333',
+  });
+
+  const SubTitleSpan = styled('span')({
+    display: 'flex',
+    height: '14px',
+    justifyContent: 'space-between',
+    fontFamily: 'Pretendard',
+    fontSize: '14px',
+    fontWeight: '500',
+    fontStretch: 'normal',
+    fontStyle: 'normal',
+    lineHeight: '1.14',
+    letterSpacing: 'normal',
+    textAlign: 'left',
+    color: '#333333',
+  });
 
   let iconType;
   switch (postItem.componentType) {
@@ -63,44 +84,48 @@ function BoardListItem(props) {
   return (
     <ListItem
       key={postItem.id}
-      secondaryAction={
-        <Stack direction="row" spacing={3}>
-          <ModifyButton
-            size="medium"
-            component={RouterLink}
-            to={`modify?id=${postItem.id}&title=${postItem.title}`}
-            state={{ from: pathname }}
-          />
-
-          <DeleteButton
-            size="medium"
-            onClick={event => {
-              event.preventDefault();
-              event.stopPropagation();
-              handleDeleteSelect(postItem);
-            }}
-          />
-        </Stack>
-      }
       disablePadding
       sx={{
         borderBottom: tableBorder,
         '&:last-of-type': { borderBottom: 0 },
+        height: '56px',
+        paddingRight: 0,
       }}
     >
-      <ListItemButton sx={{ py: 0.8 }} component={RouterLink} to={`${postItem.id}`} state={{ from: pathname }}>
+      <ListItemButton
+        sx={{ paddingLeft: 0, paddingRight: 0 }}
+        component={RouterLink}
+        to={`${postItem.id}`}
+        state={{ from: pathname }}
+      >
         {postItem.type ? <ListItemIcon>{iconType}</ListItemIcon> : ''}
-        <ListItemText
-          primary={postItem.title}
-          primaryTypographyProps={{ fontWeight: 500 }}
-          secondary={dateData(postItem.updatedAt)}
-          sx={{
-            display: { xs: 'block', sm: 'flex' },
-            justifyContent: 'space-between',
-            ml: { xs: 0, sm: 2 },
-            mr: 12,
-          }}
-        />
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+          sx={{ x: 0, paddingLeft: '20px', width: '100%' }}
+        >
+          <TitleSpan>{postItem.title}</TitleSpan>
+          <Stack alignItems="center" direction="row" sx={{ paddingRight: '36px' }}>
+            <SubTitleSpan>{dateData(postItem.updatedAt)}</SubTitleSpan>
+            <span style={{ width: '56px' }}></span>
+            <ModifyButton
+              size="medium"
+              component={RouterLink}
+              to={`modify?id=${postItem.id}&title=${postItem.title}`}
+              state={{ from: pathname }}
+            />
+            <span style={{ width: '36px' }}></span>
+            <DeleteButton
+              size="medium"
+              onClick={event => {
+                event.preventDefault();
+                event.stopPropagation();
+                handleDeleteSelect(postItem);
+              }}
+            />
+          </Stack>
+        </Stack>
       </ListItemButton>
     </ListItem>
   );
