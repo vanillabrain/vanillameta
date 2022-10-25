@@ -1,13 +1,23 @@
 import React from 'react';
 import { IconButton, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import { BarChart, PieChart, Dashboard, StackedLineChart, Delete, Edit } from '@mui/icons-material';
+import {
+  BarChart,
+  PieChart,
+  Dashboard,
+  StackedLineChart,
+  Delete,
+  Edit,
+  BubbleChart,
+  ScatterPlot,
+} from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
 import { DialogAlertIconButton } from './button/DialogAlertButton';
+import DonutChart from '@/modules/piechart/DonutChart';
 
 const tableBorder = '1px solid #DADDDD';
 
 function BoardListItem(props) {
-  const { postItem } = props;
+  const { postItem, message, handleDeleteSelect } = props;
 
   const dateData = data => {
     const userDate = new Date(data);
@@ -19,21 +29,39 @@ function BoardListItem(props) {
 
   let iconType;
   switch (postItem.type) {
-    case 'dashboard':
+    case 'DASHBOARD':
       iconType = <Dashboard />;
       break;
-    case 'lineChart':
+    case 'CHART_LINE':
       iconType = <StackedLineChart />;
       break;
-    case 'barChart':
+    case 'CHART_BAR':
       iconType = <BarChart />;
       break;
-    case 'pieChart':
+    case 'CHART_BUBBLE':
+      iconType = <BubbleChart />;
+      break;
+    case 'CHART_SCATTER':
+      iconType = <ScatterPlot />;
+      break;
+    case 'CHART_PIE':
       iconType = <PieChart />;
+      break;
+    case 'CHART_DONUT':
+      iconType = <DonutChart />;
       break;
     default:
       break;
   }
+
+  const handleDialogSelect = detail => {
+    if (detail == 1) {
+      if (handleDeleteSelect) {
+        console.log('삭제를 눌러버렸어');
+        handleDeleteSelect(postItem);
+      }
+    }
+  };
 
   return (
     <ListItem
@@ -43,9 +71,16 @@ function BoardListItem(props) {
           <IconButton size="large" component={RouterLink} to={`modify?id=${postItem.id}&title=${postItem.title}`}>
             <Edit />
           </IconButton>
-          <DialogAlertIconButton icon={<Delete />} size="large">
-            {`삭제시 N개의 대시보드에 반영됩니다.`}
-            <br /> {`<${postItem.title}>을 삭제하시겠습니까?`}
+          <DialogAlertIconButton
+            icon={<Delete />}
+            size="large"
+            confirmLabel="삭제"
+            cancelLabel="취소"
+            handleDialogSelect={handleDialogSelect}
+          >
+            {message ? message : ``}
+            {message ? <br /> : ``}
+            {`'<${postItem.title}>'을(를) 삭제하시겠습니까?`}
           </DialogAlertIconButton>
         </React.Fragment>
       }

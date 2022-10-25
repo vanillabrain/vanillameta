@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
+import { getGridSize, getLegendOption } from '@/modules/utils/chartUtil';
 
 const PieChart = props => {
-  const { option, dataSet } = props;
+  const { option, dataSet, seriesOp } = props;
 
   const [componentOption, setComponentOption] = useState({});
 
   const defaultComponentOption = {
-    grid: { top: 8, right: 8, bottom: 24, left: 36 },
+    grid: { top: 50, right: 50, bottom: 50, left: 50 },
     tooltip: {
       trigger: 'item',
     },
@@ -36,7 +37,7 @@ const PieChart = props => {
    * 컴포넌트에 맞는 형태로 생성
    */
   const createComponentOption = () => {
-    let newOption = { ...defaultComponentOption };
+    let newOption = {};
 
     const getData = () =>
       dataSet.map(item => ({
@@ -51,10 +52,14 @@ const PieChart = props => {
         series: [
           {
             type: 'pie',
+            label: { show: !!option.series.label && true },
             smooth: true,
             data: getData(),
+            ...seriesOp,
           },
         ],
+        grid: getGridSize(option.legendPosition),
+        legend: getLegendOption(option.legendPosition),
       };
       newOption = { ...defaultComponentOption, ...op };
     }

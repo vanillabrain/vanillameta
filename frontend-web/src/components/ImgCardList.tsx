@@ -48,7 +48,7 @@ function ImgCardList(props) {
                   src={srcUrl + item.icon}
                   sx={{ width: 80, height: 60, objectFit: 'contain', mb: 3, border: 0 }}
                 />
-                <Typography variant="subtitle2" component="span">
+                <Typography variant="subtitle2" component="span" sx={{ textAlign: 'center' }}>
                   {item.title}
                 </Typography>
                 <Typography variant="caption" sx={{ textAlign: 'center', color: theme => theme.palette.grey.A700 }}>

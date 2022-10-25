@@ -1,9 +1,46 @@
 [
   {
+    "id": "BOARD_NUMERIC",
+    "title": "숫자판",
+    "icon": null,
+    "caption": "Score Board",
+    "option": {
+      "header": { "title": "타이틀을 입력하세요", "fontSize": 20, "color": "#4A4A4A" },
+      "content": { "field": null, "aggregation": null, "fontSize": 20, "color": "#4A4A4A", "prefix": "", "suffix": "" }
+    }
+  },
+  {
+    "id": "BOARD_TABLE",
+    "title": "표",
+    "icon": null,
+    "caption": "DataGrid",
+    "option": {
+      "columns": []
+    }
+  },
+  {
     "id": "CHART_LINE",
     "title": "선형 차트",
     "icon": "icon/line-chart.png",
     "caption": "Line Chart",
+    "option": {
+      "title": "",
+      "xField": "",
+      "series": [
+        {
+          "field": "",
+          "color": "#5470c6",
+          "aggregation": "sum"
+        }
+      ],
+      "legendPosition": "left"
+    }
+  },
+  {
+    "id": "CHART_STACKED_LINE",
+    "title": "누적 선형 차트",
+    "icon": "icon/line-chart.png",
+    "caption": "Stacked Line Chart",
     "option": {
       "title": "",
       "xField": "",
@@ -36,6 +73,24 @@
     }
   },
   {
+    "id": "CHART_STACKED_AREA",
+    "title": "누적 영역형 차트",
+    "icon": "icon/area-chart.png",
+    "caption": "Stacked Area Chart",
+    "option": {
+      "title": "",
+      "xField": "",
+      "series": [
+        {
+          "field": "",
+          "color": "#5470c6",
+          "aggregation": ""
+        }
+      ],
+      "legendPosition": "left"
+    }
+  },
+  {
     "id": "CHART_BAR",
     "title": "막대형 세로 차트",
     "icon": "icon/bar-chart.png",
@@ -53,10 +108,10 @@
     }
   },
   {
-    "id": "CHART_COLUMN",
-    "title": "막대형 가로 차트",
+    "id": "CHART_STACKED_BAR",
+    "title": "누적 막대형 세로 차트",
     "icon": "icon/bar-chart.png",
-    "caption": "Column Chart",
+    "caption": "Stacked Bar Chart",
     "option": {
       "title": "",
       "xField": "",
@@ -70,28 +125,58 @@
     }
   },
   {
-    "id": "mixedLineBarChart",
+    "id": "CHART_COLUMN",
+    "title": "막대형 가로 차트",
+    "icon": "icon/column-chart.png",
+    "caption": "Column Chart",
+    "option": {
+      "title": "",
+      "yField": "",
+      "series": [
+        {
+          "field": "",
+          "color": "#5470c6",
+          "aggregation": ""
+        }
+      ]
+    }
+  },
+  {
+    "id": "CHART_STACKED_COLUMN",
+    "title": "누적 막대형 가로 차트",
+    "icon": "icon/column-chart.png",
+    "caption": "Stacked Column Chart",
+    "option": {
+      "title": "",
+      "yField": "",
+      "series": [
+        {
+          "field": "",
+          "color": "#5470c6",
+          "aggregation": ""
+        }
+      ]
+    }
+  },
+  {
+    "id": "CHART_MIXED_LINE_BAR",
     "title": "복합 차트",
     "icon": "icon/mixed-chart.png",
     "caption": "Mixed Chart",
     "option": {
-      "xField": "label",
+      "xField": "",
       "series": [
         {
-          "field": "value1",
-          "color": "#43afef",
-          "aggregation": ""
+          "field": "",
+          "color": "#5470c6",
+          "aggregation": "",
+          "type": "line"
         },
         {
-          "field": "value2",
-          "color": "#b9e7ff",
-          "aggregation": ""
-        }
-      ,
-        {
-          "field": "value2",
-          "color": "#d9d9d9",
-          "aggregation": ""
+          "field": "",
+          "color": "#91cc75",
+          "aggregation": "",
+          "type": "bar"
         }
       ]
     }
@@ -99,7 +184,7 @@
   {
     "id": "CHART_PIE",
     "title": "원형 차트",
-    "icon": "icon/doughnut-chart.png",
+    "icon": "icon/pie-chart.png",
     "caption": "Pie Chart",
     "option": {
       "title": "",
@@ -112,28 +197,49 @@
     }
   },
   {
-    "id": "polarAreaChart",
-    "title": "극좌표형 차트",
-    "icon": "icon/polar-chart.png",
-    "caption": "Polar Area Chart",
+    "id": "CHART_DONUT",
+    "title": "도넛형 차트",
+    "icon": "icon/doughnut-chart.png",
+    "caption": "Donut Chart",
     "option": {
-      "xField": "label",
+      "title": "",
+      "series": {
+        "field": "",
+        "color": [],
+        "aggregation": "",
+        "label": "",
+        "radius": ["30%", "75%"]
+      }
+    }
+  },
+  {
+    "id": "CHART_NIGHTINGALE",
+    "title": "나이팅게일 차트",
+    "icon": "icon/nightingale-chart.png",
+    "caption": "Nightingale Chart",
+    "option": {
+      "title": "",
+      "series": {
+        "field": "",
+        "color": [],
+        "aggregation": "",
+        "label": "",
+        "radius": ["10%", "90%"]
+      }
+    }
+  },
+  {
+    "id": "CHART_SCATTER",
+    "title": "분산형 차트",
+    "icon": "icon/scatter-chart.png",
+    "caption": "Scatter Chart",
+    "option": {
       "series": [
         {
-          "field": "value1",
-          "color": "#43afef",
-          "aggregation": ""
-        },
-        {
-          "field": "value2",
-          "color": "#b9e7ff",
-          "aggregation": ""
-        }
-      ,
-        {
-          "field": "value2",
-          "color": "#d9d9d9",
-          "aggregation": ""
+          "xField": "",
+          "yField": "",
+          "symbolSize": "20",
+          "color": "#5470c6"
         }
       ]
     }
@@ -144,23 +250,12 @@
     "icon": "icon/bubble-chart.png",
     "caption": "Bubble Chart",
     "option": {
-      "xField": "label",
       "series": [
         {
-          "field": "value1",
-          "color": "#43afef",
-          "aggregation": ""
-        },
-        {
-          "field": "value2",
-          "color": "#b9e7ff",
-          "aggregation": ""
-        }
-      ,
-        {
-          "field": "value2",
-          "color": "#d9d9d9",
-          "aggregation": ""
+          "xField": "",
+          "yField": "",
+          "symbolSize": "",
+          "color": "#5470c6"
         }
       ]
     }
@@ -170,33 +265,6 @@
     "title": "방사형 차트",
     "icon": "icon/radar-chart.png",
     "caption": "Radar Chart",
-    "option": {
-      "xField": "label",
-      "series": [
-        {
-          "field": "value1",
-          "color": "#43afef",
-          "aggregation": ""
-        },
-        {
-          "field": "value2",
-          "color": "#b9e7ff",
-          "aggregation": ""
-        }
-      ,
-        {
-          "field": "value2",
-          "color": "#d9d9d9",
-          "aggregation": ""
-        }
-      ]
-    }
-  },
-  {
-    "id": "scatterChart",
-    "title": "분산형 차트",
-    "icon": "icon/scatter-chart.png",
-    "caption": "Scatter Chart",
     "option": {
       "xField": "label",
       "series": [

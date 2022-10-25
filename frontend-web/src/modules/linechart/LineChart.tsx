@@ -1,33 +1,38 @@
 import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { Box } from '@mui/material';
+import { getAggregationData, getAggregationDataForChart, getGridSize, getLegendOption } from '@/modules/utils/chartUtil';
+import data from '@/pages/Data';
 
 const LineChart = props => {
-  const { option, dataSet, ...rest } = props;
+  const { option, dataSet, axis = 'x', seriesOp, defaultOp, createOp } = props;
+  const reverseAxis = axis === 'x' ? 'y' : 'x';
 
   const [componentOption, setComponentOption] = useState({});
 
+  console.log(option);
+
   const defaultComponentOption = {
-    grid: { top: 8, right: 8, bottom: 24, left: 36 },
-    yAxis: {
-      type: 'value',
-    },
-    tooltip: {
-      trigger: 'axis',
-    },
-    xAxis: {
+    grid: { top: 50, right: 50, bottom: 50, left: 50 },
+    tooltip: { trigger: 'axis' },
+    [axis + 'Axis']: {
       type: 'category',
+    },
+    [reverseAxis + 'Axis']: {
+      type: 'value',
     },
     series: [],
     emphasis: {
       focus: 'series',
       blurScope: 'coordinateSystem',
     },
+    ...defaultOp,
   };
 
   useEffect(() => {
     if (option && dataSet) {
       const newOption = createComponentOption();
+
       setComponentOption(newOption);
     }
   }, [option, dataSet]);
@@ -37,36 +42,38 @@ const LineChart = props => {
    * 위젯옵션과 데이터로
    * 컴포넌트에 맞는 형태로 생성
    */
-
   const createComponentOption = () => {
-    let newOption = defaultComponentOption;
+    let newOption = {};
 
     // series option에서 가져오기
     const newSeries = [];
-    const newColors = [];
+    console.log('option.series.', option.xField);
+    let aggrData = [];
     option.series.forEach(item => {
+      aggrData = getAggregationDataForChart(dataSet, option.xField, item.field, item.aggregation);
       if (item.field) {
         const series = {
           name: item.field,
-          data: dataSet.map(dataItem => dataItem[item.field]),
-          type: 'line',
+          data: aggrData.map(dataItem => dataItem[item.field]),
+          type: item.type ? item.type : 'line',
+          color: item.color,
           smooth: true,
-          ...rest,
+          ...seriesOp,
         };
         newSeries.push(series);
-        newColors.push(item.color);
       }
     });
-    if (dataSet) {
+
+    if (aggrData) {
       const op = {
-        xAxis: {
+        [axis + 'Axis']: {
           type: 'category',
-          data: !!option.xField ? dataSet.map(item => item[option.xField]) : '',
-          boundaryGap: false,
+          data: !!option[axis + 'Field'] ? aggrData.map(item => item[option[axis + 'Field']]) : '',
         },
         series: newSeries,
-        color: newColors,
-        legend: {}, // TODO: legend 위치 조정기능 추가
+        grid: getGridSize(option.legendPosition),
+        legend: getLegendOption(option.legendPosition),
+        ...createOp,
       };
 
       newOption = { ...defaultComponentOption, ...op };

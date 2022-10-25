@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import DashboardModify from '@/pages/Dashboard/DashboardModify';
-
-// TODO : 추후 기능 구현시 컴포넌트 분리하기
+// 지우지 마세요 DashboardModify 에서 가져다 써야함
+import { useSearchParams } from 'react-router-dom';
 
 function DashboardCreate(props) {
   return <DashboardModify />;
