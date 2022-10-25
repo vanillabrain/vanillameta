@@ -55,7 +55,14 @@ export const DatasetCardList = props => {
                         p: 0,
                       }}
                     >
-                      <ModifyButton size="medium" component={RouterLink} to={`/data/set/modify/${item.id}`} />
+                      <ModifyButton
+                        size="medium"
+                        component={RouterLink}
+                        to={`/data/set/modify/${item.id}`}
+                        width="20"
+                        height="20"
+                        fill="#767676"
+                      />
                       <DeleteButton
                         size="medium"
                         onClick={event => {
@@ -63,6 +70,9 @@ export const DatasetCardList = props => {
                           event.stopPropagation();
                           onDeleteDataset(item);
                         }}
+                        width="20"
+                        height="20"
+                        fill="#767676"
                       />
                     </CardActions>
                   )}

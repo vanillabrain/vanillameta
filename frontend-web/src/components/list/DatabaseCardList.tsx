@@ -59,7 +59,14 @@ export const DatabaseCardList = props => {
                       }}
                       onClick={handleClick}
                     >
-                      <ModifyButton size="medium" component={RouterLink} to={`/data/source/modify/${item.id}`} />
+                      <ModifyButton
+                        size="medium"
+                        component={RouterLink}
+                        to={`/data/source/modify/${item.id}`}
+                        width="20"
+                        height="20"
+                        fill="#767676"
+                      />
                       <DeleteButton
                         size="medium"
                         onClick={event => {
@@ -67,6 +74,9 @@ export const DatabaseCardList = props => {
                           event.stopPropagation();
                           onRemove(item.id, item.name);
                         }}
+                        width="20"
+                        height="20"
+                        fill="#767676"
                       />
                     </CardActions>
                   )}
