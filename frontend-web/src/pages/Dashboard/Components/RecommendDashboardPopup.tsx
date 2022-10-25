@@ -154,8 +154,8 @@ export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = 
   const [selectedItem, setSelectedItem] = useState(null);
 
   const getItems = () => {
-    // TemplateService.selectRecommendTemplateList({ widgets: selectedWidgetIds }).then(response => {
-    TemplateService.selectRecommendTemplateList({ widgets: [1, 2] }).then(response => {
+    TemplateService.selectRecommendTemplateList({ widgets: selectedWidgetIds }).then(response => {
+      // TemplateService.selectRecommendTemplateList({ widgets: [1, 2] }).then(response => {
       if (response.data.status == STATUS.SUCCESS) {
         setLoadedTemplateDataList(response.data.data);
       } else {
