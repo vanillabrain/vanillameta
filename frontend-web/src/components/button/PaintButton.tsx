@@ -5,7 +5,7 @@ const PaintButton = ({ color }) => {
   return (
     <Stack justifyContent="center" alignItems="center" gap="4px">
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <g clip-path="url(#zp0ysd0z5a)">
+        <g clipPath="url(#zp0ysd0z5a)">
           <path
             d="M7.45 19.05c-.67 0-1.3-.26-1.77-.73l-4.24-4.24c-.47-.47-.73-1.1-.73-1.77 0-.67.26-1.3.73-1.77l6.72-6.72 7.78 7.78-6.72 6.72c-.47.47-1.1.73-1.77.73z"
             fill="#fff"
@@ -25,8 +25,8 @@ const PaintButton = ({ color }) => {
           <path
             d="m3.32 7.88-1.57-2.3c-.62-.91-.2-2.28.94-3.06 1.14-.78 2.57-.67 3.19.24l3.39 4.95c.62.91.2 2.28-.94 3.06"
             stroke="#333"
-            stroke-miterlimit="10"
-            stroke-linecap="round"
+            strokeMiterlimit="10"
+            strokeLinecap="round"
           />
         </g>
         <defs>
