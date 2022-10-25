@@ -24,7 +24,7 @@ const DashboardView = () => {
 
   const [loading, setLoading] = useState(false);
 
-  const [dashboardInfo, setDashboardInfo] = useState({ title: '', widgets: [], layout: [] }); // dashboard 정보
+  const [dashboardInfo, setDashboardInfo] = useState({ title: '', widgets: [], layout: [], updatedAt: '' }); // dashboard 정보
   const [layout, setLayout] = useState([]); // grid layout
   // dashboard id
 
@@ -54,6 +54,14 @@ const DashboardView = () => {
         alert.error('조회 실패하였습니다.');
       }
     });
+  };
+
+  const dateData = data => {
+    const userDate = new Date(data);
+    const year = userDate.getFullYear();
+    const month = userDate.getMonth() + 1;
+    const date = userDate.getDate();
+    return `${year}.${month >= 10 ? month : '0' + month}.${date >= 10 ? date : '0' + date}`;
   };
 
   // refrech 버튼 클릭
@@ -135,9 +143,27 @@ const DashboardView = () => {
           </Typography>
         }
         button={
-          <Stack direction="row" spacing={3} sx={{ marginRight: '20px' }}>
+          <Stack direction="row" alignItems="center" sx={{ marginRight: '20px' }}>
+            <span
+              style={{
+                marginRight: '56px',
+                height: '16px',
+                fontFamily: 'Pretendard',
+                fontSize: '14px',
+                fontWeight: '500',
+                fontStretch: 'normal',
+                fontStyle: 'normal',
+                lineHeight: '1.14',
+                letterSpacing: 'normal',
+                textAlign: 'left',
+                color: '#333333',
+              }}
+            >
+              {dateData(dashboardInfo.updatedAt)}
+            </span>
             <ReloadButton
               size="medium"
+              sx={{ marginRight: '36px', padding: 0 }}
               onClick={event => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -146,11 +172,13 @@ const DashboardView = () => {
             />
             <ModifyButton
               size="medium"
+              sx={{ marginRight: '36px', padding: 0 }}
               component={RouterLink}
               to={`/dashboard/modify?id=${dashboardId}&name=${dashboardInfo.title}`}
             />
             <DeleteButton
               size="medium"
+              sx={{ padding: 0 }}
               onClick={event => {
                 event.preventDefault();
                 event.stopPropagation();

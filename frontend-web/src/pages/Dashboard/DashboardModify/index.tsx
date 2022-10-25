@@ -18,6 +18,8 @@ import DashboardService from '@/api/dashboardService';
 import { STATUS } from '@/constant';
 import DashboardTitleBox from '../Components/DashboardTitleBox';
 import CloseButton from '@/components/button/CloseButton';
+import bg from '@/assets/images/dashboard-bg.svg';
+import grid from '@/assets/images/grid.svg';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -283,12 +285,37 @@ function DashboardModify() {
               sx={{
                 width: '960px',
                 height: '32px',
-                // gap: '10px',
                 marginLeft: '16px',
                 marginTop: 0,
-                // padding: '8px 20px 8px 10px',
                 borderRadius: '4px',
                 backgroundColor: '#fff',
+                input: {
+                  fontWeight: 500,
+                  paddingLeft: '18px',
+                  height: '16px',
+                  fontFamily: 'Pretendard',
+                  fontSize: '14px',
+                  fontStretch: 'normal',
+                  fontStyle: 'normal',
+                  lineHeight: 0.89,
+                  letterSpacing: '-0.18px',
+                  textAlign: 'left',
+                  color: '#141414',
+                  '&::placeholder': {
+                    height: '16px',
+                    flexGrow: 0,
+                    fontFamily: 'Pretendard',
+                    fontSize: '14px',
+                    fontWeight: 'normal',
+                    fontStretch: 'normal',
+                    fontStyle: 'normal',
+                    lineHeight: '1.14',
+                    letterSpacing: 'normal',
+                    textAlign: 'left',
+                    color: '#929292',
+                    opacity: 1,
+                  },
+                },
               }}
               placeholder="대시보드의 이름을 입력해 주세요"
               value={dashboardTitle}
@@ -307,19 +334,19 @@ function DashboardModify() {
                 sx={{
                   borderRadius: '8px',
                   backgroundColor: '#043f84',
-                  width: '112px',
+                  width: '97px',
                   height: '32px',
                   display: 'flex',
                   flexDirection: 'row',
-                  justifyContent: 'flex-start',
+                  justifyContent: 'center',
                   alignItems: 'center',
                   marginRight: '20px',
-                  padding: '0px 14px',
+                  padding: '7px 0',
                   objectFit: 'contain',
                   border: 'solid 1px #0f5ab2',
                 }}
               >
-                위젯 추가
+                <span style={{ height: '20px' }}>위젯 추가</span>
               </Button>
               <AddWidgetPopup
                 label="위젯 추가"
@@ -336,7 +363,8 @@ function DashboardModify() {
               width: '1390px',
               minWidth: '1390px',
               minHeight: '1080px',
-              backgroundColor: '#f9f9fa',
+              backgroundImage: `url(${bg})`,
+              backgroundRepeat: 'repeat',
               borderRadius: '0px 0px 6px 6px',
             }}
           >
