@@ -1,7 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Box, Grid, Stack, Typography } from '@mui/material';
-import TitleBox from '@/components/TitleBox';
-import AddIconButton from '@/components/button/AddIconButton';
+import React, { useContext, useEffect, useState } from 'react';
+import { Stack, Typography } from '@mui/material';
 import DatabaseService from '@/api/databaseService';
 import { STATUS } from '@/constant';
 import { useAlert } from 'react-alert';
@@ -10,6 +8,7 @@ import { DatasetCardList } from '@/components/list/DatasetCardList';
 import DatasetService from '@/api/datasetService';
 import AddButton from '@/components/button/AddButton';
 import { Link as RouterLink } from 'react-router-dom';
+import { LoadingContext } from '@/contexts/LoadingContext';
 
 const DataLayout = props => {
   const { isViewMode, setDataSet } = props;
@@ -17,6 +16,7 @@ const DataLayout = props => {
   const [datasetList, setDatasetList] = useState([]);
   const [tableList, setTableList] = useState([]);
   const alert = useAlert();
+  const { showLoading, hideLoading } = useContext(LoadingContext);
 
   const [selectedDatabase, setSelectedDatabase] = useState({
     databaseId: null,
@@ -40,6 +40,7 @@ const DataLayout = props => {
    * 데이터베이스 목록조회
    */
   const getDatabaseList = () => {
+    showLoading();
     DatabaseService.selectDatabaseList().then(response => {
       setDatabaseList(response.data.data);
       if (response.data.data.length > 0) {
@@ -52,6 +53,7 @@ const DataLayout = props => {
     DatabaseService.selectDatabase(selectedDatabase.databaseId).then(response => {
       setDatasetList(response.data.data.datasets);
       setTableList(response.data.data.tables);
+      hideLoading();
     });
   };
 
