@@ -67,11 +67,9 @@ function BoardListItem(props) {
         <Stack direction="row" spacing={3}>
           <ModifyButton
             size="medium"
-            onClick={event => {
-              event.preventDefault();
-              event.stopPropagation();
-              navigate('/dashboard/modify?id=' + postItem.id + '&title=' + postItem.title);
-            }}
+            component={RouterLink}
+            to={`modify?id=${postItem.id}&title=${postItem.title}`}
+            state={{ from: pathname }}
           />
 
           <DeleteButton
