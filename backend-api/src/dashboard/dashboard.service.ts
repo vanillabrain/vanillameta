@@ -39,7 +39,11 @@ export class DashboardService {
   }
 
   async findAll() {
-    const find_all = await this.dashboardRepository.find();
+    const find_all = await this.dashboardRepository.find({
+      order: {
+        updatedAt: 'desc',
+      },
+    });
     find_all.forEach(el => {
       el.layout = JSON.parse(el.layout);
     });
