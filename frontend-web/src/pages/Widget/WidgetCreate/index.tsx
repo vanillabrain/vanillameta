@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Stack, Step, StepLabel, Stepper } from '@mui/material';
+import { Box, Button, Stack, Step, StepLabel, Stepper, SvgIcon } from '@mui/material';
 import PageTitleBox from '@/components/PageTitleBox';
 import PageContainer from '@/components/PageContainer';
-import ConfirmCancelButton, { ConfirmButton } from '@/components/button/ConfirmCancelButton';
 import WidgetDataSelect from './WidgetDataSelect';
 import WidgetTypeSelect from './WidgetTypeSelect';
 import WidgetAttributeSelect from './WidgetAttributeSelect';
 import componentService from '@/api/componentService';
 import widgetService from '@/api/widgetService';
 import { useNavigate } from 'react-router-dom';
+import { ReactComponent as LeftArrow } from '@/assets/images/icon/angle-left.svg';
 
 const title = '위젯 생성';
 const steps = ['데이터 선택', '위젯 타입 선택', '위젯 속성 설정'];
@@ -21,10 +21,7 @@ const WidgetCreate = () => {
   const [dataset, setDataset] = useState(null); // step 1
   const [widgetOption, setWidgetOption] = useState(null); // step 2
 
-  // 개발 편의상 임시로 적용
   useEffect(() => {
-    // setDatasetId(688279);
-    // setActiveStep(1);
     getComponentList();
   }, []);
 
@@ -85,6 +82,14 @@ const WidgetCreate = () => {
     setActiveStep(prevState => prevState + 1);
   };
 
+  // TODO: 코드 고치는 중
+  const handleTempNext = () => {
+    if (activeStep === steps.length - 1) {
+      return;
+    }
+    setActiveStep(prevState => prevState + 1);
+  };
+
   const handleBack = () => {
     if (activeStep === 0) {
       return;
@@ -108,37 +113,39 @@ const WidgetCreate = () => {
         upperTitle="위젯"
         sx={{ paddingLeft: 0, paddingRight: 0, width: '100%', height: '100%' }}
         button={
-          <Stack>
-            <ConfirmCancelButton
-              cancelLabel="이전"
-              cancelProps={{
-                onClick: handleBack,
-                disabled: activeStep === 0,
-              }}
-              secondButton={
-                <React.Fragment>
-                  {activeStep !== 2 ? (
-                    <ConfirmButton
-                      confirmLabel="다음"
-                      confirmProps={{
-                        type: 'button',
-                        onClick: handleNext,
-                        disabled: isNextButtonDisabled,
-                      }}
-                    />
-                  ) : (
-                    <ConfirmButton
-                      confirmLabel="저장"
-                      confirmProps={{
-                        form: 'widgetAttribute',
-                        type: 'submit',
-                        variant: 'contained',
-                      }}
-                    />
-                  )}
-                </React.Fragment>
+          <Stack direction="row" gap="10px">
+            <Button
+              variant="contained"
+              onClick={handleBack}
+              disabled={activeStep === 0}
+              startIcon={
+                <SvgIcon component={LeftArrow} sx={{ width: '14px', height: '14px', padding: '1px' }} inheritViewBox />
               }
-            />
+              sx={{ color: '#fff' }}
+            >
+              이전
+            </Button>
+
+            {activeStep !== 2 ? (
+              <Button
+                variant="contained"
+                type="button"
+                onClick={handleTempNext}
+                disabled={isNextButtonDisabled}
+                endIcon={
+                  <SvgIcon
+                    component={LeftArrow}
+                    sx={{ width: '14px', height: '14px', transform: 'rotate(180deg)', padding: '1px' }}
+                    inheritViewBox
+                  />
+                }
+                sx={{ backgroundColor: '#043f84' }}
+              >
+                다음
+              </Button>
+            ) : (
+              ' '
+            )}
           </Stack>
         }
       >
@@ -153,6 +160,7 @@ const WidgetCreate = () => {
             activeStep={activeStep}
             sx={{
               width: { xs: '80%', sm: '50%' },
+              maxWidth: '564px',
               height: '72px',
               m: 'auto',
             }}

@@ -34,6 +34,7 @@ function Layout(props) {
       >
         {props.children}
       </Stack>
+      {/*{!fixed && <Footer />}*/}
       <Footer />
     </Box>
   );
