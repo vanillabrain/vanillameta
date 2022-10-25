@@ -41,21 +41,32 @@ const DataLayout = props => {
    */
   const getDatabaseList = () => {
     showLoading();
-    DatabaseService.selectDatabaseList().then(response => {
-      setDatabaseList(response.data.data);
-      if (response.data.data.length > 0) {
-        setSelectedDatabase({ databaseId: response.data.data[0].id });
-      }
-    });
+    DatabaseService.selectDatabaseList()
+      .then(response => {
+        setDatabaseList(response.data.data);
+        if (response.data.data.length > 0) {
+          setSelectedDatabase({ databaseId: response.data.data[0].id });
+        }
+      })
+      .finally(() => {
+        hideLoading();
+      });
   };
 
   const getDatabaseInfo = () => {
     showLoading();
-    DatabaseService.selectDatabase(selectedDatabase.databaseId).then(response => {
-      setDatasetList(response.data.data.datasets);
-      setTableList(response.data.data.tables);
-      hideLoading();
-    });
+    DatabaseService.selectDatabase(selectedDatabase.databaseId)
+      .then(response => {
+        setDatasetList(response.data.data.datasets);
+        setTableList(response.data.data.tables);
+      })
+      .catch(() => {
+        setDatasetList([]);
+        setTableList([]);
+      })
+      .finally(() => {
+        hideLoading();
+      });
   };
 
   const removeDatabase = (id, name) => {

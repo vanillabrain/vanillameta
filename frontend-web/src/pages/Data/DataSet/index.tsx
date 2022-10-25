@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useState } from 'react';
+import React, { useContext, useEffect, useLayoutEffect, useState } from 'react';
 import { MenuItem, Select, Stack, TextField } from '@mui/material';
 import { useAlert } from 'react-alert';
 import PageTitleBox from '@/components/PageTitleBox';
@@ -8,18 +8,21 @@ import AceEditor from 'react-ace';
 import 'ace-builds/src-noconflict/mode-mysql';
 import 'ace-builds/src-noconflict/theme-tomorrow';
 import 'ace-builds/src-noconflict/snippets/mysql';
-import 'ace-builds/src-min-noconflict/ext-language_tools';
+import LangTools from 'ace-builds/src-min-noconflict/ext-language_tools';
 import DataGrid from '@/components/datagrid';
 import DatabaseService from '@/api/databaseService';
 import DatasetService from '@/api/datasetService';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { STATUS } from '@/constant';
 import { getDatabaseIcon } from '@/widget/utils/iconUtil';
+import { LoadingContext } from '@/contexts/LoadingContext';
 
 const DataSet = () => {
   const { setId, sourceId } = useParams();
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const { showLoading, hideLoading } = useContext(LoadingContext);
+
   const [isModifyMode, setIsModifyMode] = useState(false);
   const [testCompleted, setTestCompleted] = useState(false);
   const [datasetInfo, setDatasetInfo] = useState({ databaseId: sourceId, title: '', query: '' });
@@ -28,6 +31,7 @@ const DataSet = () => {
   const [columns, setColumns] = useState([]);
   const [databaseId, setDatabaseId] = useState(null);
   const [databaseList, setDatabaseList] = useState([]);
+  const [tableList, setTableList] = useState([]);
   const alert = useAlert();
 
   useLayoutEffect(() => {
@@ -42,6 +46,14 @@ const DataSet = () => {
       getDatasetInfo();
     }
   }, []);
+
+  useEffect(() => {
+    if (databaseId) getDatabaseInfo();
+  }, [databaseId]);
+
+  useEffect(() => {
+    addCompleter();
+  }, [tableList]);
 
   /**
    * 데이터 그리드 컬럼 생성
@@ -60,8 +72,26 @@ const DataSet = () => {
     return columns;
   };
 
-  const onLoad = e => {
-    console.log(e);
+  const addCompleter = () => {
+    const rhymeCompleter = {
+      getCompletions: (editor, session, pos, prefix, callback) => {
+        if (prefix.length === 0) {
+          callback(null, []);
+          return;
+        }
+        callback(
+          null,
+          tableList.map(item => {
+            return {
+              name: item.tableName,
+              value: item.tableName,
+              meta: 'table',
+            };
+          }),
+        );
+      },
+    };
+    LangTools.addCompleter(rhymeCompleter);
   };
 
   const onChange = newValue => {
@@ -95,6 +125,21 @@ const DataSet = () => {
         }
       }
     });
+  };
+
+  const getDatabaseInfo = () => {
+    showLoading();
+    DatabaseService.selectDatabase(databaseId)
+      .then(response => {
+        setTableList(response.data.data.tables);
+        console.log('tableList ', response.data.data.tables);
+      })
+      .catch(() => {
+        setTableList([]);
+      })
+      .finally(() => {
+        hideLoading();
+      });
   };
 
   /**
@@ -244,7 +289,6 @@ const DataSet = () => {
           mode="mysql"
           theme="tomorrow"
           name="codeInput"
-          onLoad={onLoad}
           onChange={onChange}
           fontSize={14}
           showPrintMargin={true}
