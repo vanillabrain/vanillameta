@@ -123,7 +123,7 @@ export const SmallButton = props => {
   return (
     <IconButton size="small" sx={{ width: '38px', height: '38px', flex: 'none' }} {...rest}>
       <SvgIcon fontSize="small">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" fill="#141414">
           {icon}
         </svg>
       </SvgIcon>
