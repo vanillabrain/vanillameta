@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Divider, Grid, List, Stack, styled } from '@mui/material';
+import { Divider, Grid, List, Stack, styled, Typography } from '@mui/material';
 import { WIDGET_TYPE } from '@/constant';
 import LineChartSetting from '@/widget/settings/LineChartSetting';
 import PieChartSetting from '@/widget/settings/PieChartSetting';
@@ -27,16 +27,14 @@ import MixedLineStackedBarChartSetting from '@/widget/settings/MixedLineStackedB
 import FunnelChartSetting from '@/widget/settings/FunnelChartSetting';
 
 const StyledList = styled(List)({
-  // display: 'flex',
-  // flexWrap: 'wrap',
+  padding: 0,
+
   '& .MuiListItemText-root': {
     width: '100%',
-    marginBottom: 10,
   },
   '& .MuiListItemText-primary': {
-    mb: 1,
     textAlign: 'left',
-    fontWeight: 500,
+    fontWeight: 'bold',
     fontSize: 14,
   },
   '& .MuiListItem-root': {
@@ -45,11 +43,15 @@ const StyledList = styled(List)({
     rowGap: 8,
     width: '100%',
     padding: '30px 0 30px',
+
+    hr: {
+      height: '4px',
+    },
   },
 });
 
 const WidgetSetting = props => {
-  const { title, setTitle, widgetOption, setWidgetOption, widgetType, dataSet, spec } = props;
+  const { title, setTitle, widgetOption, setWidgetOption, widgetType, widgetName, widgetDescription, dataSet, spec } = props;
 
   const [module, setModule] = useState(null);
   useEffect(() => {
@@ -302,16 +304,36 @@ const WidgetSetting = props => {
       sx={{
         width: '440px',
         height: '100%',
-        border: '1px solid #DADDDD',
         px: '24px',
         py: '30px',
         overflowY: 'auto !important',
         flex: 'auto',
         minHeight: 0,
         minWidth: 0,
+        backgroundColor: '#fff',
       }}
     >
+      <Stack direction="row" mb="16px">
+        <Typography
+          component="span"
+          sx={{
+            fontWeight: 'bold',
+            color: '#767676',
+          }}
+        >
+          {widgetName}
+        </Typography>
+        <Typography
+          component="span"
+          sx={{
+            color: '#767676',
+          }}
+        >
+          {`(${widgetDescription})`}
+        </Typography>
+      </Stack>
       <WidgetTitleForm value={title} onChange={event => setTitle(event.target.value)} />
+      <Divider sx={{ mt: '30px' }} />
       <Grid item xs={10} md={4} lg={3} sx={{ display: 'flex', flexDirection: 'column' }}>
         <StyledList>{module}</StyledList>
       </Grid>

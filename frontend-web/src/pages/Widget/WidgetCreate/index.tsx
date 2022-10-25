@@ -21,10 +21,50 @@ const WidgetCreate = () => {
   const [dataset, setDataset] = useState(null); // step 1
   const [widgetOption, setWidgetOption] = useState(null); // step 2
 
-  // 개발 편의상 임시로 적용
   useEffect(() => {
-    // setDatasetId(688279);
-    // setActiveStep(1);
+    // ------------------ 개발 편의상 임시로 적용
+    setDataset({
+      createdAt: '2022-10-21T01:59:12.341Z',
+      databaseId: 1,
+      datasetType: 'DATASET',
+      id: 13,
+      query:
+        '"select A.*, IFNULL(B.productName, C.codeName) as productName\n' +
+        'from\n' +
+        '    (select *\n' +
+        '    from Settlement\n' +
+        "    where vendorId = 'A00197496'and\n" +
+        '          orderDate < 20220701 and 20220601 <= orderDate) A \n' +
+        '    left join Product B\n' +
+        '        on A.productId = B.productId\n' +
+        "    left join (select code, codeName from CommonCode where pCode='settleDetailType') C\n" +
+        '        on C.code = A.settleDetailType"',
+      title: 'SattlementSample2',
+      updatedAt: '2022-10-21T01:59:12.341Z',
+    });
+    setWidgetOption({
+      id: 9,
+      category: 'SQUARE',
+      componentType: 'CHART_RADAR',
+      description: 'Radar Chart',
+      icon: 'icon/ct-radar.svg',
+      option: {
+        title: '',
+        field: '',
+        series: [
+          {
+            aggregation: 'sum',
+            color: '#2870c5',
+            field: '',
+          },
+        ],
+        legendPosition: '',
+      },
+      seq: null,
+      title: '방사형 차트',
+    });
+    setActiveStep(2);
+    // --------------- 작업 완료 후 삭제예정
     getComponentList();
   }, []);
 

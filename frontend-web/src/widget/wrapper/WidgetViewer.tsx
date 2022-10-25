@@ -436,7 +436,6 @@ const WidgetViewer = props => {
       sx={{
         width: '100%',
         height: '500px',
-        border: '1px solid #DADDDD',
       }}
     >
       <Stack
@@ -447,6 +446,8 @@ const WidgetViewer = props => {
           width: '100%',
           height: '50px',
           paddingLeft: '20px',
+          paddingTop: '18px',
+          paddingBottom: '12px',
         }}
       >
         <Typography

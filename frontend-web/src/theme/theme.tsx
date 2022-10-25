@@ -73,6 +73,12 @@ export default createTheme({
         margin: 'none',
         size: 'small',
       },
+      styleOverrides: {
+        root: {
+          height: '32px',
+          margin: 0,
+        },
+      },
     },
     MuiFormHelperText: {
       defaultProps: {
@@ -102,10 +108,21 @@ export default createTheme({
         margin: 'dense',
         size: 'small',
       },
+      styleOverrides: {
+        root: {
+          transform: 'translate(14px, 7px) scale(1)',
+          // display: 'flex',
+          // alignItems: 'center',
+        },
+        shrink: {
+          transform: 'translate(14px, -9px) scale(0.75)',
+        },
+      },
     },
     MuiOutlinedInput: {
       styleOverrides: {
         root: {
+          height: '32px',
           backgroundColor: '#fff',
         },
       },

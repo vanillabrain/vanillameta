@@ -3,7 +3,6 @@ import { Box, Stack } from '@mui/material';
 
 import Header from './Header/Header';
 import Footer from './Footer/Footer';
-import { useLocation } from 'react-router-dom';
 import { LayoutContext } from '@/contexts/LayoutContext';
 
 function Layout(props) {
@@ -36,7 +35,7 @@ function Layout(props) {
       >
         {props.children}
       </Stack>
-      <Footer height={footerHeight} />
+      {!fixed && <Footer height={footerHeight} />}
     </Box>
   );
 }

@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { FormControl, FormLabel, IconButton, OutlinedInput, Popover, Stack, Typography } from '@mui/material';
+import React, { useState } from 'react';
+import { FormControl, IconButton, Popover } from '@mui/material';
 import CircleIcon from '@mui/icons-material/Circle';
 import { SketchPicker } from 'react-color';
 
-function ColorFieldForm(props) {
-  const { id, label, value, option, setOption, index, ...rest } = props;
+function ColorButtonForm(props) {
+  const { option, setOption, index } = props;
 
   const color = option.series[index].color || '#eee';
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
@@ -55,4 +55,4 @@ function ColorFieldForm(props) {
   );
 }
 
-export default ColorFieldForm;
+export default ColorButtonForm;
