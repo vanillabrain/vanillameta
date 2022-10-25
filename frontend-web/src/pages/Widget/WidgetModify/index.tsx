@@ -123,7 +123,7 @@ const WidgetModify = props => {
         <WidgetAttributeSelect
           isModifyMode={true}
           dataSetId={widgetInfo.datasetId}
-          widgetInfo={widgetInfo}
+          widgetOption={widgetInfo}
           saveWidgetInfo={saveWidgetInfo}
         />
       </PageTitleBox>

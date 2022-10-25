@@ -8,7 +8,7 @@ function BubbleChart(props) {
   const [componentOption, setComponentOption] = useState({});
 
   const defaultComponentOption = {
-    grid: { top: 50, right: 50, bottom: 50, left: 50 },
+    grid: { top: '3%', right: '3%', bottom: '3%', left: '3%' },
     tooltip: { trigger: 'axis' },
     xAxis: {
       scale: true,
@@ -52,6 +52,7 @@ function BubbleChart(props) {
             return Math.sqrt(data[2]);
           },
           color: item.color,
+          label: { show: option.label },
           ...seriesOp,
         };
         newSeries.push(series);

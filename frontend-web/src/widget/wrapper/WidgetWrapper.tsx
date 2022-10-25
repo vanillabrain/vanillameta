@@ -16,13 +16,12 @@ const WidgetWrapper = props => {
     }
   }, [dataSetId]);
 
+  /**
+   * 데이터셋 조회
+   */
   const getData = () => {
-    // dataSetId 로 데이터 조회
-    // axios.get('/data/sample/chartFull.json').then(response => {
-    //   setData(response.data.data);
-    //   setSpec(response.data.spec);
-    // });
-    DatabaseService.selectData(widgetOption).then(response => {
+    const param = { datasetType: widgetOption.datasetType, datasetId: widgetOption.datasetId };
+    DatabaseService.selectData(param).then(response => {
       console.log('selectData', response.data);
       if (response.data.status === STATUS.SUCCESS) {
         setDataset(response.data.data.datas);

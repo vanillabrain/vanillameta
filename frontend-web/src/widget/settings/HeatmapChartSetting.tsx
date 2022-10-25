@@ -2,19 +2,14 @@ import React from 'react';
 import { Divider, Grid, List, ListItem, ListItemText, styled } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
-import { AGGREGATION_LIST, COLUMN_TYPE } from '@/constant';
+import { AGGREGATION_LIST, COLUMN_TYPE, LABEL_LIST } from '@/constant';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
 import ColorFieldForm from '@/components/form/ColorFieldForm';
 
 const HeatmapChartSetting = props => {
   const { option, setOption, spec } = props;
 
-  // console.log(option, 'option');
-
-  // 컴포넌트 별 default series
-  const defaultSeries = {
-    field: '',
-  };
+  console.log(option, 'option');
 
   return (
     <React.Fragment>
@@ -62,6 +57,13 @@ const HeatmapChartSetting = props => {
           value={option.aggregation}
           onChange={event => handleChange(event, setOption)}
           disabledDefaultValue
+        />
+        <SelectForm
+          name="label"
+          label="레이블"
+          optionList={LABEL_LIST}
+          value={option.label}
+          onChange={event => handleChange(event, setOption)}
         />
       </ListItem>
       <ListItem>

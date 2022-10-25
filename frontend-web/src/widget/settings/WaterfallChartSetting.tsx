@@ -1,8 +1,8 @@
 import React from 'react';
-import { ListItem, ListItemText } from '@mui/material';
+import { Divider, ListItem, ListItemText } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import { handleChange, handleSeriesChange } from '@/widget/utils/handler';
-import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST, WIDGET_AGGREGATION } from '@/constant';
+import { AGGREGATION_LIST, COLUMN_TYPE, LABEL_LIST, LEGEND_LIST } from '@/constant';
 import ColorFieldForm from '@/components/form/ColorFieldForm';
 
 const WaterfallChartSetting = props => {
@@ -45,6 +45,14 @@ const WaterfallChartSetting = props => {
           value={option.series[0].aggregation}
           onChange={event => handleSeriesChange(event, setOption)}
           disabledDefaultValue
+        />
+        <Divider />
+        <SelectForm
+          name="mark"
+          label="마크 포인트"
+          optionList={LABEL_LIST}
+          value={option.mark}
+          onChange={event => handleChange(event, setOption)}
         />
       </ListItem>
       <ListItem divider>

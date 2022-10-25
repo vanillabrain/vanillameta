@@ -8,7 +8,7 @@ const CandlestickChart = props => {
   const [componentOption, setComponentOption] = useState({});
 
   const defaultComponentOption = {
-    grid: { top: 50, right: 50, bottom: 50, left: 50 },
+    grid: { top: '3%', right: '3%', bottom: '3%', left: '3%' },
     tooltip: {
       trigger: 'axis',
       axisPointer: {
@@ -86,6 +86,20 @@ const CandlestickChart = props => {
               color0: option.series[1].color,
               borderColor: option.series[2].color,
               borderColor0: option.series[3].color,
+            },
+            markPoint: option.mark && {
+              data: [
+                {
+                  name: 'highest value',
+                  type: 'max',
+                  valueDim: 'highest',
+                },
+                {
+                  name: 'lowest value',
+                  type: 'min',
+                  valueDim: 'lowest',
+                },
+              ],
             },
           },
         ],

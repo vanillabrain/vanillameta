@@ -13,13 +13,13 @@ import { useNavigate } from 'react-router-dom';
 const title = '위젯 생성';
 const steps = ['데이터 선택', '위젯 타입 선택', '위젯 속성 설정'];
 
-const WidgetCreate = props => {
+const WidgetCreate = () => {
   const navigate = useNavigate();
   const [activeStep, setActiveStep] = useState(0);
 
   const [componentList, setComponentList] = useState([]); // step 1
   const [dataset, setDataset] = useState(null); // step 1
-  const [widgetInfo, setWidgetInfo] = useState(null); // step 2
+  const [widgetOption, setWidgetOption] = useState(null); // step 2
 
   // 개발 편의상 임시로 적용
   useEffect(() => {
@@ -32,19 +32,18 @@ const WidgetCreate = props => {
 
   useEffect(() => {
     console.log('dataset', dataset);
-    // console.log('widgetInfo', widgetInfo);
     if (activeStep === 0 && !!dataset) {
       setIsNextButtonDisabled(false);
       return;
     }
 
-    if (activeStep === 1 && !!widgetInfo) {
+    if (activeStep === 1 && !!widgetOption) {
       setIsNextButtonDisabled(false);
       return;
     }
 
     setIsNextButtonDisabled(true);
-  }, [activeStep, dataset, widgetInfo]);
+  }, [activeStep, dataset, widgetOption]);
 
   const getComponentList = () => {
     componentService.selectComponentList().then(res => {
@@ -58,7 +57,7 @@ const WidgetCreate = props => {
       title: title,
       description: title,
       databaseId: dataset.databaseId,
-      componentId: widgetInfo.id,
+      componentId: widgetOption.id,
       // 'DATASET', 'WIDGET_VIEW'
       datasetType: dataset.datasetType,
       datasetId: dataset.datasetId,
@@ -81,7 +80,7 @@ const WidgetCreate = props => {
       // setDataset(item);
     }
     if (activeStep === 1) {
-      setWidgetInfo(item);
+      setWidgetOption(item);
     }
     setActiveStep(prevState => prevState + 1);
   };
@@ -96,7 +95,7 @@ const WidgetCreate = props => {
     }
 
     if (activeStep === 2) {
-      setWidgetInfo(null);
+      setWidgetOption(null);
     }
 
     setActiveStep(prevState => prevState - 1);
@@ -169,13 +168,13 @@ const WidgetCreate = props => {
           <WidgetDataSelect setDataSet={setDataset} handleNext={handleNext} />
         ) : activeStep === 1 ? (
           <WidgetTypeSelect
-            widgetInfo={widgetInfo}
-            setWidgetType={setWidgetInfo}
+            widgetOption={widgetOption}
+            setWidgetType={setWidgetOption}
             componentList={componentList}
             handleNext={handleNext}
           />
         ) : (
-          <WidgetAttributeSelect dataset={dataset} widgetInfo={widgetInfo} saveWidgetInfo={saveWidgetInfo} />
+          <WidgetAttributeSelect dataset={dataset} widgetOption={widgetOption} saveWidgetInfo={saveWidgetInfo} />
         )}
       </PageTitleBox>
     </PageContainer>

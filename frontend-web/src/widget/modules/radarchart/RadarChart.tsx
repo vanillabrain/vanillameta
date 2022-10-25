@@ -65,6 +65,7 @@ const RadarChart = props => {
           {
             type: 'radar',
             data: newSeriesData,
+            label: { show: option.label },
           },
         ],
         legend: getLegendOption(option.legendPosition),

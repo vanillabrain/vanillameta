@@ -8,7 +8,7 @@ const TreemapChart = props => {
   const [componentOption, setComponentOption] = useState({});
 
   const defaultComponentOption = {
-    grid: { top: 50, right: 50, bottom: 50, left: 50 },
+    grid: { top: '3%', right: '3%', bottom: '3%', left: '3%' },
     tooltip: {
       trigger: 'item',
     },
@@ -41,7 +41,7 @@ const TreemapChart = props => {
     const newSeries = [];
     let aggrData = [];
 
-    if (option.series.name) {
+    if (option.series.name && option.series.field) {
       aggrData = getAggregationDataForChart(dataSet, option.series.name, option.series.field, option.series.aggregation);
       // console.log(aggrData);
 
@@ -54,6 +54,9 @@ const TreemapChart = props => {
           //   color: option.series.color[index],
           // },
         })),
+        label: {
+          show: option.label,
+        },
         type: 'treemap',
         ...seriesOp,
       };
@@ -75,8 +78,8 @@ const TreemapChart = props => {
         series: newSeries,
         visualMap: {
           type: 'continuous',
-          min: minValue,
-          max: maxValue,
+          min: !Number.isNaN(minValue) && minValue,
+          max: !Number.isNaN(maxValue) && maxValue,
           inRange: {
             color: option.series.color.map(item => item),
           },

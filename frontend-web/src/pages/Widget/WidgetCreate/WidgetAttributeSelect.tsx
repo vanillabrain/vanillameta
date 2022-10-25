@@ -9,7 +9,7 @@ import { STATUS } from '@/constant';
 const WidgetAttributeSelect = props => {
   const alert = useAlert();
 
-  const { widgetInfo, prevOption, saveWidgetInfo, dataset, isModifyMode = false } = props;
+  const { widgetOption, prevOption, saveWidgetInfo, dataset, isModifyMode = false } = props;
 
   const [option, setOption] = useState(null);
   const [data, setData] = useState(null);
@@ -17,24 +17,19 @@ const WidgetAttributeSelect = props => {
   const [title, setTitle] = useState('');
 
   useEffect(() => {
-    if (dataset || widgetInfo) {
+    if (dataset || widgetOption) {
       getData();
     }
-  }, [dataset, widgetInfo]);
+  }, [dataset, widgetOption]);
 
   useEffect(() => {
-    setTitle(widgetInfo.title);
-    setOption(JSON.parse(JSON.stringify(widgetInfo.option)));
-  }, [widgetInfo]);
+    setTitle(widgetOption.title);
+    setOption(JSON.parse(JSON.stringify(widgetOption.option)));
+  }, [widgetOption]);
 
   const getData = () => {
-    // dataSetId 로 데이터 조회
-    // axios.get('/data/sample/chartFull.json').then(response => {
-    //   setData(response.data.data);
-    //   setSpec(response.data.spec);
-    // });
-    // DashboardService.selectData(`/data?datasetType=${dataset.datasetType}&datasetId=${dataset.datasetId}`).then(response => {
-    DatabaseService.selectData(isModifyMode ? widgetInfo : dataset).then(response => {
+    const param = isModifyMode ? { datasetType: widgetOption.datasetType, datasetId: widgetOption.datasetId } : dataset;
+    DatabaseService.selectData(param).then(response => {
       console.log('selectData', response.data);
       if (response.data.status === STATUS.SUCCESS) {
         setData(response.data.data.datas);
@@ -79,11 +74,11 @@ const WidgetAttributeSelect = props => {
       id="widgetAttribute"
       component="form"
     >
-      <WidgetViewer title={title} widgetType={widgetInfo.componentType} widgetOption={option} dataSet={data} />
+      <WidgetViewer title={title} widgetType={widgetOption.componentType} widgetOption={option} dataSet={data} />
       <WidgetSetting
         title={title}
         setTitle={setTitle}
-        widgetType={widgetInfo.componentType}
+        widgetType={widgetOption.componentType}
         widgetOption={option}
         setWidgetOption={setOption}
         dataSet={data}
