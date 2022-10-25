@@ -50,6 +50,7 @@ const DataLayout = props => {
   };
 
   const getDatabaseInfo = () => {
+    showLoading();
     DatabaseService.selectDatabase(selectedDatabase.databaseId).then(response => {
       setDatasetList(response.data.data.datasets);
       setTableList(response.data.data.tables);

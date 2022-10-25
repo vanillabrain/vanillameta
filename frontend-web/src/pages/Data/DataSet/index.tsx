@@ -1,7 +1,6 @@
 import React, { useLayoutEffect, useState } from 'react';
 import { MenuItem, Select, Stack, TextField } from '@mui/material';
 import { useAlert } from 'react-alert';
-import PageContainer from '@/components/PageContainer';
 import PageTitleBox from '@/components/PageTitleBox';
 import SubmitButton from '@/components/button/SubmitButton';
 import ConfirmCancelButton from '@/components/button/ConfirmCancelButton';
@@ -28,7 +27,7 @@ const DataSet = () => {
   const [data, setData] = useState([]);
   const [columns, setColumns] = useState([]);
   const [databaseId, setDatabaseId] = useState(null);
-  const [typeList, setTypeList] = useState([]);
+  const [databaseList, setDatabaseList] = useState([]);
   const alert = useAlert();
 
   useLayoutEffect(() => {
@@ -85,12 +84,12 @@ const DataSet = () => {
    * 데이터베이스 타입 목록 조회
    */
   const getDatabaseTypeList = () => {
-    DatabaseService.selectDatabaseTypeList().then(response => {
+    DatabaseService.selectDatabaseList().then(response => {
       console.log('selectDatabaseTypeList', response.data);
       if (response.data.status === STATUS.SUCCESS) {
         const list = response.data.data;
         list.map(item => (item.icon = getDatabaseIcon(item.type)));
-        setTypeList(list);
+        setDatabaseList(list);
         if (!isModifyMode && list.length > 0) {
           setDatabaseId(list[0].id);
         }
@@ -116,6 +115,9 @@ const DataSet = () => {
    * 쿼리 실행
    */
   const excuteQuery = () => {
+    if (datasetInfo.query.trim().length < 1) {
+      alert.info('쿼리를 입력해주세요.');
+    }
     const param = {
       id: 1,
       query: datasetInfo.query,
@@ -182,98 +184,95 @@ const DataSet = () => {
   };
 
   return (
-    <PageContainer>
-      <PageTitleBox
-        title={`데이터셋 ${isModifyMode ? '수정' : '생성'}`}
-        sx={{ p: 0 }}
-        button={
-          <Stack>
-            <ConfirmCancelButton
-              cancelLabel="이전"
-              cancelProps={{
-                onClick: handleCancel,
-              }}
-              confirmLabel="저장"
-              confirmProps={{
-                disabled: !testCompleted,
-                form: 'datasetForm',
-                type: 'submit',
-                variant: 'contained',
-              }}
-            />
-          </Stack>
-        }
+    <PageTitleBox
+      title={`데이터셋 ${isModifyMode ? '수정' : '생성'}`}
+      sx={{ p: 0 }}
+      button={
+        <Stack>
+          <ConfirmCancelButton
+            cancelLabel="이전"
+            cancelProps={{
+              onClick: handleCancel,
+            }}
+            confirmLabel="저장"
+            confirmProps={{
+              disabled: !testCompleted,
+              form: 'datasetForm',
+              type: 'submit',
+              variant: 'contained',
+            }}
+          />
+        </Stack>
+      }
+    >
+      <Stack
+        id="datasetForm"
+        component="form"
+        flexDirection="column"
+        spacing="20px"
+        sx={{ p: '30px 25px 40px 25px' }}
+        onSubmit={saveDataset}
       >
-        <Stack
-          id="datasetForm"
-          component="form"
-          flexDirection="column"
-          spacing="20px"
-          sx={{ p: '30px 25px 40px 25px' }}
-          onSubmit={saveDataset}
+        <Select
+          id="databaseId"
+          sx={{ width: '500px' }}
+          displayEmpty
+          disabled={isModifyMode}
+          size="small"
+          value={databaseId || ''}
+          onChange={onChangeDatabaseId}
         >
-          <Select
-            id="databaseId"
-            fullWidth
-            displayEmpty
-            disabled={isModifyMode}
-            size="small"
-            value={databaseId || ''}
-            onChange={onChangeDatabaseId}
-          >
-            {typeList.map(item => (
-              <MenuItem key={item.id} value={item.id ?? ''}>
-                {item.title}
-              </MenuItem>
-            ))}
-          </Select>
+          {databaseList.map(item => (
+            <MenuItem key={item.id} value={item.id ?? ''}>
+              {item.name}
+            </MenuItem>
+          ))}
+        </Select>
 
-          <TextField
-            id="userSetName"
-            label="데이터셋 이름"
-            placeholder="데이터셋의 이름을 입력해 주세요"
-            value={datasetInfo?.title}
-            onChange={onChangeTitle}
-            autoFocus
-            required
-            // helperText="데이터셋의 이름을 입력해 주세요"
-          />
-          <AceEditor
-            placeholder="Please enter a query."
-            style={{ width: '100%', height: '200px', border: 'solid 1px #ddd' }}
-            mode="mysql"
-            theme="tomorrow"
-            name="codeInput"
-            onLoad={onLoad}
-            onChange={onChange}
-            fontSize={14}
-            showPrintMargin={true}
-            showGutter={true}
-            highlightActiveLine={true}
-            value={datasetInfo.query}
-            setOptions={{
-              enableBasicAutocompletion: true,
-              enableLiveAutocompletion: true,
-              enableSnippets: true,
-              showLineNumbers: true,
-              tabSize: 2,
-            }}
-          />
-          <SubmitButton label="Run" type="button" sx={{ width: '374px', height: '50px' }} onClick={excuteQuery} />
-        </Stack>
-        <Stack sx={{ p: '30px 25px 40px 25px', backgroundColor: '#f5f6f8' }}>
-          <DataGrid
-            minBodyHeight={300}
-            bodyHeight={500}
-            data={data}
-            columns={columns}
-            columnOptions={{
-              resizable: true,
-            }}
-          />
-        </Stack>
-      </PageTitleBox>
-    </PageContainer>
+        <TextField
+          id="userSetName"
+          label="데이터셋 이름"
+          placeholder="데이터셋의 이름을 입력해 주세요"
+          value={datasetInfo?.title}
+          onChange={onChangeTitle}
+          required
+          // helperText="데이터셋의 이름을 입력해 주세요"
+        />
+        <AceEditor
+          placeholder="Please enter a query."
+          style={{ width: '100%', height: '200px', border: 'solid 1px #ddd' }}
+          mode="mysql"
+          theme="tomorrow"
+          name="codeInput"
+          onLoad={onLoad}
+          onChange={onChange}
+          fontSize={14}
+          showPrintMargin={true}
+          showGutter={true}
+          highlightActiveLine={true}
+          value={datasetInfo.query}
+          setOptions={{
+            enableBasicAutocompletion: true,
+            enableLiveAutocompletion: true,
+            enableSnippets: true,
+            showLineNumbers: true,
+            tabSize: 2,
+          }}
+        />
+        <SubmitButton label="Run" type="button" sx={{ width: '374px', height: '50px' }} onClick={excuteQuery} />
+      </Stack>
+      <Stack sx={{ p: '30px 25px 40px 25px', backgroundColor: '#f5f6f8' }}>
+        <DataGrid
+          minBodyHeight={300}
+          bodyHeight={500}
+          data={data}
+          columns={columns}
+          columnOptions={{
+            resizable: true,
+          }}
+        />
+      </Stack>
+    </PageTitleBox>
   );
 };
 

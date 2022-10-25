@@ -1,16 +1,15 @@
 import React from 'react';
-import { Box, Divider, Typography } from '@mui/material';
+import { Stack, Typography } from '@mui/material';
 
-function Footer(props) {
-  const footerHeight = props.height;
+const Footer = props => {
+  const { height } = props;
 
   return (
-    <Box sx={{ height: footerHeight }}>
+    <Stack sx={{ height: height, alignItems: 'center', justifyContent: 'center' }}>
       <Typography
         sx={{
           width: '100%',
           height: '16px',
-          margin: '40px 0 0 0',
           fontFamily: 'Pretendard',
           fontSize: '13px',
           fontWeight: 'normal',
@@ -24,8 +23,8 @@ function Footer(props) {
       >
         @ Vanilla Meta 2022
       </Typography>
-    </Box>
+    </Stack>
   );
-}
+};
 
 export default Footer;
