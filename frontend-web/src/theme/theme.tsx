@@ -48,9 +48,24 @@ export default createTheme({
         size: 'small',
       },
     },
+
     MuiButton: {
       defaultProps: {
         size: 'small',
+      },
+      styleOverrides: {
+        root: {
+          height: '32px',
+          borderRadius: '8px',
+          paddingLeft: '14px',
+          paddingRight: '14px',
+          // color: '#fff',
+
+          '&.Mui-disabled': {
+            color: '#fff',
+            backgroundColor: '#9b9ea9',
+          },
+        },
       },
     },
     MuiButtonGroup: {

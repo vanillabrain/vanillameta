@@ -2,9 +2,9 @@ import React from 'react';
 import { Box, Button, Stack } from '@mui/material';
 
 export const ConfirmButton = props => {
-  const { confirmLabel, confirmProps } = props;
+  const { confirmLabel, confirmProps, sx } = props;
   return (
-    <Button variant="contained" sx={{ minWidth: '55px', minHeight: '32px' }} {...confirmProps}>
+    <Button variant="contained" sx={{ minWidth: '55px', minHeight: '32px', ...sx }} {...confirmProps}>
       {confirmLabel}
     </Button>
   );

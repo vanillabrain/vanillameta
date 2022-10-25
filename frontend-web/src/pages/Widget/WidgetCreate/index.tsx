@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Stack, Step, StepLabel, Stepper } from '@mui/material';
+import { Box, Button, Stack, Step, StepLabel, Stepper, SvgIcon } from '@mui/material';
 import PageTitleBox from '@/components/PageTitleBox';
 import PageContainer from '@/components/PageContainer';
-import ConfirmCancelButton, { ConfirmButton } from '@/components/button/ConfirmCancelButton';
 import WidgetDataSelect from './WidgetDataSelect';
 import WidgetTypeSelect from './WidgetTypeSelect';
 import WidgetAttributeSelect from './WidgetAttributeSelect';
 import componentService from '@/api/componentService';
 import widgetService from '@/api/widgetService';
 import { useNavigate } from 'react-router-dom';
+import { ReactComponent as LeftArrow } from '@/assets/images/icon/angle-left.svg';
 
 const title = '위젯 생성';
 const steps = ['데이터 선택', '위젯 타입 선택', '위젯 속성 설정'];
@@ -22,49 +22,6 @@ const WidgetCreate = () => {
   const [widgetOption, setWidgetOption] = useState(null); // step 2
 
   useEffect(() => {
-    // ------------------ 개발 편의상 임시로 적용
-    setDataset({
-      createdAt: '2022-10-21T01:59:12.341Z',
-      databaseId: 1,
-      datasetType: 'DATASET',
-      id: 13,
-      query:
-        '"select A.*, IFNULL(B.productName, C.codeName) as productName\n' +
-        'from\n' +
-        '    (select *\n' +
-        '    from Settlement\n' +
-        "    where vendorId = 'A00197496'and\n" +
-        '          orderDate < 20220701 and 20220601 <= orderDate) A \n' +
-        '    left join Product B\n' +
-        '        on A.productId = B.productId\n' +
-        "    left join (select code, codeName from CommonCode where pCode='settleDetailType') C\n" +
-        '        on C.code = A.settleDetailType"',
-      title: 'SattlementSample2',
-      updatedAt: '2022-10-21T01:59:12.341Z',
-    });
-    setWidgetOption({
-      id: 9,
-      category: 'SQUARE',
-      componentType: 'CHART_RADAR',
-      description: 'Radar Chart',
-      icon: 'icon/ct-radar.svg',
-      option: {
-        title: '',
-        field: '',
-        series: [
-          {
-            aggregation: 'sum',
-            color: '#2870c5',
-            field: '',
-          },
-        ],
-        legendPosition: '',
-      },
-      seq: null,
-      title: '방사형 차트',
-    });
-    setActiveStep(2);
-    // --------------- 작업 완료 후 삭제예정
     getComponentList();
   }, []);
 
@@ -125,6 +82,14 @@ const WidgetCreate = () => {
     setActiveStep(prevState => prevState + 1);
   };
 
+  // TODO: 코드 고치는 중
+  const handleTempNext = () => {
+    if (activeStep === steps.length - 1) {
+      return;
+    }
+    setActiveStep(prevState => prevState + 1);
+  };
+
   const handleBack = () => {
     if (activeStep === 0) {
       return;
@@ -148,37 +113,39 @@ const WidgetCreate = () => {
         upperTitle="위젯"
         sx={{ paddingLeft: 0, paddingRight: 0, width: '100%', height: '100%' }}
         button={
-          <Stack>
-            <ConfirmCancelButton
-              cancelLabel="이전"
-              cancelProps={{
-                onClick: handleBack,
-                disabled: activeStep === 0,
-              }}
-              secondButton={
-                <React.Fragment>
-                  {activeStep !== 2 ? (
-                    <ConfirmButton
-                      confirmLabel="다음"
-                      confirmProps={{
-                        type: 'button',
-                        onClick: handleNext,
-                        disabled: isNextButtonDisabled,
-                      }}
-                    />
-                  ) : (
-                    <ConfirmButton
-                      confirmLabel="저장"
-                      confirmProps={{
-                        form: 'widgetAttribute',
-                        type: 'submit',
-                        variant: 'contained',
-                      }}
-                    />
-                  )}
-                </React.Fragment>
+          <Stack direction="row" gap="10px">
+            <Button
+              variant="contained"
+              onClick={handleBack}
+              disabled={activeStep === 0}
+              startIcon={
+                <SvgIcon component={LeftArrow} sx={{ width: '14px', height: '14px', padding: '1px' }} inheritViewBox />
               }
-            />
+              sx={{ color: '#fff' }}
+            >
+              이전
+            </Button>
+
+            {activeStep !== 2 ? (
+              <Button
+                variant="contained"
+                type="button"
+                onClick={handleTempNext}
+                disabled={isNextButtonDisabled}
+                endIcon={
+                  <SvgIcon
+                    component={LeftArrow}
+                    sx={{ width: '14px', height: '14px', transform: 'rotate(180deg)', padding: '1px' }}
+                    inheritViewBox
+                  />
+                }
+                sx={{ backgroundColor: '#043f84' }}
+              >
+                다음
+              </Button>
+            ) : (
+              ' '
+            )}
           </Stack>
         }
       >
@@ -193,6 +160,7 @@ const WidgetCreate = () => {
             activeStep={activeStep}
             sx={{
               width: { xs: '80%', sm: '50%' },
+              maxWidth: '564px',
               height: '72px',
               m: 'auto',
             }}

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Divider, Stack, Typography } from '@mui/material';
+import { Stack, Typography } from '@mui/material';
 import { WIDGET_TYPE } from '@/constant';
 import LineChart from '@/widget/modules/linechart/LineChart';
 import PieChart from '@/widget/modules/piechart/PieChart';
@@ -454,7 +454,6 @@ const WidgetViewer = props => {
           variant="subtitle1"
           component="span"
           sx={{
-            fontFamily: 'Pretendard',
             fontSize: '16px',
             fontWeight: '600',
             fontStretch: 'normal',

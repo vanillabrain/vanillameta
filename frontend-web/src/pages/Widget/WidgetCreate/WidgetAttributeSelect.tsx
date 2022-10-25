@@ -78,12 +78,14 @@ const WidgetAttributeSelect = props => {
   return (
     <Stack
       direction="row"
+      justifyContent="space-between"
       sx={{
         width: '100%',
         height: `calc(100% - ${top}px)`,
         backgroundColor: '#f5f6f8',
         backgroundImage: `url(${grid})`,
         backgroundRepeat: 'repeat',
+        flexGrow: 1,
       }}
       onSubmit={handleSubmit}
       id="widgetAttribute"
