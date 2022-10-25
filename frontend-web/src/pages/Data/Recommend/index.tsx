@@ -102,15 +102,7 @@ function Recommend(props) {
             <DialogTitle>대시보드 생성</DialogTitle>
             <DialogContent>
               <DialogContentText>생성할 대시보드의 이름을 작성해주세요.</DialogContentText>
-              <TextField
-                autoFocus
-                margin="dense"
-                id="dashboardName"
-                label="대시보드 이름"
-                type="text"
-                fullWidth
-                variant="standard"
-              />
+              <TextField margin="dense" id="dashboardName" label="대시보드 이름" type="text" fullWidth variant="standard" />
             </DialogContent>
             <DialogActions>
               <Button onClick={handleCompleteClose}>취소</Button>
