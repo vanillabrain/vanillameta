@@ -70,14 +70,14 @@ const AlertDialog = ({ close, message, options }: IProps) => {
                 close();
               }}
               variant="contained"
-              color="secondary"
+              color="primary"
               sx={buttonStyle}
               key={index}
             >
               {action.copy}
             </Button>
           ))}
-        <Button variant="contained" color="secondary" sx={buttonStyle} onClick={close}>
+        <Button variant="contained" color="primary" sx={buttonStyle} onClick={close}>
           {options.closeCopy || '확인'}
         </Button>
       </DialogActions>

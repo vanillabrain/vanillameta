@@ -13,6 +13,7 @@ function Layout(props) {
 
   const defaultSx = {
     width: '100%',
+    height: '100%',
   };
 
   const fixSx = {
@@ -29,13 +30,12 @@ function Layout(props) {
         sx={{
           paddingTop: headerHeight + 'px',
           // height: '100%',
-          height: `calc(100% - ${headerHeight}px)`,
+          minHeight: `calc(100% - ${footerHeight}px)`,
         }}
       >
         {props.children}
       </Stack>
-      {/*{!fixed && <Footer />}*/}
-      <Footer />
+      <Footer height={footerHeight} />
     </Box>
   );
 }

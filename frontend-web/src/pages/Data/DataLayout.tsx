@@ -41,20 +41,32 @@ const DataLayout = props => {
    */
   const getDatabaseList = () => {
     showLoading();
-    DatabaseService.selectDatabaseList().then(response => {
-      setDatabaseList(response.data.data);
-      if (response.data.data.length > 0) {
-        setSelectedDatabase({ databaseId: response.data.data[0].id });
-      }
-    });
+    DatabaseService.selectDatabaseList()
+      .then(response => {
+        setDatabaseList(response.data.data);
+        if (response.data.data.length > 0) {
+          setSelectedDatabase({ databaseId: response.data.data[0].id });
+        }
+      })
+      .finally(() => {
+        hideLoading();
+      });
   };
 
   const getDatabaseInfo = () => {
-    DatabaseService.selectDatabase(selectedDatabase.databaseId).then(response => {
-      setDatasetList(response.data.data.datasets);
-      setTableList(response.data.data.tables);
-      hideLoading();
-    });
+    showLoading();
+    DatabaseService.selectDatabase(selectedDatabase.databaseId)
+      .then(response => {
+        setDatasetList(response.data.data.datasets);
+        setTableList(response.data.data.tables);
+      })
+      .catch(() => {
+        setDatasetList([]);
+        setTableList([]);
+      })
+      .finally(() => {
+        hideLoading();
+      });
   };
 
   const removeDatabase = (id, name) => {
@@ -108,7 +120,7 @@ const DataLayout = props => {
           <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold', fontSize: '16px', color: '#141414' }}>
             데이터 소스
           </Typography>
-          {!!isViewMode || <AddButton component={RouterLink} to={`source/create`} sx={{ ml: '14px' }} />}
+          {isViewMode ? <></> : <AddButton component={RouterLink} to={`source/create`} sx={{ ml: '14px' }} />}
         </Stack>
         <DatabaseCardList
           data={databaseList}
@@ -126,7 +138,9 @@ const DataLayout = props => {
             <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold', fontSize: '16px', color: '#141414' }}>
               데이터 셋
             </Typography>
-            {!!isViewMode || (
+            {isViewMode ? (
+              <></>
+            ) : (
               <AddButton component={RouterLink} to={`set/create/${selectedDatabase.databaseId}`} sx={{ ml: '14px' }} />
             )}
           </Stack>
