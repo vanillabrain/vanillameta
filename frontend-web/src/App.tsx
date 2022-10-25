@@ -6,12 +6,12 @@ import 'tui-grid/dist/tui-grid.css'; // tui grid style file
 
 function App() {
   return (
-    <React.Fragment>
+    <>
       <CssBaseline />
       <Layout>
         <Router />
       </Layout>
-    </React.Fragment>
+    </>
   );
 }
 
