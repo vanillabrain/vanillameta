@@ -13,8 +13,10 @@ provider:
   lambdaHashingVersion: 20201221
   ##  memorySize: 512 - 기본은 512
   timeout: 10
-#  layers:
-  #    - arn:aws:lambda:${opt:region, self:provider.region}:${AWS::AccountId}:layer:AWSNodeLibs:latest
+  layers:
+    - arn:aws:lambda:${opt:region, self:provider.region}:${AWS::AccountId}:layer:SellerkingApiNodeLibs:latest
+    #    - arn:aws:lambda:${opt:region, self:provider.region}:${AWS::AccountId}:layer:FirebaseNodeLibs:latest
+    - arn:aws:lambda:${opt:region, self:provider.region}:${AWS::AccountId}:layer:AWSNodeLibs:latest
   stage: ${opt:stage, file(./config.serverless.yml):STAGE}
   region: ${opt:region, file(./config.serverless.yml):AWS_REGION}
   #  deploymentBucket: ${file(./config.serverless.yml):DEPLOYMENT_BUCKET}
@@ -48,9 +50,7 @@ custom:
     - prod
   STAGE: ${self:provider.stage}
   DB_CONFIG: ${file(./config.serverless.yml):DB_CONFIG}
-  DOMAINS:
-    prod: vanillameta-api.vanillabrain.com
-    dev: dev-vanillameta-api.vanillabrain.com
+  DOMAINS: ${file(./config.serverless.yml):DOMAINS}
   customDomain:
     domainName: ${self:custom.DOMAINS.${self:custom.STAGE}}
     basePath: 'v1'
