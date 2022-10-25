@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Card, IconButton, Stack, Typography } from '@mui/material';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
 import PageTitleBox from '@/components/PageTitleBox';
 import WidgetWrapper from '@/widget/wrapper/WidgetWrapper';
@@ -146,11 +146,8 @@ const DashboardView = () => {
             />
             <ModifyButton
               size="medium"
-              onClick={event => {
-                event.preventDefault();
-                event.stopPropagation();
-                navigate('/dashboard/modify?id=' + dashboardId + '&name=' + dashboardInfo.title);
-              }}
+              component={RouterLink}
+              to={`/dashboard/modify?id=${dashboardId}&name=${dashboardInfo.title}`}
             />
             <DeleteButton
               size="medium"
