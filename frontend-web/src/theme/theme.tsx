@@ -4,7 +4,7 @@ export default createTheme({
   palette: {
     mode: 'light',
     primary: {
-      main: '#0a90c3',
+      main: '#0f5ab2',
       dark: '#32408c',
       light: '#2fcbef',
     },
@@ -34,8 +34,24 @@ export default createTheme({
       },
     },
     MuiList: {
-      defaultProps: {
-        dense: true,
+      styleOverrides: {
+        root: {
+          padding: 0,
+        },
+        padding: {
+          padding: 0,
+        },
+      },
+    },
+    MuiListItemButton: {
+      styleOverrides: {
+        root: {
+          '&.MuiButtonBase-root': {
+            '&:hover, &:active, &.active, &.Mui-selected': {
+              background: '#ebfbff',
+            },
+          },
+        },
       },
     },
     MuiMenuItem: {
@@ -48,9 +64,24 @@ export default createTheme({
         size: 'small',
       },
     },
+
     MuiButton: {
       defaultProps: {
         size: 'small',
+      },
+      styleOverrides: {
+        root: {
+          height: '32px',
+          borderRadius: '8px',
+          paddingLeft: '14px',
+          paddingRight: '14px',
+          // color: '#fff',
+
+          '&.Mui-disabled': {
+            color: '#fff',
+            backgroundColor: '#9b9ea9',
+          },
+        },
       },
     },
     MuiButtonGroup: {
@@ -62,6 +93,11 @@ export default createTheme({
       defaultProps: {
         size: 'small',
       },
+      styleOverrides: {
+        root: {
+          padding: 0,
+        },
+      },
     },
     MuiFab: {
       defaultProps: {
@@ -72,6 +108,12 @@ export default createTheme({
       defaultProps: {
         margin: 'none',
         size: 'small',
+      },
+      styleOverrides: {
+        root: {
+          height: '32px',
+          margin: 0,
+        },
       },
     },
     MuiFormHelperText: {
@@ -102,10 +144,21 @@ export default createTheme({
         margin: 'dense',
         size: 'small',
       },
+      styleOverrides: {
+        root: {
+          transform: 'translate(14px, 7px) scale(1)',
+          // display: 'flex',
+          // alignItems: 'center',
+        },
+        shrink: {
+          transform: 'translate(14px, -9px) scale(0.75)',
+        },
+      },
     },
     MuiOutlinedInput: {
       styleOverrides: {
         root: {
+          height: '32px',
           backgroundColor: '#fff',
         },
       },
@@ -153,15 +206,52 @@ export default createTheme({
         },
       },
     },
+    MuiStepIcon: {
+      styleOverrides: {
+        root: {
+          color: '#9b9ea9',
+          '&.Mui-completed': {
+            color: '#9b9ea9',
+          },
+        },
+      },
+    },
+    MuiStepLabel: {
+      styleOverrides: {
+        label: {
+          color: '#9b9ea9',
+          fontSize: '16px',
+          fontWeight: 'bold',
+          '&.Mui-active': {
+            color: '#0f5ab2',
+            fontWeight: 'bold',
+          },
+          '&.Mui-completed': {
+            color: '#9b9ea9',
+          },
+        },
+        iconContainer: {
+          fontWeight: 'bold',
+        },
+      },
+    },
+    MuiCardContent: {
+      styleOverrides: {
+        root: {
+          '&:last-child': {
+            paddingBottom: '16px',
+          },
+        },
+      },
+    },
     MuiCssBaseline: {
       styleOverrides: {
         'html, body, #root': {
           width: '100%',
           height: '100%',
-          minWidth: 400,
-          // minWidth: isDesktop ? '1280px' : 0,
-          backgroundColor: '#F8FBFC',
+          minWidth: '1440px',
           fontFamily: 'Noto Sans KR',
+          backgroundColor: '#FFFFFF',
           color: '#1F2123',
         },
       },

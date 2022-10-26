@@ -1,54 +1,179 @@
-import React, { useEffect, useState } from 'react';
-import { Stack } from '@mui/material';
+import React, { useLayoutEffect, useState } from 'react';
+import { Stack, Typography } from '@mui/material';
 import PageContainer from '@/components/PageContainer';
 import PageTitleBox from '@/components/PageTitleBox';
-import TitleBox from '@/components/TitleBox';
 import ImgCardList from '@/components/ImgCardList';
-import LabelInputForm from '@/components/form/LabelInputForm';
 import ConfirmCancelButton from '@/components/button/ConfirmCancelButton';
+import DatabaseService from '@/api/databaseService';
+import { STATUS } from '@/constant';
+import { getDatabaseIcon } from '@/widget/utils/iconUtil';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useAlert } from 'react-alert';
+import DatabaseForm from '@/pages/Data/DataSource/form/DatabaseForm';
 
-const typeList = [
-  { id: '0', title: 'MySQL', icon: 'logo/mysql-logo.svg' },
-  { id: '1', title: 'MariaDB', icon: 'logo/mariadb-logo.svg' },
-  { id: '2', title: 'PostgreSQL', icon: 'logo/pgsql-logo.svg' },
-  { id: '3', title: 'Oracle', icon: 'logo/oracle-logo.svg' },
-  { id: '4', title: 'Db2', icon: 'logo/db2-logo.svg' },
-  { id: '5', title: 'Redshift', icon: 'logo/redshift-logo.svg' },
-  { id: '6', title: 'BigQuery', icon: 'logo/bigquery-logo.svg' },
-  { id: '7', title: 'SQLite', icon: 'logo/sqlite-logo.svg' },
-  { id: '8', title: 'MSSQL', icon: 'logo/mssql-logo.svg' },
-  { id: '9', title: 'AltiBase', icon: 'logo/altibase-logo.png' },
-];
-
-const formList = [
-  { id: '0', label: '이름', name: 'userName' },
-  { id: '1', label: 'HOST', name: 'userHost', width: '50%' },
-  { id: '2', label: 'Port', name: 'userPort', width: '50%' },
-  { id: '3', label: 'User', name: 'userId' },
-  { id: '4', label: 'Password', name: 'userPassword', type: 'password' },
-  { id: '5', label: 'Schema', name: 'userSchema' },
-];
-
-function DataSource(props) {
+function DataSource() {
+  const { sourceId } = useParams();
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const alert = useAlert();
+  const [isModifyMode, setIsModifyMode] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [dataType, setDataType] = useState(null);
+  const [typeList, setTypeList] = useState([]);
+  const [formData, setFormData] = useState({
+    databaseName: '',
+    host: '',
+    port: '',
+    user: '',
+    password: '',
+    database: '',
+  });
 
-  useEffect(() => {
-    if (dataType) {
-      console.log('type:', typeList[dataType].title);
+  useLayoutEffect(() => {
+    getDatabaseTypeList();
+    console.log('modify', pathname.indexOf('modify'));
+    console.log('sourceId', sourceId);
+
+    if (pathname.indexOf('modify') > 0 && sourceId) {
+      // 데이터셋 수정일 경우
+      setIsModifyMode(true);
+      getDatabaseInfo();
     }
-  }, [dataType]);
+  }, []);
+
+  /**
+   * 수정일 경우 데이터베이스 정보 조회
+   */
+  const getDatabaseInfo = () => {
+    DatabaseService.selectDatabase(sourceId).then(response => {
+      const info = response.data;
+      if (info.status === 'SUCCESS') {
+        const databaseInfo = info.data.databaseInfo;
+        const temp = {
+          databaseName: databaseInfo.name,
+          host: databaseInfo.connectionConfig.host,
+          port: databaseInfo.connectionConfig.port,
+          user: databaseInfo.connectionConfig.user,
+          password: databaseInfo.connectionConfig.password,
+          database: databaseInfo.connectionConfig.database,
+        };
+        setFormData(temp);
+      }
+    });
+  };
+
+  const testConnect = item => {
+    const param = {
+      name: item.name,
+      description: item.name,
+      connectionConfig: item,
+      engine: dataType.type,
+    };
+    DatabaseService.testConnection(param).then(response => {
+      console.log(response);
+      if (response.data.status === STATUS.SUCCESS) {
+        setIsConnected(true);
+        alert.info('데이터베이스 연결에 성공하였습니다.');
+      } else {
+        alert.info('데이터베이스에 연결할 수 없습니다.\n데이터 베이스 정보를 확인해주세요.');
+      }
+    });
+  };
+
+  const getDatabaseTypeList = () => {
+    DatabaseService.selectDatabaseTypeList().then(response => {
+      console.log('selectDatabaseTypeList', response.data);
+      if (response.data.status === STATUS.SUCCESS) {
+        const list = response.data.data;
+        list.map(item => (item.icon = getDatabaseIcon(item.type)));
+        setTypeList(list);
+        if (list.length > 0) {
+          setDataType(list[0]);
+        }
+      }
+    });
+  };
+
+  const handleSaveClick = () => {
+    const param = {
+      name: formData.databaseName,
+      description: formData.databaseName,
+      connectionConfig: formData,
+      engine: dataType.type,
+    };
+
+    alert.success(`데이터베이스를 ${isModifyMode ? '수정' : '생성'}하시겠습니까?`, {
+      closeCopy: '취소',
+      actions: [
+        {
+          copy: '확인',
+          onClick: () => {
+            if (isModifyMode) {
+              DatabaseService.updateDatabase(sourceId, param).then(response => {
+                console.log(response.data);
+                if (response.data.status === STATUS.SUCCESS) {
+                  console.log('데이터 베이스 저장', param);
+                  alert.info('데이터베이스가 수정되었습니다.', {
+                    onClose: () => {
+                      navigate('/data');
+                    },
+                  });
+                }
+              });
+            } else {
+              DatabaseService.createDatabase(param).then(response => {
+                if (response.data.status === STATUS.SUCCESS) {
+                  alert.info('데이터베이스가 생성되었습니다.', {
+                    onClose: () => {
+                      navigate('/data');
+                    },
+                  });
+                }
+              });
+            }
+          },
+        },
+      ],
+    });
+  };
+
+  const handleCancelClick = () => {
+    navigate('/data');
+  };
 
   return (
     <PageContainer>
-      <PageTitleBox title={'데이터 소스 연결'} button={<ConfirmCancelButton confirmProps={{ disabled: !isConnected }} />}>
-        <Stack spacing={3}>
-          <TitleBox title={'step.01 타입 설정'}>
+      <PageTitleBox
+        title={'데이터 소스 연결'}
+        button={
+          <ConfirmCancelButton
+            confirmProps={{ disabled: false, onClick: handleSaveClick }}
+            cancelProps={{ onClick: handleCancelClick }}
+          />
+        }
+        sx={{ p: 0 }}
+      >
+        <Stack sx={{ width: '100%' }}>
+          <Stack sx={{ p: '30px 25px 50px 25px' }}>
+            <Typography
+              variant="subtitle1"
+              component="span"
+              sx={{ fontWeight: 'bold', fontSize: '18px', color: '#141414', mb: '14px' }}
+            >
+              step.01 타입 설정
+            </Typography>
             <ImgCardList data={typeList} selectedType={dataType} setSelectedType={setDataType} />
-          </TitleBox>
-          <TitleBox title={'step.02 연결 정보 입력'}>
-            <LabelInputForm data={formList} />
-          </TitleBox>
+          </Stack>
+          <Stack sx={{ p: '30px 25px 50px 25px', bgcolor: '#f5f6f8' }}>
+            <Typography
+              variant="subtitle1"
+              component="span"
+              sx={{ fontWeight: 'bold', fontSize: '18px', color: '#141414', mb: '14px' }}
+            >
+              step.02 연결 정보 입력
+            </Typography>
+            <DatabaseForm testConnect={testConnect} formData={formData} setFormData={setFormData} />
+          </Stack>
         </Stack>
       </PageTitleBox>
     </PageContainer>

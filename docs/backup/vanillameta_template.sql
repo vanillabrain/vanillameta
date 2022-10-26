@@ -1,0 +1,3 @@
+INSERT INTO vanillameta.template (createdAt, updatedAt, id, title, description, useYn) VALUES ('2022-09-28 15:17:06.963629', '2022-09-28 16:01:09', 1, 'template1', 'template1 description aa...', 'Y');
+INSERT INTO vanillameta.template (createdAt, updatedAt, id, title, description, useYn) VALUES ('2022-09-28 15:17:06.985930', '2022-09-28 15:17:06.985930', 2, 'template2', 'template2 description ㄱㄴㄷㄹ', 'Y');
+INSERT INTO vanillameta.template (createdAt, updatedAt, id, title, description, useYn) VALUES ('2022-09-28 15:17:07.011120', '2022-09-28 15:17:07.011120', 3, 'template3', 'template3 description ㄱㄴㄷㄹ', 'Y');

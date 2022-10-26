@@ -1,9 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Grid } from '@mui/material';
-import TitleBox from '@/components/TitleBox';
-import CardList, { DataSourceCard } from '@/components/CardList';
-// import { get } from '@/helpers/apiHelper';
-import axios from 'axios';
+import DataLayout from '@/pages/Data/DataLayout';
 
 function WidgetDataSelect(props) {
   const { setDataSet } = props;
@@ -11,12 +7,7 @@ function WidgetDataSelect(props) {
   const [isLoading, setIsLoading] = useState(false);
   const [loadedData, setLoadedData] = useState([]);
 
-  // data fetch // TODO: axios로 수정
   useEffect(() => {
-    axios
-      .get('/data/dummyDataList.json')
-      .then(response => response.data)
-      .then(data => setLoadedData(data));
     setIsLoading(true);
   }, []);
 
@@ -43,37 +34,7 @@ function WidgetDataSelect(props) {
     });
   }, [presentedData.dataSource]);
 
-  return (
-    <Box>
-      <Grid container spacing={5}>
-        <Grid item xs={12} md={4}>
-          <TitleBox title="데이터 소스">
-            <DataSourceCard
-              data={loadedData}
-              selectedData={presentedData}
-              onUpdate={handleUpdate}
-              minWidth="100%"
-              disabledIcons
-            />
-          </TitleBox>
-        </Grid>
-        <Grid item xs={12} md>
-          <Grid container spacing={5}>
-            <Grid item xs={12}>
-              <TitleBox title="데이터 셋">
-                <CardList data={presentedData.dataSet} setValue={setDataSet} />
-              </TitleBox>
-            </Grid>
-            <Grid item xs={12}>
-              <TitleBox title="데이터 목록">
-                <CardList data={presentedData.dataList} setValue={setDataSet} />
-              </TitleBox>
-            </Grid>
-          </Grid>
-        </Grid>
-      </Grid>
-    </Box>
-  );
+  return <DataLayout isViewMode={true} setDataSet={setDataSet} />;
 }
 
 export default WidgetDataSelect;

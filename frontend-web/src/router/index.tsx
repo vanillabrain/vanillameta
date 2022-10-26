@@ -18,33 +18,32 @@ function Router() {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/dashboard" />} />
-      <Route path="/dashboard" element={<Dashboard />}>
-        <Route path=":dashboard_id" element={<DashboardView />} />
-      </Route>
+      <Route path="/dashboard" element={<Dashboard />} />
+      <Route path="/dashboard/:dashboardId" element={<DashboardView />} />
       <Route path="/dashboard/create" element={<DashboardCreate />}>
-        <Route path=":create_type" element={<DashboardCreate />} />
+        <Route path=":createType" element={<DashboardCreate />} />
       </Route>
       <Route path="/dashboard/modify" element={<DashboardModify />}>
-        <Route path=":dashboard_id" element={<DashboardModify />} />
+        <Route path=":dashboardId" element={<DashboardModify />} />
       </Route>
-
-      <Route path="/widget" element={<Widget />}>
-        <Route path=":widget_id" element={<WidgetView />} />
-      </Route>
+      <Route path="/widget" element={<Widget />} />
+      <Route path="/widget/:widgetId" element={<WidgetView />} />
       <Route path="/widget/create" element={<WidgetCreate />} />
       <Route path="/widget/modify" element={<WidgetModify />}>
-        <Route path=":widget_id" element={<WidgetModify />} />
+        <Route path=":widgetId" element={<WidgetModify />} />
       </Route>
 
       <Route path="/data" element={<Data />} />
       <Route path="/data/source/create" element={<DataSource />} />
       <Route path="/data/source/modify" element={<DataSource />}>
-        <Route path=":source_id" element={<DataSource />} />
+        <Route path=":sourceId" element={<DataSource />} />
       </Route>
 
-      <Route path="/data/set/create" element={<DataSet />} />
+      <Route path="/data/set/create" element={<DataSet />}>
+        <Route path=":sourceId" element={<DataSet />} />
+      </Route>
       <Route path="/data/set/modify" element={<DataSet />}>
-        <Route path=":set_id" element={<DataSet />} />
+        <Route path=":setId" element={<DataSet />} />
       </Route>
       <Route path="/*" element={<Status404 />} />
     </Routes>

@@ -1,61 +1,110 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import PageContainer from '@/components/PageContainer';
 import PageTitleBox from '@/components/PageTitleBox';
-import ConfirmCancelButton from '@/components/button/ConfirmCancelButton';
-import { useSearchParams } from 'react-router-dom';
+import { ConfirmButton } from '@/components/button/ConfirmCancelButton';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import WidgetAttributeSelect from '@/pages/Widget/WidgetCreate/WidgetAttributeSelect';
-import axios from 'axios';
-// import { get } from '@/helpers/apiHelper';
+import widgetService from '@/api/widgetService';
+import { WidgetInfo } from '@/api/type';
+import { LayoutContext } from '@/contexts/LayoutContext';
 
-function WidgetModify(props) {
-  const [searchParams, setSearchParams] = useSearchParams();
+interface CustomizedState {
+  from: string;
+}
+
+const WidgetModify = props => {
+  const [searchParams] = useSearchParams();
   const widgetId = searchParams.get('id');
-  const widgetName = searchParams.get('name');
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { fixLayout } = useContext(LayoutContext);
 
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const [data, setData] = useState({
-    dataId: 0,
-    type: '',
-    option: {},
-  });
-  const [widgetOption, setWidgetOption] = useState({});
+  const defaultWidgetInfo: WidgetInfo = {
+    componentId: '',
+    createdAt: '',
+    datasetId: '',
+    datasetType: '',
+    delYn: '',
+    description: '',
+    id: '',
+    option: '',
+    title: '',
+    updatedAt: '',
+    widgetViewId: '',
+  };
+
+  const [widgetInfo, setWidgetInfo] = useState<WidgetInfo>(defaultWidgetInfo);
 
   useEffect(() => {
-    axios
-      .get('/data/dummyWidgetList.json')
-      .then(response => response.data)
-      .then(data => setData(data.find(element => element.id === widgetId)))
-      .then(() => setIsLoaded(true));
+    getWidgetInfo();
+    fixLayout(true);
+    return () => {
+      fixLayout(false);
+    };
   }, []);
 
-  console.log(data, 'data');
+  /**
+   * 위젯 조회
+   */
+  const getWidgetInfo = () => {
+    setLoading(true);
+    // get('/data/dummyWidgetList.json')
+    widgetService
+      .selectWidget(widgetId)
+      .then(response => {
+        setWidgetInfo(response.data.data);
+        console.log('getWidgetInfo', response.data.data);
+      })
+      .finally(() => setLoading(false));
+    // .then(data => setLoadedWidgetData(data.filter((list, idx) => idx <= 10 * loadedCount)));
+  };
 
-  // 위젯 속성 저장
-  const handleSubmit = event => {
-    // dataSetId , componentId, widgetTitle, option
-    event.preventDefault();
-    console.log('datesetId:', data.dataId);
-    console.log('widgetType:', data.type);
-    console.log('widgetOption:', data.option);
+  const saveWidgetInfo = (option, title) => {
+    const param = {
+      title: title,
+      description: title,
+      databaseId: 1,
+      componentId: widgetInfo.componentId,
+      // 'DATASET', 'WIDGET_VIEW'
+      datasetType: 'DATASET',
+      datasetId: '0001',
+      tableName: '',
+      option: option,
+    };
+    console.log(option);
+    widgetService.updateWidget(widgetInfo.id, param).then(response => {
+      navigate((location.state as CustomizedState).from || '/');
+    });
   };
 
   return (
     <PageContainer>
-      <PageTitleBox title="위젯 수정" button={<ConfirmCancelButton confirmProps={{ onClick: handleSubmit }} />}>
-        {isLoaded ? (
-          <WidgetAttributeSelect
-            dataSetId={data.dataId}
-            componentType={data.type}
-            prevOption={data.option}
-            setWidgetOption={setWidgetOption}
+      <PageTitleBox
+        upperTitle="위젯"
+        title="위젯 편집"
+        sx={{ padding: 0 }}
+        button={
+          <ConfirmButton
+            confirmLabel="저장"
+            confirmProps={{
+              form: 'widgetAttribute',
+              type: 'submit',
+              variant: 'contained',
+            }}
           />
-        ) : (
-          ''
-        )}
+        }
+      >
+        <WidgetAttributeSelect
+          isModifyMode={true}
+          dataSetId={widgetInfo.datasetId}
+          widgetOption={widgetInfo}
+          saveWidgetInfo={saveWidgetInfo}
+        />
       </PageTitleBox>
     </PageContainer>
   );
-}
+};
 
 export default WidgetModify;

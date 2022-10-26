@@ -1,44 +1,83 @@
-import React, { useState, useEffect } from 'react';
-import { Box, Stack, Step, StepLabel, Stepper } from '@mui/material';
+import React, { useContext, useEffect, useState } from 'react';
+import { Box, Button, Stack, Step, StepLabel, Stepper, SvgIcon } from '@mui/material';
 import PageTitleBox from '@/components/PageTitleBox';
 import PageContainer from '@/components/PageContainer';
-import ConfirmCancelButton, { ConfirmButton } from '@/components/button/ConfirmCancelButton';
 import WidgetDataSelect from './WidgetDataSelect';
 import WidgetTypeSelect from './WidgetTypeSelect';
 import WidgetAttributeSelect from './WidgetAttributeSelect';
-import { WIDGET_TYPE } from '@/constant';
+import componentService from '@/api/componentService';
+import widgetService from '@/api/widgetService';
+import { useNavigate } from 'react-router-dom';
+import { LoadingContext } from '@/contexts/LoadingContext';
+import { ReactComponent as LeftArrow } from '@/assets/images/icon/angle-left.svg';
 
 const title = '위젯 생성';
 const steps = ['데이터 선택', '위젯 타입 선택', '위젯 속성 설정'];
 
-function WidgetCreate(props) {
+const WidgetCreate = () => {
+  const navigate = useNavigate();
   const [activeStep, setActiveStep] = useState(0);
 
-  const [dataSet, setDataSet] = useState(null); // step 1
-  const [widgetType, setWidgetType] = useState(null); // step 2
+  const [componentList, setComponentList] = useState([]); // step 1
+  const [dataset, setDataset] = useState(null); // step 1
+  const [widgetOption, setWidgetOption] = useState(null); // step 2
+  const { showLoading, hideLoading } = useContext(LoadingContext);
 
-  // 개발 편의상 임시로 적용
   useEffect(() => {
-    setDataSet(688279);
-    setWidgetType(WIDGET_TYPE.CHART_LINE);
-    setActiveStep(2);
+    getComponentList();
   }, []);
 
   const [isNextButtonDisabled, setIsNextButtonDisabled] = useState(true);
 
   useEffect(() => {
-    if (activeStep === 0 && !!dataSet) {
+    console.log('dataset', dataset);
+    if (activeStep === 0 && !!dataset) {
       setIsNextButtonDisabled(false);
       return;
     }
 
-    if (activeStep === 1 && !!widgetType) {
+    if (activeStep === 1 && !!widgetOption) {
       setIsNextButtonDisabled(false);
       return;
     }
 
     setIsNextButtonDisabled(true);
-  }, [activeStep, dataSet, widgetType]);
+  }, [activeStep, dataset, widgetOption]);
+
+  const getComponentList = () => {
+    showLoading();
+    componentService
+      .selectComponentList()
+      .then(res => {
+        setComponentList(res.data);
+      })
+      .finally(() => {
+        hideLoading();
+      });
+  };
+
+  const saveWidgetInfo = (option, title) => {
+    // Todo datasetType Table 일 경우 처리
+    const param = {
+      title: title,
+      description: widgetOption.description,
+      databaseId: dataset.databaseId,
+      componentId: widgetOption.id,
+      datasetType: dataset.datasetType,
+      datasetId: dataset.id,
+      tableName: dataset.tableName,
+      option: option,
+    };
+    showLoading();
+    widgetService
+      .createWidget(param)
+      .then(() => {
+        navigate('/widget', { replace: true });
+      })
+      .finally(() => {
+        hideLoading();
+      });
+  };
 
   const handleNext = () => {
     if (activeStep === steps.length - 1) {
@@ -53,11 +92,11 @@ function WidgetCreate(props) {
     }
 
     if (activeStep === 1) {
-      setDataSet(null);
+      setDataset(null);
     }
 
     if (activeStep === 2) {
-      setWidgetType(null);
+      setWidgetOption(null);
     }
 
     setActiveStep(prevState => prevState - 1);
@@ -67,49 +106,57 @@ function WidgetCreate(props) {
     <PageContainer>
       <PageTitleBox
         title={title}
+        upperTitle="위젯"
+        sx={{ paddingLeft: 0, paddingRight: 0, width: '100%', height: '100%' }}
         button={
-          <Stack>
-            <ConfirmCancelButton
-              cancelLabel="이전"
-              cancelProps={{
-                onClick: handleBack,
-                disabled: activeStep === 0,
-              }}
-              secondButton={
-                <React.Fragment>
-                  {activeStep !== steps.length - 1 ? (
-                    <ConfirmButton
-                      confirmLabel="다음"
-                      confirmProps={{
-                        type: 'button',
-                        onClick: handleNext,
-                        disabled: isNextButtonDisabled,
-                      }}
-                    />
-                  ) : (
-                    <ConfirmButton
-                      confirmLabel="저장"
-                      confirmProps={{
-                        form: 'widgetAttribute',
-                        type: 'submit',
-                        variant: 'contained',
-                      }}
-                    />
-                  )}
-                </React.Fragment>
+          <Stack direction="row" gap="10px">
+            <Button
+              variant="contained"
+              onClick={handleBack}
+              disabled={activeStep === 0}
+              startIcon={
+                <SvgIcon component={LeftArrow} sx={{ width: '14px', height: '14px', padding: '1px' }} inheritViewBox />
               }
-            />
+              sx={{ backgroundColor: '#043f84', color: '#fff' }}
+            >
+              이전
+            </Button>
+
+            {activeStep !== 2 ? (
+              <Button
+                variant="contained"
+                type="button"
+                onClick={handleNext}
+                disabled={isNextButtonDisabled}
+                endIcon={
+                  <SvgIcon
+                    component={LeftArrow}
+                    sx={{ width: '14px', height: '14px', transform: 'rotate(180deg)', padding: '1px' }}
+                    inheritViewBox
+                  />
+                }
+                sx={{ backgroundColor: '#043f84' }}
+              >
+                다음
+              </Button>
+            ) : (
+              ' '
+            )}
           </Stack>
         }
       >
-        <Box>
+        <Box
+          sx={{
+            borderBottom: '1px solid #e3e7ea',
+          }}
+        >
           <Stepper
             activeStep={activeStep}
             sx={{
-              width: { xs: '100%', sm: '70%' },
+              width: '50%',
+              maxWidth: '564px',
+              height: '72px',
               m: 'auto',
-              mt: 8,
-              mb: 6,
             }}
           >
             {steps.map(label => {
@@ -127,15 +174,15 @@ function WidgetCreate(props) {
         </Box>
 
         {activeStep === 0 ? (
-          <WidgetDataSelect setDataSet={setDataSet} />
+          <WidgetDataSelect setDataSet={setDataset} />
         ) : activeStep === 1 ? (
-          <WidgetTypeSelect widgetType={widgetType} setWidgetType={setWidgetType} />
+          <WidgetTypeSelect widgetType={widgetOption} setWidgetType={setWidgetOption} componentList={componentList} />
         ) : (
-          <WidgetAttributeSelect dataSetId={dataSet} componentType={widgetType} />
+          <WidgetAttributeSelect dataset={dataset} widgetOption={widgetOption} saveWidgetInfo={saveWidgetInfo} />
         )}
       </PageTitleBox>
     </PageContainer>
   );
-}
+};
 
 export default WidgetCreate;

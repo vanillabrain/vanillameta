@@ -11,7 +11,7 @@ export class CreateDatabaseDto {
   name: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @ApiProperty({
     example: '상세 내용',
     description: '데이터베이스 상세 내용',
@@ -24,7 +24,7 @@ export class CreateDatabaseDto {
     example: '{}',
     description: '설정 JSON 상세',
   })
-  knexConfig: string;
+  connectionConfig: string;
 
   @IsString()
   @IsOptional()

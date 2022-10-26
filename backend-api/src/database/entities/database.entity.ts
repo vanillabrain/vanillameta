@@ -14,7 +14,7 @@ export class Database extends BaseEntity {
   description: string;
 
   @Column({ type: 'text', comment: '속성' })
-  knexConfig: string; // 기타 속성 json으로 .. host, schema, filePath...
+  connectionConfig: string; // 기타 속성 json으로 .. host, schema, filePath...
 
   @Column({ length: 100, comment: '데이터베이스 구분' })
   engine: string;
@@ -32,14 +32,14 @@ export class Database extends BaseEntity {
     const obj = new Database();
     obj.name = name;
     obj.description = description;
-    obj.knexConfig = details;
+    obj.connectionConfig = details;
     obj.engine = engine;
     obj.timezone = timezone;
     return obj;
   }
 
   static toDto(dto: CreateDatabaseDto): Database {
-    return Database.of(dto.name, dto.description, dto.knexConfig, dto.engine, dto.timezone);
+    return Database.of(dto.name, dto.description, dto.connectionConfig, dto.engine, dto.timezone);
   }
 
   getFullDescription(): string {

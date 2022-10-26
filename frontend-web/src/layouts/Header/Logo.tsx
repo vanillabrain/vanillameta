@@ -1,18 +1,15 @@
 import React from 'react';
 import { Box, Link } from '@mui/material';
+import { ReactComponent as IconLogo } from '@/assets/images/logo.svg';
 
-const logo = '../../assets/images/logo/vanilla-meta-logo.png';
+const logo = '../../static/images/logo/vanilla-meta-logo.png';
 
 function Logo(props) {
+  const { sx = { width: 105, height: 20 } } = props;
   return (
-    <Box component="h1" sx={{ width: 'auto', height: 50, display: { xs: 'none', sm: 'block' } }}>
+    <Box sx={sx}>
       <Link href="/">
-        <Box
-          component="img"
-          src={logo}
-          sx={{ width: '100%', height: '100%', objectFit: 'scale-down' }}
-          alt="Vanilla Meta 로고"
-        />
+        <IconLogo style={{ width: '100%', height: '100%' }} />
       </Link>
     </Box>
   );

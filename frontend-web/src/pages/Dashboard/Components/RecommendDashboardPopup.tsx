@@ -1,21 +1,38 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { BarChart, Dashboard, PieChart, MultilineChart } from '@mui/icons-material';
+import React, { useEffect, useState } from 'react';
+import { BarChart, MultilineChart, PieChart } from '@mui/icons-material';
 import {
+  Box,
   Button,
+  Checkbox,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  IconButton,
+  Grid,
   List,
-  Alert,
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  Stack,
+  SvgIcon,
   Typography,
 } from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import { get } from '@/helpers/apiHelper';
+import { useAlert } from 'react-alert';
+import TemplateService from '@/api/templateService';
+import WidgetService from '@/api/widgetService';
+import { STATUS } from '@/constant';
+import CloseButton from '@/components/button/CloseButton';
+import { ReactComponent as TemplateIcon01 } from '@/assets/images/template/template01.svg';
+import { ReactComponent as TemplateIcon02 } from '@/assets/images/template/template02.svg';
+import { ReactComponent as TemplateIcon03 } from '@/assets/images/template/template03.svg';
+import { ReactComponent as TemplateIcon04 } from '@/assets/images/template/template04.svg';
+import { ReactComponent as TemplateIcon05 } from '@/assets/images/template/template05.svg';
+import { ReactComponent as TemplateIcon06 } from '@/assets/images/template/template06.svg';
+import { ReactComponent as TemplateIcon07 } from '@/assets/images/template/template07.svg';
+import { ReactComponent as TemplateIcon08 } from '@/assets/images/template/template08.svg';
+import { ReactComponent as TemplateIcon09 } from '@/assets/images/template/template09.svg';
+import { ReactComponent as TemplateIcon10 } from '@/assets/images/template/template10.svg';
+import { ReactComponent as CheckIcon } from '@/assets/images/icon/ic-check.svg';
 
 const iconType = item => {
   switch (item.toUpperCase()) {
@@ -30,27 +47,50 @@ const iconType = item => {
   }
 };
 
-const templateIconType = item => {
-  switch (item.toUpperCase()) {
-    case 'CHART_BAR':
-      return <BarChart />;
-    case 'CHART_PIE':
-      return <PieChart />;
-    case 'CHART_LINE':
-      return <MultilineChart />;
-    default:
-      return <MultilineChart />;
+const getTemplateIcon = id => {
+  let icon = null;
+  switch (id) {
+    case 7:
+      icon = <TemplateIcon01 style={{ width: '100%', height: '100%' }} />;
+      break;
+    case 8:
+      icon = <TemplateIcon02 style={{ width: '100%', height: '100%' }} />;
+      break;
+    case 9:
+      icon = <TemplateIcon03 style={{ width: '100%', height: '100%' }} />;
+      break;
+    case 10:
+      icon = <TemplateIcon04 style={{ width: '100%', height: '100%' }} />;
+      break;
+    case 11:
+      icon = <TemplateIcon05 style={{ width: '100%', height: '100%' }} />;
+      break;
+    case 12:
+      icon = <TemplateIcon06 style={{ width: '100%', height: '100%' }} />;
+      break;
+    case 13:
+      icon = <TemplateIcon07 style={{ width: '100%', height: '100%' }} />;
+      break;
+    case 14:
+      icon = <TemplateIcon08 style={{ width: '100%', height: '100%' }} />;
+      break;
+    case 15:
+      icon = <TemplateIcon09 style={{ width: '100%', height: '100%' }} />;
+      break;
+    case 16:
+      icon = <TemplateIcon10 style={{ width: '100%', height: '100%' }} />;
+      break;
   }
+  return icon;
 };
 
 export const WidgetList = ({ handleWidgetConfirm = null, handleWidgetCancel = null, selectedWidgetIds = [] }) => {
+  const alert = useAlert();
   const [loadedWidgetData, setLoadedWidgetData] = useState([]);
   const [selectedIds, setSelectedIds] = useState(selectedWidgetIds);
 
   useEffect(() => {
     getItems();
-
-    console.log('몇번 호출 되는거싱ㄴ가', selectedWidgetIds);
   }, []);
 
   useEffect(() => {
@@ -58,26 +98,30 @@ export const WidgetList = ({ handleWidgetConfirm = null, handleWidgetCancel = nu
   }, [selectedWidgetIds]);
 
   const getItems = () => {
-    get('/data/dummyWidgetList.json')
-      .then(response => response.data)
-      .then(data => setLoadedWidgetData(data));
+    WidgetService.selectWidgetList().then(response => {
+      if (response.data.status == STATUS.SUCCESS) {
+        setLoadedWidgetData(response.data.data);
+      } else {
+        console.log('조회 실패!!!!');
+      }
+    });
   };
 
   const handleClick = item => {
     const isSelect = isItemSelection(item);
     const newIds = [...selectedIds];
     if (isSelect) {
-      const index = newIds.indexOf(item.widgetId);
+      const index = newIds.indexOf(item.id);
       newIds.splice(index, 1);
       setSelectedIds(newIds);
     } else {
-      newIds.push(item.widgetId);
+      newIds.push(item.id);
       setSelectedIds(newIds);
     }
   };
 
   const isItemSelection = item => {
-    return !!selectedIds.find(widgetId => widgetId === item.widgetId);
+    return !!selectedIds.find(id => id === item.id);
   };
 
   // 취소 버튼 클릭
@@ -91,7 +135,7 @@ export const WidgetList = ({ handleWidgetConfirm = null, handleWidgetCancel = nu
   const handleConfirmClick = () => {
     const widgets = [];
     for (let i = 0; i < loadedWidgetData.length; i++) {
-      if (selectedIds.indexOf(loadedWidgetData[i].widgetId) > -1) {
+      if (selectedIds.indexOf(loadedWidgetData[i].id) > -1) {
         widgets.push(loadedWidgetData[i]);
       }
     }
@@ -101,54 +145,107 @@ export const WidgetList = ({ handleWidgetConfirm = null, handleWidgetCancel = nu
         handleWidgetConfirm(widgets);
       }
     } else {
-      // todo alert 호출 "위젯을 선택하세요"
-      alert('옴마! 위젯을 선택해야지');
+      alert.info('위젯을 선택하세요.');
     }
   };
 
   return (
-    <React.Fragment>
+    <>
       <DialogContent dividers id="scroll-dialog-description" tabIndex={-1} sx={{ p: 0 }}>
         <List
           sx={{
-            width: 600,
-            minWidth: 400,
-            height: 500,
-            minHeight: 300,
+            width: '100%',
+            height: '400px',
           }}
         >
           {loadedWidgetData.map((item, index) => (
-            <ListItemButton key={index} selected={isItemSelection(item)} onClick={() => handleClick(item)}>
-              <ListItemIcon>{iconType(item.type)}</ListItemIcon>
-              <ListItemText primary={item.title} />
+            <ListItemButton
+              key={index}
+              selected={isItemSelection(item)}
+              onClick={() => handleClick(item)}
+              sx={{ paddingX: '20px', height: '50px' }}
+            >
+              <Checkbox checked={isItemSelection(item)} />
+              <ListItemIcon sx={{ marginLeft: '16px', minWidth: '24px' }}>{iconType(item.componentType)}</ListItemIcon>
+              <ListItemText
+                sx={{
+                  marginLeft: '16px',
+                  fontFamily: 'Pretendard',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  fontStretch: 'normal',
+                  fontStyle: 'normal',
+                  lineHeight: 1.14,
+                  letterSpacing: 'normal',
+                  textAlign: 'left',
+                  color: '#333333',
+                }}
+                primary={item.title}
+              />
             </ListItemButton>
           ))}
         </List>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={handleCancelClick} color="inherit">
+      <DialogActions sx={{ height: '63px' }}>
+        <Button
+          onClick={handleCancelClick}
+          color="inherit"
+          sx={{
+            flexGrow: 0,
+            fontFamily: 'Pretendard',
+            fontSize: '14px',
+            fontWeight: 600,
+            fontStretch: 'normal',
+            fontStyle: 'normal',
+            lineHeight: 1.14,
+            letterSpacing: 'normal',
+            textAlign: 'left',
+            color: '#767676',
+          }}
+        >
           취소
         </Button>
-        <Button onClick={handleConfirmClick}>다음</Button>
+        <span style={{ width: '4px' }}></span>
+        <Button
+          onClick={() => handleConfirmClick()}
+          sx={{
+            flexGrow: 0,
+            fontFamily: 'Pretendard',
+            fontSize: '14px',
+            fontWeight: 600,
+            fontStretch: 'normal',
+            fontStyle: 'normal',
+            lineHeight: 1.14,
+            letterSpacing: 'normal',
+            textAlign: 'left',
+            color: '#0057bd',
+          }}
+        >
+          위젯 추가
+        </Button>
       </DialogActions>
-    </React.Fragment>
+    </>
   );
 };
 
-export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = null }) => {
+export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = null, selectedWidgetIds = null }) => {
+  const alert = useAlert();
   const [loadedTemplateDataList, setLoadedTemplateDataList] = useState([]);
-  const [selectedIndex, setSelectedIndex] = useState(-1);
   const [selectedItem, setSelectedItem] = useState(null);
 
   const getItems = () => {
-    get('/data/dummyTemplateList.json')
-      .then(response => response.data)
-      .then(data => setLoadedTemplateDataList(data));
+    TemplateService.selectRecommendTemplateList({ widgets: selectedWidgetIds }).then(response => {
+      // TemplateService.selectRecommendTemplateList({ widgets: [1, 2] }).then(response => {
+      if (response.data.status == STATUS.SUCCESS) {
+        setLoadedTemplateDataList(response.data.data);
+      } else {
+        console.log('조회 실패!!');
+      }
+    });
   };
 
   useEffect(() => {
     setSelectedItem(null);
-    setSelectedIndex(-1);
     getItems();
   }, []);
 
@@ -167,48 +264,145 @@ export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = 
         handleWidgetConfirm(selectedItem);
       }
     } else {
-      alert('으잉! 템플릿을 선택하라!');
+      alert.info('템플릿을 선택하세요.');
     }
   };
 
-  const handleClick = (item, index) => {
-    setSelectedIndex(index);
+  const handleItemClick = item => {
     setSelectedItem(item);
   };
 
   return (
-    <React.Fragment>
-      <DialogContent dividers id="scroll-dialog-description" tabIndex={-1} sx={{ p: 0 }}>
-        <List
+    <>
+      <DialogContent dividers id="scroll-dialog-description" sx={{ width: '100%', height: '602px', padding: '24px' }}>
+        <Grid container columns={{ xs: 10 }} spacing="24px" sx={{ height: '100%' }}>
+          {loadedTemplateDataList.map(item => {
+            const selected = selectedItem?.id === item.id;
+            return (
+              <Grid item xs={2}>
+                <Stack
+                  justifyContent="center"
+                  alignItems="center"
+                  direction="column"
+                  sx={{
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'flex-start',
+                    alignItems: 'flex-start',
+                    height: '266px',
+                    gap: '12px',
+                    padding: '12px 12px 20px',
+                    backgroundColor: selected ? '#edf8ff' : '#f5f6f8',
+                    borderRadius: '6px',
+                    border: selected ? 'solid 1px #0f5ab2' : 'solid 1px #f5f6f8',
+                    '&:hover': {
+                      background: '#ebfbff',
+                    },
+                  }}
+                  onClick={() => handleItemClick(item)}
+                >
+                  <Box sx={{ width: '100%', margin: 0 }}>
+                    {getTemplateIcon(item.id)}
+                    {/*<SvgIcon*/}
+                    {/*  component={CheckIcon}*/}
+                    {/*  sx={{ width: '33px', height: '28px', position: 'absolute', right: '20px', top: '20px' }}*/}
+                    {/*  inheritViewBox*/}
+                    {/*/>*/}
+                  </Box>
+                  <span
+                    style={{
+                      height: '20px',
+                      flexGrow: '0',
+                      fontFamily: 'Pretendard',
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      fontStretch: 'normal',
+                      fontStyle: 'normal',
+                      lineHeight: '1.43',
+                      letterSpacing: 'normal',
+                      textAlign: 'left',
+                      color: selected ? '#0f5ab2' : '#333333',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      width: '224px',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {item.title}
+                  </span>
+                  <span
+                    style={{
+                      height: '44px',
+                      flexGrow: '0',
+                      fontFamily: 'Pretendard',
+                      fontSize: '14px',
+                      fontWeight: 'normal',
+                      fontStretch: 'normal',
+                      fontStyle: 'normal',
+                      lineHeight: '1.57',
+                      letterSpacing: 'normal',
+                      textAlign: 'left',
+                      color: '#767676',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      width: '224px',
+                      // whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {item.description}
+                  </span>
+                </Stack>
+              </Grid>
+            );
+          })}
+        </Grid>
+      </DialogContent>
+      <DialogActions sx={{ height: '63px' }}>
+        <Button
+          onClick={handleCancelClick}
+          color="inherit"
           sx={{
-            width: 600,
-            minWidth: 400,
-            height: 500,
-            minHeight: 300,
+            flexGrow: 0,
+            fontFamily: 'Pretendard',
+            fontSize: '14px',
+            fontWeight: 600,
+            fontStretch: 'normal',
+            fontStyle: 'normal',
+            lineHeight: 1.14,
+            letterSpacing: 'normal',
+            textAlign: 'left',
+            color: '#767676',
           }}
         >
-          {loadedTemplateDataList.map((item, index) => (
-            <ListItemButton key={index} selected={index == selectedIndex} onClick={() => handleClick(item, index)}>
-              <ListItemIcon>{templateIconType(item.type)}</ListItemIcon>
-              <ListItemText primary={item.title} />
-              <ListItemText primary={item.description} />
-            </ListItemButton>
-          ))}
-        </List>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={handleCancelClick} color="inherit">
           뒤로가기
         </Button>
-        <Button onClick={handleConfirmClick}>선택완료</Button>
+        <span style={{ width: '4px' }}></span>
+        <Button
+          onClick={() => handleConfirmClick()}
+          sx={{
+            flexGrow: 0,
+            fontFamily: 'Pretendard',
+            fontSize: '14px',
+            fontWeight: 600,
+            fontStretch: 'normal',
+            fontStyle: 'normal',
+            lineHeight: 1.14,
+            letterSpacing: 'normal',
+            textAlign: 'left',
+            color: '#0057bd',
+          }}
+        >
+          선택완료
+        </Button>
       </DialogActions>
-    </React.Fragment>
+    </>
   );
 };
 
 function RecommendDashboardPopup({ recommendOpen = false, handleComplete = null }) {
   const [open, setOpen] = useState(recommendOpen);
-  const [title, setTitle] = useState('대시보드 추천 생성');
+  const title = '대시보드 추천 생성';
   const [subTitle, setSubTitle] = useState('위젯을 선택하세요');
   const [step, setStep] = useState(1);
   const [selectedWidgetIds, setSelectedWidgetIds] = useState([]);
@@ -253,7 +447,7 @@ function RecommendDashboardPopup({ recommendOpen = false, handleComplete = null 
       // 위젯 선택화면에서 다음 버튼 클릭
       const tempIds = [];
       items.map(item => {
-        tempIds.push(item.widgetId);
+        tempIds.push(item.id);
       });
 
       setSelectedWidgetIds(tempIds);
@@ -262,51 +456,192 @@ function RecommendDashboardPopup({ recommendOpen = false, handleComplete = null 
       // 템플릿 선택화면에서 완료 클릭
       // todo 대시보드에 layout, widgets 정보 전달
       if (handleComplete) {
-        getTemplateResult(items);
+        const item = {
+          templateId: items.id,
+          widgets: selectedWidgetIds,
+        };
+        getTemplateResult(item);
       }
     }
   };
 
   const getTemplateResult = item => {
     console.log('aaa');
-    get('/data/dummyDashboardInfo.json')
-      .then(response => response.data)
-      .then(data => handleComplete(data));
+    TemplateService.selectRecommendTemplateListDashboard(item).then(response => {
+      if (response.data.status == STATUS.SUCCESS) {
+        handleComplete(response.data.data);
+      } else {
+        console.log('조회 실패!!');
+      }
+    });
   };
 
   return (
-    <React.Fragment>
-      <Dialog open={open} aria-labelledby="scroll-dialog-title" aria-describedby="scroll-dialog-description">
-        <DialogTitle id="scroll-dialog-title">
-          {title}
-          <IconButton
-            aria-label="close"
-            onClick={handleClose}
-            sx={{
-              position: 'absolute',
-              right: 8,
-              top: 8,
-              color: theme => theme.palette.grey[500],
-            }}
+    <>
+      {step == 1 ? (
+        <Dialog
+          open={open}
+          aria-labelledby="scroll-dialog-title"
+          aria-describedby="scroll-dialog-description"
+          fullWidth={true}
+          sx={{
+            '& .MuiDialog-container': {
+              '& .MuiPaper-root': {
+                width: '100%',
+                maxWidth: '600px', // Set your width here
+                borderRadius: '8px',
+                boxShadow: '5px 5px 8px 0 rgba(0, 28, 71, 0.15)',
+                border: 'solid 1px #ddd',
+              },
+            },
+          }}
+        >
+          <DialogTitle
+            id="scroll-dialog-title"
+            sx={{ width: '100%', paddingLeft: '21px', paddingTop: '13px', height: '87px' }}
           >
-            <CloseIcon />
-          </IconButton>
-          <Typography variant="body2" mt={1}>
-            {subTitle}
-          </Typography>
-        </DialogTitle>
-        {step == 1 ? (
+            <span
+              style={{
+                height: '24px',
+                fontFamily: 'Pretendard',
+                fontSize: '20px',
+                fontWeight: '600',
+                fontStretch: 'normal',
+                fontStyle: 'normal',
+                lineHeight: 'normal',
+                letterSpacing: 'normal',
+                textAlign: 'left',
+                color: '#141414',
+              }}
+            >
+              {title}
+            </span>
+
+            <CloseButton
+              sx={{
+                position: 'absolute',
+                right: '0px',
+                top: '0px',
+                paddingRight: '18.9px',
+                paddingTop: '20.4px',
+                cursor: 'pointer',
+              }}
+              size="medium"
+              onClick={event => {
+                event.preventDefault();
+                event.stopPropagation();
+                handleClose();
+              }}
+            />
+            <Typography
+              variant="body2"
+              sx={{
+                height: '17px',
+                flexGrow: 0,
+                fontFamily: 'Pretendard',
+                fontSize: '14px',
+                fontWeight: 'normal',
+                fontStretch: 'normal',
+                fontStyle: 'normal',
+                lineHeight: 'normal',
+                letterSpacing: 'normal',
+                textAlign: 'left',
+                color: '#767676',
+                paddingTop: '6px',
+              }}
+            >
+              {/*{subTitle}*/}
+              추가할 위젯을 선택해주세요. (
+              <span style={{ color: '#0f5ab2', fontWeight: 'bold' }}>{selectedWidgetIds.length}</span>개 선택)
+            </Typography>
+          </DialogTitle>
           <WidgetList
             handleWidgetConfirm={handleConfirmClick}
             handleWidgetCancel={handleCancelClick}
             selectedWidgetIds={selectedWidgetIds}
           />
-        ) : (
-          <TemplateList handleWidgetConfirm={handleConfirmClick} handleWidgetCancel={handleCancelClick} />
-        )}
-        ;
-      </Dialog>
-    </React.Fragment>
+        </Dialog>
+      ) : (
+        <Dialog
+          open={open}
+          aria-labelledby="scroll-dialog-title"
+          aria-describedby="scroll-dialog-description"
+          fullWidth={true}
+          sx={{
+            '& .MuiDialog-container': {
+              '& .MuiPaper-root': {
+                width: '100%',
+                minWidth: '1000px', // Set your width here
+                maxWidth: '1392px', // Set your width here
+              },
+            },
+          }}
+        >
+          <DialogTitle
+            id="scroll-dialog-title"
+            sx={{ width: '100%', paddingLeft: '21px', paddingTop: '13px', height: '87px' }}
+          >
+            <span
+              style={{
+                height: '24px',
+                fontFamily: 'Pretendard',
+                fontSize: '20px',
+                fontWeight: '600',
+                fontStretch: 'normal',
+                fontStyle: 'normal',
+                lineHeight: 'normal',
+                letterSpacing: 'normal',
+                textAlign: 'left',
+                color: '#141414',
+              }}
+            >
+              {title}
+            </span>
+
+            <CloseButton
+              sx={{
+                position: 'absolute',
+                right: '0px',
+                top: '0px',
+                paddingRight: '18.9px',
+                paddingTop: '20.4px',
+                cursor: 'pointer',
+              }}
+              size="medium"
+              onClick={event => {
+                event.preventDefault();
+                event.stopPropagation();
+                handleClose();
+              }}
+            />
+            <Typography
+              variant="body2"
+              sx={{
+                height: '17px',
+                flexGrow: 0,
+                fontFamily: 'Pretendard',
+                fontSize: '14px',
+                fontWeight: 'normal',
+                fontStretch: 'normal',
+                fontStyle: 'normal',
+                lineHeight: 'normal',
+                letterSpacing: 'normal',
+                textAlign: 'left',
+                color: '#767676',
+                paddingTop: '6px',
+              }}
+            >
+              {subTitle}
+            </Typography>
+          </DialogTitle>
+          <TemplateList
+            handleWidgetConfirm={handleConfirmClick}
+            handleWidgetCancel={handleCancelClick}
+            selectedWidgetIds={selectedWidgetIds}
+          />
+        </Dialog>
+      )}
+    </>
   );
 }
 export default RecommendDashboardPopup;

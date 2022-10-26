@@ -62,11 +62,16 @@ $RECYCLE.BIN/
 # .idea/artifacts
 # .idea/compiler.xml
 # .idea/jarRepositories.xml
-# .idea/modules.xml
+ .idea/modules.xml
 # .idea/*.iml
 # .idea/modules
 # *.iml
 # *.ipr
+
+.idea/.gitignore
+.idea/misc.xml
+.idea/modules.xml
+.idea/vcs.xml
 
 # CMake
 cmake-build-*/

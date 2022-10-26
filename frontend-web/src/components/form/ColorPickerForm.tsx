@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { FormControl, FormLabel, IconButton, OutlinedInput, Popover, Stack, Typography } from '@mui/material';
-import CircleIcon from '@mui/icons-material/Circle';
+import React, { useState } from 'react';
+import { FormControl, IconButton, Popover } from '@mui/material';
 import { SketchPicker } from 'react-color';
+import PaintButton from '@/components/button/PaintButton';
 
 const ColorPickerForm = props => {
-  const { id, name, value, color, setOption, index, onChange } = props;
+  const { name, color, onChange } = props;
 
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
 
@@ -27,8 +27,8 @@ const ColorPickerForm = props => {
 
   return (
     <FormControl sx={{ alignItems: 'flex-end', justifyContent: 'center' }}>
-      <IconButton aria-label="색상 선택" sx={{ border: '1px solid #c4c4c4', bgcolor: '#fff' }} onClick={handleClick}>
-        <CircleIcon sx={{ color: color }} />
+      <IconButton aria-label="색상 선택" onClick={handleClick}>
+        <PaintButton color={color} />
       </IconButton>
       <Popover
         id={popoverId}
@@ -40,7 +40,7 @@ const ColorPickerForm = props => {
           horizontal: 'left',
         }}
       >
-        <SketchPicker color={color} onChangeComplete={handleCompleteChange} />
+        <SketchPicker color={color} onChangeComplete={handleCompleteChange} disableAlpha />
       </Popover>
     </FormControl>
   );

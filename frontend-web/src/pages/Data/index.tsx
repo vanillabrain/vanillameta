@@ -1,26 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import PageContainer from '@/components/PageContainer';
 import DataLayout from './DataLayout';
-// import { get } from '@/helpers/apiHelper';
-import axios from 'axios';
 
-function Data() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [loadedData, setLoadedData] = useState([]);
-
-  useEffect(() => {
-    axios
-      .get('/data/dummyDataList.json')
-      .then(response => response.data)
-      .then(data => setLoadedData(data));
-    setIsLoading(true);
-  }, []);
-
+/**
+ * 데이터 관리 페이지
+ * @constructor
+ */
+function DataPage() {
   return (
     <PageContainer>
-      <DataLayout data={loadedData} />
+      <DataLayout />
     </PageContainer>
   );
 }
 
-export default Data;
+export default DataPage;

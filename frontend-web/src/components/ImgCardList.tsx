@@ -1,46 +1,46 @@
-import React, { useEffect, useState } from 'react';
-import { Box, Card, Typography, CardContent, CardActionArea, Stack } from '@mui/material';
+import React from 'react';
+import { Box, CardContent, Grid, Typography } from '@mui/material';
+import { CardWrapper } from '@/components/list/CardListWrapper';
 
 function ImgCardList(props) {
-  const { data, size, selectedType, setSelectedType } = props;
-  const srcUrl = '/assets/images/';
-  // const [selectedValue, setSelectedValue] = useState('');
+  const { data, minWidth, selectedType, setSelectedType } = props;
+  const srcUrl = '/static/images/';
 
-  // useEffect(() => {
-  //   props.inputValue(selectedValue);
-  // }, [selectedValue]);
-
-  const handleClick = event => {
-    // setSelectedValue(event.currentTarget.value);
-    setSelectedType(event.currentTarget.value);
-    // console.log(event.currentTarget.value, 'event');
+  const handleClick = item => {
+    console.log('database : ', item);
+    setSelectedType(item);
   };
 
   return (
-    <Stack
-      direction="row"
-      justifyContent="center"
-      flexWrap="wrap"
+    <Grid
+      container
+      spacing={2}
       component="ul"
-      sx={{ maxWidth: '100%', listStyle: 'none', m: '16px auto', p: 0, gap: { xs: 2, md: 3 } }}
+      sx={{
+        listStyle: 'none',
+        pl: 0,
+        display: 'grid',
+        gridTemplateColumns: {
+          xs: `repeat(${minWidth || '4, 1fr'})`,
+          md: `repeat(${minWidth || '6, 1fr'})`,
+          lg: `repeat(${minWidth || '8, 1fr'})`,
+          xl: `repeat(${minWidth || '10, 1fr'})`,
+        },
+      }}
     >
-      {data.map(item => (
-        <Box component="li" key={item.id} sx={size === 'large' ? { width: { xs: 100, md: 130 }, my: 0 } : { width: 150 }}>
-          <Card>
-            <CardActionArea
-              onClick={handleClick}
-              value={item.id}
-              sx={{
-                boxShadow: selectedType === item.id ? theme => `0 0 0 3px ${theme.palette.primary.main} inset` : 'none',
-              }}
-            >
+      {data.map(item => {
+        const selected = selectedType && selectedType.id === item.id;
+        return (
+          <Grid item xs={12} md component="li" key={item.id}>
+            {/*// <Box component="li" key={item.id} sx={{ width: '166px', height: '169px' }}>*/}
+            <CardWrapper sx={{ p: 0 }} selected={selected} onClick={() => handleClick(item)}>
               <CardContent
                 sx={{
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'center',
                   alignItems: 'center',
-                  height: props.large ? { xs: 140, md: 170 } : 200,
+                  height: 169,
                 }}
               >
                 <Box
@@ -48,24 +48,30 @@ function ImgCardList(props) {
                   src={srcUrl + item.icon}
                   sx={{ width: 80, height: 60, objectFit: 'contain', mb: 3, border: 0 }}
                 />
-                <Typography variant="subtitle2" component="span" sx={{ textAlign: 'center' }}>
+                <Typography
+                  variant="subtitle2"
+                  component="span"
+                  sx={{ textAlign: 'center', lineHeight: '1.3', fontWeight: 'bold' }}
+                >
                   {item.title}
                 </Typography>
-                <Typography variant="caption" sx={{ textAlign: 'center', color: theme => theme.palette.grey.A700 }}>
-                  {item.caption}
-                </Typography>
+                {item.description ? (
+                  <Typography
+                    variant="caption"
+                    sx={{ mt: '4px', textAlign: 'center', lineHeight: '1.3', color: theme => theme.palette.grey.A700 }}
+                  >
+                    {item.description}
+                  </Typography>
+                ) : (
+                  ' '
+                )}
               </CardContent>
-            </CardActionArea>
-          </Card>
-        </Box>
-      ))}
-    </Stack>
+            </CardWrapper>
+          </Grid>
+        );
+      })}
+    </Grid>
   );
 }
-
-ImgCardList.defaultProps = {
-  selectedWidgetType: undefined,
-  setSelectedWidgetType: undefined,
-};
 
 export default ImgCardList;

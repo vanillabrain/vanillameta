@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Button, IconButton, Menu, MenuItem, SvgIcon, useMediaQuery, useTheme } from '@mui/material';
+import { Box, Button, IconButton, Menu, MenuItem, SvgIcon, useMediaQuery, useTheme } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { Link as RouterLink } from 'react-router-dom';
+import IconPlus from '@/assets/images/icon/btn-plus.svg';
 
 const menuWidth = 200;
 
@@ -30,7 +31,7 @@ export const AddMenuButton = ({ menuList, label, ...props }) => {
   const matches = useMediaQuery(theme.breakpoints.up('md'));
 
   return (
-    <React.Fragment>
+    <>
       <Button
         id="styled-menu"
         aria-controls={open ? 'styled-menu' : undefined}
@@ -57,7 +58,7 @@ export const AddMenuButton = ({ menuList, label, ...props }) => {
           </MenuItem>
         ))}
       </Menu>
-    </React.Fragment>
+    </>
   );
 };
 AddMenuButton.defaultProps = {
@@ -67,7 +68,12 @@ AddMenuButton.defaultProps = {
   },
 };
 
-export const AddMenuIconButton = ({ menuList, ...props }) => {
+export const AddMenuIconButton = ({
+  menuList,
+  handleSelect = null,
+  iconUrl = IconPlus,
+  sizeOption = { width: 22, height: 22 },
+}) => {
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
 
@@ -75,15 +81,15 @@ export const AddMenuIconButton = ({ menuList, ...props }) => {
     setAnchorEl(event.currentTarget);
   };
   const handleClose = item => {
-    if (props.handleSelect) {
-      props.handleSelect(item);
+    if (handleSelect) {
+      handleSelect(item);
     }
 
     setAnchorEl(null);
   };
 
   return (
-    <React.Fragment>
+    <>
       <Button
         id="styled-menu"
         aria-controls={open ? 'styled-menu' : undefined}
@@ -91,9 +97,9 @@ export const AddMenuIconButton = ({ menuList, ...props }) => {
         aria-expanded={open ? 'true' : undefined}
         onClick={handleClick}
         color="primary"
-        sx={{ minWidth: { xs: 0 } }}
+        sx={{ minWidth: 0, padding: 0 }}
       >
-        {<AddIcon />}
+        <Box component="img" src={iconUrl} sx={sizeOption} alt="추가메뉴 활성화" />
       </Button>
       <Menu id="styled-menu" anchorEl={anchorEl} open={open} onClose={handleClose} sx={{ width: menuWidth }}>
         {menuList.map(item => (
@@ -102,7 +108,7 @@ export const AddMenuIconButton = ({ menuList, ...props }) => {
           </MenuItem>
         ))}
       </Menu>
-    </React.Fragment>
+    </>
   );
 };
 AddMenuIconButton.defaultProps = {
@@ -117,7 +123,7 @@ export const SmallButton = props => {
   return (
     <IconButton size="small" sx={{ width: '38px', height: '38px', flex: 'none' }} {...rest}>
       <SvgIcon fontSize="small">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" fill="#141414">
           {icon}
         </svg>
       </SvgIcon>
@@ -145,4 +151,58 @@ export const RemoveButton = props => {
       {...props}
     />
   );
+};
+
+export const MenuButton = ({ menuList, handleSelect = null, icon, title, sizeOption = { width: 22, height: 22 } }) => {
+  const [anchorEl, setAnchorEl] = useState(null);
+  const open = Boolean(anchorEl);
+
+  const handleClick = event => {
+    setAnchorEl(event.currentTarget);
+  };
+  const handleClose = item => {
+    if (handleSelect) {
+      handleSelect(item);
+    }
+
+    setAnchorEl(null);
+  };
+
+  return (
+    <>
+      <Button
+        id="styled-menu"
+        variant="contained"
+        startIcon={icon}
+        onClick={handleClick}
+        color="primary"
+        sx={{
+          borderRadius: '8px',
+          backgroundColor: '#043f84',
+          height: '32px',
+          display: 'flex',
+          flexDirection: 'row',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: '8px 14px',
+          objectFit: 'contain',
+          border: 'solid 1px #0f5ab2',
+        }}
+      >
+        <span style={{ height: '20px' }}>{title}</span>
+      </Button>
+      <Menu id="styled-menu" anchorEl={anchorEl} open={open} onClose={handleClose} sx={{ width: menuWidth }}>
+        {menuList.map(item => (
+          <MenuItem key={item.name} onClick={() => handleClose(item)} disableRipple sx={{ width: menuWidth }}>
+            {item.name}
+          </MenuItem>
+        ))}
+      </Menu>
+    </>
+  );
+};
+MenuButton.defaultProps = {
+  menuList: {
+    name: '',
+  },
 };

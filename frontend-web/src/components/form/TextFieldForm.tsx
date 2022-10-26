@@ -1,11 +1,21 @@
-import React from 'react';
-import { Box, FormControl, FormHelperText, FormLabel, OutlinedInput, Select, Stack } from '@mui/material';
+import React, { useState } from 'react';
+import { Box, FormControl, FormLabel, OutlinedInput, Stack } from '@mui/material';
 
 function TextFieldForm(props) {
-  const { id, label, type, endButton, ...rest } = props;
+  const { id, label, type, name, value, endButton, required, onChange } = props;
+
+  const [text, setText] = useState(value);
+  const handleChange = event => {
+    setText(event.target.value);
+    onChange(event);
+  };
 
   return (
-    <FormControl fullWidth sx={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+    <FormControl
+      fullWidth
+      required={required}
+      sx={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+    >
       <FormLabel htmlFor={id} sx={{ width: '35%' }}>
         {label}
       </FormLabel>
@@ -13,9 +23,11 @@ function TextFieldForm(props) {
         <OutlinedInput
           id={id}
           type={type}
+          name={name}
+          value={text}
           margin="dense"
+          onChange={handleChange}
           fullWidth
-          {...rest}
           sx={endButton ? { width: 'calc(100% - 38px)', flexShrink: 1 } : { width: '100%' }}
         />
         {/*<FormHelperText>{helperText}</FormHelperText>*/}
