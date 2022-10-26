@@ -60,7 +60,7 @@ const WidgetCreate = () => {
     // Todo datasetType Table 일 경우 처리
     const param = {
       title: title,
-      description: title,
+      description: widgetOption.description,
       databaseId: dataset.databaseId,
       componentId: widgetOption.id,
       datasetType: dataset.datasetType,
@@ -147,7 +147,7 @@ const WidgetCreate = () => {
       >
         <Box
           sx={{
-            borderTop: '1px solid #e3e7ea',
+            borderBottom: '1px solid #e3e7ea',
           }}
         >
           <Stepper
