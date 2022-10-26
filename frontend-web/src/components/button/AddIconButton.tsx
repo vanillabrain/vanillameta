@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Box, Button, IconButton, Menu, MenuItem, SvgIcon, useMediaQuery, useTheme } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { Link as RouterLink } from 'react-router-dom';
@@ -151,4 +151,58 @@ export const RemoveButton = props => {
       {...props}
     />
   );
+};
+
+export const MenuButton = ({ menuList, handleSelect = null, icon, title, sizeOption = { width: 22, height: 22 } }) => {
+  const [anchorEl, setAnchorEl] = useState(null);
+  const open = Boolean(anchorEl);
+
+  const handleClick = event => {
+    setAnchorEl(event.currentTarget);
+  };
+  const handleClose = item => {
+    if (handleSelect) {
+      handleSelect(item);
+    }
+
+    setAnchorEl(null);
+  };
+
+  return (
+    <>
+      <Button
+        id="styled-menu"
+        variant="contained"
+        startIcon={icon}
+        onClick={handleClick}
+        color="primary"
+        sx={{
+          borderRadius: '8px',
+          backgroundColor: '#043f84',
+          height: '32px',
+          display: 'flex',
+          flexDirection: 'row',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: '8px 14px',
+          objectFit: 'contain',
+          border: 'solid 1px #0f5ab2',
+        }}
+      >
+        <span style={{ height: '20px' }}>{title}</span>
+      </Button>
+      <Menu id="styled-menu" anchorEl={anchorEl} open={open} onClose={handleClose} sx={{ width: menuWidth }}>
+        {menuList.map(item => (
+          <MenuItem key={item.name} onClick={() => handleClose(item)} disableRipple sx={{ width: menuWidth }}>
+            {item.name}
+          </MenuItem>
+        ))}
+      </Menu>
+    </>
+  );
+};
+MenuButton.defaultProps = {
+  menuList: {
+    name: '',
+  },
 };
