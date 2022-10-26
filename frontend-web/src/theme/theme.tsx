@@ -199,12 +199,26 @@ export default createTheme({
       styleOverrides: {
         label: {
           color: '#9b9ea9',
+          fontSize: '16px',
+          fontWeight: 'bold',
           '&.Mui-active': {
             color: '#0f5ab2',
-            fontWeight: 700,
+            fontWeight: 'bold',
           },
           '&.Mui-completed': {
             color: '#9b9ea9',
+          },
+        },
+        iconContainer: {
+          fontWeight: 'bold',
+        },
+      },
+    },
+    MuiCardContent: {
+      styleOverrides: {
+        root: {
+          '&:last-child': {
+            paddingBottom: '16px',
           },
         },
       },

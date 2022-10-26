@@ -4,12 +4,9 @@ import PageTitleBox from '@/components/PageTitleBox';
 import { ConfirmButton } from '@/components/button/ConfirmCancelButton';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import WidgetAttributeSelect from '@/pages/Widget/WidgetCreate/WidgetAttributeSelect';
-import WidgetService from '@/api/widgetService';
 import widgetService from '@/api/widgetService';
 import { WidgetInfo } from '@/api/type';
 import { LayoutContext } from '@/contexts/LayoutContext';
-
-// import { get } from '@/helpers/apiHelper';
 
 interface CustomizedState {
   from: string;
@@ -54,7 +51,8 @@ const WidgetModify = props => {
   const getWidgetInfo = () => {
     setLoading(true);
     // get('/data/dummyWidgetList.json')
-    WidgetService.selectWidget(widgetId)
+    widgetService
+      .selectWidget(widgetId)
       .then(response => {
         setWidgetInfo(response.data.data);
         console.log('getWidgetInfo', response.data.data);
@@ -84,7 +82,9 @@ const WidgetModify = props => {
   return (
     <PageContainer>
       <PageTitleBox
-        title="위젯 수정"
+        upperTitle="위젯"
+        title="위젯 편집"
+        sx={{ padding: 0 }}
         button={
           <ConfirmButton
             confirmLabel="저장"

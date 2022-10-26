@@ -43,7 +43,7 @@ function PageTitleBox(props) {
                     paddingLeft: '18px',
                     height: '16px',
                     fontFamily: 'Pretendard',
-                    fontSize: '18px',
+                    fontSize: '16px',
                     fontStretch: 'normal',
                     fontStyle: 'normal',
                     lineHeight: 0.89,

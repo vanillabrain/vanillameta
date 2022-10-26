@@ -1,12 +1,13 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Outlet, useParams } from 'react-router-dom';
+import { Link as RouterLink, Outlet, useParams } from 'react-router-dom';
 import { useAlert } from 'react-alert';
 import PageContainer from '@/components/PageContainer';
 import PageTitleBox from '@/components/PageTitleBox';
 import BoardList from '@/components/BoardList';
-import AddIconButton from '@/components/button/AddIconButton';
 import WidgetService from '@/api/widgetService';
 import { LoadingContext } from '@/contexts/LoadingContext';
+import AddIcon from '@mui/icons-material/Add';
+import { Button } from '@mui/material';
 
 const title = '위젯';
 
@@ -57,7 +58,21 @@ const Widget = () => {
   return (
     <PageContainer>
       {!widgetId ? (
-        <PageTitleBox title={title} button={<AddIconButton link="create" />}>
+        <PageTitleBox
+          title={title}
+          button={
+            <Button
+              variant="contained"
+              component={RouterLink}
+              to="create"
+              sx={{ height: '32px', backgroundColor: '#043f84' }}
+              startIcon={<AddIcon />}
+            >
+              위젯 생성
+            </Button>
+            // <AddIconButton link="create" />
+          }
+        >
           <BoardList postList={widgetList} handleDeleteSelect={removeWidget} />
         </PageTitleBox>
       ) : (

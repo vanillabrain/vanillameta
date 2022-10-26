@@ -1,19 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { IconButton, Stack } from '@mui/material';
-import { Link as RouterLink, useLocation, useParams } from 'react-router-dom';
-import AutorenewIcon from '@mui/icons-material/Autorenew';
-import EditIcon from '@mui/icons-material/Edit';
-import { Delete } from '@mui/icons-material';
+import { Box, Stack, Typography } from '@mui/material';
+import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import PageTitleBox from '@/components/PageTitleBox';
-import TitleBox from '@/components/TitleBox';
-import { DialogAlertIconButton } from '@/components/button/DialogAlertButton';
 import WidgetService from '@/api/widgetService';
 import { WidgetInfo } from '@/api/type';
 import WidgetWrapper from '@/widget/wrapper/WidgetWrapper';
+import ReloadButton from '@/components/button/ReloadButton';
+import ModifyButton from '@/components/button/ModifyButton';
+import DeleteButton from '@/components/button/DeleteButton';
+import DashboardTitleBox from '@/pages/Dashboard/Components/DashboardTitleBox';
+import { useAlert } from 'react-alert';
 
 const WidgetView = () => {
-  const location = useLocation();
-  const pathname = location.pathname;
+  const navigate = useNavigate();
+  const alert = useAlert();
+
   const defaultWidgetInfo: WidgetInfo = {
     componentId: '',
     createdAt: '',
@@ -50,40 +51,130 @@ const WidgetView = () => {
     // .then(data => setLoadedWidgetData(data.filter((list, idx) => idx <= 10 * loadedCount)));
   };
 
-  const handleRenewClick = () => {
-    console.log('renew');
+  const dateData = data => {
+    const userDate = new Date(data);
+    const year = userDate.getFullYear();
+    const month = userDate.getMonth() + 1;
+    const date = userDate.getDate();
+    return `${year}.${month >= 10 ? month : '0' + month}.${date >= 10 ? date : '0' + date}`;
+  };
+
+  // refrech 버튼 클릭
+  const handleRefreshClick = () => {
+    navigate(0);
+  };
+
+  const removeWidget = () => {
+    alert.success(`${widgetOption.title}\n위젯을 삭제하시겠습니까?`, {
+      title: '위젯 삭제',
+      closeCopy: '취소',
+      actions: [
+        {
+          copy: '삭제',
+          onClick: () => {
+            WidgetService.deleteWidget(widgetId).then(response => {
+              if (response.status === 200) {
+                alert.info('삭제되었습니다.', {
+                  onClose: () => {
+                    navigate('/widget');
+                  },
+                });
+              } else {
+                alert.info('삭제 실패하였습니다.');
+              }
+            });
+          },
+        },
+      ],
+    });
   };
 
   return (
-    <PageTitleBox title="위젯 조회">
-      <TitleBox
-        title={widgetOption.title}
+    <PageTitleBox upperTitle="위젯" title="위젯 조회" sx={{ width: '100%', marginTop: '22px' }}>
+      <DashboardTitleBox
+        title={
+          <Typography
+            variant="subtitle1"
+            component="span"
+            sx={{
+              fontWeight: 500,
+              paddingLeft: '18px',
+              height: '16px',
+              fontFamily: 'Pretendard',
+              fontSize: '18px',
+              fontStretch: 'normal',
+              fontStyle: 'normal',
+              lineHeight: 0.89,
+              letterSpacing: '-0.18px',
+              textAlign: 'left',
+              color: '#141414',
+            }}
+          >
+            {widgetOption.title}
+          </Typography>
+        }
         button={
-          <Stack direction="row" spacing={1}>
-            <IconButton onClick={handleRenewClick} aria-label="새로고침" color="primary">
-              <AutorenewIcon />
-            </IconButton>
-            <IconButton
+          <Stack direction="row" alignItems="center" sx={{ marginRight: '20px' }}>
+            <span
+              style={{
+                marginRight: '56px',
+                height: '16px',
+                fontSize: '14px',
+                fontWeight: '500',
+                lineHeight: '1.14',
+                letterSpacing: 'normal',
+                textAlign: 'left',
+                color: '#333',
+              }}
+            >
+              {dateData(widgetOption.updatedAt)}
+            </span>
+            <ReloadButton
+              size="medium"
+              sx={{ marginRight: '36px', padding: 0 }}
+              onClick={event => {
+                event.preventDefault();
+                event.stopPropagation();
+                handleRefreshClick();
+              }}
+            />
+            <ModifyButton
+              size="medium"
+              sx={{ marginRight: '36px', padding: 0 }}
               component={RouterLink}
               to={`/widget/modify?id=${widgetId}&name=${widgetOption.title}`}
-              state={{ from: pathname }}
               aria-label="수정"
-            >
-              <EditIcon />
-            </IconButton>
-            <DialogAlertIconButton icon={<Delete />} size="small">
-              {`삭제시 N개의 대시보드에 반영됩니다.`}
-              <br /> {`<${widgetOption.title}>을 삭제하시겠습니까?`}
-            </DialogAlertIconButton>
+            />
+            <DeleteButton
+              size="medium"
+              sx={{ padding: 0 }}
+              onClick={event => {
+                event.preventDefault();
+                event.stopPropagation();
+                removeWidget();
+              }}
+            />
           </Stack>
         }
       >
-        <WidgetWrapper
-          widgetOption={widgetOption}
-          dataSetId={widgetOption.datasetId}
-          sx={{ width: '100%', height: '500px', borderRadius: 1 }}
-        />
-      </TitleBox>
+        <Box
+          sx={{
+            width: '60%',
+            height: '500px',
+            margin: '54px auto',
+            border: '1px solid #e2e2e2',
+            borderRadius: '8px',
+            boxShadow: '2px 2px 9px 0 rgba(42, 50, 62, 0.1), 0 4px 4px 0 rgba(0, 0, 0, 0.02)',
+            backgroundColor: '#fff',
+          }}
+        >
+          <WidgetWrapper
+            widgetOption={widgetOption}
+            dataSetId={widgetOption.datasetId}
+            sx={{ width: '100%', height: '500px', borderRadius: 1 }}
+          />
+        </Box>
+      </DashboardTitleBox>
     </PageTitleBox>
   );
 };
