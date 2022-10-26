@@ -114,7 +114,7 @@ export class ConnectionService {
               const fieldInfo = {
                 columnName: field.name,
                 columnLength: field._tableLength,
-                columnType: FieldTypeUtil.mysqlFieldType(field.columnType),
+                columnType: FieldTypeUtil.mysqlFieldType(field.type),
               };
               fields.push(fieldInfo);
             });
