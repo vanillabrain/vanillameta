@@ -70,7 +70,6 @@ const Widget = () => {
             >
               위젯 생성
             </Button>
-            // <AddIconButton link="create" />
           }
         >
           <BoardList postList={widgetList} handleDeleteSelect={removeWidget} />
