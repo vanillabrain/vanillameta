@@ -8,7 +8,9 @@ const inputStyle = {
 
 const DatabaseForm = props => {
   const { testConnect, formData, setFormData } = props;
+  console.log('formData', formData);
   const handleSubmit = data => {
+    console.log('DatabaseForm');
     data.preventDefault();
     const item = {
       name: data.target.name.value,
@@ -16,7 +18,7 @@ const DatabaseForm = props => {
       port: data.target.port.value,
       user: data.target.user.value,
       password: data.target.password.value,
-      database: data.target.schema.value,
+      database: data.target.database.value,
     };
     testConnect(item);
   };

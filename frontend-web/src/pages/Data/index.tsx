@@ -1,13 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import PageContainer from '@/components/PageContainer';
 import DataLayout from './DataLayout';
-// import { get } from '@/helpers/apiHelper';
-import axios from 'axios';
 
-function Data() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [loadedData, setLoadedData] = useState([]);
-
+/**
+ * 데이터 관리 페이지
+ * @constructor
+ */
+function DataPage() {
   return (
     <PageContainer>
       <DataLayout />
@@ -15,4 +14,4 @@ function Data() {
   );
 }
 
-export default Data;
+export default DataPage;
