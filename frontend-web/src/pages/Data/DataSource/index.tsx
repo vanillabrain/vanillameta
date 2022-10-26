@@ -2,16 +2,14 @@ import React, { useLayoutEffect, useState } from 'react';
 import { Stack, Typography } from '@mui/material';
 import PageContainer from '@/components/PageContainer';
 import PageTitleBox from '@/components/PageTitleBox';
-import TitleBox from '@/components/TitleBox';
 import ImgCardList from '@/components/ImgCardList';
 import ConfirmCancelButton from '@/components/button/ConfirmCancelButton';
 import DatabaseService from '@/api/databaseService';
 import { STATUS } from '@/constant';
 import { getDatabaseIcon } from '@/widget/utils/iconUtil';
-import { Link as RouterLink, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAlert } from 'react-alert';
 import DatabaseForm from '@/pages/Data/DataSource/form/DatabaseForm';
-import AddButton from '@/components/button/AddButton';
 
 function DataSource() {
   const { sourceId } = useParams();
@@ -48,18 +46,23 @@ function DataSource() {
    */
   const getDatabaseInfo = () => {
     DatabaseService.selectDatabase(sourceId).then(response => {
-      // console.log('getDatabaseInfo', response.data.data.databaseInfo);
       const info = response.data;
       if (info.status === 'SUCCESS') {
-        console.log(info.data.databaseInfo.connectionConfig);
-        setFormData(info.data.databaseInfo.connectionConfig);
+        const databaseInfo = info.data.databaseInfo;
+        const temp = {
+          databaseName: databaseInfo.name,
+          host: databaseInfo.connectionConfig.host,
+          port: databaseInfo.connectionConfig.port,
+          user: databaseInfo.connectionConfig.user,
+          password: databaseInfo.connectionConfig.password,
+          database: databaseInfo.connectionConfig.database,
+        };
+        setFormData(temp);
       }
     });
   };
 
   const testConnect = item => {
-    console.log('testConnect ', item);
-
     const param = {
       name: item.name,
       description: item.name,
@@ -70,8 +73,9 @@ function DataSource() {
       console.log(response);
       if (response.data.status === STATUS.SUCCESS) {
         setIsConnected(true);
+        alert.info('데이터베이스 연결에 성공하였습니다.');
       } else {
-        alert.info('데이터 베이스에 연결할 수 없습니다.\n데이터 베이스 정보를 확인해주세요.');
+        alert.info('데이터베이스에 연결할 수 없습니다.\n데이터 베이스 정보를 확인해주세요.');
       }
     });
   };
