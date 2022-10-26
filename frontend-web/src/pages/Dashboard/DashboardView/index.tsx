@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Card, IconButton, Stack, Typography } from '@mui/material';
+import { Box, Card, Stack, Typography } from '@mui/material';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
-import AutorenewIcon from '@mui/icons-material/Autorenew';
 import PageTitleBox from '@/components/PageTitleBox';
 import WidgetWrapper from '@/widget/wrapper/WidgetWrapper';
 import { useAlert } from 'react-alert';
@@ -21,8 +20,6 @@ const DashboardView = () => {
   const { dashboardId } = useParams();
   const navigate = useNavigate();
   const alert = useAlert();
-
-  const [loading, setLoading] = useState(false);
 
   const [dashboardInfo, setDashboardInfo] = useState({ title: '', widgets: [], layout: [], updatedAt: '' }); // dashboard 정보
   const [layout, setLayout] = useState([]); // grid layout

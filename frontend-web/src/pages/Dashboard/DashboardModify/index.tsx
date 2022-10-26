@@ -4,8 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import PageContainer from '@/components/PageContainer';
 import PageTitleBox from '@/components/PageTitleBox';
 import AddWidgetPopup from '@/pages/Dashboard/Components/AddWidgetPopup';
-import ConfirmCancelButton, { CancelButton, ConfirmButton } from '@/components/button/ConfirmCancelButton';
-import DialogAlertButton from '@/components/button/DialogAlertButton';
+import ConfirmCancelButton from '@/components/button/ConfirmCancelButton';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import { useAlert } from 'react-alert';
 
@@ -19,7 +18,6 @@ import { STATUS } from '@/constant';
 import DashboardTitleBox from '../Components/DashboardTitleBox';
 import CloseButton from '@/components/button/CloseButton';
 import bg from '@/assets/images/dashboard-bg.svg';
-import grid from '@/assets/images/grid.svg';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -173,48 +171,59 @@ function DashboardModify() {
   };
 
   // 저장 여부 버튼 이벤트
-  const handleSaveDialogSelect = detail => {
-    if (detail == 1) {
-      // validation 체크
-      // title null 체크, widgets 수 체크 (0개면 저장 못함)
-      if (dashboardTitle == null || dashboardTitle.trim() == '') {
-        // title 이 없을 경우
-        alert.info('제목을 입력 해주세요.', {
-          onClose: () => {
-            // todo 아래 기능 연결하기
-            console.log('title 로 포커스 이동하기');
-          },
-        });
-      } else if (layout.length == 0 || widgets.length == 0) {
-        // 배치된 widget 이 없을경우
-        alert.info('배치된 위젯이 없습니다.');
-      } else {
-        // 저장 로직
-        dashboardInfo.dashboardId = dashboardId;
-        dashboardInfo.title = dashboardTitle;
-        dashboardInfo.layout = layout;
-        dashboardInfo.widgets = widgets;
+  const handleSaveDialogSelect = () => {
+    // validation 체크
+    // title null 체크, widgets 수 체크 (0개면 저장 못함)
+    if (dashboardTitle == null || dashboardTitle.trim() == '') {
+      // title 이 없을 경우
+      alert.info('제목을 입력 해주세요.', {
+        onClose: () => {
+          // todo 아래 기능 연결하기
+          console.log('title 로 포커스 이동하기');
+        },
+      });
+    } else if (layout.length == 0 || widgets.length == 0) {
+      // 배치된 widget 이 없을경우
+      alert.info('배치된 위젯이 없습니다.');
+    } else {
+      // 저장 로직
+      dashboardInfo.dashboardId = dashboardId;
+      dashboardInfo.title = dashboardTitle;
+      dashboardInfo.layout = layout;
+      dashboardInfo.widgets = widgets;
 
-        if (dashboardId != null) {
-          DashboardService.updateDashboard(dashboardId, dashboardInfo).then(response => {
-            alert.success('저장하였습니다.', {
-              onClose: () => {
-                navigate('/dashboard');
+      if (dashboardId != null) {
+        alert.success(`${dashboardTitle}\n대시보드를 수정하시겠습니까?`, {
+          title: '대시보드 수정',
+          closeCopy: '취소',
+          actions: [
+            {
+              copy: '수정',
+              onClick: () => {
+                DashboardService.updateDashboard(dashboardId, dashboardInfo).then(() => {
+                  navigate('/dashboard');
+                });
               },
-            });
-          });
-        } else {
-          DashboardService.createDashboard(dashboardInfo).then(response => {
-            alert.success('저장하였습니다.', {
-              onClose: () => {
-                navigate('/dashboard');
+            },
+          ],
+        });
+      } else {
+        alert.success(`${dashboardTitle}\n대시보드를 생성하시겠습니까?`, {
+          title: '대시보드 생성',
+          closeCopy: '취소',
+          actions: [
+            {
+              copy: '생성',
+              onClick: () => {
+                DashboardService.createDashboard(dashboardInfo).then(() => {
+                  navigate('/dashboard');
+                });
               },
-            });
-          });
-        }
+            },
+          ],
+        });
       }
     }
-    console.log('저장한다 안한다', detail);
   };
 
   // 취소 여부 버튼 이벤트
@@ -250,27 +259,8 @@ function DashboardModify() {
         button={
           <Stack direction="row" spacing={3} sx={{ marginRight: '20px' }}>
             <ConfirmCancelButton
-              // confirmProps={{ disabled: true }}
-              secondButton={
-                <DialogAlertButton
-                  cancelLabel="취소"
-                  confirmLabel="저장"
-                  handleDialogSelect={handleSaveDialogSelect}
-                  button={<ConfirmButton confirmLabel="저장" cancelProps={{ component: 'div' }} />}
-                >
-                  저장하시겠습니까?
-                </DialogAlertButton>
-              }
-              firstButton={
-                <DialogAlertButton
-                  cancelLabel="취소"
-                  confirmLabel="확인"
-                  handleDialogSelect={handleCancelDialogSelect}
-                  button={<CancelButton cancelLabel="취소" cancelProps={{ component: 'div' }} />}
-                >
-                  변경사항을 저장하지 않고 작업을 취소하시겠습니까?
-                </DialogAlertButton>
-              }
+              confirmProps={{ disabled: false, onClick: handleSaveDialogSelect }}
+              cancelProps={{ onClick: handleCancelDialogSelect }}
             />
           </Stack>
         }

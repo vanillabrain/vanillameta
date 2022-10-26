@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { BarChart, Dashboard, PieChart, MultilineChart } from '@mui/icons-material';
+import { BarChart, MultilineChart, PieChart } from '@mui/icons-material';
 import {
   Button,
   Dialog,
@@ -8,15 +8,12 @@ import {
   DialogTitle,
   IconButton,
   List,
-  Alert,
   ListItemButton,
   ListItemIcon,
   ListItemText,
   Typography,
 } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
-import { get } from '@/helpers/apiHelper';
 import WidgetService from '@/api/widgetService';
 import { STATUS } from '@/constant';
 
