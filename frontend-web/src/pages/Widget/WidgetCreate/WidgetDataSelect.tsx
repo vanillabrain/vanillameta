@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import DataLayout from '@/pages/Data/DataLayout';
 
 function WidgetDataSelect(props) {
-  const { setDataSet, handleNext } = props;
+  const { setDataSet } = props;
 
   const [isLoading, setIsLoading] = useState(false);
   const [loadedData, setLoadedData] = useState([]);

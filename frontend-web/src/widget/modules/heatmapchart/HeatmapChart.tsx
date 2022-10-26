@@ -31,12 +31,6 @@ const HeatmapChart = props => {
     }
   }, [option, dataSet]);
 
-  /**
-   *
-   * 위젯옵션과 데이터로
-   * 컴포넌트에 맞는 형태로 생성
-   */
-
   const createComponentOption = () => {
     let newOption = {};
 
@@ -52,7 +46,7 @@ const HeatmapChart = props => {
         option.series,
         option.aggregation,
       );
-      console.log('aggrData', aggrData);
+      // console.log('aggrData', aggrData);
 
       let xIndex = 0;
       let yIndex = 0;
@@ -60,8 +54,6 @@ const HeatmapChart = props => {
       const yItems = {};
       newSeries = aggrData.map(item => {
         const result = [];
-        // console.log('item:', item);
-        // console.log('result :', item[option.xField], item[option.yField], item[option.series]);
 
         // 1번째 요소
         if (!xItems.hasOwnProperty(item[option.xField])) {
@@ -84,14 +76,12 @@ const HeatmapChart = props => {
         return result;
       });
     }
-    console.log('newSeries', newSeries);
 
     let minValue, maxValue;
     if (aggrData.length) {
       const arr = aggrData.map(item => Number(item[option.series]));
       minValue = Math.min(...arr);
       maxValue = Math.max(...arr);
-      console.log('minVal: ', minValue, 'maxVal: ', maxValue);
 
       const op = {
         xAxis: {

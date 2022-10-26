@@ -77,7 +77,6 @@ const TreemapChartSetting = props => {
               setOption={setOption}
               index={index}
             />
-            <Divider />
           </React.Fragment>
         ))}
       </ListItem>

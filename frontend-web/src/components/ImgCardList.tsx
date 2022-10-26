@@ -1,9 +1,9 @@
 import React from 'react';
-import { Box, Card, CardActionArea, CardContent, Grid, Stack, Typography } from '@mui/material';
+import { Box, CardContent, Grid, Typography } from '@mui/material';
 import { CardWrapper } from '@/components/list/CardListWrapper';
 
 function ImgCardList(props) {
-  const { data, minWidth, selectedType, setSelectedType, handleNext } = props;
+  const { data, minWidth, selectedType, setSelectedType } = props;
   const srcUrl = '/static/images/';
 
   const handleClick = item => {
@@ -33,11 +33,7 @@ function ImgCardList(props) {
         return (
           <Grid item xs={12} md component="li" key={item.id}>
             {/*// <Box component="li" key={item.id} sx={{ width: '166px', height: '169px' }}>*/}
-            <CardWrapper
-              sx={{ p: 0 }}
-              selected={selected}
-              onClick={!handleNext ? () => handleClick(item) : event => handleNext(event, item)}
-            >
+            <CardWrapper sx={{ p: 0 }} selected={selected} onClick={() => handleClick(item)}>
               <CardContent
                 sx={{
                   display: 'flex',
@@ -52,12 +48,23 @@ function ImgCardList(props) {
                   src={srcUrl + item.icon}
                   sx={{ width: 80, height: 60, objectFit: 'contain', mb: 3, border: 0 }}
                 />
-                <Typography variant="subtitle2" component="span" sx={{ textAlign: 'center' }}>
+                <Typography
+                  variant="subtitle2"
+                  component="span"
+                  sx={{ textAlign: 'center', lineHeight: '1.3', fontWeight: 'bold' }}
+                >
                   {item.title}
                 </Typography>
-                <Typography variant="caption" sx={{ textAlign: 'center', color: theme => theme.palette.grey.A700 }}>
-                  {item.description}
-                </Typography>
+                {item.description ? (
+                  <Typography
+                    variant="caption"
+                    sx={{ mt: '4px', textAlign: 'center', lineHeight: '1.3', color: theme => theme.palette.grey.A700 }}
+                  >
+                    {item.description}
+                  </Typography>
+                ) : (
+                  ' '
+                )}
               </CardContent>
             </CardWrapper>
           </Grid>

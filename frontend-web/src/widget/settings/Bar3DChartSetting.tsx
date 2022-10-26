@@ -105,7 +105,6 @@ const Bar3DChartSetting = props => {
               setOption={setOption}
               index={index}
             />
-            <Divider />
           </React.Fragment>
         ))}
       </ListItem>
