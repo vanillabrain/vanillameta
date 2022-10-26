@@ -3,7 +3,8 @@ import PageContainer from '@/components/PageContainer';
 import PageTitleBox from '@/components/PageTitleBox';
 import BoardList from '@/components/BoardList';
 import { Outlet, useNavigate, useParams } from 'react-router-dom';
-import { AddMenuIconButton } from '@/components/button/AddIconButton';
+import { MenuButton } from '@/components/button/AddIconButton';
+import AddIcon from '@mui/icons-material/Add';
 import { Box } from '@mui/material';
 import DashboardService from '@/api/dashboardService';
 import { STATUS } from '@/constant';
@@ -92,10 +93,11 @@ function Dashboard() {
             title={title}
             sx={{ width: '100%' }}
             button={
-              <AddMenuIconButton
+              <MenuButton
                 menuList={menuList}
                 handleSelect={handleMenuSelect}
-                iconUrl={'../../static/images/icon/btn-icon-default.png'}
+                icon={<AddIcon />}
+                title="대시보드 추가"
                 sizeOption={{ width: 108, height: 32 }}
               />
             }

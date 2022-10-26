@@ -1,8 +1,8 @@
 import React from 'react';
-import { Divider, Box, Stack, Typography } from '@mui/material';
+import { Box, Divider, Stack } from '@mui/material';
 
 function DashboardTitleBox(props) {
-  const { title, width, button } = props;
+  const { title, button } = props;
 
   return (
     <Box

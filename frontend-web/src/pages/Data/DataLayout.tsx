@@ -71,7 +71,7 @@ const DataLayout = props => {
 
   const removeDatabase = (id, name) => {
     console.log('removeDatabase', id);
-    alert.success(`${name} 데이터베이스를 삭제하시겠습니까?`, {
+    alert.success(`${name}\n데이터베이스를 삭제하시겠습니까?`, {
       title: '데이터베이스 삭제',
       closeCopy: '취소',
       actions: [
@@ -97,7 +97,7 @@ const DataLayout = props => {
 
   const handleDeleteDataset = item => {
     console.log('handleDeleteDataset', item);
-    alert.success(`${item.title} 데이터셋를 삭제하시겠습니까?`, {
+    alert.success(`${item.title}\n데이터셋를 삭제하시겠습니까?`, {
       title: '데이터베이스 삭제',
       closeCopy: '취소',
       actions: [
