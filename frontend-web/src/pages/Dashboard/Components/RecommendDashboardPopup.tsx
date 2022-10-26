@@ -196,7 +196,7 @@ export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = 
 
   return (
     <>
-      <DialogContent dividers id="scroll-dialog-description" tabIndex={-1} sx={{ height: '620px', padding: 0 }}>
+      <DialogContent dividers id="scroll-dialog-description" sx={{ width: '100%', height: '620px', padding: 0 }}>
         {/*<List*/}
         {/*  sx={{*/}
         {/*    width: 600,*/}
@@ -213,68 +213,64 @@ export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = 
         {/*    </ListItemButton>*/}
         {/*  ))}*/}
         {/*</List>*/}
-        <Grid container sx={{ margin: '12px 12px', height: '602px', padding: 0 }}>
+        <Grid container columns={{ xs: 10 }} spacing="24px" sx={{ padding: '24px' }}>
           {loadedTemplateDataList.map((item, index) => (
-            <Stack
-              justifyContent="center"
-              alignItems="center"
-              direction="column"
-              sx={{
-                marginLeft: '12px',
-                marginRight: '12px',
-                marginTop: '12px',
-                marginBottom: '12px',
-                width: '248px',
-                height: '266px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'flex-start',
-                alignItems: 'flex-start',
-                gap: '12px',
-                padding: '12px 12px 20px',
-                backgroundColor: '#eeeeee',
-              }}
-            >
-              <Box sx={{ width: '224px', height: '146px', margin: '0 0 0', backgroundColor: '#0000ff' }}>이미지 자리</Box>
-              <span
-                style={{
-                  height: '20px',
-                  flexGrow: '0',
-                  fontFamily: 'Pretendard',
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  fontStretch: 'normal',
-                  fontStyle: 'normal',
-                  lineHeight: '1.43',
-                  letterSpacing: 'normal',
-                  textAlign: 'left',
-                  color: '#333333',
+            <Grid item xs={2}>
+              <Stack
+                justifyContent="center"
+                alignItems="center"
+                direction="column"
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'flex-start',
+                  alignItems: 'flex-start',
+                  gap: '12px',
+                  padding: '12px 12px 20px',
+                  backgroundColor: '#eeeeee',
                 }}
               >
-                {item.title}
-              </span>
-              <span
-                style={{
-                  height: '44px',
-                  flexGrow: '0',
-                  fontFamily: 'Pretendard',
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  fontStretch: 'normal',
-                  fontStyle: 'normal',
-                  lineHeight: '1.57',
-                  letterSpacing: 'normal',
-                  textAlign: 'left',
-                  color: '#767676',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  width: '224px',
-                  // whiteSpace: 'nowrap',
-                }}
-              >
-                {item.description}
-              </span>
-            </Stack>
+                <Box sx={{ width: '224px', height: '146px', margin: '0 0 0', backgroundColor: '#0000ff' }}>이미지 자리</Box>
+                <span
+                  style={{
+                    height: '20px',
+                    flexGrow: '0',
+                    fontFamily: 'Pretendard',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    fontStretch: 'normal',
+                    fontStyle: 'normal',
+                    lineHeight: '1.43',
+                    letterSpacing: 'normal',
+                    textAlign: 'left',
+                    color: '#333333',
+                  }}
+                >
+                  {item.title}
+                </span>
+                <span
+                  style={{
+                    height: '44px',
+                    flexGrow: '0',
+                    fontFamily: 'Pretendard',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    fontStretch: 'normal',
+                    fontStyle: 'normal',
+                    lineHeight: '1.57',
+                    letterSpacing: 'normal',
+                    textAlign: 'left',
+                    color: '#767676',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    width: '224px',
+                    // whiteSpace: 'nowrap',
+                  }}
+                >
+                  {item.description}
+                </span>
+              </Stack>
+            </Grid>
           ))}
         </Grid>
       </DialogContent>
