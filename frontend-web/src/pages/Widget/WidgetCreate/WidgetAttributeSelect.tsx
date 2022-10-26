@@ -14,7 +14,7 @@ const WidgetAttributeSelect = props => {
   const { fixLayout } = useContext(LayoutContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
 
-  const { widgetOption, prevOption, saveWidgetInfo, dataset, isModifyMode = false, top = 0 } = props;
+  const { widgetOption, prevOption, saveWidgetInfo, dataset, isModifyMode = false } = props;
 
   const [option, setOption] = useState(null);
   const [data, setData] = useState(null);
@@ -88,11 +88,11 @@ const WidgetAttributeSelect = props => {
       justifyContent="space-between"
       sx={{
         width: '100%',
-        height: `calc(100% - ${top}px)`,
+        height: 'calc(100vh - 195px)',
+        overflow: 'hidden',
         backgroundColor: '#f5f6f8',
         backgroundImage: `url(${grid})`,
         backgroundRepeat: 'repeat',
-        flexGrow: 1,
       }}
       onSubmit={handleSubmit}
       id="widgetAttribute"
@@ -100,10 +100,9 @@ const WidgetAttributeSelect = props => {
     >
       <Box
         sx={{
-          width: '100%',
-          height: 'auto',
-          minHeight: '500px',
-          margin: '54px',
+          width: '60%',
+          height: '500px',
+          margin: '54px auto',
           border: '1px solid #e2e2e2',
           borderRadius: '8px',
           boxShadow: '2px 2px 9px 0 rgba(42, 50, 62, 0.1), 0 4px 4px 0 rgba(0, 0, 0, 0.02)',

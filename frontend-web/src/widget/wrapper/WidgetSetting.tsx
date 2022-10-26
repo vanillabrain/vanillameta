@@ -303,36 +303,35 @@ const WidgetSetting = props => {
 
   return (
     <Stack
+      justifyContent="space-between"
       sx={{
-        width: '440px',
+        width: '40%',
+        maxWidth: '440px',
+        minWidth: '340px',
         height: '100%',
         px: '24px',
         py: '30px',
         overflowY: 'auto !important',
-        flex: 'auto',
-        minHeight: 0,
-        minWidth: 0,
         backgroundColor: '#fff',
-        flexShrink: 0,
-        flexGrow: 0,
       }}
     >
-      <Typography
-        component="span"
-        sx={{
-          fontWeight: 'bold',
-          color: '#767676',
-          mb: '16px',
-        }}
-      >
-        {widgetName}
-        <Typography component="span">{`(${widgetDescription})`}</Typography>
-      </Typography>
-      <WidgetTitleForm value={title} onChange={event => setTitle(event.target.value)} />
-      <Divider sx={{ mt: '30px' }} />
+      <Stack>
+        <Typography
+          component="span"
+          sx={{
+            fontWeight: 'bold',
+            color: '#767676',
+            mb: '16px',
+          }}
+        >
+          {widgetName}
+          <Typography component="span">{`(${widgetDescription})`}</Typography>
+        </Typography>
+        <WidgetTitleForm value={title} onChange={event => setTitle(event.target.value)} />
+        <Divider sx={{ mt: '30px' }} />
 
-      <StyledList>{module}</StyledList>
-
+        <StyledList>{module}</StyledList>
+      </Stack>
       <ConfirmButton
         sx={{ minHeight: '44px', mt: '30px', fontWeight: 'bold', backgroundColor: '#043f84' }}
         confirmLabel="저장"
