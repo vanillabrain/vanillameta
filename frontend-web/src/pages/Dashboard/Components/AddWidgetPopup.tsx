@@ -17,6 +17,8 @@ import {
 import CloseIcon from '@mui/icons-material/Close';
 import WidgetService from '@/api/widgetService';
 import { STATUS } from '@/constant';
+import { useAlert } from 'react-alert';
+import CloseButton from '@/components/button/CloseButton';
 
 const iconType = item => {
   switch (item.toUpperCase()) {
@@ -35,6 +37,7 @@ function AddWidgetPopup({ label, useWidgetIds = [], widgetOpen = false, widgetSe
   const [open, setOpen] = useState(widgetOpen);
   const [selectedIds, setSelectedIds] = useState([]);
   const [loadedWidgetData, setLoadedWidgetData] = useState([]);
+  const alert = useAlert();
   const getItems = () => {
     WidgetService.selectWidgetList().then(response => {
       if (response.data.status == STATUS.SUCCESS) {
@@ -105,47 +108,94 @@ function AddWidgetPopup({ label, useWidgetIds = [], widgetOpen = false, widgetSe
       }
       setOpen(false);
     } else {
-      // todo alert 호출 "위젯을 선택하세요"
+      alert.info('위젯을 선택하세요.');
     }
   };
 
   return (
-    <React.Fragment>
+    <>
       <Dialog
         open={open}
         onClose={handleClose}
         // scroll={scroll}
         aria-labelledby="scroll-dialog-title"
         aria-describedby="scroll-dialog-description"
+        fullWidth={true}
+        sx={{
+          '& .MuiDialog-container': {
+            '& .MuiPaper-root': {
+              width: '100%',
+              maxWidth: '600px', // Set your width here
+              borderRadius: '8px',
+              boxShadow: '5px 5px 8px 0 rgba(0, 28, 71, 0.15)',
+              border: 'solid 1px #ddd',
+            },
+          },
+        }}
       >
-        <DialogTitle id="scroll-dialog-title">
-          {label}
-          <IconButton
-            aria-label="close"
-            onClick={handleClose}
-            sx={{
-              position: 'absolute',
-              right: 8,
-              top: 8,
-              color: theme => theme.palette.grey[500],
+        <DialogTitle
+          id="scroll-dialog-title"
+          sx={{ width: '100%', paddingLeft: '21px', paddingTop: '13px', height: '87px' }}
+        >
+          <span
+            style={{
+              height: '24px',
+              fontFamily: 'Pretendard',
+              fontSize: '20px',
+              fontWeight: '600',
+              fontStretch: 'normal',
+              fontStyle: 'normal',
+              lineHeight: 'normal',
+              letterSpacing: 'normal',
+              textAlign: 'left',
+              color: '#141414',
             }}
           >
-            <CloseIcon />
-          </IconButton>
-          <Typography variant="body2" mt={1}>
-            추가할 위젯을 선택해주세요. (<span style={{ color: '#0f5ab2', fontWeight: 'bold' }}>{selectedIds.length}</span>
-            개)
+            {label}
+          </span>
+          <CloseButton
+            sx={{
+              position: 'absolute',
+              right: '0px',
+              top: '0px',
+              paddingRight: '18.9px',
+              paddingTop: '20.4px',
+              cursor: 'pointer',
+            }}
+            size="medium"
+            onClick={event => {
+              event.preventDefault();
+              event.stopPropagation();
+              handleClose();
+            }}
+          />
+          <Typography
+            variant="body2"
+            sx={{
+              height: '17px',
+              flexGrow: 0,
+              fontFamily: 'Pretendard',
+              fontSize: '14px',
+              fontWeight: 'normal',
+              fontStretch: 'normal',
+              fontStyle: 'normal',
+              lineHeight: 'normal',
+              letterSpacing: 'normal',
+              textAlign: 'left',
+              color: '#767676',
+              paddingTop: '6px',
+            }}
+          >
+            추가할 위젯을 선택해주세요. (<span style={{ color: '#0f5ab2', fontWeight: 'bold' }}>{selectedIds.length}</span>개
+            선택)
           </Typography>
         </DialogTitle>
 
         <DialogContent dividers id="scroll-dialog-description" ref={descriptionElementRef} tabIndex={-1} sx={{ p: 0 }}>
           <List
             sx={{
-              width: '40%',
-              minWidth: 400,
-              height: '60%',
-              minHeight: 300,
-              maxHeight: 300,
+              width: '100%',
+              height: '400px',
             }}
           >
             {loadedWidgetData.map((item, index) => (
@@ -157,20 +207,66 @@ function AddWidgetPopup({ label, useWidgetIds = [], widgetOpen = false, widgetSe
               >
                 <Checkbox checked={isItemSelection(item)} />
                 <ListItemIcon sx={{ marginLeft: '16px', minWidth: '24px' }}>{iconType(item.componentType)}</ListItemIcon>
-                <ListItemText sx={{ marginLeft: '16px' }} primary={item.title} />
+                <ListItemText
+                  sx={{
+                    marginLeft: '16px',
+                    fontFamily: 'Pretendard',
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    fontStretch: 'normal',
+                    fontStyle: 'normal',
+                    lineHeight: 1.14,
+                    letterSpacing: 'normal',
+                    textAlign: 'left',
+                    color: '#333333',
+                  }}
+                  primary={item.title}
+                />
               </ListItemButton>
             ))}
           </List>
         </DialogContent>
 
-        <DialogActions>
-          <Button onClick={handleClose} color="inherit">
+        <DialogActions sx={{ height: '63px' }}>
+          <Button
+            onClick={handleClose}
+            color="inherit"
+            sx={{
+              flexGrow: 0,
+              fontFamily: 'Pretendard',
+              fontSize: '14px',
+              fontWeight: 600,
+              fontStretch: 'normal',
+              fontStyle: 'normal',
+              lineHeight: 1.14,
+              letterSpacing: 'normal',
+              textAlign: 'left',
+              color: '#767676',
+            }}
+          >
             취소
           </Button>
-          <Button onClick={() => handleSelect()}>위젯 추가</Button>
+          <span style={{ width: '4px' }}></span>
+          <Button
+            onClick={() => handleSelect()}
+            sx={{
+              flexGrow: 0,
+              fontFamily: 'Pretendard',
+              fontSize: '14px',
+              fontWeight: 600,
+              fontStretch: 'normal',
+              fontStyle: 'normal',
+              lineHeight: 1.14,
+              letterSpacing: 'normal',
+              textAlign: 'left',
+              color: '#0057bd',
+            }}
+          >
+            위젯 추가
+          </Button>
         </DialogActions>
       </Dialog>
-    </React.Fragment>
+    </>
   );
 }
 

@@ -140,8 +140,10 @@ function DashboardModify() {
               position: 'absolute',
               right: '0px',
               top: '0px',
-              paddingRight: '17px',
-              paddingTop: '17px',
+              marginRight: '9px',
+              marginTop: '9px',
+              paddingRight: '8px',
+              paddingTop: '8px',
               cursor: 'pointer',
             }}
             size="medium"
@@ -228,10 +230,7 @@ function DashboardModify() {
 
   // 취소 여부 버튼 이벤트
   const handleCancelDialogSelect = detail => {
-    if (detail == 1) {
-      // 이전 페이지로 이동
-      navigate(-1);
-    }
+    navigate(-1);
   };
 
   const handleWidgetOpen = () => {
@@ -254,6 +253,7 @@ function DashboardModify() {
   return (
     <PageContainer>
       <PageTitleBox
+        upperTitle="대시보드"
         title={topTitle}
         sx={{ width: '100%', marginTop: '22px' }}
         button={
