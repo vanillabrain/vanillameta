@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { BarChart, MultilineChart, PieChart } from '@mui/icons-material';
 import {
   Button,
+  Checkbox,
   Dialog,
   DialogActions,
   DialogContent,
@@ -132,7 +133,8 @@ function AddWidgetPopup({ label, useWidgetIds = [], widgetOpen = false, widgetSe
             <CloseIcon />
           </IconButton>
           <Typography variant="body2" mt={1}>
-            추가할 위젯을 선택해주세요. {selectedIds.length}개
+            추가할 위젯을 선택해주세요. (<span style={{ color: '#0f5ab2', fontWeight: 'bold' }}>{selectedIds.length}</span>
+            개)
           </Typography>
         </DialogTitle>
 
@@ -147,9 +149,15 @@ function AddWidgetPopup({ label, useWidgetIds = [], widgetOpen = false, widgetSe
             }}
           >
             {loadedWidgetData.map((item, index) => (
-              <ListItemButton key={index} selected={isItemSelection(item)} onClick={() => handleClick(item)}>
-                <ListItemIcon>{iconType(item.componentType)}</ListItemIcon>
-                <ListItemText primary={item.title} />
+              <ListItemButton
+                key={index}
+                selected={isItemSelection(item)}
+                sx={{ paddingX: '20px', height: '50px' }}
+                onClick={() => handleClick(item)}
+              >
+                <Checkbox checked={isItemSelection(item)} />
+                <ListItemIcon sx={{ marginLeft: '16px', minWidth: '24px' }}>{iconType(item.componentType)}</ListItemIcon>
+                <ListItemText sx={{ marginLeft: '16px' }} primary={item.title} />
               </ListItemButton>
             ))}
           </List>

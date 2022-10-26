@@ -34,8 +34,24 @@ export default createTheme({
       },
     },
     MuiList: {
-      defaultProps: {
-        dense: true,
+      styleOverrides: {
+        root: {
+          padding: 0,
+        },
+        padding: {
+          padding: 0,
+        },
+      },
+    },
+    MuiListItemButton: {
+      styleOverrides: {
+        root: {
+          '&.MuiButtonBase-root': {
+            '&:hover, &:active, &.active, &.Mui-selected': {
+              background: '#ebfbff',
+            },
+          },
+        },
       },
     },
     MuiMenuItem: {
@@ -76,6 +92,11 @@ export default createTheme({
     MuiCheckbox: {
       defaultProps: {
         size: 'small',
+      },
+      styleOverrides: {
+        root: {
+          padding: 0,
+        },
       },
     },
     MuiFab: {
