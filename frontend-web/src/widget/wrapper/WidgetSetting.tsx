@@ -70,133 +70,133 @@ const WidgetSetting = props => {
     };
 
     switch (widgetType) {
-      case WIDGET_TYPE.BOARD_NUMERIC:
+      case WIDGET_TYPE.BOARD_NUMERIC.type:
         module = <NumericBoardSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.BOARD_TABLE:
+      case WIDGET_TYPE.BOARD_TABLE.type:
         module = <TableBoardSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.CHART_LINE:
+      case WIDGET_TYPE.CHART_LINE.type:
         module = <LineChartSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.CHART_STACKED_LINE:
+      case WIDGET_TYPE.CHART_STACKED_LINE.type:
         module = <LineChartSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.CHART_AREA:
+      case WIDGET_TYPE.CHART_AREA.type:
         module = <LineChartSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.CHART_STACKED_AREA:
+      case WIDGET_TYPE.CHART_STACKED_AREA.type:
         module = <LineChartSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.CHART_BAR:
+      case WIDGET_TYPE.CHART_BAR.type:
         module = <LineChartSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.CHART_STACKED_BAR:
+      case WIDGET_TYPE.CHART_STACKED_BAR.type:
         module = <LineChartSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.CHART_COLUMN:
+      case WIDGET_TYPE.CHART_COLUMN.type:
         module = <LineChartSetting {...chartSettingProps} axis="y" />;
         break;
-      case WIDGET_TYPE.CHART_STACKED_COLUMN:
+      case WIDGET_TYPE.CHART_STACKED_COLUMN.type:
         module = <LineChartSetting {...chartSettingProps} axis="y" />;
         break;
-      case WIDGET_TYPE.MIXED_CHART_LINE_BAR:
+      case WIDGET_TYPE.MIXED_CHART_LINE_BAR.type:
         module = <MixedLineBarChartSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.CHART_PIE:
+      case WIDGET_TYPE.CHART_PIE.type:
         module = <PieChartSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.CHART_DONUT:
+      case WIDGET_TYPE.CHART_DONUT.type:
         module = <DonutChartSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.CHART_NIGHTINGALE:
+      case WIDGET_TYPE.CHART_NIGHTINGALE.type:
         module = <DonutChartSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.CHART_SCATTER:
+      case WIDGET_TYPE.CHART_SCATTER.type:
         module = <ScatterChartSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.CHART_BUBBLE:
+      case WIDGET_TYPE.CHART_BUBBLE.type:
         module = <BubbleChartSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.CHART_RADAR:
+      case WIDGET_TYPE.CHART_RADAR.type:
         module = <RadarChartSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.CHART_TREEMAP:
+      case WIDGET_TYPE.CHART_TREEMAP.type:
         module = <TreemapChartSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.CHART_HEATMAP:
+      case WIDGET_TYPE.CHART_HEATMAP.type:
         module = <HeatmapChartSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.CHART_SUNBURST:
+      case WIDGET_TYPE.CHART_SUNBURST.type:
         module = <TreemapChartSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.CHART_GAUGE:
+      case WIDGET_TYPE.CHART_GAUGE.type:
         module = <GaugeChartSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.CHART_CANDLESTICK:
+      case WIDGET_TYPE.CHART_CANDLESTICK.type:
         module = <CandlestickChartSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.CHART_FUNNEL:
+      case WIDGET_TYPE.CHART_FUNNEL.type:
         module = <FunnelChartSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.CHART_3D_BAR:
+      case WIDGET_TYPE.CHART_3D_BAR.type:
         module = <Bar3DChartSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.CHART_3D_LINE:
+      case WIDGET_TYPE.CHART_3D_LINE.type:
         module = <Line3DChartSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.CHART_3D_SCATTER:
+      case WIDGET_TYPE.CHART_3D_SCATTER.type:
         module = <Scatter3DChartSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.CHART_3D_BUBBLE:
+      case WIDGET_TYPE.CHART_3D_BUBBLE.type:
         module = <Bubble3DChartSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.CHART_WATERFALL_BAR:
+      case WIDGET_TYPE.CHART_WATERFALL_BAR.type:
         module = <WaterfallChartSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.CHART_WATERFALL_COLUMN:
+      case WIDGET_TYPE.CHART_WATERFALL_COLUMN.type:
         module = <WaterfallChartSetting {...chartSettingProps} axis="y" />;
         break;
-      case WIDGET_TYPE.CHART_POLAR_BAR:
+      case WIDGET_TYPE.CHART_POLAR_BAR.type:
         module = <PolarBarChartSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.CHART_POLAR_STACKED_BAR:
+      case WIDGET_TYPE.CHART_POLAR_STACKED_BAR.type:
         module = <PolarBarChartSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.MIXED_CHART_LINE_PIE:
+      case WIDGET_TYPE.MIXED_CHART_LINE_PIE.type:
         module = <MixedLinePieChartSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.MIXED_CHART_AREA_PIE:
+      case WIDGET_TYPE.MIXED_CHART_AREA_PIE.type:
         module = <MixedLinePieChartSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.MIXED_CHART_BAR_PIE:
+      case WIDGET_TYPE.MIXED_CHART_BAR_PIE.type:
         module = <MixedLinePieChartSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.MIXED_CHART_COLUMN_PIE:
+      case WIDGET_TYPE.MIXED_CHART_COLUMN_PIE.type:
         module = <MixedLinePieChartSetting {...chartSettingProps} axis="y" />;
         break;
-      case WIDGET_TYPE.MIXED_CHART_STACKED_BAR_PIE:
+      case WIDGET_TYPE.MIXED_CHART_STACKED_BAR_PIE.type:
         module = <MixedLinePieChartSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.MIXED_CHART_STACKED_COLUMN_PIE:
+      case WIDGET_TYPE.MIXED_CHART_STACKED_COLUMN_PIE.type:
         module = <MixedLinePieChartSetting {...chartSettingProps} axis="y" />;
         break;
-      case WIDGET_TYPE.MIXED_CHART_STACKED_LINE_PIE:
+      case WIDGET_TYPE.MIXED_CHART_STACKED_LINE_PIE.type:
         module = <MixedLinePieChartSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.MIXED_CHART_STACKED_AREA_PIE:
+      case WIDGET_TYPE.MIXED_CHART_STACKED_AREA_PIE.type:
         module = <MixedLinePieChartSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.MIXED_CHART_DONUT_PIE:
+      case WIDGET_TYPE.MIXED_CHART_DONUT_PIE.type:
         module = <MixedDonutPieChartSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.MIXED_CHART_NIGHTINGALE_PIE:
+      case WIDGET_TYPE.MIXED_CHART_NIGHTINGALE_PIE.type:
         module = <MixedDonutPieChartSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.MIXED_CHART_LINE_STACKED_BAR:
+      case WIDGET_TYPE.MIXED_CHART_LINE_STACKED_BAR.type:
         module = <MixedLineStackedBarChartSetting {...chartSettingProps} />;
         break;
-      case WIDGET_TYPE.MIXED_CHART_LINE_BOARD_NUMERIC:
+      case WIDGET_TYPE.MIXED_CHART_LINE_BOARD_NUMERIC.type:
         module = (
           <React.Fragment>
             <NumericBoardSetting
@@ -211,7 +211,7 @@ const WidgetSetting = props => {
           </React.Fragment>
         );
         break;
-      case WIDGET_TYPE.MIXED_CHART_AREA_BOARD_NUMERIC:
+      case WIDGET_TYPE.MIXED_CHART_AREA_BOARD_NUMERIC.type:
         module = (
           <React.Fragment>
             <NumericBoardSetting {...chartSettingProps} />
@@ -220,7 +220,7 @@ const WidgetSetting = props => {
           </React.Fragment>
         );
         break;
-      case WIDGET_TYPE.MIXED_CHART_BAR_BOARD_NUMERIC:
+      case WIDGET_TYPE.MIXED_CHART_BAR_BOARD_NUMERIC.type:
         module = (
           <React.Fragment>
             <NumericBoardSetting {...chartSettingProps} />
@@ -229,7 +229,7 @@ const WidgetSetting = props => {
           </React.Fragment>
         );
         break;
-      case WIDGET_TYPE.MIXED_CHART_COLUMN_BOARD_NUMERIC:
+      case WIDGET_TYPE.MIXED_CHART_COLUMN_BOARD_NUMERIC.type:
         module = (
           <React.Fragment>
             <NumericBoardSetting {...chartSettingProps} />
@@ -238,7 +238,7 @@ const WidgetSetting = props => {
           </React.Fragment>
         );
         break;
-      case WIDGET_TYPE.MIXED_CHART_STACKED_LINE_BOARD_NUMERIC:
+      case WIDGET_TYPE.MIXED_CHART_STACKED_LINE_BOARD_NUMERIC.type:
         module = (
           <React.Fragment>
             <NumericBoardSetting {...chartSettingProps} />
@@ -247,7 +247,7 @@ const WidgetSetting = props => {
           </React.Fragment>
         );
         break;
-      case WIDGET_TYPE.MIXED_CHART_STACKED_AREA_BOARD_NUMERIC:
+      case WIDGET_TYPE.MIXED_CHART_STACKED_AREA_BOARD_NUMERIC.type:
         module = (
           <React.Fragment>
             <NumericBoardSetting {...chartSettingProps} />
@@ -256,7 +256,7 @@ const WidgetSetting = props => {
           </React.Fragment>
         );
         break;
-      case WIDGET_TYPE.MIXED_CHART_STACKED_BAR_BOARD_NUMERIC:
+      case WIDGET_TYPE.MIXED_CHART_STACKED_BAR_BOARD_NUMERIC.type:
         module = (
           <React.Fragment>
             <NumericBoardSetting {...chartSettingProps} />
@@ -265,7 +265,7 @@ const WidgetSetting = props => {
           </React.Fragment>
         );
         break;
-      case WIDGET_TYPE.MIXED_CHART_STACKED_COLUMN_BOARD_NUMERIC:
+      case WIDGET_TYPE.MIXED_CHART_STACKED_COLUMN_BOARD_NUMERIC.type:
         module = (
           <React.Fragment>
             <NumericBoardSetting {...chartSettingProps} />
@@ -274,7 +274,7 @@ const WidgetSetting = props => {
           </React.Fragment>
         );
         break;
-      case WIDGET_TYPE.MIXED_CHART_DONUT_BOARD_NUMERIC:
+      case WIDGET_TYPE.MIXED_CHART_DONUT_BOARD_NUMERIC.type:
         module = (
           <React.Fragment>
             <NumericBoardSetting {...chartSettingProps} />
@@ -283,7 +283,7 @@ const WidgetSetting = props => {
           </React.Fragment>
         );
         break;
-      case WIDGET_TYPE.MIXED_CHART_NIGHTINGALE_BOARD_NUMERIC:
+      case WIDGET_TYPE.MIXED_CHART_NIGHTINGALE_BOARD_NUMERIC.type:
         module = (
           <React.Fragment>
             <NumericBoardSetting {...chartSettingProps} />

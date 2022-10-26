@@ -30,6 +30,7 @@ function PageTitleBox(props) {
             height: 56,
             paddingLeft: '24px',
             paddingRight: '24px',
+            borderBottom: '1px solid #e3e7ea',
             backgroundColor: '#f5f6f8',
           }}
         >
