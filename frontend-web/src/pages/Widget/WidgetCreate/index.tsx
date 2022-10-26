@@ -147,9 +147,7 @@ const WidgetCreate = () => {
       >
         <Box
           sx={{
-            border: '1px solid #e3e7ea',
-            borderLeft: 0,
-            borderRight: 0,
+            borderTop: '1px solid #e3e7ea',
           }}
         >
           <Stepper

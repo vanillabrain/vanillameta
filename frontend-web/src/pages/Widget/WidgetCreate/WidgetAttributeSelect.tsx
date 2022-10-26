@@ -8,9 +8,11 @@ import { STATUS } from '@/constant';
 import { LayoutContext } from '@/contexts/LayoutContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import grid from '@/assets/images/grid.svg';
+import { useNavigate } from 'react-router-dom';
 
 const WidgetAttributeSelect = props => {
   const alert = useAlert();
+  const navigate = useNavigate();
   const { fixLayout } = useContext(LayoutContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
 
@@ -76,6 +78,7 @@ const WidgetAttributeSelect = props => {
           copy: '저장',
           onClick: () => {
             saveWidgetInfo(option, title);
+            navigate('/widget');
           },
         },
       ],
@@ -90,6 +93,7 @@ const WidgetAttributeSelect = props => {
         width: '100%',
         height: 'calc(100vh - 195px)',
         overflow: 'hidden',
+        borderTop: '1px solid #e3e7ea',
         backgroundColor: '#f5f6f8',
         backgroundImage: `url(${grid})`,
         backgroundRepeat: 'repeat',
