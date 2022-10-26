@@ -18,19 +18,16 @@ function Router() {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/dashboard" />} />
-      <Route path="/dashboard" element={<Dashboard />}>
-        <Route path=":dashboardId" element={<DashboardView />} />
-      </Route>
+      <Route path="/dashboard" element={<Dashboard />} />
+      <Route path="/dashboard/:dashboardId" element={<DashboardView />} />
       <Route path="/dashboard/create" element={<DashboardCreate />}>
         <Route path=":createType" element={<DashboardCreate />} />
       </Route>
       <Route path="/dashboard/modify" element={<DashboardModify />}>
         <Route path=":dashboardId" element={<DashboardModify />} />
       </Route>
-
-      <Route path="/widget" element={<Widget />}>
-        <Route path=":widgetId" element={<WidgetView />} />
-      </Route>
+      <Route path="/widget" element={<Widget />} />
+      <Route path="/widget/:widgetId" element={<WidgetView />} />
       <Route path="/widget/create" element={<WidgetCreate />} />
       <Route path="/widget/modify" element={<WidgetModify />}>
         <Route path=":widgetId" element={<WidgetModify />} />
