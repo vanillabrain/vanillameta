@@ -1,20 +1,21 @@
 import React from 'react';
+import { Box } from '@mui/material';
 import ImgCardList from '@/components/ImgCardList';
-import TitleBox from '@/components/TitleBox';
 
 function WidgetTypeSelect(props) {
-  const { componentInfo, setWidgetType, componentList, handleNext } = props;
+  const { widgetType, setWidgetType, componentList } = props;
 
   return (
-    <TitleBox title="위젯 타입">
-      <ImgCardList
-        data={componentList}
-        size="large"
-        selectedType={componentInfo}
-        setSelectedType={setWidgetType}
-        handleNext={handleNext}
-      />
-    </TitleBox>
+    <Box
+      sx={{
+        height: '100%',
+        px: '25px',
+        py: '60px',
+        backgroundColor: '#f5f6f8',
+      }}
+    >
+      <ImgCardList data={componentList} selectedType={widgetType} setSelectedType={setWidgetType} />
+    </Box>
   );
 }
 
