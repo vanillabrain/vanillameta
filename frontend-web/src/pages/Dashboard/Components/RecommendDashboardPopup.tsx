@@ -346,8 +346,10 @@ export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = 
                       color: '#767676',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
-                      width: '224px',
-                      // whiteSpace: 'nowrap',
+                      wordBreak: 'break-word',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
                     }}
                   >
                     {item.description}
@@ -479,23 +481,7 @@ function RecommendDashboardPopup({ recommendOpen = false, handleComplete = null 
   return (
     <>
       {step == 1 ? (
-        <Dialog
-          open={open}
-          aria-labelledby="scroll-dialog-title"
-          aria-describedby="scroll-dialog-description"
-          fullWidth={true}
-          sx={{
-            '& .MuiDialog-container': {
-              '& .MuiPaper-root': {
-                width: '100%',
-                maxWidth: '600px', // Set your width here
-                borderRadius: '8px',
-                boxShadow: '5px 5px 8px 0 rgba(0, 28, 71, 0.15)',
-                border: 'solid 1px #ddd',
-              },
-            },
-          }}
-        >
+        <Dialog open={open} fullWidth={true}>
           <DialogTitle
             id="scroll-dialog-title"
             sx={{ width: '100%', paddingLeft: '21px', paddingTop: '13px', height: '87px' }}
@@ -562,21 +548,7 @@ function RecommendDashboardPopup({ recommendOpen = false, handleComplete = null 
           />
         </Dialog>
       ) : (
-        <Dialog
-          open={open}
-          aria-labelledby="scroll-dialog-title"
-          aria-describedby="scroll-dialog-description"
-          fullWidth={true}
-          sx={{
-            '& .MuiDialog-container': {
-              '& .MuiPaper-root': {
-                width: '100%',
-                minWidth: '1000px', // Set your width here
-                maxWidth: '1392px', // Set your width here
-              },
-            },
-          }}
-        >
+        <Dialog open={open} fullWidth={true} maxWidth={false} sx={{ width: '1392px' }}>
           <DialogTitle
             id="scroll-dialog-title"
             sx={{ width: '100%', paddingLeft: '21px', paddingTop: '13px', height: '87px' }}

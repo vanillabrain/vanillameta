@@ -1,0 +1,13 @@
+version: '3.5'
+
+services:
+  serverless-api-dev-build:
+    image: vanillabrain/serverless-docker:1.0
+    restart: on-failure
+    working_dir: /app
+    command: bash -c "npm install && npm run deploy:dev"
+    volumes:
+      - ${DOCKER_LOCAL_VOLUME}:/app
+      - ${DOCKER_LOCAL_AWS}:/root/.aws
+    environment:
+      TZ: Asia/Seoul

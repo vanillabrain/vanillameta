@@ -3,9 +3,10 @@ import { AppModule } from './app.module';
 import express from 'express';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import { HttpExceptionFilter } from './nest-utils/http-exception.filter';
+import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
-const expressApp = express();
+  const expressApp = express();
   const app = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), {
     logger: console,
     cors: {
@@ -16,6 +17,7 @@ const expressApp = express();
     },
   });
   app.useGlobalFilters(new HttpExceptionFilter());
+  // app.useGlobalPipes(new ValidationPipe({ transform: true }));
   // const app = await NestFactory.create(AppModule);
   await app.listen(4000);
 }
