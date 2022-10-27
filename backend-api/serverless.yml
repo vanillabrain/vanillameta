@@ -5,6 +5,7 @@ service: vanillameta-backend-api
 plugins:
   - serverless-plugin-typescript
   - serverless-offline
+  - serverless-domain-manager
   - serverless-latest-layer-version
   - serverless-plugin-warmup
 provider:
