@@ -3,11 +3,13 @@ import PageContainer from '@/components/PageContainer';
 import PageTitleBox from '@/components/PageTitleBox';
 import BoardList from '@/components/BoardList';
 import { Outlet, useNavigate, useParams } from 'react-router-dom';
-import { AddMenuIconButton } from '@/components/button/AddIconButton';
-import { Box } from '@mui/material';
+import { MenuButton } from '@/components/button/AddIconButton';
+import AddIcon from '@mui/icons-material/Add';
+import { Box, Stack } from '@mui/material';
 import DashboardService from '@/api/dashboardService';
 import { STATUS } from '@/constant';
 import { useAlert } from 'react-alert';
+import { styled } from '@mui/system';
 
 const title = '대시보드';
 
@@ -18,7 +20,19 @@ function Dashboard() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadedDashboardData, setLoadedDashboardData] = useState([]);
   const [loadedCount, setLoadedCount] = useState(1);
-  const [dashboardNoData, setDashboardNoData] = useState(false);
+  const [noData, setNoData] = useState(false);
+
+  const GTSpan = styled('span')({
+    fontFamily: 'Pretendard',
+    fontSize: '13px',
+    fontWeight: '500',
+    fontStretch: 'normal',
+    fontStyle: 'normal',
+    lineHeight: '1.23',
+    letterSpacing: 'normal',
+    textAlign: 'left',
+    color: '#767676',
+  });
 
   const menuList = [
     { name: '대시보드', link: '/dashboard/create', id: 'dashboard' },
@@ -35,7 +49,7 @@ function Dashboard() {
     DashboardService.selectDashboardList().then(response => {
       if (response.data.status == STATUS.SUCCESS) {
         setLoadedDashboardData(response.data.data);
-        setDashboardNoData(response.data.data.length == 0);
+        setNoData(response.data.data.length == 0);
       } else {
         alert.error('서비스 실패!');
       }
@@ -45,7 +59,7 @@ function Dashboard() {
 
   const handleDeleteSelect = item => {
     console.log(item);
-    alert.success('삭제하겠습니까?', {
+    alert.success(item.title + '\n삭제하겠습니까?', {
       closeCopy: '취소',
       actions: [
         {
@@ -79,9 +93,51 @@ function Dashboard() {
     }
   };
 
-  // dashboard 목록이 없을때 보여줄 화면
-  const getEmptyDashboard = () => {
-    return <Box>대시보드 목록이 없음다!</Box>;
+  // 목록이 없을때 보여줄 화면
+  const getEmptyView = () => {
+    return (
+      <>
+        <Stack
+          flexDirection="row"
+          justifyContent="space-between"
+          sx={{ paddingLeft: '20px', paddingRight: '217px', marginBottom: '11px', marginTop: '36px' }}
+        >
+          <GTSpan>이름</GTSpan>
+          <GTSpan>수정일</GTSpan>
+        </Stack>
+        <Box
+          sx={{
+            height: '57px',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            flexGrow: '0',
+            margin: '0 0 0 0',
+            borderRadius: '6px',
+            border: 'solid 1px #ddd',
+            backgroundColor: '#fff',
+          }}
+        >
+          <span
+            style={{
+              height: '16px',
+              flexGrow: 0,
+              fontFamily: 'Pretendard',
+              fontSize: '16px',
+              fontWeight: 600,
+              fontStretch: 'normal',
+              fontStyle: 'normal',
+              lineHeight: 1,
+              letterSpacing: 'normal',
+              textAlign: 'center',
+              color: '#333333',
+            }}
+          >
+            대시보드가 존재하지 않습니다. 대시보드를 생성해보세요.
+          </span>
+        </Box>
+      </>
+    );
   };
 
   return (
@@ -92,16 +148,17 @@ function Dashboard() {
             title={title}
             sx={{ width: '100%' }}
             button={
-              <AddMenuIconButton
+              <MenuButton
                 menuList={menuList}
                 handleSelect={handleMenuSelect}
-                iconUrl={'../../static/images/icon/btn-icon-default.png'}
+                icon={<AddIcon />}
+                title="대시보드 추가"
                 sizeOption={{ width: 108, height: 32 }}
               />
             }
           >
-            {dashboardNoData ? (
-              getEmptyDashboard()
+            {noData ? (
+              getEmptyView()
             ) : (
               <>
                 <BoardList postList={loadedDashboardData} handleDeleteSelect={handleDeleteSelect} />

@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Card, IconButton, Stack, Typography } from '@mui/material';
+import { Box, Card, Stack, Typography } from '@mui/material';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
-import AutorenewIcon from '@mui/icons-material/Autorenew';
 import PageTitleBox from '@/components/PageTitleBox';
 import WidgetWrapper from '@/widget/wrapper/WidgetWrapper';
 import { useAlert } from 'react-alert';
@@ -21,8 +20,6 @@ const DashboardView = () => {
   const { dashboardId } = useParams();
   const navigate = useNavigate();
   const alert = useAlert();
-
-  const [loading, setLoading] = useState(false);
 
   const [dashboardInfo, setDashboardInfo] = useState({ title: '', widgets: [], layout: [], updatedAt: '' }); // dashboard 정보
   const [layout, setLayout] = useState([]); // grid layout
@@ -57,11 +54,15 @@ const DashboardView = () => {
   };
 
   const dateData = data => {
-    const userDate = new Date(data);
-    const year = userDate.getFullYear();
-    const month = userDate.getMonth() + 1;
-    const date = userDate.getDate();
-    return `${year}.${month >= 10 ? month : '0' + month}.${date >= 10 ? date : '0' + date}`;
+    let result = '';
+    if (data != '') {
+      const userDate = new Date(data);
+      const year = userDate.getFullYear();
+      const month = userDate.getMonth() + 1;
+      const date = userDate.getDate();
+      result = `${year}.${month >= 10 ? month : '0' + month}.${date >= 10 ? date : '0' + date}`;
+    }
+    return result;
   };
 
   // refrech 버튼 클릭
@@ -95,7 +96,7 @@ const DashboardView = () => {
   };
 
   const handleDeleteSelect = () => {
-    alert.success('삭제하겠습니까?', {
+    alert.success(dashboardInfo.title + '\n삭제하겠습니까?', {
       closeCopy: '취소',
       actions: [
         {
@@ -105,7 +106,7 @@ const DashboardView = () => {
               if (response.data.status == STATUS.SUCCESS) {
                 alert.info('삭제되었습니다.', {
                   onClose: () => {
-                    navigate('/dashboard');
+                    navigate('/dashboard', { replace: true });
                   },
                 });
               } else {
@@ -119,7 +120,7 @@ const DashboardView = () => {
   };
 
   return (
-    <PageTitleBox title="대시보드 조회" sx={{ width: '100%', marginTop: '22px' }}>
+    <PageTitleBox upperTitle="대시보드" title="대시보드 조회" sx={{ width: '100%', marginTop: '22px' }}>
       <DashboardTitleBox
         title={
           <Typography

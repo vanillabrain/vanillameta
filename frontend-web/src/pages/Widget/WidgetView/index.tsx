@@ -53,11 +53,15 @@ const WidgetView = () => {
   };
 
   const dateData = data => {
-    const userDate = new Date(data);
-    const year = userDate.getFullYear();
-    const month = userDate.getMonth() + 1;
-    const date = userDate.getDate();
-    return `${year}.${month >= 10 ? month : '0' + month}.${date >= 10 ? date : '0' + date}`;
+    let result = '';
+    if (data != '') {
+      const userDate = new Date(data);
+      const year = userDate.getFullYear();
+      const month = userDate.getMonth() + 1;
+      const date = userDate.getDate();
+      result = `${year}.${month >= 10 ? month : '0' + month}.${date >= 10 ? date : '0' + date}`;
+    }
+    return result;
   };
 
   // refrech 버튼 클릭
