@@ -28,6 +28,8 @@ const WidgetView = () => {
     updatedAt: '',
     widgetViewId: '',
     icon: '',
+    componentTitle: '',
+    componentDescription: '',
   };
   const [widgetOption, setWidgetOption] = useState<WidgetInfo>(defaultWidgetInfo);
 
@@ -121,7 +123,7 @@ const WidgetView = () => {
                 color: '#141414',
               }}
             >
-              {widgetOption.title}
+              {widgetOption.componentTitle}
             </Typography>
           </Stack>
         }

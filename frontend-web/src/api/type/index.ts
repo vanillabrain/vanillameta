@@ -12,4 +12,6 @@ export type WidgetInfo = {
   updatedAt: string;
   widgetViewId: string;
   icon: string | null;
+  componentTitle: string;
+  componentDescription: string;
 };
