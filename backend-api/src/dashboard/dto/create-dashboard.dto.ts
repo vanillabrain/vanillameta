@@ -5,7 +5,6 @@ export class CreateDashboardDto {
   @IsOptional()
   title: string;
 
-  @IsString()
   @IsNotEmpty()
   layout: DashboardLayout[];
 }
