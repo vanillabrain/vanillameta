@@ -11,4 +11,5 @@ export type WidgetInfo = {
   option: string;
   updatedAt: string;
   widgetViewId: string;
+  icon: string | null;
 };

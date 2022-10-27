@@ -33,6 +33,7 @@ const WidgetModify = props => {
     title: '',
     updatedAt: '',
     widgetViewId: '',
+    icon: '',
   };
 
   const [widgetInfo, setWidgetInfo] = useState<WidgetInfo>(defaultWidgetInfo);

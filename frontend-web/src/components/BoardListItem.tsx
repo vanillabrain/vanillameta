@@ -81,14 +81,12 @@ function BoardListItem(props) {
           sx={{
             minWidth: '24px',
             ml: '20px',
-            mr: '4px',
+            mr: '-2px',
           }}
         >
           <Avatar
-            alt={postItem.componentType}
-            // src={`static/images/${getIconType(postItem.componentType)}`}
-            src={`static/images/icon/ct-pie.svg`}
-            sx={{ width: 'auto', height: '24px', borderRadius: 0, objectFit: 'contain', backgroundColor: 'transparent' }}
+            src={`static/images/${postItem.icon}`}
+            sx={{ width: 'auto', height: '30px', borderRadius: 0, objectFit: 'contain', backgroundColor: 'transparent' }}
           />
         </ListItemIcon>
       ) : (
