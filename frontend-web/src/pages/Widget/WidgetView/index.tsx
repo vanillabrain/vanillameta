@@ -31,7 +31,6 @@ const WidgetView = () => {
   };
   const [widgetOption, setWidgetOption] = useState<WidgetInfo>(defaultWidgetInfo);
 
-  console.log(widgetOption.icon);
   const { widgetId } = useParams();
   const [loading, setLoading] = useState(false);
 
@@ -80,11 +79,7 @@ const WidgetView = () => {
           onClick: () => {
             WidgetService.deleteWidget(widgetId).then(response => {
               if (response.status === 200) {
-                alert.info('삭제되었습니다.', {
-                  onClose: () => {
-                    navigate('/widget');
-                  },
-                });
+                navigate('/widget', { replace: true });
               } else {
                 alert.info('삭제 실패하였습니다.');
               }

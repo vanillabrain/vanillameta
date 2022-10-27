@@ -11,7 +11,7 @@ import grid from '@/assets/images/grid.svg';
 import { useNavigate } from 'react-router-dom';
 
 const WidgetAttributeSelect = props => {
-  const { widgetOption, prevOption, saveWidgetInfo, dataset, isModifyMode = false } = props;
+  const { widgetOption, saveWidgetInfo, dataset, isModifyMode = false, widgetTypeName, widgetTypeDescription } = props;
 
   const alert = useAlert();
   const navigate = useNavigate();
@@ -30,11 +30,6 @@ const WidgetAttributeSelect = props => {
     };
   }, []);
 
-  // useEffect(() => {
-  //   setTitle(widgetOption.title);
-  //   console.log(title);
-  // }, []);
-
   useEffect(() => {
     if (dataset || widgetOption) {
       getData();
@@ -42,6 +37,9 @@ const WidgetAttributeSelect = props => {
   }, [dataset, widgetOption]);
 
   useEffect(() => {
+    if (widgetOption.title) {
+      setTitle(widgetOption.title);
+    }
     setOption(JSON.parse(JSON.stringify(widgetOption.option)));
   }, [widgetOption]);
 
@@ -62,13 +60,6 @@ const WidgetAttributeSelect = props => {
         hideLoading();
       });
   };
-
-  // 이미 저장된 위젯값이 있는 경우 불러오기
-  useEffect(() => {
-    if (!!prevOption) {
-      setOption({ ...option, ...prevOption });
-    }
-  }, [prevOption]);
 
   const handleSubmit = event => {
     event.preventDefault();
@@ -124,8 +115,9 @@ const WidgetAttributeSelect = props => {
         />
       </Box>
       <WidgetSetting
-        widgetName={widgetOption.title}
-        widgetDescription={widgetOption.description}
+        widgetTypeName={widgetTypeName}
+        widgetTypeDescription={widgetTypeDescription}
+        title={title}
         setTitle={setTitle}
         widgetType={widgetOption.componentType}
         widgetOption={option}

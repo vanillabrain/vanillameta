@@ -53,9 +53,20 @@ const StyledList = styled(List)({
 });
 
 const WidgetSetting = props => {
-  const { title, setTitle, widgetOption, setWidgetOption, widgetType, widgetName, widgetDescription, dataSet, spec } = props;
+  const {
+    title,
+    setTitle,
+    widgetOption,
+    setWidgetOption,
+    widgetType,
+    widgetTypeName,
+    widgetTypeDescription,
+    dataSet,
+    spec,
+  } = props;
 
   const [module, setModule] = useState(null);
+
   useEffect(() => {
     if (widgetType && widgetOption && dataSet) renderWidgetSetting();
   }, [widgetType, widgetOption, spec, dataSet]);
@@ -324,8 +335,8 @@ const WidgetSetting = props => {
             mb: '16px',
           }}
         >
-          {widgetName}
-          <Typography component="span">{`(${widgetDescription})`}</Typography>
+          {widgetTypeName}
+          <Typography component="span">{`(${widgetTypeDescription})`}</Typography>
         </Typography>
         <WidgetTitleForm value={title} onChange={event => setTitle(event.target.value)} />
         <Divider sx={{ mt: '30px' }} />

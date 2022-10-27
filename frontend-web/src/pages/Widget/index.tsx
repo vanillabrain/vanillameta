@@ -31,7 +31,6 @@ const Widget = () => {
     textAlign: 'left',
     color: '#767676',
   });
-  console.log('widgetList', widgetList);
 
   useEffect(() => {
     getWidgetList();

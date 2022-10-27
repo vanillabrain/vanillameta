@@ -56,7 +56,6 @@ const WidgetModify = props => {
       .selectWidget(widgetId)
       .then(response => {
         setWidgetInfo(response.data.data);
-        console.log('getWidgetInfo', response.data.data);
       })
       .finally(() => setLoading(false));
     // .then(data => setLoadedWidgetData(data.filter((list, idx) => idx <= 10 * loadedCount)));
@@ -65,7 +64,7 @@ const WidgetModify = props => {
   const saveWidgetInfo = (option, title) => {
     const param = {
       title: title,
-      description: title,
+      description: widgetInfo.description,
       databaseId: 1,
       componentId: widgetInfo.componentId,
       // 'DATASET', 'WIDGET_VIEW'
@@ -98,6 +97,8 @@ const WidgetModify = props => {
         }
       >
         <WidgetAttributeSelect
+          widgetTypeName={'원형 차트'}
+          widgetTypeDescription={'Pie Chart'}
           isModifyMode={true}
           dataSetId={widgetInfo.datasetId}
           widgetOption={widgetInfo}
