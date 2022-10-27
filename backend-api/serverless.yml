@@ -23,9 +23,12 @@ provider:
     STAGE: ${self:provider.stage}
     NODE_ENV: ${self:provider.stage}
     NODE_PATH: "./:/opt/node_modules"
-  #  #    DB_HOST: ${self:custom.DB_CONFIG.${self:custom.STAGE}.DB_HOST}
-  #  #    DB_USER: ${self:custom.DB_CONFIG.${self:custom.STAGE}.DB_USER}
-  #  #    DB_PASSWORD: ${self:custom.DB_CONFIG.${self:custom.STAGE}.DB_PASSWORD}
+    DB_HOST: ${self:custom.DB_CONFIG.${self:custom.STAGE}.DB_HOST}
+    DB_PORT: ${self:custom.DB_CONFIG.${self:custom.STAGE}.DB_PORT}
+    DB_USERNAME: ${self:custom.DB_CONFIG.${self:custom.STAGE}.DB_USERNAME}
+    DB_PASSWORD: ${self:custom.DB_CONFIG.${self:custom.STAGE}.DB_PASSWORD}
+    DB_NAME: ${self:custom.DB_CONFIG.${self:custom.STAGE}.DB_NAME}
+    CORS_ORIGIN: ${file(./config.serverless.yml):CORS_ORIGIN}
   apiGateway:
     binaryMediaTypes:
       - '*/*'

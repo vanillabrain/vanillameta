@@ -27,6 +27,13 @@ async function bootstrapServer(): Promise<Server> {
     const expressApp = express();
     const nestApp = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), {
       logger: console,
+      cors: {
+        origin: process.env.CORS_ORIGIN,
+        preflightContinue: false,
+        //credentials: true,
+        optionsSuccessStatus: 200,
+        exposedHeaders: ['Content-Disposition'],
+      },
     });
     nestApp.setGlobalPrefix('v1');
     nestApp.use(cookieParser());
