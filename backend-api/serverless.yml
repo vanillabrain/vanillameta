@@ -28,6 +28,7 @@ provider:
     DB_USERNAME: ${self:custom.DB_CONFIG.${self:custom.STAGE}.DB_USERNAME}
     DB_PASSWORD: ${self:custom.DB_CONFIG.${self:custom.STAGE}.DB_PASSWORD}
     DB_NAME: ${self:custom.DB_CONFIG.${self:custom.STAGE}.DB_NAME}
+    CORS_ORIGIN: ${file(./config.serverless.yml):CORS_ORIGIN}
   apiGateway:
     binaryMediaTypes:
       - '*/*'
