@@ -71,9 +71,9 @@ const WidgetCreate = () => {
     showLoading();
     widgetService
       .createWidget(param)
-      .then(() => {
-        navigate('/widget', { replace: true });
-      })
+      // .then(() => {
+      //   navigate('/widget', { replace: true });
+      // })
       .finally(() => {
         hideLoading();
       });
@@ -178,7 +178,13 @@ const WidgetCreate = () => {
         ) : activeStep === 1 ? (
           <WidgetTypeSelect widgetType={widgetOption} setWidgetType={setWidgetOption} componentList={componentList} />
         ) : (
-          <WidgetAttributeSelect dataset={dataset} widgetOption={widgetOption} saveWidgetInfo={saveWidgetInfo} />
+          <WidgetAttributeSelect
+            dataset={dataset}
+            widgetOption={widgetOption}
+            saveWidgetInfo={saveWidgetInfo}
+            widgetTypeName={widgetOption.title}
+            widgetTypeDescription={widgetOption.description}
+          />
         )}
       </PageTitleBox>
     </PageContainer>
