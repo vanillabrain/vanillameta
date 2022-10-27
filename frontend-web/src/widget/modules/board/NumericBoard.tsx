@@ -34,7 +34,11 @@ const NumericBoard = props => {
 
     const result = getAggregationData(option.content.aggregation, dataSet, field);
 
-    setScore(option.content.prefix + result + option.content.suffix);
+    if (option.content.numForm) {
+      setScore(option.content.prefix + result.toLocaleString('ko-KR') + option.content.suffix);
+    } else {
+      setScore(option.content.prefix + result + option.content.suffix);
+    }
     return { ...defaultComponentOption, ...option };
   };
 

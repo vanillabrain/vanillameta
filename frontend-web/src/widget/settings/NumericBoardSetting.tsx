@@ -1,8 +1,8 @@
 import React from 'react';
-import { ListItem, ListItemText } from '@mui/material';
+import { ListItem, ListItemText, Divider } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import ColorPickerForm from '@/components/form/ColorPickerForm';
-import { AGGREGATION_LIST, COLUMN_TYPE } from '@/constant';
+import { AGGREGATION_LIST, COLUMN_TYPE, LABEL_LIST } from '@/constant';
 import TextFieldForm from '@/components/form/TextFieldForm';
 
 const fontSizeList = [10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 40, 50, 60, 70, 80, 85, 90, 95, 100];
@@ -66,6 +66,7 @@ const NumericBoardSetting = props => {
           onChange={handleContentChange}
           disabledDefaultValue
         />
+        <Divider />
         <SelectForm
           name="fontSize"
           label="사이즈 및 색상"
@@ -73,6 +74,13 @@ const NumericBoardSetting = props => {
           value={option.content.fontSize}
           onChange={handleContentChange}
           endButton={<ColorPickerForm color={option.content.color} name="color" onChange={handleContentChange} />}
+        />
+        <SelectForm
+          name="numForm"
+          label="숫자 서식"
+          optionList={LABEL_LIST}
+          value={option.content.numForm}
+          onChange={handleContentChange}
         />
         <TextFieldForm label="Prefix" name="prefix" value={option.content.prefix} onChange={handleContentChange} />
         <TextFieldForm label="Suffix" name="suffix" value={option.content.suffix} onChange={handleContentChange} />

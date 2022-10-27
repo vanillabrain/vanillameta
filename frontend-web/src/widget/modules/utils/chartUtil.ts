@@ -112,9 +112,9 @@ export const getAggregationData = (type, data, field) => {
   switch (type) {
     case WIDGET_AGGREGATION.SUM:
       data.forEach(item => {
-        // console.log('item ', item[field]);
+        console.log('item ', item[field]);
         if (item[field]) {
-          result += item[field];
+          result += Number(item[field]);
         }
       });
       break;
@@ -122,7 +122,7 @@ export const getAggregationData = (type, data, field) => {
       data.forEach(item => {
         // console.log('item ', item[field]);
         if (item[field]) {
-          result += item[field];
+          result += Number(item[field]);
         }
       });
       result = Math.floor(result / data.length);
