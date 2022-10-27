@@ -18,6 +18,5 @@ export class ItemInfoDto {
     this.w = templateItem.width;
     this.h = templateItem.height;
     this.category = templateItem.recommendCategory;
-    this.type = templateItem.recommendType;
   }
 }
