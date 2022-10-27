@@ -38,7 +38,7 @@ async function bootstrapServer(): Promise<Server> {
     nestApp.setGlobalPrefix('v1');
     nestApp.use(cookieParser());
     nestApp.use(eventContext());
-    nestApp.useGlobalPipes(new ValidationPipe({ transform: true }));
+    // nestApp.useGlobalPipes(new ValidationPipe({ transform: true }));
     await nestApp.init();
     cachedServer = createServer(expressApp, undefined, binaryMimeTypes);
   }
