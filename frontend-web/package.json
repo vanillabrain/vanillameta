@@ -46,6 +46,7 @@
     "start:dev": "env-cmd -f .env.development craco start",
     "start:local": "env-cmd -f .env.local craco start",
     "build": "craco build",
+    "build:dev": "env-cmd -f .env.development craco build",
     "test": "craco test",
     "eject": "craco eject",
     "storybook": "start-storybook -p 6006",
