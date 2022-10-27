@@ -14,6 +14,10 @@ import { ConnectionModule } from './connection/connection.module';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: process.env.NODE_ENV == 'dev' ? '.env.dev' : '.env.prod',
+    }),
     TypeOrmModule.forRoot({
       type: 'mysql',
       host: process.env.DB_HOST,

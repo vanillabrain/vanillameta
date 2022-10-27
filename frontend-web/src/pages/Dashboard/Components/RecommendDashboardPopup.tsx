@@ -295,6 +295,7 @@ export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = 
                     padding: '12px 12px 20px',
                     backgroundColor: selected ? '#edf8ff' : '#f5f6f8',
                     borderRadius: '6px',
+                    position: 'relative',
                     border: selected ? 'solid 1px #0f5ab2' : 'solid 1px #f5f6f8',
                     '&:hover': {
                       background: '#ebfbff',
@@ -302,14 +303,13 @@ export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = 
                   }}
                   onClick={() => handleItemClick(item)}
                 >
-                  <Box sx={{ width: '100%', margin: 0 }}>
-                    {getTemplateIcon(item.id)}
-                    {/*<SvgIcon*/}
-                    {/*  component={CheckIcon}*/}
-                    {/*  sx={{ width: '33px', height: '28px', position: 'absolute', right: '20px', top: '20px' }}*/}
-                    {/*  inheritViewBox*/}
-                    {/*/>*/}
-                  </Box>
+                  <Box sx={{ width: '100%', margin: 0 }}>{getTemplateIcon(item.id)}</Box>
+                  {selected ? (
+                    <CheckIcon style={{ width: '33px', height: '28px', position: 'absolute', right: '20px', top: '20px' }} />
+                  ) : (
+                    <></>
+                  )}
+
                   <span
                     style={{
                       height: '20px',
