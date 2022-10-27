@@ -17,6 +17,7 @@ const Widget = () => {
   const { showLoading, hideLoading } = useContext(LoadingContext);
 
   const [widgetList, setWidgetList] = useState([]);
+  console.log('widgetList', widgetList);
 
   useEffect(() => {
     getWidgetList();

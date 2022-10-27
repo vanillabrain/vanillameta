@@ -30,6 +30,11 @@ const WidgetAttributeSelect = props => {
     };
   }, []);
 
+  // useEffect(() => {
+  //   setTitle(widgetOption.title);
+  //   console.log(title);
+  // }, []);
+
   useEffect(() => {
     if (dataset || widgetOption) {
       getData();
@@ -37,7 +42,6 @@ const WidgetAttributeSelect = props => {
   }, [dataset, widgetOption]);
 
   useEffect(() => {
-    // setTitle(widgetOption.title);
     setOption(JSON.parse(JSON.stringify(widgetOption.option)));
   }, [widgetOption]);
 
@@ -93,7 +97,6 @@ const WidgetAttributeSelect = props => {
         width: '100%',
         height: 'calc(100vh - 195px)',
         overflow: 'hidden',
-        borderBottom: '1px solid #e3e7ea',
         backgroundColor: '#f5f6f8',
         backgroundImage: `url(${grid})`,
         backgroundRepeat: 'repeat',

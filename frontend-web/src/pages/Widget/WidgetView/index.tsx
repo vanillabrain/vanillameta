@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Stack, Typography } from '@mui/material';
+import { Avatar, Box, ListItemIcon, Stack, Typography } from '@mui/material';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import PageTitleBox from '@/components/PageTitleBox';
 import WidgetService from '@/api/widgetService';
@@ -10,6 +10,7 @@ import ModifyButton from '@/components/button/ModifyButton';
 import DeleteButton from '@/components/button/DeleteButton';
 import DashboardTitleBox from '@/pages/Dashboard/Components/DashboardTitleBox';
 import { useAlert } from 'react-alert';
+import { WIDGET_TYPE } from '@/constant';
 
 const WidgetView = () => {
   const navigate = useNavigate();
@@ -93,25 +94,26 @@ const WidgetView = () => {
     <PageTitleBox upperTitle="위젯" title="위젯 조회" sx={{ width: '100%', marginTop: '22px' }}>
       <DashboardTitleBox
         title={
-          <Typography
-            variant="subtitle1"
-            component="span"
-            sx={{
-              fontWeight: 500,
-              paddingLeft: '18px',
-              height: '16px',
-              fontFamily: 'Pretendard',
-              fontSize: '18px',
-              fontStretch: 'normal',
-              fontStyle: 'normal',
-              lineHeight: 0.89,
-              letterSpacing: '-0.18px',
-              textAlign: 'left',
-              color: '#141414',
-            }}
-          >
-            {widgetOption.title}
-          </Typography>
+          <Stack>
+            <Typography
+              variant="subtitle1"
+              component="span"
+              sx={{
+                fontWeight: 500,
+                paddingLeft: '18px',
+                height: '16px',
+                fontSize: '18px',
+                fontStretch: 'normal',
+                fontStyle: 'normal',
+                lineHeight: 0.89,
+                letterSpacing: '-0.18px',
+                textAlign: 'left',
+                color: '#141414',
+              }}
+            >
+              {widgetOption.title}
+            </Typography>
+          </Stack>
         }
         button={
           <Stack direction="row" alignItems="center" sx={{ marginRight: '20px' }}>

@@ -1,10 +1,9 @@
 import React from 'react';
-import { Avatar, Box, ListItem, ListItemIcon, Stack } from '@mui/material';
+import { Avatar, ListItem, ListItemIcon, Stack } from '@mui/material';
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import DeleteButton from '@/components/button/DeleteButton';
 import ModifyButton from '@/components/button/ModifyButton';
 import { styled } from '@mui/system';
-import { WIDGET_TYPE } from '@/constant';
 
 const tableBorder = '1px solid #DADDDD';
 
@@ -53,11 +52,11 @@ function BoardListItem(props) {
     color: '#333333',
   });
 
-  const getIconType = type => {
-    if (type) {
-      return WIDGET_TYPE[type].icon;
-    }
-  };
+  // const getIconType = type => {
+  //   if (type) {
+  //     return WIDGET_TYPE[type].icon;
+  //   }
+  // };
 
   return (
     <ListItem
@@ -83,7 +82,8 @@ function BoardListItem(props) {
         >
           <Avatar
             alt={postItem.componentType}
-            src={`static/images/${getIconType(postItem.componentType)}`}
+            // src={`static/images/${getIconType(postItem.componentType)}`}
+            src={`static/images/icon/ct-pie.svg`}
             sx={{ width: 'auto', height: '24px', borderRadius: 0, objectFit: 'contain', backgroundColor: 'transparent' }}
           />
         </ListItemIcon>
