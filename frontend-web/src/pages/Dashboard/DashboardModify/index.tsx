@@ -343,7 +343,6 @@ function DashboardModify() {
                 useWidgetIds={useWidgetIds}
                 widgetOpen={widgetOpen}
               />
-              <RecommendDashboardPopup recommendOpen={recommendOpen} handleComplete={handleCompleteRecommend} />
             </>
           }
         >
@@ -369,6 +368,7 @@ function DashboardModify() {
             >
               {generateWidget()}
             </ResponsiveGridLayout>
+            <RecommendDashboardPopup recommendOpen={recommendOpen} handleComplete={handleCompleteRecommend} />
           </Box>
         </DashboardTitleBox>
       </PageTitleBox>

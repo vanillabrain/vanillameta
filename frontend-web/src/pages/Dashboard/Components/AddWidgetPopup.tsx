@@ -114,25 +114,7 @@ function AddWidgetPopup({ label, useWidgetIds = [], widgetOpen = false, widgetSe
 
   return (
     <>
-      <Dialog
-        open={open}
-        onClose={handleClose}
-        // scroll={scroll}
-        aria-labelledby="scroll-dialog-title"
-        aria-describedby="scroll-dialog-description"
-        fullWidth={true}
-        sx={{
-          '& .MuiDialog-container': {
-            '& .MuiPaper-root': {
-              width: '100%',
-              maxWidth: '600px', // Set your width here
-              borderRadius: '8px',
-              boxShadow: '5px 5px 8px 0 rgba(0, 28, 71, 0.15)',
-              border: 'solid 1px #ddd',
-            },
-          },
-        }}
-      >
+      <Dialog open={open} onClose={handleClose} fullWidth={true}>
         <DialogTitle
           id="scroll-dialog-title"
           sx={{ width: '100%', paddingLeft: '21px', paddingTop: '13px', height: '87px' }}
@@ -158,8 +140,8 @@ function AddWidgetPopup({ label, useWidgetIds = [], widgetOpen = false, widgetSe
               position: 'absolute',
               right: '0px',
               top: '0px',
-              paddingRight: '18.9px',
-              paddingTop: '20.4px',
+              mr: '12px',
+              mt: '12px',
               cursor: 'pointer',
             }}
             size="medium"
