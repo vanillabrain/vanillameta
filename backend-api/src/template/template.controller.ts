@@ -59,7 +59,6 @@ export class TemplateController {
    * 템플릿 추천 목록 조회
    * @param widgets
    */
-  //todo:: yhs:: 추천 알고리즘 적용해서 조회해 와야함
   @Post('/recommend')
   findRecommendAll(@Body() body) {
     return this.templateService.findRecommendTemplates(body.widgets);
