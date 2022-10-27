@@ -1,0 +1,3 @@
+AWS_REGION: ap-northeast-2
+STAGE: dev
+DEPLOYMENT_BUCKET: deploy-vanilla-serverless

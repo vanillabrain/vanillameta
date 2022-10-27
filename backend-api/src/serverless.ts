@@ -11,6 +11,7 @@ import { AppModule } from './app.module';
 import express from 'express';
 // import { logger } from './core/middleware/logger.middleware';
 import cookieParser from 'cookie-parser';
+import { ValidationPipe } from '@nestjs/common';
 
 // NOTE: If you get ERR_CONTENT_DECODING_FAILED in your browser, this is likely
 // due to a compressed response (e.g. gzip) which has not been handled correctly
@@ -26,10 +27,18 @@ async function bootstrapServer(): Promise<Server> {
     const expressApp = express();
     const nestApp = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), {
       logger: console,
+      cors: {
+        origin: process.env.CORS_ORIGIN,
+        preflightContinue: false,
+        //credentials: true,
+        optionsSuccessStatus: 200,
+        exposedHeaders: ['Content-Disposition'],
+      },
     });
     nestApp.setGlobalPrefix('v1');
     nestApp.use(cookieParser());
     nestApp.use(eventContext());
+    nestApp.useGlobalPipes(new ValidationPipe({ transform: true }));
     await nestApp.init();
     cachedServer = createServer(expressApp, undefined, binaryMimeTypes);
   }
@@ -37,18 +46,6 @@ async function bootstrapServer(): Promise<Server> {
 }
 
 export const handler: Handler = async (event: any, context: Context) => {
-  //  아래 파일 업로드 시 안되는 문제 때문에 추가.
-  // if (
-  //   event.body &&
-  //   event.headers['Content-Type'] &&
-  //   event.headers['Content-Type'].includes('multipart/form-data')
-  // ) {
-  //   // before => typeof event.body === string
-  //   console.log('file Upoad 해야 한다.~~~~~~~~~~~~~~~~~~~~ : ', event.body);
-  //   event.body = Buffer.from(event.body, 'binary') as unknown as string;
-  //   // after => typeof event.body === <Buffer ...>
-  // }
-
   cachedServer = await bootstrapServer();
   return proxy(cachedServer, event, context, 'PROMISE').promise;
 };

@@ -1,9 +1,8 @@
 import React from 'react';
-import { Divider, Grid, List, ListItem, ListItemText, styled } from '@mui/material';
+import { ListItem, ListItemText } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
-import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
+import { handleChange } from '@/widget/utils/handler';
 import { AGGREGATION_LIST, COLUMN_TYPE, LABEL_LIST } from '@/constant';
-import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
 import ColorFieldForm from '@/components/form/ColorFieldForm';
 
 const HeatmapChartSetting = props => {
@@ -78,7 +77,6 @@ const HeatmapChartSetting = props => {
               setOption={setOption}
               index={index}
             />
-            <Divider />
           </React.Fragment>
         ))}
       </ListItem>

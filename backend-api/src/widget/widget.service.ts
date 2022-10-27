@@ -55,7 +55,13 @@ export class WidgetService {
     const find_all = await this.widgetRepository
       .createQueryBuilder('widget')
       .innerJoin(Component, 'component', 'component.id = widget.componentId')
-      .select(['widget.*', 'component.type as componentType'])
+      .select([
+        'widget.*',
+        'component.type as componentType',
+        'component.icon as icon',
+        'component.title as componentTitle',
+        'component.description as componentDescription',
+      ])
       .orderBy('widget.updatedAt', 'DESC')
       .getRawMany();
 
@@ -76,7 +82,13 @@ export class WidgetService {
 
     const find_widget = await this.componentRepository
       .createQueryBuilder('component')
-      .select(['widgetInfo.*', 'component.type as componentType'])
+      .select([
+        'widgetInfo.*',
+        'component.type as componentType',
+        'component.icon as icon',
+        'component.title as componentTitle',
+        'component.description as componentDescription',
+      ])
       .innerJoin(widgetInfo, 'widgetInfo', 'widgetInfo.componentId = component.id')
       .setParameter('id', id)
       .getRawOne();

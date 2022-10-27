@@ -60,7 +60,7 @@ const WidgetCreate = () => {
     // Todo datasetType Table 일 경우 처리
     const param = {
       title: title,
-      description: title,
+      description: widgetOption.description,
       databaseId: dataset.databaseId,
       componentId: widgetOption.id,
       datasetType: dataset.datasetType,
@@ -79,23 +79,7 @@ const WidgetCreate = () => {
       });
   };
 
-  const handleNext = (event, item) => {
-    console.log('component : ', item);
-    event.preventDefault();
-    if (activeStep === steps.length - 1) {
-      return;
-    }
-    if (activeStep === 0) {
-      // setDataset(item);
-    }
-    if (activeStep === 1) {
-      setWidgetOption(item);
-    }
-    setActiveStep(prevState => prevState + 1);
-  };
-
-  // TODO: 코드 고치는 중
-  const handleTempNext = () => {
+  const handleNext = () => {
     if (activeStep === steps.length - 1) {
       return;
     }
@@ -133,7 +117,7 @@ const WidgetCreate = () => {
               startIcon={
                 <SvgIcon component={LeftArrow} sx={{ width: '14px', height: '14px', padding: '1px' }} inheritViewBox />
               }
-              sx={{ color: '#fff' }}
+              sx={{ backgroundColor: '#043f84', color: '#fff' }}
             >
               이전
             </Button>
@@ -142,7 +126,7 @@ const WidgetCreate = () => {
               <Button
                 variant="contained"
                 type="button"
-                onClick={handleTempNext}
+                onClick={handleNext}
                 disabled={isNextButtonDisabled}
                 endIcon={
                   <SvgIcon
@@ -163,15 +147,13 @@ const WidgetCreate = () => {
       >
         <Box
           sx={{
-            border: '1px solid #e3e7ea',
-            borderLeft: 0,
-            borderRight: 0,
+            borderBottom: '1px solid #e3e7ea',
           }}
         >
           <Stepper
             activeStep={activeStep}
             sx={{
-              width: { xs: '80%', sm: '50%' },
+              width: '50%',
               maxWidth: '564px',
               height: '72px',
               m: 'auto',
@@ -192,16 +174,11 @@ const WidgetCreate = () => {
         </Box>
 
         {activeStep === 0 ? (
-          <WidgetDataSelect setDataSet={setDataset} handleNext={handleNext} />
+          <WidgetDataSelect setDataSet={setDataset} />
         ) : activeStep === 1 ? (
-          <WidgetTypeSelect
-            widgetOption={widgetOption}
-            setWidgetType={setWidgetOption}
-            componentList={componentList}
-            handleNext={handleNext}
-          />
+          <WidgetTypeSelect widgetType={widgetOption} setWidgetType={setWidgetOption} componentList={componentList} />
         ) : (
-          <WidgetAttributeSelect dataset={dataset} widgetOption={widgetOption} saveWidgetInfo={saveWidgetInfo} top={72} />
+          <WidgetAttributeSelect dataset={dataset} widgetOption={widgetOption} saveWidgetInfo={saveWidgetInfo} />
         )}
       </PageTitleBox>
     </PageContainer>

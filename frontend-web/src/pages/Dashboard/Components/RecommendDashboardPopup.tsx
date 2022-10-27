@@ -1,29 +1,38 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { BarChart, Dashboard, PieChart, MultilineChart } from '@mui/icons-material';
+import React, { useEffect, useState } from 'react';
+import { BarChart, MultilineChart, PieChart } from '@mui/icons-material';
 import {
+  Box,
   Button,
+  Checkbox,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  IconButton,
+  Grid,
   List,
-  Alert,
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Typography,
-  Grid,
-  Box,
   Stack,
+  SvgIcon,
+  Typography,
 } from '@mui/material';
 import { useAlert } from 'react-alert';
-import CloseIcon from '@mui/icons-material/Close';
-import { get } from '@/helpers/apiHelper';
 import TemplateService from '@/api/templateService';
 import WidgetService from '@/api/widgetService';
 import { STATUS } from '@/constant';
 import CloseButton from '@/components/button/CloseButton';
+import { ReactComponent as TemplateIcon01 } from '@/assets/images/template/template01.svg';
+import { ReactComponent as TemplateIcon02 } from '@/assets/images/template/template02.svg';
+import { ReactComponent as TemplateIcon03 } from '@/assets/images/template/template03.svg';
+import { ReactComponent as TemplateIcon04 } from '@/assets/images/template/template04.svg';
+import { ReactComponent as TemplateIcon05 } from '@/assets/images/template/template05.svg';
+import { ReactComponent as TemplateIcon06 } from '@/assets/images/template/template06.svg';
+import { ReactComponent as TemplateIcon07 } from '@/assets/images/template/template07.svg';
+import { ReactComponent as TemplateIcon08 } from '@/assets/images/template/template08.svg';
+import { ReactComponent as TemplateIcon09 } from '@/assets/images/template/template09.svg';
+import { ReactComponent as TemplateIcon10 } from '@/assets/images/template/template10.svg';
+import { ReactComponent as CheckIcon } from '@/assets/images/icon/ic-check.svg';
 
 const iconType = item => {
   switch (item.toUpperCase()) {
@@ -38,17 +47,41 @@ const iconType = item => {
   }
 };
 
-const templateIconType = item => {
-  switch (item.toUpperCase()) {
-    case 'CHART_BAR':
-      return <BarChart />;
-    case 'CHART_PIE':
-      return <PieChart />;
-    case 'CHART_LINE':
-      return <MultilineChart />;
-    default:
-      return <MultilineChart />;
+const getTemplateIcon = id => {
+  let icon = null;
+  switch (id) {
+    case 7:
+      icon = <TemplateIcon01 style={{ width: '100%', height: '100%' }} />;
+      break;
+    case 8:
+      icon = <TemplateIcon02 style={{ width: '100%', height: '100%' }} />;
+      break;
+    case 9:
+      icon = <TemplateIcon03 style={{ width: '100%', height: '100%' }} />;
+      break;
+    case 10:
+      icon = <TemplateIcon04 style={{ width: '100%', height: '100%' }} />;
+      break;
+    case 11:
+      icon = <TemplateIcon05 style={{ width: '100%', height: '100%' }} />;
+      break;
+    case 12:
+      icon = <TemplateIcon06 style={{ width: '100%', height: '100%' }} />;
+      break;
+    case 13:
+      icon = <TemplateIcon07 style={{ width: '100%', height: '100%' }} />;
+      break;
+    case 14:
+      icon = <TemplateIcon08 style={{ width: '100%', height: '100%' }} />;
+      break;
+    case 15:
+      icon = <TemplateIcon09 style={{ width: '100%', height: '100%' }} />;
+      break;
+    case 16:
+      icon = <TemplateIcon10 style={{ width: '100%', height: '100%' }} />;
+      break;
   }
+  return icon;
 };
 
 export const WidgetList = ({ handleWidgetConfirm = null, handleWidgetCancel = null, selectedWidgetIds = [] }) => {
@@ -58,8 +91,6 @@ export const WidgetList = ({ handleWidgetConfirm = null, handleWidgetCancel = nu
 
   useEffect(() => {
     getItems();
-
-    console.log('몇번 호출 되는거싱ㄴ가', selectedWidgetIds);
   }, []);
 
   useEffect(() => {
@@ -119,38 +150,87 @@ export const WidgetList = ({ handleWidgetConfirm = null, handleWidgetCancel = nu
   };
 
   return (
-    <React.Fragment>
+    <>
       <DialogContent dividers id="scroll-dialog-description" tabIndex={-1} sx={{ p: 0 }}>
         <List
           sx={{
-            width: 600,
-            minWidth: 400,
-            height: 500,
-            minHeight: 300,
+            width: '100%',
+            height: '400px',
           }}
         >
           {loadedWidgetData.map((item, index) => (
-            <ListItemButton key={index} selected={isItemSelection(item)} onClick={() => handleClick(item)}>
-              <ListItemIcon>{iconType(item.componentType)}</ListItemIcon>
-              <ListItemText primary={item.title} />
+            <ListItemButton
+              key={index}
+              selected={isItemSelection(item)}
+              onClick={() => handleClick(item)}
+              sx={{ paddingX: '20px', height: '50px' }}
+            >
+              <Checkbox checked={isItemSelection(item)} />
+              <ListItemIcon sx={{ marginLeft: '16px', minWidth: '24px' }}>{iconType(item.componentType)}</ListItemIcon>
+              <ListItemText
+                sx={{
+                  marginLeft: '16px',
+                  fontFamily: 'Pretendard',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  fontStretch: 'normal',
+                  fontStyle: 'normal',
+                  lineHeight: 1.14,
+                  letterSpacing: 'normal',
+                  textAlign: 'left',
+                  color: '#333333',
+                }}
+                primary={item.title}
+              />
             </ListItemButton>
           ))}
         </List>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={handleCancelClick} color="inherit">
+      <DialogActions sx={{ height: '63px' }}>
+        <Button
+          onClick={handleCancelClick}
+          color="inherit"
+          sx={{
+            flexGrow: 0,
+            fontFamily: 'Pretendard',
+            fontSize: '14px',
+            fontWeight: 600,
+            fontStretch: 'normal',
+            fontStyle: 'normal',
+            lineHeight: 1.14,
+            letterSpacing: 'normal',
+            textAlign: 'left',
+            color: '#767676',
+          }}
+        >
           취소
         </Button>
-        <Button onClick={handleConfirmClick}>다음</Button>
+        <span style={{ width: '4px' }}></span>
+        <Button
+          onClick={() => handleConfirmClick()}
+          sx={{
+            flexGrow: 0,
+            fontFamily: 'Pretendard',
+            fontSize: '14px',
+            fontWeight: 600,
+            fontStretch: 'normal',
+            fontStyle: 'normal',
+            lineHeight: 1.14,
+            letterSpacing: 'normal',
+            textAlign: 'left',
+            color: '#0057bd',
+          }}
+        >
+          위젯 추가
+        </Button>
       </DialogActions>
-    </React.Fragment>
+    </>
   );
 };
 
 export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = null, selectedWidgetIds = null }) => {
   const alert = useAlert();
   const [loadedTemplateDataList, setLoadedTemplateDataList] = useState([]);
-  const [selectedIndex, setSelectedIndex] = useState(-1);
   const [selectedItem, setSelectedItem] = useState(null);
 
   const getItems = () => {
@@ -166,7 +246,6 @@ export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = 
 
   useEffect(() => {
     setSelectedItem(null);
-    setSelectedIndex(-1);
     getItems();
   }, []);
 
@@ -189,96 +268,133 @@ export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = 
     }
   };
 
-  const handleClick = (item, index) => {
-    setSelectedIndex(index);
+  const handleItemClick = item => {
     setSelectedItem(item);
   };
 
   return (
     <>
-      <DialogContent dividers id="scroll-dialog-description" sx={{ width: '100%', height: '620px', padding: 0 }}>
-        {/*<List*/}
-        {/*  sx={{*/}
-        {/*    width: 600,*/}
-        {/*    minWidth: 400,*/}
-        {/*    height: 500,*/}
-        {/*    minHeight: 300,*/}
-        {/*  }}*/}
-        {/*>*/}
-        {/*  {loadedTemplateDataList.map((item, index) => (*/}
-        {/*    <ListItemButton key={index} selected={index == selectedIndex} onClick={() => handleClick(item, index)}>*/}
-        {/*      /!*<ListItemIcon>{templateIconType(item.componentType)}</ListItemIcon>*!/*/}
-        {/*      <ListItemText primary={item.title} />*/}
-        {/*      <ListItemText primary={item.description} />*/}
-        {/*    </ListItemButton>*/}
-        {/*  ))}*/}
-        {/*</List>*/}
-        <Grid container columns={{ xs: 10 }} spacing="24px" sx={{ padding: '24px' }}>
-          {loadedTemplateDataList.map((item, index) => (
-            <Grid item xs={2}>
-              <Stack
-                justifyContent="center"
-                alignItems="center"
-                direction="column"
-                sx={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'flex-start',
-                  alignItems: 'flex-start',
-                  gap: '12px',
-                  padding: '12px 12px 20px',
-                  backgroundColor: '#eeeeee',
-                }}
-              >
-                <Box sx={{ width: '224px', height: '146px', margin: '0 0 0', backgroundColor: '#0000ff' }}>이미지 자리</Box>
-                <span
-                  style={{
-                    height: '20px',
-                    flexGrow: '0',
-                    fontFamily: 'Pretendard',
-                    fontSize: '14px',
-                    fontWeight: 'bold',
-                    fontStretch: 'normal',
-                    fontStyle: 'normal',
-                    lineHeight: '1.43',
-                    letterSpacing: 'normal',
-                    textAlign: 'left',
-                    color: '#333333',
+      <DialogContent dividers id="scroll-dialog-description" sx={{ width: '100%', height: '602px', padding: '24px' }}>
+        <Grid container columns={{ xs: 10 }} spacing="24px" sx={{ height: '100%' }}>
+          {loadedTemplateDataList.map(item => {
+            const selected = selectedItem?.id === item.id;
+            return (
+              <Grid item xs={2}>
+                <Stack
+                  justifyContent="center"
+                  alignItems="center"
+                  direction="column"
+                  sx={{
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'flex-start',
+                    alignItems: 'flex-start',
+                    height: '266px',
+                    gap: '12px',
+                    padding: '12px 12px 20px',
+                    backgroundColor: selected ? '#edf8ff' : '#f5f6f8',
+                    borderRadius: '6px',
+                    position: 'relative',
+                    border: selected ? 'solid 1px #0f5ab2' : 'solid 1px #f5f6f8',
+                    '&:hover': {
+                      background: '#ebfbff',
+                    },
                   }}
+                  onClick={() => handleItemClick(item)}
                 >
-                  {item.title}
-                </span>
-                <span
-                  style={{
-                    height: '44px',
-                    flexGrow: '0',
-                    fontFamily: 'Pretendard',
-                    fontSize: '14px',
-                    fontWeight: 'bold',
-                    fontStretch: 'normal',
-                    fontStyle: 'normal',
-                    lineHeight: '1.57',
-                    letterSpacing: 'normal',
-                    textAlign: 'left',
-                    color: '#767676',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    width: '224px',
-                    // whiteSpace: 'nowrap',
-                  }}
-                >
-                  {item.description}
-                </span>
-              </Stack>
-            </Grid>
-          ))}
+                  <Box sx={{ width: '100%', margin: 0 }}>{getTemplateIcon(item.id)}</Box>
+                  {selected ? (
+                    <CheckIcon style={{ width: '33px', height: '28px', position: 'absolute', right: '20px', top: '20px' }} />
+                  ) : (
+                    <></>
+                  )}
+
+                  <span
+                    style={{
+                      height: '20px',
+                      flexGrow: '0',
+                      fontFamily: 'Pretendard',
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      fontStretch: 'normal',
+                      fontStyle: 'normal',
+                      lineHeight: '1.43',
+                      letterSpacing: 'normal',
+                      textAlign: 'left',
+                      color: selected ? '#0f5ab2' : '#333333',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      width: '224px',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {item.title}
+                  </span>
+                  <span
+                    style={{
+                      height: '44px',
+                      flexGrow: '0',
+                      fontFamily: 'Pretendard',
+                      fontSize: '14px',
+                      fontWeight: 'normal',
+                      fontStretch: 'normal',
+                      fontStyle: 'normal',
+                      lineHeight: '1.57',
+                      letterSpacing: 'normal',
+                      textAlign: 'left',
+                      color: '#767676',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      width: '224px',
+                      // whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {item.description}
+                  </span>
+                </Stack>
+              </Grid>
+            );
+          })}
         </Grid>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={handleCancelClick} color="inherit">
+      <DialogActions sx={{ height: '63px' }}>
+        <Button
+          onClick={handleCancelClick}
+          color="inherit"
+          sx={{
+            flexGrow: 0,
+            fontFamily: 'Pretendard',
+            fontSize: '14px',
+            fontWeight: 600,
+            fontStretch: 'normal',
+            fontStyle: 'normal',
+            lineHeight: 1.14,
+            letterSpacing: 'normal',
+            textAlign: 'left',
+            color: '#767676',
+          }}
+        >
           뒤로가기
         </Button>
-        <Button onClick={handleConfirmClick}>선택완료</Button>
+        <span style={{ width: '4px' }}></span>
+        <Button
+          onClick={() => handleConfirmClick()}
+          sx={{
+            flexGrow: 0,
+            fontFamily: 'Pretendard',
+            fontSize: '14px',
+            fontWeight: 600,
+            fontStretch: 'normal',
+            fontStyle: 'normal',
+            lineHeight: 1.14,
+            letterSpacing: 'normal',
+            textAlign: 'left',
+            color: '#0057bd',
+          }}
+        >
+          선택완료
+        </Button>
       </DialogActions>
     </>
   );
@@ -286,7 +402,7 @@ export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = 
 
 function RecommendDashboardPopup({ recommendOpen = false, handleComplete = null }) {
   const [open, setOpen] = useState(recommendOpen);
-  const [title, setTitle] = useState('대시보드 추천 생성');
+  const title = '대시보드 추천 생성';
   const [subTitle, setSubTitle] = useState('위젯을 선택하세요');
   const [step, setStep] = useState(1);
   const [selectedWidgetIds, setSelectedWidgetIds] = useState([]);
@@ -373,6 +489,9 @@ function RecommendDashboardPopup({ recommendOpen = false, handleComplete = null 
               '& .MuiPaper-root': {
                 width: '100%',
                 maxWidth: '600px', // Set your width here
+                borderRadius: '8px',
+                boxShadow: '5px 5px 8px 0 rgba(0, 28, 71, 0.15)',
+                border: 'solid 1px #ddd',
               },
             },
           }}
@@ -431,7 +550,9 @@ function RecommendDashboardPopup({ recommendOpen = false, handleComplete = null 
                 paddingTop: '6px',
               }}
             >
-              {subTitle}
+              {/*{subTitle}*/}
+              추가할 위젯을 선택해주세요. (
+              <span style={{ color: '#0f5ab2', fontWeight: 'bold' }}>{selectedWidgetIds.length}</span>개 선택)
             </Typography>
           </DialogTitle>
           <WidgetList
@@ -450,6 +571,7 @@ function RecommendDashboardPopup({ recommendOpen = false, handleComplete = null 
             '& .MuiDialog-container': {
               '& .MuiPaper-root': {
                 width: '100%',
+                minWidth: '1000px', // Set your width here
                 maxWidth: '1392px', // Set your width here
               },
             },

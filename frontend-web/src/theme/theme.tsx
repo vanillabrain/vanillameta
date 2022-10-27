@@ -34,8 +34,24 @@ export default createTheme({
       },
     },
     MuiList: {
-      defaultProps: {
-        dense: true,
+      styleOverrides: {
+        root: {
+          padding: 0,
+        },
+        padding: {
+          padding: 0,
+        },
+      },
+    },
+    MuiListItemButton: {
+      styleOverrides: {
+        root: {
+          '&.MuiButtonBase-root': {
+            '&:hover, &:active, &.active, &.Mui-selected': {
+              background: '#ebfbff',
+            },
+          },
+        },
       },
     },
     MuiMenuItem: {
@@ -76,6 +92,11 @@ export default createTheme({
     MuiCheckbox: {
       defaultProps: {
         size: 'small',
+      },
+      styleOverrides: {
+        root: {
+          padding: 0,
+        },
       },
     },
     MuiFab: {
@@ -199,12 +220,26 @@ export default createTheme({
       styleOverrides: {
         label: {
           color: '#9b9ea9',
+          fontSize: '16px',
+          fontWeight: 'bold',
           '&.Mui-active': {
             color: '#0f5ab2',
-            fontWeight: 700,
+            fontWeight: 'bold',
           },
           '&.Mui-completed': {
             color: '#9b9ea9',
+          },
+        },
+        iconContainer: {
+          fontWeight: 'bold',
+        },
+      },
+    },
+    MuiCardContent: {
+      styleOverrides: {
+        root: {
+          '&:last-child': {
+            paddingBottom: '16px',
           },
         },
       },

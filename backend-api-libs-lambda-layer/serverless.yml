@@ -1,0 +1,26 @@
+service: vanillameta-serverless-api-lambda-layer
+
+frameworkVersion: '3'
+
+package:
+  patterns:
+    - '!*'
+    - '!*/**'
+    - node_modules/**
+    - '!node_modules/aws-sdk'
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  stage:  ${file(./config.yml):STAGE}
+  region: ${file(./config.yml):AWS_REGION}
+  deploymentBucket: ${file(./config.yml):DEPLOYMENT_BUCKET}
+  environment:
+    STAGE: ${self:provider.stage}
+
+layers:
+  VanillaMetaApiNodeLibs:
+    path: ./
+    description: "vanillameta serverless-api node_modules lambda layer"
+    compatibleRuntimes:
+      - nodejs14.x

@@ -69,7 +69,6 @@ export class ConnectionService {
     let _knex: Knex;
     let returnObj = {};
     try {
-      console.log(connectionConfig);
       _knex = knex(connectionConfig as Knex.Config);
     } catch (e) {
       console.log('knex not connected');
@@ -105,7 +104,6 @@ export class ConnectionService {
       const queryRes = await knex.raw(queryExecuteDto.query);
 
       switch (knex.client.config.client) {
-        case 'mysql':
         case 'mysql2':
           if (queryRes && queryRes[0].length > 0) {
             datas = queryRes[0];
@@ -114,7 +112,7 @@ export class ConnectionService {
               const fieldInfo = {
                 columnName: field.name,
                 columnLength: field._tableLength,
-                columnType: FieldTypeUtil.mysqlFieldType(field.type),
+                columnType: FieldTypeUtil.mysqlFieldType(field.columnType),
               };
               fields.push(fieldInfo);
             });
@@ -125,6 +123,21 @@ export class ConnectionService {
           if (queryRes && queryRes.rows.length > 0) {
             datas = queryRes.rows;
             const tempFields = queryRes.fields;
+            tempFields.map(field => {
+              const fieldInfo = {
+                columnName: field.name,
+                columnLength: field.length,
+                columnType: FieldTypeUtil.mysqlFieldType(field.type),
+              };
+              fields.push(fieldInfo);
+            });
+            break;
+          }
+
+        case 'mysql':
+          if (queryRes && queryRes[0].length > 0) {
+            datas = queryRes[0];
+            const tempFields = queryRes[1];
             tempFields.map(field => {
               const fieldInfo = {
                 columnName: field.name,

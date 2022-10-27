@@ -42,23 +42,23 @@ const WidgetViewer = props => {
     const chartProps = { option: widgetOption, dataSet: dataSet };
 
     switch (widgetType) {
-      case WIDGET_TYPE.BOARD_NUMERIC:
+      case WIDGET_TYPE.BOARD_NUMERIC.type:
         module = <NumericBoard {...chartProps} />;
         break;
-      case WIDGET_TYPE.BOARD_TABLE:
+      case WIDGET_TYPE.BOARD_TABLE.type:
         module = <TableBoard {...chartProps} />;
         break;
-      case WIDGET_TYPE.CHART_LINE:
+      case WIDGET_TYPE.CHART_LINE.type:
         module = <LineChart {...chartProps} />;
         // testModule = testLineChart;
         break;
-      case WIDGET_TYPE.CHART_STACKED_LINE:
+      case WIDGET_TYPE.CHART_STACKED_LINE.type:
         module = <LineChart {...chartProps} seriesOp={{ stack: 'total' }} />;
         break;
-      case WIDGET_TYPE.CHART_AREA:
+      case WIDGET_TYPE.CHART_AREA.type:
         module = <LineChart {...chartProps} seriesOp={{ areaStyle: {} }} />;
         break;
-      case WIDGET_TYPE.CHART_STACKED_AREA:
+      case WIDGET_TYPE.CHART_STACKED_AREA.type:
         module = (
           <LineChart
             {...chartProps}
@@ -69,7 +69,7 @@ const WidgetViewer = props => {
           />
         );
         break;
-      case WIDGET_TYPE.CHART_BAR:
+      case WIDGET_TYPE.CHART_BAR.type:
         module = (
           <LineChart
             {...chartProps}
@@ -82,10 +82,10 @@ const WidgetViewer = props => {
           />
         );
         break;
-      case WIDGET_TYPE.CHART_STACKED_BAR:
+      case WIDGET_TYPE.CHART_STACKED_BAR.type:
         module = <LineChart {...chartProps} seriesOp={{ type: 'bar', stack: 'total' }} />;
         break;
-      case WIDGET_TYPE.CHART_COLUMN:
+      case WIDGET_TYPE.CHART_COLUMN.type:
         module = (
           <LineChart
             {...chartProps}
@@ -99,10 +99,10 @@ const WidgetViewer = props => {
           />
         );
         break;
-      case WIDGET_TYPE.CHART_STACKED_COLUMN:
+      case WIDGET_TYPE.CHART_STACKED_COLUMN.type:
         module = <LineChart {...chartProps} axis="y" seriesOp={{ type: 'bar', stack: 'total' }} />;
         break;
-      case WIDGET_TYPE.MIXED_CHART_LINE_BAR:
+      case WIDGET_TYPE.MIXED_CHART_LINE_BAR.type:
         module = (
           <LineChart
             {...chartProps}
@@ -114,14 +114,14 @@ const WidgetViewer = props => {
           />
         );
         break;
-      case WIDGET_TYPE.CHART_PIE:
+      case WIDGET_TYPE.CHART_PIE.type:
         module = <PieChart {...chartProps} />;
         break;
 
-      case WIDGET_TYPE.CHART_DONUT:
+      case WIDGET_TYPE.CHART_DONUT.type:
         module = <DonutChart {...chartProps} />;
         break;
-      case WIDGET_TYPE.CHART_NIGHTINGALE:
+      case WIDGET_TYPE.CHART_NIGHTINGALE.type:
         module = (
           <DonutChart
             {...chartProps}
@@ -132,22 +132,22 @@ const WidgetViewer = props => {
           />
         );
         break;
-      case WIDGET_TYPE.CHART_SCATTER:
+      case WIDGET_TYPE.CHART_SCATTER.type:
         module = <ScatterChart {...chartProps} />;
         break;
-      case WIDGET_TYPE.CHART_BUBBLE:
+      case WIDGET_TYPE.CHART_BUBBLE.type:
         module = <BubbleChart {...chartProps} />;
         break;
-      case WIDGET_TYPE.CHART_RADAR:
+      case WIDGET_TYPE.CHART_RADAR.type:
         module = <RadarChart {...chartProps} />;
         break;
-      case WIDGET_TYPE.CHART_TREEMAP:
+      case WIDGET_TYPE.CHART_TREEMAP.type:
         module = <TreemapChart {...chartProps} />;
         break;
-      case WIDGET_TYPE.CHART_HEATMAP:
+      case WIDGET_TYPE.CHART_HEATMAP.type:
         module = <HeatmapChart {...chartProps} />;
         break;
-      case WIDGET_TYPE.CHART_SUNBURST:
+      case WIDGET_TYPE.CHART_SUNBURST.type:
         module = (
           <TreemapChart
             {...chartProps}
@@ -158,46 +158,46 @@ const WidgetViewer = props => {
           />
         );
         break;
-      case WIDGET_TYPE.CHART_GAUGE:
+      case WIDGET_TYPE.CHART_GAUGE.type:
         module = <GaugeChart {...chartProps} />;
         break;
-      case WIDGET_TYPE.CHART_CANDLESTICK:
+      case WIDGET_TYPE.CHART_CANDLESTICK.type:
         module = <CandlestickChart {...chartProps} />;
         break;
-      case WIDGET_TYPE.CHART_FUNNEL:
+      case WIDGET_TYPE.CHART_FUNNEL.type:
         module = <FunnelChart {...chartProps} />;
         break;
-      case WIDGET_TYPE.CHART_3D_BAR:
+      case WIDGET_TYPE.CHART_3D_BAR.type:
         module = <Bar3DChart {...chartProps} />;
         break;
-      case WIDGET_TYPE.CHART_3D_LINE:
+      case WIDGET_TYPE.CHART_3D_LINE.type:
         module = <Line3DChart {...chartProps} />;
         break;
-      case WIDGET_TYPE.CHART_3D_SCATTER:
+      case WIDGET_TYPE.CHART_3D_SCATTER.type:
         module = <Scatter3DChart {...chartProps} />;
         break;
-      case WIDGET_TYPE.CHART_3D_BUBBLE:
+      case WIDGET_TYPE.CHART_3D_BUBBLE.type:
         module = <Bubble3dChart {...chartProps} />;
         break;
-      case WIDGET_TYPE.CHART_WATERFALL_BAR:
+      case WIDGET_TYPE.CHART_WATERFALL_BAR.type:
         module = <WaterfallBarChart {...chartProps} />;
         break;
-      case WIDGET_TYPE.CHART_WATERFALL_COLUMN:
+      case WIDGET_TYPE.CHART_WATERFALL_COLUMN.type:
         module = <WaterfallBarChart {...chartProps} axis="y" />;
         break;
-      case WIDGET_TYPE.CHART_POLAR_BAR:
+      case WIDGET_TYPE.CHART_POLAR_BAR.type:
         module = <PolarBarChart {...chartProps} />;
         break;
-      case WIDGET_TYPE.CHART_POLAR_STACKED_BAR:
+      case WIDGET_TYPE.CHART_POLAR_STACKED_BAR.type:
         module = <PolarBarChart {...chartProps} seriesOp={{ stack: 'stack' }} />;
         break;
-      case WIDGET_TYPE.MIXED_CHART_LINE_PIE:
+      case WIDGET_TYPE.MIXED_CHART_LINE_PIE.type:
         module = <MixedLinePieChart {...chartProps} />;
         break;
-      case WIDGET_TYPE.MIXED_CHART_AREA_PIE:
+      case WIDGET_TYPE.MIXED_CHART_AREA_PIE.type:
         module = <MixedLinePieChart {...chartProps} seriesOp={{ areaStyle: {} }} />;
         break;
-      case WIDGET_TYPE.MIXED_CHART_BAR_PIE:
+      case WIDGET_TYPE.MIXED_CHART_BAR_PIE.type:
         module = (
           <MixedLinePieChart
             {...chartProps}
@@ -210,7 +210,7 @@ const WidgetViewer = props => {
           />
         );
         break;
-      case WIDGET_TYPE.MIXED_CHART_COLUMN_PIE:
+      case WIDGET_TYPE.MIXED_CHART_COLUMN_PIE.type:
         module = (
           <MixedLinePieChart
             {...chartProps}
@@ -224,16 +224,16 @@ const WidgetViewer = props => {
           />
         );
         break;
-      case WIDGET_TYPE.MIXED_CHART_STACKED_BAR_PIE:
+      case WIDGET_TYPE.MIXED_CHART_STACKED_BAR_PIE.type:
         module = <MixedLinePieChart {...chartProps} seriesOp={{ type: 'bar', stack: 'total' }} />;
         break;
-      case WIDGET_TYPE.MIXED_CHART_STACKED_COLUMN_PIE:
+      case WIDGET_TYPE.MIXED_CHART_STACKED_COLUMN_PIE.type:
         module = <MixedLinePieChart {...chartProps} axis="y" seriesOp={{ type: 'bar', stack: 'total' }} />;
         break;
-      case WIDGET_TYPE.MIXED_CHART_STACKED_LINE_PIE:
+      case WIDGET_TYPE.MIXED_CHART_STACKED_LINE_PIE.type:
         module = <MixedLinePieChart {...chartProps} seriesOp={{ stack: 'total' }} />;
         break;
-      case WIDGET_TYPE.MIXED_CHART_STACKED_AREA_PIE:
+      case WIDGET_TYPE.MIXED_CHART_STACKED_AREA_PIE.type:
         module = (
           <MixedLinePieChart
             {...chartProps}
@@ -244,10 +244,10 @@ const WidgetViewer = props => {
           />
         );
         break;
-      case WIDGET_TYPE.MIXED_CHART_DONUT_PIE:
+      case WIDGET_TYPE.MIXED_CHART_DONUT_PIE.type:
         module = <MixedDonutPieChart {...chartProps} />;
         break;
-      case WIDGET_TYPE.MIXED_CHART_NIGHTINGALE_PIE:
+      case WIDGET_TYPE.MIXED_CHART_NIGHTINGALE_PIE.type:
         module = (
           <MixedDonutPieChart
             {...chartProps}
@@ -258,10 +258,10 @@ const WidgetViewer = props => {
           />
         );
         break;
-      case WIDGET_TYPE.MIXED_CHART_LINE_STACKED_BAR:
+      case WIDGET_TYPE.MIXED_CHART_LINE_STACKED_BAR.type:
         module = <MixedLineStackedBarChart {...chartProps} />;
         break;
-      case WIDGET_TYPE.MIXED_CHART_LINE_BOARD_NUMERIC:
+      case WIDGET_TYPE.MIXED_CHART_LINE_BOARD_NUMERIC.type:
         module = (
           <React.Fragment>
             <NumericBoard
@@ -275,7 +275,7 @@ const WidgetViewer = props => {
           </React.Fragment>
         );
         break;
-      case WIDGET_TYPE.MIXED_CHART_AREA_BOARD_NUMERIC:
+      case WIDGET_TYPE.MIXED_CHART_AREA_BOARD_NUMERIC.type:
         module = (
           <React.Fragment>
             <NumericBoard {...chartProps} />
@@ -283,7 +283,7 @@ const WidgetViewer = props => {
           </React.Fragment>
         );
         break;
-      case WIDGET_TYPE.MIXED_CHART_BAR_BOARD_NUMERIC:
+      case WIDGET_TYPE.MIXED_CHART_BAR_BOARD_NUMERIC.type:
         module = (
           <React.Fragment>
             <NumericBoard {...chartProps} />
@@ -299,7 +299,7 @@ const WidgetViewer = props => {
           </React.Fragment>
         );
         break;
-      case WIDGET_TYPE.MIXED_CHART_COLUMN_BOARD_NUMERIC:
+      case WIDGET_TYPE.MIXED_CHART_COLUMN_BOARD_NUMERIC.type:
         module = (
           <React.Fragment>
             <NumericBoard {...chartProps} />
@@ -316,7 +316,7 @@ const WidgetViewer = props => {
           </React.Fragment>
         );
         break;
-      case WIDGET_TYPE.MIXED_CHART_STACKED_LINE_BOARD_NUMERIC:
+      case WIDGET_TYPE.MIXED_CHART_STACKED_LINE_BOARD_NUMERIC.type:
         module = (
           <React.Fragment>
             <NumericBoard {...chartProps} />
@@ -324,7 +324,7 @@ const WidgetViewer = props => {
           </React.Fragment>
         );
         break;
-      case WIDGET_TYPE.MIXED_CHART_STACKED_AREA_BOARD_NUMERIC:
+      case WIDGET_TYPE.MIXED_CHART_STACKED_AREA_BOARD_NUMERIC.type:
         module = (
           <React.Fragment>
             <NumericBoard {...chartProps} />
@@ -338,7 +338,7 @@ const WidgetViewer = props => {
           </React.Fragment>
         );
         break;
-      case WIDGET_TYPE.MIXED_CHART_STACKED_BAR_BOARD_NUMERIC:
+      case WIDGET_TYPE.MIXED_CHART_STACKED_BAR_BOARD_NUMERIC.type:
         module = (
           <React.Fragment>
             <NumericBoard {...chartProps} />
@@ -346,7 +346,7 @@ const WidgetViewer = props => {
           </React.Fragment>
         );
         break;
-      case WIDGET_TYPE.MIXED_CHART_STACKED_COLUMN_BOARD_NUMERIC:
+      case WIDGET_TYPE.MIXED_CHART_STACKED_COLUMN_BOARD_NUMERIC.type:
         module = (
           <React.Fragment>
             <NumericBoard {...chartProps} />
@@ -354,7 +354,7 @@ const WidgetViewer = props => {
           </React.Fragment>
         );
         break;
-      case WIDGET_TYPE.MIXED_CHART_DONUT_BOARD_NUMERIC:
+      case WIDGET_TYPE.MIXED_CHART_DONUT_BOARD_NUMERIC.type:
         module = (
           <React.Fragment>
             <NumericBoard
@@ -373,7 +373,7 @@ const WidgetViewer = props => {
           </React.Fragment>
         );
         break;
-      case WIDGET_TYPE.MIXED_CHART_NIGHTINGALE_BOARD_NUMERIC:
+      case WIDGET_TYPE.MIXED_CHART_NIGHTINGALE_BOARD_NUMERIC.type:
         module = (
           <React.Fragment>
             <NumericBoard

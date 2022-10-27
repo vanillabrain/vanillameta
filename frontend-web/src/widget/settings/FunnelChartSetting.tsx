@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Divider, ListItem, ListItemText } from '@mui/material';
+import { ListItem, ListItemText } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import ColorFieldForm from '@/components/form/ColorFieldForm';
 import { handleChange } from '@/widget/utils/handler';
@@ -169,7 +169,6 @@ const FunnelChartSetting = props => {
                   setOption={setOption}
                   index={index}
                 />
-                <Divider />
               </React.Fragment>
             ))}
       </ListItem>

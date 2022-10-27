@@ -5,6 +5,7 @@ service: vanillameta-backend-api
 plugins:
   - serverless-plugin-typescript
   - serverless-offline
+  - serverless-domain-manager
   - serverless-latest-layer-version
   - serverless-plugin-warmup
 provider:
@@ -14,31 +15,20 @@ provider:
   ##  memorySize: 512 - 기본은 512
   timeout: 10
   layers:
-    - arn:aws:lambda:${opt:region, self:provider.region}:${AWS::AccountId}:layer:SellerkingApiNodeLibs:latest
-    #    - arn:aws:lambda:${opt:region, self:provider.region}:${AWS::AccountId}:layer:FirebaseNodeLibs:latest
-    - arn:aws:lambda:${opt:region, self:provider.region}:${AWS::AccountId}:layer:AWSNodeLibs:latest
+    - arn:aws:lambda:${opt:region, self:provider.region}:${AWS::AccountId}:layer:VanillaMetaApiNodeLibs:latest
   stage: ${opt:stage, file(./config.serverless.yml):STAGE}
   region: ${opt:region, file(./config.serverless.yml):AWS_REGION}
-  #  deploymentBucket: ${file(./config.serverless.yml):DEPLOYMENT_BUCKET}
+  deploymentBucket: ${file(./config.serverless.yml):DEPLOYMENT_BUCKET}
   environment:
     STAGE: ${self:provider.stage}
     NODE_ENV: ${self:provider.stage}
     NODE_PATH: "./:/opt/node_modules"
-  #  #    DB_HOST: ${self:custom.DB_CONFIG.${self:custom.STAGE}.DB_HOST}
-  #  #    DB_USER: ${self:custom.DB_CONFIG.${self:custom.STAGE}.DB_USER}
-  #  #    DB_PASSWORD: ${self:custom.DB_CONFIG.${self:custom.STAGE}.DB_PASSWORD}
-  #
-  ##  iamRoleStatements:
-  ##    - Effect: Allow
-  ##      Action:
-  ##        - dynamodb:DescribeTable
-  ##        - dynamodb:Query
-  ##        - dynamodb:Scan
-  ##        - dynamodb:GetItem
-  ##        - dynamodb:PutItem
-  ##        - dynamodb:UpdateItem
-  ##        - dynamodb:DeleteItem
-  ##      Resource: "arn:aws:dynamodb:${opt:region, self:provider.region}:*:*"
+    DB_HOST: ${self:custom.DB_CONFIG.${self:custom.STAGE}.DB_HOST}
+    DB_PORT: ${self:custom.DB_CONFIG.${self:custom.STAGE}.DB_PORT}
+    DB_USERNAME: ${self:custom.DB_CONFIG.${self:custom.STAGE}.DB_USERNAME}
+    DB_PASSWORD: ${self:custom.DB_CONFIG.${self:custom.STAGE}.DB_PASSWORD}
+    DB_NAME: ${self:custom.DB_CONFIG.${self:custom.STAGE}.DB_NAME}
+    CORS_ORIGIN: ${file(./config.serverless.yml):CORS_ORIGIN}
   apiGateway:
     binaryMediaTypes:
       - '*/*'
@@ -70,7 +60,7 @@ package:
     - .env.prod
     - src/templates/**
   exclude:
-#    - node_modules/**
+    - node_modules/**
     - .git/**
     - test/**
     - e2e/**
@@ -81,7 +71,6 @@ package:
 
 functions:
   app: # 람다함수 이름
-    # 'handler' 모듈은 'src/serverless' 파일에서 export 되어있음
     handler: src/serverless.handler
     events:
       - http:

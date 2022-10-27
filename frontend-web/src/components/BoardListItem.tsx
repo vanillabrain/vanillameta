@@ -1,11 +1,10 @@
 import React from 'react';
-import { ListItem, ListItemButton, ListItemIcon, Stack } from '@mui/material';
-import { BarChart, BubbleChart, Dashboard, PieChart, ScatterPlot, StackedLineChart } from '@mui/icons-material';
+import { Avatar, Box, ListItem, ListItemIcon, Stack } from '@mui/material';
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
-import DonutChart from '@/widget/modules/piechart/DonutChart';
 import DeleteButton from '@/components/button/DeleteButton';
 import ModifyButton from '@/components/button/ModifyButton';
 import { styled } from '@mui/system';
+import { WIDGET_TYPE } from '@/constant';
 
 const tableBorder = '1px solid #DADDDD';
 
@@ -17,11 +16,15 @@ function BoardListItem(props) {
   const pathname = location.pathname;
 
   const dateData = data => {
-    const userDate = new Date(data);
-    const year = userDate.getFullYear();
-    const month = userDate.getMonth() + 1;
-    const date = userDate.getDate();
-    return `${year}.${month >= 10 ? month : '0' + month}.${date >= 10 ? date : '0' + date}`;
+    let result = '';
+    if (data != '') {
+      const userDate = new Date(data);
+      const year = userDate.getFullYear();
+      const month = userDate.getMonth() + 1;
+      const date = userDate.getDate();
+      result = `${year}.${month >= 10 ? month : '0' + month}.${date >= 10 ? date : '0' + date}`;
+    }
+    return result;
   };
 
   const TitleSpan = styled('span')({
@@ -54,32 +57,11 @@ function BoardListItem(props) {
     color: '#333333',
   });
 
-  let iconType;
-  switch (postItem.componentType) {
-    case 'DASHBOARD':
-      iconType = <Dashboard />;
-      break;
-    case 'CHART_LINE':
-      iconType = <StackedLineChart />;
-      break;
-    case 'CHART_BAR':
-      iconType = <BarChart />;
-      break;
-    case 'CHART_BUBBLE':
-      iconType = <BubbleChart />;
-      break;
-    case 'CHART_SCATTER':
-      iconType = <ScatterPlot />;
-      break;
-    case 'CHART_PIE':
-      iconType = <PieChart />;
-      break;
-    case 'CHART_DONUT':
-      iconType = <DonutChart />;
-      break;
-    default:
-      break;
-  }
+  const getIconType = type => {
+    if (type) {
+      return WIDGET_TYPE[type].icon;
+    }
+  };
 
   return (
     <ListItem
@@ -95,7 +77,23 @@ function BoardListItem(props) {
       to={`${postItem.id}`}
       state={{ from: pathname }}
     >
-      {postItem.type ? <ListItemIcon>{iconType}</ListItemIcon> : ''}
+      {postItem.componentType ? (
+        <ListItemIcon
+          sx={{
+            minWidth: '24px',
+            ml: '20px',
+            mr: '4px',
+          }}
+        >
+          <Avatar
+            alt={postItem.componentType}
+            src={`static/images/${getIconType(postItem.componentType)}`}
+            sx={{ width: 'auto', height: '24px', borderRadius: 0, objectFit: 'contain', backgroundColor: 'transparent' }}
+          />
+        </ListItemIcon>
+      ) : (
+        ''
+      )}
       <Stack
         direction="row"
         alignItems="center"

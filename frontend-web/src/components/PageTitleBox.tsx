@@ -30,39 +30,58 @@ function PageTitleBox(props) {
             height: 56,
             paddingLeft: '24px',
             paddingRight: '24px',
+            borderBottom: '1px solid #e3e7ea',
             backgroundColor: '#f5f6f8',
           }}
         >
           <Stack direction="row" gap="10px" alignItems="center">
             {upperTitle && (
-              <React.Fragment>
+              <>
                 <Typography
                   component="span"
                   sx={{
-                    fontWeight: 500,
-                    paddingLeft: '18px',
-                    height: '16px',
+                    height: '19px',
+                    flexGrow: 0,
                     fontFamily: 'Pretendard',
-                    fontSize: '18px',
+                    fontSize: '16px',
+                    fontWeight: '500',
                     fontStretch: 'normal',
                     fontStyle: 'normal',
-                    lineHeight: 0.89,
-                    letterSpacing: '-0.18px',
+                    lineHeight: 'normal',
+                    letterSpacing: 'normal',
                     textAlign: 'left',
-                    color: '#141414',
+                    color: '#4a4a4a',
                   }}
                 >
                   {upperTitle}
                 </Typography>
-                <span>/</span>
-              </React.Fragment>
+                <span
+                  style={{
+                    height: '19px',
+                    flexGrow: 0,
+                    fontFamily: 'Pretendard',
+                    fontSize: '16px',
+                    fontWeight: '500',
+                    fontStretch: 'normal',
+                    fontStyle: 'normal',
+                    lineHeight: 'normal',
+                    letterSpacing: 'normal',
+                    textAlign: 'left',
+                    color: '#767676',
+                  }}
+                >
+                  /
+                </span>
+              </>
             )}
             <Typography
               component="span"
               sx={{
                 height: '19px',
+                flexGrow: 0,
+                fontFamily: 'Pretendard',
                 fontSize: '16px',
-                fontWeight: 'bold',
+                fontWeight: '600',
                 fontStretch: 'normal',
                 fontStyle: 'normal',
                 lineHeight: 'normal',
