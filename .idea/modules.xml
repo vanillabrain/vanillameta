@@ -2,7 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/vanillameta-fork.iml" filepath="$PROJECT_DIR$/.idea/vanillameta-fork.iml" />
+      <module fileurl="file://$PROJECT_DIR$/backend-libs-lambda-layer/backend-libs-lambda-layer.iml" filepath="$PROJECT_DIR$/backend-libs-lambda-layer/backend-libs-lambda-layer.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/vanillameta.iml" filepath="$PROJECT_DIR$/.idea/vanillameta.iml" />
     </modules>
   </component>
 </project>
