@@ -15,7 +15,7 @@ export const DatasetCardList = props => {
         ? data.map(item => {
             const selected = selectedDataset?.id == item.id;
             return (
-              <Grid item xs={12} md component="li" key={item.id}>
+              <Grid item component="li" key={item.id}>
                 <CardWrapper selected={selected} onClick={() => onSelectDataset(item)}>
                   <CardContent
                     sx={{
@@ -28,7 +28,7 @@ export const DatasetCardList = props => {
                       component="span"
                       variant="subtitle2"
                       sx={{
-                        width: disabledIcons ? '100%' : '40%',
+                        width: '100%',
                         textOverflow: 'ellipsis',
                         overflow: 'hidden',
                         whiteSpace: 'nowrap',
