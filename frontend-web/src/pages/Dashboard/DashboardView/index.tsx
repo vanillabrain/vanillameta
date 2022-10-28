@@ -120,7 +120,12 @@ const DashboardView = () => {
   };
 
   return (
-    <PageTitleBox upperTitle="대시보드" title="대시보드 조회" sx={{ width: '100%', marginTop: '22px' }}>
+    <PageTitleBox
+      upperTitle="대시보드"
+      upperTitleLink="/dashboard"
+      title="대시보드 조회"
+      sx={{ width: '100%', marginTop: '22px' }}
+    >
       <DashboardTitleBox
         title={
           <Typography

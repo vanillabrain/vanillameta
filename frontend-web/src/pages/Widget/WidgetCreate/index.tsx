@@ -107,6 +107,7 @@ const WidgetCreate = () => {
       <PageTitleBox
         title={title}
         upperTitle="위젯"
+        upperTitleLink="/widget"
         sx={{ paddingLeft: 0, paddingRight: 0, width: '100%', height: '100%' }}
         button={
           <Stack direction="row" gap="10px">

@@ -86,6 +86,7 @@ const WidgetModify = props => {
     <PageContainer>
       <PageTitleBox
         upperTitle="위젯"
+        upperTitleLink="/widget"
         title="위젯 편집"
         sx={{ padding: 0 }}
         button={

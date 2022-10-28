@@ -1,12 +1,17 @@
-<svg width="58" height="58" viewBox="0 0 58 58" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <g clip-path="url(#ba5r1e5l1a)">
-        <path d="M29.5 5.76 5.5 23.2l9.17 28.22h29.66L53.5 23.2l-24-17.44z" stroke="#4A4A4A" stroke-width="2" stroke-miterlimit="10" stroke-linecap="round"/>
-        <path opacity=".67" d="M29.5 11.9 13 24.89l4.3 22.39 20.4-7L42 25.89 29.5 11.9z" fill="#4A4A4A"/>
-        <path d="m29.5 20.98-8 5.81 3.06 9.41h9.88l.06-8.41-5-6.81zM29.5 28.5v-23M29.5 28.5l23-5M29.5 28.5l15 23M29.5 28.5l-15 23M29.5 28.5 5.6 23.4" stroke="#4A4A4A" stroke-miterlimit="10" stroke-linecap="round"/>
+<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <g clip-path="url(#jch93m0lna)" fill="#878787">
+        <path fill-rule="evenodd" clip-rule="evenodd" d="m24.414 3.744 20.834 15.14-7.96 24.498H11.539L3.58 18.884l20.835-15.14zM5.524 19.516l7.218 22.21h23.343l7.218-22.21L24.413 5.79 5.525 19.516z"/>
+        <path opacity=".67" d="m24.414 9.848-13.655 10.75 3.558 18.53L31.2 33.335l3.559-11.909L24.414 9.848z"/>
+        <path fill-rule="evenodd" clip-rule="evenodd" d="m24.504 16.786 4.462 6.078-.053 7.508h-8.888l-2.718-8.359 7.197-5.227zM18.28 22.33l2.346 7.216h7.465l.046-6.412-3.813-5.193-6.044 4.39z"/>
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M24.414 4.138c.228 0 .414.185.414.413v19.035a.414.414 0 0 1-.828 0V4.551c0-.228.185-.413.414-.413z"/>
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M43.853 19.36a.414.414 0 0 1-.317.492L24.502 23.99a.414.414 0 1 1-.176-.808l19.035-4.138a.414.414 0 0 1 .492.316z"/>
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M24.188 23.24a.414.414 0 0 1 .572.12l12.414 19.035a.414.414 0 1 1-.693.452L24.067 23.812a.414.414 0 0 1 .12-.572z"/>
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M24.64 23.24a.414.414 0 0 1 .12.572L12.346 42.847a.414.414 0 0 1-.693-.452L24.067 23.36a.414.414 0 0 1 .573-.12z"/>
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M4.23 19.28a.414.414 0 0 1 .49-.32l19.78 4.221a.414.414 0 0 1-.172.81l-19.78-4.22a.414.414 0 0 1-.318-.492z"/>
     </g>
     <defs>
-        <clipPath id="ba5r1e5l1a">
-            <path fill="#fff" d="M0 0h58v58H0z"/>
+        <clipPath id="jch93m0lna">
+            <path fill="#fff" d="M0 0h48v48H0z"/>
         </clipPath>
     </defs>
 </svg>
