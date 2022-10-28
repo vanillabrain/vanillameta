@@ -17,7 +17,7 @@ function WidgetTitleForm(props) {
       name="title"
       label="위젯 이름"
       placeholder="위젯의 이름을 입력해 주세요"
-      required={!validateTitle(value)}
+      required={validateTitle(value)}
       fullWidth
       value={value}
       onChange={onChange}

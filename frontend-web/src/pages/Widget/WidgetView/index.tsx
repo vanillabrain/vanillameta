@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Stack, Typography } from '@mui/material';
+import { Avatar, Box, Stack, Typography } from '@mui/material';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import PageTitleBox from '@/components/PageTitleBox';
 import WidgetService from '@/api/widgetService';
@@ -27,6 +27,9 @@ const WidgetView = () => {
     title: '',
     updatedAt: '',
     widgetViewId: '',
+    icon: '',
+    componentTitle: '',
+    componentDescription: '',
   };
   const [widgetOption, setWidgetOption] = useState<WidgetInfo>(defaultWidgetInfo);
 
@@ -78,11 +81,7 @@ const WidgetView = () => {
           onClick: () => {
             WidgetService.deleteWidget(widgetId).then(response => {
               if (response.status === 200) {
-                alert.info('삭제되었습니다.', {
-                  onClose: () => {
-                    navigate('/widget');
-                  },
-                });
+                navigate('/widget', { replace: true });
               } else {
                 alert.info('삭제 실패하였습니다.');
               }
@@ -94,28 +93,39 @@ const WidgetView = () => {
   };
 
   return (
-    <PageTitleBox upperTitle="위젯" title="위젯 조회" sx={{ width: '100%', marginTop: '22px' }}>
+    <PageTitleBox upperTitle="위젯" upperTitleLink="/widget" title="위젯 조회" sx={{ width: '100%', marginTop: '22px' }}>
       <DashboardTitleBox
         title={
-          <Typography
-            variant="subtitle1"
-            component="span"
+          <Stack
+            direction="row"
+            alignItems="center"
             sx={{
-              fontWeight: 500,
-              paddingLeft: '18px',
-              height: '16px',
-              fontFamily: 'Pretendard',
-              fontSize: '18px',
-              fontStretch: 'normal',
-              fontStyle: 'normal',
-              lineHeight: 0.89,
-              letterSpacing: '-0.18px',
-              textAlign: 'left',
-              color: '#141414',
+              pl: '20px',
             }}
           >
-            {widgetOption.title}
-          </Typography>
+            <Avatar
+              src={`/static/images/${widgetOption.icon}`}
+              sx={{ width: '30px', height: '30px', borderRadius: 0, objectFit: 'contain', backgroundColor: 'transparent' }}
+            />
+            <Typography
+              variant="subtitle1"
+              component="span"
+              sx={{
+                fontWeight: 500,
+                paddingLeft: '14px',
+                height: '16px',
+                fontSize: '18px',
+                fontStretch: 'normal',
+                fontStyle: 'normal',
+                lineHeight: 0.89,
+                letterSpacing: '-0.18px',
+                textAlign: 'left',
+                color: '#141414',
+              }}
+            >
+              {widgetOption.componentTitle}
+            </Typography>
+          </Stack>
         }
         button={
           <Stack direction="row" alignItems="center" sx={{ marginRight: '20px' }}>

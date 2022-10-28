@@ -52,7 +52,6 @@
     "knex-schema-inspector": "^2.0.4",
     "knex-snowflake-dialect": "^1.0.1",
     "mustache": "^4.2.0",
-    "mysql": "^2.18.1",
     "mysql2": "^2.3.3",
     "nest-winston": "^1.7.0",
     "odbc": "^2.4.6",

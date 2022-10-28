@@ -33,6 +33,9 @@ const WidgetModify = props => {
     title: '',
     updatedAt: '',
     widgetViewId: '',
+    icon: '',
+    componentTitle: '',
+    componentDescription: '',
   };
 
   const [widgetInfo, setWidgetInfo] = useState<WidgetInfo>(defaultWidgetInfo);
@@ -55,7 +58,7 @@ const WidgetModify = props => {
       .selectWidget(widgetId)
       .then(response => {
         setWidgetInfo(response.data.data);
-        console.log('getWidgetInfo', response.data.data);
+        // console.log(widgetInfo, 'widgetInfo');
       })
       .finally(() => setLoading(false));
     // .then(data => setLoadedWidgetData(data.filter((list, idx) => idx <= 10 * loadedCount)));
@@ -64,16 +67,16 @@ const WidgetModify = props => {
   const saveWidgetInfo = (option, title) => {
     const param = {
       title: title,
-      description: title,
-      databaseId: 1,
-      componentId: widgetInfo.componentId,
+      // description: widgetInfo.description,
+      // databaseId: 1,
+      // componentId: widgetInfo.componentId,
       // 'DATASET', 'WIDGET_VIEW'
-      datasetType: 'DATASET',
-      datasetId: '0001',
-      tableName: '',
+      // datasetType: 'DATASET',
+      // datasetId: '0001',
+      // tableName: '',
       option: option,
     };
-    console.log(option);
+    console.log(option, 'option');
     widgetService.updateWidget(widgetInfo.id, param).then(response => {
       navigate((location.state as CustomizedState).from || '/');
     });
@@ -83,6 +86,7 @@ const WidgetModify = props => {
     <PageContainer>
       <PageTitleBox
         upperTitle="위젯"
+        upperTitleLink="/widget"
         title="위젯 편집"
         sx={{ padding: 0 }}
         button={
@@ -97,6 +101,8 @@ const WidgetModify = props => {
         }
       >
         <WidgetAttributeSelect
+          widgetTypeName={widgetInfo.componentTitle}
+          widgetTypeDescription={widgetInfo.componentDescription}
           isModifyMode={true}
           dataSetId={widgetInfo.datasetId}
           widgetOption={widgetInfo}

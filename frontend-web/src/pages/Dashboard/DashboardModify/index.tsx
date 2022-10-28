@@ -254,6 +254,7 @@ function DashboardModify() {
     <PageContainer>
       <PageTitleBox
         upperTitle="대시보드"
+        upperTitleLink="/dashboard"
         title={topTitle}
         sx={{ width: '100%', marginTop: '22px' }}
         button={
@@ -343,7 +344,6 @@ function DashboardModify() {
                 useWidgetIds={useWidgetIds}
                 widgetOpen={widgetOpen}
               />
-              <RecommendDashboardPopup recommendOpen={recommendOpen} handleComplete={handleCompleteRecommend} />
             </>
           }
         >
@@ -369,6 +369,7 @@ function DashboardModify() {
             >
               {generateWidget()}
             </ResponsiveGridLayout>
+            <RecommendDashboardPopup recommendOpen={recommendOpen} handleComplete={handleCompleteRecommend} />
           </Box>
         </DashboardTitleBox>
       </PageTitleBox>

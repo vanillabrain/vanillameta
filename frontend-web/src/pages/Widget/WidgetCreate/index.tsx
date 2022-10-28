@@ -71,9 +71,9 @@ const WidgetCreate = () => {
     showLoading();
     widgetService
       .createWidget(param)
-      .then(() => {
-        navigate('/widget', { replace: true });
-      })
+      // .then(() => {
+      //   navigate('/widget', { replace: true });
+      // })
       .finally(() => {
         hideLoading();
       });
@@ -107,6 +107,7 @@ const WidgetCreate = () => {
       <PageTitleBox
         title={title}
         upperTitle="위젯"
+        upperTitleLink="/widget"
         sx={{ paddingLeft: 0, paddingRight: 0, width: '100%', height: '100%' }}
         button={
           <Stack direction="row" gap="10px">
@@ -178,7 +179,13 @@ const WidgetCreate = () => {
         ) : activeStep === 1 ? (
           <WidgetTypeSelect widgetType={widgetOption} setWidgetType={setWidgetOption} componentList={componentList} />
         ) : (
-          <WidgetAttributeSelect dataset={dataset} widgetOption={widgetOption} saveWidgetInfo={saveWidgetInfo} />
+          <WidgetAttributeSelect
+            dataset={dataset}
+            widgetOption={widgetOption}
+            saveWidgetInfo={saveWidgetInfo}
+            widgetTypeName={widgetOption.title}
+            widgetTypeDescription={widgetOption.description}
+          />
         )}
       </PageTitleBox>
     </PageContainer>
