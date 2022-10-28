@@ -56,12 +56,6 @@ function BoardListItem(props) {
     color: '#333333',
   });
 
-  // const getIconType = type => {
-  //   if (type) {
-  //     return WIDGET_TYPE[type].icon;
-  //   }
-  // };
-
   return (
     <ListItem
       key={postItem.id}
