@@ -86,7 +86,7 @@ const WidgetAttributeSelect = props => {
       justifyContent="space-between"
       sx={{
         width: '100%',
-        height: 'calc(100vh - 195px)',
+        height: isModifyMode ? 'calc(100vh - 170px)' : 'calc(100vh - 245px)', // 170px
         overflow: 'hidden',
         backgroundColor: '#f5f6f8',
         backgroundImage: `url(${grid})`,

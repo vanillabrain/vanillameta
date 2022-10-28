@@ -21,9 +21,9 @@ function ImgCardList(props) {
         pl: 0,
         display: 'grid',
         gridTemplateColumns: {
-          xs: `repeat(${minWidth || '4, 1fr'})`,
-          md: `repeat(${minWidth || '6, 1fr'})`,
-          lg: `repeat(${minWidth || '8, 1fr'})`,
+          // xs: `repeat(${minWidth || '4, 1fr'})`,
+          // md: `repeat(${minWidth || '6, 1fr'})`,
+          // lg: `repeat(${minWidth || '8, 1fr'})`,
           xl: `repeat(${minWidth || '10, 1fr'})`,
         },
       }}
