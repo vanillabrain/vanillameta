@@ -40,18 +40,18 @@ export const handleAddClick = (event, option, setOption, defaultSeries, prop = '
   setOption(prevState => {
     const obj = { ...prevState };
     const defaultColor = [
-      '#2870c5',
-      '#47a8ea',
-      '#4ecef6',
-      '#9e9e9f',
-      '#506175',
-      '#994ff6',
-      '#bf6fff',
-      '#fa5b5b',
-      '#fca136',
-      '#fccc25',
-      '#95ce5b',
-      '#2dab66',
+      '#6aa7eb',
+      '#85c7fc',
+      '#94c983',
+      '#c1d96a',
+      '#f4f363',
+      '#eecd5b',
+      '#eaab56',
+      '#e88b4f',
+      '#f05d55',
+      '#dc80ba',
+      '#c59cfc',
+      '#828ee1',
     ];
     const newItem = {
       ...defaultSeries,

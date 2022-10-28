@@ -45,6 +45,9 @@ const NumericBoard = props => {
   return (
     <Stack
       sx={{
+        display: 'flex',
+        justifyContent: 'center',
+        height: '100%',
         padding: 2,
         ...sx,
       }}
