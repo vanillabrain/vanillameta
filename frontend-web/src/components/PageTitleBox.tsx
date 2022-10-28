@@ -1,8 +1,10 @@
 import React from 'react';
 import { Box, Stack, Typography } from '@mui/material';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 
 function PageTitleBox(props) {
-  const { title, upperTitle, button, sx = {} } = props;
+  const { title, upperTitle, upperTitleLink = '', button, sx = {} } = props;
+  const navigate = useNavigate();
 
   const defaultBoxSx = {
     minWidth: '900px',
@@ -38,7 +40,8 @@ function PageTitleBox(props) {
             {upperTitle && (
               <>
                 <Typography
-                  component="span"
+                  component={RouterLink}
+                  to={upperTitleLink}
                   sx={{
                     height: '19px',
                     flexGrow: 0,
@@ -50,6 +53,7 @@ function PageTitleBox(props) {
                     lineHeight: 'normal',
                     letterSpacing: 'normal',
                     textAlign: 'left',
+                    textDecoration: 'none',
                     color: '#4a4a4a',
                   }}
                 >
@@ -75,10 +79,17 @@ function PageTitleBox(props) {
               </>
             )}
             <Typography
-              component="span"
+              component="button"
+              onClick={event => {
+                event.preventDefault();
+                navigate(0);
+              }}
               sx={{
                 height: '19px',
                 flexGrow: 0,
+                border: 0,
+                padding: 0,
+                cursor: 'pointer',
                 fontFamily: 'Pretendard',
                 fontSize: '16px',
                 fontWeight: '600',
@@ -87,7 +98,9 @@ function PageTitleBox(props) {
                 lineHeight: 'normal',
                 letterSpacing: 'normal',
                 textAlign: 'left',
+                textDecoration: 'none',
                 color: '#141414',
+                backgroundColor: 'transparent',
               }}
             >
               {title}

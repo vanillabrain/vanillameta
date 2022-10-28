@@ -93,7 +93,7 @@ const WidgetView = () => {
   };
 
   return (
-    <PageTitleBox upperTitle="위젯" title="위젯 조회" sx={{ width: '100%', marginTop: '22px' }}>
+    <PageTitleBox upperTitle="위젯" upperTitleLink="/widget" title="위젯 조회" sx={{ width: '100%', marginTop: '22px' }}>
       <DashboardTitleBox
         title={
           <Stack

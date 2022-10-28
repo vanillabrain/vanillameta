@@ -144,6 +144,8 @@ function DataSource() {
   return (
     <PageContainer>
       <PageTitleBox
+        upperTitle="데이터"
+        upperTitleLink="/data"
         title={'데이터 소스 연결'}
         button={
           <ConfirmCancelButton
