@@ -111,8 +111,28 @@ export class ConnectionService {
             tempFields.map(field => {
               const fieldInfo = {
                 columnName: field.name,
-                columnLength: field._tableLength,
                 columnType: FieldTypeUtil.mysqlFieldType(field.columnType),
+              };
+              fields.push(fieldInfo);
+
+            });
+            break;
+          }
+
+        case 'sqlite':
+
+          if (queryRes && queryRes.length > 0) {
+
+            datas = queryRes;
+            const tempFields = Object.keys(queryRes[0]);
+            tempFields.map(field => {
+              const length = [];
+              for(let i = 0 ; i < 100; i ++){
+                  length.push(queryRes[i][field])
+              }
+              const fieldInfo = {
+                columnName: field,
+                columnType: FieldTypeUtil.FieldType(length),
               };
               fields.push(fieldInfo);
             });
@@ -124,20 +144,29 @@ export class ConnectionService {
             datas = queryRes.rows;
             const tempFields = queryRes.fields;
             tempFields.map(field => {
+              const length = [];
+              for(let i = 0 ; i < 100; i ++){
+                length.push(queryRes.rows[i][field.name])
+              }
               const fieldInfo = {
                 columnName: field.name,
-                columnLength: field.length,
-                columnType: FieldTypeUtil.mysqlFieldType(field.type),
+                columnType: FieldTypeUtil.FieldType(length),
               };
               fields.push(fieldInfo);
             });
             break;
           }
 
-        case 'mysql':
-          if (queryRes && queryRes[0].length > 0) {
-            datas = queryRes[0];
-            const tempFields = queryRes[1];
+
+        case 'Db2Dialect':
+          if (queryRes && queryRes.length > 0) {
+
+            datas = queryRes;
+
+            // for (let i = 0; i < Object.keys(queryRes[0]).length; i++) {
+            //   console.log(Object.keys[i]);
+            // }
+            const tempFields = queryRes;
             tempFields.map(field => {
               const fieldInfo = {
                 columnName: field.name,
@@ -152,15 +181,11 @@ export class ConnectionService {
         case 'mssql':
           if (queryRes && queryRes.length > 0) {
             datas = queryRes;
-            for (let i = 0; i < Object.keys(queryRes[0]).length; i++) {
-              console.log(Object.keys[i]);
-            }
-            const tempFields = queryRes;
+            const tempFields = Object.keys(queryRes[0]);
             tempFields.map(field => {
               const fieldInfo = {
-                columnName: field.name,
-                columnLength: field.length,
-                columnType: FieldTypeUtil.mysqlFieldType(field.type),
+                columnName: field,
+                columnType: FieldTypeUtil.mysqlFieldType(field),
               };
               fields.push(fieldInfo);
             });
