@@ -85,11 +85,7 @@ const DashboardView = () => {
             backgroundColor: '#fff',
           }}
         >
-          <WidgetWrapper
-            widgetOption={item}
-            dataSetId={item.datasetId}
-            sx={{ width: '100%', height: '100%', borderRadius: 1 }}
-          />
+          <WidgetWrapper widgetOption={item} dataSetId={item.datasetId} />
         </Card>
       );
     });

@@ -11,7 +11,7 @@ const CardListWrapper = ({ children, minWidth }) => {
         listStyle: 'none',
         pl: 0,
         display: 'grid',
-        gridTemplateColumns: { xs: '1fr', md: `repeat(${minWidth || '2, 1fr'})`, lg: `repeat(${minWidth || '4, 1fr'})` },
+        gridTemplateColumns: `repeat(${minWidth || 'auto-fit, minmax(0, 228px)'})`,
       }}
     >
       {children}

@@ -29,9 +29,9 @@ function Header(props) {
   };
 
   return (
-    <AppBar elevation={0} component="nav" sx={{ minWidth: '1440px', left: 0 }}>
-      <Toolbar variant="dense" sx={{ height: headerHeight, justifyContent: 'space-between', columnGap: '40px' }}>
-        <Logo sx={{ width: 105, height: 20 }} />
+    <AppBar elevation={0} component="nav" sx={{ minWidth: '1440px', left: 0, height: '65px' }}>
+      <Toolbar variant="dense" sx={{ height: headerHeight, justifyContent: 'space-between', columnGap: '30px' }}>
+        <Logo />
         <NavBar navItems={navItems} />
         <Box>
           <AddMenuIconButton menuList={menuList} handleSelect={handleMenuSelect} />

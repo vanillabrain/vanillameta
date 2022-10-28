@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Avatar, Box, Stack, Typography } from '@mui/material';
+import { Avatar, Card, Stack, Typography } from '@mui/material';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import PageTitleBox from '@/components/PageTitleBox';
 import WidgetService from '@/api/widgetService';
@@ -171,23 +171,21 @@ const WidgetView = () => {
           </Stack>
         }
       >
-        <Box
+        <Card
           sx={{
             width: '60%',
-            height: '500px',
+            // height: '100%',
+            height: '700px',
+            minHeight: '500px',
             margin: '54px auto',
-            border: '1px solid #e2e2e2',
             borderRadius: '8px',
             boxShadow: '2px 2px 9px 0 rgba(42, 50, 62, 0.1), 0 4px 4px 0 rgba(0, 0, 0, 0.02)',
+            border: 'solid 1px #e2e2e2',
             backgroundColor: '#fff',
           }}
         >
-          <WidgetWrapper
-            widgetOption={widgetOption}
-            dataSetId={widgetOption.datasetId}
-            sx={{ width: '100%', height: '500px', borderRadius: 1 }}
-          />
-        </Box>
+          <WidgetWrapper widgetOption={widgetOption} dataSetId={widgetOption.datasetId} />
+        </Card>
       </DashboardTitleBox>
     </PageTitleBox>
   );
