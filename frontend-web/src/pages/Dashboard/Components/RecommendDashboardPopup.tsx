@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { BarChart, MultilineChart, PieChart } from '@mui/icons-material';
 import {
+  Avatar,
   Box,
   Button,
   Checkbox,
@@ -14,7 +14,6 @@ import {
   ListItemIcon,
   ListItemText,
   Stack,
-  SvgIcon,
   Typography,
 } from '@mui/material';
 import { useAlert } from 'react-alert';
@@ -33,19 +32,6 @@ import { ReactComponent as TemplateIcon08 } from '@/assets/images/template/templ
 import { ReactComponent as TemplateIcon09 } from '@/assets/images/template/template09.svg';
 import { ReactComponent as TemplateIcon10 } from '@/assets/images/template/template10.svg';
 import { ReactComponent as CheckIcon } from '@/assets/images/icon/ic-check.svg';
-
-const iconType = item => {
-  switch (item.toUpperCase()) {
-    case 'CHART_BAR':
-      return <BarChart />;
-    case 'CHART_PIE':
-      return <PieChart />;
-    case 'CHART_LINE':
-      return <MultilineChart />;
-    default:
-      return;
-  }
-};
 
 const getTemplateIcon = id => {
   let icon = null;
@@ -84,7 +70,12 @@ const getTemplateIcon = id => {
   return icon;
 };
 
-export const WidgetList = ({ handleWidgetConfirm = null, handleWidgetCancel = null, selectedWidgetIds = [] }) => {
+export const WidgetList = ({
+  handleWidgetConfirm = null,
+  handleWidgetCancel = null,
+  selectedWidgetIds = [],
+  selectedChange = null,
+}) => {
   const alert = useAlert();
   const [loadedWidgetData, setLoadedWidgetData] = useState([]);
   const [selectedIds, setSelectedIds] = useState(selectedWidgetIds);
@@ -96,6 +87,10 @@ export const WidgetList = ({ handleWidgetConfirm = null, handleWidgetCancel = nu
   useEffect(() => {
     setSelectedIds(selectedWidgetIds);
   }, [selectedWidgetIds]);
+
+  useEffect(() => {
+    selectedChange(selectedIds.length);
+  }, [selectedIds]);
 
   const getItems = () => {
     WidgetService.selectWidgetList().then(response => {
@@ -166,7 +161,23 @@ export const WidgetList = ({ handleWidgetConfirm = null, handleWidgetCancel = nu
               sx={{ paddingX: '20px', height: '50px' }}
             >
               <Checkbox checked={isItemSelection(item)} />
-              <ListItemIcon sx={{ marginLeft: '16px', minWidth: '24px' }}>{iconType(item.componentType)}</ListItemIcon>
+              <ListItemIcon
+                sx={{
+                  minWidth: '24px',
+                  marginLeft: '16px',
+                }}
+              >
+                <Avatar
+                  src={`/static/images/${item.icon}`}
+                  sx={{
+                    width: 'auto',
+                    height: '30px',
+                    borderRadius: 0,
+                    objectFit: 'contain',
+                    backgroundColor: 'transparent',
+                  }}
+                />
+              </ListItemIcon>
               <ListItemText
                 sx={{
                   marginLeft: '16px',
@@ -221,7 +232,7 @@ export const WidgetList = ({ handleWidgetConfirm = null, handleWidgetCancel = nu
             color: '#0057bd',
           }}
         >
-          위젯 추가
+          다음
         </Button>
       </DialogActions>
     </>
@@ -408,6 +419,8 @@ function RecommendDashboardPopup({ recommendOpen = false, handleComplete = null 
   const [subTitle, setSubTitle] = useState('위젯을 선택하세요');
   const [step, setStep] = useState(1);
   const [selectedWidgetIds, setSelectedWidgetIds] = useState([]);
+  const [selectedWidgetCount, setSelectedWidgetCount] = useState(0);
+  const [dialogWidth, setDialogWidth] = useState('600px');
 
   useEffect(() => {
     setOpen(recommendOpen);
@@ -422,8 +435,10 @@ function RecommendDashboardPopup({ recommendOpen = false, handleComplete = null 
   useEffect(() => {
     if (step == 1) {
       setSubTitle('위젯을 선택하세요');
+      setDialogWidth('600px');
     } else if (step == 2) {
       setSubTitle('템플릿을 선택하세요');
+      setDialogWidth('1392px');
     }
   }, [step]);
 
@@ -467,8 +482,11 @@ function RecommendDashboardPopup({ recommendOpen = false, handleComplete = null 
     }
   };
 
+  const selectedWidgetChange = count => {
+    setSelectedWidgetCount(count);
+  };
+
   const getTemplateResult = item => {
-    console.log('aaa');
     TemplateService.selectRecommendTemplateListDashboard(item).then(response => {
       if (response.data.status == STATUS.SUCCESS) {
         handleComplete(response.data.data);
@@ -479,141 +497,96 @@ function RecommendDashboardPopup({ recommendOpen = false, handleComplete = null 
   };
 
   return (
-    <>
+    <Dialog
+      open={open}
+      // fullWidth={true}
+      // maxWidth={false}
+      sx={{
+        '& .MuiDialog-container': {
+          '& .MuiPaper-root': {
+            width: '100%',
+            maxWidth: dialogWidth, // Set your width here
+          },
+        },
+      }}
+    >
+      <DialogTitle id="scroll-dialog-title" sx={{ width: '100%', paddingLeft: '21px', paddingTop: '13px', height: '87px' }}>
+        <span
+          style={{
+            height: '24px',
+            fontFamily: 'Pretendard',
+            fontSize: '20px',
+            fontWeight: '600',
+            fontStretch: 'normal',
+            fontStyle: 'normal',
+            lineHeight: 'normal',
+            letterSpacing: 'normal',
+            textAlign: 'left',
+            color: '#141414',
+          }}
+        >
+          {title}
+        </span>
+
+        <CloseButton
+          sx={{
+            position: 'absolute',
+            right: '0px',
+            top: '0px',
+            paddingRight: '19px',
+            paddingTop: '19px',
+            cursor: 'pointer',
+          }}
+          size="medium"
+          onClick={event => {
+            event.preventDefault();
+            event.stopPropagation();
+            handleClose();
+          }}
+        />
+        <Typography
+          variant="body2"
+          sx={{
+            height: '17px',
+            flexGrow: 0,
+            fontFamily: 'Pretendard',
+            fontSize: '14px',
+            fontWeight: 'normal',
+            fontStretch: 'normal',
+            fontStyle: 'normal',
+            lineHeight: 'normal',
+            letterSpacing: 'normal',
+            textAlign: 'left',
+            color: '#767676',
+            paddingTop: '6px',
+          }}
+        >
+          {step == 1 ? (
+            <>
+              <span>추가할 위젯을 선택해주세요. (</span>
+              <span style={{ color: '#0f5ab2', fontWeight: 'bold' }}>{selectedWidgetCount}</span>
+              <span>개 선택)</span>
+            </>
+          ) : (
+            subTitle
+          )}
+        </Typography>
+      </DialogTitle>
       {step == 1 ? (
-        <Dialog open={open} fullWidth={true}>
-          <DialogTitle
-            id="scroll-dialog-title"
-            sx={{ width: '100%', paddingLeft: '21px', paddingTop: '13px', height: '87px' }}
-          >
-            <span
-              style={{
-                height: '24px',
-                fontFamily: 'Pretendard',
-                fontSize: '20px',
-                fontWeight: '600',
-                fontStretch: 'normal',
-                fontStyle: 'normal',
-                lineHeight: 'normal',
-                letterSpacing: 'normal',
-                textAlign: 'left',
-                color: '#141414',
-              }}
-            >
-              {title}
-            </span>
-
-            <CloseButton
-              sx={{
-                position: 'absolute',
-                right: '0px',
-                top: '0px',
-                paddingRight: '18.9px',
-                paddingTop: '20.4px',
-                cursor: 'pointer',
-              }}
-              size="medium"
-              onClick={event => {
-                event.preventDefault();
-                event.stopPropagation();
-                handleClose();
-              }}
-            />
-            <Typography
-              variant="body2"
-              sx={{
-                height: '17px',
-                flexGrow: 0,
-                fontFamily: 'Pretendard',
-                fontSize: '14px',
-                fontWeight: 'normal',
-                fontStretch: 'normal',
-                fontStyle: 'normal',
-                lineHeight: 'normal',
-                letterSpacing: 'normal',
-                textAlign: 'left',
-                color: '#767676',
-                paddingTop: '6px',
-              }}
-            >
-              {/*{subTitle}*/}
-              추가할 위젯을 선택해주세요. (
-              <span style={{ color: '#0f5ab2', fontWeight: 'bold' }}>{selectedWidgetIds.length}</span>개 선택)
-            </Typography>
-          </DialogTitle>
-          <WidgetList
-            handleWidgetConfirm={handleConfirmClick}
-            handleWidgetCancel={handleCancelClick}
-            selectedWidgetIds={selectedWidgetIds}
-          />
-        </Dialog>
+        <WidgetList
+          handleWidgetConfirm={handleConfirmClick}
+          handleWidgetCancel={handleCancelClick}
+          selectedWidgetIds={selectedWidgetIds}
+          selectedChange={selectedWidgetChange}
+        />
       ) : (
-        <Dialog open={open} fullWidth={true} maxWidth={false} sx={{ width: '1392px' }}>
-          <DialogTitle
-            id="scroll-dialog-title"
-            sx={{ width: '100%', paddingLeft: '21px', paddingTop: '13px', height: '87px' }}
-          >
-            <span
-              style={{
-                height: '24px',
-                fontFamily: 'Pretendard',
-                fontSize: '20px',
-                fontWeight: '600',
-                fontStretch: 'normal',
-                fontStyle: 'normal',
-                lineHeight: 'normal',
-                letterSpacing: 'normal',
-                textAlign: 'left',
-                color: '#141414',
-              }}
-            >
-              {title}
-            </span>
-
-            <CloseButton
-              sx={{
-                position: 'absolute',
-                right: '0px',
-                top: '0px',
-                paddingRight: '18.9px',
-                paddingTop: '20.4px',
-                cursor: 'pointer',
-              }}
-              size="medium"
-              onClick={event => {
-                event.preventDefault();
-                event.stopPropagation();
-                handleClose();
-              }}
-            />
-            <Typography
-              variant="body2"
-              sx={{
-                height: '17px',
-                flexGrow: 0,
-                fontFamily: 'Pretendard',
-                fontSize: '14px',
-                fontWeight: 'normal',
-                fontStretch: 'normal',
-                fontStyle: 'normal',
-                lineHeight: 'normal',
-                letterSpacing: 'normal',
-                textAlign: 'left',
-                color: '#767676',
-                paddingTop: '6px',
-              }}
-            >
-              {subTitle}
-            </Typography>
-          </DialogTitle>
-          <TemplateList
-            handleWidgetConfirm={handleConfirmClick}
-            handleWidgetCancel={handleCancelClick}
-            selectedWidgetIds={selectedWidgetIds}
-          />
-        </Dialog>
+        <TemplateList
+          handleWidgetConfirm={handleConfirmClick}
+          handleWidgetCancel={handleCancelClick}
+          selectedWidgetIds={selectedWidgetIds}
+        />
       )}
-    </>
+    </Dialog>
   );
 }
 export default RecommendDashboardPopup;
