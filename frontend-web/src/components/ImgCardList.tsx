@@ -12,27 +12,22 @@ function ImgCardList(props) {
   };
 
   return (
-    <Grid
-      container
-      spacing={2}
+    <Box
       component="ul"
       sx={{
+        display: 'grid',
         listStyle: 'none',
         pl: 0,
-        display: 'grid',
-        gridTemplateColumns: {
-          xs: `repeat(${minWidth || '4, 1fr'})`,
-          md: `repeat(${minWidth || '6, 1fr'})`,
-          lg: `repeat(${minWidth || '8, 1fr'})`,
-          xl: `repeat(${minWidth || '10, 1fr'})`,
-        },
+        gridTemplateColumns: 'repeat(auto-fit, minmax(0, 169px))',
+        justifyContent: 'center',
+        gap: '20px',
+        m: '0',
       }}
     >
       {data.map(item => {
         const selected = selectedType && selectedType.id === item.id;
         return (
-          <Grid item xs={12} md component="li" key={item.id}>
-            {/*// <Box component="li" key={item.id} sx={{ width: '166px', height: '169px' }}>*/}
+          <Box component="li" key={item.id}>
             <CardWrapper sx={{ p: 0 }} selected={selected} onClick={() => handleClick(item)}>
               <CardContent
                 sx={{
@@ -67,10 +62,10 @@ function ImgCardList(props) {
                 )}
               </CardContent>
             </CardWrapper>
-          </Grid>
+          </Box>
         );
       })}
-    </Grid>
+    </Box>
   );
 }
 

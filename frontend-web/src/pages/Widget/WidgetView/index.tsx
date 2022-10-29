@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Stack, Typography } from '@mui/material';
+import { Avatar, Card, Stack, Typography } from '@mui/material';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import PageTitleBox from '@/components/PageTitleBox';
 import WidgetService from '@/api/widgetService';
@@ -27,6 +27,9 @@ const WidgetView = () => {
     title: '',
     updatedAt: '',
     widgetViewId: '',
+    icon: '',
+    componentTitle: '',
+    componentDescription: '',
   };
   const [widgetOption, setWidgetOption] = useState<WidgetInfo>(defaultWidgetInfo);
 
@@ -78,11 +81,7 @@ const WidgetView = () => {
           onClick: () => {
             WidgetService.deleteWidget(widgetId).then(response => {
               if (response.status === 200) {
-                alert.info('삭제되었습니다.', {
-                  onClose: () => {
-                    navigate('/widget');
-                  },
-                });
+                navigate('/widget', { replace: true });
               } else {
                 alert.info('삭제 실패하였습니다.');
               }
@@ -94,28 +93,39 @@ const WidgetView = () => {
   };
 
   return (
-    <PageTitleBox upperTitle="위젯" title="위젯 조회" sx={{ width: '100%', marginTop: '22px' }}>
+    <PageTitleBox upperTitle="위젯" upperTitleLink="/widget" title="위젯 조회" sx={{ width: '100%', marginTop: '22px' }}>
       <DashboardTitleBox
         title={
-          <Typography
-            variant="subtitle1"
-            component="span"
+          <Stack
+            direction="row"
+            alignItems="center"
             sx={{
-              fontWeight: 500,
-              paddingLeft: '18px',
-              height: '16px',
-              fontFamily: 'Pretendard',
-              fontSize: '18px',
-              fontStretch: 'normal',
-              fontStyle: 'normal',
-              lineHeight: 0.89,
-              letterSpacing: '-0.18px',
-              textAlign: 'left',
-              color: '#141414',
+              pl: '20px',
             }}
           >
-            {widgetOption.title}
-          </Typography>
+            <Avatar
+              src={`/static/images/${widgetOption.icon}`}
+              sx={{ width: '30px', height: '30px', borderRadius: 0, objectFit: 'contain', backgroundColor: 'transparent' }}
+            />
+            <Typography
+              variant="subtitle1"
+              component="span"
+              sx={{
+                fontWeight: 500,
+                paddingLeft: '14px',
+                height: '16px',
+                fontSize: '18px',
+                fontStretch: 'normal',
+                fontStyle: 'normal',
+                lineHeight: 0.89,
+                letterSpacing: '-0.18px',
+                textAlign: 'left',
+                color: '#141414',
+              }}
+            >
+              {widgetOption.componentTitle}
+            </Typography>
+          </Stack>
         }
         button={
           <Stack direction="row" alignItems="center" sx={{ marginRight: '20px' }}>
@@ -161,23 +171,21 @@ const WidgetView = () => {
           </Stack>
         }
       >
-        <Box
+        <Card
           sx={{
             width: '60%',
-            height: '500px',
+            // height: '100%',
+            height: '700px',
+            minHeight: '500px',
             margin: '54px auto',
-            border: '1px solid #e2e2e2',
             borderRadius: '8px',
             boxShadow: '2px 2px 9px 0 rgba(42, 50, 62, 0.1), 0 4px 4px 0 rgba(0, 0, 0, 0.02)',
+            border: 'solid 1px #e2e2e2',
             backgroundColor: '#fff',
           }}
         >
-          <WidgetWrapper
-            widgetOption={widgetOption}
-            dataSetId={widgetOption.datasetId}
-            sx={{ width: '100%', height: '500px', borderRadius: 1 }}
-          />
-        </Box>
+          <WidgetWrapper widgetOption={widgetOption} dataSetId={widgetOption.datasetId} />
+        </Card>
       </DashboardTitleBox>
     </PageTitleBox>
   );

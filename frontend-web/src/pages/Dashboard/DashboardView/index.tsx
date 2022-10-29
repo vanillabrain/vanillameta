@@ -85,11 +85,7 @@ const DashboardView = () => {
             backgroundColor: '#fff',
           }}
         >
-          <WidgetWrapper
-            widgetOption={item}
-            dataSetId={item.datasetId}
-            sx={{ width: '100%', height: '100%', borderRadius: 1 }}
-          />
+          <WidgetWrapper widgetOption={item} dataSetId={item.datasetId} />
         </Card>
       );
     });
@@ -120,7 +116,12 @@ const DashboardView = () => {
   };
 
   return (
-    <PageTitleBox upperTitle="대시보드" title="대시보드 조회" sx={{ width: '100%', marginTop: '22px' }}>
+    <PageTitleBox
+      upperTitle="대시보드"
+      upperTitleLink="/dashboard"
+      title="대시보드 조회"
+      sx={{ width: '100%', marginTop: '22px' }}
+    >
       <DashboardTitleBox
         title={
           <Typography

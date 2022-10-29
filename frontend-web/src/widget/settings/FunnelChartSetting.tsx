@@ -1,19 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { ListItem, ListItemText } from '@mui/material';
+import { IconButton, ListItem, ListItemText, SvgIcon } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import ColorFieldForm from '@/components/form/ColorFieldForm';
 import { handleChange } from '@/widget/utils/handler';
 import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST, PIE_LABEL_LIST } from '@/constant';
 import { getAggregationDataForChart, getColorArr } from '@/widget/modules/utils/chartUtil';
-import { AddButton, SmallButton } from '@/components/button/AddIconButton';
-import { InvertColors } from '@mui/icons-material';
+import { AddButton } from '@/components/button/AddIconButton';
+import { ReactComponent as OneColorIcon } from '@/assets/images/icon/ic-color.svg';
+import { ReactComponent as GradientColorIcon } from '@/assets/images/icon/ic-gradient.svg';
 
 const FunnelChartSetting = props => {
   const { option, setOption, listItem, spec, dataSet } = props;
-  console.log(props, 'props');
 
   const [colorNum, setColorNum] = useState(12);
-  // const [color, setColor] = useState(initState);
   const [isOneColor, setIsOneColor] = useState(false);
 
   const setColor = () => {
@@ -60,7 +59,6 @@ const FunnelChartSetting = props => {
       setIsOneColor(true);
       setColorNum(1);
       setOption(prevState => {
-        // prevState['series'].color = prevState['series'].color.reverse();
         prevState['series'].color = [prevState['series'].color[0]];
         return { ...prevState };
       });
@@ -147,15 +145,19 @@ const FunnelChartSetting = props => {
             right: 0,
           }}
         />
-        <SmallButton
-          onClick={handleColorChangeClick}
-          icon={<InvertColors />}
+        <IconButton
+          size="small"
           sx={{
             position: 'absolute',
             top: 30,
-            right: 30,
+            right: 34,
+            width: 28,
+            height: 28,
           }}
-        />
+          onClick={handleColorChangeClick}
+        >
+          <SvgIcon component={isOneColor ? OneColorIcon : GradientColorIcon} inheritViewBox sx={{ width: 16, height: 16 }} />
+        </IconButton>
         {option.series.field &&
           option.series.color
             .filter((item, index) => index < colorNum)

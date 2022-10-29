@@ -162,11 +162,7 @@ function DashboardModify() {
               }
             }}
           />
-          <WidgetWrapper
-            widgetOption={item}
-            dataSetId={item.datasetId}
-            sx={{ width: '100%', height: '100%', borderRadius: 1 }}
-          />
+          <WidgetWrapper widgetOption={item} dataSetId={item.datasetId} />
         </Card>
       );
     });
@@ -254,6 +250,7 @@ function DashboardModify() {
     <PageContainer>
       <PageTitleBox
         upperTitle="대시보드"
+        upperTitleLink="/dashboard"
         title={topTitle}
         sx={{ width: '100%', marginTop: '22px' }}
         button={
