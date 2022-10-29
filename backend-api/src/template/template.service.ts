@@ -286,7 +286,7 @@ export class TemplateService {
     widgetList.forEach((item, i) => {
       item.option = JSON.parse(item.option);
       // templateInfo.widgets.push(item);
-      if (templateInfo.layout.length > i && template) templateInfo.layout[i].i = item.id;
+      // if (templateInfo.layout.length > i && template) templateInfo.layout[i].i = item.id;
     });
 
     templateInfo.widgets = widgetList;
@@ -616,6 +616,7 @@ export class TemplateService {
           templateItemList[i].i = widget.id;
           templateCount[widget.category] -= 1;
           templateCount.TOTAL -= 1;
+          widgetCount[widget.category] -= 1;
           break;
         } else if (templateCount.TOTAL <= 0 || i === templateItemList.length - 1) {
           differntWidgetList.push(widget);
