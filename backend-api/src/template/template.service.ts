@@ -286,7 +286,7 @@ export class TemplateService {
     widgetList.forEach((item, i) => {
       item.option = JSON.parse(item.option);
       // templateInfo.widgets.push(item);
-      if (templateInfo.layout.length > i && template) templateInfo.layout[i].i = item.id;
+      // if (templateInfo.layout.length > i && template) templateInfo.layout[i].i = item.id;
     });
 
     templateInfo.widgets = widgetList;
@@ -595,13 +595,17 @@ export class TemplateService {
    */
   private async mappingLayout(widgetList, templateInfo) {
     const templateItemList = templateInfo.layout;
-    console.log(templateInfo);
 
     const templateCount = { HORIZONTAL: 0, VERTICAL: 0, SQUARE: 0, SCORE: 0, TABLE: 0, TOTAL: 0 };
-
     templateItemList.forEach(templateItem => {
       templateCount[templateItem.category] += 1;
       templateCount.TOTAL += 1;
+    });
+
+    const widgetCount = { HORIZONTAL: 0, VERTICAL: 0, SQUARE: 0, SCORE: 0, TABLE: 0, TOTAL: 0 };
+    widgetList.forEach(widgetItem => {
+      widgetCount[widgetItem.category] += 1;
+      widgetCount.TOTAL += 1;
     });
 
     const differntWidgetList = [];
@@ -612,6 +616,7 @@ export class TemplateService {
           templateItemList[i].i = widget.id;
           templateCount[widget.category] -= 1;
           templateCount.TOTAL -= 1;
+          widgetCount[widget.category] -= 1;
           break;
         } else if (templateCount.TOTAL <= 0 || i === templateItemList.length - 1) {
           differntWidgetList.push(widget);
@@ -620,126 +625,215 @@ export class TemplateService {
       }
     });
 
-    const leastWidgetList = [];
-    differntWidgetList.forEach(widget => {
-      if (templateCount.TOTAL > 0) {
-        //todo:: heeseon::: 이거 순서대로 돌아가는게 아닌거같은데....처음부터 다시해야되나.....
-        // 다른 타입 점수 높은거 골라서 넣어주기
+    // 다른 타입 점수 높은거 골라서 넣어주기
+    // 1. table -> horizontal, vertical, square : h->v->s 순서로 우선순위가 존재함.
+    if (
+      widgetCount.TABLE > 0 &&
+      (templateCount.HORIZONTAL > 0 || templateCount.VERTICAL > 0 || templateCount.SQUARE > 0)
+    ) {
+      const mappingCnt =
+        widgetCount.TABLE < templateCount.HORIZONTAL + templateCount.VERTICAL + templateCount.SQUARE
+          ? widgetCount.TABLE
+          : templateCount.HORIZONTAL + templateCount.VERTICAL + templateCount.SQUARE;
+      for (let i = 0; i < mappingCnt; i++) {
+        const tableWigetIndex = differntWidgetList.findIndex(
+          item => item.category === ComponentType.TABLE,
+        );
         let index = -1;
-        if (
-          widget.category === ComponentType.TABLE &&
-          (templateCount.HORIZONTAL > 0 || templateCount.VERTICAL > 0 || templateCount.SQUARE > 0)
-        ) {
-          // 1. table -> horizontal, vertical, square : h->v->s 순서로 우선순위가 존재함.
-          const horizontalIndex = templateItemList.findIndex(
-            item => !item.i && item.category === ComponentType.HORIZONTAL,
-          );
-          const verticalIndex = templateItemList.findIndex(
-            item => !item.i && item.category === ComponentType.VERTICAL,
-          );
-          const squareIndex = templateItemList.findIndex(
-            item => !item.i && item.category === ComponentType.SQUARE,
-          );
-
-          if (horizontalIndex >= 0) {
-            index = horizontalIndex;
-            templateCount[ComponentType.HORIZONTAL] -= 1;
-          } else if (verticalIndex >= 0) {
-            index = verticalIndex;
-            templateCount[ComponentType.VERTICAL] -= 1;
-          } else {
-            index = squareIndex;
-            templateCount[ComponentType.SQUARE] -= 1;
-          }
-        } else if (
-          widget.category === ComponentType.SQUARE &&
-          (templateCount.HORIZONTAL > 0 || templateCount.VERTICAL > 0 || templateCount.SCORE > 0)
-        ) {
-          // 2. square -> any : score->v->h 순서로 우선순위 존재함.
-          const scoreIndex = templateItemList.findIndex(
-            item => !item.i && item.category === ComponentType.SCORE,
-          );
-          const verticalIndex = templateItemList.findIndex(
-            item => !item.i && item.category === ComponentType.VERTICAL,
-          );
-          const horizontalIndex = templateItemList.findIndex(
-            item => !item.i && item.category === ComponentType.HORIZONTAL,
-          );
-
-          if (scoreIndex >= 0) {
-            index = scoreIndex;
-            templateCount[ComponentType.SCORE] -= 1;
-          } else if (verticalIndex >= 0) {
-            index = verticalIndex;
-            templateCount[ComponentType.VERTICAL] -= 1;
-          } else {
-            index = horizontalIndex;
-            templateCount[ComponentType.HORIZONTAL] -= 1;
-          }
-        } else if (
-          (widget.category === ComponentType.HORIZONTAL ||
-            widget.category === ComponentType.VERTICAL ||
-            widget.category === ComponentType.SCORE) &&
-          templateCount.SQUARE > 0
-        ) {
-          // 3,4. score, horizontal, vertical -> square
-          index = templateItemList.findIndex(
-            item => !item.i && item.category === ComponentType.SQUARE,
-          );
-          templateCount[ComponentType.SQUARE] -= 1;
-        } else if (
-          (widget.category === ComponentType.HORIZONTAL ||
-            widget.category === ComponentType.SCORE) &&
-          templateCount.VERTICAL > 0
-        ) {
-          // 5-1. horizontal, score -> vertical
-          index = templateItemList.findIndex(
-            item => !item.i && item.category === ComponentType.VERTICAL,
-          );
-          templateCount[ComponentType.VERTICAL] -= 1;
-        } else if (
-          (widget.category === ComponentType.VERTICAL || widget.category === ComponentType.SCORE) &&
-          templateCount.HORIZONTAL > 0
-        ) {
-          // 5-2. vertical, score -> HORIZONTAL
-          index = templateItemList.findIndex(
-            item => !item.i && item.category === ComponentType.HORIZONTAL,
-          );
+        const horizontalIndex = templateItemList.findIndex(
+          item => !item.i && item.category === ComponentType.HORIZONTAL,
+        );
+        const verticalIndex = templateItemList.findIndex(
+          item => !item.i && item.category === ComponentType.VERTICAL,
+        );
+        const squareIndex = templateItemList.findIndex(
+          item => !item.i && item.category === ComponentType.SQUARE,
+        );
+        if (horizontalIndex >= 0) {
+          index = horizontalIndex;
           templateCount[ComponentType.HORIZONTAL] -= 1;
-        } else if (
-          (widget.category === ComponentType.VERTICAL ||
-            widget.category === ComponentType.HORIZONTAL) &&
-          templateCount.SCORE > 0
-        ) {
-          // 6. vertical, horizontal -> SCORE
-          index = templateItemList.findIndex(
-            item => !item.i && item.category === ComponentType.SCORE,
-          );
-          templateCount[ComponentType.SCORE] -= 1;
-        } else if (widget.category === ComponentType.TABLE && templateCount.SCORE > 0) {
-          // 7. table -> SCORE
-          index = templateItemList.findIndex(
-            item => !item.i && item.category === ComponentType.SCORE,
-          );
-          templateCount[ComponentType.SCORE] -= 1;
+        } else if (verticalIndex >= 0) {
+          index = verticalIndex;
+          templateCount[ComponentType.VERTICAL] -= 1;
+        } else {
+          index = squareIndex;
+          templateCount[ComponentType.SQUARE] -= 1;
         }
 
-        templateItemList[index].i = widget.id;
+        templateItemList[index].i = differntWidgetList[tableWigetIndex].id;
+        differntWidgetList[tableWigetIndex].category = 'MAPPED';
         templateCount.TOTAL -= 1;
-      } else {
-        console.log(templateInfo);
-        leastWidgetList.push(widget);
-        // templateInfo.layout에 새로운 layout object 넣어주기(template에서 넘친 widget 목록)
+        widgetCount.TABLE -= 1;
       }
-    });
+    }
 
+    // 2. square -> any : score->v->h 순서로 우선순위 존재함.
+    if (
+      widgetCount.SQUARE > 0 &&
+      (templateCount.HORIZONTAL > 0 || templateCount.VERTICAL > 0 || templateCount.SCORE > 0)
+    ) {
+      const mappingCnt =
+        widgetCount.SQUARE < templateCount.HORIZONTAL + templateCount.VERTICAL + templateCount.SCORE
+          ? widgetCount.SQUARE
+          : templateCount.HORIZONTAL + templateCount.VERTICAL + templateCount.SCORE;
+      for (let i = 0; i < mappingCnt; i++) {
+        const squareWigetIndex = differntWidgetList.findIndex(
+          item => item.category === ComponentType.SQUARE,
+        );
+
+        let index = -1;
+        const scoreIndex = templateItemList.findIndex(
+          item => !item.i && item.category === ComponentType.SCORE,
+        );
+        const horizontalIndex = templateItemList.findIndex(
+          item => !item.i && item.category === ComponentType.HORIZONTAL,
+        );
+        const verticalIndex = templateItemList.findIndex(
+          item => !item.i && item.category === ComponentType.VERTICAL,
+        );
+        if (scoreIndex >= 0) {
+          index = scoreIndex;
+          templateCount[ComponentType.SCORE] -= 1;
+        } else if (verticalIndex >= 0) {
+          index = verticalIndex;
+          templateCount[ComponentType.VERTICAL] -= 1;
+        } else {
+          index = horizontalIndex;
+          templateCount[ComponentType.HORIZONTAL] -= 1;
+        }
+
+        templateItemList[index].i = differntWidgetList[squareWigetIndex].id;
+        differntWidgetList[squareWigetIndex].category = 'MAPPED';
+        templateCount.TOTAL -= 1;
+        widgetCount.SQUARE -= 1;
+      }
+    }
+
+    // 3,4. score, horizontal, vertical -> square
+    if (
+      (widgetCount.HORIZONTAL > 0 || widgetCount.VERTICAL > 0 || widgetCount.SCORE > 0) &&
+      templateCount.SQUARE > 0
+    ) {
+      const mappingCnt =
+        widgetCount.HORIZONTAL + widgetCount.VERTICAL + widgetCount.SCORE < templateCount.SQUARE
+          ? widgetCount.HORIZONTAL + widgetCount.VERTICAL + widgetCount.SCORE
+          : templateCount.SQUARE;
+      for (let i = 0; i < mappingCnt; i++) {
+        const leastWigetIndex = differntWidgetList.findIndex(
+          item =>
+            item.category === ComponentType.HORIZONTAL ||
+            item.category === ComponentType.VERTICAL ||
+            item.category === ComponentType.SCORE,
+        );
+        const squareIndex = templateItemList.findIndex(
+          item => !item.i && item.category === ComponentType.SQUARE,
+        );
+
+        templateItemList[squareIndex].i = differntWidgetList[leastWigetIndex].id;
+        widgetCount[differntWidgetList[leastWigetIndex].category] -= 1;
+        differntWidgetList[leastWigetIndex].category = 'MAPPED';
+        templateCount[ComponentType.SQUARE] -= 1;
+        templateCount.TOTAL -= 1;
+      }
+    }
+
+    // 5-1. horizontal, score -> vertical
+    if ((widgetCount.HORIZONTAL > 0 || widgetCount.SCORE > 0) && templateCount.VERTICAL > 0) {
+      const mappingCnt =
+        widgetCount.HORIZONTAL + widgetCount.SCORE < templateCount.VERTICAL
+          ? widgetCount.HORIZONTAL + widgetCount.SCORE
+          : templateCount.VERTICAL;
+      for (let i = 0; i < mappingCnt; i++) {
+        const leastWigetIndex = differntWidgetList.findIndex(
+          item =>
+            item.category === ComponentType.HORIZONTAL || item.category === ComponentType.SCORE,
+        );
+        const verticalIndex = templateItemList.findIndex(
+          item => !item.i && item.category === ComponentType.VERTICAL,
+        );
+
+        templateItemList[verticalIndex].i = differntWidgetList[leastWigetIndex].id;
+        widgetCount[differntWidgetList[leastWigetIndex].category] -= 1;
+        differntWidgetList[leastWigetIndex].category = 'MAPPED';
+        templateCount[ComponentType.VERTICAL] -= 1;
+        templateCount.TOTAL -= 1;
+      }
+    }
+
+    // 5-2. vertical, score -> HORIZONTAL
+    if ((widgetCount.VERTICAL > 0 || widgetCount.SCORE > 0) && templateCount.HORIZONTAL > 0) {
+      const mappingCnt =
+        widgetCount.VERTICAL + widgetCount.SCORE < templateCount.HORIZONTAL
+          ? widgetCount.VERTICAL + widgetCount.SCORE
+          : templateCount.HORIZONTAL;
+      for (let i = 0; i < mappingCnt; i++) {
+        const leastWigetIndex = differntWidgetList.findIndex(
+          item => item.category === ComponentType.VERTICAL || item.category === ComponentType.SCORE,
+        );
+        const verticalIndex = templateItemList.findIndex(
+          item => !item.i && item.category === ComponentType.HORIZONTAL,
+        );
+
+        templateItemList[verticalIndex].i = differntWidgetList[leastWigetIndex].id;
+        widgetCount[differntWidgetList[leastWigetIndex].category] -= 1;
+        differntWidgetList[leastWigetIndex].category = 'MAPPED';
+        templateCount[ComponentType.HORIZONTAL] -= 1;
+        templateCount.TOTAL -= 1;
+      }
+    }
+
+    // 6. vertical, horizontal -> SCORE
+    if ((widgetCount.VERTICAL > 0 || widgetCount.HORIZONTAL > 0) && templateCount.SCORE > 0) {
+      const mappingCnt =
+        widgetCount.VERTICAL + widgetCount.HORIZONTAL < templateCount.SCORE
+          ? widgetCount.VERTICAL + widgetCount.HORIZONTAL
+          : templateCount.SCORE;
+      for (let i = 0; i < mappingCnt; i++) {
+        const leastWigetIndex = differntWidgetList.findIndex(
+          item =>
+            item.category === ComponentType.VERTICAL || item.category === ComponentType.HORIZONTAL,
+        );
+        const scoreIndex = templateItemList.findIndex(
+          item => !item.i && item.category === ComponentType.SCORE,
+        );
+
+        templateItemList[scoreIndex].i = differntWidgetList[leastWigetIndex].id;
+        widgetCount[differntWidgetList[leastWigetIndex].category] -= 1;
+        differntWidgetList[leastWigetIndex].category = 'MAPPED';
+        templateCount[ComponentType.SCORE] -= 1;
+        templateCount.TOTAL -= 1;
+      }
+    }
+
+    // 7. table -> SCORE
+    if (widgetCount.TABLE > 0 && templateCount.SCORE > 0) {
+      const mappingCnt =
+        widgetCount.TABLE < templateCount.SCORE ? widgetCount.TABLE : templateCount.SCORE;
+      for (let i = 0; i < mappingCnt; i++) {
+        const tableWigetIndex = differntWidgetList.findIndex(
+          item => item.category === ComponentType.TABLE,
+        );
+        const scoreIndex = templateItemList.findIndex(
+          item => !item.i && item.category === ComponentType.SCORE,
+        );
+
+        templateItemList[scoreIndex].i = differntWidgetList[tableWigetIndex].id;
+        widgetCount[differntWidgetList[tableWigetIndex].category] -= 1;
+        differntWidgetList[tableWigetIndex].category = 'MAPPED';
+        templateCount[ComponentType.SCORE] -= 1;
+        templateCount.TOTAL -= 1;
+      }
+    }
+
+    // template에서 넘친 widget 목록 가져오기
+    const leastWidgetList = differntWidgetList.filter(item => item.category != 'MAPPED');
+    // templateInfo.layout에 새로운 layout object 넣어주기(template에서 넘친 widget 목록)
     leastWidgetList.forEach((leastWidget, index) => {
       const layout = new DashboardLayout();
       layout.x = 0;
       layout.y =
         templateItemList[templateItemList.length - 1].y +
-        templateItemList[templateItemList.length - 1].h +
-        index * 5;
+        templateItemList[templateItemList.length - 1].h;
       layout.w = 5;
       layout.h = 5;
       layout.i = leastWidget.id;
