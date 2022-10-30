@@ -1,16 +1,16 @@
 export const getDatabaseIcon = type => {
   let iconUrl = null;
   switch (type) {
-    case 'mysql':
+    case 'mysql2':
       iconUrl = 'logo/mysql-logo.svg';
       break;
     case 'maria':
+      iconUrl = 'logo/mariadb-logo.svg';
+      break;
+    case 'pg':
       iconUrl = 'logo/pgsql-logo.svg';
       break;
-    case 'postgres':
-      iconUrl = 'logo/pgsql-logo.svg';
-      break;
-    case 'oracle':
+    case 'oracledb':
       iconUrl = 'logo/oracle-logo.svg';
       break;
     case 'db2':
@@ -22,14 +22,17 @@ export const getDatabaseIcon = type => {
     case 'bigquery':
       iconUrl = 'logo/bigquery-logo.svg';
       break;
-    case 'sqlite':
+    case 'sqlite3':
       iconUrl = 'logo/sqlite-logo.svg';
       break;
     case 'mssql':
       iconUrl = 'logo/mssql-logo.svg';
       break;
     case 'snowflake':
-      iconUrl = 'logo/altibase-logo.png';
+      iconUrl = 'logo/snowflake-logo.svg';
+      break;
+    case 'aurora':
+      iconUrl = 'logo/aurora-logo.svg';
       break;
   }
   return iconUrl;

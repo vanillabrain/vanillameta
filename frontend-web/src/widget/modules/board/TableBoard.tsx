@@ -33,6 +33,7 @@ const TableBoard = props => {
   return (
     <Stack
       sx={{
+        height: '100%',
         padding: 2,
       }}
     >

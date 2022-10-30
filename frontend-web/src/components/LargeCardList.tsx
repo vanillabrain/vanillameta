@@ -1,9 +1,9 @@
 import React from 'react';
-import { Box, CardContent, Grid, Typography } from '@mui/material';
+import { Box, CardContent, Grid, Stack, Typography } from '@mui/material';
 import { CardWrapper } from '@/components/list/CardListWrapper';
 
-function ImgCardList(props) {
-  const { data, minWidth, selectedType, setSelectedType } = props;
+function LargeImgCardList(props) {
+  const { data, selectedType, setSelectedType } = props;
   const srcUrl = '/static/images/';
 
   const handleClick = item => {
@@ -28,20 +28,22 @@ function ImgCardList(props) {
         const selected = selectedType && selectedType.id === item.id;
         return (
           <Box component="li" key={item.id}>
-            <CardWrapper sx={{ p: 0 }} selected={selected} onClick={() => handleClick(item)}>
+            <CardWrapper sx={{ width: 169, p: 0 }} selected={selected} onClick={() => handleClick(item)}>
               <CardContent
                 sx={{
                   display: 'flex',
                   flexDirection: 'column',
-                  justifyContent: 'center',
                   alignItems: 'center',
-                  height: 169,
+                  width: 169,
+                  height: 166,
+                  pt: '24px',
+                  px: '15px',
                 }}
               >
                 <Box
                   component="img"
                   src={srcUrl + item.icon}
-                  sx={{ width: 80, height: 60, objectFit: 'contain', mb: 3, border: 0 }}
+                  sx={{ width: 48, height: 48, objectFit: 'contain', mb: '12px', border: 0 }}
                 />
                 <Typography
                   variant="subtitle2"
@@ -69,4 +71,4 @@ function ImgCardList(props) {
   );
 }
 
-export default ImgCardList;
+export default LargeImgCardList;

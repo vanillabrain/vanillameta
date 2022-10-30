@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box } from '@mui/material';
-import ImgCardList from '@/components/ImgCardList';
+import LargeImgCardList from '@/components/LargeCardList';
 
 function WidgetTypeSelect(props) {
   const { widgetType, setWidgetType, componentList } = props;
@@ -10,11 +10,12 @@ function WidgetTypeSelect(props) {
       sx={{
         height: '100%',
         px: '25px',
-        py: '60px',
+        pt: '22px',
+        pb: '50px',
         backgroundColor: '#f5f6f8',
       }}
     >
-      <ImgCardList data={componentList} selectedType={widgetType} setSelectedType={setWidgetType} />
+      <LargeImgCardList data={componentList} selectedType={widgetType} setSelectedType={setWidgetType} />
     </Box>
   );
 }
