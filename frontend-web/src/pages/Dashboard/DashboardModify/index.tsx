@@ -101,18 +101,27 @@ function DashboardModify() {
     setLayout(changeLayout);
   };
 
+  const getCalculatorPosition = (x = 0, y = 0, w = 6, h = 5) => {
+    let boxInfo = { x: 0, y: 0, w: 0, h: 0 };
+    layout.map((item, index) => {
+      boxInfo = { x: item.x, y: item.y, w: item.w, h: item.h };
+    });
+
+    return { x: x, y: y, w: w, h: h };
+  };
+
   // widget 생성
   const generateWidget = () => {
     useWidgetIds.length = 0;
     const addLayouts = [];
+
     widgets.map((item, index) => {
       if (layout.length <= index) {
+        const calculatorPosition = getCalculatorPosition();
+
         addLayouts.push({
-          x: 0,
-          y: 0,
-          w: 5,
-          h: 5,
           i: item.id.toString(),
+          ...calculatorPosition,
         });
       }
     });
