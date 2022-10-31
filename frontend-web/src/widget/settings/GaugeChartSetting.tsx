@@ -11,7 +11,7 @@ const GaugeChartSetting = props => {
 
   return (
     <React.Fragment>
-      <ListItem divider>
+      <ListItem>
         <ListItemText primary="시리즈 설정" />
         <SelectForm
           required={true}

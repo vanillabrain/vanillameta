@@ -74,7 +74,7 @@ const LineChartSetting = props => {
             />
             {!!seriesItem && (
               <SelectForm
-                required={`${seriesItem.required}`}
+                required={seriesItem.required}
                 id={`${seriesItem.id}${index + 1}`}
                 name={`${seriesItem.name}${index + 1}`}
                 label={seriesItem.label}

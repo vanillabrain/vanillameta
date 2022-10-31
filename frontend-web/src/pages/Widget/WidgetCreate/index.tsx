@@ -105,6 +105,7 @@ const WidgetCreate = () => {
   return (
     <PageContainer>
       <PageTitleBox
+        fixed
         title={title}
         upperTitle="위젯"
         upperTitleLink="/widget"
@@ -148,7 +149,12 @@ const WidgetCreate = () => {
       >
         <Box
           sx={{
+            position: 'fixed',
+            zIndex: 1000,
+            width: '100%',
+            mt: '56px',
             borderBottom: '1px solid #e3e7ea',
+            backgroundColor: '#fff',
           }}
         >
           <Stepper
@@ -173,20 +179,21 @@ const WidgetCreate = () => {
             })}
           </Stepper>
         </Box>
-
-        {activeStep === 0 ? (
-          <WidgetDataSelect setDataSet={setDataset} />
-        ) : activeStep === 1 ? (
-          <WidgetTypeSelect widgetType={widgetOption} setWidgetType={setWidgetOption} componentList={componentList} />
-        ) : (
-          <WidgetAttributeSelect
-            dataset={dataset}
-            widgetOption={widgetOption}
-            saveWidgetInfo={saveWidgetInfo}
-            widgetTypeName={widgetOption.title}
-            widgetTypeDescription={widgetOption.description}
-          />
-        )}
+        <Box mt="129px">
+          {activeStep === 0 ? (
+            <WidgetDataSelect setDataSet={setDataset} />
+          ) : activeStep === 1 ? (
+            <WidgetTypeSelect widgetType={widgetOption} setWidgetType={setWidgetOption} componentList={componentList} />
+          ) : (
+            <WidgetAttributeSelect
+              dataset={dataset}
+              widgetOption={widgetOption}
+              saveWidgetInfo={saveWidgetInfo}
+              widgetTypeName={widgetOption.title}
+              widgetTypeDescription={widgetOption.description}
+            />
+          )}
+        </Box>
       </PageTitleBox>
     </PageContainer>
   );

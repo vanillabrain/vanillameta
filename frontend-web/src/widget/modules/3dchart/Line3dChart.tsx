@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getAggregationDataForChart, getGridSize, getLegendOption } from '@/widget/modules/utils/chartUtil';
+import { getAggregationDataForChart, getLegendOption } from '@/widget/modules/utils/chartUtil';
 import ReactECharts from 'echarts-for-react';
 import 'echarts-gl';
 
@@ -76,7 +76,7 @@ function Line3DChart(props) {
           type: 'value',
         },
         series: newSeries,
-        grid: getGridSize(option.legendPosition),
+        // grid3D: getGridSize(option.legendPosition),
         legend: getLegendOption(option.legendPosition),
       };
 
