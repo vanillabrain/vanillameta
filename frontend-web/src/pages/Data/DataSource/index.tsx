@@ -64,11 +64,12 @@ function DataSource() {
 
   const testConnect = item => {
     const param = {
-      name: item.name,
-      description: item.name,
+      // name: item.name,
+      // description: item.name,
       connectionConfig: item,
       engine: dataType.type,
     };
+    console.log(param, 'param');
     DatabaseService.testConnection(param).then(response => {
       console.log(response);
       if (response.data.status === STATUS.SUCCESS) {

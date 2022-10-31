@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import 'echarts-gl';
-import { getGridSize, getLegendOption } from '@/widget/modules/utils/chartUtil';
 
 function Scatter3DChart(props) {
   const { option, dataSet, defaultOp } = props;
@@ -71,8 +70,8 @@ function Scatter3DChart(props) {
           type: 'value',
         },
         series: newSeries,
-        grid: getGridSize(option.legendPosition),
-        legend: getLegendOption(option.legendPosition),
+        // grid3D: getGridSize(option.legendPosition),
+        // legend: getLegendOption(option.legendPosition),
       };
 
       newOption = { ...defaultComponentOption, ...op };

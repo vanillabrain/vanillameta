@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Box, FormControl, FormLabel, OutlinedInput, Stack } from '@mui/material';
 
 function TextFieldForm(props) {
-  const { id, label, type, name, value, endButton, required, onChange } = props;
+  const { id, label, type, name, value, endButton, required, onChange, ...rest } = props;
 
   const [text, setText] = useState(value);
   const handleChange = event => {
@@ -29,6 +29,7 @@ function TextFieldForm(props) {
           onChange={handleChange}
           fullWidth
           sx={endButton ? { width: 'calc(100% - 38px)', flexShrink: 1 } : { width: '100%' }}
+          {...rest}
         />
         {/*<FormHelperText>{helperText}</FormHelperText>*/}
         {!!endButton ? <Box sx={{ width: '38px', ml: 1 }}>{endButton}</Box> : ''}

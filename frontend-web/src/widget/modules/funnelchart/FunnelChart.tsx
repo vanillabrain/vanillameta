@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { getAggregationDataForChart, getCenter, getGridSize, getLegendOption } from '@/widget/modules/utils/chartUtil';
+import { getAggregationDataForChart, getLegendOption } from '@/widget/modules/utils/chartUtil';
 
 const FunnelChart = props => {
   const { option, dataSet, seriesOp } = props;
@@ -59,6 +59,7 @@ const FunnelChart = props => {
         })),
         type: 'funnel',
         width: '70%',
+        left: '15%',
         gap: 4,
         color: [...option.series.color],
         label: {
@@ -67,7 +68,6 @@ const FunnelChart = props => {
           bleedMargin: 70,
           position: 'inside',
         },
-        center: getCenter(option.legendPosition),
         ...seriesOp,
       };
       newSeries.push(series);
@@ -76,7 +76,7 @@ const FunnelChart = props => {
     if (dataSet) {
       const op = {
         series: newSeries,
-        grid: getGridSize(option.legendPosition),
+        // grid: getGridSize(option.legendPosition),
         legend: option.legendPosition && {
           ...getLegendOption(option.legendPosition),
           type: 'scroll',
