@@ -386,7 +386,7 @@ export class TemplateService {
       const recommendScore = await this.calRecommendScore(item, widgetComponentInfo);
       item.recommendScore = recommendScore / scoreItemCnt;
 
-      item.totalRecommendScore = cntScore + recommendScore;
+      item.totalRecommendScore = cntScore * 1.3 + recommendScore;
     }
     return templateComponentInfoList;
   }
