@@ -160,6 +160,7 @@ const DataSet = () => {
    * 쿼리 실행
    */
   const excuteQuery = () => {
+    showLoading();
     if (datasetInfo.query.trim().length < 1) {
       alert.info('쿼리를 입력해주세요.');
     }
@@ -181,6 +182,9 @@ const DataSet = () => {
       })
       .catch(() => {
         setTestCompleted(false);
+      })
+      .finally(() => {
+        hideLoading();
       });
   };
 
