@@ -5,7 +5,7 @@ export default createTheme({
     mode: 'light',
     primary: {
       main: '#0f5ab2',
-      dark: '#32408c',
+      dark: '#043f84',
       light: '#2fcbef',
     },
     secondary: {
@@ -54,9 +54,31 @@ export default createTheme({
         },
       },
     },
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          '&.MuiMenu-paper': {
+            padding: '10px 6px',
+            borderRadius: '4px',
+            boxShadow: '2px 2px 4px 0 rgba(0, 0, 0, 0.15)',
+            border: 'solid 1px #0f5ab2',
+          },
+        },
+      },
+    },
     MuiMenuItem: {
       defaultProps: {
         dense: true,
+      },
+      styleOverrides: {
+        root: {
+          '&:hover': {
+            backgroundColor: '#ebfbff',
+          },
+          '&.Mui-selected': {
+            backgroundColor: '#edf8ff',
+          },
+        },
       },
     },
     MuiTable: {
@@ -138,6 +160,17 @@ export default createTheme({
       defaultProps: {
         margin: 'dense',
       },
+      styleOverrides: {
+        root: {
+          '&.MuiOutlinedInput-root.Mui-focused fieldset': {
+            boxShadow: '2px 2px 4px 0 rgba(0, 0, 0, 0.15)',
+            border: 'solid 1px #0f5ab2',
+          },
+          '&.MuiOutlinedInput-root:hover fieldset': {
+            border: 'solid 1px #0f5ab2',
+          },
+        },
+      },
     },
     MuiInputLabel: {
       defaultProps: {
@@ -147,8 +180,6 @@ export default createTheme({
       styleOverrides: {
         root: {
           transform: 'translate(14px, 7px) scale(1)',
-          // display: 'flex',
-          // alignItems: 'center',
         },
         shrink: {
           transform: 'translate(14px, -9px) scale(0.75)',
