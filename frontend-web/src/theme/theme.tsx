@@ -266,6 +266,26 @@ export default createTheme({
         },
       },
     },
+    MuiPaginationItem: {
+      styleOverrides: {
+        root: {
+          '&:hover': {
+            color: '#4481c9',
+            backgroundColor: 'transparent',
+          },
+          '&.Mui-selected': {
+            borderRadius: 100,
+            fontWeight: 'bold',
+            color: '#4a4a4a',
+            backgroundColor: 'transparent',
+          },
+          '&.Mui-selected:hover': {
+            borderRadius: 100,
+            backgroundColor: '#edf8ff',
+          },
+        },
+      },
+    },
     MuiCardContent: {
       styleOverrides: {
         root: {
