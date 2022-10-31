@@ -5,7 +5,7 @@ import { WIDGET_AGGREGATION } from '@/constant';
  * @param position
  */
 export const getLegendOption = position => {
-  let option = {};
+  let option;
   switch (position) {
     case 'left':
       option = {
@@ -39,7 +39,7 @@ export const getLegendOption = position => {
         padding: 20,
       };
       break;
-    case '':
+    default:
       option = false;
       break;
   }
@@ -52,7 +52,7 @@ export const getLegendOption = position => {
  */
 
 export const getGridSize = position => {
-  let option = {};
+  let option;
   switch (position) {
     case 'left':
       option = { top: '3%', right: '3%', bottom: '3%', left: 120, containLabel: true };
@@ -66,8 +66,8 @@ export const getGridSize = position => {
     case 'bottom':
       option = { top: '3%', right: '3%', bottom: 70, left: '3%', containLabel: true };
       break;
-    case '':
-      option = false;
+    default:
+      option = { top: '3%', right: '3%', bottom: '3%', left: '3%', containLabel: true };
       break;
   }
   return option;
@@ -78,7 +78,7 @@ export const getGridSize = position => {
  * @param position
  */
 export const getCenter = position => {
-  let option = [];
+  let option;
   switch (position) {
     case 'left':
       option = ['55%', '50%'];
@@ -92,10 +92,8 @@ export const getCenter = position => {
     case 'bottom':
       option = ['50%', '45%'];
       break;
-    case '':
-      option = ['50%', '50%'];
-      break;
     default:
+      option = ['50%', '50%'];
       break;
   }
   return option;
@@ -112,7 +110,7 @@ export const getAggregationData = (type, data, field) => {
   switch (type) {
     case WIDGET_AGGREGATION.SUM:
       data.forEach(item => {
-        console.log('item ', item[field]);
+        // console.log('item ', item[field]);
         if (item[field]) {
           result += Number(item[field]);
         }
