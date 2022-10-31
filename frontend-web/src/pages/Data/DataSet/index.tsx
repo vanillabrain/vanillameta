@@ -34,6 +34,8 @@ const DataSet = () => {
   const [tableList, setTableList] = useState([]);
   const alert = useAlert();
 
+  // console.log(data, 'data', sourceId, 'sourceId', databaseId, 'databaseId', setId, 'setId');
+
   useLayoutEffect(() => {
     console.log('modify', pathname.indexOf('modify'));
     console.log('setId', setId);
@@ -118,10 +120,11 @@ const DataSet = () => {
       console.log('selectDatabaseTypeList', response.data);
       if (response.data.status === STATUS.SUCCESS) {
         const list = response.data.data;
-        list.map(item => (item.icon = getDatabaseIcon(item.type)));
+        list.map(item => (item.icon = getDatabaseIcon(item.engine)));
         setDatabaseList(list);
         if (!isModifyMode && list.length > 0) {
-          setDatabaseId(list[0].id);
+          // setDatabaseId(list[0].id);
+          setDatabaseId(sourceId);
         }
       }
     });
@@ -165,7 +168,7 @@ const DataSet = () => {
       alert.info('쿼리를 입력해주세요.');
     }
     const param = {
-      id: 1,
+      id: databaseId,
       query: datasetInfo.query,
     };
     console.log('param', param);
