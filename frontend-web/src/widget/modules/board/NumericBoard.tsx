@@ -16,7 +16,7 @@ const NumericBoard = props => {
   useEffect(() => {
     if (option && dataSet) {
       const newOption = createComponentOption();
-      console.log('numericboard new option', newOption);
+      // console.log('numericboard new option', newOption);
       setComponentOption(newOption);
     }
   }, [option, dataSet]);
@@ -28,23 +28,25 @@ const NumericBoard = props => {
    */
 
   const createComponentOption = () => {
-    console.log('option', option);
-    const field = option.content.field;
-    console.log('field ', field);
-
-    const result = getAggregationData(option.content.aggregation, dataSet, field);
+    const prefix = option.content.prefix ?? '';
+    const suffix = option.content.suffix ?? '';
+    const result = getAggregationData(option.content.aggregation, dataSet, option.content.field);
 
     if (option.content.numForm) {
-      setScore(option.content.prefix + result.toLocaleString('ko-KR') + option.content.suffix);
+      setScore(prefix + result.toLocaleString('ko-KR') + suffix);
     } else {
-      setScore(option.content.prefix + result + option.content.suffix);
+      setScore(prefix + result + suffix);
     }
+
     return { ...defaultComponentOption, ...option };
   };
 
   return (
     <Stack
       sx={{
+        display: 'flex',
+        justifyContent: 'center',
+        height: '100%',
         padding: 2,
         ...sx,
       }}

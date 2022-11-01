@@ -4,12 +4,7 @@ import { NavLink } from 'react-router-dom';
 
 function NavBar(props) {
   return (
-    <Stack
-      component="ul"
-      direction="row"
-      spacing={2}
-      sx={{ display: { xs: 'none', sm: 'flex', flexGrow: 1, paddingLeft: 0 } }}
-    >
+    <Stack component="ul" direction="row" sx={{ display: 'flex', flexGrow: 1, paddingLeft: 0, m: 0 }}>
       {props.navItems.map(item => (
         <ListItem
           key={item.id}
@@ -18,7 +13,6 @@ function NavBar(props) {
             justifyContent: 'center',
             padding: 0,
             fontSize: 15,
-            height: 18,
             fontFamily: 'Pretendard',
             fontWeight: 500,
             fontStretch: 'normal',
@@ -39,7 +33,8 @@ function NavBar(props) {
               color: 'inherit',
               padding: 0,
               fontSize: 15,
-              height: 18,
+              height: 50,
+              px: '18px',
               fontFamily: 'Pretendard',
               fontWeight: 500,
               fontStretch: 'normal',

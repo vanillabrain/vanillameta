@@ -1,37 +1,22 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { BarChart, MultilineChart, PieChart } from '@mui/icons-material';
 import {
+  Avatar,
   Button,
   Checkbox,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  IconButton,
   List,
   ListItemButton,
   ListItemIcon,
   ListItemText,
   Typography,
 } from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
 import WidgetService from '@/api/widgetService';
 import { STATUS } from '@/constant';
 import { useAlert } from 'react-alert';
 import CloseButton from '@/components/button/CloseButton';
-
-const iconType = item => {
-  switch (item.toUpperCase()) {
-    case 'CHART_BAR':
-      return <BarChart />;
-    case 'CHART_PIE':
-      return <PieChart />;
-    case 'CHART_LINE':
-      return <MultilineChart />;
-    default:
-      return;
-  }
-};
 
 function AddWidgetPopup({ label, useWidgetIds = [], widgetOpen = false, widgetSelect = null }) {
   const [open, setOpen] = useState(widgetOpen);
@@ -188,7 +173,23 @@ function AddWidgetPopup({ label, useWidgetIds = [], widgetOpen = false, widgetSe
                 onClick={() => handleClick(item)}
               >
                 <Checkbox checked={isItemSelection(item)} />
-                <ListItemIcon sx={{ marginLeft: '16px', minWidth: '24px' }}>{iconType(item.componentType)}</ListItemIcon>
+                <ListItemIcon
+                  sx={{
+                    minWidth: '24px',
+                    marginLeft: '16px',
+                  }}
+                >
+                  <Avatar
+                    src={`/static/images/${item.icon}`}
+                    sx={{
+                      width: 'auto',
+                      height: '30px',
+                      borderRadius: 0,
+                      objectFit: 'contain',
+                      backgroundColor: 'transparent',
+                    }}
+                  />
+                </ListItemIcon>
                 <ListItemText
                   sx={{
                     marginLeft: '16px',

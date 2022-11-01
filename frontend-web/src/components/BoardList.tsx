@@ -13,6 +13,7 @@ function BoardList(props) {
   }, [postList]);
 
   const GTSpan = styled('span')({
+    marginLeft: postList[0]?.componentType && '50px',
     fontFamily: 'Pretendard',
     fontSize: '13px',
     fontWeight: '500',

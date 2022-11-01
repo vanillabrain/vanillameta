@@ -1,10 +1,11 @@
-INSERT INTO vanillameta.databaseType (createdAt, updatedAt, id, type, title, seq, useYn) VALUES ('2022-10-18 17:44:18.946447', '2022-10-18 17:44:18.946447', 1, 'mysql', 'MySQL', 1, 'Y');
+INSERT INTO vanillameta.databaseType (createdAt, updatedAt, id, type, title, seq, useYn) VALUES ('2022-10-18 17:44:18.946447', '2022-10-27 10:12:51.920502', 1, 'mysql2', 'MySQL', 1, 'Y');
 INSERT INTO vanillameta.databaseType (createdAt, updatedAt, id, type, title, seq, useYn) VALUES ('2022-10-18 17:46:14.700394', '2022-10-18 17:46:14.700394', 2, 'maria', 'MariaDB', 2, 'Y');
-INSERT INTO vanillameta.databaseType (createdAt, updatedAt, id, type, title, seq, useYn) VALUES ('2022-10-18 17:49:21.842039', '2022-10-18 17:49:21.842039', 3, 'postgres', 'PostgreSQL', 3, 'Y');
-INSERT INTO vanillameta.databaseType (createdAt, updatedAt, id, type, title, seq, useYn) VALUES ('2022-10-18 17:49:22.361833', '2022-10-18 17:49:22.361833', 4, 'oracle', 'Oracle', 4, 'Y');
+INSERT INTO vanillameta.databaseType (createdAt, updatedAt, id, type, title, seq, useYn) VALUES ('2022-10-18 17:49:21.842039', '2022-10-20 11:39:03.245261', 3, 'pg', 'PostgreSQL', 3, 'Y');
+INSERT INTO vanillameta.databaseType (createdAt, updatedAt, id, type, title, seq, useYn) VALUES ('2022-10-18 17:49:22.361833', '2022-10-20 12:58:21.685641', 4, 'oracledb', 'Oracle', 4, 'Y');
 INSERT INTO vanillameta.databaseType (createdAt, updatedAt, id, type, title, seq, useYn) VALUES ('2022-10-18 17:49:22.982368', '2022-10-18 17:49:22.982368', 5, 'db2', 'DB2', 5, 'Y');
 INSERT INTO vanillameta.databaseType (createdAt, updatedAt, id, type, title, seq, useYn) VALUES ('2022-10-18 17:49:23.378836', '2022-10-18 17:49:23.378836', 6, 'redshift', 'Amazon Redshift', 6, 'Y');
 INSERT INTO vanillameta.databaseType (createdAt, updatedAt, id, type, title, seq, useYn) VALUES ('2022-10-18 17:49:23.784827', '2022-10-18 17:49:23.784827', 7, 'bigquery', 'Google Cloud BigQuery', 7, 'Y');
-INSERT INTO vanillameta.databaseType (createdAt, updatedAt, id, type, title, seq, useYn) VALUES ('2022-10-18 17:49:23.966790', '2022-10-18 17:49:23.966790', 8, 'sqlite', 'SQLite', 8, 'Y');
+INSERT INTO vanillameta.databaseType (createdAt, updatedAt, id, type, title, seq, useYn) VALUES ('2022-10-18 17:49:23.966790', '2022-10-20 12:57:39.025176', 8, 'sqlite3', 'SQLite', 8, 'Y');
 INSERT INTO vanillameta.databaseType (createdAt, updatedAt, id, type, title, seq, useYn) VALUES ('2022-10-18 17:49:24.300902', '2022-10-18 17:49:24.300902', 9, 'mssql', 'MSSQL', 9, 'Y');
-INSERT INTO vanillameta.databaseType (createdAt, updatedAt, id, type, title, seq, useYn) VALUES ('2022-10-18 17:49:24.684788', '2022-10-18 17:49:24.684788', 10, 'snowflake', 'Snowflake', 10, 'Y');
+INSERT INTO vanillameta.databaseType (createdAt, updatedAt, id, type, title, seq, useYn) VALUES ('2022-10-18 17:49:24.684788', '2022-10-20 14:59:13.758077', 10, 'snowflake', 'Snowflake', 10, 'N');
+INSERT INTO vanillameta.databaseType (createdAt, updatedAt, id, type, title, seq, useYn) VALUES ('2022-10-20 14:59:13.794764', '2022-10-20 14:59:13.794764', 11, 'aurora', 'Amazon Aurora', 11, 'Y');
