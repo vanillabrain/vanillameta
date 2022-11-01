@@ -10,8 +10,8 @@ import { ResponseStatus } from '../common/enum/response-status.enum';
 import { DatasetType } from '../common/enum/dataset-type.enum';
 import { TableQuery } from '../widget/tabel-query/entity/table-query.entity';
 import { QueryExecuteDto } from './dto/query-execute.dto';
-import {DatabaseType} from "./entities/database_type.entity";
-import {YesNo} from "../common/enum/yn.enum";
+import { DatabaseType } from './entities/database_type.entity';
+import { YesNo } from '../common/enum/yn.enum';
 
 @Injectable()
 export class DatabaseService {
@@ -26,8 +26,8 @@ export class DatabaseService {
   /**
    * database type 목록 조회
    */
-  async findTypeList(){
-    const result = await this.databaseTypeRepository.find({where:{useYn:YesNo.YES}});
+  async findTypeList() {
+    const result = await this.databaseTypeRepository.find({ where: { useYn: YesNo.YES } });
     return { status: ResponseStatus.SUCCESS, data: result };
   }
 
@@ -76,7 +76,12 @@ export class DatabaseService {
     const tables = [];
     if (tablesInfo && tablesInfo.datas.length > 0) {
       tablesInfo.datas.map(tableObj => {
-        tables.push({ id: Object.values(tableObj)[0], tableName: Object.values(tableObj)[0], databaseId: id, datasetType:DatasetType.TABLE });
+        tables.push({
+          id: Object.values(tableObj)[0],
+          tableName: Object.values(tableObj)[0],
+          databaseId: id,
+          datasetType: DatasetType.TABLE,
+        });
       });
     }
 
@@ -84,8 +89,8 @@ export class DatabaseService {
     const tempDatasets = await this.datasetRepository.find({ where: { databaseId: id } });
     const datasets = [];
     tempDatasets.map(item => {
-      datasets.push(Object.assign({datasetType:DatasetType.DATASET}, item));
-    })
+      datasets.push(Object.assign({ datasetType: DatasetType.DATASET }, item));
+    });
 
     return { status: ResponseStatus.SUCCESS, data: { databaseInfo, tables, datasets } };
   }
@@ -142,14 +147,31 @@ export class DatabaseService {
   /**
    * 데이터 조회
    * @param datasetType
+   * @param databaseId
    * @param datasetId
+   * @param tableName
    */
-  async findData(datasetType: DatasetType, datasetId: number) {
-    if (!datasetType || !datasetId)
+  async findData(
+    datasetType: DatasetType,
+    databaseId: number,
+    datasetId?: number,
+    tableName?: string,
+  ) {
+    if (datasetType === DatasetType.DATASET && datasetId === undefined) {
       return {
         status: ResponseStatus.ERROR,
-        message: 'datasetType, datasetId는 필수 입력 param 입니다',
+        message: 'DATASET의 경우,  datasetId가 필수 입력 사항입니다.',
       };
+    } else if (
+      datasetType === DatasetType.TABLE &&
+      tableName === undefined &&
+      datasetId === undefined
+    ) {
+      return {
+        status: ResponseStatus.ERROR,
+        message: 'TABLE의 경우, tableName이나 datasetId 둘 중 하나는 입력해야합니다.',
+      };
+    }
 
     const queryExecuteDto = new QueryExecuteDto();
     if (datasetType === DatasetType.DATASET) {
@@ -157,14 +179,21 @@ export class DatabaseService {
       queryExecuteDto.id = datasetItem.databaseId;
       queryExecuteDto.query = datasetItem.query;
     } else if (datasetType === DatasetType.TABLE) {
-      const datasetItem = await this.tableQueryRepository.findOne({ where: { id: datasetId } });
-      queryExecuteDto.id = datasetItem.databaseId;
-      queryExecuteDto.query = datasetItem.query;
+      if (datasetId != undefined) {
+        const datasetItem = await this.tableQueryRepository.findOne({ where: { id: datasetId } });
+        queryExecuteDto.id = datasetItem.databaseId;
+        queryExecuteDto.query = datasetItem.query;
+      } else {
+        queryExecuteDto.id = databaseId;
+        queryExecuteDto.query = `SELECT * FROM ${tableName}`;
+      }
     }
     const queryResult = await this.connectionService.executeQuery(queryExecuteDto);
-    return {
-      status: queryResult.status,
-      data: { datas: queryResult.datas, fields: queryResult.fields },
-    };
+    if (queryResult.status === 'ERROR') return queryResult;
+    else
+      return {
+        status: queryResult.status,
+        data: { datas: queryResult.datas, fields: queryResult.fields },
+      };
   }
 }
