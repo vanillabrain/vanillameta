@@ -1,0 +1,21 @@
+<svg width="224" height="146" viewBox="0 0 224 146" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path fill="#fff" stroke="#D3D1D1" d="M.5.5h223v145H.5z"/>
+    <rect x="8" y="8" width="208" height="61" rx="4" fill="#F5F6F8"/>
+    <g opacity=".5" clip-path="url(#obo5u1nb2a)" stroke-miterlimit="10" stroke-linecap="round">
+        <path d="M97.214 24.214v29.572M126.785 53.786H97.214" stroke="#BEBEBE" stroke-width="1.4"/>
+        <path d="m101.071 44.786 6.429-8.357M107.5 36.429l7.714 4.5M115.214 40.929 125.5 30" stroke="#4A4A4A" stroke-width="2.4"/>
+    </g>
+    <rect x="8" y="77" width="208" height="61" rx="4" fill="#F5F6F8"/>
+    <g opacity=".5" clip-path="url(#zxurjtiecb)" stroke-miterlimit="10" stroke-linecap="round">
+        <path d="M97.214 93.214v29.572M126.785 122.786H97.214" stroke="#BEBEBE" stroke-width="1.4"/>
+        <path d="m101.071 113.786 6.429-8.357M107.5 105.429l7.714 4.5M115.214 109.929 125.5 99" stroke="#4A4A4A" stroke-width="2.4"/>
+    </g>
+    <defs>
+        <clipPath id="obo5u1nb2a">
+            <path fill="#fff" transform="translate(94 21)" d="M0 0h36v36H0z"/>
+        </clipPath>
+        <clipPath id="zxurjtiecb">
+            <path fill="#fff" transform="translate(94 90)" d="M0 0h36v36H0z"/>
+        </clipPath>
+    </defs>
+</svg>

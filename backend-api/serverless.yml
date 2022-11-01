@@ -1,0 +1,91 @@
+service: vanillameta-backend-api
+
+#frameworkVersion: '2'
+
+plugins:
+  - serverless-plugin-typescript
+  - serverless-offline
+  - serverless-domain-manager
+  - serverless-latest-layer-version
+  - serverless-plugin-warmup
+provider:
+  name: aws
+  runtime: nodejs14.x
+  lambdaHashingVersion: 20201221
+  ##  memorySize: 512 - 기본은 512
+  timeout: 10
+  layers:
+    - arn:aws:lambda:${opt:region, self:provider.region}:${AWS::AccountId}:layer:VanillaMetaApiNodeLibs:latest
+  stage: ${opt:stage, file(./config.serverless.yml):STAGE}
+  region: ${opt:region, file(./config.serverless.yml):AWS_REGION}
+  deploymentBucket: ${file(./config.serverless.yml):DEPLOYMENT_BUCKET}
+  environment:
+    STAGE: ${self:provider.stage}
+    NODE_ENV: ${self:provider.stage}
+    NODE_PATH: "./:/opt/node_modules"
+    DB_HOST: ${self:custom.DB_CONFIG.${self:custom.STAGE}.DB_HOST}
+    DB_PORT: ${self:custom.DB_CONFIG.${self:custom.STAGE}.DB_PORT}
+    DB_USERNAME: ${self:custom.DB_CONFIG.${self:custom.STAGE}.DB_USERNAME}
+    DB_PASSWORD: ${self:custom.DB_CONFIG.${self:custom.STAGE}.DB_PASSWORD}
+    DB_NAME: ${self:custom.DB_CONFIG.${self:custom.STAGE}.DB_NAME}
+    CORS_ORIGIN: ${file(./config.serverless.yml):CORS_ORIGIN}
+  apiGateway:
+    binaryMediaTypes:
+      - '*/*'
+
+
+custom:
+  # Enable warmup on all functions (only for production)
+  warmup:
+    - prod
+  STAGE: ${self:provider.stage}
+  DB_CONFIG: ${file(./config.serverless.yml):DB_CONFIG}
+  DOMAINS: ${file(./config.serverless.yml):DOMAINS}
+  customDomain:
+    domainName: ${self:custom.DOMAINS.${self:custom.STAGE}}
+    basePath: 'v1'
+    stage: ${self:custom.STAGE}
+    createRoute53Record: true
+  serverless-offline:
+    httpPort: 4000
+    host: '0.0.0.0'
+  serverlessPluginTypescript:
+    tsConfigFileLocation: './tsconfig.build.json'
+  webpack:
+    includeModules: true
+
+package:
+  include:
+    - .env.dev
+    - .env.prod
+    - src/templates/**
+  exclude:
+    - node_modules/**
+    - .git/**
+    - test/**
+    - e2e/**
+    - nodemon.json
+    - README.md
+#    - src/**cd
+
+
+functions:
+  app: # 람다함수 이름
+    handler: src/serverless.handler
+    events:
+      - http:
+          method: ANY
+          path: /
+          cors:
+            origin: '*'
+            headers: '*'
+            allowCredentials: true
+            maxAge: 86400
+      - http:
+          method: ANY
+          path: '{proxy+}'
+          cors:
+            origin: '*'
+            headers: '*'
+            allowCredentials: true
+            maxAge: 86400

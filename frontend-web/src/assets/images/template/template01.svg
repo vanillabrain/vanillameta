@@ -1,0 +1,21 @@
+<svg width="224" height="146" viewBox="0 0 224 146" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path fill="#fff" stroke="#D3D1D1" d="M.5.5h223v145H.5z"/>
+    <rect x="8" y="8" width="100" height="130" rx="4" fill="#F5F6F8"/>
+    <g opacity=".5" clip-path="url(#c2suc5gota)" stroke-miterlimit="10" stroke-linecap="round">
+        <path d="M43.214 58.214v29.572M72.785 87.786H43.214" stroke="#BEBEBE" stroke-width="1.4"/>
+        <path d="m47.071 78.786 6.429-8.357M53.5 70.429l7.714 4.5M61.214 74.929 71.5 64" stroke="#4A4A4A" stroke-width="2.4"/>
+    </g>
+    <rect x="116" y="8" width="100" height="130" rx="4" fill="#F5F6F8"/>
+    <g opacity=".5" clip-path="url(#cnutqldylb)" stroke-miterlimit="10" stroke-linecap="round">
+        <path d="M151.214 58.214v29.572M180.785 87.786h-29.571" stroke="#BEBEBE" stroke-width="1.4"/>
+        <path d="m155.071 78.786 6.429-8.357M161.5 70.429l7.714 4.5M169.214 74.929 179.5 64" stroke="#4A4A4A" stroke-width="2.4"/>
+    </g>
+    <defs>
+        <clipPath id="c2suc5gota">
+            <path fill="#fff" transform="translate(40 55)" d="M0 0h36v36H0z"/>
+        </clipPath>
+        <clipPath id="cnutqldylb">
+            <path fill="#fff" transform="translate(148 55)" d="M0 0h36v36H0z"/>
+        </clipPath>
+    </defs>
+</svg>

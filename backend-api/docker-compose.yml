@@ -1,0 +1,131 @@
+version: "3.7"
+services:
+  main:
+    build:
+      context: ./
+      dockerfile: ./Dockerfile
+    ports:
+      - "4000:4000"
+    networks:
+      - vanillameta
+    depends_on:
+      - mysql
+#      - pg
+    links:
+      - "mysql:mysqldb"
+#      - "pg"
+    env_file:
+      - .env
+      - .env.dev
+    restart: always
+
+  mysql:
+    container_name: vanillameta_mysql
+    image: mysql
+    ports:
+      -  "3306:3306"
+    networks:
+      - vanillameta
+
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_CHARSET: utf8mb4
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      TZ: Asia/Seoul
+    restart: always
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+             --default_authentication_plugin=mysql_native_password
+
+    volumes:
+      - mysql:/var/lib/mysql
+      - ./db/conf.d:/etc/mysql/conf.d
+
+  #  mariadb:
+  #    container_name: vanillameta_mariadb
+  #    extra_hosts:
+  #      - "host.docker.internal:host-gateway"
+  #    image: mariadb
+  #    ports:
+  #      -  "3308:3308"
+  #    networks:
+  #      - vanillameta
+  #    environment:
+  #      MYSQL_ROOT_PASSWORD: 'strongpassword'
+  #      MYSQL_CHARSET: utf8mb4
+  #      MYSQL_DATABASE: ${DB_NAME}
+  #      MYSQL_USER: ${DB_USERNAME}
+  #      MYSQL_PASSWORD: ${DB_PASSWORD}
+  #      TZ: Asia/Seoul
+  #    restart: always
+  #    volumes:
+  #      - ./db:/var/lib/maria
+
+#  pg:
+#    container_name: vanillameta_pg
+#    image: postgres
+#    ports:
+#      -  "5432:5432"
+#    networks:
+#      - vanillameta
+#    environment:
+#      POSTGRES_ROOT_PASSWORD: 'strongpassword'
+#      POSTGRES_CHARSET: utf8mb4
+#      POSTGRES_DATABASE: ${DB_NAME}
+#      POSTGRES_USER: ${DB_USERNAME}
+#      POSTGRES_PASSWORD: ${DB_PASSWORD}
+#      POSTGRES_HOST_AUTH_METHOD: "trust"
+#      TZ: Asia/Seoul
+#    restart: always
+#    #    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+#    volumes:
+#      - mysql:/var/lib/mysql
+#      - ./db/conf.d:/etc/porstgressql/data
+
+
+#  oracledb:
+#    container_name: vanillameta_oracle
+#    image: oracleinanutshell/oracle-xe-11g
+#    ports:
+#      - "1521:1521"
+#    networks:
+#      - vanillameta
+#    environment:
+#      ORACLE_CHARSET: utf8mb4
+#      ORACLE_DATABASE: ${DB_NAME}
+#      ORACLE_USER: ${DB_USERNAME}
+#      ORACLE_PASSWORD: ${DB_PASSWORD}
+#      TZ: Asia/Seoul
+#    restart: always
+#      #    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+#    volumes:
+#      - mysql:/var/lib/mysql
+#      - ./db/conf.d:/etc/porstgressql/data
+
+
+#
+#  mssql:
+#    container_name: vanillameta_mssql
+#    image: mcr.microsoft.com/azure-sql-edge
+#    ports:
+#      -  "1433:1433"
+#    networks:
+#      - vanillameta
+#    environment:
+#      ACCEPT_EULA: "Y"
+#      MSSQL_SA_PASSWORD: ${DB_PASSWORD}
+#      MSSQL_AGENT_ENABLED: "true"
+#    restart: always
+#    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+#
+#    volumes:
+#      - ./vanillameta_mssqldata:/var/opt/mssql
+#
+#      - ./db/conf.d:/etc/mysql/conf.d
+
+volumes:
+  mysql:
+networks:
+  vanillameta:
+

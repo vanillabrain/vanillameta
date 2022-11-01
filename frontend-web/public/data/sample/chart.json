@@ -1,0 +1,110 @@
+[
+  {
+    "id": 1,
+    "name": "january",
+    "color": "#00BFFF",
+    "high": 18,
+    "low": 2,
+    "avg": 8.9,
+    "cDate": "2022-09-14T08:06:11+09:00"
+  },
+  {
+    "id": 2,
+    "name": "february",
+    "color": "#4682B4",
+    "high": 23,
+    "low": -2,
+    "avg": 9.9,
+    "cDate": "2022-09-14T08:06:11+09:00"
+  },
+  {
+    "id": 3,
+    "name": "march",
+    "color": "#00CED1",
+    "high": 25,
+    "low": -1,
+    "avg": 11.3,
+    "cDate": "2022-09-14T08:06:11+09:00"
+  },
+  {
+    "id": 4,
+    "name": "april",
+    "color": "#3CB371",
+    "high": 23,
+    "low": 1,
+    "avg": 13,
+    "cDate": "2022-09-14T08:06:11+09:00"
+  },
+  {
+    "id": 5,
+    "name": "may",
+    "color": "#9ACD32",
+    "high": 26,
+    "low": 5,
+    "avg": 16.2,
+    "cDate": "2022-09-14T08:06:11+09:00"
+  },
+  {
+    "id": 6,
+    "name": "june",
+    "color": "#BDB76B",
+    "high": 32,
+    "low": 7,
+    "avg": 19.9,
+    "cDate": "2022-09-14T08:06:11+09:00"
+  },
+  {
+    "id": 7,
+    "name": "july",
+    "color": "#FFD700",
+    "high": 33,
+    "low": 12,
+    "avg": 23,
+    "cDate": "2022-09-14T08:06:11+09:00"
+  },
+  {
+    "id": 8,
+    "name": "august",
+    "color": "#FF8C00",
+    "high": 33,
+    "low": 12,
+    "avg": 23.6,
+    "cDate": "2022-09-14T08:06:11+09:00"
+  },
+  {
+    "id": 9,
+    "name": "september",
+    "color": "#FF7F50",
+    "high": 32,
+    "low": 7,
+    "avg": 21.1,
+    "cDate": "2022-09-14T08:06:11+09:00"
+  },
+  {
+    "id": 10,
+    "name": "october",
+    "color": "#F4A460",
+    "high": 28,
+    "low": 2,
+    "avg": 17,
+    "cDate": "2022-09-14T08:06:11+09:00"
+  },
+  {
+    "id": 11,
+    "name": "november",
+    "color": "#8B4513",
+    "high": 25,
+    "low": -2,
+    "avg": 12.5,
+    "cDate": "2022-09-14T08:06:11+09:00"
+  },
+  {
+    "id": 12,
+    "name": "december",
+    "color": "#778899",
+    "high": 22,
+    "low": -2,
+    "avg": 10,
+    "cDate": "2022-09-14T08:06:11+09:00"
+  }
+]
