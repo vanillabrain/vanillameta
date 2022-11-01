@@ -10,6 +10,9 @@ export class DatabaseType extends BaseEntity {
   @Column({ length: 45, comment: '타입 코드' })
   type: string;
 
+  @Column({ length: 20, comment: '연결 엔진', nullable: true })
+  engine: string;
+
   @Column({ length: 100, comment: '타입명' })
   title: string;
 
