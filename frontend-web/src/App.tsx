@@ -1,6 +1,5 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { CssBaseline } from '@mui/material';
-import Layout from './layouts/Layout';
 import Router from './router';
 import 'tui-grid/dist/tui-grid.css';
 import Grid from 'tui-grid';
@@ -59,9 +58,7 @@ function App() {
   return (
     <>
       <CssBaseline />
-      <Layout>
-        <Router />
-      </Layout>
+      <Router />
     </>
   );
 }

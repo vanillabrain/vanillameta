@@ -10,6 +10,7 @@ import App from './App';
 import './index.css';
 import { LayoutProvider } from '@/contexts/LayoutContext';
 import { LoadingProvider } from '@/contexts/LoadingContext';
+import { AuthProvider } from '@/contexts/AuthContext';
 
 // alert optional configuration
 const options = {
@@ -25,11 +26,13 @@ root.render(
   <LayoutProvider>
     <LoadingProvider>
       <BrowserRouter>
-        <ThemeProvider theme={theme}>
-          <AlertProvider template={AlertTemplate} {...options}>
-            <App />
-          </AlertProvider>
-        </ThemeProvider>
+        <AuthProvider>
+          <ThemeProvider theme={theme}>
+            <AlertProvider template={AlertTemplate} {...options}>
+              <App />
+            </AlertProvider>
+          </ThemeProvider>
+        </AuthProvider>
       </BrowserRouter>
     </LoadingProvider>
   </LayoutProvider>,

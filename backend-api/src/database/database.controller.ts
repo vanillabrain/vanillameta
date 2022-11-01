@@ -24,9 +24,11 @@ export class DatabaseController {
   @Get('/data')
   async findData(
     @Query('datasetType') datasetType: DatasetType,
-    @Query('datasetId') datasetId: number,
+    @Query('databaseId') databaseId: number,
+    @Query('datasetId') datasetId?: number,
+    @Query('tableName') tableName?: string,
   ) {
-    const res = await this.databaseService.findData(datasetType, datasetId);
+    const res = await this.databaseService.findData(datasetType, databaseId, datasetId, tableName);
     return res;
   }
 

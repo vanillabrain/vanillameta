@@ -3,7 +3,7 @@ import { Box, Stack, Typography } from '@mui/material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 
 function PageTitleBox(props) {
-  const { title, upperTitle, upperTitleLink = '', button, sx = {} } = props;
+  const { title, upperTitle, upperTitleLink = '', button, sx = {}, fixed } = props;
   const navigate = useNavigate();
 
   const defaultBoxSx = {
@@ -13,6 +13,8 @@ function PageTitleBox(props) {
     width: '1920px',
     height: '100%',
   };
+
+  const fixedSx = fixed && { position: 'fixed', zIndex: 1000 };
 
   Object.assign(defaultBoxSx, sx);
 
@@ -34,6 +36,7 @@ function PageTitleBox(props) {
             paddingRight: '24px',
             borderBottom: '1px solid #e3e7ea',
             backgroundColor: '#f5f6f8',
+            ...fixedSx,
           }}
         >
           <Stack direction="row" gap="10px" alignItems="center">

@@ -42,7 +42,7 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "craco start",
+    "start": "env-cmd -f .env.local craco start",
     "start:dev": "env-cmd -f .env.development craco start",
     "start:local": "env-cmd -f .env.local craco start",
     "build": "craco build",
