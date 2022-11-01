@@ -4,8 +4,10 @@ import { Box, Stack } from '@mui/material';
 import Header from './Header/Header';
 import Footer from './Footer/Footer';
 import { LayoutContext } from '@/contexts/LayoutContext';
+import { Outlet } from 'react-router-dom';
 
-function Layout(props) {
+const Layout = props => {
+  const { children } = props;
   const headerHeight = 65;
   const footerHeight = 50;
 
@@ -33,11 +35,11 @@ function Layout(props) {
           minHeight: `calc(100% - ${footerHeight}px)`,
         }}
       >
-        {props.children}
+        {children || <Outlet />}
       </Stack>
       <Footer height={footerHeight} />
     </Box>
   );
-}
+};
 
 export default Layout;
