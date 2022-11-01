@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useState } from 'react';
 import { Stack, Typography } from '@mui/material';
 import PageContainer from '@/components/PageContainer';
 import PageTitleBox from '@/components/PageTitleBox';
@@ -10,6 +10,7 @@ import { getDatabaseIcon } from '@/widget/utils/iconUtil';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAlert } from 'react-alert';
 import DatabaseForm from '@/pages/Data/DataSource/form/DatabaseForm';
+import SqliteDatabaseForm from '@/pages/Data/DataSource/form/SqliteDatabaseForm';
 
 function DataSource() {
   const { sourceId } = useParams();
@@ -20,13 +21,20 @@ function DataSource() {
   const [isConnected, setIsConnected] = useState(false);
   const [dataType, setDataType] = useState(null);
   const [typeList, setTypeList] = useState([]);
-  const [formData, setFormData] = useState({
-    databaseName: '',
-    host: '',
-    port: '',
-    user: '',
-    password: '',
-    database: '',
+  const [formData, setFormData] = useState<any>({
+    type: '', // 수정일 때 받아오는 engine
+    mysql2: {
+      databaseName: '',
+      host: '',
+      port: '',
+      user: '',
+      password: '',
+      database: '',
+    },
+    sqlite3: {
+      databaseName: '',
+      filename: '',
+    },
   });
 
   useLayoutEffect(() => {
@@ -44,20 +52,45 @@ function DataSource() {
   /**
    * 수정일 경우 데이터베이스 정보 조회
    */
+  useEffect(() => {
+    // 수정일 때 db 정보로 setDataType
+    if (typeList && formData.type) {
+      const type = typeList.filter(item => {
+        return item.type === formData.type;
+      });
+      setDataType(type[0]);
+    }
+  }, [typeList, formData.type]);
+
   const getDatabaseInfo = () => {
     DatabaseService.selectDatabase(sourceId).then(response => {
       const info = response.data;
       if (info.status === 'SUCCESS') {
         const databaseInfo = info.data.databaseInfo;
-        const temp = {
-          databaseName: databaseInfo.name,
-          host: databaseInfo.connectionConfig.host,
-          port: databaseInfo.connectionConfig.port,
-          user: databaseInfo.connectionConfig.user,
-          password: databaseInfo.connectionConfig.password,
-          database: databaseInfo.connectionConfig.database,
-        };
-        setFormData(temp);
+        let temp;
+        if (databaseInfo.engine === 'sqlite3') {
+          temp = {
+            type: databaseInfo.engine,
+            sqlite3: {
+              databaseName: databaseInfo.name,
+              filename: databaseInfo.connectionConfig.filename,
+            },
+          };
+          setFormData(temp);
+        } else {
+          temp = {
+            type: databaseInfo.engine,
+            mysql2: {
+              databaseName: databaseInfo.name,
+              host: databaseInfo.connectionConfig.host,
+              port: Number(databaseInfo.connectionConfig.port),
+              user: databaseInfo.connectionConfig.user,
+              password: databaseInfo.connectionConfig.password,
+              database: databaseInfo.connectionConfig.database,
+            },
+          };
+          setFormData(temp);
+        }
       }
     });
   };
@@ -67,9 +100,8 @@ function DataSource() {
       // name: item.name,
       // description: item.name,
       connectionConfig: item,
-      engine: dataType.type,
+      engine: dataType.engine,
     };
-    console.log(param, 'param');
     DatabaseService.testConnection(param).then(response => {
       console.log(response);
       if (response.data.status === STATUS.SUCCESS) {
@@ -96,12 +128,23 @@ function DataSource() {
   };
 
   const handleSaveClick = () => {
-    const param = {
-      name: formData.databaseName,
-      description: formData.databaseName,
-      connectionConfig: formData,
-      engine: dataType.type,
-    };
+    let param;
+    // console.log(formData, dataType?.engine);
+    if (formData.type === 'sqlite3') {
+      param = {
+        name: formData.sqlite3.databaseName,
+        description: formData.sqlite3.databaseName,
+        connectionConfig: formData.sqlite3,
+        engine: formData?.type || dataType?.engine,
+      };
+    } else {
+      param = {
+        name: formData.mysql2.databaseName,
+        description: formData.mysql2.databaseName,
+        connectionConfig: formData.mysql2,
+        engine: formData?.type || dataType?.engine,
+      };
+    }
 
     alert.success(`데이터베이스를 ${isModifyMode ? '수정' : '생성'}하시겠습니까?`, {
       closeCopy: '취소',
@@ -175,7 +218,12 @@ function DataSource() {
             >
               step.02 연결 정보 입력
             </Typography>
-            <DatabaseForm testConnect={testConnect} formData={formData} setFormData={setFormData} />
+            {/*{<DatabaseForm testConnect={testConnect} formData={formData} setFormData={setFormData} />}*/}
+            {dataType?.type === 'sqlite3' ? (
+              <SqliteDatabaseForm testConnect={testConnect} formData={formData?.sqlite3} setFormData={setFormData} />
+            ) : (
+              <DatabaseForm testConnect={testConnect} formData={formData?.mysql2} setFormData={setFormData} />
+            )}
           </Stack>
         </Stack>
       </PageTitleBox>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, CardContent, Grid, Typography } from '@mui/material';
+import { Box, CardContent, Typography } from '@mui/material';
 import { CardWrapper } from '@/components/list/CardListWrapper';
 
 function ImgCardList(props) {
@@ -7,7 +7,6 @@ function ImgCardList(props) {
   const srcUrl = '/static/images/';
 
   const handleClick = item => {
-    console.log('database : ', item);
     setSelectedType(item);
   };
 
