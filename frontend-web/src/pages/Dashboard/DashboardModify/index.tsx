@@ -101,18 +101,86 @@ function DashboardModify() {
     setLayout(changeLayout);
   };
 
+  // 추가 할 layout
+  // @tempLayout 현재 배치되어 있는 layout 정보
+  // @x : 새로 배치될 위젯의 x 초기값
+  // @y : 새로 배치될 위젯의 y 초기값
+  // @w : 새로 배치될 위젯의 width 값
+  // @h : 새로 배치될 위젯의 height 값
+  const getCalculatorPosition = (tempLayout, x = 0, y = 0, w = 6, h = 5, layoutMaxW = 12) => {
+    const tempPos = { startX: x, endX: w - 1, startY: y, endY: h - 1 }; // layout 계산을 위한 값 보정
+    tempLayout.sort((a, b) => a.y - b.y || a.x - b.x);
+
+    const tmepPosArr = [];
+    tempLayout.map((item, index) => {
+      tmepPosArr.push({ startX: item.x, endX: item.x + item.w - 1, startY: item.y, endY: item.y + item.h - 1 }); // layout 계산을 위한 값 보정
+    });
+
+    // layout 위치 계산 (재귀함수로 사용. 해당 함수를 수정할 때 무한 loop 되지 않게 조심할 것)
+    const calculator = (pos, posArr) => {
+      const maxW = layoutMaxW - 1; // layout 계산을 위한 값 보정
+
+      // 추가할 위젯의 위치를 1칸씩 변경
+      const getCalculatorPos = pos => {
+        if (pos.endX + 1 > maxW) {
+          pos.endX = pos.endX - pos.startX;
+          pos.startX = 0;
+          pos.startY = pos.startY + 1;
+          pos.endY = pos.endY + 1;
+        } else {
+          pos.startX = pos.startX + 1;
+          pos.endX = pos.endX + 1;
+        }
+        return pos;
+      };
+
+      for (let i = 0; i < posArr.length; i++) {
+        const item = posArr[i];
+        let isCompareHit = false;
+        if (pos.startX <= item.startX && (pos.endX >= item.startX || pos.endX > item.endX)) {
+          // x 좌표가 겹치는 상황
+          isCompareHit = true;
+        } else if (pos.startX >= item.startX && pos.startX <= item.endX) {
+          // x 좌표가 겹치는 상황
+          isCompareHit = true;
+        }
+
+        if (isCompareHit) {
+          if (pos.startY <= item.startY && (pos.endY >= item.startY || pos.endY > item.endY)) {
+            // x, y 좌표가 겹치는 상황
+            calculator(getCalculatorPos(pos), posArr);
+          } else if (pos.startY >= item.startY && pos.startY <= item.endY) {
+            // x, y 좌표가 겹치는 상황
+            calculator(getCalculatorPos(pos), posArr);
+          }
+        }
+      }
+
+      return pos;
+    };
+
+    const resultPos = calculator(tempPos, tmepPosArr);
+    // 보정된 layout 값을 원래대로 복원
+    return {
+      x: resultPos.startX,
+      y: resultPos.startY,
+      w: resultPos.endX - resultPos.startX + 1,
+      h: resultPos.endY - resultPos.startY + 1,
+    };
+  };
+
   // widget 생성
   const generateWidget = () => {
     useWidgetIds.length = 0;
     const addLayouts = [];
+
     widgets.map((item, index) => {
       if (layout.length <= index) {
+        const calculatorPosition = getCalculatorPosition([...layout, ...addLayouts], 0, 0, 6, 5, 12);
+
         addLayouts.push({
-          x: 0,
-          y: 0,
-          w: 5,
-          h: 5,
           i: item.id.toString(),
+          ...calculatorPosition,
         });
       }
     });
@@ -174,16 +242,17 @@ function DashboardModify() {
     // title null 체크, widgets 수 체크 (0개면 저장 못함)
     if (dashboardTitle == null || dashboardTitle.trim() == '') {
       // title 이 없을 경우
-      alert.info('제목을 입력 해주세요.', {
-        onClose: () => {
-          // todo 아래 기능 연결하기
-          console.log('title 로 포커스 이동하기');
-        },
-      });
+      alert.info('제목을 입력 해주세요.');
     } else if (layout.length == 0 || widgets.length == 0) {
       // 배치된 widget 이 없을경우
       alert.info('배치된 위젯이 없습니다.');
     } else {
+      // 저장 전 react grid layout 에서 필요없는 속성 제거
+      layout.map(item => {
+        delete item.moved;
+        delete item.static;
+      });
+
       // 저장 로직
       dashboardInfo.dashboardId = dashboardId;
       dashboardInfo.title = dashboardTitle;
