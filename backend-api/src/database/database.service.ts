@@ -86,6 +86,8 @@ export class DatabaseService {
       case 'mssql':
         selectTableQuery = 'SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES';
         break;
+
+
       default:
         selectTableQuery = 'show tables';
         break;
