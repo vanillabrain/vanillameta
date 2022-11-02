@@ -16,8 +16,11 @@ export class Database extends BaseEntity {
   @Column({ type: 'text', comment: '속성' })
   connectionConfig: string; // 기타 속성 json으로 .. host, schema, filePath...
 
-  @Column({ length: 100, comment: '데이터베이스 구분' })
+  @Column({ length: 100, comment: '데이터베이스 엔진' })
   engine: string;
+
+  @Column({ length: 100, comment: '데이터베이스 구분' })
+  type: string;
 
   @Column({ length: 100, comment: '타임존', nullable: true })
   timezone: string;
@@ -27,6 +30,7 @@ export class Database extends BaseEntity {
     description: string,
     details: string,
     engine: string,
+    type: string,
     timezone: string,
   ): Database {
     const obj = new Database();
@@ -34,12 +38,20 @@ export class Database extends BaseEntity {
     obj.description = description;
     obj.connectionConfig = details;
     obj.engine = engine;
+    obj.type = type;
     obj.timezone = timezone;
     return obj;
   }
 
   static toDto(dto: CreateDatabaseDto): Database {
-    return Database.of(dto.name, dto.description, dto.connectionConfig, dto.engine, dto.timezone);
+    return Database.of(
+      dto.name,
+      dto.description,
+      dto.connectionConfig,
+      dto.engine,
+      dto.type,
+      dto.timezone,
+    );
   }
 
   getFullDescription(): string {
