@@ -7,6 +7,7 @@ import { Database } from '../database/entities/database.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ResponseStatus } from '../common/enum/response-status.enum';
+const { BigQueryClient } = require('knex-bigquery');
 
 const knexConnections = new Map<number, Knex>();
 
@@ -114,21 +115,19 @@ export class ConnectionService {
                 columnType: FieldTypeUtil.mysqlFieldType(field.columnType),
               };
               fields.push(fieldInfo);
-
             });
-            break;
           }
+          break;
 
-        case 'sqlite':
-
+        case 'sqlite3':
           if (queryRes && queryRes.length > 0) {
-
             datas = queryRes;
             const tempFields = Object.keys(queryRes[0]);
             tempFields.map(field => {
               const length = [];
-              for(let i = 0 ; i < 100; i ++){
-                  length.push(queryRes[i][field])
+              const maxCnt = queryRes.length > 100 ? 100 : queryRes.length;
+              for (let i = 0; i < maxCnt; i++) {
+                length.push(queryRes[i][field]);
               }
               const fieldInfo = {
                 columnName: field,
@@ -136,8 +135,8 @@ export class ConnectionService {
               };
               fields.push(fieldInfo);
             });
-            break;
           }
+          break;
 
         case 'pg':
           if (queryRes && queryRes.rows.length > 0) {
@@ -145,8 +144,9 @@ export class ConnectionService {
             const tempFields = queryRes.fields;
             tempFields.map(field => {
               const length = [];
-              for(let i = 0 ; i < 100; i ++){
-                length.push(queryRes.rows[i][field.name])
+              const maxCnt = queryRes.rows.length > 100 ? 100 : queryRes.rows.length;
+              for (let i = 0; i < maxCnt; i++) {
+                length.push(queryRes.rows[i][field.name]);
               }
               const fieldInfo = {
                 columnName: field.name,
@@ -154,13 +154,11 @@ export class ConnectionService {
               };
               fields.push(fieldInfo);
             });
-            break;
           }
-
+          break;
 
         case 'Db2Dialect':
           if (queryRes && queryRes.length > 0) {
-
             datas = queryRes;
 
             // for (let i = 0; i < Object.keys(queryRes[0]).length; i++) {
@@ -175,8 +173,8 @@ export class ConnectionService {
               };
               fields.push(fieldInfo);
             });
-            break;
           }
+          break;
 
         case 'mssql':
           if (queryRes && queryRes.length > 0) {
