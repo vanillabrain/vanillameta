@@ -119,7 +119,7 @@ const DataSet = () => {
         const list = response.data.data;
         list.map(item => (item.icon = getDatabaseIcon(item.engine)));
         setDatabaseList(list);
-        if (!isModifyMode && list.length > 0) {
+        if (!isModifyMode && databaseList.length > 0) {
           // setDatabaseId(list[0].id);
           setDatabaseId(sourceId);
         }
@@ -269,7 +269,7 @@ const DataSet = () => {
           displayEmpty
           disabled={isModifyMode}
           size="small"
-          value={databaseId || ''}
+          value={databaseList.length ? databaseId : ''}
           onChange={onChangeDatabaseId}
         >
           {databaseList.map(item => (
