@@ -335,7 +335,7 @@ function DashboardModify() {
           title={
             <TextField
               id="userDashboardName"
-              label=""
+              label="대시보드 이름"
               required
               sx={{
                 width: '960px',
