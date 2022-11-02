@@ -148,10 +148,10 @@ function DashboardModify() {
         if (isCompareHit) {
           if (pos.startY <= item.startY && (pos.endY >= item.startY || pos.endY > item.endY)) {
             // x, y 좌표가 겹치는 상황
-            calculator(getCalculatorPos(pos), posArr);
+            return calculator(getCalculatorPos(pos), posArr);
           } else if (pos.startY >= item.startY && pos.startY <= item.endY) {
             // x, y 좌표가 겹치는 상황
-            calculator(getCalculatorPos(pos), posArr);
+            return calculator(getCalculatorPos(pos), posArr);
           }
         }
       }
