@@ -12,6 +12,7 @@ import { TableQuery } from '../widget/tabel-query/entity/table-query.entity';
 import { QueryExecuteDto } from './dto/query-execute.dto';
 import { DatabaseType } from './entities/database_type.entity';
 import { YesNo } from '../common/enum/yn.enum';
+import { BigQuery } from '@google-cloud/bigquery';
 
 @Injectable()
 export class DatabaseService {
@@ -86,7 +87,9 @@ export class DatabaseService {
       case 'mssql':
         selectTableQuery = 'SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES';
         break;
-
+      case 'bigquery':
+        selectTableQuery = `select table_id from ${databaseInfo.connectionConfig['schema']}.__TABLES__`;
+        break;
 
       default:
         selectTableQuery = 'show tables';
@@ -140,10 +143,17 @@ export class DatabaseService {
 
     const connectionConfig = {
       client: one.engine,
-      connection: Object(one.connectionConfig).connection,
+      connection: updateDatabaseDto.connectionConfig,
       useNullAsDefault: true,
     };
     updateDatabaseDto.connectionConfig = JSON.stringify(connectionConfig);
+
+    // const connectionConfig = {
+    //   client: one.engine,
+    //   connection: Object(one.connectionConfig).connection,
+    //   useNullAsDefault: true,
+    // };
+    // updateDatabaseDto.connectionConfig = JSON.stringify(connectionConfig);
 
     const saveResult = await this.databaseRepository.update(
       { id },
@@ -208,8 +218,17 @@ export class DatabaseService {
         queryExecuteDto.id = datasetItem.databaseId;
         queryExecuteDto.query = datasetItem.query;
       } else {
+        const databaseOne = await this.databaseRepository.findOne({ where: { id: databaseId } });
+        let selectQuery;
+        if (databaseOne.type === 'bigquery') {
+          const schemaName = JSON.parse(databaseOne.connectionConfig).connection.schema;
+          selectQuery = `SELECT * FROM ${schemaName}.${tableName}`;
+        } else {
+          selectQuery = `SELECT * FROM ${tableName}`;
+        }
+
         queryExecuteDto.id = databaseId;
-        queryExecuteDto.query = `SELECT * FROM ${tableName}`;
+        queryExecuteDto.query = selectQuery;
       }
     }
     const queryResult = await this.connectionService.executeQuery(queryExecuteDto);
