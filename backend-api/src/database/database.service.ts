@@ -72,7 +72,31 @@ export class DatabaseService {
     databaseInfo.connectionConfig = JSON.parse(databaseInfo.connectionConfig).connection;
 
     // table 정보 조회
-    const tablesInfo = await this.connectionService.executeQuery({ id: +id, query: 'show tables' });
+    let selectTableQuery;
+    switch (databaseInfo.engine) {
+      case 'mysql2':
+        selectTableQuery = 'show tables';
+        break;
+      case 'pg':
+        selectTableQuery = `SELECT table_name FROM information_schema.tables WHERE table_type = 'BASE TABLE' and table_schema not in ('information_schema', 'pg_catalog')`;
+        break;
+      case 'sqlite3':
+        selectTableQuery = `SELECT tbl_name FROM sqlite_master WHERE type = 'table'`;
+        break;
+      case 'mssql':
+        selectTableQuery = 'SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES';
+        break;
+
+
+      default:
+        selectTableQuery = 'show tables';
+        break;
+    }
+
+    const tablesInfo = await this.connectionService.executeQuery({
+      id: +id,
+      query: selectTableQuery,
+    });
     const tables = [];
     if (tablesInfo && tablesInfo.datas.length > 0) {
       tablesInfo.datas.map(tableObj => {
