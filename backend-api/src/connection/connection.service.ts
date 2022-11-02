@@ -77,8 +77,10 @@ export class ConnectionService {
       return { status: ResponseStatus.ERROR, message: 'knex not connected' };
     }
 
+    const testQuery = createDatabaseDto.engine == 'oracle' ? 'SELECT 1 FROM DUAL' : 'SELECT 1';
+
     try {
-      await _knex.raw('SELECT 1');
+      await _knex.raw(testQuery);
       returnObj = { status: ResponseStatus.SUCCESS, data: { message: 'success' } };
     } catch (e) {
       console.log(e);
