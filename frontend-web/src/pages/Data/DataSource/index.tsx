@@ -123,19 +123,25 @@ function DataSource() {
   };
 
   const getEngine = () => {
-    switch (dataType.type) {
-      case 'mysql' || 'maria' || 'aurora':
-        return 'mysql2';
-      case 'postgres' || 'redshift':
-        return 'pg';
-      case 'oracle':
-        return 'oracledb';
-      case 'sqlite':
-        return 'sqlite3';
-      default:
-        return dataType.type;
+    if (dataType?.type) {
+      switch (dataType.type) {
+        case 'mysql':
+        case 'maria':
+        case 'aurora':
+          return 'mysql2';
+        case 'postgres':
+        case 'redshift':
+          return 'pg';
+        case 'oracle':
+          return 'oracledb';
+        case 'sqlite':
+          return 'sqlite3';
+        default:
+          return dataType.type;
+      }
     }
   };
+  console.log(getEngine());
 
   const getFormComponentType = () => {
     switch (dataType.type) {
