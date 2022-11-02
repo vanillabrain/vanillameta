@@ -11,7 +11,7 @@ const DatabaseForm = props => {
   const handleSubmit = data => {
     data.preventDefault();
     const item = {
-      databaseName: data.target.databaseName.value,
+      name: data.target.name.value,
       host: data.target.host.value,
       port: Number(data.target.port.value),
       user: data.target.user.value,
@@ -21,8 +21,12 @@ const DatabaseForm = props => {
     testConnect(item);
   };
 
+  const handleNameChange = event => {
+    setFormData(prevState => ({ ...prevState, [event.target.name]: event.target.value }));
+  };
+
   const handleChange = event => {
-    setFormData(prevState => ({ ...prevState, mysql2: { ...prevState.mysql2, [event.target.name]: event.target.value } }));
+    setFormData(prevState => ({ ...prevState, default: { ...prevState.default, [event.target.name]: event.target.value } }));
   };
 
   return (
@@ -30,17 +34,17 @@ const DatabaseForm = props => {
       <Stack sx={{ display: 'flex', justifyContent: 'space-between' }} spacing="20px">
         <TextField
           label="이름"
-          name="databaseName"
-          value={formData?.databaseName || ''}
+          name="name"
+          value={formData?.name || ''}
           required
           fullWidth
           sx={inputStyle}
-          onChange={handleChange}
+          onChange={handleNameChange}
         />
         <TextField
           label="Host"
           name="host"
-          value={formData?.host || ''}
+          value={formData?.default?.host || ''}
           required
           fullWidth
           sx={inputStyle}
@@ -50,7 +54,7 @@ const DatabaseForm = props => {
           label="Port"
           name="port"
           type="number"
-          value={formData?.port || ''}
+          value={formData?.default?.port || ''}
           required
           fullWidth
           sx={inputStyle}
@@ -59,7 +63,7 @@ const DatabaseForm = props => {
         <TextField
           label="User"
           name="user"
-          value={formData?.user || ''}
+          value={formData?.default?.user || ''}
           required
           fullWidth
           sx={inputStyle}
@@ -69,7 +73,7 @@ const DatabaseForm = props => {
           label="Password"
           name="password"
           type="password"
-          value={formData?.password || ''}
+          value={formData?.default?.password || ''}
           required
           fullWidth
           sx={inputStyle}
@@ -78,7 +82,7 @@ const DatabaseForm = props => {
         <TextField
           label="Schema"
           name="database"
-          value={formData?.database || ''}
+          value={formData?.default?.database || ''}
           required
           fullWidth
           sx={inputStyle}

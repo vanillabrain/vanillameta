@@ -34,12 +34,9 @@ const DataSet = () => {
   const [tableList, setTableList] = useState([]);
   const alert = useAlert();
 
-  // console.log(data, 'data', sourceId, 'sourceId', databaseId, 'databaseId', setId, 'setId');
-
   useLayoutEffect(() => {
     console.log('modify', pathname.indexOf('modify'));
-    console.log('setId', setId);
-    console.log('sourceId', sourceId);
+    console.log('setId:', setId, 'sourceId:', sourceId);
     getDatabaseTypeList();
 
     if (pathname.indexOf('modify') > 0 && setId) {
@@ -150,11 +147,10 @@ const DataSet = () => {
    */
   const getDatasetInfo = () => {
     DatasetService.selectDataset(setId).then(response => {
-      console.log('selectDataset', response.data.data.datasetId);
+      console.log('selectDataset', response.data.data.id, response.data.data.databaseId);
       if (response.data.status === 'SUCCESS') {
         setDatasetInfo(response.data.data);
         setDatabaseId(response.data.data.databaseId);
-        // setDataType(list[0]);
       }
     });
   };
