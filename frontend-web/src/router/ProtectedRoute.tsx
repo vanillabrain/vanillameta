@@ -4,7 +4,11 @@ import { useAuth } from '@/contexts/AuthContext';
 export const ProtectedRoute = ({ children }) => {
   const { token } = useAuth();
   console.log('ProtectedRoute', token);
-  if (!token) {
+  const storage = window.sessionStorage;
+  const loggedUserId = storage.getItem('loggedUserId');
+  const loggedUserPwd = storage.getItem('loggedUserPwd');
+
+  if (!loggedUserId && !loggedUserPwd && !token) {
     return <Navigate to="/login" replace />;
   }
 
