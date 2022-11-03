@@ -1,5 +1,7 @@
 FROM ubuntu:18.04
 
+
+
 RUN apt-get -qq update
 RUN apt-get -qq upgrade --yes
 RUN apt-get -qq install curl --yes
@@ -8,14 +10,18 @@ RUN apt-get -qq install nodejs --yes
 
 RUN apt-get install chromium-browser --yes
 
-WORKDIR /app
+RUN useradd -ms /bin/bash frog
+USER frog
+WORKDIR /home/frog
 
 COPY package*.json ./
+
 RUN npm install
 
 COPY . .
 COPY tsconfig.json .
 COPY tsconfig.build.json .
+
 
 RUN npm run build
 
