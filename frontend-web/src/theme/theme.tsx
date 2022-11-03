@@ -199,6 +199,11 @@ export default createTheme({
         root: {
           height: '32px',
           backgroundColor: '#fff',
+
+          '&.Mui-disabled': {
+            color: '#929292',
+            backgroundColor: '#e9e9e9',
+          },
         },
       },
       defaultProps: {
