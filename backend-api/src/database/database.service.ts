@@ -79,7 +79,7 @@ export class DatabaseService {
         selectTableQuery = 'show tables';
         break;
       case 'pg':
-        selectTableQuery = `SELECT table_name FROM information_schema.tables WHERE table_type = 'BASE TABLE' and table_schema not in ('information_schema', 'pg_catalog')`;
+        selectTableQuery = `SELECT table_name FROM information_schema.tables WHERE table_type = 'BASE TABLE' and table_schema not in ('information_schema', 'pg_catalog', 'pg_internal')`;
         break;
       case 'sqlite3':
         selectTableQuery = `SELECT tbl_name FROM sqlite_master WHERE type = 'table'`;

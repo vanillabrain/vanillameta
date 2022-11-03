@@ -46,7 +46,7 @@ const SqliteDatabaseForm = props => {
           sx={inputStyle}
           onChange={handleChange}
         />
-        <SubmitButton label="Test Connect" type="submit" />
+        <SubmitButton label="TEST CONNECT" type="submit" sx={{ height: '50px', fontSize: '13px' }} />
       </Stack>
     </Stack>
   );
