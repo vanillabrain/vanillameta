@@ -166,7 +166,8 @@ export class ConnectionService {
 
         // case 'sqlite3':
         // case 'bigquery':
-        // case 'mssql
+        // case 'mssql':
+        // case 'oracledb':
         default:
           if (queryRes && queryRes.length > 0) {
             datas = queryRes;

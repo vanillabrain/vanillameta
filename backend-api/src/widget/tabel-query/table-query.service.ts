@@ -21,11 +21,17 @@ export class TableQueryService {
   async create(databaseId: number, tableName: string) {
     const databaseOne = await this.databaseRepository.findOne({ where: { id: databaseId } });
     let selectQuery;
-    if (databaseOne.type === 'bigquery') {
-      const schemaName = JSON.parse(databaseOne.connectionConfig).connection.schema;
-      selectQuery = `SELECT * FROM ${schemaName}.${tableName}`;
-    } else {
-      selectQuery = `SELECT * FROM ${tableName}`;
+    switch (databaseOne.type) {
+      case 'bigquery':
+        const schemaName = JSON.parse(databaseOne.connectionConfig).connection.schema;
+        selectQuery = `SELECT * FROM ${schemaName}.${tableName}`;
+        break;
+      case 'oracle':
+        selectQuery = `SELECT * FROM "${tableName}"`;
+        break;
+      default:
+        selectQuery = `SELECT * FROM ${tableName}`;
+        break;
     }
 
     return await this.tableQueryRepository.save({
