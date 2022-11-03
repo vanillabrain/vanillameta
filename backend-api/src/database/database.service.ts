@@ -12,7 +12,6 @@ import { TableQuery } from '../widget/tabel-query/entity/table-query.entity';
 import { QueryExecuteDto } from './dto/query-execute.dto';
 import { DatabaseType } from './entities/database_type.entity';
 import { YesNo } from '../common/enum/yn.enum';
-import { BigQuery } from '@google-cloud/bigquery';
 
 @Injectable()
 export class DatabaseService {
