@@ -2,12 +2,15 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TableQuery } from './entity/table-query.entity';
+import { Database } from '../../database/entities/database.entity';
 
 @Injectable()
 export class TableQueryService {
   constructor(
     @InjectRepository(TableQuery)
     private tableQueryRepository: Repository<TableQuery>,
+    @InjectRepository(Database)
+    private databaseRepository: Repository<Database>,
   ) {}
 
   /**
@@ -16,9 +19,18 @@ export class TableQueryService {
    * @param tableName
    */
   async create(databaseId: number, tableName: string) {
+    const databaseOne = await this.databaseRepository.findOne({ where: { id: databaseId } });
+    let selectQuery;
+    if (databaseOne.type === 'bigquery') {
+      const schemaName = JSON.parse(databaseOne.connectionConfig).connection.schema;
+      selectQuery = `SELECT * FROM ${schemaName}.${tableName}`;
+    } else {
+      selectQuery = `SELECT * FROM ${tableName}`;
+    }
+
     return await this.tableQueryRepository.save({
       databaseId,
-      query: `SELECT * FROM ${tableName}`,
+      query: selectQuery,
     });
   }
 
