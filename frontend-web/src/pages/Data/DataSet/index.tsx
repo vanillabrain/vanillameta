@@ -34,12 +34,9 @@ const DataSet = () => {
   const [tableList, setTableList] = useState([]);
   const alert = useAlert();
 
-  // console.log(data, 'data', sourceId, 'sourceId', databaseId, 'databaseId', setId, 'setId');
-
   useLayoutEffect(() => {
     console.log('modify', pathname.indexOf('modify'));
-    console.log('setId', setId);
-    console.log('sourceId', sourceId);
+    console.log('setId:', setId, 'sourceId:', sourceId);
     getDatabaseTypeList();
 
     if (pathname.indexOf('modify') > 0 && setId) {
@@ -122,7 +119,7 @@ const DataSet = () => {
         const list = response.data.data;
         list.map(item => (item.icon = getDatabaseIcon(item.engine)));
         setDatabaseList(list);
-        if (!isModifyMode && list.length > 0) {
+        if (!isModifyMode && databaseList.length > 0) {
           // setDatabaseId(list[0].id);
           setDatabaseId(sourceId);
         }
@@ -150,11 +147,10 @@ const DataSet = () => {
    */
   const getDatasetInfo = () => {
     DatasetService.selectDataset(setId).then(response => {
-      console.log('selectDataset', response.data.data.datasetId);
+      console.log('selectDataset', response.data.data.id, response.data.data.databaseId);
       if (response.data.status === 'SUCCESS') {
         setDatasetInfo(response.data.data);
         setDatabaseId(response.data.data.databaseId);
-        // setDataType(list[0]);
       }
     });
   };
@@ -273,7 +269,7 @@ const DataSet = () => {
           displayEmpty
           disabled={isModifyMode}
           size="small"
-          value={databaseId || ''}
+          value={databaseList.length ? databaseId : ''}
           onChange={onChangeDatabaseId}
         >
           {databaseList.map(item => (

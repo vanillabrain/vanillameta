@@ -11,14 +11,18 @@ const SqliteDatabaseForm = props => {
   const handleSubmit = data => {
     data.preventDefault();
     const item = {
-      databaseName: data.target.databaseName.value,
+      name: data.target.name.value,
       filename: data.target.filename.value,
     };
     testConnect(item);
   };
 
+  const handleNameChange = event => {
+    setFormData(prevState => ({ ...prevState, [event.target.name]: event.target.value }));
+  };
+
   const handleChange = event => {
-    setFormData(prevState => ({ ...prevState, sqlite3: { ...prevState.sqlite3, [event.target.name]: event.target.value } }));
+    setFormData(prevState => ({ ...prevState, sqlite: { ...prevState.sqlite, [event.target.name]: event.target.value } }));
   };
 
   return (
@@ -26,17 +30,17 @@ const SqliteDatabaseForm = props => {
       <Stack sx={{ display: 'flex', justifyContent: 'space-between' }} spacing="20px">
         <TextField
           label="이름"
-          name="databaseName"
-          value={formData?.databaseName || ''}
+          name="name"
+          value={formData?.name || ''}
           required
           fullWidth
           sx={inputStyle}
-          onChange={handleChange}
+          onChange={handleNameChange}
         />
         <TextField
           label="Filename"
           name="filename"
-          value={formData?.filename || ''}
+          value={formData?.sqlite?.filename || ''}
           required
           fullWidth
           sx={inputStyle}

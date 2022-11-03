@@ -104,6 +104,14 @@ export default createTheme({
             backgroundColor: '#9b9ea9',
           },
         },
+        sizeLarge: {
+          height: '44px',
+          fontSize: '15px',
+          fontWeight: 'bold',
+          lineHeight: '16px',
+          textTransform: 'capitalize',
+          backgroundColor: '#043f84',
+        },
       },
     },
     MuiButtonGroup: {
