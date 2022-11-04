@@ -74,7 +74,6 @@ const WidgetModify = () => {
     widgetService
       .updateWidget(widgetInfo.id, param)
       .then(() => {
-        console.log(location, location.state);
         navigate((location.state as CustomizedState)?.from || '/widget');
       })
       .finally(() => {
