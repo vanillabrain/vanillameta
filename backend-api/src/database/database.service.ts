@@ -12,7 +12,6 @@ import { TableQuery } from '../widget/tabel-query/entity/table-query.entity';
 import { QueryExecuteDto } from './dto/query-execute.dto';
 import { DatabaseType } from './entities/database_type.entity';
 import { YesNo } from '../common/enum/yn.enum';
-import { BigQuery } from '@google-cloud/bigquery';
 
 @Injectable()
 export class DatabaseService {
@@ -79,7 +78,7 @@ export class DatabaseService {
         selectTableQuery = 'show tables';
         break;
       case 'pg':
-        selectTableQuery = `SELECT table_name FROM information_schema.tables WHERE table_type = 'BASE TABLE' and table_schema not in ('information_schema', 'pg_catalog')`;
+        selectTableQuery = `SELECT table_name FROM information_schema.tables WHERE table_type = 'BASE TABLE' and table_schema not in ('information_schema', 'pg_catalog', 'pg_internal')`;
         break;
       case 'sqlite3':
         selectTableQuery = `SELECT tbl_name FROM sqlite_master WHERE type = 'table'`;
@@ -90,7 +89,9 @@ export class DatabaseService {
       case 'bigquery':
         selectTableQuery = `select table_id from ${databaseInfo.connectionConfig['schema']}.__TABLES__`;
         break;
-
+      case 'oracledb':
+        selectTableQuery = 'SELECT table_name FROM user_tables ORDER BY table_name';
+        break;
       default:
         selectTableQuery = 'show tables';
         break;
@@ -220,13 +221,18 @@ export class DatabaseService {
       } else {
         const databaseOne = await this.databaseRepository.findOne({ where: { id: databaseId } });
         let selectQuery;
-        if (databaseOne.type === 'bigquery') {
-          const schemaName = JSON.parse(databaseOne.connectionConfig).connection.schema;
-          selectQuery = `SELECT * FROM ${schemaName}.${tableName}`;
-        } else {
-          selectQuery = `SELECT * FROM ${tableName}`;
+        switch (databaseOne.type) {
+          case 'bigquery':
+            const schemaName = JSON.parse(databaseOne.connectionConfig).connection.schema;
+            selectQuery = `SELECT * FROM ${schemaName}.${tableName}`;
+            break;
+          case 'oracle':
+            selectQuery = `SELECT * FROM "${tableName}"`;
+            break;
+          default:
+            selectQuery = `SELECT * FROM ${tableName}`;
+            break;
         }
-
         queryExecuteDto.id = databaseId;
         queryExecuteDto.query = selectQuery;
       }

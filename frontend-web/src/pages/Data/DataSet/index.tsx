@@ -308,7 +308,13 @@ const DataSet = () => {
             tabSize: 2,
           }}
         />
-        <SubmitButton label="Run" type="button" sx={{ width: '374px', height: '50px' }} onClick={excuteQuery} />
+        <SubmitButton
+          label="Run"
+          type="button"
+          size="large"
+          sx={{ width: '374px', fontSize: '13px' }}
+          onClick={excuteQuery}
+        />
       </Stack>
       <Stack sx={{ p: '30px 25px 40px 25px', backgroundColor: '#f5f6f8' }}>
         <DataGrid
