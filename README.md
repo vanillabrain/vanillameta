@@ -24,7 +24,7 @@
 
 ## 지원하는 데이터베이스
 
-- PostgresSQL
+- PostgreSQL
 - MariaDB
 - MySQL
 - SQLServer
