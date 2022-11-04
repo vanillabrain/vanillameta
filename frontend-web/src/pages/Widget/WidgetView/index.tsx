@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { Avatar, Card, Stack, Typography } from '@mui/material';
-import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import PageTitleBox from '@/components/PageTitleBox';
 import WidgetService from '@/api/widgetService';
 import { WidgetInfo } from '@/api/type';
@@ -10,10 +10,14 @@ import ModifyButton from '@/components/button/ModifyButton';
 import DeleteButton from '@/components/button/DeleteButton';
 import DashboardTitleBox from '@/pages/Dashboard/Components/DashboardTitleBox';
 import { useAlert } from 'react-alert';
+import { LoadingContext } from '@/contexts/LoadingContext';
 
 const WidgetView = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const pathname = location.pathname;
   const alert = useAlert();
+  const { showLoading, hideLoading } = useContext(LoadingContext);
 
   const defaultWidgetInfo: WidgetInfo = {
     componentId: '',
@@ -34,7 +38,6 @@ const WidgetView = () => {
   const [widgetOption, setWidgetOption] = useState<WidgetInfo>(defaultWidgetInfo);
 
   const { widgetId } = useParams();
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     getWidgetInfo();
@@ -44,14 +47,14 @@ const WidgetView = () => {
    * 위젯 조회
    */
   const getWidgetInfo = () => {
-    setLoading(true);
-    // get('/data/dummyWidgetList.json')
+    showLoading();
     WidgetService.selectWidget(widgetId)
       .then(response => {
         setWidgetOption(response.data.data);
       })
-      .finally(() => setLoading(false));
-    // .then(data => setLoadedWidgetData(data.filter((list, idx) => idx <= 10 * loadedCount)));
+      .finally(() => {
+        hideLoading();
+      });
   };
 
   const dateData = data => {
@@ -155,9 +158,11 @@ const WidgetView = () => {
             <ModifyButton
               size="medium"
               sx={{ marginRight: '36px', padding: 0 }}
-              component={RouterLink}
-              to={`/widget/modify?id=${widgetId}&name=${widgetOption.title}`}
-              aria-label="수정"
+              onClick={event => {
+                event.preventDefault();
+                event.stopPropagation();
+                navigate(`/widget/modify?id=${widgetId}&title=${widgetOption.title}`, { state: { from: pathname } });
+              }}
             />
             <DeleteButton
               size="medium"
