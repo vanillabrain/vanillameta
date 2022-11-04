@@ -9,6 +9,7 @@ import { LoadingContext } from '@/contexts/LoadingContext';
 import AddIcon from '@mui/icons-material/Add';
 import { Box, Button, Stack } from '@mui/material';
 import { styled } from '@mui/system';
+import { STATUS } from '@/constant';
 
 const title = '위젯';
 
@@ -43,8 +44,12 @@ const Widget = () => {
     showLoading();
     WidgetService.selectWidgetList()
       .then(response => {
-        setWidgetList(response.data.data);
-        setNoData(response.data.data.length == 0);
+        if (response.data.status == STATUS.SUCCESS) {
+          setWidgetList(response.data.data);
+          setNoData(response.data.data.length == 0);
+        } else {
+          alert.error('위젯을 불러올 수 없습니다');
+        }
       })
       .finally(() => {
         hideLoading();

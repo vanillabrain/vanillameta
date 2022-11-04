@@ -282,19 +282,29 @@ export default createTheme({
     MuiPaginationItem: {
       styleOverrides: {
         root: {
+          borderRadius: 100,
+          '&:hover': {
+            color: '#4a4a4a',
+            backgroundColor: '#edf8ff',
+          },
+          '&.Mui-selected': {
+            fontWeight: 'bold',
+            color: '#333',
+            backgroundColor: 'transparent',
+          },
+          '&.Mui-selected:hover': {
+            backgroundColor: '#edf8ff',
+          },
+        },
+        previousNext: {
+          opacity: 1,
+          color: '#4a4a4a',
           '&:hover': {
             color: '#4481c9',
             backgroundColor: 'transparent',
           },
-          '&.Mui-selected': {
-            borderRadius: 100,
-            fontWeight: 'bold',
-            color: '#4a4a4a',
-            backgroundColor: 'transparent',
-          },
-          '&.Mui-selected:hover': {
-            borderRadius: 100,
-            backgroundColor: '#edf8ff',
+          '&.Mui-disabled': {
+            color: '#929292',
           },
         },
       },

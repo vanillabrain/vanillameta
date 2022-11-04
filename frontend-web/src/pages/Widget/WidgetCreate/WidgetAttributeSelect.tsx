@@ -8,13 +8,11 @@ import { STATUS } from '@/constant';
 import { LayoutContext } from '@/contexts/LayoutContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import grid from '@/assets/images/grid.svg';
-import { useNavigate } from 'react-router-dom';
 
 const WidgetAttributeSelect = props => {
   const { widgetOption, saveWidgetInfo, dataset, isModifyMode = false, widgetTypeName, widgetTypeDescription } = props;
 
   const alert = useAlert();
-  const navigate = useNavigate();
   const { fixLayout } = useContext(LayoutContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
 
@@ -73,7 +71,6 @@ const WidgetAttributeSelect = props => {
           copy: '저장',
           onClick: () => {
             saveWidgetInfo(option, title);
-            navigate('/widget');
           },
         },
       ],
