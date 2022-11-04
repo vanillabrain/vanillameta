@@ -71,9 +71,9 @@ const WidgetCreate = () => {
     showLoading();
     widgetService
       .createWidget(param)
-      // .then(() => {
-      //   navigate('/widget', { replace: true });
-      // })
+      .then(() => {
+        navigate('/widget');
+      })
       .finally(() => {
         hideLoading();
       });
