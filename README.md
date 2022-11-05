@@ -30,6 +30,7 @@
 - SQLServer
 - SQLite
 - Oracle
-- DB2
+- IBM Db2
 - Amazon Redshift
 - Big Query
+- Cockroachdb
