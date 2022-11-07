@@ -36,6 +36,9 @@ export class DatabaseService {
    * @param createDatabaseDto
    */
   async create(createDatabaseDto: CreateDatabaseDto) {
+    const connectioninfo = createDatabaseDto.connectionConfig;
+    const url = `postgresql://${connectioninfo['user']}:${connectioninfo['password']}@${connectioninfo['host']}:${connectioninfo['port']}/${connectioninfo['database']}?sslmode=verify-full&options=--cluster%3Dvanillameta-cockroach-3010`
+    createDatabaseDto.engine === 'cockroachdb' ? connectioninfo['connectionString'] = url : createDatabaseDto
     const databaseDto = Database.toDto(createDatabaseDto);
 
     const connectionConfig = {

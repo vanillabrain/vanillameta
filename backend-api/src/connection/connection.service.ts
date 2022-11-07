@@ -64,17 +64,27 @@ export class ConnectionService {
    * @param createDatabaseDto
    */
   async testConnection(createDatabaseDto: CreateDatabaseDto) {
+    const connectioninfo = createDatabaseDto.connectionConfig;
+    const url = `postgresql://${connectioninfo['user']}:${connectioninfo['password']}@${connectioninfo['host']}:${connectioninfo['port']}/${connectioninfo['database']}?sslmode=verify-full&options=--cluster%3Dvanillameta-cockroach-3010`
+
     const engine =
       createDatabaseDto.engine === 'bigquery' ? BigQueryClient : createDatabaseDto.engine;
+
+    createDatabaseDto.engine === 'cockroachdb' ? connectioninfo['connectionString'] = url : createDatabaseDto
+
     const connectionConfig = {
       client: engine,
       connection: createDatabaseDto.connectionConfig,
       useNullAsDefault: true,
     };
+    console.log(connectionConfig)
+
     // createDatabaseDto.connectionConfig = JSON.stringify(connectionConfig);
+    // console.log(createDatabaseDto)
     let _knex: Knex;
     let returnObj = {};
     try {
+
       _knex = knex(connectionConfig as Knex.Config);
     } catch (e) {
       console.log('knex not connected');
@@ -112,6 +122,26 @@ export class ConnectionService {
       const queryRes = await knex.raw(queryExecuteDto.query);
 
       switch (knex.client.config.client) {
+        case 'cockroachdb':
+
+          if (queryRes && queryRes.rows.length > 0) {
+            datas = queryRes.rows;
+
+            const tempFields = queryRes.fields;
+            tempFields.map(field => {
+              const length = [];
+              const maxCnt = queryRes.rows.length > 100 ? 100 : queryRes.rows.length;
+              for (let i = 0; i < maxCnt; i++) {
+                length.push(queryRes.rows[i][field.name]);
+              }
+              const fieldInfo = {
+                columnName: field.name,
+                columnType: FieldTypeUtil.FieldType(length),
+              };
+              fields.push(fieldInfo);
+            });
+          }
+          break;
         case 'mysql2':
           if (queryRes && queryRes[0].length > 0) {
             datas = queryRes[0];
@@ -169,9 +199,12 @@ export class ConnectionService {
         // case 'mssql':
         // case 'oracledb':
         default:
+          console.log(queryRes)
           if (queryRes && queryRes.length > 0) {
             datas = queryRes;
             const tempFields = Object.keys(queryRes[0]);
+            console.log(tempFields)
+            console.log(queryRes)
             tempFields.map(field => {
               const length = [];
               const maxCnt = queryRes.length > 100 ? 100 : queryRes.length;
@@ -185,6 +218,7 @@ export class ConnectionService {
               fields.push(fieldInfo);
             });
           }
+
           break;
       }
 
