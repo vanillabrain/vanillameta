@@ -7,6 +7,8 @@ import { Database } from '../database/entities/database.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ResponseStatus } from '../common/enum/response-status.enum';
+import { SnowflakeDialect } from './knex-dialects/snowflake';
+
 const { BigQueryClient } = require('knex-bigquery');
 
 const knexConnections = new Map<number, Knex>();
@@ -53,6 +55,8 @@ export class ConnectionService {
       const knexConfig = one.connectionConfig;
       if (knexConfig['client'] == 'bigquery') {
         knexConfig['client'] = BigQueryClient;
+      } else if (knexConfig['client'] == 'snowflake') {
+        knexConfig['client'] = SnowflakeDialect;
       }
       this.addKnex(id, one.connectionConfig as Knex.Config);
     }
@@ -64,15 +68,20 @@ export class ConnectionService {
    * @param createDatabaseDto
    */
   async testConnection(createDatabaseDto: CreateDatabaseDto) {
+    let engine: any = createDatabaseDto.engine;
+    switch (createDatabaseDto.engine) {
+      case 'bigquery':
+        engine = BigQueryClient;
+        break;
+      case 'snowflake':
+        engine = SnowflakeDialect;
+        break;
+    }
 
-
-    const engine =
-      createDatabaseDto.engine === 'bigquery' ? BigQueryClient : createDatabaseDto.engine;
-
-    if(createDatabaseDto.engine === 'cockroachdb') {
+    if (createDatabaseDto.engine === 'cockroachdb') {
       const connectioninfo = createDatabaseDto.connectionConfig;
-      const cockroach_url = `postgresql://${connectioninfo['user']}:${connectioninfo['password']}@${connectioninfo['host']}:${connectioninfo['port']}/${connectioninfo['database']}?sslmode=verify-full&options=--cluster%3Dvanillameta-cockroach-3010`
-      connectioninfo['connectionString'] = cockroach_url
+      const cockroach_url = `postgresql://${connectioninfo['user']}:${connectioninfo['password']}@${connectioninfo['host']}:${connectioninfo['port']}/${connectioninfo['database']}?sslmode=verify-full&options=--cluster%3Dvanillameta-cockroach-3010`;
+      connectioninfo['connectionString'] = cockroach_url;
     }
 
     const connectionConfig = {
@@ -86,7 +95,6 @@ export class ConnectionService {
     let _knex: Knex;
     let returnObj = {};
     try {
-
       _knex = knex(connectionConfig as Knex.Config);
     } catch (e) {
       console.log('knex not connected');
@@ -125,7 +133,6 @@ export class ConnectionService {
 
       switch (knex.client.config.client) {
         case 'cockroachdb':
-
           if (queryRes && queryRes.rows.length > 0) {
             datas = queryRes.rows;
 
@@ -201,12 +208,12 @@ export class ConnectionService {
         // case 'mssql':
         // case 'oracledb':
         default:
-          console.log(queryRes)
+          console.log(queryRes);
           if (queryRes && queryRes.length > 0) {
             datas = queryRes;
             const tempFields = Object.keys(queryRes[0]);
-            console.log(tempFields)
-            console.log(queryRes)
+            console.log(tempFields);
+            console.log(queryRes);
             tempFields.map(field => {
               const length = [];
               const maxCnt = queryRes.length > 100 ? 100 : queryRes.length;

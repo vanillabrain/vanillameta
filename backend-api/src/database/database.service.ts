@@ -36,11 +36,10 @@ export class DatabaseService {
    * @param createDatabaseDto
    */
   async create(createDatabaseDto: CreateDatabaseDto) {
-
-    if(createDatabaseDto.engine === 'cockroachdb') {
+    if (createDatabaseDto.engine === 'cockroachdb') {
       const connectioninfo = createDatabaseDto.connectionConfig;
-      const cockroach_url = `postgresql://${connectioninfo['user']}:${connectioninfo['password']}@${connectioninfo['host']}:${connectioninfo['port']}/${connectioninfo['database']}?sslmode=verify-full&options=--cluster%3Dvanillameta-cockroach-3010`
-      connectioninfo['connectionString'] = cockroach_url
+      const cockroach_url = `postgresql://${connectioninfo['user']}:${connectioninfo['password']}@${connectioninfo['host']}:${connectioninfo['port']}/${connectioninfo['database']}?sslmode=verify-full&options=--cluster%3Dvanillameta-cockroach-3010`;
+      connectioninfo['connectionString'] = cockroach_url;
     }
     const databaseDto = Database.toDto(createDatabaseDto);
 
@@ -97,6 +96,9 @@ export class DatabaseService {
         break;
       case 'oracledb':
         selectTableQuery = 'SELECT table_name FROM user_tables ORDER BY table_name';
+        break;
+      case 'snowflake':
+        selectTableQuery = `select table_name from information_schema.tables where table_type = 'BASE TABLE'`;
         break;
       default:
         selectTableQuery = 'show tables';
