@@ -34,6 +34,12 @@ export const getDatabaseIcon = type => {
     case 'aurora':
       iconUrl = 'logo/aurora-logo.svg';
       break;
+    case 'cockroachDB':
+      iconUrl = 'logo/cockroachdb-logo.svg';
+      break;
+    case 'postGIS':
+      iconUrl = 'logo/postgis-logo.svg';
+      break;
   }
   return iconUrl;
 };

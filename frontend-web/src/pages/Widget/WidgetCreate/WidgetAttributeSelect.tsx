@@ -44,7 +44,9 @@ const WidgetAttributeSelect = props => {
   const getData = () => {
     const param = isModifyMode
       ? { datasetType: widgetOption.datasetType, datasetId: widgetOption.datasetId }
-      : { datasetType: dataset.datasetType, datasetId: dataset.id };
+      : dataset.datasetType === 'TABLE'
+      ? { databaseId: dataset.databaseId, datasetType: dataset.datasetType, tableName: dataset.tableName }
+      : { databaseId: dataset.databaseId, datasetType: dataset.datasetType, datasetId: dataset.id };
     console.log('getData param', param);
     showLoading();
     DatabaseService.selectData(param)
@@ -96,12 +98,14 @@ const WidgetAttributeSelect = props => {
       <Box
         sx={{
           width: '60%',
-          height: '500px',
+          minHeight: '500px',
+          maxHeight: '100%',
           margin: '54px auto',
           border: '1px solid #e2e2e2',
           borderRadius: '8px',
           boxShadow: '2px 2px 9px 0 rgba(42, 50, 62, 0.1), 0 4px 4px 0 rgba(0, 0, 0, 0.02)',
           backgroundColor: '#fff',
+          overflow: 'hidden',
         }}
       >
         <WidgetViewer

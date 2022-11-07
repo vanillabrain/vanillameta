@@ -216,7 +216,7 @@ export const WidgetList = ({
         >
           취소
         </Button>
-        <span style={{ width: '4px' }}></span>
+        <span style={{ width: '4px' }} />
         <Button
           onClick={() => handleConfirmClick()}
           sx={{
@@ -337,6 +337,7 @@ export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = 
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       width: '224px',
+                      maxWidth: '100%',
                       whiteSpace: 'nowrap',
                     }}
                   >
@@ -390,7 +391,7 @@ export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = 
         >
           뒤로가기
         </Button>
-        <span style={{ width: '4px' }}></span>
+        <span style={{ width: '4px' }} />
         <Button
           onClick={() => handleConfirmClick()}
           sx={{
