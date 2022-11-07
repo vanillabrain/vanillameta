@@ -11,6 +11,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAlert } from 'react-alert';
 import DatabaseForm from '@/pages/Data/DataSource/form/DatabaseForm';
 import SqliteDatabaseForm from '@/pages/Data/DataSource/form/SqliteDatabaseForm';
+import BigQueryDatabaseForm from '@/pages/Data/DataSource/form/BigQueryDatabaseForm';
 
 function DataSource() {
   const { sourceId } = useParams();
@@ -34,6 +35,12 @@ function DataSource() {
     sqlite: {
       name: '',
       filename: '',
+    },
+    bigquery: {
+      name: '',
+      projectId: '',
+      filename: '',
+      database: '',
     },
   });
 
@@ -69,6 +76,14 @@ function DataSource() {
           temp.sqlite = {
             filename: databaseInfo.connectionConfig.filename,
           };
+          if (databaseInfo.type === 'bigquery') {
+            temp.bigquery = {
+              name: databaseInfo.connectionConfig.name,
+              projectId: databaseInfo.connectionConfig.projectId,
+              keyFilename: databaseInfo.connectionConfig.keyFilename,
+              schema: databaseInfo.connectionConfig.schema,
+            };
+          }
         } else {
           temp.default = {
             host: databaseInfo.connectionConfig.host,
@@ -147,6 +162,8 @@ function DataSource() {
     switch (dataType.type) {
       case 'sqlite':
         return 'sqlite';
+      case 'bigquery':
+        return 'bigquery';
       default:
         return 'default';
     }
@@ -187,6 +204,7 @@ function DataSource() {
             } else {
               DatabaseService.createDatabase(param).then(response => {
                 if (response.data.status === STATUS.SUCCESS) {
+                  console.log('데이터 베이스 저장', param);
                   alert.info('데이터베이스가 생성되었습니다.', {
                     onClose: () => {
                       navigate('/data');
@@ -208,6 +226,17 @@ function DataSource() {
 
   const handleCancelClick = () => {
     navigate('/data');
+  };
+
+  const dbType = () => {
+    switch (dataType?.type) {
+      case 'sqlite':
+        return <SqliteDatabaseForm testConnect={testConnect} formData={formData} setFormData={setFormData} />;
+      case 'bigquery':
+        return <BigQueryDatabaseForm testConnect={testConnect} formData={formData} setFormData={setFormData} />;
+      default:
+        return <DatabaseForm testConnect={testConnect} formData={formData} setFormData={setFormData} />;
+    }
   };
 
   return (
@@ -248,12 +277,7 @@ function DataSource() {
             >
               step.02 연결 정보 입력
             </Typography>
-            {/*{<DatabaseForm testConnect={testConnect} formData={formData} setFormData={setFormData} />}*/}
-            {dataType?.type === 'sqlite' ? (
-              <SqliteDatabaseForm testConnect={testConnect} formData={formData} setFormData={setFormData} />
-            ) : (
-              <DatabaseForm testConnect={testConnect} formData={formData} setFormData={setFormData} />
-            )}
+            {dbType()}
           </Stack>
         </Stack>
       </PageTitleBox>
