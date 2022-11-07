@@ -268,7 +268,7 @@ function DashboardModify() {
               copy: '수정',
               onClick: () => {
                 DashboardService.updateDashboard(dashboardId, dashboardInfo).then(() => {
-                  navigate('/dashboard');
+                  navigate('/dashboard/' + dashboardId, { replace: true });
                 });
               },
             },
