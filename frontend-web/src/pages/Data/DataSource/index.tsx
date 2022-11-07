@@ -146,11 +146,14 @@ function DataSource() {
           return 'mysql2';
         case 'postgres':
         case 'redshift':
+        case 'postGIS':
           return 'pg';
         case 'oracle':
           return 'oracledb';
         case 'sqlite':
           return 'sqlite3';
+        case 'cockroachDB':
+          return 'cockroachdb';
         default:
           return dataType.type;
       }
