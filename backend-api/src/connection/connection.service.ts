@@ -64,20 +64,22 @@ export class ConnectionService {
    * @param createDatabaseDto
    */
   async testConnection(createDatabaseDto: CreateDatabaseDto) {
-    const connectioninfo = createDatabaseDto.connectionConfig;
-    const url = `postgresql://${connectioninfo['user']}:${connectioninfo['password']}@${connectioninfo['host']}:${connectioninfo['port']}/${connectioninfo['database']}?sslmode=verify-full&options=--cluster%3Dvanillameta-cockroach-3010`
+
 
     const engine =
       createDatabaseDto.engine === 'bigquery' ? BigQueryClient : createDatabaseDto.engine;
 
-    createDatabaseDto.engine === 'cockroachdb' ? connectioninfo['connectionString'] = url : createDatabaseDto
+    if(createDatabaseDto.engine === 'cockroachdb') {
+      const connectioninfo = createDatabaseDto.connectionConfig;
+      const cockroach_url = `postgresql://${connectioninfo['user']}:${connectioninfo['password']}@${connectioninfo['host']}:${connectioninfo['port']}/${connectioninfo['database']}?sslmode=verify-full&options=--cluster%3Dvanillameta-cockroach-3010`
+      connectioninfo['connectionString'] = cockroach_url
+    }
 
     const connectionConfig = {
       client: engine,
       connection: createDatabaseDto.connectionConfig,
       useNullAsDefault: true,
     };
-    console.log(connectionConfig)
 
     // createDatabaseDto.connectionConfig = JSON.stringify(connectionConfig);
     // console.log(createDatabaseDto)
