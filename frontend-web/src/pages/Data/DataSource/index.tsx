@@ -103,7 +103,7 @@ function DataSource() {
       name: item.name,
       description: item.name,
       connectionConfig: item,
-      engine: getEngine(),
+      engine: dataType.engine,
     };
     DatabaseService.testConnection(param).then(response => {
       console.log(response);
@@ -137,30 +137,6 @@ function DataSource() {
     }
   };
 
-  const getEngine = () => {
-    if (dataType?.type) {
-      switch (dataType.type) {
-        case 'mysql':
-        case 'maria':
-        case 'aurora':
-          return 'mysql2';
-        case 'postgres':
-        case 'redshift':
-        case 'postGIS':
-          return 'pg';
-        case 'oracle':
-          return 'oracledb';
-        case 'sqlite':
-          return 'sqlite3';
-        case 'cockroachDB':
-          return 'cockroachdb';
-        default:
-          return dataType.type;
-      }
-    }
-  };
-  console.log(getEngine());
-
   const getFormComponentType = () => {
     switch (dataType.type) {
       case 'sqlite':
@@ -177,7 +153,7 @@ function DataSource() {
       name: formData.name,
       description: formData.name,
       type: dataType.type,
-      engine: getEngine(),
+      engine: dataType.engine,
       connectionConfig: formData[getFormComponentType()],
     };
 
