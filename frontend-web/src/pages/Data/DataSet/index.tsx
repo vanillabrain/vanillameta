@@ -206,6 +206,8 @@ const DataSet = () => {
                       navigate('/data');
                     },
                   });
+                } else {
+                  alert.info('데이터셋 수정에 실패했습니다.');
                 }
               });
             } else {
@@ -217,6 +219,8 @@ const DataSet = () => {
                       navigate('/data');
                     },
                   });
+                } else {
+                  alert.info('데이터셋 생성에 실패했습니다.');
                 }
               });
             }

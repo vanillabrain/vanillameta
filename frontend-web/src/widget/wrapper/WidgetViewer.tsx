@@ -279,7 +279,7 @@ const WidgetViewer = props => {
         module = (
           <React.Fragment>
             <NumericBoard {...chartProps} />
-            <LineChart {...chartProps} seriesOp={{ areaStyle: {} }} />;
+            <LineChart {...chartProps} seriesOp={{ areaStyle: {} }} />
           </React.Fragment>
         );
         break;
