@@ -4,6 +4,7 @@ config.serverless.yml
 .env.prod
 .ormconfig.json
 vanillameta
+bigquery-key.json
 .
 # compiled output
 /dist
