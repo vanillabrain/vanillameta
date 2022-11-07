@@ -76,14 +76,14 @@ function DataSource() {
           temp.sqlite = {
             filename: databaseInfo.connectionConfig.filename,
           };
-          if (databaseInfo.type === 'bigquery') {
-            temp.bigquery = {
-              name: databaseInfo.connectionConfig.name,
-              projectId: databaseInfo.connectionConfig.projectId,
-              keyFilename: databaseInfo.connectionConfig.keyFilename,
-              schema: databaseInfo.connectionConfig.schema,
-            };
-          }
+        }
+        if (databaseInfo.type === 'bigquery') {
+          temp.bigquery = {
+            name: databaseInfo.connectionConfig.name,
+            projectId: databaseInfo.connectionConfig.projectId,
+            keyFilename: databaseInfo.connectionConfig.keyFilename,
+            schema: databaseInfo.connectionConfig.schema,
+          };
         } else {
           temp.default = {
             host: databaseInfo.connectionConfig.host,
