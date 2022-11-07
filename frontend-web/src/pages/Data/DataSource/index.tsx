@@ -178,6 +178,8 @@ function DataSource() {
                       navigate('/data');
                     },
                   });
+                } else {
+                  alert.info('데이터베이스 저장에 실패했습니다.');
                 }
               });
             } else {
@@ -189,6 +191,8 @@ function DataSource() {
                       navigate('/data');
                     },
                   });
+                } else {
+                  alert.info('데이터베이스 저장에 실패했습니다.');
                 }
               });
             }

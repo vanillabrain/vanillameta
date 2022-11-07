@@ -279,7 +279,7 @@ const WidgetViewer = props => {
         module = (
           <React.Fragment>
             <NumericBoard {...chartProps} />
-            <LineChart {...chartProps} seriesOp={{ areaStyle: {} }} />;
+            <LineChart {...chartProps} seriesOp={{ areaStyle: {} }} />
           </React.Fragment>
         );
         break;
@@ -365,6 +365,8 @@ const WidgetViewer = props => {
                 top: '50%',
                 left: 0,
                 right: 0,
+                maxWidth: 'fit-content',
+                height: 0,
                 margin: 'auto',
                 transform: 'translateY(-50%)',
               }}
@@ -384,6 +386,8 @@ const WidgetViewer = props => {
                 top: '50%',
                 left: 0,
                 right: 0,
+                maxWidth: 'fit-content',
+                height: 0,
                 margin: 'auto',
                 transform: 'translateY(-50%)',
               }}
