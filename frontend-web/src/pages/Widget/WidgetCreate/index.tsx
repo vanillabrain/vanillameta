@@ -68,6 +68,7 @@ const WidgetCreate = () => {
       tableName: dataset.tableName,
       option: option,
     };
+    console.log('위젯 생성', param);
     showLoading();
     widgetService
       .createWidget(param)
