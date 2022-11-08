@@ -26,7 +26,7 @@ const DataSet = () => {
   const [isModifyMode, setIsModifyMode] = useState(false);
   const [testCompleted, setTestCompleted] = useState(false);
   const [datasetInfo, setDatasetInfo] = useState({ databaseId: sourceId, title: '', query: '' });
-  // 'select A.*, C.bizId from UserInfo A, BizUserMap B, BizInfo C where A.userId = B.userId and B.bizId = C.bizId',
+
   const [data, setData] = useState([]);
   const [columns, setColumns] = useState([]);
   const [databaseId, setDatabaseId] = useState(null);
@@ -104,7 +104,7 @@ const DataSet = () => {
   };
 
   const onChangeDatabaseId = event => {
-    console.log('onChaonChangeDatabaseIdngeTitle', event.target.value);
+    console.log('changeDatabaseId', event.target.value);
     setDatabaseId(event.target.value);
     setDatasetInfo(prevState => ({ ...prevState, databaseId: event.target.value }));
   };
@@ -119,8 +119,7 @@ const DataSet = () => {
         const list = response.data.data;
         list.map(item => (item.icon = getDatabaseIcon(item.engine)));
         setDatabaseList(list);
-        if (!isModifyMode && databaseList.length > 0) {
-          // setDatabaseId(list[0].id);
+        if (!isModifyMode && list.length > 0) {
           setDatabaseId(sourceId);
         }
       }
@@ -273,7 +272,8 @@ const DataSet = () => {
           displayEmpty
           disabled={isModifyMode}
           size="small"
-          value={databaseList.length ? databaseId : ''}
+          // value={databaseList.length ? databaseId : ''}
+          value={databaseId ?? ''}
           onChange={onChangeDatabaseId}
         >
           {databaseList.map(item => (
