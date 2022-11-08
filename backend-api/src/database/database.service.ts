@@ -36,11 +36,6 @@ export class DatabaseService {
    * @param createDatabaseDto
    */
   async create(createDatabaseDto: CreateDatabaseDto) {
-    if (createDatabaseDto.engine === 'cockroachdb') {
-      const connectioninfo = createDatabaseDto.connectionConfig;
-      const cockroach_url = `postgresql://${connectioninfo['user']}:${connectioninfo['password']}@${connectioninfo['host']}:${connectioninfo['port']}/${connectioninfo['database']}?sslmode=verify-full&options=--cluster%3Dvanillameta-cockroach-3010`;
-      connectioninfo['connectionString'] = cockroach_url;
-    }
     const databaseDto = Database.toDto(createDatabaseDto);
 
     const connectionConfig = {
@@ -48,6 +43,13 @@ export class DatabaseService {
       connection: databaseDto.connectionConfig,
       useNullAsDefault: true,
     };
+    if(connectionConfig.client === 'cockroachdb') {
+      const connectioninfo = connectionConfig.connection;
+      const cockroach_url = `postgresql://${connectioninfo['user']}:${connectioninfo['password']}@${connectioninfo['host']}:${connectioninfo['port']}/${connectioninfo['database']}?sslmode=verify-full&options=--cluster%3Dvanillameta-cockroach-3010`
+      connectioninfo['connectionString'] = cockroach_url
+    }
+    console.log(connectionConfig)
+
     databaseDto.connectionConfig = JSON.stringify(connectionConfig);
     databaseDto.timezone = 'Asia/Seoul';
 
@@ -100,6 +102,9 @@ export class DatabaseService {
       case 'snowflake':
         selectTableQuery = `select table_name from information_schema.tables where table_type = 'BASE TABLE'`;
         break;
+      case 'cockroachdb':
+        selectTableQuery = `SELECT TABLE_NAME FROM information_schema.tables WHERE table_type = 'BASE TABLE'`
+        break;
       default:
         selectTableQuery = 'show tables';
         break;
@@ -149,6 +154,12 @@ export class DatabaseService {
         status: ResponseStatus.ERROR,
         message: `조건에 맞는 데이터베이스를 찾지 못했습니다. id:${id}`,
       };
+
+    if(updateDatabaseDto.engine === 'cockroachdb') {
+      const connectioninfo = updateDatabaseDto.connectionConfig;
+      const cockroach_url = `postgresql://${connectioninfo['user']}:${connectioninfo['password']}@${connectioninfo['host']}:${connectioninfo['port']}/${connectioninfo['database']}?sslmode=verify-full&options=--cluster%3Dvanillameta-cockroach-3010`
+      connectioninfo['connectionString'] = cockroach_url
+    }
 
     const connectionConfig = {
       client: one.engine,
