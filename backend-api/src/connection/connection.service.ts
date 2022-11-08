@@ -127,10 +127,8 @@ export class ConnectionService {
     let datas = [];
     const fields = [];
     const resultObj = { status: null, message: null, datas: [], fields: [] };
-
     try {
       const queryRes = await knex.raw(queryExecuteDto.query);
-
       switch (knex.client.config.client) {
         case 'cockroachdb':
           if (queryRes && queryRes.rows.length > 0) {
@@ -207,10 +205,12 @@ export class ConnectionService {
         // case 'bigquery':
         // case 'mssql':
         // case 'oracledb':
+
         default:
           if (queryRes && queryRes.length > 0) {
             datas = queryRes;
             const tempFields = Object.keys(queryRes[0]);
+
             tempFields.map(field => {
               const length = [];
               const maxCnt = queryRes.length > 100 ? 100 : queryRes.length;
@@ -223,8 +223,22 @@ export class ConnectionService {
               };
               fields.push(fieldInfo);
             });
+          } else {                              // 사실상 snowflake code
+            datas = queryRes.rows;
+            const tempFields = Object.keys(queryRes.rows[0]);
+            tempFields.map(field => {
+              const length = [];
+              const maxCnt = queryRes.rows.length > 100 ? 100 : queryRes.rows.length;
+              for (let i = 0; i < maxCnt; i++) {
+                length.push(queryRes.rows[i][field]);
+              }
+              const fieldInfo = {
+                columnName: field,
+                columnType: FieldTypeUtil.FieldType(length),
+              };
+              fields.push(fieldInfo);
+            });
           }
-
           break;
       }
 
