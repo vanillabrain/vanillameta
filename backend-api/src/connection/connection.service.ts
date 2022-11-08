@@ -129,117 +129,107 @@ export class ConnectionService {
     const resultObj = { status: null, message: null, datas: [], fields: [] };
     try {
       const queryRes = await knex.raw(queryExecuteDto.query);
-      switch (knex.client.config.client) {
-        case 'cockroachdb':
-          if (queryRes && queryRes.rows.length > 0) {
-            datas = queryRes.rows;
 
-            const tempFields = queryRes.fields;
-            tempFields.map(field => {
-              const length = [];
-              const maxCnt = queryRes.rows.length > 100 ? 100 : queryRes.rows.length;
-              for (let i = 0; i < maxCnt; i++) {
-                length.push(queryRes.rows[i][field.name]);
-              }
-              const fieldInfo = {
-                columnName: field.name,
-                columnType: FieldTypeUtil.FieldType(length),
-              };
-              fields.push(fieldInfo);
-            });
-          }
-          break;
-        case 'mysql2':
-          if (queryRes && queryRes[0].length > 0) {
-            datas = queryRes[0];
-            const tempFields = queryRes[1];
-            tempFields.map(field => {
-              const fieldInfo = {
-                columnName: field.name,
-                columnType: FieldTypeUtil.mysqlFieldType(field.columnType),
-              };
-              fields.push(fieldInfo);
-            });
-          }
-          break;
+      // bigquery, snowflake
+      if (typeof knex.client.config.client === 'function') {
+        switch (knex.client.config.client.name) {
+          case 'SnowflakeDialect':
+            if (queryRes && queryRes.rows && queryRes.rows.length > 0) {
+              datas = queryRes.rows;
+              const tempFields = Object.keys(queryRes.rows[0]);
+              tempFields.map(field => {
+                const length = [];
+                const maxCnt = queryRes.rows.length > 100 ? 100 : queryRes.rows.length;
+                for (let i = 0; i < maxCnt; i++) {
+                  length.push(queryRes.rows[i][field]);
+                }
+                const fieldInfo = {
+                  columnName: field,
+                  columnType: FieldTypeUtil.FieldType(length),
+                };
+                fields.push(fieldInfo);
+              });
+            }
+            break;
+          case 'BigQueryClient':
+            if (queryRes && queryRes.length > 0) {
+              datas = queryRes;
+              const tempFields = Object.keys(queryRes[0]);
 
-        case 'pg':
-          if (queryRes && queryRes.rows.length > 0) {
-            datas = queryRes.rows;
-            const tempFields = queryRes.fields;
-            tempFields.map(field => {
-              const length = [];
-              const maxCnt = queryRes.rows.length > 100 ? 100 : queryRes.rows.length;
-              for (let i = 0; i < maxCnt; i++) {
-                length.push(queryRes.rows[i][field.name]);
-              }
-              const fieldInfo = {
-                columnName: field.name,
-                columnType: FieldTypeUtil.FieldType(length),
-              };
-              fields.push(fieldInfo);
-            });
-          }
-          break;
+              tempFields.map(field => {
+                const length = [];
+                const maxCnt = queryRes.length > 100 ? 100 : queryRes.length;
+                for (let i = 0; i < maxCnt; i++) {
+                  length.push(queryRes[i][field]);
+                }
+                const fieldInfo = {
+                  columnName: field,
+                  columnType: FieldTypeUtil.FieldType(length),
+                };
+                fields.push(fieldInfo);
+              });
+            }
+            break;
+        }
+      } else {
+        switch (knex.client.config.client) {
+          case 'mysql2':
+            if (queryRes && queryRes[0].length > 0) {
+              datas = queryRes[0];
+              const tempFields = queryRes[1];
+              tempFields.map(field => {
+                const fieldInfo = {
+                  columnName: field.name,
+                  columnType: FieldTypeUtil.mysqlFieldType(field.columnType),
+                };
+                fields.push(fieldInfo);
+              });
+            }
+            break;
 
-        case 'Db2Dialect':
-          if (queryRes && queryRes.length > 0) {
-            datas = queryRes;
+          case 'cockroachdb':
+          case 'pg':
+            if (queryRes && queryRes.rows && queryRes.rows.length > 0) {
+              datas = queryRes.rows;
+              const tempFields = queryRes.fields;
+              tempFields.map(field => {
+                const length = [];
+                const maxCnt = queryRes.rows.length > 100 ? 100 : queryRes.rows.length;
+                for (let i = 0; i < maxCnt; i++) {
+                  length.push(queryRes.rows[i][field.name]);
+                }
+                const fieldInfo = {
+                  columnName: field.name,
+                  columnType: FieldTypeUtil.FieldType(length),
+                };
+                fields.push(fieldInfo);
+              });
+            }
+            break;
 
-            // for (let i = 0; i < Object.keys(queryRes[0]).length; i++) {
-            //   console.log(Object.keys[i]);
-            // }
-            const tempFields = queryRes;
-            tempFields.map(field => {
-              const fieldInfo = {
-                columnName: field.name,
-                columnLength: field.length,
-                columnType: FieldTypeUtil.mysqlFieldType(field.type),
-              };
-              fields.push(fieldInfo);
-            });
-          }
-          break;
+          // case 'sqlite3':
+          // case 'mssql':
+          // case 'oracledb':
+          default:
+            if (queryRes && queryRes.length > 0) {
+              datas = queryRes;
+              const tempFields = Object.keys(queryRes[0]);
 
-        // case 'sqlite3':
-        // case 'bigquery':
-        // case 'mssql':
-        // case 'oracledb':
-
-        default:
-          if (queryRes && queryRes.length > 0) {
-            datas = queryRes;
-            const tempFields = Object.keys(queryRes[0]);
-
-            tempFields.map(field => {
-              const length = [];
-              const maxCnt = queryRes.length > 100 ? 100 : queryRes.length;
-              for (let i = 0; i < maxCnt; i++) {
-                length.push(queryRes[i][field]);
-              }
-              const fieldInfo = {
-                columnName: field,
-                columnType: FieldTypeUtil.FieldType(length),
-              };
-              fields.push(fieldInfo);
-            });
-          } else {                              // 사실상 snowflake code
-            datas = queryRes.rows;
-            const tempFields = Object.keys(queryRes.rows[0]);
-            tempFields.map(field => {
-              const length = [];
-              const maxCnt = queryRes.rows.length > 100 ? 100 : queryRes.rows.length;
-              for (let i = 0; i < maxCnt; i++) {
-                length.push(queryRes.rows[i][field]);
-              }
-              const fieldInfo = {
-                columnName: field,
-                columnType: FieldTypeUtil.FieldType(length),
-              };
-              fields.push(fieldInfo);
-            });
-          }
-          break;
+              tempFields.map(field => {
+                const length = [];
+                const maxCnt = queryRes.length > 100 ? 100 : queryRes.length;
+                for (let i = 0; i < maxCnt; i++) {
+                  length.push(queryRes[i][field]);
+                }
+                const fieldInfo = {
+                  columnName: field,
+                  columnType: FieldTypeUtil.FieldType(length),
+                };
+                fields.push(fieldInfo);
+              });
+            }
+            break;
+        }
       }
 
       resultObj.status = ResponseStatus.SUCCESS;
