@@ -208,12 +208,9 @@ export class ConnectionService {
         // case 'mssql':
         // case 'oracledb':
         default:
-          console.log(queryRes);
           if (queryRes && queryRes.length > 0) {
             datas = queryRes;
             const tempFields = Object.keys(queryRes[0]);
-            console.log(tempFields);
-            console.log(queryRes);
             tempFields.map(field => {
               const length = [];
               const maxCnt = queryRes.length > 100 ? 100 : queryRes.length;
