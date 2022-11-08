@@ -16,6 +16,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { STATUS } from '@/constant';
 import { getDatabaseIcon } from '@/widget/utils/iconUtil';
 import { LoadingContext } from '@/contexts/LoadingContext';
+import { SnackbarContext } from '@/contexts/AlertContext';
 
 const DataSet = () => {
   const { setId, sourceId } = useParams();
@@ -26,13 +27,15 @@ const DataSet = () => {
   const [isModifyMode, setIsModifyMode] = useState(false);
   const [testCompleted, setTestCompleted] = useState(false);
   const [datasetInfo, setDatasetInfo] = useState({ databaseId: sourceId, title: '', query: '' });
-  // 'select A.*, C.bizId from UserInfo A, BizUserMap B, BizInfo C where A.userId = B.userId and B.bizId = C.bizId',
+
   const [data, setData] = useState([]);
   const [columns, setColumns] = useState([]);
   const [databaseId, setDatabaseId] = useState(null);
   const [databaseList, setDatabaseList] = useState([]);
   const [tableList, setTableList] = useState([]);
+
   const alert = useAlert();
+  const snackbar = useAlert(SnackbarContext);
 
   useLayoutEffect(() => {
     console.log('modify', pathname.indexOf('modify'));
@@ -53,6 +56,10 @@ const DataSet = () => {
   useEffect(() => {
     addCompleter();
   }, [tableList]);
+
+  useEffect(() => {
+    getDatabaseId();
+  }, [databaseList, datasetInfo]);
 
   /**
    * 데이터 그리드 컬럼 생성
@@ -104,7 +111,7 @@ const DataSet = () => {
   };
 
   const onChangeDatabaseId = event => {
-    console.log('onChaonChangeDatabaseIdngeTitle', event.target.value);
+    console.log('changeDatabaseId', event.target.value);
     setDatabaseId(event.target.value);
     setDatasetInfo(prevState => ({ ...prevState, databaseId: event.target.value }));
   };
@@ -119,12 +126,18 @@ const DataSet = () => {
         const list = response.data.data;
         list.map(item => (item.icon = getDatabaseIcon(item.engine)));
         setDatabaseList(list);
-        if (!isModifyMode && databaseList.length > 0) {
-          // setDatabaseId(list[0].id);
-          setDatabaseId(sourceId);
-        }
       }
     });
+  };
+
+  const getDatabaseId = () => {
+    if (databaseList.length > 0) {
+      if (!isModifyMode) {
+        setDatabaseId(sourceId);
+      } else {
+        setDatabaseId(datasetInfo?.databaseId);
+      }
+    }
   };
 
   const getDatabaseInfo = () => {
@@ -150,7 +163,6 @@ const DataSet = () => {
       console.log('selectDataset', response.data.data.id, response.data.data.databaseId);
       if (response.data.status === 'SUCCESS') {
         setDatasetInfo(response.data.data);
-        setDatabaseId(response.data.data.databaseId);
       }
     });
   };
@@ -161,7 +173,7 @@ const DataSet = () => {
   const excuteQuery = () => {
     showLoading();
     if (datasetInfo.query.trim().length < 1) {
-      alert.info('쿼리를 입력해주세요.');
+      snackbar.info('쿼리를 입력해주세요.');
     }
     const param = {
       id: databaseId,
@@ -172,11 +184,15 @@ const DataSet = () => {
       .then(response => {
         console.log(response.data);
         if (response.data.status === 'SUCCESS') {
-          setData(response.data.datas);
           setTestCompleted(true);
+          setData(response.data.datas);
           setColumns(createColumns(response.data.datas));
+          snackbar.success('Success!');
         } else {
           setTestCompleted(false);
+          setData([]);
+          setColumns([]);
+          snackbar.error('Error!');
         }
       })
       .catch(() => {
@@ -201,26 +217,20 @@ const DataSet = () => {
               DatasetService.updateDataset(setId, datasetInfo).then(response => {
                 console.log(response.data);
                 if (response.data.status === STATUS.SUCCESS) {
-                  alert.info('데이터셋이 수정되었습니다.', {
-                    onClose: () => {
-                      navigate('/data');
-                    },
-                  });
+                  navigate('/data');
+                  snackbar.success('데이터셋이 수정되었습니다.');
                 } else {
-                  alert.info('데이터셋 수정에 실패했습니다.');
+                  alert.error('데이터셋 수정에 실패했습니다.');
                 }
               });
             } else {
               DatasetService.createDataset(datasetInfo).then(response => {
                 console.log(response.data);
                 if (response.data.status === STATUS.SUCCESS) {
-                  alert.info('데이터셋이 생성되었습니다.', {
-                    onClose: () => {
-                      navigate('/data');
-                    },
-                  });
+                  navigate('/data');
+                  snackbar.success('데이터셋이 생성되었습니다.');
                 } else {
-                  alert.info('데이터셋 생성에 실패했습니다.');
+                  alert.error('데이터셋 생성에 실패했습니다.');
                 }
               });
             }
@@ -273,7 +283,7 @@ const DataSet = () => {
           displayEmpty
           disabled={isModifyMode}
           size="small"
-          value={databaseList.length ? databaseId : ''}
+          value={databaseId ?? ''}
           onChange={onChangeDatabaseId}
         >
           {databaseList.map(item => (
@@ -290,7 +300,6 @@ const DataSet = () => {
           value={datasetInfo?.title}
           onChange={onChangeTitle}
           required
-          // helperText="데이터셋의 이름을 입력해 주세요"
         />
         <AceEditor
           placeholder="Please enter a query."
@@ -320,17 +329,21 @@ const DataSet = () => {
           onClick={excuteQuery}
         />
       </Stack>
-      <Stack sx={{ p: '30px 25px 40px 25px', backgroundColor: '#f5f6f8' }}>
-        <DataGrid
-          minBodyHeight={300}
-          bodyHeight={500}
-          data={data}
-          columns={columns}
-          columnOptions={{
-            resizable: true,
-          }}
-        />
-      </Stack>
+      {data.length ? (
+        <Stack sx={{ p: '30px 25px 40px 25px', backgroundColor: '#f5f6f8' }}>
+          <DataGrid
+            minBodyHeight={300}
+            bodyHeight={500}
+            data={data}
+            columns={columns}
+            columnOptions={{
+              resizable: true,
+            }}
+          />
+        </Stack>
+      ) : (
+        ''
+      )}
     </PageTitleBox>
   );
 };

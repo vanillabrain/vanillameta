@@ -5,7 +5,7 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
 import Button from '@mui/material/Button';
-import { Divider } from '@mui/material';
+import { Alert, Divider, Snackbar } from '@mui/material';
 
 interface IProps {
   message: string | JSX.Element;
@@ -22,11 +22,23 @@ interface IProps {
 
 const buttonStyle = { minWidth: 80, height: 36, padding: '0 10px', fontSize: '13px', fontWeight: 'bold' };
 
-const AlertDialog = ({ close, message, options }: IProps) => {
+export const SnackbarTemplate = props => {
+  const { close, message, options } = props;
+  console.log(props);
+  return (
+    <Snackbar open autoHideDuration={6000} onClose={close}>
+      <Alert onClose={close} severity={options.type} sx={{ width: '100%' }}>
+        {message}
+      </Alert>
+    </Snackbar>
+  );
+};
+
+const AlertTemplate = ({ close, message, options }: IProps) => {
   const hasTitle = options.title && options.title.toString().trim() !== '';
   return (
     <Dialog
-      open
+      open={true}
       onClose={close}
       keepMounted
       aria-labelledby="alert-dialog-slide-title"
@@ -85,4 +97,4 @@ const AlertDialog = ({ close, message, options }: IProps) => {
   );
 };
 
-export default AlertDialog;
+export default AlertTemplate;

@@ -140,7 +140,7 @@ export const WidgetList = ({
         handleWidgetConfirm(widgets);
       }
     } else {
-      alert.info('위젯을 선택하세요.');
+      alert.info('위젯을 선택해주세요.');
     }
   };
 
@@ -275,7 +275,7 @@ export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = 
         handleWidgetConfirm(selectedItem);
       }
     } else {
-      alert.info('템플릿을 선택하세요.');
+      alert.info('템플릿을 선택해주세요.');
     }
   };
 
