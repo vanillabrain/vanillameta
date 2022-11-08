@@ -3,7 +3,7 @@ services:
   main:
     build:
       context: ./
-      dockerfile: ./Dockerfile
+      dockerfile: ./Dockerfile.dev
     ports:
       - "4000:4000"
     networks:
