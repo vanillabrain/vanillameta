@@ -16,6 +16,9 @@ const MixedDonutPieChartSetting = props => {
   console.log(option);
 
   const getColor = () => {
+    if (option.color.length) {
+      return;
+    }
     let aggrData = [];
     if (option.series.field && option.pie.field) {
       const seriesAggrData = getAggregationDataForChart(

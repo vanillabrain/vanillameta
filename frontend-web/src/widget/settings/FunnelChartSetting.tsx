@@ -16,19 +16,17 @@ const FunnelChartSetting = props => {
   const [isOneColor, setIsOneColor] = useState(false);
 
   const setColor = () => {
+    if (option.series.color.length) {
+      return;
+    }
     let pieAggrData = [];
-    if (option['series'].field) {
-      pieAggrData = getAggregationDataForChart(
-        dataSet,
-        option['series'].name,
-        option['series'].field,
-        option['series'].aggregation,
-      );
+    if (option.series.field) {
+      pieAggrData = getAggregationDataForChart(dataSet, option.series.name, option.series.field, option.series.aggregation);
     }
     const colorArr = getColorArr(pieAggrData.length);
     console.log(colorArr);
     setOption(prevState => {
-      prevState['series'].color = colorArr;
+      prevState.series.color = colorArr;
       return { ...prevState };
     });
   };
@@ -36,7 +34,7 @@ const FunnelChartSetting = props => {
     if (!isOneColor) {
       setColor();
     }
-  }, [option['series'].field, option['series'].name]);
+  }, [option.series.field, option.series.name]);
 
   const handleSeriesChange = event => {
     setOption(prevState => ({

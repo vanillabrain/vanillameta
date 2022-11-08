@@ -6,7 +6,7 @@ const inputStyle = {
   width: '800px',
 };
 
-const DatabaseForm = props => {
+const OracleDatabaseForm = props => {
   const { testConnect, formData, setFormData } = props;
   const handleSubmit = data => {
     data.preventDefault();
@@ -17,6 +17,9 @@ const DatabaseForm = props => {
       user: data.target.user.value,
       password: data.target.password.value,
       database: data.target.database.value,
+      instanceName: data.target.instanceName.value,
+      fetchAsString: data.target.fetchAsString.value,
+      requestTimeout: data.target.requestTimeout.value,
     };
     testConnect(item);
   };
@@ -26,7 +29,7 @@ const DatabaseForm = props => {
   };
 
   const handleChange = event => {
-    setFormData(prevState => ({ ...prevState, default: { ...prevState.default, [event.target.name]: event.target.value } }));
+    setFormData(prevState => ({ ...prevState, oracle: { ...prevState.oracle, [event.target.name]: event.target.value } }));
   };
 
   return (
@@ -44,7 +47,7 @@ const DatabaseForm = props => {
         <TextField
           label="Host"
           name="host"
-          value={formData?.default?.host || ''}
+          value={formData?.oracle?.host || ''}
           required
           fullWidth
           sx={inputStyle}
@@ -54,7 +57,7 @@ const DatabaseForm = props => {
           label="Port"
           name="port"
           type="number"
-          value={formData?.default?.port || ''}
+          value={formData?.oracle?.port || ''}
           required
           fullWidth
           sx={inputStyle}
@@ -63,7 +66,7 @@ const DatabaseForm = props => {
         <TextField
           label="User"
           name="user"
-          value={formData?.default?.user || ''}
+          value={formData?.oracle?.user || ''}
           required
           fullWidth
           sx={inputStyle}
@@ -72,16 +75,43 @@ const DatabaseForm = props => {
         <TextField
           label="Password"
           name="password"
-          value={formData?.default?.password || ''}
+          value={formData?.oracle?.password || ''}
           required
           fullWidth
           sx={inputStyle}
           onChange={handleChange}
         />
         <TextField
-          label="Schema"
+          label="Database"
           name="database"
-          value={formData?.default?.database || ''}
+          value={formData?.oracle?.database || ''}
+          required
+          fullWidth
+          sx={inputStyle}
+          onChange={handleChange}
+        />
+        <TextField
+          label="InstanceName"
+          name="instanceName"
+          value={formData?.oracle?.instanceName || ''}
+          required
+          fullWidth
+          sx={inputStyle}
+          onChange={handleChange}
+        />
+        <TextField
+          label="FetchAsString"
+          name="fetchAsString"
+          value={formData?.oracle?.fetchAsString || ''}
+          required
+          fullWidth
+          sx={inputStyle}
+          onChange={handleChange}
+        />
+        <TextField
+          label="RequestTimeout"
+          name="requestTimeout"
+          value={formData?.oracle?.requestTimeout || ''}
           required
           fullWidth
           sx={inputStyle}
@@ -93,4 +123,4 @@ const DatabaseForm = props => {
   );
 };
 
-export default DatabaseForm;
+export default OracleDatabaseForm;
