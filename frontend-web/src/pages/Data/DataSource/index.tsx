@@ -15,6 +15,7 @@ import BigQueryDatabaseForm from '@/pages/Data/DataSource/form/BigQueryDatabaseF
 import { SnackbarContext } from '@/contexts/AlertContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import SnowflakeDatabaseForm from '@/pages/Data/DataSource/form/SnowflakeDatabaseForm';
+import OracleDatabaseForm from '@/pages/Data/DataSource/form/OracleDatabaseForm';
 
 function DataSource() {
   const { sourceId } = useParams();
@@ -30,8 +31,8 @@ function DataSource() {
   const [typeList, setTypeList] = useState([]);
   const [formData, setFormData] = useState<any>({
     type: '',
+    name: '',
     default: {
-      name: '',
       host: '',
       port: null,
       user: '',
@@ -39,17 +40,28 @@ function DataSource() {
       database: '',
     },
     sqlite: {
-      name: '',
+      // name: '',
       filename: '',
     },
     bigquery: {
-      name: '',
+      // name: '',
       projectId: '',
       filename: '',
       database: '',
     },
+    oracle: {
+      // name: '',
+      host: '',
+      port: null,
+      user: '',
+      password: '',
+      database: '',
+      instanceName: '',
+      fetchAsString: '',
+      requestTimeout: '',
+    },
     snowflake: {
-      name: '',
+      // name: '',
       account: '',
       username: '',
       password: '',
@@ -97,6 +109,17 @@ function DataSource() {
             projectId: databaseInfo.connectionConfig.projectId,
             keyFilename: databaseInfo.connectionConfig.keyFilename,
             schema: databaseInfo.connectionConfig.schema,
+          };
+        } else if (databaseInfo.type === 'oracle') {
+          temp.oracle = {
+            host: databaseInfo.connectionConfig.host,
+            port: Number(databaseInfo.connectionConfig.port),
+            user: databaseInfo.connectionConfig.user,
+            password: databaseInfo.connectionConfig.password,
+            database: databaseInfo.connectionConfig.database,
+            instanceName: databaseInfo.connectionConfig.instanceName,
+            fetchAsString: databaseInfo.connectionConfig.fetchAsString,
+            requestTimeout: databaseInfo.connectionConfig.requestTimeout,
           };
         } else if (databaseInfo.type === 'snowflake') {
           temp.snowflake = {
@@ -152,9 +175,9 @@ function DataSource() {
         const list = response.data.data;
         list.map(item => (item.icon = getDatabaseIcon(item.type)));
         setTypeList(list);
-        if (list.length > 0) {
-          setDataType(list[0]);
-        }
+        // if (list.length > 0) {
+        //   setDataType(list[0]);
+        // }
       }
     });
   };
@@ -172,6 +195,8 @@ function DataSource() {
         return 'sqlite';
       case 'bigquery':
         return 'bigquery';
+      case 'oracle':
+        return 'oracle';
       case 'snowflake':
         return 'snowflake';
       default:
@@ -242,8 +267,12 @@ function DataSource() {
         return <SqliteDatabaseForm testConnect={testConnect} formData={formData} setFormData={setFormData} />;
       case 'bigquery':
         return <BigQueryDatabaseForm testConnect={testConnect} formData={formData} setFormData={setFormData} />;
+      case 'oracle':
+        return <OracleDatabaseForm testConnect={testConnect} formData={formData} setFormData={setFormData} />;
       case 'snowflake':
         return <SnowflakeDatabaseForm testConnect={testConnect} formData={formData} setFormData={setFormData} />;
+      case undefined:
+        return <Typography sx={{ my: '160px', mx: 'auto' }}>데이터 소스 타입을 먼저 선택해 주세요.</Typography>;
       default:
         return <DatabaseForm testConnect={testConnect} formData={formData} setFormData={setFormData} />;
     }
