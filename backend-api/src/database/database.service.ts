@@ -48,7 +48,6 @@ export class DatabaseService {
       const cockroach_url = `postgresql://${connectioninfo['user']}:${connectioninfo['password']}@${connectioninfo['host']}:${connectioninfo['port']}/${connectioninfo['database']}?sslmode=verify-full&options=--cluster%3Dvanillameta-cockroach-3010`
       connectioninfo['connectionString'] = cockroach_url
     }
-    console.log(connectionConfig)
 
     databaseDto.connectionConfig = JSON.stringify(connectionConfig);
     databaseDto.timezone = 'Asia/Seoul';
