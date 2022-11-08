@@ -93,7 +93,7 @@ function AddWidgetPopup({ label, useWidgetIds = [], widgetOpen = false, widgetSe
       }
       setOpen(false);
     } else {
-      alert.info('위젯을 선택하세요.');
+      alert.info('위젯을 선택해주세요.');
     }
   };
 
@@ -229,7 +229,7 @@ function AddWidgetPopup({ label, useWidgetIds = [], widgetOpen = false, widgetSe
           >
             취소
           </Button>
-          <span style={{ width: '4px' }}></span>
+          <span style={{ width: '4px' }} />
           <Button
             onClick={() => handleSelect()}
             sx={{

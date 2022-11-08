@@ -72,8 +72,10 @@ const WidgetCreate = () => {
     showLoading();
     widgetService
       .createWidget(param)
-      .then(() => {
-        navigate('/widget');
+      .then(response => {
+        if (response.data.status === 'SUCCESS') {
+          navigate('/widget');
+        }
       })
       .finally(() => {
         hideLoading();

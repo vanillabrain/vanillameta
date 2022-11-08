@@ -7,6 +7,7 @@ import AddWidgetPopup from '@/pages/Dashboard/Components/AddWidgetPopup';
 import ConfirmCancelButton from '@/components/button/ConfirmCancelButton';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import { useAlert } from 'react-alert';
+import { SnackbarContext } from '@/contexts/AlertContext';
 
 import '/node_modules/react-grid-layout/css/styles.css';
 import '/node_modules/react-resizable/css/styles.css';
@@ -23,6 +24,7 @@ const ResponsiveGridLayout = WidthProvider(Responsive);
 
 function DashboardModify() {
   const alert = useAlert();
+  const snackbar = useAlert(SnackbarContext);
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [dashboardId, setDashboardId] = useState(null); // dashboard id
@@ -68,14 +70,14 @@ function DashboardModify() {
         setDashboardTitle(response.data.data.title);
         setWidgets(response.data.data.widgets);
 
-        response.data.data.layout.map((item, index) => {
+        response.data.data.layout.map(item => {
           if (item.i !== undefined) {
             item.i = item.i.toString();
           }
         });
         setLayout(response.data.data.layout);
       } else {
-        alert.error('조회를 실패하였습니다.');
+        alert.error('대시보드 조회에 실패했습니다.');
       }
     });
   };
@@ -112,7 +114,7 @@ function DashboardModify() {
     tempLayout.sort((a, b) => a.y - b.y || a.x - b.x);
 
     const tmepPosArr = [];
-    tempLayout.map((item, index) => {
+    tempLayout.map(item => {
       tmepPosArr.push({ startX: item.x, endX: item.x + item.w - 1, startY: item.y, endY: item.y + item.h - 1 }); // layout 계산을 위한 값 보정
     });
 
@@ -189,7 +191,7 @@ function DashboardModify() {
       setLayout([...layout, ...addLayouts]);
     }
 
-    return widgets.map((item, index) => {
+    return widgets.map(item => {
       useWidgetIds.push(item.id); // 현재 widget id 를 담는다.
       return (
         <Card
@@ -242,7 +244,7 @@ function DashboardModify() {
     // title null 체크, widgets 수 체크 (0개면 저장 못함)
     if (dashboardTitle == null || dashboardTitle.trim() == '') {
       // title 이 없을 경우
-      alert.info('제목을 입력 해주세요.');
+      alert.info('제목을 입력해주세요.');
     } else if (layout.length == 0 || widgets.length == 0) {
       // 배치된 widget 이 없을경우
       alert.info('배치된 위젯이 없습니다.');
@@ -269,6 +271,7 @@ function DashboardModify() {
               onClick: () => {
                 DashboardService.updateDashboard(dashboardId, dashboardInfo).then(() => {
                   navigate('/dashboard/' + dashboardId, { replace: true });
+                  snackbar.success('대시보드가 수정되었습니다.');
                 });
               },
             },
@@ -284,6 +287,7 @@ function DashboardModify() {
               onClick: () => {
                 DashboardService.createDashboard(dashboardInfo).then(() => {
                   navigate('/dashboard');
+                  snackbar.success('대시보드가 생성되었습니다.');
                 });
               },
             },
@@ -294,7 +298,7 @@ function DashboardModify() {
   };
 
   // 취소 여부 버튼 이벤트
-  const handleCancelDialogSelect = detail => {
+  const handleCancelDialogSelect = () => {
     navigate(-1);
   };
 
@@ -306,7 +310,7 @@ function DashboardModify() {
     console.log(dashboardInfo);
     setWidgets(dashboardInfo.widgets);
 
-    dashboardInfo.layout.map((item, index) => {
+    dashboardInfo.layout.map(item => {
       if (item.i !== undefined) {
         item.i = item.i.toString();
       }

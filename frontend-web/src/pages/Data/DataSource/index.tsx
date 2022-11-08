@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useState } from 'react';
+import React, { useContext, useEffect, useLayoutEffect, useState } from 'react';
 import { Stack, Typography } from '@mui/material';
 import PageContainer from '@/components/PageContainer';
 import PageTitleBox from '@/components/PageTitleBox';
@@ -12,12 +12,17 @@ import { useAlert } from 'react-alert';
 import DatabaseForm from '@/pages/Data/DataSource/form/DatabaseForm';
 import SqliteDatabaseForm from '@/pages/Data/DataSource/form/SqliteDatabaseForm';
 import BigQueryDatabaseForm from '@/pages/Data/DataSource/form/BigQueryDatabaseForm';
+import { SnackbarContext } from '@/contexts/AlertContext';
+import { LoadingContext } from '@/contexts/LoadingContext';
 
 function DataSource() {
   const { sourceId } = useParams();
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const alert = useAlert();
+  const snackbar = useAlert(SnackbarContext);
+  const { showLoading, hideLoading } = useContext(LoadingContext);
+
   const [isModifyMode, setIsModifyMode] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [dataType, setDataType] = useState(null);
@@ -99,21 +104,26 @@ function DataSource() {
   };
 
   const testConnect = item => {
+    showLoading();
     const param = {
       name: item.name,
       description: item.name,
       connectionConfig: item,
       engine: dataType.engine,
     };
-    DatabaseService.testConnection(param).then(response => {
-      console.log(response);
-      if (response.data.status === STATUS.SUCCESS) {
-        setIsConnected(true);
-        alert.info('데이터베이스 연결에 성공하였습니다.');
-      } else {
-        alert.info('데이터베이스에 연결할 수 없습니다.\n데이터 베이스 정보를 확인해주세요.');
-      }
-    });
+    DatabaseService.testConnection(param)
+      .then(response => {
+        console.log(response);
+        if (response.data.status === STATUS.SUCCESS) {
+          setIsConnected(true);
+          snackbar.success('데이터베이스 연결에 성공했습니다.');
+        } else {
+          snackbar.error('데이터베이스에 연결할 수 없습니다. 데이터베이스 정보를 확인해주세요');
+        }
+      })
+      .finally(() => {
+        hideLoading();
+      });
   };
 
   const getDatabaseTypeList = () => {
@@ -172,12 +182,9 @@ function DataSource() {
               DatabaseService.updateDatabase(sourceId, param).then(response => {
                 console.log(response.data);
                 if (response.data.status === STATUS.SUCCESS) {
-                  console.log('데이터 베이스 저장', param);
-                  alert.info('데이터베이스가 수정되었습니다.', {
-                    onClose: () => {
-                      navigate('/data');
-                    },
-                  });
+                  console.log('데이터베이스 저장', param);
+                  navigate('/data');
+                  snackbar.success('데이터베이스가 수정되었습니다.');
                 } else {
                   alert.error('데이터베이스 저장에 실패했습니다.');
                 }
@@ -185,12 +192,9 @@ function DataSource() {
             } else {
               DatabaseService.createDatabase(param).then(response => {
                 if (response.data.status === STATUS.SUCCESS) {
-                  console.log('데이터 베이스 저장', param);
-                  alert.info('데이터베이스가 생성되었습니다.', {
-                    onClose: () => {
-                      navigate('/data');
-                    },
-                  });
+                  console.log('데이터베이스 저장', param);
+                  navigate('/data');
+                  snackbar.success('데이터베이스가 생성되었습니다.');
                 } else {
                   alert.error('데이터베이스 저장에 실패했습니다.');
                 }

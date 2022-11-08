@@ -8,11 +8,13 @@ import { STATUS } from '@/constant';
 import { LayoutContext } from '@/contexts/LayoutContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import grid from '@/assets/images/grid.svg';
+import { SnackbarContext } from '@/contexts/AlertContext';
 
 const WidgetAttributeSelect = props => {
   const { widgetOption, saveWidgetInfo, dataset, isModifyMode = false, widgetTypeName, widgetTypeDescription } = props;
 
   const alert = useAlert();
+  const snackbar = useAlert(SnackbarContext);
   const { fixLayout } = useContext(LayoutContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
 
@@ -65,7 +67,7 @@ const WidgetAttributeSelect = props => {
     event.preventDefault();
 
     // confirm sample
-    alert.success('위젯 속성을 저장하시겠습니까?', {
+    alert.success('위젯을 저장하시겠습니까?', {
       title: '위젯 저장',
       closeCopy: '취소',
       actions: [
@@ -73,6 +75,7 @@ const WidgetAttributeSelect = props => {
           copy: '저장',
           onClick: () => {
             saveWidgetInfo(option, title);
+            snackbar.success('위젯이 저장되었습니다.');
           },
         },
       ],
