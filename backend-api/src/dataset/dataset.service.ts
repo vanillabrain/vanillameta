@@ -6,12 +6,16 @@ import { Repository } from 'typeorm';
 import { Dataset } from './entities/dataset.entity';
 import { ConnectionService } from '../connection/connection.service';
 import { ResponseStatus } from '../common/enum/response-status.enum';
+import { Widget } from '../widget/entities/widget.entity';
+import { DatasetType } from '../common/enum/dataset-type.enum';
 
 @Injectable()
 export class DatasetService {
   constructor(
     @InjectRepository(Dataset)
     private datasetRepository: Repository<Dataset>,
+    @InjectRepository(Widget)
+    private widgetRepository: Repository<Widget>,
     private readonly connectionService: ConnectionService,
   ) {}
 
@@ -51,8 +55,9 @@ export class DatasetService {
     let returnObj: any;
     const dataObj = await this.datasetRepository.findOne({ where: { id: id } });
 
-    if (!dataObj) returnObj = {status: ResponseStatus.ERROR, message: `id ${id}의 값이 존재하지 않습니다.`};
-    else returnObj = {status:ResponseStatus.SUCCESS, data: dataObj};
+    if (!dataObj)
+      returnObj = { status: ResponseStatus.ERROR, message: `id ${id}의 값이 존재하지 않습니다.` };
+    else returnObj = { status: ResponseStatus.SUCCESS, data: dataObj };
     return returnObj;
   }
 
@@ -89,6 +94,10 @@ export class DatasetService {
       return 'Not exist dataset';
     } else {
       await this.datasetRepository.delete(find_dataset.id);
+      await this.widgetRepository.delete({
+        datasetType: DatasetType.DATASET,
+        datasetId: find_dataset.id,
+      });
     }
     return `This action removes a #${id} dataset`;
   }
