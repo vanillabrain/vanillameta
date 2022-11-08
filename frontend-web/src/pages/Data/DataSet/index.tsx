@@ -16,6 +16,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { STATUS } from '@/constant';
 import { getDatabaseIcon } from '@/widget/utils/iconUtil';
 import { LoadingContext } from '@/contexts/LoadingContext';
+import { SnackbarContext } from '@/contexts/AlertContext';
 
 const DataSet = () => {
   const { setId, sourceId } = useParams();
@@ -32,7 +33,9 @@ const DataSet = () => {
   const [databaseId, setDatabaseId] = useState(null);
   const [databaseList, setDatabaseList] = useState([]);
   const [tableList, setTableList] = useState([]);
+
   const alert = useAlert();
+  const snackbar = useAlert(SnackbarContext);
 
   useLayoutEffect(() => {
     console.log('modify', pathname.indexOf('modify'));
@@ -171,11 +174,15 @@ const DataSet = () => {
       .then(response => {
         console.log(response.data);
         if (response.data.status === 'SUCCESS') {
-          setData(response.data.datas);
           setTestCompleted(true);
+          setData(response.data.datas);
           setColumns(createColumns(response.data.datas));
+          snackbar.success('Success!');
         } else {
           setTestCompleted(false);
+          setData([]);
+          setColumns([]);
+          snackbar.error('Fail!');
         }
       })
       .catch(() => {
@@ -290,7 +297,6 @@ const DataSet = () => {
           value={datasetInfo?.title}
           onChange={onChangeTitle}
           required
-          // helperText="데이터셋의 이름을 입력해 주세요"
         />
         <AceEditor
           placeholder="Please enter a query."
@@ -320,17 +326,21 @@ const DataSet = () => {
           onClick={excuteQuery}
         />
       </Stack>
-      <Stack sx={{ p: '30px 25px 40px 25px', backgroundColor: '#f5f6f8' }}>
-        <DataGrid
-          minBodyHeight={300}
-          bodyHeight={500}
-          data={data}
-          columns={columns}
-          columnOptions={{
-            resizable: true,
-          }}
-        />
-      </Stack>
+      {data.length ? (
+        <Stack sx={{ p: '30px 25px 40px 25px', backgroundColor: '#f5f6f8' }}>
+          <DataGrid
+            minBodyHeight={300}
+            bodyHeight={500}
+            data={data}
+            columns={columns}
+            columnOptions={{
+              resizable: true,
+            }}
+          />
+        </Stack>
+      ) : (
+        ''
+      )}
     </PageTitleBox>
   );
 };
