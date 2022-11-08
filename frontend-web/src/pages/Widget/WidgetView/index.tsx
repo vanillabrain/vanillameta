@@ -11,12 +11,14 @@ import DeleteButton from '@/components/button/DeleteButton';
 import DashboardTitleBox from '@/pages/Dashboard/Components/DashboardTitleBox';
 import { useAlert } from 'react-alert';
 import { LoadingContext } from '@/contexts/LoadingContext';
+import { SnackbarContext } from '@/contexts/AlertContext';
 
 const WidgetView = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const pathname = location.pathname;
   const alert = useAlert();
+  const snackbar = useAlert(SnackbarContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
 
   const defaultWidgetInfo: WidgetInfo = {
@@ -85,8 +87,9 @@ const WidgetView = () => {
             WidgetService.deleteWidget(widgetId).then(response => {
               if (response.status === 200) {
                 navigate('/widget', { replace: true });
+                snackbar.success('위젯이 삭제되었습니다.');
               } else {
-                alert.info('삭제 실패하였습니다.');
+                alert.error('위젯 삭제에 실패했습니다.');
               }
             });
           },

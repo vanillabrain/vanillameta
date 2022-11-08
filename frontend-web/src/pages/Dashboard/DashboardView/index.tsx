@@ -13,6 +13,7 @@ import DashboardTitleBox from '../Components/DashboardTitleBox';
 import ModifyButton from '@/components/button/ModifyButton';
 import DeleteButton from '@/components/button/DeleteButton';
 import ReloadButton from '@/components/button/ReloadButton';
+import { SnackbarContext } from '@/contexts/AlertContext';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -20,6 +21,7 @@ const DashboardView = () => {
   const { dashboardId } = useParams();
   const navigate = useNavigate();
   const alert = useAlert();
+  const snackbar = useAlert(SnackbarContext);
 
   const [dashboardInfo, setDashboardInfo] = useState({ title: '', widgets: [], layout: [], updatedAt: '' }); // dashboard 정보
   const [layout, setLayout] = useState([]); // grid layout
@@ -32,7 +34,7 @@ const DashboardView = () => {
 
   // dashboardInfo useEffect
   useEffect(() => {
-    dashboardInfo.layout.map((item, index) => {
+    dashboardInfo.layout.map(item => {
       if (item.i !== undefined) {
         item.i = item.i.toString();
       }
@@ -48,7 +50,7 @@ const DashboardView = () => {
       if (response.data.status == STATUS.SUCCESS) {
         setDashboardInfo(response.data.data);
       } else {
-        alert.error('조회 실패하였습니다.');
+        alert.error('대시보드 조회에 실패했습니다.');
       }
     });
   };
@@ -72,7 +74,7 @@ const DashboardView = () => {
 
   // widget 생성
   const generateWidget = () => {
-    return dashboardInfo.widgets.map((item, index) => {
+    return dashboardInfo.widgets.map(item => {
       return (
         <Card
           key={item.id}
@@ -92,7 +94,7 @@ const DashboardView = () => {
   };
 
   const handleDeleteSelect = () => {
-    alert.success(dashboardInfo.title + '\n삭제하겠습니까?', {
+    alert.success(dashboardInfo.title + '\n대시보드를 삭제하시겠습니까?', {
       closeCopy: '취소',
       actions: [
         {
@@ -100,13 +102,10 @@ const DashboardView = () => {
           onClick: () => {
             DashboardService.deleteDashboard(dashboardId).then(response => {
               if (response.data.status == STATUS.SUCCESS) {
-                alert.info('삭제되었습니다.', {
-                  onClose: () => {
-                    navigate('/dashboard', { replace: true });
-                  },
-                });
+                navigate('/dashboard', { replace: true });
+                snackbar.success('대시보드가 삭제되었습니다.');
               } else {
-                alert.info('삭제 실패하였습니다.');
+                alert.error('대시보드 삭제에 실패했습니다.');
               }
             });
           },

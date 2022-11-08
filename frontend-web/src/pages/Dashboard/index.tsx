@@ -11,12 +11,14 @@ import { STATUS } from '@/constant';
 import { useAlert } from 'react-alert';
 import { styled } from '@mui/system';
 import { LoadingContext } from '@/contexts/LoadingContext';
+import { SnackbarContext } from '@/contexts/AlertContext';
 
 const title = '대시보드';
 
 function Dashboard() {
   const { dashboardId } = useParams();
   const alert = useAlert();
+  const snackbar = useAlert(SnackbarContext);
   const navigate = useNavigate();
   const [loadedDashboardData, setLoadedDashboardData] = useState([]);
   const [noData, setNoData] = useState(false);
@@ -52,7 +54,7 @@ function Dashboard() {
           setLoadedDashboardData(response.data.data);
           setNoData(response.data.data.length == 0);
         } else {
-          alert.error('대시보드를 불러올 수 없습니다');
+          alert.error('대시보드 조회에 실패했습니다.');
         }
       })
       .finally(() => {
@@ -62,7 +64,7 @@ function Dashboard() {
 
   const handleDeleteSelect = item => {
     console.log(item);
-    alert.success(item.title + '\n삭제하겠습니까?', {
+    alert.success(item.title + '\n대시보드를 삭제하시겠습니까?', {
       closeCopy: '취소',
       actions: [
         {
@@ -70,13 +72,10 @@ function Dashboard() {
           onClick: () => {
             DashboardService.deleteDashboard(item.id).then(response => {
               if (response.data.status == STATUS.SUCCESS) {
-                alert.info('삭제되었습니다.', {
-                  onClose: () => {
-                    getDashboardList();
-                  },
-                });
+                getDashboardList();
+                snackbar.success('대시보드가 삭제되었습니다.');
               } else {
-                alert.error('삭제 실패하였습니다.');
+                alert.error('대시보드 삭제에 실패했습니다.');
               }
             });
           },

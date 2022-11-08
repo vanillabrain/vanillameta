@@ -10,12 +10,14 @@ import AddIcon from '@mui/icons-material/Add';
 import { Box, Button, Stack } from '@mui/material';
 import { styled } from '@mui/system';
 import { STATUS } from '@/constant';
+import { SnackbarContext } from '@/contexts/AlertContext';
 
 const title = '위젯';
 
 const Widget = () => {
   const { widgetId } = useParams();
   const alert = useAlert();
+  const snackbar = useAlert(SnackbarContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
 
   const [widgetList, setWidgetList] = useState([]);
@@ -48,7 +50,7 @@ const Widget = () => {
           setWidgetList(response.data.data);
           setNoData(response.data.data.length == 0);
         } else {
-          alert.error('위젯을 불러올 수 없습니다');
+          alert.error('위젯 조회에 실패했습니다.');
         }
       })
       .finally(() => {
@@ -67,6 +69,7 @@ const Widget = () => {
             WidgetService.deleteWidget(item.id).then(response => {
               if (response.status === 200) {
                 getWidgetList();
+                snackbar.success('위젯이 삭제되었습니다.');
               }
             });
           },

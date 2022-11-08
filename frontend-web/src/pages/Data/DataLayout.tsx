@@ -9,6 +9,7 @@ import DatasetService from '@/api/datasetService';
 import AddButton from '@/components/button/AddButton';
 import { Link as RouterLink } from 'react-router-dom';
 import { LoadingContext } from '@/contexts/LoadingContext';
+import { SnackbarContext } from '@/contexts/AlertContext';
 
 const DataLayout = props => {
   const { isViewMode, setDataSet } = props;
@@ -16,6 +17,7 @@ const DataLayout = props => {
   const [datasetList, setDatasetList] = useState([]);
   const [tableList, setTableList] = useState([]);
   const alert = useAlert();
+  const snackbar = useAlert(SnackbarContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
 
   const [selectedDatabase, setSelectedDatabase] = useState({
@@ -81,6 +83,7 @@ const DataLayout = props => {
             DatabaseService.deleteDatabase(id).then(response => {
               if (response.data.status === STATUS.SUCCESS) {
                 getDatabaseList();
+                snackbar.success('데이터베이스가 삭제되었습니다.');
               }
             });
           },
@@ -104,8 +107,9 @@ const DataLayout = props => {
         {
           copy: '삭제',
           onClick: () => {
-            DatasetService.deleteDataset(item.id).then(response => {
+            DatasetService.deleteDataset(item.id).then(() => {
               getDatabaseInfo();
+              snackbar.success('데이터셋이 삭제되었습니다.');
             });
           },
         },
