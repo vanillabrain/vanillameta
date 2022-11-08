@@ -43,12 +43,11 @@ export class DatabaseService {
       connection: databaseDto.connectionConfig,
       useNullAsDefault: true,
     };
-    if(connectionConfig.client === 'cockroachdb') {
+    if (connectionConfig.client === 'cockroachdb') {
       const connectioninfo = connectionConfig.connection;
-      const cockroach_url = `postgresql://${connectioninfo['user']}:${connectioninfo['password']}@${connectioninfo['host']}:${connectioninfo['port']}/${connectioninfo['database']}?sslmode=verify-full&options=--cluster%3Dvanillameta-cockroach-3010`
-      connectioninfo['connectionString'] = cockroach_url
+      const cockroach_url = `postgresql://${connectioninfo['user']}:${connectioninfo['password']}@${connectioninfo['host']}:${connectioninfo['port']}/${connectioninfo['database']}?sslmode=verify-full&options=--cluster%3Dvanillameta-cockroach-3010`;
+      connectioninfo['connectionString'] = cockroach_url;
     }
-    console.log(connectionConfig)
 
     databaseDto.connectionConfig = JSON.stringify(connectionConfig);
     databaseDto.timezone = 'Asia/Seoul';
@@ -103,7 +102,7 @@ export class DatabaseService {
         selectTableQuery = `select table_name from information_schema.tables where table_type = 'BASE TABLE'`;
         break;
       case 'cockroachdb':
-        selectTableQuery = `SELECT TABLE_NAME FROM information_schema.tables WHERE table_type = 'BASE TABLE'`
+        selectTableQuery = `SELECT TABLE_NAME FROM information_schema.tables WHERE table_type = 'BASE TABLE'`;
         break;
       default:
         selectTableQuery = 'show tables';
@@ -124,6 +123,8 @@ export class DatabaseService {
           datasetType: DatasetType.TABLE,
         });
       });
+    } else if (tablesInfo && tablesInfo.status === ResponseStatus.ERROR) {
+      return tablesInfo;
     }
 
     // dataset 정보 조회
@@ -155,10 +156,10 @@ export class DatabaseService {
         message: `조건에 맞는 데이터베이스를 찾지 못했습니다. id:${id}`,
       };
 
-    if(updateDatabaseDto.engine === 'cockroachdb') {
+    if (updateDatabaseDto.engine === 'cockroachdb') {
       const connectioninfo = updateDatabaseDto.connectionConfig;
-      const cockroach_url = `postgresql://${connectioninfo['user']}:${connectioninfo['password']}@${connectioninfo['host']}:${connectioninfo['port']}/${connectioninfo['database']}?sslmode=verify-full&options=--cluster%3Dvanillameta-cockroach-3010`
-      connectioninfo['connectionString'] = cockroach_url
+      const cockroach_url = `postgresql://${connectioninfo['user']}:${connectioninfo['password']}@${connectioninfo['host']}:${connectioninfo['port']}/${connectioninfo['database']}?sslmode=verify-full&options=--cluster%3Dvanillameta-cockroach-3010`;
+      connectioninfo['connectionString'] = cockroach_url;
     }
 
     const connectionConfig = {
@@ -194,8 +195,27 @@ export class DatabaseService {
         status: ResponseStatus.ERROR,
         message: `조건에 맞는 데이터베이스를 찾지 못했습니다. id:${id}`,
       };
+
+    // 연관된 widget 제거
+    const deletedWidget = await this.datasetRepository.query(
+      `delete from widget
+where ((datasetType = 'DATASET' and datasetId in (select id from dataset where databaseId = ?)) or
+       (datasetType = 'TABLE' and datasetId in (select id from table_query where databaseId = ?)))`,
+      [id, id],
+    );
+    // table query 삭제
+    await this.tableQueryRepository.delete({ databaseId: id });
+    // dataset 삭제
+    const deletedDataset = await this.datasetRepository.delete({ databaseId: id });
+    // database 삭제
     await this.databaseRepository.remove(one);
-    return { status: ResponseStatus.SUCCESS, data: { message: `${id} 삭제 완료` } };
+
+    return {
+      status: ResponseStatus.SUCCESS,
+      data: {
+        message: `${deletedWidget.affected}개의 widget, ${deletedDataset.affected}개의 dataset, databse [${one.name}] 삭제 완료`,
+      },
+    };
   }
 
   /**
