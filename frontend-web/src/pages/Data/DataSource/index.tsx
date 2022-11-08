@@ -14,6 +14,7 @@ import SqliteDatabaseForm from '@/pages/Data/DataSource/form/SqliteDatabaseForm'
 import BigQueryDatabaseForm from '@/pages/Data/DataSource/form/BigQueryDatabaseForm';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
+import SnowflakeDatabaseForm from '@/pages/Data/DataSource/form/SnowflakeDatabaseForm';
 
 function DataSource() {
   const { sourceId } = useParams();
@@ -46,6 +47,16 @@ function DataSource() {
       projectId: '',
       filename: '',
       database: '',
+    },
+    snowflake: {
+      name: '',
+      account: '',
+      username: '',
+      password: '',
+      database: '',
+      application: '',
+      schema: '',
+      warehouse: '',
     },
   });
 
@@ -81,13 +92,21 @@ function DataSource() {
           temp.sqlite = {
             filename: databaseInfo.connectionConfig.filename,
           };
-        }
-        if (databaseInfo.type === 'bigquery') {
+        } else if (databaseInfo.type === 'bigquery') {
           temp.bigquery = {
-            name: databaseInfo.connectionConfig.name,
             projectId: databaseInfo.connectionConfig.projectId,
             keyFilename: databaseInfo.connectionConfig.keyFilename,
             schema: databaseInfo.connectionConfig.schema,
+          };
+        } else if (databaseInfo.type === 'snowflake') {
+          temp.snowflake = {
+            account: databaseInfo.connectionConfig.account,
+            username: databaseInfo.connectionConfig.username,
+            password: databaseInfo.connectionConfig.password,
+            database: databaseInfo.connectionConfig.database,
+            application: databaseInfo.connectionConfig.application,
+            schema: databaseInfo.connectionConfig.schema,
+            warehouse: databaseInfo.connectionConfig.warehouse,
           };
         } else {
           temp.default = {
@@ -153,6 +172,8 @@ function DataSource() {
         return 'sqlite';
       case 'bigquery':
         return 'bigquery';
+      case 'snowflake':
+        return 'snowflake';
       default:
         return 'default';
     }
@@ -221,6 +242,8 @@ function DataSource() {
         return <SqliteDatabaseForm testConnect={testConnect} formData={formData} setFormData={setFormData} />;
       case 'bigquery':
         return <BigQueryDatabaseForm testConnect={testConnect} formData={formData} setFormData={setFormData} />;
+      case 'snowflake':
+        return <SnowflakeDatabaseForm testConnect={testConnect} formData={formData} setFormData={setFormData} />;
       default:
         return <DatabaseForm testConnect={testConnect} formData={formData} setFormData={setFormData} />;
     }

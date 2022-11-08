@@ -6,17 +6,19 @@ const inputStyle = {
   width: '800px',
 };
 
-const DatabaseForm = props => {
+const SnowflakeDatabaseForm = props => {
   const { testConnect, formData, setFormData } = props;
   const handleSubmit = data => {
     data.preventDefault();
     const item = {
       name: data.target.name.value,
-      host: data.target.host.value,
-      port: Number(data.target.port.value),
-      user: data.target.user.value,
+      account: data.target.account.value,
+      username: data.target.username.value,
       password: data.target.password.value,
       database: data.target.database.value,
+      application: data.target.application.value,
+      schema: data.target.schema.value,
+      warehouse: data.target.warehouse.value,
     };
     testConnect(item);
   };
@@ -26,7 +28,10 @@ const DatabaseForm = props => {
   };
 
   const handleChange = event => {
-    setFormData(prevState => ({ ...prevState, default: { ...prevState.default, [event.target.name]: event.target.value } }));
+    setFormData(prevState => ({
+      ...prevState,
+      snowflake: { ...prevState.snowflake, [event.target.name]: event.target.value },
+    }));
   };
 
   return (
@@ -42,28 +47,18 @@ const DatabaseForm = props => {
           onChange={handleNameChange}
         />
         <TextField
-          label="Host"
-          name="host"
-          value={formData?.default?.host || ''}
+          label="Account"
+          name="account"
+          value={formData?.snowflake?.account || ''}
           required
           fullWidth
           sx={inputStyle}
           onChange={handleChange}
         />
         <TextField
-          label="Port"
-          name="port"
-          type="number"
-          value={formData?.default?.port || ''}
-          required
-          fullWidth
-          sx={inputStyle}
-          onChange={handleChange}
-        />
-        <TextField
-          label="User"
-          name="user"
-          value={formData?.default?.user || ''}
+          label="Username"
+          name="username"
+          value={formData?.snowflake?.username || ''}
           required
           fullWidth
           sx={inputStyle}
@@ -72,7 +67,25 @@ const DatabaseForm = props => {
         <TextField
           label="Password"
           name="password"
-          value={formData?.default?.password || ''}
+          value={formData?.snowflake?.password || ''}
+          required
+          fullWidth
+          sx={inputStyle}
+          onChange={handleChange}
+        />
+        <TextField
+          label="Database"
+          name="database"
+          value={formData?.snowflake?.database || ''}
+          required
+          fullWidth
+          sx={inputStyle}
+          onChange={handleChange}
+        />{' '}
+        <TextField
+          label="Application"
+          name="application"
+          value={formData?.snowflake?.application || ''}
           required
           fullWidth
           sx={inputStyle}
@@ -80,8 +93,17 @@ const DatabaseForm = props => {
         />
         <TextField
           label="Schema"
-          name="database"
-          value={formData?.default?.database || ''}
+          name="schema"
+          value={formData?.snowflake?.schema || ''}
+          required
+          fullWidth
+          sx={inputStyle}
+          onChange={handleChange}
+        />
+        <TextField
+          label="Warehouse"
+          name="warehouse"
+          value={formData?.snowflake?.warehouse || ''}
           required
           fullWidth
           sx={inputStyle}
@@ -93,4 +115,4 @@ const DatabaseForm = props => {
   );
 };
 
-export default DatabaseForm;
+export default SnowflakeDatabaseForm;

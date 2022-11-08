@@ -318,6 +318,26 @@ export default createTheme({
         },
       },
     },
+    MuiAlert: {
+      styleOverrides: {
+        standardSuccess: {
+          color: '#184a00',
+          backgroundColor: '#ecf8e6',
+        },
+        standardError: {
+          color: '#a00000',
+          backgroundColor: '#ffeded',
+        },
+      },
+    },
+    MuiSnackbar: {
+      styleOverrides: {
+        root: {
+          borderRadius: '4px',
+          boxShadow: '2px 2px 4px 0 rgba(0, 0, 0, 0.15)',
+        },
+      },
+    },
     MuiCssBaseline: {
       styleOverrides: {
         'html, body, #root': {
