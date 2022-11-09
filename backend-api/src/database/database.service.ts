@@ -138,6 +138,17 @@ export class DatabaseService {
   }
 
   /**
+   * database 정보 단순 조회
+   * @param id
+   */
+  async findOneInfo(id: number): Promise<any> {
+    // 연동 db 정보
+    const databaseInfo = await this.databaseRepository.findOne({ where: { id } });
+    databaseInfo.connectionConfig = JSON.parse(databaseInfo.connectionConfig).connection;
+    return { status: ResponseStatus.SUCCESS, data: { databaseInfo } };
+  }
+
+  /**
    * db config 정보 단순 조회
    * @param id
    */
