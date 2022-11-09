@@ -9,10 +9,11 @@ import { getTestMysqlModule } from '../util/get-test-mysql.module';
 import { TemplateModule } from '../../src/template/template.module';
 import { ConfigModule } from '@nestjs/config';
 
-describe('사용자 추천 템플릿의 종류를 확인', () => {
+describe('QTT-005 : 사용자 추천 템플릿의 종류를 확인', () => {
   let templateService: TemplateService;
 
-  beforeEach(async () => {
+  let templateList;
+  beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [
         TemplateModule,
@@ -27,10 +28,20 @@ describe('사용자 추천 템플릿의 종류를 확인', () => {
     }).compile();
 
     templateService = module.get<TemplateService>(TemplateService);
-  }, 10000);
+  }, 100000);
 
-  it('should be defined', async () => {
-    const templateList = await templateService.findAll();
-    return expect(templateList.data.length).toEqual(10);
+  it('QTT-005-01 : 템플릿 종류 10개 확인', async () => {
+    const templateResult = await templateService.findAll();
+    templateList = templateResult.data;
+
+    return expect(templateList.length).toEqual(10);
+  });
+
+  afterEach(async () => {
+    const templateDetail = await templateService.findOne(templateList[0].id);
+    console.log(
+      ':::::::::::::::::::::::::::::template detail:::::::::::::::::::::::::::::\n',
+      templateDetail.data,
+    );
   });
 });
