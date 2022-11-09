@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import {
   Avatar,
   Box,
@@ -32,6 +32,7 @@ import { ReactComponent as TemplateIcon08 } from '@/assets/images/template/templ
 import { ReactComponent as TemplateIcon09 } from '@/assets/images/template/template09.svg';
 import { ReactComponent as TemplateIcon10 } from '@/assets/images/template/template10.svg';
 import { ReactComponent as CheckIcon } from '@/assets/images/icon/ic-check.svg';
+import { LoadingContext } from '@/contexts/LoadingContext';
 
 const getTemplateIcon = id => {
   let icon = null;
@@ -79,6 +80,7 @@ export const WidgetList = ({
   const alert = useAlert();
   const [loadedWidgetData, setLoadedWidgetData] = useState([]);
   const [selectedIds, setSelectedIds] = useState(selectedWidgetIds);
+  const { showLoading, hideLoading } = useContext(LoadingContext);
 
   useEffect(() => {
     getItems();
@@ -93,13 +95,18 @@ export const WidgetList = ({
   }, [selectedIds]);
 
   const getItems = () => {
-    WidgetService.selectWidgetList().then(response => {
-      if (response.data.status == STATUS.SUCCESS) {
-        setLoadedWidgetData(response.data.data);
-      } else {
-        console.log('조회 실패!!!!');
-      }
-    });
+    showLoading();
+    WidgetService.selectWidgetList()
+      .then(response => {
+        if (response.data.status == STATUS.SUCCESS) {
+          setLoadedWidgetData(response.data.data);
+        } else {
+          console.log('조회 실패!!!!');
+        }
+      })
+      .finally(() => {
+        hideLoading();
+      });
   };
 
   const handleClick = item => {
