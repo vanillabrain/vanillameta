@@ -51,28 +51,28 @@ describe('QTT-004', () => {
   const dummyData = dummyJson.dummyData;
   const fieldList = Object.keys(expectData);
 
-  it.each(fieldList)('QTT-004-01 : %s MAX', fieldName => {
+  it.each(fieldList)('QTT-004-01 (MAX): %s', fieldName => {
     console.log(fieldName);
     expect(getAggregationData(WIDGET_AGGREGATION.MAX, dummyData, fieldName)).toBe(
       expectData[fieldName][WIDGET_AGGREGATION.MAX],
     );
   });
 
-  it.each(fieldList)('QTT-004-02 : %s MIN', fieldName => {
+  it.each(fieldList)('QTT-004-02 (MIN) : %s ', fieldName => {
     console.log(fieldName);
     expect(getAggregationData(WIDGET_AGGREGATION.MIN, dummyData, fieldName)).toBe(
       expectData[fieldName][WIDGET_AGGREGATION.MIN],
     );
   });
 
-  it.each(fieldList)('QTT-004-02 : %s SUM', fieldName => {
+  it.each(fieldList)('QTT-004-02 (SUM) : %s ', fieldName => {
     console.log(fieldName);
     expect(getAggregationData(WIDGET_AGGREGATION.SUM, dummyData, fieldName)).toBe(
       expectData[fieldName][WIDGET_AGGREGATION.SUM],
     );
   });
 
-  it.each(fieldList)('QTT-004-02 : %s AVG', fieldName => {
+  it.each(fieldList)('QTT-004-02 (AVG) : %s ', fieldName => {
     console.log(fieldName);
     expect(getAggregationData(WIDGET_AGGREGATION.AVG, dummyData, fieldName)).toBe(
       expectData[fieldName][WIDGET_AGGREGATION.AVG],

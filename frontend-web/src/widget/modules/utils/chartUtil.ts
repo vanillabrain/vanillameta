@@ -107,6 +107,9 @@ export const getCenter = position => {
  */
 export const getAggregationData = (type, data, field) => {
   let result = 0;
+  if (data.length > 0 && (type === WIDGET_AGGREGATION.MIN || type === WIDGET_AGGREGATION.MAX)) {
+    result = Number(data[0][field]);
+  }
   switch (type) {
     case WIDGET_AGGREGATION.SUM:
       data.forEach(item => {
