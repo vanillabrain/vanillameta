@@ -57,17 +57,21 @@ const WidgetCreate = () => {
   };
 
   const saveWidgetInfo = (option, title) => {
-    // Todo datasetType Table 일 경우 처리
     const param = {
       title: title,
       description: widgetOption.description,
       databaseId: dataset.databaseId,
       componentId: widgetOption.id,
       datasetType: dataset.datasetType,
-      datasetId: dataset.id,
-      tableName: dataset.tableName,
+      tableName: undefined,
+      datasetId: undefined,
       option: option,
     };
+    if (param.datasetType === 'TABLE') {
+      param.tableName = dataset.tableName;
+    } else {
+      param.datasetId = dataset.id;
+    }
     console.log('위젯 생성', param);
     showLoading();
     widgetService

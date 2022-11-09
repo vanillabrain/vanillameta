@@ -92,57 +92,62 @@ function DataSource() {
   }, [typeList, formData.type]);
 
   const getDatabaseInfo = () => {
-    DatabaseService.selectDatabase(sourceId).then(response => {
-      const info = response.data;
-      if (info.status === 'SUCCESS') {
-        const databaseInfo = info.data.databaseInfo;
-        const temp: any = {
-          name: databaseInfo.name,
-          type: databaseInfo.type,
-        };
-        if (databaseInfo.type === 'sqlite') {
-          temp.sqlite = {
-            filename: databaseInfo.connectionConfig.filename,
+    showLoading();
+    DatabaseService.selectDatabase(sourceId)
+      .then(response => {
+        const info = response.data;
+        if (info.status === 'SUCCESS') {
+          const databaseInfo = info.data.databaseInfo;
+          const temp: any = {
+            name: databaseInfo.name,
+            type: databaseInfo.type,
           };
-        } else if (databaseInfo.type === 'bigquery') {
-          temp.bigquery = {
-            projectId: databaseInfo.connectionConfig.projectId,
-            keyFilename: databaseInfo.connectionConfig.keyFilename,
-            schema: databaseInfo.connectionConfig.schema,
-          };
-        } else if (databaseInfo.type === 'oracle') {
-          temp.oracle = {
-            host: databaseInfo.connectionConfig.host,
-            port: Number(databaseInfo.connectionConfig.port),
-            user: databaseInfo.connectionConfig.user,
-            password: databaseInfo.connectionConfig.password,
-            database: databaseInfo.connectionConfig.database,
-            instanceName: databaseInfo.connectionConfig.instanceName,
-            fetchAsString: databaseInfo.connectionConfig.fetchAsString,
-            requestTimeout: databaseInfo.connectionConfig.requestTimeout,
-          };
-        } else if (databaseInfo.type === 'snowflake') {
-          temp.snowflake = {
-            account: databaseInfo.connectionConfig.account,
-            username: databaseInfo.connectionConfig.username,
-            password: databaseInfo.connectionConfig.password,
-            database: databaseInfo.connectionConfig.database,
-            application: databaseInfo.connectionConfig.application,
-            schema: databaseInfo.connectionConfig.schema,
-            warehouse: databaseInfo.connectionConfig.warehouse,
-          };
-        } else {
-          temp.default = {
-            host: databaseInfo.connectionConfig.host,
-            port: Number(databaseInfo.connectionConfig.port),
-            user: databaseInfo.connectionConfig.user,
-            password: databaseInfo.connectionConfig.password,
-            database: databaseInfo.connectionConfig.database,
-          };
+          if (databaseInfo.type === 'sqlite') {
+            temp.sqlite = {
+              filename: databaseInfo.connectionConfig.filename,
+            };
+          } else if (databaseInfo.type === 'bigquery') {
+            temp.bigquery = {
+              projectId: databaseInfo.connectionConfig.projectId,
+              keyFilename: databaseInfo.connectionConfig.keyFilename,
+              schema: databaseInfo.connectionConfig.schema,
+            };
+          } else if (databaseInfo.type === 'oracle') {
+            temp.oracle = {
+              host: databaseInfo.connectionConfig.host,
+              port: Number(databaseInfo.connectionConfig.port),
+              user: databaseInfo.connectionConfig.user,
+              password: databaseInfo.connectionConfig.password,
+              database: databaseInfo.connectionConfig.database,
+              instanceName: databaseInfo.connectionConfig.instanceName,
+              fetchAsString: databaseInfo.connectionConfig.fetchAsString,
+              requestTimeout: databaseInfo.connectionConfig.requestTimeout,
+            };
+          } else if (databaseInfo.type === 'snowflake') {
+            temp.snowflake = {
+              account: databaseInfo.connectionConfig.account,
+              username: databaseInfo.connectionConfig.username,
+              password: databaseInfo.connectionConfig.password,
+              database: databaseInfo.connectionConfig.database,
+              application: databaseInfo.connectionConfig.application,
+              schema: databaseInfo.connectionConfig.schema,
+              warehouse: databaseInfo.connectionConfig.warehouse,
+            };
+          } else {
+            temp.default = {
+              host: databaseInfo.connectionConfig.host,
+              port: Number(databaseInfo.connectionConfig.port),
+              user: databaseInfo.connectionConfig.user,
+              password: databaseInfo.connectionConfig.password,
+              database: databaseInfo.connectionConfig.database,
+            };
+          }
+          setFormData(temp);
         }
-        setFormData(temp);
-      }
-    });
+      })
+      .finally(() => {
+        hideLoading();
+      });
   };
 
   const testConnect = item => {
@@ -169,17 +174,19 @@ function DataSource() {
   };
 
   const getDatabaseTypeList = () => {
-    DatabaseService.selectDatabaseTypeList().then(response => {
-      console.log('selectDatabaseTypeList', response.data);
-      if (response.data.status === STATUS.SUCCESS) {
-        const list = response.data.data;
-        list.map(item => (item.icon = getDatabaseIcon(item.type)));
-        setTypeList(list);
-        // if (list.length > 0) {
-        //   setDataType(list[0]);
-        // }
-      }
-    });
+    showLoading();
+    DatabaseService.selectDatabaseTypeList()
+      .then(response => {
+        console.log('selectDatabaseTypeList', response.data);
+        if (response.data.status === STATUS.SUCCESS) {
+          const list = response.data.data;
+          list.map(item => (item.icon = getDatabaseIcon(item.type)));
+          setTypeList(list);
+        }
+      })
+      .finally(() => {
+        hideLoading();
+      });
   };
 
   const getType = () => {
@@ -224,27 +231,36 @@ function DataSource() {
         {
           copy: '확인',
           onClick: () => {
+            showLoading();
             if (isModifyMode) {
-              DatabaseService.updateDatabase(sourceId, param).then(response => {
-                console.log(response.data);
-                if (response.data.status === STATUS.SUCCESS) {
-                  console.log('데이터베이스 저장', param);
-                  navigate('/data');
-                  snackbar.success('데이터베이스가 수정되었습니다.');
-                } else {
-                  alert.error('데이터베이스 저장에 실패했습니다.');
-                }
-              });
+              DatabaseService.updateDatabase(sourceId, param)
+                .then(response => {
+                  console.log(response.data);
+                  if (response.data.status === STATUS.SUCCESS) {
+                    console.log('데이터베이스 저장', param);
+                    navigate('/data');
+                    snackbar.success('데이터베이스가 수정되었습니다.');
+                  } else {
+                    alert.error('데이터베이스 저장에 실패했습니다.');
+                  }
+                })
+                .finally(() => {
+                  hideLoading();
+                });
             } else {
-              DatabaseService.createDatabase(param).then(response => {
-                if (response.data.status === STATUS.SUCCESS) {
-                  console.log('데이터베이스 저장', param);
-                  navigate('/data');
-                  snackbar.success('데이터베이스가 생성되었습니다.');
-                } else {
-                  alert.error('데이터베이스 저장에 실패했습니다.');
-                }
-              });
+              DatabaseService.createDatabase(param)
+                .then(response => {
+                  if (response.data.status === STATUS.SUCCESS) {
+                    console.log('데이터베이스 저장', param);
+                    navigate('/data');
+                    snackbar.success('데이터베이스가 생성되었습니다.');
+                  } else {
+                    alert.error('데이터베이스 저장에 실패했습니다.');
+                  }
+                })
+                .finally(() => {
+                  hideLoading();
+                });
             }
           },
         },

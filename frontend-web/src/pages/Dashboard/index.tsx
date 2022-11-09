@@ -70,14 +70,19 @@ function Dashboard() {
         {
           copy: '확인',
           onClick: () => {
-            DashboardService.deleteDashboard(item.id).then(response => {
-              if (response.data.status == STATUS.SUCCESS) {
-                getDashboardList();
-                snackbar.success('대시보드가 삭제되었습니다.');
-              } else {
-                alert.error('대시보드 삭제에 실패했습니다.');
-              }
-            });
+            showLoading();
+            DashboardService.deleteDashboard(item.id)
+              .then(response => {
+                if (response.data.status == STATUS.SUCCESS) {
+                  getDashboardList();
+                  snackbar.success('대시보드가 삭제되었습니다.');
+                } else {
+                  alert.error('대시보드 삭제에 실패했습니다.');
+                }
+              })
+              .finally(() => {
+                hideLoading();
+              });
           },
         },
       ],
