@@ -33,6 +33,16 @@ export class DatabaseController {
   }
 
   /**
+   * 데이터베이스 연결정보 단순조회
+   * @param id
+   */
+  @Get('/info/:id')
+  async findOneInfo(@Param('id') id: string) {
+    const databaseInfo = await this.databaseService.findOneInfo(+id);
+    return databaseInfo;
+  }
+
+  /**
    * 데이터베이스 생성 ( 데이터소스 생성)
    * @param createDatabaseDto
    */
