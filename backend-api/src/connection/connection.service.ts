@@ -129,7 +129,6 @@ export class ConnectionService {
     const resultObj = { status: null, message: null, datas: [], fields: [] };
     try {
       const queryRes = await knex.raw(queryExecuteDto.query);
-
       // bigquery, snowflake
       if (typeof knex.client.config.client === 'function') {
         switch (knex.client.config.client.name) {
