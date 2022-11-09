@@ -68,7 +68,7 @@ const MixedLinePieChartSetting = props => {
     console.log('event', event, index);
     const newOption = { ...option };
     newOption.pie.color.splice(index, 1, event.target.value);
-    setOption({ ...option, newOption });
+    setOption({ ...option, ...newOption });
   };
 
   const handleAddColorClick = () => {
