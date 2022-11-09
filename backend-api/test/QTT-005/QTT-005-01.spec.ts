@@ -39,7 +39,9 @@ describe('QTT-005 : 사용자 추천 템플릿의 종류를 확인', () => {
 
   afterEach(async () => {
     const templateDetail = await templateService.findOne(templateList[0].id);
-    console.log(':::::::::::::::::::::::::::::template detail:::::::::::::::::::::::::::::');
-    console.log(templateDetail.data);
+    console.log(
+      ':::::::::::::::::::::::::::::template detail:::::::::::::::::::::::::::::\n',
+      templateDetail.data,
+    );
   });
 });
