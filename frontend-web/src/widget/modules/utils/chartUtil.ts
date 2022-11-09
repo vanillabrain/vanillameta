@@ -1,4 +1,4 @@
-import { WIDGET_AGGREGATION } from '@/constant';
+import { WIDGET_AGGREGATION } from '../../../constant';
 
 /**
  *

@@ -1,43 +1,109 @@
-import { getAggregationData } from '@/widget/modules/utils/chartUtil';
-import { WIDGET_AGGREGATION } from '@/constant';
+import { getAggregationData } from './chartUtil';
+import { WIDGET_AGGREGATION } from '../../../constant';
+import * as dummyJson from '../../../data/QTT-004_dummyData.json';
 
-const dummyData = [
-  {
-    id: 1,
-    month: 1,
-    color: '#00BFFF',
-    high: 18,
-    low: 2,
-    avg: 8.9,
-    cDate: '2022-09-14T08:06:11+09:00',
+const expectData = {
+  individual: {
+    max: 210,
+    min: 1,
+    sum: 88620,
+    avg: 105.5,
   },
-  {
-    id: 2,
-    month: 1,
-    high: 23,
-    low: -2,
-    avg: 9.9,
-    cDate: '2022-09-14T08:06:11+09:00',
+  wait: {
+    max: 99,
+    min: 0,
+    sum: 29055,
+    avg: 34.58928571,
   },
-  {
-    id: 3,
-    month: 2,
-    high: 25,
-    low: -1,
-    avg: 11.3,
-    cDate: '2022-09-14T08:06:11+09:00',
+  vcost: {
+    max: 180,
+    min: 2,
+    sum: 40119,
+    avg: 47.76071429,
   },
-  {
-    id: 4,
-    month: 2,
-    high: 23,
-    low: 1,
-    avg: 13,
-    cDate: '2022-09-14T08:06:11+09:00',
+  travel: {
+    max: 1440,
+    min: 63,
+    sum: 408379,
+    avg: 486.1654762,
   },
-];
-test('2 * 2 to be 4', () => {
-  expect(getAggregationData(WIDGET_AGGREGATION.SUM, dummyData, 'high')).toBe(89);
+  gcost: {
+    max: 269,
+    min: 30,
+    sum: 93139,
+    avg: 110.8797619,
+  },
+  income: {
+    max: 72,
+    min: 2,
+    sum: 29020,
+    avg: 34.54761905,
+  },
+  size: {
+    max: 6,
+    min: 1,
+    sum: 1464,
+    avg: 1.742857143,
+  },
+};
+
+describe('QTT-004', () => {
+  const dummyData = dummyJson.dummyData;
+  const fieldList = Object.keys(expectData);
+
+  it.each(fieldList)('QTT-004-01 : %s MAX', fieldName => {
+    console.log(fieldName);
+    expect(getAggregationData(WIDGET_AGGREGATION.MAX, dummyData, fieldName)).toBe(
+      expectData[fieldName][WIDGET_AGGREGATION.MAX],
+    );
+  });
+
+  it.each(fieldList)('QTT-004-02 : %s MIN', fieldName => {
+    console.log(fieldName);
+    expect(getAggregationData(WIDGET_AGGREGATION.MIN, dummyData, fieldName)).toBe(
+      expectData[fieldName][WIDGET_AGGREGATION.MIN],
+    );
+  });
+
+  it.each(fieldList)('QTT-004-02 : %s SUM', fieldName => {
+    console.log(fieldName);
+    expect(getAggregationData(WIDGET_AGGREGATION.SUM, dummyData, fieldName)).toBe(
+      expectData[fieldName][WIDGET_AGGREGATION.SUM],
+    );
+  });
+
+  it.each(fieldList)('QTT-004-02 : %s AVG', fieldName => {
+    console.log(fieldName);
+    expect(getAggregationData(WIDGET_AGGREGATION.AVG, dummyData, fieldName)).toBe(
+      expectData[fieldName][WIDGET_AGGREGATION.AVG],
+    );
+  });
+
+  // fieldList.forEach(fieldName => {
+  //   it(`QTT-004-01 : ${fieldName}`, () => {
+  //     const dummyData = dummyJson.dummyData;
+  //     // fieldList.forEach(fieldName => {
+  //     expect(getAggregationData(WIDGET_AGGREGATION.MAX, dummyData, fieldName)).toBe(
+  //       expectData[fieldName][WIDGET_AGGREGATION.MAX],
+  //     );
+  //     // });
+  //     // expect(getAggregationData(WIDGET_AGGREGATION.MAX, dummyData, 'individual')).toBe(88621);
+  //   });
+  // });
+  // console.log(dummyData);
+  // it('QTT-004-01', () => {
+  //   const dummyData = dummyJson.dummyData;
+  //   fieldList.forEach(fieldName => {
+  //     expect(getAggregationData(WIDGET_AGGREGATION.MAX, dummyData, fieldName)).toBe(
+  //       expectData[fieldName][WIDGET_AGGREGATION.MAX],
+  //     );
+  //   });
+  //   // expect(getAggregationData(WIDGET_AGGREGATION.MAX, dummyData, 'individual')).toBe(88621);
+  // });
+});
+
+afterAll(() => {
+  console.log('test end');
 });
 
 export { getAggregationData };
