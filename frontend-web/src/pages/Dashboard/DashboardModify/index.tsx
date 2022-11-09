@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { Box, Button, Card, Stack, TextField } from '@mui/material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import PageContainer from '@/components/PageContainer';
@@ -19,14 +19,17 @@ import { STATUS } from '@/constant';
 import DashboardTitleBox from '../Components/DashboardTitleBox';
 import CloseButton from '@/components/button/CloseButton';
 import bg from '@/assets/images/dashboard-bg.svg';
+import { LoadingContext } from '@/contexts/LoadingContext';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 function DashboardModify() {
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { showLoading, hideLoading } = useContext(LoadingContext);
+
   const [dashboardId, setDashboardId] = useState(null); // dashboard id
   const [dashboardTitle, setDashboardTitle] = useState(''); // dashboard 제목
   const [widgets, setWidgets] = useState([]); // widget 정보
@@ -64,22 +67,26 @@ function DashboardModify() {
 
   // dashboard info 조회
   const getDashboardInfo = id => {
-    // todo 서비스 완료시 연결
-    DashboardService.selectDashboard(id).then(response => {
-      if (response.data.status == STATUS.SUCCESS) {
-        setDashboardTitle(response.data.data.title);
-        setWidgets(response.data.data.widgets);
+    showLoading();
+    DashboardService.selectDashboard(id)
+      .then(response => {
+        if (response.data.status == STATUS.SUCCESS) {
+          setDashboardTitle(response.data.data.title);
+          setWidgets(response.data.data.widgets);
 
-        response.data.data.layout.map(item => {
-          if (item.i !== undefined) {
-            item.i = item.i.toString();
-          }
-        });
-        setLayout(response.data.data.layout);
-      } else {
-        alert.error('대시보드 조회에 실패했습니다.');
-      }
-    });
+          response.data.data.layout.map(item => {
+            if (item.i !== undefined) {
+              item.i = item.i.toString();
+            }
+          });
+          setLayout(response.data.data.layout);
+        } else {
+          alert.error('대시보드 조회에 실패했습니다.');
+        }
+      })
+      .finally(() => {
+        hideLoading();
+      });
   };
 
   useEffect(() => {
@@ -269,10 +276,19 @@ function DashboardModify() {
             {
               copy: '수정',
               onClick: () => {
-                DashboardService.updateDashboard(dashboardId, dashboardInfo).then(() => {
-                  navigate('/dashboard/' + dashboardId, { replace: true });
-                  snackbar.success('대시보드가 수정되었습니다.');
-                });
+                showLoading();
+                DashboardService.updateDashboard(dashboardId, dashboardInfo)
+                  .then(response => {
+                    if (response.data.status === 'SUCCESS') {
+                      navigate('/dashboard/' + dashboardId, { replace: true });
+                      snackbar.success('대시보드가 수정되었습니다.');
+                    } else {
+                      alert.error('대시보드 수정에 실패했습니다.');
+                    }
+                  })
+                  .finally(() => {
+                    hideLoading();
+                  });
               },
             },
           ],
@@ -285,10 +301,19 @@ function DashboardModify() {
             {
               copy: '생성',
               onClick: () => {
-                DashboardService.createDashboard(dashboardInfo).then(() => {
-                  navigate('/dashboard');
-                  snackbar.success('대시보드가 생성되었습니다.');
-                });
+                showLoading();
+                DashboardService.createDashboard(dashboardInfo)
+                  .then(response => {
+                    if (response.data.status === 'SUCCESS') {
+                      navigate('/dashboard');
+                      snackbar.success('대시보드가 생성되었습니다.');
+                    } else {
+                      alert.error('대시보드 생성에 실패했습니다.');
+                    }
+                  })
+                  .finally(() => {
+                    hideLoading();
+                  });
               },
             },
           ],

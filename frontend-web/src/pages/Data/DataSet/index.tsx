@@ -72,10 +72,9 @@ const DataSet = () => {
     } else if (data instanceof Object) {
       target = data;
     }
-    const columns = Object.keys(target).map(key => {
+    return Object.keys(target).map(key => {
       return { name: key, header: key, align: key, width: 200, sortable: true };
     });
-    return columns;
   };
 
   const addCompleter = () => {
@@ -120,14 +119,19 @@ const DataSet = () => {
    * 데이터베이스 타입 목록 조회
    */
   const getDatabaseTypeList = () => {
-    DatabaseService.selectDatabaseList().then(response => {
-      console.log('selectDatabaseTypeList', response.data);
-      if (response.data.status === STATUS.SUCCESS) {
-        const list = response.data.data;
-        list.map(item => (item.icon = getDatabaseIcon(item.engine)));
-        setDatabaseList(list);
-      }
-    });
+    showLoading();
+    DatabaseService.selectDatabaseList()
+      .then(response => {
+        console.log('selectDatabaseTypeList', response.data);
+        if (response.data.status === STATUS.SUCCESS) {
+          const list = response.data.data;
+          list.map(item => (item.icon = getDatabaseIcon(item.engine)));
+          setDatabaseList(list);
+        }
+      })
+      .finally(() => {
+        hideLoading();
+      });
   };
 
   const getDatabaseId = () => {
@@ -144,10 +148,16 @@ const DataSet = () => {
     showLoading();
     DatabaseService.selectDatabase(databaseId)
       .then(response => {
-        setTableList(response.data.data.tables);
-        console.log('tableList ', response.data.data.tables);
+        if (response.data.status === 'SUCCESS') {
+          setTableList(response.data.data.tables);
+          console.log('tableList ', response.data.data.tables);
+        } else {
+          alert.error('데이터베이스 조회에 실패했습니다.');
+        }
       })
-      .catch(() => {
+      .catch(error => {
+        alert.error('데이터베이스 조회에 실패했습니다.');
+        console.log(error);
         setTableList([]);
       })
       .finally(() => {
@@ -159,12 +169,17 @@ const DataSet = () => {
    * 수정일 경우 데이터셋 정보 조회
    */
   const getDatasetInfo = () => {
-    DatasetService.selectDataset(setId).then(response => {
-      console.log('selectDataset', response.data.data.id, response.data.data.databaseId);
-      if (response.data.status === 'SUCCESS') {
-        setDatasetInfo(response.data.data);
-      }
-    });
+    showLoading();
+    DatasetService.selectDataset(setId)
+      .then(response => {
+        console.log('selectDataset', response.data.data.id, response.data.data.databaseId);
+        if (response.data.status === 'SUCCESS') {
+          setDatasetInfo(response.data.data);
+        }
+      })
+      .finally(() => {
+        hideLoading();
+      });
   };
 
   /**
@@ -192,11 +207,15 @@ const DataSet = () => {
           setTestCompleted(false);
           setData([]);
           setColumns([]);
-          snackbar.error('Error!');
+          snackbar.error(`${response.data.message}`);
         }
       })
-      .catch(() => {
+      .catch(error => {
         setTestCompleted(false);
+        setData([]);
+        setColumns([]);
+        snackbar.error(`${error}`);
+        console.log('error', error);
       })
       .finally(() => {
         hideLoading();
@@ -213,26 +232,35 @@ const DataSet = () => {
         {
           copy: '확인',
           onClick: () => {
+            showLoading();
             if (isModifyMode) {
-              DatasetService.updateDataset(setId, datasetInfo).then(response => {
-                console.log(response.data);
-                if (response.data.status === STATUS.SUCCESS) {
-                  navigate('/data');
-                  snackbar.success('데이터셋이 수정되었습니다.');
-                } else {
-                  alert.error('데이터셋 수정에 실패했습니다.');
-                }
-              });
+              DatasetService.updateDataset(setId, datasetInfo)
+                .then(response => {
+                  console.log(response.data);
+                  if (response.data.status === STATUS.SUCCESS) {
+                    navigate('/data');
+                    snackbar.success('데이터셋이 수정되었습니다.');
+                  } else {
+                    alert.error('데이터셋 수정에 실패했습니다.');
+                  }
+                })
+                .finally(() => {
+                  hideLoading();
+                });
             } else {
-              DatasetService.createDataset(datasetInfo).then(response => {
-                console.log(response.data);
-                if (response.data.status === STATUS.SUCCESS) {
-                  navigate('/data');
-                  snackbar.success('데이터셋이 생성되었습니다.');
-                } else {
-                  alert.error('데이터셋 생성에 실패했습니다.');
-                }
-              });
+              DatasetService.createDataset(datasetInfo)
+                .then(response => {
+                  console.log(response.data);
+                  if (response.data.status === STATUS.SUCCESS) {
+                    navigate('/data');
+                    snackbar.success('데이터셋이 생성되었습니다.');
+                  } else {
+                    alert.error('데이터셋 생성에 실패했습니다.');
+                  }
+                })
+                .finally(() => {
+                  hideLoading();
+                });
             }
           },
         },

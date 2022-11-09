@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { ReactComponent as Logo } from '@/assets/images/logo.svg';
 import backgroundImage from '@/assets/images/visual-bg.png';
+import { SnackbarContext } from '@/contexts/AlertContext';
 
 function Copyright(props: any) {
   return (
@@ -27,7 +28,7 @@ function Copyright(props: any) {
 const Login = () => {
   const { onLogin } = useAuth();
   const navigate = useNavigate();
-  const alert = useAlert();
+  const snackbar = useAlert(SnackbarContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const [userInfo] = useState({
     userId: process.env.REACT_APP_MODE === 'local' ? process.env.REACT_APP_ID : '',
@@ -44,7 +45,7 @@ const Login = () => {
         }
       })
       .catch(error => {
-        alert.info(`${error}`);
+        snackbar.error(`${error}`);
         console.log('error', error);
       })
       .finally(() => {

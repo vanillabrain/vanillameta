@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { Stack, Typography } from '@mui/material';
 import { WIDGET_TYPE } from '@/constant';
 import LineChart from '@/widget/modules/linechart/LineChart';
@@ -23,10 +23,11 @@ import MixedLinePieChart from '@/widget/modules/mixedchart/MixedLinePieChart';
 import MixedDonutPieChart from '@/widget/modules/mixedchart/MixedDonutPieChart';
 import MixedLineStackedBarChart from '@/widget/modules/mixedchart/MixedLineStackedBarChart';
 import FunnelChart from '@/widget/modules/funnelchart/FunnelChart';
+import { LoadingContext } from '@/contexts/LoadingContext';
 
 const WidgetViewer = props => {
   const { title, widgetType, widgetOption, dataSet } = props;
-
+  const { showLoading, hideLoading } = useContext(LoadingContext);
   const [module, setModule] = useState(null);
   // const [componentOption, setComponentOption] = useState({});
   // let testModule = null;
@@ -38,9 +39,9 @@ const WidgetViewer = props => {
 
   const renderWidget = () => {
     console.log('===== renderWidget');
-    let module = null;
+    let module;
     const chartProps = { option: widgetOption, dataSet: dataSet };
-
+    showLoading();
     switch (widgetType) {
       case WIDGET_TYPE.BOARD_NUMERIC:
         module = <NumericBoard {...chartProps} />;
@@ -56,6 +57,7 @@ const WidgetViewer = props => {
         module = <LineChart {...chartProps} seriesOp={{ stack: 'total' }} />;
         break;
       case WIDGET_TYPE.CHART_AREA:
+        ``;
         module = <LineChart {...chartProps} seriesOp={{ areaStyle: {} }} />;
         break;
       case WIDGET_TYPE.CHART_STACKED_AREA:
@@ -365,8 +367,6 @@ const WidgetViewer = props => {
                 top: '50%',
                 left: 0,
                 right: 0,
-                maxWidth: 'fit-content',
-                height: 0,
                 margin: 'auto',
                 transform: 'translateY(-50%)',
               }}
@@ -386,8 +386,6 @@ const WidgetViewer = props => {
                 top: '50%',
                 left: 0,
                 right: 0,
-                maxWidth: 'fit-content',
-                height: 0,
                 margin: 'auto',
                 transform: 'translateY(-50%)',
               }}
@@ -410,6 +408,7 @@ const WidgetViewer = props => {
 
     console.log('module', module);
     setModule(module);
+    hideLoading();
   };
 
   // const defaultComponentOption = {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { Box, Card, Stack, Typography } from '@mui/material';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import PageTitleBox from '@/components/PageTitleBox';
@@ -14,6 +14,7 @@ import ModifyButton from '@/components/button/ModifyButton';
 import DeleteButton from '@/components/button/DeleteButton';
 import ReloadButton from '@/components/button/ReloadButton';
 import { SnackbarContext } from '@/contexts/AlertContext';
+import { LoadingContext } from '@/contexts/LoadingContext';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -23,6 +24,7 @@ const DashboardView = () => {
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
 
+  const { showLoading, hideLoading } = useContext(LoadingContext);
   const [dashboardInfo, setDashboardInfo] = useState({ title: '', widgets: [], layout: [], updatedAt: '' }); // dashboard 정보
   const [layout, setLayout] = useState([]); // grid layout
   // dashboard id
@@ -46,13 +48,18 @@ const DashboardView = () => {
 
   // dashboard info 조회
   const getDashboardInfo = id => {
-    DashboardService.selectDashboard(id).then(response => {
-      if (response.data.status == STATUS.SUCCESS) {
-        setDashboardInfo(response.data.data);
-      } else {
-        alert.error('대시보드 조회에 실패했습니다.');
-      }
-    });
+    showLoading();
+    DashboardService.selectDashboard(id)
+      .then(response => {
+        if (response.data.status == STATUS.SUCCESS) {
+          setDashboardInfo(response.data.data);
+        } else {
+          alert.error('대시보드 조회에 실패했습니다.');
+        }
+      })
+      .finally(() => {
+        hideLoading();
+      });
   };
 
   const dateData = data => {
@@ -100,14 +107,19 @@ const DashboardView = () => {
         {
           copy: '확인',
           onClick: () => {
-            DashboardService.deleteDashboard(dashboardId).then(response => {
-              if (response.data.status == STATUS.SUCCESS) {
-                navigate('/dashboard', { replace: true });
-                snackbar.success('대시보드가 삭제되었습니다.');
-              } else {
-                alert.error('대시보드 삭제에 실패했습니다.');
-              }
-            });
+            showLoading();
+            DashboardService.deleteDashboard(dashboardId)
+              .then(response => {
+                if (response.data.status == STATUS.SUCCESS) {
+                  navigate('/dashboard', { replace: true });
+                  snackbar.success('대시보드가 삭제되었습니다.');
+                } else {
+                  alert.error('대시보드 삭제에 실패했습니다.');
+                }
+              })
+              .finally(() => {
+                hideLoading();
+              });
           },
         },
       ],

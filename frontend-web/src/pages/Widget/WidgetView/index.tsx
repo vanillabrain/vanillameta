@@ -84,14 +84,19 @@ const WidgetView = () => {
         {
           copy: '삭제',
           onClick: () => {
-            WidgetService.deleteWidget(widgetId).then(response => {
-              if (response.status === 200) {
-                navigate('/widget', { replace: true });
-                snackbar.success('위젯이 삭제되었습니다.');
-              } else {
-                alert.error('위젯 삭제에 실패했습니다.');
-              }
-            });
+            showLoading();
+            WidgetService.deleteWidget(widgetId)
+              .then(response => {
+                if (response.status === 200) {
+                  navigate('/widget', { replace: true });
+                  snackbar.success('위젯이 삭제되었습니다.');
+                } else {
+                  alert.error('위젯 삭제에 실패했습니다.');
+                }
+              })
+              .finally(() => {
+                hideLoading();
+              });
           },
         },
       ],
