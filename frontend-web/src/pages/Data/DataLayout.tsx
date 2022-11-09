@@ -59,10 +59,16 @@ const DataLayout = props => {
     showLoading();
     DatabaseService.selectDatabase(selectedDatabase.databaseId)
       .then(response => {
-        setDatasetList(response.data.data.datasets);
-        setTableList(response.data.data.tables);
+        if (response.data.status === 'SUCCESS') {
+          setDatasetList(response.data.data.datasets);
+          setTableList(response.data.data.tables);
+        } else {
+          alert.error('데이터베이스 조회에 실패했습니다.');
+        }
       })
-      .catch(() => {
+      .catch(error => {
+        alert.error('데이터베이스 조회에 실패했습니다.');
+        console.log(error);
         setDatasetList([]);
         setTableList([]);
       })

@@ -148,10 +148,16 @@ const DataSet = () => {
     showLoading();
     DatabaseService.selectDatabase(databaseId)
       .then(response => {
-        setTableList(response.data.data.tables);
-        console.log('tableList ', response.data.data.tables);
+        if (response.data.status === 'SUCCESS') {
+          setTableList(response.data.data.tables);
+          console.log('tableList ', response.data.data.tables);
+        } else {
+          alert.error('데이터베이스 조회에 실패했습니다.');
+        }
       })
-      .catch(() => {
+      .catch(error => {
+        alert.error('데이터베이스 조회에 실패했습니다.');
+        console.log(error);
         setTableList([]);
       })
       .finally(() => {

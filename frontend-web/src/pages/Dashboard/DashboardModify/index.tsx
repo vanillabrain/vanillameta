@@ -279,7 +279,6 @@ function DashboardModify() {
                 showLoading();
                 DashboardService.updateDashboard(dashboardId, dashboardInfo)
                   .then(response => {
-                    console.log(response);
                     if (response.data.status === 'SUCCESS') {
                       navigate('/dashboard/' + dashboardId, { replace: true });
                       snackbar.success('대시보드가 수정되었습니다.');
