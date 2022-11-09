@@ -207,13 +207,15 @@ const DataSet = () => {
           setTestCompleted(false);
           setData([]);
           setColumns([]);
-          snackbar.error('Error!');
+          snackbar.error(`${response.data.message}`);
         }
       })
       .catch(error => {
+        setTestCompleted(false);
+        setData([]);
+        setColumns([]);
         snackbar.error(`${error}`);
         console.log('error', error);
-        setTestCompleted(false);
       })
       .finally(() => {
         hideLoading();
