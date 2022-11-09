@@ -1,4 +1,4 @@
-import { WIDGET_AGGREGATION } from '@/constant';
+import { WIDGET_AGGREGATION } from '../../../constant';
 
 /**
  *
@@ -107,11 +107,14 @@ export const getCenter = position => {
  */
 export const getAggregationData = (type, data, field) => {
   let result = 0;
+  if (data.length > 0 && (type === WIDGET_AGGREGATION.MIN || type === WIDGET_AGGREGATION.MAX)) {
+    result = Number(data[0][field]);
+  }
   switch (type) {
     case WIDGET_AGGREGATION.SUM:
       data.forEach(item => {
         // console.log('item ', item[field]);
-        if (item[field]) {
+        if (item[field] != undefined && item[field] != null) {
           result += Number(item[field]);
         }
       });
@@ -119,16 +122,17 @@ export const getAggregationData = (type, data, field) => {
     case WIDGET_AGGREGATION.AVG:
       data.forEach(item => {
         // console.log('item ', item[field]);
-        if (item[field]) {
+        if (item[field] != undefined && item[field] != null) {
           result += Number(item[field]);
         }
       });
-      result = Math.floor(result / data.length);
+      result = Math.floor((result / data.length) * 100000000) / 100000000;
+      // result = result / data.length;
       break;
     case WIDGET_AGGREGATION.MAX:
       data.forEach(item => {
         // console.log('item ', item[field]);
-        if (item[field]) {
+        if (item[field] != undefined && item[field] != null) {
           result = Math.max(result, item[field]);
         }
       });
@@ -136,7 +140,7 @@ export const getAggregationData = (type, data, field) => {
     case WIDGET_AGGREGATION.MIN:
       data.forEach(item => {
         // console.log('item ', item[field]);
-        if (item[field]) {
+        if (item[field] != undefined && item[field] != null) {
           result = Math.min(result, item[field]);
         }
       });
