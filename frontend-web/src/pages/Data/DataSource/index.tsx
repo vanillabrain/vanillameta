@@ -93,7 +93,7 @@ function DataSource() {
 
   const getDatabaseInfo = () => {
     showLoading();
-    DatabaseService.selectDatabase(sourceId)
+    DatabaseService.selectDatabaseInfo(sourceId)
       .then(response => {
         const info = response.data;
         if (info.status === 'SUCCESS') {
