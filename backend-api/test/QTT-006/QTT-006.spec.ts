@@ -15,11 +15,15 @@ import { Dashboard } from '../../src/dashboard/entities/dashboard.entity';
 import { DashboardWidget } from '../../src/dashboard/dashboard-widget/entities/dashboard-widget.entity';
 import { DashboardWidgetService } from '../../src/dashboard/dashboard-widget/dashboard-widget.service';
 import { ResponseStatus } from '../../src/common/enum/response-status.enum';
+import { WidgetService } from '../../src/widget/widget.service';
+import { TableQuery } from '../../src/widget/tabel-query/entity/table-query.entity';
+import { Database } from '../../src/database/entities/database.entity';
+import { TableQueryService } from '../../src/widget/tabel-query/table-query.service';
 
-describe('QTT-006 : 대시보드 템플릿 추천 알고리즘 존재 여부를 확인', () => {
+describe('QTT-006 : 대시보드 템플릿 추천', () => {
   let templateService: TemplateService;
   let dashboardService: DashboardService;
-  let resultList = [];
+  let widgetService: WidgetService;
   let templateList01, templateList02;
 
   beforeAll(async () => {
@@ -39,53 +43,69 @@ describe('QTT-006 : 대시보드 템플릿 추천 알고리즘 존재 여부를 
           Component,
           Dashboard,
           DashboardWidget,
+          Database,
+          TableQuery,
         ]),
       ],
-      providers: [TemplateService, DashboardService, DashboardWidgetService],
+      providers: [
+        TemplateService,
+        DashboardService,
+        DashboardWidgetService,
+        WidgetService,
+        TableQueryService,
+      ],
     }).compile();
 
     templateService = module.get<TemplateService>(TemplateService);
     dashboardService = module.get<DashboardService>(DashboardService);
+    widgetService = module.get<WidgetService>(WidgetService);
   }, 100000);
 
-  // it.each([
-  //   ['01 : 서로 다른 타입의 위젯 목록', [107, 108, 111, 112, 113], 10],
-  //   ['02 : 바차트 타입의 위젯 목록', [107, 108], false],
-  //   ['03 : 알고리즘 범위를 벗어난 위젯 목록', [116, 117, 118, 119, 120, 121, 122, 123, 124, 125]],
-  // ])('QTT-006-%s', async (title: string, widgets, expectResult) => {
-  //   const templateResult = await templateService.findRecommendTemplates(widgets);
-  //   const templateList = templateResult.data;
-  //   resultList.push(templateList);
-  //   return expect(templateList.length).toEqual(10);
-  // });
-
-  // afterAll(async () => {
-  //   return expect(resultList[0]).not.toEqual(resultList[0]);
-  //   console.log(resultList.length);
-  // });
-
   it('QTT-006-01 : 서로 다른 타입의 위젯 목록', async () => {
-    const templateResult = await templateService.findRecommendTemplates([107, 108, 111, 112, 113]);
+    const componentList = [15, 12, 41, 13, 38];
+
+    let findWidgetInfo = await widgetService.findAll();
+    let widgetIdList = [];
+    for (let i = 0; i < componentList.length; i++) {
+      const tempWidgetObj = findWidgetInfo.data.find(item => item.componentId === componentList[i]);
+      widgetIdList.push(tempWidgetObj.id);
+    }
+
+    const templateResult = await templateService.findRecommendTemplates(widgetIdList);
     templateList01 = templateResult.data;
 
     return expect(templateList01.length).toEqual(10);
   });
 
   it('QTT-006-02 : 바차트 타입의 위젯 목록', async () => {
-    const templateResult = await templateService.findRecommendTemplates([107, 108]);
+    const componentList = [3, 4, 16, 17, 20, 25];
+    let findWidgetInfo = await widgetService.findAll();
+    let widgetIdList = [];
+    for (let i = 0; i < componentList.length; i++) {
+      const tempWidgetObj = findWidgetInfo.data.find(item => item.componentId === componentList[i]);
+      widgetIdList.push(tempWidgetObj.id);
+    }
+
+    const templateResult = await templateService.findRecommendTemplates(widgetIdList);
     templateList02 = templateResult.data;
 
     // QTT-006-01의 결과와 다름을 확인
     return expect(templateList02).not.toEqual(templateList01);
   });
 
-  it('QTT-006-03 : 알고리즘 범위를 벗어난 위젯 목록', async (widgets = [
-    116, 117, 118, 119, 120, 121, 122, 123, 124, 125,
-  ]) => {
-    const templateResult = await templateService.findRecommendTemplates(widgets);
+  it('QTT-006-03 : 알고리즘 범위를 벗어난 위젯 목록', async () => {
+    const componentList = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    let findWidgetInfo = await widgetService.findAll();
+    let widgetIdList = [];
+    for (let i = 0; i < componentList.length; i++) {
+      const tempWidgetObj = findWidgetInfo.data.find(item => item.componentId === componentList[i]);
+      widgetIdList.push(tempWidgetObj.id);
+    }
+
+    const templateResult = await templateService.findRecommendTemplates(widgetIdList);
     const templateList = templateResult.data;
     const layoutResult = await templateService.getTemplateDashboardLayout(
-      widgets,
+      widgetIdList,
       templateList[0].id,
     );
 
