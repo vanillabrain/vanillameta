@@ -9,7 +9,7 @@ import { getTestMysqlModule } from '../util/get-test-mysql.module';
 import { TemplateModule } from '../../src/template/template.module';
 import { ConfigModule } from '@nestjs/config';
 
-describe('QTT-005 : 사용자 추천 템플릿의 종류를 확인', () => {
+describe('QTT-005: 대시보드 템플릿', () => {
   let templateService: TemplateService;
 
   let templateList;

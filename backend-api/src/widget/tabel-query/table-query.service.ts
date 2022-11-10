@@ -19,6 +19,15 @@ export class TableQueryService {
    * @param tableName
    */
   async create(databaseId: number, tableName: string) {
+    const selectQuery = await this.makeSelectAllQuery(databaseId, tableName);
+
+    return await this.tableQueryRepository.save({
+      databaseId,
+      query: selectQuery,
+    });
+  }
+
+  async makeSelectAllQuery(databaseId: number, tableName: string) {
     const databaseOne = await this.databaseRepository.findOne({ where: { id: databaseId } });
     let selectQuery;
     switch (databaseOne.type) {
@@ -34,10 +43,7 @@ export class TableQueryService {
         break;
     }
 
-    return await this.tableQueryRepository.save({
-      databaseId,
-      query: selectQuery,
-    });
+    return selectQuery;
   }
 
   /**
