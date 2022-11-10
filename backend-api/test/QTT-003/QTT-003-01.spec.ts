@@ -63,7 +63,7 @@ describe('Check Widget Function', () => {
         let widgetId = [];
         let result = [];
         for(let i = 0; i < varchart.length; i ++) {
-            widgetId.push(findWidgetInfo.data.filter(el => el.title === varchart[i]));
+            widgetId.push(findWidgetInfo.data.filter(el => el.componentTitle === varchart[i]));
         }
         widgetId = widgetId.flat();
         result = widgetId.map(el => el.id)
@@ -78,7 +78,6 @@ describe('Check Widget Function', () => {
         createDashboardDto.title = 'QTT-003-01 dashboard';
         createDashboardDto.layout = layoutResult.data.layout;
         const createDashboardResult = await dashboardService.create(createDashboardDto);
-
         return expect(createDashboardResult.status).toEqual(ResponseStatus.SUCCESS);
     });
 
@@ -87,7 +86,7 @@ describe('Check Widget Function', () => {
         let widgetId = [];
         let result = [];
         for(let i = 0; i < linechart.length; i ++) {
-            widgetId.push(findWidgetInfo.data.filter(el => el.title === linechart[i]));
+            widgetId.push(findWidgetInfo.data.filter(el => el.componentTitle === linechart[i]));
         }
         widgetId = widgetId.flat();
         result = widgetId.map(el => el.id)
@@ -102,7 +101,6 @@ describe('Check Widget Function', () => {
         createDashboardDto.title = 'QTT-003-02 dashboard';
         createDashboardDto.layout = layoutResult.data.layout;
         const createDashboardResult = await dashboardService.create(createDashboardDto);
-
         return expect(createDashboardResult.status).toEqual(ResponseStatus.SUCCESS);
     });
 
@@ -111,7 +109,7 @@ describe('Check Widget Function', () => {
         let widgetId = [];
         let result = [];
         for(let i = 0; i < piechart.length; i ++) {
-            widgetId.push(findWidgetInfo.data.filter(el => el.title === piechart[i]));
+            widgetId.push(findWidgetInfo.data.filter(el => el.componentTitle === piechart[i]));
         }
         widgetId = widgetId.flat();
         result = widgetId.map(el => el.id)
@@ -126,7 +124,6 @@ describe('Check Widget Function', () => {
         createDashboardDto.title = 'QTT-003-03 dashboard';
         createDashboardDto.layout = layoutResult.data.layout;
         const createDashboardResult = await dashboardService.create(createDashboardDto);
-
         return expect(createDashboardResult.status).toEqual(ResponseStatus.SUCCESS);
     });
 
@@ -135,7 +132,7 @@ describe('Check Widget Function', () => {
         let widgetId = [];
         let result = [];
         for(let i = 0; i < etcchart.length; i ++) {
-            widgetId.push(findWidgetInfo.data.filter(el => el.title === etcchart[i]));
+            widgetId.push(findWidgetInfo.data.filter(el => el.componentTitle === etcchart[i]));
         }
         widgetId = widgetId.flat();
         result = widgetId.map(el => el.id)
@@ -150,7 +147,6 @@ describe('Check Widget Function', () => {
         createDashboardDto.title = 'QTT-003-04 dashboard';
         createDashboardDto.layout = layoutResult.data.layout;
         const createDashboardResult = await dashboardService.create(createDashboardDto);
-
         return expect(createDashboardResult.status).toEqual(ResponseStatus.SUCCESS);
     });
 
@@ -159,7 +155,7 @@ describe('Check Widget Function', () => {
         let widgetId = [];
         let result = [];
         for(let i = 0; i < etccomponent.length; i ++) {
-            widgetId.push(findWidgetInfo.data.filter(el => el.title === etccomponent[i]));
+            widgetId.push(findWidgetInfo.data.filter(el => el.componentTitle === etccomponent[i]));
         }
         widgetId = widgetId.flat();
         result = widgetId.map(el => el.id)
