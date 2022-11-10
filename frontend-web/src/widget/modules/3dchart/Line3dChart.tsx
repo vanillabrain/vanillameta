@@ -46,7 +46,7 @@ function Line3DChart(props) {
         }
         if (item.field) {
           const series = {
-            name: item.field,
+            name: option.legendAggregation ? `${item.field} (${item.aggregation})` : item.field,
             data: aggrData.map((element, idx) => [idx, index, element[item.field]]),
             type: 'line3D',
             color: item.color,

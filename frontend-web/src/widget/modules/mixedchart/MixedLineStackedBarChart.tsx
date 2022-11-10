@@ -49,7 +49,7 @@ const LineChart = props => {
       // console.log('aggrData : ', aggrData);
       if (item.field && item.type) {
         const series = {
-          name: item.field,
+          name: option.legendAggregation ? `${item.field} (${item.aggregation})` : item.field,
           data: aggrData.map(dataItem => dataItem[item.field]),
           type: item.type,
           color: item.color,
