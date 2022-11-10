@@ -10,10 +10,10 @@ import { ConnectionService } from '../../src/connection/connection.service';
 import * as TestConnectionInfo from '../../test-connect-info.json';
 import { ResponseStatus } from '../../src/common/enum/response-status.enum';
 
-describe('Check MYSQL Connection', () => {
+describe('QTT-001: 외부 API 연동', () => {
   let connectService: ConnectionService;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({
@@ -29,24 +29,29 @@ describe('Check MYSQL Connection', () => {
     connectService = module.get<ConnectionService>(ConnectionService);
   }, 10000);
   const dbName = [
-    'mysql',
-    'maria',
-    'pg',
-    'oracle',
-    'cockroach',
-    'redshift',
-    'bigquery',
-    'sqlite',
-    'mssql',
-    'snowflake',
+    ['QTT-001-01', 'mysql'],
+    ['QTT-001-02', 'maria'],
+    ['QTT-001-03', 'pg'],
+    ['QTT-001-04', 'oracle'],
+    ['QTT-001-05', 'cockroach'],
+    ['QTT-001-06', 'redshift'],
+    ['QTT-001-07', 'bigquery'],
+    ['QTT-001-08', 'sqlite'],
+    ['QTT-001-09', 'mssql'],
+    ['QTT-001-10', 'snowflake'],
   ];
 
-  for (let i = 0; i < dbName.length; i++) {
-    it(`QTT-001-${String(i + 1).padStart(2, '0')}`, async () => {
-      const result = await connectService.testConnection(
-        Object.create(TestConnectionInfo[dbName[i]]),
-      );
-      return expect(result['status']).toStrictEqual(ResponseStatus.SUCCESS);
-    });
-  }
+  it.each(dbName)('%s : %s', async (name, engine) => {
+    const result = await connectService.testConnection(Object.create(TestConnectionInfo[engine]));
+    return expect(result['status']).toStrictEqual(ResponseStatus.SUCCESS);
+  });
+
+  // for (let i = 0; i < dbName.length; i++) {
+  //   it(`QTT-001-${String(i + 1).padStart(2, '0')}`, async () => {
+  //     const result = await connectService.testConnection(
+  //       Object.create(TestConnectionInfo[dbName[i]]),
+  //     );
+  //     return expect(result['status']).toStrictEqual(ResponseStatus.SUCCESS);
+  //   });
+  // }
 });
