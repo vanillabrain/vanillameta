@@ -163,10 +163,10 @@ const decimalFits = arr => {
   //소수점 자리수가 가장많은 수 return
   let decimalN = 0;
   for (let j = 0; j < arr.length; j++) {
-    let n = arr[j];
+    const n = arr[j];
     if (!Number.isInteger(n)) {
       //소수
-      let d = String(n).split('.')[1].length; //문자열 소수점 다음 개수
+      const d = String(n).split('.')[1].length; //문자열 소수점 다음 개수
       if (decimalN < d) decimalN = d;
     }
   }
