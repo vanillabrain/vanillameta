@@ -39,8 +39,6 @@
     "name": "sqlite database",
     "description": "vanilla sqlite - dev",
     "connectionConfig": {
-      "user": "vanillabrain",
-      "password": "qkslffk123123",
       "database": "sqlite_sample",
       "filename": "./sqlite_sample.sqlite"
     },
