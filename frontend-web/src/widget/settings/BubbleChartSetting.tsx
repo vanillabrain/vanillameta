@@ -12,7 +12,7 @@ const BubbleChartSetting = props => {
 
   // 컴포넌트 별 default series
   const defaultSeries = {
-    title: '',
+    title: `이름 ${option.series.length + 1}`,
     xField: '',
     yField: '',
     color: '',

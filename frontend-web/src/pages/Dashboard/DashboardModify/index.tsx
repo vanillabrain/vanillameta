@@ -222,6 +222,7 @@ function DashboardModify() {
               paddingRight: '8px',
               paddingTop: '8px',
               cursor: 'pointer',
+              zIndex: 2000,
             }}
             size="medium"
             onClick={event => {

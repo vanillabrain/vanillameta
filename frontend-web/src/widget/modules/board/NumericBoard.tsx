@@ -46,14 +46,19 @@ const NumericBoard = props => {
       sx={{
         display: 'flex',
         justifyContent: 'center',
+        width: '100%',
         height: '100%',
-        padding: 2,
+        whiteSpace: 'nowrap',
         ...sx,
       }}
     >
       <Typography
         component="span"
-        sx={{ fontSize: componentOption.header.fontSize, color: componentOption.header.color, textAlign: 'center' }}
+        sx={{
+          fontSize: componentOption.header.fontSize,
+          color: componentOption.header.color,
+          textAlign: 'center',
+        }}
       >
         {componentOption.header.title}
       </Typography>

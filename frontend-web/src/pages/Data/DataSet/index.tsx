@@ -156,8 +156,7 @@ const DataSet = () => {
         }
       })
       .catch(error => {
-        alert.error('데이터베이스 조회에 실패했습니다.');
-        console.log(error);
+        snackbar.error(error.message);
         setTableList([]);
       })
       .finally(() => {
@@ -211,11 +210,10 @@ const DataSet = () => {
         }
       })
       .catch(error => {
+        snackbar.error(error.message);
         setTestCompleted(false);
         setData([]);
         setColumns([]);
-        snackbar.error(`${error}`);
-        console.log('error', error);
       })
       .finally(() => {
         hideLoading();

@@ -69,8 +69,7 @@ const DataLayout = props => {
         }
       })
       .catch(error => {
-        alert.error('데이터베이스 조회에 실패했습니다.');
-        console.log(error);
+        snackbar.error(error.message);
         setDatasetList([]);
         setTableList([]);
       })

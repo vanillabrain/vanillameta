@@ -34,12 +34,13 @@ const TableBoard = props => {
     <Stack
       sx={{
         height: '100%',
-        padding: 2,
+        minHeight: '100%',
+        overflow: 'hidden',
       }}
     >
       <DataGrid
         minBodyHeight={300}
-        bodyHeight={500}
+        bodyHeight={'fitToParent'}
         data={dataSet}
         columns={columns}
         columnOptions={{
