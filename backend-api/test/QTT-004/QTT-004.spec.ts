@@ -2,7 +2,7 @@ import * as dummyJson from './QTT-004_dummyData.json';
 import * as resultJson from './QTT-004_resultData.json';
 import { getAggregationData, WIDGET_AGGREGATION } from '../../src/utils/aggregation.util';
 
-describe('QTT-004', () => {
+describe('QTT-004: 데이터 집산', () => {
   const dummyData = dummyJson.dummyData;
   const expectData = resultJson.expectData;
   const fieldList = Object.keys(expectData);
@@ -30,8 +30,4 @@ describe('QTT-004', () => {
       expectData[fieldName][WIDGET_AGGREGATION.AVG],
     );
   });
-});
-
-afterAll(() => {
-  console.log('test end');
 });

@@ -112,7 +112,7 @@ export const getAggregationData = (type, data, field) => {
   let dataList = [];
   if (data.length > 0 && (type === WIDGET_AGGREGATION.MIN || type === WIDGET_AGGREGATION.MAX)) {
     result = Number(data[0][field]);
-  } else if (data.length > 0 && type === WIDGET_AGGREGATION.SUM) {
+  } else if (data.length > 0 && type === WIDGET_AGGREGATION.SUM && field) {
     dataList = data.map(row => row[field]);
     fits = decimalFits(dataList);
   }
@@ -124,7 +124,7 @@ export const getAggregationData = (type, data, field) => {
           result += Number(item[field]);
         }
       });
-      result = Number(result.toFixed(fits));
+      if (field) result = Number(result.toFixed(fits));
       break;
     case WIDGET_AGGREGATION.AVG:
       // result = math.mean(dataList);
