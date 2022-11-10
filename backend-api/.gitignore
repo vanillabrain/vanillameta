@@ -5,7 +5,9 @@ config.serverless.yml
 .ormconfig.json
 vanillameta
 bigquery-key.json
-.
+test-connect-info.json
+
+
 # compiled output
 /dist
 /node_modules
