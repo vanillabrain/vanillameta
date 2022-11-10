@@ -64,11 +64,12 @@ const DataLayout = props => {
           setTableList(response.data.data.tables);
         } else {
           alert.error('데이터베이스 조회에 실패했습니다.');
+          setDatasetList([]);
+          setTableList([]);
         }
       })
       .catch(error => {
-        alert.error('데이터베이스 조회에 실패했습니다.');
-        console.log(error);
+        snackbar.error(error.message);
         setDatasetList([]);
         setTableList([]);
       })

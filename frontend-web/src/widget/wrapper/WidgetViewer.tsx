@@ -367,6 +367,8 @@ const WidgetViewer = props => {
                 top: '50%',
                 left: 0,
                 right: 0,
+                maxWidth: 'fit-content',
+                height: 0,
                 margin: 'auto',
                 transform: 'translateY(-50%)',
               }}
@@ -386,6 +388,8 @@ const WidgetViewer = props => {
                 top: '50%',
                 left: 0,
                 right: 0,
+                maxWidth: 'fit-content',
+                height: 0,
                 margin: 'auto',
                 transform: 'translateY(-50%)',
               }}
@@ -437,6 +441,7 @@ const WidgetViewer = props => {
   return (
     <Stack
       sx={{
+        position: 'relative',
         width: '100%',
         height: '100%',
       }}
@@ -457,6 +462,8 @@ const WidgetViewer = props => {
           variant="subtitle1"
           component="span"
           sx={{
+            overflow: 'hidden',
+            width: 'calc(100% - 40px)',
             fontSize: '16px',
             fontWeight: '600',
             fontStretch: 'normal',
@@ -465,6 +472,8 @@ const WidgetViewer = props => {
             letterSpacing: '-0.16px',
             textAlign: 'left',
             color: '#333',
+            whiteSpace: 'nowrap',
+            textOverflow: 'ellipsis',
           }}
         >
           {title}
@@ -474,8 +483,8 @@ const WidgetViewer = props => {
       <Stack
         sx={{
           width: '100%',
-          height: '100%',
-          position: 'relative',
+          height: 'calc(100% - 48px)',
+          // position: 'relative',
           padding: '10px 40px 48px 40px',
         }}
       >

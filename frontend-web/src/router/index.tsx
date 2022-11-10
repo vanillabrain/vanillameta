@@ -28,6 +28,7 @@ function Router() {
           </ProtectedRoute>
         }
       >
+        <Route path="/" element={<Dashboard />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/dashboard/:dashboardId" element={<DashboardView />} />
         <Route path="/dashboard/create" element={<DashboardCreate />}>

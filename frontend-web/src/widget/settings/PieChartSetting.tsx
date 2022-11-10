@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Divider, ListItem, ListItemText } from '@mui/material';
+import { ListItem, ListItemText } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import ColorFieldForm from '@/components/form/ColorFieldForm';
 import { handleChange } from '@/widget/utils/handler';
@@ -9,24 +9,20 @@ import { AddButton } from '@/components/button/AddIconButton';
 
 const PieChartSetting = props => {
   const { option, setOption, listItem, spec, dataSet } = props;
-  console.log(props, 'props');
-
   const [colorNum, setColorNum] = useState(12);
 
   useEffect(() => {
-    if (option.series.color.length) {
-      return;
-    }
     let pieAggrData = [];
     if (option.series.field) {
       pieAggrData = getAggregationDataForChart(dataSet, option.series.name, option.series.field, option.series.aggregation);
     }
-    const colorArr = getColorArr(pieAggrData.length);
-    console.log(colorArr);
-    setOption(prevState => {
-      prevState.series.color = colorArr;
-      return { ...prevState };
-    });
+    if (pieAggrData.length !== option.series.color.length) {
+      const colorArr = getColorArr(pieAggrData.length);
+      setOption(prevState => {
+        prevState.series.color = colorArr;
+        return { ...prevState };
+      });
+    }
   }, [option.series.field, option.series.name]);
 
   const handleSeriesChange = event => {

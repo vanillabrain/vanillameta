@@ -6,33 +6,29 @@ import { handleChange } from '@/widget/utils/handler';
 import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST, PIE_LABEL_LIST } from '@/constant';
 import { getAggregationDataForChart, getColorArr } from '@/widget/modules/utils/chartUtil';
 import { AddButton } from '@/components/button/AddIconButton';
-import { ReactComponent as OneColorIcon } from '@/assets/images/icon/ic-color.svg';
+import { ReactComponent as SingleColorIcon } from '@/assets/images/icon/ic-color.svg';
 import { ReactComponent as GradientColorIcon } from '@/assets/images/icon/ic-gradient.svg';
 
 const FunnelChartSetting = props => {
-  const { option, setOption, listItem, spec, dataSet } = props;
-
+  const { option, setOption, spec, dataSet } = props;
   const [colorNum, setColorNum] = useState(12);
-  const [isOneColor, setIsOneColor] = useState(false);
 
-  const setColor = () => {
-    if (option.series.color.length) {
-      return;
-    }
+  const setMultiColor = () => {
     let pieAggrData = [];
     if (option.series.field) {
       pieAggrData = getAggregationDataForChart(dataSet, option.series.name, option.series.field, option.series.aggregation);
     }
-    const colorArr = getColorArr(pieAggrData.length);
-    console.log(colorArr);
-    setOption(prevState => {
-      prevState.series.color = colorArr;
-      return { ...prevState };
-    });
+    if (pieAggrData.length !== option.series.color.length) {
+      const colorArr = getColorArr(pieAggrData.length);
+      setOption(prevState => {
+        prevState.series.color = colorArr;
+        return { ...prevState };
+      });
+    }
   };
   useEffect(() => {
-    if (!isOneColor) {
-      setColor();
+    if (!option.singleColor) {
+      setMultiColor();
     }
   }, [option.series.field, option.series.name]);
 
@@ -47,23 +43,26 @@ const FunnelChartSetting = props => {
   };
 
   const handleAddColorClick = () => {
-    if (option.series.field && option.series.name && !isOneColor) {
+    if (option.series.field && option.series.name && !option.singleColor) {
       setColorNum(prevState => prevState + 12);
     }
   };
 
   const handleColorChangeClick = () => {
-    if (!isOneColor) {
-      setIsOneColor(true);
+    if (!option.singleColor) {
       setColorNum(1);
       setOption(prevState => {
-        prevState['series'].color = [prevState['series'].color[0]];
+        prevState.series.color = [prevState.series.color[0]];
+        prevState.singleColor = true;
         return { ...prevState };
       });
     } else {
-      setIsOneColor(false);
       setColorNum(12);
-      setColor();
+      setMultiColor();
+      setOption(prevState => {
+        prevState.singleColor = false;
+        return { ...prevState };
+      });
     }
   };
 
@@ -114,14 +113,6 @@ const FunnelChartSetting = props => {
         />
       </ListItem>
 
-      {/* 추가되는 아이템 */}
-      {!!listItem && (
-        <ListItem divider>
-          <ListItemText primary={listItem.title} />
-          {listItem.children}
-        </ListItem>
-      )}
-
       <ListItem divider>
         <ListItemText>범례 설정</ListItemText>
         <SelectForm
@@ -154,7 +145,11 @@ const FunnelChartSetting = props => {
           }}
           onClick={handleColorChangeClick}
         >
-          <SvgIcon component={isOneColor ? OneColorIcon : GradientColorIcon} inheritViewBox sx={{ width: 16, height: 16 }} />
+          <SvgIcon
+            component={option.singleColor ? SingleColorIcon : GradientColorIcon}
+            inheritViewBox
+            sx={{ width: 16, height: 16 }}
+          />
         </IconButton>
         {option.series.field &&
           option.series.color
