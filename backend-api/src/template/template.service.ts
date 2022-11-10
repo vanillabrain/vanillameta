@@ -225,7 +225,6 @@ export class TemplateService {
     const result = templateComponentInfoList.sort(
       (a, b) => b.totalRecommendScore - a.totalRecommendScore,
     );
-
     return { status: ResponseStatus.SUCCESS, data: result };
   }
 

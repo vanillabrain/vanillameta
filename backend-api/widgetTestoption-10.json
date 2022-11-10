@@ -1,0 +1,352 @@
+[
+  {
+    "title": "숫자판",
+    "description": "Score Board",
+    "databaseId": 113,
+    "componentId": 12,
+    "datasetType": "DATASET",
+    "datasetId": 27,
+    "option": {
+      "header": {
+        "title": "평균 급여",
+        "fontSize": 20,
+        "color": "#4A4A4A"
+      },
+      "content": {
+        "aggregation": "avg",
+        "fontSize": 50,
+        "color": "#4A4A4A",
+        "field": "annualSalary",
+        "numForm": true,
+        "suffix": "원"
+      }
+    }
+  },
+  {
+    "title": "표",
+    "description": "Data Grid",
+    "databaseId": 114,
+    "componentId": 13,
+    "datasetType": "DATASET",
+    "datasetId": 28,
+    "option": {
+      "columns": [
+        {
+          "name": "yearsmarried",
+          "header": "Year Merried",
+          "align": "right",
+          "sortable": true
+        },
+        {
+          "name": "age",
+          "header": "Age",
+          "align": "right",
+          "sortable": true
+        },
+        {
+          "name": "gender",
+          "header": "Gender",
+          "align": "right",
+          "sortable": true
+        }
+      ]
+    }
+  },
+  {
+    "title": "선형 차트",
+    "description": "Line Chart",
+    "databaseId": 108,
+    "componentId": 1,
+    "datasetType": "DATASET",
+    "datasetId": 26,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "education"
+        },
+        {
+          "field": "wage",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "experience",
+          "color": "#94c983",
+          "aggregation": "sum"
+        },
+        {
+          "field": "age",
+          "color": "#c1d96a",
+          "aggregation": "sum"
+        }
+      ],
+      "mark": true,
+      "xField": "education",
+      "legendPosition": "top"
+    }
+  },
+  {
+    "title": "영역형 차트",
+    "description": "Area Chart",
+    "databaseId": 108,
+    "componentId": 2,
+    "datasetType": "DATASET",
+    "datasetId": 26,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "education"
+        },
+        {
+          "field": "wage",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "experience",
+          "color": "#94c983",
+          "aggregation": "sum"
+        },
+        {
+          "field": "age",
+          "color": "#c1d96a",
+          "aggregation": "sum"
+        }
+      ],
+      "mark": true,
+      "xField": "education",
+      "legendPosition": "top"
+    }
+  },
+  {
+    "title": "세로 막대형 차트",
+    "description": "Bar Chart",
+    "databaseId": 108,
+    "componentId": 3,
+    "datasetType": "DATASET",
+    "datasetId": 26,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "education"
+        },
+        {
+          "field": "wage",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "experience",
+          "color": "#94c983",
+          "aggregation": "sum"
+        },
+        {
+          "field": "age",
+          "color": "#c1d96a",
+          "aggregation": "sum"
+        }
+      ],
+      "mark": true,
+      "xField": "education",
+      "legendPosition": "top"
+    }
+  },
+  {
+    "title": "가로 막대형 차트",
+    "description": "Column Chart",
+    "databaseId": 108,
+    "componentId": 4,
+    "datasetType": "DATASET",
+    "datasetId": 26,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "education"
+        },
+        {
+          "field": "wage",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "experience",
+          "color": "#94c983",
+          "aggregation": "sum"
+        },
+        {
+          "field": "age",
+          "color": "#c1d96a",
+          "aggregation": "sum"
+        }
+      ],
+      "mark": true,
+      "xField": "education",
+      "legendPosition": "top"
+    }
+  },
+  {
+    "title": "선형과 세로 막대형 복합 차트",
+    "description": "Mixed Line and Bar Chart",
+    "databaseId": 114,
+    "componentId": 5,
+    "datasetType": "DATASET",
+    "datasetId": 28,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "avg",
+          "type": "line",
+          "field": "education"
+        },
+        {
+          "color": "#47a8ea",
+          "aggregation": "avg",
+          "type": "bar",
+          "field": "occupation"
+        },
+        {
+          "field": "yearsmarried",
+          "color": "#94c983",
+          "aggregation": "avg",
+          "type": "bar"
+        }
+      ],
+      "label": true,
+      "xField": "age",
+      "legendPosition": "left",
+      "mark": true
+    }
+  },
+  {
+    "title": "누적 선형 차트",
+    "description": "Stacked Line Chart",
+    "databaseId": 113,
+    "componentId": 14,
+    "datasetType": "DATASET",
+    "datasetId": 30,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "violent"
+        },
+        {
+          "field": "robbery",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "murder",
+          "color": "#94c983",
+          "aggregation": "sum"
+        }
+      ],
+      "label": "",
+      "header": {
+        "title": "타이틀을 입력하세요",
+        "fontSize": 20,
+        "color": "#4A4A4A"
+      },
+      "content": {
+        "aggregation": "sum",
+        "fontSize": 50,
+        "color": "#4A4A4A"
+      },
+      "xField": "year",
+      "mark": "",
+      "legendPosition": "left"
+    }
+  },
+  {
+    "title": "누적 영역형 차트",
+    "description": "Stacked Area Chart",
+    "databaseId": 113,
+    "componentId": 15,
+    "datasetType": "DATASET",
+    "datasetId": 30,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "violent"
+        },
+        {
+          "field": "robbery",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "murder",
+          "color": "#94c983",
+          "aggregation": "sum"
+        }
+      ],
+      "label": "",
+      "header": {
+        "title": "타이틀을 입력하세요",
+        "fontSize": 20,
+        "color": "#4A4A4A"
+      },
+      "content": {
+        "aggregation": "sum",
+        "fontSize": 50,
+        "color": "#4A4A4A"
+      },
+      "xField": "year",
+      "mark": "",
+      "legendPosition": "left"
+    }
+  },
+  {
+    "title": "누적 가로 막대형 차트",
+    "description": "Stacked Column Chart",
+    "databaseId": 113,
+    "componentId": 16,
+    "datasetType": "DATASET",
+    "datasetId": 30,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "violent"
+        },
+        {
+          "field": "robbery",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "murder",
+          "color": "#94c983",
+          "aggregation": "sum"
+        }
+      ],
+      "label": "",
+      "header": {
+        "title": "타이틀을 입력하세요",
+        "fontSize": 20,
+        "color": "#4A4A4A"
+      },
+      "content": {
+        "aggregation": "sum",
+        "fontSize": 50,
+        "color": "#4A4A4A"
+      },
+      "xField": "year",
+      "mark": "",
+      "legendPosition": "left"
+    }
+  }
+]
