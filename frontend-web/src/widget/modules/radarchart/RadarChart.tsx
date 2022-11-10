@@ -45,7 +45,7 @@ const RadarChart = props => {
       if (item.field) {
         const seriesData = {
           value: aggrData.map(dataItem => dataItem[item.field]),
-          name: item.field,
+          name: option.legendAggregation ? `${item.field} (${item.aggregation})` : item.field,
           itemStyle: {
             color: item.color,
           },

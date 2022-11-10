@@ -3,7 +3,7 @@ import ReactECharts from 'echarts-for-react';
 import { getAggregationDataForChart, getGridSize, getLegendOption } from '@/widget/modules/utils/chartUtil';
 
 const PolarBarChart = props => {
-  const { option, dataSet, seriesOp, defaultOp, createOp } = props;
+  const { option, dataSet, seriesOp, createOp } = props;
 
   const [componentOption, setComponentOption] = useState({});
 
@@ -41,7 +41,7 @@ const PolarBarChart = props => {
       console.log('aggrData : ', aggrData);
       if (item.field) {
         const series = {
-          name: item.field,
+          name: option.legendAggregation ? `${item.field} (${item.aggregation})` : item.field,
           data: aggrData.map(dataItem => dataItem[item.field]),
           type: 'bar',
           color: item.color,
