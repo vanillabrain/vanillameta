@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
 
 // apply base url for axios
 const API_URL = process.env.REACT_APP_API_URL;
@@ -22,15 +21,6 @@ instance.interceptors.response.use(
   },
   async error => {
     // something to do
-    if (error?.response?.status) {
-      const {
-        response: { status },
-      } = error;
-      if (status === 403) {
-        const navigate = useNavigate();
-        navigate('/');
-      }
-    }
     return Promise.reject(error);
   },
 );
