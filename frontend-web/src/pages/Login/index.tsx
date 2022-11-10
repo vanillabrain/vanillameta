@@ -6,7 +6,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { ReactComponent as Logo } from '@/assets/images/logo.svg';
 import backgroundImage from '@/assets/images/visual-bg.png';
-import { SnackbarContext } from '@/contexts/AlertContext';
 
 function Copyright(props: any) {
   return (

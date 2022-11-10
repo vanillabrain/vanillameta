@@ -81,6 +81,7 @@ const AlertTemplate = ({ close, message, options }: IProps) => {
                 action.onClick();
                 close();
               }}
+              autoFocus={true}
               variant="contained"
               color="primary"
               sx={buttonStyle}
@@ -89,7 +90,7 @@ const AlertTemplate = ({ close, message, options }: IProps) => {
               {action.copy}
             </Button>
           ))}
-        <Button variant="contained" color="primary" sx={buttonStyle} onClick={close}>
+        <Button variant="contained" color="primary" sx={buttonStyle} onClick={close} autoFocus={true}>
           {options.closeCopy || '확인'}
         </Button>
       </DialogActions>
