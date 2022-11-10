@@ -1,4 +1,5 @@
 import { WIDGET_AGGREGATION } from '../../../constant';
+import * as math from 'mathjs';
 
 /**
  *
@@ -107,8 +108,13 @@ export const getCenter = position => {
  */
 export const getAggregationData = (type, data, field) => {
   let result = 0;
+  let fits = 0;
+  let dataList = [];
   if (data.length > 0 && (type === WIDGET_AGGREGATION.MIN || type === WIDGET_AGGREGATION.MAX)) {
     result = Number(data[0][field]);
+  } else if (data.length > 0 && type === WIDGET_AGGREGATION.SUM) {
+    dataList = data.map(row => row[field]);
+    fits = decimalFits(dataList);
   }
   switch (type) {
     case WIDGET_AGGREGATION.SUM:
@@ -118,16 +124,19 @@ export const getAggregationData = (type, data, field) => {
           result += Number(item[field]);
         }
       });
+      result = Number(result.toFixed(fits));
       break;
     case WIDGET_AGGREGATION.AVG:
+      // result = math.mean(dataList);
       data.forEach(item => {
         // console.log('item ', item[field]);
         if (item[field] != undefined && item[field] != null) {
-          result += Number(item[field]);
+          result = math.add(result, math.bignumber(item[field]));
         }
       });
-      result = Math.floor((result / data.length) * 100000000) / 100000000;
-      // result = result / data.length;
+      result = math.divide(result, math.bignumber(data.length));
+      result = Number(result);
+      // result = Number(result.toFixed(6));
       break;
     case WIDGET_AGGREGATION.MAX:
       data.forEach(item => {
@@ -148,6 +157,20 @@ export const getAggregationData = (type, data, field) => {
     default:
   }
   return result;
+};
+
+const decimalFits = arr => {
+  //소수점 자리수가 가장많은 수 return
+  var decimalN = 0;
+  for (var j = 0; j < arr.length; j++) {
+    var n = arr[j];
+    if (!Number.isInteger(n)) {
+      //소수
+      var d = String(n).split('.')[1].length; //문자열 소수점 다음 개수
+      if (decimalN < d) decimalN = d;
+    }
+  }
+  return decimalN;
 };
 
 /**

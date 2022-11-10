@@ -1,54 +1,10 @@
-import { getAggregationData } from './chartUtil';
-import { WIDGET_AGGREGATION } from '../../../constant';
-import * as dummyJson from '../../../data/QTT-004_dummyData.json';
-
-const expectData = {
-  individual: {
-    max: 210,
-    min: 1,
-    sum: 88620,
-    avg: 105.5,
-  },
-  wait: {
-    max: 99,
-    min: 0,
-    sum: 29055,
-    avg: 34.589286,
-  },
-  vcost: {
-    max: 180,
-    min: 2,
-    sum: 40119,
-    avg: 47.760714,
-  },
-  travel: {
-    max: 1440,
-    min: 63,
-    sum: 408379,
-    avg: 486.165476,
-  },
-  gcost: {
-    max: 269,
-    min: 30,
-    sum: 93139,
-    avg: 110.879762,
-  },
-  income: {
-    max: 72,
-    min: 2,
-    sum: 29020,
-    avg: 34.547619,
-  },
-  size: {
-    max: 6,
-    min: 1,
-    sum: 1464,
-    avg: 1.742857,
-  },
-};
+import * as dummyJson from './QTT-004_dummyData.json';
+import * as resultJson from './QTT-004_resultData.json';
+import { getAggregationData, WIDGET_AGGREGATION } from '../../src/utils/aggregation.util';
 
 describe('QTT-004', () => {
   const dummyData = dummyJson.dummyData;
+  const expectData = resultJson.expectData;
   const fieldList = Object.keys(expectData);
 
   it.each(fieldList)('QTT-004-01 (MAX): %s', fieldName => {
@@ -79,5 +35,3 @@ describe('QTT-004', () => {
 afterAll(() => {
   console.log('test end');
 });
-
-export { getAggregationData };
