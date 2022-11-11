@@ -63,6 +63,7 @@ export class WidgetService {
         'component.description as componentDescription',
       ])
       .orderBy('widget.updatedAt', 'DESC')
+      .addOrderBy('widget.title')
       .getRawMany();
 
     find_all.forEach(el => {
