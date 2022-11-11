@@ -1,5 +1,5 @@
 import React from 'react';
-import { Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 
 import Dashboard from '@/pages/Dashboard';
 import Widget from '@/pages/Widget';
@@ -28,7 +28,7 @@ function Router() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Dashboard />} />
+        <Route index element={<Navigate to="/dashboard" replace={true} />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/dashboard/:dashboardId" element={<DashboardView />} />
         <Route path="/dashboard/create" element={<DashboardCreate />}>
