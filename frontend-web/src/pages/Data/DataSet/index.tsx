@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useLayoutEffect, useState } from 'react';
-import { MenuItem, Select, Stack, TextField } from '@mui/material';
+import { MenuItem, Select, Stack, TextField, Typography } from '@mui/material';
 import { useAlert } from 'react-alert';
 import PageTitleBox from '@/components/PageTitleBox';
 import SubmitButton from '@/components/button/SubmitButton';
@@ -58,7 +58,7 @@ const DataSet = () => {
   }, [tableList]);
 
   useEffect(() => {
-    getDatabaseId();
+    if (!databaseId) getDatabaseId();
   }, [databaseList, datasetInfo]);
 
   /**
@@ -153,6 +153,7 @@ const DataSet = () => {
           console.log('tableList ', response.data.data.tables);
         } else {
           alert.error('데이터베이스 조회에 실패했습니다.');
+          setTableList([]);
         }
       })
       .catch(error => {
@@ -174,6 +175,8 @@ const DataSet = () => {
         console.log('selectDataset', response.data.data.id, response.data.data.databaseId);
         if (response.data.status === 'SUCCESS') {
           setDatasetInfo(response.data.data);
+        } else {
+          alert.error('데이터베이스 조회에 실패했습니다.');
         }
       })
       .finally(() => {
@@ -186,9 +189,6 @@ const DataSet = () => {
    */
   const excuteQuery = () => {
     showLoading();
-    if (datasetInfo.query.trim().length < 1) {
-      snackbar.info('쿼리를 입력해주세요.');
-    }
     const param = {
       id: databaseId,
       query: datasetInfo.query,
@@ -310,6 +310,14 @@ const DataSet = () => {
           disabled={isModifyMode}
           size="small"
           value={databaseId ?? ''}
+          // renderValue={selected => {
+          //   if (selected.length === 0) {
+          //     return <Typography sx={{ color: '#929292', fontStyle: 'italic' }}>데이터베이스를 선택해 주세요.</Typography>;
+          //   } else {
+          //     const item = databaseList?.find(({ id: value }) => value === selected);
+          //     return item?.name;
+          //   }
+          // }}
           onChange={onChangeDatabaseId}
         >
           {databaseList.map(item => (
