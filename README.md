@@ -39,7 +39,7 @@
 - SQLServer
 - SQLite
 - Oracle
-- IBM Db2
 - Amazon Redshift
 - Big Query
 - Cockroachdb
+- Snowflake
