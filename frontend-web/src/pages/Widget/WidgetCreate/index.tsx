@@ -120,13 +120,26 @@ const WidgetCreate = () => {
         button={
           <Stack direction="row" gap="10px">
             <Button
-              variant="contained"
+              variant="outlined"
               onClick={handleBack}
               disabled={activeStep === 0}
               startIcon={
-                <SvgIcon component={LeftArrow} sx={{ width: '14px', height: '14px', padding: '1px' }} inheritViewBox />
+                <SvgIcon
+                  component={LeftArrow}
+                  sx={{
+                    width: '14px',
+                    height: '14px',
+                    padding: '1px',
+                  }}
+                  inheritViewBox
+                />
               }
-              sx={{ backgroundColor: '#043f84', color: '#fff' }}
+              sx={{
+                color: '#043f84',
+                '&.Mui-disabled &.MuiButton-startIcon': {
+                  color: '#fff',
+                },
+              }}
             >
               이전
             </Button>

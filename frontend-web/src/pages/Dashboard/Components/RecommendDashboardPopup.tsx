@@ -541,8 +541,8 @@ function RecommendDashboardPopup({ recommendOpen = false, handleComplete = null 
             position: 'absolute',
             right: '0px',
             top: '0px',
-            paddingRight: '19px',
-            paddingTop: '19px',
+            marginRight: '12px',
+            marginTop: '12px',
             cursor: 'pointer',
           }}
           size="medium"
