@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { Box, Button, Card, Stack, TextField } from '@mui/material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import PageContainer from '@/components/PageContainer';
@@ -7,6 +7,7 @@ import AddWidgetPopup from '@/pages/Dashboard/Components/AddWidgetPopup';
 import ConfirmCancelButton from '@/components/button/ConfirmCancelButton';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import { useAlert } from 'react-alert';
+import { SnackbarContext } from '@/contexts/AlertContext';
 
 import '/node_modules/react-grid-layout/css/styles.css';
 import '/node_modules/react-resizable/css/styles.css';
@@ -18,13 +19,17 @@ import { STATUS } from '@/constant';
 import DashboardTitleBox from '../Components/DashboardTitleBox';
 import CloseButton from '@/components/button/CloseButton';
 import bg from '@/assets/images/dashboard-bg.svg';
+import { LoadingContext } from '@/contexts/LoadingContext';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 function DashboardModify() {
   const alert = useAlert();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const snackbar = useAlert(SnackbarContext);
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { showLoading, hideLoading } = useContext(LoadingContext);
+
   const [dashboardId, setDashboardId] = useState(null); // dashboard id
   const [dashboardTitle, setDashboardTitle] = useState(''); // dashboard 제목
   const [widgets, setWidgets] = useState([]); // widget 정보
@@ -62,22 +67,26 @@ function DashboardModify() {
 
   // dashboard info 조회
   const getDashboardInfo = id => {
-    // todo 서비스 완료시 연결
-    DashboardService.selectDashboard(id).then(response => {
-      if (response.data.status == STATUS.SUCCESS) {
-        setDashboardTitle(response.data.data.title);
-        setWidgets(response.data.data.widgets);
+    showLoading();
+    DashboardService.selectDashboard(id)
+      .then(response => {
+        if (response.data.status == STATUS.SUCCESS) {
+          setDashboardTitle(response.data.data.title);
+          setWidgets(response.data.data.widgets);
 
-        response.data.data.layout.map((item, index) => {
-          if (item.i !== undefined) {
-            item.i = item.i.toString();
-          }
-        });
-        setLayout(response.data.data.layout);
-      } else {
-        alert.error('조회를 실패하였습니다.');
-      }
-    });
+          response.data.data.layout.map(item => {
+            if (item.i !== undefined) {
+              item.i = item.i.toString();
+            }
+          });
+          setLayout(response.data.data.layout);
+        } else {
+          alert.error('대시보드 조회에 실패했습니다.');
+        }
+      })
+      .finally(() => {
+        hideLoading();
+      });
   };
 
   useEffect(() => {
@@ -101,18 +110,86 @@ function DashboardModify() {
     setLayout(changeLayout);
   };
 
+  // 추가 할 layout
+  // @tempLayout 현재 배치되어 있는 layout 정보
+  // @x : 새로 배치될 위젯의 x 초기값
+  // @y : 새로 배치될 위젯의 y 초기값
+  // @w : 새로 배치될 위젯의 width 값
+  // @h : 새로 배치될 위젯의 height 값
+  const getCalculatorPosition = (tempLayout, x = 0, y = 0, w = 6, h = 5, layoutMaxW = 12) => {
+    const tempPos = { startX: x, endX: w - 1, startY: y, endY: h - 1 }; // layout 계산을 위한 값 보정
+    tempLayout.sort((a, b) => a.y - b.y || a.x - b.x);
+
+    const tmepPosArr = [];
+    tempLayout.map(item => {
+      tmepPosArr.push({ startX: item.x, endX: item.x + item.w - 1, startY: item.y, endY: item.y + item.h - 1 }); // layout 계산을 위한 값 보정
+    });
+
+    // layout 위치 계산 (재귀함수로 사용. 해당 함수를 수정할 때 무한 loop 되지 않게 조심할 것)
+    const calculator = (pos, posArr) => {
+      const maxW = layoutMaxW - 1; // layout 계산을 위한 값 보정
+
+      // 추가할 위젯의 위치를 1칸씩 변경
+      const getCalculatorPos = pos => {
+        if (pos.endX + 1 > maxW) {
+          pos.endX = pos.endX - pos.startX;
+          pos.startX = 0;
+          pos.startY = pos.startY + 1;
+          pos.endY = pos.endY + 1;
+        } else {
+          pos.startX = pos.startX + 1;
+          pos.endX = pos.endX + 1;
+        }
+        return pos;
+      };
+
+      for (let i = 0; i < posArr.length; i++) {
+        const item = posArr[i];
+        let isCompareHit = false;
+        if (pos.startX <= item.startX && (pos.endX >= item.startX || pos.endX > item.endX)) {
+          // x 좌표가 겹치는 상황
+          isCompareHit = true;
+        } else if (pos.startX >= item.startX && pos.startX <= item.endX) {
+          // x 좌표가 겹치는 상황
+          isCompareHit = true;
+        }
+
+        if (isCompareHit) {
+          if (pos.startY <= item.startY && (pos.endY >= item.startY || pos.endY > item.endY)) {
+            // x, y 좌표가 겹치는 상황
+            return calculator(getCalculatorPos(pos), posArr);
+          } else if (pos.startY >= item.startY && pos.startY <= item.endY) {
+            // x, y 좌표가 겹치는 상황
+            return calculator(getCalculatorPos(pos), posArr);
+          }
+        }
+      }
+
+      return pos;
+    };
+
+    const resultPos = calculator(tempPos, tmepPosArr);
+    // 보정된 layout 값을 원래대로 복원
+    return {
+      x: resultPos.startX,
+      y: resultPos.startY,
+      w: resultPos.endX - resultPos.startX + 1,
+      h: resultPos.endY - resultPos.startY + 1,
+    };
+  };
+
   // widget 생성
   const generateWidget = () => {
     useWidgetIds.length = 0;
     const addLayouts = [];
+
     widgets.map((item, index) => {
       if (layout.length <= index) {
+        const calculatorPosition = getCalculatorPosition([...layout, ...addLayouts], 0, 0, 6, 5, 12);
+
         addLayouts.push({
-          x: 0,
-          y: 0,
-          w: 5,
-          h: 5,
           i: item.id.toString(),
+          ...calculatorPosition,
         });
       }
     });
@@ -121,7 +198,7 @@ function DashboardModify() {
       setLayout([...layout, ...addLayouts]);
     }
 
-    return widgets.map((item, index) => {
+    return widgets.map(item => {
       useWidgetIds.push(item.id); // 현재 widget id 를 담는다.
       return (
         <Card
@@ -145,6 +222,7 @@ function DashboardModify() {
               paddingRight: '8px',
               paddingTop: '8px',
               cursor: 'pointer',
+              zIndex: 2000,
             }}
             size="medium"
             onClick={event => {
@@ -174,16 +252,17 @@ function DashboardModify() {
     // title null 체크, widgets 수 체크 (0개면 저장 못함)
     if (dashboardTitle == null || dashboardTitle.trim() == '') {
       // title 이 없을 경우
-      alert.info('제목을 입력 해주세요.', {
-        onClose: () => {
-          // todo 아래 기능 연결하기
-          console.log('title 로 포커스 이동하기');
-        },
-      });
+      alert.info('제목을 입력해주세요.');
     } else if (layout.length == 0 || widgets.length == 0) {
       // 배치된 widget 이 없을경우
       alert.info('배치된 위젯이 없습니다.');
     } else {
+      // 저장 전 react grid layout 에서 필요없는 속성 제거
+      layout.map(item => {
+        delete item.moved;
+        delete item.static;
+      });
+
       // 저장 로직
       dashboardInfo.dashboardId = dashboardId;
       dashboardInfo.title = dashboardTitle;
@@ -198,9 +277,19 @@ function DashboardModify() {
             {
               copy: '수정',
               onClick: () => {
-                DashboardService.updateDashboard(dashboardId, dashboardInfo).then(() => {
-                  navigate('/dashboard');
-                });
+                showLoading();
+                DashboardService.updateDashboard(dashboardId, dashboardInfo)
+                  .then(response => {
+                    if (response.data.status === 'SUCCESS') {
+                      navigate('/dashboard/' + dashboardId, { replace: true });
+                      snackbar.success('대시보드가 수정되었습니다.');
+                    } else {
+                      alert.error('대시보드 수정에 실패했습니다.');
+                    }
+                  })
+                  .finally(() => {
+                    hideLoading();
+                  });
               },
             },
           ],
@@ -213,9 +302,19 @@ function DashboardModify() {
             {
               copy: '생성',
               onClick: () => {
-                DashboardService.createDashboard(dashboardInfo).then(() => {
-                  navigate('/dashboard');
-                });
+                showLoading();
+                DashboardService.createDashboard(dashboardInfo)
+                  .then(response => {
+                    if (response.data.status === 'SUCCESS') {
+                      navigate('/dashboard');
+                      snackbar.success('대시보드가 생성되었습니다.');
+                    } else {
+                      alert.error('대시보드 생성에 실패했습니다.');
+                    }
+                  })
+                  .finally(() => {
+                    hideLoading();
+                  });
               },
             },
           ],
@@ -225,7 +324,7 @@ function DashboardModify() {
   };
 
   // 취소 여부 버튼 이벤트
-  const handleCancelDialogSelect = detail => {
+  const handleCancelDialogSelect = () => {
     navigate(-1);
   };
 
@@ -237,7 +336,7 @@ function DashboardModify() {
     console.log(dashboardInfo);
     setWidgets(dashboardInfo.widgets);
 
-    dashboardInfo.layout.map((item, index) => {
+    dashboardInfo.layout.map(item => {
       if (item.i !== undefined) {
         item.i = item.i.toString();
       }
@@ -266,7 +365,7 @@ function DashboardModify() {
           title={
             <TextField
               id="userDashboardName"
-              label=""
+              label="대시보드 이름"
               required
               sx={{
                 width: '960px',

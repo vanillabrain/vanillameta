@@ -1,5 +1,7 @@
 # VanillaMeta
 
+<img title="VanillaMeta Logo" src="design/vanillameta-logo.png"/><br/>
+
 최신 엔터프라이즈용 비즈니스 인텔리전스 웹 애플리케이션입니다.
 
 # 바닐라메타를 사용해야 하는 이유
@@ -17,10 +19,17 @@
 
 ## 스크린샷
 
-- 다양한 시각화 차트
-- 강력한 SQL 편집기
-- 코딩없이 차트 제작
-- 템플릿 추천
+- **다양한 시각화 차트**
+<kbd><img title="Chart" src="design/feature-01.png"/></kbd><br/>
+
+- **강력한 SQL 편집기**
+<kbd><img title="Chart" src="design/feature-02.png"/></kbd><br/>
+
+- **코딩없이 차트 제작**
+<kbd><img title="Chart" src="design/feature-03.png"/></kbd><br/>
+
+- **템플릿 추천**
+<kbd><img title="Chart" src="design/feature-04.png"/></kbd><br/>
 
 ## 지원하는 데이터베이스
 

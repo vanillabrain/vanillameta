@@ -37,6 +37,14 @@ export class CreateDatabaseDto {
   @IsString()
   @IsOptional()
   @ApiProperty({
+    example: 'mysql',
+    description: '데이터베이스 구분',
+  })
+  type: string;
+
+  @IsString()
+  @IsOptional()
+  @ApiProperty({
     example: 'Asia/Seoul',
     description: '서비스 타임존',
   })

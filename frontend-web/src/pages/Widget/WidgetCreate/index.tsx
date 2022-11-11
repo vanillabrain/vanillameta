@@ -57,23 +57,30 @@ const WidgetCreate = () => {
   };
 
   const saveWidgetInfo = (option, title) => {
-    // Todo datasetType Table 일 경우 처리
     const param = {
       title: title,
       description: widgetOption.description,
       databaseId: dataset.databaseId,
       componentId: widgetOption.id,
       datasetType: dataset.datasetType,
-      datasetId: dataset.id,
-      tableName: dataset.tableName,
+      tableName: undefined,
+      datasetId: undefined,
       option: option,
     };
+    if (param.datasetType === 'TABLE') {
+      param.tableName = dataset.tableName;
+    } else {
+      param.datasetId = dataset.id;
+    }
+    console.log('위젯 생성', param);
     showLoading();
     widgetService
       .createWidget(param)
-      // .then(() => {
-      //   navigate('/widget', { replace: true });
-      // })
+      .then(response => {
+        if (response.data.status === 'SUCCESS') {
+          navigate('/widget');
+        }
+      })
       .finally(() => {
         hideLoading();
       });
@@ -113,13 +120,26 @@ const WidgetCreate = () => {
         button={
           <Stack direction="row" gap="10px">
             <Button
-              variant="contained"
+              variant="outlined"
               onClick={handleBack}
               disabled={activeStep === 0}
               startIcon={
-                <SvgIcon component={LeftArrow} sx={{ width: '14px', height: '14px', padding: '1px' }} inheritViewBox />
+                <SvgIcon
+                  component={LeftArrow}
+                  sx={{
+                    width: '14px',
+                    height: '14px',
+                    padding: '1px',
+                  }}
+                  inheritViewBox
+                />
               }
-              sx={{ backgroundColor: '#043f84', color: '#fff' }}
+              sx={{
+                color: '#043f84',
+                '&.Mui-disabled &.MuiButton-startIcon': {
+                  color: '#fff',
+                },
+              }}
             >
               이전
             </Button>

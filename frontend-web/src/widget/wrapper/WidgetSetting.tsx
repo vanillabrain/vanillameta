@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { Divider, List, Stack, styled, Typography } from '@mui/material';
 import { WIDGET_TYPE } from '@/constant';
 import LineChartSetting from '@/widget/settings/LineChartSetting';
@@ -26,6 +26,7 @@ import MixedDonutPieChartSetting from '@/widget/settings/MixedDonutPieChartSetti
 import MixedLineStackedBarChartSetting from '@/widget/settings/MixedLineStackedBarChartSetting';
 import FunnelChartSetting from '@/widget/settings/FunnelChartSetting';
 import { ConfirmButton } from '@/components/button/ConfirmCancelButton';
+import { LoadingContext } from '@/contexts/LoadingContext';
 
 const StyledList = styled(List)({
   padding: 0,
@@ -66,20 +67,21 @@ const WidgetSetting = props => {
   } = props;
 
   const [module, setModule] = useState(null);
+  const { showLoading, hideLoading } = useContext(LoadingContext);
 
   useEffect(() => {
     if (widgetType && widgetOption && dataSet) renderWidgetSetting();
   }, [widgetType, widgetOption, spec, dataSet]);
 
   const renderWidgetSetting = () => {
-    let module = null;
+    let module;
     const chartSettingProps = {
       option: widgetOption,
       setOption: setWidgetOption,
       spec,
       dataSet,
     };
-
+    showLoading();
     switch (widgetType) {
       case WIDGET_TYPE.BOARD_NUMERIC:
         module = <NumericBoardSetting {...chartSettingProps} />;
@@ -310,6 +312,7 @@ const WidgetSetting = props => {
     }
 
     setModule(module);
+    hideLoading();
   };
 
   return (

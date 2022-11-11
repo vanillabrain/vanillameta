@@ -2,7 +2,7 @@ import React from 'react';
 import { Divider, ListItem, ListItemText } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import { handleChange, handleSeriesChange } from '@/widget/utils/handler';
-import { AGGREGATION_LIST, COLUMN_TYPE, LABEL_LIST, LEGEND_LIST } from '@/constant';
+import { AGGREGATION_LIST, COLUMN_TYPE, LABEL_LIST } from '@/constant';
 import ColorPickerForm from '@/components/form/ColorPickerForm';
 
 const CandlestickChartSetting = props => {
@@ -25,7 +25,7 @@ const CandlestickChartSetting = props => {
           onChange={event => handleChange(event, setOption)}
         />
       </ListItem>
-      <ListItem divider>
+      <ListItem>
         <ListItemText primary="시리즈 설정" />
         {option.series.map((item, index) => (
           <React.Fragment key={index}>
@@ -67,17 +67,6 @@ const CandlestickChartSetting = props => {
           label="마크 포인트"
           optionList={LABEL_LIST}
           value={option.mark}
-          onChange={event => handleChange(event, setOption)}
-        />
-      </ListItem>
-      <ListItem>
-        <ListItemText>범례 설정</ListItemText>
-        <SelectForm
-          id="legendPosition"
-          name="legendPosition"
-          label="위치"
-          optionList={LEGEND_LIST}
-          value={option.legendPosition}
           onChange={event => handleChange(event, setOption)}
         />
       </ListItem>

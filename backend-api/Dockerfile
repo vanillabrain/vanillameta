@@ -1,24 +1,19 @@
-FROM ubuntu:18.04
-
-RUN apt-get -qq update
-RUN apt-get -qq upgrade --yes
-RUN apt-get -qq install curl --yes
-RUN curl -sL https://deb.nodesource.com/setup_14.x | bash -
-RUN apt-get -qq install nodejs --yes
-
-RUN apt-get install chromium-browser --yes
-
+FROM node:14-slim
+# ORACLE 설치
+RUN apt-get update && apt-get install -y libaio1 wget unzip
+WORKDIR /opt/oracle
+RUN wget https://download.oracle.com/otn_software/linux/instantclient/instantclient-basiclite-linuxx64.zip && \
+    unzip instantclient-basiclite-linuxx64.zip && rm -f instantclient-basiclite-linuxx64.zip && \
+    cd /opt/oracle/instantclient* && rm -f *jdbc* *occi* *mysql* *mql1* *ipc1* *jar uidrvci genezi adrci && \
+    echo /opt/oracle/instantclient* > /etc/ld.so.conf.d/oracle-instantclient.conf && ldconfig
 WORKDIR /app
-
-COPY package*.json ./
-RUN npm install
-
+# ENV NODE_ENV production
+# COPY --from=builder /app ./
 COPY . .
-COPY tsconfig.json .
-COPY tsconfig.build.json .
-
+RUN npm install
 RUN npm run build
 
-EXPOSE 3000
+# expose our default runtime port
+EXPOSE 4000
 
-CMD ["npm", "run", "start"]
+CMD ["npm","run","start:prod"]

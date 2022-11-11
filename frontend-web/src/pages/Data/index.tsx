@@ -7,7 +7,7 @@ import PageTitleBox from '@/components/PageTitleBox';
  * 데이터 관리 페이지
  * @constructor
  */
-function DataPage() {
+const Data = () => {
   return (
     <PageContainer>
       <PageTitleBox title="데이터" sx={{ paddingLeft: 0, paddingRight: 0, width: '100%', height: '100%' }}>
@@ -15,6 +15,6 @@ function DataPage() {
       </PageTitleBox>
     </PageContainer>
   );
-}
+};
 
-export default DataPage;
+export default Data;

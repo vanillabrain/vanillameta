@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import PageContainer from '@/components/PageContainer';
 import PageTitleBox from '@/components/PageTitleBox';
 import BoardList from '@/components/BoardList';
@@ -10,17 +10,19 @@ import DashboardService from '@/api/dashboardService';
 import { STATUS } from '@/constant';
 import { useAlert } from 'react-alert';
 import { styled } from '@mui/system';
+import { LoadingContext } from '@/contexts/LoadingContext';
+import { SnackbarContext } from '@/contexts/AlertContext';
 
 const title = '대시보드';
 
 function Dashboard() {
   const { dashboardId } = useParams();
   const alert = useAlert();
+  const snackbar = useAlert(SnackbarContext);
   const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(false);
   const [loadedDashboardData, setLoadedDashboardData] = useState([]);
-  const [loadedCount, setLoadedCount] = useState(1);
   const [noData, setNoData] = useState(false);
+  const { showLoading, hideLoading } = useContext(LoadingContext);
 
   const GTSpan = styled('span')({
     fontFamily: 'Pretendard',
@@ -41,41 +43,46 @@ function Dashboard() {
 
   useEffect(() => {
     getDashboardList();
-    setIsLoading(true);
   }, []);
 
   // dashboard info 조회
   const getDashboardList = () => {
-    DashboardService.selectDashboardList().then(response => {
-      if (response.data.status == STATUS.SUCCESS) {
-        setLoadedDashboardData(response.data.data);
-        setNoData(response.data.data.length == 0);
-      } else {
-        alert.error('서비스 실패!');
-      }
-    });
-    setIsLoading(true);
+    showLoading();
+    DashboardService.selectDashboardList()
+      .then(response => {
+        if (response.data.status == STATUS.SUCCESS) {
+          setLoadedDashboardData(response.data.data);
+          setNoData(response.data.data.length == 0);
+        } else {
+          alert.error('대시보드 조회에 실패했습니다.');
+        }
+      })
+      .finally(() => {
+        hideLoading();
+      });
   };
 
   const handleDeleteSelect = item => {
     console.log(item);
-    alert.success(item.title + '\n삭제하겠습니까?', {
+    alert.success(item.title + '\n대시보드를 삭제하시겠습니까?', {
       closeCopy: '취소',
       actions: [
         {
           copy: '확인',
           onClick: () => {
-            DashboardService.deleteDashboard(item.id).then(response => {
-              if (response.data.status == STATUS.SUCCESS) {
-                alert.info('삭제되었습니다.', {
-                  onClose: () => {
-                    getDashboardList();
-                  },
-                });
-              } else {
-                alert.error('삭제 실패하였습니다.');
-              }
-            });
+            showLoading();
+            DashboardService.deleteDashboard(item.id)
+              .then(response => {
+                if (response.data.status == STATUS.SUCCESS) {
+                  getDashboardList();
+                  snackbar.success('대시보드가 삭제되었습니다.');
+                } else {
+                  alert.error('대시보드 삭제에 실패했습니다.');
+                }
+              })
+              .finally(() => {
+                hideLoading();
+              });
           },
         },
       ],

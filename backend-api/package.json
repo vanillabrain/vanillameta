@@ -50,7 +50,7 @@
     "knex-bigquery": "^2.0.3",
     "knex-db2": "^1.0.0",
     "knex-schema-inspector": "^2.0.4",
-    "knex-snowflake-dialect": "^1.0.1",
+    "mathjs": "^11.3.3",
     "mustache": "^4.2.0",
     "mysql2": "^2.3.3",
     "nest-winston": "^1.7.0",
@@ -107,7 +107,8 @@
       "json",
       "ts"
     ],
-    "rootDir": "src",
+    "testTimeout": 20000,
+    "rootDir": ".",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"

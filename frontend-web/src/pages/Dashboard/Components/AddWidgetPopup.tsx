@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import {
   Avatar,
   Button,
@@ -17,23 +17,30 @@ import WidgetService from '@/api/widgetService';
 import { STATUS } from '@/constant';
 import { useAlert } from 'react-alert';
 import CloseButton from '@/components/button/CloseButton';
+import { LoadingContext } from '@/contexts/LoadingContext';
 
 function AddWidgetPopup({ label, useWidgetIds = [], widgetOpen = false, widgetSelect = null }) {
   const [open, setOpen] = useState(widgetOpen);
   const [selectedIds, setSelectedIds] = useState([]);
   const [loadedWidgetData, setLoadedWidgetData] = useState([]);
+  const { showLoading, hideLoading } = useContext(LoadingContext);
   const alert = useAlert();
   const getItems = () => {
-    WidgetService.selectWidgetList().then(response => {
-      if (response.data.status == STATUS.SUCCESS) {
-        const widgetList = response.data.data.filter(item => {
-          return !useWidgetIds.find(useItem => useItem == item.id);
-        });
-        setLoadedWidgetData(widgetList);
-      } else {
-        console.log('조회실패!!!');
-      }
-    });
+    showLoading();
+    WidgetService.selectWidgetList()
+      .then(response => {
+        if (response.data.status == STATUS.SUCCESS) {
+          const widgetList = response.data.data.filter(item => {
+            return !useWidgetIds.find(useItem => useItem == item.id);
+          });
+          setLoadedWidgetData(widgetList);
+        } else {
+          console.log('조회실패!!!');
+        }
+      })
+      .finally(() => {
+        hideLoading();
+      });
   };
 
   const descriptionElementRef = useRef<HTMLElement>(null);
@@ -93,7 +100,7 @@ function AddWidgetPopup({ label, useWidgetIds = [], widgetOpen = false, widgetSe
       }
       setOpen(false);
     } else {
-      alert.info('위젯을 선택하세요.');
+      alert.info('위젯을 선택해주세요.');
     }
   };
 
@@ -229,7 +236,7 @@ function AddWidgetPopup({ label, useWidgetIds = [], widgetOpen = false, widgetSe
           >
             취소
           </Button>
-          <span style={{ width: '4px' }}></span>
+          <span style={{ width: '4px' }} />
           <Button
             onClick={() => handleSelect()}
             sx={{

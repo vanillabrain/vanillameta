@@ -1,15 +1,10 @@
 import React from 'react';
-import { Box, CardContent, Grid, Typography } from '@mui/material';
+import { Box, CardContent, Typography } from '@mui/material';
 import { CardWrapper } from '@/components/list/CardListWrapper';
 
 function ImgCardList(props) {
-  const { data, minWidth, selectedType, setSelectedType } = props;
+  const { data, selectedType, handleTypeClick } = props;
   const srcUrl = '/static/images/';
-
-  const handleClick = item => {
-    console.log('database : ', item);
-    setSelectedType(item);
-  };
 
   return (
     <Box
@@ -28,7 +23,7 @@ function ImgCardList(props) {
         const selected = selectedType && selectedType.id === item.id;
         return (
           <Box component="li" key={item.id}>
-            <CardWrapper sx={{ p: 0 }} selected={selected} onClick={() => handleClick(item)}>
+            <CardWrapper sx={{ p: 0 }} selected={selected} onClick={() => handleTypeClick(item)}>
               <CardContent
                 sx={{
                   display: 'flex',

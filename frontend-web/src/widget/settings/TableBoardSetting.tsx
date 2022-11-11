@@ -1,7 +1,7 @@
 import React from 'react';
 import { Divider, ListItem, ListItemText } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
-import { ALIGN_LIST, COLUMN_TYPE, TABLE_ALIGN } from '@/constant';
+import { ALIGN_LIST, TABLE_ALIGN } from '@/constant';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
 import { handleAddClick, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
 import TextFieldForm from '@/components/form/TextFieldForm';
@@ -37,7 +37,7 @@ const TableBoardSetting = props => {
               label={`필드 ${index + 1}`}
               labelField="columnName"
               valueField="columnType"
-              optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
+              optionList={spec.map(item => item.columnName)}
               value={item.name}
               onChange={event => handleSeriesChange(event, setOption, 'columns')}
             />

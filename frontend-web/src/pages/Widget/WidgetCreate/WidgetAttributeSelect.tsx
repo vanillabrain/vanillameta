@@ -8,13 +8,13 @@ import { STATUS } from '@/constant';
 import { LayoutContext } from '@/contexts/LayoutContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import grid from '@/assets/images/grid.svg';
-import { useNavigate } from 'react-router-dom';
+import { SnackbarContext } from '@/contexts/AlertContext';
 
 const WidgetAttributeSelect = props => {
   const { widgetOption, saveWidgetInfo, dataset, isModifyMode = false, widgetTypeName, widgetTypeDescription } = props;
 
   const alert = useAlert();
-  const navigate = useNavigate();
+  const snackbar = useAlert(SnackbarContext);
   const { fixLayout } = useContext(LayoutContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
 
@@ -46,7 +46,9 @@ const WidgetAttributeSelect = props => {
   const getData = () => {
     const param = isModifyMode
       ? { datasetType: widgetOption.datasetType, datasetId: widgetOption.datasetId }
-      : { datasetType: dataset.datasetType, datasetId: dataset.id };
+      : dataset.datasetType === 'TABLE'
+      ? { databaseId: dataset.databaseId, datasetType: dataset.datasetType, tableName: dataset.tableName }
+      : { databaseId: dataset.databaseId, datasetType: dataset.datasetType, datasetId: dataset.id };
     console.log('getData param', param);
     showLoading();
     DatabaseService.selectData(param)
@@ -65,7 +67,7 @@ const WidgetAttributeSelect = props => {
     event.preventDefault();
 
     // confirm sample
-    alert.success('위젯 속성을 저장하시겠습니까?', {
+    alert.success('위젯을 저장하시겠습니까?', {
       title: '위젯 저장',
       closeCopy: '취소',
       actions: [
@@ -73,7 +75,7 @@ const WidgetAttributeSelect = props => {
           copy: '저장',
           onClick: () => {
             saveWidgetInfo(option, title);
-            navigate('/widget');
+            snackbar.success('위젯이 저장되었습니다.');
           },
         },
       ],
@@ -99,12 +101,14 @@ const WidgetAttributeSelect = props => {
       <Box
         sx={{
           width: '60%',
-          height: '500px',
+          minHeight: '500px',
+          maxHeight: '100%',
           margin: '54px auto',
           border: '1px solid #e2e2e2',
           borderRadius: '8px',
           boxShadow: '2px 2px 9px 0 rgba(42, 50, 62, 0.1), 0 4px 4px 0 rgba(0, 0, 0, 0.02)',
           backgroundColor: '#fff',
+          overflow: 'hidden',
         }}
       >
         <WidgetViewer

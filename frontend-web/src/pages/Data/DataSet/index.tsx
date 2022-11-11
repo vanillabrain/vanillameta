@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useLayoutEffect, useState } from 'react';
-import { MenuItem, Select, Stack, TextField } from '@mui/material';
+import { MenuItem, Select, Stack, TextField, Typography } from '@mui/material';
 import { useAlert } from 'react-alert';
 import PageTitleBox from '@/components/PageTitleBox';
 import SubmitButton from '@/components/button/SubmitButton';
@@ -16,6 +16,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { STATUS } from '@/constant';
 import { getDatabaseIcon } from '@/widget/utils/iconUtil';
 import { LoadingContext } from '@/contexts/LoadingContext';
+import { SnackbarContext } from '@/contexts/AlertContext';
 
 const DataSet = () => {
   const { setId, sourceId } = useParams();
@@ -26,20 +27,19 @@ const DataSet = () => {
   const [isModifyMode, setIsModifyMode] = useState(false);
   const [testCompleted, setTestCompleted] = useState(false);
   const [datasetInfo, setDatasetInfo] = useState({ databaseId: sourceId, title: '', query: '' });
-  // 'select A.*, C.bizId from UserInfo A, BizUserMap B, BizInfo C where A.userId = B.userId and B.bizId = C.bizId',
+
   const [data, setData] = useState([]);
   const [columns, setColumns] = useState([]);
   const [databaseId, setDatabaseId] = useState(null);
   const [databaseList, setDatabaseList] = useState([]);
   const [tableList, setTableList] = useState([]);
-  const alert = useAlert();
 
-  // console.log(data, 'data', sourceId, 'sourceId', databaseId, 'databaseId', setId, 'setId');
+  const alert = useAlert();
+  const snackbar = useAlert(SnackbarContext);
 
   useLayoutEffect(() => {
     console.log('modify', pathname.indexOf('modify'));
-    console.log('setId', setId);
-    console.log('sourceId', sourceId);
+    console.log('setId:', setId, 'sourceId:', sourceId);
     getDatabaseTypeList();
 
     if (pathname.indexOf('modify') > 0 && setId) {
@@ -57,6 +57,10 @@ const DataSet = () => {
     addCompleter();
   }, [tableList]);
 
+  useEffect(() => {
+    if (!databaseId) getDatabaseId();
+  }, [databaseList, datasetInfo]);
+
   /**
    * 데이터 그리드 컬럼 생성
    * @param data
@@ -68,10 +72,9 @@ const DataSet = () => {
     } else if (data instanceof Object) {
       target = data;
     }
-    const columns = Object.keys(target).map(key => {
+    return Object.keys(target).map(key => {
       return { name: key, header: key, align: key, width: 200, sortable: true };
     });
-    return columns;
   };
 
   const addCompleter = () => {
@@ -107,7 +110,7 @@ const DataSet = () => {
   };
 
   const onChangeDatabaseId = event => {
-    console.log('onChaonChangeDatabaseIdngeTitle', event.target.value);
+    console.log('changeDatabaseId', event.target.value);
     setDatabaseId(event.target.value);
     setDatasetInfo(prevState => ({ ...prevState, databaseId: event.target.value }));
   };
@@ -116,28 +119,45 @@ const DataSet = () => {
    * 데이터베이스 타입 목록 조회
    */
   const getDatabaseTypeList = () => {
-    DatabaseService.selectDatabaseList().then(response => {
-      console.log('selectDatabaseTypeList', response.data);
-      if (response.data.status === STATUS.SUCCESS) {
-        const list = response.data.data;
-        list.map(item => (item.icon = getDatabaseIcon(item.engine)));
-        setDatabaseList(list);
-        if (!isModifyMode && list.length > 0) {
-          // setDatabaseId(list[0].id);
-          setDatabaseId(sourceId);
+    showLoading();
+    DatabaseService.selectDatabaseList()
+      .then(response => {
+        console.log('selectDatabaseTypeList', response.data);
+        if (response.data.status === STATUS.SUCCESS) {
+          const list = response.data.data;
+          list.map(item => (item.icon = getDatabaseIcon(item.engine)));
+          setDatabaseList(list);
         }
+      })
+      .finally(() => {
+        hideLoading();
+      });
+  };
+
+  const getDatabaseId = () => {
+    if (databaseList.length > 0) {
+      if (!isModifyMode) {
+        setDatabaseId(sourceId);
+      } else {
+        setDatabaseId(datasetInfo?.databaseId);
       }
-    });
+    }
   };
 
   const getDatabaseInfo = () => {
     showLoading();
     DatabaseService.selectDatabase(databaseId)
       .then(response => {
-        setTableList(response.data.data.tables);
-        console.log('tableList ', response.data.data.tables);
+        if (response.data.status === 'SUCCESS') {
+          setTableList(response.data.data.tables);
+          console.log('tableList ', response.data.data.tables);
+        } else {
+          alert.error('데이터베이스 조회에 실패했습니다.');
+          setTableList([]);
+        }
       })
-      .catch(() => {
+      .catch(error => {
+        snackbar.error(error.message);
         setTableList([]);
       })
       .finally(() => {
@@ -149,14 +169,19 @@ const DataSet = () => {
    * 수정일 경우 데이터셋 정보 조회
    */
   const getDatasetInfo = () => {
-    DatasetService.selectDataset(setId).then(response => {
-      console.log('selectDataset', response.data.data.datasetId);
-      if (response.data.status === 'SUCCESS') {
-        setDatasetInfo(response.data.data);
-        setDatabaseId(response.data.data.databaseId);
-        // setDataType(list[0]);
-      }
-    });
+    showLoading();
+    DatasetService.selectDataset(setId)
+      .then(response => {
+        console.log('selectDataset', response.data.data.id, response.data.data.databaseId);
+        if (response.data.status === 'SUCCESS') {
+          setDatasetInfo(response.data.data);
+        } else {
+          alert.error('데이터베이스 조회에 실패했습니다.');
+        }
+      })
+      .finally(() => {
+        hideLoading();
+      });
   };
 
   /**
@@ -164,9 +189,6 @@ const DataSet = () => {
    */
   const excuteQuery = () => {
     showLoading();
-    if (datasetInfo.query.trim().length < 1) {
-      alert.info('쿼리를 입력해주세요.');
-    }
     const param = {
       id: databaseId,
       query: datasetInfo.query,
@@ -176,15 +198,22 @@ const DataSet = () => {
       .then(response => {
         console.log(response.data);
         if (response.data.status === 'SUCCESS') {
-          setData(response.data.datas);
           setTestCompleted(true);
+          setData(response.data.datas);
           setColumns(createColumns(response.data.datas));
+          snackbar.success('Success!');
         } else {
           setTestCompleted(false);
+          setData([]);
+          setColumns([]);
+          snackbar.error(`${response.data.message}`);
         }
       })
-      .catch(() => {
+      .catch(error => {
+        snackbar.error(error.message);
         setTestCompleted(false);
+        setData([]);
+        setColumns([]);
       })
       .finally(() => {
         hideLoading();
@@ -201,28 +230,35 @@ const DataSet = () => {
         {
           copy: '확인',
           onClick: () => {
+            showLoading();
             if (isModifyMode) {
-              DatasetService.updateDataset(setId, datasetInfo).then(response => {
-                console.log(response.data);
-                if (response.data.status === STATUS.SUCCESS) {
-                  alert.info('데이터셋이 수정되었습니다.', {
-                    onClose: () => {
-                      navigate('/data');
-                    },
-                  });
-                }
-              });
+              DatasetService.updateDataset(setId, datasetInfo)
+                .then(response => {
+                  console.log(response.data);
+                  if (response.data.status === STATUS.SUCCESS) {
+                    navigate('/data');
+                    snackbar.success('데이터셋이 수정되었습니다.');
+                  } else {
+                    alert.error('데이터셋 수정에 실패했습니다.');
+                  }
+                })
+                .finally(() => {
+                  hideLoading();
+                });
             } else {
-              DatasetService.createDataset(datasetInfo).then(response => {
-                console.log(response.data);
-                if (response.data.status === STATUS.SUCCESS) {
-                  alert.info('데이터셋이 생성되었습니다.', {
-                    onClose: () => {
-                      navigate('/data');
-                    },
-                  });
-                }
-              });
+              DatasetService.createDataset(datasetInfo)
+                .then(response => {
+                  console.log(response.data);
+                  if (response.data.status === STATUS.SUCCESS) {
+                    navigate('/data');
+                    snackbar.success('데이터셋이 생성되었습니다.');
+                  } else {
+                    alert.error('데이터셋 생성에 실패했습니다.');
+                  }
+                })
+                .finally(() => {
+                  hideLoading();
+                });
             }
           },
         },
@@ -273,7 +309,15 @@ const DataSet = () => {
           displayEmpty
           disabled={isModifyMode}
           size="small"
-          value={databaseId || ''}
+          value={databaseId ?? ''}
+          // renderValue={selected => {
+          //   if (selected.length === 0) {
+          //     return <Typography sx={{ color: '#929292', fontStyle: 'italic' }}>데이터베이스를 선택해 주세요.</Typography>;
+          //   } else {
+          //     const item = databaseList?.find(({ id: value }) => value === selected);
+          //     return item?.name;
+          //   }
+          // }}
           onChange={onChangeDatabaseId}
         >
           {databaseList.map(item => (
@@ -290,7 +334,6 @@ const DataSet = () => {
           value={datasetInfo?.title}
           onChange={onChangeTitle}
           required
-          // helperText="데이터셋의 이름을 입력해 주세요"
         />
         <AceEditor
           placeholder="Please enter a query."
@@ -312,19 +355,29 @@ const DataSet = () => {
             tabSize: 2,
           }}
         />
-        <SubmitButton label="Run" type="button" sx={{ width: '374px', height: '50px' }} onClick={excuteQuery} />
-      </Stack>
-      <Stack sx={{ p: '30px 25px 40px 25px', backgroundColor: '#f5f6f8' }}>
-        <DataGrid
-          minBodyHeight={300}
-          bodyHeight={500}
-          data={data}
-          columns={columns}
-          columnOptions={{
-            resizable: true,
-          }}
+        <SubmitButton
+          label="Run"
+          type="button"
+          size="large"
+          sx={{ width: '374px', fontSize: '13px' }}
+          onClick={excuteQuery}
         />
       </Stack>
+      {data.length ? (
+        <Stack sx={{ p: '30px 25px 40px 25px', backgroundColor: '#f5f6f8' }}>
+          <DataGrid
+            minBodyHeight={300}
+            bodyHeight={500}
+            data={data}
+            columns={columns}
+            columnOptions={{
+              resizable: true,
+            }}
+          />
+        </Stack>
+      ) : (
+        ''
+      )}
     </PageTitleBox>
   );
 };

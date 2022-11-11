@@ -9,6 +9,7 @@ import DatasetService from '@/api/datasetService';
 import AddButton from '@/components/button/AddButton';
 import { Link as RouterLink } from 'react-router-dom';
 import { LoadingContext } from '@/contexts/LoadingContext';
+import { SnackbarContext } from '@/contexts/AlertContext';
 
 const DataLayout = props => {
   const { isViewMode, setDataSet } = props;
@@ -16,6 +17,7 @@ const DataLayout = props => {
   const [datasetList, setDatasetList] = useState([]);
   const [tableList, setTableList] = useState([]);
   const alert = useAlert();
+  const snackbar = useAlert(SnackbarContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
 
   const [selectedDatabase, setSelectedDatabase] = useState({
@@ -57,10 +59,17 @@ const DataLayout = props => {
     showLoading();
     DatabaseService.selectDatabase(selectedDatabase.databaseId)
       .then(response => {
-        setDatasetList(response.data.data.datasets);
-        setTableList(response.data.data.tables);
+        if (response.data.status === 'SUCCESS') {
+          setDatasetList(response.data.data.datasets);
+          setTableList(response.data.data.tables);
+        } else {
+          alert.error('데이터베이스 조회에 실패했습니다.');
+          setDatasetList([]);
+          setTableList([]);
+        }
       })
-      .catch(() => {
+      .catch(error => {
+        snackbar.error(error.message);
         setDatasetList([]);
         setTableList([]);
       })
@@ -81,6 +90,7 @@ const DataLayout = props => {
             DatabaseService.deleteDatabase(id).then(response => {
               if (response.data.status === STATUS.SUCCESS) {
                 getDatabaseList();
+                snackbar.success('데이터베이스가 삭제되었습니다.');
               }
             });
           },
@@ -97,15 +107,16 @@ const DataLayout = props => {
 
   const handleDeleteDataset = item => {
     console.log('handleDeleteDataset', item);
-    alert.success(`${item.title}\n데이터셋를 삭제하시겠습니까?`, {
+    alert.success(`${item.title}\n데이터셋을 삭제하시겠습니까?`, {
       title: '데이터베이스 삭제',
       closeCopy: '취소',
       actions: [
         {
           copy: '삭제',
           onClick: () => {
-            DatasetService.deleteDataset(item.id).then(response => {
+            DatasetService.deleteDataset(item.id).then(() => {
               getDatabaseInfo();
+              snackbar.success('데이터셋이 삭제되었습니다.');
             });
           },
         },
