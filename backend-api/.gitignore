@@ -6,6 +6,8 @@ config.serverless.yml
 vanillameta
 bigquery-key.json
 test-connect-info.json
+cert.pem
+key.pem
 .
 # compiled output
 /dist
