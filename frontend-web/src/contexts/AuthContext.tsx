@@ -1,4 +1,5 @@
 import { createContext, useContext, useState } from 'react';
+import authService from '@/api/authService';
 
 const AuthContext = createContext(null);
 
@@ -19,13 +20,19 @@ export const AuthProvider = ({ children }) => {
     });
   };
 
+  const handleSubmitLogin = async data => {
+    return authService.login(data).then(res => {
+      console.log(res);
+    });
+  };
+
   const handleLogout = () => {
     setToken(null);
   };
 
   const value = {
     token,
-    onLogin: handleLogin,
+    onLogin: handleSubmitLogin,
     onLogout: handleLogout,
   };
 
