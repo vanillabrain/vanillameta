@@ -11,6 +11,8 @@ import { TemplateModule } from './template/template.module';
 import { CommonModule } from './common/common.module';
 import { ComponentModule } from './component/component.module';
 import { ConnectionModule } from './connection/connection.module';
+import { UserModule } from './user/user.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -39,6 +41,9 @@ import { ConnectionModule } from './connection/connection.module';
     CommonModule,
     ComponentModule,
     ConnectionModule,
+    UserModule,
+    AuthModule,
+    UserModule,
   ],
   controllers: [AppController],
   providers: [AppService],

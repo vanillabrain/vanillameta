@@ -19,7 +19,7 @@ export function getTestMysqlModule(): DynamicModule {
     autoLoadEntities: true,
     entities: [entityUrl],
     synchronize: false,
-    logging: process.env.NODE_ENV == 'dev',
+    logging: true,
     retryAttempts: 1,
   });
 }
