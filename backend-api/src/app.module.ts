@@ -43,7 +43,6 @@ import { AuthModule } from './auth/auth.module';
     ConnectionModule,
     UserModule,
     AuthModule,
-    UserModule,
   ],
   controllers: [AppController],
   providers: [AppService],
