@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { ReactComponent as Logo } from '@/assets/images/logo.svg';
 import backgroundImage from '@/assets/images/visual-bg.png';
+import { useCookies } from 'react-cookie';
 
 function Copyright(props: any) {
   return (
@@ -33,10 +34,13 @@ const Login = () => {
     userId: process.env.REACT_APP_MODE === 'local' ? process.env.REACT_APP_ID : '',
     userPwd: process.env.REACT_APP_MODE === 'local' ? process.env.REACT_APP_PWD : '',
   });
+  const [cookies, setCookie, removeCookie] = useCookies(['rememberEmailId']);
+  const [isRemember, setIsRemember] = useState(false);
 
   const handleLogin = async event => {
     event.preventDefault();
     showLoading();
+    saveIdInCookie();
     await onLogin(event.target.userId.value, event.target.userPwd.value)
       .then(res => {
         if (res) {
@@ -50,6 +54,16 @@ const Login = () => {
         hideLoading();
       });
   };
+
+  const saveIdInCookie = () => {
+    const emailId = userInfo.userId;
+    if (isRemember) {
+      setCookie('rememberEmailId', emailId, { maxAge: 2000 });
+    } else {
+      removeCookie('rememberEmailId');
+    }
+  };
+
   return (
     <Box
       component="main"

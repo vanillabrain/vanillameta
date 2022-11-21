@@ -33,12 +33,13 @@
 
 ## 지원하는 데이터베이스
 
-- PostgresSQL
+- PostgreSQL
 - MariaDB
 - MySQL
 - SQLServer
 - SQLite
 - Oracle
-- DB2
 - Amazon Redshift
 - Big Query
+- Cockroachdb
+- Snowflake

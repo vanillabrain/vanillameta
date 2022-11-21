@@ -1,3 +1,6 @@
+export const ROUTE_URL_LOGIN = '/user/login';
+export const ROUTE_URL_SIGNUP = '/user/signup';
+
 export const WIDGET_TYPE = {
   BOARD_NUMERIC: 'BOARD_NUMERIC',
   BOARD_TABLE: 'BOARD_TABLE',
