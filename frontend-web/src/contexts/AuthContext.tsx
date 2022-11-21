@@ -20,9 +20,14 @@ export const AuthProvider = ({ children }) => {
     });
   };
 
-  const handleSubmitLogin = async data => {
+  const handleSubmitLogin = async (id, pwd) => {
+    const data = {
+      user_id: id,
+      password: pwd,
+    };
     return authService.login(data).then(res => {
-      console.log(res);
+      console.log(res, 'res');
+      // setToken(res);
     });
   };
 
