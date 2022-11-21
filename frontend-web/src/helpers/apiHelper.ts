@@ -9,7 +9,8 @@ let subscribers = [];
 const instance = axios.create({
   baseURL: API_URL,
   timeout: 100000,
-  // withCredentials: true,
+  withCredentials: true,
+  headers: { 'Content-Type': 'application/json' },
 });
 
 // Add a request interceptor
