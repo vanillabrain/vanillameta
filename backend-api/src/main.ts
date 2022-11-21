@@ -14,6 +14,7 @@ async function bootstrap() {
       preflightContinue: false,
       optionsSuccessStatus: 200,
       exposedHeaders: ['Content-Disposition'],
+      credentials: true
     },
   });
   app.useGlobalFilters(new HttpExceptionFilter());
