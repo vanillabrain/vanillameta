@@ -40,7 +40,7 @@ const Login = () => {
   const handleLogin = async event => {
     event.preventDefault();
     showLoading();
-    saveIdInCookie();
+    // saveIdInCookie();
     await onLogin(event.target.userId.value, event.target.userPwd.value)
       .then(res => {
         if (res) {
