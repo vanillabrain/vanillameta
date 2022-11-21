@@ -14,10 +14,10 @@ export class UserService {
   ) {}
 
   async signin( loginDto: UpdateUserDto ) {
-    const { email, password } = loginDto;
-    const findUser = await this.authService.validateUser(email, password);
+    const { user_id, password } = loginDto;
+    const findUser = await this.authService.validateUser(user_id, password);
     if (!findUser) {
-      throw new UnauthorizedException(`No exist user ${email}`);
+      throw new UnauthorizedException(`Unauthorized`);
     }
     return findUser
   }
@@ -28,14 +28,15 @@ export class UserService {
       where: { email: createUserDto.email }
     });
     if(!userInfo){
-      const { email, password, username } = createUserDto;
+      const { email, password, user_id } = createUserDto;
       await this.userRepository.save({
         email: email,
         password: password,
-        user_name: username
+        user_name: user_id
       });
+      return 'success';
     }
-    return 'This action adds a new user';
+    return 'conflict'
   }
 
   async findOne(email: string) {
@@ -66,7 +67,7 @@ export class UserService {
     if(!updateData){
       return 'not exist user';
     } else {
-      updateData.username = String(updateUserDto.username);
+      updateData.user_id = String(updateUserDto.user_id);
       await this.userRepository.save(updateData)
       return `This action update_name a #${id} user`;
     }

@@ -9,7 +9,7 @@ export class User  extends BaseEntity{
 
     @IsNotEmpty()
     @Column()
-    username: string;
+    user_id: string;
 
     @IsNotEmpty()
     @Column()

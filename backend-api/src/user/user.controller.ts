@@ -1,9 +1,10 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, UsePipes, ValidationPipe, Res } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, UsePipes, ValidationPipe, Res, Req } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { AuthService } from 'src/auth/auth.service';
+import { LocalAuthGuard } from 'src/auth/guards/local-auth.guard';
 
 
 @Controller('user')
@@ -13,10 +14,9 @@ export class UserController {
 
 
   @Post('signin')
-  async login(@Res() res, @Body() loginDto: UpdateUserDto){
-
+  async logIn(@Res() res,@Req() req, @Body() loginDto: UpdateUserDto){
     const findUser = await this.userService.signin(loginDto)
-    const accessToken = await this.authService.generateAccessToken( findUser.email );
+    const accessToken = await this.authService.generateAccessToken( findUser.user_id );
     const refreshToken = await this.authService.generateRefreshToken( findUser.email );
 
     res.cookie('jwt_ac', accessToken, {
@@ -29,13 +29,20 @@ export class UserController {
       saemSite: 'none',
       secure: true
     })
-    return res.status(201).send('ok')
+    return res.status(201).send('success')
   }
 
   @UsePipes(ValidationPipe)
   @Post('signup')
   create(@Body() createUserDto: CreateUserDto) {
     return this.userService.create(createUserDto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('signout')
+  signOut(@Res() res, @Req() req) {
+      console.log(req.headers.authorization)
+    // return this.userService.create(createUserDto);
   }
 
   @UseGuards(JwtAuthGuard)
