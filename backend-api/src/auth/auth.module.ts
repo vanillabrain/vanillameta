@@ -7,6 +7,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from '../user/entities/user.entity.js';
 import { UserService } from 'src/user/user.service';
+import { LocalStrategy } from '../auth/strategies/local.strategy.js'
 
 @Module({
   imports: [
@@ -14,9 +15,9 @@ import { UserService } from 'src/user/user.service';
       PassportModule,
       JwtModule.register({
         secret: process.env.JWT_ACCESS_SECRET,
-        signOptions: { expiresIn: '30s'}
+        signOptions: { expiresIn: '600s'}
     })
   ],
-  providers: [AuthService]
+  providers: [AuthService, JwtStrategy, LocalStrategy]
 })
 export class AuthModule {}

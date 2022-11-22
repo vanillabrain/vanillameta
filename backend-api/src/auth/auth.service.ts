@@ -13,10 +13,9 @@ export class AuthService {
         @InjectRepository(User) private readonly userRepository: Repository<User> ){}
 
     async generateAccessToken(email: string) {
-        console.log(email)
             const accesstoken = await this.jwtService.sign({email: email}, {
                 secret: process.env.ACCESS_SECRET,
-                expiresIn: `30s`
+                expiresIn: `600s`
             })
             return accesstoken
         // accesstoken이 없을때
@@ -32,8 +31,8 @@ export class AuthService {
 
     }
 
-    async validateUser(email: string, pass: string) {
-        const user = await this.userRepository.findOne({ where: { email: email } });
+    async validateUser(username: string, pass: string) {
+        const user = await this.userRepository.findOne({ where: { user_id: username } });
         if (user && user.password === pass) {
             delete user.password;
             return user;

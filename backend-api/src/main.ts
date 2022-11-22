@@ -12,8 +12,10 @@ async function bootstrap() {
     cors: {
       origin: process.env.CORS_ORIGIN,
       preflightContinue: false,
+      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
       optionsSuccessStatus: 200,
       exposedHeaders: ['Content-Disposition'],
+      credentials: true
     },
   });
   app.useGlobalFilters(new HttpExceptionFilter());
