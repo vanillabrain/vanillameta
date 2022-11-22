@@ -1,8 +1,8 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Button, Link, Stack, TextField, Typography } from '@mui/material';
 import { useAlert } from 'react-alert';
-import { useAuth } from '@/contexts/AuthContext';
+import { AuthContext } from '@/contexts/AuthContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { ReactComponent as Logo } from '@/assets/images/logo.svg';
 import backgroundImage from '@/assets/images/visual-bg.png';
@@ -26,7 +26,7 @@ function Copyright(props: any) {
 }
 
 const Login = () => {
-  const { onLogin } = useAuth();
+  const { isLogin, onLogin, checkLogin } = useContext(AuthContext);
   const navigate = useNavigate();
   const alert = useAlert();
   const { showLoading, hideLoading } = useContext(LoadingContext);
@@ -36,6 +36,16 @@ const Login = () => {
   });
   const [cookies, setCookie, removeCookie] = useCookies(['rememberEmailId']);
   const [isRemember, setIsRemember] = useState(false);
+
+  useEffect(() => {
+    showLoading();
+    checkLogin();
+    console.log('Login', isLogin);
+    if (isLogin) {
+      navigate('/dashboard');
+    }
+    hideLoading();
+  }, [isLogin]);
 
   const handleLogin = async event => {
     event.preventDefault();
@@ -48,7 +58,7 @@ const Login = () => {
         }
       })
       .catch(error => {
-        alert.error(error.message);
+        alert.error('ID 또는 비밀번호가 일치하지 않습니다.');
       })
       .finally(() => {
         hideLoading();
