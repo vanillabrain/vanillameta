@@ -11,6 +11,7 @@ async function bootstrap() {
     logger: console,
     cors: {
       origin: process.env.CORS_ORIGIN,
+      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
       preflightContinue: false,
       optionsSuccessStatus: 200,
       exposedHeaders: ['Content-Disposition'],
