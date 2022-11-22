@@ -1,14 +1,19 @@
 import { Navigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { AuthContext } from '@/contexts/AuthContext';
+import { useContext, useEffect } from 'react';
+import { LoadingContext } from '@/contexts/LoadingContext';
 
 export const ProtectedRoute = ({ children }) => {
-  const { token } = useAuth();
-  console.log('ProtectedRoute', token);
-  const storage = window.sessionStorage;
-  const loggedUserId = storage.getItem('loggedUserId');
-  const loggedUserPwd = storage.getItem('loggedUserPwd');
+  const { isLogin, checkLogin } = useContext(AuthContext);
+  const { showLoading, hideLoading } = useContext(LoadingContext);
 
-  if (!loggedUserId && !loggedUserPwd && !token) {
+  useEffect(() => {
+    showLoading();
+    checkLogin();
+    console.log('ProtectedRoute', isLogin);
+  }, [isLogin]);
+
+  if (!isLogin) {
     return <Navigate to="/login" replace />;
   }
 
