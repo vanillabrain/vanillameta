@@ -1,4 +1,7 @@
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
+import { ROUTE_URL_LOGIN } from '@/constant';
+import { removeToken } from '@/helpers/authHelper';
 
 // apply base url for axios
 const API_URL = process.env.REACT_APP_API_URL;
@@ -23,7 +26,6 @@ instance.interceptors.request.use(async config => {
   // //   config.headers.RefreshAuthorization = getRefreshToken();
   // // }
   // // console.log('firebase token : ', token);
-  // config.headers['isMobile'] = isMobileOnly.toString();
   return config;
 });
 
@@ -36,24 +38,26 @@ instance.interceptors.response.use(
       const {
         response: { status },
       } = error;
-      // if (status === 401) {
-      //   if (error.response.data.message === 'TokenExpiredError') {
-      //     return await resetTokenAndReattemptRequest(error);
-      //   }
-      //   if (error.response.data.message === 'JsonWebTokenError') {
-      //     removeToken();
-      //     window.location.reload();
-      //   } else if (error.response.data.message === 'Unauthorized') {
-      //     // 권한없음
-      //     removeToken();
-      //     const navigate = useNavigate();
-      //     navigate(ROUTE_URL_LOGIN);
-      //   }
-      // }
+      if (status === 401) {
+        //   if (error.response.data.message === 'TokenExpiredError') {
+        //     return await resetTokenAndReattemptRequest(error);
+        //   }
+        //   if (error.response.data.message === 'JsonWebTokenError') {
+        //     removeToken();
+        //     window.location.reload();
+        //   } else
+        if (error.response.data.message === 'Unauthorized') {
+          // 권한없음
+          // removeToken();
+          const navigate = useNavigate();
+          navigate(ROUTE_URL_LOGIN);
+        }
+      }
+      // const message =
+      error.message =
+        (error.response && error.response.data && error.response.data.message) || error.message || error.toString();
+      return Promise.reject(error);
     }
-    error.message =
-      (error.response && error.response.data && error.response.data.message) || error.message || error.toString();
-    return Promise.reject(error);
   },
 );
 
