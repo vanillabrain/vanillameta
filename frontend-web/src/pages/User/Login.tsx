@@ -1,41 +1,22 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Box, Button, Link, Stack, TextField, Typography } from '@mui/material';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { Box, Button, Stack, TextField, Typography } from '@mui/material';
 import { useAlert } from 'react-alert';
 import { AuthContext } from '@/contexts/AuthContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { ReactComponent as Logo } from '@/assets/images/logo.svg';
 import backgroundImage from '@/assets/images/visual-bg.png';
-import { useCookies } from 'react-cookie';
-
-function Copyright(props: any) {
-  return (
-    <Typography color="text.secondary" align="center" {...props}>
-      <Link
-        color="inherit"
-        href="https://vanillabrain.com/"
-        sx={{ fontSize: '13px', color: '#767676', textDecoration: 'none' }}
-      >
-        @ Vanilla Meta 2022
-      </Link>
-      {/*{' '}*/}
-      {/*{new Date().getFullYear()}*/}
-      {/*{'.'}*/}
-    </Typography>
-  );
-}
+import Copyright from '@/components/Copyright';
 
 const Login = () => {
   const { isLogin, onLogin, checkLogin } = useContext(AuthContext);
+  const { showLoading, hideLoading } = useContext(LoadingContext);
   const navigate = useNavigate();
   const alert = useAlert();
-  const { showLoading, hideLoading } = useContext(LoadingContext);
   const [userInfo] = useState({
-    userId: process.env.REACT_APP_MODE === 'local' ? process.env.REACT_APP_ID : '',
-    userPwd: process.env.REACT_APP_MODE === 'local' ? process.env.REACT_APP_PWD : '',
+    userId: '',
+    userPwd: '',
   });
-  const [cookies, setCookie, removeCookie] = useCookies(['rememberEmailId']);
-  const [isRemember, setIsRemember] = useState(false);
 
   useEffect(() => {
     showLoading();
@@ -50,14 +31,13 @@ const Login = () => {
   const handleLogin = async event => {
     event.preventDefault();
     showLoading();
-    // saveIdInCookie();
     await onLogin(event.target.userId.value, event.target.userPwd.value)
       .then(res => {
         if (res) {
           navigate('/dashboard');
         }
       })
-      .catch(error => {
+      .catch(() => {
         alert.error('ID 또는 비밀번호가 일치하지 않습니다.');
       })
       .finally(() => {
@@ -65,19 +45,10 @@ const Login = () => {
       });
   };
 
-  const saveIdInCookie = () => {
-    const emailId = userInfo.userId;
-    if (isRemember) {
-      setCookie('rememberEmailId', emailId, { maxAge: 2000 });
-    } else {
-      removeCookie('rememberEmailId');
-    }
-  };
-
   return (
     <Box
       component="main"
-      sx={{ position: 'relative', zIndex: 0, width: '100%', height: '100%', minWidth: '100%', backgroundColor: '#f5f6f8' }}
+      sx={{ position: 'relative', zIndex: 0, width: '100%', height: '100%', minWidth: '100vw', backgroundColor: '#f5f6f8' }}
     >
       <Box
         sx={{
@@ -87,8 +58,9 @@ const Login = () => {
           alignItems: 'center',
         }}
       >
-        <Logo width="223px" height="43px" />
-
+        <RouterLink to="/">
+          <Logo width="223px" height="43px" />
+        </RouterLink>
         <Typography sx={{ mt: '17px', fontSize: '16px', color: '#043f84' }}>
           통합 데이터분석을 위한{' '}
           <Typography component="span" sx={{ fontSize: '16px', fontWeight: 'bold' }}>
@@ -121,6 +93,13 @@ const Login = () => {
             Login
           </Button>
         </Stack>
+        <Typography
+          sx={{ display: 'block', mt: '50px', fontSize: '14px', textAlign: 'center', color: '#4a4a4a' }}
+          component={RouterLink}
+          to="/signup"
+        >
+          회원가입
+        </Typography>
       </Box>
       <Copyright sx={{ mt: 8, mb: 4 }} />
       <Box
