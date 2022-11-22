@@ -72,7 +72,7 @@ export const AddMenuIconButton = ({
   menuList,
   handleSelect = null,
   iconUrl = IconPlus,
-  sizeOption = { width: 22, height: 22 },
+  sizeOption = { width: '36px', height: '36px', p: '7.5px' },
 }) => {
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
