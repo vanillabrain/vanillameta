@@ -13,6 +13,7 @@ import DashboardTitleBox from '../Components/DashboardTitleBox';
 import ModifyButton from '@/components/button/ModifyButton';
 import DeleteButton from '@/components/button/DeleteButton';
 import ReloadButton from '@/components/button/ReloadButton';
+import ShareButton from '@/components/button/ShareButton';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
 
@@ -28,6 +29,7 @@ const DashboardView = () => {
   const [dashboardInfo, setDashboardInfo] = useState({ title: '', widgets: [], layout: [], updatedAt: '' }); // dashboard 정보
   const [layout, setLayout] = useState([]); // grid layout
   // dashboard id
+  const [isShareOn, setIsShareOn] = useState(false);
 
   // init useEffect
   useEffect(() => {
@@ -126,6 +128,18 @@ const DashboardView = () => {
     });
   };
 
+  const handleShareToggle = () => {
+    if (isShareOn) {
+      setIsShareOn(false);
+    } else {
+      setIsShareOn(true);
+    }
+  };
+
+  const handleCopyClick = () => {
+    console.log('복사 클릭!');
+  };
+
   return (
     <PageTitleBox
       upperTitle="대시보드"
@@ -159,7 +173,7 @@ const DashboardView = () => {
           <Stack direction="row" alignItems="center" sx={{ marginRight: '20px' }}>
             <span
               style={{
-                marginRight: '56px',
+                marginRight: '36px',
                 height: '16px',
                 fontFamily: 'Pretendard',
                 fontSize: '14px',
@@ -176,7 +190,7 @@ const DashboardView = () => {
             </span>
             <ReloadButton
               size="medium"
-              sx={{ marginRight: '36px', padding: 0 }}
+              sx={{ marginRight: '24px', padding: 0 }}
               onClick={event => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -185,19 +199,20 @@ const DashboardView = () => {
             />
             <ModifyButton
               size="medium"
-              sx={{ marginRight: '36px', padding: 0 }}
+              sx={{ marginRight: '24px', padding: 0 }}
               component={RouterLink}
               to={`/dashboard/modify?id=${dashboardId}&name=${dashboardInfo.title}`}
             />
             <DeleteButton
               size="medium"
-              sx={{ padding: 0 }}
+              sx={{ marginRight: '24px', padding: 0 }}
               onClick={event => {
                 event.preventDefault();
                 event.stopPropagation();
                 handleDeleteSelect();
               }}
             />
+            <ShareButton onClick={handleShareToggle} isShareOn={isShareOn} handleCopyClick={handleCopyClick} />
           </Stack>
         }
       >
