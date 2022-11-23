@@ -4,7 +4,7 @@ import { AddMenuIconButton } from '@/components/button/AddIconButton';
 import Logo from './Logo';
 import NavBar from './NavBar';
 import { useNavigate } from 'react-router-dom';
-import UserInfoButton from '@/components/button/UserInfoButton';
+import ProfileViewButton from '@/pages/User/components/ProfileViewButton';
 
 const menuList = [
   { name: '데이터 소스', link: '/data/source/create' },
@@ -36,7 +36,7 @@ function Header(props) {
         <NavBar navItems={navItems} />
         <Box sx={{ display: 'flex', gap: '16px' }}>
           <AddMenuIconButton menuList={menuList} handleSelect={handleMenuSelect} />
-          <UserInfoButton handleSelect={handleMenuSelect} />
+          <ProfileViewButton handleSelect={handleMenuSelect} />
         </Box>
       </Toolbar>
       <Divider />
