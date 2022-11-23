@@ -59,9 +59,9 @@ export default createTheme({
         root: {
           '&.MuiMenu-paper': {
             padding: '10px 6px',
-            borderRadius: '4px',
-            boxShadow: '2px 2px 4px 0 rgba(0, 0, 0, 0.15)',
-            border: 'solid 1px #0f5ab2',
+            borderRadius: '6px',
+            boxShadow: '2px 2px 9px 0 rgba(42, 50, 62, 0.1), 0 4px 4px 0 rgba(0, 0, 0, 0.02)',
+            border: 'solid 1px #ddd',
           },
         },
       },
@@ -97,13 +97,22 @@ export default createTheme({
           borderRadius: '8px',
           paddingLeft: '14px',
           paddingRight: '14px',
-          // color: '#fff',
-
+          boxShadow: 'none',
+          // '&:hover': {
+          //   boxShadow: 'none',
+          //   borderColor: '#4481c9',
+          //   backgroundColor: '#4481c9',
+          // },
           '&.Mui-disabled': {
             color: '#fff',
             backgroundColor: '#9b9ea9',
           },
         },
+        contained: {
+          border: '1px solid #0f5ab2',
+          backgroundColor: '#043f84',
+        },
+        // hover: {},
         sizeLarge: {
           height: '44px',
           fontSize: '15px',
