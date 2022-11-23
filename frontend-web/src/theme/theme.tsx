@@ -186,6 +186,9 @@ export default createTheme({
           '&.MuiOutlinedInput-root:hover fieldset': {
             border: 'solid 1px #0f5ab2',
           },
+          '&.MuiOutlinedInput-root.Mui-disabled fieldset': {
+            border: 'solid 1px #bdc2d0',
+          },
         },
       },
     },

@@ -2,8 +2,9 @@ import React from 'react';
 import { Avatar, Badge, Box, Button, Popover, Stack, Typography } from '@mui/material';
 import { ReactComponent as IconUser } from '@/assets/images/icon/ic-user.svg';
 import { Link as RouterLink } from 'react-router-dom';
+import ProfileModify from '@/pages/User/components/ProfileModify';
 
-const UserInfoButton = ({ handleSelect = null, iconUrl = IconUser }) => {
+const ProfileViewButton = ({ handleSelect = null, iconUrl = IconUser }) => {
   const [anchorEl, setAnchorEl] = React.useState<HTMLButtonElement | null>(null);
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -58,8 +59,8 @@ const UserInfoButton = ({ handleSelect = null, iconUrl = IconUser }) => {
         </Badge>
         <Stack>
           <Typography sx={{ fontSize: '14px', fontWeight: 'bold', lineHeight: '18px', color: '#141414' }}>
-            username
-            <Box component="span" sx={{ ml: '4px', color: '#767676' }}>
+            유저이름
+            <Box component="span" sx={{ ml: '4px', fontWeight: 'normal', color: '#767676' }}>
               님
             </Box>
           </Typography>
@@ -97,9 +98,10 @@ const UserInfoButton = ({ handleSelect = null, iconUrl = IconUser }) => {
               >
                 로그아웃
               </Box>
-              <Box component={RouterLink} to="/" sx={{ color: 'inherit' }}>
-                회원정보수정
-              </Box>
+              {/*<Box component={RouterLink} to="/" sx={{ color: 'inherit' }}>*/}
+              {/*  회원정보수정*/}
+              {/*</Box>*/}
+              <ProfileModify />
             </Typography>
           </Stack>
         </Stack>
@@ -108,4 +110,4 @@ const UserInfoButton = ({ handleSelect = null, iconUrl = IconUser }) => {
   );
 };
 
-export default UserInfoButton;
+export default ProfileViewButton;
