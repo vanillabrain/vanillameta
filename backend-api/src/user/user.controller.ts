@@ -6,49 +6,47 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { AuthService } from 'src/auth/auth.service';
 import { LocalAuthGuard } from 'src/auth/guards/local-auth.guard';
 
-
 @Controller('user')
 export class UserController {
   constructor( private readonly userService: UserService,
                private authService: AuthService) {}
 
-
   @Post('signin')
   async logIn(@Res() res,@Req() req, @Body() loginDto: UpdateUserDto){
     const findUser = await this.userService.signin(loginDto)
     const accessToken = await this.authService.generateAccessToken( findUser.user_id );
-    const refreshToken = await this.authService.generateRefreshToken( findUser.email );
+    const refreshToken = await this.authService.generateRefreshToken( findUser.user_id );
+    await this.authService.setRefreshKey(refreshToken, findUser.user_id)
 
-    res.cookie('jwt_ac', accessToken, {
-      httpOnly: true,
-      saemSite: 'none',
-      secure: true
-    });
     res.cookie('jwt_re', refreshToken, {
       httpOnly: true,
       saemSite: 'none',
       secure: true
     })
-    return res.status(201).send('success')
+    return res.status(201).json({ accessToken: accessToken, message: 'success' })
   }
-
+  // validationPipe에 더 찾아볼 것
   @UsePipes(ValidationPipe)
   @Post('signup')
   create(@Body() createUserDto: CreateUserDto) {
-    return this.userService.create(createUserDto);
+    return this.userService.signup(createUserDto);
   }
 
   @UseGuards(JwtAuthGuard)
   @Post('signout')
-  signOut(@Res() res, @Req() req) {
-      console.log(req.headers.authorization)
-    // return this.userService.create(createUserDto);
+  async signOut(@Res() res, @Req() req) {
+    const refreshToken = req.headers.authorization;
+    await this.authService.deleteRefreshToken(refreshToken)
+    return res
+        .status(205)
+        .clearCookie('jwt_re')
+        .json({ message: 'success'})
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get('userinfo/:email')
-  findOne(@Param('email') email: string) {
-    return this.userService.findOne(email);
+  @Get('userinfo')
+  findOne(@Body() updateUserDto: UpdateUserDto) {
+    return this.userService.findOne(updateUserDto);
   }
 
   @UseGuards(JwtAuthGuard)
