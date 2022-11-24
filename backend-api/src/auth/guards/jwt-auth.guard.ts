@@ -16,15 +16,18 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
         const token = cookie.replace('Bearer ', '');
         const userInfo = await this.validate(token);
         if(userInfo) request.user = userInfo;
-        return true;
-        //TODO 바꿔야함
-        // !!userInfo
+        return !!userInfo;
     }
 
     async validate(payload: any) {
-        const secretKey = process.env.REFRESH_SECRET
-        return await this.jwtService.verify(payload, { secret: secretKey });
+        try{
+            const secretKey = process.env.REFRESH_SECRET
+            return await this.jwtService.verify(payload, { secret: secretKey });
+        } catch {
+            throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
+        }
     }
+
 
 }
 
