@@ -46,50 +46,40 @@ export class UserService {
     return 'conflict'
   }
 
-  async findOne(updateUserDto) {
+  async findOne(accessToken: string) {
+    const findUser = await this.authService.verifyAccessToken(accessToken)
     const userData = await this.userInfoRepository.findOne({
-      where: { user_id: updateUserDto.user_id }
+      where: { user_id: findUser.user_id }
     });
     if(!userData){
-      return null
+      return 'Bad Request'
     } else {
       delete userData.password;
-      return userData
+      return { data: userData, message: "success" }
     }
   }
 
-  async updatePassword(id: number, updateUserDto: UpdateUserDto) {
-    const updateData = await this.userInfoRepository.findOne({ where: { id: id }});
-    if(!updateData){
-      return 'not exist user';
-    } else {
-      updateData.password = String(updateUserDto.password);
-      await this.userInfoRepository.save(updateData)
-      return `This action update_password a #${id} user`;
-    }
-  }
+  async updateUserInfo(accessToken: string, updateUserDto: UpdateUserDto) {
+    const { accessKeyData } = await this.authService.verifyAccessToken(accessToken)
+    const findUser = await this.authService.validateUser( accessKeyData.user_id, accessKeyData.password );
 
-  async updateUsername(id: number, updateUserDto: UpdateUserDto) {
-    const updateData = await this.userInfoRepository.findOne({ where: { id: id }});
-    if(!updateData){
-      return 'not exist user';
-    } else {
-      updateData.user_id = String(updateUserDto.user_id);
-      await this.userInfoRepository.save(updateData)
-      return `This action update_name a #${id} user`;
-    }
-  }
-
-  async deleteUser(id: number) {
-    const findUser = await this.userInfoRepository.findOne({
-      where: { id: id }
-    });
     if(!findUser){
-      return 'not exist user'
+      return 'not exist user';
+    } else {
+      findUser.user_id = String(updateUserDto.user_id);
+      await this.userInfoRepository.save(findUser)
+      return `This action update_name a #${findUser.user_id} user`;
+    }
+  }
+
+  async deleteUser( accessToken:string, password: string ) {
+    const { accessKeyData } = await this.authService.verifyAccessToken(accessToken)
+    const findUser = await this.authService.validateUser(accessKeyData.user_id, password);
+    if(!findUser){
+      return 'Unauthorized'
     } else {
       await this.userInfoRepository.delete(findUser.id)
-      return `This action removes a #${id} user`;
+      return `success`;
     }
   }
-
 }

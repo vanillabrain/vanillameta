@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import {HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UserService } from 'src/user/user.service';
 import { NestFactory } from '@nestjs/core';
@@ -16,57 +16,67 @@ export class AuthService {
         private readonly refreshTokenRepository: Repository<RefreshToken>,
     ){}
 
-    async generateAccessToken(user_id: string) {
-            const accesstoken = await this.jwtService.sign({email: user_id}, {
+    async generateAccessToken(payload: any) {
+            const accessKeyData = {
+                user_id: payload.user_id,
+                email: payload.email,
+                id: payload.id
+            }
+            const accessToken = await this.jwtService.sign({accessKeyData}, {
                 secret: process.env.ACCESS_SECRET,
                 expiresIn: `600s`
             })
-            return accesstoken
+            return accessToken
         // accesstoken이 없을때
     }
 
     async generateRefreshToken(user_id: string) {
-        const refreshtoken = await this.jwtService.sign({user_id: user_id}, { secret: process.env.REFRESH_SECRET, expiresIn: "3600s" })
-        return refreshtoken
+        const refreshToken = await this.jwtService.sign({user_id: user_id}, { secret: process.env.REFRESH_SECRET, expiresIn: "3600s" })
+        return refreshToken
         // accesstoken이 없을때
     }
 
     async setRefreshKey(refreshToken: string, user_id: string){
-        const find_user = await this.refreshTokenRepository.findOne({ where: {user_id: user_id} });
+        const findUser = await this.refreshTokenRepository.findOne({ where: {user_id: user_id} });
         const token = refreshToken.replace('Bearer ', '');
-        (!find_user) ?
+        (!findUser) ?
             await this.refreshTokenRepository.save({
                 user_id: user_id,
                 refreshToken: token
         }) :
-            find_user.refreshToken = token;
-            await this.refreshTokenRepository.save(find_user)
-        if(!find_user){
-
-        } else {
-            await this
-        }
+            findUser.refreshToken = token;
+            await this.refreshTokenRepository.save(findUser)
 
         // 로그인시 갱신된 refreshToken 저장
     }
 
-    async validateUser(username: string, pass: string) {
-        const user = await this.userInfoRepository.findOne({ where: { user_id: username } });
+    async validateUser(user_id: string, pass: string) {
+        const user = await this.userInfoRepository.findOne({ where: { user_id: user_id } });
         if (user && user.password === pass) {
             delete user.password;
             return user;
         }
-        // 로그인시 회원인지 확인
+
+        // 회원이 존재하는지 확인
     }
 
     async deleteRefreshToken(Token: string) {
         const token = Token.replace('Bearer ', '');
-        console.log(token)
         const refreshTokenInfo = await this.refreshTokenRepository.findOne({
             where: { refreshToken: token },
         });
         console.log(refreshTokenInfo)
         await this.refreshTokenRepository.delete(refreshTokenInfo);
+    }
 
+    async verifyAccessToken(Token: string) {
+        try{
+            const token = Token.replace('Bearer ', '');
+            const secretKey = process.env.ACCESS_SECRET
+            const findUser = await this.jwtService.verify(token, { secret: secretKey })
+            return findUser
+        } catch (err) {
+            throw new HttpException({message: 'accessTokenExpired'}, HttpStatus.UNAUTHORIZED);
+        }
     }
 }
