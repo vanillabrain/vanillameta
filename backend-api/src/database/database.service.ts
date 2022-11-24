@@ -37,7 +37,7 @@ export class DatabaseService {
    */
   async create(createDatabaseDto: CreateDatabaseDto) {
     const databaseDto = Database.toDto(createDatabaseDto);
-
+    console.log(databaseDto)
     const connectionConfig = {
       client: databaseDto.engine,
       connection: databaseDto.connectionConfig,

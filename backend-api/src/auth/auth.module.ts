@@ -5,13 +5,14 @@ import { JwtModule, JwtService } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { User } from '../user/entities/user.entity.js';
+import { UserInfo } from '../user/entities/user-info.entity.js';
 import { UserService } from 'src/user/user.service';
 import { LocalStrategy } from '../auth/strategies/local.strategy.js'
+import { RefreshToken } from './entites/refresh_token.entity';
 
 @Module({
   imports: [
-      TypeOrmModule.forFeature([User]),
+      TypeOrmModule.forFeature([UserInfo, RefreshToken]),
       PassportModule,
       JwtModule.register({
         secret: process.env.JWT_ACCESS_SECRET,
