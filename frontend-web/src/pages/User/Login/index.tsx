@@ -20,7 +20,7 @@ const Login = () => {
 
   useEffect(() => {
     showLoading();
-    checkLogin();
+    // checkLogin();
     console.log('Login', isLogin);
     if (isLogin) {
       navigate('/dashboard');

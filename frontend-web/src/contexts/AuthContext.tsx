@@ -1,10 +1,11 @@
-import { createContext, useState } from 'react';
+import { createContext, useContext, useState } from 'react';
 import authService from '@/api/authService';
 import axios from 'axios';
 
 export const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
+  const [accessToken, setAccessToken] = useState(null);
   const [isLogin, setIsLogin] = useState(false);
   const [userInfo, setUserInfo] = useState(null);
 
@@ -36,6 +37,7 @@ export const AuthProvider = ({ children }) => {
         console.log(response, 'response');
         if (response.status === 201) {
           setIsLogin(true);
+          setAccessToken(response.data.accessToken);
         }
       })
       .catch(error => {
@@ -52,7 +54,8 @@ export const AuthProvider = ({ children }) => {
   const value = {
     isLogin,
     userInfo,
-    checkLogin: handleCheckLogin,
+    token: accessToken,
+    // checkLogin: handleCheckLogin,
     onLogin: handleLogin,
     onLogout: handleLogout,
   };

@@ -1,7 +1,9 @@
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { ROUTE_URL_LOGIN } from '@/constant';
-import { removeToken } from '@/helpers/authHelper';
+import { AuthContext } from '@/contexts/AuthContext';
+import { useContext } from 'react';
+import authService from '@/api/authService';
 
 // apply base url for axios
 const API_URL = process.env.REACT_APP_API_URL;
@@ -18,14 +20,14 @@ const instance = axios.create({
 
 // Add a request interceptor
 instance.interceptors.request.use(async config => {
-  // const token = fbAuthService.currentUser ? await fbAuthService.currentUser.getIdToken() : null;
-  // if (token) {
-  //   config.headers.Authorization = `Bearer ${token}`;
+  const { token } = useContext(AuthContext);
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  // if (config.url === URL_REFRESH || config.url === URL_LOGOUT) {
+  //   config.headers.RefreshAuthorization = getRefreshToken();
   // }
-  // // if (config.url === URL_REFRESH || config.url === URL_LOGOUT) {
-  // //   config.headers.RefreshAuthorization = getRefreshToken();
-  // // }
-  // // console.log('firebase token : ', token);
+  // console.log('firebase token : ', token);
   return config;
 });
 
@@ -39,21 +41,20 @@ instance.interceptors.response.use(
         response: { status },
       } = error;
       if (status === 401) {
-        //   if (error.response.data.message === 'TokenExpiredError') {
-        //     return await resetTokenAndReattemptRequest(error);
-        //   }
+        console.log(error, 'error');
+        if (error.response.data.message === 'accessTokenExpired') {
+          return await resetTokenAndReattemptRequest(error);
+        }
         //   if (error.response.data.message === 'JsonWebTokenError') {
         //     removeToken();
         //     window.location.reload();
         //   } else
-        if (error.response.data.message === 'Unauthorized') {
-          // 권한없음
-          // removeToken();
-          const navigate = useNavigate();
-          navigate(ROUTE_URL_LOGIN);
-        }
+        // if (error.response.data.message === 'Unauthorized') {
+        // 권한없음
+        // const navigate = useNavigate();
+        // navigate(ROUTE_URL_LOGIN);
+        // }
       }
-      // const message =
       error.message =
         (error.response && error.response.data && error.response.data.message) || error.message || error.toString();
       return Promise.reject(error);
@@ -85,14 +86,15 @@ async function resetTokenAndReattemptRequest(error) {
     if (!isAlreadyFetchingAccessToken) {
       isAlreadyFetchingAccessToken = true; // 문닫기 (한 번만 요청)
 
-      // const { data } = await AuthService.refresh();
+      const { data } = await authService.getAccessToken();
       // 새로운 토큰 저장
-      // const newAccessToken = data.accessToken;
-      // setToken(newAccessToken);
+      const newAccessToken = data.accessToken;
+      const { setToken } = useContext(AuthContext);
+      setToken(newAccessToken);
 
       isAlreadyFetchingAccessToken = false; // 문열기 (초기화)
 
-      // onAccessTokenFetched(data.access);
+      onAccessTokenFetched(data.access);
     }
 
     return retryOriginalRequest; // pending 됐다가 onAccessTokenFetched가 호출될 때 resolve

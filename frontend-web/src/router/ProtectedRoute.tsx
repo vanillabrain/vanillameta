@@ -4,16 +4,16 @@ import { useContext, useEffect } from 'react';
 import { LoadingContext } from '@/contexts/LoadingContext';
 
 export const ProtectedRoute = ({ children }) => {
-  const { isLogin, checkLogin } = useContext(AuthContext);
+  const { token, isLogin } = useContext(AuthContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
 
   useEffect(() => {
     showLoading();
-    checkLogin();
+    // checkLogin();
     console.log('ProtectedRoute', isLogin);
   }, [isLogin]);
 
-  if (!isLogin) {
+  if (!isLogin && !token) {
     return <Navigate to="/login" replace />;
   }
 
