@@ -25,13 +25,14 @@ export class UserService {
   }
 
   async signup(createUserDto: CreateUserDto) {
-    const userInfoId = await this.userInfoRepository.findOne({
+    const userInfoEmail = await this.userInfoRepository.findOne({
       where: { email: createUserDto.email }
     });
-    const userInfoEmail = await this.userInfoRepository.findOne({
+    const userInfoId = await this.userInfoRepository.findOne({
       where: { user_id: createUserDto.user_id }
-    })
-    if(!userInfoId && !userInfoEmail){
+    });
+
+    if(!userInfoEmail && !userInfoId){
       const { email, password, user_id } = createUserDto;
       const createUserInfo = await this.userInfoRepository.save({
         email: email,
@@ -42,8 +43,10 @@ export class UserService {
 
       return 'success';
       // return 값으로 email, user_id 중복 데이터 나눠서 보내줘야하지 않을까?
+    } else if (!userInfoEmail && userInfoId){
+      return "conflict user_id"
     }
-    return 'conflict'
+    return 'conflict email'
   }
 
   async findOne(accessToken: string) {
