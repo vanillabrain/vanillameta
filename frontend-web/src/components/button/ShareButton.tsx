@@ -68,10 +68,10 @@ const ShareButton = ({ onClick, isShareOn, handleCopyClick }) => {
             }}
           >
             <Stack sx={{ width: '100%' }}>
-              <Typography sx={{ mb: '10px', fontSize: '16px', fontWeight: 600, color: '#141414' }}>페이지 공유</Typography>
+              <Typography sx={{ mb: '6px', fontSize: '16px', fontWeight: 600, color: '#141414' }}>페이지 공유</Typography>
               {isShareOn ? (
                 <Box>
-                  <Stack direction="row" alignItems="center">
+                  <Stack direction="row" justifyContent="space-between" alignItems="center">
                     <Typography sx={{ mr: '12px', fontSize: '14px', color: '#141414' }}>
                       링크를 통한 읽기를 허용합니다.
                     </Typography>
@@ -79,15 +79,15 @@ const ShareButton = ({ onClick, isShareOn, handleCopyClick }) => {
                       <IconToggleOn />
                     </IconButton>
                   </Stack>
-                  <Stack direction="row" justifyContent="space-between" mt="23px">
-                    <TextField sx={{ width: '298px', height: '32px' }} disabled />
+                  <Stack direction="row" justifyContent="space-between" mt="29px">
+                    <TextField sx={{ width: '298px', height: '32px' }} disabled value="https://vanillameta.net/123456" />
                     <Button variant="contained" sx={{ minWidth: '55px' }} onClick={handleCopyClick}>
                       복사
                     </Button>
                   </Stack>
                 </Box>
               ) : (
-                <Stack direction="row" alignItems="center">
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
                   <Typography sx={{ mr: '12px', fontSize: '14px', color: '#141414' }}>
                     링크를 통한 읽기를 허용하지 않습니다.
                   </Typography>
