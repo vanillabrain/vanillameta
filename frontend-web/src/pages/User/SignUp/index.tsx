@@ -7,22 +7,24 @@ import { LoadingContext } from '@/contexts/LoadingContext';
 import { useAlert } from 'react-alert';
 import Copyright from '@/components/Copyright';
 import authService from '@/api/authService';
+import { SnackbarContext } from '@/contexts/AlertContext';
 
 const SignUp = () => {
   const { isLogin, checkLogin } = useContext(AuthContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const navigate = useNavigate();
   const alert = useAlert();
+  const snackbar = useAlert(SnackbarContext);
   const [userInfo] = useState({
     userId: '',
     userPwd: '',
     userEmail: '',
   });
-  let isValidate;
+  let isValid;
 
   useEffect(() => {
     showLoading();
-    checkLogin();
+    // checkLogin();
     console.log('Login', isLogin);
     if (isLogin) {
       navigate('/dashboard');
@@ -39,11 +41,12 @@ const SignUp = () => {
       email: event.target.userEmail.value,
     };
     await validateData(data);
-    if (isValidate) {
+    isValid = true;
+    if (isValid) {
       await authService
         .signup(data)
         .then(res => {
-          console.log(res);
+          console.log(res, 'res');
           if (res) {
             alert.success(`${event.target.userId.value}님\n회원가입이 완료되었습니다.`);
             navigate('/login');
@@ -62,9 +65,30 @@ const SignUp = () => {
   };
 
   const validateData = ({ user_id, password, email }) => {
-    console.log('user_id:', user_id, 'password:', password, 'email:', email, isValidate);
-    if (user_id && password && email) {
-      isValidate = true;
+    if (!user_id || !password || !email) {
+      snackbar.error('입력란을 모두 작성해 주세요.');
+      return;
+    } else {
+      if (user_id.length >= 20) {
+        snackbar.error('ID는 20글자 이내로 작성해 주세요.');
+        return;
+      }
+      if (password.length <= 8) {
+        snackbar.error('비밀번호는 8글자 이상이며 숫자와 대문자, 특수문자가 포함되어 있어야 합니다.');
+        return;
+      }
+      const checkPwd = /^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$ %^&*-]).{8,}$/;
+      if (!checkPwd.test(password)) {
+        snackbar.error('비밀번호는 8글자 이상이며 숫자와 영문 대소문자, 특수문자가 포함되어 있어야 합니다.');
+        return;
+      }
+      const checkEmail = /^([a-z0-9_\.-]+)@([\da-z\.-]+)\.([a-z\.]{2,6})$/;
+      if (!checkEmail.test(email)) {
+        snackbar.error('E-mail의 형식이 맞는지 확인해 주세요.');
+        return;
+      }
+      console.log('user_id:', user_id, 'password:', password, 'email:', email);
+      isValid = true;
     }
   };
 
@@ -131,6 +155,7 @@ const SignUp = () => {
             </Button>
           </Stack>
           <Typography
+            component="div"
             sx={{
               display: 'flex',
               justifyContent: 'center',
