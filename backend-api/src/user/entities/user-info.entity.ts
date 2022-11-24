@@ -2,24 +2,20 @@ import { IsNotEmpty, IsOptional } from 'class-validator';
 import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn} from 'typeorm';
 import { BaseEntity } from '../../common/entities/base.entity';
 @Entity()
-export class User extends BaseEntity {
+export class UserInfo extends BaseEntity {
 
     @PrimaryGeneratedColumn()
     id: number;
 
-    @IsOptional()
+    @IsNotEmpty()
     @Column()
-    dashboard_id: number;
+    user_id: string;
 
-    @IsOptional()
+    @IsNotEmpty()
     @Column()
-    jwt_id: number;
+    email: string;
 
-    @IsOptional()
+    @IsNotEmpty()
     @Column()
-    user_info_id: number;
-
-    @IsOptional()
-    @Column()
-    url_copy_id: number;
+    password: string;
 }
