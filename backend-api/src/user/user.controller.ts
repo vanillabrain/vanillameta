@@ -20,7 +20,7 @@ export class UserController {
 
     res.cookie('jwt_re', refreshToken, {
       httpOnly: true,
-      saemSite: 'none',
+      sameSite: 'none',
       secure: true
     })
     return res.status(201).json({ accessToken: accessToken, message: 'success' })
