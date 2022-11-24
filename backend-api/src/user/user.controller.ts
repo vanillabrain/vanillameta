@@ -14,7 +14,7 @@ export class UserController {
   @Post('signin')
   async logIn(@Res() res,@Req() req, @Body() loginDto: UpdateUserDto){
     const findUser = await this.userService.signin(loginDto)
-    const accessToken = await this.authService.generateAccessToken( findUser.user_id );
+    const accessToken = await this.authService.generateAccessToken( findUser );
     const refreshToken = await this.authService.generateRefreshToken( findUser.user_id );
     await this.authService.setRefreshKey(refreshToken, findUser.user_id)
 
@@ -45,25 +45,24 @@ export class UserController {
 
   @UseGuards(JwtAuthGuard)
   @Get('userinfo')
-  findOne(@Body() updateUserDto: UpdateUserDto) {
-    return this.userService.findOne(updateUserDto);
+  findOne(@Req() req) {
+    const { authorization } = req.headers;
+    return this.userService.findOne(authorization);
   }
 
   @UseGuards(JwtAuthGuard)
-  @Patch('change-password')
-  updatePassword(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.userService.updatePassword(+id, updateUserDto);
+  @Patch('change-info')
+  updateUsername(@Req() req, @Body() updateUserDto: UpdateUserDto) {
+    const { authorization } = req.headers;
+    return this.userService.updateUserInfo(authorization, updateUserDto);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Patch('change-username')
-  updateUsername(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.userService.updateUsername(+id, updateUserDto);
-  }
 
   @UseGuards(JwtAuthGuard)
-  @Delete('delete/:id')
-  deleteUser(@Param('id') id: string) {
-    return this.userService.deleteUser(+id);
+  @Delete('delete-account')
+  deleteUser(@Req() req, @Body() createUserDto:CreateUserDto) {
+    const { authorization } = req.headers;
+    const { password } = createUserDto;
+    return this.userService.deleteUser( authorization, password);
   }
 }
