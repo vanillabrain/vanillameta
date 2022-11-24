@@ -42,7 +42,6 @@ export class UserService {
       await this.userRepository.save({ user_info_id: createUserInfo.id});
 
       return 'success';
-      // return 값으로 email, user_id 중복 데이터 나눠서 보내줘야하지 않을까?
     } else if (!userInfoEmail && userInfoId){
       return "conflict user_id"
     }

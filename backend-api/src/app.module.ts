@@ -14,6 +14,7 @@ import { ConnectionModule } from './connection/connection.module';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { LoggerMiddleware } from './middleware/logger';
+import { UserController } from './user/user.controller';
 
 @Module({
   imports: [
@@ -50,6 +51,6 @@ import { LoggerMiddleware } from './middleware/logger';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply( LoggerMiddleware ).forRoutes({ path: 'user', method: RequestMethod.POST });
+    consumer.apply( LoggerMiddleware ).forRoutes('user');
   }
 }
