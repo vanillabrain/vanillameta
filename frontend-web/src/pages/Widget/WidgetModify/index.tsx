@@ -7,19 +7,19 @@ import WidgetAttributeSelect from '@/pages/Widget/WidgetCreate/WidgetAttributeSe
 import widgetService from '@/api/widgetService';
 import { WidgetInfo } from '@/api/type';
 import { LayoutContext } from '@/contexts/LayoutContext';
+import { LoadingContext } from '@/contexts/LoadingContext';
 
 interface CustomizedState {
   from: string;
 }
 
-const WidgetModify = props => {
+const WidgetModify = () => {
   const [searchParams] = useSearchParams();
   const widgetId = searchParams.get('id');
   const navigate = useNavigate();
   const location = useLocation();
   const { fixLayout } = useContext(LayoutContext);
-
-  const [loading, setLoading] = useState(false);
+  const { showLoading, hideLoading } = useContext(LoadingContext);
 
   const defaultWidgetInfo: WidgetInfo = {
     componentId: '',
@@ -52,34 +52,33 @@ const WidgetModify = props => {
    * 위젯 조회
    */
   const getWidgetInfo = () => {
-    setLoading(true);
-    // get('/data/dummyWidgetList.json')
+    showLoading();
     widgetService
       .selectWidget(widgetId)
       .then(response => {
         setWidgetInfo(response.data.data);
         // console.log(widgetInfo, 'widgetInfo');
       })
-      .finally(() => setLoading(false));
-    // .then(data => setLoadedWidgetData(data.filter((list, idx) => idx <= 10 * loadedCount)));
+      .finally(() => {
+        hideLoading();
+      });
   };
 
   const saveWidgetInfo = (option, title) => {
     const param = {
       title: title,
-      // description: widgetInfo.description,
-      // databaseId: 1,
-      // componentId: widgetInfo.componentId,
-      // 'DATASET', 'WIDGET_VIEW'
-      // datasetType: 'DATASET',
-      // datasetId: '0001',
-      // tableName: '',
       option: option,
     };
     console.log(option, 'option');
-    widgetService.updateWidget(widgetInfo.id, param).then(response => {
-      navigate((location.state as CustomizedState).from || '/');
-    });
+    showLoading();
+    widgetService
+      .updateWidget(widgetInfo.id, param)
+      .then(() => {
+        navigate((location.state as CustomizedState)?.from || '/widget');
+      })
+      .finally(() => {
+        hideLoading();
+      });
   };
 
   return (

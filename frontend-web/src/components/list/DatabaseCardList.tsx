@@ -1,5 +1,5 @@
 import React, { Fragment } from 'react';
-import { Card, CardActionArea, CardActions, CardContent, Grid, Typography } from '@mui/material';
+import { CardActions, CardContent, Grid, Typography } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import CardListWrapper, { CardWrapper } from '@/components/list/CardListWrapper';
 import { any } from 'prop-types';
@@ -31,7 +31,7 @@ export const DatabaseCardList = props => {
                       variant="subtitle2"
                       sx={{
                         pl: '10px',
-                        width: disabledIcons ? '100%' : '40%',
+                        width: disabledIcons ? '100%' : '70%',
                         textOverflow: 'ellipsis',
                         overflow: 'hidden',
                         whiteSpace: 'nowrap',

@@ -42,6 +42,7 @@ export class DashboardService {
     const find_all = await this.dashboardRepository.find({
       order: {
         updatedAt: 'desc',
+        title: 'asc',
       },
     });
     find_all.forEach(el => {

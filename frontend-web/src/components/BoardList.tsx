@@ -49,7 +49,7 @@ function BoardList(props) {
       <Stack
         flexDirection="row"
         justifyContent="space-between"
-        sx={{ paddingLeft: '20px', paddingRight: '217px', marginBottom: '11px', marginTop: '36px' }}
+        sx={{ paddingLeft: '20px', paddingRight: '206px', marginBottom: '11px', marginTop: '36px' }}
       >
         <GTSpan>이름</GTSpan>
         {matches && <GTSpan>수정일</GTSpan>}

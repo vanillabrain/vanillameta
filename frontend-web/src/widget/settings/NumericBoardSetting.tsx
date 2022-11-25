@@ -12,16 +12,16 @@ const NumericBoardSetting = props => {
 
   const handleHeaderChange = event => {
     console.log('event', event);
-    const newHeaderOption = { ...option };
+    const newOption = { ...option };
     option.header[event.target.name] = event.target.value;
-    setOption({ ...option, newHeaderOption });
+    setOption({ ...option, ...newOption });
   };
 
   const handleContentChange = event => {
     console.log('event', event);
-    const newHeaderOption = { ...option };
+    const newOption = { ...option };
     option.content[event.target.name] = event.target.value;
-    setOption({ ...option, newHeaderOption });
+    setOption({ ...option, ...newOption });
   };
 
   return (

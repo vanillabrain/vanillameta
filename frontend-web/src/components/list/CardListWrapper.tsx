@@ -38,6 +38,9 @@ export const CardWrapper = ({ children, selected, onClick, sx = null }) => {
         cursor: 'pointer',
         position: 'relative',
         alignItems: 'center',
+        '&:hover': {
+          backgroundColor: '#ebfbff',
+        },
         ...sx,
       }}
       onClick={onClick}

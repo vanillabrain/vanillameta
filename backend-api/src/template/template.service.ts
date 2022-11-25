@@ -225,7 +225,6 @@ export class TemplateService {
     const result = templateComponentInfoList.sort(
       (a, b) => b.totalRecommendScore - a.totalRecommendScore,
     );
-
     return { status: ResponseStatus.SUCCESS, data: result };
   }
 
@@ -289,7 +288,16 @@ export class TemplateService {
       // if (templateInfo.layout.length > i && template) templateInfo.layout[i].i = item.id;
     });
 
-    templateInfo.widgets = widgetList;
+    const isWidgetList = widgetList.filter(
+      widgetItem =>
+        templateInfo.layout.findIndex(templateItem => templateItem.i === widgetItem.id) > -1,
+    );
+    const isntWidgetList = widgetList.filter(
+      widgetItem =>
+        templateInfo.layout.findIndex(templateItem => templateItem.i === widgetItem.id) === -1,
+    );
+
+    templateInfo.widgets = isWidgetList.concat(isntWidgetList);
 
     return { status: ResponseStatus.SUCCESS, data: templateInfo };
   }
@@ -825,16 +833,23 @@ export class TemplateService {
       }
     }
 
-    // template에서 넘친 widget 목록 가져오기
+    // // template에서 넘친 widget 목록 가져오기
     const leastWidgetList = differntWidgetList.filter(item => item.category != 'MAPPED');
     // templateInfo.layout에 새로운 layout object 넣어주기(template에서 넘친 widget 목록)
     leastWidgetList.forEach((leastWidget, index) => {
       const layout = new DashboardLayout();
-      layout.x = 0;
-      layout.y =
-        templateItemList[templateItemList.length - 1].y +
-        templateItemList[templateItemList.length - 1].h;
-      layout.w = 5;
+      if (index % 2 === 0) {
+        layout.x = 0;
+        layout.y =
+          templateItemList[templateItemList.length - 1].y +
+          templateItemList[templateItemList.length - 1].h;
+      } else {
+        layout.x = 6;
+        layout.y =
+          templateItemList[templateItemList.length - 2].y +
+          templateItemList[templateItemList.length - 2].h;
+      }
+      layout.w = 6;
       layout.h = 5;
       layout.i = leastWidget.id;
       templateItemList.push(layout);

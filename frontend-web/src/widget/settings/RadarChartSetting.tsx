@@ -114,6 +114,14 @@ const RadarChartSetting = props => {
           value={option.legendPosition}
           onChange={event => handleChange(event, setOption)}
         />
+        <SelectForm
+          id="legendAggregation"
+          name="legendAggregation"
+          label="집계 방식 표시"
+          optionList={LABEL_LIST}
+          value={option.legendAggregation}
+          onChange={event => handleChange(event, setOption)}
+        />
       </ListItem>
     </React.Fragment>
   );

@@ -104,6 +104,14 @@ export default createTheme({
             backgroundColor: '#9b9ea9',
           },
         },
+        sizeLarge: {
+          height: '44px',
+          fontSize: '15px',
+          fontWeight: 'bold',
+          lineHeight: '16px',
+          textTransform: 'capitalize',
+          backgroundColor: '#043f84',
+        },
       },
     },
     MuiButtonGroup: {
@@ -191,6 +199,11 @@ export default createTheme({
         root: {
           height: '32px',
           backgroundColor: '#fff',
+
+          '&.Mui-disabled': {
+            color: '#929292',
+            backgroundColor: '#e9e9e9',
+          },
         },
       },
       defaultProps: {
@@ -269,19 +282,29 @@ export default createTheme({
     MuiPaginationItem: {
       styleOverrides: {
         root: {
+          borderRadius: 100,
+          '&:hover': {
+            color: '#4a4a4a',
+            backgroundColor: '#edf8ff',
+          },
+          '&.Mui-selected': {
+            fontWeight: 'bold',
+            color: '#333',
+            backgroundColor: 'transparent',
+          },
+          '&.Mui-selected:hover': {
+            backgroundColor: '#edf8ff',
+          },
+        },
+        previousNext: {
+          opacity: 1,
+          color: '#4a4a4a',
           '&:hover': {
             color: '#4481c9',
             backgroundColor: 'transparent',
           },
-          '&.Mui-selected': {
-            borderRadius: 100,
-            fontWeight: 'bold',
-            color: '#4a4a4a',
-            backgroundColor: 'transparent',
-          },
-          '&.Mui-selected:hover': {
-            borderRadius: 100,
-            backgroundColor: '#edf8ff',
+          '&.Mui-disabled': {
+            color: '#929292',
           },
         },
       },
@@ -292,6 +315,26 @@ export default createTheme({
           '&:last-child': {
             paddingBottom: '16px',
           },
+        },
+      },
+    },
+    MuiAlert: {
+      styleOverrides: {
+        standardSuccess: {
+          color: '#184a00',
+          backgroundColor: '#ecf8e6',
+        },
+        standardError: {
+          color: '#a00000',
+          backgroundColor: '#ffeded',
+        },
+      },
+    },
+    MuiSnackbar: {
+      styleOverrides: {
+        root: {
+          borderRadius: '4px',
+          boxShadow: '2px 2px 4px 0 rgba(0, 0, 0, 0.15)',
         },
       },
     },

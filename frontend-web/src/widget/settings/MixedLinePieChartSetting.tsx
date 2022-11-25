@@ -21,19 +21,19 @@ const MixedLinePieChartSetting = props => {
     aggregation: WIDGET_AGGREGATION.SUM,
   };
 
-  // console.log(option);
   useEffect(() => {
     let pieAggrData = [];
-    if (option['pie'].field) {
-      pieAggrData = getAggregationDataForChart(dataSet, option['pie'].name, option['pie'].field, option['pie'].aggregation);
+    if (option.pie.field) {
+      pieAggrData = getAggregationDataForChart(dataSet, option.pie.name, option.pie.field, option.pie.aggregation);
     }
-    const colorArr = getColorArr(pieAggrData.length);
-    console.log(colorArr);
-    setOption(prevState => {
-      prevState['pie'].color = colorArr;
-      return { ...prevState };
-    });
-  }, [option['pie'].field, option['pie'].name]);
+    if (pieAggrData.length !== option.pie.color.length) {
+      const colorArr = getColorArr(pieAggrData.length);
+      setOption(prevState => {
+        prevState.pie.color = colorArr;
+        return { ...prevState };
+      });
+    }
+  }, [option.pie.field, option.pie.name]);
 
   const handleCenterChange = event => {
     setOption(prevState => {
@@ -68,7 +68,7 @@ const MixedLinePieChartSetting = props => {
     console.log('event', event, index);
     const newOption = { ...option };
     newOption.pie.color.splice(index, 1, event.target.value);
-    setOption({ ...option, newOption });
+    setOption({ ...option, ...newOption });
   };
 
   const handleAddColorClick = () => {
@@ -242,6 +242,14 @@ const MixedLinePieChartSetting = props => {
           label="위치"
           optionList={LEGEND_LIST}
           value={option.legendPosition}
+          onChange={event => handleChange(event, setOption)}
+        />
+        <SelectForm
+          id="legendAggregation"
+          name="legendAggregation"
+          label="집계 방식 표시"
+          optionList={LABEL_LIST}
+          value={option.legendAggregation}
           onChange={event => handleChange(event, setOption)}
         />
       </ListItem>

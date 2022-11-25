@@ -24,10 +24,22 @@ export class DatabaseController {
   @Get('/data')
   async findData(
     @Query('datasetType') datasetType: DatasetType,
-    @Query('datasetId') datasetId: number,
+    @Query('databaseId') databaseId: number,
+    @Query('datasetId') datasetId?: number,
+    @Query('tableName') tableName?: string,
   ) {
-    const res = await this.databaseService.findData(datasetType, datasetId);
+    const res = await this.databaseService.findData(datasetType, databaseId, datasetId, tableName);
     return res;
+  }
+
+  /**
+   * 데이터베이스 연결정보 단순조회
+   * @param id
+   */
+  @Get('/info/:id')
+  async findOneInfo(@Param('id') id: string) {
+    const databaseInfo = await this.databaseService.findOneInfo(+id);
+    return databaseInfo;
   }
 
   /**

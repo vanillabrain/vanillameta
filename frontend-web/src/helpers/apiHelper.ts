@@ -5,7 +5,7 @@ const API_URL = process.env.REACT_APP_API_URL;
 
 const instance = axios.create({
   baseURL: API_URL,
-  timeout: 10000,
+  timeout: 100000,
   // withCredentials: true,
 });
 

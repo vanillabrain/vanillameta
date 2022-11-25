@@ -1,5 +1,7 @@
 # VanillaMeta
 
+<img title="VanillaMeta Logo" src="design/vanillameta-logo.png"/><br/>
+
 최신 엔터프라이즈용 비즈니스 인텔리전스 웹 애플리케이션입니다.
 
 # 바닐라메타를 사용해야 하는 이유
@@ -8,28 +10,36 @@
 
 ## 바닐라메타의 기능
 
-- 코딩없이 차트 위젯 제작.
-- 50개 이상의 차트지원
+- 코딩없이 차트 위젯 제작
+- 50개 이상의 차트 지원
 - 사용자 맞춤형 대시보드 편집 및 공유
 - 대시보드 템플릿 디자인 추천
-- 고급 SQL 쿼리 편집기 및 데이터 미리보기
+- 고급 SQL 쿼리 편집기 및 데이터 미리보기 제공
 - 다양한 SQL 데이터베이스에 대한 즉시 지원
 
 ## 스크린샷
 
-- 다양한 시각화 차트
-- 강력한 SQL 편집기
-- 코딩없이 차트 제작
-- 템플릿 추천
+- **다양한 시각화 차트**
+<kbd><img title="Chart" src="design/feature-01.png"/></kbd><br/>
+
+- **강력한 SQL 편집기**
+<kbd><img title="Chart" src="design/feature-02.png"/></kbd><br/>
+
+- **코딩없이 차트 제작**
+<kbd><img title="Chart" src="design/feature-03.png"/></kbd><br/>
+
+- **템플릿 추천**
+<kbd><img title="Chart" src="design/feature-04.png"/></kbd><br/>
 
 ## 지원하는 데이터베이스
 
-- PostgresSQL
+- PostgreSQL
 - MariaDB
 - MySQL
 - SQLServer
 - SQLite
 - Oracle
-- DB2
 - Amazon Redshift
 - Big Query
+- Cockroachdb
+- Snowflake

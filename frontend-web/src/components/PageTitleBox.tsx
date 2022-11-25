@@ -10,7 +10,7 @@ function PageTitleBox(props) {
     minWidth: '900px',
     paddingLeft: '25px',
     paddingRight: '25px',
-    width: '1920px',
+    width: '100%',
     height: '100%',
   };
 

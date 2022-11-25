@@ -48,7 +48,7 @@ const MixedLinePieChart = props => {
       console.log('aggrData : ', aggrData);
       if (item.field) {
         const series = {
-          name: item.field,
+          name: option.legendAggregation ? `${item.field} (${item.aggregation})` : item.field,
           data: aggrData.map(dataItem => dataItem[item.field]),
           type: item.type ? item.type : 'line',
           color: item.color,

@@ -1,0 +1,3730 @@
+[
+  {
+    "title": "001 숫자판",
+    "description": "Score Board",
+    "databaseId": 113,
+    "componentId": 12,
+    "datasetType": "DATASET",
+    "datasetId": 27,
+    "option": {
+      "header": {
+        "title": "평균 급여",
+        "fontSize": 20,
+        "color": "#4A4A4A"
+      },
+      "content": {
+        "aggregation": "avg",
+        "fontSize": 50,
+        "color": "#4A4A4A",
+        "field": "annualSalary",
+        "numForm": true,
+        "suffix": "원"
+      }
+    }
+  },
+  {
+    "title": "002 표",
+    "description": "Data Grid",
+    "databaseId": 114,
+    "componentId": 13,
+    "datasetType": "DATASET",
+    "datasetId": 28,
+    "option": {
+      "columns": [
+        {
+          "name": "yearsmarried",
+          "header": "Year Merried",
+          "align": "right",
+          "sortable": true
+        },
+        {
+          "name": "age",
+          "header": "Age",
+          "align": "right",
+          "sortable": true
+        },
+        {
+          "name": "gender",
+          "header": "Gender",
+          "align": "right",
+          "sortable": true
+        }
+      ]
+    }
+  },
+  {
+    "title": "003 선형 차트",
+    "description": "Line Chart",
+    "databaseId": 108,
+    "componentId": 1,
+    "datasetType": "DATASET",
+    "datasetId": 26,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "education"
+        },
+        {
+          "field": "wage",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "experience",
+          "color": "#94c983",
+          "aggregation": "sum"
+        },
+        {
+          "field": "age",
+          "color": "#c1d96a",
+          "aggregation": "sum"
+        }
+      ],
+      "mark": true,
+      "xField": "education",
+      "legendPosition": "top"
+    }
+  },
+  {
+    "title": "004 영역형 차트",
+    "description": "Area Chart",
+    "databaseId": 108,
+    "componentId": 2,
+    "datasetType": "DATASET",
+    "datasetId": 26,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "education"
+        },
+        {
+          "field": "wage",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "experience",
+          "color": "#94c983",
+          "aggregation": "sum"
+        },
+        {
+          "field": "age",
+          "color": "#c1d96a",
+          "aggregation": "sum"
+        }
+      ],
+      "mark": true,
+      "xField": "education",
+      "legendPosition": "top"
+    }
+  },
+  {
+    "title": "005 세로 막대형 차트",
+    "description": "Bar Chart",
+    "databaseId": 108,
+    "componentId": 3,
+    "datasetType": "DATASET",
+    "datasetId": 26,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "education"
+        },
+        {
+          "field": "wage",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "experience",
+          "color": "#94c983",
+          "aggregation": "sum"
+        },
+        {
+          "field": "age",
+          "color": "#c1d96a",
+          "aggregation": "sum"
+        }
+      ],
+      "mark": true,
+      "xField": "education",
+      "legendPosition": "top"
+    }
+  },
+  {
+    "title": "006 가로 막대형 차트",
+    "description": "Column Chart",
+    "databaseId": 108,
+    "componentId": 4,
+    "datasetType": "DATASET",
+    "datasetId": 26,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "education"
+        },
+        {
+          "field": "wage",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "experience",
+          "color": "#94c983",
+          "aggregation": "sum"
+        },
+        {
+          "field": "age",
+          "color": "#c1d96a",
+          "aggregation": "sum"
+        }
+      ],
+      "mark": true,
+      "yField": "education",
+      "legendPosition": "top"
+    }
+  },
+  {
+    "title": "007 선형과 세로 막대형 복합 차트",
+    "description": "Mixed Line and Bar Chart",
+    "databaseId": 114,
+    "componentId": 5,
+    "datasetType": "DATASET",
+    "datasetId": 28,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "avg",
+          "type": "line",
+          "field": "education"
+        },
+        {
+          "color": "#47a8ea",
+          "aggregation": "avg",
+          "type": "bar",
+          "field": "occupation"
+        },
+        {
+          "field": "yearsmarried",
+          "color": "#94c983",
+          "aggregation": "avg",
+          "type": "bar"
+        }
+      ],
+      "label": true,
+      "xField": "age",
+      "legendPosition": "left",
+      "mark": true
+    }
+  },
+  {
+    "title": "008 누적 선형 차트",
+    "description": "Stacked Line Chart",
+    "databaseId": 113,
+    "componentId": 14,
+    "datasetType": "DATASET",
+    "datasetId": 30,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "violent"
+        },
+        {
+          "field": "robbery",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "murder",
+          "color": "#94c983",
+          "aggregation": "sum"
+        }
+      ],
+      "label": "",
+      "header": {
+        "title": "타이틀을 입력하세요",
+        "fontSize": 20,
+        "color": "#4A4A4A"
+      },
+      "content": {
+        "aggregation": "sum",
+        "fontSize": 50,
+        "color": "#4A4A4A"
+      },
+      "xField": "year",
+      "mark": "",
+      "legendPosition": "left"
+    }
+  },
+  {
+    "title": "009 누적 영역형 차트",
+    "description": "Stacked Area Chart",
+    "databaseId": 113,
+    "componentId": 15,
+    "datasetType": "DATASET",
+    "datasetId": 30,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "violent"
+        },
+        {
+          "field": "robbery",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "murder",
+          "color": "#94c983",
+          "aggregation": "sum"
+        }
+      ],
+      "label": "",
+      "header": {
+        "title": "타이틀을 입력하세요",
+        "fontSize": 20,
+        "color": "#4A4A4A"
+      },
+      "content": {
+        "aggregation": "sum",
+        "fontSize": 50,
+        "color": "#4A4A4A"
+      },
+      "xField": "year",
+      "mark": "",
+      "legendPosition": "left"
+    }
+  },
+  {
+    "title": "010 누적 가로 막대형 차트",
+    "description": "Stacked Column Chart",
+    "databaseId": 113,
+    "componentId": 16,
+    "datasetType": "DATASET",
+    "datasetId": 30,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "violent"
+        },
+        {
+          "field": "robbery",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "murder",
+          "color": "#94c983",
+          "aggregation": "sum"
+        }
+      ],
+      "label": "",
+      "header": {
+        "title": "타이틀을 입력하세요",
+        "fontSize": 20,
+        "color": "#4A4A4A"
+      },
+      "content": {
+        "aggregation": "sum",
+        "fontSize": 50,
+        "color": "#4A4A4A"
+      },
+      "yField": "year",
+      "mark": "",
+      "legendPosition": "left"
+    }
+  },
+  {
+    "title": "011 누적 세로 막대형 차트",
+    "description": "Stacked Bar Chart",
+    "databaseId": 113,
+    "componentId": 17,
+    "datasetType": "DATASET",
+    "datasetId": 30,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "violent"
+        },
+        {
+          "field": "robbery",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "murder",
+          "color": "#94c983",
+          "aggregation": "sum"
+        }
+      ],
+      "label": "",
+      "header": {
+        "title": "타이틀을 입력하세요",
+        "fontSize": 20,
+        "color": "#4A4A4A"
+      },
+      "content": {
+        "aggregation": "sum",
+        "fontSize": 50,
+        "color": "#4A4A4A"
+      },
+      "xField": "year",
+      "mark": "",
+      "legendPosition": "left"
+    }
+  },
+  {
+    "title": "012 선형과 누적 세로 막대형 복합 차트",
+    "description": "Mixed Line and Stacked-Bar Chart",
+    "databaseId": 113,
+    "componentId": 43,
+    "datasetType": "DATASET",
+    "datasetId": 30,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "type": "bar",
+          "field": "murder"
+        },
+        {
+          "color": "#47a8ea",
+          "aggregation": "sum",
+          "type": "bar",
+          "field": "robbery"
+        },
+        {
+          "field": "violent",
+          "color": "#94c983",
+          "aggregation": "sum",
+          "type": "bar"
+        },
+        {
+          "field": "prisoners",
+          "color": "#d0021b",
+          "aggregation": "sum",
+          "type": "line"
+        }
+      ],
+      "label": "",
+      "xField": "year",
+      "mark": true,
+      "legendPosition": "top"
+    }
+  },
+  {
+    "title": "013 원형 차트",
+    "description": "Pie Chart",
+    "databaseId": 108,
+    "componentId": 6,
+    "datasetType": "DATASET",
+    "datasetId": 26,
+    "option": {
+      "series": {
+        "color": ["#6aa7eb", "#85c7fc", "#94c983", "#c1d96a", "#f4f363", "#eecd5b"],
+        "aggregation": "sum",
+        "label": "{b}",
+        "name": "occupation",
+        "field": "age"
+      },
+      "legendPosition": "left"
+    }
+  },
+  {
+    "title": "014 도넛형 차트",
+    "description": "Donut Chart",
+    "databaseId": 108,
+    "componentId": 11,
+    "datasetType": "DATASET",
+    "datasetId": 29,
+    "option": {
+      "series": {
+        "color": [
+          "#6aa7eb",
+          "#85c7fc",
+          "#94c983",
+          "#c1d96a",
+          "#f4f363",
+          "#eecd5b",
+          "#eaab56",
+          "#e88b4f",
+          "#f05d55",
+          "#dc80ba",
+          "#c59cfc",
+          "#828ee1",
+          "#6aa7eb",
+          "#85c7fc",
+          "#94c983",
+          "#c1d96a",
+          "#f4f363",
+          "#eecd5b",
+          "#eaab56",
+          "#e88b4f",
+          "#f05d55",
+          "#dc80ba",
+          "#c59cfc",
+          "#828ee1",
+          "#6aa7eb",
+          "#85c7fc",
+          "#94c983",
+          "#c1d96a",
+          "#f4f363",
+          "#eecd5b",
+          "#eaab56",
+          "#e88b4f",
+          "#f05d55",
+          "#dc80ba",
+          "#c59cfc",
+          "#828ee1",
+          "#6aa7eb",
+          "#85c7fc",
+          "#94c983",
+          "#c1d96a",
+          "#f4f363",
+          "#eecd5b",
+          "#eaab56",
+          "#e88b4f",
+          "#f05d55",
+          "#dc80ba",
+          "#c59cfc",
+          "#828ee1",
+          "#6aa7eb",
+          "#85c7fc"
+        ],
+        "aggregation": "sum",
+        "label": "{b}",
+        "radius": ["30%", "75%"],
+        "name": "State",
+        "field": "Vote"
+      },
+      "legendPosition": "top"
+    }
+  },
+  {
+    "title": "015 나이팅게일 차트",
+    "description": "Nightingale Chart",
+    "databaseId": 108,
+    "componentId": 7,
+    "datasetType": "DATASET",
+    "datasetId": 29,
+    "option": {
+      "series": {
+        "color": [
+          "#6aa7eb",
+          "#85c7fc",
+          "#94c983",
+          "#c1d96a",
+          "#f4f363",
+          "#eecd5b",
+          "#eaab56",
+          "#e88b4f",
+          "#f05d55",
+          "#dc80ba",
+          "#c59cfc",
+          "#828ee1",
+          "#6aa7eb",
+          "#85c7fc",
+          "#94c983",
+          "#c1d96a",
+          "#f4f363",
+          "#eecd5b",
+          "#eaab56",
+          "#e88b4f",
+          "#f05d55",
+          "#dc80ba",
+          "#c59cfc",
+          "#828ee1",
+          "#6aa7eb",
+          "#85c7fc",
+          "#94c983",
+          "#c1d96a",
+          "#f4f363",
+          "#eecd5b",
+          "#eaab56",
+          "#e88b4f",
+          "#f05d55",
+          "#dc80ba",
+          "#c59cfc",
+          "#828ee1",
+          "#6aa7eb",
+          "#85c7fc",
+          "#94c983",
+          "#c1d96a",
+          "#f4f363",
+          "#eecd5b",
+          "#eaab56",
+          "#e88b4f",
+          "#f05d55",
+          "#dc80ba",
+          "#c59cfc",
+          "#828ee1",
+          "#6aa7eb",
+          "#85c7fc"
+        ],
+        "aggregation": "sum",
+        "label": "{b}",
+        "radius": ["20%", "75%"],
+        "name": "State",
+        "field": "Vote"
+      },
+      "legendPosition": "top"
+    }
+  },
+  {
+    "title": "016 방사형 차트",
+    "description": "Radar Chart",
+    "databaseId": 108,
+    "componentId": 9,
+    "datasetType": "DATASET",
+    "datasetId": 26,
+    "option": {
+      "series": [
+        {
+          "color": "#2870c5",
+          "aggregation": "sum",
+          "field": "education"
+        },
+        {
+          "field": "experience",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "age",
+          "color": "#94c983",
+          "aggregation": "sum"
+        }
+      ],
+      "field": "ethnicity",
+      "label": true,
+      "legendPosition": "bottom"
+    }
+  },
+  {
+    "title": "017 분산형 차트",
+    "description": "Scatter Chart",
+    "databaseId": 114,
+    "componentId": 10,
+    "datasetType": "DATASET",
+    "datasetId": 28,
+    "option": {
+      "series": [
+        {
+          "symbolSize": "20",
+          "color": "#6aa7eb",
+          "xField": "age",
+          "yField": "education",
+          "title": "education"
+        },
+        {
+          "title": "yearsmarried",
+          "xField": "age",
+          "yField": "yearsmarried",
+          "color": "#85c7fc",
+          "symbolSize": "30"
+        },
+        {
+          "title": "affairs",
+          "xField": "age",
+          "yField": "affairs",
+          "color": "#94c983",
+          "symbolSize": 20
+        }
+      ],
+      "legendPosition": "left",
+      "label": true
+    }
+  },
+  {
+    "title": "018 거품형 차트",
+    "description": "Bubble Chart",
+    "databaseId": 113,
+    "componentId": 8,
+    "datasetType": "DATASET",
+    "datasetId": 30,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "xField": "year",
+          "yField": "violent",
+          "symbolSize": "murder",
+          "title": "murder"
+        },
+        {
+          "title": "robbery",
+          "xField": "year",
+          "yField": "violent",
+          "color": "#85c7fc",
+          "symbolSize": "robbery"
+        }
+      ],
+      "legendPosition": "left"
+    }
+  },
+  {
+    "title": "019 트리맵 차트",
+    "description": "Treemap Chart",
+    "databaseId": 108,
+    "componentId": 19,
+    "datasetType": "DATASET",
+    "datasetId": 26,
+    "option": {
+      "series": {
+        "color": ["#2870c4", "#4ecef6", "#ffd43b", "#fa5a5a"],
+        "aggregation": "sum",
+        "name": "education",
+        "field": "age"
+      },
+      "label": true
+    }
+  },
+  {
+    "title": "020 선버스트 차트",
+    "description": "Sunburst Chart",
+    "databaseId": 108,
+    "componentId": 22,
+    "datasetType": "DATASET",
+    "datasetId": 26,
+    "option": {
+      "series": {
+        "color": ["#2870c4", "#4ecef6", "#ffd43b", "#fa5a5a"],
+        "aggregation": "sum",
+        "name": "education",
+        "field": "age"
+      },
+      "label": true
+    }
+  },
+  {
+    "title": "021 히트맵 차트",
+    "description": "Heatmap Chart",
+    "databaseId": 108,
+    "componentId": 23,
+    "datasetType": "DATASET",
+    "datasetId": 26,
+    "option": {
+      "color": ["#2870c4", "#4ecef6", "#ffd43b", "#fa5a5a"],
+      "aggregation": "sum",
+      "xField": "education",
+      "yField": "age",
+      "series": "experience"
+    }
+  },
+  {
+    "title": "022 캔들스틱 차트",
+    "description": "Candlestick Chart",
+    "databaseId": 108,
+    "componentId": 20,
+    "datasetType": "DATASET",
+    "datasetId": 37,
+    "option": {
+      "series": [
+        {
+          "color": "#FA5A5A",
+          "aggregation": "sum",
+          "field": " open"
+        },
+        {
+          "color": "#2870C4",
+          "aggregation": "sum",
+          "field": " close"
+        },
+        {
+          "color": "#E03B3B",
+          "aggregation": "sum",
+          "field": " lowest"
+        },
+        {
+          "color": "#215DA3",
+          "aggregation": "sum",
+          "field": " highest"
+        }
+      ],
+      "xField": "date"
+    }
+  },
+  {
+    "title": "023 계기판 차트",
+    "description": "Gauge Chart",
+    "databaseId": 88,
+    "componentId": 21,
+    "datasetType": "DATASET",
+    "datasetId": 31,
+    "option": {
+      "color": "#6aa7eb",
+      "aggregation": "avg",
+      "field": "price",
+      "suffix": "원"
+    }
+  },
+  {
+    "title": "024 깔때기형 차트",
+    "description": "Funnel Chart",
+    "databaseId": 108,
+    "componentId": 24,
+    "datasetType": "DATASET",
+    "datasetId": 26,
+    "option": {
+      "series": {
+        "color": ["#6aa7eb", "#85c7fc", "#94c983", "#c1d96a", "#f4f363", "#eecd5b"],
+        "aggregation": "sum",
+        "label": "{b}",
+        "name": "occupation",
+        "field": "age"
+      },
+      "legendPosition": "left"
+    }
+  },
+  {
+    "title": "025 극좌표 막대형 차트",
+    "description": "Polar Bar Chart",
+    "databaseId": 88,
+    "componentId": 31,
+    "datasetType": "DATASET",
+    "datasetId": 31,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "price"
+        },
+        {
+          "field": "ppier",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "pbeach",
+          "color": "#94c983",
+          "aggregation": "sum"
+        }
+      ],
+      "radius": ["10%", "75%"],
+      "axisField": "mode",
+      "legendPosition": "top",
+      "label": ""
+    }
+  },
+  {
+    "title": "026 극좌표 누적 막대형 차트",
+    "description": "Polar Stacked Bar Chart",
+    "databaseId": 88,
+    "componentId": 33,
+    "datasetType": "DATASET",
+    "datasetId": 31,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "price"
+        },
+        {
+          "field": "ppier",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "pbeach",
+          "color": "#94c983",
+          "aggregation": "sum"
+        }
+      ],
+      "radius": ["10%", "75%"],
+      "axisField": "mode",
+      "legendPosition": "top",
+      "label": ""
+    }
+  },
+  {
+    "title": "027 3D 선형 차트",
+    "description": "3D Line Chart",
+    "databaseId": 113,
+    "componentId": 26,
+    "datasetType": "DATASET",
+    "datasetId": 27,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "age"
+        },
+        {
+          "field": "annualSalary",
+          "color": "#85c7fc",
+          "aggregation": "min"
+        }
+      ],
+      "xField": "jobTitle",
+      "legendPosition": "top"
+    }
+  },
+  {
+    "title": "028 3D 막대형 차트",
+    "description": "3D Bar Chart",
+    "databaseId": 113,
+    "componentId": 25,
+    "datasetType": "DATASET",
+    "datasetId": 30,
+    "option": {
+      "series": [
+        {
+          "aggregation": "sum",
+          "field": "murder"
+        },
+        {
+          "field": "robbery",
+          "aggregation": "sum"
+        },
+        {
+          "field": "violent",
+          "aggregation": "sum"
+        }
+      ],
+      "color": ["#2870c4", "#4ecef6", "#ffd43b", "#fa5a5a"],
+      "xField": "year",
+      "label": ""
+    }
+  },
+  {
+    "title": "029 3D 분산형 차트",
+    "description": "3D Scatter Chart",
+    "databaseId": 113,
+    "componentId": 27,
+    "datasetType": "DATASET",
+    "datasetId": 30,
+    "option": {
+      "series": [
+        {
+          "symbolSize": "20",
+          "color": "#6aa7eb",
+          "xField": "year",
+          "yField": "violent",
+          "zField": "murder",
+          "title": "no.1"
+        },
+        {
+          "title": "no.2",
+          "xField": "year",
+          "yField": "robbery",
+          "zField": "prisoners",
+          "color": "#85c7fc",
+          "symbolSize": 20
+        }
+      ]
+    }
+  },
+  {
+    "title": "030 3D 거품형 차트",
+    "description": "3D Bubble Chart",
+    "databaseId": 108,
+    "componentId": 28,
+    "datasetType": "DATASET",
+    "datasetId": 26,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "xField": "education",
+          "yField": "wage",
+          "zField": "experience",
+          "symbolSize": "age",
+          "title": "no.1"
+        },
+        {
+          "title": "no.2",
+          "xField": "age",
+          "yField": "education",
+          "zField": "wage",
+          "color": "#85c7fc",
+          "symbolSize": "experience"
+        }
+      ]
+    }
+  },
+  {
+    "title": "031 선형과 원형 복합 차트",
+    "description": "Mixed Line and Pie Chart",
+    "databaseId": 83,
+    "componentId": 32,
+    "datasetType": "DATASET",
+    "datasetId": 25,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "yearsmarried"
+        },
+        {
+          "field": "affairs",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "religiousness",
+          "color": "#94c983",
+          "aggregation": "sum"
+        }
+      ],
+      "pie": {
+        "color": ["#6aa7eb", "#85c7fc", "#94c983", "#c1d96a", "#f4f363", "#eecd5b", "#eaab56", "#e88b4f", "#f05d55"],
+        "center": ["80%", "20%"],
+        "radius": "20%",
+        "aggregation": "sum",
+        "label": "{b}",
+        "name": "age",
+        "field": "yearsmarried"
+      },
+      "mark": true,
+      "xField": "age",
+      "legendPosition": "left"
+    }
+  },
+  {
+    "title": "032 영역형과 원형 복합 차트",
+    "description": "Mixed Area and Pie Chart",
+    "databaseId": 83,
+    "componentId": 34,
+    "datasetType": "DATASET",
+    "datasetId": 25,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "yearsmarried"
+        },
+        {
+          "field": "affairs",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "religiousness",
+          "color": "#94c983",
+          "aggregation": "sum"
+        }
+      ],
+      "pie": {
+        "color": ["#6aa7eb", "#85c7fc", "#94c983", "#c1d96a", "#f4f363", "#eecd5b", "#eaab56", "#e88b4f", "#f05d55"],
+        "center": ["80%", "20%"],
+        "radius": "20%",
+        "aggregation": "sum",
+        "label": "{b}",
+        "name": "age",
+        "field": "yearsmarried"
+      },
+      "mark": true,
+      "xField": "age",
+      "legendPosition": "left"
+    }
+  },
+  {
+    "title": "033 세로 막대형과 원형 복합 차트",
+    "description": "Mixed Bar and Pie Chart",
+    "databaseId": 83,
+    "componentId": 35,
+    "datasetType": "DATASET",
+    "datasetId": 25,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "yearsmarried"
+        },
+        {
+          "field": "affairs",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "religiousness",
+          "color": "#94c983",
+          "aggregation": "sum"
+        }
+      ],
+      "pie": {
+        "color": ["#6aa7eb", "#85c7fc", "#94c983", "#c1d96a", "#f4f363", "#eecd5b", "#eaab56", "#e88b4f", "#f05d55"],
+        "center": ["80%", "20%"],
+        "radius": "20%",
+        "aggregation": "sum",
+        "label": "{b}",
+        "name": "age",
+        "field": "yearsmarried"
+      },
+      "mark": true,
+      "xField": "age",
+      "legendPosition": "left"
+    }
+  },
+  {
+    "title": "034 가로 막대형과 원형 복합 차트",
+    "description": "Mixed Column and Pie Chart",
+    "databaseId": 83,
+    "componentId": 36,
+    "datasetType": "DATASET",
+    "datasetId": 25,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "yearsmarried"
+        },
+        {
+          "field": "affairs",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "religiousness",
+          "color": "#94c983",
+          "aggregation": "sum"
+        }
+      ],
+      "pie": {
+        "color": ["#6aa7eb", "#85c7fc", "#94c983", "#c1d96a", "#f4f363", "#eecd5b", "#eaab56", "#e88b4f", "#f05d55"],
+        "center": ["80%", "20%"],
+        "radius": "20%",
+        "aggregation": "sum",
+        "label": "{b}",
+        "name": "age",
+        "field": "yearsmarried"
+      },
+      "mark": true,
+      "yField": "age",
+      "legendPosition": "left"
+    }
+  },
+  {
+    "title": "035 누적 세로 막대형과 원형 복합 차트",
+    "description": "Mixed Stacked-Bar and Pie Chart",
+    "databaseId": 88,
+    "componentId": 37,
+    "datasetType": "DATASET",
+    "datasetId": 31,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "price"
+        },
+        {
+          "field": "ppier",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "pboat",
+          "color": "#94c983",
+          "aggregation": "sum"
+        },
+        {
+          "field": "pbeach",
+          "color": "#c1d96a",
+          "aggregation": "sum"
+        }
+      ],
+      "pie": {
+        "color": ["#6aa7eb", "#85c7fc", "#94c983", "#c1d96a"],
+        "center": ["80%", "20%"],
+        "radius": "20%",
+        "aggregation": "sum",
+        "label": "{b}",
+        "name": "mode",
+        "field": "price"
+      },
+      "label": true,
+      "xField": "mode",
+      "mark": "",
+      "legendPosition": "left"
+    }
+  },
+  {
+    "title": "036 누적 가로 막대형과 원형 복합 차트",
+    "description": "Mixed Stacked-Column and Pie Chart",
+    "databaseId": 88,
+    "componentId": 38,
+    "datasetType": "DATASET",
+    "datasetId": 31,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "price"
+        },
+        {
+          "field": "ppier",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "pboat",
+          "color": "#94c983",
+          "aggregation": "sum"
+        },
+        {
+          "field": "pbeach",
+          "color": "#c1d96a",
+          "aggregation": "sum"
+        }
+      ],
+      "pie": {
+        "color": ["#6aa7eb", "#85c7fc", "#94c983", "#c1d96a"],
+        "center": ["80%", "20%"],
+        "radius": "20%",
+        "aggregation": "sum",
+        "label": "{b}",
+        "name": "mode",
+        "field": "price"
+      },
+      "label": true,
+      "yField": "mode",
+      "mark": "",
+      "legendPosition": "left"
+    }
+  },
+  {
+    "title": "037 누적 선형과 원형 복합 차트",
+    "description": "Mixed Stacked-Line and Pie Chart",
+    "databaseId": 88,
+    "componentId": 39,
+    "datasetType": "DATASET",
+    "datasetId": 31,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "price"
+        },
+        {
+          "field": "ppier",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "pboat",
+          "color": "#94c983",
+          "aggregation": "sum"
+        },
+        {
+          "field": "pbeach",
+          "color": "#c1d96a",
+          "aggregation": "sum"
+        }
+      ],
+      "pie": {
+        "color": ["#6aa7eb", "#85c7fc", "#94c983", "#c1d96a"],
+        "center": ["80%", "20%"],
+        "radius": "20%",
+        "aggregation": "sum",
+        "label": "{b}",
+        "name": "mode",
+        "field": "price"
+      },
+      "label": true,
+      "xField": "mode",
+      "mark": "",
+      "legendPosition": "left"
+    }
+  },
+  {
+    "title": "038 누적 영역형과 원형 복합 차트",
+    "description": "Mixed Stacked-Area and Pie Chart",
+    "databaseId": 88,
+    "componentId": 40,
+    "datasetType": "DATASET",
+    "datasetId": 31,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "price"
+        },
+        {
+          "field": "ppier",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "pboat",
+          "color": "#94c983",
+          "aggregation": "sum"
+        },
+        {
+          "field": "pbeach",
+          "color": "#c1d96a",
+          "aggregation": "sum"
+        }
+      ],
+      "pie": {
+        "color": ["#6aa7eb", "#85c7fc", "#94c983", "#c1d96a"],
+        "center": ["80%", "20%"],
+        "radius": "20%",
+        "aggregation": "sum",
+        "label": "{b}",
+        "name": "mode",
+        "field": "price"
+      },
+      "label": true,
+      "xField": "mode",
+      "mark": "",
+      "legendPosition": "left"
+    }
+  },
+  {
+    "title": "039 도넛형과 원형 복합 차트",
+    "description": "Mixed Donut and Pie Chart",
+    "databaseId": 83,
+    "componentId": 41,
+    "datasetType": "DATASET",
+    "datasetId": 25,
+    "option": {
+      "series": {
+        "aggregation": "sum",
+        "radius": ["45%", "60%"],
+        "label": "{b}",
+        "name": "age",
+        "field": "affairs"
+      },
+      "pie": {
+        "radius": "30%",
+        "aggregation": "sum",
+        "label": "{b}",
+        "name": "age",
+        "field": "yearsmarried"
+      },
+      "color": [
+        "#6aa7eb",
+        "#85c7fc",
+        "#94c983",
+        "#c1d96a",
+        "#f4f363",
+        "#eecd5b",
+        "#eaab56",
+        "#e88b4f",
+        "#f05d55",
+        "#dc80ba",
+        "#c59cfc",
+        "#828ee1",
+        "#6aa7eb",
+        "#85c7fc",
+        "#94c983",
+        "#c1d96a",
+        "#f4f363",
+        "#eecd5b"
+      ],
+      "legendPosition": "left"
+    }
+  },
+  {
+    "title": "040 나이팅게일과 원형 복합 차트",
+    "description": "Mixed Nightingale and Pie Chart",
+    "databaseId": 83,
+    "componentId": 42,
+    "datasetType": "DATASET",
+    "datasetId": 25,
+    "option": {
+      "series": {
+        "aggregation": "sum",
+        "radius": ["45%", "60%"],
+        "label": "{b}",
+        "name": "age",
+        "field": "affairs"
+      },
+      "pie": {
+        "radius": "30%",
+        "aggregation": "sum",
+        "label": "{b}",
+        "name": "age",
+        "field": "yearsmarried"
+      },
+      "color": [
+        "#6aa7eb",
+        "#85c7fc",
+        "#94c983",
+        "#c1d96a",
+        "#f4f363",
+        "#eecd5b",
+        "#eaab56",
+        "#e88b4f",
+        "#f05d55",
+        "#dc80ba",
+        "#c59cfc",
+        "#828ee1",
+        "#6aa7eb",
+        "#85c7fc",
+        "#94c983",
+        "#c1d96a",
+        "#f4f363",
+        "#eecd5b"
+      ],
+      "legendPosition": "left"
+    }
+  },
+  {
+    "title": "041 선형 차트와 숫자 보드",
+    "description": "Line Chart and Score Board",
+    "databaseId": 114,
+    "componentId": 44,
+    "datasetType": "DATASET",
+    "datasetId": 28,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "yearsmarried"
+        },
+        {
+          "field": "affairs",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "religiousness",
+          "color": "#94c983",
+          "aggregation": "sum"
+        }
+      ],
+      "mark": "",
+      "header": {
+        "title": "평균 나이",
+        "fontSize": 20,
+        "color": "#4A4A4A"
+      },
+      "content": {
+        "aggregation": "avg",
+        "fontSize": 50,
+        "color": "#4A4A4A",
+        "field": "age",
+        "suffix": "세",
+        "numForm": ""
+      },
+      "xField": "age",
+      "label": true,
+      "legendPosition": "bottom"
+    }
+  },
+  {
+    "title": "042 영역형 차트와 숫자 보드",
+    "description": "Area Chart and Score Board",
+    "databaseId": 114,
+    "componentId": 45,
+    "datasetType": "DATASET",
+    "datasetId": 28,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "yearsmarried"
+        },
+        {
+          "field": "affairs",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "religiousness",
+          "color": "#94c983",
+          "aggregation": "sum"
+        }
+      ],
+      "mark": "",
+      "header": {
+        "title": "평균 나이",
+        "fontSize": 20,
+        "color": "#4A4A4A"
+      },
+      "content": {
+        "aggregation": "avg",
+        "fontSize": 50,
+        "color": "#4A4A4A",
+        "field": "age",
+        "suffix": "세",
+        "numForm": ""
+      },
+      "xField": "age",
+      "label": true,
+      "legendPosition": "bottom"
+    }
+  },
+  {
+    "title": "043 세로 막대형 차트와 숫자 보드",
+    "description": "Bar Chart and Score Board",
+    "databaseId": 114,
+    "componentId": 46,
+    "datasetType": "DATASET",
+    "datasetId": 28,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "yearsmarried"
+        },
+        {
+          "field": "affairs",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "religiousness",
+          "color": "#94c983",
+          "aggregation": "sum"
+        }
+      ],
+      "mark": "",
+      "header": {
+        "title": "평균 나이",
+        "fontSize": 20,
+        "color": "#4A4A4A"
+      },
+      "content": {
+        "aggregation": "avg",
+        "fontSize": 50,
+        "color": "#4A4A4A",
+        "field": "age",
+        "suffix": "세",
+        "numForm": ""
+      },
+      "xField": "age",
+      "label": true,
+      "legendPosition": "bottom"
+    }
+  },
+  {
+    "title": "044 가로 막대형 차트와 숫자 보드",
+    "description": "Column Chart and Score Board",
+    "databaseId": 114,
+    "componentId": 47,
+    "datasetType": "DATASET",
+    "datasetId": 28,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "yearsmarried"
+        },
+        {
+          "field": "affairs",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "religiousness",
+          "color": "#94c983",
+          "aggregation": "sum"
+        }
+      ],
+      "mark": "",
+      "header": {
+        "title": "평균 나이",
+        "fontSize": 20,
+        "color": "#4A4A4A"
+      },
+      "content": {
+        "aggregation": "avg",
+        "fontSize": 50,
+        "color": "#4A4A4A",
+        "field": "age",
+        "suffix": "세",
+        "numForm": ""
+      },
+      "yField": "age",
+      "label": true,
+      "legendPosition": "bottom"
+    }
+  },
+  {
+    "title": "045 누적 선형 차트와 숫자 보드",
+    "description": "Stacked Line Chart and Score Board",
+    "databaseId": 114,
+    "componentId": 48,
+    "datasetType": "DATASET",
+    "datasetId": 28,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "yearsmarried"
+        },
+        {
+          "field": "affairs",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "religiousness",
+          "color": "#94c983",
+          "aggregation": "sum"
+        }
+      ],
+      "mark": "",
+      "header": {
+        "title": "평균 나이",
+        "fontSize": 20,
+        "color": "#4A4A4A"
+      },
+      "content": {
+        "aggregation": "avg",
+        "fontSize": 50,
+        "color": "#4A4A4A",
+        "field": "age",
+        "suffix": "세",
+        "numForm": ""
+      },
+      "xField": "age",
+      "label": true,
+      "legendPosition": "bottom"
+    }
+  },
+  {
+    "title": "046 누적 영역형 차트와 숫자 보드",
+    "description": "Stacked Area Chart and Score Board",
+    "databaseId": 114,
+    "componentId": 49,
+    "datasetType": "DATASET",
+    "datasetId": 28,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "yearsmarried"
+        },
+        {
+          "field": "affairs",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "religiousness",
+          "color": "#94c983",
+          "aggregation": "sum"
+        }
+      ],
+      "mark": "",
+      "header": {
+        "title": "평균 나이",
+        "fontSize": 20,
+        "color": "#4A4A4A"
+      },
+      "content": {
+        "aggregation": "avg",
+        "fontSize": 50,
+        "color": "#4A4A4A",
+        "field": "age",
+        "suffix": "세",
+        "numForm": ""
+      },
+      "xField": "age",
+      "label": true,
+      "legendPosition": "bottom"
+    }
+  },
+  {
+    "title": "047 누적 세로 막대형 차트와 숫자 보드",
+    "description": "Stacked Bar Chart and Score Board",
+    "databaseId": 114,
+    "componentId": 50,
+    "datasetType": "DATASET",
+    "datasetId": 28,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "yearsmarried"
+        },
+        {
+          "field": "affairs",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "religiousness",
+          "color": "#94c983",
+          "aggregation": "sum"
+        }
+      ],
+      "mark": "",
+      "header": {
+        "title": "평균 나이",
+        "fontSize": 20,
+        "color": "#4A4A4A"
+      },
+      "content": {
+        "aggregation": "avg",
+        "fontSize": 50,
+        "color": "#4A4A4A",
+        "field": "age",
+        "suffix": "세",
+        "numForm": ""
+      },
+      "xField": "age",
+      "label": true,
+      "legendPosition": "bottom"
+    }
+  },
+  {
+    "title": "048 누적 가로 막대형 차트와 숫자 보드",
+    "description": "Stacked Column Chart and Score Board",
+    "databaseId": 114,
+    "componentId": 51,
+    "datasetType": "DATASET",
+    "datasetId": 28,
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "yearsmarried"
+        },
+        {
+          "field": "affairs",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "religiousness",
+          "color": "#94c983",
+          "aggregation": "sum"
+        }
+      ],
+      "mark": "",
+      "header": {
+        "title": "평균 나이",
+        "fontSize": 20,
+        "color": "#4A4A4A"
+      },
+      "content": {
+        "aggregation": "avg",
+        "fontSize": 50,
+        "color": "#4A4A4A",
+        "field": "age",
+        "suffix": "세",
+        "numForm": ""
+      },
+      "yField": "age",
+      "label": true,
+      "legendPosition": "bottom"
+    }
+  },
+  {
+    "title": "049 도넛형 차트와 숫자 보드",
+    "description": "Donut Chart and Score Board",
+    "databaseId": 113,
+    "componentId": 52,
+    "datasetType": "DATASET",
+    "datasetId": 27,
+    "option": {
+      "series": {
+        "color": ["#6aa7eb", "#85c7fc", "#94c983", "#c1d96a", "#f4f363", "#eecd5b", "#eaab56"],
+        "aggregation": "sum",
+        "label": "{b}",
+        "radius": ["40%", "75%"],
+        "name": "department",
+        "field": "annualSalary"
+      },
+      "header": {
+        "title": "Average of salary",
+        "fontSize": 20,
+        "color": "#4A4A4A"
+      },
+      "content": {
+        "aggregation": "avg",
+        "fontSize": 50,
+        "color": "#4A4A4A",
+        "field": "annualSalary",
+        "numForm": true
+      }
+    }
+  },
+  {
+    "title": "050 나이팅게일 차트와 숫자 보드",
+    "description": "Nightingale Chart and Score Board",
+    "databaseId": 113,
+    "componentId": 53,
+    "datasetType": "DATASET",
+    "datasetId": 27,
+    "option": {
+      "series": {
+        "color": ["#6aa7eb", "#85c7fc", "#94c983", "#c1d96a", "#f4f363", "#eecd5b", "#eaab56"],
+        "aggregation": "sum",
+        "label": "{b}",
+        "radius": ["40%", "75%"],
+        "name": "department",
+        "field": "annualSalary"
+      },
+      "header": {
+        "title": "Average of salary",
+        "fontSize": 20,
+        "color": "#4A4A4A"
+      },
+      "content": {
+        "aggregation": "avg",
+        "fontSize": 50,
+        "color": "#4A4A4A",
+        "field": "annualSalary",
+        "numForm": true
+      }
+    }
+  },
+  {
+    "title": "051 숫자판",
+    "description": "Score Board",
+    "databaseId": 119,
+    "componentId": 12,
+    "datasetId": 1,
+    "datasetType": "TABLE",
+    "tableName": "SportsCards",
+    "option": {
+      "header": {
+        "title": "합계",
+        "fontSize": 30,
+        "color": "#4A4A4A"
+      },
+      "content": {
+        "aggregation": "sum",
+        "fontSize": 50,
+        "color": "#4A4A4A",
+        "field": "years"
+      }
+    }
+  },
+  {
+    "title": "052 표",
+    "description": "Data Grid",
+    "databaseId": 108,
+    "componentId": 13,
+    "datasetId": 2,
+    "datasetType": "TABLE",
+    "tableName": "TravelMode",
+    "option": {
+      "columns": [
+        {
+          "name": "mode",
+          "header": "",
+          "align": "left",
+          "sortable": true
+        },
+        {
+          "name": "choice",
+          "header": "",
+          "align": "left",
+          "sortable": true
+        },
+        {
+          "name": "travel",
+          "header": "",
+          "align": "left",
+          "sortable": true
+        }
+      ]
+    }
+  },
+  {
+    "title": "053 선형 차트",
+    "description": "Line Chart",
+    "databaseId": 119,
+    "componentId": 1,
+    "datasetId": 3,
+    "datasetType": "TABLE",
+    "tableName": "memberInfo",
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "visits"
+        },
+        {
+          "field": "income",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "access",
+          "color": "#94c983",
+          "aggregation": "sum"
+        },
+        {
+          "field": "children",
+          "color": "#c1d96a",
+          "aggregation": "sum"
+        },
+        {
+          "field": "health2",
+          "color": "#f4f363",
+          "aggregation": "sum"
+        },
+        {
+          "field": "school",
+          "color": "#eecd5b",
+          "aggregation": "sum"
+        }
+      ],
+      "mark": true,
+      "xField": "age",
+      "legendPosition": "right"
+    }
+  },
+  {
+    "title": "054 영역형 차트",
+    "description": "Area Chart",
+    "databaseId": 119,
+    "componentId": 2,
+    "datasetId": 4,
+    "datasetType": "TABLE",
+    "tableName": "memberInfo",
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "visits"
+        },
+        {
+          "field": "income",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "access",
+          "color": "#94c983",
+          "aggregation": "sum"
+        },
+        {
+          "field": "children",
+          "color": "#c1d96a",
+          "aggregation": "sum"
+        },
+        {
+          "field": "health2",
+          "color": "#f4f363",
+          "aggregation": "sum"
+        },
+        {
+          "field": "school",
+          "color": "#eecd5b",
+          "aggregation": "sum"
+        }
+      ],
+      "mark": true,
+      "xField": "age",
+      "legendPosition": "right"
+    }
+  },
+  {
+    "title": "055 세로 막대형 차트",
+    "description": "Bar Chart",
+    "databaseId": 119,
+    "componentId": 3,
+    "datasetId": 5,
+    "datasetType": "TABLE",
+    "tableName": "memberInfo",
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "visits"
+        },
+        {
+          "field": "income",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "access",
+          "color": "#94c983",
+          "aggregation": "sum"
+        },
+        {
+          "field": "children",
+          "color": "#c1d96a",
+          "aggregation": "sum"
+        },
+        {
+          "field": "health2",
+          "color": "#f4f363",
+          "aggregation": "sum"
+        },
+        {
+          "field": "school",
+          "color": "#eecd5b",
+          "aggregation": "sum"
+        }
+      ],
+      "mark": true,
+      "xField": "age",
+      "legendPosition": "right"
+    }
+  },
+  {
+    "title": "056 가로 막대형 차트",
+    "description": "Column Chart",
+    "databaseId": 119,
+    "componentId": 4,
+    "datasetId": 6,
+    "datasetType": "TABLE",
+    "tableName": "memberInfo",
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "visits"
+        },
+        {
+          "field": "income",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "access",
+          "color": "#94c983",
+          "aggregation": "sum"
+        },
+        {
+          "field": "children",
+          "color": "#c1d96a",
+          "aggregation": "sum"
+        },
+        {
+          "field": "health2",
+          "color": "#f4f363",
+          "aggregation": "sum"
+        },
+        {
+          "field": "school",
+          "color": "#eecd5b",
+          "aggregation": "sum"
+        }
+      ],
+      "mark": true,
+      "yField": "age",
+      "legendPosition": "right"
+    }
+  },
+  {
+    "title": "057 선형과 세로 막대형 복합 차트",
+    "description": "Mixed Line and Bar Chart",
+    "databaseId": 118,
+    "componentId": 5,
+    "datasetId": 7,
+    "datasetType": "TABLE",
+    "tableName": "french_fries",
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "type": "bar",
+          "field": "treatment"
+        },
+        {
+          "color": "#47a8ea",
+          "aggregation": "sum",
+          "type": "bar",
+          "field": "rep"
+        },
+        {
+          "field": "subject",
+          "color": "#94c983",
+          "aggregation": "sum",
+          "type": "line"
+        }
+      ],
+      "label": true,
+      "xField": "time",
+      "legendPosition": "top"
+    }
+  },
+  {
+    "title": "058 누적 선형 차트",
+    "description": "Stacked Line Chart",
+    "databaseId": 119,
+    "componentId": 14,
+    "datasetId": 8,
+    "datasetType": "TABLE",
+    "tableName": "memberInfo",
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "visits"
+        },
+        {
+          "field": "income",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "access",
+          "color": "#94c983",
+          "aggregation": "sum"
+        },
+        {
+          "field": "children",
+          "color": "#c1d96a",
+          "aggregation": "sum"
+        },
+        {
+          "field": "health2",
+          "color": "#f4f363",
+          "aggregation": "sum"
+        },
+        {
+          "field": "school",
+          "color": "#eecd5b",
+          "aggregation": "sum"
+        }
+      ],
+      "label": true,
+      "xField": "age",
+      "legendPosition": "right"
+    }
+  },
+  {
+    "title": "059 누적 영역형 차트",
+    "description": "Stacked Area Chart",
+    "databaseId": 119,
+    "componentId": 15,
+    "datasetId": 9,
+    "datasetType": "TABLE",
+    "tableName": "memberInfo",
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "visits"
+        },
+        {
+          "field": "income",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "access",
+          "color": "#94c983",
+          "aggregation": "sum"
+        },
+        {
+          "field": "children",
+          "color": "#c1d96a",
+          "aggregation": "sum"
+        },
+        {
+          "field": "health2",
+          "color": "#f4f363",
+          "aggregation": "sum"
+        },
+        {
+          "field": "school",
+          "color": "#eecd5b",
+          "aggregation": "sum"
+        }
+      ],
+      "label": true,
+      "xField": "age",
+      "legendPosition": "right"
+    }
+  },
+  {
+    "title": "060 누적 가로 막대형 차트",
+    "description": "Stacked Column Chart",
+    "databaseId": 119,
+    "componentId": 16,
+    "datasetId": 10,
+    "datasetType": "TABLE",
+    "tableName": "memberInfo",
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "visits"
+        },
+        {
+          "field": "income",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "access",
+          "color": "#94c983",
+          "aggregation": "sum"
+        },
+        {
+          "field": "children",
+          "color": "#c1d96a",
+          "aggregation": "sum"
+        },
+        {
+          "field": "health2",
+          "color": "#f4f363",
+          "aggregation": "sum"
+        },
+        {
+          "field": "school",
+          "color": "#eecd5b",
+          "aggregation": "sum"
+        }
+      ],
+      "label": true,
+      "yField": "age",
+      "legendPosition": "right"
+    }
+  },
+  {
+    "title": "061 누적 세로 막대형 차트",
+    "description": "Stacked Bar Chart",
+    "databaseId": 119,
+    "componentId": 17,
+    "datasetId": 11,
+    "datasetType": "TABLE",
+    "tableName": "memberInfo",
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "visits"
+        },
+        {
+          "field": "income",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "access",
+          "color": "#94c983",
+          "aggregation": "sum"
+        },
+        {
+          "field": "children",
+          "color": "#c1d96a",
+          "aggregation": "sum"
+        },
+        {
+          "field": "health2",
+          "color": "#f4f363",
+          "aggregation": "sum"
+        },
+        {
+          "field": "school",
+          "color": "#eecd5b",
+          "aggregation": "sum"
+        }
+      ],
+      "label": true,
+      "xField": "age",
+      "legendPosition": "right"
+    }
+  },
+  {
+    "title": "062 선형과 누적 세로 막대형 복합 차트",
+    "description": "Mixed Line and Stacked-Bar Chart",
+    "databaseId": 118,
+    "componentId": 43,
+    "datasetId": 12,
+    "datasetType": "TABLE",
+    "tableName": "french_fries",
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "type": "bar",
+          "field": "treatment"
+        },
+        {
+          "color": "#47a8ea",
+          "aggregation": "sum",
+          "type": "bar",
+          "field": "rep"
+        },
+        {
+          "field": "subject",
+          "color": "#94c983",
+          "aggregation": "sum",
+          "type": "line"
+        }
+      ],
+      "label": true,
+      "xField": "time",
+      "legendPosition": "top"
+    }
+  },
+  {
+    "title": "063 원형 차트",
+    "description": "Pie Chart",
+    "databaseId": 118,
+    "componentId": 6,
+    "datasetId": 13,
+    "datasetType": "TABLE",
+    "tableName": "confirmation",
+    "option": {
+      "series": {
+        "color": [
+          "#6aa7eb",
+          "#85c7fc",
+          "#94c983",
+          "#c1d96a",
+          "#f4f363",
+          "#eecd5b",
+          "#eaab56",
+          "#e88b4f",
+          "#f05d55",
+          "#dc80ba",
+          "#c59cfc",
+          "#828ee1",
+          "#6aa7eb",
+          "#85c7fc",
+          "#94c983",
+          "#c1d96a",
+          "#f4f363",
+          "#eecd5b",
+          "#eaab56",
+          "#e88b4f",
+          "#f05d55",
+          "#dc80ba",
+          "#c59cfc",
+          "#828ee1",
+          "#6aa7eb",
+          "#85c7fc",
+          "#94c983",
+          "#c1d96a",
+          "#f4f363",
+          "#eecd5b",
+          "#eaab56",
+          "#e88b4f",
+          "#f05d55",
+          "#dc80ba",
+          "#c59cfc",
+          "#828ee1",
+          "#6aa7eb",
+          "#85c7fc",
+          "#94c983",
+          "#c1d96a",
+          "#f4f363",
+          "#eecd5b",
+          "#eaab56",
+          "#e88b4f",
+          "#f05d55",
+          "#dc80ba",
+          "#c59cfc",
+          "#828ee1",
+          "#6aa7eb",
+          "#85c7fc"
+        ],
+        "aggregation": "sum",
+        "label": "{b}",
+        "name": "State",
+        "field": "StateOpinion"
+      },
+      "legendPosition": "top"
+    }
+  },
+  {
+    "title": "064 도넛형 차트",
+    "description": "Donut Chart",
+    "databaseId": 108,
+    "componentId": 11,
+    "datasetId": 14,
+    "datasetType": "TABLE",
+    "tableName": "TravelMode",
+    "option": {
+      "series": {
+        "color": ["#6aa7eb", "#85c7fc", "#94c983", "#c1d96a"],
+        "aggregation": "sum",
+        "label": "{b}",
+        "radius": ["30%", "75%"],
+        "name": "mode",
+        "field": "wait"
+      },
+      "legendPosition": "top"
+    }
+  },
+  {
+    "title": "065 나이팅게일 차트",
+    "description": "Nightingale Chart",
+    "databaseId": 108,
+    "componentId": 7,
+    "datasetId": 15,
+    "datasetType": "TABLE",
+    "tableName": "TravelMode",
+    "option": {
+      "series": {
+        "color": ["#6aa7eb", "#85c7fc", "#94c983", "#c1d96a"],
+        "aggregation": "sum",
+        "label": "{b}",
+        "radius": ["30%", "75%"],
+        "name": "mode",
+        "field": "wait"
+      },
+      "legendPosition": "top"
+    }
+  },
+  {
+    "title": "066 방사형 차트",
+    "description": "Radar Chart",
+    "databaseId": 108,
+    "componentId": 9,
+    "datasetId": 16,
+    "datasetType": "TABLE",
+    "tableName": "TravelMode",
+    "option": {
+      "series": [
+        {
+          "color": "#2870c5",
+          "aggregation": "sum",
+          "field": "wait"
+        },
+        {
+          "field": "individual",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "travel",
+          "color": "#94c983",
+          "aggregation": "sum"
+        }
+      ],
+      "label": true,
+      "field": "mode",
+      "legendPosition": "top"
+    }
+  },
+  {
+    "title": "067 분산형 차트",
+    "description": "Scatter Chart",
+    "databaseId": 113,
+    "componentId": 10,
+    "datasetId": 17,
+    "datasetType": "TABLE",
+    "tableName": "crime",
+    "option": {
+      "series": [
+        {
+          "symbolSize": "20",
+          "color": "#6aa7eb",
+          "xField": "violent",
+          "yField": "violent",
+          "title": "vioent"
+        },
+        {
+          "title": "murder",
+          "xField": "violent",
+          "yField": "murder",
+          "color": "#85c7fc",
+          "symbolSize": 20
+        },
+        {
+          "title": "robbery",
+          "xField": "year",
+          "yField": "robbery",
+          "color": "#94c983",
+          "symbolSize": 20
+        },
+        {
+          "title": "income",
+          "xField": "violent",
+          "yField": "income",
+          "color": "#c1d96a",
+          "symbolSize": 20
+        }
+      ],
+      "label": "",
+      "legendPosition": "left"
+    }
+  },
+  {
+    "title": "068 거품형 차트",
+    "description": "Bubble Chart",
+    "databaseId": 108,
+    "componentId": 8,
+    "datasetId": 18,
+    "datasetType": "TABLE",
+    "tableName": "CPS1985",
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "xField": "education",
+          "yField": "wage",
+          "symbolSize": "age",
+          "title": "no.1"
+        },
+        {
+          "title": "no.2",
+          "xField": "wage",
+          "yField": "education",
+          "color": "#85c7fc",
+          "symbolSize": "age"
+        }
+      ],
+      "label": "",
+      "legendPosition": "top"
+    }
+  },
+  {
+    "title": "069 트리맵 차트",
+    "description": "Treemap Chart",
+    "databaseId": 137,
+    "componentId": 19,
+    "datasetId": 19,
+    "datasetType": "TABLE",
+    "tableName": "boston",
+    "option": {
+      "series": {
+        "color": ["#2870c4", "#4ecef6", "#ffd43b", "#fa5a5a"],
+        "aggregation": "sum",
+        "name": "age",
+        "field": "ptratio"
+      },
+      "label": ""
+    }
+  },
+  {
+    "title": "070 선버스트 차트",
+    "description": "Sunburst Chart",
+    "databaseId": 139,
+    "componentId": 22,
+    "datasetId": 20,
+    "datasetType": "TABLE",
+    "tableName": "SEATBELTS",
+    "option": {
+      "series": {
+        "color": ["#2870c4", "#4ecef6", "#ffd43b", "#fa5a5a"],
+        "aggregation": "sum",
+        "name": "LAW",
+        "field": "DRIVERS"
+      },
+      "label": true
+    }
+  },
+  {
+    "title": "071 히트맵 차트",
+    "description": "Heatmap Chart",
+    "databaseId": 138,
+    "componentId": 23,
+    "datasetId": 21,
+    "datasetType": "TABLE",
+    "tableName": "NCBIRTHS",
+    "option": {
+      "color": ["#2870c4", "#4ecef6", "#ffd43b", "#fa5a5a"],
+      "aggregation": "sum",
+      "xField": "mage",
+      "yField": "visits",
+      "series": "weight",
+      "label": ""
+    }
+  },
+  {
+    "title": "072 캔들스틱 차트",
+    "description": "Candlestick Chart",
+    "databaseId": 108,
+    "componentId": 20,
+    "datasetId": 22,
+    "datasetType": "TABLE",
+    "tableName": "candlestickData",
+    "option": {
+      "series": [
+        {
+          "color": "#FA5A5A",
+          "aggregation": "sum",
+          "field": " open"
+        },
+        {
+          "color": "#2870C4",
+          "aggregation": "sum",
+          "field": " close"
+        },
+        {
+          "color": "#E03B3B",
+          "aggregation": "sum",
+          "field": " lowest"
+        },
+        {
+          "color": "#215DA3",
+          "aggregation": "sum",
+          "field": " highest"
+        }
+      ],
+      "xField": "date",
+      "legendPosition": "",
+      "mark": true
+    }
+  },
+  {
+    "title": "073 계기판 차트",
+    "description": "Gauge Chart",
+    "databaseId": 139,
+    "componentId": 21,
+    "datasetId": 23,
+    "datasetType": "TABLE",
+    "tableName": "SEATBELTS",
+    "option": {
+      "color": "#6aa7eb",
+      "aggregation": "avg",
+      "field": "REAR",
+      "suffix": ""
+    }
+  },
+  {
+    "title": "074 깔때기형 차트",
+    "description": "Funnel Chart",
+    "databaseId": 113,
+    "componentId": 24,
+    "datasetId": 24,
+    "datasetType": "TABLE",
+    "tableName": "employee",
+    "option": {
+      "series": {
+        "color": ["#6aa7eb", "#85c7fc", "#94c983", "#c1d96a", "#f4f363", "#eecd5b", "#eaab56"],
+        "aggregation": "avg",
+        "name": "department",
+        "field": "age"
+      },
+      "legendPosition": "left"
+    }
+  },
+  {
+    "title": "075 극좌표 막대형 차트",
+    "description": "Polar Bar Chart",
+    "databaseId": 118,
+    "componentId": 31,
+    "datasetId": 25,
+    "datasetType": "TABLE",
+    "tableName": "french_fries",
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "time"
+        },
+        {
+          "field": "treatment",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "rep",
+          "color": "#94c983",
+          "aggregation": "sum"
+        }
+      ],
+      "radius": ["10%", "75%"],
+      "axisField": "treatment",
+      "legendPosition": "top"
+    }
+  },
+  {
+    "title": "076 극좌표 누적 막대형 차트",
+    "description": "Polar Stacked Bar Chart",
+    "databaseId": 118,
+    "componentId": 33,
+    "datasetId": 26,
+    "datasetType": "TABLE",
+    "tableName": "french_fries",
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "time"
+        },
+        {
+          "field": "treatment",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "rep",
+          "color": "#94c983",
+          "aggregation": "sum"
+        }
+      ],
+      "radius": ["10%", "75%"],
+      "axisField": "treatment",
+      "legendPosition": "top"
+    }
+  },
+  {
+    "title": "077 3D 선형 차트",
+    "description": "3D Line Chart",
+    "databaseId": 138,
+    "componentId": 26,
+    "datasetId": 27,
+    "datasetType": "TABLE",
+    "tableName": "NYCFLIGHTS",
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "arr_time"
+        },
+        {
+          "field": "air_time",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "dep_delay",
+          "color": "#94c983",
+          "aggregation": "sum"
+        }
+      ],
+      "xField": "month",
+      "legendPosition": "top"
+    }
+  },
+  {
+    "title": "078 3D 막대형 차트",
+    "description": "3D Bar Chart",
+    "databaseId": 113,
+    "componentId": 25,
+    "datasetId": 28,
+    "datasetType": "TABLE",
+    "tableName": "crime",
+    "option": {
+      "series": [
+        {
+          "aggregation": "sum",
+          "field": "year"
+        },
+        {
+          "field": "robbery",
+          "aggregation": "sum"
+        },
+        {
+          "field": "income",
+          "aggregation": "sum"
+        }
+      ],
+      "color": ["#2870c4", "#4ecef6", "#ffd43b", "#fa5a5a"],
+      "xField": "violent"
+    }
+  },
+  {
+    "title": "079 3D 분산형 차트",
+    "description": "3D Scatter Chart",
+    "databaseId": 114,
+    "componentId": 27,
+    "datasetId": 29,
+    "datasetType": "TABLE",
+    "tableName": "auto",
+    "option": {
+      "series": [
+        {
+          "symbolSize": "20",
+          "color": "#6aa7eb",
+          "xField": "price",
+          "yField": "headroom",
+          "zField": "trunk",
+          "title": "series1"
+        },
+        {
+          "title": "series2",
+          "xField": "weight",
+          "yField": "length",
+          "zField": "turn",
+          "color": "#85c7fc",
+          "symbolSize": 20
+        }
+      ]
+    }
+  },
+  {
+    "title": "080 3D 거품형 차트",
+    "description": "3D Bubble Chart",
+    "databaseId": 88,
+    "componentId": 28,
+    "datasetId": 30,
+    "datasetType": "TABLE",
+    "tableName": "fishing",
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "xField": "price",
+          "yField": "pbeach",
+          "zField": "ppier",
+          "symbolSize": "pcharter",
+          "title": "테스트1"
+        },
+        {
+          "title": "테스트2",
+          "xField": "price",
+          "yField": "catch",
+          "zField": "pboat",
+          "color": "#85c7fc",
+          "symbolSize": "ppier"
+        }
+      ],
+      "label": ""
+    }
+  },
+  {
+    "title": "081 선형과 원형 복합 차트",
+    "description": "Mixed Line and Pie Chart",
+    "databaseId": 138,
+    "componentId": 32,
+    "datasetId": 31,
+    "datasetType": "TABLE",
+    "tableName": "NYCFLIGHTS",
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "day"
+        },
+        {
+          "field": "dep_delay",
+          "color": "#f8e71c",
+          "aggregation": "sum"
+        },
+        {
+          "field": "flight",
+          "color": "#f5a623",
+          "aggregation": "avg"
+        }
+      ],
+      "pie": {
+        "color": [
+          "#50e3c2",
+          "#85c7fc",
+          "#94c983",
+          "#c1d96a",
+          "#f4f363",
+          "#eecd5b",
+          "#eaab56",
+          "#e88b4f",
+          "#d0021b",
+          "#dc80ba",
+          "#c59cfc",
+          "#828ee1"
+        ],
+        "center": ["80%", "13%"],
+        "radius": "20%",
+        "aggregation": "sum",
+        "label": "{b}",
+        "name": "month",
+        "field": "year"
+      },
+      "mark": true,
+      "xField": "month",
+      "legendPosition": "right"
+    }
+  },
+  {
+    "title": "082 영역형과 원형 복합 차트",
+    "description": "Mixed Area and Pie Chart",
+    "databaseId": 138,
+    "componentId": 34,
+    "datasetId": 32,
+    "datasetType": "TABLE",
+    "tableName": "NYCFLIGHTS",
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "day"
+        },
+        {
+          "field": "dep_delay",
+          "color": "#f8e71c",
+          "aggregation": "sum"
+        },
+        {
+          "field": "flight",
+          "color": "#f5a623",
+          "aggregation": "avg"
+        }
+      ],
+      "pie": {
+        "color": [
+          "#50e3c2",
+          "#85c7fc",
+          "#94c983",
+          "#c1d96a",
+          "#f4f363",
+          "#eecd5b",
+          "#eaab56",
+          "#e88b4f",
+          "#d0021b",
+          "#dc80ba",
+          "#c59cfc",
+          "#828ee1"
+        ],
+        "center": ["80%", "13%"],
+        "radius": "20%",
+        "aggregation": "sum",
+        "label": "{b}",
+        "name": "month",
+        "field": "year"
+      },
+      "mark": true,
+      "xField": "month",
+      "legendPosition": "right"
+    }
+  },
+  {
+    "title": "083 세로 막대형과 원형 복합 차트",
+    "description": "Mixed Bar and Pie Chart",
+    "databaseId": 138,
+    "componentId": 35,
+    "datasetId": 33,
+    "datasetType": "TABLE",
+    "tableName": "NYCFLIGHTS",
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "day"
+        },
+        {
+          "field": "dep_delay",
+          "color": "#f8e71c",
+          "aggregation": "sum"
+        },
+        {
+          "field": "flight",
+          "color": "#f5a623",
+          "aggregation": "avg"
+        }
+      ],
+      "pie": {
+        "color": [
+          "#50e3c2",
+          "#85c7fc",
+          "#94c983",
+          "#c1d96a",
+          "#f4f363",
+          "#eecd5b",
+          "#eaab56",
+          "#e88b4f",
+          "#d0021b",
+          "#dc80ba",
+          "#c59cfc",
+          "#828ee1"
+        ],
+        "center": ["80%", "13%"],
+        "radius": "20%",
+        "aggregation": "sum",
+        "label": "{b}",
+        "name": "month",
+        "field": "year"
+      },
+      "mark": true,
+      "xField": "month",
+      "legendPosition": "right"
+    }
+  },
+  {
+    "title": "084 가로 막대형과 원형 복합 차트",
+    "description": "Mixed Column and Pie Chart",
+    "databaseId": 138,
+    "componentId": 36,
+    "datasetId": 34,
+    "datasetType": "TABLE",
+    "tableName": "NYCFLIGHTS",
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "day"
+        },
+        {
+          "field": "dep_delay",
+          "color": "#f8e71c",
+          "aggregation": "sum"
+        },
+        {
+          "field": "flight",
+          "color": "#f5a623",
+          "aggregation": "avg"
+        }
+      ],
+      "pie": {
+        "color": [
+          "#50e3c2",
+          "#85c7fc",
+          "#94c983",
+          "#c1d96a",
+          "#f4f363",
+          "#eecd5b",
+          "#eaab56",
+          "#e88b4f",
+          "#d0021b",
+          "#dc80ba",
+          "#c59cfc",
+          "#828ee1"
+        ],
+        "center": ["80%", "13%"],
+        "radius": "20%",
+        "aggregation": "sum",
+        "label": "{b}",
+        "name": "month",
+        "field": "year"
+      },
+      "mark": true,
+      "yField": "month",
+      "legendPosition": "right"
+    }
+  },
+  {
+    "title": "085 누적 세로 막대형과 원형 복합 차트",
+    "description": "Mixed Stacked-Bar and Pie Chart",
+    "databaseId": 138,
+    "componentId": 37,
+    "datasetId": 35,
+    "datasetType": "TABLE",
+    "tableName": "NYCFLIGHTS",
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "day"
+        },
+        {
+          "field": "dep_delay",
+          "color": "#f8e71c",
+          "aggregation": "sum"
+        },
+        {
+          "field": "flight",
+          "color": "#f5a623",
+          "aggregation": "avg"
+        }
+      ],
+      "pie": {
+        "color": [
+          "#50e3c2",
+          "#85c7fc",
+          "#94c983",
+          "#c1d96a",
+          "#f4f363",
+          "#eecd5b",
+          "#eaab56",
+          "#e88b4f",
+          "#d0021b",
+          "#dc80ba",
+          "#c59cfc",
+          "#828ee1"
+        ],
+        "center": ["80%", "13%"],
+        "radius": "20%",
+        "aggregation": "sum",
+        "label": "{b}",
+        "name": "month",
+        "field": "year"
+      },
+      "mark": true,
+      "xField": "month",
+      "legendPosition": "right"
+    }
+  },
+  {
+    "title": "086 누적 가로 막대형과 원형 복합 차트",
+    "description": "Mixed Stacked-Column and Pie Chart",
+    "databaseId": 138,
+    "componentId": 38,
+    "datasetId": 36,
+    "datasetType": "TABLE",
+    "tableName": "NYCFLIGHTS",
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "day"
+        },
+        {
+          "field": "dep_delay",
+          "color": "#f8e71c",
+          "aggregation": "sum"
+        },
+        {
+          "field": "flight",
+          "color": "#f5a623",
+          "aggregation": "avg"
+        }
+      ],
+      "pie": {
+        "color": [
+          "#50e3c2",
+          "#85c7fc",
+          "#94c983",
+          "#c1d96a",
+          "#f4f363",
+          "#eecd5b",
+          "#eaab56",
+          "#e88b4f",
+          "#d0021b",
+          "#dc80ba",
+          "#c59cfc",
+          "#828ee1"
+        ],
+        "center": ["80%", "13%"],
+        "radius": "20%",
+        "aggregation": "sum",
+        "label": "{b}",
+        "name": "month",
+        "field": "year"
+      },
+      "mark": true,
+      "yField": "month",
+      "legendPosition": "right"
+    }
+  },
+  {
+    "title": "087 누적 선형과 원형 복합 차트",
+    "description": "Mixed Stacked-Line and Pie Chart",
+    "databaseId": 138,
+    "componentId": 39,
+    "datasetId": 37,
+    "datasetType": "TABLE",
+    "tableName": "NYCFLIGHTS",
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "day"
+        },
+        {
+          "field": "dep_delay",
+          "color": "#f8e71c",
+          "aggregation": "sum"
+        },
+        {
+          "field": "flight",
+          "color": "#f5a623",
+          "aggregation": "avg"
+        }
+      ],
+      "pie": {
+        "color": [
+          "#50e3c2",
+          "#85c7fc",
+          "#94c983",
+          "#c1d96a",
+          "#f4f363",
+          "#eecd5b",
+          "#eaab56",
+          "#e88b4f",
+          "#d0021b",
+          "#dc80ba",
+          "#c59cfc",
+          "#828ee1"
+        ],
+        "center": ["80%", "13%"],
+        "radius": "20%",
+        "aggregation": "sum",
+        "label": "{b}",
+        "name": "month",
+        "field": "year"
+      },
+      "mark": true,
+      "xField": "month",
+      "legendPosition": "right"
+    }
+  },
+  {
+    "title": "088 누적 영역형과 원형 복합 차트",
+    "description": "Mixed Stacked-Area and Pie Chart",
+    "databaseId": 138,
+    "componentId": 40,
+    "datasetId": 38,
+    "datasetType": "TABLE",
+    "tableName": "NYCFLIGHTS",
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "day"
+        },
+        {
+          "field": "dep_delay",
+          "color": "#f8e71c",
+          "aggregation": "sum"
+        },
+        {
+          "field": "flight",
+          "color": "#f5a623",
+          "aggregation": "avg"
+        }
+      ],
+      "pie": {
+        "color": [
+          "#50e3c2",
+          "#85c7fc",
+          "#94c983",
+          "#c1d96a",
+          "#f4f363",
+          "#eecd5b",
+          "#eaab56",
+          "#e88b4f",
+          "#d0021b",
+          "#dc80ba",
+          "#c59cfc",
+          "#828ee1"
+        ],
+        "center": ["80%", "13%"],
+        "radius": "20%",
+        "aggregation": "sum",
+        "label": "{b}",
+        "name": "month",
+        "field": "year"
+      },
+      "mark": true,
+      "xField": "month",
+      "legendPosition": "right"
+    }
+  },
+  {
+    "title": "089 도넛형과 원형 복합 차트",
+    "description": "Mixed Donut and Pie Chart",
+    "databaseId": 139,
+    "componentId": 41,
+    "datasetId": 39,
+    "datasetType": "TABLE",
+    "tableName": "TINTING",
+    "option": {
+      "series": {
+        "aggregation": "sum",
+        "radius": ["45%", "60%"],
+        "label": "{b}",
+        "name": "CASE",
+        "field": "IT"
+      },
+      "pie": {
+        "radius": "30%",
+        "aggregation": "sum",
+        "label": "{b}",
+        "name": "TINT",
+        "field": "CSOA"
+      },
+      "color": [
+        "#000000",
+        "#85c7fc",
+        "#94c983",
+        "#c1d96a",
+        "#f4f363",
+        "#eecd5b",
+        "#eaab56",
+        "#e88b4f",
+        "#ff0d00",
+        "#dc80ba",
+        "#c59cfc",
+        "#bd10e0",
+        "#6aa7eb",
+        "#85c7fc",
+        "#94c983",
+        "#c1d96a",
+        "#f4f363",
+        "#eecd5b",
+        "#eaab56",
+        "#e88b4f",
+        "#f05d55",
+        "#dc80ba",
+        "#c59cfc",
+        "#417505",
+        "#6aa7eb",
+        "#85c7fc",
+        "#94c983",
+        "#c1d96a",
+        "#f4f363"
+      ],
+      "legendPosition": "top"
+    }
+  },
+  {
+    "title": "090 나이팅게일과 원형 복합 차트",
+    "description": "Mixed Nightingale and Pie Chart",
+    "databaseId": 139,
+    "componentId": 42,
+    "datasetId": 40,
+    "datasetType": "TABLE",
+    "tableName": "TINTING",
+    "option": {
+      "series": {
+        "aggregation": "sum",
+        "radius": ["45%", "60%"],
+        "label": "{b}",
+        "name": "CASE",
+        "field": "IT"
+      },
+      "pie": {
+        "radius": "30%",
+        "aggregation": "sum",
+        "label": "{b}",
+        "name": "TINT",
+        "field": "CSOA"
+      },
+      "color": [
+        "#000000",
+        "#85c7fc",
+        "#94c983",
+        "#c1d96a",
+        "#f4f363",
+        "#eecd5b",
+        "#eaab56",
+        "#e88b4f",
+        "#ff0d00",
+        "#dc80ba",
+        "#c59cfc",
+        "#bd10e0",
+        "#6aa7eb",
+        "#85c7fc",
+        "#94c983",
+        "#c1d96a",
+        "#f4f363",
+        "#eecd5b",
+        "#eaab56",
+        "#e88b4f",
+        "#f05d55",
+        "#dc80ba",
+        "#c59cfc",
+        "#417505",
+        "#6aa7eb",
+        "#85c7fc",
+        "#94c983",
+        "#c1d96a",
+        "#f4f363"
+      ],
+      "legendPosition": "top"
+    }
+  },
+  {
+    "title": "091 선형 차트와 숫자 보드",
+    "description": "Line Chart and Score Board",
+    "databaseId": 118,
+    "componentId": 44,
+    "datasetId": 41,
+    "datasetType": "TABLE",
+    "tableName": "french_fries",
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "treatment"
+        },
+        {
+          "field": "subject",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        }
+      ],
+      "mark": true,
+      "header": {
+        "title": "타이틀을 입력하세요",
+        "fontSize": 20,
+        "color": "#4A4A4A"
+      },
+      "content": {
+        "aggregation": "sum",
+        "fontSize": 50,
+        "color": "#4A4A4A",
+        "field": "treatment",
+        "numForm": true
+      },
+      "xField": "subject",
+      "legendPosition": "top"
+    }
+  },
+  {
+    "title": "092 영역형 차트와 숫자 보드",
+    "description": "Area Chart and Score Board",
+    "databaseId": 118,
+    "componentId": 45,
+    "datasetId": 42,
+    "datasetType": "TABLE",
+    "tableName": "french_fries",
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "treatment"
+        },
+        {
+          "field": "subject",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        }
+      ],
+      "mark": true,
+      "header": {
+        "title": "타이틀을 입력하세요",
+        "fontSize": 20,
+        "color": "#4A4A4A"
+      },
+      "content": {
+        "aggregation": "sum",
+        "fontSize": 50,
+        "color": "#4A4A4A",
+        "field": "treatment",
+        "numForm": true
+      },
+      "xField": "subject",
+      "legendPosition": "top"
+    }
+  },
+  {
+    "title": "093 세로 막대형 차트와 숫자 보드",
+    "description": "Bar Chart and Score Board",
+    "databaseId": 118,
+    "componentId": 46,
+    "datasetId": 43,
+    "datasetType": "TABLE",
+    "tableName": "french_fries",
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "treatment"
+        },
+        {
+          "field": "subject",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        }
+      ],
+      "mark": true,
+      "header": {
+        "title": "타이틀을 입력하세요",
+        "fontSize": 20,
+        "color": "#4A4A4A"
+      },
+      "content": {
+        "aggregation": "sum",
+        "fontSize": 50,
+        "color": "#4A4A4A",
+        "field": "treatment",
+        "numForm": true
+      },
+      "xField": "subject",
+      "legendPosition": "top"
+    }
+  },
+  {
+    "title": "094 가로 막대형 차트와 숫자 보드",
+    "description": "Column Chart and Score Board",
+    "databaseId": 118,
+    "componentId": 47,
+    "datasetId": 44,
+    "datasetType": "TABLE",
+    "tableName": "french_fries",
+    "option": {
+      "series": [
+        {
+          "color": "#6aa7eb",
+          "aggregation": "sum",
+          "field": "treatment"
+        },
+        {
+          "field": "subject",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        }
+      ],
+      "mark": true,
+      "header": {
+        "title": "타이틀을 입력하세요",
+        "fontSize": 20,
+        "color": "#4A4A4A"
+      },
+      "content": {
+        "aggregation": "sum",
+        "fontSize": 50,
+        "color": "#4A4A4A",
+        "field": "treatment",
+        "numForm": true
+      },
+      "yField": "subject",
+      "legendPosition": "top"
+    }
+  },
+  {
+    "title": "095 누적 선형 차트와 숫자 보드",
+    "description": "Stacked Line Chart and Score Board",
+    "databaseId": 139,
+    "componentId": 48,
+    "datasetId": 45,
+    "datasetType": "TABLE",
+    "tableName": "SEATBELTS",
+    "option": {
+      "series": [
+        {
+          "color": "#d0021b",
+          "aggregation": "sum",
+          "field": "PetrolPrice"
+        },
+        {
+          "field": "REAR",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "FRONT",
+          "color": "#94c983",
+          "aggregation": "sum"
+        }
+      ],
+      "label": true,
+      "header": {
+        "title": "테스트",
+        "fontSize": 20,
+        "color": "#4A4A4A"
+      },
+      "content": {
+        "aggregation": "sum",
+        "fontSize": 50,
+        "color": "#4A4A4A",
+        "field": "DRIVERS",
+        "numForm": true
+      },
+      "xField": "DriversKilled",
+      "legendPosition": "left"
+    }
+  },
+  {
+    "title": "096 누적 영역형 차트와 숫자 보드",
+    "description": "Stacked Area Chart and Score Board",
+    "databaseId": 139,
+    "componentId": 49,
+    "datasetId": 46,
+    "datasetType": "TABLE",
+    "tableName": "SEATBELTS",
+    "option": {
+      "series": [
+        {
+          "color": "#d0021b",
+          "aggregation": "sum",
+          "field": "PetrolPrice"
+        },
+        {
+          "field": "REAR",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "FRONT",
+          "color": "#94c983",
+          "aggregation": "sum"
+        }
+      ],
+      "label": true,
+      "header": {
+        "title": "테스트",
+        "fontSize": 20,
+        "color": "#4A4A4A"
+      },
+      "content": {
+        "aggregation": "sum",
+        "fontSize": 50,
+        "color": "#4A4A4A",
+        "field": "DRIVERS",
+        "numForm": true
+      },
+      "xField": "DriversKilled",
+      "legendPosition": "left"
+    }
+  },
+  {
+    "title": "097 누적 세로 막대형 차트와 숫자 보드",
+    "description": "Stacked Bar Chart and Score Board",
+    "databaseId": 139,
+    "componentId": 50,
+    "datasetId": 47,
+    "datasetType": "TABLE",
+    "tableName": "SEATBELTS",
+    "option": {
+      "series": [
+        {
+          "color": "#d0021b",
+          "aggregation": "sum",
+          "field": "PetrolPrice"
+        },
+        {
+          "field": "REAR",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "FRONT",
+          "color": "#94c983",
+          "aggregation": "sum"
+        }
+      ],
+      "label": true,
+      "header": {
+        "title": "테스트",
+        "fontSize": 20,
+        "color": "#4A4A4A"
+      },
+      "content": {
+        "aggregation": "sum",
+        "fontSize": 50,
+        "color": "#4A4A4A",
+        "field": "DRIVERS",
+        "numForm": true
+      },
+      "xField": "DriversKilled",
+      "legendPosition": "left"
+    }
+  },
+  {
+    "title": "098 누적 가로 막대형 차트와 숫자 보드",
+    "description": "Stacked Column Chart and Score Board",
+    "databaseId": 139,
+    "componentId": 51,
+    "datasetId": 48,
+    "datasetType": "TABLE",
+    "tableName": "SEATBELTS",
+    "option": {
+      "series": [
+        {
+          "color": "#d0021b",
+          "aggregation": "sum",
+          "field": "PetrolPrice"
+        },
+        {
+          "field": "REAR",
+          "color": "#85c7fc",
+          "aggregation": "sum"
+        },
+        {
+          "field": "FRONT",
+          "color": "#94c983",
+          "aggregation": "sum"
+        }
+      ],
+      "label": true,
+      "header": {
+        "title": "테스트",
+        "fontSize": 20,
+        "color": "#4A4A4A"
+      },
+      "content": {
+        "aggregation": "sum",
+        "fontSize": 50,
+        "color": "#4A4A4A",
+        "field": "DRIVERS",
+        "numForm": true
+      },
+      "yField": "DriversKilled",
+      "legendPosition": "left"
+    }
+  },
+  {
+    "title": "099 도넛형 차트와 숫자 보드",
+    "description": "Donut Chart and Score Board",
+    "databaseId": 138,
+    "componentId": 52,
+    "datasetId": 49,
+    "datasetType": "TABLE",
+    "tableName": "NCBIRTHS",
+    "option": {
+      "series": {
+        "color": ["#6aa7eb", "#50e3c2"],
+        "aggregation": "sum",
+        "label": "{b}",
+        "radius": ["40%", "75%"],
+        "name": "marital",
+        "field": "mage"
+      },
+      "header": {
+        "title": "타이틀을 입력",
+        "fontSize": 20,
+        "color": "#4A4A4A"
+      },
+      "content": {
+        "aggregation": "sum",
+        "fontSize": 50,
+        "color": "#4A4A4A",
+        "field": "mage",
+        "numForm": true
+      }
+    }
+  },
+  {
+    "title": "100 나이팅게일 차트와 숫자 보드",
+    "description": "Nightingale Chart and Score Board",
+    "databaseId": 138,
+    "componentId": 53,
+    "datasetId": 50,
+    "datasetType": "TABLE",
+    "tableName": "NCBIRTHS",
+    "option": {
+      "series": {
+        "color": ["#6aa7eb", "#50e3c2"],
+        "aggregation": "sum",
+        "label": "{b}",
+        "radius": ["40%", "75%"],
+        "name": "marital",
+        "field": "mage"
+      },
+      "header": {
+        "title": "타이틀을 입력",
+        "fontSize": 20,
+        "color": "#4A4A4A"
+      },
+      "content": {
+        "aggregation": "sum",
+        "fontSize": 50,
+        "color": "#4A4A4A",
+        "field": "mage",
+        "numForm": true
+      }
+    }
+  }
+]

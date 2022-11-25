@@ -40,7 +40,7 @@ const GaugeChart = props => {
             },
             detail: {
               valueAnimation: 'true',
-              formatter: '{value}',
+              formatter: `{value} ${option.suffix ?? ''}`,
             },
             data: [
               {

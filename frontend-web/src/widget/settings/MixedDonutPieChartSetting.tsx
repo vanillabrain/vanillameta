@@ -27,12 +27,13 @@ const MixedDonutPieChartSetting = props => {
       const pieAggrData = getAggregationDataForChart(dataSet, option.pie.name, option.pie.field, option.pie.aggregation);
       aggrData = [...seriesAggrData, ...pieAggrData];
     }
-    const colorArr = getColorArr(aggrData.length);
-    // console.log(colorArr);
-    setOption(prevState => {
-      prevState.color = colorArr;
-      return { ...prevState };
-    });
+    if (aggrData.length !== option.color.length) {
+      const colorArr = getColorArr(aggrData.length);
+      setOption(prevState => {
+        prevState.color = colorArr;
+        return { ...prevState };
+      });
+    }
   };
 
   useEffect(() => {

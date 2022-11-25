@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import {
   Avatar,
   Box,
@@ -32,6 +32,7 @@ import { ReactComponent as TemplateIcon08 } from '@/assets/images/template/templ
 import { ReactComponent as TemplateIcon09 } from '@/assets/images/template/template09.svg';
 import { ReactComponent as TemplateIcon10 } from '@/assets/images/template/template10.svg';
 import { ReactComponent as CheckIcon } from '@/assets/images/icon/ic-check.svg';
+import { LoadingContext } from '@/contexts/LoadingContext';
 
 const getTemplateIcon = id => {
   let icon = null;
@@ -79,6 +80,7 @@ export const WidgetList = ({
   const alert = useAlert();
   const [loadedWidgetData, setLoadedWidgetData] = useState([]);
   const [selectedIds, setSelectedIds] = useState(selectedWidgetIds);
+  const { showLoading, hideLoading } = useContext(LoadingContext);
 
   useEffect(() => {
     getItems();
@@ -93,13 +95,18 @@ export const WidgetList = ({
   }, [selectedIds]);
 
   const getItems = () => {
-    WidgetService.selectWidgetList().then(response => {
-      if (response.data.status == STATUS.SUCCESS) {
-        setLoadedWidgetData(response.data.data);
-      } else {
-        console.log('조회 실패!!!!');
-      }
-    });
+    showLoading();
+    WidgetService.selectWidgetList()
+      .then(response => {
+        if (response.data.status == STATUS.SUCCESS) {
+          setLoadedWidgetData(response.data.data);
+        } else {
+          console.log('조회 실패!!!!');
+        }
+      })
+      .finally(() => {
+        hideLoading();
+      });
   };
 
   const handleClick = item => {
@@ -140,7 +147,7 @@ export const WidgetList = ({
         handleWidgetConfirm(widgets);
       }
     } else {
-      alert.info('위젯을 선택하세요.');
+      alert.info('위젯을 선택해주세요.');
     }
   };
 
@@ -216,7 +223,7 @@ export const WidgetList = ({
         >
           취소
         </Button>
-        <span style={{ width: '4px' }}></span>
+        <span style={{ width: '4px' }} />
         <Button
           onClick={() => handleConfirmClick()}
           sx={{
@@ -275,7 +282,7 @@ export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = 
         handleWidgetConfirm(selectedItem);
       }
     } else {
-      alert.info('템플릿을 선택하세요.');
+      alert.info('템플릿을 선택해주세요.');
     }
   };
 
@@ -337,6 +344,7 @@ export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = 
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       width: '224px',
+                      maxWidth: '100%',
                       whiteSpace: 'nowrap',
                     }}
                   >
@@ -390,7 +398,7 @@ export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = 
         >
           뒤로가기
         </Button>
-        <span style={{ width: '4px' }}></span>
+        <span style={{ width: '4px' }} />
         <Button
           onClick={() => handleConfirmClick()}
           sx={{
@@ -533,8 +541,8 @@ function RecommendDashboardPopup({ recommendOpen = false, handleComplete = null 
             position: 'absolute',
             right: '0px',
             top: '0px',
-            paddingRight: '19px',
-            paddingTop: '19px',
+            marginRight: '12px',
+            marginTop: '12px',
             cursor: 'pointer',
           }}
           size="medium"
