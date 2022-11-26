@@ -22,8 +22,9 @@ export const ProtectedRoute = ({ children }) => {
       authService
         .getUser()
         .then(response => {
-          if (response.status === 201) {
-            setUserState({ isLogin: true, userId: response.data.userId, email: response.data.email });
+          console.log(response);
+          if (response.status === 200) {
+            setUserState({ isLogin: true, userId: response.data.data.user_id, userEmail: response.data.data.email });
             console.log(userState, '유저정보');
           }
         })

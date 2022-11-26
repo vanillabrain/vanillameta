@@ -8,6 +8,7 @@ import { useAlert } from 'react-alert';
 import Copyright from '@/components/Copyright';
 import authService from '@/api/authService';
 import { SnackbarContext } from '@/contexts/AlertContext';
+import { checkEmail, checkPwd } from '@/utils/validateUtil';
 
 const SignUp = () => {
   const { isLogin, checkLogin } = useContext(AuthContext);
@@ -15,9 +16,10 @@ const SignUp = () => {
   const navigate = useNavigate();
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
-  const [userInfo] = useState({
+  const [userInfo, setUserInfo] = useState({
     userId: '',
-    userPwd: '',
+    userFirstPwd: '',
+    userSecondPwd: '',
     userEmail: '',
   });
   let isValid;
@@ -35,14 +37,13 @@ const SignUp = () => {
   const handleSignup = async event => {
     event.preventDefault();
     showLoading();
-    const data = {
-      user_id: event.target.userId.value,
-      password: event.target.userPwd.value,
-      email: event.target.userEmail.value,
-    };
-    await validateData(data);
-    isValid = true;
+    await validateData();
     if (isValid) {
+      const data = {
+        user_id: userInfo.userId,
+        password: userInfo.userFirstPwd,
+        email: userInfo.userEmail,
+      };
       await authService
         .signup(data)
         .then(res => {
@@ -64,32 +65,39 @@ const SignUp = () => {
     hideLoading();
   };
 
-  const validateData = ({ user_id, password, email }) => {
-    if (!user_id || !password || !email) {
+  const validateData = () => {
+    const { userId, userFirstPwd, userSecondPwd, userEmail } = userInfo;
+    console.log('userId:', userId, 'userFirstPwd:', userFirstPwd, 'userSecondPwd:', userSecondPwd, 'userEmail:', userEmail);
+    if (!userId || !userFirstPwd || !userSecondPwd || !userEmail) {
       snackbar.error('입력란을 모두 작성해 주세요.');
       return;
     } else {
-      if (user_id.length >= 20) {
+      if (userId.length >= 20) {
         snackbar.error('ID는 20글자 이내로 작성해 주세요.');
         return;
       }
-      if (password.length <= 8) {
-        snackbar.error('비밀번호는 8글자 이상이며 숫자와 대문자, 특수문자가 포함되어 있어야 합니다.');
+      if (userFirstPwd !== userSecondPwd) {
+        snackbar.error('비밀번호가 서로 다릅니다.');
         return;
       }
-      const checkPwd = /^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$ %^&*-]).{8,}$/;
-      if (!checkPwd.test(password)) {
+      if (!checkPwd.test(userFirstPwd)) {
         snackbar.error('비밀번호는 8글자 이상이며 숫자와 영문 대소문자, 특수문자가 포함되어 있어야 합니다.');
         return;
       }
-      const checkEmail = /^([a-z0-9_\.-]+)@([\da-z\.-]+)\.([a-z\.]{2,6})$/;
-      if (!checkEmail.test(email)) {
+      if (!checkEmail.test(userEmail)) {
         snackbar.error('E-mail의 형식이 맞는지 확인해 주세요.');
         return;
       }
-      console.log('user_id:', user_id, 'password:', password, 'email:', email);
       isValid = true;
     }
+  };
+
+  const handleChange = event => {
+    event.preventDefault();
+    setUserInfo(prevState => ({
+      ...prevState,
+      [event.target.name]: event.target.value,
+    }));
   };
 
   return (
@@ -123,20 +131,31 @@ const SignUp = () => {
               margin="normal"
               required
               fullWidth
-              id="userId"
               label="User ID"
               name="userId"
-              defaultValue={userInfo.userId}
+              value={userInfo.userId}
+              onChange={handleChange}
             />
             <TextField
               margin="normal"
               required
               fullWidth
-              name="userPwd"
-              defaultValue={userInfo.userPwd}
+              name="userFirstPwd"
+              value={userInfo.userFirstPwd}
+              onChange={handleChange}
               label="Password"
               type="password"
-              id="password"
+              sx={{ height: '36px' }}
+            />
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              name="userSecondPwd"
+              value={userInfo.userSecondPwd}
+              onChange={handleChange}
+              label="Confirm Password"
+              type="password"
               sx={{ height: '36px' }}
             />
             <TextField
@@ -144,10 +163,10 @@ const SignUp = () => {
               required
               fullWidth
               name="userEmail"
-              defaultValue={userInfo.userEmail}
+              value={userInfo.userEmail}
+              onChange={handleChange}
               label="E-mail"
               type="email"
-              id="email"
               sx={{ height: '36px' }}
             />
             <Button type="submit" size="large" fullWidth variant="contained" sx={{ mt: 3, mb: 2 }}>

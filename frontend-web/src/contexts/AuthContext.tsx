@@ -11,7 +11,7 @@ export const AuthProvider = ({ children }) => {
   const [userState, setUserState] = useState({
     isLogin: false,
     userId: null,
-    email: null,
+    userEmail: null,
   });
 
   const handleLogin = async (id, pwd) => {
