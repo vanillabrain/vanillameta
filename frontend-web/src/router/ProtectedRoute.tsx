@@ -6,11 +6,12 @@ import authService from '@/api/authService';
 
 export const ProtectedRoute = ({ children }) => {
   const navigate = useNavigate();
-  const { userState, setUserState } = useContext(AuthContext);
+  const { userState, setUserState, onRefresh } = useContext(AuthContext);
 
   // accessToken을 localStorage에서 꺼내기
   const token = getToken();
   console.log('token:', token);
+  let sent;
 
   useEffect(() => {
     getUserState();
@@ -34,8 +35,12 @@ export const ProtectedRoute = ({ children }) => {
         });
     } else {
       // accessToken이 localStorage에 없으면 RefreshToken으로 accessToken 재발급받기
-      // 다시 처음으로
-      // getUserState();
+      if (!sent) {
+        sent = true;
+        onRefresh();
+        // 다시 처음으로
+        getUserState();
+      }
     }
   };
 
