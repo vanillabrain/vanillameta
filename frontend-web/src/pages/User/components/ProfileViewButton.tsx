@@ -1,12 +1,16 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { Avatar, Box, Button, ClickAwayListener, Paper, Popper, Stack, Typography } from '@mui/material';
 import { ReactComponent as IconUser } from '@/assets/images/icon/ic-user.svg';
 import { Link as RouterLink } from 'react-router-dom';
 import ProfileModify from '@/pages/User/components/ProfileModify';
+import { AuthContext } from '@/contexts/AuthContext';
 
-const ProfileViewButton = ({ handleSelect = null, iconUrl = IconUser }) => {
+const ProfileViewButton = () => {
+  const { userState } = useContext(AuthContext);
   const [open, setOpen] = React.useState(false);
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+
+  console.log(userState);
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -52,16 +56,17 @@ const ProfileViewButton = ({ handleSelect = null, iconUrl = IconUser }) => {
             </Avatar>
             <Stack>
               <Typography sx={{ fontSize: '14px', fontWeight: 'bold', lineHeight: '18px', color: '#141414' }}>
-                유저이름
+                {userState.userId}
                 <Box component="span" sx={{ ml: '4px', fontWeight: 'normal', color: '#767676' }}>
                   님
                 </Box>
               </Typography>
               <Typography sx={{ mt: 1, fontSize: '14px', lineHeight: '20px', color: '#141414' }}>
-                username@gmail.com
+                {userState.userEmail}
               </Typography>
               <Stack>
                 <Typography
+                  component="div"
                   sx={{
                     display: 'flex',
                     justifyContent: 'center',

@@ -36,7 +36,7 @@ function Header(props) {
         <NavBar navItems={navItems} />
         <Box sx={{ display: 'flex', gap: '16px' }}>
           <AddMenuIconButton menuList={menuList} handleSelect={handleMenuSelect} />
-          <ProfileViewButton handleSelect={handleMenuSelect} />
+          <ProfileViewButton />
         </Box>
       </Toolbar>
       <Divider />
