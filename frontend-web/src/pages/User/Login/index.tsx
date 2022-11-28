@@ -7,37 +7,51 @@ import { LoadingContext } from '@/contexts/LoadingContext';
 import { ReactComponent as Logo } from '@/assets/images/logo.svg';
 import backgroundImage from '@/assets/images/visual-bg.png';
 import Copyright from '@/components/Copyright';
+import authService from '@/api/authService';
 
 const Login = () => {
-  const { isLogin, onLogin, checkLogin } = useContext(AuthContext);
+  const { setToken, userState } = useContext(AuthContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const navigate = useNavigate();
   const alert = useAlert();
-  const [userInfo] = useState({
+  const [userInfo, setUserInfo] = useState({
     userId: '',
     userPwd: '',
   });
 
+  console.log('isLogin:', userState?.isLogin);
+
   useEffect(() => {
-    showLoading();
-    // checkLogin();
-    console.log('Login', isLogin);
-    if (isLogin) {
+    if (userState?.isLogin) {
       navigate('/dashboard');
     }
-    hideLoading();
-  }, [isLogin]);
+  }, []);
+
+  const handleChange = event => {
+    event.preventDefault();
+    setUserInfo(prevState => ({
+      ...prevState,
+      [event.target.name]: event.target.value,
+    }));
+  };
 
   const handleLogin = async event => {
     event.preventDefault();
     showLoading();
-    await onLogin(event.target.userId.value, event.target.userPwd.value)
-      .then(res => {
-        if (res) {
+    const data = {
+      user_id: userInfo.userId,
+      password: userInfo.userPwd,
+    };
+    await authService
+      .signin(data)
+      .then(response => {
+        if (response.status === 201) {
+          setToken(response.data.accessToken);
           navigate('/dashboard');
         }
       })
-      .catch(() => {
+      .catch(error => {
+        console.log(error);
         alert.error('ID 또는 비밀번호가 일치하지 않습니다.');
       })
       .finally(() => {
@@ -69,23 +83,23 @@ const Login = () => {
         </Typography>
         <Stack component="form" onSubmit={handleLogin} noValidate sx={{ width: '360px', mt: '56px' }} spacing="20px">
           <TextField
-            margin="normal"
-            required
-            fullWidth
-            id="userId"
             label="User ID"
-            name="email"
-            defaultValue={userInfo.userId}
+            name="userId"
+            value={userInfo.userId}
+            onChange={handleChange}
+            margin="normal"
+            required={true}
+            fullWidth
           />
           <TextField
-            margin="normal"
-            required
-            fullWidth
-            name="userPwd"
-            defaultValue={userInfo.userPwd}
             label="Password"
+            name="userPwd"
+            value={userInfo.userPwd}
+            onChange={handleChange}
             type="password"
-            id="password"
+            margin="normal"
+            required={true}
+            fullWidth
             sx={{ height: '36px' }}
           />
           {/*<FormControlLabel control={<Checkbox value="remember" color="primary" />} label="Remember me" />*/}

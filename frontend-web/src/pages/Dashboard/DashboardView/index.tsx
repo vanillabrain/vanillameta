@@ -131,9 +131,9 @@ const DashboardView = () => {
 
   const handleShareToggle = () => {
     if (!isShareOn) {
-      authService.getShareToken(dashboardId).then(response => {
-        console.log(response); // error!!
-      });
+      // authService.getShareTokenOn(dashboardId).then(response => {
+      //   console.log(response); // error!!
+      // });
       setIsShareOn(true);
     } else {
       setIsShareOn(false);

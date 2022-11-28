@@ -26,7 +26,6 @@ const SignUp = () => {
 
   useEffect(() => {
     showLoading();
-    // checkLogin();
     console.log('Login', isLogin);
     if (isLogin) {
       navigate('/dashboard');
