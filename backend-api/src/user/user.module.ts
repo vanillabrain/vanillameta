@@ -8,10 +8,11 @@ import { AuthModule } from 'src/auth/auth.module';
 import { JwtModule } from '@nestjs/jwt';
 import { RefreshToken } from 'src/auth/entites/refresh_token.entity';
 import { User } from './entities/user.entity';
+import { Dashboard } from 'src/dashboard/entities/dashboard.entity';
 
 
 @Module({
-  imports: [TypeOrmModule.forFeature([UserInfo, RefreshToken, User]), AuthModule, JwtModule],
+  imports: [TypeOrmModule.forFeature([UserInfo, RefreshToken, User, Dashboard]), AuthModule, JwtModule],
   controllers: [UserController],
   providers: [UserService, AuthService]
 })
