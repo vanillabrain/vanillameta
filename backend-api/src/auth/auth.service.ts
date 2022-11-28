@@ -68,15 +68,30 @@ export class AuthService {
         await this.refreshTokenRepository.delete(refreshTokenInfo);
     }
 
-    async verifyAccessToken(Token: string) {
+    async verifyAccessToken(token: string) {
         try{
-            const token = Token.replace('Bearer ', '');
+            const Token = token.replace('Bearer ', '');
             const secretKey = process.env.ACCESS_SECRET
-            const findUser = await this.jwtService.verify(token, { secret: secretKey })
-            console.log(findUser)
+            const findUser = await this.jwtService.verify(Token, { secret: secretKey })
             return findUser
         } catch (err) {
             throw new HttpException({message: 'accessTokenExpired'}, HttpStatus.UNAUTHORIZED);
         }
+    } // Access 토큰이 유효한지 확인
+
+    async verifyRefreshToken(token: string) {
+        try{
+            const Token = token.replace('Bearer ', '').split('=')[1];
+            const secretKey = process.env.REFRESH_SECRET
+            const findUser = await this.jwtService.verify(Token, { secret: secretKey })
+            return findUser
+        } catch (err) {
+            throw new HttpException({ message: 'refreshTokenExpired' }, HttpStatus.UNAUTHORIZED);
+        }
+    } // Access 토큰이 유효한지 확인
+
+    async checkAccess(token: string) {
+        const tokenInfo = this.verifyAccessToken(token);
+        // this.validateUser(tokenInfo.user_id, tokenInfo.password)
     }
 }

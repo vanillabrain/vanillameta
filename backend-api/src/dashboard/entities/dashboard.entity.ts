@@ -19,6 +19,9 @@ export class Dashboard extends BaseEntity {
     @Column({comment: '순서', nullable: true})
     seq: number
 
+    @Column({comment: '공유Token', nullable: true})
+    shareToken: string
+
     @Column({length: 1, default: YesNo.NO, comment: '삭제여부'})
     delYn: YesNo
 
