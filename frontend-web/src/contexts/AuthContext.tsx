@@ -11,7 +11,7 @@ export const AuthProvider = ({ children }) => {
   const [userState, setUserState] = useState({
     isLogin: false,
     userId: null,
-    email: null,
+    userEmail: null,
   });
 
   const handleLogin = async (id, pwd) => {
@@ -39,7 +39,33 @@ export const AuthProvider = ({ children }) => {
   };
 
   const handleLogout = () => {
-    removeToken();
+    authService
+      .logout()
+      .then(response => {
+        if (response.statue === 200) {
+          removeToken();
+        }
+      })
+      .catch(error => {
+        console.log(error, error.response.data.data.message);
+        throw error;
+      });
+  };
+
+  const handleRefresh = () => {
+    authService
+      .refreshAccessToken()
+      .then(response => {
+        console.log(response);
+        if (response.status === 201) {
+          setToken(response.data.accessToken);
+          return response.data.accessToken;
+        }
+      })
+      .catch(error => {
+        console.log(error, error.response.data.data.message);
+        throw error;
+      });
   };
 
   const value = {
@@ -47,6 +73,7 @@ export const AuthProvider = ({ children }) => {
     setUserState,
     onLogin: handleLogin,
     onLogout: handleLogout,
+    onRefresh: handleRefresh,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

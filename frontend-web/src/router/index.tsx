@@ -17,10 +17,12 @@ import { ProtectedRoute } from '@/router/ProtectedRoute';
 import Layout from '@/layouts/Layout';
 import Login from '@/pages/User/Login';
 import SignUp from '@/pages/User/SignUp';
+import DashboardShare from '@/pages/Dashboard/DashboardShare';
 
 function Router() {
   return (
     <Routes>
+      <Route path="/share/:dashboardToken" element={<DashboardShare />} />
       <Route
         path="/"
         element={
