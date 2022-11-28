@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { AuthService } from 'src/auth/auth.service.js';
-import { Dashboard } from 'src/dashboard/entities/dashboard.entity.js';
-import { UserInfo } from 'src/user/entities/user-info.entity.js';
+import { AuthService } from '../auth/auth.service.js';
+import { Dashboard } from '../dashboard/entities/dashboard.entity.js';
+import { UserInfo } from '../user/entities/user-info.entity.js';
 import { Repository } from 'typeorm';
 import { YesNo } from '../common/enum/yn.enum.js';
 import { CreateShareUrlDto } from './dto/create-share-url.dto';
