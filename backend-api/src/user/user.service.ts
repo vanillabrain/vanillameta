@@ -6,12 +6,14 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserInfo } from './entities/user-info.entity';
 import { User } from './entities/user.entity.js';
+import { Dashboard } from '../dashboard/entities/dashboard.entity.js';
 
 @Injectable()
 export class UserService {
   constructor(
   @InjectRepository(UserInfo) private readonly userInfoRepository: Repository<UserInfo>,
   @InjectRepository(User) private readonly userRepository: Repository<User>,
+  @InjectRepository(Dashboard) private dashboardRepository: Repository<Dashboard>,
   private authService: AuthService,
   ) {}
 
@@ -69,8 +71,9 @@ export class UserService {
     if(!findUser){
       return 'not exist user';
     } else {
-      findUser.user_id = String(updateUserDto.user_id);
-      await this.userInfoRepository.save(findUser)
+      findUser.email = String(updateUserDto.email);
+      findUser.password = String(updateUserDto.password);
+      await this.userInfoRepository.save(findUser);
       return `This action update_name a #${findUser.user_id} user`;
     }
   }
@@ -85,4 +88,26 @@ export class UserService {
       return `success`;
     }
   }
+
+  async checkShareUrl( accessToken:string, dashboard_id: number ) {
+    const { accessKeyData } = await this.authService.verifyAccessToken(accessToken)
+    const findUser = await this.authService.validateUser( accessKeyData.user_id, accessKeyData.password );
+    if(!findUser){
+      return 'not exist user'
+    } else {
+      const newToken = await this.authService.generateRefreshToken(String(dashboard_id)); //새로운 공유 토큰 생성
+      const findDashboard = await this.dashboardRepository.findOne( {where: { id: dashboard_id } })
+      findDashboard.shareToken = newToken;
+      await this.dashboardRepository.save(findDashboard)
+      return { Token: findDashboard.shareToken, message: "success" }
+    }
+  }
+
+  async reissuanceAccessToken(cookie: string){
+    const tokenInfo = await this.authService.verifyRefreshToken(cookie)
+    const payload = await this.userInfoRepository.findOne({ where: { user_id: tokenInfo.user_id }})
+    return await this.authService.generateAccessToken(payload)
+
+  }
+
 }

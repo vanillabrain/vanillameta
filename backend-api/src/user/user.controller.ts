@@ -65,4 +65,20 @@ export class UserController {
     const { password } = createUserDto;
     return this.userService.deleteUser( authorization, password);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('share/:dashboard_id')
+  checkShareUrl(@Req() req, @Param() params) {
+    const { authorization } = req.headers;
+    const { dashboard_id } = params;
+    return this.userService.checkShareUrl( authorization, dashboard_id)
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('get-access-token')
+  async reissuanceAccessToken(@Req() req) {
+    const { cookie } = req.headers;
+    const accessToken = await this.userService.reissuanceAccessToken(cookie)
+    return { accessToken: accessToken, message: 'success' }
+  }
 }
