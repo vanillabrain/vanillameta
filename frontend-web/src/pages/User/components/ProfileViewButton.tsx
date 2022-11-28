@@ -1,10 +1,17 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { Avatar, Box, Button, ClickAwayListener, Paper, Popper, Stack, Typography } from '@mui/material';
 import { ReactComponent as IconUser } from '@/assets/images/icon/ic-user.svg';
-import { Link as RouterLink } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { useAlert } from 'react-alert';
 import ProfileModify from '@/pages/User/components/ProfileModify';
+import { AuthContext } from '@/contexts/AuthContext';
+import { LoadingContext } from '@/contexts/LoadingContext';
 
-const ProfileViewButton = ({ handleSelect = null, iconUrl = IconUser }) => {
+const ProfileViewButton = () => {
+  const { userState, onLogout } = useContext(AuthContext);
+  const { showLoading, hideLoading } = useContext(LoadingContext);
+  const navigate = useNavigate();
+  const alert = useAlert();
   const [open, setOpen] = React.useState(false);
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
 
@@ -19,6 +26,20 @@ const ProfileViewButton = ({ handleSelect = null, iconUrl = IconUser }) => {
 
   const canBeOpen = open && Boolean(anchorEl);
   const id = canBeOpen ? 'transition-popper' : undefined;
+
+  const handleLogout = () => {
+    // showLoading();
+    onLogout()
+      .then(response => {
+        if (response.status === 200) {
+          alert.success('로그아웃 되었습니다.');
+          navigate('/login');
+        }
+      })
+      .finally(() => {
+        // hideLoading();
+      });
+  };
 
   return (
     <>
@@ -52,16 +73,17 @@ const ProfileViewButton = ({ handleSelect = null, iconUrl = IconUser }) => {
             </Avatar>
             <Stack>
               <Typography sx={{ fontSize: '14px', fontWeight: 'bold', lineHeight: '18px', color: '#141414' }}>
-                유저이름
+                {userState.userId}
                 <Box component="span" sx={{ ml: '4px', fontWeight: 'normal', color: '#767676' }}>
                   님
                 </Box>
               </Typography>
               <Typography sx={{ mt: 1, fontSize: '14px', lineHeight: '20px', color: '#141414' }}>
-                username@gmail.com
+                {userState.userEmail}
               </Typography>
               <Stack>
                 <Typography
+                  component="div"
                   sx={{
                     display: 'flex',
                     justifyContent: 'center',
@@ -73,15 +95,30 @@ const ProfileViewButton = ({ handleSelect = null, iconUrl = IconUser }) => {
                     color: '#4a4a4a',
                   }}
                 >
-                  <Box
-                    component={RouterLink}
-                    to="/"
+                  <Button
+                    // component={RouterLink}
+                    // to="/login"
+                    onClick={handleLogout}
+                    disableRipple
+                    disableFocusRipple
+                    disableTouchRipple
                     sx={{
                       display: 'flex',
                       justifyContent: 'center',
                       alignItems: 'center',
+                      minWidth: 0,
+                      minHeight: 0,
+                      m: 0,
+                      p: 0,
                       gap: '12px',
+                      fontSize: 'inherit',
+                      fontWeight: 'inherit',
+                      textDecoration: 'underline',
                       color: 'inherit',
+                      '&:hover': {
+                        textDecoration: 'underline',
+                        backgroundColor: 'inherit',
+                      },
 
                       '&:after': {
                         content: `""`,
@@ -92,7 +129,7 @@ const ProfileViewButton = ({ handleSelect = null, iconUrl = IconUser }) => {
                     }}
                   >
                     로그아웃
-                  </Box>
+                  </Button>
 
                   <ProfileModify />
                 </Typography>

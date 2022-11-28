@@ -1,9 +1,8 @@
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
-import { ROUTE_URL_LOGIN } from '@/constant';
 import { AuthContext } from '@/contexts/AuthContext';
 import { useContext } from 'react';
 import authService from '@/api/authService';
+import { getToken } from '@/helpers/authHelper';
 
 // apply base url for axios
 const API_URL = process.env.REACT_APP_API_URL;
@@ -18,48 +17,67 @@ const instance = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Add a request interceptor
-instance.interceptors.request.use(async config => {
-  const { token } = useContext(AuthContext);
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  // if (config.url === URL_REFRESH || config.url === URL_LOGOUT) {
-  //   config.headers.RefreshAuthorization = getRefreshToken();
-  // }
-  // console.log('firebase token : ', token);
-  return config;
-});
+// request interceptor
+instance.interceptors.request.use(
+  async config => {
+    const token = await getToken();
+    console.log(token, 'token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    // if (config.url === URL_REFRESH || config.url === URL_LOGOUT) {
+    //   config.headers.RefreshAuthorization = getRefreshToken();
+    // }
+    return config;
+  },
+  error => {
+    return Promise.reject(error);
+  },
+);
 
+// response interceptor
 instance.interceptors.response.use(
   response => {
     return response;
   },
   async error => {
-    if (error?.response?.status) {
-      const {
-        response: { status },
-      } = error;
-      if (status === 401) {
-        console.log(error, 'error');
-        if (error.response.data.message === 'accessTokenExpired') {
-          return await resetTokenAndReattemptRequest(error);
-        }
-        //   if (error.response.data.message === 'JsonWebTokenError') {
-        //     removeToken();
-        //     window.location.reload();
-        //   } else
-        // if (error.response.data.message === 'Unauthorized') {
-        // 권한없음
-        // const navigate = useNavigate();
-        // navigate(ROUTE_URL_LOGIN);
-        // }
-      }
-      error.message =
-        (error.response && error.response.data && error.response.data.message) || error.message || error.toString();
-      return Promise.reject(error);
+    // const refresh = useRefreshToken();
+    const { onRefresh } = useContext(AuthContext);
+    const prevRequest = error?.config;
+    if (error?.response?.status === 403 && !prevRequest?.sent) {
+      prevRequest.sent = true;
+      const newToken = await onRefresh();
+      prevRequest.headers['Authorization'] = `Bearer ${newToken}`;
+      return instance(prevRequest);
     }
+    error.message =
+      (error.response && error.response.data && error.response.data.message) || error.message || error.toString();
+    return Promise.reject(error);
   },
+  // if (error?.response?.status) {
+  //       const {
+  //         response: { status },
+  //       } = error;
+  //       console.log(error, 'error');
+  //       if (status === 401) {
+  //         if (error.response.data.message === 'accessTokenExpired') {
+  //           return await resetTokenAndReattemptRequest(error);
+  //         }
+  //         //
+  //         //   if (error.response.data.message === 'JsonWebTokenError') {
+  //         //     removeToken();
+  //         //     window.location.reload();
+  //         //   } else
+  //         // if (error.response.data.message === 'Unauthorized') {
+  //         // 권한없음
+  //         // const navigate = useNavigate();
+  //         // navigate(ROUTE_URL_LOGIN);
+  //         // }
+  //       }
+  //       error.message =
+  //         (error.response && error.response.data && error.response.data.message) || error.message || error.toString();
+  //       return Promise.reject(error);
+  //     }
 );
 
 async function resetTokenAndReattemptRequest(error) {
@@ -86,7 +104,8 @@ async function resetTokenAndReattemptRequest(error) {
     if (!isAlreadyFetchingAccessToken) {
       isAlreadyFetchingAccessToken = true; // 문닫기 (한 번만 요청)
 
-      const { data } = await authService.getAccessToken();
+      const { data } = await authService.refreshAccessToken();
+      console.log(data, 'token');
       // 새로운 토큰 저장
       const newAccessToken = data.accessToken;
       const { setToken } = useContext(AuthContext);

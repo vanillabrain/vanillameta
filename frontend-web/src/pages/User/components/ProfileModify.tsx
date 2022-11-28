@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useContext, useState } from 'react';
 import {
   Button,
   Dialog,
@@ -11,6 +11,12 @@ import {
   TextField,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import { AuthContext } from '@/contexts/AuthContext';
+import authService from '@/api/authService';
+import { checkEmail, checkPwd } from '@/utils/validateUtil';
+import { SnackbarContext } from '@/contexts/AlertContext';
+import { LoadingContext } from '@/contexts/LoadingContext';
+import { useAlert } from 'react-alert';
 
 const BootstrapDialog = styled(Dialog)(({ theme }) => ({
   '& .MuiDialogContent-root': {
@@ -61,13 +67,83 @@ const BootstrapDialogTitle = (props: DialogTitleProps) => {
 };
 
 const ProfileModify = props => {
+  const { userState } = useContext(AuthContext);
+  const alert = useAlert();
+  const snackbar = useAlert(SnackbarContext);
+  const initialState = { userFirstPwd: '', userSecondPwd: '', userEmail: '' };
+  const [changedUserInfo, setChangedUserInfo] = useState(initialState);
   const [open, setOpen] = React.useState(false);
+  const { showLoading, hideLoading } = useContext(LoadingContext);
+  let isValid;
+
+  const validateData = () => {
+    const { userFirstPwd, userSecondPwd, userEmail } = changedUserInfo;
+    console.log('userFirstPwd:', userFirstPwd, 'userSecondPwd:', userSecondPwd, 'userEmail:', userEmail);
+    if (!userFirstPwd || !userSecondPwd || !userEmail) {
+      snackbar.error('입력란을 모두 작성해 주세요.');
+      return;
+    } else {
+      if (userFirstPwd !== userSecondPwd) {
+        snackbar.error('비밀번호가 서로 다릅니다.');
+        return;
+      }
+      if (!checkPwd.test(userFirstPwd)) {
+        snackbar.error('비밀번호는 8글자 이상이며 숫자와 영문 대소문자, 특수문자가 포함되어 있어야 합니다.');
+        return;
+      }
+      if (!checkEmail.test(userEmail)) {
+        snackbar.error('E-mail의 형식이 맞는지 확인해 주세요.');
+        return;
+      }
+      isValid = true;
+    }
+  };
+
+  const updateUserInfo = () => {
+    const data = {
+      user_id: userState.userId,
+      password: changedUserInfo.userFirstPwd,
+    };
+    showLoading();
+    authService
+      .updateUser(data)
+      .then(response => {
+        console.log(response);
+        if (response.state === 201) {
+          alert.success('프로필 수정에 성공했습니다.');
+        } else {
+          alert.error('프로필 수정에 실패했습니다.');
+        }
+      })
+      .finally(() => {
+        hideLoading();
+      });
+  };
 
   const handleClickOpen = () => {
     setOpen(true);
   };
   const handleClose = () => {
     setOpen(false);
+    setChangedUserInfo(initialState);
+  };
+
+  const handleChange = event => {
+    event.preventDefault();
+    setChangedUserInfo(prevState => ({
+      ...prevState,
+      [event.target.name]: event.target.value,
+    }));
+  };
+
+  const handleSubmit = event => {
+    event.preventDefault();
+    validateData();
+    if (isValid) {
+      updateUserInfo();
+      setOpen(false);
+      setChangedUserInfo(initialState);
+    }
   };
 
   return (
@@ -75,8 +151,8 @@ const ProfileModify = props => {
       <Button
         // aria-describedby={id}
         onClick={handleClickOpen}
-        anchorReference="anchorPosition"
-        anchorPosition={{ top: '50%', left: '50%' }}
+        // anchorReference="anchorPosition"
+        // anchorPosition={{ top: '50%', left: '50%' }}
         disableRipple
         disableFocusRipple
         disableTouchRipple
@@ -102,19 +178,39 @@ const ProfileModify = props => {
         <BootstrapDialogTitle id="customized-dialog-title" onClose={handleClose}>
           프로필 수정
         </BootstrapDialogTitle>
-        <DialogContent sx={{ m: 'auto', mt: '15px', mb: '30px', p: 0 }}>
-          <Stack gap="20px" sx={{ width: '360px', p: 0 }}>
-            <TextField label="User Id" name="userId" disabled={true} />
-            <TextField label="현재 비밀번호" name="oldPassword" />
-            <TextField label="새 비밀번호" name="newPassword" />
-            <TextField label="E-mail" name="email" />
+        <DialogContent sx={{ m: 'auto', mt: '10px', mb: '30px', p: 0 }}>
+          {/*<FormControl required sx={{ m: 'auto', mt: '10px', mb: '30px', p: 0 }}>*/}
+          <Stack
+            id="modifyProfile"
+            component="form"
+            gap="20px"
+            sx={{ width: '360px', p: 0, pt: '5px' }}
+            onSubmit={handleSubmit}
+          >
+            <TextField label="User Id" name="userId" required disabled={true} value={userState.userId} />
+            <TextField
+              label="Password"
+              name="userFirstPwd"
+              required
+              value={changedUserInfo.userFirstPwd}
+              onChange={handleChange}
+            />
+            <TextField
+              label="Confirm Password"
+              name="userSecondPwd"
+              required
+              value={changedUserInfo.userSecondPwd}
+              onChange={handleChange}
+            />
+            <TextField label="E-mail" name="userEmail" required value={changedUserInfo.userEmail} onChange={handleChange} />
+            {/*</FormControl>*/}
           </Stack>
         </DialogContent>
         <DialogActions sx={{ height: '64px', borderTop: '1px solid #ececec' }}>
           <Button onClick={handleClose} sx={{ fontSize: '14px', fontWeight: 600, color: '#767676' }}>
             취소
           </Button>
-          <Button autoFocus onClick={handleClose} sx={{ fontSize: '14px', fontWeight: 600 }}>
+          <Button autoFocus form="modifyProfile" type="submit" sx={{ fontSize: '14px', fontWeight: 600 }}>
             수정하기
           </Button>
         </DialogActions>

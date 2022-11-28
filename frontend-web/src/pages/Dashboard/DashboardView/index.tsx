@@ -16,6 +16,7 @@ import ReloadButton from '@/components/button/ReloadButton';
 import ShareButton from '@/components/button/ShareButton';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
+import authService from '@/api/authService';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -129,10 +130,13 @@ const DashboardView = () => {
   };
 
   const handleShareToggle = () => {
-    if (isShareOn) {
-      setIsShareOn(false);
-    } else {
+    if (!isShareOn) {
+      authService.getShareToken(dashboardId).then(response => {
+        console.log(response); // error!!
+      });
       setIsShareOn(true);
+    } else {
+      setIsShareOn(false);
     }
   };
 
