@@ -61,11 +61,10 @@ export class AuthService {
     }
 
     async deleteRefreshToken(Token: string) {
-        const token = Token.replace('Bearer ', '');
+        const token = Token.replace('Bearer ', '').split('=')[1];
         const refreshTokenInfo = await this.refreshTokenRepository.findOne({
             where: { refreshToken: token },
         });
-        console.log(refreshTokenInfo)
         await this.refreshTokenRepository.delete(refreshTokenInfo);
     }
 
@@ -74,6 +73,7 @@ export class AuthService {
             const token = Token.replace('Bearer ', '');
             const secretKey = process.env.ACCESS_SECRET
             const findUser = await this.jwtService.verify(token, { secret: secretKey })
+            console.log(findUser)
             return findUser
         } catch (err) {
             throw new HttpException({message: 'accessTokenExpired'}, HttpStatus.UNAUTHORIZED);

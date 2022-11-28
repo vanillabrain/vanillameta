@@ -35,7 +35,7 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @Post('signout')
   async signOut(@Res() res, @Req() req) {
-    const refreshToken = req.headers.authorization;
+    const refreshToken = req.headers.cookie;
     await this.authService.deleteRefreshToken(refreshToken)
     return res
         .status(205)
