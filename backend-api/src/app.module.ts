@@ -13,8 +13,10 @@ import { ComponentModule } from './component/component.module';
 import { ConnectionModule } from './connection/connection.module';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
-import { LoggerMiddleware } from './middleware/logger';
+import { loginLoggerMiddleware } from './middleware/login-logger';
 import { UserController } from './user/user.controller';
+import { LoginModule } from './login/login.module';
+import { ShareUrlModule } from './share-url/share-url.module';
 
 @Module({
   imports: [
@@ -45,12 +47,14 @@ import { UserController } from './user/user.controller';
     ConnectionModule,
     UserModule,
     AuthModule,
+    LoginModule,
+    ShareUrlModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply( LoggerMiddleware ).forRoutes('user');
+    consumer.apply( loginLoggerMiddleware ).forRoutes('login');
   }
 }
