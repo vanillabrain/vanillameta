@@ -32,6 +32,8 @@ export class DashboardService {
       widgetIds: widgetIds,
     };
 
+    // user테이블에 대시보드id저장
+
     await this.dashboardWidgetService.create(saveObjDW);
 
     newDashboard.layout = JSON.parse(newDashboard.layout);
