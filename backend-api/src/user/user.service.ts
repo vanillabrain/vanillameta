@@ -50,8 +50,9 @@ export class UserService {
 
   async findOne(accessToken: string) {
     const findUser = await this.authService.verifyAccessToken(accessToken)
+    const { accessKeyData } = findUser;
     const userData = await this.userInfoRepository.findOne({
-      where: { user_id: findUser.user_id }
+      where: { user_id: accessKeyData.user_id }
     });
     if(!userData){
       return 'Bad Request'
