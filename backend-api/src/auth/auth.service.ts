@@ -24,14 +24,19 @@ export class AuthService {
             }
             const accessToken = await this.jwtService.sign({accessKeyData}, {
                 secret: process.env.ACCESS_SECRET,
-                expiresIn: `600s`
+                expiresIn: `1200s`
             })
             return accessToken
         // accesstoken이 없을때
     }
 
-    async generateRefreshToken(user_id: string) {
-        const refreshToken = await this.jwtService.sign({user_id: user_id}, { secret: process.env.REFRESH_SECRET, expiresIn: "3600s" })
+    async generateRefreshToken(payload: any) {
+        const refreshKeyData = {
+            user_id: payload.user_id,
+            email: payload.email,
+            id: payload.id
+        }
+        const refreshToken = await this.jwtService.sign({refreshKeyData}, { secret: process.env.REFRESH_SECRET, expiresIn: "7200s" })
         return refreshToken
         // accesstoken이 없을때
     }
@@ -39,14 +44,16 @@ export class AuthService {
     async setRefreshKey(refreshToken: string, user_id: string){
         const findUser = await this.refreshTokenRepository.findOne({ where: {user_id: user_id} });
         const token = refreshToken.replace('Bearer ', '');
-        (!findUser) ?
+        if(!findUser){
             await this.refreshTokenRepository.save({
                 user_id: user_id,
                 refreshToken: token
-        }) :
+            })
+        }
+        else {
             findUser.refreshToken = token;
             await this.refreshTokenRepository.save(findUser)
-
+            }
         // 로그인시 갱신된 refreshToken 저장
     }
 
@@ -88,10 +95,10 @@ export class AuthService {
         } catch (err) {
             throw new HttpException({ message: 'refreshTokenExpired' }, HttpStatus.UNAUTHORIZED);
         }
-    } // Access 토큰이 유효한지 확인
+    } // Refresh 토큰이 유효한지 확인
 
-    async checkAccess(token: string) {
-        const tokenInfo = this.verifyAccessToken(token);
-        // this.validateUser(tokenInfo.user_id, tokenInfo.password)
+    async checkAccess(token: string, password: string) {
+        const { accessKeyData } = await this.verifyAccessToken(token);
+        return await this.validateUser(accessKeyData.user_id, password)
     }
 }
