@@ -13,7 +13,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
         if (cookie === undefined) {
             throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
         }
-        const token = cookie.replace('Bearer ', '');
+        const token = cookie.replace('Bearer ', '').split('=')[1];
         const userInfo = await this.validate(token);
         if(userInfo) request.user = userInfo;
         return !!userInfo;
