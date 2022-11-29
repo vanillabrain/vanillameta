@@ -7,6 +7,7 @@ import { Repository } from 'typeorm';
 import { YesNo } from '../common/enum/yn.enum.js';
 import { CreateShareUrlDto } from './dto/create-share-url.dto';
 import { UpdateShareUrlDto } from './dto/update-share-url.dto';
+import { DashboardService } from '../dashboard/dashboard.service.js';
 
 @Injectable()
 export class ShareUrlService {
@@ -14,6 +15,7 @@ export class ShareUrlService {
       @InjectRepository(UserInfo) private readonly userInfoRepository: Repository<UserInfo>,
       @InjectRepository(Dashboard) private dashboardRepository: Repository<Dashboard>,
       private readonly authService: AuthService,
+      private readonly dashboardService: DashboardService
   ) {
   }
 
@@ -52,7 +54,6 @@ export class ShareUrlService {
     if(!findDashboard){
       return 'not exist share dashboard'
     }
-    findDashboard.layout = JSON.parse(findDashboard.layout)
-    return findDashboard;
+    return this.dashboardService.findOne(+findDashboard.id)
   }
 }
