@@ -18,6 +18,7 @@ import { UserController } from './user/user.controller';
 import { LoginModule } from './login/login.module';
 import { ShareUrlModule } from './share-url/share-url.module';
 import { MiddlewareModule } from './middleware/middleware.module';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 
 @Module({
   imports: [

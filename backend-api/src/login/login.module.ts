@@ -9,11 +9,12 @@ import { JwtModule } from '@nestjs/jwt';
 import { AuthService } from 'src/auth/auth.service';
 import { loginLoggerMiddleware } from 'src/middleware/middleware.login-logger';
 import { LoginHistory } from 'src/middleware/entities/login-history.entity';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 
 @Module({
   imports: [TypeOrmModule.forFeature([UserInfo, RefreshToken, User, LoginHistory]), JwtModule],
   controllers: [LoginController],
-  providers: [LoginService, AuthService]
+  providers: [LoginService, AuthService, {provide: APP_INTERCEPTOR, useClass: loginLoggerMiddleware}]
 })
 export class LoginModule   implements NestModule {
   configure(consumer: MiddlewareConsumer) {

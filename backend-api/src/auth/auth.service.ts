@@ -91,6 +91,7 @@ export class AuthService {
             const Token = token.replace('Bearer ', '').split('=')[1];
             const secretKey = process.env.REFRESH_SECRET
             const findUser = await this.jwtService.verify(Token, { secret: secretKey })
+            console.log(findUser)
             return findUser
         } catch (err) {
             throw new HttpException({ message: 'refreshTokenExpired' }, HttpStatus.UNAUTHORIZED);
