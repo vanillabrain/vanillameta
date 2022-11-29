@@ -3,9 +3,15 @@ import { Box, Button, ClickAwayListener, IconButton, Paper, Popper, Stack, TextF
 import { ReactComponent as IconShare } from '@/assets/images/icon/ic-share.svg';
 import { ReactComponent as IconToggleOn } from '@/assets/images/icon/toggle-on.svg';
 import { ReactComponent as IconToggleOff } from '@/assets/images/icon/toggle-off.svg';
+import { useAlert } from 'react-alert';
+import { ROUTE_URL } from '@/constant';
 
-const ShareButton = ({ onClick, isShareOn, handleCopyClick }) => {
+const ShareButton = ({ onClick, isShareOn, shareToken }) => {
   const [anchorEl, setAnchorEl] = React.useState<HTMLButtonElement | null>(null);
+  const open = Boolean(anchorEl);
+  const id = open ? 'simple-popover' : undefined;
+  const shareLink = `${ROUTE_URL}/share/${shareToken ? shareToken : ''}`;
+  const alert = useAlert();
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorEl(event.currentTarget);
@@ -15,8 +21,17 @@ const ShareButton = ({ onClick, isShareOn, handleCopyClick }) => {
     setAnchorEl(null);
   };
 
-  const open = Boolean(anchorEl);
-  const id = open ? 'simple-popover' : undefined;
+  const handleCopyClick = async () => {
+    await navigator.clipboard
+      .writeText(shareLink)
+      .then(() => {
+        alert.success('클립보드에 링크가 복사되었습니다.');
+      })
+      .catch(error => {
+        console.log(error);
+        alert.error('링크 복사에 실패했습니다.');
+      });
+  };
 
   return (
     <React.Fragment>
@@ -80,7 +95,7 @@ const ShareButton = ({ onClick, isShareOn, handleCopyClick }) => {
                     </IconButton>
                   </Stack>
                   <Stack direction="row" justifyContent="space-between" mt="29px">
-                    <TextField sx={{ width: '298px', height: '32px' }} disabled value="https://vanillameta.net/123456" />
+                    <TextField sx={{ width: '298px', height: '32px' }} disabled value={shareLink} />
                     <Button variant="contained" sx={{ minWidth: '55px' }} onClick={handleCopyClick}>
                       복사
                     </Button>

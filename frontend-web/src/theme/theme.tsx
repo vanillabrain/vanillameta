@@ -355,7 +355,7 @@ export default createTheme({
         'html, body, #root': {
           width: '100%',
           height: '100%',
-          minWidth: '1440px',
+          // minWidth: '1440px',
           fontFamily: 'Pretendard',
           backgroundColor: '#FFFFFF',
           color: '#1F2123',

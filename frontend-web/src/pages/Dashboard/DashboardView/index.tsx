@@ -16,7 +16,8 @@ import ReloadButton from '@/components/button/ReloadButton';
 import ShareButton from '@/components/button/ShareButton';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
-import authService from '@/api/authService';
+import shareService from '@/api/shareService';
+import { AuthContext } from '@/contexts/AuthContext';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -25,9 +26,16 @@ const DashboardView = () => {
   const navigate = useNavigate();
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
-
+  const { userState } = useContext(AuthContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
-  const [dashboardInfo, setDashboardInfo] = useState({ title: '', widgets: [], layout: [], updatedAt: '' }); // dashboard 정보
+  const [dashboardInfo, setDashboardInfo] = useState({
+    title: '',
+    widgets: [],
+    layout: [],
+    updatedAt: '',
+    shareYn: 'N',
+    shareToken: null,
+  }); // dashboard 정보
   const [layout, setLayout] = useState([]); // grid layout
   // dashboard id
   const [isShareOn, setIsShareOn] = useState(false);
@@ -35,7 +43,7 @@ const DashboardView = () => {
   // init useEffect
   useEffect(() => {
     getDashboardInfo(dashboardId);
-  }, []);
+  }, [isShareOn]);
 
   // dashboardInfo useEffect
   useEffect(() => {
@@ -45,8 +53,8 @@ const DashboardView = () => {
       }
       item.static = true;
     });
-
     setLayout(dashboardInfo.layout);
+    setIsShareOn(dashboardInfo.shareYn === 'Y');
   }, [dashboardInfo]);
 
   // dashboard info 조회
@@ -130,18 +138,39 @@ const DashboardView = () => {
   };
 
   const handleShareToggle = () => {
+    const data = { user_id: userState.userId };
+    showLoading();
     if (!isShareOn) {
-      // authService.getShareTokenOn(dashboardId).then(response => {
-      //   console.log(response); // error!!
-      // });
-      setIsShareOn(true);
+      shareService
+        .onShareToken(dashboardId, data)
+        .then(response => {
+          console.log(response);
+          if (response.status === 201) {
+            setIsShareOn(true);
+          }
+        })
+        .catch(error => {
+          console.log(error);
+        })
+        .finally(() => {
+          hideLoading();
+        });
     } else {
-      setIsShareOn(false);
+      shareService
+        .offShareToken(dashboardId, data)
+        .then(response => {
+          console.log(response);
+          if (response.status === 201) {
+            setIsShareOn(false);
+          }
+        })
+        .catch(error => {
+          console.log(error);
+        })
+        .finally(() => {
+          hideLoading();
+        });
     }
-  };
-
-  const handleCopyClick = () => {
-    console.log('복사 클릭!');
   };
 
   return (
@@ -216,7 +245,7 @@ const DashboardView = () => {
                 handleDeleteSelect();
               }}
             />
-            <ShareButton onClick={handleShareToggle} isShareOn={isShareOn} handleCopyClick={handleCopyClick} />
+            <ShareButton onClick={handleShareToggle} isShareOn={isShareOn} shareToken={dashboardInfo.shareToken} />
           </Stack>
         }
       >

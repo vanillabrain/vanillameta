@@ -28,7 +28,7 @@ export const AuthProvider = ({ children }) => {
     await authService
       .refreshAccessToken()
       .then(response => {
-        // console.log(response);
+        console.log('refreshToken', response);
         if (response.status === 201) {
           setToken(response?.data?.accessToken);
           return response?.data?.accessToken;
