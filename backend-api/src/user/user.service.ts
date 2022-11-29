@@ -55,7 +55,9 @@ export class UserService {
 
   async reissuanceAccessToken(cookie: string){
     const tokenInfo = await this.authService.verifyRefreshToken(cookie)
-    const payload = await this.userInfoRepository.findOne({ where: { user_id: tokenInfo.user_id }})
+
+    const { user_id } = tokenInfo.refreshKeyData
+    const payload = await this.userInfoRepository.findOne({ where: { user_id: user_id }})
     return await this.authService.generateAccessToken(payload)
   }
 
