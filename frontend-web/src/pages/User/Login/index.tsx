@@ -10,7 +10,7 @@ import Copyright from '@/components/Copyright';
 import authService from '@/api/authService';
 
 const Login = () => {
-  const { setToken, userState } = useContext(AuthContext);
+  const { token, onLogin } = useContext(AuthContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const navigate = useNavigate();
   const alert = useAlert();
@@ -19,13 +19,11 @@ const Login = () => {
     userPwd: '',
   });
 
-  console.log('isLogin:', userState?.isLogin);
-
   useEffect(() => {
-    if (userState?.isLogin) {
+    if (token) {
       navigate('/dashboard');
     }
-  }, []);
+  }, [token]);
 
   const handleChange = event => {
     event.preventDefault();
@@ -46,8 +44,7 @@ const Login = () => {
       .signin(data)
       .then(response => {
         if (response.status === 201) {
-          setToken(response.data.accessToken);
-          navigate('/dashboard');
+          onLogin(response.data.accessToken);
         }
       })
       .catch(error => {

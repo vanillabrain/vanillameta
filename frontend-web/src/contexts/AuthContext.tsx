@@ -8,20 +8,31 @@ export const AuthProvider = ({ children }) => {
   const navigate = useNavigate();
   const [token, setToken] = useState(null);
   const initUserState = {
-    isLogin: false,
     userId: null,
     userEmail: null,
   };
   const [userState, setUserState] = useState(initUserState);
 
-  const handleLogout = async () => {
+  const handleLogin = data => {
+    setToken(data);
+    navigate('/dashboard');
+  };
+
+  const handleLogout = () => {
+    setToken(null);
+    setUserState(initUserState);
+    navigate('/login');
+  };
+
+  const handleRefresh = () => {
     authService
-      .signout()
+      .refreshAccessToken()
       .then(response => {
-        if (response.statue === 200) {
-          setToken(null);
+        // console.log(response);
+        if (response.status === 201) {
+          setToken(response?.data?.accessToken);
           setUserState(initUserState);
-          navigate('/login');
+          return response?.data?.accessToken;
         }
       })
       .catch(error => {
@@ -29,28 +40,13 @@ export const AuthProvider = ({ children }) => {
       });
   };
 
-  const handleRefresh = () => {
-    authService.refreshAccessToken().then(response => {
-      // console.log(response);
-      if (response.status === 201) {
-        setToken(response?.data?.accessToken);
-        setUserState(initUserState);
-        return response?.data?.accessToken;
-      }
-    });
-    // .catch(error => {
-    //   console.log(error);
-    // });
-  };
-
-  const getUserState = () => {
+  const getUserState = async () => {
     if (token) {
-      authService
-        .getUser()
+      await authService
+        .getUserInfo()
         .then(response => {
-          // console.log(response);
           if (response.status === 200) {
-            setUserState({ isLogin: true, userId: response.data.data.user_id, userEmail: response.data.data.email });
+            setUserState({ userId: response.data.data.user_id, userEmail: response.data.data.email });
             // console.log(userState, '유저정보');
           }
         })
@@ -63,11 +59,10 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     token,
-    setToken,
     userState,
     getUserState,
-    // onLogin: handleLogin,
-    // onLogout: handleLogout,
+    onLogin: handleLogin,
+    onLogout: handleLogout,
     onRefresh: handleRefresh,
   };
 

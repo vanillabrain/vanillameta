@@ -1,20 +1,25 @@
 import React, { useContext, useEffect } from 'react';
 import { AuthContext } from '@/contexts/AuthContext';
 import useAuthAxios from '@/hooks/useAuthAxios';
+import { Navigate } from 'react-router-dom';
 
 export const ProtectedRoute = ({ children }) => {
-  const { userState, getUserState } = useContext(AuthContext);
-
+  const { token, getUserState, onRefresh } = useContext(AuthContext);
   useAuthAxios();
+
   useEffect(() => {
-    getUserState();
+    onRefresh();
   }, []);
 
-  console.log('isLogin:', userState?.isLogin);
+  useEffect(() => {
+    getUserState();
+  }, [token]);
 
-  // if (!userState?.isLogin) {
-  //   return <Navigate to="/login" replace />;
-  // }
+  console.log('token:', token);
+
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
 
   return children;
 };

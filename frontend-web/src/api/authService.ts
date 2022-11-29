@@ -16,7 +16,7 @@ const signout = (): Promise<any> => post(URL_SIGN_OUT);
 const signup = (data: unknown): Promise<any> => post(URL_SIGN_UP, data);
 const updateUser = (data: unknown): Promise<any> => patch(URL_CHANGE_USERINFO, data);
 const deleteUser = (data: unknown): Promise<any> => del(URL_DELETE_ACCOUNT, data);
-const getUser = (): Promise<any> => get(URL_USER_INFO);
+const getUserInfo = (): Promise<any> => get(URL_USER_INFO);
 const refreshAccessToken = (): Promise<any> => post(URL_ACCESS_TOKEN);
 const getShareTokenOn = (id: string): Promise<any> => post(URL_SHARE_ON + '/' + id);
 const getShareTokenOff = (id: string): Promise<any> => post(URL_SHARE_OFF + '/' + id);
@@ -28,7 +28,7 @@ const authService = {
   signup,
   updateUser,
   deleteUser,
-  getUser,
+  getUserInfo,
   refreshAccessToken,
   getShareTokenOn,
   getShareTokenOff,
