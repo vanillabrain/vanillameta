@@ -193,7 +193,7 @@ const ProfileModify = props => {
             sx={{ width: '360px', p: 0, pt: '5px' }}
             onSubmit={handleSubmit}
           >
-            <TextField label="User Id" name="userId" required disabled={true} value={userState.userId} />
+            <TextField label="User Id" name="userId" disabled={true} value={userState.userId} />
             <TextField
               label="현재 비밀번호"
               name="userOldPwd"
