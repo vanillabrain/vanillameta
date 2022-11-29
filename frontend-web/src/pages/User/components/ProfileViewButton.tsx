@@ -6,6 +6,7 @@ import { useAlert } from 'react-alert';
 import ProfileModify from '@/pages/User/components/ProfileModify';
 import { AuthContext } from '@/contexts/AuthContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
+import authService from '@/api/authService';
 
 const ProfileViewButton = () => {
   const { userState, onLogout } = useContext(AuthContext);
@@ -28,16 +29,21 @@ const ProfileViewButton = () => {
   const id = canBeOpen ? 'transition-popper' : undefined;
 
   const handleLogout = () => {
-    // showLoading();
-    onLogout()
+    showLoading();
+    authService
+      .signout()
       .then(response => {
-        if (response.status === 200) {
+        if (response.status === 201) {
+          onLogout();
           alert.success('로그아웃 되었습니다.');
-          navigate('/login');
         }
       })
+      .catch(error => {
+        console.log(error);
+        alert.error('로그아웃에 실패했습니다.');
+      })
       .finally(() => {
-        // hideLoading();
+        hideLoading();
       });
   };
 

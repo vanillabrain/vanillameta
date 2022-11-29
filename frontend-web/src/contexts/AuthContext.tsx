@@ -1,76 +1,66 @@
 import { createContext, useState } from 'react';
 import authService from '@/api/authService';
-import { removeToken, setToken } from '@/helpers/authHelper';
 import { useNavigate } from 'react-router-dom';
 
 export const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  // const [accessToken, setAccessToken] = useState(null);
   const navigate = useNavigate();
-  const [userState, setUserState] = useState({
-    isLogin: false,
+  const [token, setToken] = useState(null);
+  const initUserState = {
     userId: null,
     userEmail: null,
-  });
+  };
+  const [userState, setUserState] = useState(initUserState);
 
-  const handleLogin = async (id, pwd) => {
-    const data = {
-      user_id: id,
-      password: pwd,
-    };
-    return authService
-      .login(data)
-      .then(response => {
-        console.log(response, 'response');
-        if (response.status === 201) {
-          console.log(response.data.accessToken);
-          setToken(response.data.accessToken);
-          navigate('/dashboard');
-          // setAccessToken(response.data.accessToken);
-        }
-      })
-      .catch(error => {
-        removeToken();
-        // setAccessToken(null);
-        console.log(error, error.response.data.data.message);
-        throw error;
-      });
+  const handleLogin = data => {
+    setToken(data);
+    navigate('/dashboard');
   };
 
   const handleLogout = () => {
-    authService
-      .logout()
-      .then(response => {
-        if (response.statue === 200) {
-          removeToken();
-        }
-      })
-      .catch(error => {
-        console.log(error, error.response.data.data.message);
-        throw error;
-      });
+    setToken(null);
+    setUserState(initUserState);
+    navigate('/login');
   };
 
   const handleRefresh = () => {
     authService
       .refreshAccessToken()
       .then(response => {
-        console.log(response);
+        // console.log(response);
         if (response.status === 201) {
-          setToken(response.data.accessToken);
-          return response.data.accessToken;
+          setToken(response?.data?.accessToken);
+          return response?.data?.accessToken;
         }
       })
       .catch(error => {
-        console.log(error, error.response.data.data.message);
-        throw error;
+        console.log(error);
+        navigate('/login');
       });
   };
 
+  const getUserState = async () => {
+    if (token) {
+      await authService
+        .getUserInfo()
+        .then(response => {
+          if (response.status === 200) {
+            setUserState({ userId: response.data.data.user_id, userEmail: response.data.data.email });
+            // console.log(userState, '유저정보');
+          }
+        })
+        .catch(error => {
+          // navigate('/login');
+          console.log(error);
+        });
+    }
+  };
+
   const value = {
+    token,
     userState,
-    setUserState,
+    getUserState,
     onLogin: handleLogin,
     onLogout: handleLogout,
     onRefresh: handleRefresh,
