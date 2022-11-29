@@ -197,6 +197,7 @@ const ProfileModify = props => {
             <TextField
               label="현재 비밀번호"
               name="userOldPwd"
+              type="password"
               required
               value={changedUserInfo.userOldPwd}
               onChange={handleChange}
@@ -204,6 +205,7 @@ const ProfileModify = props => {
             <TextField
               label="새 비밀번호"
               name="userNewPwd"
+              type="password"
               required
               value={changedUserInfo.userNewPwd}
               onChange={handleChange}
@@ -211,6 +213,7 @@ const ProfileModify = props => {
             <TextField
               label="새 비밀번호 확인"
               name="userNewConfirmPwd"
+              type="password"
               required
               value={changedUserInfo.userNewConfirmPwd}
               onChange={handleChange}

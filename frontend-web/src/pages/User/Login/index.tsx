@@ -99,20 +99,81 @@ const Login = () => {
             fullWidth
             sx={{ height: '36px' }}
           />
-          {/*<FormControlLabel control={<Checkbox value="remember" color="primary" />} label="Remember me" />*/}
           <Button type="submit" size="large" fullWidth variant="contained" sx={{ mt: 3, mb: 2 }}>
             Login
           </Button>
         </Stack>
-        <Typography
-          sx={{ display: 'block', mt: '50px', fontSize: '14px', textAlign: 'center', color: '#4a4a4a' }}
-          component={RouterLink}
-          to="/signup"
+        <Stack
+          sx={{
+            display: 'flex',
+            flexDirection: 'row',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: '12px',
+            mt: '40px',
+            fontSize: '14px',
+            textAlign: 'center',
+            color: '#4a4a4a',
+          }}
         >
-          회원가입
-        </Typography>
+          <Button
+            component={RouterLink}
+            to="/signup"
+            disableRipple
+            disableFocusRipple
+            disableTouchRipple
+            sx={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              minWidth: 0,
+              minHeight: 0,
+              m: 0,
+              p: 0,
+              gap: '12px',
+              fontSize: 'inherit',
+              fontWeight: 'inherit',
+              textDecoration: 'underline',
+              color: 'inherit',
+              '&:hover': {
+                textDecoration: 'underline',
+                backgroundColor: 'inherit',
+              },
+
+              '&:after': {
+                content: `""`,
+                width: '1px',
+                height: '10px',
+                backgroundColor: '#cccfd8',
+              },
+            }}
+          >
+            회원가입
+          </Button>
+          <Button
+            disableRipple
+            disableFocusRipple
+            disableTouchRipple
+            sx={{
+              minWidth: 0,
+              minHeight: 0,
+              m: 0,
+              p: 0,
+              fontSize: 'inherit',
+              fontWeight: 'inherit',
+              // textDecoration: 'underline',
+              color: 'inherit',
+              '&:hover': {
+                // textDecoration: 'underline',
+                backgroundColor: 'inherit',
+              },
+            }}
+          >
+            아이디/비번찾기
+          </Button>
+        </Stack>
       </Box>
-      <Copyright sx={{ mt: 8, mb: 4 }} />
+      <Copyright sx={{ mt: '50px', mb: 4 }} />
       <Box
         component="img"
         src={backgroundImage}
@@ -124,7 +185,7 @@ const Login = () => {
           right: 0,
           margin: 'auto',
           width: '1024px',
-          height: '608px',
+          height: '508px',
         }}
       />
     </Box>

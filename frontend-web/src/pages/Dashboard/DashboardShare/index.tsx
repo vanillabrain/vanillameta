@@ -64,7 +64,6 @@ const DashboardShare = () => {
   // dashboard id
   const [isShareOn, setIsShareOn] = useState(false);
 
-  // console.log(dashboardInfo, '대시보드인포', isShareOn, dashboardInfo.shareYn);
   // init useEffect
   useEffect(() => {
     getShareDashboardInfo(dashboardToken);
