@@ -13,7 +13,7 @@ import { ComponentModule } from './component/component.module';
 import { ConnectionModule } from './connection/connection.module';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
-import { loginLoggerMiddleware } from './middleware/middleware.login-logger.js';
+import { loginLoggerMiddleware } from 'src/middleware/middleware-log/middleware.login-logger';
 import { UserController } from './user/user.controller';
 import { LoginModule } from './login/login.module';
 import { ShareUrlModule } from './share-url/share-url.module';

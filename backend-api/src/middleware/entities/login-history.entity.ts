@@ -1,3 +1,4 @@
+import { YesNo } from 'src/common/enum/yn.enum';
 import {
     Column,
     CreateDateColumn,
@@ -18,8 +19,17 @@ export class LoginHistory{
     @Column({ length: 20, nullable: true, comment: '로그인 유형' })
     loginType: string; //  PC, 모바일 접속타입
 
-    @Column({ length: 20, nullable: true, comment: '상태 코드' })
-    statusCode: string;
+    @Column({ comment: '요청 경로'})
+    path: string
+
+    @Column({
+        type: 'char',
+        nullable: true,
+        length: 1,
+        comment: '로그인 성공 유무',
+    })
+    loginSuccYn: YesNo;
+
 
     @CreateDateColumn({ type: 'timestamp', nullable: true, comment: '등록 일시' })
     createdAt: Date;

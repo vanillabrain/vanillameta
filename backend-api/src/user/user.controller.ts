@@ -38,12 +38,9 @@ export class UserController {
 
   @UseGuards(JwtAuthGuard)
   @Post('get-access-token')
-  async reissuanceAccessToken(@Req() req) {
+  async reissuanceAccessToken(@Req() req, @Res() res) {
     const { cookie } = req.headers;
     const accessToken = await this.userService.reissuanceAccessToken(cookie)
-    return { accessToken: accessToken, message: 'success' }
+    return res.status(201).json({ accessToken: accessToken, message: 'success' })
   }
-
-
-
 }
