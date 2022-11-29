@@ -103,6 +103,7 @@ const ProfileModify = props => {
     const data = {
       user_id: userState.userId,
       password: changedUserInfo.userFirstPwd,
+      email: changedUserInfo.userEmail,
     };
     showLoading();
     authService

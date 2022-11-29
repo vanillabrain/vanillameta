@@ -24,8 +24,8 @@ export const AuthProvider = ({ children }) => {
     navigate('/login');
   };
 
-  const handleRefresh = () => {
-    authService
+  const handleRefresh = async () => {
+    await authService
       .refreshAccessToken()
       .then(response => {
         // console.log(response);
