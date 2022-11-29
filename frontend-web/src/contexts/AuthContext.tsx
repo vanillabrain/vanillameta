@@ -31,12 +31,12 @@ export const AuthProvider = ({ children }) => {
         // console.log(response);
         if (response.status === 201) {
           setToken(response?.data?.accessToken);
-          setUserState(initUserState);
           return response?.data?.accessToken;
         }
       })
       .catch(error => {
         console.log(error);
+        navigate('/login');
       });
   };
 
@@ -51,7 +51,7 @@ export const AuthProvider = ({ children }) => {
           }
         })
         .catch(error => {
-          navigate('/login');
+          // navigate('/login');
           console.log(error);
         });
     }
