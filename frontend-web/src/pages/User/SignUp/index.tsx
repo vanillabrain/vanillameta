@@ -11,7 +11,7 @@ import { SnackbarContext } from '@/contexts/AlertContext';
 import { checkEmail, checkPwd } from '@/utils/validateUtil';
 
 const SignUp = () => {
-  const { isLogin, checkLogin } = useContext(AuthContext);
+  const { token } = useContext(AuthContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const navigate = useNavigate();
   const alert = useAlert();
@@ -25,14 +25,10 @@ const SignUp = () => {
   let isValid;
 
   useEffect(() => {
-    showLoading();
-    // checkLogin();
-    console.log('Login', isLogin);
-    if (isLogin) {
+    if (token) {
       navigate('/dashboard');
     }
-    hideLoading();
-  }, [isLogin]);
+  }, [token]);
 
   const handleSignup = async event => {
     event.preventDefault();
