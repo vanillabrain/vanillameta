@@ -70,24 +70,28 @@ const ProfileModify = props => {
   const { userState } = useContext(AuthContext);
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
-  const initialState = { userFirstPwd: '', userSecondPwd: '', userEmail: '' };
+  const initialState = {
+    userOldPwd: '',
+    userNewPwd: '',
+    userNewConfirmPwd: '',
+    userEmail: '',
+  };
   const [changedUserInfo, setChangedUserInfo] = useState(initialState);
   const [open, setOpen] = React.useState(false);
   const { showLoading, hideLoading } = useContext(LoadingContext);
   let isValid;
 
   const validateData = () => {
-    const { userFirstPwd, userSecondPwd, userEmail } = changedUserInfo;
-    console.log('userFirstPwd:', userFirstPwd, 'userSecondPwd:', userSecondPwd, 'userEmail:', userEmail);
-    if (!userFirstPwd || !userSecondPwd || !userEmail) {
+    const { userOldPwd, userNewPwd, userNewConfirmPwd, userEmail } = changedUserInfo;
+    if (!userOldPwd || !userNewPwd || !userNewConfirmPwd || !userEmail) {
       snackbar.error('입력란을 모두 작성해 주세요.');
       return;
     } else {
-      if (userFirstPwd !== userSecondPwd) {
+      if (userNewPwd !== userNewConfirmPwd) {
         snackbar.error('비밀번호가 서로 다릅니다.');
         return;
       }
-      if (!checkPwd.test(userFirstPwd)) {
+      if (!checkPwd.test(userNewPwd)) {
         snackbar.error('비밀번호는 8글자 이상이며 숫자와 영문 대소문자, 특수문자가 포함되어 있어야 합니다.');
         return;
       }
@@ -102,7 +106,8 @@ const ProfileModify = props => {
   const updateUserInfo = () => {
     const data = {
       user_id: userState.userId,
-      password: changedUserInfo.userFirstPwd,
+      password: changedUserInfo.userOldPwd,
+      new_password: changedUserInfo.userNewPwd,
       email: changedUserInfo.userEmail,
     };
     showLoading();
@@ -110,7 +115,7 @@ const ProfileModify = props => {
       .updateUser(data)
       .then(response => {
         console.log(response);
-        if (response.state === 201) {
+        if (response.state === 20) {
           alert.success('프로필 수정에 성공했습니다.');
         } else {
           alert.error('프로필 수정에 실패했습니다.');
@@ -190,17 +195,24 @@ const ProfileModify = props => {
           >
             <TextField label="User Id" name="userId" required disabled={true} value={userState.userId} />
             <TextField
-              label="Password"
-              name="userFirstPwd"
+              label="현재 비밀번호"
+              name="userOldPwd"
               required
-              value={changedUserInfo.userFirstPwd}
+              value={changedUserInfo.userOldPwd}
               onChange={handleChange}
             />
             <TextField
-              label="Confirm Password"
-              name="userSecondPwd"
+              label="새 비밀번호"
+              name="userNewPwd"
               required
-              value={changedUserInfo.userSecondPwd}
+              value={changedUserInfo.userNewPwd}
+              onChange={handleChange}
+            />
+            <TextField
+              label="새 비밀번호 확인"
+              name="userNewConfirmPwd"
+              required
+              value={changedUserInfo.userNewConfirmPwd}
               onChange={handleChange}
             />
             <TextField label="E-mail" name="userEmail" required value={changedUserInfo.userEmail} onChange={handleChange} />
