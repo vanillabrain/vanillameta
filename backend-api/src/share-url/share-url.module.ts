@@ -7,12 +7,17 @@ import { Dashboard } from '../dashboard/entities/dashboard.entity.js'
 import { AuthService } from '../auth/auth.service';
 import { JwtModule } from '@nestjs/jwt';
 import { RefreshToken } from 'src/auth/entites/refresh_token.entity';
-import { loginLoggerMiddleware } from 'src/middleware/middleware.login-logger';
+import { loginLoggerMiddleware } from 'src/middleware/middleware-log/middleware.login-logger';
 import { LoginHistory } from 'src/middleware/entities/login-history.entity';
+import { shareUrlLoggerMiddleware } from 'src/middleware/middleware-log/middleware.share-url-logger';
 
 @Module({
   imports: [TypeOrmModule.forFeature([UserInfo, Dashboard, RefreshToken, LoginHistory]), JwtModule],
   controllers: [ShareUrlController],
   providers: [ShareUrlService, AuthService]
 })
-export class ShareUrlModule {}
+export class ShareUrlModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(shareUrlLoggerMiddleware).forRoutes('share-url');
+  }
+}
