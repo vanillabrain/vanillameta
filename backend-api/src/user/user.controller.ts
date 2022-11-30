@@ -23,6 +23,7 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @Patch('change-info')
   updateUsername(@Req() req, @Body() updateUserDto: UpdateUserDto) {
+
     const { authorization } = req.headers;
     return this.userService.updateUserInfo(authorization, updateUserDto);
   }
@@ -42,5 +43,12 @@ export class UserController {
     const { cookie } = req.headers;
     const accessToken = await this.userService.reissuanceAccessToken(cookie)
     return res.status(201).json({ accessToken: accessToken, message: 'success' })
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('get-dashboard')
+  async findDashboardId(@Req() req) {
+    const { authorization } = req.headers;
+    await this.userService.findDashboardId(authorization)
   }
 }

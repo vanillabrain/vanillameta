@@ -1,4 +1,5 @@
-import {Controller, Get, Post, Body, Patch, Param, Delete, Put} from '@nestjs/common';
+import {Controller, Get, Post, Body, Patch, Param, Delete, Put, UseGuards, Req} from '@nestjs/common';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { DashboardService } from './dashboard.service';
 import { CreateDashboardDto } from './dto/create-dashboard.dto';
 import { UpdateDashboardDto } from './dto/update-dashboard.dto';
@@ -7,14 +8,18 @@ import { UpdateDashboardDto } from './dto/update-dashboard.dto';
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
+  @UseGuards(JwtAuthGuard)
   @Post()
-  create(@Body() createDashboardDto: CreateDashboardDto) {
-    return this.dashboardService.create(createDashboardDto);
+  create(@Body() createDashboardDto: CreateDashboardDto, @Req() req) {
+    const { Authorization } = req.headers;
+    return this.dashboardService.create(createDashboardDto, Authorization);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get()
-  findAll() {
-    return this.dashboardService.findAll();
+  findAll(@Req() req) {
+    const { authorization } = req.headers;
+    return this.dashboardService.findAll(authorization);
   }
 
   @Get(':id')

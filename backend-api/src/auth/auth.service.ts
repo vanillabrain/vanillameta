@@ -24,7 +24,7 @@ export class AuthService {
             }
             const accessToken = await this.jwtService.sign({accessKeyData}, {
                 secret: process.env.ACCESS_SECRET,
-                expiresIn: `1200s`
+                expiresIn: `3600s`
             })
             return accessToken
         // accesstoken이 없을때
@@ -36,7 +36,7 @@ export class AuthService {
             email: payload.email,
             id: payload.id
         }
-        const refreshToken = await this.jwtService.sign({refreshKeyData}, { secret: process.env.REFRESH_SECRET, expiresIn: "7200s" })
+        const refreshToken = await this.jwtService.sign({refreshKeyData}, { secret: process.env.REFRESH_SECRET, expiresIn: "10800s" })
         return refreshToken
         // accesstoken이 없을때
     }
@@ -58,7 +58,9 @@ export class AuthService {
     }
 
     async validateUser(user_id: string, pass: string) {
+        console.log(user_id)
         const user = await this.userInfoRepository.findOne({ where: { user_id: user_id } });
+        console.log(user)
         if (user && user.password === pass) {
             delete user.password;
             return user;

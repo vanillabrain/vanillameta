@@ -16,7 +16,7 @@ import { RefreshToken } from './entites/refresh_token.entity';
       PassportModule,
       JwtModule.register({
         secret: process.env.JWT_ACCESS_SECRET,
-        signOptions: { expiresIn: '1200s'}
+        signOptions: { expiresIn: '3600s'}
     })
   ],
   providers: [AuthService, JwtStrategy, LocalStrategy]
