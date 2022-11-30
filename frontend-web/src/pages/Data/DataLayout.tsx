@@ -63,7 +63,7 @@ const DataLayout = props => {
           setDatasetList(response.data.data.datasets);
           setTableList(response.data.data.tables);
         } else {
-          alert.error('데이터베이스 조회에 실패했습니다.');
+          alert.error('데이터베이스 조회에 실패했습니다.\n다시 시도해 주세요.');
           setDatasetList([]);
           setTableList([]);
         }
@@ -126,7 +126,7 @@ const DataLayout = props => {
 
   return (
     <Stack sx={{ width: '100%' }} direction="row">
-      <Stack sx={{ width: '404px', px: '24px', pt: '30px' }}>
+      <Stack sx={{ width: { xs: '270px', md: '404px' }, px: '24px', pt: '30px' }}>
         <Stack direction="row" sx={{ mb: '12px' }}>
           <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold', fontSize: '16px', color: '#141414' }}>
             데이터 소스
@@ -143,7 +143,7 @@ const DataLayout = props => {
         />
       </Stack>
 
-      <Stack sx={{ width: 'calc(100% - 404px)', backgroundColor: '#f5f6f8' }}>
+      <Stack sx={{ width: { xs: 'calc(100% - 270px)', md: 'calc(100% - 404px)' }, backgroundColor: '#f5f6f8' }}>
         <Stack sx={{ width: '100%', px: '24px', pt: '30px' }}>
           <Stack direction="row" sx={{ mb: '12px' }}>
             <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold', fontSize: '16px', color: '#141414' }}>

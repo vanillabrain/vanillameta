@@ -26,7 +26,7 @@ const Footer = props => {
             color: '#767676',
           }}
         >
-          ⓒ vanillaBrain 2022
+          ⓒ VanillaBrain Icn.
         </Typography>
       </Link>
     </Stack>

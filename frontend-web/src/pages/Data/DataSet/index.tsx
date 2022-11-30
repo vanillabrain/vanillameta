@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useLayoutEffect, useState } from 'react';
-import { MenuItem, Select, Stack, TextField, Typography } from '@mui/material';
+import { MenuItem, Select, Stack, TextField } from '@mui/material';
 import { useAlert } from 'react-alert';
 import PageTitleBox from '@/components/PageTitleBox';
 import SubmitButton from '@/components/button/SubmitButton';
@@ -152,7 +152,7 @@ const DataSet = () => {
           setTableList(response.data.data.tables);
           console.log('tableList ', response.data.data.tables);
         } else {
-          alert.error('데이터베이스 조회에 실패했습니다.');
+          alert.error('데이터베이스 조회에 실패했습니다.\n다시 시도해 주세요.');
           setTableList([]);
         }
       })
@@ -176,7 +176,7 @@ const DataSet = () => {
         if (response.data.status === 'SUCCESS') {
           setDatasetInfo(response.data.data);
         } else {
-          alert.error('데이터베이스 조회에 실패했습니다.');
+          alert.error('데이터베이스 조회에 실패했습니다.\n다시 시도해 주세요.');
         }
       })
       .finally(() => {
@@ -239,7 +239,7 @@ const DataSet = () => {
                     navigate('/data');
                     snackbar.success('데이터셋이 수정되었습니다.');
                   } else {
-                    alert.error('데이터셋 수정에 실패했습니다.');
+                    alert.error('데이터셋 수정에 실패했습니다.\n다시 시도해 주세요.');
                   }
                 })
                 .finally(() => {
@@ -253,7 +253,7 @@ const DataSet = () => {
                     navigate('/data');
                     snackbar.success('데이터셋이 생성되었습니다.');
                   } else {
-                    alert.error('데이터셋 생성에 실패했습니다.');
+                    alert.error('데이터셋 생성에 실패했습니다.\n다시 시도해 주세요.');
                   }
                 })
                 .finally(() => {

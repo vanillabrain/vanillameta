@@ -91,7 +91,7 @@ const WidgetView = () => {
                   navigate('/widget', { replace: true });
                   snackbar.success('위젯이 삭제되었습니다.');
                 } else {
-                  alert.error('위젯 삭제에 실패했습니다.');
+                  alert.error('위젯 삭제에 실패했습니다.\n다시 시도해 주세요.');
                 }
               })
               .finally(() => {
@@ -106,6 +106,7 @@ const WidgetView = () => {
   return (
     <PageTitleBox upperTitle="위젯" upperTitleLink="/widget" title="위젯 조회" sx={{ width: '100%', marginTop: '22px' }}>
       <DashboardTitleBox
+        sx={{ minWidth: '600px', maxWidth: '1392px', width: '95%' }}
         title={
           <Stack
             direction="row"
@@ -187,9 +188,9 @@ const WidgetView = () => {
         <Card
           sx={{
             width: '60%',
-            // height: '100%',
-            height: '700px',
-            minHeight: '500px',
+            height: '50vw',
+            minHeight: '300px',
+            maxHeight: '700px',
             margin: '54px auto',
             borderRadius: '8px',
             boxShadow: '2px 2px 9px 0 rgba(42, 50, 62, 0.1), 0 4px 4px 0 rgba(0, 0, 0, 0.02)',

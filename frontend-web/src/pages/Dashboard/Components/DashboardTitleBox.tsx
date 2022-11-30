@@ -2,7 +2,7 @@ import React from 'react';
 import { Box, Divider, Stack } from '@mui/material';
 
 function DashboardTitleBox(props) {
-  const { title, button } = props;
+  const { title, button, sx } = props;
 
   return (
     <Box
@@ -21,6 +21,7 @@ function DashboardTitleBox(props) {
           borderRadius: '6px',
           border: 'solid 1px #ddd',
           backgroundColor: '#f9f9fa',
+          ...sx,
         }}
       >
         <Stack

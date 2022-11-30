@@ -72,6 +72,7 @@ export default createTheme({
       },
       styleOverrides: {
         root: {
+          fontFamily: 'Pretendard',
           '&:hover': {
             backgroundColor: '#ebfbff',
           },
@@ -86,7 +87,13 @@ export default createTheme({
         size: 'small',
       },
     },
-
+    MuiButtonBase: {
+      styleOverrides: {
+        root: {
+          fontFamily: 'Pretendard',
+        },
+      },
+    },
     MuiButton: {
       defaultProps: {
         size: 'small',
@@ -98,6 +105,7 @@ export default createTheme({
           paddingLeft: '14px',
           paddingRight: '14px',
           boxShadow: 'none',
+          fontFamily: 'Pretendard',
           // '&:hover': {
           //   boxShadow: 'none',
           //   borderColor: '#4481c9',
@@ -106,6 +114,7 @@ export default createTheme({
           '&.Mui-disabled': {
             color: '#fff',
             backgroundColor: '#9b9ea9',
+            border: 0,
           },
         },
         contained: {
@@ -160,6 +169,13 @@ export default createTheme({
         margin: 'dense',
       },
     },
+    MuiFormLabel: {
+      styleOverrides: {
+        root: {
+          fontFamily: 'Pretendard',
+        },
+      },
+    },
     MuiIconButton: {
       defaultProps: {
         size: 'small',
@@ -179,6 +195,7 @@ export default createTheme({
       },
       styleOverrides: {
         root: {
+          fontFamily: 'Pretendard',
           '&.MuiOutlinedInput-root.Mui-focused fieldset': {
             boxShadow: '2px 2px 4px 0 rgba(0, 0, 0, 0.15)',
             border: 'solid 1px #0f5ab2',
@@ -199,6 +216,7 @@ export default createTheme({
       },
       styleOverrides: {
         root: {
+          fontFamily: 'Pretendard',
           transform: 'translate(14px, 7px) scale(1)',
         },
         shrink: {
@@ -211,6 +229,7 @@ export default createTheme({
         root: {
           height: '32px',
           backgroundColor: '#fff',
+          fontFamily: 'Pretendard',
 
           '&.Mui-disabled': {
             color: '#929292',
@@ -278,6 +297,7 @@ export default createTheme({
           color: '#9b9ea9',
           fontSize: '16px',
           fontWeight: 'bold',
+          fontFamily: 'Pretendard',
           '&.Mui-active': {
             color: '#0f5ab2',
             fontWeight: 'bold',
@@ -355,7 +375,7 @@ export default createTheme({
         'html, body, #root': {
           width: '100%',
           height: '100%',
-          // minWidth: '1440px',
+          minWidth: '600px',
           fontFamily: 'Pretendard',
           backgroundColor: '#FFFFFF',
           color: '#1F2123',
