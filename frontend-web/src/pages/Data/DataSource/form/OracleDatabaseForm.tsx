@@ -2,10 +2,6 @@ import React from 'react';
 import { Stack, TextField } from '@mui/material';
 import SubmitButton from '@/components/button/SubmitButton';
 
-const inputStyle = {
-  width: '800px',
-};
-
 const OracleDatabaseForm = props => {
   const { testConnect, formData, setFormData } = props;
   const handleSubmit = data => {
@@ -33,24 +29,15 @@ const OracleDatabaseForm = props => {
   };
 
   return (
-    <Stack component="form" sx={{ maxWidth: 800, mx: 'auto', mt: 3 }} onSubmit={handleSubmit}>
+    <Stack component="form" sx={{ maxWidth: '800px', width: '100%', mx: 'auto', mt: 3 }} onSubmit={handleSubmit}>
       <Stack sx={{ display: 'flex', justifyContent: 'space-between' }} spacing="20px">
-        <TextField
-          label="이름"
-          name="name"
-          value={formData?.name || ''}
-          required
-          fullWidth
-          sx={inputStyle}
-          onChange={handleNameChange}
-        />
+        <TextField label="이름" name="name" value={formData?.name || ''} required fullWidth onChange={handleNameChange} />
         <TextField
           label="Host"
           name="host"
           value={formData?.oracle?.host || ''}
           required
           fullWidth
-          sx={inputStyle}
           onChange={handleChange}
         />
         <TextField
@@ -60,7 +47,6 @@ const OracleDatabaseForm = props => {
           value={formData?.oracle?.port || ''}
           required
           fullWidth
-          sx={inputStyle}
           onChange={handleChange}
         />
         <TextField
@@ -69,7 +55,6 @@ const OracleDatabaseForm = props => {
           value={formData?.oracle?.user || ''}
           required
           fullWidth
-          sx={inputStyle}
           onChange={handleChange}
         />
         <TextField
@@ -78,7 +63,6 @@ const OracleDatabaseForm = props => {
           value={formData?.oracle?.password || ''}
           required
           fullWidth
-          sx={inputStyle}
           onChange={handleChange}
         />
         <TextField
@@ -87,7 +71,6 @@ const OracleDatabaseForm = props => {
           value={formData?.oracle?.database || ''}
           required
           fullWidth
-          sx={inputStyle}
           onChange={handleChange}
         />
         <TextField
@@ -96,7 +79,6 @@ const OracleDatabaseForm = props => {
           value={formData?.oracle?.instanceName || ''}
           required
           fullWidth
-          sx={inputStyle}
           onChange={handleChange}
         />
         <TextField
@@ -105,7 +87,6 @@ const OracleDatabaseForm = props => {
           value={formData?.oracle?.fetchAsString || ''}
           required
           fullWidth
-          sx={inputStyle}
           onChange={handleChange}
         />
         <TextField
@@ -114,7 +95,6 @@ const OracleDatabaseForm = props => {
           value={formData?.oracle?.requestTimeout || ''}
           required
           fullWidth
-          sx={inputStyle}
           onChange={handleChange}
         />
         <SubmitButton label="TEST CONNECT" type="submit" sx={{ height: '50px', fontSize: '13px' }} />

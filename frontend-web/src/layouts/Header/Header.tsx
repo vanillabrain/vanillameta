@@ -30,7 +30,7 @@ function Header(props) {
   };
 
   return (
-    <AppBar elevation={0} component="nav" sx={{ minWidth: '700px', left: 0, height: '65px' }}>
+    <AppBar elevation={0} component="nav" sx={{ minWidth: '600px', left: 0, height: '65px' }}>
       <Toolbar variant="dense" sx={{ height: headerHeight, justifyContent: 'space-between', columnGap: '30px' }}>
         <Logo />
         <NavBar navItems={navItems} />

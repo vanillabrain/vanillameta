@@ -181,11 +181,11 @@ const Login = () => {
           position: 'fixed',
           zIndex: -1,
           bottom: 0,
-          left: 0,
-          right: 0,
+          left: '50%',
           margin: 'auto',
           width: '1024px',
           height: '508px',
+          transform: 'translateX(-50%)',
         }}
       />
     </Box>

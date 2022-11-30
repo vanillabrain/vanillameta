@@ -7,7 +7,6 @@ function PageTitleBox(props) {
   const navigate = useNavigate();
 
   const defaultBoxSx = {
-    minWidth: '900px',
     paddingLeft: '25px',
     paddingRight: '25px',
     width: '100%',
@@ -31,6 +30,7 @@ function PageTitleBox(props) {
           justifyContent="space-between"
           sx={{
             width: '100%',
+            minWidth: '400px',
             height: 56,
             paddingLeft: '24px',
             paddingRight: '24px',

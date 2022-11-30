@@ -19,6 +19,8 @@ import { LoadingContext } from '@/contexts/LoadingContext';
 import { useAlert } from 'react-alert';
 
 const BootstrapDialog = styled(Dialog)(({ theme }) => ({
+  minWidth: '560px',
+
   '& .MuiDialogContent-root': {
     padding: theme.spacing(2),
   },
@@ -155,10 +157,7 @@ const ProfileModify = props => {
   return (
     <div>
       <Button
-        // aria-describedby={id}
         onClick={handleClickOpen}
-        // anchorReference="anchorPosition"
-        // anchorPosition={{ top: '50%', left: '50%' }}
         disableRipple
         disableFocusRipple
         disableTouchRipple

@@ -2,10 +2,6 @@ import React from 'react';
 import { Stack, TextField } from '@mui/material';
 import SubmitButton from '@/components/button/SubmitButton';
 
-const inputStyle = {
-  width: '800px',
-};
-
 const DatabaseForm = props => {
   const { testConnect, formData, setFormData } = props;
   const handleSubmit = data => {
@@ -30,24 +26,15 @@ const DatabaseForm = props => {
   };
 
   return (
-    <Stack component="form" sx={{ maxWidth: 800, mx: 'auto', mt: 3 }} onSubmit={handleSubmit}>
+    <Stack component="form" sx={{ maxWidth: '800px', width: '100%', mx: 'auto', mt: 3 }} onSubmit={handleSubmit}>
       <Stack sx={{ display: 'flex', justifyContent: 'space-between' }} spacing="20px">
-        <TextField
-          label="이름"
-          name="name"
-          value={formData?.name || ''}
-          required
-          fullWidth
-          sx={inputStyle}
-          onChange={handleNameChange}
-        />
+        <TextField label="이름" name="name" value={formData?.name || ''} required fullWidth onChange={handleNameChange} />
         <TextField
           label="Host"
           name="host"
           value={formData?.default?.host || ''}
           required
           fullWidth
-          sx={inputStyle}
           onChange={handleChange}
         />
         <TextField
@@ -57,7 +44,6 @@ const DatabaseForm = props => {
           value={formData?.default?.port || ''}
           required
           fullWidth
-          sx={inputStyle}
           onChange={handleChange}
         />
         <TextField
@@ -66,7 +52,6 @@ const DatabaseForm = props => {
           value={formData?.default?.user || ''}
           required
           fullWidth
-          sx={inputStyle}
           onChange={handleChange}
         />
         <TextField
@@ -75,7 +60,6 @@ const DatabaseForm = props => {
           value={formData?.default?.password || ''}
           required
           fullWidth
-          sx={inputStyle}
           onChange={handleChange}
         />
         <TextField
@@ -84,7 +68,6 @@ const DatabaseForm = props => {
           value={formData?.default?.database || ''}
           required
           fullWidth
-          sx={inputStyle}
           onChange={handleChange}
         />
         <SubmitButton label="TEST CONNECT" type="submit" sx={{ height: '50px', fontSize: '13px' }} />
