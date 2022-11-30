@@ -16,7 +16,7 @@ const AddIconButton = ({ link = '', ...props }) => {
 
 export default AddIconButton;
 
-export const AddMenuButton = ({ menuList, label, ...props }) => {
+export const AddMenuButton = ({ menuList, label }) => {
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
 
@@ -189,7 +189,7 @@ export const MenuButton = ({ menuList, handleSelect = null, icon, title, sizeOpt
           border: 'solid 1px #0f5ab2',
         }}
       >
-        <span style={{ height: '20px' }}>{title}</span>
+        {title}
       </Button>
       <Menu id="styled-menu" anchorEl={anchorEl} open={open} onClose={handleClose} sx={{ width: menuWidth }}>
         {menuList.map(item => (

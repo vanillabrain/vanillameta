@@ -28,15 +28,16 @@ export const AuthProvider = ({ children }) => {
     await authService
       .refreshAccessToken()
       .then(response => {
-        console.log('refreshToken', response);
+        // console.log('refreshToken', response);
         if (response.status === 201) {
           setToken(response?.data?.accessToken);
           return response?.data?.accessToken;
         }
       })
       .catch(error => {
-        console.log(error);
-        navigate('/login');
+        if (error.response.status === 401) {
+          throw new Error(error.response.statusText);
+        }
       });
   };
 
@@ -47,12 +48,11 @@ export const AuthProvider = ({ children }) => {
         .then(response => {
           if (response.status === 200) {
             setUserState({ userId: response.data.data.user_id, userEmail: response.data.data.email });
-            // console.log(userState, '유저정보');
           }
         })
         .catch(error => {
-          // navigate('/login');
           console.log(error);
+          throw new Error(error.response.statusText);
         });
     }
   };

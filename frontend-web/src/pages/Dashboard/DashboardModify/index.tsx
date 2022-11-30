@@ -81,7 +81,7 @@ function DashboardModify() {
           });
           setLayout(response.data.data.layout);
         } else {
-          alert.error('대시보드 조회에 실패했습니다.');
+          alert.error('대시보드 조회에 실패했습니다.\n다시 시도해 주세요.');
         }
       })
       .finally(() => {
@@ -284,7 +284,7 @@ function DashboardModify() {
                       navigate('/dashboard/' + dashboardId, { replace: true });
                       snackbar.success('대시보드가 수정되었습니다.');
                     } else {
-                      alert.error('대시보드 수정에 실패했습니다.');
+                      alert.error('대시보드 수정에 실패했습니다.\n다시 시도해 주세요.');
                     }
                   })
                   .finally(() => {
@@ -309,7 +309,7 @@ function DashboardModify() {
                       navigate('/dashboard');
                       snackbar.success('대시보드가 생성되었습니다.');
                     } else {
-                      alert.error('대시보드 생성에 실패했습니다.');
+                      alert.error('대시보드 생성에 실패했습니다.\n다시 시도해 주세요.');
                     }
                   })
                   .finally(() => {

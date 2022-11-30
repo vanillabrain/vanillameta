@@ -29,7 +29,7 @@ const ShareButton = ({ onClick, isShareOn, shareToken }) => {
       })
       .catch(error => {
         console.log(error);
-        alert.error('링크 복사에 실패했습니다.');
+        alert.error('링크 복사에 실패했습니다.\n다시 시도해 주세요.');
       });
   };
 

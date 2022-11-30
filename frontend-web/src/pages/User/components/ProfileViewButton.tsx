@@ -1,7 +1,6 @@
 import React, { useContext } from 'react';
 import { Avatar, Box, Button, ClickAwayListener, Paper, Popper, Stack, Typography } from '@mui/material';
 import { ReactComponent as IconUser } from '@/assets/images/icon/ic-user.svg';
-import { useNavigate } from 'react-router-dom';
 import { useAlert } from 'react-alert';
 import ProfileModify from '@/pages/User/components/ProfileModify';
 import { AuthContext } from '@/contexts/AuthContext';
@@ -11,7 +10,6 @@ import authService from '@/api/authService';
 const ProfileViewButton = () => {
   const { userState, onLogout } = useContext(AuthContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
-  const navigate = useNavigate();
   const alert = useAlert();
   const [open, setOpen] = React.useState(false);
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
@@ -40,7 +38,13 @@ const ProfileViewButton = () => {
       })
       .catch(error => {
         console.log(error);
-        alert.error('로그아웃에 실패했습니다.');
+        if (error.response.status === 401) {
+          // 이미 refreshToken이 만료
+          onLogout();
+          alert.success('로그아웃 되었습니다.');
+          return;
+        }
+        alert.error('로그아웃에 실패했습니다.\n다시 시도해 주세요.');
       })
       .finally(() => {
         hideLoading();

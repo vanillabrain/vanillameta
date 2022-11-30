@@ -91,7 +91,7 @@ const DashboardShare = () => {
         if (response.data.status == STATUS.SUCCESS) {
           setDashboardInfo(response.data.data);
         } else {
-          alert.error('대시보드 조회에 실패했습니다.');
+          alert.error('대시보드 조회에 실패했습니다.\n다시 시도해 주세요.');
         }
       })
       .finally(() => {

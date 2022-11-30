@@ -17,6 +17,7 @@ import { checkEmail, checkPwd } from '@/utils/validateUtil';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { useAlert } from 'react-alert';
+import { useNavigate } from 'react-router-dom';
 
 const BootstrapDialog = styled(Dialog)(({ theme }) => ({
   minWidth: '560px',
@@ -72,6 +73,7 @@ const ProfileModify = props => {
   const { userState } = useContext(AuthContext);
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
+  const navigate = useNavigate();
   const initialState = {
     userOldPwd: '',
     userNewPwd: '',
@@ -89,12 +91,12 @@ const ProfileModify = props => {
       snackbar.error('입력란을 모두 작성해 주세요.');
       return;
     } else {
-      if (userNewPwd !== userNewConfirmPwd) {
-        snackbar.error('비밀번호가 서로 다릅니다.');
-        return;
-      }
       if (!checkPwd.test(userNewPwd)) {
         snackbar.error('비밀번호는 8글자 이상이며 숫자와 영문 대소문자, 특수문자가 포함되어 있어야 합니다.');
+        return;
+      }
+      if (userNewPwd !== userNewConfirmPwd) {
+        snackbar.error('비밀번호와 비밀번호 확인이 일치하지 않습니다.');
         return;
       }
       if (!checkEmail.test(userEmail)) {
@@ -112,16 +114,30 @@ const ProfileModify = props => {
       new_password: changedUserInfo.userNewPwd,
       email: changedUserInfo.userEmail,
     };
+    // console.log(data);
     showLoading();
     authService
       .updateUser(data)
       .then(response => {
-        console.log(response);
-        if (response.state === 20) {
-          alert.success('프로필 수정에 성공했습니다.');
-        } else {
-          alert.error('프로필 수정에 실패했습니다.');
+        // console.log(response);
+        if (response.status === 200) {
+          if (response.data === 'not exist user') {
+            snackbar.error('현재 비밀번호 혹은 E-mail이 잘못 입력되었습니다.'); // TODO: 백단 작업 후 Email 상태 분리
+            return;
+          }
+          if (response.data === 'success') {
+            alert.success('프로필 수정에 성공했습니다.');
+          }
         }
+      })
+      .catch(error => {
+        if (error.response.data === 'Unauthorized') {
+          alert.error('로그인이 만료되었습니다.\n다시 로그인 해주세요.');
+          navigate('/login');
+          return;
+        }
+        alert.error('프로필 수정에 실패했습니다.\n다시 시도해 주세요.');
+        console.error(error);
       })
       .finally(() => {
         hideLoading();

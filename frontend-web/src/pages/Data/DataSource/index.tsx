@@ -241,7 +241,7 @@ function DataSource() {
                     navigate('/data');
                     snackbar.success('데이터베이스가 수정되었습니다.');
                   } else {
-                    alert.error('데이터베이스 저장에 실패했습니다.');
+                    alert.error('데이터베이스 저장에 실패했습니다.\n다시 시도해 주세요.');
                   }
                 })
                 .finally(() => {
@@ -255,7 +255,7 @@ function DataSource() {
                     navigate('/data');
                     snackbar.success('데이터베이스가 생성되었습니다.');
                   } else {
-                    alert.error('데이터베이스 저장에 실패했습니다.');
+                    alert.error('데이터베이스 저장에 실패했습니다.\n다시 시도해 주세요.');
                   }
                 })
                 .finally(() => {

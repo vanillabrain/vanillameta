@@ -54,7 +54,7 @@ function Dashboard() {
           setLoadedDashboardData(response.data.data);
           setNoData(response.data.data.length == 0);
         } else {
-          alert.error('대시보드 조회에 실패했습니다.');
+          alert.error('대시보드 조회에 실패했습니다.\n다시 시도해 주세요.');
         }
       })
       .finally(() => {
@@ -77,7 +77,7 @@ function Dashboard() {
                   getDashboardList();
                   snackbar.success('대시보드가 삭제되었습니다.');
                 } else {
-                  alert.error('대시보드 삭제에 실패했습니다.');
+                  alert.error('대시보드 삭제에 실패했습니다.\n다시 시도해 주세요.');
                 }
               })
               .finally(() => {

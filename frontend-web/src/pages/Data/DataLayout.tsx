@@ -63,7 +63,7 @@ const DataLayout = props => {
           setDatasetList(response.data.data.datasets);
           setTableList(response.data.data.tables);
         } else {
-          alert.error('데이터베이스 조회에 실패했습니다.');
+          alert.error('데이터베이스 조회에 실패했습니다.\n다시 시도해 주세요.');
           setDatasetList([]);
           setTableList([]);
         }

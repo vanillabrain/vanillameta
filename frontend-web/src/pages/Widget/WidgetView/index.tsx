@@ -91,7 +91,7 @@ const WidgetView = () => {
                   navigate('/widget', { replace: true });
                   snackbar.success('위젯이 삭제되었습니다.');
                 } else {
-                  alert.error('위젯 삭제에 실패했습니다.');
+                  alert.error('위젯 삭제에 실패했습니다.\n다시 시도해 주세요.');
                 }
               })
               .finally(() => {
