@@ -1,13 +1,14 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { AuthService } from '../auth/auth.service.js';
-import { Repository } from 'typeorm';
+import {getConnection, getConnectionManager, Repository } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserInfo } from './entities/user-info.entity';
 import { User } from './entities/user.entity.js';
 import { Dashboard } from '../dashboard/entities/dashboard.entity.js';
 import { YesNo } from '../common/enum/yn.enum.js';
+import { DashboardService } from '../dashboard/dashboard.service.js';
 
 @Injectable()
 export class UserService {
@@ -37,9 +38,9 @@ export class UserService {
       return 'not exist user';
     } else {
       findUser.email = String(updateUserDto.email);
-      findUser.password = String(updateUserDto.password);
+      findUser.password = String(updateUserDto.new_password);
       await this.userInfoRepository.save(findUser);
-      return `This action update_name a #${findUser.user_id} user`;
+      return `success`;
     }
   }
 
@@ -59,6 +60,28 @@ export class UserService {
     const { user_id } = tokenInfo.refreshKeyData
     const payload = await this.userInfoRepository.findOne({ where: { user_id: user_id }})
     return await this.authService.generateAccessToken(payload)
+  }
+
+  async saveDashboard(dashboardId: number, userInfoId: number) {
+    const saveObj = {
+      dashboard_id: dashboardId,
+      user_info_id: userInfoId
+    }
+    await this.userRepository.save(saveObj)
+  }
+
+  async findDashboardId(accesstoken: string){
+    const findUser = await this.authService.verifyAccessToken(accesstoken)
+    const { accessKeyData } = findUser;
+    const findDashboard = await this.userRepository
+        .createQueryBuilder('user')
+        .select("dashboard_id")
+        .where('user.user_info_id = :user_info_id', { user_info_id: accessKeyData.id }).getRawMany()
+    return findDashboard
+  }
+
+  async findAllDashboard(dashboardId: {}) {
+    console.log(Object.values(dashboardId))
   }
 
 }

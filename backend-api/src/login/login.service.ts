@@ -42,7 +42,6 @@ export class LoginService {
         password: password,
         user_id: user_id
       });
-      await this.userRepository.save({ user_info_id: createUserInfo.id});
 
       return 'success';
     } else if (!userInfoEmail && userInfoId){

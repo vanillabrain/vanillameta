@@ -6,52 +6,81 @@ import { Repository } from 'typeorm';
 import { Dashboard } from './entities/dashboard.entity';
 import { DashboardWidgetService } from './dashboard-widget/dashboard-widget.service';
 import { ResponseStatus } from '../common/enum/response-status.enum';
+import { UserService } from 'src/user/user.service';
+import { AuthService } from 'src/auth/auth.service';
+import { UserInfo } from '../user/entities/user-info.entity.js';
 
 @Injectable()
 export class DashboardService {
   constructor(
     @InjectRepository(Dashboard)
     private dashboardRepository: Repository<Dashboard>,
+    @InjectRepository(Dashboard)
+    private userInfoRepository: Repository<UserInfo>,
     private readonly dashboardWidgetService: DashboardWidgetService,
+    private readonly userService: UserService,
+    private readonly authService: AuthService
   ) {}
 
-  async create(createDashboardDto: CreateDashboardDto) {
-    let widgetIds = [];
-    createDashboardDto.layout.map(item => {
-      widgetIds.push(item.i);
+  async create(createDashboardDto: CreateDashboardDto, accessToken: string) {
+    const findUser = await this.authService.verifyAccessToken(accessToken)
+    const { accessKeyData } = findUser;
+    const userData = await this.userInfoRepository.findOne({
+      where: { user_id: accessKeyData.user_id }
     });
+    if(!userData){
+      return 'Bad Request'
+    } else {
+      let widgetIds = [];
+      createDashboardDto.layout.map(item => {
+        widgetIds.push(item.i);
+      });
 
-    const saveObj = {
-      title: createDashboardDto.title,
-      layout: JSON.stringify(createDashboardDto.layout),
-    };
-    const newDashboard = await this.dashboardRepository.save(saveObj);
+      const saveObj = {
+        title: createDashboardDto.title,
+        layout: JSON.stringify(createDashboardDto.layout),
+      };
+      const newDashboard = await this.dashboardRepository.save(saveObj);
 
-    const saveObjDW = {
-      dashboardId: newDashboard.id,
-      widgetIds: widgetIds,
-    };
+      const saveObjDW = {
+        dashboardId: newDashboard.id,
+        widgetIds: widgetIds,
+      };
 
-    // user테이블에 대시보드id저장
+      // user테이블에 대시보드id저장
+      const { user_id } = userData;
+      await this.userService.saveDashboard(newDashboard.id, +user_id)
+      await this.dashboardWidgetService.create(saveObjDW);
 
-    await this.dashboardWidgetService.create(saveObjDW);
+      newDashboard.layout = JSON.parse(newDashboard.layout);
+      return { status: ResponseStatus.SUCCESS, data: newDashboard };
+    }
 
-    newDashboard.layout = JSON.parse(newDashboard.layout);
-    return { status: ResponseStatus.SUCCESS, data: newDashboard };
   }
 
-  async findAll() {
-    const find_all = await this.dashboardRepository.find({
-      order: {
-        updatedAt: 'desc',
-        title: 'asc',
-      },
-    });
+  async findAll(accessToken: string) {
+    const findUser = await this.userService.findDashboardId(accessToken)
+    const findId = findUser.map(el => el['dashboard_id'])
+    console.log(findId)
+    let find_all = []
+    for(let i = 0; findId.length > i; i ++){
+      find_all.push(await this.dashboardRepository.findOne({
+        where: {id: findId[i]},
+        order: {
+          updatedAt: 'desc',
+          title: 'asc',
+        },
+      }));
+    }
+
+    console.log(find_all)
     find_all.forEach(el => {
       el.layout = JSON.parse(el.layout);
     });
     return { status: ResponseStatus.SUCCESS, data: find_all };
   }
+  // 기존 dashboard all
+
 
   async findOne(id: number) {
     const find_dashboard = await this.dashboardRepository.findOne({ where: { id: id } });
