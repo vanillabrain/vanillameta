@@ -17,7 +17,6 @@ import { loginLoggerMiddleware } from 'src/middleware/middleware-log/middleware.
 import { UserController } from './user/user.controller';
 import { LoginModule } from './login/login.module';
 import { ShareUrlModule } from './share-url/share-url.module';
-import { MiddlewareModule } from './middleware/middleware.module';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 
 @Module({
@@ -35,6 +34,7 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
       database: process.env.DB_NAME,
       autoLoadEntities: true,
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
+      // entities: ["dist/common/entities/*{.ts,.js}"],
       synchronize: false,
       logging: process.env.NODE_ENV == 'dev',
       retryAttempts: 1,
@@ -51,7 +51,6 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
     AuthModule,
     LoginModule,
     ShareUrlModule,
-    MiddlewareModule,
   ],
   controllers: [AppController],
   providers: [AppService]

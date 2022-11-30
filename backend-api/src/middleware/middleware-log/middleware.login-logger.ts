@@ -42,12 +42,7 @@ export class loginLoggerMiddleware implements NestMiddleware {
                 await this.loginHisotryRepository.save(logoutSaveObj)
                 return next();
             }
-
-
-
-
-
-
+            next()
         // await this.loginHisotryRepository.save(saveObj)
         // 로그인 시간, 로그아웃 체크, 접속기기..?, explorer 어떤거?
     }

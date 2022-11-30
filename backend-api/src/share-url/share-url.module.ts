@@ -15,11 +15,13 @@ import { DashboardWidgetService } from 'src/dashboard/dashboard-widget/dashboard
 import { DashboardWidget } from 'src/dashboard/dashboard-widget/entities/dashboard-widget.entity';
 import { Widget } from 'src/widget/entities/widget.entity';
 import { Component } from 'src/component/entities/component.entity';
+import { UserService } from 'src/user/user.service';
+import { User } from 'src/user/entities/user.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([UserInfo, Dashboard, RefreshToken, LoginHistory, DashboardWidget, Widget, Component]), JwtModule],
+  imports: [TypeOrmModule.forFeature([UserInfo, Dashboard, RefreshToken, LoginHistory, DashboardWidget, User, Widget, Component]), JwtModule],
   controllers: [ShareUrlController],
-  providers: [ShareUrlService, AuthService, DashboardService, DashboardWidgetService]
+  providers: [ShareUrlService, AuthService, DashboardService, DashboardWidgetService, UserService]
 })
 export class ShareUrlModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
