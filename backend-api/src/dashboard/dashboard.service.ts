@@ -15,7 +15,7 @@ export class DashboardService {
   constructor(
     @InjectRepository(Dashboard)
     private dashboardRepository: Repository<Dashboard>,
-    @InjectRepository(Dashboard)
+    @InjectRepository(UserInfo)
     private userInfoRepository: Repository<UserInfo>,
     private readonly dashboardWidgetService: DashboardWidgetService,
     private readonly userService: UserService,
@@ -48,8 +48,8 @@ export class DashboardService {
       };
 
       // user테이블에 대시보드id저장
-      const { user_id } = userData;
-      await this.userService.saveDashboard(newDashboard.id, +user_id)
+      const { id } = userData;
+      await this.userService.saveDashboard(newDashboard.id, id)
       await this.dashboardWidgetService.create(saveObjDW);
 
       newDashboard.layout = JSON.parse(newDashboard.layout);
@@ -66,20 +66,18 @@ export class DashboardService {
       find_all.push(await this.dashboardRepository.findOne({
         where: {id: findId[i]},
         order: {
-          // updatedAt: 'desc',
+          updatedAt: 'desc',
           title: 'asc',
         },
       }));
     }
 
-    console.log(find_all)
     find_all.forEach(el => {
-      el.layout = JSON.parse(el.layout);
+        el.layout = JSON.parse(el.layout);
     });
     return { status: ResponseStatus.SUCCESS, data: find_all };
   }
   // 기존 dashboard all
-
 
   async findOne(id: number) {
     const find_dashboard = await this.dashboardRepository.findOne({ where: { id: id } });
