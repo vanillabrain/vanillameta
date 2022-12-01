@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { AuthService } from 'src/auth/auth.service';
 import { UserInfo } from 'src/user/entities/user-info.entity';
@@ -42,11 +42,11 @@ export class LoginService {
         password: password,
         user_id: user_id
       });
-
       return 'success';
     } else if (!userInfoEmail && userInfoId){
-      return "conflict user_id"
+      throw new HttpException("conflict user_id", HttpStatus.CONFLICT);
+
     }
-    return 'conflict email'
+    throw new HttpException('conflict email', HttpStatus.CONFLICT);
   }
 }

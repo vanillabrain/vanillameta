@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { AuthService } from '../auth/auth.service.js';
 import {getConnection, getConnectionManager, Repository } from 'typeorm';
@@ -35,7 +35,7 @@ export class UserService {
   async updateUserInfo(accessToken: string, updateUserDto: UpdateUserDto) {
     const findUser = await this.authService.checkAccess(accessToken, updateUserDto.password);
     if(!findUser){
-      return 'not exist user';
+      throw new HttpException('not exist user', HttpStatus.CONFLICT);
     } else {
       findUser.email = String(updateUserDto.email);
       findUser.password = String(updateUserDto.new_password);
