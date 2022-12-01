@@ -11,8 +11,8 @@ export class DashboardController {
   @UseGuards(JwtAuthGuard)
   @Post()
   create(@Body() createDashboardDto: CreateDashboardDto, @Req() req) {
-    const { Authorization } = req.headers;
-    return this.dashboardService.create(createDashboardDto, Authorization);
+    const { authorization } = req.headers;
+    return this.dashboardService.create(createDashboardDto, authorization);
   }
 
   @UseGuards(JwtAuthGuard)
