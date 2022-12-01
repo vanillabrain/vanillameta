@@ -23,7 +23,6 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @Patch('change-info')
   updateUsername(@Req() req, @Body() updateUserDto: UpdateUserDto) {
-
     const { authorization } = req.headers;
     return this.userService.updateUserInfo(authorization, updateUserDto);
   }

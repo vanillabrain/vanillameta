@@ -61,13 +61,12 @@ export class DashboardService {
   async findAll(accessToken: string) {
     const findUser = await this.userService.findDashboardId(accessToken)
     const findId = findUser.map(el => el['dashboard_id'])
-    console.log(findId)
     let find_all = []
     for(let i = 0; findId.length > i; i ++){
       find_all.push(await this.dashboardRepository.findOne({
         where: {id: findId[i]},
         order: {
-          updatedAt: 'desc',
+          // updatedAt: 'desc',
           title: 'asc',
         },
       }));

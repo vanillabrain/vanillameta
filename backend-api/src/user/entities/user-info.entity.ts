@@ -1,8 +1,9 @@
 import { IsNotEmpty, IsOptional } from 'class-validator';
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn} from 'typeorm';
-import { BaseEntity } from '../../common/entities/base.entity';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, BaseEntity} from 'typeorm';
+
+
 @Entity()
-export class UserInfo extends BaseEntity {
+export class UserInfo {
 
     @PrimaryGeneratedColumn()
     id: number;
@@ -18,4 +19,10 @@ export class UserInfo extends BaseEntity {
     @IsNotEmpty()
     @Column()
     password: string;
+
+    @CreateDateColumn({ default: () => 'CURRENT_TIMESTAMP', type: "timestamp" })
+    createdAt: Date;
+
+    @UpdateDateColumn({comment:'수정일'})
+    updatedAt: Date;
 }
