@@ -121,23 +121,19 @@ const ProfileModify = props => {
       .then(response => {
         // console.log(response);
         if (response.status === 200) {
-          if (response.data === 'not exist user') {
-            snackbar.error('현재 비밀번호 혹은 E-mail이 잘못 입력되었습니다.'); // TODO: 백단 작업 후 Email 상태 분리
-            return;
-          }
-          if (response.data === 'success') {
-            alert.success('프로필 수정에 성공했습니다.');
-          }
+          alert.success('프로필 수정에 성공했습니다.');
         }
       })
       .catch(error => {
-        if (error.response.data === 'Unauthorized') {
+        console.log(error);
+        if (error.response.data.data === 'not exist user') {
+          snackbar.error('현재 비밀번호 혹은 E-mail이 잘못 입력되었습니다.'); // TODO: 백단 작업 후 Email 상태 분리
+        } else if (error.response.data.data === 'Unauthorized') {
           alert.error('로그인이 만료되었습니다.\n다시 로그인 해주세요.');
           navigate('/login');
-          return;
+        } else {
+          alert.error('프로필 수정에 실패했습니다.\n다시 시도해 주세요.');
         }
-        alert.error('프로필 수정에 실패했습니다.\n다시 시도해 주세요.');
-        console.error(error);
       })
       .finally(() => {
         hideLoading();

@@ -49,23 +49,20 @@ const SignUp = () => {
         .signup(data)
         .then(response => {
           // console.log(response);
-          // if (response.status === 201) {
-          if (response.data === 'success') {
+          if (response.status === 201) {
             alert.success(`${event.target.userId.value}님\n회원가입이 완료되었습니다.`);
             navigate('/login');
           }
-          // }
-          // else if (response.status === 409) {
-          else if (response.data === 'conflict user_id') {
-            snackbar.error('이미 가입된 ID입니다.');
-          } else if (response.data === 'conflict email') {
-            snackbar.error('이미 가입된 E-mail입니다.');
-          }
-          // }
         })
         .catch(error => {
-          alert.error('회원가입에 실패했습니다.\n다시 시도해 주세요.');
-          console.error(error);
+          console.log(error);
+          if (error.response.status === 409 && error.response.data.data === 'conflict user_id') {
+            snackbar.error('이미 가입된 ID입니다.');
+          } else if (error.response.status === 409 && error.response.data.data === 'conflict email') {
+            snackbar.error('이미 가입된 E-mail입니다.');
+          } else {
+            alert.error('회원가입에 실패했습니다.\n다시 시도해 주세요.');
+          }
         })
         .finally(() => {
           hideLoading();
