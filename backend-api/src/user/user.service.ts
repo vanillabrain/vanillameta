@@ -63,6 +63,7 @@ export class UserService {
   }
 
   async saveDashboard(dashboardId: number, userInfoId: number) {
+    console.log(userInfoId)
     const saveObj = {
       dashboard_id: dashboardId,
       user_info_id: userInfoId
@@ -80,8 +81,5 @@ export class UserService {
     return findDashboard
   }
 
-  async findAllDashboard(dashboardId: {}) {
-    console.log(Object.values(dashboardId))
-  }
 
 }
