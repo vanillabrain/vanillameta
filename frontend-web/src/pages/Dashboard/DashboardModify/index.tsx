@@ -431,7 +431,7 @@ function DashboardModify() {
                   border: 'solid 1px #0f5ab2',
                 }}
               >
-                <span style={{ height: '20px' }}>위젯 추가</span>
+                위젯 추가
               </Button>
               <AddWidgetPopup
                 label="위젯 추가"
