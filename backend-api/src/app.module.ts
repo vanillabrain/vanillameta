@@ -1,4 +1,4 @@
-import {MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
@@ -13,11 +13,8 @@ import { ComponentModule } from './component/component.module';
 import { ConnectionModule } from './connection/connection.module';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
-import { loginLoggerMiddleware } from 'src/middleware/middleware-log/middleware.login-logger';
-import { UserController } from './user/user.controller';
 import { LoginModule } from './login/login.module';
 import { ShareUrlModule } from './share-url/share-url.module';
-import { APP_INTERCEPTOR } from '@nestjs/core';
 
 @Module({
   imports: [
@@ -53,6 +50,6 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
     ShareUrlModule,
   ],
   controllers: [AppController],
-  providers: [AppService]
+  providers: [AppService],
 })
 export class AppModule {}
