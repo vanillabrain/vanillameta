@@ -11,7 +11,7 @@ import { SnackbarContext } from '@/contexts/AlertContext';
 import { checkEmail, checkId, checkPwd } from '@/utils/validateUtil';
 
 const SignUp = () => {
-  const { token, onRefresh } = useContext(AuthContext);
+  const { token, refreshToken } = useContext(AuthContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const navigate = useNavigate();
   const alert = useAlert();
@@ -27,7 +27,7 @@ const SignUp = () => {
   useEffect(() => {
     if (!token) {
       showLoading();
-      onRefresh().finally(() => {
+      refreshToken().finally(() => {
         hideLoading();
       });
     } else {
@@ -45,7 +45,7 @@ const SignUp = () => {
         password: userInfo.userPwd,
         email: userInfo.userEmail,
       };
-      await authService
+      authService
         .signup(data)
         .then(response => {
           // console.log(response);

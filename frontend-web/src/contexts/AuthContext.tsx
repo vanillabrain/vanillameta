@@ -13,41 +13,43 @@ export const AuthProvider = ({ children }) => {
   };
   const [userState, setUserState] = useState(initUserState);
 
-  const handleLogin = data => {
+  const setLogin = data => {
     setToken(data);
     navigate('/dashboard');
   };
 
-  const handleLogout = () => {
+  const setLogout = () => {
     setToken(null);
     setUserState(initUserState);
-    navigate('/login');
   };
 
-  const handleRefresh = async () => {
-    await authService
+  const refreshToken = async () => {
+    authService
       .refreshAccessToken()
       .then(response => {
         // console.log('refreshToken', response);
         if (response.status === 201) {
           setToken(response?.data?.accessToken);
-          return response?.data?.accessToken;
+          return new Promise(response);
         }
       })
       .catch(error => {
-        if (error.response.status === 401) {
-          throw new Error(error.response.statusText);
-        }
+        console.log(error, 'refresh error');
+        return Promise.reject(error);
+        // if (error.response.status === 401) {
+        // throw new Error(error.response.statusText);
+        // }
       });
   };
 
   const getUserState = async () => {
     if (token) {
-      await authService
+      authService
         .getUserInfo()
         .then(response => {
           if (response.status === 200) {
             setUserState({ userId: response.data.data.user_id, userEmail: response.data.data.email });
+            return response;
           }
         })
         .catch(error => {
@@ -61,9 +63,9 @@ export const AuthProvider = ({ children }) => {
     token,
     userState,
     getUserState,
-    onLogin: handleLogin,
-    onLogout: handleLogout,
-    onRefresh: handleRefresh,
+    setLogin,
+    setLogout,
+    refreshToken,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

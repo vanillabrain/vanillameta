@@ -6,11 +6,13 @@ import ProfileModify from '@/pages/User/components/ProfileModify';
 import { AuthContext } from '@/contexts/AuthContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import authService from '@/api/authService';
+import { useNavigate } from 'react-router-dom';
 
 const ProfileViewButton = () => {
-  const { userState, onLogout } = useContext(AuthContext);
+  const { userState, setLogout } = useContext(AuthContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const alert = useAlert();
+  const navigate = useNavigate();
   const [open, setOpen] = React.useState(false);
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
 
@@ -32,15 +34,19 @@ const ProfileViewButton = () => {
       .signout()
       .then(response => {
         if (response.status === 201) {
-          onLogout();
-          alert.success('로그아웃 되었습니다.');
+          alert.success('로그아웃 하시겠습니까?.', {
+            close: () => {
+              setLogout();
+              navigate('/login');
+            },
+          });
         }
       })
       .catch(error => {
         console.log(error);
         if (error.response.status === 401) {
           // 이미 refreshToken이 만료
-          onLogout();
+          setLogout();
           alert.success('로그아웃 되었습니다.');
           return;
         }

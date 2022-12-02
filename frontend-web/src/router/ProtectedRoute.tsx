@@ -5,7 +5,7 @@ import { LoadingContext } from '@/contexts/LoadingContext';
 import { useNavigate } from 'react-router-dom';
 
 export const ProtectedRoute = ({ children }) => {
-  const { token, getUserState, onRefresh } = useContext(AuthContext);
+  const { token, getUserState, refreshToken } = useContext(AuthContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const navigate = useNavigate();
 
@@ -13,9 +13,9 @@ export const ProtectedRoute = ({ children }) => {
   useEffect(() => {
     if (!token) {
       showLoading();
-      onRefresh()
+      refreshToken()
         .catch(error => {
-          console.log(error);
+          console.log(error, 'ProtectedRouter');
           navigate('/login');
         })
         .finally(() => {

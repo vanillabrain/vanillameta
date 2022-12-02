@@ -1,9 +1,13 @@
 import { AuthContext } from '@/contexts/AuthContext';
 import { useContext, useEffect } from 'react';
 import instance from '@/helpers/apiHelper';
+import { useAlert } from 'react-alert';
+import { useNavigate } from 'react-router-dom';
 
 const useAuthAxios = () => {
-  const { token, onRefresh } = useContext(AuthContext);
+  const { token, refreshToken } = useContext(AuthContext);
+  const alert = useAlert();
+  const navigate = useNavigate();
   let isAlreadyFetchingAccessToken = false;
 
   const requestInterceptor = instance.interceptors.request.use(
@@ -27,13 +31,19 @@ const useAuthAxios = () => {
       const originRequest = error?.config;
       if (error?.response?.data?.message === 'accessTokenExpired' && !isAlreadyFetchingAccessToken) {
         isAlreadyFetchingAccessToken = true;
-        const newToken = onRefresh();
+        const newToken = refreshToken();
 
         originRequest.headers['Authorization'] = `Bearer ${newToken}`;
         return instance(originRequest);
       }
       // error.message =
       //   (error.response && error.response.data && error.response.data.message) || error.message || error.toString();
+      alert.error('로그인이 만료되었습니다.\n다시 로그인 해주세요.', {
+        close: () => {
+          navigate('/login');
+          console.log('/login');
+        },
+      });
       return Promise.reject(error);
     },
   );

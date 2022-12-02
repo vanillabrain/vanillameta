@@ -12,7 +12,7 @@ import { checkId, checkPwd } from '@/utils/validateUtil';
 import { SnackbarContext } from '@/contexts/AlertContext';
 
 const Login = () => {
-  const { token, onLogin, onRefresh } = useContext(AuthContext);
+  const { token, setLogin, refreshToken } = useContext(AuthContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const navigate = useNavigate();
   const alert = useAlert();
@@ -26,7 +26,7 @@ const Login = () => {
   useEffect(() => {
     if (!token) {
       showLoading();
-      onRefresh();
+      refreshToken();
       hideLoading();
     } else {
       navigate('/dashboard');
@@ -54,7 +54,7 @@ const Login = () => {
         .signin(data)
         .then(response => {
           if (response.status === 201) {
-            onLogin(response.data.accessToken);
+            setLogin(response.data.accessToken);
           }
         })
         .catch(error => {
