@@ -30,7 +30,8 @@ export const AuthProvider = ({ children }) => {
         // console.log('refreshToken', response);
         if (response.status === 201) {
           setToken(response?.data?.accessToken);
-          return new Promise(response);
+          return response?.data?.accessToken;
+          // return new Promise(response);
         }
       })
       .catch(error => {
@@ -43,20 +44,20 @@ export const AuthProvider = ({ children }) => {
   };
 
   const getUserState = async () => {
-    if (token) {
-      authService
-        .getUserInfo()
-        .then(response => {
-          if (response.status === 200) {
-            setUserState({ userId: response.data.data.user_id, userEmail: response.data.data.email });
-            return response;
-          }
-        })
-        .catch(error => {
-          console.log(error);
-          throw new Error(error.response.statusText);
-        });
-    }
+    // if (token) {
+    authService
+      .getUserInfo()
+      .then(response => {
+        if (response.status === 200) {
+          setUserState({ userId: response.data.data.user_id, userEmail: response.data.data.email });
+          return response;
+        }
+      })
+      .catch(error => {
+        console.log(error);
+        throw new Error(error.response.statusText);
+      });
+    // }
   };
 
   const value = {

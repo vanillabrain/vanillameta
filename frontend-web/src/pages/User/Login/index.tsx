@@ -24,10 +24,13 @@ const Login = () => {
   let isValid = true; // TODO: 테스트 종료 후 true 삭제
 
   useEffect(() => {
+    // token 확인해서 없으면 재발급
+    // token이 갱신되면 dashboard로 보낸다
     if (!token) {
       showLoading();
-      refreshToken();
-      hideLoading();
+      refreshToken().finally(() => {
+        hideLoading();
+      });
     } else {
       navigate('/dashboard');
     }

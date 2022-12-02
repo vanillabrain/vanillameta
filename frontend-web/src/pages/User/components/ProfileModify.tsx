@@ -70,7 +70,7 @@ const BootstrapDialogTitle = (props: DialogTitleProps) => {
 };
 
 const ProfileModify = props => {
-  const { userState } = useContext(AuthContext);
+  const { userState, getUserState } = useContext(AuthContext);
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
   const navigate = useNavigate();
@@ -121,8 +121,9 @@ const ProfileModify = props => {
       .then(response => {
         if (response.status === 200) {
           alert.success('프로필 수정에 성공했습니다.', {
-            close: () => {
-              setOpen(false);
+            onClose: () => {
+              getUserState();
+              setChangedUserInfo(initialState);
             },
           });
         }
@@ -164,7 +165,6 @@ const ProfileModify = props => {
     validateData();
     if (isValid) {
       updateUserInfo();
-      setChangedUserInfo(initialState);
     }
   };
 
@@ -198,7 +198,6 @@ const ProfileModify = props => {
           프로필 수정
         </BootstrapDialogTitle>
         <DialogContent sx={{ m: 'auto', mt: '10px', mb: '30px', p: 0 }}>
-          {/*<FormControl required sx={{ m: 'auto', mt: '10px', mb: '30px', p: 0 }}>*/}
           <Stack
             id="modifyProfile"
             component="form"
@@ -232,7 +231,6 @@ const ProfileModify = props => {
               onChange={handleChange}
             />
             <TextField label="E-mail" name="userEmail" required value={changedUserInfo.userEmail} onChange={handleChange} />
-            {/*</FormControl>*/}
           </Stack>
         </DialogContent>
         <DialogActions sx={{ height: '64px', borderTop: '1px solid #ececec' }}>

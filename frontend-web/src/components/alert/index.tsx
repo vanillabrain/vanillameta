@@ -9,6 +9,7 @@ import { Alert, Divider, Portal, Snackbar } from '@mui/material';
 
 interface IProps {
   message: string | JSX.Element;
+  close: any;
   options: {
     title?: string | JSX.Element;
     actions?: {
@@ -17,7 +18,6 @@ interface IProps {
     }[];
     closeCopy?: string;
   };
-  close: any;
 }
 
 export const SnackbarTemplate = props => {
@@ -41,7 +41,7 @@ const AlertTemplate = ({ close, message, options }: IProps) => {
   return (
     <Dialog
       open={true}
-      onClose={close}
+      // onClose={close}
       keepMounted
       aria-labelledby="alert-dialog-slide-title"
       aria-describedby="alert-dialog-slide-description"

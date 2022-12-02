@@ -25,6 +25,8 @@ const SignUp = () => {
   let isValid;
 
   useEffect(() => {
+    // token 확인해서 없으면 재발급
+    // token이 갱신되면 dashboard로 보낸다
     if (!token) {
       showLoading();
       refreshToken().finally(() => {

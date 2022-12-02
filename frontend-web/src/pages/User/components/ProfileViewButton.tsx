@@ -35,7 +35,7 @@ const ProfileViewButton = () => {
       .then(response => {
         if (response.status === 201) {
           alert.success('로그아웃 하시겠습니까?.', {
-            close: () => {
+            onClose: () => {
               setLogout();
               navigate('/login');
             },
