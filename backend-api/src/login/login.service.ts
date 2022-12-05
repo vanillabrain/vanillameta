@@ -39,6 +39,8 @@ export class LoginService {
         email: email,
         password: password,
         user_id: user_id,
+        createdAt: new Date(),
+        updatedAt: new Date()
       });
       return 'success';
     } else if (!userInfoEmail && userInfoId) {

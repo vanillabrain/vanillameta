@@ -44,6 +44,7 @@ export class DashboardService {
         title: createDashboardDto.title,
         layout: JSON.stringify(createDashboardDto.layout),
         createdAt: new Date(),
+        updatedAt: new Date()
       };
       const newDashboard = await this.dashboardRepository.save(saveObj);
       const saveObjDW = {

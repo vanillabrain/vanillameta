@@ -22,7 +22,8 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
   async validate(payload: any) {
     try {
       const secretKey = process.env.REFRESH_SECRET;
-      return await this.jwtService.verify(payload, { secret: secretKey });
+      const verify = await this.jwtService.verify(payload, { secret: secretKey });
+      return verify
     } catch {
       throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
     }
