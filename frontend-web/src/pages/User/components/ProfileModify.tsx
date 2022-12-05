@@ -70,7 +70,7 @@ const BootstrapDialogTitle = (props: DialogTitleProps) => {
 };
 
 const ProfileModify = props => {
-  const { userState } = useContext(AuthContext);
+  const { userState, getUserState } = useContext(AuthContext);
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
   const navigate = useNavigate();
@@ -78,7 +78,7 @@ const ProfileModify = props => {
     userOldPwd: '',
     userNewPwd: '',
     userNewConfirmPwd: '',
-    userEmail: '',
+    userEmail: userState.userEmail,
   };
   const [changedUserInfo, setChangedUserInfo] = useState(initialState);
   const [open, setOpen] = React.useState(false);
@@ -119,15 +119,19 @@ const ProfileModify = props => {
     authService
       .updateUser(data)
       .then(response => {
-        // console.log(response);
         if (response.status === 200) {
-          alert.success('프로필 수정에 성공했습니다.');
+          alert.success('프로필 수정에 성공했습니다.', {
+            onClose: () => {
+              getUserState();
+              setChangedUserInfo(initialState);
+            },
+          });
         }
       })
       .catch(error => {
         console.log(error);
         if (error.response.data.data === 'not exist user') {
-          snackbar.error('현재 비밀번호 혹은 E-mail이 잘못 입력되었습니다.'); // TODO: 백단 작업 후 Email 상태 분리
+          snackbar.error('현재 비밀번호 혹은 E-mail이 잘못 입력되었습니다.');
         } else if (error.response.data.data === 'Unauthorized') {
           alert.error('로그인이 만료되었습니다.\n다시 로그인 해주세요.');
           navigate('/login');
@@ -161,8 +165,6 @@ const ProfileModify = props => {
     validateData();
     if (isValid) {
       updateUserInfo();
-      setOpen(false);
-      setChangedUserInfo(initialState);
     }
   };
 
@@ -196,7 +198,6 @@ const ProfileModify = props => {
           프로필 수정
         </BootstrapDialogTitle>
         <DialogContent sx={{ m: 'auto', mt: '10px', mb: '30px', p: 0 }}>
-          {/*<FormControl required sx={{ m: 'auto', mt: '10px', mb: '30px', p: 0 }}>*/}
           <Stack
             id="modifyProfile"
             component="form"
@@ -230,7 +231,6 @@ const ProfileModify = props => {
               onChange={handleChange}
             />
             <TextField label="E-mail" name="userEmail" required value={changedUserInfo.userEmail} onChange={handleChange} />
-            {/*</FormControl>*/}
           </Stack>
         </DialogContent>
         <DialogActions sx={{ height: '64px', borderTop: '1px solid #ececec' }}>

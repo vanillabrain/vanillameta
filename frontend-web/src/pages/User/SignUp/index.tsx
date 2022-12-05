@@ -11,7 +11,7 @@ import { SnackbarContext } from '@/contexts/AlertContext';
 import { checkEmail, checkId, checkPwd } from '@/utils/validateUtil';
 
 const SignUp = () => {
-  const { token, onRefresh } = useContext(AuthContext);
+  const { token, refreshToken } = useContext(AuthContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const navigate = useNavigate();
   const alert = useAlert();
@@ -25,17 +25,26 @@ const SignUp = () => {
   let isValid;
 
   useEffect(() => {
+    // token 확인해서 없으면 재발급
+    // token이 갱신되면 dashboard로 보낸다
     if (!token) {
       showLoading();
-      onRefresh().finally(() => {
-        hideLoading();
-      });
+      refreshToken()
+        .then(response => {
+          if (response.status === 201) {
+            navigate('/dashboard');
+          }
+        })
+        .finally(() => {
+          hideLoading();
+        });
     } else {
-      navigate('/dashboard');
+      // token이 있으면 뒤로가기
+      navigate(-1);
     }
-  }, [token]);
+  }, []);
 
-  const handleSignup = async event => {
+  const handleSignup = event => {
     event.preventDefault();
     showLoading();
     validateData();
@@ -45,7 +54,7 @@ const SignUp = () => {
         password: userInfo.userPwd,
         email: userInfo.userEmail,
       };
-      await authService
+      authService
         .signup(data)
         .then(response => {
           // console.log(response);

@@ -13,57 +13,56 @@ export const AuthProvider = ({ children }) => {
   };
   const [userState, setUserState] = useState(initUserState);
 
-  const handleLogin = data => {
+  const setLogin = data => {
     setToken(data);
     navigate('/dashboard');
   };
 
-  const handleLogout = () => {
+  const setLogout = () => {
     setToken(null);
     setUserState(initUserState);
-    navigate('/login');
   };
 
-  const handleRefresh = async () => {
-    await authService
-      .refreshAccessToken()
-      .then(response => {
-        // console.log('refreshToken', response);
-        if (response.status === 201) {
-          setToken(response?.data?.accessToken);
-          return response?.data?.accessToken;
-        }
-      })
-      .catch(error => {
-        if (error.response.status === 401) {
-          throw new Error(error.response.statusText);
-        }
-      });
-  };
+  const refreshToken = (): Promise<any> =>
+    new Promise((resolve, reject) => {
+      authService
+        .refreshAccessToken()
+        .then(response => {
+          if (response.status === 201) {
+            console.log('refresh token success!');
+            setToken(response?.data?.accessToken);
+          }
+          return resolve(response);
+        })
+        .catch(error => {
+          console.log(error, 'refresh token error');
+          return reject(error);
+        });
+    });
 
-  const getUserState = async () => {
-    if (token) {
-      await authService
+  const getUserState = (): Promise<any> =>
+    new Promise((resolve, reject) => {
+      authService
         .getUserInfo()
         .then(response => {
           if (response.status === 200) {
             setUserState({ userId: response.data.data.user_id, userEmail: response.data.data.email });
           }
+          return resolve(response);
         })
         .catch(error => {
           console.log(error);
-          throw new Error(error.response.statusText);
+          return reject(error);
         });
-    }
-  };
+    });
 
   const value = {
     token,
     userState,
     getUserState,
-    onLogin: handleLogin,
-    onLogout: handleLogout,
-    onRefresh: handleRefresh,
+    setLogin,
+    setLogout,
+    refreshToken,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -5,33 +5,22 @@ import { LoadingContext } from '@/contexts/LoadingContext';
 import { useNavigate } from 'react-router-dom';
 
 export const ProtectedRoute = ({ children }) => {
-  const { token, getUserState, onRefresh } = useContext(AuthContext);
+  const { token, getUserState } = useContext(AuthContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const navigate = useNavigate();
 
   useAuthAxios();
-  useEffect(() => {
-    if (!token) {
-      showLoading();
-      onRefresh()
-        .catch(error => {
-          console.log(error);
-          navigate('/login');
-        })
-        .finally(() => {
-          hideLoading();
-        });
-    }
-  }, []);
 
   useEffect(() => {
     showLoading();
-    getUserState().finally(() => {
-      hideLoading();
-    });
-  }, [token]);
-
-  // console.log('token:', token);
+    getUserState()
+      .catch(() => {
+        navigate('/login', { replace: true });
+      })
+      .finally(() => {
+        hideLoading();
+      });
+  }, []);
 
   if (token) {
     return children;
