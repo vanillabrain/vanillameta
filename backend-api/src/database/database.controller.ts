@@ -1,11 +1,14 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { DatabaseService } from './database.service';
 import { CreateDatabaseDto } from './dto/create-database.dto';
 import { UpdateDatabaseDto } from './dto/update-database.dto';
 import { QueryExecuteDto } from './dto/query-execute.dto';
 import { ConnectionService } from '../connection/connection.service';
 import { DatasetType } from '../common/enum/dataset-type.enum';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
+
+@UseGuards(JwtAuthGuard)
 @Controller('database')
 export class DatabaseController {
   constructor(
