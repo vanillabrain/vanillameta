@@ -21,20 +21,27 @@ const Login = () => {
     userId: '',
     userPwd: '',
   });
-  let isValid = true; // TODO: 테스트 종료 후 true 삭제
+  let isValid;
 
   useEffect(() => {
     // token 확인해서 없으면 재발급
     // token이 갱신되면 dashboard로 보낸다
     if (!token) {
       showLoading();
-      refreshToken().finally(() => {
-        hideLoading();
-      });
+      refreshToken()
+        .then(response => {
+          if (response.status === 201) {
+            navigate('/dashboard');
+          }
+        })
+        .finally(() => {
+          hideLoading();
+        });
     } else {
-      navigate('/dashboard');
+      // token이 있으면 뒤로가기
+      navigate(-1);
     }
-  }, [token]);
+  }, []);
 
   const handleChange = event => {
     event.preventDefault();
@@ -44,16 +51,16 @@ const Login = () => {
     }));
   };
 
-  const handleLogin = async event => {
+  const handleLogin = event => {
     event.preventDefault();
     showLoading();
-    // validateData();  // TODO: 테스트 종료 후 주석 해제
+    validateData();
     if (isValid) {
       const data = {
         user_id: userInfo.userId,
         password: userInfo.userPwd,
       };
-      await authService
+      authService
         .signin(data)
         .then(response => {
           if (response.status === 201) {

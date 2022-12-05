@@ -29,15 +29,22 @@ const SignUp = () => {
     // token이 갱신되면 dashboard로 보낸다
     if (!token) {
       showLoading();
-      refreshToken().finally(() => {
-        hideLoading();
-      });
+      refreshToken()
+        .then(response => {
+          if (response.status === 201) {
+            navigate('/dashboard');
+          }
+        })
+        .finally(() => {
+          hideLoading();
+        });
     } else {
-      navigate('/dashboard');
+      // token이 있으면 뒤로가기
+      navigate(-1);
     }
-  }, [token]);
+  }, []);
 
-  const handleSignup = async event => {
+  const handleSignup = event => {
     event.preventDefault();
     showLoading();
     validateData();

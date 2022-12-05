@@ -23,42 +23,38 @@ export const AuthProvider = ({ children }) => {
     setUserState(initUserState);
   };
 
-  const refreshToken = async () => {
-    authService
-      .refreshAccessToken()
-      .then(response => {
-        // console.log('refreshToken', response);
-        if (response.status === 201) {
-          setToken(response?.data?.accessToken);
-          return response?.data?.accessToken;
-          // return new Promise(response);
-        }
-      })
-      .catch(error => {
-        console.log(error, 'refresh error');
-        return Promise.reject(error);
-        // if (error.response.status === 401) {
-        // throw new Error(error.response.statusText);
-        // }
-      });
-  };
+  const refreshToken = (): Promise<any> =>
+    new Promise((resolve, reject) => {
+      authService
+        .refreshAccessToken()
+        .then(response => {
+          if (response.status === 201) {
+            console.log('refresh token success!');
+            setToken(response?.data?.accessToken);
+          }
+          return resolve(response);
+        })
+        .catch(error => {
+          console.log(error, 'refresh token error');
+          return reject(error);
+        });
+    });
 
-  const getUserState = async () => {
-    // if (token) {
-    authService
-      .getUserInfo()
-      .then(response => {
-        if (response.status === 200) {
-          setUserState({ userId: response.data.data.user_id, userEmail: response.data.data.email });
-          return response;
-        }
-      })
-      .catch(error => {
-        console.log(error);
-        throw new Error(error.response.statusText);
-      });
-    // }
-  };
+  const getUserState = (): Promise<any> =>
+    new Promise((resolve, reject) => {
+      authService
+        .getUserInfo()
+        .then(response => {
+          if (response.status === 200) {
+            setUserState({ userId: response.data.data.user_id, userEmail: response.data.data.email });
+          }
+          return resolve(response);
+        })
+        .catch(error => {
+          console.log(error);
+          return reject(error);
+        });
+    });
 
   const value = {
     token,
