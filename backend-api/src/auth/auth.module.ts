@@ -4,17 +4,17 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { UserInfo } from '../user/entities/user-info.entity.js';
+import { User } from '../user/entities/user.entity.js';
 import { LocalStrategy } from '../auth/strategies/local.strategy.js';
 import { RefreshToken } from './entites/refresh_token.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([UserInfo, RefreshToken]),
+    TypeOrmModule.forFeature([User, RefreshToken]),
     PassportModule,
     JwtModule.register({
       secret: process.env.JWT_ACCESS_SECRET,
-      signOptions: { expiresIn: '60s' },
+      signOptions: { expiresIn: '3600s' },
     }),
   ],
   providers: [AuthService, JwtStrategy, LocalStrategy],

@@ -4,8 +4,8 @@ import { AuthService } from '../auth/auth.service.js';
 import {getConnection, getConnectionManager, Repository } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { UserInfo } from './entities/user-info.entity';
-import { User } from './entities/user.entity.js';
+import { User } from './entities/user.entity';
+import { UserMapping } from './entities/user-mapping.entity.js';
 import { Dashboard } from '../dashboard/entities/dashboard.entity.js';
 import { YesNo } from '../common/enum/yn.enum.js';
 import { DashboardService } from '../dashboard/dashboard.service.js';
@@ -13,15 +13,15 @@ import { DashboardService } from '../dashboard/dashboard.service.js';
 @Injectable()
 export class UserService {
   constructor(
-  @InjectRepository(UserInfo) private readonly userInfoRepository: Repository<UserInfo>,
   @InjectRepository(User) private readonly userRepository: Repository<User>,
+  @InjectRepository(UserMapping) private readonly userMappingRepository: Repository<UserMapping>,
   private authService: AuthService,
   ) {}
 
   async findOne(accessToken: string) {
     const findUser = await this.authService.verifyAccessToken(accessToken)
     const { accessKeyData } = findUser;
-    const userData = await this.userInfoRepository.findOne({
+    const userData = await this.userRepository.findOne({
       where: { user_id: accessKeyData.user_id }
     });
     if(!userData){
@@ -39,7 +39,7 @@ export class UserService {
     } else {
       findUser.email = String(updateUserDto.email);
       findUser.password = String(updateUserDto.new_password);
-      await this.userInfoRepository.save(findUser);
+      await this.userRepository.save(findUser);
       return `success`;
     }
   }
@@ -49,7 +49,7 @@ export class UserService {
     if(!findUser){
       return 'Unauthorized'
     } else {
-      await this.userInfoRepository.delete(findUser.id)
+      await this.userRepository.delete(findUser.id)
       return `success`;
     }
   }
@@ -58,24 +58,23 @@ export class UserService {
     const tokenInfo = await this.authService.verifyRefreshToken(cookie)
 
     const { user_id } = tokenInfo.refreshKeyData
-    const payload = await this.userInfoRepository.findOne({ where: { user_id: user_id }})
+    const payload = await this.userRepository.findOne({ where: { user_id: user_id }})
     return await this.authService.generateAccessToken(payload)
   }
 
   async saveDashboard(dashboardId: number, userInfoId: number) {
-    console.log(userInfoId)
     const saveObj = {
       dashboard_id: dashboardId,
       user_info_id: userInfoId
     }
-    await this.userRepository.save(saveObj)
+    await this.userMappingRepository.save(saveObj)
   }
 
   async findDashboardId(accesstoken: string){
     const findUser = await this.authService.verifyAccessToken(accesstoken)
     const { accessKeyData } = findUser;
     console.log('머지',accessKeyData)
-    const findDashboard = await this.userRepository
+    const findDashboard = await this.userMappingRepository
         .createQueryBuilder('user')
         .select("dashboard_id")
         .where('user.user_info_id = :user_info_id', { user_info_id: accessKeyData.id }).getRawMany()

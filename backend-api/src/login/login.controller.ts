@@ -39,7 +39,7 @@ export class LoginController {
     return this.loginService.signup(createUserDto);
   }
 
-  @UseGuards(JwtAuthGuard)
+  // @UseGuards(JwtAuthGuard) /refreshtoken 확인
   @Post('signout')
   async signOut(@Res() res, @Req() req) {
     const refreshToken = req.headers.cookie;

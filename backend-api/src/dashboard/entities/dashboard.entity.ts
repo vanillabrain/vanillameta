@@ -23,14 +23,10 @@ export class Dashboard extends BaseEntity {
   seq: number;
 
   @Optional()
-  @Column({ comment: '공유Token', nullable: true })
-  shareToken: string;
-
-  @Optional()
-  @Column({ comment: 'Tokenshare 유무', default: YesNo.NO })
-  shareYn: YesNo;
+  @Column({ comment: '공유Id', nullable: true })
+  share_id: number;
 
   @Optional()
   @Column({ length: 1, default: YesNo.NO, comment: '삭제여부' })
-  delYn: YesNo;
+  del_yn: YesNo;
 }

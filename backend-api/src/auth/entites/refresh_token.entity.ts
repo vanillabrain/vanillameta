@@ -9,5 +9,5 @@ export class RefreshToken {
     user_id: string;
 
     @Column()
-    refreshToken: string;
+    refresh_token: string;
 }
