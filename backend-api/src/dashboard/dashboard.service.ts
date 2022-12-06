@@ -82,9 +82,11 @@ export class DashboardService {
   }
 
   async findAll(accessToken: string) {
-    console.log(accessToken)
+
     const findUser = await this.userService.findDashboardId(accessToken);
-    const findId = findUser.map(el => el['dashboard_id']);
+    console.log(findUser)
+    const findId = findUser.map(el =>
+        el['dashboard_id']);
     const find_all = [];
     for (let i = 0; findId.length > i; i++) {
       find_all.push(
@@ -97,7 +99,7 @@ export class DashboardService {
         }),
       );
     }
-
+    console.log(findId)
     find_all.forEach(el => {
       el.layout = JSON.parse(el.layout);
     });
@@ -112,7 +114,9 @@ export class DashboardService {
     const widgetList = await this.dashboardWidgetService.findWidgets(id);
 
     find_dashboard.layout = JSON.parse(find_dashboard.layout);
-    const return_obj = Object.assign(find_dashboard, { widgets: widgetList });
+    const find_share_id = await this.dashboardShareRepository.findOne({where : { id: find_dashboard.share_id}})
+    console.log(find_share_id)
+    const return_obj = Object.assign(find_dashboard, find_share_id, { widgets: widgetList });
 
     return { status: ResponseStatus.SUCCESS, data: return_obj };
   }
