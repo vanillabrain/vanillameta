@@ -30,11 +30,11 @@ export class ShareUrlService {
     } else {
       const newToken = await this.authService.generateRefreshToken(String(dashboard_id)); //새로운 공유 토큰 생성
       const findDashboard = await this.dashboardRepository.findOne( { where: { id: dashboard_id } })
-      const findDashboardSahre = await this.dashboardShareRepository.findOne({ where: { id: findDashboard.share_id }})
-      findDashboardSahre.share_token = newToken;
-      findDashboardSahre.share_yn = YesNo.YES;
-      await this.dashboardShareRepository.save(findDashboardSahre)
-      return { Token: findDashboardSahre.share_token, message: "success" }
+      const findDashboardShare = await this.dashboardShareRepository.findOne({ where: { id: findDashboard.share_id }})
+      findDashboardShare.shareToken = newToken;
+      findDashboardShare.shareYn = YesNo.YES;
+      await this.dashboardShareRepository.save(findDashboardShare)
+      return { Token: findDashboardShare.shareToken, message: "success" }
     }
   }
 
@@ -44,16 +44,17 @@ export class ShareUrlService {
     if(!findUser){
       return 'not exist user'
     } else {
-      const findDashboard = await this.dashboardShareRepository.findOne( { where: { id: dashboard_id } })
-      findDashboard.share_token = null;
-      findDashboard.share_yn = YesNo.NO;
+      const findDashboard = await this.dashboardRepository.findOne( { where: { id: dashboard_id } })
+      const findDashboardShare = await this.dashboardShareRepository.findOne({ where: { id: findDashboard.share_id }})
+      findDashboardShare.shareToken = null;
+      findDashboardShare.shareYn = YesNo.NO;
       await this.dashboardShareRepository.save(findDashboard)
       return { message: "success" }
     }
   }
 
   async shareDashboardInfo(token: string){
-    const findDashboard = await this.dashboardShareRepository.findOne({ where: { share_token: token }})
+    const findDashboard = await this.dashboardShareRepository.findOne({ where: { shareToken: token }})
     if(!findDashboard){
       return 'not exist share dashboard'
     }

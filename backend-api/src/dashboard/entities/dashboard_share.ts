@@ -8,9 +8,9 @@ export class DashboardShare extends BaseEntity {
     id: number;
 
     @Column({ length: 300, comment: '공유url 토큰'})
-    share_token: string;
+    shareToken: string;
 
     @Optional()
     @Column({ nullable: true, comment: '템플릿 ID' })
-    share_yn: string;
+    shareYn: string;
 }
