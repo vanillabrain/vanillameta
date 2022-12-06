@@ -10,6 +10,7 @@ import { UserService } from 'src/user/user.service';
 import { AuthService } from 'src/auth/auth.service';
 import { User } from '../user/entities/user.entity.js';
 import { YesNo } from 'src/common/enum/yn.enum';
+import { DashboardShare } from './entities/dashboard_share';
 
 @Injectable()
 export class DashboardService {
@@ -18,6 +19,8 @@ export class DashboardService {
     private dashboardRepository: Repository<Dashboard>,
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    @InjectRepository(DashboardShare)
+    private  readonly dashboardShareRepository: Repository<DashboardShare>,
     private readonly dashboardWidgetService: DashboardWidgetService,
     private readonly userService: UserService,
     private readonly authService: AuthService,
@@ -40,10 +43,15 @@ export class DashboardService {
       where: { title: createDashboardDto.title },
     });
     if (!findTitle) {
+      const share_id = await this.dashboardShareRepository.save({
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
       const saveObj = {
         title: createDashboardDto.title,
         layout: JSON.stringify(createDashboardDto.layout),
         del_yn: YesNo.NO,
+        share_id: share_id.id,
         createdAt: new Date(),
         updatedAt: new Date()
       };

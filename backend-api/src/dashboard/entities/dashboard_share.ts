@@ -7,7 +7,7 @@ export class DashboardShare extends BaseEntity {
     @PrimaryGeneratedColumn({ comment: '대시보드 ID' })
     id: number;
 
-    @Column({ length: 300, comment: '대시보드명' })
+    @Column({ length: 300, comment: '공유url 토큰'})
     share_token: string;
 
     @Optional()
