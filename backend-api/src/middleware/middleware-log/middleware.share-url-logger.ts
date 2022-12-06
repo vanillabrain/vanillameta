@@ -16,7 +16,6 @@ export class shareUrlLoggerMiddleware implements NestMiddleware {
         @InjectRepository(LoginHistory) private readonly loginHisotryRepository: Repository<LoginHistory>,
     ) {}
     async use(req: Request, res: Response, next: NextFunction) {
-        console.log(req)
         let loginSaveObj = {
             user_id: req.body.user_id,
             path: req.path,

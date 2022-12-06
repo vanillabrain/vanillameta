@@ -9,10 +9,10 @@ export class UserMapping extends BaseEntity {
 
     @IsOptional()
     @Column()
-    dashboard_id: number;
+    dashboardId: number;
 
     @Column()
-    user_info_id: number;
+    userInfoId: number;
 
     // @IsOptional()
     // @Column()

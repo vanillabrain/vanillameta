@@ -24,9 +24,9 @@ export class Dashboard extends BaseEntity {
 
   @Optional()
   @Column({ comment: '공유Id', nullable: true })
-  share_id: number;
+  shareId: number;
 
   @Optional()
   @Column({ length: 1, default: YesNo.NO, comment: '삭제여부' })
-  del_yn: YesNo;
+  delYn: YesNo;
 }
