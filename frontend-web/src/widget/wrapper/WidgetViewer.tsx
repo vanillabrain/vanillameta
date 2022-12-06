@@ -410,7 +410,7 @@ const WidgetViewer = props => {
         break;
     }
 
-    console.log('module', module);
+    // console.log('module', module);
     setModule(module);
     hideLoading();
   };

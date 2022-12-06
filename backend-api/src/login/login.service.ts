@@ -7,13 +7,14 @@ import { Repository } from 'typeorm';
 import { CreateLoginDto } from './dto/create-login.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import { UpdateLoginDto } from './dto/update-login.dto';
+import { RefreshToken } from 'src/auth/entites/refresh_token.entity';
 
 @Injectable()
 export class LoginService {
   constructor(
     private authService: AuthService,
-    @InjectRepository(User) private readonly userInfoRepository: Repository<User>,
-    @InjectRepository(UserMapping) private readonly userRepository: Repository<UserMapping>,
+    @InjectRepository(User) private readonly userRepository: Repository<User>,
+    @InjectRepository(RefreshToken) private readonly refreshRepository: Repository<RefreshToken>
   ) {}
 
   async signin(loginDto: LoginUserDto) {
@@ -26,16 +27,17 @@ export class LoginService {
   }
 
   async signup(createLoginDto: CreateLoginDto) {
-    const userInfoEmail = await this.userInfoRepository.findOne({
+    const userInfoEmail = await this.userRepository.findOne({
       where: { email: createLoginDto.email },
     });
-    const userInfoId = await this.userInfoRepository.findOne({
-      where: { user_id: createLoginDto.user_id },
+    const userInfoId = await this.userRepository.findOne({
+      where: { userId: createLoginDto.user_id },
     });
 
     if (!userInfoEmail && !userInfoId) {
       const { email, password, user_id } = createLoginDto;
-      const createUserInfo = await this.userInfoRepository.save({
+      const set_retoken = await this.refreshRepository.save({})
+      const createUserInfo = await this.userRepository.save({
         email: email,
         password: password,
         user_id: user_id,

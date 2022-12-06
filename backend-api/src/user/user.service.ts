@@ -22,7 +22,7 @@ export class UserService {
     const findUser = await this.authService.verifyAccessToken(accessToken)
     const { accessKeyData } = findUser;
     const userData = await this.userRepository.findOne({
-      where: { user_id: accessKeyData.user_id }
+      where: { userId: accessKeyData.userId }
     });
     if(!userData){
       return 'Bad Request'
@@ -58,14 +58,15 @@ export class UserService {
     const tokenInfo = await this.authService.verifyRefreshToken(cookie)
 
     const { user_id } = tokenInfo.refreshKeyData
-    const payload = await this.userRepository.findOne({ where: { user_id: user_id }})
+    const payload = await this.userRepository.findOne({ where: { userId: user_id }})
     return await this.authService.generateAccessToken(payload)
   }
 
   async saveDashboard(dashboardId: number, userInfoId: number) {
+    console.log(userInfoId)
     const saveObj = {
-      dashboard_id: dashboardId,
-      user_info_id: userInfoId
+      dashboardId: dashboardId,
+      userInfoId: userInfoId
     }
     await this.userMappingRepository.save(saveObj)
   }
@@ -75,8 +76,8 @@ export class UserService {
     const { accessKeyData } = findUser;
     const findDashboard = await this.userMappingRepository
         .createQueryBuilder('user_mapping')
-        .select("dashboard_id")
-        .where('user_mapping.user_info_id = :user_info_id', { user_info_id: accessKeyData.id }).getRawMany()
+        .select("dashboardId")
+        .where('user_mapping.userInfoId = :userInfoId', { userInfoId: accessKeyData.id }).getRawMany()
     return findDashboard
   }
 }

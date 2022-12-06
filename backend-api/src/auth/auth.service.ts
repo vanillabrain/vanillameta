@@ -11,7 +11,7 @@ import { RefreshToken } from './entites/refresh_token.entity';
 export class AuthService {
     constructor(
         private jwtService: JwtService,
-        @InjectRepository(User) private readonly userInfoRepository: Repository<User>,
+        @InjectRepository(User) private readonly userRepository: Repository<User>,
         @InjectRepository(RefreshToken)
         private readonly refreshTokenRepository: Repository<RefreshToken>,
     ){}
@@ -42,24 +42,23 @@ export class AuthService {
         // accesstoken이 없을때
     }
 
-    async setRefreshKey(refreshToken: string, user_id: string){
-        const findUser = await this.refreshTokenRepository.findOne({ where: {user_id: user_id} });
+    async setRefreshKey(refreshToken: string, jwt_id: string){
+        const findToken = await this.refreshTokenRepository.findOne({ where: { id: jwt_id } });
         const token = refreshToken.replace('Bearer ', '');
-        if(!findUser){
+        if(!findToken){
             await this.refreshTokenRepository.save({
-                user_id: user_id,
                 refreshToken: token
             })
         }
         else {
-            findUser.refresh_token = token;
-            await this.refreshTokenRepository.save(findUser)
+            findToken.refreshToken = token;
+            await this.refreshTokenRepository.save(findToken)
             }
         // 로그인시 갱신된 refreshToken 저장
     }
 
     async validateUser(user_id: string, pass: string) {
-        const user = await this.userInfoRepository.findOne({ where: { user_id: user_id } });
+        const user = await this.userRepository.findOne({ where: { userId: user_id } });
         if (user && user.password === pass) {
             delete user.password;
             return user;
@@ -70,9 +69,11 @@ export class AuthService {
 
     async deleteRefreshToken(Token: string) {
         const token = Token.replace('Bearer ', '').split('=')[1];
+        console.log(token)
         const refreshTokenInfo = await this.refreshTokenRepository.findOne({
-            where: { refresh_token: token },
+            where: { refreshToken: token },
         });
+        console.log(refreshTokenInfo)
         await this.refreshTokenRepository.delete(refreshTokenInfo);
     }
 

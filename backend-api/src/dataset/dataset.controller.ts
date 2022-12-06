@@ -4,7 +4,7 @@ import { DatasetService } from './dataset.service';
 import { CreateDatasetDto } from './dto/create-dataset.dto';
 import { UpdateDatasetDto } from './dto/update-dataset.dto';
 
-@UseGuards(JwtAuthGuard)
+
 @Controller('dataset')
 export class DatasetController {
   constructor(private readonly datasetService: DatasetService) {}
