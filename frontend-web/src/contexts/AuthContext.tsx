@@ -30,7 +30,7 @@ export const AuthProvider = ({ children }) => {
         .then(response => {
           if (response.status === 201) {
             console.log('refresh token success!');
-            setToken(response?.data?.accessToken);
+            setToken(response.data.accessToken);
           }
           return resolve(response);
         })
