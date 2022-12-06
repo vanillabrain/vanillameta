@@ -4,14 +4,14 @@ import { UserService } from 'src/user/user.service';
 import { NestFactory } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { UserInfo } from 'src/user/entities/user-info.entity';
+import { User } from 'src/user/entities/user.entity';
 import { RefreshToken } from './entites/refresh_token.entity';
 
 @Injectable()
 export class AuthService {
     constructor(
         private jwtService: JwtService,
-        @InjectRepository(UserInfo) private readonly userInfoRepository: Repository<UserInfo>,
+        @InjectRepository(User) private readonly userInfoRepository: Repository<User>,
         @InjectRepository(RefreshToken)
         private readonly refreshTokenRepository: Repository<RefreshToken>,
     ){}
@@ -25,7 +25,7 @@ export class AuthService {
             }
             const accessToken = await this.jwtService.sign({accessKeyData}, {
                 secret: process.env.ACCESS_SECRET,
-                expiresIn: `60s`
+                expiresIn: `3600s`
             })
             return accessToken
         // accesstoken이 없을때
@@ -52,7 +52,7 @@ export class AuthService {
             })
         }
         else {
-            findUser.refreshToken = token;
+            findUser.refresh_token = token;
             await this.refreshTokenRepository.save(findUser)
             }
         // 로그인시 갱신된 refreshToken 저장
@@ -71,7 +71,7 @@ export class AuthService {
     async deleteRefreshToken(Token: string) {
         const token = Token.replace('Bearer ', '').split('=')[1];
         const refreshTokenInfo = await this.refreshTokenRepository.findOne({
-            where: { refreshToken: token },
+            where: { refresh_token: token },
         });
         await this.refreshTokenRepository.delete(refreshTokenInfo);
     }

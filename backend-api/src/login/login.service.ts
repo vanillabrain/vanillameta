@@ -1,8 +1,8 @@
 import { HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { AuthService } from 'src/auth/auth.service';
-import { UserInfo } from 'src/user/entities/user-info.entity';
 import { User } from 'src/user/entities/user.entity';
+import { UserMapping } from 'src/user/entities/user-mapping.entity';
 import { Repository } from 'typeorm';
 import { CreateLoginDto } from './dto/create-login.dto';
 import { LoginUserDto } from './dto/login-user.dto';
@@ -12,8 +12,8 @@ import { UpdateLoginDto } from './dto/update-login.dto';
 export class LoginService {
   constructor(
     private authService: AuthService,
-    @InjectRepository(UserInfo) private readonly userInfoRepository: Repository<UserInfo>,
-    @InjectRepository(User) private readonly userRepository: Repository<User>,
+    @InjectRepository(User) private readonly userInfoRepository: Repository<User>,
+    @InjectRepository(UserMapping) private readonly userRepository: Repository<UserMapping>,
   ) {}
 
   async signin(loginDto: LoginUserDto) {

@@ -9,13 +9,13 @@ import { Widget } from '../widget/entities/widget.entity';
 import { Component } from '../component/entities/component.entity';
 import { UserService } from 'src/user/user.service';
 import { AuthService } from 'src/auth/auth.service';
-import { UserInfo } from 'src/user/entities/user-info.entity';
 import { User } from 'src/user/entities/user.entity';
+import { UserMapping } from 'src/user/entities/user-mapping.entity';
 import { JwtService } from '@nestjs/jwt';
 import { RefreshToken } from 'src/auth/entites/refresh_token.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Dashboard, DashboardWidget, Widget, Component, UserInfo, User, RefreshToken])],
+  imports: [TypeOrmModule.forFeature([Dashboard, DashboardWidget, Widget, Component, User, UserMapping, RefreshToken])],
   controllers: [DashboardController],
   providers: [DashboardService, DashboardWidgetService, UserService, AuthService, JwtService],
 })

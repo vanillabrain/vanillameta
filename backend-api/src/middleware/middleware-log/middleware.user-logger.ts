@@ -16,9 +16,9 @@ export class userLoggerMiddleware implements NestMiddleware {
     const loginSaveObj = {
       user_id: req.body.user_id,
       path: req.path,
-      loginType: req.headers['user-agent'],
-      loginSuccYn: YesNo.YES,
-      createdAt: new Date(),
+      login_type: req.headers['user-agent'],
+      login_succyn: YesNo.YES,
+      created_at: new Date(),
     };
     this.logger.log(loginSaveObj);
     await this.loginHisotryRepository.save(loginSaveObj);

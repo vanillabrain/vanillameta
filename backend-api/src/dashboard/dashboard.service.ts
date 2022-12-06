@@ -8,7 +8,7 @@ import { DashboardWidgetService } from './dashboard-widget/dashboard-widget.serv
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import { UserService } from 'src/user/user.service';
 import { AuthService } from 'src/auth/auth.service';
-import { UserInfo } from '../user/entities/user-info.entity.js';
+import { User } from '../user/entities/user.entity.js';
 import { YesNo } from 'src/common/enum/yn.enum';
 
 @Injectable()
@@ -16,8 +16,8 @@ export class DashboardService {
   constructor(
     @InjectRepository(Dashboard)
     private dashboardRepository: Repository<Dashboard>,
-    @InjectRepository(UserInfo)
-    private userInfoRepository: Repository<UserInfo>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
     private readonly dashboardWidgetService: DashboardWidgetService,
     private readonly userService: UserService,
     private readonly authService: AuthService,
@@ -26,7 +26,7 @@ export class DashboardService {
   async create(createDashboardDto: CreateDashboardDto, accessToken: string) {
     const findUser = await this.authService.verifyAccessToken(accessToken);
     const { accessKeyData } = findUser;
-    const userData = await this.userInfoRepository.findOne({
+    const userData = await this.userRepository.findOne({
       where: { user_id: accessKeyData.user_id },
     });
     if (!userData) {
@@ -43,6 +43,7 @@ export class DashboardService {
       const saveObj = {
         title: createDashboardDto.title,
         layout: JSON.stringify(createDashboardDto.layout),
+        del_yn: YesNo.NO,
         createdAt: new Date(),
         updatedAt: new Date()
       };

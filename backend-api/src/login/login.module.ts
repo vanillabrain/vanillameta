@@ -3,7 +3,7 @@ import { LoginService } from './login.service';
 import { LoginController } from './login.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from '../user/entities/user.entity';
-import { UserInfo } from '../user/entities/user-info.entity.js';
+import { UserMapping } from '../user/entities/user-mapping.entity.js';
 import { RefreshToken } from '../auth/entites/refresh_token.entity.js'
 import { JwtModule } from '@nestjs/jwt';
 import { AuthService } from 'src/auth/auth.service';
@@ -11,7 +11,7 @@ import { loginLoggerMiddleware } from 'src/middleware/middleware-log/middleware.
 import { LoginHistory } from 'src/middleware/entities/login-history.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([UserInfo, RefreshToken, User, LoginHistory]), JwtModule],
+  imports: [TypeOrmModule.forFeature([User, RefreshToken, UserMapping, LoginHistory]), JwtModule],
   controllers: [LoginController],
   providers: [LoginService, AuthService]
 })

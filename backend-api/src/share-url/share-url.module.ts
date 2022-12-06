@@ -2,7 +2,7 @@ import {MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ShareUrlService } from './share-url.service';
 import { ShareUrlController } from './share-url.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { UserInfo } from '../user/entities/user-info.entity.js';
+import { User } from '../user/entities/user.entity.js';
 import { Dashboard } from '../dashboard/entities/dashboard.entity.js'
 import { AuthService } from '../auth/auth.service';
 import { JwtModule } from '@nestjs/jwt';
@@ -16,10 +16,11 @@ import { DashboardWidget } from 'src/dashboard/dashboard-widget/entities/dashboa
 import { Widget } from 'src/widget/entities/widget.entity';
 import { Component } from 'src/component/entities/component.entity';
 import { UserService } from 'src/user/user.service';
-import { User } from 'src/user/entities/user.entity';
+import { UserMapping } from 'src/user/entities/user-mapping.entity';
+import { DashboardShare } from 'src/dashboard/entities/dashboard_share';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([UserInfo, Dashboard, RefreshToken, LoginHistory, DashboardWidget, User, Widget, Component]), JwtModule],
+  imports: [TypeOrmModule.forFeature([User, Dashboard, RefreshToken, LoginHistory, DashboardWidget, UserMapping, Widget, Component, DashboardShare]), JwtModule],
   controllers: [ShareUrlController],
   providers: [ShareUrlService, AuthService, DashboardService, DashboardWidgetService, UserService]
 })

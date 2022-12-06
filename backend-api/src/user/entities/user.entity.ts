@@ -1,20 +1,28 @@
 import { IsNotEmpty, IsOptional } from 'class-validator';
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn} from 'typeorm';
-import { BaseEntity } from '../../common/entities/base.entity';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, BaseEntity} from 'typeorm';
+
+
 @Entity()
-export class User extends BaseEntity {
+export class User {
 
     @PrimaryGeneratedColumn()
     id: number;
 
-    @IsOptional()
+    @IsNotEmpty()
     @Column()
-    dashboard_id: number;
+    user_id: string;
 
+    @IsNotEmpty()
     @Column()
-    user_info_id: number;
+    email: string;
 
-    // @IsOptional()
-    // @Column()
-    // url_copy_id: number;
+    @IsNotEmpty()
+    @Column()
+    password: string;
+
+    @CreateDateColumn({ default: () => 'CURRENT_TIMESTAMP', type: "timestamp" })
+    createdAt: Date;
+
+    @UpdateDateColumn({comment:'수정일'})
+    updatedAt: Date;
 }
