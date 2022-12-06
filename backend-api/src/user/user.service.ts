@@ -73,13 +73,10 @@ export class UserService {
   async findDashboardId(accesstoken: string){
     const findUser = await this.authService.verifyAccessToken(accesstoken)
     const { accessKeyData } = findUser;
-    console.log('머지',accessKeyData)
     const findDashboard = await this.userMappingRepository
-        .createQueryBuilder('user')
+        .createQueryBuilder('user_mapping')
         .select("dashboard_id")
-        .where('user.user_info_id = :user_info_id', { user_info_id: accessKeyData.id }).getRawMany()
+        .where('user_mapping.user_info_id = :user_info_id', { user_info_id: accessKeyData.id }).getRawMany()
     return findDashboard
   }
-
-
 }
