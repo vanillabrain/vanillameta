@@ -73,6 +73,7 @@ export class DashboardService {
   }
 
   async findAll(accessToken: string) {
+    console.log(accessToken)
     const findUser = await this.userService.findDashboardId(accessToken);
     const findId = findUser.map(el => el['dashboard_id']);
     const find_all = [];

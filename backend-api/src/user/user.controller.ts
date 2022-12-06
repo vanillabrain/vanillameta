@@ -34,7 +34,7 @@ export class UserController {
     return this.userService.deleteUser(authorization, password);
   }
 
-  @UseGuards(JwtAuthGuard)
+  // @UseGuards(JwtAuthGuard)
   @Post('get-access-token')
   async reissuanceAccessToken(@Req() req, @Res() res) {
     const { cookie } = req.headers;
