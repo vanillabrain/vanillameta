@@ -15,7 +15,7 @@ export class ShareUrlService {
   constructor(
       @InjectRepository(User) private readonly userRepository: Repository<User>,
       @InjectRepository(Dashboard) private dashboardRepository: Repository<Dashboard>,
-      @InjectRepository(DashboardShare) private dashbaordShareRepository: Repository<DashboardShare>,
+      @InjectRepository(DashboardShare) private dashboardShareRepository: Repository<DashboardShare>,
       private readonly authService: AuthService,
       private readonly dashboardService: DashboardService
   ) {
@@ -29,10 +29,11 @@ export class ShareUrlService {
       return 'not exist user'
     } else {
       const newToken = await this.authService.generateRefreshToken(String(dashboard_id)); //새로운 공유 토큰 생성
-      const findDashboardSahre = await this.dashbaordShareRepository.findOne( { where: { id: dashboard_id } })
+      const findDashboard = await this.dashboardRepository.findOne( { where: { id: dashboard_id } })
+      const findDashboardSahre = await this.dashboardShareRepository.findOne({ where: { id: findDashboard.share_id }})
       findDashboardSahre.share_token = newToken;
       findDashboardSahre.share_yn = YesNo.YES;
-      await this.dashbaordShareRepository.save(findDashboardSahre)
+      await this.dashboardShareRepository.save(findDashboardSahre)
       return { Token: findDashboardSahre.share_token, message: "success" }
     }
   }
@@ -43,16 +44,16 @@ export class ShareUrlService {
     if(!findUser){
       return 'not exist user'
     } else {
-      const findDashboard = await this.dashbaordShareRepository.findOne( { where: { id: dashboard_id } })
+      const findDashboard = await this.dashboardShareRepository.findOne( { where: { id: dashboard_id } })
       findDashboard.share_token = null;
       findDashboard.share_yn = YesNo.NO;
-      await this.dashbaordShareRepository.save(findDashboard)
+      await this.dashboardShareRepository.save(findDashboard)
       return { message: "success" }
     }
   }
 
   async shareDashboardInfo(token: string){
-    const findDashboard = await this.dashbaordShareRepository.findOne({ where: { share_token: token }})
+    const findDashboard = await this.dashboardShareRepository.findOne({ where: { share_token: token }})
     if(!findDashboard){
       return 'not exist share dashboard'
     }

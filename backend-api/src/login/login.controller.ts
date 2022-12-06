@@ -5,6 +5,7 @@ import { UpdateLoginDto } from './dto/update-login.dto';
 import { LoginUserDto } from '../login/dto/login-user.dto';
 import { AuthService } from 'src/auth/auth.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { LocalAuthGuard } from 'src/auth/guards/local-auth.guard';
 
 @Controller('login')
 export class LoginController {
@@ -39,7 +40,7 @@ export class LoginController {
     return this.loginService.signup(createUserDto);
   }
 
-  // @UseGuards(JwtAuthGuard) /refreshtoken 확인
+  @UseGuards(LocalAuthGuard)
   @Post('signout')
   async signOut(@Res() res, @Req() req) {
     const refreshToken = req.headers.cookie;
