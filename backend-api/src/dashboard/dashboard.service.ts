@@ -11,6 +11,7 @@ import { AuthService } from 'src/auth/auth.service';
 import { User } from '../user/entities/user.entity.js';
 import { YesNo } from 'src/common/enum/yn.enum';
 import { DashboardShare } from './entities/dashboard_share';
+import { UserMapping } from 'src/user/entities/user-mapping.entity';
 
 @Injectable()
 export class DashboardService {
@@ -21,6 +22,8 @@ export class DashboardService {
     private userRepository: Repository<User>,
     @InjectRepository(DashboardShare)
     private  readonly dashboardShareRepository: Repository<DashboardShare>,
+    @InjectRepository(UserMapping)
+    private userMappingRepository: Repository<UserMapping>,
     private readonly dashboardWidgetService: DashboardWidgetService,
     private readonly userService: UserService,
     private readonly authService: AuthService,
@@ -30,7 +33,7 @@ export class DashboardService {
     const findUser = await this.authService.verifyAccessToken(accessToken);
     const { accessKeyData } = findUser;
     const userData = await this.userRepository.findOne({
-      where: { user_id: accessKeyData.user_id },
+      where: { id: accessKeyData.id },
     });
     if (!userData) {
       return 'Bad Request';
@@ -84,9 +87,8 @@ export class DashboardService {
   async findAll(accessToken: string) {
 
     const findUser = await this.userService.findDashboardId(accessToken);
-    console.log(findUser)
     const findId = findUser.map(el =>
-        el['dashboard_id']);
+        el['dashboardId']);
     const find_all = [];
     for (let i = 0; findId.length > i; i++) {
       find_all.push(
@@ -99,7 +101,6 @@ export class DashboardService {
         }),
       );
     }
-    console.log(findId)
     find_all.forEach(el => {
       el.layout = JSON.parse(el.layout);
     });
@@ -111,11 +112,10 @@ export class DashboardService {
     const find_dashboard = await this.dashboardRepository.findOne({ where: { id: id } });
     if (!find_dashboard)
       return { status: ResponseStatus.ERROR, message: '대시보드가 존재하지 않습니다.' };
-    const widgetList = await this.dashboardWidgetService.findWidgets(id);
+    const widgetList = await this.dashboardWidgetService.findWidgets(find_dashboard.id);
 
     find_dashboard.layout = JSON.parse(find_dashboard.layout);
-    const find_share_id = await this.dashboardShareRepository.findOne({where : { id: find_dashboard.share_id}})
-    console.log(find_share_id)
+    const find_share_id = await this.dashboardShareRepository.findOne({ where : { id: find_dashboard.shareId }})
     const return_obj = Object.assign(find_dashboard, find_share_id, { widgets: widgetList });
 
     return { status: ResponseStatus.SUCCESS, data: return_obj };
@@ -158,6 +158,8 @@ export class DashboardService {
     } else {
       await this.dashboardRepository.delete(id);
       await this.dashboardWidgetService.remove(id);
+      const find_dashboard_id = await this.userMappingRepository.findOne({ where: { dashboardId: id }})
+      await this.userMappingRepository.delete(find_dashboard_id.id)
       return {
         status: ResponseStatus.SUCCESS,
         data: { message: `This action removes a #${id} dashboard` },

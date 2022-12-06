@@ -10,7 +10,10 @@ export class User {
 
     @IsNotEmpty()
     @Column()
-    user_id: string;
+    userId: string;
+
+    @Column()
+    jwtId: string;
 
     @IsNotEmpty()
     @Column()

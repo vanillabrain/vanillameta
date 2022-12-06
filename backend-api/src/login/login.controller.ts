@@ -23,7 +23,7 @@ export class LoginController {
     // AccessToken발급
     const refreshToken = await this.authService.generateRefreshToken( findUser );
     // RefreshToken발급
-    await this.authService.setRefreshKey(refreshToken, findUser.user_id)
+    await this.authService.setRefreshKey(refreshToken, findUser.jwtId)
     // RefreshToken 저장
 
     res.cookie('jwt_re', refreshToken, {

@@ -6,8 +6,5 @@ export class RefreshToken {
     id: string;
 
     @Column()
-    user_id: string;
-
-    @Column()
-    refresh_token: string;
+    refreshToken: string;
 }
