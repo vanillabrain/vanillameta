@@ -13,8 +13,7 @@ const useAuthAxios = () => {
   // 요청 interceptor
   const requestInterceptor = instance.interceptors.request.use(
     async config => {
-      // console.log(token, 'token');
-      if (token) {
+      if (token && !config.headers?.Authorization) {
         config.headers.Authorization = `Bearer ${token}`;
       }
       return config;
@@ -31,24 +30,25 @@ const useAuthAxios = () => {
     },
     async error => {
       const originRequest = error?.config;
-      if (error?.response?.data?.data?.message === 'accessTokenExpired' && !isAlreadyRefreshingToken) {
+      if (error?.response?.data?.data === 'accessTokenExpired' && !isAlreadyRefreshingToken) {
         // token 만료 후 첫 요청
         isAlreadyRefreshingToken = true;
-        try {
-          const refresh = await refreshToken();
-          if (refresh.status === 201) {
-            const newToken = refresh.data.accessToken;
+        refreshToken().then(response => {
+          if (response.status === 201) {
+            const newToken = response.data.accessToken;
             originRequest.headers['Authorization'] = `Bearer ${newToken}`;
             return instance(originRequest); // 최초의 요청을 반환하여 다시 호출
+          } else if (response.status === 401) {
+            console.log('refresh token 없음!', error);
+            alert.error('로그인이 만료되었습니다.\n다시 로그인 해주세요.', {
+              onClose: () => {
+                navigate('/login');
+              },
+            });
+          } else {
+            return Promise.reject(error);
           }
-        } catch (error) {
-          console.log('refresh token 없음!', error);
-          alert.error('로그인이 만료되었습니다.\n다시 로그인 해주세요.', {
-            onClose: () => {
-              navigate('/login');
-            },
-          });
-        }
+        });
       } else {
         // token 과 관련없는 요청
         return Promise.reject(error);
@@ -62,7 +62,7 @@ const useAuthAxios = () => {
       instance.interceptors.request.eject(requestInterceptor);
       instance.interceptors.response.eject(responseInterceptor);
     };
-  }, []);
+  }, [requestInterceptor, responseInterceptor]);
 };
 
 export default useAuthAxios;
