@@ -17,6 +17,7 @@ export class AuthService {
     ){}
 
     async generateAccessToken(payload: any) {
+        let count = 0;
             const accessKeyData = {
                 user_id: payload.user_id,
                 email: payload.email,
@@ -24,7 +25,7 @@ export class AuthService {
             }
             const accessToken = await this.jwtService.sign({accessKeyData}, {
                 secret: process.env.ACCESS_SECRET,
-                expiresIn: `3600s`
+                expiresIn: `60s`
             })
             return accessToken
         // accesstoken이 없을때
@@ -58,9 +59,7 @@ export class AuthService {
     }
 
     async validateUser(user_id: string, pass: string) {
-        console.log(user_id)
         const user = await this.userInfoRepository.findOne({ where: { user_id: user_id } });
-        console.log(user)
         if (user && user.password === pass) {
             delete user.password;
             return user;
@@ -93,7 +92,6 @@ export class AuthService {
             const Token = token.replace('Bearer ', '').split('=')[1];
             const secretKey = process.env.REFRESH_SECRET
             const findUser = await this.jwtService.verify(Token, { secret: secretKey })
-            console.log(findUser)
             return findUser
         } catch (err) {
             throw new HttpException({ message: 'refreshTokenExpired' }, HttpStatus.UNAUTHORIZED);
