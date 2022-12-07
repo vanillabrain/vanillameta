@@ -53,8 +53,8 @@ export class ShareUrlService {
     }
   }
 
-  async shareDashboardInfo(token: string){
-    const findDashboardShareUrl = await this.dashboardShareRepository.findOne({ where: { shareToken: token }})
+  async shareDashboardInfo(uuid: string){
+    const findDashboardShareUrl = await this.dashboardShareRepository.findOne({ where: { uuid: uuid }})
     const findDashboard = await this.dashboardRepository.findOne({ where: { shareId: findDashboardShareUrl.id}})
     if(!findDashboard){
       return 'not exist share dashboard'

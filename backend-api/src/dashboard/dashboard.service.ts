@@ -12,6 +12,7 @@ import { User } from '../user/entities/user.entity.js';
 import { YesNo } from 'src/common/enum/yn.enum';
 import { DashboardShare } from './entities/dashboard_share';
 import { UserMapping } from 'src/user/entities/user-mapping.entity';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class DashboardService {
@@ -46,15 +47,18 @@ export class DashboardService {
       where: { title: createDashboardDto.title },
     });
     if (!findTitle) {
+
+
       const share_id = await this.dashboardShareRepository.save({
+        uuid: uuidv4(),
         createdAt: new Date(),
         updatedAt: new Date()
       });
       const saveObj = {
         title: createDashboardDto.title,
         layout: JSON.stringify(createDashboardDto.layout),
-        del_yn: YesNo.NO,
-        share_id: share_id.id,
+        delYn: YesNo.NO,
+        shareId: share_id.id,
         createdAt: new Date(),
         updatedAt: new Date()
       };
@@ -85,7 +89,6 @@ export class DashboardService {
   }
 
   async findAll(accessToken: string) {
-
     const findUser = await this.userService.findDashboardId(accessToken);
     const findId = findUser.map(el =>
         el['dashboardId']);

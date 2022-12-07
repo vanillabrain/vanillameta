@@ -72,6 +72,7 @@
     "ts-jenum": "^2.2.2",
     "typeorm": "^0.3.9",
     "typeorm-naming-strategies": "^4.1.0",
+    "uuid": "^9.0.0",
     "winston": "^3.8.2"
   },
   "devDependencies": {
@@ -84,6 +85,7 @@
     "@types/passport-jwt": "^3.0.7",
     "@types/passport-local": "^1.0.34",
     "@types/supertest": "^2.0.11",
+    "@types/uuid": "^9.0.0",
     "@typescript-eslint/eslint-plugin": "^5.0.0",
     "@typescript-eslint/parser": "^5.0.0",
     "eslint": "^8.0.1",

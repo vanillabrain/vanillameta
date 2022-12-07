@@ -26,9 +26,9 @@ export class ShareUrlController {
     return this.shareUrlService.checkShareUrlOff( authorization, dashboard_id, user_id )
   }
 
-  @Get('share-dashboard/:token')
+  @Get('share-dashboard/:shareUrl')
   async shareDashboardInfo(@Param() param) {
-    const { token } = param;
-    return await this.shareUrlService.shareDashboardInfo(token)
+    const { shareUrl } = param;
+    return await this.shareUrlService.shareDashboardInfo(shareUrl)
   }
 }
