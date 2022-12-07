@@ -39,6 +39,7 @@ const DashboardView = () => {
   const [layout, setLayout] = useState([]); // grid layout
   // dashboard id
   const [isShareOn, setIsShareOn] = useState(false);
+  const [shareLimitDate, setShareLimitDate] = useState(null);
 
   // init useEffect
   useEffect(() => {
@@ -138,13 +139,16 @@ const DashboardView = () => {
   };
 
   const handleShareToggle = () => {
-    const data = { user_id: userState.userId };
+    const data = {
+      user_id: userState.userId,
+      end_date: shareLimitDate,
+    };
     showLoading();
     if (!isShareOn) {
       shareService
         .onShareToken(dashboardId, data)
         .then(response => {
-          console.log(response);
+          console.log('buttonOn', response);
           if (response.status === 201) {
             setIsShareOn(true);
           }
@@ -159,7 +163,7 @@ const DashboardView = () => {
       shareService
         .offShareToken(dashboardId, data)
         .then(response => {
-          console.log(response);
+          console.log('buttonOff', response);
           if (response.status === 201) {
             setIsShareOn(false);
           }
@@ -245,7 +249,13 @@ const DashboardView = () => {
                 handleDeleteSelect();
               }}
             />
-            <ShareButton onClick={handleShareToggle} isShareOn={isShareOn} shareToken={dashboardInfo.shareToken} />
+            <ShareButton
+              onClick={handleShareToggle}
+              isShareOn={isShareOn}
+              shareToken={dashboardInfo.shareToken}
+              shareLimitDate={shareLimitDate}
+              setShareLimitDate={setShareLimitDate}
+            />
           </Stack>
         }
       >
