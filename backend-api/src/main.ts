@@ -7,6 +7,18 @@ import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   const expressApp = express();
+
+
+  const corsOptions = {
+    origin: function (origin, callback){
+      console.log('asdfasdfsadfasdf',origin)
+      if(process.env.CORS_ORIGIN.indexOf(origin) !== -1){
+        callback(null, true);
+      } else {
+        callback(new Error('Not Allowed Origin'))
+      }
+    }
+  }
   const app = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), {
     logger: console,
     cors: {
@@ -19,6 +31,7 @@ async function bootstrap() {
     },
   });
   app.useGlobalFilters(new HttpExceptionFilter());
+
   // app.useGlobalPipes(new ValidationPipe({ transform: true }));
   // const app = await NestFactory.create(AppModule);
   await app.listen(4000);
