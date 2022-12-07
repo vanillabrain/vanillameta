@@ -1,18 +1,12 @@
 import React, { useContext } from 'react';
 import { Avatar, Box, Button, ClickAwayListener, Paper, Popper, Stack, Typography } from '@mui/material';
 import { ReactComponent as IconUser } from '@/assets/images/icon/ic-user.svg';
-import { useAlert } from 'react-alert';
 import ProfileModify from '@/pages/User/components/ProfileModify';
 import { AuthContext } from '@/contexts/AuthContext';
-import { LoadingContext } from '@/contexts/LoadingContext';
-import authService from '@/api/authService';
-import { useNavigate } from 'react-router-dom';
+import Logout from '@/pages/User/Logout';
 
 const ProfileViewButton = () => {
-  const { userState, setLogout } = useContext(AuthContext);
-  const { showLoading, hideLoading } = useContext(LoadingContext);
-  const alert = useAlert();
-  const navigate = useNavigate();
+  const { userState } = useContext(AuthContext);
   const [open, setOpen] = React.useState(false);
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
 
@@ -27,35 +21,6 @@ const ProfileViewButton = () => {
 
   const canBeOpen = open && Boolean(anchorEl);
   const id = canBeOpen ? 'transition-popper' : undefined;
-
-  const handleLogout = () => {
-    showLoading();
-    authService
-      .signout()
-      .then(response => {
-        if (response.status === 201) {
-          alert.success('로그아웃 하시겠습니까?.', {
-            onClose: () => {
-              setLogout();
-              navigate('/login');
-            },
-          });
-        }
-      })
-      .catch(error => {
-        console.log(error);
-        if (error.response.status === 401) {
-          // 이미 refreshToken이 만료
-          setLogout();
-          alert.success('로그아웃 되었습니다.');
-          return;
-        }
-        alert.error('로그아웃에 실패했습니다.\n다시 시도해 주세요.');
-      })
-      .finally(() => {
-        hideLoading();
-      });
-  };
 
   return (
     <>
@@ -111,42 +76,7 @@ const ProfileViewButton = () => {
                     color: '#4a4a4a',
                   }}
                 >
-                  <Button
-                    // component={RouterLink}
-                    // to="/login"
-                    onClick={handleLogout}
-                    disableRipple
-                    disableFocusRipple
-                    disableTouchRipple
-                    sx={{
-                      display: 'flex',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      minWidth: 0,
-                      minHeight: 0,
-                      m: 0,
-                      p: 0,
-                      gap: '12px',
-                      fontSize: 'inherit',
-                      fontWeight: 'inherit',
-                      textDecoration: 'underline',
-                      color: 'inherit',
-                      '&:hover': {
-                        textDecoration: 'underline',
-                        backgroundColor: 'inherit',
-                      },
-
-                      '&:after': {
-                        content: `""`,
-                        width: '1px',
-                        height: '10px',
-                        backgroundColor: '#cccfd8',
-                      },
-                    }}
-                  >
-                    로그아웃
-                  </Button>
-
+                  <Logout />
                   <ProfileModify />
                 </Typography>
               </Stack>
