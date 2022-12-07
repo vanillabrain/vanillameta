@@ -18,6 +18,7 @@ import { SnackbarContext } from '@/contexts/AlertContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import shareService from '@/api/shareService';
 import { AuthContext } from '@/contexts/AuthContext';
+import SEO from '@/components/SEO';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -184,6 +185,7 @@ const DashboardView = () => {
       title="대시보드 조회"
       sx={{ width: '100%', marginTop: '22px' }}
     >
+      <SEO title={dashboardInfo.title} />
       <DashboardTitleBox
         title={
           <Typography
