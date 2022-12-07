@@ -46,7 +46,7 @@ export const AuthProvider = ({ children }) => {
         .getUserInfo()
         .then(response => {
           if (response.status === 200) {
-            setUserState({ userId: response.data.data.user_id, userEmail: response.data.data.email });
+            setUserState({ userId: response.data.data.userId, userEmail: response.data.data.email });
           }
           return resolve(response);
         })
