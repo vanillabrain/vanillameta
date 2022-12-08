@@ -74,8 +74,8 @@ export class AuthService {
         const refreshTokenInfo = await this.refreshTokenRepository.findOne({
             where: { refreshToken: token },
         });
-        console.log(refreshTokenInfo)
-        await this.refreshTokenRepository.delete(refreshTokenInfo);
+        refreshTokenInfo.refreshToken = null;
+        await this.refreshTokenRepository.save(refreshTokenInfo);
     }
 
     async verifyAccessToken(token: string) {

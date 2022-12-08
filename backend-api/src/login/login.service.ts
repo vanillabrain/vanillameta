@@ -41,6 +41,7 @@ export class LoginService {
         email: email,
         password: password,
         userId: userId,
+        jwtId: set_retoken.id,
         createdAt: new Date(),
         updatedAt: new Date()
       });
