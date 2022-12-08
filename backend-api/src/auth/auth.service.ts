@@ -46,12 +46,14 @@ export class AuthService {
     async setRefreshKey(refreshToken: string, jwt_id: string){
         const findToken = await this.refreshTokenRepository.findOne({ where: { id: jwt_id } });
         const token = refreshToken.replace('Bearer ', '');
+        console.log('asdfkjhsdlkjfhsaldkjfhksaldjfhlkdfh',token)
         if(!findToken){
-            await this.refreshTokenRepository.save({
+            return await this.refreshTokenRepository.save({
                 refreshToken: token
             })
         }
         else {
+            console.log('asfsadfasdfsadf',token)
             findToken.refreshToken = token;
             await this.refreshTokenRepository.save(findToken)
             }
@@ -70,7 +72,6 @@ export class AuthService {
 
     async deleteRefreshToken(Token: string) {
         const token = Token.replace('Bearer ', '').split('=')[1];
-        console.log(token)
         const refreshTokenInfo = await this.refreshTokenRepository.findOne({
             where: { refreshToken: token },
         });

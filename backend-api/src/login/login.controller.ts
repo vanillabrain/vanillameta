@@ -44,7 +44,8 @@ export class LoginController {
   @Post('signout')
   async signOut(@Res() res, @Req() req) {
     const refreshToken = req.headers.cookie;
+    delete req.headers.authorization;
     await this.authService.deleteRefreshToken(refreshToken)
-    res.status(201).clearCookie('jwt_re').json({ message: 'success'})
+    return res.status(201).clearCookie('jwt_re').json({ message: 'success'})
   }
 }

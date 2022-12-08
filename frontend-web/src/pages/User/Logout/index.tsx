@@ -18,6 +18,7 @@ const Logout = () => {
       .signout()
       .then(response => {
         if (response.status === 201) {
+            console.log(response.headers)
           alert.success('로그아웃 하시겠습니까?', {
             onClose: () => {
               setLogout();
