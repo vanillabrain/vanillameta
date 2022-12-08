@@ -17,7 +17,6 @@ const Logout = () => {
     authService
       .signout()
       .then(response => {
-        console.log(response.headers);
         if (response.status === 201) {
           alert.success('로그아웃 하시겠습니까?', {
             onClose: () => {
