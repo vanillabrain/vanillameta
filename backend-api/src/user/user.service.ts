@@ -38,7 +38,7 @@ export class UserService {
       throw new HttpException('not exist user', HttpStatus.CONFLICT);
     } else {
       findUser.email = String(updateUserDto.email);
-      findUser.password = String(updateUserDto.new_password);
+      findUser.password = String(updateUserDto.newPassword);
       await this.userRepository.save(findUser);
       return `success`;
     }
@@ -57,8 +57,8 @@ export class UserService {
   async reissuanceAccessToken(cookie: string){
     const tokenInfo = await this.authService.verifyRefreshToken(cookie)
 
-    const { user_id } = tokenInfo.refreshKeyData
-    const payload = await this.userRepository.findOne({ where: { userId: user_id }})
+    const { userId } = tokenInfo.refreshKeyData
+    const payload = await this.userRepository.findOne({ where: { userId: userId }})
     return await this.authService.generateAccessToken(payload)
   }
 
