@@ -9,24 +9,24 @@ export class ShareUrlController {
   constructor(private readonly shareUrlService: ShareUrlService) {}
 
   @UseGuards(JwtAuthGuard)
-  @Post('share-on/:dashboard_id')
+  @Post('share-on/:dashboardId')
   checkShareUrlOn(@Req() req, @Param() params, @Body() body) {
-    const { user_id } = body;
+    const { userId, endDate } = body;
     const { authorization } = req.headers;
-    const { dashboard_id } = params;
-    return this.shareUrlService.checkShareUrlOn( authorization, dashboard_id, user_id )
+    const { dashboardId } = params;
+    return this.shareUrlService.checkShareUrlOn( authorization, dashboardId, userId )
   }
 
   @UseGuards(JwtAuthGuard)
-  @Post('share-off/:dashboard_id')
+  @Post('share-off/:dashboardId')
   checkShareUrlOff(@Req() req, @Param() params, @Body() body) {
-    const { user_id } = body;
+    const { userId } = body;
     const { authorization } = req.headers;
-    const { dashboard_id } = params;
-    return this.shareUrlService.checkShareUrlOff( authorization, dashboard_id, user_id )
+    const { dashboardId } = params;
+    return this.shareUrlService.checkShareUrlOff( authorization, dashboardId, userId )
   }
 
-  @Get('share-dashboard/:shareUrl')
+  @Get('share-dashboard/:uuid')
   async shareDashboardInfo(@Param() param) {
     const { shareUrl } = param;
     return await this.shareUrlService.shareDashboardInfo(shareUrl)

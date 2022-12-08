@@ -20,7 +20,7 @@ export class AuthService {
 
         let count = 0;
             const accessKeyData = {
-                user_id: payload.user_id,
+                userId: payload.userId,
                 email: payload.email,
                 id: payload.id
             }
@@ -34,7 +34,7 @@ export class AuthService {
 
     async generateRefreshToken(payload: any) {
         const refreshKeyData = {
-            user_id: payload.user_id,
+            userId: payload.userId,
             email: payload.email,
             id: payload.id
         }
@@ -58,8 +58,8 @@ export class AuthService {
         // 로그인시 갱신된 refreshToken 저장
     }
 
-    async validateUser(user_id: string, pass: string) {
-        const user = await this.userRepository.findOne({ where: { userId: user_id } });
+    async validateUser(userId: string, pass: string) {
+        const user = await this.userRepository.findOne({ where: { userId: userId } });
         if (user && user.password === pass) {
             delete user.password;
             return user;
@@ -102,6 +102,6 @@ export class AuthService {
 
     async checkAccess(token: string, password: string) {
         const { accessKeyData } = await this.verifyAccessToken(token);
-        return await this.validateUser(accessKeyData.user_id, password)
+        return await this.validateUser(accessKeyData.userId, password)
     }
 }
