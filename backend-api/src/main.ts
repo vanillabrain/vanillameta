@@ -22,7 +22,7 @@ async function bootstrap() {
     logger: console,
 
     cors: {
-      origin: process.env.CORS_ORIGIN,
+      origin: true,
       preflightContinue: false,
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
       optionsSuccessStatus: 200,

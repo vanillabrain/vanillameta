@@ -5,7 +5,7 @@ import { Dashboard } from '../dashboard/entities/dashboard.entity.js';
 import { User } from '../user/entities/user.entity.js';
 import { Repository } from 'typeorm';
 import { YesNo } from '../common/enum/yn.enum.js';
-import { CreateShareUrlDto } from './dto/create-share-url.dto';
+import { ShareUrlOnDto } from './dto/create-share-url.dto';
 import { UpdateShareUrlDto } from './dto/update-share-url.dto';
 import { DashboardService } from '../dashboard/dashboard.service.js';
 import { DashboardShare } from '../dashboard/entities/dashboard_share.js';
@@ -22,17 +22,20 @@ export class ShareUrlService {
   }
 
 
-  async checkShareUrlOn( accessToken:string, dashboardId: number, userId: string ) {
-    const findpass = await this.userRepository.findOne({ where: { userId: userId }})
+  async checkShareUrlOn( accessToken:string, dashboardId: number, shareUrlOnDto: ShareUrlOnDto ) {
+    const findpass = await this.userRepository.findOne({ where: { userId: shareUrlOnDto.userId }})
     const findUser = await this.authService.checkAccess(accessToken, findpass.password);
     if(!findUser){
       return 'not exist user'
     } else {
+      const split = shareUrlOnDto.endDate.split('/')
+      const dateForm = `${split[2]}-${split[0]}-${split[1]}`;
       const newToken = await this.authService.generateRefreshToken(String(dashboardId)); //새로운 공유 토큰 생성
       const findDashboard = await this.dashboardRepository.findOne( { where: { id: dashboardId } })
       const findDashboardShare = await this.dashboardShareRepository.findOne({ where: { id: findDashboard.shareId }})
       findDashboardShare.shareToken = newToken;
       findDashboardShare.shareYn = YesNo.YES;
+      findDashboardShare.endDate = new Date(dateForm);
       await this.dashboardShareRepository.save(findDashboardShare)
       return { uuid: findDashboardShare.uuid, message: "success" }
     }
