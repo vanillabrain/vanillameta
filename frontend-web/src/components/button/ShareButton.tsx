@@ -7,11 +7,11 @@ import { useAlert } from 'react-alert';
 import { ROUTE_URL } from '@/constant';
 import DatePicker from '@/components/form/DatePicker';
 
-const ShareButton = ({ onClick, isShareOn, shareToken, shareLimitDate, setShareLimitDate }) => {
+const ShareButton = ({ onClick, isShareOn, shareId, shareLimitDate, setShareLimitDate }) => {
   const [anchorEl, setAnchorEl] = React.useState<HTMLButtonElement | null>(null);
   const open = Boolean(anchorEl);
   const id = open ? 'simple-popover' : undefined;
-  const shareLink = `${ROUTE_URL}/share/${shareToken ? shareToken : ''}`;
+  const shareLink = `${ROUTE_URL}/share/${shareId ? shareId : ''}`;
   const alert = useAlert();
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {

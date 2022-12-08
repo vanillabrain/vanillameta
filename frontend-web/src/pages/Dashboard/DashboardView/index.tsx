@@ -35,7 +35,8 @@ const DashboardView = () => {
     layout: [],
     updatedAt: '',
     shareYn: 'N',
-    shareToken: null,
+    uuid: null,
+    endDate: null,
   }); // dashboard 정보
   const [layout, setLayout] = useState([]); // grid layout
   // dashboard id
@@ -57,6 +58,7 @@ const DashboardView = () => {
     });
     setLayout(dashboardInfo.layout);
     setIsShareOn(dashboardInfo.shareYn === 'Y');
+    setShareLimitDate(dashboardInfo.endDate);
   }, [dashboardInfo]);
 
   // dashboard info 조회
@@ -178,6 +180,8 @@ const DashboardView = () => {
     }
   };
 
+  console.log(dashboardInfo, 'infoo');
+
   return (
     <PageTitleBox
       upperTitle="대시보드"
@@ -254,7 +258,7 @@ const DashboardView = () => {
             <ShareButton
               onClick={handleShareToggle}
               isShareOn={isShareOn}
-              shareToken={dashboardInfo.shareToken}
+              shareId={dashboardInfo.uuid}
               shareLimitDate={shareLimitDate}
               setShareLimitDate={setShareLimitDate}
             />
