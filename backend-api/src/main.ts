@@ -7,12 +7,13 @@ import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   const expressApp = express();
+  const whiteList = ['https://vanillameta-dev.vanillabrain.com']
   const app = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), {
     logger: console,
 
     cors: {
       origin: function (origin, callback){
-        if(process.env.CORS_ORIGIN.indexOf(origin) !== -1){
+        if(whiteList.indexOf(origin) !== -1){
           callback(null, true);
         } else {
           callback(new Error('Not Allowed Origin'))
