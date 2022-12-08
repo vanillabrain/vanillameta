@@ -143,11 +143,16 @@ const DashboardView = () => {
 
   const handleShareToggle = () => {
     const data = {
-      user_id: userState.userId,
-      end_date: shareLimitDate,
+      userId: userState.userId,
+      endDate: shareLimitDate,
     };
-    showLoading();
     if (!isShareOn) {
+      // 공유 off에서 on으로 변경
+      if (!shareLimitDate) {
+        snackbar.error('공유 기한을 먼저 설정해주세요.');
+        return;
+      }
+      showLoading();
       shareService
         .onShareToken(dashboardId, data)
         .then(response => {
