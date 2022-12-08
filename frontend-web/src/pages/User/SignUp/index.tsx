@@ -50,7 +50,7 @@ const SignUp = () => {
     validateData();
     if (isValid) {
       const data = {
-        user_id: userInfo.userId,
+        userId: userInfo.userId,
         password: userInfo.userPwd,
         email: userInfo.userEmail,
       };
@@ -65,7 +65,7 @@ const SignUp = () => {
         })
         .catch(error => {
           console.log(error);
-          if (error.response.status === 409 && error.response.data.data === 'conflict user_id') {
+          if (error.response.status === 409 && error.response.data.data === 'conflict userId') {
             snackbar.error('이미 가입된 ID입니다.');
           } else if (error.response.status === 409 && error.response.data.data === 'conflict email') {
             snackbar.error('이미 가입된 E-mail입니다.');

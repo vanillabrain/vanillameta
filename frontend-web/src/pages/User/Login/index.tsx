@@ -57,7 +57,7 @@ const Login = () => {
     validateData();
     if (isValid) {
       const data = {
-        user_id: userInfo.userId,
+        userId: userInfo.userId,
         password: userInfo.userPwd,
       };
       authService
