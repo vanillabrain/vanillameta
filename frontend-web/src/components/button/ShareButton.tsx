@@ -5,12 +5,13 @@ import { ReactComponent as IconToggleOn } from '@/assets/images/icon/toggle-on.s
 import { ReactComponent as IconToggleOff } from '@/assets/images/icon/toggle-off.svg';
 import { useAlert } from 'react-alert';
 import { ROUTE_URL } from '@/constant';
+import DatePicker from '@/components/form/DatePicker';
 
-const ShareButton = ({ onClick, isShareOn, shareToken }) => {
+const ShareButton = ({ onClick, isShareOn, shareId, shareLimitDate, setShareLimitDate }) => {
   const [anchorEl, setAnchorEl] = React.useState<HTMLButtonElement | null>(null);
   const open = Boolean(anchorEl);
   const id = open ? 'simple-popover' : undefined;
-  const shareLink = `${ROUTE_URL}/share/${shareToken ? shareToken : ''}`;
+  const shareLink = `${ROUTE_URL}/share/${shareId ? shareId : ''}`;
   const alert = useAlert();
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -86,7 +87,7 @@ const ShareButton = ({ onClick, isShareOn, shareToken }) => {
               <Typography sx={{ mb: '6px', fontSize: '16px', fontWeight: 600, color: '#141414' }}>페이지 공유</Typography>
               {isShareOn ? (
                 <Box>
-                  <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" mb="6px">
                     <Typography sx={{ mr: '12px', fontSize: '14px', color: '#141414' }}>
                       링크를 통한 읽기를 허용합니다.
                     </Typography>
@@ -94,6 +95,8 @@ const ShareButton = ({ onClick, isShareOn, shareToken }) => {
                       <IconToggleOn />
                     </IconButton>
                   </Stack>
+                  <Typography>{shareLimitDate ? shareLimitDate : '??/??/????'} 까지 공유중</Typography>
+
                   <Stack direction="row" justifyContent="space-between" mt="29px">
                     <TextField sx={{ width: '298px', height: '32px' }} disabled value={shareLink} />
                     <Button variant="contained" sx={{ minWidth: '55px' }} onClick={handleCopyClick}>
@@ -102,14 +105,17 @@ const ShareButton = ({ onClick, isShareOn, shareToken }) => {
                   </Stack>
                 </Box>
               ) : (
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
-                  <Typography sx={{ mr: '12px', fontSize: '14px', color: '#141414' }}>
-                    링크를 통한 읽기를 허용하지 않습니다.
-                  </Typography>
-                  <IconButton onClick={onClick} sx={{ minWidth: '44px', width: '44px', height: '24px', m: 0, p: 0 }}>
-                    <IconToggleOff />
-                  </IconButton>
-                </Stack>
+                <Box>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" mb="10px">
+                    <Typography sx={{ mr: '12px', fontSize: '14px', color: '#141414' }}>
+                      링크를 통한 읽기를 허용하지 않습니다.
+                    </Typography>
+                    <IconButton onClick={onClick} sx={{ minWidth: '44px', width: '44px', height: '24px', m: 0, p: 0 }}>
+                      <IconToggleOff />
+                    </IconButton>
+                  </Stack>
+                  <DatePicker shareLimitDate={shareLimitDate} setShareLimitDate={setShareLimitDate} />
+                </Box>
               )}
             </Stack>
           </Paper>

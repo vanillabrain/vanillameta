@@ -7,7 +7,7 @@ export const URL_SHARE_DASHBOARD = '/share-dashboard';
 
 const onShareToken = (id: string, data: unknown): Promise<any> => post(URL_SHARE + URL_SHARE_ON + '/' + id, data);
 const offShareToken = (id: string, data: unknown): Promise<any> => post(URL_SHARE + URL_SHARE_OFF + '/' + id, data);
-const selectDashboard = (token: string): Promise<any> => get(URL_SHARE + URL_SHARE_DASHBOARD + '/' + token);
+const selectDashboard = (uuid: string): Promise<any> => get(URL_SHARE + URL_SHARE_DASHBOARD + '/' + uuid);
 
 const shareService = {
   onShareToken,

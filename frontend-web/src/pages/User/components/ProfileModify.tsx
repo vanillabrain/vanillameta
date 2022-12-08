@@ -109,7 +109,7 @@ const ProfileModify = props => {
 
   const updateUserInfo = () => {
     const data = {
-      user_id: userState.userId,
+      userId: userState.userId,
       password: changedUserInfo.userOldPwd,
       new_password: changedUserInfo.userNewPwd,
       email: changedUserInfo.userEmail,

@@ -18,6 +18,7 @@ import { SnackbarContext } from '@/contexts/AlertContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import shareService from '@/api/shareService';
 import { AuthContext } from '@/contexts/AuthContext';
+import SEO from '@/components/SEO';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -34,11 +35,13 @@ const DashboardView = () => {
     layout: [],
     updatedAt: '',
     shareYn: 'N',
-    shareToken: null,
+    uuid: null,
+    endDate: null,
   }); // dashboard 정보
   const [layout, setLayout] = useState([]); // grid layout
   // dashboard id
   const [isShareOn, setIsShareOn] = useState(false);
+  const [shareLimitDate, setShareLimitDate] = useState(null);
 
   // init useEffect
   useEffect(() => {
@@ -55,6 +58,7 @@ const DashboardView = () => {
     });
     setLayout(dashboardInfo.layout);
     setIsShareOn(dashboardInfo.shareYn === 'Y');
+    setShareLimitDate(dashboardInfo.endDate);
   }, [dashboardInfo]);
 
   // dashboard info 조회
@@ -138,13 +142,16 @@ const DashboardView = () => {
   };
 
   const handleShareToggle = () => {
-    const data = { user_id: userState.userId };
+    const data = {
+      user_id: userState.userId,
+      end_date: shareLimitDate,
+    };
     showLoading();
     if (!isShareOn) {
       shareService
         .onShareToken(dashboardId, data)
         .then(response => {
-          console.log(response);
+          console.log('buttonOn', response);
           if (response.status === 201) {
             setIsShareOn(true);
           }
@@ -159,7 +166,7 @@ const DashboardView = () => {
       shareService
         .offShareToken(dashboardId, data)
         .then(response => {
-          console.log(response);
+          console.log('buttonOff', response);
           if (response.status === 201) {
             setIsShareOn(false);
           }
@@ -173,6 +180,8 @@ const DashboardView = () => {
     }
   };
 
+  console.log(dashboardInfo, 'infoo');
+
   return (
     <PageTitleBox
       upperTitle="대시보드"
@@ -180,6 +189,7 @@ const DashboardView = () => {
       title="대시보드 조회"
       sx={{ width: '100%', marginTop: '22px' }}
     >
+      <SEO title={dashboardInfo.title} />
       <DashboardTitleBox
         title={
           <Typography
@@ -245,7 +255,13 @@ const DashboardView = () => {
                 handleDeleteSelect();
               }}
             />
-            <ShareButton onClick={handleShareToggle} isShareOn={isShareOn} shareToken={dashboardInfo.shareToken} />
+            <ShareButton
+              onClick={handleShareToggle}
+              isShareOn={isShareOn}
+              shareId={dashboardInfo.uuid}
+              shareLimitDate={shareLimitDate}
+              setShareLimitDate={setShareLimitDate}
+            />
           </Stack>
         }
       >
