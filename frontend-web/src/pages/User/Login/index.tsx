@@ -10,6 +10,7 @@ import Copyright from '@/components/Copyright';
 import authService from '@/api/authService';
 import { checkId, checkPwd } from '@/utils/validateUtil';
 import { SnackbarContext } from '@/contexts/AlertContext';
+import SEO from '@/components/SEO';
 
 const Login = () => {
   const { token, setLogin, refreshToken } = useContext(AuthContext);
@@ -118,6 +119,7 @@ const Login = () => {
           backgroundColor: '#f5f6f8',
         }}
       >
+        <SEO title="로그인" />
         <Box
           sx={{
             pt: '90px',

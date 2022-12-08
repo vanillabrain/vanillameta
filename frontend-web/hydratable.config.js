@@ -1,0 +1,3 @@
+{
+  crawlingUrls: ['/', '/login', '/share'];
+}

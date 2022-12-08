@@ -53,7 +53,8 @@
     "build:dev": "env-cmd -f .env.development craco build",
     "build:feat": "env-cmd -f .env.feature craco build",
     "test": "jest",
-    "eject": "craco eject"
+    "eject": "craco eject",
+    "postbuild": "react-hydratable"
   },
   "eslintConfig": {
     "extends": [
@@ -109,6 +110,9 @@
     "prettier": "^2.7.1",
     "prop-types": "^15.8.1",
     "react-error-overlay": "^6.0.11",
+    "react-hydratable": "^1.2.0",
+    "react-snap": "^1.23.0",
+    "react-spa-prerender": "^1.0.14",
     "serve": "^14.0.1",
     "ts-jest": "^29.0.3",
     "typescript": "^4.7.4",
