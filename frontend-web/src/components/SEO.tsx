@@ -9,14 +9,18 @@ const SEO = props => {
     image = '%PUBLIC_URL%/static/images/logo/logo.png',
     url = ROUTE_URL,
   } = props;
+  const titleText = title === 'Vanilla Meta' ? 'Vanilla Meta' : title + ' - Vanilla Meta';
+
   return (
     <Helmet>
       <meta charSet="utf-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
-      <title>{title + ' - Vanilla Meta'}</title>
+      <meta name="title" content={title} />
+      <meta name="description" content={description} />
+      <title>{titleText}</title>
 
       {/* og */}
-      <meta property="og:title" content={title + ' - Vanilla Meta'} />
+      <meta property="og:title" content={titleText} />
       <meta property="og:description" content={description} />
       <meta property="og:image" content={image} />
       <meta property="og:url" content={url} />
@@ -27,7 +31,7 @@ const SEO = props => {
 
       {/* twitter */}
       <meta name="twitter:card" content="summary" />
-      <meta name="twitter:title" content={title + ' - Vanilla Meta'} />
+      <meta name="twitter:title" content={titleText} />
       <meta property="twitter:image" content={image} />
       <meta name="twitter:site" content={url} />
       <meta name="twitter:description" content={description} />

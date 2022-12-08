@@ -11,8 +11,8 @@ import { AlertProvider } from '@/contexts/AlertContext';
 import { HelmetProvider } from 'react-helmet-async';
 import './index.css';
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(
+const rootElement = document.getElementById('root');
+const app = (
   <HelmetProvider>
     <LayoutProvider>
       <LoadingProvider>
@@ -27,5 +27,11 @@ root.render(
         </BrowserRouter>
       </LoadingProvider>
     </LayoutProvider>
-  </HelmetProvider>,
+  </HelmetProvider>
 );
+
+if (rootElement.hasChildNodes()) {
+  ReactDOM.hydrateRoot(rootElement, app); // react pre-rendering
+} else {
+  ReactDOM.createRoot(rootElement).render(app);
+}
