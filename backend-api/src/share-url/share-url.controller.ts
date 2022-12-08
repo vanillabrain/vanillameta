@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req } from '@nestjs/common';
 import { ShareUrlService } from './share-url.service';
-import { CreateShareUrlDto } from './dto/create-share-url.dto';
+import { ShareUrlOnDto } from './dto/create-share-url.dto';
 import { UpdateShareUrlDto } from './dto/update-share-url.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
@@ -10,11 +10,10 @@ export class ShareUrlController {
 
   @UseGuards(JwtAuthGuard)
   @Post('share-on/:dashboardId')
-  checkShareUrlOn(@Req() req, @Param() params, @Body() body) {
-    const { userId, endDate } = body;
+  checkShareUrlOn(@Req() req, @Param() params, @Body() shareUrlOnDto: ShareUrlOnDto) {
     const { authorization } = req.headers;
     const { dashboardId } = params;
-    return this.shareUrlService.checkShareUrlOn( authorization, dashboardId, userId )
+    return this.shareUrlService.checkShareUrlOn( authorization, dashboardId, shareUrlOnDto )
   }
 
   @UseGuards(JwtAuthGuard)
