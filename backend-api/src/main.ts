@@ -7,22 +7,17 @@ import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   const expressApp = express();
-
-  // const corsOptions = {
-  //   origin: function (origin, callback){
-  //     console.log('asdfasdfsadfasdf',origin)
-  //     if(process.env.CORS_ORIGIN.indexOf(origin) !== -1){
-  //       callback(null, true);
-  //     } else {
-  //       callback(new Error('Not Allowed Origin'))
-  //     }
-  //   }
-  // }
   const app = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), {
     logger: console,
 
     cors: {
-      origin: true,
+      origin: function (origin, callback){
+        if(process.env.CORS_ORIGIN.indexOf(origin) !== -1){
+          callback(null, true);
+        } else {
+          callback(new Error('Not Allowed Origin'))
+        }
+      },
       preflightContinue: false,
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
       optionsSuccessStatus: 200,
@@ -30,11 +25,6 @@ async function bootstrap() {
       credentials: true
     },
   });
-  // app.enableCors({
-  //   origin: true,
-  //   credentials: true,
-  //   allowedHeaders: 'Origin, X-Requested-With, Content-Type, Accept',
-  // });
   app.useGlobalFilters(new HttpExceptionFilter());
 
   // app.useGlobalPipes(new ValidationPipe({ transform: true }));
