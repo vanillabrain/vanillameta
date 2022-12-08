@@ -1,5 +1,4 @@
 import * as React from 'react';
-import { Dayjs } from 'dayjs';
 import TextField from '@mui/material/TextField';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -10,10 +9,13 @@ const DatePicker = ({ shareLimitDate, setShareLimitDate }) => {
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs} localeText={{ start: 'Check-in', end: 'Check-out' }}>
       <MuiDatePicker
-        // label="Basic example"
         value={shareLimitDate}
         onChange={newValue => {
-          const selectDate = new Date(Date.parse(newValue.$d)).toLocaleDateString('en-US');
+          const selectDate = new Date(Date.parse(newValue.$d)).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+          });
           setShareLimitDate(selectDate);
         }}
         renderInput={params => <TextField {...params} />}
