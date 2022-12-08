@@ -19,7 +19,7 @@ export class loginLoggerMiddleware implements NestMiddleware {
     async use(req: Request, res: Response, next: NextFunction) {
             if(req.url === '/signin'){
                 let loginSaveObj = {
-                    user_id: req.body.user_id,
+                    userId: req.body.userId,
                     path: req.path,
                     login_Type: req.headers['user-agent'],
                     login_succYn: YesNo.YES,
@@ -32,7 +32,7 @@ export class loginLoggerMiddleware implements NestMiddleware {
 
             if(req.url === '/signout'){
                 let logoutSaveObj = {
-                    user_id: req.body.user_id,
+                    userId: req.body.userId,
                     path: req.path,
                     loginType: req.headers['user-agent'],
                     loginSuccYn: YesNo.NO,

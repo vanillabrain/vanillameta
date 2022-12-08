@@ -43,12 +43,15 @@ export class DashboardService {
     createDashboardDto.layout.map(item => {
       widgetIds.push(item.i);
     });
+
+    const findMap = await this.userMappingRepository.findOne({
+      where: { userInfoId: userData.id }
+    })
     const findTitle = await this.dashboardRepository.findOne({
-      where: { title: createDashboardDto.title },
+      where: { id: findMap.dashboardId },
     });
-    if (!findTitle) {
 
-
+    if (findTitle.title !== createDashboardDto.title) {
       const share_id = await this.dashboardShareRepository.save({
         uuid: uuidv4(),
         createdAt: new Date(),
@@ -161,8 +164,8 @@ export class DashboardService {
     } else {
       await this.dashboardRepository.delete(id);
       await this.dashboardWidgetService.remove(id);
-      const find_dashboard_id = await this.userMappingRepository.findOne({ where: { dashboardId: id }})
-      await this.userMappingRepository.delete(find_dashboard_id.id)
+      const find_dashboardId = await this.userMappingRepository.findOne({ where: { dashboardId: id }})
+      await this.userMappingRepository.delete(find_dashboardId.id)
       return {
         status: ResponseStatus.SUCCESS,
         data: { message: `This action removes a #${id} dashboard` },

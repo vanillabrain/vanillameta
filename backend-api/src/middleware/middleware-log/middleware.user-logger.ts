@@ -14,7 +14,7 @@ export class userLoggerMiddleware implements NestMiddleware {
   ) {}
   async use(req: Request, res: Response, next: NextFunction) {
     const loginSaveObj = {
-      user_id: req.body.user_id,
+      userId: req.body.userId,
       path: req.path,
       login_type: req.headers['user-agent'],
       login_succyn: YesNo.YES,

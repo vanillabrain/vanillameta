@@ -6,7 +6,7 @@ export class UpdateUserDto extends PartialType(CreateUserDto) {
 
     @IsString()
     @IsNotEmpty()
-    new_password: string;
+    newPassword: string;
 }
 
 

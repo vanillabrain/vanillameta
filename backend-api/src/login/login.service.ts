@@ -18,8 +18,8 @@ export class LoginService {
   ) {}
 
   async signin(loginDto: LoginUserDto) {
-    const { user_id, password } = loginDto;
-    const findUser = await this.authService.validateUser(user_id, password);
+    const { userId, password } = loginDto;
+    const findUser = await this.authService.validateUser(userId, password);
     if (!findUser) {
       throw new UnauthorizedException(`Unauthorized`);
     }
@@ -31,22 +31,22 @@ export class LoginService {
       where: { email: createLoginDto.email },
     });
     const userInfoId = await this.userRepository.findOne({
-      where: { userId: createLoginDto.user_id },
+      where: { userId: createLoginDto.userId },
     });
 
     if (!userInfoEmail && !userInfoId) {
-      const { email, password, user_id } = createLoginDto;
+      const { email, password, userId } = createLoginDto;
       const set_retoken = await this.refreshRepository.save({})
       const createUserInfo = await this.userRepository.save({
         email: email,
         password: password,
-        user_id: user_id,
+        userId: userId,
         createdAt: new Date(),
         updatedAt: new Date()
       });
       return 'success';
     } else if (!userInfoEmail && userInfoId) {
-      throw new HttpException('conflict user_id', HttpStatus.CONFLICT);
+      throw new HttpException('conflict userId', HttpStatus.CONFLICT);
     }
     throw new HttpException('conflict email', HttpStatus.CONFLICT);
   }

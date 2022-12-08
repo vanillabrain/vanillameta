@@ -17,7 +17,7 @@ export class shareUrlLoggerMiddleware implements NestMiddleware {
     ) {}
     async use(req: Request, res: Response, next: NextFunction) {
         let loginSaveObj = {
-            user_id: req.body.user_id,
+            userId: req.body.userId,
             path: req.path,
             login_type: req.headers['user-agent'],
             login_succ_tn: YesNo.YES,
