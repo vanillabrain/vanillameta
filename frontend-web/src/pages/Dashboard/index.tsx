@@ -12,6 +12,7 @@ import { useAlert } from 'react-alert';
 import { styled } from '@mui/system';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { SnackbarContext } from '@/contexts/AlertContext';
+import SEO from '@/components/SEO';
 
 const title = '대시보드';
 
@@ -149,6 +150,8 @@ function Dashboard() {
 
   return (
     <PageContainer>
+      <SEO title={title} />
+
       {!dashboardId ? (
         <>
           <PageTitleBox

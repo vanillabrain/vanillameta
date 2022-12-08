@@ -12,6 +12,7 @@ import { LoadingContext } from '@/contexts/LoadingContext';
 import shareService from '@/api/shareService';
 import Logo from '@/layouts/Header/Logo';
 import Copyright from '@/components/Copyright';
+import SEO from '@/components/SEO';
 
 export const DashboardEmpty = () => {
   return (
@@ -135,6 +136,7 @@ const DashboardShare = () => {
   if (isShareOn) {
     return (
       <Stack sx={{ width: '1392px', m: 'auto', mt: '32px' }}>
+        <SEO title={dashboardInfo.title} />
         <Logo sx={{ mb: '5px' }} />
         <DashboardTitleBox
           title={
