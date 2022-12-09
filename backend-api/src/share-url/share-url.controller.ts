@@ -18,11 +18,10 @@ export class ShareUrlController {
 
   @UseGuards(JwtAuthGuard)
   @Post('share-off/:dashboardId')
-  checkShareUrlOff(@Req() req, @Param() params, @Body() body) {
-    const { userId } = body;
+  checkShareUrlOff(@Req() req, @Param() params, @Body() shareUrlOnDto: ShareUrlOnDto) {
     const { authorization } = req.headers;
     const { dashboardId } = params;
-    return this.shareUrlService.checkShareUrlOff( authorization, dashboardId, userId )
+    return this.shareUrlService.checkShareUrlOff( authorization, dashboardId, shareUrlOnDto)
   }
 
   @Get('share-dashboard/:uuid')
