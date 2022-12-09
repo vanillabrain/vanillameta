@@ -14,4 +14,4 @@ DB_CONFIG:
     DB_PORT: 3306
     DB_USER: vanillameta
     DB_PASSWORD: pw
-    DB_NAME: vanillameta
+    DB_NAME: vanillameta_auth

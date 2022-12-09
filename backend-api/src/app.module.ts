@@ -33,7 +33,7 @@ import { ShareUrlModule } from './share-url/share-url.module';
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
       // entities: ["dist/common/entities/*{.ts,.js}"],
       synchronize: false,
-      logging: process.env.NODE_ENV == 'dev',
+      logging: process.env.NODE_ENV == 'prod',
       retryAttempts: 1,
     }),
     DatabaseModule,
