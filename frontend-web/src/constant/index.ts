@@ -1,4 +1,4 @@
-export const ROUTE_URL = 'http://localhost:3000';
+export const ROUTE_URL = 'https://vanillameta-dev.vanillabrain.com/';
 
 export const WIDGET_TYPE = {
   BOARD_NUMERIC: 'BOARD_NUMERIC',
