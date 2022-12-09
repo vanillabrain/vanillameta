@@ -110,7 +110,7 @@ export class DashboardService {
     find_all.forEach(el => {
       el.layout = JSON.parse(el.layout);
     });
-    return { status: ResponseStatus.SUCCESS, data: find_all };
+    return { status: ResponseStatus.SUCCESS, data: find_all, message: process.env.DB_NAME };
   }
   // 기존 dashboard all
 
