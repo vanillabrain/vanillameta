@@ -6,7 +6,7 @@ const Seo = props => {
   const {
     title = 'Vanilla Meta',
     description = '최신 엔터프라이즈용 비즈니스 인텔리전스 웹 애플리케이션, Vanilla Meta',
-    image = `${ROUTE_URL}/static/images/logo/logo.svg`,
+    image = `${ROUTE_URL}/static/images/logo/vanillaMeta-og.jpg`,
     url = ROUTE_URL,
   } = props;
   const titleText = title === 'Vanilla Meta' ? 'Vanilla Meta' : title + ' - Vanilla Meta';
