@@ -41,8 +41,8 @@ export class ShareUrlService {
     }
   }
 
-  async checkShareUrlOff( accessToken:string, dashboardId: number, userId: string ){
-    const findpass = await this.userRepository.findOne({ where: { userId: userId }})
+  async checkShareUrlOff( accessToken:string, dashboardId: number, shareUrlOnDto: ShareUrlOnDto){
+    const findpass = await this.userRepository.findOne({ where: { userId: shareUrlOnDto.userId }})
     const findUser = await this.authService.checkAccess(accessToken, findpass.password);
     if(!findUser){
       return 'not exist user'
@@ -51,6 +51,7 @@ export class ShareUrlService {
       const findDashboardShare = await this.dashboardShareRepository.findOne({ where: { id: findDashboard.shareId }})
       findDashboardShare.shareToken = null;
       findDashboardShare.shareYn = YesNo.NO;
+      findDashboardShare.endDate = null;
       await this.dashboardShareRepository.save(findDashboardShare)
       return { message: "success" }
     }
