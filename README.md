@@ -17,7 +17,7 @@
 - 고급 SQL 쿼리 편집기 및 데이터 미리보기
 - 다양한 SQL 데이터베이스에 대한 즉시 지원
 
-## 스크린샷
+## 주요기능 화면
 
 - **다양한 시각화 차트**
 <kbd><img title="Chart" src="design/feature-01.png"/></kbd><br/>

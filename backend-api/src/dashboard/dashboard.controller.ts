@@ -22,16 +22,19 @@ export class DashboardController {
     return this.dashboardService.findAll(authorization);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.dashboardService.findOne(+id);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Put(':id')
   update(@Param('id') id: string, @Body() updateDashboardDto: UpdateDashboardDto) {
     return this.dashboardService.update(+id, updateDashboardDto);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.dashboardService.remove(+id);
