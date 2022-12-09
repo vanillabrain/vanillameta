@@ -8,7 +8,7 @@ import { useAlert } from 'react-alert';
 import Copyright from '@/components/Copyright';
 import authService from '@/api/authService';
 import { SnackbarContext } from '@/contexts/AlertContext';
-import { checkEmail, checkId, checkPwd } from '@/utils/validateUtil';
+import { checkEmail, checkId, checkPwd } from '@/utils/util';
 import Seo from '@/seo/Seo';
 
 const SignUp = () => {

@@ -19,6 +19,7 @@ import { LoadingContext } from '@/contexts/LoadingContext';
 import shareService from '@/api/shareService';
 import { AuthContext } from '@/contexts/AuthContext';
 import Seo from '@/seo/Seo';
+import { dateData } from '@/utils/util';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -58,7 +59,10 @@ const DashboardView = () => {
     });
     setLayout(dashboardInfo.layout);
     setIsShareOn(dashboardInfo.shareYn === 'Y');
-    setShareLimitDate(dashboardInfo.endDate);
+    if (dashboardInfo.endDate) {
+      const date = dateData(dashboardInfo.endDate);
+      setShareLimitDate(date);
+    }
   }, [dashboardInfo]);
 
   // dashboard info 조회
@@ -75,18 +79,6 @@ const DashboardView = () => {
       .finally(() => {
         hideLoading();
       });
-  };
-
-  const dateData = data => {
-    let result = '';
-    if (data != '') {
-      const userDate = new Date(data);
-      const year = userDate.getFullYear();
-      const month = userDate.getMonth() + 1;
-      const date = userDate.getDate();
-      result = `${year}.${month >= 10 ? month : '0' + month}.${date >= 10 ? date : '0' + date}`;
-    }
-    return result;
   };
 
   // refrech 버튼 클릭
@@ -174,6 +166,7 @@ const DashboardView = () => {
           console.log('buttonOff', response);
           if (response.status === 201) {
             setIsShareOn(false);
+            setShareLimitDate(null);
           }
         })
         .catch(error => {
@@ -261,7 +254,7 @@ const DashboardView = () => {
               }}
             />
             <ShareButton
-              onClick={handleShareToggle}
+              handleSubmit={handleShareToggle}
               isShareOn={isShareOn}
               shareId={dashboardInfo.uuid}
               shareLimitDate={shareLimitDate}

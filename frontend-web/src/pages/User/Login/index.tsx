@@ -8,7 +8,7 @@ import { ReactComponent as Logo } from '@/assets/images/logo.svg';
 import backgroundImage from '@/assets/images/visual-bg.png';
 import Copyright from '@/components/Copyright';
 import authService from '@/api/authService';
-import { checkId, checkPwd } from '@/utils/validateUtil';
+import { checkId, checkPwd } from '@/utils/util';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import Seo from '@/seo/Seo';
 

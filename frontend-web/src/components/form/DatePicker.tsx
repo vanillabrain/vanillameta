@@ -7,7 +7,11 @@ import { DatePicker as MuiDatePicker } from '@mui/x-date-pickers/DatePicker';
 const DatePicker = ({ shareLimitDate, setShareLimitDate }) => {
   console.log(shareLimitDate);
   return (
-    <LocalizationProvider dateAdapter={AdapterDayjs} localeText={{ start: 'Check-in', end: 'Check-out' }}>
+    <LocalizationProvider
+      adapterLocale={'ko'}
+      dateAdapter={AdapterDayjs}
+      localeText={{ start: 'Check-in', end: 'Check-out' }}
+    >
       <MuiDatePicker
         value={shareLimitDate}
         onChange={newValue => {
@@ -18,7 +22,22 @@ const DatePicker = ({ shareLimitDate, setShareLimitDate }) => {
           });
           setShareLimitDate(selectDate);
         }}
-        renderInput={params => <TextField {...params} />}
+        renderInput={params => {
+          console.log(params, 'ddd');
+          return (
+            <TextField
+              {...params}
+              sx={{
+                width: '130px',
+                color: '#4a4a4a',
+                '& .MuiOutlinedInput-root': { pr: '8px' },
+                '& .MuiInputAdornment': { p: 0 },
+                input: { pl: '10px' },
+                '& .MuiSvgIcon-root': { color: '#4a4a4a' },
+              }}
+            />
+          );
+        }}
         disablePast
       />
     </LocalizationProvider>

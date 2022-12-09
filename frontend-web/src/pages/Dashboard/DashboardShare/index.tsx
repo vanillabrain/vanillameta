@@ -13,6 +13,7 @@ import shareService from '@/api/shareService';
 import Logo from '@/layouts/Header/Logo';
 import Copyright from '@/components/Copyright';
 import Seo from '@/seo/Seo';
+import { dateData } from '@/utils/util';
 
 export const DashboardEmpty = () => {
   return (
@@ -49,7 +50,7 @@ export const DashboardEmpty = () => {
 };
 
 const DashboardShare = () => {
-  const { dashboardToken } = useParams();
+  const { dashboardUuid } = useParams();
   const ResponsiveGridLayout = WidthProvider(Responsive);
   const alert = useAlert();
   const { showLoading, hideLoading } = useContext(LoadingContext);
@@ -59,7 +60,7 @@ const DashboardShare = () => {
     layout: [],
     updatedAt: '',
     shareYn: 'N',
-    shareToken: null,
+    uuid: null,
   }); // dashboard 정보
   const [layout, setLayout] = useState([]); // grid layout
   // dashboard id
@@ -67,7 +68,7 @@ const DashboardShare = () => {
 
   // init useEffect
   useEffect(() => {
-    getShareDashboardInfo(dashboardToken);
+    getShareDashboardInfo(dashboardUuid);
   }, []);
 
   // dashboardInfo useEffect
@@ -99,19 +100,6 @@ const DashboardShare = () => {
         hideLoading();
       });
   };
-
-  const dateData = data => {
-    let result = '';
-    if (data != '') {
-      const userDate = new Date(data);
-      const year = userDate.getFullYear();
-      const month = userDate.getMonth() + 1;
-      const date = userDate.getDate();
-      result = `${year}.${month >= 10 ? month : '0' + month}.${date >= 10 ? date : '0' + date}`;
-    }
-    return result;
-  };
-
   // widget 생성
   const generateWidget = () => {
     return dashboardInfo.widgets.map(item => {

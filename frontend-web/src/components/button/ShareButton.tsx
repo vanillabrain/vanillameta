@@ -7,7 +7,7 @@ import { useAlert } from 'react-alert';
 import { ROUTE_URL } from '@/constant';
 import DatePicker from '@/components/form/DatePicker';
 
-const ShareButton = ({ onClick, isShareOn, shareId, shareLimitDate, setShareLimitDate }) => {
+const ShareButton = ({ handleSubmit, isShareOn, shareId, shareLimitDate, setShareLimitDate }) => {
   const [anchorEl, setAnchorEl] = React.useState<HTMLButtonElement | null>(null);
   const open = Boolean(anchorEl);
   const id = open ? 'simple-popover' : undefined;
@@ -87,17 +87,37 @@ const ShareButton = ({ onClick, isShareOn, shareId, shareLimitDate, setShareLimi
               <Typography sx={{ mb: '6px', fontSize: '16px', fontWeight: 600, color: '#141414' }}>페이지 공유</Typography>
               {isShareOn ? (
                 <Box>
-                  <Stack direction="row" justifyContent="space-between" alignItems="center" mb="6px">
+                  <Stack
+                    component="form"
+                    onSubmit={event => {
+                      event.preventDefault();
+                      handleSubmit();
+                    }}
+                    direction="row"
+                    justifyContent="space-between"
+                    alignItems="center"
+                    mb="3px"
+                  >
                     <Typography sx={{ mr: '12px', fontSize: '14px', color: '#141414' }}>
                       링크를 통한 읽기를 허용합니다.
                     </Typography>
-                    <IconButton onClick={onClick} sx={{ minWidth: '44px', width: '44px', height: '24px', m: 0, p: 0 }}>
+                    <IconButton type="submit" sx={{ minWidth: '44px', width: '44px', height: '24px', m: 0, p: 0 }}>
                       <IconToggleOn />
                     </IconButton>
                   </Stack>
-                  <Typography>{shareLimitDate ? shareLimitDate : '??/??/????'} 까지 공유중</Typography>
+                  <Typography>
+                    설정하신&nbsp;
+                    <Box component="span" sx={{ color: '#0f5ab2' }}>
+                      {shareLimitDate}
+                    </Box>
+                    까지&nbsp;
+                    <Box component="span" sx={{ fontWeight: 600, color: '#0f5ab2' }}>
+                      공유중
+                    </Box>
+                    입니다.
+                  </Typography>
 
-                  <Stack direction="row" justifyContent="space-between" mt="29px">
+                  <Stack direction="row" justifyContent="space-between" mt="18px">
                     <TextField sx={{ width: '298px', height: '32px' }} disabled value={shareLink} />
                     <Button variant="contained" sx={{ minWidth: '55px' }} onClick={handleCopyClick}>
                       복사
@@ -106,15 +126,30 @@ const ShareButton = ({ onClick, isShareOn, shareId, shareLimitDate, setShareLimi
                 </Box>
               ) : (
                 <Box>
-                  <Stack direction="row" justifyContent="space-between" alignItems="center" mb="10px">
+                  <Stack
+                    component="form"
+                    onSubmit={event => {
+                      event.preventDefault();
+                      handleSubmit();
+                    }}
+                    direction="row"
+                    justifyContent="space-between"
+                    alignItems="center"
+                    mb="16px"
+                  >
                     <Typography sx={{ mr: '12px', fontSize: '14px', color: '#141414' }}>
                       링크를 통한 읽기를 허용하지 않습니다.
                     </Typography>
-                    <IconButton onClick={onClick} sx={{ minWidth: '44px', width: '44px', height: '24px', m: 0, p: 0 }}>
+                    <IconButton type="submit" sx={{ minWidth: '44px', width: '44px', height: '24px', m: 0, p: 0 }}>
                       <IconToggleOff />
                     </IconButton>
                   </Stack>
-                  <DatePicker shareLimitDate={shareLimitDate} setShareLimitDate={setShareLimitDate} />
+                  <Stack sx={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Typography component="span" mr="8px">
+                      공유 기한:
+                    </Typography>
+                    <DatePicker shareLimitDate={shareLimitDate} setShareLimitDate={setShareLimitDate} />
+                  </Stack>
                 </Box>
               )}
             </Stack>
