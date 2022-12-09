@@ -46,14 +46,12 @@ export class AuthService {
     async setRefreshKey(refreshToken: string, jwt_id: string){
         const findToken = await this.refreshTokenRepository.findOne({ where: { id: jwt_id } });
         const token = refreshToken.replace('Bearer ', '');
-        console.log('asdfkjhsdlkjfhsaldkjfhksaldjfhlkdfh',token)
         if(!findToken){
             return await this.refreshTokenRepository.save({
                 refreshToken: token
             })
         }
         else {
-            console.log('asfsadfasdfsadf',token)
             findToken.refreshToken = token;
             await this.refreshTokenRepository.save(findToken)
             }
