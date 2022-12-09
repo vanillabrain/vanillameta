@@ -9,7 +9,7 @@ import Copyright from '@/components/Copyright';
 import authService from '@/api/authService';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import { checkEmail, checkId, checkPwd } from '@/utils/validateUtil';
-import SEO from '@/components/SEO';
+import Seo from '@/seo/Seo';
 
 const SignUp = () => {
   const { token, refreshToken } = useContext(AuthContext);
@@ -133,7 +133,7 @@ const SignUp = () => {
           backgroundColor: '#f5f6f8',
         }}
       >
-        <SEO title="회원가입" />
+        <Seo title="회원가입" />
         <Box
           sx={{
             pt: '90px',
