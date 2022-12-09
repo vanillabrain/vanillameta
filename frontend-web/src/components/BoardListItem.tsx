@@ -4,27 +4,16 @@ import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import DeleteButton from '@/components/button/DeleteButton';
 import ModifyButton from '@/components/button/ModifyButton';
 import { styled } from '@mui/system';
+import { dateData } from '@/utils/util';
 
 const tableBorder = '1px solid #DADDDD';
 
 function BoardListItem(props) {
-  const { postItem, message, handleDeleteSelect } = props;
+  const { postItem, handleDeleteSelect } = props;
 
   const navigate = useNavigate();
   const location = useLocation();
   const pathname = location.pathname;
-
-  const dateData = data => {
-    let result = '';
-    if (data != '') {
-      const userDate = new Date(data);
-      const year = userDate.getFullYear();
-      const month = userDate.getMonth() + 1;
-      const date = userDate.getDate();
-      result = `${year}.${month >= 10 ? month : '0' + month}.${date >= 10 ? date : '0' + date}`;
-    }
-    return result;
-  };
 
   const TitleSpan = styled('span')({
     display: 'flex',
@@ -95,7 +84,7 @@ function BoardListItem(props) {
         <TitleSpan>{postItem.title}</TitleSpan>
         <Stack alignItems="center" direction="row" sx={{ paddingRight: '36px' }}>
           <SubTitleSpan>{dateData(postItem.updatedAt)}</SubTitleSpan>
-          <span style={{ width: '56px' }}></span>
+          <span style={{ width: '56px' }} />
           <ModifyButton
             size="medium"
             sx={{ padding: 0 }}
@@ -105,7 +94,7 @@ function BoardListItem(props) {
               navigate(`modify?id=${postItem.id}&title=${postItem.title}`, { state: { from: pathname } });
             }}
           />
-          <span style={{ width: '36px' }}></span>
+          <span style={{ width: '36px' }} />
           <DeleteButton
             size="medium"
             sx={{ padding: 0 }}

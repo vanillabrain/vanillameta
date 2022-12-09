@@ -13,6 +13,7 @@ import { useAlert } from 'react-alert';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import Seo from '@/seo/Seo';
+import { dateData } from '@/utils/util';
 
 const WidgetView = () => {
   const navigate = useNavigate();
@@ -58,18 +59,6 @@ const WidgetView = () => {
       .finally(() => {
         hideLoading();
       });
-  };
-
-  const dateData = data => {
-    let result = '';
-    if (data != '') {
-      const userDate = new Date(data);
-      const year = userDate.getFullYear();
-      const month = userDate.getMonth() + 1;
-      const date = userDate.getDate();
-      result = `${year}.${month >= 10 ? month : '0' + month}.${date >= 10 ? date : '0' + date}`;
-    }
-    return result;
   };
 
   // refrech 버튼 클릭

@@ -13,7 +13,7 @@ import {
 import CloseIcon from '@mui/icons-material/Close';
 import { AuthContext } from '@/contexts/AuthContext';
 import authService from '@/api/authService';
-import { checkEmail, checkPwd } from '@/utils/validateUtil';
+import { checkEmail, checkPwd } from '@/utils/util';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { useAlert } from 'react-alert';
