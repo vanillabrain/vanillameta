@@ -11,7 +11,7 @@ import { Box, Button, Stack } from '@mui/material';
 import { styled } from '@mui/system';
 import { STATUS } from '@/constant';
 import { SnackbarContext } from '@/contexts/AlertContext';
-import SEO from '@/components/SEO';
+import Seo from '@/seo/Seo';
 
 const title = '위젯';
 
@@ -135,7 +135,7 @@ const Widget = () => {
 
   return (
     <PageContainer>
-      <SEO title={title} />
+      <Seo title={title} />
 
       {!widgetId ? (
         <PageTitleBox

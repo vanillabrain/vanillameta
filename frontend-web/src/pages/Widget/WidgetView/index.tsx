@@ -12,7 +12,7 @@ import DashboardTitleBox from '@/pages/Dashboard/Components/DashboardTitleBox';
 import { useAlert } from 'react-alert';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { SnackbarContext } from '@/contexts/AlertContext';
-import SEO from '@/components/SEO';
+import Seo from '@/seo/Seo';
 
 const WidgetView = () => {
   const navigate = useNavigate();
@@ -106,7 +106,7 @@ const WidgetView = () => {
 
   return (
     <PageTitleBox upperTitle="위젯" upperTitleLink="/widget" title="위젯 조회" sx={{ width: '100%', marginTop: '22px' }}>
-      <SEO title={widgetOption.title} />
+      <Seo title={widgetOption.title} />
       <DashboardTitleBox
         sx={{ minWidth: '600px', maxWidth: '1392px', width: '95%' }}
         title={

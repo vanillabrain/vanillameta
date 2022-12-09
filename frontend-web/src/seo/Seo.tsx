@@ -2,14 +2,16 @@ import React from 'react';
 import { ROUTE_URL } from '@/constant';
 import { Helmet } from 'react-helmet-async';
 
-const SEO = props => {
+const Seo = props => {
   const {
     title = 'Vanilla Meta',
     description = '최신 엔터프라이즈용 비즈니스 인텔리전스 웹 애플리케이션, Vanilla Meta',
-    image = '%PUBLIC_URL%/static/images/logo/logo.png',
+    image = `${process.env.PUBLIC_URL}/static/images/logo/logo.png`,
     url = ROUTE_URL,
   } = props;
   const titleText = title === 'Vanilla Meta' ? 'Vanilla Meta' : title + ' - Vanilla Meta';
+
+  console.log(process.env.PUBLIC_URL, '?');
 
   return (
     <Helmet>
@@ -39,4 +41,4 @@ const SEO = props => {
   );
 };
 
-export default SEO;
+export default Seo;

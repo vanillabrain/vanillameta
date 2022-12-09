@@ -3,7 +3,7 @@ import { CssBaseline } from '@mui/material';
 import Router from './router';
 import 'tui-grid/dist/tui-grid.css';
 import Grid from 'tui-grid';
-import SEO from '@/components/SEO';
+import Seo from '@/seo/Seo';
 
 Grid.applyTheme('default', {
   outline: {
@@ -58,7 +58,7 @@ Grid.setLanguage('ko', {
 function App() {
   return (
     <>
-      <SEO />
+      <Seo />
       <CssBaseline />
       <Router />
     </>
