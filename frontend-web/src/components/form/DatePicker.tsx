@@ -36,6 +36,13 @@ const DatePicker = ({ shareLimitDate, setShareLimitDate }) => {
           );
         }}
         disablePast
+        PopperProps={{
+          sx: {
+            '& .MuiPickersDay-root': {
+              fontFamily: 'Pretendard',
+            },
+          },
+        }}
       />
     </LocalizationProvider>
   );
