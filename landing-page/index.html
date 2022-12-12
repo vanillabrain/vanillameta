@@ -30,11 +30,6 @@
     <link rel="apple-touch-icon" href="https://vanillameta.net/assets/img/vanilla-meta-og.jpg" />
     <link rel="manifest" href="https://vanillameta.net/manifest.json" />
 
-    <link rel="stylesheet" href="fonts/pretendard.css" />
-    <link rel="stylesheet" href="./css/common/reset.css" />
-    <link rel="stylesheet" href="./css/common/common.css" />
-    <link rel="stylesheet" href="./css/src/index.css" />
-
     <link rel="shortcut icon" href="./favicon.ico" type="image/x-icon" />
     <link rel="apple-touch-icon" href="./favicon.ico" />
 
@@ -49,19 +44,23 @@
       integrity="sha384-OERcA2EqjJCMA+/3y+gxIOqMEjwtxJY7qPCqsdltbNJuaOe923+mo//f6V8Qbsw3"
       crossorigin="anonymous"
     ></script>
+
+    <link rel="stylesheet" href="fonts/pretendard.css" />
+    <link rel="stylesheet" href="./css/common/reset.css" />
+    <link rel="stylesheet" href="./css/src/index.css" />
   </head>
 
   <body>
     <div id="wrap">
-      <header id="headBox">
+      <header id="headBox" class="sticky-top">
         <nav class="navbar">
           <div class="container-fluid">
             <a href="./">
-              <h1 class="blind">Vanilla Meta</h1>
+              <h1 class="visually-hidden">Vanilla Meta</h1>
               <img class="logo_img" src="./img/vanilla-meta-logo.png" alt="Vanilla Meta Logo" />
             </a>
-            <a href="https://github.com/vanillabrain/vanillameta">
-              <h2 class="blind">Github Link</h2>
+            <a href="https://github.com/vanillabrain/vanillameta" target="_blank">
+              <h2 class="visually-hidden">Github Link</h2>
               <img class="github_img" src="./img/ic-github.svg" alt="Github Logo" />
             </a>
           </div>
@@ -77,12 +76,12 @@
             </h2>
             <p class="typo">VanillaMeta with open source on Github</p>
             <div class="btn_area">
-              <button type="button" class="btn source_btn">
+              <a href="https://vanillameta.vanillabrain.com" class="btn source_btn" target="_blank">
                 <img src="./img/ic-vanilla-meta.svg" alt="Vanilla meta button icon" />데모 보기
-              </button>
-              <button type="button" class="btn demo_btn">
+              </a>
+              <a href="https://github.com/vanillabrain/vanillameta" class="btn demo_btn" target="_blank">
                 <img src="./img/ic-github-white.svg" alt="Github button icon" />소스 보기
-              </button>
+              </a>
             </div>
             <div>
               <img class="img_main" src="./img/main-visual.png" alt="" />
@@ -99,9 +98,8 @@
               <span>이러한 바닐라메타는 Github에서 Open Sorce로 제공 받아 사용하실 수 있습니다.</span>
             </p>
           </div>
-
           <div class="container-fluid">
-            <h2 class="blind">Feature of VanillaMeta</h2>
+            <h2 class="visually-hidden">Feature of VanillaMeta</h2>
             <ul class="row feature_area">
               <li class="col-lg-6 col-xl-4">
                 <h3>코딩없이 차트 위젯 제작</h3>
@@ -157,33 +155,39 @@
 
         <section id="detailBox">
           <div class="container-fluid">
-            <h2 class="blind">Feature detail</h2>
+            <h2 class="visually-hidden">Feature detail</h2>
             <ul>
-              <li>
-                <h3>대시보드 분석 시각화</h3>
-                <p>
-                  사용자 맞춤형 대시보드 편집 및 공유와<br />
-                  대시보드 템플릿 디자인을 추천합니다.
-                </p>
+              <li class="row">
+                <div class="col-md-12 col-lg-auto text-md-left">
+                  <h3>대시보드 분석 시각화</h3>
+                  <p>
+                    사용자 맞춤형 대시보드 편집 및 공유와<br />
+                    대시보드 템플릿 디자인을 추천합니다.
+                  </p>
+                </div>
                 <img src="./img/img-01.png" alt="Feature detail img thumbnail 01" />
               </li>
-              <li>
-                <h3>시각화 위젯 제작</h3>
-                <p>
-                  코딩없이 차트 위젯 제작 가능하며<br />
-                  50개 이상의 차트를 지원합니다.
-                </p>
+              <li class="row">
+                <div class="col-md-12 col-lg-auto text-md-left">
+                  <h3>시각화 위젯 제작</h3>
+                  <p>
+                    코딩없이 차트 위젯 제작 가능하며<br />
+                    50개 이상의 차트를 지원합니다.
+                  </p>
+                </div>
                 <img src="./img/img-02.png" alt="Feature detail img thumbnail 01" />
               </li>
-              <li>
-                <h3>
-                  최신 데이터베이스와<br />
-                  통합
-                </h3>
-                <p>
-                  고급 SQL 쿼리 편집기 및 데이터 미리보기<br />가 가능하며, 다양한 SQL 데이터베이스에 <br />대해 즉시
-                  지원합니다.
-                </p>
+              <li class="row">
+                <div class="col-md-12 col-lg-auto text-md-left">
+                  <h3>
+                    최신 데이터베이스와<br />
+                    통합
+                  </h3>
+                  <p>
+                    고급 SQL 쿼리 편집기 및 데이터 미리보기<br />가 가능하며, 다양한 SQL 데이터베이스에 <br />대해 즉시
+                    지원합니다.
+                  </p>
+                </div>
                 <img src="./img/img-03.png" alt="Feature detail img thumbnail 01" />
               </li>
             </ul>
@@ -194,7 +198,7 @@
           <div class="container-fluid">
             <h2>지원가능 데이터베이스</h2>
             <ul class="row">
-              <li><img src="./img/logo-bigquery.png" alt="MySQL banner image" /></li>
+              <li><img src="./img/logo-mysql.png" alt="MySQL banner image" /></li>
               <li><img src="./img/logo-maria-db.png" alt="MariaDB banner image" /></li>
               <li><img src="./img/logo-postgresql.png" alt="PostgreSQL banner image" /></li>
               <li><img src="./img/logo-oracle.png" alt="Oracle banner image" /></li>
@@ -217,10 +221,7 @@
             </a>
           </div>
           <div class="copyright">
-            <p>
-              Copyright ©VanillaBrain Inc.<br />
-              All Rights Reserved.
-            </p>
+            <p>Copyright <span>©VanillaBrain</span> Inc. All Rights Reserved.</p>
           </div>
         </div>
       </footer>
