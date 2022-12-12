@@ -39,7 +39,6 @@
   flex-direction: column;
   padding-top: 56px;
   padding-bottom: 59px;
-  /*background-image: linear-gradient(to bottom, #264e9c 20%, #b3d5f3 58%, rgba(255, 255, 255, 0) 100%);*/
   background-image: linear-gradient(to bottom, #264e9c 0%, #b3d5f3 54%, rgba(255, 255, 255, 0) 100%);
   background-color: #eceef3;
 }
@@ -83,10 +82,13 @@
   height: auto;
   margin-right: 10px;
 }
+#viewBox .img_wrap {
+  text-align: center;
+}
 #viewBox .img_main {
+  margin: 16px auto auto;
   width: 772px;
   height: auto;
-  margin-top: 16px;
 }
 
 /* featureBox*/
@@ -230,8 +232,8 @@
   font-weight: bold;
 }
 
-/* ========================= tablet ========================= */
-@media (min-width: 1024px) and (max-width: 1439px) {
+/* ========================= labtop ========================= */
+@media (min-width: 993px) and (max-width: 1200px) {
   /* #viewBox */
   #viewBox .img_main {
     width: 697px;
@@ -254,6 +256,126 @@
   }
 }
 
+/* ========================= handheld (mobile + tablet) ========================= */
+@media (min-width: 320px) and (max-width: 992px) {
+  /* headBox */
+  #headBox {
+    height: 50px;
+  }
+  .navbar .container-fluid {
+    padding-left: 16px;
+    padding-right: 18px;
+  }
+  .navbar .github_img {
+    width: 32px;
+  }
+
+  /* viewBox */
+  #viewBox .container-fluid {
+    padding: 40px 23px 44px;
+  }
+  #viewBox h2 {
+    font-size: 34px;
+  }
+  #viewBox p {
+    font-size: 14px;
+  }
+  #viewBox .btn_area {
+    margin-top: 26px;
+    column-gap: 8px;
+  }
+  #viewBox .btn_area a {
+    width: 120px;
+    height: 40px;
+    font-size: 14px;
+  }
+  #viewBox .btn_area img {
+    width: 22px;
+    margin-right: 8px;
+  }
+  #viewBox .img_main {
+    width: 100%;
+    margin-top: 30px;
+  }
+
+  /* #featureBox */
+  #featureBox h2 {
+    font-size: 26px;
+  }
+  #featureBox .typo {
+    font-size: 14px;
+  }
+
+  /* #detailBox */
+  #detailBox {
+    padding: 60px 20px 62px;
+    text-align: center;
+  }
+  #detailBox ul {
+    row-gap: 60px;
+  }
+  #detailBox p {
+    margin-top: 12px;
+    margin-bottom: 16px;
+  }
+  #detailBox img {
+    width: 100%;
+  }
+}
+
+/* bannerBox */
+#bannerBox {
+  padding: 55px 16px;
+}
+#bannerBox ul {
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
 /* ========================= mobile ========================= */
-@media (min-width: 320px) and (max-width: 1023px) {
+@media (min-width: 320px) and (max-width: 768px) {
+  /* #featureBox */
+  #featureBox {
+    padding-bottom: 60px;
+  }
+  .feature_area {
+    max-width: 500px;
+    row-gap: 20px;
+    column-gap: 20px;
+  }
+  #featureBox .title_area {
+    padding: 0 45px 0;
+  }
+  #featureBox .content_area {
+    padding: 0 20px 0;
+  }
+  .feature_area li {
+    width: 150px;
+    height: 164px;
+    padding: 20px 0 21px;
+  }
+  .feature_area h3 {
+    font-size: 15px;
+    line-height: 1.33;
+  }
+  .feature_area img {
+    width: 118px;
+  }
+
+  /* #detailBox */
+  #detailBox h3 {
+    font-size: 26px;
+  }
+  #detailBox p {
+    font-size: 14px;
+  }
+
+  /* footBox */
+  #footBox .container-fluid {
+    padding: 30px 23px 50px 50px;
+  }
+  #footBox .copyright {
+    font-size: 12px;
+    color: #4a4a4a;
+  }
 }
