@@ -5,8 +5,8 @@
 
 html,
 body {
-  overflow-x: hidden;
   width: 100%;
+  min-width: 320px;
   height: 100%;
   margin: 0;
   padding: 0;
