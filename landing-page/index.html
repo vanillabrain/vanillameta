@@ -30,11 +30,6 @@
     <link rel="apple-touch-icon" href="https://vanillameta.net/assets/img/vanilla-meta-og.jpg" />
     <link rel="manifest" href="https://vanillameta.net/manifest.json" />
 
-    <link rel="stylesheet" href="fonts/pretendard.css" />
-    <link rel="stylesheet" href="./css/common/reset.css" />
-    <link rel="stylesheet" href="./css/common/common.css" />
-    <link rel="stylesheet" href="./css/src/index.css" />
-
     <link rel="shortcut icon" href="./favicon.ico" type="image/x-icon" />
     <link rel="apple-touch-icon" href="./favicon.ico" />
 
@@ -49,19 +44,22 @@
       integrity="sha384-OERcA2EqjJCMA+/3y+gxIOqMEjwtxJY7qPCqsdltbNJuaOe923+mo//f6V8Qbsw3"
       crossorigin="anonymous"
     ></script>
+
+    <link rel="stylesheet" href="fonts/pretendard.css" />
+    <link rel="stylesheet" href="./css/common/reset.css" />
+    <link rel="stylesheet" href="./css/src/index.css" />
   </head>
 
   <body>
     <div id="wrap">
-      <header id="headBox">
+      <header id="headBox" class="sticky-top">
         <nav class="navbar">
           <div class="container-fluid">
             <a href="./">
-              <h1 class="blind">Vanilla Meta</h1>
+              <h1 class="visually-hidden">VanillaMeta</h1>
               <img class="logo_img" src="./img/vanilla-meta-logo.png" alt="Vanilla Meta Logo" />
             </a>
-            <a href="https://github.com/vanillabrain/vanillameta">
-              <h2 class="blind">Github Link</h2>
+            <a href="https://github.com/vanillabrain/vanillameta" target="_blank">
               <img class="github_img" src="./img/ic-github.svg" alt="Github Logo" />
             </a>
           </div>
@@ -71,32 +69,170 @@
       <main>
         <section id="viewBox">
           <div class="container-fluid">
-            <h2 class="typo">누구나 쉽게 사용하는 통합 데이터 분석</h2>
+            <h2 class="typo">
+              누구나 쉽게 사용하는<br />
+              통합 데이터 분석
+            </h2>
             <p class="typo">VanillaMeta with open source on Github</p>
             <div class="btn_area">
-              <button type="button" class="btn source_btn">소스 보기</button>
-              <button type="button" class="btn demo_btn">데모 보기</button>
+              <a href="https://vanillameta.vanillabrain.com" class="btn source_btn" target="_blank">
+                <img src="./img/ic-vanilla-meta.svg" alt="Vanilla meta button icon" />데모 보기
+              </a>
+              <a href="https://github.com/vanillabrain/vanillameta" class="btn demo_btn" target="_blank">
+                <img src="./img/ic-github-white.svg" alt="Github button icon" />소스 보기
+              </a>
             </div>
-            <div class="img_area">
-              <img src="./img/main-visual.png" alt="" />
+            <div class="img_wrap">
+              <img class="img_main" src="./img/main-visual.png" alt="" />
             </div>
           </div>
         </section>
 
-        <section class="whyBox">
-          <div class="container-fluid">
+        <section id="featureBox">
+          <div class="container-fluid title_area">
             <h2>Why VanillaMeta?</h2>
-            <p>
+            <p class="typo">
               바닐라메타는 최신 데이터 탐색적 분석 및 데이터 시각화 솔루션입니다.<br />
               비즈니스 인텔리전스 도구를 대체하거나 보강할 수 있으며, 다양한 데이터 소스와 잘 통합 됩니다.<br />
-              이러한 바닐라메타는 Github에서 Open Sorce로 제공 받아 사용하실 수 있습니다.
+              <span>이러한 바닐라메타는 Github에서 Open Sorce로 제공 받아 사용하실 수 있습니다.</span>
             </p>
+          </div>
+          <div class="container-fluid content_area">
+            <ul class="row feature_area">
+              <li class="col-lg-6 col-xl-4">
+                <h3>
+                  코딩없이 차트<br class="d-block d-md-none" />
+                  위젯 제작
+                </h3>
+                <p class="d-none d-md-block">
+                  연결된 데이터베이스를 지원하는 차트 중 선택 후<br />
+                  설정화면을 통해 코딩없이 위젯 제작이 가능합니다.
+                </p>
+                <img src="./img/thumb-01.png" alt="Feature image thumbnail 01" />
+              </li>
+              <li class="col-lg-6 col-xl-4">
+                <h3>
+                  50개 이상의<br class="d-block d-md-none" />
+                  차트 지원
+                </h3>
+                <p class="d-none d-md-block">
+                  50개 이상의 다양한 차트 지원으로<br />
+                  최적의 분석을 위한 차트 활용이 가능합니다.
+                </p>
+                <img src="./img/thumb-02.png" alt="Feature image thumbnail 02" />
+              </li>
+              <li class="col-lg-6 col-xl-4">
+                <h3>
+                  사용자 맞춤형<br class="d-block d-md-none" />
+                  대시보드 편집 및 공유
+                </h3>
+                <p class="d-none d-md-block">
+                  사용자가 설정한 위젯을 자유로운<br />
+                  레이아웃으로 편집 및 공유가 가능합니다.
+                </p>
+                <img src="./img/thumb-03.png" alt="Feature image thumbnail 03" />
+              </li>
+              <li class="col-lg-6 col-xl-4">
+                <h3>
+                  대시보드 템플릿<br class="d-block d-md-none" />
+                  디자인 추천
+                </h3>
+                <p class="d-none d-md-block">
+                  대시보드 템플릿 디자인 추천을 통해<br />
+                  빠르고 편리하게 편집이 가능합니다.
+                </p>
+                <img src="./img/thumb-04.png" alt="Feature image thumbnail 04" />
+              </li>
+              <li class="col-lg-6 col-xl-4">
+                <h3>
+                  SQL 쿼리 편집기 &<br class="d-block d-md-none" />
+                  데이터 미리보기 제공
+                </h3>
+                <p class="d-none d-md-block">
+                  SQL 쿼리 편집기를 통해 빠르게 데이터를 편집하고<br />
+                  미리보기를 통해 데이터를 확인할 수 있습니다.
+                </p>
+                <img src="./img/thumb-05.png" alt="Feature image thumbnail 05" />
+              </li>
+              <li class="col-lg-6 col-xl-4">
+                <h3>
+                  다양한 SQL<br class="d-block d-md-none" />
+                  데이터베이스 즉시 지원
+                </h3>
+                <p class="d-none d-md-block">
+                  다양한 SQL 데이터베이스 지원 기능을 통해<br />
+                  빠르게 데이터를 연결할 수 있습니다.
+                </p>
+                <img src="./img/thumb-06.png" alt="Feature image thumbnail 06" />
+              </li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="detailBox">
+          <div class="container-fluid">
+            <h2 class="visually-hidden">VanillaMeta feature detail</h2>
+            <ul>
+              <li class="row">
+                <div class="col-md-12 col-lg-auto">
+                  <h3>대시보드 분석 시각화</h3>
+                  <p>
+                    사용자 맞춤형 대시보드 편집 및 공유와<br />
+                    대시보드 템플릿 디자인을 추천합니다.
+                  </p>
+                </div>
+                <img src="./img/img-01.png" alt="Feature detail img thumbnail 01" />
+              </li>
+              <li class="row">
+                <div class="col-md-12 col-lg-auto">
+                  <h3>시각화 위젯 제작</h3>
+                  <p>
+                    코딩없이 차트 위젯 제작 가능하며<br />
+                    50개 이상의 차트를 지원합니다.
+                  </p>
+                </div>
+                <img src="./img/img-02.png" alt="Feature detail img thumbnail 01" />
+              </li>
+              <li class="row">
+                <div class="col-md-12 col-lg-auto">
+                  <h3>
+                    최신 데이터베이스와<br class="d-none d-lg-block" />
+                    통합
+                  </h3>
+                  <p>
+                    고급 SQL 쿼리 편집기 및 데이터 미리보기<br class="d-none d-lg-block" />가 가능하며,
+                    <br class="d-block d-lg-none" />다양한 SQL 데이터베이스에 <br class="d-none d-lg-block" />대해 즉시
+                    지원합니다.
+                  </p>
+                </div>
+                <img src="./img/img-03.png" alt="Feature detail img thumbnail 01" />
+              </li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="bannerBox">
+          <div class="container-fluid">
+            <h2><span class="visually-hidden">VanillaMeta </span>지원가능 데이터베이스</h2>
+            <ul class="row">
+              <li><img src="./img/logo-mysql.png" alt="MySQL banner image" /></li>
+              <li><img src="./img/logo-maria-db.png" alt="MariaDB banner image" /></li>
+              <li><img src="./img/logo-postgresql.png" alt="PostgreSQL banner image" /></li>
+              <li><img src="./img/logo-oracle.png" alt="Oracle banner image" /></li>
+              <li><img src="./img/logo-redshift.png" alt="Amazon Redshift banner image" /></li>
+              <li><img src="./img/logo-bigquery.png" alt="Google Big Query banner image" /></li>
+              <li><img src="./img/logo-sqllite.png" alt="SQLite banner image" /></li>
+              <li><img src="./img/logo-mssql.png" alt="Microsoft SQL Server banner image" /></li>
+              <li><img src="./img/logo-snowflake.png" alt="Snowflake banner image" /></li>
+              <li><img src="./img/logo-cockroachdb.png" alt="Cockroach banner image" /></li>
+            </ul>
           </div>
         </section>
       </main>
 
       <footer id="footBox">
         <div class="container-fluid">
+          <h2 class="visually-hidden">VanillaMeta information</h2>
           <div class="footer_logo">
             <a href="./">
               <img class="logo_img" src="./img/vanilla-meta-logo.png" alt="Vanilla Meta" />
@@ -104,8 +240,8 @@
           </div>
           <div class="copyright">
             <p>
-              Copyright ©VanillaBrain Inc.<br />
-              All Rights Reserved.
+              Copyright <a href="https://vanillabrain.com" target="_blank"><span>©VanillaBrain Inc. </span></a
+              ><br class="d-block d-sm-none" />All Rights Reserved.
             </p>
           </div>
         </div>
