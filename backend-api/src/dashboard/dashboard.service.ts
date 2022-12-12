@@ -30,11 +30,9 @@ export class DashboardService {
     private readonly authService: AuthService,
   ) {}
 
-  async create(createDashboardDto: CreateDashboardDto, accessToken: string) {
-    const findUser = await this.authService.verifyAccessToken(accessToken);
-    const { accessKeyData } = findUser;
+  async create(createDashboardDto: CreateDashboardDto, accessToken: number) {
     const userData = await this.userRepository.findOne({
-      where: { id: accessKeyData.id },
+      where: { id: accessToken },
     });
     if (!userData) {
       return 'Bad Request';
@@ -53,7 +51,7 @@ export class DashboardService {
 
     if (findTitle.title !== createDashboardDto.title) {
       const share_id = await this.dashboardShareRepository.save({
-        uuid: uuidv4(),
+        uuid: uuidv4(),               // uuid의 버전 uuidv1의 결우 mac의 정보등을 담고있음.
         createdAt: new Date(),
         updatedAt: new Date()
       });
@@ -81,6 +79,7 @@ export class DashboardService {
       //   .orUpdate(['title', 'layout'], ['id'])
       //   .execute();
       // console.log('test', test.generatedMaps[0].id);
+      // 기존 코드
 
       await this.userService.saveDashboard(newDashboard.id, id);
       await this.dashboardWidgetService.create(saveObjDW);
@@ -91,8 +90,8 @@ export class DashboardService {
     return 'already exist name title';
   }
 
-  async findAll(accessToken: string) {
-    const findUser = await this.userService.findDashboardId(accessToken);
+  async findAll(userId: number) {
+    const findUser = await this.userService.findDashboardId(userId);
     const findId = findUser.map(el =>
         el['dashboardId']);
     const find_all = [];
@@ -149,6 +148,7 @@ export class DashboardService {
         dashboardId: id,
         widgetIds: widgetIds,
       };
+      // 업데이트할 데이터
       await this.dashboardWidgetService.update(id, saveObjDW);
       const updatedDashboard = await this.dashboardRepository.save(find_dashboard);
 

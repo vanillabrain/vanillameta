@@ -18,11 +18,9 @@ export class UserService {
   private authService: AuthService,
   ) {}
 
-  async findOne(accessToken: string) {
-    const findUser = await this.authService.verifyAccessToken(accessToken)
-    const { accessKeyData } = findUser;
+  async findOne(userId: number) {
     const userData = await this.userRepository.findOne({
-      where: { userId: accessKeyData.userId }
+      where: { id: userId }
     });
     if(!userData){
       return 'Bad Request'
@@ -32,8 +30,8 @@ export class UserService {
     }
   }
 
-  async updateUserInfo(accessToken: string, updateUserDto: UpdateUserDto) {
-    const findUser = await this.authService.checkAccess(accessToken, updateUserDto.password);
+  async updateUserInfo(userId: string, updateUserDto: UpdateUserDto) {
+    const findUser = await this.authService.checkAccess(userId, updateUserDto.password);
     if(!findUser){
       throw new HttpException('not exist user', HttpStatus.CONFLICT);
     } else {
@@ -44,8 +42,8 @@ export class UserService {
     }
   }
 
-  async deleteUser( accessToken:string, password: string ) {
-    const findUser = await this.authService.checkAccess(accessToken, password);
+  async deleteUser( userId:string, password: string ) {
+    const findUser = await this.authService.checkAccess(userId, password);
     if(!findUser){
       return 'Unauthorized'
     } else {
@@ -54,30 +52,27 @@ export class UserService {
     }
   }
 
-  async reissuanceAccessToken(cookie: string){
-    const tokenInfo = await this.authService.verifyRefreshToken(cookie)
-
-    const { userId } = tokenInfo.refreshKeyData
+  async reissuanceAccessToken(userId: string){
     const payload = await this.userRepository.findOne({ where: { userId: userId }})
     return await this.authService.generateAccessToken(payload)
   }
+  // AccessToken 만료시 재발급 코드
 
   async saveDashboard(dashboardId: number, userInfoId: number) {
-    console.log(userInfoId)
     const saveObj = {
       dashboardId: dashboardId,
       userInfoId: userInfoId
     }
     await this.userMappingRepository.save(saveObj)
   }
+  // mapping table 대시보드id, 유저id 저장
 
-  async findDashboardId(accesstoken: string){
-    const findUser = await this.authService.verifyAccessToken(accesstoken)
-    const { accessKeyData } = findUser;
+  async findDashboardId(id: number){
     const findDashboard = await this.userMappingRepository
         .createQueryBuilder('user_mapping')
         .select("dashboardId")
-        .where('user_mapping.userInfoId = :userInfoId', { userInfoId: accessKeyData.id }).getRawMany()
+        .where('user_mapping.userInfoId = :userInfoId', { userInfoId: id }).getRawMany()
     return findDashboard
   }
+  // 대시보드id찾는 코드
 }

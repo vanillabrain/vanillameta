@@ -19,7 +19,7 @@ export class LoginService {
 
   async signin(loginDto: LoginUserDto) {
     const { userId, password } = loginDto;
-    const findUser = await this.authService.validateUser(userId, password);
+    const findUser = await this.authService.validateUser(userId, password);   // 요저의 존재여부 확인
     if (!findUser) {
       throw new UnauthorizedException(`Unauthorized`);
     }

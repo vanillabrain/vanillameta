@@ -15,6 +15,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     }
     const token = authorization.replace('Bearer ', '');
     const userInfo = await this.validate(token);
+
     if (userInfo) request.user = userInfo;
     return !!userInfo;
   }
