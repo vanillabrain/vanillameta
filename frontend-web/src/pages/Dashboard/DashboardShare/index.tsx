@@ -38,7 +38,7 @@ export const DashboardEmpty = () => {
               color: '#333',
             }}
           >
-            대시보드가 존재하지 않습니다.
+            대시보드가 존재하지 않거나 공유 기간이 만료된 링크입니다.
             <br />
             대시보드의 공유 상태와 URL을 다시 확인해 주세요.
           </Typography>
