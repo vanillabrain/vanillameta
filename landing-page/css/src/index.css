@@ -2,19 +2,22 @@
 
 /* #headBox */
 #headBox {
-  height: 50px;
+  position: fixed;
+  width: 100%;
+  height: 55px;
   background-color: #fff;
 }
 .navbar {
   height: 100%;
+  border-bottom: 1px solid #ececec;
 }
 .navbar .container-fluid {
-  display: flex;
-  align-items: center;
   height: 100%;
+  padding: 0 24px;
 }
 .navbar .container-fluid > a {
-  display: block;
+  display: flex;
+  align-items: center;
   height: 100%;
 }
 .navbar .logo_img {
@@ -22,13 +25,24 @@
   height: 20px;
 }
 .navbar .github_img {
-  width: 32px;
-  height: 32px;
+  width: 100%;
+  height: auto;
 }
 
 /* #viewBox */
 #viewBox {
   width: 100%;
+  padding-top: 55px; /* header height */
+}
+#viewBox .container-fluid {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  padding-top: 56px;
+  padding-bottom: 59px;
+  /*background-image: linear-gradient(to bottom, #264e9c 20%, #b3d5f3 58%, rgba(255, 255, 255, 0) 100%);*/
+  background-image: linear-gradient(to bottom, #264e9c 0%, #b3d5f3 54%, rgba(255, 255, 255, 0) 100%);
+  background-color: #eceef3;
 }
 #viewBox .typo {
   text-shadow: 0 0.8px 1.5px rgba(18, 0, 88, 0.4);
@@ -39,40 +53,94 @@
   color: #fff;
 }
 #viewBox h2 {
-  font-size: 34px;
+  font-size: 48px;
 }
 #viewBox p {
-  font-size: 14px;
-}
-#viewBox .container-fluid {
-  display: flex;
-  align-items: center;
-  flex-direction: column;
-  padding: 23px;
-  padding-top: 42px;
-  padding-bottom: 44px;
-  background-image: linear-gradient(to bottom, #264e9c 20%, #b3d5f3 58%, rgba(255, 255, 255, 0) 100%);
+  margin-top: 7px;
+  padding: 0;
+  font-size: 18px;
 }
 #viewBox .btn_area {
   display: flex;
-  margin-top: 26px;
-  gap: 8px;
+  margin-top: 32px;
+  column-gap: 12px;
 }
 #viewBox .btn_area button {
-  width: 120px;
-  height: 40px;
-  gap: 8px;
-  padding: 8px 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 140px;
+  height: 46px;
   border: solid 1px #043f84;
   border-radius: 6px;
   box-shadow: 0 4px 6px 0 rgba(26, 33, 97, 0.2);
   font-weight: 600;
-  font-size: 14px;
+  font-size: 16px;
   background-color: #043f84;
   color: #fff;
 }
-.source_btn {
+#viewBox .btn_area img {
+  width: 24px;
+  height: auto;
+  margin-right: 10px;
 }
+#viewBox .img_main {
+  width: 772px;
+  height: auto;
+  margin-top: 16px;
+}
+
+/* featureBox*/
+#featureBox {
+  text-align: center;
+  background-color: #eceef3;
+  padding-bottom: 80px;
+}
+#featureBox h2 {
+  font-size: 36px;
+  font-weight: 600;
+  letter-spacing: 0.36px;
+  color: #043f84;
+}
+#featureBox .typo {
+  margin-top: 12px;
+  margin-bottom: 36px;
+  font-size: 16px;
+  color: #141414;
+  line-height: 22px;
+}
+#featureBox .typo span {
+  color: #0f5ab2;
+}
+.feature_area {
+  display: flex;
+  row-gap: 49px;
+  column-gap: 39px;
+  justify-content: center;
+}
+.feature_area li {
+  width: 380px;
+  height: 292px;
+  padding: 33px 40px 31px;
+  border-radius: 12px;
+  box-shadow: 0 4px 4px 0 rgba(169, 169, 169, 0.15);
+  background-color: #fff;
+}
+.feature_area h3 {
+  margin-bottom: 14px;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.18px;
+  color: #043f84;
+}
+.feature_area p {
+  margin-bottom: 30px;
+  font-size: 14px;
+  line-height: 1.43;
+  color: #606060;
+}
+
+#featureBox
 
 /* #footBox */
 #footBox {
