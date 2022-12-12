@@ -31,7 +31,6 @@ import { ShareUrlModule } from './share-url/share-url.module';
       database: 'vanillameta_auth',
       autoLoadEntities: true,
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
-      // entities: ["dist/common/entities/*{.ts,.js}"],
       synchronize: false,
       logging: process.env.NODE_ENV == 'prod',
       retryAttempts: 1,
