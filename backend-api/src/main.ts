@@ -3,7 +3,6 @@ import { AppModule } from './app.module';
 import express from 'express';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import { HttpExceptionFilter } from './nest-utils/http-exception.filter';
-import { ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
 import { setupSwagger } from './utils/swagger.js';
 
@@ -14,7 +13,6 @@ async function bootstrap() {
     logger: console,
     cors: {
       origin: function (origin, callback) {
-        console.log(origin);
         if (process.env.CORS_ORIGIN.indexOf(origin) !== -1) {
           callback(null, true);
         } else {

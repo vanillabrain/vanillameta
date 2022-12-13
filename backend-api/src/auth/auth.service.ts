@@ -1,7 +1,5 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { UserService } from 'src/user/user.service';
-import { NestFactory } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from 'src/user/entities/user.entity';
@@ -26,7 +24,7 @@ export class AuthService {
       { accessKeyData },
       {
         secret: process.env.ACCESS_SECRET,
-        expiresIn: `3600s`,
+        expiresIn: `7200s`,
       },
     );
     return accessToken;
@@ -58,7 +56,7 @@ export class AuthService {
     };
     const refreshToken = await this.jwtService.sign(
       { refreshKeyData },
-      { secret: process.env.REFRESH_SECRET, expiresIn: '10800s' },
+      { secret: process.env.REFRESH_SECRET, expiresIn: '212600s' },
     );
     return refreshToken;
     // accesstoken이 없을때
@@ -89,11 +87,9 @@ export class AuthService {
   }
 
   async deleteRefreshToken(userId: number) {
-    console.log(userId);
     const refreshTokenInfo = await this.refreshTokenRepository.findOne({
       where: { id: userId },
     });
-    console.log(refreshTokenInfo);
     refreshTokenInfo.refreshToken = '';
     await this.refreshTokenRepository.save(refreshTokenInfo);
   }

@@ -15,7 +15,6 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     }
     const token = authorization.replace('Bearer ', '');
     const userInfo = await this.validate(token);
-
     if (userInfo) request.user = userInfo;
     return !!userInfo;
   }
@@ -24,7 +23,8 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     try {
       const secretKey = process.env.ACCESS_SECRET;
       const verify = await this.jwtService.verify(payload, { secret: secretKey });
-      return verify
+      console.log('verify', verify);
+      return verify;
     } catch {
       throw new HttpException('accessTokenExpired', HttpStatus.UNAUTHORIZED);
     }
