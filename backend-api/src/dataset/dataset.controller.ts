@@ -1,9 +1,7 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Put, UseGuards } from '@nestjs/common';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { Controller, Get, Post, Body, Param, Delete, Put } from '@nestjs/common';
 import { DatasetService } from './dataset.service';
 import { CreateDatasetDto } from './dto/create-dataset.dto';
 import { UpdateDatasetDto } from './dto/update-dataset.dto';
-
 
 @Controller('dataset')
 export class DatasetController {

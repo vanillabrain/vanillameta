@@ -1,9 +1,8 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, Req } from '@nestjs/common';
 import { ShareUrlService } from './share-url.service';
 import { ShareUrlOnDto } from './dto/create-share-url.dto';
-import { UpdateShareUrlDto } from './dto/update-share-url.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import {ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 @Controller('share-url')
 @ApiTags('url공유화 API')
@@ -16,7 +15,7 @@ export class ShareUrlController {
   checkShareUrlOn(@Req() req, @Param() params, @Body() shareUrlOnDto: ShareUrlOnDto) {
     const { userId } = req.user.accessKeyData;
     const { dashboardId } = params;
-    return this.shareUrlService.checkShareUrlOn( userId, dashboardId, shareUrlOnDto )
+    return this.shareUrlService.checkShareUrlOn(userId, dashboardId, shareUrlOnDto);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -25,13 +24,13 @@ export class ShareUrlController {
   checkShareUrlOff(@Req() req, @Param() params, @Body() shareUrlOnDto: ShareUrlOnDto) {
     const { userId } = req.user.accessKeyData;
     const { dashboardId } = params;
-    return this.shareUrlService.checkShareUrlOff( userId, dashboardId, shareUrlOnDto)
+    return this.shareUrlService.checkShareUrlOff(userId, dashboardId, shareUrlOnDto);
   }
 
   @Get('share-dashboard/:uuid')
   @ApiOperation({ summary: '공유 url 접속' })
   async shareDashboardInfo(@Param() param) {
-    const { shareUrl } = param;
-    return await this.shareUrlService.shareDashboardInfo(shareUrl)
+    const { uuid } = param;
+    return await this.shareUrlService.shareDashboardInfo(uuid);
   }
 }
