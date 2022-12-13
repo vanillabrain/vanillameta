@@ -3,7 +3,7 @@ import { Column, Entity, PrimaryColumn } from 'typeorm';
 @Entity()
 export class RefreshToken {
     @PrimaryColumn()
-    id: string;
+    id: number;
 
     @Column()
     refreshToken: string;

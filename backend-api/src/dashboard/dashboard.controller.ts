@@ -11,15 +11,15 @@ export class DashboardController {
   @UseGuards(JwtAuthGuard)
   @Post()
   create(@Body() createDashboardDto: CreateDashboardDto, @Req() req) {
-    const { authorization } = req.headers;
-    return this.dashboardService.create(createDashboardDto, authorization);
+    const { accessKeyData } = req.user
+    return this.dashboardService.create(createDashboardDto, accessKeyData.id);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get()
   findAll(@Req() req) {
-    const { authorization } = req.headers;
-    return this.dashboardService.findAll(authorization);
+    const { accessKeyData } = req.user;
+    return this.dashboardService.findAll(accessKeyData.id);
   }
 
   @UseGuards(JwtAuthGuard)

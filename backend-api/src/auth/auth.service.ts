@@ -43,7 +43,7 @@ export class AuthService {
         // accesstoken이 없을때
     }
 
-    async setRefreshKey(refreshToken: string, jwt_id: string){
+    async setRefreshKey(refreshToken: string, jwt_id: number){
         const findToken = await this.refreshTokenRepository.findOne({ where: { id: jwt_id } });
         const token = refreshToken.replace('Bearer ', '');
         if(!findToken){
@@ -68,12 +68,13 @@ export class AuthService {
         // 회원이 존재하는지 확인
     }
 
-    async deleteRefreshToken(Token: string) {
-        const token = Token.replace('Bearer ', '').split('=')[1];
+    async deleteRefreshToken(userId: number) {
+        console.log(userId)
         const refreshTokenInfo = await this.refreshTokenRepository.findOne({
-            where: { refreshToken: token },
+            where: { id: userId },
         });
-        refreshTokenInfo.refreshToken = null;
+        console.log(refreshTokenInfo)
+        refreshTokenInfo.refreshToken = '';
         await this.refreshTokenRepository.save(refreshTokenInfo);
     }
 
@@ -99,8 +100,7 @@ export class AuthService {
         }
     } // Refresh 토큰이 유효한지 확인
 
-    async checkAccess(token: string, password: string) {
-        const { accessKeyData } = await this.verifyAccessToken(token);
-        return await this.validateUser(accessKeyData.userId, password)
+    async checkAccess(userId: string, password: string) {
+        return await this.validateUser(userId, password)
     }
 }

@@ -5,13 +5,13 @@ import { ExpressAdapter } from '@nestjs/platform-express';
 import { HttpExceptionFilter } from './nest-utils/http-exception.filter';
 import { ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
+import { setupSwagger } from './utils/swagger.js';
 
 async function bootstrap() {
   const expressApp = express();
-  const whiteList = ['https://vanillameta-dev.vanillabrain.com', 'http://localhost:3000']
+  const whiteList = ['https://vanillameta-dev.vanillabrain.com', 'http://localhost:3000', 'http://localhost:4000']
   const app = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), {
     logger: console,
-
     cors: {
       origin: function (origin, callback){
         if(whiteList.indexOf(origin) !== -1){
@@ -29,8 +29,7 @@ async function bootstrap() {
   });
   app.useGlobalFilters(new HttpExceptionFilter());
   app.use(cookieParser());
-  // app.useGlobalPipes(new ValidationPipe({ transform: true }));
-  // const app = await NestFactory.create(AppModule);
+  setupSwagger(app)
   await app.listen(4000);
 }
 

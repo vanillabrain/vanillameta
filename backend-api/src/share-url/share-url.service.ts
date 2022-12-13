@@ -22,9 +22,8 @@ export class ShareUrlService {
   }
 
 
-  async checkShareUrlOn( accessToken:string, dashboardId: number, shareUrlOnDto: ShareUrlOnDto ) {
-    const findpass = await this.userRepository.findOne({ where: { userId: shareUrlOnDto.userId }})
-    const findUser = await this.authService.checkAccess(accessToken, findpass.password);
+  async checkShareUrlOn( userId:string, dashboardId: number, shareUrlOnDto: ShareUrlOnDto ) {
+    const findUser = await this.userRepository.findOne({ where: { userId: userId }})
     if(!findUser){
       return 'not exist user'
     } else {
@@ -40,22 +39,23 @@ export class ShareUrlService {
       return { uuid: findDashboardShare.uuid, message: "success" }
     }
   }
+  // 공유기능 on시 공유토큰과 endDate를 저장
 
-  async checkShareUrlOff( accessToken:string, dashboardId: number, shareUrlOnDto: ShareUrlOnDto){
-    const findpass = await this.userRepository.findOne({ where: { userId: shareUrlOnDto.userId }})
-    const findUser = await this.authService.checkAccess(accessToken, findpass.password);
+  async checkShareUrlOff( userId:string, dashboardId: number, shareUrlOnDto: ShareUrlOnDto){
+    const findUser = await this.userRepository.findOne({ where: { userId: userId }})
     if(!findUser){
       return 'not exist user'
     } else {
       const findDashboard = await this.dashboardRepository.findOne( { where: { id: dashboardId } })
       const findDashboardShare = await this.dashboardShareRepository.findOne({ where: { id: findDashboard.shareId }})
-      findDashboardShare.shareToken = null;
+      findDashboardShare.shareToken = '';
       findDashboardShare.shareYn = YesNo.NO;
       findDashboardShare.endDate = null;
       await this.dashboardShareRepository.save(findDashboardShare)
       return { message: "success" }
     }
   }
+  // 공유기능 off시 쉐어토큰, endDate을 없애고 사용가능여부를 N으로 저장
 
   async shareDashboardInfo(uuid: string){
     const findDashboardShareUrl = await this.dashboardShareRepository.findOne({ where: { uuid: uuid }})
@@ -65,4 +65,5 @@ export class ShareUrlService {
     }
     return this.dashboardService.findOne(+findDashboard.id)
   }
+  // 공유url로 접속시 대시보드의 정보를 받아오는 코드
 }

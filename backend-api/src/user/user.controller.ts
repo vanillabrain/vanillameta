@@ -4,8 +4,11 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { AuthService } from 'src/auth/auth.service';
+import { LocalAuthGuard } from 'src/auth/guards/local-auth.guard';
+import {ApiOperation, ApiTags } from '@nestjs/swagger';
 
 @Controller('user')
+@ApiTags('유저 API')
 export class UserController {
   constructor(
     private readonly userService: UserService,
@@ -14,38 +17,43 @@ export class UserController {
 
   @UseGuards(JwtAuthGuard)
   @Get('userinfo')
+  @ApiOperation({ summary: '해당유저정보 가져오기' })
   findOne(@Req() req) {
-    const { authorization } = req.headers;
-    return this.userService.findOne(authorization);
+    const { id } = req.user.accessKeyData;
+    return this.userService.findOne(id);
   }
 
   @UseGuards(JwtAuthGuard)
   @Patch('change-info')
+  @ApiOperation({ summary: '유저정보 수정' })
   updateUsername(@Req() req, @Body() updateUserDto: UpdateUserDto) {
-    const { authorization } = req.headers;
-    return this.userService.updateUserInfo(authorization, updateUserDto);
+    const { userId } = req.user.accessKeyData;
+    return this.userService.updateUserInfo(userId, updateUserDto);
   }
 
   @UseGuards(JwtAuthGuard)
   @Delete('delete-account')
+  @ApiOperation({ summary: ' 해당유저 삭제 ' })
   deleteUser(@Req() req, @Body() createUserDto: CreateUserDto) {
-    const { authorization } = req.headers;
+    const { userId } = req.user.accessKeyData;
     const { password } = createUserDto;
-    return this.userService.deleteUser(authorization, password);
+    return this.userService.deleteUser(userId, password);
   }
 
-  // @UseGuards(JwtAuthGuard)
+  @UseGuards(LocalAuthGuard)
   @Post('get-access-token')
+  @ApiOperation({ summary: 'AccessToken 재 발급' })
   async reissuanceAccessToken(@Req() req, @Res() res) {
-    const { cookie } = req.headers;
-    const accessToken = await this.userService.reissuanceAccessToken(cookie);
+    const { userId } = req.user.refreshKeyData;
+    const accessToken = await this.userService.reissuanceAccessToken(userId);
     return res.status(201).json({ accessToken: accessToken, message: 'success' });
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('get-dashboard')
+  @ApiOperation({ summary: '해당유정의 대시보드 목록 가져오기' })
   async findDashboardId(@Req() req) {
-    const { authorization } = req.headers;
-    await this.userService.findDashboardId(authorization);
+    const { id } = req.headers.accessKeyData;
+    await this.userService.findDashboardId(id);
   }
 }
