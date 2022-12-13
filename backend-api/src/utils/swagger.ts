@@ -12,7 +12,7 @@ export function setupSwagger(app: INestApplication): void {
   const options = new DocumentBuilder()
     .setTitle('NestJS Study API Docs')
     .setDescription('NestJS Study API description')
-    .setVersion('1.0.0')
+    .setVersion('2.9.2')
     .addBearerAuth(
       {
         type: 'http',
