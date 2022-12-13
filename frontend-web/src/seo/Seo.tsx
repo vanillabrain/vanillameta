@@ -4,12 +4,12 @@ import { Helmet } from 'react-helmet-async';
 
 const Seo = props => {
   const {
-    title = 'Vanilla Meta',
-    description = '최신 엔터프라이즈용 비즈니스 인텔리전스 웹 애플리케이션, Vanilla Meta',
+    title = 'VanillaMeta',
+    description = '최신 엔터프라이즈용 비즈니스 인텔리전스 웹 애플리케이션, VanillaMeta',
     image = `${ROUTE_URL}/static/images/logo/vanillaMeta-og.jpg`,
     url = ROUTE_URL,
   } = props;
-  const titleText = title === 'Vanilla Meta' ? 'Vanilla Meta' : title + ' - Vanilla Meta';
+  const titleText = title === 'VanillaMeta' ? 'VanillaMeta' : title + ' - VanillaMeta';
 
   return (
     <Helmet>
@@ -25,7 +25,7 @@ const Seo = props => {
       <meta property="og:image" content={image} />
       <meta property="og:url" content={url} />
       <meta property="og:type" content="website" />
-      <meta property="og:site_name" content="Vanilla Meta" />
+      <meta property="og:site_name" content="VanillaMeta" />
       <meta property="og:image:width" content="1200" />
       <meta property="og:image:height" content="630" />
 
