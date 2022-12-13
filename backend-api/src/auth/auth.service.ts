@@ -24,7 +24,7 @@ export class AuthService {
       { accessKeyData },
       {
         secret: process.env.ACCESS_SECRET,
-        expiresIn: `7200s`,
+        expiresIn: `30s`,
       },
     );
     return accessToken;
@@ -41,7 +41,6 @@ export class AuthService {
       { accessKeyData },
       {
         secret: process.env.ACCESS_SECRET,
-        expiresIn: `10800s`,
       },
     );
     return accessToken;
