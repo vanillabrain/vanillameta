@@ -6,7 +6,6 @@ import { useAlert } from 'react-alert';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import '/node_modules/react-grid-layout/css/styles.css';
 import '/node_modules/react-resizable/css/styles.css';
-import { STATUS } from '@/constant';
 import DashboardTitleBox from '../Components/DashboardTitleBox';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import shareService from '@/api/shareService';
@@ -14,6 +13,8 @@ import Logo from '@/layouts/Header/Logo';
 import Copyright from '@/components/Copyright';
 import Seo from '@/seo/Seo';
 import { dateData } from '@/utils/util';
+import { AuthContext } from '@/contexts/AuthContext';
+import useAuthAxios from '@/hooks/useAuthAxios';
 
 export const DashboardEmpty = () => {
   return (
@@ -61,10 +62,14 @@ const DashboardShare = () => {
     updatedAt: '',
     shareYn: 'N',
     uuid: null,
+    shareToken: null,
   }); // dashboard 정보
   const [layout, setLayout] = useState([]); // grid layout
   // dashboard id
   const [isShareOn, setIsShareOn] = useState(false);
+  const { token, setToken } = useContext(AuthContext);
+
+  useAuthAxios();
 
   // init useEffect
   useEffect(() => {
@@ -84,14 +89,17 @@ const DashboardShare = () => {
   }, [dashboardInfo]);
 
   // dashboard info 조회
-  const getShareDashboardInfo = token => {
+  const getShareDashboardInfo = uuid => {
     showLoading();
     shareService
-      .selectDashboard(token)
+      .selectDashboard(uuid)
       .then(response => {
         console.log(response);
-        if (response.data.status == STATUS.SUCCESS) {
+        if (response.status == 200) {
           setDashboardInfo(response.data.data);
+          setToken(response.data.data.shareToken);
+        } else if (response.status === 401) {
+          alert.error('대시보드가 없거나 공유 기간이 만료되었습니다.');
         } else {
           alert.error('대시보드 조회에 실패했습니다.\n다시 시도해 주세요.');
         }
