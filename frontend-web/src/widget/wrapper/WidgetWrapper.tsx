@@ -1,14 +1,16 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { get } from '@/helpers/apiHelper';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
 import DatabaseService from '@/api/databaseService';
 import { STATUS } from '@/constant';
 import { LoadingContext } from '@/contexts/LoadingContext';
+import { useAlert } from 'react-alert';
+import { SnackbarContext } from '@/contexts/AlertContext';
 
 const WidgetWrapper = props => {
   const { widgetOption, dataSetId } = props;
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const [dataset, setDataset] = useState(null);
+  const snackbar = useAlert(SnackbarContext);
 
   useEffect(() => {
     // console.log('WidgetWrapper widgetOption', widgetOption);
@@ -31,6 +33,10 @@ const WidgetWrapper = props => {
         if (response.data.status === STATUS.SUCCESS) {
           setDataset(response.data.data.datas);
         }
+      })
+      .catch(error => {
+        snackbar.error('데이터베이스 조회에 실패했습니다.');
+        console.log('error', error);
       })
       .finally(() => {
         hideLoading();

@@ -4,6 +4,7 @@
     <modules>
       <module fileurl="file://$PROJECT_DIR$/backend-api/backend-api.iml" filepath="$PROJECT_DIR$/backend-api/backend-api.iml" />
       <module fileurl="file://$PROJECT_DIR$/backend-libs-lambda-layer/backend-libs-lambda-layer.iml" filepath="$PROJECT_DIR$/backend-libs-lambda-layer/backend-libs-lambda-layer.iml" />
+      <module fileurl="file://$PROJECT_DIR$/frontend-web/frontend-web.iml" filepath="$PROJECT_DIR$/frontend-web/frontend-web.iml" />
       <module fileurl="file://$PROJECT_DIR$/landing-page/landing-page.iml" filepath="$PROJECT_DIR$/landing-page/landing-page.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/vanillameta.iml" filepath="$PROJECT_DIR$/.idea/vanillameta.iml" />
     </modules>
