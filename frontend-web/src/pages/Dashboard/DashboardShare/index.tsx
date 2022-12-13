@@ -67,7 +67,7 @@ const DashboardShare = () => {
   const [layout, setLayout] = useState([]); // grid layout
   // dashboard id
   const [isShareOn, setIsShareOn] = useState(false);
-  const { token, setToken } = useContext(AuthContext);
+  const { setToken } = useContext(AuthContext);
 
   useAuthAxios();
 
