@@ -2,6 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { filterDocumentsPathsByTags } from './swagger-APIhelper';
 import { filterDocumentsDtoPathsByTags } from './swagger/Dtohelper';
+import * as fs from 'fs';
 
 /**
  * Swagger 세팅
@@ -32,5 +33,8 @@ export function setupSwagger(app: INestApplication): void {
   const document = SwaggerModule.createDocument(app, options);
   document.paths = filterDocumentsPathsByTags(document);
   // document.paths = filterDocumentsDtoPathsByTags(document);
-  SwaggerModule.setup('api-docs', app, document);
+  SwaggerModule.setup('api-docs', app, document, {
+    swaggerOptions: { defaultModelsExpandDepth: -1 },
+  });
+  fs.writeFileSync('./swagger-spec.json', JSON.stringify(document));
 }
