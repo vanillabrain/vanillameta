@@ -23,7 +23,6 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     try {
       const secretKey = process.env.ACCESS_SECRET;
       const verify = await this.jwtService.verify(payload, { secret: secretKey });
-      console.log('verify', verify);
       return verify;
     } catch {
       throw new HttpException('accessTokenExpired', HttpStatus.UNAUTHORIZED);
