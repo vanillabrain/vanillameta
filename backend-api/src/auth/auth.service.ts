@@ -41,7 +41,6 @@ export class AuthService {
       { accessKeyData },
       {
         secret: process.env.URL_ACCESS_SECRET,
-        expiresIn: `10800s`,
       },
     );
     return accessToken;
