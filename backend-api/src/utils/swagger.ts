@@ -33,8 +33,8 @@ export function setupSwagger(app: INestApplication): void {
   const document = SwaggerModule.createDocument(app, options);
   document.paths = filterDocumentsPathsByTags(document);
   // document.paths = filterDocumentsDtoPathsByTags(document);
+  fs.writeFileSync('./swagger-spec.json', JSON.stringify(document));
   SwaggerModule.setup('api-docs', app, document, {
     swaggerOptions: { defaultModelsExpandDepth: -1 },
   });
-  fs.writeFileSync('./swagger-spec.json', JSON.stringify(document));
 }
