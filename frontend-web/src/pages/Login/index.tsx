@@ -2,7 +2,6 @@ import React, { useContext, useEffect, useState } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { Box, Button, Stack, TextField, Typography } from '@mui/material';
 import { useAlert } from 'react-alert';
-import { AuthContext } from '@/contexts/AuthContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { ReactComponent as Logo } from '@/assets/images/logo.svg';
 import backgroundImage from '@/assets/images/visual-bg.png';
@@ -11,9 +10,9 @@ import authService from '@/api/authService';
 import { checkId, checkPwd } from '@/utils/util';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import Seo from '@/seo/Seo';
+import { getToken, setToken } from '@/helpers/authHelper';
 
 const Login = () => {
-  const { token, setLogin, refreshToken } = useContext(AuthContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const navigate = useNavigate();
   const alert = useAlert();
@@ -23,26 +22,14 @@ const Login = () => {
     userPwd: '',
   });
   let isValid;
+  const token = getToken();
 
   useEffect(() => {
-    // token 확인해서 없으면 재발급
-    // token이 갱신되면 dashboard로 보낸다
-    if (!token) {
-      showLoading();
-      refreshToken()
-        .then(response => {
-          if (response.status === 201) {
-            navigate('/dashboard');
-          }
-        })
-        .finally(() => {
-          hideLoading();
-        });
-    } else {
+    if (token) {
       // token이 있으면 뒤로가기
       navigate(-1);
     }
-  }, []);
+  }, [token]);
 
   const handleChange = event => {
     event.preventDefault();
@@ -65,7 +52,8 @@ const Login = () => {
         .signin(data)
         .then(response => {
           if (response.status === 201) {
-            setLogin(response.data.accessToken);
+            setToken(response.data.accessToken);
+            navigate('/dashboard');
           }
         })
         .catch(error => {

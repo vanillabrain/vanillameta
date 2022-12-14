@@ -1,26 +1,32 @@
 import { useContext, useEffect } from 'react';
 import { AuthContext } from '@/contexts/AuthContext';
-import useAuthAxios from '@/hooks/useAuthAxios';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { useNavigate } from 'react-router-dom';
+import { getToken } from '@/helpers/authHelper';
+import { useAlert } from 'react-alert';
 
 export const ProtectedRoute = ({ children }) => {
-  const { token, getUserState } = useContext(AuthContext);
+  const { getUserState } = useContext(AuthContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const navigate = useNavigate();
-
-  useAuthAxios();
+  const alert = useAlert();
+  const token = getToken();
 
   useEffect(() => {
     showLoading();
     getUserState()
       .catch(() => {
-        navigate('/login', { replace: true });
+        // refresh token 만료
+        alert.error('로그인이 만료되었습니다.\n다시 로그인 해주세요.', {
+          onClose: () => {
+            navigate('/login', { replace: true });
+          },
+        });
       })
       .finally(() => {
         hideLoading();
       });
-  }, []);
+  }, [token]);
 
   if (token) {
     return children;

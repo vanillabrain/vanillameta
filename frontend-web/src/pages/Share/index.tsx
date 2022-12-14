@@ -6,17 +6,16 @@ import { useAlert } from 'react-alert';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import '/node_modules/react-grid-layout/css/styles.css';
 import '/node_modules/react-resizable/css/styles.css';
-import DashboardTitleBox from '../Components/DashboardTitleBox';
+import DashboardTitleBox from '../Dashboard/Components/DashboardTitleBox';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import shareService from '@/api/shareService';
 import Logo from '@/layouts/Header/Logo';
 import Copyright from '@/components/Copyright';
 import Seo from '@/seo/Seo';
 import { dateData } from '@/utils/util';
-import { AuthContext } from '@/contexts/AuthContext';
-import useAuthAxios from '@/hooks/useAuthAxios';
+import { setShareToken } from '@/helpers/shareHelper';
 
-export const DashboardEmpty = () => {
+export const ShareEmpty = () => {
   return (
     <Stack sx={{ width: '1392px', m: 'auto', mt: '32px' }}>
       <Logo sx={{ mb: '5px' }} />
@@ -50,7 +49,7 @@ export const DashboardEmpty = () => {
   );
 };
 
-const DashboardShare = () => {
+const Share = () => {
   const { dashboardUuid } = useParams();
   const ResponsiveGridLayout = WidthProvider(Responsive);
   const alert = useAlert();
@@ -67,9 +66,6 @@ const DashboardShare = () => {
   const [layout, setLayout] = useState([]); // grid layout
   // dashboard id
   const [isShareOn, setIsShareOn] = useState(false);
-  const { setToken } = useContext(AuthContext);
-
-  useAuthAxios();
 
   // init useEffect
   useEffect(() => {
@@ -86,6 +82,7 @@ const DashboardShare = () => {
     });
     setLayout(dashboardInfo.layout);
     setIsShareOn(dashboardInfo.shareYn === 'Y');
+    setShareToken(dashboardInfo.shareToken);
   }, [dashboardInfo]);
 
   // dashboard info 조회
@@ -94,11 +91,14 @@ const DashboardShare = () => {
     shareService
       .selectDashboard(uuid)
       .then(response => {
-        console.log(response);
+        console.log('shareDashboard', response);
         if (response.status == 200) {
           setDashboardInfo(response.data.data);
-          setToken(response.data.data.shareToken);
-        } else if (response.status === 401) {
+        }
+      })
+      .catch(error => {
+        console.log(error);
+        if (error.response.status === 401) {
           alert.error('대시보드가 없거나 공유 기간이 만료되었습니다.');
         } else {
           alert.error('대시보드 조회에 실패했습니다.\n다시 시도해 주세요.');
@@ -202,8 +202,8 @@ const DashboardShare = () => {
       </Stack>
     );
   } else {
-    return <DashboardEmpty />;
+    return <ShareEmpty />;
   }
 };
 
-export default DashboardShare;
+export default Share;
