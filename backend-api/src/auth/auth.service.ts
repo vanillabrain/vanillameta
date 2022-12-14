@@ -24,7 +24,7 @@ export class AuthService {
       { accessKeyData },
       {
         secret: process.env.ACCESS_SECRET,
-        expiresIn: `30s`,
+        expiresIn: `10800s`,
       },
     );
     return accessToken;
@@ -40,7 +40,7 @@ export class AuthService {
     const accessToken = await this.jwtService.sign(
       { accessKeyData },
       {
-        secret: process.env.ACCESS_SECRET,
+        secret: process.env.URL_ACCESS_SECRET,
       },
     );
     return accessToken;
