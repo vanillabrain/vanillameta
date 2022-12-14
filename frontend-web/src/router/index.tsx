@@ -16,12 +16,12 @@ import DashboardModify from '@/pages/Dashboard/DashboardModify';
 import { ProtectedRoute } from '@/router/ProtectedRoute';
 import Layout from '@/layouts/Layout';
 import Login from '@/pages/Login';
-import DashboardShare from '@/pages/Dashboard/DashboardShare';
+import Share from '@/pages/Share';
 
 function Router() {
   return (
     <Routes>
-      <Route path="/share/:dashboardUuid" element={<DashboardShare />} />
+      <Route path="/share/:dashboardUuid" element={<Share />} />
       <Route
         path="/"
         element={

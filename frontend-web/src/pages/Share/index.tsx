@@ -6,7 +6,7 @@ import { useAlert } from 'react-alert';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import '/node_modules/react-grid-layout/css/styles.css';
 import '/node_modules/react-resizable/css/styles.css';
-import DashboardTitleBox from '../Components/DashboardTitleBox';
+import DashboardTitleBox from '../Dashboard/Components/DashboardTitleBox';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import shareService from '@/api/shareService';
 import Logo from '@/layouts/Header/Logo';
@@ -16,7 +16,7 @@ import { dateData } from '@/utils/util';
 import { AuthContext } from '@/contexts/AuthContext';
 import useAuthAxios from '@/hooks/useAuthAxios';
 
-export const DashboardEmpty = () => {
+export const ShareEmpty = () => {
   return (
     <Stack sx={{ width: '1392px', m: 'auto', mt: '32px' }}>
       <Logo sx={{ mb: '5px' }} />
@@ -50,7 +50,7 @@ export const DashboardEmpty = () => {
   );
 };
 
-const DashboardShare = () => {
+const Share = () => {
   const { dashboardUuid } = useParams();
   const ResponsiveGridLayout = WidthProvider(Responsive);
   const alert = useAlert();
@@ -202,8 +202,8 @@ const DashboardShare = () => {
       </Stack>
     );
   } else {
-    return <DashboardEmpty />;
+    return <ShareEmpty />;
   }
 };
 
-export default DashboardShare;
+export default Share;
