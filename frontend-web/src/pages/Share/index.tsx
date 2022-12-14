@@ -82,7 +82,9 @@ const Share = () => {
     });
     setLayout(dashboardInfo.layout);
     setIsShareOn(dashboardInfo.shareYn === 'Y');
-    setShareToken(dashboardInfo.shareToken);
+    if (dashboardInfo.shareToken) {
+      setShareToken(dashboardInfo.shareToken);
+    }
   }, [dashboardInfo]);
 
   // dashboard info 조회

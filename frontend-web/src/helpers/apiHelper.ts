@@ -8,27 +8,30 @@ const API_URL = process.env.REACT_APP_API_URL;
 
 const instance = axios.create({
   baseURL: API_URL,
-  timeout: 100000,
+  timeout: 10000,
   withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
 });
 
-let isAlreadyRefreshingToken = false;
+let isLoginUser = true;
+let isAlreadyFetchingAccessToken = false;
 let subscribers: ((token: string) => void)[] = [];
 
-// Add a request interceptor
+// request interceptor
 instance.interceptors.request.use(async config => {
-  const token = getToken() || getShareToken();
+  const token = getToken();
+  const shareToken = getShareToken();
+
   if (token) {
-    console.log(token, 'token');
     config.headers.Authorization = `Bearer ${token}`;
+  } else if (shareToken) {
+    isLoginUser = false;
+    config.headers.Authorization = `Bearer ${shareToken}`;
   }
-  // if (config.url === URL_REFRESH || config.url === URL_LOGOUT) {
-  //   config.headers.RefreshAuthorization = getRefreshToken();
-  // }
   return config;
 });
 
+// response interceptor
 instance.interceptors.response.use(
   response => {
     return response;
@@ -38,8 +41,8 @@ instance.interceptors.response.use(
       response: { status },
     } = error;
     if (status === 401) {
-      if (error.response.data.data === 'accessTokenExpired') {
-        // token 만료 후 첫 요청
+      if (error.response.data.data === 'accessTokenExpired' && isLoginUser) {
+        // 로그인 사용자의 token 만료 후 첫 요청
         return await resetTokenAndReattemptRequest(error);
       }
     }
@@ -70,8 +73,8 @@ async function resetTokenAndReattemptRequest(error) {
     });
 
     // refresh token을 이용해서 access token 요청
-    if (!isAlreadyRefreshingToken) {
-      isAlreadyRefreshingToken = true; // 문닫기 (한 번만 요청)
+    if (!isAlreadyFetchingAccessToken) {
+      isAlreadyFetchingAccessToken = true; // 문닫기 (한 번만 요청)
 
       const { data } = await authService.refreshAccessToken();
       // 새로운 토큰 저장
@@ -79,7 +82,7 @@ async function resetTokenAndReattemptRequest(error) {
       const newAccessToken = data.accessToken;
       setToken(newAccessToken);
 
-      isAlreadyRefreshingToken = false; // 문열기 (초기화)
+      isAlreadyFetchingAccessToken = false; // 문열기 (초기화)
 
       onAccessTokenFetched(data.access);
     }
