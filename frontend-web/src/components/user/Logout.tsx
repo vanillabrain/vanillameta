@@ -3,12 +3,11 @@ import { Button } from '@mui/material';
 import authService from '@/api/authService';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { useAlert } from 'react-alert';
-import { AuthContext } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { removeToken } from '@/helpers/authHelper';
 
 const Logout = () => {
   const { showLoading, hideLoading } = useContext(LoadingContext);
-  const { setLogout } = useContext(AuthContext);
   const navigate = useNavigate();
   const alert = useAlert();
 
@@ -24,7 +23,7 @@ const Logout = () => {
               .signout()
               .then(response => {
                 if (response.status === 201) {
-                  setLogout();
+                  removeToken();
                   navigate('/login');
                 }
               })
@@ -32,7 +31,7 @@ const Logout = () => {
                 console.log(error);
                 if (error.response.status === 401) {
                   // 이미 accessToken이 만료
-                  setLogout();
+                  removeToken();
                   navigate('/login');
                 } else {
                   alert.error('로그아웃에 실패했습니다.\n다시 시도해 주세요.');

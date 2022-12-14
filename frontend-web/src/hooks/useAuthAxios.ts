@@ -1,29 +1,28 @@
-import { AuthContext } from '@/contexts/AuthContext';
 import { useContext, useEffect } from 'react';
 import instance from '@/helpers/apiHelper';
+import authService from '@/api/authService';
+import { setToken, getToken } from '@/helpers/authHelper';
 import { useAlert } from 'react-alert';
 import { useNavigate } from 'react-router-dom';
+import { getShareToken } from '@/helpers/shareHelper';
 
 const useAuthAxios = () => {
-  const { token, refreshToken } = useContext(AuthContext);
+  // const { token, refreshToken } = useContext(AuthContext);
   const alert = useAlert();
   const navigate = useNavigate();
 
   let isAlreadyRefreshingToken = false;
-  const subscribers: ((token: string) => void)[] = [];
+  let subscribers = [];
 
   // 요청 interceptor
-  const requestInterceptor = instance.interceptors.request.use(
-    async config => {
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-      return config;
-    },
-    error => {
-      return Promise.reject(error);
-    },
-  );
+  const requestInterceptor = instance.interceptors.request.use(async config => {
+    const token = getToken() || getShareToken();
+    if (token) {
+      console.log(token, 'token');
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  });
 
   // 응답 interceptor
   const responseInterceptor = instance.interceptors.response.use(
@@ -42,7 +41,6 @@ const useAuthAxios = () => {
       }
       // token 과 관련없는 요청
       return Promise.reject(error);
-      // }
     },
   );
 
@@ -71,22 +69,16 @@ const useAuthAxios = () => {
         isAlreadyRefreshingToken = true; // 문닫기 (한 번만 요청)
 
         // 새로운 토큰 저장
-        const { data } = await refreshToken();
-        // console.log('refresh token', data);
+        const { data } = await authService.refreshAccessToken();
+        // 새로운 토큰 저장
+        const newAccessToken = data.accessToken;
+        setToken(newAccessToken);
 
         isAlreadyRefreshingToken = false; // 문열기 (초기화)
         onAccessTokenFetched(data.access);
       }
       return retryOriginalRequest; // pending 됐다가 onAccessTokenFetched가 호출될 때 resolve
     } catch (error) {
-      if (error.response.data.data === 'Unauthorized') {
-        // refresh token 만료
-        alert.error('로그인이 만료되었습니다.\n다시 로그인 해주세요.', {
-          onClose: () => {
-            navigate('/login');
-          },
-        });
-      }
       return Promise.reject(error);
     }
   }
@@ -97,11 +89,14 @@ const useAuthAxios = () => {
 
   const onAccessTokenFetched = (token: string) => {
     subscribers.forEach(callback => callback(token));
+    subscribers = [];
   };
 
   // 추가한 interceptor 동작 종료 후에 제거
   useEffect(() => {
+    console.log('check!', requestInterceptor, responseInterceptor);
     return () => {
+      console.log('return', requestInterceptor, responseInterceptor);
       instance.interceptors.request.eject(requestInterceptor);
       instance.interceptors.response.eject(responseInterceptor);
     };

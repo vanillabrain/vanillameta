@@ -13,8 +13,7 @@ import Logo from '@/layouts/Header/Logo';
 import Copyright from '@/components/Copyright';
 import Seo from '@/seo/Seo';
 import { dateData } from '@/utils/util';
-import { AuthContext } from '@/contexts/AuthContext';
-import useAuthAxios from '@/hooks/useAuthAxios';
+import { setShareToken } from '@/helpers/shareHelper';
 
 export const ShareEmpty = () => {
   return (
@@ -67,9 +66,6 @@ const Share = () => {
   const [layout, setLayout] = useState([]); // grid layout
   // dashboard id
   const [isShareOn, setIsShareOn] = useState(false);
-  const { setToken } = useContext(AuthContext);
-
-  useAuthAxios();
 
   // init useEffect
   useEffect(() => {
@@ -86,6 +82,7 @@ const Share = () => {
     });
     setLayout(dashboardInfo.layout);
     setIsShareOn(dashboardInfo.shareYn === 'Y');
+    setShareToken(dashboardInfo.shareToken);
   }, [dashboardInfo]);
 
   // dashboard info 조회
@@ -94,11 +91,14 @@ const Share = () => {
     shareService
       .selectDashboard(uuid)
       .then(response => {
-        console.log(response);
+        console.log('shareDashboard', response);
         if (response.status == 200) {
           setDashboardInfo(response.data.data);
-          setToken(response.data.data.shareToken);
-        } else if (response.status === 401) {
+        }
+      })
+      .catch(error => {
+        console.log(error);
+        if (error.response.status === 401) {
           alert.error('대시보드가 없거나 공유 기간이 만료되었습니다.');
         } else {
           alert.error('대시보드 조회에 실패했습니다.\n다시 시도해 주세요.');
