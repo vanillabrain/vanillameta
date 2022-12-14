@@ -4,7 +4,7 @@ import { AddMenuIconButton } from '@/components/button/AddIconButton';
 import Logo from './Logo';
 import NavBar from './NavBar';
 import { useNavigate } from 'react-router-dom';
-import ProfileViewButton from '@/pages/User/components/ProfileViewButton';
+import ProfileViewButton from '@/components/user/ProfileViewButton';
 
 const menuList = [
   { name: '데이터 소스', link: '/data/source/create' },

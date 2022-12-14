@@ -1,9 +1,9 @@
 import React, { useContext } from 'react';
 import { Avatar, Box, Button, ClickAwayListener, Paper, Popper, Stack, Typography } from '@mui/material';
 import { ReactComponent as IconUser } from '@/assets/images/icon/ic-user.svg';
-import ProfileModify from '@/pages/User/components/ProfileModify';
+import ProfileModify from '@/components/user/ProfileModify';
 import { AuthContext } from '@/contexts/AuthContext';
-import Logout from '@/pages/User/Logout';
+import Logout from '@/components/user/Logout';
 
 const ProfileViewButton = () => {
   const { userState } = useContext(AuthContext);

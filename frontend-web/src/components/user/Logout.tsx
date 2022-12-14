@@ -31,14 +31,9 @@ const Logout = () => {
               .catch(error => {
                 console.log(error);
                 if (error.response.status === 401) {
-                  // 이미 refreshToken이 만료
+                  // 이미 accessToken이 만료
                   setLogout();
-                  alert.success('이미 로그아웃 되었습니다.', {
-                    onClose: () => {
-                      setLogout();
-                      navigate('/login');
-                    },
-                  });
+                  navigate('/login');
                 } else {
                   alert.error('로그아웃에 실패했습니다.\n다시 시도해 주세요.');
                 }

@@ -15,7 +15,7 @@ import DashboardCreate from '@/pages/Dashboard/DashboardCreate';
 import DashboardModify from '@/pages/Dashboard/DashboardModify';
 import { ProtectedRoute } from '@/router/ProtectedRoute';
 import Layout from '@/layouts/Layout';
-import Login from '@/pages/User/Login';
+import Login from '@/pages/Login';
 import DashboardShare from '@/pages/Dashboard/DashboardShare';
 
 function Router() {
