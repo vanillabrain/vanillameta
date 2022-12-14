@@ -49,9 +49,10 @@ export const ShareEmpty = () => {
   );
 };
 
+const ResponsiveGridLayout = WidthProvider(Responsive);
+
 const Share = () => {
   const { dashboardUuid } = useParams();
-  const ResponsiveGridLayout = WidthProvider(Responsive);
   const alert = useAlert();
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const [dashboardInfo, setDashboardInfo] = useState({

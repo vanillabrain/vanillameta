@@ -27,8 +27,8 @@ const SignUp = () => {
 
   useEffect(() => {
     if (token) {
-      // token이 있으면 뒤로가기
-      navigate(-1);
+      // token이 있으면 대시보드로 보내기
+      navigate('/dashboard');
     }
   }, []);
 

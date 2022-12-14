@@ -178,8 +178,6 @@ const DashboardView = () => {
     }
   };
 
-  console.log(dashboardInfo, 'infoo');
-
   return (
     <PageTitleBox
       upperTitle="대시보드"
