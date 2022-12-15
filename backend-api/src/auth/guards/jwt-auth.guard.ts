@@ -10,33 +10,48 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const { authorization } = request.headers;
-
-    if (authorization === undefined) {
+    const urlAuth = request.headers['authorization-url'];
+    if (authorization === undefined && urlAuth === undefined) {
       throw new HttpException('accessTokenExpired', HttpStatus.UNAUTHORIZED);
     }
-    const token = authorization.replace('Bearer ', '');
-
-    const userInfo = await this.validate(token);
-    if (userInfo) request.user = userInfo;
-    return !!userInfo;
+    if (authorization !== undefined) {
+      const token = authorization.replace('Bearer ', ''); //authorization-url
+      const boolean = true; // 일반 대시보드일시
+      const userInfo = await this.validate(token, boolean);
+      if (userInfo) request.user = userInfo;
+      return !!userInfo;
+    } else {
+      const token = urlAuth.replace('Bearer ', ''); //authorization-url
+      const boolean = false; // 공유대시보드일시
+      const userInfo = await this.validate(token, boolean);
+      if (userInfo) request.user = userInfo;
+      return !!userInfo;
+    }
   }
 
-  async validate(payload: any) {
+  async validate(payload: any, accessPath: boolean) {
     try {
-      const secretKey = process.env.ACCESS_SECRET;
-      const verify = await this.jwtService.verify(payload, {
-        secret: secretKey,
-      });
-      return verify;
-    } catch {
-      // const secretUrlKey = process.env.URL_ACCESS_SECRET;
-      const secretUrlKey = 'test1234';
-      const verifyUrl = await this.jwtService.verify(payload, {
-        secret: secretUrlKey,
-      });
-      if (verifyUrl) {
+      if (accessPath === true) {
+        console.log('어디를');
+        const secretKey = process.env.ACCESS_SECRET;
+        const verify = await this.jwtService.verify(payload, {
+          secret: secretKey,
+        });
+        return verify;
+      }
+      if (accessPath === false) {
+        console.log('가느냐');
+        // const secretUrlKey = process.env.URL_ACCESS_SECRET;
+        const secretUrlKey = 'test1234';
+        const verifyUrl = await this.jwtService.verify(payload, {
+          secret: secretUrlKey,
+        });
         return verifyUrl;
       }
+      console.log('dkgkgk');
+      throw new HttpException('accessTokenExpired', HttpStatus.UNAUTHORIZED);
+    } catch {
+      console.log('??');
       throw new HttpException('accessTokenExpired', HttpStatus.UNAUTHORIZED);
     }
   }

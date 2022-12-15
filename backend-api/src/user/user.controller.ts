@@ -5,7 +5,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { AuthService } from 'src/auth/auth.service';
 import { LocalAuthGuard } from 'src/auth/guards/local-auth.guard';
-import {ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiCreatedResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 @Controller('user')
 @ApiTags('유저 API')
@@ -26,6 +26,28 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @Patch('change-info')
   @ApiOperation({ summary: '유저정보 수정' })
+  @ApiCreatedResponse({
+    description: '성공여부',
+    schema: {
+      example: {
+        success: true,
+        data: [
+          {
+            id: 'cea1d926-6f1b-4a37-a46c-8ddf0b17a0bc',
+            user_id: 'Ryan',
+            password: '1234qweR!!',
+            salt: '임시',
+            name: 'Ryan',
+            age: 25,
+            createdAt: '2021-12-25T23:30:51.371Z',
+            updatedAt: '2021-12-25T23:30:51.371Z',
+            deletedAt: null,
+          },
+        ],
+      },
+    },
+  })
+  // @ApiBearerAuth('access-token')
   updateUsername(@Req() req, @Body() updateUserDto: UpdateUserDto) {
     const { userId } = req.user.accessKeyData;
     return this.userService.updateUserInfo(userId, updateUserDto);
