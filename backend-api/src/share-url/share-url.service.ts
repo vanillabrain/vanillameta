@@ -27,6 +27,7 @@ export class ShareUrlService {
     } else {
       const split = shareUrlOnDto.endDate.split('/');
       const dateForm = `${split[2]}-${split[0]}-${split[1]}`;
+
       const newToken = await this.authService.generateUrlAccessToken(String(dashboardId)); //새로운 공유 토큰 생성
       const findDashboard = await this.dashboardRepository.findOne({ where: { id: dashboardId } });
       const findDashboardShare = await this.dashboardShareRepository.findOne({
@@ -63,7 +64,10 @@ export class ShareUrlService {
     const findDashboardShareUrl = await this.dashboardShareRepository.findOne({
       where: { uuid: uuid },
     });
-    if (new Date() > findDashboardShareUrl.endDate) {
+    const today = `${new Date().getFullYear()}-${new Date().getMonth() + 1}-${
+      new Date().getDate() - 1
+    }`;
+    if (new Date(today) > findDashboardShareUrl.endDate) {
       throw new HttpException({ message: 'expired Date' }, HttpStatus.UNAUTHORIZED);
     }
     const findDashboard = await this.dashboardRepository.findOne({
