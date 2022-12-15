@@ -13,13 +13,12 @@ export function setupSwagger(app: INestApplication): void {
   const options = new DocumentBuilder()
     .setTitle('NestJS Study API Docs')
     .setDescription('NestJS Study API description')
-    .setVersion('2.9.2')
+    .setVersion('1.0.0')
     .addBearerAuth(
       {
         type: 'http',
         scheme: 'bearer',
         bearerFormat: 'JWT',
-        name: 'jwt_ac',
         description: 'Enter jwt token',
         in: 'header',
       },

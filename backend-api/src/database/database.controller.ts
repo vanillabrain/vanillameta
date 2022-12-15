@@ -17,7 +17,6 @@ import { QueryExecuteDto } from './dto/query-execute.dto';
 import { ConnectionService } from '../connection/connection.service';
 import { DatasetType } from '../common/enum/dataset-type.enum';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { LocalAuthGuard } from 'src/auth/guards/local-auth.guard';
 
 @Controller('database')
 export class DatabaseController {
