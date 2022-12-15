@@ -26,7 +26,7 @@ instance.interceptors.request.use(async config => {
     config.headers.Authorization = `Bearer ${token}`;
   } else if (shareToken) {
     isLoginUser = false;
-    config.headers.Authorization = `Bearer ${shareToken}`;
+    config.headers['Authorization-url'] = `Bearer ${shareToken}`;
   }
   return config;
 });
