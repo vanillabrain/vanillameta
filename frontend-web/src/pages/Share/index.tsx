@@ -9,7 +9,7 @@ import '/node_modules/react-resizable/css/styles.css';
 import DashboardTitleBox from '../Dashboard/Components/DashboardTitleBox';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import shareService from '@/api/shareService';
-import Logo from '@/layouts/Header/Logo';
+import { LandingLogo } from '@/layouts/Header/Logo';
 import Copyright from '@/components/Copyright';
 import Seo from '@/seo/Seo';
 import { dateData } from '@/utils/util';
@@ -103,7 +103,7 @@ const Share = () => {
 
   return (
     <Stack sx={{ width: '1392px', m: 'auto', mt: '32px' }}>
-      <Logo sx={{ mb: '5px' }} />
+      <LandingLogo sx={{ mb: '5px' }} />
       <Seo title={dashboardInfo.title} />
       {!isShareOn ? (
         <DashboardTitleBox>
