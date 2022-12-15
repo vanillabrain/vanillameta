@@ -60,6 +60,7 @@ const OracleDatabaseForm = props => {
         <TextField
           label="Password"
           name="password"
+          type="password"
           value={formData?.oracle?.password || ''}
           required
           fullWidth
