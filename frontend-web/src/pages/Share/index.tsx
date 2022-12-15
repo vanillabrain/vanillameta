@@ -15,40 +15,6 @@ import Seo from '@/seo/Seo';
 import { dateData } from '@/utils/util';
 import { setShareToken } from '@/helpers/shareHelper';
 
-export const ShareEmpty = () => {
-  return (
-    <Stack sx={{ width: '1392px', m: 'auto', mt: '32px' }}>
-      <Logo sx={{ mb: '5px' }} />
-      <DashboardTitleBox>
-        <Box
-          sx={{
-            width: '1390px',
-            minWidth: '1390px',
-            backgroundColor: '#f9f9fa',
-            borderRadius: '0px 0px 6px 6px',
-          }}
-        >
-          <Typography
-            sx={{
-              margin: '200px auto',
-              fontSize: '16px',
-              fontWeight: 600,
-              textAlign: 'center',
-              lineHeight: '1.6',
-              color: '#333',
-            }}
-          >
-            대시보드가 존재하지 않거나 공유 기간이 만료된 링크입니다.
-            <br />
-            대시보드의 공유 상태와 URL을 다시 확인해 주세요.
-          </Typography>
-        </Box>
-      </DashboardTitleBox>
-      <Copyright sx={{ mt: '40px', mb: '75px' }} />
-    </Stack>
-  );
-};
-
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const Share = () => {
@@ -67,6 +33,7 @@ const Share = () => {
   const [layout, setLayout] = useState([]); // grid layout
   // dashboard id
   const [isShareOn, setIsShareOn] = useState(false);
+  const [isInvalidData, setIsInvalidData] = useState(false);
 
   // init useEffect
   useEffect(() => {
@@ -101,6 +68,7 @@ const Share = () => {
       })
       .catch(error => {
         console.log(error);
+        setIsInvalidData(true);
         if (error.response.status === 401) {
           alert.error('대시보드가 없거나 공유 기간이 만료되었습니다.');
         } else {
@@ -131,12 +99,45 @@ const Share = () => {
       );
     });
   };
+  // 공유 URL이 유효하지 않을 때 보여줄 화면
 
-  if (isShareOn) {
-    return (
-      <Stack sx={{ width: '1392px', m: 'auto', mt: '32px' }}>
-        <Seo title={dashboardInfo.title} />
-        <Logo sx={{ mb: '5px' }} />
+  return (
+    <Stack sx={{ width: '1392px', m: 'auto', mt: '32px' }}>
+      <Logo sx={{ mb: '5px' }} />
+      <Seo title={dashboardInfo.title} />
+      {!isShareOn ? (
+        <DashboardTitleBox>
+          <Box
+            sx={{
+              width: '1390px',
+              minWidth: '1390px',
+              backgroundColor: '#f9f9fa',
+              borderRadius: '0px 0px 6px 6px',
+            }}
+          >
+            <Typography
+              sx={{
+                margin: '200px auto',
+                fontSize: '16px',
+                fontWeight: 600,
+                textAlign: 'center',
+                lineHeight: '1.6',
+                color: '#333',
+              }}
+            >
+              {isInvalidData ? (
+                <>
+                  대시보드가 존재하지 않거나 공유 기간이 만료된 링크입니다.
+                  <br />
+                  대시보드의 공유 상태와 URL을 다시 확인해 주세요.
+                </>
+              ) : (
+                <>데이터를 불러오고 있습니다.</>
+              )}
+            </Typography>
+          </Box>
+        </DashboardTitleBox>
+      ) : (
         <DashboardTitleBox
           title={
             <Typography
@@ -201,12 +202,10 @@ const Share = () => {
             </ResponsiveGridLayout>
           </Box>
         </DashboardTitleBox>
-        <Copyright sx={{ mt: '40px', mb: '75px' }} />
-      </Stack>
-    );
-  } else {
-    return <ShareEmpty />;
-  }
+      )}
+      <Copyright sx={{ mt: '40px', mb: '75px' }} />
+    </Stack>
+  );
 };
 
 export default Share;

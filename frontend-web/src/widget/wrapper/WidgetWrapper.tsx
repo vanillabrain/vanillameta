@@ -11,11 +11,9 @@ const WidgetWrapper = props => {
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const [dataset, setDataset] = useState(null);
   const snackbar = useAlert(SnackbarContext);
+  const [isInvalidData, setIsInvalidData] = useState(false);
 
   useEffect(() => {
-    // console.log('WidgetWrapper widgetOption', widgetOption);
-    // console.log('WidgetWrapper dataSetId', dataSetId);
-
     if (dataSetId) {
       getData();
     }
@@ -35,6 +33,7 @@ const WidgetWrapper = props => {
         }
       })
       .catch(error => {
+        setIsInvalidData(true);
         snackbar.error('데이터베이스 조회에 실패했습니다.');
         console.log('error', error);
       })
@@ -49,6 +48,7 @@ const WidgetWrapper = props => {
       widgetType={widgetOption.componentType}
       widgetOption={widgetOption.option}
       dataSet={dataset}
+      isInvalidData={isInvalidData}
     />
   );
 };
