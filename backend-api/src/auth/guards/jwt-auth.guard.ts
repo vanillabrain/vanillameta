@@ -32,7 +32,6 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
   async validate(payload: any, accessPath: boolean) {
     try {
       if (accessPath === true) {
-        console.log('어디를');
         const secretKey = process.env.ACCESS_SECRET;
         const verify = await this.jwtService.verify(payload, {
           secret: secretKey,
@@ -40,7 +39,6 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
         return verify;
       }
       if (accessPath === false) {
-        console.log('가느냐');
         // const secretUrlKey = process.env.URL_ACCESS_SECRET;
         const secretUrlKey = 'test1234';
         const verifyUrl = await this.jwtService.verify(payload, {
@@ -48,10 +46,8 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
         });
         return verifyUrl;
       }
-      console.log('dkgkgk');
       throw new HttpException('accessTokenExpired', HttpStatus.UNAUTHORIZED);
     } catch {
-      console.log('??');
       throw new HttpException('accessTokenExpired', HttpStatus.UNAUTHORIZED);
     }
   }
