@@ -79,7 +79,7 @@ export class ShareUrlService {
       }
       return this.dashboardService.findOne(+findDashboard.id);
     } catch {
-      throw new HttpException({ message: 'not exist share dashboard' }, HttpStatus.NOT_FOUND);
+      throw new HttpException({ message: 'not exist uuid' }, HttpStatus.NOT_FOUND);
     }
   }
   // 공유url로 접속시 대시보드의 정보를 받아오는 코드
