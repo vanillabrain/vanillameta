@@ -61,22 +61,26 @@ export class ShareUrlService {
   // 공유기능 off시 쉐어토큰, endDate을 없애고 사용가능여부를 N으로 저장
 
   async shareDashboardInfo(uuid: string) {
-    const findDashboardShareUrl = await this.dashboardShareRepository.findOne({
-      where: { uuid: uuid },
-    });
-    const today = `${new Date().getFullYear()}-${new Date().getMonth() + 1}-${
-      new Date().getDate() - 1
-    }`;
-    if (new Date(today) > findDashboardShareUrl.endDate) {
-      throw new HttpException({ message: 'expired Date' }, HttpStatus.UNAUTHORIZED);
+    try {
+      const findDashboardShareUrl = await this.dashboardShareRepository.findOne({
+        where: { uuid: uuid },
+      });
+      const today = `${new Date().getFullYear()}-${new Date().getMonth() + 1}-${
+        new Date().getDate() - 1
+      }`;
+      if (new Date(today) > findDashboardShareUrl.endDate) {
+        throw new HttpException({ message: 'expired Date' }, HttpStatus.UNAUTHORIZED);
+      }
+      const findDashboard = await this.dashboardRepository.findOne({
+        where: { shareId: findDashboardShareUrl.id },
+      });
+      if (!findDashboard) {
+        return 'not exist share dashboard';
+      }
+      return this.dashboardService.findOne(+findDashboard.id);
+    } catch {
+      throw new HttpException({ message: 'not exist share dashboard' }, HttpStatus.NOT_FOUND);
     }
-    const findDashboard = await this.dashboardRepository.findOne({
-      where: { shareId: findDashboardShareUrl.id },
-    });
-    if (!findDashboard) {
-      return 'not exist share dashboard';
-    }
-    return this.dashboardService.findOne(+findDashboard.id);
   }
   // 공유url로 접속시 대시보드의 정보를 받아오는 코드
 }
