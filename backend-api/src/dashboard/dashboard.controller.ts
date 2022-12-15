@@ -3,6 +3,7 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { DashboardService } from './dashboard.service';
 import { CreateDashboardDto } from './dto/create-dashboard.dto';
 import { UpdateDashboardDto } from './dto/update-dashboard.dto';
+import { ApiBearerAuth } from '@nestjs/swagger';
 
 @Controller('dashboard')
 export class DashboardController {
@@ -11,7 +12,7 @@ export class DashboardController {
   @UseGuards(JwtAuthGuard)
   @Post()
   create(@Body() createDashboardDto: CreateDashboardDto, @Req() req) {
-    const { accessKeyData } = req.user
+    const { accessKeyData } = req.user;
     return this.dashboardService.create(createDashboardDto, accessKeyData.id);
   }
 

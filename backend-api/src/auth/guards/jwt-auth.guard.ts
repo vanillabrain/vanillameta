@@ -20,7 +20,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       const userInfo = await this.validate(token, boolean);
       if (userInfo) request.user = userInfo;
       return !!userInfo;
-    } else {
+    } else if (urlAuth !== undefined) {
       const token = urlAuth.replace('Bearer ', ''); //authorization-url
       const boolean = false; // 공유대시보드일시
       const userInfo = await this.validate(token, boolean);

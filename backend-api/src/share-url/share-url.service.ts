@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { AuthService } from '../auth/auth.service.js';
 import { Dashboard } from '../dashboard/entities/dashboard.entity.js';
@@ -63,6 +63,9 @@ export class ShareUrlService {
     const findDashboardShareUrl = await this.dashboardShareRepository.findOne({
       where: { uuid: uuid },
     });
+    if (new Date() > findDashboardShareUrl.endDate) {
+      throw new HttpException({ message: 'expired Date' }, HttpStatus.UNAUTHORIZED);
+    }
     const findDashboard = await this.dashboardRepository.findOne({
       where: { shareId: findDashboardShareUrl.id },
     });
