@@ -17,7 +17,6 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     const token = authorization.replace('Bearer ', '');
 
     const userInfo = await this.validate(token);
-    console.log(userInfo);
     if (userInfo) request.user = userInfo;
     return !!userInfo;
   }
@@ -30,7 +29,8 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       });
       return verify;
     } catch {
-      const secretUrlKey = process.env.URL_ACCESS_SECRET;
+      // const secretUrlKey = process.env.URL_ACCESS_SECRET;
+      const secretUrlKey = 'test1234';
       const verifyUrl = await this.jwtService.verify(payload, {
         secret: secretUrlKey,
       });
