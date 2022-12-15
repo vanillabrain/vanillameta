@@ -55,9 +55,10 @@ export const WidgetEmpty = () => {
 };
 
 const WidgetViewer = props => {
-  const { title, widgetType, widgetOption, dataSet } = props;
+  const { title, widgetType, widgetOption, dataSet, isInvalidData } = props;
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const [module, setModule] = useState(null);
+
   // const [componentOption, setComponentOption] = useState({});
   // let testModule = null;
   // const chartProps = { option: widgetOption, dataSet: dataSet, seriesOp: undefined, createOp: undefined };
@@ -517,7 +518,7 @@ const WidgetViewer = props => {
           padding: '10px 40px 48px 40px',
         }}
       >
-        {module ? module : <WidgetEmpty />}
+        {isInvalidData ? <WidgetEmpty /> : module}
         {/*<ReactECharts*/}
         {/*  option={componentOption}*/}
         {/*  style={{ height: '100%', maxHeight: '600px', width: '100%' }}*/}
