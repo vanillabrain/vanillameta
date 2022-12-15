@@ -24,7 +24,8 @@ instance.interceptors.request.use(async config => {
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
-  } else if (shareToken) {
+  } else if (shareToken && config.url.includes('/database')) {
+    // token 없는 외부 사용자가 share url에 필요한 db api 호출을 할 때만 auth로 shareToken 보내기
     isLoginUser = false;
     config.headers['Authorization-url'] = `Bearer ${shareToken}`;
   }
