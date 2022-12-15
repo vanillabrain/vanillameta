@@ -49,9 +49,10 @@ export const ShareEmpty = () => {
   );
 };
 
+const ResponsiveGridLayout = WidthProvider(Responsive);
+
 const Share = () => {
   const { dashboardUuid } = useParams();
-  const ResponsiveGridLayout = WidthProvider(Responsive);
   const alert = useAlert();
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const [dashboardInfo, setDashboardInfo] = useState({
@@ -82,7 +83,9 @@ const Share = () => {
     });
     setLayout(dashboardInfo.layout);
     setIsShareOn(dashboardInfo.shareYn === 'Y');
-    setShareToken(dashboardInfo.shareToken);
+    if (dashboardInfo.shareToken) {
+      setShareToken(dashboardInfo.shareToken);
+    }
   }, [dashboardInfo]);
 
   // dashboard info 조회
