@@ -53,6 +53,7 @@ const SnowflakeDatabaseForm = props => {
         <TextField
           label="Password"
           name="password"
+          type="password"
           value={formData?.snowflake?.password || ''}
           required
           fullWidth

@@ -117,7 +117,6 @@ function DataSource() {
               host: databaseInfo.connectionConfig.host,
               port: Number(databaseInfo.connectionConfig.port),
               user: databaseInfo.connectionConfig.user,
-              password: databaseInfo.connectionConfig.password,
               database: databaseInfo.connectionConfig.database,
               instanceName: databaseInfo.connectionConfig.instanceName,
               fetchAsString: databaseInfo.connectionConfig.fetchAsString,
@@ -127,7 +126,6 @@ function DataSource() {
             temp.snowflake = {
               account: databaseInfo.connectionConfig.account,
               username: databaseInfo.connectionConfig.username,
-              password: databaseInfo.connectionConfig.password,
               database: databaseInfo.connectionConfig.database,
               application: databaseInfo.connectionConfig.application,
               schema: databaseInfo.connectionConfig.schema,
@@ -138,7 +136,6 @@ function DataSource() {
               host: databaseInfo.connectionConfig.host,
               port: Number(databaseInfo.connectionConfig.port),
               user: databaseInfo.connectionConfig.user,
-              password: databaseInfo.connectionConfig.password,
               database: databaseInfo.connectionConfig.database,
             };
           }

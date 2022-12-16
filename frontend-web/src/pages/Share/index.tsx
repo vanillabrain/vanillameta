@@ -9,7 +9,7 @@ import '/node_modules/react-resizable/css/styles.css';
 import DashboardTitleBox from '../Dashboard/Components/DashboardTitleBox';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import shareService from '@/api/shareService';
-import Logo from '@/layouts/Header/Logo';
+import { LandingLogo } from '@/layouts/Header/Logo';
 import Copyright from '@/components/Copyright';
 import Seo from '@/seo/Seo';
 import { dateData } from '@/utils/util';
@@ -33,7 +33,7 @@ const Share = () => {
   const [layout, setLayout] = useState([]); // grid layout
   // dashboard id
   const [isShareOn, setIsShareOn] = useState(false);
-  const [isInvalidData, setIsInvalidData] = useState(false);
+  const [isInvalidData, setIsInvalidData] = useState(null);
 
   // init useEffect
   useEffect(() => {
@@ -68,9 +68,15 @@ const Share = () => {
       })
       .catch(error => {
         console.log(error);
-        setIsInvalidData(true);
-        if (error.response.status === 401) {
-          alert.error('대시보드가 없거나 공유 기간이 만료되었습니다.');
+        setIsInvalidData(error.response.status);
+        console.log(isInvalidData);
+        if (error.response.status === 401 && error.response.data.data.message === 'expired date') {
+          alert.error('대시보드의 공유 기간이 만료되었습니다.');
+        } else if (
+          error.response.status === 500
+          // && error.response.data.data.message === 'not exist uuid'
+        ) {
+          alert.error('대시보드가 존재하지 않습니다.');
         } else {
           alert.error('대시보드 조회에 실패했습니다.\n다시 시도해 주세요.');
         }
@@ -79,6 +85,7 @@ const Share = () => {
         hideLoading();
       });
   };
+
   // widget 생성
   const generateWidget = () => {
     return dashboardInfo.widgets.map(item => {
@@ -99,13 +106,35 @@ const Share = () => {
       );
     });
   };
-  // 공유 URL이 유효하지 않을 때 보여줄 화면
+
+  // 데이터가 없는 상태별 텍스트
+  const generateInvalidText = () => {
+    if (!isInvalidData) {
+      return <>데이터를 불러오고 있습니다.</>;
+    } else if (isInvalidData === 401) {
+      return (
+        <>
+          대시보드의 공유 기간이 만료되었습니다.
+          <br />
+          대시보드의 공유 상태를 다시 확인해 주세요.
+        </>
+      );
+    } else {
+      return (
+        <>
+          대시보드가 존재하지 않습니다.
+          <br />
+          대시보드의 URL을 다시 확인해 주세요.
+        </>
+      );
+    }
+  };
 
   return (
     <Stack sx={{ width: '1392px', m: 'auto', mt: '32px' }}>
-      <Logo sx={{ mb: '5px' }} />
-      <Seo title={dashboardInfo.title} />
+      <LandingLogo sx={{ mb: '5px' }} />
       {!isShareOn ? (
+        // 공유 URL이 유효하지 않을 때 보여줄 화면
         <DashboardTitleBox>
           <Box
             sx={{
@@ -125,15 +154,7 @@ const Share = () => {
                 color: '#333',
               }}
             >
-              {isInvalidData ? (
-                <>
-                  대시보드가 존재하지 않거나 공유 기간이 만료된 링크입니다.
-                  <br />
-                  대시보드의 공유 상태와 URL을 다시 확인해 주세요.
-                </>
-              ) : (
-                <>데이터를 불러오고 있습니다.</>
-              )}
+              {generateInvalidText()}
             </Typography>
           </Box>
         </DashboardTitleBox>
@@ -181,6 +202,7 @@ const Share = () => {
             </Stack>
           }
         >
+          <Seo title={dashboardInfo.title} />
           <Box
             sx={{
               width: '1390px',

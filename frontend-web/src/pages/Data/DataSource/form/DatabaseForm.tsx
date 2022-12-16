@@ -57,6 +57,7 @@ const DatabaseForm = props => {
         <TextField
           label="Password"
           name="password"
+          type="password"
           value={formData?.default?.password || ''}
           required
           fullWidth
