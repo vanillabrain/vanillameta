@@ -27,6 +27,7 @@ export function setupSwagger(app: INestApplication): void {
     .addTag('유저 API')
     .addTag('url공유화 API')
     .addTag('로그인 관련 API')
+    .addTag('dashboard')
     .build();
 
   const document = SwaggerModule.createDocument(app, options);

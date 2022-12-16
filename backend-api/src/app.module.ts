@@ -32,7 +32,7 @@ import { ShareUrlModule } from './share-url/share-url.module';
       autoLoadEntities: true,
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
       synchronize: false,
-      logging: process.env.NODE_ENV == 'prod',
+      logging: process.env.NODE_ENV == 'dev',
       retryAttempts: 1,
     }),
     DatabaseModule,

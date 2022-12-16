@@ -24,7 +24,7 @@ export class AuthService {
       { accessKeyData },
       {
         secret: process.env.ACCESS_SECRET,
-        expiresIn: `10800s`,
+        expiresIn: `21600s`,
       },
     );
     return accessToken;
@@ -56,7 +56,7 @@ export class AuthService {
     };
     const refreshToken = await this.jwtService.sign(
       { refreshKeyData },
-      { secret: process.env.REFRESH_SECRET, expiresIn: '212600s' },
+      { secret: process.env.REFRESH_SECRET, expiresIn: '43200s' },
     );
     return refreshToken;
     // accesstoken이 없을때

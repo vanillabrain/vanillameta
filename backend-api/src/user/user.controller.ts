@@ -36,6 +36,7 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @Delete('delete-account')
   @ApiOperation({ summary: ' 해당유저 삭제 ' })
+  @ApiBearerAuth('AccessKey')
   deleteUser(@Req() req, @Body() createUserDto: CreateUserDto) {
     const { userId } = req.user.accessKeyData;
     const { password } = createUserDto;
