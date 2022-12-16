@@ -11,6 +11,7 @@ export class DashboardController {
 
   @UseGuards(JwtAuthGuard)
   @Post()
+  @ApiBearerAuth('AccessKey')
   create(@Body() createDashboardDto: CreateDashboardDto, @Req() req) {
     const { accessKeyData } = req.user;
     return this.dashboardService.create(createDashboardDto, accessKeyData.id);
@@ -18,6 +19,7 @@ export class DashboardController {
 
   @UseGuards(JwtAuthGuard)
   @Get()
+  @ApiBearerAuth('AccessKey')
   findAll(@Req() req) {
     const { accessKeyData } = req.user;
     return this.dashboardService.findAll(accessKeyData.id);
@@ -25,18 +27,21 @@ export class DashboardController {
 
   @UseGuards(JwtAuthGuard)
   @Get(':id')
+  @ApiBearerAuth('AccessKey')
   findOne(@Param('id') id: string) {
     return this.dashboardService.findOne(+id);
   }
 
   @UseGuards(JwtAuthGuard)
   @Put(':id')
+  @ApiBearerAuth('AccessKey')
   update(@Param('id') id: string, @Body() updateDashboardDto: UpdateDashboardDto) {
     return this.dashboardService.update(+id, updateDashboardDto);
   }
 
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
+  @ApiBearerAuth('AccessKey')
   remove(@Param('id') id: string) {
     return this.dashboardService.remove(+id);
   }

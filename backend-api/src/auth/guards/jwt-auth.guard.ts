@@ -15,7 +15,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       throw new HttpException('accessTokenExpired', HttpStatus.UNAUTHORIZED);
     }
     if (authorization !== undefined) {
-      const token = authorization.replace('Bearer ', ''); //authorization-url
+      const token = authorization.replace('Bearer ', ''); //authorization
       const boolean = true; // 일반 대시보드일시
       const userInfo = await this.validate(token, boolean);
       if (userInfo) request.user = userInfo;
@@ -30,25 +30,28 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
   }
 
   async validate(payload: any, accessPath: boolean) {
-    // try {
     if (accessPath === true) {
-      const secretKey = process.env.ACCESS_SECRET;
-      const verify = await this.jwtService.verify(payload, {
-        secret: secretKey,
-      });
-      return verify;
+      try {
+        const secretKey = process.env.ACCESS_SECRET;
+        const verify = await this.jwtService.verify(payload, {
+          secret: secretKey,
+        });
+        return verify;
+      } catch {
+        throw new HttpException('accessTokenExpired', HttpStatus.UNAUTHORIZED);
+      }
+      if (accessPath === false) {
+        try {
+          // const secretUrlKey = process.env.URL_ACCESS_SECRET;
+          const secretUrlKey = 'test1234';
+          const verifyUrl = await this.jwtService.verify(payload, {
+            secret: secretUrlKey,
+          });
+          return verifyUrl;
+        } catch {
+          throw new HttpException('accessTokenExpired', HttpStatus.UNAUTHORIZED);
+        }
+      }
     }
-    if (accessPath === false) {
-      // const secretUrlKey = process.env.URL_ACCESS_SECRET;
-      const secretUrlKey = 'test1234';
-      const verifyUrl = await this.jwtService.verify(payload, {
-        secret: secretUrlKey,
-      });
-      return verifyUrl;
-    }
-    throw new HttpException('accessTokenExpired', HttpStatus.UNAUTHORIZED);
   }
-  // } catch {
-  //   throw new HttpException('accessTokenExpired', HttpStatus.UNAUTHORIZED);
-  // }}
 }

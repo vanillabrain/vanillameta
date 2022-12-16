@@ -17,8 +17,10 @@ import { QueryExecuteDto } from './dto/query-execute.dto';
 import { ConnectionService } from '../connection/connection.service';
 import { DatasetType } from '../common/enum/dataset-type.enum';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { ApiTags } from '@nestjs/swagger';
 
 @Controller('database')
+@ApiTags('dashboard')
 export class DatabaseController {
   constructor(
     private readonly databaseService: DatabaseService,

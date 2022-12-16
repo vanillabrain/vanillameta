@@ -6,7 +6,6 @@ import { User } from '../user/entities/user.entity.js';
 import { Repository } from 'typeorm';
 import { YesNo } from '../common/enum/yn.enum.js';
 import { ShareUrlOnDto } from './dto/create-share-url.dto';
-import { UpdateShareUrlDto } from './dto/update-share-url.dto';
 import { DashboardService } from '../dashboard/dashboard.service.js';
 import { DashboardShare } from '../dashboard/entities/dashboard_share.js';
 
@@ -42,7 +41,7 @@ export class ShareUrlService {
   }
   // 공유기능 on시 공유토큰과 endDate를 저장
 
-  async checkShareUrlOff(userId: string, dashboardId: number, shareUrlOnDto: ShareUrlOnDto) {
+  async checkShareUrlOff(userId: string, dashboardId: number) {
     const findUser = await this.userRepository.findOne({ where: { userId: userId } });
     if (!findUser) {
       return 'not exist user';
@@ -61,21 +60,21 @@ export class ShareUrlService {
   // 공유기능 off시 쉐어토큰, endDate을 없애고 사용가능여부를 N으로 저장
 
   async shareDashboardInfo(uuid: string) {
-    const findDashboardShareUrl = await this.dashboardShareRepository.findOne({
-      where: { uuid: uuid },
-    });
-    const findDashboard = await this.dashboardRepository.findOne({
-      where: { shareId: findDashboardShareUrl.id },
-    });
+    let findDashboard = null;
+    let findDashboardShareUrl = null;
+    try {
+      findDashboardShareUrl = await this.dashboardShareRepository.findOne({
+        where: { uuid: uuid },
+      });
+      findDashboard = await this.dashboardRepository.findOne({
+        where: { shareId: findDashboardShareUrl.id },
+      });
+    } catch {
+      throw new HttpException({ message: 'not exist share dashboard' }, HttpStatus.NOT_FOUND);
+    }
     const today = `${new Date().getFullYear()}-${new Date().getMonth() + 1}-${
       new Date().getDate() - 1
     }`;
-    if (!findDashboardShareUrl) {
-      throw new HttpException({ message: 'not exist uuid' }, HttpStatus.NOT_FOUND);
-    }
-    if (!findDashboard) {
-      throw new HttpException({ message: 'not exist share dashboard' }, HttpStatus.NOT_FOUND);
-    }
     if (new Date(today) > findDashboardShareUrl.endDate) {
       throw new HttpException({ message: 'expired date' }, HttpStatus.UNAUTHORIZED);
     }
