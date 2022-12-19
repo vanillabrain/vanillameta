@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { getToken, setToken } from '@/helpers/authHelper';
+import { getToken, removeToken, setToken } from '@/helpers/authHelper';
 import { getShareToken } from '@/helpers/shareHelper';
 import authService from '@/api/authService';
 
@@ -85,11 +85,16 @@ async function resetTokenAndReattemptRequest(error) {
 
       isAlreadyFetchingAccessToken = false; // 문열기 (초기화)
 
-      onAccessTokenFetched(data.access);
+      onAccessTokenFetched(data.accessToken);
     }
 
     return retryOriginalRequest; // pending 됐다가 onAccessTokenFetched가 호출될 때 resolve
   } catch (error) {
+    console.log('error', error);
+    if (error.response.status === 401) {
+      // refresh token 만료
+      removeToken();
+    }
     return Promise.reject(error);
   }
 }
