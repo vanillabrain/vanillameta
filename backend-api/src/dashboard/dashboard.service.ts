@@ -124,7 +124,10 @@ export class DashboardService {
     });
     const return_obj = Object.assign(find_dashboard, find_share_id, { widgets: widgetList });
 
-    return { status: ResponseStatus.SUCCESS, data: return_obj };
+    return {
+      status: ResponseStatus.SUCCESS,
+      data: return_obj,
+    };
   }
 
   async update(id: number, updateDashboardDto: UpdateDashboardDto) {

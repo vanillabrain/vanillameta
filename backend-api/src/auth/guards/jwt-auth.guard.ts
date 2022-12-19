@@ -40,17 +40,17 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       } catch {
         throw new HttpException('accessTokenExpired', HttpStatus.UNAUTHORIZED);
       }
-      if (accessPath === false) {
-        try {
-          // const secretUrlKey = process.env.URL_ACCESS_SECRET;
-          const secretUrlKey = 'test1234';
-          const verifyUrl = await this.jwtService.verify(payload, {
-            secret: secretUrlKey,
-          });
-          return verifyUrl;
-        } catch {
-          throw new HttpException('accessTokenExpired', HttpStatus.UNAUTHORIZED);
-        }
+    }
+    if (accessPath === false) {
+      try {
+        // const secretUrlKey = process.env.URL_ACCESS_SECRET;
+        const secretUrlKey = 'test1234';
+        const verifyUrl = await this.jwtService.verify(payload, {
+          secret: secretUrlKey,
+        });
+        return verifyUrl;
+      } catch {
+        throw new HttpException('accessTokenExpired', HttpStatus.UNAUTHORIZED);
       }
     }
   }
