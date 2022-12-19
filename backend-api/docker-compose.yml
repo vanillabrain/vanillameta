@@ -1,46 +1,70 @@
-version: "3.7"
+
+version: '3.3'
+
 services:
-  main:
+  db:
     build:
-      context: ./
-      dockerfile: ./Dockerfile.dev
-    ports:
-      - "4000:4000"
-    networks:
-      - vanillameta
-    depends_on:
-      - mysql
-    links:
-      - "mysql"
-#      - "pg"
-    env_file:
-      - .env.dev
-    environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      context: .
+      dockerfile: Dockerfile.dev
+    image: mysql:5.7
+    #    volumes:
+    #      - ./mysql-init-files/:/docker-entrypoint-initdb.d/
     restart: always
-
-  mysql:
-    container_name: vanillameta_mysql
-    image: mysql
-    ports:
-      -  "3306:3306"
-    networks:
-      - vanillameta
+    container_name: mmc
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-      MYSQL_CHARSET: utf8mb4
-      MYSQL_DATABASE: ${DB_NAME}
-      MYSQL_USER: ${DB_USERNAME}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
-      TZ: Asia/Seoul
-    restart: always
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
-             --default_authentication_plugin=mysql_native_password
-
+      - MYSQL_ALLOW_EMPTY_PASSWORD="true"
+      - MYSQL_DATABASE= ${DB_NAME}
+      - MYSQL_USER= ${DB_USERNAME}
+      - MYSQL_PASSWORD= ${DB_PASSWORD}
+    ports:
+      - '3306:3306'
+    expose:
+      - '3306'
     volumes:
-      - mysql:/var/lib/mysql
-      - ./db/conf.d:/etc/mysql/conf.d
-      - ./mysql/initdb.d:/docker-entrypoint-initdb.d
+      - "./mysql-init-files/:/docker-entrypoint-initdb.d/"
+#version: "3.5"
+#services:
+#  main:
+#    build:
+#      context: ./
+#      dockerfile: ./Dockerfile.dev
+#    ports:
+#      - "4000:4000"
+#    networks:
+#      - vanillameta
+#    depends_on:
+#      - mysql
+#    links:
+#      - "mysql"
+##      - "pg"
+#    env_file:
+#      - .env.dev
+#    environment:
+#      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+#    restart: always
+#
+#  mysql:
+#    container_name: vanillameta_mysql
+#    image: mysql
+#    ports:
+#      -  "3306:3306"
+#    networks:
+#      - vanillameta
+#    environment:
+#      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+#      MYSQL_CHARSET: utf8mb4
+#      MYSQL_DATABASE: ${DB_NAME}
+#      MYSQL_USER: ${DB_USERNAME}
+#      MYSQL_PASSWORD: ${DB_PASSWORD}
+#      TZ: Asia/Seoul
+#    restart: always
+#    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+#             --default_authentication_plugin=mysql_native_password
+#
+#    volumes:
+#      - ./mysql:/var/lib/mysql
+#      - ./db/conf.d:/etc/mysql/conf.d
+#      - ./mysql/init:/docker-entrypoint-initdb.d
 
   #  mariadb:
   #    container_name: vanillameta_mariadb

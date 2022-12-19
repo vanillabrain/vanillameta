@@ -33,7 +33,6 @@ export class ShareUrlController {
   @ApiOperation({ summary: '공유 url 접속' })
   async shareDashboardInfo(@Param() param) {
     const { uuid } = param;
-    console.log(uuid);
     return await this.shareUrlService.shareDashboardInfo(uuid);
   }
 }
