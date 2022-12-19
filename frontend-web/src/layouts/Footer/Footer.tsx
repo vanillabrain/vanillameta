@@ -9,6 +9,7 @@ const Footer = props => {
       <Link
         color="inherit"
         href="https://vanillabrain.com/"
+        target="_blank"
         sx={{ fontSize: '13px', color: '#767676', textDecoration: 'none' }}
       >
         <Typography
