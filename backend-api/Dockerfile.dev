@@ -15,13 +15,13 @@
 #FROM mysql:5.7
 #
 #ADD ./mysql-init-files /docker-entrypoint-initdb.d
+##RUN brew install mysql
+#RUN ./init.sh
 #
 #EXPOSE 3306
 #
 #CMD ["mysqld"]
 FROM ubuntu:18.04
-
-
 
 RUN apt-get -qq update
 RUN apt-get -qq upgrade --yes
@@ -30,7 +30,6 @@ RUN curl -sL https://deb.nodesource.com/setup_14.x | bash -
 RUN apt-get -qq install nodejs --yes
 
 RUN apt-get install chromium-browser --yes
-
 RUN useradd -ms /bin/bash frog
 USER frog
 WORKDIR /home/frog
@@ -42,12 +41,49 @@ RUN npm install
 COPY . .
 COPY tsconfig.json .
 COPY tsconfig.build.json .
-
-RUN chmod *x init.sh
-ENTRYPOINT ./init.sh
-
 RUN npm run build
+#
+#COPY init.sh .
+#USER root
+#RUN chmod +x init.sh
+#ENTRYPOINT ["sh", "init.sh"]
 
-EXPOSE 3000
 
-CMD ["npm", "run", "start:prod"]
+
+#FROM ubuntu:18.04
+#
+#RUN apt-get -qq update
+#RUN apt-get -qq upgrade --yes
+#RUN apt-get -qq install curl --yes
+#RUN curl -sL https://deb.nodesource.com/setup_14.x | bash -
+#RUN apt-get -qq install nodejs --yes
+#
+#RUN apt-get install chromium-browser --yes
+#RUN chmod +x /tmp
+#RUN useradd -ms /bin/bash frog
+#USER frog
+#WORKDIR /home/frog
+#
+#COPY package*.json ./
+#
+#RUN npm install
+#FROM mysql:5.7
+#COPY init.sh .
+#EXPOSE 8000
+#ENTRYPOINT [ "sh", "init.sh" ]
+
+#end of Dockerfile.dev
+
+#FROM ubuntu:18.04
+#RUN apt-get -qq update
+#RUN apt-get -qq upgrade --yes
+#RUN apt-get -qq install curl --yes
+#RUN curl -sL https://deb.nodesource.com/setup_14.x | bash -
+#RUN apt-get -qq install nodejs --yes
+#
+#RUN apt-get install chromium-browser --yes
+#RUN chmod +x /tmp
+#RUN useradd -ms /bin/bash frog
+#USER frog
+#WORKDIR /home/frog
+#ADD mysql-init-files/dump_data.sql /docker-entrypoint-initdb.d/
