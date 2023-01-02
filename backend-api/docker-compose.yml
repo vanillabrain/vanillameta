@@ -82,18 +82,15 @@ services:
     build:
       context: ./
       dockerfile: ./Dockerfile.dev
+    image: mysql:5.7
     ports:
       - "4000:4000"
     networks:
       - vanillameta
     depends_on:
       - mysql
-      #      - pg
-#      - mssql
     links:
-      - "mysql:mysqldb"
-      #      - "pg"
-#      - mssql
+      - "mysql"
     env_file:
       - .env
     tty: true
@@ -124,15 +121,6 @@ services:
         - mysql:/var/lib/mysql
         - ./db/conf.d:/etc/mysql/conf.d
         - ./mysql-init-files/dump_data:/docker-entrypoint-initdb.d
-
-  testdb:
-    image: mysql:5.7
-    ports:
-      - "3307:3306"
-    restart: always
-
-
-
 
   #  mariadb:
   #    container_name: vanillameta_mariadb

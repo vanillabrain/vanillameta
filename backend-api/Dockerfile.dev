@@ -42,9 +42,11 @@ COPY tsconfig.json .
 COPY tsconfig.build.json .
 RUN npm run build
 
+
+#ENTRYPOINT ["init.sh"]
 EXPOSE 4000
 CMD ["mysqld"]
-#
+
 
 #
 #COPY init.sh .
