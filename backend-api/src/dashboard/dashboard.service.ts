@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { CreateDashboardDto } from './dto/create-dashboard.dto';
 import { UpdateDashboardDto } from './dto/update-dashboard.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -41,58 +41,62 @@ export class DashboardService {
     createDashboardDto.layout.map(item => {
       widgetIds.push(item.i);
     });
-
-    const findMap = await this.userMappingRepository.findOne({
-      where: { userInfoId: userData.id },
+    const share_id = await this.dashboardShareRepository.save({
+      uuid: uuidv4(), // uuid의 버전 uuidv1의 결우 mac의 정보등을 담고있음.
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
-    const findTitle = await this.dashboardRepository.findOne({
-      where: { id: findMap.dashboardId },
+    console.log('test', share_id);
+    const saveObj = {
+      title: createDashboardDto.title,
+      layout: JSON.stringify(createDashboardDto.layout),
+      delYn: YesNo.NO,
+      shareId: share_id.id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const newDashboard = await this.dashboardRepository.save(saveObj);
+
+    await this.userMappingRepository.save({
+      dashboardId: newDashboard.id,
+      userInfoId: accessToken,
+      createdAt: new Date(),
     });
 
-    if (findTitle.title !== createDashboardDto.title) {
-      const share_id = await this.dashboardShareRepository.save({
-        uuid: uuidv4(), // uuid의 버전 uuidv1의 결우 mac의 정보등을 담고있음.
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-      const saveObj = {
-        title: createDashboardDto.title,
-        layout: JSON.stringify(createDashboardDto.layout),
-        delYn: YesNo.NO,
-        shareId: share_id.id,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      const newDashboard = await this.dashboardRepository.save(saveObj);
-      const saveObjDW = {
-        dashboardId: newDashboard.id,
-        widgetIds: widgetIds,
-      };
+    // const newDashboard = await this.dashboardRepository.save(saveObj);
 
-      // user테이블에 대시보드id저장
-      const { id } = userData;
-      // const test = await this.dashboardRepository
-      //   .createQueryBuilder()
-      //   .insert()
-      //   .into(Dashboard, ['title', 'layout'])
-      //   .values(saveObj)
-      //   .orUpdate(['title', 'layout'], ['id'])
-      //   .execute();
-      // console.log('test', test.generatedMaps[0].id);
-      // 기존 코드
+    // user테이블에 대시보드id저장
+    const { id } = userData;
+    // const test = await this.dashboardRepository
+    //   .createQueryBuilder()
+    //   .insert()
+    //   .into(Dashboard, ['title', 'layout'])
+    //   .values(saveObj)
+    //   .orUpdate(['title', 'layout'], ['id'])
+    //   .execute();
+    // console.log('test', test.generatedMaps[0].id);
+    // 기존 코드
 
-      await this.userService.saveDashboard(newDashboard.id, id);
-      await this.dashboardWidgetService.create(saveObjDW);
+    // await this.userService.saveDashboard(newDashboard.id, id);
 
-      newDashboard.layout = JSON.parse(newDashboard.layout);
-      return { status: ResponseStatus.SUCCESS, data: newDashboard };
-    }
-    return 'already exist name title';
+    const saveObjDW = {
+      dashboardId: newDashboard.id,
+      widgetIds: widgetIds,
+    };
+    newDashboard.layout = JSON.parse(newDashboard.layout);
+    await this.dashboardWidgetService.create(saveObjDW);
+    return { status: ResponseStatus.SUCCESS, data: newDashboard };
   }
 
   async findAll(userId: number) {
     const findUser = await this.userService.findDashboardId(userId);
+    if (!findUser) {
+      return 'not exist user';
+    }
     const findId = findUser.map(el => el['dashboardId']);
+    if (findId === null) {
+      throw new HttpException('not found', HttpStatus.NOT_FOUND);
+    }
     const find_all = [];
     for (let i = 0; findId.length > i; i++) {
       find_all.push(
@@ -113,9 +117,12 @@ export class DashboardService {
   // 기존 dashboard all
 
   async findOne(id: number) {
+    console.log(id);
     const find_dashboard = await this.dashboardRepository.findOne({ where: { id: id } });
-    if (!find_dashboard)
+    if (!find_dashboard) {
       return { status: ResponseStatus.ERROR, message: '대시보드가 존재하지 않습니다.' };
+    }
+
     const widgetList = await this.dashboardWidgetService.findWidgets(find_dashboard.id);
 
     find_dashboard.layout = JSON.parse(find_dashboard.layout);
