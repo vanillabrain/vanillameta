@@ -19,7 +19,7 @@ export class Widget extends BaseEntity {
   @Column({ comment: '컴포넌트 ID' })
   componentId: number;
 
-  @Column({ comment: '데이터셋 구분(데이터셋, 위젯 뷰)', default: DatasetType.TABLE })
+  @Column({ length: 255, comment: '데이터셋 구분(데이터셋, 위젯 뷰)', default: DatasetType.TABLE })
   datasetType: DatasetType;
 
   @Column({ comment: '데이터셋 ID' })
@@ -31,20 +31,20 @@ export class Widget extends BaseEntity {
   @Column({ length: 1, default: YesNo.NO, comment: '삭제여부' })
   delYn: YesNo;
 
-  @ManyToMany(type => Dashboard)
-  @JoinTable({
-    name: 'dashboard_widget',
-    // joinColumn: {
-    //     name: 'widgetId',
-    //     referencedColumnName: 'id'
-    // },
-    inverseJoinColumn: {
-      name: 'dashboardId',
-      referencedColumnName: 'id',
-    },
-  })
-  databases: Dashboard[];
-
-  @ManyToOne(type => Component, component => component)
-  component!: Component;
+  // @ManyToMany(type => Dashboard)
+  // @JoinTable({
+  //   name: 'dashboard_widget',
+  //   // joinColumn: {
+  //   //     name: 'widgetId',
+  //   //     referencedColumnName: 'id'
+  //   // },
+  //   inverseJoinColumn: {
+  //     name: 'dashboardId',
+  //     referencedColumnName: 'id',
+  //   },
+  // })
+  // databases: Dashboard[];
+  //
+  // @ManyToOne(type => Component, component => component)
+  // component!: Component;
 }

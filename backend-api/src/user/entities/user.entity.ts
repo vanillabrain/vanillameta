@@ -1,12 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional } from 'class-validator';
+import { IsNotEmpty } from 'class-validator';
 import {
   Entity,
   Column,
   PrimaryGeneratedColumn,
   CreateDateColumn,
   UpdateDateColumn,
-  BaseEntity,
 } from 'typeorm';
 
 @Entity()
@@ -16,7 +15,7 @@ export class User {
   id: number;
 
   @IsNotEmpty()
-  @Column()
+  @Column({ length: 255, comment: '유저 Id' })
   @ApiProperty({ description: '유저Id' })
   userId: string;
 
@@ -25,18 +24,17 @@ export class User {
   jwtId: number;
 
   @IsNotEmpty()
-  @Column()
-  @ApiProperty({ description: '유저email' })
+  @Column({ length: 255, comment: '유저 email' })
+  @ApiProperty({ description: '유저 email' })
   email: string;
 
   @IsNotEmpty()
-  @Column()
-  @ApiProperty({ description: '유저password' })
+  @Column({ length: 255, comment: '유저 password' })
+  @ApiProperty({ description: '유저 password' })
   password: string;
 
-  @CreateDateColumn({ default: () => 'CURRENT_TIMESTAMP', type: 'timestamp' })
+  @CreateDateColumn({ default: () => 'CURRENT_TIMESTAMP', comment: '생성일' })
   createdAt: Date;
-
-  @UpdateDateColumn({ comment: '수정일' })
+  @UpdateDateColumn({ default: () => 'CURRENT_TIMESTAMP', comment: '수정일' })
   updatedAt: Date;
 }

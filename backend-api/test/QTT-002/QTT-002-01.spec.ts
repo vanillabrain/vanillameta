@@ -9,7 +9,7 @@ import * as widgetTestoption from './widgetTestOption.json';
 import { Widget } from '../../src/widget/entities/widget.entity';
 import { Component } from '../../src/component/entities/component.entity';
 import { TableQueryService } from '../../src/widget/tabel-query/table-query.service';
-import { Connection, DataSource, getConnection, getRepository } from 'typeorm';
+import { Connection, DataSource } from 'typeorm';
 import { ResponseStatus } from '../../src/common/enum/response-status.enum';
 import { DatasetType } from '../../src/common/enum/dataset-type.enum';
 

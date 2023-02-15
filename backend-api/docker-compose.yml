@@ -82,7 +82,7 @@ services:
     build:
       context: ./
       dockerfile: ./Dockerfile.dev
-    image: mysql:5.7
+    image: mysql
     ports:
       - "4000:4000"
     networks:
@@ -100,7 +100,7 @@ services:
 
   mysql:
     container_name: vanillameta_mysql
-    image: mysql:5.7
+    image: mysql
     ports:
       -  "3306:3306"
     networks:

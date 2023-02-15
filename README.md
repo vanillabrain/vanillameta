@@ -43,3 +43,15 @@
 - Big Query
 - Cockroachdb
 - Snowflake
+
+# 시작하기
+
+
+```
+cd ~/vanillameta/backend-api 경로에서
+npm install
+cd ~/vanillameta/frontend-web 경로에서
+npm install
+```
+
+
