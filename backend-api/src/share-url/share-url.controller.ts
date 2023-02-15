@@ -16,7 +16,6 @@ export class ShareUrlController {
   checkShareUrlOn(@Req() req, @Param() params, @Body() shareUrlOnDto: ShareUrlOnDto) {
     const { userId } = req.user.accessKeyData;
     const { dashboardId } = params;
-    console.log(dashboardId);
     return this.shareUrlService.checkShareUrlOn(userId, dashboardId, shareUrlOnDto);
   }
 

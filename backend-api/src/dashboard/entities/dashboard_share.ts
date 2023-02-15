@@ -11,7 +11,7 @@ export class DashboardShare extends BaseEntity {
     @Column({ comment: '랜덤 유저Id'})
     uuid: string;
 
-    @Column({ length: 300, comment: '공유url 토큰'})
+    @Column({  nullable: true, length: 300, comment: '공유url 토큰'})
     shareToken: string;
 
     @Optional()

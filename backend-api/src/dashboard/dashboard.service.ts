@@ -110,6 +110,7 @@ export class DashboardService {
       );
     }
     find_all.forEach(el => {
+      console.log('adf,', el)
       el.layout = JSON.parse(el.layout);
     });
     return { status: ResponseStatus.SUCCESS, data: find_all };
