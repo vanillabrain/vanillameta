@@ -118,20 +118,20 @@ export class DashboardService {
   // 기존 dashboard all
 
   async findOne(id: number) {
-    console.log(id);
+
     const find_dashboard = await this.dashboardRepository.findOne({ where: { id: id } });
     if (!find_dashboard) {
       return { status: ResponseStatus.ERROR, message: '대시보드가 존재하지 않습니다.' };
     }
 
     const widgetList = await this.dashboardWidgetService.findWidgets(find_dashboard.id);
-
+    console.log('widgetList', widgetList)
     find_dashboard.layout = JSON.parse(find_dashboard.layout);
     const find_share_id = await this.dashboardShareRepository.findOne({
       where: { id: find_dashboard.shareId },
     });
     const return_obj = Object.assign(find_dashboard, find_share_id, { widgets: widgetList });
-
+    console.log(return_obj)
     return {
       status: ResponseStatus.SUCCESS,
       data: return_obj,
