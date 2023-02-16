@@ -28,7 +28,7 @@ export class LoginHistory {
     length: 1,
     comment: '로그인 성공 유무',
   })
-  loginSuccYn: YesNo;
+  loginSuccYn: string;
 
   @CreateDateColumn({ nullable: true, comment: '등록 일시' })
   createdAt: Date;

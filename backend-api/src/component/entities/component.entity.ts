@@ -30,7 +30,7 @@ export class Component extends BaseEntity {
   seq: number;
 
   @Column({ length: 1, comment: '사용여부', default: YesNo.YES })
-  useYn: YesNo;
+  useYn: string;
 
   @OneToMany(type => Widget, widget => widget.componentId)
   widgets!: Widget[];

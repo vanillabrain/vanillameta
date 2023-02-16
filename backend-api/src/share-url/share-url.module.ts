@@ -2,8 +2,8 @@ import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ShareUrlService } from './share-url.service';
 import { ShareUrlController } from './share-url.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { User } from '../user/entities/user.entity.js';
-import { Dashboard } from '../dashboard/entities/dashboard.entity.js';
+import { User } from '../user/entities/user.entity';
+import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { AuthService } from '../auth/auth.service';
 import { JwtModule } from '@nestjs/jwt';
 import { RefreshToken } from 'src/auth/entites/refresh_token.entity';
@@ -16,7 +16,7 @@ import { Widget } from 'src/widget/entities/widget.entity';
 import { Component } from 'src/component/entities/component.entity';
 import { UserService } from 'src/user/user.service';
 import { UserMapping } from 'src/user/entities/user-mapping.entity';
-import { DashboardShare } from 'src/dashboard/entities/dashboard_share';
+import { DashboardShare } from 'src/dashboard/entities/dashboard_share.entity';
 
 @Module({
   imports: [

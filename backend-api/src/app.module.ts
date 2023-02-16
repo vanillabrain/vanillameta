@@ -15,6 +15,7 @@ import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { LoginModule } from './login/login.module';
 import { ShareUrlModule } from './share-url/share-url.module';
+import * as ormconfig from '../ormconfig';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { ShareUrlModule } from './share-url/share-url.module';
       isGlobal: true,
       envFilePath: process.env.NODE_ENV == 'dev' ? '.env.dev' : '.env.ci',
     }),
+
     TypeOrmModule.forRoot({
       type: 'sqlite',
       database: 'sqlite.db',
@@ -31,7 +33,10 @@ import { ShareUrlModule } from './share-url/share-url.module';
       logging: process.env.NODE_ENV == 'dev',
       retryAttempts: 1,
       dropSchema: false, // 매번 실행시마다 테이블 drop false
+
+
     }),
+
     // TypeOrmModule.forRoot({
     //   type: 'mysql',
     //   host: process.env.DB_HOST,
@@ -57,6 +62,7 @@ import { ShareUrlModule } from './share-url/share-url.module';
     AuthModule,
     LoginModule,
     ShareUrlModule,
+
   ],
   controllers: [AppController],
   providers: [AppService],

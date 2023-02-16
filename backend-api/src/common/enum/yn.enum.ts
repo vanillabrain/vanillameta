@@ -1,4 +1,5 @@
-export enum YesNo {
-    YES = 'Y',
-    NO = 'N'
+export const YesNo = {
+    YES: 'Y',
+    NO: 'N'
 }
+

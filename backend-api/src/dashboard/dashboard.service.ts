@@ -10,7 +10,7 @@ import { UserService } from 'src/user/user.service';
 import { AuthService } from 'src/auth/auth.service';
 import { User } from '../user/entities/user.entity.js';
 import { YesNo } from 'src/common/enum/yn.enum';
-import { DashboardShare } from './entities/dashboard_share';
+import { DashboardShare } from 'src/dashboard/entities/dashboard_share.entity';
 import { UserMapping } from 'src/user/entities/user-mapping.entity';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -93,10 +93,12 @@ export class DashboardService {
     if (!findUser) {
       return 'not exist user';
     }
+    console.log(findUser)
     const findId = findUser.map(el => el['dashboardId']);
     if (findId === null) {
       throw new HttpException('not found', HttpStatus.NOT_FOUND);
     }
+    console.log(findId)
     const find_all = [];
     for (let i = 0; findId.length > i; i++) {
       find_all.push(

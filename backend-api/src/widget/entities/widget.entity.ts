@@ -29,7 +29,7 @@ export class Widget extends BaseEntity {
   option: string;
 
   @Column({ length: 1, default: YesNo.NO, comment: '삭제여부' })
-  delYn: YesNo;
+  delYn: string;
 
   // @ManyToMany(type => Dashboard)
   // @JoinTable({

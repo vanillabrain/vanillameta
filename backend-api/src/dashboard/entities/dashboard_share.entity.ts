@@ -15,8 +15,8 @@ export class DashboardShare extends BaseEntity {
     shareToken: string;
 
     @Optional()
-    @Column({ default: YesNo.NO, nullable: false, comment: '공유사용 여브' })
-    shareYn: YesNo;
+    @Column({ default: 'N', nullable: false, comment: '공유사용 여브' })
+    shareYn: string;
 
     @Optional()
     @Column({ nullable: true, comment: '유효기한 날짜'})
