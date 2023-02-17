@@ -68,7 +68,7 @@ cd ~/vanillameta/frontend-web/ npm run start
 ID: guest,
 PW: Admin!@12
 ```
-
+입니다 이후 비밀번호를 바꿔서 사용하시면 됩니다
 
 ## db연동하기
 
@@ -79,7 +79,7 @@ PW: Admin!@12
 
 ![db 데이터 확인](https://user-images.githubusercontent.com/83908329/219256944-78757766-0c2c-4a0c-833c-e1a9badef723.png)
 
-## 위젯 설정하기
+## 위젯 생성하기
 
 ![위젯 데이터 선택 이미지](https://user-images.githubusercontent.com/83908329/219269045-b32141dd-8c6e-4ab4-9ea2-6abfcab69653.png)
 ![위젯 타입 선택 이미지](https://user-images.githubusercontent.com/83908329/219269059-f1d8d4e3-2d6e-4620-9beb-464d49edbe3d.png)
