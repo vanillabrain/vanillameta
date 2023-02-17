@@ -54,8 +54,8 @@ cd ~/vanillameta/frontend-web/ npm install
 
 ## 시작하기
 ```
-cd ~/vanillameta/backend-api/ npm run start 이후
-cd ~/vanillameta/backend-api/ npm run seed:run
+cd ~/vanillameta/backend-api/ npm run seed:run 완료 후
+cd ~/vanillameta/backend-api/ npm run start
 
 cd ~/vanillameta/frontend-web/ npm run start
 ```
