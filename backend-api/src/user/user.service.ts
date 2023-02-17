@@ -1,14 +1,10 @@
 import { HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { AuthService } from '../auth/auth.service.js';
-import { getConnection, getConnectionManager, Repository } from 'typeorm';
-import { CreateUserDto } from './dto/create-user.dto';
+import { Repository } from 'typeorm';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
 import { UserMapping } from './entities/user-mapping.entity.js';
-import { Dashboard } from '../dashboard/entities/dashboard.entity.js';
-import { YesNo } from '../common/enum/yn.enum.js';
-import { DashboardService } from '../dashboard/dashboard.service.js';
 
 @Injectable()
 export class UserService {

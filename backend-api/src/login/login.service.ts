@@ -2,12 +2,11 @@ import { HttpException, HttpStatus, Injectable, UnauthorizedException } from '@n
 import { InjectRepository } from '@nestjs/typeorm';
 import { AuthService } from 'src/auth/auth.service';
 import { User } from 'src/user/entities/user.entity';
-import { UserMapping } from 'src/user/entities/user-mapping.entity';
 import { Repository } from 'typeorm';
 import { CreateLoginDto } from './dto/create-login.dto';
 import { LoginUserDto } from './dto/login-user.dto';
-import { UpdateLoginDto } from './dto/update-login.dto';
 import { RefreshToken } from 'src/auth/entites/refresh_token.entity';
+const crypto = require('crypto');
 
 @Injectable()
 export class LoginService {
@@ -19,7 +18,10 @@ export class LoginService {
 
   async signin(loginDto: LoginUserDto) {
     const { userId, password } = loginDto;
-    const findUser = await this.authService.validateUser(userId, password);   // 요저의 존재여부 확인
+    const salt = crypto.randomBytes(128).toString('base64');
+    const hashPassword = crypto.createHash('sha512').update(password).digest('hex');
+    console.log(hashPassword)
+    const findUser = await this.authService.validateUser(userId, hashPassword);   // 요저의 존재여부 확인
     if (!findUser) {
       throw new UnauthorizedException(`Unauthorized`);
     }

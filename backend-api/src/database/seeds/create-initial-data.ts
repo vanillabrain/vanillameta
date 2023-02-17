@@ -1494,7 +1494,7 @@ export class CreateInitialData implements Seeder {
                 {
                     "id": 1,
                     "email": "guest@gmail.com",
-                    "password": "Admin!@12",
+                    "password": "0258acb251701900c2abcde987033e032838df1eb39f10bfb9e9f6398866b13acb104f00485b92b11db90544744280626980c3888b9ba98ea8f319f9747d051e",
                     "userId": "guest"
                 }
             ])
