@@ -13,7 +13,7 @@ import { User } from 'src/user/entities/user.entity';
 import { UserMapping } from 'src/user/entities/user-mapping.entity';
 import { JwtService } from '@nestjs/jwt';
 import { RefreshToken } from 'src/auth/entites/refresh_token.entity';
-import { DashboardShare } from './entities/dashboard_share';
+import { DashboardShare } from 'src/dashboard/entities/dashboard_share.entity';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Dashboard, DashboardWidget, Widget, Component, User, UserMapping, DashboardShare,RefreshToken])],

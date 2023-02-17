@@ -1,9 +1,10 @@
-import { Injectable, NestMiddleware, Logger, ExecutionContext, CallHandler } from '@nestjs/common';
+import { Injectable, NestMiddleware, Logger } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LoginHistory } from '../entities/login-history.entity.js';
 import { Repository } from 'typeorm';
 import { YesNo } from '../../common/enum/yn.enum.js';
+import { ApiBearerAuth } from '@nestjs/swagger';
 
 @Injectable()
 export class userLoggerMiddleware implements NestMiddleware {
@@ -12,9 +13,12 @@ export class userLoggerMiddleware implements NestMiddleware {
     @InjectRepository(LoginHistory)
     private readonly loginHisotryRepository: Repository<LoginHistory>,
   ) {}
+
   async use(req: Request, res: Response, next: NextFunction) {
+    // const { userId } = req.user.accessKeyData;
+    console.log('확인', req.user);
     const loginSaveObj = {
-      userId: req.body.userId,
+      userId: req.body?.userId,
       path: req.path,
       login_type: req.headers['user-agent'],
       login_succyn: YesNo.YES,

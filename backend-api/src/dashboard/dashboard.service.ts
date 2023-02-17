@@ -10,7 +10,7 @@ import { UserService } from 'src/user/user.service';
 import { AuthService } from 'src/auth/auth.service';
 import { User } from '../user/entities/user.entity.js';
 import { YesNo } from 'src/common/enum/yn.enum';
-import { DashboardShare } from './entities/dashboard_share';
+import { DashboardShare } from 'src/dashboard/entities/dashboard_share.entity';
 import { UserMapping } from 'src/user/entities/user-mapping.entity';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -93,10 +93,12 @@ export class DashboardService {
     if (!findUser) {
       return 'not exist user';
     }
+    console.log(findUser)
     const findId = findUser.map(el => el['dashboardId']);
     if (findId === null) {
       throw new HttpException('not found', HttpStatus.NOT_FOUND);
     }
+    console.log(findId)
     const find_all = [];
     for (let i = 0; findId.length > i; i++) {
       find_all.push(
@@ -110,6 +112,7 @@ export class DashboardService {
       );
     }
     find_all.forEach(el => {
+      console.log('adf,', el)
       el.layout = JSON.parse(el.layout);
     });
     return { status: ResponseStatus.SUCCESS, data: find_all };
@@ -117,20 +120,20 @@ export class DashboardService {
   // 기존 dashboard all
 
   async findOne(id: number) {
-    console.log(id);
+
     const find_dashboard = await this.dashboardRepository.findOne({ where: { id: id } });
     if (!find_dashboard) {
       return { status: ResponseStatus.ERROR, message: '대시보드가 존재하지 않습니다.' };
     }
 
     const widgetList = await this.dashboardWidgetService.findWidgets(find_dashboard.id);
-
+    console.log('widgetList', widgetList)
     find_dashboard.layout = JSON.parse(find_dashboard.layout);
     const find_share_id = await this.dashboardShareRepository.findOne({
       where: { id: find_dashboard.shareId },
     });
     const return_obj = Object.assign(find_dashboard, find_share_id, { widgets: widgetList });
-
+    console.log(return_obj)
     return {
       status: ResponseStatus.SUCCESS,
       data: return_obj,

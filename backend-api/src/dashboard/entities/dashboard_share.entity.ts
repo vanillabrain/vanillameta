@@ -11,12 +11,12 @@ export class DashboardShare extends BaseEntity {
     @Column({ comment: '랜덤 유저Id'})
     uuid: string;
 
-    @Column({ length: 300, comment: '공유url 토큰'})
+    @Column({  nullable: true, length: 300, comment: '공유url 토큰'})
     shareToken: string;
 
     @Optional()
-    @Column({ default: YesNo.NO, nullable: false, comment: '공유사용 여브' })
-    shareYn: YesNo;
+    @Column({ default: 'N', nullable: false, comment: '공유사용 여브' })
+    shareYn: string;
 
     @Optional()
     @Column({ nullable: true, comment: '유효기한 날짜'})

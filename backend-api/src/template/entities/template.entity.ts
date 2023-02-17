@@ -19,7 +19,7 @@ export class Template extends BaseEntity {
     // layout: string
 
     @Column({length: 1, default: YesNo.YES, comment: '사용여부'})
-    useYn: YesNo
+    useYn: string
 
 
 

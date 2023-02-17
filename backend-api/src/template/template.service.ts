@@ -239,7 +239,7 @@ export class TemplateService {
       .subQuery()
       .select(['widget.*'])
       .from(Widget, 'widget')
-      .where('id in (:ids)')
+      .where('id in (:...ids)')
       .getQuery();
 
     const widgetList = await this.componentRepository

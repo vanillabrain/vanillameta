@@ -1,4 +1,4 @@
-import {MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { UserService } from './user.service';
 import { UserController } from './user.controller';
 import { User } from './entities/user.entity.js';
@@ -10,17 +10,17 @@ import { UserMapping } from './entities/user-mapping.entity.js';
 import { Dashboard } from 'src/dashboard/entities/dashboard.entity';
 import { LoginHistory } from 'src/middleware/entities/login-history.entity';
 import { userLoggerMiddleware } from 'src/middleware/middleware-log/middleware.user-logger';
-import { DashboardService } from '../dashboard/dashboard.service';
-
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, RefreshToken, UserMapping, Dashboard, LoginHistory ]), JwtModule],
+  imports: [
+    TypeOrmModule.forFeature([User, RefreshToken, UserMapping, Dashboard, LoginHistory]),
+    JwtModule,
+  ],
   controllers: [UserController],
-  providers: [UserService, AuthService]
+  providers: [UserService, AuthService],
 })
 export class UserModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply( userLoggerMiddleware ).forRoutes('user');
+    consumer.apply(userLoggerMiddleware).forRoutes('user');
   }
 }
-

@@ -38,27 +38,28 @@ export class DashboardWidgetService {
       select: {
         widgetId: true,
       },
+
       where: { dashboardId: dashboardId },
     });
-
     const whereInWidgetList = [];
     widgetList.map(item => {
       whereInWidgetList.push(item.widgetId);
     });
 
-    const widgetInfo = this.widgetRepository
+
+    const widgetInfo = await this.widgetRepository
       .createQueryBuilder()
       .subQuery()
       .select(['widget.*'])
       .from(Widget, 'widget')
-      .where('id in (:ids)')
+      .where('id in (:...ids)')
       .getQuery();
 
     const result = await this.componentRepository
       .createQueryBuilder('component')
       .select(['widgetInfo.*', 'component.type as componentType'])
       .innerJoin(widgetInfo, 'widgetInfo', 'widgetInfo.componentId = component.id')
-      .setParameter('ids', whereInWidgetList)
+      .setParameter('ids', whereInWidgetList)   // 왜 배열이 안들어가죠 ?
       .getRawMany();
 
     result.map(el => {

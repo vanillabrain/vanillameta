@@ -10,10 +10,10 @@ import {
 
 @Entity()
 export class LoginHistory {
-  @PrimaryGeneratedColumn({ comment: '로그인 이력번호' })
+  @PrimaryGeneratedColumn({ comment: '로그인 이력번호', type: 'integer' })
   loginNo: number; //  순차적인 번호
 
-  @Column({ length: 36, comment: '회원 UID' })
+  @Column({ length: 36, nullable: true, comment: '회원 UID' })
   userId: string;
 
   @Column({ length: 20, nullable: true, comment: '로그인 유형' })
@@ -23,13 +23,13 @@ export class LoginHistory {
   path: string;
 
   @Column({
-    type: 'char',
+    type: 'varchar',
     nullable: true,
     length: 1,
     comment: '로그인 성공 유무',
   })
-  loginSuccYn: YesNo;
+  loginSuccYn: string;
 
-  @CreateDateColumn({ type: 'timestamp', nullable: true, comment: '등록 일시' })
+  @CreateDateColumn({ nullable: true, comment: '등록 일시' })
   createdAt: Date;
 }

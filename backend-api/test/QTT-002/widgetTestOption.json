@@ -4,7 +4,7 @@
     "description": "Score Board",
     "databaseId": 113,
     "componentId": 12,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 27,
     "option": {
       "header": {
@@ -27,7 +27,7 @@
     "description": "Data Grid",
     "databaseId": 114,
     "componentId": 13,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 28,
     "option": {
       "columns": [
@@ -57,7 +57,7 @@
     "description": "Line Chart",
     "databaseId": 108,
     "componentId": 1,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 26,
     "option": {
       "series": [
@@ -92,7 +92,7 @@
     "description": "Area Chart",
     "databaseId": 108,
     "componentId": 2,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 26,
     "option": {
       "series": [
@@ -127,7 +127,7 @@
     "description": "Bar Chart",
     "databaseId": 108,
     "componentId": 3,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 26,
     "option": {
       "series": [
@@ -162,7 +162,7 @@
     "description": "Column Chart",
     "databaseId": 108,
     "componentId": 4,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 26,
     "option": {
       "series": [
@@ -197,7 +197,7 @@
     "description": "Mixed Line and Bar Chart",
     "databaseId": 114,
     "componentId": 5,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 28,
     "option": {
       "series": [
@@ -231,7 +231,7 @@
     "description": "Stacked Line Chart",
     "databaseId": 113,
     "componentId": 14,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 30,
     "option": {
       "series": [
@@ -272,7 +272,7 @@
     "description": "Stacked Area Chart",
     "databaseId": 113,
     "componentId": 15,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 30,
     "option": {
       "series": [
@@ -313,7 +313,7 @@
     "description": "Stacked Column Chart",
     "databaseId": 113,
     "componentId": 16,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 30,
     "option": {
       "series": [
@@ -354,7 +354,7 @@
     "description": "Stacked Bar Chart",
     "databaseId": 113,
     "componentId": 17,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 30,
     "option": {
       "series": [
@@ -395,7 +395,7 @@
     "description": "Mixed Line and Stacked-Bar Chart",
     "databaseId": 113,
     "componentId": 43,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 30,
     "option": {
       "series": [
@@ -435,7 +435,7 @@
     "description": "Pie Chart",
     "databaseId": 108,
     "componentId": 6,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 26,
     "option": {
       "series": {
@@ -453,7 +453,7 @@
     "description": "Donut Chart",
     "databaseId": 108,
     "componentId": 11,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 29,
     "option": {
       "series": {
@@ -523,7 +523,7 @@
     "description": "Nightingale Chart",
     "databaseId": 108,
     "componentId": 7,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 29,
     "option": {
       "series": {
@@ -593,7 +593,7 @@
     "description": "Radar Chart",
     "databaseId": 108,
     "componentId": 9,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 26,
     "option": {
       "series": [
@@ -623,7 +623,7 @@
     "description": "Scatter Chart",
     "databaseId": 114,
     "componentId": 10,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 28,
     "option": {
       "series": [
@@ -658,7 +658,7 @@
     "description": "Bubble Chart",
     "databaseId": 113,
     "componentId": 8,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 30,
     "option": {
       "series": [
@@ -685,7 +685,7 @@
     "description": "Treemap Chart",
     "databaseId": 108,
     "componentId": 19,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 26,
     "option": {
       "series": {
@@ -702,7 +702,7 @@
     "description": "Sunburst Chart",
     "databaseId": 108,
     "componentId": 22,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 26,
     "option": {
       "series": {
@@ -719,7 +719,7 @@
     "description": "Heatmap Chart",
     "databaseId": 108,
     "componentId": 23,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 26,
     "option": {
       "color": ["#2870c4", "#4ecef6", "#ffd43b", "#fa5a5a"],
@@ -734,7 +734,7 @@
     "description": "Candlestick Chart",
     "databaseId": 108,
     "componentId": 20,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 37,
     "option": {
       "series": [
@@ -767,7 +767,7 @@
     "description": "Gauge Chart",
     "databaseId": 88,
     "componentId": 21,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 31,
     "option": {
       "color": "#6aa7eb",
@@ -781,7 +781,7 @@
     "description": "Funnel Chart",
     "databaseId": 108,
     "componentId": 24,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 26,
     "option": {
       "series": {
@@ -799,7 +799,7 @@
     "description": "Polar Bar Chart",
     "databaseId": 88,
     "componentId": 31,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 31,
     "option": {
       "series": [
@@ -830,7 +830,7 @@
     "description": "Polar Stacked Bar Chart",
     "databaseId": 88,
     "componentId": 33,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 31,
     "option": {
       "series": [
@@ -861,7 +861,7 @@
     "description": "3D Line Chart",
     "databaseId": 113,
     "componentId": 26,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 27,
     "option": {
       "series": [
@@ -885,7 +885,7 @@
     "description": "3D Bar Chart",
     "databaseId": 113,
     "componentId": 25,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 30,
     "option": {
       "series": [
@@ -912,7 +912,7 @@
     "description": "3D Scatter Chart",
     "databaseId": 113,
     "componentId": 27,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 30,
     "option": {
       "series": [
@@ -940,7 +940,7 @@
     "description": "3D Bubble Chart",
     "databaseId": 108,
     "componentId": 28,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 26,
     "option": {
       "series": [
@@ -968,7 +968,7 @@
     "description": "Mixed Line and Pie Chart",
     "databaseId": 83,
     "componentId": 32,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 25,
     "option": {
       "series": [
@@ -1007,7 +1007,7 @@
     "description": "Mixed Area and Pie Chart",
     "databaseId": 83,
     "componentId": 34,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 25,
     "option": {
       "series": [
@@ -1046,7 +1046,7 @@
     "description": "Mixed Bar and Pie Chart",
     "databaseId": 83,
     "componentId": 35,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 25,
     "option": {
       "series": [
@@ -1085,7 +1085,7 @@
     "description": "Mixed Column and Pie Chart",
     "databaseId": 83,
     "componentId": 36,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 25,
     "option": {
       "series": [
@@ -1124,7 +1124,7 @@
     "description": "Mixed Stacked-Bar and Pie Chart",
     "databaseId": 88,
     "componentId": 37,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 31,
     "option": {
       "series": [
@@ -1169,7 +1169,7 @@
     "description": "Mixed Stacked-Column and Pie Chart",
     "databaseId": 88,
     "componentId": 38,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 31,
     "option": {
       "series": [
@@ -1214,7 +1214,7 @@
     "description": "Mixed Stacked-Line and Pie Chart",
     "databaseId": 88,
     "componentId": 39,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 31,
     "option": {
       "series": [
@@ -1259,7 +1259,7 @@
     "description": "Mixed Stacked-Area and Pie Chart",
     "databaseId": 88,
     "componentId": 40,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 31,
     "option": {
       "series": [
@@ -1304,7 +1304,7 @@
     "description": "Mixed Donut and Pie Chart",
     "databaseId": 83,
     "componentId": 41,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 25,
     "option": {
       "series": {
@@ -1349,7 +1349,7 @@
     "description": "Mixed Nightingale and Pie Chart",
     "databaseId": 83,
     "componentId": 42,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 25,
     "option": {
       "series": {
@@ -1394,7 +1394,7 @@
     "description": "Line Chart and Score Board",
     "databaseId": 114,
     "componentId": 44,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 28,
     "option": {
       "series": [
@@ -1438,7 +1438,7 @@
     "description": "Area Chart and Score Board",
     "databaseId": 114,
     "componentId": 45,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 28,
     "option": {
       "series": [
@@ -1482,7 +1482,7 @@
     "description": "Bar Chart and Score Board",
     "databaseId": 114,
     "componentId": 46,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 28,
     "option": {
       "series": [
@@ -1526,7 +1526,7 @@
     "description": "Column Chart and Score Board",
     "databaseId": 114,
     "componentId": 47,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 28,
     "option": {
       "series": [
@@ -1570,7 +1570,7 @@
     "description": "Stacked Line Chart and Score Board",
     "databaseId": 114,
     "componentId": 48,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 28,
     "option": {
       "series": [
@@ -1614,7 +1614,7 @@
     "description": "Stacked Area Chart and Score Board",
     "databaseId": 114,
     "componentId": 49,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 28,
     "option": {
       "series": [
@@ -1658,7 +1658,7 @@
     "description": "Stacked Bar Chart and Score Board",
     "databaseId": 114,
     "componentId": 50,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 28,
     "option": {
       "series": [
@@ -1702,7 +1702,7 @@
     "description": "Stacked Column Chart and Score Board",
     "databaseId": 114,
     "componentId": 51,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 28,
     "option": {
       "series": [
@@ -1746,7 +1746,7 @@
     "description": "Donut Chart and Score Board",
     "databaseId": 113,
     "componentId": 52,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 27,
     "option": {
       "series": {
@@ -1776,7 +1776,7 @@
     "description": "Nightingale Chart and Score Board",
     "databaseId": 113,
     "componentId": 53,
-    "datasetType": "DATASET",
+    "datasetType": DatasetType.DATASET,
     "datasetId": 27,
     "option": {
       "series": {
@@ -1807,7 +1807,7 @@
     "databaseId": 119,
     "componentId": 12,
     "datasetId": 1,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "SportsCards",
     "option": {
       "header": {
@@ -1829,7 +1829,7 @@
     "databaseId": 108,
     "componentId": 13,
     "datasetId": 2,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "TravelMode",
     "option": {
       "columns": [
@@ -1860,7 +1860,7 @@
     "databaseId": 119,
     "componentId": 1,
     "datasetId": 3,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "memberInfo",
     "option": {
       "series": [
@@ -1906,7 +1906,7 @@
     "databaseId": 119,
     "componentId": 2,
     "datasetId": 4,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "memberInfo",
     "option": {
       "series": [
@@ -1952,7 +1952,7 @@
     "databaseId": 119,
     "componentId": 3,
     "datasetId": 5,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "memberInfo",
     "option": {
       "series": [
@@ -1998,7 +1998,7 @@
     "databaseId": 119,
     "componentId": 4,
     "datasetId": 6,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "memberInfo",
     "option": {
       "series": [
@@ -2044,7 +2044,7 @@
     "databaseId": 118,
     "componentId": 5,
     "datasetId": 7,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "french_fries",
     "option": {
       "series": [
@@ -2078,7 +2078,7 @@
     "databaseId": 119,
     "componentId": 14,
     "datasetId": 8,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "memberInfo",
     "option": {
       "series": [
@@ -2124,7 +2124,7 @@
     "databaseId": 119,
     "componentId": 15,
     "datasetId": 9,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "memberInfo",
     "option": {
       "series": [
@@ -2170,7 +2170,7 @@
     "databaseId": 119,
     "componentId": 16,
     "datasetId": 10,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "memberInfo",
     "option": {
       "series": [
@@ -2216,7 +2216,7 @@
     "databaseId": 119,
     "componentId": 17,
     "datasetId": 11,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "memberInfo",
     "option": {
       "series": [
@@ -2262,7 +2262,7 @@
     "databaseId": 118,
     "componentId": 43,
     "datasetId": 12,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "french_fries",
     "option": {
       "series": [
@@ -2296,7 +2296,7 @@
     "databaseId": 118,
     "componentId": 6,
     "datasetId": 13,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "confirmation",
     "option": {
       "series": {
@@ -2366,7 +2366,7 @@
     "databaseId": 108,
     "componentId": 11,
     "datasetId": 14,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "TravelMode",
     "option": {
       "series": {
@@ -2386,7 +2386,7 @@
     "databaseId": 108,
     "componentId": 7,
     "datasetId": 15,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "TravelMode",
     "option": {
       "series": {
@@ -2406,7 +2406,7 @@
     "databaseId": 108,
     "componentId": 9,
     "datasetId": 16,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "TravelMode",
     "option": {
       "series": [
@@ -2437,7 +2437,7 @@
     "databaseId": 113,
     "componentId": 10,
     "datasetId": 17,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "crime",
     "option": {
       "series": [
@@ -2480,7 +2480,7 @@
     "databaseId": 108,
     "componentId": 8,
     "datasetId": 18,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "CPS1985",
     "option": {
       "series": [
@@ -2509,7 +2509,7 @@
     "databaseId": 137,
     "componentId": 19,
     "datasetId": 19,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "boston",
     "option": {
       "series": {
@@ -2527,7 +2527,7 @@
     "databaseId": 139,
     "componentId": 22,
     "datasetId": 20,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "SEATBELTS",
     "option": {
       "series": {
@@ -2545,7 +2545,7 @@
     "databaseId": 138,
     "componentId": 23,
     "datasetId": 21,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "NCBIRTHS",
     "option": {
       "color": ["#2870c4", "#4ecef6", "#ffd43b", "#fa5a5a"],
@@ -2562,7 +2562,7 @@
     "databaseId": 108,
     "componentId": 20,
     "datasetId": 22,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "candlestickData",
     "option": {
       "series": [
@@ -2598,7 +2598,7 @@
     "databaseId": 139,
     "componentId": 21,
     "datasetId": 23,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "SEATBELTS",
     "option": {
       "color": "#6aa7eb",
@@ -2613,7 +2613,7 @@
     "databaseId": 113,
     "componentId": 24,
     "datasetId": 24,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "employee",
     "option": {
       "series": {
@@ -2631,7 +2631,7 @@
     "databaseId": 118,
     "componentId": 31,
     "datasetId": 25,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "french_fries",
     "option": {
       "series": [
@@ -2662,7 +2662,7 @@
     "databaseId": 118,
     "componentId": 33,
     "datasetId": 26,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "french_fries",
     "option": {
       "series": [
@@ -2693,7 +2693,7 @@
     "databaseId": 138,
     "componentId": 26,
     "datasetId": 27,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "NYCFLIGHTS",
     "option": {
       "series": [
@@ -2723,7 +2723,7 @@
     "databaseId": 113,
     "componentId": 25,
     "datasetId": 28,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "crime",
     "option": {
       "series": [
@@ -2750,7 +2750,7 @@
     "databaseId": 114,
     "componentId": 27,
     "datasetId": 29,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "auto",
     "option": {
       "series": [
@@ -2779,7 +2779,7 @@
     "databaseId": 88,
     "componentId": 28,
     "datasetId": 30,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "fishing",
     "option": {
       "series": [
@@ -2809,7 +2809,7 @@
     "databaseId": 138,
     "componentId": 32,
     "datasetId": 31,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "NYCFLIGHTS",
     "option": {
       "series": [
@@ -2862,7 +2862,7 @@
     "databaseId": 138,
     "componentId": 34,
     "datasetId": 32,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "NYCFLIGHTS",
     "option": {
       "series": [
@@ -2915,7 +2915,7 @@
     "databaseId": 138,
     "componentId": 35,
     "datasetId": 33,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "NYCFLIGHTS",
     "option": {
       "series": [
@@ -2968,7 +2968,7 @@
     "databaseId": 138,
     "componentId": 36,
     "datasetId": 34,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "NYCFLIGHTS",
     "option": {
       "series": [
@@ -3021,7 +3021,7 @@
     "databaseId": 138,
     "componentId": 37,
     "datasetId": 35,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "NYCFLIGHTS",
     "option": {
       "series": [
@@ -3074,7 +3074,7 @@
     "databaseId": 138,
     "componentId": 38,
     "datasetId": 36,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "NYCFLIGHTS",
     "option": {
       "series": [
@@ -3127,7 +3127,7 @@
     "databaseId": 138,
     "componentId": 39,
     "datasetId": 37,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "NYCFLIGHTS",
     "option": {
       "series": [
@@ -3180,7 +3180,7 @@
     "databaseId": 138,
     "componentId": 40,
     "datasetId": 38,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "NYCFLIGHTS",
     "option": {
       "series": [
@@ -3233,7 +3233,7 @@
     "databaseId": 139,
     "componentId": 41,
     "datasetId": 39,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "TINTING",
     "option": {
       "series": {
@@ -3290,7 +3290,7 @@
     "databaseId": 139,
     "componentId": 42,
     "datasetId": 40,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "TINTING",
     "option": {
       "series": {
@@ -3347,7 +3347,7 @@
     "databaseId": 118,
     "componentId": 44,
     "datasetId": 41,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "french_fries",
     "option": {
       "series": [
@@ -3385,7 +3385,7 @@
     "databaseId": 118,
     "componentId": 45,
     "datasetId": 42,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "french_fries",
     "option": {
       "series": [
@@ -3423,7 +3423,7 @@
     "databaseId": 118,
     "componentId": 46,
     "datasetId": 43,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "french_fries",
     "option": {
       "series": [
@@ -3461,7 +3461,7 @@
     "databaseId": 118,
     "componentId": 47,
     "datasetId": 44,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "french_fries",
     "option": {
       "series": [
@@ -3499,7 +3499,7 @@
     "databaseId": 139,
     "componentId": 48,
     "datasetId": 45,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "SEATBELTS",
     "option": {
       "series": [
@@ -3542,7 +3542,7 @@
     "databaseId": 139,
     "componentId": 49,
     "datasetId": 46,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "SEATBELTS",
     "option": {
       "series": [
@@ -3585,7 +3585,7 @@
     "databaseId": 139,
     "componentId": 50,
     "datasetId": 47,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "SEATBELTS",
     "option": {
       "series": [
@@ -3628,7 +3628,7 @@
     "databaseId": 139,
     "componentId": 51,
     "datasetId": 48,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "SEATBELTS",
     "option": {
       "series": [
@@ -3671,7 +3671,7 @@
     "databaseId": 138,
     "componentId": 52,
     "datasetId": 49,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "NCBIRTHS",
     "option": {
       "series": {
@@ -3702,7 +3702,7 @@
     "databaseId": 138,
     "componentId": 53,
     "datasetId": 50,
-    "datasetType": "TABLE",
+    "datasetType": DatasetType.TABLE,
     "tableName": "NCBIRTHS",
     "option": {
       "series": {

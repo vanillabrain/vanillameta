@@ -6,8 +6,8 @@ import { User } from '../user/entities/user.entity.js';
 import { Repository } from 'typeorm';
 import { YesNo } from '../common/enum/yn.enum.js';
 import { ShareUrlOnDto } from './dto/create-share-url.dto';
-import { DashboardService } from '../dashboard/dashboard.service.js';
-import { DashboardShare } from '../dashboard/entities/dashboard_share.js';
+import { DashboardService } from '../dashboard/dashboard.service';
+import { DashboardShare } from 'src/dashboard/entities/dashboard_share.entity';
 
 @Injectable()
 export class ShareUrlService {
