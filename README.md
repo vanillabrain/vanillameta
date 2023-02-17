@@ -86,7 +86,7 @@ PW: Admin!@12
 ![위젯 속성 이미지](https://user-images.githubusercontent.com/83908329/219269051-56951fbd-1a71-400e-9458-ef1a3c7df246.png)
 
 
-
+이제 생성한 위젯으로 대시보드를 구성해 보세요!
 
 
 
