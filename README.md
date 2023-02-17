@@ -54,10 +54,11 @@ cd ~/vanillameta/frontend-web/ npm install
 
 ## 시작하기
 ```
-cd ~/vanillameta/backend-api/ npm run seed:run 완료 후
-cd ~/vanillameta/backend-api/ npm run start
+cd 현재위치/vanillameta/backend-api/ npm run seed:run 완료 후
+cd 현재위치/vanillameta/backend-api/ npm run start
 
-cd ~/vanillameta/frontend-web/ npm run start
+새로운 터미널에서
+cd 현재위치/vanillameta/frontend-web/ npm run start
 ```
 실행 후 localhost:3000경로에서
 ![로그인 화면](https://user-images.githubusercontent.com/83908329/219256208-2c8fab3e-751d-4612-bda0-158dd4309032.png)
@@ -65,28 +66,38 @@ cd ~/vanillameta/frontend-web/ npm run start
 
 ```
 현재 default 계정정보는
-ID: guest,
+ID: guest
 PW: Admin!@12
 ```
-입니다 이후 비밀번호를 바꿔서 사용하시면 됩니다
+입니다. 이후 회원정보 변경하기 페이지에서 비밀번호를 바꿔서 사용하시면 됩니다
 
 ## db연동하기
 
-예시 db는 SQLite입니다.
-![db연결 확인 및 저장](https://user-images.githubusercontent.com/83908329/219256841-661595c4-881d-4b2a-8480-2b4748f56af8.png)
+사용하고 계신 MySql을 연결 및 저장하여 사용해 보세요
+![db연결 확인 및 저장](https://user-images.githubusercontent.com/83908329/219614086-9bb4545f-1306-48bb-9613-c78cfa968430.png)
 
-저장 후 db에 데이터를 넣어줍니다.
+## 데이터셋 설정하기
+위젯에 적용할 데이터를 query문을 사용하여 선택하시고 저장해 주세요
+![데이터셋 설정](https://user-images.githubusercontent.com/83908329/219614709-e4621672-b4c5-4b17-bcbc-117f9145e555.png)
 
-![db 데이터 확인](https://user-images.githubusercontent.com/83908329/219256944-78757766-0c2c-4a0c-833c-e1a9badef723.png)
+
 
 ## 위젯 생성하기
 
-![위젯 데이터 선택 이미지](https://user-images.githubusercontent.com/83908329/219269045-b32141dd-8c6e-4ab4-9ea2-6abfcab69653.png)
-![위젯 타입 선택 이미지](https://user-images.githubusercontent.com/83908329/219269059-f1d8d4e3-2d6e-4620-9beb-464d49edbe3d.png)
-![위젯 속성 이미지](https://user-images.githubusercontent.com/83908329/219269051-56951fbd-1a71-400e-9458-ef1a3c7df246.png)
+1. 생성한 데이터 셋을 선택하고 다음으로 넘어가 주세요
+![위젯 데이터 선택 이미지](https://user-images.githubusercontent.com/83908329/219615999-745dcbf7-6e6d-4d7f-8100-9d34bb0b0654.png)
 
 
-이제 생성한 위젯으로 대시보드를 구성해 보세요!
+2. 원하는 타입의 위젯을 선택하고 다음으로 넘어가 주세요
+![위젯 타입 선택 이미지](https://user-images.githubusercontent.com/83908329/219616299-a571ab00-5bab-454c-9a96-2e70caefd33d.png)
+
+
+3. 원하는 위젯의 속성을 선택하시고 저장을 눌러주세요
+![위젯 속성 이미지](https://user-images.githubusercontent.com/83908329/219616483-48551fb9-d123-4c87-b8d7-42d37219fe48.png)
+
+
+
+생성한 위젯들로 대시보드를 구성해 보세요!
 
 
 
