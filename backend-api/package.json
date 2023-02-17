@@ -78,6 +78,7 @@
     "tedious": "^15.1.0",
     "ts-jenum": "^2.2.2",
     "typeorm": "^0.3.9",
+    "typeorm-db-seeds": "^1.0.0",
     "typeorm-naming-strategies": "^4.1.0",
     "typeorm-seeding": "^1.6.1",
     "uuid": "^9.0.0",

@@ -1,5 +1,5 @@
 import { Connection } from "typeorm";
-import { Seeder,Factory } from "typeorm-seeding"
+import { Seeder,Factory } from "typeorm-db-seeds"
 import { Component } from "../../component/entities/component.entity";
 import { DatabaseType } from "../../database/entities/database_type.entity";
 import { Template } from "../../template/entities/template.entity";
