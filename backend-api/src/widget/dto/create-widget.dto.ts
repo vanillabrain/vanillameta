@@ -37,5 +37,5 @@ export class CreateWidgetDto {
 
   @IsString()
   @IsOptional()
-  delYn: YesNo;
+  delYn: string;
 }

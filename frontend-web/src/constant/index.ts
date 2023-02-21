@@ -1,3 +1,5 @@
+export const ROUTE_URL = 'https://vanillameta-dev.vanillabrain.com';
+
 export const WIDGET_TYPE = {
   BOARD_NUMERIC: 'BOARD_NUMERIC',
   BOARD_TABLE: 'BOARD_TABLE',

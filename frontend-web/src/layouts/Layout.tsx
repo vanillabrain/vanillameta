@@ -30,8 +30,9 @@ const Layout = props => {
       <Header height={headerHeight} />
       <Stack
         sx={{
+          width: '100%',
+          minWidth: 'min-content',
           paddingTop: headerHeight + 'px',
-          // height: '100%',
           minHeight: `calc(100% - ${footerHeight}px)`,
         }}
       >

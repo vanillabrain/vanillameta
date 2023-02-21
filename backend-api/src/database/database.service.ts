@@ -37,7 +37,6 @@ export class DatabaseService {
    */
   async create(createDatabaseDto: CreateDatabaseDto) {
     const databaseDto = Database.toDto(createDatabaseDto);
-
     const connectionConfig = {
       client: databaseDto.engine,
       connection: databaseDto.connectionConfig,
@@ -145,6 +144,7 @@ export class DatabaseService {
     // 연동 db 정보
     const databaseInfo = await this.databaseRepository.findOne({ where: { id } });
     databaseInfo.connectionConfig = JSON.parse(databaseInfo.connectionConfig).connection;
+    delete databaseInfo.connectionConfig['password'];
     return { status: ResponseStatus.SUCCESS, data: { databaseInfo } };
   }
 

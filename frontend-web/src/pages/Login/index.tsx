@@ -1,120 +1,243 @@
-import React, { useContext, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Box, Button, Link, Stack, TextField, Typography } from '@mui/material';
+import React, { useContext, useEffect, useState } from 'react';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { Box, Button, Stack, TextField, Typography } from '@mui/material';
 import { useAlert } from 'react-alert';
-import { useAuth } from '@/contexts/AuthContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { ReactComponent as Logo } from '@/assets/images/logo.svg';
 import backgroundImage from '@/assets/images/visual-bg.png';
-
-function Copyright(props: any) {
-  return (
-    <Typography color="text.secondary" align="center" {...props}>
-      <Link
-        color="inherit"
-        href="https://vanillabrain.com/"
-        sx={{ fontSize: '13px', color: '#767676', textDecoration: 'none' }}
-      >
-        @ Vanilla Meta 2022
-      </Link>
-      {/*{' '}*/}
-      {/*{new Date().getFullYear()}*/}
-      {/*{'.'}*/}
-    </Typography>
-  );
-}
+import Copyright from '@/components/Copyright';
+import authService from '@/api/authService';
+import { checkId, checkPwd } from '@/utils/util';
+import { SnackbarContext } from '@/contexts/AlertContext';
+import Seo from '@/seo/Seo';
+import { getToken, setToken } from '@/helpers/authHelper';
 
 const Login = () => {
-  const { onLogin } = useAuth();
+  const { showLoading, hideLoading } = useContext(LoadingContext);
   const navigate = useNavigate();
   const alert = useAlert();
-  const { showLoading, hideLoading } = useContext(LoadingContext);
-  const [userInfo] = useState({
-    userId: process.env.REACT_APP_MODE === 'local' ? process.env.REACT_APP_ID : '',
-    userPwd: process.env.REACT_APP_MODE === 'local' ? process.env.REACT_APP_PWD : '',
+  const snackbar = useAlert(SnackbarContext);
+  const [userInfo, setUserInfo] = useState({
+    userId: '',
+    userPwd: '',
   });
+  let isValid;
+  const token = getToken();
 
-  const handleLogin = async event => {
+  useEffect(() => {
+    if (token) {
+      // token이 있으면 대시보드로 보내기
+      navigate('/dashboard');
+    }
+  }, [token]);
+
+  const handleChange = event => {
+    event.preventDefault();
+    setUserInfo(prevState => ({
+      ...prevState,
+      [event.target.name]: event.target.value,
+    }));
+  };
+
+  const handleLogin = event => {
     event.preventDefault();
     showLoading();
-    await onLogin(event.target.userId.value, event.target.userPwd.value)
-      .then(res => {
-        if (res) {
-          navigate('/dashboard');
-        }
-      })
-      .catch(error => {
-        alert.error(error.message);
-      })
-      .finally(() => {
-        hideLoading();
-      });
+    validateData();
+    if (isValid) {
+      const data = {
+        userId: userInfo.userId,
+        password: userInfo.userPwd,
+      };
+      authService
+        .signin(data)
+        .then(response => {
+          if (response.status === 201) {
+            setToken(response.data.accessToken);
+            navigate('/dashboard');
+          }
+        })
+        .catch(error => {
+          console.log(error);
+          if (error.response.status === 401) {
+            snackbar.error('ID 또는 비밀번호가 일치하지 않습니다.');
+            return;
+          }
+          alert.error('로그인에 실패했습니다. 다시 시도해주세요.');
+        })
+        .finally(() => {
+          hideLoading();
+        });
+    }
+    hideLoading();
   };
-  return (
-    <Box
-      component="main"
-      sx={{ position: 'relative', zIndex: 0, width: '100%', height: '100%', minWidth: '100%', backgroundColor: '#f5f6f8' }}
-    >
+
+  const validateData = () => {
+    const { userId, userPwd } = userInfo;
+    // console.log('userId:', userId, 'userFirstPwd:', userFirstPwd, 'userSecondPwd:', userSecondPwd, 'userEmail:', userEmail);
+    if (!userId || !userPwd) {
+      snackbar.error('입력란을 모두 작성해 주세요.');
+      return;
+    } else {
+      if (userId.length < 5 || userId.length >= 20) {
+        snackbar.error('ID는 5글자에서 20글자 이내로 작성해 주세요.');
+        return;
+      }
+      if (!checkId.test(userId)) {
+        snackbar.error('ID는 공백 없는 영문, 숫자만 가능합니다.');
+        return;
+      }
+      if (!checkPwd.test(userPwd)) {
+        snackbar.error('비밀번호는 8글자 이상이며 숫자와 영문 대소문자, 특수문자가 포함되어 있어야 합니다.');
+        return;
+      }
+      isValid = true;
+    }
+  };
+
+  if (!token) {
+    return (
       <Box
+        component="main"
         sx={{
-          pt: '90px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
+          position: 'relative',
+          zIndex: 0,
+          width: '100%',
+          height: '100%',
+          minWidth: '100vw',
+          backgroundColor: '#f5f6f8',
         }}
       >
-        <Logo width="223px" height="43px" />
-
-        <Typography sx={{ mt: '17px', fontSize: '16px', color: '#043f84' }}>
-          통합 데이터분석을 위한{' '}
-          <Typography component="span" sx={{ fontSize: '16px', fontWeight: 'bold' }}>
-            대시보드 리포팅 솔루션
+        <Seo title="로그인" />
+        <Box
+          sx={{
+            pt: '90px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+          }}
+        >
+          <RouterLink to="/">
+            <Logo width="223px" height="43px" />
+          </RouterLink>
+          <Typography sx={{ mt: '17px', fontSize: '16px', color: '#043f84' }}>
+            통합 데이터분석을 위한{' '}
+            <Typography component="span" sx={{ fontSize: '16px', fontWeight: 'bold' }}>
+              대시보드 리포팅 솔루션
+            </Typography>
           </Typography>
-        </Typography>
-        <Stack component="form" onSubmit={handleLogin} noValidate sx={{ width: '360px', mt: '56px' }} spacing="20px">
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            id="userId"
-            label="User ID"
-            name="email"
-            defaultValue={userInfo.userId}
-          />
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            name="userPwd"
-            defaultValue={userInfo.userPwd}
-            label="Password"
-            type="password"
-            id="password"
-            sx={{ height: '36px' }}
-          />
-          {/*<FormControlLabel control={<Checkbox value="remember" color="primary" />} label="Remember me" />*/}
-          <Button type="submit" size="large" fullWidth variant="contained" sx={{ mt: 3, mb: 2 }}>
-            Login
-          </Button>
-        </Stack>
+          <Stack component="form" onSubmit={handleLogin} noValidate sx={{ width: '360px', mt: '56px' }} spacing="20px">
+            <TextField
+              label="User ID"
+              name="userId"
+              value={userInfo.userId}
+              onChange={handleChange}
+              margin="normal"
+              required={true}
+              fullWidth
+            />
+            <TextField
+              label="Password"
+              name="userPwd"
+              value={userInfo.userPwd}
+              onChange={handleChange}
+              type="password"
+              margin="normal"
+              required={true}
+              fullWidth
+              sx={{ height: '36px' }}
+            />
+            <Button type="submit" size="large" fullWidth variant="contained" sx={{ mt: 3, mb: 2 }}>
+              Login
+            </Button>
+          </Stack>
+          {/*<Stack*/}
+          {/*  sx={{*/}
+          {/*    display: 'flex',*/}
+          {/*    flexDirection: 'row',*/}
+          {/*    justifyContent: 'center',*/}
+          {/*    alignItems: 'center',*/}
+          {/*    gap: '12px',*/}
+          {/*    mt: '40px',*/}
+          {/*    fontSize: '14px',*/}
+          {/*    textAlign: 'center',*/}
+          {/*    color: '#4a4a4a',*/}
+          {/*  }}*/}
+          {/*>*/}
+          {/*  <Button*/}
+          {/*    component={RouterLink}*/}
+          {/*    to="/signup"*/}
+          {/*    disableRipple*/}
+          {/*    disableFocusRipple*/}
+          {/*    disableTouchRipple*/}
+          {/*    sx={{*/}
+          {/*      display: 'flex',*/}
+          {/*      justifyContent: 'center',*/}
+          {/*      alignItems: 'center',*/}
+          {/*      minWidth: 0,*/}
+          {/*      minHeight: 0,*/}
+          {/*      m: 0,*/}
+          {/*      p: 0,*/}
+          {/*      gap: '12px',*/}
+          {/*      fontSize: 'inherit',*/}
+          {/*      fontWeight: 'inherit',*/}
+          {/*      textDecoration: 'underline',*/}
+          {/*      color: 'inherit',*/}
+          {/*      '&:hover': {*/}
+          {/*        textDecoration: 'underline',*/}
+          {/*        backgroundColor: 'inherit',*/}
+          {/*      },*/}
+
+          {/*      '&:after': {*/}
+          {/*        content: `""`,*/}
+          {/*        width: '1px',*/}
+          {/*        height: '10px',*/}
+          {/*        backgroundColor: '#cccfd8',*/}
+          {/*      },*/}
+          {/*    }}*/}
+          {/*  >*/}
+          {/*    회원가입*/}
+          {/*  </Button>*/}
+          {/*  <Button*/}
+          {/*    disableRipple*/}
+          {/*    disableFocusRipple*/}
+          {/*    disableTouchRipple*/}
+          {/*    sx={{*/}
+          {/*      minWidth: 0,*/}
+          {/*      minHeight: 0,*/}
+          {/*      m: 0,*/}
+          {/*      p: 0,*/}
+          {/*      fontSize: 'inherit',*/}
+          {/*      fontWeight: 'inherit',*/}
+          {/*      // textDecoration: 'underline',*/}
+          {/*      color: 'inherit',*/}
+          {/*      '&:hover': {*/}
+          {/*        // textDecoration: 'underline',*/}
+          {/*        backgroundColor: 'inherit',*/}
+          {/*      },*/}
+          {/*    }}*/}
+          {/*  >*/}
+          {/*    아이디/비번찾기*/}
+          {/*  </Button>*/}
+          {/*</Stack>*/}
+        </Box>
+        <Copyright sx={{ mt: '50px', mb: 4 }} />
+        <Box
+          component="img"
+          src={backgroundImage}
+          sx={{
+            position: 'fixed',
+            zIndex: -1,
+            bottom: 0,
+            left: '50%',
+            margin: 'auto',
+            width: '1024px',
+            height: '508px',
+            transform: 'translateX(-50%)',
+          }}
+        />
       </Box>
-      <Copyright sx={{ mt: 8, mb: 4 }} />
-      <Box
-        component="img"
-        src={backgroundImage}
-        sx={{
-          position: 'fixed',
-          zIndex: -1,
-          bottom: 0,
-          left: 0,
-          right: 0,
-          margin: 'auto',
-          width: '1024px',
-          height: '608px',
-        }}
-      />
-    </Box>
-  );
+    );
+  }
 };
 
 export default Login;

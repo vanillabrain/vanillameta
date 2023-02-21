@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Stack, Typography } from '@mui/material';
+import { Box, Stack, Typography } from '@mui/material';
 import { WIDGET_TYPE } from '@/constant';
 import LineChart from '@/widget/modules/linechart/LineChart';
 import PieChart from '@/widget/modules/piechart/PieChart';
@@ -25,10 +25,40 @@ import MixedLineStackedBarChart from '@/widget/modules/mixedchart/MixedLineStack
 import FunnelChart from '@/widget/modules/funnelchart/FunnelChart';
 import { LoadingContext } from '@/contexts/LoadingContext';
 
+export const WidgetEmpty = () => {
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        height: '100%',
+        width: '100%',
+        borderRadius: '6px',
+      }}
+    >
+      <Typography
+        sx={{
+          margin: '200px auto',
+          fontSize: '14px',
+          fontWeight: 600,
+          textAlign: 'center',
+          lineHeight: '1.6',
+          color: '#333',
+        }}
+      >
+        위젯 조회에 실패했습니다.
+        <br />
+        다시 시도해 주세요.
+      </Typography>
+    </Box>
+  );
+};
+
 const WidgetViewer = props => {
-  const { title, widgetType, widgetOption, dataSet } = props;
+  const { title, widgetType, widgetOption, dataSet, isInvalidData } = props;
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const [module, setModule] = useState(null);
+
   // const [componentOption, setComponentOption] = useState({});
   // let testModule = null;
   // const chartProps = { option: widgetOption, dataSet: dataSet, seriesOp: undefined, createOp: undefined };
@@ -410,7 +440,7 @@ const WidgetViewer = props => {
         break;
     }
 
-    console.log('module', module);
+    // console.log('module', module);
     setModule(module);
     hideLoading();
   };
@@ -488,7 +518,7 @@ const WidgetViewer = props => {
           padding: '10px 40px 48px 40px',
         }}
       >
-        {module}
+        {isInvalidData ? <WidgetEmpty /> : module}
         {/*<ReactECharts*/}
         {/*  option={componentOption}*/}
         {/*  style={{ height: '100%', maxHeight: '600px', width: '100%' }}*/}

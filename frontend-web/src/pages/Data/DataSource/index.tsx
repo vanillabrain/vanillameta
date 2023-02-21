@@ -117,7 +117,6 @@ function DataSource() {
               host: databaseInfo.connectionConfig.host,
               port: Number(databaseInfo.connectionConfig.port),
               user: databaseInfo.connectionConfig.user,
-              password: databaseInfo.connectionConfig.password,
               database: databaseInfo.connectionConfig.database,
               instanceName: databaseInfo.connectionConfig.instanceName,
               fetchAsString: databaseInfo.connectionConfig.fetchAsString,
@@ -127,7 +126,6 @@ function DataSource() {
             temp.snowflake = {
               account: databaseInfo.connectionConfig.account,
               username: databaseInfo.connectionConfig.username,
-              password: databaseInfo.connectionConfig.password,
               database: databaseInfo.connectionConfig.database,
               application: databaseInfo.connectionConfig.application,
               schema: databaseInfo.connectionConfig.schema,
@@ -138,7 +136,6 @@ function DataSource() {
               host: databaseInfo.connectionConfig.host,
               port: Number(databaseInfo.connectionConfig.port),
               user: databaseInfo.connectionConfig.user,
-              password: databaseInfo.connectionConfig.password,
               database: databaseInfo.connectionConfig.database,
             };
           }
@@ -241,7 +238,7 @@ function DataSource() {
                     navigate('/data');
                     snackbar.success('데이터베이스가 수정되었습니다.');
                   } else {
-                    alert.error('데이터베이스 저장에 실패했습니다.');
+                    alert.error('데이터베이스 저장에 실패했습니다.\n다시 시도해 주세요.');
                   }
                 })
                 .finally(() => {
@@ -255,7 +252,7 @@ function DataSource() {
                     navigate('/data');
                     snackbar.success('데이터베이스가 생성되었습니다.');
                   } else {
-                    alert.error('데이터베이스 저장에 실패했습니다.');
+                    alert.error('데이터베이스 저장에 실패했습니다.\n다시 시도해 주세요.');
                   }
                 })
                 .finally(() => {

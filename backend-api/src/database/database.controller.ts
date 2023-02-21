@@ -1,12 +1,26 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { DatabaseService } from './database.service';
 import { CreateDatabaseDto } from './dto/create-database.dto';
 import { UpdateDatabaseDto } from './dto/update-database.dto';
 import { QueryExecuteDto } from './dto/query-execute.dto';
 import { ConnectionService } from '../connection/connection.service';
 import { DatasetType } from '../common/enum/dataset-type.enum';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { ApiTags } from '@nestjs/swagger';
 
 @Controller('database')
+@ApiTags('dashboard')
 export class DatabaseController {
   constructor(
     private readonly databaseService: DatabaseService,
@@ -16,11 +30,12 @@ export class DatabaseController {
   /**
    * database type 목록 조회
    */
+  @UseGuards(JwtAuthGuard)
   @Get('/type')
   findTypeList() {
     return this.databaseService.findTypeList();
   }
-
+  @UseGuards(JwtAuthGuard)
   @Get('/data')
   async findData(
     @Query('datasetType') datasetType: DatasetType,
@@ -36,6 +51,7 @@ export class DatabaseController {
    * 데이터베이스 연결정보 단순조회
    * @param id
    */
+  @UseGuards(JwtAuthGuard)
   @Get('/info/:id')
   async findOneInfo(@Param('id') id: string) {
     const databaseInfo = await this.databaseService.findOneInfo(+id);
@@ -47,6 +63,7 @@ export class DatabaseController {
    * @param createDatabaseDto
    */
   @Post()
+  @UseGuards(JwtAuthGuard)
   create(@Body() createDatabaseDto: CreateDatabaseDto) {
     return this.databaseService.create(createDatabaseDto);
   }

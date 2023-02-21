@@ -28,7 +28,7 @@ export const DatasetCardList = props => {
                       component="span"
                       variant="subtitle2"
                       sx={{
-                        width: '100%',
+                        width: { xs: '50%', md: '100%' },
                         textOverflow: 'ellipsis',
                         overflow: 'hidden',
                         whiteSpace: 'nowrap',

@@ -106,7 +106,7 @@ function AddWidgetPopup({ label, useWidgetIds = [], widgetOpen = false, widgetSe
 
   return (
     <>
-      <Dialog open={open} onClose={handleClose} fullWidth={true}>
+      <Dialog open={open} onClose={handleClose} fullWidth={true} sx={{ minWidth: '400px' }}>
         <DialogTitle
           id="scroll-dialog-title"
           sx={{ width: '100%', paddingLeft: '21px', paddingTop: '13px', height: '87px' }}

@@ -13,8 +13,13 @@ import DashboardTitleBox from '../Components/DashboardTitleBox';
 import ModifyButton from '@/components/button/ModifyButton';
 import DeleteButton from '@/components/button/DeleteButton';
 import ReloadButton from '@/components/button/ReloadButton';
+import ShareButton from '@/components/button/ShareButton';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
+import shareService from '@/api/shareService';
+import { AuthContext } from '@/contexts/AuthContext';
+import Seo from '@/seo/Seo';
+import { dateData } from '@/utils/util';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -23,16 +28,26 @@ const DashboardView = () => {
   const navigate = useNavigate();
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
-
+  const { userState } = useContext(AuthContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
-  const [dashboardInfo, setDashboardInfo] = useState({ title: '', widgets: [], layout: [], updatedAt: '' }); // dashboard 정보
+  const [dashboardInfo, setDashboardInfo] = useState({
+    title: '',
+    widgets: [],
+    layout: [],
+    updatedAt: '',
+    shareYn: 'N',
+    uuid: null,
+    endDate: null,
+  }); // dashboard 정보
   const [layout, setLayout] = useState([]); // grid layout
   // dashboard id
+  const [isShareOn, setIsShareOn] = useState(false);
+  const [shareLimitDate, setShareLimitDate] = useState(null);
 
   // init useEffect
   useEffect(() => {
     getDashboardInfo(dashboardId);
-  }, []);
+  }, [isShareOn]);
 
   // dashboardInfo useEffect
   useEffect(() => {
@@ -42,8 +57,12 @@ const DashboardView = () => {
       }
       item.static = true;
     });
-
     setLayout(dashboardInfo.layout);
+    setIsShareOn(dashboardInfo.shareYn === 'Y');
+    if (dashboardInfo.endDate) {
+      const date = dateData(dashboardInfo.endDate);
+      setShareLimitDate(date);
+    }
   }, [dashboardInfo]);
 
   // dashboard info 조회
@@ -54,24 +73,12 @@ const DashboardView = () => {
         if (response.data.status == STATUS.SUCCESS) {
           setDashboardInfo(response.data.data);
         } else {
-          alert.error('대시보드 조회에 실패했습니다.');
+          alert.error('대시보드 조회에 실패했습니다.\n다시 시도해 주세요.');
         }
       })
       .finally(() => {
         hideLoading();
       });
-  };
-
-  const dateData = data => {
-    let result = '';
-    if (data != '') {
-      const userDate = new Date(data);
-      const year = userDate.getFullYear();
-      const month = userDate.getMonth() + 1;
-      const date = userDate.getDate();
-      result = `${year}.${month >= 10 ? month : '0' + month}.${date >= 10 ? date : '0' + date}`;
-    }
-    return result;
   };
 
   // refrech 버튼 클릭
@@ -114,7 +121,7 @@ const DashboardView = () => {
                   navigate('/dashboard', { replace: true });
                   snackbar.success('대시보드가 삭제되었습니다.');
                 } else {
-                  alert.error('대시보드 삭제에 실패했습니다.');
+                  alert.error('대시보드 삭제에 실패했습니다.\n다시 시도해 주세요.');
                 }
               })
               .finally(() => {
@@ -126,6 +133,51 @@ const DashboardView = () => {
     });
   };
 
+  const handleShareToggle = () => {
+    const data = {
+      userId: userState.userId,
+      endDate: shareLimitDate,
+    };
+    if (!isShareOn) {
+      // 공유 off에서 on으로 변경
+      if (!shareLimitDate) {
+        snackbar.error('공유 기한을 먼저 설정해주세요.');
+        return;
+      }
+      showLoading();
+      shareService
+        .onShareToken(dashboardId, data)
+        .then(response => {
+          console.log('buttonOn', response);
+          if (response.status === 201) {
+            setIsShareOn(true);
+          }
+        })
+        .catch(error => {
+          console.log(error);
+        })
+        .finally(() => {
+          hideLoading();
+        });
+    } else {
+      shareService
+        .offShareToken(dashboardId, data)
+        .then(response => {
+          console.log('buttonOff', response);
+          if (response.status === 201) {
+            setIsShareOn(false);
+            setShareLimitDate(null);
+          }
+        })
+        .catch(error => {
+          console.log(error);
+        })
+        .finally(() => {
+          hideLoading();
+        });
+    }
+  };
+
   return (
     <PageTitleBox
       upperTitle="대시보드"
@@ -133,6 +185,7 @@ const DashboardView = () => {
       title="대시보드 조회"
       sx={{ width: '100%', marginTop: '22px' }}
     >
+      <Seo title={dashboardInfo.title} />
       <DashboardTitleBox
         title={
           <Typography
@@ -159,7 +212,7 @@ const DashboardView = () => {
           <Stack direction="row" alignItems="center" sx={{ marginRight: '20px' }}>
             <span
               style={{
-                marginRight: '56px',
+                marginRight: '36px',
                 height: '16px',
                 fontFamily: 'Pretendard',
                 fontSize: '14px',
@@ -176,7 +229,7 @@ const DashboardView = () => {
             </span>
             <ReloadButton
               size="medium"
-              sx={{ marginRight: '36px', padding: 0 }}
+              sx={{ marginRight: '24px', padding: 0 }}
               onClick={event => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -185,18 +238,25 @@ const DashboardView = () => {
             />
             <ModifyButton
               size="medium"
-              sx={{ marginRight: '36px', padding: 0 }}
+              sx={{ marginRight: '24px', padding: 0 }}
               component={RouterLink}
               to={`/dashboard/modify?id=${dashboardId}&name=${dashboardInfo.title}`}
             />
             <DeleteButton
               size="medium"
-              sx={{ padding: 0 }}
+              sx={{ marginRight: '24px', padding: 0 }}
               onClick={event => {
                 event.preventDefault();
                 event.stopPropagation();
                 handleDeleteSelect();
               }}
+            />
+            <ShareButton
+              handleSubmit={handleShareToggle}
+              isShareOn={isShareOn}
+              shareId={dashboardInfo.uuid}
+              shareLimitDate={shareLimitDate}
+              setShareLimitDate={setShareLimitDate}
             />
           </Stack>
         }

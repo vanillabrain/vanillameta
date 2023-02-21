@@ -1,37 +1,35 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useState } from 'react';
+import authService from '@/api/authService';
 
-const AuthContext = createContext(null);
+export const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [token, setToken] = useState(null);
-  const storage = window.sessionStorage;
+  const initUserState = {
+    userId: null,
+    userEmail: null,
+  };
+  const [userState, setUserState] = useState(initUserState);
 
-  const handleLogin = async (id, pwd) => {
-    return new Promise((resolve, reject) => {
-      if (id === process.env.REACT_APP_ID && pwd === process.env.REACT_APP_PWD) {
-        setToken(process.env.REACT_APP_TOKEN);
-        storage.setItem('loggedUserId', id);
-        storage.setItem('loggedUserPwd', pwd);
-        setTimeout(() => resolve(process.env.REACT_APP_TOKEN), 1000);
-      } else {
-        reject(new Error('ID 또는 비밀번호가 일치하지 않습니다.'));
-      }
+  const getUserState = (): Promise<any> =>
+    new Promise((resolve, reject) => {
+      authService
+        .getUserInfo()
+        .then(response => {
+          if (response.status === 200) {
+            setUserState({ userId: response.data.data.userId, userEmail: response.data.data.email });
+          }
+          return resolve(response);
+        })
+        .catch(error => {
+          console.log(error);
+          return reject(error);
+        });
     });
-  };
-
-  const handleLogout = () => {
-    setToken(null);
-  };
 
   const value = {
-    token,
-    onLogin: handleLogin,
-    onLogout: handleLogout,
+    userState,
+    getUserState,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
-
-export const useAuth = () => {
-  return useContext(AuthContext);
 };

@@ -5,10 +5,11 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
 import Button from '@mui/material/Button';
-import { Alert, Divider, Snackbar } from '@mui/material';
+import { Alert, Divider, Portal, Snackbar } from '@mui/material';
 
 interface IProps {
   message: string | JSX.Element;
+  close: any;
   options: {
     title?: string | JSX.Element;
     actions?: {
@@ -17,29 +18,30 @@ interface IProps {
     }[];
     closeCopy?: string;
   };
-  close: any;
 }
-
-const buttonStyle = { minWidth: 80, height: 36, padding: '0 10px', fontSize: '13px', fontWeight: 'bold' };
 
 export const SnackbarTemplate = props => {
   const { close, message, options } = props;
-  console.log(props);
+  // console.log(props);
   return (
-    <Snackbar open autoHideDuration={6000} onClose={close}>
-      <Alert onClose={close} severity={options.type} sx={{ width: '100%' }}>
-        {message}
-      </Alert>
-    </Snackbar>
+    <Portal>
+      <Snackbar open autoHideDuration={6000} onClose={close} sx={{ zIndex: 9999 }}>
+        <Alert onClose={close} severity={options.type} sx={{ width: '100%' }}>
+          {message}
+        </Alert>
+      </Snackbar>
+    </Portal>
   );
 };
+
+const buttonStyle = { minWidth: 80, height: 36, padding: '0 10px', fontSize: '13px', fontWeight: 'bold' };
 
 const AlertTemplate = ({ close, message, options }: IProps) => {
   const hasTitle = options.title && options.title.toString().trim() !== '';
   return (
     <Dialog
       open={true}
-      onClose={close}
+      // onClose={close}
       keepMounted
       aria-labelledby="alert-dialog-slide-title"
       aria-describedby="alert-dialog-slide-description"

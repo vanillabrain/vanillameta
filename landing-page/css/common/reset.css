@@ -1,0 +1,130 @@
+/* reset.css */
+:root {
+  font-size: 16px;
+}
+
+html,
+body {
+  width: 100%;
+  min-width: 320px;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-family: 'Pretendard', sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  box-sizing: border-box;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+pre,
+address,
+ul,
+li,
+ol,
+dl,
+dt,
+dd,
+hr,
+img,
+div,
+form,
+fieldset,
+legend,
+input,
+select {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: 100%;
+  box-sizing: border-box;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+a:hover {
+  text-decoration: none;
+}
+
+ul,
+ol {
+  list-style: none;
+}
+
+hr {
+  border: 0;
+  border-bottom: 0.0625rem solid #505050;
+}
+
+button {
+  border: 0;
+  background-color: transparent;
+  cursor: pointer;
+  border-radius: 0;
+}
+
+em,
+address,
+i {
+  font-style: normal;
+}
+
+abbr {
+  text-decoration: none;
+}
+
+table,
+tr,
+td,
+th,
+thead,
+tbody,
+tfoot {
+  border: 0.0625rem solid #505050;
+  border-spacing: 0;
+  border-collapse: collapse;
+}
+
+header,
+nav,
+article,
+section,
+aside,
+menu,
+footer,
+figure,
+figcaption,
+hgroup {
+  display: block;
+  margin: 0;
+  padding: 0;
+  font-size: 100%;
+  box-sizing: border-box;
+}
+
+textarea {
+  resize: none;
+  cursor: text;
+}
+
+label,
+input[type='text'],
+input[type='password'],
+input[type='tel'],
+input[type='url'],
+input[type='email'],
+input[type='search'],
+input[type='checkbox'] {
+  text-indent: 0.5rem;
+  cursor: pointer;
+}

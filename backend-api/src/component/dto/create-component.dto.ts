@@ -31,6 +31,6 @@ export class CreateComponentDto {
 
     @IsString()
     @IsOptional()
-    useYn: YesNo
+    useYn: string
 
 }

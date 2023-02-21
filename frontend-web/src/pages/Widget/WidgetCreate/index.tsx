@@ -181,6 +181,7 @@ const WidgetCreate = () => {
             activeStep={activeStep}
             sx={{
               width: '50%',
+              minWidth: '450px',
               maxWidth: '564px',
               height: '72px',
               m: 'auto',

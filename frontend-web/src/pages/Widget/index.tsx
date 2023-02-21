@@ -11,6 +11,7 @@ import { Box, Button, Stack } from '@mui/material';
 import { styled } from '@mui/system';
 import { STATUS } from '@/constant';
 import { SnackbarContext } from '@/contexts/AlertContext';
+import Seo from '@/seo/Seo';
 
 const title = '위젯';
 
@@ -50,7 +51,7 @@ const Widget = () => {
           setWidgetList(response.data.data);
           setNoData(response.data.data.length == 0);
         } else {
-          alert.error('위젯 조회에 실패했습니다.');
+          alert.error('위젯 조회에 실패했습니다.\n다시 시도해 주세요.');
         }
       })
       .finally(() => {
@@ -73,7 +74,7 @@ const Widget = () => {
                   getWidgetList();
                   snackbar.success('위젯이 삭제되었습니다.');
                 } else {
-                  alert.error('위젯 삭제에 실패했습니다.');
+                  alert.error('위젯 삭제에 실패했습니다.\n다시 시도해 주세요.');
                 }
               })
               .finally(() => {
@@ -134,6 +135,8 @@ const Widget = () => {
 
   return (
     <PageContainer>
+      <Seo title={title} />
+
       {!widgetId ? (
         <PageTitleBox
           title={title}

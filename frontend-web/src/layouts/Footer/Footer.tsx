@@ -9,6 +9,7 @@ const Footer = props => {
       <Link
         color="inherit"
         href="https://vanillabrain.com/"
+        target="_blank"
         sx={{ fontSize: '13px', color: '#767676', textDecoration: 'none' }}
       >
         <Typography
@@ -26,7 +27,7 @@ const Footer = props => {
             color: '#767676',
           }}
         >
-          @ Vanilla Meta 2022
+          ⓒ VanillaBrain Icn.
         </Typography>
       </Link>
     </Stack>

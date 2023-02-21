@@ -4,6 +4,7 @@ import { AddMenuIconButton } from '@/components/button/AddIconButton';
 import Logo from './Logo';
 import NavBar from './NavBar';
 import { useNavigate } from 'react-router-dom';
+import ProfileViewButton from '@/components/user/ProfileViewButton';
 
 const menuList = [
   { name: '데이터 소스', link: '/data/source/create' },
@@ -29,12 +30,13 @@ function Header(props) {
   };
 
   return (
-    <AppBar elevation={0} component="nav" sx={{ minWidth: '1440px', left: 0, height: '65px' }}>
+    <AppBar elevation={0} component="nav" sx={{ minWidth: '600px', left: 0, height: '65px' }}>
       <Toolbar variant="dense" sx={{ height: headerHeight, justifyContent: 'space-between', columnGap: '30px' }}>
         <Logo />
         <NavBar navItems={navItems} />
-        <Box>
+        <Box sx={{ display: 'flex', gap: '16px' }}>
           <AddMenuIconButton menuList={menuList} handleSelect={handleMenuSelect} />
+          <ProfileViewButton />
         </Box>
       </Toolbar>
       <Divider />

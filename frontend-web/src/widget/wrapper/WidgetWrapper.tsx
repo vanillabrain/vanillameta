@@ -1,19 +1,19 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { get } from '@/helpers/apiHelper';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
 import DatabaseService from '@/api/databaseService';
 import { STATUS } from '@/constant';
 import { LoadingContext } from '@/contexts/LoadingContext';
+import { useAlert } from 'react-alert';
+import { SnackbarContext } from '@/contexts/AlertContext';
 
 const WidgetWrapper = props => {
   const { widgetOption, dataSetId } = props;
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const [dataset, setDataset] = useState(null);
+  const snackbar = useAlert(SnackbarContext);
+  const [isInvalidData, setIsInvalidData] = useState(false);
 
   useEffect(() => {
-    // console.log('WidgetWrapper widgetOption', widgetOption);
-    // console.log('WidgetWrapper dataSetId', dataSetId);
-
     if (dataSetId) {
       getData();
     }
@@ -32,6 +32,11 @@ const WidgetWrapper = props => {
           setDataset(response.data.data.datas);
         }
       })
+      .catch(error => {
+        setIsInvalidData(true);
+        snackbar.error('데이터베이스 조회에 실패했습니다.');
+        console.log('error', error);
+      })
       .finally(() => {
         hideLoading();
       });
@@ -43,6 +48,7 @@ const WidgetWrapper = props => {
       widgetType={widgetOption.componentType}
       widgetOption={widgetOption.option}
       dataSet={dataset}
+      isInvalidData={isInvalidData}
     />
   );
 };

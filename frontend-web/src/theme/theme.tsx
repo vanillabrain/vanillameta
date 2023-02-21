@@ -59,9 +59,9 @@ export default createTheme({
         root: {
           '&.MuiMenu-paper': {
             padding: '10px 6px',
-            borderRadius: '4px',
-            boxShadow: '2px 2px 4px 0 rgba(0, 0, 0, 0.15)',
-            border: 'solid 1px #0f5ab2',
+            borderRadius: '6px',
+            boxShadow: '2px 2px 9px 0 rgba(42, 50, 62, 0.1), 0 4px 4px 0 rgba(0, 0, 0, 0.02)',
+            border: 'solid 1px #ddd',
           },
         },
       },
@@ -72,6 +72,7 @@ export default createTheme({
       },
       styleOverrides: {
         root: {
+          fontFamily: 'Pretendard',
           '&:hover': {
             backgroundColor: '#ebfbff',
           },
@@ -86,7 +87,13 @@ export default createTheme({
         size: 'small',
       },
     },
-
+    MuiButtonBase: {
+      styleOverrides: {
+        root: {
+          fontFamily: 'Pretendard',
+        },
+      },
+    },
     MuiButton: {
       defaultProps: {
         size: 'small',
@@ -97,13 +104,24 @@ export default createTheme({
           borderRadius: '8px',
           paddingLeft: '14px',
           paddingRight: '14px',
-          // color: '#fff',
-
+          boxShadow: 'none',
+          fontFamily: 'Pretendard',
+          // '&:hover': {
+          //   boxShadow: 'none',
+          //   borderColor: '#4481c9',
+          //   backgroundColor: '#4481c9',
+          // },
           '&.Mui-disabled': {
             color: '#fff',
             backgroundColor: '#9b9ea9',
+            border: 0,
           },
         },
+        contained: {
+          border: '1px solid #0f5ab2',
+          backgroundColor: '#043f84',
+        },
+        // hover: {},
         sizeLarge: {
           height: '44px',
           fontSize: '15px',
@@ -151,6 +169,13 @@ export default createTheme({
         margin: 'dense',
       },
     },
+    MuiFormLabel: {
+      styleOverrides: {
+        root: {
+          fontFamily: 'Pretendard',
+        },
+      },
+    },
     MuiIconButton: {
       defaultProps: {
         size: 'small',
@@ -170,12 +195,16 @@ export default createTheme({
       },
       styleOverrides: {
         root: {
+          fontFamily: 'Pretendard',
           '&.MuiOutlinedInput-root.Mui-focused fieldset': {
             boxShadow: '2px 2px 4px 0 rgba(0, 0, 0, 0.15)',
             border: 'solid 1px #0f5ab2',
           },
           '&.MuiOutlinedInput-root:hover fieldset': {
             border: 'solid 1px #0f5ab2',
+          },
+          '&.MuiOutlinedInput-root.Mui-disabled fieldset': {
+            border: 'solid 1px #bdc2d0',
           },
         },
       },
@@ -187,6 +216,7 @@ export default createTheme({
       },
       styleOverrides: {
         root: {
+          fontFamily: 'Pretendard',
           transform: 'translate(14px, 7px) scale(1)',
         },
         shrink: {
@@ -199,6 +229,7 @@ export default createTheme({
         root: {
           height: '32px',
           backgroundColor: '#fff',
+          fontFamily: 'Pretendard',
 
           '&.Mui-disabled': {
             color: '#929292',
@@ -266,6 +297,7 @@ export default createTheme({
           color: '#9b9ea9',
           fontSize: '16px',
           fontWeight: 'bold',
+          fontFamily: 'Pretendard',
           '&.Mui-active': {
             color: '#0f5ab2',
             fontWeight: 'bold',
@@ -343,7 +375,7 @@ export default createTheme({
         'html, body, #root': {
           width: '100%',
           height: '100%',
-          minWidth: '1440px',
+          minWidth: '600px',
           fontFamily: 'Pretendard',
           backgroundColor: '#FFFFFF',
           color: '#1F2123',
