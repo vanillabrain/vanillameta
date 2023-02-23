@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { getAggregationDataForChart, getGridSize, getLegendOption } from '@/widget/modules/utils/chartUtil';
+import { AGGREGATION_LIST } from '@/constant';
 
 const LineChart = props => {
   const { option, dataSet, axis = 'x', seriesOp, defaultOp, createOp } = props;
@@ -49,7 +50,11 @@ const LineChart = props => {
       // console.log('aggrData : ', aggrData);
       if (item.field) {
         const series = {
-          name: option.legendAggregation ? `${item.field} (${item.aggregation})` : item.field,
+          name:
+            (item?.name ? item.name : item.field) +
+            (option?.legendAggregation
+              ? ` (${AGGREGATION_LIST.find(element => element.value === item.aggregation).label})`
+              : ''),
           data: aggrData.map(dataItem => dataItem[item.field]),
           type: item.type ? item.type : 'line',
           color: item.color,

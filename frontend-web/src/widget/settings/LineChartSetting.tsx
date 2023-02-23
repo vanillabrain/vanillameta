@@ -5,6 +5,7 @@ import ColorButtonForm from '@/components/form/ColorButtonForm';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
 import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
 import { AGGREGATION_LIST, COLUMN_TYPE, DISPLAY_LIST, LEGEND_LIST, WIDGET_AGGREGATION } from '@/constant';
+import TextFieldForm from '@/components/form/TextFieldForm';
 
 const LineChartSetting = props => {
   const { option, setOption, seriesItem, axis = 'x', spec } = props;
@@ -55,6 +56,14 @@ const LineChartSetting = props => {
               value={item.field}
               onChange={event => handleSeriesChange(event, setOption)}
               endButton={<ColorButtonForm index={index} option={option} setOption={setOption} />}
+            />
+            <TextFieldForm
+              id={`name${index + 1}`}
+              name={`name${index + 1}`}
+              label="이름"
+              value={item.name}
+              onChange={event => handleSeriesChange(event, setOption)}
+              endButton={' '}
             />
             <SelectForm
               id={`aggregation${index + 1}`}
