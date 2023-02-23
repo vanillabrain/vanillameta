@@ -3,7 +3,7 @@ import { Divider, ListItem, ListItemText } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
 import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
-import { AGGREGATION_LIST, COLUMN_TYPE, LABEL_LIST, LEGEND_LIST, WIDGET_AGGREGATION } from '@/constant';
+import { AGGREGATION_LIST, COLUMN_TYPE, DISPLAY_LIST, LEGEND_LIST, WIDGET_AGGREGATION } from '@/constant';
 import ColorButtonForm from '@/components/form/ColorButtonForm';
 
 const Line3DChartSetting = props => {
@@ -102,7 +102,7 @@ const Line3DChartSetting = props => {
           id="legendAggregation"
           name="legendAggregation"
           label="집계 방식 표시"
-          optionList={LABEL_LIST}
+          optionList={DISPLAY_LIST}
           value={option.legendAggregation}
           onChange={event => handleChange(event, setOption)}
         />

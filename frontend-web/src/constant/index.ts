@@ -75,7 +75,9 @@ export const AGGREGATION_LIST = [
   { label: '최소', value: WIDGET_AGGREGATION.MIN },
 ];
 
-export const LABEL_LIST = [{ label: '표시', value: true }];
+export const DISPLAY_LIST = [{ label: '표시', value: true }];
+
+export const HIDDEN_LIST = [{ label: '숨기기', value: true }];
 
 export const PIE_LABEL_LIST = [
   { label: '이름', value: '{b}' },

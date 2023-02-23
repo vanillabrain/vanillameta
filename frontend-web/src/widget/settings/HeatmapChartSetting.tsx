@@ -2,7 +2,7 @@ import React from 'react';
 import { ListItem, ListItemText } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import { handleChange } from '@/widget/utils/handler';
-import { AGGREGATION_LIST, COLUMN_TYPE, LABEL_LIST } from '@/constant';
+import { AGGREGATION_LIST, COLUMN_TYPE, DISPLAY_LIST } from '@/constant';
 import ColorFieldForm from '@/components/form/ColorFieldForm';
 
 const HeatmapChartSetting = props => {
@@ -60,7 +60,7 @@ const HeatmapChartSetting = props => {
         <SelectForm
           name="label"
           label="레이블"
-          optionList={LABEL_LIST}
+          optionList={DISPLAY_LIST}
           value={option.label}
           onChange={event => handleChange(event, setOption)}
         />

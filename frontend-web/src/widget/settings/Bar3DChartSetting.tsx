@@ -3,7 +3,7 @@ import { Divider, ListItem, ListItemText } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
 import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
-import { AGGREGATION_LIST, COLUMN_TYPE, LABEL_LIST, WIDGET_AGGREGATION } from '@/constant';
+import { AGGREGATION_LIST, COLUMN_TYPE, DISPLAY_LIST, WIDGET_AGGREGATION } from '@/constant';
 import ColorFieldForm from '@/components/form/ColorFieldForm';
 
 const Bar3DChartSetting = props => {
@@ -88,7 +88,7 @@ const Bar3DChartSetting = props => {
         <SelectForm
           name="label"
           label="레이블"
-          optionList={LABEL_LIST}
+          optionList={DISPLAY_LIST}
           value={option.label}
           onChange={event => handleChange(event, setOption)}
         />

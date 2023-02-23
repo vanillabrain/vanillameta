@@ -445,6 +445,14 @@ const WidgetViewer = props => {
     hideLoading();
   };
 
+  const renderTitle = () => {
+    if (widgetType === WIDGET_TYPE.BOARD_NUMERIC && widgetOption.header?.titleHidden) {
+      return '';
+    } else {
+      return title;
+    }
+  };
+
   // const defaultComponentOption = {
   //   grid: { top: '3%', right: '3%', bottom: '3%', left: '3%' },
   //   tooltip: { trigger: 'axis' },
@@ -506,7 +514,7 @@ const WidgetViewer = props => {
             textOverflow: 'ellipsis',
           }}
         >
-          {title}
+          {renderTitle()}
         </Typography>
       </Stack>
 

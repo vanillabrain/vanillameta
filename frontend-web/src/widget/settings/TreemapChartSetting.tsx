@@ -1,7 +1,7 @@
 import React from 'react';
 import { Divider, ListItem, ListItemText } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
-import { AGGREGATION_LIST, COLUMN_TYPE, LABEL_LIST } from '@/constant';
+import { AGGREGATION_LIST, COLUMN_TYPE, DISPLAY_LIST } from '@/constant';
 import ColorFieldForm from '@/components/form/ColorFieldForm';
 import { handleChange } from '@/widget/utils/handler';
 
@@ -36,7 +36,7 @@ const TreemapChartSetting = props => {
         <SelectForm
           name="label"
           label="레이블"
-          optionList={LABEL_LIST}
+          optionList={DISPLAY_LIST}
           value={option.label}
           onChange={event => handleChange(event, setOption)}
         />

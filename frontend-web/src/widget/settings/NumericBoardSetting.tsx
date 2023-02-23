@@ -2,7 +2,7 @@ import React from 'react';
 import { ListItem, ListItemText, Divider } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import ColorPickerForm from '@/components/form/ColorPickerForm';
-import { AGGREGATION_LIST, COLUMN_TYPE, LABEL_LIST } from '@/constant';
+import { AGGREGATION_LIST, COLUMN_TYPE, DISPLAY_LIST, HIDDEN_LIST } from '@/constant';
 import TextFieldForm from '@/components/form/TextFieldForm';
 
 const fontSizeList = [10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 40, 50, 60, 70, 80, 85, 90, 95, 100];
@@ -43,6 +43,13 @@ const NumericBoardSetting = props => {
           onChange={handleHeaderChange}
           endButton={<ColorPickerForm color={option.header.color} name="color" onChange={handleHeaderChange} />}
         />
+        <SelectForm
+          name="titleHidden"
+          label="위젯 이름 숨기기"
+          optionList={HIDDEN_LIST}
+          value={option.header.titleHidden}
+          onChange={handleHeaderChange}
+        />
       </ListItem>
       <ListItem>
         <ListItemText primary="숫자값 설정" />
@@ -78,7 +85,7 @@ const NumericBoardSetting = props => {
         <SelectForm
           name="numForm"
           label="숫자 서식"
-          optionList={LABEL_LIST}
+          optionList={DISPLAY_LIST}
           value={option.content.numForm}
           onChange={handleContentChange}
         />

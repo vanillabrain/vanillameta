@@ -4,7 +4,7 @@ import SelectForm from '@/components/form/SelectForm';
 import ColorButtonForm from '@/components/form/ColorButtonForm';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
 import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
-import { AGGREGATION_LIST, COLUMN_TYPE, LABEL_LIST, LEGEND_LIST, WIDGET_AGGREGATION } from '@/constant';
+import { AGGREGATION_LIST, COLUMN_TYPE, DISPLAY_LIST, LEGEND_LIST, WIDGET_AGGREGATION } from '@/constant';
 
 const LineChartSetting = props => {
   const { option, setOption, seriesItem, axis = 'x', spec } = props;
@@ -90,14 +90,14 @@ const LineChartSetting = props => {
         <SelectForm
           name="label"
           label="레이블"
-          optionList={LABEL_LIST}
+          optionList={DISPLAY_LIST}
           value={option.label}
           onChange={event => handleChange(event, setOption)}
         />
         <SelectForm
           name="mark"
           label="마크 포인트"
-          optionList={LABEL_LIST}
+          optionList={DISPLAY_LIST}
           value={option.mark}
           onChange={event => handleChange(event, setOption)}
         />
@@ -116,7 +116,7 @@ const LineChartSetting = props => {
           id="legendAggregation"
           name="legendAggregation"
           label="집계 방식 표시"
-          optionList={LABEL_LIST}
+          optionList={DISPLAY_LIST}
           value={option.legendAggregation}
           onChange={event => handleChange(event, setOption)}
         />
