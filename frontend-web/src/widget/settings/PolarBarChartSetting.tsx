@@ -3,7 +3,7 @@ import { Divider, InputAdornment, ListItem, ListItemText } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import ColorButtonForm from '@/components/form/ColorButtonForm';
 import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
-import { AGGREGATION_LIST, COLUMN_TYPE, LABEL_LIST, LEGEND_LIST, WIDGET_AGGREGATION } from '@/constant';
+import { AGGREGATION_LIST, COLUMN_TYPE, DISPLAY_LIST, LEGEND_LIST, WIDGET_AGGREGATION } from '@/constant';
 import TextFieldForm from '@/components/form/TextFieldForm';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
 
@@ -49,7 +49,7 @@ const PolarBarChartSetting = props => {
         <SelectForm
           name="label"
           label="레이블"
-          optionList={LABEL_LIST}
+          optionList={DISPLAY_LIST}
           value={option.label}
           onChange={event => handleChange(event, setOption)}
         />
@@ -133,7 +133,7 @@ const PolarBarChartSetting = props => {
           id="legendAggregation"
           name="legendAggregation"
           label="집계 방식 표시"
-          optionList={LABEL_LIST}
+          optionList={DISPLAY_LIST}
           value={option.legendAggregation}
           onChange={event => handleChange(event, setOption)}
         />

@@ -112,12 +112,7 @@ const WidgetAttributeSelect = props => {
           overflow: 'hidden',
         }}
       >
-        <WidgetViewer
-          title={widgetOption.title}
-          widgetType={widgetOption.componentType}
-          widgetOption={option}
-          dataSet={data}
-        />
+        <WidgetViewer title={title} widgetType={widgetOption.componentType} widgetOption={option} dataSet={data} />
       </Box>
       <WidgetSetting
         widgetTypeName={widgetTypeName}

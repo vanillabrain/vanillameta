@@ -5,7 +5,7 @@ import ColorButtonForm from '@/components/form/ColorButtonForm';
 import TextFieldForm from '@/components/form/TextFieldForm';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
 import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
-import { COLUMN_TYPE, LABEL_LIST, LEGEND_LIST } from '@/constant';
+import { COLUMN_TYPE, DISPLAY_LIST, LEGEND_LIST } from '@/constant';
 
 const ScatterChartSetting = props => {
   const { option, setOption, spec } = props;
@@ -84,7 +84,7 @@ const ScatterChartSetting = props => {
         <SelectForm
           name="label"
           label="레이블"
-          optionList={LABEL_LIST}
+          optionList={DISPLAY_LIST}
           value={option.label}
           onChange={event => handleChange(event, setOption)}
         />
