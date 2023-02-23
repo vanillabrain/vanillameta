@@ -9,7 +9,7 @@ const Copyright = (props: any) => {
         href="https://vanillabrain.com/"
         sx={{ fontSize: '13px', color: '#767676', fontWeight: 'bold', textDecoration: 'none' }}
       >
-        ⓒ VanillaBrain Icn.
+        ⓒ VanillaBrain Inc.
       </Link>
     </Typography>
   );
