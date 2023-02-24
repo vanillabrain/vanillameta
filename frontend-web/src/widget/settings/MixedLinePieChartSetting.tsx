@@ -148,7 +148,7 @@ const MixedLinePieChartSetting = props => {
         ))}
         <SelectForm
           name="label"
-          label="레이블"
+          label="넘버 레이블"
           optionList={DISPLAY_LIST}
           value={option.label}
           onChange={event => handleChange(event, setOption)}
@@ -176,7 +176,7 @@ const MixedLinePieChartSetting = props => {
         />
         <SelectForm
           name="label"
-          label="레이블"
+          label="레이블 타입"
           optionList={PIE_LABEL_LIST}
           value={option.pie.label}
           onChange={handlePieChange}

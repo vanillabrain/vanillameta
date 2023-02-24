@@ -33,7 +33,6 @@ const GaugeChart = props => {
         },
         series: [
           {
-            name: option.title,
             type: 'gauge',
             progress: {
               show: true,
@@ -45,7 +44,7 @@ const GaugeChart = props => {
             data: [
               {
                 value: getAggregationData(option.aggregation, dataSet, option.field),
-                name: option.field,
+                name: option?.fieldLabel ? option.fieldLabel : option.field,
               },
             ],
             itemStyle: {

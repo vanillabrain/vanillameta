@@ -33,6 +33,13 @@ const GaugeChartSetting = props => {
             />
           }
         />
+        <TextFieldForm
+          id="fieldLabel"
+          name="fieldLabel"
+          label="레이블"
+          value={option.fieldLabel ? option.fieldLabel : ''}
+          onChange={event => handleChange(event, setOption)}
+        />
         <SelectForm
           id="aggregation"
           name="aggregation"

@@ -51,7 +51,7 @@ const LineChart = props => {
       if (item.field) {
         const series = {
           name:
-            (item?.name ? item.name : item.field) +
+            (item?.fieldLabel ? item.fieldLabel : item.field) +
             (option?.legendAggregation
               ? ` (${AGGREGATION_LIST.find(element => element.value === item.aggregation).label})`
               : ''),

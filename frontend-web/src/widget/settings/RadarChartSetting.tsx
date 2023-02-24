@@ -5,6 +5,7 @@ import ColorButtonForm from '@/components/form/ColorButtonForm';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
 import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
 import { AGGREGATION_LIST, COLUMN_TYPE, DISPLAY_LIST, LEGEND_LIST, WIDGET_AGGREGATION } from '@/constant';
+import TextFieldForm from '@/components/form/TextFieldForm';
 
 const RadarChartSetting = props => {
   const { option, setOption, seriesItem, spec } = props;
@@ -66,6 +67,14 @@ const RadarChartSetting = props => {
               onChange={event => handleSeriesChange(event, setOption)}
               endButton={<ColorButtonForm index={index} option={option} setOption={setOption} />}
             />
+            <TextFieldForm
+              id={`fieldLabel${index + 1}`}
+              name={`fieldLabel${index + 1}`}
+              label={`레이블`}
+              value={item.fieldLabel ? item.fieldLabel : ''}
+              onChange={event => handleSeriesChange(event, setOption)}
+              endButton={' '}
+            />
             <SelectForm
               id={`aggregation${index + 1}`}
               name={`aggregation${index + 1}`}
@@ -98,7 +107,7 @@ const RadarChartSetting = props => {
         ))}
         <SelectForm
           name="label"
-          label="레이블"
+          label="넘버 레이블"
           optionList={DISPLAY_LIST}
           value={option.label}
           onChange={event => handleChange(event, setOption)}

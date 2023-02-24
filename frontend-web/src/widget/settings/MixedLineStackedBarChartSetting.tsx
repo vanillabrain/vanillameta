@@ -92,7 +92,7 @@ const MixedLineStackedBarChartSetting = props => {
         ))}
         <SelectForm
           name="label"
-          label="레이블"
+          label="넘버 레이블"
           optionList={DISPLAY_LIST}
           value={option.label}
           onChange={event => handleChange(event, setOption)}

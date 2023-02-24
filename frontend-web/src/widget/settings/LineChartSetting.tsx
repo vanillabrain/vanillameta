@@ -58,10 +58,10 @@ const LineChartSetting = props => {
               endButton={<ColorButtonForm index={index} option={option} setOption={setOption} />}
             />
             <TextFieldForm
-              id={`name${index + 1}`}
-              name={`name${index + 1}`}
-              label="이름"
-              value={item.name}
+              id={`fieldLabel${index + 1}`}
+              name={`fieldLabel${index + 1}`}
+              label={`레이블`}
+              value={item.fieldLabel ? item.fieldLabel : ''}
               onChange={event => handleSeriesChange(event, setOption)}
               endButton={' '}
             />
@@ -98,7 +98,7 @@ const LineChartSetting = props => {
         ))}
         <SelectForm
           name="label"
-          label="레이블"
+          label="넘버 레이블"
           optionList={DISPLAY_LIST}
           value={option.label}
           onChange={event => handleChange(event, setOption)}
