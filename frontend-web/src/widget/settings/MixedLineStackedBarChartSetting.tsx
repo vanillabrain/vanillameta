@@ -5,6 +5,7 @@ import ColorButtonForm from '@/components/form/ColorButtonForm';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
 import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
 import { AGGREGATION_LIST, COLUMN_TYPE, DISPLAY_LIST, LEGEND_LIST, WIDGET_AGGREGATION } from '@/constant';
+import TextFieldForm from '@/components/form/TextFieldForm';
 
 const MixedLineStackedBarChartSetting = props => {
   const { option, setOption, axis = 'x', spec } = props;
@@ -61,6 +62,14 @@ const MixedLineStackedBarChartSetting = props => {
               onChange={event => handleSeriesChange(event, setOption)}
               endButton={<ColorButtonForm index={index} option={option} setOption={setOption} />}
             />
+            <TextFieldForm
+              id={`fieldLabel${index + 1}`}
+              name={`fieldLabel${index + 1}`}
+              label={`레이블`}
+              value={item.fieldLabel ? item.fieldLabel : ''}
+              onChange={event => handleSeriesChange(event, setOption)}
+              endButton={' '}
+            />
             <SelectForm
               id={`aggregation${index + 1}`}
               name={`aggregation${index + 1}`}
@@ -81,7 +90,7 @@ const MixedLineStackedBarChartSetting = props => {
               required={true}
               id={`type${index + 1}`}
               name={`type${index + 1}`}
-              label={`종류 ${index + 1}`}
+              label={`종류`}
               optionList={chartTypeList}
               value={item.type}
               onChange={event => handleSeriesChange(event, setOption)}

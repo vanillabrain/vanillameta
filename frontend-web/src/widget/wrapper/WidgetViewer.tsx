@@ -446,7 +446,7 @@ const WidgetViewer = props => {
   };
 
   const renderTitle = () => {
-    if (widgetType === WIDGET_TYPE.BOARD_NUMERIC && widgetOption.header?.titleHidden) {
+    if (widgetOption?.header?.titleHidden) {
       return '';
     } else {
       return title;

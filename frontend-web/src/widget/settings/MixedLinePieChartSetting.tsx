@@ -116,6 +116,14 @@ const MixedLinePieChartSetting = props => {
               onChange={event => handleSeriesChange(event, setOption)}
               endButton={<ColorButtonForm index={index} option={option} setOption={setOption} />}
             />
+            <TextFieldForm
+              id={`fieldLabel${index + 1}`}
+              name={`fieldLabel${index + 1}`}
+              label={`레이블`}
+              value={item.fieldLabel ? item.fieldLabel : ''}
+              onChange={event => handleSeriesChange(event, setOption)}
+              endButton={' '}
+            />
             <SelectForm
               id={`aggregation${index + 1}`}
               name={`aggregation${index + 1}`}
