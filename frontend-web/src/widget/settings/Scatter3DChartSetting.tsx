@@ -37,7 +37,7 @@ const Scatter3DChartSetting = props => {
             <TextFieldForm
               id={`title${index + 1}`}
               name={`title${index + 1}`}
-              label={`시리즈 ${index + 1} 이름`}
+              label={`시리즈 ${index + 1} 레이블`}
               value={item.title}
               onChange={event => handleSeriesChange(event, setOption)}
               endButton={<ColorButtonForm index={index} option={option} setOption={setOption} />}
@@ -95,7 +95,7 @@ const Scatter3DChartSetting = props => {
         ))}
         <SelectForm
           name="label"
-          label="레이블"
+          label="넘버 레이블"
           optionList={DISPLAY_LIST}
           value={option.label}
           onChange={event => handleChange(event, setOption)}

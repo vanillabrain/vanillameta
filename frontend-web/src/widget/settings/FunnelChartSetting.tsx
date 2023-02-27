@@ -83,7 +83,7 @@ const FunnelChartSetting = props => {
         />
         <SelectForm
           name="label"
-          label="레이블"
+          label="레이블 타입"
           optionList={PIE_LABEL_LIST}
           value={option.series.label}
           onChange={handleSeriesChange}

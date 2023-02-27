@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { getAggregationDataForChart, getCenter, getLegendOption } from '@/widget/modules/utils/chartUtil';
+import { AGGREGATION_LIST } from '@/constant';
 
 const RadarChart = props => {
   const { option, dataSet, seriesOp, defaultOp, createOp } = props;
@@ -45,7 +46,11 @@ const RadarChart = props => {
       if (item.field) {
         const seriesData = {
           value: aggrData.map(dataItem => dataItem[item.field]),
-          name: option.legendAggregation ? `${item.field} (${item.aggregation})` : item.field,
+          name:
+            (item?.fieldLabel ? item.fieldLabel : item.field) +
+            (option?.legendAggregation
+              ? ` (${AGGREGATION_LIST.find(element => element.value === item.aggregation).label})`
+              : ''),
           itemStyle: {
             color: item.color,
           },

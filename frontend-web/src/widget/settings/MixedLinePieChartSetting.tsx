@@ -116,6 +116,14 @@ const MixedLinePieChartSetting = props => {
               onChange={event => handleSeriesChange(event, setOption)}
               endButton={<ColorButtonForm index={index} option={option} setOption={setOption} />}
             />
+            <TextFieldForm
+              id={`fieldLabel${index + 1}`}
+              name={`fieldLabel${index + 1}`}
+              label={`레이블`}
+              value={item.fieldLabel ? item.fieldLabel : ''}
+              onChange={event => handleSeriesChange(event, setOption)}
+              endButton={' '}
+            />
             <SelectForm
               id={`aggregation${index + 1}`}
               name={`aggregation${index + 1}`}
@@ -148,7 +156,7 @@ const MixedLinePieChartSetting = props => {
         ))}
         <SelectForm
           name="label"
-          label="레이블"
+          label="넘버 레이블"
           optionList={DISPLAY_LIST}
           value={option.label}
           onChange={event => handleChange(event, setOption)}
@@ -176,7 +184,7 @@ const MixedLinePieChartSetting = props => {
         />
         <SelectForm
           name="label"
-          label="레이블"
+          label="레이블 타입"
           optionList={PIE_LABEL_LIST}
           value={option.pie.label}
           onChange={handlePieChange}
