@@ -1,40 +1,88 @@
+##
+##version: '3.3'
+##
+##services:
+##  db:
+##    build:
+##      context: .
+##      dockerfile: Dockerfile.dev
+##    image: mysql:5.7
+##    #    volumes:
+##    #      - ./mysql-init-files/:/docker-entrypoint-initdb.d/
+##    restart: always
+##    container_name: mmc
+##    environment:
+##      - MYSQL_ALLOW_EMPTY_PASSWORD="true"
+##      - MYSQL_DATABASE= ${DB_NAME}
+##      - MYSQL_USER= ${DB_USERNAME}
+##      - MYSQL_PASSWORD= ${DB_PASSWORD}
+##    env_file:
+##      - .env
+##    ports:
+##      - '3306:3306'
+##    expose:
+##      - '3306'
+##    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+##             --default_authentication_plugin=mysql_native_password
+##    volumes:
+##      - "./mysql-init-files/:/docker-entrypoint-initdb.d/"
+##      - mysql:/var/lib/mysql
+##      - ./db/conf.d:/etc/mysql/conf.d
 #
-#version: '3.3'
+##version: "3.5"
+##services:
+##  main:
+##    build:
+##      context: ./
+##      dockerfile: ./Dockerfile.dev
+##    ports:
+##      - "4000:4000"
+##    networks:
+##      - vanillameta
+##    depends_on:
+##      - mysql
+##    links:
+##      - "mysql"
+###      - "pg"
+##    env_file:
+##      - .env
+##    tty: true
+##    environment:
+##      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+##    restart: always
+##
+##  mysql:
+##    container_name: vanillameta_mysql
+##    image: mysql:5.7
+##    ports:
+##      -  "3306:3306"
+##    networks:
+##      - vanillameta
+##    environment:
+##      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+##      MYSQL_CHARSET: utf8mb4
+##      MYSQL_DATABASE: ${DB_NAME}
+##      MYSQL_USER: ${DB_USERNAME}
+##      MYSQL_PASSWORD: ${DB_PASSWORD}
+##      TZ: Asia/Seoul
+##    restart: always
+##
+##    command:
+##          --default-authentication-plugin=mysql_native_password
+###         --init-file /docker-entrypoint-initdb.d/dump_data.sql
+##    volumes:
+##      - ./mysql:/var/lib/mysql/
+##      - ./db/conf.d:/etc/mysql/conf.d
+##      - ./mysql-init-files/dump_data:/docker-entrypoint-initdb.d/dump_data
 #
-#services:
-#  db:
-#    build:
-#      context: .
-#      dockerfile: Dockerfile.dev
-#    image: mysql:5.7
-#    #    volumes:
-#    #      - ./mysql-init-files/:/docker-entrypoint-initdb.d/
-#    restart: always
-#    container_name: mmc
-#    environment:
-#      - MYSQL_ALLOW_EMPTY_PASSWORD="true"
-#      - MYSQL_DATABASE= ${DB_NAME}
-#      - MYSQL_USER= ${DB_USERNAME}
-#      - MYSQL_PASSWORD= ${DB_PASSWORD}
-#    env_file:
-#      - .env
-#    ports:
-#      - '3306:3306'
-#    expose:
-#      - '3306'
-#    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
-#             --default_authentication_plugin=mysql_native_password
-#    volumes:
-#      - "./mysql-init-files/:/docker-entrypoint-initdb.d/"
-#      - mysql:/var/lib/mysql
-#      - ./db/conf.d:/etc/mysql/conf.d
-
-#version: "3.5"
+#
+#version: "3.7"
 #services:
 #  main:
 #    build:
 #      context: ./
 #      dockerfile: ./Dockerfile.dev
+#    image: mysql
 #    ports:
 #      - "4000:4000"
 #    networks:
@@ -43,7 +91,6 @@
 #      - mysql
 #    links:
 #      - "mysql"
-##      - "pg"
 #    env_file:
 #      - .env
 #    tty: true
@@ -53,11 +100,12 @@
 #
 #  mysql:
 #    container_name: vanillameta_mysql
-#    image: mysql:5.7
+#    image: mysql
 #    ports:
 #      -  "3306:3306"
 #    networks:
-#      - vanillameta
+#        - vanillameta
+#
 #    environment:
 #      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
 #      MYSQL_CHARSET: utf8mb4
@@ -66,148 +114,100 @@
 #      MYSQL_PASSWORD: ${DB_PASSWORD}
 #      TZ: Asia/Seoul
 #    restart: always
-#
-#    command:
-#          --default-authentication-plugin=mysql_native_password
-##         --init-file /docker-entrypoint-initdb.d/dump_data.sql
-#    volumes:
-#      - ./mysql:/var/lib/mysql/
-#      - ./db/conf.d:/etc/mysql/conf.d
-#      - ./mysql-init-files/dump_data:/docker-entrypoint-initdb.d/dump_data
-
-
-version: "3.7"
-services:
-  main:
-    build:
-      context: ./
-      dockerfile: ./Dockerfile.dev
-    image: mysql
-    ports:
-      - "4000:4000"
-    networks:
-      - vanillameta
-    depends_on:
-      - mysql
-    links:
-      - "mysql"
-    env_file:
-      - .env
-    tty: true
-    environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-    restart: always
-
-  mysql:
-    container_name: vanillameta_mysql
-    image: mysql
-    ports:
-      -  "3306:3306"
-    networks:
-        - vanillameta
-
-    environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-      MYSQL_CHARSET: utf8mb4
-      MYSQL_DATABASE: ${DB_NAME}
-      MYSQL_USER: ${DB_USERNAME}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
-      TZ: Asia/Seoul
-    restart: always
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
-             --default_authentication_plugin=mysql_native_password
-
-    volumes:
-        - mysql:/var/lib/mysql
-        - ./db/conf.d:/etc/mysql/conf.d
-        - ./mysql-init-files/dump_data:/docker-entrypoint-initdb.d
-
-  #  mariadb:
-  #    container_name: vanillameta_mariadb
-  #    extra_hosts:
-  #      - "host.docker.internal:host-gateway"
-  #    image: mariadb
-  #    ports:
-  #      -  "3308:3308"
-  #    networks:
-  #      - vanillameta
-  #    environment:
-  #      MYSQL_ROOT_PASSWORD: 'strongpassword'
-  #      MYSQL_CHARSET: utf8mb4
-  #      MYSQL_DATABASE: ${DB_NAME}
-  #      MYSQL_USER: ${DB_USERNAME}
-  #      MYSQL_PASSWORD: ${DB_PASSWORD}
-  #      TZ: Asia/Seoul
-  #    restart: always
-  #    volumes:
-  #      - ./db:/var/lib/maria
-
-#  pg:
-#    container_name: vanillameta_pg
-#    image: postgres
-#    ports:
-#      -  "5432:5432"
-#    networks:
-#      - vanillameta
-#    environment:
-#      POSTGRES_ROOT_PASSWORD: 'strongpassword'
-#      POSTGRES_CHARSET: utf8mb4
-#      POSTGRES_DATABASE: ${DB_NAME}
-#      POSTGRES_USER: ${DB_USERNAME}
-#      POSTGRES_PASSWORD: ${DB_PASSWORD}
-#      POSTGRES_HOST_AUTH_METHOD: "trust"
-#      TZ: Asia/Seoul
-#    restart: always
-#    #    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
-#    volumes:
-#      - mysql:/var/lib/mysql
-#      - ./db/conf.d:/etc/porstgressql/data
-
-
-#  oracledb:
-#    container_name: vanillameta_oracle
-#    image: oracleinanutshell/oracle-xe-11g
-#    ports:
-#      - "1521:1521"
-#    networks:
-#      - vanillameta
-#    environment:
-#      ORACLE_CHARSET: utf8mb4
-#      ORACLE_DATABASE: ${DB_NAME}
-#      ORACLE_USER: ${DB_USERNAME}
-#      ORACLE_PASSWORD: ${DB_PASSWORD}
-#      TZ: Asia/Seoul
-#    restart: always
-#      #    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
-#    volumes:
-#      - mysql:/var/lib/mysql
-#      - ./db/conf.d:/etc/porstgressql/data
-
-
-#
-#  mssql:
-#    container_name: vanillameta_mssql
-#    image: mcr.microsoft.com/mssql/server:2019-latest
-#    user: frog
-#    ports:
-#      -  "1433:1433"
-#    networks:
-#      - vanillameta
-#    environment:
-#      ACCEPT_EULA: "Y"
-#      MSSQL_SA_PASSWORD: 'Qkslffk@123123'
-#
-#
-#
-#    restart: always
+#    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+#             --default_authentication_plugin=mysql_native_password
 #
 #    volumes:
-#      - ./sqlvolume:/home/frog
+#        - mysql:/var/lib/mysql
+#        - ./db/conf.d:/etc/mysql/conf.d
+#        - ./mysql-init-files/dump_data:/docker-entrypoint-initdb.d
 #
-
+#  #  mariadb:
+#  #    container_name: vanillameta_mariadb
+#  #    extra_hosts:
+#  #      - "host.docker.internal:host-gateway"
+#  #    image: mariadb
+#  #    ports:
+#  #      -  "3308:3308"
+#  #    networks:
+#  #      - vanillameta
+#  #    environment:
+#  #      MYSQL_ROOT_PASSWORD: 'strongpassword'
+#  #      MYSQL_CHARSET: utf8mb4
+#  #      MYSQL_DATABASE: ${DB_NAME}
+#  #      MYSQL_USER: ${DB_USERNAME}
+#  #      MYSQL_PASSWORD: ${DB_PASSWORD}
+#  #      TZ: Asia/Seoul
+#  #    restart: always
+#  #    volumes:
+#  #      - ./db:/var/lib/maria
 #
-volumes:
-  mysql:
-networks:
-  vanillameta:
-
+##  pg:
+##    container_name: vanillameta_pg
+##    image: postgres
+##    ports:
+##      -  "5432:5432"
+##    networks:
+##      - vanillameta
+##    environment:
+##      POSTGRES_ROOT_PASSWORD: 'strongpassword'
+##      POSTGRES_CHARSET: utf8mb4
+##      POSTGRES_DATABASE: ${DB_NAME}
+##      POSTGRES_USER: ${DB_USERNAME}
+##      POSTGRES_PASSWORD: ${DB_PASSWORD}
+##      POSTGRES_HOST_AUTH_METHOD: "trust"
+##      TZ: Asia/Seoul
+##    restart: always
+##    #    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+##    volumes:
+##      - mysql:/var/lib/mysql
+##      - ./db/conf.d:/etc/porstgressql/data
+#
+#
+##  oracledb:
+##    container_name: vanillameta_oracle
+##    image: oracleinanutshell/oracle-xe-11g
+##    ports:
+##      - "1521:1521"
+##    networks:
+##      - vanillameta
+##    environment:
+##      ORACLE_CHARSET: utf8mb4
+##      ORACLE_DATABASE: ${DB_NAME}
+##      ORACLE_USER: ${DB_USERNAME}
+##      ORACLE_PASSWORD: ${DB_PASSWORD}
+##      TZ: Asia/Seoul
+##    restart: always
+##      #    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+##    volumes:
+##      - mysql:/var/lib/mysql
+##      - ./db/conf.d:/etc/porstgressql/data
+#
+#
+##
+##  mssql:
+##    container_name: vanillameta_mssql
+##    image: mcr.microsoft.com/mssql/server:2019-latest
+##    user: frog
+##    ports:
+##      -  "1433:1433"
+##    networks:
+##      - vanillameta
+##    environment:
+##      ACCEPT_EULA: "Y"
+##      MSSQL_SA_PASSWORD: 'Qkslffk@123123'
+##
+##
+##
+##    restart: always
+##
+##    volumes:
+##      - ./sqlvolume:/home/frog
+##
+#
+##
+#volumes:
+#  mysql:
+#networks:
+#  vanillameta:
+#
