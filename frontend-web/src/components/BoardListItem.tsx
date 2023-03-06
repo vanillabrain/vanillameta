@@ -1,5 +1,5 @@
 import React from 'react';
-import { Avatar, ListItem, ListItemIcon, Stack } from '@mui/material';
+import { Avatar, Hidden, ListItem, ListItemIcon, Stack, useMediaQuery, useTheme } from '@mui/material';
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import DeleteButton from '@/components/button/DeleteButton';
 import ModifyButton from '@/components/button/ModifyButton';
@@ -10,15 +10,31 @@ const tableBorder = '1px solid #DADDDD';
 
 function BoardListItem(props) {
   const { postItem, handleDeleteSelect } = props;
+  const theme = useTheme();
+  const matches = useMediaQuery(theme.breakpoints.up('sm'));
 
   const navigate = useNavigate();
   const location = useLocation();
   const pathname = location.pathname;
 
+  const MobileTitleSpan = styled('span')({
+    display: 'block',
+    width: 'calc(100vw - 150px)',
+    fontFamily: 'Pretendard',
+    fontSize: '14px',
+    fontWeight: '600',
+    fontStretch: 'normal',
+    fontStyle: 'normal',
+    lineHeight: '1.43',
+    letterSpacing: 'normal',
+    textAlign: 'left',
+    color: '#333333',
+  });
+
   const TitleSpan = styled('span')({
-    display: 'flex',
+    display: 'block',
+    width: 'calc(100vw - 430px)',
     height: '14px',
-    justifyContent: 'space-between',
     fontFamily: 'Pretendard',
     fontSize: '14px',
     fontWeight: '600',
@@ -28,6 +44,9 @@ function BoardListItem(props) {
     letterSpacing: 'normal',
     textAlign: 'left',
     color: '#333333',
+    overflow: 'hidden',
+    whiteSpace: 'nowrap',
+    textOverflow: 'ellipsis',
   });
 
   const SubTitleSpan = styled('span')({
@@ -35,7 +54,7 @@ function BoardListItem(props) {
     height: '14px',
     justifyContent: 'space-between',
     fontFamily: 'Pretendard',
-    fontSize: '14px',
+    fontSize: matches ? '14px' : '10px',
     fontWeight: '500',
     fontStretch: 'normal',
     fontStyle: 'normal',
@@ -52,14 +71,14 @@ function BoardListItem(props) {
       sx={{
         borderBottom: tableBorder,
         '&:last-of-type': { borderBottom: 0 },
-        height: '56px',
+        py: matches ? '13px' : '20px',
         paddingRight: 0,
       }}
       component={RouterLink}
       to={`${postItem.id}`}
       state={{ from: pathname }}
     >
-      {postItem.componentType ? (
+      {matches && postItem.componentType ? (
         <ListItemIcon
           sx={{
             minWidth: '24px',
@@ -79,31 +98,33 @@ function BoardListItem(props) {
         direction="row"
         alignItems="center"
         justifyContent="space-between"
-        sx={{ x: 0, paddingLeft: '20px', width: '100%' }}
+        sx={{ x: 0, paddingLeft: { xs: '16px', sm: '20px' }, width: '100%' }}
       >
-        <TitleSpan>{postItem.title}</TitleSpan>
-        <Stack alignItems="center" direction="row" sx={{ paddingRight: '36px' }}>
+        {matches ? <TitleSpan>{postItem.title}</TitleSpan> : <MobileTitleSpan>{postItem.title}</MobileTitleSpan>}
+        <Stack alignItems="center" direction="row" sx={{ paddingRight: matches ? '36px' : '16px' }}>
           <SubTitleSpan>{dateData(postItem.updatedAt)}</SubTitleSpan>
-          <span style={{ width: '56px' }} />
-          <ModifyButton
-            size="medium"
-            sx={{ padding: 0 }}
-            onClick={event => {
-              event.preventDefault();
-              event.stopPropagation();
-              navigate(`modify?id=${postItem.id}&title=${postItem.title}`, { state: { from: pathname } });
-            }}
-          />
-          <span style={{ width: '36px' }} />
-          <DeleteButton
-            size="medium"
-            sx={{ padding: 0 }}
-            onClick={event => {
-              event.preventDefault();
-              event.stopPropagation();
-              handleDeleteSelect(postItem);
-            }}
-          />
+          <Hidden smDown>
+            <span style={{ width: '56px' }} />
+            <ModifyButton
+              size="medium"
+              sx={{ padding: 0 }}
+              onClick={event => {
+                event.preventDefault();
+                event.stopPropagation();
+                navigate(`modify?id=${postItem.id}&title=${postItem.title}`, { state: { from: pathname } });
+              }}
+            />
+            <span style={{ width: '36px' }} />
+            <DeleteButton
+              size="medium"
+              sx={{ padding: 0 }}
+              onClick={event => {
+                event.preventDefault();
+                event.stopPropagation();
+                handleDeleteSelect(postItem);
+              }}
+            />
+          </Hidden>
         </Stack>
       </Stack>
     </ListItem>

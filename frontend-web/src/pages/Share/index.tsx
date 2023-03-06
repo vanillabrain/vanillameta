@@ -6,7 +6,7 @@ import { useAlert } from 'react-alert';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import '/node_modules/react-grid-layout/css/styles.css';
 import '/node_modules/react-resizable/css/styles.css';
-import DashboardTitleBox from '../Dashboard/Components/DashboardTitleBox';
+import PageViewBox from '../../components/PageViewBox';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import shareService from '@/api/shareService';
 import { LandingLogo } from '@/layouts/Header/Logo';
@@ -135,7 +135,7 @@ const Share = () => {
       <LandingLogo sx={{ mb: '5px' }} />
       {!isShareOn ? (
         // 공유 URL이 유효하지 않을 때 보여줄 화면
-        <DashboardTitleBox>
+        <PageViewBox>
           <Box
             sx={{
               width: '1390px',
@@ -157,9 +157,9 @@ const Share = () => {
               {generateInvalidText()}
             </Typography>
           </Box>
-        </DashboardTitleBox>
+        </PageViewBox>
       ) : (
-        <DashboardTitleBox
+        <PageViewBox
           title={
             <Typography
               variant="subtitle1"
@@ -223,7 +223,7 @@ const Share = () => {
               {generateWidget()}
             </ResponsiveGridLayout>
           </Box>
-        </DashboardTitleBox>
+        </PageViewBox>
       )}
       <Copyright sx={{ mt: '40px', mb: '75px' }} />
     </Stack>

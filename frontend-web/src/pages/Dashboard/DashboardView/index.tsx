@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Box, Card, Stack, Typography } from '@mui/material';
+import { Box, Card, Stack, Typography, useMediaQuery, useTheme } from '@mui/material';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import PageTitleBox from '@/components/PageTitleBox';
 import WidgetWrapper from '@/widget/wrapper/WidgetWrapper';
@@ -9,7 +9,7 @@ import '/node_modules/react-grid-layout/css/styles.css';
 import '/node_modules/react-resizable/css/styles.css';
 import DashboardService from '@/api/dashboardService';
 import { STATUS } from '@/constant';
-import DashboardTitleBox from '../Components/DashboardTitleBox';
+import PageViewBox from '../../../components/PageViewBox';
 import ModifyButton from '@/components/button/ModifyButton';
 import DeleteButton from '@/components/button/DeleteButton';
 import ReloadButton from '@/components/button/ReloadButton';
@@ -30,6 +30,8 @@ const DashboardView = () => {
   const snackbar = useAlert(SnackbarContext);
   const { userState } = useContext(AuthContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
+  const theme = useTheme();
+  const matches = useMediaQuery(theme.breakpoints.up('sm'));
   const [dashboardInfo, setDashboardInfo] = useState({
     title: '',
     widgets: [],
@@ -183,10 +185,11 @@ const DashboardView = () => {
       upperTitle="대시보드"
       upperTitleLink="/dashboard"
       title="대시보드 조회"
-      sx={{ width: '100%', marginTop: '22px' }}
+      sx={{ width: '100%', marginTop: { xs: 0, sm: '22px' }, flex: '1 1 auto', p: { xs: 0 } }}
     >
       <Seo title={dashboardInfo.title} />
-      <DashboardTitleBox
+      <PageViewBox
+        sx={{ xs: {}, sm: { maxWidth: '1392px', width: '95%' } }}
         title={
           <Typography
             variant="subtitle1"
@@ -196,7 +199,7 @@ const DashboardView = () => {
               paddingLeft: '18px',
               height: '16px',
               fontFamily: 'Pretendard',
-              fontSize: '18px',
+              fontSize: { xs: '16px', sm: '18px' },
               fontStretch: 'normal',
               fontStyle: 'normal',
               lineHeight: 0.89,
@@ -263,25 +266,30 @@ const DashboardView = () => {
       >
         <Box
           sx={{
-            width: '1390px',
-            minWidth: '1390px',
-            minHeight: '1080px',
+            flex: '1 1 auto',
+            width: { sm: '1390px' },
+            minWidth: { sm: '1390px' },
+            minHeight: { sm: '1080px' },
             backgroundColor: '#f9f9fa',
             borderRadius: '0px 0px 6px 6px',
           }}
         >
-          <ResponsiveGridLayout
-            rowHeight={88}
-            compactType={null}
-            cols={{ lg: 12 }}
-            layouts={{ lg: layout }}
-            containerPadding={{ lg: [24, 24] }}
-            margin={{ lg: [24, 24] }}
-          >
-            {generateWidget()}
-          </ResponsiveGridLayout>
+          {matches ? (
+            <ResponsiveGridLayout
+              rowHeight={88}
+              compactType={null}
+              cols={{ lg: 12 }}
+              layouts={{ lg: layout }}
+              containerPadding={{ lg: [24, 24] }}
+              margin={{ lg: [24, 24] }}
+            >
+              {generateWidget()}
+            </ResponsiveGridLayout>
+          ) : (
+            <ResponsiveGridLayout layouts={{ lg: layout }}>{generateWidget()}</ResponsiveGridLayout>
+          )}
         </Box>
-      </DashboardTitleBox>
+      </PageViewBox>
     </PageTitleBox>
   );
 };

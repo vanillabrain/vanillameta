@@ -8,7 +8,7 @@ import WidgetWrapper from '@/widget/wrapper/WidgetWrapper';
 import ReloadButton from '@/components/button/ReloadButton';
 import ModifyButton from '@/components/button/ModifyButton';
 import DeleteButton from '@/components/button/DeleteButton';
-import DashboardTitleBox from '@/pages/Dashboard/Components/DashboardTitleBox';
+import PageViewBox from '@/components/PageViewBox';
 import { useAlert } from 'react-alert';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { SnackbarContext } from '@/contexts/AlertContext';
@@ -94,10 +94,15 @@ const WidgetView = () => {
   };
 
   return (
-    <PageTitleBox upperTitle="위젯" upperTitleLink="/widget" title="위젯 조회" sx={{ width: '100%', marginTop: '22px' }}>
+    <PageTitleBox
+      upperTitle="위젯"
+      upperTitleLink="/widget"
+      title="위젯 조회"
+      sx={{ width: '100%', marginTop: { xs: 0, sm: '22px' }, flex: '1 1 auto', p: { xs: 0 } }}
+    >
       <Seo title={widgetOption.title} />
-      <DashboardTitleBox
-        sx={{ minWidth: '600px', maxWidth: '1392px', width: '95%' }}
+      <PageViewBox
+        sx={{ xs: {}, sm: { maxWidth: '1392px', width: '95%' } }}
         title={
           <Stack
             direction="row"
@@ -117,7 +122,7 @@ const WidgetView = () => {
                 fontWeight: 500,
                 paddingLeft: '14px',
                 height: '16px',
-                fontSize: '18px',
+                fontSize: { xs: '16px', sm: '18px' },
                 fontStretch: 'normal',
                 fontStyle: 'normal',
                 lineHeight: 0.89,
@@ -178,11 +183,11 @@ const WidgetView = () => {
       >
         <Card
           sx={{
-            width: '60%',
+            width: { xs: 'calc(100% - 40px)', sm: '60%' },
             height: '50vw',
             minHeight: '300px',
             maxHeight: '700px',
-            margin: '54px auto',
+            margin: { xs: '20px auto', sm: '54px auto' },
             borderRadius: '8px',
             boxShadow: '2px 2px 9px 0 rgba(42, 50, 62, 0.1), 0 4px 4px 0 rgba(0, 0, 0, 0.02)',
             border: 'solid 1px #e2e2e2',
@@ -191,7 +196,7 @@ const WidgetView = () => {
         >
           <WidgetWrapper widgetOption={widgetOption} dataSetId={widgetOption.datasetId} />
         </Card>
-      </DashboardTitleBox>
+      </PageViewBox>
     </PageTitleBox>
   );
 };

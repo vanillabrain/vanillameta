@@ -17,7 +17,7 @@ function BoardList(props) {
   const tableBorder = '1px solid #DADDDD';
 
   const GTSpan = styled('span')({
-    marginLeft: postList[0]?.componentType && '50px',
+    marginLeft: matches && postList[0]?.componentType && '50px',
     fontFamily: 'Pretendard',
     fontSize: matches ? '13px' : '10px',
     fontWeight: '500',
@@ -49,7 +49,12 @@ function BoardList(props) {
       <Stack
         flexDirection="row"
         justifyContent="space-between"
-        sx={{ paddingLeft: '20px', paddingRight: '206px', marginBottom: '11px', marginTop: { xs: '21px', sm: '36px' } }}
+        sx={{
+          paddingLeft: '20px',
+          paddingRight: { xs: '44px', sm: '206px' },
+          marginBottom: '11px',
+          marginTop: { xs: '21px', sm: '36px' },
+        }}
       >
         <GTSpan>이름</GTSpan>
         <GTSpan>수정일</GTSpan>

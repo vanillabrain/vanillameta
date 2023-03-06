@@ -1,9 +1,18 @@
-import React from 'react';
-import { Box, Hidden, Stack, Typography } from '@mui/material';
+import React, { ReactElement } from 'react';
+import { Hidden, Stack, SxProps, Typography } from '@mui/material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 
+type PageTitleBox = {
+  title: string;
+  upperTitle?: string;
+  upperTitleLink?: string;
+  sx?: SxProps;
+  button: ReactElement;
+  fixed?: boolean;
+};
+
 function PageTitleBox(props) {
-  const { title, upperTitle, upperTitleLink = '', button, sx = {}, fixed } = props;
+  const { title, upperTitle, upperTitleLink, button, sx, fixed } = props;
   const navigate = useNavigate();
 
   const defaultBoxSx = {

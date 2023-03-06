@@ -16,7 +16,7 @@ import AddIcon from '@mui/icons-material/Add';
 import RecommendDashboardPopup from '@/pages/Dashboard/Components/RecommendDashboardPopup';
 import DashboardService from '@/api/dashboardService';
 import { STATUS } from '@/constant';
-import DashboardTitleBox from '../Components/DashboardTitleBox';
+import PageViewBox from '../../../components/PageViewBox';
 import CloseButton from '@/components/button/CloseButton';
 import bg from '@/assets/images/dashboard-bg.svg';
 import { LoadingContext } from '@/contexts/LoadingContext';
@@ -361,7 +361,7 @@ function DashboardModify() {
           </Stack>
         }
       >
-        <DashboardTitleBox
+        <PageViewBox
           title={
             <TextField
               id="userDashboardName"
@@ -466,7 +466,7 @@ function DashboardModify() {
             </ResponsiveGridLayout>
             <RecommendDashboardPopup recommendOpen={recommendOpen} handleComplete={handleCompleteRecommend} />
           </Box>
-        </DashboardTitleBox>
+        </PageViewBox>
       </PageTitleBox>
     </PageContainer>
   );

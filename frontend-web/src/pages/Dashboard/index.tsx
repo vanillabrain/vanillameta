@@ -110,7 +110,7 @@ function Dashboard() {
         <Stack
           flexDirection="row"
           justifyContent="space-between"
-          sx={{ paddingLeft: '20px', paddingRight: { xs: '20px', sm: '217px' }, marginBottom: '11px', marginTop: '36px' }}
+          sx={{ paddingLeft: '20px', paddingRight: { xs: '44px', sm: '217px' }, marginBottom: '11px', marginTop: '36px' }}
         >
           <GTSpan>이름</GTSpan>
           <GTSpan>수정일</GTSpan>
