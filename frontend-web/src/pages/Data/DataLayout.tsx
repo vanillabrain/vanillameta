@@ -125,9 +125,13 @@ const DataLayout = props => {
   };
 
   return (
-    <Stack sx={{ width: '100%' }} direction="row">
-      <Stack sx={{ width: { xs: '270px', md: '404px' }, px: '24px', pt: '30px' }}>
-        <Stack direction="row" sx={{ mb: '12px' }}>
+    <Stack direction="row" flex="1 1 auto" sx={{ width: '100%' }}>
+      <Stack
+        direction="column"
+        flex="1 1 auto"
+        sx={{ width: { xs: '270px', md: '404px' }, height: '100%', px: '24px', pt: '30px' }}
+      >
+        <Stack direction="row" flex="1 1 auto" sx={{ mb: '12px' }}>
           <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold', fontSize: '16px', color: '#141414' }}>
             데이터 소스
           </Typography>
@@ -143,8 +147,15 @@ const DataLayout = props => {
         />
       </Stack>
 
-      <Stack sx={{ width: { xs: 'calc(100% - 270px)', md: 'calc(100% - 404px)' }, backgroundColor: '#f5f6f8' }}>
-        <Stack sx={{ width: '100%', px: '24px', pt: '30px' }}>
+      <Stack
+        direction="column"
+        sx={{
+          flex: '1 1 auto',
+          width: { xs: 'calc(100% - 270px)', md: 'calc(100% - 404px)' },
+          backgroundColor: '#f5f6f8',
+        }}
+      >
+        <Stack direction="column" sx={{ width: '100%', px: '24px', pt: '30px' }}>
           <Stack direction="row" sx={{ mb: '12px' }}>
             <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold', fontSize: '16px', color: '#141414' }}>
               데이터 셋
@@ -167,7 +178,7 @@ const DataLayout = props => {
             <Box sx={{ height: '100px' }} />
           )}
         </Stack>
-        <Stack sx={{ width: '100%', px: '24px', pt: '30px' }}>
+        <Stack direction="column" sx={{ flex: '1 1 auto', width: '100%', minHeight: '50%', px: '24px', pt: '30px' }}>
           <Stack direction="row" sx={{ mb: '12px' }}>
             <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold', fontSize: '16px', color: '#141414' }}>
               테이블 목록

@@ -7,6 +7,7 @@ function PageTitleBox(props) {
   const navigate = useNavigate();
 
   const defaultBoxSx = {
+    flex: '1 1 auto',
     paddingLeft: '25px',
     paddingRight: '25px',
     width: '100%',
@@ -18,7 +19,7 @@ function PageTitleBox(props) {
   Object.assign(defaultBoxSx, sx);
 
   return (
-    <Box sx={{ width: '100%', height: '100%' }}>
+    <Stack direction="column" sx={{ width: '100%', height: '100%', flex: '1 1 auto' }}>
       <Stack
         sx={{
           width: '100%',
@@ -112,10 +113,15 @@ function PageTitleBox(props) {
           {button}
         </Stack>
       </Stack>
-      <Box sx={{ width: '100%', height: 'calc(100% - 56px)', display: 'flex', justifyContent: 'center' }}>
-        <Box sx={defaultBoxSx}>{props.children}</Box>
-      </Box>
-    </Box>
+      <Stack
+        direction="column"
+        sx={{ justifyContent: 'flex-start', flex: '1 1 auto', width: '100%', height: 'calc(100% - 56px)' }}
+      >
+        <Stack direction="column" sx={defaultBoxSx}>
+          {props.children}
+        </Stack>
+      </Stack>
+    </Stack>
   );
 }
 

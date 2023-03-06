@@ -16,6 +16,7 @@ const Layout = props => {
   const defaultSx = {
     width: '100%',
     height: '100%',
+    flex: '1 1 auto',
   };
 
   const fixSx = {
@@ -30,6 +31,7 @@ const Layout = props => {
       <Header height={headerHeight} />
       <Stack
         sx={{
+          flex: '1 1 auto',
           width: '100%',
           minWidth: 'min-content',
           paddingTop: headerHeight + 'px',

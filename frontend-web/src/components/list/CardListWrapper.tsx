@@ -8,6 +8,8 @@ const CardListWrapper = ({ children, minWidth }) => {
       spacing={2}
       component="ul"
       sx={{
+        flex: '1 1 auto',
+        // minHeight: '50%',
         listStyle: 'none',
         pl: 0,
         display: 'grid',

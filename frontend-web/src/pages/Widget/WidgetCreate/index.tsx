@@ -200,7 +200,13 @@ const WidgetCreate = () => {
             })}
           </Stepper>
         </Box>
-        <Box mt="129px">
+        <Box
+          sx={{
+            display: 'flex',
+            flex: '1 1 auto',
+            mt: '129px',
+          }}
+        >
           {activeStep === 0 ? (
             <WidgetDataSelect setDataSet={setDataset} />
           ) : activeStep === 1 ? (
