@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Divider, Stack } from '@mui/material';
+import { Box, Divider, Hidden, Stack } from '@mui/material';
 
 function DashboardTitleBox(props) {
   const { title, button, sx } = props;
@@ -15,8 +15,10 @@ function DashboardTitleBox(props) {
     >
       <Box
         sx={{
-          width: '1392px',
-          minWidth: '1392px',
+          // width: '1392px',
+          // minWidth: '1392px',
+          width: '100%',
+          minWidth: '100%',
           height: '100%',
           borderRadius: '6px',
           border: 'solid 1px #ddd',
@@ -31,7 +33,7 @@ function DashboardTitleBox(props) {
           sx={{ width: '100%', height: '57px', backgroundColor: '#ffffff', borderRadius: '6px 6px 0px 0px' }}
         >
           {title}
-          {button}
+          <Hidden smDown>{button}</Hidden>
         </Stack>
         <Divider sx={{ width: '100%', height: '1px' }} />
         {props.children}

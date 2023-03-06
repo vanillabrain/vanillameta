@@ -1,10 +1,11 @@
 import React from 'react';
-import { AppBar, Box, Divider, Toolbar } from '@mui/material';
+import { AppBar, Box, Button, Divider, Hidden, Toolbar } from '@mui/material';
 import { AddMenuIconButton } from '@/components/button/AddIconButton';
 import Logo from './Logo';
 import NavBar from './NavBar';
 import { useNavigate } from 'react-router-dom';
 import ProfileViewButton from '@/components/user/ProfileViewButton';
+import Logout from '@/components/user/Logout';
 
 const menuList = [
   { name: '데이터 소스', link: '/data/source/create' },
@@ -30,14 +31,19 @@ function Header(props) {
   };
 
   return (
-    <AppBar elevation={0} component="nav" sx={{ minWidth: '600px', left: 0, height: '65px' }}>
+    <AppBar elevation={0} component="nav" sx={{ left: 0, height: { xs: '56px', sm: '65px' } }}>
       <Toolbar variant="dense" sx={{ height: headerHeight, justifyContent: 'space-between', columnGap: '30px' }}>
         <Logo />
-        <NavBar navItems={navItems} />
-        <Box sx={{ display: 'flex', gap: '16px' }}>
-          <AddMenuIconButton menuList={menuList} handleSelect={handleMenuSelect} />
-          <ProfileViewButton />
-        </Box>
+        <Hidden smDown>
+          <NavBar navItems={navItems} />
+          <Box sx={{ display: 'flex', gap: '16px' }}>
+            <AddMenuIconButton menuList={menuList} handleSelect={handleMenuSelect} />
+            <ProfileViewButton />
+          </Box>
+        </Hidden>
+        <Hidden smUp>
+          <Logout sx={{ fontSize: '12px', color: '#767676' }} />
+        </Hidden>
       </Toolbar>
       <Divider />
     </AppBar>

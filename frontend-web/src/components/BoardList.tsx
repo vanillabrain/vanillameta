@@ -12,10 +12,14 @@ function BoardList(props) {
     setTotalCount(Math.ceil(postList.length / 10));
   }, [postList]);
 
+  const theme = useTheme();
+  const matches = useMediaQuery(theme.breakpoints.up('sm'));
+  const tableBorder = '1px solid #DADDDD';
+
   const GTSpan = styled('span')({
     marginLeft: postList[0]?.componentType && '50px',
     fontFamily: 'Pretendard',
-    fontSize: '13px',
+    fontSize: matches ? '13px' : '10px',
     fontWeight: '500',
     fontStretch: 'normal',
     fontStyle: 'normal',
@@ -24,10 +28,6 @@ function BoardList(props) {
     textAlign: 'left',
     color: '#767676',
   });
-
-  const theme = useTheme();
-  const matches = useMediaQuery(theme.breakpoints.up('sm'));
-  const tableBorder = '1px solid #DADDDD';
 
   const handlePageChange = (e, p) => {
     setPage(p);
@@ -49,10 +49,10 @@ function BoardList(props) {
       <Stack
         flexDirection="row"
         justifyContent="space-between"
-        sx={{ paddingLeft: '20px', paddingRight: '206px', marginBottom: '11px', marginTop: '36px' }}
+        sx={{ paddingLeft: '20px', paddingRight: '206px', marginBottom: '11px', marginTop: { xs: '21px', sm: '36px' } }}
       >
         <GTSpan>이름</GTSpan>
-        {matches && <GTSpan>수정일</GTSpan>}
+        <GTSpan>수정일</GTSpan>
       </Stack>
       <List sx={{ m: 'auto', border: tableBorder, borderRadius: 2, backgroundColor: '#fff' }} disablePadding>
         {generateBoardItem()}

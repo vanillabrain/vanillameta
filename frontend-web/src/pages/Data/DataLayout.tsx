@@ -125,13 +125,13 @@ const DataLayout = props => {
   };
 
   return (
-    <Stack direction="row" flex="1 1 auto" sx={{ width: '100%' }}>
+    <Stack direction={{ xs: 'column', sm: 'row' }} flex="1 1 auto" sx={{ width: '100%' }}>
       <Stack
         direction="column"
         flex="1 1 auto"
-        sx={{ width: { xs: '270px', md: '404px' }, height: '100%', px: '24px', pt: '30px' }}
+        sx={{ width: { xs: '100%', md: '404px' }, height: '100%', px: '24px', pt: '30px' }}
       >
-        <Stack direction="row" flex="1 1 auto" sx={{ mb: '12px' }}>
+        <Stack direction="row" sx={{ mb: '12px' }}>
           <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold', fontSize: '16px', color: '#141414' }}>
             데이터 소스
           </Typography>
@@ -151,7 +151,7 @@ const DataLayout = props => {
         direction="column"
         sx={{
           flex: '1 1 auto',
-          width: { xs: 'calc(100% - 270px)', md: 'calc(100% - 404px)' },
+          width: { xs: '100%', md: 'calc(100% - 404px)' },
           backgroundColor: '#f5f6f8',
         }}
       >
@@ -166,17 +166,13 @@ const DataLayout = props => {
               <AddButton component={RouterLink} to={`set/create/${selectedDatabase.databaseId}`} sx={{ ml: '14px' }} />
             )}
           </Stack>
-          {datasetList.length > 0 ? (
-            <DatasetCardList
-              data={datasetList}
-              selectedDataset={selectedDataset}
-              onSelectDataset={handleSelectDataset}
-              onDeleteDataset={handleDeleteDataset}
-              disabledIcons={!!isViewMode}
-            />
-          ) : (
-            <Box sx={{ height: '100px' }} />
-          )}
+          <DatasetCardList
+            data={datasetList}
+            selectedDataset={selectedDataset}
+            onSelectDataset={handleSelectDataset}
+            onDeleteDataset={handleDeleteDataset}
+            disabledIcons={!!isViewMode}
+          />
         </Stack>
         <Stack direction="column" sx={{ flex: '1 1 auto', width: '100%', minHeight: '50%', px: '24px', pt: '30px' }}>
           <Stack direction="row" sx={{ mb: '12px' }}>
@@ -185,6 +181,7 @@ const DataLayout = props => {
             </Typography>
           </Stack>
           <DatasetCardList
+            sx={{ flex: '1 1 auto' }}
             data={tableList}
             selectedDataset={selectedDataset}
             onSelectDataset={handleSelectDataset}

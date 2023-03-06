@@ -34,7 +34,8 @@ const Layout = props => {
           flex: '1 1 auto',
           width: '100%',
           minWidth: 'min-content',
-          paddingTop: headerHeight + 'px',
+          // paddingTop: headerHeight + 'px',
+          pt: { xs: '56px', sm: '65px' },
           minHeight: `calc(100% - ${footerHeight}px)`,
         }}
       >

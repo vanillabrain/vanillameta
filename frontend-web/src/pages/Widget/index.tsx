@@ -7,7 +7,7 @@ import BoardList from '@/components/BoardList';
 import WidgetService from '@/api/widgetService';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import AddIcon from '@mui/icons-material/Add';
-import { Box, Button, Stack } from '@mui/material';
+import { Box, Button, Stack, useMediaQuery, useTheme } from '@mui/material';
 import { styled } from '@mui/system';
 import { STATUS } from '@/constant';
 import { SnackbarContext } from '@/contexts/AlertContext';
@@ -23,10 +23,12 @@ const Widget = () => {
 
   const [widgetList, setWidgetList] = useState([]);
   const [noData, setNoData] = useState(false);
+  const theme = useTheme();
+  const matches = useMediaQuery(theme.breakpoints.up('sm'));
 
   const GTSpan = styled('span')({
     fontFamily: 'Pretendard',
-    fontSize: '13px',
+    fontSize: matches ? '13px' : '10px',
     fontWeight: '500',
     fontStretch: 'normal',
     fontStyle: 'normal',
@@ -93,18 +95,18 @@ const Widget = () => {
         <Stack
           flexDirection="row"
           justifyContent="space-between"
-          sx={{ paddingLeft: '20px', paddingRight: '217px', marginBottom: '11px', marginTop: '36px' }}
+          sx={{ paddingLeft: '20px', paddingRight: { xs: '20px', sm: '217px' }, marginBottom: '11px', marginTop: '36px' }}
         >
           <GTSpan>이름</GTSpan>
           <GTSpan>수정일</GTSpan>
         </Stack>
         <Box
           sx={{
-            height: '57px',
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
             flexGrow: '0',
+            py: '18px',
             margin: '0 0 0 0',
             borderRadius: '6px',
             border: 'solid 1px #ddd',
@@ -113,20 +115,21 @@ const Widget = () => {
         >
           <span
             style={{
-              height: '16px',
               flexGrow: 0,
               fontFamily: 'Pretendard',
-              fontSize: '16px',
+              fontSize: matches ? '16px' : '14px',
               fontWeight: 600,
               fontStretch: 'normal',
               fontStyle: 'normal',
-              lineHeight: 1,
+              lineHeight: 1.43,
               letterSpacing: 'normal',
               textAlign: 'center',
               color: '#333333',
             }}
           >
-            위젯이 존재하지 않습니다. 위젯을 생성해보세요.
+            생성한 위젯이 없습니다.
+            {matches ? ' ' : <br />}
+            위젯을 생성 후 확인해 보세요.
           </span>
         </Box>
       </>

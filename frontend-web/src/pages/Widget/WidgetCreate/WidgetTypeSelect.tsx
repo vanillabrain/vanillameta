@@ -8,6 +8,7 @@ function WidgetTypeSelect(props) {
   return (
     <Box
       sx={{
+        flex: '1 1 auto',
         height: '100%',
         px: '25px',
         pt: '22px',

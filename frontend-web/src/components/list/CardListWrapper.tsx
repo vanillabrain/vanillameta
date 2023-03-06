@@ -1,19 +1,19 @@
 import { Card, Grid } from '@mui/material';
 import React from 'react';
 
-const CardListWrapper = ({ children, minWidth }) => {
+const CardListWrapper = ({ children, minWidth, sx }) => {
   return (
     <Grid
       container
       spacing={2}
       component="ul"
       sx={{
-        flex: '1 1 auto',
-        // minHeight: '50%',
+        minHeight: '20px',
         listStyle: 'none',
         pl: 0,
         display: 'grid',
-        gridTemplateColumns: `repeat(${minWidth || 'auto-fit, minmax(0, 228px)'})`,
+        gridTemplateColumns: { xs: `repeat(100%)`, sm: `repeat(${minWidth || 'auto-fit, minmax(0, 228px)'})` },
+        ...sx,
       }}
     >
       {children}
@@ -22,6 +22,7 @@ const CardListWrapper = ({ children, minWidth }) => {
 };
 
 CardListWrapper.defaultProps = {
+  sx: {},
   children: '',
   minWidth: false,
 };

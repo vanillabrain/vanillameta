@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Stack, Typography } from '@mui/material';
+import { Box, Hidden, Stack, Typography } from '@mui/material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 
 function PageTitleBox(props) {
@@ -31,8 +31,8 @@ function PageTitleBox(props) {
           justifyContent="space-between"
           sx={{
             width: '100%',
-            minWidth: '400px',
-            height: 56,
+            // minWidth: '400px',
+            height: { xs: 40, sm: 56 },
             paddingLeft: '24px',
             paddingRight: '24px',
             borderBottom: '1px solid #e3e7ea',
@@ -50,7 +50,7 @@ function PageTitleBox(props) {
                     height: '19px',
                     flexGrow: 0,
                     fontFamily: 'Pretendard',
-                    fontSize: '16px',
+                    fontSize: { xs: '14px', sm: '16px' },
                     fontWeight: '500',
                     fontStretch: 'normal',
                     fontStyle: 'normal',
@@ -68,7 +68,7 @@ function PageTitleBox(props) {
                     height: '19px',
                     flexGrow: 0,
                     fontFamily: 'Pretendard',
-                    fontSize: '16px',
+                    fontSize: 'inherit',
                     fontWeight: '500',
                     fontStretch: 'normal',
                     fontStyle: 'normal',
@@ -95,7 +95,7 @@ function PageTitleBox(props) {
                 padding: 0,
                 cursor: 'pointer',
                 fontFamily: 'Pretendard',
-                fontSize: '16px',
+                fontSize: { xs: '14px', sm: '16px' },
                 fontWeight: '600',
                 fontStretch: 'normal',
                 fontStyle: 'normal',
@@ -110,7 +110,7 @@ function PageTitleBox(props) {
               {title}
             </Typography>
           </Stack>
-          {button}
+          <Hidden smDown>{button}</Hidden>
         </Stack>
       </Stack>
       <Stack

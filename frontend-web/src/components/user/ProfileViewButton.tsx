@@ -76,7 +76,24 @@ const ProfileViewButton = () => {
                     color: '#4a4a4a',
                   }}
                 >
-                  <Logout />
+                  <Logout
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      gap: '12px',
+                      textDecoration: 'underline',
+                      '&:hover': {
+                        textDecoration: 'underline',
+                      },
+                      '&:after': {
+                        content: `""`,
+                        width: '1px',
+                        height: '10px',
+                        backgroundColor: '#cccfd8',
+                      },
+                    }}
+                  />
                   <ProfileModify />
                 </Typography>
               </Stack>
