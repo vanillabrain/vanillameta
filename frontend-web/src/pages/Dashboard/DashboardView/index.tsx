@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Box, Card, Stack, Typography, useMediaQuery, useTheme } from '@mui/material';
+import { Box, Card, Hidden, useMediaQuery, useTheme } from '@mui/material';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import PageTitleBox from '@/components/PageTitleBox';
 import WidgetWrapper from '@/widget/wrapper/WidgetWrapper';
@@ -187,109 +187,77 @@ const DashboardView = () => {
       title="대시보드 조회"
       sx={{ width: '100%', marginTop: { xs: 0, sm: '22px' }, flex: '1 1 auto', p: { xs: 0 } }}
     >
-      <Seo title={dashboardInfo.title} />
-      <PageViewBox
-        sx={{ xs: {}, sm: { maxWidth: '1392px', width: '95%' } }}
-        title={
-          <Typography
-            variant="subtitle1"
-            component="span"
+      <>
+        <Seo title={dashboardInfo.title} />
+        <PageViewBox
+          sx={{ xs: {}, sm: { maxWidth: '1392px', width: '95%' } }}
+          title={dashboardInfo.title}
+          date={dateData(dashboardInfo.updatedAt)}
+          button={
+            <>
+              <Hidden smDown>
+                <ReloadButton
+                  size="medium"
+                  sx={{ marginRight: '24px', padding: 0 }}
+                  onClick={event => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    handleRefreshClick();
+                  }}
+                />
+                <ModifyButton
+                  size="medium"
+                  sx={{ marginRight: '24px', padding: 0 }}
+                  component={RouterLink}
+                  to={`/dashboard/modify?id=${dashboardId}&name=${dashboardInfo.title}`}
+                />
+                <DeleteButton
+                  size="medium"
+                  sx={{ marginRight: '24px', padding: 0 }}
+                  onClick={event => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    handleDeleteSelect();
+                  }}
+                />
+              </Hidden>
+              <ShareButton
+                handleShareToggle={handleShareToggle}
+                isShareOn={isShareOn}
+                shareId={dashboardInfo.uuid}
+                shareLimitDate={shareLimitDate}
+                setShareLimitDate={setShareLimitDate}
+              />
+            </>
+          }
+        >
+          <Box
             sx={{
-              fontWeight: 500,
-              paddingLeft: '18px',
-              height: '16px',
-              fontFamily: 'Pretendard',
-              fontSize: { xs: '16px', sm: '18px' },
-              fontStretch: 'normal',
-              fontStyle: 'normal',
-              lineHeight: 0.89,
-              letterSpacing: '-0.18px',
-              textAlign: 'left',
-              color: '#141414',
+              flex: '1 1 auto',
+              width: { sm: '1390px' },
+              minWidth: { sm: '1390px' },
+              minHeight: { sm: '1080px' },
+              backgroundColor: '#f9f9fa',
+              borderRadius: '0px 0px 6px 6px',
             }}
           >
-            {dashboardInfo.title}
-          </Typography>
-        }
-        button={
-          <Stack direction="row" alignItems="center" sx={{ marginRight: '20px' }}>
-            <span
-              style={{
-                marginRight: '36px',
-                height: '16px',
-                fontFamily: 'Pretendard',
-                fontSize: '14px',
-                fontWeight: '500',
-                fontStretch: 'normal',
-                fontStyle: 'normal',
-                lineHeight: '1.14',
-                letterSpacing: 'normal',
-                textAlign: 'left',
-                color: '#333333',
-              }}
-            >
-              {dateData(dashboardInfo.updatedAt)}
-            </span>
-            <ReloadButton
-              size="medium"
-              sx={{ marginRight: '24px', padding: 0 }}
-              onClick={event => {
-                event.preventDefault();
-                event.stopPropagation();
-                handleRefreshClick();
-              }}
-            />
-            <ModifyButton
-              size="medium"
-              sx={{ marginRight: '24px', padding: 0 }}
-              component={RouterLink}
-              to={`/dashboard/modify?id=${dashboardId}&name=${dashboardInfo.title}`}
-            />
-            <DeleteButton
-              size="medium"
-              sx={{ marginRight: '24px', padding: 0 }}
-              onClick={event => {
-                event.preventDefault();
-                event.stopPropagation();
-                handleDeleteSelect();
-              }}
-            />
-            <ShareButton
-              handleSubmit={handleShareToggle}
-              isShareOn={isShareOn}
-              shareId={dashboardInfo.uuid}
-              shareLimitDate={shareLimitDate}
-              setShareLimitDate={setShareLimitDate}
-            />
-          </Stack>
-        }
-      >
-        <Box
-          sx={{
-            flex: '1 1 auto',
-            width: { sm: '1390px' },
-            minWidth: { sm: '1390px' },
-            minHeight: { sm: '1080px' },
-            backgroundColor: '#f9f9fa',
-            borderRadius: '0px 0px 6px 6px',
-          }}
-        >
-          {matches ? (
-            <ResponsiveGridLayout
-              rowHeight={88}
-              compactType={null}
-              cols={{ lg: 12 }}
-              layouts={{ lg: layout }}
-              containerPadding={{ lg: [24, 24] }}
-              margin={{ lg: [24, 24] }}
-            >
-              {generateWidget()}
-            </ResponsiveGridLayout>
-          ) : (
-            <ResponsiveGridLayout layouts={{ lg: layout }}>{generateWidget()}</ResponsiveGridLayout>
-          )}
-        </Box>
-      </PageViewBox>
+            {matches ? (
+              <ResponsiveGridLayout
+                rowHeight={88}
+                compactType={null}
+                cols={{ lg: 12 }}
+                layouts={{ lg: layout }}
+                containerPadding={{ lg: [24, 24] }}
+                margin={{ lg: [24, 24] }}
+              >
+                {generateWidget()}
+              </ResponsiveGridLayout>
+            ) : (
+              <ResponsiveGridLayout layouts={{ lg: layout }}>{generateWidget()}</ResponsiveGridLayout>
+            )}
+          </Box>
+        </PageViewBox>
+      </>
     </PageTitleBox>
   );
 };

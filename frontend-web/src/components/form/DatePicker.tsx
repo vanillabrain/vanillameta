@@ -4,14 +4,22 @@ import 'dayjs/locale/ko';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker as MuiDatePicker } from '@mui/x-date-pickers/DatePicker';
+import { forwardRef } from 'react';
 
-const DatePicker = ({ shareLimitDate, setShareLimitDate }) => {
-  console.log(shareLimitDate);
+interface DatePickerProps {
+  shareLimitDate: string;
+  setShareLimitDate: React.Dispatch<React.SetStateAction<any>>;
+}
+
+const DatePicker = (props: DatePickerProps) => {
+  const { shareLimitDate, setShareLimitDate } = props;
   return (
     <LocalizationProvider adapterLocale="ko" dateAdapter={AdapterDayjs}>
       <MuiDatePicker
+        disablePast
+        closeOnSelect={false}
         value={shareLimitDate}
-        onChange={newValue => {
+        onChange={(newValue: any) => {
           const selectDate = new Date(Date.parse(newValue.$d)).toLocaleDateString('en-US', {
             year: 'numeric',
             month: '2-digit',
@@ -20,7 +28,6 @@ const DatePicker = ({ shareLimitDate, setShareLimitDate }) => {
           setShareLimitDate(selectDate);
         }}
         renderInput={params => {
-          console.log(params, 'ddd');
           return (
             <TextField
               {...params}
@@ -35,7 +42,6 @@ const DatePicker = ({ shareLimitDate, setShareLimitDate }) => {
             />
           );
         }}
-        disablePast
         PopperProps={{
           sx: {
             '& .MuiPickersDay-root': {

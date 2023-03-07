@@ -159,49 +159,7 @@ const Share = () => {
           </Box>
         </PageViewBox>
       ) : (
-        <PageViewBox
-          title={
-            <Typography
-              variant="subtitle1"
-              component="span"
-              sx={{
-                fontWeight: 500,
-                paddingLeft: '18px',
-                height: '16px',
-                fontFamily: 'Pretendard',
-                fontSize: '18px',
-                fontStretch: 'normal',
-                fontStyle: 'normal',
-                lineHeight: 0.89,
-                letterSpacing: '-0.18px',
-                textAlign: 'left',
-                color: '#141414',
-              }}
-            >
-              {dashboardInfo.title}
-            </Typography>
-          }
-          button={
-            <Stack direction="row" alignItems="center" sx={{ marginRight: '24px' }}>
-              <span
-                style={{
-                  height: '16px',
-                  fontFamily: 'Pretendard',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  fontStretch: 'normal',
-                  fontStyle: 'normal',
-                  lineHeight: '1.14',
-                  letterSpacing: 'normal',
-                  textAlign: 'left',
-                  color: '#333333',
-                }}
-              >
-                {`편집일 : ${dateData(dashboardInfo.updatedAt)}`}
-              </span>
-            </Stack>
-          }
-        >
+        <PageViewBox title={dashboardInfo.title} button={`수정일 : ${dateData(dashboardInfo.updatedAt)}`}>
           <Seo title={dashboardInfo.title} />
           <Box
             sx={{

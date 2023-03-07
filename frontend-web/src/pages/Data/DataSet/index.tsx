@@ -305,9 +305,9 @@ const DataSet = () => {
       >
         <Select
           id="databaseId"
-          sx={{ width: '500px' }}
+          sx={{ maxWidth: '500px' }}
           displayEmpty
-          disabled={isModifyMode}
+          disabled={isModifyMode || !databaseList.length}
           size="small"
           value={databaseId ?? ''}
           // renderValue={selected => {
@@ -320,11 +320,15 @@ const DataSet = () => {
           // }}
           onChange={onChangeDatabaseId}
         >
-          {databaseList.map(item => (
-            <MenuItem key={item.id} value={item.id ?? ''}>
-              {item.name}
-            </MenuItem>
-          ))}
+          {databaseList.length ? (
+            databaseList.map(item => (
+              <MenuItem key={item.id} value={item.id ?? ''}>
+                {item.name}
+              </MenuItem>
+            ))
+          ) : (
+            <MenuItem value="">불러올 데이터 소스가 없습니다.</MenuItem>
+          )}
         </Select>
 
         <TextField

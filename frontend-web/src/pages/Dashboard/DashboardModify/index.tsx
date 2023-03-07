@@ -351,7 +351,7 @@ function DashboardModify() {
         upperTitle="대시보드"
         upperTitleLink="/dashboard"
         title={topTitle}
-        sx={{ width: '100%', marginTop: '22px' }}
+        sx={{ width: '100%', marginTop: { xs: 0, sm: '22px' }, flex: '1 1 auto', p: { xs: 0 } }}
         button={
           <Stack direction="row" spacing={3} sx={{ marginRight: '20px' }}>
             <ConfirmCancelButton
@@ -362,15 +362,15 @@ function DashboardModify() {
         }
       >
         <PageViewBox
-          title={
+          titleElement={
             <TextField
               id="userDashboardName"
               label="대시보드 이름"
               required
               sx={{
-                width: '960px',
+                width: { xs: '100%', sm: '960px' },
                 height: '32px',
-                marginLeft: '16px',
+                marginLeft: { sm: '16px' },
                 marginTop: 0,
                 borderRadius: '4px',
                 backgroundColor: '#fff',
@@ -425,7 +425,6 @@ function DashboardModify() {
                   flexDirection: 'row',
                   justifyContent: 'center',
                   alignItems: 'center',
-                  marginRight: '20px',
                   padding: '7px 0',
                   objectFit: 'contain',
                   border: 'solid 1px #0f5ab2',

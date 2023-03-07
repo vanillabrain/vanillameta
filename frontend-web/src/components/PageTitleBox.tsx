@@ -1,18 +1,19 @@
-import React, { ReactElement } from 'react';
+import React from 'react';
 import { Hidden, Stack, SxProps, Typography } from '@mui/material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 
-type PageTitleBox = {
+interface PageTitleBoxProps {
   title: string;
   upperTitle?: string;
   upperTitleLink?: string;
   sx?: SxProps;
-  button: ReactElement;
+  button?: React.ReactNode;
   fixed?: boolean;
-};
+  children: React.ReactNode;
+}
 
-function PageTitleBox(props) {
-  const { title, upperTitle, upperTitleLink, button, sx, fixed } = props;
+function PageTitleBox(props: PageTitleBoxProps) {
+  const { title, upperTitle, upperTitleLink, button, sx, fixed, children } = props;
   const navigate = useNavigate();
 
   const defaultBoxSx = {
@@ -127,16 +128,11 @@ function PageTitleBox(props) {
         sx={{ justifyContent: 'flex-start', flex: '1 1 auto', width: '100%', height: 'calc(100% - 56px)' }}
       >
         <Stack direction="column" sx={defaultBoxSx}>
-          {props.children}
+          {children}
         </Stack>
       </Stack>
     </Stack>
   );
 }
-
-PageTitleBox.defaultProps = {
-  title: '',
-  upperTitle: '',
-};
 
 export default PageTitleBox;

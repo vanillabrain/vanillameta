@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Avatar, Card, Stack, Typography } from '@mui/material';
+import { Card, Hidden } from '@mui/material';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import PageTitleBox from '@/components/PageTitleBox';
 import WidgetService from '@/api/widgetService';
@@ -102,55 +102,12 @@ const WidgetView = () => {
     >
       <Seo title={widgetOption.title} />
       <PageViewBox
-        sx={{ xs: {}, sm: { maxWidth: '1392px', width: '95%' } }}
-        title={
-          <Stack
-            direction="row"
-            alignItems="center"
-            sx={{
-              pl: '20px',
-            }}
-          >
-            <Avatar
-              src={`/static/images/${widgetOption.icon}`}
-              sx={{ width: '30px', height: '30px', borderRadius: 0, objectFit: 'contain', backgroundColor: 'transparent' }}
-            />
-            <Typography
-              variant="subtitle1"
-              component="span"
-              sx={{
-                fontWeight: 500,
-                paddingLeft: '14px',
-                height: '16px',
-                fontSize: { xs: '16px', sm: '18px' },
-                fontStretch: 'normal',
-                fontStyle: 'normal',
-                lineHeight: 0.89,
-                letterSpacing: '-0.18px',
-                textAlign: 'left',
-                color: '#141414',
-              }}
-            >
-              {widgetOption.componentTitle}
-            </Typography>
-          </Stack>
-        }
+        sx={{ sm: { maxWidth: '1392px', width: '95%' } }}
+        iconName={widgetOption.icon}
+        title={widgetOption.componentTitle}
+        date={dateData(widgetOption.updatedAt)}
         button={
-          <Stack direction="row" alignItems="center" sx={{ marginRight: '20px' }}>
-            <span
-              style={{
-                marginRight: '56px',
-                height: '16px',
-                fontSize: '14px',
-                fontWeight: '500',
-                lineHeight: '1.14',
-                letterSpacing: 'normal',
-                textAlign: 'left',
-                color: '#333',
-              }}
-            >
-              {dateData(widgetOption.updatedAt)}
-            </span>
+          <Hidden smDown>
             <ReloadButton
               size="medium"
               sx={{ marginRight: '36px', padding: 0 }}
@@ -178,7 +135,7 @@ const WidgetView = () => {
                 removeWidget();
               }}
             />
-          </Stack>
+          </Hidden>
         }
       >
         <Card
