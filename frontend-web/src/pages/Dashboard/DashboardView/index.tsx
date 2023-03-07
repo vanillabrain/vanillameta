@@ -241,20 +241,17 @@ const DashboardView = () => {
               borderRadius: '0px 0px 6px 6px',
             }}
           >
-            {matches ? (
-              <ResponsiveGridLayout
-                rowHeight={88}
-                compactType={null}
-                cols={{ lg: 12 }}
-                layouts={{ lg: layout }}
-                containerPadding={{ lg: [24, 24] }}
-                margin={{ lg: [24, 24] }}
-              >
-                {generateWidget()}
-              </ResponsiveGridLayout>
-            ) : (
-              <ResponsiveGridLayout layouts={{ lg: layout }}>{generateWidget()}</ResponsiveGridLayout>
-            )}
+            <ResponsiveGridLayout
+              rowHeight={88}
+              compactType={null}
+              breakpoints={{ lg: 1000, xs: 0 }}
+              cols={{ xs: 2, lg: 12 }}
+              layouts={{ xs: layout, lg: layout }}
+              containerPadding={{ xs: [20, 20], lg: [24, 24] }}
+              margin={{ xs: [20, 20], lg: [24, 24] }}
+            >
+              {generateWidget()}
+            </ResponsiveGridLayout>
           </Box>
         </PageViewBox>
       </>

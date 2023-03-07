@@ -4,7 +4,6 @@ import 'dayjs/locale/ko';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker as MuiDatePicker } from '@mui/x-date-pickers/DatePicker';
-import { forwardRef } from 'react';
 
 interface DatePickerProps {
   shareLimitDate: string;
@@ -17,7 +16,7 @@ const DatePicker = (props: DatePickerProps) => {
     <LocalizationProvider adapterLocale="ko" dateAdapter={AdapterDayjs}>
       <MuiDatePicker
         disablePast
-        closeOnSelect={false}
+        closeOnSelect={false} // TODO: 캘린더 선택하면 창 꺼지지 않게 fix
         value={shareLimitDate}
         onChange={(newValue: any) => {
           const selectDate = new Date(Date.parse(newValue.$d)).toLocaleDateString('en-US', {

@@ -38,39 +38,55 @@ const MobileViewBox = props => {
         sx={{
           width: '100%',
           minHeight: '66px',
-          px: '18px',
+          px: '20px',
           backgroundColor: '#ffffff',
         }}
       >
-        <Stack direction="column" gap="4px" sx={{ mt: '18px', mb: '10px' }}>
-          {titleElement ? (
-            titleElement
-          ) : (
-            <Typography
+        <Stack direction="row" alignItems="center">
+          {iconName && (
+            <Avatar
+              src={`/static/images/${iconName}`}
               sx={{
-                display: '-webkit-box',
-                WebkitLineClamp: '3',
-                WebkitBoxOrient: 'vertical',
-                maxHeight: '60px',
-                pr: '12px',
-                fontSize: '16px',
-                fontWeight: 600,
-                lineHeight: 1.3,
-                color: '#333',
-                textOverflow: 'ellipsis',
-                overflow: 'hidden',
-                wordWrap: 'break-word',
+                width: '30px',
+                height: '30px',
+                marginRight: '12px',
+                borderRadius: 0,
+                objectFit: 'contain',
+                backgroundColor: 'transparent',
               }}
-            >
-              {title}
-            </Typography>
+            />
           )}
-          {date && (
-            <Typography sx={{ fontSize: '10px', fontWeight: 500, lineHeight: 1.6, color: '#333' }}>
-              수정일: {date}
-            </Typography>
-          )}
+          <Stack direction="column" gap="4px" sx={{ mt: '18px', mb: '10px' }}>
+            {titleElement ? (
+              titleElement
+            ) : (
+              <Typography
+                sx={{
+                  display: '-webkit-box',
+                  WebkitLineClamp: '3',
+                  WebkitBoxOrient: 'vertical',
+                  maxHeight: '60px',
+                  pr: '12px',
+                  fontSize: '16px',
+                  fontWeight: 600,
+                  lineHeight: 1.3,
+                  color: '#333',
+                  textOverflow: 'ellipsis',
+                  overflow: 'hidden',
+                  wordWrap: 'break-word',
+                }}
+              >
+                {title}
+              </Typography>
+            )}
+            {date && (
+              <Typography sx={{ fontSize: '10px', fontWeight: 500, lineHeight: 1.6, color: '#333' }}>
+                수정일: {date}
+              </Typography>
+            )}
+          </Stack>{' '}
         </Stack>
+
         {button}
       </Stack>
       <Box

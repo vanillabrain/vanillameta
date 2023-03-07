@@ -41,7 +41,6 @@ function PageTitleBox(props: PageTitleBoxProps) {
           justifyContent="space-between"
           sx={{
             width: '100%',
-            // minWidth: '400px',
             height: { xs: 40, sm: 56 },
             paddingLeft: '24px',
             paddingRight: '24px',
@@ -50,7 +49,7 @@ function PageTitleBox(props: PageTitleBoxProps) {
             ...fixedSx,
           }}
         >
-          <Stack direction="row" gap="10px" alignItems="center">
+          <Stack direction="row" gap={{ xs: '6px', sm: '10px' }} alignItems="center">
             {upperTitle && (
               <>
                 <Typography
