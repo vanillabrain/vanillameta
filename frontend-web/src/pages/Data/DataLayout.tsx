@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Box, Stack, Typography } from '@mui/material';
+import { Box, Modal, Paper, IconButton, Stack, Typography } from '@mui/material';
 import DatabaseService from '@/api/databaseService';
 import { STATUS } from '@/constant';
 import { useAlert } from 'react-alert';
@@ -10,25 +10,36 @@ import AddButton from '@/components/button/AddButton';
 import { Link as RouterLink } from 'react-router-dom';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { SnackbarContext } from '@/contexts/AlertContext';
+import { ReactComponent as CloseIcon } from '@/assets/images/icon/ic-xmark.svg';
+
+export interface DataSetProps {
+  id: number;
+  databaseId: number;
+  datasetType: 'TABLE' | 'DATASET';
+  title: string;
+  query: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DataTableProps {
+  id: number;
+  tableName: string;
+  databaseId: number;
+  datasetType: 'TABLE' | 'DATASET';
+}
 
 const DataLayout = props => {
   const { isViewMode, setDataSet } = props;
   const [databaseList, setDatabaseList] = useState([]);
-  const [datasetList, setDatasetList] = useState([]);
-  const [tableList, setTableList] = useState([]);
+  const [datasetList, setDatasetList] = useState<DataSetProps[]>([]);
+  const [tableList, setTableList] = useState<DataTableProps[]>([]);
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
-
-  const [selectedDatabase, setSelectedDatabase] = useState({
-    databaseId: null,
-  });
-
-  const [selectedDataset, setSelectedDataset] = useState(null);
-
-  const handleSelectDatabase = enteredData => {
-    return setSelectedDatabase(prevState => ({ ...prevState, ...enteredData }));
-  };
+  const [selectedDatabase, setSelectedDatabase] = useState({ databaseId: null });
+  const [selectedDataset, setSelectedDataset] = useState<DataSetProps | DataTableProps | null>(null);
+  const [open, setOpen] = React.useState(false);
 
   useEffect(() => {
     getDatabaseList();
@@ -78,8 +89,12 @@ const DataLayout = props => {
       });
   };
 
-  const removeDatabase = (id, name) => {
-    console.log('removeDatabase', id);
+  const handleSelectDatabase = enteredData => {
+    return setSelectedDatabase(prevState => ({ ...prevState, ...enteredData }));
+  };
+
+  const handleDatabaseRemove = (id, name) => {
+    console.log('handleDatabaseRemove', id);
     alert.success(`${name}\n데이터베이스를 삭제하시겠습니까?`, {
       title: '데이터베이스 삭제',
       closeCopy: '취소',
@@ -99,14 +114,20 @@ const DataLayout = props => {
     });
   };
 
-  const handleSelectDataset = item => {
-    console.log('handleSelectDataset', item);
-    if (setDataSet) setDataSet(item);
-    setSelectedDataset(item);
+  const handleDataSetClick = (item: DataTableProps | DataSetProps) => {
+    setOpen(true);
+    if (setDataSet) {
+      setDataSet(item);
+      setSelectedDataset(item);
+    }
   };
 
-  const handleDeleteDataset = item => {
-    console.log('handleDeleteDataset', item);
+  const handleClose = () => {
+    setOpen(false);
+  };
+
+  const handleDataSetRemove = item => {
+    console.log('handleDataSetRemove', item);
     alert.success(`${item.title}\n데이터셋을 삭제하시겠습니까?`, {
       title: '데이터베이스 삭제',
       closeCopy: '취소',
@@ -142,7 +163,7 @@ const DataLayout = props => {
           selectedDatabase={selectedDatabase}
           disabledIcons={!!isViewMode}
           onUpdate={handleSelectDatabase}
-          onRemove={removeDatabase}
+          onRemove={handleDatabaseRemove}
           minWidth="100%"
         />
       </Stack>
@@ -169,9 +190,8 @@ const DataLayout = props => {
           <DatasetCardList
             data={datasetList}
             selectedDataset={selectedDataset}
-            onSelectDataset={handleSelectDataset}
-            onDeleteDataset={handleDeleteDataset}
-            disabledIcons={!!isViewMode}
+            handleDataSetClick={handleDataSetClick}
+            handleDataSetRemove={handleDataSetRemove}
           />
         </Stack>
         <Stack direction="column" sx={{ flex: '1 1 auto', width: '100%', minHeight: '50%', px: '24px', pt: '30px' }}>
@@ -184,18 +204,61 @@ const DataLayout = props => {
             sx={{ flex: '1 1 auto' }}
             data={tableList}
             selectedDataset={selectedDataset}
-            onSelectDataset={handleSelectDataset}
-            disabledIcons={true}
+            handleDataSetClick={handleDataSetClick}
           />
+          <Modal
+            open={open}
+            onClose={handleClose}
+            sx={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+            BackdropProps={{
+              sx: {
+                boxShadow: '0 4px 4px 0 rgba(0, 0, 0, 0.25)',
+                backgroundColor: 'rgba(122, 130, 144, 0.45)',
+              },
+            }}
+          >
+            <Paper
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                width: '90%',
+                height: '80%',
+                minHeight: '500px',
+                borderRadius: '8px',
+                boxShadow: '5px 5px 8px 0 rgba(0, 28, 71, 0.15)',
+                border: 'solid 1px #ddd',
+                p: '10px',
+                pt: 0,
+                backgroundColor: '#fff',
+              }}
+            >
+              <Stack direction="row" justifyContent="space-between" alignItems="center" m="20px">
+                <Typography sx={{ fontSize: '20px', fontWeight: 600, color: '#141414' }}>제목</Typography>
+                <IconButton>
+                  <CloseIcon width="16" height="16" />
+                </IconButton>
+              </Stack>
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  flex: 1,
+                  backgroundColor: '#e2e2e2',
+                }}
+              >
+                내용
+              </Box>
+            </Paper>
+          </Modal>
         </Stack>
       </Stack>
     </Stack>
   );
-};
-
-DataLayout.defaultProps = {
-  data: {},
-  naviUrl: {},
 };
 
 export default DataLayout;
