@@ -225,7 +225,9 @@ function ShareButton(props: ShareButtonProps) {
     setAnchorEl(event.currentTarget);
   };
 
-  const handleClose = () => {
+  const handleClose = event => {
+    event.preventDefault();
+    event.stopPropagation();
     setAnchorEl(null);
   };
 

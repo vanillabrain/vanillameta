@@ -3,7 +3,10 @@ import TextField from '@mui/material/TextField';
 import 'dayjs/locale/ko';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { DatePicker as MuiDatePicker } from '@mui/x-date-pickers/DatePicker';
+
+// TODO: MobileDatePicker 활성화시 ClickAwayListener 간섭 버그 해결
+// import { DatePicker as MuiDatePicker } from '@mui/x-date-pickers/DatePicker';
+import { DesktopDatePicker as MuiDatePicker } from '@mui/x-date-pickers/DesktopDatePicker';
 
 interface DatePickerProps {
   shareLimitDate: string;
@@ -16,7 +19,7 @@ const DatePicker = (props: DatePickerProps) => {
     <LocalizationProvider adapterLocale="ko" dateAdapter={AdapterDayjs}>
       <MuiDatePicker
         disablePast
-        closeOnSelect={false} // TODO: 캘린더 선택하면 창 꺼지지 않게 fix
+        closeOnSelect={false}
         value={shareLimitDate}
         onChange={(newValue: any) => {
           const selectDate = new Date(Date.parse(newValue.$d)).toLocaleDateString('en-US', {
@@ -42,6 +45,7 @@ const DatePicker = (props: DatePickerProps) => {
           );
         }}
         PopperProps={{
+          disablePortal: true,
           sx: {
             '& .MuiPickersDay-root': {
               fontFamily: 'Pretendard',
