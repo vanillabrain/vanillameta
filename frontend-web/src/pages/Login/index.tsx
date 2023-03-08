@@ -119,14 +119,21 @@ const Login = () => {
           <RouterLink to="/">
             <Logo width="223px" height="43px" />
           </RouterLink>
-          <Typography sx={{ mt: '17px', fontSize: '16px', color: '#043f84' }}>
+          <Typography sx={{ mt: '17px', fontSize: '16px', color: '#043f84', textAlign: 'center' }}>
             통합 데이터분석을 위한{' '}
             <Typography component="span" sx={{ fontSize: '16px', fontWeight: 'bold' }}>
               대시보드 리포팅 솔루션
             </Typography>
           </Typography>
-          <Stack component="form" onSubmit={handleLogin} noValidate sx={{ width: '360px', mt: '56px' }} spacing="20px">
+          <Stack
+            component="form"
+            onSubmit={handleLogin}
+            noValidate
+            sx={{ width: { xs: 'calc(100% - 40px)', sm: '360px' }, mt: '56px' }}
+            spacing="20px"
+          >
             <TextField
+              autoFocus={true}
               label="User ID"
               name="userId"
               value={userInfo.userId}
@@ -134,6 +141,11 @@ const Login = () => {
               margin="normal"
               required={true}
               fullWidth
+              sx={{ height: { xs: '44px', sm: 'auto' } }}
+              InputLabelProps={{ sx: { pt: { xs: '6px', sm: 0 } } }}
+              InputProps={{
+                sx: { height: { xs: '44px', sm: 'auto' }, input: { padding: '12px 14px' } },
+              }}
             />
             <TextField
               label="Password"
@@ -144,9 +156,19 @@ const Login = () => {
               margin="normal"
               required={true}
               fullWidth
-              sx={{ height: '36px' }}
+              sx={{ height: { xs: '44px', sm: 'auto' } }}
+              InputLabelProps={{ sx: { pt: { xs: '6px', sm: 0 } } }}
+              InputProps={{
+                sx: { height: { xs: '44px', sm: 'auto' }, input: { padding: '12px 14px' } },
+              }}
             />
-            <Button type="submit" size="large" fullWidth variant="contained" sx={{ mt: 3, mb: 2 }}>
+            <Button
+              type="submit"
+              size="large"
+              fullWidth
+              variant="contained"
+              sx={{ height: { xs: '50px', sm: '44px' }, mt: 3, mb: 2 }}
+            >
               Login
             </Button>
           </Stack>
