@@ -141,10 +141,10 @@ const Login = () => {
               margin="normal"
               required={true}
               fullWidth
-              sx={{ height: { xs: '44px', sm: 'auto' } }}
+              sx={{ height: { xs: '44px', sm: '36px' } }}
               InputLabelProps={{ sx: { pt: { xs: '6px', sm: 0 } } }}
               InputProps={{
-                sx: { height: { xs: '44px', sm: 'auto' }, input: { padding: '12px 14px' } },
+                sx: { height: { xs: '44px', sm: '36px' }, input: { padding: '12px 14px' } },
               }}
             />
             <TextField
@@ -156,10 +156,10 @@ const Login = () => {
               margin="normal"
               required={true}
               fullWidth
-              sx={{ height: { xs: '44px', sm: 'auto' } }}
+              sx={{ height: { xs: '44px', sm: '36px' } }}
               InputLabelProps={{ sx: { pt: { xs: '6px', sm: 0 } } }}
               InputProps={{
-                sx: { height: { xs: '44px', sm: 'auto' }, input: { padding: '12px 14px' } },
+                sx: { height: { xs: '44px', sm: '36px' }, input: { padding: '12px 14px' } },
               }}
             />
             <Button
