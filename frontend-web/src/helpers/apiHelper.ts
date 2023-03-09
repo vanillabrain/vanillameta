@@ -13,12 +13,42 @@ const instance = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+let pendingRequests = {};
 let isLoginUser = true;
-let isAlreadyFetchingAccessToken = false;
-let subscribers: ((token: string) => void)[] = [];
+// console.log('pendingRequests', pendingRequests);
 
-// request interceptor
-instance.interceptors.request.use(async config => {
+// 요청에 대한 unique key 생성
+const generateReqKey = config => {
+  const { method, url, params, data } = config;
+  return [method, url, JSON.stringify(params), JSON.stringify(data)].join('&');
+};
+
+// 진행중인 요청 저장
+const addPendingRequest = config => {
+  const requestKey = generateReqKey(config);
+  config.cancelToken =
+    config.cancelToken ||
+    new axios.CancelToken(cancel => {
+      if (!pendingRequests[requestKey]) {
+        pendingRequests[requestKey] = [];
+      }
+      pendingRequests[requestKey].push(cancel);
+    });
+};
+
+// 저장된 요청 취소
+const removePendingRequest = config => {
+  const requestKey = generateReqKey(config);
+  if (pendingRequests[requestKey]) {
+    pendingRequests[requestKey].forEach(cancel => {
+      cancel('Request canceled due to new request.');
+    });
+    delete pendingRequests[requestKey];
+  }
+};
+
+// 토큰 정보 요청 header에 삽입
+const addAuthToHeaders = config => {
   const token = getToken();
   const shareToken = getShareToken();
 
@@ -30,40 +60,56 @@ instance.interceptors.request.use(async config => {
     config.headers['Authorization-url'] = `Bearer ${shareToken}`;
   }
   return config;
+};
+
+// 요청 인터셉터
+instance.interceptors.request.use(async config => {
+  const newConfig = addAuthToHeaders(config);
+  // removePendingRequest(newConfig); // 같은 요청이 갔을 경우 기존 요청 취소
+  // addPendingRequest(newConfig);
+  return newConfig;
 });
 
-// response interceptor
+// 중단 이벤트 발생 시 모든 요청 중단
+export function cancelAllRequests() {
+  Object.keys(pendingRequests).forEach(key => {
+    pendingRequests[key].forEach(cancel => {
+      cancel('All requests canceled');
+    });
+  });
+  pendingRequests = {};
+}
+
+let isAlreadyFetchingAccessToken = false;
+const subscribers: ((token: string) => void)[] = [];
+
+// 응답 인터셉터
 instance.interceptors.response.use(
   response => {
+    // removePendingRequest(response.config); // 완료된 요청 삭제
     return response;
   },
   async error => {
-    const {
-      response: { status },
-    } = error;
-    if (status === 401) {
-      if (error.response.data.data === 'accessTokenExpired' && isLoginUser) {
-        // 로그인 사용자의 token 만료 후 첫 요청
-        return await resetTokenAndReattemptRequest(error);
-      }
+    const { response: errorResponse } = error;
+    if (errorResponse?.status === 401 && errorResponse?.data?.message === 'accessTokenExpired' && isLoginUser) {
+      // 로그인 사용자의 token 만료 후 첫 요청
+      await resetTokenAndReattemptRequest(errorResponse);
     }
     error.message =
-      (error.response && error.response.data && error.response.data.message) || error.message || error.toString();
+      (errorResponse && errorResponse?.data && errorResponse?.data?.message) || error?.message || error.toString();
     return Promise.reject(error);
   },
 );
 
-async function resetTokenAndReattemptRequest(error) {
+async function resetTokenAndReattemptRequest(errorResponse) {
+  // subscribers에 access token을 받은 이후 재요청할 함수 추가 (401로 실패했던)
+  // retryOriginalRequest는 pending 상태로 있다가
+  // access token을 받은 이후 onAccessTokenFetched가 호출될 때
+  // access token을 넘겨 다시 axios로 요청하고
+  // 결과값을 처음 요청했던 promise의 resolve로 settle시킨다.
   try {
-    const { response: errorResponse } = error;
-
-    // subscribers에 access token을 받은 이후 재요청할 함수 추가 (401로 실패했던)
-    // retryOriginalRequest는 pending 상태로 있다가
-    // access token을 받은 이후 onAccessTokenFetched가 호출될 때
-    // access token을 넘겨 다시 axios로 요청하고
-    // 결과값을 처음 요청했던 promise의 resolve로 settle시킨다.
     const retryOriginalRequest = new Promise((resolve, reject) => {
-      addSubscriber(async accessToken => {
+      subscribers.push(async accessToken => {
         try {
           errorResponse.config.headers.Authorization = accessToken;
           resolve(instance(errorResponse.config));
@@ -84,10 +130,8 @@ async function resetTokenAndReattemptRequest(error) {
       setToken(newAccessToken);
 
       isAlreadyFetchingAccessToken = false; // 문열기 (초기화)
-
       onAccessTokenFetched(data.accessToken);
     }
-
     return retryOriginalRequest; // pending 됐다가 onAccessTokenFetched가 호출될 때 resolve
   } catch (error) {
     console.log('error', error);
@@ -99,13 +143,9 @@ async function resetTokenAndReattemptRequest(error) {
   }
 }
 
-function addSubscriber(callback) {
-  subscribers.push(callback);
-}
-
 function onAccessTokenFetched(accessToken) {
   subscribers.forEach(callback => callback(accessToken));
-  subscribers = [];
+  subscribers.length = 0;
 }
 
 export async function get(url, data?, config = {}) {
@@ -122,10 +162,6 @@ export async function put(url, data?, config = {}) {
 
 export async function del(url, config = {}) {
   return instance.delete(url, { ...config });
-}
-
-export async function postForm(url, data?, config = {}) {
-  return instance.post(url, data, { ...config });
 }
 
 export async function patch(url, data?, config = {}) {

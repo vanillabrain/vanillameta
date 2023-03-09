@@ -13,7 +13,7 @@ import { SnackbarContext } from '@/contexts/AlertContext';
 import { ReactComponent as CloseIcon } from '@/assets/images/icon/ic-xmark.svg';
 import TableBoard from '@/widget/modules/board/TableBoard';
 import { Loading } from '@/components/loading';
-import { cancelAllRequests } from '@/helpers/apiHelper';
+// import { cancelAllRequests } from '@/helpers/apiHelper';
 
 export interface DataSetProps {
   id: number;
