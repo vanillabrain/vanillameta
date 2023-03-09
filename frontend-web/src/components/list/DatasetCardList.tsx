@@ -11,6 +11,7 @@ interface DatasetCardListProps {
   handleDataSetClick: (item) => void;
   handleDataSetRemove?: (item) => void;
   sx?: SxProps;
+  isData: boolean;
 }
 
 const CardListWrapper = props => {
@@ -35,8 +36,8 @@ const CardListWrapper = props => {
 const selectedSx = { border: 'solid 1px #4481c9', backgroundColor: '#edf8ff' };
 
 export const DatasetCardList = (props: DatasetCardListProps) => {
-  const { data, selectedDataset, handleDataSetClick, handleDataSetRemove } = props;
-  console.log(data);
+  const { data, selectedDataset, handleDataSetClick, handleDataSetRemove, isData = false } = props;
+
   return (
     <CardListWrapper>
       {data.length > 0 &&
@@ -53,7 +54,7 @@ export const DatasetCardList = (props: DatasetCardListProps) => {
                 border: 'solid 1px #ddd',
                 backgroundColor: '#fff',
                 '&:hover': { backgroundColor: '#ebfbff' },
-                ...(selectedDataset?.id == item.id && selectedSx),
+                ...(!isData && selectedDataset?.id == item.id && selectedSx),
               }}
               onClick={() => handleDataSetClick(item)}
             >
