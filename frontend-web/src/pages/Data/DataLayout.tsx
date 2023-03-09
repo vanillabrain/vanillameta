@@ -240,7 +240,7 @@ const DataLayout = props => {
 
   const handleDataSetClick = (item: DataTableProps | DataSetProps) => {
     console.log('selected Data', item);
-    if (setDataSet) {
+    if (isViewMode) {
       setDataSet(item);
     } else {
       setOpen(true);
@@ -320,7 +320,7 @@ const DataLayout = props => {
             )}
           </Stack>
           <DatasetCardList
-            isData={true}
+            isViewMode={isViewMode}
             data={datasetList}
             selectedDataset={selectedDataset}
             handleDataSetClick={handleDataSetClick}
@@ -334,7 +334,7 @@ const DataLayout = props => {
             </Typography>
           </Stack>
           <DatasetCardList
-            isData={true}
+            isViewMode={isViewMode}
             data={tableList}
             selectedDataset={selectedDataset}
             handleDataSetClick={handleDataSetClick}
