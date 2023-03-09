@@ -1,96 +1,101 @@
-import React, { Fragment } from 'react';
-import { CardActions, CardContent, Grid, Typography } from '@mui/material';
+import React from 'react';
+import { Box, Stack, Typography } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
-import CardListWrapper, { CardWrapper } from '@/components/list/CardListWrapper';
-import { any } from 'prop-types';
+import CardListWrapper from '@/components/list/CardListWrapper';
 import { ReactComponent as IconDatabase } from '@/assets/images/icon/ic-data.svg';
 import DeleteButton from '@/components/button/DeleteButton';
 import ModifyButton from '@/components/button/ModifyButton';
+import { DatabaseProps } from '@/pages/Data/DataLayout';
 
-export const DatabaseCardList = props => {
-  const { data, onUpdate, selectedDatabase, minWidth, disabledIcons, onRemove } = props;
+interface DatabaseCardListProps {
+  data: DatabaseProps[];
+  selectedData: DatabaseProps;
+  handleDataClick?: (item) => void;
+  handleDataRemove?: (item) => void;
+  isViewMode?: boolean;
+}
 
-  const handleClick = id => {
-    if (onUpdate !== undefined) {
-      onUpdate({ databaseId: id });
-    }
-  };
+const selectedSx = { border: 'solid 1px #4481c9', backgroundColor: '#edf8ff' };
+
+export const DatabaseCardList = (props: DatabaseCardListProps) => {
+  const { data, selectedData, handleDataClick, handleDataRemove, isViewMode } = props;
 
   return (
-    <CardListWrapper minWidth={minWidth}>
-      {data.map
-        ? data.map(item => {
-            const selected = selectedDatabase.databaseId == item.id;
-            return (
-              <Grid item xs={12} md component="li" key={item.id}>
-                <CardWrapper selected={selected} onClick={() => handleClick(item.id)}>
-                  <CardContent sx={{ p: '0 !important', alignItems: 'center', display: 'flex' }}>
-                    <IconDatabase />
-                    <Typography
-                      component="span"
-                      variant="subtitle2"
-                      sx={{
-                        pl: '10px',
-                        width: disabledIcons ? '100%' : '70%',
-                        textOverflow: 'ellipsis',
-                        overflow: 'hidden',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {item.name}
-                    </Typography>
-                  </CardContent>
+    <CardListWrapper sx={{ gridTemplateColumns: 'repeat(100%)' }}>
+      {data.length > 0 &&
+        data.map(item => (
+          <Stack component="li" key={item.id} sx={{ flex: '1 1 auto' }}>
+            <Stack
+              component="button"
+              sx={{
+                display: 'flex',
+                flexDirection: 'row',
+                alignItems: 'center',
+                height: '62px',
+                padding: '20px',
+                borderRadius: '8px',
+                boxShadow: '2px 2px 6px 0 rgba(0, 42, 105, 0.1)',
+                border: 'solid 1px #ddd',
+                backgroundColor: '#fff',
+                '&:hover': { backgroundColor: '#ebfbff' },
+                ...(selectedData?.id == item.id && selectedSx),
+              }}
+              onClick={handleDataClick}
+            >
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  mr: '8px',
+                }}
+              >
+                <IconDatabase />
+              </Box>
+              <Typography
+                variant="subtitle2"
+                sx={{
+                  flex: 1,
+                  width: '100%',
+                  mr: '18px',
+                  textAlign: 'left',
+                  textOverflow: 'ellipsis',
+                  overflow: 'hidden',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {item.name}
+              </Typography>
 
-                  {/* 아이콘 */}
-                  {disabledIcons ? (
-                    <Fragment />
-                  ) : (
-                    <CardActions
-                      disableSpacing
-                      sx={{
-                        position: 'absolute',
-                        top: 0,
-                        bottom: 0,
-                        right: 10,
-                        display: 'flex',
-                        justifyContent: 'flex-end,',
-                        m: 0,
-                        p: 0,
-                      }}
-                      onClick={handleClick}
-                    >
-                      <ModifyButton
-                        size="medium"
-                        component={RouterLink}
-                        to={`/data/source/modify/${item.id}`}
-                        width="20"
-                        height="20"
-                        fill="#767676"
-                      />
-                      <DeleteButton
-                        size="medium"
-                        onClick={event => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          onRemove(item.id, item.name);
-                        }}
-                        width="20"
-                        height="20"
-                        fill="#767676"
-                      />
-                    </CardActions>
-                  )}
-                </CardWrapper>
-              </Grid>
-            );
-          })
-        : ''}
+              {!isViewMode && (
+                <Stack direction="row" justifyContent="flex-end" width="100%" flex={0}>
+                  <ModifyButton
+                    size="medium"
+                    component={RouterLink}
+                    to={`/data/source/modify/${item.id}`}
+                    width="20"
+                    height="20"
+                    padding="0"
+                    fill="#767676"
+                    sx={{ p: 0, mr: '18px' }}
+                  />
+                  <DeleteButton
+                    component="span"
+                    size="medium"
+                    onClick={event => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      handleDataRemove(item);
+                    }}
+                    width="20"
+                    height="20"
+                    fill="#767676"
+                    sx={{ p: 0 }}
+                  />
+                </Stack>
+              )}
+            </Stack>
+          </Stack>
+        ))}
     </CardListWrapper>
   );
-};
-
-DatabaseCardList.defaultProps = {
-  data: any,
-  minWidth: false,
-  disabledIcons: false,
 };

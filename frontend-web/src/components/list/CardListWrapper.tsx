@@ -1,30 +1,24 @@
-import { Card, Grid } from '@mui/material';
+import { Card, Stack } from '@mui/material';
 import React from 'react';
 
-const CardListWrapper = ({ children, minWidth, sx }) => {
+export const CardListWrapper = props => {
+  const { children, sx } = props;
   return (
-    <Grid
-      container
-      spacing={2}
+    <Stack
       component="ul"
       sx={{
+        display: { xs: 'flex', md: 'grid' },
+        gridTemplateColumns: { xs: 'repeat(100%)', sm: 'repeat(auto-fit, minmax(0, 228px))' },
+        gap: '8px',
         minHeight: '20px',
         listStyle: 'none',
         pl: 0,
-        display: 'grid',
-        gridTemplateColumns: { xs: `repeat(100%)`, sm: `repeat(${minWidth || 'auto-fit, minmax(0, 228px)'})` },
         ...sx,
       }}
     >
       {children}
-    </Grid>
+    </Stack>
   );
-};
-
-CardListWrapper.defaultProps = {
-  sx: {},
-  children: '',
-  minWidth: false,
 };
 
 export default CardListWrapper;

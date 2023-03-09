@@ -1,42 +1,24 @@
 import { Stack, SxProps, Typography } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import React from 'react';
+import CardListWrapper from '@/components/list/CardListWrapper';
 import ModifyButton from '@/components/button/ModifyButton';
 import DeleteButton from '@/components/button/DeleteButton';
 import { DataSetProps, DataTableProps } from '@/pages/Data/DataLayout';
 
 interface DatasetCardListProps {
   data: DataSetProps[] | DataTableProps[];
-  selectedDataset: DataSetProps | DataTableProps;
-  handleDataSetClick: (item) => void;
-  handleDataSetRemove?: (item) => void;
+  selectedData: DataSetProps | DataTableProps;
+  handleDataClick?: (item) => void;
+  handleDataRemove?: (item) => void;
   sx?: SxProps;
-  isViewMode: boolean;
+  isViewMode?: boolean;
 }
-
-const CardListWrapper = props => {
-  const { children } = props;
-  return (
-    <Stack
-      component="ul"
-      sx={{
-        display: { xs: 'flex', md: 'grid' },
-        gridTemplateColumns: { xs: 'repeat(100%)', sm: 'repeat(auto-fit, minmax(0, 228px))' },
-        gap: '8px',
-        minHeight: '20px',
-        listStyle: 'none',
-        pl: 0,
-      }}
-    >
-      {children}
-    </Stack>
-  );
-};
 
 const selectedSx = { border: 'solid 1px #4481c9', backgroundColor: '#edf8ff' };
 
 export const DatasetCardList = (props: DatasetCardListProps) => {
-  const { data, selectedDataset, handleDataSetClick, handleDataSetRemove, isViewMode } = props;
+  const { data, selectedData, handleDataClick, handleDataRemove, isViewMode } = props;
 
   return (
     <CardListWrapper>
@@ -48,15 +30,16 @@ export const DatasetCardList = (props: DatasetCardListProps) => {
               sx={{
                 display: 'flex',
                 flexDirection: 'column',
+                maxHeight: '90px',
                 padding: '20px',
                 borderRadius: '8px',
                 boxShadow: '2px 2px 6px 0 rgba(0, 42, 105, 0.1)',
                 border: 'solid 1px #ddd',
                 backgroundColor: '#fff',
                 '&:hover': { backgroundColor: '#ebfbff' },
-                ...(isViewMode && selectedDataset?.id == item.id && selectedSx),
+                ...(isViewMode && selectedData?.id == item.id && selectedSx),
               }}
-              onClick={() => handleDataSetClick(item)}
+              onClick={handleDataClick}
             >
               <Typography
                 variant="subtitle2"
@@ -72,7 +55,7 @@ export const DatasetCardList = (props: DatasetCardListProps) => {
               </Typography>
 
               {/* 아이콘 */}
-              {handleDataSetRemove && (
+              {handleDataRemove && (
                 <Stack direction="row" justifyContent="flex-end" width="100%" mt="11px">
                   <ModifyButton
                     size="medium"
@@ -90,7 +73,7 @@ export const DatasetCardList = (props: DatasetCardListProps) => {
                     onClick={event => {
                       event.preventDefault();
                       event.stopPropagation();
-                      handleDataSetRemove(item);
+                      handleDataRemove(item);
                     }}
                     width="20"
                     height="20"

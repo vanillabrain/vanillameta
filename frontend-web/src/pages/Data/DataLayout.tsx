@@ -15,6 +15,17 @@ import TableBoard from '@/widget/modules/board/TableBoard';
 import { Loading } from '@/components/loading';
 // import { cancelAllRequests } from '@/helpers/apiHelper';
 
+export interface DatabaseProps {
+  id: number | string | null;
+  createdAt?: string;
+  description?: string;
+  engine?: string;
+  name?: string;
+  timezone?: string;
+  type?: string;
+  updatedAt?: string;
+}
+
 export interface DataSetProps {
   id: number;
   databaseId: number;
@@ -117,13 +128,13 @@ const DataViewModal = (props: DataViewModalProps) => {
 
 const DataLayout = props => {
   const { isViewMode, setDataSet } = props;
-  const [databaseList, setDatabaseList] = useState([]);
-  const [datasetList, setDatasetList] = useState<DataSetProps[]>([]);
-  const [tableList, setTableList] = useState<DataTableProps[]>([]);
+  const [databaseList, setDatabaseList] = useState<DatabaseProps[] | []>([]);
+  const [datasetList, setDatasetList] = useState<DataSetProps[] | []>([]);
+  const [tableList, setTableList] = useState<DataTableProps[] | []>([]);
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
   const { loading, showLoading, hideLoading } = useContext(LoadingContext);
-  const [selectedDatabase, setSelectedDatabase] = useState({ databaseId: null });
+  const [selectedDatabase, setSelectedDatabase] = useState<DatabaseProps>({ id: null });
   const [selectedDataset, setSelectedDataset] = useState<DataSetProps | DataTableProps | null>(null);
   const [open, setOpen] = useState(false);
   const [gridData, setGridData] = useState<GridDataProps | null>(null);
@@ -133,8 +144,10 @@ const DataLayout = props => {
   }, []);
 
   useEffect(() => {
-    if (selectedDatabase.databaseId) getDatabaseInfo();
-  }, [selectedDatabase.databaseId]);
+    if (selectedDatabase.id) {
+      getDatabaseInfo(selectedDatabase.id);
+    }
+  }, [selectedDatabase.id]);
 
   /**
    * 데이터베이스 목록조회
@@ -143,9 +156,11 @@ const DataLayout = props => {
     showLoading();
     DatabaseService.selectDatabaseList()
       .then(response => {
-        setDatabaseList(response.data.data);
-        if (response.data.data.length > 0) {
-          setSelectedDatabase({ databaseId: response.data.data[0].id });
+        const resData = response.data.data;
+        setDatabaseList(resData);
+        if (resData.length > 0) {
+          const [firstItem] = resData;
+          setSelectedDatabase(firstItem);
         }
       })
       .finally(() => {
@@ -153,9 +168,9 @@ const DataLayout = props => {
       });
   };
 
-  const getDatabaseInfo = () => {
+  const getDatabaseInfo = databaseId => {
     showLoading();
-    DatabaseService.selectDatabase(selectedDatabase.databaseId)
+    DatabaseService.selectDatabase(databaseId)
       .then(response => {
         if (response.data.status === 'SUCCESS') {
           setDatasetList(response.data.data.datasets);
@@ -213,20 +228,20 @@ const DataLayout = props => {
       });
   };
 
-  const handleSelectDatabase = enteredData => {
-    return setSelectedDatabase(prevState => ({ ...prevState, ...enteredData }));
+  const handleDatabaseClick = (item: DatabaseProps) => {
+    setSelectedDatabase(item);
   };
 
-  const handleDatabaseRemove = (id, name) => {
-    console.log('handleDatabaseRemove', id);
-    alert.success(`${name}\n데이터베이스를 삭제하시겠습니까?`, {
+  const handleDatabaseRemove = item => {
+    console.log('handleDatabaseRemove', item);
+    alert.success(`${item.name}\n데이터베이스를 삭제하시겠습니까?`, {
       title: '데이터베이스 삭제',
       closeCopy: '취소',
       actions: [
         {
           copy: '삭제',
           onClick: () => {
-            DatabaseService.deleteDatabase(id).then(response => {
+            DatabaseService.deleteDatabase(item.databaseId).then(response => {
               if (response.data.status === STATUS.SUCCESS) {
                 getDatabaseList();
                 snackbar.success('데이터베이스가 삭제되었습니다.');
@@ -268,7 +283,7 @@ const DataLayout = props => {
           copy: '삭제',
           onClick: () => {
             DatasetService.deleteDataset(item.id).then(() => {
-              getDatabaseInfo();
+              getDatabaseInfo(item.id);
               snackbar.success('데이터셋이 삭제되었습니다.');
             });
           },
@@ -292,11 +307,10 @@ const DataLayout = props => {
         </Stack>
         <DatabaseCardList
           data={databaseList}
-          selectedDatabase={selectedDatabase}
-          disabledIcons={!!isViewMode}
-          onUpdate={handleSelectDatabase}
-          onRemove={handleDatabaseRemove}
-          minWidth="100%"
+          selectedData={selectedDatabase}
+          isViewMode={isViewMode}
+          handleDataClick={handleDatabaseClick}
+          handleDataRemove={handleDatabaseRemove}
         />
       </Stack>
 
@@ -316,15 +330,15 @@ const DataLayout = props => {
             {isViewMode ? (
               <></>
             ) : (
-              <AddButton component={RouterLink} to={`set/create/${selectedDatabase.databaseId}`} sx={{ ml: '14px' }} />
+              <AddButton component={RouterLink} to={`set/create/${selectedDatabase.id}`} sx={{ ml: '14px' }} />
             )}
           </Stack>
           <DatasetCardList
             isViewMode={isViewMode}
             data={datasetList}
-            selectedDataset={selectedDataset}
-            handleDataSetClick={handleDataSetClick}
-            handleDataSetRemove={handleDataSetRemove}
+            selectedData={selectedDataset}
+            handleDataClick={handleDataSetClick}
+            handleDataRemove={handleDataSetRemove}
           />
         </Stack>
         <Stack direction="column" sx={{ flex: '1 1 auto', width: '100%', minHeight: '50%', px: '24px', pt: '30px' }}>
@@ -336,8 +350,8 @@ const DataLayout = props => {
           <DatasetCardList
             isViewMode={isViewMode}
             data={tableList}
-            selectedDataset={selectedDataset}
-            handleDataSetClick={handleDataSetClick}
+            selectedData={selectedDataset}
+            handleDataClick={handleDataSetClick}
           />
           <DataViewModal
             open={open}
