@@ -45,10 +45,10 @@ const WidgetAttributeSelect = props => {
 
   const getData = () => {
     const param = isModifyMode
-      ? { datasetType: widgetOption.datasetType, datasetId: widgetOption.datasetId }
+      ? { ...widgetOption }
       : dataset.datasetType === 'TABLE'
-      ? { databaseId: dataset.databaseId, datasetType: dataset.datasetType, tableName: dataset.tableName }
-      : { databaseId: dataset.databaseId, datasetType: dataset.datasetType, datasetId: dataset.id };
+      ? { ...dataset }
+      : { ...dataset, datasetId: dataset.id };
     console.log('getData param', param);
     showLoading();
     DatabaseService.selectData(param)

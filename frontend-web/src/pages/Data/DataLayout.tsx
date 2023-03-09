@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Box, Modal, Paper, IconButton, Stack, Typography } from '@mui/material';
+import { Box, IconButton, Modal, Paper, Stack, Typography } from '@mui/material';
 import DatabaseService from '@/api/databaseService';
 import { STATUS } from '@/constant';
 import { useAlert } from 'react-alert';
@@ -11,11 +11,13 @@ import { Link as RouterLink } from 'react-router-dom';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import { ReactComponent as CloseIcon } from '@/assets/images/icon/ic-xmark.svg';
+import TableBoard from '@/widget/modules/board/TableBoard';
+import { Loading } from '@/components/loading';
 
 export interface DataSetProps {
   id: number;
   databaseId: number;
-  datasetType: 'TABLE' | 'DATASET';
+  datasetType: 'DATASET';
   title: string;
   query: string;
   createdAt: string;
@@ -23,10 +25,22 @@ export interface DataSetProps {
 }
 
 export interface DataTableProps {
-  id: number;
+  id: string;
   tableName: string;
   databaseId: number;
-  datasetType: 'TABLE' | 'DATASET';
+  datasetType: 'TABLE';
+}
+
+interface GridDataProps {
+  option?: {
+    columns: {
+      name: string;
+      header?: string;
+      align?: string;
+      sortable?: boolean;
+    }[];
+  };
+  dataSet?: [];
 }
 
 const DataLayout = props => {
@@ -36,10 +50,11 @@ const DataLayout = props => {
   const [tableList, setTableList] = useState<DataTableProps[]>([]);
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
-  const { showLoading, hideLoading } = useContext(LoadingContext);
+  const { loading, showLoading, hideLoading } = useContext(LoadingContext);
   const [selectedDatabase, setSelectedDatabase] = useState({ databaseId: null });
   const [selectedDataset, setSelectedDataset] = useState<DataSetProps | DataTableProps | null>(null);
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = useState(false);
+  const [gridData, setGridData] = useState<GridDataProps | null>(null);
 
   useEffect(() => {
     getDatabaseList();
@@ -89,6 +104,43 @@ const DataLayout = props => {
       });
   };
 
+  const createDataGrid = data => {
+    if (data) {
+      const { datas, fields } = data;
+      const option = fields.map(item => ({ name: item.columnName, sortable: true }));
+      setGridData({ ...gridData, dataSet: datas, option: { columns: option } });
+    }
+  };
+
+  const getData = selectedData => {
+    let param;
+    switch (selectedData?.datasetType) {
+      case 'DATASET':
+        const { id, ...rest } = selectedData;
+        param = { ...rest, datasetId: id };
+        break;
+      case 'TABLE':
+        param = { ...selectedData };
+        break;
+      default:
+        return;
+    }
+    showLoading();
+    DatabaseService.selectData(param)
+      .then(response => {
+        if (response.data.status === STATUS.SUCCESS) {
+          createDataGrid(response.data.data);
+        }
+      })
+      .catch(error => {
+        console.log('error', error);
+        setGridData(null);
+      })
+      .finally(() => {
+        hideLoading();
+      });
+  };
+
   const handleSelectDatabase = enteredData => {
     return setSelectedDatabase(prevState => ({ ...prevState, ...enteredData }));
   };
@@ -115,15 +167,19 @@ const DataLayout = props => {
   };
 
   const handleDataSetClick = (item: DataTableProps | DataSetProps) => {
-    setOpen(true);
+    console.log('selected Data', item);
     if (setDataSet) {
       setDataSet(item);
-      setSelectedDataset(item);
+    } else {
+      setOpen(true);
+      getData(item);
     }
+    setSelectedDataset(item);
   };
 
   const handleClose = () => {
     setOpen(false);
+    setGridData(null);
   };
 
   const handleDataSetRemove = item => {
@@ -225,9 +281,10 @@ const DataLayout = props => {
               sx={{
                 display: 'flex',
                 flexDirection: 'column',
-                width: '90%',
-                height: '80%',
-                minHeight: '500px',
+                width: '80%',
+                maxWidth: '1392px',
+                height: '70%',
+                maxHeight: '754px',
                 borderRadius: '8px',
                 boxShadow: '5px 5px 8px 0 rgba(0, 28, 71, 0.15)',
                 border: 'solid 1px #ddd',
@@ -236,22 +293,29 @@ const DataLayout = props => {
                 backgroundColor: '#fff',
               }}
             >
-              <Stack direction="row" justifyContent="space-between" alignItems="center" m="20px">
-                <Typography sx={{ fontSize: '20px', fontWeight: 600, color: '#141414' }}>제목</Typography>
-                <IconButton>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" m="15px" mr="0">
+                <Typography sx={{ fontSize: '20px', fontWeight: 600, color: '#141414' }}>
+                  {selectedDataset && (selectedDataset?.['tableName'] || selectedDataset?.['title'])}
+                </Typography>
+                <IconButton onClick={handleClose} sx={{ p: '16px' }}>
                   <CloseIcon width="16" height="16" />
                 </IconButton>
               </Stack>
               <Box
                 sx={{
+                  width: '100%',
+                  height: '100%',
                   display: 'flex',
                   justifyContent: 'center',
                   alignItems: 'center',
                   flex: 1,
-                  backgroundColor: '#e2e2e2',
                 }}
               >
-                내용
+                {loading ? (
+                  <Loading in={loading} style={{ position: 'static', backgroundColor: 'transparent' }} />
+                ) : (
+                  <TableBoard option={gridData?.option} dataSet={gridData?.dataSet} />
+                )}
               </Box>
             </Paper>
           </Modal>

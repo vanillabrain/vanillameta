@@ -35,7 +35,7 @@ const CardListWrapper = props => {
 const selectedSx = { border: 'solid 1px #4481c9', backgroundColor: '#edf8ff' };
 
 export const DatasetCardList = (props: DatasetCardListProps) => {
-  const { data, selectedDataset, handleDataSetClick, handleDataSetRemove, sx } = props;
+  const { data, selectedDataset, handleDataSetClick, handleDataSetRemove } = props;
   console.log(data);
   return (
     <CardListWrapper>
@@ -84,6 +84,7 @@ export const DatasetCardList = (props: DatasetCardListProps) => {
                     sx={{ p: 0, mr: '18px' }}
                   />
                   <DeleteButton
+                    component="span"
                     size="medium"
                     onClick={event => {
                       event.preventDefault();

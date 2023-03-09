@@ -4,17 +4,15 @@ import DataGrid from '@/components/datagrid';
 
 const TableBoard = props => {
   const { option, dataSet } = props;
-
+  const [columns, setColumns] = useState([]);
   const defaultComponentOption = {
     columns: [],
   };
 
-  const [columns, setColumns] = useState([]);
-
   useEffect(() => {
     if (option && dataSet) {
       const newOption = createComponentOption();
-      setColumns([...option.columns]);
+      setColumns([...newOption.columns]);
     }
   }, [option, dataSet]);
 
@@ -33,6 +31,7 @@ const TableBoard = props => {
   return (
     <Stack
       sx={{
+        flex: 1,
         height: '100%',
         minHeight: '100%',
         overflow: 'hidden',
