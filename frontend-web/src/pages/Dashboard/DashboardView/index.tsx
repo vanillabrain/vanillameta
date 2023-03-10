@@ -90,7 +90,7 @@ const DashboardView = () => {
 
   // widget 생성
   const generateWidget = () => {
-    return dashboardInfo.widgets.map(item => {
+    return dashboardInfo.widgets.map((item, index) => {
       return (
         <Card
           key={item.id}
@@ -103,7 +103,7 @@ const DashboardView = () => {
             backgroundColor: '#fff',
           }}
         >
-          <WidgetWrapper widgetOption={item} dataSetId={item.datasetId} />
+          <WidgetWrapper widgetOption={item} dataSetId={item.datasetId} size={dashboardInfo.layout[index].w} />
         </Card>
       );
     });

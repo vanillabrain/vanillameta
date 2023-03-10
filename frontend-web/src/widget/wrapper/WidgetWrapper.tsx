@@ -7,7 +7,7 @@ import { useAlert } from 'react-alert';
 import { SnackbarContext } from '@/contexts/AlertContext';
 
 const WidgetWrapper = props => {
-  const { widgetOption, dataSetId } = props;
+  const { widgetOption, dataSetId, size } = props;
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const [dataset, setDataset] = useState(null);
   const snackbar = useAlert(SnackbarContext);
@@ -49,6 +49,7 @@ const WidgetWrapper = props => {
       widgetOption={widgetOption.option}
       dataSet={dataset}
       isInvalidData={isInvalidData}
+      size={size}
     />
   );
 };
