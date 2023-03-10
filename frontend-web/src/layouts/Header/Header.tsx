@@ -25,14 +25,17 @@ function Header(props) {
   ];
 
   const handleMenuSelect = item => {
-    if (item.link !== undefined) {
+    if (item.link) {
       navigate(item.link);
     }
   };
 
   return (
     <AppBar elevation={0} component="nav" sx={{ left: 0, height: { xs: '56px', sm: '65px' } }}>
-      <Toolbar variant="dense" sx={{ height: headerHeight, justifyContent: 'space-between', columnGap: '30px' }}>
+      <Toolbar
+        variant="dense"
+        sx={{ height: headerHeight, justifyContent: 'space-between', columnGap: { xs: '40px', md: '50px' } }}
+      >
         <Logo />
         <Hidden smDown>
           <NavBar navItems={navItems} />

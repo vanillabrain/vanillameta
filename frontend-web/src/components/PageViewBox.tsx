@@ -115,12 +115,13 @@ const DesktopViewBox = props => {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
+        px: '20px',
       }}
     >
       <Box
         sx={{
-          width: '1392px',
-          minWidth: '1392px',
+          width: '100%',
+          maxWidth: '1392px',
           height: '100%',
           borderRadius: '6px',
           border: 'solid 1px #ddd',
@@ -155,7 +156,8 @@ const DesktopViewBox = props => {
                 variant="subtitle1"
                 component="span"
                 sx={{
-                  width: '100%',
+                  flexGrow: 0,
+                  width: { sm: 'calc(100vw - 390px)', md: 'calc(100vw - 460px)' },
                   maxWidth: '1000px',
                   fontWeight: 500,
                   paddingLeft: '18px',
@@ -178,9 +180,10 @@ const DesktopViewBox = props => {
             )}
           </Stack>
           <Stack direction="row" alignItems="center" sx={{ marginRight: '20px' }}>
-            <span
-              style={{
-                marginRight: '36px',
+            <Box
+              component="span"
+              sx={{
+                marginRight: { sm: '26px', md: '36px' },
                 height: '16px',
                 fontFamily: 'Pretendard',
                 fontSize: '14px',
@@ -194,7 +197,7 @@ const DesktopViewBox = props => {
               }}
             >
               {date}
-            </span>
+            </Box>
             {button}
           </Stack>
         </Stack>

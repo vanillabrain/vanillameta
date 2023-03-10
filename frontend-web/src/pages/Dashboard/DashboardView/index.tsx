@@ -190,7 +190,6 @@ const DashboardView = () => {
       <>
         <Seo title={dashboardInfo.title} />
         <PageViewBox
-          sx={{ xs: {}, sm: { maxWidth: '1392px', width: '95%' } }}
           title={dashboardInfo.title}
           date={dateData(dashboardInfo.updatedAt)}
           button={
@@ -198,7 +197,7 @@ const DashboardView = () => {
               <Hidden smDown>
                 <ReloadButton
                   size="medium"
-                  sx={{ marginRight: '24px', padding: 0 }}
+                  sx={{ marginRight: { sm: '14px', md: '24px' }, padding: 0 }}
                   onClick={event => {
                     event.preventDefault();
                     event.stopPropagation();
@@ -207,13 +206,13 @@ const DashboardView = () => {
                 />
                 <ModifyButton
                   size="medium"
-                  sx={{ marginRight: '24px', padding: 0 }}
+                  sx={{ marginRight: { sm: '14px', md: '24px' }, padding: 0 }}
                   component={RouterLink}
                   to={`/dashboard/modify?id=${dashboardId}&name=${dashboardInfo.title}`}
                 />
                 <DeleteButton
                   size="medium"
-                  sx={{ marginRight: '24px', padding: 0 }}
+                  sx={{ marginRight: { sm: '14px', md: '24px' }, padding: 0 }}
                   onClick={event => {
                     event.preventDefault();
                     event.stopPropagation();
@@ -234,8 +233,6 @@ const DashboardView = () => {
           <Box
             sx={{
               flex: '1 1 auto',
-              width: { sm: '1390px' },
-              minWidth: { sm: '1390px' },
               minHeight: { sm: '1080px' },
               backgroundColor: '#f9f9fa',
               borderRadius: '0px 0px 6px 6px',
@@ -244,11 +241,11 @@ const DashboardView = () => {
             <ResponsiveGridLayout
               rowHeight={88}
               compactType={null}
-              breakpoints={{ lg: 1000, xs: 0 }}
-              cols={{ xs: 2, lg: 12 }}
-              layouts={{ xs: layout, lg: layout }}
-              containerPadding={{ xs: [20, 20], lg: [24, 24] }}
-              margin={{ xs: [20, 20], lg: [24, 24] }}
+              breakpoints={{ xs: 0, md: 800, lg: 1000 }}
+              cols={{ xs: 2, md: 8, lg: 12 }}
+              layouts={{ xs: layout, md: layout, lg: layout }}
+              containerPadding={{ xs: [20, 20], md: [20, 20], lg: [24, 24] }}
+              margin={{ xs: [20, 20], md: [20, 20], lg: [24, 24] }}
             >
               {generateWidget()}
             </ResponsiveGridLayout>

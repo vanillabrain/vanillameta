@@ -102,7 +102,6 @@ const WidgetView = () => {
     >
       <Seo title={widgetOption.title} />
       <PageViewBox
-        sx={{ sm: { maxWidth: '1392px', width: '95%' } }}
         iconName={widgetOption.icon}
         title={widgetOption.componentTitle}
         date={dateData(widgetOption.updatedAt)}

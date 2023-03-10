@@ -39,7 +39,7 @@ export const DatasetCardList = (props: DatasetCardListProps) => {
                 '&:hover': { backgroundColor: '#ebfbff' },
                 ...(isViewMode && selectedData?.id == item.id && selectedSx),
               }}
-              onClick={handleDataClick}
+              onClick={() => handleDataClick(item)}
             >
               <Typography
                 variant="subtitle2"

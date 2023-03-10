@@ -40,7 +40,7 @@ export const DatabaseCardList = (props: DatabaseCardListProps) => {
                 '&:hover': { backgroundColor: '#ebfbff' },
                 ...(selectedData?.id == item.id && selectedSx),
               }}
-              onClick={handleDataClick}
+              onClick={() => handleDataClick(item)}
             >
               <Box
                 sx={{
