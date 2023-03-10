@@ -15,7 +15,7 @@ interface DatasetCardListProps {
   isViewMode?: boolean;
 }
 
-const selectedSx = { border: 'solid 1px #4481c9', backgroundColor: '#edf8ff' };
+const selectedSx = { border: 'solid 1px #0f5ab2', backgroundColor: '#edf8ff' };
 
 export const DatasetCardList = (props: DatasetCardListProps) => {
   const { data, selectedData, handleDataClick, handleDataRemove, isViewMode } = props;
@@ -49,6 +49,7 @@ export const DatasetCardList = (props: DatasetCardListProps) => {
                   textOverflow: 'ellipsis',
                   overflow: 'hidden',
                   whiteSpace: 'nowrap',
+                  color: '#333',
                 }}
               >
                 {item.title || item.tableName}

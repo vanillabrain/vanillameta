@@ -15,7 +15,7 @@ interface DatabaseCardListProps {
   isViewMode?: boolean;
 }
 
-const selectedSx = { border: 'solid 1px #4481c9', backgroundColor: '#edf8ff' };
+const selectedSx = { border: 'solid 1px #0f5ab2', backgroundColor: '#edf8ff' };
 
 export const DatabaseCardList = (props: DatabaseCardListProps) => {
   const { data, selectedData, handleDataClick, handleDataRemove, isViewMode } = props;
@@ -61,6 +61,7 @@ export const DatabaseCardList = (props: DatabaseCardListProps) => {
                   textOverflow: 'ellipsis',
                   overflow: 'hidden',
                   whiteSpace: 'nowrap',
+                  color: '#333',
                 }}
               >
                 {item.name}
