@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Box, Modal, Paper, IconButton, Stack, Typography } from '@mui/material';
+import { Box, IconButton, Modal, Paper, Stack, Typography } from '@mui/material';
 import DatabaseService from '@/api/databaseService';
 import { STATUS } from '@/constant';
 import { useAlert } from 'react-alert';
@@ -299,7 +299,7 @@ const DataLayout = props => {
         flex="1 1 auto"
         sx={{ width: { xs: '100%', md: '404px' }, height: '100%', px: '24px', pt: '30px' }}
       >
-        <Stack direction="row" sx={{ mb: '12px' }}>
+        <Stack direction="row">
           <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold', fontSize: '16px', color: '#141414' }}>
             데이터 소스
           </Typography>
@@ -323,7 +323,7 @@ const DataLayout = props => {
         }}
       >
         <Stack direction="column" sx={{ width: '100%', px: '24px', pt: '30px' }}>
-          <Stack direction="row" sx={{ mb: '12px' }}>
+          <Stack direction="row">
             <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold', fontSize: '16px', color: '#141414' }}>
               데이터 셋
             </Typography>
@@ -342,7 +342,7 @@ const DataLayout = props => {
           />
         </Stack>
         <Stack direction="column" sx={{ flex: '1 1 auto', width: '100%', minHeight: '50%', px: '24px', pt: '30px' }}>
-          <Stack direction="row" sx={{ mb: '12px' }}>
+          <Stack direction="row">
             <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold', fontSize: '16px', color: '#141414' }}>
               테이블 목록
             </Typography>

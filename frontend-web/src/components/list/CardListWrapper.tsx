@@ -1,7 +1,19 @@
-import { Card, Stack } from '@mui/material';
+import { Stack, SxProps } from '@mui/material';
 import React from 'react';
 
-export const CardListWrapper = props => {
+interface CardListWrapperProps {
+  children: React.ReactNode;
+  sx?: SxProps;
+}
+
+interface CardWrapperProps {
+  id: number | string;
+  children: React.ReactNode;
+  sx?: SxProps;
+  handleClick?: (item) => void;
+}
+
+export const CardListWrapper = (props: CardListWrapperProps) => {
   const { children, sx } = props;
   return (
     <Stack
@@ -23,31 +35,28 @@ export const CardListWrapper = props => {
 
 export default CardListWrapper;
 
-export const CardWrapper = ({ children, selected, onClick, sx = null }) => {
-  return (
-    <Card
-      sx={{
-        padding: '20px 8px 20px 21px',
-        borderRadius: '8px',
-        boxShadow: '2px 2px 6px 0 rgba(0, 42, 105, 0.1)',
-        border: selected ? 'solid 1px #4481c9' : 'solid 1px #ddd',
-        backgroundColor: selected ? '#edf8ff' : '#fff',
-        cursor: 'pointer',
-        position: 'relative',
-        alignItems: 'center',
-        '&:hover': {
-          backgroundColor: '#ebfbff',
-        },
-        ...sx,
-      }}
-      onClick={onClick}
-    >
-      {children}
-    </Card>
-  );
-};
+export const CardWrapper = (props: CardWrapperProps) => {
+  const { id, children, sx, handleClick } = props;
 
-CardListWrapper.defaultProps = {
-  children: '',
-  minWidth: false,
+  return (
+    <Stack component="li" key={id} sx={{ flex: '1 1 auto' }}>
+      <Stack
+        component="button"
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          padding: '20px',
+          borderRadius: '8px',
+          boxShadow: '2px 2px 6px 0 rgba(0, 42, 105, 0.1)',
+          border: 'solid 1px #ddd',
+          backgroundColor: '#fff',
+          '&:hover': { backgroundColor: '#ebfbff' },
+          ...sx,
+        }}
+        onClick={handleClick}
+      >
+        {children}
+      </Stack>
+    </Stack>
+  );
 };
