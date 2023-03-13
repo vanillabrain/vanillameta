@@ -1,5 +1,5 @@
 import Grid from '@toast-ui/react-grid';
-import React, { HTMLAttributes, useRef } from 'react';
+import React, { forwardRef, HTMLAttributes, PropsWithChildren, useEffect, useRef } from 'react';
 import { GridEventListener, GridOptions } from 'tui-grid';
 import { Stack } from '@mui/material';
 
@@ -38,9 +38,11 @@ type Props = Omit<GridOptions, 'el'> &
     oneTimeBindingProps?: Array<'data' | 'columns' | 'bodyHeight' | 'frozenColumnCount'>;
   };
 
-export const DataGridWrapper = ({ children }: React.PropsWithChildren) => {
+export const DataGridWrapper = forwardRef((props: PropsWithChildren, ref: React.Ref<HTMLDivElement>) => {
+  const { children } = props;
   return (
     <Stack
+      ref={ref}
       sx={{
         flex: 1,
         height: '100%',
@@ -51,10 +53,21 @@ export const DataGridWrapper = ({ children }: React.PropsWithChildren) => {
       {children}
     </Stack>
   );
-};
+});
 
-const DataGrid = (props: Props) => {
-  const gridRef = useRef();
+interface DataGridProps extends Props {
+  resizeObserver?: any;
+}
+
+const DataGrid = (props: DataGridProps) => {
+  const gridRef = useRef<Grid>();
+  const { resizeObserver, ...rest } = props;
+
+  useEffect(() => {
+    if (resizeObserver) {
+      gridRef.current.getInstance().refreshLayout();
+    }
+  }, [resizeObserver]);
 
   return (
     <Grid
@@ -70,7 +83,7 @@ const DataGrid = (props: Props) => {
       columnOptions={{
         resizable: true,
       }}
-      {...props}
+      {...rest}
     />
   );
 };
