@@ -20,7 +20,7 @@ function PageTitleBox(props: PageTitleBoxProps) {
     flex: '1 1 auto',
     paddingLeft: '25px',
     paddingRight: '25px',
-    width: '100%',
+    width: '100vw',
     height: '100%',
   };
 

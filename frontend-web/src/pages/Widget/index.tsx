@@ -1,7 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Link as RouterLink, Outlet, useParams } from 'react-router-dom';
 import { useAlert } from 'react-alert';
-import PageContainer from '@/components/PageContainer';
 import PageTitleBox from '@/components/PageTitleBox';
 import BoardList from '@/components/BoardList';
 import WidgetService from '@/api/widgetService';
@@ -137,7 +136,7 @@ const Widget = () => {
   };
 
   return (
-    <PageContainer>
+    <Stack sx={{ width: '100%', height: '100%', flex: '1 1 auto' }}>
       <Seo title={title} />
 
       {!widgetId ? (
@@ -166,7 +165,7 @@ const Widget = () => {
       ) : (
         <Outlet />
       )}
-    </PageContainer>
+    </Stack>
   );
 };
 

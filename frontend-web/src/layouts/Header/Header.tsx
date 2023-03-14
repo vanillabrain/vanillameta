@@ -32,10 +32,7 @@ function Header(props) {
 
   return (
     <AppBar elevation={0} component="nav" sx={{ left: 0, height: { xs: '56px', sm: '65px' } }}>
-      <Toolbar
-        variant="dense"
-        sx={{ height: headerHeight, justifyContent: 'space-between', columnGap: { xs: '40px', md: '50px' } }}
-      >
+      <Toolbar variant="dense" sx={{ height: headerHeight, justifyContent: 'space-between', columnGap: '32px' }}>
         <Logo />
         <Hidden smDown>
           <NavBar navItems={navItems} />

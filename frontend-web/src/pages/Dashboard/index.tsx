@@ -1,5 +1,4 @@
 import React, { useContext, useEffect, useState } from 'react';
-import PageContainer from '@/components/PageContainer';
 import PageTitleBox from '@/components/PageTitleBox';
 import BoardList from '@/components/BoardList';
 import { Outlet, useNavigate, useParams } from 'react-router-dom';
@@ -65,16 +64,15 @@ function Dashboard() {
       });
   };
 
-  const handleDeleteSelect = item => {
-    console.log(item);
-    alert.success(item.title + '\n대시보드를 삭제하시겠습니까?', {
+  const handleDeleteSelect = (id, title) => {
+    alert.success(title + '\n대시보드를 삭제하시겠습니까?', {
       closeCopy: '취소',
       actions: [
         {
           copy: '확인',
           onClick: () => {
             showLoading();
-            DashboardService.deleteDashboard(item.id)
+            DashboardService.deleteDashboard(id)
               .then(response => {
                 if (response.data.status == STATUS.SUCCESS) {
                   getDashboardList();
@@ -151,14 +149,13 @@ function Dashboard() {
   };
 
   return (
-    <PageContainer>
+    <Stack sx={{ width: '100%', height: '100%', flex: '1 1 auto' }}>
       <Seo title={title} />
 
       {!dashboardId ? (
         <>
           <PageTitleBox
             title={title}
-            sx={{ width: '100%' }}
             button={
               <MenuButton
                 menuList={menuList}
@@ -181,7 +178,7 @@ function Dashboard() {
       ) : (
         <Outlet />
       )}
-    </PageContainer>
+    </Stack>
   );
 }
 
