@@ -60,31 +60,38 @@ const Widget = () => {
       });
   };
 
-  const removeWidget = item => {
-    alert.success(`${item.title}\n위젯을 삭제하시겠습니까?`, {
-      title: '위젯 삭제',
-      closeCopy: '취소',
-      actions: [
-        {
-          copy: '삭제',
-          onClick: () => {
-            showLoading();
-            WidgetService.deleteWidget(item.id)
-              .then(response => {
-                if (response.status === 200) {
-                  getWidgetList();
-                  snackbar.success('위젯이 삭제되었습니다.');
-                } else {
-                  alert.error('위젯 삭제에 실패했습니다.\n다시 시도해 주세요.');
-                }
-              })
-              .finally(() => {
-                hideLoading();
-              });
+  const removeWidget = (id, title) => {
+    alert.success(
+      <Box sx={{ span: { fontWeight: 600 } }}>
+        <span>{title}</span>
+        <br />
+        위젯을 삭제하시겠습니까?
+      </Box>,
+      {
+        title: '위젯 삭제',
+        closeCopy: '취소',
+        actions: [
+          {
+            copy: '삭제',
+            onClick: () => {
+              showLoading();
+              WidgetService.deleteWidget(id)
+                .then(response => {
+                  if (response.status === 200) {
+                    getWidgetList();
+                    snackbar.success('위젯이 삭제되었습니다.');
+                  } else {
+                    alert.error('위젯 삭제에 실패했습니다.\n다시 시도해 주세요.');
+                  }
+                })
+                .finally(() => {
+                  hideLoading();
+                });
+            },
           },
-        },
-      ],
-    });
+        ],
+      },
+    );
   };
 
   // 목록이 없을때 보여줄 화면

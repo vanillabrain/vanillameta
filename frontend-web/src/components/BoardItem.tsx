@@ -91,32 +91,27 @@ function BoardItem(props: BoardItemProps) {
     <ListItem
       disablePadding
       sx={{
+        py: { xs: '20px', sm: '7px' },
+        px: { xs: '16px', sm: '20px' },
+        pr: { sm: '28px' },
         borderBottom: tableBorder,
         '&:last-of-type': { borderBottom: 0 },
-        py: matches ? '13px' : '20px',
-        paddingRight: 0,
       }}
       component={RouterLink}
       to={`${id}`}
       state={{ from: pathname }}
     >
-      <Stack
-        direction="row"
-        alignItems="center"
-        justifyContent="space-between"
-        sx={{ x: 0, paddingLeft: { xs: '16px', sm: '20px' }, width: '100%' }}
-      >
-        <Stack direction="row" alignItems="center" width="100%" sx={{ maxWidth: `calc(100% - ${matches ? 300 : 110}px)` }}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ width: '100%' }}>
+        <Stack direction="row" alignItems="center" sx={{ width: '100%', maxWidth: `calc(100% - ${matches ? 300 : 110}px)` }}>
           {matches && componentType && <IconRowHeader icon={icon} />}
           {matches ? <TitleSpan>{title}</TitleSpan> : <MobileTitleSpan>{title}</MobileTitleSpan>}
         </Stack>
-        <Stack alignItems="center" direction="row" sx={{ paddingRight: matches ? '36px' : '16px' }}>
+        <Stack alignItems="center" direction="row">
           <SubTitleSpan matches={matches}>{dateData(updatedAt)}</SubTitleSpan>
           <Hidden smDown>
-            <Stack direction="row" gap="36px" ml="56px">
+            <Stack direction="row" gap="18px" ml="48px">
               <ModifyButton
                 size="medium"
-                sx={{ padding: 0 }}
                 onClick={event => {
                   event.preventDefault();
                   event.stopPropagation();
@@ -125,7 +120,6 @@ function BoardItem(props: BoardItemProps) {
               />
               <DeleteButton
                 size="medium"
-                sx={{ padding: 0 }}
                 onClick={event => {
                   event.preventDefault();
                   event.stopPropagation();

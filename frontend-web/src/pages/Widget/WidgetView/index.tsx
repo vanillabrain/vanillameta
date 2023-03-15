@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Card, Hidden } from '@mui/material';
+import { Box, Card, Hidden } from '@mui/material';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import PageTitleBox from '@/components/PageTitleBox';
 import WidgetService from '@/api/widgetService';
@@ -67,30 +67,37 @@ const WidgetView = () => {
   };
 
   const removeWidget = () => {
-    alert.success(`${widgetOption.title}\n위젯을 삭제하시겠습니까?`, {
-      title: '위젯 삭제',
-      closeCopy: '취소',
-      actions: [
-        {
-          copy: '삭제',
-          onClick: () => {
-            showLoading();
-            WidgetService.deleteWidget(widgetId)
-              .then(response => {
-                if (response.status === 200) {
-                  navigate('/widget', { replace: true });
-                  snackbar.success('위젯이 삭제되었습니다.');
-                } else {
-                  alert.error('위젯 삭제에 실패했습니다.\n다시 시도해 주세요.');
-                }
-              })
-              .finally(() => {
-                hideLoading();
-              });
+    alert.success(
+      <Box sx={{ span: { fontWeight: 600 } }}>
+        <span>{widgetOption.title}</span>
+        <br />
+        위젯을 삭제하시겠습니까?
+      </Box>,
+      {
+        title: '위젯 삭제',
+        closeCopy: '취소',
+        actions: [
+          {
+            copy: '삭제',
+            onClick: () => {
+              showLoading();
+              WidgetService.deleteWidget(widgetId)
+                .then(response => {
+                  if (response.status === 200) {
+                    navigate('/widget', { replace: true });
+                    snackbar.success('위젯이 삭제되었습니다.');
+                  } else {
+                    alert.error('위젯 삭제에 실패했습니다.\n다시 시도해 주세요.');
+                  }
+                })
+                .finally(() => {
+                  hideLoading();
+                });
+            },
           },
-        },
-      ],
-    });
+        ],
+      },
+    );
   };
 
   return (

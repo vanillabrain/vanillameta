@@ -110,29 +110,36 @@ const DashboardView = () => {
   };
 
   const handleDeleteSelect = () => {
-    alert.success(dashboardInfo.title + '\n대시보드를 삭제하시겠습니까?', {
-      closeCopy: '취소',
-      actions: [
-        {
-          copy: '확인',
-          onClick: () => {
-            showLoading();
-            DashboardService.deleteDashboard(dashboardId)
-              .then(response => {
-                if (response.data.status == STATUS.SUCCESS) {
-                  navigate('/dashboard', { replace: true });
-                  snackbar.success('대시보드가 삭제되었습니다.');
-                } else {
-                  alert.error('대시보드 삭제에 실패했습니다.\n다시 시도해 주세요.');
-                }
-              })
-              .finally(() => {
-                hideLoading();
-              });
+    alert.success(
+      <Box sx={{ span: { fontWeight: 600 } }}>
+        <span>{dashboardInfo.title}</span>
+        <br />
+        대시보드를 삭제하시겠습니까?
+      </Box>,
+      {
+        closeCopy: '취소',
+        actions: [
+          {
+            copy: '확인',
+            onClick: () => {
+              showLoading();
+              DashboardService.deleteDashboard(dashboardId)
+                .then(response => {
+                  if (response.data.status == STATUS.SUCCESS) {
+                    navigate('/dashboard', { replace: true });
+                    snackbar.success('대시보드가 삭제되었습니다.');
+                  } else {
+                    alert.error('대시보드 삭제에 실패했습니다.\n다시 시도해 주세요.');
+                  }
+                })
+                .finally(() => {
+                  hideLoading();
+                });
+            },
           },
-        },
-      ],
-    });
+        ],
+      },
+    );
   };
 
   const handleShareToggle = () => {
