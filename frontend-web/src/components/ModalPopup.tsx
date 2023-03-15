@@ -1,6 +1,7 @@
 import { Box, IconButton, Modal, Paper, Stack, Typography } from '@mui/material';
 import { ReactComponent as CloseIcon } from '@/assets/images/icon/ic-xmark.svg';
 import React from 'react';
+import { MAX_WIDTH } from '@/constant';
 
 interface ModalPopupProps {
   open: boolean;
@@ -32,7 +33,7 @@ const ModalPopup = (props: ModalPopupProps) => {
           display: 'flex',
           flexDirection: 'column',
           width: { xs: '90%', sm: '80%' },
-          maxWidth: '1392px',
+          maxWidth: MAX_WIDTH,
           height: '70%',
           maxHeight: '754px',
           borderRadius: '8px',

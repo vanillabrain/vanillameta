@@ -14,6 +14,7 @@ import Copyright from '@/components/Copyright';
 import Seo from '@/seo/Seo';
 import { dateData } from '@/utils/util';
 import { setShareToken } from '@/helpers/shareHelper';
+import { MAX_WIDTH } from '@/constant';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -131,15 +132,14 @@ const Share = () => {
   };
 
   return (
-    <Stack sx={{ width: '1392px', m: 'auto', mt: '32px' }}>
-      <LandingLogo sx={{ mb: '5px' }} />
+    <Stack sx={{ width: '100%', maxWidth: MAX_WIDTH, m: 'auto', mt: '32px' }}>
+      <LandingLogo sx={{ ml: '20px', mb: '5px' }} />
       {!isShareOn ? (
         // 공유 URL이 유효하지 않을 때 보여줄 화면
-        <PageViewBox>
+        <PageViewBox sx={{ borderTop: '1px solid #ddd' }}>
           <Box
             sx={{
-              width: '1390px',
-              minWidth: '1390px',
+              flex: '1 1 auto',
               backgroundColor: '#f9f9fa',
               borderRadius: '0px 0px 6px 6px',
             }}
@@ -159,13 +159,16 @@ const Share = () => {
           </Box>
         </PageViewBox>
       ) : (
-        <PageViewBox title={dashboardInfo.title} button={`수정일 : ${dateData(dashboardInfo.updatedAt)}`}>
+        <PageViewBox
+          title={dashboardInfo.title}
+          date={`${dateData(dashboardInfo.updatedAt)}`}
+          sx={{ borderTop: '1px solid #ddd' }}
+        >
           <Seo title={dashboardInfo.title} />
           <Box
             sx={{
-              width: '1390px',
-              minWidth: '1390px',
-              minHeight: '1080px',
+              flex: '1 1 auto',
+              minHeight: { sm: '1080px' },
               backgroundColor: '#f9f9fa',
               borderRadius: '0px 0px 6px 6px',
             }}
@@ -173,10 +176,11 @@ const Share = () => {
             <ResponsiveGridLayout
               rowHeight={88}
               compactType={null}
-              cols={{ lg: 12 }}
-              layouts={{ lg: layout }}
-              containerPadding={{ lg: [24, 24] }}
-              margin={{ lg: [24, 24] }}
+              breakpoints={{ xs: 0, md: 800, lg: 1000 }}
+              cols={{ xs: 2, md: 8, lg: 12 }}
+              layouts={{ xs: layout, md: layout, lg: layout }}
+              containerPadding={{ xs: [20, 20], md: [20, 20], lg: [24, 24] }}
+              margin={{ xs: [20, 20], md: [20, 20], lg: [24, 24] }}
             >
               {generateWidget()}
             </ResponsiveGridLayout>

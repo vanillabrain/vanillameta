@@ -19,7 +19,7 @@ import {
 import { useAlert } from 'react-alert';
 import TemplateService from '@/api/templateService';
 import WidgetService from '@/api/widgetService';
-import { STATUS } from '@/constant';
+import { MAX_WIDTH, STATUS } from '@/constant';
 import CloseButton from '@/components/button/CloseButton';
 import { ReactComponent as TemplateIcon01 } from '@/assets/images/template/template01.svg';
 import { ReactComponent as TemplateIcon02 } from '@/assets/images/template/template02.svg';
@@ -453,7 +453,7 @@ function RecommendDashboardPopup({ recommendOpen = false, handleComplete = null 
       setDialogWidth('600px');
     } else if (step == 2) {
       setSubTitle('템플릿을 선택하세요');
-      setDialogWidth('1392px');
+      setDialogWidth(MAX_WIDTH);
     }
   }, [step]);
 

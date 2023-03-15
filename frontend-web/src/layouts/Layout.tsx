@@ -33,7 +33,6 @@ const Layout = props => {
         sx={{
           flex: '1 1 auto',
           width: '100%',
-          minWidth: { sm: 'min-content' },
           pt: { xs: '56px', sm: '65px' },
           minHeight: `calc(100% - ${footerHeight}px)`,
         }}

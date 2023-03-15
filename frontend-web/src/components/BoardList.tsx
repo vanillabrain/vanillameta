@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Box, List, Pagination, Stack, useMediaQuery, useTheme } from '@mui/material';
 import BoardItem from './BoardItem';
 import { styled } from '@mui/system';
+import { MAX_WIDTH } from '@/constant';
 
 interface GTSpanProps {
   children: React.ReactNode;
@@ -47,7 +48,7 @@ function BoardList(props) {
   };
 
   return (
-    <Box sx={{ maxWidth: '1392px', width: '100%', mx: 'auto' }}>
+    <Box sx={{ maxWidth: MAX_WIDTH, width: '100%', mx: 'auto' }}>
       <Stack
         flexDirection="row"
         justifyContent="space-between"

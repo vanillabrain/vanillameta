@@ -42,7 +42,7 @@ const paperSx: SxProps = {
 const ShareOnPopup = forwardRef((props: SharePopupProps, ref: Ref<HTMLDivElement>) => {
   const { matches, handleShareToggle, shareLimitDate, shareId } = props;
   const alert = useAlert();
-  const shareLink = `${process.env.PUBLIC_URL}/share/${shareId ? shareId : ''}`;
+  const shareLink = `${window.location.origin}/share/${shareId ? shareId : ''}`;
 
   const handleCopyClick = async () => {
     await navigator.clipboard

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Avatar, Box, Divider, Stack, SxProps, Typography, useMediaQuery, useTheme } from '@mui/material';
+import { MAX_WIDTH } from '@/constant';
 
 interface PageViewBoxProps {
   iconName?: string;
@@ -40,6 +41,7 @@ const MobileViewBox = props => {
           minHeight: '66px',
           px: '20px',
           backgroundColor: '#ffffff',
+          ...sx,
         }}
       >
         <Stack direction="row" alignItems="center">
@@ -121,7 +123,7 @@ const DesktopViewBox = props => {
       <Box
         sx={{
           width: '100%',
-          maxWidth: '1392px',
+          maxWidth: MAX_WIDTH,
           height: '100%',
           borderRadius: '6px',
           border: 'solid 1px #ddd',
@@ -133,19 +135,27 @@ const DesktopViewBox = props => {
           direction="row"
           justifyContent="space-between"
           alignItems="center"
-          sx={{ width: '100%', height: '57px', backgroundColor: '#ffffff', borderRadius: '6px 6px 0px 0px' }}
+          sx={{ width: '100%', height: '57px', px: '20px', backgroundColor: '#ffffff', borderRadius: '6px 6px 0px 0px' }}
         >
-          <Stack direction="row" alignItems="center">
+          {/* title */}
+          <Stack
+            direction="row"
+            alignItems="center"
+            sx={{
+              width: '100%',
+              maxWidth: { sm: `calc(100% - ${button ? 390 : 100}px)`, md: `calc(100% - ${button ? 360 : 100}px)` },
+            }}
+          >
             {iconName && (
               <Avatar
                 src={`/static/images/${iconName}`}
                 sx={{
                   width: '30px',
                   height: '30px',
-                  marginLeft: '20px',
                   borderRadius: 0,
                   objectFit: 'contain',
                   backgroundColor: 'transparent',
+                  mr: '18px',
                 }}
               />
             )}
@@ -157,18 +167,14 @@ const DesktopViewBox = props => {
                 component="span"
                 sx={{
                   flexGrow: 0,
-                  width: { sm: 'calc(100vw - 390px)', md: 'calc(100vw - 460px)' },
-                  maxWidth: '1000px',
-                  fontWeight: 500,
-                  paddingLeft: '18px',
+                  display: 'block',
+                  width: '100%',
+                  maxWidth: MAX_WIDTH,
                   height: '16px',
-                  fontFamily: 'Pretendard',
+                  fontWeight: 500,
                   fontSize: { xs: '16px', sm: '18px' },
-                  fontStretch: 'normal',
-                  fontStyle: 'normal',
                   lineHeight: 0.89,
                   letterSpacing: '-0.18px',
-                  textAlign: 'left',
                   color: '#141414',
                   textOverflow: 'ellipsis',
                   overflow: 'hidden',
@@ -179,11 +185,13 @@ const DesktopViewBox = props => {
               </Typography>
             )}
           </Stack>
-          <Stack direction="row" alignItems="center" sx={{ marginRight: '20px' }}>
+
+          {/* date, button */}
+          <Stack direction="row" justifyContent="flex-end" alignItems="center" flexShrink="0">
             <Box
               component="span"
               sx={{
-                marginRight: { sm: '26px', md: '36px' },
+                marginRight: button ? { sm: '26px', md: '36px' } : {},
                 height: '16px',
                 fontFamily: 'Pretendard',
                 fontSize: '14px',
@@ -198,7 +206,9 @@ const DesktopViewBox = props => {
             >
               {date}
             </Box>
-            {button}
+            <Stack direction="row" justifyContent="flex-end" alignItems="center">
+              {button}
+            </Stack>
           </Stack>
         </Stack>
         <Divider sx={{ width: '100%', height: '1px' }} />
