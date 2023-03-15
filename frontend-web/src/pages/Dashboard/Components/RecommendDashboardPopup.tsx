@@ -186,6 +186,13 @@ export const WidgetList = ({
                 />
               </ListItemIcon>
               <ListItemText
+                primaryTypographyProps={{
+                  sx: {
+                    overflow: 'hidden',
+                    whiteSpace: 'nowrap',
+                    textOverflow: 'ellipsis',
+                  },
+                }}
                 sx={{
                   marginLeft: '16px',
                   fontFamily: 'Pretendard',

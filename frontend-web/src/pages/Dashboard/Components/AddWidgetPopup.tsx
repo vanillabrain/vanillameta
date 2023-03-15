@@ -176,7 +176,7 @@ function AddWidgetPopup({ label, useWidgetIds = [], widgetOpen = false, widgetSe
               <ListItemButton
                 key={index}
                 selected={isItemSelection(item)}
-                sx={{ paddingX: '20px', height: '50px' }}
+                sx={{ width: '100%', paddingX: '20px', height: '50px' }}
                 onClick={() => handleClick(item)}
               >
                 <Checkbox checked={isItemSelection(item)} />
@@ -198,7 +198,15 @@ function AddWidgetPopup({ label, useWidgetIds = [], widgetOpen = false, widgetSe
                   />
                 </ListItemIcon>
                 <ListItemText
+                  primaryTypographyProps={{
+                    sx: {
+                      overflow: 'hidden',
+                      whiteSpace: 'nowrap',
+                      textOverflow: 'ellipsis',
+                    },
+                  }}
                   sx={{
+                    // maxWidth: '470px',
                     marginLeft: '16px',
                     fontFamily: 'Pretendard',
                     fontSize: '14px',

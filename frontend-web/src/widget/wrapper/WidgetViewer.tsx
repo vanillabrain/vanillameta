@@ -398,9 +398,10 @@ const WidgetViewer = props => {
                 left: 0,
                 right: 0,
                 maxWidth: 'fit-content',
-                height: 0,
+                height: '100%',
                 margin: 'auto',
                 transform: 'translateY(-50%)',
+                pointerEvents: 'none',
               }}
             />
             <DonutChart {...chartProps} />
@@ -419,9 +420,10 @@ const WidgetViewer = props => {
                 left: 0,
                 right: 0,
                 maxWidth: 'fit-content',
-                height: 0,
+                height: '100%',
                 margin: 'auto',
                 transform: 'translateY(-50%)',
+                pointerEvents: 'none',
               }}
             />
             <DonutChart
@@ -530,6 +532,7 @@ const WidgetViewer = props => {
       >
         <Stack
           sx={{
+            position: 'relative',
             width: '100%',
             minWidth: { xs: `calc(${size} * 80px)`, sm: 0 },
             height: '100%',
