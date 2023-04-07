@@ -47,7 +47,7 @@ export const DatasetCardList = (props: DatasetCardListProps) => {
             </Typography>
 
             {/* 아이콘 */}
-            {handleDataRemove && (
+            {!isViewMode && (
               <Stack direction="row" justifyContent="flex-end" width="100%" mt="11px">
                 <ModifyButton
                   size="medium"
