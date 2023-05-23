@@ -61,6 +61,7 @@ const Logout = props => {
         fontSize: 'inherit',
         fontWeight: 'inherit',
         color: 'inherit',
+        whiteSpace: 'nowrap',
         '&:hover': {
           backgroundColor: 'inherit',
         },

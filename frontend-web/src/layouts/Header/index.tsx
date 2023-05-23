@@ -31,7 +31,7 @@ function Header() {
 
   return (
     <AppBar elevation={0} component="nav" sx={{ left: 0, height: { xs: '56px', sm: '65px' } }}>
-      <Toolbar variant="dense" sx={{ height: 65, justifyContent: 'space-between', columnGap: '32px' }}>
+      <Toolbar variant="dense" sx={{ height: 65, justifyContent: 'space-between', columnGap: { xs: '20px', sm: '32px' } }}>
         <Logo />
         <Hidden smDown>
           <NavBar navItems={navItems} />
@@ -41,7 +41,7 @@ function Header() {
           </Box>
         </Hidden>
         <Hidden smUp>
-          <NavBar navItems={navItems.slice(0, 2)} />
+          <NavBar navItems={navItems.splice(0, 2)} />
           <Logout sx={{ fontSize: '12px', color: '#767676' }} />
         </Hidden>
       </Toolbar>
