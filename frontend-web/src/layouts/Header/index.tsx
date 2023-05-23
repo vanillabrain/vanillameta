@@ -1,5 +1,5 @@
 import React from 'react';
-import { AppBar, Box, Button, Divider, Hidden, Toolbar } from '@mui/material';
+import { AppBar, Box, Divider, Hidden, Toolbar } from '@mui/material';
 import { AddMenuIconButton } from '@/components/button/AddIconButton';
 import Logo from './Logo';
 import NavBar from './NavBar';
@@ -14,8 +14,7 @@ const menuList = [
   { name: '대시보드', link: '/dashboard/create?createType=dashboard' },
 ];
 
-function Index(props) {
-  const headerHeight = props.height;
+function Header() {
   const navigate = useNavigate();
 
   const navItems = [
@@ -32,7 +31,7 @@ function Index(props) {
 
   return (
     <AppBar elevation={0} component="nav" sx={{ left: 0, height: { xs: '56px', sm: '65px' } }}>
-      <Toolbar variant="dense" sx={{ height: headerHeight, justifyContent: 'space-between', columnGap: '32px' }}>
+      <Toolbar variant="dense" sx={{ height: 65, justifyContent: 'space-between', columnGap: '32px' }}>
         <Logo />
         <Hidden smDown>
           <NavBar navItems={navItems} />
@@ -42,6 +41,7 @@ function Index(props) {
           </Box>
         </Hidden>
         <Hidden smUp>
+          <NavBar navItems={navItems.slice(0, 2)} />
           <Logout sx={{ fontSize: '12px', color: '#767676' }} />
         </Hidden>
       </Toolbar>
@@ -50,4 +50,4 @@ function Index(props) {
   );
 }
 
-export default Index;
+export default Header;

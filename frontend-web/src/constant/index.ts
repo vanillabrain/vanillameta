@@ -108,8 +108,7 @@ export const STATUS = {
   SUCCESS: 'SUCCESS',
   PENDING: 'PENDING',
   FAILURE: 'FAILURE',
+  FINISH: 'FINISH',
 } as const;
-
-export type STATUS_TYPES = typeof STATUS[keyof typeof STATUS];
 
 export const MAX_WIDTH = '1392px';

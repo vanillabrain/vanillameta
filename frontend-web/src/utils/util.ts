@@ -41,7 +41,6 @@ export const createColumns = data => {
     target = data;
   }
   return Object.keys(target).map(key => {
-    console.log({ name: key, header: key, sortable: true });
-    return { name: key, header: key, sortable: true };
+    return { name: key, header: key, minWidth: 200, sortable: true };
   });
 };

@@ -18,10 +18,10 @@ import DataGrid, { DataGridWrapper } from '@/components/datagrid';
 
 export interface DatabaseProps {
   id: number | string | null;
+  name: string | null;
   createdAt?: string;
   description?: string;
   engine?: string;
-  name?: string;
   timezone?: string;
   type?: string;
   updatedAt?: string;
@@ -52,7 +52,7 @@ const DataLayout = props => {
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
   const { loading, showLoading, hideLoading } = useContext(LoadingContext);
-  const [selectedDatabase, setSelectedDatabase] = useState<DatabaseProps>({ id: null });
+  const [selectedDatabase, setSelectedDatabase] = useState<DatabaseProps>({ id: null, name: null });
   const [selectedDataset, setSelectedDataset] = useState<DataSetProps | DataTableProps | null>(null);
   const [open, setOpen] = useState(false);
   const [gridData, setGridData] = useState<any[]>([]);

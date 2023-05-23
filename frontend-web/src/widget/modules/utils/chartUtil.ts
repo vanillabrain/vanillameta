@@ -113,7 +113,7 @@ export const getAggregationData = (type, data, field) => {
   if (data.length > 0 && (type === WIDGET_AGGREGATION.MIN || type === WIDGET_AGGREGATION.MAX)) {
     result = Number(data[0][field]);
   } else if (data.length > 0 && type === WIDGET_AGGREGATION.SUM && field) {
-    dataList = data.map(row => row[field]);
+    dataList = data.map(row => Number(row[field]));
     fits = decimalFits(dataList);
   }
   switch (type) {
