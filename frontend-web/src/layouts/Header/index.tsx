@@ -14,7 +14,7 @@ const menuList = [
   { name: '대시보드', link: '/dashboard/create?createType=dashboard' },
 ];
 
-function Header(props) {
+function Index(props) {
   const headerHeight = props.height;
   const navigate = useNavigate();
 
@@ -50,4 +50,4 @@ function Header(props) {
   );
 }
 
-export default Header;
+export default Index;
