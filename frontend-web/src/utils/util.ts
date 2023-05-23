@@ -28,3 +28,20 @@ export const dateData = data => {
   }
   return result;
 };
+
+/**
+ * 데이터 그리드 컬럼 생성
+ * @param data
+ */
+export const createColumns = data => {
+  let target = null;
+  if (data instanceof Array && data.length > 0) {
+    target = data[0];
+  } else if (data instanceof Object) {
+    target = data;
+  }
+  return Object.keys(target).map(key => {
+    console.log({ name: key, header: key, sortable: true });
+    return { name: key, header: key, sortable: true };
+  });
+};

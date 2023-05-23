@@ -31,7 +31,7 @@ const ModalPopup = (props: ModalPopupProps) => {
         sx={{
           display: 'flex',
           flexDirection: 'column',
-          width: '80%',
+          width: { xs: '90%', sm: '80%' },
           maxWidth: '1392px',
           height: '70%',
           maxHeight: '754px',

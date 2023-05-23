@@ -10,9 +10,10 @@ import AddButton from '@/components/button/AddButton';
 import { Link as RouterLink } from 'react-router-dom';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { SnackbarContext } from '@/contexts/AlertContext';
-import TableBoard from '@/widget/modules/board/TableBoard';
 import { Loading } from '@/components/loading';
 import ModalPopup from '@/components/ModalPopup';
+import { createColumns } from '@/utils/util';
+import DataGrid, { DataGridWrapper } from '@/components/datagrid';
 // import { cancelAllRequests } from '@/helpers/apiHelper';
 
 export interface DatabaseProps {
@@ -43,18 +44,6 @@ export interface DataTableProps {
   datasetType: 'TABLE';
 }
 
-interface GridDataProps {
-  option?: {
-    columns: {
-      name: string;
-      header?: string;
-      align?: string;
-      sortable?: boolean;
-    }[];
-  };
-  dataSet?: [];
-}
-
 const DataLayout = props => {
   const { isViewMode, setDataSet } = props;
   const [databaseList, setDatabaseList] = useState<DatabaseProps[] | []>([]);
@@ -66,7 +55,8 @@ const DataLayout = props => {
   const [selectedDatabase, setSelectedDatabase] = useState<DatabaseProps>({ id: null });
   const [selectedDataset, setSelectedDataset] = useState<DataSetProps | DataTableProps | null>(null);
   const [open, setOpen] = useState(false);
-  const [gridData, setGridData] = useState<GridDataProps | null>(null);
+  const [gridData, setGridData] = useState<any[]>([]);
+  const [gridColumns, setGridColumns] = useState<any[]>([]);
 
   useEffect(() => {
     getDatabaseList();
@@ -120,14 +110,6 @@ const DataLayout = props => {
       });
   };
 
-  const createDataGrid = data => {
-    if (data) {
-      const { datas, fields } = data;
-      const option = fields.map(item => ({ name: item.columnName, sortable: true }));
-      setGridData({ ...gridData, dataSet: datas, option: { columns: option } });
-    }
-  };
-
   const getData = selectedData => {
     let param;
     switch (selectedData?.datasetType) {
@@ -145,12 +127,14 @@ const DataLayout = props => {
     DatabaseService.selectData(param)
       .then(response => {
         if (response.data.status === STATUS.SUCCESS) {
-          createDataGrid(response.data.data);
+          setGridData(response.data.data.datas);
+          setGridColumns(createColumns(response.data.data.datas));
         }
       })
       .catch(error => {
         console.log('error', error);
-        setGridData(null);
+        setGridData([]);
+        setGridColumns([]);
       })
       .finally(() => {
         hideLoading();
@@ -195,7 +179,8 @@ const DataLayout = props => {
 
   const handleClose = () => {
     setOpen(false);
-    setGridData(null);
+    setGridData([]);
+    setGridColumns([]);
     // if (loading) {
     //   // 진행되고 있는 모든 요청 취소
     //   cancelAllRequests();
@@ -286,7 +271,17 @@ const DataLayout = props => {
             {loading ? (
               <Loading in={loading} style={{ position: 'static', backgroundColor: 'transparent' }} />
             ) : (
-              <TableBoard option={gridData?.option} dataSet={gridData?.dataSet} />
+              <DataGridWrapper>
+                <DataGrid
+                  minBodyHeight={100}
+                  bodyHeight={'fitToParent'}
+                  data={gridData}
+                  columns={gridColumns}
+                  columnOptions={{
+                    resizable: true,
+                  }}
+                />
+              </DataGridWrapper>
             )}
           </ModalPopup>
         </Stack>

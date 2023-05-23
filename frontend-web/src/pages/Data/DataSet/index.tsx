@@ -17,6 +17,7 @@ import { STATUS } from '@/constant';
 import { getDatabaseIcon } from '@/widget/utils/iconUtil';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { SnackbarContext } from '@/contexts/AlertContext';
+import { createColumns } from '@/utils/util';
 
 const DataSet = () => {
   const { setId, sourceId } = useParams();
@@ -60,22 +61,6 @@ const DataSet = () => {
   useEffect(() => {
     if (!databaseId) getDatabaseId();
   }, [databaseList, datasetInfo]);
-
-  /**
-   * 데이터 그리드 컬럼 생성
-   * @param data
-   */
-  const createColumns = data => {
-    let target = null;
-    if (data instanceof Array && data.length > 0) {
-      target = data[0];
-    } else if (data instanceof Object) {
-      target = data;
-    }
-    return Object.keys(target).map(key => {
-      return { name: key, header: key, align: key, width: 200, sortable: true };
-    });
-  };
 
   const addCompleter = () => {
     const rhymeCompleter = {

@@ -63,13 +63,11 @@ const ProfileViewButton = () => {
                 {userState.userEmail}
               </Typography>
               <Stack>
-                <Typography
-                  component="div"
+                <Box
                   sx={{
                     display: 'flex',
                     justifyContent: 'center',
                     alignItems: 'center',
-                    gap: '12px',
                     mt: '32px',
                     fontSize: '14px',
                     textAlign: 'center',
@@ -78,24 +76,16 @@ const ProfileViewButton = () => {
                 >
                   <Logout
                     sx={{
-                      display: 'flex',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      gap: '12px',
                       textDecoration: 'underline',
                       '&:hover': {
+                        backgroundColor: 'transparent',
                         textDecoration: 'underline',
-                      },
-                      '&:after': {
-                        content: `""`,
-                        width: '1px',
-                        height: '10px',
-                        backgroundColor: '#cccfd8',
                       },
                     }}
                   />
+                  <Box sx={{ width: '1px', height: '10px', mx: '12px', backgroundColor: '#cccfd8' }} />
                   <ProfileModify />
-                </Typography>
+                </Box>
               </Stack>
             </Stack>
           </Paper>

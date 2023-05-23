@@ -1,6 +1,7 @@
 import Grid from '@toast-ui/react-grid';
-import React, { HTMLAttributes, useContext, useEffect, useRef } from 'react';
+import React, { HTMLAttributes, useRef } from 'react';
 import { GridEventListener, GridOptions } from 'tui-grid';
+import { Stack } from '@mui/material';
 
 type EventNameMapping = {
   onClick: 'click';
@@ -37,6 +38,21 @@ type Props = Omit<GridOptions, 'el'> &
     oneTimeBindingProps?: Array<'data' | 'columns' | 'bodyHeight' | 'frozenColumnCount'>;
   };
 
+export const DataGridWrapper = ({ children }: React.PropsWithChildren) => {
+  return (
+    <Stack
+      sx={{
+        flex: 1,
+        height: '100%',
+        minHeight: '100%',
+        overflow: 'hidden',
+      }}
+    >
+      {children}
+    </Stack>
+  );
+};
+
 const DataGrid = (props: Props) => {
   const gridRef = useRef();
 
@@ -49,7 +65,7 @@ const DataGrid = (props: Props) => {
       }}
       rowHeight={36}
       minRowHeight={36}
-      minBodyHeight={300}
+      minBodyHeight={100}
       usageStatistics={true}
       columnOptions={{
         resizable: true,
