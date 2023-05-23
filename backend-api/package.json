@@ -20,8 +20,7 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "deploy": "serverless deploy --stage prod",
-    "seed:config": "ts-node ./node_modules/typeorm-seeding/dist/cli.js config",
-    "seed:run": "ts-node ./node_modules/typeorm-seeding/dist/cli.js seed",
+    "seed:run": "ts-node -r tsconfig-paths/register ./node_modules/typeorm-extension/dist/cli/index.js seed",
     "deploy:dev": "serverless deploy --stage dev",
     "deploy:prod": "serverless deploy --stage prod"
   },
@@ -78,9 +77,8 @@
     "tedious": "^15.1.0",
     "ts-jenum": "^2.2.2",
     "typeorm": "^0.3.9",
-    "typeorm-db-seeds": "^1.0.0",
+    "typeorm-extension": "^2.8.0",
     "typeorm-naming-strategies": "^4.1.0",
-    "typeorm-seeding": "^1.6.1",
     "uuid": "^9.0.0",
     "winston": "^3.8.2"
   },
