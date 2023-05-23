@@ -7,7 +7,6 @@ interface CardListWrapperProps {
 }
 
 interface CardWrapperProps {
-  id: number | string;
   children: React.ReactNode;
   sx?: SxProps;
   handleClick?: (item) => void;
@@ -36,12 +35,12 @@ export const CardListWrapper = (props: CardListWrapperProps) => {
 export default CardListWrapper;
 
 export const CardWrapper = (props: CardWrapperProps) => {
-  const { id, children, sx, handleClick } = props;
+  const { children, sx, handleClick } = props;
 
   return (
-    <Stack component="li" key={id} sx={{ flex: '1 1 auto' }}>
+    <Stack component="li" sx={{ flex: '1 1 auto' }}>
       <Stack
-        component="button"
+        component={handleClick ? 'button' : 'div'}
         sx={{
           display: 'flex',
           flexDirection: 'column',
@@ -50,7 +49,7 @@ export const CardWrapper = (props: CardWrapperProps) => {
           boxShadow: '2px 2px 6px 0 rgba(0, 42, 105, 0.1)',
           border: 'solid 1px #ddd',
           backgroundColor: '#fff',
-          '&:hover': { backgroundColor: '#ebfbff' },
+          ...(handleClick ? { '&:hover': { backgroundColor: '#ebfbff' } } : {}),
           ...sx,
         }}
         onClick={handleClick}

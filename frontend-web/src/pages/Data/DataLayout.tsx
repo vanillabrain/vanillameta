@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Box, IconButton, Modal, Paper, Stack, Typography } from '@mui/material';
+import { Stack, Typography } from '@mui/material';
 import DatabaseService from '@/api/databaseService';
 import { STATUS } from '@/constant';
 import { useAlert } from 'react-alert';
@@ -10,9 +10,9 @@ import AddButton from '@/components/button/AddButton';
 import { Link as RouterLink } from 'react-router-dom';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { SnackbarContext } from '@/contexts/AlertContext';
-import { ReactComponent as CloseIcon } from '@/assets/images/icon/ic-xmark.svg';
 import TableBoard from '@/widget/modules/board/TableBoard';
 import { Loading } from '@/components/loading';
+import ModalPopup from '@/components/ModalPopup';
 // import { cancelAllRequests } from '@/helpers/apiHelper';
 
 export interface DatabaseProps {
@@ -54,77 +54,6 @@ interface GridDataProps {
   };
   dataSet?: [];
 }
-
-interface DataViewModalProps {
-  open: boolean;
-  handleClose: () => void;
-  selectedDataset: DataSetProps | DataTableProps;
-  loading: boolean;
-  gridData: GridDataProps;
-}
-
-const DataViewModal = (props: DataViewModalProps) => {
-  const { open, handleClose, selectedDataset, loading, gridData } = props;
-  return (
-    <Modal
-      open={open}
-      onClose={handleClose}
-      sx={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-      }}
-      BackdropProps={{
-        sx: {
-          boxShadow: '0 4px 4px 0 rgba(0, 0, 0, 0.25)',
-          backgroundColor: 'rgba(122, 130, 144, 0.45)',
-        },
-      }}
-    >
-      <Paper
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          width: '80%',
-          maxWidth: '1392px',
-          height: '70%',
-          maxHeight: '754px',
-          borderRadius: '8px',
-          boxShadow: '5px 5px 8px 0 rgba(0, 28, 71, 0.15)',
-          border: 'solid 1px #ddd',
-          p: '10px',
-          pt: 0,
-          backgroundColor: '#fff',
-        }}
-      >
-        <Stack direction="row" justifyContent="space-between" alignItems="center" m="20px" mr="10px">
-          <Typography sx={{ fontSize: '20px', fontWeight: 600, color: '#141414' }}>
-            {selectedDataset && (selectedDataset?.['tableName'] || selectedDataset?.['title'])}
-          </Typography>
-          <IconButton onClick={handleClose} sx={{ p: '10px' }}>
-            <CloseIcon width="16" height="16" />
-          </IconButton>
-        </Stack>
-        <Box
-          sx={{
-            width: '100%',
-            height: '100%',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            flex: 1,
-          }}
-        >
-          {loading ? (
-            <Loading in={loading} style={{ position: 'static', backgroundColor: 'transparent' }} />
-          ) : (
-            <TableBoard option={gridData?.option} dataSet={gridData?.dataSet} />
-          )}
-        </Box>
-      </Paper>
-    </Modal>
-  );
-};
 
 const DataLayout = props => {
   const { isViewMode, setDataSet } = props;
@@ -316,11 +245,7 @@ const DataLayout = props => {
 
       <Stack
         direction="column"
-        sx={{
-          flex: '1 1 auto',
-          width: { xs: '100%', md: 'calc(100% - 404px)' },
-          backgroundColor: '#f5f6f8',
-        }}
+        sx={{ flex: '1 1 auto', width: { xs: '100%', md: 'calc(100% - 404px)' }, backgroundColor: '#f5f6f8' }}
       >
         <Stack direction="column" sx={{ width: '100%', px: '24px', pt: '30px' }}>
           <Stack direction="row">
@@ -353,13 +278,17 @@ const DataLayout = props => {
             selectedData={selectedDataset}
             handleDataClick={handleDataSetClick}
           />
-          <DataViewModal
+          <ModalPopup
             open={open}
             handleClose={handleClose}
-            selectedDataset={selectedDataset}
-            loading={loading}
-            gridData={gridData}
-          />
+            title={selectedDataset && (selectedDataset?.['tableName'] || selectedDataset?.['title'])}
+          >
+            {loading ? (
+              <Loading in={loading} style={{ position: 'static', backgroundColor: 'transparent' }} />
+            ) : (
+              <TableBoard option={gridData?.option} dataSet={gridData?.dataSet} />
+            )}
+          </ModalPopup>
         </Stack>
       </Stack>
     </Stack>

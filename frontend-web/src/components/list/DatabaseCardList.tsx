@@ -28,7 +28,7 @@ export const DatabaseCardList = (props: DatabaseCardListProps) => {
       {data.length > 0 &&
         data.map(item => (
           <CardWrapper
-            id={item.id}
+            key={item.id}
             sx={{
               flexDirection: 'row',
               alignItems: 'center',

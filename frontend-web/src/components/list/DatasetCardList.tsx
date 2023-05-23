@@ -25,7 +25,7 @@ export const DatasetCardList = (props: DatasetCardListProps) => {
       {data.length > 0 &&
         data.map(item => (
           <CardWrapper
-            id={item.id}
+            key={item.id}
             sx={{
               maxHeight: '90px',
               ...(isViewMode && selectedData?.id == item.id && selectedSx),
