@@ -1,5 +1,5 @@
-import { Connection } from "typeorm";
-import { Seeder,Factory } from "typeorm-seeding"
+import { DataSource } from "typeorm";
+import { SeederFactoryManager, Seeder } from "typeorm-extension"
 import { Component } from "../../component/entities/component.entity";
 import { DatabaseType } from "../../database/entities/database_type.entity";
 import { Template } from "../../template/entities/template.entity";
@@ -7,10 +7,13 @@ import { TemplateItem } from "../../template/entities/template-item.entity";
 import { User } from "../../user/entities/user.entity"
 import { YesNo } from '../../common/enum/yn.enum';
 
+import { setSeederFactory } from 'typeorm-extension';
 
-export class CreateInitialData implements Seeder {
-    public async run(factory:Factory , connection:Connection) : Promise<any>{
-        await connection
+
+
+export default class CreateInitialData implements Seeder {
+    public async run ( dataSource: DataSource) : Promise<any>{
+        await dataSource
             .createQueryBuilder()
             .insert()
             .into(Component)
@@ -696,8 +699,7 @@ export class CreateInitialData implements Seeder {
 
     )
     .execute()
-
-        await connection
+        await dataSource
             .createQueryBuilder()
             .insert()
             .into(DatabaseType)
@@ -836,7 +838,7 @@ export class CreateInitialData implements Seeder {
             .execute();
 
 
-        await connection
+        await dataSource
             .createQueryBuilder()
             .insert()
             .into(Template)
@@ -926,7 +928,7 @@ export class CreateInitialData implements Seeder {
 
 
 
-        await connection
+        await dataSource
             .createQueryBuilder()
             .insert()
             .into(TemplateItem)
@@ -1486,7 +1488,7 @@ export class CreateInitialData implements Seeder {
             ])
             .execute();
 
-        await connection
+        await dataSource
             .createQueryBuilder()
             .insert()
             .into(User)
@@ -1499,4 +1501,5 @@ export class CreateInitialData implements Seeder {
                 }
             ])
             .execute();
-}}
+
+    }}
