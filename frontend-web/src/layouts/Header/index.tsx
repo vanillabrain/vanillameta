@@ -41,7 +41,7 @@ function Header() {
           </Box>
         </Hidden>
         <Hidden smUp>
-          <NavBar navItems={navItems.splice(0, 2)} />
+          <NavBar navItems={navItems.slice(0, 2)} />
           <Logout sx={{ fontSize: '12px', color: '#767676' }} />
         </Hidden>
       </Toolbar>
