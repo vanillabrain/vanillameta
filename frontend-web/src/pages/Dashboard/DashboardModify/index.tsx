@@ -1,7 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Box, Button, Card, Stack, TextField } from '@mui/material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import PageContainer from '@/components/PageContainer';
 import PageTitleBox from '@/components/PageTitleBox';
 import AddWidgetPopup from '@/pages/Dashboard/Components/AddWidgetPopup';
 import ConfirmCancelButton from '@/components/button/ConfirmCancelButton';
@@ -16,7 +15,7 @@ import AddIcon from '@mui/icons-material/Add';
 import RecommendDashboardPopup from '@/pages/Dashboard/Components/RecommendDashboardPopup';
 import DashboardService from '@/api/dashboardService';
 import { STATUS } from '@/constant';
-import DashboardTitleBox from '../Components/DashboardTitleBox';
+import PageViewBox from '../../../components/PageViewBox';
 import CloseButton from '@/components/button/CloseButton';
 import bg from '@/assets/images/dashboard-bg.svg';
 import { LoadingContext } from '@/contexts/LoadingContext';
@@ -346,129 +345,126 @@ function DashboardModify() {
   };
 
   return (
-    <PageContainer>
-      <PageTitleBox
-        upperTitle="대시보드"
-        upperTitleLink="/dashboard"
-        title={topTitle}
-        sx={{ width: '100%', marginTop: '22px' }}
-        button={
-          <Stack direction="row" spacing={3} sx={{ marginRight: '20px' }}>
-            <ConfirmCancelButton
-              confirmProps={{ disabled: false, onClick: handleSaveDialogSelect }}
-              cancelProps={{ onClick: handleCancelDialogSelect }}
-            />
-          </Stack>
-        }
-      >
-        <DashboardTitleBox
-          title={
-            <TextField
-              id="userDashboardName"
-              label="대시보드 이름"
-              required
-              sx={{
-                width: '960px',
-                height: '32px',
-                marginLeft: '16px',
-                marginTop: 0,
-                borderRadius: '4px',
-                backgroundColor: '#fff',
-                input: {
-                  fontWeight: 500,
-                  paddingLeft: '18px',
+    <PageTitleBox
+      upperTitle="대시보드"
+      upperTitleLink="/dashboard"
+      title={topTitle}
+      sx={{ width: '100%', marginTop: { xs: 0, sm: '22px' }, flex: '1 1 auto', p: { xs: 0 } }}
+      button={
+        <Stack direction="row" spacing={3} sx={{ marginRight: '20px' }}>
+          <ConfirmCancelButton
+            confirmProps={{ disabled: false, onClick: handleSaveDialogSelect }}
+            cancelProps={{ onClick: handleCancelDialogSelect }}
+          />
+        </Stack>
+      }
+    >
+      <PageViewBox
+        titleElement={
+          <TextField
+            id="userDashboardName"
+            label="대시보드 이름"
+            required
+            sx={{
+              width: { xs: '100%', sm: '960px' },
+              height: '32px',
+              marginLeft: { sm: '16px' },
+              marginTop: 0,
+              borderRadius: '4px',
+              backgroundColor: '#fff',
+              input: {
+                fontWeight: 500,
+                paddingLeft: '18px',
+                height: '16px',
+                fontFamily: 'Pretendard',
+                fontSize: '14px',
+                fontStretch: 'normal',
+                fontStyle: 'normal',
+                lineHeight: 0.89,
+                letterSpacing: '-0.18px',
+                textAlign: 'left',
+                color: '#141414',
+                '&::placeholder': {
                   height: '16px',
+                  flexGrow: 0,
                   fontFamily: 'Pretendard',
                   fontSize: '14px',
+                  fontWeight: 'normal',
                   fontStretch: 'normal',
                   fontStyle: 'normal',
-                  lineHeight: 0.89,
-                  letterSpacing: '-0.18px',
+                  lineHeight: '1.14',
+                  letterSpacing: 'normal',
                   textAlign: 'left',
-                  color: '#141414',
-                  '&::placeholder': {
-                    height: '16px',
-                    flexGrow: 0,
-                    fontFamily: 'Pretendard',
-                    fontSize: '14px',
-                    fontWeight: 'normal',
-                    fontStretch: 'normal',
-                    fontStyle: 'normal',
-                    lineHeight: '1.14',
-                    letterSpacing: 'normal',
-                    textAlign: 'left',
-                    color: '#929292',
-                    opacity: 1,
-                  },
+                  color: '#929292',
+                  opacity: 1,
                 },
-              }}
-              placeholder="대시보드의 이름을 입력해 주세요"
-              value={dashboardTitle}
-              onChange={event => {
-                setDashboardTitle(event.target.value);
-              }}
-            />
-          }
-          button={
-            <>
-              <Button
-                onClick={handleWidgetOpen}
-                variant="contained"
-                startIcon={<AddIcon />}
-                color="primary"
-                sx={{
-                  borderRadius: '8px',
-                  backgroundColor: '#043f84',
-                  width: '97px',
-                  height: '32px',
-                  display: 'flex',
-                  flexDirection: 'row',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  marginRight: '20px',
-                  padding: '7px 0',
-                  objectFit: 'contain',
-                  border: 'solid 1px #0f5ab2',
-                }}
-              >
-                위젯 추가
-              </Button>
-              <AddWidgetPopup
-                label="위젯 추가"
-                widgetSelect={handleWidgetSelect}
-                useWidgetIds={useWidgetIds}
-                widgetOpen={widgetOpen}
-              />
-            </>
-          }
-        >
-          <Box
-            sx={{
-              width: '1390px',
-              minWidth: '1390px',
-              minHeight: '1080px',
-              backgroundImage: `url(${bg})`,
-              backgroundRepeat: 'repeat',
-              borderRadius: '0px 0px 6px 6px',
+              },
             }}
-          >
-            <ResponsiveGridLayout
-              rowHeight={88}
-              compactType={null}
-              cols={{ lg: 12 }}
-              layouts={{ lg: layout }}
-              preventCollision={true}
-              containerPadding={{ lg: [24, 24] }}
-              margin={{ lg: [24, 24] }}
-              onLayoutChange={onLayoutChange}
+            placeholder="대시보드의 이름을 입력해 주세요"
+            value={dashboardTitle}
+            onChange={event => {
+              setDashboardTitle(event.target.value);
+            }}
+          />
+        }
+        button={
+          <>
+            <Button
+              onClick={handleWidgetOpen}
+              variant="contained"
+              startIcon={<AddIcon />}
+              color="primary"
+              sx={{
+                borderRadius: '8px',
+                backgroundColor: '#043f84',
+                width: '97px',
+                height: '32px',
+                display: 'flex',
+                flexDirection: 'row',
+                justifyContent: 'center',
+                alignItems: 'center',
+                padding: '7px 0',
+                objectFit: 'contain',
+                border: 'solid 1px #0f5ab2',
+              }}
             >
-              {generateWidget()}
-            </ResponsiveGridLayout>
-            <RecommendDashboardPopup recommendOpen={recommendOpen} handleComplete={handleCompleteRecommend} />
-          </Box>
-        </DashboardTitleBox>
-      </PageTitleBox>
-    </PageContainer>
+              위젯 추가
+            </Button>
+            <AddWidgetPopup
+              label="위젯 추가"
+              widgetSelect={handleWidgetSelect}
+              useWidgetIds={useWidgetIds}
+              widgetOpen={widgetOpen}
+            />
+          </>
+        }
+      >
+        <Box
+          sx={{
+            width: '1390px',
+            minWidth: '1390px',
+            minHeight: '1080px',
+            backgroundImage: `url(${bg})`,
+            backgroundRepeat: 'repeat',
+            borderRadius: '0px 0px 6px 6px',
+          }}
+        >
+          <ResponsiveGridLayout
+            rowHeight={88}
+            compactType={null}
+            cols={{ lg: 12 }}
+            layouts={{ lg: layout }}
+            preventCollision={true}
+            containerPadding={{ lg: [24, 24] }}
+            margin={{ lg: [24, 24] }}
+            onLayoutChange={onLayoutChange}
+          >
+            {generateWidget()}
+          </ResponsiveGridLayout>
+          <RecommendDashboardPopup recommendOpen={recommendOpen} handleComplete={handleCompleteRecommend} />
+        </Box>
+      </PageViewBox>
+    </PageTitleBox>
   );
 }
 

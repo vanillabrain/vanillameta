@@ -99,7 +99,11 @@ const MixedLinePieChart = props => {
     const op = {
       [axis + 'Axis']: {
         type: 'category',
-        data: option[axis + 'Field'] ? aggrData.map(item => item[option[axis + 'Field']]) : '',
+        data: option[axis + 'Field']
+          ? axis === 'x'
+            ? aggrData.map(item => item[option[axis + 'Field']])
+            : aggrData.map(item => item[option[axis + 'Field']]).reverse()
+          : '',
       },
       series: newSeries,
       grid: getGridSize(option.legendPosition),

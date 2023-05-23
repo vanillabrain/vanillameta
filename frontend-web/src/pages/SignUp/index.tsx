@@ -4,7 +4,7 @@ import { ReactComponent as Logo } from '@/assets/images/logo.svg';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { useAlert } from 'react-alert';
-import Copyright from '@/components/Copyright';
+import { Copyright } from '@/layouts/Footer';
 import authService from '@/api/authService';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import { checkEmail, checkId, checkPwd } from '@/utils/util';

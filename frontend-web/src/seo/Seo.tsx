@@ -1,13 +1,12 @@
 import React from 'react';
-import { ROUTE_URL } from '@/constant';
 import { Helmet } from 'react-helmet-async';
 
 const Seo = props => {
   const {
     title = 'VanillaMeta',
     description = '최신 엔터프라이즈용 비즈니스 인텔리전스 웹 애플리케이션, VanillaMeta',
-    image = `${ROUTE_URL}/static/images/logo/vanillaMeta-og.jpg`,
-    url = ROUTE_URL,
+    image = `${process.env.PUBLIC_URL}/static/images/logo/vanillaMeta-og.jpg`,
+    url = process.env.PUBLIC_URL,
   } = props;
   const titleText = title === 'VanillaMeta' ? 'VanillaMeta' : title + ' - VanillaMeta';
 

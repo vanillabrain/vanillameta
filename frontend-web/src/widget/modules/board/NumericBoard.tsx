@@ -55,9 +55,16 @@ const NumericBoard = props => {
       <Typography
         component="span"
         sx={{
+          display: 'block',
+          maxWidth: '700px', // 글자 최대너비 제한
+          width: '100%',
+          mx: 'auto',
           fontSize: componentOption.header.fontSize,
           color: componentOption.header.color,
           textAlign: 'center',
+          overflow: 'hidden',
+          whiteSpace: 'nowrap',
+          textOverflow: 'ellipsis',
         }}
       >
         {componentOption.header.title}
@@ -65,10 +72,17 @@ const NumericBoard = props => {
       <Typography
         component="span"
         sx={{
+          display: 'block',
+          maxWidth: '700px', // 글자 최대너비 제한
+          width: '100%',
+          mx: 'auto',
           fontSize: componentOption.content.fontSize,
           color: componentOption.content.color,
           fontWeight: 'bold',
           textAlign: 'center',
+          overflow: 'hidden',
+          whiteSpace: 'nowrap',
+          textOverflow: 'ellipsis',
         }}
       >
         {score}

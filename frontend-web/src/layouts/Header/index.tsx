@@ -1,10 +1,11 @@
 import React from 'react';
-import { AppBar, Box, Divider, Toolbar } from '@mui/material';
+import { AppBar, Box, Divider, Hidden, Toolbar } from '@mui/material';
 import { AddMenuIconButton } from '@/components/button/AddIconButton';
 import Logo from './Logo';
 import NavBar from './NavBar';
 import { useNavigate } from 'react-router-dom';
 import ProfileViewButton from '@/components/user/ProfileViewButton';
+import Logout from '@/components/user/Logout';
 
 const menuList = [
   { name: '데이터 소스', link: '/data/source/create' },
@@ -13,8 +14,7 @@ const menuList = [
   { name: '대시보드', link: '/dashboard/create?createType=dashboard' },
 ];
 
-function Header(props) {
-  const headerHeight = props.height;
+function Header() {
   const navigate = useNavigate();
 
   const navItems = [
@@ -24,20 +24,26 @@ function Header(props) {
   ];
 
   const handleMenuSelect = item => {
-    if (item.link !== undefined) {
+    if (item.link) {
       navigate(item.link);
     }
   };
 
   return (
-    <AppBar elevation={0} component="nav" sx={{ minWidth: '600px', left: 0, height: '65px' }}>
-      <Toolbar variant="dense" sx={{ height: headerHeight, justifyContent: 'space-between', columnGap: '30px' }}>
+    <AppBar elevation={0} component="nav" sx={{ left: 0, height: { xs: '56px', sm: '65px' } }}>
+      <Toolbar variant="dense" sx={{ height: 65, justifyContent: 'space-between', columnGap: { xs: '20px', sm: '32px' } }}>
         <Logo />
-        <NavBar navItems={navItems} />
-        <Box sx={{ display: 'flex', gap: '16px' }}>
-          <AddMenuIconButton menuList={menuList} handleSelect={handleMenuSelect} />
-          <ProfileViewButton />
-        </Box>
+        <Hidden smDown>
+          <NavBar navItems={navItems} />
+          <Box sx={{ display: 'flex', gap: '16px' }}>
+            <AddMenuIconButton menuList={menuList} handleSelect={handleMenuSelect} />
+            <ProfileViewButton />
+          </Box>
+        </Hidden>
+        <Hidden smUp>
+          <NavBar navItems={navItems.slice(0, 2)} />
+          <Logout sx={{ fontSize: '12px', color: '#767676' }} />
+        </Hidden>
       </Toolbar>
       <Divider />
     </AppBar>

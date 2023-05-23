@@ -55,7 +55,7 @@ export const WidgetEmpty = () => {
 };
 
 const WidgetViewer = props => {
-  const { title, widgetType, widgetOption, dataSet, isInvalidData } = props;
+  const { title, widgetType, widgetOption, dataSet, isInvalidData, size } = props;
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const [module, setModule] = useState(null);
 
@@ -398,9 +398,10 @@ const WidgetViewer = props => {
                 left: 0,
                 right: 0,
                 maxWidth: 'fit-content',
-                height: 0,
+                height: '100%',
                 margin: 'auto',
                 transform: 'translateY(-50%)',
+                pointerEvents: 'none',
               }}
             />
             <DonutChart {...chartProps} />
@@ -419,9 +420,10 @@ const WidgetViewer = props => {
                 left: 0,
                 right: 0,
                 maxWidth: 'fit-content',
-                height: 0,
+                height: '100%',
                 margin: 'auto',
                 transform: 'translateY(-50%)',
+                pointerEvents: 'none',
               }}
             />
             <DonutChart
@@ -522,17 +524,28 @@ const WidgetViewer = props => {
         sx={{
           width: '100%',
           height: 'calc(100% - 48px)',
-          // position: 'relative',
-          padding: '10px 40px 48px 40px',
+          pt: '10px',
+          pb: { xs: '25px', sm: '48px' },
+          px: { xs: '10px', sm: '40px' },
+          overflowY: 'auto',
         }}
       >
-        {isInvalidData ? <WidgetEmpty /> : module}
-        {/*<ReactECharts*/}
-        {/*  option={componentOption}*/}
-        {/*  style={{ height: '100%', maxHeight: '600px', width: '100%' }}*/}
-        {/*  lazyUpdate={true}*/}
-        {/*  notMerge={true}*/}
-        {/*/>*/}
+        <Stack
+          sx={{
+            position: 'relative',
+            width: '100%',
+            minWidth: { xs: `calc(${size} * 80px)`, sm: 0 },
+            height: '100%',
+          }}
+        >
+          {isInvalidData ? <WidgetEmpty /> : module}
+          {/*<ReactECharts*/}
+          {/*  option={componentOption}*/}
+          {/*  style={{ height: '100%', maxHeight: '600px', width: '100%' }}*/}
+          {/*  lazyUpdate={true}*/}
+          {/*  notMerge={true}*/}
+          {/*/>*/}
+        </Stack>
       </Stack>
     </Stack>
   );

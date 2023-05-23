@@ -1,22 +1,41 @@
-import React, { useEffect, useState } from 'react';
-import { Stack } from '@mui/material';
-import DataGrid from '@/components/datagrid';
+import React, { useEffect, useRef, useState } from 'react';
+import DataGrid, { DataGridWrapper } from '@/components/datagrid';
+import _ from 'lodash';
 
 const TableBoard = props => {
   const { option, dataSet } = props;
+  const [columns, setColumns] = useState([]);
+  const [resizeObserver, setResizeObserver] = useState(null);
+  const wrapperRef = useRef(null);
 
   const defaultComponentOption = {
     columns: [],
   };
 
-  const [columns, setColumns] = useState([]);
-
   useEffect(() => {
     if (option && dataSet) {
       const newOption = createComponentOption();
-      setColumns([...option.columns]);
+      setColumns([...newOption.columns]);
     }
   }, [option, dataSet]);
+
+  useEffect(() => {
+    const observer = new ResizeObserver(entries => {
+      throttleResize(entries);
+    });
+    if (wrapperRef.current) {
+      observer.observe(wrapperRef.current);
+    }
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  const throttleResize = _.throttle(entries => {
+    entries?.forEach(entry => {
+      setResizeObserver(entry.contentRect);
+    });
+  }, 300);
 
   /**
    *
@@ -31,14 +50,9 @@ const TableBoard = props => {
   };
 
   return (
-    <Stack
-      sx={{
-        height: '100%',
-        minHeight: '100%',
-        overflow: 'hidden',
-      }}
-    >
+    <DataGridWrapper ref={wrapperRef}>
       <DataGrid
+        resizeObserver={resizeObserver}
         minBodyHeight={300}
         bodyHeight={'fitToParent'}
         data={dataSet}
@@ -47,7 +61,7 @@ const TableBoard = props => {
           resizable: true,
         }}
       />
-    </Stack>
+    </DataGridWrapper>
   );
 };
 

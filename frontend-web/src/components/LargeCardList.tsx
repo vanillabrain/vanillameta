@@ -1,6 +1,29 @@
 import React from 'react';
-import { Box, CardContent, Typography } from '@mui/material';
-import { CardWrapper } from '@/components/list/CardListWrapper';
+import { Box, Card, CardContent, Typography } from '@mui/material';
+
+const CardWrapper = ({ children, selected, onClick, sx = null }) => {
+  return (
+    <Card
+      sx={{
+        padding: '20px 8px 20px 21px',
+        borderRadius: '8px',
+        boxShadow: '2px 2px 6px 0 rgba(0, 42, 105, 0.1)',
+        border: selected ? 'solid 1px #4481c9' : 'solid 1px #ddd',
+        backgroundColor: selected ? '#edf8ff' : '#fff',
+        cursor: 'pointer',
+        position: 'relative',
+        alignItems: 'center',
+        '&:hover': {
+          backgroundColor: '#ebfbff',
+        },
+        ...sx,
+      }}
+      onClick={onClick}
+    >
+      {children}
+    </Card>
+  );
+};
 
 function LargeImgCardList(props) {
   const { data, selectedType, setSelectedType } = props;

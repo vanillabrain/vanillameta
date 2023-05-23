@@ -6,7 +6,8 @@ import { useAlert } from 'react-alert';
 import { useNavigate } from 'react-router-dom';
 import { removeToken } from '@/helpers/authHelper';
 
-const Logout = () => {
+const Logout = props => {
+  const { sx } = props;
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const navigate = useNavigate();
   const alert = useAlert();
@@ -53,29 +54,18 @@ const Logout = () => {
       disableFocusRipple
       disableTouchRipple
       sx={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
         minWidth: 0,
         minHeight: 0,
         m: 0,
         p: 0,
-        gap: '12px',
         fontSize: 'inherit',
         fontWeight: 'inherit',
-        textDecoration: 'underline',
         color: 'inherit',
+        whiteSpace: 'nowrap',
         '&:hover': {
-          textDecoration: 'underline',
           backgroundColor: 'inherit',
         },
-
-        '&:after': {
-          content: `""`,
-          width: '1px',
-          height: '10px',
-          backgroundColor: '#cccfd8',
-        },
+        ...sx,
       }}
     >
       로그아웃

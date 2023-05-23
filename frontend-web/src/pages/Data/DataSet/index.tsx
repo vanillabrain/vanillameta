@@ -17,6 +17,7 @@ import { STATUS } from '@/constant';
 import { getDatabaseIcon } from '@/widget/utils/iconUtil';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { SnackbarContext } from '@/contexts/AlertContext';
+import { createColumns } from '@/utils/util';
 
 const DataSet = () => {
   const { setId, sourceId } = useParams();
@@ -60,22 +61,6 @@ const DataSet = () => {
   useEffect(() => {
     if (!databaseId) getDatabaseId();
   }, [databaseList, datasetInfo]);
-
-  /**
-   * 데이터 그리드 컬럼 생성
-   * @param data
-   */
-  const createColumns = data => {
-    let target = null;
-    if (data instanceof Array && data.length > 0) {
-      target = data[0];
-    } else if (data instanceof Object) {
-      target = data;
-    }
-    return Object.keys(target).map(key => {
-      return { name: key, header: key, align: key, width: 200, sortable: true };
-    });
-  };
 
   const addCompleter = () => {
     const rhymeCompleter = {
@@ -305,9 +290,9 @@ const DataSet = () => {
       >
         <Select
           id="databaseId"
-          sx={{ width: '500px' }}
+          sx={{ maxWidth: '500px' }}
           displayEmpty
-          disabled={isModifyMode}
+          disabled={isModifyMode || !databaseList.length}
           size="small"
           value={databaseId ?? ''}
           // renderValue={selected => {
@@ -320,11 +305,15 @@ const DataSet = () => {
           // }}
           onChange={onChangeDatabaseId}
         >
-          {databaseList.map(item => (
-            <MenuItem key={item.id} value={item.id ?? ''}>
-              {item.name}
-            </MenuItem>
-          ))}
+          {databaseList.length ? (
+            databaseList.map(item => (
+              <MenuItem key={item.id} value={item.id ?? ''}>
+                {item.name}
+              </MenuItem>
+            ))
+          ) : (
+            <MenuItem value="">불러올 데이터 소스가 없습니다.</MenuItem>
+          )}
         </Select>
 
         <TextField

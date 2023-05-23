@@ -1,5 +1,4 @@
 import React, { useContext, useEffect, useState } from 'react';
-import PageContainer from '@/components/PageContainer';
 import PageTitleBox from '@/components/PageTitleBox';
 import { ConfirmButton } from '@/components/button/ConfirmCancelButton';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
@@ -82,33 +81,31 @@ const WidgetModify = () => {
   };
 
   return (
-    <PageContainer>
-      <PageTitleBox
-        upperTitle="위젯"
-        upperTitleLink="/widget"
-        title="위젯 편집"
-        sx={{ padding: 0 }}
-        button={
-          <ConfirmButton
-            confirmLabel="저장"
-            confirmProps={{
-              form: 'widgetAttribute',
-              type: 'submit',
-              variant: 'contained',
-            }}
-          />
-        }
-      >
-        <WidgetAttributeSelect
-          widgetTypeName={widgetInfo.componentTitle}
-          widgetTypeDescription={widgetInfo.componentDescription}
-          isModifyMode={true}
-          dataSetId={widgetInfo.datasetId}
-          widgetOption={widgetInfo}
-          saveWidgetInfo={saveWidgetInfo}
+    <PageTitleBox
+      upperTitle="위젯"
+      upperTitleLink="/widget"
+      title="위젯 편집"
+      sx={{ padding: 0 }}
+      button={
+        <ConfirmButton
+          confirmLabel="저장"
+          confirmProps={{
+            form: 'widgetAttribute',
+            type: 'submit',
+            variant: 'contained',
+          }}
         />
-      </PageTitleBox>
-    </PageContainer>
+      }
+    >
+      <WidgetAttributeSelect
+        widgetTypeName={widgetInfo.componentTitle}
+        widgetTypeDescription={widgetInfo.componentDescription}
+        isModifyMode={true}
+        dataSetId={widgetInfo.datasetId}
+        widgetOption={widgetInfo}
+        saveWidgetInfo={saveWidgetInfo}
+      />
+    </PageTitleBox>
   );
 };
 

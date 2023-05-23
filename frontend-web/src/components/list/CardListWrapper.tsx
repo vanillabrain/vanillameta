@@ -1,56 +1,61 @@
-import { Card, Grid } from '@mui/material';
+import { Stack, SxProps } from '@mui/material';
 import React from 'react';
 
-const CardListWrapper = ({ children, minWidth }) => {
+interface CardListWrapperProps {
+  children: React.ReactNode;
+  sx?: SxProps;
+}
+
+interface CardWrapperProps {
+  children: React.ReactNode;
+  sx?: SxProps;
+  handleClick?: (item) => void;
+}
+
+export const CardListWrapper = (props: CardListWrapperProps) => {
+  const { children, sx } = props;
   return (
-    <Grid
-      container
-      spacing={2}
+    <Stack
       component="ul"
       sx={{
+        display: { xs: 'flex', md: 'grid' },
+        gridTemplateColumns: { xs: 'repeat(100%)', sm: 'repeat(auto-fit, minmax(0, 228px))' },
+        gap: '8px',
+        minHeight: '20px',
         listStyle: 'none',
         pl: 0,
-        display: 'grid',
-        gridTemplateColumns: `repeat(${minWidth || 'auto-fit, minmax(0, 228px)'})`,
+        ...sx,
       }}
     >
       {children}
-    </Grid>
+    </Stack>
   );
-};
-
-CardListWrapper.defaultProps = {
-  children: '',
-  minWidth: false,
 };
 
 export default CardListWrapper;
 
-export const CardWrapper = ({ children, selected, onClick, sx = null }) => {
-  return (
-    <Card
-      sx={{
-        padding: '20px 8px 20px 21px',
-        borderRadius: '8px',
-        boxShadow: '2px 2px 6px 0 rgba(0, 42, 105, 0.1)',
-        border: selected ? 'solid 1px #4481c9' : 'solid 1px #ddd',
-        backgroundColor: selected ? '#edf8ff' : '#fff',
-        cursor: 'pointer',
-        position: 'relative',
-        alignItems: 'center',
-        '&:hover': {
-          backgroundColor: '#ebfbff',
-        },
-        ...sx,
-      }}
-      onClick={onClick}
-    >
-      {children}
-    </Card>
-  );
-};
+export const CardWrapper = (props: CardWrapperProps) => {
+  const { children, sx, handleClick } = props;
 
-CardListWrapper.defaultProps = {
-  children: '',
-  minWidth: false,
+  return (
+    <Stack component="li" sx={{ flex: '1 1 auto' }}>
+      <Stack
+        component={handleClick ? 'button' : 'div'}
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          padding: '20px',
+          borderRadius: '8px',
+          boxShadow: '2px 2px 6px 0 rgba(0, 42, 105, 0.1)',
+          border: 'solid 1px #ddd',
+          backgroundColor: '#fff',
+          ...(handleClick ? { '&:hover': { backgroundColor: '#ebfbff' } } : {}),
+          ...sx,
+        }}
+        onClick={handleClick}
+      >
+        {children}
+      </Stack>
+    </Stack>
+  );
 };

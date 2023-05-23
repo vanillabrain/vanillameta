@@ -97,9 +97,9 @@ export const AddMenuIconButton = ({
         aria-expanded={open ? 'true' : undefined}
         onClick={handleClick}
         color="primary"
-        sx={{ minWidth: 0, padding: 0 }}
+        sx={{ minWidth: 0, padding: 0, flex: '1 1 auto' }}
       >
-        <Box component="img" src={iconUrl} sx={sizeOption} alt="추가메뉴 활성화" />
+        <Box component="img" src={iconUrl} sx={sizeOption} alt="추가메뉴" />
       </Button>
       <Menu id="styled-menu" anchorEl={anchorEl} open={open} onClose={handleClose} sx={{ width: menuWidth }}>
         {menuList.map(item => (

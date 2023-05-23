@@ -106,4 +106,9 @@ export const LEGEND_LIST = [
 
 export const STATUS = {
   SUCCESS: 'SUCCESS',
-};
+  PENDING: 'PENDING',
+  FAILURE: 'FAILURE',
+  FINISH: 'FINISH',
+} as const;
+
+export const MAX_WIDTH = '1392px';

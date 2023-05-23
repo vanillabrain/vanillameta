@@ -41,7 +41,7 @@ const AlertTemplate = ({ close, message, options }: IProps) => {
   return (
     <Dialog
       open={true}
-      // onClose={close}
+      onClose={close}
       keepMounted
       aria-labelledby="alert-dialog-slide-title"
       aria-describedby="alert-dialog-slide-description"
@@ -65,7 +65,8 @@ const AlertTemplate = ({ close, message, options }: IProps) => {
             fontSize: '14px',
             color: 'black',
             paddingTop: hasTitle ? 0 : '20px',
-            minWidth: 300,
+            width: '100%',
+            minWidth: { xs: 0, sm: 300 },
             maxWidth: 500,
             whiteSpace: 'pre-wrap',
             textAlign: 'center',

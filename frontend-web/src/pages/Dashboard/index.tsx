@@ -1,11 +1,10 @@
 import React, { useContext, useEffect, useState } from 'react';
-import PageContainer from '@/components/PageContainer';
 import PageTitleBox from '@/components/PageTitleBox';
 import BoardList from '@/components/BoardList';
 import { Outlet, useNavigate, useParams } from 'react-router-dom';
 import { MenuButton } from '@/components/button/AddIconButton';
 import AddIcon from '@mui/icons-material/Add';
-import { Box, Stack } from '@mui/material';
+import { Box, Stack, useMediaQuery, useTheme } from '@mui/material';
 import DashboardService from '@/api/dashboardService';
 import { STATUS } from '@/constant';
 import { useAlert } from 'react-alert';
@@ -24,10 +23,12 @@ function Dashboard() {
   const [loadedDashboardData, setLoadedDashboardData] = useState([]);
   const [noData, setNoData] = useState(false);
   const { showLoading, hideLoading } = useContext(LoadingContext);
+  const theme = useTheme();
+  const matches = useMediaQuery(theme.breakpoints.up('sm'));
 
   const GTSpan = styled('span')({
     fontFamily: 'Pretendard',
-    fontSize: '13px',
+    fontSize: matches ? '13px' : '10px',
     fontWeight: '500',
     fontStretch: 'normal',
     fontStyle: 'normal',
@@ -63,31 +64,37 @@ function Dashboard() {
       });
   };
 
-  const handleDeleteSelect = item => {
-    console.log(item);
-    alert.success(item.title + '\n대시보드를 삭제하시겠습니까?', {
-      closeCopy: '취소',
-      actions: [
-        {
-          copy: '확인',
-          onClick: () => {
-            showLoading();
-            DashboardService.deleteDashboard(item.id)
-              .then(response => {
-                if (response.data.status == STATUS.SUCCESS) {
-                  getDashboardList();
-                  snackbar.success('대시보드가 삭제되었습니다.');
-                } else {
-                  alert.error('대시보드 삭제에 실패했습니다.\n다시 시도해 주세요.');
-                }
-              })
-              .finally(() => {
-                hideLoading();
-              });
+  const handleDeleteSelect = (id, title) => {
+    alert.success(
+      <Box sx={{ span: { fontWeight: 600 } }}>
+        <span>{title}</span>
+        <br />
+        대시보드를 삭제하시겠습니까?
+      </Box>,
+      {
+        closeCopy: '취소',
+        actions: [
+          {
+            copy: '확인',
+            onClick: () => {
+              showLoading();
+              DashboardService.deleteDashboard(id)
+                .then(response => {
+                  if (response.data.status == STATUS.SUCCESS) {
+                    getDashboardList();
+                    snackbar.success('대시보드가 삭제되었습니다.');
+                  } else {
+                    alert.error('대시보드 삭제에 실패했습니다.\n다시 시도해 주세요.');
+                  }
+                })
+                .finally(() => {
+                  hideLoading();
+                });
+            },
           },
-        },
-      ],
-    });
+        ],
+      },
+    );
   };
 
   const handleMenuSelect = item => {
@@ -108,18 +115,18 @@ function Dashboard() {
         <Stack
           flexDirection="row"
           justifyContent="space-between"
-          sx={{ paddingLeft: '20px', paddingRight: '217px', marginBottom: '11px', marginTop: '36px' }}
+          sx={{ paddingLeft: '20px', paddingRight: { xs: '44px', sm: '217px' }, marginBottom: '11px', marginTop: '36px' }}
         >
           <GTSpan>이름</GTSpan>
           <GTSpan>수정일</GTSpan>
         </Stack>
         <Box
           sx={{
-            height: '57px',
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
             flexGrow: '0',
+            py: '18px',
             margin: '0 0 0 0',
             borderRadius: '6px',
             border: 'solid 1px #ddd',
@@ -128,20 +135,20 @@ function Dashboard() {
         >
           <span
             style={{
-              height: '16px',
-              flexGrow: 0,
               fontFamily: 'Pretendard',
-              fontSize: '16px',
+              fontSize: matches ? '16px' : '14px',
               fontWeight: 600,
               fontStretch: 'normal',
               fontStyle: 'normal',
-              lineHeight: 1,
+              lineHeight: 1.43,
               letterSpacing: 'normal',
               textAlign: 'center',
               color: '#333333',
             }}
           >
-            대시보드가 존재하지 않습니다. 대시보드를 생성해보세요.
+            생성한 대시보드가 없습니다.
+            {matches ? ' ' : <br />}
+            대시보드를 생성 후 확인해 보세요.
           </span>
         </Box>
       </>
@@ -149,14 +156,13 @@ function Dashboard() {
   };
 
   return (
-    <PageContainer>
+    <Stack sx={{ width: '100%', height: '100%', flex: '1 1 auto' }}>
       <Seo title={title} />
 
       {!dashboardId ? (
         <>
           <PageTitleBox
             title={title}
-            sx={{ width: '100%' }}
             button={
               <MenuButton
                 menuList={menuList}
@@ -179,7 +185,7 @@ function Dashboard() {
       ) : (
         <Outlet />
       )}
-    </PageContainer>
+    </Stack>
   );
 }
 

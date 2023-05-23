@@ -1,6 +1,5 @@
 import React, { useContext, useEffect, useLayoutEffect, useState } from 'react';
 import { Stack, Typography } from '@mui/material';
-import PageContainer from '@/components/PageContainer';
 import PageTitleBox from '@/components/PageTitleBox';
 import ImgCardList from '@/components/ImgCardList';
 import ConfirmCancelButton from '@/components/button/ConfirmCancelButton';
@@ -292,48 +291,46 @@ function DataSource() {
   };
 
   return (
-    <PageContainer>
-      <PageTitleBox
-        upperTitle="데이터"
-        upperTitleLink="/data"
-        title={'데이터 소스 연결'}
-        button={
-          <ConfirmCancelButton
-            confirmProps={{ disabled: !isConnected, onClick: handleSaveClick }}
-            cancelProps={{ onClick: handleCancelClick }}
+    <PageTitleBox
+      upperTitle="데이터"
+      upperTitleLink="/data"
+      title={'데이터 소스 연결'}
+      button={
+        <ConfirmCancelButton
+          confirmProps={{ disabled: !isConnected, onClick: handleSaveClick }}
+          cancelProps={{ onClick: handleCancelClick }}
+        />
+      }
+      sx={{ p: 0 }}
+    >
+      <Stack sx={{ width: '100%' }}>
+        <Stack sx={{ p: '30px 25px 50px 25px' }}>
+          <Typography
+            variant="subtitle1"
+            component="span"
+            sx={{ fontWeight: 'bold', fontSize: '18px', color: '#141414', mb: '14px' }}
+          >
+            step.01 타입 설정
+          </Typography>
+          <ImgCardList
+            data={typeList}
+            selectedType={dataType}
+            setSelectedType={setDataType}
+            handleTypeClick={handleTypeClick}
           />
-        }
-        sx={{ p: 0 }}
-      >
-        <Stack sx={{ width: '100%' }}>
-          <Stack sx={{ p: '30px 25px 50px 25px' }}>
-            <Typography
-              variant="subtitle1"
-              component="span"
-              sx={{ fontWeight: 'bold', fontSize: '18px', color: '#141414', mb: '14px' }}
-            >
-              step.01 타입 설정
-            </Typography>
-            <ImgCardList
-              data={typeList}
-              selectedType={dataType}
-              setSelectedType={setDataType}
-              handleTypeClick={handleTypeClick}
-            />
-          </Stack>
-          <Stack sx={{ p: '30px 25px 50px 25px', bgcolor: '#f5f6f8' }}>
-            <Typography
-              variant="subtitle1"
-              component="span"
-              sx={{ fontWeight: 'bold', fontSize: '18px', color: '#141414', mb: '14px' }}
-            >
-              step.02 연결 정보 입력
-            </Typography>
-            {dbType()}
-          </Stack>
         </Stack>
-      </PageTitleBox>
-    </PageContainer>
+        <Stack sx={{ p: '30px 25px 50px 25px', bgcolor: '#f5f6f8' }}>
+          <Typography
+            variant="subtitle1"
+            component="span"
+            sx={{ fontWeight: 'bold', fontSize: '18px', color: '#141414', mb: '14px' }}
+          >
+            step.02 연결 정보 입력
+          </Typography>
+          {dbType()}
+        </Stack>
+      </Stack>
+    </PageTitleBox>
   );
 }
 

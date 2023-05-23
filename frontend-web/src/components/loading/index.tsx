@@ -4,6 +4,12 @@ import { Box } from '@mui/material';
 import { ReactElement } from 'react';
 import loadingGif from '@/assets/images/loading.gif';
 
+interface LoadingProps {
+  in: boolean;
+  style?: React.CSSProperties;
+  rest?: any;
+}
+
 const duration = 100;
 
 const defaultStyle = {
@@ -32,7 +38,7 @@ const LoadingBox = styled(Box)(() => ({
   zIndex: 100,
 }));
 
-export const Loading = ({ in: inProp, ...rest }): ReactElement => {
+export const Loading = ({ in: inProp, style, ...rest }: LoadingProps): ReactElement => {
   return (
     <Transition in={inProp} timeout={duration}>
       {state => (
@@ -40,6 +46,7 @@ export const Loading = ({ in: inProp, ...rest }): ReactElement => {
           style={{
             ...defaultStyle,
             ...transitionStyles[state],
+            ...style,
           }}
           {...rest}
         >

@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Box, Card, Stack, Typography } from '@mui/material';
+import { Box, Card, Hidden, useMediaQuery, useTheme } from '@mui/material';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import PageTitleBox from '@/components/PageTitleBox';
 import WidgetWrapper from '@/widget/wrapper/WidgetWrapper';
@@ -9,7 +9,7 @@ import '/node_modules/react-grid-layout/css/styles.css';
 import '/node_modules/react-resizable/css/styles.css';
 import DashboardService from '@/api/dashboardService';
 import { STATUS } from '@/constant';
-import DashboardTitleBox from '../Components/DashboardTitleBox';
+import PageViewBox from '../../../components/PageViewBox';
 import ModifyButton from '@/components/button/ModifyButton';
 import DeleteButton from '@/components/button/DeleteButton';
 import ReloadButton from '@/components/button/ReloadButton';
@@ -30,6 +30,8 @@ const DashboardView = () => {
   const snackbar = useAlert(SnackbarContext);
   const { userState } = useContext(AuthContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
+  const theme = useTheme();
+  const matches = useMediaQuery(theme.breakpoints.up('sm'));
   const [dashboardInfo, setDashboardInfo] = useState({
     title: '',
     widgets: [],
@@ -88,7 +90,7 @@ const DashboardView = () => {
 
   // widget 생성
   const generateWidget = () => {
-    return dashboardInfo.widgets.map(item => {
+    return dashboardInfo.widgets.map((item, index) => {
       return (
         <Card
           key={item.id}
@@ -101,36 +103,43 @@ const DashboardView = () => {
             backgroundColor: '#fff',
           }}
         >
-          <WidgetWrapper widgetOption={item} dataSetId={item.datasetId} />
+          <WidgetWrapper widgetOption={item} dataSetId={item.datasetId} size={dashboardInfo.layout[index].w} />
         </Card>
       );
     });
   };
 
   const handleDeleteSelect = () => {
-    alert.success(dashboardInfo.title + '\n대시보드를 삭제하시겠습니까?', {
-      closeCopy: '취소',
-      actions: [
-        {
-          copy: '확인',
-          onClick: () => {
-            showLoading();
-            DashboardService.deleteDashboard(dashboardId)
-              .then(response => {
-                if (response.data.status == STATUS.SUCCESS) {
-                  navigate('/dashboard', { replace: true });
-                  snackbar.success('대시보드가 삭제되었습니다.');
-                } else {
-                  alert.error('대시보드 삭제에 실패했습니다.\n다시 시도해 주세요.');
-                }
-              })
-              .finally(() => {
-                hideLoading();
-              });
+    alert.success(
+      <Box sx={{ span: { fontWeight: 600 } }}>
+        <span>{dashboardInfo.title}</span>
+        <br />
+        대시보드를 삭제하시겠습니까?
+      </Box>,
+      {
+        closeCopy: '취소',
+        actions: [
+          {
+            copy: '확인',
+            onClick: () => {
+              showLoading();
+              DashboardService.deleteDashboard(dashboardId)
+                .then(response => {
+                  if (response.data.status == STATUS.SUCCESS) {
+                    navigate('/dashboard', { replace: true });
+                    snackbar.success('대시보드가 삭제되었습니다.');
+                  } else {
+                    alert.error('대시보드 삭제에 실패했습니다.\n다시 시도해 주세요.');
+                  }
+                })
+                .finally(() => {
+                  hideLoading();
+                });
+            },
           },
-        },
-      ],
-    });
+        ],
+      },
+    );
   };
 
   const handleShareToggle = () => {
@@ -183,105 +192,73 @@ const DashboardView = () => {
       upperTitle="대시보드"
       upperTitleLink="/dashboard"
       title="대시보드 조회"
-      sx={{ width: '100%', marginTop: '22px' }}
+      sx={{ width: '100%', marginTop: { xs: 0, sm: '22px' }, flex: '1 1 auto', p: { xs: 0 } }}
     >
-      <Seo title={dashboardInfo.title} />
-      <DashboardTitleBox
-        title={
-          <Typography
-            variant="subtitle1"
-            component="span"
+      <>
+        <Seo title={dashboardInfo.title} />
+        <PageViewBox
+          title={dashboardInfo.title}
+          date={dateData(dashboardInfo.updatedAt)}
+          button={
+            <>
+              <Hidden smDown>
+                <ReloadButton
+                  size="medium"
+                  sx={{ marginRight: { sm: '14px', md: '24px' }, padding: 0 }}
+                  onClick={event => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    handleRefreshClick();
+                  }}
+                />
+                <ModifyButton
+                  size="medium"
+                  sx={{ marginRight: { sm: '14px', md: '24px' }, padding: 0 }}
+                  component={RouterLink}
+                  to={`/dashboard/modify?id=${dashboardId}&name=${dashboardInfo.title}`}
+                />
+                <DeleteButton
+                  size="medium"
+                  sx={{ marginRight: { sm: '14px', md: '24px' }, padding: 0 }}
+                  onClick={event => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    handleDeleteSelect();
+                  }}
+                />
+              </Hidden>
+              <ShareButton
+                handleShareToggle={handleShareToggle}
+                isShareOn={isShareOn}
+                shareId={dashboardInfo.uuid}
+                shareLimitDate={shareLimitDate}
+                setShareLimitDate={setShareLimitDate}
+              />
+            </>
+          }
+        >
+          <Box
             sx={{
-              fontWeight: 500,
-              paddingLeft: '18px',
-              height: '16px',
-              fontFamily: 'Pretendard',
-              fontSize: '18px',
-              fontStretch: 'normal',
-              fontStyle: 'normal',
-              lineHeight: 0.89,
-              letterSpacing: '-0.18px',
-              textAlign: 'left',
-              color: '#141414',
+              flex: '1 1 auto',
+              minHeight: { sm: '1080px' },
+              backgroundColor: '#f9f9fa',
+              borderRadius: '0px 0px 6px 6px',
             }}
           >
-            {dashboardInfo.title}
-          </Typography>
-        }
-        button={
-          <Stack direction="row" alignItems="center" sx={{ marginRight: '20px' }}>
-            <span
-              style={{
-                marginRight: '36px',
-                height: '16px',
-                fontFamily: 'Pretendard',
-                fontSize: '14px',
-                fontWeight: '500',
-                fontStretch: 'normal',
-                fontStyle: 'normal',
-                lineHeight: '1.14',
-                letterSpacing: 'normal',
-                textAlign: 'left',
-                color: '#333333',
-              }}
+            <ResponsiveGridLayout
+              rowHeight={88}
+              compactType={null}
+              breakpoints={{ xs: 0, md: 800, lg: 1000 }}
+              cols={{ xs: 2, md: 8, lg: 12 }}
+              layouts={{ xs: layout, md: layout, lg: layout }}
+              containerPadding={{ xs: [20, 20], md: [20, 20], lg: [24, 24] }}
+              margin={{ xs: [20, 20], md: [20, 20], lg: [24, 24] }}
             >
-              {dateData(dashboardInfo.updatedAt)}
-            </span>
-            <ReloadButton
-              size="medium"
-              sx={{ marginRight: '24px', padding: 0 }}
-              onClick={event => {
-                event.preventDefault();
-                event.stopPropagation();
-                handleRefreshClick();
-              }}
-            />
-            <ModifyButton
-              size="medium"
-              sx={{ marginRight: '24px', padding: 0 }}
-              component={RouterLink}
-              to={`/dashboard/modify?id=${dashboardId}&name=${dashboardInfo.title}`}
-            />
-            <DeleteButton
-              size="medium"
-              sx={{ marginRight: '24px', padding: 0 }}
-              onClick={event => {
-                event.preventDefault();
-                event.stopPropagation();
-                handleDeleteSelect();
-              }}
-            />
-            <ShareButton
-              handleSubmit={handleShareToggle}
-              isShareOn={isShareOn}
-              shareId={dashboardInfo.uuid}
-              shareLimitDate={shareLimitDate}
-              setShareLimitDate={setShareLimitDate}
-            />
-          </Stack>
-        }
-      >
-        <Box
-          sx={{
-            width: '1390px',
-            minWidth: '1390px',
-            minHeight: '1080px',
-            backgroundColor: '#f9f9fa',
-            borderRadius: '0px 0px 6px 6px',
-          }}
-        >
-          <ResponsiveGridLayout
-            rowHeight={88}
-            compactType={null}
-            cols={{ lg: 12 }}
-            layouts={{ lg: layout }}
-            containerPadding={{ lg: [24, 24] }}
-            margin={{ lg: [24, 24] }}
-          >
-            {generateWidget()}
-          </ResponsiveGridLayout>
-        </Box>
-      </DashboardTitleBox>
+              {generateWidget()}
+            </ResponsiveGridLayout>
+          </Box>
+        </PageViewBox>
+      </>
     </PageTitleBox>
   );
 };

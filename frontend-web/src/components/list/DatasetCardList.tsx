@@ -1,92 +1,81 @@
-import { CardActions, CardContent, Grid, Typography } from '@mui/material';
+import { Stack, SxProps, Typography } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import React from 'react';
 import CardListWrapper, { CardWrapper } from '@/components/list/CardListWrapper';
-import { any } from 'prop-types';
 import ModifyButton from '@/components/button/ModifyButton';
 import DeleteButton from '@/components/button/DeleteButton';
+import { DataSetProps, DataTableProps } from '@/pages/Data/DataLayout';
 
-export const DatasetCardList = props => {
-  const { data, minWidth, disabledIcons, selectedDataset, onSelectDataset, onDeleteDataset } = props;
+interface DatasetCardListProps {
+  data: DataSetProps[] | DataTableProps[];
+  selectedData: DataSetProps | DataTableProps;
+  handleDataClick?: (item) => void;
+  handleDataRemove?: (item) => void;
+  sx?: SxProps;
+  isViewMode?: boolean;
+}
+
+const selectedSx = { border: 'solid 1px #0f5ab2', backgroundColor: '#edf8ff' };
+
+export const DatasetCardList = (props: DatasetCardListProps) => {
+  const { data, selectedData, handleDataClick, handleDataRemove, isViewMode } = props;
 
   return (
-    <CardListWrapper minWidth={minWidth}>
-      {data.map
-        ? data.map(item => {
-            const selected = selectedDataset?.id == item.id;
-            return (
-              <Grid item component="li" key={item.id}>
-                <CardWrapper selected={selected} onClick={() => onSelectDataset(item)}>
-                  <CardContent
-                    sx={{
-                      p: '0 !important',
-                      display: 'flex',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <Typography
-                      component="span"
-                      variant="subtitle2"
-                      sx={{
-                        width: { xs: '50%', md: '100%' },
-                        textOverflow: 'ellipsis',
-                        overflow: 'hidden',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {item.title || item.tableName}
-                    </Typography>
-                  </CardContent>
+    <CardListWrapper>
+      {data.length > 0 &&
+        data.map(item => (
+          <CardWrapper
+            key={item.id}
+            sx={{
+              maxHeight: '90px',
+              ...(isViewMode && selectedData?.id == item.id && selectedSx),
+            }}
+            handleClick={() => handleDataClick(item)}
+          >
+            <Typography
+              variant="subtitle2"
+              sx={{
+                width: '100%',
+                textAlign: 'left',
+                textOverflow: 'ellipsis',
+                overflow: 'hidden',
+                whiteSpace: 'nowrap',
+                color: '#333',
+              }}
+            >
+              {item.title || item.tableName}
+            </Typography>
 
-                  {/* 아이콘 */}
-                  {disabledIcons ? (
-                    <></>
-                  ) : (
-                    <CardActions
-                      disableSpacing
-                      sx={{
-                        top: 0,
-                        bottom: 0,
-                        right: 10,
-                        display: 'flex',
-                        justifyContent: 'end',
-                        width: '100%',
-                        m: 0,
-                        p: 0,
-                      }}
-                    >
-                      <ModifyButton
-                        size="medium"
-                        component={RouterLink}
-                        to={`/data/set/modify/${item.id}`}
-                        width="20"
-                        height="20"
-                        fill="#767676"
-                      />
-                      <DeleteButton
-                        size="medium"
-                        onClick={event => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          onDeleteDataset(item);
-                        }}
-                        width="20"
-                        height="20"
-                        fill="#767676"
-                      />
-                    </CardActions>
-                  )}
-                </CardWrapper>
-              </Grid>
-            );
-          })
-        : ''}
+            {/* 아이콘 */}
+            {!isViewMode && (
+              <Stack direction="row" justifyContent="flex-end" width="100%" mt="11px">
+                <ModifyButton
+                  size="medium"
+                  component={RouterLink}
+                  to={`/data/set/modify/${item.id}`}
+                  width="20"
+                  height="20"
+                  padding="0"
+                  fill="#767676"
+                  sx={{ p: 0, mr: '18px' }}
+                />
+                <DeleteButton
+                  component="span"
+                  size="medium"
+                  onClick={event => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    handleDataRemove(item);
+                  }}
+                  width="20"
+                  height="20"
+                  fill="#767676"
+                  sx={{ p: 0 }}
+                />
+              </Stack>
+            )}
+          </CardWrapper>
+        ))}
     </CardListWrapper>
   );
-};
-
-DatasetCardList.defaultProps = {
-  data: any,
-  minWidth: false,
-  disabledIcons: false,
 };

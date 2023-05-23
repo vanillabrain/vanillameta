@@ -1,7 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Box, Button, Stack, Step, StepLabel, Stepper, SvgIcon } from '@mui/material';
 import PageTitleBox from '@/components/PageTitleBox';
-import PageContainer from '@/components/PageContainer';
 import WidgetDataSelect from './WidgetDataSelect';
 import WidgetTypeSelect from './WidgetTypeSelect';
 import WidgetAttributeSelect from './WidgetAttributeSelect';
@@ -110,113 +109,117 @@ const WidgetCreate = () => {
   };
 
   return (
-    <PageContainer>
-      <PageTitleBox
-        fixed
-        title={title}
-        upperTitle="위젯"
-        upperTitleLink="/widget"
-        sx={{ paddingLeft: 0, paddingRight: 0, width: '100%', height: '100%' }}
-        button={
-          <Stack direction="row" gap="10px">
+    <PageTitleBox
+      fixed
+      title={title}
+      upperTitle="위젯"
+      upperTitleLink="/widget"
+      sx={{ paddingLeft: 0, paddingRight: 0, width: '100%', height: '100%' }}
+      button={
+        <Stack direction="row" gap="10px">
+          <Button
+            variant="outlined"
+            onClick={handleBack}
+            disabled={activeStep === 0}
+            startIcon={
+              <SvgIcon
+                component={LeftArrow}
+                sx={{
+                  width: '14px',
+                  height: '14px',
+                  padding: '1px',
+                }}
+                inheritViewBox
+              />
+            }
+            sx={{
+              color: '#043f84',
+              '&.Mui-disabled &.MuiButton-startIcon': {
+                color: '#fff',
+              },
+            }}
+          >
+            이전
+          </Button>
+
+          {activeStep !== 2 ? (
             <Button
-              variant="outlined"
-              onClick={handleBack}
-              disabled={activeStep === 0}
-              startIcon={
+              variant="contained"
+              type="button"
+              onClick={handleNext}
+              disabled={isNextButtonDisabled}
+              endIcon={
                 <SvgIcon
                   component={LeftArrow}
-                  sx={{
-                    width: '14px',
-                    height: '14px',
-                    padding: '1px',
-                  }}
+                  sx={{ width: '14px', height: '14px', transform: 'rotate(180deg)', padding: '1px' }}
                   inheritViewBox
                 />
               }
-              sx={{
-                color: '#043f84',
-                '&.Mui-disabled &.MuiButton-startIcon': {
-                  color: '#fff',
-                },
-              }}
+              sx={{ backgroundColor: '#043f84' }}
             >
-              이전
+              다음
             </Button>
-
-            {activeStep !== 2 ? (
-              <Button
-                variant="contained"
-                type="button"
-                onClick={handleNext}
-                disabled={isNextButtonDisabled}
-                endIcon={
-                  <SvgIcon
-                    component={LeftArrow}
-                    sx={{ width: '14px', height: '14px', transform: 'rotate(180deg)', padding: '1px' }}
-                    inheritViewBox
-                  />
-                }
-                sx={{ backgroundColor: '#043f84' }}
-              >
-                다음
-              </Button>
-            ) : (
-              ' '
-            )}
-          </Stack>
-        }
+          ) : (
+            ' '
+          )}
+        </Stack>
+      }
+    >
+      <Box
+        sx={{
+          position: 'fixed',
+          zIndex: 1000,
+          width: '100%',
+          mt: '56px',
+          borderBottom: '1px solid #e3e7ea',
+          backgroundColor: '#fff',
+        }}
       >
-        <Box
+        <Stepper
+          activeStep={activeStep}
           sx={{
-            position: 'fixed',
-            zIndex: 1000,
-            width: '100%',
-            mt: '56px',
-            borderBottom: '1px solid #e3e7ea',
-            backgroundColor: '#fff',
+            width: '50%',
+            minWidth: '450px',
+            maxWidth: '564px',
+            height: '72px',
+            m: 'auto',
           }}
         >
-          <Stepper
-            activeStep={activeStep}
-            sx={{
-              width: '50%',
-              minWidth: '450px',
-              maxWidth: '564px',
-              height: '72px',
-              m: 'auto',
-            }}
-          >
-            {steps.map(label => {
-              const stepProps: { completed?: boolean } = {};
-              const labelProps: {
-                optional?: React.ReactNode;
-              } = {};
-              return (
-                <Step key={label} {...stepProps}>
-                  <StepLabel {...labelProps}>{label}</StepLabel>
-                </Step>
-              );
-            })}
-          </Stepper>
-        </Box>
-        <Box mt="129px">
-          {activeStep === 0 ? (
-            <WidgetDataSelect setDataSet={setDataset} />
-          ) : activeStep === 1 ? (
-            <WidgetTypeSelect widgetType={widgetOption} setWidgetType={setWidgetOption} componentList={componentList} />
-          ) : (
-            <WidgetAttributeSelect
-              dataset={dataset}
-              widgetOption={widgetOption}
-              saveWidgetInfo={saveWidgetInfo}
-              widgetTypeName={widgetOption.title}
-              widgetTypeDescription={widgetOption.description}
-            />
-          )}
-        </Box>
-      </PageTitleBox>
-    </PageContainer>
+          {steps.map(label => {
+            const stepProps: { completed?: boolean } = {};
+            const labelProps: {
+              optional?: React.ReactNode;
+            } = {};
+            return (
+              <Step key={label} {...stepProps}>
+                <StepLabel {...labelProps}>{label}</StepLabel>
+              </Step>
+            );
+          })}
+        </Stepper>
+      </Box>
+      <Box
+        sx={{
+          display: 'flex',
+          flex: '1 1 auto',
+          mt: '129px',
+        }}
+      >
+        {activeStep === 0 ? (
+          <WidgetDataSelect setDataSet={setDataset} />
+        ) : activeStep === 1 ? (
+          <WidgetTypeSelect widgetType={widgetOption} setWidgetType={setWidgetOption} componentList={componentList} />
+        ) : (
+          <WidgetAttributeSelect
+            dataset={dataset}
+            widgetOption={widgetOption}
+            saveWidgetInfo={saveWidgetInfo}
+            widgetTypeName={widgetOption.title}
+            widgetTypeDescription={widgetOption.description}
+          />
+        )}
+      </Box>
+    </PageTitleBox>
   );
 };
 

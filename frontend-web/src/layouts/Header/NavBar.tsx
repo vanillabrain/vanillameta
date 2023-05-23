@@ -30,17 +30,19 @@ function NavBar(props) {
             component={NavLink}
             to={item.link}
             sx={{
+              minWidth: 0,
               color: 'inherit',
               padding: 0,
-              fontSize: 15,
+              fontSize: { xs: 13, sm: 15 },
               height: 50,
-              px: '18px',
+              px: { xs: '14px', sm: '18px' },
               fontFamily: 'Pretendard',
               fontWeight: 500,
               fontStretch: 'normal',
               fontStyle: 'normal',
               lineHeight: 'normal',
               letterSpacing: 'normal',
+              whiteSpace: 'nowrap',
             }}
           >
             {item.name}

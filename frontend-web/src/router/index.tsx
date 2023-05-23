@@ -17,11 +17,11 @@ import { ProtectedRoute } from '@/router/ProtectedRoute';
 import Layout from '@/layouts/Layout';
 import Login from '@/pages/Login';
 import Share from '@/pages/Share';
+import PublicLayout from '@/layouts/PublicLayout';
 
 function Router() {
   return (
     <Routes>
-      <Route path="/share/:dashboardUuid" element={<Share />} />
       <Route
         path="/"
         element={
@@ -58,10 +58,14 @@ function Router() {
         <Route path="/data/set/modify" element={<DataSet />}>
           <Route path=":setId" element={<DataSet />} />
         </Route>
+        <Route path="/*" element={<Status404 />} />
       </Route>
       <Route path="/login" element={<Login />} />
       {/*<Route path="/signup" element={<SignUp />} />*/}
-      <Route path="/*" element={<Status404 />} />
+      <Route path="/" element={<PublicLayout />}>
+        <Route path="/share/:dashboardUuid" element={<Share />} />
+        <Route path="*" element={<Status404 />} />
+      </Route>
     </Routes>
   );
 }
