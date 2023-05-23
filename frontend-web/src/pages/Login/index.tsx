@@ -5,7 +5,7 @@ import { useAlert } from 'react-alert';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { ReactComponent as Logo } from '@/assets/images/logo.svg';
 import backgroundImage from '@/assets/images/visual-bg.png';
-import Copyright from '@/components/Copyright';
+import { Copyright } from '@/layouts/Footer';
 import authService from '@/api/authService';
 import { checkId, checkPwd } from '@/utils/util';
 import { SnackbarContext } from '@/contexts/AlertContext';

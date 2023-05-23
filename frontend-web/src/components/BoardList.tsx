@@ -10,6 +10,7 @@ interface GTSpanProps {
   isWidget?: boolean;
 }
 
+// TODO: 오류 수정
 const GTSpan = styled('span')<GTSpanProps>(props => ({
   marginLeft: props.matches && props.isWidget && '50px',
   fontSize: props.matches ? '13px' : '10px',
@@ -60,7 +61,7 @@ function BoardList(props) {
           marginTop: { xs: '21px', sm: '36px' },
         }}
       >
-        <GTSpan isWidget={Boolean(postList[0]?.componentType)} matches={matches}>
+        <GTSpan isWidget={Boolean(postList?.[0]?.componentType)} matches={matches}>
           이름
         </GTSpan>
         <GTSpan matches={matches}>수정일</GTSpan>

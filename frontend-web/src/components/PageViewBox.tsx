@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useContext, useEffect } from 'react';
 import { Avatar, Box, Divider, Stack, SxProps, Typography, useMediaQuery, useTheme } from '@mui/material';
 import { MAX_WIDTH } from '@/constant';
+import { LayoutContext } from '@/contexts/LayoutContext';
 
 interface PageViewBoxProps {
   iconName?: string;
@@ -21,6 +22,14 @@ export default PageViewBox;
 
 const MobileViewBox = props => {
   const { iconName, title, titleElement, date, button, sx } = props;
+  const { changeFooterBg } = useContext(LayoutContext);
+
+  useEffect(() => {
+    changeFooterBg('#f9f9fa');
+    return () => {
+      changeFooterBg(null);
+    };
+  }, []);
 
   return (
     <Box
