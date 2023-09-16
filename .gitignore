@@ -263,3 +263,13 @@ Temporary Items
 # Local History for Visual Studio Code
 .history/
 
+# Custom Rules
+config.serverless.yml
+.env.dev
+.env.prod
+.ormconfig.json
+vanillameta
+bigquery-key.json
+test-connect-info.json
+cert.pem
+key.pem

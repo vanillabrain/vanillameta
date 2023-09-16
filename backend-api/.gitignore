@@ -1,4 +1,5 @@
 #db정보
+sqlite.db
 config.serverless.yml
 .env.dev
 .env.prod
