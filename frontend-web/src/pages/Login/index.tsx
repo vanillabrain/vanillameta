@@ -174,7 +174,7 @@ const Login = () => {
               Login
             </Button>
           </Stack>
-          {!APP_MODE == 'prod' && (
+          {APP_MODE != 'prod' && (
             <Stack
               sx={{
                 display: 'flex',
