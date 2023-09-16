@@ -29,7 +29,7 @@ export class Component extends BaseEntity {
   @Column({ comment: '순서', nullable: true })
   seq: number;
 
-  @Column({ length: 1, comment: '사용여부', default: YesNo.YES })
+  @Column({ type: 'char', length: 1, comment: '사용여부', default: YesNo.YES })
   useYn: string;
 
   @OneToMany(type => Widget, widget => widget.componentId)
