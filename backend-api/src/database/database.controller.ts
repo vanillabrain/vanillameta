@@ -19,6 +19,7 @@ import { DatasetType } from '../common/enum/dataset-type.enum';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { ApiTags } from '@nestjs/swagger';
 
+@UseGuards(JwtAuthGuard)
 @Controller('database')
 @ApiTags('dashboard')
 export class DatabaseController {
@@ -30,12 +31,10 @@ export class DatabaseController {
   /**
    * database type 목록 조회
    */
-  @UseGuards(JwtAuthGuard)
   @Get('/type')
   findTypeList() {
     return this.databaseService.findTypeList();
   }
-  @UseGuards(JwtAuthGuard)
   @Get('/data')
   async findData(
     @Query('datasetType') datasetType: DatasetType,
@@ -51,7 +50,6 @@ export class DatabaseController {
    * 데이터베이스 연결정보 단순조회
    * @param id
    */
-  @UseGuards(JwtAuthGuard)
   @Get('/info/:id')
   async findOneInfo(@Param('id') id: string) {
     const databaseInfo = await this.databaseService.findOneInfo(+id);
@@ -63,7 +61,6 @@ export class DatabaseController {
    * @param createDatabaseDto
    */
   @Post()
-  @UseGuards(JwtAuthGuard)
   create(@Body() createDatabaseDto: CreateDatabaseDto) {
     return this.databaseService.create(createDatabaseDto);
   }
