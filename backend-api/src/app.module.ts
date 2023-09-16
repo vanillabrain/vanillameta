@@ -15,26 +15,19 @@ import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { LoginModule } from './login/login.module';
 import { ShareUrlModule } from './share-url/share-url.module';
-import * as ormconfig from '../ormconfig';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: process.env.NODE_ENV == 'dev' ? '.env.dev' : '.env.ci',
+      envFilePath:
+        process.env.NODE_ENV == 'local'
+          ? '.env.dev'
+          : process.env.NODE_ENV == 'dev'
+          ? '.env.dev'
+          : '.env',
     }),
 
-    // TypeOrmModule.forRoot({
-    //   type: 'sqlite',
-    //   database: 'sqlite.db',
-    //   autoLoadEntities: true,
-    //   entities: [__dirname + '/**/*.entity{.ts,.js}'],
-    //   synchronize: true,
-    //   logging: process.env.NODE_ENV == 'dev',
-    //   retryAttempts: 1,
-    //   dropSchema: false, // 매번 실행시마다 테이블 drop false
-    // }),
-    //
     TypeOrmModule.forRoot({
       type: process.env.NODE_ENV == 'local' ? 'sqlite' : 'mysql',
       host: process.env.DB_HOST,
@@ -60,7 +53,6 @@ import * as ormconfig from '../ormconfig';
     AuthModule,
     LoginModule,
     ShareUrlModule,
-
   ],
   controllers: [AppController],
   providers: [AppService],
