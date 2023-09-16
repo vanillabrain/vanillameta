@@ -1,5 +1,10 @@
 AWS_REGION: ap-northeast-2
 STAGE: dev
+DEPLOYMENT_BUCKET: allive-serverless-deployment
+CORS_ORIGIN: '*'
+DOMAINS:
+  prod: vmapi.footballpie.io
+  dev: dev-vmapi.footballpie.io
 DB_CONFIG:
   dev:
     DB_TYPE: mysql

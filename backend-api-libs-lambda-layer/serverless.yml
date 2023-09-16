@@ -12,9 +12,9 @@ package:
 provider:
   name: aws
   runtime: nodejs14.x
-  stage:  ${file(./config.yml):STAGE}
-  region: ${file(./config.yml):AWS_REGION}
-  deploymentBucket: ${file(./config.yml):DEPLOYMENT_BUCKET}
+  stage:  ${file(./config.serverless.yml):STAGE}
+  region: ${file(./config.serverless.yml):AWS_REGION}
+  deploymentBucket: ${file(./config.serverless.yml):DEPLOYMENT_BUCKET}
   environment:
     STAGE: ${self:provider.stage}
 
