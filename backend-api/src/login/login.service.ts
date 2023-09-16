@@ -18,7 +18,7 @@ export class LoginService {
 
   async signin(loginDto: LoginUserDto) {
     const { userId, password } = loginDto;
-    const salt = crypto.randomBytes(128).toString('base64');
+    // const salt = crypto.randomBytes(128).toString('base64');
     const hashPassword = crypto.createHash('sha512').update(password).digest('hex');
     console.log(hashPassword)
     const findUser = await this.authService.validateUser(userId, hashPassword);   // 요저의 존재여부 확인
@@ -38,10 +38,11 @@ export class LoginService {
 
     if (!userInfoEmail && !userInfoId) {
       const { email, password, userId } = createLoginDto;
+      const hashPassword = crypto.createHash('sha512').update(password).digest('hex');
       const set_retoken = await this.refreshRepository.save({})
       const createUserInfo = await this.userRepository.save({
         email: email,
-        password: password,
+        password: hashPassword,
         userId: userId,
         jwtId: set_retoken.id,
         createdAt: new Date(),
