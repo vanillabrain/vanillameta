@@ -40,7 +40,6 @@ export const CardWrapper = (props: CardWrapperProps) => {
   return (
     <Stack component="li" sx={{ flex: '1 1 auto' }}>
       <Stack
-        component={handleClick ? 'button' : 'div'}
         sx={{
           display: 'flex',
           flexDirection: 'column',

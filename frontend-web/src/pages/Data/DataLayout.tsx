@@ -7,13 +7,14 @@ import { DatabaseCardList } from '@/components/list/DatabaseCardList';
 import { DatasetCardList } from '@/components/list/DatasetCardList';
 import DatasetService from '@/api/datasetService';
 import AddButton from '@/components/button/AddButton';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import { Loading } from '@/components/loading';
 import ModalPopup from '@/components/ModalPopup';
 import { createColumns } from '@/utils/util';
 import DataGrid, { DataGridWrapper } from '@/components/datagrid';
+
 // import { cancelAllRequests } from '@/helpers/apiHelper';
 
 export interface DatabaseProps {
@@ -51,6 +52,7 @@ const DataLayout = props => {
   const [tableList, setTableList] = useState<DataTableProps[] | []>([]);
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
+  const navigate = useNavigate();
   const { loading, showLoading, hideLoading } = useContext(LoadingContext);
   const [selectedDatabase, setSelectedDatabase] = useState<DatabaseProps>({ id: null, name: null });
   const [selectedDataset, setSelectedDataset] = useState<DataSetProps | DataTableProps | null>(null);
@@ -177,6 +179,16 @@ const DataLayout = props => {
     setSelectedDataset(item);
   };
 
+  const handleModifyClick = (item: DataTableProps | DataSetProps) => {
+    console.log('selected Data', item);
+
+    if (item?.datasetType == 'DATASET') {
+      navigate(`/data/set/modify/${item.id}`);
+    } else {
+      navigate(`/data/set/create/${item.databaseId}`, { state: item });
+    }
+  };
+
   const handleClose = () => {
     setOpen(false);
     setGridData([]);
@@ -249,6 +261,7 @@ const DataLayout = props => {
             selectedData={selectedDataset}
             handleDataClick={handleDataSetClick}
             handleDataRemove={handleDataSetRemove}
+            handleModifyClick={handleModifyClick}
           />
         </Stack>
         <Stack direction="column" sx={{ flex: '1 1 auto', width: '100%', minHeight: '50%', px: '24px', pt: '30px' }}>
@@ -258,10 +271,13 @@ const DataLayout = props => {
             </Typography>
           </Stack>
           <DatasetCardList
+            isTableView
             isViewMode={isViewMode}
             data={tableList}
             selectedData={selectedDataset}
             handleDataClick={handleDataSetClick}
+            handleDataRemove={handleDataSetRemove}
+            handleModifyClick={handleModifyClick}
           />
           <ModalPopup
             open={open}

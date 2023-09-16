@@ -11,14 +11,16 @@ interface DatasetCardListProps {
   selectedData: DataSetProps | DataTableProps;
   handleDataClick?: (item) => void;
   handleDataRemove?: (item) => void;
+  handleModifyClick?: (item) => void;
   sx?: SxProps;
   isViewMode?: boolean;
+  isTableView?: boolean;
 }
 
 const selectedSx = { border: 'solid 1px #0f5ab2', backgroundColor: '#edf8ff' };
 
 export const DatasetCardList = (props: DatasetCardListProps) => {
-  const { data, selectedData, handleDataClick, handleDataRemove, isViewMode } = props;
+  const { data, selectedData, handleDataClick, handleDataRemove, handleModifyClick, isViewMode, isTableView } = props;
 
   return (
     <CardListWrapper>
@@ -48,30 +50,35 @@ export const DatasetCardList = (props: DatasetCardListProps) => {
 
             {/* 아이콘 */}
             {!isViewMode && (
-              <Stack direction="row" justifyContent="flex-end" width="100%" mt="11px">
+              <Stack direction="row" justifyContent="flex-end" width="100%" mt="11px" gap={1}>
                 <ModifyButton
-                  size="medium"
-                  component={RouterLink}
-                  to={`/data/set/modify/${item.id}`}
-                  width="20"
-                  height="20"
-                  padding="0"
-                  fill="#767676"
-                  sx={{ p: 0, mr: '18px' }}
-                />
-                <DeleteButton
-                  component="span"
                   size="medium"
                   onClick={event => {
                     event.preventDefault();
                     event.stopPropagation();
-                    handleDataRemove(item);
+                    handleModifyClick(item);
                   }}
                   width="20"
                   height="20"
+                  padding="0"
                   fill="#767676"
                   sx={{ p: 0 }}
                 />
+                {!isTableView && (
+                  <DeleteButton
+                    component="span"
+                    size="medium"
+                    onClick={event => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      handleDataRemove(item);
+                    }}
+                    width="20"
+                    height="20"
+                    fill="#767676"
+                    sx={{ p: 0 }}
+                  />
+                )}
               </Stack>
             )}
           </CardWrapper>
