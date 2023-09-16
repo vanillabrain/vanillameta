@@ -21,8 +21,9 @@ import { createColumns } from '@/utils/util';
 
 const DataSet = () => {
   const { setId, sourceId } = useParams();
-  const { pathname } = useLocation();
+  const { pathname, state } = useLocation();
   const navigate = useNavigate();
+
   const { showLoading, hideLoading } = useContext(LoadingContext);
 
   const [isModifyMode, setIsModifyMode] = useState(false);
@@ -47,6 +48,11 @@ const DataSet = () => {
       // 데이터셋 수정일 경우
       setIsModifyMode(true);
       getDatasetInfo();
+    } else if (sourceId && state) {
+      const { tableName } = state as any;
+      setDatasetInfo(prevState => ({ ...prevState, title: tableName, query: `SELECT * FROM ${tableName}` }));
+      console.log('state:', state);
+      console.log('datasetInfo:', datasetInfo);
     }
   }, []);
 
