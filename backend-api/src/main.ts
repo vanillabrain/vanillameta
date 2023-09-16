@@ -12,18 +12,11 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), {
     logger: console,
     cors: {
-      origin: function (origin, callback) {
-        if (process.env.CORS_ORIGIN.indexOf(origin) !== -1) {
-          callback(null, true);
-        } else {
-          callback(new Error('Not Allowed Origin'));
-        }
-      },
+      origin: process.env.CORS_ORIGIN.split(',').map((x) => x.trim()),
       preflightContinue: false,
-      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+      credentials: true,
       optionsSuccessStatus: 200,
       exposedHeaders: ['Content-Disposition'],
-      credentials: true,
     },
   });
   app.useGlobalFilters(new HttpExceptionFilter());
