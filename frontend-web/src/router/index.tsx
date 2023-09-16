@@ -18,7 +18,7 @@ import Layout from '@/layouts/Layout';
 import Login from '@/pages/Login';
 import Share from '@/pages/Share';
 import PublicLayout from '@/layouts/PublicLayout';
-import SignUp from "@/pages/SignUp";
+import SignUp from '@/pages/SignUp';
 
 function Router() {
   return (
