@@ -23,8 +23,10 @@ const Login = () => {
   });
   let isValid;
   const token = getToken();
+  const APP_MODE = process.env.REACT_APP_MODE;
 
   useEffect(() => {
+    console.log('APP_MODE', APP_MODE);
     if (token) {
       // token이 있으면 대시보드로 보내기
       navigate('/dashboard');
@@ -172,75 +174,77 @@ const Login = () => {
               Login
             </Button>
           </Stack>
-          {/*<Stack*/}
-          {/*  sx={{*/}
-          {/*    display: 'flex',*/}
-          {/*    flexDirection: 'row',*/}
-          {/*    justifyContent: 'center',*/}
-          {/*    alignItems: 'center',*/}
-          {/*    gap: '12px',*/}
-          {/*    mt: '40px',*/}
-          {/*    fontSize: '14px',*/}
-          {/*    textAlign: 'center',*/}
-          {/*    color: '#4a4a4a',*/}
-          {/*  }}*/}
-          {/*>*/}
-          {/*  <Button*/}
-          {/*    component={RouterLink}*/}
-          {/*    to="/signup"*/}
-          {/*    disableRipple*/}
-          {/*    disableFocusRipple*/}
-          {/*    disableTouchRipple*/}
-          {/*    sx={{*/}
-          {/*      display: 'flex',*/}
-          {/*      justifyContent: 'center',*/}
-          {/*      alignItems: 'center',*/}
-          {/*      minWidth: 0,*/}
-          {/*      minHeight: 0,*/}
-          {/*      m: 0,*/}
-          {/*      p: 0,*/}
-          {/*      gap: '12px',*/}
-          {/*      fontSize: 'inherit',*/}
-          {/*      fontWeight: 'inherit',*/}
-          {/*      textDecoration: 'underline',*/}
-          {/*      color: 'inherit',*/}
-          {/*      '&:hover': {*/}
-          {/*        textDecoration: 'underline',*/}
-          {/*        backgroundColor: 'inherit',*/}
-          {/*      },*/}
+          {!APP_MODE == 'prod' && (
+            <Stack
+              sx={{
+                display: 'flex',
+                flexDirection: 'row',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: '12px',
+                mt: '40px',
+                fontSize: '14px',
+                textAlign: 'center',
+                color: '#4a4a4a',
+              }}
+            >
+              <Button
+                component={RouterLink}
+                to="/signup"
+                disableRipple
+                disableFocusRipple
+                disableTouchRipple
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  minWidth: 0,
+                  minHeight: 0,
+                  m: 0,
+                  p: 0,
+                  gap: '12px',
+                  fontSize: 'inherit',
+                  fontWeight: 'inherit',
+                  textDecoration: 'underline',
+                  color: 'inherit',
+                  '&:hover': {
+                    textDecoration: 'underline',
+                    backgroundColor: 'inherit',
+                  },
 
-          {/*      '&:after': {*/}
-          {/*        content: `""`,*/}
-          {/*        width: '1px',*/}
-          {/*        height: '10px',*/}
-          {/*        backgroundColor: '#cccfd8',*/}
-          {/*      },*/}
-          {/*    }}*/}
-          {/*  >*/}
-          {/*    회원가입*/}
-          {/*  </Button>*/}
-          {/*  <Button*/}
-          {/*    disableRipple*/}
-          {/*    disableFocusRipple*/}
-          {/*    disableTouchRipple*/}
-          {/*    sx={{*/}
-          {/*      minWidth: 0,*/}
-          {/*      minHeight: 0,*/}
-          {/*      m: 0,*/}
-          {/*      p: 0,*/}
-          {/*      fontSize: 'inherit',*/}
-          {/*      fontWeight: 'inherit',*/}
-          {/*      // textDecoration: 'underline',*/}
-          {/*      color: 'inherit',*/}
-          {/*      '&:hover': {*/}
-          {/*        // textDecoration: 'underline',*/}
-          {/*        backgroundColor: 'inherit',*/}
-          {/*      },*/}
-          {/*    }}*/}
-          {/*  >*/}
-          {/*    아이디/비번찾기*/}
-          {/*  </Button>*/}
-          {/*</Stack>*/}
+                  '&:after': {
+                    content: `""`,
+                    width: '1px',
+                    height: '10px',
+                    backgroundColor: '#cccfd8',
+                  },
+                }}
+              >
+                회원가입
+              </Button>
+              <Button
+                disableRipple
+                disableFocusRipple
+                disableTouchRipple
+                sx={{
+                  minWidth: 0,
+                  minHeight: 0,
+                  m: 0,
+                  p: 0,
+                  fontSize: 'inherit',
+                  fontWeight: 'inherit',
+                  // textDecoration: 'underline',
+                  color: 'inherit',
+                  '&:hover': {
+                    // textDecoration: 'underline',
+                    backgroundColor: 'inherit',
+                  },
+                }}
+              >
+                아이디/비번찾기
+              </Button>
+            </Stack>
+          )}
         </Box>
         <Copyright sx={{ mt: '50px', mb: 4 }} />
         <Box

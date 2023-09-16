@@ -18,6 +18,7 @@ import Layout from '@/layouts/Layout';
 import Login from '@/pages/Login';
 import Share from '@/pages/Share';
 import PublicLayout from '@/layouts/PublicLayout';
+import SignUp from "@/pages/SignUp";
 
 function Router() {
   return (
@@ -61,7 +62,7 @@ function Router() {
         <Route path="/*" element={<Status404 />} />
       </Route>
       <Route path="/login" element={<Login />} />
-      {/*<Route path="/signup" element={<SignUp />} />*/}
+      <Route path="/signup" element={<SignUp />} />
       <Route path="/" element={<PublicLayout />}>
         <Route path="/share/:dashboardUuid" element={<Share />} />
         <Route path="*" element={<Status404 />} />
