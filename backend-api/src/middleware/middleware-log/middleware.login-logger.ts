@@ -26,18 +26,21 @@ export class loginLoggerMiddleware implements NestMiddleware {
       return next();
     }
 
-    if (req.url === '/signout') {
-      const logoutSaveObj = {
-        userId: req.body.userId,
-        path: req.path,
-        loginType: req.headers['user-agent'],
-        loginSuccYn: YesNo.NO,
-        createdAt: new Date(),
-      };
-      this.logger.log(logoutSaveObj);
-      await this.loginHisotryRepository.save(logoutSaveObj);
-      return next();
-    }
+    //fixme 우선 logout 로거 삭제
+
+    // if (req.url === '/signout') {
+    //   const logoutSaveObj = {
+    //     userId: req.body.userId,
+    //     path: req.path,
+    //     loginType: req.headers['user-agent'],
+    //     loginSuccYn: YesNo.NO,
+    //     createdAt: new Date(),
+    //   };
+    //   this.logger.log(logoutSaveObj);
+    //   await this.loginHisotryRepository.save(logoutSaveObj);
+    //   return next();
+    // }
+
     next();
     // await this.loginHisotryRepository.save(saveObj)
     // 로그인 시간, 로그아웃 체크, 접속기기..?, explorer 어떤거?
