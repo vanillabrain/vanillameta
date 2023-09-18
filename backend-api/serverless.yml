@@ -57,6 +57,7 @@ custom:
 
 package:
   include:
+    - .env
     - .env.dev
     - .env.prod
     - src/templates/**
