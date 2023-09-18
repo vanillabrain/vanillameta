@@ -1,0 +1,54 @@
+service: vanillameta-frontend
+
+frameworkVersion: '2 || 3'
+
+package:
+  patterns:
+  - '!*'
+  - '!*/**'
+  - node_modules/**
+  - '!node_modules/aws-sdk'
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  stage:  ${file(./config.serverless.yml):STAGE}
+  region: ${file(./config.serverless.yml):AWS_REGION}
+  deploymentBucket: ${file(./config.serverless.yml):DEPLOYMENT_BUCKET}
+  environment:
+  STAGE: ${self:provider.stage}
+
+plugins:
+  - serverless-finch
+  - serverless-frontend-plugin
+
+custom:
+#  client:
+#    bucketName: ${file(./config.serverless.yml):FRONT_WEB_BUCKET}
+#    distributionFolder: build
+#    indexDocument: index.html
+#    errorDocument: index.html
+  serverless-frontend-plugin:
+    distDir: build
+    build:
+      cwdDir: frontend
+      command:
+        - npm
+        - run
+        - build:dev
+      env:
+        NODE_ENV: dev
+        REACT_APP_MODE: dev
+        REACT_APP_API_URL: https://dev-vmapi.footballpie.io/v1
+#    offline:
+#      cwdDir: frontend
+#      command:
+#        - yarn
+#        - serve
+#      env:
+#        NODE_ENV: development
+#        VUE_APP_API_BASE_URL: http://localhost:7680
+    distribution:
+      dnsName: ${file(./config.serverless.yml):FRONT_WEB_DOMAIN}
+      acmCertificateArn: ${file(./config.serverless.yml):ACM_CERTIFICATE_ARN}
+      hostedZoneName: ${file(./config.serverless.yml):HOSTED_ZONE}
