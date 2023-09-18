@@ -1,0 +1,7 @@
+AWS_REGION: ap-northeast-2
+STAGE: dev
+DEPLOYMENT_BUCKET: demo-serverless-deployment
+FRONT_WEB_BUCKET: demo.vanillameta.net
+FRONT_WEB_DOMAIN: app.vanillameta.net
+HOSTED_ZONE: vanillameta.net
+ACM_CERTIFICATE_ARN: arn:aws:acm:us-east-1:00000000:certificate/CERT_ID
