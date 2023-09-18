@@ -12,30 +12,27 @@ package:
 provider:
   name: aws
   runtime: nodejs14.x
-  stage:  ${file(./config.serverless.yml):STAGE}
+  stage: ${opt:stage, 'dev'}
   region: ${file(./config.serverless.yml):AWS_REGION}
   deploymentBucket: ${file(./config.serverless.yml):DEPLOYMENT_BUCKET}
   environment:
-  STAGE: ${self:provider.stage}
 
 plugins:
-#  - serverless-finch
   - serverless-frontend-plugin
 
 custom:
-#  client:
-#    bucketName: ${file(./config.serverless.yml):FRONT_WEB_BUCKET}
-#    distributionFolder: build
-#    indexDocument: index.html
-#    errorDocument: index.html
+  STAGE: ${self:provider.stage}
+  FRONT_WEB_BUCKET: ${file(./config.serverless.yml):FRONT_WEB_BUCKET}
+  FRONT_WEB_DOMAIN: ${file(./config.serverless.yml):FRONT_WEB_DOMAIN}
+  RUN_CMD: ${file(./config.serverless.yml):RUN_CMD}
   serverless-frontend-plugin:
     distDir: build
     build:
-      cwdDir: frontend
+      cwdDir: frontend-web
       command:
         - npm
         - run
-        - build
+        - ${self:custom.RUN_CMD.${self:provider.stage}}
 #      env:
 #        NODE_ENV: dev
 #        REACT_APP_MODE: dev
@@ -48,7 +45,9 @@ custom:
 #      env:
 #        NODE_ENV: development
 #        VUE_APP_API_BASE_URL: http://localhost:7680
+    bucket:
+      name: ${self:custom.FRONT_WEB_BUCKET.${self:provider.stage}}
     distribution:
-      dnsName: ${file(./config.serverless.yml):FRONT_WEB_DOMAIN}
+      dnsName: ${self:custom.FRONT_WEB_DOMAIN.${self:provider.stage}}
       acmCertificateArn: ${file(./config.serverless.yml):ACM_CERTIFICATE_ARN}
       hostedZoneName: ${file(./config.serverless.yml):HOSTED_ZONE}

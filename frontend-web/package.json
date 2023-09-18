@@ -47,10 +47,10 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "env-cmd -f .env.local craco start",
+    "start": "env-cmd -f .env craco start",
     "start:dev": "env-cmd -f .env.development craco start",
     "start:local": "env-cmd -f .env.local craco start",
-    "build": "craco build",
+    "build": "env-cmd -f .env craco build",
     "build:dev": "env-cmd -f .env.development craco build",
     "build:feat": "env-cmd -f .env.feature craco build",
     "deploy": "serverless deploy",
