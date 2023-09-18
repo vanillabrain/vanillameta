@@ -30,12 +30,12 @@ custom:
 #    errorDocument: index.html
   serverless-frontend-plugin:
     distDir: build
-#    build:
-#      cwdDir: frontend
-#      command:
-#        - npm
-#        - run
-#        - build:dev
+    build:
+      cwdDir: frontend
+      command:
+        - npm
+        - run
+        - build
 #      env:
 #        NODE_ENV: dev
 #        REACT_APP_MODE: dev

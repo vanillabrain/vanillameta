@@ -29,6 +29,7 @@ provider:
     DB_PASSWORD: ${self:custom.DB_CONFIG.${self:custom.STAGE}.DB_PASSWORD}
     DB_NAME: ${self:custom.DB_CONFIG.${self:custom.STAGE}.DB_NAME}
     CORS_ORIGIN: ${file(./config.serverless.yml):CORS_ORIGIN}
+    TZ: 'Asia/Seoul'
   apiGateway:
     binaryMediaTypes:
       - '*/*'
@@ -68,19 +69,6 @@ package:
     - README.md
 #    - src/**cd
 
-resources:
-  Resources:
-    unauthorized:
-      Type: 'AWS::ApiGateway::GatewayResponse'
-      Properties:
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
-          gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'"
-          gatewayresponse.header.Access-Control-Allow-Methods: "'OPTIONS,DELETE,GET,HEAD,PATCH,POST,PUT'"
-          gatewayresponse.header.Access-Control-Allow-Credentials: "'true'"
-        ResponseType: DEFAULT_4XX
-        RestApiId:
-          Ref: 'ApiGatewayRestApi'
 
 functions:
   app: # 람다함수 이름

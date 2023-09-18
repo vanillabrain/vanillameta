@@ -1,7 +1,7 @@
 AWS_REGION: ap-northeast-2
 STAGE: dev
 DEPLOYMENT_BUCKET: vanilla-serverless-deployment
-CORS_ORIGIN: '*'
+CORS_ORIGIN: 'https://vanillameta.vanillabrain.com, http://localhost:3000'
 DOMAINS:
   prod: api.vanillameta.net
   dev: api-dev.vanillameta.net
