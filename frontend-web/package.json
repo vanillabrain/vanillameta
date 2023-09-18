@@ -53,8 +53,7 @@
     "build": "craco build",
     "build:dev": "env-cmd -f .env.development craco build",
     "build:feat": "env-cmd -f .env.feature craco build",
-    "deploy": "serverless client deploy",
-    "deploy:s3": "serverless client deploy",
+    "deploy": "serverless deploy",
     "test": "jest",
     "eject": "craco eject"
   },

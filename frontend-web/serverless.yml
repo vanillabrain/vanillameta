@@ -19,7 +19,7 @@ provider:
   STAGE: ${self:provider.stage}
 
 plugins:
-  - serverless-finch
+#  - serverless-finch
   - serverless-frontend-plugin
 
 custom:
@@ -30,16 +30,16 @@ custom:
 #    errorDocument: index.html
   serverless-frontend-plugin:
     distDir: build
-    build:
-      cwdDir: frontend
-      command:
-        - npm
-        - run
-        - build:dev
-      env:
-        NODE_ENV: dev
-        REACT_APP_MODE: dev
-        REACT_APP_API_URL: https://dev-vmapi.footballpie.io/v1
+#    build:
+#      cwdDir: frontend
+#      command:
+#        - npm
+#        - run
+#        - build:dev
+#      env:
+#        NODE_ENV: dev
+#        REACT_APP_MODE: dev
+#        REACT_APP_API_URL: ${file(./config.serverless.yml):BACKEND_API_DOMAIN}
 #    offline:
 #      cwdDir: frontend
 #      command:
