@@ -1,5 +1,12 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+#db정보
+config.serverless.yml
+.env
+.env.development
+.env.feature
+
+
 # dependencies
 /node_modules
 /.pnp
