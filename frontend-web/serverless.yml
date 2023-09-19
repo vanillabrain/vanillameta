@@ -6,8 +6,8 @@ package:
   patterns:
   - '!*'
   - '!*/**'
-  - node_modules/**
-  - '!node_modules/aws-sdk'
+  - '!node_modules/**'
+  - 'index.html'
 
 provider:
   name: aws
@@ -38,7 +38,7 @@ custom:
 #        REACT_APP_MODE: dev
 #        REACT_APP_API_URL: ${file(./config.serverless.yml):BACKEND_API_DOMAIN}
 #    offline:
-#      cwdDir: frontend
+#      cwdDir: frontend-web
 #      command:
 #        - yarn
 #        - serve
@@ -51,3 +51,10 @@ custom:
       dnsName: ${self:custom.FRONT_WEB_DOMAIN.${self:provider.stage}}
       acmCertificateArn: ${file(./config.serverless.yml):ACM_CERTIFICATE_ARN}
       hostedZoneName: ${file(./config.serverless.yml):HOSTED_ZONE}
+
+layers:
+  HelloTemp:
+    path: public
+    description: "hello temp layer"
+    compatibleRuntimes:
+      - python3.11
