@@ -63,6 +63,7 @@ export class DatabaseService {
     const result = await this.databaseRepository.find();
     result.forEach(db => {
       db.connectionConfig = JSON.parse(db.connectionConfig);
+      delete db.connectionConfig['password'];
     });
     return { status: ResponseStatus.SUCCESS, data: result };
   }
@@ -132,6 +133,8 @@ export class DatabaseService {
     tempDatasets.map(item => {
       datasets.push(Object.assign({ datasetType: DatasetType.DATASET }, item));
     });
+
+    delete databaseInfo.connectionConfig['password'];
 
     return { status: ResponseStatus.SUCCESS, data: { databaseInfo, tables, datasets } };
   }
