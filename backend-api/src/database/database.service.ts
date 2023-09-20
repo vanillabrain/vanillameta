@@ -64,6 +64,8 @@ export class DatabaseService {
     result.forEach(db => {
       db.connectionConfig = JSON.parse(db.connectionConfig);
       delete db.connectionConfig['password'];
+      const configElement = db.connectionConfig['connection'];
+      if (configElement) delete configElement['password'];
     });
     return { status: ResponseStatus.SUCCESS, data: result };
   }
