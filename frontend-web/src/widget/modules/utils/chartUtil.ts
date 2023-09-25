@@ -142,7 +142,7 @@ export const getAggregationData = (type, data, field) => {
         }
       });
       result = Number(math.divide(result, math.bignumber(data.length)));
-      // result = Number(result.toFixed(6));
+      result = Number(result.toFixed(1));
       break;
     case WIDGET_AGGREGATION.MAX:
       data.forEach(item => {
