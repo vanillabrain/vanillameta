@@ -20,12 +20,7 @@ import { ShareUrlModule } from './share-url/share-url.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath:
-        process.env.NODE_ENV == 'local'
-          ? '.env.dev'
-          : process.env.NODE_ENV == 'dev'
-          ? '.env.dev'
-          : '.env',
+      envFilePath: process.env.NODE_ENV == 'prod' ? '.env' : '.env.dev',
     }),
 
     TypeOrmModule.forRoot({

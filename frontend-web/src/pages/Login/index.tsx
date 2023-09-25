@@ -122,7 +122,7 @@ const Login = () => {
             <Logo width="223px" height="43px" />
           </RouterLink>
           <Typography sx={{ mt: '17px', fontSize: '16px', color: '#043f84', textAlign: 'center' }}>
-            통합 데이터분석을 위한{' '}
+            통합 데이터 분석을 위한{' '}
             <Typography component="span" sx={{ fontSize: '16px', fontWeight: 'bold' }}>
               대시보드 리포팅 솔루션
             </Typography>
