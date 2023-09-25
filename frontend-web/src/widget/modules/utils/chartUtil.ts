@@ -112,11 +112,18 @@ export const getAggregationData = (type, data, field) => {
   let dataList = [];
   if (data.length > 0 && (type === WIDGET_AGGREGATION.MIN || type === WIDGET_AGGREGATION.MAX)) {
     result = Number(data[0][field]);
-  } else if (data.length > 0 && type === WIDGET_AGGREGATION.SUM && field) {
+  } else if ((data.length > 0 && type === WIDGET_AGGREGATION.CNT) || (type === WIDGET_AGGREGATION.SUM && field)) {
     dataList = data.map(row => Number(row[field]));
     fits = decimalFits(dataList);
   }
   switch (type) {
+    case WIDGET_AGGREGATION.CNT:
+      const itemCounter = value => {
+        return value.filter(x => x[field] != undefined && x[field] != null).length;
+      };
+      result = itemCounter(data);
+      if (field) result = Number(result.toFixed(fits));
+      break;
     case WIDGET_AGGREGATION.SUM:
       data.forEach(item => {
         // console.log('item ', item[field]);
@@ -134,8 +141,7 @@ export const getAggregationData = (type, data, field) => {
           result = math.add(result, math.bignumber(item[field]));
         }
       });
-      result = math.divide(result, math.bignumber(data.length));
-      result = Number(result);
+      result = Number(math.divide(result, math.bignumber(data.length)));
       // result = Number(result.toFixed(6));
       break;
     case WIDGET_AGGREGATION.MAX:

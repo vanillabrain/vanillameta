@@ -56,6 +56,7 @@ export const WIDGET_TYPE = {
 };
 
 export const WIDGET_AGGREGATION = {
+  CNT: 'cnt',
   SUM: 'sum',
   AVG: 'avg',
   MAX: 'max',
@@ -69,6 +70,7 @@ export const TABLE_ALIGN = {
 };
 
 export const AGGREGATION_LIST = [
+  { label: '갯수', value: WIDGET_AGGREGATION.CNT },
   { label: '합계', value: WIDGET_AGGREGATION.SUM },
   { label: '평균', value: WIDGET_AGGREGATION.AVG },
   { label: '최대', value: WIDGET_AGGREGATION.MAX },
