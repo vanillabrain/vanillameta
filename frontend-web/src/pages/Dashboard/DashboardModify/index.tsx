@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Box, Button, Card, Stack, TextField } from '@mui/material';
+import { Box, Button, Card, CardHeader, Stack, TextField } from '@mui/material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import PageTitleBox from '@/components/PageTitleBox';
 import AddWidgetPopup from '@/pages/Dashboard/Components/AddWidgetPopup';
@@ -19,6 +19,8 @@ import PageViewBox from '../../../components/PageViewBox';
 import CloseButton from '@/components/button/CloseButton';
 import bg from '@/assets/images/dashboard-bg.svg';
 import { LoadingContext } from '@/contexts/LoadingContext';
+import ModifyButton from '@/components/button/ModifyButton';
+import ReloadButton from '@/components/button/ReloadButton';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -193,6 +195,19 @@ function DashboardModify() {
       }
     });
 
+    const handleModifyDataClick = item => {
+      if (item?.datasetType == 'DATASET') {
+        navigate(`/data/set/modify/${item.datasetId}`);
+      } else {
+        alert.info('데이터베이스 테이블 입니다.');
+      }
+    };
+
+    const handleModifyWidgetClick = item => {
+      // navigate(`/widget/${item.id}`); //view
+      navigate(`/widget/modify?id=${item.id}`); //edit
+    };
+
     if (addLayouts.length > 0) {
       setLayout([...layout, ...addLayouts]);
     }
@@ -211,6 +226,34 @@ function DashboardModify() {
             backgroundColor: '#fff',
           }}
         >
+          <ReloadButton
+            sx={{
+              position: 'absolute',
+              right: '76px',
+              top: '6px',
+              zIndex: 2000,
+            }}
+            onClick={event => {
+              console.log(item);
+              event.preventDefault();
+              event.stopPropagation();
+              handleModifyDataClick(item);
+            }}
+          />
+          <ModifyButton
+            sx={{
+              position: 'absolute',
+              right: '40px',
+              top: '6px',
+              zIndex: 2000,
+            }}
+            onClick={event => {
+              console.log(item);
+              event.preventDefault();
+              event.stopPropagation();
+              handleModifyWidgetClick(item);
+            }}
+          />
           <CloseButton
             sx={{
               position: 'absolute',
