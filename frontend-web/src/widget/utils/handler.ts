@@ -22,15 +22,21 @@ export const handleSeriesChange = (event, setOption, prop = 'series', innerProp 
       obj[prop].forEach((item, idx) => {
         // console.log('item', item);
         // console.log('key: ', key, ', value: ', event.target.value);
+        const isBool = event.target.value === 'true' || event.target.value === 'false';
+        const val = isBool ? event.target.value === 'true' : event.target.value;
+        console.log('prop array changed', val);
         if (index === idx) {
-          item[key] = event.target.value;
+          item[key] = val;
         }
       });
       return obj;
     }
 
     if (obj[prop] instanceof Object) {
-      obj[prop][innerProp] = event.target.value;
+      const isBool = event.target.value === 'true' || event.target.value === 'false';
+      const val = isBool ? event.target.value === 'true' : event.target.value;
+      console.log('prop obj changed', val);
+      obj[prop][innerProp] = val;
       return obj;
     }
   });
