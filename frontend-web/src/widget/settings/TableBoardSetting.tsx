@@ -5,6 +5,7 @@ import { ALIGN_LIST, TABLE_ALIGN } from '@/constant';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
 import { handleAddClick, handleRemoveClick, handleSeriesChange } from '@/widget/utils/handler';
 import TextFieldForm from '@/components/form/TextFieldForm';
+import RadioForm from '@/components/form/RadioForm';
 
 const TableBoardSetting = props => {
   const { option, setOption, spec } = props;
@@ -45,6 +46,16 @@ const TableBoardSetting = props => {
               label="컬럼 제목"
               name={`header${index + 1}`}
               value={item.header}
+              onChange={event => handleSeriesChange(event, setOption, 'columns')}
+            />
+            <RadioForm
+              label="컬럼 병합"
+              name={`rowSpan${index + 1}`}
+              option={[
+                { label: '병합', value: true },
+                { label: '분리', value: false },
+              ]}
+              value={item.rowSpan}
               onChange={event => handleSeriesChange(event, setOption, 'columns')}
             />
             <SelectForm
