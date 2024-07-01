@@ -6,6 +6,8 @@ Thumbs.db:encryptable
 ehthumbs.db
 ehthumbs_vista.db
 
+.build
+
 # Dump file
 *.stackdump
 
