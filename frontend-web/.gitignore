@@ -5,6 +5,7 @@ config.serverless.yml
 .env
 .env.development
 .env.feature
+.env.development.local
 
 
 # dependencies
