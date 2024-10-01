@@ -11,7 +11,7 @@ module.exports = {
     },
   ],
   webpack: {
-    configure: (webpackConfig, { env, paths }) => {
+    configure: webpackConfig => {
       // 청크 분할 설정
       webpackConfig.optimization.splitChunks = {
         chunks: 'all',
