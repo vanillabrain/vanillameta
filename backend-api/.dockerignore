@@ -71,8 +71,9 @@ web_modules/
 .yarn-integrity
 
 # dotenv environment variables file
-.env
-.env.test
+# 환경변수 파일 ignore 하지않음
+# .env
+# .env.test
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
