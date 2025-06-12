@@ -12,7 +12,7 @@ provider:
   name: aws
   runtime: nodejs14.x
   lambdaHashingVersion: 20201221
-  ##  memorySize: 512 - 기본은 512
+  memorySize: 1024  # Lambda 메모리 512MB → 1024MB로 최적화 (T01_S04)
   timeout: 10
   layers:
     - arn:aws:lambda:${opt:region, self:provider.region}:${AWS::AccountId}:layer:VanillaMetaApiNodeLibs:latest
@@ -163,6 +163,42 @@ resources:
             MetricValue: "1"
             DefaultValue: 0
 
+    # 메모리 사용량 메트릭 필터 (90% 이상 사용)
+    HighMemoryUsageMetricFilter:
+      Type: AWS::Logs::MetricFilter
+      Properties:
+        LogGroupName: !Ref AppLogGroup
+        FilterPattern: '[timestamp, requestId, level, message="Max Memory Used:", memory_used, ...]'
+        MetricTransformations:
+          - MetricNamespace: "VanillaMeta/${self:provider.stage}"
+            MetricName: "MemoryUsage"
+            MetricValue: "$memory_used"
+            DefaultValue: 0
+
+    # 콜드 스타트 메트릭 필터
+    ColdStartMetricFilter:
+      Type: AWS::Logs::MetricFilter
+      Properties:
+        LogGroupName: !Ref AppLogGroup
+        FilterPattern: '[timestamp, requestId, level="INFO", message="INIT_START*", ...]'
+        MetricTransformations:
+          - MetricNamespace: "VanillaMeta/${self:provider.stage}"
+            MetricName: "ColdStartCount"
+            MetricValue: "1"
+            DefaultValue: 0
+
+    # 초기화 지속 시간 메트릭 필터
+    InitDurationMetricFilter:
+      Type: AWS::Logs::MetricFilter
+      Properties:
+        LogGroupName: !Ref AppLogGroup
+        FilterPattern: '[timestamp, requestId, level, message="REPORT*", ..., duration_label="Init Duration:", init_duration, duration_unit, ...]'
+        MetricTransformations:
+          - MetricNamespace: "VanillaMeta/${self:provider.stage}"
+            MetricName: "InitDuration"
+            MetricValue: "$init_duration"
+            DefaultValue: 0
+
     # CloudWatch 알람 (운영 환경에서만)
     ErrorAlarm:
       Type: AWS::CloudWatch::Alarm
@@ -175,6 +211,38 @@ resources:
         Statistic: Sum
         Period: 300  # 5분
         EvaluationPeriods: 2
+        Threshold: 10
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+
+    # 높은 메모리 사용량 알람
+    HighMemoryAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Condition: IsProduction
+      Properties:
+        AlarmName: "${self:service}-${self:provider.stage}-high-memory-alarm"
+        AlarmDescription: "High memory usage detected (>90%)"
+        MetricName: "MemoryUsage"
+        Namespace: "VanillaMeta/${self:provider.stage}"
+        Statistic: Average
+        Period: 300  # 5분
+        EvaluationPeriods: 2
+        Threshold: 920  # 1024MB의 90%
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+
+    # 빈번한 콜드 스타트 알람
+    FrequentColdStartAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Condition: IsProduction
+      Properties:
+        AlarmName: "${self:service}-${self:provider.stage}-frequent-coldstart-alarm"
+        AlarmDescription: "Frequent cold starts detected"
+        MetricName: "ColdStartCount"
+        Namespace: "VanillaMeta/${self:provider.stage}"
+        Statistic: Sum
+        Period: 900  # 15분
+        EvaluationPeriods: 1
         Threshold: 10
         ComparisonOperator: GreaterThanThreshold
         TreatMissingData: notBreaching

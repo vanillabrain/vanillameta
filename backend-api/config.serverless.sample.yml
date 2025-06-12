@@ -2,6 +2,10 @@ AWS_REGION: ap-northeast-2
 STAGE: dev
 DEPLOYMENT_BUCKET: vanilla-serverless-deployment
 CORS_ORIGIN: 'https://vanillameta.vanillabrain.com, http://localhost:3000'
+
+# Lambda 성능 설정 (T01_S04 메모리 최적화)
+# memorySize: 1024  # Lambda 메모리 설정 (기본값 1024MB, 512MB에서 향상)
+# timeout: 10       # Lambda 타임아웃 설정 (10초)
 DOMAINS:
   prod: api.vanillameta.net
   dev: api-dev.vanillameta.net
