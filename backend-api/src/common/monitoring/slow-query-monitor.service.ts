@@ -51,16 +51,16 @@ export interface SlowQueryStats {
 @Injectable()
 export class SlowQueryMonitorService {
   private readonly logger = new Logger(SlowQueryMonitorService.name);
-  
+
   private config: SlowQueryMonitorConfig = {
     enabled: true,
     threshold: 1000, // 1초
     maxLogEntries: 10000,
     cleanupIntervalDays: 30,
     alertThresholds: {
-      low: 1000,      // 1초
-      medium: 3000,   // 3초
-      high: 10000,    // 10초
+      low: 1000, // 1초
+      medium: 3000, // 3초
+      high: 10000, // 10초
       critical: 30000, // 30초
     },
   };
@@ -87,14 +87,18 @@ export class SlowQueryMonitorService {
       parameters?: any[];
     } = {},
   ): Promise<void> {
-    if (!this.config.enabled || !analysis.executionTime || analysis.executionTime < this.config.threshold) {
+    if (
+      !this.config.enabled ||
+      !analysis.executionTime ||
+      analysis.executionTime < this.config.threshold
+    ) {
       return;
     }
 
     try {
       // 쿼리 해시 생성 (중복 방지용)
       const queryHash = this.generateQueryHash(analysis.query, metadata.parameters);
-      
+
       // 심각도 결정
       const severity = this.determineSeverity(analysis.executionTime);
 
@@ -113,7 +117,9 @@ export class SlowQueryMonitorService {
       slowQueryLog.filesort = analysis.filesort || false;
       slowQueryLog.cost = analysis.cost;
       slowQueryLog.warnings = analysis.warnings ? JSON.stringify(analysis.warnings) : null;
-      slowQueryLog.optimizationSuggestions = analysis.optimizationSuggestions ? JSON.stringify(analysis.optimizationSuggestions) : null;
+      slowQueryLog.optimizationSuggestions = analysis.optimizationSuggestions
+        ? JSON.stringify(analysis.optimizationSuggestions)
+        : null;
       slowQueryLog.explainPlan = analysis.explainPlan;
       slowQueryLog.userId = metadata.userId;
       slowQueryLog.requestPath = metadata.requestPath;
@@ -147,9 +153,9 @@ export class SlowQueryMonitorService {
   /**
    * 슬로우 쿼리 통계 조회
    */
-  async getSlowQueryStats(periodHours: number = 24): Promise<SlowQueryStats> {
+  async getSlowQueryStats(periodHours = 24): Promise<SlowQueryStats> {
     const startDate = new Date(Date.now() - periodHours * 60 * 60 * 1000);
-    
+
     try {
       const [
         totalQueries,
@@ -188,8 +194,8 @@ export class SlowQueryMonitorService {
    * 슬로우 쿼리 목록 조회 (페이징)
    */
   async getSlowQueries(
-    page: number = 1,
-    limit: number = 50,
+    page = 1,
+    limit = 50,
     filters: {
       startDate?: Date;
       endDate?: Date;
@@ -216,10 +222,14 @@ export class SlowQueryMonitorService {
       query.andWhere('sql.severity = :severity', { severity: filters.severity });
     }
     if (filters.minExecutionTime) {
-      query.andWhere('sql.executionTime >= :minExecutionTime', { minExecutionTime: filters.minExecutionTime });
+      query.andWhere('sql.executionTime >= :minExecutionTime', {
+        minExecutionTime: filters.minExecutionTime,
+      });
     }
     if (filters.maxExecutionTime) {
-      query.andWhere('sql.executionTime <= :maxExecutionTime', { maxExecutionTime: filters.maxExecutionTime });
+      query.andWhere('sql.executionTime <= :maxExecutionTime', {
+        maxExecutionTime: filters.maxExecutionTime,
+      });
     }
     if (filters.resolved !== undefined) {
       query.andWhere('sql.resolved = :resolved', { resolved: filters.resolved });
@@ -260,18 +270,17 @@ export class SlowQueryMonitorService {
   private generateQueryHash(query: string, parameters?: any[]): string {
     const normalizedQuery = this.normalizeQuery(query);
     const paramString = parameters ? JSON.stringify(parameters) : '';
-    return crypto.createHash('md5').update(normalizedQuery + paramString).digest('hex');
+    return crypto
+      .createHash('md5')
+      .update(normalizedQuery + paramString)
+      .digest('hex');
   }
 
   /**
    * 쿼리 정규화 (공백, 대소문자 등)
    */
   private normalizeQuery(query: string): string {
-    return query
-      .replace(/\s+/g, ' ')
-      .replace(/\n/g, ' ')
-      .trim()
-      .toLowerCase();
+    return query.replace(/\s+/g, ' ').replace(/\n/g, ' ').trim().toLowerCase();
   }
 
   /**
@@ -317,7 +326,7 @@ export class SlowQueryMonitorService {
       .select('AVG(sql.executionTime)', 'avg')
       .where('sql.detectedAt >= :startDate', { startDate })
       .getRawOne();
-    
+
     return result?.avg ? parseFloat(result.avg) : 0;
   }
 
@@ -330,7 +339,7 @@ export class SlowQueryMonitorService {
       .select('MAX(sql.executionTime)', 'max')
       .where('sql.detectedAt >= :startDate', { startDate })
       .getRawOne();
-    
+
     return result?.max ? parseInt(result.max) : 0;
   }
 
@@ -398,7 +407,7 @@ export class SlowQueryMonitorService {
       .getRawMany();
 
     const distribution = { low: 0, medium: 0, high: 0, critical: 0 };
-    
+
     result.forEach(row => {
       const severity = row.sql_severity.toLowerCase();
       distribution[severity] = parseInt(row.count);
@@ -438,7 +447,7 @@ export class SlowQueryMonitorService {
     if (!this.config.enabled) return;
 
     const cutoffDate = new Date(Date.now() - this.config.cleanupIntervalDays * 24 * 60 * 60 * 1000);
-    
+
     try {
       const result = await this.slowQueryLogRepository.delete({
         detectedAt: LessThan(cutoffDate),

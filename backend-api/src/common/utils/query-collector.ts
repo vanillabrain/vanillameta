@@ -78,7 +78,7 @@ export class QueryCollector {
     for (const query of this.queries) {
       // 쿼리 정규화 (파라미터 제거)
       const normalizedQuery = this.normalizeQuery(query.query);
-      
+
       if (!patterns.has(normalizedQuery)) {
         patterns.set(normalizedQuery, []);
       }
@@ -94,14 +94,14 @@ export class QueryCollector {
   private normalizeQuery(query: string): string {
     // 숫자 리터럴을 ? 로 치환
     let normalized = query.replace(/\b\d+\b/g, '?');
-    
+
     // 문자열 리터럴을 ? 로 치환
     normalized = normalized.replace(/'[^']*'/g, '?');
     normalized = normalized.replace(/"[^"]*"/g, '?');
-    
+
     // 공백 정규화
     normalized = normalized.replace(/\s+/g, ' ').trim();
-    
+
     return normalized;
   }
 
@@ -117,20 +117,14 @@ export class QueryCollector {
   } {
     const slowQueries = this.queries.filter(q => q.executionTime && q.executionTime > 1000);
     const queriesWithTime = this.queries.filter(q => q.executionTime);
-    
-    const totalExecutionTime = queriesWithTime.reduce(
-      (sum, q) => sum + (q.executionTime || 0),
-      0,
-    );
-    
+
+    const totalExecutionTime = queriesWithTime.reduce((sum, q) => sum + (q.executionTime || 0), 0);
+
     const queryBySources = new Map<string, number>();
     for (const query of this.queries) {
-      queryBySources.set(
-        query.source,
-        (queryBySources.get(query.source) || 0) + 1,
-      );
+      queryBySources.set(query.source, (queryBySources.get(query.source) || 0) + 1);
     }
-    
+
     const slowestQueries = [...this.queries]
       .filter(q => q.executionTime)
       .sort((a, b) => (b.executionTime || 0) - (a.executionTime || 0))
@@ -139,9 +133,8 @@ export class QueryCollector {
     return {
       totalQueries: this.queries.length,
       slowQueries: slowQueries.length,
-      averageExecutionTime: queriesWithTime.length > 0
-        ? totalExecutionTime / queriesWithTime.length
-        : 0,
+      averageExecutionTime:
+        queriesWithTime.length > 0 ? totalExecutionTime / queriesWithTime.length : 0,
       queryBySources,
       slowestQueries,
     };

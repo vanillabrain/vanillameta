@@ -7,7 +7,7 @@ import { DashboardShare } from '../entities/dashboard_share.entity';
 
 /**
  * 최적화된 대시보드 쿼리 클래스
- * 
+ *
  * 주요 최적화:
  * 1. N+1 쿼리 문제 해결
  * 2. 필요한 필드만 선택
@@ -25,11 +25,11 @@ export class OptimizedDashboardQueries {
 
   /**
    * 사용자의 모든 대시보드 조회 (최적화)
-   * 
+   *
    * 기존 문제점:
    * - UserMapping을 먼저 조회 후 Dashboard를 IN 절로 조회 (2개 쿼리)
    * - layout JSON 파싱이 애플리케이션 레벨에서 수행
-   * 
+   *
    * 최적화:
    * - 단일 조인 쿼리로 변경
    * - 필요한 컬럼만 선택
@@ -40,14 +40,7 @@ export class OptimizedDashboardQueries {
       .createQueryBuilder('d')
       .innerJoin(UserMapping, 'um', 'um.dashboard_id = d.id')
       .leftJoin(DashboardShare, 'ds', 'd.share_id = ds.id')
-      .select([
-        'd.id',
-        'd.title',
-        'd.layout',
-        'd.created_at',
-        'd.updated_at',
-        'ds.uuid',
-      ])
+      .select(['d.id', 'd.title', 'd.layout', 'd.created_at', 'd.updated_at', 'ds.uuid'])
       .where('um.user_info_id = :userId', { userId })
       .andWhere('d.del_yn = :delYn', { delYn: 'N' })
       .orderBy('d.updated_at', 'DESC')
@@ -57,11 +50,11 @@ export class OptimizedDashboardQueries {
 
   /**
    * 대시보드 상세 조회 (위젯 포함) - 최적화
-   * 
+   *
    * 기존 문제점:
    * - Dashboard 조회 후 별도로 Widget 조회 (N+1)
    * - 각 Widget에 대해 Component 정보 조회 (N+1)
-   * 
+   *
    * 최적화:
    * - 단일 쿼리로 모든 관련 데이터 조회
    * - 필요한 필드만 선택
@@ -102,7 +95,7 @@ export class OptimizedDashboardQueries {
     if (result) {
       // layout 파싱은 여전히 필요하지만, 단일 쿼리로 모든 데이터 획득
       result.layout = JSON.parse(result.layout);
-      
+
       // 위젯 옵션 파싱
       if (result.dashboardWidgets) {
         result.dashboardWidgets.forEach(dw => {
@@ -118,7 +111,7 @@ export class OptimizedDashboardQueries {
 
   /**
    * 대시보드 생성을 위한 최적화된 트랜잭션
-   * 
+   *
    * 최적화:
    * - 트랜잭션 내에서 모든 작업 수행
    * - 불필요한 조회 제거
@@ -195,7 +188,7 @@ export class OptimizedDashboardQueries {
 
   /**
    * 대시보드 삭제 최적화
-   * 
+   *
    * 최적화:
    * - CASCADE 삭제 대신 명시적 삭제로 성능 향상
    * - 트랜잭션 내에서 순서대로 삭제
@@ -246,7 +239,7 @@ export class OptimizedDashboardQueries {
 
   /**
    * 대시보드 통계 조회 (최적화)
-   * 
+   *
    * 단일 쿼리로 여러 통계 정보 조회
    */
   async getDashboardStatistics(userId: number) {

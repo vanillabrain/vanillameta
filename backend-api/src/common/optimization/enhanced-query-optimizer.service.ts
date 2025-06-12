@@ -1,7 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { DatabaseSpecificOptimizationService, OptimizationResult } from './database-specific-optimization.service';
+import {
+  DatabaseSpecificOptimizationService,
+  OptimizationResult,
+} from './database-specific-optimization.service';
 import { QueryCacheService } from './query-cache.service';
-import { IndexRecommendationService, IndexRecommendationReport } from './index-recommendation.service';
+import {
+  IndexRecommendationService,
+  IndexRecommendationReport,
+} from './index-recommendation.service';
 import { EnhancedConnectionPoolService } from './enhanced-connection-pool.service';
 import { QueryAnalyzerService, QueryAnalysis } from '../monitoring/query-analyzer.service';
 import { CustomLoggerService } from '../logger/logger.service';
@@ -104,12 +110,8 @@ export class EnhancedQueryOptimizerService {
         name: 'json-column-gin-index',
         engine: 'pg',
         priority: 'medium',
-        conditions: [
-          { type: 'query_pattern', operator: 'matches', value: /->|->>/g },
-        ],
-        actions: [
-          { type: 'suggest_index', parameters: { type: 'gin', columns: ['json_column'] } },
-        ],
+        conditions: [{ type: 'query_pattern', operator: 'matches', value: /->|->>/g }],
+        actions: [{ type: 'suggest_index', parameters: { type: 'gin', columns: ['json_column'] } }],
         expectedGain: 60,
       },
     ]);
@@ -142,9 +144,7 @@ export class EnhancedQueryOptimizerService {
           { type: 'query_pattern', operator: 'contains', value: 'GROUP BY' },
           { type: 'table_size', operator: 'gt', value: 100000 },
         ],
-        actions: [
-          { type: 'suggest_index', parameters: { type: 'columnstore' } },
-        ],
+        actions: [{ type: 'suggest_index', parameters: { type: 'columnstore' } }],
         expectedGain: 80,
       },
     ]);
@@ -159,9 +159,7 @@ export class EnhancedQueryOptimizerService {
           { type: 'query_pattern', operator: 'contains', value: 'SELECT' },
           { type: 'query_pattern', operator: 'contains', value: 'WHERE' },
         ],
-        actions: [
-          { type: 'rewrite_query', parameters: { addPartitionFilter: true } },
-        ],
+        actions: [{ type: 'rewrite_query', parameters: { addPartitionFilter: true } }],
         expectedGain: 90,
       },
     ]);
@@ -175,7 +173,7 @@ export class EnhancedQueryOptimizerService {
     database: Database,
     query: string,
     parameters?: any[],
-    sessionId?: string
+    sessionId?: string,
   ): Promise<{
     optimizedQuery: string;
     analysis: EnhancedQueryAnalysis;
@@ -193,8 +191,9 @@ export class EnhancedQueryOptimizerService {
     // 2. 캐시 확인
     const cachedResult = await this.queryCacheService.get(engine, query, parameters);
     if (cachedResult) {
-      session.cacheHitRate = (session.cacheHitRate * (session.totalQueries - 1) + 1) / session.totalQueries;
-      
+      session.cacheHitRate =
+        (session.cacheHitRate * (session.totalQueries - 1) + 1) / session.totalQueries;
+
       this.customLogger.info('Query served from cache', 'EnhancedQueryOptimizerService', {
         databaseId,
         engine,
@@ -212,21 +211,24 @@ export class EnhancedQueryOptimizerService {
 
     // 3. 연결 풀 최적화 적용
     const poolStartTime = Date.now();
-    let poolMetrics = {
+    const poolMetrics = {
       acquisitionTime: 0,
       connectionReused: this.connectionPoolService.hasConnection(databaseId),
     };
 
     try {
       // 4. 데이터베이스별 쿼리 최적화 적용
-      const { optimizedQuery, appliedOptimizations } = this.dbOptimizationService.optimizeQuery(query, engine);
-      
+      const { optimizedQuery, appliedOptimizations } = this.dbOptimizationService.optimizeQuery(
+        query,
+        engine,
+      );
+
       // 5. 고급 최적화 전략 적용
       const advancedOptimizations = await this.applyAdvancedOptimizations(
         optimizedQuery,
         engine,
         knexInstance,
-        database
+        database,
       );
 
       // 6. 쿼리 분석 실행
@@ -234,16 +236,12 @@ export class EnhancedQueryOptimizerService {
 
       // 7. 향상된 분석 생성
       poolMetrics.acquisitionTime = Date.now() - poolStartTime;
-      const enhancedAnalysis = await this.createEnhancedAnalysis(
-        optimizedQuery,
-        engine,
-        {
-          appliedRules: [...appliedOptimizations, ...advancedOptimizations.appliedRules],
-          cacheStatus: 'miss',
-          poolMetrics,
-          baseAnalysis,
-        }
-      );
+      const enhancedAnalysis = await this.createEnhancedAnalysis(optimizedQuery, engine, {
+        appliedRules: [...appliedOptimizations, ...advancedOptimizations.appliedRules],
+        cacheStatus: 'miss',
+        poolMetrics,
+        baseAnalysis,
+      });
 
       // 8. 인덱스 추천 (비동기)
       this.generateIndexRecommendationsAsync(knexInstance, engine, database.name, [optimizedQuery]);
@@ -251,8 +249,12 @@ export class EnhancedQueryOptimizerService {
       // 9. 세션 통계 업데이트
       session.optimizedQueries++;
       const executionTime = Date.now() - startTime;
-      const speedup = baseAnalysis.executionTime ? Math.max(1, baseAnalysis.executionTime / executionTime) : 1;
-      session.averageSpeedup = (session.averageSpeedup * (session.optimizedQueries - 1) + speedup) / session.optimizedQueries;
+      const speedup = baseAnalysis.executionTime
+        ? Math.max(1, baseAnalysis.executionTime / executionTime)
+        : 1;
+      session.averageSpeedup =
+        (session.averageSpeedup * (session.optimizedQueries - 1) + speedup) /
+        session.optimizedQueries;
 
       this.customLogger.info('Query optimization completed', 'EnhancedQueryOptimizerService', {
         databaseId,
@@ -270,17 +272,16 @@ export class EnhancedQueryOptimizerService {
         analysis: enhancedAnalysis,
         recommendations: advancedOptimizations.recommendations,
       };
-
     } catch (error) {
       this.logger.error(`Query optimization failed for database ${databaseId}`, error.stack);
-      
+
       // 실패 시 원본 쿼리와 기본 분석 반환
       return {
         optimizedQuery: query,
-        analysis: await this.createEnhancedAnalysis(query, engine, { 
+        analysis: await this.createEnhancedAnalysis(query, engine, {
           cacheStatus: 'miss',
           poolMetrics,
-          error: error.message 
+          error: error.message,
         }),
         recommendations: [`Optimization failed: ${error.message}`],
       };
@@ -294,7 +295,7 @@ export class EnhancedQueryOptimizerService {
     query: string,
     engine: string,
     knexInstance: Knex,
-    database: Database
+    database: Database,
   ): Promise<{
     finalQuery: string;
     appliedRules: string[];
@@ -313,7 +314,7 @@ export class EnhancedQueryOptimizerService {
           strategy.conditions,
           query,
           knexInstance,
-          database
+          database,
         );
 
         if (conditionsMet) {
@@ -322,19 +323,23 @@ export class EnhancedQueryOptimizerService {
             strategy.actions,
             finalQuery,
             engine,
-            database
+            database,
           );
 
           finalQuery = result.modifiedQuery;
           appliedRules.push(strategy.name);
           recommendations.push(...result.recommendations);
 
-          this.customLogger.debug('Advanced optimization strategy applied', 'EnhancedQueryOptimizerService', {
-            strategy: strategy.name,
-            engine,
-            priority: strategy.priority,
-            expectedGain: strategy.expectedGain,
-          });
+          this.customLogger.debug(
+            'Advanced optimization strategy applied',
+            'EnhancedQueryOptimizerService',
+            {
+              strategy: strategy.name,
+              engine,
+              priority: strategy.priority,
+              expectedGain: strategy.expectedGain,
+            },
+          );
         }
       } catch (error) {
         this.logger.warn(`Failed to apply strategy ${strategy.name}: ${error.message}`);
@@ -351,7 +356,7 @@ export class EnhancedQueryOptimizerService {
     conditions: OptimizationStrategy['conditions'],
     query: string,
     knexInstance: Knex,
-    database: Database
+    database: Database,
   ): Promise<boolean> {
     for (const condition of conditions) {
       try {
@@ -401,7 +406,7 @@ export class EnhancedQueryOptimizerService {
     actions: OptimizationStrategy['actions'],
     query: string,
     engine: string,
-    database: Database
+    database: Database,
   ): Promise<{
     modifiedQuery: string;
     recommendations: string[];
@@ -421,20 +426,16 @@ export class EnhancedQueryOptimizerService {
 
         case 'suggest_index':
           recommendations.push(
-            `Consider creating ${action.parameters.type} index on affected columns`
+            `Consider creating ${action.parameters.type} index on affected columns`,
           );
           break;
 
         case 'partition_table':
-          recommendations.push(
-            `Consider partitioning table for better performance`
-          );
+          recommendations.push(`Consider partitioning table for better performance`);
           break;
 
         case 'update_statistics':
-          recommendations.push(
-            `Update table statistics for better query planning`
-          );
+          recommendations.push(`Update table statistics for better query planning`);
           break;
       }
     }
@@ -501,7 +502,7 @@ export class EnhancedQueryOptimizerService {
   private async createEnhancedAnalysis(
     query: string,
     engine: string,
-    context: any
+    context: any,
   ): Promise<EnhancedQueryAnalysis> {
     const baseAnalysis = context.baseAnalysis || {
       query: query.substring(0, 200),
@@ -537,7 +538,13 @@ export class EnhancedQueryOptimizerService {
    */
   private getEngineFeatures(engine: string): string[] {
     const features = {
-      pg: ['Advanced indexing (GIN, GIST)', 'JSON operations', 'Window functions', 'CTEs', 'Parallel query'],
+      pg: [
+        'Advanced indexing (GIN, GIST)',
+        'JSON operations',
+        'Window functions',
+        'CTEs',
+        'Parallel query',
+      ],
       mysql2: ['InnoDB storage engine', 'Partitioning', 'Full-text indexing', 'JSON support'],
       mssql: ['Columnstore indexes', 'In-memory OLTP', 'Query store', 'Adaptive query processing'],
       oracledb: ['Advanced analytics', 'Partitioning', 'Parallel execution', 'Result cache'],
@@ -568,7 +575,9 @@ export class EnhancedQueryOptimizerService {
   /**
    * 최적화 수준 결정
    */
-  private determineOptimizationLevel(appliedRulesCount: number): 'none' | 'basic' | 'advanced' | 'expert' {
+  private determineOptimizationLevel(
+    appliedRulesCount: number,
+  ): 'none' | 'basic' | 'advanced' | 'expert' {
     if (appliedRulesCount === 0) return 'none';
     if (appliedRulesCount <= 2) return 'basic';
     if (appliedRulesCount <= 5) return 'advanced';
@@ -578,9 +587,13 @@ export class EnhancedQueryOptimizerService {
   /**
    * 세션 가져오기 또는 생성
    */
-  private getOrCreateSession(sessionId: string | undefined, databaseId: number, engine: string): QueryOptimizationSession {
+  private getOrCreateSession(
+    sessionId: string | undefined,
+    databaseId: number,
+    engine: string,
+  ): QueryOptimizationSession {
     const id = sessionId || `session_${databaseId}_${Date.now()}`;
-    
+
     if (!this.optimizationSessions.has(id)) {
       this.optimizationSessions.set(id, {
         sessionId: id,
@@ -609,7 +622,7 @@ export class EnhancedQueryOptimizerService {
     knexInstance: Knex,
     engine: string,
     tableName: string,
-    queryPatterns: string[]
+    queryPatterns: string[],
   ): Promise<void> {
     try {
       setImmediate(async () => {
@@ -618,16 +631,20 @@ export class EnhancedQueryOptimizerService {
             knexInstance,
             engine,
             tableName,
-            queryPatterns
+            queryPatterns,
           );
 
           if (report.recommendations.length > 0) {
-            this.customLogger.info('Index recommendations generated', 'EnhancedQueryOptimizerService', {
-              tableName,
-              engine,
-              recommendationsCount: report.recommendations.length,
-              estimatedSpeedup: report.performanceImpact.estimatedQuerySpeedup,
-            });
+            this.customLogger.info(
+              'Index recommendations generated',
+              'EnhancedQueryOptimizerService',
+              {
+                tableName,
+                engine,
+                recommendationsCount: report.recommendations.length,
+                estimatedSpeedup: report.performanceImpact.estimatedQuerySpeedup,
+              },
+            );
           }
         } catch (error) {
           this.logger.debug(`Failed to generate index recommendations: ${error.message}`);
@@ -641,7 +658,9 @@ export class EnhancedQueryOptimizerService {
   /**
    * 최적화 세션 통계 반환
    */
-  getSessionStats(sessionId?: string): Map<string, QueryOptimizationSession> | QueryOptimizationSession | null {
+  getSessionStats(
+    sessionId?: string,
+  ): Map<string, QueryOptimizationSession> | QueryOptimizationSession | null {
     if (sessionId) {
       return this.optimizationSessions.get(sessionId) || null;
     }
@@ -666,16 +685,19 @@ export class EnhancedQueryOptimizerService {
       longTerm: string[];
     };
   }> {
-    const sessions = Array.from(this.optimizationSessions.values())
-      .filter(session => session.databaseId === databaseId);
+    const sessions = Array.from(this.optimizationSessions.values()).filter(
+      session => session.databaseId === databaseId,
+    );
 
     const totalQueries = sessions.reduce((sum, s) => sum + s.totalQueries, 0);
-    const averageCacheHitRate = sessions.length > 0 
-      ? sessions.reduce((sum, s) => sum + s.cacheHitRate, 0) / sessions.length 
-      : 0;
-    const averageSpeedup = sessions.length > 0
-      ? sessions.reduce((sum, s) => sum + s.averageSpeedup, 0) / sessions.length
-      : 1;
+    const averageCacheHitRate =
+      sessions.length > 0
+        ? sessions.reduce((sum, s) => sum + s.cacheHitRate, 0) / sessions.length
+        : 0;
+    const averageSpeedup =
+      sessions.length > 0
+        ? sessions.reduce((sum, s) => sum + s.averageSpeedup, 0) / sessions.length
+        : 1;
 
     return {
       database: { id: databaseId, engine: sessions[0]?.engine || 'unknown' },
@@ -711,7 +733,7 @@ export class EnhancedQueryOptimizerService {
     query: string,
     data: any,
     fields: any[],
-    parameters?: any[]
+    parameters?: any[],
   ): Promise<void> {
     await this.queryCacheService.set(engine, query, data, fields, parameters);
   }

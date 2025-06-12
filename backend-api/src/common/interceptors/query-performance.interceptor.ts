@@ -1,10 +1,4 @@
-import {
-  Injectable,
-  NestInterceptor,
-  ExecutionContext,
-  CallHandler,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, NestInterceptor, ExecutionContext, CallHandler, Logger } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { QueryAnalyzerService } from '../monitoring/query-analyzer.service';
@@ -21,10 +15,7 @@ export class QueryPerformanceInterceptor implements NestInterceptor {
     private readonly configService: ConfigService,
   ) {
     this.isEnabled = this.configService.get('QUERY_PERFORMANCE_MONITORING', 'true') === 'true';
-    this.slowQueryThreshold = parseInt(
-      this.configService.get('SLOW_QUERY_THRESHOLD', '1000'),
-      10,
-    );
+    this.slowQueryThreshold = parseInt(this.configService.get('SLOW_QUERY_THRESHOLD', '1000'), 10);
   }
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
@@ -40,7 +31,7 @@ export class QueryPerformanceInterceptor implements NestInterceptor {
       tap({
         next: () => {
           const executionTime = Date.now() - startTime;
-          
+
           // 느린 API 엔드포인트 로깅
           if (executionTime > this.slowQueryThreshold) {
             this.logger.warn({
@@ -57,7 +48,7 @@ export class QueryPerformanceInterceptor implements NestInterceptor {
             });
           }
         },
-        error: (error) => {
+        error: error => {
           const executionTime = Date.now() - startTime;
           this.logger.error({
             message: 'API endpoint error',

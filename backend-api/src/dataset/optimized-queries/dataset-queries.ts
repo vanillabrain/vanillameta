@@ -7,7 +7,7 @@ import { DatasetType } from '../../common/enum/dataset-type.enum';
 
 /**
  * 최적화된 데이터셋 쿼리 클래스
- * 
+ *
  * 주요 최적화:
  * 1. 쿼리 실행 전 검증 로직 개선
  * 2. 대량 데이터 처리를 위한 스트리밍
@@ -24,17 +24,13 @@ export class OptimizedDatasetQueries {
 
   /**
    * 데이터셋 목록 조회 (최적화)
-   * 
+   *
    * 최적화:
    * - 페이지네이션 적용
    * - 사용 중인 데이터셋 표시
    * - 데이터베이스 정보 포함
    */
-  async findAllDatasetsOptimized(options?: {
-    page?: number;
-    limit?: number;
-    databaseId?: number;
-  }) {
+  async findAllDatasetsOptimized(options?: { page?: number; limit?: number; databaseId?: number }) {
     const page = options?.page || 1;
     const limit = options?.limit || 50;
     const skip = (page - 1) * limit;
@@ -46,7 +42,7 @@ export class OptimizedDatasetQueries {
         Widget,
         'w',
         'w.datasetType = :datasetType AND w.datasetId = ds.id AND w.delYn = :delYn',
-        { datasetType: DatasetType.DATASET, delYn: 'N' }
+        { datasetType: DatasetType.DATASET, delYn: 'N' },
       )
       .select([
         'ds.id',
@@ -70,10 +66,7 @@ export class OptimizedDatasetQueries {
       query.where('ds.databaseId = :databaseId', { databaseId: options.databaseId });
     }
 
-    const [rawResults, total] = await Promise.all([
-      query.getRawMany(),
-      query.getCount(),
-    ]);
+    const [rawResults, total] = await Promise.all([query.getRawMany(), query.getCount()]);
 
     // 결과 매핑
     const datasets = rawResults.map(raw => ({
@@ -105,15 +98,12 @@ export class OptimizedDatasetQueries {
 
   /**
    * 데이터셋 상세 조회 (최적화)
-   * 
+   *
    * 최적화:
    * - 관련 위젯 정보 포함
    * - 쿼리 미리보기 데이터 포함 옵션
    */
-  async findDatasetByIdOptimized(
-    datasetId: number,
-    options?: { includePreview?: boolean }
-  ) {
+  async findDatasetByIdOptimized(datasetId: number, options?: { includePreview?: boolean }) {
     const dataset = await this.datasetRepository
       .createQueryBuilder('ds')
       .leftJoinAndSelect('ds.database', 'db')
@@ -121,7 +111,7 @@ export class OptimizedDatasetQueries {
         Widget,
         'w',
         'w.datasetType = :datasetType AND w.datasetId = ds.id AND w.delYn = :delYn',
-        { datasetType: DatasetType.DATASET, delYn: 'N' }
+        { datasetType: DatasetType.DATASET, delYn: 'N' },
       )
       .select([
         'ds.id',
@@ -136,10 +126,7 @@ export class OptimizedDatasetQueries {
         'db.type',
       ])
       .addSelect('COUNT(DISTINCT w.id)', 'widgetCount')
-      .addSelect(
-        `GROUP_CONCAT(DISTINCT w.title ORDER BY w.title SEPARATOR ', ')`,
-        'widgetTitles'
-      )
+      .addSelect(`GROUP_CONCAT(DISTINCT w.title ORDER BY w.title SEPARATOR ', ')`, 'widgetTitles')
       .where('ds.id = :datasetId', { datasetId })
       .groupBy('ds.id')
       .addGroupBy('db.id')
@@ -174,7 +161,7 @@ export class OptimizedDatasetQueries {
 
   /**
    * 데이터셋 벌크 생성 (최적화)
-   * 
+   *
    * 여러 데이터셋을 트랜잭션으로 생성
    */
   async bulkCreateDatasetsOptimized(
@@ -203,10 +190,10 @@ export class OptimizedDatasetQueries {
 
   /**
    * 사용하지 않는 데이터셋 조회 (최적화)
-   * 
+   *
    * 위젯에서 사용하지 않는 데이터셋 찾기
    */
-  async findUnusedDatasetsOptimized(daysOld: number = 30) {
+  async findUnusedDatasetsOptimized(daysOld = 30) {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysOld);
 
@@ -216,15 +203,9 @@ export class OptimizedDatasetQueries {
         Widget,
         'w',
         'w.datasetType = :datasetType AND w.datasetId = ds.id AND w.delYn = :delYn',
-        { datasetType: DatasetType.DATASET, delYn: 'N' }
+        { datasetType: DatasetType.DATASET, delYn: 'N' },
       )
-      .select([
-        'ds.id',
-        'ds.title',
-        'ds.createdAt',
-        'ds.updatedAt',
-        'ds.databaseId',
-      ])
+      .select(['ds.id', 'ds.title', 'ds.createdAt', 'ds.updatedAt', 'ds.databaseId'])
       .where('w.id IS NULL')
       .andWhere('ds.createdAt < :cutoffDate', { cutoffDate })
       .orderBy('ds.createdAt', 'ASC')
@@ -233,7 +214,7 @@ export class OptimizedDatasetQueries {
 
   /**
    * 데이터셋 검증 (최적화)
-   * 
+   *
    * 쿼리 실행 가능 여부만 빠르게 검증
    */
   async validateDatasetQueryOptimized(
@@ -243,10 +224,10 @@ export class OptimizedDatasetQueries {
     try {
       // EXPLAIN을 사용하여 실제 실행 없이 검증
       const explainQuery = `EXPLAIN ${query}`;
-      
+
       // ConnectionService를 통해 실행
       // 실제 구현에서는 ConnectionService 주입 필요
-      
+
       return { isValid: true };
     } catch (error) {
       return {
@@ -258,7 +239,7 @@ export class OptimizedDatasetQueries {
 
   /**
    * 데이터셋 사용 통계 (최적화)
-   * 
+   *
    * 데이터베이스별 데이터셋 사용 현황
    */
   async getDatasetUsageStatistics() {
@@ -269,7 +250,7 @@ export class OptimizedDatasetQueries {
         Widget,
         'w',
         'w.datasetType = :datasetType AND w.datasetId = ds.id AND w.delYn = :delYn',
-        { datasetType: DatasetType.DATASET, delYn: 'N' }
+        { datasetType: DatasetType.DATASET, delYn: 'N' },
       )
       .select([
         'db.id as databaseId',
@@ -289,7 +270,7 @@ export class OptimizedDatasetQueries {
         Widget,
         'w',
         'w.datasetType = :datasetType AND w.datasetId = ds.id AND w.delYn = :delYn',
-        { datasetType: DatasetType.DATASET, delYn: 'N' }
+        { datasetType: DatasetType.DATASET, delYn: 'N' },
       )
       .select([
         'COUNT(DISTINCT ds.id) as totalDatasets',
@@ -311,16 +292,20 @@ export class OptimizedDatasetQueries {
         totalDatasets: parseInt(totalStats.totalDatasets) || 0,
         usedDatasets: parseInt(totalStats.usedDatasets) || 0,
         unusedDatasets: parseInt(totalStats.unusedDatasets) || 0,
-        utilizationRate: totalStats.totalDatasets > 0
-          ? (parseInt(totalStats.usedDatasets) / parseInt(totalStats.totalDatasets) * 100).toFixed(2) + '%'
-          : '0%',
+        utilizationRate:
+          totalStats.totalDatasets > 0
+            ? (
+                (parseInt(totalStats.usedDatasets) / parseInt(totalStats.totalDatasets)) *
+                100
+              ).toFixed(2) + '%'
+            : '0%',
       },
     };
   }
 
   /**
    * 데이터셋 쿼리 복잡도 분석 (최적화)
-   * 
+   *
    * 복잡한 쿼리 식별
    */
   async analyzeDatasetComplexity() {
@@ -339,20 +324,22 @@ export class OptimizedDatasetQueries {
       .limit(20)
       .getRawMany();
 
-    return datasets.map(ds => ({
-      id: ds.ds_id,
-      title: ds.ds_title,
-      complexity: {
-        queryLength: parseInt(ds.queryLength) || 0,
-        joinCount: parseInt(ds.joinCount) || 0,
-        whereCount: parseInt(ds.whereCount) || 0,
-        groupByCount: parseInt(ds.groupByCount) || 0,
-        complexityScore: 
-          (parseInt(ds.queryLength) || 0) / 100 +
-          (parseInt(ds.joinCount) || 0) * 2 +
-          (parseInt(ds.whereCount) || 0) +
-          (parseInt(ds.groupByCount) || 0) * 3,
-      },
-    })).sort((a, b) => b.complexity.complexityScore - a.complexity.complexityScore);
+    return datasets
+      .map(ds => ({
+        id: ds.ds_id,
+        title: ds.ds_title,
+        complexity: {
+          queryLength: parseInt(ds.queryLength) || 0,
+          joinCount: parseInt(ds.joinCount) || 0,
+          whereCount: parseInt(ds.whereCount) || 0,
+          groupByCount: parseInt(ds.groupByCount) || 0,
+          complexityScore:
+            (parseInt(ds.queryLength) || 0) / 100 +
+            (parseInt(ds.joinCount) || 0) * 2 +
+            (parseInt(ds.whereCount) || 0) +
+            (parseInt(ds.groupByCount) || 0) * 3,
+        },
+      }))
+      .sort((a, b) => b.complexity.complexityScore - a.complexity.complexityScore);
   }
 }

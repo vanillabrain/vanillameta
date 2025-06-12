@@ -1,5 +1,8 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
-import { DatabaseSpecificOptimizationService, CacheConfiguration } from './database-specific-optimization.service';
+import {
+  DatabaseSpecificOptimizationService,
+  CacheConfiguration,
+} from './database-specific-optimization.service';
 import { CustomLoggerService } from '../logger/logger.service';
 import * as crypto from 'crypto';
 import { LRUCache } from 'lru-cache';
@@ -55,7 +58,7 @@ export class QueryCacheService implements OnModuleDestroy {
     private readonly customLogger: CustomLoggerService,
   ) {
     this.initializeInvalidationRules();
-    
+
     // 주기적인 캐시 정리 (10분마다)
     this.cleanupInterval = setInterval(() => {
       this.performCacheCleanup();
@@ -270,7 +273,7 @@ export class QueryCacheService implements OnModuleDestroy {
     });
 
     this.caches.set(engine, cache);
-    
+
     // 통계 초기화
     this.cacheStats.set(engine, {
       engine,
@@ -300,7 +303,10 @@ export class QueryCacheService implements OnModuleDestroy {
   private generateQueryHash(query: string, parameters?: any[]): string {
     const normalizedQuery = query.trim().toLowerCase().replace(/\s+/g, ' ');
     const paramString = parameters ? JSON.stringify(parameters) : '';
-    return crypto.createHash('sha256').update(normalizedQuery + paramString).digest('hex');
+    return crypto
+      .createHash('sha256')
+      .update(normalizedQuery + paramString)
+      .digest('hex');
   }
 
   /**
@@ -309,10 +315,10 @@ export class QueryCacheService implements OnModuleDestroy {
   async get(
     engine: string,
     query: string,
-    parameters?: any[]
+    parameters?: any[],
   ): Promise<{ data: any; fields: any[] } | null> {
     this.initializeCacheForEngine(engine);
-    
+
     const cache = this.caches.get(engine);
     if (!cache) return null;
 
@@ -323,10 +329,10 @@ export class QueryCacheService implements OnModuleDestroy {
       // 히트 카운트 증가
       entry.hits++;
       entry.timestamp = new Date();
-      
+
       // 통계 업데이트
       this.updateStatsOnHit(engine);
-      
+
       this.customLogger.debug('Cache hit', 'QueryCacheService', {
         engine,
         queryHash: queryHash.substring(0, 8),
@@ -341,7 +347,7 @@ export class QueryCacheService implements OnModuleDestroy {
 
     // 캐시 미스
     this.updateStatsOnMiss(engine);
-    
+
     this.customLogger.debug('Cache miss', 'QueryCacheService', {
       engine,
       queryHash: queryHash.substring(0, 8),
@@ -358,10 +364,10 @@ export class QueryCacheService implements OnModuleDestroy {
     query: string,
     data: any,
     fields: any[],
-    parameters?: any[]
+    parameters?: any[],
   ): Promise<void> {
     this.initializeCacheForEngine(engine);
-    
+
     const cache = this.caches.get(engine);
     if (!cache) return;
 
@@ -370,7 +376,7 @@ export class QueryCacheService implements OnModuleDestroy {
 
     // 데이터 크기 계산
     const dataSize = this.calculateDataSize(data, fields);
-    
+
     // 최대 엔트리 크기 제한 (10MB)
     if (dataSize > 10 * 1024 * 1024) {
       this.customLogger.warn('Query result too large for caching', 'QueryCacheService', {
@@ -394,10 +400,10 @@ export class QueryCacheService implements OnModuleDestroy {
     };
 
     cache.set(queryHash, entry);
-    
+
     // 통계 업데이트
     this.updateStatsOnSet(engine, entry);
-    
+
     this.customLogger.debug('Query result cached', 'QueryCacheService', {
       engine,
       queryHash: queryHash.substring(0, 8),
@@ -440,7 +446,10 @@ export class QueryCacheService implements OnModuleDestroy {
           const matches = query.match(rule.pattern);
           if (matches) {
             for (const tablePattern of rule.targetTables) {
-              const tableName = tablePattern.replace(/\$(\d+)/, (_, index) => matches[parseInt(index)] || '');
+              const tableName = tablePattern.replace(
+                /\$(\d+)/,
+                (_, index) => matches[parseInt(index)] || '',
+              );
               if (tableName && tableName !== tablePattern) {
                 tablesToInvalidate.add(tableName.toLowerCase());
               }
@@ -478,13 +487,14 @@ export class QueryCacheService implements OnModuleDestroy {
     for (const [key, entry] of cache.entries()) {
       // 쿼리에서 테이블명 추출 (간단한 방식)
       const queryLower = entry.data?.query?.toLowerCase() || '';
-      const hasTargetTable = tableNamesLower.some(tableName =>
-        queryLower.includes(`from ${tableName}`) ||
-        queryLower.includes(`from \`${tableName}\``) ||
-        queryLower.includes(`from "${tableName}"`) ||
-        queryLower.includes(`join ${tableName}`) ||
-        queryLower.includes(`join \`${tableName}\``) ||
-        queryLower.includes(`join "${tableName}"`)
+      const hasTargetTable = tableNamesLower.some(
+        tableName =>
+          queryLower.includes(`from ${tableName}`) ||
+          queryLower.includes(`from \`${tableName}\``) ||
+          queryLower.includes(`from "${tableName}"`) ||
+          queryLower.includes(`join ${tableName}`) ||
+          queryLower.includes(`join \`${tableName}\``) ||
+          queryLower.includes(`join "${tableName}"`),
       );
 
       if (hasTargetTable) {
@@ -508,7 +518,7 @@ export class QueryCacheService implements OnModuleDestroy {
     if (cache) {
       const entriesCount = cache.size;
       cache.clear();
-      
+
       // 통계 리셋
       const stats = this.cacheStats.get(engine);
       if (stats) {
@@ -542,7 +552,7 @@ export class QueryCacheService implements OnModuleDestroy {
     const stats = this.cacheStats.get(engine);
     if (stats) {
       // 히트율 계산을 위한 임시 변수 사용
-      const totalRequests = (stats.hitRate + stats.missRate) || 1;
+      const totalRequests = stats.hitRate + stats.missRate || 1;
       stats.hitRate = (stats.hitRate * totalRequests + 1) / (totalRequests + 1);
       stats.missRate = 1 - stats.hitRate;
     }
@@ -554,7 +564,7 @@ export class QueryCacheService implements OnModuleDestroy {
   private updateStatsOnMiss(engine: string): void {
     const stats = this.cacheStats.get(engine);
     if (stats) {
-      const totalRequests = (stats.hitRate + stats.missRate) || 1;
+      const totalRequests = stats.hitRate + stats.missRate || 1;
       stats.missRate = (stats.missRate * totalRequests + 1) / (totalRequests + 1);
       stats.hitRate = 1 - stats.missRate;
     }
@@ -644,13 +654,13 @@ export class QueryCacheService implements OnModuleDestroy {
   private performCacheCleanup(): void {
     for (const [engine, cache] of this.caches) {
       const beforeSize = cache.size;
-      
+
       // LRU 캐시는 자동으로 TTL 처리하므로 별도 정리 불필요
       // 하지만 통계는 업데이트
       const stats = this.cacheStats.get(engine);
       if (stats) {
         stats.totalEntries = cache.size;
-        
+
         // 실제 메모리 사용량 재계산
         let totalSize = 0;
         for (const [, entry] of cache.entries()) {

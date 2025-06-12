@@ -43,7 +43,7 @@ describe('DatabaseSpecificOptimizationService', () => {
     it('should optimize PostgreSQL query with LIMIT', () => {
       const query = 'SELECT * FROM users ORDER BY created_at LIMIT 100';
       const result = service.optimizeQuery(query, 'pg');
-      
+
       expect(result.optimizedQuery).toContain('IndexScan');
       expect(result.appliedOptimizations).toContain('limit-optimization');
     });
@@ -51,7 +51,7 @@ describe('DatabaseSpecificOptimizationService', () => {
     it('should optimize MySQL query with large LIMIT', () => {
       const query = 'SELECT * FROM products ORDER BY price LIMIT 50000';
       const result = service.optimizeQuery(query, 'mysql2');
-      
+
       expect(result.optimizedQuery).toContain('LIMIT 10000');
       expect(result.appliedOptimizations).toContain('limit-optimization');
     });
@@ -59,7 +59,7 @@ describe('DatabaseSpecificOptimizationService', () => {
     it('should return original query for unsupported engine', () => {
       const query = 'SELECT * FROM users';
       const result = service.optimizeQuery(query, 'unsupported');
-      
+
       expect(result.optimizedQuery).toBe(query);
       expect(result.appliedOptimizations).toHaveLength(0);
     });
@@ -67,7 +67,7 @@ describe('DatabaseSpecificOptimizationService', () => {
     it('should not apply disabled optimization rules', () => {
       const query = 'SELECT * FROM users JOIN orders ON users.id = orders.user_id';
       const result = service.optimizeQuery(query, 'pg');
-      
+
       // join-optimization is disabled by default
       expect(result.appliedOptimizations).not.toContain('join-optimization');
     });
@@ -76,7 +76,7 @@ describe('DatabaseSpecificOptimizationService', () => {
   describe('getOptimizedPoolConfig', () => {
     it('should return optimized pool config for production PostgreSQL', () => {
       const config = service.getOptimizedPoolConfig('pg', true);
-      
+
       expect(config.max).toBeLessThanOrEqual(5);
       expect(config.min).toBe(0);
       expect(config.idleTimeoutMillis).toBeDefined();
@@ -85,19 +85,19 @@ describe('DatabaseSpecificOptimizationService', () => {
     it('should return Lambda-optimized config when in Lambda environment', () => {
       const originalEnv = process.env.AWS_LAMBDA_FUNCTION_NAME;
       process.env.AWS_LAMBDA_FUNCTION_NAME = 'test-function';
-      
+
       const config = service.getOptimizedPoolConfig('mysql2', false);
-      
+
       expect(config.max).toBeLessThanOrEqual(2);
       expect(config.min).toBe(0);
       expect(config.idleTimeoutMillis).toBe(60000);
-      
+
       process.env.AWS_LAMBDA_FUNCTION_NAME = originalEnv;
     });
 
     it('should return default config for unsupported engine', () => {
       const config = service.getOptimizedPoolConfig('unsupported');
-      
+
       expect(config.max).toBe(3);
       expect(config.createTimeoutMillis).toBe(30000);
     });
@@ -106,7 +106,7 @@ describe('DatabaseSpecificOptimizationService', () => {
   describe('getCacheConfig', () => {
     it('should return cache config for PostgreSQL', () => {
       const config = service.getCacheConfig('pg');
-      
+
       expect(config.enabled).toBe(true);
       expect(config.ttl).toBe(3600);
       expect(config.maxSize).toBe(1000);
@@ -115,7 +115,7 @@ describe('DatabaseSpecificOptimizationService', () => {
 
     it('should return cache config for BigQuery with longer TTL', () => {
       const config = service.getCacheConfig('bigquery');
-      
+
       expect(config.enabled).toBe(true);
       expect(config.ttl).toBe(7200); // 2 hours
       expect(config.maxSize).toBe(300);
@@ -123,7 +123,7 @@ describe('DatabaseSpecificOptimizationService', () => {
 
     it('should return default disabled config for unsupported engine', () => {
       const config = service.getCacheConfig('unsupported');
-      
+
       expect(config.enabled).toBe(false);
       expect(config.ttl).toBe(3600);
       expect(config.maxSize).toBe(100);
@@ -139,17 +139,21 @@ describe('DatabaseSpecificOptimizationService', () => {
           {
             columnName: 'email',
             cardinality: 0.95,
-            queryUsage: { whereClauseUsage: 5, joinUsage: 0, orderByUsage: 0, groupByUsage: 0 }
-          }
-        ]
+            queryUsage: { whereClauseUsage: 5, joinUsage: 0, orderByUsage: 0, groupByUsage: 0 },
+          },
+        ],
       };
       const queryPatterns = [
         'SELECT * FROM users WHERE email = ?',
-        'SELECT * FROM users WHERE email LIKE ?'
+        'SELECT * FROM users WHERE email LIKE ?',
       ];
 
-      const recommendations = await service.generateIndexRecommendations('pg', tableAnalysis, queryPatterns);
-      
+      const recommendations = await service.generateIndexRecommendations(
+        'pg',
+        tableAnalysis,
+        queryPatterns,
+      );
+
       expect(recommendations).toBeDefined();
       expect(Array.isArray(recommendations)).toBe(true);
     });
@@ -166,11 +170,11 @@ describe('DatabaseSpecificOptimizationService', () => {
 
       const queryPatterns = [
         'SELECT * FROM users WHERE email = ?',
-        'SELECT * FROM orders ORDER BY created_at LIMIT 100'
+        'SELECT * FROM orders ORDER BY created_at LIMIT 100',
       ];
 
       const result = await service.executeOptimizations(mockDatabase, queryPatterns);
-      
+
       expect(result.engine).toBe('pg');
       expect(result.optimizationsApplied).toBeDefined();
       expect(result.performanceImpact).toBeDefined();
@@ -187,7 +191,7 @@ describe('DatabaseSpecificOptimizationService', () => {
       } as any;
 
       const result = await service.executeOptimizations(mockDatabase, []);
-      
+
       expect(result.engine).toBe('unsupported');
       expect(result.optimizationsApplied).toHaveLength(0);
       expect(result.warnings).toContain('Optimizations not available for engine: unsupported');
@@ -198,7 +202,7 @@ describe('DatabaseSpecificOptimizationService', () => {
     it('should extract WHERE columns correctly', () => {
       const queries = [
         'SELECT * FROM users WHERE email = ? AND status = ?',
-        'SELECT * FROM orders WHERE user_id = ?'
+        'SELECT * FROM orders WHERE user_id = ?',
       ];
 
       // This tests the private method indirectly through optimization results
@@ -237,28 +241,28 @@ describe('DatabaseSpecificOptimizationService', () => {
     it('should apply BigQuery-specific optimizations', () => {
       const query = 'SELECT * FROM large_table WHERE date_column > "2023-01-01"';
       const result = service.optimizeQuery(query, 'bigquery');
-      
+
       expect(result.optimizedQuery).toBeDefined();
     });
 
     it('should apply Snowflake-specific optimizations', () => {
       const query = 'SELECT COUNT(*), category FROM products GROUP BY category';
       const result = service.optimizeQuery(query, 'snowflake');
-      
+
       expect(result.optimizedQuery).toBeDefined();
     });
 
     it('should apply SQL Server-specific optimizations', () => {
       const query = 'SELECT * FROM sales_data GROUP BY region, year';
       const result = service.optimizeQuery(query, 'mssql');
-      
+
       expect(result.optimizedQuery).toBeDefined();
     });
 
     it('should apply Oracle-specific optimizations', () => {
       const query = 'SELECT * FROM large_table WHERE ROWNUM <= 1000 ORDER BY created_at';
       const result = service.optimizeQuery(query, 'oracledb');
-      
+
       expect(result.optimizedQuery).toBeDefined();
     });
   });
@@ -273,8 +277,8 @@ describe('DatabaseSpecificOptimizationService', () => {
           indexType: 'btree' as const,
           reason: 'Test',
           priority: 'high' as const,
-          estimatedImpact: 70
-        }
+          estimatedImpact: 70,
+        },
       ];
 
       // This tests the private method indirectly
