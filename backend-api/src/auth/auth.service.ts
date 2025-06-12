@@ -80,8 +80,7 @@ export class AuthService {
       delete user.password;
       return user;
     }
-
-    // 회원이 존재하는지 확인
+    return undefined;
   }
 
   async deleteRefreshToken(userId: number) {

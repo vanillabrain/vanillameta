@@ -19,6 +19,9 @@ describe('SlowQueryMonitorService', () => {
   };
 
   beforeEach(async () => {
+    // Mock 초기화
+    jest.clearAllMocks();
+    
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         SlowQueryMonitorService,
@@ -76,7 +79,10 @@ describe('SlowQueryMonitorService', () => {
           databaseId: metadata.databaseId,
           databaseEngine: metadata.databaseEngine,
           userId: metadata.userId,
-          severity: 'MEDIUM',
+          severity: 'LOW', // 2500ms는 LOW severity (1000-5000ms)
+          rowsExamined: analysis.rowsExamined,
+          rowsReturned: analysis.rowsReturned,
+          indexUsed: analysis.indexUsed,
         }),
       );
     });

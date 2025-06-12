@@ -1,12 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { QueryAnalyzerService } from './query-analyzer.service';
-import { Connection, Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Database } from '../../database/entities/database.entity';
 
 describe('QueryAnalyzerService', () => {
   let service: QueryAnalyzerService;
-  let mockConnection: Partial<Connection>;
+  let mockDataSource: Partial<DataSource>;
   let mockDatabaseRepository: Partial<Repository<Database>>;
 
   beforeEach(async () => {
@@ -16,8 +16,8 @@ describe('QueryAnalyzerService', () => {
       release: jest.fn(),
     };
 
-    // Mock Connection
-    mockConnection = {
+    // Mock DataSource
+    mockDataSource = {
       createQueryRunner: jest.fn().mockReturnValue(mockQueryRunner),
     };
 
@@ -30,8 +30,8 @@ describe('QueryAnalyzerService', () => {
       providers: [
         QueryAnalyzerService,
         {
-          provide: Connection,
-          useValue: mockConnection,
+          provide: DataSource,
+          useValue: mockDataSource,
         },
         {
           provide: getRepositoryToken(Database),
@@ -65,7 +65,7 @@ describe('QueryAnalyzerService', () => {
         },
       ];
 
-      const runner = mockConnection.createQueryRunner();
+      const runner = mockDataSource.createQueryRunner();
       (runner.query as jest.Mock).mockResolvedValue(mockExplainResult);
 
       const result = await service.analyzeQuery(query);
@@ -95,7 +95,7 @@ describe('QueryAnalyzerService', () => {
         },
       ];
 
-      const runner = mockConnection.createQueryRunner();
+      const runner = mockDataSource.createQueryRunner();
       (runner.query as jest.Mock).mockResolvedValue(mockExplainResult);
 
       const result = await service.analyzeQuery(query);
@@ -125,7 +125,7 @@ describe('QueryAnalyzerService', () => {
         },
       ];
 
-      const runner = mockConnection.createQueryRunner();
+      const runner = mockDataSource.createQueryRunner();
       (runner.query as jest.Mock).mockResolvedValue(mockExplainResult);
 
       const result = await service.analyzeQuery(query);
@@ -206,7 +206,7 @@ describe('QueryAnalyzerService', () => {
   describe('measureQueryPerformance', () => {
     it('should measure query execution time', async () => {
       const query = 'SELECT * FROM users LIMIT 10';
-      const mockQueryRunner = mockConnection.createQueryRunner();
+      const mockQueryRunner = mockDataSource.createQueryRunner();
 
       // 실행 시간을 시뮬레이션하기 위한 지연
       (mockQueryRunner.query as jest.Mock).mockImplementation(
@@ -222,7 +222,7 @@ describe('QueryAnalyzerService', () => {
 
     it('should log slow queries', async () => {
       const query = 'SELECT * FROM large_table';
-      const mockQueryRunner = mockConnection.createQueryRunner();
+      const mockQueryRunner = mockDataSource.createQueryRunner();
 
       // 느린 쿼리 시뮬레이션 (2초)
       (mockQueryRunner.query as jest.Mock).mockImplementation(
