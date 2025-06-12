@@ -75,7 +75,6 @@ export class WidgetService {
   async findOne(id: number) {
     const widgetInfo = this.widgetRepository
       .createQueryBuilder()
-      .subQuery()
       .select(['widget.*'])
       .from(Widget, 'widget')
       .where('id=:id')
@@ -90,7 +89,7 @@ export class WidgetService {
         'component.title as componentTitle',
         'component.description as componentDescription',
       ])
-      .innerJoin(widgetInfo, 'widgetInfo', 'widgetInfo.componentId = component.id')
+      .innerJoin(`(${widgetInfo})`, 'widgetInfo', 'widgetInfo.componentId = component.id')
       .setParameter('id', id)
       .getRawOne();
 
