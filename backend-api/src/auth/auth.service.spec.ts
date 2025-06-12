@@ -85,7 +85,7 @@ describe('AuthService', () => {
 
   describe('generateAccessToken', () => {
     it('should generate access token successfully', async () => {
-      const payload = { userId: 1, email: 'test@example.com', id: 1 };
+      const payload = { userId: 'testuser', email: 'test@example.com', id: 1 };
 
       const result = await service.generateAccessToken(payload);
 
@@ -96,7 +96,7 @@ describe('AuthService', () => {
 
   describe('generateRefreshToken', () => {
     it('should generate refresh token successfully', async () => {
-      const payload = { userId: 1, email: 'test@example.com', id: 1 };
+      const payload = { userId: 'testuser', email: 'test@example.com', id: 1 };
 
       const result = await service.generateRefreshToken(payload);
 
