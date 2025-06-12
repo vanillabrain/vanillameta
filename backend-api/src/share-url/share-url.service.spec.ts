@@ -69,12 +69,17 @@ describe('ShareUrlService', () => {
 
       userRepository.findOne.mockResolvedValue(mockUser);
       authService.generateUrlAccessToken.mockResolvedValue(mockToken);
-      dashboardRepository.findOne.mockResolvedValue({ id: 1, title: 'Test Dashboard', shareId: 1 });
-      dashboardShareRepository.findOne.mockResolvedValue({
-        id: 1,
-        shareToken: '',
-        shareYn: 'N',
-        endDate: null,
+      dashboardRepository.findOne.mockResolvedValue({ 
+        id: 1, 
+        title: 'Test Dashboard', 
+        shareId: 1,
+        dashboardShare: {
+          id: 1,
+          shareToken: '',
+          shareYn: 'N',
+          endDate: null,
+          uuid: 'test-uuid'
+        }
       });
       dashboardShareRepository.save.mockResolvedValue({ id: 1, uuid: 'test-uuid', shareYn: 'Y' });
 
