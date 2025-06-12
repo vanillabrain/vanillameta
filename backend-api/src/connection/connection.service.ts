@@ -10,6 +10,8 @@ import { ResponseStatus } from '../common/enum/response-status.enum';
 import { SnowflakeDialect } from './knex-dialects/snowflake';
 import { CustomLoggerService } from '../common/logger/logger.service';
 import { SqlValidationService } from '../common/security/sql-validation.service';
+import { QueryAnalyzerService } from '../common/monitoring/query-analyzer.service';
+import { QueryCollector } from '../common/utils/query-collector';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { BigQueryClient } = require('knex-bigquery');
@@ -22,6 +24,8 @@ export class ConnectionService {
     @InjectRepository(Database) private databaseRepository: Repository<Database>,
     private readonly logger: CustomLoggerService,
     private readonly sqlValidationService: SqlValidationService,
+    private readonly queryAnalyzerService: QueryAnalyzerService,
+    private readonly queryCollector: QueryCollector,
   ) {}
 
   /**
@@ -252,11 +256,16 @@ export class ConnectionService {
     let datas = [];
     const fields = [];
     const resultObj = { status: null, message: null, datas: [], fields: [] };
+    const startTime = Date.now();
+    
     try {
       // 3. 정리된 쿼리 사용 (LIMIT 자동 추가 등)
       const sanitizedQuery = validationResult.sanitizedQuery;
 
-      // 4. 매개변수가 있는 경우 파라미터화된 쿼리 실행
+      // 4. 쿼리 실행 계획 분석 (비동기로 처리하여 성능 영향 최소화)
+      this.analyzeQueryAsync(sanitizedQuery, queryExecuteDto.id);
+
+      // 5. 매개변수가 있는 경우 파라미터화된 쿼리 실행
       let queryRes;
       if (queryExecuteDto.parameters && queryExecuteDto.parameters.length > 0) {
         const paramValues = queryExecuteDto.parameters.map(param => {
@@ -380,7 +389,27 @@ export class ConnectionService {
       resultObj.message = 'success';
       resultObj.datas = datas;
       resultObj.fields = fields;
+      
+      // 실행 시간 측정 및 쿼리 수집
+      const executionTime = Date.now() - startTime;
+      this.queryCollector.collect(
+        sanitizedQuery,
+        `database-${queryExecuteDto.id}`,
+        queryExecuteDto.parameters?.map(p => p.value),
+        executionTime,
+      );
+      
+      // 느린 쿼리 로깅
+      if (executionTime > 1000) {
+        this.logger.warn('Slow query detected', 'ConnectionService', {
+          databaseId: queryExecuteDto.id,
+          executionTime,
+          query: sanitizedQuery.substring(0, 200),
+          rowCount: datas.length,
+        });
+      }
     } catch (e) {
+      const executionTime = Date.now() - startTime;
       resultObj.status = ResponseStatus.ERROR;
       if (e.sqlMessage) resultObj.message = e.sqlMessage;
       else if (e.message) resultObj.message = e.message; // bigquery
@@ -390,9 +419,47 @@ export class ConnectionService {
         query: queryExecuteDto.query?.substring(0, 200) + '...', // 긴 쿼리는 일부만 로깅
         sqlMessage: e.sqlMessage,
         errorMessage: e.message,
+        executionTime,
       });
+      
+      // 실패한 쿼리도 수집
+      this.queryCollector.collect(
+        queryExecuteDto.query,
+        `database-${queryExecuteDto.id}-error`,
+        queryExecuteDto.parameters?.map(p => p.value),
+        executionTime,
+      );
     }
 
     return resultObj;
+  }
+
+  /**
+   * 비동기 쿼리 분석
+   */
+  private async analyzeQueryAsync(query: string, databaseId: number): Promise<void> {
+    try {
+      // 비동기로 쿼리 분석 실행 (응답 지연 방지)
+      setImmediate(async () => {
+        try {
+          const analysis = await this.queryAnalyzerService.analyzeQuery(query, databaseId);
+          
+          if (analysis.optimizationSuggestions && analysis.optimizationSuggestions.length > 0) {
+            this.logger.info('Query optimization opportunities found', 'ConnectionService', {
+              databaseId,
+              query: query.substring(0, 100),
+              suggestions: analysis.optimizationSuggestions,
+              scanType: analysis.scanType,
+              indexUsed: analysis.indexUsed,
+            });
+          }
+        } catch (error) {
+          this.logger.debug(`Query analysis failed: ${error.message}`, 'ConnectionService');
+        }
+      });
+    } catch (error) {
+      // 분석 실패는 무시 (메인 쿼리 실행에 영향 없음)
+      this.logger.debug(`Failed to initiate query analysis: ${error.message}`, 'ConnectionService');
+    }
   }
 }
