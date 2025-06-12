@@ -36,22 +36,24 @@ async function bootstrapServer(): Promise<Server> {
         exposedHeaders: ['Content-Disposition'],
       },
     });
-    
+
     // Global middleware
-    nestApp.use(new LoggingMiddleware(nestApp.get(CustomLoggerService)).use.bind(
-      new LoggingMiddleware(nestApp.get(CustomLoggerService))
-    ));
-    
+    nestApp.use(
+      new LoggingMiddleware(nestApp.get(CustomLoggerService)).use.bind(
+        new LoggingMiddleware(nestApp.get(CustomLoggerService)),
+      ),
+    );
+
     nestApp.setGlobalPrefix('v1');
     nestApp.use(cookieParser());
     nestApp.use(eventContext());
     // nestApp.useGlobalPipes(new ValidationPipe({ transform: true }));
-    
+
     const logger = nestApp.get(CustomLoggerService);
     logger.info('Lambda function initialized', 'ServerlessBootstrap', {
-      environment: process.env.NODE_ENV
+      environment: process.env.NODE_ENV,
     });
-    
+
     await nestApp.init();
     cachedServer = createServer(expressApp, undefined, binaryMimeTypes);
   }

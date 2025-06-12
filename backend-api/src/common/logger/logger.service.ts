@@ -19,20 +19,20 @@ export class CustomLoggerService implements LoggerService {
 
   constructor() {
     const logLevel = this.getLogLevel();
-    
+
     // JSON formatter for structured logging
     const jsonFormat = winston.format.combine(
       winston.format.timestamp({
-        format: 'YYYY-MM-DD HH:mm:ss.SSS'
+        format: 'YYYY-MM-DD HH:mm:ss.SSS',
       }),
       winston.format.errors({ stack: true }),
       winston.format.json(),
-      winston.format.printf((info) => {
+      winston.format.printf(info => {
         const log: any = {
           timestamp: info.timestamp,
           level: info.level.toUpperCase(),
           message: info.message,
-          context: info.context || 'Application'
+          context: info.context || 'Application',
         };
 
         // Add metadata if present
@@ -46,7 +46,7 @@ export class CustomLoggerService implements LoggerService {
         }
 
         return JSON.stringify(log);
-      })
+      }),
     );
 
     this.winston = winston.createLogger({
@@ -55,10 +55,10 @@ export class CustomLoggerService implements LoggerService {
       transports: [
         new winston.transports.Console({
           handleExceptions: true,
-          handleRejections: true
-        })
+          handleRejections: true,
+        }),
       ],
-      exitOnError: false
+      exitOnError: false,
     });
   }
 
@@ -68,7 +68,7 @@ export class CustomLoggerService implements LoggerService {
   private getLogLevel(): string {
     const env = process.env.NODE_ENV || 'local';
     const logLevel = process.env.LOG_LEVEL;
-    
+
     if (logLevel) {
       return logLevel.toLowerCase();
     }
@@ -92,7 +92,7 @@ export class CustomLoggerService implements LoggerService {
     const baseMetadata = {
       environment: process.env.NODE_ENV || 'local',
       service: 'vanillameta-backend',
-      version: process.env.APP_VERSION || '1.0.0'
+      version: process.env.APP_VERSION || '1.0.0',
     };
 
     // 자동으로 현재 요청의 correlation ID 포함
@@ -139,7 +139,7 @@ export class CustomLoggerService implements LoggerService {
   error(message: any, stack?: string, context?: string, metadata?: LogContext): void {
     const safeMessage = typeof message === 'object' ? this.safeStringify(message) : message;
     const logData = this.createMetadata(context, metadata);
-    
+
     if (stack) {
       logData.stack = stack;
     }
@@ -172,7 +172,7 @@ export class CustomLoggerService implements LoggerService {
       userAgent: req.get('user-agent'),
       ip: req.ip || req.connection?.remoteAddress,
       correlationId: req.correlationId,
-      userId: req.user?.userId || req.body?.userId
+      userId: req.user?.userId || req.body?.userId,
     };
 
     if (executionTime) {
@@ -194,7 +194,7 @@ export class CustomLoggerService implements LoggerService {
     const metadata: LogContext = {
       query: query.length > 1000 ? query.substring(0, 1000) + '...' : query,
       queryParams: params ? this.safeStringify(params) : undefined,
-      executionTime
+      executionTime,
     };
 
     this.debug('Database Query Executed', context || 'Database', metadata);
@@ -207,7 +207,7 @@ export class CustomLoggerService implements LoggerService {
     const metadata: LogContext = {
       event,
       userId,
-      businessData: data ? this.safeStringify(data) : undefined
+      businessData: data ? this.safeStringify(data) : undefined,
     };
 
     this.info(`Business Event: ${event}`, context || 'Business', metadata);

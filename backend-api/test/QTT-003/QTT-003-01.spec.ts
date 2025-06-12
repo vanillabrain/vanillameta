@@ -18,6 +18,7 @@ import { CreateDashboardDto } from '../../src/dashboard/dto/create-dashboard.dto
 import { Template } from '../../src/template/entities/template.entity';
 import { TemplateItem } from '../../src/template/entities/template-item.entity';
 import { ResponseStatus } from '../../src/common/enum/response-status.enum';
+import { commonTestProviders } from '../util/test-providers';
 
 describe('QTT-003: 시각화 종류', () => {
   let dashboardService: DashboardService;
@@ -51,6 +52,7 @@ describe('QTT-003: 시각화 종류', () => {
         TableQueryService,
         ComponentService,
         TemplateService,
+        ...commonTestProviders,
       ],
     }).compile();
 
@@ -93,9 +95,15 @@ describe('QTT-003: 시각화 종류', () => {
       const createDashboardDto: CreateDashboardDto = new CreateDashboardDto();
       createDashboardDto.title = dashboardTitle;
       createDashboardDto.layout = layoutResult.data.layout;
-      const createDashboardResult = await dashboardService.create(createDashboardDto);
-      console.log('::::::::생성된 대시보드 id :: ', createDashboardResult.data.id);
-      return expect(createDashboardResult.status).toEqual(ResponseStatus.SUCCESS);
+      const createDashboardResult = await dashboardService.create(createDashboardDto, 1);
+
+      // 타입 가드를 사용하여 성공적인 결과인지 확인
+      if (typeof createDashboardResult !== 'string' && createDashboardResult.data) {
+        console.log('::::::::생성된 대시보드 id :: ', createDashboardResult.data.id);
+        return expect(createDashboardResult.status).toEqual(ResponseStatus.SUCCESS);
+      } else {
+        throw new Error('Dashboard creation failed');
+      }
     },
   );
 });

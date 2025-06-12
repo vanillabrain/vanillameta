@@ -23,7 +23,11 @@
     "deploy": "serverless deploy --stage prod",
     "seed": "cross-env NODE_ENV=dev ts-node -r tsconfig-paths/register ./node_modules/typeorm-extension/dist/cli/index.js seed",
     "deploy:dev": "serverless deploy --stage dev",
-    "deploy:prod": "serverless deploy --stage prod"
+    "deploy:prod": "serverless deploy --stage prod",
+    "yolo": "./scripts/yolo-mode.sh",
+    "quick": "./scripts/quick-check.sh",
+    "test:unit": "jest --testPathPattern='controller\\.spec\\.ts$|service\\.spec\\.ts$' --testTimeout=30000",
+    "test:baseline": "yarn test:unit && echo '✅ 모든 베이스라인 테스트 통과!'"
   },
   "dependencies": {
     "@google-cloud/bigquery": "^6.0.3",

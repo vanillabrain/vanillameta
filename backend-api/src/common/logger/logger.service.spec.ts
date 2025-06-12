@@ -21,7 +21,7 @@ describe('CustomLoggerService', () => {
     expect(() => {
       service.info('Test message', 'TestContext', {
         userId: 'test-user-123',
-        correlationId: 'test-correlation-456'
+        correlationId: 'test-correlation-456',
       });
     }).not.toThrow();
   });
@@ -30,7 +30,7 @@ describe('CustomLoggerService', () => {
     expect(() => {
       const error = new Error('Test error');
       service.error('Error occurred', error.stack, 'ErrorContext', {
-        userId: 'test-user-123'
+        userId: 'test-user-123',
       });
     }).not.toThrow();
   });
@@ -61,7 +61,7 @@ describe('CustomLoggerService', () => {
   it('should have proper log level configuration', () => {
     // Test that logger properly sets log levels based on environment
     expect(service).toBeDefined();
-    
+
     // Test all log methods exist and are callable
     expect(typeof service.log).toBe('function');
     expect(typeof service.info).toBe('function');

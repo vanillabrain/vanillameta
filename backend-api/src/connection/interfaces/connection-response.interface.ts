@@ -23,4 +23,18 @@ export interface DatabaseEngine {
   client: any; // Knex client type
 }
 
-export type SupportedEngine = 'mysql' | 'mariadb' | 'pg' | 'postgres' | 'postgresql' | 'oracle' | 'oracledb' | 'cockroachdb' | 'redshift' | 'bigquery' | 'sqlite' | 'sqlite3' | 'mssql' | 'snowflake';
+export type SupportedEngine =
+  | 'mysql'
+  | 'mariadb'
+  | 'pg'
+  | 'postgres'
+  | 'postgresql'
+  | 'oracle'
+  | 'oracledb'
+  | 'cockroachdb'
+  | 'redshift'
+  | 'bigquery'
+  | 'sqlite'
+  | 'sqlite3'
+  | 'mssql'
+  | 'snowflake';

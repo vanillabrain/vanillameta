@@ -19,7 +19,7 @@ export class loginLoggerMiddleware implements NestMiddleware {
       if (req.url === '/signin') {
         const userId = req.body?.userId;
         const correlationId = req['correlationId'];
-        
+
         const loginSaveObj = {
           userId: userId,
           path: req?.path,
@@ -29,13 +29,18 @@ export class loginLoggerMiddleware implements NestMiddleware {
         };
 
         // 구조화된 로깅
-        this.logger.logBusiness('user_login', {
-          action: 'login_attempt',
-          path: req.path,
-          userAgent: req.headers['user-agent'],
-          correlationId: correlationId,
-          ip: req.ip || req.connection?.remoteAddress
-        }, userId, 'LoginLogger');
+        this.logger.logBusiness(
+          'user_login',
+          {
+            action: 'login_attempt',
+            path: req.path,
+            userAgent: req.headers['user-agent'],
+            correlationId: correlationId,
+            ip: req.ip || req.connection?.remoteAddress,
+          },
+          userId,
+          'LoginLogger',
+        );
 
         await this.loginHistoryRepository.save(loginSaveObj);
         return next();
@@ -54,7 +59,7 @@ export class loginLoggerMiddleware implements NestMiddleware {
     } catch (error) {
       this.logger.error('Error in login logger middleware', error.stack, 'LoginLogger', {
         path: req.path,
-        correlationId: req['correlationId']
+        correlationId: req['correlationId'],
       });
       next(error);
     }

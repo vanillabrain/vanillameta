@@ -11,6 +11,7 @@ import { SnowflakeDialect } from './knex-dialects/snowflake';
 import { CustomLoggerService } from '../common/logger/logger.service';
 import { SqlValidationService } from '../common/security/sql-validation.service';
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { BigQueryClient } = require('knex-bigquery');
 
 const knexConnections = new Map<number, Knex>();
@@ -73,7 +74,9 @@ export class ConnectionService {
    * 데이터베이스 연결 테스트
    * @param createDatabaseDto
    */
-  async testConnection(createDatabaseDto: CreateDatabaseDto): Promise<{ status: ResponseStatus; message?: string; data?: { message: string } }> {
+  async testConnection(
+    createDatabaseDto: CreateDatabaseDto,
+  ): Promise<{ status: ResponseStatus; message?: string; data?: { message: string } }> {
     let engine: string | any = createDatabaseDto.engine;
     switch (createDatabaseDto.engine) {
       case 'bigquery':
@@ -99,15 +102,18 @@ export class ConnectionService {
     // createDatabaseDto.connectionConfig = JSON.stringify(connectionConfig);
     // console.log(createDatabaseDto)
     let _knex: Knex;
-    let returnObj: { status: ResponseStatus; message?: string; data?: { message: string } } = { status: ResponseStatus.ERROR };
+    let returnObj: { status: ResponseStatus; message?: string; data?: { message: string } } = {
+      status: ResponseStatus.ERROR,
+    };
     try {
       _knex = knex(connectionConfig as Knex.Config);
     } catch (e) {
       this.logger.error('Failed to create Knex connection', e.stack, 'ConnectionService', {
         engine: createDatabaseDto.engine,
-        connectionConfig: typeof createDatabaseDto.connectionConfig === 'string' 
-          ? 'string-config' 
-          : createDatabaseDto.connectionConfig
+        connectionConfig:
+          typeof createDatabaseDto.connectionConfig === 'string'
+            ? 'string-config'
+            : createDatabaseDto.connectionConfig,
       });
       return { status: ResponseStatus.ERROR, message: 'knex not connected' };
     }
@@ -122,7 +128,7 @@ export class ConnectionService {
         engine: createDatabaseDto.engine,
         testQuery: testQuery,
         sqlMessage: e.sqlMessage,
-        errorMessage: e.message
+        errorMessage: e.message,
       });
       returnObj = { status: ResponseStatus.ERROR, message: e.sqlMessage };
     } finally {
@@ -148,7 +154,7 @@ export class ConnectionService {
         maxQueryLength: 10000,
         maxResultLimit: queryExecuteDto.limit || 1000,
       },
-      userId
+      userId,
     );
 
     if (!validationResult.isValid) {
@@ -160,7 +166,7 @@ export class ConnectionService {
         warnings: validationResult.warnings,
         riskLevel: validationResult.riskLevel,
       });
-      
+
       throw new ForbiddenException(`SQL validation failed: ${errorMessage}`);
     }
 
@@ -181,7 +187,7 @@ export class ConnectionService {
     try {
       // 3. 정리된 쿼리 사용 (LIMIT 자동 추가 등)
       const sanitizedQuery = validationResult.sanitizedQuery;
-      
+
       // 4. 매개변수가 있는 경우 파라미터화된 쿼리 실행
       let queryRes;
       if (queryExecuteDto.parameters && queryExecuteDto.parameters.length > 0) {
@@ -310,12 +316,12 @@ export class ConnectionService {
       resultObj.status = ResponseStatus.ERROR;
       if (e.sqlMessage) resultObj.message = e.sqlMessage;
       else if (e.message) resultObj.message = e.message; // bigquery
-      
+
       this.logger.error('Query execution failed', e.stack, 'ConnectionService', {
         databaseId: queryExecuteDto.id,
         query: queryExecuteDto.query?.substring(0, 200) + '...', // 긴 쿼리는 일부만 로깅
         sqlMessage: e.sqlMessage,
-        errorMessage: e.message
+        errorMessage: e.message,
       });
     }
 

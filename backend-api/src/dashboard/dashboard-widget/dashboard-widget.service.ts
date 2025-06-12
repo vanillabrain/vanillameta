@@ -34,34 +34,22 @@ export class DashboardWidgetService {
   }
 
   async findWidgets(dashboardId: number) {
-    const widgetList = await this.dashboardWidgetRepository.find({
-      select: {
-        widgetId: true,
-      },
-
-      where: { dashboardId: dashboardId },
-    });
-    const whereInWidgetList = [];
-    widgetList.map(item => {
-      whereInWidgetList.push(item.widgetId);
-    });
-
-    const widgetInfo = await this.widgetRepository
-      .createQueryBuilder()
-      .subQuery()
-      .select(['widget.*'])
-      .from(Widget, 'widget')
-      .where('id in (:...ids)')
-      .getQuery();
-
-    const result = await this.componentRepository
-      .createQueryBuilder('component')
-      .select(['widgetInfo.*', 'component.type as componentType'])
-      .innerJoin(widgetInfo, 'widgetInfo', 'widgetInfo.componentId = component.id')
-      .setParameter('ids', whereInWidgetList) // 왜 배열이 안들어가죠 ?
+    // N+1 쿼리 방지: 한 번의 Join 쿼리로 위젯과 컴포넌트 정보를 함께 조회
+    const result = await this.widgetRepository
+      .createQueryBuilder('widget')
+      .innerJoin(Component, 'component', 'component.id = widget.componentId')
+      .innerJoin(DashboardWidget, 'dw', 'dw.widgetId = widget.id')
+      .select([
+        'widget.*',
+        'component.type as componentType',
+        'component.icon as icon',
+        'component.title as componentTitle',
+        'component.description as componentDescription'
+      ])
+      .where('dw.dashboardId = :dashboardId', { dashboardId })
       .getRawMany();
 
-    result.map(el => {
+    result.forEach(el => {
       el.option = JSON.parse(el.option);
     });
 

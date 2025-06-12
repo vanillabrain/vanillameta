@@ -21,23 +21,25 @@ async function bootstrap() {
       exposedHeaders: ['Content-Disposition'],
     },
   });
-  
+
   // Global middleware
-  nestApp.use(new LoggingMiddleware(nestApp.get(CustomLoggerService)).use.bind(
-    new LoggingMiddleware(nestApp.get(CustomLoggerService))
-  ));
-  
+  nestApp.use(
+    new LoggingMiddleware(nestApp.get(CustomLoggerService)).use.bind(
+      new LoggingMiddleware(nestApp.get(CustomLoggerService)),
+    ),
+  );
+
   nestApp.setGlobalPrefix('v1');
   nestApp.use(cookieParser());
   nestApp.useGlobalFilters(new HttpExceptionFilter());
   setupSwagger(nestApp);
-  
+
   const logger = nestApp.get(CustomLoggerService);
   logger.info('Application starting', 'Bootstrap', {
     environment: process.env.NODE_ENV,
-    port: 4000
+    port: 4000,
   });
-  
+
   await nestApp.listen(4000);
 }
 

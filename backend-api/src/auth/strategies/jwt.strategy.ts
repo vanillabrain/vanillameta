@@ -20,9 +20,9 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     this.logger.debug('JWT token validation', 'JwtStrategy', {
       userId: payload.userId,
       correlationId: req?.correlationId,
-      tokenExp: payload.exp
+      tokenExp: payload.exp,
     });
-    
+
     // JWT 페이로드 검증 성공
     return { userId: payload.userId };
   }

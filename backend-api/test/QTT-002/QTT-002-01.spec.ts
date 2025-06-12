@@ -12,6 +12,7 @@ import { TableQueryService } from '../../src/widget/table-query/table-query.serv
 import { Connection, DataSource } from 'typeorm';
 import { ResponseStatus } from '../../src/common/enum/response-status.enum';
 import { DatasetType } from '../../src/common/enum/dataset-type.enum';
+import { mockSqlValidationService } from '../util/test-providers';
 
 describe('QTT-002 : 위젯 생성', () => {
   let widgetService: WidgetService;
@@ -29,7 +30,7 @@ describe('QTT-002 : 위젯 생성', () => {
         getTestMysqlModule(),
         TypeOrmModule.forFeature([Widget, Component, TableQuery, Database]),
       ],
-      providers: [WidgetService, TableQueryService, Widget],
+      providers: [WidgetService, TableQueryService, Widget, mockSqlValidationService],
     }).compile();
     widgetService = module.get<WidgetService>(WidgetService);
     tableQueryService = module.get<TableQueryService>(TableQueryService);

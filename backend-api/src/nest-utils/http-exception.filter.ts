@@ -12,10 +12,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const err = exception.getResponse() as
       | string
       | { error: string; statusCode: 400; message: string[] };
-    
+
     // 현재 요청의 correlation ID 가져오기
     const correlationId = CorrelationIdService.getCorrelationId() || (request as any).correlationId;
-    
+
     // 응답 헤더에 correlation ID 설정 (미들웨어에서 설정하지 못한 경우를 대비)
     if (correlationId) {
       response.setHeader('X-Correlation-ID', correlationId);
