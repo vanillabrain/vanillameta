@@ -27,7 +27,12 @@ export class ShareUrlService {
       const split = shareUrlOnDto.endDate.split('/');
       const dateForm = `${split[2]}-${split[0]}-${split[1]}`;
 
-      const newToken = await this.authService.generateUrlAccessToken(String(dashboardId)); //새로운 공유 토큰 생성
+      const payload = {
+        userId: findUser.userId,
+        email: findUser.email,
+        id: findUser.id,
+      };
+      const newToken = await this.authService.generateUrlAccessToken(payload); //새로운 공유 토큰 생성
       const findDashboard = await this.dashboardRepository.findOne({ where: { id: dashboardId } });
       const findDashboardShare = await this.dashboardShareRepository.findOne({
         where: { id: findDashboard.shareId },
