@@ -75,9 +75,8 @@ export class OptimizationController {
   @ApiParam({ name: 'engine', description: '데이터베이스 엔진' })
   @ApiQuery({ name: 'production', required: false, description: '프로덕션 환경 여부' })
   @ApiResponse({ status: 200, description: '최적화된 연결 풀 설정 반환' })
-  getPoolConfig(@Param('engine') engine: string, @Query('production') production?: boolean) {
-    const isProduction =
-      production === true || (typeof production === 'string' && production === 'true');
+  getPoolConfig(@Param('engine') engine: string, @Query('production') production?: string) {
+    const isProduction = production === 'true';
     const config = this.dbOptimizationService.getOptimizedPoolConfig(engine, isProduction);
     return {
       success: true,

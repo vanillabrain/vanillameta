@@ -83,7 +83,7 @@ describe('SlowQueryInterceptor', () => {
       });
     });
 
-    it('should process query metrics on successful response', done => {
+    it('should process query metrics on successful response', async () => {
       mockCallHandler.handle = jest.fn().mockReturnValue(of('result'));
       mockQueryAnalyzerService.analyzeQuery.mockResolvedValue({
         query: 'SELECT * FROM test',
@@ -92,7 +92,7 @@ describe('SlowQueryInterceptor', () => {
       });
       mockSlowQueryMonitorService.logSlowQuery.mockResolvedValue(undefined);
 
-      // Simulate slow query
+      // Pre-populate queryMetrics before intercept runs
       mockRequest.queryMetrics = {
         startTime: Date.now() - 100,
         queries: [
@@ -106,22 +106,28 @@ describe('SlowQueryInterceptor', () => {
         ],
       };
 
-      interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe({
-        next: () => {
-          // Give some time for async processing
-          setTimeout(() => {
-            expect(queryAnalyzerService.analyzeQuery).toHaveBeenCalledWith(
-              'SELECT * FROM test WHERE id = ?',
-              1,
-            );
-            expect(slowQueryMonitorService.logSlowQuery).toHaveBeenCalled();
-            done();
-          }, 50);
-        },
+      const result$ = interceptor.intercept(mockExecutionContext, mockCallHandler);
+      
+      // Wait for the observable to complete
+      await new Promise<void>(resolve => {
+        result$.subscribe({
+          next: () => {
+            resolve();
+          },
+        });
       });
+
+      // Wait for async processing in tap operator
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      expect(queryAnalyzerService.analyzeQuery).toHaveBeenCalledWith(
+        'SELECT * FROM test WHERE id = ?',
+        1,
+      );
+      expect(slowQueryMonitorService.logSlowQuery).toHaveBeenCalled();
     });
 
-    it('should process query metrics on error response', done => {
+    it('should process query metrics on error response', async () => {
       const error = new Error('Database error');
       mockCallHandler.handle = jest.fn().mockReturnValue(throwError(() => error));
       mockQueryAnalyzerService.analyzeQuery.mockResolvedValue({
@@ -130,7 +136,7 @@ describe('SlowQueryInterceptor', () => {
       });
       mockSlowQueryMonitorService.logSlowQuery.mockResolvedValue(undefined);
 
-      // Simulate slow query
+      // Pre-populate queryMetrics before intercept runs
       mockRequest.queryMetrics = {
         startTime: Date.now() - 100,
         queries: [
@@ -144,17 +150,23 @@ describe('SlowQueryInterceptor', () => {
         ],
       };
 
-      interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe({
-        error: err => {
-          expect(err).toBe(error);
-          // Give some time for async processing
-          setTimeout(() => {
-            expect(queryAnalyzerService.analyzeQuery).toHaveBeenCalled();
-            expect(slowQueryMonitorService.logSlowQuery).toHaveBeenCalled();
-            done();
-          }, 50);
-        },
+      const result$ = interceptor.intercept(mockExecutionContext, mockCallHandler);
+      
+      // Wait for the observable to complete with error
+      await new Promise<void>(resolve => {
+        result$.subscribe({
+          error: err => {
+            expect(err).toBe(error);
+            resolve();
+          },
+        });
       });
+
+      // Wait for async processing in tap operator
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      expect(queryAnalyzerService.analyzeQuery).toHaveBeenCalled();
+      expect(slowQueryMonitorService.logSlowQuery).toHaveBeenCalled();
     });
 
     it('should not process queries below threshold', done => {

@@ -19,6 +19,10 @@ import { WidgetService } from '../../src/widget/widget.service';
 import { TableQuery } from '../../src/widget/table-query/entity/table-query.entity';
 import { Database } from '../../src/database/entities/database.entity';
 import { TableQueryService } from '../../src/widget/table-query/table-query.service';
+import { LoggerModule } from '../../src/common/logger/logger.module';
+import { User } from '../../src/user/entities/user.entity';
+import { DashboardShare } from '../../src/dashboard/entities/dashboard_share.entity';
+import { UserMapping } from '../../src/user/entities/user-mapping.entity';
 
 describe('QTT-006 : 대시보드 템플릿 추천', () => {
   let templateService: TemplateService;
@@ -31,6 +35,7 @@ describe('QTT-006 : 대시보드 템플릿 추천', () => {
       imports: [
         TemplateModule,
         DashboardModule,
+        LoggerModule,
         ConfigModule.forRoot({
           isGlobal: true,
           envFilePath: '.env.dev',
@@ -45,6 +50,9 @@ describe('QTT-006 : 대시보드 템플릿 추천', () => {
           DashboardWidget,
           Database,
           TableQuery,
+          User,
+          DashboardShare,
+          UserMapping,
         ]),
       ],
       providers: [

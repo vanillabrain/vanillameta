@@ -392,7 +392,7 @@ describe('Optimization Integration Tests', () => {
     });
 
     it('should provide pool configuration through API', () => {
-      const result = controller.getPoolConfig('mysql2', true);
+      const result = controller.getPoolConfig('mysql2', 'true');
 
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
