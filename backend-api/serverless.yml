@@ -30,6 +30,16 @@ provider:
     DB_NAME: ${self:custom.DB_CONFIG.${self:custom.STAGE}.DB_NAME}
     CORS_ORIGIN: ${file(./config.serverless.yml):CORS_ORIGIN}
     TZ: 'Asia/Seoul'
+    LOG_LEVEL: ${self:custom.LOG_CONFIG.${self:custom.STAGE}.LOG_LEVEL}
+  # CloudWatch Logs 설정
+  logs:
+    restApi:
+      level: INFO
+      dataTrace: false
+      executionLogging: true
+    # Lambda 함수 로그 설정
+    frameworkLambda: true
+  logRetentionInDays: ${self:custom.LOG_CONFIG.${self:custom.STAGE}.RETENTION_DAYS}
   apiGateway:
     binaryMediaTypes:
       - '*/*'
@@ -42,6 +52,17 @@ custom:
   STAGE: ${self:provider.stage}
   DB_CONFIG: ${file(./config.serverless.yml):DB_CONFIG}
   DOMAINS: ${file(./config.serverless.yml):DOMAINS}
+  # CloudWatch 로그 설정 (환경별)
+  LOG_CONFIG:
+    dev:
+      LOG_LEVEL: debug
+      RETENTION_DAYS: 7  # 개발 환경: 7일 보존
+    prod:
+      LOG_LEVEL: warn
+      RETENTION_DAYS: 30  # 운영 환경: 30일 보존
+    local:
+      LOG_LEVEL: debug
+      RETENTION_DAYS: 3  # 로컬 환경: 3일 보존
   customDomain:
     domainName: ${self:custom.DOMAINS.${self:custom.STAGE}}
     basePath: 'v1'
@@ -91,3 +112,88 @@ functions:
             headers: '*'
             allowCredentials: true
             maxAge: 86400
+
+resources:
+  Resources:
+    # CloudWatch Log Group (환경별 분리)
+    AppLogGroup:
+      Type: AWS::Logs::LogGroup
+      Properties:
+        LogGroupName: /aws/lambda/${self:service}-${self:provider.stage}-app
+        RetentionInDays: ${self:custom.LOG_CONFIG.${self:custom.STAGE}.RETENTION_DAYS}
+        Tags:
+          - Key: Environment
+            Value: ${self:provider.stage}
+          - Key: Service
+            Value: ${self:service}
+
+    # 에러 로그 메트릭 필터
+    ErrorMetricFilter:
+      Type: AWS::Logs::MetricFilter
+      Properties:
+        LogGroupName: !Ref AppLogGroup
+        FilterPattern: '{ $.level = "ERROR" }'
+        MetricTransformations:
+          - MetricNamespace: "VanillaMeta/${self:provider.stage}"
+            MetricName: "ErrorCount"
+            MetricValue: "1"
+            DefaultValue: 0
+
+    # HTTP 5xx 에러 메트릭 필터
+    Http5xxMetricFilter:
+      Type: AWS::Logs::MetricFilter
+      Properties:
+        LogGroupName: !Ref AppLogGroup
+        FilterPattern: '{ $.metadata.statusCode >= 500 }'
+        MetricTransformations:
+          - MetricNamespace: "VanillaMeta/${self:provider.stage}"
+            MetricName: "Http5xxErrorCount"
+            MetricValue: "1"
+            DefaultValue: 0
+
+    # 응답 시간 메트릭 필터 (2초 이상)
+    SlowResponseMetricFilter:
+      Type: AWS::Logs::MetricFilter
+      Properties:
+        LogGroupName: !Ref AppLogGroup
+        FilterPattern: '{ $.metadata.executionTime > 2000 }'
+        MetricTransformations:
+          - MetricNamespace: "VanillaMeta/${self:provider.stage}"
+            MetricName: "SlowResponseCount"
+            MetricValue: "1"
+            DefaultValue: 0
+
+    # CloudWatch 알람 (운영 환경에서만)
+    ErrorAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Condition: IsProduction
+      Properties:
+        AlarmName: "${self:service}-${self:provider.stage}-error-alarm"
+        AlarmDescription: "High error rate detected"
+        MetricName: "ErrorCount"
+        Namespace: "VanillaMeta/${self:provider.stage}"
+        Statistic: Sum
+        Period: 300  # 5분
+        EvaluationPeriods: 2
+        Threshold: 10
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+
+  Conditions:
+    IsProduction:
+      Fn::Equals:
+        - ${self:provider.stage}
+        - prod
+
+  Outputs:
+    LogGroupName:
+      Description: "CloudWatch Log Group Name"
+      Value: !Ref AppLogGroup
+      Export:
+        Name: "${self:service}-${self:provider.stage}-log-group"
+
+    LogGroupArn:
+      Description: "CloudWatch Log Group ARN"
+      Value: !GetAtt AppLogGroup.Arn
+      Export:
+        Name: "${self:service}-${self:provider.stage}-log-group-arn"
