@@ -7,7 +7,7 @@ import { DatasetType } from '../../common/enum/dataset-type.enum';
 
 /**
  * 최적화된 위젯 쿼리 클래스
- * 
+ *
  * 주요 최적화:
  * 1. 조인 쿼리 최적화
  * 2. 필요한 필드만 선택
@@ -25,23 +25,21 @@ export class OptimizedWidgetQueries {
 
   /**
    * 모든 위젯 조회 (최적화)
-   * 
+   *
    * 기존 문제점:
    * - getRawMany()로 인한 타입 안정성 부족
    * - 모든 위젯의 option JSON 파싱
-   * 
+   *
    * 최적화:
    * - TypeORM의 관계 로딩 활용
    * - 페이지네이션 지원
    * - 필요한 경우에만 JSON 파싱
    */
-  async findAllWidgetsOptimized(
-    options?: {
-      page?: number;
-      limit?: number;
-      includeDeleted?: boolean;
-    }
-  ) {
+  async findAllWidgetsOptimized(options?: {
+    page?: number;
+    limit?: number;
+    includeDeleted?: boolean;
+  }) {
     const page = options?.page || 1;
     const limit = options?.limit || 100;
     const skip = (page - 1) * limit;
@@ -96,7 +94,7 @@ export class OptimizedWidgetQueries {
 
   /**
    * 위젯 단일 조회 (최적화)
-   * 
+   *
    * 최적화:
    * - 단일 쿼리로 모든 관련 정보 조회
    * - 불필요한 서브쿼리 제거
@@ -120,7 +118,7 @@ export class OptimizedWidgetQueries {
 
   /**
    * 대시보드별 위젯 조회 (최적화)
-   * 
+   *
    * 최적화:
    * - 대시보드 ID로 직접 조인
    * - 위젯 순서 정보 포함
@@ -160,7 +158,7 @@ export class OptimizedWidgetQueries {
 
   /**
    * 데이터베이스별 위젯 조회 (최적화)
-   * 
+   *
    * 특정 데이터베이스를 사용하는 모든 위젯 조회
    */
   async findWidgetsByDatabaseOptimized(databaseId: number) {
@@ -169,19 +167,13 @@ export class OptimizedWidgetQueries {
       .innerJoinAndSelect('w.component', 'c')
       .where('w.databaseId = :databaseId', { databaseId })
       .andWhere('w.delYn = :delYn', { delYn: 'N' })
-      .select([
-        'w.id',
-        'w.title',
-        'w.datasetType',
-        'w.datasetId',
-        'c.type',
-      ])
+      .select(['w.id', 'w.title', 'w.datasetType', 'w.datasetId', 'c.type'])
       .getMany();
   }
 
   /**
    * 위젯 생성 (최적화)
-   * 
+   *
    * 최적화:
    * - 불필요한 조회 제거
    * - 트랜잭션 활용
@@ -215,7 +207,7 @@ export class OptimizedWidgetQueries {
 
   /**
    * 위젯 벌크 업데이트 (최적화)
-   * 
+   *
    * 여러 위젯을 한 번에 업데이트
    */
   async bulkUpdateWidgetsOptimized(
@@ -248,7 +240,7 @@ export class OptimizedWidgetQueries {
 
   /**
    * 위젯 통계 조회 (최적화)
-   * 
+   *
    * 컴포넌트 타입별 위젯 수 등 통계 정보
    */
   async getWidgetStatistics() {
@@ -273,15 +265,15 @@ export class OptimizedWidgetQueries {
 
     stats.forEach(stat => {
       const count = parseInt(stat.widget_count);
-      
+
       // 컴포넌트 타입별 집계
       const currentComponentCount = componentStats.get(stat.component_type) || 0;
       componentStats.set(stat.component_type, currentComponentCount + count);
-      
+
       // 데이터셋 타입별 집계
       const currentDatasetCount = datasetTypeStats.get(stat.dataset_type) || 0;
       datasetTypeStats.set(stat.dataset_type, currentDatasetCount + count);
-      
+
       // 총 데이터베이스 수
       totalDatabases = Math.max(totalDatabases, parseInt(stat.database_count));
     });
@@ -296,7 +288,7 @@ export class OptimizedWidgetQueries {
 
   /**
    * 사용하지 않는 위젯 정리 (최적화)
-   * 
+   *
    * 대시보드에 연결되지 않은 위젯 찾기
    */
   async findUnusedWidgets() {

@@ -1,5 +1,23 @@
-import { Controller, Get, Post, Put, Query, Param, Body, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiQuery, ApiParam } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Query,
+  Param,
+  Body,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiResponse,
+  ApiQuery,
+  ApiParam,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { SlowQueryMonitorService, SlowQueryMonitorConfig } from './slow-query-monitor.service';
 
@@ -93,9 +111,24 @@ export class SlowQueryMonitorController {
   @ApiQuery({ name: 'startDate', description: '시작 날짜', required: false, type: Date })
   @ApiQuery({ name: 'endDate', description: '종료 날짜', required: false, type: Date })
   @ApiQuery({ name: 'databaseId', description: '데이터베이스 ID', required: false, type: Number })
-  @ApiQuery({ name: 'severity', description: '심각도', required: false, enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] })
-  @ApiQuery({ name: 'minExecutionTime', description: '최소 실행 시간 (ms)', required: false, type: Number })
-  @ApiQuery({ name: 'maxExecutionTime', description: '최대 실행 시간 (ms)', required: false, type: Number })
+  @ApiQuery({
+    name: 'severity',
+    description: '심각도',
+    required: false,
+    enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'],
+  })
+  @ApiQuery({
+    name: 'minExecutionTime',
+    description: '최소 실행 시간 (ms)',
+    required: false,
+    type: Number,
+  })
+  @ApiQuery({
+    name: 'maxExecutionTime',
+    description: '최대 실행 시간 (ms)',
+    required: false,
+    type: Number,
+  })
   @ApiQuery({ name: 'resolved', description: '해결 여부', required: false, type: Boolean })
   @ApiResponse({
     status: 200,
@@ -126,7 +159,7 @@ export class SlowQueryMonitorController {
     @Query() filters?: SlowQueryFiltersDto,
   ) {
     const { page: pageParam, limit: limitParam, ...filterParams } = filters || {};
-    
+
     return this.slowQueryMonitorService.getSlowQueries(
       page || pageParam || 1,
       limit || limitParam || 50,
@@ -142,10 +175,7 @@ export class SlowQueryMonitorController {
     description: '해결 처리 완료',
   })
   @HttpCode(HttpStatus.OK)
-  async resolveSlowQuery(
-    @Param('id') id: number,
-    @Body() body: ResolveSlowQueryDto,
-  ) {
+  async resolveSlowQuery(@Param('id') id: number, @Body() body: ResolveSlowQueryDto) {
     await this.slowQueryMonitorService.resolveSlowQuery(id, body.resolutionNotes);
     return { message: '슬로우 쿼리가 해결 처리되었습니다.' };
   }
@@ -200,7 +230,12 @@ export class SlowQueryMonitorController {
 
   @Get('export')
   @ApiOperation({ summary: '슬로우 쿼리 데이터 내보내기' })
-  @ApiQuery({ name: 'format', description: '내보내기 형식', required: false, enum: ['json', 'csv'] })
+  @ApiQuery({
+    name: 'format',
+    description: '내보내기 형식',
+    required: false,
+    enum: ['json', 'csv'],
+  })
   @ApiQuery({ name: 'startDate', description: '시작 날짜', required: false, type: Date })
   @ApiQuery({ name: 'endDate', description: '종료 날짜', required: false, type: Date })
   @ApiResponse({
@@ -228,7 +263,7 @@ export class SlowQueryMonitorController {
         'Detected At',
         'Resolved',
       ];
-      
+
       const csvRows = data.map(log => [
         log.id,
         log.queryHash,

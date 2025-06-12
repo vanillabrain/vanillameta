@@ -65,14 +65,15 @@ describe('SlowQueryInterceptor', () => {
   });
 
   describe('intercept', () => {
-    it('should initialize query metrics on request', (done) => {
+    it('should initialize query metrics on request', done => {
       mockCallHandler.handle = jest.fn().mockReturnValue(of('result'));
-      mockRequest.get = jest.fn()
+      mockRequest.get = jest
+        .fn()
         .mockReturnValueOnce('Mozilla/5.0 Chrome/91.0')
         .mockReturnValueOnce('req-123');
 
       interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe({
-        next: (result) => {
+        next: result => {
           expect(result).toBe('result');
           expect(mockRequest.queryMetrics).toBeDefined();
           expect(mockRequest.queryMetrics.startTime).toBeGreaterThan(0);
@@ -82,7 +83,7 @@ describe('SlowQueryInterceptor', () => {
       });
     });
 
-    it('should process query metrics on successful response', (done) => {
+    it('should process query metrics on successful response', done => {
       mockCallHandler.handle = jest.fn().mockReturnValue(of('result'));
       mockQueryAnalyzerService.analyzeQuery.mockResolvedValue({
         query: 'SELECT * FROM test',
@@ -120,7 +121,7 @@ describe('SlowQueryInterceptor', () => {
       });
     });
 
-    it('should process query metrics on error response', (done) => {
+    it('should process query metrics on error response', done => {
       const error = new Error('Database error');
       mockCallHandler.handle = jest.fn().mockReturnValue(throwError(() => error));
       mockQueryAnalyzerService.analyzeQuery.mockResolvedValue({
@@ -144,7 +145,7 @@ describe('SlowQueryInterceptor', () => {
       };
 
       interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe({
-        error: (err) => {
+        error: err => {
           expect(err).toBe(error);
           // Give some time for async processing
           setTimeout(() => {
@@ -156,7 +157,7 @@ describe('SlowQueryInterceptor', () => {
       });
     });
 
-    it('should not process queries below threshold', (done) => {
+    it('should not process queries below threshold', done => {
       mockCallHandler.handle = jest.fn().mockReturnValue(of('result'));
 
       // Simulate fast query (below 1000ms threshold)
@@ -248,7 +249,8 @@ describe('SlowQueryInterceptor', () => {
 
   describe('extractRequestMetadata', () => {
     it('should extract metadata correctly', () => {
-      mockRequest.get = jest.fn()
+      mockRequest.get = jest
+        .fn()
         .mockReturnValueOnce('Mozilla/5.0 Chrome/91.0') // User-Agent
         .mockReturnValueOnce('192.168.1.100') // X-Forwarded-For
         .mockReturnValueOnce('req-456'); // X-Request-ID
@@ -276,7 +278,7 @@ describe('SlowQueryInterceptor', () => {
 
   describe('getClientIp', () => {
     it('should extract IP from X-Forwarded-For header', () => {
-      mockRequest.get = jest.fn().mockImplementation((header) => {
+      mockRequest.get = jest.fn().mockImplementation(header => {
         if (header === 'X-Forwarded-For') return '203.0.113.1, 192.168.1.1';
         return undefined;
       });
@@ -286,7 +288,7 @@ describe('SlowQueryInterceptor', () => {
     });
 
     it('should extract IP from X-Real-IP header', () => {
-      mockRequest.get = jest.fn().mockImplementation((header) => {
+      mockRequest.get = jest.fn().mockImplementation(header => {
         if (header === 'X-Real-IP') return '203.0.113.2';
         return undefined;
       });

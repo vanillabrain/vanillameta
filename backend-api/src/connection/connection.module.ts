@@ -11,7 +11,7 @@ import { QueryCollector } from '../common/utils/query-collector';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Database, Dataset]), 
+    TypeOrmModule.forFeature([Database, Dataset]),
     SqlValidationModule,
     QueryAnalyzerModule,
     MonitoringModule,

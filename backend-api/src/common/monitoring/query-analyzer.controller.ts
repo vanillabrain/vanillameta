@@ -1,7 +1,11 @@
 import { Controller, Post, Body, UseGuards, Get, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
-import { QueryAnalyzerService, QueryAnalysis, QueryOptimizationReport } from './query-analyzer.service';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import {
+  QueryAnalyzerService,
+  QueryAnalysis,
+  QueryOptimizationReport,
+} from './query-analyzer.service';
 
 export class AnalyzeQueryDto {
   query: string;

@@ -262,7 +262,7 @@ export class ConnectionService {
     const fields = [];
     const resultObj = { status: null, message: null, datas: [], fields: [] };
     const startTime = Date.now();
-    
+
     try {
       // 3. 정리된 쿼리 사용 (LIMIT 자동 추가 등)
       const sanitizedQuery = validationResult.sanitizedQuery;
@@ -394,7 +394,7 @@ export class ConnectionService {
       resultObj.message = 'success';
       resultObj.datas = datas;
       resultObj.fields = fields;
-      
+
       // 실행 시간 측정 및 쿼리 수집
       const executionTime = Date.now() - startTime;
       this.queryCollector.collect(
@@ -403,7 +403,7 @@ export class ConnectionService {
         queryExecuteDto.parameters?.map(p => p.value),
         executionTime,
       );
-      
+
       // 슬로우 쿼리 모니터링
       await this.recordSlowQueryMetrics(
         sanitizedQuery,
@@ -425,7 +425,7 @@ export class ConnectionService {
         errorMessage: e.message,
         executionTime,
       });
-      
+
       // 실패한 쿼리도 수집
       this.queryCollector.collect(
         queryExecuteDto.query,
@@ -457,8 +457,8 @@ export class ConnectionService {
         analysis.rowsReturned = rowCount;
 
         // 데이터베이스 정보 조회
-        const database = await this.databaseRepository.findOne({ 
-          where: { id: queryExecuteDto.id } 
+        const database = await this.databaseRepository.findOne({
+          where: { id: queryExecuteDto.id },
         });
 
         // 요청 메타데이터 추출
@@ -519,7 +519,7 @@ export class ConnectionService {
    */
   private getClientIp(): string {
     if (!this.request) return 'unknown';
-    
+
     return (
       this.request.get?.('X-Forwarded-For')?.split(',')[0] ||
       this.request.get?.('X-Real-IP') ||
@@ -544,7 +544,7 @@ export class ConnectionService {
       setImmediate(async () => {
         try {
           const analysis = await this.queryAnalyzerService.analyzeQuery(query, databaseId);
-          
+
           if (analysis.optimizationSuggestions && analysis.optimizationSuggestions.length > 0) {
             this.logger.info('Query optimization opportunities found', 'ConnectionService', {
               databaseId,

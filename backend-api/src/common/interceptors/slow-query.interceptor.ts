@@ -1,10 +1,4 @@
-import {
-  Injectable,
-  NestInterceptor,
-  ExecutionContext,
-  CallHandler,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, NestInterceptor, ExecutionContext, CallHandler, Logger } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { Request } from 'express';
@@ -52,7 +46,7 @@ export class SlowQueryInterceptor implements NestInterceptor {
           // 응답 성공 시 쿼리 메트릭 처리
           await this.processQueryMetrics(request, metadata);
         },
-        error: async (error) => {
+        error: async error => {
           // 에러 발생 시에도 쿼리 메트릭 처리
           await this.processQueryMetrics(request, metadata, error);
         },
@@ -113,7 +107,8 @@ export class SlowQueryInterceptor implements NestInterceptor {
     try {
       // 수집된 쿼리들에 대해 슬로우 쿼리 분석
       for (const queryMetric of request.queryMetrics.queries) {
-        if (queryMetric.executionTime >= 1000) { // 1초 이상인 쿼리만 분석
+        if (queryMetric.executionTime >= 1000) {
+          // 1초 이상인 쿼리만 분석
           const analysis = await this.queryAnalyzerService.analyzeQuery(
             queryMetric.query,
             queryMetric.databaseId,
@@ -133,7 +128,8 @@ export class SlowQueryInterceptor implements NestInterceptor {
       }
 
       // 전체 요청 시간이 느린 경우에도 기록
-      if (totalExecutionTime >= 5000) { // 5초 이상
+      if (totalExecutionTime >= 5000) {
+        // 5초 이상
         this.logger.warn({
           message: 'Slow request detected',
           requestPath: metadata.requestPath,

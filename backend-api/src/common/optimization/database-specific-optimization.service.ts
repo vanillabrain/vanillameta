@@ -78,7 +78,7 @@ export class DatabaseSpecificOptimizationService {
           name: 'limit-optimization',
           description: 'LIMIT 쿼리 최적화',
           pattern: /SELECT\s+.*\s+FROM\s+.*\s+ORDER\s+BY\s+.*\s+LIMIT\s+\d+/i,
-          replacement: (match) => {
+          replacement: match => {
             // PostgreSQL의 경우 인덱스 스캔 힌트 추가
             return match.replace(/SELECT/i, 'SELECT /*+ IndexScan */');
           },
@@ -88,7 +88,7 @@ export class DatabaseSpecificOptimizationService {
           name: 'join-optimization',
           description: 'JOIN 쿼리 최적화',
           pattern: /SELECT\s+.*\s+FROM\s+.*\s+JOIN\s+.*\s+ON\s+.*/i,
-          replacement: (match) => {
+          replacement: match => {
             // PostgreSQL의 경우 적절한 JOIN 순서 힌트
             return match.replace(/JOIN/i, 'JOIN /*+ NestLoop */');
           },
@@ -123,13 +123,13 @@ export class DatabaseSpecificOptimizationService {
           name: 'force-index',
           description: 'MySQL 강제 인덱스 사용',
           pattern: /SELECT\s+.*\s+FROM\s+(\w+)\s+WHERE\s+(\w+)\s*=/i,
-          replacement: (match) => {
+          replacement: match => {
             const matches = match.match(/FROM\s+(\w+)\s+WHERE\s+(\w+)\s*=/i);
             if (matches) {
               const [, tableName, columnName] = matches;
               return match.replace(
                 `FROM ${tableName}`,
-                `FROM ${tableName} FORCE INDEX (idx_${columnName})`
+                `FROM ${tableName} FORCE INDEX (idx_${columnName})`,
               );
             }
             return match;
@@ -140,7 +140,7 @@ export class DatabaseSpecificOptimizationService {
           name: 'limit-optimization',
           description: 'MySQL LIMIT 최적화',
           pattern: /SELECT\s+.*\s+FROM\s+.*\s+ORDER\s+BY\s+.*\s+LIMIT\s+(\d+)/i,
-          replacement: (match) => {
+          replacement: match => {
             // MySQL의 경우 큰 LIMIT은 성능에 영향
             const limitMatch = match.match(/LIMIT\s+(\d+)/i);
             if (limitMatch && parseInt(limitMatch[1]) > 10000) {
@@ -179,7 +179,7 @@ export class DatabaseSpecificOptimizationService {
           name: 'nolock-hint',
           description: 'SQL Server NOLOCK 힌트',
           pattern: /SELECT\s+.*\s+FROM\s+(\w+)\s+(?!WITH)/i,
-          replacement: (match) => {
+          replacement: match => {
             return match.replace(/FROM\s+(\w+)/i, 'FROM $1 WITH (NOLOCK)');
           },
           enabled: false, // 데이터 일관성 문제로 기본 비활성화
@@ -188,7 +188,7 @@ export class DatabaseSpecificOptimizationService {
           name: 'columnstore-hint',
           description: 'SQL Server Columnstore 힌트',
           pattern: /SELECT\s+.*\s+FROM\s+.*\s+GROUP\s+BY\s+.*/i,
-          replacement: (match) => {
+          replacement: match => {
             return match.replace(/SELECT/i, 'SELECT /*+ USE COLUMNSTORE */');
           },
           enabled: true,
@@ -222,7 +222,7 @@ export class DatabaseSpecificOptimizationService {
           name: 'first-rows-hint',
           description: 'Oracle FIRST_ROWS 힌트',
           pattern: /SELECT\s+.*\s+FROM\s+.*\s+WHERE\s+.*\s+ORDER\s+BY\s+.*\s+ROWNUM\s*<=\s*\d+/i,
-          replacement: (match) => {
+          replacement: match => {
             return match.replace(/SELECT/i, 'SELECT /*+ FIRST_ROWS */');
           },
           enabled: true,
@@ -231,7 +231,7 @@ export class DatabaseSpecificOptimizationService {
           name: 'parallel-hint',
           description: 'Oracle 병렬 처리 힌트',
           pattern: /SELECT\s+.*\s+FROM\s+.*\s+GROUP\s+BY\s+.*/i,
-          replacement: (match) => {
+          replacement: match => {
             return match.replace(/SELECT/i, 'SELECT /*+ PARALLEL(4) */');
           },
           enabled: false, // 리소스 사용량 고려하여 기본 비활성화
@@ -265,7 +265,7 @@ export class DatabaseSpecificOptimizationService {
           name: 'partition-pruning',
           description: 'BigQuery 파티션 프루닝',
           pattern: /SELECT\s+.*\s+FROM\s+.*\s+WHERE\s+(?!.*_PARTITIONTIME)/i,
-          replacement: (match) => {
+          replacement: match => {
             // 파티션 필터가 없는 경우 경고
             return match; // 실제 변환은 복잡하므로 로깅만
           },
@@ -275,7 +275,7 @@ export class DatabaseSpecificOptimizationService {
           name: 'select-optimization',
           description: 'BigQuery SELECT 최적화',
           pattern: /SELECT\s+\*\s+FROM\s+.*/i,
-          replacement: (match) => {
+          replacement: match => {
             // SELECT * 사용 시 경고 (BigQuery는 컬럼 기반 과금)
             return match;
           },
@@ -310,7 +310,7 @@ export class DatabaseSpecificOptimizationService {
           name: 'warehouse-optimization',
           description: 'Snowflake 웨어하우스 최적화',
           pattern: /SELECT\s+.*\s+FROM\s+.*\s+GROUP\s+BY\s+.*/i,
-          replacement: (match) => {
+          replacement: match => {
             // 복잡한 집계 쿼리의 경우 더 큰 웨어하우스 권장
             return match;
           },
@@ -320,7 +320,7 @@ export class DatabaseSpecificOptimizationService {
           name: 'clustering-hint',
           description: 'Snowflake 클러스터링 힌트',
           pattern: /SELECT\s+.*\s+FROM\s+.*\s+WHERE\s+.*\s+ORDER\s+BY\s+.*/i,
-          replacement: (match) => {
+          replacement: match => {
             // 클러스터링 키 사용 권장
             return match;
           },
@@ -350,7 +350,10 @@ export class DatabaseSpecificOptimizationService {
   /**
    * 쿼리에 대한 데이터베이스별 최적화 적용
    */
-  optimizeQuery(query: string, engine: string): { optimizedQuery: string; appliedOptimizations: string[] } {
+  optimizeQuery(
+    query: string,
+    engine: string,
+  ): { optimizedQuery: string; appliedOptimizations: string[] } {
     const config = this.getOptimizationConfig(engine);
     if (!config) {
       return { optimizedQuery: query, appliedOptimizations: [] };
@@ -370,7 +373,7 @@ export class DatabaseSpecificOptimizationService {
             optimizedQuery = rule.replacement(optimizedQuery);
           }
           appliedOptimizations.push(rule.name);
-          
+
           this.logger.debug(`Applied optimization rule: ${rule.name}`, {
             engine,
             rule: rule.name,
@@ -392,7 +395,7 @@ export class DatabaseSpecificOptimizationService {
   /**
    * 연결 풀 설정 최적화
    */
-  getOptimizedPoolConfig(engine: string, isProduction: boolean = false): Knex.PoolConfig {
+  getOptimizedPoolConfig(engine: string, isProduction = false): Knex.PoolConfig {
     const config = this.getOptimizationConfig(engine);
     if (!config) {
       // 기본 설정 반환
@@ -429,13 +432,15 @@ export class DatabaseSpecificOptimizationService {
    */
   getCacheConfig(engine: string): CacheConfiguration {
     const config = this.getOptimizationConfig(engine);
-    return config?.cacheConfig || {
-      enabled: false,
-      ttl: 3600,
-      maxSize: 100,
-      keyStrategy: 'query-hash',
-      invalidationPatterns: [],
-    };
+    return (
+      config?.cacheConfig || {
+        enabled: false,
+        ttl: 3600,
+        maxSize: 100,
+        keyStrategy: 'query-hash',
+        invalidationPatterns: [],
+      }
+    );
   }
 
   /**
@@ -444,23 +449,31 @@ export class DatabaseSpecificOptimizationService {
   async generateIndexRecommendations(
     engine: string,
     tableAnalysis: any,
-    queryPatterns: string[]
+    queryPatterns: string[],
   ): Promise<IndexRecommendation[]> {
     const recommendations: IndexRecommendation[] = [];
 
     try {
       switch (engine) {
         case 'pg':
-          recommendations.push(...this.generatePostgreSQLIndexRecommendations(tableAnalysis, queryPatterns));
+          recommendations.push(
+            ...this.generatePostgreSQLIndexRecommendations(tableAnalysis, queryPatterns),
+          );
           break;
         case 'mysql2':
-          recommendations.push(...this.generateMySQLIndexRecommendations(tableAnalysis, queryPatterns));
+          recommendations.push(
+            ...this.generateMySQLIndexRecommendations(tableAnalysis, queryPatterns),
+          );
           break;
         case 'mssql':
-          recommendations.push(...this.generateSQLServerIndexRecommendations(tableAnalysis, queryPatterns));
+          recommendations.push(
+            ...this.generateSQLServerIndexRecommendations(tableAnalysis, queryPatterns),
+          );
           break;
         case 'oracledb':
-          recommendations.push(...this.generateOracleIndexRecommendations(tableAnalysis, queryPatterns));
+          recommendations.push(
+            ...this.generateOracleIndexRecommendations(tableAnalysis, queryPatterns),
+          );
           break;
         default:
           this.logger.warn(`Index recommendations not supported for engine: ${engine}`);
@@ -477,7 +490,7 @@ export class DatabaseSpecificOptimizationService {
    */
   private generatePostgreSQLIndexRecommendations(
     tableAnalysis: any,
-    queryPatterns: string[]
+    queryPatterns: string[],
   ): IndexRecommendation[] {
     const recommendations: IndexRecommendation[] = [];
 
@@ -528,7 +541,7 @@ export class DatabaseSpecificOptimizationService {
    */
   private generateMySQLIndexRecommendations(
     tableAnalysis: any,
-    queryPatterns: string[]
+    queryPatterns: string[],
   ): IndexRecommendation[] {
     const recommendations: IndexRecommendation[] = [];
 
@@ -568,7 +581,7 @@ export class DatabaseSpecificOptimizationService {
    */
   private generateSQLServerIndexRecommendations(
     tableAnalysis: any,
-    queryPatterns: string[]
+    queryPatterns: string[],
   ): IndexRecommendation[] {
     const recommendations: IndexRecommendation[] = [];
 
@@ -606,7 +619,7 @@ export class DatabaseSpecificOptimizationService {
    */
   private generateOracleIndexRecommendations(
     tableAnalysis: any,
-    queryPatterns: string[]
+    queryPatterns: string[],
   ): IndexRecommendation[] {
     const recommendations: IndexRecommendation[] = [];
 
@@ -644,7 +657,7 @@ export class DatabaseSpecificOptimizationService {
   // 헬퍼 메서드들 (WHERE 절 컬럼 추출 등)
   private extractWhereColumns(queryPatterns: string[]): Map<string, Set<string>> {
     const whereColumns = new Map<string, Set<string>>();
-    
+
     for (const query of queryPatterns) {
       // 간단한 정규식으로 WHERE 절의 컬럼 추출
       const whereMatch = query.match(/FROM\s+(\w+).*?WHERE\s+(\w+)/i);
@@ -656,13 +669,13 @@ export class DatabaseSpecificOptimizationService {
         whereColumns.get(tableName)!.add(columnName);
       }
     }
-    
+
     return whereColumns;
   }
 
   private extractJsonColumns(queryPatterns: string[]): Map<string, Set<string>> {
     const jsonColumns = new Map<string, Set<string>>();
-    
+
     for (const query of queryPatterns) {
       // JSON 연산자 사용 패턴 감지
       const jsonMatch = query.match(/(\w+)\s*->>?\s*'(\w+)'/g);
@@ -671,7 +684,7 @@ export class DatabaseSpecificOptimizationService {
         // 여기서는 간단히 구현
       }
     }
-    
+
     return jsonColumns;
   }
 
@@ -695,7 +708,9 @@ export class DatabaseSpecificOptimizationService {
     return new Set();
   }
 
-  private extractCoveringIndexCandidates(queryPatterns: string[]): Map<string, { keyColumns: string[]; includeColumns: string[] }> {
+  private extractCoveringIndexCandidates(
+    queryPatterns: string[],
+  ): Map<string, { keyColumns: string[]; includeColumns: string[] }> {
     // 커버링 인덱스 후보 추출 로직
     return new Map();
   }
@@ -715,11 +730,11 @@ export class DatabaseSpecificOptimizationService {
    */
   async executeOptimizations(
     database: Database,
-    queryPatterns: string[]
+    queryPatterns: string[],
   ): Promise<OptimizationResult> {
     const engine = database.engine;
     const config = this.getOptimizationConfig(engine);
-    
+
     if (!config) {
       return {
         engine,
@@ -754,16 +769,12 @@ export class DatabaseSpecificOptimizationService {
       }
 
       // 2. 인덱스 추천 생성
-      result.recommendations = await this.generateIndexRecommendations(
-        engine,
-        {},
-        queryPatterns
-      );
+      result.recommendations = await this.generateIndexRecommendations(engine, {}, queryPatterns);
 
       // 3. 성능 영향 추정
       result.performanceImpact = this.estimatePerformanceImpact(
         result.optimizationsApplied,
-        result.recommendations
+        result.recommendations,
       );
 
       this.logger.log(`Optimizations executed for ${engine}`, {
@@ -772,7 +783,6 @@ export class DatabaseSpecificOptimizationService {
         recommendationsCount: result.recommendations.length,
         estimatedImprovement: result.performanceImpact.executionTimeReduction,
       });
-
     } catch (error) {
       this.logger.error(`Failed to execute optimizations for ${engine}`, error.stack);
       result.warnings.push(`Optimization execution failed: ${error.message}`);
@@ -786,7 +796,7 @@ export class DatabaseSpecificOptimizationService {
    */
   private estimatePerformanceImpact(
     appliedOptimizations: string[],
-    recommendations: IndexRecommendation[]
+    recommendations: IndexRecommendation[],
   ): { executionTimeReduction: number; memoryUsageReduction: number; ioReduction: number } {
     let executionTimeReduction = 0;
     let memoryUsageReduction = 0;

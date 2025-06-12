@@ -15,25 +15,25 @@ import { SlowQueryInterceptor } from '../interceptors/slow-query.interceptor';
 
 @Module({
   imports: [
-    ScheduleModule.forRoot(), 
-    LoggerModule, 
+    ScheduleModule.forRoot(),
+    LoggerModule,
     QueryAnalyzerModule,
     TypeOrmModule.forFeature([SlowQueryLog]),
   ],
   controllers: [
-    MonitoringController, 
-    QueryAnalyzerController, 
+    MonitoringController,
+    QueryAnalyzerController,
     QueryOptimizationReportController,
     SlowQueryMonitorController,
   ],
   providers: [
-    ConnectionPoolMonitorService, 
+    ConnectionPoolMonitorService,
     QueryCollector,
     SlowQueryMonitorService,
     SlowQueryInterceptor,
   ],
   exports: [
-    ConnectionPoolMonitorService, 
+    ConnectionPoolMonitorService,
     QueryAnalyzerModule,
     SlowQueryMonitorService,
     SlowQueryInterceptor,
