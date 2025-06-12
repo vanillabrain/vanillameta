@@ -1,6 +1,6 @@
 import { Controller, Get, UseGuards, Query as QueryParam } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { QueryAnalyzerService, QueryOptimizationReport } from './query-analyzer.service';
 import { QueryCollector } from '../utils/query-collector';
 import { Connection } from 'typeorm';
