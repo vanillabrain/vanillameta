@@ -32,7 +32,9 @@ export class TableQueryService {
   async makeSelectAllQuery(databaseId: number, tableName: string) {
     // 1. 테이블명 보안 검증
     if (!this.isValidTableName(tableName)) {
-      throw new BadRequestException(`Invalid table name: ${tableName}. Table names must contain only letters, numbers, and underscores.`);
+      throw new BadRequestException(
+        `Invalid table name: ${tableName}. Table names must contain only letters, numbers, and underscores.`,
+      );
     }
 
     const databaseOne = await this.databaseRepository.findOne({ where: { id: databaseId } });
@@ -48,38 +50,40 @@ export class TableQueryService {
         case 'bigquery':
           const connectionConfig = JSON.parse(databaseOne.connectionConfig);
           schemaName = connectionConfig.connection?.schema;
-          
+
           if (!schemaName || !this.isValidSchemaName(schemaName)) {
             throw new BadRequestException(`Invalid schema name: ${schemaName}`);
           }
-          
+
           // 안전한 식별자 래핑 - BigQuery는 백틱 사용
-          selectQuery = `SELECT * FROM \`${this.sanitizeIdentifier(schemaName)}\`.\`${this.sanitizeIdentifier(tableName)}\``;
+          selectQuery = `SELECT * FROM \`${this.sanitizeIdentifier(
+            schemaName,
+          )}\`.\`${this.sanitizeIdentifier(tableName)}\``;
           break;
-          
+
         case 'oracle':
           // Oracle은 더블 쿼트 사용
           selectQuery = `SELECT * FROM "${this.sanitizeIdentifier(tableName)}"`;
           break;
-          
+
         case 'postgresql':
         case 'postgres':
           // PostgreSQL도 더블 쿼트 사용
           selectQuery = `SELECT * FROM "${this.sanitizeIdentifier(tableName)}"`;
           break;
-          
+
         case 'mysql':
         case 'mariadb':
           // MySQL/MariaDB는 백틱 사용
           selectQuery = `SELECT * FROM \`${this.sanitizeIdentifier(tableName)}\``;
           break;
-          
+
         case 'mssql':
         case 'sqlserver':
           // SQL Server는 대괄호 사용
           selectQuery = `SELECT * FROM [${this.sanitizeIdentifier(tableName)}]`;
           break;
-          
+
         default:
           // 기본적으로 백틱 사용 (대부분의 DB에서 지원)
           selectQuery = `SELECT * FROM \`${this.sanitizeIdentifier(tableName)}\``;
@@ -96,11 +100,12 @@ export class TableQueryService {
       });
 
       if (!validationResult.isValid) {
-        throw new BadRequestException(`Generated query failed security validation: ${validationResult.errors.join(', ')}`);
+        throw new BadRequestException(
+          `Generated query failed security validation: ${validationResult.errors.join(', ')}`,
+        );
       }
 
       return selectQuery;
-
     } catch (error) {
       if (error instanceof BadRequestException) {
         throw error;
@@ -130,11 +135,32 @@ export class TableQueryService {
 
     // SQL 키워드와 겹치는 이름 금지
     const sqlKeywords = [
-      'SELECT', 'FROM', 'WHERE', 'ORDER', 'GROUP', 'HAVING', 'UNION', 'JOIN',
-      'INNER', 'LEFT', 'RIGHT', 'FULL', 'CROSS', 'INSERT', 'UPDATE', 'DELETE',
-      'CREATE', 'DROP', 'ALTER', 'TABLE', 'INDEX', 'VIEW', 'DATABASE', 'SCHEMA'
+      'SELECT',
+      'FROM',
+      'WHERE',
+      'ORDER',
+      'GROUP',
+      'HAVING',
+      'UNION',
+      'JOIN',
+      'INNER',
+      'LEFT',
+      'RIGHT',
+      'FULL',
+      'CROSS',
+      'INSERT',
+      'UPDATE',
+      'DELETE',
+      'CREATE',
+      'DROP',
+      'ALTER',
+      'TABLE',
+      'INDEX',
+      'VIEW',
+      'DATABASE',
+      'SCHEMA',
     ];
-    
+
     if (sqlKeywords.includes(tableName.toUpperCase())) {
       return false;
     }
@@ -164,7 +190,7 @@ export class TableQueryService {
 
     // 식별자에서 위험한 문자 제거
     const sanitized = identifier.replace(/[^a-zA-Z0-9_]/g, '');
-    
+
     if (sanitized !== identifier) {
       throw new BadRequestException(`Identifier contains invalid characters: ${identifier}`);
     }

@@ -7,10 +7,7 @@ import { Dataset } from '../dataset/entities/dataset.entity';
 import { SqlValidationModule } from '../common/security/sql-validation.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Database, Dataset]),
-    SqlValidationModule,
-  ],
+  imports: [TypeOrmModule.forFeature([Database, Dataset]), SqlValidationModule],
   providers: [ConnectionService],
   exports: [ConnectionService],
 })

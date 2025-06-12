@@ -129,12 +129,12 @@ export class DatabaseService {
       return tablesInfo;
     }
 
-    // dataset 정보 조회
+    // dataset 정보 조회 - 이미 필터링된 데이터를 한 번에 조회하므로 N+1 문제 없음
     const tempDatasets = await this.datasetRepository.find({ where: { databaseId: id } });
-    const datasets = [];
-    tempDatasets.map(item => {
-      datasets.push(Object.assign({ datasetType: DatasetType.DATASET }, item));
-    });
+    const datasets = tempDatasets.map(item => ({
+      ...item,
+      datasetType: DatasetType.DATASET
+    }));
 
     delete databaseInfo.connectionConfig['password'];
 

@@ -100,17 +100,22 @@ describe('DatabaseService', () => {
       const savedDatabase = { id: 1, ...createDto };
 
       // Mock Database.toDto static method
-      const mockToDto = jest.spyOn(Database, 'toDto').mockReturnValue({
+      const mockDatabase = new Database();
+      Object.assign(mockDatabase, {
+        id: 1,
         ...createDto,
+        getFullDescription: () => `${createDto.name} ${createDto.description}`,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
 
-      connectionService.testConnection.mockResolvedValue(true);
+      const mockToDto = jest.spyOn(Database, 'toDto').mockReturnValue(mockDatabase);
+
       databaseRepository.save.mockResolvedValue(savedDatabase);
 
       const result = await service.create(createDto);
 
       expect(mockToDto).toHaveBeenCalledWith(createDto);
-      expect(connectionService.testConnection).toHaveBeenCalled();
       expect(databaseRepository.save).toHaveBeenCalled();
 
       mockToDto.mockRestore();

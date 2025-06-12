@@ -1,4 +1,13 @@
-import { IsNotEmpty, IsNumber, IsString, MaxLength, Matches, IsOptional, IsArray, ValidateNested } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsNumber,
+  IsString,
+  MaxLength,
+  Matches,
+  IsOptional,
+  IsArray,
+  ValidateNested,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsSafeQuery } from '../../common/decorators/sql-validation.decorator';

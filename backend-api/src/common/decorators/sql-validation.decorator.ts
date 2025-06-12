@@ -1,4 +1,10 @@
-import { registerDecorator, ValidationOptions, ValidatorConstraint, ValidatorConstraintInterface, ValidationArguments } from 'class-validator';
+import {
+  registerDecorator,
+  ValidationOptions,
+  ValidatorConstraint,
+  ValidatorConstraintInterface,
+  ValidationArguments,
+} from 'class-validator';
 
 @ValidatorConstraint({ async: false })
 export class IsSafeQueryConstraint implements ValidatorConstraintInterface {
@@ -8,14 +14,23 @@ export class IsSafeQueryConstraint implements ValidatorConstraintInterface {
     }
 
     const trimmedQuery = query.trim().toUpperCase();
-    
+
     // 기본 안전성 검사
     if (!trimmedQuery.startsWith('SELECT') && !trimmedQuery.startsWith('WITH')) {
       return false;
     }
 
     // 금지된 키워드 검사 (기본적인 것들만)
-    const forbiddenKeywords = ['DROP', 'DELETE', 'INSERT', 'UPDATE', 'CREATE', 'ALTER', 'EXEC', 'EXECUTE'];
+    const forbiddenKeywords = [
+      'DROP',
+      'DELETE',
+      'INSERT',
+      'UPDATE',
+      'CREATE',
+      'ALTER',
+      'EXEC',
+      'EXECUTE',
+    ];
     for (const keyword of forbiddenKeywords) {
       const keywordRegex = new RegExp(`\\b${keyword}\\b`, 'i');
       if (keywordRegex.test(query)) {
@@ -25,11 +40,11 @@ export class IsSafeQueryConstraint implements ValidatorConstraintInterface {
 
     // 위험한 패턴 검사
     const dangerousPatterns = [
-      /--[\s\S]*$/gm,           // SQL 주석
-      /\/\*[\s\S]*?\*\//gm,     // SQL 블록 주석
-      /\bunion\s+select\b/gi,   // Union injection
-      /\binto\s+outfile\b/gi,   // File operations
-      /[;'"\\]{2,}/g,           // 연속된 특수문자
+      /--[\s\S]*$/gm, // SQL 주석
+      /\/\*[\s\S]*?\*\//gm, // SQL 블록 주석
+      /\bunion\s+select\b/gi, // Union injection
+      /\binto\s+outfile\b/gi, // File operations
+      /[;'"\\]{2,}/g, // 연속된 특수문자
     ];
 
     for (const pattern of dangerousPatterns) {
@@ -65,7 +80,21 @@ export class IsValidTableNameConstraint implements ValidatorConstraintInterface 
     }
 
     // SQL 키워드와 겹치는 이름 금지
-    const sqlKeywords = ['SELECT', 'FROM', 'WHERE', 'ORDER', 'GROUP', 'HAVING', 'UNION', 'JOIN', 'INNER', 'LEFT', 'RIGHT', 'FULL', 'CROSS'];
+    const sqlKeywords = [
+      'SELECT',
+      'FROM',
+      'WHERE',
+      'ORDER',
+      'GROUP',
+      'HAVING',
+      'UNION',
+      'JOIN',
+      'INNER',
+      'LEFT',
+      'RIGHT',
+      'FULL',
+      'CROSS',
+    ];
     if (sqlKeywords.includes(tableName.toUpperCase())) {
       return false;
     }
@@ -79,7 +108,7 @@ export class IsValidTableNameConstraint implements ValidatorConstraintInterface 
 }
 
 export function IsSafeQuery(validationOptions?: ValidationOptions) {
-  return function (object: Object, propertyName: string) {
+  return function (object: object, propertyName: string) {
     registerDecorator({
       target: object.constructor,
       propertyName: propertyName,
@@ -91,7 +120,7 @@ export function IsSafeQuery(validationOptions?: ValidationOptions) {
 }
 
 export function IsValidTableName(validationOptions?: ValidationOptions) {
-  return function (object: Object, propertyName: string) {
+  return function (object: object, propertyName: string) {
     registerDecorator({
       target: object.constructor,
       propertyName: propertyName,

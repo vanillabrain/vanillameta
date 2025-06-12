@@ -10,7 +10,7 @@ import { TemplateModule } from '../../src/template/template.module';
 import { ConfigModule } from '@nestjs/config';
 import { DashboardService } from '../../src/dashboard/dashboard.service';
 import { DashboardModule } from '../../src/dashboard/dashboard.module';
-import { CreateDashboardDto } from '../../dist/dashboard/dto/create-dashboard.dto';
+import { CreateDashboardDto } from '../../src/dashboard/dto/create-dashboard.dto';
 import { Dashboard } from '../../src/dashboard/entities/dashboard.entity';
 import { DashboardWidget } from '../../src/dashboard/dashboard-widget/entities/dashboard-widget.entity';
 import { DashboardWidgetService } from '../../src/dashboard/dashboard-widget/dashboard-widget.service';
@@ -112,12 +112,17 @@ describe('QTT-006 : 대시보드 템플릿 추천', () => {
     const createDashboardDto: CreateDashboardDto = new CreateDashboardDto();
     createDashboardDto.title = 'QTT-006-03 dashboard';
     createDashboardDto.layout = layoutResult.data.layout;
-    const createDashboardResult = await dashboardService.create(createDashboardDto);
+    const createDashboardResult = await dashboardService.create(createDashboardDto, 1);
 
-    console.log(
-      '::::::::::::::대시보드 위젯 배치 확인::::::::::::::\n',
-      createDashboardResult.data,
-    );
-    return expect(createDashboardResult.status).toEqual(ResponseStatus.SUCCESS);
+    // 타입 가드를 사용하여 성공적인 결과인지 확인
+    if (typeof createDashboardResult !== 'string' && createDashboardResult.data) {
+      console.log(
+        '::::::::::::::대시보드 위젯 배치 확인::::::::::::::\n',
+        createDashboardResult.data,
+      );
+      return expect(createDashboardResult.status).toEqual(ResponseStatus.SUCCESS);
+    } else {
+      throw new Error('Dashboard creation failed');
+    }
   });
 });

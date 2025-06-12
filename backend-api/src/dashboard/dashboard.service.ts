@@ -51,7 +51,7 @@ export class DashboardService {
     this.logger.debug('Dashboard share created', 'DashboardService', {
       shareId: share_id.id,
       shareUuid: share_id.uuid,
-      userId: accessToken.toString()
+      userId: accessToken.toString(),
     });
     const saveObj = {
       title: createDashboardDto.title,
@@ -96,27 +96,24 @@ export class DashboardService {
 
   async findAll(userId: number) {
     const findUser = await this.userService.findDashboardId(userId);
-    if (!findUser) {
+    if (!findUser || findUser.length === 0) {
       return 'not exist user';
     }
     console.log(findUser);
     const findId = findUser.map(el => el['dashboardId']);
-    if (findId === null) {
+    if (!findId || findId.length === 0) {
       throw new HttpException('not found', HttpStatus.NOT_FOUND);
     }
     console.log(findId);
-    const find_all = [];
-    for (let i = 0; findId.length > i; i++) {
-      find_all.push(
-        await this.dashboardRepository.findOne({
-          where: { id: findId[i] },
-          order: {
-            updatedAt: 'desc',
-            title: 'asc',
-          },
-        }),
-      );
-    }
+    
+    // N+1 쿼리 문제 해결: In 조건으로 한 번에 조회
+    const find_all = await this.dashboardRepository
+      .createQueryBuilder('dashboard')
+      .where('dashboard.id IN (:...ids)', { ids: findId })
+      .orderBy('dashboard.updatedAt', 'DESC')
+      .addOrderBy('dashboard.title', 'ASC')
+      .getMany();
+    
     find_all.forEach(el => {
       console.log('adf,', el);
       el.layout = JSON.parse(el.layout);
@@ -126,7 +123,11 @@ export class DashboardService {
   // 기존 dashboard all
 
   async findOne(id: number) {
-    const find_dashboard = await this.dashboardRepository.findOne({ where: { id: id } });
+    // N+1 쿼리 문제 해결: relations 옵션으로 관련 데이터를 한 번에 조회
+    const find_dashboard = await this.dashboardRepository.findOne({ 
+      where: { id: id },
+      relations: ['dashboardShare']
+    });
     if (!find_dashboard) {
       return { status: ResponseStatus.ERROR, message: '대시보드가 존재하지 않습니다.' };
     }
@@ -134,10 +135,14 @@ export class DashboardService {
     const widgetList = await this.dashboardWidgetService.findWidgets(find_dashboard.id);
     console.log('widgetList', widgetList);
     find_dashboard.layout = JSON.parse(find_dashboard.layout);
-    const find_share_id = await this.dashboardShareRepository.findOne({
-      where: { id: find_dashboard.shareId },
-    });
-    const return_obj = Object.assign(find_dashboard, find_share_id, { widgets: widgetList });
+    
+    const return_obj = {
+      ...find_dashboard,
+      uuid: find_dashboard.dashboardShare?.uuid,
+      widgets: widgetList
+    };
+    delete return_obj.dashboardShare;
+    
     console.log(return_obj);
     return {
       status: ResponseStatus.SUCCESS,

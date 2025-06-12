@@ -58,8 +58,6 @@ import { CorrelationIdMiddleware } from './middleware/correlation-id';
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     // Correlation ID 미들웨어를 모든 라우트에 적용
-    consumer
-      .apply(CorrelationIdMiddleware)
-      .forRoutes('*');
+    consumer.apply(CorrelationIdMiddleware).forRoutes('*');
   }
 }

@@ -7,6 +7,7 @@ import { UserMapping } from '../user/entities/user-mapping.entity';
 import { DashboardWidgetService } from './dashboard-widget/dashboard-widget.service';
 import { UserService } from 'src/user/user.service';
 import { AuthService } from 'src/auth/auth.service';
+import { CustomLoggerService } from '../common/logger/logger.service';
 import {
   createMockRepository,
   getRepositoryTokenFor,
@@ -56,6 +57,10 @@ describe('DashboardService', () => {
         {
           provide: AuthService,
           useValue: createMockService(['validateUser', 'generateAccessToken']),
+        },
+        {
+          provide: CustomLoggerService,
+          useValue: createMockService(['debug', 'error', 'log']),
         },
       ],
     }).compile();

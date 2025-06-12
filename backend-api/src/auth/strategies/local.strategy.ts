@@ -17,23 +17,23 @@ export class LocalStrategy extends PassportStrategy(Strategy) {
     this.logger.debug('Local authentication attempt', 'LocalStrategy', {
       userId: payload.userId,
       correlationId: req?.correlationId,
-      ip: req?.ip
+      ip: req?.ip,
     });
-    
+
     const user = await this.authService.validateUser(payload.userId, payload.password);
     if (!user) {
       this.logger.warn('Local authentication failed', 'LocalStrategy', {
         userId: payload.userId,
-        correlationId: req?.correlationId
+        correlationId: req?.correlationId,
       });
       throw new UnauthorizedException();
     }
-    
+
     this.logger.info('Local authentication successful', 'LocalStrategy', {
       userId: payload.userId,
-      correlationId: req?.correlationId
+      correlationId: req?.correlationId,
     });
-    
+
     return user;
   }
 }

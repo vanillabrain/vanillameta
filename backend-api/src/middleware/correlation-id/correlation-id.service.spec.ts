@@ -21,29 +21,29 @@ describe('CorrelationIdService', () => {
     expect(service.getCorrelationId()).toBeUndefined();
   });
 
-  it('should store and retrieve correlation ID within async context', (done) => {
+  it('should store and retrieve correlation ID within async context', done => {
     const testId = 'test-correlation-id-123';
 
     CorrelationIdService.run(testId, () => {
       // 정적 메서드로 접근
       expect(CorrelationIdService.getCorrelationId()).toBe(testId);
-      
+
       // 인스턴스 메서드로 접근
       expect(service.getCorrelationId()).toBe(testId);
-      
+
       done();
     });
   });
 
-  it('should isolate correlation IDs between different async contexts', (done) => {
+  it('should isolate correlation IDs between different async contexts', done => {
     const testId1 = 'test-id-1';
     const testId2 = 'test-id-2';
-    let results: string[] = [];
+    const results: string[] = [];
 
     const callback1 = () => {
       setTimeout(() => {
         results.push(CorrelationIdService.getCorrelationId() || 'undefined');
-        
+
         if (results.length === 2) {
           expect(results).toContain(testId1);
           expect(results).toContain(testId2);
@@ -56,7 +56,7 @@ describe('CorrelationIdService', () => {
     const callback2 = () => {
       setTimeout(() => {
         results.push(CorrelationIdService.getCorrelationId() || 'undefined');
-        
+
         if (results.length === 2) {
           expect(results).toContain(testId1);
           expect(results).toContain(testId2);
@@ -70,7 +70,7 @@ describe('CorrelationIdService', () => {
     CorrelationIdService.run(testId2, callback2);
   });
 
-  it('should handle nested async contexts correctly', (done) => {
+  it('should handle nested async contexts correctly', done => {
     const outerTestId = 'outer-test-id';
     const innerTestId = 'inner-test-id';
 
@@ -79,7 +79,7 @@ describe('CorrelationIdService', () => {
 
       CorrelationIdService.run(innerTestId, () => {
         expect(CorrelationIdService.getCorrelationId()).toBe(innerTestId);
-        
+
         setTimeout(() => {
           expect(CorrelationIdService.getCorrelationId()).toBe(innerTestId);
           done();

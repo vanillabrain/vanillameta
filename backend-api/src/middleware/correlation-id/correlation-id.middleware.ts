@@ -12,9 +12,9 @@ export interface RequestWithCorrelationId extends Request {
 export class CorrelationIdMiddleware implements NestMiddleware {
   use(req: RequestWithCorrelationId, res: Response, next: NextFunction) {
     // 프론트엔드에서 전송한 Correlation ID가 있으면 사용, 없으면 새로 생성
-    const correlationId = 
-      req.headers['x-correlation-id'] as string || 
-      req.headers['X-Correlation-ID'] as string ||
+    const correlationId =
+      (req.headers['x-correlation-id'] as string) ||
+      (req.headers['X-Correlation-ID'] as string) ||
       uuidv4();
 
     // Request 객체에 correlation ID 저장
