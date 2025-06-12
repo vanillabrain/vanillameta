@@ -76,7 +76,7 @@ describe('SlowQueryMonitorService', () => {
           databaseId: metadata.databaseId,
           databaseEngine: metadata.databaseEngine,
           userId: metadata.userId,
-          severity: 'MEDIUM',
+          severity: 'LOW', // 2500ms는 LOW severity (threshold: 1000-2999ms)
         }),
       );
     });
@@ -85,7 +85,19 @@ describe('SlowQueryMonitorService', () => {
       const analysis: QueryAnalysis = {
         query: 'SELECT * FROM users LIMIT 10',
         executionTime: 500, // Below 1000ms threshold
+        rowsExamined: 10,
+        rowsReturned: 10,
+        indexUsed: true,
+        scanType: 'ref',
+        temporaryTable: false,
+        filesort: false,
+        cost: 5.5,
+        warnings: [],
+        optimizationSuggestions: [],
       };
+
+      // Mock save를 리셋하여 호출되지 않았는지 확인
+      mockRepository.save.mockClear();
 
       await service.logSlowQuery(analysis, {});
 

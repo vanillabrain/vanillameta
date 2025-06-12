@@ -245,7 +245,7 @@ describe('SlowQueryMonitorController', () => {
       const result = await controller.exportSlowQueries('csv', {});
 
       expect(result.format).toBe('csv');
-      expect(result.data).toContain('ID,Query Hash,Execution Time (ms)');
+      expect(result.data).toContain('"ID","Query Hash","Execution Time (ms)"');
       expect(result.data).toContain('"1","abc123","2500"');
       expect(result.filename).toContain('.csv');
     });
