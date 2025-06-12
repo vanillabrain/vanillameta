@@ -3,6 +3,21 @@ import { getToken, removeToken, setToken } from '@/helpers/authHelper';
 import { getShareToken } from '@/helpers/shareHelper';
 import authService from '@/api/authService';
 
+// Correlation ID 생성 함수
+const generateCorrelationId = (): string => {
+  // UUID v4 생성 (crypto.randomUUID가 있으면 사용, 없으면 Math.random 기반 생성)
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  
+  // 폴백: Math.random 기반 UUID v4 생성
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
 // apply base url for axios
 const API_URL = process.env.REACT_APP_API_URL;
 
@@ -62,9 +77,19 @@ const addAuthToHeaders = config => {
   return config;
 };
 
+// Correlation ID를 요청 헤더에 추가
+const addCorrelationIdToHeaders = config => {
+  // 이미 correlation ID가 설정되어 있지 않은 경우에만 새로 생성
+  if (!config.headers['X-Correlation-ID'] && !config.headers['x-correlation-id']) {
+    config.headers['X-Correlation-ID'] = generateCorrelationId();
+  }
+  return config;
+};
+
 // 요청 인터셉터
 instance.interceptors.request.use(async config => {
-  const newConfig = addAuthToHeaders(config);
+  let newConfig = addAuthToHeaders(config);
+  newConfig = addCorrelationIdToHeaders(newConfig);
   // removePendingRequest(newConfig); // 같은 요청이 갔을 경우 기존 요청 취소
   // addPendingRequest(newConfig);
   return newConfig;
@@ -87,10 +112,28 @@ const subscribers: ((token: string) => void)[] = [];
 instance.interceptors.response.use(
   response => {
     // removePendingRequest(response.config); // 완료된 요청 삭제
+    
+    // 디버깅을 위해 correlation ID 로깅 (개발 환경에서만)
+    if (process.env.NODE_ENV === 'development') {
+      const correlationId = response.headers['x-correlation-id'] || response.headers['X-Correlation-ID'];
+      if (correlationId) {
+        console.log(`[API Response] ${response.config.method?.toUpperCase()} ${response.config.url} - Correlation ID: ${correlationId}`);
+      }
+    }
+    
     return response;
   },
   async error => {
     const { response: errorResponse } = error;
+    
+    // 에러 응답에서도 correlation ID 로깅 (개발 환경에서만)
+    if (process.env.NODE_ENV === 'development' && errorResponse) {
+      const correlationId = errorResponse.headers?.['x-correlation-id'] || errorResponse.headers?.['X-Correlation-ID'] || errorResponse.data?.correlationId;
+      if (correlationId) {
+        console.error(`[API Error] ${errorResponse.config?.method?.toUpperCase()} ${errorResponse.config?.url} - Correlation ID: ${correlationId}, Status: ${errorResponse.status}`);
+      }
+    }
+    
     if (errorResponse?.status === 401 && errorResponse?.data?.message === 'accessTokenExpired' && isLoginUser) {
       // 로그인 사용자의 token 만료 후 첫 요청
       await resetTokenAndReattemptRequest(errorResponse);
