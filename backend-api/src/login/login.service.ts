@@ -30,14 +30,14 @@ export class LoginService {
   }
 
   async signup(createLoginDto: CreateLoginDto) {
-    const userInfoEmail = await this.userRepository.findOne({
-      where: { email: createLoginDto.email },
-    });
-    const userInfoId = await this.userRepository.findOne({
-      where: { userId: createLoginDto.userId },
-    });
+    // N+1 쿼리 방지: OR 조건을 사용하여 한 번의 쿼리로 email과 userId 중복 체크
+    const existingUser = await this.userRepository
+      .createQueryBuilder('user')
+      .where('user.email = :email', { email: createLoginDto.email })
+      .orWhere('user.userId = :userId', { userId: createLoginDto.userId })
+      .getOne();
 
-    if (!userInfoEmail && !userInfoId) {
+    if (!existingUser) {
       const { email, password, userId } = createLoginDto;
       const hashPassword = crypto.createHash('sha512').update(password).digest('hex');
       const createUserInfo = await this.userRepository.save({
@@ -49,9 +49,10 @@ export class LoginService {
         updatedAt: new Date(),
       });
       return 'success';
-    } else if (!userInfoEmail && userInfoId) {
+    } else if (existingUser.userId === createLoginDto.userId) {
       throw new HttpException('conflict userId', HttpStatus.CONFLICT);
+    } else {
+      throw new HttpException('conflict email', HttpStatus.CONFLICT);
     }
-    throw new HttpException('conflict email', HttpStatus.CONFLICT);
   }
 }
