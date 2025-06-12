@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import { SnowflakeDialect } from './knex-dialects/snowflake';
+import { CustomLoggerService } from '../common/logger/logger.service';
 
 const { BigQueryClient } = require('knex-bigquery');
 
@@ -15,7 +16,10 @@ const knexConnections = new Map<number, Knex>();
 
 @Injectable()
 export class ConnectionService {
-  constructor(@InjectRepository(Database) private databaseRepository: Repository<Database>) {}
+  constructor(
+    @InjectRepository(Database) private databaseRepository: Repository<Database>,
+    private readonly logger: CustomLoggerService,
+  ) {}
 
   /**
    * Knex 객체 생성 후 pool에 추가
@@ -97,8 +101,12 @@ export class ConnectionService {
     try {
       _knex = knex(connectionConfig as Knex.Config);
     } catch (e) {
-      console.log('knex not connected');
-      console.error(e);
+      this.logger.error('Failed to create Knex connection', e.stack, 'ConnectionService', {
+        engine: createDatabaseDto.engine,
+        connectionConfig: typeof createDatabaseDto.connectionConfig === 'string' 
+          ? 'string-config' 
+          : createDatabaseDto.connectionConfig
+      });
       return { status: ResponseStatus.ERROR, message: 'knex not connected' };
     }
 
@@ -108,7 +116,12 @@ export class ConnectionService {
       await _knex.raw(testQuery);
       returnObj = { status: ResponseStatus.SUCCESS, data: { message: 'success' } };
     } catch (e) {
-      console.log(e);
+      this.logger.error('Database connection test failed', e.stack, 'ConnectionService', {
+        engine: createDatabaseDto.engine,
+        testQuery: testQuery,
+        sqlMessage: e.sqlMessage,
+        errorMessage: e.message
+      });
       returnObj = { status: ResponseStatus.ERROR, message: e.sqlMessage };
     } finally {
       await _knex.destroy();
@@ -239,7 +252,13 @@ export class ConnectionService {
       resultObj.status = ResponseStatus.ERROR;
       if (e.sqlMessage) resultObj.message = e.sqlMessage;
       else if (e.message) resultObj.message = e.message; // bigquery
-      console.log(e);
+      
+      this.logger.error('Query execution failed', e.stack, 'ConnectionService', {
+        databaseId: queryExecuteDto.id,
+        query: queryExecuteDto.query?.substring(0, 200) + '...', // 긴 쿼리는 일부만 로깅
+        sqlMessage: e.sqlMessage,
+        errorMessage: e.message
+      });
     }
 
     return resultObj;
