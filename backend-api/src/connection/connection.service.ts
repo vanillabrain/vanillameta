@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { CreateDatabaseDto } from '../database/dto/create-database.dto';
 import { QueryExecuteDto } from '../database/dto/query-execute.dto';
 import { Knex, knex } from 'knex';
@@ -9,6 +9,7 @@ import { Repository } from 'typeorm';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import { SnowflakeDialect } from './knex-dialects/snowflake';
 import { CustomLoggerService } from '../common/logger/logger.service';
+import { SqlValidationService } from '../common/security/sql-validation.service';
 
 const { BigQueryClient } = require('knex-bigquery');
 
@@ -19,6 +20,7 @@ export class ConnectionService {
   constructor(
     @InjectRepository(Database) private databaseRepository: Repository<Database>,
     private readonly logger: CustomLoggerService,
+    private readonly sqlValidationService: SqlValidationService,
   ) {}
 
   /**
@@ -133,15 +135,71 @@ export class ConnectionService {
   /**
    * 쿼리 실행
    * @param queryExecuteDto
+   * @param userId 사용자 ID (보안 로깅용)
    */
-  async executeQuery(queryExecuteDto: QueryExecuteDto) {
+  async executeQuery(queryExecuteDto: QueryExecuteDto, userId?: string) {
+    // 1. SQL 보안 검증
+    const validationResult = this.sqlValidationService.validateQuery(
+      queryExecuteDto.query,
+      {
+        allowDDL: false,
+        allowDML: false,
+        allowMultipleStatements: false,
+        maxQueryLength: 10000,
+        maxResultLimit: queryExecuteDto.limit || 1000,
+      },
+      userId
+    );
+
+    if (!validationResult.isValid) {
+      const errorMessage = this.sqlValidationService.formatValidationError(validationResult);
+      this.logger.warn('SQL validation failed', 'ConnectionService', {
+        userId,
+        query: queryExecuteDto.query.substring(0, 200),
+        errors: validationResult.errors,
+        warnings: validationResult.warnings,
+        riskLevel: validationResult.riskLevel,
+      });
+      
+      throw new ForbiddenException(`SQL validation failed: ${errorMessage}`);
+    }
+
+    // 2. 보안 감사 로그
+    this.logger.info('SQL query execution approved', 'ConnectionService', {
+      userId,
+      databaseId: queryExecuteDto.id,
+      queryLength: queryExecuteDto.query.length,
+      riskLevel: validationResult.riskLevel,
+      warningsCount: validationResult.warnings.length,
+    });
+
     const knex = await this.getKnex(queryExecuteDto.id);
 
     let datas = [];
     const fields = [];
     const resultObj = { status: null, message: null, datas: [], fields: [] };
     try {
-      const queryRes = await knex.raw(queryExecuteDto.query);
+      // 3. 정리된 쿼리 사용 (LIMIT 자동 추가 등)
+      const sanitizedQuery = validationResult.sanitizedQuery;
+      
+      // 4. 매개변수가 있는 경우 파라미터화된 쿼리 실행
+      let queryRes;
+      if (queryExecuteDto.parameters && queryExecuteDto.parameters.length > 0) {
+        const paramValues = queryExecuteDto.parameters.map(param => {
+          // 타입에 따른 변환
+          switch (param.type) {
+            case 'number':
+              return Number(param.value);
+            case 'date':
+              return new Date(param.value);
+            default:
+              return param.value;
+          }
+        });
+        queryRes = await knex.raw(sanitizedQuery, paramValues);
+      } else {
+        queryRes = await knex.raw(sanitizedQuery);
+      }
       // bigquery, snowflake
       if (typeof knex.client.config.client === 'function') {
         switch (knex.client.config.client.name) {
