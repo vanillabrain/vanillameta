@@ -275,3 +275,14 @@ bigquery-key.json
 test-connect-info.json
 cert.pem
 key.pem
+
+# SQLite 데이터베이스 파일 (개발 중 생성되는 파일들)
+*.sqlite
+*.sqlite3
+*.db
+
+# IntelliJ IDEA 모듈 파일 (루트 레벨)
+*.iml
+
+# package-lock.json은 각 프로젝트 디렉토리에만 있어야 함
+/package-lock.json

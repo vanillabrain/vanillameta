@@ -3,15 +3,16 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { getTestMysqlModule } from '../util/get-test-mysql.module';
 import { Database } from '../../src/database/entities/database.entity';
 import { ConfigModule } from '@nestjs/config';
-import { TableQuery } from '../../src/widget/tabel-query/entity/table-query.entity';
+import { TableQuery } from '../../src/widget/table-query/entity/table-query.entity';
 import { WidgetService } from '../../src/widget/widget.service';
 import * as widgetTestoption from './widgetTestOption.json';
 import { Widget } from '../../src/widget/entities/widget.entity';
 import { Component } from '../../src/component/entities/component.entity';
-import { TableQueryService } from '../../src/widget/tabel-query/table-query.service';
+import { TableQueryService } from '../../src/widget/table-query/table-query.service';
 import { Connection, DataSource } from 'typeorm';
 import { ResponseStatus } from '../../src/common/enum/response-status.enum';
 import { DatasetType } from '../../src/common/enum/dataset-type.enum';
+import { mockSqlValidationService } from '../util/test-providers';
 
 describe('QTT-002 : 위젯 생성', () => {
   let widgetService: WidgetService;
@@ -29,7 +30,7 @@ describe('QTT-002 : 위젯 생성', () => {
         getTestMysqlModule(),
         TypeOrmModule.forFeature([Widget, Component, TableQuery, Database]),
       ],
-      providers: [WidgetService, TableQueryService, Widget],
+      providers: [WidgetService, TableQueryService, Widget, mockSqlValidationService],
     }).compile();
     widgetService = module.get<WidgetService>(WidgetService);
     tableQueryService = module.get<TableQueryService>(TableQueryService);

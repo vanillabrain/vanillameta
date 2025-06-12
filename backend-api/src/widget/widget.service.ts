@@ -7,7 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DatasetType } from '../common/enum/dataset-type.enum';
 import { Component } from '../component/entities/component.entity';
 import { ResponseStatus } from '../common/enum/response-status.enum';
-import { TableQueryService } from './tabel-query/table-query.service';
+import { TableQueryService } from './table-query/table-query.service';
 
 @Injectable()
 export class WidgetService {
@@ -75,7 +75,6 @@ export class WidgetService {
   async findOne(id: number) {
     const widgetInfo = this.widgetRepository
       .createQueryBuilder()
-      .subQuery()
       .select(['widget.*'])
       .from(Widget, 'widget')
       .where('id=:id')
@@ -90,7 +89,7 @@ export class WidgetService {
         'component.title as componentTitle',
         'component.description as componentDescription',
       ])
-      .innerJoin(widgetInfo, 'widgetInfo', 'widgetInfo.componentId = component.id')
+      .innerJoin(`(${widgetInfo})`, 'widgetInfo', 'widgetInfo.componentId = component.id')
       .setParameter('id', id)
       .getRawOne();
 

@@ -6,9 +6,12 @@ import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  Index,
 } from 'typeorm';
 
 @Entity()
+@Index('IDX_USER_USER_ID', ['userId'], { unique: true })
+@Index('IDX_USER_EMAIL', ['email'], { unique: true })
 export class User {
   @PrimaryGeneratedColumn()
   @ApiProperty({ description: 'id' })
@@ -19,7 +22,7 @@ export class User {
   @ApiProperty({ description: '유저Id' })
   userId: string;
 
-  @Column({nullable: true})
+  @Column({ nullable: true })
   @ApiProperty({ description: 'refreshTokenId' })
   jwtId: number;
 

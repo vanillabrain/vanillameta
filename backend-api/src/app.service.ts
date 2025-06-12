@@ -9,7 +9,7 @@ export class AppService {
 
   async getIp(): Promise<string> {
     const url = 'https://lumtest.com/myip.json';
-    let response = await axios.get(url);
+    const response = await axios.get(url);
     return response.data;
   }
 }

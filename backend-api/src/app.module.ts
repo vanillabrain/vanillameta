@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
@@ -15,9 +15,13 @@ import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { LoginModule } from './login/login.module';
 import { ShareUrlModule } from './share-url/share-url.module';
+import { LoggerModule } from './common/logger/logger.module';
+import { MonitoringModule } from './common/monitoring/monitoring.module';
+import { CorrelationIdMiddleware } from './middleware/correlation-id';
 
 @Module({
   imports: [
+    LoggerModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: process.env.NODE_ENV == 'prod' ? '.env' : '.env.dev',
@@ -35,6 +39,29 @@ import { ShareUrlModule } from './share-url/share-url.module';
       synchronize: process.env.NODE_ENV != 'prod',
       logging: process.env.NODE_ENV != 'prod',
       retryAttempts: 1,
+      // Lambda 환경에 최적화된 연결 풀 설정
+      ...(process.env.NODE_ENV !== 'local' && {
+        extra: {
+          // 연결 풀 크기 설정
+          connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT) || 5, // Lambda 환경에 적합한 작은 풀
+
+          // 타임아웃 설정
+          connectTimeout: 30000, // 30초 - Lambda 타임아웃보다 짧게
+          acquireTimeout: 30000, // 30초 - 연결 획득 타임아웃
+          timeout: 30000, // 30초 - 쿼리 타임아웃
+
+          // 연결 유지 설정
+          enableKeepAlive: true, // TCP KeepAlive 활성화
+          keepAliveInitialDelay: 0, // KeepAlive 시작 지연 시간
+
+          // 재시도 설정
+          waitForConnections: true, // 연결 풀이 가득 찬 경우 대기
+          queueLimit: 0, // 대기 큐 제한 없음
+        },
+      }),
+      // 연결 재사용을 위한 설정
+      keepConnectionAlive: true, // 애플리케이션 재시작 시 연결 유지
+      retryDelay: 3000, // 재시도 간격 (3초)
     }),
     DatabaseModule,
     DatasetModule,
@@ -48,8 +75,14 @@ import { ShareUrlModule } from './share-url/share-url.module';
     AuthModule,
     LoginModule,
     ShareUrlModule,
+    MonitoringModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    // Correlation ID 미들웨어를 모든 라우트에 적용
+    consumer.apply(CorrelationIdMiddleware).forRoutes('*');
+  }
+}

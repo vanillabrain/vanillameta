@@ -1,10 +1,11 @@
 import { HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { AuthService } from '../auth/auth.service.js';
+import { AuthService } from '../auth/auth.service';
 import { Repository } from 'typeorm';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
-import { UserMapping } from './entities/user-mapping.entity.js';
+import { UserMapping } from './entities/user-mapping.entity';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const crypto = require('crypto');
 
 @Injectable()
@@ -28,14 +29,18 @@ export class UserService {
   }
 
   async updateUserInfo(userId: string, updateUserDto: UpdateUserDto) {
-
-    const hashPassword = crypto.createHash('sha512').update(String(updateUserDto.password)).digest('hex');
+    const hashPassword = crypto
+      .createHash('sha512')
+      .update(String(updateUserDto.password))
+      .digest('hex');
     const findUser = await this.authService.checkAccess(userId, hashPassword);
     if (!findUser) {
       throw new HttpException('not exist user', HttpStatus.CONFLICT);
     } else {
-
-      const newHashPassword = crypto.createHash('sha512').update(String(updateUserDto.new_password)).digest('hex');
+      const newHashPassword = crypto
+        .createHash('sha512')
+        .update(String(updateUserDto.new_password))
+        .digest('hex');
       findUser.email = String(updateUserDto.email);
       findUser.password = newHashPassword;
       await this.userRepository.save(findUser);

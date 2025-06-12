@@ -1,2 +1,2 @@
-export * from "./SchemaCompiler";
-export * from "./TableCompiler";
+export * from './SchemaCompiler';
+export * from './TableCompiler';

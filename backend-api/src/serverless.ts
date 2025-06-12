@@ -9,9 +9,10 @@ import { ExpressAdapter } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 
 import express from 'express';
-// import { logger } from './core/middleware/logger.middleware';
 import cookieParser from 'cookie-parser';
 import { ValidationPipe } from '@nestjs/common';
+import { CustomLoggerService } from './common/logger/logger.service';
+import { LoggingMiddleware } from './middleware/logging.middleware';
 
 // NOTE: If you get ERR_CONTENT_DECODING_FAILED in your browser, this is likely
 // due to a compressed response (e.g. gzip) which has not been handled correctly
@@ -26,19 +27,35 @@ async function bootstrapServer(): Promise<Server> {
   if (!cachedServer) {
     const expressApp = express();
     const nestApp = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), {
-      logger: console,
+      logger: new CustomLoggerService(),
       cors: {
-        origin: process.env.CORS_ORIGIN.split(',').map((x) => x.trim()),
+        origin: process.env.CORS_ORIGIN.split(',').map(x => x.trim()),
         preflightContinue: false,
         credentials: true,
         optionsSuccessStatus: 200,
         exposedHeaders: ['Content-Disposition'],
       },
     });
+
+    // Global middleware
+    nestApp.use(
+      new LoggingMiddleware(nestApp.get(CustomLoggerService)).use.bind(
+        new LoggingMiddleware(nestApp.get(CustomLoggerService)),
+      ),
+    );
+
     nestApp.setGlobalPrefix('v1');
     nestApp.use(cookieParser());
     nestApp.use(eventContext());
     // nestApp.useGlobalPipes(new ValidationPipe({ transform: true }));
+
+    const logger = nestApp.get(CustomLoggerService);
+    logger.info('Lambda function initialized', 'ServerlessBootstrap', {
+      environment: process.env.NODE_ENV,
+      dbConnectionLimit: process.env.DB_CONNECTION_LIMIT || '5',
+      knexPoolMax: process.env.KNEX_POOL_MAX || '3',
+    });
+
     await nestApp.init();
     cachedServer = createServer(expressApp, undefined, binaryMimeTypes);
   }
@@ -46,6 +63,19 @@ async function bootstrapServer(): Promise<Server> {
 }
 
 export const handler: Handler = async (event: any, context: Context) => {
+  // Lambda 컨테이너 재사용을 위한 설정
+  // 연결이 있는 동안 Lambda 컨테이너를 활성 상태로 유지
+  context.callbackWaitsForEmptyEventLoop = false;
+
+  // 콘텍스트 정보 로깅 (첫 요청 시만)
+  if (!cachedServer) {
+    console.log('Lambda context:', {
+      functionName: context.functionName,
+      memoryLimitInMB: context.memoryLimitInMB,
+      requestId: context.awsRequestId,
+    });
+  }
+
   cachedServer = await bootstrapServer();
   return proxy(cachedServer, event, context, 'PROMISE').promise;
 };

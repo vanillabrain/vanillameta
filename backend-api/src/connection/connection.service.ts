@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { CreateDatabaseDto } from '../database/dto/create-database.dto';
 import { QueryExecuteDto } from '../database/dto/query-execute.dto';
 import { Knex, knex } from 'knex';
@@ -8,14 +8,21 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import { SnowflakeDialect } from './knex-dialects/snowflake';
+import { CustomLoggerService } from '../common/logger/logger.service';
+import { SqlValidationService } from '../common/security/sql-validation.service';
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { BigQueryClient } = require('knex-bigquery');
 
-const knexConnections = new Map<number, Knex>();
+export const knexConnections = new Map<number, Knex>();
 
 @Injectable()
 export class ConnectionService {
-  constructor(@InjectRepository(Database) private databaseRepository: Repository<Database>) {}
+  constructor(
+    @InjectRepository(Database) private databaseRepository: Repository<Database>,
+    private readonly logger: CustomLoggerService,
+    private readonly sqlValidationService: SqlValidationService,
+  ) {}
 
   /**
    * Knex 객체 생성 후 pool에 추가
@@ -24,7 +31,46 @@ export class ConnectionService {
    */
   addKnex(id: number, options: Knex.Config) {
     if (!this.hasKnex(id)) {
-      knexConnections.set(id, knex(options));
+      // Lambda 환경에 최적화된 연결 풀 설정 추가
+      const optimizedOptions: Knex.Config = {
+        ...options,
+        pool: {
+          min: 0, // Lambda에서는 0으로 시작
+          max: parseInt(process.env.KNEX_POOL_MAX) || 3, // 작은 최대값
+          createTimeoutMillis: 30000, // 30초
+          acquireTimeoutMillis: 30000, // 30초
+          idleTimeoutMillis: 30000, // 30초 - Lambda 유휴 시간 고려
+          reapIntervalMillis: 1000, // 1초마다 유휴 연결 정리
+          createRetryIntervalMillis: 100, // 100ms 후 재시도
+          propagateCreateError: false, // 연결 생성 실패 시 에러 전파하지 않음
+        },
+        acquireConnectionTimeout: 30000, // 전체 연결 획득 타임아웃
+        ...(options.client !== 'sqlite3' && {
+          // SQLite를 제외한 모든 DB에 대해 추가 설정
+          connection: {
+            ...((options.connection as any) || {}),
+            // MySQL/MariaDB 특정 설정
+            ...(typeof options.client === 'string' &&
+              ['mysql', 'mysql2', 'mariadb'].includes(options.client) && {
+                connectTimeout: 30000,
+                enableKeepAlive: true,
+                keepAliveInitialDelay: 0,
+              }),
+          },
+        }),
+      };
+
+      this.logger.info(
+        'Creating Knex connection with optimized pool settings',
+        'ConnectionService',
+        {
+          databaseId: id,
+          client: options.client,
+          poolSettings: optimizedOptions.pool,
+        },
+      );
+
+      knexConnections.set(id, knex(optimizedOptions));
     }
   }
 
@@ -32,8 +78,27 @@ export class ConnectionService {
    * Knex 객체 pool에서 삭제
    * @param id
    */
-  removeKnex(id: number) {
-    knexConnections.delete(id);
+  async removeKnex(id: number) {
+    const knexInstance = knexConnections.get(id);
+    if (knexInstance) {
+      try {
+        // 연결 풀 정리
+        await knexInstance.destroy();
+        this.logger.info('Knex connection pool destroyed', 'ConnectionService', {
+          databaseId: id,
+        });
+      } catch (error) {
+        this.logger.error(
+          'Failed to destroy Knex connection pool',
+          error.stack,
+          'ConnectionService',
+          {
+            databaseId: id,
+          },
+        );
+      }
+      knexConnections.delete(id);
+    }
   }
 
   /**
@@ -58,7 +123,7 @@ export class ConnectionService {
       } else if (knexConfig['client'] == 'snowflake') {
         knexConfig['client'] = SnowflakeDialect;
       }
-      this.addKnex(id, one.connectionConfig as Knex.Config);
+      this.addKnex(id, knexConfig as Knex.Config);
     }
     return knexConnections.get(id);
   }
@@ -67,8 +132,10 @@ export class ConnectionService {
    * 데이터베이스 연결 테스트
    * @param createDatabaseDto
    */
-  async testConnection(createDatabaseDto: CreateDatabaseDto) {
-    let engine: any = createDatabaseDto.engine;
+  async testConnection(
+    createDatabaseDto: CreateDatabaseDto,
+  ): Promise<{ status: ResponseStatus; message?: string; data?: { message: string } }> {
+    let engine: string | any = createDatabaseDto.engine;
     switch (createDatabaseDto.engine) {
       case 'bigquery':
         engine = BigQueryClient;
@@ -84,21 +151,38 @@ export class ConnectionService {
       connectioninfo['connectionString'] = cockroach_url;
     }
 
-    const connectionConfig = {
+    const connectionConfig: Knex.Config = {
       client: engine,
       connection: createDatabaseDto.connectionConfig,
       useNullAsDefault: true,
+      // 테스트 연결을 위한 최소한의 풀 설정
+      pool: {
+        min: 0,
+        max: 1, // 테스트용이므로 1개만
+        createTimeoutMillis: 10000, // 10초 - 테스트용이므로 짧게
+        acquireTimeoutMillis: 10000,
+        idleTimeoutMillis: 0, // 즉시 정리
+        reapIntervalMillis: 500,
+      },
+      acquireConnectionTimeout: 10000,
     };
 
     // createDatabaseDto.connectionConfig = JSON.stringify(connectionConfig);
     // console.log(createDatabaseDto)
     let _knex: Knex;
-    let returnObj = {};
+    let returnObj: { status: ResponseStatus; message?: string; data?: { message: string } } = {
+      status: ResponseStatus.ERROR,
+    };
     try {
       _knex = knex(connectionConfig as Knex.Config);
     } catch (e) {
-      console.log('knex not connected');
-      console.error(e);
+      this.logger.error('Failed to create Knex connection', e.stack, 'ConnectionService', {
+        engine: createDatabaseDto.engine,
+        connectionConfig:
+          typeof createDatabaseDto.connectionConfig === 'string'
+            ? 'string-config'
+            : createDatabaseDto.connectionConfig,
+      });
       return { status: ResponseStatus.ERROR, message: 'knex not connected' };
     }
 
@@ -108,7 +192,12 @@ export class ConnectionService {
       await _knex.raw(testQuery);
       returnObj = { status: ResponseStatus.SUCCESS, data: { message: 'success' } };
     } catch (e) {
-      console.log(e);
+      this.logger.error('Database connection test failed', e.stack, 'ConnectionService', {
+        engine: createDatabaseDto.engine,
+        testQuery: testQuery,
+        sqlMessage: e.sqlMessage,
+        errorMessage: e.message,
+      });
       returnObj = { status: ResponseStatus.ERROR, message: e.sqlMessage };
     } finally {
       await _knex.destroy();
@@ -120,15 +209,71 @@ export class ConnectionService {
   /**
    * 쿼리 실행
    * @param queryExecuteDto
+   * @param userId 사용자 ID (보안 로깅용)
    */
-  async executeQuery(queryExecuteDto: QueryExecuteDto) {
+  async executeQuery(queryExecuteDto: QueryExecuteDto, userId?: string) {
+    // 1. SQL 보안 검증
+    const validationResult = this.sqlValidationService.validateQuery(
+      queryExecuteDto.query,
+      {
+        allowDDL: false,
+        allowDML: false,
+        allowMultipleStatements: false,
+        maxQueryLength: 10000,
+        maxResultLimit: queryExecuteDto.limit || 1000,
+      },
+      userId,
+    );
+
+    if (!validationResult.isValid) {
+      const errorMessage = this.sqlValidationService.formatValidationError(validationResult);
+      this.logger.warn('SQL validation failed', 'ConnectionService', {
+        userId,
+        query: queryExecuteDto.query.substring(0, 200),
+        errors: validationResult.errors,
+        warnings: validationResult.warnings,
+        riskLevel: validationResult.riskLevel,
+      });
+
+      throw new ForbiddenException(`SQL validation failed: ${errorMessage}`);
+    }
+
+    // 2. 보안 감사 로그
+    this.logger.info('SQL query execution approved', 'ConnectionService', {
+      userId,
+      databaseId: queryExecuteDto.id,
+      queryLength: queryExecuteDto.query.length,
+      riskLevel: validationResult.riskLevel,
+      warningsCount: validationResult.warnings.length,
+    });
+
     const knex = await this.getKnex(queryExecuteDto.id);
 
     let datas = [];
     const fields = [];
     const resultObj = { status: null, message: null, datas: [], fields: [] };
     try {
-      const queryRes = await knex.raw(queryExecuteDto.query);
+      // 3. 정리된 쿼리 사용 (LIMIT 자동 추가 등)
+      const sanitizedQuery = validationResult.sanitizedQuery;
+
+      // 4. 매개변수가 있는 경우 파라미터화된 쿼리 실행
+      let queryRes;
+      if (queryExecuteDto.parameters && queryExecuteDto.parameters.length > 0) {
+        const paramValues = queryExecuteDto.parameters.map(param => {
+          // 타입에 따른 변환
+          switch (param.type) {
+            case 'number':
+              return Number(param.value);
+            case 'date':
+              return new Date(param.value);
+            default:
+              return param.value;
+          }
+        });
+        queryRes = await knex.raw(sanitizedQuery, paramValues);
+      } else {
+        queryRes = await knex.raw(sanitizedQuery);
+      }
       // bigquery, snowflake
       if (typeof knex.client.config.client === 'function') {
         switch (knex.client.config.client.name) {
@@ -239,7 +384,13 @@ export class ConnectionService {
       resultObj.status = ResponseStatus.ERROR;
       if (e.sqlMessage) resultObj.message = e.sqlMessage;
       else if (e.message) resultObj.message = e.message; // bigquery
-      console.log(e);
+
+      this.logger.error('Query execution failed', e.stack, 'ConnectionService', {
+        databaseId: queryExecuteDto.id,
+        query: queryExecuteDto.query?.substring(0, 200) + '...', // 긴 쿼리는 일부만 로깅
+        sqlMessage: e.sqlMessage,
+        errorMessage: e.message,
+      });
     }
 
     return resultObj;
