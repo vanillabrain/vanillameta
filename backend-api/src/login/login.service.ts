@@ -5,7 +5,7 @@ import { User } from 'src/user/entities/user.entity';
 import { Repository } from 'typeorm';
 import { CreateLoginDto } from './dto/create-login.dto';
 import { LoginUserDto } from './dto/login-user.dto';
-import { RefreshToken } from 'src/auth/entites/refresh_token.entity';
+import { RefreshToken } from 'src/auth/entities/refresh_token.entity';
 const crypto = require('crypto');
 
 @Injectable()

@@ -3,7 +3,11 @@ import { DatasetService } from './dataset.service';
 import { Dataset } from './entities/dataset.entity';
 import { Widget } from '../widget/entities/widget.entity';
 import { ConnectionService } from '../connection/connection.service';
-import { createMockRepository, getRepositoryTokenFor, createMockService } from '../../test/test-helpers';
+import {
+  createMockRepository,
+  getRepositoryTokenFor,
+  createMockService,
+} from '../../test/test-helpers';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import { DatasetType } from '../common/enum/dataset-type.enum';
 
@@ -52,7 +56,10 @@ describe('DatasetService', () => {
       const mockQueryResult = {
         status: ResponseStatus.SUCCESS,
         data: [{ id: 1, name: 'John' }],
-        columns: [{ name: 'id', type: 'number' }, { name: 'name', type: 'string' }],
+        columns: [
+          { name: 'id', type: 'number' },
+          { name: 'name', type: 'string' },
+        ],
       };
       const savedDataset = { id: 1, ...createDto };
 

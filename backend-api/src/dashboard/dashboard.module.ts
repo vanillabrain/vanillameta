@@ -12,11 +12,22 @@ import { AuthService } from 'src/auth/auth.service';
 import { User } from 'src/user/entities/user.entity';
 import { UserMapping } from 'src/user/entities/user-mapping.entity';
 import { JwtService } from '@nestjs/jwt';
-import { RefreshToken } from 'src/auth/entites/refresh_token.entity';
+import { RefreshToken } from 'src/auth/entities/refresh_token.entity';
 import { DashboardShare } from 'src/dashboard/entities/dashboard_share.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Dashboard, DashboardWidget, Widget, Component, User, UserMapping, DashboardShare,RefreshToken])],
+  imports: [
+    TypeOrmModule.forFeature([
+      Dashboard,
+      DashboardWidget,
+      Widget,
+      Component,
+      User,
+      UserMapping,
+      DashboardShare,
+      RefreshToken,
+    ]),
+  ],
   controllers: [DashboardController],
   providers: [DashboardService, DashboardWidgetService, UserService, AuthService, JwtService],
 })

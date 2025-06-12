@@ -3,7 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Database } from '../../src/database/entities/database.entity';
 import { DatabaseType } from '../../src/database/entities/database_type.entity';
 import { Dataset } from '../../src/dataset/entities/dataset.entity';
-import { TableQuery } from '../../src/widget/tabel-query/entity/table-query.entity';
+import { TableQuery } from '../../src/widget/table-query/entity/table-query.entity';
 
 /**
  * 테스트 데이터베이스 모듈 가져오기 (SQLite 사용)

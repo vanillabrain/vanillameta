@@ -141,7 +141,7 @@ export const mockEnvVars = {
  */
 export const createTestProviders = (service: any, dependencies: any[] = []) => {
   const providers = [service];
-  
+
   dependencies.forEach(dep => {
     if (dep.useFactory) {
       providers.push(dep);

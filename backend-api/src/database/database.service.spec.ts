@@ -3,9 +3,13 @@ import { DatabaseService } from './database.service';
 import { Database } from './entities/database.entity';
 import { DatabaseType } from './entities/database_type.entity';
 import { Dataset } from '../dataset/entities/dataset.entity';
-import { TableQuery } from '../widget/tabel-query/entity/table-query.entity';
+import { TableQuery } from '../widget/table-query/entity/table-query.entity';
 import { ConnectionService } from '../connection/connection.service';
-import { createMockRepository, getRepositoryTokenFor, createMockService } from '../../test/test-helpers';
+import {
+  createMockRepository,
+  getRepositoryTokenFor,
+  createMockService,
+} from '../../test/test-helpers';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import { YesNo } from '../common/enum/yn.enum';
 
@@ -39,7 +43,12 @@ describe('DatabaseService', () => {
         },
         {
           provide: ConnectionService,
-          useValue: createMockService(['testConnection', 'createConnection', 'getSchema', 'executeQuery']),
+          useValue: createMockService([
+            'testConnection',
+            'createConnection',
+            'getSchema',
+            'executeQuery',
+          ]),
         },
       ],
     }).compile();
@@ -89,12 +98,12 @@ describe('DatabaseService', () => {
         timezone: 'Asia/Seoul',
       };
       const savedDatabase = { id: 1, ...createDto };
-      
+
       // Mock Database.toDto static method
       const mockToDto = jest.spyOn(Database, 'toDto').mockReturnValue({
         ...createDto,
       });
-      
+
       connectionService.testConnection.mockResolvedValue(true);
       databaseRepository.save.mockResolvedValue(savedDatabase);
 
@@ -103,7 +112,7 @@ describe('DatabaseService', () => {
       expect(mockToDto).toHaveBeenCalledWith(createDto);
       expect(connectionService.testConnection).toHaveBeenCalled();
       expect(databaseRepository.save).toHaveBeenCalled();
-      
+
       mockToDto.mockRestore();
     });
   });

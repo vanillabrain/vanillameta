@@ -72,7 +72,7 @@ describe('TemplateService', () => {
         { id: 1, templateId: 1, widgetId: 1 },
         { id: 2, templateId: 1, widgetId: 2 },
       ];
-      
+
       templateRepository.findOne.mockResolvedValue(mockTemplate);
       templateItemRepository.find.mockResolvedValue(mockItems);
 
@@ -101,7 +101,7 @@ describe('TemplateService', () => {
         layout: [],
       };
       const savedTemplate = { id: 1, ...createDto };
-      
+
       templateRepository.save.mockResolvedValue(savedTemplate);
 
       const result = await service.create(createDto);
@@ -115,7 +115,7 @@ describe('TemplateService', () => {
   describe('remove', () => {
     it('should remove template and its items', async () => {
       const mockTemplate = { id: 1, title: 'Template 1' };
-      
+
       templateRepository.findOne.mockResolvedValue(mockTemplate);
       templateRepository.delete.mockResolvedValue({ affected: 1 });
       templateItemRepository.delete.mockResolvedValue({ affected: 2 });

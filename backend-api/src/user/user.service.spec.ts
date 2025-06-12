@@ -3,7 +3,11 @@ import { UserService } from './user.service';
 import { User } from './entities/user.entity';
 import { UserMapping } from './entities/user-mapping.entity';
 import { AuthService } from '../auth/auth.service';
-import { createMockRepository, getRepositoryTokenFor, createMockService } from '../../test/test-helpers';
+import {
+  createMockRepository,
+  getRepositoryTokenFor,
+  createMockService,
+} from '../../test/test-helpers';
 
 describe('UserService', () => {
   let service: UserService;
@@ -72,10 +76,7 @@ describe('UserService', () => {
 
   describe('findDashboardId', () => {
     it('should return user dashboard mappings', async () => {
-      const mockMappings = [
-        { dashboardId: 1 },
-        { dashboardId: 2 },
-      ];
+      const mockMappings = [{ dashboardId: 1 }, { dashboardId: 2 }];
       userMappingRepository.createQueryBuilder.mockReturnValue({
         select: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
@@ -103,7 +104,7 @@ describe('UserService', () => {
         password: 'oldpassword',
       };
       const updatedUser = { ...mockUser, ...updateDto };
-      
+
       userRepository.findOne.mockResolvedValue(mockUser);
       userRepository.save.mockResolvedValue(updatedUser);
       authService.checkAccess.mockResolvedValue(mockUser);

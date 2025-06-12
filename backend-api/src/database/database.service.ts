@@ -8,7 +8,7 @@ import { ConnectionService } from '../connection/connection.service';
 import { Dataset } from '../dataset/entities/dataset.entity';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import { DatasetType } from '../common/enum/dataset-type.enum';
-import { TableQuery } from '../widget/tabel-query/entity/table-query.entity';
+import { TableQuery } from '../widget/table-query/entity/table-query.entity';
 import { QueryExecuteDto } from './dto/query-execute.dto';
 import { DatabaseType } from './entities/database_type.entity';
 import { YesNo } from '../common/enum/yn.enum';

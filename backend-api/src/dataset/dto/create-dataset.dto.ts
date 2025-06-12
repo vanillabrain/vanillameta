@@ -1,13 +1,13 @@
-import {IsNumber, IsString} from "class-validator";
+import { IsNumber, IsString } from 'class-validator';
 
 export class CreateDatasetDto {
-    @IsString()
-    title: string;
+  @IsString()
+  title: string;
 
-    @IsNumber()
-    databaseId: number;
+  @IsNumber()
+  databaseId: number;
 
-    @IsString()
-    query:string;
-    // readonly setting before
+  @IsString()
+  query: string;
+  // readonly setting before
 }

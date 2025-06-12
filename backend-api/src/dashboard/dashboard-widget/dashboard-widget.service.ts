@@ -46,7 +46,6 @@ export class DashboardWidgetService {
       whereInWidgetList.push(item.widgetId);
     });
 
-
     const widgetInfo = await this.widgetRepository
       .createQueryBuilder()
       .subQuery()
@@ -59,7 +58,7 @@ export class DashboardWidgetService {
       .createQueryBuilder('component')
       .select(['widgetInfo.*', 'component.type as componentType'])
       .innerJoin(widgetInfo, 'widgetInfo', 'widgetInfo.componentId = component.id')
-      .setParameter('ids', whereInWidgetList)   // 왜 배열이 안들어가죠 ?
+      .setParameter('ids', whereInWidgetList) // 왜 배열이 안들어가죠 ?
       .getRawMany();
 
     result.map(el => {
