@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, BadRequestException, ForbiddenException, Inject } from '@nestjs/common';
 import { CreateDatabaseDto } from '../database/dto/create-database.dto';
 import { QueryExecuteDto } from '../database/dto/query-execute.dto';
 import { Knex, knex } from 'knex';
@@ -12,6 +12,9 @@ import { CustomLoggerService } from '../common/logger/logger.service';
 import { SqlValidationService } from '../common/security/sql-validation.service';
 import { QueryAnalyzerService } from '../common/monitoring/query-analyzer.service';
 import { QueryCollector } from '../common/utils/query-collector';
+import { SlowQueryMonitorService } from '../common/monitoring/slow-query-monitor.service';
+import { REQUEST } from '@nestjs/core';
+import { Request } from 'express';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { BigQueryClient } = require('knex-bigquery');
@@ -26,6 +29,8 @@ export class ConnectionService {
     private readonly sqlValidationService: SqlValidationService,
     private readonly queryAnalyzerService: QueryAnalyzerService,
     private readonly queryCollector: QueryCollector,
+    private readonly slowQueryMonitorService: SlowQueryMonitorService,
+    @Inject(REQUEST) private readonly request: Request,
   ) {}
 
   /**
@@ -399,15 +404,14 @@ export class ConnectionService {
         executionTime,
       );
       
-      // 느린 쿼리 로깅
-      if (executionTime > 1000) {
-        this.logger.warn('Slow query detected', 'ConnectionService', {
-          databaseId: queryExecuteDto.id,
-          executionTime,
-          query: sanitizedQuery.substring(0, 200),
-          rowCount: datas.length,
-        });
-      }
+      // 슬로우 쿼리 모니터링
+      await this.recordSlowQueryMetrics(
+        sanitizedQuery,
+        executionTime,
+        queryExecuteDto,
+        userId,
+        datas.length,
+      );
     } catch (e) {
       const executionTime = Date.now() - startTime;
       resultObj.status = ResponseStatus.ERROR;
@@ -432,6 +436,103 @@ export class ConnectionService {
     }
 
     return resultObj;
+  }
+
+  /**
+   * 슬로우 쿼리 메트릭 기록
+   */
+  private async recordSlowQueryMetrics(
+    query: string,
+    executionTime: number,
+    queryExecuteDto: QueryExecuteDto,
+    userId?: string,
+    rowCount?: number,
+  ): Promise<void> {
+    try {
+      // 슬로우 쿼리 임계값 확인 (1초 이상)
+      if (executionTime >= 1000) {
+        // 쿼리 분석 실행
+        const analysis = await this.queryAnalyzerService.analyzeQuery(query, queryExecuteDto.id);
+        analysis.executionTime = executionTime;
+        analysis.rowsReturned = rowCount;
+
+        // 데이터베이스 정보 조회
+        const database = await this.databaseRepository.findOne({ 
+          where: { id: queryExecuteDto.id } 
+        });
+
+        // 요청 메타데이터 추출
+        const metadata = this.extractRequestMetadata(userId);
+
+        // 슬로우 쿼리 로깅
+        await this.slowQueryMonitorService.logSlowQuery(analysis, {
+          databaseId: queryExecuteDto.id,
+          databaseEngine: database?.engine,
+          userId,
+          requestPath: metadata.requestPath,
+          httpMethod: metadata.httpMethod,
+          clientIp: metadata.clientIp,
+          userAgent: metadata.userAgent,
+          requestId: metadata.requestId,
+          parameters: queryExecuteDto.parameters?.map(p => p.value),
+        });
+
+        // 기존 로깅도 유지
+        this.logger.warn('Slow query detected', 'ConnectionService', {
+          databaseId: queryExecuteDto.id,
+          executionTime,
+          query: query.substring(0, 200),
+          rowCount,
+          userId,
+          requestId: metadata.requestId,
+        });
+      }
+    } catch (error) {
+      this.logger.error('Failed to record slow query metrics', error.stack, 'ConnectionService', {
+        databaseId: queryExecuteDto.id,
+        executionTime,
+        error: error.message,
+      });
+    }
+  }
+
+  /**
+   * 요청 메타데이터 추출
+   */
+  private extractRequestMetadata(userId?: string) {
+    const userAgent = this.request?.get?.('User-Agent') || '';
+    const clientIp = this.getClientIp();
+    const requestId = this.request?.get?.('X-Request-ID') || this.generateRequestId();
+
+    return {
+      userId,
+      requestPath: this.request?.path || '/api/unknown',
+      httpMethod: this.request?.method || 'UNKNOWN',
+      clientIp,
+      userAgent: userAgent.substring(0, 500), // 길이 제한
+      requestId,
+    };
+  }
+
+  /**
+   * 클라이언트 IP 추출
+   */
+  private getClientIp(): string {
+    if (!this.request) return 'unknown';
+    
+    return (
+      this.request.get?.('X-Forwarded-For')?.split(',')[0] ||
+      this.request.get?.('X-Real-IP') ||
+      this.request.socket?.remoteAddress ||
+      'unknown'
+    );
+  }
+
+  /**
+   * 요청 ID 생성
+   */
+  private generateRequestId(): string {
+    return `req_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
   }
 
   /**
