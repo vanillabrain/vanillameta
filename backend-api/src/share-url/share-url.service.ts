@@ -1,10 +1,10 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { AuthService } from '../auth/auth.service.js';
-import { Dashboard } from '../dashboard/entities/dashboard.entity.js';
-import { User } from '../user/entities/user.entity.js';
+import { AuthService } from '../auth/auth.service';
+import { Dashboard } from '../dashboard/entities/dashboard.entity';
+import { User } from '../user/entities/user.entity';
 import { Repository } from 'typeorm';
-import { YesNo } from '../common/enum/yn.enum.js';
+import { YesNo } from '../common/enum/yn.enum';
 import { ShareUrlOnDto } from './dto/create-share-url.dto';
 import { DashboardService } from '../dashboard/dashboard.service';
 import { DashboardShare } from 'src/dashboard/entities/dashboard_share.entity';

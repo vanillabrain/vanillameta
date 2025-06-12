@@ -8,7 +8,7 @@ import { DashboardWidgetService } from './dashboard-widget/dashboard-widget.serv
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import { UserService } from 'src/user/user.service';
 import { AuthService } from 'src/auth/auth.service';
-import { User } from '../user/entities/user.entity.js';
+import { User } from '../user/entities/user.entity';
 import { YesNo } from 'src/common/enum/yn.enum';
 import { DashboardShare } from 'src/dashboard/entities/dashboard_share.entity';
 import { UserMapping } from 'src/user/entities/user-mapping.entity';
