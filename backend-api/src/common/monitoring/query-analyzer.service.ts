@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/typeorm';
 import { Connection, QueryRunner } from 'typeorm';
-import * as Knex from 'knex';
+import { Knex, knex } from 'knex';
 import { Database } from '../../database/entities/database.entity';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -98,7 +98,7 @@ export class QueryAnalyzerService {
     }
 
     const config = JSON.parse(database.connectionConfig);
-    const knex = Knex(config);
+    const knexInstance = knex(config);
 
     try {
       const analysis: QueryAnalysis = {
@@ -107,19 +107,19 @@ export class QueryAnalyzerService {
 
       switch (database.engine) {
         case 'pg':
-          return await this.analyzePostgresQuery(knex, query, analysis);
+          return await this.analyzePostgresQuery(knexInstance, query, analysis);
         case 'mysql2':
-          return await this.analyzeMySQLQuery(knex, query, analysis);
+          return await this.analyzeMySQLQuery(knexInstance, query, analysis);
         case 'mssql':
-          return await this.analyzeSQLServerQuery(knex, query, analysis);
+          return await this.analyzeSQLServerQuery(knexInstance, query, analysis);
         case 'oracledb':
-          return await this.analyzeOracleQuery(knex, query, analysis);
+          return await this.analyzeOracleQuery(knexInstance, query, analysis);
         default:
           analysis.warnings = [`Query analysis not supported for ${database.engine}`];
           return analysis;
       }
     } finally {
-      await knex.destroy();
+      await knexInstance.destroy();
     }
   }
 
@@ -127,13 +127,13 @@ export class QueryAnalyzerService {
    * PostgreSQL 쿼리 분석
    */
   private async analyzePostgresQuery(
-    knex: Knex,
+    knexInstance: Knex,
     query: string,
     analysis: QueryAnalysis,
   ): Promise<QueryAnalysis> {
     try {
       // EXPLAIN ANALYZE 실행
-      const explainResult = await knex.raw(`EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${query}`);
+      const explainResult = await knexInstance.raw(`EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${query}`);
       const plan = explainResult.rows[0]['QUERY PLAN'][0];
 
       analysis.explainPlan = plan;
@@ -159,13 +159,13 @@ export class QueryAnalyzerService {
    * MySQL 쿼리 분석 (외부 MySQL)
    */
   private async analyzeMySQLQuery(
-    knex: Knex,
+    knexInstance: Knex,
     query: string,
     analysis: QueryAnalysis,
   ): Promise<QueryAnalysis> {
     try {
       // EXPLAIN 실행
-      const explainResult = await knex.raw(`EXPLAIN ${query}`);
+      const explainResult = await knexInstance.raw(`EXPLAIN ${query}`);
       analysis.explainPlan = explainResult[0];
 
       // EXPLAIN 결과 파싱
@@ -186,22 +186,22 @@ export class QueryAnalyzerService {
    * SQL Server 쿼리 분석
    */
   private async analyzeSQLServerQuery(
-    knex: Knex,
+    knexInstance: Knex,
     query: string,
     analysis: QueryAnalysis,
   ): Promise<QueryAnalysis> {
     try {
       // SET STATISTICS 활성화
-      await knex.raw('SET STATISTICS IO ON');
-      await knex.raw('SET STATISTICS TIME ON');
+      await knexInstance.raw('SET STATISTICS IO ON');
+      await knexInstance.raw('SET STATISTICS TIME ON');
 
       // 쿼리 실행
       const startTime = Date.now();
-      await knex.raw(query);
+      await knexInstance.raw(query);
       analysis.executionTime = Date.now() - startTime;
 
       // 실행 계획 가져오기
-      const planResult = await knex.raw(`
+      const planResult = await knexInstance.raw(`
         SELECT query_plan 
         FROM sys.dm_exec_query_stats 
         CROSS APPLY sys.dm_exec_query_plan(plan_handle) 
@@ -225,8 +225,8 @@ export class QueryAnalyzerService {
       analysis.warnings = [`SQL Server analysis failed: ${error.message}`];
       return analysis;
     } finally {
-      await knex.raw('SET STATISTICS IO OFF');
-      await knex.raw('SET STATISTICS TIME OFF');
+      await knexInstance.raw('SET STATISTICS IO OFF');
+      await knexInstance.raw('SET STATISTICS TIME OFF');
     }
   }
 
@@ -234,24 +234,24 @@ export class QueryAnalyzerService {
    * Oracle 쿼리 분석
    */
   private async analyzeOracleQuery(
-    knex: Knex,
+    knexInstance: Knex,
     query: string,
     analysis: QueryAnalysis,
   ): Promise<QueryAnalysis> {
     try {
       // EXPLAIN PLAN 실행
       const statementId = `STMT_${Date.now()}`;
-      await knex.raw(`EXPLAIN PLAN SET STATEMENT_ID = '${statementId}' FOR ${query}`);
+      await knexInstance.raw(`EXPLAIN PLAN SET STATEMENT_ID = '${statementId}' FOR ${query}`);
 
       // 실행 계획 가져오기
-      const planResult = await knex.raw(`
+      const planResult = await knexInstance.raw(`
         SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY('PLAN_TABLE', '${statementId}', 'ALL'))
       `);
 
       analysis.explainPlan = planResult;
 
       // 비용 정보 추출
-      const costInfo = await knex.raw(`
+      const costInfo = await knexInstance.raw(`
         SELECT cost, cardinality, bytes 
         FROM PLAN_TABLE 
         WHERE statement_id = '${statementId}' 
