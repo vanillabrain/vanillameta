@@ -25,7 +25,7 @@ describe('Additional N+1 Query Resolution Tests', () => {
           {
             provide: getRepositoryToken(Dashboard),
             useValue: {
-              findOne: jest.fn().mockImplementation((options) => {
+              findOne: jest.fn().mockImplementation(options => {
                 queryCount++;
                 if (options.relations && options.relations.includes('dashboardShare')) {
                   return Promise.resolve({
@@ -37,8 +37,8 @@ describe('Additional N+1 Query Resolution Tests', () => {
                       uuid: 'test-uuid',
                       shareToken: '',
                       shareYn: 'N',
-                      endDate: null
-                    }
+                      endDate: null,
+                    },
                   });
                 }
                 return Promise.resolve({ id: 1, title: 'Test Dashboard', shareId: 1 });
@@ -52,38 +52,38 @@ describe('Additional N+1 Query Resolution Tests', () => {
                     id: 1,
                     dashboardShare: {
                       uuid: 'test-uuid',
-                      endDate: new Date('2025-12-31')
-                    }
+                      endDate: new Date('2025-12-31'),
+                    },
                   });
-                })
-              }))
-            }
+                }),
+              })),
+            },
           },
           {
             provide: getRepositoryToken(User),
             useValue: {
-              findOne: jest.fn().mockResolvedValue({ id: 1, userId: 'testuser' })
-            }
+              findOne: jest.fn().mockResolvedValue({ id: 1, userId: 'testuser' }),
+            },
           },
           {
             provide: getRepositoryToken(DashboardShare),
             useValue: {
-              save: jest.fn().mockImplementation((entity) => Promise.resolve(entity))
-            }
+              save: jest.fn().mockImplementation(entity => Promise.resolve(entity)),
+            },
           },
           {
             provide: AuthService,
             useValue: {
-              generateUrlAccessToken: jest.fn().mockResolvedValue('new-token')
-            }
+              generateUrlAccessToken: jest.fn().mockResolvedValue('new-token'),
+            },
           },
           {
             provide: DashboardService,
             useValue: {
-              findOne: jest.fn().mockResolvedValue({ data: {} })
-            }
-          }
-        ]
+              findOne: jest.fn().mockResolvedValue({ data: {} }),
+            },
+          },
+        ],
       }).compile();
 
       service = module.get<ShareUrlService>(ShareUrlService);
@@ -92,13 +92,16 @@ describe('Additional N+1 Query Resolution Tests', () => {
 
     it('should use relations to avoid N+1 query in checkShareUrlOn', async () => {
       queryCount = 0;
-      const result = await service.checkShareUrlOn('testuser', 1, { userId: 'testuser', endDate: '12/31/2025' });
+      const result = await service.checkShareUrlOn('testuser', 1, {
+        userId: 'testuser',
+        endDate: '12/31/2025',
+      });
 
       // 한 번의 쿼리로 dashboard와 dashboardShare를 함께 조회
       expect(queryCount).toBe(1);
       expect(dashboardRepository.findOne).toHaveBeenCalledWith({
         where: { id: 1 },
-        relations: ['dashboardShare']
+        relations: ['dashboardShare'],
       });
       expect(result).toHaveProperty('uuid', 'test-uuid');
     });
@@ -126,7 +129,7 @@ describe('Additional N+1 Query Resolution Tests', () => {
         getOne: jest.fn().mockImplementation(() => {
           queryCount++;
           return Promise.resolve(null); // 중복되지 않은 경우
-        })
+        }),
       };
 
       const module: TestingModule = await Test.createTestingModule({
@@ -136,20 +139,20 @@ describe('Additional N+1 Query Resolution Tests', () => {
             provide: getRepositoryToken(User),
             useValue: {
               createQueryBuilder: jest.fn(() => queryBuilder),
-              save: jest.fn().mockResolvedValue({ id: 1 })
-            }
+              save: jest.fn().mockResolvedValue({ id: 1 }),
+            },
           },
           {
             provide: getRepositoryToken(RefreshToken),
-            useValue: {}
+            useValue: {},
           },
           {
             provide: AuthService,
             useValue: {
-              validateUser: jest.fn()
-            }
-          }
-        ]
+              validateUser: jest.fn(),
+            },
+          },
+        ],
       }).compile();
 
       service = module.get<LoginService>(LoginService);
@@ -161,15 +164,19 @@ describe('Additional N+1 Query Resolution Tests', () => {
       const createLoginDto = {
         email: 'test@example.com',
         userId: 'testuser',
-        password: 'password123'
+        password: 'password123',
       };
 
       const result = await service.signup(createLoginDto);
 
       // 한 번의 쿼리로 email과 userId 중복 체크
       expect(queryCount).toBe(1);
-      expect(queryBuilder.where).toHaveBeenCalledWith('user.email = :email', { email: createLoginDto.email });
-      expect(queryBuilder.orWhere).toHaveBeenCalledWith('user.userId = :userId', { userId: createLoginDto.userId });
+      expect(queryBuilder.where).toHaveBeenCalledWith('user.email = :email', {
+        email: createLoginDto.email,
+      });
+      expect(queryBuilder.orWhere).toHaveBeenCalledWith('user.userId = :userId', {
+        userId: createLoginDto.userId,
+      });
       expect(result).toBe('success');
     });
 
@@ -177,13 +184,13 @@ describe('Additional N+1 Query Resolution Tests', () => {
       queryBuilder.getOne.mockResolvedValueOnce({
         id: 1,
         userId: 'testuser',
-        email: 'other@example.com'
+        email: 'other@example.com',
       });
 
       const createLoginDto = {
         email: 'test@example.com',
         userId: 'testuser',
-        password: 'password123'
+        password: 'password123',
       };
 
       await expect(service.signup(createLoginDto)).rejects.toThrow(HttpException);

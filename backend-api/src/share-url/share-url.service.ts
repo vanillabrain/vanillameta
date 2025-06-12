@@ -34,9 +34,9 @@ export class ShareUrlService {
       };
       const newToken = await this.authService.generateUrlAccessToken(payload); //새로운 공유 토큰 생성
       // N+1 쿼리 방지: relations를 사용하여 한 번에 조회
-      const findDashboard = await this.dashboardRepository.findOne({ 
+      const findDashboard = await this.dashboardRepository.findOne({
         where: { id: dashboardId },
-        relations: ['dashboardShare']
+        relations: ['dashboardShare'],
       });
       if (!findDashboard || !findDashboard.dashboardShare) {
         throw new HttpException('Dashboard or share not found', HttpStatus.NOT_FOUND);
@@ -57,9 +57,9 @@ export class ShareUrlService {
       return 'not exist user';
     } else {
       // N+1 쿼리 방지: relations를 사용하여 한 번에 조회
-      const findDashboard = await this.dashboardRepository.findOne({ 
+      const findDashboard = await this.dashboardRepository.findOne({
         where: { id: dashboardId },
-        relations: ['dashboardShare']
+        relations: ['dashboardShare'],
       });
       if (!findDashboard || !findDashboard.dashboardShare) {
         throw new HttpException('Dashboard or share not found', HttpStatus.NOT_FOUND);
@@ -84,7 +84,7 @@ export class ShareUrlService {
         .innerJoinAndSelect('dashboard.dashboardShare', 'dashboardShare')
         .where('dashboardShare.uuid = :uuid', { uuid })
         .getOne();
-      
+
       if (!findDashboard) {
         throw new HttpException({ message: 'not exist share dashboard' }, HttpStatus.NOT_FOUND);
       }

@@ -44,7 +44,7 @@ export class DashboardWidgetService {
         'component.type as componentType',
         'component.icon as icon',
         'component.title as componentTitle',
-        'component.description as componentDescription'
+        'component.description as componentDescription',
       ])
       .where('dw.dashboardId = :dashboardId', { dashboardId })
       .getRawMany();
