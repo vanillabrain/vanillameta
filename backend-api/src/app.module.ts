@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
@@ -15,9 +15,12 @@ import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { LoginModule } from './login/login.module';
 import { ShareUrlModule } from './share-url/share-url.module';
+import { LoggerModule } from './common/logger/logger.module';
+import { CorrelationIdMiddleware } from './middleware/correlation-id';
 
 @Module({
   imports: [
+    LoggerModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: process.env.NODE_ENV == 'prod' ? '.env' : '.env.dev',
@@ -52,4 +55,11 @@ import { ShareUrlModule } from './share-url/share-url.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    // Correlation ID 미들웨어를 모든 라우트에 적용
+    consumer
+      .apply(CorrelationIdMiddleware)
+      .forRoutes('*');
+  }
+}

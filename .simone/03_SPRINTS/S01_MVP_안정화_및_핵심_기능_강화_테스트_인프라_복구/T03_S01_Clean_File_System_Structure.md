@@ -3,12 +3,12 @@ task_id: T03_S01
 sprint_id: S01
 task_name: Clean_File_System_Structure
 title: 파일 시스템 구조 정리 및 디렉토리명 오타 수정
-status: pending
+status: completed
 priority: high
 estimated_effort: 3 hours
 assigned_to: developer
 created_date: 2025-06-12T12:00:00Z
-updated_date: 2025-06-12T12:00:00Z
+updated_date: 2025-06-12T17:37:00Z
 ---
 
 # Task: 파일 시스템 구조 정리 및 디렉토리명 오타 수정 (T03_S01)

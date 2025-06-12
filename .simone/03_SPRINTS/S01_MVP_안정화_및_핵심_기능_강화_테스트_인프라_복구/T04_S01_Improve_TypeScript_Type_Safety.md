@@ -1,3 +1,12 @@
+---
+task_id: T04_S01
+sprint_id: S01
+task_name: Improve_TypeScript_Type_Safety
+status: completed
+priority: medium
+last_updated: 2025-06-12T17:38:00Z
+---
+
 # T04_S01_Improve_TypeScript_Type_Safety
 
 ## 태스크 개요

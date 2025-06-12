@@ -1,3 +1,12 @@
+---
+task_id: T02_S01
+sprint_id: S01
+task_name: Fix_Test_Dependency_Injection
+status: completed
+priority: high
+last_updated: 2025-06-12T17:36:00Z
+---
+
 # T02_S01_Fix_Test_Dependency_Injection
 
 ## 📋 작업 개요
