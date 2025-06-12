@@ -1,5 +1,6 @@
 import { Injectable, LoggerService, LogLevel } from '@nestjs/common';
 import * as winston from 'winston';
+import { CorrelationIdService } from '../../middleware/correlation-id/correlation-id.service';
 
 export interface LogContext {
   userId?: string;
@@ -93,6 +94,12 @@ export class CustomLoggerService implements LoggerService {
       service: 'vanillameta-backend',
       version: process.env.APP_VERSION || '1.0.0'
     };
+
+    // 자동으로 현재 요청의 correlation ID 포함
+    const correlationId = CorrelationIdService.getCorrelationId();
+    if (correlationId) {
+      baseMetadata['correlationId'] = correlationId;
+    }
 
     if (context) {
       baseMetadata['context'] = context;
