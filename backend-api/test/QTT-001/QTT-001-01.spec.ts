@@ -24,11 +24,7 @@ describe('QTT-001: 외부 API 연동', () => {
         getTestMysqlModule(),
         TypeOrmModule.forFeature([Database, Dataset, TableQuery, DatabaseType]),
       ],
-      providers: [
-        ConnectionService,
-        mockCustomLoggerService,
-        mockSqlValidationService,
-      ],
+      providers: [ConnectionService, mockCustomLoggerService, mockSqlValidationService],
     }).compile();
 
     connectService = module.get<ConnectionService>(ConnectionService);

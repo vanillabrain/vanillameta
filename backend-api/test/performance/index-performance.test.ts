@@ -18,13 +18,7 @@ describe('Database Index Performance Tests', () => {
   beforeAll(async () => {
     module = await Test.createTestingModule({
       imports: [getTestMysqlModule()],
-      providers: [
-        DashboardService,
-        WidgetService,
-        DatasetService,
-        DatabaseService,
-        UserService,
-      ],
+      providers: [DashboardService, WidgetService, DatasetService, DatabaseService, UserService],
     }).compile();
 
     dashboardService = module.get<DashboardService>(DashboardService);
@@ -41,15 +35,15 @@ describe('Database Index Performance Tests', () => {
   describe('Dashboard Query Performance', () => {
     it('should improve performance for dashboard list queries', async () => {
       const userId = 1;
-      
+
       // Measure query performance
       const startTime = Date.now();
       await dashboardService.findAll(userId);
       const endTime = Date.now();
-      
+
       const executionTime = endTime - startTime;
       console.log(`Dashboard list query time: ${executionTime}ms`);
-      
+
       // Performance should be under 100ms with indexes
       expect(executionTime).toBeLessThan(100);
     });
@@ -60,10 +54,10 @@ describe('Database Index Performance Tests', () => {
       const startTime = Date.now();
       await widgetService.findAll();
       const endTime = Date.now();
-      
+
       const executionTime = endTime - startTime;
       console.log(`Widget list query time: ${executionTime}ms`);
-      
+
       // Performance should be under 150ms with indexes
       expect(executionTime).toBeLessThan(150);
     });
@@ -72,14 +66,14 @@ describe('Database Index Performance Tests', () => {
   describe('Dataset Query Performance', () => {
     it('should improve performance for dataset queries by database ID', async () => {
       const databaseId = 1;
-      
+
       const startTime = Date.now();
       await databaseService.findOne(databaseId);
       const endTime = Date.now();
-      
+
       const executionTime = endTime - startTime;
       console.log(`Dataset by database ID query time: ${executionTime}ms`);
-      
+
       // Performance should be under 100ms with indexes
       expect(executionTime).toBeLessThan(100);
     });
@@ -88,14 +82,14 @@ describe('Database Index Performance Tests', () => {
   describe('User Mapping Query Performance', () => {
     it('should improve performance for user dashboard queries', async () => {
       const userId = 1;
-      
+
       const startTime = Date.now();
       await userService.findDashboardId(userId);
       const endTime = Date.now();
-      
+
       const executionTime = endTime - startTime;
       console.log(`User dashboard mapping query time: ${executionTime}ms`);
-      
+
       // Performance should be under 50ms with indexes
       expect(executionTime).toBeLessThan(50);
     });
@@ -137,7 +131,7 @@ export class PerformanceBenchmark {
 
   printReport(): void {
     console.log('\n=== Performance Benchmark Report ===\n');
-    
+
     for (const [name, times] of this.results) {
       const stats = this.getStats(name);
       console.log(`${name}:`);

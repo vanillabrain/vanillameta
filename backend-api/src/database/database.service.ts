@@ -133,7 +133,7 @@ export class DatabaseService {
     const tempDatasets = await this.datasetRepository.find({ where: { databaseId: id } });
     const datasets = tempDatasets.map(item => ({
       ...item,
-      datasetType: DatasetType.DATASET
+      datasetType: DatasetType.DATASET,
     }));
 
     delete databaseInfo.connectionConfig['password'];

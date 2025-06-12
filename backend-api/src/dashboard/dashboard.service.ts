@@ -105,7 +105,7 @@ export class DashboardService {
       throw new HttpException('not found', HttpStatus.NOT_FOUND);
     }
     console.log(findId);
-    
+
     // N+1 쿼리 문제 해결: In 조건으로 한 번에 조회
     const find_all = await this.dashboardRepository
       .createQueryBuilder('dashboard')
@@ -113,7 +113,7 @@ export class DashboardService {
       .orderBy('dashboard.updatedAt', 'DESC')
       .addOrderBy('dashboard.title', 'ASC')
       .getMany();
-    
+
     find_all.forEach(el => {
       console.log('adf,', el);
       el.layout = JSON.parse(el.layout);
@@ -124,9 +124,9 @@ export class DashboardService {
 
   async findOne(id: number) {
     // N+1 쿼리 문제 해결: relations 옵션으로 관련 데이터를 한 번에 조회
-    const find_dashboard = await this.dashboardRepository.findOne({ 
+    const find_dashboard = await this.dashboardRepository.findOne({
       where: { id: id },
-      relations: ['dashboardShare']
+      relations: ['dashboardShare'],
     });
     if (!find_dashboard) {
       return { status: ResponseStatus.ERROR, message: '대시보드가 존재하지 않습니다.' };
@@ -135,14 +135,14 @@ export class DashboardService {
     const widgetList = await this.dashboardWidgetService.findWidgets(find_dashboard.id);
     console.log('widgetList', widgetList);
     find_dashboard.layout = JSON.parse(find_dashboard.layout);
-    
+
     const return_obj = {
       ...find_dashboard,
       uuid: find_dashboard.dashboardShare?.uuid,
-      widgets: widgetList
+      widgets: widgetList,
     };
     delete return_obj.dashboardShare;
-    
+
     console.log(return_obj);
     return {
       status: ResponseStatus.SUCCESS,

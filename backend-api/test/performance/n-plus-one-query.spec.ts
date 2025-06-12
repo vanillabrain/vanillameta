@@ -29,7 +29,7 @@ describe('N+1 Query Resolution Tests', () => {
         queryCount++;
         return Promise.resolve([
           { id: 1, title: 'Dashboard 1', layout: '[]', updatedAt: new Date() },
-          { id: 2, title: 'Dashboard 2', layout: '[]', updatedAt: new Date() }
+          { id: 2, title: 'Dashboard 2', layout: '[]', updatedAt: new Date() },
         ]);
       }),
       getOne: jest.fn().mockImplementation(() => {
@@ -39,9 +39,9 @@ describe('N+1 Query Resolution Tests', () => {
           title: 'Dashboard 1',
           layout: '[]',
           shareId: 1,
-          dashboardShare: { uuid: 'test-uuid' }
+          dashboardShare: { uuid: 'test-uuid' },
         });
-      })
+      }),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -55,14 +55,14 @@ describe('N+1 Query Resolution Tests', () => {
               return Promise.resolve({ id: 1, title: 'Dashboard', layout: '[]' });
             }),
             save: jest.fn(),
-            createQueryBuilder: jest.fn(() => queryBuilder)
-          }
+            createQueryBuilder: jest.fn(() => queryBuilder),
+          },
         },
         {
           provide: getRepositoryToken(User),
           useValue: {
-            findOne: jest.fn()
-          }
+            findOne: jest.fn(),
+          },
         },
         {
           provide: getRepositoryToken(DashboardShare),
@@ -71,34 +71,31 @@ describe('N+1 Query Resolution Tests', () => {
               queryCount++;
               return Promise.resolve({ id: 1, uuid: 'test-uuid' });
             }),
-            save: jest.fn()
-          }
+            save: jest.fn(),
+          },
         },
         {
           provide: getRepositoryToken(UserMapping),
           useValue: {
-            save: jest.fn()
-          }
+            save: jest.fn(),
+          },
         },
         {
           provide: DashboardWidgetService,
           useValue: {
             create: jest.fn(),
-            findWidgets: jest.fn().mockResolvedValue([])
-          }
+            findWidgets: jest.fn().mockResolvedValue([]),
+          },
         },
         {
           provide: UserService,
           useValue: {
-            findDashboardId: jest.fn().mockResolvedValue([
-              { dashboardId: 1 },
-              { dashboardId: 2 }
-            ])
-          }
+            findDashboardId: jest.fn().mockResolvedValue([{ dashboardId: 1 }, { dashboardId: 2 }]),
+          },
         },
         {
           provide: AuthService,
-          useValue: {}
+          useValue: {},
         },
         {
           provide: CustomLoggerService,
@@ -106,10 +103,10 @@ describe('N+1 Query Resolution Tests', () => {
             debug: jest.fn(),
             log: jest.fn(),
             error: jest.fn(),
-            warn: jest.fn()
-          }
-        }
-      ]
+            warn: jest.fn(),
+          },
+        },
+      ],
     }).compile();
 
     service = module.get<DashboardService>(DashboardService);
@@ -126,11 +123,11 @@ describe('N+1 Query Resolution Tests', () => {
 
       // userService.findDashboardId는 한 번 호출
       expect(userService.findDashboardId).toHaveBeenCalledWith(userId);
-      
+
       // 대시보드 조회는 한 번의 쿼리로 처리되어야 함
       expect(queryCount).toBe(1);
       expect(queryBuilder.where).toHaveBeenCalledWith('dashboard.id IN (:...ids)', { ids: [1, 2] });
-      
+
       // result가 string이 아닌지 확인
       expect(typeof result).not.toBe('string');
       if (typeof result !== 'string') {
@@ -143,16 +140,16 @@ describe('N+1 Query Resolution Tests', () => {
     it('should use relations to fetch related data in one query', async () => {
       const dashboardId = 1;
       queryCount = 0;
-      
+
       // findOne 메서드가 relations 옵션과 함께 호출되도록 mock 수정
-      dashboardRepository.findOne = jest.fn().mockImplementation((options) => {
+      dashboardRepository.findOne = jest.fn().mockImplementation(options => {
         queryCount++;
         if (options.relations && options.relations.includes('dashboardShare')) {
-          return Promise.resolve({ 
-            id: 1, 
-            title: 'Dashboard', 
+          return Promise.resolve({
+            id: 1,
+            title: 'Dashboard',
             layout: '[]',
-            dashboardShare: { uuid: 'test-uuid' }
+            dashboardShare: { uuid: 'test-uuid' },
           });
         }
         return Promise.resolve({ id: 1, title: 'Dashboard', layout: '[]' });
@@ -164,7 +161,7 @@ describe('N+1 Query Resolution Tests', () => {
       expect(queryCount).toBe(1);
       expect(dashboardRepository.findOne).toHaveBeenCalledWith({
         where: { id: dashboardId },
-        relations: ['dashboardShare']
+        relations: ['dashboardShare'],
       });
       expect(result.data).toHaveProperty('uuid', 'test-uuid');
     });
