@@ -1,4 +1,4 @@
-import { Column, Entity, JoinTable, ManyToMany, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, JoinTable, ManyToMany, ManyToOne, PrimaryGeneratedColumn, Index } from 'typeorm';
 import { BaseEntity } from '../../common/entities/base.entity';
 import { DatasetType } from '../../common/enum/dataset-type.enum';
 import { YesNo } from '../../common/enum/yn.enum';
@@ -6,6 +6,9 @@ import { Component } from '../../component/entities/component.entity';
 import { Dashboard } from '../../dashboard/entities/dashboard.entity';
 
 @Entity()
+@Index('IDX_WIDGET_COMPONENT_ID', ['componentId'])
+@Index('IDX_WIDGET_DATASET_TYPE_ID', ['datasetType', 'datasetId'])
+@Index('IDX_WIDGET_UPDATED_AT', ['updatedAt'])
 export class Widget extends BaseEntity {
   @PrimaryGeneratedColumn({ comment: '위젯 ID' })
   id: number;
