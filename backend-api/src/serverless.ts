@@ -28,7 +28,7 @@ async function bootstrapServer(): Promise<Server> {
     const nestApp = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), {
       logger: console,
       cors: {
-        origin: process.env.CORS_ORIGIN.split(',').map((x) => x.trim()),
+        origin: process.env.CORS_ORIGIN.split(',').map(x => x.trim()),
         preflightContinue: false,
         credentials: true,
         optionsSuccessStatus: 200,

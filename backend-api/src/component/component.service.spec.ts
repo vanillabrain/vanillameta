@@ -40,7 +40,7 @@ describe('ComponentService', () => {
       });
 
       const result = await service.findAll();
-      
+
       expect(result).toHaveLength(2);
       expect(result[0].option).toEqual({ type: 'line' });
       expect(result[1].option).toEqual({ type: 'basic' });
@@ -53,7 +53,7 @@ describe('ComponentService', () => {
       componentRepository.findOne.mockResolvedValue(mockComponent);
 
       const result = await service.findOne(1);
-      
+
       expect(result).toEqual(mockComponent);
       expect(componentRepository.findOne).toHaveBeenCalledWith({ where: { id: 1 } });
     });
@@ -75,7 +75,7 @@ describe('ComponentService', () => {
       componentRepository.save.mockResolvedValue({ id: 1, ...createDto });
 
       const result = await service.create(createDto);
-      
+
       expect(componentRepository.save).toHaveBeenCalled();
       expect(result).toEqual({ id: 1, ...createDto });
     });
@@ -94,7 +94,7 @@ describe('ComponentService', () => {
       componentRepository.findOne.mockResolvedValue({ id: 1, type: 'chart' });
 
       const result = await service.create(createDto);
-      
+
       expect(result).toBe('exist same widget');
     });
   });
@@ -104,7 +104,7 @@ describe('ComponentService', () => {
       componentRepository.delete.mockResolvedValue({ affected: 1 });
 
       const result = await service.remove(1);
-      
+
       expect(componentRepository.delete).toHaveBeenCalledWith({ id: 1 });
       expect(result).toBe('This action removes a #1 component');
     });

@@ -4,8 +4,8 @@ import { WidgetController } from './widget.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Widget } from './entities/widget.entity';
 import { Component } from '../component/entities/component.entity';
-import { TableQueryService } from './tabel-query/table-query.service';
-import { TableQuery } from './tabel-query/entity/table-query.entity';
+import { TableQueryService } from './table-query/table-query.service';
+import { TableQuery } from './table-query/entity/table-query.entity';
 import { Database } from '../database/entities/database.entity';
 import { JwtService } from '@nestjs/jwt';
 

@@ -5,7 +5,11 @@ import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { DashboardShare } from '../dashboard/entities/dashboard_share.entity';
 import { AuthService } from '../auth/auth.service';
 import { DashboardService } from '../dashboard/dashboard.service';
-import { createMockRepository, getRepositoryTokenFor, createMockService } from '../../test/test-helpers';
+import {
+  createMockRepository,
+  getRepositoryTokenFor,
+  createMockService,
+} from '../../test/test-helpers';
 
 describe('ShareUrlService', () => {
   let service: ShareUrlService;
@@ -62,7 +66,7 @@ describe('ShareUrlService', () => {
       };
       const mockUser = { id: 1, userId: 'testuser' };
       const mockToken = 'generated-share-token';
-      
+
       userRepository.findOne.mockResolvedValue(mockUser);
       authService.generateUrlAccessToken.mockResolvedValue(mockToken);
       dashboardRepository.findOne.mockResolvedValue({ id: 1, title: 'Test Dashboard' });
@@ -79,7 +83,7 @@ describe('ShareUrlService', () => {
         userId: 'nonexistent',
         endDate: '12/31/2024',
       };
-      
+
       userRepository.findOne.mockResolvedValue(null);
 
       const result = await service.checkShareUrlOn('nonexistent', 1, shareUrlOnDto);

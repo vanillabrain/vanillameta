@@ -19,7 +19,7 @@ export class User {
   @ApiProperty({ description: '유저Id' })
   userId: string;
 
-  @Column({nullable: true})
+  @Column({ nullable: true })
   @ApiProperty({ description: 'refreshTokenId' })
   jwtId: number;
 

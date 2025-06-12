@@ -28,14 +28,18 @@ export class UserService {
   }
 
   async updateUserInfo(userId: string, updateUserDto: UpdateUserDto) {
-
-    const hashPassword = crypto.createHash('sha512').update(String(updateUserDto.password)).digest('hex');
+    const hashPassword = crypto
+      .createHash('sha512')
+      .update(String(updateUserDto.password))
+      .digest('hex');
     const findUser = await this.authService.checkAccess(userId, hashPassword);
     if (!findUser) {
       throw new HttpException('not exist user', HttpStatus.CONFLICT);
     } else {
-
-      const newHashPassword = crypto.createHash('sha512').update(String(updateUserDto.new_password)).digest('hex');
+      const newHashPassword = crypto
+        .createHash('sha512')
+        .update(String(updateUserDto.new_password))
+        .digest('hex');
       findUser.email = String(updateUserDto.email);
       findUser.password = newHashPassword;
       await this.userRepository.save(findUser);

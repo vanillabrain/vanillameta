@@ -2,8 +2,12 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
 import { User } from 'src/user/entities/user.entity';
-import { RefreshToken } from './entites/refresh_token.entity';
-import { createMockRepository, createMockJwtService, getRepositoryTokenFor } from '../../test/test-helpers';
+import { RefreshToken } from './entities/refresh_token.entity';
+import {
+  createMockRepository,
+  createMockJwtService,
+  getRepositoryTokenFor,
+} from '../../test/test-helpers';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -42,11 +46,16 @@ describe('AuthService', () => {
 
   describe('validateUser', () => {
     it('should return user without password when credentials are valid', async () => {
-      const mockUser = { id: 1, userId: 'testuser', email: 'test@example.com', password: 'testpass' };
+      const mockUser = {
+        id: 1,
+        userId: 'testuser',
+        email: 'test@example.com',
+        password: 'testpass',
+      };
       userRepository.findOne.mockResolvedValue(mockUser);
 
       const result = await service.validateUser('testuser', 'testpass');
-      
+
       expect(result).toEqual({ id: 1, userId: 'testuser', email: 'test@example.com' });
       expect(result.password).toBeUndefined();
     });
@@ -55,16 +64,21 @@ describe('AuthService', () => {
       userRepository.findOne.mockResolvedValue(null);
 
       const result = await service.validateUser('nonexistent', 'password');
-      
+
       expect(result).toBeUndefined();
     });
 
     it('should return undefined when password is incorrect', async () => {
-      const mockUser = { id: 1, userId: 'testuser', email: 'test@example.com', password: 'correctpass' };
+      const mockUser = {
+        id: 1,
+        userId: 'testuser',
+        email: 'test@example.com',
+        password: 'correctpass',
+      };
       userRepository.findOne.mockResolvedValue(mockUser);
 
       const result = await service.validateUser('testuser', 'wrongpass');
-      
+
       expect(result).toBeUndefined();
     });
   });
@@ -72,9 +86,9 @@ describe('AuthService', () => {
   describe('generateAccessToken', () => {
     it('should generate access token successfully', async () => {
       const payload = { userId: 1, email: 'test@example.com', id: 1 };
-      
+
       const result = await service.generateAccessToken(payload);
-      
+
       expect(jwtService.sign).toHaveBeenCalled();
       expect(result).toBe('mock-jwt-token');
     });
@@ -83,9 +97,9 @@ describe('AuthService', () => {
   describe('generateRefreshToken', () => {
     it('should generate refresh token successfully', async () => {
       const payload = { userId: 1, email: 'test@example.com', id: 1 };
-      
+
       const result = await service.generateRefreshToken(payload);
-      
+
       expect(jwtService.sign).toHaveBeenCalled();
       expect(result).toBe('mock-jwt-token');
     });

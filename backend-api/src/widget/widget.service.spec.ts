@@ -2,8 +2,12 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { WidgetService } from './widget.service';
 import { Widget } from './entities/widget.entity';
 import { Component } from '../component/entities/component.entity';
-import { TableQueryService } from './tabel-query/table-query.service';
-import { createMockRepository, getRepositoryTokenFor, createMockService } from '../../test/test-helpers';
+import { TableQueryService } from './table-query/table-query.service';
+import {
+  createMockRepository,
+  getRepositoryTokenFor,
+  createMockService,
+} from '../../test/test-helpers';
 import { DatasetType } from '../common/enum/dataset-type.enum';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 
@@ -56,7 +60,7 @@ describe('WidgetService', () => {
         delYn: 'N',
       };
       const savedWidget = { id: 1, ...createDto };
-      
+
       widgetRepository.save.mockResolvedValue(savedWidget);
 
       const result = await service.create(createDto);
@@ -80,7 +84,7 @@ describe('WidgetService', () => {
       };
       const savedWidget = { id: 1, ...createDto };
       const tableQueryResult = { id: 1, tableName: 'users' };
-      
+
       widgetRepository.save.mockResolvedValue(savedWidget);
       tableQueryService.create.mockResolvedValue(tableQueryResult);
 
@@ -88,7 +92,7 @@ describe('WidgetService', () => {
 
       expect(tableQueryService.create).toHaveBeenCalledWith(
         createDto.databaseId,
-        createDto.tableName
+        createDto.tableName,
       );
     });
   });
@@ -117,7 +121,7 @@ describe('WidgetService', () => {
   describe('findOne', () => {
     it('should return a widget by id', async () => {
       const mockWidget = { id: 1, title: 'Test Widget', option: '{}' };
-      
+
       // widgetRepository.createQueryBuilder를 모킹
       widgetRepository.createQueryBuilder.mockReturnValue({
         select: jest.fn().mockReturnThis(),
@@ -125,7 +129,7 @@ describe('WidgetService', () => {
         where: jest.fn().mockReturnThis(),
         getQuery: jest.fn().mockReturnValue('SELECT widget.* FROM widget WHERE id=?'),
       });
-      
+
       componentRepository.createQueryBuilder.mockReturnValue({
         select: jest.fn().mockReturnThis(),
         innerJoin: jest.fn().mockReturnThis(),
@@ -136,7 +140,9 @@ describe('WidgetService', () => {
       const result = await service.findOne(1);
 
       expect((result as any).status).toBe(ResponseStatus.SUCCESS);
-      expect((result as any).data).toEqual(expect.objectContaining({ id: 1, title: 'Test Widget' }));
+      expect((result as any).data).toEqual(
+        expect.objectContaining({ id: 1, title: 'Test Widget' }),
+      );
     });
 
     it('should return error when widget not found', async () => {
@@ -147,7 +153,7 @@ describe('WidgetService', () => {
         where: jest.fn().mockReturnThis(),
         getQuery: jest.fn().mockReturnValue('SELECT widget.* FROM widget WHERE id=?'),
       });
-      
+
       componentRepository.createQueryBuilder.mockReturnValue({
         select: jest.fn().mockReturnThis(),
         innerJoin: jest.fn().mockReturnThis(),

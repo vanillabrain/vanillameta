@@ -418,7 +418,7 @@ export class TemplateService {
   private async calRecommendScore(templateInfo, widgetInfo): Promise<number> {
     let recommendScore = 0;
 
-    let templateCount = {
+    const templateCount = {
       HORIZONTAL: Number(templateInfo.horizontalCnt),
       VERTICAL: Number(templateInfo.verticalCnt),
       SQUARE: Number(templateInfo.squareCnt),
@@ -426,7 +426,7 @@ export class TemplateService {
       TABLE: 0,
     };
 
-    let widgetCount = {
+    const widgetCount = {
       HORIZONTAL: Number(widgetInfo.horizontalCnt),
       VERTICAL: Number(widgetInfo.verticalCnt),
       SQUARE: Number(widgetInfo.squareCnt),

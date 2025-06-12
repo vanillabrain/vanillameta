@@ -10,8 +10,8 @@ import { DashboardWidget } from '../../src/dashboard/dashboard-widget/entities/d
 import { DashboardWidgetService } from '../../src/dashboard/dashboard-widget/dashboard-widget.service';
 import { ComponentService } from '../../src/component/component.service';
 import { WidgetService } from '../../src/widget/widget.service';
-import { TableQueryService } from '../../src/widget/tabel-query/table-query.service';
-import { TableQuery } from '../../src/widget/tabel-query/entity/table-query.entity';
+import { TableQueryService } from '../../src/widget/table-query/table-query.service';
+import { TableQuery } from '../../src/widget/table-query/entity/table-query.entity';
 import { Database } from '../../src/database/entities/database.entity';
 import { TemplateService } from '../../src/template/template.service';
 import { CreateDashboardDto } from '../../src/dashboard/dto/create-dashboard.dto';
@@ -80,8 +80,8 @@ describe('QTT-003: 시각화 종류', () => {
   it.each(testData)(
     'QTT-003-%s',
     async (name: string, dashboardTitle: string, componentList: number[]) => {
-      let findWidgetInfo = await widgetService.findAll();
-      let widgetIdList = [];
+      const findWidgetInfo = await widgetService.findAll();
+      const widgetIdList = [];
       for (let i = 0; i < componentList.length; i++) {
         const tempWidgetObj = findWidgetInfo.data.find(
           item => item.componentId === componentList[i],

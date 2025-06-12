@@ -7,7 +7,11 @@ import { UserMapping } from '../user/entities/user-mapping.entity';
 import { DashboardWidgetService } from './dashboard-widget/dashboard-widget.service';
 import { UserService } from 'src/user/user.service';
 import { AuthService } from 'src/auth/auth.service';
-import { createMockRepository, getRepositoryTokenFor, createMockService } from '../../test/test-helpers';
+import {
+  createMockRepository,
+  getRepositoryTokenFor,
+  createMockService,
+} from '../../test/test-helpers';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import { YesNo } from '../common/enum/yn.enum';
 
@@ -78,7 +82,12 @@ describe('DashboardService', () => {
       };
       const mockUser = { id: 1, userId: 'testuser', email: 'test@example.com' };
       const mockShareId = { id: 1 };
-      const mockDashboard = { id: 1, title: 'Test Dashboard', layout: JSON.stringify(createDto.layout), shareId: 1 };
+      const mockDashboard = {
+        id: 1,
+        title: 'Test Dashboard',
+        layout: JSON.stringify(createDto.layout),
+        shareId: 1,
+      };
 
       userRepository.findOne.mockResolvedValue(mockUser);
       dashboardShareRepository.save.mockResolvedValue(mockShareId);
