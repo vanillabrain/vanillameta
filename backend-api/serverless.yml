@@ -46,9 +46,23 @@ provider:
 
 
 custom:
-  # Enable warmup on all functions (only for production)
+  # Lambda 웜업 설정 (T02_S04)
   warmup:
-    - prod
+    default:
+      enabled: 
+        - prod  # 프로덕션 환경에서만 활성화
+      events:
+        - schedule: rate(5 minutes)  # 5분마다 웜업
+      timeout: 20  # 웜업 함수 타임아웃
+      prewarm: true  # 배포 후 즉시 웜업
+      concurrency: 1  # 동시 실행 수
+      verbose: false  # 상세 로그 비활성화
+      name: ${self:service}-${self:provider.stage}-warmup-plugin
+      role: WarmupRole
+      tags:
+        Project: VanillaMeta
+        Environment: ${self:provider.stage}
+        Purpose: LambdaWarmup
   STAGE: ${self:provider.stage}
   DB_CONFIG: ${file(./config.serverless.yml):DB_CONFIG}
   DOMAINS: ${file(./config.serverless.yml):DOMAINS}
@@ -95,6 +109,9 @@ package:
 functions:
   app: # 람다함수 이름
     handler: src/serverless.handler
+    warmup:
+      default:
+        enabled: true  # 이 함수에 웜업 적용
     events:
       - http:
           method: ANY
@@ -115,6 +132,39 @@ functions:
 
 resources:
   Resources:
+    # Lambda 웜업 IAM 역할 (T02_S04)
+    WarmupRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: ${self:service}-${self:provider.stage}-warmup-role
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+              Action: 'sts:AssumeRole'
+        ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        Policies:
+          - PolicyName: WarmupLambdaInvokePolicy
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - lambda:InvokeFunction
+                  Resource: 
+                    - !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${self:service}-${self:provider.stage}-app"
+        Tags:
+          - Key: Project
+            Value: VanillaMeta
+          - Key: Environment
+            Value: ${self:provider.stage}
+          - Key: Purpose
+            Value: LambdaWarmup
+
     # CloudWatch Log Group (환경별 분리)
     AppLogGroup:
       Type: AWS::Logs::LogGroup
@@ -199,6 +249,30 @@ resources:
             MetricValue: "$init_duration"
             DefaultValue: 0
 
+    # 웜업 요청 메트릭 필터 (T02_S04)
+    WarmupRequestMetricFilter:
+      Type: AWS::Logs::MetricFilter
+      Properties:
+        LogGroupName: !Ref AppLogGroup
+        FilterPattern: '{ $.message = "WarmUp - Lambda 함수 웜업 요청 처리됨" }'
+        MetricTransformations:
+          - MetricNamespace: "VanillaMeta/${self:provider.stage}"
+            MetricName: "WarmupRequestCount"
+            MetricValue: "1"
+            DefaultValue: 0
+
+    # 웜 스타트 감지 메트릭 필터 (웜업 후 실제 요청)
+    WarmStartMetricFilter:
+      Type: AWS::Logs::MetricFilter
+      Properties:
+        LogGroupName: !Ref AppLogGroup
+        FilterPattern: '{ $.isWarmStart = true }'
+        MetricTransformations:
+          - MetricNamespace: "VanillaMeta/${self:provider.stage}"
+            MetricName: "WarmStartCount"
+            MetricValue: "1"
+            DefaultValue: 0
+
     # CloudWatch 알람 (운영 환경에서만)
     ErrorAlarm:
       Type: AWS::CloudWatch::Alarm
@@ -246,6 +320,22 @@ resources:
         Threshold: 10
         ComparisonOperator: GreaterThanThreshold
         TreatMissingData: notBreaching
+
+    # 웜업 실패 알람 (T02_S04)
+    WarmupFailureAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Condition: IsProduction
+      Properties:
+        AlarmName: "${self:service}-${self:provider.stage}-warmup-failure-alarm"
+        AlarmDescription: "Lambda warmup requests are failing"
+        MetricName: "WarmupRequestCount"
+        Namespace: "VanillaMeta/${self:provider.stage}"
+        Statistic: Sum
+        Period: 600  # 10분
+        EvaluationPeriods: 2
+        Threshold: 1
+        ComparisonOperator: LessThanThreshold
+        TreatMissingData: breaching  # 웜업 요청이 없으면 실패로 간주
 
   Conditions:
     IsProduction:

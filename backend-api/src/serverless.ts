@@ -67,12 +67,33 @@ export const handler: Handler = async (event: any, context: Context) => {
   // 연결이 있는 동안 Lambda 컨테이너를 활성 상태로 유지
   context.callbackWaitsForEmptyEventLoop = false;
 
+  // 웜업 요청 감지 및 처리 (T02_S04)
+  if (event.source === 'serverless-plugin-warmup') {
+    console.log('WarmUp - Lambda 함수 웜업 요청 처리됨', {
+      requestId: context.awsRequestId,
+      functionName: context.functionName,
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV,
+    });
+
+    // 웜업 요청에 대한 즉시 응답 (실제 비즈니스 로직 실행 안함)
+    return {
+      statusCode: 200,
+      body: JSON.stringify({
+        message: 'Lambda function warmed up successfully',
+        requestId: context.awsRequestId,
+        timestamp: new Date().toISOString(),
+      }),
+    };
+  }
+
   // 콘텍스트 정보 로깅 (첫 요청 시만)
   if (!cachedServer) {
     console.log('Lambda context:', {
       functionName: context.functionName,
       memoryLimitInMB: context.memoryLimitInMB,
       requestId: context.awsRequestId,
+      isWarmStart: !!cachedServer,
     });
   }
 
