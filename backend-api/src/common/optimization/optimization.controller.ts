@@ -75,15 +75,10 @@ export class OptimizationController {
   @ApiParam({ name: 'engine', description: '데이터베이스 엔진' })
   @ApiQuery({ name: 'production', required: false, description: '프로덕션 환경 여부' })
   @ApiResponse({ status: 200, description: '최적화된 연결 풀 설정 반환' })
-  getPoolConfig(
-    @Param('engine') engine: string,
-    @Query('production') production?: boolean,
-  ) {
-    const isProduction = production === 'true' || production === true;
-    const config = this.dbOptimizationService.getOptimizedPoolConfig(
-      engine,
-      isProduction,
-    );
+  getPoolConfig(@Param('engine') engine: string, @Query('production') production?: boolean) {
+    const isProduction =
+      production === true || (typeof production === 'string' && production === 'true');
+    const config = this.dbOptimizationService.getOptimizedPoolConfig(engine, isProduction);
     return {
       success: true,
       data: config,
@@ -240,26 +235,57 @@ export class OptimizationController {
       {
         engine: 'pg',
         name: 'PostgreSQL',
-        features: ['Advanced indexing (GIN, GIST)', 'JSON operations', 'Window functions', 'CTEs', 'Parallel query'],
-        optimizations: ['Query hints', 'Index recommendations', 'Connection pooling', 'Query caching'],
+        features: [
+          'Advanced indexing (GIN, GIST)',
+          'JSON operations',
+          'Window functions',
+          'CTEs',
+          'Parallel query',
+        ],
+        optimizations: [
+          'Query hints',
+          'Index recommendations',
+          'Connection pooling',
+          'Query caching',
+        ],
       },
       {
         engine: 'mysql2',
         name: 'MySQL',
         features: ['InnoDB storage engine', 'Partitioning', 'Full-text indexing', 'JSON support'],
-        optimizations: ['Force index hints', 'LIMIT optimization', 'Connection pooling', 'Query caching'],
+        optimizations: [
+          'Force index hints',
+          'LIMIT optimization',
+          'Connection pooling',
+          'Query caching',
+        ],
       },
       {
         engine: 'mssql',
         name: 'SQL Server',
-        features: ['Columnstore indexes', 'In-memory OLTP', 'Query store', 'Adaptive query processing'],
-        optimizations: ['NOLOCK hints', 'Columnstore recommendations', 'Connection pooling', 'Query caching'],
+        features: [
+          'Columnstore indexes',
+          'In-memory OLTP',
+          'Query store',
+          'Adaptive query processing',
+        ],
+        optimizations: [
+          'NOLOCK hints',
+          'Columnstore recommendations',
+          'Connection pooling',
+          'Query caching',
+        ],
       },
       {
         engine: 'oracledb',
         name: 'Oracle Database',
         features: ['Advanced analytics', 'Partitioning', 'Parallel execution', 'Result cache'],
-        optimizations: ['Optimizer hints', 'Parallel processing', 'Connection pooling', 'Query caching'],
+        optimizations: [
+          'Optimizer hints',
+          'Parallel processing',
+          'Connection pooling',
+          'Query caching',
+        ],
       },
       {
         engine: 'bigquery',

@@ -104,7 +104,7 @@ describe('QueryAnalyzerService', () => {
       expect(result.indexUsed).toBe(false);
       expect(result.warnings).toContain('Full table scan detected');
       expect(result.optimizationSuggestions).toContain(
-        'Consider adding an index on the WHERE clause columns to avoid full table scan'
+        'Consider adding an index on the WHERE clause columns to avoid full table scan',
       );
     });
 
@@ -133,10 +133,10 @@ describe('QueryAnalyzerService', () => {
       expect(result.temporaryTable).toBe(true);
       expect(result.filesort).toBe(true);
       expect(result.optimizationSuggestions).toContain(
-        'Query uses temporary table. Consider optimizing GROUP BY/ORDER BY clauses'
+        'Query uses temporary table. Consider optimizing GROUP BY/ORDER BY clauses',
       );
       expect(result.optimizationSuggestions).toContain(
-        'Query uses filesort. Consider adding index on ORDER BY columns'
+        'Query uses filesort. Consider adding index on ORDER BY columns',
       );
     });
   });
@@ -145,7 +145,7 @@ describe('QueryAnalyzerService', () => {
     it('should analyze PostgreSQL query', async () => {
       const query = 'SELECT * FROM products WHERE category_id = 10';
       const databaseId = 1;
-      
+
       const mockDatabase = {
         id: 1,
         engine: 'pg',
@@ -165,7 +165,7 @@ describe('QueryAnalyzerService', () => {
       // 실제 테스트에서는 Knex 모킹이 필요
       // 여기서는 메서드가 에러 없이 실행되는지만 확인
       const result = await service.analyzeQuery(query, databaseId);
-      
+
       expect(result).toBeDefined();
       expect(result.query).toContain(query.substring(0, 200));
     });
@@ -180,14 +180,14 @@ describe('QueryAnalyzerService', () => {
       ];
 
       // Mock analyze results
-      jest.spyOn(service, 'analyzeQuery').mockImplementation(async (query) => ({
+      jest.spyOn(service, 'analyzeQuery').mockImplementation(async query => ({
         query: query.substring(0, 200),
         executionTime: query.includes('orders') ? 1500 : 500,
         scanType: query.includes('users') ? 'ALL' : 'ref',
         indexUsed: !query.includes('users'),
         temporaryTable: query.includes('GROUP BY'),
         filesort: false,
-        optimizationSuggestions: query.includes('users') 
+        optimizationSuggestions: query.includes('users')
           ? ['Consider adding an index on the WHERE clause columns to avoid full table scan']
           : [],
       }));
@@ -207,10 +207,10 @@ describe('QueryAnalyzerService', () => {
     it('should measure query execution time', async () => {
       const query = 'SELECT * FROM users LIMIT 10';
       const mockQueryRunner = mockConnection.createQueryRunner();
-      
+
       // 실행 시간을 시뮬레이션하기 위한 지연
-      (mockQueryRunner.query as jest.Mock).mockImplementation(() => 
-        new Promise(resolve => setTimeout(() => resolve([]), 100))
+      (mockQueryRunner.query as jest.Mock).mockImplementation(
+        () => new Promise(resolve => setTimeout(() => resolve([]), 100)),
       );
 
       const result = await service.measureQueryPerformance(query);
@@ -223,10 +223,10 @@ describe('QueryAnalyzerService', () => {
     it('should log slow queries', async () => {
       const query = 'SELECT * FROM large_table';
       const mockQueryRunner = mockConnection.createQueryRunner();
-      
+
       // 느린 쿼리 시뮬레이션 (2초)
-      (mockQueryRunner.query as jest.Mock).mockImplementation(() => 
-        new Promise(resolve => setTimeout(() => resolve([]), 2000))
+      (mockQueryRunner.query as jest.Mock).mockImplementation(
+        () => new Promise(resolve => setTimeout(() => resolve([]), 2000)),
       );
 
       const loggerSpy = jest.spyOn(service['logger'], 'warn');
@@ -240,7 +240,7 @@ describe('QueryAnalyzerService', () => {
           query: expect.any(String),
           executionTime: expect.any(Number),
           threshold: 1000,
-        })
+        }),
       );
     });
   });

@@ -44,11 +44,17 @@ describe('Optimization Integration Tests', () => {
       ],
     }).compile();
 
-    dbOptimizationService = module.get<DatabaseSpecificOptimizationService>(DatabaseSpecificOptimizationService);
+    dbOptimizationService = module.get<DatabaseSpecificOptimizationService>(
+      DatabaseSpecificOptimizationService,
+    );
     queryCacheService = module.get<QueryCacheService>(QueryCacheService);
     indexRecommendationService = module.get<IndexRecommendationService>(IndexRecommendationService);
-    connectionPoolService = module.get<EnhancedConnectionPoolService>(EnhancedConnectionPoolService);
-    queryOptimizerService = module.get<EnhancedQueryOptimizerService>(EnhancedQueryOptimizerService);
+    connectionPoolService = module.get<EnhancedConnectionPoolService>(
+      EnhancedConnectionPoolService,
+    );
+    queryOptimizerService = module.get<EnhancedQueryOptimizerService>(
+      EnhancedQueryOptimizerService,
+    );
     controller = module.get<OptimizationController>(OptimizationController);
   });
 
@@ -72,7 +78,7 @@ describe('Optimization Integration Tests', () => {
   describe('Database-Specific Optimization Service', () => {
     it('should provide optimization configs for all supported engines', () => {
       const engines = ['pg', 'mysql2', 'mssql', 'oracledb', 'bigquery', 'snowflake'];
-      
+
       engines.forEach(engine => {
         const config = dbOptimizationService.getOptimizationConfig(engine);
         expect(config).toBeDefined();
@@ -85,13 +91,13 @@ describe('Optimization Integration Tests', () => {
 
     it('should optimize queries differently for different engines', () => {
       const query = 'SELECT * FROM users ORDER BY created_at LIMIT 100';
-      
+
       const pgResult = dbOptimizationService.optimizeQuery(query, 'pg');
       const mysqlResult = dbOptimizationService.optimizeQuery(query, 'mysql2');
-      
+
       expect(pgResult.optimizedQuery).toContain('IndexScan');
       expect(mysqlResult.optimizedQuery).toBeDefined();
-      
+
       // PostgreSQL과 MySQL의 최적화가 다르게 적용되는지 확인
       expect(pgResult.appliedOptimizations).not.toEqual(mysqlResult.appliedOptimizations);
     });
@@ -99,10 +105,10 @@ describe('Optimization Integration Tests', () => {
     it('should provide different pool configs for production vs development', () => {
       const devConfig = dbOptimizationService.getOptimizedPoolConfig('pg', false);
       const prodConfig = dbOptimizationService.getOptimizedPoolConfig('pg', true);
-      
+
       expect(devConfig).toBeDefined();
       expect(prodConfig).toBeDefined();
-      
+
       // 프로덕션 환경에서는 더 보수적인 설정
       expect(prodConfig.max).toBeLessThanOrEqual(devConfig.max || 5);
     });
@@ -113,14 +119,17 @@ describe('Optimization Integration Tests', () => {
       const engine = 'pg';
       const query = 'SELECT * FROM users WHERE active = true';
       const data = [{ id: 1, name: 'John', active: true }];
-      const fields = [{ name: 'id', type: 'integer' }, { name: 'name', type: 'string' }];
+      const fields = [
+        { name: 'id', type: 'integer' },
+        { name: 'name', type: 'string' },
+      ];
 
       // 캐시에 저장
       await queryCacheService.set(engine, query, data, fields);
 
       // 캐시에서 조회
       const result = await queryCacheService.get(engine, query);
-      
+
       expect(result).toBeDefined();
       expect(result.data).toEqual(data);
       expect(result.fields).toEqual(fields);
@@ -128,7 +137,7 @@ describe('Optimization Integration Tests', () => {
 
     it('should invalidate cache based on query patterns', async () => {
       const engine = 'pg';
-      
+
       // 일부 데이터를 캐시에 저장
       await queryCacheService.set(engine, 'SELECT * FROM users', [{ id: 1 }], []);
       await queryCacheService.set(engine, 'SELECT * FROM orders', [{ id: 1 }], []);
@@ -183,7 +192,7 @@ describe('Optimization Integration Tests', () => {
       const knexInstance = await connectionPoolService.createOptimizedPool(
         databaseId,
         engine,
-        baseConfig
+        baseConfig,
       );
 
       expect(knexInstance).toBeDefined();
@@ -204,10 +213,10 @@ describe('Optimization Integration Tests', () => {
       };
 
       await connectionPoolService.createOptimizedPool(databaseId, engine, baseConfig);
-      
+
       const status = connectionPoolService.getPoolStatus(databaseId);
       expect(status).toBeDefined();
-      
+
       if (status) {
         expect(status.metrics.databaseId).toBe(databaseId);
         expect(status.metrics.engine).toBe(engine);
@@ -218,7 +227,7 @@ describe('Optimization Integration Tests', () => {
     it('should provide performance history', () => {
       const databaseId = 1;
       const history = connectionPoolService.getPerformanceHistory(databaseId);
-      
+
       expect(Array.isArray(history)).toBe(true);
     });
   });
@@ -261,7 +270,7 @@ describe('Optimization Integration Tests', () => {
         mockKnexInstance,
         engine,
         tableName,
-        queryPatterns
+        queryPatterns,
       );
 
       expect(report).toBeDefined();
@@ -278,19 +287,19 @@ describe('Optimization Integration Tests', () => {
         mockKnexInstance,
         'pg',
         tableName,
-        queryPatterns
+        queryPatterns,
       );
 
       const mysqlReport = await indexRecommendationService.analyzeAndRecommend(
         mockKnexInstance,
         'mysql2',
         tableName,
-        queryPatterns
+        queryPatterns,
       );
 
       expect(pgReport).toBeDefined();
       expect(mysqlReport).toBeDefined();
-      
+
       // 엔진별로 다른 추천이 제공되는지 확인
       expect(pgReport.tableName).toBe(tableName);
       expect(mysqlReport.tableName).toBe(tableName);
@@ -329,7 +338,7 @@ describe('Optimization Integration Tests', () => {
         mockKnexInstance,
         mockDatabase,
         query,
-        parameters
+        parameters,
       );
 
       expect(result).toBeDefined();
@@ -348,12 +357,12 @@ describe('Optimization Integration Tests', () => {
         mockDatabase,
         query,
         [],
-        sessionId
+        sessionId,
       );
 
       const sessionStats = queryOptimizerService.getSessionStats(sessionId);
       expect(sessionStats).toBeDefined();
-      
+
       if (sessionStats && typeof sessionStats === 'object') {
         expect((sessionStats as any).sessionId).toBe(sessionId);
         expect((sessionStats as any).totalQueries).toBeGreaterThan(0);
@@ -376,7 +385,7 @@ describe('Optimization Integration Tests', () => {
   describe('Controller Integration', () => {
     it('should provide optimization configuration through API', () => {
       const result = controller.getOptimizationConfig('pg');
-      
+
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
       expect(result.data.engine).toBe('pg');
@@ -384,7 +393,7 @@ describe('Optimization Integration Tests', () => {
 
     it('should provide pool configuration through API', () => {
       const result = controller.getPoolConfig('mysql2', true);
-      
+
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
       expect(result.data.max).toBeDefined();
@@ -392,18 +401,18 @@ describe('Optimization Integration Tests', () => {
 
     it('should provide cache statistics through API', () => {
       const result = controller.getCacheStats();
-      
+
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
     });
 
     it('should provide supported engines list', () => {
       const result = controller.getSupportedEngines();
-      
+
       expect(result.success).toBe(true);
       expect(result.data).toBeInstanceOf(Array);
       expect(result.data.length).toBeGreaterThan(0);
-      
+
       const pgEngine = result.data.find(e => e.engine === 'pg');
       expect(pgEngine).toBeDefined();
       expect(pgEngine.name).toBe('PostgreSQL');
@@ -413,7 +422,7 @@ describe('Optimization Integration Tests', () => {
 
     it('should provide health status', () => {
       const result = controller.getHealthStatus();
-      
+
       expect(result.success).toBe(true);
       expect(result.data.status).toBe('healthy');
       expect(result.data.services).toBeDefined();
@@ -446,7 +455,7 @@ describe('Optimization Integration Tests', () => {
       const result = await queryOptimizerService.optimizeQuery(
         mockKnexInstance,
         invalidDatabase,
-        'SELECT 1'
+        'SELECT 1',
       );
 
       expect(result).toBeDefined();
@@ -470,10 +479,10 @@ describe('Optimization Integration Tests', () => {
     it('should demonstrate performance improvement through optimization', async () => {
       const engine = 'pg';
       const slowQuery = 'SELECT * FROM large_table ORDER BY created_at DESC';
-      
+
       // 기본 쿼리 분석
       const basicResult = dbOptimizationService.optimizeQuery(slowQuery, engine);
-      
+
       expect(basicResult.appliedOptimizations.length).toBeGreaterThan(0);
       expect(basicResult.optimizedQuery).not.toBe(slowQuery);
     });
@@ -522,18 +531,18 @@ describe('Optimization Integration Tests', () => {
 
     it('should provide engine-specific optimizations', () => {
       const jsonQuery = 'SELECT data FROM documents WHERE data @> \'{"type": "article"}\'';
-      
+
       // PostgreSQL은 JSON 연산자를 지원하므로 특별한 최적화가 적용됨
       const pgResult = dbOptimizationService.optimizeQuery(jsonQuery, 'pg');
       const mysqlResult = dbOptimizationService.optimizeQuery(jsonQuery, 'mysql2');
-      
+
       expect(pgResult).toBeDefined();
       expect(mysqlResult).toBeDefined();
-      
+
       // PostgreSQL의 캐시 설정이 다른 엔진과 다른지 확인
       const pgCache = dbOptimizationService.getCacheConfig('pg');
       const mysqlCache = dbOptimizationService.getCacheConfig('mysql2');
-      
+
       expect(pgCache.ttl).toBe(3600); // 1시간
       expect(mysqlCache.ttl).toBe(1800); // 30분
     });

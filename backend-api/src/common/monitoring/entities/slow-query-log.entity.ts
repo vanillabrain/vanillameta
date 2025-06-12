@@ -78,7 +78,12 @@ export class SlowQueryLog extends BaseEntity {
   @CreateDateColumn({ comment: '감지 시간' })
   detectedAt: Date;
 
-  @Column({ type: 'enum', enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'], default: 'MEDIUM', comment: '심각도' })
+  @Column({
+    type: 'enum',
+    enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'],
+    default: 'MEDIUM',
+    comment: '심각도',
+  })
   severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
   @Column({ type: 'boolean', default: false, comment: '처리 완료 여부' })

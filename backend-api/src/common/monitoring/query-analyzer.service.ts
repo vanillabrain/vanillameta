@@ -133,7 +133,9 @@ export class QueryAnalyzerService {
   ): Promise<QueryAnalysis> {
     try {
       // EXPLAIN ANALYZE 실행
-      const explainResult = await knexInstance.raw(`EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${query}`);
+      const explainResult = await knexInstance.raw(
+        `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${query}`,
+      );
       const plan = explainResult.rows[0]['QUERY PLAN'][0];
 
       analysis.explainPlan = plan;
@@ -281,12 +283,12 @@ export class QueryAnalyzerService {
     if (!explainResult || explainResult.length === 0) return;
 
     const firstRow = explainResult[0];
-    
+
     // 스캔 타입 분석
     analysis.scanType = firstRow.type;
     analysis.indexUsed = firstRow.key !== null;
     analysis.rowsExamined = firstRow.rows || 0;
-    
+
     // Extra 필드 분석
     if (firstRow.Extra) {
       analysis.temporaryTable = firstRow.Extra.includes('Using temporary');
@@ -320,7 +322,7 @@ export class QueryAnalyzerService {
     // 스캔 타입 확인
     if (plan['Node Type']) {
       analysis.scanType = plan['Node Type'];
-      
+
       if (plan['Node Type'] === 'Seq Scan') {
         if (!analysis.warnings) analysis.warnings = [];
         analysis.warnings.push('Sequential scan detected');
@@ -394,7 +396,9 @@ export class QueryAnalyzerService {
       const ratio = analysis.rowsExamined / analysis.rowsReturned;
       if (ratio > 100) {
         analysis.optimizationSuggestions.push(
-          `Query examines ${ratio.toFixed(0)}x more rows than it returns. Consider more selective WHERE conditions`,
+          `Query examines ${ratio.toFixed(
+            0,
+          )}x more rows than it returns. Consider more selective WHERE conditions`,
         );
       }
     }
@@ -419,7 +423,7 @@ export class QueryAnalyzerService {
     for (const query of queries) {
       try {
         const analysis = await this.analyzeQuery(query);
-        
+
         // 통계 수집
         if (analysis.executionTime) {
           totalExecutionTime += analysis.executionTime;
@@ -441,10 +445,7 @@ export class QueryAnalyzerService {
         }
 
         // 최적화 기회가 있는 쿼리 추가
-        if (
-          analysis.optimizationSuggestions &&
-          analysis.optimizationSuggestions.length > 0
-        ) {
+        if (analysis.optimizationSuggestions && analysis.optimizationSuggestions.length > 0) {
           report.optimizationOpportunities.push(analysis);
         }
       } catch (error) {
@@ -500,7 +501,7 @@ export class QueryAnalyzerService {
     } catch (error) {
       analysis.executionTime = Date.now() - startTime;
       analysis.warnings = [`Query execution failed: ${error.message}`];
-      
+
       this.logger.error({
         message: 'Query execution failed',
         query: analysis.query,

@@ -12,7 +12,7 @@ import { MonitoringModule } from '../monitoring/monitoring.module';
 
 /**
  * 데이터베이스 최적화 모듈
- * 
+ *
  * 이 모듈은 다음과 같은 최적화 기능을 제공합니다:
  * - 데이터베이스별 특화된 최적화 설정
  * - 지능형 쿼리 캐싱
@@ -21,11 +21,7 @@ import { MonitoringModule } from '../monitoring/monitoring.module';
  * - 통합 쿼리 최적화
  */
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Database]),
-    CommonModule,
-    MonitoringModule,
-  ],
+  imports: [TypeOrmModule.forFeature([Database]), CommonModule, MonitoringModule],
   providers: [
     DatabaseSpecificOptimizationService,
     QueryCacheService,

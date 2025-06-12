@@ -29,7 +29,7 @@ describe('EnhancedQueryOptimizerService', () => {
       port: 5432,
       user: 'test',
       password: 'test',
-      database: 'test'
+      database: 'test',
     }),
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -115,19 +115,14 @@ describe('EnhancedQueryOptimizerService', () => {
 
       mockQueryCacheService.get.mockResolvedValue(cachedResult);
 
-      const result = await service.optimizeQuery(
-        mockKnexInstance,
-        mockDatabase,
-        query,
-        parameters
-      );
+      const result = await service.optimizeQuery(mockKnexInstance, mockDatabase, query, parameters);
 
       expect(result.cacheResult).toEqual(cachedResult);
       expect(result.analysis.optimizations.cacheStatus).toBe('hit');
       expect(mockLogger.info).toHaveBeenCalledWith(
         'Query served from cache',
         'EnhancedQueryOptimizerService',
-        expect.objectContaining({ cacheHit: true })
+        expect.objectContaining({ cacheHit: true }),
       );
     });
 
@@ -150,11 +145,7 @@ describe('EnhancedQueryOptimizerService', () => {
         optimizationSuggestions: [],
       });
 
-      const result = await service.optimizeQuery(
-        mockKnexInstance,
-        mockDatabase,
-        query
-      );
+      const result = await service.optimizeQuery(mockKnexInstance, mockDatabase, query);
 
       expect(result.optimizedQuery).toBe(optimizedQuery);
       expect(result.analysis.optimizations.appliedRules).toContain('limit-optimization');
@@ -164,7 +155,7 @@ describe('EnhancedQueryOptimizerService', () => {
 
     it('should handle PostgreSQL specific optimizations', async () => {
       const query = 'SELECT data FROM documents WHERE data @> \'{"type": "article"}\'';
-      
+
       mockQueryCacheService.get.mockResolvedValue(null);
       mockDbOptimizationService.optimizeQuery.mockReturnValue({
         optimizedQuery: query,
@@ -180,19 +171,17 @@ describe('EnhancedQueryOptimizerService', () => {
         optimizationSuggestions: ['Add GIN index on data column'],
       });
 
-      const result = await service.optimizeQuery(
-        mockKnexInstance,
-        mockDatabase,
-        query
-      );
+      const result = await service.optimizeQuery(mockKnexInstance, mockDatabase, query);
 
       expect(result.analysis.databaseSpecific.engineFeatures).toContain('JSON operations');
-      expect(result.analysis.databaseSpecific.engineFeatures).toContain('Advanced indexing (GIN, GIST)');
+      expect(result.analysis.databaseSpecific.engineFeatures).toContain(
+        'Advanced indexing (GIN, GIST)',
+      );
     });
 
     it('should apply advanced optimization strategies', async () => {
       const query = 'SELECT * FROM large_table WHERE status = "active"';
-      
+
       mockQueryCacheService.get.mockResolvedValue(null);
       mockDbOptimizationService.optimizeQuery.mockReturnValue({
         optimizedQuery: query,
@@ -208,11 +197,7 @@ describe('EnhancedQueryOptimizerService', () => {
         optimizationSuggestions: [],
       });
 
-      const result = await service.optimizeQuery(
-        mockKnexInstance,
-        mockDatabase,
-        query
-      );
+      const result = await service.optimizeQuery(mockKnexInstance, mockDatabase, query);
 
       expect(result.recommendations).toBeDefined();
       expect(result.analysis.databaseSpecific.optimizationLevel).toBeDefined();
@@ -221,7 +206,7 @@ describe('EnhancedQueryOptimizerService', () => {
     it('should handle MySQL specific optimizations', async () => {
       const mysqlDatabase = Object.assign(new Database(), { ...mockDatabase, engine: 'mysql2' });
       const query = 'SELECT * FROM products ORDER BY price LIMIT 50000';
-      
+
       mockQueryCacheService.get.mockResolvedValue(null);
       mockDbOptimizationService.optimizeQuery.mockReturnValue({
         optimizedQuery: 'SELECT * FROM products ORDER BY price LIMIT 10000',
@@ -237,20 +222,19 @@ describe('EnhancedQueryOptimizerService', () => {
         optimizationSuggestions: [],
       });
 
-      const result = await service.optimizeQuery(
-        mockKnexInstance,
-        mysqlDatabase,
-        query
-      );
+      const result = await service.optimizeQuery(mockKnexInstance, mysqlDatabase, query);
 
       expect(result.optimizedQuery).toContain('LIMIT 10000');
       expect(result.analysis.databaseSpecific.engine).toBe('mysql2');
     });
 
     it('should handle BigQuery specific optimizations', async () => {
-      const bigqueryDatabase = Object.assign(new Database(), { ...mockDatabase, engine: 'bigquery' });
+      const bigqueryDatabase = Object.assign(new Database(), {
+        ...mockDatabase,
+        engine: 'bigquery',
+      });
       const query = 'SELECT * FROM dataset.large_table WHERE date_column >= "2023-01-01"';
-      
+
       mockQueryCacheService.get.mockResolvedValue(null);
       mockDbOptimizationService.optimizeQuery.mockReturnValue({
         optimizedQuery: query,
@@ -266,11 +250,7 @@ describe('EnhancedQueryOptimizerService', () => {
         optimizationSuggestions: [],
       });
 
-      const result = await service.optimizeQuery(
-        mockKnexInstance,
-        bigqueryDatabase,
-        query
-      );
+      const result = await service.optimizeQuery(mockKnexInstance, bigqueryDatabase, query);
 
       expect(result.analysis.databaseSpecific.engineFeatures).toContain('Columnar storage');
       expect(result.analysis.databaseSpecific.engineFeatures).toContain('Automatic partitioning');
@@ -278,18 +258,14 @@ describe('EnhancedQueryOptimizerService', () => {
 
     it('should handle optimization errors gracefully', async () => {
       const query = 'SELECT * FROM users';
-      
+
       mockQueryCacheService.get.mockResolvedValue(null);
       mockDbOptimizationService.optimizeQuery.mockImplementation(() => {
         throw new Error('Optimization failed');
       });
       mockConnectionPoolService.hasConnection.mockReturnValue(false);
 
-      const result = await service.optimizeQuery(
-        mockKnexInstance,
-        mockDatabase,
-        query
-      );
+      const result = await service.optimizeQuery(mockKnexInstance, mockDatabase, query);
 
       expect(result.optimizedQuery).toBe(query); // Original query returned
       expect(result.recommendations).toContain('Optimization failed: Optimization failed');
@@ -300,7 +276,7 @@ describe('EnhancedQueryOptimizerService', () => {
     it('should create and track optimization sessions', async () => {
       const query = 'SELECT * FROM users';
       const sessionId = 'test-session-1';
-      
+
       mockQueryCacheService.get.mockResolvedValue(null);
       mockDbOptimizationService.optimizeQuery.mockReturnValue({
         optimizedQuery: query,
@@ -314,13 +290,7 @@ describe('EnhancedQueryOptimizerService', () => {
         optimizationSuggestions: [],
       });
 
-      await service.optimizeQuery(
-        mockKnexInstance,
-        mockDatabase,
-        query,
-        [],
-        sessionId
-      );
+      await service.optimizeQuery(mockKnexInstance, mockDatabase, query, [], sessionId);
 
       const sessionStats = service.getSessionStats(sessionId);
       expect(sessionStats).toBeDefined();
@@ -331,7 +301,7 @@ describe('EnhancedQueryOptimizerService', () => {
     it('should track cache hit rate in sessions', async () => {
       const query = 'SELECT * FROM users';
       const sessionId = 'test-session-2';
-      
+
       // First query - cache miss
       mockQueryCacheService.get.mockResolvedValueOnce(null);
       mockDbOptimizationService.optimizeQuery.mockReturnValue({
@@ -345,13 +315,7 @@ describe('EnhancedQueryOptimizerService', () => {
         optimizationSuggestions: [],
       });
 
-      await service.optimizeQuery(
-        mockKnexInstance,
-        mockDatabase,
-        query,
-        [],
-        sessionId
-      );
+      await service.optimizeQuery(mockKnexInstance, mockDatabase, query, [], sessionId);
 
       // Second query - cache hit
       mockQueryCacheService.get.mockResolvedValueOnce({
@@ -359,13 +323,7 @@ describe('EnhancedQueryOptimizerService', () => {
         fields: [],
       });
 
-      await service.optimizeQuery(
-        mockKnexInstance,
-        mockDatabase,
-        query,
-        [],
-        sessionId
-      );
+      await service.optimizeQuery(mockKnexInstance, mockDatabase, query, [], sessionId);
 
       const sessionStats = service.getSessionStats(sessionId) as any;
       expect(sessionStats.totalQueries).toBe(2);
@@ -381,7 +339,7 @@ describe('EnhancedQueryOptimizerService', () => {
   describe('Index Recommendations', () => {
     it('should generate index recommendations asynchronously', async () => {
       const query = 'SELECT * FROM users WHERE email = ?';
-      
+
       mockQueryCacheService.get.mockResolvedValue(null);
       mockDbOptimizationService.optimizeQuery.mockReturnValue({
         optimizedQuery: query,
@@ -397,24 +355,26 @@ describe('EnhancedQueryOptimizerService', () => {
       mockIndexRecommendationService.analyzeAndRecommend.mockResolvedValue({
         tableName: 'users',
         currentIndexes: [],
-        recommendations: [{
-          tableName: 'users',
-          columns: ['email'],
-          indexType: 'btree',
-          reason: 'Frequently used in WHERE clauses',
-          priority: 'high',
-          estimatedImpact: 70,
-          impact: {
-            affectedQueries: 5,
-            speedupFactor: 3,
-            spaceCost: 1024,
-            maintenanceCost: 0.1,
+        recommendations: [
+          {
+            tableName: 'users',
+            columns: ['email'],
+            indexType: 'btree',
+            reason: 'Frequently used in WHERE clauses',
+            priority: 'high',
+            estimatedImpact: 70,
+            impact: {
+              affectedQueries: 5,
+              speedupFactor: 3,
+              spaceCost: 1024,
+              maintenanceCost: 0.1,
+            },
+            implementation: {
+              sql: 'CREATE INDEX idx_users_email ON users (email)',
+              estimatedCreationTime: 2,
+            },
           },
-          implementation: {
-            sql: 'CREATE INDEX idx_users_email ON users (email)',
-            estimatedCreationTime: 2,
-          },
-        }],
+        ],
         redundantIndexes: [],
         missingIndexes: [],
         performanceImpact: {
@@ -424,11 +384,7 @@ describe('EnhancedQueryOptimizerService', () => {
         },
       });
 
-      await service.optimizeQuery(
-        mockKnexInstance,
-        mockDatabase,
-        query
-      );
+      await service.optimizeQuery(mockKnexInstance, mockDatabase, query);
 
       // Give time for async operation
       await new Promise(resolve => setTimeout(resolve, 10));
@@ -438,7 +394,7 @@ describe('EnhancedQueryOptimizerService', () => {
         'EnhancedQueryOptimizerService',
         expect.objectContaining({
           recommendationsCount: 1,
-        })
+        }),
       );
     });
   });
@@ -447,7 +403,7 @@ describe('EnhancedQueryOptimizerService', () => {
     it('should add LIMIT to queries without limit', async () => {
       // This tests the private rewriteQuery method indirectly
       const query = 'SELECT * FROM large_table';
-      
+
       mockQueryCacheService.get.mockResolvedValue(null);
       mockDbOptimizationService.optimizeQuery.mockReturnValue({
         optimizedQuery: query,
@@ -462,14 +418,17 @@ describe('EnhancedQueryOptimizerService', () => {
 
       // The rewriting happens in advanced optimizations
       await service.optimizeQuery(mockKnexInstance, mockDatabase, query);
-      
+
       expect(mockDbOptimizationService.optimizeQuery).toHaveBeenCalled();
     });
 
     it('should add partition filters for BigQuery', async () => {
-      const bigqueryDatabase = Object.assign(new Database(), { ...mockDatabase, engine: 'bigquery' });
+      const bigqueryDatabase = Object.assign(new Database(), {
+        ...mockDatabase,
+        engine: 'bigquery',
+      });
       const query = 'SELECT * FROM dataset.table WHERE status = "active"';
-      
+
       mockQueryCacheService.get.mockResolvedValue(null);
       mockDbOptimizationService.optimizeQuery.mockReturnValue({
         optimizedQuery: query,
@@ -482,11 +441,7 @@ describe('EnhancedQueryOptimizerService', () => {
         optimizationSuggestions: [],
       });
 
-      const result = await service.optimizeQuery(
-        mockKnexInstance,
-        bigqueryDatabase,
-        query
-      );
+      const result = await service.optimizeQuery(mockKnexInstance, bigqueryDatabase, query);
 
       // Advanced strategies may modify the query
       expect(result.optimizedQuery).toBeDefined();
@@ -497,7 +452,7 @@ describe('EnhancedQueryOptimizerService', () => {
     it('should add appropriate hints for MySQL', async () => {
       const mysqlDatabase = Object.assign(new Database(), { ...mockDatabase, engine: 'mysql2' });
       const query = 'SELECT * FROM users WHERE id = 1';
-      
+
       mockQueryCacheService.get.mockResolvedValue(null);
       mockDbOptimizationService.optimizeQuery.mockReturnValue({
         optimizedQuery: query,
@@ -511,11 +466,7 @@ describe('EnhancedQueryOptimizerService', () => {
         optimizationSuggestions: [],
       });
 
-      const result = await service.optimizeQuery(
-        mockKnexInstance,
-        mysqlDatabase,
-        query
-      );
+      const result = await service.optimizeQuery(mockKnexInstance, mysqlDatabase, query);
 
       expect(result.optimizedQuery).toBeDefined();
     });
@@ -523,7 +474,7 @@ describe('EnhancedQueryOptimizerService', () => {
     it('should add hints for SQL Server', async () => {
       const sqlServerDatabase = Object.assign(new Database(), { ...mockDatabase, engine: 'mssql' });
       const query = 'SELECT COUNT(*), category FROM products GROUP BY category';
-      
+
       mockQueryCacheService.get.mockResolvedValue(null);
       mockDbOptimizationService.optimizeQuery.mockReturnValue({
         optimizedQuery: query,
@@ -536,11 +487,7 @@ describe('EnhancedQueryOptimizerService', () => {
         optimizationSuggestions: [],
       });
 
-      const result = await service.optimizeQuery(
-        mockKnexInstance,
-        sqlServerDatabase,
-        query
-      );
+      const result = await service.optimizeQuery(mockKnexInstance, sqlServerDatabase, query);
 
       expect(result.analysis.databaseSpecific.engineFeatures).toContain('Columnstore indexes');
     });
@@ -550,7 +497,7 @@ describe('EnhancedQueryOptimizerService', () => {
     it('should track query performance improvements', async () => {
       const query = 'SELECT * FROM users ORDER BY created_at';
       const sessionId = 'perf-test-session';
-      
+
       mockQueryCacheService.get.mockResolvedValue(null);
       mockDbOptimizationService.optimizeQuery.mockReturnValue({
         optimizedQuery: query + ' LIMIT 1000',
@@ -564,13 +511,7 @@ describe('EnhancedQueryOptimizerService', () => {
         optimizationSuggestions: [],
       });
 
-      await service.optimizeQuery(
-        mockKnexInstance,
-        mockDatabase,
-        query,
-        [],
-        sessionId
-      );
+      await service.optimizeQuery(mockKnexInstance, mockDatabase, query, [], sessionId);
 
       const sessionStats = service.getSessionStats(sessionId) as any;
       expect(sessionStats.optimizedQueries).toBe(1);
@@ -586,13 +527,7 @@ describe('EnhancedQueryOptimizerService', () => {
 
       await service.storeQueryResult('pg', query, data, fields);
 
-      expect(mockQueryCacheService.set).toHaveBeenCalledWith(
-        'pg',
-        query,
-        data,
-        fields,
-        undefined
-      );
+      expect(mockQueryCacheService.set).toHaveBeenCalledWith('pg', query, data, fields, undefined);
     });
 
     it('should invalidate cache when needed', async () => {
@@ -633,7 +568,7 @@ describe('EnhancedQueryOptimizerService', () => {
   describe('Engine Features', () => {
     it('should identify PostgreSQL features correctly', async () => {
       const query = 'SELECT * FROM users';
-      
+
       mockQueryCacheService.get.mockResolvedValue(null);
       mockDbOptimizationService.optimizeQuery.mockReturnValue({
         optimizedQuery: query,
@@ -646,11 +581,7 @@ describe('EnhancedQueryOptimizerService', () => {
         optimizationSuggestions: [],
       });
 
-      const result = await service.optimizeQuery(
-        mockKnexInstance,
-        mockDatabase,
-        query
-      );
+      const result = await service.optimizeQuery(mockKnexInstance, mockDatabase, query);
 
       const features = result.analysis.databaseSpecific.engineFeatures;
       expect(features).toContain('Advanced indexing (GIN, GIST)');
@@ -661,7 +592,7 @@ describe('EnhancedQueryOptimizerService', () => {
     it('should identify MySQL features correctly', async () => {
       const mysqlDatabase = Object.assign(new Database(), { ...mockDatabase, engine: 'mysql2' });
       const query = 'SELECT * FROM users';
-      
+
       mockQueryCacheService.get.mockResolvedValue(null);
       mockDbOptimizationService.optimizeQuery.mockReturnValue({
         optimizedQuery: query,
@@ -674,11 +605,7 @@ describe('EnhancedQueryOptimizerService', () => {
         optimizationSuggestions: [],
       });
 
-      const result = await service.optimizeQuery(
-        mockKnexInstance,
-        mysqlDatabase,
-        query
-      );
+      const result = await service.optimizeQuery(mockKnexInstance, mysqlDatabase, query);
 
       const features = result.analysis.databaseSpecific.engineFeatures;
       expect(features).toContain('InnoDB storage engine');
