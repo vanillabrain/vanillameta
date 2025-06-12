@@ -18,6 +18,7 @@ import { SnackbarContext } from '@/contexts/AlertContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { useAlert } from 'react-alert';
 import { useNavigate } from 'react-router-dom';
+import { removeToken } from '@/helpers/authHelper';
 
 const BootstrapDialog = styled(Dialog)(({ theme }) => ({
   minWidth: '560px',
@@ -133,8 +134,12 @@ const ProfileModify = props => {
         if (error.response.data.data === 'not exist user') {
           snackbar.error('현재 비밀번호 혹은 E-mail이 잘못 입력되었습니다.');
         } else if (error.response.data.data === 'Unauthorized') {
-          alert.error('로그인이 만료되었습니다.\n다시 로그인 해주세요.');
-          navigate('/login');
+          alert.error('로그인이 만료되었습니다.\n다시 로그인 해주세요.', {
+            onClose: () => {
+              removeToken();
+              navigate('/login', { replace: true });
+            },
+          });
         } else {
           alert.error('프로필 수정에 실패했습니다.\n다시 시도해 주세요.');
         }

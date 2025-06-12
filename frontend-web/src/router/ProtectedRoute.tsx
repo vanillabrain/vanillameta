@@ -2,7 +2,7 @@ import { useContext, useEffect } from 'react';
 import { AuthContext } from '@/contexts/AuthContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { useNavigate } from 'react-router-dom';
-import { getToken } from '@/helpers/authHelper';
+import { getToken, removeToken } from '@/helpers/authHelper';
 import { useAlert } from 'react-alert';
 
 export const ProtectedRoute = ({ children }) => {
@@ -22,6 +22,7 @@ export const ProtectedRoute = ({ children }) => {
           if (error.response.status === 401) {
             alert.error('로그인이 만료되었습니다.\n다시 로그인 해주세요.', {
               onClose: () => {
+                removeToken();
                 navigate('/login', { replace: true });
               },
             });
