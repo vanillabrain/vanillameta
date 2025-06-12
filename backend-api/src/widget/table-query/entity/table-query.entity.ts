@@ -1,7 +1,8 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn, Index } from 'typeorm';
 import { BaseEntity } from '../../../common/entities/base.entity';
 
 @Entity()
+@Index('IDX_TABLE_QUERY_DATABASE_ID', ['databaseId'])
 export class TableQuery extends BaseEntity {
   @PrimaryGeneratedColumn({ comment: '테이블 쿼리 ID' })
   id: number;

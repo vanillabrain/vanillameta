@@ -1,9 +1,11 @@
 import { Optional } from '@nestjs/common';
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn, Index } from 'typeorm';
 import { BaseEntity } from '../../common/entities/base.entity';
 import { YesNo } from '../../common/enum/yn.enum';
 
 @Entity()
+@Index('IDX_DASHBOARD_UPDATED_AT', ['updatedAt'])
+@Index('IDX_DASHBOARD_UPDATED_AT_TITLE', ['updatedAt', 'title'])
 export class Dashboard extends BaseEntity {
   @PrimaryGeneratedColumn({ comment: '대시보드 ID' })
   id: number;
