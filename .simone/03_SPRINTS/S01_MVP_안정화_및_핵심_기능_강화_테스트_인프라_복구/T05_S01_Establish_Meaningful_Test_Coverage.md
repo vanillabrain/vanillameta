@@ -1,3 +1,12 @@
+---
+task_id: T05_S01
+sprint_id: S01
+task_name: Establish_Meaningful_Test_Coverage
+status: completed
+priority: high
+last_updated: 2025-06-12T17:39:00Z
+---
+
 # T05_S01_Establish_Meaningful_Test_Coverage
 
 ## 🎯 작업 개요

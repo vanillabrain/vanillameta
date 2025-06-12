@@ -9,9 +9,10 @@ import { ExpressAdapter } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 
 import express from 'express';
-// import { logger } from './core/middleware/logger.middleware';
 import cookieParser from 'cookie-parser';
 import { ValidationPipe } from '@nestjs/common';
+import { CustomLoggerService } from './common/logger/logger.service';
+import { LoggingMiddleware } from './middleware/logging.middleware';
 
 // NOTE: If you get ERR_CONTENT_DECODING_FAILED in your browser, this is likely
 // due to a compressed response (e.g. gzip) which has not been handled correctly
@@ -26,7 +27,7 @@ async function bootstrapServer(): Promise<Server> {
   if (!cachedServer) {
     const expressApp = express();
     const nestApp = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), {
-      logger: console,
+      logger: new CustomLoggerService(),
       cors: {
         origin: process.env.CORS_ORIGIN.split(',').map(x => x.trim()),
         preflightContinue: false,
@@ -35,10 +36,22 @@ async function bootstrapServer(): Promise<Server> {
         exposedHeaders: ['Content-Disposition'],
       },
     });
+    
+    // Global middleware
+    nestApp.use(new LoggingMiddleware(nestApp.get(CustomLoggerService)).use.bind(
+      new LoggingMiddleware(nestApp.get(CustomLoggerService))
+    ));
+    
     nestApp.setGlobalPrefix('v1');
     nestApp.use(cookieParser());
     nestApp.use(eventContext());
     // nestApp.useGlobalPipes(new ValidationPipe({ transform: true }));
+    
+    const logger = nestApp.get(CustomLoggerService);
+    logger.info('Lambda function initialized', 'ServerlessBootstrap', {
+      environment: process.env.NODE_ENV
+    });
+    
     await nestApp.init();
     cachedServer = createServer(expressApp, undefined, binaryMimeTypes);
   }

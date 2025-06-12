@@ -13,6 +13,7 @@ import { YesNo } from 'src/common/enum/yn.enum';
 import { DashboardShare } from 'src/dashboard/entities/dashboard_share.entity';
 import { UserMapping } from 'src/user/entities/user-mapping.entity';
 import { v4 as uuidv4 } from 'uuid';
+import { CustomLoggerService } from '../common/logger/logger.service';
 
 @Injectable()
 export class DashboardService {
@@ -28,6 +29,7 @@ export class DashboardService {
     private readonly dashboardWidgetService: DashboardWidgetService,
     private readonly userService: UserService,
     private readonly authService: AuthService,
+    private readonly logger: CustomLoggerService,
   ) {}
 
   async create(createDashboardDto: CreateDashboardDto, accessToken: number) {
@@ -46,7 +48,11 @@ export class DashboardService {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    console.log('test', share_id);
+    this.logger.debug('Dashboard share created', 'DashboardService', {
+      shareId: share_id.id,
+      shareUuid: share_id.uuid,
+      userId: accessToken.toString()
+    });
     const saveObj = {
       title: createDashboardDto.title,
       layout: JSON.stringify(createDashboardDto.layout),

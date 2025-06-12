@@ -15,9 +15,11 @@ import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { LoginModule } from './login/login.module';
 import { ShareUrlModule } from './share-url/share-url.module';
+import { LoggerModule } from './common/logger/logger.module';
 
 @Module({
   imports: [
+    LoggerModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: process.env.NODE_ENV == 'prod' ? '.env' : '.env.dev',
