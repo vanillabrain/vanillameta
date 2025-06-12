@@ -1,25 +1,23 @@
 import { DynamicModule } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import path from 'path';
+import { Database } from '../../src/database/entities/database.entity';
+import { DatabaseType } from '../../src/database/entities/database_type.entity';
+import { Dataset } from '../../src/dataset/entities/dataset.entity';
+import { TableQuery } from '../../src/widget/tabel-query/entity/table-query.entity';
 
 /**
- * 테스트 MySQL 가져오기
+ * 테스트 데이터베이스 모듈 가져오기 (SQLite 사용)
+ * QTT-001 테스트를 위해 필요한 최소한의 엔티티만 포함
  *
  * @returns {DynamicModule}
  */
 export function getTestMysqlModule(): DynamicModule {
-  const entityUrl = path.join(__dirname, '..', '..', '/src/**/*.entity{.ts,.js}');
   return TypeOrmModule.forRoot({
-    type: 'mysql',
-    host: process.env.DB_HOST,
-    port: parseInt(process.env.DB_PORT) || 3306,
-    username: process.env.DB_USERNAME,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    autoLoadEntities: true,
-    entities: [entityUrl],
-    synchronize: false,
-    logging: true,
+    type: 'sqlite',
+    database: ':memory:',
+    entities: [Database, DatabaseType, Dataset, TableQuery],
+    synchronize: true,
+    logging: false,
     retryAttempts: 1,
   });
 }
