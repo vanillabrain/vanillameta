@@ -140,15 +140,32 @@ describe('N+1 Query Resolution Tests', () => {
   });
 
   describe('Dashboard findOne', () => {
-    it('should use join to fetch related data in one query', async () => {
+    it('should use relations to fetch related data in one query', async () => {
       const dashboardId = 1;
       queryCount = 0;
+      
+      // findOne 메서드가 relations 옵션과 함께 호출되도록 mock 수정
+      dashboardRepository.findOne = jest.fn().mockImplementation((options) => {
+        queryCount++;
+        if (options.relations && options.relations.includes('dashboardShare')) {
+          return Promise.resolve({ 
+            id: 1, 
+            title: 'Dashboard', 
+            layout: '[]',
+            dashboardShare: { uuid: 'test-uuid' }
+          });
+        }
+        return Promise.resolve({ id: 1, title: 'Dashboard', layout: '[]' });
+      });
 
       const result = await service.findOne(dashboardId);
 
-      // Join을 사용하여 한 번의 쿼리로 dashboard와 dashboardShare 조회
+      // relations 옵션을 사용하여 한 번의 쿼리로 dashboard와 dashboardShare 조회
       expect(queryCount).toBe(1);
-      expect(queryBuilder.leftJoinAndSelect).toHaveBeenCalled();
+      expect(dashboardRepository.findOne).toHaveBeenCalledWith({
+        where: { id: dashboardId },
+        relations: ['dashboardShare']
+      });
       expect(result.data).toHaveProperty('uuid', 'test-uuid');
     });
   });
