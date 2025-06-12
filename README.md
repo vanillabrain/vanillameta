@@ -2,20 +2,40 @@
 
 <img title="VanillaMeta Logo" src="design/vanillameta-logo.png"/><br/>
 
-최신 엔터프라이즈용 비즈니스 인텔리전스 웹 애플리케이션입니다.
+**최신 엔터프라이즈용 비즈니스 인텔리전스(BI) 웹 애플리케이션**
 
-# 바닐라메타를 사용해야 하는 이유
+VanillaMeta는 NestJS 백엔드와 React 프론트엔드로 구성된 풀스택 BI 솔루션으로, 다양한 SQL 데이터베이스를 지원하여 강력한 데이터 시각화와 대시보드 기능을 제공합니다.
 
-바닐라메타는 최신 데이터 탐색적 분석 및 데이터 시각화 솔루션입니다. 비즈니스 인텔리전스 도구를 대체하거나 보강할 수 있으며, 다양한 데이터 소스와 잘 통합 됩니다.
+[![Build Status](https://github.com/vanillabrain/vanillameta/actions/workflows/ci.yml/badge.svg)](https://github.com/vanillabrain/vanillameta/actions)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-## 바닐라메타의 기능
+## 🚀 주요 기능
 
-- 코딩없이 차트 위젯 제작.
-- 50개 이상의 차트 지원
-- 사용자 맞춤형 대시보드 편집 및 공유
-- 대시보드 템플릿 디자인 추천
-- 고급 SQL 쿼리 편집기 및 데이터 미리보기 제공
-- 다양한 SQL 데이터베이스에 대한 즉시 지원
+- **🎨 코딩 없는 차트 제작**: 직관적인 UI로 차트 위젯 생성
+- **📊 50+ 차트 타입 지원**: ECharts 기반 다양한 시각화 옵션
+- **📱 반응형 대시보드**: 드래그 앤 드롭으로 레이아웃 편집
+- **🔗 다중 데이터베이스 지원**: 10개 이상의 SQL 데이터베이스 연결
+- **⚡ 고성능 SQL 편집기**: 실시간 쿼리 실행 및 데이터 미리보기
+- **🎯 템플릿 시스템**: 사전 정의된 대시보드 템플릿 제공
+- **🔒 보안 인증**: JWT 기반 사용자 인증 및 권한 관리
+- **📤 공유 기능**: URL 기반 대시보드 공유
+
+## 🛠️ 기술 스택
+
+### 백엔드 (backend-api/)
+- **Framework**: NestJS 9.x
+- **ORM**: TypeORM 0.3.x + Knex.js
+- **인증**: Passport JWT
+- **배포**: AWS Lambda (Serverless Framework)
+- **모니터링**: 프로메테우스 메트릭 지원
+
+### 프론트엔드 (frontend-web/)
+- **Framework**: React 18.x + TypeScript
+- **UI Library**: Material-UI 5.x
+- **차트 라이브러리**: Apache ECharts
+- **상태 관리**: React Context API
+- **레이아웃**: React Grid Layout
+- **배포**: S3 + CloudFront
 
 ## 주요기능 화면
 
