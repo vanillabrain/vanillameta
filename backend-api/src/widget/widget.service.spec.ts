@@ -319,7 +319,7 @@ describe('WidgetService', () => {
         series: [{ data: [120, 200, 150], type: 'line' }],
         grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
       };
-      const updateDto = { option: complexOption };
+      const updateDto = { option: JSON.stringify(complexOption) };
       const foundWidget = { ...mockWidget };
 
       widgetRepository.findOne.mockResolvedValue(foundWidget);
@@ -731,16 +731,32 @@ describe('WidgetService', () => {
         getQuery: jest.fn().mockReturnValue(widgetInfo),
       });
 
-      componentRepository.createQueryBuilder.mockReturnValue({
+      const mockQueryBuilder = {
         select: jest.fn().mockReturnThis(),
         innerJoin: jest.fn().mockReturnThis(),
         setParameter: jest.fn().mockReturnThis(),
         getRawOne: jest.fn().mockResolvedValue(foundWidget),
-      });
+      };
+      componentRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
 
       const findResult = await service.findOne(1);
-      expect(findResult.status).toBe(ResponseStatus.SUCCESS);
-      expect(findResult.data.title).toBe('Lifecycle Test Widget');
+
+      // 디버깅을 위한 로그
+      console.log('findResult:', findResult);
+      console.log('foundWidget:', foundWidget);
+
+      if (
+        findResult &&
+        typeof findResult === 'object' &&
+        'status' in findResult &&
+        'data' in findResult
+      ) {
+        expect((findResult as any).status).toBe(ResponseStatus.SUCCESS);
+        expect((findResult as any).data.title).toBe('Lifecycle Test Widget');
+      } else {
+        console.log('findResult is not a valid response object:', findResult);
+        expect(findResult).toEqual({ status: ResponseStatus.SUCCESS, data: foundWidget });
+      }
 
       // 3. Update widget
       const updateDto = {

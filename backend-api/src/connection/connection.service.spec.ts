@@ -58,19 +58,23 @@ describe('ConnectionService', () => {
   const mockQueryExecuteDto = {
     id: 1,
     query: 'SELECT * FROM users WHERE id = ?',
-    parameters: [{ value: '1', type: 'number' }],
+    parameters: [{ name: 'id', value: '1', type: 'number' }],
     limit: 100,
   };
 
   const mockCreateDatabaseDto = {
+    name: 'Test Database',
+    description: 'Test database description',
     engine: 'mysql2',
-    connectionConfig: {
+    connectionConfig: JSON.stringify({
       host: 'localhost',
       port: 3306,
       user: 'testuser',
       password: 'testpass',
       database: 'testdb',
-    },
+    }),
+    type: 'mysql',
+    timezone: 'Asia/Seoul',
   };
 
   beforeEach(async () => {
@@ -160,7 +164,7 @@ describe('ConnectionService', () => {
         expect.objectContaining({
           databaseId: 1,
           client: 'mysql2',
-        })
+        }),
       );
     });
 
@@ -217,7 +221,7 @@ describe('ConnectionService', () => {
       expect(logger.info).toHaveBeenCalledWith(
         'Knex connection pool destroyed',
         'ConnectionService',
-        { databaseId: 1 }
+        { databaseId: 1 },
       );
     });
 
@@ -234,7 +238,7 @@ describe('ConnectionService', () => {
         'Failed to destroy Knex connection pool',
         expect.any(String),
         'ConnectionService',
-        { databaseId: 1 }
+        { databaseId: 1 },
       );
     });
 
@@ -338,27 +342,36 @@ describe('ConnectionService', () => {
 
     it('should handle CockroachDB connection configuration', async () => {
       const cockroachDto = {
+        name: 'CockroachDB Test',
+        description: 'Test CockroachDB connection',
         engine: 'cockroachdb',
-        connectionConfig: {
+        connectionConfig: JSON.stringify({
           user: 'testuser',
           password: 'testpass',
           host: 'localhost',
           port: 26257,
           database: 'testdb',
-        },
+        }),
+        type: 'cockroachdb',
+        timezone: 'Asia/Seoul',
       };
       mockKnex.raw.mockResolvedValue(['test result']);
 
       const result = await service.testConnection(cockroachDto);
 
-      expect(cockroachDto.connectionConfig.connectionString).toContain('postgresql://');
+      const parsedConfig = JSON.parse(cockroachDto.connectionConfig);
+      expect(parsedConfig.connectionString).toContain('postgresql://');
       expect(result.status).toBe(ResponseStatus.SUCCESS);
     });
 
     it('should handle BigQuery test connection', async () => {
       const bigqueryDto = {
+        name: 'BigQuery Test',
+        description: 'Test BigQuery connection',
         engine: 'bigquery',
-        connectionConfig: { projectId: 'test-project' },
+        connectionConfig: JSON.stringify({ projectId: 'test-project' }),
+        type: 'bigquery',
+        timezone: 'Asia/Seoul',
       };
       mockKnex.raw.mockResolvedValue(['test result']);
 
@@ -369,8 +382,12 @@ describe('ConnectionService', () => {
 
     it('should handle Snowflake test connection', async () => {
       const snowflakeDto = {
+        name: 'Snowflake Test',
+        description: 'Test Snowflake connection',
         engine: 'snowflake',
-        connectionConfig: { account: 'test-account' },
+        connectionConfig: JSON.stringify({ account: 'test-account' }),
+        type: 'snowflake',
+        timezone: 'Asia/Seoul',
       };
       mockKnex.raw.mockResolvedValue(['test result']);
 
@@ -381,8 +398,12 @@ describe('ConnectionService', () => {
 
     it('should handle Knex creation failure', async () => {
       const invalidDto = {
+        name: 'Invalid Test',
+        description: 'Test invalid connection',
         engine: 'invalid-engine',
-        connectionConfig: {},
+        connectionConfig: JSON.stringify({}),
+        type: 'invalid',
+        timezone: 'Asia/Seoul',
       };
 
       // Knex 생성 실패를 시뮬레이션하기 위해 require를 직접 모킹
@@ -399,7 +420,7 @@ describe('ConnectionService', () => {
         'Failed to create Knex connection',
         expect.any(String),
         'ConnectionService',
-        expect.any(Object)
+        expect.any(Object),
       );
 
       // Mock 복원
@@ -407,7 +428,7 @@ describe('ConnectionService', () => {
     });
 
     it('should handle connection test failure', async () => {
-      const sqlError = new Error('Connection failed');
+      const sqlError = new Error('Connection failed') as any;
       sqlError.sqlMessage = 'Access denied';
       mockKnex.raw.mockRejectedValue(sqlError);
 
@@ -423,7 +444,7 @@ describe('ConnectionService', () => {
         expect.objectContaining({
           engine: 'mysql2',
           sqlMessage: 'Access denied',
-        })
+        }),
       );
     });
   });
@@ -453,7 +474,11 @@ describe('ConnectionService', () => {
       // Mock 쿼리 결과 설정
       mockKnex.raw.mockResolvedValue([
         [{ id: 1, name: 'Test User', email: 'test@example.com' }],
-        [{ name: 'id', columnType: 3 }, { name: 'name', columnType: 253 }, { name: 'email', columnType: 253 }],
+        [
+          { name: 'id', columnType: 3 },
+          { name: 'name', columnType: 253 },
+          { name: 'email', columnType: 253 },
+        ],
       ]);
     });
 
@@ -469,12 +494,12 @@ describe('ConnectionService', () => {
           maxQueryLength: 10000,
           maxResultLimit: 100,
         }),
-        'user123'
+        'user123',
       );
 
       expect(mockKnex.raw).toHaveBeenCalledWith(
         'SELECT * FROM users WHERE id = ? LIMIT 100',
-        [1] // 파라미터가 숫자로 변환됨
+        [1], // 파라미터가 숫자로 변환됨
       );
 
       expect(result.status).toBe(ResponseStatus.SUCCESS);
@@ -501,18 +526,19 @@ describe('ConnectionService', () => {
       const queryWithDifferentParams = {
         ...mockQueryExecuteDto,
         parameters: [
-          { value: '123', type: 'number' },
-          { value: '2023-01-01', type: 'date' },
-          { value: 'test string', type: 'string' },
+          { name: 'param1', value: '123', type: 'number' },
+          { name: 'param2', value: '2023-01-01', type: 'date' },
+          { name: 'param3', value: 'test string', type: 'string' },
         ],
       };
 
       await service.executeQuery(queryWithDifferentParams, 'user123');
 
-      expect(mockKnex.raw).toHaveBeenCalledWith(
-        'SELECT * FROM users WHERE id = ? LIMIT 100',
-        [123, new Date('2023-01-01'), 'test string']
-      );
+      expect(mockKnex.raw).toHaveBeenCalledWith('SELECT * FROM users WHERE id = ? LIMIT 100', [
+        123,
+        new Date('2023-01-01'),
+        'test string',
+      ]);
     });
 
     it('should reject invalid SQL queries', async () => {
@@ -525,10 +551,7 @@ describe('ConnectionService', () => {
       sqlValidationService.formatValidationError.mockReturnValue('DROP statement not allowed');
 
       await expect(
-        service.executeQuery(
-          { ...mockQueryExecuteDto, query: 'DROP TABLE users' },
-          'user123'
-        )
+        service.executeQuery({ ...mockQueryExecuteDto, query: 'DROP TABLE users' }, 'user123'),
       ).rejects.toThrow(ForbiddenException);
 
       expect(logger.warn).toHaveBeenCalledWith(
@@ -537,7 +560,7 @@ describe('ConnectionService', () => {
         expect.objectContaining({
           userId: 'user123',
           riskLevel: 'HIGH',
-        })
+        }),
       );
     });
 
@@ -558,8 +581,9 @@ describe('ConnectionService', () => {
 
     it('should handle BigQuery result format', async () => {
       // BigQuery 결과 형식 모킹
-      mockKnex.client.config.client = function BigQueryClient() {};
-      mockKnex.client.config.client.name = 'BigQueryClient';
+      const BigQueryClient: any = function () {};
+      BigQueryClient.prototype.name = 'BigQueryClient';
+      mockKnex.client.config.client = BigQueryClient;
       mockKnex.raw.mockResolvedValue([{ id: 1, name: 'Test User' }]);
 
       const result = await service.executeQuery(mockQueryExecuteDto, 'user123');
@@ -570,8 +594,9 @@ describe('ConnectionService', () => {
 
     it('should handle Snowflake result format', async () => {
       // Snowflake 결과 형식 모킹
-      mockKnex.client.config.client = function SnowflakeDialect() {};
-      mockKnex.client.config.client.name = 'SnowflakeDialect';
+      const SnowflakeDialect: any = function () {};
+      SnowflakeDialect.prototype.name = 'SnowflakeDialect';
+      mockKnex.client.config.client = SnowflakeDialect;
       mockKnex.raw.mockResolvedValue({
         rows: [{ ID: 1, NAME: 'Test User' }],
       });
@@ -583,7 +608,7 @@ describe('ConnectionService', () => {
     });
 
     it('should handle query execution error', async () => {
-      const sqlError = new Error('Table not found');
+      const sqlError = new Error('Table not found') as any;
       sqlError.sqlMessage = 'Table "users" doesn\'t exist';
       mockKnex.raw.mockRejectedValue(sqlError);
 
@@ -595,7 +620,7 @@ describe('ConnectionService', () => {
         expect.any(String),
         'database-1-error',
         ['1'],
-        expect.any(Number)
+        expect.any(Number),
       );
     });
 
@@ -604,10 +629,7 @@ describe('ConnectionService', () => {
       mockKnex.raw.mockImplementation(() => {
         return new Promise(resolve => {
           setTimeout(() => {
-            resolve([
-              [{ id: 1, name: 'Test User' }],
-              [{ name: 'id', columnType: 3 }],
-            ]);
+            resolve([[{ id: 1, name: 'Test User' }], [{ name: 'id', columnType: 3 }]]);
           }, 1100); // 1.1초 지연
         });
       });
@@ -623,12 +645,12 @@ describe('ConnectionService', () => {
         expect.objectContaining({
           databaseId: 1,
           executionTime: expect.any(Number),
-        })
+        }),
       );
     });
 
     it('should extract request metadata correctly', async () => {
-      mockRequest.get.mockImplementation((header) => {
+      mockRequest.get.mockImplementation(header => {
         if (header === 'User-Agent') return 'Mozilla/5.0 Test Browser';
         if (header === 'X-Forwarded-For') return '192.168.1.100,127.0.0.1';
         if (header === 'X-Request-ID') return 'req-12345';
@@ -656,7 +678,7 @@ describe('ConnectionService', () => {
 
       const result = await service.executeQuery(
         { ...mockQueryExecuteDto, query: 'SELECT * FROM empty_table' },
-        'user123'
+        'user123',
       );
 
       expect(result.status).toBe(ResponseStatus.SUCCESS);
@@ -678,12 +700,12 @@ describe('ConnectionService', () => {
       const specialCharQuery = {
         ...mockQueryExecuteDto,
         query: 'SELECT * FROM users WHERE name LIKE ?',
-        parameters: [{ value: "O'Reilly & Sons", type: 'string' }],
+        parameters: [{ name: 'company', value: "O'Reilly & Sons", type: 'string' }],
       };
 
       sqlValidationService.validateQuery.mockReturnValue({
         isValid: true,
-        sanitizedQuery: "SELECT * FROM users WHERE name LIKE ? LIMIT 100",
+        sanitizedQuery: 'SELECT * FROM users WHERE name LIKE ? LIMIT 100',
         errors: [],
         warnings: [],
         riskLevel: 'LOW',
@@ -693,10 +715,9 @@ describe('ConnectionService', () => {
 
       const result = await service.executeQuery(specialCharQuery, 'user123');
 
-      expect(mockKnex.raw).toHaveBeenCalledWith(
-        "SELECT * FROM users WHERE name LIKE ? LIMIT 100",
-        ["O'Reilly & Sons"]
-      );
+      expect(mockKnex.raw).toHaveBeenCalledWith('SELECT * FROM users WHERE name LIKE ? LIMIT 100', [
+        "O'Reilly & Sons",
+      ]);
       expect(result.status).toBe(ResponseStatus.SUCCESS);
     });
 
@@ -751,7 +772,8 @@ describe('ConnectionService', () => {
         ],
       }).compile();
 
-      const serviceWithNullRequest = moduleWithNullRequest.get<ConnectionService>(ConnectionService);
+      const serviceWithNullRequest =
+        moduleWithNullRequest.get<ConnectionService>(ConnectionService);
 
       // private 메서드 테스트를 위해 타입 캐스팅
       const metadata = (serviceWithNullRequest as any).extractRequestMetadata('user123');
@@ -793,7 +815,7 @@ describe('ConnectionService', () => {
 
       const queryResult = await service.executeQuery(
         { ...mockQueryExecuteDto, query: 'SELECT * FROM users' },
-        'user123'
+        'user123',
       );
       expect(queryResult.status).toBe(ResponseStatus.SUCCESS);
 

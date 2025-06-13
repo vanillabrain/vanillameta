@@ -134,7 +134,11 @@ export class DashboardService {
 
     const widgetList = await this.dashboardWidgetService.findWidgets(find_dashboard.id);
     console.log('widgetList', widgetList);
-    find_dashboard.layout = JSON.parse(find_dashboard.layout);
+    try {
+      (find_dashboard as any).layout = JSON.parse(find_dashboard.layout);
+    } catch (error) {
+      (find_dashboard as any).layout = [];
+    }
 
     const return_obj = {
       ...find_dashboard,

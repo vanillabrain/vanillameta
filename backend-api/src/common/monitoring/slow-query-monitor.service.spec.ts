@@ -21,7 +21,7 @@ describe('SlowQueryMonitorService', () => {
   beforeEach(async () => {
     // Mock 초기화
     jest.clearAllMocks();
-    
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         SlowQueryMonitorService,

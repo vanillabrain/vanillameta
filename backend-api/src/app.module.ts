@@ -18,6 +18,9 @@ import { ShareUrlModule } from './share-url/share-url.module';
 import { LoggerModule } from './common/logger/logger.module';
 import { MonitoringModule } from './common/monitoring/monitoring.module';
 import { CorrelationIdMiddleware } from './middleware/correlation-id';
+import { TestCompressionController } from './test-compression.controller';
+import { TestFieldSelectionController } from './test-field-selection.controller';
+import { FieldSelectionModule } from './common/field-selection/field-selection.module';
 
 @Module({
   imports: [
@@ -76,8 +79,9 @@ import { CorrelationIdMiddleware } from './middleware/correlation-id';
     LoginModule,
     ShareUrlModule,
     MonitoringModule,
+    FieldSelectionModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, TestCompressionController, TestFieldSelectionController],
   providers: [AppService],
 })
 export class AppModule implements NestModule {
