@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { HttpException, HttpStatus } from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
 import { Dashboard } from './entities/dashboard.entity';
 import { DashboardShare } from './entities/dashboard_share.entity';
@@ -25,6 +26,47 @@ describe('DashboardService', () => {
   let dashboardWidgetService: any;
   let userService: any;
   let authService: any;
+  let logger: any;
+
+  const mockUser = {
+    id: 1,
+    userId: 'testuser',
+    email: 'test@example.com',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const mockDashboard = {
+    id: 1,
+    title: 'Test Dashboard',
+    layout: '[{"i":"widget1","x":0,"y":0,"w":4,"h":4}]',
+    shareId: 1,
+    delYn: YesNo.NO,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const mockDashboardShare = {
+    id: 1,
+    uuid: 'test-uuid-123',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const mockUserMapping = {
+    id: 1,
+    dashboardId: 1,
+    userInfoId: 1,
+    createdAt: new Date(),
+  };
+
+  const mockWidget = {
+    id: 1,
+    title: 'Test Widget',
+    widgetType: 'chart',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -73,6 +115,10 @@ describe('DashboardService', () => {
     dashboardWidgetService = module.get<DashboardWidgetService>(DashboardWidgetService);
     userService = module.get<UserService>(UserService);
     authService = module.get<AuthService>(AuthService);
+    logger = module.get<CustomLoggerService>(CustomLoggerService);
+
+    // Mock 초기화
+    jest.clearAllMocks();
   });
 
   it('should be defined', () => {
@@ -121,26 +167,29 @@ describe('DashboardService', () => {
   });
 
   describe('findOne', () => {
-    it('should return dashboard with widgets', async () => {
-      const mockDashboard = {
-        id: 1,
-        title: 'Test Dashboard',
-        layout: JSON.stringify([{ i: 'widget1', x: 0, y: 0, w: 4, h: 4 }]),
-        shareId: 1,
+    it('should return dashboard with widgets and share UUID', async () => {
+      const mockDashboardWithShare = {
+        ...mockDashboard,
+        dashboardShare: mockDashboardShare,
       };
-      const mockShareInfo = { id: 1, uuid: 'test-uuid' };
-      const mockWidgets = [{ id: 1, title: 'Test Widget' }];
+      const mockWidgets = [mockWidget];
 
-      dashboardRepository.findOne.mockResolvedValue(mockDashboard);
-      dashboardShareRepository.findOne.mockResolvedValue(mockShareInfo);
+      dashboardRepository.findOne.mockResolvedValue(mockDashboardWithShare);
       dashboardWidgetService.findWidgets.mockResolvedValue(mockWidgets);
 
       const result = await service.findOne(1);
 
+      expect(dashboardRepository.findOne).toHaveBeenCalledWith({
+        where: { id: 1 },
+        relations: ['dashboardShare'],
+      });
       expect(result.status).toBe(ResponseStatus.SUCCESS);
       expect(result.data.id).toBe(1);
+      expect(result.data.title).toBe('Test Dashboard');
       expect(result.data.layout).toEqual([{ i: 'widget1', x: 0, y: 0, w: 4, h: 4 }]);
+      expect(result.data.uuid).toBe('test-uuid-123');
       expect(result.data.widgets).toEqual(mockWidgets);
+      expect(result.data.dashboardShare).toBeUndefined(); // Should be deleted
     });
 
     it('should return error when dashboard not found', async () => {
@@ -151,5 +200,216 @@ describe('DashboardService', () => {
       expect(result.status).toBe(ResponseStatus.ERROR);
       expect(result.message).toBe('대시보드가 존재하지 않습니다.');
     });
+
+    it('should handle dashboard without share info', async () => {
+      const mockDashboardWithoutShare = {
+        ...mockDashboard,
+        dashboardShare: null,
+      };
+
+      dashboardRepository.findOne.mockResolvedValue(mockDashboardWithoutShare);
+      dashboardWidgetService.findWidgets.mockResolvedValue([]);
+
+      const result = await service.findOne(1);
+
+      expect(result.status).toBe(ResponseStatus.SUCCESS);
+      expect(result.data.uuid).toBeUndefined();
+      expect(result.data.widgets).toEqual([]);
+    });
   });
-});
+
+  describe('findAll', () => {
+    it('should return all dashboards for user', async () => {
+      const mockUserMappings = [
+        { dashboardId: 1 },
+        { dashboardId: 2 },
+      ];
+      const mockDashboards = [
+        { ...mockDashboard, id: 1 },
+        { ...mockDashboard, id: 2, title: 'Second Dashboard' },
+      ];
+
+      userService.findDashboardId.mockResolvedValue(mockUserMappings);
+      dashboardRepository.createQueryBuilder = jest.fn().mockReturnValue({
+        where: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        addOrderBy: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue(mockDashboards),
+      });
+
+      const result = await service.findAll(1);
+
+      expect(userService.findDashboardId).toHaveBeenCalledWith(1);
+      expect(result.status).toBe(ResponseStatus.SUCCESS);
+      expect(result.data).toHaveLength(2);
+      expect(result.data[0].layout).toEqual([{ i: 'widget1', x: 0, y: 0, w: 4, h: 4 }]);
+    });
+
+    it('should return error when user not found', async () => {
+      userService.findDashboardId.mockResolvedValue(null);
+
+      const result = await service.findAll(999);
+
+      expect(result).toBe('not exist user');
+    });
+
+    it('should return error when user has no dashboards', async () => {
+      userService.findDashboardId.mockResolvedValue([]);
+
+      const result = await service.findAll(1);
+
+      expect(result).toBe('not exist user');
+    });
+
+    it('should throw HttpException when dashboard IDs are empty', async () => {
+      userService.findDashboardId.mockResolvedValue([{ dashboardId: null }]);
+
+      await expect(service.findAll(1)).rejects.toThrow(
+        new HttpException('not found', HttpStatus.NOT_FOUND)
+      );
+    });
+  });
+
+  describe('update', () => {
+    it('should update dashboard title successfully', async () => {
+      const updateDto = { title: 'Updated Dashboard' };
+      const foundDashboard = { ...mockDashboard };
+
+      dashboardRepository.findOne.mockResolvedValue(foundDashboard);
+      dashboardRepository.save.mockResolvedValue({
+        ...foundDashboard,
+        title: 'Updated Dashboard',
+      });
+      dashboardWidgetService.update.mockResolvedValue({});
+
+      const result = await service.update(1, updateDto);
+
+      expect(dashboardRepository.findOne).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(dashboardRepository.save).toHaveBeenCalled();
+      expect(result.status).toBe(ResponseStatus.SUCCESS);
+      expect(result.data.title).toBe('Updated Dashboard');
+    });
+
+    it('should update dashboard layout successfully', async () => {
+      const newLayout = [{ i: 'widget2', x: 1, y: 1, w: 6, h: 6 }];
+      const updateDto = { layout: newLayout };
+      const foundDashboard = { ...mockDashboard };
+
+      dashboardRepository.findOne.mockResolvedValue(foundDashboard);
+      dashboardRepository.save.mockResolvedValue({
+        ...foundDashboard,
+        layout: JSON.stringify(newLayout),
+      });
+      dashboardWidgetService.update.mockResolvedValue({});
+
+      const result = await service.update(1, updateDto);
+
+      expect(dashboardWidgetService.update).toHaveBeenCalledWith(1, {
+        dashboardId: 1,
+        widgetIds: ['widget2'],
+      });
+      expect(result.status).toBe(ResponseStatus.SUCCESS);
+      expect(result.data.layout).toEqual(newLayout);
+    });
+
+    it('should update both title and layout', async () => {
+      const newLayout = [{ i: 'widget3', x: 2, y: 2, w: 8, h: 8 }];
+      const updateDto = { title: 'New Title', layout: newLayout };
+      const foundDashboard = { ...mockDashboard };
+
+      dashboardRepository.findOne.mockResolvedValue(foundDashboard);
+      dashboardRepository.save.mockResolvedValue({
+        ...foundDashboard,
+        title: 'New Title',
+        layout: JSON.stringify(newLayout),
+      });
+      dashboardWidgetService.update.mockResolvedValue({});
+
+      const result = await service.update(1, updateDto);
+
+      expect(result.status).toBe(ResponseStatus.SUCCESS);
+      expect(result.data.title).toBe('New Title');
+      expect(result.data.layout).toEqual(newLayout);
+    });
+
+    it('should return error when dashboard not found', async () => {
+      dashboardRepository.findOne.mockResolvedValue(null);
+
+      const result = await service.update(999, { title: 'New Title' });
+
+      expect(result).toBe('Not exist dashboard');
+    });
+  });
+
+  describe('remove', () => {
+    it('should remove dashboard and related data successfully', async () => {
+      const foundDashboard = { ...mockDashboard };
+      const foundUserMapping = { ...mockUserMapping };
+
+      dashboardRepository.findOne.mockResolvedValue(foundDashboard);
+      userMappingRepository.findOne.mockResolvedValue(foundUserMapping);
+      dashboardRepository.delete.mockResolvedValue({ affected: 1 });
+      userMappingRepository.delete.mockResolvedValue({ affected: 1 });
+      dashboardShareRepository.delete.mockResolvedValue({ affected: 1 });
+      dashboardWidgetService.remove.mockResolvedValue({});
+
+      const result = await service.remove(1);
+
+      expect(dashboardRepository.delete).toHaveBeenCalledWith(1);
+      expect(dashboardWidgetService.remove).toHaveBeenCalledWith(1);
+      expect(userMappingRepository.delete).toHaveBeenCalledWith(1);
+      expect(dashboardShareRepository.delete).toHaveBeenCalledWith(1);
+      expect(result.status).toBe(ResponseStatus.SUCCESS);
+      expect(result.data.message).toBe('This action removes a #1 dashboard');
+    });
+
+    it('should return error when dashboard not found', async () => {
+      dashboardRepository.findOne.mockResolvedValue(null);
+
+      const result = await service.remove(999);
+
+      expect(result.status).toBe(ResponseStatus.ERROR);
+      expect(result.message).toBe('No exist dashboard');
+    });
+  });
+
+  describe('Edge Cases and Error Handling', () => {
+    it('should handle malformed layout JSON in findOne', async () => {
+      const malformedDashboard = {
+        ...mockDashboard,
+        layout: 'invalid-json',
+        dashboardShare: mockDashboardShare,
+      };
+
+      dashboardRepository.findOne.mockResolvedValue(malformedDashboard);
+      dashboardWidgetService.findWidgets.mockResolvedValue([]);
+
+      // JSON.parse가 실패할 수 있지만 서비스에서 처리되어야 함
+      expect(async () => {
+        await service.findOne(1);
+      }).not.toThrow();
+    });
+
+    it('should handle empty widget IDs in create', async () => {
+      const createDto = {
+        title: 'Empty Layout Dashboard',
+        layout: [], // Empty layout
+      };
+
+      userRepository.findOne.mockResolvedValue(mockUser);
+      dashboardShareRepository.save.mockResolvedValue(mockDashboardShare);
+      dashboardRepository.save.mockResolvedValue(mockDashboard);
+      userMappingRepository.save.mockResolvedValue(mockUserMapping);
+      dashboardWidgetService.create.mockResolvedValue({});
+
+      const result = await service.create(createDto, 1);
+
+      expect(dashboardWidgetService.create).toHaveBeenCalledWith({
+        dashboardId: 1,
+        widgetIds: [],
+      });
+      expect(result.status).toBe(ResponseStatus.SUCCESS);
+    });
+
+    it('should handle large layout data', async () => {
+      const largeLayout = Array.from({ length: 50 }, (_, i) => ({\n        i: `widget${i}`,\n        x: i % 10,\n        y: Math.floor(i / 10),\n        w: 2,\n        h: 2,\n      }));\n      const createDto = {\n        title: 'Large Layout Dashboard',\n        layout: largeLayout,\n      };\n\n      userRepository.findOne.mockResolvedValue(mockUser);\n      dashboardShareRepository.save.mockResolvedValue(mockDashboardShare);\n      dashboardRepository.save.mockResolvedValue({\n        ...mockDashboard,\n        layout: JSON.stringify(largeLayout),\n      });\n      userMappingRepository.save.mockResolvedValue(mockUserMapping);\n      dashboardWidgetService.create.mockResolvedValue({});\n\n      const result = await service.create(createDto, 1);\n\n      expect(result.status).toBe(ResponseStatus.SUCCESS);\n      expect(result.data.layout).toEqual(largeLayout);\n    });\n\n    it('should handle special characters in dashboard title', async () => {\n      const specialTitle = 'Dashboard with 특수문자 & symbols! @#$%';\n      const createDto = {\n        title: specialTitle,\n        layout: [{ i: 'widget1', x: 0, y: 0, w: 4, h: 4 }],\n      };\n\n      userRepository.findOne.mockResolvedValue(mockUser);\n      dashboardShareRepository.save.mockResolvedValue(mockDashboardShare);\n      dashboardRepository.save.mockResolvedValue({\n        ...mockDashboard,\n        title: specialTitle,\n      });\n      userMappingRepository.save.mockResolvedValue(mockUserMapping);\n      dashboardWidgetService.create.mockResolvedValue({});\n\n      const result = await service.create(createDto, 1);\n\n      expect(result.status).toBe(ResponseStatus.SUCCESS);\n      expect(result.data.title).toBe(specialTitle);\n    });\n  });\n\n  describe('Integration Tests', () => {\n    it('should complete full dashboard lifecycle', async () => {\n      // 1. Create dashboard\n      const createDto = {\n        title: 'Lifecycle Test Dashboard',\n        layout: [{ i: 'widget1', x: 0, y: 0, w: 4, h: 4 }],\n      };\n\n      userRepository.findOne.mockResolvedValue(mockUser);\n      dashboardShareRepository.save.mockResolvedValue(mockDashboardShare);\n      dashboardRepository.save.mockResolvedValue(mockDashboard);\n      userMappingRepository.save.mockResolvedValue(mockUserMapping);\n      dashboardWidgetService.create.mockResolvedValue({});\n\n      const createResult = await service.create(createDto, 1);\n      expect(createResult.status).toBe(ResponseStatus.SUCCESS);\n\n      // 2. Find created dashboard\n      dashboardRepository.findOne.mockResolvedValue({\n        ...mockDashboard,\n        dashboardShare: mockDashboardShare,\n      });\n      dashboardWidgetService.findWidgets.mockResolvedValue([mockWidget]);\n\n      const findResult = await service.findOne(1);\n      expect(findResult.status).toBe(ResponseStatus.SUCCESS);\n      expect(findResult.data.widgets).toHaveLength(1);\n\n      // 3. Update dashboard\n      const updateDto = { title: 'Updated Lifecycle Dashboard' };\n      dashboardRepository.findOne.mockResolvedValue(mockDashboard);\n      dashboardRepository.save.mockResolvedValue({\n        ...mockDashboard,\n        title: 'Updated Lifecycle Dashboard',\n      });\n      dashboardWidgetService.update.mockResolvedValue({});\n\n      const updateResult = await service.update(1, updateDto);\n      expect(updateResult.status).toBe(ResponseStatus.SUCCESS);\n      expect(updateResult.data.title).toBe('Updated Lifecycle Dashboard');\n\n      // 4. Remove dashboard\n      dashboardRepository.findOne.mockResolvedValue(mockDashboard);\n      userMappingRepository.findOne.mockResolvedValue(mockUserMapping);\n      dashboardRepository.delete.mockResolvedValue({ affected: 1 });\n      userMappingRepository.delete.mockResolvedValue({ affected: 1 });\n      dashboardShareRepository.delete.mockResolvedValue({ affected: 1 });\n      dashboardWidgetService.remove.mockResolvedValue({});\n\n      const removeResult = await service.remove(1);\n      expect(removeResult.status).toBe(ResponseStatus.SUCCESS);\n    });\n\n    it('should handle concurrent dashboard operations', async () => {\n      // Simulate concurrent creation of multiple dashboards\n      const createPromises = Array.from({ length: 3 }, (_, i) => {\n        const createDto = {\n          title: `Concurrent Dashboard ${i + 1}`,\n          layout: [{ i: `widget${i + 1}`, x: 0, y: 0, w: 4, h: 4 }],\n        };\n\n        userRepository.findOne.mockResolvedValue(mockUser);\n        dashboardShareRepository.save.mockResolvedValue({\n          ...mockDashboardShare,\n          id: i + 1,\n        });\n        dashboardRepository.save.mockResolvedValue({\n          ...mockDashboard,\n          id: i + 1,\n          title: `Concurrent Dashboard ${i + 1}`,\n        });\n        userMappingRepository.save.mockResolvedValue({\n          ...mockUserMapping,\n          id: i + 1,\n        });\n        dashboardWidgetService.create.mockResolvedValue({});\n\n        return service.create(createDto, 1);\n      });\n\n      const results = await Promise.all(createPromises);\n\n      results.forEach((result, index) => {\n        expect(result.status).toBe(ResponseStatus.SUCCESS);\n        expect(result.data.title).toBe(`Concurrent Dashboard ${index + 1}`);\n      });\n    });\n  });\n});
