@@ -60,15 +60,15 @@ export function FieldSelection(options: FieldSelectionOptions = {}) {
  */
 export function PredefinedFields(fieldSetName: string, additionalOptions: Omit<FieldSelectionOptions, 'allowedFields'> = {}) {
   const predefinedSets: Record<string, string[]> = {
-    userBasic: ['id', 'email', 'name', 'createdAt'],
-    userWithProfile: ['id', 'email', 'name', 'profile.avatar', 'profile.bio'],
+    userBasic: ['id', 'userId', 'email', 'createdAt', 'updatedAt'],
+    userWithProfile: ['id', 'userId', 'email', 'profile.avatar', 'profile.bio'],
     dashboardMeta: ['id', 'title', 'description', 'createdAt', 'updatedAt'],
     dashboardWithWidgets: ['id', 'title', 'widgets.id', 'widgets.name', 'widgets.type'],
-    widgetBasic: ['id', 'name', 'type', 'order', 'createdAt'],
-    widgetWithConfig: ['id', 'name', 'type', 'config.title', 'config.chartType'],
-    datasetSchema: ['id', 'name', 'description', 'columns.name', 'columns.type'],
-    datasetMeta: ['id', 'name', 'description', 'rowCount', 'createdAt'],
-    connectionBasic: ['id', 'name', 'type', 'host', 'port', 'database', 'status']
+    widgetBasic: ['id', 'title', 'componentId', 'createdAt', 'updatedAt'],
+    widgetWithConfig: ['id', 'title', 'componentId', 'datasetType', 'datasetId', 'option'],
+    datasetSchema: ['id', 'title', 'databaseId', 'columns.name', 'columns.type'],
+    datasetMeta: ['id', 'title', 'databaseId', 'createdAt', 'updatedAt'],
+    connectionBasic: ['id', 'name', 'description', 'engine', 'type', 'timezone', 'createdAt', 'updatedAt']
   };
 
   const allowedFields = predefinedSets[fieldSetName];

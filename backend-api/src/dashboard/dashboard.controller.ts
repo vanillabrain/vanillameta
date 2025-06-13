@@ -3,7 +3,7 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { DashboardService } from './dashboard.service';
 import { CreateDashboardDto } from './dto/create-dashboard.dto';
 import { UpdateDashboardDto } from './dto/update-dashboard.dto';
-import { ApiBearerAuth } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { FieldSelection } from '../common/field-selection/field-selection.decorator';
 
 @UseGuards(JwtAuthGuard)
@@ -30,6 +30,12 @@ export class DashboardController {
   })
   @Get()
   @ApiBearerAuth('AccessKey')
+  @ApiQuery({ 
+    name: 'fields', 
+    required: false, 
+    description: '반환할 필드 선택 (쉼표로 구분). 중첩 필드는 점(.)으로 구분. 예: id,title,widgets.id,widgets.name',
+    example: 'id,title,description,widgets.id,widgets.name'
+  })
   findAll(@Req() req, @Query('fields') fields?: string) {
     const { accessKeyData } = req.user;
     return this.dashboardService.findAll(accessKeyData.id);
@@ -47,6 +53,12 @@ export class DashboardController {
   })
   @Get(':id')
   @ApiBearerAuth('AccessKey')
+  @ApiQuery({ 
+    name: 'fields', 
+    required: false, 
+    description: '반환할 필드 선택 (쉼표로 구분). 중첩 필드는 점(.)으로 구분',
+    example: 'id,title,widgets.id,widgets.config.title'
+  })
   findOne(@Param('id') id: string, @Query('fields') fields?: string) {
     return this.dashboardService.findOne(+id);
   }

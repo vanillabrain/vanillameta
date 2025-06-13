@@ -12,6 +12,8 @@ export interface FieldSelectionOptions {
 @Injectable()
 export class FieldSelectionService {
   private readonly logger = new Logger(FieldSelectionService.name);
+  private readonly fieldParseCache = new Map<string, string[]>();
+  private readonly maxCacheSize = 1000;
 
   /**
    * 필드 선택 문자열을 파싱하여 배열로 변환
@@ -23,6 +25,15 @@ export class FieldSelectionService {
       return [];
     }
 
+    // 캐시 키 생성
+    const cacheKey = this.generateCacheKey(fieldsParam, options);
+    
+    // 캐시에서 확인
+    const cached = this.fieldParseCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     // 쉼표로 분리하고 공백 제거
     const fields = fieldsParam
       .split(',')
@@ -32,8 +43,35 @@ export class FieldSelectionService {
     // 유효성 검사
     const validatedFields = this.validateFields(fields, options);
     
+    // 캐시에 저장
+    this.addToCache(cacheKey, validatedFields);
+    
     this.logger.debug(`Parsed fields: ${validatedFields.join(', ')}`);
     return validatedFields;
+  }
+
+  /**
+   * 캐시 키 생성
+   */
+  private generateCacheKey(fieldsParam: string, options: FieldSelectionOptions): string {
+    const optionsKey = JSON.stringify({
+      allowed: options.allowedFields?.sort(),
+      excluded: options.excludeFields?.sort(),
+      maxDepth: options.maxDepth
+    });
+    return `${fieldsParam}::${optionsKey}`;
+  }
+
+  /**
+   * 캐시에 추가 (LRU 방식)
+   */
+  private addToCache(key: string, value: string[]): void {
+    if (this.fieldParseCache.size >= this.maxCacheSize) {
+      // 가장 오래된 항목 제거
+      const firstKey = this.fieldParseCache.keys().next().value;
+      this.fieldParseCache.delete(firstKey);
+    }
+    this.fieldParseCache.set(key, value);
   }
 
   /**
@@ -87,7 +125,7 @@ export class FieldSelectionService {
   }
 
   /**
-   * 데이터 객체에서 선택된 필드만 추출
+   * 데이터 객체에서 선택된 필드만 추출 (최적화된 버전)
    */
   selectFields(data: any, fields: string[]): any {
     if (!data || fields.length === 0) {
@@ -96,7 +134,12 @@ export class FieldSelectionService {
 
     // 배열인 경우 각 요소에 재귀적으로 적용
     if (Array.isArray(data)) {
-      return data.map(item => this.selectFields(item, fields));
+      // 대용량 배열 최적화: 병렬 처리 대신 순차 처리 사용
+      const result = new Array(data.length);
+      for (let i = 0; i < data.length; i++) {
+        result[i] = this.selectFields(data[i], fields);
+      }
+      return result;
     }
 
     // 객체가 아닌 경우 그대로 반환
@@ -104,13 +147,66 @@ export class FieldSelectionService {
       return data;
     }
 
+    // 필드 구조 최적화: 중첩 필드를 트리 구조로 변환
+    const fieldTree = this.buildFieldTree(fields);
+    return this.extractFieldsFromTree(data, fieldTree);
+  }
+
+  /**
+   * 필드 배열을 트리 구조로 변환하여 중복 순회 방지
+   */
+  private buildFieldTree(fields: string[]): any {
+    const tree: any = {};
+    
+    for (const field of fields) {
+      const parts = field.split('.');
+      let current = tree;
+      
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        if (!current[part]) {
+          current[part] = i === parts.length - 1 ? true : {};
+        }
+        current = current[part];
+      }
+    }
+    
+    return tree;
+  }
+
+  /**
+   * 트리 구조를 사용하여 필드 추출 (최적화)
+   */
+  private extractFieldsFromTree(source: any, fieldTree: any): any {
+    if (fieldTree === true) {
+      return source;
+    }
+
     const result: any = {};
     
-    // 각 필드별로 처리
-    fields.forEach(field => {
-      this.extractField(data, field, result);
-    });
-
+    for (const key in fieldTree) {
+      if (source.hasOwnProperty(key)) {
+        const value = source[key];
+        const subTree = fieldTree[key];
+        
+        if (subTree === true) {
+          result[key] = value;
+        } else if (value !== null && value !== undefined) {
+          if (Array.isArray(value)) {
+            result[key] = value.map(item => this.extractFieldsFromTree(item, subTree));
+          } else if (typeof value === 'object') {
+            const extracted = this.extractFieldsFromTree(value, subTree);
+            // 빈 객체는 추가하지 않음
+            if (Object.keys(extracted).length > 0) {
+              result[key] = extracted;
+            }
+          } else {
+            result[key] = value;
+          }
+        }
+      }
+    }
+    
     return result;
   }
 
