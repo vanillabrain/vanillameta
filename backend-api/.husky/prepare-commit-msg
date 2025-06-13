@@ -1,0 +1,14 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# merge 커밋인지 확인
+if [ -f .git/MERGE_HEAD ]; then
+  branch="$(git rev-parse --abbrev-ref HEAD)"
+  
+  # main 브랜치에서의 merge 커밋 방지
+  if [ "$branch" = "main" ]; then
+    echo "❌ main 브랜치에서 직접 merge할 수 없습니다!"
+    echo "✅ GitHub Pull Request를 사용해주세요."
+    exit 1
+  fi
+fi
