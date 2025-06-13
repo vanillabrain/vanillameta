@@ -1,9 +1,10 @@
-import { Controller, Get, Post, Body, Param, Delete, Put, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, Put, UseGuards, Req, Query } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { DashboardService } from './dashboard.service';
 import { CreateDashboardDto } from './dto/create-dashboard.dto';
 import { UpdateDashboardDto } from './dto/update-dashboard.dto';
 import { ApiBearerAuth } from '@nestjs/swagger';
+import { FieldSelection } from '../common/field-selection/field-selection.decorator';
 
 @UseGuards(JwtAuthGuard)
 @Controller('dashboard')
@@ -18,16 +19,35 @@ export class DashboardController {
     return this.dashboardService.create(createDashboardDto, accessKeyData.id);
   }
 
+  @FieldSelection({
+    allowedFields: [
+      'id', 'title', 'description', 'createdAt', 'updatedAt',
+      'widgets.id', 'widgets.name', 'widgets.type', 'widgets.order',
+      'widgets.config.title', 'widgets.config.chartType',
+      'widgets.config.layout'
+    ],
+    excludeFields: ['widgets.config.queries', 'widgets.data']
+  })
   @Get()
   @ApiBearerAuth('AccessKey')
-  findAll(@Req() req) {
+  findAll(@Req() req, @Query('fields') fields?: string) {
     const { accessKeyData } = req.user;
     return this.dashboardService.findAll(accessKeyData.id);
   }
 
+  @FieldSelection({
+    allowedFields: [
+      'id', 'title', 'description', 'createdAt', 'updatedAt',
+      'widgets.id', 'widgets.name', 'widgets.type', 'widgets.order',
+      'widgets.config.title', 'widgets.config.chartType', 'widgets.config.layout',
+      'widgets.config.xAxis', 'widgets.config.yAxis', 'widgets.config.groupBy',
+      'widgets.dataset.id', 'widgets.dataset.name'
+    ],
+    excludeFields: ['widgets.config.queries', 'widgets.data', 'widgets.rawData']
+  })
   @Get(':id')
   @ApiBearerAuth('AccessKey')
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id') id: string, @Query('fields') fields?: string) {
     return this.dashboardService.findOne(+id);
   }
 
