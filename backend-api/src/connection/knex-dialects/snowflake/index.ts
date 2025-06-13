@@ -1,12 +1,14 @@
 // import * as Promise from 'bluebird';
-import { Knex, knex } from 'knex';
+import { Knex } from 'knex';
 import { defer, fromPairs, isArray, toPairs } from 'lodash';
 import * as ColumnBuilder from 'knex/lib/schema/columnbuilder';
 import * as ColumnCompiler_MySQL from 'knex/lib/dialects/mysql/schema/mysql-columncompiler';
 import * as Transaction from 'knex/lib/execution/transaction';
 import { promisify } from 'util';
 
-export class SnowflakeDialect extends knex.Client {
+const Client = require('knex/lib/client');
+
+export class SnowflakeDialect extends Client {
   constructor(
     config = {
       dialect: 'snowflake',

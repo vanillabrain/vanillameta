@@ -29,7 +29,7 @@ describe('Authentication Flow (e2e)', () => {
 
     userRepository = moduleFixture.get<Repository<User>>(getRepositoryToken(User));
     refreshTokenRepository = moduleFixture.get<Repository<RefreshToken>>(
-      getRepositoryToken(RefreshToken)
+      getRepositoryToken(RefreshToken),
     );
 
     // 테스트 사용자 생성
@@ -53,14 +53,14 @@ describe('Authentication Flow (e2e)', () => {
             password: testUser.password,
           })
           .expect(201)
-          .expect((res) => {
+          .expect(res => {
             expect(res.body).toHaveProperty('accessToken');
             expect(res.body).toHaveProperty('refreshToken');
             expect(res.body.user).toEqual(
               expect.objectContaining({
                 userId: testUser.userId,
                 email: testUser.email,
-              })
+              }),
             );
             expect(res.body.user).not.toHaveProperty('password');
           });
@@ -74,7 +74,7 @@ describe('Authentication Flow (e2e)', () => {
             password: 'wrongpassword',
           })
           .expect(401)
-          .expect((res) => {
+          .expect(res => {
             expect(res.body).toHaveProperty('message');
           });
       });
@@ -133,7 +133,7 @@ describe('Authentication Flow (e2e)', () => {
           .post('/api/auth/refresh')
           .set('Authorization', `Bearer refreshToken=${validRefreshToken}`)
           .expect(201)
-          .expect((res) => {
+          .expect(res => {
             expect(res.body).toHaveProperty('accessToken');
             expect(res.body).toHaveProperty('refreshToken');
             expect(res.body.accessToken).not.toBe(validAccessToken); // 새로운 토큰이어야 함
@@ -148,9 +148,7 @@ describe('Authentication Flow (e2e)', () => {
       });
 
       it('should reject refresh with missing authorization header', () => {
-        return request(app.getHttpServer())
-          .post('/api/auth/refresh')
-          .expect(401);
+        return request(app.getHttpServer()).post('/api/auth/refresh').expect(401);
       });
 
       it('should reject refresh with malformed authorization header', () => {
@@ -185,7 +183,7 @@ describe('Authentication Flow (e2e)', () => {
           .set('Authorization', `Bearer ${validAccessToken}`)
           .send({ userId })
           .expect(201)
-          .expect((res) => {
+          .expect(res => {
             expect(res.body).toHaveProperty('message');
             expect(res.body.message).toContain('logout');
           });
@@ -200,10 +198,7 @@ describe('Authentication Flow (e2e)', () => {
       });
 
       it('should reject logout with missing authorization header', () => {
-        return request(app.getHttpServer())
-          .post('/api/auth/logout')
-          .send({ userId })
-          .expect(401);
+        return request(app.getHttpServer()).post('/api/auth/logout').send({ userId }).expect(401);
       });
     });
   });
@@ -232,9 +227,7 @@ describe('Authentication Flow (e2e)', () => {
     });
 
     it('should reject access to protected route without token', () => {
-      return request(app.getHttpServer())
-        .get('/api/dashboard')
-        .expect(401);
+      return request(app.getHttpServer()).get('/api/dashboard').expect(401);
     });
 
     it('should reject access to protected route with invalid token', () => {
@@ -247,7 +240,7 @@ describe('Authentication Flow (e2e)', () => {
     it('should reject access to protected route with expired token', async () => {
       // 만료된 토큰 시뮬레이션 (실제로는 토큰 만료 시간을 조작하거나 별도의 만료된 토큰을 생성해야 함)
       const expiredToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2MDk0NTkyMDB9.expired';
-      
+
       return request(app.getHttpServer())
         .get('/api/dashboard')
         .set('Authorization', `Bearer ${expiredToken}`)
@@ -310,12 +303,10 @@ describe('Authentication Flow (e2e)', () => {
 
     it('should handle concurrent login attempts', async () => {
       const loginPromises = Array.from({ length: 3 }, () =>
-        request(app.getHttpServer())
-          .post('/api/auth/login')
-          .send({
-            userId: testUser.userId,
-            password: testUser.password,
-          })
+        request(app.getHttpServer()).post('/api/auth/login').send({
+          userId: testUser.userId,
+          password: testUser.password,
+        }),
       );
 
       const responses = await Promise.all(loginPromises);
@@ -371,7 +362,7 @@ describe('Authentication Flow (e2e)', () => {
 
     it('should handle very long input gracefully', () => {
       const longString = 'a'.repeat(10000);
-      
+
       return request(app.getHttpServer())
         .post('/api/auth/login')
         .send({
@@ -417,16 +408,14 @@ describe('Authentication Flow (e2e)', () => {
     it('should rate limit login attempts', async () => {
       // 여러 번의 실패한 로그인 시도
       const failedAttempts = Array.from({ length: 10 }, () =>
-        request(app.getHttpServer())
-          .post('/api/auth/login')
-          .send({
-            userId: testUser.userId,
-            password: 'wrongpassword',
-          })
+        request(app.getHttpServer()).post('/api/auth/login').send({
+          userId: testUser.userId,
+          password: 'wrongpassword',
+        }),
       );
 
       const responses = await Promise.all(failedAttempts);
-      
+
       // 모든 시도가 실패해야 함
       responses.forEach(response => {
         expect(response.status).toBe(401);
@@ -459,15 +448,16 @@ describe('Authentication Flow (e2e)', () => {
           request(app.getHttpServer())
             .get('/api/dashboard')
             .set('Authorization', `Bearer ${token}`)
-            .expect(401)
-        )
+            .expect(401),
+        ),
       );
     });
 
     it('should handle tokens with wrong signing algorithm', () => {
       // 다른 알고리즘으로 서명된 토큰 (RS256 대신 HS256 등)
-      const wrongAlgorithmToken = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWV9.wrong-signature';
-      
+      const wrongAlgorithmToken =
+        'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWV9.wrong-signature';
+
       return request(app.getHttpServer())
         .get('/api/dashboard')
         .set('Authorization', `Bearer ${wrongAlgorithmToken}`)
@@ -477,7 +467,7 @@ describe('Authentication Flow (e2e)', () => {
     it('should handle tokens with tampered payload', () => {
       // 토큰의 payload가 변조된 경우
       const tamperedToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.tampered-payload.signature';
-      
+
       return request(app.getHttpServer())
         .get('/api/dashboard')
         .set('Authorization', `Bearer ${tamperedToken}`)

@@ -88,10 +88,10 @@ This project follows a milestone-based development approach.
 
 ## 5. General Tasks
 
-### T001 Backend Test Suite Enhancement (📋 OPEN)
-📋 기존 테스트 케이스를 분석하여 포괄적인 단위 테스트와 E2E 테스트 스위트 구성
+### T001 Backend Test Suite Enhancement (🔄 IN PROGRESS)
+🔄 기존 테스트 케이스를 분석하여 포괄적인 단위 테스트와 E2E 테스트 스위트 구성
 - **Target Coverage**: 80% 이상
-- **Status**: Open
+- **Status**: In Progress (2025-06-13 10:38)
 - **File**: [T001_Backend_Test_Suite_Enhancement.md](./04_GENERAL_TASKS/T001_Backend_Test_Suite_Enhancement.md)
 
 ## 6. Quick Links
