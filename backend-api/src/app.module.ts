@@ -21,6 +21,7 @@ import { CorrelationIdMiddleware } from './middleware/correlation-id';
 import { TestCompressionController } from './test-compression.controller';
 import { TestFieldSelectionController } from './test-field-selection.controller';
 import { FieldSelectionModule } from './common/field-selection/field-selection.module';
+import { PaginationModule } from './common/pagination/pagination.module';
 
 @Module({
   imports: [
@@ -80,6 +81,7 @@ import { FieldSelectionModule } from './common/field-selection/field-selection.m
     ShareUrlModule,
     MonitoringModule,
     FieldSelectionModule,
+    PaginationModule,
   ],
   controllers: [AppController, TestCompressionController, TestFieldSelectionController],
   providers: [AppService],

@@ -7,9 +7,13 @@ import { ConnectionService } from '../connection/connection.service';
 import { Database } from '../database/entities/database.entity';
 import { Widget } from '../widget/entities/widget.entity';
 import { JwtService } from '@nestjs/jwt';
+import { PaginationModule } from '../common/pagination';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Dataset, Database, Widget])],
+  imports: [
+    TypeOrmModule.forFeature([Dataset, Database, Widget]),
+    PaginationModule,
+  ],
   controllers: [DatasetController],
   providers: [DatasetService, ConnectionService, JwtService],
 })

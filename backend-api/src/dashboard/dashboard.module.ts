@@ -14,6 +14,7 @@ import { UserMapping } from 'src/user/entities/user-mapping.entity';
 import { JwtService } from '@nestjs/jwt';
 import { RefreshToken } from 'src/auth/entities/refresh_token.entity';
 import { DashboardShare } from 'src/dashboard/entities/dashboard_share.entity';
+import { PaginationModule } from '../common/pagination';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { DashboardShare } from 'src/dashboard/entities/dashboard_share.entity';
       DashboardShare,
       RefreshToken,
     ]),
+    PaginationModule,
   ],
   controllers: [DashboardController],
   providers: [DashboardService, DashboardWidgetService, UserService, AuthService, JwtService],

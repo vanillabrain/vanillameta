@@ -8,6 +8,7 @@ import { ConnectionService } from '../connection/connection.service';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import { Widget } from '../widget/entities/widget.entity';
 import { DatasetType } from '../common/enum/dataset-type.enum';
+import { PaginationService, CursorPaginationOptions, OffsetPaginationOptions, PaginatedResponse } from '../common/pagination';
 
 @Injectable()
 export class DatasetService {
@@ -17,6 +18,7 @@ export class DatasetService {
     @InjectRepository(Widget)
     private widgetRepository: Repository<Widget>,
     private readonly connectionService: ConnectionService,
+    private readonly paginationService: PaginationService,
   ) {}
 
   /**
@@ -41,10 +43,44 @@ export class DatasetService {
   }
 
   /**
-   * 데이터셋 전체 조회
+   * 데이터셋 전체 조회 (페이지네이션 지원)
    */
-  async findAll() {
-    return await this.datasetRepository.find();
+  async findAll(pagination?: CursorPaginationOptions | OffsetPaginationOptions): Promise<PaginatedResponse<Dataset> | Dataset[]> {
+    // 페이지네이션이 없으면 기존 로직 사용 (하위 호환성)
+    if (!pagination) {
+      return await this.datasetRepository.find({
+        order: {
+          updatedAt: 'DESC',
+          title: 'ASC',
+        },
+      });
+    }
+
+    // 페이지네이션 적용
+    const queryBuilder = this.datasetRepository
+      .createQueryBuilder('dataset')
+      .select([
+        'dataset.id',
+        'dataset.title',
+        'dataset.databaseId',
+        'dataset.query',
+        'dataset.createdAt',
+        'dataset.updatedAt',
+      ]);
+
+    const paginatedResult = await this.paginationService.paginate(
+      queryBuilder,
+      pagination,
+      {
+        alias: 'dataset',
+        defaultSortField: 'updatedAt',
+        defaultSortDirection: 'DESC',
+        cursorFields: ['updatedAt', 'title'],
+        includeTotalCount: true,
+      },
+    );
+
+    return paginatedResult;
   }
 
   /**
