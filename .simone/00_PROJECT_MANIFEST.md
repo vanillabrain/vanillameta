@@ -51,7 +51,7 @@ This project follows a milestone-based development approach.
 📋 N+1 쿼리 문제 해결 (T02_S03)
 📋 TypeORM 쿼리 최적화 (T03_S03)
 📋 연결 풀 최적화 (T04_S03)
-✅ 쿼리 실행 계획 분석 (T05_S03) - COMPLETED (2025-06-12 23:52)
+📋 쿼리 실행 계획 분석 (T05_S03)
 📋 느린 쿼리 모니터링 설정 (T06_S03)
 📋 데이터베이스별 특화 최적화 (T07_S03)
 
@@ -86,15 +86,7 @@ This project follows a milestone-based development approach.
 - [General Tasks](./04_GENERAL_TASKS/)
 - [Latest Project Review](./10_STATE_OF_PROJECT/2025-06-12-12-00-needs-focus.md)
 
-## 5. General Tasks
-
-### T001 Backend Test Suite Enhancement (📋 OPEN)
-📋 기존 테스트 케이스를 분석하여 포괄적인 단위 테스트와 E2E 테스트 스위트 구성
-- **Target Coverage**: 80% 이상
-- **Status**: Open
-- **File**: [T001_Backend_Test_Suite_Enhancement.md](./04_GENERAL_TASKS/T001_Backend_Test_Suite_Enhancement.md)
-
-## 6. Quick Links
+## 5. Quick Links
 
 - **Current Sprint:** [S01 Sprint Folder](./03_SPRINTS/S01_MVP_안정화_및_핵심_기능_강화_테스트_인프라_복구/)
 - **Active Tasks:** Check sprint folder for T##_S01_*.md files
