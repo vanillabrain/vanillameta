@@ -14,6 +14,7 @@ import compression from 'compression';
 import { ValidationPipe } from '@nestjs/common';
 import { CustomLoggerService } from './common/logger/logger.service';
 import { LoggingMiddleware } from './middleware/logging.middleware';
+import { CompressionLoggingMiddleware } from './middleware/compression-logging.middleware';
 
 // NOTE: If you get ERR_CONTENT_DECODING_FAILED in your browser, this is likely
 // due to a compressed response (e.g. gzip) which has not been handled correctly
@@ -63,6 +64,13 @@ async function bootstrapServer(): Promise<Server> {
     nestApp.use(
       new LoggingMiddleware(nestApp.get(CustomLoggerService)).use.bind(
         new LoggingMiddleware(nestApp.get(CustomLoggerService)),
+      ),
+    );
+    
+    // Compression logging middleware (T03_S04)
+    nestApp.use(
+      new CompressionLoggingMiddleware(nestApp.get(CustomLoggerService)).use.bind(
+        new CompressionLoggingMiddleware(nestApp.get(CustomLoggerService)),
       ),
     );
 
