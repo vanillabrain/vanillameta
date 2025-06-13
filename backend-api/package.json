@@ -27,7 +27,9 @@
     "yolo": "./scripts/yolo-mode.sh",
     "quick": "./scripts/quick-check.sh",
     "test:unit": "jest --testPathPattern='controller\\.spec\\.ts$|service\\.spec\\.ts$' --testTimeout=30000",
-    "test:baseline": "yarn test:unit && echo '✅ 모든 베이스라인 테스트 통과!'"
+    "test:baseline": "yarn test:unit && echo '✅ 모든 베이스라인 테스트 통과!'",
+    "monitor:lambda": "node scripts/monitor-lambda-performance.js",
+    "monitor:performance": "node scripts/monitor-lambda-performance.js"
   },
   "dependencies": {
     "@google-cloud/bigquery": "^6.0.3",
