@@ -22,6 +22,7 @@ import { TestCompressionController } from './test-compression.controller';
 import { TestFieldSelectionController } from './test-field-selection.controller';
 import { FieldSelectionModule } from './common/field-selection/field-selection.module';
 import { BatchModule } from './batch/batch.module';
+import { CacheModule } from './common/optimization/cache.module';
 
 @Module({
   imports: [
@@ -82,6 +83,7 @@ import { BatchModule } from './batch/batch.module';
     MonitoringModule,
     FieldSelectionModule,
     BatchModule,
+    CacheModule,
   ],
   controllers: [AppController, TestCompressionController, TestFieldSelectionController],
   providers: [AppService],

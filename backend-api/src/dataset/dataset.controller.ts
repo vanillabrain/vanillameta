@@ -79,6 +79,71 @@ export class DatasetController {
   }
 
   /**
+   * 캐시된 데이터셋 쿼리 실행
+   * @param id 데이터셋 ID
+   * @param forceRefresh 강제 새로고침 여부
+   * @param ttl 커스텀 TTL (초)
+   * @param useStreamingFallback 캐시 오류 시 스트리밍 폴백 사용
+   */
+  @Get(':id/cached')
+  async executeCachedQuery(
+    @Param('id') id: string,
+    @Query('forceRefresh') forceRefresh?: boolean,
+    @Query('ttl') ttl?: number,
+    @Query('useStreamingFallback') useStreamingFallback?: boolean,
+  ) {
+    return this.datasetService.executeCachedQuery(+id, {
+      forceRefresh: forceRefresh === true,
+      customTtl: ttl ? parseInt(ttl.toString()) : undefined,
+      useStreamingFallback: useStreamingFallback === true,
+    });
+  }
+
+  /**
+   * 데이터셋 캐시 무효화
+   * @param id 데이터셋 ID
+   */
+  @Delete(':id/cache')
+  async invalidateDatasetCache(@Param('id') id: string) {
+    try {
+      await this.datasetService.invalidateDatasetCache(+id);
+      return {
+        status: 'success',
+        message: `데이터셋 ${id}의 캐시가 무효화되었습니다.`,
+      };
+    } catch (error) {
+      return {
+        status: 'error',
+        message: error.message,
+      };
+    }
+  }
+
+  /**
+   * 데이터셋 캐시 통계 조회
+   * @param id 데이터셋 ID
+   */
+  @Get(':id/cache/stats')
+  async getDatasetCacheStats(@Param('id') id: string) {
+    try {
+      // 데이터셋 정보를 통해 엔진 타입을 알아내서 해당 엔진의 통계 조회
+      const dataset = await this.datasetService.findOne(+id);
+      // TODO: 데이터셋에서 엔진 정보 추출 후 캐시 통계 조회
+      const stats = await this.datasetService.getCacheStats();
+      
+      return {
+        status: 'success',
+        data: stats,
+      };
+    } catch (error) {
+      return {
+        status: 'error',
+        message: error.message,
+      };
+    }
+  }
+
+  /**
    * 데이터셋 스트리밍 쿼리 실행
    * @param id 데이터셋 ID
    * @param user 인증된 사용자 정보
