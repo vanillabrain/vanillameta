@@ -8,9 +8,14 @@ import { Database } from '../database/entities/database.entity';
 import { Widget } from '../widget/entities/widget.entity';
 import { JwtService } from '@nestjs/jwt';
 import { CacheModule } from '../common/optimization/cache.module';
+import { BusinessMetricsModule } from '../common/monitoring/business-metrics.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Dataset, Database, Widget]), CacheModule],
+  imports: [
+    TypeOrmModule.forFeature([Dataset, Database, Widget]),
+    CacheModule,
+    BusinessMetricsModule,
+  ],
   controllers: [DatasetController],
   providers: [DatasetService, ConnectionService, JwtService],
   exports: [DatasetService],
