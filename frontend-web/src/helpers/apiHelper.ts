@@ -86,12 +86,26 @@ const addCorrelationIdToHeaders = config => {
   return config;
 };
 
+// API 성능 측정을 위한 시작 시간 기록
+const apiPerformanceMap = new Map<string, number>();
+
 // 요청 인터셉터
 instance.interceptors.request.use(async config => {
   let newConfig = addAuthToHeaders(config);
   newConfig = addCorrelationIdToHeaders(newConfig);
   // removePendingRequest(newConfig); // 같은 요청이 갔을 경우 기존 요청 취소
   // addPendingRequest(newConfig);
+  
+  // API 성능 측정 시작
+  const requestKey = `${config.method}-${config.url}`;
+  apiPerformanceMap.set(requestKey, performance.now());
+  
+  // 요청 메타데이터 추가
+  config.metadata = {
+    startTime: performance.now(),
+    correlationId: config.headers['X-Correlation-ID'],
+  };
+  
   return newConfig;
 });
 
@@ -113,6 +127,44 @@ instance.interceptors.response.use(
   response => {
     // removePendingRequest(response.config); // 완료된 요청 삭제
 
+    // API 성능 측정 종료
+    const requestKey = `${response.config.method}-${response.config.url}`;
+    const startTime = apiPerformanceMap.get(requestKey);
+    if (startTime) {
+      const duration = performance.now() - startTime;
+      apiPerformanceMap.delete(requestKey);
+      
+      // 성능 데이터 로깅
+      const perfData = {
+        method: response.config.method?.toUpperCase(),
+        url: response.config.url,
+        duration: duration.toFixed(2),
+        status: response.status,
+        correlationId: response.config.metadata?.correlationId,
+      };
+      
+      // 개발 환경에서는 콘솔에 출력
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`⚡ API Performance: ${perfData.method} ${perfData.url} - ${perfData.duration}ms`);
+      }
+      
+      // 느린 API 요청 경고 (1초 이상)
+      if (duration > 1000) {
+        console.warn(`⚠️ Slow API detected: ${perfData.method} ${perfData.url} took ${perfData.duration}ms`);
+      }
+      
+      // 프로덕션에서는 분석 도구로 전송
+      if (window.gtag && process.env.NODE_ENV === 'production') {
+        window.gtag('event', 'api_performance', {
+          method: perfData.method,
+          endpoint: perfData.url,
+          value: Math.round(duration),
+          event_category: 'performance',
+          api_status: perfData.status,
+        });
+      }
+    }
+
     // 디버깅을 위해 correlation ID 로깅 (개발 환경에서만)
     if (process.env.NODE_ENV === 'development') {
       const correlationId = response.headers['x-correlation-id'] || response.headers['X-Correlation-ID'];
@@ -129,6 +181,41 @@ instance.interceptors.response.use(
   },
   async error => {
     const { response: errorResponse } = error;
+    
+    // 에러 응답에서도 API 성능 측정
+    if (error.config) {
+      const requestKey = `${error.config.method}-${error.config.url}`;
+      const startTime = apiPerformanceMap.get(requestKey);
+      if (startTime) {
+        const duration = performance.now() - startTime;
+        apiPerformanceMap.delete(requestKey);
+        
+        const perfData = {
+          method: error.config.method?.toUpperCase(),
+          url: error.config.url,
+          duration: duration.toFixed(2),
+          status: errorResponse?.status || 'Network Error',
+          correlationId: error.config.metadata?.correlationId,
+          error: true,
+        };
+        
+        // 에러 성능 로깅
+        if (process.env.NODE_ENV === 'development') {
+          console.error(`❌ API Error Performance: ${perfData.method} ${perfData.url} - ${perfData.duration}ms (Status: ${perfData.status})`);
+        }
+        
+        // 프로덕션에서 에러 성능 추적
+        if (window.gtag && process.env.NODE_ENV === 'production') {
+          window.gtag('event', 'api_error_performance', {
+            method: perfData.method,
+            endpoint: perfData.url,
+            value: Math.round(duration),
+            event_category: 'performance',
+            error_status: perfData.status,
+          });
+        }
+      }
+    }
 
     // 에러 응답에서도 correlation ID 로깅 (개발 환경에서만)
     if (process.env.NODE_ENV === 'development' && errorResponse) {
@@ -220,6 +307,13 @@ export async function del(url, config = {}) {
 
 export async function patch(url, data?, config = {}) {
   return instance.patch(url, { ...data }, { ...config });
+}
+
+// 타입 선언
+declare global {
+  interface Window {
+    gtag: (...args: any[]) => void;
+  }
 }
 
 export default instance;

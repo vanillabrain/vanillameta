@@ -46,7 +46,7 @@
     "save": "^2.9.0",
     "styled-components": "^5.3.5",
     "swiper": "^8.3.2",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^5.0.3"
   },
   "scripts": {
     "start": "env-cmd -f .env craco start",
@@ -60,7 +60,10 @@
     "deploy:prod": "serverless deploy --stage prod",
     "test": "jest",
     "eject": "craco eject",
-    "analyze": "ANALYZE=true craco build"
+    "analyze": "ANALYZE=true craco build",
+    "build:analyze": "ANALYZE=true craco build && webpack-bundle-analyzer build/bundle-stats.json -m json -r build/bundle-report.json",
+    "performance:report": "node scripts/performance-report.js",
+    "lighthouse": "lighthouse http://localhost:3000 --view"
   },
   "eslintConfig": {
     "extends": [
@@ -125,12 +128,12 @@
     "typescript": "^4.7.4",
     "webpack": "^5.73.0",
     "webpack-bundle-analyzer": "^4.10.2",
-    "workbox-webpack-plugin": "^6.5.4",
+    "workbox-cacheable-response": "^6.5.4",
     "workbox-core": "^6.5.4",
     "workbox-expiration": "^6.5.4",
     "workbox-precaching": "^6.5.4",
     "workbox-routing": "^6.5.4",
     "workbox-strategies": "^6.5.4",
-    "workbox-cacheable-response": "^6.5.4"
+    "workbox-webpack-plugin": "^6.5.4"
   }
 }

@@ -8,26 +8,30 @@ import { LayoutProvider } from '@/contexts/LayoutContext';
 import { LoadingProvider } from '@/contexts/LoadingContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { AlertProvider } from '@/contexts/AlertContext';
+import { PerformanceProvider } from '@/contexts/PerformanceContext';
 import { HelmetProvider } from 'react-helmet-async';
 import * as serviceWorkerRegistration from './serviceWorkerRegistration';
+import reportWebVitals from './reportWebVitals';
 import './index.css';
 
 const rootElement = document.getElementById('root');
 const app = (
   <HelmetProvider>
-    <LayoutProvider>
-      <LoadingProvider>
-        <BrowserRouter>
-          <AuthProvider>
-            <ThemeProvider theme={theme}>
-              <AlertProvider>
-                <App />
-              </AlertProvider>
-            </ThemeProvider>
-          </AuthProvider>
-        </BrowserRouter>
-      </LoadingProvider>
-    </LayoutProvider>
+    <PerformanceProvider>
+      <LayoutProvider>
+        <LoadingProvider>
+          <BrowserRouter>
+            <AuthProvider>
+              <ThemeProvider theme={theme}>
+                <AlertProvider>
+                  <App />
+                </AlertProvider>
+              </ThemeProvider>
+            </AuthProvider>
+          </BrowserRouter>
+        </LoadingProvider>
+      </LayoutProvider>
+    </PerformanceProvider>
   </HelmetProvider>
 );
 
@@ -48,3 +52,6 @@ serviceWorkerRegistration.register({
     console.log('Service Worker registered successfully!');
   },
 });
+
+// Start measuring web vitals
+reportWebVitals();

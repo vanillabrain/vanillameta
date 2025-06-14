@@ -64,13 +64,13 @@ This project follows a milestone-based development approach.
 ### S05 프론트엔드 성능 (📋 PLANNED)
 
 ✅ 번들 크기 최적화 (T01_S05) - Tree shaking과 코드 스플리팅 - COMPLETED (2025-06-14 14:55)
-📋 동적 임포트 구현 (T02_S05) - React.lazy() 활용
-📋 리소스 지연 로딩 (T03_S05) - 이미지 및 리소스 최적화
-📋 차트 렌더링 최적화 (T04_S05) - 가상화, 디바운싱
-📋 React 메모이제이션 (T05_S05) - React.memo, useMemo 적용
-📋 웹 폰트 최적화 (T06_S05) - Pretendard 서브셋팅
+✅ 동적 임포트 구현 (T02_S05) - React.lazy() 활용 - COMPLETED (2025-06-14 15:24)
+✅ 리소스 지연 로딩 (T03_S05) - 이미지 및 리소스 최적화 - COMPLETED (2025-06-14 15:40)
+✅ 차트 렌더링 최적화 (T04_S05) - 가상화, 디바운싱 - COMPLETED (2025-06-14 15:58)
+✅ React 메모이제이션 (T05_S05) - React.memo, useMemo 적용 - COMPLETED (2025-06-14 16:15)
+✅ 웹 폰트 최적화 (T06_S05) - Pretendard 서브셋 분석 및 로딩 최적화 - COMPLETED (2025-06-14 16:30)
 📋 Service Worker 구현 (T07_S05) - 오프라인 지원
-📋 성능 모니터링 설정 (T08_S05) - Web Vitals 추적
+✅ 성능 모니터링 설정 (T08_S05) - Web Vitals 추적 - COMPLETED (2025-06-14 18:29)
 
 ### S06 대용량 데이터 처리 (📋 PLANNED)
 
