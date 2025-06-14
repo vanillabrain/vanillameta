@@ -1,13 +1,14 @@
-import { Module, Global } from '@nestjs/common';
+import { Module, Global, forwardRef } from '@nestjs/common';
 import { MemoryMonitorMiddleware } from './memory-monitor.middleware';
 import { MemoryMonitorService } from './memory-monitor.service';
 import { MemoryMonitorController } from './memory-monitor.controller';
-import { CustomLoggerModule } from '../logger/logger.module';
+import { LoggerModule } from '../logger/logger.module';
+import { CloudWatchMetricsService } from './cloudwatch-metrics.service';
 
 @Global()
 @Module({
-  imports: [CustomLoggerModule],
-  providers: [MemoryMonitorMiddleware, MemoryMonitorService],
+  imports: [LoggerModule],
+  providers: [MemoryMonitorMiddleware, MemoryMonitorService, CloudWatchMetricsService],
   controllers: [MemoryMonitorController],
   exports: [MemoryMonitorMiddleware, MemoryMonitorService],
 })

@@ -7,6 +7,8 @@ import { HttpExceptionFilter } from './nest-utils/http-exception.filter';
 import { setupSwagger } from './utils/swagger';
 import { CustomLoggerService } from './common/logger/logger.service';
 import { LoggingMiddleware } from './middleware/logging.middleware';
+import { ResponseTimeInterceptor } from './common/interceptors/response-time.interceptor';
+import { CloudWatchMetricsService } from './common/monitoring/cloudwatch-metrics.service';
 import * as v8 from 'v8';
 
 // 메모리 최적화 설정
@@ -62,6 +64,10 @@ async function bootstrap() {
   nestApp.use(cookieParser());
   nestApp.useGlobalFilters(new HttpExceptionFilter());
   setupSwagger(nestApp);
+
+  // Global interceptors for CloudWatch metrics
+  const cloudWatchMetrics = nestApp.get(CloudWatchMetricsService);
+  nestApp.useGlobalInterceptors(new ResponseTimeInterceptor(cloudWatchMetrics));
 
   const logger = nestApp.get(CustomLoggerService);
   logger.info('Application starting', 'Bootstrap', {

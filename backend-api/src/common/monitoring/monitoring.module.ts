@@ -12,6 +12,7 @@ import { SlowQueryMonitorService } from './slow-query-monitor.service';
 import { SlowQueryMonitorController } from './slow-query-monitor.controller';
 import { SlowQueryLog } from './entities/slow-query-log.entity';
 import { SlowQueryInterceptor } from '../interceptors/slow-query.interceptor';
+import { CloudWatchMetricsService } from './cloudwatch-metrics.service';
 
 @Module({
   imports: [
@@ -31,12 +32,14 @@ import { SlowQueryInterceptor } from '../interceptors/slow-query.interceptor';
     QueryCollector,
     SlowQueryMonitorService,
     SlowQueryInterceptor,
+    CloudWatchMetricsService,
   ],
   exports: [
     ConnectionPoolMonitorService,
     QueryAnalyzerModule,
     SlowQueryMonitorService,
     SlowQueryInterceptor,
+    CloudWatchMetricsService,
   ],
 })
 export class MonitoringModule {}

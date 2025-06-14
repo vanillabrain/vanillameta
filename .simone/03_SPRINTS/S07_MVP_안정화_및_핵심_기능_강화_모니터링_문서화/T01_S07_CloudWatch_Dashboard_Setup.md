@@ -1,9 +1,9 @@
 ---
 task_id: T01_S07
 sprint_sequence_id: S07
-status: open
+status: completed
 complexity: Medium
-last_updated: 2025-06-14T19:00:00Z
+last_updated: 2025-06-14T23:00:00Z
 ---
 
 # Task: CloudWatch 통합 대시보드 구성
@@ -84,4 +84,57 @@ import { SlowQueryMonitorService } from '@/common/monitoring/slow-query-monitor.
 - 데이터 보존 기간 설정 (30일 권장)
 
 ## Output Log
-*(This section is populated as work progresses on the task)*
+
+### 2025-06-14
+
+#### 완료된 작업
+
+1. **CloudWatch 대시보드 인프라 코드 작성**
+   - `cloudformation/integrated-monitoring-dashboard.yml` 생성
+   - 포괄적인 모니터링 위젯 구성 (Lambda, API Gateway, RDS, Redis)
+   - 커스텀 메트릭 필터 및 알람 설정
+
+2. **CloudWatch 메트릭 서비스 구현**
+   - `src/common/monitoring/cloudwatch-metrics.service.ts` 생성
+   - 버퍼링 및 배치 전송 기능
+   - 다양한 메트릭 타입 지원 (API 응답 시간, 메모리, 캐시 등)
+
+3. **메트릭 수집 통합**
+   - `ResponseTimeInterceptor` 구현 및 글로벌 적용
+   - `MemoryMonitorMiddleware` CloudWatch 통합
+   - `MonitoringModule`에 CloudWatchMetricsService 추가
+
+4. **IAM 권한 설정**
+   - `serverless.yml`에 CloudWatch PutMetricData 권한 추가
+   - Lambda 실행 역할에 필요한 권한 부여
+
+5. **배포 자동화**
+   - `scripts/deploy-cloudwatch-dashboard.sh` 스크립트 생성
+   - `package.json`에 배포 명령어 추가 (deploy:dashboard:dev/prod)
+
+6. **문서화**
+   - `docs/cloudwatch-dashboard-guide.md` 작성
+   - 대시보드 사용법, 알람 설정, 트러블슈팅 가이드 포함
+
+#### 주요 메트릭 구성
+
+- **Lambda 메트릭**: 호출 수, 에러율, 응답 시간, 메모리 사용량
+- **API Gateway 메트릭**: 요청 수, 4XX/5XX 에러, 지연시간
+- **RDS 메트릭**: CPU, 메모리, 연결 수, I/O 성능
+- **Redis 메트릭**: CPU, 연결 수, 캐시 히트/미스
+- **커스텀 메트릭**: 쿼리 캐시 효율성, 백그라운드 작업 상태
+
+#### 알람 구성 (프로덕션)
+
+- 높은 에러율 알람 (10개/5분)
+- Lambda 에러율 알람 (5% 초과)
+- API Gateway 5XX 알람 (5개/5분)
+- RDS CPU 알람 (80% 초과)
+- Lambda 메모리 알람 (85% 초과)
+
+#### 다음 단계
+
+- CloudFormation 스택 실제 배포 테스트
+- 알람 SNS 이메일 구독 설정
+- 대시보드 접근 권한 관리
+- 추가 커스텀 메트릭 정의 (T02_S07로 이어짐)

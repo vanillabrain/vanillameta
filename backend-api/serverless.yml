@@ -44,6 +44,18 @@ provider:
     minimumCompressionSize: 1024  # API Gateway 압축 임계값 (T03_S04)
     binaryMediaTypes:
       - '*/*'
+  # IAM role statements for Lambda permissions
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - cloudwatch:PutMetricData
+      Resource: '*'
+    - Effect: Allow
+      Action:
+        - logs:CreateLogGroup
+        - logs:CreateLogStream
+        - logs:PutLogEvents
+      Resource: '*'
 
 
 custom:

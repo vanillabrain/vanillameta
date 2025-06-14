@@ -2,8 +2,8 @@ import { Injectable, NestMiddleware, Logger } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import * as v8 from 'v8';
 import { performance } from 'perf_hooks';
-import { CloudWatch } from 'aws-sdk';
 import { CustomLoggerService } from '../logger/logger.service';
+import { CloudWatchMetricsService } from './cloudwatch-metrics.service';
 
 interface MemoryMetrics {
   timestamp: Date;
@@ -30,19 +30,16 @@ interface MemoryMetrics {
 @Injectable()
 export class MemoryMonitorMiddleware implements NestMiddleware {
   private readonly logger = new Logger(MemoryMonitorMiddleware.name);
-  private readonly cloudWatch: CloudWatch;
   private readonly MAX_MEMORY_MB = 3072; // Lambda 최대 메모리 (3GB)
   private readonly WARNING_THRESHOLD = 0.8; // 80% 경고 임계치
   private readonly CRITICAL_THRESHOLD = 0.9; // 90% 중단 임계치
   private lastGcTime = Date.now();
   private readonly GC_INTERVAL = 60000; // 1분마다 강제 GC
 
-  constructor(private readonly customLogger: CustomLoggerService) {
-    // CloudWatch 클라이언트 초기화
-    this.cloudWatch = new CloudWatch({
-      region: process.env.AWS_REGION || 'ap-northeast-2',
-    });
-
+  constructor(
+    private readonly customLogger: CustomLoggerService,
+    private readonly cloudWatchMetrics: CloudWatchMetricsService,
+  ) {
     // 주기적 메모리 체크 시작
     this.startPeriodicMonitoring();
   }
@@ -69,7 +66,7 @@ export class MemoryMonitorMiddleware implements NestMiddleware {
         finalMemory: this.formatBytes(finalMemory.heapUsed),
         memoryDelta: this.formatBytes(memoryDelta),
         percentUsed: `${finalMemory.percentUsed.toFixed(1)}%`,
-        executionTime: `${executionTime.toFixed(2)}ms`,
+        executionTime: parseFloat(executionTime.toFixed(2)),
       });
 
       // 메모리 사용량이 크게 증가한 경우 경고
@@ -116,7 +113,7 @@ export class MemoryMonitorMiddleware implements NestMiddleware {
         heapSizeLimit: heapStats.heap_size_limit,
         mallocedMemory: heapStats.malloced_memory,
         peakMallocedMemory: heapStats.peak_malloced_memory,
-        doesZapGarbage: heapStats.does_zap_garbage,
+        doesZapGarbage: heapStats.does_zap_garbage === 1,
       },
     };
   }
@@ -129,11 +126,10 @@ export class MemoryMonitorMiddleware implements NestMiddleware {
 
     if (percentUsed >= this.CRITICAL_THRESHOLD) {
       // 중단 임계치 도달 - 새 요청 거부
-      this.customLogger.error('Critical memory threshold reached', 'MemoryMonitor', {
-        percentUsed: `${metrics.percentUsed.toFixed(1)}%`,
-        heapUsed: this.formatBytes(metrics.heapUsed),
-        rss: this.formatBytes(metrics.rss),
-      });
+      this.customLogger.error(
+        `Critical memory threshold reached - percentUsed: ${metrics.percentUsed.toFixed(1)}%, heapUsed: ${this.formatBytes(metrics.heapUsed)}, rss: ${this.formatBytes(metrics.rss)}`,
+        'MemoryMonitor'
+      );
 
       // 강제 가비지 컬렉션 시도
       this.forceGarbageCollection();
@@ -187,47 +183,28 @@ export class MemoryMonitorMiddleware implements NestMiddleware {
       return; // 로컬 환경에서는 CloudWatch 전송 스킵
     }
 
-    const namespace = 'VanillaMeta/Lambda';
-    const metricData = [
-      {
-        MetricName: 'MemoryUsedPercent',
-        Value: metrics.percentUsed,
-        Unit: 'Percent',
-        Timestamp: metrics.timestamp,
-        Dimensions: [
-          { Name: 'Environment', Value: process.env.NODE_ENV || 'dev' },
-          { Name: 'Function', Value: 'backend-api' },
-        ],
-      },
-      {
-        MetricName: 'HeapUsedMB',
-        Value: metrics.heapUsed / (1024 * 1024),
-        Unit: 'Megabytes',
-        Timestamp: metrics.timestamp,
-        Dimensions: [
-          { Name: 'Environment', Value: process.env.NODE_ENV || 'dev' },
-          { Name: 'Function', Value: 'backend-api' },
-        ],
-      },
-      {
-        MetricName: 'RSSMemoryMB',
-        Value: metrics.rss / (1024 * 1024),
-        Unit: 'Megabytes',
-        Timestamp: metrics.timestamp,
-        Dimensions: [
-          { Name: 'Environment', Value: process.env.NODE_ENV || 'dev' },
-          { Name: 'Function', Value: 'backend-api' },
-        ],
-      },
-    ];
-
     try {
-      await this.cloudWatch
-        .putMetricData({
-          Namespace: namespace,
-          MetricData: metricData,
-        })
-        .promise();
+      // CloudWatchMetricsService를 통해 메트릭 전송
+      await Promise.all([
+        this.cloudWatchMetrics.putMetric(
+          'MemoryUsedPercent',
+          metrics.percentUsed,
+          'Percent',
+          [{ Name: 'Function', Value: 'backend-api' }],
+        ),
+        this.cloudWatchMetrics.putMetric(
+          'HeapUsedMB',
+          metrics.heapUsed / (1024 * 1024),
+          'None',
+          [{ Name: 'Function', Value: 'backend-api' }],
+        ),
+        this.cloudWatchMetrics.putMetric(
+          'RSSMemoryMB',
+          metrics.rss / (1024 * 1024),
+          'None',
+          [{ Name: 'Function', Value: 'backend-api' }],
+        ),
+      ]);
     } catch (error) {
       this.logger.error('CloudWatch metric upload failed:', error);
     }
