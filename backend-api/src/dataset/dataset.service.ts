@@ -8,6 +8,7 @@ import { ConnectionService } from '../connection/connection.service';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import { Widget } from '../widget/entities/widget.entity';
 import { DatasetType } from '../common/enum/dataset-type.enum';
+import { Readable } from 'stream';
 
 @Injectable()
 export class DatasetService {
@@ -100,5 +101,42 @@ export class DatasetService {
       });
     }
     return `This action removes a #${id} dataset`;
+  }
+
+  /**
+   * 데이터셋 스트리밍 쿼리 실행
+   * @param id 데이터셋 ID
+   * @param userId 사용자 ID (보안 로깅용)
+   * @returns 스트림 객체와 메타데이터
+   */
+  async executeStreamingQuery(
+    id: number,
+    userId?: string,
+  ): Promise<{
+    stream: Readable;
+    fields?: any[];
+    error?: string;
+    dataset?: Dataset;
+  }> {
+    // 데이터셋 조회
+    const dataset = await this.datasetRepository.findOne({ where: { id } });
+    
+    if (!dataset) {
+      throw new Error(`Dataset with id ${id} not found`);
+    }
+
+    // 스트리밍 쿼리 실행
+    const result = await this.connectionService.executeStreamingQuery(
+      {
+        id: dataset.databaseId,
+        query: dataset.query,
+      },
+      userId,
+    );
+
+    return {
+      ...result,
+      dataset,
+    };
   }
 }
