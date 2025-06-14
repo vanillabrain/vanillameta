@@ -63,7 +63,7 @@ export class SqlServerOptimizer extends BaseDatabaseOptimizer {
    */
   getOptimizedConnectionConfig(baseConfig: any, environment = 'dev'): Knex.Config {
     const poolConfig = this.getBasePoolConfig(environment);
-    const timeouts = this.getBaseTimeouts(environment);
+    const timeouts = this.getBaseTimeouts(environment, 'sqlserver');
     const isProduction = environment === 'prod';
 
     return {
@@ -103,8 +103,8 @@ export class SqlServerOptimizer extends BaseDatabaseOptimizer {
           try {
             // 세션 최적화 설정
             const optimizations = [
-              // 잠금 타임아웃 설정
-              'SET LOCK_TIMEOUT 30000', // 30초
+              // 잠금 타임아웃 설정 (환경 변수 또는 기본값 사용)
+              `SET LOCK_TIMEOUT ${timeouts.queryTimeout}`, // 환경별 설정
               // 날짜 형식 설정
               'SET DATEFORMAT ymd',
               // 숫자 반올림 설정

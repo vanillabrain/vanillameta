@@ -438,8 +438,16 @@ export class ConnectionService {
     } catch (e) {
       const executionTime = Date.now() - startTime;
       resultObj.status = ResponseStatus.ERROR;
-      if (e.sqlMessage) resultObj.message = e.sqlMessage;
-      else if (e.message) resultObj.message = e.message; // bigquery
+      
+      // 타임아웃 에러 감지 및 사용자 친화적 메시지 제공
+      const timeoutMessage = this.detectTimeoutError(e, executionTime);
+      if (timeoutMessage) {
+        resultObj.message = timeoutMessage;
+      } else if (e.sqlMessage) {
+        resultObj.message = e.sqlMessage;
+      } else if (e.message) {
+        resultObj.message = e.message; // bigquery
+      }
 
       this.logger.error('Query execution failed', e.stack, 'ConnectionService', {
         databaseId: queryExecuteDto.id,
@@ -447,6 +455,7 @@ export class ConnectionService {
         sqlMessage: e.sqlMessage,
         errorMessage: e.message,
         executionTime,
+        isTimeout: !!timeoutMessage,
       });
 
       // 실패한 쿼리도 수집
@@ -556,6 +565,102 @@ export class ConnectionService {
    */
   private generateRequestId(): string {
     return `req_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+  }
+
+  /**
+   * 타임아웃 에러 감지 및 사용자 친화적 메시지 반환
+   * @param error - 발생한 에러 객체
+   * @param executionTime - 실행 시간 (ms)
+   * @returns 타임아웃 관련 메시지 또는 null
+   */
+  private detectTimeoutError(error: any, executionTime: number): string | null {
+    const errorMessage = error.message?.toLowerCase() || '';
+    const sqlMessage = error.sqlMessage?.toLowerCase() || '';
+    const errorCode = error.code || error.errno || '';
+
+    // 실행 시간 기반 타임아웃 감지 (25초 이상)
+    const isLongRunning = executionTime >= 25000;
+
+    // MySQL/MariaDB 타임아웃 에러
+    if (
+      errorCode === 'ER_QUERY_TIMEOUT' ||
+      errorMessage.includes('query timeout') ||
+      errorMessage.includes('max_execution_time') ||
+      sqlMessage.includes('query execution was interrupted')
+    ) {
+      return '쿼리 실행 시간이 25초를 초과하여 중단되었습니다. 쿼리를 최적화하거나 필터 조건을 추가해 주세요.';
+    }
+
+    // PostgreSQL 타임아웃 에러
+    if (
+      errorMessage.includes('statement timeout') ||
+      errorMessage.includes('canceling statement due to statement timeout') ||
+      errorCode === '57014'
+    ) {
+      return '쿼리 실행 시간이 허용된 시간을 초과했습니다. 더 구체적인 조건으로 데이터를 필터링해 주세요.';
+    }
+
+    // Oracle 타임아웃 에러
+    if (
+      errorCode === 'ORA-01013' ||
+      errorMessage.includes('user requested cancel') ||
+      errorMessage.includes('ora-01013')
+    ) {
+      return '쿼리 실행이 시간 초과로 인해 취소되었습니다. 쿼리 조건을 더 구체적으로 설정해 주세요.';
+    }
+
+    // SQL Server 타임아웃 에러
+    if (
+      errorCode === 'EREQUEST' ||
+      errorMessage.includes('timeout') ||
+      errorMessage.includes('execution timeout expired') ||
+      sqlMessage.includes('timeout period elapsed')
+    ) {
+      return '쿼리 실행 시간이 초과되었습니다. 검색 범위를 줄이거나 인덱스가 있는 컬럼으로 필터링해 주세요.';
+    }
+
+    // BigQuery 타임아웃 에러
+    if (
+      errorMessage.includes('timeout') ||
+      errorMessage.includes('job exceeded rate limits') ||
+      errorMessage.includes('query exceeded resource limits')
+    ) {
+      return 'BigQuery 쿼리 실행 시간이 초과되었습니다. 더 작은 데이터 범위로 쿼리를 실행해 주세요.';
+    }
+
+    // Snowflake 타임아웃 에러
+    if (
+      errorMessage.includes('statement reached its timeout') ||
+      errorMessage.includes('query timeout') ||
+      errorCode === '604'
+    ) {
+      return 'Snowflake 쿼리 실행 시간이 초과되었습니다. 더 효율적인 쿼리로 수정하거나 데이터 범위를 줄여주세요.';
+    }
+
+    // 연결 타임아웃 에러
+    if (
+      errorMessage.includes('connection timeout') ||
+      errorMessage.includes('connect timeout') ||
+      errorCode === 'ETIMEDOUT' ||
+      errorCode === 'ECONNRESET'
+    ) {
+      return '데이터베이스 연결 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.';
+    }
+
+    // 일반적인 타임아웃 키워드 기반 감지
+    if (
+      (errorMessage.includes('timeout') || sqlMessage.includes('timeout')) &&
+      isLongRunning
+    ) {
+      return '쿼리 실행 시간이 허용 시간을 초과했습니다. 쿼리를 단순화하거나 데이터 범위를 제한해 주세요.';
+    }
+
+    // Lambda 함수 타임아웃 근처 (28초 이상)
+    if (executionTime >= 28000) {
+      return '쿼리 실행 시간이 시스템 한계에 근접했습니다. 더 구체적인 조건으로 데이터를 필터링해 주세요.';
+    }
+
+    return null;
   }
 
   /**
@@ -781,16 +886,24 @@ export class ConnectionService {
       // 쿼리 스트림 에러 처리
       queryStream.on('error', error => {
         errorOccurred = true;
+        const executionTime = Date.now() - startTime;
+        
+        // 타임아웃 에러 감지
+        const timeoutMessage = this.detectTimeoutError(error, executionTime);
+        const errorMessage = timeoutMessage || error.sqlMessage || error.message || 'Query execution error';
+        
         this.logger.error('Query stream error', error.stack, 'ConnectionService', {
           databaseId: queryExecuteDto.id,
           error: error.message,
           sqlMessage: error.sqlMessage,
+          executionTime,
+          isTimeout: !!timeoutMessage,
         });
 
         outputStream.push(
           JSON.stringify({
             type: 'error',
-            error: error.sqlMessage || error.message || 'Query execution error',
+            error: errorMessage,
           }) + '\n',
         );
         outputStream.end();
@@ -802,26 +915,31 @@ export class ConnectionService {
       };
     } catch (error) {
       const executionTime = Date.now() - startTime;
+      
+      // 타임아웃 에러 감지
+      const timeoutMessage = this.detectTimeoutError(error, executionTime);
+      const errorMessage = timeoutMessage || error.message || 'Failed to initialize streaming query';
 
       this.logger.error('Failed to initialize streaming query', error.stack, 'ConnectionService', {
         databaseId: queryExecuteDto.id,
         query: queryExecuteDto.query?.substring(0, 200),
         error: error.message,
         executionTime,
+        isTimeout: !!timeoutMessage,
       });
 
       // 에러가 발생한 경우에도 스트림 반환 (에러 정보 포함)
       outputStream.push(
         JSON.stringify({
           type: 'error',
-          error: error.message || 'Failed to initialize streaming query',
+          error: errorMessage,
         }) + '\n',
       );
       outputStream.end();
 
       return {
         stream: outputStream,
-        error: error.message,
+        error: errorMessage,
       };
     }
   }

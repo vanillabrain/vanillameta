@@ -59,7 +59,7 @@ export class MySQLOptimizer extends BaseDatabaseOptimizer {
    */
   getOptimizedConnectionConfig(baseConfig: any, environment = 'dev'): Knex.Config {
     const poolConfig = this.getBasePoolConfig(environment);
-    const timeouts = this.getBaseTimeouts(environment);
+    const timeouts = this.getBaseTimeouts(environment, 'mysql');
     const isProduction = environment === 'prod';
     const isLocal = environment === 'local';
 
@@ -93,6 +93,8 @@ export class MySQLOptimizer extends BaseDatabaseOptimizer {
             "SET SESSION sql_mode='TRADITIONAL,NO_AUTO_VALUE_ON_ZERO'",
             'SET SESSION autocommit=1',
             'SET SESSION innodb_lock_wait_timeout=10',
+            // 쿼리 타임아웃 설정 (환경 변수 또는 기본값 사용)
+            `SET SESSION max_execution_time=${timeouts.queryTimeout}`, // MySQL 5.7+
             // 쿼리 캐시 활용 (MySQL 5.7 이하)
             "SET SESSION query_cache_type='ON'",
             // 정렬 최적화
