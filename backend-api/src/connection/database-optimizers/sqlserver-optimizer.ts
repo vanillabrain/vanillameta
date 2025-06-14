@@ -30,23 +30,23 @@ export class SqlServerOptimizer extends BaseDatabaseOptimizer {
   ): Knex.QueryBuilder {
     let optimizedQuery = queryBuilder;
 
-    // SQL Server 힌트 적용
-    if (options.hint) {
-      optimizedQuery = optimizedQuery.hint(options.hint);
-    }
+    // SQL Server 힌트 적용 - Knex는 hint를 직접 지원하지 않으므로 주석 처리
+    // TODO: raw 쿼리를 사용하여 SQL Server 힌트 구현 필요
+    
+    // if (options.hint) {
+    //   // 예: SELECT ... WITH (hint)
+    // }
 
-    // 인덱스 힌트
-    if (options.forceIndex) {
-      optimizedQuery = optimizedQuery.hint(`WITH (INDEX(${options.forceIndex}))`);
-    }
+    // // 인덱스 힌트
+    // if (options.forceIndex) {
+    //   // 예: SELECT ... WITH (INDEX(idx_name))
+    // }
 
-    // 격리 수준 설정
-    if (options.isolation) {
-      const isolationHint = options.isolation === 'READ_UNCOMMITTED' ? 'WITH (NOLOCK)' : '';
-      if (isolationHint) {
-        optimizedQuery = optimizedQuery.hint(isolationHint);
-      }
-    }
+    // // 격리 수준 설정
+    // if (options.isolation) {
+    //   const isolationHint = options.isolation === 'READ_UNCOMMITTED' ? 'WITH (NOLOCK)' : '';
+    //   // 예: SELECT ... WITH (NOLOCK)
+    // }
 
     // 최대 병렬 처리 정도
     if (options.maxDop) {

@@ -502,6 +502,19 @@ describe('WidgetService', () => {
     });
 
     it('should create widget with complex chart options', async () => {
+      const complexChartOptions = {
+        type: 'line',
+        title: { text: 'Sales Performance', fontSize: 18 },
+        legend: { show: true, position: 'top' },
+        xAxis: { type: 'category', data: ['Q1', 'Q2', 'Q3', 'Q4'] },
+        yAxis: { type: 'value', name: 'Sales ($)' },
+        series: [
+          { name: 'Product A', data: [100, 150, 200, 180], type: 'line' },
+          { name: 'Product B', data: [80, 120, 160, 140], type: 'line' },
+        ],
+        grid: { left: '10%', right: '10%', top: '15%', bottom: '10%' },
+      };
+
       const complexChartDto = {
         title: 'Complex Chart Widget',
         description: 'Complex chart with multiple series',
@@ -510,33 +523,22 @@ describe('WidgetService', () => {
         datasetType: DatasetType.DATASET,
         datasetId: 1,
         tableName: '',
-        option: JSON.stringify({
-          type: 'line',
-          title: { text: 'Sales Performance', fontSize: 18 },
-          legend: { show: true, position: 'top' },
-          xAxis: { type: 'category', data: ['Q1', 'Q2', 'Q3', 'Q4'] },
-          yAxis: { type: 'value', name: 'Sales ($)' },
-          series: [
-            { name: 'Product A', data: [100, 150, 200, 180], type: 'line' },
-            { name: 'Product B', data: [80, 120, 160, 140], type: 'line' },
-          ],
-          grid: { left: '10%', right: '10%', top: '15%', bottom: '10%' },
-        }),
+        option: complexChartOptions, // Object, not JSON string
         delYn: YesNo.NO,
       };
 
       const savedWidget = {
         id: 1,
         ...complexChartDto,
-        option: JSON.stringify(complexChartDto.option),
+        option: JSON.stringify(complexChartOptions), // JSON string in DB
       };
 
       widgetRepository.save.mockResolvedValue(savedWidget);
 
-      const result = await service.create(complexChartDto);
+      const result = await service.create(complexChartDto as any);
 
       expect(result.status).toBe(ResponseStatus.SUCCESS);
-      expect(result.data.option).toEqual(complexChartDto.option);
+      expect(result.data.option).toEqual(complexChartOptions); // Should be parsed back to object
       expect(result.data.title).toBe('Complex Chart Widget');
     });
 

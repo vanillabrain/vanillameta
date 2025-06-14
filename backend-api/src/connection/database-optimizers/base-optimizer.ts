@@ -35,7 +35,7 @@ export abstract class BaseDatabaseOptimizer {
    * @param data - 삽입할 데이터 배열
    * @param options - 추가 옵션
    */
-  abstract async batchInsert(
+  abstract batchInsert(
     knex: Knex,
     tableName: string,
     data: any[],
@@ -49,7 +49,7 @@ export abstract class BaseDatabaseOptimizer {
    * @param data - 업데이트할 데이터 배열
    * @param keyColumns - 키 컬럼들
    */
-  abstract async batchUpdate(
+  abstract batchUpdate(
     knex: Knex,
     tableName: string,
     data: any[],
@@ -57,14 +57,15 @@ export abstract class BaseDatabaseOptimizer {
   ): Promise<any>;
 
   /**
-   * 쿼리 힌트 추가
+   * 쿼리 힌트 추가 (주석 처리 - Knex는 hint를 직접 지원하지 않음)
    * @param queryBuilder - Knex 쿼리 빌더
    * @param hints - 힌트 문자열 또는 배열
    */
-  addQueryHints(queryBuilder: Knex.QueryBuilder, hints: string | string[]): Knex.QueryBuilder {
-    const hintStr = Array.isArray(hints) ? hints.join(' ') : hints;
-    return queryBuilder.hint(hintStr);
-  }
+  // addQueryHints(queryBuilder: Knex.QueryBuilder, hints: string | string[]): Knex.QueryBuilder {
+  //   const hintStr = Array.isArray(hints) ? hints.join(' ') : hints;
+  //   // TODO: raw 쿼리를 사용하여 힌트 구현 필요
+  //   return queryBuilder;
+  // }
 
   /**
    * 페이지네이션 최적화
@@ -126,5 +127,25 @@ export abstract class BaseDatabaseOptimizer {
       socketTimeout: isProduction ? 30000 : 60000,
       acquireConnectionTimeout: 30000,
     };
+  }
+
+  /**
+   * 데이터베이스별 성능 메트릭 수집 (선택적 구현)
+   * @param knex - Knex 인스턴스
+   * @param args - 추가 인자들
+   */
+  async getPerformanceMetrics?(knex: Knex, ...args: any[]): Promise<any> {
+    // 각 데이터베이스별 optimizer에서 선택적으로 구현
+    return null;
+  }
+
+  /**
+   * 데이터베이스별 슬로우 쿼리 분석 (선택적 구현)
+   * @param knex - Knex 인스턴스
+   * @param args - 추가 인자들 (minDuration, projectId 등)
+   */
+  async getSlowQueries?(knex: Knex, ...args: any[]): Promise<any[]> {
+    // 각 데이터베이스별 optimizer에서 선택적으로 구현
+    return [];
   }
 }

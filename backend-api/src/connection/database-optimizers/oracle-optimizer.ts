@@ -28,21 +28,23 @@ export class OracleOptimizer extends BaseDatabaseOptimizer {
   ): Knex.QueryBuilder {
     let optimizedQuery = queryBuilder;
 
-    // Oracle 힌트 적용
-    if (options.hint) {
-      optimizedQuery = optimizedQuery.hint(`/*+ ${options.hint} */`);
-    }
+    // Oracle 힌트 적용 - Knex는 hint를 직접 지원하지 않으므로 주석 처리
+    // TODO: raw 쿼리를 사용하여 Oracle 힌트 구현 필요
+    
+    // if (options.hint) {
+    //   // 예: SELECT /*+ hint */ ...
+    // }
 
-    // 병렬 처리 힌트
-    if (options.parallelDegree && options.parallelDegree > 1) {
-      optimizedQuery = optimizedQuery.hint(`/*+ PARALLEL(${options.parallelDegree}) */`);
-    }
+    // // 병렬 처리 힌트
+    // if (options.parallelDegree && options.parallelDegree > 1) {
+    //   // 예: SELECT /*+ PARALLEL(n) */ ...
+    // }
 
-    // 옵티마이저 모드 힌트
-    if (options.optimizerMode) {
-      const rows = options.optimizerMode === 'FIRST_ROWS' ? '(10)' : '';
-      optimizedQuery = optimizedQuery.hint(`/*+ ${options.optimizerMode}${rows} */`);
-    }
+    // // 옵티마이저 모드 힌트
+    // if (options.optimizerMode) {
+    //   const rows = options.optimizerMode === 'FIRST_ROWS' ? '(10)' : '';
+    //   // 예: SELECT /*+ FIRST_ROWS(10) */ ...
+    // }
 
     return optimizedQuery;
   }

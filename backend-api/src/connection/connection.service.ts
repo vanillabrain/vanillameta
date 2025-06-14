@@ -156,23 +156,32 @@ export class ConnectionService {
         break;
     }
 
+    // Parse connectionConfig if it's a string
+    let parsedConnectionConfig = createDatabaseDto.connectionConfig;
+    if (typeof parsedConnectionConfig === 'string') {
+      try {
+        parsedConnectionConfig = JSON.parse(parsedConnectionConfig);
+      } catch (error) {
+        parsedConnectionConfig = {};
+      }
+    }
+
     if (createDatabaseDto.engine === 'cockroachdb') {
-      const connectioninfo = createDatabaseDto.connectionConfig;
-      const cockroach_url = `postgresql://${connectioninfo['user']}:${connectioninfo['password']}@${connectioninfo['host']}:${connectioninfo['port']}/${connectioninfo['database']}?sslmode=verify-full&options=--cluster%3Dvanillameta-cockroach-3010`;
-      connectioninfo['connectionString'] = cockroach_url;
+      const cockroach_url = `postgresql://${parsedConnectionConfig['user']}:${parsedConnectionConfig['password']}@${parsedConnectionConfig['host']}:${parsedConnectionConfig['port']}/${parsedConnectionConfig['database']}?sslmode=verify-full&options=--cluster%3Dvanillameta-cockroach-3010`;
+      parsedConnectionConfig['connectionString'] = cockroach_url;
     }
 
     // 데이터베이스별 최적화된 연결 설정 적용
     const environment = process.env.NODE_ENV || 'dev';
     const optimizedConfig = this.databaseOptimizerFactory.getOptimizedConnectionConfig(
       createDatabaseDto.engine,
-      createDatabaseDto.connectionConfig,
+      parsedConnectionConfig,
       environment,
     );
 
     const connectionConfig: Knex.Config = {
       client: engine,
-      connection: createDatabaseDto.connectionConfig,
+      connection: parsedConnectionConfig,
       useNullAsDefault: true,
       // 테스트 연결을 위한 최소한의 풀 설정 (최적화된 설정 기반)
       pool: {

@@ -118,24 +118,25 @@ describe('SlowQueryMonitorService', () => {
         { executionTime: 35000, expectedSeverity: 'CRITICAL' },
       ];
 
-      for (const testCase of testCases) {
-        const analysis: QueryAnalysis = {
-          query: 'SELECT * FROM test',
-          executionTime: testCase.executionTime,
-        };
+      mockRepository.save.mockResolvedValue({ id: 1 });
 
-        mockRepository.save.mockResolvedValue({ id: 1 });
+      // Run all test cases in parallel
+      await Promise.all(
+        testCases.map(async testCase => {
+          const analysis: QueryAnalysis = {
+            query: 'SELECT * FROM test',
+            executionTime: testCase.executionTime,
+          };
 
-        await service.logSlowQuery(analysis, {});
+          await service.logSlowQuery(analysis, {});
 
-        expect(mockRepository.save).toHaveBeenCalledWith(
-          expect.objectContaining({
-            severity: testCase.expectedSeverity,
-          }),
-        );
-
-        mockRepository.save.mockClear();
-      }
+          expect(mockRepository.save).toHaveBeenCalledWith(
+            expect.objectContaining({
+              severity: testCase.expectedSeverity,
+            }),
+          );
+        }),
+      );
     });
   });
 

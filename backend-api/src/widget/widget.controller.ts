@@ -38,9 +38,7 @@ export class WidgetController {
    * 위젯 단건 조회
    * @param id
    */
-  @PredefinedFields('widgetWithConfig', {
-    additionalFields: ['datasetType', 'datasetId', 'option']
-  })
+  @PredefinedFields('widgetWithConfig')
   @Get(':id')
   findOne(@Param('id') id: string, @Query('fields') fields?: string) {
     return this.widgetService.findOne(+id);

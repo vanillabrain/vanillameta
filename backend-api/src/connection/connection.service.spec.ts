@@ -8,6 +8,7 @@ import { SqlValidationService } from '../common/security/sql-validation.service'
 import { QueryAnalyzerService } from '../common/monitoring/query-analyzer.service';
 import { QueryCollector } from '../common/utils/query-collector';
 import { SlowQueryMonitorService } from '../common/monitoring/slow-query-monitor.service';
+import { DatabaseOptimizerFactory } from './database-optimizers/database-optimizer-factory';
 import {
   createMockRepository,
   getRepositoryTokenFor,
@@ -26,8 +27,13 @@ const mockKnex = {
   },
 };
 
+const mockKnexConstructor = jest.fn(() => mockKnex);
+
 jest.mock('knex', () => {
-  return jest.fn(() => mockKnex);
+  return {
+    knex: jest.fn(() => mockKnex),
+    default: jest.fn(() => mockKnex),
+  };
 });
 
 describe('ConnectionService', () => {
@@ -38,6 +44,7 @@ describe('ConnectionService', () => {
   let queryAnalyzerService: any;
   let queryCollector: any;
   let slowQueryMonitorService: any;
+  let databaseOptimizerFactory: any;
   let mockRequest: any;
 
   const mockDatabase = {
@@ -114,6 +121,10 @@ describe('ConnectionService', () => {
           useValue: createMockService(['logSlowQuery']),
         },
         {
+          provide: DatabaseOptimizerFactory,
+          useValue: createMockService(['getOptimizedConnectionConfig', 'isSupported', 'getOptimizationStats']),
+        },
+        {
           provide: REQUEST,
           useValue: mockRequest,
         },
@@ -127,6 +138,7 @@ describe('ConnectionService', () => {
     queryAnalyzerService = module.get<QueryAnalyzerService>(QueryAnalyzerService);
     queryCollector = module.get<QueryCollector>(QueryCollector);
     slowQueryMonitorService = module.get<SlowQueryMonitorService>(SlowQueryMonitorService);
+    databaseOptimizerFactory = module.get<DatabaseOptimizerFactory>(DatabaseOptimizerFactory);
 
     // Mock 초기화
     jest.clearAllMocks();
@@ -155,11 +167,21 @@ describe('ConnectionService', () => {
         },
       };
 
+      // Mock DatabaseOptimizerFactory methods
+      databaseOptimizerFactory.getOptimizedConnectionConfig.mockReturnValue({
+        pool: { min: 2, max: 10 },
+      });
+      databaseOptimizerFactory.isSupported.mockReturnValue(true);
+      databaseOptimizerFactory.getOptimizationStats.mockReturnValue({
+        totalOptimized: 1,
+        byType: { mysql2: 1 },
+      });
+
       service.addKnex(1, knexConfig);
 
       expect(knexConnections.has(1)).toBe(true);
       expect(logger.info).toHaveBeenCalledWith(
-        'Creating Knex connection with optimized pool settings',
+        'Creating Knex connection with database-specific optimizations',
         'ConnectionService',
         expect.objectContaining({
           databaseId: 1,
@@ -173,6 +195,16 @@ describe('ConnectionService', () => {
         client: 'mysql2',
         connection: { host: 'localhost' },
       };
+
+      // Mock DatabaseOptimizerFactory
+      databaseOptimizerFactory.getOptimizedConnectionConfig.mockReturnValue({
+        pool: { min: 2, max: 10 },
+      });
+      databaseOptimizerFactory.isSupported.mockReturnValue(true);
+      databaseOptimizerFactory.getOptimizationStats.mockReturnValue({
+        totalOptimized: 1,
+        byType: { mysql2: 1 },
+      });
 
       service.addKnex(1, knexConfig);
       const firstConnection = knexConnections.get(1);
@@ -189,6 +221,16 @@ describe('ConnectionService', () => {
         connection: { filename: ':memory:' },
       };
 
+      // Mock DatabaseOptimizerFactory for SQLite
+      databaseOptimizerFactory.getOptimizedConnectionConfig.mockReturnValue({
+        pool: { min: 1, max: 1 },
+      });
+      databaseOptimizerFactory.isSupported.mockReturnValue(true);
+      databaseOptimizerFactory.getOptimizationStats.mockReturnValue({
+        totalOptimized: 1,
+        byType: { sqlite3: 1 },
+      });
+
       service.addKnex(2, sqliteConfig);
 
       expect(knexConnections.has(2)).toBe(true);
@@ -203,6 +245,16 @@ describe('ConnectionService', () => {
         },
       };
 
+      // Mock DatabaseOptimizerFactory for MySQL
+      databaseOptimizerFactory.getOptimizedConnectionConfig.mockReturnValue({
+        pool: { min: 2, max: 10 },
+      });
+      databaseOptimizerFactory.isSupported.mockReturnValue(true);
+      databaseOptimizerFactory.getOptimizationStats.mockReturnValue({
+        totalOptimized: 1,
+        byType: { mysql2: 1 },
+      });
+
       service.addKnex(3, mysqlConfig);
 
       expect(knexConnections.has(3)).toBe(true);
@@ -212,6 +264,17 @@ describe('ConnectionService', () => {
   describe('removeKnex', () => {
     it('should remove and destroy Knex connection', async () => {
       const knexConfig = { client: 'mysql2', connection: {} };
+      
+      // Mock DatabaseOptimizerFactory
+      databaseOptimizerFactory.getOptimizedConnectionConfig.mockReturnValue({
+        pool: { min: 2, max: 10 },
+      });
+      databaseOptimizerFactory.isSupported.mockReturnValue(true);
+      databaseOptimizerFactory.getOptimizationStats.mockReturnValue({
+        totalOptimized: 1,
+        byType: { mysql2: 1 },
+      });
+      
       service.addKnex(1, knexConfig);
 
       await service.removeKnex(1);
@@ -316,6 +379,18 @@ describe('ConnectionService', () => {
   });
 
   describe('testConnection', () => {
+    beforeEach(() => {
+      // Mock DatabaseOptimizerFactory for test connections
+      databaseOptimizerFactory.getOptimizedConnectionConfig.mockReturnValue({
+        pool: { min: 0, max: 1 },
+      });
+      databaseOptimizerFactory.isSupported.mockReturnValue(true);
+      databaseOptimizerFactory.getOptimizationStats.mockReturnValue({
+        totalOptimized: 1,
+        byType: { mysql2: 1 },
+      });
+    });
+
     it('should successfully test database connection', async () => {
       mockKnex.raw.mockResolvedValue(['test result']);
 
@@ -796,6 +871,17 @@ describe('ConnectionService', () => {
         client: 'mysql2',
         connection: mockCreateDatabaseDto.connectionConfig,
       };
+      
+      // Mock DatabaseOptimizerFactory for addKnex
+      databaseOptimizerFactory.getOptimizedConnectionConfig.mockReturnValue({
+        pool: { min: 2, max: 10 },
+      });
+      databaseOptimizerFactory.isSupported.mockReturnValue(true);
+      databaseOptimizerFactory.getOptimizationStats.mockReturnValue({
+        totalOptimized: 1,
+        byType: { mysql2: 1 },
+      });
+      
       service.addKnex(1, knexConfig);
       expect(service.hasKnex(1)).toBe(true);
 
@@ -830,6 +916,16 @@ describe('ConnectionService', () => {
         { id: 2, engine: 'pg' },
         { id: 3, engine: 'sqlite3' },
       ];
+
+      // Mock DatabaseOptimizerFactory for multiple connections
+      databaseOptimizerFactory.getOptimizedConnectionConfig.mockReturnValue({
+        pool: { min: 2, max: 10 },
+      });
+      databaseOptimizerFactory.isSupported.mockReturnValue(true);
+      databaseOptimizerFactory.getOptimizationStats.mockReturnValue({
+        totalOptimized: 1,
+        byType: { mysql2: 1 },
+      });
 
       // 여러 데이터베이스 연결 추가
       databases.forEach(db => {
