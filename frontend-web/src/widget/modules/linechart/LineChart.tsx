@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import ReactECharts from 'echarts-for-react';
+import React, { useEffect, useState, useMemo } from 'react';
+import OptimizedChart from '@/components/OptimizedChart';
 import { getAggregationDataForChart, getGridSize, getLegendOption } from '@/widget/modules/utils/chartUtil';
 import { AGGREGATION_LIST } from '@/constant';
 
@@ -7,9 +7,7 @@ const LineChart = props => {
   const { option, dataSet, axis = 'x', seriesOp, defaultOp, createOp } = props;
   const reverseAxis = axis === 'x' ? 'y' : 'x';
 
-  const [componentOption, setComponentOption] = useState({});
-
-  const defaultComponentOption = {
+  const defaultComponentOption = useMemo(() => ({
     grid: { top: '3%', right: '3%', bottom: '3%', left: '3%' },
     tooltip: { trigger: 'axis' },
     [axis + 'Axis']: {
@@ -24,36 +22,28 @@ const LineChart = props => {
       blurScope: 'coordinateSystem',
     },
     ...defaultOp,
-  };
-
-  useEffect(() => {
-    if (option && dataSet) {
-      const newOption = createComponentOption();
-      setComponentOption(newOption);
-    }
-  }, [option, dataSet]);
+  }), [axis, reverseAxis, defaultOp]);
 
   /**
-   *
-   * 위젯옵션과 데이터로
-   * 컴포넌트에 맞는 형태로 생성
+   * 위젯옵션과 데이터로 컴포넌트에 맞는 형태로 생성
+   * useMemo를 사용하여 불필요한 재계산 방지
    */
-  const createComponentOption = () => {
-    // console.log('createComponentOption', option);
-    let newOption = {};
+  const componentOption = useMemo(() => {
+    if (!option || !dataSet) return {};
 
     // series option에서 가져오기
     const newSeries = [];
     let aggrData = [];
+    
     option.series.forEach(item => {
       aggrData = getAggregationDataForChart(dataSet, option[axis + 'Field'], item.field, item.aggregation);
-      // console.log('aggrData : ', aggrData);
+      
       if (item.field) {
         const series = {
           name:
             (item?.fieldLabel ? item.fieldLabel : item.field) +
             (option?.legendAggregation
-              ? ` (${AGGREGATION_LIST.find(element => element.value === item.aggregation).label})`
+              ? ` (${AGGREGATION_LIST.find(element => element.value === item.aggregation)?.label || ''})`
               : ''),
           data: aggrData.map(dataItem => dataItem[item.field]),
           type: item.type ? item.type : 'line',
@@ -86,18 +76,21 @@ const LineChart = props => {
         legend: getLegendOption(option.legendPosition),
         ...createOp,
       };
-      newOption = { ...defaultComponentOption, ...op };
+      return { ...defaultComponentOption, ...op };
     }
-    // console.log(newOption);
-    return newOption;
-  };
+    
+    return defaultComponentOption;
+  }, [option, dataSet, axis, seriesOp, createOp, defaultComponentOption]);
 
   return (
-    <ReactECharts
+    <OptimizedChart
       option={componentOption}
       style={{ display: 'flex', alignItems: 'center', height: '100%', width: '100%' }}
       lazyUpdate={true}
       notMerge={true}
+      enableDataSampling={true}
+      maxDataPoints={10000}
+      renderer="canvas"
     />
   );
 };

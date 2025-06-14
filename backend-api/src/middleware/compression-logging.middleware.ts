@@ -11,12 +11,12 @@ export class CompressionLoggingMiddleware implements NestMiddleware {
     const originalWrite = res.write;
     const originalEnd = res.end;
     let responseBody = Buffer.from('');
-    
+
     // logger 참조를 클로저로 유지
     const logger = this.logger;
 
     // write 메서드 오버라이드
-    res.write = function(chunk: any, ...args: any[]): boolean {
+    res.write = function (chunk: any, ...args: any[]): boolean {
       if (chunk) {
         responseBody = Buffer.concat([responseBody, Buffer.from(chunk)]);
       }
@@ -24,25 +24,26 @@ export class CompressionLoggingMiddleware implements NestMiddleware {
     };
 
     // end 메서드 오버라이드
-    res.end = function(chunk: any, ...args: any[]): Response<any, Record<string, any>> {
+    res.end = function (chunk: any, ...args: any[]): Response<any, Record<string, any>> {
       if (chunk) {
         responseBody = Buffer.concat([responseBody, Buffer.from(chunk)]);
       }
 
       // 압축 전 크기
       const uncompressedSize = responseBody.length;
-      
+
       // 응답 완료 시 압축 정보 로깅
       res.on('finish', () => {
         const contentEncoding = res.getHeader('content-encoding') as string;
         const compressedSize = parseInt(res.getHeader('content-length') as string) || 0;
-        
+
         // 압축이 적용된 경우에만 로깅
         if (contentEncoding && contentEncoding.includes('gzip')) {
-          const compressionRatio = uncompressedSize > 0 
-            ? ((uncompressedSize - compressedSize) / uncompressedSize * 100).toFixed(2)
-            : '0';
-          
+          const compressionRatio =
+            uncompressedSize > 0
+              ? (((uncompressedSize - compressedSize) / uncompressedSize) * 100).toFixed(2)
+              : '0';
+
           logger.info('Response compression applied', 'CompressionMiddleware', {
             method: req.method,
             path: req.path,

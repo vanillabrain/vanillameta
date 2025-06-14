@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState, useCallback } from 'react';
 import { Box, Button, Card, CardHeader, Stack, TextField } from '@mui/material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import PageTitleBox from '@/components/PageTitleBox';
@@ -98,18 +98,18 @@ function DashboardModify() {
   }, [widgets]);
 
   // 현재 위젯 선택창에서 선택된 위젯 목록 callback
-  const handleWidgetSelect = items => {
+  const handleWidgetSelect = useCallback(items => {
     setWidgetOpen(false);
     if (items != null) {
-      setWidgets([...widgets, ...items]);
+      setWidgets(prev => [...prev, ...items]);
     }
-  };
+  }, []);
 
   // 레이아웃 변경 이벤트
-  const onLayoutChange = changeLayout => {
+  const onLayoutChange = useCallback(changeLayout => {
     console.log('레이아웃이 바꼇어요');
     setLayout(changeLayout);
-  };
+  }, []);
 
   // 추가 할 layout
   // @tempLayout 현재 배치되어 있는 layout 정보

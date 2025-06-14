@@ -107,7 +107,7 @@ describe('SlowQueryInterceptor', () => {
       };
 
       const result$ = interceptor.intercept(mockExecutionContext, mockCallHandler);
-      
+
       // Wait for the observable to complete
       await new Promise<void>(resolve => {
         result$.subscribe({
@@ -151,7 +151,7 @@ describe('SlowQueryInterceptor', () => {
       };
 
       const result$ = interceptor.intercept(mockExecutionContext, mockCallHandler);
-      
+
       // Wait for the observable to complete with error
       await new Promise<void>(resolve => {
         result$.subscribe({

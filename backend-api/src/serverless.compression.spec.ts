@@ -16,19 +16,21 @@ describe('API Response Compression (T03_S04)', () => {
 
     // Express 앱 생성 및 compression 미들웨어 적용
     const expressApp = express();
-    expressApp.use(compression({
-      filter: (req, res) => {
-        if (res.headersSent) return false;
-        const contentType = res.getHeader('content-type');
-        if (typeof contentType === 'string') {
-          return /json|text|xml|javascript|css/.test(contentType);
-        }
-        return compression.filter(req, res);
-      },
-      threshold: 1024,
-      level: 6,
-      memLevel: 8,
-    }));
+    expressApp.use(
+      compression({
+        filter: (req, res) => {
+          if (res.headersSent) return false;
+          const contentType = res.getHeader('content-type');
+          if (typeof contentType === 'string') {
+            return /json|text|xml|javascript|css/.test(contentType);
+          }
+          return compression.filter(req, res);
+        },
+        threshold: 1024,
+        level: 6,
+        memLevel: 8,
+      }),
+    );
 
     app = moduleFixture.createNestApplication(expressApp);
     await app.init();
@@ -46,7 +48,8 @@ describe('API Response Compression (T03_S04)', () => {
         data: Array(100).fill({
           id: 'test-id-with-long-string-to-make-it-compressible',
           name: 'Test Name with Long Description for Better Compression',
-          description: 'This is a very long description that should be compressible using gzip compression algorithm. It contains repetitive text to ensure good compression ratio.',
+          description:
+            'This is a very long description that should be compressible using gzip compression algorithm. It contains repetitive text to ensure good compression ratio.',
           metadata: {
             created: new Date().toISOString(),
             tags: ['tag1', 'tag2', 'tag3', 'tag4', 'tag5'],
@@ -54,9 +57,9 @@ describe('API Response Compression (T03_S04)', () => {
               property1: 'value1 with long text',
               property2: 'value2 with long text',
               property3: 'value3 with long text',
-            }
-          }
-        })
+            },
+          },
+        }),
       };
 
       const response = await request(httpServer)
@@ -67,17 +70,19 @@ describe('API Response Compression (T03_S04)', () => {
 
       // 압축 헤더 확인
       expect(response.headers['content-encoding']).toBe('gzip');
-      
+
       // 압축된 크기가 원본보다 작은지 확인
       const originalSize = JSON.stringify(largeData).length;
       const compressedSize = parseInt(response.headers['content-length'] || '0');
-      
+
       if (compressedSize > 0) {
         expect(compressedSize).toBeLessThan(originalSize);
-        
+
         // 압축률 계산 및 로깅
         const compressionRatio = ((originalSize - compressedSize) / originalSize) * 100;
-        console.log(`압축률: ${compressionRatio.toFixed(2)}% (${originalSize} -> ${compressedSize} bytes)`);
+        console.log(
+          `압축률: ${compressionRatio.toFixed(2)}% (${originalSize} -> ${compressedSize} bytes)`,
+        );
       }
     });
 
@@ -116,9 +121,9 @@ describe('API Response Compression (T03_S04)', () => {
           email: 'user@example.com',
           profile: {
             bio: 'This is a user bio with detailed information that should compress well',
-            interests: ['reading', 'writing', 'coding', 'music', 'travel']
-          }
-        })
+            interests: ['reading', 'writing', 'coding', 'music', 'travel'],
+          },
+        }),
       };
 
       const response = await request(httpServer)
@@ -169,9 +174,9 @@ describe('API Response Compression (T03_S04)', () => {
             modified: new Date().toISOString(),
             tags: ['tag1', 'tag2', 'tag3', 'tag4', 'tag5'],
             author: 'Test Author Name',
-            version: '1.0.0'
-          }
-        })
+            version: '1.0.0',
+          },
+        }),
       };
 
       // 압축 있는 요청

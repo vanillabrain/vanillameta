@@ -1,29 +1,10 @@
+/* Critical font weights - 가장 많이 사용되는 weight들 우선 정의 */
 @font-face {
     font-family: 'Pretendard';
-    font-weight: 900;
+    font-weight: 400;
     font-display: swap;
-    src: local('Pretendard Black'), url('assets/fonts/woff2-subset/Pretendard-Black.subset.woff2') format('woff2'), url('assets/fonts/woff-subset/Pretendard-Black.subset.woff') format('woff');
-}
-
-@font-face {
-    font-family: 'Pretendard';
-    font-weight: 800;
-    font-display: swap;
-    src: local('Pretendard ExtraBold'), url('assets/fonts/woff2-subset/Pretendard-ExtraBold.subset.woff2') format('woff2'), url('assets/fonts/woff-subset/Pretendard-ExtraBold.subset.woff') format('woff');
-}
-
-@font-face {
-    font-family: 'Pretendard';
-    font-weight: 700;
-    font-display: swap;
-    src: local('Pretendard Bold'), url('assets/fonts/woff2-subset/Pretendard-Bold.subset.woff2') format('woff2'), url('assets/fonts/woff-subset/Pretendard-Bold.subset.woff') format('woff');
-}
-
-@font-face {
-    font-family: 'Pretendard';
-    font-weight: 600;
-    font-display: swap;
-    src: local('Pretendard SemiBold'), url('assets/fonts/woff2-subset/Pretendard-SemiBold.subset.woff2') format('woff2'), url('assets/fonts/woff-subset/Pretendard-SemiBold.subset.woff') format('woff');
+    src: local('Pretendard Regular'), url('assets/fonts/woff2-subset/Pretendard-Regular.subset.woff2') format('woff2'), url('assets/fonts/woff-subset/Pretendard-Regular.subset.woff') format('woff');
+    unicode-range: U+0020-007E, U+00A0-00FF, U+0100-017F, U+1100-11FF, U+3130-318F, U+AC00-D7AF, U+FE10-FE19, U+FE30-FE4F, U+FF00-FFEF;
 }
 
 @font-face {
@@ -31,13 +12,24 @@
     font-weight: 500;
     font-display: swap;
     src: local('Pretendard Medium'), url('assets/fonts/woff2-subset/Pretendard-Medium.subset.woff2') format('woff2'), url('assets/fonts/woff-subset/Pretendard-Medium.subset.woff') format('woff');
+    unicode-range: U+0020-007E, U+00A0-00FF, U+0100-017F, U+1100-11FF, U+3130-318F, U+AC00-D7AF, U+FE10-FE19, U+FE30-FE4F, U+FF00-FFEF;
 }
 
 @font-face {
     font-family: 'Pretendard';
-    font-weight: 400;
+    font-weight: 600;
     font-display: swap;
-    src: local('Pretendard Regular'), url('assets/fonts/woff2-subset/Pretendard-Regular.subset.woff2') format('woff2'), url('assets/fonts/woff-subset/Pretendard-Regular.subset.woff') format('woff');
+    src: local('Pretendard SemiBold'), url('assets/fonts/woff2-subset/Pretendard-SemiBold.subset.woff2') format('woff2'), url('assets/fonts/woff-subset/Pretendard-SemiBold.subset.woff') format('woff');
+    unicode-range: U+0020-007E, U+00A0-00FF, U+0100-017F, U+1100-11FF, U+3130-318F, U+AC00-D7AF, U+FE10-FE19, U+FE30-FE4F, U+FF00-FFEF;
+}
+
+/* Secondary font weights - 필요시에만 로드되는 weight들 */
+@font-face {
+    font-family: 'Pretendard';
+    font-weight: 700;
+    font-display: swap;
+    src: local('Pretendard Bold'), url('assets/fonts/woff2-subset/Pretendard-Bold.subset.woff2') format('woff2'), url('assets/fonts/woff-subset/Pretendard-Bold.subset.woff') format('woff');
+    unicode-range: U+0020-007E, U+00A0-00FF, U+0100-017F, U+1100-11FF, U+3130-318F, U+AC00-D7AF, U+FE10-FE19, U+FE30-FE4F, U+FF00-FFEF;
 }
 
 @font-face {
@@ -45,6 +37,24 @@
     font-weight: 300;
     font-display: swap;
     src: local('Pretendard Light'), url('assets/fonts/woff2-subset/Pretendard-Light.subset.woff2') format('woff2'), url('assets/fonts/woff-subset/Pretendard-Light.subset.woff') format('woff');
+    unicode-range: U+0020-007E, U+00A0-00FF, U+0100-017F, U+1100-11FF, U+3130-318F, U+AC00-D7AF, U+FE10-FE19, U+FE30-FE4F, U+FF00-FFEF;
+}
+
+/* Rarely used font weights - 거의 사용되지 않는 weight들 */
+@font-face {
+    font-family: 'Pretendard';
+    font-weight: 800;
+    font-display: swap;
+    src: local('Pretendard ExtraBold'), url('assets/fonts/woff2-subset/Pretendard-ExtraBold.subset.woff2') format('woff2'), url('assets/fonts/woff-subset/Pretendard-ExtraBold.subset.woff') format('woff');
+    unicode-range: U+0020-007E, U+00A0-00FF, U+0100-017F, U+1100-11FF, U+3130-318F, U+AC00-D7AF, U+FE10-FE19, U+FE30-FE4F, U+FF00-FFEF;
+}
+
+@font-face {
+    font-family: 'Pretendard';
+    font-weight: 900;
+    font-display: swap;
+    src: local('Pretendard Black'), url('assets/fonts/woff2-subset/Pretendard-Black.subset.woff2') format('woff2'), url('assets/fonts/woff-subset/Pretendard-Black.subset.woff') format('woff');
+    unicode-range: U+0020-007E, U+00A0-00FF, U+0100-017F, U+1100-11FF, U+3130-318F, U+AC00-D7AF, U+FE10-FE19, U+FE30-FE4F, U+FF00-FFEF;
 }
 
 @font-face {
@@ -52,6 +62,7 @@
     font-weight: 200;
     font-display: swap;
     src: local('Pretendard ExtraLight'), url('assets/fonts/woff2-subset/Pretendard-ExtraLight.subset.woff2') format('woff2'), url('assets/fonts/woff-subset/Pretendard-ExtraLight.subset.woff') format('woff');
+    unicode-range: U+0020-007E, U+00A0-00FF, U+0100-017F, U+1100-11FF, U+3130-318F, U+AC00-D7AF, U+FE10-FE19, U+FE30-FE4F, U+FF00-FFEF;
 }
 
 @font-face {
@@ -59,6 +70,7 @@
     font-weight: 100;
     font-display: swap;
     src: local('Pretendard Thin'), url('assets/fonts/woff2-subset/Pretendard-Thin.subset.woff2') format('woff2'), url('assets/fonts/woff-subset/Pretendard-Thin.subset.woff') format('woff');
+    unicode-range: U+0020-007E, U+00A0-00FF, U+0100-017F, U+1100-11FF, U+3130-318F, U+AC00-D7AF, U+FE10-FE19, U+FE30-FE4F, U+FF00-FFEF;
 }
 
 .react-resizable-handle {

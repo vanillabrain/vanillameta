@@ -28,12 +28,12 @@ export class MySQLOptimizer extends BaseDatabaseOptimizer {
       bufferResult?: boolean; // SQL_BUFFER_RESULT 사용
     } = {},
   ): Knex.QueryBuilder {
-    let optimizedQuery = queryBuilder;
+    const optimizedQuery = queryBuilder;
 
     // 인덱스 힌트 적용 - Knex는 hint를 직접 지원하지 않으므로 raw를 사용해야 함
     // 현재는 주석 처리하여 기본 쿼리 최적화만 사용
     // TODO: raw 쿼리로 힌트 구현 필요
-    
+
     // if (options.useIndex) {
     //   // 예: SELECT /*+ USE INDEX (idx_name) */ ...
     // }

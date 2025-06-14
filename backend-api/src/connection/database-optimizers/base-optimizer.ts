@@ -35,12 +35,7 @@ export abstract class BaseDatabaseOptimizer {
    * @param data - 삽입할 데이터 배열
    * @param options - 추가 옵션
    */
-  abstract batchInsert(
-    knex: Knex,
-    tableName: string,
-    data: any[],
-    options?: any,
-  ): Promise<any>;
+  abstract batchInsert(knex: Knex, tableName: string, data: any[], options?: any): Promise<any>;
 
   /**
    * 배치 업데이트 최적화

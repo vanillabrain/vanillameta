@@ -120,7 +120,7 @@ export class DatasetService {
   }> {
     // 데이터셋 조회
     const dataset = await this.datasetRepository.findOne({ where: { id } });
-    
+
     if (!dataset) {
       throw new Error(`Dataset with id ${id} not found`);
     }

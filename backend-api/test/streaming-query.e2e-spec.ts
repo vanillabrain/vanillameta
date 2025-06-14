@@ -28,12 +28,10 @@ describe('Streaming Query E2E Tests', () => {
     databaseRepository = moduleFixture.get<Repository<Database>>(getRepositoryToken(Database));
 
     // 로그인하여 토큰 획득
-    const loginResponse = await request(app.getHttpServer())
-      .post('/auth/login')
-      .send({
-        email: 'test@example.com',
-        password: 'testpassword',
-      });
+    const loginResponse = await request(app.getHttpServer()).post('/auth/login').send({
+      email: 'test@example.com',
+      password: 'testpassword',
+    });
 
     authToken = loginResponse.body.accessToken;
 
@@ -71,9 +69,9 @@ describe('Streaming Query E2E Tests', () => {
   });
 
   describe('/dataset/:id/stream (GET)', () => {
-    it('should stream dataset query results in NDJSON format', (done) => {
+    it('should stream dataset query results in NDJSON format', done => {
       const chunks: string[] = [];
-      
+
       request(app.getHttpServer())
         .get(`/dataset/${testDataset.id}/stream`)
         .set('Authorization', `Bearer ${authToken}`)
@@ -82,7 +80,7 @@ describe('Streaming Query E2E Tests', () => {
         .expect('Transfer-Encoding', 'chunked')
         .buffer(false)
         .parse((res, callback) => {
-          res.on('data', (chunk) => {
+          res.on('data', chunk => {
             chunks.push(chunk.toString());
           });
           res.on('end', () => {
@@ -117,7 +115,7 @@ describe('Streaming Query E2E Tests', () => {
         });
     });
 
-    it('should handle non-existent dataset', (done) => {
+    it('should handle non-existent dataset', done => {
       request(app.getHttpServer())
         .get('/dataset/99999/stream')
         .set('Authorization', `Bearer ${authToken}`)
@@ -132,9 +130,9 @@ describe('Streaming Query E2E Tests', () => {
   });
 
   describe('/database/execute/stream (POST)', () => {
-    it('should stream direct query results', (done) => {
+    it('should stream direct query results', done => {
       const chunks: string[] = [];
-      
+
       request(app.getHttpServer())
         .post('/database/execute/stream')
         .set('Authorization', `Bearer ${authToken}`)
@@ -146,7 +144,7 @@ describe('Streaming Query E2E Tests', () => {
         .expect('Content-Type', /application\/x-ndjson/)
         .buffer(false)
         .parse((res, callback) => {
-          res.on('data', (chunk) => {
+          res.on('data', chunk => {
             chunks.push(chunk.toString());
           });
           res.on('end', () => {
@@ -182,9 +180,9 @@ describe('Streaming Query E2E Tests', () => {
         });
     });
 
-    it('should handle SQL errors gracefully', (done) => {
+    it('should handle SQL errors gracefully', done => {
       const chunks: string[] = [];
-      
+
       request(app.getHttpServer())
         .post('/database/execute/stream')
         .set('Authorization', `Bearer ${authToken}`)
@@ -194,7 +192,7 @@ describe('Streaming Query E2E Tests', () => {
         })
         .buffer(false)
         .parse((res, callback) => {
-          res.on('data', (chunk) => {
+          res.on('data', chunk => {
             chunks.push(chunk.toString());
           });
           res.on('end', () => {
@@ -203,7 +201,7 @@ describe('Streaming Query E2E Tests', () => {
         })
         .end((err, res) => {
           const lines = res.body.split('\n').filter(line => line.trim());
-          
+
           // 에러 메시지 확인
           const errorLine = lines.find(line => {
             try {
@@ -225,7 +223,7 @@ describe('Streaming Query E2E Tests', () => {
   });
 
   describe('Large Data Streaming', () => {
-    it('should handle large dataset streaming efficiently', (done) => {
+    it('should handle large dataset streaming efficiently', done => {
       // 대용량 데이터 생성 쿼리 (재귀 CTE 사용)
       const largeDataQuery = `
         WITH RECURSIVE series(n) AS (
@@ -238,8 +236,8 @@ describe('Streaming Query E2E Tests', () => {
       `;
 
       let rowCount = 0;
-      let memoryUsageBefore = process.memoryUsage().heapUsed;
-      
+      const memoryUsageBefore = process.memoryUsage().heapUsed;
+
       request(app.getHttpServer())
         .post('/database/execute/stream')
         .set('Authorization', `Bearer ${authToken}`)
@@ -250,8 +248,11 @@ describe('Streaming Query E2E Tests', () => {
         .expect(200)
         .buffer(false)
         .parse((res, callback) => {
-          res.on('data', (chunk) => {
-            const lines = chunk.toString().split('\n').filter(line => line.trim());
+          res.on('data', chunk => {
+            const lines = chunk
+              .toString()
+              .split('\n')
+              .filter(line => line.trim());
             lines.forEach(line => {
               try {
                 const parsed = JSON.parse(line);
@@ -284,7 +285,7 @@ describe('Streaming Query E2E Tests', () => {
   });
 
   describe('Stream Interruption Handling', () => {
-    it('should handle client disconnection gracefully', (done) => {
+    it('should handle client disconnection gracefully', done => {
       const req = request(app.getHttpServer())
         .get(`/dataset/${testDataset.id}/stream`)
         .set('Authorization', `Bearer ${authToken}`);
@@ -294,10 +295,7 @@ describe('Streaming Query E2E Tests', () => {
         req.abort();
         // 서버가 크래시되지 않고 정상 동작하는지 확인
         setTimeout(() => {
-          request(app.getHttpServer())
-            .get('/health')
-            .expect(200)
-            .end(done);
+          request(app.getHttpServer()).get('/health').expect(200).end(done);
         }, 100);
       }, 50);
 

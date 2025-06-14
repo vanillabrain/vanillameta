@@ -168,7 +168,7 @@ describe('ConnectionService - Streaming Query', () => {
       }
     });
 
-    it('should collect NDJSON formatted output', (done) => {
+    it('should collect NDJSON formatted output', done => {
       // SQL 검증 성공 설정
       sqlValidationService.validateQuery.mockReturnValue({
         isValid: true,
@@ -207,7 +207,7 @@ describe('ConnectionService - Streaming Query', () => {
       });
 
       const chunks: string[] = [];
-      result.stream.on('data', (chunk) => {
+      result.stream.on('data', chunk => {
         chunks.push(chunk.toString());
       });
 
@@ -238,7 +238,7 @@ describe('ConnectionService - Streaming Query', () => {
       });
     });
 
-    it('should handle stream errors gracefully', (done) => {
+    it('should handle stream errors gracefully', done => {
       // SQL 검증 성공 설정
       sqlValidationService.validateQuery.mockReturnValue({
         isValid: true,
@@ -274,10 +274,10 @@ describe('ConnectionService - Streaming Query', () => {
         query: 'SELECT * FROM test',
       });
 
-      result.stream.on('data', (chunk) => {
+      result.stream.on('data', chunk => {
         const data = chunk.toString();
         const parsed = JSON.parse(data.trim());
-        
+
         if (parsed.type === 'error') {
           expect(parsed.error).toContain('Database connection lost');
           done();
@@ -327,7 +327,7 @@ describe('ConnectionService - Streaming Query', () => {
         query: 'SELECT * FROM large_table',
       });
 
-      await new Promise((resolve) => {
+      await new Promise(resolve => {
         result.stream.on('end', resolve);
         result.stream.resume(); // 스트림 소비
       });

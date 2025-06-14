@@ -1,9 +1,25 @@
-import { Controller, Get, Post, Body, Param, Delete, Put, UseGuards, Query, Res, StreamableFile, Header } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Delete,
+  Put,
+  UseGuards,
+  Query,
+  Res,
+  StreamableFile,
+  Header,
+} from '@nestjs/common';
 import { DatasetService } from './dataset.service';
 import { CreateDatasetDto } from './dto/create-dataset.dto';
 import { UpdateDatasetDto } from './dto/update-dataset.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { FieldSelection, PredefinedFields } from '../common/field-selection/field-selection.decorator';
+import {
+  FieldSelection,
+  PredefinedFields,
+} from '../common/field-selection/field-selection.decorator';
 import { Response } from 'express';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 
@@ -36,7 +52,7 @@ export class DatasetController {
    */
   @FieldSelection({
     allowedFields: ['id', 'title', 'databaseId', 'query', 'createdAt', 'updatedAt'],
-    excludeFields: []
+    excludeFields: [],
   })
   @Get(':id')
   findOne(@Param('id') id: string, @Query('fields') fields?: string) {
@@ -72,11 +88,7 @@ export class DatasetController {
   @Header('Content-Type', 'application/x-ndjson')
   @Header('Transfer-Encoding', 'chunked')
   @Header('Cache-Control', 'no-cache')
-  async streamQuery(
-    @Param('id') id: string,
-    @GetUser() user: any,
-    @Res() res: Response,
-  ) {
+  async streamQuery(@Param('id') id: string, @GetUser() user: any, @Res() res: Response) {
     try {
       // 스트리밍 쿼리 실행
       const { stream, error } = await this.datasetService.executeStreamingQuery(
@@ -85,9 +97,9 @@ export class DatasetController {
       );
 
       if (error) {
-        return res.status(500).json({ 
-          status: 'error', 
-          message: error 
+        return res.status(500).json({
+          status: 'error',
+          message: error,
         });
       }
 
@@ -95,12 +107,12 @@ export class DatasetController {
       stream.pipe(res);
 
       // 스트림 에러 처리
-      stream.on('error', (err) => {
+      stream.on('error', err => {
         console.error('Stream error:', err);
         if (!res.headersSent) {
-          res.status(500).json({ 
-            status: 'error', 
-            message: 'Stream error occurred' 
+          res.status(500).json({
+            status: 'error',
+            message: 'Stream error occurred',
           });
         }
       });
@@ -109,13 +121,12 @@ export class DatasetController {
       res.on('close', () => {
         stream.destroy();
       });
-
     } catch (error) {
       console.error('Streaming query error:', error);
       if (!res.headersSent) {
-        res.status(500).json({ 
-          status: 'error', 
-          message: error.message || 'Failed to execute streaming query' 
+        res.status(500).json({
+          status: 'error',
+          message: error.message || 'Failed to execute streaming query',
         });
       }
     }

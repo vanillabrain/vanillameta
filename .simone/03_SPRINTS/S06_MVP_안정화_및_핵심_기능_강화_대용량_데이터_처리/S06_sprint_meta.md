@@ -30,7 +30,31 @@ last_updated: 2025-06-12T12:00:00Z
 - 대용량 데이터 처리 E2E 테스트 통과
 - 성능 벤치마크 문서화
 
+## Tasks
+
+### T01_S06 Query Result Streaming Implementation (Medium)
+대용량 쿼리 결과를 스트리밍 방식으로 전송하여 메모리 효율성을 높이고 첫 결과를 빠르게 표시
+
+### T02_S06 Batch Processing Logic Implementation (Medium)
+청크 단위로 대용량 데이터를 나누어 처리하는 배치 시스템 구현
+
+### T03_S06 Query Timeout Configuration (Low)
+데이터베이스별 적절한 쿼리 타임아웃 설정으로 시스템 안정성 확보
+
+### T04_S06 Redis Query Caching Implementation (Medium)
+자주 사용되는 대용량 쿼리 결과를 Redis에 캐싱하여 응답 속도 개선
+
+### T05_S06 Background Job Queue System (Medium)
+장시간 실행 쿼리를 백그라운드에서 처리하는 작업 큐 시스템 구축
+
+### T06_S06 Progressive Data Loading UI (Medium)
+프론트엔드에서 대용량 데이터를 점진적으로 로드하고 표시하는 UI 구현
+
+### T07_S06 Memory Efficient Data Pipeline (Low)
+Lambda 메모리 제약 내에서 안정적으로 동작하는 메모리 최적화
+
 ## Notes / Retrospective Points
 - P2 (중간) 우선순위 요구사항
 - 성공 지표: 대용량 쿼리(10만 건) 처리 시간 5초 이내
 - 엔터프라이즈 고객을 위한 핵심 기능
+- 총 7개 작업: Medium 5개, Low 2개

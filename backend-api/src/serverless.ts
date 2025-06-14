@@ -28,27 +28,29 @@ async function bootstrapServer(): Promise<Server> {
   // some legacy browsers (IE11, various SmartTVs) choke on 204
   if (!cachedServer) {
     const expressApp = express();
-    
+
     // API 응답 압축 설정 (T03_S04)
-    expressApp.use(compression({
-      filter: (req, res) => {
-        // 이미 압축된 응답은 건너뛰기
-        if (res.headersSent) return false;
-        
-        // Content-Type 기반 필터링 - JSON, 텍스트, XML만 압축
-        const contentType = res.getHeader('content-type');
-        if (typeof contentType === 'string') {
-          return /json|text|xml|javascript|css/.test(contentType);
-        }
-        
-        // 기본 compression 필터 사용
-        return compression.filter(req, res);
-      },
-      threshold: 1024, // 1KB 이상만 압축
-      level: 6, // 압축 레벨 (1-9, 6이 성능과 압축률의 균형점)
-      memLevel: 8, // 메모리 레벨 (1-9, Lambda 환경에서 적절한 수준)
-    }));
-    
+    expressApp.use(
+      compression({
+        filter: (req, res) => {
+          // 이미 압축된 응답은 건너뛰기
+          if (res.headersSent) return false;
+
+          // Content-Type 기반 필터링 - JSON, 텍스트, XML만 압축
+          const contentType = res.getHeader('content-type');
+          if (typeof contentType === 'string') {
+            return /json|text|xml|javascript|css/.test(contentType);
+          }
+
+          // 기본 compression 필터 사용
+          return compression.filter(req, res);
+        },
+        threshold: 1024, // 1KB 이상만 압축
+        level: 6, // 압축 레벨 (1-9, 6이 성능과 압축률의 균형점)
+        memLevel: 8, // 메모리 레벨 (1-9, Lambda 환경에서 적절한 수준)
+      }),
+    );
+
     const nestApp = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), {
       logger: new CustomLoggerService(),
       cors: {
@@ -66,7 +68,7 @@ async function bootstrapServer(): Promise<Server> {
         new LoggingMiddleware(nestApp.get(CustomLoggerService)),
       ),
     );
-    
+
     // Compression logging middleware (T03_S04)
     nestApp.use(
       new CompressionLoggingMiddleware(nestApp.get(CustomLoggerService)).use.bind(

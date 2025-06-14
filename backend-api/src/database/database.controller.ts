@@ -20,7 +20,10 @@ import { ConnectionService } from '../connection/connection.service';
 import { DatasetType } from '../common/enum/dataset-type.enum';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { ApiTags } from '@nestjs/swagger';
-import { FieldSelection, PredefinedFields } from '../common/field-selection/field-selection.decorator';
+import {
+  FieldSelection,
+  PredefinedFields,
+} from '../common/field-selection/field-selection.decorator';
 import { Response } from 'express';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 
@@ -104,10 +107,18 @@ export class DatabaseController {
    */
   @FieldSelection({
     allowedFields: [
-      'id', 'name', 'description', 'engine', 'type', 'timezone',
-      'createdAt', 'updatedAt', 'tables', 'datasets'
+      'id',
+      'name',
+      'description',
+      'engine',
+      'type',
+      'timezone',
+      'createdAt',
+      'updatedAt',
+      'tables',
+      'datasets',
     ],
-    excludeFields: ['connectionConfig']
+    excludeFields: ['connectionConfig'],
   })
   @Get(':id')
   async findOne(@Param('id') id: string, @Query('fields') fields?: string) {
@@ -153,9 +164,9 @@ export class DatabaseController {
       );
 
       if (error) {
-        return res.status(500).json({ 
-          status: 'error', 
-          message: error 
+        return res.status(500).json({
+          status: 'error',
+          message: error,
         });
       }
 
@@ -163,12 +174,12 @@ export class DatabaseController {
       stream.pipe(res);
 
       // 스트림 에러 처리
-      stream.on('error', (err) => {
+      stream.on('error', err => {
         console.error('Stream error:', err);
         if (!res.headersSent) {
-          res.status(500).json({ 
-            status: 'error', 
-            message: 'Stream error occurred' 
+          res.status(500).json({
+            status: 'error',
+            message: 'Stream error occurred',
           });
         }
       });
@@ -177,13 +188,12 @@ export class DatabaseController {
       res.on('close', () => {
         stream.destroy();
       });
-
     } catch (error) {
       console.error('Streaming query error:', error);
       if (!res.headersSent) {
-        res.status(500).json({ 
-          status: 'error', 
-          message: error.message || 'Failed to execute streaming query' 
+        res.status(500).json({
+          status: 'error',
+          message: error.message || 'Failed to execute streaming query',
         });
       }
     }

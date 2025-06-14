@@ -11,6 +11,7 @@ import {
 import { DatasetType } from '../common/enum/dataset-type.enum';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import { YesNo } from '../common/enum/yn.enum';
+import { CustomLoggerService } from '../common/logger/logger.service';
 
 describe('WidgetService', () => {
   let service: WidgetService;
@@ -81,6 +82,10 @@ describe('WidgetService', () => {
         {
           provide: TableQueryService,
           useValue: createMockService(['create', 'findAll', 'update', 'remove']),
+        },
+        {
+          provide: CustomLoggerService,
+          useValue: createMockService(['log', 'error', 'warn', 'debug', 'info']),
         },
       ],
     }).compile();

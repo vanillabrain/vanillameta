@@ -23,7 +23,7 @@ describe('Field Selection Integration (e2e)', () => {
     it('should return only selected fields when fields query parameter is provided', async () => {
       // This test requires authentication to work properly
       // It's a placeholder to demonstrate the expected behavior
-      
+
       // Expected: GET /dashboard?fields=id,title,description
       // Should only return those three fields in the response
       expect(true).toBe(true);

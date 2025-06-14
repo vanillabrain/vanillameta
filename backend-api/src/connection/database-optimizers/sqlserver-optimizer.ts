@@ -32,7 +32,7 @@ export class SqlServerOptimizer extends BaseDatabaseOptimizer {
 
     // SQL Server 힌트 적용 - Knex는 hint를 직접 지원하지 않으므로 주석 처리
     // TODO: raw 쿼리를 사용하여 SQL Server 힌트 구현 필요
-    
+
     // if (options.hint) {
     //   // 예: SELECT ... WITH (hint)
     // }

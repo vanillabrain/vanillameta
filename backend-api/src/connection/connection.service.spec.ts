@@ -122,7 +122,11 @@ describe('ConnectionService', () => {
         },
         {
           provide: DatabaseOptimizerFactory,
-          useValue: createMockService(['getOptimizedConnectionConfig', 'isSupported', 'getOptimizationStats']),
+          useValue: createMockService([
+            'getOptimizedConnectionConfig',
+            'isSupported',
+            'getOptimizationStats',
+          ]),
         },
         {
           provide: REQUEST,
@@ -264,7 +268,7 @@ describe('ConnectionService', () => {
   describe('removeKnex', () => {
     it('should remove and destroy Knex connection', async () => {
       const knexConfig = { client: 'mysql2', connection: {} };
-      
+
       // Mock DatabaseOptimizerFactory
       databaseOptimizerFactory.getOptimizedConnectionConfig.mockReturnValue({
         pool: { min: 2, max: 10 },
@@ -274,7 +278,7 @@ describe('ConnectionService', () => {
         totalOptimized: 1,
         byType: { mysql2: 1 },
       });
-      
+
       service.addKnex(1, knexConfig);
 
       await service.removeKnex(1);
@@ -871,7 +875,7 @@ describe('ConnectionService', () => {
         client: 'mysql2',
         connection: mockCreateDatabaseDto.connectionConfig,
       };
-      
+
       // Mock DatabaseOptimizerFactory for addKnex
       databaseOptimizerFactory.getOptimizedConnectionConfig.mockReturnValue({
         pool: { min: 2, max: 10 },
@@ -881,7 +885,7 @@ describe('ConnectionService', () => {
         totalOptimized: 1,
         byType: { mysql2: 1 },
       });
-      
+
       service.addKnex(1, knexConfig);
       expect(service.hasKnex(1)).toBe(true);
 

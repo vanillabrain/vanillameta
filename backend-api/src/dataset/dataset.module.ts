@@ -12,5 +12,6 @@ import { JwtService } from '@nestjs/jwt';
   imports: [TypeOrmModule.forFeature([Dataset, Database, Widget])],
   controllers: [DatasetController],
   providers: [DatasetService, ConnectionService, JwtService],
+  exports: [DatasetService],
 })
 export class DatasetModule {}

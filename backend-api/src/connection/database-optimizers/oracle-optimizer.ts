@@ -26,11 +26,11 @@ export class OracleOptimizer extends BaseDatabaseOptimizer {
       enablePlan?: boolean; // 실행 계획 분석
     } = {},
   ): Knex.QueryBuilder {
-    let optimizedQuery = queryBuilder;
+    const optimizedQuery = queryBuilder;
 
     // Oracle 힌트 적용 - Knex는 hint를 직접 지원하지 않으므로 주석 처리
     // TODO: raw 쿼리를 사용하여 Oracle 힌트 구현 필요
-    
+
     // if (options.hint) {
     //   // 예: SELECT /*+ hint */ ...
     // }

@@ -3,7 +3,10 @@ import { WidgetService } from './widget.service';
 import { CreateWidgetDto } from './dto/create-widget.dto';
 import { UpdateWidgetDto } from './dto/update-widget.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { FieldSelection, PredefinedFields } from '../common/field-selection/field-selection.decorator';
+import {
+  FieldSelection,
+  PredefinedFields,
+} from '../common/field-selection/field-selection.decorator';
 
 @UseGuards(JwtAuthGuard)
 @Controller('widget')
@@ -24,10 +27,17 @@ export class WidgetController {
    */
   @FieldSelection({
     allowedFields: [
-      'id', 'title', 'description', 'componentId', 'datasetType', 
-      'datasetId', 'option', 'createdAt', 'updatedAt'
+      'id',
+      'title',
+      'description',
+      'componentId',
+      'datasetType',
+      'datasetId',
+      'option',
+      'createdAt',
+      'updatedAt',
     ],
-    excludeFields: ['delYn']
+    excludeFields: ['delYn'],
   })
   @Get()
   findAll(@Query('fields') fields?: string) {

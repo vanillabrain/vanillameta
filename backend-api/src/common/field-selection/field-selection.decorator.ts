@@ -5,7 +5,7 @@ export const FIELD_SELECTION_KEY = 'fieldSelection';
 
 /**
  * 필드 선택 기능을 활성화하는 데코레이터
- * 
+ *
  * @example
  * ```typescript
  * @FieldSelection({
@@ -23,7 +23,7 @@ export function FieldSelection(options: FieldSelectionOptions = {}) {
   // 기본 제외 필드 설정
   const defaultExcludeFields = [
     'password',
-    'passwordHash', 
+    'passwordHash',
     'token',
     'accessToken',
     'refreshToken',
@@ -31,16 +31,13 @@ export function FieldSelection(options: FieldSelectionOptions = {}) {
     'apiKey',
     'privateKey',
     'connectionString',
-    'credentials'
+    'credentials',
   ];
 
   const mergedOptions: FieldSelectionOptions = {
     maxDepth: 5,
-    excludeFields: [
-      ...(options.excludeFields || []),
-      ...defaultExcludeFields
-    ],
-    ...options
+    excludeFields: [...(options.excludeFields || []), ...defaultExcludeFields],
+    ...options,
   };
 
   return SetMetadata(FIELD_SELECTION_KEY, mergedOptions);
@@ -48,7 +45,7 @@ export function FieldSelection(options: FieldSelectionOptions = {}) {
 
 /**
  * 사전 정의된 필드 세트를 사용하는 데코레이터
- * 
+ *
  * @example
  * ```typescript
  * @PredefinedFields('userBasic') // id, email, name, createdAt
@@ -58,7 +55,10 @@ export function FieldSelection(options: FieldSelectionOptions = {}) {
  * }
  * ```
  */
-export function PredefinedFields(fieldSetName: string, additionalOptions: Omit<FieldSelectionOptions, 'allowedFields'> = {}) {
+export function PredefinedFields(
+  fieldSetName: string,
+  additionalOptions: Omit<FieldSelectionOptions, 'allowedFields'> = {},
+) {
   const predefinedSets: Record<string, string[]> = {
     userBasic: ['id', 'userId', 'email', 'createdAt', 'updatedAt'],
     userWithProfile: ['id', 'userId', 'email', 'profile.avatar', 'profile.bio'],
@@ -68,7 +68,16 @@ export function PredefinedFields(fieldSetName: string, additionalOptions: Omit<F
     widgetWithConfig: ['id', 'title', 'componentId', 'datasetType', 'datasetId', 'option'],
     datasetSchema: ['id', 'title', 'databaseId', 'columns.name', 'columns.type'],
     datasetMeta: ['id', 'title', 'databaseId', 'createdAt', 'updatedAt'],
-    connectionBasic: ['id', 'name', 'description', 'engine', 'type', 'timezone', 'createdAt', 'updatedAt']
+    connectionBasic: [
+      'id',
+      'name',
+      'description',
+      'engine',
+      'type',
+      'timezone',
+      'createdAt',
+      'updatedAt',
+    ],
   };
 
   const allowedFields = predefinedSets[fieldSetName];
@@ -78,7 +87,7 @@ export function PredefinedFields(fieldSetName: string, additionalOptions: Omit<F
 
   return FieldSelection({
     allowedFields,
-    ...additionalOptions
+    ...additionalOptions,
   });
 }
 

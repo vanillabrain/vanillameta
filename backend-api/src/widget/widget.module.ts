@@ -13,5 +13,6 @@ import { JwtService } from '@nestjs/jwt';
   imports: [TypeOrmModule.forFeature([Widget, Component, TableQuery, Database])],
   controllers: [WidgetController],
   providers: [WidgetService, TableQueryService, JwtService],
+  exports: [WidgetService],
 })
 export class WidgetModule {}

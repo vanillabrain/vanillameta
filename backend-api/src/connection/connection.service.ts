@@ -597,7 +597,7 @@ export class ConnectionService {
   async executeStreamingQuery(
     queryExecuteDto: QueryExecuteDto,
     userId?: string,
-    chunkSize: number = 1000,
+    chunkSize = 1000,
   ): Promise<{
     stream: Readable;
     fields?: any[];
@@ -640,7 +640,7 @@ export class ConnectionService {
 
     const knexInstance = await this.getKnex(queryExecuteDto.id);
     const startTime = Date.now();
-    
+
     // PassThrough 스트림 생성 (Transform 스트림의 한 종류)
     const outputStream = new PassThrough({
       objectMode: false, // NDJSON 포맷을 위해 string mode 사용
@@ -654,20 +654,23 @@ export class ConnectionService {
 
     try {
       const sanitizedQuery = validationResult.sanitizedQuery || queryExecuteDto.query;
-      
+
       // 쿼리 실행 계획 분석 (비동기)
       this.analyzeQueryAsync(sanitizedQuery, queryExecuteDto.id);
 
       // 데이터베이스 타입 확인
-      const clientType = typeof knexInstance.client.config.client === 'function' 
-        ? knexInstance.client.config.client.name 
-        : knexInstance.client.config.client;
+      const clientType =
+        typeof knexInstance.client.config.client === 'function'
+          ? knexInstance.client.config.client.name
+          : knexInstance.client.config.client;
 
       // 데이터베이스별 스트림 설정 최적화
       const streamOptions = this.getStreamOptionsForDatabase(clientType);
-      
+
       // Knex 스트림 생성
-      const queryStream = knexInstance.raw(sanitizedQuery).stream(streamOptions) as unknown as NodeJS.ReadableStream;
+      const queryStream = knexInstance
+        .raw(sanitizedQuery)
+        .stream(streamOptions) as unknown as NodeJS.ReadableStream;
 
       // 데이터베이스별 스트림 처리를 위한 Transform 스트림
       const transformStream = new Transform({
@@ -676,20 +679,20 @@ export class ConnectionService {
           try {
             // 데이터베이스별 청크 처리
             const processedChunk = this.processChunkByDatabase(chunk, clientType);
-            
+
             if (!processedChunk) {
               callback();
               return;
             }
 
             rowCount++;
-            
+
             // 첫 번째 청크에서 필드 정보 추출
             if (firstChunk && processedChunk) {
               firstChunk = false;
-              
+
               fields = this.extractFieldsFromChunk(processedChunk, clientType);
-              
+
               // 필드 정보를 첫 번째 라인으로 전송
               outputStream.push(JSON.stringify({ type: 'fields', data: fields }) + '\n');
             }
@@ -717,32 +720,36 @@ export class ConnectionService {
       // 스트림 파이프라인 설정
       queryStream
         .pipe(transformStream)
-        .on('error', (error) => {
+        .on('error', error => {
           errorOccurred = true;
           this.logger.error('Stream transformation error', error.stack, 'ConnectionService', {
             databaseId: queryExecuteDto.id,
             rowsProcessed: rowCount,
             error: error.message,
           });
-          
+
           // 에러 정보를 스트림에 전송
-          outputStream.push(JSON.stringify({ 
-            type: 'error', 
-            error: error.message || 'Stream transformation error' 
-          }) + '\n');
+          outputStream.push(
+            JSON.stringify({
+              type: 'error',
+              error: error.message || 'Stream transformation error',
+            }) + '\n',
+          );
           outputStream.end();
         })
         .on('end', async () => {
           if (!errorOccurred) {
             const executionTime = Date.now() - startTime;
-            
+
             // 완료 정보 전송
-            outputStream.push(JSON.stringify({ 
-              type: 'complete', 
-              rowCount,
-              executionTime,
-            }) + '\n');
-            
+            outputStream.push(
+              JSON.stringify({
+                type: 'complete',
+                rowCount,
+                executionTime,
+              }) + '\n',
+            );
+
             // 스트림 종료
             outputStream.end();
 
@@ -772,18 +779,20 @@ export class ConnectionService {
         });
 
       // 쿼리 스트림 에러 처리
-      queryStream.on('error', (error) => {
+      queryStream.on('error', error => {
         errorOccurred = true;
         this.logger.error('Query stream error', error.stack, 'ConnectionService', {
           databaseId: queryExecuteDto.id,
           error: error.message,
           sqlMessage: error.sqlMessage,
         });
-        
-        outputStream.push(JSON.stringify({ 
-          type: 'error', 
-          error: error.sqlMessage || error.message || 'Query execution error' 
-        }) + '\n');
+
+        outputStream.push(
+          JSON.stringify({
+            type: 'error',
+            error: error.sqlMessage || error.message || 'Query execution error',
+          }) + '\n',
+        );
         outputStream.end();
       });
 
@@ -791,10 +800,9 @@ export class ConnectionService {
         stream: outputStream,
         fields,
       };
-
     } catch (error) {
       const executionTime = Date.now() - startTime;
-      
+
       this.logger.error('Failed to initialize streaming query', error.stack, 'ConnectionService', {
         databaseId: queryExecuteDto.id,
         query: queryExecuteDto.query?.substring(0, 200),
@@ -803,10 +811,12 @@ export class ConnectionService {
       });
 
       // 에러가 발생한 경우에도 스트림 반환 (에러 정보 포함)
-      outputStream.push(JSON.stringify({ 
-        type: 'error', 
-        error: error.message || 'Failed to initialize streaming query' 
-      }) + '\n');
+      outputStream.push(
+        JSON.stringify({
+          type: 'error',
+          error: error.message || 'Failed to initialize streaming query',
+        }) + '\n',
+      );
       outputStream.end();
 
       return {
@@ -821,14 +831,14 @@ export class ConnectionService {
    */
   private extractFieldsFromChunk(chunk: any, clientType: string): any[] {
     const fields = [];
-    
+
     if (!chunk || typeof chunk !== 'object') {
       return fields;
     }
 
     // 객체의 키를 필드로 사용
     const fieldNames = Object.keys(chunk);
-    
+
     fieldNames.forEach(fieldName => {
       fields.push({
         columnName: fieldName,
@@ -849,40 +859,40 @@ export class ConnectionService {
           highWaterMark: 16 * 1024, // 16KB 청크
           objectMode: true,
         };
-      
+
       case 'pg':
       case 'cockroachdb':
         return {
           highWaterMark: 64 * 1024, // 64KB 청크 (PostgreSQL은 더 큰 청크 처리 가능)
           objectMode: true,
         };
-      
+
       case 'oracledb':
         return {
           highWaterMark: 32 * 1024, // 32KB 청크
           objectMode: true,
           fetchArraySize: 1000, // Oracle 특정 옵션
         };
-      
+
       case 'sqlite3':
         return {
           highWaterMark: 8 * 1024, // 8KB 청크 (SQLite는 작은 청크가 효율적)
           objectMode: true,
         };
-      
+
       case 'mssql':
         return {
           highWaterMark: 32 * 1024, // 32KB 청크
           objectMode: true,
         };
-      
+
       case 'BigQueryClient':
       case 'SnowflakeDialect':
         return {
           highWaterMark: 128 * 1024, // 128KB 청크 (클라우드 DB는 큰 청크 가능)
           objectMode: true,
         };
-      
+
       default:
         return {
           highWaterMark: 16 * 1024, // 기본값 16KB
@@ -902,7 +912,7 @@ export class ConnectionService {
       case 'cockroachdb':
         // PostgreSQL 계열은 chunk가 이미 row 객체
         return chunk;
-      
+
       case 'oracledb':
         // Oracle은 배열 형태로 올 수 있음
         if (Array.isArray(chunk)) {
@@ -910,12 +920,12 @@ export class ConnectionService {
           return chunk;
         }
         return chunk;
-      
+
       case 'BigQueryClient':
       case 'SnowflakeDialect':
         // 클라우드 DB들은 특수한 포맷을 가질 수 있음
         return chunk;
-      
+
       default:
         return chunk;
     }
