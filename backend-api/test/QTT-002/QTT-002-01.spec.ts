@@ -13,6 +13,7 @@ import { Connection, DataSource } from 'typeorm';
 import { ResponseStatus } from '../../src/common/enum/response-status.enum';
 import { DatasetType } from '../../src/common/enum/dataset-type.enum';
 import { mockSqlValidationService } from '../util/test-providers';
+import { CustomLoggerService } from '../../src/common/logger/custom-logger.service';
 
 describe('QTT-002 : 위젯 생성', () => {
   let widgetService: WidgetService;
@@ -30,7 +31,22 @@ describe('QTT-002 : 위젯 생성', () => {
         getTestMysqlModule(),
         TypeOrmModule.forFeature([Widget, Component, TableQuery, Database]),
       ],
-      providers: [WidgetService, TableQueryService, Widget, mockSqlValidationService],
+      providers: [
+        WidgetService, 
+        TableQueryService, 
+        Widget, 
+        mockSqlValidationService,
+        {
+          provide: CustomLoggerService,
+          useValue: {
+            log: jest.fn(),
+            error: jest.fn(),
+            warn: jest.fn(),
+            debug: jest.fn(),
+            verbose: jest.fn(),
+          },
+        },
+      ],
     }).compile();
     widgetService = module.get<WidgetService>(WidgetService);
     tableQueryService = module.get<TableQueryService>(TableQueryService);
