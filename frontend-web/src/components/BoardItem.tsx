@@ -3,7 +3,7 @@ import { Box, Hidden, ListItem, ListItemIcon, Stack, useMediaQuery, useTheme } f
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import DeleteButton from '@/components/button/DeleteButton';
 import ModifyButton from '@/components/button/ModifyButton';
-import { styled } from '@mui/system';
+import { styled } from '@mui/material/styles';
 import { dateData } from '@/utils/util';
 
 interface BoardItemDataProps {
@@ -17,11 +17,16 @@ interface BoardItemDataProps {
 interface BoardItemProps {
   data: BoardItemDataProps;
   handleDeleteSelect: (id, title) => void;
+  key?: string | number;
 }
 
 const tableBorder = '1px solid #DADDDD';
 
-const MobileTitleSpan = styled('span')({
+interface TitleSpanProps {
+  children: React.ReactNode;
+}
+
+const MobileTitleSpan = styled('span')<TitleSpanProps>({
   display: 'block',
   flexGrow: 0,
   width: '100%',
@@ -31,7 +36,7 @@ const MobileTitleSpan = styled('span')({
   color: '#333333',
 });
 
-const TitleSpan = styled('span')({
+const TitleSpan = styled('span')<TitleSpanProps>({
   display: 'block',
   flexGrow: 0,
   width: '100%',
@@ -50,7 +55,7 @@ interface SubTitleSpanProps {
   matches?: boolean;
 }
 
-const SubTitleSpan = styled('span')<SubTitleSpanProps>(matches => ({
+const SubTitleSpan = styled('span')<SubTitleSpanProps>(({ matches }) => ({
   display: 'flex',
   height: '14px',
   justifyContent: 'space-between',
@@ -104,10 +109,54 @@ function BoardItem(props: BoardItemProps) {
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ width: '100%' }}>
         <Stack direction="row" alignItems="center" sx={{ width: '100%', maxWidth: `calc(100% - ${matches ? 300 : 110}px)` }}>
           {matches && componentType && <IconRowHeader icon={icon} />}
-          {matches ? <TitleSpan>{title}</TitleSpan> : <MobileTitleSpan>{title}</MobileTitleSpan>}
+          {matches ? (
+            <span
+              style={{
+                display: 'block',
+                flexGrow: 0,
+                width: '100%',
+                height: '14px',
+                fontSize: '14px',
+                fontWeight: '600',
+                lineHeight: '1.14',
+                color: '#333333',
+                overflow: 'hidden',
+                whiteSpace: 'nowrap',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {title}
+            </span>
+          ) : (
+            <span
+              style={{
+                display: 'block',
+                flexGrow: 0,
+                width: '100%',
+                fontSize: '14px',
+                fontWeight: '600',
+                lineHeight: '1.43',
+                color: '#333333',
+              }}
+            >
+              {title}
+            </span>
+          )}
         </Stack>
         <Stack alignItems="center" direction="row">
-          <SubTitleSpan matches={matches}>{dateData(updatedAt)}</SubTitleSpan>
+          <span
+            style={{
+              display: 'flex',
+              height: '14px',
+              justifyContent: 'space-between',
+              fontSize: matches ? '14px' : '10px',
+              fontWeight: '500',
+              lineHeight: '1.14',
+              color: '#333333',
+            }}
+          >
+            {dateData(updatedAt)}
+          </span>
           <Hidden smDown>
             <Stack direction="row" gap="18px" ml="48px">
               <ModifyButton

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Box, List, Pagination, Stack, useMediaQuery, useTheme } from '@mui/material';
 import BoardItem from './BoardItem';
-import { styled } from '@mui/system';
+import { styled } from '@mui/material/styles';
 import { MAX_WIDTH } from '@/constant';
 
 interface GTSpanProps {
@@ -11,9 +11,9 @@ interface GTSpanProps {
 }
 
 // TODO: 오류 수정
-const GTSpan = styled('span')<GTSpanProps>(props => ({
-  marginLeft: props.matches && props.isWidget && '50px',
-  fontSize: props.matches ? '13px' : '10px',
+const GTSpan = styled('span')<GTSpanProps>(({ matches, isWidget }) => ({
+  marginLeft: matches && isWidget && '50px',
+  fontSize: matches ? '13px' : '10px',
   fontWeight: '500',
   lineHeight: '1.23',
   color: '#767676',
@@ -41,7 +41,7 @@ function BoardList(props) {
     return postList.map((item, index) => {
       const currPage = (page - 1) * 10;
       if (index >= currPage && index < currPage + 10) {
-        return <BoardItem data={item} key={item.id} handleDeleteSelect={handleDeleteSelect} />;
+        return <BoardItem key={item.id} data={item} handleDeleteSelect={handleDeleteSelect} />;
       } else {
         return null;
       }
@@ -61,10 +61,27 @@ function BoardList(props) {
           marginTop: { xs: '21px', sm: '36px' },
         }}
       >
-        <GTSpan isWidget={Boolean(postList?.[0]?.componentType)} matches={matches}>
+        <span
+          style={{
+            marginLeft: matches && Boolean(postList?.[0]?.componentType) && '50px',
+            fontSize: matches ? '13px' : '10px',
+            fontWeight: '500',
+            lineHeight: '1.23',
+            color: '#767676',
+          }}
+        >
           이름
-        </GTSpan>
-        <GTSpan matches={matches}>수정일</GTSpan>
+        </span>
+        <span
+          style={{
+            fontSize: matches ? '13px' : '10px',
+            fontWeight: '500',
+            lineHeight: '1.23',
+            color: '#767676',
+          }}
+        >
+          수정일
+        </span>
       </Stack>
       <List sx={{ width: '100%', m: 'auto', border: tableBorder, borderRadius: 2, backgroundColor: '#fff' }} disablePadding>
         {generateBoardItem()}

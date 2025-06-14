@@ -5,12 +5,13 @@ export const URL_TEMPLATE = '/template';
 
 // 추천 template 목록 조회
 const selectRecommendTemplateList = (data: TemplateRecommendRequest): Promise<ApiResponse<TemplateRecommendResponse>> =>
-  post(URL_TEMPLATE + '/recommend', data);
+  post<ApiResponse<TemplateRecommendResponse>>(URL_TEMPLATE + '/recommend', data);
 
 // 템플릿 최종선택 후 대시보드 조회
 const selectRecommendTemplateListDashboard = (data: {
   templateId: number;
-}): Promise<ApiResponse<TemplateDashboardResponse>> => post(URL_TEMPLATE + '/dashboard', data);
+}): Promise<ApiResponse<TemplateDashboardResponse>> =>
+  post<ApiResponse<TemplateDashboardResponse>>(URL_TEMPLATE + '/dashboard', data);
 
 const TemplateService = {
   selectRecommendTemplateList,

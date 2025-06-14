@@ -10,17 +10,18 @@ import {
 
 export const SERVICE_URL = '/dataset';
 
-const selectDatasetList = (): Promise<ApiResponse<Dataset[]>> => get(SERVICE_URL);
+const selectDatasetList = (): Promise<ApiResponse<Dataset[]>> => get<ApiResponse<Dataset[]>>(SERVICE_URL);
 
 const selectDataset = (id: string, data = null): Promise<ApiResponse<DatasetDetailResponse>> =>
-  get(SERVICE_URL + '/' + id, data);
+  get<ApiResponse<DatasetDetailResponse>>(SERVICE_URL + '/' + id, data);
 
-const createDataset = (data: CreateDatasetRequest): Promise<ApiResponse<Dataset>> => post(SERVICE_URL, data);
+const createDataset = (data: CreateDatasetRequest): Promise<ApiResponse<Dataset>> =>
+  post<ApiResponse<Dataset>>(SERVICE_URL, data);
 
 const updateDataset = (id: string, data: UpdateDatasetRequest): Promise<ApiResponse<Dataset>> =>
-  put(SERVICE_URL + '/' + id, data);
+  put<ApiResponse<Dataset>>(SERVICE_URL + '/' + id, data);
 
-const deleteDataset = (id: string): Promise<ApiResponse<null>> => del(SERVICE_URL + '/' + id);
+const deleteDataset = (id: string): Promise<ApiResponse<null>> => del<ApiResponse<null>>(SERVICE_URL + '/' + id);
 
 const DatasetService = {
   selectDatasetList,
