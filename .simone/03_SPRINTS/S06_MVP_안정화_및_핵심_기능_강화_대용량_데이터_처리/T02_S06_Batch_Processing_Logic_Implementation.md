@@ -143,3 +143,9 @@ import { Injectable } from '@nestjs/common';
 - 배치 작업 스케줄링 기능
 - 작업 우선순위 관리
 - WebSocket을 통한 실시간 진행률 알림
+
+### 추가 작업 사항 (2025-06-14)
+- Import 문제 수정 커밋 (dd54633)
+  - TypeScript import에서 불필요한 .js 확장자 제거
+  - supertest import 문법을 default import로 수정
+  - QTT-002 테스트에 누락된 CustomLoggerService provider 추가
