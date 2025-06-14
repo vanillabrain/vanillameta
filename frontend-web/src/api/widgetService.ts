@@ -10,17 +10,18 @@ import {
 
 export const URL_WIDGET = '/widget';
 
-const selectWidgetList = (): Promise<ApiResponse<Widget[]>> => get(URL_WIDGET);
+const selectWidgetList = (): Promise<ApiResponse<Widget[]>> => get<ApiResponse<Widget[]>>(URL_WIDGET);
 
 const selectWidget = (id: string, data = null): Promise<ApiResponse<WidgetDetailResponse>> =>
-  get(URL_WIDGET + '/' + id, data);
+  get<ApiResponse<WidgetDetailResponse>>(URL_WIDGET + '/' + id, data);
 
-const createWidget = (data: CreateWidgetRequest): Promise<ApiResponse<Widget>> => post(URL_WIDGET, data);
+const createWidget = (data: CreateWidgetRequest): Promise<ApiResponse<Widget>> =>
+  post<ApiResponse<Widget>>(URL_WIDGET, data);
 
 const updateWidget = (id: string, data: UpdateWidgetRequest): Promise<ApiResponse<Widget>> =>
-  put(URL_WIDGET + '/' + id, data);
+  put<ApiResponse<Widget>>(URL_WIDGET + '/' + id, data);
 
-const deleteWidget = (id: string): Promise<ApiResponse<null>> => del(URL_WIDGET + '/' + id);
+const deleteWidget = (id: string): Promise<ApiResponse<null>> => del<ApiResponse<null>>(URL_WIDGET + '/' + id);
 
 const WidgetService = {
   selectWidgetList,

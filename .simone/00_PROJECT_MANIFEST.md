@@ -103,6 +103,12 @@ This project follows a milestone-based development approach.
 - **Status**: In Progress (2025-06-13 10:38)
 - **File**: [T001_Backend_Test_Suite_Enhancement.md](./04_GENERAL_TASKS/T001_Backend_Test_Suite_Enhancement.md)
 
+### T002 Frontend Build Error Fix Dynamic Import (📋 NOT STARTED)
+📋 프론트엔드 빌드 실패를 일으키는 TypeScript 타입 오류 해결
+- **Issue**: API 서비스 타입 정의와 실제 axios 응답 구조 불일치
+- **Status**: Not Started (2025-06-14 20:04)
+- **File**: [T002_Frontend_Build_Error_Fix_Dynamic_Import.md](./04_GENERAL_TASKS/T002_Frontend_Build_Error_Fix_Dynamic_Import.md)
+
 ## 6. Quick Links
 
 - **Current Sprint:** [S01 Sprint Folder](./03_SPRINTS/S01_MVP_안정화_및_핵심_기능_강화_테스트_인프라_복구/)

@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosResponse } from 'axios';
 import { getToken, removeToken, setToken } from '@/helpers/authHelper';
 import { getShareToken } from '@/helpers/shareHelper';
 import authService from '@/api/authService';
@@ -289,24 +289,29 @@ function onAccessTokenFetched(accessToken) {
   subscribers.length = 0;
 }
 
-export async function get(url, data?, config = {}) {
-  return instance.get(url, { params: { ...data }, ...config });
+export async function get<T = any>(url: string, data?: any, config = {}): Promise<T> {
+  const response = await instance.get(url, { params: { ...data }, ...config });
+  return response.data;
 }
 
-export async function post(url, data?, config = {}) {
-  return instance.post(url, { ...data }, { ...config });
+export async function post<T = any>(url: string, data?: any, config = {}): Promise<T> {
+  const response = await instance.post(url, { ...data }, { ...config });
+  return response.data;
 }
 
-export async function put(url, data?, config = {}) {
-  return instance.put(url, { ...data }, { ...config });
+export async function put<T = any>(url: string, data?: any, config = {}): Promise<T> {
+  const response = await instance.put(url, { ...data }, { ...config });
+  return response.data;
 }
 
-export async function del(url, config = {}) {
-  return instance.delete(url, { ...config });
+export async function del<T = any>(url: string, config = {}): Promise<T> {
+  const response = await instance.delete(url, { ...config });
+  return response.data;
 }
 
-export async function patch(url, data?, config = {}) {
-  return instance.patch(url, { ...data }, { ...config });
+export async function patch<T = any>(url: string, data?: any, config = {}): Promise<T> {
+  const response = await instance.patch(url, { ...data }, { ...config });
+  return response.data;
 }
 
 // 타입 선언
