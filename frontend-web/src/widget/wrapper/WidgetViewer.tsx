@@ -55,7 +55,16 @@ export const WidgetEmpty = () => {
 };
 
 const WidgetViewer = props => {
-  const { title, widgetType, widgetOption, dataSet, isInvalidData, size } = props;
+  const { 
+    title, 
+    widgetType, 
+    widgetOption, 
+    dataSet, 
+    isInvalidData, 
+    size, 
+    isLoading = false, 
+    isStreaming = false 
+  } = props;
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const [module, setModule] = useState(null);
 
@@ -64,14 +73,22 @@ const WidgetViewer = props => {
   // const chartProps = { option: widgetOption, dataSet: dataSet, seriesOp: undefined, createOp: undefined };
 
   useEffect(() => {
-    if (widgetType && widgetOption && dataSet) renderWidget();
-  }, [widgetType, widgetOption, dataSet]);
+    // 스트리밍 중이거나 데이터가 있을 때 위젯 렌더링
+    if (widgetType && widgetOption && (dataSet || isStreaming)) renderWidget();
+  }, [widgetType, widgetOption, dataSet, isStreaming]);
 
   const renderWidget = () => {
     console.log('===== renderWidget');
     let module;
-    const chartProps = { option: widgetOption, dataSet: dataSet };
-    showLoading();
+    const chartProps = { 
+      option: widgetOption, 
+      dataSet: dataSet,
+      isStreaming: isStreaming,
+      isLoading: isLoading 
+    };
+    if (!isStreaming) {
+      showLoading();
+    }
     switch (widgetType) {
       case WIDGET_TYPE.BOARD_NUMERIC:
         module = <NumericBoard {...chartProps} />;
@@ -444,7 +461,9 @@ const WidgetViewer = props => {
 
     // console.log('module', module);
     setModule(module);
-    hideLoading();
+    if (!isStreaming) {
+      hideLoading();
+    }
   };
 
   const renderTitle = () => {
