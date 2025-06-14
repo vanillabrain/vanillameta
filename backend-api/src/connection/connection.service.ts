@@ -438,7 +438,7 @@ export class ConnectionService {
     } catch (e) {
       const executionTime = Date.now() - startTime;
       resultObj.status = ResponseStatus.ERROR;
-      
+
       // 타임아웃 에러 감지 및 사용자 친화적 메시지 제공
       const timeoutMessage = this.detectTimeoutError(e, executionTime);
       if (timeoutMessage) {
@@ -648,10 +648,7 @@ export class ConnectionService {
     }
 
     // 일반적인 타임아웃 키워드 기반 감지
-    if (
-      (errorMessage.includes('timeout') || sqlMessage.includes('timeout')) &&
-      isLongRunning
-    ) {
+    if ((errorMessage.includes('timeout') || sqlMessage.includes('timeout')) && isLongRunning) {
       return '쿼리 실행 시간이 허용 시간을 초과했습니다. 쿼리를 단순화하거나 데이터 범위를 제한해 주세요.';
     }
 
@@ -887,11 +884,12 @@ export class ConnectionService {
       queryStream.on('error', error => {
         errorOccurred = true;
         const executionTime = Date.now() - startTime;
-        
+
         // 타임아웃 에러 감지
         const timeoutMessage = this.detectTimeoutError(error, executionTime);
-        const errorMessage = timeoutMessage || error.sqlMessage || error.message || 'Query execution error';
-        
+        const errorMessage =
+          timeoutMessage || error.sqlMessage || error.message || 'Query execution error';
+
         this.logger.error('Query stream error', error.stack, 'ConnectionService', {
           databaseId: queryExecuteDto.id,
           error: error.message,
@@ -915,10 +913,11 @@ export class ConnectionService {
       };
     } catch (error) {
       const executionTime = Date.now() - startTime;
-      
+
       // 타임아웃 에러 감지
       const timeoutMessage = this.detectTimeoutError(error, executionTime);
-      const errorMessage = timeoutMessage || error.message || 'Failed to initialize streaming query';
+      const errorMessage =
+        timeoutMessage || error.message || 'Failed to initialize streaming query';
 
       this.logger.error('Failed to initialize streaming query', error.stack, 'ConnectionService', {
         databaseId: queryExecuteDto.id,

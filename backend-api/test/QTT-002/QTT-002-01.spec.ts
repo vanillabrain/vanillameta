@@ -32,9 +32,9 @@ describe('QTT-002 : 위젯 생성', () => {
         TypeOrmModule.forFeature([Widget, Component, TableQuery, Database]),
       ],
       providers: [
-        WidgetService, 
-        TableQueryService, 
-        Widget, 
+        WidgetService,
+        TableQueryService,
+        Widget,
         mockSqlValidationService,
         {
           provide: CustomLoggerService,

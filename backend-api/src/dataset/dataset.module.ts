@@ -10,10 +10,7 @@ import { JwtService } from '@nestjs/jwt';
 import { CacheModule } from '../common/optimization/cache.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Dataset, Database, Widget]),
-    CacheModule,
-  ],
+  imports: [TypeOrmModule.forFeature([Dataset, Database, Widget]), CacheModule],
   controllers: [DatasetController],
   providers: [DatasetService, ConnectionService, JwtService],
   exports: [DatasetService],

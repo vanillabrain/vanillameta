@@ -197,11 +197,7 @@ export class DatasetService {
 
       // 강제 새로고침이 아닐 때 캐시 확인
       if (!forceRefresh) {
-        const cachedResult = await this.hybridCache.get(
-          engine,
-          databaseId,
-          dataset.query,
-        );
+        const cachedResult = await this.hybridCache.get(engine, databaseId, dataset.query);
 
         if (cachedResult) {
           this.customLogger.debug('Cached query result returned', 'DatasetService', {
@@ -277,7 +273,7 @@ export class DatasetService {
         try {
           this.logger.log('Attempting streaming fallback...');
           const streamResult = await this.executeStreamingQuery(id);
-          
+
           return {
             status: ResponseStatus.SUCCESS,
             data: 'STREAMING_RESPONSE',
@@ -321,7 +317,7 @@ export class DatasetService {
       if (dbConnection && dbConnection.data) {
         const engine = dbConnection.data.type || 'unknown';
         await this.hybridCache.invalidateByQuery(engine, dataset.query);
-        
+
         this.customLogger.info('Dataset cache invalidated', 'DatasetService', {
           datasetId: id,
           engine,
@@ -340,7 +336,7 @@ export class DatasetService {
   async invalidateDatabaseCache(databaseId: number): Promise<void> {
     try {
       await this.hybridCache.invalidateByDatabase(databaseId.toString());
-      
+
       this.customLogger.info('Database cache invalidated', 'DatasetService', {
         databaseId,
       });
@@ -379,7 +375,7 @@ export class DatasetService {
 
         // 캐시된 쿼리 실행 (캐시 미스 시 데이터베이스에서 로드하여 캐시에 저장)
         await this.executeCachedQuery(id);
-        
+
         this.logger.debug(`Cache warmed up for dataset ${id}`);
       } catch (error) {
         this.logger.error(`Cache warmup failed for dataset ${id}:`, error);

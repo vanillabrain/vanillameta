@@ -14,10 +14,7 @@ import { Widget } from '../../widget/entities/widget.entity';
 
 @Global()
 @Module({
-  imports: [
-    ConfigModule,
-    TypeOrmModule.forFeature([Dataset, Widget]),
-  ],
+  imports: [ConfigModule, TypeOrmModule.forFeature([Dataset, Widget])],
   providers: [
     CustomLoggerService,
     DatabaseSpecificOptimizationService,
@@ -26,10 +23,6 @@ import { Widget } from '../../widget/entities/widget.entity';
     HybridCacheService,
   ],
   controllers: [CacheController],
-  exports: [
-    QueryCacheService,
-    RedisCacheService,
-    HybridCacheService,
-  ],
+  exports: [QueryCacheService, RedisCacheService, HybridCacheService],
 })
 export class CacheModule {}

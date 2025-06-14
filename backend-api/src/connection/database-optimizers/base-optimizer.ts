@@ -120,9 +120,11 @@ export abstract class BaseDatabaseOptimizer {
 
     // 환경 변수에서 타임아웃 값 가져오기
     const getEnvTimeout = (type: string, defaultValue: number): number => {
-      const dbSpecificKey = databaseType ? `${databaseType.toUpperCase()}_${type.toUpperCase()}_TIMEOUT` : null;
+      const dbSpecificKey = databaseType
+        ? `${databaseType.toUpperCase()}_${type.toUpperCase()}_TIMEOUT`
+        : null;
       const genericKey = `DB_${type.toUpperCase()}_TIMEOUT`;
-      
+
       // 데이터베이스별 환경 변수 우선 확인
       if (dbSpecificKey && process.env[dbSpecificKey]) {
         const envValue = parseInt(process.env[dbSpecificKey], 10);
@@ -130,7 +132,7 @@ export abstract class BaseDatabaseOptimizer {
           return envValue;
         }
       }
-      
+
       // 일반 환경 변수 확인
       if (process.env[genericKey]) {
         const envValue = parseInt(process.env[genericKey], 10);
@@ -138,7 +140,7 @@ export abstract class BaseDatabaseOptimizer {
           return envValue;
         }
       }
-      
+
       return defaultValue;
     };
 

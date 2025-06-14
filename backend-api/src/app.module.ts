@@ -23,6 +23,7 @@ import { TestFieldSelectionController } from './test-field-selection.controller'
 import { FieldSelectionModule } from './common/field-selection/field-selection.module';
 import { BatchModule } from './batch/batch.module';
 import { CacheModule } from './common/optimization/cache.module';
+import { BackgroundJobModule } from './background-job/background-job.module';
 
 @Module({
   imports: [
@@ -84,6 +85,7 @@ import { CacheModule } from './common/optimization/cache.module';
     FieldSelectionModule,
     BatchModule,
     CacheModule,
+    BackgroundJobModule,
   ],
   controllers: [AppController, TestCompressionController, TestFieldSelectionController],
   providers: [AppService],
