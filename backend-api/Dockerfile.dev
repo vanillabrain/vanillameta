@@ -1,95 +1,43 @@
-##FROM mysql:5.7
-##
-###ENV DEBIAN_FRONTEND noninteractive
-##
-##RUN apt-get update
-###RUN echo "mysql-server mysql-server/root_password password" | debconf-set-selections
-###RUN echo "mysql-server mysql-server/root_password_again password" | debconf-set-selections
-###RUN apt-get install -y mysql-server
-##
-##ADD ./mysql-init-files /docker-entrypoint-initdb.d
-##
-##EXPOSE 3306
-##
-##CMD ['mysqld']
-##FROM mysql:5.7
-##
-##ADD ./mysql-init-files /docker-entrypoint-initdb.d
-###RUN brew install mysql
-##RUN ./init.sh
-##
-##EXPOSE 3306
-##
-##CMD ["mysqld"]
-#FROM ubuntu:18.04
-#
-#RUN apt-get -qq update
-#RUN apt-get -qq upgrade --yes
-#RUN apt-get -qq install curl --yes
-#RUN curl -sL https://deb.nodesource.com/setup_14.x | bash -
-#RUN apt-get -qq install nodejs --yes
-#
-#RUN apt-get install chromium-browser --yes
-#RUN useradd -ms /bin/bash frog
-#
-#WORKDIR /app
-#
-#COPY package*.json ./
-#
-#RUN npm install
-#COPY . .
-#COPY tsconfig.json .
-#COPY tsconfig.build.json .
-#RUN npm run build
-#
-#
-##ENTRYPOINT ["init.sh"]
-#EXPOSE 4000
-#CMD ["mysqld"]
-#
-#
-##
-##COPY init.sh .
-##USER root
-##RUN chmod +x init.sh
-##ENTRYPOINT ["sh", "init.sh"]
-#
-#
-#
-##FROM ubuntu:18.04
-##
-##RUN apt-get -qq update
-##RUN apt-get -qq upgrade --yes
-##RUN apt-get -qq install curl --yes
-##RUN curl -sL https://deb.nodesource.com/setup_14.x | bash -
-##RUN apt-get -qq install nodejs --yes
-##
-##RUN apt-get install chromium-browser --yes
-##RUN chmod +x /tmp
-##RUN useradd -ms /bin/bash frog
-##USER frog
-##WORKDIR /home/frog
-##
-##COPY package*.json ./
-##
-##RUN npm install
-##FROM mysql:5.7
-##COPY init.sh .
-##EXPOSE 8000
-##ENTRYPOINT [ "sh", "init.sh" ]
-#
-##end of Dockerfile.dev
-#
-##FROM ubuntu:18.04
-##RUN apt-get -qq update
-##RUN apt-get -qq upgrade --yes
-##RUN apt-get -qq install curl --yes
-##RUN curl -sL https://deb.nodesource.com/setup_14.x | bash -
-##RUN apt-get -qq install nodejs --yes
-##
-##RUN apt-get install chromium-browser --yes
-##RUN chmod +x /tmp
-##RUN useradd -ms /bin/bash frog
-##USER frog
-##WORKDIR /home/frog
-##ADD mysql-init-files/dump_data.sql /docker-entrypoint-initdb.d/
+# 개발 환경용 Dockerfile
+FROM node:18-alpine
+
+# 필수 시스템 패키지 설치
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    curl \
+    wget \
+    git
+
+# Oracle Instant Client 설치 (개발 환경용)
+RUN apk add --no-cache libaio libnsl libc6-compat && \
+    cd /tmp && \
+    curl -o instantclient-basiclite.zip https://download.oracle.com/otn_software/linux/instantclient/instantclient-basiclite-linuxx64.zip && \
+    unzip instantclient-basiclite.zip && \
+    mv instantclient*/ /usr/lib/instantclient && \
+    rm instantclient-basiclite.zip && \
+    ln -s /usr/lib/instantclient/libclntsh.so.* /usr/lib/libclntsh.so && \
+    ln -s /usr/lib/instantclient/libocci.so.* /usr/lib/libocci.so
+
+# 작업 디렉토리 설정
+WORKDIR /app
+
+# package.json과 yarn.lock 복사
+COPY package*.json ./
+COPY yarn.lock ./
+
+# 의존성 설치 (개발 의존성 포함)
+RUN yarn install --frozen-lockfile
+
+# 소스 코드는 볼륨으로 마운트됨
+
+# 환경 변수 설정
+ENV NODE_ENV=development
+ENV LD_LIBRARY_PATH=/usr/lib/instantclient
+
+# 포트 노출
+EXPOSE 3000
+
+# nodemon을 사용한 개발 서버 실행
+CMD ["yarn", "start:dev"]
