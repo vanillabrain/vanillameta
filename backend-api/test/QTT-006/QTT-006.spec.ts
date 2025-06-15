@@ -23,6 +23,8 @@ import { LoggerModule } from '../../src/common/logger/logger.module';
 import { User } from '../../src/user/entities/user.entity';
 import { DashboardShare } from '../../src/dashboard/entities/dashboard_share.entity';
 import { UserMapping } from '../../src/user/entities/user-mapping.entity';
+import { UserService } from '../../src/user/user.service';
+import { AuthService } from '../../src/auth/auth.service';
 
 describe('QTT-006 : 대시보드 템플릿 추천', () => {
   let templateService: TemplateService;
@@ -61,6 +63,26 @@ describe('QTT-006 : 대시보드 템플릿 추천', () => {
         DashboardWidgetService,
         WidgetService,
         TableQueryService,
+        {
+          provide: UserService,
+          useValue: {
+            findByEmail: jest.fn(),
+            create: jest.fn(),
+            findAll: jest.fn(),
+            findOne: jest.fn(),
+            update: jest.fn(),
+            remove: jest.fn(),
+          },
+        },
+        {
+          provide: AuthService,
+          useValue: {
+            validateUser: jest.fn(),
+            login: jest.fn(),
+            register: jest.fn(),
+            refreshToken: jest.fn(),
+          },
+        },
       ],
     }).compile();
 

@@ -160,7 +160,7 @@ export class HybridCacheService implements OnModuleInit, OnModuleDestroy {
 
       if (this.l2Cache.isConnected()) {
         // Redis에서는 패턴 기반 무효화 (정확한 매칭 어려움)
-        promises.push(this.l2Cache.invalidateByEngine(engine));
+        promises.push(this.l2Cache.invalidateByEngine(engine).then(() => void 0));
       }
 
       await Promise.allSettled(promises);

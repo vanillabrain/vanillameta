@@ -4,6 +4,7 @@ import request from 'supertest';
 import { AppModule } from './app.module';
 import express from 'express';
 import compression from 'compression';
+import { ExpressAdapter } from '@nestjs/platform-express';
 
 describe('API Response Compression (T03_S04)', () => {
   let app: INestApplication;
@@ -32,7 +33,7 @@ describe('API Response Compression (T03_S04)', () => {
       }),
     );
 
-    app = moduleFixture.createNestApplication(expressApp);
+    app = moduleFixture.createNestApplication(new ExpressAdapter(expressApp));
     await app.init();
     httpServer = app.getHttpServer();
   });

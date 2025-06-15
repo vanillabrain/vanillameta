@@ -5,6 +5,7 @@ import { WidgetService } from './widget.service';
 import { Widget } from './entities/widget.entity';
 import { Component } from '../component/entities/component.entity';
 import { TableQueryService } from './table-query/table-query.service';
+import { CustomLoggerService } from '../common/logger/logger.service';
 
 describe('WidgetController', () => {
   let controller: WidgetController;
@@ -30,6 +31,14 @@ describe('WidgetController', () => {
     findWidgetDataById: jest.fn(),
   };
 
+  const mockCustomLoggerService = {
+    log: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
+    info: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [WidgetController],
@@ -46,6 +55,10 @@ describe('WidgetController', () => {
         {
           provide: TableQueryService,
           useValue: mockTableQueryService,
+        },
+        {
+          provide: CustomLoggerService,
+          useValue: mockCustomLoggerService,
         },
       ],
     }).compile();
