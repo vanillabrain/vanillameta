@@ -26,17 +26,17 @@ export interface PriorityCondition {
 @Injectable()
 export class JobPriorityService {
   private readonly logger = new Logger(JobPriorityService.name);
-  
+
   // 우선순위 규칙들 (실제로는 DB에 저장)
   private priorityRules: PriorityRule[] = [];
-  
+
   // 동적 우선순위 가중치
   private readonly dynamicWeights = {
-    age: 0.3,           // 작업 대기 시간
-    retryCount: 0.2,    // 재시도 횟수
-    userType: 0.2,      // 사용자 타입 (premium vs standard)
-    systemLoad: 0.1,    // 시스템 부하
-    jobType: 0.2,       // 작업 유형
+    age: 0.3, // 작업 대기 시간
+    retryCount: 0.2, // 재시도 횟수
+    userType: 0.2, // 사용자 타입 (premium vs standard)
+    systemLoad: 0.1, // 시스템 부하
+    jobType: 0.2, // 작업 유형
   };
 
   constructor(
@@ -124,7 +124,7 @@ export class JobPriorityService {
       const appliedRules: string[] = [];
 
       // 1. 기본 우선순위 점수
-      let baseScore = this.getBasePriorityScore(job.priority);
+      const baseScore = this.getBasePriorityScore(job.priority);
       factors.basePriority = baseScore;
 
       // 2. 나이 팩터 (대기 시간)
@@ -152,13 +152,13 @@ export class JobPriorityService {
       factors.rules = ruleScore;
 
       // 최종 점수 계산
-      const totalScore = 
+      const totalScore =
         baseScore +
-        (ageScore * this.dynamicWeights.age) +
-        (retryScore * this.dynamicWeights.retryCount) +
-        (jobTypeScore * this.dynamicWeights.jobType) +
-        (systemLoadScore * this.dynamicWeights.systemLoad) +
-        (userTypeScore * this.dynamicWeights.userType) +
+        ageScore * this.dynamicWeights.age +
+        retryScore * this.dynamicWeights.retryCount +
+        jobTypeScore * this.dynamicWeights.jobType +
+        systemLoadScore * this.dynamicWeights.systemLoad +
+        userTypeScore * this.dynamicWeights.userType +
         ruleScore;
 
       // 점수를 우선순위로 변환
@@ -170,10 +170,9 @@ export class JobPriorityService {
         factors,
         appliedRules,
       };
-
     } catch (error) {
       this.logger.error(`Failed to calculate dynamic priority for job ${job.id}`, error);
-      
+
       // 에러 시 기본 우선순위 반환
       return {
         finalPriority: job.priority,
@@ -195,16 +194,17 @@ export class JobPriorityService {
       }
 
       const priorityResult = await this.calculateDynamicPriority(job);
-      
+
       if (priorityResult.finalPriority !== job.priority) {
         await this.jobRepository.update(jobId, {
           priority: priorityResult.finalPriority,
           updatedAt: new Date(),
         });
 
-        this.logger.debug(`Job priority updated: ${jobId} ${job.priority} -> ${priorityResult.finalPriority} (score: ${priorityResult.score})`);
+        this.logger.debug(
+          `Job priority updated: ${jobId} ${job.priority} -> ${priorityResult.finalPriority} (score: ${priorityResult.score})`,
+        );
       }
-
     } catch (error) {
       this.logger.error(`Failed to update job priority: ${jobId}`, error);
     }
@@ -232,9 +232,9 @@ export class JobPriorityService {
       for (const job of pendingJobs) {
         try {
           processed++;
-          
+
           const priorityResult = await this.calculateDynamicPriority(job);
-          
+
           if (priorityResult.finalPriority !== job.priority) {
             await this.jobRepository.update(job.id, {
               priority: priorityResult.finalPriority,
@@ -242,15 +242,15 @@ export class JobPriorityService {
             });
             updated++;
           }
-
         } catch (error) {
           errors++;
           this.logger.error(`Failed to recalculate priority for job ${job.id}`, error);
         }
       }
 
-      this.logger.log(`Priority recalculation completed: ${processed} processed, ${updated} updated, ${errors} errors`);
-
+      this.logger.log(
+        `Priority recalculation completed: ${processed} processed, ${updated} updated, ${errors} errors`,
+      );
     } catch (error) {
       this.logger.error('Failed to recalculate priorities', error);
       errors++;
@@ -271,7 +271,7 @@ export class JobPriorityService {
 
     this.priorityRules.push(newRule);
     this.logger.log(`Priority rule added: ${newRule.name}`);
-    
+
     return newRule.id;
   }
 
@@ -281,19 +281,19 @@ export class JobPriorityService {
   removePriorityRule(ruleId: string): boolean {
     const initialLength = this.priorityRules.length;
     this.priorityRules = this.priorityRules.filter(rule => rule.id !== ruleId);
-    
+
     const removed = this.priorityRules.length < initialLength;
     if (removed) {
       this.logger.log(`Priority rule removed: ${ruleId}`);
     }
-    
+
     return removed;
   }
 
   /**
    * 우선순위 통계 조회
    */
-  async getPriorityStatistics(days: number = 7): Promise<{
+  async getPriorityStatistics(days = 7): Promise<{
     totalJobs: number;
     priorityDistribution: Record<JobPriority, number>;
     averageWaitTimeByPriority: Record<JobPriority, number>;
@@ -302,7 +302,7 @@ export class JobPriorityService {
   }> {
     try {
       const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-      
+
       const jobs = await this.jobRepository.find({
         where: {
           createdAt: startDate,
@@ -310,7 +310,7 @@ export class JobPriorityService {
       });
 
       const totalJobs = jobs.length;
-      
+
       // 우선순위별 분포
       const priorityDistribution: Record<JobPriority, number> = {
         [JobPriority.LOW]: 0,
@@ -329,7 +329,7 @@ export class JobPriorityService {
 
       for (const job of jobs) {
         priorityDistribution[job.priority]++;
-        
+
         if (job.startedAt) {
           const waitTime = job.startedAt.getTime() - job.createdAt.getTime();
           waitTimes[job.priority].push(waitTime);
@@ -346,8 +346,9 @@ export class JobPriorityService {
 
       for (const [priority, times] of Object.entries(waitTimes)) {
         if (times.length > 0) {
-          averageWaitTimeByPriority[priority as JobPriority] = 
-            Math.round(times.reduce((sum, time) => sum + time, 0) / times.length);
+          averageWaitTimeByPriority[priority as unknown as JobPriority] = Math.round(
+            times.reduce((sum, time) => sum + time, 0) / times.length,
+          );
         }
       }
 
@@ -358,7 +359,6 @@ export class JobPriorityService {
         priorityChanges: 0, // 실제로는 별도 추적 필요
         topAppliedRules: [], // 실제로는 별도 추적 필요
       };
-
     } catch (error) {
       this.logger.error('Failed to get priority statistics', error);
       throw error;
@@ -372,11 +372,16 @@ export class JobPriorityService {
    */
   private getBasePriorityScore(priority: JobPriority): number {
     switch (priority) {
-      case JobPriority.LOW: return 1;
-      case JobPriority.NORMAL: return 2;
-      case JobPriority.HIGH: return 3;
-      case JobPriority.URGENT: return 4;
-      default: return 2;
+      case JobPriority.LOW:
+        return 1;
+      case JobPriority.NORMAL:
+        return 2;
+      case JobPriority.HIGH:
+        return 3;
+      case JobPriority.URGENT:
+        return 4;
+      default:
+        return 2;
     }
   }
 
@@ -385,9 +390,9 @@ export class JobPriorityService {
    */
   private calculateAgeScore(job: QueueJob): number {
     const ageInMinutes = (Date.now() - job.createdAt.getTime()) / (1000 * 60);
-    
+
     // 10분마다 0.1점씩 증가, 최대 2점
-    return Math.min(ageInMinutes / 10 * 0.1, 2);
+    return Math.min((ageInMinutes / 10) * 0.1, 2);
   }
 
   /**
@@ -403,12 +408,12 @@ export class JobPriorityService {
    */
   private calculateJobTypeScore(job: QueueJob): number {
     const jobTypeScores = {
-      [JobType.QUERY_EXECUTION]: 1.0,      // 기본
+      [JobType.QUERY_EXECUTION]: 1.0, // 기본
       [JobType.DASHBOARD_GENERATION]: 1.2, // 약간 높음
-      [JobType.REPORT_GENERATION]: 1.1,    // 약간 높음
-      [JobType.BULK_DATA_EXPORT]: 0.8,     // 낮음 (시간 오래 걸림)
-      [JobType.DATA_MIGRATION]: 1.5,       // 높음 (중요)
-      [JobType.CACHE_WARMUP]: 1.3,         // 높음 (성능에 영향)
+      [JobType.REPORT_GENERATION]: 1.1, // 약간 높음
+      [JobType.BULK_DATA_EXPORT]: 0.8, // 낮음 (시간 오래 걸림)
+      [JobType.DATA_MIGRATION]: 1.5, // 높음 (중요)
+      [JobType.CACHE_WARMUP]: 1.3, // 높음 (성능에 영향)
     };
 
     return jobTypeScores[job.jobType] || 1.0;
@@ -421,13 +426,13 @@ export class JobPriorityService {
     try {
       // 현재 실행 중인 작업 수 확인
       const runningJobs = await this.jobRepository.count({
-        where: { status: JobStatus.RUNNING }
+        where: { status: JobStatus.RUNNING },
       });
 
       // 부하가 낮을수록 높은 점수 (역관계)
       const maxConcurrentJobs = 10; // 설정값
       const loadRatio = runningJobs / maxConcurrentJobs;
-      
+
       return Math.max(0, 1 - loadRatio); // 0~1 범위
     } catch (error) {
       return 0.5; // 기본값
@@ -444,7 +449,7 @@ export class JobPriorityService {
       // 실제로는 사용자 서비스에서 사용자 타입 조회
       // const user = await userService.getUser(userId);
       // if (user.isPremium) return 1.5;
-      
+
       return 1.0; // 기본 사용자
     } catch (error) {
       return 1.0;
@@ -504,7 +509,7 @@ export class JobPriorityService {
       const now = new Date();
       const currentTime = now.toTimeString().substring(0, 5); // HH:MM
       const { start, end } = condition.timeOfDay;
-      
+
       if (currentTime < start || currentTime > end) {
         return false;
       }

@@ -142,10 +142,10 @@ describe('CacheStatisticsService', () => {
     it('should filter events by time period', async () => {
       // Arrange - 현재 시간에서 2시간 전 이벤트 생성
       const oldTimestamp = new Date(Date.now() - 2 * 60 * 60 * 1000);
-      
+
       // 과거 이벤트 (내부 배열에 직접 접근할 수 없으므로 간접적으로 테스트)
       await service.recordCacheHit(1, 'old_key', 'user1');
-      
+
       // 최근 이벤트
       await service.recordCacheHit(1, 'new_key', 'user1');
       await service.recordCacheMiss(1, 'new_key2', 'user1');
@@ -201,7 +201,7 @@ describe('CacheStatisticsService', () => {
     it('should analyze performance trend', async () => {
       // Arrange - 시간별로 다른 성능 패턴 생성
       const now = new Date();
-      
+
       // 첫 번째 시간: 좋은 성능 (높은 히트율)
       await service.recordCacheHit(1, 'key1', 'user1');
       await service.recordCacheHit(1, 'key2', 'user1');
@@ -278,7 +278,7 @@ describe('CacheStatisticsService', () => {
           hitRate: expect.any(Number),
           totalHits: expect.any(Number),
           totalMisses: expect.any(Number),
-        })
+        }),
       );
     });
 
@@ -289,7 +289,7 @@ describe('CacheStatisticsService', () => {
           hourlyStats: expect.any(Array),
           trend: expect.stringMatching(/improving|stable|declining/),
           recommendation: expect.any(String),
-        })
+        }),
       );
     });
   });
@@ -298,7 +298,7 @@ describe('CacheStatisticsService', () => {
     it('should calculate correct percentiles', async () => {
       // Arrange - 다양한 실행 시간으로 캐시 설정 이벤트 생성
       const executionTimes = [100, 200, 300, 400, 500, 1000, 2000, 5000];
-      
+
       for (let i = 0; i < executionTimes.length; i++) {
         // TTL을 실행 시간에 비례하여 설정
         const ttl = executionTimes[i] * 0.1;

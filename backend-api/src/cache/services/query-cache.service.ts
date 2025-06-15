@@ -34,20 +34,20 @@ export class QueryCacheService {
     defaultTTL: 300, // 5분
     complexQueryTTL: 1800, // 30분 (복잡한 쿼리는 더 오래 캐시)
     batchQueryTTL: 3600, // 1시간 (배치 쿼리는 가장 오래)
-    
+
     // 결과 크기별 TTL 조정
     smallResultTTL: 600, // 10분 (작은 결과)
     largeResultTTL: 1800, // 30분 (큰 결과, 더 오래 캐시)
-    
+
     // 캐시 키 설정
     keyPrefix: 'query_cache',
     metadataPrefix: 'query_meta',
     statisticsPrefix: 'cache_stats',
-    
+
     // 결과 크기 임계값
     smallResultThreshold: 100, // 100행 미만
     largeResultThreshold: 10000, // 10,000행 이상
-    
+
     // 최대 캐시 크기 (바이트)
     maxCacheSize: 10 * 1024 * 1024, // 10MB per item
   };
@@ -70,11 +70,7 @@ export class QueryCacheService {
 
       if (cachedResult) {
         // 캐시 히트 통계 기록
-        await this.statisticsService.recordCacheHit(
-          queryExecuteDto.id,
-          cacheKey,
-          userId,
-        );
+        await this.statisticsService.recordCacheHit(queryExecuteDto.id, cacheKey, userId);
 
         this.logger.debug('Cache hit', {
           databaseId: queryExecuteDto.id,
@@ -87,11 +83,7 @@ export class QueryCacheService {
       }
 
       // 캐시 미스 통계 기록
-      await this.statisticsService.recordCacheMiss(
-        queryExecuteDto.id,
-        cacheKey,
-        userId,
-      );
+      await this.statisticsService.recordCacheMiss(queryExecuteDto.id, cacheKey, userId);
 
       this.logger.debug('Cache miss', {
         databaseId: queryExecuteDto.id,
@@ -133,7 +125,7 @@ export class QueryCacheService {
 
       const cacheKey = this.generateCacheKey(queryExecuteDto, userId);
       const resultSize = this.calculateResultSize(resultData);
-      
+
       // 너무 큰 결과는 캐시하지 않음
       if (resultSize > this.cacheConfig.maxCacheSize) {
         this.logger.warn('Result too large to cache', {
@@ -193,7 +185,6 @@ export class QueryCacheService {
         complexity: queryComplexity,
         userId,
       });
-
     } catch (error) {
       this.logger.error('Failed to cache query result', {
         databaseId: queryExecuteDto.id,
@@ -212,8 +203,8 @@ export class QueryCacheService {
       // 실제 구현에서는 Redis SCAN을 사용하여 패턴 매칭
       // 여기서는 간단한 구현으로 전체 캐시 삭제
       await this.cacheManager.reset();
-      
-      this.logger.info('Database cache invalidated', { databaseId });
+
+      this.logger.log('Database cache invalidated', { databaseId });
     } catch (error) {
       this.logger.error('Failed to invalidate database cache', {
         databaseId,
@@ -230,8 +221,8 @@ export class QueryCacheService {
       // Redis SCAN 사용한 패턴 기반 삭제
       // 간단한 구현에서는 메타데이터 기반으로 처리
       await this.cacheManager.reset();
-      
-      this.logger.info('Cache invalidated by pattern', { pattern });
+
+      this.logger.log('Cache invalidated by pattern', { pattern });
     } catch (error) {
       this.logger.error('Failed to invalidate cache by pattern', {
         pattern,
@@ -289,10 +280,10 @@ export class QueryCacheService {
     const parametersHash = queryExecuteDto.parameters
       ? this.generateParametersHash(queryExecuteDto.parameters)
       : 'no_params';
-    
+
     // 사용자별 캐시 분리 (보안 및 권한 고려)
     const userSegment = userId ? `user_${this.hashString(userId)}` : 'anonymous';
-    
+
     return `${this.cacheConfig.keyPrefix}:db_${queryExecuteDto.id}:${userSegment}:${queryHash}:${parametersHash}`;
   }
 
@@ -308,7 +299,7 @@ export class QueryCacheService {
       .replace(/'[^']*'/g, '?') // 문자열을 ?로 치환
       .replace(/"[^"]*"/g, '?') // 큰따옴표 문자열을 ?로 치환
       .trim();
-    
+
     return this.hashString(normalizedQuery);
   }
 
@@ -316,10 +307,8 @@ export class QueryCacheService {
    * 파라미터 해시 생성
    */
   private generateParametersHash(parameters: any[]): string {
-    const paramString = parameters
-      .map(param => `${param.type}:${param.value}`)
-      .join('|');
-    
+    const paramString = parameters.map(param => `${param.type}:${param.value}`).join('|');
+
     return this.hashString(paramString);
   }
 
@@ -346,7 +335,8 @@ export class QueryCacheService {
     complexityScore += subqueryCount * 1.5;
 
     // 집계 함수
-    const aggregationCount = (normalizedQuery.match(/\b(count|sum|avg|max|min)\s*\(/g) || []).length;
+    const aggregationCount = (normalizedQuery.match(/\b(count|sum|avg|max|min)\s*\(/g) || [])
+      .length;
     complexityScore += aggregationCount;
 
     // 윈도우 함수
@@ -406,9 +396,11 @@ export class QueryCacheService {
     }
 
     // 실행 시간별 조정 (오래 걸린 쿼리일수록 더 오래 캐시)
-    if (executionTime > 10000) { // 10초 이상
+    if (executionTime > 10000) {
+      // 10초 이상
       baseTTL *= 1.5;
-    } else if (executionTime > 5000) { // 5초 이상
+    } else if (executionTime > 5000) {
+      // 5초 이상
       baseTTL *= 1.2;
     }
 

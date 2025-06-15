@@ -23,9 +23,9 @@ export class SnowflakeOptimizer {
   // Snowflake 웨어하우스 크기별 크레딧 소비
   private readonly warehouseCosts = {
     'X-SMALL': 1,
-    'SMALL': 2,
-    'MEDIUM': 4,
-    'LARGE': 8,
+    SMALL: 2,
+    MEDIUM: 4,
+    LARGE: 8,
     'X-LARGE': 16,
     '2X-LARGE': 32,
     '3X-LARGE': 64,
@@ -35,26 +35,22 @@ export class SnowflakeOptimizer {
   /**
    * Snowflake 웨어하우스 관리 최적화
    */
-  async executeWithWarehouse(
-    knex: Knex, 
-    query: string, 
-    warehouseSize: string = 'SMALL'
-  ): Promise<any> {
+  async executeWithWarehouse(knex: Knex, query: string, warehouseSize = 'SMALL'): Promise<any> {
     try {
       // 웨어하우스 변경
       await knex.raw(`USE WAREHOUSE ${warehouseSize}_WH`);
-      
+
       this.logger.log('Switched to warehouse for query execution', {
         warehouseSize,
         query: query.substring(0, 100),
       });
-      
+
       // 쿼리 실행
       const result = await knex.raw(query);
-      
+
       // 기본 웨어하우스로 복구
       await knex.raw('USE WAREHOUSE DEFAULT_WH');
-      
+
       return result;
     } catch (error) {
       // 에러 발생 시에도 웨어하우스 복구
@@ -70,14 +66,13 @@ export class SnowflakeOptimizer {
   /**
    * Snowflake 결과 캐싱 최적화
    */
-  async queryWithCache(knex: Knex, query: string, cacheTTL: number = 86400): Promise<any> {
-    return knex.raw(query)
-      .options({
-        resultCacheTTL: cacheTTL, // 24시간
-        useResultCache: true,
-        maxRetries: 3,
-        retryDelayMs: 1000,
-      });
+  async queryWithCache(knex: Knex, query: string, cacheTTL = 86400): Promise<any> {
+    return knex.raw(query).options({
+      resultCacheTTL: cacheTTL, // 24시간
+      useResultCache: true,
+      maxRetries: 3,
+      retryDelayMs: 1000,
+    });
   }
 
   /**
@@ -117,7 +112,7 @@ export class SnowflakeOptimizer {
             `ALTER SESSION SET QUERY_TAG = 'app:vanillameta'`,
             `ALTER SESSION SET STATEMENT_TIMEOUT_IN_SECONDS = 300`,
           ];
-          
+
           Promise.all(sessionQueries.map(q => conn.execute(q)))
             .then(() => done(null, conn))
             .catch(err => done(err, conn));
@@ -148,7 +143,7 @@ export class SnowflakeOptimizer {
    * Snowflake 클러스터링 키 최적화
    */
   optimizeClusteringKeys(query: string): SnowflakeOptimizationResult {
-    let optimizedQuery = query;
+    const optimizedQuery = query;
     const appliedOptimizations: string[] = [];
     const clusteringRecommendations: string[] = [];
 
@@ -156,13 +151,13 @@ export class SnowflakeOptimizer {
     const whereMatch = query.match(/WHERE\s+([^GROUP|ORDER|LIMIT|;]+)/i);
     if (whereMatch) {
       const whereClause = whereMatch[1];
-      
+
       // 자주 사용되는 필터 컬럼 추출
       const filterColumns = this.extractFilterColumns(whereClause);
-      
+
       if (filterColumns.length > 0) {
         clusteringRecommendations.push(
-          `Consider clustering table by: ${filterColumns.slice(0, 3).join(', ')}`
+          `Consider clustering table by: ${filterColumns.slice(0, 3).join(', ')}`,
         );
         appliedOptimizations.push('Clustering key analysis performed');
       }
@@ -175,7 +170,7 @@ export class SnowflakeOptimizer {
         const joinColumns = this.extractJoinColumns(joinCondition);
         if (joinColumns.length > 0) {
           clusteringRecommendations.push(
-            `Consider clustering joined tables by: ${joinColumns.join(', ')}`
+            `Consider clustering joined tables by: ${joinColumns.join(', ')}`,
           );
         }
       });
@@ -204,7 +199,7 @@ export class SnowflakeOptimizer {
   } {
     let suggestedSize = 'SMALL';
     let reasoning = 'Simple query suitable for small warehouse';
-    
+
     // 복잡도 분석
     const joinCount = (query.match(/JOIN/gi) || []).length;
     const aggregationCount = (query.match(/GROUP\s+BY|COUNT|SUM|AVG|MAX|MIN/gi) || []).length;
@@ -292,11 +287,11 @@ export class SnowflakeOptimizer {
    */
   recommendZeroCopyClone(tableName: string): string[] {
     const recommendations: string[] = [];
-    
+
     recommendations.push(`CREATE TABLE ${tableName}_clone CLONE ${tableName}`);
     recommendations.push('Use zero-copy cloning for testing and development');
     recommendations.push('Clones share storage until modified, reducing costs');
-    
+
     return recommendations;
   }
 
@@ -318,7 +313,7 @@ export class SnowflakeOptimizer {
   /**
    * Snowflake 압축 및 파일 형식 최적화
    */
-  optimizeFileFormat(fileType: string = 'PARQUET'): string[] {
+  optimizeFileFormat(fileType = 'PARQUET'): string[] {
     const recommendations: string[] = [];
 
     switch (fileType.toUpperCase()) {
@@ -406,7 +401,7 @@ export class SnowflakeOptimizer {
   // 헬퍼 메서드들
   private extractFilterColumns(whereClause: string): string[] {
     const columns: string[] = [];
-    
+
     // 간단한 필터 컬럼 추출 (실제로는 더 정교한 파싱 필요)
     const columnMatches = whereClause.match(/(\w+)\s*[=<>!]/g);
     if (columnMatches) {
@@ -423,7 +418,7 @@ export class SnowflakeOptimizer {
 
   private extractJoinColumns(joinCondition: string): string[] {
     const columns: string[] = [];
-    
+
     // JOIN 조건에서 컬럼 추출
     const matches = joinCondition.match(/(\w+)\.(\w+)\s*=\s*(\w+)\.(\w+)/);
     if (matches) {
@@ -436,11 +431,11 @@ export class SnowflakeOptimizer {
   private getNextWarehouseSize(currentSize: string): string {
     const sizes = Object.keys(this.warehouseCosts);
     const currentIndex = sizes.indexOf(currentSize);
-    
+
     if (currentIndex < sizes.length - 1) {
       return sizes[currentIndex + 1];
     }
-    
+
     return currentSize;
   }
 }

@@ -66,20 +66,20 @@ export class CacheConsistencyService {
     try {
       const lockId = this.generateLockId();
       const fullLockKey = `${this.consistencyConfig.lockPrefix}:${lockKey}`;
-      
+
       // NX (if not exists) 옵션으로 락 설정 시도
       const lockAcquired = await this.setNX(fullLockKey, lockId, ttlMs);
-      
+
       if (lockAcquired) {
         this.logger.debug('Distributed lock acquired', {
           lockKey,
           lockId,
           ttlMs,
         });
-        
+
         return { success: true, lockId };
       }
-      
+
       return { success: false };
     } catch (error) {
       this.logger.error('Failed to acquire distributed lock', {
@@ -97,24 +97,24 @@ export class CacheConsistencyService {
     try {
       const fullLockKey = `${this.consistencyConfig.lockPrefix}:${lockKey}`;
       const currentLockId = await this.cacheManager.get<string>(fullLockKey);
-      
+
       if (currentLockId === lockId) {
         await this.cacheManager.del(fullLockKey);
-        
+
         this.logger.debug('Distributed lock released', {
           lockKey,
           lockId,
         });
-        
+
         return true;
       }
-      
+
       this.logger.warn('Lock release failed: lock ID mismatch', {
         lockKey,
         expectedLockId: lockId,
         currentLockId,
       });
-      
+
       return false;
     } catch (error) {
       this.logger.error('Failed to release distributed lock', {
@@ -134,24 +134,24 @@ export class CacheConsistencyService {
     maxWaitTimeMs: number = this.consistencyConfig.maxLockWaitTime,
   ): Promise<{ success: boolean; lockId?: string }> {
     const startTime = Date.now();
-    
+
     while (Date.now() - startTime < maxWaitTimeMs) {
       const lockResult = await this.acquireDistributedLock(lockKey);
-      
+
       if (lockResult.success) {
         return lockResult;
       }
-      
+
       // 재시도 대기
       await this.sleep(this.consistencyConfig.retryDelay);
     }
-    
+
     this.logger.warn('Lock acquisition timeout', {
       lockKey,
       maxWaitTimeMs,
       actualWaitTime: Date.now() - startTime,
     });
-    
+
     return { success: false };
   }
 
@@ -170,7 +170,7 @@ export class CacheConsistencyService {
     const actualLockKey = lockKey || `invalidation_${Date.now()}`;
     let lockId: string | undefined;
     let lockAcquired = false;
-    
+
     try {
       // 분산 락 획득
       const lockResult = await this.waitForLock(actualLockKey);
@@ -181,44 +181,42 @@ export class CacheConsistencyService {
           lockAcquired: false,
         };
       }
-      
+
       lockId = lockResult.lockId;
       lockAcquired = true;
-      
+
       // 모든 패턴에 대해 무효화 수행
       const allInvalidatedKeys: string[] = [];
-      
+
       for (const pattern of patterns) {
         const keys = await this.invalidationService.invalidateByPattern(pattern, reason);
         allInvalidatedKeys.push(...keys);
       }
-      
-      this.logger.info('Atomic invalidation completed', {
+
+      this.logger.log('Atomic invalidation completed', {
         patterns,
         invalidatedCount: allInvalidatedKeys.length,
         lockKey: actualLockKey,
         reason,
       });
-      
+
       return {
         success: true,
         invalidatedKeys: allInvalidatedKeys,
         lockAcquired: true,
       };
-      
     } catch (error) {
       this.logger.error('Atomic invalidation failed', {
         patterns,
         lockKey: actualLockKey,
         error: error.message,
       });
-      
+
       return {
         success: false,
         invalidatedKeys: [],
         lockAcquired,
       };
-      
     } finally {
       // 락 해제
       if (lockId) {
@@ -237,7 +235,7 @@ export class CacheConsistencyService {
   ): Promise<ConsistencyEvent> {
     const startTime = Date.now();
     const eventId = this.generateEventId();
-    
+
     try {
       // 종속성 패턴 찾기
       const dependentEntities = this.consistencyConfig.dependencyMapping.get(triggerEntity) || [];
@@ -245,42 +243,41 @@ export class CacheConsistencyService {
         `*:${triggerEntity}*`,
         ...dependentEntities.map(entity => `*:${entity}*`),
       ];
-      
+
       // 엔티티 ID가 있으면 더 구체적인 패턴 추가
       if (entityId) {
         invalidationPatterns.push(`*:${triggerEntity}_${entityId}*`);
       }
-      
+
       // 원자적 무효화 실행
       const result = await this.atomicInvalidation(
         invalidationPatterns,
         `Dependency invalidation: ${triggerEntity} ${operation}`,
         `dependency_${triggerEntity}_${entityId || 'all'}`,
       );
-      
+
       const event: ConsistencyEvent = {
         id: eventId,
         ruleId: 'dependency_rule',
         triggerKey: `${triggerEntity}:${operation}:${entityId || 'all'}`,
-        invalidatedPatterns,
+        invalidatedPatterns: invalidationPatterns,
         invalidatedCount: result.invalidatedKeys.length,
         timestamp: new Date(),
         executionTimeMs: Date.now() - startTime,
         success: result.success,
       };
-      
+
       this.recordConsistencyEvent(event);
-      
-      this.logger.info('Dependency-based invalidation completed', {
+
+      this.logger.log('Dependency-based invalidation completed', {
         triggerEntity,
         operation,
         entityId,
         invalidatedCount: result.invalidatedKeys.length,
         success: result.success,
       });
-      
+
       return event;
-      
     } catch (error) {
       const event: ConsistencyEvent = {
         id: eventId,
@@ -293,16 +290,16 @@ export class CacheConsistencyService {
         success: false,
         errorMessage: error.message,
       };
-      
+
       this.recordConsistencyEvent(event);
-      
+
       this.logger.error('Dependency-based invalidation failed', {
         triggerEntity,
         operation,
         entityId,
         error: error.message,
       });
-      
+
       return event;
     }
   }
@@ -318,16 +315,16 @@ export class CacheConsistencyService {
         id: ruleId,
         createdAt: new Date(),
       };
-      
+
       this.consistencyRules.set(ruleId, newRule);
-      
-      this.logger.info('Consistency rule added', {
+
+      this.logger.log('Consistency rule added', {
         ruleId,
         triggerPattern: rule.triggerPattern,
         invalidationPatterns: rule.invalidationPatterns,
         priority: rule.priority,
       });
-      
+
       return ruleId;
     } catch (error) {
       this.logger.error('Failed to add consistency rule', {
@@ -349,10 +346,10 @@ export class CacheConsistencyService {
     if (!rule || !rule.enabled) {
       return null;
     }
-    
+
     const startTime = Date.now();
     const eventId = this.generateEventId();
-    
+
     try {
       // 원자적 무효화 실행
       const result = await this.atomicInvalidation(
@@ -360,7 +357,7 @@ export class CacheConsistencyService {
         `Consistency rule: ${rule.description}`,
         `rule_${ruleId}_${Date.now()}`,
       );
-      
+
       const event: ConsistencyEvent = {
         id: eventId,
         ruleId,
@@ -371,18 +368,17 @@ export class CacheConsistencyService {
         executionTimeMs: Date.now() - startTime,
         success: result.success,
       };
-      
+
       this.recordConsistencyEvent(event);
-      
+
       this.logger.debug('Consistency rule executed', {
         ruleId,
         triggerKey,
         invalidatedCount: result.invalidatedKeys.length,
         success: result.success,
       });
-      
+
       return event;
-      
     } catch (error) {
       const event: ConsistencyEvent = {
         id: eventId,
@@ -395,15 +391,15 @@ export class CacheConsistencyService {
         success: false,
         errorMessage: error.message,
       };
-      
+
       this.recordConsistencyEvent(event);
-      
+
       this.logger.error('Consistency rule execution failed', {
         ruleId,
         triggerKey,
         error: error.message,
       });
-      
+
       return event;
     }
   }
@@ -425,28 +421,28 @@ export class CacheConsistencyService {
       const recentEvents = this.consistencyEvents
         .filter(event => event.timestamp.getTime() > Date.now() - 300000) // 5분 이내
         .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-      
+
       const recentFailures = recentEvents.filter(event => !event.success).length;
       const pendingOperations = activeLocks; // 간단한 추정
-      
+
       const issues: string[] = [];
       let status: 'consistent' | 'inconsistent' | 'unknown' = 'consistent';
-      
+
       if (recentFailures > 5) {
         status = 'inconsistent';
         issues.push(`High failure rate: ${recentFailures} failures in last 5 minutes`);
       }
-      
+
       if (activeLocks > 10) {
         status = status === 'consistent' ? 'unknown' : 'inconsistent';
         issues.push(`High lock contention: ${activeLocks} active locks`);
       }
-      
+
       if (pendingOperations > 20) {
         status = status === 'consistent' ? 'unknown' : 'inconsistent';
         issues.push(`High pending operations: ${pendingOperations} operations`);
       }
-      
+
       return {
         status,
         issues,
@@ -456,7 +452,6 @@ export class CacheConsistencyService {
           recentFailures,
         },
       };
-      
     } catch (error) {
       this.logger.error('Failed to check consistency', error);
       return {
@@ -482,17 +477,20 @@ export class CacheConsistencyService {
     averageExecutionTime: number;
   } {
     const totalRules = this.consistencyRules.size;
-    const activeRules = Array.from(this.consistencyRules.values())
-      .filter(rule => rule.enabled).length;
-    
+    const activeRules = Array.from(this.consistencyRules.values()).filter(
+      rule => rule.enabled,
+    ).length;
+
     const totalEvents = this.consistencyEvents.length;
     const successfulEvents = this.consistencyEvents.filter(event => event.success).length;
     const successRate = totalEvents > 0 ? (successfulEvents / totalEvents) * 100 : 0;
-    
-    const averageExecutionTime = totalEvents > 0
-      ? this.consistencyEvents.reduce((sum, event) => sum + event.executionTimeMs, 0) / totalEvents
-      : 0;
-    
+
+    const averageExecutionTime =
+      totalEvents > 0
+        ? this.consistencyEvents.reduce((sum, event) => sum + event.executionTimeMs, 0) /
+          totalEvents
+        : 0;
+
     return {
       totalRules,
       activeRules,
@@ -531,7 +529,7 @@ export class CacheConsistencyService {
         enabled: true,
       },
     ];
-    
+
     defaultRules.forEach(rule => {
       this.addConsistencyRule(rule).catch(error => {
         this.logger.error('Failed to add default consistency rule', {
@@ -580,7 +578,7 @@ export class CacheConsistencyService {
    */
   private recordConsistencyEvent(event: ConsistencyEvent): void {
     this.consistencyEvents.push(event);
-    
+
     // 이벤트 히스토리 크기 제한
     if (this.consistencyEvents.length > this.consistencyConfig.eventHistoryLimit) {
       this.consistencyEvents.shift();

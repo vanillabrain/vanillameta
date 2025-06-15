@@ -116,7 +116,7 @@ describe('JobRetryService', () => {
           status: JobStatus.RETRY,
           scheduledAt: expect.any(Date),
           errorMessage: failedJob.errorMessage,
-        })
+        }),
       );
       expect(jobSchedulerService.scheduleJob).toHaveBeenCalled();
       expect(jobStatusTrackerService.recordStatusChange).toHaveBeenCalledWith(
@@ -125,7 +125,7 @@ describe('JobRetryService', () => {
         JobStatus.RETRY,
         'JobRetryService',
         expect.stringContaining('Scheduled retry'),
-        expect.any(Object)
+        expect.any(Object),
       );
     });
 
@@ -146,7 +146,7 @@ describe('JobRetryService', () => {
         expect.objectContaining({
           status: JobStatus.FAILED,
           // scheduledAt should not be set
-        })
+        }),
       );
       expect(jobSchedulerService.scheduleJob).not.toHaveBeenCalled();
     });
@@ -160,7 +160,7 @@ describe('JobRetryService', () => {
       ];
 
       const delays: number[] = [];
-      jobRepository.save.mockImplementation((job) => {
+      jobRepository.save.mockImplementation(job => {
         const scheduledAt = job.scheduledAt;
         if (scheduledAt) {
           delays.push(scheduledAt.getTime() - Date.now());
@@ -185,7 +185,7 @@ describe('JobRetryService', () => {
       const bulkExportJob = { ...mockJob, jobType: JobType.BULK_DATA_EXPORT, retryCount: 1 };
 
       const delays: Record<string, number> = {};
-      jobRepository.save.mockImplementation((job) => {
+      jobRepository.save.mockImplementation(job => {
         const scheduledAt = job.scheduledAt;
         if (scheduledAt) {
           delays[job.jobType] = scheduledAt.getTime() - Date.now();
@@ -208,7 +208,7 @@ describe('JobRetryService', () => {
       // Arrange
       const failedJob = { ...mockJob };
       const error = new Error('Scheduler unavailable');
-      
+
       jobRepository.save.mockResolvedValue(failedJob);
       jobSchedulerService.scheduleJob.mockRejectedValue(error);
 
@@ -240,7 +240,7 @@ describe('JobRetryService', () => {
           errorMessage: null,
           errorStack: null,
           workerId: null,
-        })
+        }),
       );
       expect(jobStatusTrackerService.recordStatusChange).toHaveBeenCalledWith(
         failedJob.id,
@@ -248,7 +248,7 @@ describe('JobRetryService', () => {
         JobStatus.PENDING,
         'JobRetryService',
         'Manual retry triggered',
-        expect.any(Object)
+        expect.any(Object),
       );
     });
 
@@ -258,7 +258,7 @@ describe('JobRetryService', () => {
 
       // Act & Assert
       await expect(service.retryJob(exhaustedJob)).rejects.toThrow(
-        'Job cannot be retried: exceeded maximum retry attempts'
+        'Job cannot be retried: exceeded maximum retry attempts',
       );
     });
 
@@ -268,7 +268,7 @@ describe('JobRetryService', () => {
 
       // Act & Assert
       await expect(service.retryJob(completedJob)).rejects.toThrow(
-        'Job cannot be retried: job is not in a failed state'
+        'Job cannot be retried: job is not in a failed state',
       );
     });
   });
@@ -289,7 +289,7 @@ describe('JobRetryService', () => {
         .mockResolvedValueOnce(jobs[1])
         .mockResolvedValueOnce(jobs[2]);
 
-      jobRepository.save.mockImplementation((job) => Promise.resolve(job));
+      jobRepository.save.mockImplementation(job => Promise.resolve(job));
 
       // Act
       const result = await service.bulkRetry(jobIds, 'Bulk retry requested');
@@ -315,7 +315,7 @@ describe('JobRetryService', () => {
         .mockResolvedValueOnce(jobs[1])
         .mockResolvedValueOnce(jobs[2]);
 
-      jobRepository.save.mockImplementation((job) => Promise.resolve(job));
+      jobRepository.save.mockImplementation(job => Promise.resolve(job));
 
       // Act
       const result = await service.bulkRetry(jobIds, 'Bulk retry requested');
@@ -331,21 +331,19 @@ describe('JobRetryService', () => {
     it('should handle non-existent jobs in bulk retry', async () => {
       // Arrange
       const jobIds = ['job-1', 'job-2'];
-      
+
       jobRepository.findOne
         .mockResolvedValueOnce({ ...mockJob, id: 'job-1' })
         .mockResolvedValueOnce(null); // Job not found
 
-      jobRepository.save.mockImplementation((job) => Promise.resolve(job));
+      jobRepository.save.mockImplementation(job => Promise.resolve(job));
 
       // Act
       const result = await service.bulkRetry(jobIds, 'Bulk retry');
 
       // Assert
       expect(result.successful).toEqual(['job-1']);
-      expect(result.failed).toEqual([
-        { jobId: 'job-2', error: 'Job not found: job-2' },
-      ]);
+      expect(result.failed).toEqual([{ jobId: 'job-2', error: 'Job not found: job-2' }]);
     });
   });
 
@@ -360,19 +358,19 @@ describe('JobRetryService', () => {
         andWhere: jest.fn().mockReturnThis(),
         groupBy: jest.fn().mockReturnThis(),
         getRawMany: jest.fn().mockResolvedValue([
-          { 
+          {
             jobType: JobType.QUERY_EXECUTION,
             retryCount: '1',
             averageRetries: '1.5',
             successRate: '0.75',
-            count: '10'
+            count: '10',
           },
-          { 
+          {
             jobType: JobType.BULK_DATA_EXPORT,
             retryCount: '2',
             averageRetries: '2.2',
             successRate: '0.60',
-            count: '5'
+            count: '5',
           },
         ]),
       };
@@ -384,13 +382,15 @@ describe('JobRetryService', () => {
 
       // Assert
       expect(mockQueryBuilder.select).toHaveBeenCalledWith('job.jobType', 'jobType');
-      expect(mockQueryBuilder.addSelect).toHaveBeenCalledWith('AVG(job.retryCount)', 'averageRetries');
-      expect(mockQueryBuilder.where).toHaveBeenCalledWith(
-        'job.createdAt >= :fromDate',
-        { fromDate: expect.any(Date) }
+      expect(mockQueryBuilder.addSelect).toHaveBeenCalledWith(
+        'AVG(job.retryCount)',
+        'averageRetries',
       );
+      expect(mockQueryBuilder.where).toHaveBeenCalledWith('job.createdAt >= :fromDate', {
+        fromDate: expect.any(Date),
+      });
       expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith('job.retryCount > 0');
-      
+
       expect(result).toEqual({
         totalJobsWithRetries: 15,
         byJobType: {
@@ -463,7 +463,7 @@ describe('JobRetryService', () => {
       // Arrange
       const failedJob = { ...mockJob };
       const error = new Error('Database connection failed');
-      
+
       jobRepository.save.mockRejectedValue(error);
 
       // Act & Assert
@@ -474,19 +474,21 @@ describe('JobRetryService', () => {
       // Arrange
       const failedJob = { ...mockJob };
       const error = new Error('Scheduler service unavailable');
-      
+
       jobRepository.save.mockResolvedValue(failedJob);
       jobSchedulerService.scheduleJob.mockRejectedValue(error);
 
       // Act & Assert
-      await expect(service.scheduleRetry(failedJob)).rejects.toThrow('Scheduler service unavailable');
+      await expect(service.scheduleRetry(failedJob)).rejects.toThrow(
+        'Scheduler service unavailable',
+      );
     });
   });
 
   describe('retry strategy configuration', () => {
     it('should use correct retry strategies for each job type', () => {
       const strategies = service.getRetryStrategies();
-      
+
       expect(strategies).toHaveProperty(JobType.QUERY_EXECUTION);
       expect(strategies).toHaveProperty(JobType.BULK_DATA_EXPORT);
       expect(strategies).toHaveProperty(JobType.DASHBOARD_GENERATION);

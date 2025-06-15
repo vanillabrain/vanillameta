@@ -163,7 +163,7 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
       // 연결 시도
       await this.redis.connect();
 
-      this.customLogger.info('Redis cache service initialized', 'RedisCacheService', {
+      this.customLogger.log('Redis cache service initialized', 'RedisCacheService', {
         host: this.config.host,
         port: this.config.port,
         cluster: this.config.cluster.enabled,
@@ -188,11 +188,7 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
   /**
    * 쿼리 해시 생성 (정규화 포함)
    */
-  private generateQueryHash(
-    databaseId: string,
-    query: string,
-    parameters?: any[],
-  ): string {
+  private generateQueryHash(databaseId: string, query: string, parameters?: any[]): string {
     // 쿼리 정규화
     const normalizedQuery = this.normalizeQuery(query);
     const paramString = parameters ? JSON.stringify(parameters) : '';
@@ -226,18 +222,18 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
    */
   private compressData(data: any): { data: string; compressed: boolean } {
     const jsonString = JSON.stringify(data);
-    
+
     if (jsonString.length < this.config.compressionThreshold) {
       return { data: jsonString, compressed: false };
     }
 
     const compressed = compress(jsonString);
-    
+
     // 압축 효과가 있는 경우에만 압축된 데이터 사용
     if (compressed.length < jsonString.length * 0.9) {
       return { data: compressed, compressed: true };
     }
-    
+
     return { data: jsonString, compressed: false };
   }
 
@@ -248,7 +244,7 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
     if (!compressed) {
       return JSON.parse(data);
     }
-    
+
     const decompressed = decompress(data);
     return JSON.parse(decompressed);
   }
@@ -283,14 +279,14 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
 
     try {
       const cachedData = await this.redis.get(cacheKey);
-      
+
       if (!cachedData) {
         await this.updateStatsOnMiss(engine, Date.now() - startTime);
         return null;
       }
 
       const entry: RedisCacheEntry = JSON.parse(cachedData);
-      
+
       // TTL 체크
       if (Date.now() - entry.timestamp > entry.ttl * 1000) {
         await this.redis.del(cacheKey);
@@ -300,7 +296,7 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
 
       // 데이터 압축 해제
       const data = this.decompressData(entry.data, entry.compressed);
-      
+
       // 히트 카운트 업데이트
       entry.hits++;
       entry.timestamp = Date.now();
@@ -344,7 +340,7 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
     }
 
     const dataSize = this.calculateDataSize({ data, fields });
-    
+
     // 최대 엔트리 크기 확인
     if (dataSize > this.config.maxEntrySize) {
       this.customLogger.warn('Query result too large for Redis caching', 'RedisCacheService', {
@@ -362,7 +358,7 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
     try {
       // 데이터 압축
       const compressed = this.compressData({ data, fields });
-      
+
       const entry: RedisCacheEntry = {
         data: compressed.data,
         fields: [], // 압축된 데이터에 포함됨
@@ -384,8 +380,9 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
         queryHash: queryHash.substring(0, 8),
         dataSize,
         compressed: compressed.compressed,
-        compressionRatio: compressed.compressed 
-          ? (compressed.data.length / JSON.stringify({ data, fields }).length * 100).toFixed(2) + '%'
+        compressionRatio: compressed.compressed
+          ? ((compressed.data.length / JSON.stringify({ data, fields }).length) * 100).toFixed(2) +
+            '%'
           : 'none',
         ttl,
       });
@@ -404,7 +401,7 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
 
     try {
       const keys = await this.redis.keys(`${this.config.keyPrefix}${pattern}`);
-      
+
       if (keys.length === 0) {
         return 0;
       }
@@ -413,7 +410,7 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
       const cleanKeys = keys.map(key => key.replace(this.config.keyPrefix, ''));
       const result = await this.redis.del(...cleanKeys);
 
-      this.customLogger.info('Cache invalidated by pattern', 'RedisCacheService', {
+      this.customLogger.log('Cache invalidated by pattern', 'RedisCacheService', {
         pattern,
         keysDeleted: result,
       });
@@ -445,7 +442,7 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
     for (const pattern of patterns) {
       try {
         const keys = await this.redis.keys(`${this.config.keyPrefix}${pattern}`);
-        
+
         // 각 키를 확인하여 데이터베이스 ID가 포함된 것들만 삭제
         const keysToDelete = [];
         for (const key of keys) {
@@ -472,7 +469,7 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
       }
     }
 
-    this.customLogger.info('Cache invalidated by database', 'RedisCacheService', {
+    this.customLogger.log('Cache invalidated by database', 'RedisCacheService', {
       databaseId,
       keysDeleted: totalDeleted,
     });
@@ -494,10 +491,10 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
     try {
       const statsKey = `${this.STATS_KEY_PREFIX}${engine}`;
       const stats = await this.redis.hgetall(statsKey);
-      
+
       const totalRequests = parseInt(stats.totalRequests || '0') + 1;
       const hits = parseInt(stats.hits || '0') + 1;
-      
+
       await this.redis.hmset(statsKey, {
         hits: hits.toString(),
         totalRequests: totalRequests.toString(),
@@ -517,10 +514,10 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
     try {
       const statsKey = `${this.STATS_KEY_PREFIX}${engine}`;
       const stats = await this.redis.hgetall(statsKey);
-      
+
       const totalRequests = parseInt(stats.totalRequests || '0') + 1;
       const hits = parseInt(stats.hits || '0');
-      
+
       await this.redis.hmset(statsKey, {
         totalRequests: totalRequests.toString(),
         hitRate: (hits / totalRequests).toString(),
@@ -539,10 +536,10 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
     try {
       const statsKey = `${this.STATS_KEY_PREFIX}${engine}`;
       const stats = await this.redis.hgetall(statsKey);
-      
+
       const totalEntries = parseInt(stats.totalEntries || '0') + 1;
       const totalSize = parseInt(stats.totalSize || '0') + entry.size;
-      
+
       await this.redis.hmset(statsKey, {
         totalEntries: totalEntries.toString(),
         totalSize: totalSize.toString(),
@@ -565,7 +562,7 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
       if (engine) {
         const statsKey = `${this.STATS_KEY_PREFIX}${engine}`;
         const stats = await this.redis.hgetall(statsKey);
-        
+
         if (Object.keys(stats).length === 0) {
           return null;
         }
@@ -581,7 +578,7 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
       for (const key of keys) {
         const engineName = key.replace(`${this.config.keyPrefix}${this.STATS_KEY_PREFIX}`, '');
         const stats = await this.redis.hgetall(key.replace(this.config.keyPrefix, ''));
-        
+
         if (Object.keys(stats).length > 0) {
           allStats.set(engineName, this.parseStatsFromRedis(engineName, stats));
         }
@@ -600,7 +597,7 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
   private parseStatsFromRedis(engine: string, stats: Record<string, string>): RedisCacheStats {
     const totalRequests = parseInt(stats.totalRequests || '0');
     const hits = parseInt(stats.hits || '0');
-    
+
     return {
       engine,
       totalEntries: parseInt(stats.totalEntries || '0'),

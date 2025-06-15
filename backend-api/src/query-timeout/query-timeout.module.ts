@@ -9,10 +9,7 @@ import { Database } from '../database/entities/database.entity';
 import { CommonModule } from '../common/common.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Database]),
-    CommonModule,
-  ],
+  imports: [TypeOrmModule.forFeature([Database]), CommonModule],
   controllers: [QueryTimeoutController],
   providers: [
     QueryTimeoutService,

@@ -14,7 +14,7 @@ async function bootstrap() {
   const nestApp = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), {
     logger: new CustomLoggerService(),
     cors: {
-      origin: process.env.CORS_ORIGIN.split(',').map(x => x.trim()),
+      origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(x => x.trim()) : ['http://localhost:3000'],
       preflightContinue: false,
       credentials: true,
       optionsSuccessStatus: 200,
@@ -35,7 +35,7 @@ async function bootstrap() {
   setupSwagger(nestApp);
 
   const logger = nestApp.get(CustomLoggerService);
-  logger.info('Application starting', 'Bootstrap', {
+  logger.log('Application starting', 'Bootstrap', {
     environment: process.env.NODE_ENV,
     port: 4000,
   });

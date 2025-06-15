@@ -403,7 +403,7 @@ export class SqlValidationService {
         warnings: result.warnings,
       });
     } else if (result.warnings.length > 0) {
-      this.logger.info(
+      this.logger.log(
         'SQL query validation completed with warnings',
         'SqlValidationService',
         logData,

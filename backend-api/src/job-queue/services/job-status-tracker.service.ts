@@ -18,7 +18,7 @@ export interface StatusChangeEvent {
 @Injectable()
 export class JobStatusTrackerService {
   private readonly logger = new Logger(JobStatusTrackerService.name);
-  
+
   // 메모리 기반 이벤트 스트림 (최근 1000개 이벤트 유지)
   private statusEvents: StatusChangeEvent[] = [];
   private readonly maxEventsInMemory = 1000;
@@ -26,7 +26,7 @@ export class JobStatusTrackerService {
   constructor(
     @InjectRepository(JobStatusHistory)
     private statusHistoryRepository: Repository<JobStatusHistory>,
-    
+
     @InjectRepository(QueueJob)
     private jobRepository: Repository<QueueJob>,
   ) {}
@@ -45,7 +45,7 @@ export class JobStatusTrackerService {
   ): Promise<void> {
     try {
       const timestamp = new Date();
-      
+
       // DB에 히스토리 저장
       const statusHistory = new JobStatusHistory();
       statusHistory.id = uuidv4();
@@ -73,7 +73,9 @@ export class JobStatusTrackerService {
 
       this.addToEventStream(event);
 
-      this.logger.debug(`Status change recorded: ${jobId} ${previousStatus || 'none'} -> ${newStatus}`);
+      this.logger.debug(
+        `Status change recorded: ${jobId} ${previousStatus || 'none'} -> ${newStatus}`,
+      );
     } catch (error) {
       this.logger.error(`Failed to record status change for job: ${jobId}`, error);
       throw error;
@@ -83,10 +85,7 @@ export class JobStatusTrackerService {
   /**
    * 작업의 상태 히스토리 조회
    */
-  async getJobStatusHistory(
-    jobId: string,
-    limit: number = 50
-  ): Promise<JobStatusHistory[]> {
+  async getJobStatusHistory(jobId: string, limit = 50): Promise<JobStatusHistory[]> {
     try {
       return await this.statusHistoryRepository.find({
         where: { jobId },
@@ -105,7 +104,7 @@ export class JobStatusTrackerService {
   async getStatusChangeStatistics(
     startDate: Date,
     endDate: Date,
-    jobIds?: string[]
+    jobIds?: string[],
   ): Promise<{
     totalChanges: number;
     statusBreakdown: Record<JobStatus, number>;
@@ -116,7 +115,8 @@ export class JobStatusTrackerService {
     averageProgressTime: Record<string, number>; // status transition -> avg time
   }> {
     try {
-      const query = this.statusHistoryRepository.createQueryBuilder('history')
+      const query = this.statusHistoryRepository
+        .createQueryBuilder('history')
         .where('history.createdAt BETWEEN :startDate AND :endDate', {
           startDate,
           endDate,
@@ -126,9 +126,7 @@ export class JobStatusTrackerService {
         query.andWhere('history.jobId IN (:...jobIds)', { jobIds });
       }
 
-      const statusChanges = await query
-        .orderBy('history.createdAt', 'ASC')
-        .getMany();
+      const statusChanges = await query.orderBy('history.createdAt', 'ASC').getMany();
 
       // 통계 계산
       const totalChanges = statusChanges.length;
@@ -178,7 +176,7 @@ export class JobStatusTrackerService {
       const averageProgressTime: Record<string, number> = {};
       for (const [transition, times] of transitionTimes) {
         averageProgressTime[transition] = Math.round(
-          times.reduce((sum, time) => sum + time, 0) / times.length
+          times.reduce((sum, time) => sum + time, 0) / times.length,
         );
       }
 
@@ -204,7 +202,7 @@ export class JobStatusTrackerService {
     jobId: string,
     progress: number,
     details?: any,
-    changedBy?: string
+    changedBy?: string,
   ): Promise<void> {
     try {
       const job = await this.jobRepository.findOne({ where: { id: jobId } });
@@ -221,7 +219,7 @@ export class JobStatusTrackerService {
           `Progress updated to ${progress}%`,
           { ...details, progressChange: { from: job.progress, to: progress } },
           changedBy,
-          progress
+          progress,
         );
 
         // 작업 테이블의 진행률도 업데이트
@@ -239,14 +237,14 @@ export class JobStatusTrackerService {
   /**
    * 실시간 상태 변경 이벤트 스트림 조회
    */
-  getRecentStatusEvents(limit: number = 100): StatusChangeEvent[] {
+  getRecentStatusEvents(limit = 100): StatusChangeEvent[] {
     return this.statusEvents.slice(-limit).reverse();
   }
 
   /**
    * 특정 작업의 실시간 상태 이벤트 조회
    */
-  getJobStatusEvents(jobId: string, limit: number = 50): StatusChangeEvent[] {
+  getJobStatusEvents(jobId: string, limit = 50): StatusChangeEvent[] {
     return this.statusEvents
       .filter(event => event.jobId === jobId)
       .slice(-limit)
@@ -288,7 +286,7 @@ export class JobStatusTrackerService {
   /**
    * 장시간 실행 중인 작업 조회
    */
-  async getLongRunningJobs(thresholdMinutes: number = 30): Promise<QueueJob[]> {
+  async getLongRunningJobs(thresholdMinutes = 30): Promise<QueueJob[]> {
     try {
       const thresholdTime = new Date(Date.now() - thresholdMinutes * 60 * 1000);
 
@@ -310,7 +308,7 @@ export class JobStatusTrackerService {
    */
   async analyzeStatusTransitionTimes(
     jobIds?: string[],
-    days: number = 7
+    days = 7,
   ): Promise<{
     transitions: Array<{
       fromStatus: JobStatus;
@@ -324,7 +322,8 @@ export class JobStatusTrackerService {
   }> {
     try {
       const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-      const query = this.statusHistoryRepository.createQueryBuilder('history')
+      const query = this.statusHistoryRepository
+        .createQueryBuilder('history')
         .where('history.createdAt >= :startDate', { startDate })
         .andWhere('history.previousStatus IS NOT NULL')
         .andWhere('history.executionTimeMs IS NOT NULL');
@@ -354,7 +353,7 @@ export class JobStatusTrackerService {
 
       for (const [transitionKey, times] of transitionData) {
         const [fromStatus, toStatus] = transitionKey.split('->') as [JobStatus, JobStatus];
-        
+
         const averageTimeMs = Math.round(times.reduce((sum, time) => sum + time, 0) / times.length);
         const minTimeMs = Math.min(...times);
         const maxTimeMs = Math.max(...times);
@@ -370,9 +369,12 @@ export class JobStatusTrackerService {
         });
 
         // 성능 권장사항 생성
-        if (averageTimeMs > 5 * 60 * 1000) { // 5분 이상
+        if (averageTimeMs > 5 * 60 * 1000) {
+          // 5분 이상
           recommendations.push(
-            `${fromStatus} -> ${toStatus} 전환이 평균 ${Math.round(averageTimeMs / 1000)}초로 느립니다. 최적화를 고려하세요.`
+            `${fromStatus} -> ${toStatus} 전환이 평균 ${Math.round(
+              averageTimeMs / 1000,
+            )}초로 느립니다. 최적화를 고려하세요.`,
           );
         }
       }
@@ -389,7 +391,7 @@ export class JobStatusTrackerService {
    */
   private addToEventStream(event: StatusChangeEvent): void {
     this.statusEvents.push(event);
-    
+
     // 메모리 사용량 제한
     if (this.statusEvents.length > this.maxEventsInMemory) {
       this.statusEvents = this.statusEvents.slice(-this.maxEventsInMemory);
@@ -399,10 +401,10 @@ export class JobStatusTrackerService {
   /**
    * 상태 히스토리 정리 (오래된 데이터 삭제)
    */
-  async cleanupOldStatusHistory(retentionDays: number = 90): Promise<number> {
+  async cleanupOldStatusHistory(retentionDays = 90): Promise<number> {
     try {
       const cutoffDate = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
-      
+
       const result = await this.statusHistoryRepository
         .createQueryBuilder()
         .delete()
@@ -410,7 +412,7 @@ export class JobStatusTrackerService {
         .execute();
 
       const deletedCount = result.affected || 0;
-      
+
       if (deletedCount > 0) {
         this.logger.log(`Cleaned up ${deletedCount} old status history records`);
       }

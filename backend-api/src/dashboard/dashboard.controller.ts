@@ -1,4 +1,16 @@
-import { Controller, Get, Post, Body, Param, Delete, Put, UseGuards, Req, Query, UseInterceptors } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Delete,
+  Put,
+  UseGuards,
+  Req,
+  Query,
+  UseInterceptors,
+} from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { DashboardService } from './dashboard.service';
 import { CreateDashboardDto } from './dto/create-dashboard.dto';
@@ -50,7 +62,7 @@ export class DashboardController {
   findAll(
     @Req() req,
     @Pagination({ preferCursor: true, defaultLimit: 20 }) pagination: any,
-    @Query('fields') fields?: string
+    @Query('fields') fields?: string,
   ) {
     const { accessKeyData } = req.user;
     return this.dashboardService.findAll(accessKeyData.id, pagination);

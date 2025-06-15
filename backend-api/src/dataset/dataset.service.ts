@@ -4,6 +4,7 @@ import { UpdateDatasetDto } from './dto/update-dataset.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Dataset } from './entities/dataset.entity';
+import { Database } from '../database/entities/database.entity';
 import { ConnectionService } from '../connection/connection.service';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import { Widget } from '../widget/entities/widget.entity';
@@ -11,7 +12,12 @@ import { DatasetType } from '../common/enum/dataset-type.enum';
 import { HybridCacheService } from '../common/optimization/hybrid-cache.service';
 import { CustomLoggerService } from '../common/logger/logger.service';
 import { Readable } from 'stream';
-import { PaginationService, CursorPaginationOptions, OffsetPaginationOptions, PaginatedResponse } from '../common/pagination';
+import {
+  PaginationService,
+  CursorPaginationOptions,
+  OffsetPaginationOptions,
+  PaginatedResponse,
+} from '../common/pagination';
 
 @Injectable()
 export class DatasetService {
@@ -22,6 +28,8 @@ export class DatasetService {
     private datasetRepository: Repository<Dataset>,
     @InjectRepository(Widget)
     private widgetRepository: Repository<Widget>,
+    @InjectRepository(Database)
+    private databaseRepository: Repository<Database>,
     private readonly connectionService: ConnectionService,
     private readonly hybridCache: HybridCacheService,
     private readonly customLogger: CustomLoggerService,
@@ -52,7 +60,9 @@ export class DatasetService {
   /**
    * 데이터셋 전체 조회 (페이지네이션 지원)
    */
-  async findAll(pagination?: CursorPaginationOptions | OffsetPaginationOptions): Promise<PaginatedResponse<Dataset> | Dataset[]> {
+  async findAll(
+    pagination?: CursorPaginationOptions | OffsetPaginationOptions,
+  ): Promise<PaginatedResponse<Dataset> | Dataset[]> {
     // 페이지네이션이 없으면 기존 로직 사용 (하위 호환성)
     if (!pagination) {
       return await this.datasetRepository.find({
@@ -75,17 +85,12 @@ export class DatasetService {
         'dataset.updatedAt',
       ]);
 
-    const paginatedResult = await this.paginationService.paginate(
-      queryBuilder,
-      pagination,
-      {
-        alias: 'dataset',
-        defaultSortField: 'updatedAt',
-        defaultSortDirection: 'DESC',
-        cursorFields: ['updatedAt', 'title'],
-        includeTotalCount: true,
-      },
-    );
+    const paginatedResult = await this.paginationService.paginate(queryBuilder, pagination, {
+      alias: 'dataset',
+      defaultSortField: 'updatedAt',
+      defaultSortDirection: 'DESC',
+      includeTotalCount: true,
+    });
 
     return paginatedResult;
   }
@@ -220,24 +225,22 @@ export class DatasetService {
       }
 
       // 데이터베이스 연결 정보 조회
-      const dbConnection = await this.connectionService.findOne(dataset.databaseId);
-      if (!dbConnection || !dbConnection.data) {
+      const dbConnection = await this.databaseRepository.findOne({
+        where: { id: dataset.databaseId },
+      });
+      if (!dbConnection) {
         return {
           status: ResponseStatus.ERROR,
           message: 'Database connection not found',
         };
       }
 
-      const engine = dbConnection.data.type || 'unknown';
+      const engine = dbConnection.engine || 'unknown';
       const databaseId = dataset.databaseId.toString();
 
       // 강제 새로고침이 아닐 때 캐시 확인
       if (!forceRefresh) {
-        const cachedResult = await this.hybridCache.get(
-          engine,
-          databaseId,
-          dataset.query,
-        );
+        const cachedResult = await this.hybridCache.get(engine, databaseId, dataset.query);
 
         if (cachedResult) {
           this.customLogger.debug('Cached query result returned', 'DatasetService', {
@@ -282,22 +285,22 @@ export class DatasetService {
         engine,
         databaseId,
         dataset.query,
-        queryResult.data,
+        queryResult.datas,
         queryResult.fields || [],
         undefined,
         { ttl: customTtl },
       );
 
-      this.customLogger.info('Query executed and cached', 'DatasetService', {
+      this.customLogger.log('Query executed and cached', 'DatasetService', {
         datasetId: id,
         engine,
-        dataSize: JSON.stringify(queryResult.data || {}).length,
+        dataSize: JSON.stringify(queryResult.datas || {}).length,
         responseTime: Date.now() - startTime,
       });
 
       return {
         status: ResponseStatus.SUCCESS,
-        data: queryResult.data,
+        data: queryResult.datas,
         fields: queryResult.fields,
         cache: {
           hit: false,
@@ -312,7 +315,7 @@ export class DatasetService {
       if (useStreamingFallback) {
         try {
           this.logger.log('Attempting streaming fallback...');
-          const streamResult = await this.executeStreamingQuery(id);
+          await this.executeStreamingQuery(id);
 
           return {
             status: ResponseStatus.SUCCESS,
@@ -353,12 +356,14 @@ export class DatasetService {
       }
 
       // 해당 데이터셋의 쿼리 기반 캐시 무효화
-      const dbConnection = await this.connectionService.findOne(dataset.databaseId);
-      if (dbConnection && dbConnection.data) {
-        const engine = dbConnection.data.type || 'unknown';
+      const dbConnection = await this.databaseRepository.findOne({
+        where: { id: dataset.databaseId },
+      });
+      if (dbConnection) {
+        const engine = dbConnection.engine || 'unknown';
         await this.hybridCache.invalidateByQuery(engine, dataset.query);
 
-        this.customLogger.info('Dataset cache invalidated', 'DatasetService', {
+        this.customLogger.log('Dataset cache invalidated', 'DatasetService', {
           datasetId: id,
           engine,
         });
@@ -377,7 +382,7 @@ export class DatasetService {
     try {
       await this.hybridCache.invalidateByDatabase(databaseId.toString());
 
-      this.customLogger.info('Database cache invalidated', 'DatasetService', {
+      this.customLogger.log('Database cache invalidated', 'DatasetService', {
         databaseId,
       });
     } catch (error) {

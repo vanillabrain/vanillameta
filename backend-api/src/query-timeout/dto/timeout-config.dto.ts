@@ -1,4 +1,13 @@
-import { IsNumber, IsString, IsOptional, IsEnum, IsBoolean, IsArray, Min, Max } from 'class-validator';
+import {
+  IsNumber,
+  IsString,
+  IsOptional,
+  IsEnum,
+  IsBoolean,
+  IsArray,
+  Min,
+  Max,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export enum QueryComplexity {

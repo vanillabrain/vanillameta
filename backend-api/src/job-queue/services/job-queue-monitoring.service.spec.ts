@@ -127,7 +127,7 @@ describe('JobQueueMonitoringService', () => {
       // Arrange
       jobRepository.count
         .mockResolvedValueOnce(10) // pending
-        .mockResolvedValueOnce(5)  // running
+        .mockResolvedValueOnce(5) // running
         .mockResolvedValueOnce(80) // completed
         .mockResolvedValueOnce(5); // failed
 
@@ -169,7 +169,7 @@ describe('JobQueueMonitoringService', () => {
       // Arrange - High failure rate scenario
       jobRepository.count
         .mockResolvedValueOnce(50) // pending (high backlog)
-        .mockResolvedValueOnce(2)  // running (low workers)
+        .mockResolvedValueOnce(2) // running (low workers)
         .mockResolvedValueOnce(40) // completed
         .mockResolvedValueOnce(20); // failed (high failure rate)
 
@@ -179,7 +179,7 @@ describe('JobQueueMonitoringService', () => {
         andWhere: jest.fn().mockReturnThis(),
         getRawOne: jest.fn().mockResolvedValue({
           averageTime: '60000', // slow execution
-          averageWait: '30000',  // long wait times
+          averageWait: '30000', // long wait times
         }),
       };
 
@@ -196,7 +196,7 @@ describe('JobQueueMonitoringService', () => {
         expect.objectContaining({
           level: 'error',
           message: expect.stringContaining('높은 실패율'),
-        })
+        }),
       );
     });
 
@@ -275,7 +275,7 @@ describe('JobQueueMonitoringService', () => {
 
       jobRepository.count
         .mockResolvedValueOnce(15) // pending
-        .mockResolvedValueOnce(4)  // running
+        .mockResolvedValueOnce(4) // running
         .mockResolvedValueOnce(2); // recently completed
 
       // Act
@@ -313,8 +313,8 @@ describe('JobQueueMonitoringService', () => {
 
       jobRepository.count
         .mockResolvedValueOnce(100) // high queue depth
-        .mockResolvedValueOnce(1)   // low active jobs
-        .mockResolvedValueOnce(0);  // no recent completions
+        .mockResolvedValueOnce(1) // low active jobs
+        .mockResolvedValueOnce(0); // no recent completions
 
       // Act
       const metrics = await service.getRealtimeMetrics();
@@ -325,7 +325,7 @@ describe('JobQueueMonitoringService', () => {
         expect.objectContaining({
           level: 'warning',
           message: expect.stringContaining('메모리 사용량'),
-        })
+        }),
       );
     });
   });
@@ -412,7 +412,7 @@ describe('JobQueueMonitoringService', () => {
             jobType: JobType.DATA_MIGRATION,
             count: '10',
             averageTime: '120000', // Very slow (2 minutes)
-            successRate: '0.70',   // Low success rate
+            successRate: '0.70', // Low success rate
             totalFailed: '3',
           },
         ]),
@@ -425,10 +425,10 @@ describe('JobQueueMonitoringService', () => {
 
       // Assert
       expect(metrics.insights).toContain(
-        expect.stringContaining('DATA_MIGRATION 작업이 평균보다 느립니다')
+        expect.stringContaining('DATA_MIGRATION 작업이 평균보다 느립니다'),
       );
       expect(metrics.insights).toContain(
-        expect.stringContaining('DATA_MIGRATION 작업의 실패율이 높습니다')
+        expect.stringContaining('DATA_MIGRATION 작업의 실패율이 높습니다'),
       );
     });
   });
@@ -438,7 +438,7 @@ describe('JobQueueMonitoringService', () => {
       // Arrange
       const thresholdMinutes = 30;
       const thresholdTime = new Date(Date.now() - thresholdMinutes * 60 * 1000);
-      
+
       const longRunningJobs = [
         {
           ...mockJob,
@@ -473,7 +473,7 @@ describe('JobQueueMonitoringService', () => {
           ...job,
           runningTimeMinutes: expect.any(Number),
           isStuck: expect.any(Boolean),
-        }))
+        })),
       );
     });
 
@@ -506,10 +506,10 @@ describe('JobQueueMonitoringService', () => {
 
       jobRepository.count
         .mockResolvedValueOnce(100) // total
-        .mockResolvedValueOnce(10)  // pending
-        .mockResolvedValueOnce(5)   // running
-        .mockResolvedValueOnce(80)  // completed
-        .mockResolvedValueOnce(5);  // failed
+        .mockResolvedValueOnce(10) // pending
+        .mockResolvedValueOnce(5) // running
+        .mockResolvedValueOnce(80) // completed
+        .mockResolvedValueOnce(5); // failed
 
       const mockQueryBuilder = {
         select: jest.fn().mockReturnThis(),
@@ -566,8 +566,8 @@ describe('JobQueueMonitoringService', () => {
       // Arrange - Setup critical conditions
       jobRepository.count
         .mockResolvedValueOnce(200) // very high pending
-        .mockResolvedValueOnce(1)   // very low running
-        .mockResolvedValueOnce(50)  // completed
+        .mockResolvedValueOnce(1) // very low running
+        .mockResolvedValueOnce(50) // completed
         .mockResolvedValueOnce(50); // high failed
 
       const mockQueryBuilder = {
@@ -576,7 +576,7 @@ describe('JobQueueMonitoringService', () => {
         andWhere: jest.fn().mockReturnThis(),
         getRawOne: jest.fn().mockResolvedValue({
           averageTime: '120000', // very slow
-          averageWait: '60000',  // very long wait
+          averageWait: '60000', // very long wait
         }),
       };
 
@@ -590,7 +590,7 @@ describe('JobQueueMonitoringService', () => {
       expect(jobNotificationService.sendSystemNotification).toHaveBeenCalledWith(
         expect.stringContaining('Critical'),
         expect.any(String),
-        'high'
+        'high',
       );
     });
 
@@ -598,7 +598,7 @@ describe('JobQueueMonitoringService', () => {
       // Arrange - Setup healthy conditions
       jobRepository.count
         .mockResolvedValueOnce(10) // normal pending
-        .mockResolvedValueOnce(5)  // good running
+        .mockResolvedValueOnce(5) // good running
         .mockResolvedValueOnce(90) // high completed
         .mockResolvedValueOnce(2); // low failed
 
@@ -608,7 +608,7 @@ describe('JobQueueMonitoringService', () => {
         andWhere: jest.fn().mockReturnThis(),
         getRawOne: jest.fn().mockResolvedValue({
           averageTime: '10000', // fast
-          averageWait: '1000',  // short wait
+          averageWait: '1000', // short wait
         }),
       };
 

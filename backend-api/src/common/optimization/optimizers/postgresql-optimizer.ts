@@ -18,7 +18,12 @@ export class PostgreSQLOptimizer {
   /**
    * PostgreSQL JSON 쿼리 최적화
    */
-  async optimizeJsonQuery(knex: Knex, tableName: string, jsonColumn: string, jsonPath: string): Promise<any> {
+  async optimizeJsonQuery(
+    knex: Knex,
+    tableName: string,
+    jsonColumn: string,
+    jsonPath: string,
+  ): Promise<any> {
     return knex(tableName)
       .select('*')
       .whereRaw(`${jsonColumn}->>'${jsonPath}' = ?`, ['value'])
@@ -28,9 +33,13 @@ export class PostgreSQLOptimizer {
   /**
    * PostgreSQL 배열 연산 최적화
    */
-  async arrayContains(knex: Knex, tableName: string, arrayColumn: string, values: string[]): Promise<any> {
-    return knex(tableName)
-      .whereRaw(`${arrayColumn} && ARRAY[?]::varchar[]`, [values]);
+  async arrayContains(
+    knex: Knex,
+    tableName: string,
+    arrayColumn: string,
+    values: string[],
+  ): Promise<any> {
+    return knex(tableName).whereRaw(`${arrayColumn} && ARRAY[?]::varchar[]`, [values]);
   }
 
   /**
@@ -57,12 +66,15 @@ export class PostgreSQLOptimizer {
         createRetryIntervalMillis: 100,
         afterCreate: (conn, done) => {
           // PostgreSQL 세션 설정
-          conn.query(`
+          conn.query(
+            `
             SET timezone = 'UTC';
             SET statement_timeout = '30s';
             SET lock_timeout = '10s';
             SET idle_in_transaction_session_timeout = '60s';
-          `, done);
+          `,
+            done,
+          );
         },
       },
       searchPath: ['public'],
@@ -90,19 +102,21 @@ export class PostgreSQLOptimizer {
    * PostgreSQL 전문 검색 최적화
    */
   optimizeFullTextSearch(query: string): PostgreSQLOptimizationResult {
-    let optimizedQuery = query;
+    const optimizedQuery = query;
     const appliedOptimizations: string[] = [];
     const indexRecommendations: string[] = [];
 
     // ts_vector 사용 권장
     const likePattern = /LIKE\s+['"]%([^%]+)%['"]/gi;
     let match;
-    
+
     while ((match = likePattern.exec(query)) !== null) {
       const searchTerm = match[1];
       // LIKE를 전문 검색으로 변환 제안
       appliedOptimizations.push(`Suggest using full-text search for: ${searchTerm}`);
-      indexRecommendations.push('CREATE INDEX ON table_name USING GIN(to_tsvector(\'english\', column_name))');
+      indexRecommendations.push(
+        "CREATE INDEX ON table_name USING GIN(to_tsvector('english', column_name))",
+      );
     }
 
     return {
@@ -120,13 +134,13 @@ export class PostgreSQLOptimizer {
    */
   optimizeJsonIndexes(query: string): string[] {
     const recommendations: string[] = [];
-    
+
     // JSON 연산자 패턴 감지
     const jsonPatterns = [
-      /->/g,     // JSON 객체 접근
-      /->>/g,    // JSON 텍스트 접근
-      /@>/g,     // JSON 포함 검사
-      /\?/g,     // JSON 키 존재 검사 (이스케이프)
+      /->/g, // JSON 객체 접근
+      /->>/g, // JSON 텍스트 접근
+      /@>/g, // JSON 포함 검사
+      /\?/g, // JSON 키 존재 검사 (이스케이프)
     ];
 
     let hasJsonOps = false;
@@ -138,7 +152,7 @@ export class PostgreSQLOptimizer {
 
     if (hasJsonOps) {
       recommendations.push('CREATE INDEX ON table_name USING GIN (json_column)');
-      recommendations.push('CREATE INDEX ON table_name USING GIN ((json_column->\'specific_key\'))');
+      recommendations.push("CREATE INDEX ON table_name USING GIN ((json_column->'specific_key'))");
     }
 
     return recommendations;
@@ -149,7 +163,7 @@ export class PostgreSQLOptimizer {
    */
   optimizeArrayIndexes(query: string): string[] {
     const recommendations: string[] = [];
-    
+
     // 배열 연산자 감지
     if (/&&|\@>|<@|\?\?/.test(query)) {
       recommendations.push('CREATE INDEX ON table_name USING GIN (array_column)');
@@ -162,7 +176,7 @@ export class PostgreSQLOptimizer {
    * PostgreSQL CTE 최적화
    */
   optimizeCTE(query: string): PostgreSQLOptimizationResult {
-    let optimizedQuery = query;
+    const optimizedQuery = query;
     const appliedOptimizations: string[] = [];
 
     // 재귀 CTE 감지 및 최적화
@@ -172,7 +186,9 @@ export class PostgreSQLOptimizer {
 
     // CTE 인라인화 힌트
     if (/WITH\s+\w+\s+AS/i.test(query)) {
-      appliedOptimizations.push('CTE usage detected - consider if inlining would improve performance');
+      appliedOptimizations.push(
+        'CTE usage detected - consider if inlining would improve performance',
+      );
     }
 
     return {
@@ -191,7 +207,7 @@ export class PostgreSQLOptimizer {
   optimizePartitionedTable(query: string, partitionColumn: string): string {
     // 파티션 프루닝을 위한 WHERE 절 확인
     const wherePattern = new RegExp(`WHERE.*${partitionColumn}`, 'i');
-    
+
     if (!wherePattern.test(query)) {
       this.logger.warn('Query on partitioned table without partition key filter', {
         partitionColumn,
@@ -210,7 +226,7 @@ export class PostgreSQLOptimizer {
     if (/COUNT\s*\(|SUM\s*\(|AVG\s*\(/i.test(query) && /GROUP\s+BY/i.test(query)) {
       return `SET max_parallel_workers_per_gather = 4; ${query}`;
     }
-    
+
     return query;
   }
 
@@ -218,12 +234,13 @@ export class PostgreSQLOptimizer {
    * PostgreSQL 윈도우 함수 최적화
    */
   optimizeWindowFunctions(query: string): PostgreSQLOptimizationResult {
-    let optimizedQuery = query;
+    const optimizedQuery = query;
     const appliedOptimizations: string[] = [];
     const indexRecommendations: string[] = [];
 
     // 윈도우 함수 패턴 감지
-    const windowFunctionPattern = /(\w+)\s*\(\s*\)\s*OVER\s*\(\s*PARTITION\s+BY\s+(\w+)\s*ORDER\s+BY\s+(\w+)/gi;
+    const windowFunctionPattern =
+      /(\w+)\s*\(\s*\)\s*OVER\s*\(\s*PARTITION\s+BY\s+(\w+)\s*ORDER\s+BY\s+(\w+)/gi;
     let match;
 
     while ((match = windowFunctionPattern.exec(query)) !== null) {
@@ -246,18 +263,21 @@ export class PostgreSQLOptimizer {
    * PostgreSQL 통계 정보 업데이트 권장
    */
   checkStatistics(knex: Knex, tableName: string): Promise<boolean> {
-    return new Promise(async (resolve) => {
+    return new Promise(async resolve => {
       try {
-        const result = await knex.raw(`
+        const result = await knex.raw(
+          `
           SELECT schemaname, tablename, last_analyze, last_autoanalyze
           FROM pg_stat_user_tables 
           WHERE tablename = ?
-        `, [tableName]);
+        `,
+          [tableName],
+        );
 
         if (result.rows.length > 0) {
           const row = result.rows[0];
           const lastAnalyze = row.last_analyze || row.last_autoanalyze;
-          
+
           if (!lastAnalyze || Date.now() - new Date(lastAnalyze).getTime() > 24 * 60 * 60 * 1000) {
             this.logger.warn('Table statistics may be outdated', {
               tableName,
@@ -280,7 +300,8 @@ export class PostgreSQLOptimizer {
    */
   async analyzeIndexUsage(knex: Knex, tableName: string): Promise<any[]> {
     try {
-      const result = await knex.raw(`
+      const result = await knex.raw(
+        `
         SELECT 
           indexrelname as index_name,
           idx_tup_read,
@@ -294,7 +315,9 @@ export class PostgreSQLOptimizer {
         FROM pg_stat_user_indexes 
         WHERE relname = ?
         ORDER BY idx_scan DESC
-      `, [tableName]);
+      `,
+        [tableName],
+      );
 
       return result.rows;
     } catch (error) {

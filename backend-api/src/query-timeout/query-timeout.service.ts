@@ -5,16 +5,16 @@ import { Database } from '../database/entities/database.entity';
 import { TimeoutConfigurationService } from './services/timeout-configuration.service';
 import { AdaptiveTimeoutService } from './services/adaptive-timeout.service';
 import { TimeoutMonitoringService } from './services/timeout-monitoring.service';
-import { 
-  DatabaseEngine, 
-  QueryComplexity, 
+import {
+  DatabaseEngine,
+  QueryComplexity,
   AdaptiveTimeoutConfigDto,
-  TimeoutUpdateDto 
+  TimeoutUpdateDto,
 } from './dto/timeout-config.dto';
-import { 
-  TimeoutConfigResponseDto, 
+import {
+  TimeoutConfigResponseDto,
   AdaptiveTimeoutResponseDto,
-  TimeoutExecutionResult 
+  TimeoutExecutionResult,
 } from './dto/timeout-response.dto';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 
@@ -98,9 +98,10 @@ export class QueryTimeoutService {
 
       const engine = database.engine as DatabaseEngine;
       const complexity = this.configService.analyzeQueryComplexity(configDto.query);
-      
+
       // 기본 타임아웃 계산
-      const baseTimeoutMs = configDto.requestedTimeoutMs || 
+      const baseTimeoutMs =
+        configDto.requestedTimeoutMs ||
         this.configService.calculateRecommendedTimeout(engine, complexity);
 
       // 적응형 타임아웃 계산 (활성화된 경우)
@@ -183,12 +184,7 @@ export class QueryTimeoutService {
 
       // 적응형 서비스에 기록 (성공한 경우만)
       if (!wasTimedOut && !errorMessage) {
-        this.adaptiveService.recordExecution(
-          databaseId,
-          query,
-          executionTimeMs,
-          true,
-        );
+        this.adaptiveService.recordExecution(databaseId, query, executionTimeMs, true);
       }
 
       this.logger.debug('Query execution recorded', {
@@ -199,7 +195,6 @@ export class QueryTimeoutService {
         wasTimedOut,
         userId,
       });
-
     } catch (error) {
       this.logger.error('Failed to record query execution', {
         databaseId,
@@ -225,22 +220,18 @@ export class QueryTimeoutService {
       }
 
       const engine = database.engine as DatabaseEngine;
-      
+
       // 각 복잡도별로 설정 업데이트
       if (updateDto.defaultTimeoutMs) {
-        this.configService.updateTimeoutRule(
-          engine,
-          QueryComplexity.SIMPLE,
-          { baseTimeoutMs: updateDto.defaultTimeoutMs },
-        );
+        this.configService.updateTimeoutRule(engine, QueryComplexity.SIMPLE, {
+          baseTimeoutMs: updateDto.defaultTimeoutMs,
+        });
       }
 
       if (updateDto.batchTimeoutMs) {
-        this.configService.updateTimeoutRule(
-          engine,
-          QueryComplexity.BATCH,
-          { baseTimeoutMs: updateDto.batchTimeoutMs },
-        );
+        this.configService.updateTimeoutRule(engine, QueryComplexity.BATCH, {
+          baseTimeoutMs: updateDto.batchTimeoutMs,
+        });
       }
 
       this.logger.log('Timeout settings updated', {
@@ -251,7 +242,6 @@ export class QueryTimeoutService {
 
       // 업데이트된 설정 반환
       return await this.getTimeoutConfig(databaseId);
-
     } catch (error) {
       this.logger.error('Failed to update timeout settings', {
         databaseId,
@@ -311,7 +301,7 @@ export class QueryTimeoutService {
   /**
    * 타임아웃 모니터링 리포트 생성
    */
-  async generateMonitoringReport(periodHours: number = 24): Promise<TimeoutConfigResponseDto> {
+  async generateMonitoringReport(periodHours = 24): Promise<TimeoutConfigResponseDto> {
     try {
       const report = this.monitoringService.generateMonitoringReport(periodHours);
 
@@ -339,9 +329,7 @@ export class QueryTimeoutService {
   async getSystemStatistics(): Promise<TimeoutConfigResponseDto> {
     try {
       const engines = Object.values(DatabaseEngine);
-      const statistics = engines.map(engine => 
-        this.monitoringService.generateStatistics(engine)
-      );
+      const statistics = engines.map(engine => this.monitoringService.generateStatistics(engine));
 
       const systemStats = this.configService.getSystemTimeoutStatistics();
       const adaptiveStats = this.adaptiveService.getExecutionStatistics();
@@ -387,7 +375,7 @@ export class QueryTimeoutService {
    */
   async getTimeoutTrend(
     engine: DatabaseEngine,
-    periodHours: number = 24,
+    periodHours = 24,
   ): Promise<TimeoutConfigResponseDto> {
     try {
       const trend = this.monitoringService.getTimeoutTrend(engine, periodHours);
@@ -436,9 +424,9 @@ export class QueryTimeoutService {
         throw new BadRequestException(`Database not found: ${databaseId}`);
       }
 
-      // 기본 설정으로 복원하는 로직은 실제로는 데이터베이스나 설정 파일에서 
+      // 기본 설정으로 복원하는 로직은 실제로는 데이터베이스나 설정 파일에서
       // 복원해야 하지만, 여기서는 서비스 재시작과 동일한 효과
-      
+
       this.logger.log('Timeout settings reset to defaults', {
         databaseId,
         engine: database.engine,
@@ -472,12 +460,14 @@ export class QueryTimeoutService {
 
       // 상태 평가
       let status: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
-      
-      if (monitoringMemory.memoryUsageEstimateKB > 10000) { // 10MB 초과
+
+      if (monitoringMemory.memoryUsageEstimateKB > 10000) {
+        // 10MB 초과
         status = 'degraded';
       }
-      
-      if (adaptiveStats.adaptationRate < 10) { // 적응률 10% 미만
+
+      if (adaptiveStats.adaptationRate < 10) {
+        // 적응률 10% 미만
         status = 'degraded';
       }
 

@@ -71,7 +71,7 @@ export class CacheController {
   async getCacheStats(@Query('engine') engine?: string) {
     try {
       const stats = await this.hybridCache.getHybridStats(engine);
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         data: stats,
@@ -101,7 +101,7 @@ export class CacheController {
   async getCacheDiagnostics() {
     try {
       const diagnostics = await this.datasetService.getCacheDiagnostics();
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         data: diagnostics,
@@ -131,7 +131,7 @@ export class CacheController {
   async getOptimizationSuggestions() {
     try {
       const suggestions = await this.hybridCache.getOptimizationSuggestions();
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         data: suggestions,
@@ -162,7 +162,7 @@ export class CacheController {
   async invalidateAllCache() {
     try {
       await this.hybridCache.invalidateAll();
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         message: '전체 캐시가 무효화되었습니다.',
@@ -197,7 +197,7 @@ export class CacheController {
   async invalidateEngineCache(@Param('engine') engine: string) {
     try {
       await this.hybridCache.invalidateByEngine(engine);
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         message: `${engine} 엔진의 캐시가 무효화되었습니다.`,
@@ -232,7 +232,7 @@ export class CacheController {
   async invalidateDatabaseCache(@Param('databaseId') databaseId: string) {
     try {
       await this.datasetService.invalidateDatabaseCache(parseInt(databaseId));
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         message: `데이터베이스 ${databaseId}의 캐시가 무효화되었습니다.`,
@@ -267,7 +267,7 @@ export class CacheController {
   async invalidateDatasetCache(@Param('datasetId') datasetId: string) {
     try {
       await this.datasetService.invalidateDatasetCache(parseInt(datasetId));
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         message: `데이터셋 ${datasetId}의 캐시가 무효화되었습니다.`,
@@ -298,7 +298,7 @@ export class CacheController {
   async invalidateCacheByPattern(@Body() request: CacheInvalidationRequestDto) {
     try {
       const { engine, databaseId, pattern } = request;
-      
+
       if (pattern) {
         // 패턴 기반 무효화 (Redis만 지원)
         // TODO: HybridCacheService에 패턴 기반 무효화 메서드 추가 필요
@@ -308,7 +308,7 @@ export class CacheController {
           timestamp: new Date(),
         };
       }
-      
+
       if (engine) {
         await this.hybridCache.invalidateByEngine(engine);
         return {
@@ -317,7 +317,7 @@ export class CacheController {
           timestamp: new Date(),
         };
       }
-      
+
       if (databaseId) {
         await this.hybridCache.invalidateByDatabase(databaseId.toString());
         return {
@@ -326,7 +326,7 @@ export class CacheController {
           timestamp: new Date(),
         };
       }
-      
+
       return {
         status: ResponseStatus.ERROR,
         message: '무효화할 대상(pattern, engine, databaseId 중 하나)을 지정해주세요.',
@@ -357,7 +357,7 @@ export class CacheController {
   async warmupCache(@Body() request: CacheWarmupRequestDto) {
     try {
       const { datasetIds } = request;
-      
+
       if (!datasetIds || datasetIds.length === 0) {
         return {
           status: ResponseStatus.ERROR,
@@ -365,12 +365,12 @@ export class CacheController {
           timestamp: new Date(),
         };
       }
-      
+
       // 비동기로 워밍업 실행 (응답은 즉시 반환)
       this.datasetService.warmupDatasetCache(datasetIds).catch(error => {
         console.error('Cache warmup failed:', error);
       });
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         message: `${datasetIds.length}개 데이터셋의 캐시 워밍업이 시작되었습니다.`,
@@ -403,7 +403,7 @@ export class CacheController {
       // TODO: HybridCacheService에 연결 상태 확인 메서드 추가 필요
       const l2Connected = true; // 임시값
       const redisInfo = null; // 임시값
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         data: {
@@ -453,7 +453,7 @@ export class CacheController {
     try {
       const stats = await this.hybridCache.getHybridStats();
       const diagnostics = await this.hybridCache.getDiagnostics();
-      
+
       // 성능 메트릭 계산
       const metrics = {
         hitRates: {},
@@ -465,7 +465,7 @@ export class CacheController {
           notice: '시계열 데이터 수집 기능은 향후 구현 예정입니다.',
         },
       };
-      
+
       if (stats instanceof Map) {
         for (const [engine, engineStats] of stats) {
           metrics.hitRates[engine] = {
@@ -473,11 +473,11 @@ export class CacheController {
             l2: engineStats.hybridMetrics.l2HitRate,
             overall: engineStats.hybridMetrics.overallHitRate,
           };
-          
+
           metrics.responseTimes[engine] = {
             l2Average: engineStats.l2Cache?.averageResponseTime || 0,
           };
-          
+
           metrics.cacheUtilization[engine] = {
             l1Size: engineStats.hybridMetrics.l1Size,
             l2Size: engineStats.hybridMetrics.l2Size,
@@ -485,7 +485,7 @@ export class CacheController {
           };
         }
       }
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         data: {

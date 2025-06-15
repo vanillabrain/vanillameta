@@ -51,7 +51,7 @@ export class HybridCacheService implements OnModuleInit, OnModuleDestroy {
     try {
       // L1 캐시 (메모리) 먼저 확인
       const l1Result = await this.l1Cache.get(engine, query, parameters);
-      
+
       if (l1Result) {
         this.customLogger.debug('L1 cache hit', 'HybridCacheService', {
           engine,
@@ -62,11 +62,11 @@ export class HybridCacheService implements OnModuleInit, OnModuleDestroy {
 
       // L1 미스 시 L2 캐시 (Redis) 확인
       const l2Result = await this.l2Cache.get(engine, databaseId, query, parameters);
-      
+
       if (l2Result) {
         // L2 히트 시 L1으로 승격 (자주 사용되는 데이터)
         await this.promoteToL1(engine, query, l2Result.data, l2Result.fields, parameters);
-        
+
         this.customLogger.debug('L2 cache hit, promoted to L1', 'HybridCacheService', {
           engine,
           responseTime: Date.now() - startTime,
@@ -118,9 +118,7 @@ export class HybridCacheService implements OnModuleInit, OnModuleDestroy {
 
       if (!l1Only && this.l2Cache.isConnected()) {
         // L2 캐시에 저장 (Redis 연결된 경우에만)
-        promises.push(
-          this.l2Cache.set(engine, databaseId, query, data, fields, parameters, ttl),
-        );
+        promises.push(this.l2Cache.set(engine, databaseId, query, data, fields, parameters, ttl));
       }
 
       await Promise.allSettled(promises);
@@ -158,18 +156,16 @@ export class HybridCacheService implements OnModuleInit, OnModuleDestroy {
    */
   async invalidateByQuery(engine: string, query: string): Promise<void> {
     try {
-      const promises = [
-        this.l1Cache.invalidateByQuery(engine, query),
-      ];
+      const promises = [this.l1Cache.invalidateByQuery(engine, query)];
 
       if (this.l2Cache.isConnected()) {
         // Redis에서는 패턴 기반 무효화 (정확한 매칭 어려움)
-        promises.push(this.l2Cache.invalidateByEngine(engine));
+        promises.push(this.l2Cache.invalidateByEngine(engine).then(() => {}));
       }
 
       await Promise.allSettled(promises);
 
-      this.customLogger.info('Cache invalidated by query', 'HybridCacheService', {
+      this.customLogger.log('Cache invalidated by query', 'HybridCacheService', {
         engine,
         query: query.substring(0, 100),
       });
@@ -183,9 +179,7 @@ export class HybridCacheService implements OnModuleInit, OnModuleDestroy {
    */
   async invalidateByEngine(engine: string): Promise<void> {
     try {
-      const promises: Promise<any>[] = [
-        Promise.resolve(this.l1Cache.clearCache(engine)),
-      ];
+      const promises: Promise<any>[] = [Promise.resolve(this.l1Cache.clearCache(engine))];
 
       if (this.l2Cache.isConnected()) {
         promises.push(this.l2Cache.invalidateByEngine(engine));
@@ -193,7 +187,7 @@ export class HybridCacheService implements OnModuleInit, OnModuleDestroy {
 
       await Promise.allSettled(promises);
 
-      this.customLogger.info('Cache invalidated by engine', 'HybridCacheService', {
+      this.customLogger.log('Cache invalidated by engine', 'HybridCacheService', {
         engine,
       });
     } catch (error) {
@@ -213,7 +207,7 @@ export class HybridCacheService implements OnModuleInit, OnModuleDestroy {
         await this.l2Cache.invalidateByDatabase(databaseId);
       }
 
-      this.customLogger.info('Cache invalidated by database', 'HybridCacheService', {
+      this.customLogger.log('Cache invalidated by database', 'HybridCacheService', {
         databaseId,
       });
     } catch (error) {
@@ -226,9 +220,7 @@ export class HybridCacheService implements OnModuleInit, OnModuleDestroy {
    */
   async invalidateAll(): Promise<void> {
     try {
-      const promises: Promise<any>[] = [
-        Promise.resolve(this.l1Cache.clearAllCaches()),
-      ];
+      const promises: Promise<any>[] = [Promise.resolve(this.l1Cache.clearAllCaches())];
 
       if (this.l2Cache.isConnected()) {
         promises.push(this.l2Cache.invalidateAll());
@@ -236,7 +228,7 @@ export class HybridCacheService implements OnModuleInit, OnModuleDestroy {
 
       await Promise.allSettled(promises);
 
-      this.customLogger.info('All caches invalidated', 'HybridCacheService');
+      this.customLogger.log('All caches invalidated', 'HybridCacheService');
     } catch (error) {
       this.logger.error('Full cache invalidation error:', error);
     }
@@ -245,7 +237,9 @@ export class HybridCacheService implements OnModuleInit, OnModuleDestroy {
   /**
    * 하이브리드 캐시 통계 조회
    */
-  async getHybridStats(engine?: string): Promise<Map<string, HybridCacheStats> | HybridCacheStats | null> {
+  async getHybridStats(
+    engine?: string,
+  ): Promise<Map<string, HybridCacheStats> | HybridCacheStats | null> {
     try {
       if (engine) {
         return await this.getEngineHybridStats(engine);
@@ -290,7 +284,7 @@ export class HybridCacheService implements OnModuleInit, OnModuleDestroy {
   private async getEngineHybridStats(engine: string): Promise<HybridCacheStats | null> {
     try {
       const l1Stats = this.l1Cache.getStats(engine) as CacheStats | null;
-      const l2Stats = await this.l2Cache.getStats(engine) as RedisCacheStats | null;
+      const l2Stats = (await this.l2Cache.getStats(engine)) as RedisCacheStats | null;
       const promotionStats = this.promotionMetrics.get(engine) || { promotions: 0, demotions: 0 };
 
       // 하이브리드 메트릭 계산
@@ -332,31 +326,39 @@ export class HybridCacheService implements OnModuleInit, OnModuleDestroy {
    */
   private updatePromotionStats(engine: string, operation: 'promotion' | 'demotion'): void {
     const stats = this.promotionMetrics.get(engine) || { promotions: 0, demotions: 0 };
-    
+
     if (operation === 'promotion') {
       stats.promotions++;
     } else {
       stats.demotions++;
     }
-    
+
     this.promotionMetrics.set(engine, stats);
   }
 
   /**
    * 캐시 워밍업 (자주 사용되는 쿼리를 미리 로드)
    */
-  async warmupCache(engine: string, queries: Array<{
-    databaseId: string;
-    query: string;
-    parameters?: any[];
-  }>): Promise<void> {
+  async warmupCache(
+    engine: string,
+    queries: Array<{
+      databaseId: string;
+      query: string;
+      parameters?: any[];
+    }>,
+  ): Promise<void> {
     this.logger.log(`Starting cache warmup for engine ${engine} with ${queries.length} queries`);
 
     for (const queryInfo of queries) {
       try {
         // 캐시에 이미 있는지 확인
-        const existing = await this.get(engine, queryInfo.databaseId, queryInfo.query, queryInfo.parameters);
-        
+        const existing = await this.get(
+          engine,
+          queryInfo.databaseId,
+          queryInfo.query,
+          queryInfo.parameters,
+        );
+
         if (!existing) {
           // TODO: 실제 데이터베이스에서 쿼리 실행하여 캐시에 저장
           // 이 부분은 DatasetService와 연동 필요
@@ -403,10 +405,10 @@ export class HybridCacheService implements OnModuleInit, OnModuleDestroy {
    */
   async getOptimizationSuggestions(): Promise<any[]> {
     const suggestions = [];
-    
+
     try {
       const hybridStats = await this.getHybridStats();
-      
+
       if (hybridStats instanceof Map) {
         for (const [engine, stats] of hybridStats) {
           // L1 히트율이 낮으면 L1 캐시 크기 증가 제안

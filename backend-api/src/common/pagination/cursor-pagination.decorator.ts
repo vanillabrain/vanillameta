@@ -1,9 +1,13 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
-import { CursorPaginationOptions, OffsetPaginationOptions, PaginationType } from './pagination.interface';
+import {
+  CursorPaginationOptions,
+  OffsetPaginationOptions,
+  PaginationType,
+} from './pagination.interface';
 
 /**
  * 커서 기반 페이지네이션 파라미터 데코레이터
- * 
+ *
  * @example
  * ```typescript
  * @Get()
@@ -13,7 +17,10 @@ import { CursorPaginationOptions, OffsetPaginationOptions, PaginationType } from
  * ```
  */
 export const CursorPagination = createParamDecorator(
-  (options: { maxLimit?: number; defaultLimit?: number } = {}, ctx: ExecutionContext): CursorPaginationOptions => {
+  (
+    options: { maxLimit?: number; defaultLimit?: number } = {},
+    ctx: ExecutionContext,
+  ): CursorPaginationOptions => {
     const request = ctx.switchToHttp().getRequest();
     const query = request.query;
 
@@ -26,7 +33,9 @@ export const CursorPagination = createParamDecorator(
     limit = Math.max(limit, 1);
 
     // 정렬 옵션
-    const sortDirection = (query.sortDirection?.toUpperCase() === 'ASC' ? 'ASC' : 'DESC') as 'ASC' | 'DESC';
+    const sortDirection = (query.sortDirection?.toUpperCase() === 'ASC' ? 'ASC' : 'DESC') as
+      | 'ASC'
+      | 'DESC';
     const sortField = query.sortField || 'id';
 
     return {
@@ -41,7 +50,7 @@ export const CursorPagination = createParamDecorator(
 
 /**
  * 오프셋 기반 페이지네이션 파라미터 데코레이터 (하위 호환성)
- * 
+ *
  * @example
  * ```typescript
  * @Get()
@@ -51,7 +60,10 @@ export const CursorPagination = createParamDecorator(
  * ```
  */
 export const OffsetPagination = createParamDecorator(
-  (options: { maxLimit?: number; defaultLimit?: number } = {}, ctx: ExecutionContext): OffsetPaginationOptions => {
+  (
+    options: { maxLimit?: number; defaultLimit?: number } = {},
+    ctx: ExecutionContext,
+  ): OffsetPaginationOptions => {
     const request = ctx.switchToHttp().getRequest();
     const query = request.query;
 
@@ -65,7 +77,9 @@ export const OffsetPagination = createParamDecorator(
     limit = Math.max(limit, 1);
 
     // 정렬 옵션
-    const sortDirection = (query.sortDirection?.toUpperCase() === 'ASC' ? 'ASC' : 'DESC') as 'ASC' | 'DESC';
+    const sortDirection = (query.sortDirection?.toUpperCase() === 'ASC' ? 'ASC' : 'DESC') as
+      | 'ASC'
+      | 'DESC';
     const sortField = query.sortField || query.orderBy || 'id';
 
     return {
@@ -80,7 +94,7 @@ export const OffsetPagination = createParamDecorator(
 /**
  * 통합 페이지네이션 데코레이터
  * 커서와 오프셋 기반 페이지네이션을 자동으로 감지하여 처리
- * 
+ *
  * @example
  * ```typescript
  * @Get()
@@ -90,12 +104,15 @@ export const OffsetPagination = createParamDecorator(
  * ```
  */
 export const Pagination = createParamDecorator(
-  (options: { 
-    type?: PaginationType; 
-    maxLimit?: number; 
-    defaultLimit?: number;
-    preferCursor?: boolean;
-  } = {}, ctx: ExecutionContext): CursorPaginationOptions | OffsetPaginationOptions => {
+  (
+    options: {
+      type?: PaginationType;
+      maxLimit?: number;
+      defaultLimit?: number;
+      preferCursor?: boolean;
+    } = {},
+    ctx: ExecutionContext,
+  ): CursorPaginationOptions | OffsetPaginationOptions => {
     const request = ctx.switchToHttp().getRequest();
     const query = request.query;
 

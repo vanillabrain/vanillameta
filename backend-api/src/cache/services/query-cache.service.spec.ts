@@ -164,7 +164,13 @@ describe('QueryCacheService', () => {
       statisticsService.recordCacheSet.mockResolvedValue();
 
       // Act
-      await service.setCachedQuery(mockQueryDto, mockResultData, executionTime, databaseEngine, userId);
+      await service.setCachedQuery(
+        mockQueryDto,
+        mockResultData,
+        executionTime,
+        databaseEngine,
+        userId,
+      );
 
       // Assert
       expect(cacheManager.set).toHaveBeenCalledTimes(2); // 결과와 메타데이터
@@ -211,9 +217,10 @@ describe('QueryCacheService', () => {
     it('should calculate appropriate TTL based on query complexity', async () => {
       // Arrange
       const simpleQuery = { ...mockQueryDto, query: 'SELECT COUNT(*) FROM users' };
-      const complexQuery = { 
-        ...mockQueryDto, 
-        query: 'SELECT u.*, COUNT(o.id) FROM users u JOIN orders o ON u.id = o.user_id GROUP BY u.id' 
+      const complexQuery = {
+        ...mockQueryDto,
+        query:
+          'SELECT u.*, COUNT(o.id) FROM users u JOIN orders o ON u.id = o.user_id GROUP BY u.id',
       };
 
       cacheManager.set.mockResolvedValue();
@@ -225,7 +232,7 @@ describe('QueryCacheService', () => {
 
       // Assert
       expect(cacheManager.set).toHaveBeenCalledTimes(4); // 2 queries × 2 calls each (result + metadata)
-      
+
       // 복잡한 쿼리가 더 긴 TTL을 가져야 함
       const simpleTTL = cacheManager.set.mock.calls[0][2];
       const complexTTL = cacheManager.set.mock.calls[2][2];
@@ -238,7 +245,7 @@ describe('QueryCacheService', () => {
 
       // Act & Assert - 에러가 던져지지 않아야 함
       await expect(
-        service.setCachedQuery(mockQueryDto, mockResultData, 1000, 'pg', 'user123')
+        service.setCachedQuery(mockQueryDto, mockResultData, 1000, 'pg', 'user123'),
       ).resolves.not.toThrow();
     });
   });
@@ -340,12 +347,12 @@ describe('QueryCacheService', () => {
       // Arrange
       const queryDto1: QueryExecuteDto = {
         id: 1,
-        query: 'SELECT * FROM users WHERE name = \'John\'',
+        query: "SELECT * FROM users WHERE name = 'John'",
         parameters: [],
       };
       const queryDto2: QueryExecuteDto = {
         id: 1,
-        query: 'SELECT * FROM users WHERE name = \'Jane\'',
+        query: "SELECT * FROM users WHERE name = 'Jane'",
         parameters: [],
       };
 
@@ -365,10 +372,10 @@ describe('QueryCacheService', () => {
   describe('query complexity analysis', () => {
     it('should correctly identify simple queries', async () => {
       // Arrange
-      const simpleQuery = { 
-        id: 1, 
-        query: 'SELECT * FROM users', 
-        parameters: [] 
+      const simpleQuery = {
+        id: 1,
+        query: 'SELECT * FROM users',
+        parameters: [],
       };
       const resultData = {
         status: ResponseStatus.SUCCESS,
@@ -393,8 +400,8 @@ describe('QueryCacheService', () => {
 
     it('should correctly identify complex queries', async () => {
       // Arrange
-      const complexQuery = { 
-        id: 1, 
+      const complexQuery = {
+        id: 1,
         query: `
           WITH user_stats AS (
             SELECT u.id, COUNT(o.id) as order_count,
@@ -406,8 +413,8 @@ describe('QueryCacheService', () => {
             GROUP BY u.id, u.department
           )
           SELECT * FROM user_stats WHERE order_count > 5
-        `, 
-        parameters: [] 
+        `,
+        parameters: [],
       };
       const resultData = {
         status: ResponseStatus.SUCCESS,
@@ -431,10 +438,10 @@ describe('QueryCacheService', () => {
 
     it('should correctly identify batch queries', async () => {
       // Arrange
-      const batchQuery = { 
-        id: 1, 
-        query: 'INSERT INTO users_backup SELECT * FROM users LIMIT 10000', 
-        parameters: [] 
+      const batchQuery = {
+        id: 1,
+        query: 'INSERT INTO users_backup SELECT * FROM users LIMIT 10000',
+        parameters: [],
       };
       const resultData = {
         status: ResponseStatus.SUCCESS,

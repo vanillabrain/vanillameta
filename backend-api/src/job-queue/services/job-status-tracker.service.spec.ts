@@ -115,7 +115,7 @@ describe('JobStatusTrackerService', () => {
         newStatus,
         changedBy,
         reason,
-        metadata
+        metadata,
       );
 
       // Assert
@@ -141,12 +141,7 @@ describe('JobStatusTrackerService', () => {
       jobStatusHistoryRepository.save.mockResolvedValue(mockStatusHistory);
 
       // Act
-      await service.recordStatusChange(
-        mockJob.id,
-        previousStatus,
-        newStatus,
-        changedBy
-      );
+      await service.recordStatusChange(mockJob.id, previousStatus, newStatus, changedBy);
 
       // Assert
       expect(jobStatusHistoryRepository.create).toHaveBeenCalledWith({
@@ -168,12 +163,7 @@ describe('JobStatusTrackerService', () => {
 
       // Act & Assert
       await expect(
-        service.recordStatusChange(
-          mockJob.id,
-          JobStatus.PENDING,
-          JobStatus.RUNNING,
-          'worker-123'
-        )
+        service.recordStatusChange(mockJob.id, JobStatus.PENDING, JobStatus.RUNNING, 'worker-123'),
       ).rejects.toThrow('Database save failed');
     });
   });
@@ -257,12 +247,11 @@ describe('JobStatusTrackerService', () => {
       // Assert
       expect(mockQueryBuilder.select).toHaveBeenCalledWith('history.newStatus', 'newStatus');
       expect(mockQueryBuilder.addSelect).toHaveBeenCalledWith('COUNT(*)', 'count');
-      expect(mockQueryBuilder.where).toHaveBeenCalledWith(
-        'history.timestamp >= :fromDate',
-        { fromDate: expect.any(Date) }
-      );
+      expect(mockQueryBuilder.where).toHaveBeenCalledWith('history.timestamp >= :fromDate', {
+        fromDate: expect.any(Date),
+      });
       expect(mockQueryBuilder.groupBy).toHaveBeenCalledWith('history.newStatus');
-      
+
       expect(result).toEqual({
         [JobStatus.COMPLETED]: 15,
         [JobStatus.FAILED]: 3,
@@ -360,12 +349,13 @@ describe('JobStatusTrackerService', () => {
       expect(mockQueryBuilder.addSelect).toHaveBeenCalledWith('COUNT(*)', 'count');
       expect(mockQueryBuilder.addSelect).toHaveBeenCalledWith('job.jobType', 'jobType');
       expect(mockQueryBuilder.innerJoin).toHaveBeenCalledWith('history.job', 'job');
-      expect(mockQueryBuilder.where).toHaveBeenCalledWith('history.newStatus = :status', { status: JobStatus.FAILED });
-      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
-        'history.timestamp >= :fromDate',
-        { fromDate: expect.any(Date) }
-      );
-      
+      expect(mockQueryBuilder.where).toHaveBeenCalledWith('history.newStatus = :status', {
+        status: JobStatus.FAILED,
+      });
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith('history.timestamp >= :fromDate', {
+        fromDate: expect.any(Date),
+      });
+
       expect(result).toEqual([
         {
           reason: 'Database connection failed',
@@ -462,7 +452,7 @@ describe('JobStatusTrackerService', () => {
 
       // Act & Assert
       await expect(service.getJobStatusHistory('job-123')).rejects.toThrow(
-        'Database connection failed'
+        'Database connection failed',
       );
     });
 
@@ -481,9 +471,7 @@ describe('JobStatusTrackerService', () => {
       jobStatusHistoryRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
 
       // Act & Assert
-      await expect(service.getStatusStatistics(24)).rejects.toThrow(
-        'Query execution failed'
-      );
+      await expect(service.getStatusStatistics(24)).rejects.toThrow('Query execution failed');
     });
   });
 

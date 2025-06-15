@@ -15,17 +15,17 @@ export interface JobProcessor {
 @Injectable()
 export class JobProcessorService {
   private readonly logger = new Logger(JobProcessorService.name);
-  
+
   // 작업 유형별 프로세서 등록
   private processors = new Map<JobType, JobProcessor>();
 
   constructor(
     @InjectRepository(QueueJob)
     private jobRepository: Repository<QueueJob>,
-    
+
     @InjectRepository(JobResult)
     private jobResultRepository: Repository<JobResult>,
-    
+
     private jobStatusTrackerService: JobStatusTrackerService,
     private connectionService: ConnectionService,
     private databaseService: DatabaseService,
@@ -37,35 +37,35 @@ export class JobProcessorService {
    * 작업 유형별 프로세서 등록
    */
   private registerProcessors(): void {
-    this.processors.set(JobType.QUERY_EXECUTION, new QueryExecutionProcessor(
-      this.connectionService,
-      this.logger
-    ));
-    
-    this.processors.set(JobType.BULK_DATA_EXPORT, new BulkDataExportProcessor(
-      this.connectionService,
-      this.logger
-    ));
-    
-    this.processors.set(JobType.DASHBOARD_GENERATION, new DashboardGenerationProcessor(
-      this.connectionService,
-      this.logger
-    ));
-    
-    this.processors.set(JobType.DATA_MIGRATION, new DataMigrationProcessor(
-      this.connectionService,
-      this.logger
-    ));
-    
-    this.processors.set(JobType.CACHE_WARMUP, new CacheWarmupProcessor(
-      this.connectionService,
-      this.logger
-    ));
-    
-    this.processors.set(JobType.REPORT_GENERATION, new ReportGenerationProcessor(
-      this.connectionService,
-      this.logger
-    ));
+    this.processors.set(
+      JobType.QUERY_EXECUTION,
+      new QueryExecutionProcessor(this.connectionService, this.logger),
+    );
+
+    this.processors.set(
+      JobType.BULK_DATA_EXPORT,
+      new BulkDataExportProcessor(this.connectionService, this.logger),
+    );
+
+    this.processors.set(
+      JobType.DASHBOARD_GENERATION,
+      new DashboardGenerationProcessor(this.connectionService, this.logger),
+    );
+
+    this.processors.set(
+      JobType.DATA_MIGRATION,
+      new DataMigrationProcessor(this.connectionService, this.logger),
+    );
+
+    this.processors.set(
+      JobType.CACHE_WARMUP,
+      new CacheWarmupProcessor(this.connectionService, this.logger),
+    );
+
+    this.processors.set(
+      JobType.REPORT_GENERATION,
+      new ReportGenerationProcessor(this.connectionService, this.logger),
+    );
   }
 
   /**
@@ -114,11 +114,10 @@ export class JobProcessorService {
       });
 
       this.logger.log(`Job completed: ${job.id} in ${executionTime}ms`);
-
     } catch (error) {
       // 진행 상황 추적 종료
       const executionTime = Date.now() - startTime;
-      
+
       await this.handleJobError(job.id, error, {
         completedAt: new Date(),
         executionTimeMs: executionTime,
@@ -134,9 +133,9 @@ export class JobProcessorService {
    * 작업 상태 업데이트
    */
   private async updateJobStatus(
-    jobId: string, 
-    status: JobStatus, 
-    additionalData: any = {}
+    jobId: string,
+    status: JobStatus,
+    additionalData: any = {},
   ): Promise<void> {
     await this.jobRepository.update(jobId, {
       status,
@@ -149,18 +148,14 @@ export class JobProcessorService {
       status,
       null,
       `Job ${status.toLowerCase()}`,
-      additionalData
+      additionalData,
     );
   }
 
   /**
    * 작업 에러 처리
    */
-  private async handleJobError(
-    jobId: string, 
-    error: any, 
-    additionalData: any = {}
-  ): Promise<void> {
+  private async handleJobError(jobId: string, error: any, additionalData: any = {}): Promise<void> {
     await this.jobRepository.update(jobId, {
       status: JobStatus.FAILED,
       errorMessage: error.message,
@@ -178,7 +173,7 @@ export class JobProcessorService {
         errorMessage: error.message,
         errorType: error.constructor.name,
         ...additionalData,
-      }
+      },
     );
   }
 
@@ -188,12 +183,12 @@ export class JobProcessorService {
   private async saveJobResult(job: QueueJob, result: any): Promise<void> {
     try {
       const jobResult = new JobResult();
-      
+
       jobResult.id = uuidv4();
       jobResult.jobId = job.id;
       jobResult.resultType = this.determineResultType(job.jobType, result);
       jobResult.resultData = JSON.stringify(result);
-      
+
       // 결과 타입별 특별 처리
       if (result.downloadUrl) {
         jobResult.downloadUrl = result.downloadUrl;
@@ -208,7 +203,7 @@ export class JobProcessorService {
       }
 
       await this.jobResultRepository.save(jobResult);
-      
+
       this.logger.debug(`Job result saved: ${job.id}`);
     } catch (error) {
       this.logger.error(`Failed to save job result: ${job.id}`, error);
@@ -239,11 +234,11 @@ export class JobProcessorService {
    */
   private startProgressTracking(jobId: string): NodeJS.Timeout {
     let progress = 0;
-    
+
     return setInterval(async () => {
       try {
         progress = Math.min(progress + Math.random() * 10, 95); // 95%까지만
-        
+
         await this.jobRepository.update(jobId, {
           progress: Math.floor(progress),
           updatedAt: new Date(),
@@ -262,7 +257,7 @@ export class JobProcessorService {
     if (lambdaContext) {
       return `lambda-${process.env.AWS_LAMBDA_LOG_STREAM_NAME || uuidv4().substring(0, 8)}`;
     }
-    
+
     return `worker-${uuidv4().substring(0, 8)}`;
   }
 }
@@ -270,25 +265,25 @@ export class JobProcessorService {
 // 작업 유형별 프로세서 구현
 
 class QueryExecutionProcessor implements JobProcessor {
-  constructor(
-    private connectionService: ConnectionService,
-    private logger: Logger,
-  ) {}
+  constructor(private connectionService: ConnectionService, private logger: Logger) {}
 
   async process(job: QueueJob): Promise<any> {
     const jobData = job.jobDataParsed;
-    
+
     if (!jobData.query || !jobData.databaseId) {
       throw new Error('Missing required parameters: query, databaseId');
     }
 
     this.logger.debug(`Executing query for job: ${job.id}`);
 
-    const result = await this.connectionService.executeQuery({
-      id: jobData.databaseId,
-      query: jobData.query,
-      parameters: jobData.parameters || [],
-    }, job.userId);
+    const result = await this.connectionService.executeQuery(
+      {
+        id: jobData.databaseId,
+        query: jobData.query,
+        parameters: jobData.parameters || [],
+      },
+      job.userId,
+    );
 
     return {
       queryResult: result,
@@ -297,29 +292,29 @@ class QueryExecutionProcessor implements JobProcessor {
       metadata: {
         query: jobData.query,
         databaseId: jobData.databaseId,
-        executionTime: result.executionTime,
+        // executionTime은 ConnectionService에서 제공하지 않음
       },
     };
   }
 }
 
 class BulkDataExportProcessor implements JobProcessor {
-  constructor(
-    private connectionService: ConnectionService,
-    private logger: Logger,
-  ) {}
+  constructor(private connectionService: ConnectionService, private logger: Logger) {}
 
   async process(job: QueueJob): Promise<any> {
     const jobData = job.jobDataParsed;
-    
+
     this.logger.debug(`Processing bulk data export for job: ${job.id}`);
 
     // 대용량 데이터 처리를 위한 청크 단위 처리
-    const result = await this.connectionService.executeQuery({
-      id: jobData.databaseId,
-      query: jobData.query,
-      parameters: jobData.parameters || [],
-    }, job.userId);
+    const result = await this.connectionService.executeQuery(
+      {
+        id: jobData.databaseId,
+        query: jobData.query,
+        parameters: jobData.parameters || [],
+      },
+      job.userId,
+    );
 
     // 실제로는 S3에 파일 업로드 후 다운로드 URL 반환
     const fileName = `export_${job.id}_${Date.now()}.xlsx`;
@@ -343,25 +338,25 @@ class BulkDataExportProcessor implements JobProcessor {
 }
 
 class DashboardGenerationProcessor implements JobProcessor {
-  constructor(
-    private connectionService: ConnectionService,
-    private logger: Logger,
-  ) {}
+  constructor(private connectionService: ConnectionService, private logger: Logger) {}
 
   async process(job: QueueJob): Promise<any> {
     const jobData = job.jobDataParsed;
-    
+
     this.logger.debug(`Generating dashboard for job: ${job.id}`);
 
     const widgets = [];
-    
+
     // 대시보드의 각 위젯에 대해 데이터 조회
     for (const widgetConfig of jobData.widgets || []) {
-      const widgetResult = await this.connectionService.executeQuery({
-        id: widgetConfig.databaseId,
-        query: widgetConfig.query,
-        parameters: widgetConfig.parameters || [],
-      }, job.userId);
+      const widgetResult = await this.connectionService.executeQuery(
+        {
+          id: widgetConfig.databaseId,
+          query: widgetConfig.query,
+          parameters: widgetConfig.parameters || [],
+        },
+        job.userId,
+      );
 
       widgets.push({
         widgetId: widgetConfig.widgetId,
@@ -388,22 +383,22 @@ class DashboardGenerationProcessor implements JobProcessor {
 }
 
 class DataMigrationProcessor implements JobProcessor {
-  constructor(
-    private connectionService: ConnectionService,
-    private logger: Logger,
-  ) {}
+  constructor(private connectionService: ConnectionService, private logger: Logger) {}
 
   async process(job: QueueJob): Promise<any> {
     const jobData = job.jobDataParsed;
-    
+
     this.logger.debug(`Processing data migration for job: ${job.id}`);
 
     // 소스에서 데이터 조회
-    const sourceData = await this.connectionService.executeQuery({
-      id: jobData.sourceDatabaseId,
-      query: jobData.sourceQuery,
-      parameters: jobData.sourceParameters || [],
-    }, job.userId);
+    const sourceData = await this.connectionService.executeQuery(
+      {
+        id: jobData.sourceDatabaseId,
+        query: jobData.sourceQuery,
+        parameters: jobData.sourceParameters || [],
+      },
+      job.userId,
+    );
 
     // 대상에 데이터 삽입 (배치 처리)
     const batchSize = jobData.batchSize || 1000;
@@ -412,13 +407,16 @@ class DataMigrationProcessor implements JobProcessor {
 
     for (let i = 0; i < rows.length; i += batchSize) {
       const batch = rows.slice(i, i + batchSize);
-      
+
       // 배치 삽입 로직 (실제로는 bulk insert 쿼리 생성)
-      await this.connectionService.executeQuery({
-        id: jobData.targetDatabaseId,
-        query: jobData.targetQuery,
-        parameters: batch,
-      }, job.userId);
+      await this.connectionService.executeQuery(
+        {
+          id: jobData.targetDatabaseId,
+          query: jobData.targetQuery,
+          parameters: batch,
+        },
+        job.userId,
+      );
 
       migratedCount += batch.length;
     }
@@ -440,32 +438,32 @@ class DataMigrationProcessor implements JobProcessor {
 }
 
 class CacheWarmupProcessor implements JobProcessor {
-  constructor(
-    private connectionService: ConnectionService,
-    private logger: Logger,
-  ) {}
+  constructor(private connectionService: ConnectionService, private logger: Logger) {}
 
   async process(job: QueueJob): Promise<any> {
     const jobData = job.jobDataParsed;
-    
+
     this.logger.debug(`Processing cache warmup for job: ${job.id}`);
 
     const warmedQueries = [];
-    
+
     // 지정된 쿼리들을 실행하여 캐시 워밍
     for (const queryConfig of jobData.queries || []) {
       try {
-        const result = await this.connectionService.executeQuery({
-          id: queryConfig.databaseId,
-          query: queryConfig.query,
-          parameters: queryConfig.parameters || [],
-        }, job.userId);
+        const result = await this.connectionService.executeQuery(
+          {
+            id: queryConfig.databaseId,
+            query: queryConfig.query,
+            parameters: queryConfig.parameters || [],
+          },
+          job.userId,
+        );
 
         warmedQueries.push({
           query: queryConfig.query,
           databaseId: queryConfig.databaseId,
           status: 'success',
-          executionTime: result.executionTime,
+          // executionTime은 ConnectionService에서 제공하지 않음
         });
       } catch (error) {
         warmedQueries.push({
@@ -494,25 +492,25 @@ class CacheWarmupProcessor implements JobProcessor {
 }
 
 class ReportGenerationProcessor implements JobProcessor {
-  constructor(
-    private connectionService: ConnectionService,
-    private logger: Logger,
-  ) {}
+  constructor(private connectionService: ConnectionService, private logger: Logger) {}
 
   async process(job: QueueJob): Promise<any> {
     const jobData = job.jobDataParsed;
-    
+
     this.logger.debug(`Generating report for job: ${job.id}`);
 
     const reportData = [];
-    
+
     // 리포트의 각 섹션에 대해 데이터 조회
     for (const section of jobData.sections || []) {
-      const sectionResult = await this.connectionService.executeQuery({
-        id: section.databaseId,
-        query: section.query,
-        parameters: section.parameters || [],
-      }, job.userId);
+      const sectionResult = await this.connectionService.executeQuery(
+        {
+          id: section.databaseId,
+          query: section.query,
+          parameters: section.parameters || [],
+        },
+        job.userId,
+      );
 
       reportData.push({
         sectionId: section.sectionId,

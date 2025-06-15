@@ -147,7 +147,10 @@ describe('CacheController', () => {
       expect(result.data.statistics).toEqual(mockStatistics);
       expect(result.data.databaseId).toBe(databaseId);
       expect(result.data.periodHours).toBe(periodHours);
-      expect(statisticsService.getDatabaseCacheStatistics).toHaveBeenCalledWith(databaseId, periodHours);
+      expect(statisticsService.getDatabaseCacheStatistics).toHaveBeenCalledWith(
+        databaseId,
+        periodHours,
+      );
     });
   });
 
@@ -165,7 +168,10 @@ describe('CacheController', () => {
       expect(result.data.statistics).toEqual(mockStatistics);
       expect(result.data.userId).toBe(mockUser.userId);
       expect(result.data.periodHours).toBe(periodHours);
-      expect(statisticsService.getUserCacheStatistics).toHaveBeenCalledWith(mockUser.userId, periodHours);
+      expect(statisticsService.getUserCacheStatistics).toHaveBeenCalledWith(
+        mockUser.userId,
+        periodHours,
+      );
     });
   });
 
@@ -210,7 +216,7 @@ describe('CacheController', () => {
       expect(result.data.executedBy).toBe(mockUser.userId);
       expect(invalidationService.invalidateByPattern).toHaveBeenCalledWith(
         body.pattern,
-        body.reason
+        body.reason,
       );
     });
 
@@ -225,7 +231,7 @@ describe('CacheController', () => {
       // Assert
       expect(invalidationService.invalidateByPattern).toHaveBeenCalledWith(
         body.pattern,
-        `Manual invalidation by user ${mockUser.userId}`
+        `Manual invalidation by user ${mockUser.userId}`,
       );
     });
 
@@ -262,7 +268,7 @@ describe('CacheController', () => {
       expect(result.data.executedBy).toBe(mockUser.userId);
       expect(invalidationService.invalidateDatabaseCache).toHaveBeenCalledWith(
         databaseId,
-        body.reason
+        body.reason,
       );
     });
   });
@@ -284,7 +290,7 @@ describe('CacheController', () => {
       expect(result.data.executedBy).toBe(mockUser.userId);
       expect(invalidationService.invalidateUserCache).toHaveBeenCalledWith(
         body.userId,
-        body.reason
+        body.reason,
       );
     });
 
@@ -300,7 +306,7 @@ describe('CacheController', () => {
       expect(result.data.targetUserId).toBe(mockUser.userId);
       expect(invalidationService.invalidateUserCache).toHaveBeenCalledWith(
         mockUser.userId,
-        body.reason
+        body.reason,
       );
     });
   });
@@ -327,7 +333,7 @@ describe('CacheController', () => {
       expect(result.data.executedBy).toBe(mockUser.userId);
       expect(invalidationService.invalidateByTableChange).toHaveBeenCalledWith(
         body.tableName,
-        body.changeType
+        body.changeType,
       );
     });
   });
@@ -521,7 +527,7 @@ describe('CacheController', () => {
     it('should return degraded status when hit rate is low', async () => {
       // Arrange
       const poorStats = { ...mockStatistics, hitRate: 25 };
-      
+
       statisticsService.getMemoryInfo.mockReturnValue(mockMemoryInfo);
       statisticsService.getCacheStatistics.mockResolvedValue(poorStats);
       invalidationService.getInvalidationStatistics.mockReturnValue({
@@ -544,7 +550,7 @@ describe('CacheController', () => {
     it('should return degraded status when memory usage is high', async () => {
       // Arrange
       const highMemoryInfo = { ...mockMemoryInfo, estimatedMemoryKB: 60000 };
-      
+
       statisticsService.getMemoryInfo.mockReturnValue(highMemoryInfo);
       statisticsService.getCacheStatistics.mockResolvedValue(mockStatistics);
       invalidationService.getInvalidationStatistics.mockReturnValue({

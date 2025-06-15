@@ -1,4 +1,15 @@
-import { Controller, Get, Post, Body, Param, Delete, Put, UseGuards, Query, UseInterceptors } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Delete,
+  Put,
+  UseGuards,
+  Query,
+  UseInterceptors,
+} from '@nestjs/common';
 import { WidgetService } from './widget.service';
 import { CreateWidgetDto } from './dto/create-widget.dto';
 import { UpdateWidgetDto } from './dto/update-widget.dto';
@@ -44,7 +55,7 @@ export class WidgetController {
   @Get()
   findAll(
     @Pagination({ preferCursor: true, defaultLimit: 20 }) pagination: any,
-    @Query('fields') fields?: string
+    @Query('fields') fields?: string,
   ) {
     return this.widgetService.findAll(pagination);
   }

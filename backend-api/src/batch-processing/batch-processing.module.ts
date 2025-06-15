@@ -18,12 +18,7 @@ import { CommonModule } from '../common/common.module';
     CommonModule,
   ],
   controllers: [BatchProcessingController],
-  providers: [
-    BatchProcessingService,
-    ChunkProcessor,
-    ProgressTracker,
-    StreamingResponseService,
-  ],
+  providers: [BatchProcessingService, ChunkProcessor, ProgressTracker, StreamingResponseService],
   exports: [BatchProcessingService, ChunkProcessor, ProgressTracker],
 })
 export class BatchProcessingModule {}

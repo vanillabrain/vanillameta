@@ -159,7 +159,7 @@ describe('JobQueueService', () => {
           userId: 'user-123',
           priority: JobPriority.NORMAL,
           maxRetries: 3,
-        })
+        }),
       );
       expect(jobSchedulerService.scheduleJob).toHaveBeenCalledWith(savedJob);
       expect(jobStatusTrackerService.recordStatusChange).toHaveBeenCalled();
@@ -196,7 +196,7 @@ describe('JobQueueService', () => {
 
       // Act & Assert
       await expect(service.createJob(createJobDto, 'user-123')).rejects.toThrow(
-        'Scheduled time must be in the future'
+        'Scheduled time must be in the future',
       );
     });
   });
@@ -211,8 +211,13 @@ describe('JobQueueService', () => {
       };
 
       const existingJob = { ...mockJob };
-      const updatedJob = { ...mockJob, status: JobStatus.RUNNING, progress: 50, workerId: 'worker-123' };
-      
+      const updatedJob = {
+        ...mockJob,
+        status: JobStatus.RUNNING,
+        progress: 50,
+        workerId: 'worker-123',
+      };
+
       jobRepository.findOne.mockResolvedValue(existingJob);
       jobRepository.save.mockResolvedValue(updatedJob);
       jobStatusTrackerService.recordStatusChange.mockResolvedValue(undefined);
@@ -227,7 +232,7 @@ describe('JobQueueService', () => {
           status: JobStatus.RUNNING,
           progress: 50,
           workerId: 'worker-123',
-        })
+        }),
       );
       expect(result.status).toBe(JobStatus.RUNNING);
     });
@@ -239,12 +244,12 @@ describe('JobQueueService', () => {
         progress: 100,
       };
 
-      const runningJob = { 
-        ...mockJob, 
-        status: JobStatus.RUNNING, 
-        startedAt: new Date(Date.now() - 30000) // Started 30 seconds ago
+      const runningJob = {
+        ...mockJob,
+        status: JobStatus.RUNNING,
+        startedAt: new Date(Date.now() - 30000), // Started 30 seconds ago
       };
-      
+
       jobRepository.findOne.mockResolvedValue(runningJob);
       jobRepository.save.mockResolvedValue({ ...runningJob, status: JobStatus.COMPLETED });
 
@@ -257,7 +262,7 @@ describe('JobQueueService', () => {
           status: JobStatus.COMPLETED,
           completedAt: expect.any(Date),
           executionTimeMs: expect.any(Number),
-        })
+        }),
       );
     });
 
@@ -278,7 +283,7 @@ describe('JobQueueService', () => {
 
       // Assert
       expect(jobRetryService.scheduleRetry).toHaveBeenCalledWith(
-        expect.objectContaining({ status: JobStatus.FAILED })
+        expect.objectContaining({ status: JobStatus.FAILED }),
       );
     });
 
@@ -311,7 +316,7 @@ describe('JobQueueService', () => {
 
       // Act & Assert
       await expect(service.updateJobStatus('job-123', updateDto)).rejects.toThrow(
-        'Invalid status transition'
+        'Invalid status transition',
       );
     });
   });
@@ -350,7 +355,7 @@ describe('JobQueueService', () => {
     it('should filter jobs by user', async () => {
       // Arrange
       const queryDto: JobQueryDto = {};
-      
+
       const mockQueryBuilder = {
         andWhere: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
@@ -366,7 +371,9 @@ describe('JobQueueService', () => {
       await service.getJobs(queryDto, 'user-123');
 
       // Assert
-      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith('job.userId = :userId', { userId: 'user-123' });
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith('job.userId = :userId', {
+        userId: 'user-123',
+      });
     });
   });
 
@@ -391,9 +398,7 @@ describe('JobQueueService', () => {
       jobRepository.findOne.mockResolvedValue(null);
 
       // Act & Assert
-      await expect(service.getJob('job-123', 'user-123')).rejects.toThrow(
-        'Job not found: job-123'
-      );
+      await expect(service.getJob('job-123', 'user-123')).rejects.toThrow('Job not found: job-123');
     });
   });
 
@@ -418,9 +423,9 @@ describe('JobQueueService', () => {
       jobRepository.findOne.mockResolvedValue(completedJob);
 
       // Act & Assert
-      await expect(
-        service.cancelJob('job-123', 'Cannot cancel', 'user-123')
-      ).rejects.toThrow('Cannot cancel completed or already cancelled job');
+      await expect(service.cancelJob('job-123', 'Cannot cancel', 'user-123')).rejects.toThrow(
+        'Cannot cancel completed or already cancelled job',
+      );
     });
   });
 
@@ -443,7 +448,9 @@ describe('JobQueueService', () => {
       const result = await service.getNextJob('worker-123');
 
       // Assert
-      expect(mockQueryBuilder.where).toHaveBeenCalledWith('job.status = :status', { status: JobStatus.PENDING });
+      expect(mockQueryBuilder.where).toHaveBeenCalledWith('job.status = :status', {
+        status: JobStatus.PENDING,
+      });
       expect(result).toBeDefined();
     });
 
@@ -484,12 +491,18 @@ describe('JobQueueService', () => {
 
     it('should not retry job that cannot be retried', async () => {
       // Arrange
-      const jobAtMaxRetries = { ...mockJob, status: JobStatus.FAILED, retryCount: 3, maxRetries: 3, canRetry: false };
+      const jobAtMaxRetries = {
+        ...mockJob,
+        status: JobStatus.FAILED,
+        retryCount: 3,
+        maxRetries: 3,
+        canRetry: false,
+      };
       jobRepository.findOne.mockResolvedValue(jobAtMaxRetries);
 
       // Act & Assert
       await expect(service.retryJob('job-123', 'user-123')).rejects.toThrow(
-        'Job cannot be retried'
+        'Job cannot be retried',
       );
     });
   });

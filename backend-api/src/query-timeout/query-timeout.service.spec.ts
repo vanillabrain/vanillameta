@@ -7,7 +7,11 @@ import { TimeoutConfigurationService } from './services/timeout-configuration.se
 import { AdaptiveTimeoutService } from './services/adaptive-timeout.service';
 import { TimeoutMonitoringService } from './services/timeout-monitoring.service';
 import { Database } from '../database/entities/database.entity';
-import { DatabaseEngine, QueryComplexity, AdaptiveTimeoutConfigDto } from './dto/timeout-config.dto';
+import {
+  DatabaseEngine,
+  QueryComplexity,
+  AdaptiveTimeoutConfigDto,
+} from './dto/timeout-config.dto';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 
 describe('QueryTimeoutService', () => {

@@ -1,4 +1,14 @@
-import { IsEnum, IsOptional, IsString, IsInt, IsObject, IsBoolean, IsEmail, Min, Max } from 'class-validator';
+import {
+  IsEnum,
+  IsOptional,
+  IsString,
+  IsInt,
+  IsObject,
+  IsBoolean,
+  IsEmail,
+  Min,
+  Max,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { JobType, JobPriority } from '../entities/queue-job.entity';
 

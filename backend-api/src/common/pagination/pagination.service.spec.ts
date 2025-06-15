@@ -49,9 +49,24 @@ describe('PaginationService', () => {
   describe('paginateCursor', () => {
     it('커서 기반 페이지네이션을 적용해야 함', async () => {
       const mockEntities = [
-        { id: 1, title: 'First', createdAt: new Date('2025-01-01'), updatedAt: new Date('2025-01-01') },
-        { id: 2, title: 'Second', createdAt: new Date('2025-01-02'), updatedAt: new Date('2025-01-02') },
-        { id: 3, title: 'Third', createdAt: new Date('2025-01-03'), updatedAt: new Date('2025-01-03') },
+        {
+          id: 1,
+          title: 'First',
+          createdAt: new Date('2025-01-01'),
+          updatedAt: new Date('2025-01-01'),
+        },
+        {
+          id: 2,
+          title: 'Second',
+          createdAt: new Date('2025-01-02'),
+          updatedAt: new Date('2025-01-02'),
+        },
+        {
+          id: 3,
+          title: 'Third',
+          createdAt: new Date('2025-01-03'),
+          updatedAt: new Date('2025-01-03'),
+        },
       ];
 
       (mockQueryBuilder.getMany as jest.Mock).mockResolvedValue(mockEntities);
@@ -78,8 +93,18 @@ describe('PaginationService', () => {
 
     it('nextCursor가 있을 때 WHERE 조건을 추가해야 함', async () => {
       const mockEntities = [
-        { id: 4, title: 'Fourth', createdAt: new Date('2025-01-04'), updatedAt: new Date('2025-01-04') },
-        { id: 5, title: 'Fifth', createdAt: new Date('2025-01-05'), updatedAt: new Date('2025-01-05') },
+        {
+          id: 4,
+          title: 'Fourth',
+          createdAt: new Date('2025-01-04'),
+          updatedAt: new Date('2025-01-04'),
+        },
+        {
+          id: 5,
+          title: 'Fifth',
+          createdAt: new Date('2025-01-05'),
+          updatedAt: new Date('2025-01-05'),
+        },
       ];
 
       (mockQueryBuilder.getMany as jest.Mock).mockResolvedValue(mockEntities);
@@ -90,10 +115,7 @@ describe('PaginationService', () => {
         nextCursor,
       };
 
-      await service.paginateCursor(
-        mockQueryBuilder as SelectQueryBuilder<TestEntity>,
-        options,
-      );
+      await service.paginateCursor(mockQueryBuilder as SelectQueryBuilder<TestEntity>, options);
 
       expect(mockQueryBuilder.andWhere).toHaveBeenCalled();
     });
@@ -187,7 +209,7 @@ describe('PaginationService', () => {
       expect(result.meta.total).toBe(50);
       expect(result.meta.hasNext).toBe(true);
       expect(result.meta.hasPrevious).toBe(true);
-      
+
       expect(mockQueryBuilder.skip).toHaveBeenCalledWith(10); // (page-1) * limit
       expect(mockQueryBuilder.take).toHaveBeenCalledWith(10);
     });
@@ -236,11 +258,9 @@ describe('PaginationService', () => {
         sortDirection: 'ASC',
       };
 
-      await service.paginateOffset(
-        mockQueryBuilder as SelectQueryBuilder<TestEntity>,
-        options,
-        { alias: 'entity' },
-      );
+      await service.paginateOffset(mockQueryBuilder as SelectQueryBuilder<TestEntity>, options, {
+        alias: 'entity',
+      });
 
       expect(mockQueryBuilder.orderBy).toHaveBeenCalledWith('entity.title', 'ASC');
     });
@@ -269,16 +289,13 @@ describe('PaginationService', () => {
 
       const validCursorData = { id: 123 };
       const validCursor = Buffer.from(JSON.stringify(validCursorData)).toString('base64url');
-      
+
       const options = {
         nextCursor: validCursor,
         limit: 10,
       };
 
-      await service.paginate(
-        mockQueryBuilder as SelectQueryBuilder<TestEntity>,
-        options,
-      );
+      await service.paginate(mockQueryBuilder as SelectQueryBuilder<TestEntity>, options);
 
       expect(mockQueryBuilder.take).toHaveBeenCalledWith(11); // 커서 기반은 limit + 1
     });
@@ -291,10 +308,7 @@ describe('PaginationService', () => {
         limit: 10,
       };
 
-      await service.paginate(
-        mockQueryBuilder as SelectQueryBuilder<TestEntity>,
-        options,
-      );
+      await service.paginate(mockQueryBuilder as SelectQueryBuilder<TestEntity>, options);
 
       expect(mockQueryBuilder.skip).toHaveBeenCalledWith(10);
       expect(mockQueryBuilder.take).toHaveBeenCalledWith(10);

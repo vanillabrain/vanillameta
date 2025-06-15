@@ -100,13 +100,13 @@ describe('JobPriorityService', () => {
 
     it('should prioritize older jobs (age factor)', () => {
       // Arrange
-      const oldJob = { 
-        ...mockJob, 
-        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000) // 2 hours ago
+      const oldJob = {
+        ...mockJob,
+        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
       };
-      const newJob = { 
-        ...mockJob, 
-        createdAt: new Date() // Just created
+      const newJob = {
+        ...mockJob,
+        createdAt: new Date(), // Just created
       };
 
       // Act
@@ -146,15 +146,15 @@ describe('JobPriorityService', () => {
 
     it('should consider user tier from metadata', () => {
       // Arrange
-      const premiumUserJob = { 
-        ...mockJob, 
+      const premiumUserJob = {
+        ...mockJob,
         metadata: JSON.stringify({ userTier: 'premium' }),
-        metadataParsed: { userTier: 'premium' }
+        metadataParsed: { userTier: 'premium' },
       };
-      const basicUserJob = { 
-        ...mockJob, 
+      const basicUserJob = {
+        ...mockJob,
         metadata: JSON.stringify({ userTier: 'basic' }),
-        metadataParsed: { userTier: 'basic' }
+        metadataParsed: { userTier: 'basic' },
       };
 
       // Act
@@ -167,10 +167,10 @@ describe('JobPriorityService', () => {
 
     it('should handle jobs with no metadata', () => {
       // Arrange
-      const jobWithoutMetadata = { 
-        ...mockJob, 
+      const jobWithoutMetadata = {
+        ...mockJob,
         metadata: null,
-        metadataParsed: {}
+        metadataParsed: {},
       };
 
       // Act & Assert
@@ -195,7 +195,7 @@ describe('JobPriorityService', () => {
       expect(jobRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
           priority: newPriority,
-        })
+        }),
       );
     });
 
@@ -204,9 +204,9 @@ describe('JobPriorityService', () => {
       jobRepository.findOne.mockResolvedValue(null);
 
       // Act & Assert
-      await expect(
-        service.updateJobPriority('non-existent-job', JobPriority.HIGH)
-      ).rejects.toThrow('Job not found: non-existent-job');
+      await expect(service.updateJobPriority('non-existent-job', JobPriority.HIGH)).rejects.toThrow(
+        'Job not found: non-existent-job',
+      );
     });
 
     it('should not update completed jobs', async () => {
@@ -215,9 +215,9 @@ describe('JobPriorityService', () => {
       jobRepository.findOne.mockResolvedValue(completedJob);
 
       // Act & Assert
-      await expect(
-        service.updateJobPriority(completedJob.id, JobPriority.HIGH)
-      ).rejects.toThrow('Cannot update priority of completed or cancelled job');
+      await expect(service.updateJobPriority(completedJob.id, JobPriority.HIGH)).rejects.toThrow(
+        'Cannot update priority of completed or cancelled job',
+      );
     });
 
     it('should not update cancelled jobs', async () => {
@@ -226,9 +226,9 @@ describe('JobPriorityService', () => {
       jobRepository.findOne.mockResolvedValue(cancelledJob);
 
       // Act & Assert
-      await expect(
-        service.updateJobPriority(cancelledJob.id, JobPriority.HIGH)
-      ).rejects.toThrow('Cannot update priority of completed or cancelled job');
+      await expect(service.updateJobPriority(cancelledJob.id, JobPriority.HIGH)).rejects.toThrow(
+        'Cannot update priority of completed or cancelled job',
+      );
     });
   });
 
@@ -242,7 +242,7 @@ describe('JobPriorityService', () => {
       ];
 
       jobRepository.find.mockResolvedValue(pendingJobs);
-      jobRepository.save.mockImplementation((job) => Promise.resolve(job));
+      jobRepository.save.mockImplementation(job => Promise.resolve(job));
 
       // Act
       const result = await service.recalculateAllPriorities();
@@ -326,11 +326,13 @@ describe('JobPriorityService', () => {
       // Assert
       expect(mockQueryBuilder.select).toHaveBeenCalledWith('job.priority', 'priority');
       expect(mockQueryBuilder.addSelect).toHaveBeenCalledWith('COUNT(*)', 'count');
-      expect(mockQueryBuilder.addSelect).toHaveBeenCalledWith('AVG(job.executionTimeMs)', 'averageTime');
-      expect(mockQueryBuilder.where).toHaveBeenCalledWith(
-        'job.createdAt >= :fromDate',
-        { fromDate: expect.any(Date) }
+      expect(mockQueryBuilder.addSelect).toHaveBeenCalledWith(
+        'AVG(job.executionTimeMs)',
+        'averageTime',
       );
+      expect(mockQueryBuilder.where).toHaveBeenCalledWith('job.createdAt >= :fromDate', {
+        fromDate: expect.any(Date),
+      });
       expect(mockQueryBuilder.groupBy).toHaveBeenCalledWith('job.priority');
 
       expect(result).toEqual({
@@ -434,9 +436,9 @@ describe('JobPriorityService', () => {
 
       // Assert
       expect(jobRepository.find).toHaveBeenCalledWith({
-        where: { 
+        where: {
           priority: priority,
-          status: JobStatus.PENDING 
+          status: JobStatus.PENDING,
         },
         order: { createdAt: 'ASC' },
         take: limit,
@@ -454,9 +456,9 @@ describe('JobPriorityService', () => {
 
       // Assert
       expect(jobRepository.find).toHaveBeenCalledWith({
-        where: { 
+        where: {
           priority: priority,
-          status: JobStatus.PENDING 
+          status: JobStatus.PENDING,
         },
         order: { createdAt: 'ASC' },
         take: 50, // default limit
@@ -467,7 +469,7 @@ describe('JobPriorityService', () => {
   describe('priority calculation algorithms', () => {
     it('should use correct base priority values', () => {
       const priorities = service.getPriorityBaseValues();
-      
+
       expect(priorities[JobPriority.LOW]).toBeLessThan(priorities[JobPriority.NORMAL]);
       expect(priorities[JobPriority.NORMAL]).toBeLessThan(priorities[JobPriority.HIGH]);
       expect(priorities[JobPriority.HIGH]).toBeLessThan(priorities[JobPriority.URGENT]);
@@ -476,13 +478,13 @@ describe('JobPriorityService', () => {
     it('should apply age factor correctly', () => {
       // Arrange
       const baseTime = new Date('2024-01-01T10:00:00Z');
-      const oldJob = { 
-        ...mockJob, 
-        createdAt: new Date(baseTime.getTime() - 60 * 60 * 1000) // 1 hour ago
+      const oldJob = {
+        ...mockJob,
+        createdAt: new Date(baseTime.getTime() - 60 * 60 * 1000), // 1 hour ago
       };
-      const newJob = { 
-        ...mockJob, 
-        createdAt: baseTime
+      const newJob = {
+        ...mockJob,
+        createdAt: baseTime,
       };
 
       // Act
@@ -511,13 +513,13 @@ describe('JobPriorityService', () => {
 
     it('should apply user tier multiplier', () => {
       // Arrange
-      const basicUser = { 
-        ...mockJob, 
-        metadataParsed: { userTier: 'basic' }
+      const basicUser = {
+        ...mockJob,
+        metadataParsed: { userTier: 'basic' },
       };
-      const premiumUser = { 
-        ...mockJob, 
-        metadataParsed: { userTier: 'premium' }
+      const premiumUser = {
+        ...mockJob,
+        metadataParsed: { userTier: 'premium' },
       };
 
       // Act
@@ -537,7 +539,7 @@ describe('JobPriorityService', () => {
 
       // Act & Assert
       await expect(service.recalculateAllPriorities()).rejects.toThrow(
-        'Database connection failed'
+        'Database connection failed',
       );
     });
 
@@ -557,9 +559,7 @@ describe('JobPriorityService', () => {
       jobRepository.findOne.mockResolvedValue(job);
 
       // Act & Assert
-      await expect(
-        service.updateJobPriority(job.id, invalidPriority)
-      ).rejects.toThrow();
+      await expect(service.updateJobPriority(job.id, invalidPriority)).rejects.toThrow();
     });
   });
 });

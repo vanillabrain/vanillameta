@@ -27,7 +27,7 @@ export class BatchProcessingService {
    */
   async executeBatchStreaming(batchDto: BatchExecuteDto, res: Response): Promise<void> {
     const batchId = batchDto.batchId || this.progressTracker.generateBatchId();
-    
+
     try {
       // 데이터베이스 정보 확인
       const database = await this.databaseRepository.findOne({
@@ -43,7 +43,6 @@ export class BatchProcessingService {
 
       // 배치 처리 시작
       await this.processBatchWithStreaming(batchDto, batchId, database, res);
-
     } catch (error) {
       this.logger.error('Batch processing failed', {
         batchId,
@@ -63,7 +62,7 @@ export class BatchProcessingService {
    */
   async executeBatch(batchDto: BatchExecuteDto): Promise<BatchResponseDto> {
     const batchId = batchDto.batchId || this.progressTracker.generateBatchId();
-    
+
     try {
       // 데이터베이스 정보 확인
       const database = await this.databaseRepository.findOne({
@@ -75,7 +74,6 @@ export class BatchProcessingService {
       }
 
       return await this.processBatchNonStreaming(batchDto, batchId, database);
-
     } catch (error) {
       this.logger.error('Batch processing failed', {
         batchId,
@@ -129,12 +127,15 @@ export class BatchProcessingService {
       for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
         // 연결 상태 확인
         if (!this.streamingService.isConnectionAlive(res)) {
-          this.logger.warn('Client disconnected, stopping batch processing', { batchId, chunkIndex });
+          this.logger.warn('Client disconnected, stopping batch processing', {
+            batchId,
+            chunkIndex,
+          });
           this.progressTracker.cancelBatch(batchId);
           break;
         }
 
-        const offset = (batchDto.offset || 0) + (chunkIndex * effectiveChunkSize);
+        const offset = (batchDto.offset || 0) + chunkIndex * effectiveChunkSize;
 
         try {
           // 청크 처리
@@ -176,7 +177,6 @@ export class BatchProcessingService {
           if (chunkIndex > 0 && chunkIndex % 5 === 0) {
             this.streamingService.sendHeartbeat(res, batchId);
           }
-
         } catch (chunkError) {
           this.logger.error('Chunk processing failed', {
             batchId,
@@ -185,7 +185,7 @@ export class BatchProcessingService {
           });
 
           this.progressTracker.failBatch(batchId, chunkError.message, chunkIndex);
-          
+
           this.streamingService.streamError(res, batchId, {
             code: 'CHUNK_PROCESSING_ERROR',
             message: chunkError.message,
@@ -223,7 +223,6 @@ export class BatchProcessingService {
 
       // 완료 메시지 스트리밍
       this.streamingService.streamComplete(res, response);
-
     } catch (error) {
       this.progressTracker.failBatch(batchId, error.message);
       throw error;
@@ -265,7 +264,7 @@ export class BatchProcessingService {
 
       // 청크별 처리
       for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
-        const offset = (batchDto.offset || 0) + (chunkIndex * effectiveChunkSize);
+        const offset = (batchDto.offset || 0) + chunkIndex * effectiveChunkSize;
 
         try {
           const chunk = await this.chunkProcessor.processChunk(
@@ -288,7 +287,6 @@ export class BatchProcessingService {
             chunk.rowsReturned,
             chunk.processingTime,
           );
-
         } catch (chunkError) {
           this.progressTracker.failBatch(batchId, chunkError.message, chunkIndex);
           throw new Error(`Chunk ${chunkIndex} failed: ${chunkError.message}`);
@@ -323,7 +321,6 @@ export class BatchProcessingService {
       };
 
       return response;
-
     } catch (error) {
       this.progressTracker.failBatch(batchId, error.message);
       throw error;
@@ -335,7 +332,7 @@ export class BatchProcessingService {
    */
   async getBatchProgress(batchId: string): Promise<any> {
     const progress = this.progressTracker.getProgress(batchId);
-    
+
     if (!progress) {
       throw new BadRequestException(`Batch not found: ${batchId}`);
     }
@@ -351,7 +348,7 @@ export class BatchProcessingService {
    */
   async cancelBatch(batchId: string): Promise<any> {
     const progress = this.progressTracker.cancelBatch(batchId);
-    
+
     if (!progress) {
       throw new BadRequestException(`Batch not found: ${batchId}`);
     }
@@ -370,7 +367,7 @@ export class BatchProcessingService {
    */
   async getActiveBatches(): Promise<any> {
     const activeBatches = this.progressTracker.getAllActiveProgress();
-    
+
     return {
       status: ResponseStatus.SUCCESS,
       data: {
@@ -385,7 +382,7 @@ export class BatchProcessingService {
    */
   private estimateMemoryUsage(chunks: ChunkResult[]): number {
     let totalMemoryMB = 0;
-    
+
     chunks.forEach(chunk => {
       const fieldsCount = chunk.fields.length;
       const rowsCount = chunk.rowsReturned;

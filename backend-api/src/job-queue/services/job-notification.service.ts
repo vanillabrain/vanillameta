@@ -21,10 +21,10 @@ export interface JobNotification {
 @Injectable()
 export class JobNotificationService {
   private readonly logger = new Logger(JobNotificationService.name);
-  
+
   // 알림 채널들
   private notificationChannels = new Map<string, NotificationChannel>();
-  
+
   constructor() {
     this.initializeNotificationChannels();
   }
@@ -35,13 +35,13 @@ export class JobNotificationService {
   private initializeNotificationChannels(): void {
     // 이메일 알림 채널
     this.notificationChannels.set('email', new EmailNotificationChannel());
-    
+
     // 슬랙 알림 채널 (선택적)
     this.notificationChannels.set('slack', new SlackNotificationChannel());
-    
+
     // 웹훅 알림 채널
     this.notificationChannels.set('webhook', new WebhookNotificationChannel());
-    
+
     // 인앱 알림 채널
     this.notificationChannels.set('in-app', new InAppNotificationChannel());
   }
@@ -56,13 +56,14 @@ export class JobNotificationService {
       }
 
       const notification = this.createCompletionNotification(job, result);
-      
+
       // 기본 채널들로 알림 발송
       const channels = this.getNotificationChannels(job);
-      
-      const sendPromises = channels.map(channel => 
-        this.sendNotification(channel, notification)
-      );
+
+      const sendPromises = channels.map(channelName => {
+        const channel = this.notificationChannels.get(channelName);
+        return channel ? this.sendNotification(channel, notification) : Promise.resolve();
+      });
 
       await Promise.allSettled(sendPromises);
 
@@ -78,10 +79,10 @@ export class JobNotificationService {
   async sendJobFailureNotification(job: QueueJob): Promise<void> {
     try {
       const notification = this.createFailureNotification(job);
-      
+
       // 실패 알림은 우선순위가 높은 채널로만 발송
       const channels = ['email', 'slack']; // 중요한 채널들만
-      
+
       const sendPromises = channels.map(channelName => {
         const channel = this.notificationChannels.get(channelName);
         return channel ? this.sendNotification(channel, notification) : Promise.resolve();
@@ -101,7 +102,7 @@ export class JobNotificationService {
   async sendJobDelayNotification(job: QueueJob, delayMinutes: number): Promise<void> {
     try {
       const notification = this.createDelayNotification(job, delayMinutes);
-      
+
       // 지연 알림은 이메일만
       const emailChannel = this.notificationChannels.get('email');
       if (emailChannel) {
@@ -121,7 +122,7 @@ export class JobNotificationService {
     jobs: QueueJob[],
     title: string,
     summary: string,
-    recipient: string
+    recipient: string,
   ): Promise<void> {
     try {
       const notification: JobNotification = {
@@ -159,7 +160,7 @@ export class JobNotificationService {
     title: string,
     message: string,
     priority: 'low' | 'normal' | 'high' | 'urgent' = 'normal',
-    details?: any
+    details?: any,
   ): Promise<void> {
     try {
       const notification: JobNotification = {
@@ -175,9 +176,8 @@ export class JobNotificationService {
       };
 
       // 우선순위에 따라 채널 선택
-      const channels = priority === 'urgent' || priority === 'high' 
-        ? ['email', 'slack'] 
-        : ['email'];
+      const channels =
+        priority === 'urgent' || priority === 'high' ? ['email', 'slack'] : ['email'];
 
       const sendPromises = channels.map(channelName => {
         const channel = this.notificationChannels.get(channelName);
@@ -198,13 +198,11 @@ export class JobNotificationService {
    * 완료 알림 생성
    */
   private createCompletionNotification(job: QueueJob, result?: JobResult): JobNotification {
-    const executionTime = job.executionTimeMs 
-      ? Math.round(job.executionTimeMs / 1000) 
-      : 0;
+    const executionTime = job.executionTimeMs ? Math.round(job.executionTimeMs / 1000) : 0;
 
     const title = this.getJobTypeDisplayName(job.jobType) + ' 완료';
     let message = `작업이 성공적으로 완료되었습니다.`;
-    
+
     if (executionTime > 0) {
       message += ` (실행 시간: ${executionTime}초)`;
     }
@@ -224,7 +222,7 @@ export class JobNotificationService {
         details.downloadUrl = result.downloadUrl;
         details.fileName = result.fileName;
       }
-      
+
       if (result.resultDataParsed) {
         details.resultSummary = this.createResultSummary(result.resultDataParsed, job.jobType);
       }
@@ -249,7 +247,7 @@ export class JobNotificationService {
   private createFailureNotification(job: QueueJob): JobNotification {
     const title = this.getJobTypeDisplayName(job.jobType) + ' 실패';
     let message = `작업이 실패했습니다.`;
-    
+
     if (job.errorMessage) {
       message += `\n\n오류: ${job.errorMessage}`;
     }
@@ -328,22 +326,22 @@ export class JobNotificationService {
     switch (jobType) {
       case JobType.QUERY_EXECUTION:
         return `${resultData.rowCount || 0}개 행 조회됨`;
-      
+
       case JobType.BULK_DATA_EXPORT:
         return `${resultData.rowCount || 0}개 행 내보내기 완료`;
-      
+
       case JobType.DASHBOARD_GENERATION:
         return `${resultData.dashboardData?.totalWidgets || 0}개 위젯 생성됨`;
-      
+
       case JobType.DATA_MIGRATION:
         return `${resultData.migrationResult?.migratedRows || 0}개 행 마이그레이션됨`;
-      
+
       case JobType.CACHE_WARMUP:
         return `${resultData.warmupResult?.successfulQueries || 0}개 쿼리 캐시 워밍업됨`;
-      
+
       case JobType.REPORT_GENERATION:
         return `${resultData.sectionCount || 0}개 섹션 리포트 생성됨`;
-      
+
       default:
         return '작업 완료';
     }
@@ -355,10 +353,9 @@ export class JobNotificationService {
   private getNotificationChannels(job: QueueJob): string[] {
     // 작업 유형별로 다른 채널 사용 가능
     const baseChannels = ['email'];
-    
+
     // 중요한 작업은 추가 채널 사용
-    if (job.jobType === JobType.DATA_MIGRATION || 
-        job.jobType === JobType.BULK_DATA_EXPORT) {
+    if (job.jobType === JobType.DATA_MIGRATION || job.jobType === JobType.BULK_DATA_EXPORT) {
       baseChannels.push('slack');
     }
 
@@ -369,8 +366,8 @@ export class JobNotificationService {
    * 알림 발송
    */
   private async sendNotification(
-    channel: NotificationChannel, 
-    notification: JobNotification
+    channel: NotificationChannel,
+    notification: JobNotification,
   ): Promise<void> {
     try {
       await channel.send(notification);
@@ -396,7 +393,7 @@ class EmailNotificationChannel implements NotificationChannel {
 
       // 임시 구현 - 실제로는 이메일 전송
       this.logger.log(`EMAIL: ${notification.title} to ${notification.recipient}`);
-      
+
       // await emailService.send(emailData);
     } catch (error) {
       this.logger.error('Failed to send email notification', error);
@@ -405,8 +402,12 @@ class EmailNotificationChannel implements NotificationChannel {
   }
 
   private generateEmailHtml(notification: JobNotification): string {
-    const statusColor = notification.status === JobStatus.COMPLETED ? 'green' : 
-                       notification.status === JobStatus.FAILED ? 'red' : 'orange';
+    const statusColor =
+      notification.status === JobStatus.COMPLETED
+        ? 'green'
+        : notification.status === JobStatus.FAILED
+        ? 'red'
+        : 'orange';
 
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -425,12 +426,16 @@ class EmailNotificationChannel implements NotificationChannel {
           <h3>상세 내용</h3>
           <p>${notification.message.replace(/\n/g, '<br>')}</p>
           
-          ${notification.details ? `
+          ${
+            notification.details
+              ? `
             <h3>추가 정보</h3>
             <pre style="background-color: #f5f5f5; padding: 10px; overflow-x: auto;">
               ${JSON.stringify(notification.details, null, 2)}
             </pre>
-          ` : ''}
+          `
+              : ''
+          }
         </div>
         
         <div style="padding: 20px; background-color: #e9e9e9; text-align: center; font-size: 12px; color: #666;">
@@ -464,7 +469,7 @@ class SlackNotificationChannel implements NotificationChannel {
 
       // 실제로는 Slack webhook 또는 API 사용
       this.logger.log(`SLACK: ${notification.title}`);
-      
+
       // await slackClient.send(slackMessage);
     } catch (error) {
       this.logger.error('Failed to send Slack notification', error);
@@ -474,10 +479,14 @@ class SlackNotificationChannel implements NotificationChannel {
 
   private getSlackColor(status: JobStatus): string {
     switch (status) {
-      case JobStatus.COMPLETED: return 'good';
-      case JobStatus.FAILED: return 'danger';
-      case JobStatus.RUNNING: return 'warning';
-      default: return '#808080';
+      case JobStatus.COMPLETED:
+        return 'good';
+      case JobStatus.FAILED:
+        return 'danger';
+      case JobStatus.RUNNING:
+        return 'warning';
+      default:
+        return '#808080';
     }
   }
 }
@@ -495,7 +504,7 @@ class WebhookNotificationChannel implements NotificationChannel {
 
       // 실제로는 HTTP POST 요청
       this.logger.log(`WEBHOOK: ${notification.title}`);
-      
+
       // await httpClient.post(webhookUrl, webhookPayload);
     } catch (error) {
       this.logger.error('Failed to send webhook notification', error);
@@ -511,7 +520,7 @@ class InAppNotificationChannel implements NotificationChannel {
     try {
       // 실제로는 WebSocket이나 Server-Sent Events 사용
       this.logger.log(`IN-APP: ${notification.title} for ${notification.recipient}`);
-      
+
       // await websocketService.sendToUser(notification.recipient, notification);
     } catch (error) {
       this.logger.error('Failed to send in-app notification', error);

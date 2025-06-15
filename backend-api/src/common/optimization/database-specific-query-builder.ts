@@ -61,7 +61,7 @@ export class DatabaseSpecificQueryBuilder {
 
     try {
       const result = await this.optimizeForDatabase(queryString, context);
-      
+
       this.logger.log('Query optimization completed', {
         databaseEngine,
         originalLength: queryString.length,
@@ -101,33 +101,33 @@ export class DatabaseSpecificQueryBuilder {
     context: QueryContext,
   ): Promise<DatabaseOptimizationResult> {
     const databaseEngine = context.databaseEngine.toLowerCase();
-    
+
     switch (databaseEngine) {
       case 'mysql':
       case 'mysql2':
       case 'mariadb':
         return this.optimizeForMySQL(query, context);
-      
+
       case 'postgresql':
       case 'postgres':
       case 'pg':
       case 'cockroachdb':
         return this.optimizeForPostgreSQL(query, context);
-      
+
       case 'bigquery':
         return this.optimizeForBigQuery(query, context);
-      
+
       case 'snowflake':
         return this.optimizeForSnowflake(query, context);
-      
+
       case 'oracle':
       case 'oracledb':
         return this.optimizeForOracle(query, context);
-      
+
       case 'mssql':
       case 'sqlserver':
         return this.optimizeForSQLServer(query, context);
-      
+
       default:
         return this.getDefaultOptimization(query, context);
     }
@@ -165,7 +165,7 @@ export class DatabaseSpecificQueryBuilder {
 
       // 4. 쿼리 분석 및 권장사항
       const analysis = this.mysqlOptimizer.analyzeQuery(optimizedQuery);
-      
+
       return {
         originalQuery: query,
         optimizedQuery,
@@ -186,7 +186,10 @@ export class DatabaseSpecificQueryBuilder {
   /**
    * PostgreSQL 최적화
    */
-  private async optimizeForPostgreSQL(query: string, context: QueryContext): Promise<DatabaseOptimizationResult> {
+  private async optimizeForPostgreSQL(
+    query: string,
+    context: QueryContext,
+  ): Promise<DatabaseOptimizationResult> {
     const appliedOptimizations: string[] = [];
     let optimizedQuery = query;
 
@@ -223,7 +226,8 @@ export class DatabaseSpecificQueryBuilder {
         performance: {
           estimatedImprovementPercent: appliedOptimizations.length * 18,
           recommendations: complexity.recommendations,
-          warnings: complexity.complexity === 'high' ? ['Complex query - consider optimization'] : [],
+          warnings:
+            complexity.complexity === 'high' ? ['Complex query - consider optimization'] : [],
         },
       };
     } catch (error) {
@@ -269,7 +273,7 @@ export class DatabaseSpecificQueryBuilder {
 
       // 6. 비용 추정
       const costEstimate = this.bigqueryOptimizer.estimateQueryCost(optimizedQuery);
-      
+
       // 7. 쿼리 복잡도 분석
       const complexity = this.bigqueryOptimizer.analyzeQueryComplexity(optimizedQuery);
 
@@ -323,8 +327,9 @@ export class DatabaseSpecificQueryBuilder {
       optimizedQuery = this.snowflakeOptimizer.optimizeTimeTravel(optimizedQuery);
 
       // 4. 웨어하우스 권장사항
-      const warehouseRecommendations = this.snowflakeOptimizer.analyzeWarehouseRequirements(optimizedQuery);
-      
+      const warehouseRecommendations =
+        this.snowflakeOptimizer.analyzeWarehouseRequirements(optimizedQuery);
+
       // 5. 쿼리 복잡도 분석
       const complexity = this.snowflakeOptimizer.analyzeQueryComplexity(optimizedQuery);
 
@@ -340,7 +345,8 @@ export class DatabaseSpecificQueryBuilder {
             ...complexity.optimizationSuggestions,
             ...clusteringResult.performance.clusteringRecommendations,
           ],
-          warnings: complexity.complexity === 'high' ? ['Complex query - consider larger warehouse'] : [],
+          warnings:
+            complexity.complexity === 'high' ? ['Complex query - consider larger warehouse'] : [],
         },
         cost: {
           costOptimizationTips: [
@@ -424,8 +430,9 @@ export class DatabaseSpecificQueryBuilder {
           'Consider using columnstore indexes for analytical queries',
           'Use appropriate isolation levels for transactional consistency',
         ],
-        warnings: appliedOptimizations.includes('NOLOCK hint added') ? 
-          ['NOLOCK may read uncommitted data'] : [],
+        warnings: appliedOptimizations.includes('NOLOCK hint added')
+          ? ['NOLOCK may read uncommitted data']
+          : [],
       },
     };
   }
@@ -455,13 +462,13 @@ export class DatabaseSpecificQueryBuilder {
    */
   detectQueryType(query: string): QueryContext['queryType'] {
     const upperQuery = query.trim().toUpperCase();
-    
+
     if (upperQuery.startsWith('SELECT')) return 'SELECT';
     if (upperQuery.startsWith('INSERT')) return 'INSERT';
     if (upperQuery.startsWith('UPDATE')) return 'UPDATE';
     if (upperQuery.startsWith('DELETE')) return 'DELETE';
     if (/^(CREATE|ALTER|DROP)\s/i.test(upperQuery)) return 'DDL';
-    
+
     return 'UNKNOWN';
   }
 
@@ -470,7 +477,7 @@ export class DatabaseSpecificQueryBuilder {
    */
   extractTableNames(query: string): string[] {
     const tableNames: string[] = [];
-    
+
     // FROM 절에서 테이블명 추출
     const fromMatches = query.match(/FROM\s+(\w+)/gi);
     if (fromMatches) {
@@ -508,7 +515,7 @@ export class DatabaseSpecificQueryBuilder {
       /MAX\s*\(/i,
       /MIN\s*\(/i,
       /OVER\s*\(/i, // Window functions
-      /WITH\s+/i,   // CTEs
+      /WITH\s+/i, // CTEs
     ];
 
     return analyticalPatterns.some(pattern => pattern.test(query));

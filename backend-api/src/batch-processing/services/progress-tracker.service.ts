@@ -25,7 +25,7 @@ export class ProgressTracker {
     };
 
     this.progressMap.set(batchId, progress);
-    
+
     this.logger.log('Batch processing started', {
       batchId,
       totalChunks,
@@ -38,10 +38,10 @@ export class ProgressTracker {
    * 청크 완료 업데이트
    */
   updateChunkCompleted(
-    batchId: string, 
-    chunkIndex: number, 
-    rowsProcessed: number, 
-    processingTime: number
+    batchId: string,
+    chunkIndex: number,
+    rowsProcessed: number,
+    processingTime: number,
   ): BatchProgress | null {
     const progress = this.progressMap.get(batchId);
     if (!progress) {
@@ -169,7 +169,7 @@ export class ProgressTracker {
    */
   getAllActiveProgress(): BatchProgress[] {
     return Array.from(this.progressMap.values()).filter(
-      progress => progress.status === 'processing'
+      progress => progress.status === 'processing',
     );
   }
 
@@ -185,7 +185,7 @@ export class ProgressTracker {
    */
   clearCompletedBatches(): number {
     const beforeSize = this.progressMap.size;
-    
+
     for (const [batchId, progress] of this.progressMap.entries()) {
       if (progress.status === 'completed' || progress.status === 'failed') {
         this.progressMap.delete(batchId);
@@ -211,7 +211,7 @@ export class ProgressTracker {
   } {
     const totalBatches = this.progressMap.size;
     const activeBatches = this.getAllActiveProgress().length;
-    
+
     // 대략적인 메모리 사용량 추정 (각 배치 정보당 약 1KB)
     const memoryUsageEstimateKB = totalBatches * 1;
 

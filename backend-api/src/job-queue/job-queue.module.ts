@@ -20,12 +20,7 @@ import { DatabaseModule } from '../database/database.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      QueueJob,
-      JobResult,
-      JobStatusHistory,
-      JobMetrics,
-    ]),
+    TypeOrmModule.forFeature([QueueJob, JobResult, JobStatusHistory, JobMetrics]),
     ConnectionModule,
     CacheModule,
     DatabaseModule,
@@ -42,10 +37,6 @@ import { DatabaseModule } from '../database/database.module';
     JobNotificationService,
     JobResourceManagerService,
   ],
-  exports: [
-    JobQueueService,
-    JobStatusTrackerService,
-    JobQueueMonitoringService,
-  ],
+  exports: [JobQueueService, JobStatusTrackerService, JobQueueMonitoringService],
 })
 export class JobQueueModule {}

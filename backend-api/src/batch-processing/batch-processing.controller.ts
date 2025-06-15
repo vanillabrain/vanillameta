@@ -44,10 +44,7 @@ export class BatchProcessingController {
    */
   @Post('execute')
   @HttpCode(HttpStatus.OK)
-  async executeBatch(
-    @Body() batchDto: BatchExecuteDto,
-    @GetUser() user?: any,
-  ) {
+  async executeBatch(@Body() batchDto: BatchExecuteDto, @GetUser() user?: any) {
     return await this.batchProcessingService.executeBatch(batchDto);
   }
 
@@ -92,7 +89,8 @@ export class BatchProcessingController {
   @Post('test')
   @HttpCode(HttpStatus.OK)
   async testBatchProcessing(
-    @Body() testDto: {
+    @Body()
+    testDto: {
       databaseId: number;
       chunkSize?: number;
       enableStreaming?: boolean;
@@ -102,7 +100,8 @@ export class BatchProcessingController {
     // 테스트용 간단한 쿼리
     const batchDto: BatchExecuteDto = {
       databaseId: testDto.databaseId,
-      query: 'SELECT * FROM (SELECT 1 as id, \'test\' as name UNION ALL SELECT 2, \'test2\' UNION ALL SELECT 3, \'test3\') test_table',
+      query:
+        "SELECT * FROM (SELECT 1 as id, 'test' as name UNION ALL SELECT 2, 'test2' UNION ALL SELECT 3, 'test3') test_table",
       chunkSize: testDto.chunkSize || 2,
       totalLimit: 10,
       enableStreaming: testDto.enableStreaming || false,
@@ -118,7 +117,8 @@ export class BatchProcessingController {
   @Post('test/stream')
   @HttpCode(HttpStatus.OK)
   async testBatchStreamProcessing(
-    @Body() testDto: {
+    @Body()
+    testDto: {
       databaseId: number;
       chunkSize?: number;
     },
@@ -128,7 +128,8 @@ export class BatchProcessingController {
     // 테스트용 간단한 쿼리
     const batchDto: BatchExecuteDto = {
       databaseId: testDto.databaseId,
-      query: 'SELECT * FROM (SELECT 1 as id, \'test\' as name UNION ALL SELECT 2, \'test2\' UNION ALL SELECT 3, \'test3\') test_table',
+      query:
+        "SELECT * FROM (SELECT 1 as id, 'test' as name UNION ALL SELECT 2, 'test2' UNION ALL SELECT 3, 'test3') test_table",
       chunkSize: testDto.chunkSize || 2,
       totalLimit: 10,
       enableStreaming: true,

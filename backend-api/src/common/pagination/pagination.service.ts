@@ -90,12 +90,8 @@ export class PaginationService {
     }
 
     // 커서 생성
-    const { nextCursor, previousCursor, hasNext, hasPrevious } = CursorUtils.createCursorsFromEntities(
-      entities,
-      limit,
-      sortField,
-      sortDirection,
-    );
+    const { nextCursor, previousCursor, hasNext, hasPrevious } =
+      CursorUtils.createCursorsFromEntities(entities, limit, sortField, sortDirection);
 
     // 실제 반환할 데이터 (limit + 1에서 limit만큼만)
     const data = hasNext ? entities.slice(0, limit) : entities;
@@ -119,7 +115,7 @@ export class PaginationService {
         oppositeDirection,
         alias,
       );
-      
+
       if (condition) {
         checkPreviousQuery.andWhere(condition, parameters);
         const previousCount = await checkPreviousQuery.take(1).getCount();
@@ -189,7 +185,7 @@ export class PaginationService {
     // 커서 생성 (오프셋 기반에서도 커서 제공)
     let nextCursor: string;
     let previousCursor: string;
-    
+
     if (data.length > 0) {
       nextCursor = CursorUtils.createCursorFromEntity(data[data.length - 1], sortField);
       previousCursor = CursorUtils.createCursorFromEntity(data[0], sortField);
@@ -239,14 +235,11 @@ export class PaginationService {
    * @param options 페이지네이션 옵션
    * @returns 페이지네이션된 결과
    */
-  paginateArray<T>(
-    items: T[],
-    options: OffsetPaginationOptions,
-  ): PaginatedResponse<T> {
+  paginateArray<T>(items: T[], options: OffsetPaginationOptions): PaginatedResponse<T> {
     const page = Math.max(options.page || 1, 1);
     const limit = Math.max(options.limit || 20, 1);
     const skip = (page - 1) * limit;
-    
+
     const data = items.slice(skip, skip + limit);
     const total = items.length;
     const totalPages = Math.ceil(total / limit);

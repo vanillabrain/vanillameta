@@ -1,18 +1,13 @@
-import {
-  Injectable,
-  NestInterceptor,
-  ExecutionContext,
-  CallHandler,
-} from '@nestjs/common';
+import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { PaginatedResponse } from './pagination.interface';
 
 /**
  * 페이지네이션 응답 인터셉터
- * 
+ *
  * 페이지네이션된 응답을 표준 형식으로 변환합니다.
- * 
+ *
  * @example
  * ```typescript
  * @UseInterceptors(PaginationInterceptor)
@@ -117,9 +112,9 @@ export class PaginationInterceptor implements NestInterceptor {
 
 /**
  * 페이지네이션 변환 인터셉터
- * 
+ *
  * 서비스에서 반환된 데이터를 자동으로 페이지네이션 형식으로 변환합니다.
- * 
+ *
  * @example
  * ```typescript
  * @UseInterceptors(new PaginationTransformInterceptor({ defaultLimit: 50 }))

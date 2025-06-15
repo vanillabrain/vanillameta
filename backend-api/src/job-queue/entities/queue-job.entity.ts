@@ -123,8 +123,10 @@ export class QueueJob {
   }
 
   get canRetry(): boolean {
-    return this.retryCount < this.maxRetries && 
-           (this.status === JobStatus.FAILED || this.status === JobStatus.RETRY);
+    return (
+      this.retryCount < this.maxRetries &&
+      (this.status === JobStatus.FAILED || this.status === JobStatus.RETRY)
+    );
   }
 
   get jobDataParsed(): any {

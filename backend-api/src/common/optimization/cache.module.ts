@@ -1,4 +1,4 @@
-import { Module, Global } from '@nestjs/common';
+import { Module, Global, forwardRef } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
@@ -11,12 +11,14 @@ import { CustomLoggerService } from '../logger/logger.service';
 
 import { Dataset } from '../../dataset/entities/dataset.entity';
 import { Widget } from '../../widget/entities/widget.entity';
+import { DatasetModule } from '../../dataset/dataset.module';
 
 @Global()
 @Module({
   imports: [
     ConfigModule,
     TypeOrmModule.forFeature([Dataset, Widget]),
+    forwardRef(() => DatasetModule),
   ],
   providers: [
     CustomLoggerService,
@@ -26,10 +28,6 @@ import { Widget } from '../../widget/entities/widget.entity';
     HybridCacheService,
   ],
   controllers: [CacheController],
-  exports: [
-    QueryCacheService,
-    RedisCacheService,
-    HybridCacheService,
-  ],
+  exports: [QueryCacheService, RedisCacheService, HybridCacheService],
 })
 export class CacheModule {}

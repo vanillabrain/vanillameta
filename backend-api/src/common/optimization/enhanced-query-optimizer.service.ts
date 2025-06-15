@@ -194,7 +194,7 @@ export class EnhancedQueryOptimizerService {
       session.cacheHitRate =
         (session.cacheHitRate * (session.totalQueries - 1) + 1) / session.totalQueries;
 
-      this.customLogger.info('Query served from cache', 'EnhancedQueryOptimizerService', {
+      this.customLogger.log('Query served from cache', 'EnhancedQueryOptimizerService', {
         databaseId,
         engine,
         sessionId: session.sessionId,
@@ -256,7 +256,7 @@ export class EnhancedQueryOptimizerService {
         (session.averageSpeedup * (session.optimizedQueries - 1) + speedup) /
         session.optimizedQueries;
 
-      this.customLogger.info('Query optimization completed', 'EnhancedQueryOptimizerService', {
+      this.customLogger.log('Query optimization completed', 'EnhancedQueryOptimizerService', {
         databaseId,
         engine,
         sessionId: session.sessionId,
@@ -635,7 +635,7 @@ export class EnhancedQueryOptimizerService {
           );
 
           if (report.recommendations.length > 0) {
-            this.customLogger.info(
+            this.customLogger.log(
               'Index recommendations generated',
               'EnhancedQueryOptimizerService',
               {

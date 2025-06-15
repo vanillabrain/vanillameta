@@ -16,7 +16,7 @@ describe('CacheInvalidationService', () => {
 
   beforeEach(async () => {
     jest.useFakeTimers();
-    
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CacheInvalidationService,
@@ -58,7 +58,7 @@ describe('CacheInvalidationService', () => {
       // Assert
       expect(ruleId).toBeDefined();
       expect(ruleId).toMatch(/^rule_/);
-      
+
       const rules = service.getInvalidationRules();
       expect(rules).toHaveLength(4); // 3 default + 1 new
       expect(rules.find(r => r.id === ruleId)).toBeDefined();
@@ -78,14 +78,16 @@ describe('CacheInvalidationService', () => {
       // Arrange
       const pattern = '*:users:*';
       const reason = 'Test invalidation';
-      
+
       // Mock getAllCacheKeys 결과
-      jest.spyOn(service as any, 'getAllCacheKeys').mockResolvedValue([
-        'query_cache:db_1:users:123',
-        'query_cache:db_1:users:456',
-        'query_cache:db_2:products:789',
-      ]);
-      
+      jest
+        .spyOn(service as any, 'getAllCacheKeys')
+        .mockResolvedValue([
+          'query_cache:db_1:users:123',
+          'query_cache:db_1:users:456',
+          'query_cache:db_2:products:789',
+        ]);
+
       cacheManager.del.mockResolvedValue();
 
       // Act
@@ -112,20 +114,16 @@ describe('CacheInvalidationService', () => {
       // Arrange
       const databaseId = 1;
       const reason = 'Database schema change';
-      
-      jest.spyOn(service, 'invalidateByPattern').mockResolvedValue([
-        'query_cache:db_1:users:123',
-        'query_cache:db_1:products:456',
-      ]);
+
+      jest
+        .spyOn(service, 'invalidateByPattern')
+        .mockResolvedValue(['query_cache:db_1:users:123', 'query_cache:db_1:products:456']);
 
       // Act
       const result = await service.invalidateDatabaseCache(databaseId, reason);
 
       // Assert
-      expect(service.invalidateByPattern).toHaveBeenCalledWith(
-        'query_cache:db_1:*',
-        reason
-      );
+      expect(service.invalidateByPattern).toHaveBeenCalledWith('query_cache:db_1:*', reason);
       expect(result).toHaveLength(2);
     });
   });
@@ -135,11 +133,13 @@ describe('CacheInvalidationService', () => {
       // Arrange
       const userId = 'user123';
       const reason = 'User data update';
-      
-      jest.spyOn(service, 'invalidateByPattern').mockResolvedValue([
-        'query_cache:db_1:user_abc123:hash1',
-        'query_cache:db_2:user_abc123:hash2',
-      ]);
+
+      jest
+        .spyOn(service, 'invalidateByPattern')
+        .mockResolvedValue([
+          'query_cache:db_1:user_abc123:hash1',
+          'query_cache:db_2:user_abc123:hash2',
+        ]);
 
       // Act
       const result = await service.invalidateUserCache(userId, reason);
@@ -147,7 +147,7 @@ describe('CacheInvalidationService', () => {
       // Assert
       expect(service.invalidateByPattern).toHaveBeenCalledWith(
         expect.stringContaining('user_'),
-        reason
+        reason,
       );
       expect(result).toHaveLength(2);
     });
@@ -158,8 +158,9 @@ describe('CacheInvalidationService', () => {
       // Arrange
       const tableName = 'users';
       const changeType = 'UPDATE';
-      
-      jest.spyOn(service, 'invalidateByPattern')
+
+      jest
+        .spyOn(service, 'invalidateByPattern')
         .mockResolvedValueOnce(['key1', 'key2']) // first pattern
         .mockResolvedValueOnce(['key3']) // second pattern
         .mockResolvedValueOnce(['key4']); // third pattern
@@ -176,7 +177,7 @@ describe('CacheInvalidationService', () => {
       // Arrange
       const tableName = 'unknown_table';
       const changeType = 'INSERT';
-      
+
       jest.spyOn(service, 'invalidateByPattern').mockResolvedValue(['key1']);
 
       // Act
@@ -197,7 +198,7 @@ describe('CacheInvalidationService', () => {
         priority: 'medium' as const,
         description: 'Test rule',
       };
-      
+
       const ruleId = await service.addInvalidationRule(rule);
       jest.spyOn(service as any, 'executeInvalidationRule').mockResolvedValue(undefined);
 
@@ -209,7 +210,7 @@ describe('CacheInvalidationService', () => {
 
       // Assert
       expect(service['executeInvalidationRule']).toHaveBeenCalledWith(
-        expect.objectContaining({ id: ruleId })
+        expect.objectContaining({ id: ruleId }),
       );
     });
   });
@@ -223,7 +224,7 @@ describe('CacheInvalidationService', () => {
         priority: 'low' as const,
         description: 'Temporary rule',
       };
-      
+
       const ruleId = await service.addInvalidationRule(rule);
       const initialCount = service.getInvalidationRules().length;
 
@@ -279,7 +280,7 @@ describe('CacheInvalidationService', () => {
       expect(stats).toHaveProperty('totalInvalidations');
       expect(stats).toHaveProperty('averageInvalidationTime');
       expect(stats).toHaveProperty('mostActivePattern');
-      
+
       expect(typeof stats.totalRules).toBe('number');
       expect(typeof stats.activeRules).toBe('number');
       expect(typeof stats.totalInvalidations).toBe('number');
@@ -332,7 +333,7 @@ describe('CacheInvalidationService', () => {
       // Assert
       expect(service.invalidateByPattern).toHaveBeenCalledWith(
         'query_meta:*',
-        'Expired metadata cleanup'
+        'Expired metadata cleanup',
       );
     });
   });
@@ -355,12 +356,16 @@ describe('CacheInvalidationService', () => {
         priority: 'low' as const,
         description: 'Error test rule',
       };
-      
+
       const ruleId = await service.addInvalidationRule(rule);
-      jest.spyOn(service, 'invalidateByPattern').mockRejectedValue(new Error('Invalidation failed'));
+      jest
+        .spyOn(service, 'invalidateByPattern')
+        .mockRejectedValue(new Error('Invalidation failed'));
 
       // Act & Assert
-      await expect(service.invalidateByPattern('*:error:*', 'test')).rejects.toThrow('Invalidation failed');
+      await expect(service.invalidateByPattern('*:error:*', 'test')).rejects.toThrow(
+        'Invalidation failed',
+      );
     });
   });
 
@@ -371,11 +376,11 @@ describe('CacheInvalidationService', () => {
 
       // Assert
       expect(rules.length).toBeGreaterThan(0);
-      
+
       // 기본 규칙들이 포함되어 있는지 확인
       const userRule = rules.find(r => r.description.includes('user'));
       const dashboardRule = rules.find(r => r.description.includes('dashboard'));
-      
+
       expect(userRule).toBeDefined();
       expect(dashboardRule).toBeDefined();
     });

@@ -14,7 +14,7 @@ describe('CursorUtils', () => {
       const encoded = CursorUtils.encodeCursor(cursorData);
       expect(encoded).toBeDefined();
       expect(typeof encoded).toBe('string');
-      
+
       // Base64 디코딩 후 원본 데이터 확인
       const decoded = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf-8'));
       expect(decoded).toEqual(cursorData);
@@ -53,7 +53,7 @@ describe('CursorUtils', () => {
     it('id가 없는 커서는 BadRequestException을 던져야 함', () => {
       const invalidData = { sortValue: 'test' };
       const encoded = Buffer.from(JSON.stringify(invalidData)).toString('base64url');
-      
+
       expect(() => CursorUtils.decodeCursor(encoded)).toThrow(BadRequestException);
     });
   });
@@ -126,7 +126,7 @@ describe('CursorUtils', () => {
 
       expect(result.hasNext).toBe(true);
       expect(result.nextCursor).toBeDefined();
-      
+
       const nextCursorData = CursorUtils.decodeCursor(result.nextCursor);
       expect(nextCursorData.id).toBe(3); // 마지막 표시된 아이템
     });

@@ -62,23 +62,23 @@ describe('JobNotificationService', () => {
   const mockJobResult: JobResult = {
     id: 'result-123',
     jobId: 'job-123',
-    resultData: JSON.stringify({ 
+    resultData: JSON.stringify({
       data: [{ id: 1, name: 'Test User' }],
-      total: 1 
+      total: 1,
     }),
-    metadata: JSON.stringify({ 
+    metadata: JSON.stringify({
       executionTime: 5000,
-      rowCount: 1
+      rowCount: 1,
     }),
     createdAt: new Date(),
     job: mockJob,
     resultDataParsed: {
       data: [{ id: 1, name: 'Test User' }],
-      total: 1
+      total: 1,
     },
     metadataParsed: {
       executionTime: 5000,
-      rowCount: 1
+      rowCount: 1,
     },
   };
 
@@ -201,13 +201,11 @@ describe('JobNotificationService', () => {
       const slackWebhookUrl = 'https://hooks.slack.com/test-webhook';
       const message = 'Test message';
       const error = new Error('Webhook not found');
-      
+
       (axios.post as jest.Mock).mockRejectedValue(error);
 
       // Act & Assert
-      await expect(
-        service.sendSlackNotification(slackWebhookUrl, message)
-      ).resolves.not.toThrow();
+      await expect(service.sendSlackNotification(slackWebhookUrl, message)).resolves.not.toThrow();
     });
 
     it('should use default channel if not provided', async () => {
@@ -256,13 +254,11 @@ describe('JobNotificationService', () => {
       const webhookUrl = 'https://api.example.com/webhooks/jobs';
       const payload = { test: 'data' };
       const error = new Error('timeout of 10000ms exceeded');
-      
+
       (axios.post as jest.Mock).mockRejectedValue(error);
 
       // Act & Assert
-      await expect(
-        service.sendWebhookNotification(webhookUrl, payload)
-      ).resolves.not.toThrow();
+      await expect(service.sendWebhookNotification(webhookUrl, payload)).resolves.not.toThrow();
     });
 
     it('should include custom headers if provided', async () => {
@@ -270,7 +266,7 @@ describe('JobNotificationService', () => {
       const webhookUrl = 'https://api.example.com/webhooks/jobs';
       const payload = { test: 'data' };
       const customHeaders = {
-        'Authorization': 'Bearer token-123',
+        Authorization: 'Bearer token-123',
         'X-Custom-Header': 'custom-value',
       };
 
@@ -300,11 +296,11 @@ describe('JobNotificationService', () => {
 
       // Act
       const result = await service.sendInAppNotification(
-        userId, 
-        title, 
-        message, 
-        type, 
-        relatedJobId
+        userId,
+        title,
+        message,
+        type,
+        relatedJobId,
       );
 
       // Assert
@@ -518,9 +514,7 @@ describe('JobNotificationService', () => {
       const payload = { test: 'data' };
 
       // Act & Assert
-      await expect(
-        service.sendWebhookNotification(invalidUrl, payload)
-      ).resolves.not.toThrow();
+      await expect(service.sendWebhookNotification(invalidUrl, payload)).resolves.not.toThrow();
     });
 
     it('should handle email template generation errors', () => {

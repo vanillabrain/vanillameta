@@ -1,7 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { JobResourceManagerService, ResourcePool, ResourceRequirement, ResourceAllocation } from './job-resource-manager.service';
+import {
+  JobResourceManagerService,
+  ResourcePool,
+  ResourceRequirement,
+  ResourceAllocation,
+} from './job-resource-manager.service';
 import { QueueJob, JobStatus, JobType, JobPriority } from '../entities/queue-job.entity';
 
 describe('JobResourceManagerService', () => {
@@ -89,11 +94,11 @@ describe('JobResourceManagerService', () => {
 
     it('should fail allocation when resources are insufficient', async () => {
       // Arrange
-      const bigJob = { 
-        ...mockJob, 
+      const bigJob = {
+        ...mockJob,
         jobType: JobType.DATA_MIGRATION,
         metadata: JSON.stringify({ dataSize: 10 * 1024 * 1024 * 1024 }), // 10GB
-        metadataParsed: { dataSize: 10 * 1024 * 1024 * 1024 }
+        metadataParsed: { dataSize: 10 * 1024 * 1024 * 1024 },
       };
 
       // Pre-allocate resources to cause shortage
@@ -127,23 +132,25 @@ describe('JobResourceManagerService', () => {
       expect(migrationResult.success).toBe(true);
 
       // Migration jobs should require more resources than query jobs
-      expect(migrationResult.allocation?.allocatedResources.cpu)
-        .toBeGreaterThan(queryResult.allocation?.allocatedResources.cpu || 0);
-      expect(migrationResult.allocation?.allocatedResources.memory)
-        .toBeGreaterThan(queryResult.allocation?.allocatedResources.memory || 0);
+      expect(migrationResult.allocation?.allocatedResources.cpu).toBeGreaterThan(
+        queryResult.allocation?.allocatedResources.cpu || 0,
+      );
+      expect(migrationResult.allocation?.allocatedResources.memory).toBeGreaterThan(
+        queryResult.allocation?.allocatedResources.memory || 0,
+      );
     });
 
     it('should adjust resource requirements based on job metadata', async () => {
       // Arrange
-      const smallJob = { 
-        ...mockJob, 
+      const smallJob = {
+        ...mockJob,
         metadata: JSON.stringify({ dataSize: 1024 }), // 1KB
-        metadataParsed: { dataSize: 1024 }
+        metadataParsed: { dataSize: 1024 },
       };
-      const largeJob = { 
-        ...mockJob, 
+      const largeJob = {
+        ...mockJob,
         metadata: JSON.stringify({ dataSize: 10 * 1024 * 1024 }), // 10MB
-        metadataParsed: { dataSize: 10 * 1024 * 1024 }
+        metadataParsed: { dataSize: 10 * 1024 * 1024 },
       };
 
       // Act
@@ -153,8 +160,9 @@ describe('JobResourceManagerService', () => {
       // Assert
       expect(smallResult.success).toBe(true);
       expect(largeResult.success).toBe(true);
-      expect(largeResult.allocation?.allocatedResources.memory)
-        .toBeGreaterThan(smallResult.allocation?.allocatedResources.memory || 0);
+      expect(largeResult.allocation?.allocatedResources.memory).toBeGreaterThan(
+        smallResult.allocation?.allocatedResources.memory || 0,
+      );
     });
 
     it('should give priority to retry jobs', async () => {
@@ -170,8 +178,9 @@ describe('JobResourceManagerService', () => {
       expect(normalResult.success).toBe(true);
       expect(retryResult.success).toBe(true);
       // Retry jobs should get slightly more resources
-      expect(retryResult.allocation?.allocatedResources.cpu)
-        .toBeGreaterThan(normalResult.allocation?.allocatedResources.cpu || 0);
+      expect(retryResult.allocation?.allocatedResources.cpu).toBeGreaterThan(
+        normalResult.allocation?.allocatedResources.cpu || 0,
+      );
     });
   });
 
@@ -277,7 +286,7 @@ describe('JobResourceManagerService', () => {
       expect(result).toBe(false);
     });
 
-    it('should automatically release reservations after duration', async (done) => {
+    it('should automatically release reservations after duration', async done => {
       // Arrange
       const requirements: ResourceRequirement = {
         cpu: 0.3,
@@ -330,19 +339,19 @@ describe('JobResourceManagerService', () => {
       // Assert
       expect(recommendations.bottlenecks.length).toBeGreaterThan(0);
       expect(recommendations.recommendations).toContain(
-        expect.stringContaining('용량 증설을 고려하세요')
+        expect.stringContaining('용량 증설을 고려하세요'),
       );
     });
 
     it('should suggest capacity reduction for underutilized resources', () => {
       // Arrange - No allocations (underutilized)
-      
+
       // Act
       const recommendations = service.getOptimizationRecommendations();
 
       // Assert
       expect(recommendations.recommendations).toContain(
-        expect.stringContaining('용량을 줄여 비용을 절약할 수 있습니다')
+        expect.stringContaining('용량을 줄여 비용을 절약할 수 있습니다'),
       );
     });
 
@@ -364,7 +373,7 @@ describe('JobResourceManagerService', () => {
 
       // Assert
       expect(recommendations.recommendations).toContain(
-        expect.stringContaining('장시간 실행 작업이 리소스를 점유하고 있습니다')
+        expect.stringContaining('장시간 실행 작업이 리소스를 점유하고 있습니다'),
       );
     });
   });
@@ -464,8 +473,10 @@ describe('JobResourceManagerService', () => {
 
       // Assert - Verify pool invariants
       usage.pools.forEach(pool => {
-        expect(pool.currentUsage + pool.reservedCapacity + pool.availableCapacity)
-          .toBeCloseTo(pool.maxCapacity, 2);
+        expect(pool.currentUsage + pool.reservedCapacity + pool.availableCapacity).toBeCloseTo(
+          pool.maxCapacity,
+          2,
+        );
         expect(pool.currentUsage).toBeLessThanOrEqual(pool.maxCapacity);
         expect(pool.reservedCapacity).toBeLessThanOrEqual(pool.maxCapacity);
         expect(pool.availableCapacity).toBeLessThanOrEqual(pool.maxCapacity);
@@ -495,7 +506,7 @@ describe('JobResourceManagerService', () => {
 
       // Assert
       expect(result.success).toBe(true);
-      
+
       // Verify allocations are reasonable for Lambda
       const allocation = result.allocation;
       expect(allocation?.allocatedResources.cpu).toBeLessThanOrEqual(1.0);

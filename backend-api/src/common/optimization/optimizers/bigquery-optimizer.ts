@@ -32,30 +32,29 @@ export class BigQueryOptimizer {
       CLUSTER BY user_id, status
       AS SELECT * FROM \`${dataset}.${table}_temp\`
     `;
-    
+
     this.logger.log('Creating partitioned table for BigQuery optimization', {
       dataset,
       table,
       partitionField: 'created_at',
       clusterFields: ['user_id', 'status'],
     });
-    
+
     return query;
   }
 
   /**
    * BigQuery 비용 제어 쿼리 실행
    */
-  async queryWithCostControl(knex: Knex, query: string, maxCostUSD: number = 1.0): Promise<any> {
+  async queryWithCostControl(knex: Knex, query: string, maxCostUSD = 1.0): Promise<any> {
     const maxBytes = Math.floor((maxCostUSD / this.COST_PER_TB) * this.BYTES_PER_GB * 1024);
-    
-    return knex.raw(query)
-      .options({
-        maximumBytesBilled: maxBytes.toString(),
-        useQueryCache: true,
-        priority: 'INTERACTIVE',
-        useLegacySql: false,
-      });
+
+    return knex.raw(query).options({
+      maximumBytesBilled: maxBytes.toString(),
+      useQueryCache: true,
+      priority: 'INTERACTIVE',
+      useLegacySql: false,
+    });
   }
 
   /**
@@ -89,7 +88,7 @@ export class BigQueryOptimizer {
         priority: 'INTERACTIVE',
       },
     };
-    
+
     return config;
   }
 
@@ -97,17 +96,19 @@ export class BigQueryOptimizer {
    * BigQuery SELECT * 최적화
    */
   optimizeSelectStar(query: string): BigQueryOptimizationResult {
-    let optimizedQuery = query;
+    const optimizedQuery = query;
     const appliedOptimizations: string[] = [];
     const recommendations: string[] = [];
 
     // SELECT * 패턴 감지
     const selectStarPattern = /SELECT\s+\*\s+FROM/i;
-    
+
     if (selectStarPattern.test(query)) {
-      recommendations.push('Avoid SELECT * in BigQuery - specify only needed columns to reduce costs');
+      recommendations.push(
+        'Avoid SELECT * in BigQuery - specify only needed columns to reduce costs',
+      );
       recommendations.push('BigQuery charges based on data processed, not rows returned');
-      
+
       // 실제 최적화는 수동으로 수행해야 함
       appliedOptimizations.push('SELECT * detected - manual column selection recommended');
     }
@@ -131,22 +132,25 @@ export class BigQueryOptimizer {
   /**
    * BigQuery 파티션 프루닝 최적화
    */
-  optimizePartitionPruning(query: string, partitionColumn: string = '_PARTITIONTIME'): BigQueryOptimizationResult {
-    let optimizedQuery = query;
+  optimizePartitionPruning(
+    query: string,
+    partitionColumn = '_PARTITIONTIME',
+  ): BigQueryOptimizationResult {
+    const optimizedQuery = query;
     const appliedOptimizations: string[] = [];
     const recommendations: string[] = [];
 
     // 파티션 필터 검사
     const partitionFilterPattern = new RegExp(`WHERE.*${partitionColumn}`, 'i');
-    
+
     if (!partitionFilterPattern.test(query)) {
       recommendations.push(`Add WHERE clause with ${partitionColumn} for partition pruning`);
       recommendations.push('Partition pruning can reduce costs by 90%+ in BigQuery');
-      
+
       // 예시 필터 제안
       const suggestedFilter = `WHERE ${partitionColumn} >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)`;
       recommendations.push(`Example: ${suggestedFilter}`);
-      
+
       appliedOptimizations.push('Partition pruning optimization suggested');
     } else {
       appliedOptimizations.push('Partition pruning filter detected');
@@ -174,12 +178,15 @@ export class BigQueryOptimizer {
   optimizeDeduplication(query: string): string {
     // ROW_NUMBER() 대신 QUALIFY 사용 권장 (BigQuery 표준 SQL)
     const rowNumberPattern = /ROW_NUMBER\(\)\s+OVER\s*\([^)]+\)\s*=\s*1/i;
-    
+
     if (rowNumberPattern.test(query)) {
       // QUALIFY 구문으로 변환 제안
-      this.logger.log('ROW_NUMBER() pattern detected, consider using QUALIFY for better performance', {
-        suggestion: 'Use QUALIFY ROW_NUMBER() OVER (...) = 1 instead of subquery',
-      });
+      this.logger.log(
+        'ROW_NUMBER() pattern detected, consider using QUALIFY for better performance',
+        {
+          suggestion: 'Use QUALIFY ROW_NUMBER() OVER (...) = 1 instead of subquery',
+        },
+      );
     }
 
     return query;
@@ -189,7 +196,7 @@ export class BigQueryOptimizer {
    * BigQuery 집계 최적화
    */
   optimizeAggregation(query: string): BigQueryOptimizationResult {
-    let optimizedQuery = query;
+    const optimizedQuery = query;
     const appliedOptimizations: string[] = [];
     const clusteringRecommendations: string[] = [];
 
@@ -203,7 +210,9 @@ export class BigQueryOptimizer {
 
     // DISTINCT 최적화
     if (/SELECT\s+DISTINCT/i.test(query)) {
-      appliedOptimizations.push('DISTINCT operation detected - consider if GROUP BY would be more efficient');
+      appliedOptimizations.push(
+        'DISTINCT operation detected - consider if GROUP BY would be more efficient',
+      );
     }
 
     return {
@@ -226,17 +235,19 @@ export class BigQueryOptimizer {
    * BigQuery JOIN 최적화
    */
   optimizeJoins(query: string): BigQueryOptimizationResult {
-    let optimizedQuery = query;
+    const optimizedQuery = query;
     const appliedOptimizations: string[] = [];
     const recommendations: string[] = [];
 
     // 큰 테이블과 작은 테이블 JOIN 패턴
     const joinPattern = /(\w+)\s+JOIN\s+(\w+)/gi;
     let match;
-    
+
     while ((match = joinPattern.exec(query)) !== null) {
       const [, leftTable, rightTable] = match;
-      recommendations.push(`Ensure smaller table is on the right side of JOIN for ${leftTable} JOIN ${rightTable}`);
+      recommendations.push(
+        `Ensure smaller table is on the right side of JOIN for ${leftTable} JOIN ${rightTable}`,
+      );
       appliedOptimizations.push('JOIN order optimization suggested');
     }
 
@@ -292,7 +303,10 @@ export class BigQueryOptimizer {
   /**
    * BigQuery 비용 추정
    */
-  estimateQueryCost(query: string, tableStats?: any): {
+  estimateQueryCost(
+    query: string,
+    tableStats?: any,
+  ): {
     estimatedBytesProcessed: number;
     estimatedCostUSD: number;
     costBreakdown: any;
@@ -306,10 +320,13 @@ export class BigQueryOptimizer {
     } else {
       // 선택된 컬럼 수에 따른 추정
       const columnCount = (query.match(/SELECT\s+([^FROM]+)/i)?.[1]?.split(',') || []).length;
-      estimatedBytesProcessed = Math.floor((tableStats?.totalBytes || 1000000000) * (columnCount / 10));
+      estimatedBytesProcessed = Math.floor(
+        (tableStats?.totalBytes || 1000000000) * (columnCount / 10),
+      );
     }
 
-    const estimatedCostUSD = (estimatedBytesProcessed / this.BYTES_PER_GB / 1024) * this.COST_PER_TB;
+    const estimatedCostUSD =
+      (estimatedBytesProcessed / this.BYTES_PER_GB / 1024) * this.COST_PER_TB;
 
     return {
       estimatedBytesProcessed,
@@ -353,19 +370,23 @@ export class BigQueryOptimizer {
    * BigQuery DML 최적화
    */
   optimizeDML(query: string): BigQueryOptimizationResult {
-    let optimizedQuery = query;
+    const optimizedQuery = query;
     const appliedOptimizations: string[] = [];
     const recommendations: string[] = [];
 
     // INSERT 최적화
     if (/INSERT\s+INTO/i.test(query)) {
-      recommendations.push('Use streaming inserts for real-time data, batch inserts for bulk loads');
+      recommendations.push(
+        'Use streaming inserts for real-time data, batch inserts for bulk loads',
+      );
       appliedOptimizations.push('INSERT optimization guidance provided');
     }
 
     // UPDATE/DELETE 최적화
     if (/UPDATE|DELETE/i.test(query)) {
-      recommendations.push('DML operations in BigQuery can be expensive - consider batch processing');
+      recommendations.push(
+        'DML operations in BigQuery can be expensive - consider batch processing',
+      );
       recommendations.push('Use MERGE statement for upsert operations');
       appliedOptimizations.push('DML optimization guidance provided');
     }

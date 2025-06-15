@@ -188,7 +188,7 @@ export class ConnectionPoolMonitorService {
     const metrics = await this.getMetrics();
 
     if (metrics.current) {
-      this.logger.info('Connection pool metrics', 'ConnectionPoolMonitor', {
+      this.logger.log('Connection pool metrics', 'ConnectionPoolMonitor', {
         typeorm: metrics.current,
         knexPoolsCount: metrics.knexPools.size,
         statistics: metrics.statistics,

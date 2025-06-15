@@ -14,7 +14,12 @@ import { DashboardShare } from 'src/dashboard/entities/dashboard_share.entity';
 import { UserMapping } from 'src/user/entities/user-mapping.entity';
 import { v4 as uuidv4 } from 'uuid';
 import { CustomLoggerService } from '../common/logger/logger.service';
-import { PaginationService, CursorPaginationOptions, OffsetPaginationOptions, PaginatedResponse } from '../common/pagination';
+import {
+  PaginationService,
+  CursorPaginationOptions,
+  OffsetPaginationOptions,
+  PaginatedResponse,
+} from '../common/pagination';
 
 @Injectable()
 export class DashboardService {
@@ -96,7 +101,10 @@ export class DashboardService {
     return { status: ResponseStatus.SUCCESS, data: newDashboard };
   }
 
-  async findAll(userId: number, pagination?: CursorPaginationOptions | OffsetPaginationOptions): Promise<PaginatedResponse<any> | any> {
+  async findAll(
+    userId: number,
+    pagination?: CursorPaginationOptions | OffsetPaginationOptions,
+  ): Promise<PaginatedResponse<any> | any> {
     const findUser = await this.userService.findDashboardId(userId);
     if (!findUser || findUser.length === 0) {
       return 'not exist user';
@@ -138,17 +146,13 @@ export class DashboardService {
         'dashboard.updatedAt',
       ]);
 
-    const paginatedResult = await this.paginationService.paginate(
-      queryBuilder,
-      pagination,
-      {
-        alias: 'dashboard',
-        defaultSortField: 'updatedAt',
-        defaultSortDirection: 'DESC',
-        cursorFields: ['updatedAt', 'title'],
-        includeTotalCount: true,
-      },
-    );
+    const paginatedResult = await this.paginationService.paginate(queryBuilder, pagination, {
+      alias: 'dashboard',
+      defaultSortField: 'updatedAt',
+      defaultSortDirection: 'DESC',
+      cursorFields: ['updatedAt', 'title'],
+      includeTotalCount: true,
+    });
 
     // layout 필드 JSON 파싱
     paginatedResult.data = paginatedResult.data.map(dashboard => {
@@ -157,7 +161,7 @@ export class DashboardService {
           dashboard.layout = JSON.parse(dashboard.layout);
         }
       } catch (error) {
-        dashboard.layout = [];
+        dashboard.layout = '[]';
       }
       return dashboard;
     });

@@ -69,11 +69,11 @@ describe('AuthService', () => {
 
     // Mock 초기화 - 각 테스트마다 완전히 새로운 mock 생성
     jest.clearAllMocks();
-    
+
     // 완전히 새로운 mock 함수 생성
     userRepository = module.get(getRepositoryTokenFor(User));
     refreshTokenRepository = module.get(getRepositoryTokenFor(RefreshToken));
-    
+
     // Mock 메소드들 재정의
     userRepository.findOne = jest.fn();
     userRepository.save = jest.fn();
@@ -123,12 +123,18 @@ describe('AuthService', () => {
       };
 
       refreshTokenRepository.findOne.mockResolvedValue(mockRefreshTokenEntity);
-      refreshTokenRepository.save.mockResolvedValue({ ...mockRefreshTokenEntity, refreshToken: '' });
+      refreshTokenRepository.save.mockResolvedValue({
+        ...mockRefreshTokenEntity,
+        refreshToken: '',
+      });
 
       await service.deleteRefreshToken(1);
 
       expect(refreshTokenRepository.findOne).toHaveBeenCalledWith({ where: { id: 1 } });
-      expect(refreshTokenRepository.save).toHaveBeenCalledWith({ ...mockRefreshTokenEntity, refreshToken: '' });
+      expect(refreshTokenRepository.save).toHaveBeenCalledWith({
+        ...mockRefreshTokenEntity,
+        refreshToken: '',
+      });
     });
   });
 
@@ -180,14 +186,14 @@ describe('AuthService', () => {
         {
           secret: 'test-access-secret',
           expiresIn: '21600s',
-        }
+        },
       );
       expect(result).toBe('mock-jwt-token');
     });
 
     it('should handle payload with partial data', async () => {
       const partialPayload = { userId: 'testuser', email: '', id: 0 };
-      
+
       const result = await service.generateAccessToken(partialPayload);
 
       expect(jwtService.sign).toHaveBeenCalledWith(
@@ -195,7 +201,7 @@ describe('AuthService', () => {
         expect.objectContaining({
           secret: 'test-access-secret',
           expiresIn: '21600s',
-        })
+        }),
       );
       expect(result).toBe('mock-jwt-token');
     });
@@ -210,7 +216,7 @@ describe('AuthService', () => {
         {
           secret: 'test-refresh-secret',
           expiresIn: '43200s',
-        }
+        },
       );
       expect(result).toBe('mock-jwt-token');
     });
@@ -246,7 +252,10 @@ describe('AuthService', () => {
 
     it('should remove Bearer prefix from token', async () => {
       refreshTokenRepository.findOne.mockResolvedValue(null);
-      refreshTokenRepository.save.mockResolvedValue({ id: 1, refreshToken: 'token-without-bearer' });
+      refreshTokenRepository.save.mockResolvedValue({
+        id: 1,
+        refreshToken: 'token-without-bearer',
+      });
 
       await service.setRefreshKey('Bearer token-without-bearer', 1);
 
@@ -296,7 +305,7 @@ describe('AuthService', () => {
       });
 
       await expect(service.verifyAccessToken('Bearer invalid-token')).rejects.toThrow(
-        new HttpException({ message: 'accessTokenExpired' }, HttpStatus.UNAUTHORIZED)
+        new HttpException({ message: 'accessTokenExpired' }, HttpStatus.UNAUTHORIZED),
       );
     });
 
@@ -334,10 +343,8 @@ describe('AuthService', () => {
         throw new Error('Invalid token');
       });
 
-      await expect(
-        service.verifyRefreshToken('Bearer refreshToken=invalid-token')
-      ).rejects.toThrow(
-        new HttpException({ message: 'refreshTokenExpired' }, HttpStatus.UNAUTHORIZED)
+      await expect(service.verifyRefreshToken('Bearer refreshToken=invalid-token')).rejects.toThrow(
+        new HttpException({ message: 'refreshTokenExpired' }, HttpStatus.UNAUTHORIZED),
       );
     });
 
@@ -376,7 +383,7 @@ describe('AuthService', () => {
       await service.checkAccess('testuser', 'testpass');
 
       expect(validateUserSpy).toHaveBeenCalledWith('testuser', 'testpass');
-      
+
       // Spy 복원
       validateUserSpy.mockRestore();
     });
@@ -398,7 +405,7 @@ describe('AuthService', () => {
         { accessKeyData: mockJwtPayload },
         {
           secret: 'test1234',
-        }
+        },
       );
       expect(result).toBe('mock-jwt-token');
     });
@@ -425,9 +432,9 @@ describe('AuthService', () => {
 
     it('should handle refresh token operations with invalid user ID', async () => {
       refreshTokenRepository.findOne.mockResolvedValue(null);
-      
+
       const result = await service.setRefreshKey('Bearer token', -1);
-      
+
       expect(refreshTokenRepository.findOne).toHaveBeenCalledWith({ where: { id: -1 } });
     });
 
@@ -445,10 +452,9 @@ describe('AuthService', () => {
         expect.objectContaining({
           secret: 'test-access-secret',
           expiresIn: '21600s',
-        })
+        }),
       );
       expect(result).toBe('mock-jwt-token');
     });
   });
-
 });

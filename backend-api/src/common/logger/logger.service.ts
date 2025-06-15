@@ -127,8 +127,9 @@ export class CustomLoggerService implements LoggerService {
     }
   }
 
-  log(message: any, context?: string): void {
-    this.info(message, context);
+  log(message: any, context?: string, metadata?: LogContext): void {
+    const safeMessage = typeof message === 'object' ? this.safeStringify(message) : message;
+    this.winston.info(safeMessage, this.createMetadata(context, metadata));
   }
 
   info(message: any, context?: string, metadata?: LogContext): void {
@@ -184,7 +185,7 @@ export class CustomLoggerService implements LoggerService {
       metadata.responseSize = res.get('content-length');
     }
 
-    this.info(`${req.method} ${req.path}`, 'HTTP', metadata);
+    this.log(`${req.method} ${req.path}`, 'HTTP', metadata);
   }
 
   /**
@@ -210,6 +211,6 @@ export class CustomLoggerService implements LoggerService {
       businessData: data ? this.safeStringify(data) : undefined,
     };
 
-    this.info(`Business Event: ${event}`, context || 'Business', metadata);
+    this.log(`Business Event: ${event}`, context || 'Business', metadata);
   }
 }

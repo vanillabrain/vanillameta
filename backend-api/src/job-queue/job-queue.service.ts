@@ -19,10 +19,10 @@ export class JobQueueService {
   constructor(
     @InjectRepository(QueueJob)
     private jobRepository: Repository<QueueJob>,
-    
+
     @InjectRepository(JobResult)
     private jobResultRepository: Repository<JobResult>,
-    
+
     private jobSchedulerService: JobSchedulerService,
     private jobStatusTrackerService: JobStatusTrackerService,
     private jobRetryService: JobRetryService,
@@ -35,7 +35,7 @@ export class JobQueueService {
   async createJob(createJobDto: CreateJobDto, userId?: string): Promise<QueueJob> {
     try {
       const job = new QueueJob();
-      
+
       job.id = uuidv4();
       job.jobType = createJobDto.jobType;
       job.userId = userId;
@@ -51,7 +51,7 @@ export class JobQueueService {
       // 예약 시간 설정
       if (createJobDto.scheduledAt) {
         job.scheduledAt = new Date(createJobDto.scheduledAt);
-        
+
         // 과거 시간은 불가
         if (job.scheduledAt <= new Date()) {
           throw new BadRequestException('Scheduled time must be in the future');
@@ -69,11 +69,11 @@ export class JobQueueService {
         JobStatus.PENDING,
         null,
         'Job created and queued',
-        { userId, priority: job.priority }
+        { userId, priority: job.priority },
       );
 
       this.logger.log(`Job created: ${savedJob.id} (${savedJob.jobType})`);
-      
+
       return savedJob;
     } catch (error) {
       this.logger.error('Failed to create job', error);
@@ -85,26 +85,26 @@ export class JobQueueService {
    * 작업 상태 업데이트
    */
   async updateJobStatus(
-    jobId: string, 
-    updateDto: UpdateJobStatusDto, 
-    userId?: string
+    jobId: string,
+    updateDto: UpdateJobStatusDto,
+    userId?: string,
   ): Promise<JobStatusResponseDto> {
     try {
       const job = await this.jobRepository.findOne({ where: { id: jobId } });
-      
+
       if (!job) {
         throw new NotFoundException(`Job not found: ${jobId}`);
       }
 
       const previousStatus = job.status;
-      
+
       // 상태 변경 검증
       this.validateStatusTransition(previousStatus, updateDto.status);
 
       // 작업 정보 업데이트
       job.status = updateDto.status;
       job.workerId = updateDto.workerId || job.workerId;
-      
+
       if (updateDto.progress !== undefined) {
         job.progress = updateDto.progress;
       }
@@ -120,14 +120,14 @@ export class JobQueueService {
             job.startedAt = new Date();
           }
           break;
-          
+
         case JobStatus.COMPLETED:
           job.completedAt = new Date();
           if (job.startedAt) {
             job.executionTimeMs = job.completedAt.getTime() - job.startedAt.getTime();
           }
           break;
-          
+
         case JobStatus.FAILED:
           job.completedAt = new Date();
           if (job.startedAt) {
@@ -157,12 +157,14 @@ export class JobQueueService {
           progress: updateDto.progress,
           errorMessage: updateDto.errorMessage,
           userId,
-        }
+        },
       );
 
       // 완료/실패 시 알림 발송
-      if ((updateDto.status === JobStatus.COMPLETED || updateDto.status === JobStatus.FAILED) 
-          && job.requiresNotification) {
+      if (
+        (updateDto.status === JobStatus.COMPLETED || updateDto.status === JobStatus.FAILED) &&
+        job.requiresNotification
+      ) {
         await this.jobNotificationService.sendJobCompletionNotification(updatedJob);
       }
 
@@ -188,7 +190,7 @@ export class JobQueueService {
       if (queryDto.priority) whereClause.priority = queryDto.priority;
       if (queryDto.correlationId) whereClause.correlationId = queryDto.correlationId;
       if (queryDto.workerId) whereClause.workerId = queryDto.workerId;
-      
+
       // 사용자별 필터링 (관리자가 아닌 경우)
       if (userId && !queryDto.userId) {
         whereClause.userId = userId;
@@ -205,13 +207,13 @@ export class JobQueueService {
 
       // 날짜 범위 필터
       if (queryDto.startDate) {
-        queryBuilder.andWhere('job.createdAt >= :startDate', { 
-          startDate: new Date(queryDto.startDate) 
+        queryBuilder.andWhere('job.createdAt >= :startDate', {
+          startDate: new Date(queryDto.startDate),
         });
       }
       if (queryDto.endDate) {
-        queryBuilder.andWhere('job.createdAt <= :endDate', { 
-          endDate: new Date(queryDto.endDate) 
+        queryBuilder.andWhere('job.createdAt <= :endDate', {
+          endDate: new Date(queryDto.endDate),
         });
       }
 
@@ -225,10 +227,7 @@ export class JobQueueService {
       const limit = queryDto.limit || 20;
       const offset = (page - 1) * limit;
 
-      queryBuilder
-        .orderBy(`job.${sortBy}`, sortOrder)
-        .skip(offset)
-        .take(limit);
+      queryBuilder.orderBy(`job.${sortBy}`, sortOrder).skip(offset).take(limit);
 
       const jobs = await queryBuilder.getMany();
 
@@ -255,7 +254,7 @@ export class JobQueueService {
   async getJob(jobId: string, userId?: string): Promise<QueueJob> {
     try {
       const whereClause: FindOptionsWhere<QueueJob> = { id: jobId };
-      
+
       // 사용자별 접근 제한
       if (userId) {
         whereClause.userId = userId;
@@ -288,10 +287,14 @@ export class JobQueueService {
         throw new BadRequestException('Cannot cancel completed or already cancelled job');
       }
 
-      await this.updateJobStatus(jobId, {
-        status: JobStatus.CANCELLED,
-        reason: reason || 'Job cancelled by user',
-      }, userId);
+      await this.updateJobStatus(
+        jobId,
+        {
+          status: JobStatus.CANCELLED,
+          reason: reason || 'Job cancelled by user',
+        },
+        userId,
+      );
 
       // 스케줄러에서 제거
       await this.jobSchedulerService.removeJob(jobId);
@@ -315,7 +318,7 @@ export class JobQueueService {
       }
 
       await this.jobRetryService.retryJob(job);
-      
+
       return await this.getJob(jobId, userId);
     } catch (error) {
       this.logger.error(`Failed to retry job: ${jobId}`, error);
@@ -338,10 +341,7 @@ export class JobQueueService {
         queryBuilder.andWhere('job.jobType IN (:...jobTypes)', { jobTypes });
       }
 
-      queryBuilder
-        .orderBy('job.priority', 'DESC')
-        .addOrderBy('job.createdAt', 'ASC')
-        .limit(1);
+      queryBuilder.orderBy('job.priority', 'DESC').addOrderBy('job.createdAt', 'ASC').limit(1);
 
       const job = await queryBuilder.getOne();
 
@@ -370,13 +370,10 @@ export class JobQueueService {
     jobIds: string[],
     status: JobStatus,
     reason?: string,
-    userId?: string
+    userId?: string,
   ): Promise<void> {
     try {
-      await this.jobRepository.update(
-        { id: In(jobIds) },
-        { status, updatedAt: new Date() }
-      );
+      await this.jobRepository.update({ id: In(jobIds) }, { status, updatedAt: new Date() });
 
       // 히스토리 기록
       for (const jobId of jobIds) {
@@ -385,7 +382,7 @@ export class JobQueueService {
           status,
           null,
           reason || `Bulk status update to ${status}`,
-          { userId, bulkUpdate: true }
+          { userId, bulkUpdate: true },
         );
       }
 
@@ -454,9 +451,7 @@ export class JobQueueService {
       return undefined;
     }
 
-    const estimatedCompletionTime = new Date(
-      job.startedAt.getTime() + job.estimatedTimeMs
-    );
+    const estimatedCompletionTime = new Date(job.startedAt.getTime() + job.estimatedTimeMs);
 
     return estimatedCompletionTime.toISOString();
   }

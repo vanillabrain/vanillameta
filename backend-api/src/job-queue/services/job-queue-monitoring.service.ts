@@ -37,7 +37,7 @@ export interface JobPerformanceMetrics {
 @Injectable()
 export class JobQueueMonitoringService {
   private readonly logger = new Logger(JobQueueMonitoringService.name);
-  
+
   // 실시간 메트릭 캐시
   private realtimeMetrics = {
     lastUpdate: new Date(),
@@ -51,20 +51,20 @@ export class JobQueueMonitoringService {
 
   // 알림 임계값
   private readonly alertThresholds = {
-    queueLength: 100,           // 큐 길이 100개 이상
-    averageWaitTime: 300000,    // 평균 대기 시간 5분 이상
-    errorRate: 0.1,             // 에러율 10% 이상
-    memoryUsage: 0.8,           // 메모리 사용률 80% 이상
-    longRunningJob: 1800000,    // 30분 이상 실행되는 작업
+    queueLength: 100, // 큐 길이 100개 이상
+    averageWaitTime: 300000, // 평균 대기 시간 5분 이상
+    errorRate: 0.1, // 에러율 10% 이상
+    memoryUsage: 0.8, // 메모리 사용률 80% 이상
+    longRunningJob: 1800000, // 30분 이상 실행되는 작업
   };
 
   constructor(
     @InjectRepository(QueueJob)
     private jobRepository: Repository<QueueJob>,
-    
+
     @InjectRepository(JobMetrics)
     private metricsRepository: Repository<JobMetrics>,
-    
+
     private notificationService: JobNotificationService,
   ) {
     this.initializeMonitoring();
@@ -76,7 +76,7 @@ export class JobQueueMonitoringService {
   private initializeMonitoring(): void {
     // 실시간 메트릭 업데이트 시작
     this.startRealtimeMetricsUpdate();
-    
+
     this.logger.log('Job queue monitoring initialized');
   }
 
@@ -142,7 +142,6 @@ export class JobQueueMonitoringService {
         averageExecutionTime,
         throughputPerMinute,
       };
-
     } catch (error) {
       this.logger.error('Failed to update realtime metrics', error);
     }
@@ -155,43 +154,49 @@ export class JobQueueMonitoringService {
     try {
       const metrics = this.realtimeMetrics;
       const recommendations: string[] = [];
-      
+
       // 평균 대기 시간 계산
       const averageWaitTime = await this.calculateAverageWaitTime();
-      
+
       // 에러율 계산
       const totalRecent = metrics.completedJobs + metrics.failedJobs;
       const errorRate = totalRecent > 0 ? metrics.failedJobs / totalRecent : 0;
-      
+
       // 처리율 계산 (분당 처리 작업 수)
       const processingRate = metrics.throughputPerMinute;
-      
+
       // 시스템 부하 계산 (0-1 범위)
       const systemLoad = this.calculateSystemLoad(metrics);
-      
+
       // 건강도 판정
       let healthStatus: 'healthy' | 'warning' | 'critical' = 'healthy';
-      
+
       if (metrics.queueLength > this.alertThresholds.queueLength) {
         healthStatus = 'warning';
-        recommendations.push(`큐 길이가 ${metrics.queueLength}개로 높습니다. 처리 성능을 확인하세요.`);
+        recommendations.push(
+          `큐 길이가 ${metrics.queueLength}개로 높습니다. 처리 성능을 확인하세요.`,
+        );
       }
-      
+
       if (averageWaitTime > this.alertThresholds.averageWaitTime) {
         healthStatus = 'warning';
-        recommendations.push(`평균 대기 시간이 ${Math.round(averageWaitTime/1000)}초로 길습니다.`);
+        recommendations.push(
+          `평균 대기 시간이 ${Math.round(averageWaitTime / 1000)}초로 길습니다.`,
+        );
       }
-      
+
       if (errorRate > this.alertThresholds.errorRate) {
         healthStatus = 'critical';
-        recommendations.push(`에러율이 ${Math.round(errorRate * 100)}%로 높습니다. 원인을 조사하세요.`);
+        recommendations.push(
+          `에러율이 ${Math.round(errorRate * 100)}%로 높습니다. 원인을 조사하세요.`,
+        );
       }
-      
+
       if (systemLoad > 0.8) {
         healthStatus = 'critical';
         recommendations.push('시스템 부하가 높습니다. 리소스를 확인하세요.');
       }
-      
+
       if (processingRate === 0 && metrics.queueLength > 0) {
         healthStatus = 'critical';
         recommendations.push('작업 처리가 중단된 것 같습니다. 스케줄러를 확인하세요.');
@@ -207,7 +212,6 @@ export class JobQueueMonitoringService {
         healthStatus,
         recommendations,
       };
-
     } catch (error) {
       this.logger.error('Failed to get queue health', error);
       return {
@@ -226,10 +230,10 @@ export class JobQueueMonitoringService {
   /**
    * 성능 메트릭 조회
    */
-  async getPerformanceMetrics(hours: number = 24): Promise<JobPerformanceMetrics> {
+  async getPerformanceMetrics(hours = 24): Promise<JobPerformanceMetrics> {
     try {
       const startDate = new Date(Date.now() - hours * 60 * 60 * 1000);
-      
+
       const jobs = await this.jobRepository.find({
         where: {
           createdAt: Between(startDate, new Date()),
@@ -242,21 +246,24 @@ export class JobQueueMonitoringService {
       const cancelledJobs = jobs.filter(job => job.status === JobStatus.CANCELLED).length;
 
       // 평균 실행 시간
-      const completedJobsWithTime = jobs.filter(job => 
-        job.status === JobStatus.COMPLETED && job.executionTimeMs
+      const completedJobsWithTime = jobs.filter(
+        job => job.status === JobStatus.COMPLETED && job.executionTimeMs,
       );
-      const averageExecutionTime = completedJobsWithTime.length > 0
-        ? completedJobsWithTime.reduce((sum, job) => sum + job.executionTimeMs!, 0) / completedJobsWithTime.length
-        : 0;
+      const averageExecutionTime =
+        completedJobsWithTime.length > 0
+          ? completedJobsWithTime.reduce((sum, job) => sum + job.executionTimeMs!, 0) /
+            completedJobsWithTime.length
+          : 0;
 
       // 평균 대기 시간
       const jobsWithWaitTime = jobs.filter(job => job.startedAt);
-      const averageWaitTime = jobsWithWaitTime.length > 0
-        ? jobsWithWaitTime.reduce((sum, job) => {
-            const waitTime = job.startedAt!.getTime() - job.createdAt.getTime();
-            return sum + waitTime;
-          }, 0) / jobsWithWaitTime.length
-        : 0;
+      const averageWaitTime =
+        jobsWithWaitTime.length > 0
+          ? jobsWithWaitTime.reduce((sum, job) => {
+              const waitTime = job.startedAt!.getTime() - job.createdAt.getTime();
+              return sum + waitTime;
+            }, 0) / jobsWithWaitTime.length
+          : 0;
 
       // 성공률
       const successRate = totalJobs > 0 ? (completedJobs / totalJobs) * 100 : 0;
@@ -270,7 +277,7 @@ export class JobQueueMonitoringService {
       // 리소스 사용률 (추정)
       const resourceUtilization = {
         memory: Math.round(Math.random() * 40 + 40), // 40-80% (실제로는 시스템 메트릭에서)
-        cpu: Math.round(Math.random() * 30 + 30),    // 30-60%
+        cpu: Math.round(Math.random() * 30 + 30), // 30-60%
         database: Math.round(Math.random() * 20 + 20), // 20-40%
       };
 
@@ -286,7 +293,6 @@ export class JobQueueMonitoringService {
         peakConcurrency,
         resourceUtilization,
       };
-
     } catch (error) {
       this.logger.error('Failed to get performance metrics', error);
       throw error;
@@ -296,16 +302,21 @@ export class JobQueueMonitoringService {
   /**
    * 작업 유형별 메트릭 조회
    */
-  async getJobTypeMetrics(days: number = 7): Promise<Record<JobType, {
-    totalJobs: number;
-    completedJobs: number;
-    failedJobs: number;
-    averageExecutionTime: number;
-    successRate: number;
-  }>> {
+  async getJobTypeMetrics(days = 7): Promise<
+    Record<
+      JobType,
+      {
+        totalJobs: number;
+        completedJobs: number;
+        failedJobs: number;
+        averageExecutionTime: number;
+        successRate: number;
+      }
+    >
+  > {
     try {
       const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-      
+
       const jobTypes = Object.values(JobType);
       const metrics: any = {};
 
@@ -321,12 +332,14 @@ export class JobQueueMonitoringService {
         const completedJobs = jobs.filter(job => job.status === JobStatus.COMPLETED).length;
         const failedJobs = jobs.filter(job => job.status === JobStatus.FAILED).length;
 
-        const completedJobsWithTime = jobs.filter(job => 
-          job.status === JobStatus.COMPLETED && job.executionTimeMs
+        const completedJobsWithTime = jobs.filter(
+          job => job.status === JobStatus.COMPLETED && job.executionTimeMs,
         );
-        const averageExecutionTime = completedJobsWithTime.length > 0
-          ? completedJobsWithTime.reduce((sum, job) => sum + job.executionTimeMs!, 0) / completedJobsWithTime.length
-          : 0;
+        const averageExecutionTime =
+          completedJobsWithTime.length > 0
+            ? completedJobsWithTime.reduce((sum, job) => sum + job.executionTimeMs!, 0) /
+              completedJobsWithTime.length
+            : 0;
 
         const successRate = totalJobs > 0 ? (completedJobs / totalJobs) * 100 : 0;
 
@@ -340,7 +353,6 @@ export class JobQueueMonitoringService {
       }
 
       return metrics;
-
     } catch (error) {
       this.logger.error('Failed to get job type metrics', error);
       throw error;
@@ -357,7 +369,7 @@ export class JobQueueMonitoringService {
   /**
    * 장시간 실행 작업 조회
    */
-  async getLongRunningJobs(thresholdMinutes: number = 30): Promise<QueueJob[]> {
+  async getLongRunningJobs(thresholdMinutes = 30): Promise<QueueJob[]> {
     try {
       const thresholdTime = new Date(Date.now() - thresholdMinutes * 60 * 1000);
 
@@ -368,7 +380,6 @@ export class JobQueueMonitoringService {
         },
         order: { startedAt: 'ASC' },
       });
-
     } catch (error) {
       this.logger.error('Failed to get long running jobs', error);
       throw error;
@@ -399,7 +410,7 @@ export class JobQueueMonitoringService {
 
       for (const job of jobs) {
         const key = `${job.jobType}_${job.status}_${job.priority}`;
-        
+
         if (!jobTypeMetrics.has(key)) {
           jobTypeMetrics.set(key, {
             jobType: job.jobType,
@@ -433,7 +444,7 @@ export class JobQueueMonitoringService {
       // 메트릭 저장
       for (const [, metric] of jobTypeMetrics) {
         const jobMetric = new JobMetrics();
-        
+
         jobMetric.metricDate = new Date(hourStart.toDateString());
         jobMetric.jobType = metric.jobType;
         jobMetric.status = metric.status;
@@ -441,24 +452,20 @@ export class JobQueueMonitoringService {
         jobMetric.userId = metric.userId;
         jobMetric.jobCount = metric.jobCount;
         jobMetric.totalExecutionTimeMs = metric.totalExecutionTime;
-        jobMetric.avgExecutionTimeMs = metric.jobCount > 0 
-          ? Math.round(metric.totalExecutionTime / metric.jobCount) 
-          : 0;
+        jobMetric.avgExecutionTimeMs =
+          metric.jobCount > 0 ? Math.round(metric.totalExecutionTime / metric.jobCount) : 0;
         jobMetric.totalWaitTimeMs = metric.totalWaitTime;
-        jobMetric.avgWaitTimeMs = metric.jobCount > 0 
-          ? Math.round(metric.totalWaitTime / metric.jobCount) 
-          : 0;
+        jobMetric.avgWaitTimeMs =
+          metric.jobCount > 0 ? Math.round(metric.totalWaitTime / metric.jobCount) : 0;
         jobMetric.successCount = metric.status === JobStatus.COMPLETED ? metric.jobCount : 0;
         jobMetric.failureCount = metric.errorCount;
-        jobMetric.successRate = metric.jobCount > 0 
-          ? ((metric.jobCount - metric.errorCount) / metric.jobCount) * 100 
-          : 0;
+        jobMetric.successRate =
+          metric.jobCount > 0 ? ((metric.jobCount - metric.errorCount) / metric.jobCount) * 100 : 0;
 
         await this.metricsRepository.save(jobMetric);
       }
 
       this.logger.debug(`Aggregated metrics for ${jobTypeMetrics.size} job type combinations`);
-
     } catch (error) {
       this.logger.error('Failed to aggregate hourly metrics', error);
     }
@@ -483,7 +490,7 @@ export class JobQueueMonitoringService {
             errorRate: health.errorRate,
             systemLoad: health.systemLoad,
             recommendations: health.recommendations,
-          }
+          },
         );
       } else if (health.healthStatus === 'warning') {
         await this.notificationService.sendSystemNotification(
@@ -494,7 +501,7 @@ export class JobQueueMonitoringService {
             queueLength: health.queueLength,
             errorRate: health.errorRate,
             recommendations: health.recommendations,
-          }
+          },
         );
       }
 
@@ -512,10 +519,9 @@ export class JobQueueMonitoringService {
               startedAt: job.startedAt,
               userId: job.userId,
             })),
-          }
+          },
         );
       }
-
     } catch (error) {
       this.logger.error('Failed to check health and send alerts', error);
     }
@@ -529,7 +535,7 @@ export class JobQueueMonitoringService {
   private async calculateAverageWaitTime(): Promise<number> {
     try {
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-      
+
       const result = await this.jobRepository
         .createQueryBuilder('job')
         .select('AVG(TIMESTAMPDIFF(MICROSECOND, job.createdAt, job.startedAt) / 1000)', 'avgWait')
@@ -548,11 +554,11 @@ export class JobQueueMonitoringService {
    */
   private calculateSystemLoad(metrics: typeof this.realtimeMetrics): number {
     const maxConcurrentJobs = 10; // 설정값
-    const maxQueueLength = 100;   // 설정값
-    
+    const maxQueueLength = 100; // 설정값
+
     const concurrencyLoad = metrics.runningJobs / maxConcurrentJobs;
     const queueLoad = metrics.queueLength / maxQueueLength;
-    
+
     return Math.min((concurrencyLoad + queueLoad) / 2, 1);
   }
 

@@ -1,6 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Response } from 'express';
-import { StreamingChunkResponseDto, ChunkResult, BatchProgress, BatchResponseDto } from '../dto/batch-response.dto';
+import {
+  StreamingChunkResponseDto,
+  ChunkResult,
+  BatchProgress,
+  BatchResponseDto,
+} from '../dto/batch-response.dto';
 
 @Injectable()
 export class StreamingResponseService {
@@ -14,7 +19,7 @@ export class StreamingResponseService {
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
+      Connection: 'keep-alive',
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Headers': 'Cache-Control',
     });
@@ -172,7 +177,7 @@ export class StreamingResponseService {
     };
 
     this.sendEvent(res, 'cancelled', streamData);
-    
+
     res.write('event: end\n');
     res.write('data: {}\n\n');
     res.end();
@@ -186,7 +191,10 @@ export class StreamingResponseService {
   /**
    * 청크 데이터 압축 (대용량 데이터 최적화)
    */
-  compressChunkData(chunk: ChunkResult, compressionLevel: 'none' | 'light' | 'aggressive' = 'light'): ChunkResult {
+  compressChunkData(
+    chunk: ChunkResult,
+    compressionLevel: 'none' | 'light' | 'aggressive' = 'light',
+  ): ChunkResult {
     if (compressionLevel === 'none') {
       return chunk;
     }

@@ -11,10 +11,10 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { QueryTimeoutService } from './query-timeout.service';
-import { 
-  AdaptiveTimeoutConfigDto, 
+import {
+  AdaptiveTimeoutConfigDto,
   TimeoutUpdateDto,
-  DatabaseEngine 
+  DatabaseEngine,
 } from './dto/timeout-config.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { GetUser } from '../auth/decorators/get-user.decorator';
@@ -51,7 +51,8 @@ export class QueryTimeoutController {
   @Post('record')
   @HttpCode(HttpStatus.OK)
   async recordQueryExecution(
-    @Body() body: {
+    @Body()
+    body: {
       databaseId: number;
       query: string;
       executionTimeMs: number;
@@ -99,7 +100,8 @@ export class QueryTimeoutController {
   @HttpCode(HttpStatus.OK)
   async analyzeQueryTimeout(
     @Param('databaseId') databaseId: number,
-    @Body() body: {
+    @Body()
+    body: {
       query: string;
       historicalData?: number[];
     },
@@ -116,9 +118,7 @@ export class QueryTimeoutController {
    * @param periodHours 리포트 기간 (시간)
    */
   @Get('monitoring/report')
-  async generateMonitoringReport(
-    @Query('periodHours') periodHours: number = 24,
-  ) {
+  async generateMonitoringReport(@Query('periodHours') periodHours = 24) {
     return await this.timeoutService.generateMonitoringReport(Number(periodHours));
   }
 
@@ -138,7 +138,7 @@ export class QueryTimeoutController {
   @Get('trend/:engine')
   async getTimeoutTrend(
     @Param('engine') engine: DatabaseEngine,
-    @Query('periodHours') periodHours: number = 24,
+    @Query('periodHours') periodHours = 24,
   ) {
     return await this.timeoutService.getTimeoutTrend(engine, Number(periodHours));
   }
@@ -167,11 +167,7 @@ export class QueryTimeoutController {
   @Post('test')
   @HttpCode(HttpStatus.OK)
   async testTimeoutConfiguration(
-    @Body() testDto: {
-      databaseId: number;
-      query: string;
-      simulatedExecutionTime: number;
-    },
+    @Body() testDto: { databaseId: number; query: string; simulatedExecutionTime: number },
   ) {
     // 시뮬레이션을 위한 테스트 엔드포인트
     const optimalConfig: AdaptiveTimeoutConfigDto = {
@@ -183,8 +179,9 @@ export class QueryTimeoutController {
     const timeoutResult = await this.timeoutService.calculateOptimalTimeout(optimalConfig);
 
     // 시뮬레이션된 실행 기록
-    const wasTimedOut = testDto.simulatedExecutionTime > (timeoutResult.data?.adaptedTimeoutMs || 30000);
-    
+    const wasTimedOut =
+      testDto.simulatedExecutionTime > (timeoutResult.data?.adaptedTimeoutMs || 30000);
+
     await this.timeoutService.recordQueryExecution(
       testDto.databaseId,
       testDto.query,

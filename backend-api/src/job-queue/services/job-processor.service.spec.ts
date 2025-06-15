@@ -22,10 +22,10 @@ describe('JobProcessorService', () => {
     status: JobStatus.PENDING,
     priority: JobPriority.NORMAL,
     userId: 'user-123',
-    jobData: JSON.stringify({ 
+    jobData: JSON.stringify({
       query: 'SELECT * FROM users',
       databaseId: 1,
-      limit: 100
+      limit: 100,
     }),
     result: null,
     errorMessage: null,
@@ -49,10 +49,10 @@ describe('JobProcessorService', () => {
     isFailed: false,
     isRunning: false,
     canRetry: true,
-    jobDataParsed: { 
+    jobDataParsed: {
       query: 'SELECT * FROM users',
       databaseId: 1,
-      limit: 100
+      limit: 100,
     },
     resultParsed: null,
     metadataParsed: {},
@@ -146,7 +146,7 @@ describe('JobProcessorService', () => {
     it('should process QUERY_EXECUTION job successfully', async () => {
       // Arrange
       const job = { ...mockJob, jobType: JobType.QUERY_EXECUTION };
-      
+
       connectionService.getConnectionConfig.mockResolvedValue({
         type: 'mysql',
         host: 'localhost',
@@ -166,28 +166,28 @@ describe('JobProcessorService', () => {
       expect(databaseService.executeQuery).toHaveBeenCalledWith(
         expect.any(Object), // connection config
         'SELECT * FROM users',
-        expect.any(Object)  // options
+        expect.any(Object), // options
       );
       expect(jobRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
           status: JobStatus.COMPLETED,
           progress: 100,
           executionTimeMs: expect.any(Number),
-        })
+        }),
       );
     });
 
     it('should process BULK_DATA_EXPORT job successfully', async () => {
       // Arrange
-      const exportJob = { 
-        ...mockJob, 
+      const exportJob = {
+        ...mockJob,
         jobType: JobType.BULK_DATA_EXPORT,
         jobData: JSON.stringify({
           query: 'SELECT * FROM large_table',
           databaseId: 1,
           format: 'csv',
           chunkSize: 1000,
-        })
+        }),
       };
 
       connectionService.getConnectionConfig.mockResolvedValue({
@@ -212,20 +212,20 @@ describe('JobProcessorService', () => {
         expect.objectContaining({
           format: 'csv',
           chunkSize: 1000,
-        })
+        }),
       );
       expect(jobRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
           status: JobStatus.COMPLETED,
           progress: 100,
-        })
+        }),
       );
     });
 
     it('should process DASHBOARD_GENERATION job successfully', async () => {
       // Arrange
-      const dashboardJob = { 
-        ...mockJob, 
+      const dashboardJob = {
+        ...mockJob,
         jobType: JobType.DASHBOARD_GENERATION,
         jobData: JSON.stringify({
           dashboardId: 'dash-123',
@@ -234,7 +234,7 @@ describe('JobProcessorService', () => {
             { widgetId: 'widget-2', query: 'SELECT AVG(age) FROM users' },
           ],
           databaseId: 1,
-        })
+        }),
       };
 
       connectionService.getConnectionConfig.mockResolvedValue({
@@ -255,7 +255,7 @@ describe('JobProcessorService', () => {
         expect.objectContaining({
           status: JobStatus.COMPLETED,
           progress: 100,
-        })
+        }),
       );
     });
 
@@ -275,7 +275,7 @@ describe('JobProcessorService', () => {
           status: JobStatus.FAILED,
           errorMessage: 'Database connection failed',
           errorStack: expect.any(String),
-        })
+        }),
       );
     });
 
@@ -307,22 +307,22 @@ describe('JobProcessorService', () => {
       expect(jobRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
           progress: expect.any(Number),
-        })
+        }),
       );
     });
 
     it('should handle timeout during job processing', async () => {
       // Arrange
       const job = { ...mockJob, estimatedTimeMs: 1000 }; // 1 second timeout
-      
+
       connectionService.getConnectionConfig.mockResolvedValue({
         type: 'mysql',
         host: 'localhost',
       } as any);
 
       // Mock a long-running query
-      databaseService.executeQuery.mockImplementation(() => 
-        new Promise(resolve => setTimeout(() => resolve(mockQueryResult), 2000))
+      databaseService.executeQuery.mockImplementation(
+        () => new Promise(resolve => setTimeout(() => resolve(mockQueryResult), 2000)),
       );
 
       // Act
@@ -333,15 +333,17 @@ describe('JobProcessorService', () => {
         expect.objectContaining({
           status: JobStatus.FAILED,
           errorMessage: expect.stringContaining('timeout'),
-        })
+        }),
       );
     });
 
     it('should validate job data before processing', async () => {
       // Arrange
-      const invalidJob = { 
-        ...mockJob, 
-        jobData: JSON.stringify({ /* missing required fields */ })
+      const invalidJob = {
+        ...mockJob,
+        jobData: JSON.stringify({
+          /* missing required fields */
+        }),
       };
 
       // Act
@@ -352,7 +354,7 @@ describe('JobProcessorService', () => {
         expect.objectContaining({
           status: JobStatus.FAILED,
           errorMessage: expect.stringContaining('Invalid job data'),
-        })
+        }),
       );
     });
   });
@@ -373,14 +375,14 @@ describe('JobProcessorService', () => {
 
     it('should throw error for unsupported job type', async () => {
       // Arrange
-      const unsupportedJob = { 
-        ...mockJob, 
-        jobType: 'UNSUPPORTED_TYPE' as JobType
+      const unsupportedJob = {
+        ...mockJob,
+        jobType: 'UNSUPPORTED_TYPE' as JobType,
       };
 
       // Act & Assert
       await expect(service.processJob(unsupportedJob)).rejects.toThrow(
-        'No processor found for job type: UNSUPPORTED_TYPE'
+        'No processor found for job type: UNSUPPORTED_TYPE',
       );
     });
   });
@@ -438,7 +440,7 @@ describe('JobProcessorService', () => {
     it('should calculate and store execution metrics', async () => {
       // Arrange
       const job = { ...mockJob };
-      
+
       connectionService.getConnectionConfig.mockResolvedValue({
         type: 'mysql',
         host: 'localhost',
@@ -457,7 +459,7 @@ describe('JobProcessorService', () => {
           executionTimeMs: expect.any(Number),
           startedAt: expect.any(Date),
           completedAt: expect.any(Date),
-        })
+        }),
       );
 
       // Verify execution time is reasonable

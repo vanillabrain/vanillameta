@@ -25,7 +25,7 @@ interface CacheSetEvent {
   userId?: string;
 }
 
-interface CacheStatistics {
+export interface CacheStatistics {
   hitRate: number;
   totalHits: number;
   totalMisses: number;
@@ -73,7 +73,7 @@ export class CacheStatisticsService {
       };
 
       this.hitEvents.push(event);
-      
+
       // 메모리 사용량 제한
       if (this.hitEvents.length > this.statisticsConfig.maxEventHistory) {
         this.hitEvents.shift();
@@ -108,7 +108,7 @@ export class CacheStatisticsService {
       };
 
       this.missEvents.push(event);
-      
+
       // 메모리 사용량 제한
       if (this.missEvents.length > this.statisticsConfig.maxEventHistory) {
         this.missEvents.shift();
@@ -151,7 +151,7 @@ export class CacheStatisticsService {
       };
 
       this.setEvents.push(event);
-      
+
       // 메모리 사용량 제한
       if (this.setEvents.length > this.statisticsConfig.maxEventHistory) {
         this.setEvents.shift();
@@ -178,10 +178,10 @@ export class CacheStatisticsService {
   /**
    * 캐시 통계 조회
    */
-  async getCacheStatistics(periodHours: number = 24): Promise<CacheStatistics> {
+  async getCacheStatistics(periodHours = 24): Promise<CacheStatistics> {
     try {
       const cutoffTime = new Date(Date.now() - periodHours * 60 * 60 * 1000);
-      
+
       // 기간 내 이벤트 필터링
       const recentHits = this.hitEvents.filter(event => event.timestamp >= cutoffTime);
       const recentMisses = this.missEvents.filter(event => event.timestamp >= cutoffTime);
@@ -221,19 +221,19 @@ export class CacheStatisticsService {
   /**
    * 데이터베이스별 캐시 통계
    */
-  async getDatabaseCacheStatistics(databaseId: number, periodHours: number = 24): Promise<CacheStatistics> {
+  async getDatabaseCacheStatistics(databaseId: number, periodHours = 24): Promise<CacheStatistics> {
     try {
       const cutoffTime = new Date(Date.now() - periodHours * 60 * 60 * 1000);
-      
+
       // 특정 데이터베이스의 이벤트만 필터링
       const dbHits = this.hitEvents.filter(
-        event => event.timestamp >= cutoffTime && event.databaseId === databaseId
+        event => event.timestamp >= cutoffTime && event.databaseId === databaseId,
       );
       const dbMisses = this.missEvents.filter(
-        event => event.timestamp >= cutoffTime && event.databaseId === databaseId
+        event => event.timestamp >= cutoffTime && event.databaseId === databaseId,
       );
       const dbSets = this.setEvents.filter(
-        event => event.timestamp >= cutoffTime && event.databaseId === databaseId
+        event => event.timestamp >= cutoffTime && event.databaseId === databaseId,
       );
 
       const totalHits = dbHits.length;
@@ -269,19 +269,19 @@ export class CacheStatisticsService {
   /**
    * 사용자별 캐시 통계
    */
-  async getUserCacheStatistics(userId: string, periodHours: number = 24): Promise<CacheStatistics> {
+  async getUserCacheStatistics(userId: string, periodHours = 24): Promise<CacheStatistics> {
     try {
       const cutoffTime = new Date(Date.now() - periodHours * 60 * 60 * 1000);
-      
+
       // 특정 사용자의 이벤트만 필터링
       const userHits = this.hitEvents.filter(
-        event => event.timestamp >= cutoffTime && event.userId === userId
+        event => event.timestamp >= cutoffTime && event.userId === userId,
       );
       const userMisses = this.missEvents.filter(
-        event => event.timestamp >= cutoffTime && event.userId === userId
+        event => event.timestamp >= cutoffTime && event.userId === userId,
       );
       const userSets = this.setEvents.filter(
-        event => event.timestamp >= cutoffTime && event.userId === userId
+        event => event.timestamp >= cutoffTime && event.userId === userId,
       );
 
       const totalHits = userHits.length;
@@ -317,7 +317,7 @@ export class CacheStatisticsService {
   /**
    * 캐시 성능 트렌드 분석
    */
-  async getCachePerformanceTrend(periodHours: number = 24): Promise<{
+  async getCachePerformanceTrend(periodHours = 24): Promise<{
     hourlyStats: Array<{
       hour: string;
       hitRate: number;
@@ -336,10 +336,10 @@ export class CacheStatisticsService {
         const hourEnd = new Date(hourStart.getTime() + 60 * 60 * 1000);
 
         const hourHits = this.hitEvents.filter(
-          event => event.timestamp >= hourStart && event.timestamp < hourEnd
+          event => event.timestamp >= hourStart && event.timestamp < hourEnd,
         ).length;
         const hourMisses = this.missEvents.filter(
-          event => event.timestamp >= hourStart && event.timestamp < hourEnd
+          event => event.timestamp >= hourStart && event.timestamp < hourEnd,
         ).length;
 
         const totalRequests = hourHits + hourMisses;
@@ -380,10 +380,10 @@ export class CacheStatisticsService {
     setEvents: number;
     estimatedMemoryKB: number;
   } {
-    const estimatedMemoryKB = 
-      (this.hitEvents.length * 0.1) + // 각 히트 이벤트당 약 100바이트
-      (this.missEvents.length * 0.1) + // 각 미스 이벤트당 약 100바이트
-      (this.setEvents.length * 0.2); // 각 설정 이벤트당 약 200바이트
+    const estimatedMemoryKB =
+      this.hitEvents.length * 0.1 + // 각 히트 이벤트당 약 100바이트
+      this.missEvents.length * 0.1 + // 각 미스 이벤트당 약 100바이트
+      this.setEvents.length * 0.2; // 각 설정 이벤트당 약 200바이트
 
     return {
       hitEvents: this.hitEvents.length,
@@ -398,9 +398,14 @@ export class CacheStatisticsService {
   /**
    * Redis 카운터 업데이트
    */
-  private async updateRedisCounters(type: 'hits' | 'misses' | 'sets', increment: number): Promise<void> {
+  private async updateRedisCounters(
+    type: 'hits' | 'misses' | 'sets',
+    increment: number,
+  ): Promise<void> {
     try {
-      const key = `${this.statisticsConfig.keyPrefix}:${type}:${new Date().toISOString().substring(0, 10)}`;
+      const key = `${this.statisticsConfig.keyPrefix}:${type}:${new Date()
+        .toISOString()
+        .substring(0, 10)}`;
       // Redis increment 연산 (실제 구현에서는 Redis 클라이언트 직접 사용)
       // await this.redisClient.incr(key);
     } catch (error) {
@@ -428,7 +433,9 @@ export class CacheStatisticsService {
   /**
    * 트렌드 분석
    */
-  private analyzeTrend(hourlyStats: Array<{ hitRate: number; totalRequests: number }>): 'improving' | 'stable' | 'declining' {
+  private analyzeTrend(
+    hourlyStats: Array<{ hitRate: number; totalRequests: number }>,
+  ): 'improving' | 'stable' | 'declining' {
     if (hourlyStats.length < 3) return 'stable';
 
     const recentStats = hourlyStats.slice(-3);
@@ -449,9 +456,10 @@ export class CacheStatisticsService {
    */
   private generateRecommendation(
     hourlyStats: Array<{ hitRate: number; totalRequests: number }>,
-    trend: 'improving' | 'stable' | 'declining'
+    trend: 'improving' | 'stable' | 'declining',
   ): string {
-    const avgHitRate = hourlyStats.reduce((sum, stat) => sum + stat.hitRate, 0) / hourlyStats.length;
+    const avgHitRate =
+      hourlyStats.reduce((sum, stat) => sum + stat.hitRate, 0) / hourlyStats.length;
     const totalRequests = hourlyStats.reduce((sum, stat) => sum + stat.totalRequests, 0);
 
     if (avgHitRate < 50) {
@@ -487,10 +495,12 @@ export class CacheStatisticsService {
    * 오래된 이벤트 정리
    */
   private cleanupOldEvents(): void {
-    const cutoffTime = new Date(Date.now() - this.statisticsConfig.reportingPeriodHours * 60 * 60 * 1000);
-    
+    const cutoffTime = new Date(
+      Date.now() - this.statisticsConfig.reportingPeriodHours * 60 * 60 * 1000,
+    );
+
     let cleaned = 0;
-    
+
     // 히트 이벤트 정리
     const originalHitLength = this.hitEvents.length;
     while (this.hitEvents.length > 0 && this.hitEvents[0].timestamp < cutoffTime) {

@@ -82,7 +82,7 @@ async function bootstrapServer(): Promise<Server> {
     // nestApp.useGlobalPipes(new ValidationPipe({ transform: true }));
 
     const logger = nestApp.get(CustomLoggerService);
-    logger.info('Lambda function initialized', 'ServerlessBootstrap', {
+    logger.log('Lambda function initialized', 'ServerlessBootstrap', {
       environment: process.env.NODE_ENV,
       dbConnectionLimit: process.env.DB_CONNECTION_LIMIT || '5',
       knexPoolMax: process.env.KNEX_POOL_MAX || '3',

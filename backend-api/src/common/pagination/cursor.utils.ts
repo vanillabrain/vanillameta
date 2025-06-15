@@ -105,10 +105,7 @@ export class CursorUtils {
 
     // 정렬 방향에 따라 커서 생성
     const nextCursor = hasNext
-      ? CursorUtils.createCursorFromEntity(
-          actualEntities[actualEntities.length - 1],
-          sortField,
-        )
+      ? CursorUtils.createCursorFromEntity(actualEntities[actualEntities.length - 1], sortField)
       : undefined;
 
     // 이전 페이지 커서는 첫 번째 엔티티 기준
@@ -134,7 +131,7 @@ export class CursorUtils {
   static validateCursor(cursor: string, maxAge?: number): boolean {
     try {
       const cursorData = CursorUtils.decodeCursor(cursor);
-      
+
       if (!cursorData) {
         return false;
       }

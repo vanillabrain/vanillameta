@@ -1,11 +1,11 @@
-import { MigrationInterface, QueryRunner, Index } from 'typeorm';
+import { MigrationInterface, QueryRunner, TableIndex } from 'typeorm';
 
 export class AddDatabaseIndexes1736723000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Dashboard indexes
     await queryRunner.createIndex(
       'dashboard',
-      new Index({
+      new TableIndex({
         name: 'IDX_DASHBOARD_UPDATED_AT',
         columnNames: ['updatedAt'],
       }),
@@ -13,7 +13,7 @@ export class AddDatabaseIndexes1736723000000 implements MigrationInterface {
 
     await queryRunner.createIndex(
       'dashboard',
-      new Index({
+      new TableIndex({
         name: 'IDX_DASHBOARD_UPDATED_AT_TITLE',
         columnNames: ['updatedAt', 'title'],
       }),
@@ -22,7 +22,7 @@ export class AddDatabaseIndexes1736723000000 implements MigrationInterface {
     // Widget indexes
     await queryRunner.createIndex(
       'widget',
-      new Index({
+      new TableIndex({
         name: 'IDX_WIDGET_COMPONENT_ID',
         columnNames: ['componentId'],
       }),
@@ -30,7 +30,7 @@ export class AddDatabaseIndexes1736723000000 implements MigrationInterface {
 
     await queryRunner.createIndex(
       'widget',
-      new Index({
+      new TableIndex({
         name: 'IDX_WIDGET_DATASET_TYPE_ID',
         columnNames: ['datasetType', 'datasetId'],
       }),
@@ -38,7 +38,7 @@ export class AddDatabaseIndexes1736723000000 implements MigrationInterface {
 
     await queryRunner.createIndex(
       'widget',
-      new Index({
+      new TableIndex({
         name: 'IDX_WIDGET_UPDATED_AT',
         columnNames: ['updatedAt'],
       }),
@@ -47,7 +47,7 @@ export class AddDatabaseIndexes1736723000000 implements MigrationInterface {
     // Dataset indexes
     await queryRunner.createIndex(
       'dataset',
-      new Index({
+      new TableIndex({
         name: 'IDX_DATASET_DATABASE_ID',
         columnNames: ['databaseId'],
       }),
@@ -56,7 +56,7 @@ export class AddDatabaseIndexes1736723000000 implements MigrationInterface {
     // User indexes
     await queryRunner.createIndex(
       'user',
-      new Index({
+      new TableIndex({
         name: 'IDX_USER_USER_ID',
         columnNames: ['userId'],
         isUnique: true,
@@ -70,7 +70,7 @@ export class AddDatabaseIndexes1736723000000 implements MigrationInterface {
     if (!hasEmailIndex) {
       await queryRunner.createIndex(
         'user',
-        new Index({
+        new TableIndex({
           name: 'IDX_USER_EMAIL',
           columnNames: ['email'],
           isUnique: true,
@@ -81,7 +81,7 @@ export class AddDatabaseIndexes1736723000000 implements MigrationInterface {
     // UserMapping indexes
     await queryRunner.createIndex(
       'user_mapping',
-      new Index({
+      new TableIndex({
         name: 'IDX_USER_MAPPING_USER_INFO_ID',
         columnNames: ['userInfoId'],
       }),
@@ -89,7 +89,7 @@ export class AddDatabaseIndexes1736723000000 implements MigrationInterface {
 
     await queryRunner.createIndex(
       'user_mapping',
-      new Index({
+      new TableIndex({
         name: 'IDX_USER_MAPPING_DASHBOARD_ID',
         columnNames: ['dashboardId'],
       }),
@@ -98,7 +98,7 @@ export class AddDatabaseIndexes1736723000000 implements MigrationInterface {
     // TableQuery indexes
     await queryRunner.createIndex(
       'table_query',
-      new Index({
+      new TableIndex({
         name: 'IDX_TABLE_QUERY_DATABASE_ID',
         columnNames: ['databaseId'],
       }),

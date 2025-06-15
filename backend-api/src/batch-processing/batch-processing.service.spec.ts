@@ -205,8 +205,13 @@ describe('BatchProcessingService', () => {
       progressTracker.failBatch.mockReturnValue(mockProgress);
 
       // Act & Assert
-      await expect(service.executeBatch(batchDto)).rejects.toThrow('Chunk 0 failed: Chunk processing failed');
-      expect(progressTracker.failBatch).toHaveBeenCalledWith(batchId, 'Chunk 0 failed: Chunk processing failed');
+      await expect(service.executeBatch(batchDto)).rejects.toThrow(
+        'Chunk 0 failed: Chunk processing failed',
+      );
+      expect(progressTracker.failBatch).toHaveBeenCalledWith(
+        batchId,
+        'Chunk 0 failed: Chunk processing failed',
+      );
     });
   });
 

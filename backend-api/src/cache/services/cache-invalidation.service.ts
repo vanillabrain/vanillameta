@@ -3,7 +3,7 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { Cron, CronExpression } from '@nestjs/schedule';
 
-interface InvalidationRule {
+export interface InvalidationRule {
   id: string;
   pattern: string;
   condition: 'time_based' | 'event_based' | 'manual';
@@ -15,7 +15,7 @@ interface InvalidationRule {
   lastExecuted?: Date;
 }
 
-interface InvalidationEvent {
+export interface InvalidationEvent {
   ruleId: string;
   pattern: string;
   invalidatedKeys: string[];
@@ -70,7 +70,7 @@ export class CacheInvalidationService {
 
       this.invalidationRules.set(ruleId, newRule);
 
-      this.logger.info('Invalidation rule added', {
+      this.logger.log('Invalidation rule added', {
         ruleId,
         pattern: rule.pattern,
         condition: rule.condition,
@@ -90,14 +90,14 @@ export class CacheInvalidationService {
   /**
    * 특정 패턴으로 캐시 무효화
    */
-  async invalidateByPattern(pattern: string, reason: string = 'Manual invalidation'): Promise<string[]> {
+  async invalidateByPattern(pattern: string, reason = 'Manual invalidation'): Promise<string[]> {
     try {
       const startTime = Date.now();
       const invalidatedKeys: string[] = [];
 
       // 실제 Redis 환경에서는 SCAN을 사용하여 패턴 매칭
       // 여기서는 간단한 구현으로 메타데이터 기반 무효화
-      
+
       // 모든 캐시 키 스캔 (실제로는 Redis SCAN 사용)
       const allKeys = await this.getAllCacheKeys();
       const matchingKeys = allKeys.filter(key => this.matchPattern(key, pattern));
@@ -123,7 +123,7 @@ export class CacheInvalidationService {
 
       this.recordInvalidationEvent(event);
 
-      this.logger.info('Cache invalidated by pattern', {
+      this.logger.log('Cache invalidated by pattern', {
         pattern,
         invalidatedCount: invalidatedKeys.length,
         executionTime,
@@ -143,7 +143,10 @@ export class CacheInvalidationService {
   /**
    * 데이터베이스별 캐시 무효화
    */
-  async invalidateDatabaseCache(databaseId: number, reason: string = 'Database cache invalidation'): Promise<string[]> {
+  async invalidateDatabaseCache(
+    databaseId: number,
+    reason = 'Database cache invalidation',
+  ): Promise<string[]> {
     const pattern = `${this.invalidationConfig.keyPrefix}:db_${databaseId}:*`;
     return await this.invalidateByPattern(pattern, reason);
   }
@@ -151,7 +154,7 @@ export class CacheInvalidationService {
   /**
    * 사용자별 캐시 무효화
    */
-  async invalidateUserCache(userId: string, reason: string = 'User cache invalidation'): Promise<string[]> {
+  async invalidateUserCache(userId: string, reason = 'User cache invalidation'): Promise<string[]> {
     const userHash = this.hashString(userId);
     const pattern = `${this.invalidationConfig.keyPrefix}:*:user_${userHash}:*`;
     return await this.invalidateByPattern(pattern, reason);
@@ -160,7 +163,10 @@ export class CacheInvalidationService {
   /**
    * 테이블 변경 기반 캐시 무효화
    */
-  async invalidateByTableChange(tableName: string, changeType: 'INSERT' | 'UPDATE' | 'DELETE'): Promise<string[]> {
+  async invalidateByTableChange(
+    tableName: string,
+    changeType: 'INSERT' | 'UPDATE' | 'DELETE',
+  ): Promise<string[]> {
     try {
       const patterns = this.tableWatchList.get(tableName.toLowerCase()) || [];
       const invalidatedKeys: string[] = [];
@@ -168,12 +174,12 @@ export class CacheInvalidationService {
       for (const pattern of patterns) {
         const keys = await this.invalidateByPattern(
           pattern,
-          `Table ${tableName} ${changeType.toLowerCase()} operation`
+          `Table ${tableName} ${changeType.toLowerCase()} operation`,
         );
         invalidatedKeys.push(...keys);
       }
 
-      this.logger.info('Cache invalidated by table change', {
+      this.logger.log('Cache invalidated by table change', {
         tableName,
         changeType,
         totalInvalidated: invalidatedKeys.length,
@@ -198,11 +204,11 @@ export class CacheInvalidationService {
   async cleanupExpiredCache(): Promise<void> {
     try {
       this.logger.debug('Starting expired cache cleanup');
-      
+
       // Redis에서는 자동으로 만료된 키가 제거되므로
       // 여기서는 메타데이터 정리만 수행
       await this.cleanupExpiredMetadata();
-      
+
       this.logger.debug('Expired cache cleanup completed');
     } catch (error) {
       this.logger.error('Failed to cleanup expired cache', error);
@@ -216,8 +222,9 @@ export class CacheInvalidationService {
   async executeTimeBasedRules(): Promise<void> {
     try {
       const now = new Date();
-      const timeBasedRules = Array.from(this.invalidationRules.values())
-        .filter(rule => rule.condition === 'time_based' && rule.intervalMinutes);
+      const timeBasedRules = Array.from(this.invalidationRules.values()).filter(
+        rule => rule.condition === 'time_based' && rule.intervalMinutes,
+      );
 
       for (const rule of timeBasedRules) {
         const shouldExecute = this.shouldExecuteTimeBasedRule(rule, now);
@@ -237,7 +244,7 @@ export class CacheInvalidationService {
     try {
       const removed = this.invalidationRules.delete(ruleId);
       if (removed) {
-        this.logger.info('Invalidation rule removed', { ruleId });
+        this.logger.log('Invalidation rule removed', { ruleId });
       } else {
         this.logger.warn('Invalidation rule not found', { ruleId });
       }
@@ -260,7 +267,7 @@ export class CacheInvalidationService {
   /**
    * 무효화 히스토리 조회
    */
-  getInvalidationHistory(limit: number = 100): InvalidationEvent[] {
+  getInvalidationHistory(limit = 100): InvalidationEvent[] {
     return this.invalidationHistory
       .slice(-limit)
       .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
@@ -277,13 +284,16 @@ export class CacheInvalidationService {
     mostActivePattern: string;
   } {
     const totalRules = this.invalidationRules.size;
-    const activeRules = Array.from(this.invalidationRules.values())
-      .filter(rule => rule.lastExecuted).length;
+    const activeRules = Array.from(this.invalidationRules.values()).filter(
+      rule => rule.lastExecuted,
+    ).length;
     const totalInvalidations = this.invalidationHistory.length;
-    
-    const averageInvalidationTime = totalInvalidations > 0
-      ? this.invalidationHistory.reduce((sum, event) => sum + event.executionTimeMs, 0) / totalInvalidations
-      : 0;
+
+    const averageInvalidationTime =
+      totalInvalidations > 0
+        ? this.invalidationHistory.reduce((sum, event) => sum + event.executionTimeMs, 0) /
+          totalInvalidations
+        : 0;
 
     // 가장 활발한 패턴 찾기
     const patternCounts = new Map<string, number>();
@@ -291,8 +301,8 @@ export class CacheInvalidationService {
       patternCounts.set(event.pattern, (patternCounts.get(event.pattern) || 0) + 1);
     });
 
-    const mostActivePattern = Array.from(patternCounts.entries())
-      .sort((a, b) => b[1] - a[1])[0]?.[0] || 'None';
+    const mostActivePattern =
+      Array.from(patternCounts.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] || 'None';
 
     return {
       totalRules,
@@ -369,10 +379,8 @@ export class CacheInvalidationService {
    */
   private matchPattern(key: string, pattern: string): boolean {
     // 간단한 와일드카드 패턴 매칭
-    const regexPattern = pattern
-      .replace(/\*/g, '.*')
-      .replace(/\?/g, '.');
-    
+    const regexPattern = pattern.replace(/\*/g, '.*').replace(/\?/g, '.');
+
     const regex = new RegExp(`^${regexPattern}$`);
     return regex.test(key);
   }
@@ -397,7 +405,7 @@ export class CacheInvalidationService {
    */
   private recordInvalidationEvent(event: InvalidationEvent): void {
     this.invalidationHistory.push(event);
-    
+
     // 히스토리 크기 제한
     if (this.invalidationHistory.length > this.invalidationConfig.maxHistorySize) {
       this.invalidationHistory.shift();
@@ -425,7 +433,7 @@ export class CacheInvalidationService {
     try {
       const invalidatedKeys = await this.invalidateByPattern(
         rule.pattern,
-        `Time-based rule: ${rule.description}`
+        `Time-based rule: ${rule.description}`,
       );
 
       // 실행 시간 업데이트
@@ -466,7 +474,7 @@ export class CacheInvalidationService {
     let hash = 0;
     for (let i = 0; i < input.length; i++) {
       const char = input.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash; // 32비트 정수로 변환
     }
     return Math.abs(hash).toString(36);

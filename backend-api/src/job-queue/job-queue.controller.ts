@@ -43,7 +43,10 @@ export class JobQueueController {
    */
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: '새 작업 생성', description: '새로운 백그라운드 작업을 큐에 추가합니다.' })
+  @ApiOperation({
+    summary: '새 작업 생성',
+    description: '새로운 백그라운드 작업을 큐에 추가합니다.',
+  })
   @ApiResponse({ status: 201, description: '작업이 성공적으로 생성됨' })
   @ApiResponse({ status: 400, description: '잘못된 요청 데이터' })
   async createJob(
@@ -60,7 +63,7 @@ export class JobQueueController {
   }> {
     try {
       const job = await this.jobQueueService.createJob(createJobDto, user.userId);
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         message: '작업이 성공적으로 생성되었습니다.',
@@ -97,7 +100,7 @@ export class JobQueueController {
   }> {
     try {
       const result = await this.jobQueueService.getJobs(queryDto, user.userId);
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         message: '작업 목록 조회 성공',
@@ -138,7 +141,7 @@ export class JobQueueController {
   }> {
     try {
       const job = await this.jobQueueService.getJob(jobId, user.userId);
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         message: '작업 조회 성공',
@@ -172,9 +175,9 @@ export class JobQueueController {
       const result = await this.jobQueueService.updateJobStatus(
         jobId,
         updateStatusDto,
-        user.userId
+        user.userId,
       );
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         message: '작업 상태가 업데이트되었습니다.',
@@ -205,7 +208,7 @@ export class JobQueueController {
   }> {
     try {
       await this.jobQueueService.cancelJob(jobId, body.reason, user.userId);
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         message: '작업이 취소되었습니다.',
@@ -234,7 +237,7 @@ export class JobQueueController {
   }> {
     try {
       await this.jobQueueService.retryJob(jobId, user.userId);
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         message: '작업 재시도가 예약되었습니다.',
@@ -251,7 +254,10 @@ export class JobQueueController {
    * 작업 상태 히스토리 조회
    */
   @Get(':jobId/history')
-  @ApiOperation({ summary: '작업 상태 히스토리', description: '작업의 상태 변경 히스토리를 조회합니다.' })
+  @ApiOperation({
+    summary: '작업 상태 히스토리',
+    description: '작업의 상태 변경 히스토리를 조회합니다.',
+  })
   @ApiParam({ name: 'jobId', description: '작업 ID' })
   @ApiQuery({ name: 'limit', required: false, description: '조회할 항목 수' })
   async getJobStatusHistory(
@@ -263,11 +269,8 @@ export class JobQueueController {
     data?: any[];
   }> {
     try {
-      const history = await this.jobStatusTrackerService.getJobStatusHistory(
-        jobId,
-        limit || 50
-      );
-      
+      const history = await this.jobStatusTrackerService.getJobStatusHistory(jobId, limit || 50);
+
       return {
         status: ResponseStatus.SUCCESS,
         message: '상태 히스토리 조회 성공',
@@ -300,7 +303,7 @@ export class JobQueueController {
   }> {
     try {
       const result = await this.jobRetryService.bulkRetry(body.jobIds, body.reason);
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         message: `벌크 재시도 완료: ${result.successful.length}개 성공, ${result.failed.length}개 실패`,
@@ -322,7 +325,10 @@ export class JobQueueController {
    * 큐 모니터링 대시보드
    */
   @Get('monitoring/dashboard')
-  @ApiOperation({ summary: '모니터링 대시보드', description: '작업 큐의 전체 모니터링 정보를 조회합니다.' })
+  @ApiOperation({
+    summary: '모니터링 대시보드',
+    description: '작업 큐의 전체 모니터링 정보를 조회합니다.',
+  })
   @ApiResponse({ status: 200, description: '대시보드 데이터 조회 성공' })
   async getMonitoringDashboard(): Promise<{
     status: ResponseStatus;
@@ -379,7 +385,7 @@ export class JobQueueController {
   }> {
     try {
       const health = await this.jobQueueMonitoringService.getQueueHealth();
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         message: '큐 건강도 조회 성공',
@@ -401,18 +407,14 @@ export class JobQueueController {
   @ApiOperation({ summary: '성능 메트릭 조회', description: '작업 큐의 성능 메트릭을 조회합니다.' })
   @ApiQuery({ name: 'hours', required: false, description: '조회 시간 범위 (시간)' })
   @ApiResponse({ status: 200, description: '성능 메트릭 조회 성공' })
-  async getPerformanceMetrics(
-    @Query('hours') hours?: number,
-  ): Promise<{
+  async getPerformanceMetrics(@Query('hours') hours?: number): Promise<{
     status: ResponseStatus;
     message: string;
     data: any;
   }> {
     try {
-      const metrics = await this.jobQueueMonitoringService.getPerformanceMetrics(
-        hours || 24
-      );
-      
+      const metrics = await this.jobQueueMonitoringService.getPerformanceMetrics(hours || 24);
+
       return {
         status: ResponseStatus.SUCCESS,
         message: '성능 메트릭 조회 성공',
@@ -431,21 +433,20 @@ export class JobQueueController {
    * 작업 유형별 메트릭 조회
    */
   @Get('monitoring/job-types')
-  @ApiOperation({ summary: '작업 유형별 메트릭', description: '작업 유형별 성능 메트릭을 조회합니다.' })
+  @ApiOperation({
+    summary: '작업 유형별 메트릭',
+    description: '작업 유형별 성능 메트릭을 조회합니다.',
+  })
   @ApiQuery({ name: 'days', required: false, description: '조회 일수' })
   @ApiResponse({ status: 200, description: '작업 유형별 메트릭 조회 성공' })
-  async getJobTypeMetrics(
-    @Query('days') days?: number,
-  ): Promise<{
+  async getJobTypeMetrics(@Query('days') days?: number): Promise<{
     status: ResponseStatus;
     message: string;
     data: any;
   }> {
     try {
-      const metrics = await this.jobQueueMonitoringService.getJobTypeMetrics(
-        days || 7
-      );
-      
+      const metrics = await this.jobQueueMonitoringService.getJobTypeMetrics(days || 7);
+
       return {
         status: ResponseStatus.SUCCESS,
         message: '작업 유형별 메트릭 조회 성공',
@@ -467,16 +468,14 @@ export class JobQueueController {
   @ApiOperation({ summary: '재시도 통계', description: '작업 재시도 관련 통계를 조회합니다.' })
   @ApiQuery({ name: 'days', required: false, description: '조회 일수' })
   @ApiResponse({ status: 200, description: '재시도 통계 조회 성공' })
-  async getRetryStatistics(
-    @Query('days') days?: number,
-  ): Promise<{
+  async getRetryStatistics(@Query('days') days?: number): Promise<{
     status: ResponseStatus;
     message: string;
     data: any;
   }> {
     try {
       const stats = await this.jobRetryService.getRetryStatistics(days || 7);
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         message: '재시도 통계 조회 성공',
@@ -498,16 +497,14 @@ export class JobQueueController {
   @ApiOperation({ summary: '우선순위 통계', description: '작업 우선순위 관련 통계를 조회합니다.' })
   @ApiQuery({ name: 'days', required: false, description: '조회 일수' })
   @ApiResponse({ status: 200, description: '우선순위 통계 조회 성공' })
-  async getPriorityStatistics(
-    @Query('days') days?: number,
-  ): Promise<{
+  async getPriorityStatistics(@Query('days') days?: number): Promise<{
     status: ResponseStatus;
     message: string;
     data: any;
   }> {
     try {
       const stats = await this.jobPriorityService.getPriorityStatistics(days || 7);
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         message: '우선순위 통계 조회 성공',
@@ -535,7 +532,7 @@ export class JobQueueController {
   }> {
     try {
       const usage = this.jobResourceManagerService.getResourceUsage();
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         message: '리소스 사용률 조회 성공',
@@ -563,7 +560,7 @@ export class JobQueueController {
   }> {
     try {
       const recommendations = this.jobResourceManagerService.getOptimizationRecommendations();
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         message: '최적화 제안 조회 성공',
@@ -582,21 +579,20 @@ export class JobQueueController {
    * 장시간 실행 작업 조회
    */
   @Get('monitoring/long-running')
-  @ApiOperation({ summary: '장시간 실행 작업', description: '장시간 실행되고 있는 작업들을 조회합니다.' })
+  @ApiOperation({
+    summary: '장시간 실행 작업',
+    description: '장시간 실행되고 있는 작업들을 조회합니다.',
+  })
   @ApiQuery({ name: 'thresholdMinutes', required: false, description: '임계값 (분)' })
   @ApiResponse({ status: 200, description: '장시간 실행 작업 조회 성공' })
-  async getLongRunningJobs(
-    @Query('thresholdMinutes') thresholdMinutes?: number,
-  ): Promise<{
+  async getLongRunningJobs(@Query('thresholdMinutes') thresholdMinutes?: number): Promise<{
     status: ResponseStatus;
     message: string;
     data: any[];
   }> {
     try {
-      const jobs = await this.jobQueueMonitoringService.getLongRunningJobs(
-        thresholdMinutes || 30
-      );
-      
+      const jobs = await this.jobQueueMonitoringService.getLongRunningJobs(thresholdMinutes || 30);
+
       return {
         status: ResponseStatus.SUCCESS,
         message: '장시간 실행 작업 조회 성공',
@@ -615,7 +611,10 @@ export class JobQueueController {
    * 전체 우선순위 재계산
    */
   @Post('admin/recalculate-priorities')
-  @ApiOperation({ summary: '우선순위 재계산', description: '모든 대기 중인 작업의 우선순위를 재계산합니다.' })
+  @ApiOperation({
+    summary: '우선순위 재계산',
+    description: '모든 대기 중인 작업의 우선순위를 재계산합니다.',
+  })
   @ApiResponse({ status: 200, description: '우선순위 재계산 완료' })
   async recalculatePriorities(): Promise<{
     status: ResponseStatus;
@@ -624,7 +623,7 @@ export class JobQueueController {
   }> {
     try {
       const result = await this.jobPriorityService.recalculateAllPriorities();
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         message: '우선순위 재계산이 완료되었습니다.',

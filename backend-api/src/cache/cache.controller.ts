@@ -30,11 +30,11 @@ export class CacheController {
    * 전체 캐시 통계 조회
    */
   @Get('statistics')
-  async getCacheStatistics(@Query('periodHours') periodHours: number = 24) {
+  async getCacheStatistics(@Query('periodHours') periodHours = 24) {
     try {
       const statistics = await this.statisticsService.getCacheStatistics(Number(periodHours));
       const memoryInfo = this.statisticsService.getMemoryInfo();
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         data: {
@@ -57,14 +57,14 @@ export class CacheController {
   @Get('statistics/database/:databaseId')
   async getDatabaseCacheStatistics(
     @Param('databaseId') databaseId: number,
-    @Query('periodHours') periodHours: number = 24,
+    @Query('periodHours') periodHours = 24,
   ) {
     try {
       const statistics = await this.statisticsService.getDatabaseCacheStatistics(
         Number(databaseId),
         Number(periodHours),
       );
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         data: {
@@ -85,16 +85,13 @@ export class CacheController {
    * 사용자별 캐시 통계 조회
    */
   @Get('statistics/user')
-  async getUserCacheStatistics(
-    @GetUser() user: any,
-    @Query('periodHours') periodHours: number = 24,
-  ) {
+  async getUserCacheStatistics(@GetUser() user: any, @Query('periodHours') periodHours = 24) {
     try {
       const statistics = await this.statisticsService.getUserCacheStatistics(
         user.userId,
         Number(periodHours),
       );
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         data: {
@@ -115,10 +112,10 @@ export class CacheController {
    * 캐시 성능 트렌드 조회
    */
   @Get('trend')
-  async getCachePerformanceTrend(@Query('periodHours') periodHours: number = 24) {
+  async getCachePerformanceTrend(@Query('periodHours') periodHours = 24) {
     try {
       const trend = await this.statisticsService.getCachePerformanceTrend(Number(periodHours));
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         data: trend,
@@ -145,7 +142,7 @@ export class CacheController {
         body.pattern,
         body.reason || `Manual invalidation by user ${user.userId}`,
       );
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         data: {
@@ -179,7 +176,7 @@ export class CacheController {
         Number(databaseId),
         body.reason || `Database cache invalidation by user ${user.userId}`,
       );
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         data: {
@@ -213,7 +210,7 @@ export class CacheController {
         targetUserId,
         body.reason || `User cache invalidation by user ${user.userId}`,
       );
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         data: {
@@ -238,8 +235,9 @@ export class CacheController {
   @Post('invalidate/table')
   @HttpCode(HttpStatus.OK)
   async invalidateByTableChange(
-    @Body() body: { 
-      tableName: string; 
+    @Body()
+    body: {
+      tableName: string;
       changeType: 'INSERT' | 'UPDATE' | 'DELETE';
       reason?: string;
     },
@@ -250,7 +248,7 @@ export class CacheController {
         body.tableName,
         body.changeType,
       );
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         data: {
@@ -275,7 +273,8 @@ export class CacheController {
    */
   @Post('invalidation-rules')
   async addInvalidationRule(
-    @Body() body: {
+    @Body()
+    body: {
       pattern: string;
       condition: 'time_based' | 'event_based' | 'manual';
       intervalMinutes?: number;
@@ -290,7 +289,7 @@ export class CacheController {
         ...body,
         description: `${body.description} (Created by ${user.userId})`,
       });
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         data: {
@@ -315,7 +314,7 @@ export class CacheController {
   async getInvalidationRules() {
     try {
       const rules = this.invalidationService.getInvalidationRules();
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         data: {
@@ -335,13 +334,10 @@ export class CacheController {
    * 무효화 규칙 삭제
    */
   @Delete('invalidation-rules/:ruleId')
-  async removeInvalidationRule(
-    @Param('ruleId') ruleId: string,
-    @GetUser() user: any,
-  ) {
+  async removeInvalidationRule(@Param('ruleId') ruleId: string, @GetUser() user: any) {
     try {
       await this.invalidationService.removeInvalidationRule(ruleId);
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         data: {
@@ -362,10 +358,10 @@ export class CacheController {
    * 무효화 히스토리 조회
    */
   @Get('invalidation-history')
-  async getInvalidationHistory(@Query('limit') limit: number = 100) {
+  async getInvalidationHistory(@Query('limit') limit = 100) {
     try {
       const history = this.invalidationService.getInvalidationHistory(Number(limit));
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         data: {
@@ -389,7 +385,7 @@ export class CacheController {
   async getInvalidationStatistics() {
     try {
       const statistics = this.invalidationService.getInvalidationStatistics();
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         data: statistics,
@@ -406,22 +402,17 @@ export class CacheController {
    * 전체 캐시 상태 대시보드
    */
   @Get('dashboard')
-  async getCacheDashboard(@Query('periodHours') periodHours: number = 24) {
+  async getCacheDashboard(@Query('periodHours') periodHours = 24) {
     try {
-      const [
-        statistics,
-        memoryInfo,
-        trend,
-        invalidationStats,
-        recentInvalidations,
-      ] = await Promise.all([
-        this.statisticsService.getCacheStatistics(Number(periodHours)),
-        this.statisticsService.getMemoryInfo(),
-        this.statisticsService.getCachePerformanceTrend(Number(periodHours)),
-        this.invalidationService.getInvalidationStatistics(),
-        this.invalidationService.getInvalidationHistory(10),
-      ]);
-      
+      const [statistics, memoryInfo, trend, invalidationStats, recentInvalidations] =
+        await Promise.all([
+          this.statisticsService.getCacheStatistics(Number(periodHours)),
+          this.statisticsService.getMemoryInfo(),
+          this.statisticsService.getCachePerformanceTrend(Number(periodHours)),
+          this.invalidationService.getInvalidationStatistics(),
+          this.invalidationService.getInvalidationHistory(10),
+        ]);
+
       return {
         status: ResponseStatus.SUCCESS,
         data: {
@@ -466,12 +457,14 @@ export class CacheController {
         issues.push('Low cache hit rate');
       }
 
-      if (memoryInfo.estimatedMemoryKB > 50000) { // 50MB
+      if (memoryInfo.estimatedMemoryKB > 50000) {
+        // 50MB
         status = 'degraded';
         issues.push('High memory usage');
       }
 
-      if (invalidationStats.averageInvalidationTime > 5000) { // 5초
+      if (invalidationStats.averageInvalidationTime > 5000) {
+        // 5초
         status = status === 'healthy' ? 'degraded' : 'unhealthy';
         issues.push('Slow invalidation performance');
       }

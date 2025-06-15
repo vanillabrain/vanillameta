@@ -70,10 +70,12 @@ export class KnexQueryMonitor {
         try {
           const analysis = await this.queryAnalyzerService.analyzeQuery(
             query.sql,
-            databaseEngine || 'unknown',
-            query.bindings,
-            duration,
+            databaseId,
           );
+          // Add execution time to the analysis result
+          if (analysis && duration) {
+            analysis.executionTime = duration;
+          }
 
           await this.slowQueryMonitorService.logSlowQuery(analysis, {
             databaseId,

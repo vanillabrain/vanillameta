@@ -1,12 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { 
-  DatabaseEngine, 
-  QueryComplexity 
-} from '../dto/timeout-config.dto';
-import { 
-  TimeoutStatistics, 
-  TimeoutMonitoringReport, 
-  TimeoutExecutionResult 
+import { DatabaseEngine, QueryComplexity } from '../dto/timeout-config.dto';
+import {
+  TimeoutStatistics,
+  TimeoutMonitoringReport,
+  TimeoutExecutionResult,
 } from '../dto/timeout-response.dto';
 
 interface TimeoutEvent {
@@ -35,17 +32,17 @@ interface AlertRule {
 @Injectable()
 export class TimeoutMonitoringService {
   private readonly logger = new Logger(TimeoutMonitoringService.name);
-  
+
   // 타임아웃 이벤트 저장 (메모리 기반, 실제로는 시계열 DB 사용 권장)
   private readonly timeoutEvents: TimeoutEvent[] = [];
   private readonly maxEventHistory = 10000; // 최대 이벤트 보관 수
-  
+
   // 알림 규칙
   private readonly alertRules: AlertRule[] = [
     {
       id: 'high_timeout_rate',
       name: 'High Timeout Rate',
-      condition: (stats) => stats.timeoutRate > 10, // 10% 초과
+      condition: stats => stats.timeoutRate > 10, // 10% 초과
       message: 'Timeout rate exceeded 10% for {engine}',
       severity: 'high',
       cooldownMs: 300000, // 5분
@@ -53,7 +50,7 @@ export class TimeoutMonitoringService {
     {
       id: 'critical_timeout_rate',
       name: 'Critical Timeout Rate',
-      condition: (stats) => stats.timeoutRate > 25, // 25% 초과
+      condition: stats => stats.timeoutRate > 25, // 25% 초과
       message: 'Critical timeout rate {timeoutRate}% for {engine}',
       severity: 'critical',
       cooldownMs: 180000, // 3분
@@ -61,7 +58,7 @@ export class TimeoutMonitoringService {
     {
       id: 'slow_average_execution',
       name: 'Slow Average Execution',
-      condition: (stats) => stats.averageExecutionTime > 60000, // 1분 초과
+      condition: stats => stats.averageExecutionTime > 60000, // 1분 초과
       message: 'Average execution time {averageTime}ms is too high for {engine}',
       severity: 'medium',
       cooldownMs: 600000, // 10분
@@ -69,7 +66,7 @@ export class TimeoutMonitoringService {
     {
       id: 'very_slow_p95',
       name: 'Very Slow P95',
-      condition: (stats) => stats.p95ExecutionTime > 120000, // 2분 초과
+      condition: stats => stats.p95ExecutionTime > 120000, // 2분 초과
       message: 'P95 execution time {p95Time}ms indicates performance issues for {engine}',
       severity: 'high',
       cooldownMs: 600000, // 10분
@@ -77,7 +74,7 @@ export class TimeoutMonitoringService {
     {
       id: 'frequent_timeouts',
       name: 'Frequent Timeouts',
-      condition: (stats) => stats.totalQueries > 50 && stats.timeoutCount > 5,
+      condition: stats => stats.totalQueries > 50 && stats.timeoutCount > 5,
       message: 'Frequent timeouts detected: {timeoutCount} out of {totalQueries} for {engine}',
       severity: 'medium',
       cooldownMs: 900000, // 15분
@@ -139,7 +136,6 @@ export class TimeoutMonitoringService {
         wasTimedOut: result.wasTimedOut,
         totalEvents: this.timeoutEvents.length,
       });
-
     } catch (error) {
       this.logger.error('Failed to record execution for monitoring', {
         error: error.message,
@@ -150,11 +146,8 @@ export class TimeoutMonitoringService {
   /**
    * 데이터베이스 엔진별 통계 생성
    */
-  generateStatistics(
-    engine: DatabaseEngine,
-    periodHours: number = 24,
-  ): TimeoutStatistics {
-    const cutoffTime = new Date(Date.now() - (periodHours * 60 * 60 * 1000));
+  generateStatistics(engine: DatabaseEngine, periodHours = 24): TimeoutStatistics {
+    const cutoffTime = new Date(Date.now() - periodHours * 60 * 60 * 1000);
     const relevantEvents = this.timeoutEvents.filter(
       event => event.engine === engine && event.timestamp > cutoffTime,
     );
@@ -179,7 +172,7 @@ export class TimeoutMonitoringService {
     const totalQueries = relevantEvents.length;
     const timeoutRate = (timeoutCount / totalQueries) * 100;
     const averageExecutionTime = executionTimes.reduce((sum, time) => sum + time, 0) / totalQueries;
-    
+
     const p95Index = Math.ceil(sortedTimes.length * 0.95) - 1;
     const p99Index = Math.ceil(sortedTimes.length * 0.99) - 1;
     const p95ExecutionTime = sortedTimes[Math.min(p95Index, sortedTimes.length - 1)] || 0;
@@ -207,10 +200,10 @@ export class TimeoutMonitoringService {
   /**
    * 종합 모니터링 리포트 생성
    */
-  generateMonitoringReport(periodHours: number = 24): TimeoutMonitoringReport {
+  generateMonitoringReport(periodHours = 24): TimeoutMonitoringReport {
     const endTime = new Date();
-    const startTime = new Date(endTime.getTime() - (periodHours * 60 * 60 * 1000));
-    
+    const startTime = new Date(endTime.getTime() - periodHours * 60 * 60 * 1000);
+
     const relevantEvents = this.timeoutEvents.filter(
       event => event.timestamp >= startTime && event.timestamp <= endTime,
     );
@@ -219,11 +212,12 @@ export class TimeoutMonitoringService {
     const totalQueries = relevantEvents.length;
     const totalTimeouts = relevantEvents.filter(event => event.wasTimedOut).length;
     const overallTimeoutRate = totalQueries > 0 ? (totalTimeouts / totalQueries) * 100 : 0;
-    
+
     const allExecutionTimes = relevantEvents.map(event => event.executionTimeMs);
-    const averageExecutionTime = allExecutionTimes.length > 0 
-      ? allExecutionTimes.reduce((sum, time) => sum + time, 0) / allExecutionTimes.length 
-      : 0;
+    const averageExecutionTime =
+      allExecutionTimes.length > 0
+        ? allExecutionTimes.reduce((sum, time) => sum + time, 0) / allExecutionTimes.length
+        : 0;
 
     // 최적화로 절약된 시간 추정 (타임아웃된 쿼리들의 시간 절약)
     const savedTimeFromOptimization = relevantEvents
@@ -238,12 +232,15 @@ export class TimeoutMonitoringService {
     const complexities = Object.values(QueryComplexity);
     const byComplexity = complexities.map(complexity => {
       const complexityEvents = relevantEvents.filter(event => event.complexity === complexity);
-      const avgTime = complexityEvents.length > 0
-        ? complexityEvents.reduce((sum, event) => sum + event.executionTimeMs, 0) / complexityEvents.length
-        : 0;
+      const avgTime =
+        complexityEvents.length > 0
+          ? complexityEvents.reduce((sum, event) => sum + event.executionTimeMs, 0) /
+            complexityEvents.length
+          : 0;
       const timeouts = complexityEvents.filter(event => event.wasTimedOut).length;
-      const timeoutRate = complexityEvents.length > 0 ? (timeouts / complexityEvents.length) * 100 : 0;
-      
+      const timeoutRate =
+        complexityEvents.length > 0 ? (timeouts / complexityEvents.length) * 100 : 0;
+
       return {
         complexity,
         averageTime: avgTime,
@@ -280,10 +277,10 @@ export class TimeoutMonitoringService {
   private checkAlerts(): void {
     try {
       const engines = Object.values(DatabaseEngine);
-      
+
       for (const engine of engines) {
         const stats = this.generateStatistics(engine, 1); // 최근 1시간
-        
+
         for (const rule of this.alertRules) {
           if (this.shouldTriggerAlert(rule, stats)) {
             this.triggerAlert(rule, stats);
@@ -307,8 +304,7 @@ export class TimeoutMonitoringService {
     }
 
     // 쿨다운 확인
-    if (rule.lastTriggered && 
-        Date.now() - rule.lastTriggered.getTime() < rule.cooldownMs) {
+    if (rule.lastTriggered && Date.now() - rule.lastTriggered.getTime() < rule.cooldownMs) {
       return false;
     }
 
@@ -328,9 +324,8 @@ export class TimeoutMonitoringService {
       .replace('{timeoutCount}', stats.timeoutCount.toString())
       .replace('{totalQueries}', stats.totalQueries.toString());
 
-    const logLevel = rule.severity === 'critical' ? 'error' 
-                   : rule.severity === 'high' ? 'warn' 
-                   : 'log';
+    const logLevel =
+      rule.severity === 'critical' ? 'error' : rule.severity === 'high' ? 'warn' : 'log';
 
     this.logger[logLevel](`TIMEOUT ALERT: ${rule.name}`, {
       rule: rule.id,
@@ -347,17 +342,14 @@ export class TimeoutMonitoringService {
   /**
    * 권장사항 생성
    */
-  private generateRecommendations(
-    byEngine: TimeoutStatistics[],
-    byComplexity: any[],
-  ): string[] {
+  private generateRecommendations(byEngine: TimeoutStatistics[], byComplexity: any[]): string[] {
     const recommendations: string[] = [];
 
     // 높은 타임아웃율 엔진
     const highTimeoutEngines = byEngine.filter(stats => stats.timeoutRate > 5);
     if (highTimeoutEngines.length > 0) {
       recommendations.push(
-        `Consider increasing timeout for: ${highTimeoutEngines.map(e => e.engine).join(', ')}`
+        `Consider increasing timeout for: ${highTimeoutEngines.map(e => e.engine).join(', ')}`,
       );
     }
 
@@ -365,7 +357,7 @@ export class TimeoutMonitoringService {
     const slowEngines = byEngine.filter(stats => stats.averageExecutionTime > 30000);
     if (slowEngines.length > 0) {
       recommendations.push(
-        `Performance optimization needed for: ${slowEngines.map(e => e.engine).join(', ')}`
+        `Performance optimization needed for: ${slowEngines.map(e => e.engine).join(', ')}`,
       );
     }
 
@@ -373,7 +365,9 @@ export class TimeoutMonitoringService {
     const slowComplexities = byComplexity.filter(c => c.averageTime > 60000);
     if (slowComplexities.length > 0) {
       recommendations.push(
-        `Review query optimization for ${slowComplexities.map(c => c.complexity).join(', ')} queries`
+        `Review query optimization for ${slowComplexities
+          .map(c => c.complexity)
+          .join(', ')} queries`,
       );
     }
 
@@ -389,8 +383,8 @@ export class TimeoutMonitoringService {
    * 최근 알림 조회
    */
   private getRecentAlerts(periodHours: number): string[] {
-    const cutoffTime = new Date(Date.now() - (periodHours * 60 * 60 * 1000));
-    
+    const cutoffTime = new Date(Date.now() - periodHours * 60 * 60 * 1000);
+
     return this.alertRules
       .filter(rule => rule.lastTriggered && rule.lastTriggered > cutoffTime)
       .map(rule => `${rule.name} (${rule.severity})`)
@@ -401,9 +395,9 @@ export class TimeoutMonitoringService {
    * 오래된 이벤트 정리
    */
   private cleanupOldEvents(): void {
-    const cutoffTime = new Date(Date.now() - (7 * 24 * 60 * 60 * 1000)); // 7일 전
+    const cutoffTime = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // 7일 전
     const initialLength = this.timeoutEvents.length;
-    
+
     // 오래된 이벤트 제거
     let index = 0;
     while (index < this.timeoutEvents.length) {
@@ -434,14 +428,11 @@ export class TimeoutMonitoringService {
   } {
     const eventCount = this.timeoutEvents.length;
     const memoryUsageEstimateKB = eventCount * 0.5; // 각 이벤트당 약 0.5KB
-    
+
     const now = Date.now();
-    const oldestEventAge = eventCount > 0 
-      ? now - this.timeoutEvents[0].timestamp.getTime() 
-      : 0;
-    const newestEventAge = eventCount > 0 
-      ? now - this.timeoutEvents[eventCount - 1].timestamp.getTime() 
-      : 0;
+    const oldestEventAge = eventCount > 0 ? now - this.timeoutEvents[0].timestamp.getTime() : 0;
+    const newestEventAge =
+      eventCount > 0 ? now - this.timeoutEvents[eventCount - 1].timestamp.getTime() : 0;
 
     return {
       eventCount,
@@ -454,7 +445,10 @@ export class TimeoutMonitoringService {
   /**
    * 특정 기간 동안의 타임아웃 트렌드 조회
    */
-  getTimeoutTrend(engine: DatabaseEngine, periodHours: number = 24): {
+  getTimeoutTrend(
+    engine: DatabaseEngine,
+    periodHours = 24,
+  ): {
     hourly: Array<{
       hour: string;
       totalQueries: number;
@@ -462,19 +456,17 @@ export class TimeoutMonitoringService {
       timeoutRate: number;
     }>;
   } {
-    const cutoffTime = new Date(Date.now() - (periodHours * 60 * 60 * 1000));
+    const cutoffTime = new Date(Date.now() - periodHours * 60 * 60 * 1000);
     const relevantEvents = this.timeoutEvents.filter(
       event => event.engine === engine && event.timestamp > cutoffTime,
     );
 
     // 시간별 그룹화
     const hourlyData = new Map<string, { total: number; timeouts: number }>();
-    
+
     relevantEvents.forEach(event => {
-      const hour = new Date(event.timestamp.getTime())
-        .toISOString()
-        .substring(0, 13); // YYYY-MM-DDTHH 형식
-      
+      const hour = new Date(event.timestamp.getTime()).toISOString().substring(0, 13); // YYYY-MM-DDTHH 형식
+
       const existing = hourlyData.get(hour) || { total: 0, timeouts: 0 };
       existing.total++;
       if (event.wasTimedOut) {

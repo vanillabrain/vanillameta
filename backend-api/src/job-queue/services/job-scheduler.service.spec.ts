@@ -161,17 +161,17 @@ describe('JobSchedulerService', () => {
       // Arrange
       const zombieThreshold = new Date(Date.now() - 30 * 60 * 1000); // 30 minutes ago
       const zombieJobs = [
-        { 
-          ...mockJob, 
-          id: 'zombie-1', 
-          status: JobStatus.RUNNING, 
-          startedAt: new Date(Date.now() - 45 * 60 * 1000) // 45 minutes ago
+        {
+          ...mockJob,
+          id: 'zombie-1',
+          status: JobStatus.RUNNING,
+          startedAt: new Date(Date.now() - 45 * 60 * 1000), // 45 minutes ago
         },
-        { 
-          ...mockJob, 
-          id: 'zombie-2', 
-          status: JobStatus.RUNNING, 
-          startedAt: new Date(Date.now() - 35 * 60 * 1000) // 35 minutes ago
+        {
+          ...mockJob,
+          id: 'zombie-2',
+          status: JobStatus.RUNNING,
+          startedAt: new Date(Date.now() - 35 * 60 * 1000), // 35 minutes ago
         },
       ];
 
@@ -265,7 +265,7 @@ describe('JobSchedulerService', () => {
       // Arrange
       const job = { ...mockJob };
       const error = new Error('Processing failed');
-      
+
       jobRepository.findOne.mockResolvedValue(job);
       jobProcessorService.processJob.mockRejectedValue(error);
       jobRepository.update.mockResolvedValue({ affected: 1, raw: {}, generatedMaps: [] });
@@ -312,15 +312,15 @@ describe('JobSchedulerService', () => {
   describe('job age and retry handling', () => {
     it('should consider job age in priority calculation', async () => {
       // Arrange
-      const oldJob = { 
-        ...mockJob, 
-        id: 'old', 
-        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000) // 2 hours ago
+      const oldJob = {
+        ...mockJob,
+        id: 'old',
+        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
       };
-      const newJob = { 
-        ...mockJob, 
-        id: 'new', 
-        createdAt: new Date() // Just created
+      const newJob = {
+        ...mockJob,
+        id: 'new',
+        createdAt: new Date(), // Just created
       };
 
       // Act
@@ -334,11 +334,11 @@ describe('JobSchedulerService', () => {
 
     it('should handle retry jobs with higher priority', async () => {
       // Arrange
-      const retryJob = { 
-        ...mockJob, 
-        id: 'retry', 
+      const retryJob = {
+        ...mockJob,
+        id: 'retry',
         retryCount: 1,
-        status: JobStatus.RETRY
+        status: JobStatus.RETRY,
       };
 
       // Act

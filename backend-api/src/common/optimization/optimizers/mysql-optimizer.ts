@@ -20,7 +20,7 @@ export class MySQLOptimizer {
   optimizeQuery(queryBuilder: Knex.QueryBuilder): Knex.QueryBuilder {
     // Knex QueryBuilder는 hint() 메서드를 직접 지원하지 않으므로
     // raw SQL을 사용하거나 options를 사용한다
-    return queryBuilder.options({ 
+    return queryBuilder.options({
       sql_mode: 'TRADITIONAL',
       // MySQL 힌트는 raw SQL에서 사용
     });
@@ -32,11 +32,9 @@ export class MySQLOptimizer {
   async batchInsert(knex: Knex, data: any[], tableName: string): Promise<void> {
     const chunkSize = 1000; // MySQL 최적 배치 크기
     const chunks = this.chunkArray(data, chunkSize);
-    
+
     for (const chunk of chunks) {
-      await knex(tableName)
-        .insert(chunk)
-        .options({ ignore: true }); // INSERT IGNORE
+      await knex(tableName).insert(chunk).options({ ignore: true }); // INSERT IGNORE
     }
   }
 
@@ -67,7 +65,7 @@ export class MySQLOptimizer {
         reapIntervalMillis: 1000,
         createRetryIntervalMillis: 100,
         afterCreate: (conn, done) => {
-          conn.query('SET SESSION sql_mode="TRADITIONAL"', (err) => {
+          conn.query('SET SESSION sql_mode="TRADITIONAL"', err => {
             if (err) {
               this.logger.warn('Failed to set MySQL sql_mode', err.message);
             }
@@ -83,7 +81,7 @@ export class MySQLOptimizer {
    */
   addMySQLHints(query: string, hints: string[]): string {
     if (!hints || hints.length === 0) return query;
-    
+
     const hintString = hints.join(' ');
     return query.replace(/SELECT/i, `SELECT ${hintString}`);
   }
@@ -94,11 +92,11 @@ export class MySQLOptimizer {
   optimizeWithIndexHints(query: string, tableName: string, indexName: string): string {
     const useIndexHint = `USE INDEX (${indexName})`;
     const fromPattern = new RegExp(`FROM\\s+${tableName}`, 'i');
-    
+
     if (fromPattern.test(query)) {
       return query.replace(fromPattern, `FROM ${tableName} ${useIndexHint}`);
     }
-    
+
     return query;
   }
 
@@ -114,18 +112,18 @@ export class MySQLOptimizer {
         suggestion: 'Consider using cursor-based pagination',
       });
     }
-    
+
     // LIMIT가 너무 큰 경우 제한
     const maxLimit = 10000;
     const actualLimit = Math.min(limit, maxLimit);
-    
+
     if (limit > maxLimit) {
       this.logger.warn('Large LIMIT reduced for MySQL optimization', {
         requestedLimit: limit,
         actualLimit,
       });
     }
-    
+
     return query.replace(/LIMIT\s+\d+/i, `LIMIT ${actualLimit}`);
   }
 
@@ -142,7 +140,7 @@ export class MySQLOptimizer {
       if (!/ORDER\s+BY\s+NULL/i.test(query)) {
         optimizedQuery = optimizedQuery.replace(
           /GROUP\s+BY\s+([^;]+)/i,
-          'GROUP BY $1 ORDER BY NULL'
+          'GROUP BY $1 ORDER BY NULL',
         );
         appliedOptimizations.push('Added ORDER BY NULL to prevent implicit sorting');
       }
@@ -169,7 +167,7 @@ export class MySQLOptimizer {
   optimizeJsonQuery(query: string): string {
     // JSON_EXTRACT 함수 사용 권장
     const jsonOperatorPattern = /(\w+)\s*->\s*['"'](\w+)['"']/g;
-    
+
     return query.replace(jsonOperatorPattern, (match, column, key) => {
       return `JSON_EXTRACT(${column}, '$.${key}')`;
     });

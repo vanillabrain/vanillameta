@@ -5,17 +5,26 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { QueueJob, JobStatus, JobPriority } from '../entities/queue-job.entity';
 import { JobProcessorService } from './job-processor.service';
 
+interface SchedulerConfig {
+  maxConcurrentJobs: number;
+  jobProcessingInterval: number;
+  batchSize: number;
+  priorityWeights: {
+    [key in JobPriority]: number;
+  };
+}
+
 @Injectable()
 export class JobSchedulerService {
   private readonly logger = new Logger(JobSchedulerService.name);
-  
+
   // 메모리 기반 스케줄링 큐 (간단한 우선순위 큐)
   private scheduledJobs = new Map<string, QueueJob>();
   private priorityQueue: QueueJob[] = [];
   private isProcessing = false;
 
   // 설정값들
-  private readonly config = {
+  private readonly config: SchedulerConfig = {
     maxConcurrentJobs: 10, // Lambda 환경 고려
     jobProcessingInterval: 5000, // 5초마다 체크
     batchSize: 5, // 한 번에 처리할 작업 수
@@ -42,10 +51,10 @@ export class JobSchedulerService {
     try {
       // 기존 PENDING/RETRY 상태의 작업들을 메모리에 로드
       await this.loadPendingJobs();
-      
+
       // 주기적 스케줄링 시작
       this.startJobProcessing();
-      
+
       this.logger.log('Job scheduler initialized');
     } catch (error) {
       this.logger.error('Failed to initialize job scheduler', error);
@@ -58,10 +67,7 @@ export class JobSchedulerService {
   private async loadPendingJobs(): Promise<void> {
     try {
       const pendingJobs = await this.jobRepository.find({
-        where: [
-          { status: JobStatus.PENDING },
-          { status: JobStatus.RETRY },
-        ],
+        where: [{ status: JobStatus.PENDING }, { status: JobStatus.RETRY }],
         order: { priority: 'DESC', createdAt: 'ASC' },
       });
 
@@ -111,7 +117,7 @@ export class JobSchedulerService {
     }
 
     this.scheduledJobs.set(job.id, job);
-    
+
     // 예약 시간이 있는 경우 현재 시간 이후인지 확인
     if (job.scheduledAt && job.scheduledAt > new Date()) {
       // 예약된 작업은 별도 처리
@@ -128,7 +134,7 @@ export class JobSchedulerService {
    */
   private insertByPriority(job: QueueJob): void {
     const jobScore = this.calculateJobScore(job);
-    
+
     let insertIndex = 0;
     for (let i = 0; i < this.priorityQueue.length; i++) {
       const currentScore = this.calculateJobScore(this.priorityQueue[i]);
@@ -138,7 +144,7 @@ export class JobSchedulerService {
         break;
       }
     }
-    
+
     this.priorityQueue.splice(insertIndex, 0, job);
   }
 
@@ -149,7 +155,7 @@ export class JobSchedulerService {
     const priorityWeight = this.config.priorityWeights[job.priority];
     const ageInMinutes = (Date.now() - job.createdAt.getTime()) / (1000 * 60);
     const ageFactor = Math.min(ageInMinutes / 60, 2); // 최대 2시간까지 보정
-    
+
     return priorityWeight + ageFactor;
   }
 
@@ -158,7 +164,7 @@ export class JobSchedulerService {
    */
   private scheduleDelayedJob(job: QueueJob): void {
     const delay = job.scheduledAt.getTime() - Date.now();
-    
+
     setTimeout(() => {
       if (this.scheduledJobs.has(job.id)) {
         this.insertByPriority(job);
@@ -197,8 +203,9 @@ export class JobSchedulerService {
         return;
       }
 
-      const jobsToProcess = this.priorityQueue.splice(0, 
-        Math.min(availableSlots, this.config.batchSize)
+      const jobsToProcess = this.priorityQueue.splice(
+        0,
+        Math.min(availableSlots, this.config.batchSize),
       );
 
       if (jobsToProcess.length === 0) {
@@ -206,10 +213,10 @@ export class JobSchedulerService {
       }
 
       // 병렬로 작업 처리 시작
-      const processingPromises = jobsToProcess.map(job => 
+      const processingPromises = jobsToProcess.map(job =>
         this.processJob(job).catch(error => {
           this.logger.error(`Failed to process job ${job.id}`, error);
-        })
+        }),
       );
 
       await Promise.allSettled(processingPromises);
@@ -233,8 +240,8 @@ export class JobSchedulerService {
   private async processJob(job: QueueJob): Promise<void> {
     try {
       // DB에서 최신 상태 확인
-      const dbJob = await this.jobRepository.findOne({ 
-        where: { id: job.id } 
+      const dbJob = await this.jobRepository.findOne({
+        where: { id: job.id },
       });
 
       if (!dbJob || dbJob.status !== JobStatus.PENDING) {
@@ -244,10 +251,9 @@ export class JobSchedulerService {
 
       // JobProcessorService에 위임하여 실제 작업 실행
       await this.jobProcessorService.processJob(dbJob);
-      
     } catch (error) {
       this.logger.error(`Failed to process job ${job.id}`, error);
-      
+
       // 작업 실패 처리
       await this.handleJobProcessingError(job, error);
     }
@@ -275,7 +281,7 @@ export class JobSchedulerService {
   private async getCurrentRunningJobsCount(): Promise<number> {
     try {
       return await this.jobRepository.count({
-        where: { status: JobStatus.RUNNING }
+        where: { status: JobStatus.RUNNING },
       });
     } catch (error) {
       this.logger.error('Failed to get running jobs count', error);
@@ -319,7 +325,7 @@ export class JobSchedulerService {
   async cleanupZombieJobs(): Promise<void> {
     try {
       const zombieThreshold = new Date(Date.now() - 30 * 60 * 1000); // 30분 전
-      
+
       const zombieJobs = await this.jobRepository.find({
         where: {
           status: JobStatus.RUNNING,
@@ -350,7 +356,7 @@ export class JobSchedulerService {
     queueLength: number;
     scheduledJobsCount: number;
     isProcessing: boolean;
-    config: typeof this.config;
+    config: SchedulerConfig;
   } {
     return {
       queueLength: this.priorityQueue.length,
@@ -363,7 +369,7 @@ export class JobSchedulerService {
   /**
    * 스케줄러 설정 업데이트
    */
-  updateConfig(newConfig: Partial<typeof this.config>): void {
+  updateConfig(newConfig: Partial<SchedulerConfig>): void {
     Object.assign(this.config, newConfig);
     this.logger.log('Scheduler configuration updated', newConfig);
   }

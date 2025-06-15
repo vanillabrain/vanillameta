@@ -15,7 +15,7 @@ import { CacheController } from './cache.controller';
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => {
         const isLocal = configService.get('NODE_ENV') === 'local';
-        
+
         // 로컬 환경에서는 메모리 캐시 사용, 다른 환경에서는 Redis 사용
         if (isLocal) {
           return {
@@ -49,8 +49,18 @@ import { CacheController } from './cache.controller';
       inject: [ConfigService],
     }),
   ],
-  providers: [QueryCacheService, CacheStatisticsService, CacheInvalidationService, CacheConsistencyService],
+  providers: [
+    QueryCacheService,
+    CacheStatisticsService,
+    CacheInvalidationService,
+    CacheConsistencyService,
+  ],
   controllers: [CacheController],
-  exports: [QueryCacheService, CacheStatisticsService, CacheInvalidationService, CacheConsistencyService],
+  exports: [
+    QueryCacheService,
+    CacheStatisticsService,
+    CacheInvalidationService,
+    CacheConsistencyService,
+  ],
 })
 export class CacheModule {}
