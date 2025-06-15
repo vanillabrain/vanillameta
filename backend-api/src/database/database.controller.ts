@@ -18,6 +18,7 @@ import { ConnectionService } from '../connection/connection.service';
 import { DatasetType } from '../common/enum/dataset-type.enum';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { ApiTags } from '@nestjs/swagger';
+import { FieldSelection, PredefinedFields } from '../common/field-selection/field-selection.decorator';
 
 @UseGuards(JwtAuthGuard)
 @Controller('database')
@@ -86,8 +87,9 @@ export class DatabaseController {
   /**
    * 데이터베이스 목록 조회
    */
+  @PredefinedFields('connectionBasic')
   @Get()
-  async findAll() {
+  async findAll(@Query('fields') fields?: string) {
     const res = await this.databaseService.findAll();
     return res;
   }
@@ -96,8 +98,15 @@ export class DatabaseController {
    * 데이터베이스 상세 조회 - 데이터베이스 연결정보, 테이블, 데이터셋 조회
    * @param id
    */
+  @FieldSelection({
+    allowedFields: [
+      'id', 'name', 'description', 'engine', 'type', 'timezone',
+      'createdAt', 'updatedAt', 'tables', 'datasets'
+    ],
+    excludeFields: ['connectionConfig']
+  })
   @Get(':id')
-  async findOne(@Param('id') id: string) {
+  async findOne(@Param('id') id: string, @Query('fields') fields?: string) {
     const databaseInfo = await this.databaseService.findOne(+id);
     return databaseInfo;
   }

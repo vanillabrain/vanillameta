@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Body, Param, Delete, Put, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, Put, UseGuards, Query } from '@nestjs/common';
 import { DatasetService } from './dataset.service';
 import { CreateDatasetDto } from './dto/create-dataset.dto';
 import { UpdateDatasetDto } from './dto/update-dataset.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { FieldSelection, PredefinedFields } from '../common/field-selection/field-selection.decorator';
 
 @UseGuards(JwtAuthGuard)
 @Controller('dataset')
@@ -21,8 +22,9 @@ export class DatasetController {
   /**
    * 데이터셋 목록 조회
    */
+  @PredefinedFields('datasetMeta')
   @Get()
-  findAll() {
+  findAll(@Query('fields') fields?: string) {
     return this.datasetService.findAll();
   }
 
@@ -30,8 +32,12 @@ export class DatasetController {
    * 데이터셋 단건 조회
    * @param id
    */
+  @FieldSelection({
+    allowedFields: ['id', 'title', 'databaseId', 'query', 'createdAt', 'updatedAt'],
+    excludeFields: []
+  })
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id') id: string, @Query('fields') fields?: string) {
     return this.datasetService.findOne(+id);
   }
 

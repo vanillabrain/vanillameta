@@ -8,6 +8,7 @@ import { SqlValidationModule } from '../common/security/sql-validation.module';
 import { QueryAnalyzerModule } from '../common/monitoring/query-analyzer.module';
 import { MonitoringModule } from '../common/monitoring/monitoring.module';
 import { QueryCollector } from '../common/utils/query-collector';
+import { DatabaseOptimizersModule } from './database-optimizers';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { QueryCollector } from '../common/utils/query-collector';
     SqlValidationModule,
     QueryAnalyzerModule,
     MonitoringModule,
+    DatabaseOptimizersModule,
   ],
   providers: [
     {

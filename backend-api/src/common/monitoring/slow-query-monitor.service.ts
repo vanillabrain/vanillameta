@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, LessThan } from 'typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import * as crypto from 'crypto';
+import { CloudWatch } from 'aws-sdk';
 import { SlowQueryLog } from './entities/slow-query-log.entity';
 import { QueryAnalysis } from './query-analyzer.service';
 
@@ -51,6 +52,7 @@ export interface SlowQueryStats {
 @Injectable()
 export class SlowQueryMonitorService {
   private readonly logger = new Logger(SlowQueryMonitorService.name);
+  private readonly cloudwatch: CloudWatch;
 
   private config: SlowQueryMonitorConfig = {
     enabled: true,
@@ -68,7 +70,12 @@ export class SlowQueryMonitorService {
   constructor(
     @InjectRepository(SlowQueryLog)
     private slowQueryLogRepository: Repository<SlowQueryLog>,
-  ) {}
+  ) {
+    // CloudWatch 인스턴스 초기화
+    this.cloudwatch = new CloudWatch({
+      region: process.env.AWS_REGION || 'us-east-1',
+    });
+  }
 
   /**
    * 슬로우 쿼리 기록
@@ -140,6 +147,14 @@ export class SlowQueryMonitorService {
         userId: metadata.userId,
         requestId: metadata.requestId,
       });
+
+      // CloudWatch 메트릭 전송
+      await this.sendCloudWatchMetrics(
+        analysis.executionTime,
+        severity,
+        metadata.databaseEngine,
+        metadata.databaseId,
+      );
 
       // Critical 수준의 쿼리는 즉시 알림
       if (severity === 'CRITICAL') {
@@ -472,5 +487,152 @@ export class SlowQueryMonitorService {
    */
   getConfig(): SlowQueryMonitorConfig {
     return { ...this.config };
+  }
+
+  /**
+   * CloudWatch 메트릭 전송
+   */
+  private async sendCloudWatchMetrics(
+    executionTime: number,
+    severity: string,
+    databaseEngine?: string,
+    databaseId?: number,
+  ): Promise<void> {
+    if (!this.config.enabled) return;
+
+    try {
+      const namespace = `VanillaMeta/${process.env.NODE_ENV || 'dev'}/Database`;
+      const timestamp = new Date();
+
+      const metricData = [
+        // 슬로우 쿼리 카운트 메트릭
+        {
+          MetricName: 'SlowQueryCount',
+          Value: 1,
+          Unit: 'Count',
+          Timestamp: timestamp,
+          Dimensions: [
+            {
+              Name: 'Environment',
+              Value: process.env.NODE_ENV || 'dev',
+            },
+          ],
+        },
+        // 실행 시간 메트릭
+        {
+          MetricName: 'SlowQueryExecutionTime',
+          Value: executionTime,
+          Unit: 'Milliseconds',
+          Timestamp: timestamp,
+          Dimensions: [
+            {
+              Name: 'Environment',
+              Value: process.env.NODE_ENV || 'dev',
+            },
+          ],
+        },
+        // 심각도별 카운트 메트릭
+        {
+          MetricName: 'SlowQueryBySeverity',
+          Value: 1,
+          Unit: 'Count',
+          Timestamp: timestamp,
+          Dimensions: [
+            {
+              Name: 'Environment',
+              Value: process.env.NODE_ENV || 'dev',
+            },
+            {
+              Name: 'Severity',
+              Value: severity,
+            },
+          ],
+        },
+      ];
+
+      // 데이터베이스 엔진별 메트릭 추가
+      if (databaseEngine) {
+        metricData.push({
+          MetricName: 'SlowQueryByDatabase',
+          Value: 1,
+          Unit: 'Count',
+          Timestamp: timestamp,
+          Dimensions: [
+            {
+              Name: 'Environment',
+              Value: process.env.NODE_ENV || 'dev',
+            },
+            {
+              Name: 'DatabaseEngine',
+              Value: databaseEngine,
+            },
+          ],
+        });
+
+        metricData.push({
+          MetricName: 'SlowQueryExecutionTimeByDatabase',
+          Value: executionTime,
+          Unit: 'Milliseconds',
+          Timestamp: timestamp,
+          Dimensions: [
+            {
+              Name: 'Environment',
+              Value: process.env.NODE_ENV || 'dev',
+            },
+            {
+              Name: 'DatabaseEngine',
+              Value: databaseEngine,
+            },
+          ],
+        });
+      }
+
+      // 데이터베이스 ID별 메트릭 추가
+      if (databaseId) {
+        metricData.push({
+          MetricName: 'SlowQueryByDatabaseId',
+          Value: 1,
+          Unit: 'Count',
+          Timestamp: timestamp,
+          Dimensions: [
+            {
+              Name: 'Environment',
+              Value: process.env.NODE_ENV || 'dev',
+            },
+            {
+              Name: 'DatabaseId',
+              Value: databaseId.toString(),
+            },
+          ],
+        });
+      }
+
+      // 메트릭 전송 (최대 20개씩 배치 전송)
+      for (let i = 0; i < metricData.length; i += 20) {
+        const batch = metricData.slice(i, i + 20);
+        await this.cloudwatch
+          .putMetricData({
+            Namespace: namespace,
+            MetricData: batch,
+          })
+          .promise();
+      }
+
+      this.logger.debug(`Sent ${metricData.length} CloudWatch metrics for slow query`, {
+        executionTime,
+        severity,
+        databaseEngine,
+        databaseId,
+      });
+    } catch (error) {
+      // CloudWatch 메트릭 전송 실패는 로깅만 하고 에러를 throw하지 않음
+      this.logger.error(`Failed to send CloudWatch metrics: ${error.message}`, {
+        executionTime,
+        severity,
+        databaseEngine,
+        databaseId,
+        error: error.stack,
+      });
+    }
   }
 }

@@ -51,7 +51,7 @@ This project follows a milestone-based development approach.
 📋 N+1 쿼리 문제 해결 (T02_S03)
 📋 TypeORM 쿼리 최적화 (T03_S03)
 📋 연결 풀 최적화 (T04_S03)
-📋 쿼리 실행 계획 분석 (T05_S03)
+✅ 쿼리 실행 계획 분석 (T05_S03) - COMPLETED (2025-06-12 23:52)
 📋 느린 쿼리 모니터링 설정 (T06_S03)
 📋 데이터베이스별 특화 최적화 (T07_S03)
 
@@ -63,9 +63,14 @@ This project follows a milestone-based development approach.
 
 ### S05 프론트엔드 성능 (📋 PLANNED)
 
-📋 번들 크기 최적화
-📋 차트 렌더링 최적화
-📋 메모이제이션 적용
+✅ 번들 크기 최적화 (T01_S05) - Tree shaking과 코드 스플리팅 - COMPLETED (2025-06-14 14:55)
+📋 동적 임포트 구현 (T02_S05) - React.lazy() 활용
+📋 리소스 지연 로딩 (T03_S05) - 이미지 및 리소스 최적화
+📋 차트 렌더링 최적화 (T04_S05) - 가상화, 디바운싱
+📋 React 메모이제이션 (T05_S05) - React.memo, useMemo 적용
+📋 웹 폰트 최적화 (T06_S05) - Pretendard 서브셋팅
+📋 Service Worker 구현 (T07_S05) - 오프라인 지원
+📋 성능 모니터링 설정 (T08_S05) - Web Vitals 추적
 
 ### S06 대용량 데이터 처리 (📋 PLANNED)
 
@@ -86,7 +91,15 @@ This project follows a milestone-based development approach.
 - [General Tasks](./04_GENERAL_TASKS/)
 - [Latest Project Review](./10_STATE_OF_PROJECT/2025-06-12-12-00-needs-focus.md)
 
-## 5. Quick Links
+## 5. General Tasks
+
+### T001 Backend Test Suite Enhancement (🔄 IN PROGRESS)
+🔄 기존 테스트 케이스를 분석하여 포괄적인 단위 테스트와 E2E 테스트 스위트 구성
+- **Target Coverage**: 80% 이상
+- **Status**: In Progress (2025-06-13 10:38)
+- **File**: [T001_Backend_Test_Suite_Enhancement.md](./04_GENERAL_TASKS/T001_Backend_Test_Suite_Enhancement.md)
+
+## 6. Quick Links
 
 - **Current Sprint:** [S01 Sprint Folder](./03_SPRINTS/S01_MVP_안정화_및_핵심_기능_강화_테스트_인프라_복구/)
 - **Active Tasks:** Check sprint folder for T##_S01_*.md files

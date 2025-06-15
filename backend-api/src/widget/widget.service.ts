@@ -44,7 +44,11 @@ export class WidgetService {
     createWidget.option = JSON.stringify(createWidget.option);
 
     const saveResult = await this.widgetRepository.save(createWidget);
-    saveResult.option = JSON.parse(saveResult.option);
+    try {
+      (saveResult as any).option = JSON.parse(saveResult.option);
+    } catch (error) {
+      (saveResult as any).option = {};
+    }
     return { status: ResponseStatus.SUCCESS, data: saveResult };
   }
 
@@ -67,7 +71,11 @@ export class WidgetService {
       .getRawMany();
 
     find_all.forEach(el => {
-      el.option = JSON.parse(el.option);
+      try {
+        (el as any).option = JSON.parse(el.option);
+      } catch (error) {
+        (el as any).option = {};
+      }
     });
     return { status: ResponseStatus.SUCCESS, data: find_all };
   }
@@ -97,7 +105,11 @@ export class WidgetService {
     if (!find_widget)
       resultObj = { status: ResponseStatus.ERROR, message: `${id} 위젯이 존재하지 않습니다.` };
     else {
-      find_widget.option = JSON.parse(find_widget.option);
+      try {
+        (find_widget as any).option = JSON.parse(find_widget.option);
+      } catch (error) {
+        (find_widget as any).option = {};
+      }
       resultObj = { status: ResponseStatus.SUCCESS, data: find_widget };
     }
     return resultObj;
@@ -126,7 +138,11 @@ export class WidgetService {
       }
 
       const saveResult = await this.widgetRepository.save(find_widget);
-      saveResult.option = JSON.parse(saveResult.option);
+      try {
+        (saveResult as any).option = JSON.parse(saveResult.option);
+      } catch (error) {
+        (saveResult as any).option = {};
+      }
 
       return { status: ResponseStatus.SUCCESS, data: saveResult };
     }

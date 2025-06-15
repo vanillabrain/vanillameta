@@ -83,7 +83,7 @@ describe('SlowQueryInterceptor', () => {
       });
     });
 
-    it.skip('should process query metrics on successful response', async () => {
+    it('should process query metrics on successful response', async () => {
       mockCallHandler.handle = jest.fn().mockReturnValue(of('result'));
       mockQueryAnalyzerService.analyzeQuery.mockResolvedValue({
         query: 'SELECT * FROM test',
@@ -127,7 +127,7 @@ describe('SlowQueryInterceptor', () => {
       expect(slowQueryMonitorService.logSlowQuery).toHaveBeenCalled();
     });
 
-    it.skip('should process query metrics on error response', async () => {
+    it('should process query metrics on error response', async () => {
       const error = new Error('Database error');
       mockCallHandler.handle = jest.fn().mockReturnValue(throwError(() => error));
       mockQueryAnalyzerService.analyzeQuery.mockResolvedValue({

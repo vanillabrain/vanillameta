@@ -41,6 +41,7 @@ provider:
     frameworkLambda: true
   logRetentionInDays: ${self:custom.LOG_CONFIG.${self:custom.STAGE}.RETENTION_DAYS}
   apiGateway:
+    minimumCompressionSize: 1024  # API Gateway 압축 임계값 (T03_S04)
     binaryMediaTypes:
       - '*/*'
 
