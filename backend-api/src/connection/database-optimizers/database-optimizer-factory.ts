@@ -234,7 +234,7 @@ export class DatabaseOptimizerFactory {
   async getPerformanceMetrics(databaseType: string, knex: Knex): Promise<any> {
     const optimizer = this.getOptimizer(databaseType);
 
-    if (!optimizer || typeof optimizer.getPerformanceMetrics !== 'function') {
+    if (!optimizer || typeof (optimizer as any).getPerformanceMetrics !== 'function') {
       this.logger.debug(`Performance metrics not available for database: ${databaseType}`);
       return null;
     }
@@ -258,7 +258,7 @@ export class DatabaseOptimizerFactory {
   async getSlowQueries(databaseType: string, knex: Knex, minDuration = 1000): Promise<any[]> {
     const optimizer = this.getOptimizer(databaseType);
 
-    if (!optimizer || typeof optimizer.getSlowQueries !== 'function') {
+    if (!optimizer || typeof (optimizer as any).getSlowQueries !== 'function') {
       this.logger.debug(`Slow query analysis not available for database: ${databaseType}`);
       return [];
     }

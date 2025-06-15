@@ -52,12 +52,14 @@ export class TypeOrmSlowQueryLogger implements TypeOrmLogger {
       ? Date.now() - queryRunner.data.queryStartTime
       : 0;
 
-    this.customLogger.error('TypeORM query error', error, 'TypeOrmSlowQueryLogger', {
-      query: this.sanitizeQuery(query),
-      parameters: this.sanitizeParameters(parameters),
-      duration,
-      errorMessage: error instanceof Error ? error.message : error,
-    });
+    this.customLogger.error('TypeORM query error', 
+      error instanceof Error ? error.stack : undefined, 
+      'TypeOrmSlowQueryLogger', {
+        query: this.sanitizeQuery(query),
+        parameters: this.sanitizeParameters(parameters),
+        duration,
+        errorMessage: error instanceof Error ? error.message : error,
+      });
   }
 
   /**
@@ -84,7 +86,7 @@ export class TypeOrmSlowQueryLogger implements TypeOrmLogger {
    * 스키마 빌드 로그
    */
   logSchemaBuild(message: string, queryRunner?: QueryRunner): void {
-    this.customLogger.log('TypeORM schema build', 'TypeOrmSlowQueryLogger', {
+    this.customLogger.info('TypeORM schema build', 'TypeOrmSlowQueryLogger', {
       message,
     });
   }
@@ -93,7 +95,7 @@ export class TypeOrmSlowQueryLogger implements TypeOrmLogger {
    * 마이그레이션 로그
    */
   logMigration(message: string, queryRunner?: QueryRunner): void {
-    this.customLogger.log('TypeORM migration', 'TypeOrmSlowQueryLogger', {
+    this.customLogger.info('TypeORM migration', 'TypeOrmSlowQueryLogger', {
       message,
     });
   }
@@ -126,10 +128,9 @@ export class TypeOrmSlowQueryLogger implements TypeOrmLogger {
 
       const analysis = await this.queryAnalyzerService.analyzeQuery(
         query,
-        databaseEngine,
-        parameters,
-        executionTime,
+        0, // TypeORM은 메인 DB (ID: 0)
       );
+      analysis.executionTime = executionTime;
 
       await this.slowQueryMonitorService.logSlowQuery(analysis, {
         databaseId: 0, // TypeORM은 메인 DB (ID: 0)

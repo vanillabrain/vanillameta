@@ -35,7 +35,7 @@ export abstract class BaseDatabaseOptimizer {
    * @param data - 삽입할 데이터 배열
    * @param options - 추가 옵션
    */
-  abstract async batchInsert(
+  abstract batchInsert(
     knex: Knex,
     tableName: string,
     data: any[],
@@ -49,7 +49,7 @@ export abstract class BaseDatabaseOptimizer {
    * @param data - 업데이트할 데이터 배열
    * @param keyColumns - 키 컬럼들
    */
-  abstract async batchUpdate(
+  abstract batchUpdate(
     knex: Knex,
     tableName: string,
     data: any[],
@@ -62,8 +62,9 @@ export abstract class BaseDatabaseOptimizer {
    * @param hints - 힌트 문자열 또는 배열
    */
   addQueryHints(queryBuilder: Knex.QueryBuilder, hints: string | string[]): Knex.QueryBuilder {
-    const hintStr = Array.isArray(hints) ? hints.join(' ') : hints;
-    return queryBuilder.hint(hintStr);
+    // 기본 구현에서는 hint를 지원하지 않으므로 원본 queryBuilder 반환
+    // 각 데이터베이스별 옵티마이저에서 오버라이드하여 구현
+    return queryBuilder;
   }
 
   /**

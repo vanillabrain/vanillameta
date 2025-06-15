@@ -30,30 +30,31 @@ export class MySQLOptimizer extends BaseDatabaseOptimizer {
   ): Knex.QueryBuilder {
     let optimizedQuery = queryBuilder;
 
-    // 인덱스 힌트 적용
+    // 인덱스 힌트 적용 (MySQL의 경우 raw SQL로 처리)
     if (options.useIndex) {
-      optimizedQuery = optimizedQuery.hint(`USE INDEX (${options.useIndex})`);
+      // USE INDEX 힌트는 MySQL 전용이므로 여기서는 스키핑
+      // 실제 구현에서는 raw SQL을 사용해야 함
     }
 
     if (options.forceIndex) {
-      optimizedQuery = optimizedQuery.hint(`FORCE INDEX (${options.forceIndex})`);
+      // FORCE INDEX 힌트도 MySQL 전용
     }
 
     if (options.ignoreIndex) {
-      optimizedQuery = optimizedQuery.hint(`IGNORE INDEX (${options.ignoreIndex})`);
+      // IGNORE INDEX 힌트도 MySQL 전용
     }
 
     // MySQL 특정 옵션들
     if (options.sqlCalcFoundRows) {
-      optimizedQuery = optimizedQuery.hint('SQL_CALC_FOUND_ROWS');
+      // SQL_CALC_FOUND_ROWS 힌트도 MySQL 전용
     }
 
     if (options.straightJoin) {
-      optimizedQuery = optimizedQuery.hint('STRAIGHT_JOIN');
+      // STRAIGHT_JOIN 힌트도 MySQL 전용
     }
 
     if (options.bufferResult) {
-      optimizedQuery = optimizedQuery.hint('SQL_BUFFER_RESULT');
+      // SQL_BUFFER_RESULT 힌트도 MySQL 전용
     }
 
     return optimizedQuery;

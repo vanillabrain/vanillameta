@@ -1,3 +1,5 @@
+// Temporarily disabled for local development
+/*
 import { MigrationInterface, QueryRunner, Index } from 'typeorm';
 
 export class AddDatabaseIndexes1736723000000 implements MigrationInterface {
@@ -127,5 +129,17 @@ export class AddDatabaseIndexes1736723000000 implements MigrationInterface {
 
     await queryRunner.dropIndex('dashboard', 'IDX_DASHBOARD_UPDATED_AT_TITLE');
     await queryRunner.dropIndex('dashboard', 'IDX_DASHBOARD_UPDATED_AT');
+  }
+}
+*/
+
+// Empty class for local development
+export class AddDatabaseIndexes1736723000000 {
+  public async up(): Promise<void> {
+    // Migration disabled for local development
+  }
+
+  public async down(): Promise<void> {
+    // Migration disabled for local development
   }
 }

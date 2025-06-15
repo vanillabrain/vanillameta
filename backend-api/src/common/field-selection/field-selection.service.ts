@@ -3,6 +3,7 @@ import { SelectQueryBuilder } from 'typeorm';
 import { Knex } from 'knex';
 
 export interface FieldSelectionOptions {
+  disabled?: boolean; // 필드 선택 기능 비활성화
   allowedFields?: string[]; // 허용된 필드 화이트리스트
   excludeFields?: string[]; // 제외할 필드 (민감한 정보)
   maxDepth?: number; // 중첩 객체 최대 깊이
