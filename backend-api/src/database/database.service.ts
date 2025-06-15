@@ -12,6 +12,11 @@ import { TableQuery } from '../widget/table-query/entity/table-query.entity';
 import { QueryExecuteDto } from './dto/query-execute.dto';
 import { DatabaseType } from './entities/database_type.entity';
 import { YesNo } from '../common/enum/yn.enum';
+import { 
+  EntityNotFoundException, 
+  DatabaseConnectionException,
+  QueryExecutionException 
+} from '../common/exceptions/business.exception';
 
 @Injectable()
 export class DatabaseService {

@@ -3,6 +3,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { APP_FILTER } from '@nestjs/core';
 import { DatabaseModule } from './database/database.module';
 import { DatasetModule } from './dataset/dataset.module';
 import { WidgetModule } from './widget/widget.module';
@@ -15,6 +16,7 @@ import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { LoginModule } from './login/login.module';
 import { ShareUrlModule } from './share-url/share-url.module';
+import { AllExceptionsFilter } from './nest-utils/all-exceptions.filter';
 
 @Module({
   imports: [
@@ -50,6 +52,12 @@ import { ShareUrlModule } from './share-url/share-url.module';
     ShareUrlModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_FILTER,
+      useClass: AllExceptionsFilter,
+    },
+  ],
 })
 export class AppModule {}

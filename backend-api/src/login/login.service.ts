@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { AuthService } from 'src/auth/auth.service';
 import { User } from 'src/user/entities/user.entity';
@@ -6,6 +6,7 @@ import { Repository } from 'typeorm';
 import { CreateLoginDto } from './dto/create-login.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import { RefreshToken } from 'src/auth/entities/refresh_token.entity';
+import { UnauthorizedException, DuplicateException } from 'src/common/exceptions/business.exception';
 const crypto = require('crypto');
 
 @Injectable()
@@ -23,7 +24,7 @@ export class LoginService {
     console.log(hashPassword);
     const findUser = await this.authService.validateUser(userId, hashPassword); // 요저의 존재여부 확인
     if (!findUser) {
-      throw new UnauthorizedException(`Unauthorized`);
+      throw new UnauthorizedException('Invalid credentials');
     }
     return findUser;
   }
@@ -47,10 +48,10 @@ export class LoginService {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      return 'success';
+      return { success: true, message: 'User created successfully' };
     } else if (!userInfoEmail && userInfoId) {
-      throw new HttpException('conflict userId', HttpStatus.CONFLICT);
+      throw new DuplicateException('User', 'userId', createLoginDto.userId);
     }
-    throw new HttpException('conflict email', HttpStatus.CONFLICT);
+    throw new DuplicateException('User', 'email', createLoginDto.email);
   }
 }
