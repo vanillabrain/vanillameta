@@ -2,14 +2,14 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BusinessMetricsService } from './business-metrics.service';
 import { CloudWatchMetricsService } from './cloudwatch-metrics.service';
-import { Users } from '../../user/entities/users.entity';
+import { User } from '../../user/entities/user.entity';
 import { Dashboard } from '../../dashboard/entities/dashboard.entity';
 import { Widget } from '../../widget/entities/widget.entity';
-import { TableQuery } from '../../dataset/entities/table-query.entity';
+import { TableQuery } from '../../widget/table-query/entity/table-query.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Users, Dashboard, Widget, TableQuery]),
+    TypeOrmModule.forFeature([User, Dashboard, Widget, TableQuery]),
   ],
   providers: [BusinessMetricsService, CloudWatchMetricsService],
   exports: [BusinessMetricsService],

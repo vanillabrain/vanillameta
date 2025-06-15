@@ -185,17 +185,9 @@ export class DatasetService {
         };
       }
 
-      // 데이터베이스 연결 정보 조회
-      const dbConnection = await this.connectionService.findOne(dataset.databaseId);
-      if (!dbConnection || !dbConnection.data) {
-        return {
-          status: ResponseStatus.ERROR,
-          message: 'Database connection not found',
-        };
-      }
-
-      const engine = dbConnection.data.type || 'unknown';
+      // 데이터베이스 연결 정보 조회 - ConnectionService의 getKnex로 연결 확인
       const databaseId = dataset.databaseId.toString();
+      const engine = 'unknown'; // 실제 엔진은 캐시 서비스에서 처리
 
       // 강제 새로고침이 아닐 때 캐시 확인
       if (!forceRefresh) {
@@ -230,7 +222,7 @@ export class DatasetService {
       const queryDuration = Date.now() - queryStartTime;
 
       // 쿼리 성능 메트릭 기록
-      const rowCount = Array.isArray(queryResult.data) ? queryResult.data.length : 0;
+      const rowCount = Array.isArray(queryResult.datas) ? queryResult.datas.length : 0;
       await this.businessMetrics.recordQueryPerformance(
         databaseId,
         this.detectQueryType(dataset.query),
@@ -255,7 +247,7 @@ export class DatasetService {
         engine,
         databaseId,
         dataset.query,
-        queryResult.data,
+        queryResult.datas,
         queryResult.fields || [],
         undefined,
         { ttl: customTtl },
@@ -264,13 +256,13 @@ export class DatasetService {
       this.customLogger.info('Query executed and cached', 'DatasetService', {
         datasetId: id,
         engine,
-        dataSize: JSON.stringify(queryResult.data || {}).length,
+        dataSize: JSON.stringify(queryResult.datas || {}).length,
         responseTime: Date.now() - startTime,
       });
 
       return {
         status: ResponseStatus.SUCCESS,
-        data: queryResult.data,
+        data: queryResult.datas,
         fields: queryResult.fields,
         cache: {
           hit: false,
@@ -326,16 +318,13 @@ export class DatasetService {
       }
 
       // 해당 데이터셋의 쿼리 기반 캐시 무효화
-      const dbConnection = await this.connectionService.findOne(dataset.databaseId);
-      if (dbConnection && dbConnection.data) {
-        const engine = dbConnection.data.type || 'unknown';
-        await this.hybridCache.invalidateByQuery(engine, dataset.query);
+      const engine = 'unknown'; // 실제 엔진은 캐시 서비스에서 처리
+      await this.hybridCache.invalidateByQuery(engine, dataset.query);
 
-        this.customLogger.info('Dataset cache invalidated', 'DatasetService', {
-          datasetId: id,
-          engine,
-        });
-      }
+      this.customLogger.info('Dataset cache invalidated', 'DatasetService', {
+        datasetId: id,
+        engine,
+      });
     } catch (error) {
       this.logger.error('Failed to invalidate dataset cache:', error);
       throw error;

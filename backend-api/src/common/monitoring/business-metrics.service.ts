@@ -3,10 +3,10 @@ import { CloudWatchMetricsService } from './cloudwatch-metrics.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Users } from '../../user/entities/users.entity';
+import { User } from '../../user/entities/user.entity';
 import { Dashboard } from '../../dashboard/entities/dashboard.entity';
 import { Widget } from '../../widget/entities/widget.entity';
-import { TableQuery } from '../../dataset/entities/table-query.entity';
+import { TableQuery } from '../../widget/table-query/entity/table-query.entity';
 
 interface DailyActiveUsersResult {
   count: number;
@@ -21,8 +21,8 @@ export class BusinessMetricsService {
 
   constructor(
     private readonly cloudWatchMetrics: CloudWatchMetricsService,
-    @InjectRepository(Users)
-    private readonly usersRepository: Repository<Users>,
+    @InjectRepository(User)
+    private readonly usersRepository: Repository<User>,
     @InjectRepository(Dashboard)
     private readonly dashboardRepository: Repository<Dashboard>,
     @InjectRepository(Widget)
