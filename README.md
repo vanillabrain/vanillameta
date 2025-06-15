@@ -46,14 +46,49 @@
 
 ## 설치하기
 
+### 🚀 Docker Compose 사용 (권장)
 
+가장 빠르고 간편한 방법입니다:
+
+```bash
+# 프로젝트 루트에서 실행
+docker compose up -d
+
+# 테스트 스크립트 실행
+./docker-test.sh
 ```
+
+**접속 정보:**
+- 프론트엔드: http://localhost:80
+- 백엔드 API: http://localhost:3000/api/v1
+
+### 🛠️ 로컬 개발 환경
+
+개발자를 위한 설정:
+
+```bash
 cd ~/vanillameta/backend-api/ npm install
 cd ~/vanillameta/frontend-web/ npm install
 ```
 
 ## 시작하기
+
+### Docker Compose 사용
+
+```bash
+# 전체 스택 실행
+docker compose up -d
+
+# 로그 확인
+docker compose logs -f
+
+# 서비스 중지
+docker compose down
 ```
+
+### 로컬 개발 환경
+
+```bash
 cd 현재위치/vanillameta/backend-api/ npm run seed:run 완료 후
 cd 현재위치/vanillameta/backend-api/ npm run start
 

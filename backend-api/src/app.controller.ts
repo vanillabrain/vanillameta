@@ -19,4 +19,14 @@ export class AppController {
   postHello(@Body() body) {
     return body;
   }
+
+  @Get('/health')
+  getHealth() {
+    return {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      environment: process.env.NODE_ENV || 'unknown',
+    };
+  }
 }

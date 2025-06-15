@@ -11,6 +11,7 @@ import { DatasetType } from '../common/enum/dataset-type.enum';
 import { HybridCacheService } from '../common/optimization/hybrid-cache.service';
 import { CustomLoggerService } from '../common/logger/logger.service';
 import { Readable } from 'stream';
+import { Database } from '../database/entities/database.entity';
 
 @Injectable()
 export class DatasetService {
@@ -21,6 +22,8 @@ export class DatasetService {
     private datasetRepository: Repository<Dataset>,
     @InjectRepository(Widget)
     private widgetRepository: Repository<Widget>,
+    @InjectRepository(Database)
+    private databaseRepository: Repository<Database>,
     private readonly connectionService: ConnectionService,
     private readonly hybridCache: HybridCacheService,
     private readonly customLogger: CustomLoggerService,
@@ -184,15 +187,15 @@ export class DatasetService {
       }
 
       // 데이터베이스 연결 정보 조회
-      const dbConnection = await this.connectionService.findOne(dataset.databaseId);
-      if (!dbConnection || !dbConnection.data) {
+      const dbConnection = await this.databaseRepository.findOne({ where: { id: dataset.databaseId } });
+      if (!dbConnection) {
         return {
           status: ResponseStatus.ERROR,
           message: 'Database connection not found',
         };
       }
 
-      const engine = dbConnection.data.type || 'unknown';
+      const engine = dbConnection.type || 'unknown';
       const databaseId = dataset.databaseId.toString();
 
       // 강제 새로고침이 아닐 때 캐시 확인
@@ -242,7 +245,7 @@ export class DatasetService {
         engine,
         databaseId,
         dataset.query,
-        queryResult.data,
+        queryResult.datas,
         queryResult.fields || [],
         undefined,
         { ttl: customTtl },
@@ -251,13 +254,13 @@ export class DatasetService {
       this.customLogger.info('Query executed and cached', 'DatasetService', {
         datasetId: id,
         engine,
-        dataSize: JSON.stringify(queryResult.data || {}).length,
+        dataSize: JSON.stringify(queryResult.datas || []).length,
         responseTime: Date.now() - startTime,
       });
 
       return {
         status: ResponseStatus.SUCCESS,
-        data: queryResult.data,
+        data: queryResult.datas,
         fields: queryResult.fields,
         cache: {
           hit: false,
@@ -313,9 +316,9 @@ export class DatasetService {
       }
 
       // 해당 데이터셋의 쿼리 기반 캐시 무효화
-      const dbConnection = await this.connectionService.findOne(dataset.databaseId);
-      if (dbConnection && dbConnection.data) {
-        const engine = dbConnection.data.type || 'unknown';
+      const dbConnection = await this.databaseRepository.findOne({ where: { id: dataset.databaseId } });
+      if (dbConnection) {
+        const engine = dbConnection.type || 'unknown';
         await this.hybridCache.invalidateByQuery(engine, dataset.query);
 
         this.customLogger.info('Dataset cache invalidated', 'DatasetService', {
