@@ -1,27 +1,25 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Param,
-  Delete,
-  Put,
-  UseGuards,
-  Query,
-  Res,
-  StreamableFile,
-  Header,
+    Body,
+    Controller,
+    Delete,
+    Get,
+    Header,
+    Param,
+    Post,
+    Put,
+    Query,
+    Res,
+    UseGuards,
+    UseInterceptors
 } from '@nestjs/common';
-import { DatasetService } from './dataset.service';
-import { CreateDatasetDto } from './dto/create-dataset.dto';
-import { UpdateDatasetDto } from './dto/update-dataset.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import {
-  FieldSelection,
-  PredefinedFields,
-} from '../common/field-selection/field-selection.decorator';
-import { Response } from 'express';
-import { GetUser } from '../auth/decorators/get-user.decorator';
+import {DatasetService} from './dataset.service';
+import {CreateDatasetDto} from './dto/create-dataset.dto';
+import {UpdateDatasetDto} from './dto/update-dataset.dto';
+import {JwtAuthGuard} from '../auth/guards/jwt-auth.guard';
+import {FieldSelection, PredefinedFields,} from '../common/field-selection/field-selection.decorator';
+import {Response} from 'express';
+import {GetUser} from '../auth/decorators/get-user.decorator';
+import {Pagination, PaginationInterceptor} from '../common/pagination';
 
 @UseGuards(JwtAuthGuard)
 @Controller('dataset')
@@ -40,10 +38,14 @@ export class DatasetController {
   /**
    * 데이터셋 목록 조회
    */
+  @UseInterceptors(PaginationInterceptor)
   @PredefinedFields('datasetMeta')
   @Get()
-  findAll(@Query('fields') fields?: string) {
-    return this.datasetService.findAll();
+  findAll(
+    @Pagination({ preferCursor: true, defaultLimit: 20 }) pagination: any,
+    @Query('fields') fields?: string
+  ) {
+    return this.datasetService.findAll(pagination);
   }
 
   /**
@@ -130,7 +132,7 @@ export class DatasetController {
       const dataset = await this.datasetService.findOne(+id);
       // TODO: 데이터셋에서 엔진 정보 추출 후 캐시 통계 조회
       const stats = await this.datasetService.getCacheStats();
-      
+
       return {
         status: 'success',
         data: stats,

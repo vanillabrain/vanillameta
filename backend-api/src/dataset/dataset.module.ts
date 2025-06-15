@@ -8,11 +8,12 @@ import { Database } from '../database/entities/database.entity';
 import { Widget } from '../widget/entities/widget.entity';
 import { JwtService } from '@nestjs/jwt';
 import { CacheModule } from '../common/optimization/cache.module';
+import { PaginationModule } from '../common/pagination';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Dataset, Database, Widget]),
-    CacheModule,
+    CacheModule, PaginationModule,
   ],
   controllers: [DatasetController],
   providers: [DatasetService, ConnectionService, JwtService],

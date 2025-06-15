@@ -11,6 +11,7 @@ import { DatasetType } from '../common/enum/dataset-type.enum';
 import { HybridCacheService } from '../common/optimization/hybrid-cache.service';
 import { CustomLoggerService } from '../common/logger/logger.service';
 import { Readable } from 'stream';
+import { PaginationService, CursorPaginationOptions, OffsetPaginationOptions, PaginatedResponse } from '../common/pagination';
 
 @Injectable()
 export class DatasetService {
@@ -24,6 +25,7 @@ export class DatasetService {
     private readonly connectionService: ConnectionService,
     private readonly hybridCache: HybridCacheService,
     private readonly customLogger: CustomLoggerService,
+    private readonly paginationService: PaginationService,
   ) {}
 
   /**
@@ -48,10 +50,44 @@ export class DatasetService {
   }
 
   /**
-   * 데이터셋 전체 조회
+   * 데이터셋 전체 조회 (페이지네이션 지원)
    */
-  async findAll() {
-    return await this.datasetRepository.find();
+  async findAll(pagination?: CursorPaginationOptions | OffsetPaginationOptions): Promise<PaginatedResponse<Dataset> | Dataset[]> {
+    // 페이지네이션이 없으면 기존 로직 사용 (하위 호환성)
+    if (!pagination) {
+      return await this.datasetRepository.find({
+        order: {
+          updatedAt: 'DESC',
+          title: 'ASC',
+        },
+      });
+    }
+
+    // 페이지네이션 적용
+    const queryBuilder = this.datasetRepository
+      .createQueryBuilder('dataset')
+      .select([
+        'dataset.id',
+        'dataset.title',
+        'dataset.databaseId',
+        'dataset.query',
+        'dataset.createdAt',
+        'dataset.updatedAt',
+      ]);
+
+    const paginatedResult = await this.paginationService.paginate(
+      queryBuilder,
+      pagination,
+      {
+        alias: 'dataset',
+        defaultSortField: 'updatedAt',
+        defaultSortDirection: 'DESC',
+        cursorFields: ['updatedAt', 'title'],
+        includeTotalCount: true,
+      },
+    );
+
+    return paginatedResult;
   }
 
   /**
@@ -277,7 +313,7 @@ export class DatasetService {
         try {
           this.logger.log('Attempting streaming fallback...');
           const streamResult = await this.executeStreamingQuery(id);
-          
+
           return {
             status: ResponseStatus.SUCCESS,
             data: 'STREAMING_RESPONSE',
@@ -321,7 +357,7 @@ export class DatasetService {
       if (dbConnection && dbConnection.data) {
         const engine = dbConnection.data.type || 'unknown';
         await this.hybridCache.invalidateByQuery(engine, dataset.query);
-        
+
         this.customLogger.info('Dataset cache invalidated', 'DatasetService', {
           datasetId: id,
           engine,
@@ -340,7 +376,7 @@ export class DatasetService {
   async invalidateDatabaseCache(databaseId: number): Promise<void> {
     try {
       await this.hybridCache.invalidateByDatabase(databaseId.toString());
-      
+
       this.customLogger.info('Database cache invalidated', 'DatasetService', {
         databaseId,
       });
@@ -379,7 +415,7 @@ export class DatasetService {
 
         // 캐시된 쿼리 실행 (캐시 미스 시 데이터베이스에서 로드하여 캐시에 저장)
         await this.executeCachedQuery(id);
-        
+
         this.logger.debug(`Cache warmed up for dataset ${id}`);
       } catch (error) {
         this.logger.error(`Cache warmup failed for dataset ${id}:`, error);

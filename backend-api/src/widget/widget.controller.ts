@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Delete, Put, UseGuards, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, Put, UseGuards, Query, UseInterceptors } from '@nestjs/common';
 import { WidgetService } from './widget.service';
 import { CreateWidgetDto } from './dto/create-widget.dto';
 import { UpdateWidgetDto } from './dto/update-widget.dto';
@@ -7,6 +7,7 @@ import {
   FieldSelection,
   PredefinedFields,
 } from '../common/field-selection/field-selection.decorator';
+import { Pagination, PaginationInterceptor } from '../common/pagination';
 
 @UseGuards(JwtAuthGuard)
 @Controller('widget')
@@ -25,6 +26,7 @@ export class WidgetController {
   /**
    * 위젯 목록 조회
    */
+  @UseInterceptors(PaginationInterceptor)
   @FieldSelection({
     allowedFields: [
       'id',
@@ -40,8 +42,11 @@ export class WidgetController {
     excludeFields: ['delYn'],
   })
   @Get()
-  findAll(@Query('fields') fields?: string) {
-    return this.widgetService.findAll();
+  findAll(
+    @Pagination({ preferCursor: true, defaultLimit: 20 }) pagination: any,
+    @Query('fields') fields?: string
+  ) {
+    return this.widgetService.findAll(pagination);
   }
 
   /**
