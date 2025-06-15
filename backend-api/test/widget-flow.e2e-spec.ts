@@ -138,7 +138,7 @@ describe('Widget Creation Flow (e2e)', () => {
           .set('Authorization', `Bearer ${authToken}`)
           .send(testWidget)
           .expect(201)
-          .expect(res => {
+          .expect((res) => {
             expect(res.body.status).toBe('SUCCESS');
             expect(res.body.data).toEqual(
               expect.objectContaining({
@@ -149,7 +149,7 @@ describe('Widget Creation Flow (e2e)', () => {
                 datasetType: testWidget.datasetType,
                 datasetId: testWidget.datasetId,
                 option: testWidget.option,
-              }),
+              })
             );
           });
       });
@@ -172,7 +172,7 @@ describe('Widget Creation Flow (e2e)', () => {
           .set('Authorization', `Bearer ${authToken}`)
           .send(tableWidget)
           .expect(201)
-          .expect(res => {
+          .expect((res) => {
             expect(res.body.status).toBe('SUCCESS');
             expect(res.body.data.datasetType).toBe(DatasetType.TABLE);
             expect(res.body.data.option).toEqual(tableWidget.option);
@@ -180,7 +180,10 @@ describe('Widget Creation Flow (e2e)', () => {
       });
 
       it('should require authentication', () => {
-        return request(app.getHttpServer()).post('/api/widget').send(testWidget).expect(401);
+        return request(app.getHttpServer())
+          .post('/api/widget')
+          .send(testWidget)
+          .expect(401);
       });
 
       it('should validate required fields', () => {
@@ -207,7 +210,7 @@ describe('Widget Creation Flow (e2e)', () => {
           .set('Authorization', `Bearer ${authToken}`)
           .send(invalidTableWidget)
           .expect(201) // 현재 구현에서는 201로 응답하지만 에러 상태
-          .expect(res => {
+          .expect((res) => {
             expect(res.body.status).toBe('ERROR');
             expect(res.body.message).toContain('필수 입력사항::::선택한 테이블명');
           });
@@ -255,7 +258,10 @@ describe('Widget Creation Flow (e2e)', () => {
               trigger: 'axis',
               axisPointer: { type: 'cross' },
             },
-            dataZoom: [{ type: 'inside' }, { type: 'slider' }],
+            dataZoom: [
+              { type: 'inside' },
+              { type: 'slider' },
+            ],
           },
         };
 
@@ -264,7 +270,7 @@ describe('Widget Creation Flow (e2e)', () => {
           .set('Authorization', `Bearer ${authToken}`)
           .send(complexWidget)
           .expect(201)
-          .expect(res => {
+          .expect((res) => {
             expect(res.body.status).toBe('SUCCESS');
             expect(res.body.data.option).toEqual(complexWidget.option);
           });
@@ -289,7 +295,7 @@ describe('Widget Creation Flow (e2e)', () => {
           .get('/api/widget')
           .set('Authorization', `Bearer ${authToken}`)
           .expect(200)
-          .expect(res => {
+          .expect((res) => {
             expect(res.body.status).toBe('SUCCESS');
             expect(res.body.data).toBeInstanceOf(Array);
             expect(res.body.data.length).toBeGreaterThan(0);
@@ -300,13 +306,15 @@ describe('Widget Creation Flow (e2e)', () => {
                 componentType: testComponent.type,
                 componentTitle: testComponent.title,
                 icon: testComponent.icon,
-              }),
+              })
             );
           });
       });
 
       it('should require authentication', () => {
-        return request(app.getHttpServer()).get('/api/widget').expect(401);
+        return request(app.getHttpServer())
+          .get('/api/widget')
+          .expect(401);
       });
 
       it('should return empty array when no widgets exist', async () => {
@@ -317,7 +325,7 @@ describe('Widget Creation Flow (e2e)', () => {
           .get('/api/widget')
           .set('Authorization', `Bearer ${authToken}`)
           .expect(200)
-          .expect(res => {
+          .expect((res) => {
             expect(res.body.status).toBe('SUCCESS');
             expect(res.body.data).toEqual([]);
           });
@@ -346,7 +354,7 @@ describe('Widget Creation Flow (e2e)', () => {
           .get(`/api/widget/${widgetId}`)
           .set('Authorization', `Bearer ${authToken}`)
           .expect(200)
-          .expect(res => {
+          .expect((res) => {
             expect(res.body.status).toBe('SUCCESS');
             expect(res.body.data).toEqual(
               expect.objectContaining({
@@ -355,7 +363,7 @@ describe('Widget Creation Flow (e2e)', () => {
                 option: testWidget.option,
                 componentType: testComponent.type,
                 componentTitle: testComponent.title,
-              }),
+              })
             );
           });
       });
@@ -365,14 +373,16 @@ describe('Widget Creation Flow (e2e)', () => {
           .get('/api/widget/999999')
           .set('Authorization', `Bearer ${authToken}`)
           .expect(200) // 현재 구현에서는 200으로 에러 응답
-          .expect(res => {
+          .expect((res) => {
             expect(res.body.status).toBe('ERROR');
             expect(res.body.message).toContain('위젯이 존재하지 않습니다');
           });
       });
 
       it('should require authentication', () => {
-        return request(app.getHttpServer()).get(`/api/widget/${widgetId}`).expect(401);
+        return request(app.getHttpServer())
+          .get(`/api/widget/${widgetId}`)
+          .expect(401);
       });
     });
 
@@ -404,7 +414,7 @@ describe('Widget Creation Flow (e2e)', () => {
             option: testWidget.option,
           })
           .expect(200)
-          .expect(res => {
+          .expect((res) => {
             expect(res.body.status).toBe('SUCCESS');
             expect(res.body.data.title).toBe(updatedTitle);
           });
@@ -426,7 +436,7 @@ describe('Widget Creation Flow (e2e)', () => {
             option: updatedOption,
           })
           .expect(200)
-          .expect(res => {
+          .expect((res) => {
             expect(res.body.status).toBe('SUCCESS');
             expect(res.body.data.option).toEqual(updatedOption);
           });
@@ -441,7 +451,7 @@ describe('Widget Creation Flow (e2e)', () => {
             option: testWidget.option,
           })
           .expect(200)
-          .expect(res => {
+          .expect((res) => {
             expect(res.body.status).toBe('SUCCESS');
             expect(res.body.data.componentId).toBe(testComponent.id);
           });
@@ -456,7 +466,7 @@ describe('Widget Creation Flow (e2e)', () => {
             option: testWidget.option,
           })
           .expect(200)
-          .expect(res => {
+          .expect((res) => {
             expect(res.body.status).toBe('SUCCESS');
             expect(res.body.data.delYn).toBe(YesNo.YES);
           });
@@ -471,7 +481,7 @@ describe('Widget Creation Flow (e2e)', () => {
             option: testWidget.option,
           })
           .expect(200) // 현재 구현에서는 200으로 에러 응답
-          .expect(res => {
+          .expect((res) => {
             expect(res.body.status).toBe('ERROR');
             expect(res.body.message).toContain('위젯이 존재하지 않습니다');
           });
@@ -527,7 +537,7 @@ describe('Widget Creation Flow (e2e)', () => {
           .delete(`/api/widget/${datasetWidgetId}`)
           .set('Authorization', `Bearer ${authToken}`)
           .expect(200)
-          .expect(res => {
+          .expect((res) => {
             expect(res.body.status).toBe('SUCCESS');
             expect(res.body.message).toContain(`#${datasetWidgetId} widget`);
           });
@@ -538,7 +548,7 @@ describe('Widget Creation Flow (e2e)', () => {
           .delete(`/api/widget/${tableWidgetId}`)
           .set('Authorization', `Bearer ${authToken}`)
           .expect(200)
-          .expect(res => {
+          .expect((res) => {
             expect(res.body.status).toBe('SUCCESS');
             expect(res.body.message).toContain(`#${tableWidgetId} widget`);
           });
@@ -549,14 +559,16 @@ describe('Widget Creation Flow (e2e)', () => {
           .delete('/api/widget/999999')
           .set('Authorization', `Bearer ${authToken}`)
           .expect(200) // 현재 구현에서는 200으로 에러 응답
-          .expect(res => {
+          .expect((res) => {
             expect(res.body.status).toBe('ERROR');
             expect(res.body.message).toBe('No exist');
           });
       });
 
       it('should require authentication', () => {
-        return request(app.getHttpServer()).delete(`/api/widget/${datasetWidgetId}`).expect(401);
+        return request(app.getHttpServer())
+          .delete(`/api/widget/${datasetWidgetId}`)
+          .expect(401);
       });
 
       it('should verify widget is actually deleted', async () => {
@@ -571,7 +583,7 @@ describe('Widget Creation Flow (e2e)', () => {
           .get(`/api/widget/${datasetWidgetId}`)
           .set('Authorization', `Bearer ${authToken}`)
           .expect(200)
-          .expect(res => {
+          .expect((res) => {
             expect(res.body.status).toBe('ERROR');
           });
       });
@@ -733,7 +745,7 @@ describe('Widget Creation Flow (e2e)', () => {
           option: updatedTableOption,
         })
         .expect(200)
-        .expect(res => {
+        .expect((res) => {
           expect(res.body.data.option).toEqual(updatedTableOption);
         });
 
@@ -769,15 +781,7 @@ describe('Widget Creation Flow (e2e)', () => {
           title: 'Pie Chart Widget',
           option: {
             type: 'pie',
-            series: [
-              {
-                type: 'pie',
-                data: [
-                  { name: 'A', value: 50 },
-                  { name: 'B', value: 30 },
-                ],
-              },
-            ],
+            series: [{ type: 'pie', data: [{ name: 'A', value: 50 }, { name: 'B', value: 30 }] }],
           },
         },
       ];
@@ -839,7 +843,7 @@ describe('Widget Creation Flow (e2e)', () => {
               series: [{ data: [i * 10, i * 20, i * 30], type: 'line' }],
             },
             delYn: YesNo.NO,
-          }),
+          })
       );
 
       const responses = await Promise.all(createPromises);
@@ -995,7 +999,7 @@ describe('Widget Creation Flow (e2e)', () => {
           delYn: YesNo.NO,
         })
         .expect(201)
-        .expect(res => {
+        .expect((res) => {
           expect(res.body.data.title).toBe(specialTitle);
         });
     });
@@ -1018,7 +1022,7 @@ describe('Widget Creation Flow (e2e)', () => {
           delYn: YesNo.NO,
         })
         .expect(201)
-        .expect(res => {
+        .expect((res) => {
           expect(res.body.data.title).toBe(longTitle);
         });
     });
@@ -1039,7 +1043,7 @@ describe('Widget Creation Flow (e2e)', () => {
           delYn: YesNo.NO,
         })
         .expect(201)
-        .expect(res => {
+        .expect((res) => {
           expect(res.body.data.option).toBeNull();
         });
     });

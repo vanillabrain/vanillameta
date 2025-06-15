@@ -319,7 +319,7 @@ describe('WidgetService', () => {
         series: [{ data: [120, 200, 150], type: 'line' }],
         grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
       };
-      const updateDto = { option: JSON.stringify(complexOption) };
+      const updateDto = { option: complexOption };
       const foundWidget = { ...mockWidget };
 
       widgetRepository.findOne.mockResolvedValue(foundWidget);
@@ -502,19 +502,6 @@ describe('WidgetService', () => {
     });
 
     it('should create widget with complex chart options', async () => {
-      const complexChartOptions = {
-        type: 'line',
-        title: { text: 'Sales Performance', fontSize: 18 },
-        legend: { show: true, position: 'top' },
-        xAxis: { type: 'category', data: ['Q1', 'Q2', 'Q3', 'Q4'] },
-        yAxis: { type: 'value', name: 'Sales ($)' },
-        series: [
-          { name: 'Product A', data: [100, 150, 200, 180], type: 'line' },
-          { name: 'Product B', data: [80, 120, 160, 140], type: 'line' },
-        ],
-        grid: { left: '10%', right: '10%', top: '15%', bottom: '10%' },
-      };
-
       const complexChartDto = {
         title: 'Complex Chart Widget',
         description: 'Complex chart with multiple series',
@@ -523,22 +510,33 @@ describe('WidgetService', () => {
         datasetType: DatasetType.DATASET,
         datasetId: 1,
         tableName: '',
-        option: complexChartOptions, // Object, not JSON string
+        option: JSON.stringify({
+          type: 'line',
+          title: { text: 'Sales Performance', fontSize: 18 },
+          legend: { show: true, position: 'top' },
+          xAxis: { type: 'category', data: ['Q1', 'Q2', 'Q3', 'Q4'] },
+          yAxis: { type: 'value', name: 'Sales ($)' },
+          series: [
+            { name: 'Product A', data: [100, 150, 200, 180], type: 'line' },
+            { name: 'Product B', data: [80, 120, 160, 140], type: 'line' },
+          ],
+          grid: { left: '10%', right: '10%', top: '15%', bottom: '10%' },
+        }),
         delYn: YesNo.NO,
       };
 
       const savedWidget = {
         id: 1,
         ...complexChartDto,
-        option: JSON.stringify(complexChartOptions), // JSON string in DB
+        option: JSON.stringify(complexChartDto.option),
       };
 
       widgetRepository.save.mockResolvedValue(savedWidget);
 
-      const result = await service.create(complexChartDto as any);
+      const result = await service.create(complexChartDto);
 
       expect(result.status).toBe(ResponseStatus.SUCCESS);
-      expect(result.data.option).toEqual(complexChartOptions); // Should be parsed back to object
+      expect(result.data.option).toEqual(complexChartDto.option);
       expect(result.data.title).toBe('Complex Chart Widget');
     });
 
@@ -733,32 +731,16 @@ describe('WidgetService', () => {
         getQuery: jest.fn().mockReturnValue(widgetInfo),
       });
 
-      const mockQueryBuilder = {
+      componentRepository.createQueryBuilder.mockReturnValue({
         select: jest.fn().mockReturnThis(),
         innerJoin: jest.fn().mockReturnThis(),
         setParameter: jest.fn().mockReturnThis(),
         getRawOne: jest.fn().mockResolvedValue(foundWidget),
-      };
-      componentRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
+      });
 
       const findResult = await service.findOne(1);
-
-      // 디버깅을 위한 로그
-      console.log('findResult:', findResult);
-      console.log('foundWidget:', foundWidget);
-
-      if (
-        findResult &&
-        typeof findResult === 'object' &&
-        'status' in findResult &&
-        'data' in findResult
-      ) {
-        expect((findResult as any).status).toBe(ResponseStatus.SUCCESS);
-        expect((findResult as any).data.title).toBe('Lifecycle Test Widget');
-      } else {
-        console.log('findResult is not a valid response object:', findResult);
-        expect(findResult).toEqual({ status: ResponseStatus.SUCCESS, data: foundWidget });
-      }
+      expect(findResult.status).toBe(ResponseStatus.SUCCESS);
+      expect(findResult.data.title).toBe('Lifecycle Test Widget');
 
       // 3. Update widget
       const updateDto = {

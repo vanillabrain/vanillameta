@@ -8,7 +8,6 @@ import { SqlValidationService } from '../common/security/sql-validation.service'
 import { QueryAnalyzerService } from '../common/monitoring/query-analyzer.service';
 import { QueryCollector } from '../common/utils/query-collector';
 import { SlowQueryMonitorService } from '../common/monitoring/slow-query-monitor.service';
-import { DatabaseOptimizerFactory } from './database-optimizers/database-optimizer-factory';
 import {
   createMockRepository,
   getRepositoryTokenFor,
@@ -27,13 +26,8 @@ const mockKnex = {
   },
 };
 
-const mockKnexConstructor = jest.fn(() => mockKnex);
-
 jest.mock('knex', () => {
-  return {
-    knex: jest.fn(() => mockKnex),
-    default: jest.fn(() => mockKnex),
-  };
+  return jest.fn(() => mockKnex);
 });
 
 describe('ConnectionService', () => {
@@ -44,7 +38,6 @@ describe('ConnectionService', () => {
   let queryAnalyzerService: any;
   let queryCollector: any;
   let slowQueryMonitorService: any;
-  let databaseOptimizerFactory: any;
   let mockRequest: any;
 
   const mockDatabase = {
@@ -65,23 +58,19 @@ describe('ConnectionService', () => {
   const mockQueryExecuteDto = {
     id: 1,
     query: 'SELECT * FROM users WHERE id = ?',
-    parameters: [{ name: 'id', value: '1', type: 'number' }],
+    parameters: [{ value: '1', type: 'number' }],
     limit: 100,
   };
 
   const mockCreateDatabaseDto = {
-    name: 'Test Database',
-    description: 'Test database description',
     engine: 'mysql2',
-    connectionConfig: JSON.stringify({
+    connectionConfig: {
       host: 'localhost',
       port: 3306,
       user: 'testuser',
       password: 'testpass',
       database: 'testdb',
-    }),
-    type: 'mysql',
-    timezone: 'Asia/Seoul',
+    },
   };
 
   beforeEach(async () => {
@@ -121,10 +110,6 @@ describe('ConnectionService', () => {
           useValue: createMockService(['logSlowQuery']),
         },
         {
-          provide: DatabaseOptimizerFactory,
-          useValue: createMockService(['getOptimizedConnectionConfig', 'isSupported', 'getOptimizationStats']),
-        },
-        {
           provide: REQUEST,
           useValue: mockRequest,
         },
@@ -138,7 +123,6 @@ describe('ConnectionService', () => {
     queryAnalyzerService = module.get<QueryAnalyzerService>(QueryAnalyzerService);
     queryCollector = module.get<QueryCollector>(QueryCollector);
     slowQueryMonitorService = module.get<SlowQueryMonitorService>(SlowQueryMonitorService);
-    databaseOptimizerFactory = module.get<DatabaseOptimizerFactory>(DatabaseOptimizerFactory);
 
     // Mock 초기화
     jest.clearAllMocks();
@@ -167,26 +151,16 @@ describe('ConnectionService', () => {
         },
       };
 
-      // Mock DatabaseOptimizerFactory methods
-      databaseOptimizerFactory.getOptimizedConnectionConfig.mockReturnValue({
-        pool: { min: 2, max: 10 },
-      });
-      databaseOptimizerFactory.isSupported.mockReturnValue(true);
-      databaseOptimizerFactory.getOptimizationStats.mockReturnValue({
-        totalOptimized: 1,
-        byType: { mysql2: 1 },
-      });
-
       service.addKnex(1, knexConfig);
 
       expect(knexConnections.has(1)).toBe(true);
       expect(logger.info).toHaveBeenCalledWith(
-        'Creating Knex connection with database-specific optimizations',
+        'Creating Knex connection with optimized pool settings',
         'ConnectionService',
         expect.objectContaining({
           databaseId: 1,
           client: 'mysql2',
-        }),
+        })
       );
     });
 
@@ -195,16 +169,6 @@ describe('ConnectionService', () => {
         client: 'mysql2',
         connection: { host: 'localhost' },
       };
-
-      // Mock DatabaseOptimizerFactory
-      databaseOptimizerFactory.getOptimizedConnectionConfig.mockReturnValue({
-        pool: { min: 2, max: 10 },
-      });
-      databaseOptimizerFactory.isSupported.mockReturnValue(true);
-      databaseOptimizerFactory.getOptimizationStats.mockReturnValue({
-        totalOptimized: 1,
-        byType: { mysql2: 1 },
-      });
 
       service.addKnex(1, knexConfig);
       const firstConnection = knexConnections.get(1);
@@ -221,16 +185,6 @@ describe('ConnectionService', () => {
         connection: { filename: ':memory:' },
       };
 
-      // Mock DatabaseOptimizerFactory for SQLite
-      databaseOptimizerFactory.getOptimizedConnectionConfig.mockReturnValue({
-        pool: { min: 1, max: 1 },
-      });
-      databaseOptimizerFactory.isSupported.mockReturnValue(true);
-      databaseOptimizerFactory.getOptimizationStats.mockReturnValue({
-        totalOptimized: 1,
-        byType: { sqlite3: 1 },
-      });
-
       service.addKnex(2, sqliteConfig);
 
       expect(knexConnections.has(2)).toBe(true);
@@ -245,16 +199,6 @@ describe('ConnectionService', () => {
         },
       };
 
-      // Mock DatabaseOptimizerFactory for MySQL
-      databaseOptimizerFactory.getOptimizedConnectionConfig.mockReturnValue({
-        pool: { min: 2, max: 10 },
-      });
-      databaseOptimizerFactory.isSupported.mockReturnValue(true);
-      databaseOptimizerFactory.getOptimizationStats.mockReturnValue({
-        totalOptimized: 1,
-        byType: { mysql2: 1 },
-      });
-
       service.addKnex(3, mysqlConfig);
 
       expect(knexConnections.has(3)).toBe(true);
@@ -264,17 +208,6 @@ describe('ConnectionService', () => {
   describe('removeKnex', () => {
     it('should remove and destroy Knex connection', async () => {
       const knexConfig = { client: 'mysql2', connection: {} };
-      
-      // Mock DatabaseOptimizerFactory
-      databaseOptimizerFactory.getOptimizedConnectionConfig.mockReturnValue({
-        pool: { min: 2, max: 10 },
-      });
-      databaseOptimizerFactory.isSupported.mockReturnValue(true);
-      databaseOptimizerFactory.getOptimizationStats.mockReturnValue({
-        totalOptimized: 1,
-        byType: { mysql2: 1 },
-      });
-      
       service.addKnex(1, knexConfig);
 
       await service.removeKnex(1);
@@ -284,7 +217,7 @@ describe('ConnectionService', () => {
       expect(logger.info).toHaveBeenCalledWith(
         'Knex connection pool destroyed',
         'ConnectionService',
-        { databaseId: 1 },
+        { databaseId: 1 }
       );
     });
 
@@ -301,7 +234,7 @@ describe('ConnectionService', () => {
         'Failed to destroy Knex connection pool',
         expect.any(String),
         'ConnectionService',
-        { databaseId: 1 },
+        { databaseId: 1 }
       );
     });
 
@@ -379,18 +312,6 @@ describe('ConnectionService', () => {
   });
 
   describe('testConnection', () => {
-    beforeEach(() => {
-      // Mock DatabaseOptimizerFactory for test connections
-      databaseOptimizerFactory.getOptimizedConnectionConfig.mockReturnValue({
-        pool: { min: 0, max: 1 },
-      });
-      databaseOptimizerFactory.isSupported.mockReturnValue(true);
-      databaseOptimizerFactory.getOptimizationStats.mockReturnValue({
-        totalOptimized: 1,
-        byType: { mysql2: 1 },
-      });
-    });
-
     it('should successfully test database connection', async () => {
       mockKnex.raw.mockResolvedValue(['test result']);
 
@@ -417,36 +338,27 @@ describe('ConnectionService', () => {
 
     it('should handle CockroachDB connection configuration', async () => {
       const cockroachDto = {
-        name: 'CockroachDB Test',
-        description: 'Test CockroachDB connection',
         engine: 'cockroachdb',
-        connectionConfig: JSON.stringify({
+        connectionConfig: {
           user: 'testuser',
           password: 'testpass',
           host: 'localhost',
           port: 26257,
           database: 'testdb',
-        }),
-        type: 'cockroachdb',
-        timezone: 'Asia/Seoul',
+        },
       };
       mockKnex.raw.mockResolvedValue(['test result']);
 
       const result = await service.testConnection(cockroachDto);
 
-      const parsedConfig = JSON.parse(cockroachDto.connectionConfig);
-      expect(parsedConfig.connectionString).toContain('postgresql://');
+      expect(cockroachDto.connectionConfig.connectionString).toContain('postgresql://');
       expect(result.status).toBe(ResponseStatus.SUCCESS);
     });
 
     it('should handle BigQuery test connection', async () => {
       const bigqueryDto = {
-        name: 'BigQuery Test',
-        description: 'Test BigQuery connection',
         engine: 'bigquery',
-        connectionConfig: JSON.stringify({ projectId: 'test-project' }),
-        type: 'bigquery',
-        timezone: 'Asia/Seoul',
+        connectionConfig: { projectId: 'test-project' },
       };
       mockKnex.raw.mockResolvedValue(['test result']);
 
@@ -457,12 +369,8 @@ describe('ConnectionService', () => {
 
     it('should handle Snowflake test connection', async () => {
       const snowflakeDto = {
-        name: 'Snowflake Test',
-        description: 'Test Snowflake connection',
         engine: 'snowflake',
-        connectionConfig: JSON.stringify({ account: 'test-account' }),
-        type: 'snowflake',
-        timezone: 'Asia/Seoul',
+        connectionConfig: { account: 'test-account' },
       };
       mockKnex.raw.mockResolvedValue(['test result']);
 
@@ -473,12 +381,8 @@ describe('ConnectionService', () => {
 
     it('should handle Knex creation failure', async () => {
       const invalidDto = {
-        name: 'Invalid Test',
-        description: 'Test invalid connection',
         engine: 'invalid-engine',
-        connectionConfig: JSON.stringify({}),
-        type: 'invalid',
-        timezone: 'Asia/Seoul',
+        connectionConfig: {},
       };
 
       // Knex 생성 실패를 시뮬레이션하기 위해 require를 직접 모킹
@@ -495,7 +399,7 @@ describe('ConnectionService', () => {
         'Failed to create Knex connection',
         expect.any(String),
         'ConnectionService',
-        expect.any(Object),
+        expect.any(Object)
       );
 
       // Mock 복원
@@ -503,7 +407,7 @@ describe('ConnectionService', () => {
     });
 
     it('should handle connection test failure', async () => {
-      const sqlError = new Error('Connection failed') as any;
+      const sqlError = new Error('Connection failed');
       sqlError.sqlMessage = 'Access denied';
       mockKnex.raw.mockRejectedValue(sqlError);
 
@@ -519,7 +423,7 @@ describe('ConnectionService', () => {
         expect.objectContaining({
           engine: 'mysql2',
           sqlMessage: 'Access denied',
-        }),
+        })
       );
     });
   });
@@ -549,11 +453,7 @@ describe('ConnectionService', () => {
       // Mock 쿼리 결과 설정
       mockKnex.raw.mockResolvedValue([
         [{ id: 1, name: 'Test User', email: 'test@example.com' }],
-        [
-          { name: 'id', columnType: 3 },
-          { name: 'name', columnType: 253 },
-          { name: 'email', columnType: 253 },
-        ],
+        [{ name: 'id', columnType: 3 }, { name: 'name', columnType: 253 }, { name: 'email', columnType: 253 }],
       ]);
     });
 
@@ -569,12 +469,12 @@ describe('ConnectionService', () => {
           maxQueryLength: 10000,
           maxResultLimit: 100,
         }),
-        'user123',
+        'user123'
       );
 
       expect(mockKnex.raw).toHaveBeenCalledWith(
         'SELECT * FROM users WHERE id = ? LIMIT 100',
-        [1], // 파라미터가 숫자로 변환됨
+        [1] // 파라미터가 숫자로 변환됨
       );
 
       expect(result.status).toBe(ResponseStatus.SUCCESS);
@@ -601,19 +501,18 @@ describe('ConnectionService', () => {
       const queryWithDifferentParams = {
         ...mockQueryExecuteDto,
         parameters: [
-          { name: 'param1', value: '123', type: 'number' },
-          { name: 'param2', value: '2023-01-01', type: 'date' },
-          { name: 'param3', value: 'test string', type: 'string' },
+          { value: '123', type: 'number' },
+          { value: '2023-01-01', type: 'date' },
+          { value: 'test string', type: 'string' },
         ],
       };
 
       await service.executeQuery(queryWithDifferentParams, 'user123');
 
-      expect(mockKnex.raw).toHaveBeenCalledWith('SELECT * FROM users WHERE id = ? LIMIT 100', [
-        123,
-        new Date('2023-01-01'),
-        'test string',
-      ]);
+      expect(mockKnex.raw).toHaveBeenCalledWith(
+        'SELECT * FROM users WHERE id = ? LIMIT 100',
+        [123, new Date('2023-01-01'), 'test string']
+      );
     });
 
     it('should reject invalid SQL queries', async () => {
@@ -626,7 +525,10 @@ describe('ConnectionService', () => {
       sqlValidationService.formatValidationError.mockReturnValue('DROP statement not allowed');
 
       await expect(
-        service.executeQuery({ ...mockQueryExecuteDto, query: 'DROP TABLE users' }, 'user123'),
+        service.executeQuery(
+          { ...mockQueryExecuteDto, query: 'DROP TABLE users' },
+          'user123'
+        )
       ).rejects.toThrow(ForbiddenException);
 
       expect(logger.warn).toHaveBeenCalledWith(
@@ -635,7 +537,7 @@ describe('ConnectionService', () => {
         expect.objectContaining({
           userId: 'user123',
           riskLevel: 'HIGH',
-        }),
+        })
       );
     });
 
@@ -656,9 +558,8 @@ describe('ConnectionService', () => {
 
     it('should handle BigQuery result format', async () => {
       // BigQuery 결과 형식 모킹
-      const BigQueryClient: any = function () {};
-      BigQueryClient.prototype.name = 'BigQueryClient';
-      mockKnex.client.config.client = BigQueryClient;
+      mockKnex.client.config.client = function BigQueryClient() {};
+      mockKnex.client.config.client.name = 'BigQueryClient';
       mockKnex.raw.mockResolvedValue([{ id: 1, name: 'Test User' }]);
 
       const result = await service.executeQuery(mockQueryExecuteDto, 'user123');
@@ -669,9 +570,8 @@ describe('ConnectionService', () => {
 
     it('should handle Snowflake result format', async () => {
       // Snowflake 결과 형식 모킹
-      const SnowflakeDialect: any = function () {};
-      SnowflakeDialect.prototype.name = 'SnowflakeDialect';
-      mockKnex.client.config.client = SnowflakeDialect;
+      mockKnex.client.config.client = function SnowflakeDialect() {};
+      mockKnex.client.config.client.name = 'SnowflakeDialect';
       mockKnex.raw.mockResolvedValue({
         rows: [{ ID: 1, NAME: 'Test User' }],
       });
@@ -683,7 +583,7 @@ describe('ConnectionService', () => {
     });
 
     it('should handle query execution error', async () => {
-      const sqlError = new Error('Table not found') as any;
+      const sqlError = new Error('Table not found');
       sqlError.sqlMessage = 'Table "users" doesn\'t exist';
       mockKnex.raw.mockRejectedValue(sqlError);
 
@@ -695,7 +595,7 @@ describe('ConnectionService', () => {
         expect.any(String),
         'database-1-error',
         ['1'],
-        expect.any(Number),
+        expect.any(Number)
       );
     });
 
@@ -704,7 +604,10 @@ describe('ConnectionService', () => {
       mockKnex.raw.mockImplementation(() => {
         return new Promise(resolve => {
           setTimeout(() => {
-            resolve([[{ id: 1, name: 'Test User' }], [{ name: 'id', columnType: 3 }]]);
+            resolve([
+              [{ id: 1, name: 'Test User' }],
+              [{ name: 'id', columnType: 3 }],
+            ]);
           }, 1100); // 1.1초 지연
         });
       });
@@ -720,12 +623,12 @@ describe('ConnectionService', () => {
         expect.objectContaining({
           databaseId: 1,
           executionTime: expect.any(Number),
-        }),
+        })
       );
     });
 
     it('should extract request metadata correctly', async () => {
-      mockRequest.get.mockImplementation(header => {
+      mockRequest.get.mockImplementation((header) => {
         if (header === 'User-Agent') return 'Mozilla/5.0 Test Browser';
         if (header === 'X-Forwarded-For') return '192.168.1.100,127.0.0.1';
         if (header === 'X-Request-ID') return 'req-12345';
@@ -753,7 +656,7 @@ describe('ConnectionService', () => {
 
       const result = await service.executeQuery(
         { ...mockQueryExecuteDto, query: 'SELECT * FROM empty_table' },
-        'user123',
+        'user123'
       );
 
       expect(result.status).toBe(ResponseStatus.SUCCESS);
@@ -775,12 +678,12 @@ describe('ConnectionService', () => {
       const specialCharQuery = {
         ...mockQueryExecuteDto,
         query: 'SELECT * FROM users WHERE name LIKE ?',
-        parameters: [{ name: 'company', value: "O'Reilly & Sons", type: 'string' }],
+        parameters: [{ value: "O'Reilly & Sons", type: 'string' }],
       };
 
       sqlValidationService.validateQuery.mockReturnValue({
         isValid: true,
-        sanitizedQuery: 'SELECT * FROM users WHERE name LIKE ? LIMIT 100',
+        sanitizedQuery: "SELECT * FROM users WHERE name LIKE ? LIMIT 100",
         errors: [],
         warnings: [],
         riskLevel: 'LOW',
@@ -790,9 +693,10 @@ describe('ConnectionService', () => {
 
       const result = await service.executeQuery(specialCharQuery, 'user123');
 
-      expect(mockKnex.raw).toHaveBeenCalledWith('SELECT * FROM users WHERE name LIKE ? LIMIT 100', [
-        "O'Reilly & Sons",
-      ]);
+      expect(mockKnex.raw).toHaveBeenCalledWith(
+        "SELECT * FROM users WHERE name LIKE ? LIMIT 100",
+        ["O'Reilly & Sons"]
+      );
       expect(result.status).toBe(ResponseStatus.SUCCESS);
     });
 
@@ -847,8 +751,7 @@ describe('ConnectionService', () => {
         ],
       }).compile();
 
-      const serviceWithNullRequest =
-        moduleWithNullRequest.get<ConnectionService>(ConnectionService);
+      const serviceWithNullRequest = moduleWithNullRequest.get<ConnectionService>(ConnectionService);
 
       // private 메서드 테스트를 위해 타입 캐스팅
       const metadata = (serviceWithNullRequest as any).extractRequestMetadata('user123');
@@ -871,17 +774,6 @@ describe('ConnectionService', () => {
         client: 'mysql2',
         connection: mockCreateDatabaseDto.connectionConfig,
       };
-      
-      // Mock DatabaseOptimizerFactory for addKnex
-      databaseOptimizerFactory.getOptimizedConnectionConfig.mockReturnValue({
-        pool: { min: 2, max: 10 },
-      });
-      databaseOptimizerFactory.isSupported.mockReturnValue(true);
-      databaseOptimizerFactory.getOptimizationStats.mockReturnValue({
-        totalOptimized: 1,
-        byType: { mysql2: 1 },
-      });
-      
       service.addKnex(1, knexConfig);
       expect(service.hasKnex(1)).toBe(true);
 
@@ -901,7 +793,7 @@ describe('ConnectionService', () => {
 
       const queryResult = await service.executeQuery(
         { ...mockQueryExecuteDto, query: 'SELECT * FROM users' },
-        'user123',
+        'user123'
       );
       expect(queryResult.status).toBe(ResponseStatus.SUCCESS);
 
@@ -916,16 +808,6 @@ describe('ConnectionService', () => {
         { id: 2, engine: 'pg' },
         { id: 3, engine: 'sqlite3' },
       ];
-
-      // Mock DatabaseOptimizerFactory for multiple connections
-      databaseOptimizerFactory.getOptimizedConnectionConfig.mockReturnValue({
-        pool: { min: 2, max: 10 },
-      });
-      databaseOptimizerFactory.isSupported.mockReturnValue(true);
-      databaseOptimizerFactory.getOptimizationStats.mockReturnValue({
-        totalOptimized: 1,
-        byType: { mysql2: 1 },
-      });
 
       // 여러 데이터베이스 연결 추가
       databases.forEach(db => {

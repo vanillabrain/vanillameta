@@ -37,10 +37,10 @@ describe('Dashboard Management Flow (e2e)', () => {
     userRepository = moduleFixture.get<Repository<User>>(getRepositoryToken(User));
     dashboardRepository = moduleFixture.get<Repository<Dashboard>>(getRepositoryToken(Dashboard));
     dashboardShareRepository = moduleFixture.get<Repository<DashboardShare>>(
-      getRepositoryToken(DashboardShare),
+      getRepositoryToken(DashboardShare)
     );
     userMappingRepository = moduleFixture.get<Repository<UserMapping>>(
-      getRepositoryToken(UserMapping),
+      getRepositoryToken(UserMapping)
     );
 
     // 테스트 사용자 생성
@@ -90,20 +90,23 @@ describe('Dashboard Management Flow (e2e)', () => {
           .set('Authorization', `Bearer ${authToken}`)
           .send(testDashboard)
           .expect(201)
-          .expect(res => {
+          .expect((res) => {
             expect(res.body.status).toBe('SUCCESS');
             expect(res.body.data).toEqual(
               expect.objectContaining({
                 title: testDashboard.title,
                 layout: testDashboard.layout,
                 shareId: expect.any(Number),
-              }),
+              })
             );
           });
       });
 
       it('should require authentication', () => {
-        return request(app.getHttpServer()).post('/api/dashboard').send(testDashboard).expect(401);
+        return request(app.getHttpServer())
+          .post('/api/dashboard')
+          .send(testDashboard)
+          .expect(401);
       });
 
       it('should validate required fields', () => {
@@ -126,7 +129,7 @@ describe('Dashboard Management Flow (e2e)', () => {
             layout: [],
           })
           .expect(201)
-          .expect(res => {
+          .expect((res) => {
             expect(res.body.data.layout).toEqual([]);
           });
       });
@@ -148,7 +151,7 @@ describe('Dashboard Management Flow (e2e)', () => {
             layout: largeLayout,
           })
           .expect(201)
-          .expect(res => {
+          .expect((res) => {
             expect(res.body.data.layout).toHaveLength(20);
           });
       });
@@ -168,7 +171,7 @@ describe('Dashboard Management Flow (e2e)', () => {
           .get('/api/dashboard')
           .set('Authorization', `Bearer ${authToken}`)
           .expect(200)
-          .expect(res => {
+          .expect((res) => {
             expect(res.body.status).toBe('SUCCESS');
             expect(res.body.data).toBeInstanceOf(Array);
             expect(res.body.data.length).toBeGreaterThan(0);
@@ -176,13 +179,15 @@ describe('Dashboard Management Flow (e2e)', () => {
               expect.objectContaining({
                 title: testDashboard.title,
                 layout: testDashboard.layout,
-              }),
+              })
             );
           });
       });
 
       it('should require authentication', () => {
-        return request(app.getHttpServer()).get('/api/dashboard').expect(401);
+        return request(app.getHttpServer())
+          .get('/api/dashboard')
+          .expect(401);
       });
 
       it('should return empty array when user has no dashboards', async () => {
@@ -215,7 +220,7 @@ describe('Dashboard Management Flow (e2e)', () => {
           .get(`/api/dashboard/${dashboardId}`)
           .set('Authorization', `Bearer ${authToken}`)
           .expect(200)
-          .expect(res => {
+          .expect((res) => {
             expect(res.body.status).toBe('SUCCESS');
             expect(res.body.data).toEqual(
               expect.objectContaining({
@@ -224,7 +229,7 @@ describe('Dashboard Management Flow (e2e)', () => {
                 layout: testDashboard.layout,
                 uuid: expect.any(String),
                 widgets: expect.any(Array),
-              }),
+              })
             );
           });
       });
@@ -234,14 +239,16 @@ describe('Dashboard Management Flow (e2e)', () => {
           .get('/api/dashboard/999999')
           .set('Authorization', `Bearer ${authToken}`)
           .expect(200) // 현재 구현에서는 200으로 에러 응답
-          .expect(res => {
+          .expect((res) => {
             expect(res.body.status).toBe('ERROR');
             expect(res.body.message).toContain('대시보드가 존재하지 않습니다');
           });
       });
 
       it('should require authentication', () => {
-        return request(app.getHttpServer()).get(`/api/dashboard/${dashboardId}`).expect(401);
+        return request(app.getHttpServer())
+          .get(`/api/dashboard/${dashboardId}`)
+          .expect(401);
       });
     });
 
@@ -268,14 +275,16 @@ describe('Dashboard Management Flow (e2e)', () => {
             title: updatedTitle,
           })
           .expect(200)
-          .expect(res => {
+          .expect((res) => {
             expect(res.body.status).toBe('SUCCESS');
             expect(res.body.data.title).toBe(updatedTitle);
           });
       });
 
       it('should update dashboard layout', () => {
-        const newLayout = [{ i: 'widget3', x: 0, y: 0, w: 12, h: 6 }];
+        const newLayout = [
+          { i: 'widget3', x: 0, y: 0, w: 12, h: 6 },
+        ];
 
         return request(app.getHttpServer())
           .put(`/api/dashboard/${dashboardId}`)
@@ -284,7 +293,7 @@ describe('Dashboard Management Flow (e2e)', () => {
             layout: newLayout,
           })
           .expect(200)
-          .expect(res => {
+          .expect((res) => {
             expect(res.body.status).toBe('SUCCESS');
             expect(res.body.data.layout).toEqual(newLayout);
           });
@@ -304,7 +313,7 @@ describe('Dashboard Management Flow (e2e)', () => {
           .set('Authorization', `Bearer ${authToken}`)
           .send(updatedData)
           .expect(200)
-          .expect(res => {
+          .expect((res) => {
             expect(res.body.status).toBe('SUCCESS');
             expect(res.body.data.title).toBe(updatedData.title);
             expect(res.body.data.layout).toEqual(updatedData.layout);
@@ -319,7 +328,7 @@ describe('Dashboard Management Flow (e2e)', () => {
             title: 'Updated Title',
           })
           .expect(200) // 현재 구현에서는 200으로 에러 응답
-          .expect(res => {
+          .expect((res) => {
             expect(res.body).toBe('Not exist dashboard');
           });
       });
@@ -352,7 +361,7 @@ describe('Dashboard Management Flow (e2e)', () => {
           .delete(`/api/dashboard/${dashboardId}`)
           .set('Authorization', `Bearer ${authToken}`)
           .expect(200)
-          .expect(res => {
+          .expect((res) => {
             expect(res.body.status).toBe('SUCCESS');
             expect(res.body.data.message).toContain(`#${dashboardId} dashboard`);
           });
@@ -363,14 +372,16 @@ describe('Dashboard Management Flow (e2e)', () => {
           .delete('/api/dashboard/999999')
           .set('Authorization', `Bearer ${authToken}`)
           .expect(200) // 현재 구현에서는 200으로 에러 응답
-          .expect(res => {
+          .expect((res) => {
             expect(res.body.status).toBe('ERROR');
             expect(res.body.message).toBe('No exist dashboard');
           });
       });
 
       it('should require authentication', () => {
-        return request(app.getHttpServer()).delete(`/api/dashboard/${dashboardId}`).expect(401);
+        return request(app.getHttpServer())
+          .delete(`/api/dashboard/${dashboardId}`)
+          .expect(401);
       });
 
       it('should verify dashboard is actually deleted', async () => {
@@ -385,7 +396,7 @@ describe('Dashboard Management Flow (e2e)', () => {
           .get(`/api/dashboard/${dashboardId}`)
           .set('Authorization', `Bearer ${authToken}`)
           .expect(200)
-          .expect(res => {
+          .expect((res) => {
             expect(res.body.status).toBe('ERROR');
           });
       });
@@ -421,13 +432,13 @@ describe('Dashboard Management Flow (e2e)', () => {
       return request(app.getHttpServer())
         .get(`/api/share-url/${shareUuid}`)
         .expect(200)
-        .expect(res => {
+        .expect((res) => {
           expect(res.body.status).toBe('SUCCESS');
           expect(res.body.data).toEqual(
             expect.objectContaining({
               title: 'Shared Dashboard',
               layout: expect.any(Array),
-            }),
+            })
           );
         });
     });
@@ -436,7 +447,7 @@ describe('Dashboard Management Flow (e2e)', () => {
       return request(app.getHttpServer())
         .get('/api/share-url/invalid-uuid')
         .expect(200) // 현재 구현에서는 200으로 에러 응답
-        .expect(res => {
+        .expect((res) => {
           expect(res.body.status).toBe('ERROR');
         });
     });
@@ -455,10 +466,10 @@ describe('Dashboard Management Flow (e2e)', () => {
           request(app.getHttpServer())
             .get(`/api/share-url/${uuid}`)
             .expect(200)
-            .expect(res => {
+            .expect((res) => {
               expect(res.body.status).toBe('ERROR');
-            }),
-        ),
+            })
+        )
       );
     });
   });
@@ -518,7 +529,9 @@ describe('Dashboard Management Flow (e2e)', () => {
       expect(updatedResponse.body.data.layout).toHaveLength(2);
 
       // 6. Test sharing
-      await request(app.getHttpServer()).get(`/api/share-url/${shareUuid}`).expect(200);
+      await request(app.getHttpServer())
+        .get(`/api/share-url/${shareUuid}`)
+        .expect(200);
 
       // 7. Delete dashboard
       await request(app.getHttpServer())
@@ -531,7 +544,7 @@ describe('Dashboard Management Flow (e2e)', () => {
         .get(`/api/dashboard/${dashboardId}`)
         .set('Authorization', `Bearer ${authToken}`)
         .expect(200)
-        .expect(res => {
+        .expect((res) => {
           expect(res.body.status).toBe('ERROR');
         });
     });
@@ -545,7 +558,7 @@ describe('Dashboard Management Flow (e2e)', () => {
           .send({
             title: `Concurrent Dashboard ${i + 1}`,
             layout: [{ i: `widget${i + 1}`, x: 0, y: 0, w: 6, h: 4 }],
-          }),
+          })
       );
 
       const responses = await Promise.all(createPromises);
@@ -601,7 +614,7 @@ describe('Dashboard Management Flow (e2e)', () => {
           layout: updatedLayout,
         })
         .expect(200)
-        .expect(res => {
+        .expect((res) => {
           expect(res.body.data.layout).toEqual(updatedLayout);
         });
     });
@@ -630,7 +643,7 @@ describe('Dashboard Management Flow (e2e)', () => {
           layout: [{ i: 'widget1', x: 0, y: 0, w: 6, h: 4 }],
         })
         .expect(201)
-        .expect(res => {
+        .expect((res) => {
           expect(res.body.data.title).toBe(longTitle);
         });
     });
@@ -646,7 +659,7 @@ describe('Dashboard Management Flow (e2e)', () => {
           layout: [{ i: 'widget1', x: 0, y: 0, w: 6, h: 4 }],
         })
         .expect(201)
-        .expect(res => {
+        .expect((res) => {
           expect(res.body.data.title).toBe(specialTitle);
         });
     });
@@ -667,7 +680,7 @@ describe('Dashboard Management Flow (e2e)', () => {
           layout: layoutWithSpecialIds,
         })
         .expect(201)
-        .expect(res => {
+        .expect((res) => {
           expect(res.body.data.layout).toEqual(layoutWithSpecialIds);
         });
     });
@@ -686,7 +699,7 @@ describe('Dashboard Management Flow (e2e)', () => {
           layout: layoutWithNegativeCoords,
         })
         .expect(201)
-        .expect(res => {
+        .expect((res) => {
           expect(res.body.data.layout).toEqual(layoutWithNegativeCoords);
         });
     });
@@ -748,7 +761,7 @@ describe('Dashboard Management Flow (e2e)', () => {
           layout: [{ i: 'widget1', x: 0, y: 0, w: 6, h: 4 }],
         })
         .expect(201)
-        .expect(res => {
+        .expect((res) => {
           expect(res.body.status).toBe('SUCCESS');
           expect(res.body.data.title).toBe(maliciousTitle);
         });
@@ -765,7 +778,7 @@ describe('Dashboard Management Flow (e2e)', () => {
           layout: [{ i: 'widget1', x: 0, y: 0, w: 6, h: 4 }],
         })
         .expect(201)
-        .expect(res => {
+        .expect((res) => {
           expect(res.body.status).toBe('SUCCESS');
           // XSS 스크립트가 그대로 저장되지만, 실제로는 클라이언트에서 이스케이프 처리되어야 함
           expect(res.body.data.title).toBe(xssTitle);
