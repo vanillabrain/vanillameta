@@ -13,12 +13,12 @@ import * as v8 from 'v8';
 function configureMemoryOptimization() {
   // V8 힙 크기 설정 (Lambda 3GB 환경 기준)
   const maxOldSpaceSize = 2560; // 2.5GB (여유분 확보)
-  
+
   // V8 옵션 설정
   v8.setFlagsFromString('--max-old-space-size=' + maxOldSpaceSize);
   v8.setFlagsFromString('--optimize-for-size'); // 메모리 최적화
   v8.setFlagsFromString('--gc-interval=100'); // GC 주기 설정
-  
+
   // 메모리 정보 로깅
   const heapStats = v8.getHeapStatistics();
   console.log('Memory configuration:', {
@@ -31,13 +31,13 @@ function configureMemoryOptimization() {
 async function bootstrap() {
   // 메모리 최적화 설정 적용
   configureMemoryOptimization();
-  
+
   const expressApp = express();
-  
+
   // Express 메모리 최적화 설정
   expressApp.set('trust proxy', 1);
   expressApp.disable('x-powered-by');
-  
+
   const nestApp = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), {
     logger: new CustomLoggerService(),
     cors: {

@@ -36,7 +36,7 @@ export class MemoryOptimizedConnectionService {
   ) {
     const knex = await this.connectionService.getKnex(queryExecuteDto.id);
     const startTime = Date.now();
-    
+
     // 결과를 메모리에 누적하는 대신 스트림 처리
     const results: any[] = [];
     let fields: any[] = [];
@@ -68,35 +68,29 @@ export class MemoryOptimizedConnectionService {
     try {
       // 쿼리 스트림 생성
       const queryStream = knex.raw(queryExecuteDto.query).stream();
-      
+
       // 변환 파이프라인 구성
       const transforms = [];
 
       // 1. 청크 변환
-      transforms.push(
-        MemoryOptimizedQueryUtil.createChunkTransform(options?.chunkSize || 1000)
-      );
+      transforms.push(MemoryOptimizedQueryUtil.createChunkTransform(options?.chunkSize || 1000));
 
       // 2. 프로젝션 (필요한 필드만 선택)
       if (options?.projection && options.projection.length > 0) {
-        transforms.push(
-          MemoryOptimizedQueryUtil.createProjectionTransform(options.projection)
-        );
+        transforms.push(MemoryOptimizedQueryUtil.createProjectionTransform(options.projection));
       }
 
       // 3. 중복 제거
       if (options?.deduplication) {
         transforms.push(
-          MemoryOptimizedQueryUtil.createDeduplicationTransform(
-            options.deduplication.keyField
-          )
+          MemoryOptimizedQueryUtil.createDeduplicationTransform(options.deduplication.keyField),
         );
       }
 
       // 4. 샘플링
       if (options?.sampling) {
         transforms.push(
-          MemoryOptimizedQueryUtil.createSamplingTransform(options.sampling.sampleRate)
+          MemoryOptimizedQueryUtil.createSamplingTransform(options.sampling.sampleRate),
         );
       }
 
@@ -105,22 +99,18 @@ export class MemoryOptimizedConnectionService {
         transforms.push(
           MemoryOptimizedQueryUtil.createAggregateTransform(
             options.aggregation.groupBy,
-            options.aggregation.aggregateFn
-          )
+            options.aggregation.aggregateFn,
+          ),
         );
       }
 
       // 6. 메모리 모니터링
       transforms.push(
-        MemoryOptimizedQueryUtil.createMemoryMonitorTransform(200) // 200MB 임계치
+        MemoryOptimizedQueryUtil.createMemoryMonitorTransform(200), // 200MB 임계치
       );
 
       // 파이프라인 실행
-      await MemoryOptimizedQueryUtil.createOptimizedPipeline(
-        queryStream,
-        transforms,
-        resultStream
-      );
+      await MemoryOptimizedQueryUtil.createOptimizedPipeline(queryStream, transforms, resultStream);
 
       // 필드 정보 추출 (첫 번째 결과에서)
       if (results.length > 0) {
@@ -256,17 +246,17 @@ export class MemoryOptimizedConnectionService {
       // 배치 처리 변환
       const batchTransform = MemoryOptimizedQueryUtil.createBatchTransform(
         batchConfig.batchSize,
-        async (batch) => {
+        async batch => {
           const result = await batchConfig.processFn(batch);
           processedCount += batch.length;
-          
+
           // 진행상황 콜백
           if (batchConfig.onProgress) {
             batchConfig.onProgress(processedCount);
           }
 
           return result;
-        }
+        },
       );
 
       // 결과 수집 스트림
@@ -283,11 +273,8 @@ export class MemoryOptimizedConnectionService {
       // 파이프라인 실행
       await MemoryOptimizedQueryUtil.createOptimizedPipeline(
         queryStream,
-        [
-          MemoryOptimizedQueryUtil.createChunkTransform(batchConfig.batchSize),
-          batchTransform,
-        ],
-        resultStream
+        [MemoryOptimizedQueryUtil.createChunkTransform(batchConfig.batchSize), batchTransform],
+        resultStream,
       );
 
       const executionTime = Date.now() - startTime;

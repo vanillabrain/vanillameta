@@ -73,7 +73,8 @@ export class MemoryMonitorMiddleware implements NestMiddleware {
       });
 
       // 메모리 사용량이 크게 증가한 경우 경고
-      if (memoryDelta > 50 * 1024 * 1024) { // 50MB 이상 증가
+      if (memoryDelta > 50 * 1024 * 1024) {
+        // 50MB 이상 증가
         this.customLogger.warn('Large memory allocation detected', 'MemoryMonitor', {
           path: req.path,
           memoryIncrease: this.formatBytes(memoryDelta),
@@ -97,7 +98,7 @@ export class MemoryMonitorMiddleware implements NestMiddleware {
     const memUsage = process.memoryUsage();
     const heapStats = v8.getHeapStatistics();
     const totalMemory = this.MAX_MEMORY_MB * 1024 * 1024;
-    
+
     return {
       timestamp: new Date(),
       rss: memUsage.rss,
@@ -157,7 +158,8 @@ export class MemoryMonitorMiddleware implements NestMiddleware {
    */
   private forceGarbageCollection(): void {
     const now = Date.now();
-    if (now - this.lastGcTime < 5000) { // 5초 내 중복 실행 방지
+    if (now - this.lastGcTime < 5000) {
+      // 5초 내 중복 실행 방지
       return;
     }
 
@@ -239,7 +241,7 @@ export class MemoryMonitorMiddleware implements NestMiddleware {
   private startPeriodicMonitoring(): void {
     setInterval(() => {
       const metrics = this.getMemoryMetrics();
-      
+
       // 메모리 상태 로깅
       this.customLogger.info('Periodic memory check', 'MemoryMonitor', {
         percentUsed: `${metrics.percentUsed.toFixed(1)}%`,
@@ -284,7 +286,7 @@ export class MemoryMonitorMiddleware implements NestMiddleware {
   public createHeapSnapshot(): string {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const filename = `/tmp/heapdump-${timestamp}.heapsnapshot`;
-    
+
     try {
       const stream = v8.writeHeapSnapshot(filename);
       this.customLogger.info('Heap snapshot created', 'MemoryMonitor', { filename });

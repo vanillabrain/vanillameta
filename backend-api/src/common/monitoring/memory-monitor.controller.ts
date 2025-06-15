@@ -34,7 +34,7 @@ export class MemoryMonitorController {
   @ApiResponse({ status: 200, description: '현재 메모리 메트릭' })
   getCurrentMemory() {
     const metrics = this.memoryMonitorMiddleware.getMemoryStats();
-    
+
     return {
       status: 'success',
       data: {
@@ -55,7 +55,7 @@ export class MemoryMonitorController {
   @ApiResponse({ status: 200, description: '최적화 권장사항 목록' })
   getOptimizationRecommendations() {
     const recommendations = this.memoryMonitorService.getOptimizationRecommendations();
-    
+
     return {
       status: 'success',
       data: {
@@ -79,9 +79,9 @@ export class MemoryMonitorController {
 
     const before = process.memoryUsage();
     const startTime = Date.now();
-    
+
     global.gc();
-    
+
     const after = process.memoryUsage();
     const duration = Date.now() - startTime;
 
@@ -115,7 +115,7 @@ export class MemoryMonitorController {
     try {
       const filename = this.memoryMonitorMiddleware.createHeapSnapshot();
       const stats = await fs.promises.stat(filename);
-      
+
       return {
         status: 'success',
         data: {
@@ -139,11 +139,11 @@ export class MemoryMonitorController {
   @ApiResponse({ status: 404, description: '파일을 찾을 수 없음' })
   async downloadHeapSnapshot(filename: string) {
     const filepath = `/tmp/${filename}`;
-    
+
     try {
       await fs.promises.access(filepath);
       const content = await readFile(filepath);
-      
+
       return {
         status: 'success',
         data: {
@@ -153,10 +153,7 @@ export class MemoryMonitorController {
         },
       };
     } catch (error) {
-      throw new HttpException(
-        'Heap snapshot file not found',
-        HttpStatus.NOT_FOUND,
-      );
+      throw new HttpException('Heap snapshot file not found', HttpStatus.NOT_FOUND);
     }
   }
 
@@ -166,11 +163,11 @@ export class MemoryMonitorController {
   checkMemoryPressure() {
     const metrics = this.memoryMonitorMiddleware.getMemoryStats();
     const percentUsed = metrics.percentUsed / 100;
-    
+
     let status = 'normal';
     let level = 'green';
     let message = '메모리 사용량이 정상입니다.';
-    
+
     if (percentUsed >= 0.9) {
       status = 'critical';
       level = 'red';
@@ -184,7 +181,7 @@ export class MemoryMonitorController {
       level = 'orange';
       message = '메모리 사용량을 모니터링하세요.';
     }
-    
+
     return {
       status: 'success',
       data: {

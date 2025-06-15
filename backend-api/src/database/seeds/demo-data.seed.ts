@@ -21,7 +21,7 @@ export async function seedDemoData(dataSource: DataSource) {
     // 1. Create demo user (if not exists)
     const userRepo = dataSource.getRepository(Users);
     let demoUser = await userRepo.findOne({ where: { userEmail: 'guest' } });
-    
+
     if (!demoUser) {
       demoUser = await userRepo.save({
         userEmail: 'guest',
@@ -37,7 +37,7 @@ export async function seedDemoData(dataSource: DataSource) {
     // 2. Create SQLite database type
     const dbTypeRepo = dataSource.getRepository(DatabaseType);
     let sqliteType = await dbTypeRepo.findOne({ where: { dbEngine: 'sqlite' } });
-    
+
     if (!sqliteType) {
       sqliteType = await dbTypeRepo.save({
         dbEngine: 'sqlite',
@@ -54,7 +54,7 @@ export async function seedDemoData(dataSource: DataSource) {
     // 3. Create demo database connection
     const dbRepo = dataSource.getRepository(Database);
     let demoDB = await dbRepo.findOne({ where: { dbAlias: 'Demo SQLite' } });
-    
+
     if (!demoDB) {
       demoDB = await dbRepo.save({
         dbAlias: 'Demo SQLite',
@@ -121,10 +121,10 @@ export async function seedDemoData(dataSource: DataSource) {
     ];
 
     for (const datasetData of datasets) {
-      const existing = await datasetRepo.findOne({ 
-        where: { datasetName: datasetData.datasetName } 
+      const existing = await datasetRepo.findOne({
+        where: { datasetName: datasetData.datasetName },
       });
-      
+
       if (!existing) {
         await datasetRepo.save({
           ...datasetData,
@@ -138,10 +138,10 @@ export async function seedDemoData(dataSource: DataSource) {
 
     // 5. Create demo dashboard
     const dashboardRepo = dataSource.getRepository(Dashboard);
-    let demoDashboard = await dashboardRepo.findOne({ 
-      where: { dashboardName: '판매 분석 대시보드' } 
+    let demoDashboard = await dashboardRepo.findOne({
+      where: { dashboardName: '판매 분석 대시보드' },
     });
-    
+
     if (!demoDashboard) {
       demoDashboard = await dashboardRepo.save({
         dashboardName: '판매 분석 대시보드',
@@ -156,10 +156,10 @@ export async function seedDemoData(dataSource: DataSource) {
 
     // 6. Create demo template
     const templateRepo = dataSource.getRepository(Template);
-    let demoTemplate = await templateRepo.findOne({ 
-      where: { templateName: '이커머스 분석 템플릿' } 
+    let demoTemplate = await templateRepo.findOne({
+      where: { templateName: '이커머스 분석 템플릿' },
     });
-    
+
     if (!demoTemplate) {
       demoTemplate = await templateRepo.save({
         templateName: '이커머스 분석 템플릿',
@@ -183,7 +183,6 @@ export async function seedDemoData(dataSource: DataSource) {
     }
 
     console.log('🎉 Demo data seeding completed!');
-    
   } catch (error) {
     console.error('❌ Error seeding demo data:', error);
     throw error;
@@ -219,11 +218,11 @@ export async function createDemoSalesTable(dataSource: DataSource) {
     // Insert sample data
     const categories = ['전자제품', '의류', '식품', '가구', '도서'];
     const products = {
-      '전자제품': ['노트북', '스마트폰', '태블릿', '헤드폰', '스마트워치'],
-      '의류': ['티셔츠', '청바지', '재킷', '운동화', '가방'],
-      '식품': ['과자', '음료', '과일', '빵', '커피'],
-      '가구': ['의자', '책상', '침대', '소파', '수납장'],
-      '도서': ['소설', '자기계발서', '만화', '잡지', '교재'],
+      전자제품: ['노트북', '스마트폰', '태블릿', '헤드폰', '스마트워치'],
+      의류: ['티셔츠', '청바지', '재킷', '운동화', '가방'],
+      식품: ['과자', '음료', '과일', '빵', '커피'],
+      가구: ['의자', '책상', '침대', '소파', '수납장'],
+      도서: ['소설', '자기계발서', '만화', '잡지', '교재'],
     };
 
     const startDate = new Date();
@@ -236,25 +235,29 @@ export async function createDemoSalesTable(dataSource: DataSource) {
       const quantity = Math.floor(Math.random() * 10) + 1;
       const basePrice = Math.floor(Math.random() * 100000) + 10000;
       const amount = quantity * basePrice;
-      
+
       const orderDate = new Date(startDate);
       orderDate.setDate(orderDate.getDate() + Math.floor(Math.random() * 365));
-      
-      await dataSource.query(`
+
+      await dataSource.query(
+        `
         INSERT INTO sales_orders (order_date, category, product_name, quantity, amount, customer_id)
         VALUES (?, ?, ?, ?, ?, ?)
-      `, [
-        orderDate.toISOString().split('T')[0],
-        category,
-        product,
-        quantity,
-        amount,
-        `CUST${Math.floor(Math.random() * 1000).toString().padStart(4, '0')}`,
-      ]);
+      `,
+        [
+          orderDate.toISOString().split('T')[0],
+          category,
+          product,
+          quantity,
+          amount,
+          `CUST${Math.floor(Math.random() * 1000)
+            .toString()
+            .padStart(4, '0')}`,
+        ],
+      );
     }
 
     console.log('✅ Demo sales data created (1000 records)');
-    
   } catch (error) {
     console.error('❌ Error creating demo sales table:', error);
     throw error;

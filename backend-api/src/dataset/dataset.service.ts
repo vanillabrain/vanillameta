@@ -187,7 +187,9 @@ export class DatasetService {
       }
 
       // 데이터베이스 연결 정보 조회
-      const dbConnection = await this.databaseRepository.findOne({ where: { id: dataset.databaseId } });
+      const dbConnection = await this.databaseRepository.findOne({
+        where: { id: dataset.databaseId },
+      });
       if (!dbConnection) {
         return {
           status: ResponseStatus.ERROR,
@@ -316,7 +318,9 @@ export class DatasetService {
       }
 
       // 해당 데이터셋의 쿼리 기반 캐시 무효화
-      const dbConnection = await this.databaseRepository.findOne({ where: { id: dataset.databaseId } });
+      const dbConnection = await this.databaseRepository.findOne({
+        where: { id: dataset.databaseId },
+      });
       if (dbConnection) {
         const engine = dbConnection.type || 'unknown';
         await this.hybridCache.invalidateByQuery(engine, dataset.query);

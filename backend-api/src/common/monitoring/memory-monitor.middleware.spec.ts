@@ -57,13 +57,13 @@ describe('MemoryMonitorMiddleware', () => {
 
   it('요청을 처리하고 다음 미들웨어를 호출해야 함', () => {
     middleware.use(mockRequest as Request, mockResponse as Response, mockNext);
-    
+
     expect(mockNext).toHaveBeenCalled();
   });
 
-  it('응답 완료 시 메모리 사용량을 로깅해야 함', (done) => {
+  it('응답 완료 시 메모리 사용량을 로깅해야 함', done => {
     middleware.use(mockRequest as Request, mockResponse as Response, mockNext);
-    
+
     // finish 이벤트 대기
     setTimeout(() => {
       expect(mockLogger.debug).toHaveBeenCalledWith(
@@ -77,25 +77,25 @@ describe('MemoryMonitorMiddleware', () => {
           memoryDelta: expect.any(String),
           percentUsed: expect.any(String),
           executionTime: expect.any(String),
-        })
+        }),
       );
       done();
     }, 20);
   });
 
-  it('큰 메모리 할당 시 경고를 발생시켜야 함', (done) => {
+  it('큰 메모리 할당 시 경고를 발생시켜야 함', done => {
     // 대용량 메모리 할당 시뮬레이션
     const largeArray = new Array(10 * 1024 * 1024).fill(0); // ~80MB
-    
+
     middleware.use(mockRequest as Request, mockResponse as Response, mockNext);
-    
+
     setTimeout(() => {
       // 메모리 증가 감지 확인
       const warnCalls = (mockLogger.warn as jest.Mock).mock.calls;
-      const hasMemoryWarning = warnCalls.some(call => 
-        call[0] === 'Large memory allocation detected'
+      const hasMemoryWarning = warnCalls.some(
+        call => call[0] === 'Large memory allocation detected',
       );
-      
+
       // 큰 메모리 할당은 환경에 따라 다를 수 있으므로 선택적 체크
       if (hasMemoryWarning) {
         expect(mockLogger.warn).toHaveBeenCalledWith(
@@ -105,10 +105,10 @@ describe('MemoryMonitorMiddleware', () => {
             path: '/test',
             memoryIncrease: expect.any(String),
             currentUsage: expect.any(String),
-          })
+          }),
         );
       }
-      
+
       // 메모리 해제
       largeArray.length = 0;
       done();
@@ -117,7 +117,7 @@ describe('MemoryMonitorMiddleware', () => {
 
   it('메모리 통계를 반환해야 함', () => {
     const stats = middleware.getMemoryStats();
-    
+
     expect(stats).toMatchObject({
       timestamp: expect.any(Date),
       rss: expect.any(Number),
@@ -150,14 +150,14 @@ describe('MemoryMonitorMiddleware', () => {
 
     // private 메서드 테스트를 위한 우회 방법
     const checkThreshold = (middleware as any).checkMemoryThreshold.bind(middleware);
-    
+
     // global.gc가 없는 경우 처리
     const originalGc = global.gc;
     global.gc = jest.fn();
 
     try {
       checkThreshold(mockMetrics);
-      
+
       expect(mockLogger.warn).toHaveBeenCalledWith(
         'Memory usage warning threshold reached',
         'MemoryMonitor',
@@ -165,9 +165,9 @@ describe('MemoryMonitorMiddleware', () => {
           percentUsed: '81.0%',
           heapUsed: expect.any(String),
           recommendation: expect.any(String),
-        })
+        }),
       );
-      
+
       // 가비지 컬렉션이 호출되었는지 확인
       expect(global.gc).toHaveBeenCalled();
     } finally {
@@ -189,16 +189,16 @@ describe('MemoryMonitorMiddleware', () => {
     };
 
     const checkThreshold = (middleware as any).checkMemoryThreshold.bind(middleware);
-    
+
     // global.gc가 없는 경우 처리
     const originalGc = global.gc;
     global.gc = jest.fn();
 
     try {
       expect(() => checkThreshold(mockMetrics)).toThrow(
-        '서버 메모리가 부족합니다. 잠시 후 다시 시도해주세요.'
+        '서버 메모리가 부족합니다. 잠시 후 다시 시도해주세요.',
       );
-      
+
       expect(mockLogger.error).toHaveBeenCalledWith(
         'Critical memory threshold reached',
         'MemoryMonitor',
@@ -206,7 +206,7 @@ describe('MemoryMonitorMiddleware', () => {
           percentUsed: '91.0%',
           heapUsed: expect.any(String),
           rss: expect.any(String),
-        })
+        }),
       );
     } finally {
       global.gc = originalGc;
@@ -215,13 +215,11 @@ describe('MemoryMonitorMiddleware', () => {
 
   it('힙 스냅샷을 생성해야 함', () => {
     const filename = middleware.createHeapSnapshot();
-    
+
     expect(filename).toMatch(/^\/tmp\/heapdump-.*\.heapsnapshot$/);
-    expect(mockLogger.info).toHaveBeenCalledWith(
-      'Heap snapshot created',
-      'MemoryMonitor',
-      { filename }
-    );
+    expect(mockLogger.info).toHaveBeenCalledWith('Heap snapshot created', 'MemoryMonitor', {
+      filename,
+    });
   });
 
   afterEach(() => {
