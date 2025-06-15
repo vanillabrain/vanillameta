@@ -26,6 +26,7 @@ import { CacheModule } from './common/optimization/cache.module';
 import { BackgroundJobModule } from './background-job/background-job.module';
 import { MemoryMonitorModule } from './common/monitoring/memory-monitor.module';
 import { MemoryMonitorMiddleware } from './common/monitoring/memory-monitor.middleware';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -89,6 +90,7 @@ import { MemoryMonitorMiddleware } from './common/monitoring/memory-monitor.midd
     CacheModule,
     BackgroundJobModule,
     MemoryMonitorModule,
+    AnalyticsModule,
   ],
   controllers: [AppController, TestCompressionController, TestFieldSelectionController],
   providers: [AppService],
