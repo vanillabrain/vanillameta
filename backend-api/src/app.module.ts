@@ -24,6 +24,9 @@ import { FieldSelectionModule } from './common/field-selection/field-selection.m
 import { BatchModule } from './batch/batch.module';
 import { CacheModule } from './common/optimization/cache.module';
 import { PaginationModule } from './common/pagination/pagination.module';
+import { BackgroundJobModule } from './background-job/background-job.module';
+import { MemoryMonitorModule } from './common/monitoring/memory-monitor.module';
+import { MemoryMonitorMiddleware } from './common/monitoring/memory-monitor.middleware';
 
 @Module({
   imports: [
@@ -86,6 +89,8 @@ import { PaginationModule } from './common/pagination/pagination.module';
     BatchModule,
     CacheModule,
     PaginationModule,
+    BackgroundJobModule,
+    MemoryMonitorModule,
   ],
   controllers: [AppController, TestCompressionController, TestFieldSelectionController],
   providers: [AppService],
@@ -94,5 +99,8 @@ export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     // Correlation ID 미들웨어를 모든 라우트에 적용
     consumer.apply(CorrelationIdMiddleware).forRoutes('*');
+    
+    // Memory Monitor 미들웨어를 모든 라우트에 적용
+    consumer.apply(MemoryMonitorMiddleware).forRoutes('*');
   }
 }

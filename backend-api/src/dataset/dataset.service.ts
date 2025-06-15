@@ -235,7 +235,7 @@ export class DatasetService {
         };
       }
 
-      const engine = dbConnection.engine || 'unknown';
+      const engine = dbConnection.type || 'unknown';
       const databaseId = dataset.databaseId.toString();
 
       // 강제 새로고침이 아닐 때 캐시 확인
@@ -294,7 +294,7 @@ export class DatasetService {
       this.customLogger.log('Query executed and cached', 'DatasetService', {
         datasetId: id,
         engine,
-        dataSize: JSON.stringify(queryResult.datas || {}).length,
+        dataSize: JSON.stringify(queryResult.datas || []).length,
         responseTime: Date.now() - startTime,
       });
 
@@ -315,7 +315,7 @@ export class DatasetService {
       if (useStreamingFallback) {
         try {
           this.logger.log('Attempting streaming fallback...');
-          await this.executeStreamingQuery(id);
+          const streamResult = await this.executeStreamingQuery(id);
 
           return {
             status: ResponseStatus.SUCCESS,
@@ -360,10 +360,10 @@ export class DatasetService {
         where: { id: dataset.databaseId },
       });
       if (dbConnection) {
-        const engine = dbConnection.engine || 'unknown';
+        const engine = dbConnection.type || 'unknown';
         await this.hybridCache.invalidateByQuery(engine, dataset.query);
 
-        this.customLogger.log('Dataset cache invalidated', 'DatasetService', {
+        this.customLogger.info('Dataset cache invalidated', 'DatasetService', {
           datasetId: id,
           engine,
         });
@@ -382,7 +382,7 @@ export class DatasetService {
     try {
       await this.hybridCache.invalidateByDatabase(databaseId.toString());
 
-      this.customLogger.log('Database cache invalidated', 'DatasetService', {
+      this.customLogger.info('Database cache invalidated', 'DatasetService', {
         databaseId,
       });
     } catch (error) {
