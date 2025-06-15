@@ -8,6 +8,7 @@ import { DatasetType } from '../common/enum/dataset-type.enum';
 import { Component } from '../component/entities/component.entity';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import { TableQueryService } from './table-query/table-query.service';
+import { CustomLoggerService } from '../common/logger/logger.service';
 
 @Injectable()
 export class WidgetService {
@@ -17,6 +18,7 @@ export class WidgetService {
     @InjectRepository(Component)
     private componentRepository: Repository<Component>,
     private tableQueryService: TableQueryService,
+    private logger: CustomLoggerService,
   ) {}
 
   /**
@@ -26,8 +28,7 @@ export class WidgetService {
   async create(createWidget: CreateWidgetDto) {
     if (
       createWidget.datasetType === DatasetType.TABLE &&
-      createWidget.tableName &&
-      String(createWidget.tableName).length <= 0
+      (!createWidget.tableName || String(createWidget.tableName).trim().length === 0)
     ) {
       return { status: ResponseStatus.ERROR, message: '필수 입력사항::::선택한 테이블명 ' };
     }
@@ -38,6 +39,9 @@ export class WidgetService {
         createWidget.databaseId,
         createWidget.tableName,
       );
+      if (!res || !res.id) {
+        return { status: ResponseStatus.ERROR, message: 'Failed to create table query' };
+      }
       createWidget.datasetId = res.id;
     }
     // 데이터셋 선택해서 생성할 경우(DatasetType : DATASET) 그대로 insert
@@ -159,8 +163,14 @@ export class WidgetService {
       return { status: ResponseStatus.ERROR, message: 'No exist' };
     } else {
       // dataset이 아닐경우
-      if (find_widget.datasetType === DatasetType.TABLE)
-        await this.tableQueryService.remove(find_widget.datasetId);
+      if (find_widget.datasetType === DatasetType.TABLE) {
+        try {
+          await this.tableQueryService.remove(find_widget.datasetId);
+        } catch (error) {
+          // 테이블 쿼리 제거 실패해도 위젯 제거는 계속 진행
+          this.logger.warn(`Failed to remove table query: ${error.message}`, 'WidgetService');
+        }
+      }
       await this.widgetRepository.delete(id);
       return { status: ResponseStatus.SUCCESS, message: `This action removes a #${id} widget` };
     }

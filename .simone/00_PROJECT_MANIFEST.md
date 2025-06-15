@@ -64,19 +64,23 @@ This project follows a milestone-based development approach.
 ### S05 프론트엔드 성능 (📋 PLANNED)
 
 ✅ 번들 크기 최적화 (T01_S05) - Tree shaking과 코드 스플리팅 - COMPLETED (2025-06-14 14:55)
-📋 동적 임포트 구현 (T02_S05) - React.lazy() 활용
-📋 리소스 지연 로딩 (T03_S05) - 이미지 및 리소스 최적화
-📋 차트 렌더링 최적화 (T04_S05) - 가상화, 디바운싱
-📋 React 메모이제이션 (T05_S05) - React.memo, useMemo 적용
-📋 웹 폰트 최적화 (T06_S05) - Pretendard 서브셋팅
+✅ 동적 임포트 구현 (T02_S05) - React.lazy() 활용 - COMPLETED (2025-06-14 15:24)
+✅ 리소스 지연 로딩 (T03_S05) - 이미지 및 리소스 최적화 - COMPLETED (2025-06-14 15:40)
+✅ 차트 렌더링 최적화 (T04_S05) - 가상화, 디바운싱 - COMPLETED (2025-06-14 15:58)
+✅ React 메모이제이션 (T05_S05) - React.memo, useMemo 적용 - COMPLETED (2025-06-14 16:15)
+✅ 웹 폰트 최적화 (T06_S05) - Pretendard 서브셋 분석 및 로딩 최적화 - COMPLETED (2025-06-14 16:30)
 📋 Service Worker 구현 (T07_S05) - 오프라인 지원
-📋 성능 모니터링 설정 (T08_S05) - Web Vitals 추적
+✅ 성능 모니터링 설정 (T08_S05) - Web Vitals 추적 - COMPLETED (2025-06-14 18:29)
 
 ### S06 대용량 데이터 처리 (📋 PLANNED)
 
-📋 스트리밍 구현
-📋 쿼리 캐싱 전략
-📋 배치 처리 로직
+✅ 대용량 쿼리 결과 스트리밍 구현 (T01_S06) - COMPLETED (2025-06-14 19:36)
+📋 배치 처리 로직 구현 (T02_S06)
+📋 쿼리 타임아웃 설정 및 관리 (T03_S06)
+📋 Redis 기반 쿼리 결과 캐싱 (T04_S06)
+📋 백그라운드 작업 큐 시스템 (T05_S06)
+📋 프로그레시브 데이터 로딩 UI (T06_S06)
+📋 메모리 효율적인 데이터 처리 (T07_S06)
 
 ### S07 모니터링 및 문서화 (📋 PLANNED)
 
@@ -98,6 +102,12 @@ This project follows a milestone-based development approach.
 - **Target Coverage**: 80% 이상
 - **Status**: In Progress (2025-06-13 10:38)
 - **File**: [T001_Backend_Test_Suite_Enhancement.md](./04_GENERAL_TASKS/T001_Backend_Test_Suite_Enhancement.md)
+
+### T002 Frontend Build Error Fix Dynamic Import (📋 NOT STARTED)
+📋 프론트엔드 빌드 실패를 일으키는 TypeScript 타입 오류 해결
+- **Issue**: API 서비스 타입 정의와 실제 axios 응답 구조 불일치
+- **Status**: Not Started (2025-06-14 20:04)
+- **File**: [T002_Frontend_Build_Error_Fix_Dynamic_Import.md](./04_GENERAL_TASKS/T002_Frontend_Build_Error_Fix_Dynamic_Import.md)
 
 ## 6. Quick Links
 

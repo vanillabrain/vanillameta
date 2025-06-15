@@ -14,24 +14,26 @@ describe('API Compression (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    
+
     // 압축 미들웨어 설정 (serverless.ts와 동일)
-    app.use(compression({
-      filter: (req, res) => {
-        const contentType = res.getHeader('content-type');
-        if (typeof contentType === 'string') {
-          return /json|text|xml|javascript|css/.test(contentType);
-        }
-        return compression.filter(req, res);
-      },
-      threshold: 1024,
-      level: 6,
-      memLevel: 8,
-    }));
-    
+    app.use(
+      compression({
+        filter: (req, res) => {
+          const contentType = res.getHeader('content-type');
+          if (typeof contentType === 'string') {
+            return /json|text|xml|javascript|css/.test(contentType);
+          }
+          return compression.filter(req, res);
+        },
+        threshold: 1024,
+        level: 6,
+        memLevel: 8,
+      }),
+    );
+
     app.use(cookieParser());
     app.setGlobalPrefix('v1');
-    
+
     await app.init();
   });
 
@@ -45,7 +47,7 @@ describe('API Compression (e2e)', () => {
         .get('/v1/health')
         .set('Accept-Encoding', 'gzip')
         .expect(200)
-        .expect((res) => {
+        .expect(res => {
           // Content-Encoding 헤더가 없어야 함
           expect(res.headers['content-encoding']).toBeUndefined();
         });
@@ -54,22 +56,24 @@ describe('API Compression (e2e)', () => {
     it('큰 JSON 응답은 gzip으로 압축되어야 함', async () => {
       // 1KB 이상의 더미 데이터 생성
       const largeData = {
-        items: Array(100).fill(null).map((_, i) => ({
-          id: i,
-          name: `Item ${i}`,
-          description: `This is a description for item ${i} with some additional text to make it larger`,
-          metadata: {
-            created: new Date().toISOString(),
-            updated: new Date().toISOString(),
-            tags: ['tag1', 'tag2', 'tag3', 'tag4', 'tag5'],
-            properties: {
-              color: 'blue',
-              size: 'large',
-              weight: '10kg',
-              material: 'plastic',
-            }
-          }
-        }))
+        items: Array(100)
+          .fill(null)
+          .map((_, i) => ({
+            id: i,
+            name: `Item ${i}`,
+            description: `This is a description for item ${i} with some additional text to make it larger`,
+            metadata: {
+              created: new Date().toISOString(),
+              updated: new Date().toISOString(),
+              tags: ['tag1', 'tag2', 'tag3', 'tag4', 'tag5'],
+              properties: {
+                color: 'blue',
+                size: 'large',
+                weight: '10kg',
+                material: 'plastic',
+              },
+            },
+          })),
       };
 
       // Mock 엔드포인트 생성
@@ -84,7 +88,7 @@ describe('API Compression (e2e)', () => {
 
       // gzip 압축이 적용되었는지 확인
       expect(response.headers['content-encoding']).toBe('gzip');
-      
+
       // 압축된 데이터가 원본보다 작은지 확인
       const originalSize = JSON.stringify(largeData).length;
       const compressedSize = response.text.length;
@@ -94,8 +98,8 @@ describe('API Compression (e2e)', () => {
     it('Accept-Encoding 헤더가 없으면 압축하지 않아야 함', async () => {
       // Mock 엔드포인트
       app.use('/v1/test/no-compression', (req, res) => {
-        res.json({ 
-          data: 'x'.repeat(2000) // 2KB 데이터
+        res.json({
+          data: 'x'.repeat(2000), // 2KB 데이터
         });
       });
 
@@ -148,12 +152,17 @@ describe('API Compression (e2e)', () => {
         res.type('application/xml');
         const xmlData = `
           <root>
-            ${Array(50).fill(null).map((_, i) => `
+            ${Array(50)
+              .fill(null)
+              .map(
+                (_, i) => `
               <item id="${i}">
                 <name>Item ${i}</name>
                 <description>Description for item ${i}</description>
               </item>
-            `).join('')}
+            `,
+              )
+              .join('')}
           </root>
         `;
         res.send(xmlData);
@@ -172,10 +181,12 @@ describe('API Compression (e2e)', () => {
   describe('Compression Performance', () => {
     it('압축이 응답 시간에 미치는 영향이 최소화되어야 함', async () => {
       const largeData = {
-        items: Array(200).fill(null).map((_, i) => ({
-          id: i,
-          data: 'x'.repeat(100),
-        }))
+        items: Array(200)
+          .fill(null)
+          .map((_, i) => ({
+            id: i,
+            data: 'x'.repeat(100),
+          })),
       };
 
       app.use('/v1/test/performance', (req, res) => {
@@ -184,9 +195,7 @@ describe('API Compression (e2e)', () => {
 
       // 압축 없이 측정
       const startNoCompression = Date.now();
-      await request(app.getHttpServer())
-        .get('/v1/test/performance')
-        .expect(200);
+      await request(app.getHttpServer()).get('/v1/test/performance').expect(200);
       const timeNoCompression = Date.now() - startNoCompression;
 
       // 압축과 함께 측정

@@ -1,11 +1,28 @@
-import { Controller, Get, Post, Body, Patch, Delete, UseGuards, Res, Req, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Delete,
+  UseGuards,
+  Res,
+  Req,
+  Query,
+} from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { AuthService } from 'src/auth/auth.service';
 import { LocalAuthGuard } from 'src/auth/guards/local-auth.guard';
-import { ApiBearerAuth, ApiCreatedResponse, ApiOperation, ApiTags, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiOperation,
+  ApiTags,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { FieldSelection } from '../common/field-selection/field-selection.decorator';
 
 @Controller('user')
@@ -18,17 +35,17 @@ export class UserController {
 
   @FieldSelection({
     allowedFields: ['id', 'userId', 'email', 'createdAt', 'updatedAt'],
-    excludeFields: ['password', 'jwtId']
+    excludeFields: ['password', 'jwtId'],
   })
   @UseGuards(JwtAuthGuard)
   @Get('userinfo')
   @ApiOperation({ summary: '해당유저정보 가져오기' })
   @ApiBearerAuth('AccessKey')
-  @ApiQuery({ 
-    name: 'fields', 
-    required: false, 
+  @ApiQuery({
+    name: 'fields',
+    required: false,
     description: '반환할 필드 선택 (쉼표로 구분). 예: id,email,createdAt',
-    example: 'id,userId,email'
+    example: 'id,userId,email',
   })
   findOne(@Req() req, @Query('fields') fields?: string) {
     const { id } = req.user.accessKeyData;
@@ -65,17 +82,17 @@ export class UserController {
 
   @FieldSelection({
     allowedFields: ['id', 'title', 'description', 'createdAt', 'updatedAt'],
-    excludeFields: []
+    excludeFields: [],
   })
   @UseGuards(JwtAuthGuard)
   @Get('get-dashboard')
   @ApiOperation({ summary: '해당유정의 대시보드 목록 가져오기' })
   @ApiBearerAuth('AccessKey')
-  @ApiQuery({ 
-    name: 'fields', 
-    required: false, 
+  @ApiQuery({
+    name: 'fields',
+    required: false,
     description: '반환할 필드 선택 (쉼표로 구분). 예: id,title,description',
-    example: 'id,title,createdAt'
+    example: 'id,title,createdAt',
   })
   async findDashboardId(@Req() req, @Query('fields') fields?: string) {
     const { id } = req.headers.accessKeyData;

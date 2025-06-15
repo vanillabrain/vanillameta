@@ -3,7 +3,6 @@ import { Response } from 'express';
 
 @Controller('test')
 export class TestCompressionController {
-  
   @Post('large-data')
   @Header('Content-Type', 'application/json')
   async getLargeData(@Body() data: any, @Res() res: Response) {
@@ -18,9 +17,9 @@ export class TestCompressionController {
         metadata: {
           serverTime: Date.now(),
           requestSize: JSON.stringify(data).length,
-          environment: process.env.NODE_ENV || 'unknown'
-        }
-      }
+          environment: process.env.NODE_ENV || 'unknown',
+        },
+      },
     });
   }
 
@@ -30,7 +29,7 @@ export class TestCompressionController {
     // 작은 응답 (압축되지 않아야 함)
     res.json({
       message: 'Small response',
-      data: data
+      data: data,
     });
   }
 
@@ -40,7 +39,7 @@ export class TestCompressionController {
     // 이미 압축된 것으로 표시된 응답
     res.json({
       message: 'This response is already marked as compressed',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 
@@ -54,8 +53,8 @@ export class TestCompressionController {
       compressionDetails: {
         shouldCompress: JSON.stringify(data).length > 1024,
         originalSize: JSON.stringify(data).length,
-        contentType: 'application/json'
-      }
+        contentType: 'application/json',
+      },
     });
   }
 
@@ -99,12 +98,12 @@ ${new Date().toISOString()}
   @Header('Content-Type', 'application/json')
   async testPerformance(@Body() data: any, @Res() res: Response) {
     const startTime = Date.now();
-    
+
     // 처리 시뮬레이션
     await new Promise(resolve => setTimeout(resolve, 10));
-    
+
     const processingTime = Date.now() - startTime;
-    
+
     res.json({
       message: 'Performance test response',
       data: data,
@@ -112,16 +111,16 @@ ${new Date().toISOString()}
         processingTime: processingTime,
         responseGenerated: new Date().toISOString(),
         dataSize: JSON.stringify(data).length,
-        compressionEligible: JSON.stringify(data).length > 1024
+        compressionEligible: JSON.stringify(data).length > 1024,
       },
       metadata: {
         serverInfo: {
           nodeVersion: process.version,
           platform: process.platform,
           memory: process.memoryUsage(),
-          uptime: process.uptime()
-        }
-      }
+          uptime: process.uptime(),
+        },
+      },
     });
   }
 
@@ -143,18 +142,18 @@ ${new Date().toISOString()}
           'text/xml',
           'application/xml',
           'application/javascript',
-          'text/javascript'
-        ]
+          'text/javascript',
+        ],
       },
       apiGatewaySettings: {
         minimumCompressionSize: 1024,
-        binaryMediaTypes: ['*/*']
+        binaryMediaTypes: ['*/*'],
       },
       environment: {
         nodeEnv: process.env.NODE_ENV || 'unknown',
         runtime: 'AWS Lambda',
-        timestamp: new Date().toISOString()
-      }
+        timestamp: new Date().toISOString(),
+      },
     });
   }
 }

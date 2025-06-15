@@ -35,12 +35,7 @@ export abstract class BaseDatabaseOptimizer {
    * @param data - 삽입할 데이터 배열
    * @param options - 추가 옵션
    */
-  abstract batchInsert(
-    knex: Knex,
-    tableName: string,
-    data: any[],
-    options?: any,
-  ): Promise<any>;
+  abstract batchInsert(knex: Knex, tableName: string, data: any[], options?: any): Promise<any>;
 
   /**
    * 배치 업데이트 최적화
@@ -118,14 +113,40 @@ export abstract class BaseDatabaseOptimizer {
   /**
    * 환경별 기본 연결 타임아웃 설정
    * @param environment - 환경
+   * @param databaseType - 데이터베이스 타입 (환경 변수 키 생성용)
    */
-  protected getBaseTimeouts(environment = 'dev') {
+  protected getBaseTimeouts(environment = 'dev', databaseType?: string) {
     const isProduction = environment === 'prod';
 
+    // 환경 변수에서 타임아웃 값 가져오기
+    const getEnvTimeout = (type: string, defaultValue: number): number => {
+      const dbSpecificKey = databaseType ? `${databaseType.toUpperCase()}_${type.toUpperCase()}_TIMEOUT` : null;
+      const genericKey = `DB_${type.toUpperCase()}_TIMEOUT`;
+      
+      // 데이터베이스별 환경 변수 우선 확인
+      if (dbSpecificKey && process.env[dbSpecificKey]) {
+        const envValue = parseInt(process.env[dbSpecificKey], 10);
+        if (!isNaN(envValue) && envValue > 0) {
+          return envValue;
+        }
+      }
+      
+      // 일반 환경 변수 확인
+      if (process.env[genericKey]) {
+        const envValue = parseInt(process.env[genericKey], 10);
+        if (!isNaN(envValue) && envValue > 0) {
+          return envValue;
+        }
+      }
+      
+      return defaultValue;
+    };
+
     return {
-      connectTimeout: isProduction ? 10000 : 30000,
-      socketTimeout: isProduction ? 30000 : 60000,
-      acquireConnectionTimeout: 30000,
+      connectTimeout: getEnvTimeout('connect', isProduction ? 10000 : 30000),
+      socketTimeout: getEnvTimeout('socket', isProduction ? 30000 : 60000),
+      acquireConnectionTimeout: getEnvTimeout('acquire', 30000),
+      queryTimeout: getEnvTimeout('query', isProduction ? 25000 : 60000), // Lambda 제한 고려
     };
   }
 

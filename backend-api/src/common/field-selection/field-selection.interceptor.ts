@@ -1,10 +1,4 @@
-import {
-  Injectable,
-  NestInterceptor,
-  ExecutionContext,
-  CallHandler,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, NestInterceptor, ExecutionContext, CallHandler, Logger } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
@@ -73,7 +67,7 @@ export class FieldSelectionInterceptor implements NestInterceptor {
               selectedData,
               requestedFields,
             );
-            
+
             this.logger.debug(`Field selection applied`, {
               ...summary,
               processingTimeMs: processingTime,
@@ -100,14 +94,14 @@ export function extractFieldSelectionFromRequest(request: Request): {
   hasFieldSelection: boolean;
 } {
   const fieldsParam = request.query.fields as string;
-  
+
   if (!fieldsParam) {
     return { fields: [], hasFieldSelection: false };
   }
 
   const fieldSelectionService = new FieldSelectionService();
   const fields = fieldSelectionService.parseFields(fieldsParam);
-  
+
   return {
     fields,
     hasFieldSelection: fields.length > 0,
@@ -126,8 +120,10 @@ export function addFieldSelectionHeaders(
   if (typeof response.header === 'function') {
     response.header('X-Field-Selection-Applied', 'true');
     response.header('X-Field-Selection-Fields', fields.join(','));
-    response.header('X-Field-Selection-Reduction', 
-      `${(((originalSize - selectedSize) / originalSize) * 100).toFixed(2)}%`);
+    response.header(
+      'X-Field-Selection-Reduction',
+      `${(((originalSize - selectedSize) / originalSize) * 100).toFixed(2)}%`,
+    );
     response.header('X-Original-Size', originalSize.toString());
     response.header('X-Selected-Size', selectedSize.toString());
   }

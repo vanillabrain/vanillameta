@@ -7,13 +7,13 @@ export const URL_SHARE_OFF = '/share-off';
 export const URL_SHARE_DASHBOARD = '/share-dashboard';
 
 const onShareToken = (id: string, data: ShareTokenRequest): Promise<ApiResponse<ShareTokenResponse>> =>
-  post(URL_SHARE + URL_SHARE_ON + '/' + id, data);
+  post<ApiResponse<ShareTokenResponse>>(URL_SHARE + URL_SHARE_ON + '/' + id, data);
 
 const offShareToken = (id: string, data: ShareTokenRequest): Promise<ApiResponse<null>> =>
-  post(URL_SHARE + URL_SHARE_OFF + '/' + id, data);
+  post<ApiResponse<null>>(URL_SHARE + URL_SHARE_OFF + '/' + id, data);
 
 const selectDashboard = (uuid: string): Promise<ApiResponse<ShareDashboardResponse>> =>
-  get(URL_SHARE + URL_SHARE_DASHBOARD + '/' + uuid);
+  get<ApiResponse<ShareDashboardResponse>>(URL_SHARE + URL_SHARE_DASHBOARD + '/' + uuid);
 
 const shareService = {
   onShareToken,

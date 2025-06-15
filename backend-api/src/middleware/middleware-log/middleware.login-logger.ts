@@ -1,9 +1,9 @@
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { InjectRepository } from '@nestjs/typeorm';
-import { LoginHistory } from '../entities/login-history.entity.js';
+import { LoginHistory } from '../entities/login-history.entity';
 import { Repository } from 'typeorm';
-import { YesNo } from '../../common/enum/yn.enum.js';
+import { YesNo } from '../../common/enum/yn.enum';
 import { CustomLoggerService } from '../../common/logger/logger.service';
 
 @Injectable()

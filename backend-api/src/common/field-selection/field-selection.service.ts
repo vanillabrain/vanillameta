@@ -27,7 +27,7 @@ export class FieldSelectionService {
 
     // 캐시 키 생성
     const cacheKey = this.generateCacheKey(fieldsParam, options);
-    
+
     // 캐시에서 확인
     const cached = this.fieldParseCache.get(cacheKey);
     if (cached) {
@@ -42,10 +42,10 @@ export class FieldSelectionService {
 
     // 유효성 검사
     const validatedFields = this.validateFields(fields, options);
-    
+
     // 캐시에 저장
     this.addToCache(cacheKey, validatedFields);
-    
+
     this.logger.debug(`Parsed fields: ${validatedFields.join(', ')}`);
     return validatedFields;
   }
@@ -57,7 +57,7 @@ export class FieldSelectionService {
     const optionsKey = JSON.stringify({
       allowed: options.allowedFields?.sort(),
       excluded: options.excludeFields?.sort(),
-      maxDepth: options.maxDepth
+      maxDepth: options.maxDepth,
     });
     return `${fieldsParam}::${optionsKey}`;
   }
@@ -79,7 +79,7 @@ export class FieldSelectionService {
    */
   private validateFields(fields: string[], options: FieldSelectionOptions): string[] {
     const { allowedFields, excludeFields, maxDepth = 5 } = options;
-    
+
     return fields.filter(field => {
       // 중첩 깊이 체크
       const depth = field.split('.').length;
@@ -120,7 +120,9 @@ export class FieldSelectionService {
   private isFieldAllowed(field: string, allowedFields: string[]): boolean {
     return allowedFields.some(allowed => {
       // 정확한 매치 또는 상위 필드 매치
-      return field === allowed || field.startsWith(allowed + '.') || allowed.startsWith(field + '.');
+      return (
+        field === allowed || field.startsWith(allowed + '.') || allowed.startsWith(field + '.')
+      );
     });
   }
 
@@ -157,11 +159,11 @@ export class FieldSelectionService {
    */
   private buildFieldTree(fields: string[]): any {
     const tree: any = {};
-    
+
     for (const field of fields) {
       const parts = field.split('.');
       let current = tree;
-      
+
       for (let i = 0; i < parts.length; i++) {
         const part = parts[i];
         if (!current[part]) {
@@ -170,7 +172,7 @@ export class FieldSelectionService {
         current = current[part];
       }
     }
-    
+
     return tree;
   }
 
@@ -183,12 +185,12 @@ export class FieldSelectionService {
     }
 
     const result: any = {};
-    
+
     for (const key in fieldTree) {
       if (source.hasOwnProperty(key)) {
         const value = source[key];
         const subTree = fieldTree[key];
-        
+
         if (subTree === true) {
           result[key] = value;
         } else if (value !== null && value !== undefined) {
@@ -206,7 +208,7 @@ export class FieldSelectionService {
         }
       }
     }
-    
+
     return result;
   }
 
@@ -225,15 +227,15 @@ export class FieldSelectionService {
     } else {
       // 중첩 필드
       const remainingPath = parts.slice(1).join('.');
-      
+
       if (source.hasOwnProperty(firstPart)) {
         const sourceValue = source[firstPart];
-        
+
         if (sourceValue !== null && sourceValue !== undefined) {
           if (!target[firstPart]) {
             target[firstPart] = Array.isArray(sourceValue) ? [] : {};
           }
-          
+
           if (Array.isArray(sourceValue)) {
             // 배열의 각 요소에 재귀적으로 적용
             target[firstPart] = sourceValue.map(item => {
@@ -254,9 +256,9 @@ export class FieldSelectionService {
    * TypeORM 쿼리 빌더 최적화
    */
   optimizeTypeOrmQuery(
-    queryBuilder: SelectQueryBuilder<any>, 
-    fields: string[], 
-    alias?: string
+    queryBuilder: SelectQueryBuilder<any>,
+    fields: string[],
+    alias?: string,
   ): SelectQueryBuilder<any> {
     if (fields.length === 0) {
       return queryBuilder;
@@ -269,7 +271,7 @@ export class FieldSelectionService {
     // 필드를 메인 엔티티와 관계 엔티티로 분류
     fields.forEach(field => {
       const parts = field.split('.');
-      
+
       if (parts.length === 1) {
         // 메인 엔티티 필드
         mainFields.push(`${mainAlias}.${parts[0]}`);
@@ -277,11 +279,11 @@ export class FieldSelectionService {
         // 관계 엔티티 필드
         const relationAlias = parts[0];
         const relationField = parts.slice(1).join('.');
-        
+
         if (!relationFields[relationAlias]) {
           relationFields[relationAlias] = [];
         }
-        
+
         if (parts.length === 2) {
           relationFields[relationAlias].push(`${relationAlias}.${parts[1]}`);
         } else {
@@ -311,9 +313,9 @@ export class FieldSelectionService {
    * Knex 쿼리 빌더 최적화
    */
   optimizeKnexQuery(
-    queryBuilder: Knex.QueryBuilder, 
+    queryBuilder: Knex.QueryBuilder,
     fields: string[],
-    tableAlias?: string
+    tableAlias?: string,
   ): Knex.QueryBuilder {
     if (fields.length === 0) {
       return queryBuilder;
@@ -322,7 +324,7 @@ export class FieldSelectionService {
     // 단순 필드만 처리 (관계는 별도 처리 필요)
     const simpleFields = fields
       .filter(field => !field.includes('.'))
-      .map(field => tableAlias ? `${tableAlias}.${field}` : field);
+      .map(field => (tableAlias ? `${tableAlias}.${field}` : field));
 
     if (simpleFields.length > 0) {
       queryBuilder.select(simpleFields);
@@ -346,7 +348,7 @@ export class FieldSelectionService {
       originalSize,
       selectedSize,
       reductionPercentage: reduction.toFixed(2),
-      optimizationApplied: reduction > 0
+      optimizationApplied: reduction > 0,
     };
   }
 
@@ -364,7 +366,7 @@ export class FieldSelectionService {
       'apiKey',
       'privateKey',
       'connectionString',
-      'credentials'
+      'credentials',
     ];
   }
 
@@ -376,21 +378,21 @@ export class FieldSelectionService {
       // 사용자 기본 정보
       userBasic: ['id', 'email', 'name', 'createdAt'],
       userWithProfile: ['id', 'email', 'name', 'profile.avatar', 'profile.bio'],
-      
+
       // 대시보드 메타데이터
       dashboardMeta: ['id', 'title', 'description', 'createdAt', 'updatedAt'],
       dashboardWithWidgets: ['id', 'title', 'widgets.id', 'widgets.name', 'widgets.type'],
-      
+
       // 위젯 기본 정보
       widgetBasic: ['id', 'name', 'type', 'order', 'createdAt'],
       widgetWithConfig: ['id', 'name', 'type', 'config.title', 'config.chartType'],
-      
+
       // 데이터셋 스키마
       datasetSchema: ['id', 'name', 'description', 'columns.name', 'columns.type'],
       datasetMeta: ['id', 'name', 'description', 'rowCount', 'createdAt'],
-      
+
       // 연결 정보 (민감한 정보 제외)
-      connectionBasic: ['id', 'name', 'type', 'host', 'port', 'database', 'status']
+      connectionBasic: ['id', 'name', 'type', 'host', 'port', 'database', 'status'],
     };
   }
 }

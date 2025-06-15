@@ -1,0 +1,1098 @@
+{
+  "summary": {
+    "totalFiles": 205,
+    "totalUniqueCharacters": 538,
+    "analysisDate": "2025-06-14T07:14:59.448Z"
+  },
+  "characterCounts": {
+    "hangul": 223,
+    "ascii": 95,
+    "latin": 0,
+    "punctuation": 0,
+    "symbols": 2,
+    "numbers": 0,
+    "other": 218
+  },
+  "unicodeRanges": {
+    "hangul": "U+AC00-AC01, U+AC10, U+AC19, U+AC1C-AC1D, U+ACA0, U+ACA8-ACA9, U+ACC4, U+ACE0, U+ACF5, U+ACFC, U+AD00, U+AD50, U+AD6C, U+ADC0, U+ADDC, U+ADE0, U+AE00, U+AE30, U+AE45, U+AE54, U+B00C, U+B09C, U+B0AE, U+B0B4, U+B10C, U+B204, U+B274, U+B2D8, U+B2E4, U+B2EB-B2EC, U+B2F5, U+B2F7, U+B2F9, U+B300, U+B354, U+B418, U+B420, U+B428-B429, U+B450, U+B4C8, U+B4DC, U+B4E0, U+B4E4, U+B530, U+B54C, U+B728, U+B798-B799, U+B7EC, U+B7F0, U+B808-B809, U+B824-B825, U+B82C, U+B85C-B85D, U+B860, U+B86D, U+B8CC, U+B8E8, U+B960, U+B97C, U+B9AD, U+B9BC-B9BD, U+B9BF, U+B9CC, U+B9CE, U+B9D0, U+B9DE, U+B9F5, U+B9F7, U+BA3C, U+BA85, U+BAA9, U+BB34, U+BBC0, U+BC00, U+BC0F, U+BC14, U+BC1B, U+BC31, U+BC88, U+BC94, U+BCA0, U+BCA4, U+BCC0, U+BCC4, U+BCD1, U+BCF4-BCF5, U+BCF8, U+BD80, U+BDF0, U+BE14, U+BE4C, U+BE60, U+C0AC-C0AD, U+C0BD, U+C0C1, U+C0C9, U+C12D, U+C131, U+C138, U+C13C, U+C149, U+C14B, U+C18C, U+C194, U+C1A1, U+C218, U+C228, U+C22B, U+C2A4, U+C2DD, U+C2F1, U+C544, U+C54A, U+C555, U+C57D, U+C591, U+C5B4, U+C5B8, U+C5C5, U+C5C8, U+C5D0, U+C5EC, U+C5F4, U+C601, U+C608, U+C624, U+C62C, U+C640, U+C67C, U+C694, U+C6B0, U+C6CC, U+C6D0, U+C73C, U+C751, U+C758, U+C774, U+C77D, U+C784-C785, U+C788, U+C790, U+C798, U+C7A0-C7A1, U+C7A5, U+C800, U+C804, U+C815, U+C838, U+C870, U+C885, U+C88C, U+C988, U+C99D, U+C9C0-C9C1, U+C9D0, U+C9DC, U+CC3E, U+CC98, U+CC9C, U+CD08, U+CD1D, U+CD2C, U+CD5C, U+CD94, U+CE20-CE21, U+CE58, U+CE68, U+CE78, U+CE90, U+CEF4, U+CF00, U+CF54, U+CF5C, U+D06C, U+D070, U+D074, U+D0ED, U+D140, U+D14C-D14D, U+D154, U+D1A0, U+D1A4, U+D2B8, U+D2BC, U+D2C0, U+D2F0, U+D329, U+D50C, U+D544, U+D551, U+D559, U+D55C, U+D560, U+D568-D569, U+D574, U+D578, U+D589, U+D5D8, U+D615, U+D654, U+D658, U+D68C, U+D6A8, U+D6C4, U+D788",
+    "ascii": "U+0020-007E",
+    "symbols": "U+2192, U+24D2",
+    "other": "U+000A, U+2705, U+274C, U+AC04, U+AC12, U+AC14-AC15, U+AC2F, U+AC70, U+AC80, U+AC83, U+AC8C, U+ACB0, U+ACB9, U+ACBD, U+ADF8, U+AE4C, U+AE68, U+AED8, U+AF07, U+B098, U+B0A0, U+B108, U+B118, U+B11B, U+B124, U+B192, U+B294, U+B2A5, U+B2C8, U+B2E8, U+B2F4, U+B355, U+B358, U+B370, U+B3C4-B3C5, U+B3D9, U+B410, U+B41C, U+B465, U+B4A4, U+B4F1, U+B514, U+B529, U+B610, U+B77C, U+B780, U+B7B5, U+B7C9, U+B7FC, U+B80C, U+B828, U+B840, U+B864, U+B958, U+B974, U+B978, U+B984, U+B9AC, U+B9C1, U+B9C8-B9C9, U+B9E4, U+BA54, U+BA70, U+BA74, U+BAA8, U+BABB, U+BB38, U+BBAC, U+BBF8, U+BC18, U+BC1C, U+BC29, U+BC30, U+BC84, U+BC95, U+BD84, U+BD88, U+BD99, U+BE0C, U+BE44, U+BE48, U+C0B0, U+C0B4, U+C0C8, U+C0D8, U+C0DD, U+C11C-C11D, U+C120, U+C124, U+C158, U+C18D, U+C21C, U+C2B5, U+C2DC, U+C2E0, U+C2E4, U+C2EC, U+C368, U+C4F0, U+C529, U+C548, U+C558, U+C560, U+C57C, U+C5C6, U+C5D4, U+C5ED, U+C5F0, U+C635, U+C644, U+C678, U+C6A9, U+C6B4, U+C6C3, U+C6E8, U+C6F9, U+C704, U+C720, U+C728, U+C740, U+C744, U+C74C, U+C778, U+C77C, U+C791, U+C7AC, U+C801, U+C808, U+C810-C811, U+C81C-C81D, U+C82F, U+C874, U+C8FC, U+C900, U+C904, U+C90D, U+C911, U+C9C4, U+C9D1, U+C9F8, U+CABD, U+CC28, U+CC38, U+CC3D, U+CCAB, U+CCAD, U+CCB4, U+CD95, U+CD9C, U+CDA4, U+CDE8, U+CE5C, U+CE74, U+CE94, U+CEE4, U+CEEC, U+CF08, U+CF58, U+CFFC, U+D0A8, U+D0AC, U+D0C0, U+D0DC-D0DD, U+D130, U+D134, U+D150, U+D15C, U+D1B5, U+D2B9, U+D2F1, U+D300, U+D305, U+D30C, U+D310, U+D31D, U+D328, U+D37C, U+D398, U+D3B8, U+D3C9, U+D3EC, U+D3F0, U+D3F4, U+D45C, U+D478, U+D480, U+D488, U+D504, U+D53C, U+D558, U+D56D, U+D588, U+D5A5, U+D5C8, U+D5E4, U+D604, U+D638-D639, U+D655, U+D65C, U+D669, U+D69F, U+D6C5, U+D734, U+D7A3, U+D83C-D83D, U+D83D, U+D83D, U+D83D, U+D83D"
+  },
+  "topHangulCharacters": [
+    {
+      "char": "이",
+      "frequency": 452,
+      "unicode": "U+C774"
+    },
+    {
+      "char": "트",
+      "frequency": 255,
+      "unicode": "U+D2B8"
+    },
+    {
+      "char": "로",
+      "frequency": 224,
+      "unicode": "U+B85C"
+    },
+    {
+      "char": "정",
+      "frequency": 164,
+      "unicode": "U+C815"
+    },
+    {
+      "char": "성",
+      "frequency": 157,
+      "unicode": "U+C131"
+    },
+    {
+      "char": "드",
+      "frequency": 154,
+      "unicode": "U+B4DC"
+    },
+    {
+      "char": "다",
+      "frequency": 152,
+      "unicode": "U+B2E4"
+    },
+    {
+      "char": "스",
+      "frequency": 139,
+      "unicode": "U+C2A4"
+    },
+    {
+      "char": "요",
+      "frequency": 138,
+      "unicode": "U+C694"
+    },
+    {
+      "char": "에",
+      "frequency": 138,
+      "unicode": "U+C5D0"
+    },
+    {
+      "char": "기",
+      "frequency": 124,
+      "unicode": "U+AE30"
+    },
+    {
+      "char": "가",
+      "frequency": 117,
+      "unicode": "U+AC00"
+    },
+    {
+      "char": "지",
+      "frequency": 110,
+      "unicode": "U+C9C0"
+    },
+    {
+      "char": "보",
+      "frequency": 109,
+      "unicode": "U+BCF4"
+    },
+    {
+      "char": "대",
+      "frequency": 106,
+      "unicode": "U+B300"
+    },
+    {
+      "char": "수",
+      "frequency": 102,
+      "unicode": "U+C218"
+    },
+    {
+      "char": "사",
+      "frequency": 101,
+      "unicode": "U+C0AC"
+    },
+    {
+      "char": "자",
+      "frequency": 96,
+      "unicode": "U+C790"
+    },
+    {
+      "char": "한",
+      "frequency": 83,
+      "unicode": "U+D55C"
+    },
+    {
+      "char": "화",
+      "frequency": 82,
+      "unicode": "U+D654"
+    },
+    {
+      "char": "컴",
+      "frequency": 75,
+      "unicode": "U+CEF4"
+    },
+    {
+      "char": "넌",
+      "frequency": 75,
+      "unicode": "U+B10C"
+    },
+    {
+      "char": "크",
+      "frequency": 72,
+      "unicode": "U+D06C"
+    },
+    {
+      "char": "입",
+      "frequency": 70,
+      "unicode": "U+C785"
+    },
+    {
+      "char": "상",
+      "frequency": 68,
+      "unicode": "U+C0C1"
+    },
+    {
+      "char": "세",
+      "frequency": 68,
+      "unicode": "U+C138"
+    },
+    {
+      "char": "해",
+      "frequency": 67,
+      "unicode": "U+D574"
+    },
+    {
+      "char": "소",
+      "frequency": 67,
+      "unicode": "U+C18C"
+    },
+    {
+      "char": "최",
+      "frequency": 66,
+      "unicode": "U+CD5C"
+    },
+    {
+      "char": "형",
+      "frequency": 59,
+      "unicode": "U+D615"
+    },
+    {
+      "char": "개",
+      "frequency": 56,
+      "unicode": "U+AC1C"
+    },
+    {
+      "char": "즈",
+      "frequency": 55,
+      "unicode": "U+C988"
+    },
+    {
+      "char": "플",
+      "frequency": 55,
+      "unicode": "U+D50C"
+    },
+    {
+      "char": "를",
+      "frequency": 54,
+      "unicode": "U+B97C"
+    },
+    {
+      "char": "필",
+      "frequency": 52,
+      "unicode": "U+D544"
+    },
+    {
+      "char": "되",
+      "frequency": 52,
+      "unicode": "U+B418"
+    },
+    {
+      "char": "과",
+      "frequency": 51,
+      "unicode": "U+ACFC"
+    },
+    {
+      "char": "계",
+      "frequency": 49,
+      "unicode": "U+ACC4"
+    },
+    {
+      "char": "우",
+      "frequency": 47,
+      "unicode": "U+C6B0"
+    },
+    {
+      "char": "들",
+      "frequency": 44,
+      "unicode": "U+B4E4"
+    },
+    {
+      "char": "치",
+      "frequency": 42,
+      "unicode": "U+CE58"
+    },
+    {
+      "char": "번",
+      "frequency": 42,
+      "unicode": "U+BC88"
+    },
+    {
+      "char": "더",
+      "frequency": 41,
+      "unicode": "U+B354"
+    },
+    {
+      "char": "조",
+      "frequency": 40,
+      "unicode": "U+C870"
+    },
+    {
+      "char": "으",
+      "frequency": 39,
+      "unicode": "U+C73C"
+    },
+    {
+      "char": "레",
+      "frequency": 39,
+      "unicode": "U+B808"
+    },
+    {
+      "char": "아",
+      "frequency": 39,
+      "unicode": "U+C544"
+    },
+    {
+      "char": "추",
+      "frequency": 38,
+      "unicode": "U+CD94"
+    },
+    {
+      "char": "회",
+      "frequency": 38,
+      "unicode": "U+D68C"
+    },
+    {
+      "char": "장",
+      "frequency": 35,
+      "unicode": "U+C7A5"
+    },
+    {
+      "char": "릿",
+      "frequency": 35,
+      "unicode": "U+B9BF"
+    },
+    {
+      "char": "저",
+      "frequency": 34,
+      "unicode": "U+C800"
+    },
+    {
+      "char": "러",
+      "frequency": 33,
+      "unicode": "U+B7EC"
+    },
+    {
+      "char": "의",
+      "frequency": 33,
+      "unicode": "U+C758"
+    },
+    {
+      "char": "식",
+      "frequency": 33,
+      "unicode": "U+C2DD"
+    },
+    {
+      "char": "고",
+      "frequency": 32,
+      "unicode": "U+ACE0"
+    },
+    {
+      "char": "만",
+      "frequency": 30,
+      "unicode": "U+B9CC"
+    },
+    {
+      "char": "블",
+      "frequency": 30,
+      "unicode": "U+BE14"
+    },
+    {
+      "char": "구",
+      "frequency": 29,
+      "unicode": "U+AD6C"
+    },
+    {
+      "char": "료",
+      "frequency": 29,
+      "unicode": "U+B8CC"
+    },
+    {
+      "char": "함",
+      "frequency": 28,
+      "unicode": "U+D568"
+    },
+    {
+      "char": "테",
+      "frequency": 27,
+      "unicode": "U+D14C"
+    },
+    {
+      "char": "전",
+      "frequency": 26,
+      "unicode": "U+C804"
+    },
+    {
+      "char": "원",
+      "frequency": 26,
+      "unicode": "U+C6D0"
+    },
+    {
+      "char": "삭",
+      "frequency": 26,
+      "unicode": "U+C0AD"
+    },
+    {
+      "char": "셋",
+      "frequency": 25,
+      "unicode": "U+C14B"
+    },
+    {
+      "char": "공",
+      "frequency": 24,
+      "unicode": "U+ACF5"
+    },
+    {
+      "char": "었",
+      "frequency": 24,
+      "unicode": "U+C5C8"
+    },
+    {
+      "char": "별",
+      "frequency": 23,
+      "unicode": "U+BCC4"
+    },
+    {
+      "char": "관",
+      "frequency": 23,
+      "unicode": "U+AD00"
+    },
+    {
+      "char": "응",
+      "frequency": 23,
+      "unicode": "U+C751"
+    },
+    {
+      "char": "맞",
+      "frequency": 23,
+      "unicode": "U+B9DE"
+    },
+    {
+      "char": "베",
+      "frequency": 23,
+      "unicode": "U+BCA0"
+    },
+    {
+      "char": "할",
+      "frequency": 22,
+      "unicode": "U+D560"
+    },
+    {
+      "char": "내",
+      "frequency": 22,
+      "unicode": "U+B0B4"
+    },
+    {
+      "char": "변",
+      "frequency": 22,
+      "unicode": "U+BCC0"
+    },
+    {
+      "char": "합",
+      "frequency": 21,
+      "unicode": "U+D569"
+    },
+    {
+      "char": "복",
+      "frequency": 21,
+      "unicode": "U+BCF5"
+    },
+    {
+      "char": "색",
+      "frequency": 21,
+      "unicode": "U+C0C9"
+    },
+    {
+      "char": "열",
+      "frequency": 21,
+      "unicode": "U+C5F4"
+    },
+    {
+      "char": "글",
+      "frequency": 21,
+      "unicode": "U+AE00"
+    },
+    {
+      "char": "범",
+      "frequency": 21,
+      "unicode": "U+BC94"
+    },
+    {
+      "char": "효",
+      "frequency": 20,
+      "unicode": "U+D6A8"
+    },
+    {
+      "char": "예",
+      "frequency": 20,
+      "unicode": "U+C608"
+    },
+    {
+      "char": "측",
+      "frequency": 20,
+      "unicode": "U+CE21"
+    },
+    {
+      "char": "후",
+      "frequency": 19,
+      "unicode": "U+D6C4"
+    },
+    {
+      "char": "감",
+      "frequency": 19,
+      "unicode": "U+AC10"
+    },
+    {
+      "char": "초",
+      "frequency": 19,
+      "unicode": "U+CD08"
+    },
+    {
+      "char": "처",
+      "frequency": 18,
+      "unicode": "U+CC98"
+    },
+    {
+      "char": "업",
+      "frequency": 18,
+      "unicode": "U+C5C5"
+    },
+    {
+      "char": "있",
+      "frequency": 18,
+      "unicode": "U+C788"
+    },
+    {
+      "char": "여",
+      "frequency": 17,
+      "unicode": "U+C5EC"
+    },
+    {
+      "char": "부",
+      "frequency": 17,
+      "unicode": "U+BD80"
+    },
+    {
+      "char": "답",
+      "frequency": 17,
+      "unicode": "U+B2F5"
+    },
+    {
+      "char": "바",
+      "frequency": 16,
+      "unicode": "U+BC14"
+    },
+    {
+      "char": "환",
+      "frequency": 16,
+      "unicode": "U+D658"
+    },
+    {
+      "char": "오",
+      "frequency": 16,
+      "unicode": "U+C624"
+    },
+    {
+      "char": "와",
+      "frequency": 15,
+      "unicode": "U+C640"
+    },
+    {
+      "char": "행",
+      "frequency": 15,
+      "unicode": "U+D589"
+    },
+    {
+      "char": "않",
+      "frequency": 15,
+      "unicode": "U+C54A"
+    }
+  ],
+  "filesByExtension": {
+    ".md": {
+      "count": 5,
+      "files": [
+        "README.md",
+        "docs/chart-rendering-optimization.md",
+        "docs/dynamic-import-performance.md",
+        "docs/react-memoization-guide.md",
+        "docs/resource-lazy-loading-performance.md"
+      ]
+    },
+    ".js": {
+      "count": 2,
+      "files": [
+        "craco.config.js",
+        "scripts/analyze-font-usage.js"
+      ]
+    },
+    ".ts": {
+      "count": 29,
+      "files": [
+        "global.d.ts",
+        "src/api/authService.ts",
+        "src/api/componentService.ts",
+        "src/api/dashboardService.ts",
+        "src/api/databaseService.ts",
+        "src/api/datasetService.ts",
+        "src/api/shareService.ts",
+        "src/api/templateService.ts",
+        "src/api/type/index.ts",
+        "src/api/widgetService.ts"
+      ]
+    },
+    ".json": {
+      "count": 23,
+      "files": [
+        "jest.config.json",
+        "package-lock.json",
+        "package.json",
+        "public/data/dummyDashboardInfo.json",
+        "public/data/dummyDashboardList.json",
+        "public/data/dummyDataList.json",
+        "public/data/dummyDataSpec.json",
+        "public/data/dummyTemplateList.json",
+        "public/data/dummyUser.json",
+        "public/data/dummyWidgetList.json"
+      ]
+    },
+    ".html": {
+      "count": 1,
+      "files": [
+        "public/index.html"
+      ]
+    },
+    ".tsx": {
+      "count": 144,
+      "files": [
+        "src/App.tsx",
+        "src/components/BoardItem.tsx",
+        "src/components/BoardList.tsx",
+        "src/components/ErrorBoundary/ChartErrorBoundary.tsx",
+        "src/components/ImgCardList.tsx",
+        "src/components/LargeCardList.tsx",
+        "src/components/LazyIcon/index.tsx",
+        "src/components/LazyImage/index.tsx",
+        "src/components/ModalPopup.tsx",
+        "src/components/OptimizedChart/index.tsx"
+      ]
+    },
+    ".css": {
+      "count": 1,
+      "files": [
+        "src/index.css"
+      ]
+    }
+  },
+  "optimizedSubset": {
+    "totalCharacters": 245,
+    "reductionPercentage": "54.5",
+    "characters": [
+      " ",
+      "!",
+      "\"",
+      "#",
+      "$",
+      "%",
+      "&",
+      "'",
+      "(",
+      ")",
+      "*",
+      "+",
+      ",",
+      "-",
+      ".",
+      "/",
+      "0",
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      ":",
+      ";",
+      "<",
+      "=",
+      ">",
+      "?",
+      "@",
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "F",
+      "G",
+      "H",
+      "I",
+      "J",
+      "K",
+      "L",
+      "M",
+      "N",
+      "O",
+      "P",
+      "Q",
+      "R",
+      "S",
+      "T",
+      "U",
+      "V",
+      "W",
+      "X",
+      "Y",
+      "Z",
+      "[",
+      "\\",
+      "]",
+      "^",
+      "_",
+      "`",
+      "a",
+      "b",
+      "c",
+      "d",
+      "e",
+      "f",
+      "g",
+      "h",
+      "i",
+      "j",
+      "k",
+      "l",
+      "m",
+      "n",
+      "o",
+      "p",
+      "q",
+      "r",
+      "s",
+      "t",
+      "u",
+      "v",
+      "w",
+      "x",
+      "y",
+      "z",
+      "{",
+      "|",
+      "}",
+      "~",
+      "가",
+      "각",
+      "감",
+      "개",
+      "객",
+      "겠",
+      "계",
+      "고",
+      "공",
+      "과",
+      "관",
+      "교",
+      "구",
+      "글",
+      "기",
+      "깅",
+      "뀌",
+      "내",
+      "넌",
+      "누",
+      "다",
+      "답",
+      "대",
+      "더",
+      "되",
+      "될",
+      "두",
+      "드",
+      "든",
+      "들",
+      "때",
+      "래",
+      "랙",
+      "러",
+      "레",
+      "력",
+      "로",
+      "록",
+      "론",
+      "료",
+      "를",
+      "릭",
+      "립",
+      "릿",
+      "만",
+      "많",
+      "맞",
+      "명",
+      "목",
+      "밀",
+      "및",
+      "바",
+      "받",
+      "백",
+      "번",
+      "범",
+      "베",
+      "벤",
+      "변",
+      "별",
+      "보",
+      "복",
+      "본",
+      "부",
+      "뷰",
+      "블",
+      "사",
+      "삭",
+      "상",
+      "색",
+      "성",
+      "세",
+      "셋",
+      "소",
+      "수",
+      "숫",
+      "스",
+      "식",
+      "싱",
+      "아",
+      "않",
+      "양",
+      "어",
+      "업",
+      "었",
+      "에",
+      "여",
+      "열",
+      "영",
+      "예",
+      "오",
+      "올",
+      "와",
+      "요",
+      "우",
+      "워",
+      "원",
+      "으",
+      "응",
+      "의",
+      "이",
+      "임",
+      "입",
+      "있",
+      "자",
+      "잡",
+      "장",
+      "저",
+      "전",
+      "정",
+      "져",
+      "조",
+      "좌",
+      "즈",
+      "증",
+      "지",
+      "직",
+      "처",
+      "천",
+      "초",
+      "최",
+      "추",
+      "측",
+      "치",
+      "컴",
+      "크",
+      "큰",
+      "클",
+      "탭",
+      "테",
+      "토",
+      "톤",
+      "트",
+      "튼",
+      "플",
+      "필",
+      "한",
+      "할",
+      "함",
+      "합",
+      "해",
+      "핸",
+      "행",
+      "형",
+      "화",
+      "환",
+      "회",
+      "효",
+      "후",
+      "히"
+    ],
+    "unicodeList": [
+      "U+0020",
+      "U+0021",
+      "U+0022",
+      "U+0023",
+      "U+0024",
+      "U+0025",
+      "U+0026",
+      "U+0027",
+      "U+0028",
+      "U+0029",
+      "U+002A",
+      "U+002B",
+      "U+002C",
+      "U+002D",
+      "U+002E",
+      "U+002F",
+      "U+0030",
+      "U+0031",
+      "U+0032",
+      "U+0033",
+      "U+0034",
+      "U+0035",
+      "U+0036",
+      "U+0037",
+      "U+0038",
+      "U+0039",
+      "U+003A",
+      "U+003B",
+      "U+003C",
+      "U+003D",
+      "U+003E",
+      "U+003F",
+      "U+0040",
+      "U+0041",
+      "U+0042",
+      "U+0043",
+      "U+0044",
+      "U+0045",
+      "U+0046",
+      "U+0047",
+      "U+0048",
+      "U+0049",
+      "U+004A",
+      "U+004B",
+      "U+004C",
+      "U+004D",
+      "U+004E",
+      "U+004F",
+      "U+0050",
+      "U+0051",
+      "U+0052",
+      "U+0053",
+      "U+0054",
+      "U+0055",
+      "U+0056",
+      "U+0057",
+      "U+0058",
+      "U+0059",
+      "U+005A",
+      "U+005B",
+      "U+005C",
+      "U+005D",
+      "U+005E",
+      "U+005F",
+      "U+0060",
+      "U+0061",
+      "U+0062",
+      "U+0063",
+      "U+0064",
+      "U+0065",
+      "U+0066",
+      "U+0067",
+      "U+0068",
+      "U+0069",
+      "U+006A",
+      "U+006B",
+      "U+006C",
+      "U+006D",
+      "U+006E",
+      "U+006F",
+      "U+0070",
+      "U+0071",
+      "U+0072",
+      "U+0073",
+      "U+0074",
+      "U+0075",
+      "U+0076",
+      "U+0077",
+      "U+0078",
+      "U+0079",
+      "U+007A",
+      "U+007B",
+      "U+007C",
+      "U+007D",
+      "U+007E",
+      "U+AC00",
+      "U+AC01",
+      "U+AC10",
+      "U+AC1C",
+      "U+AC1D",
+      "U+ACA0",
+      "U+ACC4",
+      "U+ACE0",
+      "U+ACF5",
+      "U+ACFC",
+      "U+AD00",
+      "U+AD50",
+      "U+AD6C",
+      "U+AE00",
+      "U+AE30",
+      "U+AE45",
+      "U+B00C",
+      "U+B0B4",
+      "U+B10C",
+      "U+B204",
+      "U+B2E4",
+      "U+B2F5",
+      "U+B300",
+      "U+B354",
+      "U+B418",
+      "U+B420",
+      "U+B450",
+      "U+B4DC",
+      "U+B4E0",
+      "U+B4E4",
+      "U+B54C",
+      "U+B798",
+      "U+B799",
+      "U+B7EC",
+      "U+B808",
+      "U+B825",
+      "U+B85C",
+      "U+B85D",
+      "U+B860",
+      "U+B8CC",
+      "U+B97C",
+      "U+B9AD",
+      "U+B9BD",
+      "U+B9BF",
+      "U+B9CC",
+      "U+B9CE",
+      "U+B9DE",
+      "U+BA85",
+      "U+BAA9",
+      "U+BC00",
+      "U+BC0F",
+      "U+BC14",
+      "U+BC1B",
+      "U+BC31",
+      "U+BC88",
+      "U+BC94",
+      "U+BCA0",
+      "U+BCA4",
+      "U+BCC0",
+      "U+BCC4",
+      "U+BCF4",
+      "U+BCF5",
+      "U+BCF8",
+      "U+BD80",
+      "U+BDF0",
+      "U+BE14",
+      "U+C0AC",
+      "U+C0AD",
+      "U+C0C1",
+      "U+C0C9",
+      "U+C131",
+      "U+C138",
+      "U+C14B",
+      "U+C18C",
+      "U+C218",
+      "U+C22B",
+      "U+C2A4",
+      "U+C2DD",
+      "U+C2F1",
+      "U+C544",
+      "U+C54A",
+      "U+C591",
+      "U+C5B4",
+      "U+C5C5",
+      "U+C5C8",
+      "U+C5D0",
+      "U+C5EC",
+      "U+C5F4",
+      "U+C601",
+      "U+C608",
+      "U+C624",
+      "U+C62C",
+      "U+C640",
+      "U+C694",
+      "U+C6B0",
+      "U+C6CC",
+      "U+C6D0",
+      "U+C73C",
+      "U+C751",
+      "U+C758",
+      "U+C774",
+      "U+C784",
+      "U+C785",
+      "U+C788",
+      "U+C790",
+      "U+C7A1",
+      "U+C7A5",
+      "U+C800",
+      "U+C804",
+      "U+C815",
+      "U+C838",
+      "U+C870",
+      "U+C88C",
+      "U+C988",
+      "U+C99D",
+      "U+C9C0",
+      "U+C9C1",
+      "U+CC98",
+      "U+CC9C",
+      "U+CD08",
+      "U+CD5C",
+      "U+CD94",
+      "U+CE21",
+      "U+CE58",
+      "U+CEF4",
+      "U+D06C",
+      "U+D070",
+      "U+D074",
+      "U+D0ED",
+      "U+D14C",
+      "U+D1A0",
+      "U+D1A4",
+      "U+D2B8",
+      "U+D2BC",
+      "U+D50C",
+      "U+D544",
+      "U+D55C",
+      "U+D560",
+      "U+D568",
+      "U+D569",
+      "U+D574",
+      "U+D578",
+      "U+D589",
+      "U+D615",
+      "U+D654",
+      "U+D658",
+      "U+D68C",
+      "U+D6A8",
+      "U+D6C4",
+      "U+D788"
+    ]
+  }
+}

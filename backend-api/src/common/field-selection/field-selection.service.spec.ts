@@ -36,21 +36,21 @@ describe('FieldSelectionService', () => {
 
     it('should respect field whitelist', () => {
       const result = service.parseFields('id,name,email,secret', {
-        allowedFields: ['id', 'name', 'email']
+        allowedFields: ['id', 'name', 'email'],
       });
       expect(result).toEqual(['id', 'name', 'email']);
     });
 
     it('should exclude blocked fields', () => {
       const result = service.parseFields('id,name,password,email', {
-        excludeFields: ['password', 'secret']
+        excludeFields: ['password', 'secret'],
       });
       expect(result).toEqual(['id', 'name', 'email']);
     });
 
     it('should respect max depth', () => {
       const result = service.parseFields('id,level1.level2.level3.level4', {
-        maxDepth: 3
+        maxDepth: 3,
       });
       expect(result).toEqual(['id']);
     });
@@ -68,8 +68,8 @@ describe('FieldSelectionService', () => {
         location: 'Seoul',
         preferences: {
           theme: 'dark',
-          language: 'ko'
-        }
+          language: 'ko',
+        },
       },
       dashboards: [
         {
@@ -77,17 +77,15 @@ describe('FieldSelectionService', () => {
           title: 'Dashboard 1',
           widgets: [
             { id: 1, name: 'Widget 1', type: 'chart' },
-            { id: 2, name: 'Widget 2', type: 'table' }
-          ]
+            { id: 2, name: 'Widget 2', type: 'table' },
+          ],
         },
         {
           id: 102,
           title: 'Dashboard 2',
-          widgets: [
-            { id: 3, name: 'Widget 3', type: 'metric' }
-          ]
-        }
-      ]
+          widgets: [{ id: 3, name: 'Widget 3', type: 'metric' }],
+        },
+      ],
     };
 
     it('should select simple fields', () => {
@@ -95,19 +93,24 @@ describe('FieldSelectionService', () => {
       expect(result).toEqual({
         id: 1,
         name: 'John Doe',
-        email: 'john@example.com'
+        email: 'john@example.com',
       });
     });
 
     it('should select nested object fields', () => {
-      const result = service.selectFields(testData, ['id', 'name', 'profile.avatar', 'profile.bio']);
+      const result = service.selectFields(testData, [
+        'id',
+        'name',
+        'profile.avatar',
+        'profile.bio',
+      ]);
       expect(result).toEqual({
         id: 1,
         name: 'John Doe',
         profile: {
           avatar: 'avatar.jpg',
-          bio: 'Software Engineer'
-        }
+          bio: 'Software Engineer',
+        },
       });
     });
 
@@ -117,9 +120,9 @@ describe('FieldSelectionService', () => {
         id: 1,
         profile: {
           preferences: {
-            theme: 'dark'
-          }
-        }
+            theme: 'dark',
+          },
+        },
       });
     });
 
@@ -129,28 +132,30 @@ describe('FieldSelectionService', () => {
         id: 1,
         dashboards: [
           { id: 101, title: 'Dashboard 1' },
-          { id: 102, title: 'Dashboard 2' }
-        ]
+          { id: 102, title: 'Dashboard 2' },
+        ],
       });
     });
 
     it('should select nested array fields', () => {
-      const result = service.selectFields(testData, ['id', 'dashboards.widgets.id', 'dashboards.widgets.name']);
+      const result = service.selectFields(testData, [
+        'id',
+        'dashboards.widgets.id',
+        'dashboards.widgets.name',
+      ]);
       expect(result).toEqual({
         id: 1,
         dashboards: [
           {
             widgets: [
               { id: 1, name: 'Widget 1' },
-              { id: 2, name: 'Widget 2' }
-            ]
+              { id: 2, name: 'Widget 2' },
+            ],
           },
           {
-            widgets: [
-              { id: 3, name: 'Widget 3' }
-            ]
-          }
-        ]
+            widgets: [{ id: 3, name: 'Widget 3' }],
+          },
+        ],
       });
     });
 
@@ -159,14 +164,17 @@ describe('FieldSelectionService', () => {
       const result = service.selectFields(arrayData, ['id', 'name']);
       expect(result).toEqual([
         { id: 1, name: 'John Doe' },
-        { id: 2, name: 'Jane Doe' }
+        { id: 2, name: 'Jane Doe' },
       ]);
     });
 
     it('should handle null and undefined values', () => {
       expect(service.selectFields(null, ['id'])).toBeNull();
       expect(service.selectFields(undefined, ['id'])).toBeUndefined();
-      expect(service.selectFields({ id: 1, name: null }, ['id', 'name'])).toEqual({ id: 1, name: null });
+      expect(service.selectFields({ id: 1, name: null }, ['id', 'name'])).toEqual({
+        id: 1,
+        name: null,
+      });
     });
 
     it('should handle non-existent fields gracefully', () => {
@@ -182,11 +190,15 @@ describe('FieldSelectionService', () => {
 
   describe('getFieldSelectionSummary', () => {
     it('should calculate reduction correctly', () => {
-      const original = { id: 1, name: 'John', description: 'A very long description that takes up space' };
+      const original = {
+        id: 1,
+        name: 'John',
+        description: 'A very long description that takes up space',
+      };
       const selected = { id: 1, name: 'John' };
-      
+
       const summary = service.getFieldSelectionSummary(original, selected, ['id', 'name']);
-      
+
       expect(summary.fieldsRequested).toEqual(['id', 'name']);
       expect(summary.fieldsCount).toBe(2);
       expect(summary.originalSize).toBeGreaterThan(summary.selectedSize);
@@ -197,7 +209,7 @@ describe('FieldSelectionService', () => {
     it('should handle no reduction case', () => {
       const data = { id: 1, name: 'John' };
       const summary = service.getFieldSelectionSummary(data, data, ['id', 'name']);
-      
+
       expect(summary.reductionPercentage).toBe('0.00');
       expect(summary.optimizationApplied).toBe(false);
     });
@@ -206,7 +218,7 @@ describe('FieldSelectionService', () => {
   describe('getDefaultExcludeFields', () => {
     it('should return security-sensitive fields', () => {
       const excludeFields = service.getDefaultExcludeFields();
-      
+
       expect(excludeFields).toContain('password');
       expect(excludeFields).toContain('token');
       expect(excludeFields).toContain('secret');
@@ -218,9 +230,15 @@ describe('FieldSelectionService', () => {
   describe('getPredefinedFieldSets', () => {
     it('should return predefined field sets', () => {
       const fieldSets = service.getPredefinedFieldSets();
-      
+
       expect(fieldSets.userBasic).toEqual(['id', 'email', 'name', 'createdAt']);
-      expect(fieldSets.dashboardMeta).toEqual(['id', 'title', 'description', 'createdAt', 'updatedAt']);
+      expect(fieldSets.dashboardMeta).toEqual([
+        'id',
+        'title',
+        'description',
+        'createdAt',
+        'updatedAt',
+      ]);
       expect(fieldSets.widgetBasic).toEqual(['id', 'name', 'type', 'order', 'createdAt']);
     });
   });
@@ -232,47 +250,47 @@ describe('FieldSelectionService', () => {
           profile: {
             social: {
               twitter: '@user',
-              github: 'user'
-            }
-          }
+              github: 'user',
+            },
+          },
         },
         posts: [
           {
             comments: [
               {
                 author: {
-                  name: 'Commenter'
-                }
-              }
-            ]
-          }
-        ]
+                  name: 'Commenter',
+                },
+              },
+            ],
+          },
+        ],
       };
 
       const result = service.selectFields(complexData, [
         'user.profile.social.twitter',
-        'posts.comments.author.name'
+        'posts.comments.author.name',
       ]);
 
       expect(result).toEqual({
         user: {
           profile: {
             social: {
-              twitter: '@user'
-            }
-          }
+              twitter: '@user',
+            },
+          },
         },
         posts: [
           {
             comments: [
               {
                 author: {
-                  name: 'Commenter'
-                }
-              }
-            ]
-          }
-        ]
+                  name: 'Commenter',
+                },
+              },
+            ],
+          },
+        ],
       });
     });
 
@@ -284,7 +302,7 @@ describe('FieldSelectionService', () => {
         date: new Date('2023-01-01'),
         array: [1, 2, 3],
         null: null,
-        undefined: undefined
+        undefined: undefined,
       };
 
       const result = service.selectFields(mixedData, ['string', 'number', 'array', 'null']);
@@ -292,7 +310,7 @@ describe('FieldSelectionService', () => {
         string: 'text',
         number: 42,
         array: [1, 2, 3],
-        null: null
+        null: null,
       });
     });
   });

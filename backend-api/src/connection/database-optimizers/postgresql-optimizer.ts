@@ -87,7 +87,7 @@ export class PostgreSQLOptimizer extends BaseDatabaseOptimizer {
    */
   getOptimizedConnectionConfig(baseConfig: any, environment = 'dev'): Knex.Config {
     const poolConfig = this.getBasePoolConfig(environment);
-    const timeouts = this.getBaseTimeouts(environment);
+    const timeouts = this.getBaseTimeouts(environment, 'postgresql');
     const isProduction = environment === 'prod';
     const isLocal = environment === 'local';
 
@@ -99,8 +99,8 @@ export class PostgreSQLOptimizer extends BaseDatabaseOptimizer {
         ssl: baseConfig.ssl || false,
         connectionTimeoutMillis: timeouts.connectTimeout,
         idleTimeoutMillis: poolConfig.idleTimeoutMillis,
-        // 명령문 타임아웃 설정
-        statement_timeout: isProduction ? 30000 : 60000, // 30초 or 60초
+        // 명령문 타임아웃 설정 (환경 변수 또는 기본값 사용)
+        statement_timeout: timeouts.queryTimeout, // 환경별 설정
         idle_in_transaction_session_timeout: 60000, // 트랜잭션 내 유휴 타임아웃
         // 응용 프로그램 이름 설정 (모니터링 용이성)
         application_name: `vanillameta-${environment}`,

@@ -1,5 +1,7 @@
 const CracoAlias = require('craco-alias');
 const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
+const { InjectManifest } = require('workbox-webpack-plugin');
+const path = require('path');
 
 module.exports = {
   plugins: [
@@ -67,6 +69,20 @@ module.exports = {
             analyzerMode: 'server',
             analyzerPort: 8888,
             openAnalyzer: true,
+          })
+        );
+      }
+
+      // Service Worker 설정 (InjectManifest)
+      const isProduction = process.env.NODE_ENV === 'production';
+      if (isProduction) {
+        webpackConfig.plugins.push(
+          new InjectManifest({
+            swSrc: path.resolve(__dirname, 'src/service-worker.ts'),
+            swDest: 'service-worker.js',
+            dontCacheBustURLsMatching: /\.\w{8}\./,
+            exclude: [/\.map$/, /asset-manifest\.json$/, /LICENSE/],
+            maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB
           })
         );
       }

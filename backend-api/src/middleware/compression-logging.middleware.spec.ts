@@ -40,10 +40,10 @@ describe('CompressionLoggingMiddleware', () => {
 
     // Mock response
     mockResponse = {
-      write: jest.fn().mockImplementation(function(chunk) {
+      write: jest.fn().mockImplementation(function (chunk) {
         return true;
       }),
-      end: jest.fn().mockImplementation(function(chunk) {
+      end: jest.fn().mockImplementation(function (chunk) {
         // Simulate the 'finish' event
         setTimeout(() => {
           if (this.listeners && this.listeners('finish')) {
@@ -69,7 +69,7 @@ describe('CompressionLoggingMiddleware', () => {
       if (!events[event]) events[event] = [];
       events[event].push(handler);
     });
-    mockResponse.listeners = jest.fn().mockImplementation((event) => events[event] || []);
+    mockResponse.listeners = jest.fn().mockImplementation(event => events[event] || []);
 
     mockNext = jest.fn();
   });
@@ -82,13 +82,13 @@ describe('CompressionLoggingMiddleware', () => {
     expect(middleware).toBeDefined();
   });
 
-  it('압축된 응답에 대한 압축 정보를 로깅해야 함', (done) => {
+  it('압축된 응답에 대한 압축 정보를 로깅해야 함', done => {
     // Setup
     const testData = 'This is a test response that should be compressed';
     const uncompressedSize = Buffer.from(testData).length;
     const compressedSize = 25; // 모의 압축 크기
 
-    mockResponse.getHeader = jest.fn().mockImplementation((header) => {
+    mockResponse.getHeader = jest.fn().mockImplementation(header => {
       if (header === 'content-encoding') return 'gzip';
       if (header === 'content-length') return compressedSize.toString();
       if (header === 'content-type') return 'application/json';
@@ -117,18 +117,18 @@ describe('CompressionLoggingMiddleware', () => {
           compressedSize,
           compressionRatio: expect.stringMatching(/\d+\.\d+%/),
           saved: uncompressedSize - compressedSize,
-        })
+        }),
       );
       done();
     }, 10);
   });
 
-  it('압축되지 않은 큰 응답에 대해 디버그 로그를 남겨야 함', (done) => {
+  it('압축되지 않은 큰 응답에 대해 디버그 로그를 남겨야 함', done => {
     // Setup
     const testData = 'x'.repeat(2000); // 2KB 데이터
     const uncompressedSize = Buffer.from(testData).length;
 
-    mockResponse.getHeader = jest.fn().mockImplementation((header) => {
+    mockResponse.getHeader = jest.fn().mockImplementation(header => {
       if (header === 'content-encoding') return null;
       if (header === 'content-type') return 'text/plain';
       return null;
@@ -153,16 +153,16 @@ describe('CompressionLoggingMiddleware', () => {
           contentType: 'text/plain',
           size: uncompressedSize,
           reason: 'Check content-type or client Accept-Encoding header',
-        })
+        }),
       );
       done();
     }, 10);
   });
 
-  it('작은 응답에 대해서는 로깅하지 않아야 함', (done) => {
+  it('작은 응답에 대해서는 로깅하지 않아야 함', done => {
     // Setup
     const testData = 'Small data'; // < 1KB
-    
+
     mockResponse.getHeader = jest.fn().mockReturnValue(null);
 
     // Execute
@@ -181,7 +181,7 @@ describe('CompressionLoggingMiddleware', () => {
     }, 10);
   });
 
-  it('청크로 분할된 응답을 올바르게 처리해야 함', (done) => {
+  it('청크로 분할된 응답을 올바르게 처리해야 함', done => {
     // Setup
     const chunk1 = 'First chunk of data ';
     const chunk2 = 'Second chunk of data ';
@@ -190,7 +190,7 @@ describe('CompressionLoggingMiddleware', () => {
     const uncompressedSize = Buffer.from(totalData).length;
     const compressedSize = 30;
 
-    mockResponse.getHeader = jest.fn().mockImplementation((header) => {
+    mockResponse.getHeader = jest.fn().mockImplementation(header => {
       if (header === 'content-encoding') return 'gzip';
       if (header === 'content-length') return compressedSize.toString();
       if (header === 'content-type') return 'application/json';
@@ -215,7 +215,7 @@ describe('CompressionLoggingMiddleware', () => {
           uncompressedSize,
           compressedSize,
           saved: uncompressedSize - compressedSize,
-        })
+        }),
       );
       done();
     }, 10);

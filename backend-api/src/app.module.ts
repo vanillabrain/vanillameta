@@ -21,6 +21,8 @@ import { CorrelationIdMiddleware } from './middleware/correlation-id';
 import { TestCompressionController } from './test-compression.controller';
 import { TestFieldSelectionController } from './test-field-selection.controller';
 import { FieldSelectionModule } from './common/field-selection/field-selection.module';
+import { BatchModule } from './batch/batch.module';
+import { CacheModule } from './common/optimization/cache.module';
 
 @Module({
   imports: [
@@ -80,6 +82,8 @@ import { FieldSelectionModule } from './common/field-selection/field-selection.m
     ShareUrlModule,
     MonitoringModule,
     FieldSelectionModule,
+    BatchModule,
+    CacheModule,
   ],
   controllers: [AppController, TestCompressionController, TestFieldSelectionController],
   providers: [AppService],

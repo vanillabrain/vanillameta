@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pretendard 폰트 성능 테스트</title>
+    
+    <!-- 최적화된 폰트 preload - 중요한 weight만 -->
+    <link rel="preload" href="/assets/fonts/woff2-subset/Pretendard-Regular.subset.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="/assets/fonts/woff2-subset/Pretendard-Medium.subset.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="/assets/fonts/woff2-subset/Pretendard-SemiBold.subset.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <style>
+        /* Critical font weights - 가장 많이 사용되는 weight들 우선 정의 */
+        @font-face {
+            font-family: 'Pretendard';
+            font-weight: 400;
+            font-display: swap;
+            src: local('Pretendard Regular'), 
+                 url('/assets/fonts/woff2-subset/Pretendard-Regular.subset.woff2') format('woff2'), 
+                 url('/assets/fonts/woff-subset/Pretendard-Regular.subset.woff') format('woff');
+            unicode-range: U+0020-007E, U+00A0-00FF, U+0100-017F, U+1100-11FF, U+3130-318F, U+AC00-D7AF, U+FE10-FE19, U+FE30-FE4F, U+FF00-FFEF;
+        }
+
+        @font-face {
+            font-family: 'Pretendard';
+            font-weight: 500;
+            font-display: swap;
+            src: local('Pretendard Medium'), 
+                 url('/assets/fonts/woff2-subset/Pretendard-Medium.subset.woff2') format('woff2'), 
+                 url('/assets/fonts/woff-subset/Pretendard-Medium.subset.woff') format('woff');
+            unicode-range: U+0020-007E, U+00A0-00FF, U+0100-017F, U+1100-11FF, U+3130-318F, U+AC00-D7AF, U+FE10-FE19, U+FE30-FE4F, U+FF00-FFEF;
+        }
+
+        @font-face {
+            font-family: 'Pretendard';
+            font-weight: 600;
+            font-display: swap;
+            src: local('Pretendard SemiBold'), 
+                 url('/assets/fonts/woff2-subset/Pretendard-SemiBold.subset.woff2') format('woff2'), 
+                 url('/assets/fonts/woff-subset/Pretendard-SemiBold.subset.woff') format('woff');
+            unicode-range: U+0020-007E, U+00A0-00FF, U+0100-017F, U+1100-11FF, U+3130-318F, U+AC00-D7AF, U+FE10-FE19, U+FE30-FE4F, U+FF00-FFEF;
+        }
+
+        /* Secondary font weights - 필요시에만 로드되는 weight들 */
+        @font-face {
+            font-family: 'Pretendard';
+            font-weight: 700;
+            font-display: swap;
+            src: local('Pretendard Bold'), 
+                 url('/assets/fonts/woff2-subset/Pretendard-Bold.subset.woff2') format('woff2'), 
+                 url('/assets/fonts/woff-subset/Pretendard-Bold.subset.woff') format('woff');
+            unicode-range: U+0020-007E, U+00A0-00FF, U+0100-017F, U+1100-11FF, U+3130-318F, U+AC00-D7AF, U+FE10-FE19, U+FE30-FE4F, U+FF00-FFEF;
+        }
+
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Noto Sans KR', sans-serif;
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .title {
+            font-size: 2.5rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            font-weight: 400;
+            color: #666;
+        }
+
+        .test-section {
+            margin-bottom: 40px;
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #0f5ab2;
+            padding-bottom: 10px;
+        }
+
+        .font-weights {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .weight-sample {
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+
+        .weight-title {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .weight-text {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+        }
+
+        .weight-korean {
+            color: #333;
+        }
+
+        .performance-metrics {
+            background: #f0f8ff;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #0f5ab2;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .metric:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .metric-label {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .metric-value {
+            font-weight: 600;
+            color: #0f5ab2;
+        }
+
+        .recommendations {
+            margin-top: 20px;
+        }
+
+        .recommendation {
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            border-left: 4px solid;
+        }
+
+        .recommendation.warning {
+            background: #fff3cd;
+            border-color: #ffc107;
+            color: #856404;
+        }
+
+        .recommendation.info {
+            background: #d1ecf1;
+            border-color: #17a2b8;
+            color: #0c5460;
+        }
+
+        .recommendation.success {
+            background: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+        }
+
+        .loading-indicator {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #0f5ab2;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        /* Font weight classes */
+        .weight-100 { font-weight: 100; }
+        .weight-200 { font-weight: 200; }
+        .weight-300 { font-weight: 300; }
+        .weight-400 { font-weight: 400; }
+        .weight-500 { font-weight: 500; }
+        .weight-600 { font-weight: 600; }
+        .weight-700 { font-weight: 700; }
+        .weight-800 { font-weight: 800; }
+        .weight-900 { font-weight: 900; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="title">Pretendard 폰트 성능 테스트</h1>
+            <p class="subtitle">서브셋 최적화 및 로딩 성능 측정</p>
+        </div>
+
+        <div class="test-section">
+            <h2 class="section-title">폰트 Weight 테스트</h2>
+            <div class="font-weights">
+                <div class="weight-sample">
+                    <div class="weight-title">Thin 100</div>
+                    <div class="weight-text weight-100 weight-korean">가장 얇은 폰트 스타일</div>
+                    <div class="weight-text weight-100">The Quick Brown Fox</div>
+                </div>
+                
+                <div class="weight-sample">
+                    <div class="weight-title">ExtraLight 200</div>
+                    <div class="weight-text weight-200 weight-korean">매우 가벼운 폰트 스타일</div>
+                    <div class="weight-text weight-200">The Quick Brown Fox</div>
+                </div>
+
+                <div class="weight-sample">
+                    <div class="weight-title">Light 300</div>
+                    <div class="weight-text weight-300 weight-korean">가벼운 폰트 스타일</div>
+                    <div class="weight-text weight-300">The Quick Brown Fox</div>
+                </div>
+
+                <div class="weight-sample">
+                    <div class="weight-title">Regular 400 (기본)</div>
+                    <div class="weight-text weight-400 weight-korean">일반적인 폰트 스타일</div>
+                    <div class="weight-text weight-400">The Quick Brown Fox</div>
+                </div>
+
+                <div class="weight-sample">
+                    <div class="weight-title">Medium 500 (자주 사용)</div>
+                    <div class="weight-text weight-500 weight-korean">중간 굵기 폰트 스타일</div>
+                    <div class="weight-text weight-500">The Quick Brown Fox</div>
+                </div>
+
+                <div class="weight-sample">
+                    <div class="weight-title">SemiBold 600 (자주 사용)</div>
+                    <div class="weight-text weight-600 weight-korean">반굵은 폰트 스타일</div>
+                    <div class="weight-text weight-600">The Quick Brown Fox</div>
+                </div>
+
+                <div class="weight-sample">
+                    <div class="weight-title">Bold 700</div>
+                    <div class="weight-text weight-700 weight-korean">굵은 폰트 스타일</div>
+                    <div class="weight-text weight-700">The Quick Brown Fox</div>
+                </div>
+
+                <div class="weight-sample">
+                    <div class="weight-title">ExtraBold 800</div>
+                    <div class="weight-text weight-800 weight-korean">매우 굵은 폰트 스타일</div>
+                    <div class="weight-text weight-800">The Quick Brown Fox</div>
+                </div>
+
+                <div class="weight-sample">
+                    <div class="weight-title">Black 900</div>
+                    <div class="weight-text weight-900 weight-korean">가장 굵은 폰트 스타일</div>
+                    <div class="weight-text weight-900">The Quick Brown Fox</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2 class="section-title">성능 측정 결과</h2>
+            <div class="performance-metrics">
+                <div class="loading-indicator" id="loading">
+                    <span class="spinner"></span>
+                    폰트 성능 측정 중...
+                </div>
+                <div id="metrics" style="display: none;">
+                    <!-- 성능 지표들이 여기에 동적으로 추가됩니다 -->
+                </div>
+            </div>
+            
+            <div class="recommendations" id="recommendations" style="display: none;">
+                <h3>최적화 권장사항</h3>
+                <!-- 권장사항들이 여기에 동적으로 추가됩니다 -->
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2 class="section-title">테스트 문장</h2>
+            <div style="font-size: 1.1rem; line-height: 1.8;">
+                <p class="weight-400">
+                    VanillaMeta는 기업용 비즈니스 인텔리전스(BI) 웹 애플리케이션으로, 
+                    사용자가 코드 작성 없이 다양한 데이터베이스에 연결하여 시각화를 생성하고 
+                    대시보드를 구축할 수 있습니다.
+                </p>
+                
+                <p class="weight-500">
+                    주요 특징으로는 다중 데이터베이스 지원 (PostgreSQL, MySQL, Oracle, BigQuery 등), 
+                    코드 없는 차트 위젯 제작, 사용자 맞춤형 대시보드, 
+                    고급 SQL 쿼리 편집기 등이 있습니다.
+                </p>
+                
+                <p class="weight-600">
+                    The quick brown fox jumps over the lazy dog. 
+                    ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 1234567890
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 폰트 성능 모니터링 클래스 (간소화된 버전)
+        class SimpleFontPerformanceMonitor {
+            constructor() {
+                this.startTime = performance.now();
+                this.fontLoadTimes = new Map();
+                this.layoutShifts = [];
+            }
+
+            async startMonitoring() {
+                console.log('🔍 폰트 성능 모니터링 시작');
+
+                // 기본 폰트 정보 수집
+                await this.measureFontLoading();
+                
+                // Layout Shift 모니터링
+                this.monitorLayoutShifts();
+                
+                // 1초 후 결과 표시 (폰트 로딩 완료 대기)
+                setTimeout(() => {
+                    this.displayResults();
+                }, 1500);
+            }
+
+            async measureFontLoading() {
+                if (!document.fonts) return;
+
+                const weights = ['400', '500', '600', '700'];
+                
+                for (const weight of weights) {
+                    const startTime = performance.now();
+                    
+                    try {
+                        await document.fonts.load(`${weight} 16px Pretendard`);
+                        const loadTime = performance.now() - startTime;
+                        this.fontLoadTimes.set(`Pretendard-${weight}`, loadTime);
+                    } catch (error) {
+                        console.warn(`폰트 로드 실패: ${weight}`, error);
+                    }
+                }
+            }
+
+            monitorLayoutShifts() {
+                if (!window.PerformanceObserver) return;
+
+                try {
+                    const observer = new PerformanceObserver((list) => {
+                        for (const entry of list.getEntries()) {
+                            if (entry.entryType === 'layout-shift' && !entry.hadRecentInput) {
+                                this.layoutShifts.push(entry.value);
+                            }
+                        }
+                    });
+                    observer.observe({ entryTypes: ['layout-shift'] });
+                } catch (error) {
+                    console.warn('Layout Shift 모니터링 지원 안됨:', error);
+                }
+            }
+
+            displayResults() {
+                const loadingEl = document.getElementById('loading');
+                const metricsEl = document.getElementById('metrics');
+                const recommendationsEl = document.getElementById('recommendations');
+
+                // 로딩 숨기기
+                loadingEl.style.display = 'none';
+
+                // 성능 지표 계산
+                const avgLoadTime = this.calculateAverageLoadTime();
+                const cls = this.calculateCLS();
+                const totalTime = performance.now() - this.startTime;
+
+                // 지표 표시
+                metricsEl.innerHTML = `
+                    <div class="metric">
+                        <span class="metric-label">평균 폰트 로드 시간</span>
+                        <span class="metric-value">${avgLoadTime.toFixed(2)}ms</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">CLS (Cumulative Layout Shift)</span>
+                        <span class="metric-value">${cls.toFixed(4)}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">총 로딩 시간</span>
+                        <span class="metric-value">${totalTime.toFixed(2)}ms</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">로드된 폰트 수</span>
+                        <span class="metric-value">${this.fontLoadTimes.size}개</span>
+                    </div>
+                `;
+                metricsEl.style.display = 'block';
+
+                // 권장사항 생성
+                const recommendations = this.generateRecommendations(cls, avgLoadTime);
+                if (recommendations.length > 0) {
+                    recommendationsEl.innerHTML = '<h3>최적화 권장사항</h3>' + 
+                        recommendations.map(rec => 
+                            `<div class="recommendation ${rec.type}">
+                                <strong>${rec.metric}:</strong> ${rec.suggestion}
+                            </div>`
+                        ).join('');
+                    recommendationsEl.style.display = 'block';
+                }
+
+                console.log('📊 폰트 성능 측정 완료');
+                console.log('평균 로드 시간:', avgLoadTime.toFixed(2) + 'ms');
+                console.log('CLS:', cls.toFixed(4));
+            }
+
+            calculateAverageLoadTime() {
+                if (this.fontLoadTimes.size === 0) return 0;
+                const times = Array.from(this.fontLoadTimes.values());
+                return times.reduce((sum, time) => sum + time, 0) / times.length;
+            }
+
+            calculateCLS() {
+                return this.layoutShifts.reduce((sum, shift) => sum + shift, 0);
+            }
+
+            generateRecommendations(cls, avgLoadTime) {
+                const recommendations = [];
+
+                if (cls > 0.1) {
+                    recommendations.push({
+                        type: 'warning',
+                        metric: 'CLS',
+                        suggestion: '레이아웃 시프트가 많습니다. font-display: optional 사용을 고려하세요.'
+                    });
+                } else if (cls <= 0.05) {
+                    recommendations.push({
+                        type: 'success',
+                        metric: 'CLS',
+                        suggestion: '우수한 CLS 점수입니다. 현재 설정을 유지하세요.'
+                    });
+                }
+
+                if (avgLoadTime > 1000) {
+                    recommendations.push({
+                        type: 'warning',
+                        metric: '로드 시간',
+                        suggestion: '폰트 로드가 느립니다. 더 작은 서브셋이나 CDN 사용을 고려하세요.'
+                    });
+                } else if (avgLoadTime <= 500) {
+                    recommendations.push({
+                        type: 'success',
+                        metric: '로드 시간',
+                        suggestion: '빠른 폰트 로딩입니다. 현재 최적화가 잘 되어 있습니다.'
+                    });
+                }
+
+                return recommendations;
+            }
+        }
+
+        // 페이지 로드 후 모니터링 시작
+        document.addEventListener('DOMContentLoaded', () => {
+            const monitor = new SimpleFontPerformanceMonitor();
+            monitor.startMonitoring();
+        });
+    </script>
+</body>
+</html>

@@ -385,6 +385,22 @@ export default createTheme({
   },
 
   typography: {
+    // 기본 폰트 패밀리 설정 (최적화된 fallback 포함)
+    fontFamily: [
+      'Pretendard',
+      '-apple-system',
+      'BlinkMacSystemFont',
+      '"Segoe UI"',
+      'Roboto',
+      '"Helvetica Neue"',
+      'Arial',
+      '"Noto Sans"',
+      '"Noto Sans KR"',
+      'sans-serif',
+      '"Apple Color Emoji"',
+      '"Segoe UI Emoji"',
+      '"Segoe UI Symbol"',
+    ].join(','),
     h6: {
       fontWeight: 500,
     },
@@ -406,6 +422,10 @@ export default createTheme({
     },
     body1: {
       fontSize: '0.9rem',
+      fontWeight: 400, // Regular weight 명시
+    },
+    body2: {
+      fontWeight: 400, // Regular weight 명시
     },
   },
 });

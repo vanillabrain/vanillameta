@@ -1,4 +1,15 @@
-import { Controller, Get, Post, Body, Param, Delete, Put, UseGuards, Req, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Delete,
+  Put,
+  UseGuards,
+  Req,
+  Query,
+} from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { DashboardService } from './dashboard.service';
 import { CreateDashboardDto } from './dto/create-dashboard.dto';
@@ -21,20 +32,29 @@ export class DashboardController {
 
   @FieldSelection({
     allowedFields: [
-      'id', 'title', 'description', 'createdAt', 'updatedAt',
-      'widgets.id', 'widgets.name', 'widgets.type', 'widgets.order',
-      'widgets.config.title', 'widgets.config.chartType',
-      'widgets.config.layout'
+      'id',
+      'title',
+      'description',
+      'createdAt',
+      'updatedAt',
+      'widgets.id',
+      'widgets.name',
+      'widgets.type',
+      'widgets.order',
+      'widgets.config.title',
+      'widgets.config.chartType',
+      'widgets.config.layout',
     ],
-    excludeFields: ['widgets.config.queries', 'widgets.data']
+    excludeFields: ['widgets.config.queries', 'widgets.data'],
   })
   @Get()
   @ApiBearerAuth('AccessKey')
-  @ApiQuery({ 
-    name: 'fields', 
-    required: false, 
-    description: '반환할 필드 선택 (쉼표로 구분). 중첩 필드는 점(.)으로 구분. 예: id,title,widgets.id,widgets.name',
-    example: 'id,title,description,widgets.id,widgets.name'
+  @ApiQuery({
+    name: 'fields',
+    required: false,
+    description:
+      '반환할 필드 선택 (쉼표로 구분). 중첩 필드는 점(.)으로 구분. 예: id,title,widgets.id,widgets.name',
+    example: 'id,title,description,widgets.id,widgets.name',
   })
   findAll(@Req() req, @Query('fields') fields?: string) {
     const { accessKeyData } = req.user;
@@ -43,21 +63,33 @@ export class DashboardController {
 
   @FieldSelection({
     allowedFields: [
-      'id', 'title', 'description', 'createdAt', 'updatedAt',
-      'widgets.id', 'widgets.name', 'widgets.type', 'widgets.order',
-      'widgets.config.title', 'widgets.config.chartType', 'widgets.config.layout',
-      'widgets.config.xAxis', 'widgets.config.yAxis', 'widgets.config.groupBy',
-      'widgets.dataset.id', 'widgets.dataset.name'
+      'id',
+      'title',
+      'description',
+      'createdAt',
+      'updatedAt',
+      'widgets.id',
+      'widgets.name',
+      'widgets.type',
+      'widgets.order',
+      'widgets.config.title',
+      'widgets.config.chartType',
+      'widgets.config.layout',
+      'widgets.config.xAxis',
+      'widgets.config.yAxis',
+      'widgets.config.groupBy',
+      'widgets.dataset.id',
+      'widgets.dataset.name',
     ],
-    excludeFields: ['widgets.config.queries', 'widgets.data', 'widgets.rawData']
+    excludeFields: ['widgets.config.queries', 'widgets.data', 'widgets.rawData'],
   })
   @Get(':id')
   @ApiBearerAuth('AccessKey')
-  @ApiQuery({ 
-    name: 'fields', 
-    required: false, 
+  @ApiQuery({
+    name: 'fields',
+    required: false,
     description: '반환할 필드 선택 (쉼표로 구분). 중첩 필드는 점(.)으로 구분',
-    example: 'id,title,widgets.id,widgets.config.title'
+    example: 'id,title,widgets.id,widgets.config.title',
   })
   findOne(@Param('id') id: string, @Query('fields') fields?: string) {
     return this.dashboardService.findOne(+id);

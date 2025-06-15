@@ -26,11 +26,11 @@ export class OracleOptimizer extends BaseDatabaseOptimizer {
       enablePlan?: boolean; // 실행 계획 분석
     } = {},
   ): Knex.QueryBuilder {
-    let optimizedQuery = queryBuilder;
+    const optimizedQuery = queryBuilder;
 
     // Oracle 힌트 적용 - Knex는 hint를 직접 지원하지 않으므로 주석 처리
     // TODO: raw 쿼리를 사용하여 Oracle 힌트 구현 필요
-    
+
     // if (options.hint) {
     //   // 예: SELECT /*+ hint */ ...
     // }
@@ -56,7 +56,7 @@ export class OracleOptimizer extends BaseDatabaseOptimizer {
    */
   getOptimizedConnectionConfig(baseConfig: any, environment = 'dev'): Knex.Config {
     const poolConfig = this.getBasePoolConfig(environment);
-    const timeouts = this.getBaseTimeouts(environment);
+    const timeouts = this.getBaseTimeouts(environment, 'oracle');
     const isProduction = environment === 'prod';
 
     return {
@@ -86,6 +86,8 @@ export class OracleOptimizer extends BaseDatabaseOptimizer {
             const optimizations = [
               // 옵티마이저 설정
               'ALTER SESSION SET optimizer_mode = ALL_ROWS',
+              // 타임아웃 설정 (환경 변수 또는 기본값 사용)
+              `ALTER SESSION SET ddl_lock_timeout = ${Math.floor(timeouts.queryTimeout / 1000)}`, // DDL 잠금 타임아웃 (초)
               // 정렬 영역 크기
               'ALTER SESSION SET sort_area_size = 1048576', // 1MB
               // 해시 영역 크기
