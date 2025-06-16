@@ -84,27 +84,27 @@ describe('SlowQueryInterceptor', () => {
     });
 
     it('should process query metrics on successful response', async () => {
-      mockCallHandler.handle = jest.fn().mockReturnValue(of('result'));
+      // Mock the handler to add query metrics during execution (simulating database operations)
+      mockCallHandler.handle = jest.fn().mockImplementation(() => {
+        // Simulate query metrics being added during request processing
+        if (mockRequest.queryMetrics) {
+          mockRequest.queryMetrics.queries.push({
+            query: 'SELECT * FROM test WHERE id = ?',
+            executionTime: 1500,
+            parameters: [1],
+            databaseId: 1,
+            databaseEngine: 'mysql2',
+          });
+        }
+        return of('result');
+      });
+
       mockQueryAnalyzerService.analyzeQuery.mockResolvedValue({
         query: 'SELECT * FROM test',
         executionTime: 1500,
         optimizationSuggestions: ['Add index'],
       });
       mockSlowQueryMonitorService.logSlowQuery.mockResolvedValue(undefined);
-
-      // Pre-populate queryMetrics before intercept runs
-      mockRequest.queryMetrics = {
-        startTime: Date.now() - 100,
-        queries: [
-          {
-            query: 'SELECT * FROM test WHERE id = ?',
-            executionTime: 1500,
-            parameters: [1],
-            databaseId: 1,
-            databaseEngine: 'mysql2',
-          },
-        ],
-      };
 
       const result$ = interceptor.intercept(mockExecutionContext, mockCallHandler);
 
@@ -129,26 +129,27 @@ describe('SlowQueryInterceptor', () => {
 
     it('should process query metrics on error response', async () => {
       const error = new Error('Database error');
-      mockCallHandler.handle = jest.fn().mockReturnValue(throwError(() => error));
-      mockQueryAnalyzerService.analyzeQuery.mockResolvedValue({
-        query: 'SELECT * FROM test',
-        executionTime: 2000,
-      });
-      mockSlowQueryMonitorService.logSlowQuery.mockResolvedValue(undefined);
 
-      // Pre-populate queryMetrics before intercept runs
-      mockRequest.queryMetrics = {
-        startTime: Date.now() - 100,
-        queries: [
-          {
+      // Mock the handler to add query metrics before throwing error
+      mockCallHandler.handle = jest.fn().mockImplementation(() => {
+        // Simulate query metrics being added during request processing before error
+        if (mockRequest.queryMetrics) {
+          mockRequest.queryMetrics.queries.push({
             query: 'SELECT * FROM test WHERE id = ?',
             executionTime: 2000,
             parameters: [1],
             databaseId: 1,
             databaseEngine: 'mysql2',
-          },
-        ],
-      };
+          });
+        }
+        return throwError(() => error);
+      });
+
+      mockQueryAnalyzerService.analyzeQuery.mockResolvedValue({
+        query: 'SELECT * FROM test',
+        executionTime: 2000,
+      });
+      mockSlowQueryMonitorService.logSlowQuery.mockResolvedValue(undefined);
 
       const result$ = interceptor.intercept(mockExecutionContext, mockCallHandler);
 
@@ -170,21 +171,20 @@ describe('SlowQueryInterceptor', () => {
     });
 
     it('should not process queries below threshold', done => {
-      mockCallHandler.handle = jest.fn().mockReturnValue(of('result'));
-
-      // Simulate fast query (below 1000ms threshold)
-      mockRequest.queryMetrics = {
-        startTime: Date.now() - 100,
-        queries: [
-          {
+      // Mock the handler to add fast query during execution
+      mockCallHandler.handle = jest.fn().mockImplementation(() => {
+        // Simulate fast query (below 1000ms threshold)
+        if (mockRequest.queryMetrics) {
+          mockRequest.queryMetrics.queries.push({
             query: 'SELECT * FROM test LIMIT 10',
             executionTime: 500, // Below threshold
             parameters: [],
             databaseId: 1,
             databaseEngine: 'mysql2',
-          },
-        ],
-      };
+          });
+        }
+        return of('result');
+      });
 
       interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe({
         next: () => {

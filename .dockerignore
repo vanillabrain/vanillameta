@@ -1,0 +1,31 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+docs/
+*.md
+
+# Design files
+design/
+
+# Landing page
+landing-page/
+
+# Lambda layer
+backend-api-libs-lambda-layer/
+
+# Coverage reports
+coverage/
+
+# IDE
+.vscode
+.idea
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test scripts
+docker-test.sh

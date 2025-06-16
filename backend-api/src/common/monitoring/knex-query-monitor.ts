@@ -68,12 +68,11 @@ export class KnexQueryMonitor {
 
         // 쿼리 분석 및 슬로우 쿼리 로깅
         try {
-          const analysis = await this.queryAnalyzerService.analyzeQuery(
-            query.sql,
-            databaseEngine || 'unknown',
-            query.bindings,
-            duration,
-          );
+          const analysis = await this.queryAnalyzerService.analyzeQuery(query.sql, databaseId);
+          // Add execution time to the analysis result
+          if (analysis && duration) {
+            analysis.executionTime = duration;
+          }
 
           await this.slowQueryMonitorService.logSlowQuery(analysis, {
             databaseId,

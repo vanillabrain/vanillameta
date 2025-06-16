@@ -71,16 +71,17 @@ function DashboardModify() {
     showLoading();
     DashboardService.selectDashboard(id)
       .then(response => {
-        if (response.data.status == STATUS.SUCCESS) {
-          setDashboardTitle(response.data.data.title);
-          setWidgets(response.data.data.widgets);
+        console.log('selectDashboard response:', response);
+        if (response.status === STATUS.SUCCESS) {
+          setDashboardTitle(response.data.title);
+          setWidgets(response.data.widgets);
 
-          response.data.data.layout.map(item => {
+          response.data.layout.map(item => {
             if (item.i !== undefined) {
               item.i = item.i.toString();
             }
           });
-          setLayout(response.data.data.layout);
+          setLayout(response.data.layout);
         } else {
           alert.error('대시보드 조회에 실패했습니다.\n다시 시도해 주세요.');
         }
@@ -322,7 +323,7 @@ function DashboardModify() {
                 showLoading();
                 DashboardService.updateDashboard(dashboardId, dashboardInfo)
                   .then(response => {
-                    if (response.data.status === 'SUCCESS') {
+                    if (response.status === 'SUCCESS') {
                       navigate('/dashboard/' + dashboardId, { replace: true });
                       snackbar.success('대시보드가 수정되었습니다.');
                     } else {
@@ -347,7 +348,7 @@ function DashboardModify() {
                 showLoading();
                 DashboardService.createDashboard(dashboardInfo)
                   .then(response => {
-                    if (response.data.status === 'SUCCESS') {
+                    if (response.status === 'SUCCESS') {
                       navigate('/dashboard');
                       snackbar.success('대시보드가 생성되었습니다.');
                     } else {

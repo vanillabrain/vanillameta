@@ -4,6 +4,7 @@ import { UpdateDatasetDto } from './dto/update-dataset.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Dataset } from './entities/dataset.entity';
+import { Database } from '../database/entities/database.entity';
 import { ConnectionService } from '../connection/connection.service';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import { Widget } from '../widget/entities/widget.entity';
@@ -12,6 +13,12 @@ import { HybridCacheService } from '../common/optimization/hybrid-cache.service'
 import { CustomLoggerService } from '../common/logger/logger.service';
 import { BusinessMetricsService } from '../common/monitoring/business-metrics.service';
 import { Readable } from 'stream';
+import {
+  PaginationService,
+  CursorPaginationOptions,
+  OffsetPaginationOptions,
+  PaginatedResponse,
+} from '../common/pagination';
 
 @Injectable()
 export class DatasetService {
@@ -22,10 +29,13 @@ export class DatasetService {
     private datasetRepository: Repository<Dataset>,
     @InjectRepository(Widget)
     private widgetRepository: Repository<Widget>,
+    @InjectRepository(Database)
+    private databaseRepository: Repository<Database>,
     private readonly connectionService: ConnectionService,
     private readonly hybridCache: HybridCacheService,
     private readonly customLogger: CustomLoggerService,
     private readonly businessMetrics: BusinessMetricsService,
+    private readonly paginationService: PaginationService,
   ) {}
 
   /**
@@ -50,10 +60,41 @@ export class DatasetService {
   }
 
   /**
-   * 데이터셋 전체 조회
+   * 데이터셋 전체 조회 (페이지네이션 지원)
    */
-  async findAll() {
-    return await this.datasetRepository.find();
+  async findAll(
+    pagination?: CursorPaginationOptions | OffsetPaginationOptions,
+  ): Promise<PaginatedResponse<Dataset> | Dataset[]> {
+    // 페이지네이션이 없으면 기존 로직 사용 (하위 호환성)
+    if (!pagination) {
+      return await this.datasetRepository.find({
+        order: {
+          updatedAt: 'DESC',
+          title: 'ASC',
+        },
+      });
+    }
+
+    // 페이지네이션 적용
+    const queryBuilder = this.datasetRepository
+      .createQueryBuilder('dataset')
+      .select([
+        'dataset.id',
+        'dataset.title',
+        'dataset.databaseId',
+        'dataset.query',
+        'dataset.createdAt',
+        'dataset.updatedAt',
+      ]);
+
+    const paginatedResult = await this.paginationService.paginate(queryBuilder, pagination, {
+      alias: 'dataset',
+      defaultSortField: 'updatedAt',
+      defaultSortDirection: 'DESC',
+      includeTotalCount: true,
+    });
+
+    return paginatedResult;
   }
 
   /**
@@ -185,7 +226,22 @@ export class DatasetService {
         };
       }
 
+<<<<<<< HEAD
       // 데이터베이스 연결 정보 조회 - ConnectionService의 getKnex로 연결 확인
+=======
+      // 데이터베이스 연결 정보 조회
+      const dbConnection = await this.databaseRepository.findOne({
+        where: { id: dataset.databaseId },
+      });
+      if (!dbConnection) {
+        return {
+          status: ResponseStatus.ERROR,
+          message: 'Database connection not found',
+        };
+      }
+
+      const engine = dbConnection.type || 'unknown';
+>>>>>>> origin/develop
       const databaseId = dataset.databaseId.toString();
       const engine = 'unknown'; // 실제 엔진은 캐시 서비스에서 처리
 
@@ -253,10 +309,14 @@ export class DatasetService {
         { ttl: customTtl },
       );
 
-      this.customLogger.info('Query executed and cached', 'DatasetService', {
+      this.customLogger.log('Query executed and cached', 'DatasetService', {
         datasetId: id,
         engine,
+<<<<<<< HEAD
         dataSize: JSON.stringify(queryResult.datas || {}).length,
+=======
+        dataSize: JSON.stringify(queryResult.datas || []).length,
+>>>>>>> origin/develop
         responseTime: Date.now() - startTime,
       });
 
@@ -318,8 +378,17 @@ export class DatasetService {
       }
 
       // 해당 데이터셋의 쿼리 기반 캐시 무효화
+<<<<<<< HEAD
       const engine = 'unknown'; // 실제 엔진은 캐시 서비스에서 처리
       await this.hybridCache.invalidateByQuery(engine, dataset.query);
+=======
+      const dbConnection = await this.databaseRepository.findOne({
+        where: { id: dataset.databaseId },
+      });
+      if (dbConnection) {
+        const engine = dbConnection.type || 'unknown';
+        await this.hybridCache.invalidateByQuery(engine, dataset.query);
+>>>>>>> origin/develop
 
       this.customLogger.info('Dataset cache invalidated', 'DatasetService', {
         datasetId: id,

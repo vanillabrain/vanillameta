@@ -77,7 +77,7 @@ const DataLayout = props => {
     showLoading();
     DatabaseService.selectDatabaseList()
       .then(response => {
-        const resData = response.data.data;
+        const resData = response.data;
         setDatabaseList(resData);
         if (resData.length > 0) {
           const [firstItem] = resData;
@@ -91,11 +91,13 @@ const DataLayout = props => {
 
   const getDatabaseInfo = databaseId => {
     showLoading();
+    console.log('Getting database info for databaseId:', databaseId);
     DatabaseService.selectDatabase(databaseId)
       .then(response => {
-        if (response.data.status === 'SUCCESS') {
-          setDatasetList(response.data.data.datasets);
-          setTableList(response.data.data.tables);
+        console.log('selectDatabase response:', response);
+        if (response.status === STATUS.SUCCESS) {
+          setDatasetList(response.data.datasets || []);
+          setTableList(response.data.tables || []);
         } else {
           alert.error('데이터베이스 조회에 실패했습니다.\n다시 시도해 주세요.');
           setDatasetList([]);
@@ -103,7 +105,12 @@ const DataLayout = props => {
         }
       })
       .catch(error => {
-        snackbar.error(error.message);
+        console.error('Database select error:', error);
+        if (error.response?.status === 403) {
+          snackbar.error('데이터베이스 접근 권한이 없습니다. 다시 로그인해주세요.');
+        } else {
+          snackbar.error(error.message || '데이터베이스 조회에 실패했습니다.');
+        }
         setDatasetList([]);
         setTableList([]);
       })
@@ -128,9 +135,11 @@ const DataLayout = props => {
     showLoading();
     DatabaseService.selectData(param)
       .then(response => {
-        if (response.data.status === STATUS.SUCCESS) {
-          setGridData(response.data.data.datas);
-          setGridColumns(createColumns(response.data.data.datas));
+        console.log('selectData response:', response);
+        if (response.status === STATUS.SUCCESS) {
+          const rows = response.data?.result?.rows || response.data?.datas || [];
+          setGridData(rows);
+          setGridColumns(createColumns(rows));
         }
       })
       .catch(error => {
@@ -157,7 +166,7 @@ const DataLayout = props => {
           copy: '삭제',
           onClick: () => {
             DatabaseService.deleteDatabase(item.databaseId).then(response => {
-              if (response.data.status === STATUS.SUCCESS) {
+              if (response.status === STATUS.SUCCESS) {
                 getDatabaseList();
                 snackbar.success('데이터베이스가 삭제되었습니다.');
               }

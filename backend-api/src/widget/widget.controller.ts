@@ -1,4 +1,15 @@
-import { Controller, Get, Post, Body, Param, Delete, Put, UseGuards, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Delete,
+  Put,
+  UseGuards,
+  Query,
+  UseInterceptors,
+} from '@nestjs/common';
 import { 
   ApiTags, 
   ApiOperation, 
@@ -15,6 +26,7 @@ import {
   FieldSelection,
   PredefinedFields,
 } from '../common/field-selection/field-selection.decorator';
+import { Pagination, PaginationInterceptor } from '../common/pagination';
 
 @ApiTags('위젯')
 @ApiBearerAuth('JWT-auth')
@@ -45,6 +57,10 @@ export class WidgetController {
     return this.widgetService.create(createWidgetDto);
   }
 
+  /**
+   * 위젯 목록 조회
+   */
+  @UseInterceptors(PaginationInterceptor)
   @FieldSelection({
     allowedFields: [
       'id',
@@ -75,8 +91,11 @@ export class WidgetController {
     description: '위젯 목록이 반환되었습니다.',
     type: [CreateWidgetDto]
   })
-  findAll(@Query('fields') fields?: string) {
-    return this.widgetService.findAll();
+  findAll(
+    @Pagination({ preferCursor: true, defaultLimit: 20 }) pagination: any,
+    @Query('fields') fields?: string,
+  ) {
+    return this.widgetService.findAll(pagination);
   }
 
   @PredefinedFields('widgetWithConfig')

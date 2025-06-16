@@ -1,16 +1,16 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Param,
+  Controller,
   Delete,
+  Get,
+  Header,
+  Param,
+  Post,
   Put,
-  UseGuards,
   Query,
   Res,
-  StreamableFile,
-  Header,
+  UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { 
   ApiTags, 
@@ -31,6 +31,7 @@ import {
 } from '../common/field-selection/field-selection.decorator';
 import { Response } from 'express';
 import { GetUser } from '../auth/decorators/get-user.decorator';
+import { Pagination, PaginationInterceptor } from '../common/pagination';
 
 @ApiTags('데이터')
 @ApiBearerAuth('JWT-auth')
@@ -57,6 +58,10 @@ export class DatasetController {
     return this.datasetService.create(createDatasetDto);
   }
 
+  /**
+   * 데이터셋 목록 조회
+   */
+  @UseInterceptors(PaginationInterceptor)
   @PredefinedFields('datasetMeta')
   @Get()
   @ApiOperation({ 
@@ -74,8 +79,11 @@ export class DatasetController {
     description: '데이터셋 목록이 반환되었습니다.',
     type: [CreateDatasetDto]
   })
-  findAll(@Query('fields') fields?: string) {
-    return this.datasetService.findAll();
+  findAll(
+    @Pagination({ preferCursor: true, defaultLimit: 20 }) pagination: any,
+    @Query('fields') fields?: string,
+  ) {
+    return this.datasetService.findAll(pagination);
   }
 
   @FieldSelection({

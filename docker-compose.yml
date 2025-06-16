@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  # 백엔드 API 서비스
+  backend:
+    build:
+      context: ./backend-api
+      dockerfile: Dockerfile
+    container_name: vanillameta-backend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=local
+      - PORT=3000
+      - DB_HOST=localhost
+      - DB_PORT=3306
+      - DB_USERNAME=root
+      - DB_PASSWORD=
+      - DB_NAME=vanillameta
+      - DB_CONNECTION_LIMIT=10
+      - JWT_SECRET=vanillameta-local-jwt-secret-key
+      - JWT_EXPIRATION=1d
+      - JWT_REFRESH_SECRET=vanillameta-local-refresh-secret-key
+      - JWT_REFRESH_EXPIRATION=7d
+    volumes:
+      # SQLite 데이터베이스 파일 지속성을 위한 볼륨
+      - sqlite_data:/app/sqlite_data
+    networks:
+      - vanillameta-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/v1/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # 프론트엔드 웹 서비스
+  frontend:
+    build:
+      context: ./frontend-web
+      dockerfile: Dockerfile
+    container_name: vanillameta-frontend
+    ports:
+      - "80:80"
+    environment:
+      - REACT_APP_API_URL=/api/v1
+      - REACT_APP_MODE=local
+      - GENERATE_SOURCEMAP=false
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - vanillameta-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+# 볼륨 정의
+volumes:
+  sqlite_data:
+    driver: local
+
+# 네트워크 정의
+networks:
+  vanillameta-network:
+    driver: bridge

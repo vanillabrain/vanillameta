@@ -21,10 +21,11 @@ export class MemoryMonitorService {
   private readonly logger = new Logger(MemoryMonitorService.name);
   private memorySnapshots: Map<string, any> = new Map();
   private readonly MAX_SNAPSHOTS = 5;
-  
-  // WeakMap과 WeakSet을 사용하여 메모리 누수 방지
+
+  // WeakMap과 Set을 사용하여 메모리 누수 방지 및 카운팅
   private readonly streamRegistry = new WeakMap<Readable, StreamMetadata>();
-  private readonly activeStreams = new WeakSet<Readable>();
+  private readonly activeStreams = new Set<Readable>();
+  private activeStreamCount = 0;
 
   constructor(private readonly customLogger: CustomLoggerService) {
     // 메모리 누수 감지를 위한 주기적 체크
@@ -49,7 +50,7 @@ export class MemoryMonitorService {
       transform: (chunk, encoding, callback) => {
         try {
           const result = transformFn(chunk, encoding);
-          
+
           // 메모리 압박 시 백프레셔 적용
           if (this.isMemoryPressure()) {
             setImmediate(() => callback(null, result));
@@ -71,12 +72,9 @@ export class MemoryMonitorService {
   /**
    * 대용량 배열을 스트림으로 처리
    */
-  createArrayStream<T>(
-    array: T[],
-    chunkSize = 1000,
-    options?: StreamProcessingOptions,
-  ): Readable {
+  createArrayStream<T>(array: T[], chunkSize = 1000, options?: StreamProcessingOptions): Readable {
     let index = 0;
+    const self = this; // MemoryMonitorService 인스턴스 참조
 
     const stream = new Readable({
       objectMode: true,
@@ -84,15 +82,15 @@ export class MemoryMonitorService {
       ...options,
       read() {
         const chunk = array.slice(index, index + chunkSize);
-        
+
         if (chunk.length === 0) {
           this.push(null); // 스트림 종료
         } else {
           this.push(chunk);
           index += chunkSize;
-          
+
           // 메모리 압박 시 일시 중지
-          if (this.isMemoryPressure()) {
+          if (self.isMemoryPressure()) {
             setImmediate(() => this.read());
             return false;
           }
@@ -126,7 +124,7 @@ export class MemoryMonitorService {
           this.cleanupStreams([source, ...transforms]);
           resolve();
         })
-        .on('error', (error) => {
+        .on('error', error => {
           this.cleanupStreams([source, ...transforms]);
           reject(error);
         });
@@ -157,9 +155,13 @@ export class MemoryMonitorService {
 
     this.streamRegistry.set(stream, metadata);
     this.activeStreams.add(stream);
+    this.activeStreamCount++;
 
     stream.on('close', () => {
-      this.activeStreams.delete(stream);
+      if (this.activeStreams.has(stream)) {
+        this.activeStreams.delete(stream);
+        this.activeStreamCount--;
+      }
     });
   }
 
@@ -171,18 +173,17 @@ export class MemoryMonitorService {
       if (!stream.destroyed) {
         stream.destroy();
       }
-      this.activeStreams.delete(stream);
+      if (this.activeStreams.has(stream)) {
+        this.activeStreams.delete(stream);
+        this.activeStreamCount--;
+      }
     });
   }
 
   /**
    * 파이프라인 모니터링
    */
-  private monitorPipeline(
-    source: Readable,
-    transforms: Transform[],
-    destination: Writable,
-  ): void {
+  private monitorPipeline(source: Readable, transforms: Transform[], destination: Writable): void {
     const checkInterval = setInterval(() => {
       if (this.isMemoryPressure()) {
         // 메모리 압박 시 스트림 일시 중지
@@ -245,13 +246,11 @@ export class MemoryMonitorService {
    */
   private getObjectCounts(): Map<string, number> {
     const counts = new Map<string, number>();
-    
+
     // 주요 객체 타입 추적
     try {
       // 활성 스트림 수
-      let activeStreamCount = 0;
-      this.activeStreams.forEach(() => activeStreamCount++);
-      counts.set('ActiveStreams', activeStreamCount);
+      counts.set('ActiveStreams', this.activeStreamCount);
 
       // 기타 중요 메트릭
       counts.set('MemorySnapshots', this.memorySnapshots.size);
@@ -270,7 +269,8 @@ export class MemoryMonitorService {
     if (snapshots.length < 2) return;
 
     const previousSnapshot = snapshots[snapshots.length - 2];
-    const heapGrowth = currentSnapshot.heapStats.used_heap_size - previousSnapshot.heapStats.used_heap_size;
+    const heapGrowth =
+      currentSnapshot.heapStats.used_heap_size - previousSnapshot.heapStats.used_heap_size;
     const rssGrowth = currentSnapshot.memUsage.rss - previousSnapshot.memUsage.rss;
 
     // 비정상적인 메모리 증가 감지 (100MB 이상)
@@ -284,7 +284,7 @@ export class MemoryMonitorService {
       // 메모리 누수 원인 분석
       const leaks = this.detectMemoryLeaks(previousSnapshot, currentSnapshot);
       if (leaks.length > 0) {
-        this.customLogger.error('Memory leak suspects found', 'MemoryMonitor', { leaks });
+        this.customLogger.error('Memory leak suspects found', null, 'MemoryMonitor', { leaks });
       }
     }
   }
@@ -292,10 +292,7 @@ export class MemoryMonitorService {
   /**
    * 메모리 누수 감지
    */
-  private detectMemoryLeaks(
-    previousSnapshot: any,
-    currentSnapshot: any,
-  ): MemoryLeakDetection[] {
+  private detectMemoryLeaks(previousSnapshot: any, currentSnapshot: any): MemoryLeakDetection[] {
     const leaks: MemoryLeakDetection[] = [];
 
     // 객체 수 증가 분석
@@ -303,7 +300,8 @@ export class MemoryMonitorService {
       const previousCount = previousSnapshot.objectCounts.get(type) || 0;
       const growth = count - previousCount;
 
-      if (growth > 100) { // 100개 이상 증가
+      if (growth > 100) {
+        // 100개 이상 증가
         leaks.push({
           suspect: type,
           retainedSize: 0, // 실제 크기는 프로파일러 필요
@@ -338,24 +336,36 @@ export class MemoryMonitorService {
     // 힙 사용률 확인
     const heapUsagePercent = (heapStats.used_heap_size / heapStats.heap_size_limit) * 100;
     if (heapUsagePercent > 70) {
-      recommendations.push(`힙 사용률이 ${heapUsagePercent.toFixed(1)}%로 높습니다. 대용량 객체 생성을 줄이세요.`);
+      recommendations.push(
+        `힙 사용률이 ${heapUsagePercent.toFixed(1)}%로 높습니다. 대용량 객체 생성을 줄이세요.`,
+      );
     }
 
     // 외부 메모리 사용 확인
-    if (memUsage.external > 100 * 1024 * 1024) { // 100MB 이상
-      recommendations.push(`외부 메모리 사용이 ${this.formatBytes(memUsage.external)}로 높습니다. Buffer 사용을 최적화하세요.`);
+    if (memUsage.external > 100 * 1024 * 1024) {
+      // 100MB 이상
+      recommendations.push(
+        `외부 메모리 사용이 ${this.formatBytes(
+          memUsage.external,
+        )}로 높습니다. Buffer 사용을 최적화하세요.`,
+      );
     }
 
     // ArrayBuffer 사용 확인
-    if (memUsage.arrayBuffers > 50 * 1024 * 1024) { // 50MB 이상
-      recommendations.push(`ArrayBuffer 사용이 ${this.formatBytes(memUsage.arrayBuffers)}입니다. TypedArray 정리를 확인하세요.`);
+    if (memUsage.arrayBuffers > 50 * 1024 * 1024) {
+      // 50MB 이상
+      recommendations.push(
+        `ArrayBuffer 사용이 ${this.formatBytes(
+          memUsage.arrayBuffers,
+        )}입니다. TypedArray 정리를 확인하세요.`,
+      );
     }
 
     // 스트림 수 확인
-    let activeStreamCount = 0;
-    this.activeStreams.forEach(() => activeStreamCount++);
-    if (activeStreamCount > 10) {
-      recommendations.push(`활성 스트림이 ${activeStreamCount}개입니다. 사용 완료된 스트림을 정리하세요.`);
+    if (this.activeStreamCount > 10) {
+      recommendations.push(
+        `활성 스트림이 ${this.activeStreamCount}개입니다. 사용 완료된 스트림을 정리하세요.`,
+      );
     }
 
     return recommendations;

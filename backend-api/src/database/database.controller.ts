@@ -147,6 +147,40 @@ export class DatabaseController {
     return databaseInfo;
   }
 
+  /**
+   * 데이터베이스 테이블 목록 조회
+   * @param id
+   */
+  @Get('/:id/tables')
+  @ApiOperation({ 
+    summary: '데이터베이스 테이블 목록 조회',
+    description: '특정 데이터베이스의 모든 테이블 목록을 조회합니다.'
+  })
+  @ApiParam({
+    name: 'id',
+    description: '데이터베이스 ID',
+    type: Number,
+    example: 1
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: '테이블 목록이 성공적으로 조회되었습니다.',
+    schema: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          tableName: { type: 'string', example: 'users' },
+          tableType: { type: 'string', example: 'BASE TABLE' },
+          rowCount: { type: 'number', example: 150 }
+        }
+      }
+    }
+  })
+  async findTables(@Param('id') id: string) {
+    return this.databaseService.findTables(+id);
+  }
+
   @Post()
   @ApiOperation({ 
     summary: '데이터베이스 연결 생성',

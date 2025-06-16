@@ -54,8 +54,8 @@ export class SlowQueryLog extends BaseEntity {
   @Column({ type: 'text', nullable: true, comment: '최적화 제안 (JSON)' })
   optimizationSuggestions: string;
 
-  @Column({ type: 'json', nullable: true, comment: '실행 계획' })
-  explainPlan: any;
+  @Column({ type: 'text', nullable: true, comment: '실행 계획 (JSON)' })
+  explainPlan: string;
 
   @Column({ type: 'varchar', length: 100, nullable: true, comment: '사용자 ID' })
   userId: string;
@@ -79,10 +79,10 @@ export class SlowQueryLog extends BaseEntity {
   detectedAt: Date;
 
   @Column({
-    type: 'enum',
-    enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'],
+    type: 'varchar',
+    length: 20,
     default: 'MEDIUM',
-    comment: '심각도',
+    comment: '심각도 (LOW, MEDIUM, HIGH, CRITICAL)',
   })
   severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 

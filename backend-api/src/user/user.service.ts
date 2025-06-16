@@ -17,11 +17,13 @@ export class UserService {
   ) {}
 
   async findOne(userId: number) {
+    console.log('findOne 호출됨, userId:', userId);
     const userData = await this.userRepository.findOne({
       where: { id: userId },
     });
+    console.log('조회된 사용자 데이터:', userData);
     if (!userData) {
-      return 'Bad Request';
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     } else {
       delete userData.password;
       return { data: userData, message: 'success' };

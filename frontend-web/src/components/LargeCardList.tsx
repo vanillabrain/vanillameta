@@ -47,7 +47,7 @@ function LargeImgCardList(props) {
         m: '0',
       }}
     >
-      {data
+      {data && data.length > 0 ? data
         .filter(item => item.seq !== null)
         .sort((a, b) => a.seq - b.seq)
         .map(item => {
@@ -92,7 +92,7 @@ function LargeImgCardList(props) {
               </CardWrapper>
             </Box>
           );
-        })}
+        }) : null}
     </Box>
   );
 }

@@ -12,18 +12,26 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
         ExtractJwt.fromHeader('Authorization'),
       ]),
       ignoreExpiration: false,
-      secretOrKey: true,
+      secretOrKey: process.env.ACCESS_SECRET,
     });
   }
 
-  async validate(req, payload: any) {
+  async validate(payload: any) {
     this.logger.debug('JWT token validation', 'JwtStrategy', {
-      userId: payload.userId,
-      correlationId: req?.correlationId,
-      tokenExp: payload.exp,
+      payload: payload,
+      accessKeyData: payload.accessKeyData,
     });
 
-    // JWT 페이로드 검증 성공
-    return { userId: payload.userId };
+    // JWT 페이로드에서 accessKeyData 추출
+    if (payload.accessKeyData) {
+      return { accessKeyData: payload.accessKeyData };
+    }
+    
+    // 페이로드 구조 디버깅을 위한 로그
+    this.logger.warn('JWT payload structure is unexpected', 'JwtStrategy', {
+      payload: payload,
+    });
+    
+    return payload;
   }
 }

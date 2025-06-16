@@ -13,7 +13,7 @@ import { Connection, DataSource } from 'typeorm';
 import { ResponseStatus } from '../../src/common/enum/response-status.enum';
 import { DatasetType } from '../../src/common/enum/dataset-type.enum';
 import { mockSqlValidationService } from '../util/test-providers';
-import { CustomLoggerService } from '../../src/common/logger/custom-logger.service';
+import { CustomLoggerService } from '../../src/common/logger/logger.service';
 
 describe('QTT-002 : 위젯 생성', () => {
   let widgetService: WidgetService;

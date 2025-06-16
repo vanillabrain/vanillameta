@@ -9,6 +9,12 @@ import { Component } from '../component/entities/component.entity';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import { TableQueryService } from './table-query/table-query.service';
 import { CustomLoggerService } from '../common/logger/logger.service';
+import {
+  PaginationService,
+  CursorPaginationOptions,
+  OffsetPaginationOptions,
+  PaginatedResponse,
+} from '../common/pagination';
 
 @Injectable()
 export class WidgetService {
@@ -19,6 +25,7 @@ export class WidgetService {
     private componentRepository: Repository<Component>,
     private tableQueryService: TableQueryService,
     private logger: CustomLoggerService,
+    private paginationService: PaginationService,
   ) {}
 
   /**
@@ -57,31 +64,82 @@ export class WidgetService {
   }
 
   /**
-   * 위젯 목록 조회
+   * 위젯 목록 조회 (페이지네이션 지원)
    */
-  async findAll() {
-    const find_all = await this.widgetRepository
-      .createQueryBuilder('widget')
-      .innerJoin(Component, 'component', 'component.id = widget.componentId')
-      .select([
-        'widget.*',
-        'component.type as componentType',
-        'component.icon as icon',
-        'component.title as componentTitle',
-        'component.description as componentDescription',
-      ])
-      .orderBy('widget.updatedAt', 'DESC')
-      .addOrderBy('widget.title')
-      .getRawMany();
+  async findAll(
+    pagination?: CursorPaginationOptions | OffsetPaginationOptions,
+  ): Promise<PaginatedResponse<any> | any> {
+    // 페이지네이션이 없으면 기존 로직 사용 (하위 호환성)
+    if (!pagination) {
+      const find_all = await this.widgetRepository
+        .createQueryBuilder('widget')
+        .innerJoin(Component, 'component', 'component.id = widget.componentId')
+        .select([
+          'widget.*',
+          'component.type as componentType',
+          'component.icon as icon',
+          'component.title as componentTitle',
+          'component.description as componentDescription',
+        ])
+        .orderBy('widget.updatedAt', 'DESC')
+        .addOrderBy('widget.title')
+        .getRawMany();
 
-    find_all.forEach(el => {
-      try {
-        (el as any).option = JSON.parse(el.option);
-      } catch (error) {
-        (el as any).option = {};
-      }
+      find_all.forEach(el => {
+        try {
+          (el as any).option = JSON.parse(el.option);
+        } catch (error) {
+          (el as any).option = {};
+        }
+      });
+      return { status: ResponseStatus.SUCCESS, data: find_all };
+    }
+
+    // 페이지네이션 적용
+    const queryBuilder = this.widgetRepository
+      .createQueryBuilder('widget')
+      .innerJoin('widget.component', 'component')
+      .select([
+        'widget.id',
+        'widget.title',
+        'widget.description',
+        'widget.databaseId',
+        'widget.componentId',
+        'widget.datasetType',
+        'widget.datasetId',
+        'widget.tableName',
+        'widget.option',
+        'widget.createdAt',
+        'widget.updatedAt',
+        'component.id',
+        'component.type',
+        'component.icon',
+        'component.title',
+        'component.description',
+      ])
+      .where('widget.delYn = :delYn', { delYn: 'N' });
+
+    const paginatedResult = await this.paginationService.paginate(queryBuilder, pagination, {
+      alias: 'widget',
+      defaultSortField: 'updatedAt',
+      defaultSortDirection: 'DESC',
+      cursorFields: ['updatedAt', 'title'],
+      includeTotalCount: true,
     });
-    return { status: ResponseStatus.SUCCESS, data: find_all };
+
+    // option 필드 JSON 파싱
+    paginatedResult.data = paginatedResult.data.map(widget => {
+      try {
+        if (widget.option) {
+          widget.option = JSON.parse(widget.option);
+        }
+      } catch (error) {
+        widget.option = '{}';
+      }
+      return widget;
+    });
+
+    return paginatedResult;
   }
 
   async findOne(id: number) {

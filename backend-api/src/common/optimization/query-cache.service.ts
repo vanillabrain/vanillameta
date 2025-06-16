@@ -290,7 +290,7 @@ export class QueryCacheService implements OnModuleDestroy {
       topQueries: [],
     });
 
-    this.customLogger.info('Cache initialized for engine', 'QueryCacheService', {
+    this.customLogger.log('Cache initialized for engine', 'QueryCacheService', {
       engine,
       maxSize: config.maxSize,
       ttl: config.ttl,
@@ -503,7 +503,7 @@ export class QueryCacheService implements OnModuleDestroy {
       }
     }
 
-    this.customLogger.info('Cache invalidated by tables', 'QueryCacheService', {
+    this.customLogger.log('Cache invalidated by tables', 'QueryCacheService', {
       engine,
       tables: tableNames,
       invalidatedEntries: invalidatedCount,
@@ -529,7 +529,7 @@ export class QueryCacheService implements OnModuleDestroy {
         stats.memoryUsage.percentage = 0;
       }
 
-      this.customLogger.info('Cache cleared', 'QueryCacheService', {
+      this.customLogger.log('Cache cleared', 'QueryCacheService', {
         engine,
         entriesRemoved: entriesCount,
       });
@@ -717,7 +717,7 @@ export class QueryCacheService implements OnModuleDestroy {
 
       this.caches.set(engine, newCache);
 
-      this.customLogger.info('Cache configuration updated', 'QueryCacheService', {
+      this.customLogger.log('Cache configuration updated', 'QueryCacheService', {
         engine,
         newMaxSize: config.maxSize,
         newTtl: config.ttl,

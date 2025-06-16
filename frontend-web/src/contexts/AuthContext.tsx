@@ -15,8 +15,9 @@ export const AuthProvider = ({ children }) => {
       authService
         .getUserInfo()
         .then(response => {
-          if (response.status === 200) {
-            setUserState({ userId: response.data.data.userId, userEmail: response.data.data.email });
+          console.log('getUserInfo response:', response);
+          if (response.status === 'SUCCESS') {
+            setUserState({ userId: response.data.userId, userEmail: response.data.email });
           }
           return resolve(response);
         })

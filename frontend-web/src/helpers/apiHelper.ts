@@ -19,7 +19,9 @@ const generateCorrelationId = (): string => {
 };
 
 // apply base url for axios
-const API_URL = process.env.REACT_APP_API_URL;
+import { getApiUrl } from '@/helpers/envHelper';
+
+const API_URL = getApiUrl();
 
 const instance = axios.create({
   baseURL: API_URL,
@@ -95,17 +97,17 @@ instance.interceptors.request.use(async config => {
   newConfig = addCorrelationIdToHeaders(newConfig);
   // removePendingRequest(newConfig); // 같은 요청이 갔을 경우 기존 요청 취소
   // addPendingRequest(newConfig);
-  
+
   // API 성능 측정 시작
   const requestKey = `${config.method}-${config.url}`;
   apiPerformanceMap.set(requestKey, performance.now());
-  
+
   // 요청 메타데이터 추가
   config.metadata = {
     startTime: performance.now(),
     correlationId: config.headers['X-Correlation-ID'],
   };
-  
+
   return newConfig;
 });
 
@@ -133,7 +135,7 @@ instance.interceptors.response.use(
     if (startTime) {
       const duration = performance.now() - startTime;
       apiPerformanceMap.delete(requestKey);
-      
+
       // 성능 데이터 로깅
       const perfData = {
         method: response.config.method?.toUpperCase(),
@@ -142,17 +144,17 @@ instance.interceptors.response.use(
         status: response.status,
         correlationId: response.config.metadata?.correlationId,
       };
-      
+
       // 개발 환경에서는 콘솔에 출력
       if (process.env.NODE_ENV === 'development') {
         console.log(`⚡ API Performance: ${perfData.method} ${perfData.url} - ${perfData.duration}ms`);
       }
-      
+
       // 느린 API 요청 경고 (1초 이상)
       if (duration > 1000) {
         console.warn(`⚠️ Slow API detected: ${perfData.method} ${perfData.url} took ${perfData.duration}ms`);
       }
-      
+
       // 프로덕션에서는 분석 도구로 전송
       if (window.gtag && process.env.NODE_ENV === 'production') {
         window.gtag('event', 'api_performance', {
@@ -181,7 +183,7 @@ instance.interceptors.response.use(
   },
   async error => {
     const { response: errorResponse } = error;
-    
+
     // 에러 응답에서도 API 성능 측정
     if (error.config) {
       const requestKey = `${error.config.method}-${error.config.url}`;
@@ -189,7 +191,7 @@ instance.interceptors.response.use(
       if (startTime) {
         const duration = performance.now() - startTime;
         apiPerformanceMap.delete(requestKey);
-        
+
         const perfData = {
           method: error.config.method?.toUpperCase(),
           url: error.config.url,
@@ -198,12 +200,14 @@ instance.interceptors.response.use(
           correlationId: error.config.metadata?.correlationId,
           error: true,
         };
-        
+
         // 에러 성능 로깅
         if (process.env.NODE_ENV === 'development') {
-          console.error(`❌ API Error Performance: ${perfData.method} ${perfData.url} - ${perfData.duration}ms (Status: ${perfData.status})`);
+          console.error(
+            `❌ API Error Performance: ${perfData.method} ${perfData.url} - ${perfData.duration}ms (Status: ${perfData.status})`,
+          );
         }
-        
+
         // 프로덕션에서 에러 성능 추적
         if (window.gtag && process.env.NODE_ENV === 'production') {
           window.gtag('event', 'api_error_performance', {

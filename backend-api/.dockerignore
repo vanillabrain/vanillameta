@@ -118,3 +118,23 @@ dist
 .yarn/install-state.gz
 .pnp.*
 
+# Docker 관련
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# 데이터베이스 파일
+*.db
+*.sqlite
+*.sqlite3
+sqlite_data/
+
+# 문서
+README.md
+docs/
+*.md
+
+# 테스트 결과
+test-results.log
+test-connect-info.json
+

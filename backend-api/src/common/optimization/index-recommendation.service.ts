@@ -145,7 +145,7 @@ export class IndexRecommendationService {
         performanceImpact,
       };
 
-      this.customLogger.info('Index analysis completed', 'IndexRecommendationService', {
+      this.customLogger.log('Index analysis completed', 'IndexRecommendationService', {
         tableName,
         engine,
         recommendationsCount: enhancedRecommendations.length,

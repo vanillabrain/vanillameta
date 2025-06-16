@@ -160,16 +160,12 @@ export class HybridCacheService implements OnModuleInit, OnModuleDestroy {
 
       if (this.l2Cache.isConnected()) {
         // Redis에서는 패턴 기반 무효화 (정확한 매칭 어려움)
-        promises.push(
-          this.l2Cache.invalidateByEngine(engine).then(() => {
-            // void를 반환하도록 변환
-          }),
-        );
+        promises.push(this.l2Cache.invalidateByEngine(engine).then(() => void 0));
       }
 
       await Promise.allSettled(promises);
 
-      this.customLogger.info('Cache invalidated by query', 'HybridCacheService', {
+      this.customLogger.log('Cache invalidated by query', 'HybridCacheService', {
         engine,
         query: query.substring(0, 100),
       });
@@ -191,7 +187,7 @@ export class HybridCacheService implements OnModuleInit, OnModuleDestroy {
 
       await Promise.allSettled(promises);
 
-      this.customLogger.info('Cache invalidated by engine', 'HybridCacheService', {
+      this.customLogger.log('Cache invalidated by engine', 'HybridCacheService', {
         engine,
       });
     } catch (error) {
@@ -211,7 +207,7 @@ export class HybridCacheService implements OnModuleInit, OnModuleDestroy {
         await this.l2Cache.invalidateByDatabase(databaseId);
       }
 
-      this.customLogger.info('Cache invalidated by database', 'HybridCacheService', {
+      this.customLogger.log('Cache invalidated by database', 'HybridCacheService', {
         databaseId,
       });
     } catch (error) {
@@ -232,7 +228,7 @@ export class HybridCacheService implements OnModuleInit, OnModuleDestroy {
 
       await Promise.allSettled(promises);
 
-      this.customLogger.info('All caches invalidated', 'HybridCacheService');
+      this.customLogger.log('All caches invalidated', 'HybridCacheService');
     } catch (error) {
       this.logger.error('Full cache invalidation error:', error);
     }

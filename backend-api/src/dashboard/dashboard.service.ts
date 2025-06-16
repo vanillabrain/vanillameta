@@ -14,6 +14,12 @@ import { DashboardShare } from 'src/dashboard/entities/dashboard_share.entity';
 import { UserMapping } from 'src/user/entities/user-mapping.entity';
 import { v4 as uuidv4 } from 'uuid';
 import { CustomLoggerService } from '../common/logger/logger.service';
+import {
+  PaginationService,
+  CursorPaginationOptions,
+  OffsetPaginationOptions,
+  PaginatedResponse,
+} from '../common/pagination';
 
 @Injectable()
 export class DashboardService {
@@ -30,6 +36,7 @@ export class DashboardService {
     private readonly userService: UserService,
     private readonly authService: AuthService,
     private readonly logger: CustomLoggerService,
+    private readonly paginationService: PaginationService,
   ) {}
 
   async create(createDashboardDto: CreateDashboardDto, accessToken: number) {
@@ -94,10 +101,14 @@ export class DashboardService {
     return { status: ResponseStatus.SUCCESS, data: newDashboard };
   }
 
-  async findAll(userId: number) {
+  async findAll(
+    userId: number,
+    pagination?: CursorPaginationOptions | OffsetPaginationOptions,
+  ): Promise<PaginatedResponse<any> | any> {
     const findUser = await this.userService.findDashboardId(userId);
     if (!findUser || findUser.length === 0) {
-      return 'not exist user';
+      // 사용자는 존재하지만 대시보드가 없는 경우 빈 배열 반환
+      return { status: ResponseStatus.SUCCESS, data: [] };
     }
     console.log(findUser);
     const findId = findUser.map(el => el['dashboardId']);
@@ -106,19 +117,57 @@ export class DashboardService {
     }
     console.log(findId);
 
-    // N+1 쿼리 문제 해결: In 조건으로 한 번에 조회
-    const find_all = await this.dashboardRepository
+    // 페이지네이션이 없으면 기존 로직 사용 (하위 호환성)
+    if (!pagination) {
+      // N+1 쿼리 문제 해결: In 조건으로 한 번에 조회
+      const find_all = await this.dashboardRepository
+        .createQueryBuilder('dashboard')
+        .where('dashboard.id IN (:...ids)', { ids: findId })
+        .orderBy('dashboard.updatedAt', 'DESC')
+        .addOrderBy('dashboard.title', 'ASC')
+        .getMany();
+
+      find_all.forEach(el => {
+        console.log('adf,', el);
+        el.layout = JSON.parse(el.layout);
+      });
+      return { status: ResponseStatus.SUCCESS, data: find_all };
+    }
+
+    // 페이지네이션 적용
+    const queryBuilder = this.dashboardRepository
       .createQueryBuilder('dashboard')
       .where('dashboard.id IN (:...ids)', { ids: findId })
-      .orderBy('dashboard.updatedAt', 'DESC')
-      .addOrderBy('dashboard.title', 'ASC')
-      .getMany();
+      .select([
+        'dashboard.id',
+        'dashboard.title',
+        'dashboard.layout',
+        'dashboard.shareId',
+        'dashboard.createdAt',
+        'dashboard.updatedAt',
+      ]);
 
-    find_all.forEach(el => {
-      console.log('adf,', el);
-      el.layout = JSON.parse(el.layout);
+    const paginatedResult = await this.paginationService.paginate(queryBuilder, pagination, {
+      alias: 'dashboard',
+      defaultSortField: 'updatedAt',
+      defaultSortDirection: 'DESC',
+      cursorFields: ['updatedAt', 'title'],
+      includeTotalCount: true,
     });
-    return { status: ResponseStatus.SUCCESS, data: find_all };
+
+    // layout 필드 JSON 파싱
+    paginatedResult.data = paginatedResult.data.map(dashboard => {
+      try {
+        if (dashboard.layout) {
+          dashboard.layout = JSON.parse(dashboard.layout);
+        }
+      } catch (error) {
+        dashboard.layout = '[]';
+      }
+      return dashboard;
+    });
+
+    return paginatedResult;
   }
   // 기존 dashboard all
 

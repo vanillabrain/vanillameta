@@ -220,7 +220,10 @@ describe('DashboardService', () => {
 
   describe('findAll', () => {
     it('should return all dashboards for user', async () => {
-      const mockUserMappings = [{ dashboardId: 1 }, { dashboardId: 2 }];
+      const mockUserMappings = [
+        { dashboardId: 1 },
+        { dashboardId: 2 },
+      ];
       const mockDashboards = [
         { ...mockDashboard, id: 1 },
         { ...mockDashboard, id: 2, title: 'Second Dashboard' },
@@ -237,11 +240,9 @@ describe('DashboardService', () => {
       const result = await service.findAll(1);
 
       expect(userService.findDashboardId).toHaveBeenCalledWith(1);
-      if (typeof result === 'object' && 'status' in result) {
-        expect(result.status).toBe(ResponseStatus.SUCCESS);
-        expect(result.data).toHaveLength(2);
-        expect(result.data[0].layout).toEqual([{ i: 'widget1', x: 0, y: 0, w: 4, h: 4 }]);
-      }
+      expect(result.status).toBe(ResponseStatus.SUCCESS);
+      expect(result.data).toHaveLength(2);
+      expect(result.data[0].layout).toEqual([{ i: 'widget1', x: 0, y: 0, w: 4, h: 4 }]);
     });
 
     it('should return error when user not found', async () => {
@@ -264,7 +265,7 @@ describe('DashboardService', () => {
       userService.findDashboardId.mockResolvedValue([{ dashboardId: null }]);
 
       await expect(service.findAll(1)).rejects.toThrow(
-        new HttpException('not found', HttpStatus.NOT_FOUND),
+        new HttpException('not found', HttpStatus.NOT_FOUND)
       );
     });
   });
@@ -285,10 +286,8 @@ describe('DashboardService', () => {
 
       expect(dashboardRepository.findOne).toHaveBeenCalledWith({ where: { id: 1 } });
       expect(dashboardRepository.save).toHaveBeenCalled();
-      if (typeof result === 'object' && 'status' in result) {
-        expect(result.status).toBe(ResponseStatus.SUCCESS);
-        expect(result.data.title).toBe('Updated Dashboard');
-      }
+      expect(result.status).toBe(ResponseStatus.SUCCESS);
+      expect(result.data.title).toBe('Updated Dashboard');
     });
 
     it('should update dashboard layout successfully', async () => {
@@ -309,10 +308,8 @@ describe('DashboardService', () => {
         dashboardId: 1,
         widgetIds: ['widget2'],
       });
-      if (typeof result === 'object' && 'status' in result) {
-        expect(result.status).toBe(ResponseStatus.SUCCESS);
-        expect(result.data.layout).toEqual(newLayout);
-      }
+      expect(result.status).toBe(ResponseStatus.SUCCESS);
+      expect(result.data.layout).toEqual(newLayout);
     });
 
     it('should update both title and layout', async () => {
@@ -330,11 +327,9 @@ describe('DashboardService', () => {
 
       const result = await service.update(1, updateDto);
 
-      if (typeof result === 'object' && 'status' in result) {
-        expect(result.status).toBe(ResponseStatus.SUCCESS);
-        expect(result.data.title).toBe('New Title');
-        expect(result.data.layout).toEqual(newLayout);
-      }
+      expect(result.status).toBe(ResponseStatus.SUCCESS);
+      expect(result.data.title).toBe('New Title');
+      expect(result.data.layout).toEqual(newLayout);
     });
 
     it('should return error when dashboard not found', async () => {
@@ -413,158 +408,8 @@ describe('DashboardService', () => {
         dashboardId: 1,
         widgetIds: [],
       });
-      if (typeof result === 'object' && 'status' in result) {
-        expect(result.status).toBe(ResponseStatus.SUCCESS);
-      }
+      expect(result.status).toBe(ResponseStatus.SUCCESS);
     });
 
     it('should handle large layout data', async () => {
-      const largeLayout = Array.from({ length: 50 }, (_, i) => ({
-        i: `widget${i}`,
-        x: i % 10,
-        y: Math.floor(i / 10),
-        w: 2,
-        h: 2,
-      }));
-      const createDto = {
-        title: 'Large Layout Dashboard',
-        layout: largeLayout,
-      };
-
-      userRepository.findOne.mockResolvedValue(mockUser);
-      dashboardShareRepository.save.mockResolvedValue(mockDashboardShare);
-      dashboardRepository.save.mockResolvedValue({
-        ...mockDashboard,
-        layout: JSON.stringify(largeLayout),
-      });
-      userMappingRepository.save.mockResolvedValue(mockUserMapping);
-      dashboardWidgetService.create.mockResolvedValue({});
-
-      const result = await service.create(createDto, 1);
-
-      if (typeof result === 'object' && 'status' in result) {
-        expect(result.status).toBe(ResponseStatus.SUCCESS);
-        expect(result.data.layout).toEqual(largeLayout);
-      }
-    });
-
-    it('should handle special characters in dashboard title', async () => {
-      const specialTitle = 'Dashboard with 특수문자 & symbols! @#$%';
-      const createDto = {
-        title: specialTitle,
-        layout: [{ i: 'widget1', x: 0, y: 0, w: 4, h: 4 }],
-      };
-
-      userRepository.findOne.mockResolvedValue(mockUser);
-      dashboardShareRepository.save.mockResolvedValue(mockDashboardShare);
-      dashboardRepository.save.mockResolvedValue({
-        ...mockDashboard,
-        title: specialTitle,
-      });
-      userMappingRepository.save.mockResolvedValue(mockUserMapping);
-      dashboardWidgetService.create.mockResolvedValue({});
-
-      const result = await service.create(createDto, 1);
-
-      if (typeof result === 'object' && 'status' in result) {
-        expect(result.status).toBe(ResponseStatus.SUCCESS);
-        expect(result.data.title).toBe(specialTitle);
-      }
-    });
-  });
-
-  describe('Integration Tests', () => {
-    it('should complete full dashboard lifecycle', async () => {
-      // 1. Create dashboard
-      const createDto = {
-        title: 'Lifecycle Test Dashboard',
-        layout: [{ i: 'widget1', x: 0, y: 0, w: 4, h: 4 }],
-      };
-
-      userRepository.findOne.mockResolvedValue(mockUser);
-      dashboardShareRepository.save.mockResolvedValue(mockDashboardShare);
-      dashboardRepository.save.mockResolvedValue(mockDashboard);
-      userMappingRepository.save.mockResolvedValue(mockUserMapping);
-      dashboardWidgetService.create.mockResolvedValue({});
-
-      const createResult = await service.create(createDto, 1);
-      if (typeof createResult === 'object' && 'status' in createResult) {
-        expect(createResult.status).toBe(ResponseStatus.SUCCESS);
-      }
-
-      // 2. Find created dashboard
-      dashboardRepository.findOne.mockResolvedValue({
-        ...mockDashboard,
-        dashboardShare: mockDashboardShare,
-      });
-      dashboardWidgetService.findWidgets.mockResolvedValue([mockWidget]);
-
-      const findResult = await service.findOne(1);
-      expect(findResult.status).toBe(ResponseStatus.SUCCESS);
-      expect(findResult.data.widgets).toHaveLength(1);
-
-      // 3. Update dashboard
-      const updateDto = { title: 'Updated Lifecycle Dashboard' };
-      dashboardRepository.findOne.mockResolvedValue(mockDashboard);
-      dashboardRepository.save.mockResolvedValue({
-        ...mockDashboard,
-        title: 'Updated Lifecycle Dashboard',
-      });
-      dashboardWidgetService.update.mockResolvedValue({});
-
-      const updateResult = await service.update(1, updateDto);
-      if (typeof updateResult === 'object' && 'status' in updateResult) {
-        expect(updateResult.status).toBe(ResponseStatus.SUCCESS);
-        expect(updateResult.data.title).toBe('Updated Lifecycle Dashboard');
-      }
-
-      // 4. Remove dashboard
-      dashboardRepository.findOne.mockResolvedValue(mockDashboard);
-      userMappingRepository.findOne.mockResolvedValue(mockUserMapping);
-      dashboardRepository.delete.mockResolvedValue({ affected: 1 });
-      userMappingRepository.delete.mockResolvedValue({ affected: 1 });
-      dashboardShareRepository.delete.mockResolvedValue({ affected: 1 });
-      dashboardWidgetService.remove.mockResolvedValue({});
-
-      const removeResult = await service.remove(1);
-      expect(removeResult.status).toBe(ResponseStatus.SUCCESS);
-    });
-
-    it('should handle concurrent dashboard operations', async () => {
-      // Simulate concurrent creation of multiple dashboards
-      const createPromises = Array.from({ length: 3 }, (_, i) => {
-        const createDto = {
-          title: `Concurrent Dashboard ${i + 1}`,
-          layout: [{ i: `widget${i + 1}`, x: 0, y: 0, w: 4, h: 4 }],
-        };
-
-        userRepository.findOne.mockResolvedValue(mockUser);
-        dashboardShareRepository.save.mockResolvedValue({
-          ...mockDashboardShare,
-          id: i + 1,
-        });
-        dashboardRepository.save.mockResolvedValue({
-          ...mockDashboard,
-          id: i + 1,
-          title: `Concurrent Dashboard ${i + 1}`,
-        });
-        userMappingRepository.save.mockResolvedValue({
-          ...mockUserMapping,
-          id: i + 1,
-        });
-        dashboardWidgetService.create.mockResolvedValue({});
-
-        return service.create(createDto, 1);
-      });
-
-      const results = await Promise.all(createPromises);
-
-      results.forEach((result, index) => {
-        if (typeof result === 'object' && 'status' in result) {
-          expect(result.status).toBe(ResponseStatus.SUCCESS);
-          expect(result.data.title).toBe(`Concurrent Dashboard ${index + 1}`);
-        }
-      });
-    });
-  });
-});
+      const largeLayout = Array.from({ length: 50 }, (_, i) => ({\n        i: `widget${i}`,\n        x: i % 10,\n        y: Math.floor(i / 10),\n        w: 2,\n        h: 2,\n      }));\n      const createDto = {\n        title: 'Large Layout Dashboard',\n        layout: largeLayout,\n      };\n\n      userRepository.findOne.mockResolvedValue(mockUser);\n      dashboardShareRepository.save.mockResolvedValue(mockDashboardShare);\n      dashboardRepository.save.mockResolvedValue({\n        ...mockDashboard,\n        layout: JSON.stringify(largeLayout),\n      });\n      userMappingRepository.save.mockResolvedValue(mockUserMapping);\n      dashboardWidgetService.create.mockResolvedValue({});\n\n      const result = await service.create(createDto, 1);\n\n      expect(result.status).toBe(ResponseStatus.SUCCESS);\n      expect(result.data.layout).toEqual(largeLayout);\n    });\n\n    it('should handle special characters in dashboard title', async () => {\n      const specialTitle = 'Dashboard with 특수문자 & symbols! @#$%';\n      const createDto = {\n        title: specialTitle,\n        layout: [{ i: 'widget1', x: 0, y: 0, w: 4, h: 4 }],\n      };\n\n      userRepository.findOne.mockResolvedValue(mockUser);\n      dashboardShareRepository.save.mockResolvedValue(mockDashboardShare);\n      dashboardRepository.save.mockResolvedValue({\n        ...mockDashboard,\n        title: specialTitle,\n      });\n      userMappingRepository.save.mockResolvedValue(mockUserMapping);\n      dashboardWidgetService.create.mockResolvedValue({});\n\n      const result = await service.create(createDto, 1);\n\n      expect(result.status).toBe(ResponseStatus.SUCCESS);\n      expect(result.data.title).toBe(specialTitle);\n    });\n  });\n\n  describe('Integration Tests', () => {\n    it('should complete full dashboard lifecycle', async () => {\n      // 1. Create dashboard\n      const createDto = {\n        title: 'Lifecycle Test Dashboard',\n        layout: [{ i: 'widget1', x: 0, y: 0, w: 4, h: 4 }],\n      };\n\n      userRepository.findOne.mockResolvedValue(mockUser);\n      dashboardShareRepository.save.mockResolvedValue(mockDashboardShare);\n      dashboardRepository.save.mockResolvedValue(mockDashboard);\n      userMappingRepository.save.mockResolvedValue(mockUserMapping);\n      dashboardWidgetService.create.mockResolvedValue({});\n\n      const createResult = await service.create(createDto, 1);\n      expect(createResult.status).toBe(ResponseStatus.SUCCESS);\n\n      // 2. Find created dashboard\n      dashboardRepository.findOne.mockResolvedValue({\n        ...mockDashboard,\n        dashboardShare: mockDashboardShare,\n      });\n      dashboardWidgetService.findWidgets.mockResolvedValue([mockWidget]);\n\n      const findResult = await service.findOne(1);\n      expect(findResult.status).toBe(ResponseStatus.SUCCESS);\n      expect(findResult.data.widgets).toHaveLength(1);\n\n      // 3. Update dashboard\n      const updateDto = { title: 'Updated Lifecycle Dashboard' };\n      dashboardRepository.findOne.mockResolvedValue(mockDashboard);\n      dashboardRepository.save.mockResolvedValue({\n        ...mockDashboard,\n        title: 'Updated Lifecycle Dashboard',\n      });\n      dashboardWidgetService.update.mockResolvedValue({});\n\n      const updateResult = await service.update(1, updateDto);\n      expect(updateResult.status).toBe(ResponseStatus.SUCCESS);\n      expect(updateResult.data.title).toBe('Updated Lifecycle Dashboard');\n\n      // 4. Remove dashboard\n      dashboardRepository.findOne.mockResolvedValue(mockDashboard);\n      userMappingRepository.findOne.mockResolvedValue(mockUserMapping);\n      dashboardRepository.delete.mockResolvedValue({ affected: 1 });\n      userMappingRepository.delete.mockResolvedValue({ affected: 1 });\n      dashboardShareRepository.delete.mockResolvedValue({ affected: 1 });\n      dashboardWidgetService.remove.mockResolvedValue({});\n\n      const removeResult = await service.remove(1);\n      expect(removeResult.status).toBe(ResponseStatus.SUCCESS);\n    });\n\n    it('should handle concurrent dashboard operations', async () => {\n      // Simulate concurrent creation of multiple dashboards\n      const createPromises = Array.from({ length: 3 }, (_, i) => {\n        const createDto = {\n          title: `Concurrent Dashboard ${i + 1}`,\n          layout: [{ i: `widget${i + 1}`, x: 0, y: 0, w: 4, h: 4 }],\n        };\n\n        userRepository.findOne.mockResolvedValue(mockUser);\n        dashboardShareRepository.save.mockResolvedValue({\n          ...mockDashboardShare,\n          id: i + 1,\n        });\n        dashboardRepository.save.mockResolvedValue({\n          ...mockDashboard,\n          id: i + 1,\n          title: `Concurrent Dashboard ${i + 1}`,\n        });\n        userMappingRepository.save.mockResolvedValue({\n          ...mockUserMapping,\n          id: i + 1,\n        });\n        dashboardWidgetService.create.mockResolvedValue({});\n\n        return service.create(createDto, 1);\n      });\n\n      const results = await Promise.all(createPromises);\n\n      results.forEach((result, index) => {\n        expect(result.status).toBe(ResponseStatus.SUCCESS);\n        expect(result.data.title).toBe(`Concurrent Dashboard ${index + 1}`);\n      });\n    });\n  });\n});

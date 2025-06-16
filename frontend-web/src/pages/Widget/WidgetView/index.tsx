@@ -54,7 +54,8 @@ const WidgetView = () => {
     showLoading();
     WidgetService.selectWidget(widgetId)
       .then(response => {
-        setWidgetOption(response.data.data);
+        console.log('selectWidget response:', response);
+        setWidgetOption(response.data);
       })
       .finally(() => {
         hideLoading();

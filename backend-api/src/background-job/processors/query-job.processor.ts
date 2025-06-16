@@ -129,16 +129,16 @@ export class QueryJobProcessor {
     jobResult.backgroundJobId = backgroundJobId;
     jobResult.rowCount = Array.isArray(queryResult.datas) ? queryResult.datas.length : 0;
     jobResult.resultSizeBytes = resultSizeBytes;
-    jobResult.resultMetadata = {
+    jobResult.resultMetadata = JSON.stringify({
       columns: queryResult.fields || [],
       executionTime: queryResult.executionTime,
-    };
+    });
 
     // 결과 크기에 따라 저장 전략 결정
     if (resultSizeBytes <= MAX_DB_RESULT_SIZE) {
       // 작은 결과는 DB에 직접 저장
       jobResult.storageType = ResultStorageType.DATABASE;
-      jobResult.resultData = queryResult;
+      jobResult.resultData = JSON.stringify(queryResult);
       jobResult.isCompressed = false;
 
       await job.progress(80);

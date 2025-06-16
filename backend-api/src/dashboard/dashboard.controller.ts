@@ -9,6 +9,7 @@ import {
   UseGuards,
   Req,
   Query,
+  UseInterceptors,
 } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { DashboardService } from './dashboard.service';
@@ -23,6 +24,7 @@ import {
   ApiQuery
 } from '@nestjs/swagger';
 import { FieldSelection } from '../common/field-selection/field-selection.decorator';
+import { Pagination, PaginationInterceptor } from '../common/pagination';
 
 @ApiTags('대시보드')
 @ApiBearerAuth('JWT-auth')
@@ -51,6 +53,7 @@ export class DashboardController {
     return this.dashboardService.create(createDashboardDto, accessKeyData.id);
   }
 
+  @UseInterceptors(PaginationInterceptor)
   @FieldSelection({
     allowedFields: [
       'id',
@@ -85,9 +88,13 @@ export class DashboardController {
     description: '대시보드 목록이 반환되었습니다.',
     type: [CreateDashboardDto]
   })
-  findAll(@Req() req, @Query('fields') fields?: string) {
+  findAll(
+    @Req() req,
+    @Pagination({ preferCursor: true, defaultLimit: 20 }) pagination: any,
+    @Query('fields') fields?: string,
+  ) {
     const { accessKeyData } = req.user;
-    return this.dashboardService.findAll(accessKeyData.id);
+    return this.dashboardService.findAll(accessKeyData.id, pagination);
   }
 
   @FieldSelection({
