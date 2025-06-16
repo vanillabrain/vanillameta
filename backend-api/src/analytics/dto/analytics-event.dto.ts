@@ -1,4 +1,13 @@
-import { IsString, IsOptional, IsObject, IsArray, ValidateNested, IsNumber, IsBoolean, IsEnum } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsObject,
+  IsArray,
+  ValidateNested,
+  IsNumber,
+  IsBoolean,
+  IsEnum,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -19,7 +28,7 @@ export enum EventAction {
   DASHBOARD_DELETED = 'dashboard_deleted',
   DASHBOARD_SHARED = 'dashboard_shared',
   DASHBOARD_DUPLICATED = 'dashboard_duplicated',
-  
+
   // Widget Actions
   WIDGET_CREATED = 'widget_created',
   WIDGET_EDITED = 'widget_edited',
@@ -27,7 +36,7 @@ export enum EventAction {
   WIDGET_RESIZED = 'widget_resized',
   WIDGET_MOVED = 'widget_moved',
   WIDGET_INTERACTED = 'widget_interacted',
-  
+
   // Data Actions
   DATABASE_CONNECTED = 'database_connected',
   DATABASE_DISCONNECTED = 'database_disconnected',
@@ -36,7 +45,7 @@ export enum EventAction {
   QUERY_EXECUTED = 'query_executed',
   QUERY_FAILED = 'query_failed',
   DATA_EXPORTED = 'data_exported',
-  
+
   // User Actions
   USER_REGISTERED = 'user_registered',
   USER_LOGIN = 'user_login',
@@ -45,12 +54,12 @@ export enum EventAction {
   ONBOARDING_COMPLETED = 'onboarding_completed',
   ONBOARDING_SKIPPED = 'onboarding_skipped',
   PROFILE_UPDATED = 'profile_updated',
-  
+
   // Performance Actions
   PAGE_LOAD_TIME = 'page_load_time',
   API_RESPONSE_TIME = 'api_response_time',
   CHART_RENDER_TIME = 'chart_render_time',
-  
+
   // Error Actions
   ERROR_OCCURRED = 'error_occurred',
   ERROR_BOUNDARY_TRIGGERED = 'error_boundary_triggered',
@@ -82,16 +91,16 @@ export class EventDataDto {
 }
 
 export class AnalyticsEventDto {
-  @ApiProperty({ 
+  @ApiProperty({
     description: '이벤트 액션',
-    enum: EventAction 
+    enum: EventAction,
   })
   @IsEnum(EventAction)
   action: EventAction;
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: '이벤트 카테고리',
-    enum: EventCategory 
+    enum: EventCategory,
   })
   @IsEnum(EventCategory)
   category: EventCategory;
@@ -121,9 +130,9 @@ export class EventMetadataDto {
 }
 
 export class CollectEventsDto {
-  @ApiProperty({ 
+  @ApiProperty({
     description: '이벤트 목록',
-    type: [AnalyticsEventDto] 
+    type: [AnalyticsEventDto],
   })
   @IsArray()
   @ValidateNested({ each: true })

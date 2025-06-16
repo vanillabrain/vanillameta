@@ -1,12 +1,4 @@
-import { 
-  Controller, 
-  Post, 
-  Body, 
-  Headers, 
-  UseGuards,
-  HttpCode,
-  HttpStatus 
-} from '@nestjs/common';
+import { Controller, Post, Body, Headers, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiHeader } from '@nestjs/swagger';
 import { AnalyticsService } from './analytics.service';
 import { CollectEventsDto, AnalyticsEventDto } from './dto/analytics-event.dto';
@@ -28,13 +20,13 @@ export class AnalyticsController {
     description: '세션 ID',
     required: true,
   })
-  @ApiResponse({ 
-    status: 204, 
-    description: '이벤트가 성공적으로 수집됨' 
+  @ApiResponse({
+    status: 204,
+    description: '이벤트가 성공적으로 수집됨',
   })
-  @ApiResponse({ 
-    status: 400, 
-    description: '잘못된 이벤트 데이터' 
+  @ApiResponse({
+    status: 400,
+    description: '잘못된 이벤트 데이터',
   })
   async collectEvents(
     @Body() collectEventsDto: CollectEventsDto,
@@ -59,9 +51,9 @@ export class AnalyticsController {
     description: '세션 ID',
     required: true,
   })
-  @ApiResponse({ 
-    status: 204, 
-    description: '이벤트가 성공적으로 수집됨' 
+  @ApiResponse({
+    status: 204,
+    description: '이벤트가 성공적으로 수집됨',
   })
   async collectAnonymousEvents(
     @Body() collectEventsDto: CollectEventsDto,
@@ -80,12 +72,13 @@ export class AnalyticsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '페이지뷰 추적' })
-  @ApiResponse({ 
-    status: 204, 
-    description: '페이지뷰가 기록됨' 
+  @ApiResponse({
+    status: 204,
+    description: '페이지뷰가 기록됨',
   })
   async trackPageView(
-    @Body() pageViewDto: {
+    @Body()
+    pageViewDto: {
       path: string;
       title?: string;
       referrer?: string;
@@ -104,12 +97,13 @@ export class AnalyticsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @AuthPublic()
   @ApiOperation({ summary: '성능 메트릭 수집' })
-  @ApiResponse({ 
-    status: 204, 
-    description: '성능 메트릭이 기록됨' 
+  @ApiResponse({
+    status: 204,
+    description: '성능 메트릭이 기록됨',
   })
   async collectPerformanceMetrics(
-    @Body() metricsDto: {
+    @Body()
+    metricsDto: {
       metrics: Array<{
         name: string;
         value: number;

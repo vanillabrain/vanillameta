@@ -32,7 +32,7 @@ export interface DataSetProps {
   id: number;
   databaseId: number;
   datasetType: 'DATASET';
-  title: string;
+  title?: string;
   query: string;
   createdAt: string;
   updatedAt: string;
@@ -95,9 +95,11 @@ const DataLayout = props => {
     DatabaseService.selectDatabase(databaseId)
       .then(response => {
         console.log('selectDatabase response:', response);
-        if (response.status === STATUS.SUCCESS) {
-          setDatasetList(response.data.datasets || []);
-          setTableList(response.data.tables || []);
+        if (response.status === STATUS.SUCCESS && response.data) {
+          // 백엔드 응답 구조에 맞게 데이터 추출
+          const { datasets = [], tables = [] } = response.data;
+          setDatasetList(datasets);
+          setTableList(tables);
         } else {
           alert.error('데이터베이스 조회에 실패했습니다.\n다시 시도해 주세요.');
           setDatasetList([]);
@@ -138,6 +140,9 @@ const DataLayout = props => {
         console.log('selectData response:', response);
         if (response.status === STATUS.SUCCESS) {
           const rows = response.data?.result?.rows || response.data?.datas || [];
+          // result 안에 rows가 있는 경우와 datas가 직접 있는 경우 모두 처리
+          const resultData = response.data?.result || response.data;
+          const rows = resultData?.rows || resultData?.datas || [];
           setGridData(rows);
           setGridColumns(createColumns(rows));
         }

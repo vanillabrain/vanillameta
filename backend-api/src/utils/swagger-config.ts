@@ -5,13 +5,14 @@ import * as fs from 'fs';
 
 /**
  * VanillaMeta API Swagger 설정
- * 
+ *
  * @param {INestApplication} app
  */
 export function setupSwagger(app: INestApplication): void {
   const options = new DocumentBuilder()
     .setTitle('VanillaMeta API Documentation')
-    .setDescription(`
+    .setDescription(
+      `
       VanillaMeta는 기업용 비즈니스 인텔리전스(BI) 웹 애플리케이션으로, 
       사용자가 코드 작성 없이 다양한 데이터베이스에 연결하여 시각화를 생성하고 
       대시보드를 구축할 수 있습니다.
@@ -35,17 +36,14 @@ export function setupSwagger(app: INestApplication): void {
       ## Rate Limiting
       - 인증된 사용자: 분당 600 요청
       - 익명 사용자: 분당 60 요청
-    `)
-    .setVersion('1.0.0')
-    .setContact(
-      'VanillaMeta Support',
-      'https://vanillameta.com',
-      'support@vanillameta.com'
+    `,
     )
+    .setVersion('1.0.0')
+    .setContact('VanillaMeta Support', 'https://vanillameta.com', 'support@vanillameta.com')
     .setLicense('Commercial', 'https://vanillameta.com/license')
     .addServer(
       process.env.API_URL || 'http://localhost:3005',
-      process.env.NODE_ENV === 'prod' ? 'Production' : 'Development'
+      process.env.NODE_ENV === 'prod' ? 'Production' : 'Development',
     )
     .addBearerAuth(
       {
@@ -73,17 +71,17 @@ export function setupSwagger(app: INestApplication): void {
     .build();
 
   const document = SwaggerModule.createDocument(app, options);
-  
+
   // 필터링 적용 (필요한 경우)
   if (process.env.SWAGGER_FILTER_TAGS === 'true') {
     document.paths = filterDocumentsPathsByTags(document);
   }
-  
+
   // OpenAPI 스펙 파일로 저장 (CI/CD에서 활용)
   if (process.env.NODE_ENV !== 'prod') {
     fs.writeFileSync('./swagger-spec.json', JSON.stringify(document, null, 2));
   }
-  
+
   // Swagger UI 설정
   SwaggerModule.setup('api-docs', app, document, {
     swaggerOptions: {
@@ -127,5 +125,9 @@ export function setupSwagger(app: INestApplication): void {
     res.json(document);
   });
 
-  console.log(`📚 Swagger API Documentation is available at: ${process.env.API_URL || 'http://localhost:3005'}/api-docs`);
+  console.log(
+    `📚 Swagger API Documentation is available at: ${
+      process.env.API_URL || 'http://localhost:3005'
+    }/api-docs`,
+  );
 }

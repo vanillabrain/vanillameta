@@ -130,29 +130,29 @@ export class ConnectionService {
         (one as any).connectionConfig = {};
       }
       const knexConfig = one.connectionConfig;
-      
+
       // client가 없는 경우 engine 값을 사용
       if (!knexConfig['client'] && one.engine) {
         knexConfig['client'] = one.engine;
       }
-      
+
       // SQLite의 경우 client 이름 수정 필요
       if (knexConfig['client'] === 'sqlite') {
         knexConfig['client'] = 'sqlite3';
         // SQLite의 경우 connection 객체가 없으면 기본값 설정
         if (!knexConfig['connection']) {
           knexConfig['connection'] = {
-            filename: knexConfig['filename'] || './demo.db'
+            filename: knexConfig['filename'] || './demo.db',
           };
         }
       }
-      
+
       if (knexConfig['client'] == 'bigquery') {
         knexConfig['client'] = BigQueryClient;
       } else if (knexConfig['client'] == 'snowflake') {
         knexConfig['client'] = SnowflakeDialect;
       }
-      
+
       // 로깅 추가
       this.logger.debug('Creating Knex connection', 'ConnectionService', {
         databaseId: id,
@@ -163,7 +163,7 @@ export class ConnectionService {
         connectionKeys: knexConfig['connection'] ? Object.keys(knexConfig['connection']) : [],
         useNullAsDefault: knexConfig['useNullAsDefault'],
       });
-      
+
       this.addKnex(id, knexConfig as Knex.Config);
     }
     return knexConnections.get(id);
@@ -220,11 +220,12 @@ export class ConnectionService {
         connectionObj = parsedConnectionConfig.connection;
       } else {
         connectionObj = {
-          filename: parsedConnectionConfig.filename || parsedConnectionConfig.database || './demo.db'
+          filename:
+            parsedConnectionConfig.filename || parsedConnectionConfig.database || './demo.db',
         };
       }
     }
-    
+
     const connectionConfig: Knex.Config = {
       client: engine,
       connection: connectionObj,
@@ -298,7 +299,7 @@ export class ConnectionService {
     try {
       let queryRes;
       queryRes = await knex.raw(queryExecuteDto.query);
-      
+
       // bigquery, snowflake
       if (typeof knex.client.config.client === 'function') {
         switch (knex.client.config.client.name) {
@@ -413,7 +414,7 @@ export class ConnectionService {
     } catch (e) {
       const executionTime = Date.now() - startTime;
       resultObj.status = ResponseStatus.ERROR;
-      
+
       if (e.sqlMessage) {
         resultObj.message = e.sqlMessage;
       } else if (e.message) {

@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NestInterceptor,
-  ExecutionContext,
-  CallHandler,
-} from '@nestjs/common';
+import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { BusinessMetricsService } from '../monitoring/business-metrics.service';
@@ -24,7 +19,7 @@ export class QueryPerformanceMetricsInterceptor implements NestInterceptor {
     };
 
     return next.handle().pipe(
-      tap(async (response) => {
+      tap(async response => {
         const duration = Date.now() - queryStartTime;
         const metadata = request.queryMetadata;
 
@@ -70,7 +65,7 @@ export class QueryPerformanceMetricsInterceptor implements NestInterceptor {
    */
   private detectQueryType(query: string): string {
     const normalizedQuery = query.trim().toUpperCase();
-    
+
     if (normalizedQuery.startsWith('SELECT')) {
       if (normalizedQuery.includes('JOIN')) {
         return 'SELECT_JOIN';
@@ -80,11 +75,11 @@ export class QueryPerformanceMetricsInterceptor implements NestInterceptor {
       }
       return 'SELECT_SIMPLE';
     }
-    
+
     if (normalizedQuery.startsWith('INSERT')) return 'INSERT';
     if (normalizedQuery.startsWith('UPDATE')) return 'UPDATE';
     if (normalizedQuery.startsWith('DELETE')) return 'DELETE';
-    
+
     return 'OTHER';
   }
 

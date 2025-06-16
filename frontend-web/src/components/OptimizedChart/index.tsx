@@ -2,9 +2,10 @@ import React, { useRef, useEffect, useCallback, useMemo } from 'react';
 import { useChart } from '@/contexts/ChartContext';
 import { debounce } from 'lodash';
 import * as echarts from 'echarts/core';
+import type { EChartsOption } from 'echarts';
 
 interface OptimizedChartProps {
-  option: echarts.EChartsOption;
+  option: EChartsOption;
   style?: React.CSSProperties;
   className?: string;
   notMerge?: boolean;
@@ -44,7 +45,7 @@ const OptimizedChart: React.FC<OptimizedChartProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const chartInstanceRef = useRef<echarts.ECharts | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
-  const lastOptionRef = useRef<echarts.EChartsOption>({});
+  const lastOptionRef = useRef<EChartsOption>({});
   
   const {
     getChartInstance,
@@ -187,7 +188,7 @@ const OptimizedChart: React.FC<OptimizedChartProps> = ({
         disposeChart(chartId);
       }, 100);
 
-      return () => clearTimeout(timeoutId);
+      clearTimeout(timeoutId);
     };
   }, [disposeChart, chartId]);
 

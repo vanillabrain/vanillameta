@@ -226,9 +226,6 @@ export class DatasetService {
         };
       }
 
-<<<<<<< HEAD
-      // 데이터베이스 연결 정보 조회 - ConnectionService의 getKnex로 연결 확인
-=======
       // 데이터베이스 연결 정보 조회
       const dbConnection = await this.databaseRepository.findOne({
         where: { id: dataset.databaseId },
@@ -241,9 +238,7 @@ export class DatasetService {
       }
 
       const engine = dbConnection.type || 'unknown';
->>>>>>> origin/develop
       const databaseId = dataset.databaseId.toString();
-      const engine = 'unknown'; // 실제 엔진은 캐시 서비스에서 처리
 
       // 강제 새로고침이 아닐 때 캐시 확인
       if (!forceRefresh) {
@@ -312,11 +307,7 @@ export class DatasetService {
       this.customLogger.log('Query executed and cached', 'DatasetService', {
         datasetId: id,
         engine,
-<<<<<<< HEAD
-        dataSize: JSON.stringify(queryResult.datas || {}).length,
-=======
         dataSize: JSON.stringify(queryResult.datas || []).length,
->>>>>>> origin/develop
         responseTime: Date.now() - startTime,
       });
 
@@ -378,21 +369,16 @@ export class DatasetService {
       }
 
       // 해당 데이터셋의 쿼리 기반 캐시 무효화
-<<<<<<< HEAD
-      const engine = 'unknown'; // 실제 엔진은 캐시 서비스에서 처리
-      await this.hybridCache.invalidateByQuery(engine, dataset.query);
-=======
       const dbConnection = await this.databaseRepository.findOne({
         where: { id: dataset.databaseId },
       });
       if (dbConnection) {
         const engine = dbConnection.type || 'unknown';
         await this.hybridCache.invalidateByQuery(engine, dataset.query);
->>>>>>> origin/develop
+      }
 
       this.customLogger.info('Dataset cache invalidated', 'DatasetService', {
         datasetId: id,
-        engine,
       });
     } catch (error) {
       this.logger.error('Failed to invalidate dataset cache:', error);

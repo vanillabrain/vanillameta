@@ -372,6 +372,24 @@ export class MemoryMonitorService {
   }
 
   /**
+   * 메모리 사용 통계 반환 (getMemoryStats 별칭)
+   */
+  public getMemoryStats() {
+    const memUsage = process.memoryUsage();
+    const totalMemory = 3072 * 1024 * 1024; // 3GB Lambda 최대 메모리
+    
+    return {
+      heapUsed: memUsage.heapUsed,
+      heapTotal: memUsage.heapTotal,
+      rss: memUsage.rss,
+      external: memUsage.external,
+      arrayBuffers: memUsage.arrayBuffers,
+      percentUsed: (memUsage.rss / totalMemory) * 100,
+      available: totalMemory - memUsage.rss,
+    };
+  }
+
+  /**
    * 메모리 사용 통계 반환
    */
   public getMemoryStatistics() {

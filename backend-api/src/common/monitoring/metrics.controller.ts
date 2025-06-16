@@ -1,6 +1,6 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { BusinessMetricsService } from './business-metrics.service';
 import { CloudWatchMetricsService } from './cloudwatch-metrics.service';
 import { MemoryMonitorService } from './memory-monitor.service';
@@ -129,7 +129,7 @@ export class MetricsController {
     // Lambda 초기화 시 호출되는 엔드포인트
     const isColdStart = !global.isWarmStart;
     await this.businessMetrics.recordLambdaColdStart(isColdStart);
-    
+
     // 웜 스타트 플래그 설정
     global.isWarmStart = true;
 

@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NestInterceptor,
-  ExecutionContext,
-  CallHandler,
-} from '@nestjs/common';
+import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { CloudWatchMetricsService } from '../monitoring/cloudwatch-metrics.service';
@@ -39,11 +34,7 @@ export class ResponseTimeInterceptor implements NestInterceptor {
           );
 
           // API 가용성 메트릭
-          await this.businessMetrics.recordApiAvailability(
-            path,
-            method,
-            statusCode,
-          );
+          await this.businessMetrics.recordApiAvailability(path, method, statusCode);
 
           // 사용자 활동 추적 (인증된 요청만)
           if (request.user?.id) {

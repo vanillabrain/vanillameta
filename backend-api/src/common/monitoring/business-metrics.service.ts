@@ -107,13 +107,9 @@ export class BusinessMetricsService {
   /**
    * API 가용성 메트릭 계산 및 전송
    */
-  async recordApiAvailability(
-    endpoint: string,
-    method: string,
-    statusCode: number,
-  ): Promise<void> {
+  async recordApiAvailability(endpoint: string, method: string, statusCode: number): Promise<void> {
     const isSuccess = statusCode >= 200 && statusCode < 400;
-    
+
     // 성공/실패 카운트
     await this.cloudWatchMetrics.putMetric(
       isSuccess ? 'ApiSuccessCount' : 'ApiFailureCount',
@@ -191,13 +187,13 @@ export class BusinessMetricsService {
   async calculateAndSendDAU(): Promise<void> {
     try {
       const dauCount = this.dailyActiveUsers.size;
-      
+
       await this.cloudWatchMetrics.putMetric('DailyActiveUsers', dauCount, 'Count', [
         { Name: 'MetricType', Value: 'DAU' },
       ]);
 
       this.logger.log(`DAU calculated and sent: ${dauCount} users`);
-      
+
       // 다음 날을 위해 리셋
       this.dailyActiveUsers.clear();
     } catch (error) {
@@ -212,7 +208,7 @@ export class BusinessMetricsService {
   async calculateAndSendHAU(): Promise<void> {
     try {
       const hauCount = this.dailyActiveUsers.size;
-      
+
       await this.cloudWatchMetrics.putMetric('HourlyActiveUsers', hauCount, 'Count', [
         { Name: 'MetricType', Value: 'HAU' },
       ]);
@@ -231,7 +227,10 @@ export class BusinessMetricsService {
       const dashboardStats = await this.dashboardRepository
         .createQueryBuilder('dashboard')
         .select('COUNT(*)', 'total')
-        .addSelect('SUM(CASE WHEN dashboard.createdAt > DATE_SUB(NOW(), INTERVAL 24 HOUR) THEN 1 ELSE 0 END)', 'daily')
+        .addSelect(
+          'SUM(CASE WHEN dashboard.createdAt > DATE_SUB(NOW(), INTERVAL 24 HOUR) THEN 1 ELSE 0 END)',
+          'daily',
+        )
         .getRawOne();
 
       await this.cloudWatchMetrics.putMetric(
@@ -259,15 +258,15 @@ export class BusinessMetricsService {
       const queryStats = await this.tableQueryRepository
         .createQueryBuilder('query')
         .select('COUNT(*)', 'total')
-        .addSelect('AVG(CASE WHEN query.createdAt > DATE_SUB(NOW(), INTERVAL 1 HOUR) THEN 1 ELSE 0 END)', 'hourlyRate')
+        .addSelect(
+          'AVG(CASE WHEN query.createdAt > DATE_SUB(NOW(), INTERVAL 1 HOUR) THEN 1 ELSE 0 END)',
+          'hourlyRate',
+        )
         .getRawOne();
 
-      await this.cloudWatchMetrics.putMetric(
-        'TotalQueries',
-        parseInt(queryStats.total),
-        'Count',
-        [{ Name: 'MetricType', Value: 'Total' }],
-      );
+      await this.cloudWatchMetrics.putMetric('TotalQueries', parseInt(queryStats.total), 'Count', [
+        { Name: 'MetricType', Value: 'Total' },
+      ]);
 
       this.logger.debug('Business metrics summary collected');
     } catch (error) {
@@ -284,7 +283,7 @@ export class BusinessMetricsService {
       // 이 메서드는 CloudWatch Metrics Math를 사용하여
       // 대시보드에서 계산되는 것이 더 효율적이지만,
       // 여기서는 주요 SLI를 추적하기 위한 플래그만 전송
-      
+
       await this.cloudWatchMetrics.putMetric('SLICalculationRun', 1, 'Count', [
         { Name: 'Type', Value: 'Availability' },
       ]);

@@ -26,7 +26,8 @@ export async function seedDemoData(dataSource: DataSource) {
       demoUser = await userRepo.save({
         userId: 'guest',
         email: 'guest',
-        password: '0258acb251701900c2abcde987033e032838df1eb39f10bfb9e9f6398866b13acb104f00485b92b11db90544744280626980c3888b9ba98ea8f319f9747d051e', // Admin!@12 (SHA512)
+        password:
+          '0258acb251701900c2abcde987033e032838df1eb39f10bfb9e9f6398866b13acb104f00485b92b11db90544744280626980c3888b9ba98ea8f319f9747d051e', // Admin!@12 (SHA512)
       });
       console.log('✅ Demo user created');
     }
@@ -57,9 +58,9 @@ export async function seedDemoData(dataSource: DataSource) {
         connectionConfig: JSON.stringify({
           client: 'sqlite',
           connection: {
-            filename: './demo.db'
+            filename: './demo.db',
           },
-          useNullAsDefault: true
+          useNullAsDefault: true,
         }),
         engine: 'sqlite',
         type: 'sqlite',

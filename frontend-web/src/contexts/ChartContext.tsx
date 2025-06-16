@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useRef, useCallback, useEffect } from 'react';
 import * as echarts from 'echarts/core';
+import type { EChartsOption } from 'echarts';
 
 interface ChartInstance {
   id: string;
@@ -13,7 +14,7 @@ interface ChartContextType {
   releaseChartInstance: (containerId: string) => void;
   updateChartOptions: (
     containerId: string, 
-    options: echarts.EChartsOption, 
+    options: EChartsOption, 
     notMerge?: boolean,
     lazyUpdate?: boolean
   ) => void;
@@ -89,7 +90,6 @@ export const ChartProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const instance = echarts.init(container, undefined, {
         renderer: options.renderer || 'canvas', // Canvas가 일반적으로 더 빠름
         useDirtyRect: true, // 부분 렌더링 최적화
-        useCoarsePointer: true, // 터치 기기 최적화
       });
 
       const newChartInstance: ChartInstance = {
@@ -120,7 +120,7 @@ export const ChartProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const updateChartOptions = useCallback((
     containerId: string,
-    options: echarts.EChartsOption,
+    options: EChartsOption,
     notMerge: boolean = false,
     lazyUpdate: boolean = false
   ) => {

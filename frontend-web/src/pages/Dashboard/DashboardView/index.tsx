@@ -74,7 +74,17 @@ const DashboardView = () => {
       .then(response => {
         console.log('selectDashboard response:', response);
         if (response.status === STATUS.SUCCESS) {
-          setDashboardInfo(response.data);
+          const dashboard = response.data.dashboard;
+          const widgets = response.data.widgets || [];
+          setDashboardInfo({
+            title: dashboard.title,
+            widgets: widgets,
+            layout: JSON.parse(dashboard.layout || '[]'),
+            updatedAt: dashboard.updatedAt,
+            shareYn: dashboard.shareYn,
+            uuid: dashboard.uuid,
+            endDate: dashboard.endDate
+          });
         } else {
           alert.error(response.message || '대시보드 조회에 실패했습니다.\n다시 시도해 주세요.');
         }
@@ -145,8 +155,7 @@ const DashboardView = () => {
 
   const handleShareToggle = () => {
     const data = {
-      userId: userState.userId,
-      endDate: shareLimitDate,
+      expiredAt: shareLimitDate,
     };
     if (!isShareOn) {
       // 공유 off에서 on으로 변경
@@ -159,7 +168,7 @@ const DashboardView = () => {
         .onShareToken(dashboardId, data)
         .then(response => {
           console.log('buttonOn', response);
-          if (response.status === 201) {
+          if (response.status === STATUS.SUCCESS) {
             setIsShareOn(true);
           }
         })
@@ -171,10 +180,10 @@ const DashboardView = () => {
         });
     } else {
       shareService
-        .offShareToken(dashboardId, data)
+        .offShareToken(dashboardId, {})
         .then(response => {
           console.log('buttonOff', response);
-          if (response.status === 201) {
+          if (response.status === STATUS.SUCCESS) {
             setIsShareOn(false);
             setShareLimitDate(null);
           }

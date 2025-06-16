@@ -7,7 +7,7 @@ export class CreateWidgetDto {
   @ApiProperty({
     description: '위젯 제목',
     example: '월별 매출 추이',
-    required: false
+    required: false,
   })
   @IsString()
   @IsOptional()
@@ -16,7 +16,7 @@ export class CreateWidgetDto {
   @ApiProperty({
     description: '위젯 설명',
     example: '2024년 월별 매출 추이를 보여주는 차트',
-    required: false
+    required: false,
   })
   @IsString()
   @IsOptional()
@@ -26,7 +26,7 @@ export class CreateWidgetDto {
     description: '데이터베이스 ID (직접 연결 시 사용)',
     example: 1,
     type: Number,
-    required: false
+    required: false,
   })
   @IsNumber()
   @IsOptional()
@@ -36,7 +36,7 @@ export class CreateWidgetDto {
     description: '컴포넌트 ID (차트 타입)',
     example: 1,
     type: Number,
-    required: true
+    required: true,
   })
   @IsNumber()
   @IsNotEmpty()
@@ -46,7 +46,7 @@ export class CreateWidgetDto {
     description: '데이터셋 타입',
     enum: DatasetType,
     example: DatasetType.DATASET,
-    required: true
+    required: true,
   })
   @IsString()
   @IsNotEmpty()
@@ -56,7 +56,7 @@ export class CreateWidgetDto {
     description: '데이터셋 ID',
     example: 1,
     type: Number,
-    required: true
+    required: true,
   })
   @IsNumber()
   @IsNotEmpty()
@@ -65,7 +65,7 @@ export class CreateWidgetDto {
   @ApiProperty({
     description: '테이블 이름 (직접 연결 시 사용)',
     example: 'sales_data',
-    required: false
+    required: false,
   })
   @IsString()
   @IsOptional()
@@ -74,7 +74,7 @@ export class CreateWidgetDto {
   @ApiProperty({
     description: '차트 옵션 (ECharts 옵션 JSON 문자열)',
     example: '{"xAxis": {"type": "category"}, "yAxis": {"type": "value"}}',
-    required: true
+    required: true,
   })
   @IsString()
   @IsNotEmpty()
@@ -84,7 +84,7 @@ export class CreateWidgetDto {
     description: '삭제 여부',
     enum: ['Y', 'N'],
     default: 'N',
-    required: false
+    required: false,
   })
   @IsString()
   @IsOptional()

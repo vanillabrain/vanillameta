@@ -18,7 +18,7 @@ export class CloudWatchMetricsService {
   constructor(private readonly configService: ConfigService) {
     this.environment = this.configService.get('NODE_ENV') || 'dev';
     this.namespace = `VanillaMeta/${this.environment}`;
-    
+
     // CloudWatch 클라이언트 초기화
     this.cloudWatch = new CloudWatch({
       region: this.configService.get('AWS_REGION') || 'ap-northeast-2',
@@ -207,13 +207,10 @@ export class CloudWatchMetricsService {
     jobType: string,
     status: 'queued' | 'processed' | 'failed',
   ): Promise<void> {
-    const metricName = 
-      status === 'queued' ? 'JobsQueued' :
-      status === 'processed' ? 'JobsProcessed' : 'JobsFailed';
+    const metricName =
+      status === 'queued' ? 'JobsQueued' : status === 'processed' ? 'JobsProcessed' : 'JobsFailed';
 
-    await this.putMetric(metricName, 1, 'Count', [
-      { Name: 'JobType', Value: jobType },
-    ]);
+    await this.putMetric(metricName, 1, 'Count', [{ Name: 'JobType', Value: jobType }]);
   }
 
   /**
@@ -238,8 +235,9 @@ export class CloudWatchMetricsService {
     ]);
 
     const totalConnections = activeConnections + idleConnections;
-    const utilizationPercent = totalConnections > 0 ? (activeConnections / totalConnections) * 100 : 0;
-    
+    const utilizationPercent =
+      totalConnections > 0 ? (activeConnections / totalConnections) * 100 : 0;
+
     await this.putMetric('DBConnectionUtilization', utilizationPercent, 'Percent', [
       { Name: 'DatabaseId', Value: databaseId },
     ]);
@@ -274,20 +272,14 @@ export class CloudWatchMetricsService {
   /**
    * 사용자 활동 메트릭
    */
-  async recordUserActivity(
-    userId: string,
-    action: string,
-    resourceType: string,
-  ): Promise<void> {
+  async recordUserActivity(userId: string, action: string, resourceType: string): Promise<void> {
     await this.putMetric('UserActivity', 1, 'Count', [
       { Name: 'Action', Value: action },
       { Name: 'ResourceType', Value: resourceType },
     ]);
 
     // 고유 활성 사용자 추적 (HyperLogLog 등 확률적 자료구조 대신 간단히 카운트)
-    await this.putMetric('ActiveUsers', 1, 'Count', [
-      { Name: 'UserId', Value: userId },
-    ]);
+    await this.putMetric('ActiveUsers', 1, 'Count', [{ Name: 'UserId', Value: userId }]);
   }
 
   /**
@@ -298,11 +290,12 @@ export class CloudWatchMetricsService {
     try {
       // CPU 사용률 (Lambda에서는 제한적)
       const cpus = os.cpus();
-      const cpuUsage = cpus.reduce((acc, cpu) => {
-        const total = Object.values(cpu.times).reduce((a, b) => a + b);
-        const idle = cpu.times.idle;
-        return acc + ((total - idle) / total) * 100;
-      }, 0) / cpus.length;
+      const cpuUsage =
+        cpus.reduce((acc, cpu) => {
+          const total = Object.values(cpu.times).reduce((a, b) => a + b);
+          const idle = cpu.times.idle;
+          return acc + ((total - idle) / total) * 100;
+        }, 0) / cpus.length;
 
       await this.putMetric('SystemCPUPercent', cpuUsage, 'Percent', [
         { Name: 'Function', Value: 'backend-api' },
@@ -311,7 +304,7 @@ export class CloudWatchMetricsService {
       // 파일 디스크립터 (열린 파일 수)
       const openHandles = (process as any)._getActiveHandles().length;
       const openRequests = (process as any)._getActiveRequests().length;
-      
+
       await this.putMetric('OpenHandles', openHandles, 'Count', [
         { Name: 'Function', Value: 'backend-api' },
       ]);

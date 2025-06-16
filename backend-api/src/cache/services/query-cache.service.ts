@@ -1,6 +1,6 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { Cache } from 'cache-manager';
+// import { CACHE_MANAGER } from '@nestjs/cache-manager';
+// import { Cache } from 'cache-manager';
 import { createHash } from 'crypto';
 import { QueryExecuteDto } from '../../database/dto/query-execute.dto';
 import { ResponseStatus } from '../../common/enum/response-status.enum';
@@ -53,7 +53,7 @@ export class QueryCacheService {
   };
 
   constructor(
-    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    @Inject('CACHE_MANAGER') private cacheManager: any,
     private readonly statisticsService: CacheStatisticsService,
   ) {}
 
@@ -66,7 +66,7 @@ export class QueryCacheService {
   ): Promise<QueryCacheResult | null> {
     try {
       const cacheKey = this.generateCacheKey(queryExecuteDto, userId);
-      const cachedResult = await this.cacheManager.get<QueryCacheResult>(cacheKey);
+      const cachedResult = await this.cacheManager.get(cacheKey);
 
       if (cachedResult) {
         // 캐시 히트 통계 기록

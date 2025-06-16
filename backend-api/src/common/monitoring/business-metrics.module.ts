@@ -8,9 +8,7 @@ import { Widget } from '../../widget/entities/widget.entity';
 import { TableQuery } from '../../widget/table-query/entity/table-query.entity';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([User, Dashboard, Widget, TableQuery]),
-  ],
+  imports: [TypeOrmModule.forFeature([User, Dashboard, Widget, TableQuery])],
   providers: [BusinessMetricsService, CloudWatchMetricsService],
   exports: [BusinessMetricsService],
 })

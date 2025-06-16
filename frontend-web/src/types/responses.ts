@@ -32,7 +32,16 @@ export interface DatabaseListResponse {
 }
 
 export interface DatabaseDetailResponse {
-  database: Database;
+  databaseInfo: Database;
+  tables: Array<{
+    id: string;
+    tableName: string;
+    databaseId: number;
+    datasetType: 'TABLE';
+  }>;
+  datasets: Array<Dataset & {
+    datasetType: 'DATASET';
+  }>;
 }
 
 export interface DatabaseTypeListResponse {

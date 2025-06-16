@@ -3,11 +3,11 @@ import { EventBridge } from 'aws-sdk';
 import { CloudWatchMetricsService } from '../common/monitoring/cloudwatch-metrics.service';
 import { CustomLoggerService } from '../common/logger/logger.service';
 import { BusinessMetricsService } from '../common/monitoring/business-metrics.service';
-import { 
-  CollectEventsDto, 
-  AnalyticsEventDto, 
-  EventAction, 
-  EventCategory 
+import {
+  CollectEventsDto,
+  AnalyticsEventDto,
+  EventAction,
+  EventCategory,
 } from './dto/analytics-event.dto';
 
 interface EnrichedEvent extends AnalyticsEventDto {
@@ -48,23 +48,27 @@ export class AnalyticsService {
   /**
    * 이벤트 수집
    */
-  async collectEvents(params: CollectEventsDto & {
-    sessionId: string;
-    correlationId?: string;
-    userId?: string;
-    isAnonymous?: boolean;
-  }): Promise<void> {
+  async collectEvents(
+    params: CollectEventsDto & {
+      sessionId: string;
+      correlationId?: string;
+      userId?: string;
+      isAnonymous?: boolean;
+    },
+  ): Promise<void> {
     const { events, metadata, sessionId, correlationId, userId, isAnonymous } = params;
-    
+
     try {
       // 이벤트 검증 및 보강
-      const enrichedEvents = events.map(event => this.enrichEvent(event, {
-        sessionId,
-        correlationId,
-        userId,
-        isAnonymous,
-        metadata,
-      }));
+      const enrichedEvents = events.map(event =>
+        this.enrichEvent(event, {
+          sessionId,
+          correlationId,
+          userId,
+          isAnonymous,
+          metadata,
+        }),
+      );
 
       // 버퍼에 추가
       this.eventBuffer.push(...enrichedEvents);
@@ -172,14 +176,14 @@ export class AnalyticsService {
    * 이벤트 보강
    */
   private enrichEvent(
-    event: AnalyticsEventDto, 
+    event: AnalyticsEventDto,
     context: {
       sessionId: string;
       correlationId?: string;
       userId?: string;
       isAnonymous?: boolean;
       metadata?: any;
-    }
+    },
   ): EnrichedEvent {
     return {
       ...event,
@@ -212,23 +216,17 @@ export class AnalyticsService {
 
       // CloudWatch 메트릭 전송
       for (const [category, count] of categoryCounts) {
-        await this.cloudWatchMetrics.putMetric(
-          'UserEvents',
-          count,
-          'Count',
-          [{ Name: 'Category', Value: category }],
-        );
+        await this.cloudWatchMetrics.putMetric('UserEvents', count, 'Count', [
+          { Name: 'Category', Value: category },
+        ]);
       }
 
       // 활성 사용자 추적
       const uniqueUsers = new Set(events.filter(e => e.userId).map(e => e.userId));
       if (uniqueUsers.size > 0) {
-        await this.cloudWatchMetrics.putMetric(
-          'ActiveUsers',
-          uniqueUsers.size,
-          'Count',
-          [{ Name: 'Type', Value: 'Realtime' }],
-        );
+        await this.cloudWatchMetrics.putMetric('ActiveUsers', uniqueUsers.size, 'Count', [
+          { Name: 'Type', Value: 'Realtime' },
+        ]);
       }
     } catch (error) {
       this.logger.error('Failed to update real-time metrics:', error);
@@ -331,10 +329,10 @@ export class AnalyticsService {
    */
   private async sendToEventBridge(events: EnrichedEvent[]): Promise<void> {
     const eventBusName = process.env.EVENT_BUS_NAME || 'default';
-    
+
     // EventBridge는 한 번에 10개 이벤트만 전송 가능
     const chunks = this.chunkArray(events, 10);
-    
+
     for (const chunk of chunks) {
       const entries = chunk.map(event => ({
         Source: 'vanillameta.analytics',
@@ -348,7 +346,7 @@ export class AnalyticsService {
 
       try {
         const result = await this.eventBridge.putEvents({ Entries: entries }).promise();
-        
+
         if (result.FailedEntryCount && result.FailedEntryCount > 0) {
           this.logger.error('Some events failed to send to EventBridge:', result.Entries);
         }
@@ -386,7 +384,7 @@ export class AnalyticsService {
     if (this.flushTimer) {
       clearInterval(this.flushTimer);
     }
-    
+
     // 남은 이벤트 플러시
     await this.flushEvents();
   }
