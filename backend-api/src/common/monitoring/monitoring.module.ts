@@ -13,7 +13,6 @@ import { SlowQueryMonitorController } from './slow-query-monitor.controller';
 import { SlowQueryLog } from './entities/slow-query-log.entity';
 import { SlowQueryInterceptor } from '../interceptors/slow-query.interceptor';
 import { QueryOptimizationService } from './query-optimization.service';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { Dashboard } from '../../dashboard/entities/dashboard.entity';
 import { Widget } from '../../widget/entities/widget.entity';
 import { Dataset } from '../../dataset/entities/dataset.entity';

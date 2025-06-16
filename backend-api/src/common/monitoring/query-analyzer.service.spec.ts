@@ -32,7 +32,7 @@ describe('QueryAnalyzerService', () => {
 
     mockDatabaseRepository = {
       findOne: jest.fn(),
-    };
+    } as any;
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -184,7 +184,7 @@ describe('QueryAnalyzerService', () => {
         connectionConfig: JSON.stringify({ host: 'localhost' }),
       };
 
-      mockDatabaseRepository.findOne.mockResolvedValueOnce(database);
+      (mockDatabaseRepository.findOne as jest.Mock).mockResolvedValueOnce(database);
 
       const explainResult = {
         rows: [
@@ -223,7 +223,7 @@ describe('QueryAnalyzerService', () => {
         connectionConfig: JSON.stringify({ host: 'localhost' }),
       };
 
-      mockDatabaseRepository.findOne.mockResolvedValueOnce(database);
+      (mockDatabaseRepository.findOne as jest.Mock).mockResolvedValueOnce(database);
 
       const explainResult = [
         [
