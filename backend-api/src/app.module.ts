@@ -26,6 +26,7 @@ import { CacheModule } from './common/optimization/cache.module';
 import { BackgroundJobModule } from './background-job/background-job.module';
 import { MemoryMonitorModule } from './common/monitoring/memory-monitor.module';
 import { MemoryMonitorMiddleware } from './common/monitoring/memory-monitor.middleware';
+import { ResponseTimeInterceptor } from './common/interceptors/response-time.interceptor';
 
 @Module({
   imports: [
@@ -91,7 +92,13 @@ import { MemoryMonitorMiddleware } from './common/monitoring/memory-monitor.midd
     MemoryMonitorModule,
   ],
   controllers: [AppController, TestCompressionController, TestFieldSelectionController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: 'APP_INTERCEPTOR',
+      useClass: ResponseTimeInterceptor,
+    },
+  ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

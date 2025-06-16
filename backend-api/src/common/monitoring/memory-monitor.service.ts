@@ -16,6 +16,15 @@ interface StreamProcessingOptions {
   objectMode?: boolean;
 }
 
+interface MemoryStats {
+  heapUsed: number;
+  heapTotal: number;
+  external: number;
+  rss: number;
+  arrayBuffers: number;
+  utilizationPercent: number;
+}
+
 @Injectable()
 export class MemoryMonitorService {
   private readonly logger = new Logger(MemoryMonitorService.name);
@@ -395,6 +404,84 @@ export class MemoryMonitorService {
       recommendations: this.getOptimizationRecommendations(),
     };
   }
+
+  /**
+   * 현재 메모리 상태 조회 (메트릭용)
+   */
+  getCurrentMemoryStats(): MemoryStats {
+    const usage = process.memoryUsage();
+    const maxMemory = this.getMaxMemory();
+    const utilizationPercent = (usage.heapUsed / maxMemory) * 100;
+
+    return {
+      heapUsed: usage.heapUsed,
+      heapTotal: usage.heapTotal,
+      external: usage.external,
+      rss: usage.rss,
+      arrayBuffers: usage.arrayBuffers || 0,
+      utilizationPercent,
+    };
+  }
+
+  /**
+   * 메모리 사용률 히스토리 조회
+   */
+  private memoryHistory: MemoryStats[] = [];
+  private readonly maxHistorySize = 60;
+
+  getMemoryHistory(): MemoryStats[] {
+    return [...this.memoryHistory];
+  }
+
+  /**
+   * 메모리 사용률 임계값 체크
+   */
+  checkMemoryThreshold(): { isWarning: boolean; isCritical: boolean; stats: MemoryStats } {
+    const stats = this.getCurrentMemoryStats();
+    
+    return {
+      isWarning: stats.utilizationPercent > 75,
+      isCritical: stats.utilizationPercent > 85,
+      stats,
+    };
+  }
+
+  /**
+   * 메모리 누수 감지
+   */
+  detectMemoryLeak(): { isLeaking: boolean; trend: number } {
+    if (this.memoryHistory.length < 10) {
+      return { isLeaking: false, trend: 0 };
+    }
+
+    const recentSamples = this.memoryHistory.slice(-10);
+    const firstSample = recentSamples[0];
+    const lastSample = recentSamples[recentSamples.length - 1];
+    
+    const trend = ((lastSample.heapUsed - firstSample.heapUsed) / firstSample.heapUsed) * 100;
+    const isLeaking = trend > 20;
+
+    if (isLeaking) {
+      this.logger.warn('Potential memory leak detected', {
+        trend: trend.toFixed(2) + '%',
+        initialMemory: this.formatBytes(firstSample.heapUsed),
+        currentMemory: this.formatBytes(lastSample.heapUsed),
+      });
+    }
+
+    return { isLeaking, trend };
+  }
+
+  /**
+   * Lambda 최대 메모리 가져오기
+   */
+  private getMaxMemory(): number {
+    const lambdaMemory = process.env.AWS_LAMBDA_FUNCTION_MEMORY_SIZE;
+    if (lambdaMemory) {
+      return parseInt(lambdaMemory, 10) * 1024 * 1024;
+    }
+    return require('os').totalmem() * 0.75;
+  }
 }
 
 interface StreamMetadata {
@@ -402,3 +489,5 @@ interface StreamMetadata {
   type: string;
   highWaterMark: number;
 }
+
+// 메트릭 수집을 위한 추가 메서드들
