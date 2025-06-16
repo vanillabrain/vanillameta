@@ -17,6 +17,7 @@ import { DatabaseOptimizerFactory } from './database-optimizers/database-optimiz
 import { REQUEST } from '@nestjs/core';
 import { Request } from 'express';
 import { Transform, Readable, PassThrough } from 'stream';
+import { getDatabaseSpecificConfig } from './database-specific.config';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { BigQueryClient } = require('knex-bigquery');
@@ -46,20 +47,75 @@ export class ConnectionService {
       const environment = process.env.NODE_ENV || 'dev';
       const databaseType = typeof options.client === 'string' ? options.client : 'unknown';
 
-      // 데이터베이스별 최적화 적용
-      const optimizedOptions = this.databaseOptimizerFactory.getOptimizedConnectionConfig(
-        databaseType,
-        options.connection || {},
-        environment,
-      );
+      // 데이터베이스별 특화 설정 적용
+      const dbSpecificConfig = getDatabaseSpecificConfig(databaseType);
+      const optimizer = this.databaseOptimizerFactory.getOptimizer(databaseType);
 
-      // 기존 옵션과 최적화된 설정 병합
-      const finalOptions: Knex.Config = {
+      // 기본 최적화된 설정 + DB별 특화 설정 결합
+      let optimizedOptions: Knex.Config = {
         ...options,
-        ...optimizedOptions,
-        // 원본 클라이언트 설정 유지 (BigQuery, Snowflake 등의 특수 케이스)
-        client: options.client,
+        pool: {
+          min: 0, // Lambda에서는 0으로 시작
+          max: parseInt(process.env.KNEX_POOL_MAX) || 3, // 기본값
+          createTimeoutMillis: 30000,
+          acquireTimeoutMillis: 30000,
+          idleTimeoutMillis: 30000,
+          reapIntervalMillis: 1000,
+          createRetryIntervalMillis: 100,
+          propagateCreateError: false,
+        },
+        acquireConnectionTimeout: 30000,
       };
+
+      // DB별 특화 설정이 있으면 적용
+      if (dbSpecificConfig) {
+        optimizedOptions = {
+          ...optimizedOptions,
+          ...dbSpecificConfig.connectionConfig,
+          // 연결 풀 설정 병합
+          pool: {
+            ...optimizedOptions.pool,
+            ...dbSpecificConfig.connectionConfig.pool,
+            // Lambda 환경에서는 최대 연결 수 제한
+            max: Math.min(
+              dbSpecificConfig.performanceSettings.maxConnections,
+              parseInt(process.env.KNEX_POOL_MAX) || 3
+            ),
+          },
+          // 연결 설정 병합
+          connection: {
+            ...((options.connection as any) || {}),
+            ...((dbSpecificConfig.connectionConfig.connection as any) || {}),
+          },
+        };
+
+        this.logger.info(
+          'Applied database-specific optimizations',
+          'ConnectionService',
+          {
+            databaseId: id,
+            databaseType,
+            batchSize: dbSpecificConfig.performanceSettings.batchSize,
+            maxConnections: dbSpecificConfig.performanceSettings.maxConnections,
+            features: dbSpecificConfig.features,
+          },
+        );
+      }
+
+      // 옵티마이저를 통한 추가 최적화
+      if (optimizer) {
+        optimizedOptions = optimizer.getOptimizedConnectionConfig(optimizedOptions);
+        
+        this.logger.info(
+          'Applied optimizer-specific configurations',
+          'ConnectionService',
+          {
+            databaseId: id,
+            optimizerType: optimizer.databaseType,
+            batchSize: optimizer.getBatchSize(),
+          },
+        );
+      }
 
       this.logger.info(
         'Creating Knex connection with database-specific optimizations',
@@ -70,11 +126,13 @@ export class ConnectionService {
           environment,
           client: options.client,
           optimized: this.databaseOptimizerFactory.isSupported(databaseType),
-          poolSettings: finalOptions.pool,
+          poolSettings: optimizedOptions.pool,
+          hasOptimizer: !!optimizer,
+          hasDbSpecificConfig: !!dbSpecificConfig,
         },
       );
 
-      knexConnections.set(id, knex(finalOptions));
+      knexConnections.set(id, knex(optimizedOptions));
 
       // 최적화 통계 로깅
       const stats = this.databaseOptimizerFactory.getOptimizationStats();
@@ -281,6 +339,11 @@ export class ConnectionService {
 
     const knex = await this.getKnex(queryExecuteDto.id);
 
+    // 데이터베이스별 최적화 적용
+    const databaseType = knex.client.config.client;
+    const optimizer = this.databaseOptimizerFactory.getOptimizer(databaseType);
+    const dbSpecificConfig = getDatabaseSpecificConfig(databaseType);
+
     let datas = [];
     const fields = [];
     const resultObj = { status: null, message: null, datas: [], fields: [] };
@@ -288,9 +351,33 @@ export class ConnectionService {
 
     try {
       // 3. 정리된 쿼리 사용 (LIMIT 자동 추가 등)
-      const sanitizedQuery = validationResult.sanitizedQuery;
+      let sanitizedQuery = validationResult.sanitizedQuery;
 
-      // 4. 쿼리 실행 계획 분석 (비동기로 처리하여 성능 영향 최소화)
+      // 4. DB별 쿼리 최적화 적용
+      if (optimizer) {
+        try {
+          // Knex 쿼리 빌더로 변환하여 최적화 적용
+          const queryBuilder = knex.raw(sanitizedQuery);
+          const optimizedQueryBuilder = optimizer.optimizeQuery(queryBuilder);
+          sanitizedQuery = optimizedQueryBuilder.toString();
+
+          this.logger.debug('Applied database-specific query optimization', 'ConnectionService', {
+            databaseId: queryExecuteDto.id,
+            databaseType: optimizer.databaseType,
+            originalQuery: validationResult.sanitizedQuery.substring(0, 100),
+            optimizedQuery: sanitizedQuery.substring(0, 100),
+          });
+        } catch (optimizationError) {
+          // 최적화 실패 시 원본 쿼리 사용
+          this.logger.warn('Query optimization failed, using original query', 'ConnectionService', {
+            databaseId: queryExecuteDto.id,
+            error: optimizationError.message,
+          });
+          sanitizedQuery = validationResult.sanitizedQuery;
+        }
+      }
+
+      // 5. 쿼리 실행 계획 분석 (비동기로 처리하여 성능 영향 최소화)
       this.analyzeQueryAsync(sanitizedQuery, queryExecuteDto.id);
 
       // 5. 매개변수가 있는 경우 파라미터화된 쿼리 실행

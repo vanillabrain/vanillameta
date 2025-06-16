@@ -8,7 +8,11 @@ import { SqlValidationModule } from '../common/security/sql-validation.module';
 import { QueryAnalyzerModule } from '../common/monitoring/query-analyzer.module';
 import { MonitoringModule } from '../common/monitoring/monitoring.module';
 import { QueryCollector } from '../common/utils/query-collector';
+<<<<<<< HEAD
 import { DatabaseOptimizersModule } from './database-optimizers';
+=======
+import { DatabaseOptimizerModule } from './optimizers/database-optimizer.module';
+>>>>>>> task/T07_S03
 
 @Module({
   imports: [
@@ -16,7 +20,11 @@ import { DatabaseOptimizersModule } from './database-optimizers';
     SqlValidationModule,
     QueryAnalyzerModule,
     MonitoringModule,
+<<<<<<< HEAD
     DatabaseOptimizersModule,
+=======
+    DatabaseOptimizerModule,
+>>>>>>> task/T07_S03
   ],
   providers: [
     {
