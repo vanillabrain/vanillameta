@@ -69,7 +69,7 @@ const LazyIcon: React.FC<LazyIconProps> = ({
   );
 
   if (!IconComponent) {
-    return fallback || defaultFallback;
+    return <>{fallback || defaultFallback}</>;
   }
 
   return (

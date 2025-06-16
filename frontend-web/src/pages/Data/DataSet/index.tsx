@@ -18,6 +18,7 @@ import { getDatabaseIcon } from '@/widget/utils/iconUtil';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import { createColumns } from '@/utils/util';
+import type { Dataset } from '@/types';
 
 const DataSet = () => {
   const { setId, sourceId } = useParams();
@@ -165,10 +166,16 @@ const DataSet = () => {
     showLoading();
     DatasetService.selectDataset(setId)
       .then(response => {
-        console.log('selectDataset', response.data.id, response.data.databaseId);
         console.log('selectDataset response:', response);
         if (response.status === 'SUCCESS') {
-          setDatasetInfo(response.data);
+          const datasetData = response.data.dataset || response.data;
+          const dataset = datasetData as Dataset;
+          console.log('selectDataset', dataset.id, dataset.databaseId);
+          setDatasetInfo({
+            databaseId: String(dataset.databaseId),
+            title: dataset.title || '',
+            query: dataset.query || ''
+          });
         } else {
           alert.error(response.message || '데이터베이스 조회에 실패했습니다.\n다시 시도해 주세요.');
         }
@@ -184,7 +191,7 @@ const DataSet = () => {
   const excuteQuery = () => {
     showLoading();
     const param = {
-      id: databaseId,
+      databaseId: Number(databaseId),
       query: datasetInfo.query,
     };
     console.log('param', param);
@@ -194,7 +201,8 @@ const DataSet = () => {
         console.log('executeQuery response:', response);
         if (response.status === 'SUCCESS') {
           setTestCompleted(true);
-          const rows = response.data?.result?.rows || response.data?.datas || [];
+          const resultData = response.data?.result || response.data;
+          const rows = (resultData as any)?.rows || (resultData as any)?.datas || [];
           setData(rows);
           setColumns(createColumns(rows));
           snackbar.success('Success!');
@@ -228,7 +236,11 @@ const DataSet = () => {
           onClick: () => {
             showLoading();
             if (isModifyMode) {
-              DatasetService.updateDataset(setId, datasetInfo)
+              DatasetService.updateDataset(setId, {
+                databaseId: Number(datasetInfo.databaseId),
+                title: datasetInfo.title,
+                query: datasetInfo.query
+              })
                 .then(response => {
                   console.log(response.data);
                   console.log('updateDataset response:', response);
@@ -243,7 +255,11 @@ const DataSet = () => {
                   hideLoading();
                 });
             } else {
-              DatasetService.createDataset(datasetInfo)
+              DatasetService.createDataset({
+                databaseId: Number(datasetInfo.databaseId),
+                title: datasetInfo.title,
+                query: datasetInfo.query
+              })
                 .then(response => {
                   console.log(response.data);
                   console.log('createDataset response:', response);

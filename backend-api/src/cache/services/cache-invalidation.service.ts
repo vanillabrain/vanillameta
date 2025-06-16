@@ -1,6 +1,6 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { Cache } from 'cache-manager';
+// import { CACHE_MANAGER } from '@nestjs/cache-manager';
+// import { Cache } from 'cache-manager';
 import { Cron, CronExpression } from '@nestjs/schedule';
 
 export interface InvalidationRule {
@@ -52,7 +52,7 @@ export class CacheInvalidationService {
     ['datasets', ['*:dataset_*', '*:db_*:*dataset*']],
   ]);
 
-  constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache) {
+  constructor(@Inject('CACHE_MANAGER') private cacheManager: any) {
     this.initializeDefaultRules();
   }
 

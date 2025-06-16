@@ -26,12 +26,12 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     if (payload.accessKeyData) {
       return { accessKeyData: payload.accessKeyData };
     }
-    
+
     // 페이로드 구조 디버깅을 위한 로그
     this.logger.warn('JWT payload structure is unexpected', 'JwtStrategy', {
       payload: payload,
     });
-    
+
     return payload;
   }
 }

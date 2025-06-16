@@ -97,45 +97,49 @@ function DataSource() {
         console.log('selectDatabaseInfo response:', response);
         if (response.status === 'SUCCESS') {
           const databaseInfo = response.data;
+          const connectionConfig = typeof databaseInfo.connectionConfig === 'string' 
+            ? JSON.parse(databaseInfo.connectionConfig) 
+            : databaseInfo.connectionConfig;
+            
           const temp: any = {
             name: databaseInfo.name,
             type: databaseInfo.type,
           };
           if (databaseInfo.type === 'sqlite') {
             temp.sqlite = {
-              filename: databaseInfo.connectionConfig.filename,
+              filename: connectionConfig.filename,
             };
           } else if (databaseInfo.type === 'bigquery') {
             temp.bigquery = {
-              projectId: databaseInfo.connectionConfig.projectId,
-              keyFilename: databaseInfo.connectionConfig.keyFilename,
-              schema: databaseInfo.connectionConfig.schema,
+              projectId: connectionConfig.projectId,
+              keyFilename: connectionConfig.keyFilename,
+              schema: connectionConfig.schema,
             };
           } else if (databaseInfo.type === 'oracle') {
             temp.oracle = {
-              host: databaseInfo.connectionConfig.host,
-              port: Number(databaseInfo.connectionConfig.port),
-              user: databaseInfo.connectionConfig.user,
-              database: databaseInfo.connectionConfig.database,
-              instanceName: databaseInfo.connectionConfig.instanceName,
-              fetchAsString: databaseInfo.connectionConfig.fetchAsString,
-              requestTimeout: databaseInfo.connectionConfig.requestTimeout,
+              host: connectionConfig.host,
+              port: Number(connectionConfig.port),
+              user: connectionConfig.user,
+              database: connectionConfig.database,
+              instanceName: connectionConfig.instanceName,
+              fetchAsString: connectionConfig.fetchAsString,
+              requestTimeout: connectionConfig.requestTimeout,
             };
           } else if (databaseInfo.type === 'snowflake') {
             temp.snowflake = {
-              account: databaseInfo.connectionConfig.account,
-              username: databaseInfo.connectionConfig.username,
-              database: databaseInfo.connectionConfig.database,
-              application: databaseInfo.connectionConfig.application,
-              schema: databaseInfo.connectionConfig.schema,
-              warehouse: databaseInfo.connectionConfig.warehouse,
+              account: connectionConfig.account,
+              username: connectionConfig.username,
+              database: connectionConfig.database,
+              application: connectionConfig.application,
+              schema: connectionConfig.schema,
+              warehouse: connectionConfig.warehouse,
             };
           } else {
             temp.default = {
-              host: databaseInfo.connectionConfig.host,
-              port: Number(databaseInfo.connectionConfig.port),
-              user: databaseInfo.connectionConfig.user,
-              database: databaseInfo.connectionConfig.database,
+              host: connectionConfig.host,
+              port: Number(connectionConfig.port),
+              user: connectionConfig.user,
+              database: connectionConfig.database,
             };
           }
           setFormData(temp);

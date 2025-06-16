@@ -73,15 +73,16 @@ function DashboardModify() {
       .then(response => {
         console.log('selectDashboard response:', response);
         if (response.status === STATUS.SUCCESS) {
-          setDashboardTitle(response.data.title);
-          setWidgets(response.data.widgets);
+          setDashboardTitle(response.data.dashboard.title);
+          setWidgets(response.data.widgets || []);
 
-          response.data.layout.map(item => {
+          const layoutData = JSON.parse(response.data.dashboard.layout || '[]');
+          layoutData.map(item => {
             if (item.i !== undefined) {
               item.i = item.i.toString();
             }
           });
-          setLayout(response.data.layout);
+          setLayout(layoutData);
         } else {
           alert.error('대시보드 조회에 실패했습니다.\n다시 시도해 주세요.');
         }
@@ -321,7 +322,11 @@ function DashboardModify() {
               copy: '수정',
               onClick: () => {
                 showLoading();
-                DashboardService.updateDashboard(dashboardId, dashboardInfo)
+                DashboardService.updateDashboard(dashboardId, {
+                  title: dashboardInfo.title,
+                  layout: JSON.stringify(dashboardInfo.layout),
+                  widgets: dashboardInfo.widgets
+                })
                   .then(response => {
                     if (response.status === 'SUCCESS') {
                       navigate('/dashboard/' + dashboardId, { replace: true });
@@ -346,7 +351,11 @@ function DashboardModify() {
               copy: '생성',
               onClick: () => {
                 showLoading();
-                DashboardService.createDashboard(dashboardInfo)
+                DashboardService.createDashboard({
+                  title: dashboardInfo.title,
+                  layout: JSON.stringify(dashboardInfo.layout),
+                  widgets: dashboardInfo.widgets
+                })
                   .then(response => {
                     if (response.status === 'SUCCESS') {
                       navigate('/dashboard');

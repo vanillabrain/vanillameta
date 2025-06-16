@@ -1,7 +1,15 @@
-import axios, { AxiosResponse } from 'axios';
+import axios, { AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { getToken, removeToken, setToken } from '@/helpers/authHelper';
 import { getShareToken } from '@/helpers/shareHelper';
 import authService from '@/api/authService';
+
+// axios 요청 설정에 metadata 추가를 위한 인터페이스 확장
+interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
+  metadata?: {
+    startTime: number;
+    correlationId: string;
+  };
+}
 
 // Correlation ID 생성 함수
 const generateCorrelationId = (): string => {
@@ -103,9 +111,9 @@ instance.interceptors.request.use(async config => {
   apiPerformanceMap.set(requestKey, performance.now());
 
   // 요청 메타데이터 추가
-  config.metadata = {
+  (config as CustomAxiosRequestConfig).metadata = {
     startTime: performance.now(),
-    correlationId: config.headers['X-Correlation-ID'],
+    correlationId: config.headers['X-Correlation-ID'] as string,
   };
 
   return newConfig;
@@ -142,7 +150,7 @@ instance.interceptors.response.use(
         url: response.config.url,
         duration: duration.toFixed(2),
         status: response.status,
-        correlationId: response.config.metadata?.correlationId,
+        correlationId: (response.config as CustomAxiosRequestConfig).metadata?.correlationId,
       };
 
       // 개발 환경에서는 콘솔에 출력

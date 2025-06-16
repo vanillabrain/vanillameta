@@ -1,6 +1,6 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { Cache } from 'cache-manager';
+// import { CACHE_MANAGER } from '@nestjs/cache-manager';
+// import { Cache } from 'cache-manager';
 
 interface CacheHitEvent {
   timestamp: Date;
@@ -53,7 +53,7 @@ export class CacheStatisticsService {
     keyPrefix: 'cache_stats',
   };
 
-  constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache) {
+  constructor(@Inject('CACHE_MANAGER') private cacheManager: any) {
     // 주기적으로 오래된 이벤트 정리
     setInterval(() => {
       this.cleanupOldEvents();

@@ -1,6 +1,6 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { Cache } from 'cache-manager';
+// import { CACHE_MANAGER } from '@nestjs/cache-manager';
+// import { Cache } from 'cache-manager';
 import { CacheInvalidationService } from './cache-invalidation.service';
 
 interface ConsistencyRule {
@@ -50,7 +50,7 @@ export class CacheConsistencyService {
   };
 
   constructor(
-    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    @Inject('CACHE_MANAGER') private cacheManager: any,
     private readonly invalidationService: CacheInvalidationService,
   ) {
     this.initializeDefaultConsistencyRules();
@@ -96,7 +96,7 @@ export class CacheConsistencyService {
   async releaseDistributedLock(lockKey: string, lockId: string): Promise<boolean> {
     try {
       const fullLockKey = `${this.consistencyConfig.lockPrefix}:${lockKey}`;
-      const currentLockId = await this.cacheManager.get<string>(fullLockKey);
+      const currentLockId = await this.cacheManager.get(fullLockKey);
 
       if (currentLockId === lockId) {
         await this.cacheManager.del(fullLockKey);

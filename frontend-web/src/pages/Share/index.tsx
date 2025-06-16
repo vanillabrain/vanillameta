@@ -61,7 +61,16 @@ const Share = () => {
       .then(response => {
         console.log('shareDashboard', response);
         if (response.status === 'SUCCESS') {
-          setDashboardInfo(response.data);
+          const { dashboard, widgets, shareInfo } = response.data;
+          setDashboardInfo({
+            title: dashboard.title,
+            widgets: widgets || [],
+            layout: JSON.parse(dashboard.layout || '[]'),
+            updatedAt: dashboard.updatedAt,
+            shareYn: dashboard.shareYn,
+            uuid: shareInfo?.uuid || dashboard.uuid,
+            shareToken: shareInfo?.token || null
+          });
         }
       })
       .catch(error => {

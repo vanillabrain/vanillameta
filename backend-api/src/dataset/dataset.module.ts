@@ -8,6 +8,7 @@ import { Database } from '../database/entities/database.entity';
 import { Widget } from '../widget/entities/widget.entity';
 import { JwtService } from '@nestjs/jwt';
 import { CacheModule } from '../common/optimization/cache.module';
+import { BusinessMetricsModule } from '../common/monitoring/business-metrics.module';
 import { PaginationModule } from '../common/pagination';
 
 @Module({
@@ -15,6 +16,7 @@ import { PaginationModule } from '../common/pagination';
     TypeOrmModule.forFeature([Dataset, Database, Widget]),
     ConnectionModule,
     forwardRef(() => CacheModule),
+    BusinessMetricsModule,
     PaginationModule,
   ],
   controllers: [DatasetController],

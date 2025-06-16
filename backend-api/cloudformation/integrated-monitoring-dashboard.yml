@@ -1,0 +1,666 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'VanillaMeta - Integrated CloudWatch Monitoring Dashboard with comprehensive metrics'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, prod, local]
+    Description: 'Deployment environment'
+  
+  ServiceName:
+    Type: String
+    Default: vanillameta-backend-api
+    Description: 'Service name for resource naming'
+  
+  RDSInstanceIdentifier:
+    Type: String
+    Default: vanillameta-rds
+    Description: 'RDS instance identifier for monitoring'
+  
+  RedisClusterName:
+    Type: String
+    Default: vanillameta-redis
+    Description: 'Redis cluster name for monitoring'
+
+Resources:
+  # Integrated CloudWatch Dashboard
+  IntegratedDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub '${ServiceName}-${Environment}-integrated-dashboard'
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "text",
+              "x": 0,
+              "y": 0,
+              "width": 24,
+              "height": 1,
+              "properties": {
+                "markdown": "# VanillaMeta ${Environment} - 통합 모니터링 대시보드\n**Last Update**: ${AWS::StackName} | **Region**: ${AWS::Region} | [메인 대시보드](https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${ServiceName}-${Environment}-integrated-dashboard)"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 1,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/Lambda", "Invocations", "FunctionName", "${ServiceName}-${Environment}-app", { "stat": "Sum", "label": "총 호출 수" }],
+                  [".", "Errors", ".", ".", { "stat": "Sum", "label": "에러 수", "yAxis": "right", "color": "#d62728" }],
+                  [".", "Throttles", ".", ".", { "stat": "Sum", "label": "스로틀", "yAxis": "right", "color": "#ff7f0e" }]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "Lambda 함수 호출 현황",
+                "period": 300,
+                "yAxis": {
+                  "left": {
+                    "label": "호출 수",
+                    "showUnits": false
+                  },
+                  "right": {
+                    "label": "에러/스로틀",
+                    "showUnits": false
+                  }
+                },
+                "annotations": {
+                  "horizontal": [
+                    {
+                      "label": "에러 임계값",
+                      "value": 10,
+                      "fill": "above",
+                      "yAxis": "right"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 8,
+              "y": 1,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/Lambda", "Duration", "FunctionName", "${ServiceName}-${Environment}-app", { "stat": "Average", "label": "평균 지연시간" }],
+                  ["...", { "stat": "p99", "label": "P99 지연시간" }],
+                  ["...", { "stat": "Maximum", "label": "최대 지연시간" }]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "Lambda 응답 시간",
+                "period": 300,
+                "yAxis": {
+                  "left": {
+                    "label": "시간 (ms)",
+                    "showUnits": false
+                  }
+                },
+                "annotations": {
+                  "horizontal": [
+                    {
+                      "label": "SLA 목표 (1초)",
+                      "value": 1000
+                    },
+                    {
+                      "label": "경고 임계값 (5초)",
+                      "value": 5000,
+                      "fill": "above"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 16,
+              "y": 1,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/Lambda", "ConcurrentExecutions", "FunctionName", "${ServiceName}-${Environment}-app", { "stat": "Maximum", "label": "최대 동시 실행" }],
+                  ["VanillaMeta/Lambda", "MemoryUsedPercent", "Environment", "${Environment}", "Function", "backend-api", { "stat": "Average", "label": "메모리 사용률 (%)" }]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "Lambda 리소스 사용량",
+                "period": 300,
+                "yAxis": {
+                  "left": {
+                    "label": "동시 실행 수",
+                    "showUnits": false
+                  },
+                  "right": {
+                    "label": "메모리 사용률 (%)",
+                    "showUnits": false,
+                    "max": 100
+                  }
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 7,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/ApiGateway", "Count", "ApiName", "${ServiceName}-${Environment}", { "stat": "Sum", "label": "총 요청 수" }],
+                  [".", "4XXError", ".", ".", { "stat": "Sum", "label": "4XX 에러", "color": "#ff7f0e" }],
+                  [".", "5XXError", ".", ".", { "stat": "Sum", "label": "5XX 에러", "color": "#d62728" }]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "API Gateway 요청 및 에러",
+                "period": 300,
+                "yAxis": {
+                  "left": {
+                    "label": "요청 수",
+                    "showUnits": false
+                  }
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 7,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/ApiGateway", "Latency", "ApiName", "${ServiceName}-${Environment}", { "stat": "Average", "label": "평균 지연시간" }],
+                  ["...", { "stat": "p95", "label": "P95 지연시간" }],
+                  ["...", { "stat": "p99", "label": "P99 지연시간" }]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "API Gateway 응답 시간",
+                "period": 300,
+                "yAxis": {
+                  "left": {
+                    "label": "시간 (ms)",
+                    "showUnits": false
+                  }
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 13,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/RDS", "CPUUtilization", "DBInstanceIdentifier", "${RDSInstanceIdentifier}-${Environment}", { "stat": "Average", "label": "CPU 사용률" }],
+                  [".", "DatabaseConnections", ".", ".", { "stat": "Average", "label": "DB 연결 수", "yAxis": "right" }]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "RDS CPU 및 연결",
+                "period": 300,
+                "yAxis": {
+                  "left": {
+                    "label": "CPU 사용률 (%)",
+                    "showUnits": false,
+                    "max": 100
+                  },
+                  "right": {
+                    "label": "연결 수",
+                    "showUnits": false
+                  }
+                },
+                "annotations": {
+                  "horizontal": [
+                    {
+                      "label": "CPU 경고 임계값",
+                      "value": 80,
+                      "fill": "above"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 8,
+              "y": 13,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/RDS", "FreeableMemory", "DBInstanceIdentifier", "${RDSInstanceIdentifier}-${Environment}", { "stat": "Average", "label": "가용 메모리" }],
+                  [".", "FreeStorageSpace", ".", ".", { "stat": "Average", "label": "가용 저장 공간", "yAxis": "right" }]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "RDS 메모리 및 스토리지",
+                "period": 300,
+                "yAxis": {
+                  "left": {
+                    "label": "메모리 (bytes)",
+                    "showUnits": false
+                  },
+                  "right": {
+                    "label": "스토리지 (bytes)",
+                    "showUnits": false
+                  }
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 16,
+              "y": 13,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/RDS", "ReadLatency", "DBInstanceIdentifier", "${RDSInstanceIdentifier}-${Environment}", { "stat": "Average", "label": "읽기 지연시간" }],
+                  [".", "WriteLatency", ".", ".", { "stat": "Average", "label": "쓰기 지연시간" }],
+                  [".", "ReadIOPS", ".", ".", { "stat": "Average", "label": "읽기 IOPS", "yAxis": "right" }],
+                  [".", "WriteIOPS", ".", ".", { "stat": "Average", "label": "쓰기 IOPS", "yAxis": "right" }]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "RDS I/O 성능",
+                "period": 300,
+                "yAxis": {
+                  "left": {
+                    "label": "지연시간 (ms)",
+                    "showUnits": false
+                  },
+                  "right": {
+                    "label": "IOPS",
+                    "showUnits": false
+                  }
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 19,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/ElastiCache", "CPUUtilization", "CacheClusterId", "${RedisClusterName}-${Environment}", { "stat": "Average", "label": "Redis CPU 사용률" }],
+                  [".", "CurrConnections", ".", ".", { "stat": "Average", "label": "현재 연결 수", "yAxis": "right" }],
+                  [".", "Evictions", ".", ".", { "stat": "Sum", "label": "Evictions", "yAxis": "right" }]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "Redis 캐시 성능",
+                "period": 300,
+                "yAxis": {
+                  "left": {
+                    "label": "CPU 사용률 (%)",
+                    "showUnits": false
+                  },
+                  "right": {
+                    "label": "연결/Evictions",
+                    "showUnits": false
+                  }
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 19,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/ElastiCache", "CacheHits", "CacheClusterId", "${RedisClusterName}-${Environment}", { "stat": "Sum", "label": "캐시 히트" }],
+                  [".", "CacheMisses", ".", ".", { "stat": "Sum", "label": "캐시 미스" }],
+                  [".", "BytesUsedForCache", ".", ".", { "stat": "Average", "label": "캐시 사용량", "yAxis": "right" }]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "Redis 캐시 효율성",
+                "period": 300,
+                "yAxis": {
+                  "left": {
+                    "label": "히트/미스",
+                    "showUnits": false
+                  },
+                  "right": {
+                    "label": "바이트",
+                    "showUnits": false
+                  }
+                }
+              }
+            },
+            {
+              "type": "log",
+              "x": 0,
+              "y": 25,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '/aws/lambda/${ServiceName}-${Environment}-app'\n| fields @timestamp, level, message, metadata.correlationId, metadata.userId\n| filter level = \"ERROR\"\n| sort @timestamp desc\n| limit 20",
+                "region": "${AWS::Region}",
+                "title": "최근 에러 로그",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log",
+              "x": 12,
+              "y": 25,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '/aws/lambda/${ServiceName}-${Environment}-app'\n| fields metadata.requestPath, metadata.method, metadata.statusCode\n| filter metadata.executionTime > 1000\n| stats count() as slowRequests, avg(metadata.executionTime) as avgTime by metadata.requestPath, metadata.method\n| sort avgTime desc\n| limit 10",
+                "region": "${AWS::Region}",
+                "title": "느린 API 엔드포인트 (>1초)",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log",
+              "x": 0,
+              "y": 31,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '/aws/lambda/${ServiceName}-${Environment}-app'\n| fields metadata.statusCode\n| filter metadata.statusCode exists\n| stats count() as count by metadata.statusCode\n| sort metadata.statusCode asc",
+                "region": "${AWS::Region}",
+                "title": "HTTP 상태 코드 분포",
+                "view": "pie"
+              }
+            },
+            {
+              "type": "log",
+              "x": 8,
+              "y": 31,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '/aws/lambda/${ServiceName}-${Environment}-app'\n| fields @timestamp, metadata.userId, metadata.requestPath\n| filter metadata.userId exists\n| stats count() as requestCount by bin(5m) as time\n| sort time desc",
+                "region": "${AWS::Region}",
+                "title": "사용자 활동 추이",
+                "view": "line"
+              }
+            },
+            {
+              "type": "log",
+              "x": 16,
+              "y": 31,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '/aws/lambda/${ServiceName}-${Environment}-app'\n| fields metadata.userId, metadata.requestPath\n| filter metadata.userId exists\n| stats count() as activityCount by metadata.userId\n| sort activityCount desc\n| limit 10",
+                "region": "${AWS::Region}",
+                "title": "상위 활성 사용자",
+                "view": "table"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 37,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["VanillaMeta/QueryCache", "CacheHitRate", "Environment", "${Environment}", { "stat": "Average", "label": "캐시 히트율 (%)" }],
+                  ["VanillaMeta/QueryCache", "L1HitRate", ".", ".", { "stat": "Average", "label": "L1 캐시 히트율 (%)" }],
+                  ["VanillaMeta/QueryCache", "L2HitRate", ".", ".", { "stat": "Average", "label": "L2 캐시 히트율 (%)" }]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "쿼리 캐시 효율성",
+                "period": 300,
+                "yAxis": {
+                  "left": {
+                    "label": "히트율 (%)",
+                    "showUnits": false,
+                    "max": 100
+                  }
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 37,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["VanillaMeta/BackgroundJobs", "JobsQueued", "Environment", "${Environment}", { "stat": "Sum", "label": "대기 중인 작업" }],
+                  [".", "JobsProcessed", ".", ".", { "stat": "Sum", "label": "처리된 작업" }],
+                  [".", "JobsFailed", ".", ".", { "stat": "Sum", "label": "실패한 작업", "color": "#d62728" }]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "백그라운드 작업 현황",
+                "period": 300
+              }
+            }
+          ]
+        }
+
+  # Custom Metric Filter for Error Counting
+  ErrorLogMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      FilterName: !Sub '${ServiceName}-${Environment}-error-count'
+      FilterPattern: '[timestamp, requestId, level=ERROR, ...]'
+      LogGroupName: !Sub '/aws/lambda/${ServiceName}-${Environment}-app'
+      MetricTransformations:
+        - MetricNamespace: !Sub 'VanillaMeta/${Environment}'
+          MetricName: 'ErrorCount'
+          MetricValue: '1'
+          DefaultValue: 0
+
+  # Custom Metric Filter for 5XX Errors
+  Http5xxMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      FilterName: !Sub '${ServiceName}-${Environment}-5xx-errors'
+      FilterPattern: '{ $.metadata.statusCode >= 500 }'
+      LogGroupName: !Sub '/aws/lambda/${ServiceName}-${Environment}-app'
+      MetricTransformations:
+        - MetricNamespace: !Sub 'VanillaMeta/${Environment}'
+          MetricName: 'Http5xxErrorCount'
+          MetricValue: '1'
+          DefaultValue: 0
+
+  # Custom Metric Filter for Slow Responses
+  SlowResponseMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      FilterName: !Sub '${ServiceName}-${Environment}-slow-responses'
+      FilterPattern: '{ $.metadata.executionTime > 1000 }'
+      LogGroupName: !Sub '/aws/lambda/${ServiceName}-${Environment}-app'
+      MetricTransformations:
+        - MetricNamespace: !Sub 'VanillaMeta/${Environment}'
+          MetricName: 'SlowResponseCount'
+          MetricValue: '1'
+          DefaultValue: 0
+
+  # CloudWatch Alarms
+  HighErrorRateAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Environment}-high-error-rate'
+      AlarmDescription: '5분 동안 10개 이상의 에러 발생'
+      MetricName: ErrorCount
+      Namespace: !Sub 'VanillaMeta/${Environment}'
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 10
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertTopic
+
+  LambdaHighErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Environment}-lambda-high-errors'
+      AlarmDescription: 'Lambda 함수 에러율이 5% 초과'
+      Metrics:
+        - Id: e1
+          ReturnData: false
+          Expression: RATE(errors)
+          Label: Error rate
+        - Id: errors
+          ReturnData: false
+          MetricStat:
+            Metric:
+              Namespace: AWS/Lambda
+              MetricName: Errors
+              Dimensions:
+                - Name: FunctionName
+                  Value: !Sub '${ServiceName}-${Environment}-app'
+            Period: 300
+            Stat: Sum
+        - Id: invocations
+          ReturnData: false
+          MetricStat:
+            Metric:
+              Namespace: AWS/Lambda
+              MetricName: Invocations
+              Dimensions:
+                - Name: FunctionName
+                  Value: !Sub '${ServiceName}-${Environment}-app'
+            Period: 300
+            Stat: Sum
+        - Id: error_rate
+          Expression: "(errors / invocations) * 100"
+      EvaluationPeriods: 2
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertTopic
+
+  ApiGateway5xxAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Environment}-api-5xx-errors'
+      AlarmDescription: '5분 동안 5개 이상의 5XX 에러'
+      MetricName: 5XXError
+      Namespace: AWS/ApiGateway
+      Dimensions:
+        - Name: ApiName
+          Value: !Sub '${ServiceName}-${Environment}'
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertTopic
+
+  RDSHighCPUAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Environment}-rds-high-cpu'
+      AlarmDescription: 'RDS CPU 사용률이 80% 초과'
+      MetricName: CPUUtilization
+      Namespace: AWS/RDS
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Sub '${RDSInstanceIdentifier}-${Environment}'
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 80
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertTopic
+
+  RDSHighConnectionsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Environment}-rds-high-connections'
+      AlarmDescription: 'RDS 연결 수가 임계값 초과'
+      MetricName: DatabaseConnections
+      Namespace: AWS/RDS
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Sub '${RDSInstanceIdentifier}-${Environment}'
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 50  # t3.micro 기준
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertTopic
+
+  LambdaHighMemoryAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Environment}-lambda-high-memory'
+      AlarmDescription: 'Lambda 메모리 사용률이 85% 초과'
+      MetricName: MemoryUsedPercent
+      Namespace: VanillaMeta/Lambda
+      Dimensions:
+        - Name: Environment
+          Value: !Ref Environment
+        - Name: Function
+          Value: backend-api
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: 85
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertTopic
+
+  # SNS Topic for all alerts
+  AlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${ServiceName}-${Environment}-alerts'
+      DisplayName: !Sub 'VanillaMeta ${Environment} Alerts'
+      KmsMasterKeyId: alias/aws/sns
+
+Outputs:
+  IntegratedDashboardURL:
+    Description: '통합 CloudWatch 대시보드 URL'
+    Value: !Sub 'https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${ServiceName}-${Environment}-integrated-dashboard'
+  
+  AlertTopicArn:
+    Description: '알림 SNS Topic ARN'
+    Value: !Ref AlertTopic
+    Export:
+      Name: !Sub '${ServiceName}-${Environment}-alert-topic-arn'
+  
+  DashboardName:
+    Description: '대시보드 이름'
+    Value: !Ref IntegratedDashboard
+    Export:
+      Name: !Sub '${ServiceName}-${Environment}-integrated-dashboard-name'

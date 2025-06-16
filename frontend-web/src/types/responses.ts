@@ -32,7 +32,16 @@ export interface DatabaseListResponse {
 }
 
 export interface DatabaseDetailResponse {
-  database: Database;
+  databaseInfo: Database;
+  tables: Array<{
+    id: string;
+    tableName: string;
+    databaseId: number;
+    datasetType: 'TABLE';
+  }>;
+  datasets: Array<Dataset & {
+    datasetType: 'DATASET';
+  }>;
 }
 
 export interface DatabaseTypeListResponse {
@@ -62,8 +71,15 @@ export interface DatasetListResponse {
 }
 
 export interface DatasetDetailResponse {
-  dataset: Dataset;
+  dataset?: Dataset;
   data?: QueryResult;
+  // Dataset 필드들도 포함 (선택적)
+  id?: number;
+  title?: string;
+  databaseId?: number;
+  query?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // Widget 관련 응답 타입

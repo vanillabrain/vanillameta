@@ -11,6 +11,7 @@ import { Widget } from '../widget/entities/widget.entity';
 import { DatasetType } from '../common/enum/dataset-type.enum';
 import { HybridCacheService } from '../common/optimization/hybrid-cache.service';
 import { CustomLoggerService } from '../common/logger/logger.service';
+import { BusinessMetricsService } from '../common/monitoring/business-metrics.service';
 import { Readable } from 'stream';
 import {
   PaginationService,
@@ -33,6 +34,7 @@ export class DatasetService {
     private readonly connectionService: ConnectionService,
     private readonly hybridCache: HybridCacheService,
     private readonly customLogger: CustomLoggerService,
+    private readonly businessMetrics: BusinessMetricsService,
     private readonly paginationService: PaginationService,
   ) {}
 
@@ -263,10 +265,21 @@ export class DatasetService {
       }
 
       // 캐시 미스 시 데이터베이스에서 쿼리 실행
+      const queryStartTime = Date.now();
       const queryResult = await this.connectionService.executeQuery({
         id: dataset.databaseId,
         query: dataset.query,
       });
+      const queryDuration = Date.now() - queryStartTime;
+
+      // 쿼리 성능 메트릭 기록
+      const rowCount = Array.isArray(queryResult.datas) ? queryResult.datas.length : 0;
+      await this.businessMetrics.recordQueryPerformance(
+        databaseId,
+        this.detectQueryType(dataset.query),
+        queryDuration / 1000, // 초 단위로 변환
+        rowCount,
+      );
 
       if (queryResult.status === ResponseStatus.ERROR) {
         return {
@@ -362,12 +375,11 @@ export class DatasetService {
       if (dbConnection) {
         const engine = dbConnection.type || 'unknown';
         await this.hybridCache.invalidateByQuery(engine, dataset.query);
-
-        this.customLogger.info('Dataset cache invalidated', 'DatasetService', {
-          datasetId: id,
-          engine,
-        });
       }
+
+      this.customLogger.info('Dataset cache invalidated', 'DatasetService', {
+        datasetId: id,
+      });
     } catch (error) {
       this.logger.error('Failed to invalidate dataset cache:', error);
       throw error;
@@ -449,5 +461,28 @@ export class DatasetService {
         error: error.message,
       };
     }
+  }
+
+  /**
+   * 쿼리 타입 감지
+   */
+  private detectQueryType(query: string): string {
+    const normalizedQuery = query.trim().toUpperCase();
+    
+    if (normalizedQuery.startsWith('SELECT')) {
+      if (normalizedQuery.includes('JOIN')) {
+        return 'SELECT_JOIN';
+      }
+      if (normalizedQuery.includes('GROUP BY')) {
+        return 'SELECT_AGGREGATE';
+      }
+      return 'SELECT_SIMPLE';
+    }
+    
+    if (normalizedQuery.startsWith('INSERT')) return 'INSERT';
+    if (normalizedQuery.startsWith('UPDATE')) return 'UPDATE';
+    if (normalizedQuery.startsWith('DELETE')) return 'DELETE';
+    
+    return 'OTHER';
   }
 }

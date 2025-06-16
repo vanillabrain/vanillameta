@@ -1,7 +1,13 @@
 import React from 'react';
 import PieChart from '@/widget/modules/piechart/PieChart';
 
-function DonutChart(props) {
+interface DonutChartProps {
+  option: any;
+  dataSet: any;
+  seriesOp?: any;
+}
+
+function DonutChart(props: DonutChartProps) {
   const { option, dataSet, seriesOp } = props;
 
   return (

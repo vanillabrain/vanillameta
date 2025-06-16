@@ -1,6 +1,5 @@
 import React, { useContext, useEffect, useState, useMemo } from 'react';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
-import DatabaseService from '@/api/databaseService';
 import DatasetService from '@/api/datasetService';
 import { STATUS } from '@/constant';
 import { LoadingContext } from '@/contexts/LoadingContext';
@@ -98,18 +97,17 @@ const WidgetWrapper = props => {
       componentType: widgetOption.componentType,
     });
     
-    const param = { datasetType: widgetOption.datasetType, datasetId: widgetOption.datasetId };
-    DatabaseService.selectData(param)
+    DatasetService.executeCachedQuery(widgetOption.datasetId)
       .then(response => {
-        console.log('selectData response:', response);
+        console.log('executeCachedQuery response:', response);
         if (response.status === STATUS.SUCCESS) {
-          // response는 ApiResponse<QueryExecuteResponse> 구조
-          setDataset(response.data?.result?.rows || []);
+          // response.data가 직접 데이터 배열임
+          setDataset(response.data || []);
         }
       })
       .catch(error => {
         setIsInvalidData(true);
-        snackbar.error('데이터베이스 조회에 실패했습니다.');
+        snackbar.error('데이터셋 조회에 실패했습니다.');
         console.log('error', error);
       })
       .finally(() => {

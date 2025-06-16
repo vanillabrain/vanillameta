@@ -161,7 +161,7 @@ const StreamingChart: React.FC<StreamingChartProps> = ({
               radius: '60%',
               data: Object.entries(aggregated)
                 .map(([name, value]) => ({ name, value }))
-                .sort((a, b) => b.value - a.value)
+                .sort((a, b) => (b.value as number) - (a.value as number))
                 .slice(0, 20), // 상위 20개만 표시
             }],
           };

@@ -56,7 +56,25 @@ const WidgetModify = () => {
       .selectWidget(widgetId)
       .then(response => {
         console.log('selectWidget response:', response);
-        setWidgetInfo(response.data);
+        const responseData = response.data;
+        const widget: any = responseData.widget || responseData;
+        const widgetInfo: WidgetInfo = {
+          id: widget.id?.toString() || '',
+          title: widget.title || '',
+          componentId: widget.componentId?.toString() || '',
+          createdAt: widget.createdAt || '',
+          datasetId: widget.datasetId?.toString() || '',
+          datasetType: widget.datasetType || '',
+          delYn: widget.delYn || 'N',
+          description: widget.description || '',
+          option: widget.option || '',
+          updatedAt: widget.updatedAt || '',
+          widgetViewId: widget.id?.toString() || '',
+          icon: widget.icon || null,
+          componentTitle: widget.title || '',
+          componentDescription: widget.description || ''
+        };
+        setWidgetInfo(widgetInfo);
         // console.log(widgetInfo, 'widgetInfo');
       })
       .finally(() => {

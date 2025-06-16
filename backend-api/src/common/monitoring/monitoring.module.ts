@@ -12,6 +12,13 @@ import { SlowQueryMonitorService } from './slow-query-monitor.service';
 import { SlowQueryMonitorController } from './slow-query-monitor.controller';
 import { SlowQueryLog } from './entities/slow-query-log.entity';
 import { SlowQueryInterceptor } from '../interceptors/slow-query.interceptor';
+import { CloudWatchMetricsService } from './cloudwatch-metrics.service';
+import { BusinessMetricsService } from './business-metrics.service';
+import { BusinessMetricsModule } from './business-metrics.module';
+import { MetricsController } from './metrics.controller';
+import { MemoryMonitorModule } from './memory-monitor.module';
+import { MemoryMonitorService } from './memory-monitor.service';
+import { QueryPerformanceMetricsInterceptor } from '../interceptors/query-performance-metrics.interceptor';
 
 @Module({
   imports: [
@@ -19,24 +26,32 @@ import { SlowQueryInterceptor } from '../interceptors/slow-query.interceptor';
     LoggerModule,
     QueryAnalyzerModule,
     TypeOrmModule.forFeature([SlowQueryLog]),
+    BusinessMetricsModule,
+    MemoryMonitorModule,
   ],
   controllers: [
     MonitoringController,
     QueryAnalyzerController,
     QueryOptimizationReportController,
     SlowQueryMonitorController,
+    MetricsController,
   ],
   providers: [
     ConnectionPoolMonitorService,
     QueryCollector,
     SlowQueryMonitorService,
     SlowQueryInterceptor,
+    CloudWatchMetricsService,
+    QueryPerformanceMetricsInterceptor,
   ],
   exports: [
     ConnectionPoolMonitorService,
     QueryAnalyzerModule,
     SlowQueryMonitorService,
     SlowQueryInterceptor,
+    CloudWatchMetricsService,
+    BusinessMetricsModule,
+    QueryPerformanceMetricsInterceptor,
   ],
 })
 export class MonitoringModule {}
