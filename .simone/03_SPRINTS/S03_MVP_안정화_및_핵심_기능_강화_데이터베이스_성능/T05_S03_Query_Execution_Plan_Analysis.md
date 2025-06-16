@@ -1,9 +1,9 @@
 ---
 task_id: T05_S03
 sprint_sequence_id: S03
-status: open
+status: completed
 complexity: Medium
-last_updated: 2025-06-12T17:00:00Z
+last_updated: 2025-06-16T18:45:00Z
 ---
 
 # Task: Query Execution Plan Analysis
@@ -193,4 +193,137 @@ class QueryPerformanceInterceptor {
 ```
 
 ## Output Log
-*(This section is populated as work progresses on the task)*
+
+### 2025-06-16 - Query Execution Plan Analysis Implementation
+
+#### 구현 완료 사항
+
+1. **쿼리 분석 서비스 강화 (`QueryAnalyzerService`)**
+   - ✅ 내부 MySQL 쿼리 EXPLAIN 분석
+   - ✅ 외부 데이터베이스 쿼리 분석 (PostgreSQL, MySQL, SQL Server, Oracle)
+   - ✅ 쿼리 실행 시간 측정 기능
+   - ✅ 최적화 제안 자동 생성
+   - ✅ 여러 쿼리에 대한 종합 분석 보고서 생성
+
+2. **쿼리 수집 시스템 (`QueryCollector`)**
+   - ✅ 실시간 쿼리 수집 및 저장
+   - ✅ 쿼리 패턴 식별 및 정규화
+   - ✅ 느린 쿼리 자동 감지 및 로깅
+   - ✅ 통계 및 분석 기능
+
+3. **쿼리 최적화 서비스 (`QueryOptimizationService`)**
+   - ✅ 주요 쿼리 자동 수집 (Dashboard, Widget, Dataset, TableQuery)
+   - ✅ 최적화 계획 생성
+   - ✅ 인덱스 추천 생성
+   - ✅ 쿼리 재작성 제안
+   - ✅ 최적화 가이드라인 문서 자동 생성
+
+4. **성능 모니터링 인터셉터 (`QueryPerformanceInterceptor`)**
+   - ✅ 요청별 실행 시간 측정
+   - ✅ 느린 요청 자동 분석
+   - ✅ 비동기 쿼리 분석 (응답 차단 없음)
+
+5. **TypeORM 쿼리 로거 (`TypeOrmQueryLogger`)**
+   - ✅ 모든 TypeORM 쿼리 자동 수집
+   - ✅ 쿼리 성공/실패/느림 분류
+   - ✅ 개발 환경 디버깅 지원
+
+6. **API 엔드포인트**
+   - ✅ `POST /api/query-analyzer/analyze` - 단일 쿼리 분석
+   - ✅ `POST /api/query-analyzer/analyze-batch` - 다중 쿼리 일괄 분석
+   - ✅ `POST /api/query-analyzer/measure-performance` - 쿼리 성능 측정
+   - ✅ `GET /api/monitoring/query-optimization/report` - 최적화 보고서
+   - ✅ `GET /api/monitoring/query-optimization/collected-queries` - 수집된 쿼리 조회
+   - ✅ `GET /api/monitoring/query-optimization/query-patterns` - 쿼리 패턴 분석
+   - ✅ `GET /api/monitoring/query-optimization/optimization-plan` - 최적화 계획
+   - ✅ `GET /api/monitoring/query-optimization/optimization-guidelines` - 가이드라인 문서
+
+7. **문서화**
+   - ✅ 쿼리 최적화 가이드라인 문서 작성 (`/backend-api/docs/query-optimization-guidelines.md`)
+   - ✅ 데이터베이스별 최적화 전략
+   - ✅ 인덱스 관리 best practices
+   - ✅ 쿼리 작성 가이드라인
+
+8. **테스트**
+   - ✅ QueryAnalyzerService 단위 테스트 (10개 테스트 통과)
+   - ✅ 다양한 데이터베이스 엔진 테스트
+   - ✅ 쿼리 분석 오류 처리 테스트
+
+#### 주요 기능 특징
+
+1. **다중 데이터베이스 지원**
+   - MySQL (내부/외부)
+   - PostgreSQL (EXPLAIN ANALYZE 지원)
+   - SQL Server (실행 계획 XML)
+   - Oracle (DBMS_XPLAN)
+
+2. **자동 최적화 감지**
+   - Full Table Scan 감지
+   - 인덱스 미사용 경고
+   - 임시 테이블 사용 감지
+   - Filesort 사용 감지
+   - 느린 쿼리 자동 식별
+
+3. **실시간 모니터링**
+   - 쿼리 실행 시간 추적
+   - 패턴별 쿼리 그룹화
+   - 소스별 쿼리 통계
+
+4. **최적화 제안**
+   - 구체적인 인덱스 CREATE 문
+   - 쿼리 재작성 예시
+   - 예상 성능 개선율
+
+#### 파일 생성/수정 목록
+
+**새로 생성된 파일:**
+- `/backend-api/src/common/monitoring/query-optimization.service.ts`
+- `/backend-api/src/common/interceptors/query-performance.interceptor.ts`
+- `/backend-api/src/common/utils/typeorm-query-logger.ts`
+- `/backend-api/src/common/monitoring/query-analyzer.service.spec.ts`
+- `/backend-api/docs/query-optimization-guidelines.md`
+
+**수정된 파일:**
+- `/backend-api/src/common/monitoring/monitoring.module.ts` - 새 서비스 및 의존성 추가
+- `/backend-api/src/common/monitoring/query-optimization-report.controller.ts` - 새 엔드포인트 추가
+
+#### 성능 개선 예상 효과
+
+- Full Table Scan 제거 시: 50-90% 실행 시간 감소
+- 적절한 인덱스 추가 시: 30-70% 성능 향상
+- 임시 테이블 제거 시: 30-50% 실행 시간 감소
+- Filesort 제거 시: 20-40% 실행 시간 감소
+
+#### 사용 방법
+
+1. **환경변수 설정**
+```bash
+QUERY_PERFORMANCE_MONITORING_ENABLED=true
+QUERY_AUTO_ANALYZE_THRESHOLD=5000  # 5초 이상 요청 자동 분석
+```
+
+2. **쿼리 분석 실행**
+```bash
+# 단일 쿼리 분석
+curl -X POST http://localhost:3000/api/query-analyzer/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"query": "SELECT * FROM dashboard WHERE user_id = 1"}'
+
+# 최적화 보고서 생성
+curl http://localhost:3000/api/monitoring/query-optimization/report?analyzeSystem=true
+```
+
+3. **가이드라인 문서 다운로드**
+```bash
+curl http://localhost:3000/api/monitoring/query-optimization/optimization-guidelines \
+  -o query-optimization-guidelines.md
+```
+
+#### 작업 완료
+
+모든 acceptance criteria가 충족되었습니다:
+- ✅ 모든 주요 쿼리의 실행 계획이 분석됨
+- ✅ Full Table Scan이 발생하는 쿼리 식별 및 최적화 방안 제시
+- ✅ 쿼리 실행 시간 측정 및 개선 목표 설정 가능
+- ✅ 실행 계획 분석 보고서 자동 생성
+- ✅ 쿼리 최적화 가이드라인 문서화 완료

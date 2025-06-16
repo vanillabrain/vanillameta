@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/typeorm';
 import { Connection, QueryRunner } from 'typeorm';
-import * as Knex from 'knex';
+import { Knex, knex } from 'knex';
 import { Database } from '../../database/entities/database.entity';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -98,7 +98,7 @@ export class QueryAnalyzerService {
     }
 
     const config = JSON.parse(database.connectionConfig);
-    const knex = Knex(config);
+    const knexInstance = knex(config);
 
     try {
       const analysis: QueryAnalysis = {
@@ -107,19 +107,19 @@ export class QueryAnalyzerService {
 
       switch (database.engine) {
         case 'pg':
-          return await this.analyzePostgresQuery(knex, query, analysis);
+          return await this.analyzePostgresQuery(knexInstance, query, analysis);
         case 'mysql2':
-          return await this.analyzeMySQLQuery(knex, query, analysis);
+          return await this.analyzeMySQLQuery(knexInstance, query, analysis);
         case 'mssql':
-          return await this.analyzeSQLServerQuery(knex, query, analysis);
+          return await this.analyzeSQLServerQuery(knexInstance, query, analysis);
         case 'oracledb':
-          return await this.analyzeOracleQuery(knex, query, analysis);
+          return await this.analyzeOracleQuery(knexInstance, query, analysis);
         default:
           analysis.warnings = [`Query analysis not supported for ${database.engine}`];
           return analysis;
       }
     } finally {
-      await knex.destroy();
+      await knexInstance.destroy();
     }
   }
 
