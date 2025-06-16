@@ -1,0 +1,382 @@
+import { Knex } from 'knex';
+import { Injectable } from '@nestjs/common';
+import {
+  IDatabaseOptimizer,
+  DatabaseFeature,
+  DatabaseError,
+  PerformanceHint,
+} from './database-optimizer.interface';
+
+/**
+ * Google BigQuery 최적화 클래스
+ */
+@Injectable()
+export class BigQueryOptimizer implements IDatabaseOptimizer {
+  readonly databaseType = 'bigquery';
+
+  /**
+   * BigQuery에 최적화된 연결 설정
+   */
+  getOptimizedConnectionConfig(baseConfig: any): Knex.Config {
+    const optimizedConfig: Knex.Config = {
+      ...baseConfig,
+      client: require('knex-bigquery'), // BigQuery client
+      connection: {
+        ...baseConfig.connection,
+        projectId: process.env.BIGQUERY_PROJECT_ID,
+        keyFilename: process.env.BIGQUERY_KEY_FILE,
+        location: process.env.BIGQUERY_LOCATION || 'US',
+        // BigQuery 특화 설정
+        maximumBillingTier: parseInt(process.env.BIGQUERY_MAX_BILLING_TIER) || 1,
+        useLegacySql: false, // 표준 SQL 사용
+        useQueryCache: true, // 쿼리 캐시 활성화
+        labels: {
+          application: 'vanillameta-bi',
+          environment: process.env.NODE_ENV || 'development',
+        },
+      },
+      pool: {
+        min: 0,
+        max: parseInt(process.env.BIGQUERY_POOL_MAX) || 5, // BigQuery는 API 제한으로 적은 수
+        createTimeoutMillis: 60000, // 1분 - BigQuery는 초기 연결이 느릴 수 있음
+        acquireTimeoutMillis: 60000,
+        idleTimeoutMillis: 600000, // 10분 - BigQuery 세션 유지
+        reapIntervalMillis: 30000, // 30초마다 정리
+        createRetryIntervalMillis: 1000,
+        propagateCreateError: false,
+      },
+      acquireConnectionTimeout: 60000,
+      // BigQuery 특화 옵션
+      options: {
+        // 쿼리 실행 옵션
+        priority: 'INTERACTIVE', // 또는 'BATCH'
+        maximumBytesBilled: process.env.BIGQUERY_MAX_BYTES_BILLED || '1000000000', // 1GB
+        useLegacySql: false,
+        useQueryCache: true,
+        // 결과 저장 옵션
+        allowLargeResults: true,
+        flattenResults: false,
+        // 시간 파티셔닝 옵션
+        requirePartitionFilter: false,
+      },
+    };
+
+    return optimizedConfig;
+  }
+
+  /**
+   * BigQuery 쿼리 최적화
+   */
+  optimizeQuery(queryBuilder: Knex.QueryBuilder): Knex.QueryBuilder {
+    // BigQuery 특화 옵션 추가
+    queryBuilder = queryBuilder.options({
+      useLegacySql: false,
+      maximumBillingTier: 1,
+      useQueryCache: true,
+      // 쿼리 라벨 추가 (모니터링용)
+      labels: {
+        application: 'vanillameta',
+        query_type: this.getQueryType(queryBuilder),
+        environment: process.env.NODE_ENV || 'development',
+      },
+    });
+
+    // 파티션 필터 최적화
+    if (this.hasDateColumn(queryBuilder)) {
+      queryBuilder = this.optimizePartitionFilter(queryBuilder);
+    }
+
+    // 비용 최적화를 위한 컬럼 제한
+    if (this.hasSelectAll(queryBuilder)) {
+      queryBuilder = this.limitSelectColumns(queryBuilder);
+    }
+
+    // 결과 제한 (BigQuery는 대용량 처리 가능하지만 비용 고려)
+    if (!this.hasLimit(queryBuilder)) {
+      queryBuilder = queryBuilder.limit(10000); // BigQuery는 더 큰 제한
+    }
+
+    return queryBuilder;
+  }
+
+  /**
+   * BigQuery 최적 배치 크기
+   */
+  getBatchSize(): number {
+    // BigQuery는 스트리밍 삽입 제한이 있음
+    return parseInt(process.env.BIGQUERY_BATCH_SIZE) || 1000;
+  }
+
+  /**
+   * BigQuery 지원 기능 확인
+   */
+  supportsFeature(feature: DatabaseFeature): boolean {
+    const supportedFeatures = [
+      DatabaseFeature.JSON_OPERATIONS,
+      DatabaseFeature.ARRAY_OPERATIONS,
+      DatabaseFeature.WINDOW_FUNCTIONS,
+      DatabaseFeature.CTE,
+      DatabaseFeature.PARTITIONING,
+      DatabaseFeature.CLUSTERING,
+      DatabaseFeature.MATERIALIZED_VIEWS,
+      DatabaseFeature.TIME_SERIES,
+      DatabaseFeature.BULK_INSERT,
+      DatabaseFeature.STREAMING,
+    ];
+
+    return supportedFeatures.includes(feature);
+  }
+
+  /**
+   * BigQuery 에러 매핑
+   */
+  mapError(error: any): DatabaseError {
+    const bigqueryErrors: { [key: string]: DatabaseError } = {
+      'INVALID_QUERY': {
+        code: 'INVALID_QUERY',
+        message: 'BigQuery 쿼리 문법이 올바르지 않습니다.',
+        severity: 'medium',
+        retryable: false,
+        suggestions: ['표준 SQL 문법을 사용해주세요.', '컬럼명과 테이블명을 확인해주세요.'],
+      },
+      'ACCESS_DENIED': {
+        code: 'ACCESS_DENIED',
+        message: 'BigQuery 테이블 접근 권한이 없습니다.',
+        severity: 'high',
+        retryable: false,
+        suggestions: ['IAM 권한을 확인해주세요.', '프로젝트 ID를 확인해주세요.'],
+      },
+      'QUOTA_EXCEEDED': {
+        code: 'QUOTA_EXCEEDED',
+        message: 'BigQuery 할당량을 초과했습니다.',
+        severity: 'high',
+        retryable: true,
+        suggestions: ['잠시 후 다시 시도해주세요.', '쿼리를 최적화하여 비용을 줄여주세요.'],
+      },
+      'TABLE_NOT_FOUND': {
+        code: 'TABLE_NOT_FOUND',
+        message: 'BigQuery 테이블을 찾을 수 없습니다.',
+        severity: 'high',
+        retryable: false,
+        suggestions: ['테이블명과 데이터셋명을 확인해주세요.', '프로젝트 ID를 확인해주세요.'],
+      },
+      'BYTES_BILLED_LIMIT_EXCEEDED': {
+        code: 'BILLING_LIMIT_EXCEEDED',
+        message: '쿼리 비용 제한을 초과했습니다.',
+        severity: 'high',
+        retryable: false,
+        suggestions: ['쿼리를 최적화해주세요.', '파티션 필터를 추가해주세요.', 'SELECT * 대신 필요한 컬럼만 선택해주세요.'],
+      },
+    };
+
+    const errorMessage = error.message || '';
+    let errorType = 'UNKNOWN_ERROR';
+
+    // 에러 메시지로부터 타입 추론
+    if (errorMessage.includes('Invalid query')) errorType = 'INVALID_QUERY';
+    else if (errorMessage.includes('Access Denied')) errorType = 'ACCESS_DENIED';
+    else if (errorMessage.includes('Quota exceeded')) errorType = 'QUOTA_EXCEEDED';
+    else if (errorMessage.includes('Table') && errorMessage.includes('not found')) errorType = 'TABLE_NOT_FOUND';
+    else if (errorMessage.includes('bytes billed')) errorType = 'BYTES_BILLED_LIMIT_EXCEEDED';
+
+    return bigqueryErrors[errorType] || {
+      code: 'UNKNOWN_ERROR',
+      message: error.message || '알 수 없는 BigQuery 오류가 발생했습니다.',
+      severity: 'medium',
+      retryable: false,
+      suggestions: ['쿼리를 확인해주세요.', 'BigQuery 콘솔에서 상세 오류를 확인해주세요.'],
+    };
+  }
+
+  /**
+   * BigQuery 성능 힌트 제공
+   */
+  getPerformanceHints(): PerformanceHint[] {
+    return [
+      {
+        category: 'query',
+        priority: 'high',
+        description: '파티션 필터를 사용하여 스캔 비용을 줄이세요.',
+        implementation: 'WHERE _PARTITIONTIME >= "2023-01-01" AND _PARTITIONTIME < "2023-02-01"',
+      },
+      {
+        category: 'query',
+        priority: 'high',
+        description: 'SELECT * 대신 필요한 컬럼만 선택하세요.',
+        implementation: 'SELECT col1, col2 FROM table WHERE condition',
+      },
+      {
+        category: 'configuration',
+        priority: 'high',
+        description: '클러스터링을 사용하여 쿼리 성능을 향상시키세요.',
+        implementation: 'CREATE TABLE dataset.table CLUSTER BY column1, column2 AS SELECT ...',
+      },
+      {
+        category: 'query',
+        priority: 'medium',
+        description: 'APPROX 함수를 사용하여 대용량 집계를 빠르게 처리하세요.',
+        implementation: 'SELECT APPROX_COUNT_DISTINCT(user_id) FROM table',
+      },
+      {
+        category: 'configuration',
+        priority: 'medium',
+        description: '머티리얼라이즈드 뷰를 사용하여 반복 쿼리를 최적화하세요.',
+        implementation: 'CREATE MATERIALIZED VIEW dataset.mv AS SELECT ...',
+      },
+      {
+        category: 'query',
+        priority: 'medium',
+        description: 'WITH 절을 사용하여 복잡한 쿼리를 단순화하세요.',
+        implementation: 'WITH cte AS (SELECT ...) SELECT * FROM cte',
+      },
+    ];
+  }
+
+  /**
+   * 쿼리 타입 추출
+   */
+  private getQueryType(queryBuilder: Knex.QueryBuilder): string {
+    const sql = queryBuilder.toString().toUpperCase();
+    if (sql.startsWith('SELECT')) return 'select';
+    if (sql.startsWith('INSERT')) return 'insert';
+    if (sql.startsWith('UPDATE')) return 'update';
+    if (sql.startsWith('DELETE')) return 'delete';
+    return 'other';
+  }
+
+  /**
+   * 날짜 컬럼 존재 여부 확인
+   */
+  private hasDateColumn(queryBuilder: Knex.QueryBuilder): boolean {
+    const sql = queryBuilder.toString();
+    return sql.includes('_PARTITIONTIME') || sql.includes('created_at') || sql.includes('updated_at');
+  }
+
+  /**
+   * 파티션 필터 최적화
+   */
+  private optimizePartitionFilter(queryBuilder: Knex.QueryBuilder): Knex.QueryBuilder {
+    // 자동으로 파티션 필터 추가 (최근 30일)
+    if (!queryBuilder.toString().includes('_PARTITIONTIME')) {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      queryBuilder = queryBuilder.whereRaw(
+        '_PARTITIONTIME >= ?',
+        [thirtyDaysAgo.toISOString().split('T')[0]]
+      );
+    }
+    
+    return queryBuilder;
+  }
+
+  /**
+   * SELECT * 사용 여부 확인
+   */
+  private hasSelectAll(queryBuilder: Knex.QueryBuilder): boolean {
+    const sql = queryBuilder.toString();
+    return sql.includes('SELECT *');
+  }
+
+  /**
+   * SELECT 컬럼 제한
+   */
+  private limitSelectColumns(queryBuilder: Knex.QueryBuilder): Knex.QueryBuilder {
+    // 경고 로그만 출력하고 실제 제한은 하지 않음
+    console.warn('BigQuery Warning: SELECT * may result in high costs. Consider selecting specific columns.');
+    return queryBuilder;
+  }
+
+  /**
+   * LIMIT 절 존재 여부 확인
+   */
+  private hasLimit(queryBuilder: Knex.QueryBuilder): boolean {
+    const sql = queryBuilder.toString();
+    return sql.includes('LIMIT');
+  }
+
+  /**
+   * BigQuery 파티션 테이블 생성
+   */
+  async createPartitionedTable(
+    knex: Knex,
+    dataset: string,
+    tableName: string,
+    partitionColumn: string = 'created_at',
+    clusterColumns: string[] = []
+  ): Promise<void> {
+    const clusterBy = clusterColumns.length > 0 
+      ? `CLUSTER BY ${clusterColumns.join(', ')}` 
+      : '';
+
+    const query = `
+      CREATE TABLE IF NOT EXISTS \`${dataset}.${tableName}\`
+      PARTITION BY DATE(${partitionColumn})
+      ${clusterBy}
+      AS SELECT * FROM \`${dataset}.${tableName}_temp\`
+      WHERE 1 = 0
+    `;
+
+    await knex.raw(query);
+  }
+
+  /**
+   * BigQuery 스트리밍 삽입
+   */
+  async streamingInsert(
+    knex: Knex,
+    tableName: string,
+    data: any[],
+    options: { insertId?: string; ignoreUnknownValues?: boolean } = {}
+  ): Promise<void> {
+    const insertOptions = {
+      insertId: options.insertId,
+      ignoreUnknownValues: options.ignoreUnknownValues || true,
+      skipInvalidRows: true,
+    };
+
+    // BigQuery 스트리밍 API 사용
+    await knex.raw('INSERT INTO ? VALUES ?', [tableName, data], insertOptions);
+  }
+
+  /**
+   * BigQuery 비용 제어 쿼리 실행
+   */
+  async executeWithCostControl(
+    knex: Knex,
+    query: string,
+    maxCostBytes: number = 1000000000 // 1GB
+  ): Promise<any> {
+    return knex.raw(query).options({
+      maximumBytesBilled: maxCostBytes.toString(),
+      useQueryCache: true,
+      priority: 'INTERACTIVE',
+      dryRun: false, // 실제 실행
+    });
+  }
+
+  /**
+   * BigQuery 배치 로드
+   */
+  async batchLoad(
+    knex: Knex,
+    dataset: string,
+    tableName: string,
+    sourceUri: string,
+    format: 'CSV' | 'JSON' | 'AVRO' | 'PARQUET' = 'CSV'
+  ): Promise<void> {
+    const loadOptions = {
+      sourceFormat: format,
+      writeDisposition: 'WRITE_APPEND',
+      autodetect: true,
+      allowQuotedNewlines: format === 'CSV',
+      skipLeadingRows: format === 'CSV' ? 1 : 0,
+    };
+
+    await knex.raw(
+      `LOAD DATA INTO \`${dataset}.${tableName}\` FROM FILES (FORMAT = '${format}', URIS = ['${sourceUri}'])`,
+      [],
+      loadOptions
+    );
+  }
+}
