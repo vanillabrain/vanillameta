@@ -51,7 +51,7 @@ export class JobResult {
   @Column({ type: 'varchar', length: 100, nullable: true })
   mimeType: string;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'datetime', nullable: true })
   expiresAt: Date;
 
   @Column({ type: 'boolean', default: false })

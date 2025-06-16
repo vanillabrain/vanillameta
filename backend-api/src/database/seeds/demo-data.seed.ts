@@ -1,5 +1,5 @@
 import { DataSource } from 'typeorm';
-import { Users } from '../../user/entities/user.entity';
+import { User } from '../../user/entities/user.entity';
 import { Database } from '../entities/database.entity';
 import { DatabaseType } from '../entities/database_type.entity';
 import { Dataset } from '../../dataset/entities/dataset.entity';
@@ -19,56 +19,51 @@ export async function seedDemoData(dataSource: DataSource) {
 
   try {
     // 1. Create demo user (if not exists)
-    const userRepo = dataSource.getRepository(Users);
-    let demoUser = await userRepo.findOne({ where: { userEmail: 'guest' } });
+    const userRepo = dataSource.getRepository(User);
+    let demoUser = await userRepo.findOne({ where: { email: 'guest' } });
 
     if (!demoUser) {
       demoUser = await userRepo.save({
-        userEmail: 'guest',
-        password: '$2a$10$XkVn6.bSQJErtqBd4P3MG.D8P0w06eBNdW68JKqCJeGGQxnxFxqJC', // Admin!@12
-        userName: 'Demo User',
-        userPhone: '010-0000-0000',
-        createdDate: new Date(),
-        updatedDate: new Date(),
+        userId: 'guest',
+        email: 'guest',
+        password: '0258acb251701900c2abcde987033e032838df1eb39f10bfb9e9f6398866b13acb104f00485b92b11db90544744280626980c3888b9ba98ea8f319f9747d051e', // Admin!@12 (SHA512)
       });
       console.log('✅ Demo user created');
     }
 
     // 2. Create SQLite database type
     const dbTypeRepo = dataSource.getRepository(DatabaseType);
-    let sqliteType = await dbTypeRepo.findOne({ where: { dbEngine: 'sqlite' } });
+    let sqliteType = await dbTypeRepo.findOne({ where: { engine: 'sqlite' } });
 
     if (!sqliteType) {
       sqliteType = await dbTypeRepo.save({
-        dbEngine: 'sqlite',
-        dbName: 'SQLite',
-        dbDriverName: 'sqlite3',
-        dbPort: 0,
-        isActive: 'Y',
-        createdDate: new Date(),
-        updatedDate: new Date(),
+        type: 'sqlite',
+        engine: 'sqlite',
+        title: 'SQLite',
+        seq: 1,
+        useYn: 'Y',
       });
       console.log('✅ SQLite database type created');
     }
 
     // 3. Create demo database connection
     const dbRepo = dataSource.getRepository(Database);
-    let demoDB = await dbRepo.findOne({ where: { dbAlias: 'Demo SQLite' } });
+    let demoDB = await dbRepo.findOne({ where: { name: 'Demo SQLite' } });
 
     if (!demoDB) {
       demoDB = await dbRepo.save({
-        dbAlias: 'Demo SQLite',
-        dbIp: ':memory:',
-        dbPort: 0,
-        dbDatabase: 'demo.db',
-        dbAccount: '',
-        dbPassword: '',
-        dbOptions: '{}',
-        isActive: 'Y',
-        userEmail: demoUser.userEmail,
-        databaseType: sqliteType,
-        createdDate: new Date(),
-        updatedDate: new Date(),
+        name: 'Demo SQLite',
+        description: 'Demo SQLite database',
+        connectionConfig: JSON.stringify({
+          client: 'sqlite',
+          connection: {
+            filename: './demo.db'
+          },
+          useNullAsDefault: true
+        }),
+        engine: 'sqlite',
+        type: 'sqlite',
+        timezone: 'Asia/Seoul',
       });
       console.log('✅ Demo database created');
     }
@@ -77,8 +72,8 @@ export async function seedDemoData(dataSource: DataSource) {
     const datasetRepo = dataSource.getRepository(Dataset);
     const datasets = [
       {
-        datasetName: '월별 판매 현황',
-        datasetQuery: `SELECT 
+        title: '월별 판매 현황',
+        query: `SELECT 
           strftime('%Y-%m', order_date) as month,
           COUNT(*) as order_count,
           SUM(amount) as total_sales
@@ -86,13 +81,11 @@ export async function seedDemoData(dataSource: DataSource) {
         WHERE order_date >= date('now', '-12 months')
         GROUP BY month
         ORDER BY month`,
-        datasetType: 'sql',
-        userEmail: demoUser.userEmail,
-        database: demoDB,
+        databaseId: demoDB.id,
       },
       {
-        datasetName: '카테고리별 매출',
-        datasetQuery: `SELECT 
+        title: '카테고리별 매출',
+        query: `SELECT 
           category,
           COUNT(*) as product_count,
           SUM(quantity) as total_quantity,
@@ -100,13 +93,11 @@ export async function seedDemoData(dataSource: DataSource) {
         FROM sales_orders
         GROUP BY category
         ORDER BY total_amount DESC`,
-        datasetType: 'sql',
-        userEmail: demoUser.userEmail,
-        database: demoDB,
+        databaseId: demoDB.id,
       },
       {
-        datasetName: '일별 주문 추이',
-        datasetQuery: `SELECT 
+        title: '일별 주문 추이',
+        query: `SELECT 
           date(order_date) as order_day,
           COUNT(*) as order_count,
           AVG(amount) as avg_order_value
@@ -114,24 +105,17 @@ export async function seedDemoData(dataSource: DataSource) {
         WHERE order_date >= date('now', '-30 days')
         GROUP BY order_day
         ORDER BY order_day`,
-        datasetType: 'sql',
-        userEmail: demoUser.userEmail,
-        database: demoDB,
+        databaseId: demoDB.id,
       },
     ];
 
     for (const datasetData of datasets) {
       const existing = await datasetRepo.findOne({
-        where: { datasetName: datasetData.datasetName },
+        where: { title: datasetData.title },
       });
 
       if (!existing) {
-        await datasetRepo.save({
-          ...datasetData,
-          isActive: 'Y',
-          createdDate: new Date(),
-          updatedDate: new Date(),
-        });
+        await datasetRepo.save(datasetData);
       }
     }
     console.log('✅ Sample datasets created');
@@ -139,17 +123,13 @@ export async function seedDemoData(dataSource: DataSource) {
     // 5. Create demo dashboard
     const dashboardRepo = dataSource.getRepository(Dashboard);
     let demoDashboard = await dashboardRepo.findOne({
-      where: { dashboardName: '판매 분석 대시보드' },
+      where: { title: '판매 분석 대시보드' },
     });
 
     if (!demoDashboard) {
       demoDashboard = await dashboardRepo.save({
-        dashboardName: '판매 분석 대시보드',
-        dashboardComment: 'VanillaMeta 데모를 위한 샘플 대시보드입니다.',
-        isActive: 'Y',
-        userEmail: demoUser.userEmail,
-        createdDate: new Date(),
-        updatedDate: new Date(),
+        title: '판매 분석 대시보드',
+        delYn: 'N',
       });
       console.log('✅ Demo dashboard created');
     }
@@ -157,27 +137,14 @@ export async function seedDemoData(dataSource: DataSource) {
     // 6. Create demo template
     const templateRepo = dataSource.getRepository(Template);
     let demoTemplate = await templateRepo.findOne({
-      where: { templateName: '이커머스 분석 템플릿' },
+      where: { title: '이커머스 분석 템플릿' },
     });
 
     if (!demoTemplate) {
       demoTemplate = await templateRepo.save({
-        templateName: '이커머스 분석 템플릿',
-        templateImage: '/static/images/template-ecommerce.png',
-        templateLayoutOption: JSON.stringify({
-          cols: 12,
-          rowHeight: 30,
-          margin: [10, 10],
-        }),
-        templateWidgetOption: JSON.stringify([
-          { i: 'widget1', x: 0, y: 0, w: 6, h: 8 },
-          { i: 'widget2', x: 6, y: 0, w: 6, h: 8 },
-          { i: 'widget3', x: 0, y: 8, w: 12, h: 10 },
-        ]),
-        isActive: 'Y',
-        userEmail: demoUser.userEmail,
-        createdDate: new Date(),
-        updatedDate: new Date(),
+        title: '이커머스 분석 템플릿',
+        description: '이커머스 비즈니스를 위한 분석 대시보드 템플릿',
+        useYn: 'Y',
       });
       console.log('✅ Demo template created');
     }

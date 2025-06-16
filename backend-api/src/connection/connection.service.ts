@@ -130,11 +130,40 @@ export class ConnectionService {
         (one as any).connectionConfig = {};
       }
       const knexConfig = one.connectionConfig;
+      
+      // client가 없는 경우 engine 값을 사용
+      if (!knexConfig['client'] && one.engine) {
+        knexConfig['client'] = one.engine;
+      }
+      
+      // SQLite의 경우 client 이름 수정 필요
+      if (knexConfig['client'] === 'sqlite') {
+        knexConfig['client'] = 'sqlite3';
+        // SQLite의 경우 connection 객체가 없으면 기본값 설정
+        if (!knexConfig['connection']) {
+          knexConfig['connection'] = {
+            filename: knexConfig['filename'] || './demo.db'
+          };
+        }
+      }
+      
       if (knexConfig['client'] == 'bigquery') {
         knexConfig['client'] = BigQueryClient;
       } else if (knexConfig['client'] == 'snowflake') {
         knexConfig['client'] = SnowflakeDialect;
       }
+      
+      // 로깅 추가
+      this.logger.debug('Creating Knex connection', 'ConnectionService', {
+        databaseId: id,
+        engine: one.engine,
+        client: knexConfig['client'],
+        hasConnection: !!knexConfig['connection'],
+        connectionType: typeof knexConfig['connection'],
+        connectionKeys: knexConfig['connection'] ? Object.keys(knexConfig['connection']) : [],
+        useNullAsDefault: knexConfig['useNullAsDefault'],
+      });
+      
       this.addKnex(id, knexConfig as Knex.Config);
     }
     return knexConnections.get(id);
@@ -154,6 +183,9 @@ export class ConnectionService {
         break;
       case 'snowflake':
         engine = SnowflakeDialect;
+        break;
+      case 'sqlite':
+        engine = 'sqlite3';
         break;
     }
 
@@ -180,9 +212,22 @@ export class ConnectionService {
       environment,
     );
 
+    // SQLite 특별 처리
+    let connectionObj = parsedConnectionConfig;
+    if (createDatabaseDto.engine === 'sqlite' || createDatabaseDto.engine === 'better-sqlite3') {
+      // connection 객체가 있으면 그대로 사용, 없으면 생성
+      if (parsedConnectionConfig.connection) {
+        connectionObj = parsedConnectionConfig.connection;
+      } else {
+        connectionObj = {
+          filename: parsedConnectionConfig.filename || parsedConnectionConfig.database || './demo.db'
+        };
+      }
+    }
+    
     const connectionConfig: Knex.Config = {
       client: engine,
-      connection: parsedConnectionConfig,
+      connection: connectionObj,
       useNullAsDefault: true,
       // 테스트 연결을 위한 최소한의 풀 설정 (최적화된 설정 기반)
       pool: {
@@ -236,6 +281,155 @@ export class ConnectionService {
     }
 
     return returnObj;
+  }
+
+  /**
+   * 시스템 쿼리 실행 (SQL 검증 우회)
+   * @param queryExecuteDto
+   */
+  async executeSystemQuery(queryExecuteDto: QueryExecuteDto) {
+    const knex = await this.getKnex(queryExecuteDto.id);
+
+    let datas = [];
+    const fields = [];
+    const resultObj = { status: null, message: null, datas: [], fields: [] };
+    const startTime = Date.now();
+
+    try {
+      let queryRes;
+      queryRes = await knex.raw(queryExecuteDto.query);
+      
+      // bigquery, snowflake
+      if (typeof knex.client.config.client === 'function') {
+        switch (knex.client.config.client.name) {
+          case 'SnowflakeDialect':
+            if (queryRes && queryRes.rows && queryRes.rows.length > 0) {
+              datas = queryRes.rows;
+              const tempFields = Object.keys(queryRes.rows[0]);
+              tempFields.map(field => {
+                const length = [];
+                const maxCnt = queryRes.rows.length > 100 ? 100 : queryRes.rows.length;
+                for (let i = 0; i < maxCnt; i++) {
+                  length.push(queryRes.rows[i][field]);
+                }
+                const fieldInfo = {
+                  columnName: field,
+                  columnType: FieldTypeUtil.FieldType(length),
+                };
+                fields.push(fieldInfo);
+              });
+            }
+            break;
+          case 'BigQueryClient':
+            if (queryRes && queryRes.length > 0) {
+              datas = queryRes;
+              const tempFields = Object.keys(queryRes[0]);
+
+              tempFields.map(field => {
+                const length = [];
+                const maxCnt = queryRes.length > 100 ? 100 : queryRes.length;
+                for (let i = 0; i < maxCnt; i++) {
+                  length.push(queryRes[i][field]);
+                }
+                const fieldInfo = {
+                  columnName: field,
+                  columnType: FieldTypeUtil.FieldType(length),
+                };
+                fields.push(fieldInfo);
+              });
+            }
+            break;
+        }
+      } else {
+        switch (knex.client.config.client) {
+          case 'mysql2':
+            if (queryRes && queryRes[0].length > 0) {
+              datas = queryRes[0];
+              const tempFields = queryRes[1];
+              tempFields.map(field => {
+                const fieldInfo = {
+                  columnName: field.name,
+                  columnType: FieldTypeUtil.mysqlFieldType(field.columnType),
+                };
+                fields.push(fieldInfo);
+              });
+            }
+            break;
+
+          case 'cockroachdb':
+          case 'pg':
+            if (queryRes && queryRes.rows && queryRes.rows.length > 0) {
+              datas = queryRes.rows;
+              const tempFields = queryRes.fields;
+              tempFields.map(field => {
+                const length = [];
+                const maxCnt = queryRes.rows.length > 100 ? 100 : queryRes.rows.length;
+                for (let i = 0; i < maxCnt; i++) {
+                  length.push(queryRes.rows[i][field.name]);
+                }
+                const fieldInfo = {
+                  columnName: field.name,
+                  columnType: FieldTypeUtil.FieldType(length),
+                };
+                fields.push(fieldInfo);
+              });
+            }
+            break;
+
+          default:
+            if (queryRes && queryRes.length > 0) {
+              datas = queryRes;
+              const tempFields = Object.keys(queryRes[0]);
+
+              tempFields.map(field => {
+                const length = [];
+                const maxCnt = queryRes.length > 100 ? 100 : queryRes.length;
+                for (let i = 0; i < maxCnt; i++) {
+                  length.push(queryRes[i][field]);
+                }
+                const fieldInfo = {
+                  columnName: field,
+                  columnType: FieldTypeUtil.FieldType(length),
+                };
+                fields.push(fieldInfo);
+              });
+            }
+            break;
+        }
+      }
+
+      resultObj.status = ResponseStatus.SUCCESS;
+      resultObj.message = 'success';
+      resultObj.datas = datas;
+      resultObj.fields = fields;
+
+      const executionTime = Date.now() - startTime;
+      this.logger.log('System query executed', 'ConnectionService', {
+        databaseId: queryExecuteDto.id,
+        query: queryExecuteDto.query?.substring(0, 100),
+        executionTime,
+        resultCount: datas.length,
+      });
+    } catch (e) {
+      const executionTime = Date.now() - startTime;
+      resultObj.status = ResponseStatus.ERROR;
+      
+      if (e.sqlMessage) {
+        resultObj.message = e.sqlMessage;
+      } else if (e.message) {
+        resultObj.message = e.message;
+      }
+
+      this.logger.error('System query execution failed', e.stack, 'ConnectionService', {
+        databaseId: queryExecuteDto.id,
+        query: queryExecuteDto.query?.substring(0, 200),
+        sqlMessage: e.sqlMessage,
+        errorMessage: e.message,
+        executionTime,
+      });
+    }
+
+    return resultObj;
   }
 
   /**

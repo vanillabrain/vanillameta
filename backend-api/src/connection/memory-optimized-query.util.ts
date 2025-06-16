@@ -3,7 +3,7 @@ import { promisify } from 'util';
 import { Logger } from '@nestjs/common';
 import * as zlib from 'zlib';
 
-const pipelineAsync = promisify(pipeline);
+const pipelineAsync = promisify(pipeline) as any;
 
 export class MemoryOptimizedQueryUtil {
   private static readonly logger = new Logger(MemoryOptimizedQueryUtil.name);
@@ -180,6 +180,7 @@ export class MemoryOptimizedQueryUtil {
     let processedRows = 0;
     let lastMemCheck = Date.now();
     const initialMem = process.memoryUsage().heapUsed;
+    const logger = this.logger;
 
     return new Transform({
       objectMode: true,
@@ -193,7 +194,7 @@ export class MemoryOptimizedQueryUtil {
           const memIncrease = (currentMem - initialMem) / 1024 / 1024;
 
           if (memIncrease > thresholdMB) {
-            this.logger.warn(
+            logger.warn(
               `Memory usage increased by ${memIncrease.toFixed(
                 2,
               )}MB after processing ${processedRows} rows`,
@@ -202,7 +203,7 @@ export class MemoryOptimizedQueryUtil {
             // 강제 GC 시도
             if (global.gc) {
               global.gc();
-              this.logger.info('Forced garbage collection due to high memory usage');
+              logger.log('Forced garbage collection due to high memory usage');
             }
           }
 
@@ -264,12 +265,12 @@ export class MemoryOptimizedQueryUtil {
     const streams = [source, ...transforms, destination];
 
     try {
-      await pipelineAsync(...streams);
+      await pipelineAsync(source, ...transforms, destination);
     } catch (error) {
       this.logger.error('Pipeline error:', error);
 
       // 모든 스트림 정리
-      streams.forEach(stream => {
+      streams.forEach((stream: any) => {
         if (stream && typeof stream.destroy === 'function') {
           stream.destroy();
         }
@@ -287,6 +288,7 @@ export class MemoryOptimizedQueryUtil {
     processFn: (batch: any[]) => Promise<any>,
   ): Transform {
     let batch: any[] = [];
+    const logger = this.logger;
 
     return new Transform({
       objectMode: true,
@@ -303,7 +305,7 @@ export class MemoryOptimizedQueryUtil {
               this.push(result);
             }
           } catch (error) {
-            this.logger.error('Batch processing error:', error);
+            logger.error('Batch processing error:', error);
           }
         }
 
@@ -317,7 +319,7 @@ export class MemoryOptimizedQueryUtil {
               this.push(result);
             }
           } catch (error) {
-            this.logger.error('Final batch processing error:', error);
+            logger.error('Final batch processing error:', error);
           }
         }
         callback();

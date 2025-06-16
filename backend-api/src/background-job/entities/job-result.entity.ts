@@ -22,15 +22,15 @@ export class JobResult extends BaseEntity {
   backgroundJob: BackgroundJob;
 
   @Column({
-    type: 'enum',
-    enum: ResultStorageType,
+    type: 'varchar',
+    length: 50,
     default: ResultStorageType.DATABASE,
   })
   storageType: ResultStorageType;
 
   // 작은 결과는 직접 저장 (1MB 이하)
-  @Column({ type: 'json', nullable: true })
-  resultData: any;
+  @Column({ type: 'text', nullable: true })
+  resultData: string;
 
   // 큰 결과는 외부 저장소 참조
   @Column({ type: 'varchar', length: 500, nullable: true })
@@ -42,15 +42,8 @@ export class JobResult extends BaseEntity {
   @Column({ type: 'int', default: 0 })
   rowCount: number;
 
-  @Column({ type: 'json', nullable: true })
-  resultMetadata: {
-    columns?: Array<{
-      name: string;
-      type: string;
-    }>;
-    executionTime?: number;
-    [key: string]: any;
-  };
+  @Column({ type: 'text', nullable: true })
+  resultMetadata: string;
 
   @Column({ type: 'datetime', default: () => 'CURRENT_TIMESTAMP' })
   expiresAt: Date; // 결과 만료 시간 (기본 7일)

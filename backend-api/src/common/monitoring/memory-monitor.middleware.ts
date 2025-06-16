@@ -69,7 +69,7 @@ export class MemoryMonitorMiddleware implements NestMiddleware {
         finalMemory: this.formatBytes(finalMemory.heapUsed),
         memoryDelta: this.formatBytes(memoryDelta),
         percentUsed: `${finalMemory.percentUsed.toFixed(1)}%`,
-        executionTime: `${executionTime.toFixed(2)}ms`,
+        executionTime: executionTime,
       });
 
       // 메모리 사용량이 크게 증가한 경우 경고
@@ -117,7 +117,7 @@ export class MemoryMonitorMiddleware implements NestMiddleware {
         heapSizeLimit: heapStats.heap_size_limit,
         mallocedMemory: heapStats.malloced_memory,
         peakMallocedMemory: heapStats.peak_malloced_memory,
-        doesZapGarbage: heapStats.does_zap_garbage,
+        doesZapGarbage: heapStats.does_zap_garbage === 1,
       },
     };
   }
@@ -130,11 +130,16 @@ export class MemoryMonitorMiddleware implements NestMiddleware {
 
     if (percentUsed >= this.CRITICAL_THRESHOLD) {
       // 중단 임계치 도달 - 새 요청 거부
-      this.customLogger.error('Critical memory threshold reached', 'MemoryMonitor', {
-        percentUsed: `${metrics.percentUsed.toFixed(1)}%`,
-        heapUsed: this.formatBytes(metrics.heapUsed),
-        rss: this.formatBytes(metrics.rss),
-      });
+      this.customLogger.error(
+        `Critical memory threshold reached: ${metrics.percentUsed.toFixed(1)}%`,
+        null,
+        'MemoryMonitor',
+        {
+          percentUsed: `${metrics.percentUsed.toFixed(1)}%`,
+          heapUsed: this.formatBytes(metrics.heapUsed),
+          rss: this.formatBytes(metrics.rss),
+        },
+      );
 
       // 강제 가비지 컬렉션 시도
       this.forceGarbageCollection();

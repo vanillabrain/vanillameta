@@ -46,7 +46,6 @@
     "@nestjs/schedule": "^2.2.3",
     "@nestjs/swagger": "^6.1.4",
     "@nestjs/typeorm": "^9.0.1",
-    "@nestjsplus/knex": "^1.0.0",
     "@types/cookie-parser": "^1.4.3",
     "@types/mustache": "^4.2.1",
     "@types/validator": "^13.15.1",

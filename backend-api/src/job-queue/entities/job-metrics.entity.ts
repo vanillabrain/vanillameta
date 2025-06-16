@@ -22,10 +22,10 @@ export class JobMetrics {
   @Column({ type: 'varchar', length: 50 })
   jobType: JobType;
 
-  @Column({ type: 'enum', enum: JobStatus })
+  @Column({ type: 'varchar', length: 50 })
   status: JobStatus;
 
-  @Column({ type: 'enum', enum: JobPriority })
+  @Column({ type: 'varchar', length: 50 })
   priority: JobPriority;
 
   @Column({ type: 'varchar', length: 100, nullable: true })

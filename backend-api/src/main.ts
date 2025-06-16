@@ -2,12 +2,16 @@ import { NestFactory } from '@nestjs/core';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
 import express from 'express';
+import { config } from 'dotenv';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './nest-utils/http-exception.filter';
 import { setupSwagger } from './utils/swagger';
 import { CustomLoggerService } from './common/logger/logger.service';
 import { LoggingMiddleware } from './middleware/logging.middleware';
 import * as v8 from 'v8';
+
+// 환경 변수 로드
+config({ path: '.env.local' });
 
 // 메모리 최적화 설정
 function configureMemoryOptimization() {
@@ -41,7 +45,9 @@ async function bootstrap() {
   const nestApp = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), {
     logger: new CustomLoggerService(),
     cors: {
-      origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(x => x.trim()) : ['http://localhost:3000'],
+      origin: process.env.CORS_ORIGIN
+        ? process.env.CORS_ORIGIN.split(',').map(x => x.trim())
+        : ['http://localhost:3000'],
       preflightContinue: false,
       credentials: true,
       optionsSuccessStatus: 200,

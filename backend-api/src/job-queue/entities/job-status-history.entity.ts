@@ -24,10 +24,10 @@ export class JobStatusHistory {
   @JoinColumn({ name: 'jobId' })
   job: QueueJob;
 
-  @Column({ type: 'enum', enum: JobStatus })
+  @Column({ type: 'varchar', length: 50 })
   status: JobStatus;
 
-  @Column({ type: 'enum', enum: JobStatus, nullable: true })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   previousStatus: JobStatus;
 
   @Column({ type: 'varchar', length: 255, nullable: true })

@@ -107,7 +107,8 @@ export class DashboardService {
   ): Promise<PaginatedResponse<any> | any> {
     const findUser = await this.userService.findDashboardId(userId);
     if (!findUser || findUser.length === 0) {
-      return 'not exist user';
+      // 사용자는 존재하지만 대시보드가 없는 경우 빈 배열 반환
+      return { status: ResponseStatus.SUCCESS, data: [] };
     }
     console.log(findUser);
     const findId = findUser.map(el => el['dashboardId']);

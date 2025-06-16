@@ -98,7 +98,7 @@ export class OptimizedDashboardQueries {
 
       // 위젯 옵션 파싱 - Join된 결과에서 위젯이 있는 경우
       // NOTE: 이 쿼리 결과는 left join으로 위젯 정보를 포함하지만
-      // TypeORM의 getOne()은 단일 엔티티만 반환하므로 
+      // TypeORM의 getOne()은 단일 엔티티만 반환하므로
       // 여러 위젯 정보는 별도 쿼리로 가져와야 함
     }
 

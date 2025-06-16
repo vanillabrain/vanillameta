@@ -99,7 +99,7 @@ export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     // Correlation ID 미들웨어를 모든 라우트에 적용
     consumer.apply(CorrelationIdMiddleware).forRoutes('*');
-    
+
     // Memory Monitor 미들웨어를 모든 라우트에 적용
     consumer.apply(MemoryMonitorMiddleware).forRoutes('*');
   }

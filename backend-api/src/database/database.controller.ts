@@ -65,6 +65,15 @@ export class DatabaseController {
   }
 
   /**
+   * 데이터베이스 테이블 목록 조회
+   * @param id
+   */
+  @Get('/:id/tables')
+  async findTables(@Param('id') id: string) {
+    return this.databaseService.findTables(+id);
+  }
+
+  /**
    * 데이터베이스 생성 ( 데이터소스 생성)
    * @param createDatabaseDto
    */

@@ -43,10 +43,10 @@ export class QueueJob {
   @Column({ type: 'varchar', length: 50 })
   jobType: JobType;
 
-  @Column({ type: 'enum', enum: JobStatus, default: JobStatus.PENDING })
+  @Column({ type: 'varchar', length: 50, default: JobStatus.PENDING })
   status: JobStatus;
 
-  @Column({ type: 'enum', enum: JobPriority, default: JobPriority.NORMAL })
+  @Column({ type: 'varchar', length: 50, default: JobPriority.NORMAL })
   priority: JobPriority;
 
   @Column({ type: 'varchar', length: 100, nullable: true })
@@ -73,13 +73,13 @@ export class QueueJob {
   @Column({ type: 'int', nullable: true })
   progress: number; // 0-100
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'datetime', nullable: true })
   scheduledAt: Date;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'datetime', nullable: true })
   startedAt: Date;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'datetime', nullable: true })
   completedAt: Date;
 
   @Column({ type: 'int', nullable: true })

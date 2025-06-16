@@ -29,8 +29,8 @@ export class BatchChunk extends BaseEntity {
   sequence: number;
 
   @Column({
-    type: 'enum',
-    enum: BatchChunkStatus,
+    type: 'varchar',
+    length: 50,
     default: BatchChunkStatus.PENDING,
     comment: '청크 상태',
   })
@@ -77,7 +77,7 @@ export class BatchChunk extends BaseEntity {
   maxRetries: number;
 
   @Column({
-    type: 'json',
+    type: 'text',
     nullable: true,
     comment: '청크 메타데이터',
   })
@@ -103,7 +103,7 @@ export class BatchChunk extends BaseEntity {
   errorMessage: string;
 
   @Column({
-    type: 'json',
+    type: 'text',
     nullable: true,
     comment: '에러 상세',
   })
