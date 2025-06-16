@@ -56,7 +56,8 @@ const WidgetModify = () => {
       .selectWidget(widgetId)
       .then(response => {
         console.log('selectWidget response:', response);
-        setWidgetInfo(response.data);
+        const widgetData = response.data.widget || response.data;
+        setWidgetInfo(widgetData);
         // console.log(widgetInfo, 'widgetInfo');
       })
       .finally(() => {

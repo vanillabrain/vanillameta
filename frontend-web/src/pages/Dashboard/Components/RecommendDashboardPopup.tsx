@@ -242,11 +242,11 @@ export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = 
   const [selectedItem, setSelectedItem] = useState(null);
 
   const getItems = () => {
-    TemplateService.selectRecommendTemplateList({ widgets: selectedWidgetIds }).then(response => {
+    TemplateService.selectRecommendTemplateList({ databaseIds: selectedWidgetIds }).then(response => {
       // TemplateService.selectRecommendTemplateList({ widgets: [1, 2] }).then(response => {
       console.log('selectTemplateList response:', response);
       if (response.status === STATUS.SUCCESS) {
-        setLoadedTemplateDataList(response.data);
+        setLoadedTemplateDataList(response.data.templates || response.data.items || []);
       } else {
         console.log('조회 실패!!');
       }

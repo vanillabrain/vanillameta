@@ -165,10 +165,15 @@ const DataSet = () => {
     showLoading();
     DatasetService.selectDataset(setId)
       .then(response => {
-        console.log('selectDataset', response.data.id, response.data.databaseId);
         console.log('selectDataset response:', response);
         if (response.status === 'SUCCESS') {
-          setDatasetInfo(response.data);
+          const datasetData = response.data.dataset || response.data;
+          console.log('selectDataset', datasetData.id, datasetData.databaseId);
+          setDatasetInfo({
+            databaseId: String(datasetData.databaseId),
+            title: datasetData.title || '',
+            query: datasetData.query || ''
+          });
         } else {
           alert.error(response.message || '데이터베이스 조회에 실패했습니다.\n다시 시도해 주세요.');
         }
@@ -184,7 +189,7 @@ const DataSet = () => {
   const excuteQuery = () => {
     showLoading();
     const param = {
-      id: databaseId,
+      databaseId: Number(databaseId),
       query: datasetInfo.query,
     };
     console.log('param', param);
@@ -194,7 +199,8 @@ const DataSet = () => {
         console.log('executeQuery response:', response);
         if (response.status === 'SUCCESS') {
           setTestCompleted(true);
-          const rows = response.data?.result?.rows || response.data?.datas || [];
+          const resultData = response.data?.result || response.data;
+          const rows = resultData?.rows || resultData?.datas || [];
           setData(rows);
           setColumns(createColumns(rows));
           snackbar.success('Success!');
@@ -228,7 +234,11 @@ const DataSet = () => {
           onClick: () => {
             showLoading();
             if (isModifyMode) {
-              DatasetService.updateDataset(setId, datasetInfo)
+              DatasetService.updateDataset(setId, {
+                databaseId: Number(datasetInfo.databaseId),
+                title: datasetInfo.title,
+                query: datasetInfo.query
+              })
                 .then(response => {
                   console.log(response.data);
                   console.log('updateDataset response:', response);
@@ -243,7 +253,11 @@ const DataSet = () => {
                   hideLoading();
                 });
             } else {
-              DatasetService.createDataset(datasetInfo)
+              DatasetService.createDataset({
+                databaseId: Number(datasetInfo.databaseId),
+                title: datasetInfo.title,
+                query: datasetInfo.query
+              })
                 .then(response => {
                   console.log(response.data);
                   console.log('createDataset response:', response);

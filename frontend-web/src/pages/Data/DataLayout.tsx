@@ -139,7 +139,6 @@ const DataLayout = props => {
       .then(response => {
         console.log('selectData response:', response);
         if (response.status === STATUS.SUCCESS) {
-          const rows = response.data?.result?.rows || response.data?.datas || [];
           // result 안에 rows가 있는 경우와 datas가 직접 있는 경우 모두 처리
           const resultData = response.data?.result || response.data;
           const rows = resultData?.rows || resultData?.datas || [];

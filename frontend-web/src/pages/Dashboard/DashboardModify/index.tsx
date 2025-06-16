@@ -310,7 +310,7 @@ function DashboardModify() {
       // 저장 로직
       dashboardInfo.dashboardId = dashboardId;
       dashboardInfo.title = dashboardTitle;
-      dashboardInfo.layout = JSON.stringify(layout);
+      dashboardInfo.layout = layout;
       dashboardInfo.widgets = widgets;
 
       if (dashboardId != null) {
@@ -322,10 +322,9 @@ function DashboardModify() {
               copy: '수정',
               onClick: () => {
                 showLoading();
-                DashboardService.updateDashboard({
-                  dashboardId: dashboardId,
+                DashboardService.updateDashboard(dashboardId, {
                   title: dashboardInfo.title,
-                  layout: dashboardInfo.layout,
+                  layout: JSON.stringify(dashboardInfo.layout),
                   widgets: dashboardInfo.widgets
                 })
                   .then(response => {
@@ -354,7 +353,7 @@ function DashboardModify() {
                 showLoading();
                 DashboardService.createDashboard({
                   title: dashboardInfo.title,
-                  layout: dashboardInfo.layout,
+                  layout: JSON.stringify(dashboardInfo.layout),
                   widgets: dashboardInfo.widgets
                 })
                   .then(response => {

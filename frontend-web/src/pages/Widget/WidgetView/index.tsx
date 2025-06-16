@@ -55,7 +55,8 @@ const WidgetView = () => {
     WidgetService.selectWidget(widgetId)
       .then(response => {
         console.log('selectWidget response:', response);
-        setWidgetOption(response.data);
+        const widgetData = response.data.widget || response.data;
+        setWidgetOption(widgetData);
       })
       .finally(() => {
         hideLoading();
@@ -84,7 +85,7 @@ const WidgetView = () => {
               showLoading();
               WidgetService.deleteWidget(widgetId)
                 .then(response => {
-                  if (response.status === 200) {
+                  if (response.status === STATUS.SUCCESS) {
                     navigate('/widget', { replace: true });
                     snackbar.success('위젯이 삭제되었습니다.');
                   } else {

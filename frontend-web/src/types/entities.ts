@@ -21,6 +21,9 @@ export interface Dashboard extends BaseEntity {
   seq?: number;
   shareId?: number;
   delYn?: string;
+  shareYn?: string;
+  uuid?: string;
+  endDate?: string;
 }
 
 export interface Database extends BaseEntity {
@@ -31,6 +34,7 @@ export interface Database extends BaseEntity {
   engine: string;
   type: string;
   timezone?: string;
+  icon?: string; // 프론트엔드에서 추가
 }
 
 export interface Dataset extends BaseEntity {
@@ -69,6 +73,7 @@ export interface DatabaseType {
   title: string;
   description?: string;
   useYn?: string;
+  icon?: string;
 }
 
 export interface Template extends BaseEntity {

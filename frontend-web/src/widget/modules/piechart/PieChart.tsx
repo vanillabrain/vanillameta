@@ -2,14 +2,20 @@ import React, { useMemo, memo } from 'react';
 import OptimizedChart from '@/components/OptimizedChart';
 import { getAggregationDataForChart, getCenter, getGridSize, getLegendOption } from '@/widget/modules/utils/chartUtil';
 
-const PieChart = memo(props => {
+interface PieChartProps {
+  option: any;
+  dataSet: any;
+  seriesOp?: any;
+}
+
+const PieChart = memo((props: PieChartProps) => {
   const { option, dataSet, seriesOp } = props;
 
   // 기본 옵션을 useMemo로 메모이제이션
   const defaultComponentOption = useMemo(() => ({
     grid: { top: '3%', right: '3%', bottom: '3%', left: '3%' },
     tooltip: {
-      trigger: 'item',
+      trigger: 'item' as const,
     },
     series: [],
     emphasis: {
