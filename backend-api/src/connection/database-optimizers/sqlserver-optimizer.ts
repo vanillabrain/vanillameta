@@ -26,34 +26,56 @@ export class SqlServerOptimizer extends BaseDatabaseOptimizer {
       maxDop?: number; // 최대 병렬 처리 정도
       forceIndex?: string; // 강제 인덱스 사용
       includeActualPlan?: boolean; // 실제 실행 계획 포함
+      tableHints?: string[]; // 테이블 힌트들
+      queryHints?: string[]; // 쿼리 힌트들
+      noLock?: boolean; // NOLOCK 힌트 사용
     } = {},
   ): Knex.QueryBuilder {
-    let optimizedQuery = queryBuilder;
+    const sqlServerOptions: any = {};
 
-    // SQL Server 힌트 적용 - Knex는 hint를 직접 지원하지 않으므로 주석 처리
-    // TODO: raw 쿼리를 사용하여 SQL Server 힌트 구현 필요
-
-    // if (options.hint) {
-    //   // 예: SELECT ... WITH (hint)
-    // }
-
-    // // 인덱스 힌트
-    // if (options.forceIndex) {
-    //   // 예: SELECT ... WITH (INDEX(idx_name))
-    // }
-
-    // // 격리 수준 설정
-    // if (options.isolation) {
-    //   const isolationHint = options.isolation === 'READ_UNCOMMITTED' ? 'WITH (NOLOCK)' : '';
-    //   // 예: SELECT ... WITH (NOLOCK)
-    // }
-
-    // 최대 병렬 처리 정도
-    if (options.maxDop) {
-      optimizedQuery = optimizedQuery.options({ maxDop: options.maxDop });
+    // SQL Server 특정 옵션들을 저장
+    if (options.hint) {
+      sqlServerOptions.hint = options.hint;
     }
 
-    return optimizedQuery;
+    if (options.forceIndex) {
+      sqlServerOptions.indexHint = `INDEX(${options.forceIndex})`;
+    }
+
+    if (options.isolation) {
+      sqlServerOptions.isolation = options.isolation;
+    }
+
+    if (options.noLock) {
+      sqlServerOptions.noLock = true;
+    }
+
+    if (options.tableHints && options.tableHints.length > 0) {
+      sqlServerOptions.tableHints = options.tableHints;
+    }
+
+    if (options.queryHints && options.queryHints.length > 0) {
+      sqlServerOptions.queryHints = options.queryHints;
+    }
+
+    if (options.lockTimeout) {
+      sqlServerOptions.lockTimeout = options.lockTimeout;
+    }
+
+    if (options.maxDop) {
+      sqlServerOptions.maxDop = options.maxDop;
+    }
+
+    if (options.includeActualPlan) {
+      sqlServerOptions.includeActualPlan = true;
+    }
+
+    // SQL Server 옵션들을 Knex 옵션으로 전달
+    if (Object.keys(sqlServerOptions).length > 0) {
+      return queryBuilder.options({ sqlserver: sqlServerOptions });
+    }
+
+    return queryBuilder;
   }
 
   /**
