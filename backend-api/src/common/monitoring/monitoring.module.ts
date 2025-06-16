@@ -12,13 +12,19 @@ import { SlowQueryMonitorService } from './slow-query-monitor.service';
 import { SlowQueryMonitorController } from './slow-query-monitor.controller';
 import { SlowQueryLog } from './entities/slow-query-log.entity';
 import { SlowQueryInterceptor } from '../interceptors/slow-query.interceptor';
+import { QueryOptimizationService } from './query-optimization.service';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Dashboard } from '../../dashboard/entities/dashboard.entity';
+import { Widget } from '../../widget/entities/widget.entity';
+import { Dataset } from '../../dataset/entities/dataset.entity';
+import { TableQuery } from '../../widget/table-query/entity/table-query.entity';
 
 @Module({
   imports: [
     ScheduleModule.forRoot(),
     LoggerModule,
     QueryAnalyzerModule,
-    TypeOrmModule.forFeature([SlowQueryLog]),
+    TypeOrmModule.forFeature([SlowQueryLog, Dashboard, Widget, Dataset, TableQuery]),
   ],
   controllers: [
     MonitoringController,
@@ -31,12 +37,14 @@ import { SlowQueryInterceptor } from '../interceptors/slow-query.interceptor';
     QueryCollector,
     SlowQueryMonitorService,
     SlowQueryInterceptor,
+    QueryOptimizationService,
   ],
   exports: [
     ConnectionPoolMonitorService,
     QueryAnalyzerModule,
     SlowQueryMonitorService,
     SlowQueryInterceptor,
+    QueryCollector,
   ],
 })
 export class MonitoringModule {}
