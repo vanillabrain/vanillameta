@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# 현재 브랜치 이름 가져오기
+current_branch=$(git symbolic-ref HEAD 2>/dev/null | cut -d"/" -f 3)
+
+# main 브랜치에서 직접 커밋 방지
+if [ "$current_branch" = "main" ]; then
+    echo "🚫 ERROR: Direct commits to 'main' branch are not allowed!"
+    echo "📝 Please create a feature branch for your changes."
+    echo ""
+    echo "You can create a new branch with:"
+    echo "  git checkout -b feature/your-feature-name"
+    echo ""
+    echo "Then commit your changes on the new branch."
+    echo ""
+    exit 1
+fi
+
+echo "✅ Commit validation passed. Proceeding with commit..."
