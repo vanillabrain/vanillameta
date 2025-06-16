@@ -1,9 +1,11 @@
-import { Column, Entity, JoinTable, ManyToMany, ManyToOne, PrimaryGeneratedColumn, Index } from 'typeorm';
+import { Column, Entity, JoinTable, ManyToMany, ManyToOne, PrimaryGeneratedColumn, Index, JoinColumn, OneToMany } from 'typeorm';
 import { BaseEntity } from '../../common/entities/base.entity';
 import { DatasetType } from '../../common/enum/dataset-type.enum';
 import { YesNo } from '../../common/enum/yn.enum';
 import { Component } from '../../component/entities/component.entity';
 import { Dashboard } from '../../dashboard/entities/dashboard.entity';
+import { Dataset } from '../../dataset/entities/dataset.entity';
+import { DashboardWidget } from '../../dashboard/dashboard-widget/entities/dashboard-widget.entity';
 
 @Entity()
 @Index('IDX_WIDGET_COMPONENT_ID', ['componentId'])
@@ -34,20 +36,14 @@ export class Widget extends BaseEntity {
   @Column({ length: 1, default: YesNo.NO, comment: '삭제여부' })
   delYn: string;
 
-  // @ManyToMany(type => Dashboard)
-  // @JoinTable({
-  //   name: 'dashboard_widget',
-  //   // joinColumn: {
-  //   //     name: 'widgetId',
-  //   //     referencedColumnName: 'id'
-  //   // },
-  //   inverseJoinColumn: {
-  //     name: 'dashboardId',
-  //     referencedColumnName: 'id',
-  //   },
-  // })
-  // databases: Dashboard[];
-  //
-  // @ManyToOne(type => Component, component => component)
-  // component!: Component;
+  @ManyToOne(() => Component)
+  @JoinColumn({ name: 'componentId' })
+  component: Component;
+
+  @ManyToOne(() => Dataset, { nullable: true })
+  @JoinColumn({ name: 'datasetId' })
+  dataset: Dataset;
+
+  @OneToMany(() => DashboardWidget, dashboardWidget => dashboardWidget.widget)
+  dashboardWidgets: DashboardWidget[];
 }

@@ -1,5 +1,7 @@
-import { Column, Entity, JoinTable, ManyToMany, OneToMany, PrimaryGeneratedColumn, Index } from 'typeorm';
+import { Column, Entity, JoinTable, ManyToMany, OneToMany, PrimaryGeneratedColumn, Index, ManyToOne, JoinColumn } from 'typeorm';
 import { BaseEntity } from '../../common/entities/base.entity';
+import { Database } from '../../database/entities/database.entity';
+import { Widget } from '../../widget/entities/widget.entity';
 
 @Entity()
 @Index('IDX_DATASET_DATABASE_ID', ['databaseId'])
@@ -16,9 +18,10 @@ export class Dataset extends BaseEntity {
   @Column({ type: 'text', comment: '조회 sql' })
   query: string;
 
-  // @OneToMany(
-  //     (type) => Widget,
-  //     (widget) => widget.datasetId
-  // )
-  // widgets!: Widget
+  @ManyToOne(() => Database)
+  @JoinColumn({ name: 'databaseId' })
+  database: Database;
+
+  @OneToMany(() => Widget, widget => widget.dataset)
+  widgets: Widget[];
 }

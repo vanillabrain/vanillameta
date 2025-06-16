@@ -18,22 +18,22 @@ TypeORM의 eager/lazy loading 전략을 최적화하여 데이터베이스 쿼�
 - 쿼리 최적화를 통한 메모리 효율성 개선
 
 ## Acceptance Criteria
-- [ ] 모든 엔티티의 연관 관계 로딩 전략이 검토됨
-- [ ] 불필요한 eager loading이 제거됨
-- [ ] API별 필요한 데이터만 로딩되도록 최적화됨
+- [x] 모든 엔티티의 연관 관계 로딩 전략이 검토됨
+- [x] 불필요한 eager loading이 제거됨
+- [x] API별 필요한 데이터만 로딩되도록 최적화됨
 - [ ] 메모리 사용량이 20% 이상 감소
-- [ ] TypeORM 최적화 가이드라인이 작성됨
+- [x] TypeORM 최적화 가이드라인이 작성됨
 
 ## Subtasks
-- [ ] 현재 엔티티 관계 및 로딩 전략 분석
-  - [ ] @ManyToOne, @OneToMany 관계 검토
-  - [ ] eager: true 설정 검토
-  - [ ] cascade 옵션 검토
-- [ ] API 엔드포인트별 필요 데이터 매핑
-- [ ] 로딩 전략 재설계
-- [ ] Select 쿼리 최적화
+- [x] 현재 엔티티 관계 및 로딩 전략 분석
+  - [x] @ManyToOne, @OneToMany 관계 검토
+  - [x] eager: true 설정 검토
+  - [x] cascade 옵션 검토
+- [x] API 엔드포인트별 필요 데이터 매핑
+- [x] 로딩 전략 재설계
+- [x] Select 쿼리 최적화
 - [ ] 성능 측정 및 검증
-- [ ] 최적화 가이드라인 문서화
+- [x] 최적화 가이드라인 문서화
 
 ## Technical Guidance
 
@@ -142,4 +142,57 @@ async findDashboardSummary(userId: number) {
 ```
 
 ## Output Log
-*(This section is populated as work progresses on the task)*
+
+### 2025-06-16: 작업 시작
+#### 현재 상황 분석 완료
+1. **엔티티 관계 분석 결과**:
+   - Dashboard ↔ DashboardShare: OneToOne 관계 설정됨
+   - Dashboard ↔ Widget: ManyToMany 관계가 주석 처리됨 (DashboardWidget 중간 테이블 사용)
+   - Widget ↔ Component: 관계 설정 없음 (수동 조인 사용)
+   - Widget ↔ Dataset: 관계 설정 없음
+   - User ↔ Dashboard: UserMapping 중간 테이블 사용
+   - Database ↔ Dataset: 관계 설정 없음
+
+2. **현재 쿼리 패턴 분석**:
+   - DashboardService.findAll(): IN 조건으로 N+1 문제 일부 해결
+   - DashboardService.findOne(): relations 옵션으로 dashboardShare 로드
+   - DashboardWidgetService.findWidgets(): 수동 조인으로 위젯 정보 조회
+   - WidgetService: 모든 조회에서 수동 조인 사용
+   - Eager Loading: 사용하지 않음 (이미 최적화됨)
+
+3. **주요 개선 필요 사항**:
+   - 엔티티 관계 재설정 필요
+   - 중복 쿼리 제거
+   - Select 절 최적화로 필요한 컬럼만 조회
+   - 복잡한 수동 조인을 TypeORM 관계로 대체
+
+### 2025-06-16: 작업 완료
+#### 엔티티 관계 재설정 완료
+1. **엔티티 관계 설정**:
+   - Dashboard ↔ DashboardWidget: OneToMany 관계 설정
+   - DashboardWidget ↔ Dashboard/Widget: ManyToOne 관계 설정
+   - Widget ↔ Component: ManyToOne 관계 설정
+   - Widget ↔ Dataset: ManyToOne 관계 설정
+   - Dataset ↔ Database: ManyToOne 관계 설정
+   - Database ↔ Dataset: OneToMany 관계 설정
+
+2. **서비스 레이어 최적화**:
+   - DashboardService.findOne(): QueryBuilder를 사용하여 필요한 데이터만 선택적 로드
+   - DashboardService.findAll(): Select 절로 필요한 커럼만 조회
+   - DashboardWidgetService.findWidgets(): TypeORM 관계를 활용한 최적화
+   - WidgetService.findAll(), findOne(): 수동 조인 대신 TypeORM 관계 사용
+   - DatasetService.findAll(), findOne(): Database 관계 포함하여 조회
+
+3. **쿼리 최적화 성과**:
+   - 모든 API에서 필요한 데이터만 선택적으로 로드
+   - N+1 쿼리 문제 해결
+   - JSON 파싱을 서비스 레이어에서 처리
+   - 테스트 코드 업데이트로 모든 테스트 통과
+
+4. **문서화**:
+   - `backend-api/docs/typeorm-optimization-guide.md` 작성 완료
+   - 핵심 원칙, 구현 패턴, 성능 측정 방법 포함
+   - 체크리스트 및 마이그레이션 가이드 제공
+
+## 남은 작업
+- 성능 측정 및 검증: 실제 환경에서 메모리 사용량 및 응답 시간 측정 필요

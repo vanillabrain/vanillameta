@@ -106,42 +106,107 @@ export class DashboardService {
     }
     console.log(findId);
     
-    // N+1 쿼리 문제 해결: In 조건으로 한 번에 조회
+    // 최적화된 쿼리: 필요한 커럼만 선택
     const find_all = await this.dashboardRepository
       .createQueryBuilder('dashboard')
+      .leftJoinAndSelect('dashboard.dashboardShare', 'dashboardShare')
+      .select([
+        'dashboard.id',
+        'dashboard.title',
+        'dashboard.layout',
+        'dashboard.seq',
+        'dashboard.shareId',
+        'dashboard.createdAt',
+        'dashboard.updatedAt',
+        'dashboardShare.uuid'
+      ])
       .where('dashboard.id IN (:...ids)', { ids: findId })
       .orderBy('dashboard.updatedAt', 'DESC')
       .addOrderBy('dashboard.title', 'ASC')
       .getMany();
     
-    find_all.forEach(el => {
-      console.log('adf,', el);
-      el.layout = JSON.parse(el.layout);
+    // Layout JSON 파싱 및 데이터 정리
+    const result = find_all.map(dashboard => {
+      return {
+        id: dashboard.id,
+        title: dashboard.title,
+        layout: JSON.parse(dashboard.layout),
+        seq: dashboard.seq,
+        shareId: dashboard.shareId,
+        createdAt: dashboard.createdAt,
+        updatedAt: dashboard.updatedAt,
+        uuid: dashboard.dashboardShare?.uuid
+      };
     });
-    return { status: ResponseStatus.SUCCESS, data: find_all };
+    
+    return { status: ResponseStatus.SUCCESS, data: result };
   }
   // 기존 dashboard all
 
   async findOne(id: number) {
-    // N+1 쿼리 문제 해결: relations 옵션으로 관련 데이터를 한 번에 조회
-    const find_dashboard = await this.dashboardRepository.findOne({ 
-      where: { id: id },
-      relations: ['dashboardShare']
-    });
+    // 최적화된 쿼리: 필요한 데이터만 선택적으로 로드
+    const find_dashboard = await this.dashboardRepository
+      .createQueryBuilder('dashboard')
+      .leftJoinAndSelect('dashboard.dashboardShare', 'dashboardShare')
+      .leftJoinAndSelect('dashboard.dashboardWidgets', 'dashboardWidgets')
+      .leftJoinAndSelect('dashboardWidgets.widget', 'widget')
+      .leftJoinAndSelect('widget.component', 'component')
+      .select([
+        'dashboard.id',
+        'dashboard.title',
+        'dashboard.layout',
+        'dashboard.seq',
+        'dashboard.shareId',
+        'dashboard.createdAt',
+        'dashboard.updatedAt',
+        'dashboardShare.uuid',
+        'dashboardWidgets.id',
+        'widget.id',
+        'widget.title',
+        'widget.description',
+        'widget.componentId',
+        'widget.datasetType',
+        'widget.datasetId',
+        'widget.option',
+        'component.type',
+        'component.icon',
+        'component.title',
+        'component.description'
+      ])
+      .where('dashboard.id = :id', { id })
+      .getOne();
+
     if (!find_dashboard) {
       return { status: ResponseStatus.ERROR, message: '대시보드가 존재하지 않습니다.' };
     }
 
-    const widgetList = await this.dashboardWidgetService.findWidgets(find_dashboard.id);
-    console.log('widgetList', widgetList);
+    // Layout JSON 파싱
     find_dashboard.layout = JSON.parse(find_dashboard.layout);
     
+    // Widget 데이터 변환
+    const widgets = find_dashboard.dashboardWidgets.map(dw => {
+      const widget = dw.widget;
+      return {
+        ...widget,
+        option: JSON.parse(widget.option),
+        componentType: widget.component?.type,
+        icon: widget.component?.icon,
+        componentTitle: widget.component?.title,
+        componentDescription: widget.component?.description
+      };
+    });
+    
     const return_obj = {
-      ...find_dashboard,
+      id: find_dashboard.id,
+      title: find_dashboard.title,
+      layout: find_dashboard.layout,
+      seq: find_dashboard.seq,
+      shareId: find_dashboard.shareId,
+      createdAt: find_dashboard.createdAt,
+      updatedAt: find_dashboard.updatedAt,
       uuid: find_dashboard.dashboardShare?.uuid,
-      widgets: widgetList
+      widgets: widgets
     };
-    delete return_obj.dashboardShare;
     
     console.log(return_obj);
     return {

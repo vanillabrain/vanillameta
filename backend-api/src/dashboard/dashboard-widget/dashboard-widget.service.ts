@@ -34,26 +34,44 @@ export class DashboardWidgetService {
   }
 
   async findWidgets(dashboardId: number) {
-    // N+1 쿼리 방지: 한 번의 Join 쿼리로 위젯과 컴포넌트 정보를 함께 조회
-    const result = await this.widgetRepository
-      .createQueryBuilder('widget')
-      .innerJoin(Component, 'component', 'component.id = widget.componentId')
-      .innerJoin(DashboardWidget, 'dw', 'dw.widgetId = widget.id')
+    // TypeORM 관계를 활용한 최적화된 쿼리
+    const result = await this.dashboardWidgetRepository
+      .createQueryBuilder('dw')
+      .leftJoinAndSelect('dw.widget', 'widget')
+      .leftJoinAndSelect('widget.component', 'component')
       .select([
-        'widget.*',
-        'component.type as componentType',
-        'component.icon as icon',
-        'component.title as componentTitle',
-        'component.description as componentDescription'
+        'widget.id',
+        'widget.title',
+        'widget.description',
+        'widget.componentId',
+        'widget.datasetType',
+        'widget.datasetId',
+        'widget.option',
+        'widget.createdAt',
+        'widget.updatedAt',
+        'component.type',
+        'component.icon',
+        'component.title',
+        'component.description'
       ])
       .where('dw.dashboardId = :dashboardId', { dashboardId })
-      .getRawMany();
+      .getMany();
 
-    result.forEach(el => {
-      el.option = JSON.parse(el.option);
-    });
-
-    return result;
+    return result.map(dw => ({
+      id: dw.widget.id,
+      title: dw.widget.title,
+      description: dw.widget.description,
+      componentId: dw.widget.componentId,
+      datasetType: dw.widget.datasetType,
+      datasetId: dw.widget.datasetId,
+      option: JSON.parse(dw.widget.option),
+      createdAt: dw.widget.createdAt,
+      updatedAt: dw.widget.updatedAt,
+      componentType: dw.widget.component?.type,
+      icon: dw.widget.component?.icon,
+      componentTitle: dw.widget.component?.title,
+      componentDescription: dw.widget.component?.description
+    }));
   }
 
   async update(dashboardId: number, updateDashboardWidgetDto: UpdateDashboardWidgetDto) {

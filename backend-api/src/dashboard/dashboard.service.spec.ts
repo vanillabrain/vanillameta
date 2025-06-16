@@ -127,24 +127,58 @@ describe('DashboardService', () => {
         title: 'Test Dashboard',
         layout: JSON.stringify([{ i: 'widget1', x: 0, y: 0, w: 4, h: 4 }]),
         shareId: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        dashboardShare: { id: 1, uuid: 'test-uuid' },
+        dashboardWidgets: [
+          {
+            id: 1,
+            widget: {
+              id: 1,
+              title: 'Test Widget',
+              description: 'Test Description',
+              componentId: 1,
+              datasetType: 'DATASET',
+              datasetId: 1,
+              option: JSON.stringify({ key: 'value' }),
+              component: {
+                type: 'line',
+                icon: 'chart-line',
+                title: 'Line Chart',
+                description: 'Line Chart Component'
+              }
+            }
+          }
+        ]
       };
-      const mockShareInfo = { id: 1, uuid: 'test-uuid' };
-      const mockWidgets = [{ id: 1, title: 'Test Widget' }];
 
-      dashboardRepository.findOne.mockResolvedValue(mockDashboard);
-      dashboardShareRepository.findOne.mockResolvedValue(mockShareInfo);
-      dashboardWidgetService.findWidgets.mockResolvedValue(mockWidgets);
+      const queryBuilder = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(mockDashboard),
+      };
+
+      dashboardRepository.createQueryBuilder.mockReturnValue(queryBuilder);
 
       const result = await service.findOne(1);
 
       expect(result.status).toBe(ResponseStatus.SUCCESS);
       expect(result.data.id).toBe(1);
       expect(result.data.layout).toEqual([{ i: 'widget1', x: 0, y: 0, w: 4, h: 4 }]);
-      expect(result.data.widgets).toEqual(mockWidgets);
+      expect(result.data.widgets).toHaveLength(1);
+      expect(result.data.widgets[0].title).toBe('Test Widget');
     });
 
     it('should return error when dashboard not found', async () => {
-      dashboardRepository.findOne.mockResolvedValue(null);
+      const queryBuilder = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(null),
+      };
+
+      dashboardRepository.createQueryBuilder.mockReturnValue(queryBuilder);
 
       const result = await service.findOne(999);
 

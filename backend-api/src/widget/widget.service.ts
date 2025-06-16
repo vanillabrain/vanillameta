@@ -54,53 +54,93 @@ export class WidgetService {
   async findAll() {
     const find_all = await this.widgetRepository
       .createQueryBuilder('widget')
-      .innerJoin(Component, 'component', 'component.id = widget.componentId')
+      .leftJoinAndSelect('widget.component', 'component')
       .select([
-        'widget.*',
-        'component.type as componentType',
-        'component.icon as icon',
-        'component.title as componentTitle',
-        'component.description as componentDescription',
+        'widget.id',
+        'widget.title',
+        'widget.description',
+        'widget.componentId',
+        'widget.datasetType',
+        'widget.datasetId',
+        'widget.option',
+        'widget.delYn',
+        'widget.createdAt',
+        'widget.updatedAt',
+        'component.type',
+        'component.icon',
+        'component.title',
+        'component.description'
       ])
+      .where('widget.delYn = :delYn', { delYn: 'N' })
       .orderBy('widget.updatedAt', 'DESC')
-      .addOrderBy('widget.title')
-      .getRawMany();
+      .addOrderBy('widget.title', 'ASC')
+      .getMany();
 
-    find_all.forEach(el => {
-      el.option = JSON.parse(el.option);
-    });
-    return { status: ResponseStatus.SUCCESS, data: find_all };
+    const result = find_all.map(widget => ({
+      id: widget.id,
+      title: widget.title,
+      description: widget.description,
+      componentId: widget.componentId,
+      datasetType: widget.datasetType,
+      datasetId: widget.datasetId,
+      option: JSON.parse(widget.option),
+      delYn: widget.delYn,
+      createdAt: widget.createdAt,
+      updatedAt: widget.updatedAt,
+      componentType: widget.component?.type,
+      icon: widget.component?.icon,
+      componentTitle: widget.component?.title,
+      componentDescription: widget.component?.description
+    }));
+
+    return { status: ResponseStatus.SUCCESS, data: result };
   }
 
   async findOne(id: number) {
-    const widgetInfo = this.widgetRepository
-      .createQueryBuilder()
-      .select(['widget.*'])
-      .from(Widget, 'widget')
-      .where('id=:id')
-      .getQuery();
-
-    const find_widget = await this.componentRepository
-      .createQueryBuilder('component')
+    const find_widget = await this.widgetRepository
+      .createQueryBuilder('widget')
+      .leftJoinAndSelect('widget.component', 'component')
       .select([
-        'widgetInfo.*',
-        'component.type as componentType',
-        'component.icon as icon',
-        'component.title as componentTitle',
-        'component.description as componentDescription',
+        'widget.id',
+        'widget.title',
+        'widget.description',
+        'widget.componentId',
+        'widget.datasetType',
+        'widget.datasetId',
+        'widget.option',
+        'widget.delYn',
+        'widget.createdAt',
+        'widget.updatedAt',
+        'component.type',
+        'component.icon',
+        'component.title',
+        'component.description'
       ])
-      .innerJoin(`(${widgetInfo})`, 'widgetInfo', 'widgetInfo.componentId = component.id')
-      .setParameter('id', id)
-      .getRawOne();
+      .where('widget.id = :id', { id })
+      .getOne();
 
-    let resultObj = {};
-    if (!find_widget)
-      resultObj = { status: ResponseStatus.ERROR, message: `${id} 위젯이 존재하지 않습니다.` };
-    else {
-      find_widget.option = JSON.parse(find_widget.option);
-      resultObj = { status: ResponseStatus.SUCCESS, data: find_widget };
+    if (!find_widget) {
+      return { status: ResponseStatus.ERROR, message: `${id} 위젯이 존재하지 않습니다.` };
     }
-    return resultObj;
+
+    const result = {
+      id: find_widget.id,
+      title: find_widget.title,
+      description: find_widget.description,
+      componentId: find_widget.componentId,
+      datasetType: find_widget.datasetType,
+      datasetId: find_widget.datasetId,
+      option: JSON.parse(find_widget.option),
+      delYn: find_widget.delYn,
+      createdAt: find_widget.createdAt,
+      updatedAt: find_widget.updatedAt,
+      componentType: find_widget.component?.type,
+      icon: find_widget.component?.icon,
+      componentTitle: find_widget.component?.title,
+      componentDescription: find_widget.component?.description
+    };
+
+    return { status: ResponseStatus.SUCCESS, data: result };
   }
 
   /**

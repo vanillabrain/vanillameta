@@ -44,7 +44,24 @@ export class DatasetService {
    * 데이터셋 전체 조회
    */
   async findAll() {
-    return await this.datasetRepository.find();
+    // 필요한 커럼만 선택하여 조회
+    return await this.datasetRepository
+      .createQueryBuilder('dataset')
+      .leftJoinAndSelect('dataset.database', 'database')
+      .select([
+        'dataset.id',
+        'dataset.title',
+        'dataset.databaseId',
+        'dataset.query',
+        'dataset.createdAt',
+        'dataset.updatedAt',
+        'database.id',
+        'database.name',
+        'database.engine',
+        'database.type'
+      ])
+      .orderBy('dataset.updatedAt', 'DESC')
+      .getMany();
   }
 
   /**
@@ -52,13 +69,30 @@ export class DatasetService {
    * @param id
    */
   async findOne(id: number) {
-    let returnObj: any;
-    const dataObj = await this.datasetRepository.findOne({ where: { id: id } });
+    const dataObj = await this.datasetRepository
+      .createQueryBuilder('dataset')
+      .leftJoinAndSelect('dataset.database', 'database')
+      .select([
+        'dataset.id',
+        'dataset.title',
+        'dataset.databaseId',
+        'dataset.query',
+        'dataset.createdAt',
+        'dataset.updatedAt',
+        'database.id',
+        'database.name',
+        'database.engine',
+        'database.type',
+        'database.description'
+      ])
+      .where('dataset.id = :id', { id })
+      .getOne();
 
-    if (!dataObj)
-      returnObj = { status: ResponseStatus.ERROR, message: `id ${id}의 값이 존재하지 않습니다.` };
-    else returnObj = { status: ResponseStatus.SUCCESS, data: dataObj };
-    return returnObj;
+    if (!dataObj) {
+      return { status: ResponseStatus.ERROR, message: `id ${id}의 값이 존재하지 않습니다.` };
+    }
+    
+    return { status: ResponseStatus.SUCCESS, data: dataObj };
   }
 
   async update(id: number, updateDataset: UpdateDatasetDto) {

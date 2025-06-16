@@ -1,6 +1,7 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn, OneToMany } from 'typeorm';
 import { BaseEntity } from '../../common/entities/base.entity';
 import { CreateDatabaseDto } from '../dto/create-database.dto';
+import { Dataset } from '../../dataset/entities/dataset.entity';
 
 @Entity()
 export class Database extends BaseEntity {
@@ -24,6 +25,9 @@ export class Database extends BaseEntity {
 
   @Column({ length: 100, comment: '타임존', nullable: true })
   timezone: string;
+
+  @OneToMany(() => Dataset, dataset => dataset.database)
+  datasets: Dataset[];
 
   static of(
     name: string,

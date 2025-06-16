@@ -1,8 +1,9 @@
 import { Optional } from '@nestjs/common';
-import { Column, Entity, PrimaryGeneratedColumn, Index, OneToOne, JoinColumn } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn, Index, OneToOne, JoinColumn, OneToMany } from 'typeorm';
 import { BaseEntity } from '../../common/entities/base.entity';
 import { YesNo } from '../../common/enum/yn.enum';
 import { DashboardShare } from './dashboard_share.entity';
+import { DashboardWidget } from '../dashboard-widget/entities/dashboard-widget.entity';
 
 @Entity()
 @Index('IDX_DASHBOARD_UPDATED_AT', ['updatedAt'])
@@ -36,4 +37,7 @@ export class Dashboard extends BaseEntity {
   @OneToOne(() => DashboardShare)
   @JoinColumn({ name: 'shareId' })
   dashboardShare: DashboardShare;
+
+  @OneToMany(() => DashboardWidget, dashboardWidget => dashboardWidget.dashboard)
+  dashboardWidgets: DashboardWidget[];
 }
