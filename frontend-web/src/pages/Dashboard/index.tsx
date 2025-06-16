@@ -52,12 +52,24 @@ function Dashboard() {
     showLoading();
     DashboardService.selectDashboardList()
       .then(response => {
-        if (response.data.status == STATUS.SUCCESS) {
-          setLoadedDashboardData(response.data.data);
-          setNoData(response.data.data.length == 0);
+        console.log('대시보드 응답 전체:', response);
+        console.log('대시보드 응답 데이터:', response.data);
+        console.log('STATUS.SUCCESS:', STATUS.SUCCESS);
+        console.log('response.status:', response.status);
+        console.log('비교 결과:', response.status == STATUS.SUCCESS);
+        
+        // API 헬퍼가 response.data를 반환하므로, response 자체가 백엔드의 응답 데이터
+        if (response.status == STATUS.SUCCESS) {
+          setLoadedDashboardData(response.data);
+          setNoData(response.data.length == 0);
         } else {
+          console.log('상태 체크 실패로 인한 오류');
           alert.error('대시보드 조회에 실패했습니다.\n다시 시도해 주세요.');
         }
+      })
+      .catch(error => {
+        console.log('대시보드 조회 오류:', error);
+        alert.error('대시보드 조회에 실패했습니다.\n다시 시도해 주세요.');
       })
       .finally(() => {
         hideLoading();
@@ -80,7 +92,7 @@ function Dashboard() {
               showLoading();
               DashboardService.deleteDashboard(id)
                 .then(response => {
-                  if (response.data.status == STATUS.SUCCESS) {
+                  if (response.status == STATUS.SUCCESS) {
                     getDashboardList();
                     snackbar.success('대시보드가 삭제되었습니다.');
                   } else {

@@ -72,10 +72,11 @@ const DashboardView = () => {
     showLoading();
     DashboardService.selectDashboard(id)
       .then(response => {
-        if (response.data.status == STATUS.SUCCESS) {
-          setDashboardInfo(response.data.data);
+        console.log('selectDashboard response:', response);
+        if (response.status === STATUS.SUCCESS) {
+          setDashboardInfo(response.data);
         } else {
-          alert.error('대시보드 조회에 실패했습니다.\n다시 시도해 주세요.');
+          alert.error(response.message || '대시보드 조회에 실패했습니다.\n다시 시도해 주세요.');
         }
       })
       .finally(() => {
@@ -125,7 +126,7 @@ const DashboardView = () => {
               showLoading();
               DashboardService.deleteDashboard(dashboardId)
                 .then(response => {
-                  if (response.data.status == STATUS.SUCCESS) {
+                  if (response.status === STATUS.SUCCESS) {
                     navigate('/dashboard', { replace: true });
                     snackbar.success('대시보드가 삭제되었습니다.');
                   } else {

@@ -57,6 +57,11 @@ yarn deploy:prod     # 프로덕션 배포
 
 # 데이터베이스 시드
 yarn seed           # 초기 데이터 생성
+
+# Redis 서버 (로컬 개발 시 필요)
+redis-server --daemonize yes    # Redis 서버 백그라운드 실행
+redis-cli ping                  # Redis 연결 확인 (PONG 응답 시 정상)
+redis-cli shutdown              # Redis 서버 종료
 ```
 
 ### 프론트엔드 개발 (frontend-web/)
@@ -171,6 +176,11 @@ frontend-web/src/
 - `.env`: 프로덕션 환경
 - `REACT_APP_API_URL`: API 서버 URL
 - `REACT_APP_MODE`: 실행 모드 설정
+
+Redis 설정 (로컬 개발 시):
+- Redis 서버가 로컬에서 실행되어야 함 (포트 6379)
+- 백엔드 API의 캐싱 및 세션 관리에 사용
+- 설치: `brew install redis` (macOS) 또는 `apt-get install redis-server` (Ubuntu)
 
 ### 모듈 추가 방법
 

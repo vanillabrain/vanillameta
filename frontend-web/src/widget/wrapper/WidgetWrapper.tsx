@@ -66,16 +66,16 @@ const WidgetWrapper = props => {
         { useStreamingFallback: true }
       );
 
-      if (response.data.status === STATUS.SUCCESS) {
-        const dataLength = response.data.data?.length || 0;
+      if (response.status === STATUS.SUCCESS) {
+        const dataLength = response.data?.length || 0;
         
-        if (dataLength > DATA_THRESHOLD || response.data.data === 'STREAMING_RESPONSE') {
+        if (dataLength > DATA_THRESHOLD || response.data === 'STREAMING_RESPONSE') {
           // 대용량 데이터인 경우 스트리밍 모드 사용
           setUseStreamingMode(true);
           startStreaming(widgetOption.datasetId);
         } else {
-          // 소규모 데이터는 일반 모드 사용
-          setDataset(response.data.data);
+          // 소규모 데이터는 일바웁 모드 사용
+          setDataset(response.data);
         }
       }
     } catch (error) {
@@ -101,9 +101,10 @@ const WidgetWrapper = props => {
     const param = { datasetType: widgetOption.datasetType, datasetId: widgetOption.datasetId };
     DatabaseService.selectData(param)
       .then(response => {
-        console.log('selectData', response.data);
-        if (response.data.status === STATUS.SUCCESS) {
-          setDataset(response.data.data.datas);
+        console.log('selectData response:', response);
+        if (response.status === STATUS.SUCCESS) {
+          // response는 ApiResponse<QueryExecuteResponse> 구조
+          setDataset(response.data?.result?.rows || []);
         }
       })
       .catch(error => {

@@ -131,9 +131,9 @@ const ProfileModify = props => {
       })
       .catch(error => {
         console.log(error);
-        if (error.response.data.data === 'not exist user') {
+        if (error.response.data.message === 'not exist user') {
           snackbar.error('현재 비밀번호 혹은 E-mail이 잘못 입력되었습니다.');
-        } else if (error.response.data.data === 'Unauthorized') {
+        } else if (error.response.data.message === 'Unauthorized') {
           alert.error('로그인이 만료되었습니다.\n다시 로그인 해주세요.', {
             onClose: () => {
               removeToken();

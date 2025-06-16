@@ -86,6 +86,25 @@ docker compose up -d
 
 개발자를 위한 설정:
 
+#### 사전 요구사항
+- Node.js 16+ 
+- Redis Server (캐싱 및 세션 관리용)
+
+#### Redis 설치 및 실행
+```bash
+# macOS (Homebrew)
+brew install redis
+redis-server --daemonize yes
+
+# Ubuntu/Debian
+sudo apt-get install redis-server
+sudo systemctl start redis
+
+# 연결 확인
+redis-cli ping  # PONG 응답 시 정상
+```
+
+#### 프로젝트 설치
 ```bash
 cd ~/vanillameta/backend-api/ npm install
 cd ~/vanillameta/frontend-web/ npm install
@@ -109,11 +128,17 @@ docker compose down
 ### 로컬 개발 환경
 
 ```bash
-cd 현재위치/vanillameta/backend-api/ npm run seed:run 완료 후
-cd 현재위치/vanillameta/backend-api/ npm run start
+# 1. Redis 서버 시작 (별도 터미널)
+redis-server --daemonize yes
 
-새로운 터미널에서
-cd 현재위치/vanillameta/frontend-web/ npm run start
+# 2. 백엔드 API 시작
+cd 현재위치/vanillameta/backend-api/ 
+npm run seed:run  # 초기 데이터 생성
+npm run start:local  # 로컬 환경으로 시작
+
+# 3. 프론트엔드 시작 (새로운 터미널)
+cd 현재위치/vanillameta/frontend-web/ 
+npm run start:local
 ```
 실행 후 localhost:3000경로에서
 ![로그인 화면](https://user-images.githubusercontent.com/83908329/219256208-2c8fab3e-751d-4612-bda0-158dd4309032.png)
