@@ -18,6 +18,7 @@ import { getDatabaseIcon } from '@/widget/utils/iconUtil';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import { createColumns } from '@/utils/util';
+import type { Dataset } from '@/types';
 
 const DataSet = () => {
   const { setId, sourceId } = useParams();
@@ -168,11 +169,12 @@ const DataSet = () => {
         console.log('selectDataset response:', response);
         if (response.status === 'SUCCESS') {
           const datasetData = response.data.dataset || response.data;
-          console.log('selectDataset', datasetData.id, datasetData.databaseId);
+          const dataset = datasetData as Dataset;
+          console.log('selectDataset', dataset.id, dataset.databaseId);
           setDatasetInfo({
-            databaseId: String(datasetData.databaseId),
-            title: datasetData.title || '',
-            query: datasetData.query || ''
+            databaseId: String(dataset.databaseId),
+            title: dataset.title || '',
+            query: dataset.query || ''
           });
         } else {
           alert.error(response.message || '데이터베이스 조회에 실패했습니다.\n다시 시도해 주세요.');
@@ -200,7 +202,7 @@ const DataSet = () => {
         if (response.status === 'SUCCESS') {
           setTestCompleted(true);
           const resultData = response.data?.result || response.data;
-          const rows = resultData?.rows || resultData?.datas || [];
+          const rows = (resultData as any)?.rows || (resultData as any)?.datas || [];
           setData(rows);
           setColumns(createColumns(rows));
           snackbar.success('Success!');

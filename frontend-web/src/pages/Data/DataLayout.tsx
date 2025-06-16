@@ -141,7 +141,7 @@ const DataLayout = props => {
         if (response.status === STATUS.SUCCESS) {
           // result 안에 rows가 있는 경우와 datas가 직접 있는 경우 모두 처리
           const resultData = response.data?.result || response.data;
-          const rows = resultData?.rows || resultData?.datas || [];
+          const rows = (resultData as any)?.rows || (resultData as any)?.datas || [];
           setGridData(rows);
           setGridColumns(createColumns(rows));
         }

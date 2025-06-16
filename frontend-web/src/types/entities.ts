@@ -98,6 +98,7 @@ export interface ShareUrl extends BaseEntity {
   id: number;
   dashboardId: number;
   uuid: string;
+  token?: string;
   shareYn: string;
   expiredAt?: string;
 }

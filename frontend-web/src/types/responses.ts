@@ -71,8 +71,15 @@ export interface DatasetListResponse {
 }
 
 export interface DatasetDetailResponse {
-  dataset: Dataset;
+  dataset?: Dataset;
   data?: QueryResult;
+  // Dataset 필드들도 포함 (선택적)
+  id?: number;
+  title?: string;
+  databaseId?: number;
+  query?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // Widget 관련 응답 타입

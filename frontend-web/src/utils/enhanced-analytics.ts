@@ -97,6 +97,8 @@ interface UserEventData extends BaseEventData {
   loginMethod?: string;
   onboardingStep?: string;
   profileField?: string;
+  url?: string;
+  title?: string;
 }
 
 interface PerformanceEventData extends BaseEventData {
@@ -195,6 +197,10 @@ class EnhancedAnalyticsService {
     const sessionId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     sessionStorage.setItem('analytics_session_id', sessionId);
     return sessionId;
+  }
+  
+  public getSessionId(): string {
+    return this.sessionId;
   }
   
   private checkUserConsent(): boolean {
@@ -315,6 +321,8 @@ class EnhancedAnalyticsService {
     this.track(EventAction.DASHBOARD_VIEWED, EventCategory.USER, {
       url: path,
       title,
+      timestamp: new Date().toISOString(),
+      sessionId: this.sessionId,
     } as UserEventData);
   }
   

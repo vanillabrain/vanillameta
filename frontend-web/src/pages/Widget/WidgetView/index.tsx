@@ -14,6 +14,7 @@ import { LoadingContext } from '@/contexts/LoadingContext';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import Seo from '@/seo/Seo';
 import { dateData } from '@/utils/util';
+import { STATUS } from '@/constant';
 
 const WidgetView = () => {
   const navigate = useNavigate();
@@ -55,8 +56,25 @@ const WidgetView = () => {
     WidgetService.selectWidget(widgetId)
       .then(response => {
         console.log('selectWidget response:', response);
-        const widgetData = response.data.widget || response.data;
-        setWidgetOption(widgetData);
+        const responseData = response.data;
+        const widget: any = responseData.widget || responseData;
+        const widgetInfo: WidgetInfo = {
+          id: widget.id?.toString() || '',
+          title: widget.title || '',
+          componentId: widget.componentId?.toString() || '',
+          createdAt: widget.createdAt || '',
+          datasetId: widget.datasetId?.toString() || '',
+          datasetType: widget.datasetType || '',
+          delYn: widget.delYn || 'N',
+          description: widget.description || '',
+          option: widget.option || '',
+          updatedAt: widget.updatedAt || '',
+          widgetViewId: widget.id?.toString() || '',
+          icon: widget.icon || null,
+          componentTitle: widget.title || '',
+          componentDescription: widget.description || ''
+        };
+        setWidgetOption(widgetInfo);
       })
       .finally(() => {
         hideLoading();
