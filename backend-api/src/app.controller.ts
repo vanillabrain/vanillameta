@@ -26,7 +26,7 @@ export class AppController {
       status: 'ok',
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV,
-      database: process.env.NODE_ENV === 'local' ? 'sqlite' : 'mysql'
+      database: process.env.NODE_ENV === 'local' ? 'sqlite' : 'mysql',
     };
   }
 
@@ -35,7 +35,7 @@ export class AppController {
     return {
       message: 'Seed data endpoint ready',
       timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV
+      environment: process.env.NODE_ENV,
     };
   }
 }

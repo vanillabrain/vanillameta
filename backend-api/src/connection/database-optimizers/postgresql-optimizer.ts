@@ -310,7 +310,7 @@ export class PostgreSQLOptimizer extends BaseDatabaseOptimizer {
     return knex(tableName)
       .select('*')
       .whereRaw(`${jsonColumn}->>'${jsonPath}' = ?`, [value])
-      .orderBy(knex.raw(`${jsonColumn}->>'created_at'`));
+      .orderByRaw(`${jsonColumn}->>'created_at'`);
   }
 
   /**

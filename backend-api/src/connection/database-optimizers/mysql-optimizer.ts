@@ -127,12 +127,8 @@ export class MySQLOptimizer extends BaseDatabaseOptimizer {
             });
           });
         },
-        beforeDestroy: (conn: any, done: Function) => {
-          // 연결 종료 전 정리
-          conn.query('KILL CONNECTION_ID()', () => {
-            done();
-          });
-        },
+        // beforeDestroy는 Knex의 PoolConfig 타입에 없으므로 제거
+        // 연결 정리는 Knex가 자동으로 처리함
       },
       acquireConnectionTimeout: timeouts.acquireConnectionTimeout,
       // MySQL 전용 옵션

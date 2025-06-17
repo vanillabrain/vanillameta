@@ -14,7 +14,12 @@ async function bootstrap() {
   const nestApp = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), {
     logger: new CustomLoggerService(),
     cors: {
-      origin: (process.env.CORS_ORIGIN || 'http://localhost:3000,http://localhost:3001,http://localhost:4000').split(',').map(x => x.trim()),
+      origin: (
+        process.env.CORS_ORIGIN ||
+        'http://localhost:3000,http://localhost:3001,http://localhost:4000'
+      )
+        .split(',')
+        .map(x => x.trim()),
       preflightContinue: false,
       credentials: true,
       optionsSuccessStatus: 200,

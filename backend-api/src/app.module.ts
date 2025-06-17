@@ -27,8 +27,12 @@ import { CorrelationIdMiddleware } from './middleware/correlation-id';
     LoggerModule,
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: process.env.NODE_ENV == 'local' ? '.env.local' : 
-                   process.env.NODE_ENV == 'prod' ? '.env' : '.env.dev',
+      envFilePath:
+        process.env.NODE_ENV == 'local'
+          ? '.env.local'
+          : process.env.NODE_ENV == 'prod'
+          ? '.env'
+          : '.env.dev',
     }),
 
     TypeOrmModule.forRoot({
