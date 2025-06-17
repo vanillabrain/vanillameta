@@ -32,6 +32,7 @@ import { CustomLoggerService } from './common/logger/logger.service';
 import { SlowQueryMonitorService } from './common/monitoring/slow-query-monitor.service';
 import { QueryAnalyzerService } from './common/monitoring/query-analyzer.service';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { MetricsInterceptor } from './common/interceptors/metrics.interceptor';
 
 @Module({
   imports: [
@@ -116,6 +117,10 @@ import { AnalyticsModule } from './analytics/analytics.module';
     {
       provide: 'APP_INTERCEPTOR',
       useClass: ResponseTimeInterceptor,
+    },
+    {
+      provide: 'APP_INTERCEPTOR',
+      useClass: MetricsInterceptor,
     },
   ],
 })
