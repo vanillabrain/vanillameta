@@ -6,6 +6,7 @@ import { UserService } from '../../src/user/user.service';
 import { AuthService } from '../../src/auth/auth.service';
 import { DashboardShare } from '../../src/dashboard/entities/dashboard_share.entity';
 import { UserMapping } from '../../src/user/entities/user-mapping.entity';
+import { PaginationService } from '../../src/common/pagination/pagination.service';
 
 // Mock CustomLoggerService
 export const mockCustomLoggerService = {
@@ -94,6 +95,26 @@ export const mockUserMappingRepository = {
   },
 };
 
+// Mock PaginationService
+export const mockPaginationService = {
+  provide: PaginationService,
+  useValue: {
+    paginateOffset: jest.fn().mockResolvedValue({
+      data: [],
+      total: 0,
+      page: 1,
+      totalPages: 0,
+    }),
+    paginateCursor: jest.fn().mockResolvedValue({
+      data: [],
+      total: 0,
+      nextCursor: null,
+      prevCursor: null,
+      hasMore: false,
+    }),
+  },
+};
+
 // Common test providers
 export const commonTestProviders = [
   mockCustomLoggerService,
@@ -103,4 +124,5 @@ export const commonTestProviders = [
   mockAuthService,
   mockDashboardShareRepository,
   mockUserMappingRepository,
+  mockPaginationService,
 ];
