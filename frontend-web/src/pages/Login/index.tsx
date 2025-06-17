@@ -11,6 +11,7 @@ import { checkId, checkPwd } from '@/utils/util';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import Seo from '@/seo/Seo';
 import { getToken, setToken } from '@/helpers/authHelper';
+import { trackUserSession } from '@/utils/eventTracking';
 
 const Login = () => {
   const { showLoading, hideLoading } = useContext(LoadingContext);
@@ -55,6 +56,8 @@ const Login = () => {
         .then(response => {
           if (response.status === 201) {
             setToken(response.data.accessToken);
+            // 로그인 이벤트 추적
+            trackUserSession.login('email', userInfo.userId);
             navigate('/dashboard');
           }
         })

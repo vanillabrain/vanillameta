@@ -12,7 +12,11 @@ import { PerformanceProvider } from '@/contexts/PerformanceContext';
 import { HelmetProvider } from 'react-helmet-async';
 import * as serviceWorkerRegistration from './serviceWorkerRegistration';
 import reportWebVitals from './reportWebVitals';
+import { initializeEventTracking } from './utils/eventTracking';
 import './index.css';
+
+// 이벤트 추적 시스템 초기화
+initializeEventTracking();
 
 const rootElement = document.getElementById('root');
 const app = (

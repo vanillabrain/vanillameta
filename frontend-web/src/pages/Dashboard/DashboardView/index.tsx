@@ -20,6 +20,7 @@ import shareService from '@/api/shareService';
 import { AuthContext } from '@/contexts/AuthContext';
 import Seo from '@/seo/Seo';
 import { dateData } from '@/utils/util';
+import { trackDashboardEvent } from '@/utils/eventTracking';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -49,6 +50,13 @@ const DashboardView = () => {
   // init useEffect
   useEffect(() => {
     getDashboardInfo(dashboardId);
+    
+    // 대시보드 조회 이벤트 추적
+    const startTime = Date.now();
+    return () => {
+      const viewDuration = Date.now() - startTime;
+      trackDashboardEvent.viewed(dashboardId, viewDuration);
+    };
   }, [isShareOn]);
 
   // dashboardInfo useEffect
@@ -126,6 +134,8 @@ const DashboardView = () => {
               DashboardService.deleteDashboard(dashboardId)
                 .then(response => {
                   if (response.data.status == STATUS.SUCCESS) {
+                    // 대시보드 삭제 이벤트 추적
+                    trackDashboardEvent.deleted(dashboardId);
                     navigate('/dashboard', { replace: true });
                     snackbar.success('대시보드가 삭제되었습니다.');
                   } else {
@@ -160,6 +170,8 @@ const DashboardView = () => {
           console.log('buttonOn', response);
           if (response.status === 201) {
             setIsShareOn(true);
+            // 대시보드 공유 이벤트 추적
+            trackDashboardEvent.shared(dashboardId, 'link');
           }
         })
         .catch(error => {

@@ -2,6 +2,7 @@ import axios, { AxiosResponse } from 'axios';
 import { getToken, removeToken, setToken } from '@/helpers/authHelper';
 import { getShareToken } from '@/helpers/shareHelper';
 import authService from '@/api/authService';
+import { trackPerformance, trackError } from '@/utils/eventTracking';
 
 // Correlation ID 생성 함수
 const generateCorrelationId = (): string => {
@@ -163,6 +164,14 @@ instance.interceptors.response.use(
           api_status: perfData.status,
         });
       }
+      
+      // 이벤트 추적 시스템으로도 전송
+      trackPerformance(`api_${perfData.method}_${perfData.url}`, duration, {
+        method: perfData.method,
+        url: perfData.url,
+        status: perfData.status,
+        correlationId: perfData.correlationId,
+      });
     }
 
     // 디버깅을 위해 correlation ID 로깅 (개발 환경에서만)
@@ -214,6 +223,16 @@ instance.interceptors.response.use(
             error_status: perfData.status,
           });
         }
+        
+        // 이벤트 추적 시스템으로 에러 전송
+        trackError('api', `${perfData.method} ${perfData.url} - Status: ${perfData.status}`, {
+          method: perfData.method,
+          url: perfData.url,
+          status: perfData.status,
+          duration: duration,
+          correlationId: perfData.correlationId,
+          errorMessage: errorResponse?.data?.message || error.message,
+        });
       }
     }
 

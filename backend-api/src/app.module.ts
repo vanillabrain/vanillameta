@@ -31,6 +31,7 @@ import { TypeOrmSlowQueryLogger } from './common/monitoring/typeorm-slow-query-l
 import { CustomLoggerService } from './common/logger/logger.service';
 import { SlowQueryMonitorService } from './common/monitoring/slow-query-monitor.service';
 import { QueryAnalyzerService } from './common/monitoring/query-analyzer.service';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -107,6 +108,7 @@ import { QueryAnalyzerService } from './common/monitoring/query-analyzer.service
     CacheModule,
     BackgroundJobModule,
     MemoryMonitorModule,
+    AnalyticsModule,
   ],
   controllers: [AppController, TestCompressionController, TestFieldSelectionController],
   providers: [

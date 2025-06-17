@@ -1,0 +1,294 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { AnalyticsService } from './analytics.service';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { AnalyticsEvent } from './entities/analytics-event.entity';
+import { CustomLoggerService } from '../common/logger/logger.service';
+import { EventDataDto } from './dto/create-event.dto';
+
+describe('AnalyticsService', () => {
+  let service: AnalyticsService;
+  let repository: Repository<AnalyticsEvent>;
+  let logger: CustomLoggerService;
+
+  const mockRepository = {
+    createQueryBuilder: jest.fn().mockReturnThis(),
+    insert: jest.fn().mockReturnThis(),
+    into: jest.fn().mockReturnThis(),
+    values: jest.fn().mockReturnThis(),
+    execute: jest.fn(),
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockReturnThis(),
+    getMany: jest.fn(),
+    select: jest.fn().mockReturnThis(),
+    addSelect: jest.fn().mockReturnThis(),
+    groupBy: jest.fn().mockReturnThis(),
+    addGroupBy: jest.fn().mockReturnThis(),
+    getRawMany: jest.fn(),
+    getCount: jest.fn(),
+    limit: jest.fn().mockReturnThis(),
+  };
+
+  const mockLogger = {
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+  };
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AnalyticsService,
+        {
+          provide: getRepositoryToken(AnalyticsEvent),
+          useValue: mockRepository,
+        },
+        {
+          provide: CustomLoggerService,
+          useValue: mockLogger,
+        },
+      ],
+    }).compile();
+
+    service = module.get<AnalyticsService>(AnalyticsService);
+    repository = module.get<Repository<AnalyticsEvent>>(getRepositoryToken(AnalyticsEvent));
+    logger = module.get<CustomLoggerService>(CustomLoggerService);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+
+  describe('collectEvents', () => {
+    it('should successfully collect and store events', async () => {
+      const events: EventDataDto[] = [
+        {
+          category: 'dashboard',
+          action: 'dashboard_created',
+          label: 'test-dashboard',
+          value: 1,
+          metadata: { dashboardId: '123' },
+        },
+      ];
+
+      const context = {
+        userId: 'user123',
+        correlationId: 'correlation-123',
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        ipAddress: '192.168.1.1',
+      };
+
+      mockRepository.execute.mockResolvedValue({});
+
+      await service.collectEvents(events, context);
+
+      expect(mockRepository.createQueryBuilder).toHaveBeenCalled();
+      expect(mockRepository.insert).toHaveBeenCalled();
+      expect(mockRepository.execute).toHaveBeenCalled();
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        '수집된 이벤트 수: 1',
+        'AnalyticsService',
+        expect.objectContaining({
+          userId: 'user123',
+          correlationId: 'correlation-123',
+          eventCount: 1,
+          categories: ['dashboard'],
+        }),
+      );
+    });
+
+    it('should handle errors gracefully without throwing', async () => {
+      const events: EventDataDto[] = [
+        {
+          category: 'error',
+          action: 'test_error',
+        },
+      ];
+
+      const context = {
+        userId: 'user123',
+      };
+
+      mockRepository.execute.mockRejectedValue(new Error('Database error'));
+
+      await expect(service.collectEvents(events, context)).resolves.not.toThrow();
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        '이벤트 수집 실패',
+        expect.any(String),
+        'AnalyticsService',
+        expect.objectContaining({
+          userId: 'user123',
+          error: 'Database error',
+        }),
+      );
+    });
+
+    it('should anonymize IP addresses', async () => {
+      const events: EventDataDto[] = [
+        {
+          category: 'user',
+          action: 'login',
+        },
+      ];
+
+      const context = {
+        ipAddress: '192.168.1.123',
+      };
+
+      let capturedValues;
+      mockRepository.values.mockImplementation((values) => {
+        capturedValues = values;
+        return mockRepository;
+      });
+      mockRepository.execute.mockResolvedValue({});
+
+      await service.collectEvents(events, context);
+
+      expect(capturedValues[0].ipAddress).toBe('192.168.1.0');
+    });
+
+    it('should sanitize sensitive metadata', async () => {
+      const events: EventDataDto[] = [
+        {
+          category: 'api',
+          action: 'request',
+          metadata: {
+            userId: 'user123',
+            password: 'secret123',
+            apiKey: 'key123',
+            normalData: 'safe',
+          },
+        },
+      ];
+
+      const context = {};
+
+      let capturedValues;
+      mockRepository.values.mockImplementation((values) => {
+        capturedValues = values;
+        return mockRepository;
+      });
+      mockRepository.execute.mockResolvedValue({});
+
+      await service.collectEvents(events, context);
+
+      expect(capturedValues[0].metadata).toEqual({
+        userId: 'user123',
+        password: '[REDACTED]',
+        apiKey: '[REDACTED]',
+        normalData: 'safe',
+      });
+    });
+  });
+
+  describe('getUserEvents', () => {
+    it('should retrieve user events within date range', async () => {
+      const userId = 'user123';
+      const startDate = new Date('2023-01-01');
+      const endDate = new Date('2023-12-31');
+      const mockEvents = [
+        { id: '1', category: 'dashboard', action: 'created' },
+        { id: '2', category: 'widget', action: 'edited' },
+      ];
+
+      mockRepository.getMany.mockResolvedValue(mockEvents);
+
+      const result = await service.getUserEvents(userId, startDate, endDate);
+
+      expect(mockRepository.createQueryBuilder).toHaveBeenCalledWith('event');
+      expect(mockRepository.where).toHaveBeenCalledWith('event.userId = :userId', { userId });
+      expect(mockRepository.andWhere).toHaveBeenCalledWith('event.createdAt >= :startDate', { startDate });
+      expect(mockRepository.andWhere).toHaveBeenCalledWith('event.createdAt <= :endDate', { endDate });
+      expect(result).toEqual(mockEvents);
+    });
+  });
+
+  describe('getEventStats', () => {
+    it('should return aggregated event statistics', async () => {
+      const startDate = new Date('2023-01-01');
+      const endDate = new Date('2023-12-31');
+      const mockStats = [
+        {
+          category: 'dashboard',
+          action: 'created',
+          count: '10',
+          uniqueUsers: '5',
+          uniqueSessions: '8',
+        },
+      ];
+
+      mockRepository.getRawMany.mockResolvedValue(mockStats);
+
+      const result = await service.getEventStats(startDate, endDate);
+
+      expect(mockRepository.select).toHaveBeenCalledWith('event.category', 'category');
+      expect(mockRepository.addSelect).toHaveBeenCalledWith('event.action', 'action');
+      expect(mockRepository.addSelect).toHaveBeenCalledWith('COUNT(*)', 'count');
+      expect(result).toEqual(mockStats);
+    });
+  });
+
+  describe('getPopularFeatures', () => {
+    it('should return top 10 popular features', async () => {
+      const mockFeatures = [
+        {
+          category: 'dashboard',
+          action: 'created',
+          usageCount: '100',
+          uniqueUsers: '50',
+        },
+      ];
+
+      mockRepository.getRawMany.mockResolvedValue(mockFeatures);
+
+      const result = await service.getPopularFeatures();
+
+      expect(mockRepository.andWhere).toHaveBeenCalledWith(
+        'event.category NOT IN (:...excludedCategories)',
+        { excludedCategories: ['performance', 'error'] },
+      );
+      expect(mockRepository.limit).toHaveBeenCalledWith(10);
+      expect(result).toEqual(mockFeatures);
+    });
+  });
+
+  describe('getErrorRate', () => {
+    it('should calculate error rate correctly', async () => {
+      const startDate = new Date('2023-01-01');
+      const endDate = new Date('2023-12-31');
+
+      mockRepository.getCount.mockResolvedValueOnce(1000); // total events
+      mockRepository.getCount.mockResolvedValueOnce(50); // error events
+
+      const result = await service.getErrorRate(startDate, endDate);
+
+      expect(result).toEqual({
+        totalEvents: 1000,
+        errorEvents: 50,
+        errorRate: '5.00',
+      });
+    });
+
+    it('should handle zero total events', async () => {
+      const startDate = new Date('2023-01-01');
+      const endDate = new Date('2023-12-31');
+
+      mockRepository.getCount.mockResolvedValueOnce(0); // total events
+      mockRepository.getCount.mockResolvedValueOnce(0); // error events
+
+      const result = await service.getErrorRate(startDate, endDate);
+
+      expect(result).toEqual({
+        totalEvents: 0,
+        errorEvents: 0,
+        errorRate: 0,
+      });
+    });
+  });
+});
