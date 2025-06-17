@@ -70,8 +70,6 @@ export const getMySQLConfig = (): DatabaseSpecificConfig => ({
       charset: 'utf8mb4',
       timezone: '+09:00',
       connectTimeout: 30000,
-      acquireTimeout: 30000,
-      timeout: 30000,
     },
     pool: {
       min: 0,
@@ -185,7 +183,6 @@ export const getPostgreSQLConfig = (): DatabaseSpecificConfig => ({
 export const getBigQueryConfig = (): DatabaseSpecificConfig => ({
   connectionConfig: {
     client: require('knex-bigquery'),
-    // @ts-ignore - BigQuery specific connection properties
     connection: {
       projectId: process.env.BIGQUERY_PROJECT_ID,
       keyFilename: process.env.BIGQUERY_KEY_FILE,
@@ -193,7 +190,7 @@ export const getBigQueryConfig = (): DatabaseSpecificConfig => ({
       maximumBillingTier: parseInt(process.env.BIGQUERY_MAX_BILLING_TIER) || 1,
       useLegacySql: false,
       useQueryCache: true,
-    },
+    } as any,
     pool: {
       min: 0,
       max: calculateMaxConnections(5), // BigQuery는 API 제한
@@ -204,14 +201,7 @@ export const getBigQueryConfig = (): DatabaseSpecificConfig => ({
       createRetryIntervalMillis: 1000,
       propagateCreateError: false,
     },
-    options: {
-      priority: 'INTERACTIVE',
-      maximumBytesBilled: process.env.BIGQUERY_MAX_BYTES_BILLED || '1000000000',
-      useLegacySql: false,
-      useQueryCache: true,
-      allowLargeResults: true,
-      flattenResults: false,
-    },
+    // BigQuery specific options - need to be applied at query level
   },
   performanceSettings: {
     batchSize: parseInt(process.env.BIGQUERY_BATCH_SIZE) || 1000,
@@ -238,9 +228,9 @@ export const getBigQueryConfig = (): DatabaseSpecificConfig => ({
  * Snowflake 특화 설정
  */
 export const getSnowflakeConfig = (): DatabaseSpecificConfig => ({
+  // @ts-ignore - Snowflake specific connection properties
   connectionConfig: {
     client: require('../knex-dialects/snowflake'),
-    // @ts-ignore - Snowflake specific connection properties
     connection: {
       account: process.env.SNOWFLAKE_ACCOUNT,
       username: process.env.SNOWFLAKE_USER,
@@ -253,7 +243,7 @@ export const getSnowflakeConfig = (): DatabaseSpecificConfig => ({
       clientSessionKeepAlive: true,
       clientSessionKeepAliveHeartbeatFrequency: 3600,
       timezone: 'Asia/Seoul',
-    },
+    } as any,
     pool: {
       min: 0,
       max: calculateMaxConnections(10),
@@ -264,12 +254,7 @@ export const getSnowflakeConfig = (): DatabaseSpecificConfig => ({
       createRetryIntervalMillis: 1000,
       propagateCreateError: false,
     },
-    options: {
-      autoResume: true,
-      autoSuspend: 600, // 10분
-      useCache: true,
-      compressResponse: true,
-    },
+    // Snowflake specific options - need to be applied at query level
   },
   performanceSettings: {
     batchSize: parseInt(process.env.SNOWFLAKE_BATCH_SIZE) || 10000,
@@ -301,8 +286,6 @@ export const getOracleConfig = (): DatabaseSpecificConfig => ({
     // @ts-ignore - Oracle specific connection properties
     connection: {
       connectTimeout: 30000,
-      callTimeout: 30000,
-      poolAlias: 'vanillameta-pool',
     },
     pool: {
       min: 0,
@@ -314,14 +297,7 @@ export const getOracleConfig = (): DatabaseSpecificConfig => ({
       createRetryIntervalMillis: 100,
       propagateCreateError: false,
     },
-    options: {
-      autoCommit: false,
-      maxRows: 1000,
-      outFormat: 4002, // OBJECT format
-      fetchAsString: ['CLOB'],
-      fetchAsBuffer: ['BLOB'],
-      prefetchRows: 100,
-    },
+    // Oracle specific options - need to be applied at query level
   },
   performanceSettings: {
     batchSize: parseInt(process.env.ORACLE_BATCH_SIZE) || 1000,

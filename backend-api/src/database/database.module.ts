@@ -8,11 +8,13 @@ import { Dataset } from '../dataset/entities/dataset.entity';
 import { TableQuery } from '../widget/table-query/entity/table-query.entity';
 import { DatabaseType } from './entities/database_type.entity';
 import { JwtService } from '@nestjs/jwt';
+import { SqlValidationModule } from '../common/security/sql-validation.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Database, Dataset, TableQuery, DatabaseType]),
     ConnectionModule,
+    SqlValidationModule,
   ],
   controllers: [DatabaseController],
   providers: [DatabaseService, JwtService],

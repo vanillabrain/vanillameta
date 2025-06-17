@@ -50,7 +50,7 @@ async function bootstrap() {
     cors: {
       origin: process.env.CORS_ORIGIN
         ? process.env.CORS_ORIGIN.split(',').map(x => x.trim())
-        : ['http://localhost:3000'],
+        : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:4000'],
       preflightContinue: false,
       credentials: true,
       optionsSuccessStatus: 200,
@@ -75,7 +75,7 @@ async function bootstrap() {
   // Global interceptors for CloudWatch metrics
   const cloudWatchMetrics = nestApp.get(CloudWatchMetricsService);
   const businessMetrics = nestApp.get(BusinessMetricsService);
-  nestApp.useGlobalInterceptors(new ResponseTimeInterceptor(cloudWatchMetrics, businessMetrics));
+  // ResponseTimeInterceptor는 module providers에서 DI로 처리됨
 
   const logger = nestApp.get(CustomLoggerService);
   logger.log('Application starting', 'Bootstrap', {

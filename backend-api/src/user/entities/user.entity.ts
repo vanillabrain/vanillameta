@@ -10,8 +10,8 @@ import {
 } from 'typeorm';
 
 @Entity()
-@Index('IDX_USER_USER_ID', ['userId'], { unique: true })
-@Index('IDX_USER_EMAIL', ['email'], { unique: true })
+@Index('IDX_USER_USER_ID', entity => [entity.userId], { unique: true })
+@Index('IDX_USER_EMAIL', entity => [entity.email], { unique: true })
 export class User {
   @PrimaryGeneratedColumn()
   @ApiProperty({ description: 'id' })

@@ -43,7 +43,7 @@ export class KnexQueryMonitor {
     knex.on('query-response', async (response: any, query: KnexQueryEvent) => {
       const duration = Date.now() - (query.__queryStartTime || 0);
 
-      this.customLogger.log('Knex query completed', 'KnexQueryMonitor', {
+      this.customLogger.info('Knex query completed', 'KnexQueryMonitor', {
         sql: this.sanitizeQuery(query.sql),
         duration,
         method: query.method,

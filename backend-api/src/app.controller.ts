@@ -89,4 +89,23 @@ export class AppController {
   postHello(@Body() body) {
     return body;
   }
+
+  @Get('/health')
+  getHealth() {
+    return {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV,
+      database: process.env.NODE_ENV === 'local' ? 'sqlite' : 'mysql',
+    };
+  }
+
+  @Post('/seed')
+  async createSeedData() {
+    return {
+      message: 'Seed data endpoint ready',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV,
+    };
+  }
 }

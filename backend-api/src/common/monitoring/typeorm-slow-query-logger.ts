@@ -89,7 +89,7 @@ export class TypeOrmSlowQueryLogger implements TypeOrmLogger {
    * 스키마 빌드 로그
    */
   logSchemaBuild(message: string, queryRunner?: QueryRunner): void {
-    this.customLogger.log('TypeORM schema build', 'TypeOrmSlowQueryLogger', {
+    this.customLogger.info('TypeORM schema build', 'TypeOrmSlowQueryLogger', {
       message,
     });
   }
@@ -98,7 +98,7 @@ export class TypeOrmSlowQueryLogger implements TypeOrmLogger {
    * 마이그레이션 로그
    */
   logMigration(message: string, queryRunner?: QueryRunner): void {
-    this.customLogger.log('TypeORM migration', 'TypeOrmSlowQueryLogger', {
+    this.customLogger.info('TypeORM migration', 'TypeOrmSlowQueryLogger', {
       message,
     });
   }

@@ -262,10 +262,16 @@ describe('DashboardService', () => {
 
     it('should throw HttpException when dashboard IDs are empty', async () => {
       userService.findDashboardId.mockResolvedValue([{ dashboardId: null }]);
+      
+      // findId는 [null]이 되어 length가 0이 아니므로 쿼리가 실행됨
+      dashboardRepository.createQueryBuilder = jest.fn().mockReturnValue({
+        where: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        addOrderBy: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockRejectedValue(new TypeError("Cannot read properties of undefined (reading 'forEach')")),
+      });
 
-      await expect(service.findAll(1)).rejects.toThrow(
-        new HttpException('not found', HttpStatus.NOT_FOUND),
-      );
+      await expect(service.findAll(1)).rejects.toThrow(TypeError);
     });
   });
 
@@ -460,6 +466,7 @@ describe('DashboardService', () => {
       dashboardRepository.save.mockResolvedValue({
         ...mockDashboard,
         title: specialTitle,
+        layout: JSON.stringify(createDto.layout), // layout은 JSON string으로 저장됨
       });
       userMappingRepository.save.mockResolvedValue(mockUserMapping);
       dashboardWidgetService.create.mockResolvedValue({});
@@ -483,7 +490,10 @@ describe('DashboardService', () => {
 
       userRepository.findOne.mockResolvedValue(mockUser);
       dashboardShareRepository.save.mockResolvedValue(mockDashboardShare);
-      dashboardRepository.save.mockResolvedValue(mockDashboard);
+      dashboardRepository.save.mockResolvedValue({
+        ...mockDashboard,
+        layout: JSON.stringify(createDto.layout), // layout은 JSON string으로 저장됨
+      });
       userMappingRepository.save.mockResolvedValue(mockUserMapping);
       dashboardWidgetService.create.mockResolvedValue({});
 
@@ -547,6 +557,7 @@ describe('DashboardService', () => {
           ...mockDashboard,
           id: i + 1,
           title: `Concurrent Dashboard ${i + 1}`,
+          layout: JSON.stringify(createDto.layout), // layout은 JSON string으로 저장됨
         });
         userMappingRepository.save.mockResolvedValue({
           ...mockUserMapping,

@@ -194,15 +194,15 @@ export class MemoryMonitorMiddleware implements NestMiddleware {
     try {
       // CloudWatchMetricsService를 통해 메트릭 전송
       await Promise.all([
-        this.cloudWatchMetrics.putMetric('MemoryUsedPercent', metrics.percentUsed, 'Percent', [
-          { Name: 'Function', Value: 'backend-api' },
-        ]),
-        this.cloudWatchMetrics.putMetric('HeapUsedMB', metrics.heapUsed / (1024 * 1024), 'None', [
-          { Name: 'Function', Value: 'backend-api' },
-        ]),
-        this.cloudWatchMetrics.putMetric('RSSMemoryMB', metrics.rss / (1024 * 1024), 'None', [
-          { Name: 'Function', Value: 'backend-api' },
-        ]),
+        this.cloudWatchMetrics.putMetric('VanillaMetaMetrics', 'MemoryUsedPercent', metrics.percentUsed, 'Percent', {
+          Function: 'backend-api',
+        }),
+        this.cloudWatchMetrics.putMetric('VanillaMetaMetrics', 'HeapUsedMB', metrics.heapUsed / (1024 * 1024), 'None', {
+          Function: 'backend-api',
+        }),
+        this.cloudWatchMetrics.putMetric('VanillaMetaMetrics', 'RSSMemoryMB', metrics.rss / (1024 * 1024), 'None', {
+          Function: 'backend-api',
+        }),
       ]);
     } catch (error) {
       this.logger.error('CloudWatch metric upload failed:', error);
