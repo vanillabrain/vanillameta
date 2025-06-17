@@ -131,7 +131,7 @@
     "ts-jest": "^29.0.3",
     "typescript": "^4.7.4",
     "vite": "^6.3.5",
-    "vite-plugin-svgr": "^4.3.0",
+    "vite-plugin-svgr": "^3.2.0",
     "vite-tsconfig-paths": "^4.2.0",
     "webpack": "^5.90.0",
     "webpack-bundle-analyzer": "^4.10.2",
