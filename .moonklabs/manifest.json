@@ -7,7 +7,7 @@
     "status": "active-development",
     "target_audience": "기업 고객 (스타트업부터 대기업까지)",
     "created_date": "2025-01-06",
-    "simone_initialized": "2025-01-06",
+    "moonklabs_initialized": "2025-01-06",
     "tech_stack": {
       "frontend": ["React 18", "TypeScript", "Material-UI", "ECharts"],
       "backend": ["NestJS", "TypeScript", "AWS Lambda", "TypeORM", "Knex.js"],
@@ -34,7 +34,7 @@
     "backend_path": "/backend-api",
     "frontend_path": "/frontend-web",
     "docs_path": "/docs",
-    "simone_path": "/.simone"
+    "moonklabs_path": "/.moonklabs"
   },
   "key_features": [
     "코드 없는 차트 위젯 제작",
