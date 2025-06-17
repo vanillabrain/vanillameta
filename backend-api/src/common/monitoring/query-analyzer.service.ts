@@ -44,9 +44,19 @@ export class QueryAnalyzerService {
   /**
    * 쿼리 실행 계획 분석
    */
-  async analyzeQuery(query: string, databaseId?: number): Promise<QueryAnalysis> {
+  async analyzeQuery(
+    query: string,
+    databaseEngineOrId?: string | number,
+    parameters?: any[],
+    executionTime?: number,
+  ): Promise<QueryAnalysis> {
+    // databaseEngineOrId가 숫자인 경우 databaseId로, 문자열인 경우 engine으로 처리
+    const databaseId = typeof databaseEngineOrId === 'number' ? databaseEngineOrId : undefined;
+    const databaseEngine = typeof databaseEngineOrId === 'string' ? databaseEngineOrId : undefined;
+
     const analysis: QueryAnalysis = {
       query: query.substring(0, 200) + (query.length > 200 ? '...' : ''),
+      executionTime,
     };
 
     try {

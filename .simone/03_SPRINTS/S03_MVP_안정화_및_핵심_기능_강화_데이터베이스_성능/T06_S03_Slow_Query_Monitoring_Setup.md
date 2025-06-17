@@ -1,9 +1,9 @@
 ---
 task_id: T06_S03
 sprint_sequence_id: S03
-status: open
+status: completed
 complexity: Low
-last_updated: 2025-06-12T17:00:00Z
+last_updated: 2025-06-17T12:00:00Z
 ---
 
 # Task: Slow Query Monitoring Setup
@@ -18,21 +18,21 @@ last_updated: 2025-06-12T17:00:00Z
 - CloudWatch 통합 모니터링
 
 ## Acceptance Criteria
-- [ ] 모든 데이터베이스 쿼리의 실행 시간이 측정됨
-- [ ] 느린 쿼리가 자동으로 로깅됨
-- [ ] CloudWatch 메트릭으로 쿼리 성능이 추적됨
-- [ ] 쿼리 성능 대시보드가 구성됨
-- [ ] 알람 설정으로 문제 조기 감지 가능
+- [x] 모든 데이터베이스 쿼리의 실행 시간이 측정됨
+- [x] 느린 쿼리가 자동으로 로깅됨
+- [x] CloudWatch 메트릭으로 쿼리 성능이 추적됨
+- [x] 쿼리 성능 대시보드가 구성됨
+- [x] 알람 설정으로 문제 조기 감지 가능
 
 ## Subtasks
-- [ ] 쿼리 인터셉터 구현
-  - [ ] TypeORM 쿼리 로깅 설정
-  - [ ] Knex 쿼리 로깅 설정
-- [ ] 실행 시간 측정 로직 구현
-- [ ] 느린 쿼리 판별 기준 설정
-- [ ] 구조화된 로깅 구현
-- [ ] CloudWatch 메트릭 전송
-- [ ] 모니터링 대시보드 구성
+- [x] 쿼리 인터셉터 구현
+  - [x] TypeORM 쿼리 로깅 설정
+  - [x] Knex 쿼리 로깅 설정
+- [x] 실행 시간 측정 로직 구현
+- [x] 느린 쿼리 판별 기준 설정
+- [x] 구조화된 로깅 구현
+- [x] CloudWatch 메트릭 전송
+- [x] 모니터링 대시보드 구성
 
 ## Technical Guidance
 
@@ -279,4 +279,127 @@ const dashboardBody = {
 ```
 
 ## Output Log
-*(This section is populated as work progresses on the task)*
+
+### 2025-06-17
+
+#### 구현 완료 사항
+
+1. **TypeORM 슬로우 쿼리 로거 통합**
+   - `TypeOrmSlowQueryLogger` 클래스를 사용하여 커스텀 로깅 구현
+   - app.module.ts에서 TypeORM 설정에 커스텀 로거 연결
+   - 쿼리 실행 시간 자동 측정 및 임계값 기반 감지
+
+2. **Knex 쿼리 모니터링 활성화**
+   - `KnexQueryMonitor` 서비스를 통한 외부 DB 쿼리 모니터링
+   - ConnectionService에서 Knex 인스턴스 생성 시 자동 연결
+   - 모든 외부 데이터베이스 쿼리 추적
+
+3. **슬로우 쿼리 분석 기능**
+   - `QueryAnalyzerService` 개선으로 다중 DB 엔진 지원
+   - EXPLAIN 분석을 통한 쿼리 성능 진단
+   - 자동 최적화 제안 생성
+
+4. **CloudWatch 메트릭 통합**
+   - 슬로우 쿼리 발생 시 자동 메트릭 전송
+   - 심각도별, 데이터베이스별 메트릭 분류
+   - 대시보드 JSON 템플릿 제공
+   - 알람 설정 템플릿 제공
+
+5. **관리 API 엔드포인트**
+   - `/monitoring/slow-queries/stats` - 통계 조회
+   - `/monitoring/slow-queries` - 쿼리 목록 (필터링, 페이징)
+   - `/monitoring/slow-queries/{id}/resolve` - 해결 처리
+   - `/monitoring/slow-queries/config` - 설정 관리
+   - `/monitoring/slow-queries/export` - 데이터 내보내기
+
+6. **문서화**
+   - 상세한 사용 가이드 작성 (`docs/slow-query-monitoring.md`)
+   - API 문서 및 예제 포함
+   - CloudWatch 설정 가이드
+   - 성능 최적화 권장사항
+
+7. **테스트 도구**
+   - `test-slow-query.ts` 스크립트로 모니터링 테스트 가능
+   - `yarn test:slow-query` 명령어 추가
+
+#### 변경된 파일
+
+1. `/workspace/vanillameta/backend-api/src/app.module.ts`
+   - TypeORM 설정을 forRootAsync로 변경
+   - 커스텀 슬로우 쿼리 로거 주입
+
+2. `/workspace/vanillameta/backend-api/src/common/monitoring/monitoring.module.ts`
+   - TypeOrmSlowQueryLogger, KnexQueryMonitor 프로바이더 추가
+   - QueryAnalyzerService export 추가
+
+3. `/workspace/vanillameta/backend-api/src/common/monitoring/query-analyzer.service.ts`
+   - analyzeQuery 메서드 시그니처 개선
+   - 실행 시간 파라미터 추가
+
+4. `/workspace/vanillameta/backend-api/src/connection/connection.service.ts`
+   - KnexQueryMonitor 주입 및 활성화
+   - Knex 인스턴스 생성 시 모니터링 연결
+
+5. `/workspace/vanillameta/backend-api/src/connection/connection.module.ts`
+   - Git 충돌 해결
+
+6. `/workspace/vanillameta/backend-api/.env.example`
+   - SLOW_QUERY_THRESHOLD 환경 변수 추가
+   - SLOW_QUERY_MONITORING_ENABLED 환경 변수 추가
+
+7. 신규 생성 파일:
+   - `docs/slow-query-monitoring.md`
+   - `src/test-slow-query.ts`
+   - `cloudwatch/slow-query-dashboard.json`
+   - `cloudwatch/slow-query-alarms.json`
+
+8. `/workspace/vanillameta/backend-api/package.json`
+   - `test:slow-query` 스크립트 추가
+
+#### 테스트 방법
+
+1. 환경 변수 설정:
+   ```bash
+   export SLOW_QUERY_THRESHOLD=1000
+   export SLOW_QUERY_MONITORING_ENABLED=true
+   ```
+
+2. 테스트 스크립트 실행:
+   ```bash
+   yarn test:slow-query
+   ```
+
+3. API를 통한 모니터링 확인:
+   ```bash
+   # 통계 조회
+   curl -H "Authorization: Bearer {JWT_TOKEN}" \
+        http://localhost:3000/monitoring/slow-queries/stats
+   
+   # 슬로우 쿼리 목록
+   curl -H "Authorization: Bearer {JWT_TOKEN}" \
+        http://localhost:3000/monitoring/slow-queries
+   ```
+
+#### 다음 단계 권장사항
+
+1. **실시간 알림 시스템 구축**
+   - SNS/SQS를 통한 이메일/Slack 알림
+   - Critical 쿼리 즉시 알림
+
+2. **쿼리 최적화 자동화**
+   - 자주 발생하는 슬로우 쿼리 패턴 분석
+   - 인덱스 자동 생성 제안
+
+3. **성능 대시보드 UI**
+   - 프론트엔드에 슬로우 쿼리 모니터링 화면 추가
+   - 실시간 차트 및 분석 도구
+
+4. **고급 분석 기능**
+   - 쿼리 실행 계획 시각화
+   - 머신러닝 기반 이상 감지
+   - 예측적 성능 분석
+
+5. **통합 테스트**
+   - 다양한 데이터베이스 엔진에서 테스트
+   - 대용량 쿼리 시나리오 테스트
+   - Lambda 환경에서의 성능 검증

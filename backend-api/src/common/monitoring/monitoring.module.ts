@@ -24,6 +24,9 @@ import { MetricsController } from './metrics.controller';
 import { MemoryMonitorModule } from './memory-monitor.module';
 import { MemoryMonitorService } from './memory-monitor.service';
 import { QueryPerformanceMetricsInterceptor } from '../interceptors/query-performance-metrics.interceptor';
+import { TypeOrmSlowQueryLogger } from './typeorm-slow-query-logger';
+import { KnexQueryMonitor } from './knex-query-monitor';
+import { QueryAnalyzerService } from './query-analyzer.service';
 
 @Module({
   imports: [
@@ -49,6 +52,8 @@ import { QueryPerformanceMetricsInterceptor } from '../interceptors/query-perfor
     QueryOptimizationService,
     CloudWatchMetricsService,
     QueryPerformanceMetricsInterceptor,
+    TypeOrmSlowQueryLogger,
+    KnexQueryMonitor,
   ],
   exports: [
     ConnectionPoolMonitorService,
@@ -59,6 +64,9 @@ import { QueryPerformanceMetricsInterceptor } from '../interceptors/query-perfor
     CloudWatchMetricsService,
     BusinessMetricsModule,
     QueryPerformanceMetricsInterceptor,
+    TypeOrmSlowQueryLogger,
+    KnexQueryMonitor,
+    QueryAnalyzerService,
   ],
 })
 export class MonitoringModule {}

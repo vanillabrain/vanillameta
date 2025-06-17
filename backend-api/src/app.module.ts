@@ -27,6 +27,10 @@ import { BackgroundJobModule } from './background-job/background-job.module';
 import { MemoryMonitorModule } from './common/monitoring/memory-monitor.module';
 import { MemoryMonitorMiddleware } from './common/monitoring/memory-monitor.middleware';
 import { ResponseTimeInterceptor } from './common/interceptors/response-time.interceptor';
+import { TypeOrmSlowQueryLogger } from './common/monitoring/typeorm-slow-query-logger';
+import { CustomLoggerService } from './common/logger/logger.service';
+import { SlowQueryMonitorService } from './common/monitoring/slow-query-monitor.service';
+import { QueryAnalyzerService } from './common/monitoring/query-analyzer.service';
 
 @Module({
   imports: [
@@ -36,7 +40,14 @@ import { ResponseTimeInterceptor } from './common/interceptors/response-time.int
       envFilePath: process.env.NODE_ENV == 'prod' ? '.env' : '.env.dev',
     }),
 
-    TypeOrmModule.forRoot({
+    TypeOrmModule.forRootAsync({
+      imports: [LoggerModule, MonitoringModule],
+      inject: [CustomLoggerService, SlowQueryMonitorService, QueryAnalyzerService],
+      useFactory: (
+        customLogger: CustomLoggerService,
+        slowQueryMonitorService: SlowQueryMonitorService,
+        queryAnalyzerService: QueryAnalyzerService,
+      ) => ({
       type: process.env.NODE_ENV == 'local' ? 'sqlite' : 'mysql',
       host: process.env.DB_HOST,
       port: parseInt(process.env.DB_PORT) || 3306,
@@ -47,6 +58,11 @@ import { ResponseTimeInterceptor } from './common/interceptors/response-time.int
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
       synchronize: process.env.NODE_ENV != 'prod',
       logging: process.env.NODE_ENV != 'prod',
+      logger: new TypeOrmSlowQueryLogger(
+        customLogger,
+        slowQueryMonitorService,
+        queryAnalyzerService,
+      ),
       retryAttempts: 1,
       // Lambda 환경에 최적화된 연결 풀 설정
       ...(process.env.NODE_ENV !== 'local' && {
@@ -71,6 +87,7 @@ import { ResponseTimeInterceptor } from './common/interceptors/response-time.int
       // 연결 재사용을 위한 설정
       keepConnectionAlive: true, // 애플리케이션 재시작 시 연결 유지
       retryDelay: 3000, // 재시도 간격 (3초)
+      }),
     }),
     DatabaseModule,
     DatasetModule,

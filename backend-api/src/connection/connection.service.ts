@@ -18,6 +18,7 @@ import { REQUEST } from '@nestjs/core';
 import { Request } from 'express';
 import { Transform, Readable, PassThrough } from 'stream';
 import { getDatabaseSpecificConfig } from './database-specific.config';
+import { KnexQueryMonitor } from '../common/monitoring/knex-query-monitor';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { BigQueryClient } = require('knex-bigquery');
@@ -34,6 +35,7 @@ export class ConnectionService {
     private readonly queryCollector: QueryCollector,
     private readonly slowQueryMonitorService: SlowQueryMonitorService,
     private readonly databaseOptimizerFactory: DatabaseOptimizerFactory,
+    private readonly knexQueryMonitor: KnexQueryMonitor,
     @Inject(REQUEST) private readonly request: Request,
   ) {}
 
@@ -111,8 +113,7 @@ export class ConnectionService {
           'ConnectionService',
           {
             databaseId: id,
-            optimizerType: optimizer.databaseType,
-            batchSize: optimizer.getBatchSize(),
+            optimizerType: optimizer.getDatabaseType(),
           },
         );
       }
@@ -132,7 +133,11 @@ export class ConnectionService {
         },
       );
 
-      knexConnections.set(id, knex(optimizedOptions));
+      const knexInstance = knex(optimizedOptions);
+      knexConnections.set(id, knexInstance);
+
+      // Knex 쿼리 모니터링 연결
+      this.knexQueryMonitor.attachToKnex(knexInstance, id, databaseType);
 
       // 최적화 통계 로깅
       const stats = this.databaseOptimizerFactory.getOptimizationStats();
@@ -356,14 +361,14 @@ export class ConnectionService {
       // 4. DB별 쿼리 최적화 적용
       if (optimizer) {
         try {
-          // Knex 쿼리 빌더로 변환하여 최적화 적용
-          const queryBuilder = knex.raw(sanitizedQuery);
+          // Raw 쿼리를 QueryBuilder로 변환하여 최적화 적용
+          const queryBuilder = knex.queryBuilder().select(knex.raw(sanitizedQuery));
           const optimizedQueryBuilder = optimizer.optimizeQuery(queryBuilder);
           sanitizedQuery = optimizedQueryBuilder.toString();
 
           this.logger.debug('Applied database-specific query optimization', 'ConnectionService', {
             databaseId: queryExecuteDto.id,
-            databaseType: optimizer.databaseType,
+            databaseType: optimizer.getDatabaseType(),
             originalQuery: validationResult.sanitizedQuery.substring(0, 100),
             optimizedQuery: sanitizedQuery.substring(0, 100),
           });
