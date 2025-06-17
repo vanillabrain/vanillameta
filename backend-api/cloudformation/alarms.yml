@@ -25,6 +25,11 @@ Parameters:
     NoEcho: true
     Description: Slack webhook URL for notifications
     Default: ''
+    
+  DBInstanceIdentifier:
+    Type: String
+    Description: RDS Database Instance Identifier
+    Default: vanillameta-db
 
 Conditions:
   IsProduction: !Equals [!Ref Stage, 'prod']
@@ -100,7 +105,7 @@ Resources:
     Condition: HasSlackWebhook
     Properties:
       FunctionName: !Sub '${ServiceName}-${Stage}-slack-alarm-notifier'
-      Runtime: nodejs14.x
+      Runtime: nodejs18.x
       Handler: index.handler
       Role: !GetAtt SlackNotificationRole.Arn
       Timeout: 30
@@ -255,17 +260,37 @@ Resources:
     Properties:
       AlarmName: !Sub '${ServiceName}-${Stage}-Lambda-Error-Rate-Critical'
       AlarmDescription: 'Lambda function error rate exceeded 5%'
-      MetricName: Errors
-      Namespace: AWS/Lambda
-      Statistic: Average
-      Period: 300
+      Metrics:
+        - Id: m1
+          MetricStat:
+            Metric:
+              Namespace: AWS/Lambda
+              MetricName: Errors
+              Dimensions:
+                - Name: FunctionName
+                  Value: !Sub '${ServiceName}-${Stage}-app'
+            Period: 300
+            Stat: Sum
+          ReturnData: false
+        - Id: m2
+          MetricStat:
+            Metric:
+              Namespace: AWS/Lambda
+              MetricName: Invocations
+              Dimensions:
+                - Name: FunctionName
+                  Value: !Sub '${ServiceName}-${Stage}-app'
+            Period: 300
+            Stat: Sum
+          ReturnData: false
+        - Id: e1
+          Expression: "(m1/m2)*100"
+          Label: "Error Rate %"
+          ReturnData: true
       EvaluationPeriods: 2
-      Threshold: 0.05
+      Threshold: 5
       ComparisonOperator: GreaterThanThreshold
       TreatMissingData: notBreaching
-      Dimensions:
-        - Name: FunctionName
-          Value: !Sub '${ServiceName}-${Stage}-app'
       AlarmActions:
         - !Ref CriticalAlarmTopic
       OKActions:
@@ -276,17 +301,37 @@ Resources:
     Properties:
       AlarmName: !Sub '${ServiceName}-${Stage}-Lambda-Error-Rate-Warning'
       AlarmDescription: 'Lambda function error rate exceeded 2%'
-      MetricName: Errors
-      Namespace: AWS/Lambda
-      Statistic: Average
-      Period: 300
+      Metrics:
+        - Id: m1
+          MetricStat:
+            Metric:
+              Namespace: AWS/Lambda
+              MetricName: Errors
+              Dimensions:
+                - Name: FunctionName
+                  Value: !Sub '${ServiceName}-${Stage}-app'
+            Period: 300
+            Stat: Sum
+          ReturnData: false
+        - Id: m2
+          MetricStat:
+            Metric:
+              Namespace: AWS/Lambda
+              MetricName: Invocations
+              Dimensions:
+                - Name: FunctionName
+                  Value: !Sub '${ServiceName}-${Stage}-app'
+            Period: 300
+            Stat: Sum
+          ReturnData: false
+        - Id: e1
+          Expression: "(m1/m2)*100"
+          Label: "Error Rate %"
+          ReturnData: true
       EvaluationPeriods: 2
-      Threshold: 0.02
+      Threshold: 2
       ComparisonOperator: GreaterThanThreshold
       TreatMissingData: notBreaching
-      Dimensions:
-        - Name: FunctionName
-          Value: !Sub '${ServiceName}-${Stage}-app'
       AlarmActions:
         - !Ref HighAlarmTopic
 
@@ -352,13 +397,13 @@ Resources:
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmName: !Sub '${ServiceName}-${Stage}-Lambda-Memory-Critical'
-      AlarmDescription: 'Lambda memory usage exceeded 85%'
+      AlarmDescription: 'Lambda memory usage exceeded 80%'
       MetricName: LAMBDA_MEMORY_UTILIZATION
       Namespace: !Sub 'VanillaMeta/${Stage}'
       Statistic: Average
       Period: 300
       EvaluationPeriods: 2
-      Threshold: 85
+      Threshold: 80
       ComparisonOperator: GreaterThanThreshold
       TreatMissingData: notBreaching
       AlarmActions:
@@ -563,6 +608,142 @@ Resources:
       AlarmActions:
         - !Ref MediumAlarmTopic
 
+  # RDS Database Alarms
+  RDSCPUUtilizationCriticalAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Stage}-RDS-CPU-Critical'
+      AlarmDescription: 'RDS CPU utilization exceeded 70%'
+      MetricName: CPUUtilization
+      Namespace: AWS/RDS
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 70
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref DBInstanceIdentifier
+      AlarmActions:
+        - !Ref CriticalAlarmTopic
+      OKActions:
+        - !Ref CriticalAlarmTopic
+
+  RDSCPUUtilizationWarningAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Stage}-RDS-CPU-Warning'
+      AlarmDescription: 'RDS CPU utilization exceeded 50%'
+      MetricName: CPUUtilization
+      Namespace: AWS/RDS
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 50
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref DBInstanceIdentifier
+      AlarmActions:
+        - !Ref HighAlarmTopic
+
+  RDSDatabaseConnectionsHighAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Stage}-RDS-Connections-High'
+      AlarmDescription: 'RDS database connections exceeded 80% of max_connections'
+      MetricName: DatabaseConnections
+      Namespace: AWS/RDS
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 80
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref DBInstanceIdentifier
+      AlarmActions:
+        - !Ref HighAlarmTopic
+
+  RDSFreeableMemoryLowAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Stage}-RDS-FreeableMemory-Low'
+      AlarmDescription: 'RDS freeable memory below 256MB'
+      MetricName: FreeableMemory
+      Namespace: AWS/RDS
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 268435456  # 256MB in bytes
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: notBreaching
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref DBInstanceIdentifier
+      AlarmActions:
+        - !Ref HighAlarmTopic
+
+  RDSFreeStorageSpaceLowAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Stage}-RDS-FreeStorage-Low'
+      AlarmDescription: 'RDS free storage space below 1GB'
+      MetricName: FreeStorageSpace
+      Namespace: AWS/RDS
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 1073741824  # 1GB in bytes
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: notBreaching
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref DBInstanceIdentifier
+      AlarmActions:
+        - !Ref CriticalAlarmTopic
+
+  RDSReadLatencyHighAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Stage}-RDS-ReadLatency-High'
+      AlarmDescription: 'RDS read latency exceeded 100ms'
+      MetricName: ReadLatency
+      Namespace: AWS/RDS
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 0.1  # 100ms in seconds
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref DBInstanceIdentifier
+      AlarmActions:
+        - !Ref HighAlarmTopic
+
+  RDSWriteLatencyHighAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Stage}-RDS-WriteLatency-High'
+      AlarmDescription: 'RDS write latency exceeded 100ms'
+      MetricName: WriteLatency
+      Namespace: AWS/RDS
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 0.1  # 100ms in seconds
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref DBInstanceIdentifier
+      AlarmActions:
+        - !Ref HighAlarmTopic
+
   # Composite Alarms for reducing false positives
   ServiceHealthCompositeAlarm:
     Type: AWS::CloudWatch::CompositeAlarm
@@ -572,10 +753,24 @@ Resources:
       AlarmRule: !Sub |
         (ALARM("${LambdaErrorRateCriticalAlarm}") OR 
          ALARM("${API5XXErrorRateAlarm}") OR 
-         ALARM("${LambdaMemoryCriticalAlarm}"))
+         ALARM("${LambdaMemoryCriticalAlarm}") OR 
+         ALARM("${RDSCPUUtilizationCriticalAlarm}") OR 
+         ALARM("${RDSFreeStorageSpaceLowAlarm}"))
       ActionsEnabled: true
       AlarmActions:
         - !Ref CriticalAlarmTopic
+
+  DatabaseHealthCompositeAlarm:
+    Type: AWS::CloudWatch::CompositeAlarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Stage}-Database-Health-Warning'
+      AlarmDescription: 'Database performance degradation detected'
+      AlarmRule: !Sub |
+        (ALARM("${RDSCPUUtilizationWarningAlarm}") AND 
+         (ALARM("${RDSReadLatencyHighAlarm}") OR ALARM("${RDSWriteLatencyHighAlarm}")))
+      ActionsEnabled: true
+      AlarmActions:
+        - !Ref HighAlarmTopic
 
 Outputs:
   CriticalAlarmTopicArn:
