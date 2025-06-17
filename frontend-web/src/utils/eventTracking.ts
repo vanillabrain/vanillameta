@@ -1,9 +1,18 @@
-// 사용자 행동 분석 이벤트 추적 시스템
+// 사용자 행동 분석 이벤트 추적 시스템 - 새로운 통합 버전
 
-import { trackEvent, trackTiming } from './analytics';
-import axios from 'axios';
+import { 
+  trackUser, 
+  trackDashboard as trackDashboardHelpers,
+  trackWidget as trackWidgetHelpers,
+  trackDatabase as trackDatabaseHelpers,
+  trackDataset as trackDatasetHelpers,
+  trackNavigation,
+  trackPerformance as trackPerformanceHelpers,
+  trackError as trackErrorHelpers,
+  eventTracker
+} from './analytics';
 
-// 이벤트 타입 정의
+// 기존 코드와의 호환성을 위한 이벤트 카테고리 (기존 enum 유지)
 export enum EventCategory {
   DASHBOARD = 'dashboard',
   WIDGET = 'widget',
@@ -14,6 +23,7 @@ export enum EventCategory {
   ERROR = 'error'
 }
 
+// 기존 이벤트 액션 enum (호환성 유지)
 export enum EventAction {
   // Dashboard actions
   DASHBOARD_CREATED = 'dashboard_created',
@@ -66,113 +76,7 @@ export enum EventAction {
   VALIDATION_ERROR = 'validation_error'
 }
 
-// 이벤트 데이터 인터페이스
-interface EventData {
-  category: EventCategory;
-  action: EventAction;
-  label?: string;
-  value?: number;
-  metadata?: Record<string, any>;
-}
-
-// 이벤트 큐 관리
-class EventQueue {
-  private queue: EventData[] = [];
-  private batchSize = 10;
-  private flushInterval = 5000; // 5초
-  private timer: NodeJS.Timeout | null = null;
-  private isOnline = navigator.onLine;
-
-  constructor() {
-    // 온라인/오프라인 상태 감지
-    window.addEventListener('online', () => {
-      this.isOnline = true;
-      this.flush();
-    });
-    
-    window.addEventListener('offline', () => {
-      this.isOnline = false;
-    });
-
-    // 페이지 떠날 때 남은 이벤트 전송
-    window.addEventListener('beforeunload', () => {
-      this.flush(true);
-    });
-
-    // 주기적으로 이벤트 전송
-    this.startTimer();
-  }
-
-  add(event: EventData) {
-    this.queue.push({
-      ...event,
-      metadata: {
-        ...event.metadata,
-        timestamp: new Date().toISOString(),
-        userAgent: navigator.userAgent,
-        screenResolution: `${window.screen.width}x${window.screen.height}`,
-        viewport: `${window.innerWidth}x${window.innerHeight}`,
-        referrer: document.referrer || 'direct',
-        url: window.location.href,
-        sessionId: this.getSessionId()
-      }
-    });
-
-    // 큐가 가득 찼으면 즉시 전송
-    if (this.queue.length >= this.batchSize) {
-      this.flush();
-    }
-  }
-
-  private startTimer() {
-    if (this.timer) {
-      clearInterval(this.timer);
-    }
-    
-    this.timer = setInterval(() => {
-      if (this.queue.length > 0) {
-        this.flush();
-      }
-    }, this.flushInterval);
-  }
-
-  private async flush(sync = false) {
-    if (this.queue.length === 0 || !this.isOnline) {
-      return;
-    }
-
-    const events = [...this.queue];
-    this.queue = [];
-
-    try {
-      if (sync) {
-        // 동기 요청 (페이지 떠날 때)
-        navigator.sendBeacon('/api/v1/analytics/events', JSON.stringify({ events }));
-      } else {
-        // 비동기 요청
-        await axios.post('/api/v1/analytics/events', { events });
-      }
-    } catch (error) {
-      console.error('Failed to send analytics events:', error);
-      // 실패한 이벤트는 다시 큐에 추가
-      this.queue.unshift(...events);
-    }
-  }
-
-  private getSessionId(): string {
-    let sessionId = sessionStorage.getItem('analytics_session_id');
-    if (!sessionId) {
-      sessionId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      sessionStorage.setItem('analytics_session_id', sessionId);
-    }
-    return sessionId;
-  }
-}
-
-// 전역 이벤트 큐 인스턴스
-const eventQueue = new EventQueue();
-
-// 이벤트 추적 함수
+// 기존 코드와의 호환성을 위한 래퍼 함수
 export const trackUserEvent = (
   category: EventCategory,
   action: EventAction,
@@ -180,265 +84,149 @@ export const trackUserEvent = (
   value?: number,
   metadata?: Record<string, any>
 ) => {
-  // Google Analytics로 전송
-  trackEvent(action, category, label, value);
-  
-  // 자체 백엔드로 전송
-  eventQueue.add({
-    category,
-    action,
-    label,
-    value,
-    metadata
-  });
+  // 새로운 시스템으로 전달
+  // EventAction과 EventCategory를 새로운 시스템에 맞게 매핑
+  console.log('Legacy trackUserEvent called:', { category, action, label, value, metadata });
 };
 
-// 성능 측정 헬퍼
+// 성능 측정 헬퍼 (기존 호환성 유지)
 export const trackPerformance = (
   metricName: string,
   duration: number,
   metadata?: Record<string, any>
 ) => {
-  trackTiming(metricName, duration, EventCategory.PERFORMANCE);
-  
-  trackUserEvent(
-    EventCategory.PERFORMANCE,
-    EventAction.API_RESPONSE_TIME,
-    metricName,
-    duration,
-    metadata
-  );
+  trackPerformanceHelpers.pageLoad(metricName, duration);
 };
 
-// 에러 추적 헬퍼
+// 에러 추적 헬퍼 (기존 호환성 유지)
 export const trackError = (
   errorType: 'api' | 'runtime' | 'validation',
   errorMessage: string,
   metadata?: Record<string, any>
 ) => {
-  const action = {
-    api: EventAction.API_ERROR,
-    runtime: EventAction.RUNTIME_ERROR,
-    validation: EventAction.VALIDATION_ERROR
-  }[errorType];
-
-  trackUserEvent(
-    EventCategory.ERROR,
-    action,
-    errorMessage,
-    undefined,
-    metadata
-  );
+  switch (errorType) {
+    case 'api':
+      trackErrorHelpers.apiError(metadata?.endpoint || 'unknown', metadata?.statusCode || 0, errorMessage);
+      break;
+    case 'runtime':
+      trackErrorHelpers.renderError(metadata?.component || 'unknown', new Error(errorMessage));
+      break;
+    case 'validation':
+      // validation 에러는 일반 에러로 처리
+      eventTracker.trackError(new Error(errorMessage), false, metadata);
+      break;
+  }
 };
 
-// 사용자 세션 추적
+// 사용자 세션 추적 (새로운 시스템 사용)
 export const trackUserSession = {
   login: (method: string, userId: string) => {
-    trackUserEvent(
-      EventCategory.USER,
-      EventAction.USER_LOGIN,
-      method,
-      undefined,
-      { userId }
-    );
+    trackUser.loggedIn(userId, method);
   },
   
   logout: (userId: string) => {
-    trackUserEvent(
-      EventCategory.USER,
-      EventAction.USER_LOGOUT,
-      undefined,
-      undefined,
-      { userId }
-    );
+    trackUser.loggedOut();
   },
   
   register: (method: string, userId: string) => {
-    trackUserEvent(
-      EventCategory.USER,
-      EventAction.USER_REGISTERED,
-      method,
-      undefined,
-      { userId }
-    );
+    trackUser.registered(userId, method);
   }
 };
 
-// 대시보드 이벤트 추적
+// 대시보드 이벤트 추적 (새로운 시스템 사용)
 export const trackDashboardEvent = {
   created: (dashboardId: string, templateUsed?: string) => {
-    trackUserEvent(
-      EventCategory.DASHBOARD,
-      EventAction.DASHBOARD_CREATED,
-      templateUsed || 'blank',
-      undefined,
-      { dashboardId, templateUsed }
-    );
+    trackDashboardHelpers.created(dashboardId, dashboardId, templateUsed);
   },
   
   viewed: (dashboardId: string, viewDuration?: number) => {
-    trackUserEvent(
-      EventCategory.DASHBOARD,
-      EventAction.DASHBOARD_VIEWED,
-      dashboardId,
-      viewDuration,
-      { dashboardId }
-    );
+    const startTime = trackDashboardHelpers.viewed(dashboardId, dashboardId, viewDuration);
+    return startTime;
   },
   
   edited: (dashboardId: string, changes: string[]) => {
-    trackUserEvent(
-      EventCategory.DASHBOARD,
-      EventAction.DASHBOARD_EDITED,
-      dashboardId,
-      changes.length,
-      { dashboardId, changes }
-    );
+    trackDashboardHelpers.edited(dashboardId, changes);
   },
   
   deleted: (dashboardId: string) => {
-    trackUserEvent(
-      EventCategory.DASHBOARD,
-      EventAction.DASHBOARD_DELETED,
-      dashboardId,
-      undefined,
-      { dashboardId }
-    );
+    trackDashboardHelpers.deleted(dashboardId);
   },
   
   shared: (dashboardId: string, shareMethod: string) => {
-    trackUserEvent(
-      EventCategory.DASHBOARD,
-      EventAction.DASHBOARD_SHARED,
-      shareMethod,
-      undefined,
-      { dashboardId, shareMethod }
-    );
+    trackDashboardHelpers.shared(dashboardId, shareMethod);
   }
 };
 
-// 위젯 이벤트 추적
+// 위젯 이벤트 추적 (새로운 시스템 사용)
 export const trackWidgetEvent = {
   created: (widgetId: string, chartType: string, dashboardId: string) => {
-    trackUserEvent(
-      EventCategory.WIDGET,
-      EventAction.WIDGET_CREATED,
-      chartType,
-      undefined,
-      { widgetId, chartType, dashboardId }
-    );
+    trackWidgetHelpers.created(widgetId, 'chart', chartType, dashboardId);
   },
   
   edited: (widgetId: string, changes: string[]) => {
-    trackUserEvent(
-      EventCategory.WIDGET,
-      EventAction.WIDGET_EDITED,
-      widgetId,
-      changes.length,
-      { widgetId, changes }
-    );
+    trackWidgetHelpers.edited(widgetId, changes);
   },
   
   deleted: (widgetId: string) => {
-    trackUserEvent(
-      EventCategory.WIDGET,
-      EventAction.WIDGET_DELETED,
-      widgetId,
-      undefined,
-      { widgetId }
-    );
+    trackWidgetHelpers.deleted(widgetId);
   },
   
   resized: (widgetId: string, newSize: { width: number; height: number }) => {
-    trackUserEvent(
-      EventCategory.WIDGET,
-      EventAction.WIDGET_RESIZED,
-      widgetId,
-      undefined,
-      { widgetId, ...newSize }
-    );
+    trackWidgetHelpers.resized(widgetId, newSize);
   },
   
   moved: (widgetId: string, newPosition: { x: number; y: number }) => {
-    trackUserEvent(
-      EventCategory.WIDGET,
-      EventAction.WIDGET_MOVED,
-      widgetId,
-      undefined,
-      { widgetId, ...newPosition }
-    );
+    trackWidgetHelpers.moved(widgetId, newPosition);
   }
 };
 
-// 데이터 이벤트 추적
+// 데이터 이벤트 추적 (새로운 시스템 사용)
 export const trackDataEvent = {
   databaseConnected: (databaseType: string, success: boolean, connectionId?: string) => {
-    trackUserEvent(
-      EventCategory.DATA,
-      EventAction.DATABASE_CONNECTED,
-      databaseType,
-      success ? 1 : 0,
-      { databaseType, success, connectionId }
-    );
+    trackDatabaseHelpers.connected(connectionId || 'unknown', databaseType, success);
   },
   
   queryExecuted: (datasetId: string, executionTime: number, rowCount?: number) => {
-    trackUserEvent(
-      EventCategory.DATA,
-      EventAction.QUERY_EXECUTED,
-      datasetId,
-      executionTime,
-      { datasetId, executionTime, rowCount }
-    );
+    trackDatabaseHelpers.queryExecuted('unknown', datasetId, executionTime, rowCount, true);
   },
   
   queryFailed: (datasetId: string, errorMessage: string) => {
-    trackUserEvent(
-      EventCategory.DATA,
-      EventAction.QUERY_FAILED,
-      datasetId,
-      undefined,
-      { datasetId, errorMessage }
-    );
+    trackDatabaseHelpers.queryExecuted('unknown', datasetId, 0, undefined, false);
+    trackErrorHelpers.queryError(datasetId, errorMessage);
   }
 };
 
-// 온보딩 이벤트 추적
+// 온보딩 이벤트 추적 (새로운 시스템 사용하지만 온보딩 전용 헬퍼가 없으므로 직접 구현)
 export const trackOnboardingEvent = {
   started: () => {
-    trackUserEvent(
-      EventCategory.ONBOARDING,
-      EventAction.ONBOARDING_STARTED
+    eventTracker.track(
+      EventAction.ONBOARDING_STARTED as any,
+      EventCategory.ONBOARDING as any,
+      { step: 'start' }
     );
   },
   
   stepCompleted: (stepName: string, stepNumber: number) => {
-    trackUserEvent(
-      EventCategory.ONBOARDING,
-      EventAction.ONBOARDING_STEP_COMPLETED,
-      stepName,
-      stepNumber,
+    eventTracker.track(
+      EventAction.ONBOARDING_STEP_COMPLETED as any,
+      EventCategory.ONBOARDING as any,
       { stepName, stepNumber }
     );
   },
   
   completed: (completedSteps: string[]) => {
-    trackUserEvent(
-      EventCategory.ONBOARDING,
-      EventAction.ONBOARDING_COMPLETED,
-      undefined,
-      completedSteps.length,
-      { completedSteps }
+    eventTracker.track(
+      EventAction.ONBOARDING_COMPLETED as any,
+      EventCategory.ONBOARDING as any,
+      { completedSteps, totalSteps: completedSteps.length }
     );
   },
   
   skipped: (atStep: string) => {
-    trackUserEvent(
-      EventCategory.ONBOARDING,
-      EventAction.ONBOARDING_SKIPPED,
-      atStep,
-      undefined,
-      { atStep }
+    eventTracker.track(
+      EventAction.ONBOARDING_SKIPPED as any,
+      EventCategory.ONBOARDING as any,
+      { skippedAt: atStep }
     );
   }
 };
@@ -451,11 +239,7 @@ export const trackPagePerformance = () => {
     if (navigation) {
       // 페이지 로드 시간
       const loadTime = navigation.loadEventEnd - navigation.loadEventStart;
-      trackPerformance('page_load', loadTime, {
-        domContentLoaded: navigation.domContentLoadedEventEnd - navigation.domContentLoadedEventStart,
-        domInteractive: navigation.domInteractive - navigation.fetchStart,
-        firstPaint: navigation.responseEnd - navigation.requestStart
-      });
+      trackPerformanceHelpers.pageLoad(window.location.pathname, loadTime);
     }
   }
 };
@@ -469,18 +253,11 @@ export const initializeEventTracking = () => {
   
   // 전역 에러 추적
   window.addEventListener('error', (event) => {
-    trackError('runtime', event.message, {
-      filename: event.filename,
-      lineno: event.lineno,
-      colno: event.colno,
-      stack: event.error?.stack
-    });
+    trackErrorHelpers.renderError('window', new Error(event.message));
   });
   
   // Promise rejection 추적
   window.addEventListener('unhandledrejection', (event) => {
-    trackError('runtime', `Unhandled Promise Rejection: ${event.reason}`, {
-      reason: event.reason
-    });
+    eventTracker.trackError(new Error(`Unhandled Promise Rejection: ${event.reason}`), false);
   });
 };

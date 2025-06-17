@@ -33,6 +33,7 @@ import { SlowQueryMonitorService } from './common/monitoring/slow-query-monitor.
 import { QueryAnalyzerService } from './common/monitoring/query-analyzer.service';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { MetricsInterceptor } from './common/interceptors/metrics.interceptor';
+import { EventsModule } from './events/events.module';
 
 @Module({
   imports: [
@@ -110,6 +111,7 @@ import { MetricsInterceptor } from './common/interceptors/metrics.interceptor';
     BackgroundJobModule,
     MemoryMonitorModule,
     AnalyticsModule,
+    EventsModule,
   ],
   controllers: [AppController, TestCompressionController, TestFieldSelectionController],
   providers: [
