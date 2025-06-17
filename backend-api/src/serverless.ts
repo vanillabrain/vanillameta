@@ -15,6 +15,9 @@ import { ValidationPipe } from '@nestjs/common';
 import { CustomLoggerService } from './common/logger/logger.service';
 import { LoggingMiddleware } from './middleware/logging.middleware';
 import { CompressionLoggingMiddleware } from './middleware/compression-logging.middleware';
+import { ResponseTimeInterceptor } from './common/interceptors/response-time.interceptor';
+import { CloudWatchMetricsService } from './common/monitoring/cloudwatch-metrics.service';
+import { BusinessMetricsService } from './common/monitoring/business-metrics.service';
 
 // NOTE: If you get ERR_CONTENT_DECODING_FAILED in your browser, this is likely
 // due to a compressed response (e.g. gzip) which has not been handled correctly
@@ -81,8 +84,13 @@ async function bootstrapServer(): Promise<Server> {
     nestApp.use(eventContext());
     // nestApp.useGlobalPipes(new ValidationPipe({ transform: true }));
 
+    // Global interceptors for CloudWatch metrics
+    const cloudWatchMetrics = nestApp.get(CloudWatchMetricsService);
+    const businessMetrics = nestApp.get(BusinessMetricsService);
+    nestApp.useGlobalInterceptors(new ResponseTimeInterceptor(cloudWatchMetrics, businessMetrics));
+
     const logger = nestApp.get(CustomLoggerService);
-    logger.info('Lambda function initialized', 'ServerlessBootstrap', {
+    logger.log('Lambda function initialized', 'ServerlessBootstrap', {
       environment: process.env.NODE_ENV,
       dbConnectionLimit: process.env.DB_CONNECTION_LIMIT || '5',
       knexPoolMax: process.env.KNEX_POOL_MAX || '3',

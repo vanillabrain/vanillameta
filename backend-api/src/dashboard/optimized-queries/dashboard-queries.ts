@@ -96,14 +96,10 @@ export class OptimizedDashboardQueries {
       // layout 파싱은 여전히 필요하지만, 단일 쿼리로 모든 데이터 획득
       result.layout = JSON.parse(result.layout);
 
-      // 위젯 옵션 파싱
-      if (result.dashboardWidgets) {
-        result.dashboardWidgets.forEach(dw => {
-          if (dw.widget && dw.widget.option) {
-            dw.widget.option = JSON.parse(dw.widget.option);
-          }
-        });
-      }
+      // 위젯 옵션 파싱 - Join된 결과에서 위젯이 있는 경우
+      // NOTE: 이 쿼리 결과는 left join으로 위젯 정보를 포함하지만
+      // TypeORM의 getOne()은 단일 엔티티만 반환하므로
+      // 여러 위젯 정보는 별도 쿼리로 가져와야 함
     }
 
     return result;

@@ -78,8 +78,9 @@ export const WidgetList = ({
     showLoading();
     WidgetService.selectWidgetList()
       .then(response => {
-        if (response.data.status == STATUS.SUCCESS) {
-          setLoadedWidgetData(response.data.data);
+        console.log('selectWidget response:', response);
+        if (response.status === STATUS.SUCCESS) {
+          setLoadedWidgetData(response.data);
         } else {
           console.log('조회 실패!!!!');
         }
@@ -241,10 +242,11 @@ export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = 
   const [selectedItem, setSelectedItem] = useState(null);
 
   const getItems = () => {
-    TemplateService.selectRecommendTemplateList({ widgets: selectedWidgetIds }).then(response => {
+    TemplateService.selectRecommendTemplateList({ databaseIds: selectedWidgetIds }).then(response => {
       // TemplateService.selectRecommendTemplateList({ widgets: [1, 2] }).then(response => {
-      if (response.data.status == STATUS.SUCCESS) {
-        setLoadedTemplateDataList(response.data.data);
+      console.log('selectTemplateList response:', response);
+      if (response.status === STATUS.SUCCESS) {
+        setLoadedTemplateDataList(response.data.templates || response.data.items || []);
       } else {
         console.log('조회 실패!!');
       }
@@ -490,8 +492,9 @@ function RecommendDashboardPopup({ recommendOpen = false, handleComplete = null 
 
   const getTemplateResult = item => {
     TemplateService.selectRecommendTemplateListDashboard(item).then(response => {
-      if (response.data.status == STATUS.SUCCESS) {
-        handleComplete(response.data.data);
+      console.log('createTemplateDashboard response:', response);
+      if (response.status === STATUS.SUCCESS) {
+        handleComplete(response.data);
       } else {
         console.log('조회 실패!!');
       }

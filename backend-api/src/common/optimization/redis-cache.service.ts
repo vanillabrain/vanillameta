@@ -163,7 +163,7 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
       // 연결 시도
       await this.redis.connect();
 
-      this.customLogger.info('Redis cache service initialized', 'RedisCacheService', {
+      this.customLogger.log('Redis cache service initialized', 'RedisCacheService', {
         host: this.config.host,
         port: this.config.port,
         cluster: this.config.cluster.enabled,
@@ -410,7 +410,7 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
       const cleanKeys = keys.map(key => key.replace(this.config.keyPrefix, ''));
       const result = await this.redis.del(...cleanKeys);
 
-      this.customLogger.info('Cache invalidated by pattern', 'RedisCacheService', {
+      this.customLogger.log('Cache invalidated by pattern', 'RedisCacheService', {
         pattern,
         keysDeleted: result,
       });
@@ -469,7 +469,7 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
       }
     }
 
-    this.customLogger.info('Cache invalidated by database', 'RedisCacheService', {
+    this.customLogger.log('Cache invalidated by database', 'RedisCacheService', {
       databaseId,
       keysDeleted: totalDeleted,
     });

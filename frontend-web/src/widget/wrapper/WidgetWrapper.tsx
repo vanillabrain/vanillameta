@@ -1,6 +1,5 @@
 import React, { useContext, useEffect, useState, useMemo } from 'react';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
-import DatabaseService from '@/api/databaseService';
 import DatasetService from '@/api/datasetService';
 import { STATUS } from '@/constant';
 import { LoadingContext } from '@/contexts/LoadingContext';
@@ -66,16 +65,16 @@ const WidgetWrapper = props => {
         { useStreamingFallback: true }
       );
 
-      if (response.data.status === STATUS.SUCCESS) {
-        const dataLength = response.data.data?.length || 0;
+      if (response.status === STATUS.SUCCESS) {
+        const dataLength = response.data?.length || 0;
         
-        if (dataLength > DATA_THRESHOLD || response.data.data === 'STREAMING_RESPONSE') {
+        if (dataLength > DATA_THRESHOLD || response.data === 'STREAMING_RESPONSE') {
           // 대용량 데이터인 경우 스트리밍 모드 사용
           setUseStreamingMode(true);
           startStreaming(widgetOption.datasetId);
         } else {
-          // 소규모 데이터는 일반 모드 사용
-          setDataset(response.data.data);
+          // 소규모 데이터는 일바웁 모드 사용
+          setDataset(response.data);
         }
       }
     } catch (error) {
@@ -98,17 +97,17 @@ const WidgetWrapper = props => {
       componentType: widgetOption.componentType,
     });
     
-    const param = { datasetType: widgetOption.datasetType, datasetId: widgetOption.datasetId };
-    DatabaseService.selectData(param)
+    DatasetService.executeCachedQuery(widgetOption.datasetId)
       .then(response => {
-        console.log('selectData', response.data);
-        if (response.data.status === STATUS.SUCCESS) {
-          setDataset(response.data.data.datas);
+        console.log('executeCachedQuery response:', response);
+        if (response.status === STATUS.SUCCESS) {
+          // response.data가 직접 데이터 배열임
+          setDataset(response.data || []);
         }
       })
       .catch(error => {
         setIsInvalidData(true);
-        snackbar.error('데이터베이스 조회에 실패했습니다.');
+        snackbar.error('데이터셋 조회에 실패했습니다.');
         console.log('error', error);
       })
       .finally(() => {

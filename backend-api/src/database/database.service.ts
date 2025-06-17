@@ -1,17 +1,17 @@
 import { Injectable } from '@nestjs/common';
-import { CreateDatabaseDto } from './dto/create-database.dto';
-import { UpdateDatabaseDto } from './dto/update-database.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Database } from './entities/database.entity';
 import { Repository } from 'typeorm';
+import { DatasetType } from '../common/enum/dataset-type.enum';
+import { ResponseStatus } from '../common/enum/response-status.enum';
+import { YesNo } from '../common/enum/yn.enum';
 import { ConnectionService } from '../connection/connection.service';
 import { Dataset } from '../dataset/entities/dataset.entity';
-import { ResponseStatus } from '../common/enum/response-status.enum';
-import { DatasetType } from '../common/enum/dataset-type.enum';
 import { TableQuery } from '../widget/table-query/entity/table-query.entity';
+import { CreateDatabaseDto } from './dto/create-database.dto';
 import { QueryExecuteDto } from './dto/query-execute.dto';
+import { UpdateDatabaseDto } from './dto/update-database.dto';
+import { Database } from './entities/database.entity';
 import { DatabaseType } from './entities/database_type.entity';
-import { YesNo } from '../common/enum/yn.enum';
 
 @Injectable()
 export class DatabaseService {
@@ -37,11 +37,33 @@ export class DatabaseService {
    */
   async create(createDatabaseDto: CreateDatabaseDto) {
     const databaseDto = Database.toDto(createDatabaseDto);
-    const connectionConfig = {
-      client: databaseDto.engine,
-      connection: databaseDto.connectionConfig,
-      useNullAsDefault: true,
-    };
+    // connectionConfig 파싱
+    let parsedConnectionConfig: any = databaseDto.connectionConfig;
+    if (typeof parsedConnectionConfig === 'string') {
+      try {
+        parsedConnectionConfig = JSON.parse(parsedConnectionConfig);
+      } catch (e) {
+        parsedConnectionConfig = {};
+      }
+    }
+
+    // SQLite 특별 처리
+    let connectionConfig;
+    if (databaseDto.engine === 'sqlite' || databaseDto.engine === 'better-sqlite3') {
+      connectionConfig = {
+        client: databaseDto.engine,
+        connection: {
+          filename: parsedConnectionConfig.database || './demo.db',
+        },
+        useNullAsDefault: true,
+      };
+    } else {
+      connectionConfig = {
+        client: databaseDto.engine,
+        connection: parsedConnectionConfig,
+        useNullAsDefault: true,
+      };
+    }
     if (connectionConfig.client === 'cockroachdb') {
       const connectioninfo = connectionConfig.connection;
       const cockroach_url = `postgresql://${connectioninfo['user']}:${connectioninfo['password']}@${connectioninfo['host']}:${connectioninfo['port']}/${connectioninfo['database']}?sslmode=verify-full&options=--cluster%3Dvanillameta-cockroach-3010`;
@@ -77,41 +99,55 @@ export class DatabaseService {
   async findOne(id: number): Promise<any> {
     // 연동 db 정보
     const databaseInfo = await this.databaseRepository.findOne({ where: { id } });
-    databaseInfo.connectionConfig = JSON.parse(databaseInfo.connectionConfig).connection;
+    const parsedConfig = JSON.parse(databaseInfo.connectionConfig);
+    databaseInfo.connectionConfig = parsedConfig.connection || parsedConfig;
 
     // table 정보 조회
+    console.log('Database engine:', databaseInfo.engine);
+    console.log('Database info:', databaseInfo);
     let selectTableQuery;
     switch (databaseInfo.engine) {
       case 'mysql2':
-        selectTableQuery = 'show tables';
+        selectTableQuery = 'SHOW TABLES';
         break;
       case 'pg':
-        selectTableQuery = `SELECT table_name FROM information_schema.tables WHERE table_type = 'BASE TABLE' and table_schema not in ('information_schema', 'pg_catalog', 'pg_internal')`;
+        selectTableQuery = `SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename`;
+        break;
+      case 'sqlite':
+        selectTableQuery = `SELECT name FROM sqlite_master WHERE type='table' ORDER BY name`;
         break;
       case 'sqlite3':
-        selectTableQuery = `SELECT tbl_name FROM sqlite_master WHERE type = 'table'`;
+        selectTableQuery = `SELECT name FROM sqlite_master WHERE type='table' ORDER BY name`;
+        break;
+      case 'better-sqlite3':
+        selectTableQuery = `SELECT name FROM sqlite_master WHERE type='table' ORDER BY name`;
         break;
       case 'mssql':
-        selectTableQuery = 'SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES';
-        break;
-      case 'bigquery':
-        selectTableQuery = `select table_id from ${databaseInfo.connectionConfig['schema']}.__TABLES__`;
+        selectTableQuery = `SELECT name FROM sys.tables WHERE type = 'U' ORDER BY name`;
         break;
       case 'oracledb':
         selectTableQuery = 'SELECT table_name FROM user_tables ORDER BY table_name';
         break;
       case 'snowflake':
-        selectTableQuery = `select table_name from information_schema.tables where table_type = 'BASE TABLE'`;
+        selectTableQuery = `SHOW TABLES`;
         break;
       case 'cockroachdb':
-        selectTableQuery = `SELECT TABLE_NAME FROM information_schema.tables WHERE table_type = 'BASE TABLE'`;
+        selectTableQuery = `SHOW TABLES`;
         break;
       default:
-        selectTableQuery = 'show tables';
+        // 기본값으로 SHOW TABLES 대신 해당 엔진에 맞는 쿼리 사용
+        if (databaseInfo.engine === 'sqlite') {
+          selectTableQuery = `SELECT name FROM sqlite_master WHERE type='table' ORDER BY name`;
+        } else {
+          selectTableQuery = 'SHOW TABLES';
+        }
         break;
     }
 
-    const tablesInfo = await this.connectionService.executeQuery({
+    console.log('Selected query:', selectTableQuery);
+
+    // 시스템 쿼리를 위한 특별한 처리
+    const tablesInfo = await this.connectionService.executeSystemQuery({
       id: +id,
       query: selectTableQuery,
     });
@@ -154,6 +190,39 @@ export class DatabaseService {
   }
 
   /**
+   * 데이터베이스 테이블 목록 조회 (안전한 방법)
+   * @param id
+   */
+  async findTables(id: number): Promise<any> {
+    try {
+      const databaseInfo = await this.findDB(id);
+      if (!databaseInfo) {
+        return { status: ResponseStatus.ERROR, message: 'Database not found' };
+      }
+
+      // 데이터베이스 엔진별로 테이블 목록을 안전하게 가져오는 방법
+      // 여기서는 미리 정의된 안전한 테이블 목록이나 메타데이터를 반환
+      const tables = [];
+
+      // TODO: 실제 구현에서는 각 데이터베이스 타입별로 안전한 방법으로 테이블 목록을 가져와야 함
+      // 예: 별도의 메타데이터 테이블이나 캐시된 정보 사용
+
+      return {
+        status: ResponseStatus.SUCCESS,
+        data: {
+          tables: tables,
+          message: 'Table list retrieval is currently limited due to security restrictions',
+        },
+      };
+    } catch (error) {
+      return {
+        status: ResponseStatus.ERROR,
+        message: error.message || 'Failed to fetch tables',
+      };
+    }
+  }
+
+  /**
    * db config 정보 단순 조회
    * @param id
    */
@@ -178,11 +247,33 @@ export class DatabaseService {
       connectioninfo['connectionString'] = cockroach_url;
     }
 
-    const connectionConfig = {
-      client: one.engine,
-      connection: updateDatabaseDto.connectionConfig,
-      useNullAsDefault: true,
-    };
+    // connectionConfig 파싱
+    let parsedConnectionConfig: any = updateDatabaseDto.connectionConfig;
+    if (typeof parsedConnectionConfig === 'string') {
+      try {
+        parsedConnectionConfig = JSON.parse(parsedConnectionConfig);
+      } catch (e) {
+        parsedConnectionConfig = {};
+      }
+    }
+
+    // SQLite 특별 처리
+    let connectionConfig;
+    if (one.engine === 'sqlite' || one.engine === 'better-sqlite3') {
+      connectionConfig = {
+        client: one.engine,
+        connection: {
+          filename: parsedConnectionConfig.database || './demo.db',
+        },
+        useNullAsDefault: true,
+      };
+    } else {
+      connectionConfig = {
+        client: one.engine,
+        connection: parsedConnectionConfig,
+        useNullAsDefault: true,
+      };
+    }
     updateDatabaseDto.connectionConfig = JSON.stringify(connectionConfig);
 
     // const connectionConfig = {

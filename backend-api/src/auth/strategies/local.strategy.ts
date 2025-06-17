@@ -29,7 +29,7 @@ export class LocalStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException();
     }
 
-    this.logger.info('Local authentication successful', 'LocalStrategy', {
+    this.logger.log('Local authentication successful', 'LocalStrategy', {
       userId: payload.userId,
       correlationId: req?.correlationId,
     });

@@ -31,9 +31,10 @@ export class MemoryMonitorService {
   private memorySnapshots: Map<string, any> = new Map();
   private readonly MAX_SNAPSHOTS = 5;
 
-  // WeakMap과 WeakSet을 사용하여 메모리 누수 방지
+  // WeakMap과 Set을 사용하여 메모리 누수 방지 및 카운팅
   private readonly streamRegistry = new WeakMap<Readable, StreamMetadata>();
-  private readonly activeStreams = new WeakSet<Readable>();
+  private readonly activeStreams = new Set<Readable>();
+  private activeStreamCount = 0;
 
   constructor(private readonly customLogger: CustomLoggerService) {
     // 메모리 누수 감지를 위한 주기적 체크
@@ -82,6 +83,7 @@ export class MemoryMonitorService {
    */
   createArrayStream<T>(array: T[], chunkSize = 1000, options?: StreamProcessingOptions): Readable {
     let index = 0;
+    const self = this; // MemoryMonitorService 인스턴스 참조
 
     const stream = new Readable({
       objectMode: true,
@@ -97,7 +99,7 @@ export class MemoryMonitorService {
           index += chunkSize;
 
           // 메모리 압박 시 일시 중지
-          if (this.isMemoryPressure()) {
+          if (self.isMemoryPressure()) {
             setImmediate(() => this.read());
             return false;
           }
@@ -162,9 +164,13 @@ export class MemoryMonitorService {
 
     this.streamRegistry.set(stream, metadata);
     this.activeStreams.add(stream);
+    this.activeStreamCount++;
 
     stream.on('close', () => {
-      this.activeStreams.delete(stream);
+      if (this.activeStreams.has(stream)) {
+        this.activeStreams.delete(stream);
+        this.activeStreamCount--;
+      }
     });
   }
 
@@ -176,7 +182,10 @@ export class MemoryMonitorService {
       if (!stream.destroyed) {
         stream.destroy();
       }
-      this.activeStreams.delete(stream);
+      if (this.activeStreams.has(stream)) {
+        this.activeStreams.delete(stream);
+        this.activeStreamCount--;
+      }
     });
   }
 
@@ -250,9 +259,7 @@ export class MemoryMonitorService {
     // 주요 객체 타입 추적
     try {
       // 활성 스트림 수
-      let activeStreamCount = 0;
-      this.activeStreams.forEach(() => activeStreamCount++);
-      counts.set('ActiveStreams', activeStreamCount);
+      counts.set('ActiveStreams', this.activeStreamCount);
 
       // 기타 중요 메트릭
       counts.set('MemorySnapshots', this.memorySnapshots.size);
@@ -286,7 +293,7 @@ export class MemoryMonitorService {
       // 메모리 누수 원인 분석
       const leaks = this.detectMemoryLeaks(previousSnapshot, currentSnapshot);
       if (leaks.length > 0) {
-        this.customLogger.error('Memory leak suspects found', 'MemoryMonitor', { leaks });
+        this.customLogger.error('Memory leak suspects found', null, 'MemoryMonitor', { leaks });
       }
     }
   }
@@ -364,15 +371,31 @@ export class MemoryMonitorService {
     }
 
     // 스트림 수 확인
-    let activeStreamCount = 0;
-    this.activeStreams.forEach(() => activeStreamCount++);
-    if (activeStreamCount > 10) {
+    if (this.activeStreamCount > 10) {
       recommendations.push(
-        `활성 스트림이 ${activeStreamCount}개입니다. 사용 완료된 스트림을 정리하세요.`,
+        `활성 스트림이 ${this.activeStreamCount}개입니다. 사용 완료된 스트림을 정리하세요.`,
       );
     }
 
     return recommendations;
+  }
+
+  /**
+   * 메모리 사용 통계 반환 (getMemoryStats 별칭)
+   */
+  public getMemoryStats() {
+    const memUsage = process.memoryUsage();
+    const totalMemory = 3072 * 1024 * 1024; // 3GB Lambda 최대 메모리
+    
+    return {
+      heapUsed: memUsage.heapUsed,
+      heapTotal: memUsage.heapTotal,
+      rss: memUsage.rss,
+      external: memUsage.external,
+      arrayBuffers: memUsage.arrayBuffers,
+      percentUsed: (memUsage.rss / totalMemory) * 100,
+      available: totalMemory - memUsage.rss,
+    };
   }
 
   /**

@@ -165,7 +165,7 @@ export class HybridCacheService implements OnModuleInit, OnModuleDestroy {
 
       await Promise.allSettled(promises);
 
-      this.customLogger.info('Cache invalidated by query', 'HybridCacheService', {
+      this.customLogger.log('Cache invalidated by query', 'HybridCacheService', {
         engine,
         query: query.substring(0, 100),
       });
@@ -187,7 +187,7 @@ export class HybridCacheService implements OnModuleInit, OnModuleDestroy {
 
       await Promise.allSettled(promises);
 
-      this.customLogger.info('Cache invalidated by engine', 'HybridCacheService', {
+      this.customLogger.log('Cache invalidated by engine', 'HybridCacheService', {
         engine,
       });
     } catch (error) {
@@ -207,7 +207,7 @@ export class HybridCacheService implements OnModuleInit, OnModuleDestroy {
         await this.l2Cache.invalidateByDatabase(databaseId);
       }
 
-      this.customLogger.info('Cache invalidated by database', 'HybridCacheService', {
+      this.customLogger.log('Cache invalidated by database', 'HybridCacheService', {
         databaseId,
       });
     } catch (error) {
@@ -228,7 +228,7 @@ export class HybridCacheService implements OnModuleInit, OnModuleDestroy {
 
       await Promise.allSettled(promises);
 
-      this.customLogger.info('All caches invalidated', 'HybridCacheService');
+      this.customLogger.log('All caches invalidated', 'HybridCacheService');
     } catch (error) {
       this.logger.error('Full cache invalidation error:', error);
     }

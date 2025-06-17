@@ -1,30 +1,40 @@
 {
   "compilerOptions": {
     "baseUrl": "./",
-    "target": "es5",
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
-    "noImplicitAny": false,
-    "allowJs": true,
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
     "skipLibCheck": true,
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "strict": false,
-    "strictNullChecks": false,
-    "forceConsistentCasingInFileNames": true,
-    "module": "esnext",
+    
+    /* Bundler mode */
     "moduleResolution": "node",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "noFallthroughCasesInSwitch": true
+    
+    /* Linting */
+    "strict": false,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noFallthroughCasesInSwitch": true,
+    
+    /* Other */
+    "allowJs": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    
+    /* Types */
+    "types": ["vite/client", "node"]
   },
   "include": [
-    "src", "global.d.ts"
+    "src",
+    "global.d.ts",
+    "vite.config.ts"
   ],
   "extends": "./tsconfig.paths.json"
 }

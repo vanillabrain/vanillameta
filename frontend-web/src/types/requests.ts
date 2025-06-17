@@ -22,12 +22,14 @@ export interface CreateDashboardRequest {
   templateId?: number;
   layout?: string;
   seq?: number;
+  widgets?: any[];
 }
 
 export interface UpdateDashboardRequest {
   title?: string;
   layout?: string;
   seq?: number;
+  widgets?: any[];
 }
 
 // Database 관련 요청 타입

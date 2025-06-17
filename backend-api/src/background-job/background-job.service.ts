@@ -37,13 +37,13 @@ export class BackgroundJobService {
     backgroundJob.title = createJobDto.title;
     backgroundJob.description = createJobDto.description;
     backgroundJob.status = JobStatus.PENDING;
-    backgroundJob.metadata = {
+    backgroundJob.metadata = JSON.stringify({
       datasetId: createJobDto.datasetId,
       widgetId: createJobDto.widgetId,
       databaseId: createJobDto.databaseId,
       query: createJobDto.query,
       ...createJobDto.metadata,
-    };
+    });
 
     const savedJob = await this.backgroundJobRepository.save(backgroundJob);
 
@@ -234,7 +234,7 @@ export class BackgroundJobService {
           : undefined,
       resultSizeBytes: Number(result.resultSizeBytes),
       rowCount: result.rowCount,
-      resultMetadata: result.resultMetadata,
+      resultMetadata: result.resultMetadata ? JSON.parse(result.resultMetadata) : null,
       expiresAt: result.expiresAt,
       isCompressed: result.isCompressed,
       compressionType: result.compressionType,

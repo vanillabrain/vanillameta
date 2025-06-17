@@ -35,15 +35,15 @@ export class BatchJob extends BaseEntity {
   id: number;
 
   @Column({
-    type: 'enum',
-    enum: BatchJobType,
+    type: 'varchar',
+    length: 50,
     comment: '배치 작업 유형',
   })
   type: BatchJobType;
 
   @Column({
-    type: 'enum',
-    enum: BatchJobStatus,
+    type: 'varchar',
+    length: 50,
     default: BatchJobStatus.PENDING,
     comment: '배치 작업 상태',
   })
@@ -92,14 +92,14 @@ export class BatchJob extends BaseEntity {
   failedChunks: number;
 
   @Column({
-    type: 'json',
+    type: 'text',
     nullable: true,
     comment: '작업 메타데이터',
   })
   metadata: Record<string, any>;
 
   @Column({
-    type: 'json',
+    type: 'text',
     nullable: true,
     comment: '작업 설정',
   })

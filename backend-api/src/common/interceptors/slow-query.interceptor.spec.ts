@@ -129,7 +129,7 @@ describe('SlowQueryInterceptor', () => {
 
     it('should process query metrics on error response', async () => {
       const error = new Error('Database error');
-      
+
       // Mock the handler to add query metrics before throwing error
       mockCallHandler.handle = jest.fn().mockImplementation(() => {
         // Simulate query metrics being added during request processing before error

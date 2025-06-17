@@ -19,7 +19,7 @@ describe('CustomLoggerService', () => {
   it('should log info messages with structured format', () => {
     // Winston을 mocking하는 대신 실제 로깅 동작 테스트
     expect(() => {
-      service.info('Test message', 'TestContext', {
+      service.log('Test message', 'TestContext', {
         userId: 'test-user-123',
         correlationId: 'test-correlation-456',
       });
@@ -39,7 +39,7 @@ describe('CustomLoggerService', () => {
     expect(() => {
       const circularObj: any = { name: 'test' };
       circularObj.self = circularObj;
-      service.info(circularObj, 'TestContext');
+      service.log(circularObj, 'TestContext');
     }).not.toThrow();
   });
 

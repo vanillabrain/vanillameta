@@ -53,9 +53,9 @@ const SignUp = () => {
         })
         .catch(error => {
           console.log(error);
-          if (error.response.status === 409 && error.response.data.data === 'conflict userId') {
+          if (error.response.status === 409 && error.response.data.message === 'conflict userId') {
             snackbar.error('이미 가입된 ID입니다.');
-          } else if (error.response.status === 409 && error.response.data.data === 'conflict email') {
+          } else if (error.response.status === 409 && error.response.data.message === 'conflict email') {
             snackbar.error('이미 가입된 E-mail입니다.');
           } else {
             alert.error('회원가입에 실패했습니다.\n다시 시도해 주세요.');

@@ -1,8 +1,8 @@
-import { Controller, Get } from '@nestjs/common';
+import { Body, Controller, Get, Post } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { AppService } from './app.service';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 
-@ApiTags('App')
+@ApiTags('시스템')
 @Controller()
 export class AppController {
   constructor(private readonly appService: AppService) {}
@@ -29,9 +29,64 @@ export class AppController {
   }
 
   @Get('health')
-  @ApiOperation({ summary: '헬스체크 엔드포인트' })
+  @ApiOperation({
+    summary: '헬스체크 엔드포인트',
+    description: 'API 서버의 상태를 확인합니다.',
+  })
   @ApiResponse({ status: 200, description: '서비스 상태 정상' })
   checkHealth() {
     return this.appService.checkHealth();
+  }
+
+  @Get('/ip')
+  @ApiOperation({
+    summary: '서버 IP 주소 조회',
+    description:
+      'API 서버의 공개 IP 주소를 조회합니다. AWS Lambda 환경에서 실행 중인 경우 Lambda 함수의 외부 IP를 반환합니다.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: '서버의 IP 주소가 반환되었습니다.',
+    schema: {
+      type: 'string',
+      example: '52.79.123.45',
+    },
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'IP 주소를 가져오는 중 오류가 발생했습니다.',
+  })
+  async getIp(): Promise<string> {
+    return await this.appService.getIp();
+  }
+
+  @Post()
+  @ApiOperation({
+    summary: '에코 테스트',
+    description: '전송한 데이터를 그대로 반환합니다. API 테스트 목적으로 사용됩니다.',
+  })
+  @ApiBody({
+    description: '테스트할 데이터',
+    schema: {
+      type: 'object',
+      example: {
+        message: 'Hello',
+        timestamp: '2024-01-15T10:00:00Z',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: '전송한 데이터가 그대로 반환되었습니다.',
+    schema: {
+      type: 'object',
+      example: {
+        message: 'Hello',
+        timestamp: '2024-01-15T10:00:00Z',
+      },
+    },
+  })
+  postHello(@Body() body) {
+    return body;
   }
 }

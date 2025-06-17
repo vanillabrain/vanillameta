@@ -1,9 +1,9 @@
 import { del, get, patch, post } from '@/helpers/apiHelper';
 import { AxiosResponse } from 'axios';
 
-// 임시로 백엔드 응답 타입을 간소화 (실제 백엔드 응답에 맞춤)
+// 백엔드 응답 타입에 맞춤 (userId 사용)
 export interface SignInRequest {
-  email: string;
+  userId: string;
   password: string;
 }
 

@@ -44,7 +44,7 @@ export class CompressionLoggingMiddleware implements NestMiddleware {
               ? (((uncompressedSize - compressedSize) / uncompressedSize) * 100).toFixed(2)
               : '0';
 
-          logger.info('Response compression applied', 'CompressionMiddleware', {
+          logger.log('Response compression applied', 'CompressionMiddleware', {
             method: req.method,
             path: req.path,
             contentType: res.getHeader('content-type') as string,

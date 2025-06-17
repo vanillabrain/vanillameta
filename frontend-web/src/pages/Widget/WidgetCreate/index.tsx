@@ -48,7 +48,12 @@ const WidgetCreate = () => {
     componentService
       .selectComponentList()
       .then(res => {
-        setComponentList(res.data);
+        console.log('getComponentList response:', res);
+        if (res.status === 'SUCCESS') {
+          setComponentList(res.data || []);
+        } else {
+          setComponentList([]);
+        }
       })
       .finally(() => {
         hideLoading();
@@ -76,7 +81,8 @@ const WidgetCreate = () => {
     widgetService
       .createWidget(param)
       .then(response => {
-        if (response.data.status === 'SUCCESS') {
+        console.log('createWidget response:', response);
+        if (response.status === 'SUCCESS') {
           navigate('/widget');
         }
       })

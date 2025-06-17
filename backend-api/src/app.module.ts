@@ -23,6 +23,7 @@ import { TestFieldSelectionController } from './test-field-selection.controller'
 import { FieldSelectionModule } from './common/field-selection/field-selection.module';
 import { BatchModule } from './batch/batch.module';
 import { CacheModule } from './common/optimization/cache.module';
+import { PaginationModule } from './common/pagination/pagination.module';
 import { BackgroundJobModule } from './background-job/background-job.module';
 import { MemoryMonitorModule } from './common/monitoring/memory-monitor.module';
 import { MemoryMonitorMiddleware } from './common/monitoring/memory-monitor.middleware';
@@ -108,6 +109,7 @@ import { EventsModule } from './events/events.module';
     FieldSelectionModule,
     BatchModule,
     CacheModule,
+    PaginationModule,
     BackgroundJobModule,
     MemoryMonitorModule,
     AnalyticsModule,

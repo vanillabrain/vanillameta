@@ -52,12 +52,17 @@ export class TypeOrmSlowQueryLogger implements TypeOrmLogger {
       ? Date.now() - queryRunner.data.queryStartTime
       : 0;
 
-    this.customLogger.error('TypeORM query error', error, 'TypeOrmSlowQueryLogger', {
-      query: this.sanitizeQuery(query),
-      parameters: this.sanitizeParameters(parameters),
-      duration,
-      errorMessage: error instanceof Error ? error.message : error,
-    });
+    this.customLogger.error(
+      'TypeORM query error',
+      error instanceof Error ? error.stack : String(error),
+      'TypeOrmSlowQueryLogger',
+      {
+        query: this.sanitizeQuery(query),
+        parameters: this.sanitizeParameters(parameters),
+        duration,
+        errorMessage: error instanceof Error ? error.message : error,
+      },
+    );
   }
 
   /**
@@ -102,12 +107,20 @@ export class TypeOrmSlowQueryLogger implements TypeOrmLogger {
    * 일반 로그
    */
   log(level: 'log' | 'info' | 'warn', message: any, queryRunner?: QueryRunner): void {
-    const logLevel = level === 'log' ? 'info' : level;
+    const metadata = {
+      message: typeof message === 'string' ? message : JSON.stringify(message),
+    };
 
-    if (typeof this.customLogger[logLevel] === 'function') {
-      this.customLogger[logLevel]('TypeORM log', 'TypeOrmSlowQueryLogger', {
-        message: typeof message === 'string' ? message : JSON.stringify(message),
-      });
+    switch (level) {
+      case 'log':
+        this.customLogger.log('TypeORM log', 'TypeOrmSlowQueryLogger', metadata);
+        break;
+      case 'info':
+        this.customLogger.info('TypeORM log', 'TypeOrmSlowQueryLogger', metadata);
+        break;
+      case 'warn':
+        this.customLogger.warn('TypeORM log', 'TypeOrmSlowQueryLogger', metadata);
+        break;
     }
   }
 
@@ -126,10 +139,12 @@ export class TypeOrmSlowQueryLogger implements TypeOrmLogger {
 
       const analysis = await this.queryAnalyzerService.analyzeQuery(
         query,
-        databaseEngine,
-        parameters,
-        executionTime,
+        0, // TypeORM uses the main DB (ID: 0)
       );
+      // Add execution time to the analysis result
+      if (analysis && executionTime) {
+        analysis.executionTime = executionTime;
+      }
 
       await this.slowQueryMonitorService.logSlowQuery(analysis, {
         databaseId: 0, // TypeORM은 메인 DB (ID: 0)

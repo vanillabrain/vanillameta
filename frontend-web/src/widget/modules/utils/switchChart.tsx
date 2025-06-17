@@ -169,9 +169,9 @@ export const ChartComponent: FC<ChartProps> = ({ widgetType, option, dataSet }) 
       
       // Pie based charts
       [WIDGET_TYPE.CHART_PIE]: () => <PieChart {...rest} />,
-      [WIDGET_TYPE.CHART_DONUT]: () => <PieChart donut={donut} {...rest} />,
-      [WIDGET_TYPE.CHART_NIGHTINGALE]: () => <PieChart nightingale={nightingale} {...rest} />,
-      [WIDGET_TYPE.CHART_FUNNEL]: () => <PieChart funnel={funnel} {...rest} />,
+      [WIDGET_TYPE.CHART_DONUT]: () => <PieChart seriesOp={donut.seriesOp} {...rest} />,
+      [WIDGET_TYPE.CHART_NIGHTINGALE]: () => <PieChart seriesOp={nightingale.seriesOp} {...rest} />,
+      [WIDGET_TYPE.CHART_FUNNEL]: () => <PieChart seriesOp={funnel.seriesOp} {...rest} />,
       
       // Other chart types
       [WIDGET_TYPE.CHART_SCATTER]: () => <ScatterChart {...rest} />,

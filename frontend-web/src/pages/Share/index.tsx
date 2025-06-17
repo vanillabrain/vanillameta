@@ -60,19 +60,28 @@ const Share = () => {
       .selectDashboard(uuid)
       .then(response => {
         console.log('shareDashboard', response);
-        if (response.status == 200) {
-          setDashboardInfo(response.data.data);
+        if (response.status === 'SUCCESS') {
+          const { dashboard, widgets, shareInfo } = response.data;
+          setDashboardInfo({
+            title: dashboard.title,
+            widgets: widgets || [],
+            layout: JSON.parse(dashboard.layout || '[]'),
+            updatedAt: dashboard.updatedAt,
+            shareYn: dashboard.shareYn,
+            uuid: shareInfo?.uuid || dashboard.uuid,
+            shareToken: shareInfo?.token || null
+          });
         }
       })
       .catch(error => {
         console.log(error);
         setIsInvalidData(error.response.status);
         console.log(isInvalidData);
-        if (error.response.status === 401 && error.response.data.data.message === 'expired date') {
+        if (error.response.status === 401 && error.response.data.message === 'expired date') {
           alert.error('대시보드의 공유 기간이 만료되었습니다.');
         } else if (
           error.response.status === 500
-          // && error.response.data.data.message === 'not exist uuid'
+          // && error.response.data.message === 'not exist uuid'
         ) {
           alert.error('대시보드가 존재하지 않습니다.');
         } else {

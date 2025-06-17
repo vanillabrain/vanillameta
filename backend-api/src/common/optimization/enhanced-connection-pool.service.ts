@@ -113,7 +113,7 @@ export class EnhancedConnectionPoolService implements OnModuleDestroy {
       // 초기 메트릭 설정
       this.initializeMetrics(databaseId, engine);
 
-      this.customLogger.info('Optimized connection pool created', 'EnhancedConnectionPoolService', {
+      this.customLogger.log('Optimized connection pool created', 'EnhancedConnectionPoolService', {
         databaseId,
         engine,
         poolConfig: optimizedPoolConfig,
@@ -552,7 +552,7 @@ export class EnhancedConnectionPoolService implements OnModuleDestroy {
 
     // 풀 크기 자동 조정
     if (status.issues.includes('High pool utilization (>80%)') && metrics.poolSize.total < 10) {
-      this.customLogger.info('Attempting to increase pool size', 'EnhancedConnectionPoolService', {
+      this.customLogger.log('Attempting to increase pool size', 'EnhancedConnectionPoolService', {
         databaseId,
         currentSize: metrics.poolSize.total,
         newSize: Math.min(metrics.poolSize.total + 2, 10),
@@ -564,7 +564,7 @@ export class EnhancedConnectionPoolService implements OnModuleDestroy {
 
     // 유휴 연결 정리
     if (metrics.poolSize.free > metrics.poolSize.used * 2) {
-      this.customLogger.info('Cleaning up idle connections', 'EnhancedConnectionPoolService', {
+      this.customLogger.log('Cleaning up idle connections', 'EnhancedConnectionPoolService', {
         databaseId,
         freeConnections: metrics.poolSize.free,
         usedConnections: metrics.poolSize.used,
@@ -606,7 +606,7 @@ export class EnhancedConnectionPoolService implements OnModuleDestroy {
         this.poolMetrics.delete(databaseId);
         this.performanceHistory.delete(databaseId);
 
-        this.customLogger.info('Connection pool refreshed', 'EnhancedConnectionPoolService', {
+        this.customLogger.log('Connection pool refreshed', 'EnhancedConnectionPoolService', {
           databaseId,
         });
       } catch (error) {

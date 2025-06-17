@@ -36,15 +36,15 @@ export class BackgroundJob extends BaseEntity {
   id: string;
 
   @Column({
-    type: 'enum',
-    enum: JobType,
+    type: 'varchar',
+    length: 50,
     default: JobType.QUERY_EXECUTION,
   })
   jobType: JobType;
 
   @Column({
-    type: 'enum',
-    enum: JobStatus,
+    type: 'varchar',
+    length: 50,
     default: JobStatus.PENDING,
   })
   status: JobStatus;
@@ -55,15 +55,8 @@ export class BackgroundJob extends BaseEntity {
   @Column({ type: 'text', nullable: true })
   description: string;
 
-  @Column({ type: 'json' })
-  metadata: {
-    datasetId?: string;
-    widgetId?: string;
-    query?: string;
-    databaseId?: string;
-    parameters?: any;
-    [key: string]: any;
-  };
+  @Column({ type: 'text' })
+  metadata: string;
 
   @Column({ type: 'int', default: 0 })
   progress: number; // 0-100 진행률
@@ -88,11 +81,11 @@ export class BackgroundJob extends BaseEntity {
   queueJobId: string;
 
   // 사용자 관계
-  @Column({ type: 'varchar', length: 100 })
+  @Column({ type: 'varchar', length: 255 })
   userId: string;
 
-  @ManyToOne(() => User)
-  @JoinColumn({ name: 'userId' })
+  @ManyToOne(() => User, { nullable: true })
+  @JoinColumn({ name: 'userId', referencedColumnName: 'userId' })
   user: User;
 
   // 데이터셋 관계 (옵션)
