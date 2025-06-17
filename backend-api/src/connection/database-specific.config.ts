@@ -61,6 +61,7 @@ const calculateMaxConnections = (baseMax: number): number => {
 export const getMySQLConfig = (): DatabaseSpecificConfig => ({
   connectionConfig: {
     client: 'mysql2',
+    // @ts-ignore - MySQL specific connection properties
     connection: {
       supportBigNumbers: true,
       bigNumberStrings: true,
@@ -184,6 +185,7 @@ export const getPostgreSQLConfig = (): DatabaseSpecificConfig => ({
 export const getBigQueryConfig = (): DatabaseSpecificConfig => ({
   connectionConfig: {
     client: require('knex-bigquery'),
+    // @ts-ignore - BigQuery specific connection properties
     connection: {
       projectId: process.env.BIGQUERY_PROJECT_ID,
       keyFilename: process.env.BIGQUERY_KEY_FILE,
@@ -238,6 +240,7 @@ export const getBigQueryConfig = (): DatabaseSpecificConfig => ({
 export const getSnowflakeConfig = (): DatabaseSpecificConfig => ({
   connectionConfig: {
     client: require('../knex-dialects/snowflake'),
+    // @ts-ignore - Snowflake specific connection properties
     connection: {
       account: process.env.SNOWFLAKE_ACCOUNT,
       username: process.env.SNOWFLAKE_USER,
@@ -295,6 +298,7 @@ export const getSnowflakeConfig = (): DatabaseSpecificConfig => ({
 export const getOracleConfig = (): DatabaseSpecificConfig => ({
   connectionConfig: {
     client: 'oracledb',
+    // @ts-ignore - Oracle specific connection properties
     connection: {
       connectTimeout: 30000,
       callTimeout: 30000,

@@ -89,7 +89,10 @@ export class DashboardService {
       dashboardId: newDashboard.id,
       widgetIds: widgetIds,
     };
-    newDashboard.layout = JSON.parse(newDashboard.layout);
+    // layout이 이미 배열인 경우와 문자열인 경우를 모두 처리
+    if (typeof newDashboard.layout === 'string') {
+      newDashboard.layout = JSON.parse(newDashboard.layout);
+    }
     await this.dashboardWidgetService.create(saveObjDW);
     return { status: ResponseStatus.SUCCESS, data: newDashboard };
   }
@@ -104,21 +107,30 @@ export class DashboardService {
     if (!findId || findId.length === 0) {
       throw new HttpException('not found', HttpStatus.NOT_FOUND);
     }
-    console.log(findId);
+    
+    // null 값 필터링
+    const validIds = findId.filter(id => id !== null && id !== undefined);
+    if (validIds.length === 0) {
+      throw new HttpException('not found', HttpStatus.NOT_FOUND);
+    }
+    
+    console.log(validIds);
 
     // N+1 쿼리 문제 해결: In 조건으로 한 번에 조회
     const find_all = await this.dashboardRepository
       .createQueryBuilder('dashboard')
-      .where('dashboard.id IN (:...ids)', { ids: findId })
+      .where('dashboard.id IN (:...ids)', { ids: validIds })
       .orderBy('dashboard.updatedAt', 'DESC')
       .addOrderBy('dashboard.title', 'ASC')
       .getMany();
 
-    find_all.forEach(el => {
-      console.log('adf,', el);
-      el.layout = JSON.parse(el.layout);
-    });
-    return { status: ResponseStatus.SUCCESS, data: find_all };
+    if (find_all && find_all.length > 0) {
+      find_all.forEach(el => {
+        console.log('adf,', el);
+        el.layout = JSON.parse(el.layout);
+      });
+    }
+    return { status: ResponseStatus.SUCCESS, data: find_all || [] };
   }
   // 기존 dashboard all
 
@@ -180,7 +192,10 @@ export class DashboardService {
       await this.dashboardWidgetService.update(id, saveObjDW);
       const updatedDashboard = await this.dashboardRepository.save(find_dashboard);
 
-      updatedDashboard.layout = JSON.parse(updatedDashboard.layout);
+      // layout이 이미 배열인 경우와 문자열인 경우를 모두 처리
+      if (typeof updatedDashboard.layout === 'string') {
+        updatedDashboard.layout = JSON.parse(updatedDashboard.layout);
+      }
       return { status: ResponseStatus.SUCCESS, data: updatedDashboard };
     }
   }

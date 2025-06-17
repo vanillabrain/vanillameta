@@ -25,6 +25,7 @@ import { DashboardShare } from '../../src/dashboard/entities/dashboard_share.ent
 import { UserMapping } from '../../src/user/entities/user-mapping.entity';
 import { UserService } from '../../src/user/user.service';
 import { AuthService } from '../../src/auth/auth.service';
+import { SqlValidationService } from '../../src/common/security/sql-validation.service';
 
 describe('QTT-006 : 대시보드 템플릿 추천', () => {
   let templateService: TemplateService;
@@ -63,6 +64,7 @@ describe('QTT-006 : 대시보드 템플릿 추천', () => {
         DashboardWidgetService,
         WidgetService,
         TableQueryService,
+        SqlValidationService,
         {
           provide: UserService,
           useValue: {
