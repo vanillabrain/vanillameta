@@ -1,449 +1,457 @@
-# VanillaMeta CloudWatch 알람 테스트 시나리오
+# VanillaMeta 알람 테스트 시나리오
 
-## 테스트 개요
+## 1. 개요
 
-이 문서는 VanillaMeta의 CloudWatch 알람이 정상적으로 작동하는지 검증하기 위한 테스트 시나리오를 제공합니다.
+이 문서는 CloudWatch 알람의 정상 작동을 검증하기 위한 테스트 시나리오를 정의합니다.
 
-## 테스트 환경 준비
+## 2. 테스트 환경 설정
 
-### 1. 테스트용 Lambda 함수 생성
-```javascript
-// test-alarm-trigger.js
-const AWS = require('aws-sdk');
-const cloudwatch = new AWS.CloudWatch();
+### 2.1 사전 요구사항
+- AWS CLI 설치 및 구성
+- 테스트 환경 접근 권한
+- Slack 테스트 채널 생성 (#vanillameta-alerts-test)
+- 테스트용 이메일 주소
 
-exports.handler = async (event) => {
-    const { alarmType, severity } = event;
-    
-    switch(alarmType) {
-        case 'error':
-            // 의도적으로 에러 발생
-            throw new Error('Test alarm: Simulated error');
-            
-        case 'memory':
-            // 메모리 과다 사용 시뮬레이션
-            const bigArray = new Array(100000000).fill('x');
-            return { statusCode: 200, body: 'Memory test completed' };
-            
-        case 'latency':
-            // 지연 시뮬레이션
-            await new Promise(resolve => setTimeout(resolve, 4000));
-            return { statusCode: 200, body: 'Latency test completed' };
-            
-        default:
-            return { statusCode: 200, body: 'Test completed' };
-    }
-};
+### 2.2 테스트 데이터
+```bash
+# 환경 변수 설정
+export STAGE=dev
+export SERVICE_NAME=vanillameta-backend-api
+export REGION=ap-northeast-2
 ```
 
-### 2. 테스트 API 엔드포인트
-```typescript
-// src/test/test.controller.ts
-import { Controller, Post, Body, Headers } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+## 3. Lambda 함수 알람 테스트
 
-@ApiTags('테스트')
-@Controller('test')
-export class TestController {
-  @Post('trigger-alarm')
-  @ApiOperation({ summary: '알람 테스트 트리거' })
-  async triggerAlarm(
-    @Body() body: { type: string; count?: number },
-    @Headers('X-Test-Mode') testMode: string,
-  ) {
-    if (testMode !== 'true') {
-      return { error: 'Test mode not enabled' };
-    }
+### 3.1 Lambda Error Rate 알람 테스트
 
-    switch (body.type) {
-      case 'error':
-        // 에러 발생
-        for (let i = 0; i < (body.count || 10); i++) {
-          throw new Error(`Test error ${i}`);
-        }
-        break;
+#### Critical (5% 초과)
+```bash
+# 에러를 발생시키는 테스트 페이로드
+for i in {1..20}; do
+  aws lambda invoke \
+    --function-name ${SERVICE_NAME}-${STAGE}-app \
+    --payload '{"test": "trigger-error"}' \
+    --region ${REGION} \
+    response.json
+done
 
-      case 'slow-query':
-        // 느린 쿼리 실행
-        await new Promise(resolve => setTimeout(resolve, 5000));
-        break;
-
-      case 'memory-leak':
-        // 메모리 누수 시뮬레이션
-        global.leakedObjects = global.leakedObjects || [];
-        for (let i = 0; i < 1000000; i++) {
-          global.leakedObjects.push(new Array(1000).fill('leak'));
-        }
-        break;
-    }
-
-    return { message: 'Alarm test triggered' };
-  }
-}
+# 5분 후 알람 상태 확인
+aws cloudwatch describe-alarms \
+  --alarm-names "${SERVICE_NAME}-${STAGE}-Lambda-Error-Rate-Critical" \
+  --region ${REGION}
 ```
 
-## 테스트 시나리오
-
-### 시나리오 1: Lambda 에러율 알람 테스트
-
-#### 목적
-Lambda 함수 에러율이 5% 초과 시 Critical 알람이 발생하는지 확인
-
-#### 테스트 단계
-1. **베이스라인 확인**
-   ```bash
-   # 현재 에러율 확인
-   aws cloudwatch get-metric-statistics \
-     --namespace AWS/Lambda \
-     --metric-name Errors \
-     --dimensions Name=FunctionName,Value=vanillameta-backend-api-prod-serverlessExpressLambdaFunction \
-     --statistics Sum \
-     --start-time $(date -u -d '10 minutes ago' +%Y-%m-%dT%H:%M:%S) \
-     --end-time $(date -u +%Y-%m-%dT%H:%M:%S) \
-     --period 300
-   ```
-
-2. **에러 발생**
-   ```bash
-   # 에러 발생 스크립트
-   for i in {1..15}; do
-     curl -X POST https://api.vanillameta.com/v1/test/trigger-alarm \
-       -H "Content-Type: application/json" \
-       -H "X-Test-Mode: true" \
-       -d '{"type": "error", "count": 1}'
-     sleep 2
-   done
-   ```
-
-3. **알람 확인**
-   - 5분 이내 알람 발생 확인
-   - 이메일/Slack 알림 수신 확인
-
-4. **복구 확인**
-   - 정상 요청으로 에러율 낮추기
-   - OK 상태 알림 확인
-
-### 시나리오 2: API 응답시간 알람 테스트
-
-#### 목적
-API 평균 응답시간이 3초 초과 시 알람이 발생하는지 확인
-
-#### 테스트 단계
-1. **느린 응답 시뮬레이션**
-   ```bash
-   # 느린 응답 테스트
-   for i in {1..10}; do
-     curl -X POST https://api.vanillameta.com/v1/test/trigger-alarm \
-       -H "Content-Type: application/json" \
-       -H "X-Test-Mode: true" \
-       -d '{"type": "slow-query"}' &
-   done
-   wait
-   ```
-
-2. **메트릭 확인**
-   ```bash
-   aws cloudwatch get-metric-statistics \
-     --namespace AWS/ApiGateway \
-     --metric-name Latency \
-     --dimensions Name=ApiName,Value=vanillameta-backend-api-prod \
-     --statistics Average \
-     --start-time $(date -u -d '10 minutes ago' +%Y-%m-%dT%H:%M:%S) \
-     --end-time $(date -u +%Y-%m-%dT%H:%M:%S) \
-     --period 300
-   ```
-
-3. **알람 동작 확인**
-   - Critical 알람 발생 확인
-   - 알림 채널 확인
-
-### 시나리오 3: Lambda 메모리 사용량 알람 테스트
-
-#### 목적
-Lambda 메모리 사용량이 80% 초과 시 알람이 발생하는지 확인
-
-#### 테스트 단계
-1. **메모리 부하 생성**
-   ```javascript
-   // 메모리 부하 테스트 함수
-   async function memoryLoadTest() {
-     const axios = require('axios');
-     
-     // 대용량 데이터 생성
-     const response = await axios.post('https://api.vanillameta.com/v1/test/memory-load', {
-       size: '2GB',
-       duration: '120s'
-     }, {
-       headers: {
-         'X-Test-Mode': 'true'
-       }
-     });
-     
-     console.log('Memory load test:', response.data);
-   }
-   ```
-
-2. **CloudWatch 메트릭 확인**
-   ```bash
-   # 커스텀 메트릭 확인
-   aws cloudwatch get-metric-statistics \
-     --namespace VanillaMeta/Lambda \
-     --metric-name MemoryUtilization \
-     --dimensions Name=FunctionName,Value=vanillameta-backend-api-prod-serverlessExpressLambdaFunction \
-     --statistics Maximum \
-     --start-time $(date -u -d '10 minutes ago' +%Y-%m-%dT%H:%M:%S) \
-     --end-time $(date -u +%Y-%m-%dT%H:%M:%S) \
-     --period 300
-   ```
-
-### 시나리오 4: RDS CPU 사용률 알람 테스트
-
-#### 목적
-RDS CPU 사용률이 70% 초과 시 알람이 발생하는지 확인
-
-#### 테스트 단계
-1. **CPU 부하 생성 쿼리**
-   ```sql
-   -- CPU 집약적 쿼리 실행
-   WITH RECURSIVE cpu_intensive AS (
-     SELECT 1 as n, md5(random()::text) as hash
-     UNION ALL
-     SELECT n + 1, md5(random()::text || hash)
-     FROM cpu_intensive
-     WHERE n < 1000000
-   )
-   SELECT count(*), max(length(hash))
-   FROM cpu_intensive;
-   ```
-
-2. **동시 다발적 쿼리 실행**
-   ```bash
-   # 병렬 쿼리 실행 스크립트
-   for i in {1..20}; do
-     psql -h $RDS_ENDPOINT -U $DB_USER -d $DB_NAME \
-       -c "SELECT pg_sleep(1); SELECT count(*) FROM large_table;" &
-   done
-   wait
-   ```
-
-3. **RDS 메트릭 모니터링**
-   ```bash
-   aws cloudwatch get-metric-statistics \
-     --namespace AWS/RDS \
-     --metric-name CPUUtilization \
-     --dimensions Name=DBInstanceIdentifier,Value=vanillameta-prod \
-     --statistics Average \
-     --start-time $(date -u -d '10 minutes ago' +%Y-%m-%dT%H:%M:%S) \
-     --end-time $(date -u +%Y-%m-%dT%H:%M:%S) \
-     --period 300
-   ```
-
-### 시나리오 5: 다중 알람 동시 발생 테스트
-
-#### 목적
-여러 알람이 동시에 발생할 때 모든 알림이 정상적으로 전달되는지 확인
-
-#### 테스트 단계
-1. **동시 다발적 문제 발생**
-   ```bash
-   # 동시에 여러 문제 트리거
-   ./trigger-multiple-alarms.sh
-   ```
-
-   ```bash
-   #!/bin/bash
-   # trigger-multiple-alarms.sh
-   
-   echo "Triggering multiple alarms..."
-   
-   # Lambda 에러 발생
-   curl -X POST https://api.vanillameta.com/v1/test/trigger-alarm \
-     -H "X-Test-Mode: true" \
-     -d '{"type": "error", "count": 20}' &
-   
-   # API 지연 발생
-   for i in {1..5}; do
-     curl -X POST https://api.vanillameta.com/v1/test/trigger-alarm \
-       -H "X-Test-Mode: true" \
-       -d '{"type": "slow-query"}' &
-   done
-   
-   # 메모리 부하
-   curl -X POST https://api.vanillameta.com/v1/test/trigger-alarm \
-     -H "X-Test-Mode: true" \
-     -d '{"type": "memory-leak"}' &
-   
-   wait
-   echo "All alarm triggers completed"
-   ```
-
-2. **알림 수신 확인**
-   - 모든 알람에 대한 이메일 수신
-   - Slack 채널의 알림 순서 및 내용 확인
-   - 알람 우선순위별 정렬 확인
-
-### 시나리오 6: 알람 억제(Suppression) 테스트
-
-#### 목적
-유지보수 모드에서 알람이 억제되는지 확인
-
-#### 테스트 단계
-1. **알람 억제 설정**
-   ```bash
-   # CloudWatch 알람 비활성화
-   aws cloudwatch disable-alarm-actions \
-     --alarm-names "vanillameta-prod-Lambda-Error-Rate-Critical" \
-                   "vanillameta-prod-API-Latency-Critical"
-   ```
-
-2. **문제 상황 발생**
-   - 에러 및 지연 트리거
-   - 알림이 발생하지 않는지 확인
-
-3. **알람 재활성화**
-   ```bash
-   # CloudWatch 알람 활성화
-   aws cloudwatch enable-alarm-actions \
-     --alarm-names "vanillameta-prod-Lambda-Error-Rate-Critical" \
-                   "vanillameta-prod-API-Latency-Critical"
-   ```
-
-## 테스트 검증 체크리스트
-
-### 알람 발생 검증
-- [ ] 알람이 설정된 임계값에서 정확히 발생하는가?
-- [ ] 평가 기간이 올바르게 적용되는가?
-- [ ] 알람 상태 전환이 정상적으로 작동하는가?
-
-### 알림 전달 검증
-- [ ] 이메일 알림이 5분 이내에 도착하는가?
-- [ ] Slack 알림이 정상적으로 표시되는가?
-- [ ] 알림 내용이 충분한 정보를 포함하는가?
-
-### 알람 해제 검증
-- [ ] 문제 해결 후 OK 상태로 전환되는가?
-- [ ] OK 상태 알림이 전달되는가?
-- [ ] 알람 이력이 올바르게 기록되는가?
-
-### 성능 영향 검증
-- [ ] 알람 평가가 시스템 성능에 영향을 주지 않는가?
-- [ ] 대량의 메트릭 수집이 문제를 일으키지 않는가?
-
-## 테스트 결과 기록
-
-### 테스트 로그 템플릿
-```markdown
-## 알람 테스트 결과 - [날짜]
-
-### 테스트 환경
-- 환경: Dev/Prod
-- 테스터: [이름]
-- 테스트 시간: YYYY-MM-DD HH:MM:SS KST
-
-### 테스트 시나리오별 결과
-
-#### 시나리오 1: Lambda 에러율
-- 결과: Pass/Fail
-- 알람 발생 시간: X분 Y초
-- 알림 수신: 이메일(O), Slack(O)
-- 비고: 
-
-#### 시나리오 2: API 응답시간
-- 결과: Pass/Fail
-- 알람 발생 시간: X분 Y초
-- 알림 수신: 이메일(O), Slack(O)
-- 비고:
-
-### 발견된 이슈
-1. [이슈 설명]
-2. [이슈 설명]
-
-### 개선 권장사항
-1. [개선 사항]
-2. [개선 사항]
+#### Warning (2% 초과)
+```bash
+# 적은 수의 에러 발생
+for i in {1..5}; do
+  aws lambda invoke \
+    --function-name ${SERVICE_NAME}-${STAGE}-app \
+    --payload '{"test": "trigger-error"}' \
+    --region ${REGION} \
+    response.json
+done
 ```
 
-## 자동화된 테스트
+### 3.2 Lambda Throttle 알람 테스트
+```bash
+# 동시 실행 제한 임시 설정
+aws lambda put-function-concurrency \
+  --function-name ${SERVICE_NAME}-${STAGE}-app \
+  --reserved-concurrent-executions 1 \
+  --region ${REGION}
 
-### 일일 헬스체크
-```python
-# daily-alarm-health-check.py
-import boto3
-import time
-from datetime import datetime
+# 동시 요청 발생
+for i in {1..20}; do
+  aws lambda invoke \
+    --function-name ${SERVICE_NAME}-${STAGE}-app \
+    --payload '{}' \
+    --region ${REGION} \
+    response_$i.json &
+done
 
-class AlarmHealthChecker:
-    def __init__(self):
-        self.cloudwatch = boto3.client('cloudwatch')
-        self.logs = boto3.client('logs')
-    
-    def check_alarm_state(self, alarm_name):
-        """알람 상태 확인"""
-        response = self.cloudwatch.describe_alarms(
-            AlarmNames=[alarm_name]
-        )
-        
-        if response['MetricAlarms']:
-            alarm = response['MetricAlarms'][0]
-            return {
-                'name': alarm['AlarmName'],
-                'state': alarm['StateValue'],
-                'enabled': alarm['ActionsEnabled'],
-                'last_updated': alarm['StateUpdatedTimestamp']
-            }
-        return None
-    
-    def test_metric_publication(self, namespace, metric_name):
-        """메트릭 발행 테스트"""
-        try:
-            self.cloudwatch.put_metric_data(
-                Namespace=namespace,
-                MetricData=[
-                    {
-                        'MetricName': f'Test_{metric_name}',
-                        'Value': 1,
-                        'Timestamp': datetime.utcnow()
-                    }
-                ]
-            )
-            return True
-        except Exception as e:
-            print(f"Metric publication failed: {e}")
-            return False
-    
-    def run_health_check(self):
-        """전체 헬스체크 실행"""
-        alarms_to_check = [
-            'vanillameta-prod-Lambda-Error-Rate-Critical',
-            'vanillameta-prod-API-Latency-Critical',
-            'vanillameta-prod-Lambda-Memory-Usage',
-            'vanillameta-prod-RDS-CPU-Usage'
-        ]
-        
-        results = {
-            'timestamp': datetime.now().isoformat(),
-            'alarms': {},
-            'metrics': {}
-        }
-        
-        # 알람 상태 확인
-        for alarm in alarms_to_check:
-            results['alarms'][alarm] = self.check_alarm_state(alarm)
-        
-        # 메트릭 발행 테스트
-        test_metrics = [
-            ('VanillaMeta/Lambda', 'HealthCheck'),
-            ('VanillaMeta/Business', 'HealthCheck')
-        ]
-        
-        for namespace, metric in test_metrics:
-            results['metrics'][f'{namespace}/{metric}'] = \
-                self.test_metric_publication(namespace, metric)
-        
-        return results
-
-if __name__ == '__main__':
-    checker = AlarmHealthChecker()
-    results = checker.run_health_check()
-    print(json.dumps(results, indent=2))
+# 테스트 후 제한 해제
+aws lambda delete-function-concurrency \
+  --function-name ${SERVICE_NAME}-${STAGE}-app \
+  --region ${REGION}
 ```
+
+### 3.3 Lambda Duration 알람 테스트
+```bash
+# 지연 시간을 유발하는 페이로드
+aws lambda invoke \
+  --function-name ${SERVICE_NAME}-${STAGE}-app \
+  --payload '{"test": "long-running", "delay": 10000}' \
+  --region ${REGION} \
+  response.json
+```
+
+### 3.4 Lambda Memory 알람 테스트
+```bash
+# 메모리 사용량을 증가시키는 페이로드
+aws lambda invoke \
+  --function-name ${SERVICE_NAME}-${STAGE}-app \
+  --payload '{"test": "high-memory", "size": "900MB"}' \
+  --region ${REGION} \
+  response.json
+```
+
+## 4. API Gateway 알람 테스트
+
+### 4.1 API Response Time 알람 테스트
+```bash
+# API 엔드포인트 찾기
+API_ID=$(aws apigateway get-rest-apis \
+  --query "items[?name=='${STAGE}-${SERVICE_NAME}'].id" \
+  --output text \
+  --region ${REGION})
+
+API_URL="https://${API_ID}.execute-api.${REGION}.amazonaws.com/${STAGE}"
+
+# 느린 응답 테스트
+for i in {1..10}; do
+  curl -X POST ${API_URL}/test/slow \
+    -H "Content-Type: application/json" \
+    -d '{"delay": 4000}'
+done
+```
+
+### 4.2 API Error Rate 알람 테스트
+
+#### 5XX 에러 테스트
+```bash
+# 서버 에러 유발
+for i in {1..20}; do
+  curl -X POST ${API_URL}/test/error \
+    -H "Content-Type: application/json" \
+    -d '{"error": "internal-server-error"}'
+done
+```
+
+#### 4XX 에러 테스트
+```bash
+# 클라이언트 에러 유발
+for i in {1..50}; do
+  curl -X POST ${API_URL}/invalid-endpoint \
+    -H "Content-Type: application/json"
+done
+```
+
+## 5. RDS 데이터베이스 알람 테스트
+
+### 5.1 RDS CPU 사용률 알람 테스트
+
+#### Critical (70% 초과)
+```bash
+# 부하 테스트 도구를 사용한 CPU 사용률 증가
+# sysbench 설치 (Amazon Linux 2)
+sudo yum install -y sysbench
+
+# RDS 엔드포인트 정보
+RDS_ENDPOINT=$(aws rds describe-db-instances \
+  --db-instance-identifier ${DB_INSTANCE_ID} \
+  --query 'DBInstances[0].Endpoint.Address' \
+  --output text \
+  --region ${REGION})
+
+# CPU 부하 테스트 (주의: 프로덕션에서는 실행 금지)
+sysbench cpu --cpu-max-prime=20000 --threads=4 --time=300 run
+
+# 또는 MySQL 벤치마크 사용
+mysqlslap \
+  --host=${RDS_ENDPOINT} \
+  --user=admin \
+  --password=${DB_PASSWORD} \
+  --auto-generate-sql \
+  --concurrency=50 \
+  --iterations=10 \
+  --number-of-queries=1000
+```
+
+#### Warning (50% 초과)
+```bash
+# 낮은 부하로 테스트
+mysqlslap \
+  --host=${RDS_ENDPOINT} \
+  --user=admin \
+  --password=${DB_PASSWORD} \
+  --auto-generate-sql \
+  --concurrency=20 \
+  --iterations=5 \
+  --number-of-queries=500
+```
+
+### 5.2 RDS 연결 수 알람 테스트
+```bash
+# 다중 연결 생성 스크립트
+for i in {1..100}; do
+  mysql -h ${RDS_ENDPOINT} -u admin -p${DB_PASSWORD} -e "SELECT SLEEP(300);" &
+done
+
+# 현재 연결 수 확인
+mysql -h ${RDS_ENDPOINT} -u admin -p${DB_PASSWORD} \
+  -e "SHOW STATUS LIKE 'Threads_connected';"
+
+# 테스트 후 연결 종료
+killall mysql
+```
+
+### 5.3 RDS 메모리 알람 테스트
+```bash
+# 메모리 집약적 쿼리 실행
+mysql -h ${RDS_ENDPOINT} -u admin -p${DB_PASSWORD} <<EOF
+-- 큰 테이블 생성 및 조인
+CREATE TEMPORARY TABLE test_large (
+  id INT PRIMARY KEY,
+  data TEXT
+);
+
+-- 데이터 삽입
+INSERT INTO test_large 
+SELECT seq, REPEAT('A', 1000) 
+FROM seq_1_to_1000000;
+
+-- 메모리 사용량 증가 쿼리
+SELECT COUNT(*) FROM test_large t1 
+JOIN test_large t2 ON t1.id < t2.id;
+EOF
+```
+
+### 5.4 RDS 저장 공간 알람 테스트
+```bash
+# 대용량 테이블 생성 (주의: 테스트 환경에서만 실행)
+mysql -h ${RDS_ENDPOINT} -u admin -p${DB_PASSWORD} <<EOF
+CREATE TABLE IF NOT EXISTS test_storage (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  data LONGTEXT
+) ENGINE=InnoDB;
+
+-- 1GB 정도의 데이터 삽입
+DELIMITER //
+CREATE PROCEDURE fill_storage()
+BEGIN
+  DECLARE i INT DEFAULT 0;
+  WHILE i < 1000 DO
+    INSERT INTO test_storage (data) 
+    VALUES (REPEAT('X', 1048576)); -- 1MB per row
+    SET i = i + 1;
+  END WHILE;
+END//
+DELIMITER ;
+
+CALL fill_storage();
+
+-- 테스트 후 정리
+DROP PROCEDURE fill_storage;
+DROP TABLE test_storage;
+EOF
+```
+
+### 5.5 RDS 읽기/쓰기 지연 시간 알람 테스트
+```bash
+# 복잡한 쿼리로 지연 시간 증가
+mysql -h ${RDS_ENDPOINT} -u admin -p${DB_PASSWORD} <<EOF
+-- 읽기 지연 테스트
+SELECT SQL_NO_CACHE 
+  d1.*, d2.*, w.* 
+FROM dashboard d1
+JOIN dashboard d2 ON d1.user_id = d2.user_id
+JOIN widget w ON d1.id = w.dashboard_id
+WHERE d1.created_dt > DATE_SUB(NOW(), INTERVAL 1 YEAR)
+ORDER BY RAND()
+LIMIT 10000;
+
+-- 쓰기 지연 테스트
+START TRANSACTION;
+INSERT INTO widget (dashboard_id, component_id, name, widget_option)
+SELECT 
+  dashboard_id, 
+  component_id, 
+  CONCAT('Test_', UUID()), 
+  widget_option
+FROM widget 
+LIMIT 1000;
+ROLLBACK;
+EOF
+```
+
+## 6. 비즈니스 메트릭 알람 테스트
+
+### 6.1 Dashboard Load Time 알람 테스트
+```bash
+# 대시보드 로딩 시간 메트릭 발행
+aws cloudwatch put-metric-data \
+  --namespace "VanillaMeta/Business" \
+  --metric-name "DASHBOARD_LOAD_TIME" \
+  --value 4000 \
+  --unit Milliseconds \
+  --dimensions DashboardId=test-dashboard \
+  --region ${REGION}
+```
+
+### 6.2 Query Cache Hit Rate 알람 테스트
+```bash
+# 캐시 미스 메트릭 발행 (적중률 낮추기)
+for i in {1..10}; do
+  aws cloudwatch put-metric-data \
+    --namespace "VanillaMeta/Business" \
+    --metric-name "QUERY_CACHE_MISS" \
+    --value 1 \
+    --unit Count \
+    --dimensions QueryType=test-query \
+    --region ${REGION}
+done
+
+# 캐시 히트 메트릭 발행
+aws cloudwatch put-metric-data \
+  --namespace "VanillaMeta/Business" \
+  --metric-name "QUERY_CACHE_HIT" \
+  --value 1 \
+  --unit Count \
+  --dimensions QueryType=test-query \
+  --region ${REGION}
+```
+
+## 7. 복합 알람 테스트
+
+### 7.1 Service Health Composite 알람 테스트
+```bash
+# 여러 임계값을 동시에 초과
+# 1. Lambda 에러 발생
+for i in {1..10}; do
+  aws lambda invoke \
+    --function-name ${SERVICE_NAME}-${STAGE}-app \
+    --payload '{"test": "trigger-error"}' \
+    --region ${REGION} \
+    response.json
+done
+
+# 2. 메모리 사용량 증가
+aws cloudwatch put-metric-data \
+  --namespace "VanillaMeta/${STAGE}" \
+  --metric-name "LAMBDA_MEMORY_UTILIZATION" \
+  --value 90 \
+  --unit Percent \
+  --region ${REGION}
+```
+
+### 7.2 Database Health Composite 알람 테스트
+```bash
+# RDS CPU와 읽기 지연 시간을 동시에 증가
+# 1. CPU 부하 생성
+mysqlslap \
+  --host=${RDS_ENDPOINT} \
+  --user=admin \
+  --password=${DB_PASSWORD} \
+  --auto-generate-sql \
+  --concurrency=30 \
+  --iterations=5 \
+  --number-of-queries=1000 &
+
+# 2. 동시에 복잡한 읽기 쿼리 실행
+mysql -h ${RDS_ENDPOINT} -u admin -p${DB_PASSWORD} <<EOF
+SELECT SQL_NO_CACHE COUNT(*) 
+FROM information_schema.columns c1
+CROSS JOIN information_schema.columns c2
+LIMIT 1000000;
+EOF
+```
+
+## 8. 알람 복구 테스트
+
+### 8.1 알람 복구 확인
+```bash
+# 정상 메트릭 발행하여 알람 해제
+for i in {1..20}; do
+  aws lambda invoke \
+    --function-name ${SERVICE_NAME}-${STAGE}-app \
+    --payload '{"test": "success"}' \
+    --region ${REGION} \
+    response.json
+done
+
+# 알람 상태 확인
+aws cloudwatch describe-alarms \
+  --state-value ALARM \
+  --region ${REGION}
+```
+
+## 9. 알림 전달 테스트
+
+### 9.1 이메일 알림 확인
+1. 테스트 이메일 주소로 알람 알림 수신 확인
+2. 이메일 제목과 내용의 정확성 검증
+3. 알람 우선순위별 구분 확인
+
+### 9.2 Slack 알림 확인
+1. #vanillameta-alerts-test 채널 확인
+2. 멘션 (@channel, @here) 동작 확인
+3. 알람 색상 코드 확인 (빨강/주황/노랑)
+4. 타임스탬프 및 한국 시간 표시 확인
+
+## 10. 테스트 자동화 스크립트
+
+### 10.1 전체 알람 테스트 실행
+```bash
+#!/bin/bash
+# alarm-test.sh
+
+set -e
+
+echo "Starting VanillaMeta Alarm Tests..."
+
+# Lambda Error Rate Test
+echo "Testing Lambda Error Rate..."
+./test-lambda-errors.sh
+
+sleep 360  # 6분 대기
+
+# API Response Time Test
+echo "Testing API Response Time..."
+./test-api-latency.sh
+
+sleep 360
+
+# Memory Usage Test
+echo "Testing Memory Usage..."
+./test-memory-usage.sh
+
+sleep 360
+
+# Check all alarms
+echo "Checking alarm states..."
+aws cloudwatch describe-alarms \
+  --alarm-name-prefix "${SERVICE_NAME}-${STAGE}" \
+  --query "MetricAlarms[?StateValue=='ALARM'].[AlarmName,StateValue]" \
+  --output table \
+  --region ${REGION}
+
+echo "Alarm tests completed!"
+```
+
+## 11. 테스트 결과 검증
+
+### 11.1 성공 기준
+- [ ] 모든 알람이 설정된 임계값에서 트리거됨
+- [ ] 알람 발생 시간이 5분 이내
+- [ ] 이메일 알림이 정상적으로 수신됨
+- [ ] Slack 알림이 올바른 채널에 전송됨
+- [ ] 알람 복구 시 OK 상태로 전환됨
+
+### 11.2 실패 시 조치사항
+1. CloudWatch Logs에서 메트릭 필터 확인
+2. SNS 토픽 구독 상태 확인
+3. Lambda 함수 권한 확인
+4. 알람 임계값 및 평가 기간 재검토
+
+## 12. 정기 테스트 일정
+
+- **월간 테스트**: 매월 첫째 주 화요일 14:00
+- **분기별 전체 테스트**: 분기 마지막 주 목요일 10:00
+- **긴급 패치 후**: 배포 완료 후 30분 이내
+
+## 13. 테스트 로그 보관
+
+모든 테스트 결과는 다음 경로에 저장:
+- S3: `s3://vanillameta-monitoring/alarm-tests/${YYYY}/${MM}/${DD}/`
+- 보관 기간: 1년

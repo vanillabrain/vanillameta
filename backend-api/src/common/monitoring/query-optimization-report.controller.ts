@@ -1,10 +1,12 @@
-import { Controller, Get, UseGuards, Query as QueryParam } from '@nestjs/common';
+import { Controller, Get, UseGuards, Query as QueryParam, Res } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { QueryAnalyzerService, QueryOptimizationReport } from './query-analyzer.service';
 import { QueryCollector } from '../utils/query-collector';
+import { QueryOptimizationService } from './query-optimization.service';
 import { Connection } from 'typeorm';
 import { InjectConnection } from '@nestjs/typeorm';
+import { Response } from 'express';
 
 interface AnalysisReportDto {
   collectedQueries: {
@@ -26,6 +28,7 @@ export class QueryOptimizationReportController {
   constructor(
     private readonly queryAnalyzerService: QueryAnalyzerService,
     private readonly queryCollector: QueryCollector,
+    private readonly queryOptimizationService: QueryOptimizationService,
     @InjectConnection() private connection: Connection,
   ) {}
 
@@ -128,6 +131,24 @@ export class QueryOptimizationReportController {
   async clearCollection() {
     this.queryCollector.clear();
     return { message: 'Query collection cleared' };
+  }
+
+  @Get('optimization-plan')
+  @ApiOperation({ summary: '쿼리 최적화 계획 생성' })
+  @ApiResponse({ status: 200, description: '쿼리 최적화 계획' })
+  async getOptimizationPlan() {
+    return this.queryOptimizationService.generateOptimizationPlan();
+  }
+
+  @Get('optimization-guidelines')
+  @ApiOperation({ summary: '쿼리 최적화 가이드라인 문서 생성' })
+  @ApiResponse({ status: 200, description: '최적화 가이드라인 (Markdown)' })
+  async getOptimizationGuidelines(@Res() res: Response) {
+    const guidelines = await this.queryOptimizationService.generateOptimizationGuidelines();
+    
+    res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="query-optimization-guidelines.md"');
+    res.send(guidelines);
   }
 
   /**

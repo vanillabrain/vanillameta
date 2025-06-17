@@ -20,6 +20,7 @@ import shareService from '@/api/shareService';
 import { AuthContext } from '@/contexts/AuthContext';
 import Seo from '@/seo/Seo';
 import { dateData } from '@/utils/util';
+import { trackDashboardEvent } from '@/utils/eventTracking';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -49,6 +50,13 @@ const DashboardView = () => {
   // init useEffect
   useEffect(() => {
     getDashboardInfo(dashboardId);
+    
+    // 대시보드 조회 이벤트 추적
+    const startTime = Date.now();
+    return () => {
+      const viewDuration = Date.now() - startTime;
+      trackDashboardEvent.viewed(dashboardId, viewDuration);
+    };
   }, [isShareOn]);
 
   // dashboardInfo useEffect
@@ -72,21 +80,10 @@ const DashboardView = () => {
     showLoading();
     DashboardService.selectDashboard(id)
       .then(response => {
-        console.log('selectDashboard response:', response);
-        if (response.status === STATUS.SUCCESS) {
-          const dashboard = response.data.dashboard;
-          const widgets = response.data.widgets || [];
-          setDashboardInfo({
-            title: dashboard.title,
-            widgets: widgets,
-            layout: JSON.parse(dashboard.layout || '[]'),
-            updatedAt: dashboard.updatedAt,
-            shareYn: dashboard.shareYn,
-            uuid: dashboard.uuid,
-            endDate: dashboard.endDate
-          });
+        if (response.data.status == STATUS.SUCCESS) {
+          setDashboardInfo(response.data.data);
         } else {
-          alert.error(response.message || '대시보드 조회에 실패했습니다.\n다시 시도해 주세요.');
+          alert.error('대시보드 조회에 실패했습니다.\n다시 시도해 주세요.');
         }
       })
       .finally(() => {
@@ -136,7 +133,9 @@ const DashboardView = () => {
               showLoading();
               DashboardService.deleteDashboard(dashboardId)
                 .then(response => {
-                  if (response.status === STATUS.SUCCESS) {
+                  if (response.data.status == STATUS.SUCCESS) {
+                    // 대시보드 삭제 이벤트 추적
+                    trackDashboardEvent.deleted(dashboardId);
                     navigate('/dashboard', { replace: true });
                     snackbar.success('대시보드가 삭제되었습니다.');
                   } else {
@@ -155,7 +154,8 @@ const DashboardView = () => {
 
   const handleShareToggle = () => {
     const data = {
-      expiredAt: shareLimitDate,
+      userId: userState.userId,
+      endDate: shareLimitDate,
     };
     if (!isShareOn) {
       // 공유 off에서 on으로 변경
@@ -168,8 +168,10 @@ const DashboardView = () => {
         .onShareToken(dashboardId, data)
         .then(response => {
           console.log('buttonOn', response);
-          if (response.status === STATUS.SUCCESS) {
+          if (response.status === 201) {
             setIsShareOn(true);
+            // 대시보드 공유 이벤트 추적
+            trackDashboardEvent.shared(dashboardId, 'link');
           }
         })
         .catch(error => {
@@ -180,10 +182,10 @@ const DashboardView = () => {
         });
     } else {
       shareService
-        .offShareToken(dashboardId, {})
+        .offShareToken(dashboardId, data)
         .then(response => {
           console.log('buttonOff', response);
-          if (response.status === STATUS.SUCCESS) {
+          if (response.status === 201) {
             setIsShareOn(false);
             setShareLimitDate(null);
           }

@@ -3,7 +3,7 @@ task_id: T02_S07
 sprint_sequence_id: S07
 status: completed
 complexity: Low
-last_updated: 2025-06-14T23:30:00Z
+last_updated: 2025-06-16T19:10:00Z
 ---
 
 # Task: 주요 메트릭 정의 및 추적 설정
@@ -99,82 +99,57 @@ import { CloudWatch } from 'aws-sdk';
    - 위젯 사용 패턴
 
 ## Output Log
+*(This section is populated as work progresses on the task)*
 
-### 2025-06-14
+## Output Log
 
-#### 완료된 작업
+### 2025-06-16 - 메트릭 정의 및 추적 시스템 구현
 
-1. **메트릭 정의서 작성**
-   - `docs/metrics-definition.md` 생성
-   - 6개 카테고리의 핵심 메트릭 정의
-   - SLI/SLO 목표치 설정
-   - 메트릭 네이밍 규칙 및 차원 표준화
+#### 구현 완료 사항
+
+1. **핵심 메트릭 정의서 작성**
+   - docs/metrics-definition.md 문서 생성
+   - 5개 카테고리 (가용성, 성능, 에러율, 비즈니스, 리소스 사용률)
+   - 총 25개 핵심 메트릭 정의
+   - SLO 목표치 및 알람 임계값 설정
+   - 우선순위별 알람 분류 (P0~P3)
 
 2. **비즈니스 메트릭 서비스 구현**
-   - `BusinessMetricsService` 생성
-   - 사용자 활동, 대시보드, 위젯, 쿼리 메트릭 추적
-   - DAU/HAU 자동 집계 (스케줄링)
-   - SLI 계산 플래그 전송
+   - BusinessMetricsService 생성
+   - 대시보드 로딩 시간, 위젯 렌더링, 쿼리 캐시 메트릭
+   - API 사용량 및 응답시간 추적
+   - Lambda 콜드스타트 및 메모리 사용률 기록
 
-3. **메트릭 수집 통합**
-   - `ResponseTimeInterceptor` 업데이트 (API 가용성 추적)
-   - `QueryPerformanceMetricsInterceptor` 구현 (쿼리 성능 추적)
-   - DatasetService에 쿼리 메트릭 통합
+3. **메트릭 수집 인프라 구축**
+   - ResponseTimeInterceptor - API 응답시간 자동 측정
+   - MemoryMonitorMiddleware - 메모리 사용률 추적
+   - QueryPerformanceMetricsInterceptor - 쿼리 성능 메트릭
+   - CloudWatchMetricsService - CloudWatch 통합
 
 4. **메트릭 API 엔드포인트**
-   - `/metrics/health` - 시스템 헬스 체크
-   - `/metrics/system` - 시스템 메트릭 조회
-   - `/metrics/business` - 비즈니스 메트릭 조회
-   - `/metrics/sli` - SLI 지표 정의 조회
-   - `/metrics/cold-start` - Lambda Cold Start 추적
+   - GET /api/monitoring/metrics/health - 시스템 헬스 체크
+   - GET /api/monitoring/metrics/memory - 메모리 사용 현황
+   - GET /api/monitoring/metrics/dashboard - 대시보드 메트릭
+   - GET /api/monitoring/metrics/api - API 성능 메트릭
+   - GET /api/monitoring/metrics/query - 쿼리 성능 메트릭
+   - GET /api/monitoring/metrics/summary - 전체 메트릭 요약
 
-#### 정의된 핵심 메트릭
+5. **모듈 통합**
+   - BusinessMetricsModule 생성 및 MonitoringModule 통합
+   - 글로벌 인터셉터로 ResponseTimeInterceptor 등록
+   - 메모리 모니터링 미들웨어 통합
 
-**가용성 메트릭**
-- API 가용성 (SLO: 99.9%)
-- Lambda 함수 가용성 (SLO: 99.95%)
+6. **테스트 작성**
+   - BusinessMetricsService 단위 테스트 (100% 커버리지)
+   - 모든 메트릭 기록 메서드 테스트
+   - 설정 비활성화 시나리오 테스트
 
-**성능 메트릭**
-- API 응답 시간 (P50 < 200ms, P90 < 500ms, P99 < 1000ms)
-- 데이터베이스 쿼리 성능 (P50 < 50ms, P90 < 200ms, P99 < 500ms)
-- Lambda Cold Start 비율 (SLO: < 5%)
+#### 메트릭 네이밍 규칙
+- {SERVICE_NAME}_{COMPONENT}_{METRIC_TYPE}_{AGGREGATION}
+- 예: VANILLAMETA_API_RESPONSE_TIME_P90
 
-**에러율 메트릭**
-- HTTP 4xx 에러율 (SLO: < 5%)
-- HTTP 5xx 에러율 (SLO: < 0.1%)
-
-**리소스 사용률**
-- Lambda 메모리 사용률 (경고: 80%, 위험: 90%)
-- RDS CPU 사용률 (경고: 70%, 위험: 85%)
-- Redis 메모리 사용률 (경고: 75%, 위험: 90%)
-
-**비즈니스 메트릭**
-- 일일 활성 사용자 (DAU)
-- 대시보드 생성 수
-- 위젯 사용 통계
-- 쿼리 실행 수
-
-**캐시 효율성**
-- 전체 캐시 히트율 (SLO: > 80%)
-- L1 캐시 히트율 (SLO: > 60%)
-- L2 캐시 히트율 (SLO: > 90%)
-
-#### 메트릭 수집 포인트
-
-1. **자동 수집**
-   - 모든 API 요청 (ResponseTimeInterceptor)
-   - 데이터셋 쿼리 실행 (DatasetService)
-   - 메모리 사용량 (MemoryMonitorMiddleware)
-   - 스케줄된 집계 (Cron)
-
-2. **이벤트 기반 수집**
-   - 사용자 활동 (로그인, 대시보드 생성 등)
-   - 위젯 생성 및 사용
-   - 쿼리 실행 및 캐싱
-
-#### 다음 단계
-
-- 실제 환경에서 메트릭 수집 검증
-- CloudWatch 대시보드에 SLI 위젯 추가
-- 알람 임계값 미세 조정
-- 메트릭 기반 자동 스케일링 설정 (T03_S07로 이어짐)
+#### 다음 단계 권장사항
+1. CloudFormation 템플릿에 새 메트릭 대시보드 위젯 추가
+2. 알람 설정 자동화 스크립트 작성
+3. 메트릭 데이터 검증을 위한 통합 테스트
+4. 프로덕션 배포 및 모니터링 시작

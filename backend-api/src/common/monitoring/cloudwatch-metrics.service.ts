@@ -1,333 +1,248 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { CloudWatch } from 'aws-sdk';
-import { MetricDatum, PutMetricDataInput } from 'aws-sdk/clients/cloudwatch';
+import * as AWS from 'aws-sdk';
 import { ConfigService } from '@nestjs/config';
-import { Cron, CronExpression } from '@nestjs/schedule';
-import * as v8 from 'v8';
-import * as os from 'os';
+
+export interface MetricDataPoint {
+  timestamp: Date;
+  value: number;
+  unit: string;
+}
 
 @Injectable()
 export class CloudWatchMetricsService {
   private readonly logger = new Logger(CloudWatchMetricsService.name);
-  private readonly cloudWatch: CloudWatch;
-  private readonly namespace: string;
-  private readonly environment: string;
-  private metricBuffer: MetricDatum[] = [];
-  private readonly MAX_BUFFER_SIZE = 20; // CloudWatch supports max 20 metrics per request
+  private readonly cloudWatch: AWS.CloudWatch;
+  private readonly enabled: boolean;
+  private readonly region: string;
+  private metricsBuffer: AWS.CloudWatch.MetricDatum[] = [];
+  private lastFlushTime = Date.now();
+  private readonly flushInterval = 60000; // 1분마다 플러시
+  private readonly maxBufferSize = 20; // 최대 20개 메트릭 버퍼링
 
   constructor(private readonly configService: ConfigService) {
-    this.environment = this.configService.get('NODE_ENV') || 'dev';
-    this.namespace = `VanillaMeta/${this.environment}`;
+    this.enabled = this.configService.get<boolean>('CLOUDWATCH_METRICS_ENABLED', true);
+    this.region = this.configService.get<string>('AWS_REGION', 'ap-northeast-2');
 
-    // CloudWatch 클라이언트 초기화
-    this.cloudWatch = new CloudWatch({
-      region: this.configService.get('AWS_REGION') || 'ap-northeast-2',
+    this.cloudWatch = new AWS.CloudWatch({
+      region: this.region,
+      apiVersion: '2010-08-01',
     });
 
-    this.logger.log(`CloudWatch Metrics Service initialized for namespace: ${this.namespace}`);
+    // 주기적으로 버퍼 플러시
+    if (this.enabled) {
+      setInterval(() => {
+        this.flushMetrics().catch((error) => {
+          this.logger.error('Failed to flush metrics', error);
+        });
+      }, this.flushInterval);
+    }
   }
 
   /**
-   * 커스텀 메트릭 전송
+   * 메트릭 전송
    */
   async putMetric(
+    namespace: string,
     metricName: string,
     value: number,
-    unit: 'Count' | 'Bytes' | 'Seconds' | 'Percent' | 'None' = 'None',
-    dimensions?: Array<{ Name: string; Value: string }>,
+    unit: AWS.CloudWatch.StandardUnit = 'None',
+    dimensions?: Record<string, string>,
   ): Promise<void> {
-    const metric: MetricDatum = {
+    if (!this.enabled) {
+      return;
+    }
+
+    const metric: AWS.CloudWatch.MetricDatum = {
       MetricName: metricName,
       Value: value,
       Unit: unit,
       Timestamp: new Date(),
-      Dimensions: dimensions || [],
+      Dimensions: dimensions
+        ? Object.entries(dimensions).map(([name, value]) => ({
+            Name: name,
+            Value: value,
+          }))
+        : undefined,
     };
 
     // 버퍼에 추가
-    this.metricBuffer.push(metric);
+    this.metricsBuffer.push(metric);
 
-    // 버퍼가 가득 차면 즉시 전송
-    if (this.metricBuffer.length >= this.MAX_BUFFER_SIZE) {
+    // 버퍼가 가득 찼거나 일정 시간이 지났으면 플러시
+    if (
+      this.metricsBuffer.length >= this.maxBufferSize ||
+      Date.now() - this.lastFlushTime > this.flushInterval
+    ) {
       await this.flushMetrics();
     }
   }
 
   /**
-   * 통계 메트릭 전송 (평균, 최소, 최대 등)
-   */
-  async putStatisticMetric(
-    metricName: string,
-    values: number[],
-    unit: 'Count' | 'Bytes' | 'Seconds' | 'Percent' | 'None' = 'None',
-    dimensions?: Array<{ Name: string; Value: string }>,
-  ): Promise<void> {
-    if (values.length === 0) return;
-
-    const metric: MetricDatum = {
-      MetricName: metricName,
-      StatisticValues: {
-        SampleCount: values.length,
-        Sum: values.reduce((a, b) => a + b, 0),
-        Minimum: Math.min(...values),
-        Maximum: Math.max(...values),
-      },
-      Unit: unit,
-      Timestamp: new Date(),
-      Dimensions: dimensions || [],
-    };
-
-    this.metricBuffer.push(metric);
-
-    if (this.metricBuffer.length >= this.MAX_BUFFER_SIZE) {
-      await this.flushMetrics();
-    }
-  }
-
-  /**
-   * 버퍼의 메트릭을 CloudWatch로 전송
+   * 버퍼에 있는 메트릭 일괄 전송
    */
   private async flushMetrics(): Promise<void> {
-    if (this.metricBuffer.length === 0) return;
+    if (this.metricsBuffer.length === 0) {
+      return;
+    }
 
-    const params: PutMetricDataInput = {
-      Namespace: this.namespace,
-      MetricData: [...this.metricBuffer],
+    const metricsToSend = [...this.metricsBuffer];
+    this.metricsBuffer = [];
+    this.lastFlushTime = Date.now();
+
+    // 네임스페이스별로 그룹화
+    const metricsByNamespace = new Map<string, AWS.CloudWatch.MetricDatum[]>();
+    
+    // 기본 네임스페이스 사용
+    const defaultNamespace = 'VanillaMeta';
+    metricsByNamespace.set(defaultNamespace, metricsToSend);
+
+    // 각 네임스페이스별로 전송
+    for (const [namespace, metrics] of metricsByNamespace) {
+      try {
+        const params: AWS.CloudWatch.PutMetricDataInput = {
+          Namespace: namespace,
+          MetricData: metrics,
+        };
+
+        await this.cloudWatch.putMetricData(params).promise();
+
+        this.logger.debug(`Flushed ${metrics.length} metrics to CloudWatch`, {
+          namespace,
+          metricCount: metrics.length,
+        });
+      } catch (error) {
+        this.logger.error('Failed to put metrics to CloudWatch', {
+          namespace,
+          error: error.message,
+          metricCount: metrics.length,
+        });
+      }
+    }
+  }
+
+  /**
+   * 메트릭 통계 조회
+   */
+  async getMetricStatistics(
+    namespace: string,
+    metricName: string,
+    period: number,
+    statistics: string[] = ['Average', 'Sum', 'Maximum', 'Minimum'],
+  ): Promise<MetricDataPoint[]> {
+    if (!this.enabled) {
+      return [];
+    }
+
+    const endTime = new Date();
+    const startTime = new Date(endTime.getTime() - period * 1000);
+
+    const params: AWS.CloudWatch.GetMetricStatisticsInput = {
+      Namespace: namespace,
+      MetricName: metricName,
+      StartTime: startTime,
+      EndTime: endTime,
+      Period: Math.min(period, 300), // 최소 5분 단위
+      Statistics: statistics,
     };
 
     try {
-      await this.cloudWatch.putMetricData(params).promise();
-      this.logger.debug(`Sent ${this.metricBuffer.length} metrics to CloudWatch`);
-      this.metricBuffer = [];
+      const result = await this.cloudWatch.getMetricStatistics(params).promise();
+      
+      return (
+        result.Datapoints?.map((datapoint) => ({
+          timestamp: datapoint.Timestamp!,
+          value: datapoint.Average || datapoint.Sum || datapoint.Maximum || datapoint.Minimum || 0,
+          unit: datapoint.Unit || 'None',
+        })).sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime()) || []
+      );
     } catch (error) {
-      this.logger.error('Failed to send metrics to CloudWatch:', error);
-      // 실패한 메트릭은 버리고 계속 진행
-      this.metricBuffer = [];
+      this.logger.error('Failed to get metric statistics', {
+        namespace,
+        metricName,
+        error: error.message,
+      });
+      return [];
     }
   }
 
   /**
-   * 메모리 사용량 메트릭 수집 및 전송
+   * 커스텀 알람 생성
    */
-  @Cron(CronExpression.EVERY_MINUTE)
-  async collectMemoryMetrics(): Promise<void> {
+  async createAlarm(
+    alarmName: string,
+    namespace: string,
+    metricName: string,
+    threshold: number,
+    comparisonOperator: AWS.CloudWatch.ComparisonOperator,
+    evaluationPeriods: number = 2,
+    period: number = 300,
+  ): Promise<void> {
+    if (!this.enabled) {
+      return;
+    }
+
+    const params: AWS.CloudWatch.PutMetricAlarmInput = {
+      AlarmName: alarmName,
+      ComparisonOperator: comparisonOperator,
+      EvaluationPeriods: evaluationPeriods,
+      MetricName: metricName,
+      Namespace: namespace,
+      Period: period,
+      Statistic: 'Average',
+      Threshold: threshold,
+      ActionsEnabled: true,
+      AlarmDescription: `Alarm for ${metricName} in ${namespace}`,
+      TreatMissingData: 'notBreaching',
+    };
+
     try {
-      const memUsage = process.memoryUsage();
-      const heapStats = v8.getHeapStatistics();
-      const maxMemory = 3 * 1024 * 1024 * 1024; // Lambda 3GB
-
-      // 메모리 사용률
-      const memoryUsedPercent = (memUsage.rss / maxMemory) * 100;
-      await this.putMetric('MemoryUsedPercent', memoryUsedPercent, 'Percent', [
-        { Name: 'Function', Value: 'backend-api' },
-      ]);
-
-      // 힙 사용량
-      await this.putMetric('HeapUsedMB', memUsage.heapUsed / (1024 * 1024), 'None', [
-        { Name: 'Function', Value: 'backend-api' },
-      ]);
-
-      // RSS 메모리
-      await this.putMetric('RSSMemoryMB', memUsage.rss / (1024 * 1024), 'None', [
-        { Name: 'Function', Value: 'backend-api' },
-      ]);
-
-      // 힙 사용률
-      const heapUsedPercent = (heapStats.used_heap_size / heapStats.heap_size_limit) * 100;
-      await this.putMetric('HeapUsedPercent', heapUsedPercent, 'Percent', [
-        { Name: 'Function', Value: 'backend-api' },
-      ]);
-
-      // 메트릭 전송
-      await this.flushMetrics();
+      await this.cloudWatch.putMetricAlarm(params).promise();
+      this.logger.log(`Created alarm: ${alarmName}`);
     } catch (error) {
-      this.logger.error('Failed to collect memory metrics:', error);
+      this.logger.error('Failed to create alarm', {
+        alarmName,
+        error: error.message,
+      });
+      throw error;
     }
   }
 
   /**
-   * API 응답 시간 메트릭
+   * 대시보드 위젯 JSON 생성
    */
-  async recordApiResponseTime(
-    path: string,
-    method: string,
-    responseTime: number,
-    statusCode: number,
-  ): Promise<void> {
-    // 응답 시간 메트릭
-    await this.putMetric('ApiResponseTime', responseTime, 'Seconds', [
-      { Name: 'Path', Value: path },
-      { Name: 'Method', Value: method },
-      { Name: 'StatusCode', Value: statusCode.toString() },
-    ]);
-
-    // 느린 요청 카운트 (1초 이상)
-    if (responseTime > 1000) {
-      await this.putMetric('SlowApiRequests', 1, 'Count', [
-        { Name: 'Path', Value: path },
-        { Name: 'Method', Value: method },
-      ]);
-    }
-
-    // 에러 카운트
-    if (statusCode >= 500) {
-      await this.putMetric('ApiServerErrors', 1, 'Count', [
-        { Name: 'Path', Value: path },
-        { Name: 'Method', Value: method },
-      ]);
-    } else if (statusCode >= 400) {
-      await this.putMetric('ApiClientErrors', 1, 'Count', [
-        { Name: 'Path', Value: path },
-        { Name: 'Method', Value: method },
-      ]);
-    }
+  generateDashboardWidget(
+    title: string,
+    namespace: string,
+    metrics: Array<{ name: string; stat?: string; period?: number }>,
+    region: string = this.region,
+  ): any {
+    return {
+      type: 'metric',
+      properties: {
+        metrics: metrics.map((metric) => [
+          namespace,
+          metric.name,
+          { stat: metric.stat || 'Average', period: metric.period || 300 },
+        ]),
+        period: 300,
+        stat: 'Average',
+        region,
+        title,
+        yAxis: {
+          left: {
+            min: 0,
+          },
+        },
+      },
+    };
   }
 
   /**
-   * 쿼리 캐시 메트릭
-   */
-  async recordCacheMetrics(hitRate: number, l1HitRate: number, l2HitRate: number): Promise<void> {
-    await this.putMetric('CacheHitRate', hitRate, 'Percent', [
-      { Name: 'CacheType', Value: 'QueryCache' },
-    ]);
-
-    await this.putMetric('L1HitRate', l1HitRate, 'Percent', [
-      { Name: 'CacheType', Value: 'QueryCache' },
-    ]);
-
-    await this.putMetric('L2HitRate', l2HitRate, 'Percent', [
-      { Name: 'CacheType', Value: 'QueryCache' },
-    ]);
-  }
-
-  /**
-   * 백그라운드 작업 메트릭
-   */
-  async recordBackgroundJobMetrics(
-    jobType: string,
-    status: 'queued' | 'processed' | 'failed',
-  ): Promise<void> {
-    const metricName =
-      status === 'queued' ? 'JobsQueued' : status === 'processed' ? 'JobsProcessed' : 'JobsFailed';
-
-    await this.putMetric(metricName, 1, 'Count', [{ Name: 'JobType', Value: jobType }]);
-  }
-
-  /**
-   * 데이터베이스 연결 풀 메트릭
-   */
-  async recordConnectionPoolMetrics(
-    databaseId: string,
-    activeConnections: number,
-    idleConnections: number,
-    waitingRequests: number,
-  ): Promise<void> {
-    await this.putMetric('DBActiveConnections', activeConnections, 'Count', [
-      { Name: 'DatabaseId', Value: databaseId },
-    ]);
-
-    await this.putMetric('DBIdleConnections', idleConnections, 'Count', [
-      { Name: 'DatabaseId', Value: databaseId },
-    ]);
-
-    await this.putMetric('DBWaitingRequests', waitingRequests, 'Count', [
-      { Name: 'DatabaseId', Value: databaseId },
-    ]);
-
-    const totalConnections = activeConnections + idleConnections;
-    const utilizationPercent =
-      totalConnections > 0 ? (activeConnections / totalConnections) * 100 : 0;
-
-    await this.putMetric('DBConnectionUtilization', utilizationPercent, 'Percent', [
-      { Name: 'DatabaseId', Value: databaseId },
-    ]);
-  }
-
-  /**
-   * 스트리밍 쿼리 메트릭
-   */
-  async recordStreamingQueryMetrics(
-    databaseId: string,
-    rowsProcessed: number,
-    duration: number,
-    success: boolean,
-  ): Promise<void> {
-    await this.putMetric('StreamingQueryRows', rowsProcessed, 'Count', [
-      { Name: 'DatabaseId', Value: databaseId },
-      { Name: 'Success', Value: success.toString() },
-    ]);
-
-    await this.putMetric('StreamingQueryDuration', duration / 1000, 'Seconds', [
-      { Name: 'DatabaseId', Value: databaseId },
-      { Name: 'Success', Value: success.toString() },
-    ]);
-
-    if (!success) {
-      await this.putMetric('StreamingQueryErrors', 1, 'Count', [
-        { Name: 'DatabaseId', Value: databaseId },
-      ]);
-    }
-  }
-
-  /**
-   * 사용자 활동 메트릭
-   */
-  async recordUserActivity(userId: string, action: string, resourceType: string): Promise<void> {
-    await this.putMetric('UserActivity', 1, 'Count', [
-      { Name: 'Action', Value: action },
-      { Name: 'ResourceType', Value: resourceType },
-    ]);
-
-    // 고유 활성 사용자 추적 (HyperLogLog 등 확률적 자료구조 대신 간단히 카운트)
-    await this.putMetric('ActiveUsers', 1, 'Count', [{ Name: 'UserId', Value: userId }]);
-  }
-
-  /**
-   * 시스템 리소스 메트릭
-   */
-  @Cron(CronExpression.EVERY_5_MINUTES)
-  async collectSystemMetrics(): Promise<void> {
-    try {
-      // CPU 사용률 (Lambda에서는 제한적)
-      const cpus = os.cpus();
-      const cpuUsage =
-        cpus.reduce((acc, cpu) => {
-          const total = Object.values(cpu.times).reduce((a, b) => a + b);
-          const idle = cpu.times.idle;
-          return acc + ((total - idle) / total) * 100;
-        }, 0) / cpus.length;
-
-      await this.putMetric('SystemCPUPercent', cpuUsage, 'Percent', [
-        { Name: 'Function', Value: 'backend-api' },
-      ]);
-
-      // 파일 디스크립터 (열린 파일 수)
-      const openHandles = (process as any)._getActiveHandles().length;
-      const openRequests = (process as any)._getActiveRequests().length;
-
-      await this.putMetric('OpenHandles', openHandles, 'Count', [
-        { Name: 'Function', Value: 'backend-api' },
-      ]);
-
-      await this.putMetric('OpenRequests', openRequests, 'Count', [
-        { Name: 'Function', Value: 'backend-api' },
-      ]);
-
-      await this.flushMetrics();
-    } catch (error) {
-      this.logger.error('Failed to collect system metrics:', error);
-    }
-  }
-
-  /**
-   * 애플리케이션 종료 시 남은 메트릭 전송
+   * 강제 메트릭 플러시 (애플리케이션 종료 시)
    */
   async onModuleDestroy(): Promise<void> {
-    try {
+    if (this.enabled && this.metricsBuffer.length > 0) {
       await this.flushMetrics();
-      this.logger.log('Flushed remaining metrics before shutdown');
-    } catch (error) {
-      this.logger.error('Failed to flush metrics on shutdown:', error);
     }
   }
 }

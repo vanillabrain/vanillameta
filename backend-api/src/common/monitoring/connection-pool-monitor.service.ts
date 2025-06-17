@@ -4,6 +4,7 @@ import { DataSource } from 'typeorm';
 import { CustomLoggerService } from '../logger/logger.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { knexConnections } from '../../connection/connection.service';
+import { IntegratedMetricsService } from './integrated-metrics.service';
 
 export interface PoolMetrics {
   totalConnections: number;
@@ -22,6 +23,7 @@ export class ConnectionPoolMonitorService {
   constructor(
     @InjectDataSource() private dataSource: DataSource,
     private readonly logger: CustomLoggerService,
+    private readonly integratedMetrics: IntegratedMetricsService,
   ) {}
 
   /**
@@ -181,18 +183,25 @@ export class ConnectionPoolMonitorService {
    */
   @Cron(CronExpression.EVERY_MINUTE)
   async collectAndLogMetrics(): Promise<void> {
-    if (process.env.NODE_ENV !== 'prod') {
-      return;
-    }
-
     const metrics = await this.getMetrics();
 
     if (metrics.current) {
-      this.logger.log('Connection pool metrics', 'ConnectionPoolMonitor', {
-        typeorm: metrics.current,
-        knexPoolsCount: metrics.knexPools.size,
-        statistics: metrics.statistics,
-      });
+      // CloudWatch 메트릭 전송
+      await this.integratedMetrics.recordConnectionPoolMetrics(
+        metrics.current.totalConnections,
+        metrics.current.activeConnections,
+        metrics.current.idleConnections,
+        metrics.current.waitingRequests,
+      );
+
+      // 로깅 (프로덕션에서만)
+      if (process.env.NODE_ENV === 'prod') {
+        this.logger.info('Connection pool metrics', 'ConnectionPoolMonitor', {
+          typeorm: metrics.current,
+          knexPoolsCount: metrics.knexPools.size,
+          statistics: metrics.statistics,
+        });
+      }
 
       // 경고 조건 확인
       if (metrics.current.connectionUtilization > 80) {
@@ -209,6 +218,16 @@ export class ConnectionPoolMonitorService {
           activeConnections: metrics.current.activeConnections,
         });
       }
+    }
+
+    // Knex 연결 풀 메트릭도 CloudWatch로 전송
+    for (const [dbId, knexMetrics] of metrics.knexPools) {
+      await this.integratedMetrics.recordConnectionPoolMetrics(
+        knexMetrics.totalConnections,
+        knexMetrics.activeConnections,
+        knexMetrics.idleConnections,
+        knexMetrics.waitingRequests,
+      );
     }
   }
 

@@ -1,244 +1,145 @@
-# VanillaMeta 메트릭 정의서
+# VanillaMeta 핵심 메트릭 정의서
 
 ## 1. 개요
 
-이 문서는 VanillaMeta 시스템의 핵심 메트릭과 SLI(Service Level Indicator)를 정의합니다.
+이 문서는 VanillaMeta 시스템의 핵심 성능 지표(KPI)와 서비스 수준 지표(SLI)를 정의합니다.
 
-## 2. 메트릭 카테고리
+## 2. 핵심 메트릭 카테고리
 
 ### 2.1 가용성 메트릭 (Availability)
 
-#### API 가용성
-- **메트릭 이름**: `ApiAvailability`
-- **계산식**: (성공 요청 수) / (전체 요청 수) × 100
-- **목표치 (SLO)**: 99.9%
-- **수집 주기**: 1분
-- **차원**: Environment, Endpoint
-
-#### Lambda 함수 가용성
-- **메트릭 이름**: `LambdaAvailability`
-- **계산식**: (성공 실행 수) / (전체 실행 수) × 100
-- **목표치 (SLO)**: 99.95%
-- **수집 주기**: 1분
-- **차원**: Environment, FunctionName
+| 메트릭명 | 설명 | 목표치 (SLO) | 측정 주기 | 알람 임계값 |
+|---------|------|-------------|-----------|------------|
+| API_AVAILABILITY | API 서비스 가용성 | 99.9% | 1분 | < 99.5% |
+| HEALTH_CHECK_SUCCESS_RATE | 헬스체크 성공률 | 99.99% | 30초 | < 99% |
 
 ### 2.2 성능 메트릭 (Performance)
 
-#### API 응답 시간
-- **메트릭 이름**: `ApiResponseTime`
-- **측정 단위**: 밀리초 (ms)
-- **목표치 (SLO)**: 
-  - P50 < 200ms
-  - P90 < 500ms
-  - P99 < 1000ms
-- **수집 주기**: 실시간
-- **차원**: Environment, Endpoint, Method
-
-#### 데이터베이스 쿼리 성능
-- **메트릭 이름**: `DatabaseQueryDuration`
-- **측정 단위**: 밀리초 (ms)
-- **목표치 (SLO)**:
-  - P50 < 50ms
-  - P90 < 200ms
-  - P99 < 500ms
-- **수집 주기**: 실시간
-- **차원**: Environment, DatabaseId, QueryType
-
-#### Lambda Cold Start
-- **메트릭 이름**: `LambdaColdStartRatio`
-- **계산식**: (Cold Start 수) / (전체 실행 수) × 100
-- **목표치 (SLO)**: < 5%
-- **수집 주기**: 5분
-- **차원**: Environment
+| 메트릭명 | 설명 | 목표치 (SLO) | 측정 주기 | 알람 임계값 |
+|---------|------|-------------|-----------|------------|
+| API_RESPONSE_TIME_P50 | API 응답시간 중앙값 | < 200ms | 1분 | > 300ms |
+| API_RESPONSE_TIME_P90 | API 응답시간 90분위 | < 500ms | 1분 | > 800ms |
+| API_RESPONSE_TIME_P99 | API 응답시간 99분위 | < 1000ms | 1분 | > 2000ms |
+| QUERY_EXECUTION_TIME_P90 | 쿼리 실행시간 90분위 | < 100ms | 1분 | > 200ms |
+| LAMBDA_COLD_START_DURATION | Lambda 콜드스타트 시간 | < 3s | 발생 시 | > 5s |
+| LAMBDA_MEMORY_UTILIZATION | Lambda 메모리 사용률 | < 80% | 1분 | > 85% |
 
 ### 2.3 에러율 메트릭 (Error Rate)
 
-#### HTTP 4xx 에러율
-- **메트릭 이름**: `Http4xxErrorRate`
-- **계산식**: (4xx 응답 수) / (전체 요청 수) × 100
-- **목표치 (SLO)**: < 5%
-- **수집 주기**: 1분
-- **차원**: Environment, Endpoint
+| 메트릭명 | 설명 | 목표치 (SLO) | 측정 주기 | 알람 임계값 |
+|---------|------|-------------|-----------|------------|
+| API_ERROR_RATE | API 에러율 (5xx) | < 0.1% | 1분 | > 1% |
+| API_CLIENT_ERROR_RATE | 클라이언트 에러율 (4xx) | < 5% | 5분 | > 10% |
+| QUERY_ERROR_RATE | 데이터베이스 쿼리 에러율 | < 0.01% | 1분 | > 0.1% |
+| LAMBDA_ERROR_COUNT | Lambda 함수 에러 수 | < 10/5분 | 5분 | > 10/5분 |
 
-#### HTTP 5xx 에러율
-- **메트릭 이름**: `Http5xxErrorRate`
-- **계산식**: (5xx 응답 수) / (전체 요청 수) × 100
-- **목표치 (SLO)**: < 0.1%
-- **수집 주기**: 1분
-- **차원**: Environment, Endpoint
+### 2.4 비즈니스 메트릭 (Business)
 
-### 2.4 리소스 사용률 메트릭 (Resource Utilization)
+| 메트릭명 | 설명 | 목표치 (SLO) | 측정 주기 | 알람 임계값 |
+|---------|------|-------------|-----------|------------|
+| DASHBOARD_LOAD_TIME | 대시보드 로딩 시간 | < 2s | 5분 | > 3s |
+| QUERY_CACHE_HIT_RATE | 쿼리 캐시 적중률 | > 70% | 5분 | < 50% |
+| CONCURRENT_USERS | 동시 접속 사용자 수 | - | 1분 | > 1000 |
+| DATA_REFRESH_SUCCESS_RATE | 데이터 새로고침 성공률 | > 99% | 5분 | < 95% |
+| WIDGET_RENDER_TIME_P90 | 위젯 렌더링 시간 90분위 | < 500ms | 5분 | > 1000ms |
 
-#### Lambda 메모리 사용률
-- **메트릭 이름**: `LambdaMemoryUtilization`
-- **측정 단위**: 퍼센트 (%)
-- **경고 임계값**: 80%
-- **위험 임계값**: 90%
-- **수집 주기**: 1분
-- **차원**: Environment
+### 2.5 리소스 사용률 메트릭 (Resource Utilization)
 
-#### RDS CPU 사용률
-- **메트릭 이름**: `RDSCPUUtilization`
-- **측정 단위**: 퍼센트 (%)
-- **경고 임계값**: 70%
-- **위험 임계값**: 85%
-- **수집 주기**: 5분
-- **차원**: Environment, InstanceId
+| 메트릭명 | 설명 | 목표치 (SLO) | 측정 주기 | 알람 임계값 |
+|---------|------|-------------|-----------|------------|
+| RDS_CPU_UTILIZATION | RDS CPU 사용률 | < 70% | 1분 | > 80% |
+| RDS_CONNECTION_COUNT | RDS 연결 수 | < 80% of max | 1분 | > 90% of max |
+| REDIS_MEMORY_USAGE | Redis 메모리 사용률 | < 75% | 5분 | > 85% |
+| REDIS_CONNECTION_COUNT | Redis 연결 수 | < 900 | 1분 | > 950 |
 
-#### Redis 메모리 사용률
-- **메트릭 이름**: `RedisMemoryUtilization`
-- **측정 단위**: 퍼센트 (%)
-- **경고 임계값**: 75%
-- **위험 임계값**: 90%
-- **수집 주기**: 5분
-- **차원**: Environment, ClusterId
+## 3. 메트릭 수집 방법
 
-### 2.5 비즈니스 메트릭 (Business)
+### 3.1 API 메트릭
+- Interceptor를 통한 자동 수집
+- Request/Response 시간 측정
+- HTTP 상태 코드 기반 에러율 계산
 
-#### 일일 활성 사용자 (DAU)
-- **메트릭 이름**: `DailyActiveUsers`
-- **측정 단위**: Count
-- **수집 주기**: 24시간
-- **차원**: Environment
+### 3.2 데이터베이스 메트릭
+- TypeORM Query Logger 활용
+- Slow Query Monitor 통합
+- Connection Pool Monitor 활용
 
-#### 대시보드 생성 수
-- **메트릭 이름**: `DashboardCreated`
-- **측정 단위**: Count
-- **수집 주기**: 실시간
-- **차원**: Environment, UserType
+### 3.3 Lambda 메트릭
+- AWS Lambda 내장 메트릭 활용
+- CloudWatch Logs Insights 쿼리
 
-#### 위젯 사용 통계
-- **메트릭 이름**: `WidgetUsage`
-- **측정 단위**: Count
-- **수집 주기**: 실시간
-- **차원**: Environment, WidgetType, ChartType
+### 3.4 비즈니스 메트릭
+- 커스텀 메트릭 구현
+- 사용자 행동 추적
+- 애플리케이션 레벨 측정
 
-#### 쿼리 실행 수
-- **메트릭 이름**: `QueryExecutions`
-- **측정 단위**: Count
-- **수집 주기**: 실시간
-- **차원**: Environment, DatabaseType, QueryComplexity
+## 4. 메트릭 네이밍 규칙
 
-### 2.6 캐시 효율성 메트릭 (Cache Efficiency)
-
-#### 전체 캐시 히트율
-- **메트릭 이름**: `OverallCacheHitRate`
-- **계산식**: (캐시 히트 수) / (전체 요청 수) × 100
-- **목표치 (SLO)**: > 80%
-- **수집 주기**: 5분
-- **차원**: Environment
-
-#### L1 캐시 히트율
-- **메트릭 이름**: `L1CacheHitRate`
-- **계산식**: (L1 히트 수) / (L1 요청 수) × 100
-- **목표치 (SLO)**: > 60%
-- **수집 주기**: 5분
-- **차원**: Environment
-
-#### L2 캐시 히트율
-- **메트릭 이름**: `L2CacheHitRate`
-- **계산식**: (L2 히트 수) / (L2 요청 수) × 100
-- **목표치 (SLO)**: > 90%
-- **수집 주기**: 5분
-- **차원**: Environment
-
-## 3. SLI/SLO 정의
-
-### 3.1 핵심 SLI
-
-1. **가용성 SLI**
-   - 정의: 5분 동안 성공적인 API 응답 비율
-   - 목표 (SLO): 99.9%
-   - 측정: (200-399 상태 코드) / (전체 요청)
-
-2. **지연시간 SLI**
-   - 정의: API 응답 시간 P99
-   - 목표 (SLO): < 1초
-   - 측정: 99번째 백분위수 응답 시간
-
-3. **에러율 SLI**
-   - 정의: 5분 동안 5xx 에러 비율
-   - 목표 (SLO): < 0.1%
-   - 측정: (5xx 상태 코드) / (전체 요청)
-
-### 3.2 보조 SLI
-
-1. **쿼리 성능 SLI**
-   - 정의: 데이터베이스 쿼리 P90 응답 시간
-   - 목표 (SLO): < 200ms
-   - 측정: 90번째 백분위수 쿼리 시간
-
-2. **캐시 효율성 SLI**
-   - 정의: 전체 캐시 히트율
-   - 목표 (SLO): > 80%
-   - 측정: 캐시 히트 / 전체 캐시 요청
-
-## 4. 메트릭 수집 구현
-
-### 4.1 자동 수집 메트릭
-- AWS 네이티브 메트릭 (Lambda, API Gateway, RDS, ElastiCache)
-- ResponseTimeInterceptor를 통한 API 메트릭
-- MemoryMonitorMiddleware를 통한 메모리 메트릭
-
-### 4.2 커스텀 메트릭 수집 포인트
-
-```typescript
-// 비즈니스 메트릭 예시
-await cloudWatchMetrics.recordUserActivity(userId, 'dashboard_created', 'dashboard');
-await cloudWatchMetrics.putMetric('WidgetUsage', 1, 'Count', [
-  { Name: 'WidgetType', Value: widgetType },
-  { Name: 'ChartType', Value: chartType }
-]);
+```
+{SERVICE_NAME}_{COMPONENT}_{METRIC_TYPE}_{AGGREGATION}
 ```
 
-## 5. 알람 설정
+예시:
+- `VANILLAMETA_API_RESPONSE_TIME_P90`
+- `VANILLAMETA_RDS_CPU_UTILIZATION_AVG`
+- `VANILLAMETA_DASHBOARD_LOAD_TIME_P99`
 
-### 5.1 Critical 알람 (즉시 대응 필요)
-- API 가용성 < 99.5% (5분간)
-- 5xx 에러율 > 1% (5분간)
-- Lambda 메모리 사용률 > 95%
-- RDS CPU > 90%
+## 5. 메트릭 태그
 
-### 5.2 Warning 알람 (모니터링 필요)
-- API P99 응답 시간 > 2초
-- 캐시 히트율 < 60%
-- Lambda Cold Start > 10%
-- 4xx 에러율 > 10%
+모든 메트릭에는 다음 태그를 포함:
+- `environment`: dev, staging, prod
+- `region`: AWS 리전
+- `service`: 서비스명
+- `endpoint`: API 엔드포인트 (해당하는 경우)
+- `database`: 데이터베이스 타입 (해당하는 경우)
 
-## 6. 메트릭 보존 정책
+## 6. 데이터 보존 정책
 
 - 고해상도 메트릭 (1분): 3일
-- 일반 메트릭 (5분): 15일
-- 집계 메트릭 (1시간): 63일
-- 일별 집계: 455일
+- 표준 해상도 메트릭 (5분): 15일
+- 집계된 메트릭 (1시간): 63일
+- 월간 집계: 15개월
 
-## 7. 메트릭 네이밍 규칙
+## 7. 알람 우선순위
 
-- PascalCase 사용
-- 동사 없이 명사로 구성
-- 단위는 메트릭 이름에 포함하지 않음
-- 예: `ApiResponseTime`, `CacheHitRate`, `QueryExecutions`
+### P0 (Critical) - 즉시 대응
+- API 가용성 < 99%
+- Lambda 에러율 > 5%
+- RDS CPU > 90%
 
-## 8. 차원(Dimensions) 표준
+### P1 (High) - 30분 내 대응
+- API 응답시간 P99 > 2초
+- 쿼리 에러율 > 0.5%
+- Redis 메모리 > 90%
 
-- **Environment**: dev, prod
-- **Service**: backend-api, frontend-web
-- **Endpoint**: API 경로
-- **Method**: GET, POST, PUT, DELETE
-- **StatusCode**: HTTP 상태 코드
-- **DatabaseType**: mysql, postgresql, oracle
-- **CacheType**: L1, L2, QueryCache
+### P2 (Medium) - 업무시간 내 대응
+- 캐시 적중률 < 40%
+- 클라이언트 에러율 > 15%
+- 콜드스타트 > 5초
 
-## 9. 메트릭 검증 체크리스트
+### P3 (Low) - 다음 스프린트
+- 위젯 렌더링 시간 증가 추세
+- 리소스 사용률 증가 추세
 
-- [ ] 메트릭이 비즈니스 가치와 연결되는가?
-- [ ] 측정 가능하고 정량화 가능한가?
-- [ ] 실시간 또는 준실시간으로 수집 가능한가?
-- [ ] 액션 가능한 인사이트를 제공하는가?
-- [ ] 비용 효율적으로 수집/저장 가능한가?
+## 8. 대시보드 구성
 
-## 10. 메트릭 리뷰 주기
+### 8.1 Overview Dashboard
+- 전체 시스템 상태 요약
+- P0/P1 알람 현황
+- 주요 SLI 현황
 
-- **주간 리뷰**: 트렌드 분석 및 이상 징후 확인
-- **월간 리뷰**: SLO 달성률 검토 및 조정
-- **분기별 리뷰**: 메트릭 유효성 평가 및 개선
+### 8.2 Performance Dashboard
+- API 응답시간 분포
+- 쿼리 성능 메트릭
+- 리소스 사용률 추세
+
+### 8.3 Business Dashboard
+- 사용자 활동 메트릭
+- 기능별 사용 통계
+- 비즈니스 KPI
+
+## 9. 메트릭 검증
+
+- 신규 메트릭은 staging 환경에서 1주일 검증
+- 메트릭 정확성 주기적 감사
+- 알람 임계값 분기별 리뷰

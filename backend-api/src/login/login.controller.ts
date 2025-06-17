@@ -12,13 +12,23 @@ import {
   Req,
   UseGuards,
   Query,
+  HttpStatus,
 } from '@nestjs/common';
 import { LoginService } from './login.service';
 import { CreateLoginDto } from './dto/create-login.dto';
 import { LoginUserDto } from '../login/dto/login-user.dto';
 import { AuthService } from 'src/auth/auth.service';
 import { LocalAuthGuard } from 'src/auth/guards/local-auth.guard';
-import { ApiOperation, ApiTags, ApiResponse, ApiBody } from '@nestjs/swagger';
+import { 
+  ApiOperation, 
+  ApiTags, 
+  ApiResponse, 
+  ApiBody,
+  ApiBearerAuth,
+  ApiUnauthorizedResponse,
+  ApiBadRequestResponse,
+  ApiCreatedResponse
+} from '@nestjs/swagger';
 
 @ApiTags('인증')
 @Controller('login')
@@ -30,50 +40,29 @@ export class LoginController {
 
   @UsePipes(ValidationPipe)
   @Post('signin')
-  @ApiOperation({
-    summary: '로그인',
-    description:
-      '이메일과 비밀번호로 로그인합니다. 성공 시 JWT 액세스 토큰과 리프레시 토큰을 발급합니다.',
+  @ApiOperation({ 
+    summary: '사용자 로그인', 
+    description: '이메일과 비밀번호로 로그인하여 JWT 액세스 토큰을 발급받습니다.' 
   })
-  @ApiBody({
-    type: LoginUserDto,
-    description: '로그인 정보',
-  })
-  @ApiResponse({
-    status: 201,
+  @ApiBody({ type: LoginUserDto })
+  @ApiCreatedResponse({ 
     description: '로그인 성공',
     schema: {
-      type: 'object',
       properties: {
         accessToken: {
           type: 'string',
           description: 'JWT 액세스 토큰',
-          example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+          example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
         },
         message: {
           type: 'string',
-          example: 'success',
-        },
-      },
-    },
-    headers: {
-      'Set-Cookie': {
-        description: '리프레시 토큰 쿠키 (jwt_re)',
-        schema: {
-          type: 'string',
-          example: 'jwt_re=token; HttpOnly; Secure; SameSite=Lax',
-        },
-      },
-    },
+          example: 'success'
+        }
+      }
+    }
   })
-  @ApiResponse({
-    status: 401,
-    description: '로그인 실패 - 잘못된 이메일 또는 비밀번호',
-  })
-  @ApiResponse({
-    status: 400,
-    description: '잘못된 요청 형식',
-  })
+  @ApiBadRequestResponse({ description: '잘못된 요청 (유효성 검사 실패)' })
+  @ApiUnauthorizedResponse({ description: '인증 실패 (이메일 또는 비밀번호 오류)' })
   async logIn(@Res() res, @Req() req, @Body() loginDto: LoginUserDto) {
     const findUser = await this.loginService.signin(loginDto);
     // 유저존재여부 확인
@@ -92,65 +81,45 @@ export class LoginController {
     return res.status(201).json({ accessToken: accessToken, message: 'success' });
   }
 
+  // validationPipe = 들어오는 모든 클라이언트 페이로드에 대한 유효성 검사 규칙을 적용
   @UsePipes(ValidationPipe)
   @Post('signup')
-  @ApiOperation({
-    summary: '회원가입',
-    description: '새로운 사용자를 등록합니다. 이메일은 중복될 수 없습니다.',
+  @ApiOperation({ 
+    summary: '회원가입', 
+    description: '새로운 사용자 계정을 생성합니다.' 
   })
-  @ApiBody({
-    type: CreateLoginDto,
-    description: '회원가입 정보',
-  })
-  @ApiResponse({
-    status: 201,
+  @ApiBody({ type: CreateLoginDto })
+  @ApiCreatedResponse({ 
     description: '회원가입 성공',
-    type: CreateLoginDto,
+    schema: {
+      properties: {
+        userId: { type: 'string' },
+        userEmail: { type: 'string' },
+        message: { type: 'string', example: 'success' }
+      }
+    }
   })
-  @ApiResponse({
-    status: 409,
-    description: '이미 존재하는 이메일',
-  })
-  @ApiResponse({
-    status: 400,
-    description: '잘못된 요청 형식 또는 유효하지 않은 데이터',
-  })
+  @ApiBadRequestResponse({ description: '잘못된 요청 (유효성 검사 실패 또는 중복된 이메일)' })
   create(@Body() createUserDto: CreateLoginDto) {
     return this.loginService.signup(createUserDto);
   }
 
-  @UseGuards(LocalAuthGuard)
+  @UseGuards(LocalAuthGuard) //refrshtoken 검사
   @Post('signout')
-  @ApiOperation({
-    summary: '로그아웃',
-    description: '현재 세션을 종료하고 리프레시 토큰을 삭제합니다.',
+  @ApiBearerAuth('AccessToken')
+  @ApiOperation({ 
+    summary: '로그아웃', 
+    description: '현재 세션을 종료하고 리프레시 토큰을 삭제합니다.' 
   })
-  @ApiResponse({
-    status: 201,
+  @ApiCreatedResponse({ 
     description: '로그아웃 성공',
     schema: {
-      type: 'object',
       properties: {
-        message: {
-          type: 'string',
-          example: 'success',
-        },
-      },
-    },
-    headers: {
-      'Set-Cookie': {
-        description: '리프레시 토큰 쿠키 삭제',
-        schema: {
-          type: 'string',
-          example: 'jwt_re=; Max-Age=0; Path=/',
-        },
-      },
-    },
+        message: { type: 'string', example: 'success' }
+      }
+    }
   })
-  @ApiResponse({
-    status: 401,
-    description: '인증되지 않은 사용자',
-  })
+  @ApiUnauthorizedResponse({ description: '인증 실패' })
   async signOut(@Res() res, @Req() req) {
     const { jwtId } = req.user.refreshKeyData;
     await this.authService.deleteRefreshToken(jwtId);

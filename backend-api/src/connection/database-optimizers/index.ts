@@ -7,6 +7,8 @@ import { SnowflakeOptimizer } from './snowflake-optimizer';
 import { OracleOptimizer } from './oracle-optimizer';
 import { SqlServerOptimizer } from './sqlserver-optimizer';
 import { DatabaseOptimizerFactory } from './database-optimizer-factory';
+import { AdvancedQueryOptimizerService } from './advanced-query-optimizer.service';
+import { DatabasePerformanceComparatorService } from './database-performance-comparator.service';
 
 /**
  * 데이터베이스 최적화 모듈
@@ -21,6 +23,8 @@ import { DatabaseOptimizerFactory } from './database-optimizer-factory';
     OracleOptimizer,
     SqlServerOptimizer,
     DatabaseOptimizerFactory,
+    AdvancedQueryOptimizerService,
+    DatabasePerformanceComparatorService,
   ],
   exports: [
     MySQLOptimizer,
@@ -30,6 +34,8 @@ import { DatabaseOptimizerFactory } from './database-optimizer-factory';
     OracleOptimizer,
     SqlServerOptimizer,
     DatabaseOptimizerFactory,
+    AdvancedQueryOptimizerService,
+    DatabasePerformanceComparatorService,
   ],
 })
 export class DatabaseOptimizersModule {}
@@ -43,6 +49,8 @@ export { SnowflakeOptimizer } from './snowflake-optimizer';
 export { OracleOptimizer } from './oracle-optimizer';
 export { SqlServerOptimizer } from './sqlserver-optimizer';
 export { DatabaseOptimizerFactory } from './database-optimizer-factory';
+export { AdvancedQueryOptimizerService } from './advanced-query-optimizer.service';
+export { DatabasePerformanceComparatorService } from './database-performance-comparator.service';
 
 /**
  * 지원되는 데이터베이스 타입 목록

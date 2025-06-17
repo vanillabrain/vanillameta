@@ -17,6 +17,8 @@ import { DatabaseOptimizerFactory } from './database-optimizers/database-optimiz
 import { REQUEST } from '@nestjs/core';
 import { Request } from 'express';
 import { Transform, Readable, PassThrough } from 'stream';
+import { getDatabaseSpecificConfig } from './database-specific.config';
+import { KnexQueryMonitor } from '../common/monitoring/knex-query-monitor';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { BigQueryClient } = require('knex-bigquery');
@@ -33,6 +35,7 @@ export class ConnectionService {
     private readonly queryCollector: QueryCollector,
     private readonly slowQueryMonitorService: SlowQueryMonitorService,
     private readonly databaseOptimizerFactory: DatabaseOptimizerFactory,
+    private readonly knexQueryMonitor: KnexQueryMonitor,
     @Inject(REQUEST) private readonly request: Request,
   ) {}
 
@@ -46,22 +49,76 @@ export class ConnectionService {
       const environment = process.env.NODE_ENV || 'dev';
       const databaseType = typeof options.client === 'string' ? options.client : 'unknown';
 
-      // 데이터베이스별 최적화 적용
-      const optimizedOptions = this.databaseOptimizerFactory.getOptimizedConnectionConfig(
-        databaseType,
-        options.connection || {},
-        environment,
-      );
+      // 데이터베이스별 특화 설정 적용
+      const dbSpecificConfig = getDatabaseSpecificConfig(databaseType);
+      const optimizer = this.databaseOptimizerFactory.getOptimizer(databaseType);
 
-      // 기존 옵션과 최적화된 설정 병합
-      const finalOptions: Knex.Config = {
+      // 기본 최적화된 설정 + DB별 특화 설정 결합
+      let optimizedOptions: Knex.Config = {
         ...options,
-        ...optimizedOptions,
-        // 원본 클라이언트 설정 유지 (BigQuery, Snowflake 등의 특수 케이스)
-        client: options.client,
+        pool: {
+          min: 0, // Lambda에서는 0으로 시작
+          max: parseInt(process.env.KNEX_POOL_MAX) || 3, // 기본값
+          createTimeoutMillis: 30000,
+          acquireTimeoutMillis: 30000,
+          idleTimeoutMillis: 30000,
+          reapIntervalMillis: 1000,
+          createRetryIntervalMillis: 100,
+          propagateCreateError: false,
+        },
+        acquireConnectionTimeout: 30000,
       };
 
-      this.logger.log(
+      // DB별 특화 설정이 있으면 적용
+      if (dbSpecificConfig) {
+        optimizedOptions = {
+          ...optimizedOptions,
+          ...dbSpecificConfig.connectionConfig,
+          // 연결 풀 설정 병합
+          pool: {
+            ...optimizedOptions.pool,
+            ...dbSpecificConfig.connectionConfig.pool,
+            // Lambda 환경에서는 최대 연결 수 제한
+            max: Math.min(
+              dbSpecificConfig.performanceSettings.maxConnections,
+              parseInt(process.env.KNEX_POOL_MAX) || 3
+            ),
+          },
+          // 연결 설정 병합
+          connection: {
+            ...((options.connection as any) || {}),
+            ...((dbSpecificConfig.connectionConfig.connection as any) || {}),
+          },
+        };
+
+        this.logger.info(
+          'Applied database-specific optimizations',
+          'ConnectionService',
+          {
+            databaseId: id,
+            databaseType,
+            batchSize: dbSpecificConfig.performanceSettings.batchSize,
+            maxConnections: dbSpecificConfig.performanceSettings.maxConnections,
+            features: dbSpecificConfig.features,
+          },
+        );
+      }
+
+      // 옵티마이저를 통한 추가 최적화
+      if (optimizer) {
+        optimizedOptions = optimizer.getOptimizedConnectionConfig(optimizedOptions);
+        
+        this.logger.info(
+          'Applied optimizer-specific configurations',
+          'ConnectionService',
+          {
+            databaseId: id,
+            optimizerType: optimizer.getDatabaseType(),
+          },
+        );
+      }
+
+      this.logger.info(
         'Creating Knex connection with database-specific optimizations',
         'ConnectionService',
         {
@@ -70,11 +127,17 @@ export class ConnectionService {
           environment,
           client: options.client,
           optimized: this.databaseOptimizerFactory.isSupported(databaseType),
-          poolSettings: finalOptions.pool,
+          poolSettings: optimizedOptions.pool,
+          hasOptimizer: !!optimizer,
+          hasDbSpecificConfig: !!dbSpecificConfig,
         },
       );
 
-      knexConnections.set(id, knex(finalOptions));
+      const knexInstance = knex(optimizedOptions);
+      knexConnections.set(id, knexInstance);
+
+      // Knex 쿼리 모니터링 연결
+      this.knexQueryMonitor.attachToKnex(knexInstance, id, databaseType);
 
       // 최적화 통계 로깅
       const stats = this.databaseOptimizerFactory.getOptimizationStats();
@@ -92,7 +155,7 @@ export class ConnectionService {
       try {
         // 연결 풀 정리
         await knexInstance.destroy();
-        this.logger.log('Knex connection pool destroyed', 'ConnectionService', {
+        this.logger.info('Knex connection pool destroyed', 'ConnectionService', {
           databaseId: id,
         });
       } catch (error) {
@@ -130,40 +193,11 @@ export class ConnectionService {
         (one as any).connectionConfig = {};
       }
       const knexConfig = one.connectionConfig;
-
-      // client가 없는 경우 engine 값을 사용
-      if (!knexConfig['client'] && one.engine) {
-        knexConfig['client'] = one.engine;
-      }
-
-      // SQLite의 경우 client 이름 수정 필요
-      if (knexConfig['client'] === 'sqlite') {
-        knexConfig['client'] = 'sqlite3';
-        // SQLite의 경우 connection 객체가 없으면 기본값 설정
-        if (!knexConfig['connection']) {
-          knexConfig['connection'] = {
-            filename: knexConfig['filename'] || './demo.db',
-          };
-        }
-      }
-
       if (knexConfig['client'] == 'bigquery') {
         knexConfig['client'] = BigQueryClient;
       } else if (knexConfig['client'] == 'snowflake') {
         knexConfig['client'] = SnowflakeDialect;
       }
-
-      // 로깅 추가
-      this.logger.debug('Creating Knex connection', 'ConnectionService', {
-        databaseId: id,
-        engine: one.engine,
-        client: knexConfig['client'],
-        hasConnection: !!knexConfig['connection'],
-        connectionType: typeof knexConfig['connection'],
-        connectionKeys: knexConfig['connection'] ? Object.keys(knexConfig['connection']) : [],
-        useNullAsDefault: knexConfig['useNullAsDefault'],
-      });
-
       this.addKnex(id, knexConfig as Knex.Config);
     }
     return knexConnections.get(id);
@@ -183,9 +217,6 @@ export class ConnectionService {
         break;
       case 'snowflake':
         engine = SnowflakeDialect;
-        break;
-      case 'sqlite':
-        engine = 'sqlite3';
         break;
     }
 
@@ -212,23 +243,9 @@ export class ConnectionService {
       environment,
     );
 
-    // SQLite 특별 처리
-    let connectionObj = parsedConnectionConfig;
-    if (createDatabaseDto.engine === 'sqlite' || createDatabaseDto.engine === 'better-sqlite3') {
-      // connection 객체가 있으면 그대로 사용, 없으면 생성
-      if (parsedConnectionConfig.connection) {
-        connectionObj = parsedConnectionConfig.connection;
-      } else {
-        connectionObj = {
-          filename:
-            parsedConnectionConfig.filename || parsedConnectionConfig.database || './demo.db',
-        };
-      }
-    }
-
     const connectionConfig: Knex.Config = {
       client: engine,
-      connection: connectionObj,
+      connection: parsedConnectionConfig,
       useNullAsDefault: true,
       // 테스트 연결을 위한 최소한의 풀 설정 (최적화된 설정 기반)
       pool: {
@@ -285,155 +302,6 @@ export class ConnectionService {
   }
 
   /**
-   * 시스템 쿼리 실행 (SQL 검증 우회)
-   * @param queryExecuteDto
-   */
-  async executeSystemQuery(queryExecuteDto: QueryExecuteDto) {
-    const knex = await this.getKnex(queryExecuteDto.id);
-
-    let datas = [];
-    const fields = [];
-    const resultObj = { status: null, message: null, datas: [], fields: [] };
-    const startTime = Date.now();
-
-    try {
-      let queryRes;
-      queryRes = await knex.raw(queryExecuteDto.query);
-
-      // bigquery, snowflake
-      if (typeof knex.client.config.client === 'function') {
-        switch (knex.client.config.client.name) {
-          case 'SnowflakeDialect':
-            if (queryRes && queryRes.rows && queryRes.rows.length > 0) {
-              datas = queryRes.rows;
-              const tempFields = Object.keys(queryRes.rows[0]);
-              tempFields.map(field => {
-                const length = [];
-                const maxCnt = queryRes.rows.length > 100 ? 100 : queryRes.rows.length;
-                for (let i = 0; i < maxCnt; i++) {
-                  length.push(queryRes.rows[i][field]);
-                }
-                const fieldInfo = {
-                  columnName: field,
-                  columnType: FieldTypeUtil.FieldType(length),
-                };
-                fields.push(fieldInfo);
-              });
-            }
-            break;
-          case 'BigQueryClient':
-            if (queryRes && queryRes.length > 0) {
-              datas = queryRes;
-              const tempFields = Object.keys(queryRes[0]);
-
-              tempFields.map(field => {
-                const length = [];
-                const maxCnt = queryRes.length > 100 ? 100 : queryRes.length;
-                for (let i = 0; i < maxCnt; i++) {
-                  length.push(queryRes[i][field]);
-                }
-                const fieldInfo = {
-                  columnName: field,
-                  columnType: FieldTypeUtil.FieldType(length),
-                };
-                fields.push(fieldInfo);
-              });
-            }
-            break;
-        }
-      } else {
-        switch (knex.client.config.client) {
-          case 'mysql2':
-            if (queryRes && queryRes[0].length > 0) {
-              datas = queryRes[0];
-              const tempFields = queryRes[1];
-              tempFields.map(field => {
-                const fieldInfo = {
-                  columnName: field.name,
-                  columnType: FieldTypeUtil.mysqlFieldType(field.columnType),
-                };
-                fields.push(fieldInfo);
-              });
-            }
-            break;
-
-          case 'cockroachdb':
-          case 'pg':
-            if (queryRes && queryRes.rows && queryRes.rows.length > 0) {
-              datas = queryRes.rows;
-              const tempFields = queryRes.fields;
-              tempFields.map(field => {
-                const length = [];
-                const maxCnt = queryRes.rows.length > 100 ? 100 : queryRes.rows.length;
-                for (let i = 0; i < maxCnt; i++) {
-                  length.push(queryRes.rows[i][field.name]);
-                }
-                const fieldInfo = {
-                  columnName: field.name,
-                  columnType: FieldTypeUtil.FieldType(length),
-                };
-                fields.push(fieldInfo);
-              });
-            }
-            break;
-
-          default:
-            if (queryRes && queryRes.length > 0) {
-              datas = queryRes;
-              const tempFields = Object.keys(queryRes[0]);
-
-              tempFields.map(field => {
-                const length = [];
-                const maxCnt = queryRes.length > 100 ? 100 : queryRes.length;
-                for (let i = 0; i < maxCnt; i++) {
-                  length.push(queryRes[i][field]);
-                }
-                const fieldInfo = {
-                  columnName: field,
-                  columnType: FieldTypeUtil.FieldType(length),
-                };
-                fields.push(fieldInfo);
-              });
-            }
-            break;
-        }
-      }
-
-      resultObj.status = ResponseStatus.SUCCESS;
-      resultObj.message = 'success';
-      resultObj.datas = datas;
-      resultObj.fields = fields;
-
-      const executionTime = Date.now() - startTime;
-      this.logger.log('System query executed', 'ConnectionService', {
-        databaseId: queryExecuteDto.id,
-        query: queryExecuteDto.query?.substring(0, 100),
-        executionTime,
-        resultCount: datas.length,
-      });
-    } catch (e) {
-      const executionTime = Date.now() - startTime;
-      resultObj.status = ResponseStatus.ERROR;
-
-      if (e.sqlMessage) {
-        resultObj.message = e.sqlMessage;
-      } else if (e.message) {
-        resultObj.message = e.message;
-      }
-
-      this.logger.error('System query execution failed', e.stack, 'ConnectionService', {
-        databaseId: queryExecuteDto.id,
-        query: queryExecuteDto.query?.substring(0, 200),
-        sqlMessage: e.sqlMessage,
-        errorMessage: e.message,
-        executionTime,
-      });
-    }
-
-    return resultObj;
-  }
-
-  /**
    * 쿼리 실행
    * @param queryExecuteDto
    * @param userId 사용자 ID (보안 로깅용)
@@ -466,7 +334,7 @@ export class ConnectionService {
     }
 
     // 2. 보안 감사 로그
-    this.logger.log('SQL query execution approved', 'ConnectionService', {
+    this.logger.info('SQL query execution approved', 'ConnectionService', {
       userId,
       databaseId: queryExecuteDto.id,
       queryLength: queryExecuteDto.query.length,
@@ -476,6 +344,11 @@ export class ConnectionService {
 
     const knex = await this.getKnex(queryExecuteDto.id);
 
+    // 데이터베이스별 최적화 적용
+    const databaseType = knex.client.config.client;
+    const optimizer = this.databaseOptimizerFactory.getOptimizer(databaseType);
+    const dbSpecificConfig = getDatabaseSpecificConfig(databaseType);
+
     let datas = [];
     const fields = [];
     const resultObj = { status: null, message: null, datas: [], fields: [] };
@@ -483,9 +356,33 @@ export class ConnectionService {
 
     try {
       // 3. 정리된 쿼리 사용 (LIMIT 자동 추가 등)
-      const sanitizedQuery = validationResult.sanitizedQuery;
+      let sanitizedQuery = validationResult.sanitizedQuery;
 
-      // 4. 쿼리 실행 계획 분석 (비동기로 처리하여 성능 영향 최소화)
+      // 4. DB별 쿼리 최적화 적용
+      if (optimizer) {
+        try {
+          // Raw 쿼리를 QueryBuilder로 변환하여 최적화 적용
+          const queryBuilder = knex.queryBuilder().select(knex.raw(sanitizedQuery));
+          const optimizedQueryBuilder = optimizer.optimizeQuery(queryBuilder);
+          sanitizedQuery = optimizedQueryBuilder.toString();
+
+          this.logger.debug('Applied database-specific query optimization', 'ConnectionService', {
+            databaseId: queryExecuteDto.id,
+            databaseType: optimizer.getDatabaseType(),
+            originalQuery: validationResult.sanitizedQuery.substring(0, 100),
+            optimizedQuery: sanitizedQuery.substring(0, 100),
+          });
+        } catch (optimizationError) {
+          // 최적화 실패 시 원본 쿼리 사용
+          this.logger.warn('Query optimization failed, using original query', 'ConnectionService', {
+            databaseId: queryExecuteDto.id,
+            error: optimizationError.message,
+          });
+          sanitizedQuery = validationResult.sanitizedQuery;
+        }
+      }
+
+      // 5. 쿼리 실행 계획 분석 (비동기로 처리하여 성능 영향 최소화)
       this.analyzeQueryAsync(sanitizedQuery, queryExecuteDto.id);
 
       // 5. 매개변수가 있는 경우 파라미터화된 쿼리 실행
@@ -866,7 +763,7 @@ export class ConnectionService {
           const analysis = await this.queryAnalyzerService.analyzeQuery(query, databaseId);
 
           if (analysis.optimizationSuggestions && analysis.optimizationSuggestions.length > 0) {
-            this.logger.log('Query optimization opportunities found', 'ConnectionService', {
+            this.logger.info('Query optimization opportunities found', 'ConnectionService', {
               databaseId,
               query: query.substring(0, 100),
               suggestions: analysis.optimizationSuggestions,
@@ -927,7 +824,7 @@ export class ConnectionService {
     }
 
     // 2. 보안 감사 로그
-    this.logger.log('Streaming SQL query execution approved', 'ConnectionService', {
+    this.logger.info('Streaming SQL query execution approved', 'ConnectionService', {
       userId,
       databaseId: queryExecuteDto.id,
       queryLength: queryExecuteDto.query.length,
@@ -999,7 +896,7 @@ export class ConnectionService {
 
             // 진행상황 로깅 (매 10000행마다)
             if (rowCount % 10000 === 0) {
-              this.logger.log('Streaming query progress', 'ConnectionService', {
+              this.logger.info('Streaming query progress', 'ConnectionService', {
                 databaseId: queryExecuteDto.id,
                 rowsProcessed: rowCount,
                 elapsedTime: Date.now() - startTime,
@@ -1066,7 +963,7 @@ export class ConnectionService {
               rowCount,
             );
 
-            this.logger.log('Streaming query completed', 'ConnectionService', {
+            this.logger.info('Streaming query completed', 'ConnectionService', {
               databaseId: queryExecuteDto.id,
               rowCount,
               executionTime,

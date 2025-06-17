@@ -24,29 +24,45 @@ export class OracleOptimizer extends BaseDatabaseOptimizer {
       parallelDegree?: number; // 병렬 처리 정도
       optimizerMode?: 'FIRST_ROWS' | 'ALL_ROWS'; // 옵티마이저 모드
       enablePlan?: boolean; // 실행 계획 분석
+      indexHint?: string; // 인덱스 힌트
+      joinMethod?: 'HASH' | 'NESTED_LOOPS' | 'SORT_MERGE'; // 조인 방법
+      enableCost?: boolean; // 비용 기반 최적화
     } = {},
   ): Knex.QueryBuilder {
-    const optimizedQuery = queryBuilder;
+    const oracleOptions: any = {};
 
-    // Oracle 힌트 적용 - Knex는 hint를 직접 지원하지 않으므로 주석 처리
-    // TODO: raw 쿼리를 사용하여 Oracle 힌트 구현 필요
+    // Oracle 특정 옵션들을 저장하여 나중에 raw 쿼리에서 사용
+    if (options.hint) {
+      oracleOptions.hint = options.hint;
+    }
 
-    // if (options.hint) {
-    //   // 예: SELECT /*+ hint */ ...
-    // }
+    if (options.parallelDegree && options.parallelDegree > 1) {
+      oracleOptions.parallelHint = `PARALLEL(${options.parallelDegree})`;
+    }
 
-    // // 병렬 처리 힌트
-    // if (options.parallelDegree && options.parallelDegree > 1) {
-    //   // 예: SELECT /*+ PARALLEL(n) */ ...
-    // }
+    if (options.optimizerMode) {
+      const rows = options.optimizerMode === 'FIRST_ROWS' ? '(10)' : '';
+      oracleOptions.optimizerHint = `${options.optimizerMode}${rows}`;
+    }
 
-    // // 옵티마이저 모드 힌트
-    // if (options.optimizerMode) {
-    //   const rows = options.optimizerMode === 'FIRST_ROWS' ? '(10)' : '';
-    //   // 예: SELECT /*+ FIRST_ROWS(10) */ ...
-    // }
+    if (options.indexHint) {
+      oracleOptions.indexHint = `INDEX(${options.indexHint})`;
+    }
 
-    return optimizedQuery;
+    if (options.joinMethod) {
+      oracleOptions.joinHint = `USE_${options.joinMethod}`;
+    }
+
+    if (options.enablePlan) {
+      oracleOptions.enablePlan = true;
+    }
+
+    // Oracle 옵션들을 Knex 옵션으로 전달
+    if (Object.keys(oracleOptions).length > 0) {
+      return queryBuilder.options({ oracle: oracleOptions });
+    }
+
+    return queryBuilder;
   }
 
   /**

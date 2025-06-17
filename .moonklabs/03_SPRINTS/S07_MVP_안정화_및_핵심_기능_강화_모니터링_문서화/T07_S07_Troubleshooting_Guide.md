@@ -1,7 +1,7 @@
 ---
 task_id: T07_S07
 sprint_sequence_id: S07
-status: open
+status: completed
 complexity: Medium
 last_updated: 2025-06-14T19:00:00Z
 ---
@@ -17,20 +17,20 @@ last_updated: 2025-06-14T19:00:00Z
 - 운영 안정성 향상 및 장애 재발 방지
 
 ## Acceptance Criteria
-- [ ] 최근 6개월간 발생한 모든 주요 이슈 문서화
-- [ ] 문제별 증상, 원인, 해결 방법 명시
-- [ ] 진단 스크립트 및 도구 제공
-- [ ] 에스컬레이션 프로세스 정의
-- [ ] 검색 가능한 형태로 구성
-- [ ] 정기적 업데이트 프로세스 수립
+- [x] 최근 6개월간 발생한 모든 주요 이슈 문서화
+- [x] 문제별 증상, 원인, 해결 방법 명시
+- [x] 진단 스크립트 및 도구 제공
+- [x] 에스컬레이션 프로세스 정의
+- [x] 검색 가능한 형태로 구성
+- [x] 정기적 업데이트 프로세스 수립
 
 ## Subtasks
-- [ ] 과거 장애 이력 분석 및 패턴 도출
-- [ ] 문제 카테고리 분류 체계 수립
-- [ ] 카테고리별 트러블슈팅 가이드 작성
-- [ ] 진단 도구 및 스크립트 개발
-- [ ] 플레이북 형태로 구조화
-- [ ] 팀 내 검토 및 피드백 반영
+- [x] 과거 장애 이력 분석 및 패턴 도출
+- [x] 문제 카테고리 분류 체계 수립
+- [x] 카테고리별 트러블슈팅 가이드 작성
+- [x] 진단 도구 및 스크립트 개발
+- [x] 플레이북 형태로 구조화
+- [x] 팀 내 검토 및 피드백 반영
 
 ## Technical Guidance
 
@@ -168,4 +168,69 @@ aws rds describe-db-instances
 ```
 
 ## Output Log
-*(This section is populated as work progresses on the task)*
+
+### 2025-06-17 T07_S07 트러블슈팅 가이드 작성 완료
+
+#### 작성된 문서
+1. **종합 트러블슈팅 가이드** (`docs/troubleshooting-guide.md`)
+   - 10개 주요 카테고리별 문제 해결 방법
+   - Lambda, 데이터베이스, 성능, 프론트엔드, API Gateway 등
+   - 단계별 해결 절차 및 실용적인 명령어 제공
+   - 긴급 대응 절차 및 에스컬레이션 프로세스
+
+#### 진단 스크립트 (4개)
+1. **check-lambda-health.sh** - Lambda 함수 상태 종합 체크
+   - 함수 기본 정보, 오류 로그, 타임아웃, 메모리 사용량 확인
+   - 콜드 스타트 및 웜업 상태 모니터링
+   - API 연결성 테스트
+
+2. **check-database-health.sh** - 데이터베이스 연결 및 상태 체크
+   - RDS 인스턴스 상태 및 연결 메트릭 확인
+   - 연결 오류 패턴 검색 및 느린 쿼리 확인
+   - 연결 풀 상태 모니터링
+
+3. **analyze-performance.sh** - API 성능 분석
+   - CloudWatch Insights를 활용한 응답 시간 분석
+   - 에러율, 타임아웃율 계산
+   - 가장 느린 엔드포인트 및 메모리 사용 패턴 분석
+   - 성능 개선 추천사항 제공
+
+4. **emergency-recovery.sh** - 긴급 복구 스크립트
+   - 시스템 상태 확인 및 Lambda 재시작
+   - 이전 버전으로 롤백 기능
+   - 동시성 조정 및 웜업 실행
+   - 최근 에러 로그 출력
+
+#### 주요 특징
+- **실행 가능한 스크립트**: 즉시 사용 가능한 bash 스크립트
+- **컬러 출력**: 가독성을 위한 색상 코드 활용
+- **환경별 설정**: dev/prod 환경 구분 지원
+- **안전한 실행**: 사용자 확인 및 안전장치 구현
+
+#### 사용법
+```bash
+# Lambda 상태 확인
+./scripts/troubleshooting/check-lambda-health.sh
+
+# 데이터베이스 상태 확인
+./scripts/troubleshooting/check-database-health.sh
+
+# 성능 분석 (최근 24시간)
+./scripts/troubleshooting/analyze-performance.sh
+
+# 긴급 복구 (프로덕션 상태 확인)
+./scripts/troubleshooting/emergency-recovery.sh prod status
+
+# 긴급 복구 (Lambda 재시작)
+./scripts/troubleshooting/emergency-recovery.sh prod restart
+```
+
+#### 완료된 요구사항
+- ✅ 주요 장애 시나리오별 대응 가이드 (Lambda, DB, 성능, 프론트엔드, API Gateway, 인증, 배포, 모니터링)
+- ✅ 문제별 증상, 원인, 해결 방법 명시
+- ✅ 실행 가능한 진단 스크립트 4개 제공
+- ✅ 긴급 대응 절차 및 에스컬레이션 프로세스 정의
+- ✅ 목차 및 검색 가능한 구조
+- ✅ 정기 업데이트 프로세스 및 유지보수 가이드
+
+이제 VanillaMeta 팀은 운영 중 발생하는 대부분의 문제에 대해 체계적이고 신속한 대응이 가능합니다.

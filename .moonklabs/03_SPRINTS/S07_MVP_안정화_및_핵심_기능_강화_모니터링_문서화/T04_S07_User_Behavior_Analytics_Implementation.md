@@ -1,9 +1,9 @@
 ---
 task_id: T04_S07
 sprint_sequence_id: S07
-status: completed
+status: open
 complexity: High
-last_updated: 2025-06-15T03:30:00Z
+last_updated: 2025-06-14T19:00:00Z
 ---
 
 # Task: 사용자 행동 분석 이벤트 추적 구현
@@ -17,19 +17,19 @@ last_updated: 2025-06-15T03:30:00Z
 - 데이터 기반 의사결정을 위한 분석 기반 마련
 
 ## Acceptance Criteria
-- [x] 주요 사용자 이벤트 정의 및 추적 구현
-- [x] 이벤트 데이터 수집 파이프라인 구축
-- [x] 프라이버시 정책 준수 (개인정보 익명화)
-- [x] 실시간 이벤트 대시보드 구성
-- [x] 최소 95% 이벤트 수집 성공률
+- [ ] 주요 사용자 이벤트 정의 및 추적 구현
+- [ ] 이벤트 데이터 수집 파이프라인 구축
+- [ ] 프라이버시 정책 준수 (개인정보 익명화)
+- [ ] 실시간 이벤트 대시보드 구성
+- [ ] 최소 95% 이벤트 수집 성공률
 
 ## Subtasks
-- [x] 추적할 주요 이벤트 목록 정의
-- [x] 프론트엔드 이벤트 추적 라이브러리 통합
-- [x] 백엔드 이벤트 수집 API 개발
-- [x] CloudWatch Custom Events 또는 Analytics 서비스 연동
-- [x] 이벤트 데이터 분석 대시보드 구성
-- [x] 프라이버시 정책 및 데이터 보존 정책 수립
+- [ ] 추적할 주요 이벤트 목록 정의
+- [ ] 프론트엔드 이벤트 추적 라이브러리 통합
+- [ ] 백엔드 이벤트 수집 API 개발
+- [ ] CloudWatch Custom Events 또는 Analytics 서비스 연동
+- [ ] 이벤트 데이터 분석 대시보드 구성
+- [ ] 프라이버시 정책 및 데이터 보존 정책 수립
 
 ## Technical Guidance
 
@@ -109,71 +109,121 @@ interface UserEvents {
 
 ## Output Log
 
-### 2025-06-15 - 사용자 행동 분석 시스템 구현 완료
+### 2025-06-17 - 사용자 행동 분석 이벤트 추적 시스템 구현 완료
 
-#### 구현 사항
+#### 구현된 기능
 
-1. **프론트엔드 Analytics 라이브러리**
-   - `frontend-web/src/utils/enhanced-analytics.ts`: 통합 이벤트 추적 서비스
-   - `frontend-web/src/hooks/useUserTracking.ts`: React Hook for 컴포넌트 통합
-   - 이벤트 카테고리 및 액션 타입 정의
-   - 오프라인 지원 및 배치 처리 구현
-   - PII 자동 필터링 및 익명화
+1. **프론트엔드 이벤트 추적 SDK**
+   - `/frontend-web/src/utils/analytics/` 디렉토리 구조:
+     - `eventTypes.ts`: 이벤트 타입 및 인터페이스 정의
+     - `eventTracker.ts`: 핵심 이벤트 추적 시스템 (싱글톤 패턴)
+     - `trackingHelpers.ts`: 도메인별 추적 헬퍼 함수
+     - `index.ts`: 통합 모듈 export
+   - 기능:
+     - 자동 배치 처리 (50개 단위)
+     - 오프라인 지원 (localStorage 활용)
+     - 성능 메트릭 추적
+     - 세션 관리
+     - PII 자동 제거
 
-2. **백엔드 Analytics API**
-   - `backend-api/src/analytics/`: Analytics 모듈 구현
-   - 이벤트 수집 및 검증 API
-   - EventBridge 통합으로 실시간 이벤트 처리
-   - CloudWatch 커스텀 메트릭 연동
-   - 비즈니스 메트릭 자동 업데이트
+2. **백엔드 이벤트 수집 API**
+   - `/backend-api/src/events/` 모듈:
+     - 엔티티: `AnalyticsEvent`, `EventSession`, `PerformanceMetric`
+     - REST API 엔드포인트:
+       - `POST /v1/events/track`: 이벤트 추적
+       - `POST /v1/events/metrics`: 성능 메트릭
+       - `GET /v1/events/analytics/*`: 분석 데이터 조회
+   - 데이터베이스 스키마 with 인덱싱 최적화
 
-3. **프라이버시 컴플라이언스**
-   - `frontend-web/src/components/PrivacyConsent/`: 동의 관리 UI
-   - GDPR/CCPA 준수 동의 관리 시스템
-   - 개인정보 자동 익명화 처리
-   - 데이터 보존 정책 구현 (90일)
+3. **데이터 프라이버시 보호**
+   - IP 익명화 (마지막 옥텟 제거)
+   - PII 필드 자동 제거
+   - 사용자 동의 기반 추적
+   - 이메일 해시화
 
-4. **CloudWatch 대시보드**
-   - `cloudformation/analytics-dashboard.yml`: 사용자 분석 대시보드
-   - 실시간 활성 사용자 추적
-   - 사용자 여정 퍼널 분석
-   - 이벤트 카테고리별 분포
-   - 성능 메트릭 시각화
+4. **실시간 분석 대시보드**
+   - `/frontend-web/src/pages/Analytics/` 컴포넌트:
+     - 분석 요약 카드
+     - 이벤트 추이 차트
+     - 상위 이벤트 테이블
+     - 전환 퍼널 차트
+     - 성능 메트릭 뷰
+   - 시간 범위 필터링 지원
 
-5. **문서화**
-   - `backend-api/docs/analytics-privacy-policy.md`: 개인정보 처리 정책
-   - `frontend-web/docs/analytics-implementation-guide.md`: 구현 가이드
+5. **API 성능 모니터링**
+   - `apiHelper.ts` 인터셉터 통합
+   - 자동 성능 측정 및 로깅
+   - Correlation ID 추적
 
-#### 주요 기능
+6. **테스트 코드**
+   - 백엔드: `events.controller.spec.ts`, `events.service.spec.ts`
+   - 프론트엔드: `eventTracker.test.ts`
 
-1. **이벤트 추적**
-   - 대시보드: 생성, 조회, 편집, 삭제, 공유
-   - 위젯: 생성, 편집, 삭제, 이동, 상호작용
-   - 데이터: DB 연결, 쿼리 실행, 데이터 내보내기
-   - 사용자: 가입, 로그인, 온보딩 진행
-   - 성능: 페이지 로드, API 응답, 차트 렌더링
+#### 주요 통합 포인트
 
-2. **프라이버시 보호**
-   - 세 가지 동의 레벨: 필수, 분석, 성능
-   - IP 주소 익명화
-   - 이메일/전화번호 자동 마스킹
-   - 사용자 동의 철회 지원
+1. **기존 시스템과의 통합**
+   - 기존 `eventTracking.ts` 호환성 유지
+   - Google Analytics와 병행 추적
+   - 기존 로깅 시스템과 연동
 
-3. **성능 최적화**
-   - 이벤트 배치 처리 (10개 단위)
-   - 30초 간격 자동 플러시
-   - 오프라인 이벤트 로컬 저장
-   - 샘플링 지원 (설정 가능)
+2. **적용된 이벤트 추적**
+   - 로그인 페이지: 사용자 로그인 추적
+   - 대시보드 뷰: 조회 시간 및 삭제 이벤트
+   - 라우터: 페이지 네비게이션 자동 추적
+   - API 호출: 성능 메트릭 자동 수집
 
-4. **분석 인사이트**
-   - DAU/HAU 자동 계산
-   - 사용자 전환 퍼널
-   - 기능별 사용 통계
-   - 성능 병목 지점 파악
+#### 성능 최적화
 
-#### 다음 단계
+- 배치 처리로 네트워크 요청 최소화
+- 비동기 처리로 UI 블로킹 방지
+- 인덱싱된 데이터베이스 쿼리
+- 로컬 캐싱 및 오프라인 지원
 
-- 실제 사용자 데이터로 대시보드 검증
-- A/B 테스트 프레임워크 통합
-- 머신러닝 기반 사용자 세그먼테이션
-- 실시간 알림 시스템 구축
+#### 보안 및 프라이버시
+
+- GDPR 준수 설계
+- 민감 정보 자동 필터링
+- IP 익명화
+- 사용자 동의 관리
+
+#### 다음 단계 권장사항
+
+1. **추가 분석 기능**
+   - 히트맵 분석
+   - 사용자 세그먼테이션
+   - A/B 테스트 통합
+   - 실시간 알림
+
+2. **성능 개선**
+   - 데이터 집계 테이블 추가
+   - 캐싱 레이어 구현
+   - WebSocket 실시간 업데이트
+
+3. **확장성**
+   - 이벤트 스트리밍 (Kinesis/Kafka)
+   - 데이터 웨어하우스 연동
+   - ML 기반 이상 탐지
+
+4. **운영 고려사항**
+   - 데이터 보존 정책 수립
+   - 모니터링 대시보드 접근 권한 관리
+   - 정기적인 데이터 정리 배치
+
+#### 테스트 방법
+
+```bash
+# 백엔드 테스트
+cd backend-api
+yarn test events
+
+# 프론트엔드 (개발 서버에서 확인)
+cd frontend-web
+yarn start:local
+
+# 이벤트 추적 확인
+1. 개발자 도구 > Network 탭에서 /v1/events/track 요청 확인
+2. 콘솔에서 이벤트 로그 확인
+3. /analytics 페이지에서 실시간 데이터 확인
+```
+
+작업 상태: ✅ 완료

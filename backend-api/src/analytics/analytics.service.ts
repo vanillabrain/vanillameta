@@ -1,391 +1,241 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { EventBridge } from 'aws-sdk';
-import { CloudWatchMetricsService } from '../common/monitoring/cloudwatch-metrics.service';
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { AnalyticsEvent } from './entities/analytics-event.entity';
+import { EventDataDto } from './dto/create-event.dto';
 import { CustomLoggerService } from '../common/logger/logger.service';
-import { BusinessMetricsService } from '../common/monitoring/business-metrics.service';
-import {
-  CollectEventsDto,
-  AnalyticsEventDto,
-  EventAction,
-  EventCategory,
-} from './dto/analytics-event.dto';
+const UAParser = require('ua-parser-js');
 
-interface EnrichedEvent extends AnalyticsEventDto {
-  sessionId: string;
-  correlationId?: string;
+interface EventContext {
   userId?: string;
-  isAnonymous?: boolean;
-  metadata?: any;
-  serverTimestamp: string;
-}
-
-interface EventProcessingResult {
-  processed: number;
-  failed: number;
-  errors: string[];
+  correlationId?: string;
+  userAgent?: string;
+  ipAddress?: string;
 }
 
 @Injectable()
 export class AnalyticsService {
-  private readonly logger = new Logger(AnalyticsService.name);
-  private eventBridge: EventBridge;
-  private eventBuffer: EnrichedEvent[] = [];
-  private flushTimer: NodeJS.Timeout | null = null;
-  private readonly BATCH_SIZE = 50;
-  private readonly FLUSH_INTERVAL = 10000; // 10초
-
   constructor(
-    private readonly cloudWatchMetrics: CloudWatchMetricsService,
-    private readonly customLogger: CustomLoggerService,
-    private readonly businessMetrics: BusinessMetricsService,
-  ) {
-    this.eventBridge = new EventBridge({
-      region: process.env.AWS_REGION || 'ap-northeast-2',
-    });
-    this.startBatchProcessor();
-  }
+    @InjectRepository(AnalyticsEvent)
+    private analyticsEventRepository: Repository<AnalyticsEvent>,
+    private readonly logger: CustomLoggerService,
+  ) {}
 
-  /**
-   * 이벤트 수집
-   */
-  async collectEvents(
-    params: CollectEventsDto & {
-      sessionId: string;
-      correlationId?: string;
-      userId?: string;
-      isAnonymous?: boolean;
-    },
-  ): Promise<void> {
-    const { events, metadata, sessionId, correlationId, userId, isAnonymous } = params;
-
+  async collectEvents(events: EventDataDto[], context: EventContext): Promise<void> {
     try {
-      // 이벤트 검증 및 보강
-      const enrichedEvents = events.map(event =>
-        this.enrichEvent(event, {
-          sessionId,
-          correlationId,
-          userId,
-          isAnonymous,
-          metadata,
-        }),
-      );
+      const analyticsEvents = events.map(event => this.createAnalyticsEvent(event, context));
+      
+      // 배치 삽입으로 성능 최적화
+      await this.analyticsEventRepository
+        .createQueryBuilder()
+        .insert()
+        .into(AnalyticsEvent)
+        .values(analyticsEvents)
+        .execute();
 
-      // 버퍼에 추가
-      this.eventBuffer.push(...enrichedEvents);
-
-      // 실시간 메트릭 업데이트
-      await this.updateRealTimeMetrics(enrichedEvents);
-
-      // 비즈니스 메트릭 업데이트
-      await this.updateBusinessMetrics(enrichedEvents);
-
-      // 배치 크기 도달 시 즉시 처리
-      if (this.eventBuffer.length >= this.BATCH_SIZE) {
-        await this.flushEvents();
-      }
-
-      this.customLogger.debug('Events collected', 'AnalyticsService', {
-        eventCount: events.length,
-        sessionId,
-        userId: userId ? 'USER_***' : null,
-      });
-    } catch (error) {
-      this.logger.error('Failed to collect events:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 페이지뷰 추적
-   */
-  async trackPageView(params: {
-    path: string;
-    title?: string;
-    referrer?: string;
-    sessionId: string;
-    userId?: string;
-  }): Promise<void> {
-    const event: AnalyticsEventDto = {
-      action: EventAction.DASHBOARD_VIEWED,
-      category: EventCategory.USER,
-      data: {
-        timestamp: new Date().toISOString(),
-        sessionId: params.sessionId,
-        userId: params.userId,
-        properties: {
-          path: params.path,
-          title: params.title,
-          referrer: params.referrer,
-        },
-      },
-    };
-
-    await this.collectEvents({
-      events: [event],
-      metadata: {} as any,
-      sessionId: params.sessionId,
-      userId: params.userId,
-    });
-  }
-
-  /**
-   * 성능 메트릭 수집
-   */
-  async collectPerformanceMetrics(params: {
-    metrics: Array<{
-      name: string;
-      value: number;
-      unit: string;
-      tags?: Record<string, string>;
-    }>;
-    sessionId: string;
-  }): Promise<void> {
-    try {
-      // CloudWatch 커스텀 메트릭으로 전송
-      for (const metric of params.metrics) {
-        await this.cloudWatchMetrics.putMetric(
-          metric.name,
-          metric.value,
-          metric.unit as any,
-          Object.entries(metric.tags || {}).map(([Name, Value]) => ({ Name, Value })),
-        );
-      }
-
-      // 성능 이벤트로도 기록
-      const events = params.metrics.map(metric => ({
-        action: EventAction.PAGE_LOAD_TIME,
-        category: EventCategory.PERFORMANCE,
-        data: {
-          timestamp: new Date().toISOString(),
-          sessionId: params.sessionId,
-          properties: metric,
-        },
-      }));
-
-      await this.collectEvents({
-        events,
-        metadata: {} as any,
-        sessionId: params.sessionId,
-      });
-    } catch (error) {
-      this.logger.error('Failed to collect performance metrics:', error);
-    }
-  }
-
-  /**
-   * 이벤트 보강
-   */
-  private enrichEvent(
-    event: AnalyticsEventDto,
-    context: {
-      sessionId: string;
-      correlationId?: string;
-      userId?: string;
-      isAnonymous?: boolean;
-      metadata?: any;
-    },
-  ): EnrichedEvent {
-    return {
-      ...event,
-      sessionId: context.sessionId,
-      correlationId: context.correlationId,
-      userId: context.userId,
-      isAnonymous: context.isAnonymous || false,
-      metadata: context.metadata,
-      serverTimestamp: new Date().toISOString(),
-      data: {
-        ...event.data,
-        sessionId: context.sessionId,
+      this.logger.info(`수집된 이벤트 수: ${events.length}`, 'AnalyticsService', {
         userId: context.userId,
         correlationId: context.correlationId,
-      },
+        eventCount: events.length,
+        categories: [...new Set(events.map(e => e.category))],
+      });
+    } catch (error) {
+      this.logger.error('이벤트 수집 실패', error.stack, 'AnalyticsService', {
+        userId: context.userId,
+        correlationId: context.correlationId,
+        error: error.message,
+      });
+      // 이벤트 수집 실패는 사용자에게 에러를 반환하지 않음
+    }
+  }
+
+  private createAnalyticsEvent(event: EventDataDto, context: EventContext): Partial<AnalyticsEvent> {
+    const { metadata = {} } = event;
+    const userAgentData = this.parseUserAgent(context.userAgent);
+
+    return {
+      category: event.category,
+      action: event.action,
+      label: event.label,
+      value: event.value,
+      userId: context.userId || metadata.userId,
+      sessionId: metadata.sessionId || 'unknown',
+      correlationId: context.correlationId,
+      metadata: this.sanitizeMetadata(metadata),
+      userAgent: context.userAgent,
+      screenResolution: metadata.screenResolution,
+      viewport: metadata.viewport,
+      url: metadata.url,
+      referrer: metadata.referrer,
+      ipAddress: this.anonymizeIp(context.ipAddress),
+      eventTimestamp: metadata.timestamp ? new Date(metadata.timestamp) : new Date(),
+      ...userAgentData,
     };
   }
 
-  /**
-   * 실시간 메트릭 업데이트
-   */
-  private async updateRealTimeMetrics(events: EnrichedEvent[]): Promise<void> {
+  private parseUserAgent(userAgent?: string): Partial<AnalyticsEvent> {
+    if (!userAgent) return {};
+
     try {
-      // 이벤트 카테고리별 카운트
-      const categoryCounts = new Map<string, number>();
-      events.forEach(event => {
-        const count = categoryCounts.get(event.category) || 0;
-        categoryCounts.set(event.category, count + 1);
+      const parser = new UAParser(userAgent);
+      const result = parser.getResult();
+
+      return {
+        browser: result.browser.name,
+        browserVersion: result.browser.version,
+        os: result.os.name,
+        osVersion: result.os.version,
+        device: result.device.type || 'desktop',
+      };
+    } catch (error) {
+      this.logger.warn('User-Agent 파싱 실패', 'AnalyticsService', {
+        userAgent,
+        error: error.message,
       });
-
-      // CloudWatch 메트릭 전송
-      for (const [category, count] of categoryCounts) {
-        await this.cloudWatchMetrics.putMetric('UserEvents', count, 'Count', [
-          { Name: 'Category', Value: category },
-        ]);
-      }
-
-      // 활성 사용자 추적
-      const uniqueUsers = new Set(events.filter(e => e.userId).map(e => e.userId));
-      if (uniqueUsers.size > 0) {
-        await this.cloudWatchMetrics.putMetric('ActiveUsers', uniqueUsers.size, 'Count', [
-          { Name: 'Type', Value: 'Realtime' },
-        ]);
-      }
-    } catch (error) {
-      this.logger.error('Failed to update real-time metrics:', error);
+      return {};
     }
   }
 
-  /**
-   * 비즈니스 메트릭 업데이트
-   */
-  private async updateBusinessMetrics(events: EnrichedEvent[]): Promise<void> {
-    try {
-      for (const event of events) {
-        if (!event.userId) continue;
+  private sanitizeMetadata(metadata: Record<string, any>): Record<string, any> {
+    // 민감한 정보 제거
+    const sensitiveKeys = ['password', 'token', 'secret', 'apikey', 'creditcard'];
+    const sanitized = { ...metadata };
 
-        // 사용자 활동 기록
-        await this.businessMetrics.recordUserActivity(
-          event.userId,
-          event.action,
-          event.category,
-          event.data.properties,
-        );
-
-        // 특정 이벤트별 비즈니스 메트릭
-        switch (event.action) {
-          case EventAction.DASHBOARD_CREATED:
-            await this.businessMetrics.recordDashboardCreation(
-              event.data.properties?.templateUsed || 'custom',
-            );
-            break;
-
-          case EventAction.WIDGET_CREATED:
-            await this.businessMetrics.recordWidgetUsage(
-              event.data.properties?.widgetType || 'unknown',
-              event.data.properties?.chartType || 'unknown',
-            );
-            break;
-
-          case EventAction.QUERY_EXECUTED:
-          case EventAction.QUERY_FAILED:
-            const success = event.action === EventAction.QUERY_EXECUTED;
-            if (event.data.properties?.queryDuration) {
-              await this.businessMetrics.recordQueryPerformance(
-                event.data.properties.databaseId || 'unknown',
-                event.data.properties.queryType || 'SELECT',
-                event.data.properties.queryDuration,
-                event.data.properties.rowCount || 0,
-              );
-            }
-            break;
-        }
+    Object.keys(sanitized).forEach(key => {
+      if (sensitiveKeys.some(sensitive => key.toLowerCase().includes(sensitive.toLowerCase()))) {
+        sanitized[key] = '[REDACTED]';
       }
-    } catch (error) {
-      this.logger.error('Failed to update business metrics:', error);
+    });
+
+    // 메타데이터 크기 제한 (10KB)
+    const jsonString = JSON.stringify(sanitized);
+    if (jsonString.length > 10240) {
+      return { truncated: true, originalSize: jsonString.length };
     }
+
+    return sanitized;
   }
 
-  /**
-   * 배치 처리 시작
-   */
-  private startBatchProcessor(): void {
-    this.flushTimer = setInterval(() => {
-      if (this.eventBuffer.length > 0) {
-        this.flushEvents().catch(error => {
-          this.logger.error('Batch processor error:', error);
-        });
-      }
-    }, this.FLUSH_INTERVAL);
-  }
+  private anonymizeIp(ip?: string): string | undefined {
+    if (!ip) return undefined;
 
-  /**
-   * 이벤트 플러시
-   */
-  private async flushEvents(): Promise<void> {
-    if (this.eventBuffer.length === 0) return;
-
-    const events = [...this.eventBuffer];
-    this.eventBuffer = [];
-
-    try {
-      // EventBridge로 전송
-      await this.sendToEventBridge(events);
-
-      // S3에 백업 (대용량 이벤트)
-      if (events.length > 100) {
-        await this.backupToS3(events);
-      }
-
-      this.customLogger.info('Events flushed', 'AnalyticsService', {
-        eventCount: events.length,
-      });
-    } catch (error) {
-      this.logger.error('Failed to flush events:', error);
-      // 실패한 이벤트는 다시 버퍼에 추가
-      this.eventBuffer.unshift(...events);
-    }
-  }
-
-  /**
-   * EventBridge로 이벤트 전송
-   */
-  private async sendToEventBridge(events: EnrichedEvent[]): Promise<void> {
-    const eventBusName = process.env.EVENT_BUS_NAME || 'default';
-
-    // EventBridge는 한 번에 10개 이벤트만 전송 가능
-    const chunks = this.chunkArray(events, 10);
-
-    for (const chunk of chunks) {
-      const entries = chunk.map(event => ({
-        Source: 'vanillameta.analytics',
-        DetailType: `${event.category}.${event.action}`,
-        Detail: JSON.stringify({
-          ...event,
-          environment: process.env.NODE_ENV,
-        }),
-        EventBusName: eventBusName,
-      }));
-
-      try {
-        const result = await this.eventBridge.putEvents({ Entries: entries }).promise();
-
-        if (result.FailedEntryCount && result.FailedEntryCount > 0) {
-          this.logger.error('Some events failed to send to EventBridge:', result.Entries);
-        }
-      } catch (error) {
-        this.logger.error('Failed to send events to EventBridge:', error);
-        throw error;
+    // IPv4 주소의 마지막 옥텟 제거
+    if (ip.includes('.')) {
+      const parts = ip.split('.');
+      if (parts.length === 4) {
+        parts[3] = '0';
+        return parts.join('.');
       }
     }
-  }
 
-  /**
-   * S3 백업
-   */
-  private async backupToS3(events: EnrichedEvent[]): Promise<void> {
-    // S3 백업 로직 구현
-    // 실제 구현 시 AWS S3 SDK 사용
-    this.logger.log(`Would backup ${events.length} events to S3`);
-  }
-
-  /**
-   * 배열 청크 분할
-   */
-  private chunkArray<T>(array: T[], size: number): T[][] {
-    const chunks: T[][] = [];
-    for (let i = 0; i < array.length; i += size) {
-      chunks.push(array.slice(i, i + size));
-    }
-    return chunks;
-  }
-
-  /**
-   * 서비스 종료 시 정리
-   */
-  async onModuleDestroy(): Promise<void> {
-    if (this.flushTimer) {
-      clearInterval(this.flushTimer);
+    // IPv6 주소의 하위 64비트 제거
+    if (ip.includes(':')) {
+      const parts = ip.split(':');
+      if (parts.length >= 4) {
+        return parts.slice(0, 4).join(':') + '::';
+      }
     }
 
-    // 남은 이벤트 플러시
-    await this.flushEvents();
+    return ip;
+  }
+
+  // 분석 쿼리 메서드들
+  async getUserEvents(userId: string, startDate?: Date, endDate?: Date): Promise<AnalyticsEvent[]> {
+    const query = this.analyticsEventRepository
+      .createQueryBuilder('event')
+      .where('event.userId = :userId', { userId });
+
+    if (startDate) {
+      query.andWhere('event.createdAt >= :startDate', { startDate });
+    }
+
+    if (endDate) {
+      query.andWhere('event.createdAt <= :endDate', { endDate });
+    }
+
+    return query.orderBy('event.createdAt', 'DESC').getMany();
+  }
+
+  async getEventStats(startDate: Date, endDate: Date): Promise<any> {
+    const result = await this.analyticsEventRepository
+      .createQueryBuilder('event')
+      .select('event.category', 'category')
+      .addSelect('event.action', 'action')
+      .addSelect('COUNT(*)', 'count')
+      .addSelect('COUNT(DISTINCT event.userId)', 'uniqueUsers')
+      .addSelect('COUNT(DISTINCT event.sessionId)', 'uniqueSessions')
+      .where('event.createdAt BETWEEN :startDate AND :endDate', { startDate, endDate })
+      .groupBy('event.category')
+      .addGroupBy('event.action')
+      .orderBy('count', 'DESC')
+      .getRawMany();
+
+    return result;
+  }
+
+  async getUserJourney(sessionId: string): Promise<AnalyticsEvent[]> {
+    return this.analyticsEventRepository
+      .createQueryBuilder('event')
+      .where('event.sessionId = :sessionId', { sessionId })
+      .orderBy('event.eventTimestamp', 'ASC')
+      .getMany();
+  }
+
+  async getPopularFeatures(limit: number = 10): Promise<any> {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 30); // 최근 30일
+
+    return this.analyticsEventRepository
+      .createQueryBuilder('event')
+      .select('event.category', 'category')
+      .addSelect('event.action', 'action')
+      .addSelect('COUNT(*)', 'usageCount')
+      .addSelect('COUNT(DISTINCT event.userId)', 'uniqueUsers')
+      .where('event.createdAt BETWEEN :startDate AND :endDate', { startDate, endDate })
+      .andWhere('event.category NOT IN (:...excludedCategories)', { 
+        excludedCategories: ['performance', 'error'] 
+      })
+      .groupBy('event.category')
+      .addGroupBy('event.action')
+      .orderBy('usageCount', 'DESC')
+      .limit(limit)
+      .getRawMany();
+  }
+
+  async getErrorRate(startDate: Date, endDate: Date): Promise<any> {
+    const [totalEvents, errorEvents] = await Promise.all([
+      this.analyticsEventRepository
+        .createQueryBuilder('event')
+        .where('event.createdAt BETWEEN :startDate AND :endDate', { startDate, endDate })
+        .getCount(),
+      
+      this.analyticsEventRepository
+        .createQueryBuilder('event')
+        .where('event.createdAt BETWEEN :startDate AND :endDate', { startDate, endDate })
+        .andWhere('event.category = :category', { category: 'error' })
+        .getCount(),
+    ]);
+
+    return {
+      totalEvents,
+      errorEvents,
+      errorRate: totalEvents > 0 ? (errorEvents / totalEvents * 100).toFixed(2) : 0,
+    };
+  }
+
+  async getPerformanceMetrics(startDate: Date, endDate: Date): Promise<any> {
+    return this.analyticsEventRepository
+      .createQueryBuilder('event')
+      .select('event.action', 'metric')
+      .addSelect('AVG(event.value)', 'avgValue')
+      .addSelect('MIN(event.value)', 'minValue')
+      .addSelect('MAX(event.value)', 'maxValue')
+      .addSelect('COUNT(*)', 'count')
+      .where('event.createdAt BETWEEN :startDate AND :endDate', { startDate, endDate })
+      .andWhere('event.category = :category', { category: 'performance' })
+      .andWhere('event.value IS NOT NULL')
+      .groupBy('event.action')
+      .getRawMany();
   }
 }

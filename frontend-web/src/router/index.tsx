@@ -4,6 +4,7 @@ import { ProtectedRoute } from '@/router/ProtectedRoute';
 import Layout from '@/layouts/Layout';
 import PublicLayout from '@/layouts/PublicLayout';
 import { Loading } from '@/components/loading';
+import { RouteTracker } from '@/router/RouteTracker';
 
 // Lazy load all page components with webpack magic comments for better chunk naming
 const Dashboard = lazy(() => import(/* webpackChunkName: "dashboard" */ '@/pages/Dashboard'));
@@ -27,8 +28,10 @@ const PageLoading = () => <Loading in={true} style={{ opacity: 0.4 }} />;
 
 function Router() {
   return (
-    <Suspense fallback={<PageLoading />}>
-      <Routes>
+    <>
+      <RouteTracker />
+      <Suspense fallback={<PageLoading />}>
+        <Routes>
         <Route
           path="/"
           element={
@@ -75,6 +78,7 @@ function Router() {
         </Route>
       </Routes>
     </Suspense>
+    </>
   );
 }
 

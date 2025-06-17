@@ -21,6 +21,7 @@ import bg from '@/assets/images/dashboard-bg.svg';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import ModifyButton from '@/components/button/ModifyButton';
 import ReloadButton from '@/components/button/ReloadButton';
+import { trackDashboardEvent, trackWidgetEvent } from '@/utils/eventTracking';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -71,18 +72,16 @@ function DashboardModify() {
     showLoading();
     DashboardService.selectDashboard(id)
       .then(response => {
-        console.log('selectDashboard response:', response);
-        if (response.status === STATUS.SUCCESS) {
-          setDashboardTitle(response.data.dashboard.title);
-          setWidgets(response.data.widgets || []);
+        if (response.data.status == STATUS.SUCCESS) {
+          setDashboardTitle(response.data.data.title);
+          setWidgets(response.data.data.widgets);
 
-          const layoutData = JSON.parse(response.data.dashboard.layout || '[]');
-          layoutData.map(item => {
+          response.data.data.layout.map(item => {
             if (item.i !== undefined) {
               item.i = item.i.toString();
             }
           });
-          setLayout(layoutData);
+          setLayout(response.data.data.layout);
         } else {
           alert.error('대시보드 조회에 실패했습니다.\n다시 시도해 주세요.');
         }
@@ -281,6 +280,9 @@ function DashboardModify() {
                 tempLayout.splice(index, 1);
                 setLayout([...tempLayout]);
                 setWidgets([...tempWidgets]);
+                
+                // 위젯 삭제 이벤트 추적
+                trackWidgetEvent.deleted(item.id.toString());
               }
             }}
           />
@@ -322,13 +324,11 @@ function DashboardModify() {
               copy: '수정',
               onClick: () => {
                 showLoading();
-                DashboardService.updateDashboard(dashboardId, {
-                  title: dashboardInfo.title,
-                  layout: JSON.stringify(dashboardInfo.layout),
-                  widgets: dashboardInfo.widgets
-                })
+                DashboardService.updateDashboard(dashboardId, dashboardInfo)
                   .then(response => {
-                    if (response.status === 'SUCCESS') {
+                    if (response.data.status === 'SUCCESS') {
+                      // 대시보드 수정 이벤트 추적
+                      trackDashboardEvent.edited(dashboardId, ['title', 'layout', 'widgets']);
                       navigate('/dashboard/' + dashboardId, { replace: true });
                       snackbar.success('대시보드가 수정되었습니다.');
                     } else {
@@ -351,13 +351,18 @@ function DashboardModify() {
               copy: '생성',
               onClick: () => {
                 showLoading();
-                DashboardService.createDashboard({
-                  title: dashboardInfo.title,
-                  layout: JSON.stringify(dashboardInfo.layout),
-                  widgets: dashboardInfo.widgets
-                })
+                DashboardService.createDashboard(dashboardInfo)
                   .then(response => {
-                    if (response.status === 'SUCCESS') {
+                    if (response.data.status === 'SUCCESS') {
+                      // 대시보드 생성 이벤트 추적
+                      const templateUsed = searchParams.get('createType') === 'recommend' ? 'recommend' : 'blank';
+                      trackDashboardEvent.created(response.data.data.id, templateUsed);
+                      
+                      // 위젯 생성 이벤트 추적
+                      widgets.forEach(widget => {
+                        trackWidgetEvent.created(widget.id.toString(), widget.componentType, response.data.data.id);
+                      });
+                      
                       navigate('/dashboard');
                       snackbar.success('대시보드가 생성되었습니다.');
                     } else {
