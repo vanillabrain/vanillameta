@@ -53,17 +53,38 @@ const Login = () => {
       };
       authService
         .signin(data)
-        .then(response => {
-          if (response.status === 201) {
-            setToken(response.data.accessToken);
-            // 로그인 이벤트 추적
-            trackUserSession.login('email', userInfo.userId);
+        .then((response: any) => {
+          console.log('로그인 응답:', response);
+          // API 헬퍼의 post 함수는 response.data를 반환하므로 accessToken과 message를 직접 확인
+          if (response?.accessToken && response?.message === 'success') {
+            const token: string = response.accessToken;
+            console.log('받은 토큰:', token);
+            setToken(token);
+            console.log('토큰 설정 완료, 사용자 정보 가져오는 중...');
+            // 토큰 설정 후 사용자 정보를 먼저 가져온 다음 대시보드로 이동
+            return authService.getUserInfo();
+          } else {
+            console.log('로그인 실패: 응답', response);
+            throw new Error('로그인 실패');
+          }
+        })
+        .then((userResponse: any) => {
+          console.log('사용자 정보 응답:', userResponse);
+          console.log('userResponse 타입:', typeof userResponse);
+          console.log('userResponse null 체크:', userResponse === null);
+          console.log('userResponse undefined 체크:', userResponse === undefined);
+
+          // API 헬퍼의 get 함수는 response.data를 반환하므로 데이터 자체가 있으면 성공으로 간주
+          if (userResponse) {
+            console.log('대시보드로 이동 중...');
             navigate('/dashboard');
+          } else {
+            console.log('사용자 정보가 null/undefined입니다.');
           }
         })
         .catch(error => {
           console.log(error);
-          if (error.response.status === 401) {
+          if (error.response && error.response.status === 401) {
             snackbar.error('ID 또는 비밀번호가 일치하지 않습니다.');
             return;
           }
