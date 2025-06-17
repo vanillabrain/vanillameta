@@ -69,7 +69,6 @@ import { IntegratedMetricsService } from './integrated-metrics.service';
     QueryPerformanceMetricsInterceptor,
     TypeOrmSlowQueryLogger,
     KnexQueryMonitor,
-    QueryAnalyzerService,
   ],
 })
 export class MonitoringModule {}
