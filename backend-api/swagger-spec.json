@@ -1,5 +1,3717 @@
-<<<<<<< HEAD
-{"openapi":"3.0.0","paths":{"/v1":{},"/v1/health":{},"/v1/test/large-data":{},"/v1/test/small-data":{},"/v1/test/already-compressed":{},"/v1/test/json-compression":{},"/v1/test/text-compression":{},"/v1/test/image":{},"/v1/test/performance":{},"/v1/test/compression-info":{},"/v1/test-fields/users":{},"/v1/test-fields/users/basic":{},"/v1/test-fields/dashboards":{},"/v1/test-fields/datasets":{},"/v1/test-fields/public-data":{},"/v1/test-fields/performance-test":{},"/v1/test-fields/field-selection-info":{},"/v1/database/type":{"get":{"operationId":"DatabaseController_findTypeList","parameters":[],"responses":{"200":{"description":""}},"tags":["dashboard"]}},"/v1/database/data":{"get":{"operationId":"DatabaseController_findData","parameters":[{"name":"datasetType","required":true,"in":"query","schema":{"type":"string"}},{"name":"databaseId","required":true,"in":"query","schema":{"type":"number"}},{"name":"datasetId","required":true,"in":"query","schema":{"type":"number"}},{"name":"tableName","required":true,"in":"query","schema":{"type":"string"}}],"responses":{"200":{"description":""}},"tags":["dashboard"]}},"/v1/database/info/{id}":{"get":{"operationId":"DatabaseController_findOneInfo","parameters":[{"name":"id","required":true,"in":"path","schema":{"type":"string"}}],"responses":{"200":{"description":""}},"tags":["dashboard"]}},"/v1/database/{id}/tables":{"get":{"operationId":"DatabaseController_findTables","parameters":[{"name":"id","required":true,"in":"path","schema":{"type":"string"}}],"responses":{"200":{"description":""}},"tags":["dashboard"]}},"/v1/database":{"post":{"operationId":"DatabaseController_create","parameters":[],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/CreateDatabaseDto"}}}},"responses":{"201":{"description":""}},"tags":["dashboard"]},"get":{"operationId":"DatabaseController_findAll","parameters":[{"name":"fields","required":true,"in":"query","schema":{"type":"string"}}],"responses":{"200":{"description":""}},"tags":["dashboard"]}},"/v1/database/test":{"post":{"operationId":"DatabaseController_testConnection","parameters":[],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/CreateDatabaseDto"}}}},"responses":{"201":{"description":""}},"tags":["dashboard"]}},"/v1/database/execute":{"post":{"operationId":"DatabaseController_executeQuery","parameters":[],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/QueryExecuteDto"}}}},"responses":{"201":{"description":""}},"tags":["dashboard"]}},"/v1/database/{id}":{"get":{"operationId":"DatabaseController_findOne","parameters":[{"name":"id","required":true,"in":"path","schema":{"type":"string"}},{"name":"fields","required":true,"in":"query","schema":{"type":"string"}}],"responses":{"200":{"description":""}},"tags":["dashboard"]},"put":{"operationId":"DatabaseController_update","parameters":[{"name":"id","required":true,"in":"path","schema":{"type":"string"}}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/UpdateDatabaseDto"}}}},"responses":{"200":{"description":""}},"tags":["dashboard"]},"delete":{"operationId":"DatabaseController_remove","parameters":[{"name":"id","required":true,"in":"path","schema":{"type":"string"}}],"responses":{"200":{"description":""}},"tags":["dashboard"]}},"/v1/database/execute/stream":{"post":{"operationId":"DatabaseController_executeStreamingQuery","parameters":[],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/QueryExecuteDto"}}}},"responses":{"201":{"description":""}},"tags":["dashboard"]}},"/v1/monitoring/connection-pool/metrics":{},"/v1/monitoring/connection-pool/health":{},"/v1/query-analyzer/analyze":{},"/v1/query-analyzer/analyze-batch":{},"/v1/query-analyzer/measure-performance":{},"/v1/monitoring/query-optimization/report":{},"/v1/monitoring/query-optimization/collected-queries":{},"/v1/monitoring/query-optimization/query-patterns":{},"/v1/monitoring/query-optimization/clear-collection":{},"/v1/monitoring/slow-queries/stats":{},"/v1/monitoring/slow-queries":{},"/v1/monitoring/slow-queries/{id}/resolve":{},"/v1/monitoring/slow-queries/config":{},"/v1/monitoring/slow-queries/cleanup":{},"/v1/monitoring/slow-queries/export":{},"/v1/dataset":{},"/v1/dataset/{id}":{},"/v1/dataset/{id}/cached":{},"/v1/dataset/{id}/cache":{},"/v1/dataset/{id}/cache/stats":{},"/v1/dataset/{id}/stream":{},"/v1/cache/stats":{},"/v1/cache/diagnostics":{},"/v1/cache/optimization-suggestions":{},"/v1/cache/invalidate-all":{},"/v1/cache/invalidate/engine/{engine}":{},"/v1/cache/invalidate/database/{databaseId}":{},"/v1/cache/invalidate/dataset/{datasetId}":{},"/v1/cache/invalidate/pattern":{},"/v1/cache/warmup":{},"/v1/cache/health":{},"/v1/cache/metrics":{},"/v1/widget":{},"/v1/widget/{id}":{},"/v1/dashboard":{},"/v1/dashboard/{id}":{},"/v1/template":{},"/v1/template/{id}":{},"/v1/template/recommend":{},"/v1/template/dashboard":{},"/v1/component/seed":{},"/v1/component":{},"/v1/component/{id}":{},"/v1/user/userinfo":{"get":{"operationId":"UserController_findOne","summary":"해당유저정보 가져오기","parameters":[{"name":"fields","required":false,"in":"query","description":"반환할 필드 선택 (쉼표로 구분). 예: id,email,createdAt","example":"id,userId,email","schema":{"type":"string"}}],"responses":{"200":{"description":""}},"tags":["유저 API"],"security":[{"AccessKey":[]}]}},"/v1/user/change-info":{"patch":{"operationId":"UserController_updateUsername","summary":"유저정보 수정","parameters":[],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/UpdateUserDto"}}}},"responses":{"200":{"description":""}},"tags":["유저 API"],"security":[{"AccessKey":[]}]}},"/v1/user/delete-account":{"delete":{"operationId":"UserController_deleteUser","summary":" 해당유저 삭제 ","parameters":[],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/CreateUserDto"}}}},"responses":{"200":{"description":""}},"tags":["유저 API"],"security":[{"AccessKey":[]}]}},"/v1/user/get-access-token":{"post":{"operationId":"UserController_reissuanceAccessToken","summary":"AccessToken 재 발급","parameters":[],"responses":{"201":{"description":""}},"tags":["유저 API"]}},"/v1/user/get-dashboard":{"get":{"operationId":"UserController_findDashboardId","summary":"해당유정의 대시보드 목록 가져오기","parameters":[{"name":"fields","required":false,"in":"query","description":"반환할 필드 선택 (쉼표로 구분). 예: id,title,description","example":"id,title,createdAt","schema":{"type":"string"}}],"responses":{"200":{"description":""}},"tags":["유저 API"],"security":[{"AccessKey":[]}]}},"/v1/login/signin":{"post":{"operationId":"LoginController_logIn","summary":" 로그인 ","parameters":[],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/LoginUserDto"}}}},"responses":{"201":{"description":""}},"tags":["로그인 관련 API"]}},"/v1/login/signup":{"post":{"operationId":"LoginController_create","summary":"회원가입","parameters":[],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/CreateLoginDto"}}}},"responses":{"201":{"description":""}},"tags":["로그인 관련 API"]}},"/v1/login/signout":{"post":{"operationId":"LoginController_signOut","summary":"로그아웃","parameters":[],"responses":{"201":{"description":""}},"tags":["로그인 관련 API"]}},"/v1/share-url/share-on/{dashboardId}":{"post":{"operationId":"ShareUrlController_checkShareUrlOn","summary":"공유 url On","parameters":[],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/ShareUrlOnDto"}}}},"responses":{"201":{"description":""}},"tags":["url공유화 API"],"security":[{"AccessKey":[]}]}},"/v1/share-url/share-off/{dashboardId}":{"post":{"operationId":"ShareUrlController_checkShareUrlOff","summary":"공유 url Off","parameters":[],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/ShareUrlOnDto"}}}},"responses":{"201":{"description":""}},"tags":["url공유화 API"],"security":[{"AccessKey":[]}]}},"/v1/share-url/share-dashboard/{uuid}":{"get":{"operationId":"ShareUrlController_shareDashboardInfo","summary":"공유 url 접속","parameters":[],"responses":{"200":{"description":""}},"tags":["url공유화 API"]}},"/v1/batch/jobs":{},"/v1/batch/jobs/{id}":{},"/v1/batch/jobs/{id}/chunks":{},"/v1/batch/jobs/{id}/restart":{},"/v1/batch/jobs/{id}/cancel":{},"/v1/v1/background-jobs":{},"/v1/v1/background-jobs/{jobId}":{},"/v1/v1/background-jobs/{jobId}/result":{},"/v1/v1/background-jobs/{jobId}/result/data":{},"/v1/system/memory/stats":{},"/v1/system/memory/current":{},"/v1/system/memory/recommendations":{},"/v1/system/memory/gc":{},"/v1/system/memory/heap-snapshot":{},"/v1/system/memory/heap-snapshot/{filename}":{},"/v1/system/memory/pressure":{}},"info":{"title":"NestJS Study API Docs","description":"NestJS Study API description","version":"1.0.0","contact":{}},"tags":[{"name":"유저 API","description":""},{"name":"url공유화 API","description":""},{"name":"로그인 관련 API","description":""},{"name":"dashboard","description":""}],"servers":[],"components":{"securitySchemes":{"AccessKey":{"scheme":"bearer","bearerFormat":"JWT","type":"http","description":"Enter jwt token","in":"header"}},"schemas":{"CreateDatabaseDto":{"type":"object","properties":{"name":{"type":"string","example":"mysql 데이터베이스","description":"데이터베이스 이름"},"description":{"type":"string","example":"상세 내용","description":"데이터베이스 상세 내용"},"connectionConfig":{"type":"string","example":"{}","description":"설정 JSON 상세"},"engine":{"type":"string","example":"mysql","description":"데이터베이스 엔진"},"type":{"type":"string","example":"mysql","description":"데이터베이스 구분"},"timezone":{"type":"string","example":"Asia/Seoul","description":"서비스 타임존"}},"required":["name","description","connectionConfig","engine","type","timezone"]},"QueryParameterDto":{"type":"object","properties":{"name":{"type":"string","example":"user_id","description":"매개변수 이름"},"value":{"type":"string","example":"123","description":"매개변수 값"},"type":{"type":"string","example":"number","description":"매개변수 타입 (string, number, date)"}},"required":["name","value"]},"QueryExecuteDto":{"type":"object","properties":{"id":{"type":"number","example":1,"description":"database id"},"query":{"type":"string","example":"SELECT * FROM sample_table1 WHERE id = ?","description":"실행할 SQL 쿼리 (SELECT문만 허용)","maxLength":10000},"parameters":{"description":"쿼리 매개변수 (prepared statement용)","type":"array","items":{"$ref":"#/components/schemas/QueryParameterDto"}},"limit":{"type":"number","example":1000,"description":"최대 결과 행 수 (기본값: 1000)","default":1000}},"required":["id","query"]},"UpdateDatabaseDto":{"type":"object","properties":{}},"AnalyzeQueryDto":{"type":"object","properties":{}},"AnalyzeQueriesDto":{"type":"object","properties":{}},"ResolveSlowQueryDto":{"type":"object","properties":{}},"UpdateConfigDto":{"type":"object","properties":{}},"CreateDatasetDto":{"type":"object","properties":{}},"UpdateDatasetDto":{"type":"object","properties":{}},"CacheStatsResponseDto":{"type":"object","properties":{}},"CacheInvalidationRequestDto":{"type":"object","properties":{}},"CacheWarmupRequestDto":{"type":"object","properties":{}},"CreateWidgetDto":{"type":"object","properties":{}},"UpdateWidgetDto":{"type":"object","properties":{}},"CreateDashboardDto":{"type":"object","properties":{}},"UpdateDashboardDto":{"type":"object","properties":{}},"CreateTemplateDto":{"type":"object","properties":{}},"UpdateTemplateDto":{"type":"object","properties":{}},"CreateComponentDto":{"type":"object","properties":{}},"UpdateComponentDto":{"type":"object","properties":{}},"UpdateUserDto":{"type":"object","properties":{"userId":{"type":"string","description":"유저Id"},"password":{"type":"string","description":"유저password"},"email":{"type":"string","description":"유저email"}}},"CreateUserDto":{"type":"object","properties":{"userId":{"type":"string","description":"유저Id"},"password":{"type":"string","description":"유저password"},"email":{"type":"string","description":"유저email"}},"required":["userId","password","email"]},"LoginUserDto":{"type":"object","properties":{"userId":{"type":"string","description":"유저Id"},"password":{"type":"string","description":"유저password"}},"required":["userId","password"]},"CreateLoginDto":{"type":"object","properties":{}},"ShareUrlOnDto":{"type":"object","properties":{"userId":{"type":"string","description":"유저Id"},"endDate":{"type":"string","description":"공유 url 공유기간"}},"required":["userId","endDate"]},"CreateBatchJobDto":{"type":"object","properties":{"type":{"type":"string","description":"배치 작업 유형","enum":["dataset_query","widget_data","export_data"],"example":"dataset_query"},"chunkSize":{"type":"number","description":"청크 크기 (100-10000)","example":1000,"minimum":100,"maximum":10000},"datasetId":{"type":"number","description":"데이터셋 ID (DATASET_QUERY 타입인 경우)"},"widgetId":{"type":"number","description":"위젯 ID (WIDGET_DATA 타입인 경우)"},"config":{"type":"object","description":"작업 설정","example":{"query":"SELECT * FROM users","databaseId":1,"filters":{}}},"metadata":{"type":"object","description":"작업 메타데이터"}},"required":["type","chunkSize"]},"BatchJobResponseDto":{"type":"object","properties":{"id":{"type":"number"},"type":{"type":"string","enum":["dataset_query","widget_data","export_data"]},"status":{"type":"string","enum":["pending","processing","completed","failed","cancelled"]},"totalRecords":{"type":"number"},"processedRecords":{"type":"number"},"chunkSize":{"type":"number"},"totalChunks":{"type":"number"},"completedChunks":{"type":"number"},"failedChunks":{"type":"number"},"progress":{"type":"number","description":"진행률 (0-100)","example":75},"estimatedTimeRemaining":{"type":"number","description":"예상 남은 시간 (밀리초)","example":5000,"nullable":true},"errorMessage":{"type":"string","nullable":true},"startedAt":{"format":"date-time","type":"string","nullable":true},"completedAt":{"format":"date-time","type":"string","nullable":true},"createdAt":{"format":"date-time","type":"string"},"updatedAt":{"format":"date-time","type":"string"},"metadata":{"type":"object","nullable":true}},"required":["id","type","status","totalRecords","processedRecords","chunkSize","totalChunks","completedChunks","failedChunks","progress","estimatedTimeRemaining","errorMessage","startedAt","completedAt","createdAt","updatedAt","metadata"]},"BatchChunkResponseDto":{"type":"object","properties":{"id":{"type":"number"},"sequence":{"type":"number"},"status":{"type":"string"},"startOffset":{"type":"number"},"endOffset":{"type":"number"},"recordCount":{"type":"number"},"processedCount":{"type":"number"},"progress":{"type":"number","description":"진행률 (0-100)","example":50},"retryCount":{"type":"number"},"errorMessage":{"type":"string","nullable":true},"startedAt":{"format":"date-time","type":"string","nullable":true},"completedAt":{"format":"date-time","type":"string","nullable":true},"processingTime":{"type":"number","description":"처리 시간 (밀리초)","nullable":true}},"required":["id","sequence","status","startOffset","endOffset","recordCount","processedCount","progress","retryCount","errorMessage","startedAt","completedAt","processingTime"]},"CreateBackgroundJobDto":{"type":"object","properties":{"jobType":{"type":"string","description":"작업 유형","enum":["query_execution","report_generation","data_export"]},"title":{"type":"string","description":"작업 제목"},"description":{"type":"string","description":"작업 설명"},"datasetId":{"type":"string","description":"데이터셋 ID"},"widgetId":{"type":"string","description":"위젯 ID"},"databaseId":{"type":"string","description":"데이터베이스 ID"},"query":{"type":"string","description":"SQL 쿼리"},"metadata":{"type":"object","description":"추가 메타데이터"}},"required":["jobType","title"]},"BackgroundJobResponseDto":{"type":"object","properties":{"id":{"type":"string","description":"작업 ID"},"jobType":{"type":"string","description":"작업 유형","enum":["query_execution","report_generation","data_export"]},"status":{"type":"string","description":"작업 상태","enum":["pending","processing","completed","failed","cancelled"]},"title":{"type":"string","description":"작업 제목"},"description":{"type":"string","description":"작업 설명"},"progress":{"type":"number","description":"진행률 (0-100)","example":50},"errorMessage":{"type":"string","description":"에러 메시지"},"attemptCount":{"type":"number","description":"시도 횟수","example":1},"startedAt":{"format":"date-time","type":"string","description":"시작 시간"},"completedAt":{"format":"date-time","type":"string","description":"완료 시간"},"processingTimeMs":{"type":"number","description":"처리 시간 (ms)"},"createdAt":{"format":"date-time","type":"string","description":"생성 시간"},"updatedAt":{"format":"date-time","type":"string","description":"수정 시간"},"hasResult":{"type":"boolean","description":"결과 데이터 가용 여부"},"resultSizeBytes":{"type":"number","description":"결과 크기 (bytes)"},"rowCount":{"type":"number","description":"결과 행 수"}},"required":["id","jobType","status","title","progress","attemptCount","createdAt","updatedAt"]},"BackgroundJobListResponseDto":{"type":"object","properties":{"items":{"description":"작업 목록","type":"array","items":{"$ref":"#/components/schemas/BackgroundJobResponseDto"}},"total":{"type":"number","description":"전체 개수"},"page":{"type":"number","description":"현재 페이지"},"pageSize":{"type":"number","description":"페이지 크기"}},"required":["items","total","page","pageSize"]},"JobResultResponseDto":{"type":"object","properties":{"id":{"type":"string","description":"결과 ID"},"backgroundJobId":{"type":"string","description":"작업 ID"},"storageType":{"type":"string","description":"저장 유형","enum":["database","s3","redis"]},"resultData":{"type":"object","description":"결과 데이터 (작은 데이터의 경우)"},"storageLocation":{"type":"string","description":"저장 위치 (큰 데이터의 경우)"},"downloadUrl":{"type":"string","description":"다운로드 URL (S3의 경우)"},"resultSizeBytes":{"type":"number","description":"결과 크기 (bytes)"},"rowCount":{"type":"number","description":"행 수"},"resultMetadata":{"type":"object","description":"결과 메타데이터"},"expiresAt":{"format":"date-time","type":"string","description":"만료 시간"},"isCompressed":{"type":"boolean","description":"압축 여부"},"compressionType":{"type":"string","description":"압축 타입"},"createdAt":{"format":"date-time","type":"string","description":"생성 시간"}},"required":["id","backgroundJobId","storageType","resultSizeBytes","rowCount","expiresAt","isCompressed","createdAt"]}}}}
-=======
-{"openapi":"3.0.0","paths":{"/v1":{},"/v1/ip":{},"/v1/health":{},"/v1/seed":{}},"info":{"title":"NestJS Study API Docs","description":"NestJS Study API description","version":"1.0.0","contact":{}},"tags":[{"name":"유저 API","description":""},{"name":"url공유화 API","description":""},{"name":"로그인 관련 API","description":""},{"name":"dashboard","description":""}],"servers":[],"components":{"securitySchemes":{"AccessKey":{"scheme":"bearer","bearerFormat":"JWT","type":"http","description":"Enter jwt token","in":"header"}},"schemas":{}}}
->>>>>>> task/T001
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/v1": {},
+    "/v1/health": {},
+    "/v1/ip": {},
+    "/v1/seed": {},
+    "/v1/test/large-data": {},
+    "/v1/test/small-data": {},
+    "/v1/test/already-compressed": {},
+    "/v1/test/json-compression": {},
+    "/v1/test/text-compression": {},
+    "/v1/test/image": {},
+    "/v1/test/performance": {},
+    "/v1/test/compression-info": {},
+    "/v1/test-fields/users": {},
+    "/v1/test-fields/users/basic": {},
+    "/v1/test-fields/dashboards": {},
+    "/v1/test-fields/datasets": {},
+    "/v1/test-fields/public-data": {},
+    "/v1/test-fields/performance-test": {},
+    "/v1/test-fields/field-selection-info": {},
+    "/v1/database/type": {
+      "get": {
+        "operationId": "DatabaseController_findTypeList",
+        "summary": "데이터베이스 타입 목록 조회",
+        "description": "지원하는 데이터베이스 타입의 목록을 조회합니다.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "데이터베이스 타입 목록",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "value": {
+                        "type": "string",
+                        "example": "postgresql"
+                      },
+                      "label": {
+                        "type": "string",
+                        "example": "PostgreSQL"
+                      },
+                      "port": {
+                        "type": "number",
+                        "example": 5432
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "데이터베이스"
+        ],
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ]
+      }
+    },
+    "/v1/database/data": {
+      "get": {
+        "operationId": "DatabaseController_findData",
+        "summary": "데이터 조회",
+        "description": "데이터셋 타입에 따라 데이터를 조회합니다.",
+        "parameters": [
+          {
+            "name": "datasetType",
+            "required": true,
+            "in": "query",
+            "description": "데이터셋 타입",
+            "schema": {
+              "enum": [
+                "DATASET",
+                "TABLE"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "databaseId",
+            "required": true,
+            "in": "query",
+            "description": "데이터베이스 ID",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "datasetId",
+            "required": false,
+            "in": "query",
+            "description": "데이터셋 ID",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "tableName",
+            "required": false,
+            "in": "query",
+            "description": "테이블 이름",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "데이터 조회 성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "데이터베이스"
+        ],
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ]
+      }
+    },
+    "/v1/database/info/{id}": {
+      "get": {
+        "operationId": "DatabaseController_findOneInfo",
+        "summary": "데이터베이스 연결정보 조회",
+        "description": "데이터베이스의 기본 연결 정보를 조회합니다.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "데이터베이스 ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "데이터베이스 연결정보"
+          },
+          "404": {
+            "description": "데이터베이스를 찾을 수 없습니다."
+          }
+        },
+        "tags": [
+          "데이터베이스"
+        ],
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ]
+      }
+    },
+    "/v1/database": {
+      "post": {
+        "operationId": "DatabaseController_create",
+        "summary": "데이터베이스 연결 생성",
+        "description": "새로운 데이터베이스 연결을 생성합니다.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDatabaseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "데이터베이스 연결이 성공적으로 생성되었습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateDatabaseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "잘못된 요청 데이터"
+          }
+        },
+        "tags": [
+          "데이터베이스"
+        ],
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ]
+      },
+      "get": {
+        "operationId": "DatabaseController_findAll",
+        "summary": "데이터베이스 목록 조회",
+        "description": "등록된 모든 데이터베이스 연결의 목록을 조회합니다.",
+        "parameters": [
+          {
+            "name": "fields",
+            "required": false,
+            "in": "query",
+            "description": "반환할 필드 선택",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "데이터베이스 목록",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "number"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": "string"
+                      },
+                      "engine": {
+                        "type": "string"
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "데이터베이스"
+        ],
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ]
+      }
+    },
+    "/v1/database/test": {
+      "post": {
+        "operationId": "DatabaseController_testConnection",
+        "summary": "데이터베이스 연결 테스트",
+        "description": "데이터베이스 연결 설정이 올바른지 테스트합니다.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDatabaseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "연결 테스트 결과",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Connection successful"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "연결 실패"
+          }
+        },
+        "tags": [
+          "데이터베이스"
+        ],
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ]
+      }
+    },
+    "/v1/database/execute": {
+      "post": {
+        "operationId": "DatabaseController_executeQuery",
+        "summary": "SQL 쿼리 실행",
+        "description": "지정된 데이터베이스에서 SQL 쿼리를 실행합니다.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QueryExecuteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "쿼리 실행 결과",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "잘못된 SQL 쿼리"
+          }
+        },
+        "tags": [
+          "데이터베이스"
+        ],
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ]
+      }
+    },
+    "/v1/database/{id}": {
+      "get": {
+        "operationId": "DatabaseController_findOne",
+        "summary": "데이터베이스 상세 조회",
+        "description": "데이터베이스의 상세 정보와 테이블, 데이터셋을 조회합니다.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "데이터베이스 ID",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "fields",
+            "required": false,
+            "in": "query",
+            "description": "반환할 필드 선택",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "데이터베이스 상세 정보"
+          },
+          "404": {
+            "description": "데이터베이스를 찾을 수 없습니다."
+          }
+        },
+        "tags": [
+          "데이터베이스"
+        ],
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ]
+      },
+      "put": {
+        "operationId": "DatabaseController_update",
+        "summary": "데이터베이스 연결 수정",
+        "description": "데이터베이스 연결 정보를 수정합니다.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "데이터베이스 ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDatabaseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "데이터베이스 연결이 성공적으로 수정되었습니다."
+          },
+          "400": {
+            "description": "잘못된 요청 데이터"
+          },
+          "404": {
+            "description": "데이터베이스를 찾을 수 없습니다."
+          }
+        },
+        "tags": [
+          "데이터베이스"
+        ],
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "DatabaseController_remove",
+        "summary": "데이터베이스 연결 삭제",
+        "description": "데이터베이스 연결을 삭제합니다.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "데이터베이스 ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "데이터베이스 연결이 성공적으로 삭제되었습니다."
+          },
+          "404": {
+            "description": "데이터베이스를 찾을 수 없습니다."
+          }
+        },
+        "tags": [
+          "데이터베이스"
+        ],
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ]
+      }
+    },
+    "/v1/database/execute/stream": {
+      "post": {
+        "operationId": "DatabaseController_executeStreamingQuery",
+        "summary": "스트리밍 SQL 쿼리 실행",
+        "description": "대용량 데이터를 위한 스트리밍 방식으로 SQL 쿼리를 실행합니다.",
+        "parameters": [
+          {
+            "name": "Transfer-Encoding",
+            "in": "header",
+            "description": "chunked",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QueryExecuteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "스트리밍 데이터",
+            "content": {
+              "application/x-ndjson": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "데이터베이스"
+        ],
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ]
+      }
+    },
+    "/v1/monitoring/connection-pool/metrics": {
+      "get": {
+        "operationId": "MonitoringController_getConnectionPoolMetrics",
+        "summary": "연결 풀 메트릭 조회",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "연결 풀 메트릭",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "current": {
+                      "totalConnections": 5,
+                      "activeConnections": 2,
+                      "idleConnections": 3,
+                      "waitingRequests": 0,
+                      "connectionUtilization": 40,
+                      "timestamp": "2024-01-01T00:00:00.000Z"
+                    },
+                    "statistics": {
+                      "avgUtilization": 35.5,
+                      "maxUtilization": 60,
+                      "avgActiveConnections": 1.8,
+                      "connectionReusability": 85.5
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "모니터링"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/monitoring/connection-pool/health": {
+      "get": {
+        "operationId": "MonitoringController_checkConnectionPoolHealth",
+        "summary": "연결 풀 헬스 체크",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "연결 풀 상태",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "isHealthy": true,
+                    "issues": []
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "모니터링"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/query-analyzer/analyze": {},
+    "/v1/query-analyzer/analyze-batch": {},
+    "/v1/query-analyzer/measure-performance": {},
+    "/v1/monitoring/query-optimization/report": {},
+    "/v1/monitoring/query-optimization/collected-queries": {},
+    "/v1/monitoring/query-optimization/query-patterns": {},
+    "/v1/monitoring/query-optimization/clear-collection": {},
+    "/v1/monitoring/query-optimization/optimization-plan": {},
+    "/v1/monitoring/query-optimization/optimization-guidelines": {},
+    "/v1/monitoring/slow-queries/stats": {},
+    "/v1/monitoring/slow-queries": {},
+    "/v1/monitoring/slow-queries/{id}/resolve": {},
+    "/v1/monitoring/slow-queries/config": {},
+    "/v1/monitoring/slow-queries/cleanup": {},
+    "/v1/monitoring/slow-queries/export": {},
+    "/v1/monitoring/metrics/health": {},
+    "/v1/monitoring/metrics/memory": {},
+    "/v1/monitoring/metrics/dashboard": {},
+    "/v1/monitoring/metrics/api": {},
+    "/v1/monitoring/metrics/query": {},
+    "/v1/monitoring/metrics/summary": {},
+    "/v1/system/memory/stats": {},
+    "/v1/system/memory/current": {},
+    "/v1/system/memory/recommendations": {},
+    "/v1/system/memory/gc": {},
+    "/v1/system/memory/heap-snapshot": {},
+    "/v1/system/memory/heap-snapshot/{filename}": {},
+    "/v1/system/memory/pressure": {},
+    "/v1/dataset": {},
+    "/v1/dataset/{id}": {},
+    "/v1/dataset/{id}/cached": {},
+    "/v1/dataset/{id}/cache": {},
+    "/v1/dataset/{id}/cache/stats": {},
+    "/v1/dataset/{id}/stream": {},
+    "/v1/cache/stats": {},
+    "/v1/cache/diagnostics": {},
+    "/v1/cache/optimization-suggestions": {},
+    "/v1/cache/invalidate-all": {},
+    "/v1/cache/invalidate/engine/{engine}": {},
+    "/v1/cache/invalidate/database/{databaseId}": {},
+    "/v1/cache/invalidate/dataset/{datasetId}": {},
+    "/v1/cache/invalidate/pattern": {},
+    "/v1/cache/warmup": {},
+    "/v1/cache/health": {},
+    "/v1/cache/metrics": {},
+    "/v1/widget": {
+      "post": {
+        "operationId": "WidgetController_create",
+        "summary": "위젯 생성",
+        "description": "새로운 차트 위젯을 생성합니다. 데이터셋과 차트 컴포넌트를 지정해야 합니다.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWidgetDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "위젯이 성공적으로 생성되었습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateWidgetDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "잘못된 요청 데이터"
+          },
+          "401": {
+            "description": "인증 실패"
+          }
+        },
+        "tags": [
+          "위젯"
+        ],
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ]
+      },
+      "get": {
+        "operationId": "WidgetController_findAll",
+        "summary": "위젯 목록 조회",
+        "description": "모든 위젯의 목록을 조회합니다.",
+        "parameters": [
+          {
+            "name": "fields",
+            "required": false,
+            "in": "query",
+            "description": "반환할 필드 선택 (쉼표로 구분)",
+            "example": "id,title,description,componentId",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "위젯 목록이 성공적으로 반환되었습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "number"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "componentId": {
+                        "type": "number"
+                      },
+                      "datasetType": {
+                        "type": "string"
+                      },
+                      "datasetId": {
+                        "type": "number"
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "인증 실패"
+          }
+        },
+        "tags": [
+          "위젯"
+        ],
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ]
+      }
+    },
+    "/v1/widget/{id}": {
+      "get": {
+        "operationId": "WidgetController_findOne",
+        "summary": "위젯 상세 조회",
+        "description": "특정 위젯의 상세 정보를 조회합니다.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "위젯 ID",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "fields",
+            "required": false,
+            "in": "query",
+            "description": "반환할 필드 선택 (쉼표로 구분)",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "위젯 상세 정보가 성공적으로 반환되었습니다."
+          },
+          "401": {
+            "description": "인증 실패"
+          },
+          "404": {
+            "description": "위젯을 찾을 수 없습니다."
+          }
+        },
+        "tags": [
+          "위젯"
+        ],
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ]
+      },
+      "put": {
+        "operationId": "WidgetController_update",
+        "summary": "위젯 수정",
+        "description": "기존 위젯의 정보를 수정합니다.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "위젯 ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateWidgetDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "위젯이 성공적으로 수정되었습니다."
+          },
+          "400": {
+            "description": "잘못된 요청 데이터"
+          },
+          "401": {
+            "description": "인증 실패"
+          },
+          "404": {
+            "description": "위젯을 찾을 수 없습니다."
+          }
+        },
+        "tags": [
+          "위젯"
+        ],
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "WidgetController_remove",
+        "summary": "위젯 삭제",
+        "description": "위젯을 영구적으로 삭제합니다.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "위젯 ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "위젯이 성공적으로 삭제되었습니다."
+          },
+          "401": {
+            "description": "인증 실패"
+          },
+          "404": {
+            "description": "위젯을 찾을 수 없습니다."
+          }
+        },
+        "tags": [
+          "위젯"
+        ],
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ]
+      }
+    },
+    "/v1/dashboard": {
+      "post": {
+        "operationId": "DashboardController_create",
+        "summary": "대시보드 생성",
+        "description": "새로운 대시보드를 생성합니다.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDashboardDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "대시보드가 성공적으로 생성되었습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateDashboardDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "잘못된 요청 데이터"
+          },
+          "401": {
+            "description": "인증 실패"
+          }
+        },
+        "tags": [
+          "대시보드"
+        ],
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ]
+      },
+      "get": {
+        "operationId": "DashboardController_findAll",
+        "summary": "대시보드 목록 조회",
+        "description": "현재 사용자의 모든 대시보드를 조회합니다.",
+        "parameters": [
+          {
+            "name": "fields",
+            "required": false,
+            "in": "query",
+            "description": "반환할 필드 선택 (쉼표로 구분). 중첩 필드는 점(.)으로 구분. 예: id,title,widgets.id,widgets.name",
+            "example": "id,title,description,widgets.id,widgets.name",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "대시보드 목록이 성공적으로 반환되었습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "number"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "widgets": {
+                        "type": "array",
+                        "items": {
+                          "type": "object"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "인증 실패"
+          }
+        },
+        "tags": [
+          "대시보드"
+        ],
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ]
+      }
+    },
+    "/v1/dashboard/{id}": {
+      "get": {
+        "operationId": "DashboardController_findOne",
+        "summary": "대시보드 상세 조회",
+        "description": "특정 대시보드의 상세 정보를 조회합니다.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "대시보드 ID",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "fields",
+            "required": false,
+            "in": "query",
+            "description": "반환할 필드 선택 (쉼표로 구분). 중첩 필드는 점(.)으로 구분",
+            "example": "id,title,widgets.id,widgets.config.title",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "대시보드 상세 정보가 성공적으로 반환되었습니다."
+          },
+          "401": {
+            "description": "인증 실패"
+          },
+          "404": {
+            "description": "대시보드를 찾을 수 없습니다."
+          }
+        },
+        "tags": [
+          "대시보드"
+        ],
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ]
+      },
+      "put": {
+        "operationId": "DashboardController_update",
+        "summary": "대시보드 수정",
+        "description": "기존 대시보드의 정보를 수정합니다.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "대시보드 ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDashboardDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "대시보드가 성공적으로 수정되었습니다."
+          },
+          "400": {
+            "description": "잘못된 요청 데이터"
+          },
+          "401": {
+            "description": "인증 실패"
+          },
+          "404": {
+            "description": "대시보드를 찾을 수 없습니다."
+          }
+        },
+        "tags": [
+          "대시보드"
+        ],
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "DashboardController_remove",
+        "summary": "대시보드 삭제",
+        "description": "대시보드를 영구적으로 삭제합니다.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "대시보드 ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "대시보드가 성공적으로 삭제되었습니다."
+          },
+          "401": {
+            "description": "인증 실패"
+          },
+          "404": {
+            "description": "대시보드를 찾을 수 없습니다."
+          }
+        },
+        "tags": [
+          "대시보드"
+        ],
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ]
+      }
+    },
+    "/v1/template": {
+      "post": {
+        "operationId": "TemplateController_create",
+        "summary": "템플릿 생성",
+        "description": "새로운 대시보드 템플릿을 생성합니다. 템플릿은 위젯 배치와 레이아웃 정보를 포함합니다.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTemplateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "템플릿이 성공적으로 생성되었습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateTemplateDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "잘못된 요청 데이터입니다."
+          }
+        },
+        "tags": [
+          "템플릿"
+        ],
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ]
+      },
+      "get": {
+        "operationId": "TemplateController_findAll",
+        "summary": "템플릿 목록 조회",
+        "description": "사용 가능한 모든 대시보드 템플릿 목록을 조회합니다.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "템플릿 목록이 반환되었습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CreateTemplateDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "템플릿"
+        ],
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ]
+      }
+    },
+    "/v1/template/{id}": {
+      "get": {
+        "operationId": "TemplateController_findOne",
+        "summary": "템플릿 상세 조회",
+        "description": "특정 템플릿의 상세 정보를 조회합니다. 레이아웃과 위젯 배치 정보를 포함합니다.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "템플릿 ID",
+            "example": 1,
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "템플릿 정보가 반환되었습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateTemplateDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "템플릿을 찾을 수 없습니다."
+          }
+        },
+        "tags": [
+          "템플릿"
+        ],
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ]
+      },
+      "put": {
+        "operationId": "TemplateController_update",
+        "summary": "템플릿 수정",
+        "description": "기존 템플릿의 정보를 수정합니다. 템플릿 이름, 설명, 레이아웃 등을 변경할 수 있습니다.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "템플릿 ID",
+            "example": 1,
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTemplateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "템플릿이 성공적으로 수정되었습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateTemplateDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "템플릿을 찾을 수 없습니다."
+          }
+        },
+        "tags": [
+          "템플릿"
+        ],
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "TemplateController_remove",
+        "summary": "템플릿 삭제",
+        "description": "템플릿을 삭제합니다. 실제 삭제가 아닌 사용여부를 N으로 변경합니다 (논리적 삭제).",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "템플릿 ID",
+            "example": 1,
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "템플릿이 성공적으로 삭제되었습니다."
+          },
+          "404": {
+            "description": "템플릿을 찾을 수 없습니다."
+          },
+          "409": {
+            "description": "사용 중인 템플릿은 삭제할 수 없습니다."
+          }
+        },
+        "tags": [
+          "템플릿"
+        ],
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ]
+      }
+    },
+    "/v1/template/recommend": {
+      "post": {
+        "operationId": "TemplateController_findRecommendAll",
+        "summary": "템플릿 추천 목록 조회",
+        "description": "제공된 위젯 목록을 기반으로 적합한 템플릿을 추천합니다. AI 기반 매칭 알고리즘을 사용합니다.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "description": "위젯 목록",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "widgets": {
+                    "type": "array",
+                    "description": "분석할 위젯 ID 목록",
+                    "items": {
+                      "type": "number"
+                    },
+                    "example": [
+                      1,
+                      2,
+                      3,
+                      4
+                    ]
+                  }
+                },
+                "required": [
+                  "widgets"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "추천 템플릿 목록이 반환되었습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "number",
+                        "description": "템플릿 ID"
+                      },
+                      "name": {
+                        "type": "string",
+                        "description": "템플릿 이름"
+                      },
+                      "description": {
+                        "type": "string",
+                        "description": "템플릿 설명"
+                      },
+                      "matchScore": {
+                        "type": "number",
+                        "description": "매칭 점수 (0-100)",
+                        "example": 85.5
+                      },
+                      "matchingWidgets": {
+                        "type": "array",
+                        "description": "매칭된 위젯 ID 목록",
+                        "items": {
+                          "type": "number"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "잘못된 위젯 목록입니다."
+          }
+        },
+        "tags": [
+          "템플릿"
+        ],
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ]
+      }
+    },
+    "/v1/template/dashboard": {
+      "post": {
+        "operationId": "TemplateController_getTemplateDashboardLayout",
+        "summary": "템플릿 기반 대시보드 레이아웃 생성",
+        "description": "선택된 템플릿과 위젯 목록을 기반으로 최적화된 대시보드 레이아웃을 생성합니다. 위젯 위치와 크기가 자동으로 계산됩니다.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "description": "템플릿 ID와 위젯 목록",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "templateId": {
+                    "type": "number",
+                    "description": "사용할 템플릿 ID",
+                    "example": 1
+                  },
+                  "widgets": {
+                    "type": "array",
+                    "description": "배치할 위젯 목록",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number",
+                          "description": "위젯 ID"
+                        },
+                        "type": {
+                          "type": "string",
+                          "description": "위젯 타입"
+                        },
+                        "priority": {
+                          "type": "number",
+                          "description": "우선순위 (옵션)"
+                        }
+                      }
+                    },
+                    "example": [
+                      {
+                        "id": 1,
+                        "type": "line"
+                      },
+                      {
+                        "id": 2,
+                        "type": "bar"
+                      },
+                      {
+                        "id": 3,
+                        "type": "pie"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "templateId",
+                  "widgets"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "대시보드 레이아웃이 생성되었습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "layout": {
+                      "type": "array",
+                      "description": "React Grid Layout 형식의 레이아웃 배열",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "i": {
+                            "type": "string",
+                            "description": "위젯 ID"
+                          },
+                          "x": {
+                            "type": "number",
+                            "description": "X 좌표"
+                          },
+                          "y": {
+                            "type": "number",
+                            "description": "Y 좌표"
+                          },
+                          "w": {
+                            "type": "number",
+                            "description": "너비"
+                          },
+                          "h": {
+                            "type": "number",
+                            "description": "높이"
+                          },
+                          "minW": {
+                            "type": "number",
+                            "description": "최소 너비"
+                          },
+                          "minH": {
+                            "type": "number",
+                            "description": "최소 높이"
+                          }
+                        }
+                      }
+                    },
+                    "templateInfo": {
+                      "type": "object",
+                      "description": "사용된 템플릿 정보",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "cols": {
+                          "type": "number",
+                          "description": "그리드 열 수"
+                        },
+                        "rowHeight": {
+                          "type": "number",
+                          "description": "행 높이"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "잘못된 템플릿 ID 또는 위젯 목록입니다."
+          },
+          "404": {
+            "description": "템플릿을 찾을 수 없습니다."
+          }
+        },
+        "tags": [
+          "템플릿"
+        ],
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ]
+      }
+    },
+    "/v1/component/seed": {},
+    "/v1/component": {},
+    "/v1/component/{id}": {},
+    "/v1/user/userinfo": {
+      "get": {
+        "operationId": "UserController_findOne",
+        "summary": "사용자 정보 조회",
+        "description": "현재 로그인한 사용자의 정보를 조회합니다.",
+        "parameters": [
+          {
+            "name": "fields",
+            "required": false,
+            "in": "query",
+            "description": "반환할 필드 선택 (쉼표로 구분). 예: id,email,createdAt",
+            "example": "id,userId,email",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "사용자 정보",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "number"
+                    },
+                    "userId": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "인증 실패"
+          }
+        },
+        "tags": [
+          "사용자"
+        ],
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ]
+      }
+    },
+    "/v1/user/change-info": {
+      "patch": {
+        "operationId": "UserController_updateUsername",
+        "summary": "사용자 정보 수정",
+        "description": "사용자의 정보를 수정합니다.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "사용자 정보가 성공적으로 수정되었습니다."
+          },
+          "400": {
+            "description": "잘못된 요청 데이터"
+          },
+          "401": {
+            "description": "인증 실패"
+          }
+        },
+        "tags": [
+          "사용자"
+        ],
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ]
+      }
+    },
+    "/v1/user/delete-account": {
+      "delete": {
+        "operationId": "UserController_deleteUser",
+        "summary": "사용자 계정 삭제",
+        "description": "사용자 계정을 영구적으로 삭제합니다. 비밀번호 확인이 필요합니다.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "계정이 성공적으로 삭제되었습니다."
+          },
+          "400": {
+            "description": "비밀번호가 일치하지 않습니다."
+          },
+          "401": {
+            "description": "인증 실패"
+          }
+        },
+        "tags": [
+          "사용자"
+        ],
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ]
+      }
+    },
+    "/v1/user/get-access-token": {
+      "post": {
+        "operationId": "UserController_reissuanceAccessToken",
+        "summary": "액세스 토큰 재발급",
+        "description": "리프레시 토큰을 사용하여 새로운 액세스 토큰을 발급받습니다.",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "액세스 토큰 재발급 성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "accessToken": {
+                      "type": "string",
+                      "description": "새로운 JWT 액세스 토큰",
+                      "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "success"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "리프레시 토큰이 유효하지 않습니다."
+          }
+        },
+        "tags": [
+          "사용자"
+        ]
+      }
+    },
+    "/v1/user/get-dashboard": {
+      "get": {
+        "operationId": "UserController_findDashboardId",
+        "summary": "사용자 대시보드 목록 조회",
+        "description": "현재 사용자가 소유한 대시보드 목록을 조회합니다.",
+        "parameters": [
+          {
+            "name": "fields",
+            "required": false,
+            "in": "query",
+            "description": "반환할 필드 선택 (쉼표로 구분). 예: id,title,description",
+            "example": "id,title,createdAt",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "대시보드 목록",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "number"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "인증 실패"
+          }
+        },
+        "tags": [
+          "사용자"
+        ],
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ]
+      }
+    },
+    "/v1/login/signin": {
+      "post": {
+        "operationId": "LoginController_logIn",
+        "summary": "사용자 로그인",
+        "description": "이메일과 비밀번호로 로그인하여 JWT 액세스 토큰을 발급받습니다.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "로그인 성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "accessToken": {
+                      "type": "string",
+                      "description": "JWT 액세스 토큰",
+                      "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "success"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "잘못된 요청 (유효성 검사 실패)"
+          },
+          "401": {
+            "description": "인증 실패 (이메일 또는 비밀번호 오류)"
+          }
+        },
+        "tags": [
+          "인증"
+        ]
+      }
+    },
+    "/v1/login/signup": {
+      "post": {
+        "operationId": "LoginController_create",
+        "summary": "회원가입",
+        "description": "새로운 사용자 계정을 생성합니다.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateLoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "회원가입 성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "userId": {
+                      "type": "string"
+                    },
+                    "userEmail": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "success"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "잘못된 요청 (유효성 검사 실패 또는 중복된 이메일)"
+          }
+        },
+        "tags": [
+          "인증"
+        ]
+      }
+    },
+    "/v1/login/signout": {
+      "post": {
+        "operationId": "LoginController_signOut",
+        "summary": "로그아웃",
+        "description": "현재 세션을 종료하고 리프레시 토큰을 삭제합니다.",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "로그아웃 성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "success"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "인증 실패"
+          }
+        },
+        "tags": [
+          "인증"
+        ],
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ]
+      }
+    },
+    "/v1/share-url/share-on/{dashboardId}": {
+      "post": {
+        "operationId": "ShareUrlController_checkShareUrlOn",
+        "summary": "대시보드 공유 활성화",
+        "description": "대시보드를 공유 가능한 상태로 변경하고 공유 URL을 생성합니다.",
+        "parameters": [
+          {
+            "name": "dashboardId",
+            "required": true,
+            "in": "path",
+            "description": "대시보드 ID",
+            "example": 1,
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "공유 옵션",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShareUrlOnDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "공유 URL이 생성되었습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "shareUrl": {
+                      "type": "string",
+                      "example": "https://app.vanillameta.com/share/abc123-def456"
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "example": "abc123-def456"
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "example": "2024-12-31T23:59:59Z"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "해당 대시보드를 공유할 권한이 없습니다."
+          },
+          "404": {
+            "description": "대시보드를 찾을 수 없습니다."
+          }
+        },
+        "tags": [
+          "공유"
+        ],
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ]
+      }
+    },
+    "/v1/share-url/share-off/{dashboardId}": {
+      "post": {
+        "operationId": "ShareUrlController_checkShareUrlOff",
+        "summary": "대시보드 공유 비활성화",
+        "description": "대시보드 공유를 중단하고 공유 URL을 무효화합니다.",
+        "parameters": [
+          {
+            "name": "dashboardId",
+            "required": true,
+            "in": "path",
+            "description": "대시보드 ID",
+            "example": 1,
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShareUrlOnDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "공유가 성공적으로 비활성화되었습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "공유가 비활성화되었습니다."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "해당 대시보드를 수정할 권한이 없습니다."
+          },
+          "404": {
+            "description": "대시보드를 찾을 수 없습니다."
+          }
+        },
+        "tags": [
+          "공유"
+        ],
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ]
+      }
+    },
+    "/v1/share-url/share-dashboard/{uuid}": {
+      "get": {
+        "operationId": "ShareUrlController_shareDashboardInfo",
+        "summary": "공유 대시보드 조회",
+        "description": "공유 URL을 통해 대시보드를 조회합니다. 인증 없이 접근 가능합니다.",
+        "parameters": [
+          {
+            "name": "uuid",
+            "required": true,
+            "in": "path",
+            "description": "공유 URL UUID",
+            "example": "abc123-def456-ghi789",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "공유 대시보드 정보가 반환되었습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "dashboard": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "widgets": {
+                          "type": "array",
+                          "items": {
+                            "type": "object"
+                          }
+                        }
+                      }
+                    },
+                    "shareInfo": {
+                      "type": "object",
+                      "properties": {
+                        "expiresAt": {
+                          "type": "string"
+                        },
+                        "viewCount": {
+                          "type": "number"
+                        },
+                        "isPublic": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "비공개 대시보드이거나 접근이 차단되었습니다."
+          },
+          "404": {
+            "description": "공유 URL을 찾을 수 없거나 만료되었습니다."
+          }
+        },
+        "tags": [
+          "공유"
+        ]
+      }
+    },
+    "/v1/batch/jobs": {},
+    "/v1/batch/jobs/{id}": {},
+    "/v1/batch/jobs/{id}/chunks": {},
+    "/v1/batch/jobs/{id}/restart": {},
+    "/v1/batch/jobs/{id}/cancel": {},
+    "/v1/v1/background-jobs": {},
+    "/v1/v1/background-jobs/{jobId}": {},
+    "/v1/v1/background-jobs/{jobId}/result": {},
+    "/v1/v1/background-jobs/{jobId}/result/data": {},
+    "/v1/analytics/events": {},
+    "/v1/analytics/events/batch": {},
+    "/v1/analytics/dashboard/user-events": {},
+    "/v1/analytics/dashboard/stats": {},
+    "/v1/analytics/dashboard/popular-features": {},
+    "/v1/analytics/dashboard/error-rate": {},
+    "/v1/analytics/dashboard/performance-metrics": {},
+    "/v1/analytics/dashboard/user-journey": {},
+    "/v1/v1/events/track": {},
+    "/v1/v1/events/metrics": {},
+    "/v1/v1/events/analytics/summary": {},
+    "/v1/v1/events/analytics/events": {},
+    "/v1/v1/events/analytics/metrics": {},
+    "/v1/v1/events/analytics/funnel": {},
+    "/v1/v1/events/analytics/retention": {},
+    "/v1/v1/events/analytics/user-flow": {}
+  },
+  "info": {
+    "title": "VanillaMeta API Documentation",
+    "description": "VanillaMeta는 기업용 비즈니스 인텔리전스(BI) 웹 애플리케이션으로, 사용자가 코드 작성 없이 다양한 데이터베이스에 연결하여 시각화를 생성하고 대시보드를 구축할 수 있습니다.\n\n## 주요 기능\n- 다중 데이터베이스 연결 지원\n- 50개 이상의 차트 타입 제공\n- 대시보드 생성 및 공유\n- 실시간 데이터 시각화\n\n## 인증\nJWT Bearer 토큰을 사용합니다. 로그인 API를 통해 액세스 토큰을 발급받은 후 Authorization 헤더에 Bearer {token} 형식으로 전달하세요.",
+    "version": "2.0.0",
+    "contact": {}
+  },
+  "tags": [
+    {
+      "name": "인증",
+      "description": "사용자 인증 및 토큰 관리"
+    },
+    {
+      "name": "사용자",
+      "description": "사용자 계정 관리"
+    },
+    {
+      "name": "대시보드",
+      "description": "대시보드 생성, 수정, 삭제, 조회"
+    },
+    {
+      "name": "위젯",
+      "description": "차트 위젯 관리"
+    },
+    {
+      "name": "데이터베이스",
+      "description": "데이터베이스 연결 관리"
+    },
+    {
+      "name": "데이터셋",
+      "description": "SQL 쿼리 데이터셋 관리"
+    },
+    {
+      "name": "차트 컴포넌트",
+      "description": "사용 가능한 차트 타입 조회"
+    },
+    {
+      "name": "템플릿",
+      "description": "대시보드 템플릿 관리"
+    },
+    {
+      "name": "공유",
+      "description": "대시보드 공유 기능"
+    },
+    {
+      "name": "분석",
+      "description": "사용자 행동 분석 및 통계"
+    },
+    {
+      "name": "모니터링",
+      "description": "시스템 모니터링 및 성능 분석"
+    },
+    {
+      "name": "이벤트",
+      "description": "시스템 이벤트 추적"
+    },
+    {
+      "name": "최적화",
+      "description": "캐시 및 성능 최적화"
+    },
+    {
+      "name": "배치",
+      "description": "배치 작업 관리"
+    }
+  ],
+  "servers": [
+    {
+      "url": "http://localhost:4000/v1",
+      "description": "로컬 개발 서버"
+    },
+    {
+      "url": "https://dev-api.vanillameta.com/v1",
+      "description": "개발 서버"
+    },
+    {
+      "url": "https://api.vanillameta.com/v1",
+      "description": "프로덕션 서버"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "AccessToken": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http",
+        "description": "JWT 액세스 토큰을 입력하세요",
+        "in": "header"
+      }
+    },
+    "schemas": {
+      "CreateDatabaseDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "데이터베이스 연결 이름",
+            "example": "프로덕션 MySQL DB",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "description": {
+            "type": "string",
+            "description": "데이터베이스 설명",
+            "example": "메인 서비스용 프로덕션 데이터베이스"
+          },
+          "connectionConfig": {
+            "type": "string",
+            "description": "데이터베이스 연결 설정 (JSON 형식)",
+            "example": "{\"host\":\"localhost\",\"port\":3306,\"username\":\"root\",\"password\":\"password\",\"database\":\"mydb\"}",
+            "format": "json"
+          },
+          "engine": {
+            "type": "string",
+            "description": "데이터베이스 엔진",
+            "example": "mysql",
+            "enum": [
+              "mysql",
+              "postgresql",
+              "mariadb",
+              "oracle",
+              "mssql",
+              "sqlite",
+              "bigquery",
+              "snowflake",
+              "redshift"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "description": "데이터베이스 타입",
+            "example": "mysql",
+            "enum": [
+              "mysql",
+              "postgresql",
+              "mariadb",
+              "oracle",
+              "mssql",
+              "sqlite",
+              "bigquery",
+              "snowflake",
+              "redshift"
+            ]
+          },
+          "timezone": {
+            "type": "string",
+            "description": "타임존 설정",
+            "example": "Asia/Seoul",
+            "default": "Asia/Seoul"
+          }
+        },
+        "required": [
+          "name",
+          "connectionConfig"
+        ]
+      },
+      "QueryParameterDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "user_id",
+            "description": "매개변수 이름"
+          },
+          "value": {
+            "type": "string",
+            "example": "123",
+            "description": "매개변수 값"
+          },
+          "type": {
+            "type": "string",
+            "example": "number",
+            "description": "매개변수 타입 (string, number, date)"
+          }
+        },
+        "required": [
+          "name",
+          "value"
+        ]
+      },
+      "QueryExecuteDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 1,
+            "description": "database id"
+          },
+          "query": {
+            "type": "string",
+            "example": "SELECT * FROM sample_table1 WHERE id = ?",
+            "description": "실행할 SQL 쿼리 (SELECT문만 허용)",
+            "maxLength": 10000
+          },
+          "parameters": {
+            "description": "쿼리 매개변수 (prepared statement용)",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QueryParameterDto"
+            }
+          },
+          "limit": {
+            "type": "number",
+            "example": 1000,
+            "description": "최대 결과 행 수 (기본값: 1000)",
+            "default": 1000
+          }
+        },
+        "required": [
+          "id",
+          "query"
+        ]
+      },
+      "UpdateDatabaseDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "AnalyzeQueryDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "AnalyzeQueriesDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "ResolveSlowQueryDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdateConfigDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateDatasetDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "데이터셋 제목",
+            "example": "월별 매출 통계"
+          },
+          "databaseId": {
+            "type": "number",
+            "description": "데이터베이스 연결 ID",
+            "example": 1
+          },
+          "query": {
+            "type": "string",
+            "description": "SQL 쿼리문",
+            "example": "SELECT date, revenue FROM sales WHERE date >= \"2024-01-01\" ORDER BY date"
+          }
+        },
+        "required": [
+          "title",
+          "databaseId",
+          "query"
+        ]
+      },
+      "UpdateDatasetDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CacheStatsResponseDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CacheInvalidationRequestDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CacheWarmupRequestDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateWidgetDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "위젯 제목",
+            "example": "월별 매출 추이 차트",
+            "maxLength": 255
+          },
+          "description": {
+            "type": "string",
+            "description": "위젯 설명",
+            "example": "2024년 월별 매출 현황을 보여주는 라인 차트"
+          },
+          "databaseId": {
+            "type": "number",
+            "description": "데이터베이스 ID",
+            "example": 1
+          },
+          "componentId": {
+            "type": "number",
+            "description": "차트 컴포넌트 ID",
+            "example": 1,
+            "minimum": 1
+          },
+          "datasetType": {
+            "type": "string",
+            "description": "데이터셋 타입",
+            "enum": [
+              "DATASET",
+              "TABLE"
+            ],
+            "example": "DATASET"
+          },
+          "datasetId": {
+            "type": "number",
+            "description": "데이터셋 ID",
+            "example": 1,
+            "minimum": 1
+          },
+          "tableName": {
+            "type": "string",
+            "description": "테이블 이름 (데이터셋 타입이 TABLE인 경우)",
+            "example": "sales_monthly"
+          },
+          "option": {
+            "type": "string",
+            "description": "차트 옵션 (ECharts 설정 JSON)",
+            "example": "{\"xAxis\":{\"type\":\"category\",\"data\":[\"Jan\",\"Feb\",\"Mar\"]},\"yAxis\":{\"type\":\"value\"},\"series\":[{\"type\":\"line\",\"data\":[820,932,901]}]}",
+            "format": "json"
+          },
+          "delYn": {
+            "type": "string",
+            "description": "삭제 여부",
+            "enum": [
+              "Y",
+              "N"
+            ],
+            "default": "N"
+          }
+        },
+        "required": [
+          "componentId",
+          "datasetType",
+          "datasetId",
+          "option"
+        ]
+      },
+      "UpdateWidgetDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "DashboardLayout": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": "number",
+            "description": "X 좌표 (Grid 위치)",
+            "example": 0,
+            "minimum": 0
+          },
+          "y": {
+            "type": "number",
+            "description": "Y 좌표 (Grid 위치)",
+            "example": 0,
+            "minimum": 0
+          },
+          "w": {
+            "type": "number",
+            "description": "너비 (Grid 크기)",
+            "example": 6,
+            "minimum": 1,
+            "maximum": 12
+          },
+          "h": {
+            "type": "number",
+            "description": "높이 (Grid 크기)",
+            "example": 4,
+            "minimum": 1
+          },
+          "i": {
+            "description": "위젯 식별자",
+            "example": "widget-1",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "required": [
+          "x",
+          "y",
+          "w",
+          "h",
+          "i"
+        ]
+      },
+      "CreateDashboardDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "대시보드 제목",
+            "example": "매출 분석 대시보드",
+            "maxLength": 255
+          },
+          "layout": {
+            "description": "대시보드 레이아웃 설정",
+            "example": [
+              {
+                "x": 0,
+                "y": 0,
+                "w": 6,
+                "h": 4,
+                "i": "widget-1"
+              },
+              {
+                "x": 6,
+                "y": 0,
+                "w": 6,
+                "h": 4,
+                "i": "widget-2"
+              }
+            ],
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardLayout"
+            }
+          }
+        },
+        "required": [
+          "layout"
+        ]
+      },
+      "UpdateDashboardDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "ItemInfoDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateTemplateDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "템플릿 제목",
+            "example": "Sales Dashboard Template"
+          },
+          "description": {
+            "type": "string",
+            "description": "템플릿 설명",
+            "example": "매출 분석을 위한 기본 템플릿입니다."
+          },
+          "layout": {
+            "description": "템플릿 레이아웃 정보",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemInfoDto"
+            }
+          }
+        },
+        "required": [
+          "title",
+          "layout"
+        ]
+      },
+      "UpdateTemplateDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateComponentDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "차트 타입 (예: line, bar, pie, scatter 등)",
+            "example": "line"
+          },
+          "title": {
+            "type": "string",
+            "description": "차트 컴포넌트 제목",
+            "example": "라인 차트"
+          },
+          "description": {
+            "type": "string",
+            "description": "차트 컴포넌트 설명",
+            "example": "시계열 데이터를 표시하는 기본 라인 차트입니다."
+          },
+          "category": {
+            "type": "string",
+            "description": "차트 카테고리 (예: basic, advanced, special, 3d)",
+            "example": "basic"
+          },
+          "option": {
+            "type": "string",
+            "description": "차트 옵션 JSON 문자열",
+            "example": "{\"animation\": true, \"tooltip\": {\"trigger\": \"axis\"}}"
+          },
+          "icon": {
+            "type": "string",
+            "description": "차트 아이콘 URL 또는 아이콘 클래스명",
+            "example": "mdi-chart-line"
+          },
+          "seq": {
+            "type": "number",
+            "description": "표시 순서",
+            "example": 1
+          },
+          "useYn": {
+            "type": "string",
+            "description": "사용 여부 (Y/N)",
+            "example": "Y",
+            "enum": [
+              "Y",
+              "N"
+            ],
+            "default": "Y"
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "category",
+          "option"
+        ]
+      },
+      "UpdateComponentDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "차트 타입 (예: line, bar, pie, scatter 등)",
+            "example": "line"
+          },
+          "title": {
+            "type": "string",
+            "description": "차트 컴포넌트 제목",
+            "example": "라인 차트"
+          },
+          "description": {
+            "type": "string",
+            "description": "차트 컴포넌트 설명",
+            "example": "시계열 데이터를 표시하는 기본 라인 차트입니다."
+          },
+          "category": {
+            "type": "string",
+            "description": "차트 카테고리 (예: basic, advanced, special, 3d)",
+            "example": "basic"
+          },
+          "option": {
+            "type": "string",
+            "description": "차트 옵션 JSON 문자열",
+            "example": "{\"animation\": true, \"tooltip\": {\"trigger\": \"axis\"}}"
+          },
+          "icon": {
+            "type": "string",
+            "description": "차트 아이콘 URL 또는 아이콘 클래스명",
+            "example": "mdi-chart-line"
+          },
+          "seq": {
+            "type": "number",
+            "description": "표시 순서",
+            "example": 1
+          },
+          "useYn": {
+            "type": "string",
+            "description": "사용 여부 (Y/N)",
+            "example": "Y",
+            "enum": [
+              "Y",
+              "N"
+            ],
+            "default": "Y"
+          }
+        }
+      },
+      "UpdateUserDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "유저Id"
+          },
+          "password": {
+            "type": "string",
+            "description": "유저password"
+          },
+          "email": {
+            "type": "string",
+            "description": "유저email"
+          }
+        }
+      },
+      "CreateUserDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "유저Id"
+          },
+          "password": {
+            "type": "string",
+            "description": "유저password"
+          },
+          "email": {
+            "type": "string",
+            "description": "유저email"
+          }
+        },
+        "required": [
+          "userId",
+          "password",
+          "email"
+        ]
+      },
+      "LoginUserDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "사용자 이메일 주소",
+            "example": "user@example.com"
+          },
+          "password": {
+            "type": "string",
+            "description": "사용자 비밀번호",
+            "example": "password123"
+          }
+        },
+        "required": [
+          "userId",
+          "password"
+        ]
+      },
+      "CreateLoginDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "사용자 ID (고유 식별자)",
+            "example": "johndoe",
+            "minLength": 3,
+            "maxLength": 50
+          },
+          "password": {
+            "type": "string",
+            "description": "사용자 비밀번호",
+            "example": "StrongPassword123!",
+            "minLength": 8
+          },
+          "email": {
+            "type": "string",
+            "description": "사용자 이메일 주소",
+            "example": "johndoe@example.com",
+            "format": "email"
+          }
+        },
+        "required": [
+          "userId",
+          "password",
+          "email"
+        ]
+      },
+      "ShareUrlOnDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "사용자 ID",
+            "example": "user123"
+          },
+          "endDate": {
+            "type": "string",
+            "description": "공유 URL 만료 날짜 (ISO 8601 형식)",
+            "example": "2024-12-31T23:59:59Z"
+          }
+        },
+        "required": [
+          "userId",
+          "endDate"
+        ]
+      },
+      "CreateBatchJobDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "배치 작업 유형",
+            "enum": [
+              "dataset_query",
+              "widget_data",
+              "export_data"
+            ],
+            "example": "dataset_query"
+          },
+          "chunkSize": {
+            "type": "number",
+            "description": "청크 크기 (100-10000)",
+            "example": 1000,
+            "minimum": 100,
+            "maximum": 10000
+          },
+          "datasetId": {
+            "type": "number",
+            "description": "데이터셋 ID (DATASET_QUERY 타입인 경우)"
+          },
+          "widgetId": {
+            "type": "number",
+            "description": "위젯 ID (WIDGET_DATA 타입인 경우)"
+          },
+          "config": {
+            "type": "object",
+            "description": "작업 설정",
+            "example": {
+              "query": "SELECT * FROM users",
+              "databaseId": 1,
+              "filters": {}
+            }
+          },
+          "metadata": {
+            "type": "object",
+            "description": "작업 메타데이터"
+          }
+        },
+        "required": [
+          "type",
+          "chunkSize"
+        ]
+      },
+      "BatchJobResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "dataset_query",
+              "widget_data",
+              "export_data"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "processing",
+              "completed",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "totalRecords": {
+            "type": "number"
+          },
+          "processedRecords": {
+            "type": "number"
+          },
+          "chunkSize": {
+            "type": "number"
+          },
+          "totalChunks": {
+            "type": "number"
+          },
+          "completedChunks": {
+            "type": "number"
+          },
+          "failedChunks": {
+            "type": "number"
+          },
+          "progress": {
+            "type": "number",
+            "description": "진행률 (0-100)",
+            "example": 75
+          },
+          "estimatedTimeRemaining": {
+            "type": "number",
+            "description": "예상 남은 시간 (밀리초)",
+            "example": 5000,
+            "nullable": true
+          },
+          "errorMessage": {
+            "type": "string",
+            "nullable": true
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "completedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "status",
+          "totalRecords",
+          "processedRecords",
+          "chunkSize",
+          "totalChunks",
+          "completedChunks",
+          "failedChunks",
+          "progress",
+          "estimatedTimeRemaining",
+          "errorMessage",
+          "startedAt",
+          "completedAt",
+          "createdAt",
+          "updatedAt",
+          "metadata"
+        ]
+      },
+      "BatchChunkResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number"
+          },
+          "sequence": {
+            "type": "number"
+          },
+          "status": {
+            "type": "string"
+          },
+          "startOffset": {
+            "type": "number"
+          },
+          "endOffset": {
+            "type": "number"
+          },
+          "recordCount": {
+            "type": "number"
+          },
+          "processedCount": {
+            "type": "number"
+          },
+          "progress": {
+            "type": "number",
+            "description": "진행률 (0-100)",
+            "example": 50
+          },
+          "retryCount": {
+            "type": "number"
+          },
+          "errorMessage": {
+            "type": "string",
+            "nullable": true
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "completedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "processingTime": {
+            "type": "number",
+            "description": "처리 시간 (밀리초)",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "sequence",
+          "status",
+          "startOffset",
+          "endOffset",
+          "recordCount",
+          "processedCount",
+          "progress",
+          "retryCount",
+          "errorMessage",
+          "startedAt",
+          "completedAt",
+          "processingTime"
+        ]
+      },
+      "CreateBackgroundJobDto": {
+        "type": "object",
+        "properties": {
+          "jobType": {
+            "type": "string",
+            "description": "작업 유형",
+            "enum": [
+              "query_execution",
+              "report_generation",
+              "data_export"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "description": "작업 제목"
+          },
+          "description": {
+            "type": "string",
+            "description": "작업 설명"
+          },
+          "datasetId": {
+            "type": "string",
+            "description": "데이터셋 ID"
+          },
+          "widgetId": {
+            "type": "string",
+            "description": "위젯 ID"
+          },
+          "databaseId": {
+            "type": "string",
+            "description": "데이터베이스 ID"
+          },
+          "query": {
+            "type": "string",
+            "description": "SQL 쿼리"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "추가 메타데이터"
+          }
+        },
+        "required": [
+          "jobType",
+          "title"
+        ]
+      },
+      "BackgroundJobResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "작업 ID"
+          },
+          "jobType": {
+            "type": "string",
+            "description": "작업 유형",
+            "enum": [
+              "query_execution",
+              "report_generation",
+              "data_export"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "description": "작업 상태",
+            "enum": [
+              "pending",
+              "processing",
+              "completed",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "description": "작업 제목"
+          },
+          "description": {
+            "type": "string",
+            "description": "작업 설명"
+          },
+          "progress": {
+            "type": "number",
+            "description": "진행률 (0-100)",
+            "example": 50
+          },
+          "errorMessage": {
+            "type": "string",
+            "description": "에러 메시지"
+          },
+          "attemptCount": {
+            "type": "number",
+            "description": "시도 횟수",
+            "example": 1
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "시작 시간"
+          },
+          "completedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "완료 시간"
+          },
+          "processingTimeMs": {
+            "type": "number",
+            "description": "처리 시간 (ms)"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "생성 시간"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "수정 시간"
+          },
+          "hasResult": {
+            "type": "boolean",
+            "description": "결과 데이터 가용 여부"
+          },
+          "resultSizeBytes": {
+            "type": "number",
+            "description": "결과 크기 (bytes)"
+          },
+          "rowCount": {
+            "type": "number",
+            "description": "결과 행 수"
+          }
+        },
+        "required": [
+          "id",
+          "jobType",
+          "status",
+          "title",
+          "progress",
+          "attemptCount",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "BackgroundJobListResponseDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "description": "작업 목록",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BackgroundJobResponseDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "description": "전체 개수"
+          },
+          "page": {
+            "type": "number",
+            "description": "현재 페이지"
+          },
+          "pageSize": {
+            "type": "number",
+            "description": "페이지 크기"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ]
+      },
+      "JobResultResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "결과 ID"
+          },
+          "backgroundJobId": {
+            "type": "string",
+            "description": "작업 ID"
+          },
+          "storageType": {
+            "type": "string",
+            "description": "저장 유형",
+            "enum": [
+              "database",
+              "s3",
+              "redis"
+            ]
+          },
+          "resultData": {
+            "type": "object",
+            "description": "결과 데이터 (작은 데이터의 경우)"
+          },
+          "storageLocation": {
+            "type": "string",
+            "description": "저장 위치 (큰 데이터의 경우)"
+          },
+          "downloadUrl": {
+            "type": "string",
+            "description": "다운로드 URL (S3의 경우)"
+          },
+          "resultSizeBytes": {
+            "type": "number",
+            "description": "결과 크기 (bytes)"
+          },
+          "rowCount": {
+            "type": "number",
+            "description": "행 수"
+          },
+          "resultMetadata": {
+            "type": "object",
+            "description": "결과 메타데이터"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "만료 시간"
+          },
+          "isCompressed": {
+            "type": "boolean",
+            "description": "압축 여부"
+          },
+          "compressionType": {
+            "type": "string",
+            "description": "압축 타입"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "생성 시간"
+          }
+        },
+        "required": [
+          "id",
+          "backgroundJobId",
+          "storageType",
+          "resultSizeBytes",
+          "rowCount",
+          "expiresAt",
+          "isCompressed",
+          "createdAt"
+        ]
+      },
+      "EventDataDto": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string",
+            "description": "이벤트 카테고리"
+          },
+          "action": {
+            "type": "string",
+            "description": "이벤트 액션"
+          },
+          "label": {
+            "type": "string",
+            "description": "이벤트 라벨"
+          },
+          "value": {
+            "type": "number",
+            "description": "이벤트 값"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "이벤트 메타데이터"
+          }
+        },
+        "required": [
+          "category",
+          "action"
+        ]
+      },
+      "CreateEventDto": {
+        "type": "object",
+        "properties": {
+          "events": {
+            "description": "이벤트 배열",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventDataDto"
+            }
+          }
+        },
+        "required": [
+          "events"
+        ]
+      },
+      "EventPropertiesDto": {
+        "type": "object",
+        "properties": {
+          "timestamp": {
+            "type": "number"
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "correlationId": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "userAgent": {
+            "type": "string"
+          },
+          "screenResolution": {
+            "type": "string"
+          },
+          "viewportSize": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string"
+          },
+          "platform": {
+            "type": "string"
+          }
+        }
+      },
+      "UserPropertiesDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "registrationDate": {
+            "type": "string"
+          },
+          "lastLoginDate": {
+            "type": "string"
+          },
+          "dashboardCount": {
+            "type": "number"
+          },
+          "widgetCount": {
+            "type": "number"
+          },
+          "databaseCount": {
+            "type": "number"
+          },
+          "plan": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "userId"
+        ]
+      },
+      "AnalyticsEventDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "value": {
+            "type": "number"
+          },
+          "properties": {
+            "$ref": "#/components/schemas/EventPropertiesDto"
+          },
+          "userProperties": {
+            "$ref": "#/components/schemas/UserPropertiesDto"
+          }
+        },
+        "required": [
+          "action",
+          "category"
+        ]
+      },
+      "SessionInfoDto": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          },
+          "startTime": {
+            "type": "number"
+          },
+          "lastActivityTime": {
+            "type": "number"
+          },
+          "pageViews": {
+            "type": "number"
+          },
+          "eventCount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "sessionId",
+          "startTime",
+          "lastActivityTime",
+          "pageViews",
+          "eventCount"
+        ]
+      },
+      "TrackEventDto": {
+        "type": "object",
+        "properties": {
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsEventDto"
+            }
+          },
+          "sessionInfo": {
+            "$ref": "#/components/schemas/SessionInfoDto"
+          }
+        },
+        "required": [
+          "events"
+        ]
+      },
+      "PerformanceMetricDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "value": {
+            "type": "number"
+          },
+          "category": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "name",
+          "value"
+        ]
+      },
+      "TrackMetricDto": {
+        "type": "object",
+        "properties": {
+          "metrics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PerformanceMetricDto"
+            }
+          }
+        },
+        "required": [
+          "metrics"
+        ]
+      },
+      "ErrorResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "성공 여부",
+            "example": false
+          },
+          "error": {
+            "type": "object",
+            "description": "에러 정보",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "VALIDATION_ERROR"
+              },
+              "message": {
+                "type": "string",
+                "example": "유효성 검사 실패"
+              },
+              "details": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ErrorDetailDto"
+                }
+              }
+            }
+          },
+          "timestamp": {
+            "type": "string",
+            "description": "에러 발생 시간",
+            "example": "2024-01-01T00:00:00.000Z",
+            "format": "date-time"
+          },
+          "path": {
+            "type": "string",
+            "description": "요청 경로",
+            "example": "/v1/users/123"
+          },
+          "statusCode": {
+            "type": "number",
+            "description": "HTTP 상태 코드",
+            "example": 400
+          }
+        },
+        "required": [
+          "success",
+          "error",
+          "timestamp",
+          "path",
+          "statusCode"
+        ]
+      },
+      "SuccessResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "성공 여부",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "description": "응답 메시지",
+            "example": "요청이 성공적으로 처리되었습니다."
+          },
+          "data": {
+            "type": "object",
+            "description": "응답 데이터"
+          },
+          "timestamp": {
+            "type": "string",
+            "description": "응답 시간",
+            "example": "2024-01-01T00:00:00.000Z",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "data",
+          "timestamp"
+        ]
+      },
+      "PaginatedResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "성공 여부",
+            "example": true
+          },
+          "data": {
+            "type": "object",
+            "description": "페이지네이션 데이터",
+            "properties": {
+              "items": {
+                "type": "array",
+                "description": "아이템 목록"
+              },
+              "total": {
+                "type": "number",
+                "example": 100,
+                "description": "전체 아이템 수"
+              },
+              "page": {
+                "type": "number",
+                "example": 1,
+                "description": "현재 페이지"
+              },
+              "pageSize": {
+                "type": "number",
+                "example": 20,
+                "description": "페이지 크기"
+              },
+              "totalPages": {
+                "type": "number",
+                "example": 5,
+                "description": "전체 페이지 수"
+              }
+            }
+          },
+          "timestamp": {
+            "type": "string",
+            "description": "응답 시간",
+            "example": "2024-01-01T00:00:00.000Z",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "success",
+          "data",
+          "timestamp"
+        ]
+      }
+    },
+    "responses": {
+      "UnauthorizedError": {
+        "description": "인증 실패",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponseDto"
+            }
+          }
+        }
+      },
+      "BadRequestError": {
+        "description": "잘못된 요청",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponseDto"
+            }
+          }
+        }
+      },
+      "NotFoundError": {
+        "description": "리소스를 찾을 수 없음",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponseDto"
+            }
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "AccessToken": []
+    }
+  ]
+}

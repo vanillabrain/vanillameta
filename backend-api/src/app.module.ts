@@ -36,6 +36,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { MetricsInterceptor } from './common/interceptors/metrics.interceptor';
 import { EventsModule } from './events/events.module';
 import { DatabaseModule } from './database/database.module';
+import { InitializationModule } from './common/init/initialization.module';
 import { DatasetModule } from './dataset/dataset.module';
 import { WidgetModule } from './widget/widget.module';
 import { DashboardModule } from './dashboard/dashboard.module';
@@ -125,6 +126,7 @@ import { MonitoringModule } from './common/monitoring/monitoring.module';
     MemoryMonitorModule,
     AnalyticsModule,
     EventsModule,
+    InitializationModule,
   ],
   controllers: [AppController, TestCompressionController, TestFieldSelectionController],
   providers: [

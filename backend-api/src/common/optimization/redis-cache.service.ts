@@ -82,8 +82,14 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
    * Redis 설정 초기화
    */
   private initializeConfig(): void {
+    // 로컬 환경에서는 Redis를 기본적으로 비활성화
+    const isLocal = this.configService.get('NODE_ENV') === 'local';
+    const redisEnabled = isLocal 
+      ? this.configService.get('REDIS_CACHE_ENABLED', 'false') === 'true'
+      : this.configService.get('REDIS_CACHE_ENABLED', 'true') === 'true';
+      
     this.config = {
-      enabled: this.configService.get('REDIS_CACHE_ENABLED', 'true') === 'true',
+      enabled: redisEnabled,
       host: this.configService.get('REDIS_HOST', 'localhost'),
       port: parseInt(this.configService.get('REDIS_PORT', '6379')),
       password: this.configService.get('REDIS_PASSWORD'),
@@ -152,12 +158,16 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
 
       this.redis.on('error', error => {
         this.connected = false;
-        this.logger.error('Redis cache connection error:', error);
+        if (this.configService.get('NODE_ENV') !== 'local') {
+          this.logger.error('Redis cache connection error:', error);
+        }
       });
 
       this.redis.on('close', () => {
         this.connected = false;
-        this.logger.warn('Redis cache connection closed');
+        if (this.configService.get('NODE_ENV') !== 'local') {
+          this.logger.warn('Redis cache connection closed');
+        }
       });
 
       // 연결 시도
@@ -169,7 +179,11 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
         cluster: this.config.cluster.enabled,
       });
     } catch (error) {
-      this.logger.error('Failed to initialize Redis cache:', error);
+      if (this.configService.get('NODE_ENV') !== 'local') {
+        this.logger.error('Failed to initialize Redis cache:', error);
+      } else {
+        this.logger.log('Redis cache is not available in local environment');
+      }
       this.connected = false;
     }
   }
