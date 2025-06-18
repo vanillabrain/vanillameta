@@ -59,32 +59,49 @@ import { MonitoringModule } from './common/monitoring/monitoring.module';
     }),
 
     TypeOrmModule.forRootAsync({
-      imports: [LoggerModule, MonitoringModule],
-      inject: [CustomLoggerService, SlowQueryMonitorService, QueryAnalyzerService],
-      useFactory: (
-        customLogger: CustomLoggerService,
-        slowQueryMonitorService: SlowQueryMonitorService,
-        queryAnalyzerService: QueryAnalyzerService,
-      ) => ({
-      type: process.env.NODE_ENV == 'local' ? 'sqlite' : 'mysql',
-      host: process.env.DB_HOST,
-      port: parseInt(process.env.DB_PORT) || 3306,
-      username: process.env.DB_USERNAME,
-      password: process.env.DB_PASSWORD,
-      database: process.env.NODE_ENV == 'local' ? 'sqlite.db' : process.env.DB_NAME,
-      autoLoadEntities: true,
-      entities: [__dirname + '/**/*.entity{.ts,.js}'],
-      synchronize: process.env.NODE_ENV != 'prod',
-      logging: process.env.NODE_ENV != 'prod',
-      logger: new TypeOrmSlowQueryLogger(
-        customLogger,
-        slowQueryMonitorService,
-        queryAnalyzerService,
-      ),
-      retryAttempts: 1,
-      // 연결 재사용을 위한 설정
-      keepConnectionAlive: true, // 애플리케이션 재시작 시 연결 유지
-      retryDelay: 3000, // 재시도 간격 (3초)
+      imports: [LoggerModule],
+      inject: [CustomLoggerService],
+      useFactory: (customLogger: CustomLoggerService) => ({
+        type: process.env.NODE_ENV == 'local' ? 'sqlite' : 'mysql',
+        host: process.env.DB_HOST,
+        port: parseInt(process.env.DB_PORT) || 3306,
+        username: process.env.DB_USERNAME,
+        password: process.env.DB_PASSWORD,
+        database:
+          process.env.NODE_ENV == 'local' ? `${__dirname}/../sqlite.db` : process.env.DB_NAME,
+        autoLoadEntities: true,
+        entities: [__dirname + '/**/*.entity{.ts,.js}'],
+        synchronize: process.env.NODE_ENV != 'prod',
+        logging: process.env.NODE_ENV != 'prod',
+        // logger: new TypeOrmSlowQueryLogger(
+        //   customLogger,
+        //   slowQueryMonitorService,
+        //   null, // QueryAnalyzerService는 나중에 주입
+        // ),
+        retryAttempts: 1,
+        // Lambda 환경에 최적화된 연결 풀 설정
+        ...(process.env.NODE_ENV !== 'local' && {
+          extra: {
+            // 연결 풀 크기 설정
+            connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT) || 5, // Lambda 환경에 적합한 작은 풀
+
+            // 타임아웃 설정
+            connectTimeout: 30000, // 30초 - Lambda 타임아웃보다 짧게
+            acquireTimeout: 30000, // 30초 - 연결 획득 타임아웃
+            timeout: 30000, // 30초 - 쿼리 타임아웃
+
+            // 연결 유지 설정
+            enableKeepAlive: true, // TCP KeepAlive 활성화
+            keepAliveInitialDelay: 0, // KeepAlive 시작 지연 시간
+
+            // 재시도 설정
+            waitForConnections: true, // 연결 풀이 가득 찬 경우 대기
+            queueLimit: 0, // 대기 큐 제한 없음
+          },
+        }),
+        // 연결 재사용을 위한 설정
+        keepConnectionAlive: true, // 애플리케이션 재시작 시 연결 유지
+        retryDelay: 3000, // 재시도 간격 (3초)
       }),
     }),
     DatabaseModule,

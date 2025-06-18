@@ -1,8 +1,8 @@
-import { Logger as TypeOrmLogger, QueryRunner } from 'typeorm';
 import { Injectable, Logger } from '@nestjs/common';
+import { QueryRunner, Logger as TypeOrmLogger } from 'typeorm';
 import { CustomLoggerService } from '../logger/logger.service';
-import { SlowQueryMonitorService } from './slow-query-monitor.service';
 import { QueryAnalyzerService } from './query-analyzer.service';
+import { SlowQueryMonitorService } from './slow-query-monitor.service';
 
 @Injectable()
 export class TypeOrmSlowQueryLogger implements TypeOrmLogger {
@@ -12,7 +12,7 @@ export class TypeOrmSlowQueryLogger implements TypeOrmLogger {
   constructor(
     private readonly customLogger: CustomLoggerService,
     private readonly slowQueryMonitorService: SlowQueryMonitorService,
-    private readonly queryAnalyzerService: QueryAnalyzerService,
+    private readonly queryAnalyzerService?: QueryAnalyzerService | null,
   ) {
     this.slowQueryThreshold = parseInt(process.env.SLOW_QUERY_THRESHOLD || '1000');
   }
@@ -137,13 +137,26 @@ export class TypeOrmSlowQueryLogger implements TypeOrmLogger {
       // TypeORM은 MySQL을 메인 DB로 사용
       const databaseEngine = 'mysql2';
 
-      const analysis = await this.queryAnalyzerService.analyzeQuery(
-        query,
-        0, // TypeORM uses the main DB (ID: 0)
-      );
-      // Add execution time to the analysis result
-      if (analysis && executionTime) {
-        analysis.executionTime = executionTime;
+      let analysis: any = null;
+
+      // QueryAnalyzerService가 있는 경우에만 분석 수행
+      if (this.queryAnalyzerService) {
+        analysis = await this.queryAnalyzerService.analyzeQuery(
+          query,
+          0, // TypeORM uses the main DB (ID: 0)
+        );
+        // Add execution time to the analysis result
+        if (analysis && executionTime) {
+          analysis.executionTime = executionTime;
+        }
+      } else {
+        // QueryAnalyzerService가 없는 경우 기본 분석 정보 생성
+        analysis = {
+          query,
+          executionTime,
+          tableName: this.extractTableName(query),
+          type: this.getQueryType(query),
+        };
       }
 
       await this.slowQueryMonitorService.logSlowQuery(analysis, {
@@ -242,5 +255,51 @@ export class TypeOrmSlowQueryLogger implements TypeOrmLogger {
    */
   private getCurrentRequestId(queryRunner?: QueryRunner): string | undefined {
     return queryRunner?.data?.requestId || queryRunner?.data?.correlationId;
+  }
+
+  /**
+   * 쿼리에서 테이블 이름 추출
+   */
+  private extractTableName(query: string): string | undefined {
+    if (!query) return undefined;
+
+    const normalizedQuery = query.toUpperCase();
+
+    // FROM 절에서 테이블 이름 추출
+    const fromMatch = normalizedQuery.match(/FROM\s+[`"]?(\w+)[`"]?/);
+    if (fromMatch) return fromMatch[1].toLowerCase();
+
+    // INSERT INTO에서 테이블 이름 추출
+    const insertMatch = normalizedQuery.match(/INSERT\s+INTO\s+[`"]?(\w+)[`"]?/);
+    if (insertMatch) return insertMatch[1].toLowerCase();
+
+    // UPDATE에서 테이블 이름 추출
+    const updateMatch = normalizedQuery.match(/UPDATE\s+[`"]?(\w+)[`"]?/);
+    if (updateMatch) return updateMatch[1].toLowerCase();
+
+    // DELETE FROM에서 테이블 이름 추출
+    const deleteMatch = normalizedQuery.match(/DELETE\s+FROM\s+[`"]?(\w+)[`"]?/);
+    if (deleteMatch) return deleteMatch[1].toLowerCase();
+
+    return undefined;
+  }
+
+  /**
+   * 쿼리 타입 추출
+   */
+  private getQueryType(query: string): string {
+    if (!query) return 'UNKNOWN';
+
+    const normalizedQuery = query.trim().toUpperCase();
+
+    if (normalizedQuery.startsWith('SELECT')) return 'SELECT';
+    if (normalizedQuery.startsWith('INSERT')) return 'INSERT';
+    if (normalizedQuery.startsWith('UPDATE')) return 'UPDATE';
+    if (normalizedQuery.startsWith('DELETE')) return 'DELETE';
+    if (normalizedQuery.startsWith('CREATE')) return 'CREATE';
+    if (normalizedQuery.startsWith('ALTER')) return 'ALTER';
+    if (normalizedQuery.startsWith('DROP')) return 'DROP';
+
+    return 'OTHER';
   }
 }
