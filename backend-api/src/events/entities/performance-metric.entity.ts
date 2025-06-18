@@ -1,10 +1,4 @@
-import {
-  Entity,
-  Column,
-  PrimaryGeneratedColumn,
-  CreateDateColumn,
-  Index,
-} from 'typeorm';
+import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity('performance_metrics')
 @Index(['name', 'createdAt'])
@@ -29,8 +23,19 @@ export class PerformanceMetric {
   @Column({ type: 'uuid', nullable: true })
   userId?: string;
 
-  // 태그 (JSON)
-  @Column({ type: 'json', nullable: true })
+  // 태그 (JSON을 text로 저장)
+  @Column({
+    type: 'text',
+    nullable: true,
+    transformer: {
+      to: (value: any) => {
+        return value ? JSON.stringify(value) : null;
+      },
+      from: (value: any) => {
+        return value ? JSON.parse(value) : null;
+      },
+    },
+  })
   tags?: Record<string, string>;
 
   // 메타데이터
@@ -40,6 +45,6 @@ export class PerformanceMetric {
   @Column({ type: 'varchar', length: 100, nullable: true })
   deviceType?: string;
 
-  @CreateDateColumn({ type: 'timestamp' })
+  @CreateDateColumn()
   createdAt: Date;
 }
