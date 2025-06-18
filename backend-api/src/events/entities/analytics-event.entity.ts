@@ -1,11 +1,11 @@
 import {
-  Entity,
   Column,
-  PrimaryGeneratedColumn,
   CreateDateColumn,
+  Entity,
   Index,
-  ManyToOne,
   JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
 } from 'typeorm';
 import { EventSession } from './event-session.entity';
 
@@ -40,11 +40,11 @@ export class AnalyticsEvent {
   correlationId: string;
 
   // 이벤트 속성 (JSON)
-  @Column({ type: 'json', nullable: true })
+  @Column({ type: process.env.NODE_ENV === 'local' ? 'text' : 'json', nullable: true })
   properties?: Record<string, any>;
 
   // 사용자 속성 (JSON)
-  @Column({ type: 'json', nullable: true })
+  @Column({ type: process.env.NODE_ENV === 'local' ? 'text' : 'json', nullable: true })
   userProperties?: Record<string, any>;
 
   // 익명화된 IP (마지막 옥텟 제거)
@@ -63,10 +63,10 @@ export class AnalyticsEvent {
   @Column({ type: 'text', nullable: true })
   referrer?: string;
 
-  @CreateDateColumn({ type: 'timestamp' })
+  @CreateDateColumn({ type: 'datetime' })
   createdAt: Date;
 
-  @ManyToOne(() => EventSession, (session) => session.events)
+  @ManyToOne(() => EventSession, session => session.events)
   @JoinColumn({ name: 'sessionId' })
   session: EventSession;
 }

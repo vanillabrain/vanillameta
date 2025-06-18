@@ -10,8 +10,8 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { AuthPublic } from '../auth/auth-public.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { AuthPublic } from '../auth/decorators/auth-public.decorator';
 import { EventsService } from './events.service';
 import { TrackEventDto } from './dto/track-event.dto';
 import { TrackMetricDto } from './dto/track-metric.dto';

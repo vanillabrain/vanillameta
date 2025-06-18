@@ -8,7 +8,7 @@ import { TrackEventDto } from './dto/track-event.dto';
 import { TrackMetricDto } from './dto/track-metric.dto';
 import { AnalyticsQueryDto, TimeRange } from './dto/analytics-query.dto';
 import { CustomLoggerService } from '../common/logger/logger.service';
-import * as UAParser from 'ua-parser-js';
+import { UAParser } from 'ua-parser-js';
 
 @Injectable()
 export class EventsService {

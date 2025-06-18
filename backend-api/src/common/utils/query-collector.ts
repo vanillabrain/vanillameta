@@ -8,6 +8,15 @@ export interface CollectedQuery {
   executionTime?: number;
 }
 
+export interface QueryInfo {
+  query: string;
+  params?: any[];
+  source: string;
+  timestamp: Date;
+  executionTime?: number;
+  success?: boolean;
+}
+
 @Injectable()
 export class QueryCollector {
   private readonly logger = new Logger(QueryCollector.name);

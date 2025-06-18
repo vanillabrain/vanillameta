@@ -19,10 +19,10 @@ export class EventSession {
   @Column({ type: 'uuid', nullable: true })
   userId?: string;
 
-  @Column({ type: 'timestamp' })
+  @Column({ type: 'datetime' })
   startTime: Date;
 
-  @Column({ type: 'timestamp' })
+  @Column({ type: 'datetime' })
   lastActivityTime: Date;
 
   @Column({ type: 'int', default: 0 })
@@ -59,12 +59,12 @@ export class EventSession {
   @Column({ type: 'varchar', length: 50, nullable: true })
   timezone?: string;
 
-  @CreateDateColumn({ type: 'timestamp' })
+  @CreateDateColumn({ type: 'datetime' })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'timestamp' })
+  @UpdateDateColumn({ type: 'datetime' })
   updatedAt: Date;
 
-  @OneToMany(() => AnalyticsEvent, (event) => event.session)
+  @OneToMany(() => AnalyticsEvent, event => event.session)
   events: AnalyticsEvent[];
 }

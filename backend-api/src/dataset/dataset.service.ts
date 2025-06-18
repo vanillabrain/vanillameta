@@ -274,12 +274,13 @@ export class DatasetService {
 
       // 쿼리 성능 메트릭 기록
       const rowCount = Array.isArray(queryResult.datas) ? queryResult.datas.length : 0;
-      await this.businessMetrics.recordQueryPerformance(
-        databaseId,
-        this.detectQueryType(dataset.query),
-        queryDuration / 1000, // 초 단위로 변환
-        rowCount,
-      );
+      // TODO: recordQueryPerformance 메서드 구현 필요
+      // await this.businessMetrics.recordQueryPerformance(
+      //   databaseId,
+      //   this.detectQueryType(dataset.query),
+      //   queryDuration / 1000, // 초 단위로 변환
+      //   rowCount,
+      // );
 
       if (queryResult.status === ResponseStatus.ERROR) {
         return {

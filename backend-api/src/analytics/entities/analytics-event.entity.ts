@@ -1,10 +1,4 @@
-import {
-  Entity,
-  Column,
-  PrimaryGeneratedColumn,
-  CreateDateColumn,
-  Index,
-} from 'typeorm';
+import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity('analytics_events')
 @Index(['userId', 'createdAt'])
@@ -37,7 +31,18 @@ export class AnalyticsEvent {
   @Column({ type: 'varchar', length: 36, nullable: true })
   correlationId?: string;
 
-  @Column({ type: 'json', nullable: true })
+  @Column({
+    type: 'text',
+    nullable: true,
+    transformer: {
+      to: (value: any) => {
+        return value ? JSON.stringify(value) : null;
+      },
+      from: (value: any) => {
+        return value ? JSON.parse(value) : null;
+      },
+    },
+  })
   metadata?: Record<string, any>;
 
   @Column({ type: 'varchar', length: 500, nullable: true })
@@ -82,9 +87,9 @@ export class AnalyticsEvent {
   @Column({ type: 'varchar', length: 50, nullable: true })
   device?: string;
 
-  @CreateDateColumn({ type: 'timestamp' })
+  @CreateDateColumn({ type: process.env.NODE_ENV === 'local' ? 'datetime' : 'timestamp' })
   createdAt: Date;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: process.env.NODE_ENV === 'local' ? 'datetime' : 'timestamp', nullable: true })
   eventTimestamp?: Date;
 }

@@ -147,7 +147,7 @@ export class DatabaseService {
     console.log('Selected query:', selectTableQuery);
 
     // 시스템 쿼리를 위한 특별한 처리
-    const tablesInfo = await this.connectionService.executeSystemQuery({
+    const tablesInfo = await this.connectionService.executeQuery({
       id: +id,
       query: selectTableQuery,
     });
