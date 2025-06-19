@@ -63,20 +63,32 @@ export class UserService {
   }
 
   async reissuanceAccessToken(refreshKey) {
-    const findUserKey = await this.authService.checkRefreshTokenKey(refreshKey);
-    if (!findUserKey) {
+    try {
+      // Refresh 토큰 검증
+      const decodedToken = await this.authService.verifyRefreshToken(refreshKey);
+      if (!decodedToken || !decodedToken.refreshKeyData) {
+        throw new UnauthorizedException();
+      }
+      
+      // 사용자 조회
+      const findUser = await this.userRepository.findOne({
+        where: { id: decodedToken.refreshKeyData.id },
+      });
+      
+      if (!findUser) {
+        throw new UnauthorizedException();
+      }
+      
+      const accessToken = await this.authService.generateAccessToken(findUser);
+      return accessToken;
+    } catch (error) {
       throw new UnauthorizedException();
     }
-    const findUser = await this.userRepository.findOne({
-      where: { jwtId: findUserKey.jwtId },
-    });
-    const accessToken = this.authService.generateAccessToken(findUser);
-    return accessToken;
   }
 
   async findDashboardId(id: number) {
     const list = await this.userMappingRepository.find({
-      where: { userId: id },
+      where: { userInfoId: id },
     });
     const dashboardIds = [];
     list.map(e => {

@@ -16,6 +16,7 @@ describe('EventsService', () => {
   let eventSessionRepo: Repository<EventSession>;
   let performanceMetricRepo: Repository<PerformanceMetric>;
   let logger: CustomLoggerService;
+  let nestLogger: any;
 
   const mockAnalyticsEventRepository = {
     create: jest.fn(),
@@ -75,6 +76,16 @@ describe('EventsService', () => {
     eventSessionRepo = module.get<Repository<EventSession>>(getRepositoryToken(EventSession));
     performanceMetricRepo = module.get<Repository<PerformanceMetric>>(getRepositoryToken(PerformanceMetric));
     logger = module.get<CustomLoggerService>(CustomLoggerService);
+    
+    // NestJS Logger mock 설정
+    nestLogger = {
+      log: jest.fn(),
+      error: jest.fn(),
+      warn: jest.fn(),
+      debug: jest.fn(),
+      verbose: jest.fn(),
+    };
+    (service as any).logger = nestLogger;
   });
 
   afterEach(() => {
@@ -122,7 +133,7 @@ describe('EventsService', () => {
 
       expect(mockAnalyticsEventRepository.create).toHaveBeenCalled();
       expect(mockAnalyticsEventRepository.save).toHaveBeenCalled();
-      expect(mockLogger.log).toHaveBeenCalledWith('Tracked 1 events');
+      expect(nestLogger.log).toHaveBeenCalledWith('Tracked 1 events');
     });
 
     it('IP를 올바르게 익명화해야 함', async () => {
@@ -160,7 +171,7 @@ describe('EventsService', () => {
         service.trackEvents(trackEventDto, '192.168.1.1', 'Mozilla/5.0'),
       ).resolves.not.toThrow();
 
-      expect(mockLogger.error).toHaveBeenCalled();
+      expect(nestLogger.error).toHaveBeenCalled();
     });
   });
 
@@ -185,7 +196,7 @@ describe('EventsService', () => {
 
       expect(mockPerformanceMetricRepository.create).toHaveBeenCalled();
       expect(mockPerformanceMetricRepository.save).toHaveBeenCalled();
-      expect(mockLogger.log).toHaveBeenCalledWith('Tracked 1 performance metrics');
+      expect(nestLogger.log).toHaveBeenCalledWith('Tracked 1 performance metrics');
     });
   });
 

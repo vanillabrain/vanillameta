@@ -164,7 +164,8 @@ describe('CursorUtils', () => {
       };
       const cursor = CursorUtils.encodeCursor(cursorData);
 
-      expect(CursorUtils.validateCursor(cursor, 3600)).toBe(false); // 1시간 제한
+      const result = CursorUtils.validateCursor(cursor, 3600);
+      expect(result).toBe(false); // 1시간 제한
     });
 
     it('유효 기간 내의 커서는 true를 반환해야 함', () => {
