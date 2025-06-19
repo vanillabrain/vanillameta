@@ -40,7 +40,7 @@ export class DatabaseService {
     }
 
     // DB에서 조회
-    const dbTypes = await this.databaseTypeRepository.find({ order: { seq: 'ASC' } });
+    const dbTypes = await this.databaseTypeRepository.find({ order: { rank: 'ASC', type: 'ASC' } });
     
     // 캐시에 저장
     await this.cacheManager.set(this.DB_TYPES_CACHE_KEY, dbTypes, this.DB_TYPES_CACHE_TTL);

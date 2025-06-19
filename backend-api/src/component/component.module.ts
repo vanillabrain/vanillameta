@@ -7,11 +7,13 @@ import { JwtService } from '@nestjs/jwt';
 import { HybridCacheService } from '../common/optimization/hybrid-cache.service';
 import { QueryCacheService } from '../common/optimization/query-cache.service';
 import { RedisCacheService } from '../common/optimization/redis-cache.service';
+import { RedisModule } from '../common/redis/redis.module';
 import { LoggerModule } from '../common/logger/logger.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Component]),
+    RedisModule,
     LoggerModule,
   ],
   controllers: [ComponentController],

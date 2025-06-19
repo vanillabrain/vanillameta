@@ -47,7 +47,7 @@ export class ComponentService {
       const result = await this.componentRepository.save(saveObj);
       
       // 캐시 무효화
-      await this.cacheService.invalidateByEngine(this.CACHE_KEY_PREFIX);
+      await this.cacheService.invalidate(this.CACHE_KEY_PREFIX, 'static', 'findAll');
       
       return result;
     }
@@ -89,10 +89,8 @@ export class ComponentService {
       this.CACHE_KEY_PREFIX,
       'static',
       cacheKey,
-      components,
-      [],
-      [],
-      { ttl: this.CACHE_TTL }
+      { data: components, fields: [] },
+      this.CACHE_TTL,
     );
 
     return components;
@@ -122,7 +120,7 @@ export class ComponentService {
       await this.componentRepository.save(updateObj);
       
       // 캐시 무효화
-      await this.cacheService.invalidateByEngine(this.CACHE_KEY_PREFIX);
+      await this.cacheService.invalidate(this.CACHE_KEY_PREFIX, 'static', 'findAll');
 
       return 'Success update';
     }
@@ -132,7 +130,7 @@ export class ComponentService {
     await this.componentRepository.delete({ id });
     
     // 캐시 무효화
-    await this.cacheService.invalidateAll();
+    await this.cacheService.invalidate(this.CACHE_KEY_PREFIX, 'static', 'findAll');
     
     return `This action removes a #${id} component`;
   }
