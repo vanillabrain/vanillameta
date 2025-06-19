@@ -1,0 +1,55 @@
+{
+  "title": "위젯",
+  "create": {
+    "title": "새 위젯 만들기",
+    "selectDataset": "데이터셋 선택",
+    "selectChart": "차트 유형 선택",
+    "configure": "위젯 설정"
+  },
+  "edit": {
+    "title": "위젯 편집",
+    "name": "위젯 이름",
+    "description": "설명"
+  },
+  "chartTypes": {
+    "line": "라인 차트",
+    "bar": "막대 차트",
+    "column": "컬럼 차트",
+    "pie": "파이 차트",
+    "donut": "도넛 차트",
+    "area": "영역 차트",
+    "scatter": "산점도",
+    "bubble": "버블 차트",
+    "heatmap": "히트맵",
+    "treemap": "트리맵",
+    "gauge": "게이지 차트",
+    "radar": "레이더 차트",
+    "funnel": "퍼널 차트",
+    "sankey": "생키 다이어그램",
+    "candlestick": "캔들스틱 차트",
+    "table": "테이블",
+    "numericBoard": "숫자 보드"
+  },
+  "settings": {
+    "title": "차트 설정",
+    "general": "일반",
+    "data": "데이터",
+    "style": "스타일",
+    "advanced": "고급",
+    "xAxis": "X축",
+    "yAxis": "Y축",
+    "legend": "범례",
+    "tooltip": "툴팁",
+    "colors": "색상"
+  },
+  "messages": {
+    "created": "위젯이 생성되었습니다.",
+    "updated": "위젯이 수정되었습니다.",
+    "deleted": "위젯이 삭제되었습니다.",
+    "noData": "표시할 데이터가 없습니다."
+  },
+  "list": {
+    "empty": "생성한 위젯이 없습니다.",
+    "createFirst": "위젯을 생성 후 확인해 보세요."
+  }
+}

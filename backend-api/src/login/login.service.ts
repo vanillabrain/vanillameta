@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { AuthService } from 'src/auth/auth.service';
 import { User } from 'src/user/entities/user.entity';
@@ -24,7 +24,7 @@ export class LoginService {
     console.log(hashPassword);
     const findUser = await this.authService.validateUser(userId, hashPassword); // 요저의 존재여부 확인
     if (!findUser) {
-      throw new UnauthorizedException(`Unauthorized`);
+      throw new HttpException('Invalid credentials', HttpStatus.UNAUTHORIZED);
     }
     return findUser;
   }

@@ -14,6 +14,7 @@ import * as serviceWorkerRegistration from './serviceWorkerRegistration';
 import reportWebVitals from './reportWebVitals';
 import { initializeEventTracking } from './utils/eventTracking';
 import './index.css';
+import './i18n'; // i18n 초기화
 
 // 이벤트 추적 시스템 초기화
 initializeEventTracking();
