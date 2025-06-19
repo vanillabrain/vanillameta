@@ -18,6 +18,7 @@ describe('CompressionLoggingMiddleware', () => {
       debug: jest.fn(),
       error: jest.fn(),
       warn: jest.fn(),
+      log: jest.fn(),
     } as any;
 
     const module: TestingModule = await Test.createTestingModule({
@@ -105,7 +106,7 @@ describe('CompressionLoggingMiddleware', () => {
     // Verify
     setTimeout(() => {
       expect(mockNext).toHaveBeenCalled();
-      expect(mockLogger.info).toHaveBeenCalledWith(
+      expect(mockLogger.log).toHaveBeenCalledWith(
         'Response compression applied',
         'CompressionMiddleware',
         expect.objectContaining({
@@ -208,7 +209,7 @@ describe('CompressionLoggingMiddleware', () => {
     // Verify
     setTimeout(() => {
       expect(mockNext).toHaveBeenCalled();
-      expect(mockLogger.info).toHaveBeenCalledWith(
+      expect(mockLogger.log).toHaveBeenCalledWith(
         'Response compression applied',
         'CompressionMiddleware',
         expect.objectContaining({
