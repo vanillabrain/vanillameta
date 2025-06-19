@@ -6,6 +6,7 @@ import { Widget } from './entities/widget.entity';
 import { Component } from '../component/entities/component.entity';
 import { TableQueryService } from './table-query/table-query.service';
 import { CustomLoggerService } from '../common/logger/logger.service';
+import { PaginationService } from '../common/services/pagination.service';
 
 describe('WidgetController', () => {
   let controller: WidgetController;
@@ -39,6 +40,11 @@ describe('WidgetController', () => {
     info: jest.fn(),
   };
 
+  const mockPaginationService = {
+    paginate: jest.fn(),
+    getPaginationMeta: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [WidgetController],
@@ -59,6 +65,10 @@ describe('WidgetController', () => {
         {
           provide: CustomLoggerService,
           useValue: mockCustomLoggerService,
+        },
+        {
+          provide: PaginationService,
+          useValue: mockPaginationService,
         },
       ],
     }).compile();
