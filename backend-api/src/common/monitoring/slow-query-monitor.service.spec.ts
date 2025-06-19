@@ -292,7 +292,7 @@ describe('SlowQueryMonitorService', () => {
       expect(mockRepository.update).toHaveBeenCalledWith(1, {
         resolved: true,
         resolutionNotes: 'Added index to optimize query',
-        resolvedAt: expect.any(Date),
+        resolvedAt: new Date('2025-06-17T12:00:00.000Z'),
       });
     });
   });

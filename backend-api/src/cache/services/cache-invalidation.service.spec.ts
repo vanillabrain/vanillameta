@@ -14,9 +14,15 @@ describe('CacheInvalidationService', () => {
     reset: jest.fn(),
   };
 
-  beforeEach(async () => {
+  beforeAll(() => {
     jest.useFakeTimers();
+  });
 
+  afterAll(() => {
+    jest.useRealTimers();
+  });
+
+  beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CacheInvalidationService,
@@ -34,7 +40,7 @@ describe('CacheInvalidationService', () => {
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    jest.clearAllTimers();
   });
 
   it('should be defined', () => {

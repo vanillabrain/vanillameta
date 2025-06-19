@@ -96,13 +96,18 @@ jest.mock('knex', () => {
       hasTable: jest.fn().mockResolvedValue(true),
       hasColumn: jest.fn().mockResolvedValue(true),
     },
-    transaction: jest.fn().mockImplementation(callback => {
+    transaction: jest.fn().mockImplementation(async callback => {
       const trx = {
         raw: jest.fn().mockResolvedValue({ rows: [] }),
-        commit: jest.fn(),
-        rollback: jest.fn(),
+        commit: jest.fn().mockResolvedValue(undefined),
+        rollback: jest.fn().mockResolvedValue(undefined),
       };
-      return callback(trx);
+      try {
+        const result = await callback(trx);
+        return result;
+      } catch (error) {
+        throw error;
+      }
     }),
   }));
 });
