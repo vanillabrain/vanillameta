@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { Box, List, Pagination, Stack, useMediaQuery, useTheme } from '@mui/material';
 import BoardItem from './BoardItem';
 import { styled } from '@mui/material/styles';
@@ -33,11 +33,11 @@ function BoardList(props) {
   const theme = useTheme();
   const matches = useMediaQuery(theme.breakpoints.up('sm'));
 
-  const handlePageChange = (e, p) => {
+  const handlePageChange = useCallback((e, p) => {
     setPage(p);
-  };
+  }, []);
 
-  const generateBoardItem = () => {
+  const boardItems = useMemo(() => {
     return postList.map((item, index) => {
       const currPage = (page - 1) * 10;
       if (index >= currPage && index < currPage + 10) {
@@ -46,7 +46,7 @@ function BoardList(props) {
         return null;
       }
     });
-  };
+  }, [postList, page, handleDeleteSelect]);
 
   return (
     <Box sx={{ maxWidth: MAX_WIDTH, width: '100%', mx: 'auto' }}>
@@ -84,7 +84,7 @@ function BoardList(props) {
         </span>
       </Stack>
       <List sx={{ width: '100%', m: 'auto', border: tableBorder, borderRadius: 2, backgroundColor: '#fff' }} disablePadding>
-        {generateBoardItem()}
+        {boardItems}
       </List>
       <Stack alignItems="center" sx={{ marginTop: '47px' }}>
         <Pagination count={totalCount} page={page} shape="rounded" onChange={handlePageChange} />
@@ -93,4 +93,4 @@ function BoardList(props) {
   );
 }
 
-export default BoardList;
+export default React.memo(BoardList);

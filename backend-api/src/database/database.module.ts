@@ -9,12 +9,16 @@ import { TableQuery } from '../widget/table-query/entity/table-query.entity';
 import { DatabaseType } from './entities/database_type.entity';
 import { JwtService } from '@nestjs/jwt';
 import { SqlValidationModule } from '../common/security/sql-validation.module';
+import { CacheModule } from '@nestjs/cache-manager';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Database, Dataset, TableQuery, DatabaseType]),
     ConnectionModule,
     SqlValidationModule,
+    CacheModule.register({
+      ttl: 3600, // 기본 TTL 1시간
+    }),
   ],
   controllers: [DatabaseController],
   providers: [DatabaseService, JwtService],
