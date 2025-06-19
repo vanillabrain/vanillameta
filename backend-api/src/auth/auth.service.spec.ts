@@ -67,18 +67,8 @@ describe('AuthService', () => {
     refreshTokenRepository = module.get(getRepositoryTokenFor(RefreshToken));
     jwtService = module.get<JwtService>(JwtService);
 
-    // Mock 초기화 - 각 테스트마다 완전히 새로운 mock 생성
+    // Mock 초기화
     jest.clearAllMocks();
-
-    // 완전히 새로운 mock 함수 생성
-    userRepository = module.get(getRepositoryTokenFor(User));
-    refreshTokenRepository = module.get(getRepositoryTokenFor(RefreshToken));
-
-    // Mock 메소드들 재정의
-    userRepository.findOne = jest.fn();
-    userRepository.save = jest.fn();
-    refreshTokenRepository.findOne = jest.fn();
-    refreshTokenRepository.save = jest.fn();
   });
 
   it('should be defined', () => {
@@ -88,7 +78,7 @@ describe('AuthService', () => {
   describe('Integration Tests', () => {
     it('should complete full authentication flow', async () => {
       // 1. Validate user
-      userRepository.findOne.mockResolvedValue(mockUser);
+      userRepository.findOne.mockResolvedValue({...mockUser});
       const user = await service.validateUser('testuser', 'testpass');
       expect(user).toBeDefined();
 
@@ -146,7 +136,7 @@ describe('AuthService', () => {
         email: 'test@example.com',
         password: 'testpass',
       };
-      userRepository.findOne.mockResolvedValue(mockUser);
+      userRepository.findOne.mockResolvedValue({...mockUser});
 
       const result = await service.validateUser('testuser', 'testpass');
 
@@ -169,7 +159,7 @@ describe('AuthService', () => {
         email: 'test@example.com',
         password: 'correctpass',
       };
-      userRepository.findOne.mockResolvedValue(mockUser);
+      userRepository.findOne.mockResolvedValue({...mockUser});
 
       const result = await service.validateUser('testuser', 'wrongpass');
 
@@ -362,7 +352,7 @@ describe('AuthService', () => {
 
   describe('checkAccess', () => {
     it('should return user data when credentials are valid', async () => {
-      userRepository.findOne.mockResolvedValue(mockUser);
+      userRepository.findOne.mockResolvedValue({...mockUser});
 
       const result = await service.checkAccess('testuser', 'testpass');
 
@@ -370,14 +360,14 @@ describe('AuthService', () => {
         id: 1,
         userId: 'testuser',
         email: 'test@example.com',
-        createdAt: expect.any(Date),
-        updatedAt: expect.any(Date),
+        createdAt: mockUser.createdAt,
+        updatedAt: mockUser.updatedAt,
       });
       expect(result.password).toBeUndefined();
     });
 
     it('should call validateUser with provided credentials', async () => {
-      userRepository.findOne.mockResolvedValue(mockUser);
+      userRepository.findOne.mockResolvedValue({...mockUser});
       const validateUserSpy = jest.spyOn(service, 'validateUser');
 
       await service.checkAccess('testuser', 'testpass');
@@ -424,7 +414,7 @@ describe('AuthService', () => {
 
     it('should handle user with null password', async () => {
       const userWithNullPassword = { ...mockUser, password: null };
-      userRepository.findOne.mockResolvedValue(userWithNullPassword);
+      userRepository.findOne.mockResolvedValue({...userWithNullPassword});
 
       const result = await service.validateUser('testuser', 'testpass');
       expect(result).toBeUndefined();

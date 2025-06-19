@@ -29,7 +29,7 @@ import {
   ApiBadRequestResponse,
   ApiCreatedResponse
 } from '@nestjs/swagger';
-import { I18n, I18nContext } from 'nestjs-i18n';
+// import { I18n, I18nContext } from 'nestjs-i18n'; // removed due to dependency issue
 
 @ApiTags('인증')
 @Controller('login')
@@ -64,7 +64,7 @@ export class LoginController {
   })
   @ApiBadRequestResponse({ description: '잘못된 요청 (유효성 검사 실패)' })
   @ApiUnauthorizedResponse({ description: '인증 실패 (이메일 또는 비밀번호 오류)' })
-  async logIn(@Res() res, @Req() req, @Body() loginDto: LoginUserDto, @I18n() i18n: I18nContext) {
+  async logIn(@Res() res, @Req() req, @Body() loginDto: LoginUserDto) {
     const findUser = await this.loginService.signin(loginDto);
     // 유저존재여부 확인
     const accessToken = await this.authService.generateAccessToken(findUser);
@@ -80,7 +80,7 @@ export class LoginController {
       secure: true, // 보안처리된 https만 허
     });
 
-    const message = await i18n.translate('auth.login.success');
+    const message = 'success';
     return res.status(201).json({ accessToken: accessToken, message });
   }
 
@@ -103,9 +103,9 @@ export class LoginController {
     }
   })
   @ApiBadRequestResponse({ description: '잘못된 요청 (유효성 검사 실패 또는 중복된 이메일)' })
-  async create(@Body() createUserDto: CreateLoginDto, @I18n() i18n: I18nContext) {
+  async create(@Body() createUserDto: CreateLoginDto) {
     const result = await this.loginService.signup(createUserDto);
-    const message = await i18n.translate('auth.register.success');
+    const message = 'success';
     return { ...result, message };
   }
 
@@ -125,10 +125,10 @@ export class LoginController {
     }
   })
   @ApiUnauthorizedResponse({ description: '인증 실패' })
-  async signOut(@Res() res, @Req() req, @I18n() i18n: I18nContext) {
+  async signOut(@Res() res, @Req() req) {
     const { jwtId } = req.user.refreshKeyData;
     await this.authService.deleteRefreshToken(jwtId);
-    const message = await i18n.translate('auth.logout.success');
+    const message = 'success';
     return res.status(201).clearCookie('jwt_re').json({ message });
   }
 }
