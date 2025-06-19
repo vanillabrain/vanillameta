@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState, useCallback } from 'react';
 import { Box, Button, Card, CardHeader, Stack, TextField } from '@mui/material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import PageTitleBox from '@/components/PageTitleBox';
@@ -21,6 +21,7 @@ import bg from '@/assets/images/dashboard-bg.svg';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import ModifyButton from '@/components/button/ModifyButton';
 import ReloadButton from '@/components/button/ReloadButton';
+import { trackDashboardEvent, trackWidgetEvent } from '@/utils/eventTracking';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -98,18 +99,18 @@ function DashboardModify() {
   }, [widgets]);
 
   // 현재 위젯 선택창에서 선택된 위젯 목록 callback
-  const handleWidgetSelect = items => {
+  const handleWidgetSelect = useCallback(items => {
     setWidgetOpen(false);
     if (items != null) {
-      setWidgets([...widgets, ...items]);
+      setWidgets(prev => [...prev, ...items]);
     }
-  };
+  }, []);
 
   // 레이아웃 변경 이벤트
-  const onLayoutChange = changeLayout => {
+  const onLayoutChange = useCallback(changeLayout => {
     console.log('레이아웃이 바꼇어요');
     setLayout(changeLayout);
-  };
+  }, []);
 
   // 추가 할 layout
   // @tempLayout 현재 배치되어 있는 layout 정보
@@ -279,6 +280,9 @@ function DashboardModify() {
                 tempLayout.splice(index, 1);
                 setLayout([...tempLayout]);
                 setWidgets([...tempWidgets]);
+                
+                // 위젯 삭제 이벤트 추적
+                trackWidgetEvent.deleted(item.id.toString());
               }
             }}
           />
@@ -323,6 +327,8 @@ function DashboardModify() {
                 DashboardService.updateDashboard(dashboardId, dashboardInfo)
                   .then(response => {
                     if (response.data.status === 'SUCCESS') {
+                      // 대시보드 수정 이벤트 추적
+                      trackDashboardEvent.edited(dashboardId, ['title', 'layout', 'widgets']);
                       navigate('/dashboard/' + dashboardId, { replace: true });
                       snackbar.success('대시보드가 수정되었습니다.');
                     } else {
@@ -348,6 +354,15 @@ function DashboardModify() {
                 DashboardService.createDashboard(dashboardInfo)
                   .then(response => {
                     if (response.data.status === 'SUCCESS') {
+                      // 대시보드 생성 이벤트 추적
+                      const templateUsed = searchParams.get('createType') === 'recommend' ? 'recommend' : 'blank';
+                      trackDashboardEvent.created(response.data.data.id, templateUsed);
+                      
+                      // 위젯 생성 이벤트 추적
+                      widgets.forEach(widget => {
+                        trackWidgetEvent.created(widget.id.toString(), widget.componentType, response.data.data.id);
+                      });
+                      
                       navigate('/dashboard');
                       snackbar.success('대시보드가 생성되었습니다.');
                     } else {

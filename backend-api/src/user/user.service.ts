@@ -5,7 +5,7 @@ import { Repository } from 'typeorm';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
 import { UserMapping } from './entities/user-mapping.entity';
-import { I18nService } from 'nestjs-i18n';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const crypto = require('crypto');
 
 @Injectable()
@@ -14,15 +14,16 @@ export class UserService {
     @InjectRepository(User) private readonly userRepository: Repository<User>,
     @InjectRepository(UserMapping) private readonly userMappingRepository: Repository<UserMapping>,
     private authService: AuthService,
-    private readonly i18n: I18nService,
   ) {}
 
   async findOne(userId: number) {
+    console.log('findOne 호출됨, userId:', userId);
     const userData = await this.userRepository.findOne({
       where: { id: userId },
     });
+    console.log('조회된 사용자 데이터:', userData);
     if (!userData) {
-      throw new HttpException(this.i18n.t('errors.user_not_found'), HttpStatus.NOT_FOUND);
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     } else {
       delete userData.password;
       return { data: userData, message: 'success' };
@@ -36,7 +37,7 @@ export class UserService {
       .digest('hex');
     const findUser = await this.authService.checkAccess(userId, hashPassword);
     if (!findUser) {
-      throw new HttpException(this.i18n.t('errors.user_not_found'), HttpStatus.CONFLICT);
+      throw new HttpException('not exist user', HttpStatus.CONFLICT);
     } else {
       const newHashPassword = crypto
         .createHash('sha512')
@@ -50,37 +51,39 @@ export class UserService {
   }
 
   async deleteUser(userId: string, password: string) {
-    const findUser = await this.authService.checkAccess(userId, password);
-    if (!findUser) {
-      return 'Unauthorized';
-    } else {
-      await this.userRepository.delete(findUser.id);
-      return `success`;
+    const hashPassword = crypto
+      .createHash('sha512')
+      .update(String(password))
+      .digest('hex');
+    const findUser = await this.authService.checkAccess(userId, hashPassword);
+    if (findUser) {
+      await this.userRepository.delete(findUser);
     }
+    return `success`;
   }
 
-  async reissuanceAccessToken(userId: string) {
-    const payload = await this.userRepository.findOne({ where: { userId: userId } });
-    return await this.authService.generateAccessToken(payload);
+  async reissuanceAccessToken(refreshKey) {
+    const findUserKey = await this.authService.checkRefreshTokenKey(refreshKey);
+    if (!findUserKey) {
+      throw new UnauthorizedException();
+    }
+    const findUser = await this.userRepository.findOne({
+      where: { jwtId: findUserKey.jwtId },
+    });
+    const accessToken = this.authService.generateAccessToken(findUser);
+    return accessToken;
   }
-  // AccessToken 만료시 재발급 코드
-
-  async saveDashboard(dashboardId: number, userInfoId: number) {
-    const saveObj = {
-      dashboardId: dashboardId,
-      userInfoId: userInfoId,
-    };
-    await this.userMappingRepository.save(saveObj);
-  }
-  // mapping table 대시보드id, 유저id 저장
 
   async findDashboardId(id: number) {
-    const findDashboard = await this.userMappingRepository
-      .createQueryBuilder('user_mapping')
-      .select('dashboardId')
-      .where('user_mapping.userInfoId = :userInfoId', { userInfoId: id })
-      .getRawMany();
-    return findDashboard;
+    const list = await this.userMappingRepository.find({
+      where: { userId: id },
+    });
+    const dashboardIds = [];
+    list.map(e => {
+      if (e.dashboardId) {
+        dashboardIds.push(e.dashboardId);
+      }
+    });
+    return dashboardIds;
   }
-  // 대시보드id찾는 코드
 }

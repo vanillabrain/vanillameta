@@ -8,10 +8,17 @@ import { TableQueryService } from './table-query/table-query.service';
 import { TableQuery } from './table-query/entity/table-query.entity';
 import { Database } from '../database/entities/database.entity';
 import { JwtService } from '@nestjs/jwt';
+import { PaginationModule } from '../common/pagination';
+import { SqlValidationModule } from '../common/security/sql-validation.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Widget, Component, TableQuery, Database])],
+  imports: [
+    TypeOrmModule.forFeature([Widget, Component, TableQuery, Database]),
+    PaginationModule,
+    SqlValidationModule,
+  ],
   controllers: [WidgetController],
   providers: [WidgetService, TableQueryService, JwtService],
+  exports: [WidgetService],
 })
 export class WidgetModule {}

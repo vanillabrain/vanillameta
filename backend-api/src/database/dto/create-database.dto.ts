@@ -2,51 +2,68 @@ import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateDatabaseDto {
+  @ApiProperty({
+    description: '데이터베이스 연결 이름',
+    example: '프로덕션 MySQL DB',
+    minLength: 1,
+    maxLength: 100
+  })
   @IsString()
   @IsNotEmpty()
-  @ApiProperty({
-    example: 'mysql 데이터베이스',
-    description: '데이터베이스 이름',
-  })
   name: string;
 
+  @ApiProperty({
+    description: '데이터베이스 설명',
+    example: '메인 서비스용 프로덕션 데이터베이스',
+    required: false
+  })
   @IsString()
   @IsOptional()
-  @ApiProperty({
-    example: '상세 내용',
-    description: '데이터베이스 상세 내용',
-  })
   description: string;
 
+  @ApiProperty({
+    description: '데이터베이스 연결 설정 (JSON 형식)',
+    example: JSON.stringify({
+      host: 'localhost',
+      port: 3306,
+      username: 'root',
+      password: 'password',
+      database: 'mydb'
+    }),
+    type: 'string',
+    format: 'json'
+  })
   @IsString()
   @IsOptional()
-  @ApiProperty({
-    example: '{}',
-    description: '설정 JSON 상세',
-  })
   connectionConfig: string;
 
+  @ApiProperty({
+    description: '데이터베이스 엔진',
+    example: 'mysql',
+    enum: ['mysql', 'postgresql', 'mariadb', 'oracle', 'mssql', 'sqlite', 'bigquery', 'snowflake', 'redshift'],
+    required: false
+  })
   @IsString()
   @IsOptional()
-  @ApiProperty({
-    example: 'mysql',
-    description: '데이터베이스 엔진',
-  })
   engine: string;
 
+  @ApiProperty({
+    description: '데이터베이스 타입',
+    example: 'mysql',
+    enum: ['mysql', 'postgresql', 'mariadb', 'oracle', 'mssql', 'sqlite', 'bigquery', 'snowflake', 'redshift'],
+    required: false
+  })
   @IsString()
   @IsOptional()
-  @ApiProperty({
-    example: 'mysql',
-    description: '데이터베이스 구분',
-  })
   type: string;
 
+  @ApiProperty({
+    description: '타임존 설정',
+    example: 'Asia/Seoul',
+    default: 'Asia/Seoul',
+    required: false
+  })
   @IsString()
   @IsOptional()
-  @ApiProperty({
-    example: 'Asia/Seoul',
-    description: '서비스 타임존',
-  })
   timezone: string;
 }

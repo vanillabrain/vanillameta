@@ -1,0 +1,799 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'VanillaMeta CloudWatch Alarms Configuration'
+
+Parameters:
+  Stage:
+    Type: String
+    Default: prod
+    AllowedValues:
+      - dev
+      - prod
+    Description: Environment stage
+  
+  ServiceName:
+    Type: String
+    Default: vanillameta-backend-api
+    Description: Service name
+    
+  AlarmEmail:
+    Type: String
+    Description: Email address for alarm notifications
+    Default: ops@vanillameta.com
+    
+  SlackWebhookUrl:
+    Type: String
+    NoEcho: true
+    Description: Slack webhook URL for notifications
+    Default: ''
+    
+  DBInstanceIdentifier:
+    Type: String
+    Description: RDS Database Instance Identifier
+    Default: vanillameta-db
+
+Conditions:
+  IsProduction: !Equals [!Ref Stage, 'prod']
+  HasSlackWebhook: !Not [!Equals [!Ref SlackWebhookUrl, '']]
+
+Resources:
+  # SNS Topics
+  CriticalAlarmTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${ServiceName}-${Stage}-critical-alarms'
+      DisplayName: 'VanillaMeta Critical Alarms (P0)'
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Priority
+          Value: P0
+        - Key: Service
+          Value: VanillaMeta
+
+  HighAlarmTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${ServiceName}-${Stage}-high-alarms'
+      DisplayName: 'VanillaMeta High Priority Alarms (P1)'
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Priority
+          Value: P1
+        - Key: Service
+          Value: VanillaMeta
+
+  MediumAlarmTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${ServiceName}-${Stage}-medium-alarms'
+      DisplayName: 'VanillaMeta Medium Priority Alarms (P2)'
+      Tags:
+        - Key: Environment
+          Value: !Ref Stage
+        - Key: Priority
+          Value: P2
+        - Key: Service
+          Value: VanillaMeta
+
+  # Email Subscriptions
+  CriticalEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: email
+      TopicArn: !Ref CriticalAlarmTopic
+      Endpoint: !Ref AlarmEmail
+
+  HighEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: email
+      TopicArn: !Ref HighAlarmTopic
+      Endpoint: !Ref AlarmEmail
+
+  MediumEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: IsProduction
+    Properties:
+      Protocol: email
+      TopicArn: !Ref MediumAlarmTopic
+      Endpoint: !Ref AlarmEmail
+
+  # Lambda Function for Slack Integration
+  SlackNotificationFunction:
+    Type: AWS::Lambda::Function
+    Condition: HasSlackWebhook
+    Properties:
+      FunctionName: !Sub '${ServiceName}-${Stage}-slack-alarm-notifier'
+      Runtime: nodejs18.x
+      Handler: index.handler
+      Role: !GetAtt SlackNotificationRole.Arn
+      Timeout: 30
+      Environment:
+        Variables:
+          SLACK_WEBHOOK_URL: !Ref SlackWebhookUrl
+      Code:
+        ZipFile: |
+          const https = require('https');
+          const url = require('url');
+          
+          exports.handler = async (event) => {
+            const webhookUrl = process.env.SLACK_WEBHOOK_URL;
+            const message = JSON.parse(event.Records[0].Sns.Message);
+            
+            const alarmName = message.AlarmName;
+            const newState = message.NewStateValue;
+            const reason = message.NewStateReason;
+            const timestamp = message.StateChangeTime;
+            const region = message.Region;
+            
+            // 우선순위에 따른 색상 설정
+            let color = '#36a64f'; // 기본 녹색
+            let mention = '';
+            
+            if (alarmName.includes('Critical')) {
+              color = '#FF0000'; // 빨간색
+              mention = '<!channel> ';
+            } else if (alarmName.includes('Warning') || alarmName.includes('High')) {
+              color = '#FFA500'; // 주황색
+              mention = '<!here> ';
+            } else if (alarmName.includes('Medium')) {
+              color = '#FFFF00'; // 노란색
+            }
+            
+            const slackMessage = {
+              channel: '#vanillameta-alerts',
+              username: 'CloudWatch Alarm',
+              icon_emoji: newState === 'ALARM' ? ':rotating_light:' : ':white_check_mark:',
+              attachments: [{
+                color: color,
+                title: `${newState}: ${alarmName}`,
+                text: `${mention}${reason}`,
+                fields: [
+                  {
+                    title: 'Time',
+                    value: new Date(timestamp).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
+                    short: true
+                  },
+                  {
+                    title: 'Region',
+                    value: region,
+                    short: true
+                  }
+                ],
+                footer: 'VanillaMeta CloudWatch',
+                ts: Math.floor(new Date(timestamp).getTime() / 1000)
+              }]
+            };
+            
+            const options = {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              }
+            };
+            
+            return new Promise((resolve, reject) => {
+              const req = https.request(webhookUrl, options, (res) => {
+                resolve({ statusCode: res.statusCode });
+              });
+              
+              req.on('error', (e) => {
+                reject(e);
+              });
+              
+              req.write(JSON.stringify(slackMessage));
+              req.end();
+            });
+          };
+
+  SlackNotificationRole:
+    Type: AWS::IAM::Role
+    Condition: HasSlackWebhook
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  # Slack SNS Subscriptions
+  CriticalSlackSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: HasSlackWebhook
+    Properties:
+      Protocol: lambda
+      TopicArn: !Ref CriticalAlarmTopic
+      Endpoint: !GetAtt SlackNotificationFunction.Arn
+
+  HighSlackSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: HasSlackWebhook
+    Properties:
+      Protocol: lambda
+      TopicArn: !Ref HighAlarmTopic
+      Endpoint: !GetAtt SlackNotificationFunction.Arn
+
+  MediumSlackSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: HasSlackWebhook
+    Properties:
+      Protocol: lambda
+      TopicArn: !Ref MediumAlarmTopic
+      Endpoint: !GetAtt SlackNotificationFunction.Arn
+
+  # Lambda Permission for SNS
+  SlackLambdaInvokePermissionCritical:
+    Type: AWS::Lambda::Permission
+    Condition: HasSlackWebhook
+    Properties:
+      FunctionName: !Ref SlackNotificationFunction
+      Action: lambda:InvokeFunction
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref CriticalAlarmTopic
+
+  SlackLambdaInvokePermissionHigh:
+    Type: AWS::Lambda::Permission
+    Condition: HasSlackWebhook
+    Properties:
+      FunctionName: !Ref SlackNotificationFunction
+      Action: lambda:InvokeFunction
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref HighAlarmTopic
+
+  SlackLambdaInvokePermissionMedium:
+    Type: AWS::Lambda::Permission
+    Condition: HasSlackWebhook
+    Properties:
+      FunctionName: !Ref SlackNotificationFunction
+      Action: lambda:InvokeFunction
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref MediumAlarmTopic
+
+  # Lambda Function Alarms
+  LambdaErrorRateCriticalAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Stage}-Lambda-Error-Rate-Critical'
+      AlarmDescription: 'Lambda function error rate exceeded 5%'
+      Metrics:
+        - Id: m1
+          MetricStat:
+            Metric:
+              Namespace: AWS/Lambda
+              MetricName: Errors
+              Dimensions:
+                - Name: FunctionName
+                  Value: !Sub '${ServiceName}-${Stage}-app'
+            Period: 300
+            Stat: Sum
+          ReturnData: false
+        - Id: m2
+          MetricStat:
+            Metric:
+              Namespace: AWS/Lambda
+              MetricName: Invocations
+              Dimensions:
+                - Name: FunctionName
+                  Value: !Sub '${ServiceName}-${Stage}-app'
+            Period: 300
+            Stat: Sum
+          ReturnData: false
+        - Id: e1
+          Expression: "(m1/m2)*100"
+          Label: "Error Rate %"
+          ReturnData: true
+      EvaluationPeriods: 2
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref CriticalAlarmTopic
+      OKActions:
+        - !Ref CriticalAlarmTopic
+
+  LambdaErrorRateWarningAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Stage}-Lambda-Error-Rate-Warning'
+      AlarmDescription: 'Lambda function error rate exceeded 2%'
+      Metrics:
+        - Id: m1
+          MetricStat:
+            Metric:
+              Namespace: AWS/Lambda
+              MetricName: Errors
+              Dimensions:
+                - Name: FunctionName
+                  Value: !Sub '${ServiceName}-${Stage}-app'
+            Period: 300
+            Stat: Sum
+          ReturnData: false
+        - Id: m2
+          MetricStat:
+            Metric:
+              Namespace: AWS/Lambda
+              MetricName: Invocations
+              Dimensions:
+                - Name: FunctionName
+                  Value: !Sub '${ServiceName}-${Stage}-app'
+            Period: 300
+            Stat: Sum
+          ReturnData: false
+        - Id: e1
+          Expression: "(m1/m2)*100"
+          Label: "Error Rate %"
+          ReturnData: true
+      EvaluationPeriods: 2
+      Threshold: 2
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref HighAlarmTopic
+
+  LambdaThrottleAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Stage}-Lambda-Throttle'
+      AlarmDescription: 'Lambda function throttling detected'
+      MetricName: Throttles
+      Namespace: AWS/Lambda
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 10
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      Dimensions:
+        - Name: FunctionName
+          Value: !Sub '${ServiceName}-${Stage}-app'
+      AlarmActions:
+        - !Ref HighAlarmTopic
+
+  LambdaDurationP99Alarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Stage}-Lambda-Duration-P99'
+      AlarmDescription: 'Lambda function duration P99 exceeded 9 seconds'
+      MetricName: Duration
+      Namespace: AWS/Lambda
+      ExtendedStatistic: p99
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 9000
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      Dimensions:
+        - Name: FunctionName
+          Value: !Sub '${ServiceName}-${Stage}-app'
+      AlarmActions:
+        - !Ref MediumAlarmTopic
+
+  LambdaConcurrentExecutionAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Stage}-Lambda-Concurrent-Execution'
+      AlarmDescription: 'Lambda concurrent executions exceeded 900'
+      MetricName: ConcurrentExecutions
+      Namespace: AWS/Lambda
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 900
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      Dimensions:
+        - Name: FunctionName
+          Value: !Sub '${ServiceName}-${Stage}-app'
+      AlarmActions:
+        - !Ref HighAlarmTopic
+
+  # Memory Alarms
+  LambdaMemoryCriticalAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Stage}-Lambda-Memory-Critical'
+      AlarmDescription: 'Lambda memory usage exceeded 80%'
+      MetricName: LAMBDA_MEMORY_UTILIZATION
+      Namespace: !Sub 'VanillaMeta/${Stage}'
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 80
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref CriticalAlarmTopic
+
+  LambdaMemoryWarningAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Stage}-Lambda-Memory-Warning'
+      AlarmDescription: 'Lambda memory usage exceeded 75%'
+      MetricName: LAMBDA_MEMORY_UTILIZATION
+      Namespace: !Sub 'VanillaMeta/${Stage}'
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 75
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref HighAlarmTopic
+
+  # API Gateway Alarms
+  APIResponseTimeCriticalAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Stage}-API-Response-Time-Critical'
+      AlarmDescription: 'API response time P99 exceeded 3 seconds'
+      MetricName: Latency
+      Namespace: AWS/ApiGateway
+      ExtendedStatistic: p99
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 3000
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      Dimensions:
+        - Name: ApiName
+          Value: !Sub '${Stage}-${ServiceName}'
+      AlarmActions:
+        - !Ref CriticalAlarmTopic
+
+  APIResponseTimeWarningAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Stage}-API-Response-Time-Warning'
+      AlarmDescription: 'API response time P90 exceeded 1.5 seconds'
+      MetricName: Latency
+      Namespace: AWS/ApiGateway
+      ExtendedStatistic: p90
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 1500
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      Dimensions:
+        - Name: ApiName
+          Value: !Sub '${Stage}-${ServiceName}'
+      AlarmActions:
+        - !Ref HighAlarmTopic
+
+  API5XXErrorRateAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Stage}-API-5XX-Error-Rate'
+      AlarmDescription: 'API 5XX error rate exceeded 1%'
+      Metrics:
+        - Id: m1
+          MetricStat:
+            Metric:
+              Namespace: AWS/ApiGateway
+              MetricName: 5XXError
+              Dimensions:
+                - Name: ApiName
+                  Value: !Sub '${Stage}-${ServiceName}'
+            Period: 300
+            Stat: Sum
+          ReturnData: false
+        - Id: m2
+          MetricStat:
+            Metric:
+              Namespace: AWS/ApiGateway
+              MetricName: Count
+              Dimensions:
+                - Name: ApiName
+                  Value: !Sub '${Stage}-${ServiceName}'
+            Period: 300
+            Stat: Sum
+          ReturnData: false
+        - Id: e1
+          Expression: "(m1/m2)*100"
+          Label: "5XX Error Rate"
+          ReturnData: true
+      EvaluationPeriods: 2
+      Threshold: 1
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref CriticalAlarmTopic
+
+  API4XXErrorRateAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Stage}-API-4XX-Error-Rate'
+      AlarmDescription: 'API 4XX error rate exceeded 10%'
+      Metrics:
+        - Id: m1
+          MetricStat:
+            Metric:
+              Namespace: AWS/ApiGateway
+              MetricName: 4XXError
+              Dimensions:
+                - Name: ApiName
+                  Value: !Sub '${Stage}-${ServiceName}'
+            Period: 300
+            Stat: Sum
+          ReturnData: false
+        - Id: m2
+          MetricStat:
+            Metric:
+              Namespace: AWS/ApiGateway
+              MetricName: Count
+              Dimensions:
+                - Name: ApiName
+                  Value: !Sub '${Stage}-${ServiceName}'
+            Period: 300
+            Stat: Sum
+          ReturnData: false
+        - Id: e1
+          Expression: "(m1/m2)*100"
+          Label: "4XX Error Rate"
+          ReturnData: true
+      EvaluationPeriods: 3
+      Threshold: 10
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref MediumAlarmTopic
+
+  # Business Metrics Alarms
+  DashboardLoadSlowAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Stage}-Dashboard-Load-Slow'
+      AlarmDescription: 'Dashboard load time P90 exceeded 3 seconds'
+      MetricName: DASHBOARD_LOAD_TIME
+      Namespace: !Sub 'VanillaMeta/Business'
+      ExtendedStatistic: p90
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: 3000
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref MediumAlarmTopic
+
+  QueryCacheHitLowAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Stage}-Query-Cache-Hit-Low'
+      AlarmDescription: 'Query cache hit rate below 50%'
+      Metrics:
+        - Id: m1
+          MetricStat:
+            Metric:
+              Namespace: !Sub 'VanillaMeta/Business'
+              MetricName: QUERY_CACHE_HIT
+            Period: 300
+            Stat: Sum
+          ReturnData: false
+        - Id: m2
+          MetricStat:
+            Metric:
+              Namespace: !Sub 'VanillaMeta/Business'
+              MetricName: QUERY_CACHE_MISS
+            Period: 300
+            Stat: Sum
+          ReturnData: false
+        - Id: e1
+          Expression: "(m1/(m1+m2))*100"
+          Label: "Cache Hit Rate"
+          ReturnData: true
+      EvaluationPeriods: 3
+      Threshold: 50
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref MediumAlarmTopic
+
+  WidgetRenderSlowAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Stage}-Widget-Render-Slow'
+      AlarmDescription: 'Widget render time P90 exceeded 1 second'
+      MetricName: WIDGET_RENDER_TIME
+      Namespace: !Sub 'VanillaMeta/Business'
+      ExtendedStatistic: p90
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: 1000
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref MediumAlarmTopic
+
+  # RDS Database Alarms
+  RDSCPUUtilizationCriticalAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Stage}-RDS-CPU-Critical'
+      AlarmDescription: 'RDS CPU utilization exceeded 70%'
+      MetricName: CPUUtilization
+      Namespace: AWS/RDS
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 70
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref DBInstanceIdentifier
+      AlarmActions:
+        - !Ref CriticalAlarmTopic
+      OKActions:
+        - !Ref CriticalAlarmTopic
+
+  RDSCPUUtilizationWarningAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Stage}-RDS-CPU-Warning'
+      AlarmDescription: 'RDS CPU utilization exceeded 50%'
+      MetricName: CPUUtilization
+      Namespace: AWS/RDS
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 50
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref DBInstanceIdentifier
+      AlarmActions:
+        - !Ref HighAlarmTopic
+
+  RDSDatabaseConnectionsHighAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Stage}-RDS-Connections-High'
+      AlarmDescription: 'RDS database connections exceeded 80% of max_connections'
+      MetricName: DatabaseConnections
+      Namespace: AWS/RDS
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 80
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref DBInstanceIdentifier
+      AlarmActions:
+        - !Ref HighAlarmTopic
+
+  RDSFreeableMemoryLowAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Stage}-RDS-FreeableMemory-Low'
+      AlarmDescription: 'RDS freeable memory below 256MB'
+      MetricName: FreeableMemory
+      Namespace: AWS/RDS
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 268435456  # 256MB in bytes
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: notBreaching
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref DBInstanceIdentifier
+      AlarmActions:
+        - !Ref HighAlarmTopic
+
+  RDSFreeStorageSpaceLowAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Stage}-RDS-FreeStorage-Low'
+      AlarmDescription: 'RDS free storage space below 1GB'
+      MetricName: FreeStorageSpace
+      Namespace: AWS/RDS
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 1073741824  # 1GB in bytes
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: notBreaching
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref DBInstanceIdentifier
+      AlarmActions:
+        - !Ref CriticalAlarmTopic
+
+  RDSReadLatencyHighAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Stage}-RDS-ReadLatency-High'
+      AlarmDescription: 'RDS read latency exceeded 100ms'
+      MetricName: ReadLatency
+      Namespace: AWS/RDS
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 0.1  # 100ms in seconds
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref DBInstanceIdentifier
+      AlarmActions:
+        - !Ref HighAlarmTopic
+
+  RDSWriteLatencyHighAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Stage}-RDS-WriteLatency-High'
+      AlarmDescription: 'RDS write latency exceeded 100ms'
+      MetricName: WriteLatency
+      Namespace: AWS/RDS
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 0.1  # 100ms in seconds
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref DBInstanceIdentifier
+      AlarmActions:
+        - !Ref HighAlarmTopic
+
+  # Composite Alarms for reducing false positives
+  ServiceHealthCompositeAlarm:
+    Type: AWS::CloudWatch::CompositeAlarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Stage}-Service-Health-Critical'
+      AlarmDescription: 'Multiple critical conditions detected'
+      AlarmRule: !Sub |
+        (ALARM("${LambdaErrorRateCriticalAlarm}") OR 
+         ALARM("${API5XXErrorRateAlarm}") OR 
+         ALARM("${LambdaMemoryCriticalAlarm}") OR 
+         ALARM("${RDSCPUUtilizationCriticalAlarm}") OR 
+         ALARM("${RDSFreeStorageSpaceLowAlarm}"))
+      ActionsEnabled: true
+      AlarmActions:
+        - !Ref CriticalAlarmTopic
+
+  DatabaseHealthCompositeAlarm:
+    Type: AWS::CloudWatch::CompositeAlarm
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Stage}-Database-Health-Warning'
+      AlarmDescription: 'Database performance degradation detected'
+      AlarmRule: !Sub |
+        (ALARM("${RDSCPUUtilizationWarningAlarm}") AND 
+         (ALARM("${RDSReadLatencyHighAlarm}") OR ALARM("${RDSWriteLatencyHighAlarm}")))
+      ActionsEnabled: true
+      AlarmActions:
+        - !Ref HighAlarmTopic
+
+Outputs:
+  CriticalAlarmTopicArn:
+    Description: 'ARN of Critical Alarm SNS Topic'
+    Value: !Ref CriticalAlarmTopic
+    Export:
+      Name: !Sub '${ServiceName}-${Stage}-critical-alarm-topic'
+
+  HighAlarmTopicArn:
+    Description: 'ARN of High Priority Alarm SNS Topic'
+    Value: !Ref HighAlarmTopic
+    Export:
+      Name: !Sub '${ServiceName}-${Stage}-high-alarm-topic'
+
+  MediumAlarmTopicArn:
+    Description: 'ARN of Medium Priority Alarm SNS Topic'
+    Value: !Ref MediumAlarmTopic
+    Export:
+      Name: !Sub '${ServiceName}-${Stage}-medium-alarm-topic'
+
+  SlackNotificationFunctionArn:
+    Condition: HasSlackWebhook
+    Description: 'ARN of Slack Notification Lambda Function'
+    Value: !GetAtt SlackNotificationFunction.Arn
+    Export:
+      Name: !Sub '${ServiceName}-${Stage}-slack-notifier-arn'

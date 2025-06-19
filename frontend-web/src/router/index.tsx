@@ -1,73 +1,84 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
-
-import Dashboard from '@/pages/Dashboard';
-import Widget from '@/pages/Widget';
-import Data from '@/pages/Data';
-import DataSource from '@/pages/Data/DataSource';
-import DataSet from '@/pages/Data/DataSet';
-import Status404 from '@/pages/Status404';
-import WidgetCreate from '@/pages/Widget/WidgetCreate';
-import WidgetView from '@/pages/Widget/WidgetView';
-import WidgetModify from '@/pages/Widget/WidgetModify';
-import DashboardView from '@/pages/Dashboard/DashboardView';
-import DashboardCreate from '@/pages/Dashboard/DashboardCreate';
-import DashboardModify from '@/pages/Dashboard/DashboardModify';
 import { ProtectedRoute } from '@/router/ProtectedRoute';
 import Layout from '@/layouts/Layout';
-import Login from '@/pages/Login';
-import Share from '@/pages/Share';
 import PublicLayout from '@/layouts/PublicLayout';
-import SignUp from '@/pages/SignUp';
+import { Loading } from '@/components/loading';
+import { RouteTracker } from '@/router/RouteTracker';
+
+// Lazy load all page components with webpack magic comments for better chunk naming
+const Dashboard = lazy(() => import(/* webpackChunkName: "dashboard" */ '@/pages/Dashboard'));
+const Widget = lazy(() => import(/* webpackChunkName: "widget" */ '@/pages/Widget'));
+const Data = lazy(() => import(/* webpackChunkName: "data" */ '@/pages/Data'));
+const DataSource = lazy(() => import(/* webpackChunkName: "data-source" */ '@/pages/Data/DataSource'));
+const DataSet = lazy(() => import(/* webpackChunkName: "data-set" */ '@/pages/Data/DataSet'));
+const Status404 = lazy(() => import(/* webpackChunkName: "status-404" */ '@/pages/Status404'));
+const WidgetCreate = lazy(() => import(/* webpackChunkName: "widget-create" */ '@/pages/Widget/WidgetCreate'));
+const WidgetView = lazy(() => import(/* webpackChunkName: "widget-view" */ '@/pages/Widget/WidgetView'));
+const WidgetModify = lazy(() => import(/* webpackChunkName: "widget-modify" */ '@/pages/Widget/WidgetModify'));
+const DashboardView = lazy(() => import(/* webpackChunkName: "dashboard-view" */ '@/pages/Dashboard/DashboardView'));
+const DashboardCreate = lazy(() => import(/* webpackChunkName: "dashboard-create" */ '@/pages/Dashboard/DashboardCreate'));
+const DashboardModify = lazy(() => import(/* webpackChunkName: "dashboard-modify" */ '@/pages/Dashboard/DashboardModify'));
+const Login = lazy(() => import(/* webpackChunkName: "login" */ '@/pages/Login'));
+const Share = lazy(() => import(/* webpackChunkName: "share" */ '@/pages/Share'));
+const SignUp = lazy(() => import(/* webpackChunkName: "signup" */ '@/pages/SignUp'));
+
+// Loading fallback component
+const PageLoading = () => <Loading in={true} style={{ opacity: 0.4 }} />;
 
 function Router() {
   return (
-    <Routes>
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <Layout />
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<Navigate to="/dashboard" replace={true} />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/dashboard/:dashboardId" element={<DashboardView />} />
-        <Route path="/dashboard/create" element={<DashboardCreate />}>
-          <Route path=":createType" element={<DashboardCreate />} />
-        </Route>
-        <Route path="/dashboard/modify" element={<DashboardModify />}>
-          <Route path=":dashboardId" element={<DashboardModify />} />
-        </Route>
-        <Route path="/widget" element={<Widget />} />
-        <Route path="/widget/:widgetId" element={<WidgetView />} />
-        <Route path="/widget/create" element={<WidgetCreate />} />
-        <Route path="/widget/modify" element={<WidgetModify />}>
-          <Route path=":widgetId" element={<WidgetModify />} />
-        </Route>
+    <>
+      <RouteTracker />
+      <Suspense fallback={<PageLoading />}>
+        <Routes>
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Navigate to="/dashboard" replace={true} />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/dashboard/:dashboardId" element={<DashboardView />} />
+          <Route path="/dashboard/create" element={<DashboardCreate />}>
+            <Route path=":createType" element={<DashboardCreate />} />
+          </Route>
+          <Route path="/dashboard/modify" element={<DashboardModify />}>
+            <Route path=":dashboardId" element={<DashboardModify />} />
+          </Route>
+          <Route path="/widget" element={<Widget />} />
+          <Route path="/widget/:widgetId" element={<WidgetView />} />
+          <Route path="/widget/create" element={<WidgetCreate />} />
+          <Route path="/widget/modify" element={<WidgetModify />}>
+            <Route path=":widgetId" element={<WidgetModify />} />
+          </Route>
 
-        <Route path="/data" element={<Data />} />
-        <Route path="/data/source/create" element={<DataSource />} />
-        <Route path="/data/source/modify" element={<DataSource />}>
-          <Route path=":sourceId" element={<DataSource />} />
-        </Route>
+          <Route path="/data" element={<Data />} />
+          <Route path="/data/source/create" element={<DataSource />} />
+          <Route path="/data/source/modify" element={<DataSource />}>
+            <Route path=":sourceId" element={<DataSource />} />
+          </Route>
 
-        <Route path="/data/set/create" element={<DataSet />}>
-          <Route path=":sourceId" element={<DataSet />} />
+          <Route path="/data/set/create" element={<DataSet />}>
+            <Route path=":sourceId" element={<DataSet />} />
+          </Route>
+          <Route path="/data/set/modify" element={<DataSet />}>
+            <Route path=":setId" element={<DataSet />} />
+          </Route>
+          <Route path="/*" element={<Status404 />} />
         </Route>
-        <Route path="/data/set/modify" element={<DataSet />}>
-          <Route path=":setId" element={<DataSet />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<SignUp />} />
+        <Route path="/" element={<PublicLayout />}>
+          <Route path="/share/:dashboardUuid" element={<Share />} />
+          <Route path="*" element={<Status404 />} />
         </Route>
-        <Route path="/*" element={<Status404 />} />
-      </Route>
-      <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<SignUp />} />
-      <Route path="/" element={<PublicLayout />}>
-        <Route path="/share/:dashboardUuid" element={<Share />} />
-        <Route path="*" element={<Status404 />} />
-      </Route>
-    </Routes>
+      </Routes>
+    </Suspense>
+    </>
   );
 }
 

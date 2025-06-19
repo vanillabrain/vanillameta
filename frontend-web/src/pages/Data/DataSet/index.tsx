@@ -18,6 +18,7 @@ import { getDatabaseIcon } from '@/widget/utils/iconUtil';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import { createColumns } from '@/utils/util';
+import type { Dataset } from '@/types';
 
 const DataSet = () => {
   const { setId, sourceId } = useParams();
@@ -114,8 +115,9 @@ const DataSet = () => {
     DatabaseService.selectDatabaseList()
       .then(response => {
         console.log('selectDatabaseTypeList', response.data);
-        if (response.data.status === STATUS.SUCCESS) {
-          const list = response.data.data;
+        console.log('selectDatabaseList response:', response);
+        if (response.status === STATUS.SUCCESS) {
+          const list = response.data;
           list.map(item => (item.icon = getDatabaseIcon(item.engine)));
           setDatabaseList(list);
         }
@@ -139,9 +141,10 @@ const DataSet = () => {
     showLoading();
     DatabaseService.selectDatabase(databaseId)
       .then(response => {
-        if (response.data.status === 'SUCCESS') {
-          setTableList(response.data.data.tables);
-          console.log('tableList ', response.data.data.tables);
+        console.log('selectDatabase response:', response);
+        if (response.status === 'SUCCESS') {
+          setTableList(response.data.tables || []);
+          console.log('tableList ', response.data.tables);
         } else {
           alert.error('데이터베이스 조회에 실패했습니다.\n다시 시도해 주세요.');
           setTableList([]);
@@ -163,11 +166,18 @@ const DataSet = () => {
     showLoading();
     DatasetService.selectDataset(setId)
       .then(response => {
-        console.log('selectDataset', response.data.data.id, response.data.data.databaseId);
-        if (response.data.status === 'SUCCESS') {
-          setDatasetInfo(response.data.data);
+        console.log('selectDataset response:', response);
+        if (response.status === 'SUCCESS') {
+          const datasetData = response.data.dataset || response.data;
+          const dataset = datasetData as Dataset;
+          console.log('selectDataset', dataset.id, dataset.databaseId);
+          setDatasetInfo({
+            databaseId: String(dataset.databaseId),
+            title: dataset.title || '',
+            query: dataset.query || ''
+          });
         } else {
-          alert.error('데이터베이스 조회에 실패했습니다.\n다시 시도해 주세요.');
+          alert.error(response.message || '데이터베이스 조회에 실패했습니다.\n다시 시도해 주세요.');
         }
       })
       .finally(() => {
@@ -181,23 +191,26 @@ const DataSet = () => {
   const excuteQuery = () => {
     showLoading();
     const param = {
-      id: databaseId,
+      databaseId: Number(databaseId),
       query: datasetInfo.query,
     };
     console.log('param', param);
     DatabaseService.executeQuery(param)
       .then(response => {
         console.log(response.data);
-        if (response.data.status === 'SUCCESS') {
+        console.log('executeQuery response:', response);
+        if (response.status === 'SUCCESS') {
           setTestCompleted(true);
-          setData(response.data.datas);
-          setColumns(createColumns(response.data.datas));
+          const resultData = response.data?.result || response.data;
+          const rows = (resultData as any)?.rows || (resultData as any)?.datas || [];
+          setData(rows);
+          setColumns(createColumns(rows));
           snackbar.success('Success!');
         } else {
           setTestCompleted(false);
           setData([]);
           setColumns([]);
-          snackbar.error(`${response.data.message}`);
+          snackbar.error(response.message || 'Query execution failed');
         }
       })
       .catch(error => {
@@ -223,28 +236,38 @@ const DataSet = () => {
           onClick: () => {
             showLoading();
             if (isModifyMode) {
-              DatasetService.updateDataset(setId, datasetInfo)
+              DatasetService.updateDataset(setId, {
+                databaseId: Number(datasetInfo.databaseId),
+                title: datasetInfo.title,
+                query: datasetInfo.query
+              })
                 .then(response => {
                   console.log(response.data);
-                  if (response.data.status === STATUS.SUCCESS) {
+                  console.log('updateDataset response:', response);
+                  if (response.status === STATUS.SUCCESS) {
                     navigate('/data');
                     snackbar.success('데이터셋이 수정되었습니다.');
                   } else {
-                    alert.error('데이터셋 수정에 실패했습니다.\n다시 시도해 주세요.');
+                    alert.error(response.message || '데이터셋 수정에 실패했습니다.\n다시 시도해 주세요.');
                   }
                 })
                 .finally(() => {
                   hideLoading();
                 });
             } else {
-              DatasetService.createDataset(datasetInfo)
+              DatasetService.createDataset({
+                databaseId: Number(datasetInfo.databaseId),
+                title: datasetInfo.title,
+                query: datasetInfo.query
+              })
                 .then(response => {
                   console.log(response.data);
-                  if (response.data.status === STATUS.SUCCESS) {
+                  console.log('createDataset response:', response);
+                  if (response.status === STATUS.SUCCESS) {
                     navigate('/data');
                     snackbar.success('데이터셋이 생성되었습니다.');
                   } else {
-                    alert.error('데이터셋 생성에 실패했습니다.\n다시 시도해 주세요.');
+                    alert.error(response.message || '데이터셋 생성에 실패했습니다.\n다시 시도해 주세요.');
                   }
                 })
                 .finally(() => {

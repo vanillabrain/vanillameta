@@ -61,7 +61,10 @@ describe('TemplateService', () => {
 
       expect(result.status).toBe(ResponseStatus.SUCCESS);
       expect(result.data).toEqual(mockTemplates);
-      expect(templateRepository.find).toHaveBeenCalledWith({ where: { useYn: YesNo.YES } });
+      expect(templateRepository.find).toHaveBeenCalledWith({
+        select: { id: true, title: true, description: true },
+        where: { useYn: YesNo.YES },
+      });
     });
   });
 
@@ -78,7 +81,10 @@ describe('TemplateService', () => {
 
       const result = await service.findOne(1);
 
-      expect(templateRepository.findOne).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(templateRepository.findOne).toHaveBeenCalledWith({
+        select: { id: true, title: true, description: true },
+        where: { id: 1, useYn: YesNo.YES },
+      });
       expect(templateItemRepository.find).toHaveBeenCalledWith({ where: { templateId: 1 } });
       expect(result.status).toBe(ResponseStatus.SUCCESS);
     });
@@ -89,7 +95,7 @@ describe('TemplateService', () => {
       const result = await service.findOne(999);
 
       expect(result.status).toBe(ResponseStatus.ERROR);
-      expect((result as any).message).toContain('존재하지 않는');
+      expect((result as any).message).toContain('템플릿이 존재하지 않습니다');
     });
   });
 
@@ -114,16 +120,11 @@ describe('TemplateService', () => {
 
   describe('remove', () => {
     it('should remove template and its items', async () => {
-      const mockTemplate = { id: 1, title: 'Template 1' };
-
-      templateRepository.findOne.mockResolvedValue(mockTemplate);
-      templateRepository.delete.mockResolvedValue({ affected: 1 });
-      templateItemRepository.delete.mockResolvedValue({ affected: 2 });
+      templateRepository.update.mockResolvedValue({ affected: 1 });
 
       const result = await service.remove(1);
 
-      expect(templateRepository.delete).toHaveBeenCalledWith({ id: 1 });
-      expect(templateItemRepository.delete).toHaveBeenCalledWith({ templateId: 1 });
+      expect(templateRepository.update).toHaveBeenCalledWith({ id: 1 }, { useYn: YesNo.NO });
       expect(result.status).toBe(ResponseStatus.SUCCESS);
     });
   });

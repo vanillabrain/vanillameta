@@ -21,54 +21,34 @@ import TemplateService from '@/api/templateService';
 import WidgetService from '@/api/widgetService';
 import { MAX_WIDTH, STATUS } from '@/constant';
 import CloseButton from '@/components/button/CloseButton';
-import { ReactComponent as TemplateIcon01 } from '@/assets/images/template/template01.svg';
-import { ReactComponent as TemplateIcon02 } from '@/assets/images/template/template02.svg';
-import { ReactComponent as TemplateIcon03 } from '@/assets/images/template/template03.svg';
-import { ReactComponent as TemplateIcon04 } from '@/assets/images/template/template04.svg';
-import { ReactComponent as TemplateIcon05 } from '@/assets/images/template/template05.svg';
-import { ReactComponent as TemplateIcon06 } from '@/assets/images/template/template06.svg';
-import { ReactComponent as TemplateIcon07 } from '@/assets/images/template/template07.svg';
-import { ReactComponent as TemplateIcon08 } from '@/assets/images/template/template08.svg';
-import { ReactComponent as TemplateIcon09 } from '@/assets/images/template/template09.svg';
-import { ReactComponent as TemplateIcon10 } from '@/assets/images/template/template10.svg';
-import { ReactComponent as CheckIcon } from '@/assets/images/icon/ic-check.svg';
+import LazyImage from '@/components/LazyImage';
+import LazyIcon from '@/components/LazyIcon';
 import { LoadingContext } from '@/contexts/LoadingContext';
 
 const getTemplateIcon = id => {
-  let icon = null;
-  switch (id) {
-    case 7:
-      icon = <TemplateIcon01 style={{ width: '100%', height: '100%' }} />;
-      break;
-    case 8:
-      icon = <TemplateIcon02 style={{ width: '100%', height: '100%' }} />;
-      break;
-    case 9:
-      icon = <TemplateIcon03 style={{ width: '100%', height: '100%' }} />;
-      break;
-    case 10:
-      icon = <TemplateIcon04 style={{ width: '100%', height: '100%' }} />;
-      break;
-    case 11:
-      icon = <TemplateIcon05 style={{ width: '100%', height: '100%' }} />;
-      break;
-    case 12:
-      icon = <TemplateIcon06 style={{ width: '100%', height: '100%' }} />;
-      break;
-    case 13:
-      icon = <TemplateIcon07 style={{ width: '100%', height: '100%' }} />;
-      break;
-    case 14:
-      icon = <TemplateIcon08 style={{ width: '100%', height: '100%' }} />;
-      break;
-    case 15:
-      icon = <TemplateIcon09 style={{ width: '100%', height: '100%' }} />;
-      break;
-    case 16:
-      icon = <TemplateIcon10 style={{ width: '100%', height: '100%' }} />;
-      break;
-  }
-  return icon;
+  const templateMap = {
+    7: 'template01',
+    8: 'template02', 
+    9: 'template03',
+    10: 'template04',
+    11: 'template05',
+    12: 'template06',
+    13: 'template07',
+    14: 'template08',
+    15: 'template09',
+    16: 'template10',
+  };
+
+  const iconName = templateMap[id];
+  if (!iconName) return null;
+
+  return (
+    <LazyIcon 
+      iconName={iconName}
+      width="100%"
+      height="100%"
+    />
+  );
 };
 
 export const WidgetList = ({
@@ -98,8 +78,9 @@ export const WidgetList = ({
     showLoading();
     WidgetService.selectWidgetList()
       .then(response => {
-        if (response.data.status == STATUS.SUCCESS) {
-          setLoadedWidgetData(response.data.data);
+        console.log('selectWidget response:', response);
+        if (response.status === STATUS.SUCCESS) {
+          setLoadedWidgetData(response.data);
         } else {
           console.log('조회 실패!!!!');
         }
@@ -174,15 +155,17 @@ export const WidgetList = ({
                   marginLeft: '16px',
                 }}
               >
-                <Avatar
+                <LazyImage
                   src={`/static/images/${item.icon}`}
-                  sx={{
-                    width: 'auto',
-                    height: '30px',
-                    borderRadius: 0,
-                    objectFit: 'contain',
+                  alt={`${item.title} 아이콘`}
+                  width="auto"
+                  height="30px"
+                  objectFit="contain"
+                  style={{
                     backgroundColor: 'transparent',
                   }}
+                  threshold={0.1}
+                  rootMargin="100px"
                 />
               </ListItemIcon>
               <ListItemText
@@ -259,10 +242,11 @@ export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = 
   const [selectedItem, setSelectedItem] = useState(null);
 
   const getItems = () => {
-    TemplateService.selectRecommendTemplateList({ widgets: selectedWidgetIds }).then(response => {
+    TemplateService.selectRecommendTemplateList({ databaseIds: selectedWidgetIds }).then(response => {
       // TemplateService.selectRecommendTemplateList({ widgets: [1, 2] }).then(response => {
-      if (response.data.status == STATUS.SUCCESS) {
-        setLoadedTemplateDataList(response.data.data);
+      console.log('selectTemplateList response:', response);
+      if (response.status === STATUS.SUCCESS) {
+        setLoadedTemplateDataList(response.data.templates || response.data.items || []);
       } else {
         console.log('조회 실패!!');
       }
@@ -330,7 +314,12 @@ export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = 
                 >
                   <Box sx={{ width: '100%', margin: 0 }}>{getTemplateIcon(item.id)}</Box>
                   {selected ? (
-                    <CheckIcon style={{ width: '33px', height: '28px', position: 'absolute', right: '20px', top: '20px' }} />
+                    <LazyIcon 
+                      iconName="ic-check"
+                      width="33px"
+                      height="28px"
+                      style={{ position: 'absolute', right: '20px', top: '20px' }}
+                    />
                   ) : (
                     <></>
                   )}
@@ -503,8 +492,9 @@ function RecommendDashboardPopup({ recommendOpen = false, handleComplete = null 
 
   const getTemplateResult = item => {
     TemplateService.selectRecommendTemplateListDashboard(item).then(response => {
-      if (response.data.status == STATUS.SUCCESS) {
-        handleComplete(response.data.data);
+      console.log('createTemplateDashboard response:', response);
+      if (response.status === STATUS.SUCCESS) {
+        handleComplete(response.data);
       } else {
         console.log('조회 실패!!');
       }

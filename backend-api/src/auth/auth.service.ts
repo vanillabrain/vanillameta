@@ -21,6 +21,13 @@ export class AuthService {
       email: payload.email,
       id: payload.id,
     };
+
+    // 디버깅용 로그
+    console.log('Environment variables:', {
+      ACCESS_SECRET: process.env.ACCESS_SECRET ? 'EXISTS' : 'MISSING',
+      NODE_ENV: process.env.NODE_ENV,
+    });
+
     const accessToken = await this.jwtService.sign(
       { accessKeyData },
       {
@@ -80,8 +87,7 @@ export class AuthService {
       delete user.password;
       return user;
     }
-
-    // 회원이 존재하는지 확인
+    return undefined;
   }
 
   async deleteRefreshToken(userId: number) {

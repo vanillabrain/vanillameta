@@ -53,9 +53,11 @@ const WidgetAttributeSelect = props => {
     showLoading();
     DatabaseService.selectData(param)
       .then(response => {
-        if (response.data.status === STATUS.SUCCESS) {
-          setData(response.data.data.datas);
-          setSpec(response.data.data.fields);
+        console.log('selectData response:', response);
+        if (response.status === STATUS.SUCCESS) {
+          // response는 ApiResponse<QueryExecuteResponse> 구조
+          setData(response.data?.result?.rows || []);
+          setSpec(response.data?.result?.columns || []);
         }
       })
       .finally(() => {

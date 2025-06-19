@@ -1,7 +1,7 @@
+import React, { ReactElement } from 'react';
 import { Transition } from 'react-transition-group';
 import { styled } from '@mui/material/styles';
 import { Box } from '@mui/material';
-import { ReactElement } from 'react';
 import loadingGif from '@/assets/images/loading.gif';
 
 interface LoadingProps {

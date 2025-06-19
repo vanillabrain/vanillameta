@@ -9,6 +9,7 @@ import { DatabaseType } from '../../src/database/entities/database_type.entity';
 import { ConnectionService } from '../../src/connection/connection.service';
 import * as TestConnectionInfo from '../../test-connect-info.json';
 import { ResponseStatus } from '../../src/common/enum/response-status.enum';
+import { mockCustomLoggerService, mockSqlValidationService } from '../util/test-providers';
 
 describe('QTT-001: 외부 API 연동', () => {
   let connectService: ConnectionService;
@@ -23,7 +24,7 @@ describe('QTT-001: 외부 API 연동', () => {
         getTestMysqlModule(),
         TypeOrmModule.forFeature([Database, Dataset, TableQuery, DatabaseType]),
       ],
-      providers: [ConnectionService],
+      providers: [ConnectionService, mockCustomLoggerService, mockSqlValidationService],
     }).compile();
 
     connectService = module.get<ConnectionService>(ConnectionService);

@@ -11,15 +11,13 @@ import { checkId, checkPwd } from '@/utils/util';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import Seo from '@/seo/Seo';
 import { getToken, setToken } from '@/helpers/authHelper';
-import { useTranslation } from 'react-i18next';
-import LanguageSwitcher from '@/components/LanguageSwitcher';
+import { trackUserSession } from '@/utils/eventTracking';
 
 const Login = () => {
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const navigate = useNavigate();
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
-  const { t } = useTranslation(['auth', 'common']);
   const [userInfo, setUserInfo] = useState({
     userId: '',
     userPwd: '',
@@ -55,19 +53,42 @@ const Login = () => {
       };
       authService
         .signin(data)
-        .then(response => {
-          if (response.status === 201) {
-            setToken(response.data.accessToken);
+        .then((response: any) => {
+          console.log('로그인 응답:', response);
+          // API 헬퍼의 post 함수는 response.data를 반환하므로 accessToken과 message를 직접 확인
+          if (response?.accessToken && response?.message === 'success') {
+            const token: string = response.accessToken;
+            console.log('받은 토큰:', token);
+            setToken(token);
+            console.log('토큰 설정 완료, 사용자 정보 가져오는 중...');
+            // 토큰 설정 후 사용자 정보를 먼저 가져온 다음 대시보드로 이동
+            return authService.getUserInfo();
+          } else {
+            console.log('로그인 실패: 응답', response);
+            throw new Error('로그인 실패');
+          }
+        })
+        .then((userResponse: any) => {
+          console.log('사용자 정보 응답:', userResponse);
+          console.log('userResponse 타입:', typeof userResponse);
+          console.log('userResponse null 체크:', userResponse === null);
+          console.log('userResponse undefined 체크:', userResponse === undefined);
+
+          // API 헬퍼의 get 함수는 response.data를 반환하므로 데이터 자체가 있으면 성공으로 간주
+          if (userResponse) {
+            console.log('대시보드로 이동 중...');
             navigate('/dashboard');
+          } else {
+            console.log('사용자 정보가 null/undefined입니다.');
           }
         })
         .catch(error => {
           console.log(error);
-          if (error.response.status === 401) {
-            snackbar.error(t('auth:login.invalidCredentials'));
+          if (error.response && error.response.status === 401) {
+            snackbar.error('ID 또는 비밀번호가 일치하지 않습니다.');
             return;
           }
-          alert.error(t('auth:login.failed'));
+          alert.error('로그인에 실패했습니다. 다시 시도해주세요.');
         })
         .finally(() => {
           hideLoading();
@@ -80,19 +101,19 @@ const Login = () => {
     const { userId, userPwd } = userInfo;
     // console.log('userId:', userId, 'userFirstPwd:', userFirstPwd, 'userSecondPwd:', userSecondPwd, 'userEmail:', userEmail);
     if (!userId || !userPwd) {
-      snackbar.error(t('common:messages.required'));
+      snackbar.error('입력란을 모두 작성해 주세요.');
       return;
     } else {
       if (userId.length < 5 || userId.length >= 20) {
-        snackbar.error(t('common:validation.minLength', { field: t('auth:login.userId'), min: 5 }));
+        snackbar.error('ID는 5글자에서 20글자 이내로 작성해 주세요.');
         return;
       }
       if (!checkId.test(userId)) {
-        snackbar.error(t('common:validation.pattern'));
+        snackbar.error('ID는 공백 없는 영문, 숫자만 가능합니다.');
         return;
       }
       if (!checkPwd.test(userPwd)) {
-        snackbar.error(t('common:validation.pattern'));
+        snackbar.error('비밀번호는 8글자 이상이며 숫자와 영문 대소문자, 특수문자가 포함되어 있어야 합니다.');
         return;
       }
       isValid = true;
@@ -112,7 +133,7 @@ const Login = () => {
           backgroundColor: '#f5f6f8',
         }}
       >
-        <Seo title={t('auth:login.title')} />
+        <Seo title="로그인" />
         <Box
           sx={{
             pt: '90px',
@@ -121,16 +142,14 @@ const Login = () => {
             alignItems: 'center',
           }}
         >
-          <Box sx={{ position: 'relative' }}>
-            <RouterLink to="/">
-              <Logo width="223px" height="43px" />
-            </RouterLink>
-            <Box sx={{ position: 'absolute', top: 0, right: -50 }}>
-              <LanguageSwitcher />
-            </Box>
-          </Box>
+          <RouterLink to="/">
+            <Logo width="223px" height="43px" />
+          </RouterLink>
           <Typography sx={{ mt: '17px', fontSize: '16px', color: '#043f84', textAlign: 'center' }}>
-            {t('common:app.description')}
+            통합 데이터 분석을 위한{' '}
+            <Typography component="span" sx={{ fontSize: '16px', fontWeight: 'bold' }}>
+              대시보드 리포팅 솔루션
+            </Typography>
           </Typography>
           <Stack
             component="form"
@@ -141,7 +160,7 @@ const Login = () => {
           >
             <TextField
               autoFocus={true}
-              label={t('auth:login.userId')}
+              label="User ID"
               name="userId"
               value={userInfo.userId}
               onChange={handleChange}
@@ -155,7 +174,7 @@ const Login = () => {
               }}
             />
             <TextField
-              label={t('auth:login.password')}
+              label="Password"
               name="userPwd"
               value={userInfo.userPwd}
               onChange={handleChange}
@@ -176,7 +195,7 @@ const Login = () => {
               variant="contained"
               sx={{ height: { xs: '50px', sm: '44px' }, mt: 3, mb: 2 }}
             >
-              {t('auth:login.signIn')}
+              Login
             </Button>
           </Stack>
           {APP_MODE != 'prod' && (
@@ -225,7 +244,7 @@ const Login = () => {
                   },
                 }}
               >
-                {t('auth:login.signUp')}
+                회원가입
               </Button>
               <Button
                 disableRipple
@@ -246,7 +265,7 @@ const Login = () => {
                   },
                 }}
               >
-                {t('auth:login.forgotPassword')}
+                아이디/비번찾기
               </Button>
             </Stack>
           )}

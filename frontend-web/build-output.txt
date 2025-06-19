@@ -1,0 +1,101 @@
+yarn run v1.22.22
+$ env-cmd -f .env craco build
+Creating an optimized production build...
+Failed to compile.
+
+[eslint] 
+src/api/authService.ts
+  Line 33:70:  Delete `⏎··`  prettier/prettier
+  Line 36:51:  Delete `·⏎·`  prettier/prettier
+  Line 39:70:  Delete `⏎··`  prettier/prettier
+  Line 42:78:  Delete `⏎··`  prettier/prettier
+  Line 45:81:  Delete `⏎··`  prettier/prettier
+  Line 48:56:  Delete `⏎··`  prettier/prettier
+  Line 51:62:  Delete `·⏎·`  prettier/prettier
+
+src/api/componentService.ts
+  Line 2:9:     Delete `·`    prettier/prettier
+  Line 3:15:    Delete `·`    prettier/prettier
+  Line 8:12:    Insert `,`    prettier/prettier
+  Line 13:70:   Delete `⏎··`  prettier/prettier
+  Line 16:105:  Delete `·`    prettier/prettier
+  Line 19:92:   Delete `⏎··`  prettier/prettier
+  Line 22:92:   Delete `⏎··`  prettier/prettier
+  Line 25:78:   Delete `·⏎·`  prettier/prettier
+
+src/api/dashboardService.ts
+  Line 2:9:     Delete `·`    prettier/prettier
+  Line 3:15:    Delete `·`    prettier/prettier
+  Line 8:12:    Insert `,`    prettier/prettier
+  Line 13:70:   Delete `⏎··`  prettier/prettier
+  Line 16:88:   Delete `⏎··`  prettier/prettier
+  Line 19:91:   Delete `·⏎·`  prettier/prettier
+  Line 22:103:  Delete `·`    prettier/prettier
+  Line 25:68:   Delete `·⏎·`  prettier/prettier
+
+src/api/databaseService.ts
+  Line 2:9:     Delete `·`    prettier/prettier
+  Line 3:15:    Delete `·`    prettier/prettier
+  Line 14:15:   Insert `,`    prettier/prettier
+  Line 19:67:   Delete `·⏎·`  prettier/prettier
+  Line 22:88:   Delete `·`    prettier/prettier
+  Line 25:98:   Delete `·`    prettier/prettier
+  Line 28:102:  Delete `·`    prettier/prettier
+  Line 31:96:   Delete `·`    prettier/prettier
+  Line 34:76:   Delete `⏎··`  prettier/prettier
+  Line 37:88:   Delete `·⏎·`  prettier/prettier
+  Line 40:100:  Delete `·`    prettier/prettier
+  Line 43:67:   Delete `·⏎·`  prettier/prettier
+  Line 46:94:   Delete `·`    prettier/prettier
+
+src/api/datasetService.ts
+  Line 2:9:    Delete `·`    prettier/prettier
+  Line 3:15:   Delete `·`    prettier/prettier
+  Line 8:10:   Insert `,`    prettier/prettier
+  Line 13:66:  Delete `⏎··`  prettier/prettier
+  Line 16:96:  Delete `·`    prettier/prettier
+  Line 19:86:  Delete `⏎··`  prettier/prettier
+  Line 22:97:  Delete `·`    prettier/prettier
+  Line 25:66:  Delete `·⏎·`  prettier/prettier
+
+src/api/shareService.ts
+  Line 2:10:    Replace `⏎··ApiResponse,·⏎··ShareTokenRequest,⏎··ShareDashboardResponse,⏎··ShareTokenResponse⏎` with `ApiResponse,·ShareTokenRequest,·ShareDashboardResponse,·ShareTokenResponse·`  prettier/prettier
+  Line 14:104:  Delete `·`                                                                                                                                                                          prettier/prettier
+  Line 17:91:   Delete `·`                                                                                                                                                                          prettier/prettier
+  Line 20:88:   Delete `·`                                                                                                                                                                          prettier/prettier
+
+src/api/templateService.ts
+  Line 2:10:    Replace `⏎··ApiResponse,·⏎··TemplateRecommendRequest,⏎··TemplateRecommendResponse,⏎··TemplateDashboardResponse⏎` with `ApiResponse,·TemplateRecommendRequest,·TemplateRecommendResponse,·TemplateDashboardResponse·`  prettier/prettier
+  Line 12:121:  Delete `·`                                                                                                                                                                                                            prettier/prettier
+  Line 16:54:   Replace `·templateId:·number·}):·Promise<ApiResponse<TemplateDashboardResponse>>·=>·⏎·` with `⏎··templateId:·number;⏎}):·Promise<ApiResponse<TemplateDashboardResponse>>·=>`                                          prettier/prettier
+
+src/api/widgetService.ts
+  Line 2:9:    Delete `·`    prettier/prettier
+  Line 3:15:   Delete `·`    prettier/prettier
+  Line 8:9:    Insert `,`    prettier/prettier
+  Line 13:64:  Delete `⏎··`  prettier/prettier
+  Line 16:94:  Delete `·`    prettier/prettier
+  Line 19:83:  Delete `⏎··`  prettier/prettier
+  Line 22:94:  Delete `·`    prettier/prettier
+  Line 25:65:  Delete `·⏎·`  prettier/prettier
+
+src/helpers/apiHelper.ts
+  Line 12:1:    Delete `··`                                                                                                                                                                                                                                                                                                                                                                                prettier/prettier
+  Line 14:74:   Insert `·`                                                                                                                                                                                                                                                                                                                                                                                 prettier/prettier
+  Line 15:15:   Replace `Math.random()·*·16` with `(Math.random()·*·16)`                                                                                                                                                                                                                                                                                                                                   prettier/prettier
+  Line 16:39:   Replace `·|·0x8)` with `)·|·0x8`                                                                                                                                                                                                                                                                                                                                                           prettier/prettier
+  Line 115:1:   Delete `····`                                                                                                                                                                                                                                                                                                                                                                              prettier/prettier
+  Line 120:21:  Replace ``[API·Response]·${response.config.method?.toUpperCase()}·${response.config.url}·-·Correlation·ID:·${correlationId}`);` with `⏎··········`[API·Response]·${response.config.method?.toUpperCase()}·${⏎············response.config.url⏎··········}·-·Correlation·ID:·${correlationId}`,`                                                                                             prettier/prettier
+  Line 121:7:   Replace `}` with `··);`                                                                                                                                                                                                                                                                                                                                                                    prettier/prettier
+  Line 122:1:   Replace `····` with `······`                                                                                                                                                                                                                                                                                                                                                               prettier/prettier
+  Line 123:5:   Insert `}⏎`                                                                                                                                                                                                                                                                                                                                                                                prettier/prettier
+  Line 128:1:   Delete `····`                                                                                                                                                                                                                                                                                                                                                                              prettier/prettier
+  Line 131:28:  Replace `·errorResponse.headers?.['x-correlation-id']·||·errorResponse.headers?.['X-Correlation-ID']·||` with `⏎········errorResponse.headers?.['x-correlation-id']·||⏎········errorResponse.headers?.['X-Correlation-ID']·||⏎·······`                                                                                                                                                     prettier/prettier
+  Line 133:23:  Replace ``[API·Error]·${errorResponse.config?.method?.toUpperCase()}·${errorResponse.config?.url}·-·Correlation·ID:·${correlationId},·Status:·${errorResponse.status}`` with `⏎··········`[API·Error]·${errorResponse.config?.method?.toUpperCase()}·${⏎············errorResponse.config?.url⏎··········}·-·Correlation·ID:·${correlationId},·Status:·${errorResponse.status}`,⏎········`  prettier/prettier
+  Line 136:1:   Delete `····`                                                                                                                                                                                                                                                                                                                                                                              prettier/prettier
+
+Search for the keywords to learn more about each error.
+
+
+error Command failed with exit code 1.
+info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command.

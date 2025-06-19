@@ -11,14 +11,14 @@ import { styled } from '@mui/system';
 import { STATUS } from '@/constant';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import Seo from '@/seo/Seo';
-import { useTranslation } from 'react-i18next';
+
+const title = '위젯';
 
 const Widget = () => {
   const { widgetId } = useParams();
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
-  const { t } = useTranslation(['widget', 'common']);
 
   const [widgetList, setWidgetList] = useState([]);
   const [noData, setNoData] = useState(false);
@@ -48,12 +48,22 @@ const Widget = () => {
     showLoading();
     WidgetService.selectWidgetList()
       .then(response => {
-        if (response.data.status == STATUS.SUCCESS) {
-          setWidgetList(response.data.data);
-          setNoData(response.data.data.length == 0);
+        console.log('위젯 응답 전체:', response);
+        console.log('위젯 응답 데이터:', response.data);
+        console.log('response.status:', response.status);
+        
+        // API 헬퍼가 response.data를 반환하므로, response 자체가 백엔드의 응답 데이터
+        if (response.status == STATUS.SUCCESS) {
+          setWidgetList(response.data);
+          setNoData(response.data.length == 0);
         } else {
-          alert.error(t('common:messages.error'));
+          console.log('위젯 상태 체크 실패로 인한 오류');
+          alert.error('위젯 조회에 실패했습니다.\n다시 시도해 주세요.');
         }
+      })
+      .catch(error => {
+        console.log('위젯 조회 오류:', error);
+        alert.error('위젯 조회에 실패했습니다.\n다시 시도해 주세요.');
       })
       .finally(() => {
         hideLoading();
@@ -65,23 +75,24 @@ const Widget = () => {
       <Box sx={{ span: { fontWeight: 600 } }}>
         <span>{title}</span>
         <br />
-        {t('common:messages.confirmDelete')}
+        위젯을 삭제하시겠습니까?
       </Box>,
       {
-        title: t('widget:title'),
-        closeCopy: t('common:actions.cancel'),
+        title: '위젯 삭제',
+        closeCopy: '취소',
         actions: [
           {
-            copy: t('common:actions.delete'),
+            copy: '삭제',
             onClick: () => {
               showLoading();
               WidgetService.deleteWidget(id)
                 .then(response => {
-                  if (response.status === 200) {
+                  // API 헬퍼가 response.data를 반환하므로 status 확인
+                  if (response.status === STATUS.SUCCESS) {
                     getWidgetList();
-                    snackbar.success(t('widget:messages.deleted'));
+                    snackbar.success('위젯이 삭제되었습니다.');
                   } else {
-                    alert.error(t('common:messages.error'));
+                    alert.error('위젯 삭제에 실패했습니다.\n다시 시도해 주세요.');
                   }
                 })
                 .finally(() => {
@@ -103,8 +114,8 @@ const Widget = () => {
           justifyContent="space-between"
           sx={{ paddingLeft: '20px', paddingRight: { xs: '20px', sm: '217px' }, marginBottom: '11px', marginTop: '36px' }}
         >
-          <GTSpan>{t('common:table.name')}</GTSpan>
-          <GTSpan>{t('common:table.updatedAt')}</GTSpan>
+          <GTSpan>이름</GTSpan>
+          <GTSpan>수정일</GTSpan>
         </Stack>
         <Box
           sx={{
@@ -133,9 +144,9 @@ const Widget = () => {
               color: '#333333',
             }}
           >
-            {t('widget:list.empty', '생성한 위젯이 없습니다.')}
+            생성한 위젯이 없습니다.
             {matches ? ' ' : <br />}
-            {t('widget:list.createFirst', '위젯을 생성 후 확인해 보세요.')}
+            위젯을 생성 후 확인해 보세요.
           </span>
         </Box>
       </>
@@ -144,11 +155,11 @@ const Widget = () => {
 
   return (
     <Stack sx={{ width: '100%', height: '100%', flex: '1 1 auto' }}>
-      <Seo title={t('widget:title')} />
+      <Seo title={title} />
 
       {!widgetId ? (
         <PageTitleBox
-          title={t('widget:title')}
+          title={title}
           button={
             <Button
               variant="contained"
@@ -157,7 +168,7 @@ const Widget = () => {
               sx={{ height: '32px', backgroundColor: '#043f84' }}
               startIcon={<AddIcon />}
             >
-              {t('widget:create.title')}
+              위젯 생성
             </Button>
           }
         >

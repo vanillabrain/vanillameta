@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { ReactElement } from 'react';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
@@ -8,10 +8,10 @@ import Button from '@mui/material/Button';
 import { Alert, Divider, Portal, Snackbar } from '@mui/material';
 
 interface IProps {
-  message: string | JSX.Element;
+  message: string | ReactElement;
   close: any;
   options: {
-    title?: string | JSX.Element;
+    title?: string | ReactElement;
     actions?: {
       copy: string;
       onClick: any;

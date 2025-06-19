@@ -69,13 +69,28 @@ describe('ShareUrlService', () => {
 
       userRepository.findOne.mockResolvedValue(mockUser);
       authService.generateUrlAccessToken.mockResolvedValue(mockToken);
-      dashboardRepository.findOne.mockResolvedValue({ id: 1, title: 'Test Dashboard' });
-      dashboardRepository.save.mockResolvedValue({ id: 1, shareYn: 'Y' });
+      dashboardRepository.findOne.mockResolvedValue({
+        id: 1,
+        title: 'Test Dashboard',
+        shareId: 1,
+        dashboardShare: {
+          id: 1,
+          shareToken: '',
+          shareYn: 'N',
+          endDate: null,
+          uuid: 'test-uuid',
+        },
+      });
+      dashboardShareRepository.save.mockResolvedValue({ id: 1, uuid: 'test-uuid', shareYn: 'Y' });
 
       const result = await service.checkShareUrlOn('testuser', 1, shareUrlOnDto);
 
       expect(userRepository.findOne).toHaveBeenCalledWith({ where: { userId: 'testuser' } });
-      expect(authService.generateUrlAccessToken).toHaveBeenCalledWith('1');
+      expect(authService.generateUrlAccessToken).toHaveBeenCalledWith({
+        userId: 'testuser',
+        email: undefined,
+        id: 1,
+      });
     });
 
     it('should return error when user does not exist', async () => {

@@ -6,9 +6,12 @@ import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  Index,
 } from 'typeorm';
 
 @Entity()
+@Index('IDX_USER_USER_ID', entity => [entity.userId], { unique: true })
+@Index('IDX_USER_EMAIL', entity => [entity.email], { unique: true })
 export class User {
   @PrimaryGeneratedColumn()
   @ApiProperty({ description: 'id' })

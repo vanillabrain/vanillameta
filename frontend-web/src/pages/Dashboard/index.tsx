@@ -12,14 +12,14 @@ import { styled } from '@mui/system';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import Seo from '@/seo/Seo';
-import { useTranslation } from 'react-i18next';
+
+const title = '대시보드';
 
 function Dashboard() {
   const { dashboardId } = useParams();
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
   const navigate = useNavigate();
-  const { t } = useTranslation(['dashboard', 'common']);
   const [loadedDashboardData, setLoadedDashboardData] = useState([]);
   const [noData, setNoData] = useState(false);
   const { showLoading, hideLoading } = useContext(LoadingContext);
@@ -39,8 +39,8 @@ function Dashboard() {
   });
 
   const menuList = [
-    { name: t('dashboard:title'), link: '/dashboard/create', id: 'dashboard' },
-    { name: t('dashboard:actions.duplicate'), link: '', id: 'recommend' },
+    { name: '대시보드', link: '/dashboard/create', id: 'dashboard' },
+    { name: '대시보드 추천', link: '', id: 'recommend' },
   ];
 
   useEffect(() => {
@@ -52,12 +52,24 @@ function Dashboard() {
     showLoading();
     DashboardService.selectDashboardList()
       .then(response => {
-        if (response.data.status == STATUS.SUCCESS) {
-          setLoadedDashboardData(response.data.data);
-          setNoData(response.data.data.length == 0);
+        console.log('대시보드 응답 전체:', response);
+        console.log('대시보드 응답 데이터:', response.data);
+        console.log('STATUS.SUCCESS:', STATUS.SUCCESS);
+        console.log('response.status:', response.status);
+        console.log('비교 결과:', response.status == STATUS.SUCCESS);
+        
+        // API 헬퍼가 response.data를 반환하므로, response 자체가 백엔드의 응답 데이터
+        if (response.status == STATUS.SUCCESS) {
+          setLoadedDashboardData(response.data);
+          setNoData(response.data.length == 0);
         } else {
-          alert.error(t('common:messages.error'));
+          console.log('상태 체크 실패로 인한 오류');
+          alert.error('대시보드 조회에 실패했습니다.\n다시 시도해 주세요.');
         }
+      })
+      .catch(error => {
+        console.log('대시보드 조회 오류:', error);
+        alert.error('대시보드 조회에 실패했습니다.\n다시 시도해 주세요.');
       })
       .finally(() => {
         hideLoading();
@@ -69,22 +81,22 @@ function Dashboard() {
       <Box sx={{ span: { fontWeight: 600 } }}>
         <span>{title}</span>
         <br />
-        {t('common:messages.confirmDelete')}
+        대시보드를 삭제하시겠습니까?
       </Box>,
       {
-        closeCopy: t('common:actions.cancel'),
+        closeCopy: '취소',
         actions: [
           {
-            copy: t('common:actions.confirm'),
+            copy: '확인',
             onClick: () => {
               showLoading();
               DashboardService.deleteDashboard(id)
                 .then(response => {
-                  if (response.data.status == STATUS.SUCCESS) {
+                  if (response.status == STATUS.SUCCESS) {
                     getDashboardList();
-                    snackbar.success(t('dashboard:messages.deleted'));
+                    snackbar.success('대시보드가 삭제되었습니다.');
                   } else {
-                    alert.error(t('common:messages.error'));
+                    alert.error('대시보드 삭제에 실패했습니다.\n다시 시도해 주세요.');
                   }
                 })
                 .finally(() => {
@@ -117,8 +129,8 @@ function Dashboard() {
           justifyContent="space-between"
           sx={{ paddingLeft: '20px', paddingRight: { xs: '44px', sm: '217px' }, marginBottom: '11px', marginTop: '36px' }}
         >
-          <GTSpan>{t('common:table.name')}</GTSpan>
-          <GTSpan>{t('common:table.updatedAt')}</GTSpan>
+          <GTSpan>이름</GTSpan>
+          <GTSpan>수정일</GTSpan>
         </Stack>
         <Box
           sx={{
@@ -146,9 +158,9 @@ function Dashboard() {
               color: '#333333',
             }}
           >
-            {t('dashboard:list.empty')}
+            생성한 대시보드가 없습니다.
             {matches ? ' ' : <br />}
-            {t('dashboard:list.createFirst')}
+            대시보드를 생성 후 확인해 보세요.
           </span>
         </Box>
       </>
@@ -157,18 +169,18 @@ function Dashboard() {
 
   return (
     <Stack sx={{ width: '100%', height: '100%', flex: '1 1 auto' }}>
-      <Seo title={t('dashboard:title')} />
+      <Seo title={title} />
 
       {!dashboardId ? (
         <>
           <PageTitleBox
-            title={t('dashboard:title')}
+            title={title}
             button={
               <MenuButton
                 menuList={menuList}
                 handleSelect={handleMenuSelect}
                 icon={<AddIcon />}
-                title={t('dashboard:create.title')}
+                title="대시보드 추가"
                 sizeOption={{ width: 108, height: 32 }}
               />
             }
