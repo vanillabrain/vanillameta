@@ -78,15 +78,7 @@ describe('AuthService', () => {
   describe('Integration Tests', () => {
     it.skip('should complete full authentication flow', async () => {
       // 1. Validate user
-      const mockUserForTest = {
-        id: 1,
-        userId: 'testuser',
-        email: 'test@example.com',
-        password: 'testpass',
-      };
-      
-      userRepository.findOne.mockResolvedValue(mockUserForTest);
-      
+      userRepository.findOne.mockResolvedValue({...mockUser});
       const user = await service.validateUser('testuser', 'testpass');
       
       // Verify the mock was called

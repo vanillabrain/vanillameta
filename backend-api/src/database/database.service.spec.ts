@@ -85,7 +85,7 @@ describe('DatabaseService', () => {
       const result = await service.findAllDbTypes();
 
       expect(result).toEqual(mockDatabaseTypes);
-      expect(databaseTypeRepository.find).toHaveBeenCalledWith({ order: { seq: 'ASC' } });
+      expect(databaseTypeRepository.find).toHaveBeenCalledWith({ order: { rank: 'ASC', type: 'ASC' } });
     });
   });
 

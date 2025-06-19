@@ -347,6 +347,9 @@ class EventTracker {
 
   // 주기적 전송
   private startFlushInterval() {
+    if (this.flushTimer) {
+      clearInterval(this.flushTimer);
+    }
     this.flushTimer = setInterval(() => {
       this.flush();
     }, this.flushInterval);
@@ -388,6 +391,30 @@ class EventTracker {
       clearInterval(this.flushTimer);
     }
     this.flush();
+  }
+
+  // 테스트를 위한 리셋 메서드
+  __resetForTesting() {
+    if (this.flushTimer) {
+      clearInterval(this.flushTimer);
+      this.flushTimer = null;
+    }
+    this.eventQueue = {
+      events: [],
+      metrics: [],
+      lastFlushTime: Date.now()
+    };
+    this.sessionId = this.getOrCreateSessionId();
+    this.sessionInfo = this.getOrCreateSessionInfo();
+    this.userId = null;
+    this.userProperties = null;
+    this.privacySettings = {
+      anonymizeIp: true,
+      excludePII: true,
+      consentGiven: this.checkConsent()
+    };
+    this.isOnline = navigator.onLine;
+    this.startFlushInterval();
   }
 }
 

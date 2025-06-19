@@ -5,8 +5,8 @@ import {
   trackDashboard as trackDashboardHelpers,
   trackWidget as trackWidgetHelpers,
   trackDatabase as trackDatabaseHelpers,
-  trackDataset as trackDatasetHelpers,
-  trackNavigation,
+  // trackDataset as trackDatasetHelpers,  // 사용되지 않음
+  // trackNavigation,  // 사용되지 않음
   trackPerformance as trackPerformanceHelpers,
   trackError as trackErrorHelpers,
   eventTracker
@@ -92,8 +92,8 @@ export const trackUserEvent = (
 // 성능 측정 헬퍼 (기존 호환성 유지)
 export const trackPerformance = (
   metricName: string,
-  duration: number,
-  metadata?: Record<string, any>
+  duration: number
+  // metadata?: Record<string, any>  // 현재 사용되지 않음
 ) => {
   trackPerformanceHelpers.pageLoad(metricName, duration);
 };
@@ -124,7 +124,7 @@ export const trackUserSession = {
     trackUser.loggedIn(userId, method);
   },
   
-  logout: (userId: string) => {
+  logout: () => {  // userId 파라미터 제거 - 사용되지 않음
     trackUser.loggedOut();
   },
   

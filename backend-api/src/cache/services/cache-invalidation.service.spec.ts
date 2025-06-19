@@ -14,7 +14,13 @@ describe('CacheInvalidationService', () => {
     reset: jest.fn(),
   };
 
-  // Fake timers are already set up globally
+  beforeAll(() => {
+    jest.useFakeTimers();
+  });
+
+  afterAll(() => {
+    jest.useRealTimers();
+  });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({

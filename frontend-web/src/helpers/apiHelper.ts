@@ -1,4 +1,4 @@
-import axios, { AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+import axios, { InternalAxiosRequestConfig } from 'axios';
 import { getToken, removeToken, setToken } from '@/helpers/authHelper';
 import { getShareToken } from '@/helpers/shareHelper';
 import authService from '@/api/authService';
@@ -43,35 +43,35 @@ let pendingRequests = {};
 let isLoginUser = true;
 // console.log('pendingRequests', pendingRequests);
 
-// 요청에 대한 unique key 생성
-const generateReqKey = config => {
-  const { method, url, params, data } = config;
-  return [method, url, JSON.stringify(params), JSON.stringify(data)].join('&');
-};
+// 요청에 대한 unique key 생성 (현재 사용하지 않음)
+// const generateReqKey = config => {
+//   const { method, url, params, data } = config;
+//   return [method, url, JSON.stringify(params), JSON.stringify(data)].join('&');
+// };
 
-// 진행중인 요청 저장
-const addPendingRequest = config => {
-  const requestKey = generateReqKey(config);
-  config.cancelToken =
-    config.cancelToken ||
-    new axios.CancelToken(cancel => {
-      if (!pendingRequests[requestKey]) {
-        pendingRequests[requestKey] = [];
-      }
-      pendingRequests[requestKey].push(cancel);
-    });
-};
+// 진행중인 요청 저장 (현재 사용하지 않음)
+// const addPendingRequest = config => {
+//   const requestKey = generateReqKey(config);
+//   config.cancelToken =
+//     config.cancelToken ||
+//     new axios.CancelToken(cancel => {
+//       if (!pendingRequests[requestKey]) {
+//         pendingRequests[requestKey] = [];
+//       }
+//       pendingRequests[requestKey].push(cancel);
+//     });
+// };
 
-// 저장된 요청 취소
-const removePendingRequest = config => {
-  const requestKey = generateReqKey(config);
-  if (pendingRequests[requestKey]) {
-    pendingRequests[requestKey].forEach(cancel => {
-      cancel('Request canceled due to new request.');
-    });
-    delete pendingRequests[requestKey];
-  }
-};
+// 저장된 요청 취소 (현재 사용하지 않음)
+// const removePendingRequest = config => {
+//   const requestKey = generateReqKey(config);
+//   if (pendingRequests[requestKey]) {
+//     pendingRequests[requestKey].forEach(cancel => {
+//       cancel('Request canceled due to new request.');
+//     });
+//     delete pendingRequests[requestKey];
+//   }
+// };
 
 // 토큰 정보 요청 header에 삽입
 const addAuthToHeaders = config => {
