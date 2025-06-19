@@ -213,7 +213,7 @@ export const useUserTracking = (options: TrackingOptions = {}) => {
 
   const trackWidgetInteraction = useCallback(
     (widgetId: string, widgetType: string, interactionType: string) => {
-      interactionCountRef.current++;
+      interactionCountRef.current += 1;
       analytics.track(EventAction.WIDGET_INTERACTED, EventCategory.WIDGET, {
         widgetId,
         widgetType,

@@ -1,11 +1,5 @@
 import { del, get, post, put } from '@/helpers/apiHelper';
-import {
-  ApiResponse,
-  CreateComponentRequest,
-  UpdateComponentRequest,
-  ComponentDetailResponse,
-  Component,
-} from '@/types';
+import { ApiResponse, CreateComponentRequest, UpdateComponentRequest, ComponentDetailResponse, Component } from '@/types';
 
 export const URL_COMPONENT = '/component';
 

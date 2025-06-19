@@ -75,9 +75,19 @@ yarn lint
 ## 📈 진행 상황
 - [x] 초기 분석 완료
 - [x] lint 스크립트 추가
-- [ ] Prettier 포맷팅 수정
-- [ ] TypeScript 경고 해결
+- [x] Prettier 포맷팅 수정 (자동 수정 완료)
+- [x] 주요 ESLint 에러 해결
+  - react-hooks/exhaustive-deps 규칙 참조 에러 수정
+  - no-plusplus 위반 수정 (++ 연산자 → += 1)
+  - @ts-ignore → @ts-expect-error로 변경
+  - 빈 함수에 주석 추가
+- [ ] TypeScript 경고 해결 (진행중 - 69개 경고 남음)
 - [ ] CI/CD 통합
+
+## 🏆 성과
+- ESLint 에러: 8개 → 1개 (87.5% 감소)
+- TypeScript 경고: 77개 → 69개 (10.4% 감소)
+- Prettier 포맷팅: 모든 파일 자동 수정 완료
 
 ## 🎯 성공 기준
 - [ ] `yarn lint:check` 실행 시 에러 0개

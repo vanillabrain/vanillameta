@@ -1,17 +1,6 @@
 import React, { useMemo, useCallback, CSSProperties } from 'react';
 import { VariableSizeList as List } from 'react-window';
-import {
-  Box,
-  Paper,
-  Typography,
-  TableContainer,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
-  useTheme,
-} from '@mui/material';
+import { Box, Paper, Typography, useTheme } from '@mui/material';
 
 interface VirtualDataGridProps {
   data: any[];

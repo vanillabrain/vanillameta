@@ -1,12 +1,5 @@
 import { del, get, post, put } from '@/helpers/apiHelper';
-import {
-  ApiResponse,
-  CreateDashboardRequest,
-  UpdateDashboardRequest,
-  DashboardListResponse,
-  DashboardDetailResponse,
-  Dashboard,
-} from '@/types';
+import { ApiResponse, CreateDashboardRequest, UpdateDashboardRequest, DashboardDetailResponse, Dashboard } from '@/types';
 
 export const URL_DASHBOARD = '/dashboard';
 

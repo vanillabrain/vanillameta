@@ -1,12 +1,5 @@
 import { del, get, post, put } from '@/helpers/apiHelper';
-import {
-  ApiResponse,
-  CreateWidgetRequest,
-  UpdateWidgetRequest,
-  WidgetListResponse,
-  WidgetDetailResponse,
-  Widget,
-} from '@/types';
+import { ApiResponse, CreateWidgetRequest, UpdateWidgetRequest, WidgetDetailResponse, Widget } from '@/types';
 
 export const URL_WIDGET = '/widget';
 

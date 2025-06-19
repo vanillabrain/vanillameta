@@ -1,4 +1,4 @@
-import { createContext, FC, useEffect, useState, useCallback, useMemo } from 'react';
+import { createContext, useEffect, useState, useCallback, useMemo } from 'react';
 import { Loading } from '@/components/loading';
 
 type LoadingProviderType = { loading: any; showLoading: () => void; hideLoading: () => void };
