@@ -93,16 +93,27 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         output: {
           manualChunks: {
-            // 라이브러리 청킹
+            // 핵심 라이브러리
             'react-vendor': ['react', 'react-dom', 'react-router-dom'],
             'mui-vendor': ['@mui/material', '@mui/icons-material', '@mui/lab'],
-            'echarts-vendor': ['echarts', 'echarts-for-react', 'echarts-gl'],
-            'utils-vendor': ['lodash', 'lodash-es', 'axios', 'dayjs']
+            // ECharts 기본과 3D 분리
+            'echarts-core': ['echarts', 'echarts-for-react'],
+            'echarts-gl': ['echarts-gl'],
+            // 코드 에디터 분리 (대용량)
+            'ace-editor': ['ace-builds', 'react-ace'],
+            // 레이아웃 관련
+            'grid-layout': ['react-grid-layout'],
+            // 국제화
+            'i18n': ['i18next', 'i18next-browser-languagedetector', 'i18next-http-backend', 'react-i18next'],
+            // 수학 유틸리티 (특정 차트에서만 사용)
+            'math-utils': ['mathjs'],
+            // 기타 유틸리티
+            'utils': ['lodash', 'lodash-es', 'axios', 'dayjs']
           }
         }
       },
-      // 청크 크기 경고 임계값
-      chunkSizeWarningLimit: 1000
+      // 청크 크기 경고 임계값 감소
+      chunkSizeWarningLimit: 500
     },
     
     // 최적화 설정
@@ -117,8 +128,12 @@ export default defineConfig(({ mode }) => {
         'echarts-for-react',
         'axios',
         'lodash',
-        'dayjs'
-      ]
+        'dayjs',
+        'i18next',
+        'react-i18next'
+      ],
+      // 대용량 라이브러리는 제외 (레이지 로드를 위해)
+      exclude: ['ace-builds', 'echarts-gl', 'mathjs']
     },
     
     // CSS 설정
