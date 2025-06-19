@@ -231,7 +231,14 @@ export class ConnectionService {
     }
 
     if (createDatabaseDto.engine === 'cockroachdb') {
-      const cockroach_url = `postgresql://${parsedConnectionConfig['user']}:${parsedConnectionConfig['password']}@${parsedConnectionConfig['host']}:${parsedConnectionConfig['port']}/${parsedConnectionConfig['database']}?sslmode=verify-full&options=--cluster%3Dvanillameta-cockroach-3010`;
+      // URL 인코딩을 통한 보안 강화
+      const user = encodeURIComponent(parsedConnectionConfig['user'] || '');
+      const password = encodeURIComponent(parsedConnectionConfig['password'] || '');
+      const host = encodeURIComponent(parsedConnectionConfig['host'] || 'localhost');
+      const port = parsedConnectionConfig['port'] || 26257;
+      const database = encodeURIComponent(parsedConnectionConfig['database'] || 'defaultdb');
+      
+      const cockroach_url = `postgresql://${user}:${password}@${host}:${port}/${database}?sslmode=verify-full&options=--cluster%3Dvanillameta-cockroach-3010`;
       parsedConnectionConfig['connectionString'] = cockroach_url;
     }
 
@@ -293,7 +300,21 @@ export class ConnectionService {
         sqlMessage: e.sqlMessage,
         errorMessage: e.message,
       });
-      returnObj = { status: ResponseStatus.ERROR, message: e.sqlMessage };
+      // 보안: SQL 에러 메시지를 일반화하여 DB 구조 정보 노출 방지
+      let safeErrorMessage = '데이터베이스 연결 테스트에 실패했습니다.';
+      
+      // 일반적인 연결 오류에 대해서만 구체적인 메시지 제공
+      if (e.message?.includes('ECONNREFUSED')) {
+        safeErrorMessage = '데이터베이스 서버에 연결할 수 없습니다.';
+      } else if (e.message?.includes('ETIMEDOUT')) {
+        safeErrorMessage = '연결 시간이 초과되었습니다.';
+      } else if (e.message?.includes('Access denied') || e.message?.includes('authentication')) {
+        safeErrorMessage = '인증에 실패했습니다. 사용자명과 비밀번호를 확인해주세요.';
+      } else if (e.message?.includes('Unknown database')) {
+        safeErrorMessage = '데이터베이스를 찾을 수 없습니다.';
+      }
+      
+      returnObj = { status: ResponseStatus.ERROR, message: safeErrorMessage };
     } finally {
       await _knex.destroy();
     }
@@ -389,13 +410,39 @@ export class ConnectionService {
       let queryRes;
       if (queryExecuteDto.parameters && queryExecuteDto.parameters.length > 0) {
         const paramValues = queryExecuteDto.parameters.map(param => {
-          // 타입에 따른 변환
+          // 타입에 따른 변환 및 유효성 검사
           switch (param.type) {
             case 'number':
-              return Number(param.value);
+              const numValue = Number(param.value);
+              if (isNaN(numValue)) {
+                throw new BadRequestException(`잘못된 숫자 형식: ${param.name}`);
+              }
+              // 숫자 범위 검증 (SQL 인젝션 방지)
+              if (Math.abs(numValue) > Number.MAX_SAFE_INTEGER) {
+                throw new BadRequestException(`숫자 범위 초과: ${param.name}`);
+              }
+              return numValue;
+              
             case 'date':
-              return new Date(param.value);
+              const dateValue = new Date(param.value);
+              if (isNaN(dateValue.getTime())) {
+                throw new BadRequestException(`잘못된 날짜 형식: ${param.name}`);
+              }
+              // 날짜 범위 검증 (1900-2100)
+              const year = dateValue.getFullYear();
+              if (year < 1900 || year > 2100) {
+                throw new BadRequestException(`날짜 범위 초과: ${param.name}`);
+              }
+              return dateValue;
+              
+            case 'boolean':
+              return param.value === 'true' || param.value === true;
+              
             default:
+              // 문자열 길이 제한 (SQL 인젝션 방지)
+              if (typeof param.value === 'string' && param.value.length > 1000) {
+                throw new BadRequestException(`문자열 길이 초과: ${param.name}`);
+              }
               return param.value;
           }
         });
@@ -535,10 +582,27 @@ export class ConnectionService {
       const timeoutMessage = this.detectTimeoutError(e, executionTime);
       if (timeoutMessage) {
         resultObj.message = timeoutMessage;
-      } else if (e.sqlMessage) {
-        resultObj.message = e.sqlMessage;
-      } else if (e.message) {
-        resultObj.message = e.message; // bigquery
+      } else {
+        // 보안: SQL 에러 메시지를 일반화하여 DB 구조 정보 노출 방지
+        const errorMsg = e.sqlMessage || e.message || '';
+        
+        // 일반적인 SQL 오류를 사용자 친화적 메시지로 변환
+        if (errorMsg.includes('syntax error') || errorMsg.includes('Syntax error')) {
+          resultObj.message = '쿼리 구문에 오류가 있습니다.';
+        } else if (errorMsg.includes('does not exist') || errorMsg.includes('doesn\'t exist')) {
+          resultObj.message = '요청한 리소스를 찾을 수 없습니다.';
+        } else if (errorMsg.includes('permission denied') || errorMsg.includes('Access denied')) {
+          resultObj.message = '권한이 없습니다.';
+        } else if (errorMsg.includes('duplicate key') || errorMsg.includes('Duplicate entry')) {
+          resultObj.message = '중복된 데이터가 존재합니다.';
+        } else if (errorMsg.includes('foreign key') || errorMsg.includes('Cannot delete')) {
+          resultObj.message = '참조 무결성 제약으로 인해 작업을 수행할 수 없습니다.';
+        } else if (errorMsg.includes('connection') || errorMsg.includes('Can\'t connect')) {
+          resultObj.message = '데이터베이스 연결에 실패했습니다.';
+        } else {
+          // 기타 모든 SQL 에러는 일반적인 메시지로 대체
+          resultObj.message = '쿼리 실행 중 오류가 발생했습니다.';
+        }
       }
 
       this.logger.error('Query execution failed', e.stack, 'ConnectionService', {
