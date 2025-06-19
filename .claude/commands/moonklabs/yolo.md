@@ -1,10 +1,10 @@
 # YOLO 모드에서 모든 열린 태스크 실행
 
 이 모드는 사용자 상호작용 없이 실행되도록 만들어졌습니다.
-질문을 하거나 확인을 요청하지 **마세요**
-의심스러우면 최선의 해결책에 대해 **조사**하고 **울트라씽킹**하세요.
+질문을 하거나 확인을 요청하지 **마세요. DO NOT ASK**
+의심스러우면 최선의 해결책에 대해 **RESEARCH**하고 **ULTRATHINK**하세요.
 
-**중요** 특정 지점에서 멈추지 않으려고 노력하되 신중한 고려 후 필요하다면 그렇게 하세요.
+**IMPORTANT** 특정 지점에서 멈추지 않으려고 노력하되 신중한 고려 후 필요하다면 그렇게 하세요.
 
 우선순위는 작업을 완료하는 것입니다.
 
@@ -19,11 +19,11 @@
 
 ## 안전 가이드라인
 
-- 중요한 파일(.env, alembic 마이그레이션, 프로덕션 설정)을 **절대** 수정하지 마세요
-- 데이터베이스 스키마 변경을 만나면 **중지**
-- 5개 이상의 파일을 삭제해야 하면 **중지**
-- 변경 후 테스트가 실패하면 **중지**
-- 태스크 구현 후 **항상** 테스트 실행
+- NEVER: 중요한 파일(.env, alembic 마이그레이션, 프로덕션 설정)을 **절대** 수정하지 마세요
+- STOP: 데이터베이스 스키마 변경을 만나면 **중지**
+- STOP: 5개 이상의 파일을 삭제해야 하면 **중지**
+- STOP: 변경 후 테스트가 실패하면 **중지**
+- ALWAYS: 태스크 구현 후 **항상** 테스트 실행
 
 ## 정확한 프로세스 따르기
 
@@ -74,9 +74,9 @@
 
 ### 스프린트 태스크 생성
 
-**오직** 스프린트에 태스크 생성이 필요한 경우에만 **실행**
+**ONLY EXECUTE:** 스프린트에 태스크 생성이 필요한 경우에만 **오직 실행**
 
-- **서브에이전트**를 사용하고 스프린트 ID를 인자로 하여 @.claude/commands/moonklabs/create_sprint_tasks.md를 포함하도록 하세요
+- **SUBAGENT**를 사용하고 스프린트 ID를 인자로 하여 @.claude/commands/moonklabs/create_sprint_tasks.md를 포함하도록 하세요
 - 완료까지 대기
 - 태스크 생성 후 `### FIND OPEN WORK`로 돌아가기
 
@@ -85,9 +85,9 @@
 - 이전에 이 태스크를 건드린 적이 있으면 무시하고 다음 태스크로 이동
 - 이전에 수정을 시도하지 않은 태스크를 찾을 수 없으면 ### EXECUTE PROJECT REVIEW로 이동
 - 이미 작업이 완료되어 수정할 수 없는 태스크를 찾으면, 태스크를 닫고 태스크의 Output Log에 메모.
-- **시작하기 전에**: 태스크를 위한 git 브랜치 생성: `git checkout -b task/<task-id>`
-- **서브에이전트를 사용**하고 태스크 ID를 인자로 하여 @.claude/commands/moonklabs/do_task.md를 포함하여 태스크를 실행하도록 하세요.
-- **태스크 완료 후**: test.md 명령을 사용하여 아무것도 깨지지 않았는지 확인하기 위해 테스트 실행 (@.claude/commands/moonklabs/test.md)
+- **BEFORE STARTING:** 태스크를 위한 git 브랜치 생성: `git checkout -b task/<task-id>`
+- **USE A SUBAGENT:** 태스크 ID를 인자로 하여 @.claude/commands/moonklabs/do_task.md를 포함하여 태스크를 실행하도록 하세요.
+- **AFTER TASK COMPLETION:** test.md 명령을 사용하여 아무것도 깨지지 않았는지 확인하기 위해 테스트 실행 (@.claude/commands/moonklabs/test.md)
 - 태스크 실행의 실패 시 오류의 심각도 평가:
   - 중요 오류 (테스트 중단, 보안 문제, 데이터 손실 위험): **문제 수정**
   - 비중요 오류 (린팅, 포맷팅, 사소한 문제): OUTPUT LOG에 메모하고 계속
@@ -95,9 +95,9 @@
 
 ### 작업 커밋
 
-- **오직** 테스트가 통과하고 중요한 문제가 없는 경우에만
-- **서브에이전트를 사용**하고 태스크 ID를 인자로, YOLO를 추가 인자로 하여 @.claude/commands/moonklabs/commit.md를 포함하도록 하세요
-- 커밋 시 실패하면, 태스크의 OUTPUT LOG에 문제를 메모하고 계속
+- **ONLY IF :** 테스트가 통과하고 중요한 문제가 없는 경우에만
+- **USE A SUBAGENT:** 태스크 ID를 인자로, YOLO를 추가 인자로 하여 @.claude/commands/moonklabs/commit.md를 포함하도록 하세요
+- 커밋 시 실패하면, 태스크의 OUTPUT LOG 에 문제를 메모하고 계속
 - 성공적인 커밋 후, main으로 병합: `git checkout main && git merge task/<task-id>`
 - 성공 시 계속
 
