@@ -82,6 +82,7 @@ describe('EnhancedQueryOptimizerService', () => {
         {
           provide: CustomLoggerService,
           useValue: {
+            log: jest.fn(),
             info: jest.fn(),
             debug: jest.fn(),
             warn: jest.fn(),
@@ -119,7 +120,7 @@ describe('EnhancedQueryOptimizerService', () => {
 
       expect(result.cacheResult).toEqual(cachedResult);
       expect(result.analysis.optimizations.cacheStatus).toBe('hit');
-      expect(mockLogger.info).toHaveBeenCalledWith(
+      expect(mockLogger.log).toHaveBeenCalledWith(
         'Query served from cache',
         'EnhancedQueryOptimizerService',
         expect.objectContaining({ cacheHit: true }),
@@ -389,7 +390,7 @@ describe('EnhancedQueryOptimizerService', () => {
       // Give time for async operation
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      expect(mockLogger.info).toHaveBeenCalledWith(
+      expect(mockLogger.log).toHaveBeenCalledWith(
         'Index recommendations generated',
         'EnhancedQueryOptimizerService',
         expect.objectContaining({

@@ -155,12 +155,14 @@ describe('CursorUtils', () => {
     });
 
     it('만료된 커서는 false를 반환해야 함', () => {
-      const oldDate = new Date();
-      oldDate.setHours(oldDate.getHours() - 2);
+      // Use real Date constructor to create a timestamp 2 hours ago
+      const realDate = Date;
+      const currentTime = realDate.now();
+      const oldTimestamp = new (realDate as any)(currentTime - 2 * 60 * 60 * 1000).toISOString();
 
       const cursorData: CursorData = {
         id: 123,
-        metadata: { timestamp: oldDate.toISOString() },
+        metadata: { timestamp: oldTimestamp },
       };
       const cursor = CursorUtils.encodeCursor(cursorData);
 
@@ -169,12 +171,14 @@ describe('CursorUtils', () => {
     });
 
     it('유효 기간 내의 커서는 true를 반환해야 함', () => {
-      const recentDate = new Date();
-      recentDate.setMinutes(recentDate.getMinutes() - 30);
+      // Use real Date constructor to create a timestamp 30 minutes ago
+      const realDate = Date;
+      const currentTime = realDate.now();
+      const recentTimestamp = new (realDate as any)(currentTime - 30 * 60 * 1000).toISOString();
 
       const cursorData: CursorData = {
         id: 123,
-        metadata: { timestamp: recentDate.toISOString() },
+        metadata: { timestamp: recentTimestamp },
       };
       const cursor = CursorUtils.encodeCursor(cursorData);
 

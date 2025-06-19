@@ -47,7 +47,7 @@ export class ComponentService {
       const result = await this.componentRepository.save(saveObj);
       
       // 캐시 무효화
-      await this.cacheService.invalidate(this.CACHE_KEY_PREFIX, 'static', 'findAll');
+      await this.cacheService.invalidateByEngine(this.CACHE_KEY_PREFIX);
       
       return result;
     }
@@ -89,8 +89,10 @@ export class ComponentService {
       this.CACHE_KEY_PREFIX,
       'static',
       cacheKey,
-      { data: components, fields: [] },
-      this.CACHE_TTL,
+      components,
+      [],
+      [],
+      { ttl: this.CACHE_TTL }
     );
 
     return components;
@@ -120,7 +122,7 @@ export class ComponentService {
       await this.componentRepository.save(updateObj);
       
       // 캐시 무효화
-      await this.cacheService.invalidate(this.CACHE_KEY_PREFIX, 'static', 'findAll');
+      await this.cacheService.invalidateByEngine(this.CACHE_KEY_PREFIX);
 
       return 'Success update';
     }

@@ -65,27 +65,28 @@ describe('UserService', () => {
       expect((result as any).message).toBe('success');
     });
 
-    it('should return Bad Request when user not found', async () => {
+    it('should throw HttpException when user not found', async () => {
       userRepository.findOne.mockResolvedValue(null);
 
-      const result = await service.findOne(999);
-
-      expect(result).toBe('Bad Request');
+      await expect(service.findOne(999)).rejects.toThrow('User not found');
     });
   });
 
   describe('findDashboardId', () => {
     it('should return user dashboard mappings', async () => {
-      const mockMappings = [{ dashboardId: 1 }, { dashboardId: 2 }];
-      userMappingRepository.createQueryBuilder.mockReturnValue({
-        select: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        getRawMany: jest.fn().mockResolvedValue(mockMappings),
-      });
+      const mockMappings = [
+        { dashboardId: 1, userInfoId: 1 }, 
+        { dashboardId: 2, userInfoId: 1 },
+        { dashboardId: null, userInfoId: 1 } // Test null dashboard ID
+      ];
+      userMappingRepository.find.mockResolvedValue(mockMappings);
 
       const result = await service.findDashboardId(1);
 
-      expect(result).toEqual(mockMappings);
+      expect(result).toEqual([1, 2]); // Should only return non-null dashboard IDs
+      expect(userMappingRepository.find).toHaveBeenCalledWith({
+        where: { userInfoId: 1 },
+      });
     });
   });
 

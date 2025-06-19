@@ -436,7 +436,7 @@ export class ConnectionService {
               return dateValue;
               
             case 'boolean':
-              return param.value === 'true' || param.value === true;
+              return String(param.value) === 'true' || param.value === true;
               
             default:
               // 문자열 길이 제한 (SQL 인젝션 방지)

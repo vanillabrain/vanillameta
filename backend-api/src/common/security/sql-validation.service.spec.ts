@@ -10,6 +10,7 @@ describe('SqlValidationService', () => {
     mockLogger = {
       error: jest.fn(),
       warn: jest.fn(),
+      log: jest.fn(),
       info: jest.fn(),
       debug: jest.fn(),
     } as any;
@@ -334,7 +335,7 @@ describe('SqlValidationService', () => {
     it('should log successful validations with warnings', () => {
       service.validateQuery('SELECT UNKNOWN_FUNCTION() FROM users', {}, 'testuser');
 
-      expect(mockLogger.info).toHaveBeenCalledWith(
+      expect(mockLogger.log).toHaveBeenCalledWith(
         'SQL query validation completed with warnings',
         'SqlValidationService',
         expect.objectContaining({

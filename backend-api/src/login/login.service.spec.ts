@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { UnauthorizedException } from '@nestjs/common';
+import { HttpException, UnauthorizedException } from '@nestjs/common';
 import { LoginService } from './login.service';
 import { AuthService } from 'src/auth/auth.service';
 import { User } from 'src/user/entities/user.entity';
@@ -71,7 +71,8 @@ describe('LoginService', () => {
 
       authService.validateUser.mockResolvedValue(null);
 
-      await expect(service.signin(loginDto)).rejects.toThrow(UnauthorizedException);
+      await expect(service.signin(loginDto)).rejects.toThrow(HttpException);
+      await expect(service.signin(loginDto)).rejects.toThrow('Invalid credentials');
     });
   });
 });

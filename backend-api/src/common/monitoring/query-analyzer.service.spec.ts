@@ -300,15 +300,19 @@ describe('QueryAnalyzerService', () => {
     it('should measure query execution time', async () => {
       const testQuery = 'SELECT COUNT(*) FROM users';
       
+      // Mock Date.now() to simulate time passing
+      let currentTime = 1000;
+      jest.spyOn(Date, 'now').mockImplementation(() => currentTime);
+      
       (mockQueryRunner.query as jest.Mock).mockImplementation(() => {
-        // Simulate query delay
-        return new Promise(resolve => setTimeout(resolve, 100));
+        // Simulate query delay by advancing time
+        currentTime += 100;
+        return Promise.resolve([]);
       });
 
       const result = await service.measureQueryPerformance(testQuery);
 
-      expect(result.executionTime).toBeGreaterThan(90);
-      expect(result.executionTime).toBeLessThan(200);
+      expect(result.executionTime).toBe(100);
       expect(result.query).toContain('SELECT COUNT(*)');
       expect(mockQueryRunner.release).toHaveBeenCalled();
     });
@@ -317,9 +321,14 @@ describe('QueryAnalyzerService', () => {
       const testQuery = 'SELECT * FROM large_table';
       const loggerWarnSpy = jest.spyOn(service['logger'], 'warn');
       
+      // Mock Date.now() to simulate time passing
+      let currentTime = 1000;
+      jest.spyOn(Date, 'now').mockImplementation(() => currentTime);
+      
       (mockQueryRunner.query as jest.Mock).mockImplementation(() => {
-        // Simulate slow query
-        return new Promise(resolve => setTimeout(resolve, 1100));
+        // Simulate slow query by advancing time significantly
+        currentTime += 1100;
+        return Promise.resolve([]);
       });
 
       await service.measureQueryPerformance(testQuery);

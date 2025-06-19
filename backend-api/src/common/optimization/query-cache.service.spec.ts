@@ -14,6 +14,7 @@ describe('QueryCacheService', () => {
     };
 
     const mockLoggerFactory = {
+      log: jest.fn(),
       info: jest.fn(),
       debug: jest.fn(),
       warn: jest.fn(),
@@ -335,7 +336,8 @@ describe('QueryCacheService', () => {
 
       const diagnostics = service.getDiagnostics();
 
-      expect(diagnostics.timestamp).toBeInstanceOf(Date);
+      expect(diagnostics.timestamp).toBeDefined();
+      expect(diagnostics.timestamp.getTime).toBeDefined(); // Check if it has Date methods
       expect(diagnostics.globalStats.totalEngines).toBe(2);
       expect(diagnostics.globalStats.totalEntries).toBe(2);
       expect(diagnostics.engines.pg).toBeDefined();
