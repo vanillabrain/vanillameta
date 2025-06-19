@@ -40,7 +40,7 @@ describe('useStreamingData', () => {
     jest.useFakeTimers();
     
     let onDataCallback: any;
-    const mockStreamDataset = jest.fn().mockImplementation((id, options) => {
+    const mockStreamDataset = jest.fn().mockImplementation((_id, options) => {
       onDataCallback = options.onData;
       return Promise.resolve();
     });
@@ -79,7 +79,7 @@ describe('useStreamingData', () => {
     jest.useFakeTimers();
     
     let onDataCallback: any;
-    const mockStreamDataset = jest.fn().mockImplementation((id, options) => {
+    const mockStreamDataset = jest.fn().mockImplementation((_id, options) => {
       onDataCallback = options.onData;
       return Promise.resolve();
     });
@@ -110,7 +110,7 @@ describe('useStreamingData', () => {
 
   it('진행률 업데이트를 처리해야 함', async () => {
     let onProgressCallback: any;
-    const mockStreamDataset = jest.fn().mockImplementation((id, options) => {
+    const mockStreamDataset = jest.fn().mockImplementation((_id, options) => {
       onProgressCallback = options.onProgress;
       return Promise.resolve();
     });
@@ -157,7 +157,7 @@ describe('useStreamingData', () => {
 
   it('에러 발생 시 에러 상태가 설정되어야 함', async () => {
     let onErrorCallback: any;
-    const mockStreamDataset = jest.fn().mockImplementation((id, options) => {
+    const mockStreamDataset = jest.fn().mockImplementation((_id, options) => {
       onErrorCallback = options.onError;
       return Promise.resolve();
     });

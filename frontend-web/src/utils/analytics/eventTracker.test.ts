@@ -4,7 +4,10 @@ import apiHelper from '@/helpers/apiHelper';
 
 // Mock apiHelper
 jest.mock('@/helpers/apiHelper', () => ({
-  post: jest.fn(),
+  __esModule: true,
+  default: {
+    post: jest.fn(),
+  },
 }));
 
 // Mock localStorage and sessionStorage
@@ -55,7 +58,8 @@ describe('EventTracker', () => {
 
   describe('세션 관리', () => {
     it('새로운 세션 ID를 생성해야 함', () => {
-      const tracker = eventTracker;
+      // EventTracker 초기화로 세션 ID가 생성됨
+      eventTracker; // 싱글톤 인스턴스 접근
       
       expect(sessionStorageMock.setItem).toHaveBeenCalledWith(
         'vanillameta_session_id',
@@ -68,7 +72,7 @@ describe('EventTracker', () => {
       
       // EventTracker는 싱글톤이므로 새 인스턴스를 만들 수 없음
       // 대신 세션 정보를 확인
-      const tracker = eventTracker;
+      eventTracker; // 싱글톤 인스턴스 접근
       
       expect(sessionStorageMock.getItem).toHaveBeenCalledWith('vanillameta_session_id');
     });
