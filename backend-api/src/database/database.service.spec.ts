@@ -65,19 +65,18 @@ describe('DatabaseService', () => {
     expect(service).toBeDefined();
   });
 
-  describe('findTypeList', () => {
-    it('should return list of active database types', async () => {
+  describe('findAllDbTypes', () => {
+    it('should return list of all database types ordered by rank and type', async () => {
       const mockDatabaseTypes = [
-        { id: 1, name: 'MySQL', engine: 'mysql2', useYn: YesNo.YES },
-        { id: 2, name: 'PostgreSQL', engine: 'pg', useYn: YesNo.YES },
+        { id: 1, name: 'MySQL', engine: 'mysql2', useYn: YesNo.YES, rank: 1, type: 'A' },
+        { id: 2, name: 'PostgreSQL', engine: 'pg', useYn: YesNo.YES, rank: 2, type: 'B' },
       ];
       databaseTypeRepository.find.mockResolvedValue(mockDatabaseTypes);
 
-      const result = await service.findTypeList();
+      const result = await service.findAllDbTypes();
 
-      expect(result.status).toBe(ResponseStatus.SUCCESS);
-      expect(result.data).toEqual(mockDatabaseTypes);
-      expect(databaseTypeRepository.find).toHaveBeenCalledWith({ where: { useYn: YesNo.YES } });
+      expect(result).toEqual(mockDatabaseTypes);
+      expect(databaseTypeRepository.find).toHaveBeenCalledWith({ order: { rank: 'ASC', type: 'ASC' } });
     });
   });
 

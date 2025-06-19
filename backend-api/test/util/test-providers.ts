@@ -7,6 +7,12 @@ import { AuthService } from '../../src/auth/auth.service';
 import { DashboardShare } from '../../src/dashboard/entities/dashboard_share.entity';
 import { UserMapping } from '../../src/user/entities/user-mapping.entity';
 import { PaginationService } from '../../src/common/pagination/pagination.service';
+import { QueryAnalyzerService } from '../../src/common/monitoring/query-analyzer.service';
+import { QueryCollector } from '../../src/common/utils/query-collector';
+import { SlowQueryMonitorService } from '../../src/common/monitoring/slow-query-monitor.service';
+import { DatabaseOptimizerFactory } from '../../src/connection/database-optimizers/database-optimizer-factory';
+import { KnexQueryMonitor } from '../../src/common/monitoring/knex-query-monitor';
+import { REQUEST } from '@nestjs/core';
 
 // Mock CustomLoggerService
 export const mockCustomLoggerService = {
@@ -115,6 +121,85 @@ export const mockPaginationService = {
   },
 };
 
+// Mock QueryAnalyzerService
+export const mockQueryAnalyzerService = {
+  provide: QueryAnalyzerService,
+  useValue: {
+    analyzeQuery: jest.fn().mockResolvedValue({
+      isOptimized: true,
+      suggestions: [],
+      estimatedCost: 1,
+      executionPlan: {},
+    }),
+    recordQueryPerformance: jest.fn(),
+    getPerformanceReport: jest.fn().mockResolvedValue({
+      totalQueries: 0,
+      averageExecutionTime: 0,
+      slowQueries: [],
+    }),
+  },
+};
+
+// Mock QueryCollector
+export const mockQueryCollector = {
+  provide: QueryCollector,
+  useValue: {
+    collectQuery: jest.fn(),
+    getQueries: jest.fn().mockReturnValue([]),
+    clearQueries: jest.fn(),
+  },
+};
+
+// Mock SlowQueryMonitorService
+export const mockSlowQueryMonitorService = {
+  provide: SlowQueryMonitorService,
+  useValue: {
+    recordSlowQuery: jest.fn(),
+    getSlowQueries: jest.fn().mockReturnValue([]),
+    clearSlowQueries: jest.fn(),
+  },
+};
+
+// Mock DatabaseOptimizerFactory
+export const mockDatabaseOptimizerFactory = {
+  provide: DatabaseOptimizerFactory,
+  useValue: {
+    getOptimizer: jest.fn().mockReturnValue(null),
+    getOptimizedConnectionConfig: jest.fn().mockReturnValue({
+      pool: { min: 2, max: 10 },
+    }),
+    isSupported: jest.fn().mockReturnValue(false),
+    getOptimizationStats: jest.fn().mockReturnValue({
+      totalOptimized: 0,
+      byType: {},
+    }),
+  },
+};
+
+// Mock KnexQueryMonitor
+export const mockKnexQueryMonitor = {
+  provide: KnexQueryMonitor,
+  useValue: {
+    monitor: jest.fn(),
+    getMetrics: jest.fn().mockReturnValue({
+      totalQueries: 0,
+      averageExecutionTime: 0,
+    }),
+    attachToKnex: jest.fn(),
+  },
+};
+
+// Mock Request
+export const mockRequest = {
+  provide: REQUEST,
+  useValue: {
+    user: { userId: 'test-user' },
+    headers: {},
+    url: '/test',
+    method: 'GET',
+  },
+};
+
 // Common test providers
 export const commonTestProviders = [
   mockCustomLoggerService,
@@ -125,4 +210,10 @@ export const commonTestProviders = [
   mockDashboardShareRepository,
   mockUserMappingRepository,
   mockPaginationService,
+  mockQueryAnalyzerService,
+  mockQueryCollector,
+  mockSlowQueryMonitorService,
+  mockDatabaseOptimizerFactory,
+  mockKnexQueryMonitor,
+  mockRequest,
 ];

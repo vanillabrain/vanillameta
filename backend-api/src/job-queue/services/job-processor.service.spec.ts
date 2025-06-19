@@ -59,13 +59,17 @@ describe('JobProcessorService', () => {
   };
 
   const mockQueryResult = {
-    data: [
+    status: 'SUCCESS',
+    message: null,
+    datas: [
       { id: 1, name: 'User 1', email: 'user1@example.com' },
       { id: 2, name: 'User 2', email: 'user2@example.com' },
     ],
-    total: 2,
-    columns: ['id', 'name', 'email'],
-    executionTime: 150,
+    fields: [
+      { columnName: 'id', columnType: 'number' },
+      { columnName: 'name', columnType: 'string' },
+      { columnName: 'email', columnType: 'string' },
+    ],
   };
 
   beforeEach(async () => {
@@ -83,6 +87,7 @@ describe('JobProcessorService', () => {
     const mockConnectionService = {
       getConnectionConfig: jest.fn(),
       testConnection: jest.fn(),
+      executeQuery: jest.fn(),
     };
 
     const mockDatabaseService = {
@@ -147,26 +152,19 @@ describe('JobProcessorService', () => {
       // Arrange
       const job = { ...mockJob, jobType: JobType.QUERY_EXECUTION };
 
-      connectionService.getConnectionConfig.mockResolvedValue({
-        type: 'mysql',
-        host: 'localhost',
-        port: 3306,
-        username: 'test',
-        password: 'test',
-        database: 'testdb',
-      } as any);
-
-      databaseService.executeQuery.mockResolvedValue(mockQueryResult);
+      connectionService.executeQuery.mockResolvedValue(mockQueryResult);
 
       // Act
       await service.processJob(job);
 
       // Assert
-      expect(connectionService.getConnectionConfig).toHaveBeenCalledWith(1);
-      expect(databaseService.executeQuery).toHaveBeenCalledWith(
-        expect.any(Object), // connection config
-        'SELECT * FROM users',
-        expect.any(Object), // options
+      expect(connectionService.executeQuery).toHaveBeenCalledWith(
+        {
+          id: 1,
+          query: 'SELECT * FROM users',
+          parameters: [],
+        },
+        'user123'
       );
       expect(jobRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -242,7 +240,7 @@ describe('JobProcessorService', () => {
         host: 'localhost',
       } as any);
 
-      databaseService.executeQuery
+      connectionService.executeQuery
         .mockResolvedValueOnce({ data: [{ count: 100 }], total: 1 })
         .mockResolvedValueOnce({ data: [{ avg: 25.5 }], total: 1 });
 
@@ -250,7 +248,7 @@ describe('JobProcessorService', () => {
       await service.processJob(dashboardJob);
 
       // Assert
-      expect(databaseService.executeQuery).toHaveBeenCalledTimes(2);
+      expect(connectionService.executeQuery).toHaveBeenCalledTimes(2);
       expect(jobRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
           status: JobStatus.COMPLETED,
@@ -290,12 +288,8 @@ describe('JobProcessorService', () => {
 
       // Mock progress updates
       let progressCallback: (progress: number) => void;
-      databaseService.executeQuery.mockImplementation(async (config, query, options) => {
-        progressCallback = options.onProgress;
-        // Simulate progress updates
-        setTimeout(() => progressCallback(25), 10);
-        setTimeout(() => progressCallback(50), 20);
-        setTimeout(() => progressCallback(75), 30);
+      connectionService.executeQuery.mockImplementation(async (queryDto) => {
+        // Simulate query execution
         return mockQueryResult;
       });
 
@@ -321,7 +315,7 @@ describe('JobProcessorService', () => {
       } as any);
 
       // Mock a long-running query
-      databaseService.executeQuery.mockImplementation(
+      connectionService.executeQuery.mockImplementation(
         () => new Promise(resolve => setTimeout(() => resolve(mockQueryResult), 2000)),
       );
 
@@ -393,7 +387,7 @@ describe('JobProcessorService', () => {
         type: 'mysql',
         host: 'localhost',
       } as any);
-      databaseService.executeQuery.mockResolvedValue(mockQueryResult);
+      connectionService.executeQuery.mockResolvedValue(mockQueryResult);
       jobRepository.save.mockResolvedValue(mockJob);
     });
 
@@ -425,7 +419,7 @@ describe('JobProcessorService', () => {
     it('should not store result for failed job', async () => {
       // Arrange
       const job = { ...mockJob };
-      databaseService.executeQuery.mockRejectedValue(new Error('Query failed'));
+      connectionService.executeQuery.mockRejectedValue(new Error('Query failed'));
 
       // Act
       await service.processJob(job);
@@ -445,7 +439,7 @@ describe('JobProcessorService', () => {
         type: 'mysql',
         host: 'localhost',
       } as any);
-      databaseService.executeQuery.mockResolvedValue(mockQueryResult);
+      connectionService.executeQuery.mockResolvedValue(mockQueryResult);
 
       const startTime = Date.now();
 

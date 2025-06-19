@@ -30,20 +30,18 @@ const mockKnex = {
 
 const mockKnexConstructor = jest.fn(() => mockKnex);
 
-jest.mock('knex', () => {
-  const mockKnexInstance = {
-    raw: jest.fn(),
-    destroy: jest.fn(),
-    client: {
-      config: {
-        client: 'mysql2',
-      },
+const mockKnexInstance = {
+  raw: jest.fn(),
+  destroy: jest.fn().mockResolvedValue(undefined),
+  client: {
+    config: {
+      client: 'mysql2',
     },
-  };
-  return {
-    knex: jest.fn(() => mockKnexInstance),
-    default: jest.fn(() => mockKnexInstance),
-  };
+  },
+};
+
+jest.mock('knex', () => {
+  return jest.fn(() => mockKnexInstance);
 });
 
 describe('ConnectionService', () => {
@@ -141,7 +139,7 @@ describe('ConnectionService', () => {
         },
         {
           provide: KnexQueryMonitor,
-          useValue: createMockService(['monitor', 'getMetrics']),
+          useValue: createMockService(['monitor', 'getMetrics', 'attachToKnex']),
         },
         {
           provide: REQUEST,
@@ -302,7 +300,7 @@ describe('ConnectionService', () => {
       await service.removeKnex(1);
 
       expect(knexConnections.has(1)).toBe(false);
-      expect(mockKnex.destroy).toHaveBeenCalled();
+      expect(mockKnexInstance.destroy).toHaveBeenCalled();
       expect(logger.info).toHaveBeenCalledWith(
         'Knex connection pool destroyed',
         'ConnectionService',
@@ -314,7 +312,7 @@ describe('ConnectionService', () => {
       const knexConfig = { client: 'mysql2', connection: {} };
       service.addKnex(1, knexConfig);
 
-      mockKnex.destroy.mockRejectedValue(new Error('Destroy failed'));
+      mockKnexInstance.destroy.mockRejectedValue(new Error('Destroy failed'));
 
       await service.removeKnex(1);
 
