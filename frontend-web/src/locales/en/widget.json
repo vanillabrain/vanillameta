@@ -47,5 +47,9 @@
     "updated": "Widget updated successfully.",
     "deleted": "Widget deleted successfully.",
     "noData": "No data to display."
+  },
+  "list": {
+    "empty": "No widgets created yet.",
+    "createFirst": "Create a widget to get started."
   }
 }

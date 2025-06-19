@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
 import { UserMapping } from './entities/user-mapping.entity';
+import { I18nService } from 'nestjs-i18n';
 const crypto = require('crypto');
 
 @Injectable()
@@ -13,6 +14,7 @@ export class UserService {
     @InjectRepository(User) private readonly userRepository: Repository<User>,
     @InjectRepository(UserMapping) private readonly userMappingRepository: Repository<UserMapping>,
     private authService: AuthService,
+    private readonly i18n: I18nService,
   ) {}
 
   async findOne(userId: number) {
@@ -20,7 +22,7 @@ export class UserService {
       where: { id: userId },
     });
     if (!userData) {
-      return 'Bad Request';
+      throw new HttpException(this.i18n.t('errors.user_not_found'), HttpStatus.NOT_FOUND);
     } else {
       delete userData.password;
       return { data: userData, message: 'success' };
@@ -34,7 +36,7 @@ export class UserService {
       .digest('hex');
     const findUser = await this.authService.checkAccess(userId, hashPassword);
     if (!findUser) {
-      throw new HttpException('not exist user', HttpStatus.CONFLICT);
+      throw new HttpException(this.i18n.t('errors.user_not_found'), HttpStatus.CONFLICT);
     } else {
       const newHashPassword = crypto
         .createHash('sha512')
