@@ -5,12 +5,17 @@ import { Component } from './entities/component.entity';
 import { Repository } from 'typeorm';
 import { YesNo } from '../common/enum/yn.enum';
 import { UpdateComponentDto } from './dto/update-component.dto';
+import { HybridCacheService } from '../common/optimization/hybrid-cache.service';
 
 @Injectable()
 export class ComponentService {
+  private readonly CACHE_KEY_PREFIX = 'component';
+  private readonly CACHE_TTL = 3600; // 1시간
+
   constructor(
     @InjectRepository(Component)
     private componentRepository: Repository<Component>,
+    private readonly cacheService: HybridCacheService,
   ) {}
 
   async multipleCreate(createComponents: CreateComponentDto[]) {
@@ -39,15 +44,26 @@ export class ComponentService {
       if (createComponent.icon) saveObj.icon = createComponent.icon;
       if (createComponent.description) saveObj.description = createComponent.description;
 
-      return await this.componentRepository.save(saveObj);
+      const result = await this.componentRepository.save(saveObj);
+      
+      // 캐시 무효화
+      await this.cacheService.invalidate(this.CACHE_KEY_PREFIX, 'static', 'findAll');
+      
+      return result;
     }
   }
 
   async findAll() {
-    // const components = await this.componentRepository.find({
-    //   select: ['type'],
-    //   where: { useYn: YesNo.YES },
-    // });
+    const cacheKey = 'findAll';
+    const cachedResult = await this.cacheService.get(
+      this.CACHE_KEY_PREFIX,
+      'static',
+      cacheKey,
+    );
+
+    if (cachedResult) {
+      return cachedResult.data;
+    }
 
     const components = await this.componentRepository
       .createQueryBuilder('component')
@@ -67,6 +83,15 @@ export class ComponentService {
     components.forEach((component, index) => {
       component.option = JSON.parse(component.option);
     });
+
+    // 캐시에 저장
+    await this.cacheService.set(
+      this.CACHE_KEY_PREFIX,
+      'static',
+      cacheKey,
+      { data: components, fields: [] },
+      this.CACHE_TTL,
+    );
 
     return components;
   }
@@ -93,6 +118,9 @@ export class ComponentService {
       updateObj.useYn = updateComponent.useYn;
 
       await this.componentRepository.save(updateObj);
+      
+      // 캐시 무효화
+      await this.cacheService.invalidate(this.CACHE_KEY_PREFIX, 'static', 'findAll');
 
       return 'Success update';
     }
@@ -100,6 +128,10 @@ export class ComponentService {
 
   async remove(id: number) {
     await this.componentRepository.delete({ id });
+    
+    // 캐시 무효화
+    await this.cacheService.invalidate(this.CACHE_KEY_PREFIX, 'static', 'findAll');
+    
     return `This action removes a #${id} component`;
   }
 }

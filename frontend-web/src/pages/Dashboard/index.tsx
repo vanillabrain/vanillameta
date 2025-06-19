@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import PageTitleBox from '@/components/PageTitleBox';
 import BoardList from '@/components/BoardList';
 import { Outlet, useNavigate, useParams } from 'react-router-dom';
@@ -48,7 +48,7 @@ function Dashboard() {
   }, []);
 
   // dashboard info 조회
-  const getDashboardList = () => {
+  const getDashboardList = useCallback(() => {
     showLoading();
     DashboardService.selectDashboardList()
       .then(response => {
@@ -74,9 +74,9 @@ function Dashboard() {
       .finally(() => {
         hideLoading();
       });
-  };
+  }, [showLoading, hideLoading, alert]);
 
-  const handleDeleteSelect = (id, title) => {
+  const handleDeleteSelect = useCallback((id, title) => {
     alert.success(
       <Box sx={{ span: { fontWeight: 600 } }}>
         <span>{title}</span>
@@ -107,9 +107,9 @@ function Dashboard() {
         ],
       },
     );
-  };
+  }, [alert, showLoading, hideLoading, snackbar, getDashboardList]);
 
-  const handleMenuSelect = item => {
+  const handleMenuSelect = useCallback(item => {
     console.log(item);
     if (item.id !== undefined) {
       if (item.id == 'dashboard') {
@@ -118,10 +118,10 @@ function Dashboard() {
         navigate('/dashboard/create?createType=recommend');
       }
     }
-  };
+  }, [navigate]);
 
   // 목록이 없을때 보여줄 화면
-  const getEmptyView = () => {
+  const getEmptyView = useMemo(() => {
     return (
       <>
         <Stack
@@ -165,7 +165,7 @@ function Dashboard() {
         </Box>
       </>
     );
-  };
+  }, [matches, GTSpan]);
 
   return (
     <Stack sx={{ width: '100%', height: '100%', flex: '1 1 auto' }}>
@@ -186,7 +186,7 @@ function Dashboard() {
             }
           >
             {noData ? (
-              getEmptyView()
+              getEmptyView
             ) : (
               <>
                 <BoardList postList={loadedDashboardData} handleDeleteSelect={handleDeleteSelect} />
@@ -201,4 +201,4 @@ function Dashboard() {
   );
 }
 
-export default Dashboard;
+export default React.memo(Dashboard);

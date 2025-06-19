@@ -1,14 +1,23 @@
-import React, { useContext, useEffect, useLayoutEffect, useState } from 'react';
+import React, { useContext, useEffect, useLayoutEffect, useState, lazy, Suspense } from 'react';
 import { MenuItem, Select, Stack, TextField } from '@mui/material';
 import { useAlert } from 'react-alert';
 import PageTitleBox from '@/components/PageTitleBox';
 import SubmitButton from '@/components/button/SubmitButton';
 import ConfirmCancelButton from '@/components/button/ConfirmCancelButton';
-import AceEditor from 'react-ace';
-import 'ace-builds/src-noconflict/mode-mysql';
-import 'ace-builds/src-noconflict/theme-tomorrow';
-import 'ace-builds/src-noconflict/snippets/mysql';
-import LangTools from 'ace-builds/src-min-noconflict/ext-language_tools';
+// AceEditor 레이지 로딩
+// @ts-ignore
+const AceEditor = lazy(() => 
+  import('react-ace').then(async (ace) => {
+    // 필요한 모듈들도 함께 로드
+    await Promise.all([
+      import('ace-builds/src-noconflict/mode-mysql'),
+      import('ace-builds/src-noconflict/theme-tomorrow'),
+      import('ace-builds/src-noconflict/snippets/mysql'),
+      import('ace-builds/src-min-noconflict/ext-language_tools')
+    ]);
+    return ace;
+  })
+);
 import DataGrid from '@/components/datagrid';
 import DatabaseService from '@/api/databaseService';
 import DatasetService from '@/api/datasetService';
@@ -353,26 +362,28 @@ const DataSet = () => {
           onChange={onChangeTitle}
           required
         />
-        <AceEditor
-          placeholder="Please enter a query."
-          style={{ width: '100%', height: '200px', border: 'solid 1px #ddd' }}
-          mode="mysql"
-          theme="tomorrow"
-          name="codeInput"
-          onChange={onChange}
-          fontSize={14}
-          showPrintMargin={true}
-          showGutter={true}
-          highlightActiveLine={true}
-          value={datasetInfo.query}
-          setOptions={{
-            enableBasicAutocompletion: true,
-            enableLiveAutocompletion: true,
-            enableSnippets: true,
-            showLineNumbers: true,
-            tabSize: 2,
-          }}
-        />
+        <Suspense fallback={<div style={{ width: '100%', height: '200px', border: 'solid 1px #ddd', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>에디터 로딩중...</div>}>
+          <AceEditor
+            placeholder="Please enter a query."
+            style={{ width: '100%', height: '200px', border: 'solid 1px #ddd' }}
+            mode="mysql"
+            theme="tomorrow"
+            name="codeInput"
+            onChange={onChange}
+            fontSize={14}
+            showPrintMargin={true}
+            showGutter={true}
+            highlightActiveLine={true}
+            value={datasetInfo.query}
+            setOptions={{
+              enableBasicAutocompletion: true,
+              enableLiveAutocompletion: true,
+              enableSnippets: true,
+              showLineNumbers: true,
+              tabSize: 2,
+            }}
+          />
+        </Suspense>
         <SubmitButton
           label="Run"
           type="button"
