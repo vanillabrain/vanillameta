@@ -146,19 +146,23 @@ const OptimizedChart: React.FC<OptimizedChartProps> = ({
   useEffect(() => {
     if (!containerRef.current) return;
 
-    if ('ResizeObserver' in window) {
-      resizeObserverRef.current = new ResizeObserver(debouncedResize);
-      resizeObserverRef.current.observe(containerRef.current);
-    } else {
-      // ResizeObserver 미지원 브라우저 대응
-      window.addEventListener('resize', debouncedResize);
+    if (typeof window !== 'undefined') {
+      if ('ResizeObserver' in window) {
+        resizeObserverRef.current = new ResizeObserver(debouncedResize);
+        resizeObserverRef.current.observe(containerRef.current);
+      } else {
+        // ResizeObserver 미지원 브라우저 대응
+        (window as Window).addEventListener('resize', debouncedResize);
+      }
     }
 
     return () => {
       if (resizeObserverRef.current) {
         resizeObserverRef.current.disconnect();
       }
-      window.removeEventListener('resize', debouncedResize);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('resize', debouncedResize);
+      }
       debouncedResize.cancel();
     };
   }, [debouncedResize]);

@@ -152,7 +152,7 @@ export const trackDashboardEvent = {
     trackDashboardHelpers.deleted(dashboardId);
   },
   
-  shared: (dashboardId: string, shareMethod: string) => {
+  shared: (dashboardId: string, shareMethod: 'link' | 'email' | 'embed') => {
     trackDashboardHelpers.shared(dashboardId, shareMethod);
   }
 };

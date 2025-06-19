@@ -75,11 +75,9 @@ const Analytics = () => {
       <Seo title="사용자 행동 분석" />
       
       <PageTitleBox 
-        title="사용자 행동 분석" 
-        subTitle="사용자들의 서비스 이용 패턴을 분석하고 인사이트를 도출합니다"
-      />
-
-      <Box sx={{ px: 3, mt: 3 }}>
+        title="사용자 행동 분석"
+      >
+        <Box sx={{ px: 3, mt: 3 }}>
         {/* 시간 범위 선택 */}
         <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
           <FormControl sx={{ minWidth: 200 }}>
@@ -178,6 +176,7 @@ const Analytics = () => {
           </Grid>
         </Grid>
       </Box>
+      </PageTitleBox>
     </Box>
   );
 };

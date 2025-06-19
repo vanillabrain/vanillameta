@@ -105,8 +105,10 @@ export class LoginController {
   @ApiBadRequestResponse({ description: '잘못된 요청 (유효성 검사 실패 또는 중복된 이메일)' })
   async create(@Body() createUserDto: CreateLoginDto) {
     const result = await this.loginService.signup(createUserDto);
-    const message = 'success';
-    return { ...result, message };
+    return { 
+      userEmail: createUserDto.email,
+      message: result 
+    };
   }
 
   @UseGuards(LocalAuthGuard) //refrshtoken 검사

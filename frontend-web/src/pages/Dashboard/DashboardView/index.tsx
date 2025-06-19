@@ -18,6 +18,7 @@ import { SnackbarContext } from '@/contexts/AlertContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import shareService from '@/api/shareService';
 import { AuthContext } from '@/contexts/AuthContext';
+import { ShareTokenRequest } from '@/types';
 import Seo from '@/seo/Seo';
 import { dateData } from '@/utils/util';
 import { trackDashboardEvent } from '@/utils/eventTracking';
@@ -80,8 +81,18 @@ const DashboardView = () => {
     showLoading();
     DashboardService.selectDashboard(id)
       .then(response => {
-        if (response.data.status == STATUS.SUCCESS) {
-          setDashboardInfo(response.data.data);
+        if (response.status == STATUS.SUCCESS) {
+          const dashboard = response.data.dashboard;
+          const layout = JSON.parse(dashboard.layout || '[]');
+          setDashboardInfo({
+            title: dashboard.title,
+            widgets: response.data.widgets || [],
+            layout: layout,
+            updatedAt: dashboard.updatedAt,
+            shareYn: dashboard.shareYn || 'N',
+            uuid: dashboard.uuid || null,
+            endDate: dashboard.endDate || null,
+          });
         } else {
           alert.error('대시보드 조회에 실패했습니다.\n다시 시도해 주세요.');
         }
@@ -133,7 +144,7 @@ const DashboardView = () => {
               showLoading();
               DashboardService.deleteDashboard(dashboardId)
                 .then(response => {
-                  if (response.data.status == STATUS.SUCCESS) {
+                  if (response.status == STATUS.SUCCESS) {
                     // 대시보드 삭제 이벤트 추적
                     trackDashboardEvent.deleted(dashboardId);
                     navigate('/dashboard', { replace: true });
@@ -153,9 +164,8 @@ const DashboardView = () => {
   };
 
   const handleShareToggle = () => {
-    const data = {
-      userId: userState.userId,
-      endDate: shareLimitDate,
+    const data: ShareTokenRequest = {
+      expiredAt: shareLimitDate,
     };
     if (!isShareOn) {
       // 공유 off에서 on으로 변경
@@ -168,7 +178,7 @@ const DashboardView = () => {
         .onShareToken(dashboardId, data)
         .then(response => {
           console.log('buttonOn', response);
-          if (response.status === 201) {
+          if (response.status === STATUS.SUCCESS) {
             setIsShareOn(true);
             // 대시보드 공유 이벤트 추적
             trackDashboardEvent.shared(dashboardId, 'link');
@@ -185,7 +195,7 @@ const DashboardView = () => {
         .offShareToken(dashboardId, data)
         .then(response => {
           console.log('buttonOff', response);
-          if (response.status === 201) {
+          if (response.status === STATUS.SUCCESS) {
             setIsShareOn(false);
             setShareLimitDate(null);
           }

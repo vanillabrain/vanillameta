@@ -40,7 +40,7 @@ export class DatabaseService {
     }
 
     // DB에서 조회
-    const dbTypes = await this.databaseTypeRepository.find({ order: { rank: 'ASC', type: 'ASC' } });
+    const dbTypes = await this.databaseTypeRepository.find({ order: { seq: 'ASC' } });
     
     // 캐시에 저장
     await this.cacheManager.set(this.DB_TYPES_CACHE_KEY, dbTypes, this.DB_TYPES_CACHE_TTL);
@@ -253,9 +253,13 @@ export class DatabaseService {
 
     // SQLite 특별 처리
     if (updateDatabaseDto.engine === 'sqlite' || updateDatabaseDto.engine === 'better-sqlite3') {
-      updateDatabaseDto.connectionConfig = {
-        database: updateDatabaseDto.connectionConfig.database || './demo.db',
-      };
+      const config = typeof updateDatabaseDto.connectionConfig === 'string' 
+        ? JSON.parse(updateDatabaseDto.connectionConfig)
+        : updateDatabaseDto.connectionConfig;
+      
+      updateDatabaseDto.connectionConfig = JSON.stringify({
+        database: config.database || './demo.db',
+      });
     }
 
     one.connectionConfig =
@@ -310,7 +314,6 @@ export class DatabaseService {
     // updateDatabaseDto.connectionConfig = JSON.stringify(connectionConfig);
 
     // TODO: validation pipe
-    one.memo = updateDatabaseDto.memo;
     one.updatedAt = new Date();
     return this.databaseRepository.save(one);
   }
@@ -320,9 +323,7 @@ export class DatabaseService {
    * @param id
    */
   async remove(id: number) {
-    const database = await this.databaseRepository.findOne({ where: { id } });
-    database.isActive = YesNo.NO;
-    await this.databaseRepository.save(database);
+    await this.databaseRepository.delete({ id });
     await this.connectionService.removeKnex(id);
     return 'success';
   }
@@ -332,7 +333,7 @@ export class DatabaseService {
    * @param createDatabaseDto
    */
   testDatabase(createDatabaseDto: CreateDatabaseDto) {
-    return this.connectionService.testDatabase(createDatabaseDto);
+    return this.connectionService.testConnection(createDatabaseDto);
   }
 
   /**
@@ -341,5 +342,33 @@ export class DatabaseService {
    */
   executeQuery(queryExecuteDto: QueryExecuteDto) {
     return this.connectionService.executeQuery(queryExecuteDto);
+  }
+
+  /**
+   * 데이터베이스 타입 목록 조회
+   */
+  async findTypeList() {
+    return this.findAllDbTypes();
+  }
+
+  /**
+   * 데이터 조회
+   */
+  async findData(datasetType: DatasetType, databaseId: number, datasetId?: number, tableName?: string) {
+    // 데이터셋 타입에 따라 다른 로직 실행
+    if (datasetType === DatasetType.TABLE) {
+      // 테이블 데이터 조회
+      return this.findTables(databaseId);
+    }
+    
+    // 기타 데이터셋 타입 처리
+    return [];
+  }
+
+  /**
+   * 데이터베이스 연결정보 조회
+   */
+  async findOneInfo(id: number) {
+    return this.findSimple(id);
   }
 }

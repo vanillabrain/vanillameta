@@ -132,7 +132,7 @@ export class ComponentService {
     await this.componentRepository.delete({ id });
     
     // 캐시 무효화
-    await this.cacheService.invalidate(this.CACHE_KEY_PREFIX, 'static', 'findAll');
+    await this.cacheService.invalidateAll();
     
     return `This action removes a #${id} component`;
   }

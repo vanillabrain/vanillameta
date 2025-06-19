@@ -22,6 +22,7 @@ import { LoadingContext } from '@/contexts/LoadingContext';
 import ModifyButton from '@/components/button/ModifyButton';
 import ReloadButton from '@/components/button/ReloadButton';
 import { trackDashboardEvent, trackWidgetEvent } from '@/utils/eventTracking';
+import { UpdateDashboardRequest, CreateDashboardRequest } from '@/types';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -72,16 +73,17 @@ function DashboardModify() {
     showLoading();
     DashboardService.selectDashboard(id)
       .then(response => {
-        if (response.data.status == STATUS.SUCCESS) {
-          setDashboardTitle(response.data.data.title);
-          setWidgets(response.data.data.widgets);
+        if (response.status == STATUS.SUCCESS) {
+          setDashboardTitle(response.data.dashboard.title);
+          setWidgets(response.data.widgets || []);
 
-          response.data.data.layout.map(item => {
+          const layoutData = JSON.parse(response.data.dashboard.layout || '[]');
+          layoutData.map(item => {
             if (item.i !== undefined) {
               item.i = item.i.toString();
             }
           });
-          setLayout(response.data.data.layout);
+          setLayout(layoutData);
         } else {
           alert.error('대시보드 조회에 실패했습니다.\n다시 시도해 주세요.');
         }
@@ -310,10 +312,11 @@ function DashboardModify() {
       });
 
       // 저장 로직
-      dashboardInfo.dashboardId = dashboardId;
-      dashboardInfo.title = dashboardTitle;
-      dashboardInfo.layout = layout;
-      dashboardInfo.widgets = widgets;
+      const updateData: UpdateDashboardRequest = {
+        title: dashboardTitle,
+        layout: JSON.stringify(layout),
+        widgets: widgets
+      };
 
       if (dashboardId != null) {
         alert.success(`${dashboardTitle}\n대시보드를 수정하시겠습니까?`, {
@@ -324,9 +327,9 @@ function DashboardModify() {
               copy: '수정',
               onClick: () => {
                 showLoading();
-                DashboardService.updateDashboard(dashboardId, dashboardInfo)
+                DashboardService.updateDashboard(dashboardId, updateData)
                   .then(response => {
-                    if (response.data.status === 'SUCCESS') {
+                    if (response.status === STATUS.SUCCESS) {
                       // 대시보드 수정 이벤트 추적
                       trackDashboardEvent.edited(dashboardId, ['title', 'layout', 'widgets']);
                       navigate('/dashboard/' + dashboardId, { replace: true });
@@ -343,6 +346,12 @@ function DashboardModify() {
           ],
         });
       } else {
+        const createData: CreateDashboardRequest = {
+          title: dashboardTitle,
+          layout: JSON.stringify(layout),
+          widgets: widgets
+        };
+        
         alert.success(`${dashboardTitle}\n대시보드를 생성하시겠습니까?`, {
           title: '대시보드 생성',
           closeCopy: '취소',
@@ -351,16 +360,16 @@ function DashboardModify() {
               copy: '생성',
               onClick: () => {
                 showLoading();
-                DashboardService.createDashboard(dashboardInfo)
+                DashboardService.createDashboard(createData)
                   .then(response => {
-                    if (response.data.status === 'SUCCESS') {
+                    if (response.status === STATUS.SUCCESS) {
                       // 대시보드 생성 이벤트 추적
                       const templateUsed = searchParams.get('createType') === 'recommend' ? 'recommend' : 'blank';
-                      trackDashboardEvent.created(response.data.data.id, templateUsed);
+                      trackDashboardEvent.created(response.data.id.toString(), templateUsed);
                       
                       // 위젯 생성 이벤트 추적
                       widgets.forEach(widget => {
-                        trackWidgetEvent.created(widget.id.toString(), widget.componentType, response.data.data.id);
+                        trackWidgetEvent.created(widget.id.toString(), widget.componentType, response.data.id.toString());
                       });
                       
                       navigate('/dashboard');

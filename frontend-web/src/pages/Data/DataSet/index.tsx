@@ -18,6 +18,12 @@ const AceEditor = lazy(() =>
     return ace;
   })
 );
+
+// LangTools import for autocomplete
+let LangTools: any;
+import('ace-builds/src-min-noconflict/ext-language_tools').then(module => {
+  LangTools = (window as any).ace.require('ace/ext/language_tools');
+});
 import DataGrid from '@/components/datagrid';
 import DatabaseService from '@/api/databaseService';
 import DatasetService from '@/api/datasetService';
@@ -97,7 +103,9 @@ const DataSet = () => {
         );
       },
     };
-    LangTools.addCompleter(rhymeCompleter);
+    if (LangTools) {
+      LangTools.addCompleter(rhymeCompleter);
+    }
   };
 
   const onChange = newValue => {

@@ -52,7 +52,7 @@ export const trackDashboard = {
     );
   },
   
-  shared: (dashboardId: string, shareMethod: string, permission?: string) => {
+  shared: (dashboardId: string, shareMethod: 'link' | 'email' | 'embed', permission?: 'view' | 'edit') => {
     eventTracker.track(
       EventAction.DASHBOARD_SHARED,
       EventCategory.SHARE,
