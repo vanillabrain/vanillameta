@@ -20,19 +20,19 @@ interface LazyImageProps {
   rootMargin?: string;
 }
 
-const ImageContainer = styled(Box)(({ theme }) => ({
+const ImageContainer = styled(Box)(() => ({
   position: 'relative',
   overflow: 'hidden',
   display: 'inline-block',
 }));
 
-const Image = styled('img')(({ theme }) => ({
+const Image = styled('img')(() => ({
   transition: 'opacity 0.3s ease-in-out',
   maxWidth: '100%',
   height: 'auto',
 }));
 
-const PlaceholderContainer = styled(Box)(({ theme }) => ({
+const PlaceholderContainer = styled(Box)(() => ({
   position: 'absolute',
   top: 0,
   left: 0,
