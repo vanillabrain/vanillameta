@@ -4,11 +4,7 @@ import { HttpException, HttpStatus } from '@nestjs/common';
  * 비즈니스 로직 예외 기본 클래스
  */
 export class BusinessException extends HttpException {
-  constructor(
-    message: string,
-    errorCode: string,
-    statusCode: HttpStatus = HttpStatus.BAD_REQUEST,
-  ) {
+  constructor(message: string, errorCode: string, statusCode: HttpStatus = HttpStatus.BAD_REQUEST) {
     super(
       {
         message,
@@ -24,9 +20,7 @@ export class BusinessException extends HttpException {
  */
 export class EntityNotFoundException extends BusinessException {
   constructor(entity: string, id?: string | number) {
-    const message = id
-      ? `${entity} with id ${id} not found`
-      : `${entity} not found`;
+    const message = id ? `${entity} with id ${id} not found` : `${entity} not found`;
     super(message, 'ENTITY_NOT_FOUND', HttpStatus.NOT_FOUND);
   }
 }
@@ -48,7 +42,7 @@ export class DuplicateException extends BusinessException {
  * 권한이 없을 때 발생하는 예외
  */
 export class UnauthorizedException extends BusinessException {
-  constructor(message: string = 'Unauthorized access') {
+  constructor(message = 'Unauthorized access') {
     super(message, 'UNAUTHORIZED', HttpStatus.UNAUTHORIZED);
   }
 }
@@ -58,11 +52,7 @@ export class UnauthorizedException extends BusinessException {
  */
 export class ForbiddenException extends BusinessException {
   constructor(resource: string) {
-    super(
-      `Access to ${resource} is forbidden`,
-      'FORBIDDEN',
-      HttpStatus.FORBIDDEN,
-    );
+    super(`Access to ${resource} is forbidden`, 'FORBIDDEN', HttpStatus.FORBIDDEN);
   }
 }
 
@@ -93,11 +83,7 @@ export class DatabaseConnectionException extends BusinessException {
  */
 export class QueryExecutionException extends BusinessException {
   constructor(message: string) {
-    super(
-      `Query execution failed: ${message}`,
-      'QUERY_EXECUTION_ERROR',
-      HttpStatus.BAD_REQUEST,
-    );
+    super(`Query execution failed: ${message}`, 'QUERY_EXECUTION_ERROR', HttpStatus.BAD_REQUEST);
   }
 }
 
@@ -131,7 +117,7 @@ export class FileProcessingException extends BusinessException {
  * 토큰 관련 예외
  */
 export class TokenException extends BusinessException {
-  constructor(message: string = 'Invalid or expired token') {
+  constructor(message = 'Invalid or expired token') {
     super(message, 'TOKEN_ERROR', HttpStatus.UNAUTHORIZED);
   }
 }

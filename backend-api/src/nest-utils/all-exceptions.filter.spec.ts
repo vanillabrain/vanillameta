@@ -2,11 +2,11 @@ import { AllExceptionsFilter } from './all-exceptions.filter';
 import { ArgumentsHost, HttpException, HttpStatus } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { QueryFailedError } from 'typeorm';
-import { 
-  BusinessException, 
+import {
+  BusinessException,
   EntityNotFoundException,
   UnauthorizedException,
-  DuplicateException 
+  DuplicateException,
 } from '../common/exceptions/business.exception';
 
 describe('AllExceptionsFilter', () => {
@@ -40,7 +40,7 @@ describe('AllExceptionsFilter', () => {
 
     // Create filter instance
     filter = new AllExceptionsFilter();
-    
+
     // Mock logger to prevent console output during tests
     mockLogger = jest.spyOn(filter['logger'], 'error').mockImplementation();
   });
@@ -52,7 +52,7 @@ describe('AllExceptionsFilter', () => {
   describe('HTTP Exception handling', () => {
     it('should handle HttpException with string message', () => {
       const exception = new HttpException('Test error', HttpStatus.BAD_REQUEST);
-      
+
       filter.catch(exception, mockArgumentsHost);
 
       expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
@@ -64,16 +64,16 @@ describe('AllExceptionsFilter', () => {
           errorCode: 'INTERNAL_ERROR',
           path: '/test',
           method: 'GET',
-        })
+        }),
       );
     });
 
     it('should handle HttpException with object response', () => {
       const exception = new HttpException(
         { message: 'Validation failed', error: 'Bad Request' },
-        HttpStatus.BAD_REQUEST
+        HttpStatus.BAD_REQUEST,
       );
-      
+
       filter.catch(exception, mockArgumentsHost);
 
       expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
@@ -83,20 +83,20 @@ describe('AllExceptionsFilter', () => {
           code: HttpStatus.BAD_REQUEST,
           message: 'Validation failed',
           errorCode: 'BAD_REQUEST',
-        })
+        }),
       );
     });
 
     it('should handle validation errors with array of messages', () => {
       const exception = new HttpException(
-        { 
+        {
           message: ['field1 is required', 'field2 must be a string'],
           error: 'Bad Request',
-          statusCode: 400
+          statusCode: 400,
         },
-        HttpStatus.BAD_REQUEST
+        HttpStatus.BAD_REQUEST,
       );
-      
+
       filter.catch(exception, mockArgumentsHost);
 
       const response = mockResponse.json.mock.calls[0][0];
@@ -109,7 +109,7 @@ describe('AllExceptionsFilter', () => {
   describe('Business Exception handling', () => {
     it('should handle EntityNotFoundException', () => {
       const exception = new EntityNotFoundException('User', 123);
-      
+
       filter.catch(exception, mockArgumentsHost);
 
       expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.NOT_FOUND);
@@ -119,13 +119,13 @@ describe('AllExceptionsFilter', () => {
           code: HttpStatus.NOT_FOUND,
           message: 'User with id 123 not found',
           errorCode: 'ENTITY_NOT_FOUND',
-        })
+        }),
       );
     });
 
     it('should handle UnauthorizedException', () => {
       const exception = new UnauthorizedException('Invalid token');
-      
+
       filter.catch(exception, mockArgumentsHost);
 
       expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.UNAUTHORIZED);
@@ -135,13 +135,13 @@ describe('AllExceptionsFilter', () => {
           code: HttpStatus.UNAUTHORIZED,
           message: 'Invalid token',
           errorCode: 'UNAUTHORIZED',
-        })
+        }),
       );
     });
 
     it('should handle DuplicateException', () => {
       const exception = new DuplicateException('User', 'email', 'test@example.com');
-      
+
       filter.catch(exception, mockArgumentsHost);
 
       expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.CONFLICT);
@@ -151,7 +151,7 @@ describe('AllExceptionsFilter', () => {
           code: HttpStatus.CONFLICT,
           message: "User with email 'test@example.com' already exists",
           errorCode: 'DUPLICATE_ENTITY',
-        })
+        }),
       );
     });
   });
@@ -161,9 +161,9 @@ describe('AllExceptionsFilter', () => {
       const exception = new QueryFailedError(
         'SELECT * FROM users',
         ['param1'],
-        new Error('Column does not exist')
+        new Error('Column does not exist'),
       );
-      
+
       filter.catch(exception, mockArgumentsHost);
 
       expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
@@ -173,7 +173,7 @@ describe('AllExceptionsFilter', () => {
           code: HttpStatus.BAD_REQUEST,
           message: 'Database query failed',
           errorCode: 'DATABASE_ERROR',
-        })
+        }),
       );
     });
   });
@@ -181,7 +181,7 @@ describe('AllExceptionsFilter', () => {
   describe('General Error handling', () => {
     it('should handle general Error', () => {
       const exception = new Error('Something went wrong');
-      
+
       filter.catch(exception, mockArgumentsHost);
 
       expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -191,13 +191,13 @@ describe('AllExceptionsFilter', () => {
           code: HttpStatus.INTERNAL_SERVER_ERROR,
           message: 'Something went wrong',
           errorCode: 'INTERNAL_ERROR',
-        })
+        }),
       );
     });
 
     it('should handle unknown exception types', () => {
       const exception = { unknown: 'error' };
-      
+
       filter.catch(exception, mockArgumentsHost);
 
       expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -207,7 +207,7 @@ describe('AllExceptionsFilter', () => {
           code: HttpStatus.INTERNAL_SERVER_ERROR,
           message: 'Internal server error',
           errorCode: 'INTERNAL_ERROR',
-        })
+        }),
       );
     });
   });
@@ -216,7 +216,7 @@ describe('AllExceptionsFilter', () => {
     it('should use existing correlation ID from headers', () => {
       const correlationId = 'test-correlation-id';
       mockRequest.headers['x-correlation-id'] = correlationId;
-      
+
       const exception = new Error('Test error');
       filter.catch(exception, mockArgumentsHost);
 
@@ -230,7 +230,9 @@ describe('AllExceptionsFilter', () => {
 
       const response = mockResponse.json.mock.calls[0][0];
       expect(response.correlationId).toBeDefined();
-      expect(response.correlationId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+      expect(response.correlationId).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+      );
     });
   });
 
@@ -244,7 +246,7 @@ describe('AllExceptionsFilter', () => {
     it('should include stack trace in non-production environment', () => {
       process.env.NODE_ENV = 'development';
       const exception = new Error('Test error');
-      
+
       filter.catch(exception, mockArgumentsHost);
 
       const response = mockResponse.json.mock.calls[0][0];
@@ -255,7 +257,7 @@ describe('AllExceptionsFilter', () => {
     it('should exclude stack trace in production environment', () => {
       process.env.NODE_ENV = 'production';
       const exception = new Error('Test error');
-      
+
       filter.catch(exception, mockArgumentsHost);
 
       const response = mockResponse.json.mock.calls[0][0];
@@ -267,9 +269,9 @@ describe('AllExceptionsFilter', () => {
       const exception = new QueryFailedError(
         'SELECT * FROM users',
         ['param1'],
-        new Error('Column does not exist')
+        new Error('Column does not exist'),
       );
-      
+
       filter.catch(exception, mockArgumentsHost);
 
       const response = mockResponse.json.mock.calls[0][0];
@@ -283,9 +285,9 @@ describe('AllExceptionsFilter', () => {
       const exception = new QueryFailedError(
         'SELECT * FROM users',
         ['param1'],
-        new Error('Column does not exist')
+        new Error('Column does not exist'),
       );
-      
+
       filter.catch(exception, mockArgumentsHost);
 
       const response = mockResponse.json.mock.calls[0][0];
@@ -296,7 +298,7 @@ describe('AllExceptionsFilter', () => {
   describe('Error logging', () => {
     it('should log error with correlation ID and details', () => {
       const exception = new HttpException('Test error', HttpStatus.BAD_REQUEST);
-      
+
       filter.catch(exception, mockArgumentsHost);
 
       expect(mockLogger).toHaveBeenCalled();

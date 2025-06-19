@@ -67,7 +67,9 @@ export class ConnectionService {
    * 데이터베이스 연결 테스트
    * @param createDatabaseDto
    */
-  async testConnection(createDatabaseDto: CreateDatabaseDto): Promise<{ status: ResponseStatus; message?: string; data?: { message: string } }> {
+  async testConnection(
+    createDatabaseDto: CreateDatabaseDto,
+  ): Promise<{ status: ResponseStatus; message?: string; data?: { message: string } }> {
     let engine: string | any = createDatabaseDto.engine;
     switch (createDatabaseDto.engine) {
       case 'bigquery':
@@ -93,7 +95,9 @@ export class ConnectionService {
     // createDatabaseDto.connectionConfig = JSON.stringify(connectionConfig);
     // console.log(createDatabaseDto)
     let _knex: Knex;
-    let returnObj: { status: ResponseStatus; message?: string; data?: { message: string } } = { status: ResponseStatus.ERROR };
+    let returnObj: { status: ResponseStatus; message?: string; data?: { message: string } } = {
+      status: ResponseStatus.ERROR,
+    };
     try {
       _knex = knex(connectionConfig as Knex.Config);
     } catch (e) {

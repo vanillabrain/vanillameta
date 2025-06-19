@@ -47,7 +47,7 @@ export class LoginController {
       sameSite: 'Lax', // 다른 도메인의 cookie를 허용한 주소만 가져올 수 있음
       secure: true, // 보안처리된 https만 허
     });
-    
+
     const message = await i18n.translate('auth.login.success');
     return res.status(201).json({ accessToken: accessToken, message });
   }
