@@ -84,9 +84,9 @@ describe('유틸리티 함수 테스트', () => {
         { id: 1, name: 'John', age: 30 },
         { id: 2, name: 'Jane', age: 25 },
       ];
-      
+
       const columns = createColumns(data);
-      
+
       expect(columns).toHaveLength(3);
       expect(columns[0]).toEqual({
         name: 'id',
@@ -110,24 +110,24 @@ describe('유틸리티 함수 테스트', () => {
 
     it('단일 객체로부터 컬럼을 생성해야 함', () => {
       const data = { id: 1, name: 'John', age: 30 };
-      
+
       const columns = createColumns(data);
-      
+
       expect(columns).toHaveLength(3);
       expect(columns.map(col => col.name)).toEqual(['id', 'name', 'age']);
     });
 
     it('빈 배열은 에러를 발생시켜야 함', () => {
       const data = [];
-      
+
       expect(() => createColumns(data)).toThrow();
     });
 
     it('컬럼의 기본 속성이 올바르게 설정되어야 함', () => {
       const data = { test: 'value' };
-      
+
       const columns = createColumns(data);
-      
+
       expect(columns[0]).toMatchObject({
         name: 'test',
         header: 'test',
@@ -142,9 +142,9 @@ describe('유틸리티 함수 테스트', () => {
         user: { name: 'John' },
         status: 'active',
       };
-      
+
       const columns = createColumns(data);
-      
+
       expect(columns).toHaveLength(3);
       expect(columns.map(col => col.name)).toEqual(['id', 'user', 'status']);
     });

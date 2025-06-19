@@ -38,7 +38,7 @@ describe('useStreamingData', () => {
 
   it('데이터 청크를 받으면 버퍼링 후 배치 업데이트해야 함', async () => {
     jest.useFakeTimers();
-    
+
     let onDataCallback: any;
     const mockStreamDataset = jest.fn().mockImplementation((_id, options) => {
       onDataCallback = options.onData;
@@ -77,7 +77,7 @@ describe('useStreamingData', () => {
 
   it('최대 데이터 크기를 초과하면 오래된 데이터를 제거해야 함', async () => {
     jest.useFakeTimers();
-    
+
     let onDataCallback: any;
     const mockStreamDataset = jest.fn().mockImplementation((_id, options) => {
       onDataCallback = options.onData;

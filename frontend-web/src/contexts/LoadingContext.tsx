@@ -22,11 +22,14 @@ export const LoadingProvider = ({ children }) => {
   }, []);
 
   // Context value 메모이제이션으로 불필요한 리렌더링 방지
-  const contextValue = useMemo(() => ({
-    loading,
-    showLoading,
-    hideLoading,
-  }), [loading, showLoading, hideLoading]);
+  const contextValue = useMemo(
+    () => ({
+      loading,
+      showLoading,
+      hideLoading,
+    }),
+    [loading, showLoading, hideLoading],
+  );
 
   return (
     <LoadingContext.Provider value={contextValue}>

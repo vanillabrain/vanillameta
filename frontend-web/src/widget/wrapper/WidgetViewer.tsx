@@ -55,16 +55,7 @@ export const WidgetEmpty = () => {
 };
 
 const WidgetViewer = props => {
-  const { 
-    title, 
-    widgetType, 
-    widgetOption, 
-    dataSet, 
-    isInvalidData, 
-    size, 
-    isLoading = false, 
-    isStreaming = false 
-  } = props;
+  const { title, widgetType, widgetOption, dataSet, isInvalidData, size, isLoading = false, isStreaming = false } = props;
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const [module, setModule] = useState(null);
 
@@ -80,11 +71,11 @@ const WidgetViewer = props => {
   const renderWidget = () => {
     console.log('===== renderWidget');
     let module;
-    const chartProps = { 
-      option: widgetOption, 
+    const chartProps = {
+      option: widgetOption,
       dataSet: dataSet,
       isStreaming: isStreaming,
-      isLoading: isLoading 
+      isLoading: isLoading,
     };
     if (!isStreaming) {
       showLoading();

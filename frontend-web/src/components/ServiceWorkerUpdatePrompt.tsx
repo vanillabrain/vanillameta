@@ -41,20 +41,10 @@ const ServiceWorkerUpdatePrompt: React.FC<ServiceWorkerUpdatePromptProps> = () =
       anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       action={
         <React.Fragment>
-          <Button
-            color="inherit"
-            size="small"
-            startIcon={<RefreshIcon />}
-            onClick={reloadPage}
-          >
+          <Button color="inherit" size="small" startIcon={<RefreshIcon />} onClick={reloadPage}>
             업데이트
           </Button>
-          <IconButton
-            size="small"
-            aria-label="close"
-            color="inherit"
-            onClick={handleClose}
-          >
+          <IconButton size="small" aria-label="close" color="inherit" onClick={handleClose}>
             <CloseIcon fontSize="small" />
           </IconButton>
         </React.Fragment>

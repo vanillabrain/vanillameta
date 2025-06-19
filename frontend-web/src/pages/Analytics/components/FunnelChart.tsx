@@ -33,7 +33,7 @@ const FunnelChart: React.FC<Props> = ({ funnel }) => {
         formatter: (params: any) => {
           const step = funnel.find(s => formatStepName(s.step) === params.name);
           if (!step) return '';
-          
+
           return `
             <div style="padding: 8px;">
               <strong>${params.name}</strong><br/>
@@ -82,12 +82,7 @@ const FunnelChart: React.FC<Props> = ({ funnel }) => {
 
   return (
     <Box sx={{ height: 400 }}>
-      <ReactECharts 
-        option={chartOption} 
-        style={{ height: '100%', width: '100%' }}
-        notMerge={true}
-        lazyUpdate={true}
-      />
+      <ReactECharts option={chartOption} style={{ height: '100%', width: '100%' }} notMerge={true} lazyUpdate={true} />
     </Box>
   );
 };

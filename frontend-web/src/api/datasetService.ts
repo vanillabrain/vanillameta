@@ -1,11 +1,5 @@
 import { del, get, post, put } from '@/helpers/apiHelper';
-import {
-  ApiResponse,
-  CreateDatasetRequest,
-  UpdateDatasetRequest,
-  DatasetDetailResponse,
-  Dataset,
-} from '@/types';
+import { ApiResponse, CreateDatasetRequest, UpdateDatasetRequest, DatasetDetailResponse, Dataset } from '@/types';
 import { fetchEventSource } from '@microsoft/fetch-event-source';
 import { getToken } from '@/helpers/authHelper';
 
@@ -36,25 +30,25 @@ interface StreamingOptions {
 const streamDataset = async (id: string, options: StreamingOptions): Promise<void> => {
   const token = getToken();
   const baseURL = process.env.REACT_APP_API_URL || '';
-  
+
   await fetchEventSource(`${baseURL}/api/v1${SERVICE_URL}/${id}/stream`, {
     method: 'GET',
     headers: {
-      'Authorization': token ? `Bearer ${token}` : '',
-      'Accept': 'application/x-ndjson',
+      Authorization: token ? `Bearer ${token}` : '',
+      Accept: 'application/x-ndjson',
     },
     signal: options.signal,
-    onopen: async (response) => {
+    onopen: async response => {
       if (response.ok && response.headers.get('content-type')?.includes('application/x-ndjson')) {
         return; // 연결 성공
       } else if (response.status >= 400) {
         throw new Error(`Server error: ${response.status}`);
       }
     },
-    onmessage: (event) => {
+    onmessage: event => {
       try {
         const data = JSON.parse(event.data);
-        
+
         // 진행률 정보 처리
         if (data.type === 'progress' && options.onProgress) {
           options.onProgress({
@@ -76,7 +70,7 @@ const streamDataset = async (id: string, options: StreamingOptions): Promise<voi
         options.onError?.(error);
       }
     },
-    onerror: (err) => {
+    onerror: err => {
       console.error('Streaming error:', err);
       options.onError?.(err);
       throw err; // 재연결 방지
@@ -86,21 +80,21 @@ const streamDataset = async (id: string, options: StreamingOptions): Promise<voi
 
 // 캐시된 데이터셋 쿼리 실행
 const executeCachedQuery = (
-  id: string, 
-  options?: { 
-    forceRefresh?: boolean; 
-    ttl?: number; 
+  id: string,
+  options?: {
+    forceRefresh?: boolean;
+    ttl?: number;
     useStreamingFallback?: boolean;
-  }
+  },
 ): Promise<ApiResponse<any>> => {
   const params = new URLSearchParams();
   if (options?.forceRefresh) params.append('forceRefresh', 'true');
   if (options?.ttl) params.append('ttl', options.ttl.toString());
   if (options?.useStreamingFallback) params.append('useStreamingFallback', 'true');
-  
+
   const queryString = params.toString();
   const url = `${SERVICE_URL}/${id}/cached${queryString ? '?' + queryString : ''}`;
-  
+
   return get<ApiResponse<any>>(url);
 };
 

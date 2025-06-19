@@ -1,6 +1,5 @@
 import React, { Component, ReactNode, ErrorInfo } from 'react';
-import { Box, Button, Typography } from '@mui/material';
-import { Alert } from '@mui/material';
+import { Box, Button, Typography, Alert } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 
 interface Props {
@@ -38,31 +37,21 @@ export default class ChartErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       // Check if it's a chunk loading error
-      const isChunkError = this.state.error?.message?.includes('Loading chunk') || 
-                          this.state.error?.message?.includes('Failed to fetch');
+      const isChunkError =
+        this.state.error?.message?.includes('Loading chunk') || this.state.error?.message?.includes('Failed to fetch');
 
       if (this.props.fallback) {
         return <>{this.props.fallback}</>;
       }
 
       return (
-        <Box 
-          display="flex" 
-          flexDirection="column" 
-          alignItems="center" 
-          justifyContent="center" 
-          height="100%" 
-          p={3}
-        >
-          <Alert 
-            severity="error" 
-            sx={{ mb: 2, width: '100%', maxWidth: 500 }}
-          >
+        <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" height="100%" p={3}>
+          <Alert severity="error" sx={{ mb: 2, width: '100%', maxWidth: 500 }}>
             <Typography variant="h6" gutterBottom>
               차트 로딩 오류
             </Typography>
             <Typography variant="body2">
-              {isChunkError 
+              {isChunkError
                 ? '차트 모듈을 로드하는 중 오류가 발생했습니다. 페이지를 새로고침하거나 다시 시도해주세요.'
                 : '차트를 렌더링하는 중 오류가 발생했습니다.'}
             </Typography>

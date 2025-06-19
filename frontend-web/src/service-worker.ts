@@ -51,15 +51,13 @@ registerRoute(
     // Return true to signal that we want to use the handler.
     return true;
   },
-  createHandlerBoundToURL(process.env.PUBLIC_URL + '/index.html')
+  createHandlerBoundToURL(process.env.PUBLIC_URL + '/index.html'),
 );
 
 // Cache strategy for static resources (CSS, JS, images)
 registerRoute(
   // Cache CSS, JS files
-  ({ request }) =>
-    request.destination === 'style' ||
-    request.destination === 'script',
+  ({ request }) => request.destination === 'style' || request.destination === 'script',
   new StaleWhileRevalidate({
     cacheName: 'static-resources',
     plugins: [
@@ -71,7 +69,7 @@ registerRoute(
         maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
       }),
     ],
-  })
+  }),
 );
 
 // Cache images
@@ -88,7 +86,7 @@ registerRoute(
         maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
       }),
     ],
-  })
+  }),
 );
 
 // Cache fonts
@@ -105,7 +103,7 @@ registerRoute(
         maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
       }),
     ],
-  })
+  }),
 );
 
 // Cache chart library resources (ECharts)
@@ -122,7 +120,7 @@ registerRoute(
         maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
       }),
     ],
-  })
+  }),
 );
 
 // Cache API GET requests (with Network First strategy)
@@ -130,7 +128,7 @@ registerRoute(
   ({ url, request }) => {
     // Only cache GET requests
     if (request.method !== 'GET') return false;
-    
+
     // Check if it's an API request
     const apiPaths = ['/v1/', '/api/'];
     return apiPaths.some(path => url.pathname.includes(path));
@@ -146,7 +144,7 @@ registerRoute(
         maxAgeSeconds: 5 * 60, // 5 minutes
       }),
     ],
-  })
+  }),
 );
 
 // Cache dashboard and widget data with StaleWhileRevalidate
@@ -166,48 +164,41 @@ registerRoute(
         maxAgeSeconds: 10 * 60, // 10 minutes
       }),
     ],
-  })
+  }),
 );
 
 // This allows the web app to trigger skipWaiting via
 // registration.waiting.postMessage({type: 'SKIP_WAITING'})
-self.addEventListener('message', (event) => {
+self.addEventListener('message', event => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
 });
 
 // Clean up old caches
-self.addEventListener('activate', (event) => {
-  const cacheWhitelist = [
-    'static-resources',
-    'images',
-    'fonts',
-    'chart-libraries',
-    'api-cache',
-    'data-cache',
-  ];
+self.addEventListener('activate', event => {
+  const cacheWhitelist = ['static-resources', 'images', 'fonts', 'chart-libraries', 'api-cache', 'data-cache'];
 
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
+    caches.keys().then(cacheNames => {
       return Promise.all(
-        cacheNames.map((cacheName) => {
+        cacheNames.map(cacheName => {
           if (!cacheWhitelist.includes(cacheName) && !cacheName.includes('workbox-precache')) {
             return caches.delete(cacheName);
           }
-        })
+        }),
       );
-    })
+    }),
   );
 });
 
 // Offline fallback
-self.addEventListener('fetch', (event) => {
+self.addEventListener('fetch', event => {
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).catch(() => {
         return caches.match('/index.html');
-      })
+      }),
     );
   }
 });

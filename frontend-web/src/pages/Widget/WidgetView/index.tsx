@@ -72,7 +72,7 @@ const WidgetView = () => {
           widgetViewId: widget.id?.toString() || '',
           icon: widget.icon || null,
           componentTitle: widget.title || '',
-          componentDescription: widget.description || ''
+          componentDescription: widget.description || '',
         };
         setWidgetOption(widgetInfo);
       })

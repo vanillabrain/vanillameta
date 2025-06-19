@@ -28,7 +28,7 @@ import { LoadingContext } from '@/contexts/LoadingContext';
 const getTemplateIcon = id => {
   const templateMap = {
     7: 'template01',
-    8: 'template02', 
+    8: 'template02',
     9: 'template03',
     10: 'template04',
     11: 'template05',
@@ -42,13 +42,7 @@ const getTemplateIcon = id => {
   const iconName = templateMap[id];
   if (!iconName) return null;
 
-  return (
-    <LazyIcon 
-      iconName={iconName}
-      width="100%"
-      height="100%"
-    />
-  );
+  return <LazyIcon iconName={iconName} width="100%" height="100%" />;
 };
 
 export const WidgetList = ({
@@ -314,7 +308,7 @@ export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = 
                 >
                   <Box sx={{ width: '100%', margin: 0 }}>{getTemplateIcon(item.id)}</Box>
                   {selected ? (
-                    <LazyIcon 
+                    <LazyIcon
                       iconName="ic-check"
                       width="33px"
                       height="28px"

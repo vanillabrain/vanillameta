@@ -38,7 +38,7 @@ export const useStreamingData = (options?: UseStreamingDataOptions) => {
       setState(prev => ({
         ...prev,
         data: [...prev.data, ...dataBufferRef.current].slice(
-          -(options?.maxDataSize || 100000) // 최대 10만 행 유지
+          -(options?.maxDataSize || 100000), // 최대 10만 행 유지
         ),
       }));
       dataBufferRef.current = [];
@@ -56,68 +56,71 @@ export const useStreamingData = (options?: UseStreamingDataOptions) => {
   }, [flushDataBuffer]);
 
   // 스트리밍 시작
-  const startStreaming = useCallback(async (datasetId: string) => {
-    // 이전 스트리밍 중단
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-
-    // 새로운 AbortController 생성
-    abortControllerRef.current = new AbortController();
-    
-    // 상태 초기화
-    setState({
-      data: [],
-      isLoading: true,
-      isStreaming: true,
-      error: null,
-      progress: null,
-    });
-    dataBufferRef.current = [];
-
-    try {
-      await DatasetService.streamDataset(datasetId, {
-        signal: abortControllerRef.current.signal,
-        onData: (chunk) => {
-          // 데이터 청크 처리
-          if (chunk.rows) {
-            dataBufferRef.current.push(...chunk.rows);
-            options?.onDataChunk?.(chunk);
-            scheduleUpdate();
-          }
-        },
-        onProgress: (progress) => {
-          setState(prev => ({ ...prev, progress }));
-        },
-        onError: (error) => {
-          setState(prev => ({
-            ...prev,
-            error: error.message || '스트리밍 중 오류가 발생했습니다.',
-            isLoading: false,
-            isStreaming: false,
-          }));
-        },
-        onComplete: () => {
-          // 마지막 버퍼 플러시
-          flushDataBuffer();
-          setState(prev => ({
-            ...prev,
-            isLoading: false,
-            isStreaming: false,
-          }));
-        },
-      });
-    } catch (error: any) {
-      if (error.name !== 'AbortError') {
-        setState(prev => ({
-          ...prev,
-          error: error.message || '스트리밍을 시작할 수 없습니다.',
-          isLoading: false,
-          isStreaming: false,
-        }));
+  const startStreaming = useCallback(
+    async (datasetId: string) => {
+      // 이전 스트리밍 중단
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
       }
-    }
-  }, [options, scheduleUpdate, flushDataBuffer]);
+
+      // 새로운 AbortController 생성
+      abortControllerRef.current = new AbortController();
+
+      // 상태 초기화
+      setState({
+        data: [],
+        isLoading: true,
+        isStreaming: true,
+        error: null,
+        progress: null,
+      });
+      dataBufferRef.current = [];
+
+      try {
+        await DatasetService.streamDataset(datasetId, {
+          signal: abortControllerRef.current.signal,
+          onData: chunk => {
+            // 데이터 청크 처리
+            if (chunk.rows) {
+              dataBufferRef.current.push(...chunk.rows);
+              options?.onDataChunk?.(chunk);
+              scheduleUpdate();
+            }
+          },
+          onProgress: progress => {
+            setState(prev => ({ ...prev, progress }));
+          },
+          onError: error => {
+            setState(prev => ({
+              ...prev,
+              error: error.message || '스트리밍 중 오류가 발생했습니다.',
+              isLoading: false,
+              isStreaming: false,
+            }));
+          },
+          onComplete: () => {
+            // 마지막 버퍼 플러시
+            flushDataBuffer();
+            setState(prev => ({
+              ...prev,
+              isLoading: false,
+              isStreaming: false,
+            }));
+          },
+        });
+      } catch (error: any) {
+        if (error.name !== 'AbortError') {
+          setState(prev => ({
+            ...prev,
+            error: error.message || '스트리밍을 시작할 수 없습니다.',
+            isLoading: false,
+            isStreaming: false,
+          }));
+        }
+      }
+    },
+    [options, scheduleUpdate, flushDataBuffer],
+  );
 
   // 스트리밍 중단
   const stopStreaming = useCallback(() => {
@@ -125,16 +128,16 @@ export const useStreamingData = (options?: UseStreamingDataOptions) => {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
-    
+
     // 타이머 정리
     if (updateTimeoutRef.current) {
       clearTimeout(updateTimeoutRef.current);
       updateTimeoutRef.current = null;
     }
-    
+
     // 마지막 버퍼 플러시
     flushDataBuffer();
-    
+
     setState(prev => ({
       ...prev,
       isLoading: false,

@@ -17,7 +17,7 @@ const WidgetWrapper = props => {
   const [dataset, setDataset] = useState(null);
   const snackbar = useAlert(SnackbarContext);
   const [isInvalidData, setIsInvalidData] = useState(false);
-  
+
   // 스트리밍 데이터 훅
   const {
     data: streamingData,
@@ -39,7 +39,7 @@ const WidgetWrapper = props => {
     if (dataSetId) {
       checkDataSizeAndLoad();
     }
-    
+
     return () => {
       // 컴포넌트 언마운트 시 스트리밍 중단
       if (isStreaming) {
@@ -60,14 +60,11 @@ const WidgetWrapper = props => {
 
     try {
       // 캐시된 쿼리로 먼저 시도 (빠른 응답)
-      const response = await DatasetService.executeCachedQuery(
-        widgetOption.datasetId,
-        { useStreamingFallback: true }
-      );
+      const response = await DatasetService.executeCachedQuery(widgetOption.datasetId, { useStreamingFallback: true });
 
       if (response.status === STATUS.SUCCESS) {
         const dataLength = response.data?.length || 0;
-        
+
         if (dataLength > DATA_THRESHOLD || response.data === 'STREAMING_RESPONSE') {
           // 대용량 데이터인 경우 스트리밍 모드 사용
           setUseStreamingMode(true);
@@ -88,7 +85,7 @@ const WidgetWrapper = props => {
    */
   const getData = () => {
     showLoading();
-    
+
     // 데이터 조회 성능 측정 시작
     const perfMark = `widget-data-fetch-${widgetOption.componentType}`;
     markStart(perfMark, {
@@ -96,7 +93,7 @@ const WidgetWrapper = props => {
       datasetId: widgetOption.datasetId,
       componentType: widgetOption.componentType,
     });
-    
+
     DatasetService.executeCachedQuery(widgetOption.datasetId)
       .then(response => {
         console.log('executeCachedQuery response:', response);
@@ -151,7 +148,7 @@ const WidgetWrapper = props => {
           size={size}
         />
       </ChartPerformanceWrapper>
-      
+
       {/* 스트리밍 진행률 표시 */}
       {useStreamingMode && (isStreaming || progress) && (
         <ProgressIndicator

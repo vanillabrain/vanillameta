@@ -48,12 +48,12 @@ if (rootElement.hasChildNodes()) {
 
 // Register service worker for offline support and caching
 serviceWorkerRegistration.register({
-  onUpdate: (registration) => {
+  onUpdate: registration => {
     // When a new version is available, you can show a notification to the user
     console.log('New version available! Please refresh the page.');
     // You can trigger an update notification here
   },
-  onSuccess: (registration) => {
+  onSuccess: registration => {
     console.log('Service Worker registered successfully!');
   },
 });

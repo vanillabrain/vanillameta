@@ -30,7 +30,7 @@ interface DataGridProps {
 const DataGrid = ({ rows, columns, data, resizeObserver, ...rest }: DataGridProps) => {
   // TUI Grid의 data prop을 MUI DataGrid의 rows로 변환
   const gridRows = rows || (data?.map((item, index) => ({ id: index, ...item })) ?? []);
-  
+
   // TUI Grid의 columns를 MUI DataGrid 형식으로 변환
   const gridColumns: GridColDef[] = columns || [];
 

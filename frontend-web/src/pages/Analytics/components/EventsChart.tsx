@@ -14,19 +14,19 @@ const EventsChart: React.FC<Props> = ({ events, timeRange }) => {
     const eventsByTime = events.reduce((acc, event) => {
       const date = new Date(event.createdAt);
       const key = getTimeKey(date, timeRange);
-      
+
       if (!acc[key]) {
         acc[key] = { time: key, count: 0, categories: {} };
       }
-      
-      acc[key].count++;
+
+      acc[key].count += 1;
       acc[key].categories[event.category] = (acc[key].categories[event.category] || 0) + 1;
-      
+
       return acc;
     }, {});
 
-    const timeData = Object.values(eventsByTime).sort((a: any, b: any) => 
-      new Date(a.time).getTime() - new Date(b.time).getTime()
+    const timeData = Object.values(eventsByTime).sort(
+      (a: any, b: any) => new Date(a.time).getTime() - new Date(b.time).getTime(),
     );
 
     const categories = [...new Set(events.map(e => e.category))];
@@ -96,20 +96,20 @@ const EventsChart: React.FC<Props> = ({ events, timeRange }) => {
 
   const formatTimeLabel = (time: string, timeRange: TimeRange): string => {
     const date = new Date(time);
-    
+
     switch (timeRange) {
       case TimeRange.LAST_HOUR:
       case TimeRange.LAST_24_HOURS:
-        return date.toLocaleString('ko-KR', { 
-          month: 'numeric', 
-          day: 'numeric', 
-          hour: 'numeric' 
+        return date.toLocaleString('ko-KR', {
+          month: 'numeric',
+          day: 'numeric',
+          hour: 'numeric',
         });
       case TimeRange.LAST_7_DAYS:
       case TimeRange.LAST_30_DAYS:
-        return date.toLocaleDateString('ko-KR', { 
-          month: 'numeric', 
-          day: 'numeric' 
+        return date.toLocaleDateString('ko-KR', {
+          month: 'numeric',
+          day: 'numeric',
         });
       case TimeRange.LAST_90_DAYS:
         return `${date.getMonth() + 1}/${date.getDate()} 주`;
@@ -120,12 +120,7 @@ const EventsChart: React.FC<Props> = ({ events, timeRange }) => {
 
   return (
     <Box sx={{ height: 400 }}>
-      <ReactECharts 
-        option={chartOption} 
-        style={{ height: '100%', width: '100%' }}
-        notMerge={true}
-        lazyUpdate={true}
-      />
+      <ReactECharts option={chartOption} style={{ height: '100%', width: '100%' }} notMerge={true} lazyUpdate={true} />
     </Box>
   );
 };

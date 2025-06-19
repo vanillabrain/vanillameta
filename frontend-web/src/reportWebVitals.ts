@@ -30,7 +30,7 @@ const sendToAnalytics = async (metrics: PerformanceData[]) => {
           value: Math.round(metric.name === 'CLS' ? metric.value * 1000 : metric.value),
           metric_rating: metric.rating,
           metric_id: metric.id,
-          navigation_type: metric.navigationType
+          navigation_type: metric.navigationType,
         });
       });
     }
@@ -97,28 +97,28 @@ const handleMetric = (metric: Metric) => {
 const reportWebVitals = (onPerfEntry?: (metric: Metric) => void) => {
   if (onPerfEntry && onPerfEntry instanceof Function) {
     // Core Web Vitals
-    onCLS((metric) => {
+    onCLS(metric => {
       handleMetric(metric);
       onPerfEntry(metric);
     });
-    
-    onLCP((metric) => {
+
+    onLCP(metric => {
       handleMetric(metric);
       onPerfEntry(metric);
     });
-    
-    onINP((metric) => {
+
+    onINP(metric => {
       handleMetric(metric);
       onPerfEntry(metric);
     });
-    
+
     // Other Web Vitals
-    onFCP((metric) => {
+    onFCP(metric => {
       handleMetric(metric);
       onPerfEntry(metric);
     });
-    
-    onTTFB((metric) => {
+
+    onTTFB(metric => {
       handleMetric(metric);
       onPerfEntry(metric);
     });

@@ -18,16 +18,9 @@ const StreamingDataGrid: React.FC<StreamingDataGridProps> = ({
   maxRows = 100000,
   autoStart = false,
 }) => {
-  const {
-    data,
-    isLoading,
-    isStreaming,
-    error,
-    progress,
-    startStreaming,
-    stopStreaming,
-    clearData,
-  } = useStreamingData({ maxDataSize: maxRows });
+  const { data, isLoading, isStreaming, error, progress, startStreaming, stopStreaming, clearData } = useStreamingData({
+    maxDataSize: maxRows,
+  });
 
   const [columns, setColumns] = useState<Array<{ field: string; headerName: string; width?: number }>>([]);
 
@@ -49,11 +42,12 @@ const StreamingDataGrid: React.FC<StreamingDataGridProps> = ({
     if (autoStart && datasetId) {
       startStreaming(datasetId);
     }
-    
+
     return () => {
       stopStreaming();
     };
-  }, [datasetId, autoStart]); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line
+  }, [datasetId, autoStart]);
 
   // 시작/중지 핸들러
   const handleToggleStreaming = () => {
@@ -68,15 +62,15 @@ const StreamingDataGrid: React.FC<StreamingDataGridProps> = ({
   // 진행률 메시지 생성
   const progressMessage = useMemo(() => {
     if (!progress) return undefined;
-    
+
     if (progress.percentage) {
       return `처리 중: ${progress.percentage.toFixed(1)}%`;
     }
-    
+
     if (progress.total) {
       return `${progress.current.toLocaleString()} / ${progress.total.toLocaleString()} 행`;
     }
-    
+
     return `${progress.current.toLocaleString()} 행 처리됨`;
   }, [progress]);
 
@@ -93,10 +87,8 @@ const StreamingDataGrid: React.FC<StreamingDataGridProps> = ({
         >
           {isStreaming ? '중지' : '시작'}
         </Button>
-        
-        {isLoading && !isStreaming && (
-          <CircularProgress size={24} />
-        )}
+
+        {isLoading && !isStreaming && <CircularProgress size={24} />}
       </Box>
 
       {/* 에러 메시지 */}
@@ -107,12 +99,7 @@ const StreamingDataGrid: React.FC<StreamingDataGridProps> = ({
       )}
 
       {/* 가상 스크롤 데이터 그리드 */}
-      <VirtualDataGrid
-        data={data}
-        columns={columns}
-        height={height}
-        isLoading={isStreaming}
-      />
+      <VirtualDataGrid data={data} columns={columns} height={height} isLoading={isStreaming} />
 
       {/* 진행률 표시 */}
       {(isStreaming || (progress && !isStreaming)) && (

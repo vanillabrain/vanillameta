@@ -12,12 +12,7 @@ interface ChartInstance {
 interface ChartContextType {
   getChartInstance: (containerId: string, options?: { renderer?: 'canvas' | 'svg' }) => echarts.ECharts | null;
   releaseChartInstance: (containerId: string) => void;
-  updateChartOptions: (
-    containerId: string, 
-    options: EChartsOption, 
-    notMerge?: boolean,
-    lazyUpdate?: boolean
-  ) => void;
+  updateChartOptions: (containerId: string, options: EChartsOption, notMerge?: boolean, lazyUpdate?: boolean) => void;
   resizeChart: (containerId: string) => void;
   disposeChart: (containerId: string) => void;
   getInstanceCount: () => number;
@@ -27,7 +22,7 @@ const ChartContext = createContext<ChartContextType | undefined>(undefined);
 
 /**
  * ECharts 인스턴스 풀링 및 성능 최적화를 위한 Context Provider
- * 
+ *
  * 주요 기능:
  * - 인스턴스 재사용으로 메모리 사용량 최적화
  * - 자동 가비지 컬렉션 (5분 후 미사용 인스턴스 제거)
@@ -46,7 +41,7 @@ export const ChartProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const CLEANUP_THRESHOLD = 5 * 60 * 1000; // 5분
 
       instancePool.current.forEach((chartInstance, id) => {
-        if (!chartInstance.isActive && (now - chartInstance.lastUsed) > CLEANUP_THRESHOLD) {
+        if (!chartInstance.isActive && now - chartInstance.lastUsed > CLEANUP_THRESHOLD) {
           console.log(`[ChartContext] Cleaning up unused instance: ${id}`);
           chartInstance.instance.dispose();
           instancePool.current.delete(id);
@@ -66,48 +61,48 @@ export const ChartProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   }, []);
 
-  const getChartInstance = useCallback((
-    containerId: string,
-    options: { renderer?: 'canvas' | 'svg' } = {}
-  ): echarts.ECharts | null => {
-    const container = document.getElementById(containerId);
-    if (!container) {
-      console.warn(`[ChartContext] Container not found: ${containerId}`);
-      return null;
-    }
+  const getChartInstance = useCallback(
+    (containerId: string, options: { renderer?: 'canvas' | 'svg' } = {}): echarts.ECharts | null => {
+      const container = document.getElementById(containerId);
+      if (!container) {
+        console.warn(`[ChartContext] Container not found: ${containerId}`);
+        return null;
+      }
 
-    let chartInstance = instancePool.current.get(containerId);
+      const chartInstance = instancePool.current.get(containerId);
 
-    if (chartInstance && !chartInstance.instance.isDisposed()) {
-      // 기존 인스턴스 재사용
-      chartInstance.isActive = true;
-      chartInstance.lastUsed = Date.now();
-      return chartInstance.instance;
-    }
+      if (chartInstance && !chartInstance.instance.isDisposed()) {
+        // 기존 인스턴스 재사용
+        chartInstance.isActive = true;
+        chartInstance.lastUsed = Date.now();
+        return chartInstance.instance;
+      }
 
-    // 새 인스턴스 생성
-    try {
-      const instance = echarts.init(container, undefined, {
-        renderer: options.renderer || 'canvas', // Canvas가 일반적으로 더 빠름
-        useDirtyRect: true, // 부분 렌더링 최적화
-      });
+      // 새 인스턴스 생성
+      try {
+        const instance = echarts.init(container, undefined, {
+          renderer: options.renderer || 'canvas', // Canvas가 일반적으로 더 빠름
+          useDirtyRect: true, // 부분 렌더링 최적화
+        });
 
-      const newChartInstance: ChartInstance = {
-        id: containerId,
-        instance,
-        lastUsed: Date.now(),
-        isActive: true,
-      };
+        const newChartInstance: ChartInstance = {
+          id: containerId,
+          instance,
+          lastUsed: Date.now(),
+          isActive: true,
+        };
 
-      instancePool.current.set(containerId, newChartInstance);
-      
-      console.log(`[ChartContext] Created new instance: ${containerId}`);
-      return instance;
-    } catch (error) {
-      console.error(`[ChartContext] Failed to create instance: ${containerId}`, error);
-      return null;
-    }
-  }, []);
+        instancePool.current.set(containerId, newChartInstance);
+
+        console.log(`[ChartContext] Created new instance: ${containerId}`);
+        return instance;
+      } catch (error) {
+        console.error(`[ChartContext] Failed to create instance: ${containerId}`, error);
+        return null;
+      }
+    },
+    [],
+  );
 
   const releaseChartInstance = useCallback((containerId: string) => {
     const chartInstance = instancePool.current.get(containerId);
@@ -118,26 +113,24 @@ export const ChartProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, []);
 
-  const updateChartOptions = useCallback((
-    containerId: string,
-    options: EChartsOption,
-    notMerge: boolean = false,
-    lazyUpdate: boolean = false
-  ) => {
-    const chartInstance = instancePool.current.get(containerId);
-    if (!chartInstance || chartInstance.instance.isDisposed()) {
-      console.warn(`[ChartContext] Cannot update options: instance not found or disposed: ${containerId}`);
-      return;
-    }
+  const updateChartOptions = useCallback(
+    (containerId: string, options: EChartsOption, notMerge = false, lazyUpdate = false) => {
+      const chartInstance = instancePool.current.get(containerId);
+      if (!chartInstance || chartInstance.instance.isDisposed()) {
+        console.warn(`[ChartContext] Cannot update options: instance not found or disposed: ${containerId}`);
+        return;
+      }
 
-    try {
-      // 성능 최적화를 위한 옵션 업데이트
-      chartInstance.instance.setOption(options, notMerge, lazyUpdate);
-      chartInstance.lastUsed = Date.now();
-    } catch (error) {
-      console.error(`[ChartContext] Failed to update options: ${containerId}`, error);
-    }
-  }, []);
+      try {
+        // 성능 최적화를 위한 옵션 업데이트
+        chartInstance.instance.setOption(options, notMerge, lazyUpdate);
+        chartInstance.lastUsed = Date.now();
+      } catch (error) {
+        console.error(`[ChartContext] Failed to update options: ${containerId}`, error);
+      }
+    },
+    [],
+  );
 
   const resizeChart = useCallback((containerId: string) => {
     const chartInstance = instancePool.current.get(containerId);

@@ -282,7 +282,7 @@ function DashboardModify() {
                 tempLayout.splice(index, 1);
                 setLayout([...tempLayout]);
                 setWidgets([...tempWidgets]);
-                
+
                 // 위젯 삭제 이벤트 추적
                 trackWidgetEvent.deleted(item.id.toString());
               }
@@ -315,7 +315,7 @@ function DashboardModify() {
       const updateData: UpdateDashboardRequest = {
         title: dashboardTitle,
         layout: JSON.stringify(layout),
-        widgets: widgets
+        widgets: widgets,
       };
 
       if (dashboardId != null) {
@@ -349,9 +349,9 @@ function DashboardModify() {
         const createData: CreateDashboardRequest = {
           title: dashboardTitle,
           layout: JSON.stringify(layout),
-          widgets: widgets
+          widgets: widgets,
         };
-        
+
         alert.success(`${dashboardTitle}\n대시보드를 생성하시겠습니까?`, {
           title: '대시보드 생성',
           closeCopy: '취소',
@@ -366,12 +366,12 @@ function DashboardModify() {
                       // 대시보드 생성 이벤트 추적
                       const templateUsed = searchParams.get('createType') === 'recommend' ? 'recommend' : 'blank';
                       trackDashboardEvent.created(response.data.id.toString(), templateUsed);
-                      
+
                       // 위젯 생성 이벤트 추적
                       widgets.forEach(widget => {
                         trackWidgetEvent.created(widget.id.toString(), widget.componentType, response.data.id.toString());
                       });
-                      
+
                       navigate('/dashboard');
                       snackbar.success('대시보드가 생성되었습니다.');
                     } else {

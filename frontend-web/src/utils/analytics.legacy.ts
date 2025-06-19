@@ -44,12 +44,7 @@ export const trackPageView = (url: string) => {
 };
 
 // 이벤트 추적
-export const trackEvent = (
-  action: string,
-  category: string,
-  label?: string,
-  value?: number
-) => {
+export const trackEvent = (action: string, category: string, label?: string, value?: number) => {
   if (!window.gtag) return;
 
   window.gtag('event', action, {
@@ -60,12 +55,7 @@ export const trackEvent = (
 };
 
 // 사용자 타이밍 추적
-export const trackTiming = (
-  name: string,
-  value: number,
-  category: string = 'performance',
-  label?: string
-) => {
+export const trackTiming = (name: string, value: number, category = 'performance', label?: string) => {
   if (!window.gtag) return;
 
   window.gtag('event', 'timing_complete', {
@@ -77,7 +67,7 @@ export const trackTiming = (
 };
 
 // 예외 추적
-export const trackException = (description: string, fatal: boolean = false) => {
+export const trackException = (description: string, fatal = false) => {
   if (!window.gtag) return;
 
   window.gtag('event', 'exception', {
@@ -98,11 +88,13 @@ export const setCustomDimension = (dimensionName: string, value: string) => {
 };
 
 // 성능 메트릭 배치 전송
-export const sendPerformanceMetrics = (metrics: Array<{
-  name: string;
-  value: number;
-  category?: string;
-}>) => {
+export const sendPerformanceMetrics = (
+  metrics: Array<{
+    name: string;
+    value: number;
+    category?: string;
+  }>,
+) => {
   if (!window.gtag || metrics.length === 0) return;
 
   // 배치로 이벤트 전송

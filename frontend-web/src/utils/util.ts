@@ -40,11 +40,11 @@ export const createColumns = data => {
   } else if (data instanceof Object && !(data instanceof Array)) {
     target = data;
   }
-  
+
   if (!target) {
     throw new Error('Cannot create columns from empty data');
   }
-  
+
   return Object.keys(target).map(key => {
     return { name: key, header: key, minWidth: 200, sortable: true };
   });

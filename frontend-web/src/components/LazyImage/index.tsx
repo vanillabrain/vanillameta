@@ -46,10 +46,10 @@ const PlaceholderContainer = styled(Box)(() => ({
 
 /**
  * LazyImage 컴포넌트
- * 
+ *
  * Intersection Observer API를 활용하여 뷰포트에 진입할 때만 이미지를 로드합니다.
  * 로딩 중에는 스켈레톤 UI를 표시하고, 에러 시에는 fallback 이미지를 보여줍니다.
- * 
+ *
  * @param src - 이미지 소스 URL
  * @param alt - 이미지 대체 텍스트
  * @param width - 이미지 너비
@@ -131,11 +131,7 @@ const LazyImage: React.FC<LazyImageProps> = ({
   };
 
   return (
-    <ImageContainer 
-      ref={ref} 
-      className={className} 
-      sx={containerStyle}
-    >
+    <ImageContainer ref={ref} className={className} sx={containerStyle}>
       {/* 이미지가 로드되면 표시 */}
       {imageSrc && (
         <Image
@@ -152,24 +148,19 @@ const LazyImage: React.FC<LazyImageProps> = ({
       {(!inView || (!imageLoaded && !imageError)) && (
         <PlaceholderContainer>
           {placeholder ? (
-            <img 
-              src={placeholder} 
+            <img
+              src={placeholder}
               alt={`${alt} placeholder`}
-              style={{ 
-                width: '100%', 
-                height: '100%', 
+              style={{
+                width: '100%',
+                height: '100%',
                 objectFit,
                 filter: 'blur(5px)',
-                opacity: 0.6
+                opacity: 0.6,
               }}
             />
           ) : (
-            <Skeleton 
-              variant="rectangular" 
-              width="100%" 
-              height="100%"
-              sx={{ borderRadius }}
-            />
+            <Skeleton variant="rectangular" width="100%" height="100%" sx={{ borderRadius }} />
           )}
         </PlaceholderContainer>
       )}

@@ -12,20 +12,23 @@ const PieChart = memo((props: PieChartProps) => {
   const { option, dataSet, seriesOp } = props;
 
   // 기본 옵션을 useMemo로 메모이제이션
-  const defaultComponentOption = useMemo(() => ({
-    grid: { top: '3%', right: '3%', bottom: '3%', left: '3%' },
-    tooltip: {
-      trigger: 'item' as const,
-    },
-    series: [],
-    emphasis: {
-      itemStyle: {
-        shadowBlur: 10,
-        shadowOffsetX: 0,
-        shadowColor: 'rgba(0, 0, 0, 0.5)',
+  const defaultComponentOption = useMemo(
+    () => ({
+      grid: { top: '3%', right: '3%', bottom: '3%', left: '3%' },
+      tooltip: {
+        trigger: 'item' as const,
       },
-    },
-  }), []);
+      series: [],
+      emphasis: {
+        itemStyle: {
+          shadowBlur: 10,
+          shadowOffsetX: 0,
+          shadowColor: 'rgba(0, 0, 0, 0.5)',
+        },
+      },
+    }),
+    [],
+  );
 
   /**
    * 위젯옵션과 데이터로 컴포넌트에 맞는 형태로 생성
@@ -36,12 +39,7 @@ const PieChart = memo((props: PieChartProps) => {
       return defaultComponentOption;
     }
 
-    const aggrData = getAggregationDataForChart(
-      dataSet, 
-      option.series.name, 
-      option.series.field, 
-      option.series.aggregation
-    );
+    const aggrData = getAggregationDataForChart(dataSet, option.series.name, option.series.field, option.series.aggregation);
 
     const series = {
       name: option.series.name,

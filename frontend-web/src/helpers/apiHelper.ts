@@ -174,7 +174,7 @@ instance.interceptors.response.use(
           api_status: perfData.status,
         });
       }
-      
+
       // 이벤트 추적 시스템으로도 전송
       trackPerformance(`api_${perfData.method}_${perfData.url}`, duration, {
         method: perfData.method,
@@ -235,7 +235,7 @@ instance.interceptors.response.use(
             error_status: perfData.status,
           });
         }
-        
+
         // 이벤트 추적 시스템으로 에러 전송
         trackError('api', `${perfData.method} ${perfData.url} - Status: ${perfData.status}`, {
           method: perfData.method,

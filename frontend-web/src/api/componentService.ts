@@ -3,7 +3,6 @@ import {
   ApiResponse,
   CreateComponentRequest,
   UpdateComponentRequest,
-  ComponentListResponse,
   ComponentDetailResponse,
   Component,
 } from '@/types';

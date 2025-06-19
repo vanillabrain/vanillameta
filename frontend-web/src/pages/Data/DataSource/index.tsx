@@ -97,10 +97,11 @@ function DataSource() {
         console.log('selectDatabaseInfo response:', response);
         if (response.status === 'SUCCESS') {
           const databaseInfo = response.data;
-          const connectionConfig = typeof databaseInfo.connectionConfig === 'string' 
-            ? JSON.parse(databaseInfo.connectionConfig) 
-            : databaseInfo.connectionConfig;
-            
+          const connectionConfig =
+            typeof databaseInfo.connectionConfig === 'string'
+              ? JSON.parse(databaseInfo.connectionConfig)
+              : databaseInfo.connectionConfig;
+
           const temp: any = {
             name: databaseInfo.name,
             type: databaseInfo.type,

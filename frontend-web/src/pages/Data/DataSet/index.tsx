@@ -5,18 +5,19 @@ import PageTitleBox from '@/components/PageTitleBox';
 import SubmitButton from '@/components/button/SubmitButton';
 import ConfirmCancelButton from '@/components/button/ConfirmCancelButton';
 // AceEditor 레이지 로딩
-// @ts-ignore
-const AceEditor = lazy(() => 
-  import('react-ace').then(async (ace) => {
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-expect-error - AceEditor의 타입 정의가 동적 import와 호환되지 않음
+const AceEditor = lazy(() =>
+  import('react-ace').then(async ace => {
     // 필요한 모듈들도 함께 로드
     await Promise.all([
       import('ace-builds/src-noconflict/mode-mysql'),
       import('ace-builds/src-noconflict/theme-tomorrow'),
       import('ace-builds/src-noconflict/snippets/mysql'),
-      import('ace-builds/src-min-noconflict/ext-language_tools')
+      import('ace-builds/src-min-noconflict/ext-language_tools'),
     ]);
     return ace;
-  })
+  }),
 );
 
 // LangTools import for autocomplete
@@ -191,7 +192,7 @@ const DataSet = () => {
           setDatasetInfo({
             databaseId: String(dataset.databaseId),
             title: dataset.title || '',
-            query: dataset.query || ''
+            query: dataset.query || '',
           });
         } else {
           alert.error(response.message || '데이터베이스 조회에 실패했습니다.\n다시 시도해 주세요.');
@@ -256,7 +257,7 @@ const DataSet = () => {
               DatasetService.updateDataset(setId, {
                 databaseId: Number(datasetInfo.databaseId),
                 title: datasetInfo.title,
-                query: datasetInfo.query
+                query: datasetInfo.query,
               })
                 .then(response => {
                   console.log(response.data);
@@ -275,7 +276,7 @@ const DataSet = () => {
               DatasetService.createDataset({
                 databaseId: Number(datasetInfo.databaseId),
                 title: datasetInfo.title,
-                query: datasetInfo.query
+                query: datasetInfo.query,
               })
                 .then(response => {
                   console.log(response.data);
@@ -370,7 +371,22 @@ const DataSet = () => {
           onChange={onChangeTitle}
           required
         />
-        <Suspense fallback={<div style={{ width: '100%', height: '200px', border: 'solid 1px #ddd', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>에디터 로딩중...</div>}>
+        <Suspense
+          fallback={
+            <div
+              style={{
+                width: '100%',
+                height: '200px',
+                border: 'solid 1px #ddd',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              에디터 로딩중...
+            </div>
+          }
+        >
           <AceEditor
             placeholder="Please enter a query."
             style={{ width: '100%', height: '200px', border: 'solid 1px #ddd' }}

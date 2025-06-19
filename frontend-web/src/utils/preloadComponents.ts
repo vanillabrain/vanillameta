@@ -8,7 +8,7 @@ const componentMap = {
   dashboard: () => import(/* webpackChunkName: "dashboard" */ '@/pages/Dashboard'),
   widget: () => import(/* webpackChunkName: "widget" */ '@/pages/Widget'),
   data: () => import(/* webpackChunkName: "data" */ '@/pages/Data'),
-  
+
   // Common charts that are likely to be used
   lineChart: () => import(/* webpackChunkName: "chart-line" */ '@/widget/modules/linechart/LineChart'),
   pieChart: () => import(/* webpackChunkName: "chart-pie" */ '@/widget/modules/piechart/PieChart'),
@@ -50,12 +50,12 @@ export const setupPreloadObserver = () => {
   }
 
   const observer = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
+    entries => {
+      entries.forEach(entry => {
         if (entry.isIntersecting) {
           const link = entry.target as HTMLElement;
           const route = link.getAttribute('data-preload-route');
-          
+
           if (route) {
             switch (route) {
               case '/dashboard':
@@ -68,7 +68,7 @@ export const setupPreloadObserver = () => {
                 preloadComponent('data');
                 break;
             }
-            
+
             // Stop observing after preloading
             observer.unobserve(link);
           }
@@ -77,7 +77,7 @@ export const setupPreloadObserver = () => {
     },
     {
       rootMargin: '50px', // Start preloading when link is 50px away from viewport
-    }
+    },
   );
 
   // Observe all links with data-preload-route attribute

@@ -1,9 +1,9 @@
 import React, { useMemo, useCallback, CSSProperties } from 'react';
 import { VariableSizeList as List } from 'react-window';
-import { 
-  Box, 
-  Paper, 
-  Typography, 
+import {
+  Box,
+  Paper,
+  Typography,
   TableContainer,
   Table,
   TableHead,
@@ -27,47 +27,41 @@ interface VirtualDataGridProps {
 }
 
 // 각 행을 렌더링하는 컴포넌트
-const Row = React.memo(({ 
-  index, 
-  style, 
-  data 
-}: { 
-  index: number; 
-  style: CSSProperties; 
-  data: { items: any[]; columns: any[] } 
-}) => {
-  const { items, columns } = data;
-  const row = items[index];
-  
-  if (!row) return null;
+const Row = React.memo(
+  ({ index, style, data }: { index: number; style: CSSProperties; data: { items: any[]; columns: any[] } }) => {
+    const { items, columns } = data;
+    const row = items[index];
 
-  return (
-    <div style={{
-      ...style,
-      display: 'flex',
-      alignItems: 'center',
-      borderBottom: '1px solid #e0e0e0',
-      backgroundColor: index % 2 === 0 ? '#f5f5f5' : '#ffffff',
-    }}>
-      {columns.map((column, colIndex) => (
-        <div
-          key={`${index}-${colIndex}`}
-          style={{
-            flex: column.width ? `0 0 ${column.width}px` : 1,
-            padding: '0 16px',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {row[column.field] !== null && row[column.field] !== undefined 
-            ? String(row[column.field]) 
-            : '-'}
-        </div>
-      ))}
-    </div>
-  );
-});
+    if (!row) return null;
+
+    return (
+      <div
+        style={{
+          ...style,
+          display: 'flex',
+          alignItems: 'center',
+          borderBottom: '1px solid #e0e0e0',
+          backgroundColor: index % 2 === 0 ? '#f5f5f5' : '#ffffff',
+        }}
+      >
+        {columns.map((column, colIndex) => (
+          <div
+            key={`${index}-${colIndex}`}
+            style={{
+              flex: column.width ? `0 0 ${column.width}px` : 1,
+              padding: '0 16px',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {row[column.field] !== null && row[column.field] !== undefined ? String(row[column.field]) : '-'}
+          </div>
+        ))}
+      </div>
+    );
+  },
+);
 
 Row.displayName = 'Row';
 
@@ -90,17 +84,18 @@ const VirtualDataGrid: React.FC<VirtualDataGridProps> = ({
   const getItemSize = useCallback(() => rowHeight, [rowHeight]);
 
   // 리스트 데이터
-  const itemData = useMemo(() => ({
-    items: data,
-    columns,
-  }), [data, columns]);
+  const itemData = useMemo(
+    () => ({
+      items: data,
+      columns,
+    }),
+    [data, columns],
+  );
 
   if (data.length === 0 && !isLoading) {
     return (
       <Paper sx={{ p: 4, textAlign: 'center' }}>
-        <Typography color="text.secondary">
-          데이터가 없습니다.
-        </Typography>
+        <Typography color="text.secondary">데이터가 없습니다.</Typography>
       </Paper>
     );
   }

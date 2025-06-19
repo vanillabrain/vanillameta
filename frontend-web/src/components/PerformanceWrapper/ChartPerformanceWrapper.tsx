@@ -8,10 +8,7 @@ interface ChartPerformanceWrapperProps {
 }
 
 // HOC for wrapping chart components with performance monitoring
-export function withChartPerformance<P extends object>(
-  WrappedComponent: ComponentType<P>,
-  chartType: string
-) {
+export function withChartPerformance<P extends object>(WrappedComponent: ComponentType<P>, chartType: string) {
   return React.forwardRef<any, P & ChartPerformanceWrapperProps>((props, ref) => {
     const { widgetId, dataSize, ...restProps } = props as any;
     const { markStart, markEnd } = usePerformance();
@@ -34,17 +31,17 @@ export function withChartPerformance<P extends object>(
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           markEnd(`chart-render-${chartType}`);
-          
+
           // 첫 렌더링 시간 기록
           if (isFirstRender.current) {
             const firstRenderTime = performance.now() - renderStartTime.current;
             console.log(`📊 ${chartType} first render time: ${firstRenderTime.toFixed(2)}ms`);
-            
+
             // 느린 차트 렌더링 경고 (1초 이상)
             if (firstRenderTime > 1000) {
               console.warn(`⚠️ Slow chart rendering detected: ${chartType} took ${firstRenderTime.toFixed(2)}ms`);
             }
-            
+
             isFirstRender.current = false;
           }
         });
@@ -103,15 +100,15 @@ export const ChartPerformanceWrapper: React.FC<ChartPerformanceWrapperComponentP
 
     // Intersection Observer로 차트가 뷰포트에 나타났을 때 측정
     const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
+      entries => {
+        entries.forEach(entry => {
           if (entry.isIntersecting) {
             markEnd(`chart-wrapper-${chartType}`);
             observer.disconnect();
           }
         });
       },
-      { threshold: 0.1 }
+      { threshold: 0.1 },
     );
 
     // 차트 컨테이너 찾기

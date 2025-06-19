@@ -32,52 +32,52 @@ function Router() {
       <RouteTracker />
       <Suspense fallback={<PageLoading />}>
         <Routes>
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              <Layout />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<Navigate to="/dashboard" replace={true} />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/dashboard/:dashboardId" element={<DashboardView />} />
-          <Route path="/dashboard/create" element={<DashboardCreate />}>
-            <Route path=":createType" element={<DashboardCreate />} />
-          </Route>
-          <Route path="/dashboard/modify" element={<DashboardModify />}>
-            <Route path=":dashboardId" element={<DashboardModify />} />
-          </Route>
-          <Route path="/widget" element={<Widget />} />
-          <Route path="/widget/:widgetId" element={<WidgetView />} />
-          <Route path="/widget/create" element={<WidgetCreate />} />
-          <Route path="/widget/modify" element={<WidgetModify />}>
-            <Route path=":widgetId" element={<WidgetModify />} />
-          </Route>
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <Layout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Navigate to="/dashboard" replace={true} />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/dashboard/:dashboardId" element={<DashboardView />} />
+            <Route path="/dashboard/create" element={<DashboardCreate />}>
+              <Route path=":createType" element={<DashboardCreate />} />
+            </Route>
+            <Route path="/dashboard/modify" element={<DashboardModify />}>
+              <Route path=":dashboardId" element={<DashboardModify />} />
+            </Route>
+            <Route path="/widget" element={<Widget />} />
+            <Route path="/widget/:widgetId" element={<WidgetView />} />
+            <Route path="/widget/create" element={<WidgetCreate />} />
+            <Route path="/widget/modify" element={<WidgetModify />}>
+              <Route path=":widgetId" element={<WidgetModify />} />
+            </Route>
 
-          <Route path="/data" element={<Data />} />
-          <Route path="/data/source/create" element={<DataSource />} />
-          <Route path="/data/source/modify" element={<DataSource />}>
-            <Route path=":sourceId" element={<DataSource />} />
-          </Route>
+            <Route path="/data" element={<Data />} />
+            <Route path="/data/source/create" element={<DataSource />} />
+            <Route path="/data/source/modify" element={<DataSource />}>
+              <Route path=":sourceId" element={<DataSource />} />
+            </Route>
 
-          <Route path="/data/set/create" element={<DataSet />}>
-            <Route path=":sourceId" element={<DataSet />} />
+            <Route path="/data/set/create" element={<DataSet />}>
+              <Route path=":sourceId" element={<DataSet />} />
+            </Route>
+            <Route path="/data/set/modify" element={<DataSet />}>
+              <Route path=":setId" element={<DataSet />} />
+            </Route>
+            <Route path="/*" element={<Status404 />} />
           </Route>
-          <Route path="/data/set/modify" element={<DataSet />}>
-            <Route path=":setId" element={<DataSet />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<SignUp />} />
+          <Route path="/" element={<PublicLayout />}>
+            <Route path="/share/:dashboardUuid" element={<Share />} />
+            <Route path="*" element={<Status404 />} />
           </Route>
-          <Route path="/*" element={<Status404 />} />
-        </Route>
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<SignUp />} />
-        <Route path="/" element={<PublicLayout />}>
-          <Route path="/share/:dashboardUuid" element={<Share />} />
-          <Route path="*" element={<Status404 />} />
-        </Route>
-      </Routes>
-    </Suspense>
+        </Routes>
+      </Suspense>
     </>
   );
 }

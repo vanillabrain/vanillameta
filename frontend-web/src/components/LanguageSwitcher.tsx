@@ -29,12 +29,7 @@ const LanguageSwitcher: React.FC = () => {
 
   return (
     <>
-      <IconButton
-        onClick={handleClick}
-        color="inherit"
-        size="large"
-        sx={{ ml: 1 }}
-      >
+      <IconButton onClick={handleClick} color="inherit" size="large" sx={{ ml: 1 }}>
         <LanguageIcon />
       </IconButton>
       <Menu
@@ -42,10 +37,10 @@ const LanguageSwitcher: React.FC = () => {
         open={Boolean(anchorEl)}
         onClose={handleClose}
         PaperProps={{
-          sx: { mt: 1.5 }
+          sx: { mt: 1.5 },
         }}
       >
-        {languages.map((language) => (
+        {languages.map(language => (
           <MenuItem
             key={language.code}
             onClick={() => handleLanguageChange(language.code)}

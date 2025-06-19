@@ -41,7 +41,7 @@ export const PerformanceProvider: React.FC<PerformanceProviderProps> = ({ childr
 
     try {
       // Navigation timing 관찰
-      const navigationObserver = new PerformanceObserver((entryList) => {
+      const navigationObserver = new PerformanceObserver(entryList => {
         for (const entry of entryList.getEntries()) {
           if (entry.entryType === 'navigation') {
             const navEntry = entry as PerformanceNavigationTiming;
@@ -57,14 +57,15 @@ export const PerformanceProvider: React.FC<PerformanceProviderProps> = ({ childr
       navigationObserver.observe({ entryTypes: ['navigation'] });
 
       // Resource timing 관찰 (리소스 로딩 성능)
-      const resourceObserver = new PerformanceObserver((entryList) => {
+      const resourceObserver = new PerformanceObserver(entryList => {
         for (const entry of entryList.getEntries()) {
           if (entry.entryType === 'resource') {
             const resourceEntry = entry as PerformanceResourceTiming;
             // 주요 리소스 (JS, CSS) 로딩 시간 추적
             if (resourceEntry.name.includes('.js') || resourceEntry.name.includes('.css')) {
               const loadTime = resourceEntry.responseEnd - resourceEntry.startTime;
-              if (loadTime > 1000) { // 1초 이상 걸린 리소스만 로깅
+              if (loadTime > 1000) {
+                // 1초 이상 걸린 리소스만 로깅
                 console.warn(`Slow resource loading: ${resourceEntry.name} took ${loadTime.toFixed(2)}ms`);
               }
             }
@@ -74,14 +75,14 @@ export const PerformanceProvider: React.FC<PerformanceProviderProps> = ({ childr
       resourceObserver.observe({ entryTypes: ['resource'] });
 
       // Long tasks 관찰 (50ms 이상의 작업)
-      const longTaskObserver = new PerformanceObserver((entryList) => {
+      const longTaskObserver = new PerformanceObserver(entryList => {
         for (const entry of entryList.getEntries()) {
           console.warn('Long task detected:', {
             duration: entry.duration,
             startTime: entry.startTime,
             name: entry.name,
           });
-          
+
           // 분석 도구로 전송
           if (window.gtag && process.env.NODE_ENV === 'production') {
             window.gtag('event', 'long_task', {
@@ -91,25 +92,26 @@ export const PerformanceProvider: React.FC<PerformanceProviderProps> = ({ childr
           }
         }
       });
-      
+
       // Long task observer는 일부 브라우저에서 지원하지 않을 수 있음
       if (PerformanceObserver.supportedEntryTypes?.includes('longtask')) {
         longTaskObserver.observe({ entryTypes: ['longtask'] });
       }
 
       // Layout shift 관찰
-      const layoutShiftObserver = new PerformanceObserver((entryList) => {
+      const layoutShiftObserver = new PerformanceObserver(entryList => {
         let totalShift = 0;
         for (const entry of entryList.getEntries()) {
           if ('value' in entry) {
             totalShift += (entry as any).value;
           }
         }
-        if (totalShift > 0.1) { // 0.1 이상의 레이아웃 시프트 경고
+        if (totalShift > 0.1) {
+          // 0.1 이상의 레이아웃 시프트 경고
           console.warn(`Layout shift detected: ${totalShift}`);
         }
       });
-      
+
       if (PerformanceObserver.supportedEntryTypes?.includes('layout-shift')) {
         layoutShiftObserver.observe({ entryTypes: ['layout-shift'] });
       }
@@ -133,7 +135,7 @@ export const PerformanceProvider: React.FC<PerformanceProviderProps> = ({ childr
       metadata,
     };
     performanceMarks.current.set(name, mark);
-    
+
     // Native performance mark
     try {
       performance.mark(`${name}-start`);
@@ -151,7 +153,7 @@ export const PerformanceProvider: React.FC<PerformanceProviderProps> = ({ childr
 
     const duration = performance.now() - startMark.startTime;
     startMark.duration = duration;
-    
+
     // Native performance mark and measure
     try {
       performance.mark(`${name}-end`);
@@ -162,14 +164,15 @@ export const PerformanceProvider: React.FC<PerformanceProviderProps> = ({ childr
 
     // 버퍼에 추가
     metricsBuffer.current.push({ ...startMark });
-    
+
     // 콘솔에 출력 (개발 환경)
     if (process.env.NODE_ENV !== 'production') {
       console.log(`⏱️ ${name}: ${duration.toFixed(2)}ms`, startMark.metadata || '');
     }
 
     // 분석 도구로 전송 (프로덕션)
-    if (window.gtag && process.env.NODE_ENV === 'production' && duration > 100) { // 100ms 이상만 전송
+    if (window.gtag && process.env.NODE_ENV === 'production' && duration > 100) {
+      // 100ms 이상만 전송
       window.gtag('event', 'custom_timing', {
         name,
         value: Math.round(duration),
@@ -206,21 +209,17 @@ export const PerformanceProvider: React.FC<PerformanceProviderProps> = ({ childr
     getMetrics,
   };
 
-  return (
-    <PerformanceContext.Provider value={value}>
-      {children}
-    </PerformanceContext.Provider>
-  );
+  return <PerformanceContext.Provider value={value}>{children}</PerformanceContext.Provider>;
 };
 
 // Custom hook for measuring component render time
 export const useRenderTime = (componentName: string, metadata?: Record<string, any>) => {
   const { markStart, markEnd } = usePerformance();
-  
+
   useEffect(() => {
     // 컴포넌트 마운트 시작
     markStart(`${componentName}-render`, metadata);
-    
+
     // 컴포넌트 마운트 완료
     return () => {
       markEnd(`${componentName}-render`);

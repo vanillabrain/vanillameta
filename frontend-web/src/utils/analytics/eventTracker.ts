@@ -1,12 +1,12 @@
 // 향상된 이벤트 추적 시스템
-import { 
-  AnalyticsEvent, 
-  EventProperties, 
-  UserProperties, 
+import {
+  AnalyticsEvent,
+  EventProperties,
+  UserProperties,
   PerformanceMetric,
   SessionInfo,
   EventAction,
-  EventCategory 
+  EventCategory,
 } from './eventTypes';
 import apiHelper from '@/helpers/apiHelper';
 
@@ -31,8 +31,8 @@ class EventTracker {
   private userProperties: UserProperties | null = null;
   private eventQueue: EventQueue;
   private privacySettings: PrivacySettings;
-  private flushInterval: number = 30000; // 30초
-  private maxBatchSize: number = 50;
+  private flushInterval = 30000; // 30초
+  private maxBatchSize = 50;
   private flushTimer: NodeJS.Timeout | null = null;
   private sessionInfo: SessionInfo;
   private isOnline: boolean = navigator.onLine;
@@ -44,15 +44,15 @@ class EventTracker {
     this.eventQueue = {
       events: [],
       metrics: [],
-      lastFlushTime: Date.now()
+      lastFlushTime: Date.now(),
     };
     this.privacySettings = {
       anonymizeIp: true,
       excludePII: true,
-      consentGiven: this.checkConsent()
+      consentGiven: this.checkConsent(),
     };
     this.sessionInfo = this.getOrCreateSessionInfo();
-    
+
     this.initializeEventListeners();
     this.loadQueueFromStorage();
     this.startFlushInterval();
@@ -71,7 +71,7 @@ class EventTracker {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
       return crypto.randomUUID();
     }
-    
+
     // 폴백: Math.random 기반 UUID v4 생성
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
       const r = (Math.random() * 16) | 0;
@@ -84,7 +84,7 @@ class EventTracker {
   private getOrCreateSessionId(): string {
     const stored = sessionStorage.getItem('vanillameta_session_id');
     if (stored) return stored;
-    
+
     const newSessionId = this.generateUUID();
     sessionStorage.setItem('vanillameta_session_id', newSessionId);
     return newSessionId;
@@ -95,13 +95,13 @@ class EventTracker {
     if (stored) {
       return JSON.parse(stored);
     }
-    
+
     const newSession: SessionInfo = {
       sessionId: this.sessionId,
       startTime: Date.now(),
       lastActivityTime: Date.now(),
       pageViews: 0,
-      eventCount: 0
+      eventCount: 0,
     };
     sessionStorage.setItem(this.sessionStorageKey, JSON.stringify(newSession));
     return newSession;
@@ -118,7 +118,7 @@ class EventTracker {
     if (properties) {
       this.userProperties = {
         userId,
-        ...properties
+        ...properties,
       };
     }
   }
@@ -137,13 +137,7 @@ class EventTracker {
   }
 
   // 이벤트 추적
-  track(
-    action: EventAction,
-    category: EventCategory,
-    properties?: EventProperties,
-    label?: string,
-    value?: number
-  ) {
+  track(action: EventAction, category: EventCategory, properties?: EventProperties, label?: string, value?: number) {
     if (!this.privacySettings.consentGiven) {
       console.debug('Analytics consent not given, skipping event:', action);
       return;
@@ -156,9 +150,9 @@ class EventTracker {
       value,
       properties: {
         ...this.getDefaultProperties(),
-        ...properties
+        ...properties,
       },
-      userProperties: this.userProperties || undefined
+      userProperties: this.userProperties || undefined,
     };
 
     // PII 제거
@@ -168,7 +162,7 @@ class EventTracker {
 
     this.eventQueue.events.push(event);
     this.updateSessionInfo();
-    
+
     // 배치 크기 초과 시 즉시 전송
     if (this.eventQueue.events.length >= this.maxBatchSize) {
       this.flush();
@@ -177,31 +171,27 @@ class EventTracker {
 
   // 페이지뷰 추적
   trackPageView(path: string, title?: string) {
-    this.track(
-      EventAction.PAGE_VIEWED,
-      EventCategory.NAVIGATION,
-      {
-        path,
-        title: title || document.title,
-        referrer: document.referrer
-      }
-    );
-    this.sessionInfo.pageViews++;
+    this.track(EventAction.PAGE_VIEWED, EventCategory.NAVIGATION, {
+      path,
+      title: title || document.title,
+      referrer: document.referrer,
+    });
+    this.sessionInfo.pageViews += 1;
     this.saveSessionInfo();
   }
 
   // 성능 메트릭 추적
   trackPerformance(metric: PerformanceMetric) {
     if (!this.privacySettings.consentGiven) return;
-    
+
     this.eventQueue.metrics.push({
       ...metric,
       tags: {
         ...metric.tags,
-        sessionId: this.sessionId
-      }
+        sessionId: this.sessionId,
+      },
     });
-    
+
     if (this.eventQueue.metrics.length >= this.maxBatchSize) {
       this.flush();
     }
@@ -213,12 +203,12 @@ class EventTracker {
     this.trackPerformance({
       name,
       value: duration,
-      category: category || 'timing'
+      category: category || 'timing',
     });
   }
 
   // 예외 추적
-  trackError(error: Error, fatal: boolean = false, context?: Record<string, any>) {
+  trackError(error: Error, fatal = false, context?: Record<string, any>) {
     this.track(
       EventAction.DASHBOARD_VIEWED, // 적절한 에러 액션이 없어서 임시로 사용
       EventCategory.DASHBOARD,
@@ -226,9 +216,9 @@ class EventTracker {
         errorMessage: error.message,
         errorStack: error.stack,
         fatal,
-        ...context
+        ...context,
       },
-      'error'
+      'error',
     );
   }
 
@@ -244,33 +234,33 @@ class EventTracker {
       screenResolution: `${window.screen.width}x${window.screen.height}`,
       viewportSize: `${window.innerWidth}x${window.innerHeight}`,
       language: navigator.language,
-      platform: navigator.platform
+      platform: navigator.platform,
     };
   }
 
   // PII 제거
   private removePII(properties?: EventProperties): EventProperties | undefined {
     if (!properties) return properties;
-    
+
     const piiFields = ['email', 'phone', 'name', 'address', 'ssn', 'creditCard'];
     const cleaned = { ...properties };
-    
+
     piiFields.forEach(field => {
       delete cleaned[field];
     });
-    
+
     // IP 익명화 (서버에서 처리)
     if (this.privacySettings.anonymizeIp) {
       cleaned.anonymizeIp = true;
     }
-    
+
     return cleaned;
   }
 
   // 세션 정보 업데이트
   private updateSessionInfo() {
     this.sessionInfo.lastActivityTime = Date.now();
-    this.sessionInfo.eventCount++;
+    this.sessionInfo.eventCount += 1;
     this.saveSessionInfo();
   }
 
@@ -280,35 +270,34 @@ class EventTracker {
 
   // 이벤트 전송
   private async flush() {
-    if (!this.isOnline || 
-        (this.eventQueue.events.length === 0 && this.eventQueue.metrics.length === 0)) {
+    if (!this.isOnline || (this.eventQueue.events.length === 0 && this.eventQueue.metrics.length === 0)) {
       return;
     }
 
     const eventsToSend = [...this.eventQueue.events];
     const metricsToSend = [...this.eventQueue.metrics];
-    
+
     // 큐 비우기
     this.eventQueue.events = [];
     this.eventQueue.metrics = [];
     this.eventQueue.lastFlushTime = Date.now();
-    
+
     try {
       // 백엔드로 이벤트 전송
       if (eventsToSend.length > 0) {
         await apiHelper.post('/v1/events/track', {
           events: eventsToSend,
-          sessionInfo: this.sessionInfo
+          sessionInfo: this.sessionInfo,
         });
       }
-      
+
       // 성능 메트릭 전송
       if (metricsToSend.length > 0) {
         await apiHelper.post('/v1/events/metrics', {
-          metrics: metricsToSend
+          metrics: metricsToSend,
         });
       }
-      
+
       // 로컬 스토리지에서 제거
       this.clearStoredQueue();
     } catch (error) {
@@ -363,11 +352,11 @@ class EventTracker {
       this.loadQueueFromStorage();
       this.flush();
     });
-    
+
     window.addEventListener('offline', () => {
       this.isOnline = false;
     });
-    
+
     // 페이지 언로드 시 전송
     window.addEventListener('beforeunload', () => {
       if (this.isOnline) {
@@ -376,7 +365,7 @@ class EventTracker {
         this.saveQueueToStorage();
       }
     });
-    
+
     // 가시성 변경 시 전송
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
@@ -402,7 +391,7 @@ class EventTracker {
     this.eventQueue = {
       events: [],
       metrics: [],
-      lastFlushTime: Date.now()
+      lastFlushTime: Date.now(),
     };
     this.sessionId = this.getOrCreateSessionId();
     this.sessionInfo = this.getOrCreateSessionInfo();
@@ -411,7 +400,7 @@ class EventTracker {
     this.privacySettings = {
       anonymizeIp: true,
       excludePII: true,
-      consentGiven: this.checkConsent()
+      consentGiven: this.checkConsent(),
     };
     this.isOnline = navigator.onLine;
     this.startFlushInterval();

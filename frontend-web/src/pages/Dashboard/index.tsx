@@ -57,7 +57,7 @@ function Dashboard() {
         console.log('STATUS.SUCCESS:', STATUS.SUCCESS);
         console.log('response.status:', response.status);
         console.log('비교 결과:', response.status == STATUS.SUCCESS);
-        
+
         // API 헬퍼가 response.data를 반환하므로, response 자체가 백엔드의 응답 데이터
         if (response.status == STATUS.SUCCESS) {
           setLoadedDashboardData(response.data);
@@ -76,49 +76,55 @@ function Dashboard() {
       });
   }, [showLoading, hideLoading, alert]);
 
-  const handleDeleteSelect = useCallback((id, title) => {
-    alert.success(
-      <Box sx={{ span: { fontWeight: 600 } }}>
-        <span>{title}</span>
-        <br />
-        대시보드를 삭제하시겠습니까?
-      </Box>,
-      {
-        closeCopy: '취소',
-        actions: [
-          {
-            copy: '확인',
-            onClick: () => {
-              showLoading();
-              DashboardService.deleteDashboard(id)
-                .then(response => {
-                  if (response.status == STATUS.SUCCESS) {
-                    getDashboardList();
-                    snackbar.success('대시보드가 삭제되었습니다.');
-                  } else {
-                    alert.error('대시보드 삭제에 실패했습니다.\n다시 시도해 주세요.');
-                  }
-                })
-                .finally(() => {
-                  hideLoading();
-                });
+  const handleDeleteSelect = useCallback(
+    (id, title) => {
+      alert.success(
+        <Box sx={{ span: { fontWeight: 600 } }}>
+          <span>{title}</span>
+          <br />
+          대시보드를 삭제하시겠습니까?
+        </Box>,
+        {
+          closeCopy: '취소',
+          actions: [
+            {
+              copy: '확인',
+              onClick: () => {
+                showLoading();
+                DashboardService.deleteDashboard(id)
+                  .then(response => {
+                    if (response.status == STATUS.SUCCESS) {
+                      getDashboardList();
+                      snackbar.success('대시보드가 삭제되었습니다.');
+                    } else {
+                      alert.error('대시보드 삭제에 실패했습니다.\n다시 시도해 주세요.');
+                    }
+                  })
+                  .finally(() => {
+                    hideLoading();
+                  });
+              },
             },
-          },
-        ],
-      },
-    );
-  }, [alert, showLoading, hideLoading, snackbar, getDashboardList]);
+          ],
+        },
+      );
+    },
+    [alert, showLoading, hideLoading, snackbar, getDashboardList],
+  );
 
-  const handleMenuSelect = useCallback(item => {
-    console.log(item);
-    if (item.id !== undefined) {
-      if (item.id == 'dashboard') {
-        navigate('/dashboard/create?createType=dashboard');
-      } else {
-        navigate('/dashboard/create?createType=recommend');
+  const handleMenuSelect = useCallback(
+    item => {
+      console.log(item);
+      if (item.id !== undefined) {
+        if (item.id == 'dashboard') {
+          navigate('/dashboard/create?createType=dashboard');
+        } else {
+          navigate('/dashboard/create?createType=recommend');
+        }
       }
-    }
-  }, [navigate]);
+    },
+    [navigate],
+  );
 
   // 목록이 없을때 보여줄 화면
   const getEmptyView = useMemo(() => {

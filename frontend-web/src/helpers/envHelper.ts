@@ -49,7 +49,7 @@ export const isLocal = (): boolean => {
  * @param defaultValue - 기본값
  * @returns 환경 변수 값
  */
-export const getEnvVar = (key: string, defaultValue: string = ''): string => {
+export const getEnvVar = (key: string, defaultValue = ''): string => {
   return process.env[key] || defaultValue;
 };
 

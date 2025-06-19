@@ -1,4 +1,15 @@
-import { User, Dashboard, Database, Dataset, Widget, Component, DatabaseType, Template, TemplateItem, ShareUrl } from './entities';
+import {
+  User,
+  Dashboard,
+  Database,
+  Dataset,
+  Widget,
+  Component,
+  DatabaseType,
+  Template,
+  TemplateItem,
+  ShareUrl,
+} from './entities';
 
 // Auth 관련 응답 타입
 export interface AuthResponse {
@@ -39,9 +50,11 @@ export interface DatabaseDetailResponse {
     databaseId: number;
     datasetType: 'TABLE';
   }>;
-  datasets: Array<Dataset & {
-    datasetType: 'DATASET';
-  }>;
+  datasets: Array<
+    Dataset & {
+      datasetType: 'DATASET';
+    }
+  >;
 }
 
 export interface DatabaseTypeListResponse {

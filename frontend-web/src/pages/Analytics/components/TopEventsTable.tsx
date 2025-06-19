@@ -1,15 +1,5 @@
 import React from 'react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Chip,
-  Box,
-  Typography,
-} from '@mui/material';
+import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, Box, Typography } from '@mui/material';
 
 interface TopEvent {
   action: string;
@@ -56,9 +46,7 @@ const TopEventsTable: React.FC<Props> = ({ topEvents }) => {
             topEvents.slice(0, 10).map((event, index) => (
               <TableRow key={index} hover>
                 <TableCell>
-                  <Typography variant="body2">
-                    {formatActionName(event.action)}
-                  </Typography>
+                  <Typography variant="body2">{formatActionName(event.action)}</Typography>
                 </TableCell>
                 <TableCell>
                   <Chip

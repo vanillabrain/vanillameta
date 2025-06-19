@@ -39,11 +39,11 @@ i18n
     fallbackLng: 'ko',
     defaultNS: 'common',
     debug: process.env.NODE_ENV === 'development',
-    
+
     interpolation: {
       escapeValue: false,
     },
-    
+
     detection: {
       order: ['localStorage', 'cookie', 'navigator', 'htmlTag'],
       caches: ['localStorage', 'cookie'],

@@ -20,7 +20,7 @@ interface OptimizedChartProps {
 
 /**
  * 최적화된 ECharts 컴포넌트
- * 
+ *
  * 주요 최적화 기능:
  * - 인스턴스 풀링으로 메모리 효율성 개선
  * - 데이터 샘플링으로 대량 데이터 처리 최적화
@@ -46,14 +46,8 @@ const OptimizedChart: React.FC<OptimizedChartProps> = ({
   const chartInstanceRef = useRef<echarts.ECharts | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const lastOptionRef = useRef<EChartsOption>({});
-  
-  const {
-    getChartInstance,
-    releaseChartInstance,
-    updateChartOptions,
-    resizeChart,
-    disposeChart,
-  } = useChart();
+
+  const { getChartInstance, releaseChartInstance, updateChartOptions, resizeChart, disposeChart } = useChart();
 
   // 고유 ID 생성
   const chartId = useMemo(() => {
@@ -66,16 +60,16 @@ const OptimizedChart: React.FC<OptimizedChartProps> = ({
 
     const step = Math.ceil(data.length / maxPoints);
     const sampled = [];
-    
+
     for (let i = 0; i < data.length; i += step) {
       sampled.push(data[i]);
     }
-    
+
     // 마지막 데이터 포인트는 항상 포함
     if (sampled[sampled.length - 1] !== data[data.length - 1]) {
       sampled.push(data[data.length - 1]);
     }
-    
+
     return sampled;
   }, []);
 
@@ -84,7 +78,7 @@ const OptimizedChart: React.FC<OptimizedChartProps> = ({
     if (!enableDataSampling) return option;
 
     const optimized = { ...option };
-    
+
     if (optimized.series && Array.isArray(optimized.series)) {
       optimized.series = optimized.series.map(series => {
         if (series.data && Array.isArray(series.data) && series.data.length > maxDataPoints) {
@@ -103,12 +97,13 @@ const OptimizedChart: React.FC<OptimizedChartProps> = ({
 
   // 디바운싱된 리사이즈 핸들러
   const debouncedResize = useMemo(
-    () => debounce(() => {
-      if (chartInstanceRef.current && !chartInstanceRef.current.isDisposed()) {
-        resizeChart(chartId);
-      }
-    }, 100),
-    [chartId, resizeChart]
+    () =>
+      debounce(() => {
+        if (chartInstanceRef.current && !chartInstanceRef.current.isDisposed()) {
+          resizeChart(chartId);
+        }
+      }, 100),
+    [chartId, resizeChart],
   );
 
   // 옵션 변경 감지 및 업데이트
@@ -121,7 +116,7 @@ const OptimizedChart: React.FC<OptimizedChartProps> = ({
     if (!containerRef.current) return;
 
     containerRef.current.id = chartId;
-    
+
     const instance = getChartInstance(chartId, { renderer });
     if (!instance) return;
 
@@ -170,7 +165,7 @@ const OptimizedChart: React.FC<OptimizedChartProps> = ({
   // 차트 초기화
   useEffect(() => {
     initChart();
-    
+
     return () => {
       releaseChartInstance(chartId);
     };

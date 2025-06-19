@@ -84,12 +84,14 @@ export const PrivacyConsent: React.FC<PrivacyConsentProps> = ({ onConsentUpdate 
     <>
       <Dialog
         open={open}
-        onClose={() => {}}
+        onClose={() => {
+          // Dialog는 ESC 키와 backdrop 클릭으로 닫히지 않도록 설정됨
+        }}
         maxWidth="sm"
         fullWidth
         disableEscapeKeyDown
         PaperProps={{
-          sx: { borderRadius: 2 }
+          sx: { borderRadius: 2 },
         }}
       >
         <DialogTitle sx={{ pb: 1 }}>
@@ -97,22 +99,16 @@ export const PrivacyConsent: React.FC<PrivacyConsentProps> = ({ onConsentUpdate 
             개인정보 처리 및 쿠키 사용 동의
           </Typography>
         </DialogTitle>
-        
+
         <DialogContent dividers>
           <Typography variant="body2" paragraph>
-            VanillaMeta는 사용자 경험 개선과 서비스 품질 향상을 위해 쿠키와 유사한 기술을 사용합니다.
-            아래에서 각 유형별로 동의 여부를 선택하실 수 있습니다.
+            VanillaMeta는 사용자 경험 개선과 서비스 품질 향상을 위해 쿠키와 유사한 기술을 사용합니다. 아래에서 각 유형별로
+            동의 여부를 선택하실 수 있습니다.
           </Typography>
 
           <Box sx={{ mt: 3 }}>
             <FormControlLabel
-              control={
-                <Checkbox
-                  checked={consent.functional}
-                  disabled
-                  color="primary"
-                />
-              }
+              control={<Checkbox checked={consent.functional} disabled color="primary" />}
               label={
                 <Box>
                   <Typography variant="subtitle2" fontWeight="medium">
@@ -131,7 +127,7 @@ export const PrivacyConsent: React.FC<PrivacyConsentProps> = ({ onConsentUpdate 
               control={
                 <Checkbox
                   checked={consent.analytics}
-                  onChange={(e) => setConsent({ ...consent, analytics: e.target.checked })}
+                  onChange={e => setConsent({ ...consent, analytics: e.target.checked })}
                   color="primary"
                 />
               }
@@ -153,7 +149,7 @@ export const PrivacyConsent: React.FC<PrivacyConsentProps> = ({ onConsentUpdate 
               control={
                 <Checkbox
                   checked={consent.performance}
-                  onChange={(e) => setConsent({ ...consent, performance: e.target.checked })}
+                  onChange={e => setConsent({ ...consent, performance: e.target.checked })}
                   color="primary"
                 />
               }
@@ -182,25 +178,13 @@ export const PrivacyConsent: React.FC<PrivacyConsentProps> = ({ onConsentUpdate 
         </DialogContent>
 
         <DialogActions sx={{ p: 2 }}>
-          <Button
-            onClick={handleRejectAll}
-            color="inherit"
-            variant="outlined"
-          >
+          <Button onClick={handleRejectAll} color="inherit" variant="outlined">
             모두 거부
           </Button>
-          <Button
-            onClick={handleAcceptSelected}
-            color="primary"
-            variant="outlined"
-          >
+          <Button onClick={handleAcceptSelected} color="primary" variant="outlined">
             선택 항목만 동의
           </Button>
-          <Button
-            onClick={handleAcceptAll}
-            color="primary"
-            variant="contained"
-          >
+          <Button onClick={handleAcceptAll} color="primary" variant="contained">
             모두 동의
           </Button>
         </DialogActions>
@@ -231,13 +215,13 @@ export const PrivacyConsent: React.FC<PrivacyConsentProps> = ({ onConsentUpdate 
           variant="text"
           color="inherit"
           onClick={handleManageConsent}
-          sx={{ 
+          sx={{
             fontSize: '0.75rem',
             textDecoration: 'underline',
             opacity: 0.7,
             '&:hover': {
               opacity: 1,
-            }
+            },
           }}
         >
           개인정보 설정
@@ -305,20 +289,10 @@ export const CookieBanner: React.FC = () => {
             자세히 보기
           </Link>
         </Typography>
-        <Button
-          size="small"
-          variant="outlined"
-          color="inherit"
-          onClick={handleReject}
-        >
+        <Button size="small" variant="outlined" color="inherit" onClick={handleReject}>
           거부
         </Button>
-        <Button
-          size="small"
-          variant="contained"
-          color="primary"
-          onClick={handleAccept}
-        >
+        <Button size="small" variant="contained" color="primary" onClick={handleAccept}>
           동의
         </Button>
       </Box>

@@ -51,7 +51,7 @@ const DashboardView = () => {
   // init useEffect
   useEffect(() => {
     getDashboardInfo(dashboardId);
-    
+
     // 대시보드 조회 이벤트 추적
     const startTime = Date.now();
     return () => {

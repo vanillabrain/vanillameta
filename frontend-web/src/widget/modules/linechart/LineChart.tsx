@@ -7,22 +7,25 @@ const LineChart = props => {
   const { option, dataSet, axis = 'x', seriesOp, defaultOp, createOp } = props;
   const reverseAxis = axis === 'x' ? 'y' : 'x';
 
-  const defaultComponentOption = useMemo(() => ({
-    grid: { top: '3%', right: '3%', bottom: '3%', left: '3%' },
-    tooltip: { trigger: 'axis' },
-    [axis + 'Axis']: {
-      type: 'category',
-    },
-    [reverseAxis + 'Axis']: {
-      type: 'value',
-    },
-    series: [],
-    emphasis: {
-      focus: 'series',
-      blurScope: 'coordinateSystem',
-    },
-    ...defaultOp,
-  }), [axis, reverseAxis, defaultOp]);
+  const defaultComponentOption = useMemo(
+    () => ({
+      grid: { top: '3%', right: '3%', bottom: '3%', left: '3%' },
+      tooltip: { trigger: 'axis' },
+      [axis + 'Axis']: {
+        type: 'category',
+      },
+      [reverseAxis + 'Axis']: {
+        type: 'value',
+      },
+      series: [],
+      emphasis: {
+        focus: 'series',
+        blurScope: 'coordinateSystem',
+      },
+      ...defaultOp,
+    }),
+    [axis, reverseAxis, defaultOp],
+  );
 
   /**
    * 위젯옵션과 데이터로 컴포넌트에 맞는 형태로 생성
@@ -34,10 +37,10 @@ const LineChart = props => {
     // series option에서 가져오기
     const newSeries = [];
     let aggrData = [];
-    
+
     option.series.forEach(item => {
       aggrData = getAggregationDataForChart(dataSet, option[axis + 'Field'], item.field, item.aggregation);
-      
+
       if (item.field) {
         const series = {
           name:
@@ -78,7 +81,7 @@ const LineChart = props => {
       };
       return { ...defaultComponentOption, ...op };
     }
-    
+
     return defaultComponentOption;
   }, [option, dataSet, axis, seriesOp, createOp, defaultComponentOption]);
 

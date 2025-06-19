@@ -51,7 +51,7 @@ const Widget = () => {
         console.log('위젯 응답 전체:', response);
         console.log('위젯 응답 데이터:', response.data);
         console.log('response.status:', response.status);
-        
+
         // API 헬퍼가 response.data를 반환하므로, response 자체가 백엔드의 응답 데이터
         if (response.status == STATUS.SUCCESS) {
           setWidgetList(response.data);

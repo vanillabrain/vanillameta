@@ -13,7 +13,7 @@ function App() {
     if (process.env.NODE_ENV === 'production' && process.env.REACT_APP_GA_MEASUREMENT_ID) {
       initializeGA(process.env.REACT_APP_GA_MEASUREMENT_ID);
     }
-    
+
     // 이벤트 추적 시스템 초기화 - 사용자 동의 필요
     // 실제 프로덕션에서는 쿠키 동의 UI를 통해 설정
     eventTracker.setPrivacySettings({
@@ -21,13 +21,13 @@ function App() {
       anonymizeIp: true,
       excludePII: true,
     });
-    
+
     // Setup idle preloading after the main app has loaded
     setupIdlePreloading();
-    
+
     // Setup intersection observer for link-based preloading
     const observer = setupPreloadObserver();
-    
+
     // Cleanup observer on unmount
     return () => {
       if (observer) {

@@ -1,4 +1,4 @@
-import apiHelper, { get } from '@/helpers/apiHelper';
+import { get } from '@/helpers/apiHelper';
 import { TimeRange } from '@/pages/Analytics/types';
 
 export interface AnalyticsQueryParams {

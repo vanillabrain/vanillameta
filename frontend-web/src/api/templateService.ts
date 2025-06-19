@@ -1,4 +1,4 @@
-import { get, post } from '@/helpers/apiHelper';
+import { post } from '@/helpers/apiHelper';
 import { ApiResponse, TemplateRecommendRequest, TemplateRecommendResponse, TemplateDashboardResponse } from '@/types';
 
 export const URL_TEMPLATE = '/template';

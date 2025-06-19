@@ -69,7 +69,7 @@ const Share = () => {
             updatedAt: dashboard.updatedAt,
             shareYn: dashboard.shareYn,
             uuid: shareInfo?.uuid || dashboard.uuid,
-            shareToken: shareInfo?.token || null
+            shareToken: shareInfo?.token || null,
           });
         }
       })
