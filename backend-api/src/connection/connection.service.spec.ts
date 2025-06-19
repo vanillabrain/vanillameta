@@ -9,6 +9,7 @@ import { QueryAnalyzerService } from '../common/monitoring/query-analyzer.servic
 import { QueryCollector } from '../common/utils/query-collector';
 import { SlowQueryMonitorService } from '../common/monitoring/slow-query-monitor.service';
 import { DatabaseOptimizerFactory } from './database-optimizers/database-optimizer-factory';
+import { KnexQueryMonitor } from '../common/monitoring/knex-query-monitor';
 import {
   createMockRepository,
   getRepositoryTokenFor,
@@ -30,9 +31,18 @@ const mockKnex = {
 const mockKnexConstructor = jest.fn(() => mockKnex);
 
 jest.mock('knex', () => {
+  const mockKnexInstance = {
+    raw: jest.fn(),
+    destroy: jest.fn(),
+    client: {
+      config: {
+        client: 'mysql2',
+      },
+    },
+  };
   return {
-    knex: jest.fn(() => mockKnex),
-    default: jest.fn(() => mockKnex),
+    knex: jest.fn(() => mockKnexInstance),
+    default: jest.fn(() => mockKnexInstance),
   };
 });
 
@@ -126,7 +136,12 @@ describe('ConnectionService', () => {
             'getOptimizedConnectionConfig',
             'isSupported',
             'getOptimizationStats',
+            'getOptimizer',
           ]),
+        },
+        {
+          provide: KnexQueryMonitor,
+          useValue: createMockService(['monitor', 'getMetrics']),
         },
         {
           provide: REQUEST,
@@ -172,6 +187,7 @@ describe('ConnectionService', () => {
       };
 
       // Mock DatabaseOptimizerFactory methods
+      databaseOptimizerFactory.getOptimizer.mockReturnValue(null);
       databaseOptimizerFactory.getOptimizedConnectionConfig.mockReturnValue({
         pool: { min: 2, max: 10 },
       });
@@ -201,6 +217,7 @@ describe('ConnectionService', () => {
       };
 
       // Mock DatabaseOptimizerFactory
+      databaseOptimizerFactory.getOptimizer.mockReturnValue(null);
       databaseOptimizerFactory.getOptimizedConnectionConfig.mockReturnValue({
         pool: { min: 2, max: 10 },
       });
@@ -270,6 +287,7 @@ describe('ConnectionService', () => {
       const knexConfig = { client: 'mysql2', connection: {} };
 
       // Mock DatabaseOptimizerFactory
+      databaseOptimizerFactory.getOptimizer.mockReturnValue(null);
       databaseOptimizerFactory.getOptimizedConnectionConfig.mockReturnValue({
         pool: { min: 2, max: 10 },
       });
