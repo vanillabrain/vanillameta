@@ -5,8 +5,7 @@ import { Repository } from 'typeorm';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
 import { UserMapping } from './entities/user-mapping.entity';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const crypto = require('crypto');
+import * as crypto from 'crypto';
 
 @Injectable()
 export class UserService {

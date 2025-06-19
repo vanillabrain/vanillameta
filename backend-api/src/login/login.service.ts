@@ -6,8 +6,7 @@ import { Repository } from 'typeorm';
 import { CreateLoginDto } from './dto/create-login.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import { RefreshToken } from 'src/auth/entities/refresh_token.entity';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const crypto = require('crypto');
+import * as crypto from 'crypto';
 
 @Injectable()
 export class LoginService {
