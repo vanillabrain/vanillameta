@@ -1,7 +1,7 @@
 // 이벤트 추적 헬퍼 함수들
 
 import { eventTracker } from './eventTracker';
-import { EventAction, EventCategory, EventProperties } from './eventTypes';
+import { EventAction, EventCategory } from './eventTypes';
 
 // 대시보드 관련 추적
 export const trackDashboard = {

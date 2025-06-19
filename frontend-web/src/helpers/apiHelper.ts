@@ -2,7 +2,8 @@ import axios, { InternalAxiosRequestConfig } from 'axios';
 import { getToken, removeToken, setToken } from '@/helpers/authHelper';
 import { getShareToken } from '@/helpers/shareHelper';
 import authService from '@/api/authService';
-import { trackPerformance, trackError } from '@/utils/eventTracking';
+import { trackError } from '@/utils/eventTracking';
+import { trackEvent } from '@/utils/analytics';
 
 // axios 요청 설정에 metadata 추가를 위한 인터페이스 확장
 interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
@@ -176,12 +177,12 @@ instance.interceptors.response.use(
       }
 
       // 이벤트 추적 시스템으로도 전송
-      trackPerformance(`api_${perfData.method}_${perfData.url}`, duration, {
-        method: perfData.method,
-        url: perfData.url,
-        status: perfData.status,
-        correlationId: perfData.correlationId,
-      });
+      trackEvent(
+        'api_call',
+        'api_performance',
+        `${perfData.method}_${perfData.url}`,
+        Math.round(duration)
+      );
     }
 
     // 디버깅을 위해 correlation ID 로깅 (개발 환경에서만)
