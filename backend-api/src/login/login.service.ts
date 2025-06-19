@@ -7,6 +7,7 @@ import { CreateLoginDto } from './dto/create-login.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import { RefreshToken } from 'src/auth/entities/refresh_token.entity';
 import { UnauthorizedException, DuplicateException } from 'src/common/exceptions/business.exception';
+import { I18nService } from 'nestjs-i18n';
 const crypto = require('crypto');
 
 @Injectable()
@@ -15,6 +16,7 @@ export class LoginService {
     private authService: AuthService,
     @InjectRepository(User) private readonly userRepository: Repository<User>,
     @InjectRepository(RefreshToken) private readonly refreshRepository: Repository<RefreshToken>,
+    private readonly i18n: I18nService,
   ) {}
 
   async signin(loginDto: LoginUserDto) {

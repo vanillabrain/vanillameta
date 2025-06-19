@@ -1,0 +1,48 @@
+{
+  "title": "대시보드",
+  "list": {
+    "title": "대시보드 목록",
+    "empty": "대시보드가 없습니다.",
+    "createFirst": "첫 번째 대시보드를 만들어보세요!"
+  },
+  "create": {
+    "title": "새 대시보드 만들기",
+    "name": "대시보드 이름",
+    "description": "설명",
+    "template": "템플릿 선택",
+    "blank": "빈 대시보드",
+    "fromTemplate": "템플릿에서 시작"
+  },
+  "edit": {
+    "title": "대시보드 편집",
+    "addWidget": "위젯 추가",
+    "layout": "레이아웃",
+    "settings": "설정",
+    "preview": "미리보기"
+  },
+  "share": {
+    "title": "대시보드 공유",
+    "public": "공개",
+    "private": "비공개",
+    "link": "공유 링크",
+    "copyLink": "링크 복사",
+    "permissions": "권한 설정",
+    "viewOnly": "보기 전용",
+    "canEdit": "편집 가능"
+  },
+  "actions": {
+    "duplicate": "복제",
+    "export": "내보내기",
+    "delete": "삭제",
+    "share": "공유",
+    "settings": "설정"
+  },
+  "messages": {
+    "created": "대시보드가 생성되었습니다.",
+    "updated": "대시보드가 수정되었습니다.",
+    "deleted": "대시보드가 삭제되었습니다.",
+    "duplicated": "대시보드가 복제되었습니다.",
+    "shared": "대시보드가 공유되었습니다.",
+    "linkCopied": "링크가 복사되었습니다."
+  }
+}

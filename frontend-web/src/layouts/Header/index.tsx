@@ -6,22 +6,27 @@ import NavBar from './NavBar';
 import { useNavigate } from 'react-router-dom';
 import ProfileViewButton from '@/components/user/ProfileViewButton';
 import Logout from '@/components/user/Logout';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
+import { useTranslation } from 'react-i18next';
 
-const menuList = [
-  { name: '데이터 소스', link: '/data/source/create' },
-  { name: '데이터 셋', link: '/data/set/create' },
-  { name: '위젯', link: '/widget/create' },
-  { name: '대시보드', link: '/dashboard/create?createType=dashboard' },
+const getMenuList = (t: any) => [
+  { name: t('navigation.database'), link: '/data/source/create' },
+  { name: t('navigation.dataset'), link: '/data/set/create' },
+  { name: t('navigation.widget'), link: '/widget/create' },
+  { name: t('navigation.dashboard'), link: '/dashboard/create?createType=dashboard' },
 ];
 
 function Header() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const navItems = [
-    { id: 1, name: '대시보드', link: 'dashboard' },
-    { id: 2, name: '위젯', link: 'widget' },
-    { id: 3, name: '데이터', link: 'data' },
+    { id: 1, name: t('navigation.dashboard'), link: 'dashboard' },
+    { id: 2, name: t('navigation.widget'), link: 'widget' },
+    { id: 3, name: t('navigation.data'), link: 'data' },
   ];
+
+  const menuList = getMenuList(t);
 
   const handleMenuSelect = item => {
     if (item.link) {
@@ -35,8 +40,9 @@ function Header() {
         <Logo />
         <Hidden smDown>
           <NavBar navItems={navItems} />
-          <Box sx={{ display: 'flex', gap: '16px' }}>
+          <Box sx={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
             <AddMenuIconButton menuList={menuList} handleSelect={handleMenuSelect} />
+            <LanguageSwitcher />
             <ProfileViewButton />
           </Box>
         </Hidden>

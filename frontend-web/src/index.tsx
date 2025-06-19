@@ -10,6 +10,7 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { AlertProvider } from '@/contexts/AlertContext';
 import { HelmetProvider } from 'react-helmet-async';
 import './index.css';
+import './i18n'; // i18n 초기화
 
 const rootElement = document.getElementById('root');
 const app = (

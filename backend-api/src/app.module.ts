@@ -17,6 +17,7 @@ import { AuthModule } from './auth/auth.module';
 import { LoginModule } from './login/login.module';
 import { ShareUrlModule } from './share-url/share-url.module';
 import { AllExceptionsFilter } from './nest-utils/all-exceptions.filter';
+import { I18nModule } from './common/i18n/i18n.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { AllExceptionsFilter } from './nest-utils/all-exceptions.filter';
       logging: process.env.NODE_ENV != 'prod',
       retryAttempts: 1,
     }),
+    I18nModule,
     DatabaseModule,
     DatasetModule,
     WidgetModule,

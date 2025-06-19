@@ -5,17 +5,23 @@ import {
   HttpException,
   HttpStatus,
   Logger,
+  Inject,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { QueryFailedError, EntityNotFoundError, TypeORMError } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { BusinessException } from '../common/exceptions/business.exception';
+import { I18nService } from 'nestjs-i18n';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
 
-  catch(exception: unknown, host: ArgumentsHost) {
+  constructor(
+    @Inject(I18nService) private readonly i18n: I18nService,
+  ) {}
+
+  async catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
@@ -24,7 +30,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const correlationId = request.headers['x-correlation-id'] as string || uuidv4();
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
-    let message = 'Internal server error';
+    let message = await this.i18n.translate('common.error.internal_server', { lang: request.headers['accept-language'] || 'ko' });
     let errorCode = 'INTERNAL_ERROR';
     let details = null;
 
@@ -48,7 +54,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         // Validation 에러 처리 (class-validator)
         if (responseObj.message) {
           if (Array.isArray(responseObj.message)) {
-            message = 'Validation failed';
+            message = await this.i18n.translate('common.error.validation_failed', { lang: request.headers['accept-language'] || 'ko' });
             details = responseObj.message;
             errorCode = 'VALIDATION_ERROR';
           } else {
@@ -65,7 +71,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     // TypeORM 에러 처리
     else if (exception instanceof QueryFailedError) {
       status = HttpStatus.BAD_REQUEST;
-      message = 'Database query failed';
+      message = await this.i18n.translate('database.query.failed', { lang: request.headers['accept-language'] || 'ko' });
       errorCode = 'DATABASE_ERROR';
       
       // 개발 환경에서만 상세 에러 노출
@@ -79,12 +85,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
     }
     else if (exception instanceof EntityNotFoundError) {
       status = HttpStatus.NOT_FOUND;
-      message = 'Entity not found';
+      message = await this.i18n.translate('common.error.not_found', { lang: request.headers['accept-language'] || 'ko' });
       errorCode = 'ENTITY_NOT_FOUND';
     }
     else if (exception instanceof TypeORMError) {
       status = HttpStatus.INTERNAL_SERVER_ERROR;
-      message = 'Database error';
+      message = await this.i18n.translate('database.connection.failed', { lang: request.headers['accept-language'] || 'ko' });
       errorCode = 'DATABASE_ERROR';
     }
     // 일반 에러 처리
@@ -95,12 +101,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
       if (message.toLowerCase().includes('unauthorized')) {
         status = HttpStatus.UNAUTHORIZED;
         errorCode = 'UNAUTHORIZED';
+        message = await this.i18n.translate('common.error.unauthorized', { lang: request.headers['accept-language'] || 'ko' });
       } else if (message.toLowerCase().includes('forbidden')) {
         status = HttpStatus.FORBIDDEN;
         errorCode = 'FORBIDDEN';
+        message = await this.i18n.translate('common.error.forbidden', { lang: request.headers['accept-language'] || 'ko' });
       } else if (message.toLowerCase().includes('not found')) {
         status = HttpStatus.NOT_FOUND;
         errorCode = 'NOT_FOUND';
+        message = await this.i18n.translate('common.error.not_found', { lang: request.headers['accept-language'] || 'ko' });
       }
     }
 

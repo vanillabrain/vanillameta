@@ -11,12 +11,15 @@ import { checkId, checkPwd } from '@/utils/util';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import Seo from '@/seo/Seo';
 import { getToken, setToken } from '@/helpers/authHelper';
+import { useTranslation } from 'react-i18next';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 const Login = () => {
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const navigate = useNavigate();
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
+  const { t } = useTranslation(['auth', 'common']);
   const [userInfo, setUserInfo] = useState({
     userId: '',
     userPwd: '',
@@ -61,10 +64,10 @@ const Login = () => {
         .catch(error => {
           console.log(error);
           if (error.response.status === 401) {
-            snackbar.error('ID 또는 비밀번호가 일치하지 않습니다.');
+            snackbar.error(t('auth:login.invalidCredentials'));
             return;
           }
-          alert.error('로그인에 실패했습니다. 다시 시도해주세요.');
+          alert.error(t('auth:login.failed'));
         })
         .finally(() => {
           hideLoading();
@@ -77,19 +80,19 @@ const Login = () => {
     const { userId, userPwd } = userInfo;
     // console.log('userId:', userId, 'userFirstPwd:', userFirstPwd, 'userSecondPwd:', userSecondPwd, 'userEmail:', userEmail);
     if (!userId || !userPwd) {
-      snackbar.error('입력란을 모두 작성해 주세요.');
+      snackbar.error(t('common:messages.required'));
       return;
     } else {
       if (userId.length < 5 || userId.length >= 20) {
-        snackbar.error('ID는 5글자에서 20글자 이내로 작성해 주세요.');
+        snackbar.error(t('common:validation.minLength', { field: t('auth:login.userId'), min: 5 }));
         return;
       }
       if (!checkId.test(userId)) {
-        snackbar.error('ID는 공백 없는 영문, 숫자만 가능합니다.');
+        snackbar.error(t('common:validation.pattern'));
         return;
       }
       if (!checkPwd.test(userPwd)) {
-        snackbar.error('비밀번호는 8글자 이상이며 숫자와 영문 대소문자, 특수문자가 포함되어 있어야 합니다.');
+        snackbar.error(t('common:validation.pattern'));
         return;
       }
       isValid = true;
@@ -109,7 +112,7 @@ const Login = () => {
           backgroundColor: '#f5f6f8',
         }}
       >
-        <Seo title="로그인" />
+        <Seo title={t('auth:login.title')} />
         <Box
           sx={{
             pt: '90px',
@@ -118,14 +121,16 @@ const Login = () => {
             alignItems: 'center',
           }}
         >
-          <RouterLink to="/">
-            <Logo width="223px" height="43px" />
-          </RouterLink>
+          <Box sx={{ position: 'relative' }}>
+            <RouterLink to="/">
+              <Logo width="223px" height="43px" />
+            </RouterLink>
+            <Box sx={{ position: 'absolute', top: 0, right: -50 }}>
+              <LanguageSwitcher />
+            </Box>
+          </Box>
           <Typography sx={{ mt: '17px', fontSize: '16px', color: '#043f84', textAlign: 'center' }}>
-            통합 데이터 분석을 위한{' '}
-            <Typography component="span" sx={{ fontSize: '16px', fontWeight: 'bold' }}>
-              대시보드 리포팅 솔루션
-            </Typography>
+            {t('common:app.description')}
           </Typography>
           <Stack
             component="form"
@@ -136,7 +141,7 @@ const Login = () => {
           >
             <TextField
               autoFocus={true}
-              label="User ID"
+              label={t('auth:login.userId')}
               name="userId"
               value={userInfo.userId}
               onChange={handleChange}
@@ -150,7 +155,7 @@ const Login = () => {
               }}
             />
             <TextField
-              label="Password"
+              label={t('auth:login.password')}
               name="userPwd"
               value={userInfo.userPwd}
               onChange={handleChange}
@@ -171,7 +176,7 @@ const Login = () => {
               variant="contained"
               sx={{ height: { xs: '50px', sm: '44px' }, mt: 3, mb: 2 }}
             >
-              Login
+              {t('auth:login.signIn')}
             </Button>
           </Stack>
           {APP_MODE != 'prod' && (
@@ -220,7 +225,7 @@ const Login = () => {
                   },
                 }}
               >
-                회원가입
+                {t('auth:login.signUp')}
               </Button>
               <Button
                 disableRipple
@@ -241,7 +246,7 @@ const Login = () => {
                   },
                 }}
               >
-                아이디/비번찾기
+                {t('auth:login.forgotPassword')}
               </Button>
             </Stack>
           )}
