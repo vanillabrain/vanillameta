@@ -701,8 +701,8 @@
             "required": false,
             "in": "query",
             "description": "반환할 필드 선택 (쉼표로 구분)",
-            "example": "id,title,description,componentId",
             "schema": {
+              "example": "id,title,description,componentId",
               "type": "string"
             }
           }
@@ -945,8 +945,8 @@
             "required": false,
             "in": "query",
             "description": "반환할 필드 선택 (쉼표로 구분). 중첩 필드는 점(.)으로 구분. 예: id,title,widgets.id,widgets.name",
-            "example": "id,title,description,widgets.id,widgets.name",
             "schema": {
+              "example": "id,title,description,widgets.id,widgets.name",
               "type": "string"
             }
           }
@@ -1024,8 +1024,8 @@
             "required": false,
             "in": "query",
             "description": "반환할 필드 선택 (쉼표로 구분). 중첩 필드는 점(.)으로 구분",
-            "example": "id,title,widgets.id,widgets.config.title",
             "schema": {
+              "example": "id,title,widgets.id,widgets.config.title",
               "type": "string"
             }
           }
@@ -1215,8 +1215,8 @@
             "required": true,
             "in": "path",
             "description": "템플릿 ID",
-            "example": 1,
             "schema": {
+              "example": 1,
               "type": "number"
             }
           }
@@ -1255,8 +1255,8 @@
             "required": true,
             "in": "path",
             "description": "템플릿 ID",
-            "example": 1,
             "schema": {
+              "example": 1,
               "type": "number"
             }
           }
@@ -1305,8 +1305,8 @@
             "required": true,
             "in": "path",
             "description": "템플릿 ID",
-            "example": 1,
             "schema": {
+              "example": 1,
               "type": "number"
             }
           }
@@ -1585,8 +1585,8 @@
             "required": false,
             "in": "query",
             "description": "반환할 필드 선택 (쉼표로 구분). 예: id,email,createdAt",
-            "example": "id,userId,email",
             "schema": {
+              "example": "id,userId,email",
               "type": "string"
             }
           }
@@ -1756,8 +1756,8 @@
             "required": false,
             "in": "query",
             "description": "반환할 필드 선택 (쉼표로 구분). 예: id,title,description",
-            "example": "id,title,createdAt",
             "schema": {
+              "example": "id,title,createdAt",
               "type": "string"
             }
           }
@@ -1952,8 +1952,8 @@
             "required": true,
             "in": "path",
             "description": "대시보드 ID",
-            "example": 1,
             "schema": {
+              "example": 1,
               "type": "number"
             }
           }
@@ -2022,8 +2022,8 @@
             "required": true,
             "in": "path",
             "description": "대시보드 ID",
-            "example": 1,
             "schema": {
+              "example": 1,
               "type": "number"
             }
           }
@@ -2087,8 +2087,8 @@
             "required": true,
             "in": "path",
             "description": "공유 URL UUID",
-            "example": "abc123-def456-ghi789",
             "schema": {
+              "example": "abc123-def456-ghi789",
               "type": "string"
             }
           }
