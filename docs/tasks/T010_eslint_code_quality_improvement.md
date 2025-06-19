@@ -82,7 +82,7 @@ yarn lint
   - @ts-ignore → @ts-expect-error로 변경
   - 빈 함수에 주석 추가
 - [x] TypeScript 경고 해결 (부분 완료 - 48개로 감소)
-- [ ] CI/CD 통합
+- [x] CI/CD 통합 (GitHub Actions workflow 추가)
 
 ## 🏆 성과
 - ESLint 에러: 8개 → 0개 (100% 해결!) ✅
