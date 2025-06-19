@@ -28,6 +28,11 @@ const mockKnex = {
   },
 };
 
+// knex 모듈 모킹
+jest.mock('knex', () => {
+  return jest.fn(() => mockKnex);
+});
+
 const mockKnexConstructor = jest.fn(() => mockKnex);
 
 const mockKnexInstance = {

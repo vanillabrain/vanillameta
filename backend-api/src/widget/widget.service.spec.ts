@@ -12,6 +12,7 @@ import { DatasetType } from '../common/enum/dataset-type.enum';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import { YesNo } from '../common/enum/yn.enum';
 import { CustomLoggerService } from '../common/logger/logger.service';
+import { PaginationService } from '../common/pagination/pagination.service';
 
 describe('WidgetService', () => {
   let service: WidgetService;
@@ -86,6 +87,10 @@ describe('WidgetService', () => {
         {
           provide: CustomLoggerService,
           useValue: createMockService(['log', 'error', 'warn', 'debug', 'info']),
+        },
+        {
+          provide: PaginationService,
+          useValue: createMockService(['paginate']),
         },
       ],
     }).compile();
@@ -324,7 +329,7 @@ describe('WidgetService', () => {
         series: [{ data: [120, 200, 150], type: 'line' }],
         grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
       };
-      const updateDto = { option: complexOption };
+      const updateDto = { option: JSON.stringify(complexOption) };
       const foundWidget = { ...mockWidget };
 
       widgetRepository.findOne.mockResolvedValue(foundWidget);
@@ -379,14 +384,16 @@ describe('WidgetService', () => {
     it('should handle table query removal failure gracefully', async () => {
       const tableWidget = { ...mockTableWidget, datasetType: DatasetType.TABLE };
       widgetRepository.findOne.mockResolvedValue(tableWidget);
+      widgetRepository.delete.mockResolvedValue({ affected: 1 });
       tableQueryService.remove.mockRejectedValue(new Error('Table query removal failed'));
 
-      // 현재 구현에서는 tableQueryService.remove가 실패하면 전체가 실패함
-      await expect(service.remove(2)).rejects.toThrow('Table query removal failed');
+      const result = await service.remove(2);
 
+      expect(result.status).toBe(ResponseStatus.SUCCESS);
+      expect(result.message).toBe('This action removes a #2 widget');
       expect(tableQueryService.remove).toHaveBeenCalledWith(2);
-      // 위젯 삭제는 호출되지 않음 (에러 발생으로 중단됨)
-      expect(widgetRepository.delete).not.toHaveBeenCalled();
+      // 테이블 쿼리 제거가 실패해도 위젯은 삭제됨
+      expect(widgetRepository.delete).toHaveBeenCalledWith(2);
     });
   });
 
@@ -477,25 +484,17 @@ describe('WidgetService', () => {
         componentId: 2,
         datasetType: DatasetType.TABLE,
         datasetId: 1,
-        tableName: null, // null or undefined로 변경 (현재 코드는 빈 문자열을 체크하지 않음)
+        tableName: '', // 빈 문자열로 설정
         option: JSON.stringify({ showPagination: true }),
         delYn: YesNo.NO,
       };
 
-      // 현재 구현에서는 tableName이 null이거나 undefined일 때는 에러를 반환하지 않음
-      // 테이블 쿼리 생성 시도
-      tableQueryService.create.mockResolvedValue({ id: 100 });
-      widgetRepository.save.mockResolvedValue({
-        id: 1,
-        ...invalidTableDto,
-        datasetId: 100,
-        option: JSON.stringify(invalidTableDto.option),
-      });
-
       const result = await service.create(invalidTableDto);
 
-      expect(result.status).toBe(ResponseStatus.SUCCESS);
-      expect(tableQueryService.create).toHaveBeenCalledWith(1, null);
+      expect(result.status).toBe(ResponseStatus.ERROR);
+      expect(result.message).toBe('필수 입력사항::::선택한 테이블명 ');
+      expect(tableQueryService.create).not.toHaveBeenCalled();
+      expect(widgetRepository.save).not.toHaveBeenCalled();
     });
 
     it('should handle table query creation failure', async () => {
@@ -755,7 +754,7 @@ describe('WidgetService', () => {
         getRawOne: jest.fn().mockResolvedValue(foundWidget),
       });
 
-      const findResult = await service.findOne(1);
+      const findResult = await service.findOne(1) as any;
       expect(findResult.status).toBe(ResponseStatus.SUCCESS);
       expect(findResult.data.title).toBe('Lifecycle Test Widget');
 

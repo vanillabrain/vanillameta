@@ -1,0 +1,130 @@
+0cfcf1f06ac3a8bc67da3ad7ee1df0bf
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ComponentService = void 0;
+const common_1 = require("@nestjs/common");
+const create_component_dto_1 = require("./dto/create-component.dto");
+const typeorm_1 = require("@nestjs/typeorm");
+const component_entity_1 = require("./entities/component.entity");
+const typeorm_2 = require("typeorm");
+const yn_enum_1 = require("../common/enum/yn.enum");
+const update_component_dto_1 = require("./dto/update-component.dto");
+const hybrid_cache_service_1 = require("../common/optimization/hybrid-cache.service");
+let ComponentService = class ComponentService {
+    constructor(componentRepository, cacheService) {
+        this.componentRepository = componentRepository;
+        this.cacheService = cacheService;
+        this.CACHE_KEY_PREFIX = 'component';
+        this.CACHE_TTL = 3600; // 1시간
+    }
+    async multipleCreate(createComponents) {
+        createComponents.forEach(item => {
+            item.option = JSON.stringify(item.option);
+        });
+        return await this.componentRepository.save(createComponents);
+    }
+    async create(createComponent) {
+        const find_component = await this.componentRepository.findOne({
+            where: { type: createComponent.type },
+        });
+        if (find_component) {
+            return 'exist same widget';
+        }
+        else {
+            const saveObj = new create_component_dto_1.CreateComponentDto();
+            saveObj.type = createComponent.type;
+            saveObj.title = createComponent.title;
+            saveObj.category = createComponent.category;
+            saveObj.option = JSON.stringify(createComponent.option);
+            if (createComponent.seq)
+                saveObj.seq = createComponent.seq;
+            if (createComponent.useYn)
+                saveObj.useYn = createComponent.useYn;
+            if (createComponent.icon)
+                saveObj.icon = createComponent.icon;
+            if (createComponent.description)
+                saveObj.description = createComponent.description;
+            const result = await this.componentRepository.save(saveObj);
+            // 캐시 무효화
+            await this.cacheService.invalidateByEngine(this.CACHE_KEY_PREFIX);
+            return result;
+        }
+    }
+    async findAll() {
+        const cacheKey = 'findAll';
+        const cachedResult = await this.cacheService.get(this.CACHE_KEY_PREFIX, 'static', cacheKey);
+        if (cachedResult) {
+            return cachedResult.data;
+        }
+        const components = await this.componentRepository
+            .createQueryBuilder('component')
+            .select([
+            'id',
+            'type as componentType',
+            'title',
+            'description',
+            'category',
+            'component.option as `option`',
+            'icon',
+            'seq',
+        ])
+            .where({ useYn: yn_enum_1.YesNo.YES })
+            .getRawMany();
+        components.forEach((component, index) => {
+            component.option = JSON.parse(component.option);
+        });
+        // 캐시에 저장
+        await this.cacheService.set(this.CACHE_KEY_PREFIX, 'static', cacheKey, components, [], [], { ttl: this.CACHE_TTL });
+        return components;
+    }
+    async findOne(id) {
+        const find_component_one = await this.componentRepository.findOne({ where: { id: id } });
+        return find_component_one;
+    }
+    async update(id, updateComponent) {
+        const find_component = await this.componentRepository.findOne({ where: { id: id } });
+        if (!find_component) {
+            return 'No exist type';
+        }
+        else {
+            const updateObj = new update_component_dto_1.UpdateComponentDto();
+            updateObj.type = updateComponent.type;
+            updateObj.title = updateComponent.title;
+            updateObj.category = updateComponent.category;
+            updateObj.description = updateComponent.description;
+            updateObj.option = JSON.stringify(updateComponent.option);
+            updateObj.icon = updateComponent.icon;
+            updateObj.seq = updateComponent.seq;
+            updateObj.useYn = updateComponent.useYn;
+            await this.componentRepository.save(updateObj);
+            // 캐시 무효화
+            await this.cacheService.invalidateByEngine(this.CACHE_KEY_PREFIX);
+            return 'Success update';
+        }
+    }
+    async remove(id) {
+        await this.componentRepository.delete({ id });
+        // 캐시 무효화
+        await this.cacheService.invalidateAll();
+        return `This action removes a #${id} component`;
+    }
+};
+ComponentService = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, typeorm_1.InjectRepository)(component_entity_1.Component)),
+    __metadata("design:paramtypes", [typeorm_2.Repository,
+        hybrid_cache_service_1.HybridCacheService])
+], ComponentService);
+exports.ComponentService = ComponentService;

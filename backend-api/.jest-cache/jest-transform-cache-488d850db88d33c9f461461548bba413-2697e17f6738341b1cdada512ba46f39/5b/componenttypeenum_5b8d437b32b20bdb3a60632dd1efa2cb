@@ -1,0 +1,12 @@
+df6730642d9c79837c15f93f4de2b039
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ComponentType = void 0;
+var ComponentType;
+(function (ComponentType) {
+    ComponentType["HORIZONTAL"] = "HORIZONTAL";
+    ComponentType["VERTICAL"] = "VERTICAL";
+    ComponentType["SQUARE"] = "SQUARE";
+    ComponentType["SCORE"] = "SCORE";
+    ComponentType["TABLE"] = "TABLE";
+})(ComponentType = exports.ComponentType || (exports.ComponentType = {}));

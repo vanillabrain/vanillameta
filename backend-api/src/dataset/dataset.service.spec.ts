@@ -10,6 +10,11 @@ import {
 } from '../../test/test-helpers';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import { DatasetType } from '../common/enum/dataset-type.enum';
+import { Database } from '../database/entities/database.entity';
+import { HybridCacheService } from '../common/optimization/hybrid-cache.service';
+import { CustomLoggerService } from '../common/logger/logger.service';
+import { BusinessMetricsService } from '../common/monitoring/business-metrics.service';
+import { PaginationService } from '../common/pagination/pagination.service';
 
 describe('DatasetService', () => {
   let service: DatasetService;
@@ -30,8 +35,28 @@ describe('DatasetService', () => {
           useValue: createMockRepository(),
         },
         {
+          provide: getRepositoryTokenFor(Database),
+          useValue: createMockRepository(),
+        },
+        {
           provide: ConnectionService,
           useValue: createMockService(['executeQuery', 'testConnection']),
+        },
+        {
+          provide: HybridCacheService,
+          useValue: createMockService(['get', 'set', 'del', 'invalidate']),
+        },
+        {
+          provide: CustomLoggerService,
+          useValue: createMockService(['log', 'error', 'warn', 'debug']),
+        },
+        {
+          provide: BusinessMetricsService,
+          useValue: createMockService(['recordDatasetCreation', 'recordDatasetQuery']),
+        },
+        {
+          provide: PaginationService,
+          useValue: createMockService(['paginate']),
         },
       ],
     }).compile();

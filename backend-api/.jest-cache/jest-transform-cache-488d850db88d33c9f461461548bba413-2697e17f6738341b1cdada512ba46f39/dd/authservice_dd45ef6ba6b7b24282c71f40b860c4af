@@ -1,0 +1,130 @@
+4b4f2be029b9847fd806e50c05114c94
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.AuthService = void 0;
+const common_1 = require("@nestjs/common");
+const jwt_1 = require("@nestjs/jwt");
+const typeorm_1 = require("@nestjs/typeorm");
+const typeorm_2 = require("typeorm");
+const user_entity_1 = require("src/user/entities/user.entity");
+const refresh_token_entity_1 = require("./entities/refresh_token.entity");
+let AuthService = class AuthService {
+    constructor(jwtService, userRepository, refreshTokenRepository) {
+        this.jwtService = jwtService;
+        this.userRepository = userRepository;
+        this.refreshTokenRepository = refreshTokenRepository;
+    }
+    async generateAccessToken(payload) {
+        const accessKeyData = {
+            userId: payload.userId,
+            email: payload.email,
+            id: payload.id,
+        };
+        // 디버깅용 로그
+        console.log('Environment variables:', {
+            ACCESS_SECRET: process.env.ACCESS_SECRET ? 'EXISTS' : 'MISSING',
+            NODE_ENV: process.env.NODE_ENV,
+        });
+        const accessToken = await this.jwtService.sign({ accessKeyData }, {
+            secret: process.env.ACCESS_SECRET,
+            expiresIn: `21600s`,
+        });
+        return accessToken;
+    }
+    async generateUrlAccessToken(payload) {
+        const accessKeyData = {
+            userId: payload.userId,
+            email: payload.email,
+            id: payload.id,
+        };
+        const accessToken = await this.jwtService.sign({ accessKeyData }, {
+            // secret: process.env.URL_ACCESS_SECRET,
+            secret: 'test1234',
+        });
+        return accessToken;
+    }
+    async generateRefreshToken(payload) {
+        const refreshKeyData = {
+            userId: payload.userId,
+            email: payload.email,
+            id: payload.id,
+        };
+        const refreshToken = await this.jwtService.sign({ refreshKeyData }, { secret: process.env.REFRESH_SECRET, expiresIn: '43200s' });
+        return refreshToken;
+    }
+    async setRefreshKey(refreshToken, jwt_id) {
+        const findToken = await this.refreshTokenRepository.findOne({ where: { id: jwt_id } });
+        const token = refreshToken.replace('Bearer ', '');
+        if (!findToken) {
+            return await this.refreshTokenRepository.save({
+                refreshToken: token,
+            });
+        }
+        else {
+            findToken.refreshToken = token;
+            await this.refreshTokenRepository.save(findToken);
+        }
+        // 로그인시 갱신된 refreshToken 저장
+    }
+    async validateUser(userId, pass) {
+        const user = await this.userRepository.findOne({ where: { userId: userId } });
+        if (user && user.password === pass) {
+            delete user.password;
+            return user;
+        }
+        return undefined;
+    }
+    async deleteRefreshToken(userId) {
+        const refreshTokenInfo = await this.refreshTokenRepository.findOne({
+            where: { id: userId },
+        });
+        refreshTokenInfo.refreshToken = '';
+        await this.refreshTokenRepository.save(refreshTokenInfo);
+    }
+    async verifyAccessToken(token) {
+        try {
+            const Token = token.replace('Bearer ', '');
+            const secretKey = process.env.ACCESS_SECRET;
+            const findUser = await this.jwtService.verify(Token, { secret: secretKey });
+            return findUser;
+        }
+        catch (err) {
+            throw new common_1.HttpException({ message: 'accessTokenExpired' }, common_1.HttpStatus.UNAUTHORIZED);
+        }
+    } // Access 토큰이 유효한지 확인
+    async verifyRefreshToken(token) {
+        try {
+            const Token = token.replace('Bearer ', '').split('=')[1];
+            const secretKey = process.env.REFRESH_SECRET;
+            const findUser = await this.jwtService.verify(Token, { secret: secretKey });
+            return findUser;
+        }
+        catch (err) {
+            throw new common_1.HttpException({ message: 'refreshTokenExpired' }, common_1.HttpStatus.UNAUTHORIZED);
+        }
+    } // Refresh 토큰이 유효한지 확인
+    async checkAccess(userId, password) {
+        return await this.validateUser(userId, password);
+    }
+};
+AuthService = __decorate([
+    (0, common_1.Injectable)(),
+    __param(1, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
+    __param(2, (0, typeorm_1.InjectRepository)(refresh_token_entity_1.RefreshToken)),
+    __metadata("design:paramtypes", [jwt_1.JwtService,
+        typeorm_2.Repository,
+        typeorm_2.Repository])
+], AuthService);
+exports.AuthService = AuthService;

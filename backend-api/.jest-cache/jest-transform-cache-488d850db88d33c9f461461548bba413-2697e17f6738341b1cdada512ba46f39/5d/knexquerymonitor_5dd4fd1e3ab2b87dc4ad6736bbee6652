@@ -1,0 +1,209 @@
+24eda45a846ec010f3fadc4f98b510bc
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var KnexQueryMonitor_1;
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.KnexQueryMonitor = void 0;
+const common_1 = require("@nestjs/common");
+const logger_service_1 = require("../logger/logger.service");
+const slow_query_monitor_service_1 = require("./slow-query-monitor.service");
+const query_analyzer_service_1 = require("./query-analyzer.service");
+let KnexQueryMonitor = KnexQueryMonitor_1 = class KnexQueryMonitor {
+    constructor(customLogger, slowQueryMonitorService, queryAnalyzerService) {
+        this.customLogger = customLogger;
+        this.slowQueryMonitorService = slowQueryMonitorService;
+        this.queryAnalyzerService = queryAnalyzerService;
+        this.logger = new common_1.Logger(KnexQueryMonitor_1.name);
+    }
+    /**
+     * Knex 인스턴스에 쿼리 모니터링 연결
+     */
+    attachToKnex(knex, databaseId, databaseEngine) {
+        // 쿼리 시작 이벤트
+        knex.on('query', (query) => {
+            query.__queryStartTime = Date.now();
+            this.customLogger.debug('Knex query started', 'KnexQueryMonitor', {
+                sql: this.sanitizeQuery(query.sql),
+                method: query.method,
+                databaseId,
+                databaseEngine,
+            });
+        });
+        // 쿼리 완료 이벤트
+        knex.on('query-response', async (response, query) => {
+            const duration = Date.now() - (query.__queryStartTime || 0);
+            this.customLogger.info('Knex query completed', 'KnexQueryMonitor', {
+                sql: this.sanitizeQuery(query.sql),
+                duration,
+                method: query.method,
+                resultCount: Array.isArray(response) ? response.length : 1,
+                databaseId,
+                databaseEngine,
+            });
+            // 슬로우 쿼리 임계값 체크 (기본 1초)
+            const slowQueryThreshold = parseInt(process.env.SLOW_QUERY_THRESHOLD || '1000');
+            if (duration > slowQueryThreshold) {
+                this.customLogger.warn('Slow Knex query detected', 'KnexQueryMonitor', {
+                    sql: this.sanitizeQuery(query.sql),
+                    bindings: this.sanitizeBindings(query.bindings),
+                    duration,
+                    threshold: slowQueryThreshold,
+                    method: query.method,
+                    databaseId,
+                    databaseEngine,
+                });
+                // 쿼리 분석 및 슬로우 쿼리 로깅
+                try {
+                    const analysis = await this.queryAnalyzerService.analyzeQuery(query.sql, databaseId);
+                    // Add execution time to the analysis result
+                    if (analysis && duration) {
+                        analysis.executionTime = duration;
+                    }
+                    await this.slowQueryMonitorService.logSlowQuery(analysis, {
+                        databaseId,
+                        databaseEngine,
+                        userId: this.getCurrentUserId(),
+                        requestPath: this.getCurrentRequestPath(),
+                        httpMethod: this.getCurrentHttpMethod(),
+                        clientIp: this.getCurrentClientIp(),
+                        userAgent: this.getCurrentUserAgent(),
+                        requestId: this.getCurrentRequestId(),
+                        parameters: query.bindings,
+                    });
+                }
+                catch (error) {
+                    this.logger.error('Failed to analyze slow Knex query', error.stack);
+                }
+            }
+        });
+        // 쿼리 에러 이벤트
+        knex.on('query-error', (error, query) => {
+            const duration = Date.now() - (query.__queryStartTime || 0);
+            this.customLogger.error('Knex query error', error.stack, 'KnexQueryMonitor', {
+                sql: this.sanitizeQuery(query.sql),
+                bindings: this.sanitizeBindings(query.bindings),
+                duration,
+                method: query.method,
+                errorMessage: error.message,
+                databaseId,
+                databaseEngine,
+            });
+        });
+        this.logger.log(`Knex query monitoring attached for database ${databaseId} (${databaseEngine})`);
+    }
+    /**
+     * 여러 Knex 인스턴스에 모니터링 연결
+     */
+    attachToMultipleKnex(knexInstances) {
+        knexInstances.forEach(({ knex, databaseId, databaseEngine }) => {
+            this.attachToKnex(knex, databaseId, databaseEngine);
+        });
+    }
+    /**
+     * 쿼리 정리 (민감한 정보 제거)
+     */
+    sanitizeQuery(sql) {
+        if (!sql)
+            return '';
+        // 긴 쿼리는 잘라내기
+        const maxLength = 500;
+        if (sql.length > maxLength) {
+            return sql.substring(0, maxLength) + '...';
+        }
+        return sql.replace(/\s+/g, ' ').trim();
+    }
+    /**
+     * 바인딩 파라미터 정리 (민감한 정보 마스킹)
+     */
+    sanitizeBindings(bindings) {
+        if (!bindings || !Array.isArray(bindings))
+            return [];
+        return bindings.map((binding, index) => {
+            // 비밀번호나 토큰 같은 민감한 정보 마스킹
+            if (typeof binding === 'string') {
+                // 길이가 긴 문자열은 부분적으로 마스킹
+                if (binding.length > 20) {
+                    return `${binding.substring(0, 5)}***${binding.substring(binding.length - 5)}`;
+                }
+                // 패스워드 필드로 보이는 경우 완전 마스킹
+                if (binding.toLowerCase().includes('password') ||
+                    binding.toLowerCase().includes('token') ||
+                    binding.toLowerCase().includes('secret')) {
+                    return '***MASKED***';
+                }
+            }
+            return binding;
+        });
+    }
+    /**
+     * 현재 사용자 ID 추출 (요청 컨텍스트에서)
+     */
+    getCurrentUserId() {
+        // TODO: 요청 컨텍스트에서 사용자 ID 추출
+        return undefined;
+    }
+    /**
+     * 현재 요청 경로 추출
+     */
+    getCurrentRequestPath() {
+        // TODO: 요청 컨텍스트에서 경로 추출
+        return undefined;
+    }
+    /**
+     * 현재 HTTP 메서드 추출
+     */
+    getCurrentHttpMethod() {
+        // TODO: 요청 컨텍스트에서 HTTP 메서드 추출
+        return undefined;
+    }
+    /**
+     * 현재 클라이언트 IP 추출
+     */
+    getCurrentClientIp() {
+        // TODO: 요청 컨텍스트에서 클라이언트 IP 추출
+        return undefined;
+    }
+    /**
+     * 현재 User Agent 추출
+     */
+    getCurrentUserAgent() {
+        // TODO: 요청 컨텍스트에서 User Agent 추출
+        return undefined;
+    }
+    /**
+     * 현재 요청 ID 추출
+     */
+    getCurrentRequestId() {
+        // TODO: 요청 컨텍스트에서 요청 ID 추출 (correlation ID 등)
+        return undefined;
+    }
+    /**
+     * 쿼리 통계 수집 시작
+     */
+    startStatisticsCollection() {
+        this.logger.log('Knex query statistics collection started');
+        // TODO: 주기적인 통계 수집 구현
+    }
+    /**
+     * 쿼리 통계 수집 중지
+     */
+    stopStatisticsCollection() {
+        this.logger.log('Knex query statistics collection stopped');
+        // TODO: 통계 수집 중지 구현
+    }
+};
+KnexQueryMonitor = KnexQueryMonitor_1 = __decorate([
+    (0, common_1.Injectable)(),
+    __metadata("design:paramtypes", [logger_service_1.CustomLoggerService,
+        slow_query_monitor_service_1.SlowQueryMonitorService,
+        query_analyzer_service_1.QueryAnalyzerService])
+], KnexQueryMonitor);
+exports.KnexQueryMonitor = KnexQueryMonitor;

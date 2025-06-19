@@ -1,0 +1,388 @@
+6ef388e64860091316542e2570c1b97d
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.DatabaseController = void 0;
+const common_1 = require("@nestjs/common");
+const database_service_1 = require("./database.service");
+const create_database_dto_1 = require("./dto/create-database.dto");
+const update_database_dto_1 = require("./dto/update-database.dto");
+const query_execute_dto_1 = require("./dto/query-execute.dto");
+const connection_service_1 = require("../connection/connection.service");
+const dataset_type_enum_1 = require("../common/enum/dataset-type.enum");
+const jwt_auth_guard_1 = require("src/auth/guards/jwt-auth.guard");
+const swagger_1 = require("@nestjs/swagger");
+const field_selection_decorator_1 = require("../common/field-selection/field-selection.decorator");
+const get_user_decorator_1 = require("../auth/decorators/get-user.decorator");
+let DatabaseController = class DatabaseController {
+    constructor(databaseService, connectionService) {
+        this.databaseService = databaseService;
+        this.connectionService = connectionService;
+    }
+    /**
+     * database type 목록 조회
+     */
+    findTypeList() {
+        return this.databaseService.findTypeList();
+    }
+    async findData(datasetType, databaseId, datasetId, tableName) {
+        const res = await this.databaseService.findData(datasetType, databaseId, datasetId, tableName);
+        return res;
+    }
+    /**
+     * 데이터베이스 연결정보 단순조회
+     * @param id
+     */
+    async findOneInfo(id) {
+        const databaseInfo = await this.databaseService.findOneInfo(+id);
+        return databaseInfo;
+    }
+    /**
+     * 데이터베이스 생성 ( 데이터소스 생성)
+     * @param createDatabaseDto
+     */
+    create(createDatabaseDto) {
+        return this.databaseService.create(createDatabaseDto);
+    }
+    /**
+     * 데이터베이스 연결 테스트
+     * @param createDatabaseDto
+     */
+    testConnection(createDatabaseDto) {
+        return this.connectionService.testConnection(createDatabaseDto);
+    }
+    /**
+     * 쿼리 실행
+     * @param queryExecuteDto
+     */
+    executeQuery(queryExecuteDto) {
+        return this.connectionService.executeQuery(queryExecuteDto);
+    }
+    /**
+     * 데이터베이스 목록 조회
+     */
+    async findAll(fields) {
+        const res = await this.databaseService.findAll();
+        return res;
+    }
+    /**
+     * 데이터베이스 상세 조회 - 데이터베이스 연결정보, 테이블, 데이터셋 조회
+     * @param id
+     */
+    async findOne(id, fields) {
+        const databaseInfo = await this.databaseService.findOne(+id);
+        return databaseInfo;
+    }
+    /**
+     * database update
+     * @param id
+     * @param updateDatabaseDto
+     */
+    update(id, updateDatabaseDto) {
+        return this.databaseService.update(+id, updateDatabaseDto);
+    }
+    remove(id) {
+        return this.databaseService.remove(+id);
+    }
+    /**
+     * 스트리밍 쿼리 실행
+     * @param queryExecuteDto 쿼리 실행 DTO
+     * @param user 인증된 사용자 정보
+     * @param res Express Response 객체
+     */
+    async executeStreamingQuery(queryExecuteDto, user, res) {
+        try {
+            // 스트리밍 쿼리 실행
+            const { stream, error } = await this.connectionService.executeStreamingQuery(queryExecuteDto, (user === null || user === void 0 ? void 0 : user.userId) || (user === null || user === void 0 ? void 0 : user.id));
+            if (error) {
+                return res.status(500).json({
+                    status: 'error',
+                    message: error,
+                });
+            }
+            // 스트림을 응답에 파이프
+            stream.pipe(res);
+            // 스트림 에러 처리
+            stream.on('error', err => {
+                console.error('Stream error:', err);
+                if (!res.headersSent) {
+                    res.status(500).json({
+                        status: 'error',
+                        message: 'Stream error occurred',
+                    });
+                }
+            });
+            // 클라이언트 연결 종료 처리
+            res.on('close', () => {
+                stream.destroy();
+            });
+        }
+        catch (error) {
+            console.error('Streaming query error:', error);
+            if (!res.headersSent) {
+                res.status(500).json({
+                    status: 'error',
+                    message: error.message || 'Failed to execute streaming query',
+                });
+            }
+        }
+    }
+};
+__decorate([
+    (0, common_1.Get)('/type'),
+    (0, swagger_1.ApiOperation)({
+        summary: '데이터베이스 타입 목록 조회',
+        description: '지원하는 데이터베이스 타입의 목록을 조회합니다.'
+    }),
+    (0, swagger_1.ApiOkResponse)({
+        description: '데이터베이스 타입 목록',
+        schema: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    value: { type: 'string', example: 'postgresql' },
+                    label: { type: 'string', example: 'PostgreSQL' },
+                    port: { type: 'number', example: 5432 }
+                }
+            }
+        }
+    }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], DatabaseController.prototype, "findTypeList", null);
+__decorate([
+    (0, common_1.Get)('/data'),
+    (0, swagger_1.ApiOperation)({
+        summary: '데이터 조회',
+        description: '데이터셋 타입에 따라 데이터를 조회합니다.'
+    }),
+    (0, swagger_1.ApiQuery)({ name: 'datasetType', enum: dataset_type_enum_1.DatasetType, description: '데이터셋 타입' }),
+    (0, swagger_1.ApiQuery)({ name: 'databaseId', type: 'number', description: '데이터베이스 ID' }),
+    (0, swagger_1.ApiQuery)({ name: 'datasetId', type: 'number', required: false, description: '데이터셋 ID' }),
+    (0, swagger_1.ApiQuery)({ name: 'tableName', type: 'string', required: false, description: '테이블 이름' }),
+    (0, swagger_1.ApiOkResponse)({
+        description: '데이터 조회 성공',
+        schema: {
+            type: 'array',
+            items: { type: 'object' }
+        }
+    }),
+    __param(0, (0, common_1.Query)('datasetType')),
+    __param(1, (0, common_1.Query)('databaseId')),
+    __param(2, (0, common_1.Query)('datasetId')),
+    __param(3, (0, common_1.Query)('tableName')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Number, Number, String]),
+    __metadata("design:returntype", Promise)
+], DatabaseController.prototype, "findData", null);
+__decorate([
+    (0, common_1.Get)('/info/:id'),
+    (0, swagger_1.ApiOperation)({
+        summary: '데이터베이스 연결정보 조회',
+        description: '데이터베이스의 기본 연결 정보를 조회합니다.'
+    }),
+    (0, swagger_1.ApiParam)({ name: 'id', type: 'number', description: '데이터베이스 ID' }),
+    (0, swagger_1.ApiOkResponse)({ description: '데이터베이스 연결정보' }),
+    (0, swagger_1.ApiNotFoundResponse)({ description: '데이터베이스를 찾을 수 없습니다.' }),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], DatabaseController.prototype, "findOneInfo", null);
+__decorate([
+    (0, common_1.Post)(),
+    (0, swagger_1.ApiOperation)({
+        summary: '데이터베이스 연결 생성',
+        description: '새로운 데이터베이스 연결을 생성합니다.'
+    }),
+    (0, swagger_1.ApiCreatedResponse)({
+        description: '데이터베이스 연결이 성공적으로 생성되었습니다.',
+        type: create_database_dto_1.CreateDatabaseDto
+    }),
+    (0, swagger_1.ApiBadRequestResponse)({ description: '잘못된 요청 데이터' }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [create_database_dto_1.CreateDatabaseDto]),
+    __metadata("design:returntype", void 0)
+], DatabaseController.prototype, "create", null);
+__decorate([
+    (0, common_1.Post)('test'),
+    (0, swagger_1.ApiOperation)({
+        summary: '데이터베이스 연결 테스트',
+        description: '데이터베이스 연결 설정이 올바른지 테스트합니다.'
+    }),
+    (0, swagger_1.ApiOkResponse)({
+        description: '연결 테스트 결과',
+        schema: {
+            properties: {
+                success: { type: 'boolean', example: true },
+                message: { type: 'string', example: 'Connection successful' }
+            }
+        }
+    }),
+    (0, swagger_1.ApiBadRequestResponse)({ description: '연결 실패' }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [create_database_dto_1.CreateDatabaseDto]),
+    __metadata("design:returntype", void 0)
+], DatabaseController.prototype, "testConnection", null);
+__decorate([
+    (0, common_1.Post)('execute'),
+    (0, swagger_1.ApiOperation)({
+        summary: 'SQL 쿼리 실행',
+        description: '지정된 데이터베이스에서 SQL 쿼리를 실행합니다.'
+    }),
+    (0, swagger_1.ApiOkResponse)({
+        description: '쿼리 실행 결과',
+        schema: {
+            type: 'array',
+            items: { type: 'object' }
+        }
+    }),
+    (0, swagger_1.ApiBadRequestResponse)({ description: '잘못된 SQL 쿼리' }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [query_execute_dto_1.QueryExecuteDto]),
+    __metadata("design:returntype", void 0)
+], DatabaseController.prototype, "executeQuery", null);
+__decorate([
+    (0, field_selection_decorator_1.PredefinedFields)('connectionBasic'),
+    (0, common_1.Get)(),
+    (0, swagger_1.ApiOperation)({
+        summary: '데이터베이스 목록 조회',
+        description: '등록된 모든 데이터베이스 연결의 목록을 조회합니다.'
+    }),
+    (0, swagger_1.ApiQuery)({ name: 'fields', required: false, description: '반환할 필드 선택' }),
+    (0, swagger_1.ApiOkResponse)({
+        description: '데이터베이스 목록',
+        schema: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: { type: 'number' },
+                    name: { type: 'string' },
+                    type: { type: 'string' },
+                    engine: { type: 'string' },
+                    createdAt: { type: 'string', format: 'date-time' }
+                }
+            }
+        }
+    }),
+    __param(0, (0, common_1.Query)('fields')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], DatabaseController.prototype, "findAll", null);
+__decorate([
+    (0, field_selection_decorator_1.FieldSelection)({
+        allowedFields: [
+            'id',
+            'name',
+            'description',
+            'engine',
+            'type',
+            'timezone',
+            'createdAt',
+            'updatedAt',
+            'tables',
+            'datasets',
+        ],
+        excludeFields: ['connectionConfig'],
+    }),
+    (0, common_1.Get)(':id'),
+    (0, swagger_1.ApiOperation)({
+        summary: '데이터베이스 상세 조회',
+        description: '데이터베이스의 상세 정보와 테이블, 데이터셋을 조회합니다.'
+    }),
+    (0, swagger_1.ApiParam)({ name: 'id', type: 'number', description: '데이터베이스 ID' }),
+    (0, swagger_1.ApiQuery)({ name: 'fields', required: false, description: '반환할 필드 선택' }),
+    (0, swagger_1.ApiOkResponse)({ description: '데이터베이스 상세 정보' }),
+    (0, swagger_1.ApiNotFoundResponse)({ description: '데이터베이스를 찾을 수 없습니다.' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Query)('fields')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
+], DatabaseController.prototype, "findOne", null);
+__decorate([
+    (0, common_1.Put)(':id'),
+    (0, swagger_1.ApiOperation)({
+        summary: '데이터베이스 연결 수정',
+        description: '데이터베이스 연결 정보를 수정합니다.'
+    }),
+    (0, swagger_1.ApiParam)({ name: 'id', type: 'number', description: '데이터베이스 ID' }),
+    (0, swagger_1.ApiOkResponse)({ description: '데이터베이스 연결이 성공적으로 수정되었습니다.' }),
+    (0, swagger_1.ApiNotFoundResponse)({ description: '데이터베이스를 찾을 수 없습니다.' }),
+    (0, swagger_1.ApiBadRequestResponse)({ description: '잘못된 요청 데이터' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, update_database_dto_1.UpdateDatabaseDto]),
+    __metadata("design:returntype", void 0)
+], DatabaseController.prototype, "update", null);
+__decorate([
+    (0, common_1.Delete)(':id'),
+    (0, swagger_1.ApiOperation)({
+        summary: '데이터베이스 연결 삭제',
+        description: '데이터베이스 연결을 삭제합니다.'
+    }),
+    (0, swagger_1.ApiParam)({ name: 'id', type: 'number', description: '데이터베이스 ID' }),
+    (0, swagger_1.ApiOkResponse)({ description: '데이터베이스 연결이 성공적으로 삭제되었습니다.' }),
+    (0, swagger_1.ApiNotFoundResponse)({ description: '데이터베이스를 찾을 수 없습니다.' }),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], DatabaseController.prototype, "remove", null);
+__decorate([
+    (0, common_1.Post)('execute/stream'),
+    (0, swagger_1.ApiOperation)({
+        summary: '스트리밍 SQL 쿼리 실행',
+        description: '대용량 데이터를 위한 스트리밍 방식으로 SQL 쿼리를 실행합니다.'
+    }),
+    (0, swagger_1.ApiProduces)('application/x-ndjson'),
+    (0, swagger_1.ApiHeader)({ name: 'Transfer-Encoding', description: 'chunked' }),
+    (0, swagger_1.ApiOkResponse)({
+        description: '스트리밍 데이터',
+        content: {
+            'application/x-ndjson': {
+                schema: {
+                    type: 'string',
+                    format: 'binary'
+                }
+            }
+        }
+    }),
+    (0, common_1.Header)('Content-Type', 'application/x-ndjson'),
+    (0, common_1.Header)('Transfer-Encoding', 'chunked'),
+    (0, common_1.Header)('Cache-Control', 'no-cache'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, get_user_decorator_1.GetUser)()),
+    __param(2, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [query_execute_dto_1.QueryExecuteDto, Object, Object]),
+    __metadata("design:returntype", Promise)
+], DatabaseController.prototype, "executeStreamingQuery", null);
+DatabaseController = __decorate([
+    (0, swagger_1.ApiTags)('데이터베이스'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)('AccessToken'),
+    (0, common_1.Controller)('database'),
+    __metadata("design:paramtypes", [database_service_1.DatabaseService,
+        connection_service_1.ConnectionService])
+], DatabaseController);
+exports.DatabaseController = DatabaseController;

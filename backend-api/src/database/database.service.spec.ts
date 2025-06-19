@@ -12,6 +12,7 @@ import {
 } from '../../test/test-helpers';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import { YesNo } from '../common/enum/yn.enum';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 
 describe('DatabaseService', () => {
   let service: DatabaseService;
@@ -20,6 +21,7 @@ describe('DatabaseService', () => {
   let datasetRepository: any;
   let tableQueryRepository: any;
   let connectionService: any;
+  let cacheManager: any;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -50,6 +52,10 @@ describe('DatabaseService', () => {
             'executeQuery',
           ]),
         },
+        {
+          provide: CACHE_MANAGER,
+          useValue: createMockService(['get', 'set', 'del', 'reset']),
+        },
       ],
     }).compile();
 
@@ -59,6 +65,7 @@ describe('DatabaseService', () => {
     datasetRepository = module.get(getRepositoryTokenFor(Dataset));
     tableQueryRepository = module.get(getRepositoryTokenFor(TableQuery));
     connectionService = module.get<ConnectionService>(ConnectionService);
+    cacheManager = module.get(CACHE_MANAGER);
   });
 
   it('should be defined', () => {
@@ -71,12 +78,14 @@ describe('DatabaseService', () => {
         { id: 1, name: 'MySQL', engine: 'mysql2', useYn: YesNo.YES, rank: 1, type: 'A' },
         { id: 2, name: 'PostgreSQL', engine: 'pg', useYn: YesNo.YES, rank: 2, type: 'B' },
       ];
+      cacheManager.get.mockResolvedValue(null); // 캐시에 없음
       databaseTypeRepository.find.mockResolvedValue(mockDatabaseTypes);
+      cacheManager.set.mockResolvedValue(undefined);
 
       const result = await service.findAllDbTypes();
 
       expect(result).toEqual(mockDatabaseTypes);
-      expect(databaseTypeRepository.find).toHaveBeenCalledWith({ order: { rank: 'ASC', type: 'ASC' } });
+      expect(databaseTypeRepository.find).toHaveBeenCalledWith({ order: { seq: 'ASC' } });
     });
   });
 

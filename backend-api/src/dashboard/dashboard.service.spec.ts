@@ -263,15 +263,8 @@ describe('DashboardService', () => {
     it('should throw HttpException when dashboard IDs are empty', async () => {
       userService.findDashboardId.mockResolvedValue([{ dashboardId: null }]);
       
-      // findId는 [null]이 되어 length가 0이 아니므로 쿼리가 실행됨
-      dashboardRepository.createQueryBuilder = jest.fn().mockReturnValue({
-        where: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        addOrderBy: jest.fn().mockReturnThis(),
-        getMany: jest.fn().mockRejectedValue(new TypeError("Cannot read properties of undefined (reading 'forEach')")),
-      });
-
-      await expect(service.findAll(1)).rejects.toThrow(TypeError);
+      await expect(service.findAll(1)).rejects.toThrow(HttpException);
+      await expect(service.findAll(1)).rejects.toThrow('not found');
     });
   });
 

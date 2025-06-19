@@ -1,0 +1,160 @@
+145a9a392242bc4a49eec0a13df4c285
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.BatchChunkResponseDto = exports.BatchJobResponseDto = void 0;
+const swagger_1 = require("@nestjs/swagger");
+const batch_job_entity_1 = require("../entities/batch-job.entity");
+class BatchJobResponseDto {
+    constructor(partial) {
+        Object.assign(this, partial);
+    }
+}
+__decorate([
+    (0, swagger_1.ApiProperty)(),
+    __metadata("design:type", Number)
+], BatchJobResponseDto.prototype, "id", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ enum: batch_job_entity_1.BatchJobType }),
+    __metadata("design:type", String)
+], BatchJobResponseDto.prototype, "type", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ enum: batch_job_entity_1.BatchJobStatus }),
+    __metadata("design:type", String)
+], BatchJobResponseDto.prototype, "status", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)(),
+    __metadata("design:type", Number)
+], BatchJobResponseDto.prototype, "totalRecords", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)(),
+    __metadata("design:type", Number)
+], BatchJobResponseDto.prototype, "processedRecords", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)(),
+    __metadata("design:type", Number)
+], BatchJobResponseDto.prototype, "chunkSize", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)(),
+    __metadata("design:type", Number)
+], BatchJobResponseDto.prototype, "totalChunks", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)(),
+    __metadata("design:type", Number)
+], BatchJobResponseDto.prototype, "completedChunks", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)(),
+    __metadata("design:type", Number)
+], BatchJobResponseDto.prototype, "failedChunks", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: '진행률 (0-100)',
+        example: 75,
+    }),
+    __metadata("design:type", Number)
+], BatchJobResponseDto.prototype, "progress", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: '예상 남은 시간 (밀리초)',
+        example: 5000,
+        nullable: true,
+    }),
+    __metadata("design:type", Number)
+], BatchJobResponseDto.prototype, "estimatedTimeRemaining", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ nullable: true }),
+    __metadata("design:type", String)
+], BatchJobResponseDto.prototype, "errorMessage", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ nullable: true }),
+    __metadata("design:type", Date)
+], BatchJobResponseDto.prototype, "startedAt", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ nullable: true }),
+    __metadata("design:type", Date)
+], BatchJobResponseDto.prototype, "completedAt", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)(),
+    __metadata("design:type", Date)
+], BatchJobResponseDto.prototype, "createdAt", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)(),
+    __metadata("design:type", Date)
+], BatchJobResponseDto.prototype, "updatedAt", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ nullable: true }),
+    __metadata("design:type", Object)
+], BatchJobResponseDto.prototype, "metadata", void 0);
+exports.BatchJobResponseDto = BatchJobResponseDto;
+class BatchChunkResponseDto {
+    constructor(partial) {
+        Object.assign(this, partial);
+    }
+}
+__decorate([
+    (0, swagger_1.ApiProperty)(),
+    __metadata("design:type", Number)
+], BatchChunkResponseDto.prototype, "id", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)(),
+    __metadata("design:type", Number)
+], BatchChunkResponseDto.prototype, "sequence", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)(),
+    __metadata("design:type", String)
+], BatchChunkResponseDto.prototype, "status", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)(),
+    __metadata("design:type", Number)
+], BatchChunkResponseDto.prototype, "startOffset", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)(),
+    __metadata("design:type", Number)
+], BatchChunkResponseDto.prototype, "endOffset", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)(),
+    __metadata("design:type", Number)
+], BatchChunkResponseDto.prototype, "recordCount", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)(),
+    __metadata("design:type", Number)
+], BatchChunkResponseDto.prototype, "processedCount", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: '진행률 (0-100)',
+        example: 50,
+    }),
+    __metadata("design:type", Number)
+], BatchChunkResponseDto.prototype, "progress", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)(),
+    __metadata("design:type", Number)
+], BatchChunkResponseDto.prototype, "retryCount", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ nullable: true }),
+    __metadata("design:type", String)
+], BatchChunkResponseDto.prototype, "errorMessage", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ nullable: true }),
+    __metadata("design:type", Date)
+], BatchChunkResponseDto.prototype, "startedAt", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ nullable: true }),
+    __metadata("design:type", Date)
+], BatchChunkResponseDto.prototype, "completedAt", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: '처리 시간 (밀리초)',
+        nullable: true,
+    }),
+    __metadata("design:type", Number)
+], BatchChunkResponseDto.prototype, "processingTime", void 0);
+exports.BatchChunkResponseDto = BatchChunkResponseDto;

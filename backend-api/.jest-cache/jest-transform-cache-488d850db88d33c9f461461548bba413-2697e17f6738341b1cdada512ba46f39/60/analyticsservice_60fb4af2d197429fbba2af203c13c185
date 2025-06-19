@@ -1,0 +1,211 @@
+66154f360cd3d99eb3b6d77f9e549ed2
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.AnalyticsService = void 0;
+const common_1 = require("@nestjs/common");
+const typeorm_1 = require("@nestjs/typeorm");
+const typeorm_2 = require("typeorm");
+const analytics_event_entity_1 = require("./entities/analytics-event.entity");
+const logger_service_1 = require("../common/logger/logger.service");
+const UAParser = require('ua-parser-js');
+let AnalyticsService = class AnalyticsService {
+    constructor(analyticsEventRepository, logger) {
+        this.analyticsEventRepository = analyticsEventRepository;
+        this.logger = logger;
+    }
+    async collectEvents(events, context) {
+        try {
+            const analyticsEvents = events.map(event => this.createAnalyticsEvent(event, context));
+            // 배치 삽입으로 성능 최적화
+            await this.analyticsEventRepository
+                .createQueryBuilder()
+                .insert()
+                .into(analytics_event_entity_1.AnalyticsEvent)
+                .values(analyticsEvents)
+                .execute();
+            this.logger.info(`수집된 이벤트 수: ${events.length}`, 'AnalyticsService', {
+                userId: context.userId,
+                correlationId: context.correlationId,
+                eventCount: events.length,
+                categories: [...new Set(events.map(e => e.category))],
+            });
+        }
+        catch (error) {
+            this.logger.error('이벤트 수집 실패', error.stack, 'AnalyticsService', {
+                userId: context.userId,
+                correlationId: context.correlationId,
+                error: error.message,
+            });
+            // 이벤트 수집 실패는 사용자에게 에러를 반환하지 않음
+        }
+    }
+    createAnalyticsEvent(event, context) {
+        const { metadata = {} } = event;
+        const userAgentData = this.parseUserAgent(context.userAgent);
+        return Object.assign({ category: event.category, action: event.action, label: event.label, value: event.value, userId: context.userId || metadata.userId, sessionId: metadata.sessionId || 'unknown', correlationId: context.correlationId, metadata: this.sanitizeMetadata(metadata), userAgent: context.userAgent, screenResolution: metadata.screenResolution, viewport: metadata.viewport, url: metadata.url, referrer: metadata.referrer, ipAddress: this.anonymizeIp(context.ipAddress), eventTimestamp: metadata.timestamp ? new Date(metadata.timestamp) : new Date() }, userAgentData);
+    }
+    parseUserAgent(userAgent) {
+        if (!userAgent)
+            return {};
+        try {
+            const parser = new UAParser(userAgent);
+            const result = parser.getResult();
+            return {
+                browser: result.browser.name,
+                browserVersion: result.browser.version,
+                os: result.os.name,
+                osVersion: result.os.version,
+                device: result.device.type || 'desktop',
+            };
+        }
+        catch (error) {
+            this.logger.warn('User-Agent 파싱 실패', 'AnalyticsService', {
+                userAgent,
+                error: error.message,
+            });
+            return {};
+        }
+    }
+    sanitizeMetadata(metadata) {
+        // 민감한 정보 제거
+        const sensitiveKeys = ['password', 'token', 'secret', 'apikey', 'creditcard'];
+        const sanitized = Object.assign({}, metadata);
+        Object.keys(sanitized).forEach(key => {
+            if (sensitiveKeys.some(sensitive => key.toLowerCase().includes(sensitive.toLowerCase()))) {
+                sanitized[key] = '[REDACTED]';
+            }
+        });
+        // 메타데이터 크기 제한 (10KB)
+        const jsonString = JSON.stringify(sanitized);
+        if (jsonString.length > 10240) {
+            return { truncated: true, originalSize: jsonString.length };
+        }
+        return sanitized;
+    }
+    anonymizeIp(ip) {
+        if (!ip)
+            return undefined;
+        // IPv4 주소의 마지막 옥텟 제거
+        if (ip.includes('.')) {
+            const parts = ip.split('.');
+            if (parts.length === 4) {
+                parts[3] = '0';
+                return parts.join('.');
+            }
+        }
+        // IPv6 주소의 하위 64비트 제거
+        if (ip.includes(':')) {
+            const parts = ip.split(':');
+            if (parts.length >= 4) {
+                return parts.slice(0, 4).join(':') + '::';
+            }
+        }
+        return ip;
+    }
+    // 분석 쿼리 메서드들
+    async getUserEvents(userId, startDate, endDate) {
+        const query = this.analyticsEventRepository
+            .createQueryBuilder('event')
+            .where('event.userId = :userId', { userId });
+        if (startDate) {
+            query.andWhere('event.createdAt >= :startDate', { startDate });
+        }
+        if (endDate) {
+            query.andWhere('event.createdAt <= :endDate', { endDate });
+        }
+        return query.orderBy('event.createdAt', 'DESC').getMany();
+    }
+    async getEventStats(startDate, endDate) {
+        const result = await this.analyticsEventRepository
+            .createQueryBuilder('event')
+            .select('event.category', 'category')
+            .addSelect('event.action', 'action')
+            .addSelect('COUNT(*)', 'count')
+            .addSelect('COUNT(DISTINCT event.userId)', 'uniqueUsers')
+            .addSelect('COUNT(DISTINCT event.sessionId)', 'uniqueSessions')
+            .where('event.createdAt BETWEEN :startDate AND :endDate', { startDate, endDate })
+            .groupBy('event.category')
+            .addGroupBy('event.action')
+            .orderBy('count', 'DESC')
+            .getRawMany();
+        return result;
+    }
+    async getUserJourney(sessionId) {
+        return this.analyticsEventRepository
+            .createQueryBuilder('event')
+            .where('event.sessionId = :sessionId', { sessionId })
+            .orderBy('event.eventTimestamp', 'ASC')
+            .getMany();
+    }
+    async getPopularFeatures(limit = 10) {
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - 30); // 최근 30일
+        return this.analyticsEventRepository
+            .createQueryBuilder('event')
+            .select('event.category', 'category')
+            .addSelect('event.action', 'action')
+            .addSelect('COUNT(*)', 'usageCount')
+            .addSelect('COUNT(DISTINCT event.userId)', 'uniqueUsers')
+            .where('event.createdAt BETWEEN :startDate AND :endDate', { startDate, endDate })
+            .andWhere('event.category NOT IN (:...excludedCategories)', {
+            excludedCategories: ['performance', 'error']
+        })
+            .groupBy('event.category')
+            .addGroupBy('event.action')
+            .orderBy('usageCount', 'DESC')
+            .limit(limit)
+            .getRawMany();
+    }
+    async getErrorRate(startDate, endDate) {
+        const [totalEvents, errorEvents] = await Promise.all([
+            this.analyticsEventRepository
+                .createQueryBuilder('event')
+                .where('event.createdAt BETWEEN :startDate AND :endDate', { startDate, endDate })
+                .getCount(),
+            this.analyticsEventRepository
+                .createQueryBuilder('event')
+                .where('event.createdAt BETWEEN :startDate AND :endDate', { startDate, endDate })
+                .andWhere('event.category = :category', { category: 'error' })
+                .getCount(),
+        ]);
+        return {
+            totalEvents,
+            errorEvents,
+            errorRate: totalEvents > 0 ? (errorEvents / totalEvents * 100).toFixed(2) : 0,
+        };
+    }
+    async getPerformanceMetrics(startDate, endDate) {
+        return this.analyticsEventRepository
+            .createQueryBuilder('event')
+            .select('event.action', 'metric')
+            .addSelect('AVG(event.value)', 'avgValue')
+            .addSelect('MIN(event.value)', 'minValue')
+            .addSelect('MAX(event.value)', 'maxValue')
+            .addSelect('COUNT(*)', 'count')
+            .where('event.createdAt BETWEEN :startDate AND :endDate', { startDate, endDate })
+            .andWhere('event.category = :category', { category: 'performance' })
+            .andWhere('event.value IS NOT NULL')
+            .groupBy('event.action')
+            .getRawMany();
+    }
+};
+AnalyticsService = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, typeorm_1.InjectRepository)(analytics_event_entity_1.AnalyticsEvent)),
+    __metadata("design:paramtypes", [typeorm_2.Repository,
+        logger_service_1.CustomLoggerService])
+], AnalyticsService);
+exports.AnalyticsService = AnalyticsService;

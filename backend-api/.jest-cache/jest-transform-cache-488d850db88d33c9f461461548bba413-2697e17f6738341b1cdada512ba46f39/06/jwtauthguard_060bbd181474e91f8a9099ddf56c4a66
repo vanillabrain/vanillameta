@@ -1,0 +1,78 @@
+52bbc29ee330a8b4ae4a594cfd023237
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.JwtAuthGuard = void 0;
+const common_1 = require("@nestjs/common");
+const jwt_1 = require("@nestjs/jwt");
+const passport_1 = require("@nestjs/passport");
+let JwtAuthGuard = class JwtAuthGuard extends (0, passport_1.AuthGuard)('jwt') {
+    constructor(jwtService) {
+        super();
+        this.jwtService = jwtService;
+    }
+    async canActivate(context) {
+        const request = context.switchToHttp().getRequest();
+        const { authorization } = request.headers;
+        const urlAuth = request.headers['authorization-url'];
+        if (authorization === undefined && urlAuth === undefined) {
+            throw new common_1.HttpException('accessTokenExpired', common_1.HttpStatus.UNAUTHORIZED);
+        }
+        if (authorization !== undefined) {
+            const token = authorization.replace('Bearer ', ''); //authorization
+            const boolean = true; // 일반 대시보드일시
+            const userInfo = await this.validate(token, boolean);
+            if (userInfo)
+                request.user = userInfo;
+            return !!userInfo;
+        }
+        else if (urlAuth !== undefined) {
+            const token = urlAuth.replace('Bearer ', ''); //authorization-url
+            const boolean = false; // 공유대시보드일시
+            const userInfo = await this.validate(token, boolean);
+            if (userInfo)
+                request.user = userInfo;
+            return !!userInfo;
+        }
+    }
+    async validate(payload, accessPath) {
+        if (accessPath === true) {
+            try {
+                const secretKey = process.env.ACCESS_SECRET;
+                const verify = await this.jwtService.verify(payload, {
+                    secret: secretKey,
+                });
+                return verify;
+            }
+            catch (_a) {
+                throw new common_1.HttpException('accessTokenExpired', common_1.HttpStatus.UNAUTHORIZED);
+            }
+        }
+        if (accessPath === false) {
+            try {
+                // const secretUrlKey = process.env.URL_ACCESS_SECRET;
+                const secretUrlKey = 'test1234';
+                const verifyUrl = await this.jwtService.verify(payload, {
+                    secret: secretUrlKey,
+                });
+                return verifyUrl;
+            }
+            catch (_b) {
+                throw new common_1.HttpException('accessTokenExpired', common_1.HttpStatus.UNAUTHORIZED);
+            }
+        }
+    }
+};
+JwtAuthGuard = __decorate([
+    (0, common_1.Injectable)(),
+    __metadata("design:paramtypes", [jwt_1.JwtService])
+], JwtAuthGuard);
+exports.JwtAuthGuard = JwtAuthGuard;

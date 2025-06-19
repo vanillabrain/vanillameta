@@ -1,0 +1,70 @@
+e47b4e0a79d60ba7639b59e6651f84be
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.JobResultResponseDto = void 0;
+const swagger_1 = require("@nestjs/swagger");
+const job_result_entity_1 = require("../entities/job-result.entity");
+class JobResultResponseDto {
+}
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '결과 ID' }),
+    __metadata("design:type", String)
+], JobResultResponseDto.prototype, "id", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '작업 ID' }),
+    __metadata("design:type", String)
+], JobResultResponseDto.prototype, "backgroundJobId", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '저장 유형', enum: job_result_entity_1.ResultStorageType }),
+    __metadata("design:type", String)
+], JobResultResponseDto.prototype, "storageType", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: '결과 데이터 (작은 데이터의 경우)' }),
+    __metadata("design:type", Object)
+], JobResultResponseDto.prototype, "resultData", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: '저장 위치 (큰 데이터의 경우)' }),
+    __metadata("design:type", String)
+], JobResultResponseDto.prototype, "storageLocation", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: '다운로드 URL (S3의 경우)' }),
+    __metadata("design:type", String)
+], JobResultResponseDto.prototype, "downloadUrl", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '결과 크기 (bytes)' }),
+    __metadata("design:type", Number)
+], JobResultResponseDto.prototype, "resultSizeBytes", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '행 수' }),
+    __metadata("design:type", Number)
+], JobResultResponseDto.prototype, "rowCount", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: '결과 메타데이터' }),
+    __metadata("design:type", Object)
+], JobResultResponseDto.prototype, "resultMetadata", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '만료 시간' }),
+    __metadata("design:type", Date)
+], JobResultResponseDto.prototype, "expiresAt", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '압축 여부' }),
+    __metadata("design:type", Boolean)
+], JobResultResponseDto.prototype, "isCompressed", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: '압축 타입' }),
+    __metadata("design:type", String)
+], JobResultResponseDto.prototype, "compressionType", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '생성 시간' }),
+    __metadata("design:type", Date)
+], JobResultResponseDto.prototype, "createdAt", void 0);
+exports.JobResultResponseDto = JobResultResponseDto;

@@ -1,12 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ComponentService } from './component.service';
 import { Component } from './entities/component.entity';
-import { createMockRepository, getRepositoryTokenFor } from '../../test/test-helpers';
+import { createMockRepository, getRepositoryTokenFor, createMockService } from '../../test/test-helpers';
 import { YesNo } from '../common/enum/yn.enum';
+import { HybridCacheService } from '../common/optimization/hybrid-cache.service';
 
 describe('ComponentService', () => {
   let service: ComponentService;
   let componentRepository: any;
+  let hybridCacheService: any;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -16,11 +18,22 @@ describe('ComponentService', () => {
           provide: getRepositoryTokenFor(Component),
           useValue: createMockRepository(),
         },
+        {
+          provide: HybridCacheService,
+          useValue: createMockService(['get', 'set', 'del', 'invalidate', 'invalidateByEngine', 'invalidateAll']),
+        },
       ],
     }).compile();
 
     service = module.get<ComponentService>(ComponentService);
     componentRepository = module.get(getRepositoryTokenFor(Component));
+    hybridCacheService = module.get(HybridCacheService);
+
+    // 캐시 메서드 모킹
+    hybridCacheService.get.mockResolvedValue(null);
+    hybridCacheService.set.mockResolvedValue(undefined);
+    hybridCacheService.invalidateByEngine.mockResolvedValue(undefined);
+    hybridCacheService.invalidateAll.mockResolvedValue(undefined);
   });
 
   it('should be defined', () => {

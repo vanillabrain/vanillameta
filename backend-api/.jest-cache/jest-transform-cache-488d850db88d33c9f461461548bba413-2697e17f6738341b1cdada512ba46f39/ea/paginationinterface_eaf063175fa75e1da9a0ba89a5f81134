@@ -1,0 +1,15 @@
+1543d0ac72c17d7b1cada8ae8cc73deb
+"use strict";
+/**
+ * 페이지네이션 관련 인터페이스 정의
+ */
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.PaginationType = void 0;
+/**
+ * 페이지네이션 타입 열거형
+ */
+var PaginationType;
+(function (PaginationType) {
+    PaginationType["CURSOR"] = "cursor";
+    PaginationType["OFFSET"] = "offset";
+})(PaginationType = exports.PaginationType || (exports.PaginationType = {}));
