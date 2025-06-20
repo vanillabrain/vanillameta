@@ -121,8 +121,8 @@ export class ComponentService {
   async remove(id: number) {
     await this.componentRepository.delete({ id });
 
-    // 캐시 무효화
-    await this.cacheService.invalidate(this.CACHE_KEY_PREFIX, 'static', 'findAll');
+    // 캐시 무효화 - component 관련 모든 캐시 무효화
+    await this.cacheService.invalidateByEngine(this.CACHE_KEY_PREFIX);
 
     return `This action removes a #${id} component`;
   }
