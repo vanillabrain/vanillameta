@@ -106,7 +106,7 @@ export class LoginController {
   async create(@Body() createUserDto: CreateLoginDto) {
     const result = await this.loginService.signup(createUserDto);
     const message = 'success';
-    return { ...result, message };
+    return { result, message };
   }
 
   @UseGuards(LocalAuthGuard) //refrshtoken 검사

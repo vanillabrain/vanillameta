@@ -100,18 +100,17 @@ export class DashboardService {
   async findAll(userId: number) {
     const findUser = await this.userService.findDashboardId(userId);
     if (!findUser || findUser.length === 0) {
-      return 'not exist user';
+      // 빈 배열 반환 (대시보드가 없는 정상적인 상황)
+      return { status: ResponseStatus.SUCCESS, data: [] };
     }
     console.log(findUser);
     const findId = findUser.map(el => el['dashboardId']);
-    if (!findId || findId.length === 0) {
-      throw new HttpException('not found', HttpStatus.NOT_FOUND);
-    }
 
     // null 값 필터링
     const validIds = findId.filter(id => id !== null && id !== undefined);
     if (validIds.length === 0) {
-      throw new HttpException('not found', HttpStatus.NOT_FOUND);
+      // 대시보드가 없는 경우 빈 배열 반환
+      return { status: ResponseStatus.SUCCESS, data: [] };
     }
 
     console.log(validIds);

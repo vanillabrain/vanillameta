@@ -428,7 +428,7 @@ export class ConnectionService {
               return dateValue;
 
             case 'boolean':
-              return param.value === 'true' || param.value === true;
+              return param.value === 'true' || param.value === '1';
 
             default:
               // 문자열 길이 제한 (SQL 인젝션 방지)
@@ -1193,6 +1193,101 @@ export class ConnectionService {
 
       default:
         return chunk;
+    }
+  }
+
+  /**
+   * 데이터베이스 연결 테스트
+   * @param createDatabaseDto
+   */
+  async testDatabase(createDatabaseDto: CreateDatabaseDto) {
+    try {
+      // ConnectionConfig 파싱
+      let parsedConnectionConfig: any = createDatabaseDto.connectionConfig;
+      if (typeof parsedConnectionConfig === 'string') {
+        try {
+          parsedConnectionConfig = JSON.parse(parsedConnectionConfig);
+        } catch (e) {
+          return {
+            status: ResponseStatus.ERROR,
+            message: 'Invalid connection configuration format',
+          };
+        }
+      }
+
+      // SQLite 특별 처리
+      let connectionConfig;
+      if (createDatabaseDto.engine === 'sqlite' || createDatabaseDto.engine === 'better-sqlite3') {
+        connectionConfig = {
+          client: createDatabaseDto.engine,
+          connection: {
+            filename: parsedConnectionConfig.database || './demo.db',
+          },
+          useNullAsDefault: true,
+        };
+      } else {
+        connectionConfig = {
+          client: createDatabaseDto.engine,
+          connection: parsedConnectionConfig,
+          useNullAsDefault: true,
+        };
+      }
+
+      // 테스트용 Knex 인스턴스 생성
+      const testKnex = knex(connectionConfig);
+
+      // 간단한 연결 테스트 쿼리 실행
+      let testQuery: string;
+      switch (createDatabaseDto.engine) {
+        case 'mysql2':
+          testQuery = 'SELECT 1 as test';
+          break;
+        case 'pg':
+        case 'cockroachdb':
+          testQuery = 'SELECT 1 as test';
+          break;
+        case 'sqlite':
+        case 'sqlite3':
+        case 'better-sqlite3':
+          testQuery = 'SELECT 1 as test';
+          break;
+        case 'mssql':
+          testQuery = 'SELECT 1 as test';
+          break;
+        case 'oracledb':
+          testQuery = 'SELECT 1 as test FROM dual';
+          break;
+        default:
+          testQuery = 'SELECT 1 as test';
+          break;
+      }
+
+      // 타임아웃 설정으로 테스트 실행
+      const result = await Promise.race([
+        testKnex.raw(testQuery),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Connection timeout')), 10000),
+        ),
+      ]);
+
+      // 연결 정리
+      await testKnex.destroy();
+
+      return {
+        status: ResponseStatus.SUCCESS,
+        message: 'Database connection test successful',
+        data: { connectionTest: 'passed' },
+      };
+    } catch (error) {
+      this.logger.error('Database connection test failed', error.stack, 'ConnectionService', {
+        engine: createDatabaseDto.engine,
+        error: error.message,
+      });
+
+      return {
+        status: ResponseStatus.ERROR,
+        message: `Database connection failed: ${error.message}`,
+      };
     }
   }
 }
