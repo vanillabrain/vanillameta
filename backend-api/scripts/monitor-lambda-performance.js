@@ -11,15 +11,16 @@
  * - 초기화 시간
  */
 
-const AWS = require('aws-sdk');
+const { CloudWatchClient, GetMetricStatisticsCommand } = require('@aws-sdk/client-cloudwatch');
+const { CloudWatchLogsClient, StartQueryCommand, GetQueryResultsCommand } = require('@aws-sdk/client-cloudwatch-logs');
 const readline = require('readline');
 
 // AWS 설정
-const cloudwatch = new AWS.CloudWatch({
+const cloudwatch = new CloudWatchClient({
   region: process.env.AWS_REGION || 'ap-northeast-2'
 });
 
-const logs = new AWS.CloudWatchLogs({
+const logs = new CloudWatchLogsClient({
   region: process.env.AWS_REGION || 'ap-northeast-2'
 });
 
