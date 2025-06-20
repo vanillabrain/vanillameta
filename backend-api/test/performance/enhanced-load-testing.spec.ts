@@ -122,7 +122,7 @@ describe('Enhanced Load Testing', () => {
           datasetType: DatasetType.DATASET,
           datasetId: i + 1,
           tableName: '',
-          option: { type: 'line', index: i },
+          option: JSON.stringify({ type: 'line', index: i }),
           delYn: 'N',
         };
 
@@ -180,7 +180,7 @@ describe('Enhanced Load Testing', () => {
       // 대량 업데이트 실행
       const updatePromises = widgets.map(widget =>
         widgetService.update(widget.id, {
-          option: { type: 'line', value: widget.id * 2 },
+          option: JSON.stringify({ type: 'line', value: widget.id * 2 }),
         })
       );
 
@@ -253,7 +253,7 @@ describe('Enhanced Load Testing', () => {
 
       // 모든 페이지 조회
       const pagePromises = Array.from({ length: totalPages }, (_, page) =>
-        dashboardService.findAllPaginated(1, page + 1, pageSize)
+        dashboardService.findAll({ userId: 1, page: page + 1, limit: pageSize })
       );
 
       const results = await Promise.all(pagePromises);
@@ -344,7 +344,7 @@ describe('Enhanced Load Testing', () => {
           componentId: 1,
           datasetType: DatasetType.DATASET,
           datasetId: 1,
-          option: { data: new Array(1000).fill(i) },
+          option: JSON.stringify({ data: new Array(1000).fill(i) }),
         });
 
         await widgetService.remove(i + 1);
@@ -377,7 +377,7 @@ describe('Enhanced Load Testing', () => {
               componentId: 1,
               datasetType: DatasetType.DATASET,
               datasetId: 1,
-              option: {},
+              option: JSON.stringify({}),
             });
           
           case 'read':

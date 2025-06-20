@@ -400,3 +400,248 @@ export const measureMemoryUsage = () => {
     external: Math.round((used.external / 1024 / 1024) * 100) / 100, // MB
   };
 };
+
+/**
+ * Logger Mock 팩토리
+ * CustomLoggerService를 모킹하기 위한 팩토리 함수
+ */
+export const createMockLogger = () => ({
+  log: jest.fn(),
+  info: jest.fn(),
+  debug: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn(),
+  verbose: jest.fn(),
+  setContext: jest.fn(),
+});
+
+/**
+ * Configuration Mock 팩토리
+ * ConfigService를 모킹하기 위한 팩토리 함수
+ */
+export const createMockConfigService = (config: Record<string, any> = {}) => ({
+  get: jest.fn((key: string) => config[key] || `mock-${key}`),
+  getOrThrow: jest.fn((key: string) => config[key] || `mock-${key}`),
+});
+
+/**
+ * Cache Mock 팩토리
+ * Cache Manager를 모킹하기 위한 팩토리 함수
+ */
+export const createMockCacheManager = () => ({
+  get: jest.fn(),
+  set: jest.fn(),
+  del: jest.fn(),
+  reset: jest.fn(),
+  wrap: jest.fn(),
+  store: {
+    keys: jest.fn(),
+    ttl: jest.fn(),
+  },
+});
+
+/**
+ * EventEmitter Mock 팩토리
+ * EventEmitter2를 모킹하기 위한 팩토리 함수
+ */
+export const createMockEventEmitter = () => ({
+  emit: jest.fn(),
+  on: jest.fn(),
+  once: jest.fn(),
+  off: jest.fn(),
+  removeListener: jest.fn(),
+  removeAllListeners: jest.fn(),
+  listeners: jest.fn().mockReturnValue([]),
+  listenerCount: jest.fn().mockReturnValue(0),
+});
+
+/**
+ * Queue Mock 팩토리
+ * Bull Queue를 모킹하기 위한 팩토리 함수
+ */
+export const createMockQueue = () => ({
+  add: jest.fn().mockResolvedValue({ id: 'job-id', data: {} }),
+  process: jest.fn(),
+  getJob: jest.fn(),
+  getJobs: jest.fn().mockResolvedValue([]),
+  getActive: jest.fn().mockResolvedValue([]),
+  getWaiting: jest.fn().mockResolvedValue([]),
+  getCompleted: jest.fn().mockResolvedValue([]),
+  getFailed: jest.fn().mockResolvedValue([]),
+  pause: jest.fn(),
+  resume: jest.fn(),
+  clean: jest.fn(),
+  close: jest.fn(),
+});
+
+/**
+ * 대량 데이터 테스트용 Mock 엔티티 생성기
+ */
+export const createMockEntities = {
+  users: (count: number) => Array.from({ length: count }, (_, i) => ({
+    id: i + 1,
+    userId: `user${i + 1}`,
+    email: `user${i + 1}@example.com`,
+    password: 'hashedpassword',
+    createdAt: new Date(Date.now() - i * 86400000),
+    updatedAt: new Date(),
+  })),
+
+  dashboards: (count: number) => Array.from({ length: count }, (_, i) => ({
+    id: i + 1,
+    title: `Dashboard ${i + 1}`,
+    layout: JSON.stringify([{ i: `widget${i}`, x: 0, y: 0, w: 4, h: 4 }]),
+    shareId: i + 1,
+    delYn: 'N',
+    createdAt: new Date(Date.now() - i * 86400000),
+    updatedAt: new Date(),
+  })),
+
+  widgets: (count: number) => Array.from({ length: count }, (_, i) => ({
+    id: i + 1,
+    title: `Widget ${i + 1}`,
+    description: `Test widget ${i + 1}`,
+    databaseId: (i % 3) + 1,
+    componentId: (i % 10) + 1,
+    datasetType: 'dataset',
+    datasetId: i + 1,
+    tableName: `table_${i + 1}`,
+    option: JSON.stringify({ type: 'line', data: [i, i * 2, i * 3] }),
+    delYn: 'N',
+    createdAt: new Date(Date.now() - i * 86400000),
+    updatedAt: new Date(),
+  })),
+
+  connections: (count: number) => Array.from({ length: count }, (_, i) => ({
+    id: i + 1,
+    name: `Connection ${i + 1}`,
+    engine: ['mysql', 'postgresql', 'sqlite'][i % 3],
+    host: 'localhost',
+    port: [3306, 5432, 0][i % 3],
+    database: `test_db_${i + 1}`,
+    username: `user${i + 1}`,
+    password: 'encrypted_password',
+    createdAt: new Date(Date.now() - i * 86400000),
+    updatedAt: new Date(),
+  })),
+};
+
+/**
+ * 성능 테스트 헬퍼
+ */
+export const performanceHelpers = {
+  /**
+   * 함수 실행 시간 측정
+   */
+  measureExecutionTime: async <T>(fn: () => Promise<T>): Promise<{ result: T; executionTime: number }> => {
+    const startTime = Date.now();
+    const result = await fn();
+    const executionTime = Date.now() - startTime;
+    return { result, executionTime };
+  },
+
+  /**
+   * 메모리 사용량 증가 측정
+   */
+  measureMemoryIncrease: async <T>(fn: () => Promise<T>): Promise<{ result: T; memoryIncrease: number }> => {
+    const beforeMemory = measureMemoryUsage();
+    const result = await fn();
+    const afterMemory = measureMemoryUsage();
+    const memoryIncrease = afterMemory.heapUsed - beforeMemory.heapUsed;
+    return { result, memoryIncrease };
+  },
+
+  /**
+   * 동시 실행 성능 측정
+   */
+  measureConcurrentExecution: async <T>(
+    operations: (() => Promise<T>)[],
+    concurrencyLimit = 10
+  ): Promise<{ results: T[]; totalExecutionTime: number; averageTime: number }> => {
+    const startTime = Date.now();
+    
+    // 배치 단위로 실행
+    const results: T[] = [];
+    for (let i = 0; i < operations.length; i += concurrencyLimit) {
+      const batch = operations.slice(i, i + concurrencyLimit);
+      const batchResults = await Promise.all(batch.map(op => op()));
+      results.push(...batchResults);
+    }
+    
+    const totalExecutionTime = Date.now() - startTime;
+    const averageTime = totalExecutionTime / operations.length;
+    
+    return { results, totalExecutionTime, averageTime };
+  },
+};
+
+/**
+ * 데이터베이스 트랜잭션 Mock 헬퍼
+ */
+export const createMockQueryRunner = () => ({
+  manager: {
+    save: jest.fn(),
+    find: jest.fn(),
+    findOne: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    create: jest.fn(),
+    remove: jest.fn(),
+  },
+  connect: jest.fn(),
+  startTransaction: jest.fn(),
+  commitTransaction: jest.fn(),
+  rollbackTransaction: jest.fn(),
+  release: jest.fn(),
+  isTransactionActive: false,
+});
+
+/**
+ * E2E 테스트용 App Mock 팩토리
+ */
+export const createMockApp = () => ({
+  getHttpServer: jest.fn().mockReturnValue({
+    listen: jest.fn(),
+    close: jest.fn(),
+  }),
+  init: jest.fn(),
+  close: jest.fn(),
+  get: jest.fn(),
+  use: jest.fn(),
+  useGlobalPipes: jest.fn(),
+  useGlobalFilters: jest.fn(),
+  useGlobalInterceptors: jest.fn(),
+  useGlobalGuards: jest.fn(),
+  setGlobalPrefix: jest.fn(),
+  enableCors: jest.fn(),
+});
+
+/**
+ * 날짜 관련 테스트 헬퍼
+ */
+export const dateHelpers = {
+  /**
+   * 특정 날짜로 Date.now() Mock
+   */
+  mockDateNow: (date: Date) => {
+    const originalDateNow = Date.now;
+    Date.now = jest.fn(() => date.getTime());
+    return () => { Date.now = originalDateNow; };
+  },
+
+  /**
+   * 날짜 범위 생성
+   */
+  createDateRange: (startDate: Date, days: number) => {
+    return Array.from({ length: days }, (_, i) => 
+      new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000)
+    );
+  },
+
+  /**
+   * 랜덤 날짜 생성
+   */
+  randomDate: (start: Date, end: Date) => {
+    return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+  },
+};
