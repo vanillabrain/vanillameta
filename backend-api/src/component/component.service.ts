@@ -45,21 +45,17 @@ export class ComponentService {
       if (createComponent.description) saveObj.description = createComponent.description;
 
       const result = await this.componentRepository.save(saveObj);
-      
+
       // 캐시 무효화
-      await this.cacheService.invalidate(this.CACHE_KEY_PREFIX, 'static', 'findAll');
-      
+      await this.cacheService.invalidateByEngine(this.CACHE_KEY_PREFIX);
+
       return result;
     }
   }
 
   async findAll() {
     const cacheKey = 'findAll';
-    const cachedResult = await this.cacheService.get(
-      this.CACHE_KEY_PREFIX,
-      'static',
-      cacheKey,
-    );
+    const cachedResult = await this.cacheService.get(this.CACHE_KEY_PREFIX, 'static', cacheKey);
 
     if (cachedResult) {
       return cachedResult.data;
@@ -85,13 +81,9 @@ export class ComponentService {
     });
 
     // 캐시에 저장
-    await this.cacheService.set(
-      this.CACHE_KEY_PREFIX,
-      'static',
-      cacheKey,
-      { data: components, fields: [] },
-      this.CACHE_TTL,
-    );
+    await this.cacheService.set(this.CACHE_KEY_PREFIX, 'static', cacheKey, components, [], [], {
+      ttl: this.CACHE_TTL,
+    });
 
     return components;
   }
@@ -118,9 +110,9 @@ export class ComponentService {
       updateObj.useYn = updateComponent.useYn;
 
       await this.componentRepository.save(updateObj);
-      
+
       // 캐시 무효화
-      await this.cacheService.invalidate(this.CACHE_KEY_PREFIX, 'static', 'findAll');
+      await this.cacheService.invalidateByEngine(this.CACHE_KEY_PREFIX);
 
       return 'Success update';
     }
@@ -128,10 +120,10 @@ export class ComponentService {
 
   async remove(id: number) {
     await this.componentRepository.delete({ id });
-    
+
     // 캐시 무효화
     await this.cacheService.invalidate(this.CACHE_KEY_PREFIX, 'static', 'findAll');
-    
+
     return `This action removes a #${id} component`;
   }
 }

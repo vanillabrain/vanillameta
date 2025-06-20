@@ -107,13 +107,13 @@ export class DashboardService {
     if (!findId || findId.length === 0) {
       throw new HttpException('not found', HttpStatus.NOT_FOUND);
     }
-    
+
     // null 값 필터링
     const validIds = findId.filter(id => id !== null && id !== undefined);
     if (validIds.length === 0) {
       throw new HttpException('not found', HttpStatus.NOT_FOUND);
     }
-    
+
     console.log(validIds);
 
     // N+1 쿼리 문제 해결: In 조건으로 한 번에 조회

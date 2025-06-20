@@ -1,4 +1,12 @@
-import { IsString, IsOptional, IsNumber, IsObject, IsArray, ValidateNested, IsDateString } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsObject,
+  IsArray,
+  ValidateNested,
+  IsDateString,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -28,9 +36,9 @@ export class EventDataDto {
 }
 
 export class CreateEventDto {
-  @ApiProperty({ 
+  @ApiProperty({
     description: '이벤트 배열',
-    type: [EventDataDto]
+    type: [EventDataDto],
   })
   @IsArray()
   @ValidateNested({ each: true })

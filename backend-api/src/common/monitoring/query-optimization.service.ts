@@ -83,7 +83,7 @@ export class QueryOptimizationService {
         .select(['dataset.id', 'dataset.query'])
         .where('dataset.type = :type', { type: 'query' })
         .getMany();
-      
+
       datasetQueries.forEach(ds => {
         if (ds.query) {
           queries.push(ds.query);
@@ -95,7 +95,7 @@ export class QueryOptimizationService {
         .createQueryBuilder('tableQuery')
         .select(['tableQuery.id', 'tableQuery.query'])
         .getMany();
-      
+
       tableQueries.forEach(tq => {
         if (tq.query) {
           queries.push(tq.query);
@@ -133,7 +133,7 @@ export class QueryOptimizationService {
   async generateOptimizationPlan(): Promise<QueryOptimizationPlan> {
     const queries = await this.collectCriticalQueries();
     const analyses: QueryAnalysis[] = [];
-    
+
     // 모든 쿼리 분석
     for (const query of queries) {
       try {
@@ -146,7 +146,7 @@ export class QueryOptimizationService {
 
     // 최적화 가능한 쿼리 식별
     const optimizableAnalyses = analyses.filter(
-      a => a.optimizationSuggestions && a.optimizationSuggestions.length > 0
+      a => a.optimizationSuggestions && a.optimizationSuggestions.length > 0,
     );
 
     const plan: QueryOptimizationPlan = {
@@ -171,7 +171,7 @@ export class QueryOptimizationService {
     for (const analysis of analyses) {
       if (analysis.executionTime) {
         totalTime += analysis.executionTime;
-        
+
         // Full table scan이나 인덱스 미사용 시 50% 개선 예상
         if (analysis.scanType === 'ALL' || !analysis.indexUsed) {
           optimizableTime += analysis.executionTime * 0.5;
@@ -203,7 +203,8 @@ export class QueryOptimizationService {
             issue: '인덱스 없이 전체 테이블을 스캔하여 성능 저하',
             solution: 'WHERE 절에 사용되는 컬럼에 인덱스 추가',
             expectedImprovement: '50-90% 실행 시간 감소',
-            implementation: '1. 자주 사용되는 검색 조건 파악\n2. 복합 인덱스 고려\n3. 인덱스 영향도 테스트',
+            implementation:
+              '1. 자주 사용되는 검색 조건 파악\n2. 복합 인덱스 고려\n3. 인덱스 영향도 테스트',
             priority: 'high',
           });
         }
@@ -218,7 +219,8 @@ export class QueryOptimizationService {
             issue: 'GROUP BY나 ORDER BY에서 임시 테이블 생성으로 메모리/디스크 사용',
             solution: '커버링 인덱스 생성 또는 쿼리 구조 개선',
             expectedImprovement: '30-50% 실행 시간 감소',
-            implementation: '1. GROUP BY/ORDER BY 컬럼에 인덱스 생성\n2. 불필요한 정렬 제거\n3. 서브쿼리를 JOIN으로 변경',
+            implementation:
+              '1. GROUP BY/ORDER BY 컬럼에 인덱스 생성\n2. 불필요한 정렬 제거\n3. 서브쿼리를 JOIN으로 변경',
             priority: 'medium',
           });
         }
@@ -233,7 +235,8 @@ export class QueryOptimizationService {
             issue: 'ORDER BY 절이 인덱스를 활용하지 못해 추가 정렬 수행',
             solution: 'ORDER BY 컬럼에 맞는 인덱스 생성',
             expectedImprovement: '20-40% 실행 시간 감소',
-            implementation: '1. ORDER BY 컬럼 순서대로 인덱스 생성\n2. WHERE + ORDER BY 복합 인덱스 고려',
+            implementation:
+              '1. ORDER BY 컬럼 순서대로 인덱스 생성\n2. WHERE + ORDER BY 복합 인덱스 고려',
             priority: 'medium',
           });
         }
@@ -273,7 +276,7 @@ export class QueryOptimizationService {
         if (whereMatch) {
           const table = this.extractTableName(analysis.query);
           const column = whereMatch[2] || whereMatch[1] || whereMatch[3];
-          
+
           if (table && column && !processedTables.has(`${table}.${column}`)) {
             processedTables.add(`${table}.${column}`);
             recommendations.push({
@@ -288,7 +291,9 @@ export class QueryOptimizationService {
         }
 
         // JOIN 조건 분석
-        const joinMatch = analysis.query.match(/JOIN\s+\w+\s+\w+\s+ON\s+(\w+)\.(\w+)\s*=\s*(\w+)\.(\w+)/gi);
+        const joinMatch = analysis.query.match(
+          /JOIN\s+\w+\s+\w+\s+ON\s+(\w+)\.(\w+)\s*=\s*(\w+)\.(\w+)/gi,
+        );
         if (joinMatch) {
           joinMatch.forEach(match => {
             const parts = match.match(/ON\s+(\w+)\.(\w+)\s*=\s*(\w+)\.(\w+)/i);
@@ -297,7 +302,7 @@ export class QueryOptimizationService {
               const column1 = parts[2];
               const table2 = parts[3];
               const column2 = parts[4];
-              
+
               // 외래 키 컬럼에 대한 인덱스 추천
               if (!processedTables.has(`${table2}.${column2}`)) {
                 processedTables.add(`${table2}.${column2}`);
@@ -321,7 +326,7 @@ export class QueryOptimizationService {
         if (groupByMatch) {
           const table = this.extractTableName(analysis.query);
           const columns = groupByMatch[1].split(',').map(c => c.trim().split('.').pop());
-          
+
           if (table && columns.length > 0) {
             const key = `${table}.group_${columns.join('_')}`;
             if (!processedTables.has(key)) {
@@ -332,7 +337,9 @@ export class QueryOptimizationService {
                 type: 'BTREE',
                 reason: 'GROUP BY 절 최적화를 위한 복합 인덱스',
                 expectedBenefit: '임시 테이블 생성 방지, 30-50% 성능 향상',
-                createStatement: `CREATE INDEX idx_${table}_group ON ${table}(${columns.join(', ')});`,
+                createStatement: `CREATE INDEX idx_${table}_group ON ${table}(${columns.join(
+                  ', ',
+                )});`,
               });
             }
           }
@@ -345,7 +352,7 @@ export class QueryOptimizationService {
         if (orderByMatch) {
           const table = this.extractTableName(analysis.query);
           const columns = orderByMatch[1].split(',').map(c => c.trim().split('.').pop());
-          
+
           if (table && columns.length > 0) {
             const key = `${table}.order_${columns.join('_')}`;
             if (!processedTables.has(key)) {
@@ -356,7 +363,9 @@ export class QueryOptimizationService {
                 type: 'BTREE',
                 reason: 'ORDER BY 절 최적화를 위한 인덱스',
                 expectedBenefit: 'Filesort 제거, 20-40% 성능 향상',
-                createStatement: `CREATE INDEX idx_${table}_order ON ${table}(${columns.join(', ')});`,
+                createStatement: `CREATE INDEX idx_${table}_order ON ${table}(${columns.join(
+                  ', ',
+                )});`,
               });
             }
           }
@@ -377,11 +386,16 @@ export class QueryOptimizationService {
       if (!analysis.query) continue;
 
       // 서브쿼리를 JOIN으로 변환
-      if (analysis.query.includes('SELECT') && analysis.query.includes('WHERE') && analysis.query.includes('IN (SELECT')) {
+      if (
+        analysis.query.includes('SELECT') &&
+        analysis.query.includes('WHERE') &&
+        analysis.query.includes('IN (SELECT')
+      ) {
         const original = analysis.query.substring(0, 200) + '...';
         suggestions.push({
           originalQuery: original,
-          optimizedQuery: '-- 서브쿼리를 JOIN으로 변환\n' + this.convertSubqueryToJoin(analysis.query),
+          optimizedQuery:
+            '-- 서브쿼리를 JOIN으로 변환\n' + this.convertSubqueryToJoin(analysis.query),
           reason: '서브쿼리는 각 행마다 실행되므로 JOIN이 더 효율적',
           expectedImprovement: '30-70% 성능 향상',
         });
@@ -391,7 +405,9 @@ export class QueryOptimizationService {
       if (analysis.query.match(/SELECT\s+\*/i)) {
         suggestions.push({
           originalQuery: analysis.query.substring(0, 200) + '...',
-          optimizedQuery: '-- 필요한 컬럼만 명시적으로 선택\n' + analysis.query.replace(/SELECT\s+\*/i, 'SELECT id, name, created_at'),
+          optimizedQuery:
+            '-- 필요한 컬럼만 명시적으로 선택\n' +
+            analysis.query.replace(/SELECT\s+\*/i, 'SELECT id, name, created_at'),
           reason: 'SELECT *는 불필요한 데이터 전송을 유발',
           expectedImprovement: '10-30% 네트워크 트래픽 감소',
         });
@@ -401,14 +417,19 @@ export class QueryOptimizationService {
       if (analysis.query.includes('DISTINCT') && !analysis.query.includes('GROUP BY')) {
         suggestions.push({
           originalQuery: analysis.query.substring(0, 200) + '...',
-          optimizedQuery: '-- DISTINCT 대신 GROUP BY 사용 고려\n' + analysis.query.replace('DISTINCT', ''),
+          optimizedQuery:
+            '-- DISTINCT 대신 GROUP BY 사용 고려\n' + analysis.query.replace('DISTINCT', ''),
           reason: 'GROUP BY가 인덱스를 더 효율적으로 활용할 수 있음',
           expectedImprovement: '20-40% 성능 향상 (인덱스 존재 시)',
         });
       }
 
       // LIMIT 없는 쿼리
-      if (!analysis.query.match(/LIMIT\s+\d+/i) && analysis.rowsReturned && analysis.rowsReturned > 1000) {
+      if (
+        !analysis.query.match(/LIMIT\s+\d+/i) &&
+        analysis.rowsReturned &&
+        analysis.rowsReturned > 1000
+      ) {
         suggestions.push({
           originalQuery: analysis.query.substring(0, 200) + '...',
           optimizedQuery: analysis.query + '\nLIMIT 1000',
@@ -429,17 +450,17 @@ export class QueryOptimizationService {
     if (fromMatch) {
       return fromMatch[1];
     }
-    
+
     const updateMatch = query.match(/UPDATE\s+(\w+)/i);
     if (updateMatch) {
       return updateMatch[1];
     }
-    
+
     const insertMatch = query.match(/INSERT\s+INTO\s+(\w+)/i);
     if (insertMatch) {
       return insertMatch[1];
     }
-    
+
     return '';
   }
 
@@ -451,7 +472,7 @@ export class QueryOptimizationService {
     if (query.includes('IN (SELECT')) {
       return query.replace(
         /WHERE\s+(\w+)\s+IN\s*\(SELECT\s+(\w+)\s+FROM\s+(\w+)\s+WHERE\s+(.+?)\)/i,
-        'JOIN $3 ON $1 = $3.$2 WHERE $4'
+        'JOIN $3 ON $1 = $3.$2 WHERE $4',
       );
     }
     return query;
@@ -462,13 +483,13 @@ export class QueryOptimizationService {
    */
   async generateOptimizationGuidelines(): Promise<string> {
     const plan = await this.generateOptimizationPlan();
-    
+
     let guidelines = `# VanillaMeta 쿼리 최적화 가이드라인\n\n`;
     guidelines += `## 분석 요약\n`;
     guidelines += `- 총 분석 쿼리 수: ${plan.totalQueries}\n`;
     guidelines += `- 최적화 가능 쿼리: ${plan.optimizableQueries}\n`;
     guidelines += `- 예상 성능 개선: ${plan.estimatedImprovementPercent}%\n\n`;
-    
+
     guidelines += `## 최적화 전략\n`;
     for (const strategy of plan.strategies) {
       guidelines += `\n### ${strategy.queryPattern}\n`;
@@ -478,7 +499,7 @@ export class QueryOptimizationService {
       guidelines += `- **구현 방법**:\n${strategy.implementation}\n`;
       guidelines += `- **우선순위**: ${strategy.priority}\n`;
     }
-    
+
     guidelines += `\n## 인덱스 추천\n`;
     for (const idx of plan.indexRecommendations) {
       guidelines += `\n### ${idx.table} 테이블\n`;
@@ -488,7 +509,7 @@ export class QueryOptimizationService {
       guidelines += `- **예상 효과**: ${idx.expectedBenefit}\n`;
       guidelines += `- **생성 SQL**:\n\`\`\`sql\n${idx.createStatement}\n\`\`\`\n`;
     }
-    
+
     guidelines += `\n## 쿼리 재작성 제안\n`;
     for (const suggestion of plan.queryRewriteSuggestions) {
       guidelines += `\n### 최적화 제안\n`;
@@ -497,24 +518,24 @@ export class QueryOptimizationService {
       guidelines += `- **이유**: ${suggestion.reason}\n`;
       guidelines += `- **예상 개선**: ${suggestion.expectedImprovement}\n`;
     }
-    
+
     guidelines += `\n## 일반 권장사항\n`;
     guidelines += `1. **인덱스 관리**\n`;
     guidelines += `   - 자주 사용되는 WHERE, JOIN, ORDER BY 컬럼에 인덱스 생성\n`;
     guidelines += `   - 복합 인덱스는 컬럼 순서가 중요 (선택도가 높은 컬럼을 앞에)\n`;
     guidelines += `   - 과도한 인덱스는 INSERT/UPDATE 성능 저하 유발\n\n`;
-    
+
     guidelines += `2. **쿼리 작성**\n`;
     guidelines += `   - SELECT *보다 필요한 컬럼만 명시\n`;
     guidelines += `   - 서브쿼리보다 JOIN 선호\n`;
     guidelines += `   - LIMIT으로 결과 셋 크기 제한\n`;
     guidelines += `   - OR 조건보다 IN 절 사용\n\n`;
-    
+
     guidelines += `3. **모니터링**\n`;
     guidelines += `   - 정기적인 쿼리 성능 모니터링\n`;
     guidelines += `   - 느린 쿼리 로그 분석\n`;
     guidelines += `   - 인덱스 사용률 확인\n`;
-    
+
     return guidelines;
   }
 }

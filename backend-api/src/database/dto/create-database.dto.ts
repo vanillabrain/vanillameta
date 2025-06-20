@@ -6,7 +6,7 @@ export class CreateDatabaseDto {
     description: '데이터베이스 연결 이름',
     example: '프로덕션 MySQL DB',
     minLength: 1,
-    maxLength: 100
+    maxLength: 100,
   })
   @IsString()
   @IsNotEmpty()
@@ -15,7 +15,7 @@ export class CreateDatabaseDto {
   @ApiProperty({
     description: '데이터베이스 설명',
     example: '메인 서비스용 프로덕션 데이터베이스',
-    required: false
+    required: false,
   })
   @IsString()
   @IsOptional()
@@ -28,10 +28,10 @@ export class CreateDatabaseDto {
       port: 3306,
       username: 'root',
       password: 'password',
-      database: 'mydb'
+      database: 'mydb',
     }),
     type: 'string',
-    format: 'json'
+    format: 'json',
   })
   @IsString()
   @IsOptional()
@@ -40,8 +40,18 @@ export class CreateDatabaseDto {
   @ApiProperty({
     description: '데이터베이스 엔진',
     example: 'mysql',
-    enum: ['mysql', 'postgresql', 'mariadb', 'oracle', 'mssql', 'sqlite', 'bigquery', 'snowflake', 'redshift'],
-    required: false
+    enum: [
+      'mysql',
+      'postgresql',
+      'mariadb',
+      'oracle',
+      'mssql',
+      'sqlite',
+      'bigquery',
+      'snowflake',
+      'redshift',
+    ],
+    required: false,
   })
   @IsString()
   @IsOptional()
@@ -50,8 +60,18 @@ export class CreateDatabaseDto {
   @ApiProperty({
     description: '데이터베이스 타입',
     example: 'mysql',
-    enum: ['mysql', 'postgresql', 'mariadb', 'oracle', 'mssql', 'sqlite', 'bigquery', 'snowflake', 'redshift'],
-    required: false
+    enum: [
+      'mysql',
+      'postgresql',
+      'mariadb',
+      'oracle',
+      'mssql',
+      'sqlite',
+      'bigquery',
+      'snowflake',
+      'redshift',
+    ],
+    required: false,
   })
   @IsString()
   @IsOptional()
@@ -61,7 +81,7 @@ export class CreateDatabaseDto {
     description: '타임존 설정',
     example: 'Asia/Seoul',
     default: 'Asia/Seoul',
-    required: false
+    required: false,
   })
   @IsString()
   @IsOptional()

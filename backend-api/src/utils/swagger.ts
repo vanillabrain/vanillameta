@@ -16,16 +16,16 @@ export function setupSwagger(app: INestApplication): void {
     .setTitle('VanillaMeta API Documentation')
     .setDescription(
       'VanillaMeta는 기업용 비즈니스 인텔리전스(BI) 웹 애플리케이션으로, ' +
-      '사용자가 코드 작성 없이 다양한 데이터베이스에 연결하여 시각화를 생성하고 ' +
-      '대시보드를 구축할 수 있습니다.\n\n' +
-      '## 주요 기능\n' +
-      '- 다중 데이터베이스 연결 지원\n' +
-      '- 50개 이상의 차트 타입 제공\n' +
-      '- 대시보드 생성 및 공유\n' +
-      '- 실시간 데이터 시각화\n\n' +
-      '## 인증\n' +
-      'JWT Bearer 토큰을 사용합니다. 로그인 API를 통해 액세스 토큰을 발급받은 후 ' +
-      'Authorization 헤더에 Bearer {token} 형식으로 전달하세요.'
+        '사용자가 코드 작성 없이 다양한 데이터베이스에 연결하여 시각화를 생성하고 ' +
+        '대시보드를 구축할 수 있습니다.\n\n' +
+        '## 주요 기능\n' +
+        '- 다중 데이터베이스 연결 지원\n' +
+        '- 50개 이상의 차트 타입 제공\n' +
+        '- 대시보드 생성 및 공유\n' +
+        '- 실시간 데이터 시각화\n\n' +
+        '## 인증\n' +
+        'JWT Bearer 토큰을 사용합니다. 로그인 API를 통해 액세스 토큰을 발급받은 후 ' +
+        'Authorization 헤더에 Bearer {token} 형식으로 전달하세요.',
     )
     .setVersion('2.0.0')
     .addBearerAuth(
@@ -60,56 +60,56 @@ export function setupSwagger(app: INestApplication): void {
   const document = SwaggerModule.createDocument(app, options, {
     extraModels: [ErrorResponseDto, SuccessResponseDto, PaginatedResponseDto],
   });
-  
+
   // 보안 요구사항 추가
   document.security = [{ AccessToken: [] }];
-  
+
   // 공통 응답 스키마 추가
   if (!document.components) document.components = {};
   if (!document.components.responses) document.components.responses = {};
-  
+
   document.components.responses = {
     UnauthorizedError: {
       description: '인증 실패',
       content: {
         'application/json': {
-          schema: { $ref: '#/components/schemas/ErrorResponseDto' }
-        }
-      }
+          schema: { $ref: '#/components/schemas/ErrorResponseDto' },
+        },
+      },
     },
     BadRequestError: {
       description: '잘못된 요청',
       content: {
         'application/json': {
-          schema: { $ref: '#/components/schemas/ErrorResponseDto' }
-        }
-      }
+          schema: { $ref: '#/components/schemas/ErrorResponseDto' },
+        },
+      },
     },
     NotFoundError: {
       description: '리소스를 찾을 수 없음',
       content: {
         'application/json': {
-          schema: { $ref: '#/components/schemas/ErrorResponseDto' }
-        }
-      }
-    }
+          schema: { $ref: '#/components/schemas/ErrorResponseDto' },
+        },
+      },
+    },
   };
-  
+
   document.paths = filterDocumentsPathsByTags(document);
   // document.paths = filterDocumentsDtoPathsByTags(document);
   fs.writeFileSync('./swagger-spec.json', JSON.stringify(document, null, 2));
   SwaggerModule.setup('api-docs', app, document, {
-    swaggerOptions: { 
+    swaggerOptions: {
       defaultModelsExpandDepth: -1,
       persistAuthorization: true,
       tagsSorter: 'alpha',
       operationsSorter: 'alpha',
       docExpansion: 'none',
       filter: true,
-      showRequestDuration: true
+      showRequestDuration: true,
     },
     customCss: '.swagger-ui .topbar { display: none }',
     customSiteTitle: 'VanillaMeta API Documentation',
-    customfavIcon: '/favicon.ico'
+    customfavIcon: '/favicon.ico',
   });
 }

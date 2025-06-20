@@ -158,11 +158,7 @@ export class AnalyticsHelper {
   /**
    * 성능 메트릭 이벤트 추적
    */
-  async trackPerformanceMetric(
-    metricName: string,
-    value: number,
-    metadata?: Record<string, any>,
-  ) {
+  async trackPerformanceMetric(metricName: string, value: number, metadata?: Record<string, any>) {
     const event: EventDataDto = {
       category: 'performance',
       action: metricName,
@@ -183,11 +179,7 @@ export class AnalyticsHelper {
   /**
    * 배치 이벤트 추적
    */
-  async trackBatchEvents(
-    events: EventDataDto[],
-    userId?: string,
-    correlationId?: string,
-  ) {
+  async trackBatchEvents(events: EventDataDto[], userId?: string, correlationId?: string) {
     await this.analyticsService.collectEvents(events, {
       userId,
       correlationId,

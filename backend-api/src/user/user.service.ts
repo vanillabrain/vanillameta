@@ -50,10 +50,7 @@ export class UserService {
   }
 
   async deleteUser(userId: string, password: string) {
-    const hashPassword = crypto
-      .createHash('sha512')
-      .update(String(password))
-      .digest('hex');
+    const hashPassword = crypto.createHash('sha512').update(String(password)).digest('hex');
     const findUser = await this.authService.checkAccess(userId, hashPassword);
     if (findUser) {
       await this.userRepository.delete(findUser);
@@ -68,16 +65,16 @@ export class UserService {
       if (!decodedToken || !decodedToken.refreshKeyData) {
         throw new UnauthorizedException();
       }
-      
+
       // 사용자 조회
       const findUser = await this.userRepository.findOne({
         where: { id: decodedToken.refreshKeyData.id },
       });
-      
+
       if (!findUser) {
         throw new UnauthorizedException();
       }
-      
+
       const accessToken = await this.authService.generateAccessToken(findUser);
       return accessToken;
     } catch (error) {

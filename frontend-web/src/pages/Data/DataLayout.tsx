@@ -77,12 +77,17 @@ const DataLayout = props => {
     showLoading();
     DatabaseService.selectDatabaseList()
       .then(response => {
-        const resData = response.data;
+        const resData = response.data || [];
         setDatabaseList(resData);
         if (resData.length > 0) {
           const [firstItem] = resData;
           setSelectedDatabase(firstItem);
         }
+      })
+      .catch(error => {
+        console.error('Database list error:', error);
+        setDatabaseList([]);
+        snackbar.error('데이터베이스 목록을 불러오는데 실패했습니다.');
       })
       .finally(() => {
         hideLoading();

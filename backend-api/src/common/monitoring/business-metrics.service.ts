@@ -313,7 +313,7 @@ export class BusinessMetricsService {
   /**
    * 캐시 적중률 계산 및 발행
    */
-  async calculateAndPublishCacheHitRate(period: number = 300): Promise<void> {
+  async calculateAndPublishCacheHitRate(period = 300): Promise<void> {
     if (!this.enabled) return;
 
     try {

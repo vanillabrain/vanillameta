@@ -40,11 +40,11 @@ export class DatabaseService {
     }
 
     // DB에서 조회
-    const dbTypes = await this.databaseTypeRepository.find({ order: { rank: 'ASC', type: 'ASC' } });
-    
+    const dbTypes = await this.databaseTypeRepository.find({ order: { seq: 'ASC', type: 'ASC' } });
+
     // 캐시에 저장
     await this.cacheManager.set(this.DB_TYPES_CACHE_KEY, dbTypes, this.DB_TYPES_CACHE_TTL);
-    
+
     return dbTypes;
   }
 
@@ -252,10 +252,21 @@ export class DatabaseService {
     one.engine = updateDatabaseDto.engine;
 
     // SQLite 특별 처리
+    let parsedConfig: any;
+    if (typeof updateDatabaseDto.connectionConfig === 'string') {
+      try {
+        parsedConfig = JSON.parse(updateDatabaseDto.connectionConfig);
+      } catch (e) {
+        parsedConfig = {};
+      }
+    } else {
+      parsedConfig = updateDatabaseDto.connectionConfig || {};
+    }
+    
     if (updateDatabaseDto.engine === 'sqlite' || updateDatabaseDto.engine === 'better-sqlite3') {
-      updateDatabaseDto.connectionConfig = {
-        database: updateDatabaseDto.connectionConfig.database || './demo.db',
-      };
+      updateDatabaseDto.connectionConfig = JSON.stringify({
+        database: parsedConfig.database || './demo.db',
+      });
     }
 
     one.connectionConfig =
@@ -310,7 +321,6 @@ export class DatabaseService {
     // updateDatabaseDto.connectionConfig = JSON.stringify(connectionConfig);
 
     // TODO: validation pipe
-    one.memo = updateDatabaseDto.memo;
     one.updatedAt = new Date();
     return this.databaseRepository.save(one);
   }
@@ -321,7 +331,8 @@ export class DatabaseService {
    */
   async remove(id: number) {
     const database = await this.databaseRepository.findOne({ where: { id } });
-    database.isActive = YesNo.NO;
+    // 소프트 삭제를 위해 updatedAt만 업데이트
+    database.updatedAt = new Date();
     await this.databaseRepository.save(database);
     await this.connectionService.removeKnex(id);
     return 'success';
@@ -332,7 +343,7 @@ export class DatabaseService {
    * @param createDatabaseDto
    */
   testDatabase(createDatabaseDto: CreateDatabaseDto) {
-    return this.connectionService.testDatabase(createDatabaseDto);
+    return this.connectionService.testConnection(createDatabaseDto);
   }
 
   /**
@@ -341,5 +352,146 @@ export class DatabaseService {
    */
   executeQuery(queryExecuteDto: QueryExecuteDto) {
     return this.connectionService.executeQuery(queryExecuteDto);
+  }
+
+  /**
+   * 데이터베이스 타입 목록 조회
+   * @returns 지원하는 데이터베이스 타입 목록
+   */
+  async findTypeList() {
+    const dbTypes = await this.findAllDbTypes() as DatabaseType[];
+
+    // Controller에서 기대하는 형식으로 변환
+    return dbTypes.map((type) => ({
+      value: type.type,
+      label: type.title,
+      engine: type.engine,
+      port: this.getDefaultPort(type.type),
+    }));
+  }
+
+  /**
+   * 데이터베이스 타입별 기본 포트 반환
+   * @param dbType 데이터베이스 타입
+   */
+  private getDefaultPort(dbType: string): number {
+    const portMap = {
+      postgresql: 5432,
+      mysql: 3306,
+      mariadb: 3306,
+      oracle: 1521,
+      mssql: 1433,
+      sqlite: null,
+      'better-sqlite3': null,
+      bigquery: null,
+      snowflake: null,
+      cockroachdb: 26257,
+      redshift: 5439,
+    };
+    return portMap[dbType] || null;
+  }
+
+  /**
+   * 데이터셋 타입에 따른 데이터 조회
+   * @param datasetType 데이터셋 타입 (DATASET or TABLE)
+   * @param databaseId 데이터베이스 ID
+   * @param datasetId 데이터셋 ID (선택사항)
+   * @param tableName 테이블 이름 (선택사항)
+   */
+  async findData(
+    datasetType: DatasetType,
+    databaseId: number,
+    datasetId?: number,
+    tableName?: string,
+  ) {
+    try {
+      let query: string;
+
+      if (datasetType === DatasetType.TABLE && tableName) {
+        // 테이블 데이터 조회
+        query = `SELECT * FROM ${tableName} LIMIT 100`;
+      } else if (datasetType === DatasetType.DATASET && datasetId) {
+        // 데이터셋 조회
+        const dataset = await this.datasetRepository.findOne({
+          where: { id: datasetId },
+        });
+
+        if (!dataset) {
+          return {
+            status: ResponseStatus.ERROR,
+            message: 'Dataset not found',
+          };
+        }
+
+        query = dataset.query;
+      } else {
+        return {
+          status: ResponseStatus.ERROR,
+          message: 'Invalid parameters',
+        };
+      }
+
+      // 쿼리 실행
+      const result = await this.connectionService.executeQuery({
+        id: databaseId,
+        query: query,
+      });
+
+      return result;
+    } catch (error) {
+      return {
+        status: ResponseStatus.ERROR,
+        message: error.message || 'Failed to fetch data',
+      };
+    }
+  }
+
+  /**
+   * 데이터베이스 연결 정보 단순 조회
+   * @param id 데이터베이스 ID
+   */
+  async findOneInfo(id: number) {
+    try {
+      const databaseInfo = await this.databaseRepository.findOne({
+        where: { id },
+      });
+
+      if (!databaseInfo) {
+        return {
+          status: ResponseStatus.ERROR,
+          message: 'Database not found',
+        };
+      }
+
+      // 연결 설정 파싱
+      const parsedConfig = JSON.parse(databaseInfo.connectionConfig);
+      const connectionInfo = parsedConfig.connection || parsedConfig;
+
+      // 민감한 정보 제거
+      const safeConnectionInfo = { ...connectionInfo };
+      delete safeConnectionInfo.password;
+
+      return {
+        status: ResponseStatus.SUCCESS,
+        data: {
+          id: databaseInfo.id,
+          name: databaseInfo.name,
+          engine: databaseInfo.engine,
+          type: databaseInfo.type,
+          host: safeConnectionInfo.host,
+          port: safeConnectionInfo.port,
+          database: safeConnectionInfo.database,
+          user: safeConnectionInfo.user,
+          timezone: databaseInfo.timezone,
+          createdAt: databaseInfo.createdAt,
+          updatedAt: databaseInfo.updatedAt,
+        },
+      };
+    } catch (error) {
+      return {
+        status: ResponseStatus.ERROR,
+        message: error.message || 'Failed to fetch database info',
+      };
+    }
   }
 }

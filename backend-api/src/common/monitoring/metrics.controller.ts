@@ -22,9 +22,13 @@ export class MetricsController {
   async getHealth() {
     const memoryStats = this.memoryMonitor.getCurrentMemoryStats();
     const memoryThreshold = this.memoryMonitor.checkMemoryThreshold();
-    
+
     return {
-      status: memoryThreshold.isCritical ? 'critical' : memoryThreshold.isWarning ? 'warning' : 'healthy',
+      status: memoryThreshold.isCritical
+        ? 'critical'
+        : memoryThreshold.isWarning
+        ? 'warning'
+        : 'healthy',
       timestamp: new Date().toISOString(),
       memory: {
         utilizationPercent: memoryStats.utilizationPercent.toFixed(2),
@@ -204,10 +208,7 @@ export class MetricsController {
     };
   }
 
-  private generateMemoryRecommendations(
-    stats: any,
-    leakDetection: any,
-  ): string[] {
+  private generateMemoryRecommendations(stats: any, leakDetection: any): string[] {
     const recommendations: string[] = [];
 
     if (stats.utilizationPercent > 85) {

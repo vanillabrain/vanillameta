@@ -554,7 +554,11 @@ export class DatabasePerformanceComparatorService {
   /**
    * 테스트 테이블 생성
    */
-  private async createTestTable(knex: Knex, tableName: string, databaseType: string): Promise<void> {
+  private async createTestTable(
+    knex: Knex,
+    tableName: string,
+    databaseType: string,
+  ): Promise<void> {
     await knex.schema.createTable(tableName, table => {
       table.increments('id').primary();
       table.string('name', 255);
@@ -593,7 +597,7 @@ export class DatabasePerformanceComparatorService {
    */
   private analyzeBulkResults(results: any[]): any {
     const validResults = results.filter(r => r.insertTime > 0);
-    
+
     if (validResults.length === 0) {
       return { message: 'No valid results to analyze' };
     }
@@ -619,7 +623,7 @@ export class DatabasePerformanceComparatorService {
    */
   private determineBulkWinner(results: any[]): any {
     const validResults = results.filter(r => r.insertTime > 0);
-    
+
     if (validResults.length === 0) {
       return null;
     }
@@ -647,7 +651,9 @@ export class DatabasePerformanceComparatorService {
     const highErrorRateDb = results.find(r => r.successRate < 90);
     if (highErrorRateDb) {
       recommendations.push(
-        `${highErrorRateDb.databaseName}에서 높은 오류율(${100 - highErrorRateDb.successRate}%)이 감지되었습니다. 연결 풀 설정을 확인하세요.`,
+        `${highErrorRateDb.databaseName}에서 높은 오류율(${
+          100 - highErrorRateDb.successRate
+        }%)이 감지되었습니다. 연결 풀 설정을 확인하세요.`,
       );
     }
 

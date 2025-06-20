@@ -9,11 +9,7 @@ import { CommonModule } from '../common/common.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      AnalyticsEvent,
-      EventSession,
-      PerformanceMetric,
-    ]),
+    TypeOrmModule.forFeature([AnalyticsEvent, EventSession, PerformanceMetric]),
     CommonModule,
   ],
   controllers: [EventsController],

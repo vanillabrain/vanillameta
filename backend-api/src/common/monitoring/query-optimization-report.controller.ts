@@ -145,7 +145,7 @@ export class QueryOptimizationReportController {
   @ApiResponse({ status: 200, description: '최적화 가이드라인 (Markdown)' })
   async getOptimizationGuidelines(@Res() res: Response) {
     const guidelines = await this.queryOptimizationService.generateOptimizationGuidelines();
-    
+
     res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename="query-optimization-guidelines.md"');
     res.send(guidelines);

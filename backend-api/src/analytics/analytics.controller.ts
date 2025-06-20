@@ -36,15 +36,12 @@ export class AnalyticsController {
     const userId = req.user?.userId || null;
     const ipAddress = forwardedFor?.split(',')[0]?.trim() || req.ip;
 
-    await this.analyticsService.collectEvents(
-      createEventDto.events,
-      {
-        userId,
-        correlationId,
-        userAgent,
-        ipAddress,
-      },
-    );
+    await this.analyticsService.collectEvents(createEventDto.events, {
+      userId,
+      correlationId,
+      userAgent,
+      ipAddress,
+    });
   }
 
   @Post('events/batch')
@@ -58,14 +55,11 @@ export class AnalyticsController {
     @GetUser() user: any,
     @Headers('x-correlation-id') correlationId: string,
   ): Promise<void> {
-    await this.analyticsService.collectEvents(
-      createEventDto.events,
-      {
-        userId: user.userId,
-        correlationId,
-        userAgent: 'Server-Side',
-        ipAddress: 'Internal',
-      },
-    );
+    await this.analyticsService.collectEvents(createEventDto.events, {
+      userId: user.userId,
+      correlationId,
+      userAgent: 'Server-Side',
+      ipAddress: 'Internal',
+    });
   }
 }

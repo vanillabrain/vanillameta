@@ -19,15 +19,15 @@ import { CreateLoginDto } from './dto/create-login.dto';
 import { LoginUserDto } from '../login/dto/login-user.dto';
 import { AuthService } from 'src/auth/auth.service';
 import { LocalAuthGuard } from 'src/auth/guards/local-auth.guard';
-import { 
-  ApiOperation, 
-  ApiTags, 
-  ApiResponse, 
+import {
+  ApiOperation,
+  ApiTags,
+  ApiResponse,
   ApiBody,
   ApiBearerAuth,
   ApiUnauthorizedResponse,
   ApiBadRequestResponse,
-  ApiCreatedResponse
+  ApiCreatedResponse,
 } from '@nestjs/swagger';
 // import { I18n, I18nContext } from 'nestjs-i18n'; // removed due to dependency issue
 
@@ -41,26 +41,26 @@ export class LoginController {
 
   @UsePipes(ValidationPipe)
   @Post('signin')
-  @ApiOperation({ 
-    summary: '사용자 로그인', 
-    description: '이메일과 비밀번호로 로그인하여 JWT 액세스 토큰을 발급받습니다.' 
+  @ApiOperation({
+    summary: '사용자 로그인',
+    description: '이메일과 비밀번호로 로그인하여 JWT 액세스 토큰을 발급받습니다.',
   })
   @ApiBody({ type: LoginUserDto })
-  @ApiCreatedResponse({ 
+  @ApiCreatedResponse({
     description: '로그인 성공',
     schema: {
       properties: {
         accessToken: {
           type: 'string',
           description: 'JWT 액세스 토큰',
-          example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+          example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
         },
         message: {
           type: 'string',
-          example: 'success'
-        }
-      }
-    }
+          example: 'success',
+        },
+      },
+    },
   })
   @ApiBadRequestResponse({ description: '잘못된 요청 (유효성 검사 실패)' })
   @ApiUnauthorizedResponse({ description: '인증 실패 (이메일 또는 비밀번호 오류)' })
@@ -87,20 +87,20 @@ export class LoginController {
   // validationPipe = 들어오는 모든 클라이언트 페이로드에 대한 유효성 검사 규칙을 적용
   @UsePipes(ValidationPipe)
   @Post('signup')
-  @ApiOperation({ 
-    summary: '회원가입', 
-    description: '새로운 사용자 계정을 생성합니다.' 
+  @ApiOperation({
+    summary: '회원가입',
+    description: '새로운 사용자 계정을 생성합니다.',
   })
   @ApiBody({ type: CreateLoginDto })
-  @ApiCreatedResponse({ 
+  @ApiCreatedResponse({
     description: '회원가입 성공',
     schema: {
       properties: {
         userId: { type: 'string' },
         userEmail: { type: 'string' },
-        message: { type: 'string', example: 'success' }
-      }
-    }
+        message: { type: 'string', example: 'success' },
+      },
+    },
   })
   @ApiBadRequestResponse({ description: '잘못된 요청 (유효성 검사 실패 또는 중복된 이메일)' })
   async create(@Body() createUserDto: CreateLoginDto) {
@@ -112,17 +112,17 @@ export class LoginController {
   @UseGuards(LocalAuthGuard) //refrshtoken 검사
   @Post('signout')
   @ApiBearerAuth('AccessToken')
-  @ApiOperation({ 
-    summary: '로그아웃', 
-    description: '현재 세션을 종료하고 리프레시 토큰을 삭제합니다.' 
+  @ApiOperation({
+    summary: '로그아웃',
+    description: '현재 세션을 종료하고 리프레시 토큰을 삭제합니다.',
   })
-  @ApiCreatedResponse({ 
+  @ApiCreatedResponse({
     description: '로그아웃 성공',
     schema: {
       properties: {
-        message: { type: 'string', example: 'success' }
-      }
-    }
+        message: { type: 'string', example: 'success' },
+      },
+    },
   })
   @ApiUnauthorizedResponse({ description: '인증 실패' })
   async signOut(@Res() res, @Req() req) {

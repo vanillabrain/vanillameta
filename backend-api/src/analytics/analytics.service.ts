@@ -24,7 +24,7 @@ export class AnalyticsService {
   async collectEvents(events: EventDataDto[], context: EventContext): Promise<void> {
     try {
       const analyticsEvents = events.map(event => this.createAnalyticsEvent(event, context));
-      
+
       // 배치 삽입으로 성능 최적화
       await this.analyticsEventRepository
         .createQueryBuilder()
@@ -49,7 +49,10 @@ export class AnalyticsService {
     }
   }
 
-  private createAnalyticsEvent(event: EventDataDto, context: EventContext): Partial<AnalyticsEvent> {
+  private createAnalyticsEvent(
+    event: EventDataDto,
+    context: EventContext,
+  ): Partial<AnalyticsEvent> {
     const { metadata = {} } = event;
     const userAgentData = this.parseUserAgent(context.userAgent);
 
@@ -181,7 +184,7 @@ export class AnalyticsService {
       .getMany();
   }
 
-  async getPopularFeatures(limit: number = 10): Promise<any> {
+  async getPopularFeatures(limit = 10): Promise<any> {
     const endDate = new Date();
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - 30); // 최근 30일
@@ -193,8 +196,8 @@ export class AnalyticsService {
       .addSelect('COUNT(*)', 'usageCount')
       .addSelect('COUNT(DISTINCT event.userId)', 'uniqueUsers')
       .where('event.createdAt BETWEEN :startDate AND :endDate', { startDate, endDate })
-      .andWhere('event.category NOT IN (:...excludedCategories)', { 
-        excludedCategories: ['performance', 'error'] 
+      .andWhere('event.category NOT IN (:...excludedCategories)', {
+        excludedCategories: ['performance', 'error'],
       })
       .groupBy('event.category')
       .addGroupBy('event.action')
@@ -209,7 +212,7 @@ export class AnalyticsService {
         .createQueryBuilder('event')
         .where('event.createdAt BETWEEN :startDate AND :endDate', { startDate, endDate })
         .getCount(),
-      
+
       this.analyticsEventRepository
         .createQueryBuilder('event')
         .where('event.createdAt BETWEEN :startDate AND :endDate', { startDate, endDate })
@@ -220,7 +223,7 @@ export class AnalyticsService {
     return {
       totalEvents,
       errorEvents,
-      errorRate: totalEvents > 0 ? (errorEvents / totalEvents * 100).toFixed(2) : 0,
+      errorRate: totalEvents > 0 ? ((errorEvents / totalEvents) * 100).toFixed(2) : 0,
     };
   }
 
