@@ -28,18 +28,11 @@ export class EventsController {
   @AuthPublic() // 프론트엔드에서 인증 없이도 이벤트 전송 가능
   @ApiOperation({ summary: '이벤트 추적' })
   @ApiResponse({ status: 204, description: '이벤트가 성공적으로 기록됨' })
-  async trackEvents(
-    @Body() trackEventDto: TrackEventDto,
-    @Req() req: Request,
-  ): Promise<void> {
+  async trackEvents(@Body() trackEventDto: TrackEventDto, @Req() req: Request): Promise<void> {
     const clientIp = this.getClientIp(req);
     const userAgent = req.headers['user-agent'] || '';
-    
-    await this.eventsService.trackEvents(
-      trackEventDto,
-      clientIp,
-      userAgent,
-    );
+
+    await this.eventsService.trackEvents(trackEventDto, clientIp, userAgent);
   }
 
   @Post('metrics')
@@ -47,16 +40,10 @@ export class EventsController {
   @AuthPublic()
   @ApiOperation({ summary: '성능 메트릭 추적' })
   @ApiResponse({ status: 204, description: '메트릭이 성공적으로 기록됨' })
-  async trackMetrics(
-    @Body() trackMetricDto: TrackMetricDto,
-    @Req() req: Request,
-  ): Promise<void> {
+  async trackMetrics(@Body() trackMetricDto: TrackMetricDto, @Req() req: Request): Promise<void> {
     const userAgent = req.headers['user-agent'] || '';
-    
-    await this.eventsService.trackMetrics(
-      trackMetricDto,
-      userAgent,
-    );
+
+    await this.eventsService.trackMetrics(trackMetricDto, userAgent);
   }
 
   @Get('analytics/summary')
@@ -64,10 +51,7 @@ export class EventsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: '분석 요약 데이터 조회' })
   @ApiResponse({ status: 200, description: '분석 요약 데이터' })
-  async getAnalyticsSummary(
-    @Query() query: AnalyticsQueryDto,
-    @Req() req: any,
-  ) {
+  async getAnalyticsSummary(@Query() query: AnalyticsQueryDto, @Req() req: any) {
     const userId = req.user?.userId;
     return this.eventsService.getAnalyticsSummary(query, userId);
   }
@@ -77,10 +61,7 @@ export class EventsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: '이벤트 목록 조회' })
   @ApiResponse({ status: 200, description: '이벤트 목록' })
-  async getEvents(
-    @Query() query: AnalyticsQueryDto,
-    @Req() req: any,
-  ) {
+  async getEvents(@Query() query: AnalyticsQueryDto, @Req() req: any) {
     const userId = req.user?.userId;
     return this.eventsService.getEvents(query, userId);
   }
@@ -90,10 +71,7 @@ export class EventsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: '성능 메트릭 조회' })
   @ApiResponse({ status: 200, description: '성능 메트릭 데이터' })
-  async getMetrics(
-    @Query() query: AnalyticsQueryDto,
-    @Req() req: any,
-  ) {
+  async getMetrics(@Query() query: AnalyticsQueryDto, @Req() req: any) {
     const userId = req.user?.userId;
     return this.eventsService.getMetrics(query, userId);
   }
@@ -118,10 +96,7 @@ export class EventsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: '리텐션 분석 데이터 조회' })
   @ApiResponse({ status: 200, description: '리텐션 분석 데이터' })
-  async getRetentionAnalysis(
-    @Query() query: AnalyticsQueryDto,
-    @Req() req: any,
-  ) {
+  async getRetentionAnalysis(@Query() query: AnalyticsQueryDto, @Req() req: any) {
     const userId = req.user?.userId;
     return this.eventsService.getRetentionAnalysis(query, userId);
   }
@@ -131,10 +106,7 @@ export class EventsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: '사용자 플로우 분석' })
   @ApiResponse({ status: 200, description: '사용자 플로우 데이터' })
-  async getUserFlow(
-    @Query() query: AnalyticsQueryDto,
-    @Req() req: any,
-  ) {
+  async getUserFlow(@Query() query: AnalyticsQueryDto, @Req() req: any) {
     const userId = req.user?.userId;
     return this.eventsService.getUserFlow(query, userId);
   }
@@ -145,7 +117,7 @@ export class EventsController {
     const ip = forwarded
       ? forwarded.split(',')[0].trim()
       : req.connection.remoteAddress || req.socket.remoteAddress || '';
-    
+
     return ip;
   }
 }

@@ -469,7 +469,7 @@ export class DatasetService {
    */
   private detectQueryType(query: string): string {
     const normalizedQuery = query.trim().toUpperCase();
-    
+
     if (normalizedQuery.startsWith('SELECT')) {
       if (normalizedQuery.includes('JOIN')) {
         return 'SELECT_JOIN';
@@ -479,11 +479,11 @@ export class DatasetService {
       }
       return 'SELECT_SIMPLE';
     }
-    
+
     if (normalizedQuery.startsWith('INSERT')) return 'INSERT';
     if (normalizedQuery.startsWith('UPDATE')) return 'UPDATE';
     if (normalizedQuery.startsWith('DELETE')) return 'DELETE';
-    
+
     return 'OTHER';
   }
 }

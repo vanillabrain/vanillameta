@@ -48,10 +48,10 @@ const getEnvironmentMultiplier = (): number => {
 const calculateMaxConnections = (baseMax: number): number => {
   const envMultiplier = getEnvironmentMultiplier();
   const memoryMB = parseInt(process.env.AWS_LAMBDA_FUNCTION_MEMORY_SIZE) || 512;
-  
+
   // 메모리 기반 조정 (512MB = 1.0, 1024MB = 1.5, 3008MB = 3.0)
   const memoryMultiplier = Math.min(memoryMB / 512, 3.0);
-  
+
   return Math.ceil(baseMax * envMultiplier * memoryMultiplier);
 };
 
@@ -87,7 +87,7 @@ export const getMySQLConfig = (): DatabaseSpecificConfig => ({
           'SET SESSION autocommit=1',
           'SET SESSION tx_isolation="READ-COMMITTED"',
         ];
-        
+
         let completed = 0;
         queries.forEach(query => {
           conn.query(query, (err: any) => {
@@ -325,29 +325,29 @@ export const getOracleConfig = (): DatabaseSpecificConfig => ({
  */
 export const getDatabaseSpecificConfig = (databaseType: string): DatabaseSpecificConfig | null => {
   const normalizedType = databaseType?.toLowerCase().trim();
-  
+
   switch (normalizedType) {
     case 'mysql':
     case 'mysql2':
     case 'mariadb':
       return getMySQLConfig();
-    
+
     case 'pg':
     case 'postgres':
     case 'postgresql':
     case 'cockroachdb':
       return getPostgreSQLConfig();
-    
+
     case 'bigquery':
       return getBigQueryConfig();
-    
+
     case 'snowflake':
       return getSnowflakeConfig();
-    
+
     case 'oracle':
     case 'oracledb':
       return getOracleConfig();
-    
+
     default:
       return null;
   }
@@ -357,11 +357,17 @@ export const getDatabaseSpecificConfig = (databaseType: string): DatabaseSpecifi
  * 모든 지원 데이터베이스 타입 반환
  */
 export const getSupportedDatabaseTypes = (): string[] => [
-  'mysql', 'mysql2', 'mariadb',
-  'pg', 'postgres', 'postgresql', 'cockroachdb',
+  'mysql',
+  'mysql2',
+  'mariadb',
+  'pg',
+  'postgres',
+  'postgresql',
+  'cockroachdb',
   'bigquery',
   'snowflake',
-  'oracle', 'oracledb',
+  'oracle',
+  'oracledb',
 ];
 
 /**
@@ -405,38 +411,40 @@ export const getDatabaseBenchmarks = () => ({
  */
 export const getEnvironmentOptimizations = () => {
   const env = process.env.NODE_ENV || 'development';
-  
-  return {
-    local: {
-      poolSize: 0.3,
-      queryTimeout: 10000, // 10초
-      connectionTimeout: 10000,
-      batchSize: 0.1,
-      enableLogging: true,
-      enableProfiling: true,
-    },
-    dev: {
-      poolSize: 0.7,
-      queryTimeout: 30000, // 30초
+
+  return (
+    {
+      local: {
+        poolSize: 0.3,
+        queryTimeout: 10000, // 10초
+        connectionTimeout: 10000,
+        batchSize: 0.1,
+        enableLogging: true,
+        enableProfiling: true,
+      },
+      dev: {
+        poolSize: 0.7,
+        queryTimeout: 30000, // 30초
+        connectionTimeout: 30000,
+        batchSize: 0.5,
+        enableLogging: true,
+        enableProfiling: true,
+      },
+      prod: {
+        poolSize: 1.0,
+        queryTimeout: 30000, // 30초
+        connectionTimeout: 30000,
+        batchSize: 1.0,
+        enableLogging: false,
+        enableProfiling: false,
+      },
+    }[env] || {
+      poolSize: 0.5,
+      queryTimeout: 30000,
       connectionTimeout: 30000,
       batchSize: 0.5,
       enableLogging: true,
-      enableProfiling: true,
-    },
-    prod: {
-      poolSize: 1.0,
-      queryTimeout: 30000, // 30초
-      connectionTimeout: 30000,
-      batchSize: 1.0,
-      enableLogging: false,
       enableProfiling: false,
-    },
-  }[env] || {
-    poolSize: 0.5,
-    queryTimeout: 30000,
-    connectionTimeout: 30000,
-    batchSize: 0.5,
-    enableLogging: true,
-    enableProfiling: false,
-  };
+    }
+  );
 };

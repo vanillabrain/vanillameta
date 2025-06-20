@@ -32,7 +32,7 @@ export class IntegratedMetricsService {
   ) {
     this.environment = this.configService.get<string>('NODE_ENV', 'dev');
     this.namespace = `VanillaMeta/${this.environment}`;
-    
+
     // 주기적으로 시스템 메트릭 수집
     this.startMetricsCollection();
   }
@@ -85,7 +85,8 @@ export class IntegratedMetricsService {
     }
 
     // 느린 응답 추적
-    if (responseTime > 5000) { // 5초 이상
+    if (responseTime > 5000) {
+      // 5초 이상
       await this.recordSlowResponse(path, method, responseTime);
     }
   }
@@ -174,12 +175,7 @@ export class IntegratedMetricsService {
     ]);
 
     if (coldStart) {
-      await this.cloudWatchMetrics.putMetric(
-        this.namespace,
-        'ColdStartCount',
-        1,
-        'Count',
-      );
+      await this.cloudWatchMetrics.putMetric(this.namespace, 'ColdStartCount', 1, 'Count');
     }
   }
 
@@ -204,33 +200,18 @@ export class IntegratedMetricsService {
   /**
    * 에러 기록
    */
-  private async recordError(
-    statusCode: number,
-    path: string,
-    method: string,
-  ): Promise<void> {
+  private async recordError(statusCode: number, path: string, method: string): Promise<void> {
     const errorType = statusCode >= 500 ? 'ServerError' : 'ClientError';
-    
-    await this.cloudWatchMetrics.putMetric(
-      this.namespace,
-      'ErrorCount',
-      1,
-      'Count',
-      {
-        ErrorType: errorType,
-        StatusCode: statusCode.toString(),
-        Path: this.sanitizePath(path),
-        Method: method,
-      },
-    );
+
+    await this.cloudWatchMetrics.putMetric(this.namespace, 'ErrorCount', 1, 'Count', {
+      ErrorType: errorType,
+      StatusCode: statusCode.toString(),
+      Path: this.sanitizePath(path),
+      Method: method,
+    });
 
     if (statusCode >= 500) {
-      await this.cloudWatchMetrics.putMetric(
-        this.namespace,
-        'Http5xxErrorCount',
-        1,
-        'Count',
-      );
+      await this.cloudWatchMetrics.putMetric(this.namespace, 'Http5xxErrorCount', 1, 'Count');
     }
   }
 
@@ -242,17 +223,11 @@ export class IntegratedMetricsService {
     method: string,
     responseTime: number,
   ): Promise<void> {
-    await this.cloudWatchMetrics.putMetric(
-      this.namespace,
-      'SlowResponseCount',
-      1,
-      'Count',
-      {
-        Path: this.sanitizePath(path),
-        Method: method,
-        ResponseTimeRange: this.getResponseTimeRange(responseTime),
-      },
-    );
+    await this.cloudWatchMetrics.putMetric(this.namespace, 'SlowResponseCount', 1, 'Count', {
+      Path: this.sanitizePath(path),
+      Method: method,
+      ResponseTimeRange: this.getResponseTimeRange(responseTime),
+    });
   }
 
   /**
@@ -284,7 +259,7 @@ export class IntegratedMetricsService {
   private async collectSystemMetrics(): Promise<void> {
     const cpuUsage = process.cpuUsage();
     const memoryUsage = process.memoryUsage();
-    
+
     const totalMemory = os.totalmem();
     const freeMemory = os.freemem();
     const usedMemory = totalMemory - freeMemory;
@@ -318,11 +293,12 @@ export class IntegratedMetricsService {
   private async collectSummaryMetrics(): Promise<void> {
     const currentTime = Date.now();
     const timeDiff = currentTime - this.lastResetTime;
-    
+
     if (timeDiff > 0) {
       const requestRate = (this.requestCount / timeDiff) * 1000 * 60; // requests per minute
       const errorRate = this.requestCount > 0 ? (this.errorCount / this.requestCount) * 100 : 0;
-      const avgResponseTime = this.requestCount > 0 ? this.totalResponseTime / this.requestCount : 0;
+      const avgResponseTime =
+        this.requestCount > 0 ? this.totalResponseTime / this.requestCount : 0;
 
       await Promise.all([
         this.cloudWatchMetrics.putMetric(
@@ -393,7 +369,7 @@ export class IntegratedMetricsService {
     const totalMemory = os.totalmem();
     const freeMemory = os.freemem();
     const usedMemory = totalMemory - freeMemory;
-    
+
     return {
       cpuUsage: os.loadavg()[0] * 100, // 1분 평균 CPU 로드
       memoryUsage: (usedMemory / totalMemory) * 100,

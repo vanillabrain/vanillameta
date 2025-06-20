@@ -31,19 +31,19 @@ export class EventsService {
   ): Promise<void> {
     try {
       const { events, sessionInfo } = trackEventDto;
-      
+
       // IP 익명화 (마지막 옥텟 제거)
       const anonymizedIp = this.anonymizeIp(clientIp);
-      
+
       // User-Agent 파싱
       const uaParser = new UAParser(userAgent);
       const uaResult = uaParser.getResult();
-      
+
       // 세션 정보 업데이트 또는 생성
       if (sessionInfo) {
         await this.upsertSession(sessionInfo, anonymizedIp, uaResult);
       }
-      
+
       // 이벤트 저장
       const eventEntities = events.map(event => {
         const eventEntity = this.analyticsEventRepository.create({
@@ -61,12 +61,12 @@ export class EventsService {
           pageUrl: event.properties?.url,
           referrer: event.properties?.referrer,
         });
-        
+
         return eventEntity;
       });
-      
+
       await this.analyticsEventRepository.save(eventEntities);
-      
+
       this.logger.log(`Tracked ${events.length} events`);
     } catch (error) {
       this.logger.error('Failed to track events', error);
@@ -74,17 +74,14 @@ export class EventsService {
     }
   }
 
-  async trackMetrics(
-    trackMetricDto: TrackMetricDto,
-    userAgent: string,
-  ): Promise<void> {
+  async trackMetrics(trackMetricDto: TrackMetricDto, userAgent: string): Promise<void> {
     try {
       const { metrics } = trackMetricDto;
-      
+
       // User-Agent 파싱
       const uaParser = new UAParser(userAgent);
       const uaResult = uaParser.getResult();
-      
+
       const metricEntities = metrics.map(metric => {
         return this.performanceMetricRepository.create({
           name: metric.name,
@@ -94,9 +91,9 @@ export class EventsService {
           deviceType: uaResult.device.type || 'desktop',
         });
       });
-      
+
       await this.performanceMetricRepository.save(metricEntities);
-      
+
       this.logger.log(`Tracked ${metrics.length} performance metrics`);
     } catch (error) {
       this.logger.error('Failed to track metrics', error);
@@ -105,7 +102,7 @@ export class EventsService {
 
   async getAnalyticsSummary(query: AnalyticsQueryDto, userId?: string) {
     const dateRange = this.getDateRange(query);
-    
+
     const [
       totalEvents,
       uniqueUsers,
@@ -121,7 +118,7 @@ export class EventsService {
           ...(userId && { userId }),
         },
       }),
-      
+
       // 고유 사용자 수
       this.analyticsEventRepository
         .createQueryBuilder('event')
@@ -130,7 +127,7 @@ export class EventsService {
         .andWhere(userId ? 'event.userId = :userId' : '1=1', { userId })
         .getRawOne()
         .then(result => result.count),
-      
+
       // 총 세션 수
       this.eventSessionRepository.count({
         where: {
@@ -138,7 +135,7 @@ export class EventsService {
           ...(userId && { userId }),
         },
       }),
-      
+
       // 평균 세션 시간
       this.eventSessionRepository
         .createQueryBuilder('session')
@@ -147,14 +144,14 @@ export class EventsService {
         .andWhere(userId ? 'session.userId = :userId' : '1=1', { userId })
         .getRawOne()
         .then(result => result.avg || 0),
-      
+
       // 상위 이벤트
       this.getTopEvents(dateRange, userId, 10),
-      
+
       // 카테고리별 이벤트
       this.getEventsByCategory(dateRange, userId),
     ]);
-    
+
     return {
       totalEvents,
       uniqueUsers: parseInt(uniqueUsers),
@@ -171,12 +168,12 @@ export class EventsService {
     const where: any = {
       createdAt: Between(dateRange.start, dateRange.end),
     };
-    
+
     if (userId) where.userId = userId;
     if (query.category) where.category = query.category;
     if (query.action) where.action = query.action;
     if (query.sessionId) where.sessionId = query.sessionId;
-    
+
     const [events, total] = await this.analyticsEventRepository.findAndCount({
       where,
       order: { createdAt: 'DESC' },
@@ -184,7 +181,7 @@ export class EventsService {
       skip: query.offset,
       relations: ['session'],
     });
-    
+
     return {
       events,
       total,
@@ -198,10 +195,10 @@ export class EventsService {
     const where: any = {
       createdAt: Between(dateRange.start, dateRange.end),
     };
-    
+
     if (userId) where.userId = userId;
     if (query.category) where.category = query.category;
-    
+
     const metrics = await this.performanceMetricRepository
       .createQueryBuilder('metric')
       .select([
@@ -216,28 +213,28 @@ export class EventsService {
       .andWhere(userId ? 'metric.userId = :userId' : '1=1', { userId })
       .groupBy('metric.name, metric.category')
       .getRawMany();
-    
+
     return metrics;
   }
 
   async getFunnelAnalysis(steps: string[], query: AnalyticsQueryDto, userId?: string) {
     const dateRange = this.getDateRange(query);
-    
+
     // 각 단계별 사용자 수 계산
     const funnelData = await Promise.all(
       steps.map(async (step, index) => {
         const previousSteps = steps.slice(0, index);
-        
-        let queryBuilder = this.analyticsEventRepository
+
+        const queryBuilder = this.analyticsEventRepository
           .createQueryBuilder('event')
           .select('COUNT(DISTINCT event.userId)', 'count')
           .where('event.action = :action', { action: step })
           .andWhere('event.createdAt BETWEEN :start AND :end', dateRange);
-        
+
         if (userId) {
           queryBuilder.andWhere('event.userId = :userId', { userId });
         }
-        
+
         // 이전 단계들을 모두 거친 사용자만 카운트
         if (previousSteps.length > 0) {
           queryBuilder.andWhere(
@@ -249,30 +246,33 @@ export class EventsService {
               GROUP BY e2.userId
               HAVING COUNT(DISTINCT e2.action) = :stepCount
             )`,
-            { previousSteps, stepCount: previousSteps.length }
+            { previousSteps, stepCount: previousSteps.length },
           );
         }
-        
+
         const result = await queryBuilder.getRawOne();
-        
+
         return {
           step,
           users: parseInt(result.count),
           index,
         };
-      })
+      }),
     );
-    
+
     // 전환율 계산
     const funnelWithConversion = funnelData.map((data, index) => ({
       ...data,
-      conversionRate: index === 0 ? 100 : 
-        funnelData[0].users > 0 ? (data.users / funnelData[0].users) * 100 : 0,
-      dropOffRate: index === 0 ? 0 :
-        funnelData[index - 1].users > 0 ? 
-          ((funnelData[index - 1].users - data.users) / funnelData[index - 1].users) * 100 : 0,
+      conversionRate:
+        index === 0 ? 100 : funnelData[0].users > 0 ? (data.users / funnelData[0].users) * 100 : 0,
+      dropOffRate:
+        index === 0
+          ? 0
+          : funnelData[index - 1].users > 0
+          ? ((funnelData[index - 1].users - data.users) / funnelData[index - 1].users) * 100
+          : 0,
     }));
-    
+
     return {
       funnel: funnelWithConversion,
       dateRange,
@@ -282,17 +282,17 @@ export class EventsService {
   async getRetentionAnalysis(query: AnalyticsQueryDto, userId?: string) {
     const dateRange = this.getDateRange(query);
     const cohortSize = 7; // 7일 단위 코호트
-    
+
     // 코호트별 리텐션 계산
     const retentionData = [];
     const startDate = new Date(dateRange.start);
     const endDate = new Date(dateRange.end);
-    
+
     for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + cohortSize)) {
       const cohortStart = new Date(d);
       const cohortEnd = new Date(d);
       cohortEnd.setDate(cohortEnd.getDate() + cohortSize - 1);
-      
+
       // 코호트 기간 동안 처음 활동한 사용자
       const cohortUsers = await this.analyticsEventRepository
         .createQueryBuilder('event')
@@ -303,19 +303,19 @@ export class EventsService {
         })
         .andWhere(userId ? 'event.userId = :userId' : '1=1', { userId })
         .getRawMany();
-      
+
       const cohortUserIds = cohortUsers.map(u => u.userId);
-      
+
       // 이후 기간별 리텐션 계산
       const retentionPeriods = [];
       for (let period = 0; period <= 4; period++) {
         const periodStart = new Date(cohortEnd);
-        periodStart.setDate(periodStart.getDate() + (period * 7) + 1);
+        periodStart.setDate(periodStart.getDate() + period * 7 + 1);
         const periodEnd = new Date(periodStart);
         periodEnd.setDate(periodEnd.getDate() + 6);
-        
+
         if (periodEnd > new Date()) break;
-        
+
         const activeUsers = await this.analyticsEventRepository
           .createQueryBuilder('event')
           .select('COUNT(DISTINCT event.userId)', 'count')
@@ -325,22 +325,24 @@ export class EventsService {
             end: periodEnd,
           })
           .getRawOne();
-        
+
         retentionPeriods.push({
           period: `Week ${period + 1}`,
           activeUsers: parseInt(activeUsers.count),
-          retentionRate: cohortUserIds.length > 0 ? 
-            (parseInt(activeUsers.count) / cohortUserIds.length) * 100 : 0,
+          retentionRate:
+            cohortUserIds.length > 0
+              ? (parseInt(activeUsers.count) / cohortUserIds.length) * 100
+              : 0,
         });
       }
-      
+
       retentionData.push({
         cohort: cohortStart.toISOString().split('T')[0],
         totalUsers: cohortUserIds.length,
         retention: retentionPeriods,
       });
     }
-    
+
     return {
       retention: retentionData,
       dateRange,
@@ -349,7 +351,7 @@ export class EventsService {
 
   async getUserFlow(query: AnalyticsQueryDto, userId?: string) {
     const dateRange = this.getDateRange(query);
-    
+
     // 사용자별 이벤트 시퀀스 가져오기
     const userFlows = await this.analyticsEventRepository
       .createQueryBuilder('event')
@@ -366,11 +368,11 @@ export class EventsService {
       .addOrderBy('event.createdAt', 'ASC')
       .limit(1000)
       .getMany();
-    
+
     // 플로우 패턴 분석
     const flowPatterns = new Map<string, number>();
     const userSessions = new Map<string, typeof userFlows>();
-    
+
     // 사용자별로 이벤트 그룹화
     userFlows.forEach(event => {
       const key = `${event.userId}-${event.sessionId}`;
@@ -379,7 +381,7 @@ export class EventsService {
       }
       userSessions.get(key)!.push(event);
     });
-    
+
     // 패턴 추출
     userSessions.forEach(events => {
       for (let i = 0; i < events.length - 1; i++) {
@@ -387,13 +389,13 @@ export class EventsService {
         flowPatterns.set(pattern, (flowPatterns.get(pattern) || 0) + 1);
       }
     });
-    
+
     // 상위 패턴 정렬
     const topPatterns = Array.from(flowPatterns.entries())
       .sort((a, b) => b[1] - a[1])
       .slice(0, 20)
       .map(([pattern, count]) => ({ pattern, count }));
-    
+
     return {
       topPatterns,
       totalSessions: userSessions.size,
@@ -405,7 +407,7 @@ export class EventsService {
     const existingSession = await this.eventSessionRepository.findOne({
       where: { sessionId: sessionInfo.sessionId },
     });
-    
+
     if (existingSession) {
       existingSession.lastActivityTime = new Date(sessionInfo.lastActivityTime);
       existingSession.pageViews = sessionInfo.pageViews;
@@ -450,21 +452,21 @@ export class EventsService {
 
   private sanitizeProperties(properties: any): any {
     if (!properties) return properties;
-    
+
     // PII 필드 제거
     const sanitized = { ...properties };
     const piiFields = ['email', 'phone', 'name', 'address', 'ssn', 'creditCard'];
-    
+
     piiFields.forEach(field => {
       delete sanitized[field];
     });
-    
+
     return sanitized;
   }
 
   private sanitizeUserProperties(userProperties: any): any {
     if (!userProperties) return userProperties;
-    
+
     // 이메일은 해시화하여 저장
     const sanitized = { ...userProperties };
     if (sanitized.email) {
@@ -472,7 +474,7 @@ export class EventsService {
       sanitized.emailHash = Buffer.from(sanitized.email).toString('base64');
       delete sanitized.email;
     }
-    
+
     return sanitized;
   }
 
@@ -480,7 +482,7 @@ export class EventsService {
     const now = new Date();
     let start: Date;
     let end: Date = now;
-    
+
     if (query.startDate && query.endDate) {
       start = new Date(query.startDate);
       end = new Date(query.endDate);
@@ -505,45 +507,38 @@ export class EventsService {
           start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       }
     }
-    
+
     return { start, end };
   }
 
   private async getTopEvents(dateRange: any, userId: string | undefined, limit: number) {
     const query = this.analyticsEventRepository
       .createQueryBuilder('event')
-      .select([
-        'event.action',
-        'event.category',
-        'COUNT(*) as count',
-      ])
+      .select(['event.action', 'event.category', 'COUNT(*) as count'])
       .where('event.createdAt BETWEEN :start AND :end', dateRange)
       .groupBy('event.action, event.category')
       .orderBy('count', 'DESC')
       .limit(limit);
-    
+
     if (userId) {
       query.andWhere('event.userId = :userId', { userId });
     }
-    
+
     return query.getRawMany();
   }
 
   private async getEventsByCategory(dateRange: any, userId: string | undefined) {
     const query = this.analyticsEventRepository
       .createQueryBuilder('event')
-      .select([
-        'event.category',
-        'COUNT(*) as count',
-      ])
+      .select(['event.category', 'COUNT(*) as count'])
       .where('event.createdAt BETWEEN :start AND :end', dateRange)
       .groupBy('event.category')
       .orderBy('count', 'DESC');
-    
+
     if (userId) {
       query.andWhere('event.userId = :userId', { userId });
     }
-    
+
     return query.getRawMany();
   }
 }

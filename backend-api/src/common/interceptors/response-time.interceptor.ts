@@ -23,7 +23,7 @@ export class ResponseTimeInterceptor implements NestInterceptor {
 
     return next.handle().pipe(
       tap({
-        next: (data) => {
+        next: data => {
           const responseTime = Date.now() - startTime;
           const statusCode = response.statusCode;
 
@@ -31,11 +31,11 @@ export class ResponseTimeInterceptor implements NestInterceptor {
           this.logger.debug(`[${method}] ${url} - Response: ${statusCode} (${responseTime}ms)`);
 
           // 메트릭 기록
-          this.recordMetrics(path, method, statusCode, responseTime).catch((error) => {
+          this.recordMetrics(path, method, statusCode, responseTime).catch(error => {
             this.logger.error('Failed to record response metrics', error);
           });
         },
-        error: (error) => {
+        error: error => {
           const responseTime = Date.now() - startTime;
           const statusCode = error.status || 500;
 
@@ -46,7 +46,7 @@ export class ResponseTimeInterceptor implements NestInterceptor {
           });
 
           // 에러 메트릭 기록
-          this.recordMetrics(path, method, statusCode, responseTime).catch((err) => {
+          this.recordMetrics(path, method, statusCode, responseTime).catch(err => {
             this.logger.error('Failed to record error metrics', err);
           });
         },

@@ -17,7 +17,7 @@ export class QueryPerformanceMetricsInterceptor {
 
   private startPeriodicReporting(): void {
     setInterval(() => {
-      this.reportQueryMetrics().catch((error) => {
+      this.reportQueryMetrics().catch(error => {
         console.error('Failed to report query metrics:', error);
       });
     }, this.reportInterval);
@@ -49,7 +49,7 @@ export class QueryPerformanceMetricsInterceptor {
   private groupQueriesByType(queries: QueryInfo[]): Record<string, QueryInfo[]> {
     const groups: Record<string, QueryInfo[]> = {};
 
-    queries.forEach((query) => {
+    queries.forEach(query => {
       const queryType = this.extractQueryType(query.query);
       if (!groups[queryType]) {
         groups[queryType] = [];
@@ -88,14 +88,11 @@ export class QueryPerformanceMetricsInterceptor {
     return 'OTHER';
   }
 
-  private async reportQueryGroupMetrics(
-    queryType: string,
-    queries: QueryInfo[],
-  ): Promise<void> {
+  private async reportQueryGroupMetrics(queryType: string, queries: QueryInfo[]): Promise<void> {
     // 실행 시간 통계
     const executionTimes = queries
-      .filter((q) => q.executionTime !== undefined)
-      .map((q) => q.executionTime!);
+      .filter(q => q.executionTime !== undefined)
+      .map(q => q.executionTime!);
 
     if (executionTimes.length === 0) {
       return;
@@ -106,15 +103,15 @@ export class QueryPerformanceMetricsInterceptor {
       executionTimes.reduce((sum, time) => sum + time, 0) / executionTimes.length;
 
     // 성공/실패 카운트
-    const successCount = queries.filter((q) => q.success).length;
-    const errorCount = queries.filter((q) => !q.success).length;
+    const successCount = queries.filter(q => q.success).length;
+    const errorCount = queries.filter(q => !q.success).length;
 
     // 데이터베이스 타입별 분류
-    const databaseTypes = new Set(queries.map((q) => q.source?.split(' ')[0] || 'unknown'));
+    const databaseTypes = new Set(queries.map(q => q.source?.split(' ')[0] || 'unknown'));
 
     for (const dbType of databaseTypes) {
-      const dbQueries = queries.filter((q) => (q.source?.split(' ')[0] || 'unknown') === dbType);
-      
+      const dbQueries = queries.filter(q => (q.source?.split(' ')[0] || 'unknown') === dbType);
+
       // 각 쿼리에 대해 메트릭 기록
       for (const query of dbQueries) {
         if (query.executionTime !== undefined) {
@@ -131,9 +128,7 @@ export class QueryPerformanceMetricsInterceptor {
 
   private async reportCacheMetrics(queries: QueryInfo[]): Promise<void> {
     // 캐시 가능한 쿼리 (SELECT)만 필터링
-    const selectQueries = queries.filter((q) =>
-      q.query.trim().toUpperCase().startsWith('SELECT'),
-    );
+    const selectQueries = queries.filter(q => q.query.trim().toUpperCase().startsWith('SELECT'));
 
     if (selectQueries.length === 0) {
       return;
@@ -166,22 +161,14 @@ export class QueryPerformanceMetricsInterceptor {
   /**
    * 위젯 렌더링 시간 추적
    */
-  async trackWidgetRender(
-    widgetId: string,
-    widgetType: string,
-    renderTime: number,
-  ): Promise<void> {
+  async trackWidgetRender(widgetId: string, widgetType: string, renderTime: number): Promise<void> {
     await this.businessMetrics.recordWidgetRenderTime(widgetId, widgetType, renderTime);
   }
 
   /**
    * 데이터 새로고침 추적
    */
-  async trackDataRefresh(
-    datasetId: string,
-    success: boolean,
-    duration?: number,
-  ): Promise<void> {
+  async trackDataRefresh(datasetId: string, success: boolean, duration?: number): Promise<void> {
     await this.businessMetrics.recordDataRefreshResult(success, datasetId, duration);
   }
 }

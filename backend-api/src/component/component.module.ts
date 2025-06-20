@@ -4,25 +4,20 @@ import { ComponentController } from './component.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Component } from './entities/component.entity';
 import { JwtService } from '@nestjs/jwt';
-import { HybridCacheService } from '../common/optimization/hybrid-cache.service';
-import { QueryCacheService } from '../common/optimization/query-cache.service';
-import { RedisCacheService } from '../common/optimization/redis-cache.service';
-import { RedisModule } from '../common/redis/redis.module';
 import { LoggerModule } from '../common/logger/logger.module';
+import { CacheModule } from '../common/optimization/cache.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Component]),
-    RedisModule,
+    TypeOrmModule.forFeature([Component]), 
     LoggerModule,
+    CacheModule, // CacheModule import 추가 - @Global()이므로 자동으로 모든 캐시 서비스 사용 가능
   ],
   controllers: [ComponentController],
   providers: [
     ComponentService,
     JwtService,
-    HybridCacheService,
-    QueryCacheService,
-    RedisCacheService,
+    // 캐시 서비스들 제거 - CacheModule에서 전역적으로 제공됨
   ],
 })
 export class ComponentModule {}

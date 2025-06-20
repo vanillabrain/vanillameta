@@ -1,11 +1,4 @@
-import {
-  Controller,
-  Get,
-  Query,
-  UseGuards,
-  HttpCode,
-  HttpStatus,
-} from '@nestjs/common';
+import { Controller, Get, Query, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { AnalyticsService } from './analytics.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -42,14 +35,8 @@ export class AnalyticsDashboardController {
   @ApiQuery({ name: 'startDate', required: true, type: String })
   @ApiQuery({ name: 'endDate', required: true, type: String })
   @ApiResponse({ status: 200, description: '이벤트 통계' })
-  async getEventStats(
-    @Query('startDate') startDate: string,
-    @Query('endDate') endDate: string,
-  ) {
-    return this.analyticsService.getEventStats(
-      new Date(startDate),
-      new Date(endDate),
-    );
+  async getEventStats(@Query('startDate') startDate: string, @Query('endDate') endDate: string) {
+    return this.analyticsService.getEventStats(new Date(startDate), new Date(endDate));
   }
 
   @Get('popular-features')
@@ -57,7 +44,7 @@ export class AnalyticsDashboardController {
   @ApiOperation({ summary: '인기 기능 조회' })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({ status: 200, description: '인기 기능 목록' })
-  async getPopularFeatures(@Query('limit') limit: number = 10) {
+  async getPopularFeatures(@Query('limit') limit = 10) {
     return this.analyticsService.getPopularFeatures(limit);
   }
 
@@ -67,14 +54,8 @@ export class AnalyticsDashboardController {
   @ApiQuery({ name: 'startDate', required: true, type: String })
   @ApiQuery({ name: 'endDate', required: true, type: String })
   @ApiResponse({ status: 200, description: '에러율 통계' })
-  async getErrorRate(
-    @Query('startDate') startDate: string,
-    @Query('endDate') endDate: string,
-  ) {
-    return this.analyticsService.getErrorRate(
-      new Date(startDate),
-      new Date(endDate),
-    );
+  async getErrorRate(@Query('startDate') startDate: string, @Query('endDate') endDate: string) {
+    return this.analyticsService.getErrorRate(new Date(startDate), new Date(endDate));
   }
 
   @Get('performance-metrics')
@@ -87,10 +68,7 @@ export class AnalyticsDashboardController {
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
   ) {
-    return this.analyticsService.getPerformanceMetrics(
-      new Date(startDate),
-      new Date(endDate),
-    );
+    return this.analyticsService.getPerformanceMetrics(new Date(startDate), new Date(endDate));
   }
 
   @Get('user-journey')

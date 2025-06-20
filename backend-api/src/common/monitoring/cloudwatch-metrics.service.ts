@@ -31,7 +31,7 @@ export class CloudWatchMetricsService {
     // 주기적으로 버퍼 플러시
     if (this.enabled) {
       setInterval(() => {
-        this.flushMetrics().catch((error) => {
+        this.flushMetrics().catch(error => {
           this.logger.error('Failed to flush metrics', error);
         });
       }, this.flushInterval);
@@ -91,7 +91,7 @@ export class CloudWatchMetricsService {
 
     // 네임스페이스별로 그룹화
     const metricsByNamespace = new Map<string, AWS.CloudWatch.MetricDatum[]>();
-    
+
     // 기본 네임스페이스 사용
     const defaultNamespace = 'VanillaMeta';
     metricsByNamespace.set(defaultNamespace, metricsToSend);
@@ -147,9 +147,9 @@ export class CloudWatchMetricsService {
 
     try {
       const result = await this.cloudWatch.getMetricStatistics(params).promise();
-      
+
       return (
-        result.Datapoints?.map((datapoint) => ({
+        result.Datapoints?.map(datapoint => ({
           timestamp: datapoint.Timestamp!,
           value: datapoint.Average || datapoint.Sum || datapoint.Maximum || datapoint.Minimum || 0,
           unit: datapoint.Unit || 'None',
@@ -174,8 +174,8 @@ export class CloudWatchMetricsService {
     metricName: string,
     threshold: number,
     comparisonOperator: AWS.CloudWatch.ComparisonOperator,
-    evaluationPeriods: number = 2,
-    period: number = 300,
+    evaluationPeriods = 2,
+    period = 300,
   ): Promise<void> {
     if (!this.enabled) {
       return;
@@ -219,7 +219,7 @@ export class CloudWatchMetricsService {
     return {
       type: 'metric',
       properties: {
-        metrics: metrics.map((metric) => [
+        metrics: metrics.map(metric => [
           namespace,
           metric.name,
           { stat: metric.stat || 'Average', period: metric.period || 300 },

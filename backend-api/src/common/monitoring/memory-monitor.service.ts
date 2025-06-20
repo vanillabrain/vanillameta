@@ -386,7 +386,7 @@ export class MemoryMonitorService {
   public getMemoryStats() {
     const memUsage = process.memoryUsage();
     const totalMemory = 3072 * 1024 * 1024; // 3GB Lambda 최대 메모리
-    
+
     return {
       heapUsed: memUsage.heapUsed,
       heapTotal: memUsage.heapTotal,
@@ -461,7 +461,7 @@ export class MemoryMonitorService {
    */
   checkMemoryThreshold(): { isWarning: boolean; isCritical: boolean; stats: MemoryStats } {
     const stats = this.getCurrentMemoryStats();
-    
+
     return {
       isWarning: stats.utilizationPercent > 75,
       isCritical: stats.utilizationPercent > 85,
@@ -480,7 +480,7 @@ export class MemoryMonitorService {
     const recentSamples = this.memoryHistory.slice(-10);
     const firstSample = recentSamples[0];
     const lastSample = recentSamples[recentSamples.length - 1];
-    
+
     const trend = ((lastSample.heapUsed - firstSample.heapUsed) / firstSample.heapUsed) * 100;
     const isLeaking = trend > 20;
 

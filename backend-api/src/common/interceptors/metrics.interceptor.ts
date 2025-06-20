@@ -21,7 +21,7 @@ export class MetricsInterceptor implements NestInterceptor {
     const httpContext = context.switchToHttp();
     const request = httpContext.getRequest<Request>();
     const response = httpContext.getResponse<Response>();
-    
+
     const startTime = Date.now();
     const method = request.method;
     const path = request.route?.path || request.path;
@@ -39,22 +39,12 @@ export class MetricsInterceptor implements NestInterceptor {
         const statusCode = response.statusCode;
 
         // API 메트릭 기록
-        await this.metricsService.recordApiRequest(
-          method,
-          path,
-          statusCode,
-          responseTime,
-          userId,
-        );
+        await this.metricsService.recordApiRequest(method, path, statusCode, responseTime, userId);
 
         // Lambda 메트릭 기록
         if (process.env.AWS_LAMBDA_FUNCTION_NAME) {
           const memoryUsed = process.memoryUsage().heapUsed / 1024 / 1024; // MB
-          await this.metricsService.recordLambdaMetrics(
-            isColdStart,
-            memoryUsed,
-            responseTime,
-          );
+          await this.metricsService.recordLambdaMetrics(isColdStart, memoryUsed, responseTime);
         }
 
         // 느린 요청 로깅
@@ -68,20 +58,16 @@ export class MetricsInterceptor implements NestInterceptor {
           });
         }
       }),
-      catchError((error) => {
+      catchError(error => {
         const responseTime = Date.now() - startTime;
         const statusCode = error instanceof HttpException ? error.getStatus() : 500;
 
         // 에러 메트릭 기록
-        this.metricsService.recordApiRequest(
-          method,
-          path,
-          statusCode,
-          responseTime,
-          userId,
-        ).catch((metricsError) => {
-          this.logger.error('Failed to record error metrics', metricsError);
-        });
+        this.metricsService
+          .recordApiRequest(method, path, statusCode, responseTime, userId)
+          .catch(metricsError => {
+            this.logger.error('Failed to record error metrics', metricsError);
+          });
 
         // 에러 로깅
         this.logger.error('API request failed', {

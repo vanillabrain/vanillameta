@@ -309,8 +309,13 @@ export class AdvancedQueryOptimizerService {
     // 데이터베이스별 권장사항
     switch (databaseType.toLowerCase()) {
       case 'bigquery':
-        if (query.toLowerCase().includes('join') && !query.toLowerCase().includes('_partitiondate')) {
-          recommendations.push('BigQuery에서 파티션 테이블 조인 시 _PARTITIONDATE 필터를 사용하세요.');
+        if (
+          query.toLowerCase().includes('join') &&
+          !query.toLowerCase().includes('_partitiondate')
+        ) {
+          recommendations.push(
+            'BigQuery에서 파티션 테이블 조인 시 _PARTITIONDATE 필터를 사용하세요.',
+          );
         }
         break;
 
@@ -322,7 +327,9 @@ export class AdvancedQueryOptimizerService {
 
       case 'postgresql':
         if (query.toLowerCase().includes('ilike')) {
-          recommendations.push('PostgreSQL에서 ILIKE 대신 GIN 인덱스와 함께 텍스트 검색을 사용하세요.');
+          recommendations.push(
+            'PostgreSQL에서 ILIKE 대신 GIN 인덱스와 함께 텍스트 검색을 사용하세요.',
+          );
         }
         break;
     }

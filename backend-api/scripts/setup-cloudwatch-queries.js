@@ -7,7 +7,7 @@
  * node scripts/setup-cloudwatch-queries.js --environment=prod
  */
 
-const AWS = require('aws-sdk');
+const { CloudWatchLogsClient, PutQueryDefinitionCommand } = require('@aws-sdk/client-cloudwatch-logs');
 const { program } = require('commander');
 
 // 명령행 인자 파싱
@@ -21,7 +21,7 @@ const environment = options.environment;
 const region = options.region;
 
 // AWS 설정
-const cloudwatchLogs = new AWS.CloudWatchLogs({ region });
+const cloudwatchLogs = new CloudWatchLogsClient({ region });
 
 // 로그 그룹 이름
 const logGroupName = `/aws/lambda/vanillameta-backend-api-${environment}-app`;
@@ -116,16 +116,14 @@ const queries = [
  * CloudWatch Insights 쿼리 생성
  */
 async function createQuery(query) {
-  const params = {
-    queryDefinition: {
-      name: query.name,
-      queryString: `SOURCE '${logGroupName}'\n| ${query.query}`,
-      logGroupNames: [logGroupName]
-    }
-  };
+  const command = new PutQueryDefinitionCommand({
+    name: query.name,
+    queryString: `SOURCE '${logGroupName}'\n| ${query.query}`,
+    logGroupNames: [logGroupName]
+  });
 
   try {
-    const result = await cloudwatchLogs.putQueryDefinition(params).promise();
+    const result = await cloudwatchLogs.send(command);
     console.log(`✅ 쿼리 생성됨: ${query.name} (ID: ${result.queryDefinitionId})`);
     return result;
   } catch (error) {

@@ -15,8 +15,8 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { DashboardService } from './dashboard.service';
 import { CreateDashboardDto } from './dto/create-dashboard.dto';
 import { UpdateDashboardDto } from './dto/update-dashboard.dto';
-import { 
-  ApiBearerAuth, 
+import {
+  ApiBearerAuth,
   ApiQuery,
   ApiTags,
   ApiOperation,
@@ -38,13 +38,13 @@ export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
   @Post()
-  @ApiOperation({ 
-    summary: '대시보드 생성', 
-    description: '새로운 대시보드를 생성합니다.' 
+  @ApiOperation({
+    summary: '대시보드 생성',
+    description: '새로운 대시보드를 생성합니다.',
   })
-  @ApiCreatedResponse({ 
+  @ApiCreatedResponse({
     description: '대시보드가 성공적으로 생성되었습니다.',
-    type: CreateDashboardDto 
+    type: CreateDashboardDto,
   })
   @ApiBadRequestResponse({ description: '잘못된 요청 데이터' })
   @ApiUnauthorizedResponse({ description: '인증 실패' })
@@ -72,9 +72,9 @@ export class DashboardController {
     excludeFields: ['widgets.config.queries', 'widgets.data'],
   })
   @Get()
-  @ApiOperation({ 
-    summary: '대시보드 목록 조회', 
-    description: '현재 사용자의 모든 대시보드를 조회합니다.' 
+  @ApiOperation({
+    summary: '대시보드 목록 조회',
+    description: '현재 사용자의 모든 대시보드를 조회합니다.',
   })
   @ApiQuery({
     name: 'fields',
@@ -83,7 +83,7 @@ export class DashboardController {
       '반환할 필드 선택 (쉼표로 구분). 중첩 필드는 점(.)으로 구분. 예: id,title,widgets.id,widgets.name',
     example: 'id,title,description,widgets.id,widgets.name',
   })
-  @ApiOkResponse({ 
+  @ApiOkResponse({
     description: '대시보드 목록이 성공적으로 반환되었습니다.',
     schema: {
       type: 'array',
@@ -95,13 +95,13 @@ export class DashboardController {
           description: { type: 'string' },
           createdAt: { type: 'string', format: 'date-time' },
           updatedAt: { type: 'string', format: 'date-time' },
-          widgets: { 
+          widgets: {
             type: 'array',
-            items: { type: 'object' }
-          }
-        }
-      }
-    }
+            items: { type: 'object' },
+          },
+        },
+      },
+    },
   })
   @ApiUnauthorizedResponse({ description: '인증 실패' })
   findAll(@Req() req, @Query('fields') fields?: string) {
@@ -132,14 +132,14 @@ export class DashboardController {
     excludeFields: ['widgets.config.queries', 'widgets.data', 'widgets.rawData'],
   })
   @Get(':id')
-  @ApiOperation({ 
-    summary: '대시보드 상세 조회', 
-    description: '특정 대시보드의 상세 정보를 조회합니다.' 
+  @ApiOperation({
+    summary: '대시보드 상세 조회',
+    description: '특정 대시보드의 상세 정보를 조회합니다.',
   })
-  @ApiParam({ 
-    name: 'id', 
+  @ApiParam({
+    name: 'id',
     description: '대시보드 ID',
-    type: 'number'
+    type: 'number',
   })
   @ApiQuery({
     name: 'fields',
@@ -147,8 +147,8 @@ export class DashboardController {
     description: '반환할 필드 선택 (쉼표로 구분). 중첩 필드는 점(.)으로 구분',
     example: 'id,title,widgets.id,widgets.config.title',
   })
-  @ApiOkResponse({ 
-    description: '대시보드 상세 정보가 성공적으로 반환되었습니다.' 
+  @ApiOkResponse({
+    description: '대시보드 상세 정보가 성공적으로 반환되었습니다.',
   })
   @ApiNotFoundResponse({ description: '대시보드를 찾을 수 없습니다.' })
   @ApiUnauthorizedResponse({ description: '인증 실패' })
@@ -157,17 +157,17 @@ export class DashboardController {
   }
 
   @Put(':id')
-  @ApiOperation({ 
-    summary: '대시보드 수정', 
-    description: '기존 대시보드의 정보를 수정합니다.' 
+  @ApiOperation({
+    summary: '대시보드 수정',
+    description: '기존 대시보드의 정보를 수정합니다.',
   })
-  @ApiParam({ 
-    name: 'id', 
+  @ApiParam({
+    name: 'id',
     description: '대시보드 ID',
-    type: 'number'
+    type: 'number',
   })
-  @ApiOkResponse({ 
-    description: '대시보드가 성공적으로 수정되었습니다.' 
+  @ApiOkResponse({
+    description: '대시보드가 성공적으로 수정되었습니다.',
   })
   @ApiNotFoundResponse({ description: '대시보드를 찾을 수 없습니다.' })
   @ApiBadRequestResponse({ description: '잘못된 요청 데이터' })
@@ -177,17 +177,17 @@ export class DashboardController {
   }
 
   @Delete(':id')
-  @ApiOperation({ 
-    summary: '대시보드 삭제', 
-    description: '대시보드를 영구적으로 삭제합니다.' 
+  @ApiOperation({
+    summary: '대시보드 삭제',
+    description: '대시보드를 영구적으로 삭제합니다.',
   })
-  @ApiParam({ 
-    name: 'id', 
+  @ApiParam({
+    name: 'id',
     description: '대시보드 ID',
-    type: 'number'
+    type: 'number',
   })
-  @ApiOkResponse({ 
-    description: '대시보드가 성공적으로 삭제되었습니다.' 
+  @ApiOkResponse({
+    description: '대시보드가 성공적으로 삭제되었습니다.',
   })
   @ApiNotFoundResponse({ description: '대시보드를 찾을 수 없습니다.' })
   @ApiUnauthorizedResponse({ description: '인증 실패' })

@@ -43,9 +43,9 @@ export class UserController {
   })
   @UseGuards(JwtAuthGuard)
   @Get('userinfo')
-  @ApiOperation({ 
-    summary: '사용자 정보 조회', 
-    description: '현재 로그인한 사용자의 정보를 조회합니다.' 
+  @ApiOperation({
+    summary: '사용자 정보 조회',
+    description: '현재 로그인한 사용자의 정보를 조회합니다.',
   })
   @ApiBearerAuth('AccessToken')
   @ApiQuery({
@@ -63,9 +63,9 @@ export class UserController {
         userId: { type: 'string' },
         email: { type: 'string' },
         createdAt: { type: 'string', format: 'date-time' },
-        updatedAt: { type: 'string', format: 'date-time' }
-      }
-    }
+        updatedAt: { type: 'string', format: 'date-time' },
+      },
+    },
   })
   @ApiUnauthorizedResponse({ description: '인증 실패' })
   findOne(@Req() req, @Query('fields') fields?: string) {
@@ -75,13 +75,13 @@ export class UserController {
 
   @UseGuards(JwtAuthGuard)
   @Patch('change-info')
-  @ApiOperation({ 
-    summary: '사용자 정보 수정', 
-    description: '사용자의 정보를 수정합니다.' 
+  @ApiOperation({
+    summary: '사용자 정보 수정',
+    description: '사용자의 정보를 수정합니다.',
   })
   @ApiBearerAuth('AccessToken')
-  @ApiOkResponse({ 
-    description: '사용자 정보가 성공적으로 수정되었습니다.' 
+  @ApiOkResponse({
+    description: '사용자 정보가 성공적으로 수정되었습니다.',
   })
   @ApiBadRequestResponse({ description: '잘못된 요청 데이터' })
   @ApiUnauthorizedResponse({ description: '인증 실패' })
@@ -92,13 +92,13 @@ export class UserController {
 
   @UseGuards(JwtAuthGuard)
   @Delete('delete-account')
-  @ApiOperation({ 
-    summary: '사용자 계정 삭제', 
-    description: '사용자 계정을 영구적으로 삭제합니다. 비밀번호 확인이 필요합니다.' 
+  @ApiOperation({
+    summary: '사용자 계정 삭제',
+    description: '사용자 계정을 영구적으로 삭제합니다. 비밀번호 확인이 필요합니다.',
   })
   @ApiBearerAuth('AccessToken')
-  @ApiOkResponse({ 
-    description: '계정이 성공적으로 삭제되었습니다.' 
+  @ApiOkResponse({
+    description: '계정이 성공적으로 삭제되었습니다.',
   })
   @ApiBadRequestResponse({ description: '비밀번호가 일치하지 않습니다.' })
   @ApiUnauthorizedResponse({ description: '인증 실패' })
@@ -110,22 +110,22 @@ export class UserController {
 
   @UseGuards(LocalAuthGuard)
   @Post('get-access-token')
-  @ApiOperation({ 
-    summary: '액세스 토큰 재발급', 
-    description: '리프레시 토큰을 사용하여 새로운 액세스 토큰을 발급받습니다.' 
+  @ApiOperation({
+    summary: '액세스 토큰 재발급',
+    description: '리프레시 토큰을 사용하여 새로운 액세스 토큰을 발급받습니다.',
   })
   @ApiCreatedResponse({
     description: '액세스 토큰 재발급 성공',
     schema: {
       properties: {
-        accessToken: { 
-          type: 'string', 
+        accessToken: {
+          type: 'string',
           description: '새로운 JWT 액세스 토큰',
-          example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+          example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
         },
-        message: { type: 'string', example: 'success' }
-      }
-    }
+        message: { type: 'string', example: 'success' },
+      },
+    },
   })
   @ApiUnauthorizedResponse({ description: '리프레시 토큰이 유효하지 않습니다.' })
   async reissuanceAccessToken(@Req() req, @Res() res) {
@@ -140,9 +140,9 @@ export class UserController {
   })
   @UseGuards(JwtAuthGuard)
   @Get('get-dashboard')
-  @ApiOperation({ 
-    summary: '사용자 대시보드 목록 조회', 
-    description: '현재 사용자가 소유한 대시보드 목록을 조회합니다.' 
+  @ApiOperation({
+    summary: '사용자 대시보드 목록 조회',
+    description: '현재 사용자가 소유한 대시보드 목록을 조회합니다.',
   })
   @ApiBearerAuth('AccessToken')
   @ApiQuery({
@@ -162,10 +162,10 @@ export class UserController {
           title: { type: 'string' },
           description: { type: 'string' },
           createdAt: { type: 'string', format: 'date-time' },
-          updatedAt: { type: 'string', format: 'date-time' }
-        }
-      }
-    }
+          updatedAt: { type: 'string', format: 'date-time' },
+        },
+      },
+    },
   })
   @ApiUnauthorizedResponse({ description: '인증 실패' })
   async findDashboardId(@Req() req, @Query('fields') fields?: string) {

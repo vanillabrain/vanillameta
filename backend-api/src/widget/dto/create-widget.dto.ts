@@ -7,7 +7,7 @@ export class CreateWidgetDto {
   @ApiPropertyOptional({
     description: '위젯 제목',
     example: '월별 매출 추이 차트',
-    maxLength: 255
+    maxLength: 255,
   })
   @IsString()
   @IsOptional()
@@ -15,7 +15,7 @@ export class CreateWidgetDto {
 
   @ApiPropertyOptional({
     description: '위젯 설명',
-    example: '2024년 월별 매출 현황을 보여주는 라인 차트'
+    example: '2024년 월별 매출 현황을 보여주는 라인 차트',
   })
   @IsString()
   @IsOptional()
@@ -23,7 +23,7 @@ export class CreateWidgetDto {
 
   @ApiPropertyOptional({
     description: '데이터베이스 ID',
-    example: 1
+    example: 1,
   })
   @IsNumber()
   @IsOptional()
@@ -32,7 +32,7 @@ export class CreateWidgetDto {
   @ApiProperty({
     description: '차트 컴포넌트 ID',
     example: 1,
-    minimum: 1
+    minimum: 1,
   })
   @IsNumber()
   @IsNotEmpty()
@@ -41,7 +41,7 @@ export class CreateWidgetDto {
   @ApiProperty({
     description: '데이터셋 타입',
     enum: DatasetType,
-    example: DatasetType.DATASET
+    example: DatasetType.DATASET,
   })
   @IsEnum(DatasetType)
   @IsNotEmpty()
@@ -50,7 +50,7 @@ export class CreateWidgetDto {
   @ApiProperty({
     description: '데이터셋 ID',
     example: 1,
-    minimum: 1
+    minimum: 1,
   })
   @IsNumber()
   @IsNotEmpty()
@@ -58,7 +58,7 @@ export class CreateWidgetDto {
 
   @ApiPropertyOptional({
     description: '테이블 이름 (데이터셋 타입이 TABLE인 경우)',
-    example: 'sales_monthly'
+    example: 'sales_monthly',
   })
   @IsString()
   @IsOptional()
@@ -69,10 +69,10 @@ export class CreateWidgetDto {
     example: JSON.stringify({
       xAxis: { type: 'category', data: ['Jan', 'Feb', 'Mar'] },
       yAxis: { type: 'value' },
-      series: [{ type: 'line', data: [820, 932, 901] }]
+      series: [{ type: 'line', data: [820, 932, 901] }],
     }),
     type: 'string',
-    format: 'json'
+    format: 'json',
   })
   @IsString()
   @IsNotEmpty()
@@ -81,7 +81,7 @@ export class CreateWidgetDto {
   @ApiPropertyOptional({
     description: '삭제 여부',
     enum: YesNo,
-    default: YesNo.NO
+    default: YesNo.NO,
   })
   @IsEnum(YesNo)
   @IsOptional()
