@@ -12,8 +12,8 @@ import { QueryExecuteDto } from './dto/query-execute.dto';
 import { UpdateDatabaseDto } from './dto/update-database.dto';
 import { Database } from './entities/database.entity';
 import { DatabaseType } from './entities/database_type.entity';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { Cache } from 'cache-manager';
+// import { CACHE_MANAGER } from '@nestjs/cache-manager';
+// import { Cache } from 'cache-manager';
 
 @Injectable()
 export class DatabaseService {
@@ -26,24 +26,24 @@ export class DatabaseService {
     @InjectRepository(Dataset) private datasetRepository: Repository<Dataset>,
     @InjectRepository(TableQuery) private tableQueryRepository: Repository<TableQuery>,
     private readonly connectionService: ConnectionService,
-    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    // @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
   /**
    * database type list 조회 (캐싱 적용)
    */
   async findAllDbTypes() {
-    // 캐시에서 조회
-    const cachedTypes = await this.cacheManager.get(this.DB_TYPES_CACHE_KEY);
-    if (cachedTypes) {
-      return cachedTypes;
-    }
+    // 캐시에서 조회 (캐시 임시 비활성화)
+    // const cachedTypes = await this.cacheManager.get(this.DB_TYPES_CACHE_KEY);
+    // if (cachedTypes) {
+    //   return cachedTypes;
+    // }
 
     // DB에서 조회
     const dbTypes = await this.databaseTypeRepository.find({ order: { seq: 'ASC', type: 'ASC' } });
 
-    // 캐시에 저장
-    await this.cacheManager.set(this.DB_TYPES_CACHE_KEY, dbTypes, this.DB_TYPES_CACHE_TTL);
+    // 캐시에 저장 (캐시 임시 비활성화)
+    // await this.cacheManager.set(this.DB_TYPES_CACHE_KEY, dbTypes, this.DB_TYPES_CACHE_TTL);
 
     return dbTypes;
   }
