@@ -1,0 +1,1046 @@
+---
+description: Use when creating or updating UI components, especially with Material-UI and ECharts. This guide provides detailed patterns for component structure, styling (`sx` prop vs. `styled`), state management, form handling, and accessibility to ensure a consistent and high-quality user experience.
+globs: 
+alwaysApply: false
+---
+# 🎨 VanillaMeta UI Component Patterns
+
+## 📋 Table of Contents
+- [Material-UI Standards](mdc:#material-ui-standards)
+- [Styling Patterns](mdc:#styling-patterns)
+- [Font & Typography](mdc:#font--typography)
+- [ECharts Integration](mdc:#echarts-integration)
+- [Widget System Patterns](mdc:#widget-system-patterns)
+- [Responsive Design](mdc:#responsive-design)
+- [Form Patterns](mdc:#form-patterns)
+- [Accessibility Guidelines](mdc:#accessibility-guidelines)
+
+## 🎯 Material-UI Standards
+
+### MUST FOLLOW: Component Usage
+```typescript
+// ✅ CORRECT: Use sx prop for styling
+<Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+  <Typography variant="h3" component="div" sx={{ fontWeight: 'bold' }}>
+    {title}
+  </Typography>
+</Box>
+
+// ✅ CORRECT: Use theme breakpoints
+const theme = useTheme();
+const matches = useMediaQuery(theme.breakpoints.up('sm'));
+
+// ❌ WRONG: Inline styles
+<div style={{ display: 'flex' }}>
+```
+
+### MUST FOLLOW: Theme Configuration
+Reference: [theme.tsx](mdc:frontend-web/src/theme/theme.tsx)
+
+```typescript
+// ✅ CORRECT: Use theme colors
+sx={{ color: 'primary.main', backgroundColor: 'primary.light' }}
+
+// ✅ CORRECT: Follow component defaults
+// All form components use size="small" by default
+// All buttons use size="small" by default
+
+// ✅ CORRECT: Theme color palette
+palette: {
+  primary: {
+    main: '#0f5ab2',
+    dark: '#043f84',
+    light: '#2fcbef',
+  },
+  secondary: {
+    main: '#f50057',
+    dark: '#cb0047',
+  }
+}
+```
+
+### NEVER DO: Theme Violations
+- ❌ Override theme colors with hardcoded values
+- ❌ Use custom breakpoints outside theme
+- ❌ Ignore component size defaults
+
+## 🎨 Styling Patterns
+
+### MUST FOLLOW: Styling Hierarchy (Priority Order)
+1. **sx prop** - Primary styling method
+2. **styled() components** - For reusable styled components
+3. **theme overrides** - For global component styling
+4. **CSS classes** - Only for external library integration
+
+```typescript
+// ✅ CORRECT: sx prop for component-specific styling
+<Box sx={{ 
+  display: 'flex', 
+  alignItems: 'center',
+  padding: { xs: '16px', sm: '24px' },
+  backgroundColor: 'primary.light'
+}}>
+
+// ✅ CORRECT: styled() for reusable components
+const StyledCard = styled(Card)(({ theme }) => ({
+  borderRadius: '12px',
+  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+  '&:hover': {
+    boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+  },
+}));
+
+// ✅ CORRECT: Conditional styling with sx
+<Typography 
+  sx={{ 
+    color: isActive ? 'primary.main' : 'text.secondary',
+    fontWeight: { xs: 400, sm: 500 }
+  }}
+>
+```
+
+### MUST FOLLOW: Styled Components Pattern
+Reference: [BoardItem.tsx](mdc:frontend-web/src/components/BoardItem.tsx)
+
+```typescript
+// ✅ CORRECT: Typed styled component
+interface TitleSpanProps {
+  matches: boolean;
+}
+
+const TitleSpan = styled('span')<TitleSpanProps>(({ matches }) => ({
+  fontSize: matches ? '18px' : '16px',
+  fontWeight: 'bold',
+  color: '#141414',
+  lineHeight: '24px',
+}));
+
+// ✅ CORRECT: Theme-aware styled component
+const StyledButton = styled(Button)(({ theme }) => ({
+  borderRadius: '8px',
+  textTransform: 'none',
+  [theme.breakpoints.down('sm')]: {
+    fontSize: '14px',
+  },
+}));
+```
+
+### NEVER DO: Styling Anti-Patterns
+```typescript
+// ❌ WRONG: Inline styles instead of sx
+<div style={{ marginTop: '20px', color: 'blue' }}>
+
+// ❌ WRONG: Creating styled components inside render
+function Component() {
+  const StyledDiv = styled('div')({ color: 'red' }); // ❌ Don't do this
+  return <StyledDiv />;
+}
+
+// ❌ WRONG: Hardcoded pixel values without responsive consideration
+sx={{ width: '320px', height: '240px' }} // Should use breakpoints
+
+// ❌ WRONG: !important overrides
+sx={{ color: 'red !important' }} // Use proper CSS specificity instead
+```
+
+## 🔤 Font & Typography
+
+### MUST FOLLOW: Pretendard Font System
+Reference: [index.css](mdc:frontend-web/src/index.css)
+
+```css
+/* ✅ CORRECT: Font weight hierarchy (priority order) */
+/* Critical weights - loaded first */
+font-weight: 400; /* Regular - most used */
+font-weight: 500; /* Medium - second most used */
+font-weight: 600; /* SemiBold - third most used */
+
+/* Secondary weights - loaded as needed */
+font-weight: 700; /* Bold */
+font-weight: 300; /* Light */
+
+/* Rarely used weights */
+font-weight: 800; /* ExtraBold */
+font-weight: 900; /* Black */
+font-weight: 200; /* ExtraLight */
+font-weight: 100; /* Thin */
+```
+
+### MUST FOLLOW: Typography Patterns
+Reference: [theme.tsx](mdc:frontend-web/src/theme/theme.tsx)
+
+```typescript
+// ✅ CORRECT: Typography component usage
+<Typography variant="h3" component="div" sx={{ fontWeight: 'bold' }}>
+  Main Title
+</Typography>
+
+<Typography variant="body1" sx={{ fontSize: '0.9rem', fontWeight: 400 }}>
+  Body text content
+</Typography>
+
+// ✅ CORRECT: Font family fallback
+fontFamily: [
+  'Pretendard',
+  '-apple-system',
+  'BlinkMacSystemFont',
+  '"Segoe UI"',
+  'Roboto',
+  'sans-serif'
+].join(',')
+```
+
+### MUST FOLLOW: Font Performance
+```typescript
+// ✅ CORRECT: Font display optimization
+@font-face {
+  font-family: 'Pretendard';
+  font-display: swap; /* Prevents FOIT (Flash of Invisible Text) */
+  src: url('path/to/font.woff2') format('woff2');
+  unicode-range: U+0020-007E, U+AC00-D7AF; /* Subset for performance */
+}
+```
+
+### NEVER DO: Typography Mistakes
+- ❌ Don't use font weights not defined in the system
+- ❌ Don't override fontFamily without fallbacks
+- ❌ Don't use font-display: block (causes FOIT)
+- ❌ Don't load all font weights if only using a few
+
+## 📊 ECharts Integration
+
+### MUST FOLLOW: Chart Implementation
+Reference: [chartOptions.tsx](mdc:frontend-web/src/data/chartOptions.tsx)
+
+```typescript
+// ✅ CORRECT: Chart container pattern
+<Box sx={{ height: 400 }}>
+  <ReactECharts
+    option={chartOption}
+    style={{ height: '100%', width: '100%' }}
+    opts={{ renderer: 'canvas' }}
+  />
+</Box>
+
+// ✅ CORRECT: Chart styling
+const chartOption = {
+  color: ['#0f5ab2', '#2fcbef', '#f50057'],
+  tooltip: {
+    trigger: 'axis',
+    axisPointer: { type: 'cross' }
+  },
+  grid: {
+    left: '3%',
+    right: '4%',
+    bottom: '3%',
+    containLabel: true
+  }
+};
+```
+
+### MUST FOLLOW: Chart Colors
+- Primary: `#0f5ab2`
+- Secondary: `#2fcbef`
+- Accent: `#f50057`
+- Maximum 5-7 colors per chart
+- Use consistent color palette across charts
+
+## 🧩 Widget System Patterns
+
+### MUST FOLLOW: Widget Structure
+Reference: [WidgetSetting.tsx](mdc:frontend-web/src/widget/wrapper/WidgetSetting.tsx)
+
+```typescript
+// ✅ CORRECT: Widget wrapper pattern
+interface IWidgetProps {
+  title: string;
+  data: any[];
+  loading?: boolean;
+  error?: string;
+}
+
+const Widget: React.FC<IWidgetProps> = ({ title, data, loading, error }) => {
+  return (
+    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <CardHeader title={title} />
+      <CardContent sx={{ flex: 1, overflow: 'auto' }}>
+        {loading ? <Loading /> : <WidgetContent data={data} />}
+      </CardContent>
+    </Card>
+  );
+};
+```
+
+### MUST FOLLOW: Grid Layout
+Reference: [DashboardView/index.tsx](mdc:frontend-web/src/pages/Dashboard/DashboardView/index.tsx)
+
+```typescript
+// ✅ CORRECT: React Grid Layout imports
+import '/node_modules/react-grid-layout/css/styles.css';
+import '/node_modules/react-resizable/css/styles.css';
+
+// ✅ CORRECT: Responsive grid configuration
+const layouts = {
+  lg: [{ i: 'widget1', x: 0, y: 0, w: 6, h: 4 }],
+  md: [{ i: 'widget1', x: 0, y: 0, w: 8, h: 4 }],
+  sm: [{ i: 'widget1', x: 0, y: 0, w: 12, h: 4 }]
+};
+```
+
+## 📱 Responsive Design
+
+### MUST FOLLOW: Breakpoint Usage
+```typescript
+// ✅ CORRECT: Material-UI breakpoints
+sx={{
+  width: { xs: '100%', sm: '360px' },
+  padding: { xs: '16px', sm: '24px' },
+  fontSize: { xs: '14px', sm: '16px' }
+}}
+
+// ✅ CORRECT: Conditional rendering
+const matches = useMediaQuery(theme.breakpoints.up('sm'));
+return matches ? <DesktopComponent /> : <MobileComponent />;
+```
+
+### MUST FOLLOW: Mobile-First Approach
+- Design for mobile first, enhance for desktop
+- Use touch-friendly button sizes (minimum 44px)
+- Ensure readable text sizes (minimum 16px)
+
+## 📝 Form Patterns
+
+### MUST FOLLOW: Form Components
+Reference: [Login/index.tsx](mdc:frontend-web/src/pages/Login/index.tsx)
+
+```typescript
+// ✅ CORRECT: Form field pattern
+<TextField
+  fullWidth
+  label="Email"
+  variant="outlined"
+  sx={{ height: { xs: '44px', sm: '36px' } }}
+  InputLabelProps={{ sx: { pt: { xs: '6px', sm: 0 } } }}
+  InputProps={{
+    sx: { 
+      height: { xs: '44px', sm: '36px' }, 
+      input: { padding: '12px 14px' } 
+    }
+  }}
+/>
+
+// ✅ CORRECT: Form validation
+const [errors, setErrors] = useState<Record<string, string>>({});
+
+const validateForm = () => {
+  const newErrors: Record<string, string> = {};
+  if (!email) newErrors.email = 'Email is required';
+  if (!password) newErrors.password = 'Password is required';
+  setErrors(newErrors);
+  return Object.keys(newErrors).length === 0;
+};
+```
+
+### MUST FOLLOW: Button Patterns
+```typescript
+// ✅ CORRECT: Primary action button
+<Button
+  variant="contained"
+  size="large"
+  fullWidth
+  sx={{ height: { xs: '50px', sm: '44px' }, mt: 3, mb: 2 }}
+  onClick={handleSubmit}
+>
+  Submit
+</Button>
+
+// ✅ CORRECT: Secondary action button
+<Button
+  variant="outlined"
+  size="small"
+  startIcon={<AddIcon />}
+  onClick={handleAdd}
+>
+  Add Item
+</Button>
+```
+
+## ♿ Accessibility Guidelines
+
+### MUST FOLLOW: ARIA Labels
+```typescript
+// ✅ CORRECT: Accessible button
+<IconButton
+  aria-label="Delete item"
+  onClick={handleDelete}
+>
+  <DeleteIcon />
+</IconButton>
+
+// ✅ CORRECT: Accessible form
+<TextField
+  label="Search"
+  inputProps={{ 'aria-describedby': 'search-helper-text' }}
+/>
+<FormHelperText id="search-helper-text">
+  Enter keywords to search
+</FormHelperText>
+```
+
+### MUST FOLLOW: Keyboard Navigation
+- All interactive elements must be keyboard accessible
+- Provide visible focus indicators
+- Implement logical tab order
+
+### MUST FOLLOW: Color Contrast
+- Ensure minimum 4.5:1 contrast ratio for text
+- Don't rely solely on color to convey information
+- Provide alternative text for images
+
+## 🚫 Anti-Patterns
+
+### NEVER DO: Common Mistakes
+```typescript
+// ❌ WRONG: Inline styles instead of sx
+<div style={{ marginTop: '20px' }}>
+
+// ❌ WRONG: Hardcoded breakpoints
+@media (max-width: 768px) { ... }
+
+// ❌ WRONG: Non-semantic HTML
+<div onClick={handleClick}>Click me</div>
+
+// ❌ WRONG: Missing accessibility
+<img src="chart.png" />
+
+// ❌ WRONG: Inconsistent spacing
+<Box sx={{ mt: '15px', mb: '25px' }}>
+
+// ❌ WRONG: Font weight not in system
+<Typography sx={{ fontWeight: 450 }}>
+
+// ❌ WRONG: Creating styled components in render
+function Component() {
+  const StyledDiv = styled('div')({ color: 'red' });
+  return <StyledDiv />;
+}
+```
+
+### NEVER DO: Performance Issues
+- ❌ Don't create styled components inside render functions
+- ❌ Don't use heavy animations on mobile
+- ❌ Don't load large images without optimization
+- ❌ Don't render large lists without virtualization
+- ❌ Don't load unnecessary font weights
+
+## 📚 Additional Resources
+
+- Material-UI Documentation: https://mui.com/
+- ECharts Documentation: https://echarts.apache.org/
+- React Grid Layout: https://github.com/react-grid-layout/react-grid-layout
+- Accessibility Guidelines: https://www.w3.org/WAI/WCAG21/quickref/
+- Pretendard Font: https://github.com/orioncactus/pretendard
+// Example: LineChart.tsx
+import React from 'react';
+import BaseChart from './BaseChart';
+import { EChartsOption } from 'echarts';
+
+interface ILineChartProps {
+  data: {
+    xAxis: string[];
+    series: Array<{
+      name: string;
+      data: number[];
+      color?: string;
+    }>;
+  };
+  title?: string;
+  smooth?: boolean;
+  showGrid?: boolean;
+}
+
+const LineChart: React.FC<ILineChartProps> = ({
+  data,
+  title,
+  smooth = false,
+  showGrid = true,
+}) => {
+  const options: EChartsOption = {
+    title: title ? { text: title } : undefined,
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'cross',
+      },
+    },
+    legend: {
+      data: data.series.map(s => s.name),
+    },
+    grid: {
+      show: showGrid,
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      containLabel: true,
+    },
+    xAxis: {
+      type: 'category',
+      data: data.xAxis,
+    },
+    yAxis: {
+      type: 'value',
+    },
+    series: data.series.map(series => ({
+      name: series.name,
+      type: 'line',
+      data: series.data,
+      smooth,
+      itemStyle: {
+        color: series.color,
+      },
+    })),
+  };
+
+  return <BaseChart data={data} options={options} />;
+};
+
+export default LineChart;
+```
+
+### Widget System Patterns
+
+#### Widget Container Pattern (MUST FOLLOW)
+```typescript
+// Example: WidgetContainer.tsx
+import React, { useState } from 'react';
+import {
+  Card,
+  CardContent,
+  CardActions,
+  IconButton,
+  Menu,
+  MenuItem,
+  Typography,
+} from '@mui/material';
+import { MoreVert, Edit, Delete, Refresh } from '@mui/icons-material';
+
+interface IWidgetContainerProps {
+  title: string;
+  subtitle?: string;
+  loading?: boolean;
+  error?: string;
+  children: React.ReactNode;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  onRefresh?: () => void;
+  customActions?: React.ReactNode;
+}
+
+const WidgetContainer: React.FC<IWidgetContainerProps> = ({
+  title,
+  subtitle,
+  loading,
+  error,
+  children,
+  onEdit,
+  onDelete,
+  onRefresh,
+  customActions,
+}) => {
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  return (
+    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <CardContent sx={{ flexGrow: 1 }}>
+        <Box display="flex" justifyContent="space-between" alignItems="center">
+          <Box>
+            <Typography variant="h6" component="div">
+              {title}
+            </Typography>
+            {subtitle && (
+              <Typography variant="body2" color="text.secondary">
+                {subtitle}
+              </Typography>
+            )}
+          </Box>
+          
+          <Box>
+            {customActions}
+            <IconButton onClick={handleMenuOpen}>
+              <MoreVert />
+            </IconButton>
+          </Box>
+        </Box>
+
+        <Menu
+          anchorEl={anchorEl}
+          open={Boolean(anchorEl)}
+          onClose={handleMenuClose}
+        >
+          {onRefresh && (
+            <MenuItem onClick={() => { onRefresh(); handleMenuClose(); }}>
+              <Refresh sx={{ mr: 1 }} /> Refresh
+            </MenuItem>
+          )}
+          {onEdit && (
+            <MenuItem onClick={() => { onEdit(); handleMenuClose(); }}>
+              <Edit sx={{ mr: 1 }} /> Edit
+            </MenuItem>
+          )}
+          {onDelete && (
+            <MenuItem onClick={() => { onDelete(); handleMenuClose(); }}>
+              <Delete sx={{ mr: 1 }} /> Delete
+            </MenuItem>
+          )}
+        </Menu>
+
+        <Box mt={2} sx={{ height: 'calc(100% - 80px)' }}>
+          {error ? (
+            <Typography color="error">{error}</Typography>
+          ) : (
+            children
+          )}
+        </Box>
+      </CardContent>
+    </Card>
+  );
+};
+
+export default WidgetContainer;
+```
+
+#### Dashboard Layout Pattern (MUST USE)
+```typescript
+// Example: DashboardLayout.tsx
+import React from 'react';
+import { Responsive, WidthProvider } from 'react-grid-layout';
+import { Box } from '@mui/material';
+import 'react-grid-layout/css/styles.css';
+import 'react-resizable/css/styles.css';
+
+const ResponsiveGridLayout = WidthProvider(Responsive);
+
+interface IDashboardLayoutProps {
+  widgets: Array<{
+    id: string;
+    component: React.ReactNode;
+    layout: {
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+    };
+  }>;
+  editable?: boolean;
+  onLayoutChange?: (layout: any) => void;
+}
+
+const DashboardLayout: React.FC<IDashboardLayoutProps> = ({
+  widgets,
+  editable = false,
+  onLayoutChange,
+}) => {
+  const layouts = {
+    lg: widgets.map(widget => ({
+      i: widget.id,
+      ...widget.layout,
+    })),
+  };
+
+  return (
+    <Box sx={{ width: '100%' }}>
+      <ResponsiveGridLayout
+        className="layout"
+        layouts={layouts}
+        breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
+        cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
+        isDraggable={editable}
+        isResizable={editable}
+        onLayoutChange={onLayoutChange}
+        margin={[16, 16]}
+        containerPadding={[16, 16]}
+      >
+        {widgets.map(widget => (
+          <div key={widget.id}>
+            {widget.component}
+          </div>
+        ))}
+      </ResponsiveGridLayout>
+    </Box>
+  );
+};
+
+export default DashboardLayout;
+```
+
+## 🎯 FORM PATTERNS
+
+### Form Component Pattern (MUST FOLLOW)
+```typescript
+// Example: StandardForm.tsx
+import React from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import {
+  Box,
+  TextField,
+  Button,
+  FormControl,
+  FormHelperText,
+} from '@mui/material';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
+
+interface IFormData {
+  title: string;
+  description?: string;
+  category: string;
+}
+
+const schema = yup.object({
+  title: yup.string().required('Title is required').max(255),
+  description: yup.string().max(1000),
+  category: yup.string().required('Category is required'),
+});
+
+interface IStandardFormProps {
+  initialData?: Partial<IFormData>;
+  onSubmit: (data: IFormData) => void;
+  loading?: boolean;
+}
+
+const StandardForm: React.FC<IStandardFormProps> = ({
+  initialData,
+  onSubmit,
+  loading = false,
+}) => {
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<IFormData>({
+    resolver: yupResolver(schema),
+    defaultValues: {
+      title: '',
+      description: '',
+      category: '',
+      ...initialData,
+    },
+  });
+
+  return (
+    <Box component="form" onSubmit={handleSubmit(onSubmit)}>
+      <Controller
+        name="title"
+        control={control}
+        render={({ field }) => (
+          <TextField
+            {...field}
+            fullWidth
+            label="Title"
+            error={!!errors.title}
+            helperText={errors.title?.message}
+            margin="normal"
+          />
+        )}
+      />
+
+      <Controller
+        name="description"
+        control={control}
+        render={({ field }) => (
+          <TextField
+            {...field}
+            fullWidth
+            label="Description"
+            multiline
+            rows={4}
+            error={!!errors.description}
+            helperText={errors.description?.message}
+            margin="normal"
+          />
+        )}
+      />
+
+      <Controller
+        name="category"
+        control={control}
+        render={({ field }) => (
+          <TextField
+            {...field}
+            fullWidth
+            select
+            label="Category"
+            error={!!errors.category}
+            helperText={errors.category?.message}
+            margin="normal"
+          >
+            {/* Options */}
+          </TextField>
+        )}
+      />
+
+      <Box mt={2}>
+        <Button
+          type="submit"
+          variant="contained"
+          disabled={loading}
+          fullWidth
+        >
+          {loading ? 'Saving...' : 'Save'}
+        </Button>
+      </Box>
+    </Box>
+  );
+};
+
+export default StandardForm;
+```
+
+## 📱 RESPONSIVE DESIGN PATTERNS
+
+### Responsive Component Pattern (MUST IMPLEMENT)
+```typescript
+// Example: ResponsiveComponent.tsx
+import React from 'react';
+import {
+  Box,
+  useTheme,
+  useMediaQuery,
+  Grid,
+  Hidden,
+} from '@mui/material';
+
+interface IResponsiveComponentProps {
+  children: React.ReactNode;
+}
+
+const ResponsiveComponent: React.FC<IResponsiveComponentProps> = ({
+  children,
+}) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isTablet = useMediaQuery(theme.breakpoints.between('md', 'lg'));
+
+  return (
+    <Box
+      sx={{
+        padding: {
+          xs: 1, // Mobile
+          sm: 2, // Small tablet
+          md: 3, // Large tablet
+          lg: 4, // Desktop
+        },
+        margin: {
+          xs: 0,
+          md: 'auto',
+        },
+        maxWidth: {
+          xs: '100%',
+          lg: 1200,
+        },
+      }}
+    >
+      <Grid container spacing={{ xs: 1, sm: 2, md: 3 }}>
+        <Grid item xs={12} md={8}>
+          {/* Main content */}
+          {children}
+        </Grid>
+        
+        {/* Hide sidebar on mobile */}
+        <Hidden mdDown>
+          <Grid item md={4}>
+            {/* Sidebar content */}
+          </Grid>
+        </Hidden>
+      </Grid>
+    </Box>
+  );
+};
+
+export default ResponsiveComponent;
+```
+
+## 🎨 CHART DESIGN RULES
+
+### Color Palette (MUST USE)
+Based on [docs/user-manual/차트_유형별_사용_가이드.md](mdc:docs/user-manual/차트_유형별_사용_가이드.md):
+
+```typescript
+// Example: chartColors.ts
+export const CHART_COLORS = {
+  primary: [
+    '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
+    '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'
+  ],
+  accessible: [
+    '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd'
+  ],
+  gradients: {
+    blue: ['#1f77b4', '#87ceeb'],
+    green: ['#2ca02c', '#98fb98'],
+    red: ['#d62728', '#ffa0a0'],
+  },
+};
+
+export const getChartColor = (index: number): string => {
+  return CHART_COLORS.primary[index % CHART_COLORS.primary.length];
+};
+
+export const getAccessibleColor = (index: number): string => {
+  return CHART_COLORS.accessible[index % CHART_COLORS.accessible.length];
+};
+```
+
+### Chart Options Template (MUST FOLLOW)
+```typescript
+// Example: chartOptionsTemplate.ts
+export const createBaseChartOptions = (
+  title?: string,
+  showLegend: boolean = true,
+): EChartsOption => ({
+  title: title ? {
+    text: title,
+    left: 'center',
+    textStyle: {
+      fontSize: 16,
+      fontWeight: 'normal',
+    },
+  } : undefined,
+  
+  tooltip: {
+    trigger: 'axis',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    borderColor: 'transparent',
+    textStyle: {
+      color: '#fff',
+    },
+  },
+  
+  legend: showLegend ? {
+    bottom: 0,
+    left: 'center',
+  } : undefined,
+  
+  grid: {
+    left: '3%',
+    right: '4%',
+    bottom: showLegend ? '10%' : '3%',
+    top: title ? '15%' : '3%',
+    containLabel: true,
+  },
+  
+  color: CHART_COLORS.primary,
+});
+```
+
+## 🚫 CRITICAL UI PROHIBITIONS
+
+### NEVER DO These UI Patterns
+```typescript
+// ❌ NEVER: Inline styles without sx prop
+// <div style={{ color: 'red' }}>Content</div>
+
+// ❌ NEVER: Direct DOM manipulation
+// document.getElementById('chart').innerHTML = '';
+
+// ❌ NEVER: Hardcoded colors
+// const chartOptions = { color: '#ff0000' };
+
+// ❌ NEVER: Non-responsive layouts
+// <div style={{ width: '1200px' }}>Fixed width content</div>
+
+// ❌ NEVER: Missing error boundaries
+// <ChartComponent /> // Without error handling
+
+// ❌ NEVER: Memory leaks in charts
+// useEffect(() => {
+//   const chart = echarts.init(ref.current);
+//   // Missing cleanup
+// }, []);
+```
+
+### ALWAYS DO These UI Patterns
+```typescript
+// ✅ ALWAYS: Use Material-UI sx prop
+<Box sx={{ color: 'primary.main', p: 2 }}>Content</Box>
+
+// ✅ ALWAYS: Use React refs for DOM access
+const chartRef = useRef<HTMLDivElement>(null);
+
+// ✅ ALWAYS: Use theme colors
+const theme = useTheme();
+const color = theme.palette.primary.main;
+
+// ✅ ALWAYS: Implement responsive design
+<Grid container spacing={2}>
+  <Grid item xs={12} md={6}>
+    Content
+  </Grid>
+</Grid>
+
+// ✅ ALWAYS: Wrap components in error boundaries
+<ErrorBoundary>
+  <ChartComponent />
+</ErrorBoundary>
+
+// ✅ ALWAYS: Clean up chart instances
+useEffect(() => {
+  const chart = echarts.init(ref.current);
+  return () => chart.dispose();
+}, []);
+```
+
+## 📊 ACCESSIBILITY PATTERNS
+
+### Accessible Chart Pattern (MUST IMPLEMENT)
+```typescript
+// Example: AccessibleChart.tsx
+const AccessibleChart: React.FC<IChartProps> = ({ data, options }) => {
+  const chartOptions: EChartsOption = {
+    ...options,
+    aria: {
+      enabled: true,
+      decal: {
+        show: true,
+      },
+    },
+  };
+
+  return (
+    <Box>
+      <VisuallyHidden>
+        <table>
+          <caption>Chart data representation</caption>
+          {/* Render data as table for screen readers */}
+        </table>
+      </VisuallyHidden>
+      
+      <BaseChart 
+        data={data} 
+        options={chartOptions}
+        aria-label="Interactive chart"
+      />
+    </Box>
+  );
+};
+```
+
+---
+
+**Key Principles**: 
+1. Always use Material-UI components and theming system
+2. Implement proper responsive design patterns
+3. Follow accessibility guidelines for charts and forms
+4. Use consistent color palettes and design tokens
+5. Implement proper cleanup for chart instances
+6. Always wrap components in error boundaries
+
+agent_request_description: Use when creating or updating UI components, especially with Material-UI and ECharts. This guide provides detailed patterns for component structure, styling (`sx` prop vs. `styled`), state management, form handling, and accessibility to ensure a consistent and high-quality user experience.
