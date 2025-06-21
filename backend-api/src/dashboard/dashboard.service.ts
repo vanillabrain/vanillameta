@@ -5,6 +5,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Dashboard } from './entities/dashboard.entity';
 import { DashboardWidgetService } from './dashboard-widget/dashboard-widget.service';
+import { DashboardCacheService } from './dashboard-cache.service';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import { UserService } from 'src/user/user.service';
 import { AuthService } from 'src/auth/auth.service';
@@ -14,6 +15,7 @@ import { DashboardShare } from 'src/dashboard/entities/dashboard_share.entity';
 import { UserMapping } from 'src/user/entities/user-mapping.entity';
 import { v4 as uuidv4 } from 'uuid';
 import { CustomLoggerService } from '../common/logger/logger.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Injectable()
 export class DashboardService {
@@ -27,9 +29,11 @@ export class DashboardService {
     @InjectRepository(UserMapping)
     private userMappingRepository: Repository<UserMapping>,
     private readonly dashboardWidgetService: DashboardWidgetService,
+    private readonly dashboardCacheService: DashboardCacheService,
     private readonly userService: UserService,
     private readonly authService: AuthService,
     private readonly logger: CustomLoggerService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async create(createDashboardDto: CreateDashboardDto, accessToken: number) {
@@ -94,6 +98,17 @@ export class DashboardService {
       newDashboard.layout = JSON.parse(newDashboard.layout);
     }
     await this.dashboardWidgetService.create(saveObjDW);
+    
+    // 사용자 대시보드 목록 캐시 무효화
+    await this.dashboardCacheService.invalidateUserDashboardList(accessToken);
+    
+    // 새 대시보드 이벤트 발생
+    this.eventEmitter.emit('dashboard.created', {
+      dashboardId: newDashboard.id,
+      userId: accessToken,
+      timestamp: Date.now(),
+    });
+    
     return { status: ResponseStatus.SUCCESS, data: newDashboard };
   }
 
@@ -159,6 +174,14 @@ export class DashboardService {
     delete return_obj.dashboardShare;
 
     console.log(return_obj);
+    
+    // 대시보드를 캐시에 저장
+    await this.dashboardCacheService.cacheDashboard(
+      find_dashboard,
+      widgetList,
+      find_dashboard.dashboardShare,
+    );
+    
     return {
       status: ResponseStatus.SUCCESS,
       data: return_obj,
@@ -195,6 +218,16 @@ export class DashboardService {
       if (typeof updatedDashboard.layout === 'string') {
         updatedDashboard.layout = JSON.parse(updatedDashboard.layout);
       }
+      
+      // 업데이트된 대시보드 캐시 무효화
+      await this.dashboardCacheService.invalidateDashboard(id);
+      
+      // 대시보드 업데이트 이벤트 발생
+      this.eventEmitter.emit('dashboard.updated', {
+        dashboardId: id,
+        timestamp: Date.now(),
+      });
+      
       return { status: ResponseStatus.SUCCESS, data: updatedDashboard };
     }
   }
@@ -209,8 +242,26 @@ export class DashboardService {
       const find_dashboardId = await this.userMappingRepository.findOne({
         where: { dashboardId: id },
       });
+      // 캐시 무효화를 위해 userInfoId 저장
+      const userInfoId = find_dashboardId?.userInfoId;
+      
       await this.userMappingRepository.delete(find_dashboardId.id);
       await this.dashboardShareRepository.delete(find_dashboard.shareId);
+      
+      // 삭제된 대시보드 캐시 무효화
+      await this.dashboardCacheService.invalidateDashboard(id);
+      
+      // 사용자 대시보드 목록 캐시도 무효화
+      if (userInfoId) {
+        await this.dashboardCacheService.invalidateUserDashboardList(userInfoId);
+      }
+      
+      // 대시보드 삭제 이벤트 발생
+      this.eventEmitter.emit('dashboard.deleted', {
+        dashboardId: id,
+        timestamp: Date.now(),
+      });
+      
       return {
         status: ResponseStatus.SUCCESS,
         data: { message: `This action removes a #${id} dashboard` },
