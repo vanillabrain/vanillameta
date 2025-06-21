@@ -3,7 +3,7 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from './app.module';
 import express from 'express';
-import compression from 'compression';
+const compression = require('compression');
 import { ExpressAdapter } from '@nestjs/platform-express';
 
 describe('API Response Compression (T03_S04)', () => {
