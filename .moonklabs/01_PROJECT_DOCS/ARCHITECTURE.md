@@ -156,6 +156,546 @@ src/
 - AWS RDS (MySQL)
 - Serverless Framework
 
+## 상세 데이터 모델
+
+### 핵심 엔티티 관계도
+```
+┌─────────────┐     1:N     ┌──────────────┐     1:N     ┌────────────┐
+│    Users    │─────────────│  Dashboard   │─────────────│   Widget   │
+└─────────────┘             └──────────────┘             └────────────┘
+       │                           │                            │
+       │ 1:N                       │ 1:N                        │ N:1
+       │                           │                            │
+┌─────────────┐             ┌──────────────┐             ┌────────────┐
+│  Database   │             │  ShareUrl    │             │  Dataset   │
+└─────────────┘             └──────────────┘             └────────────┘
+                                                                │
+                                                                │ N:1
+                                                                │
+                                                         ┌────────────┐
+                                                         │  Database  │
+                                                         └────────────┘
+```
+
+### 주요 엔티티 상세
+
+#### Users
+```typescript
+@Entity('users')
+export class Users extends BaseEntity {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column({ unique: true })
+  email: string;
+
+  @Column()
+  name: string;
+
+  @Column({ select: false })
+  password: string;
+
+  @Column({ type: 'simple-array', nullable: true })
+  roles: string[];
+
+  @Column({ default: true })
+  isActive: boolean;
+
+  @OneToMany(() => Dashboard, dashboard => dashboard.user)
+  dashboards: Dashboard[];
+
+  @OneToMany(() => Database, database => database.user)
+  databases: Database[];
+}
+```
+
+#### Dashboard
+```typescript
+@Entity('dashboard')
+export class Dashboard extends BaseEntity {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column()
+  name: string;
+
+  @Column({ type: 'text', nullable: true })
+  description: string;
+
+  @Column({ type: 'json', default: {} })
+  layout: {
+    widgets: Array<{
+      id: string;
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+    }>;
+  };
+
+  @Column({ default: false })
+  isPublic: boolean;
+
+  @ManyToOne(() => Users, user => user.dashboards)
+  user: Users;
+
+  @OneToMany(() => Widget, widget => widget.dashboard)
+  widgets: Widget[];
+
+  @OneToMany(() => ShareUrl, shareUrl => shareUrl.dashboard)
+  shareUrls: ShareUrl[];
+}
+```
+
+#### Widget
+```typescript
+@Entity('widget')
+export class Widget extends BaseEntity {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column()
+  name: string;
+
+  @Column()
+  type: string; // line, bar, pie, etc.
+
+  @Column({ type: 'json' })
+  options: EChartsOption;
+
+  @Column({ type: 'json', nullable: true })
+  dataMapping: {
+    xAxis?: string[];
+    yAxis?: string[];
+    series?: string[];
+  };
+
+  @ManyToOne(() => Dashboard, dashboard => dashboard.widgets)
+  dashboard: Dashboard;
+
+  @ManyToOne(() => Dataset, dataset => dataset.widgets)
+  dataset: Dataset;
+
+  @Column({ type: 'text', nullable: true })
+  checksum: string; // 데이터 무결성 검증용
+}
+```
+
+#### Dataset
+```typescript
+@Entity('dataset')
+export class Dataset extends BaseEntity {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column()
+  name: string;
+
+  @Column({ type: 'text' })
+  sqlQuery: string;
+
+  @Column({ type: 'json', nullable: true })
+  parameters: Array<{
+    name: string;
+    type: 'string' | 'number' | 'date';
+    defaultValue?: any;
+  }>;
+
+  @ManyToOne(() => Database, database => database.datasets)
+  database: Database;
+
+  @OneToMany(() => Widget, widget => widget.dataset)
+  widgets: Widget[];
+
+  @Column({ type: 'timestamp', nullable: true })
+  lastExecutedAt: Date;
+
+  @Column({ type: 'json', nullable: true })
+  cachedSchema: {
+    fields: Array<{
+      name: string;
+      type: string;
+      nullable: boolean;
+    }>;
+  };
+}
+```
+
+#### Database
+```typescript
+@Entity('database')
+export class Database extends BaseEntity {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column()
+  name: string;
+
+  @Column()
+  type: string; // mysql, postgresql, oracle, etc.
+
+  @Column({ transformer: new EncryptionTransformer() })
+  host: string;
+
+  @Column()
+  port: number;
+
+  @Column({ transformer: new EncryptionTransformer() })
+  username: string;
+
+  @Column({ transformer: new EncryptionTransformer(), select: false })
+  password: string;
+
+  @Column()
+  database: string;
+
+  @Column({ type: 'json', nullable: true })
+  sslConfig: {
+    enabled: boolean;
+    ca?: string;
+    cert?: string;
+    key?: string;
+  };
+
+  @ManyToOne(() => Users, user => user.databases)
+  user: Users;
+
+  @OneToMany(() => Dataset, dataset => dataset.database)
+  datasets: Dataset[];
+
+  @Column({ default: true })
+  isActive: boolean;
+
+  @Column({ type: 'timestamp', nullable: true })
+  lastConnectedAt: Date;
+}
+```
+
+## 에러 처리 전략
+
+### 계층별 에러 처리
+
+#### 1. 컨트롤러 레벨
+```typescript
+@Controller('dashboard')
+export class DashboardController {
+  @Post()
+  @UseFilters(HttpExceptionFilter)
+  async create(@Body() createDto: CreateDashboardDto) {
+    try {
+      return await this.dashboardService.create(createDto);
+    } catch (error) {
+      if (error instanceof BusinessException) {
+        throw new BadRequestException(error.message);
+      }
+      throw new InternalServerErrorException('Failed to create dashboard');
+    }
+  }
+}
+```
+
+#### 2. 서비스 레벨
+```typescript
+@Injectable()
+export class DashboardService {
+  async create(dto: CreateDashboardDto) {
+    // 비즈니스 로직 검증
+    if (await this.isDuplicateName(dto.name)) {
+      throw new BusinessException(
+        'DASHBOARD_NAME_DUPLICATE',
+        '이미 존재하는 대시보드 이름입니다'
+      );
+    }
+
+    try {
+      return await this.dashboardRepository.save(dto);
+    } catch (error) {
+      // 데이터베이스 에러 처리
+      if (error.code === 'ER_DUP_ENTRY') {
+        throw new BusinessException(
+          'DATABASE_CONSTRAINT_VIOLATION',
+          '데이터베이스 제약조건 위반'
+        );
+      }
+      throw error;
+    }
+  }
+}
+```
+
+#### 3. 글로벌 예외 필터
+```typescript
+@Catch()
+export class AllExceptionsFilter implements ExceptionFilter {
+  catch(exception: unknown, host: ArgumentsHost) {
+    const ctx = host.switchToHttp();
+    const response = ctx.getResponse<Response>();
+    const request = ctx.getRequest<Request>();
+
+    let status = HttpStatus.INTERNAL_SERVER_ERROR;
+    let message = 'Internal server error';
+    let code = 'INTERNAL_ERROR';
+
+    if (exception instanceof HttpException) {
+      status = exception.getStatus();
+      const exceptionResponse = exception.getResponse();
+      message = exceptionResponse['message'] || exception.message;
+      code = exceptionResponse['error'] || 'HTTP_ERROR';
+    } else if (exception instanceof BusinessException) {
+      status = HttpStatus.BAD_REQUEST;
+      message = exception.message;
+      code = exception.code;
+    } else if (exception instanceof QueryFailedError) {
+      status = HttpStatus.BAD_REQUEST;
+      message = 'Database query failed';
+      code = 'DATABASE_ERROR';
+    }
+
+    // 에러 로깅
+    this.logger.error({
+      timestamp: new Date().toISOString(),
+      path: request.url,
+      method: request.method,
+      statusCode: status,
+      error: {
+        code,
+        message,
+        stack: exception instanceof Error ? exception.stack : undefined
+      },
+      user: request.user?.id,
+      requestId: request.headers['x-request-id']
+    });
+
+    response.status(status).json({
+      statusCode: status,
+      timestamp: new Date().toISOString(),
+      path: request.url,
+      error: {
+        code,
+        message
+      }
+    });
+  }
+}
+```
+
+### 비즈니스 예외 정의
+```typescript
+export class BusinessException extends Error {
+  constructor(
+    public readonly code: string,
+    message: string,
+    public readonly details?: any
+  ) {
+    super(message);
+    this.name = 'BusinessException';
+  }
+}
+
+// 사용 예시
+throw new BusinessException(
+  'QUERY_TIMEOUT',
+  '쿼리 실행 시간이 초과되었습니다',
+  { timeout: 30000, actual: 35000 }
+);
+```
+
+## 로깅 및 모니터링 전략
+
+### 로깅 아키텍처
+
+#### 1. 구조화된 로깅
+```typescript
+@Injectable()
+export class LoggerService {
+  private logger: winston.Logger;
+
+  constructor() {
+    this.logger = winston.createLogger({
+      format: winston.format.combine(
+        winston.format.timestamp(),
+        winston.format.errors({ stack: true }),
+        winston.format.json()
+      ),
+      transports: [
+        new winston.transports.Console({
+          format: winston.format.simple()
+        }),
+        new CloudWatchTransport({
+          logGroupName: `/aws/lambda/${process.env.SERVICE_NAME}`,
+          logStreamName: new Date().toISOString().split('T')[0]
+        })
+      ]
+    });
+  }
+
+  log(level: string, message: string, meta?: any) {
+    this.logger.log(level, message, {
+      ...meta,
+      service: process.env.SERVICE_NAME,
+      environment: process.env.NODE_ENV,
+      timestamp: new Date().toISOString()
+    });
+  }
+}
+```
+
+#### 2. 요청 추적
+```typescript
+@Injectable()
+export class RequestLoggingMiddleware implements NestMiddleware {
+  use(req: Request, res: Response, next: NextFunction) {
+    const requestId = req.headers['x-request-id'] || uuidv4();
+    req['requestId'] = requestId;
+
+    const startTime = Date.now();
+    
+    // 요청 로깅
+    this.logger.info('Incoming request', {
+      requestId,
+      method: req.method,
+      url: req.url,
+      userAgent: req.headers['user-agent'],
+      ip: req.ip
+    });
+
+    // 응답 로깅
+    res.on('finish', () => {
+      const duration = Date.now() - startTime;
+      
+      this.logger.info('Request completed', {
+        requestId,
+        statusCode: res.statusCode,
+        duration,
+        contentLength: res.get('content-length')
+      });
+
+      // 느린 요청 경고
+      if (duration > 1000) {
+        this.logger.warn('Slow request detected', {
+          requestId,
+          duration,
+          url: req.url
+        });
+      }
+    });
+
+    next();
+  }
+}
+```
+
+### 모니터링 메트릭
+
+#### 1. 비즈니스 메트릭
+```typescript
+@Injectable()
+export class MetricsService {
+  private metrics = {
+    dashboardsCreated: new Counter({
+      name: 'dashboards_created_total',
+      help: 'Total number of dashboards created'
+    }),
+    widgetsCreated: new Counter({
+      name: 'widgets_created_total',
+      help: 'Total number of widgets created',
+      labelNames: ['type']
+    }),
+    queryExecutionTime: new Histogram({
+      name: 'query_execution_duration_seconds',
+      help: 'Query execution time in seconds',
+      labelNames: ['database_type', 'status'],
+      buckets: [0.1, 0.5, 1, 2, 5, 10, 30]
+    }),
+    activeUsers: new Gauge({
+      name: 'active_users',
+      help: 'Number of active users'
+    })
+  };
+
+  recordDashboardCreation() {
+    this.metrics.dashboardsCreated.inc();
+  }
+
+  recordQueryExecution(databaseType: string, duration: number, success: boolean) {
+    this.metrics.queryExecutionTime.observe(
+      { database_type: databaseType, status: success ? 'success' : 'failure' },
+      duration / 1000
+    );
+  }
+}
+```
+
+#### 2. CloudWatch 대시보드
+```json
+{
+  "widgets": [
+    {
+      "type": "metric",
+      "properties": {
+        "metrics": [
+          ["VanillaMeta", "APIRequests", {"stat": "Sum"}],
+          [".", "APIErrors", {"stat": "Sum"}],
+          [".", "APILatency", {"stat": "Average"}]
+        ],
+        "period": 300,
+        "stat": "Average",
+        "region": "ap-northeast-2",
+        "title": "API Performance"
+      }
+    },
+    {
+      "type": "log",
+      "properties": {
+        "query": "SOURCE '/aws/lambda/vanillameta-api'\n| fields @timestamp, @message\n| filter @message like /ERROR/\n| sort @timestamp desc\n| limit 20",
+        "region": "ap-northeast-2",
+        "title": "Recent Errors"
+      }
+    }
+  ]
+}
+```
+
+### 알람 설정
+
+#### 1. 성능 알람
+```yaml
+HighErrorRateAlarm:
+  Type: AWS::CloudWatch::Alarm
+  Properties:
+    AlarmName: VanillaMeta-High-Error-Rate
+    MetricName: 4XXError
+    Namespace: AWS/ApiGateway
+    Dimensions:
+      - Name: ApiName
+        Value: !Ref ApiGatewayRestApi
+    Statistic: Sum
+    Period: 300
+    EvaluationPeriods: 2
+    Threshold: 10
+    ComparisonOperator: GreaterThanThreshold
+```
+
+#### 2. 사용자 정의 알람
+```typescript
+async checkDatabaseConnectivity() {
+  for (const db of await this.databaseService.findAll()) {
+    try {
+      await this.connectionService.testConnection(db);
+      this.metricsService.recordDatabaseHealth(db.id, 'healthy');
+    } catch (error) {
+      this.metricsService.recordDatabaseHealth(db.id, 'unhealthy');
+      await this.alertService.sendAlert({
+        type: 'DATABASE_CONNECTION_FAILURE',
+        severity: 'HIGH',
+        database: db.name,
+        error: error.message
+      });
+    }
+  }
+}
+```
+
 ## 향후 개선 계획
 
 ### 단기 계획
@@ -163,9 +703,13 @@ src/
 - [ ] 실시간 데이터 업데이트 (WebSocket)
 - [ ] 쿼리 결과 캐싱
 - [ ] 다국어 지원
+- [ ] 상세 감사 로그
+- [ ] 자동화된 성능 테스트
 
 ### 장기 계획
 - [ ] 머신러닝 기반 인사이트 제공
 - [ ] 데이터 파이프라인 통합
 - [ ] 모바일 앱 지원
 - [ ] On-premise 버전 제공
+- [ ] 분산 추적 시스템 구축
+- [ ] 자동 장애 복구 시스템
