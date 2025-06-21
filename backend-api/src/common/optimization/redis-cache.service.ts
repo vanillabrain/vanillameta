@@ -1,9 +1,9 @@
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
-import { compress, decompress } from 'lz-string';
 import { createHash } from 'crypto';
 import { CustomLoggerService } from '../logger/logger.service';
+import { CompressionService } from './compression.service';
 
 export interface RedisCacheEntry {
   data: any;
@@ -66,6 +66,7 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly configService: ConfigService,
     private readonly customLogger: CustomLoggerService,
+    private readonly compressionService: CompressionService,
   ) {
     this.initializeConfig();
   }
@@ -234,33 +235,41 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
   /**
    * 데이터 압축
    */
-  private compressData(data: any): { data: string; compressed: boolean } {
-    const jsonString = JSON.stringify(data);
-
-    if (jsonString.length < this.config.compressionThreshold) {
-      return { data: jsonString, compressed: false };
+  private async compressData(data: any): Promise<{ data: string; compressed: boolean }> {
+    try {
+      // CompressionService가 자동으로 크기와 압축 효율을 확인함
+      const compressed = await this.compressionService.compress(data);
+      const stats = this.compressionService.calculateCompressionStats(compressed);
+      
+      return { 
+        data: compressed, 
+        compressed: stats ? stats.compressionRatio < 0.9 : false 
+      };
+    } catch (error) {
+      this.logger.error('Compression failed, using uncompressed data:', error);
+      return { data: JSON.stringify(data), compressed: false };
     }
-
-    const compressed = compress(jsonString);
-
-    // 압축 효과가 있는 경우에만 압축된 데이터 사용
-    if (compressed.length < jsonString.length * 0.9) {
-      return { data: compressed, compressed: true };
-    }
-
-    return { data: jsonString, compressed: false };
   }
 
   /**
    * 데이터 압축 해제
    */
-  private decompressData(data: string, compressed: boolean): any {
-    if (!compressed) {
-      return JSON.parse(data);
+  private async decompressData(data: string, compressed: boolean): Promise<any> {
+    try {
+      if (!compressed) {
+        return JSON.parse(data);
+      }
+      
+      return await this.compressionService.decompress(data);
+    } catch (error) {
+      this.logger.error('Decompression failed:', error);
+      // 압축되지 않은 데이터로 시도
+      try {
+        return JSON.parse(data);
+      } catch {
+        throw error;
+      }
     }
-
-    const decompressed = decompress(data);
-    return JSON.parse(decompressed);
   }
 
   /**
@@ -309,7 +318,7 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
       }
 
       // 데이터 압축 해제
-      const data = this.decompressData(entry.data, entry.compressed);
+      const data = await this.decompressData(entry.data, entry.compressed);
 
       // 히트 카운트 업데이트
       entry.hits++;
@@ -371,7 +380,7 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
 
     try {
       // 데이터 압축
-      const compressed = this.compressData({ data, fields });
+      const compressed = await this.compressData({ data, fields });
 
       const entry: RedisCacheEntry = {
         data: compressed.data,
