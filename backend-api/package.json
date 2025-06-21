@@ -35,7 +35,16 @@
     "monitor:performance": "node scripts/monitor-lambda-performance.js",
     "test:slow-query": "cross-env NODE_ENV=dev ts-node -r tsconfig-paths/register src/test-slow-query.ts",
     "deploy:dashboard:dev": "./scripts/deploy-cloudwatch-dashboard.sh dev",
-    "deploy:dashboard:prod": "./scripts/deploy-cloudwatch-dashboard.sh prod"
+    "deploy:dashboard:prod": "./scripts/deploy-cloudwatch-dashboard.sh prod",
+    "test:performance": "jest --testPathPattern='performance.*\\.spec\\.ts$' --testTimeout=60000",
+    "test:load": "jest --testPathPattern='load-testing\\.spec\\.ts$' --testTimeout=60000",
+    "test:stress": "jest --testPathPattern='enhanced-load-testing\\.spec\\.ts$' --testTimeout=60000",
+    "artillery:run": "artillery run test/performance/artillery/artillery.yml",
+    "artillery:report": "artillery run test/performance/artillery/artillery.yml --output artillery-report.json && artillery report artillery-report.json",
+    "k6:load": "k6 run test/performance/k6/load-test.js",
+    "k6:stress": "k6 run test/performance/k6/stress-test.js",
+    "k6:cloud": "k6 cloud test/performance/k6/load-test.js",
+    "performance:all": "yarn test:performance && yarn artillery:run && yarn k6:load"
   },
   "dependencies": {
     "@google-cloud/bigquery": "^6.0.3",
