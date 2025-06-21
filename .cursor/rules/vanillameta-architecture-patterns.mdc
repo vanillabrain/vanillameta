@@ -1,0 +1,468 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# VanillaMeta Architecture Patterns
+
+## 🏗️ MANDATORY ARCHITECTURAL PATTERNS
+
+### NestJS Backend Patterns
+
+#### Module Structure (MUST FOLLOW)
+```typescript
+// Example: analytics.module.ts
+@Module({
+  imports: [TypeOrmModule.forFeature([AnalyticsEntity])],
+  controllers: [AnalyticsController],
+  providers: [AnalyticsService],
+  exports: [AnalyticsService], // Export if used by other modules
+})
+export class AnalyticsModule {}
+```
+
+#### Controller Pattern (MUST IMPLEMENT)
+```typescript
+// Example: analytics.controller.ts
+@Controller('analytics')
+@UseGuards(JwtAuthGuard) // Apply authentication
+export class AnalyticsController {
+  constructor(private readonly analyticsService: AnalyticsService) {}
+
+  @Get()
+  @ApiOperation({ summary: 'Get analytics data' }) // Swagger documentation
+  async getAnalytics(@Query() query: GetAnalyticsDto) {
+    return this.analyticsService.getAnalytics(query);
+  }
+}
+```
+
+#### Service Pattern (MUST IMPLEMENT)
+```typescript
+// Example: analytics.service.ts
+@Injectable()
+export class AnalyticsService {
+  private readonly logger = new Logger(AnalyticsService.name);
+
+  constructor(
+    @InjectRepository(AnalyticsEntity)
+    private analyticsRepository: Repository<AnalyticsEntity>,
+  ) {}
+
+  async getAnalytics(query: GetAnalyticsDto): Promise<AnalyticsResponse> {
+    try {
+      // Business logic here
+      this.logger.debug('Fetching analytics data');
+      return await this.analyticsRepository.find(query);
+    } catch (error) {
+      this.logger.error('Failed to fetch analytics', error);
+      throw new InternalServerErrorException('Analytics fetch failed');
+    }
+  }
+}
+```
+
+### React Frontend Patterns
+
+#### Component Structure (MUST FOLLOW)
+```typescript
+// Example: DashboardWidget.tsx
+interface IDashboardWidgetProps {
+  data: ChartData;
+  options: ChartOptions;
+  onConfigChange?: (config: WidgetConfig) => void;
+}
+
+const DashboardWidget: React.FC<IDashboardWidgetProps> = ({ 
+  data, 
+  options, 
+  onConfigChange 
+}) => {
+  const chartRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    const chart = echarts.init(chartRef.current);
+    chart.setOption(options);
+    
+    return () => chart.dispose(); // Cleanup
+  }, [data, options]);
+
+  return <div ref={chartRef} style={{ width: '100%', height: '100%' }} />;
+};
+
+export default React.memo(DashboardWidget); // Performance optimization
+```
+
+#### Custom Hook Pattern (MUST USE)
+```typescript
+// Example: useChartData.ts
+export const useChartData = (datasetId: string) => {
+  const [data, setData] = useState<ChartData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const result = await chartService.getChartData(datasetId);
+        setData(result);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (datasetId) {
+      fetchData();
+    }
+  }, [datasetId]);
+
+  return { data, loading, error, refetch: () => fetchData() };
+};
+```
+
+## 🔧 DATABASE & ORM PATTERNS
+
+### Entity Definition (MUST FOLLOW)
+```typescript
+// Example: dashboard.entity.ts
+@Entity('dashboards')
+export class Dashboard {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ type: 'varchar', length: 255 })
+  title: string;
+
+  @Column({ type: 'json', nullable: true })
+  config: DashboardConfig;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+
+  @ManyToOne(() => User, user => user.dashboards)
+  @JoinColumn({ name: 'user_id' })
+  user: User;
+}
+```
+
+### Repository Pattern (MUST USE)
+```typescript
+// Example: dashboard.service.ts
+@Injectable()
+export class DashboardService {
+  constructor(
+    @InjectRepository(Dashboard)
+    private dashboardRepository: Repository<Dashboard>,
+  ) {}
+
+  async findByUserId(userId: number): Promise<Dashboard[]> {
+    return this.dashboardRepository.find({
+      where: { user: { id: userId } },
+      relations: ['user'],
+      order: { createdAt: 'DESC' },
+    });
+  }
+}
+```
+
+### Knex Query Builder Pattern (for complex queries)
+```typescript
+// Example: connection.service.ts - following existing pattern
+async executeComplexQuery(connection: any, query: ComplexQueryDto) {
+  const knexQuery = connection('table')
+    .select('*')
+    .where('status', 'active')
+    .orderBy('created_at', 'desc');
+    
+  return await knexQuery;
+}
+```
+
+## 📊 WIDGET & CHART PATTERNS
+
+### Chart Component Pattern (MUST FOLLOW)
+Based on existing widget structure in [frontend-web/src/widget](mdc:frontend-web/src/widget):
+
+```typescript
+// Example: NewChart.tsx
+interface INewChartProps {
+  data: ChartData;
+  options: ChartOptions;
+}
+
+const NewChart: React.FC<INewChartProps> = ({ data, options }) => {
+  const chartRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const chart = echarts.init(chartRef.current);
+    
+    const chartOptions = {
+      ...options,
+      // ECharts specific configuration
+    };
+
+    chart.setOption(chartOptions);
+
+    return () => {
+      chart.dispose();
+    };
+  }, [data, options]);
+
+  return <div ref={chartRef} style={{ width: "100%", height: "100%" }} />;
+};
+
+export default NewChart;
+```
+
+### Chart Settings Pattern (MUST IMPLEMENT)
+```typescript
+// Example: NewChartSetting.tsx
+interface INewChartSettingProps {
+  options: ChartOptions;
+  onChange: (options: ChartOptions) => void;
+}
+
+const NewChartSetting: React.FC<INewChartSettingProps> = ({ 
+  options, 
+  onChange 
+}) => {
+  return (
+    <div>
+      {/* Chart configuration UI */}
+    </div>
+  );
+};
+
+export default NewChartSetting;
+```
+
+### Chart Registry Pattern (MUST UPDATE)
+```typescript
+// Update: widget/utils/switchChart.tsx
+export const switchChart = (type: string, data: any, options: any) => {
+  switch (type) {
+    case 'newChart':
+      return <NewChart data={data} options={options} />;
+    // ... other cases
+    default:
+      return null;
+  }
+};
+```
+
+## 🔒 SECURITY PATTERNS
+
+### Authentication Guard Pattern (MUST USE)
+```typescript
+// Example: jwt-auth.guard.ts
+@Injectable()
+export class JwtAuthGuard extends AuthGuard('jwt') {
+  canActivate(context: ExecutionContext) {
+    // Custom authentication logic
+    return super.canActivate(context);
+  }
+
+  handleRequest(err: any, user: any, info: any) {
+    if (err || !user) {
+      throw err || new UnauthorizedException();
+    }
+    return user;
+  }
+}
+```
+
+### Input Validation Pattern (MUST IMPLEMENT)
+```typescript
+// Example: create-dashboard.dto.ts
+export class CreateDashboardDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  title: string;
+
+  @IsOptional()
+  @IsObject()
+  config?: DashboardConfig;
+
+  @IsNumber()
+  @IsPositive()
+  userId: number;
+}
+```
+
+## 🚀 PERFORMANCE PATTERNS
+
+### Caching Pattern (SHOULD IMPLEMENT)
+```typescript
+// Example: cache decorator usage
+@Injectable()
+export class DataService {
+  @Cacheable('dashboard-data', 300) // 5 minutes cache
+  async getDashboardData(id: string) {
+    // Expensive operation
+    return await this.fetchFromDatabase(id);
+  }
+}
+```
+
+### Pagination Pattern (MUST USE)
+```typescript
+// Example: pagination.dto.ts
+export class PaginationDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number = 10;
+}
+```
+
+## 🧪 TESTING PATTERNS
+
+### Service Testing Pattern (MUST FOLLOW)
+```typescript
+// Example: analytics.service.spec.ts
+describe('AnalyticsService', () => {
+  let service: AnalyticsService;
+  let repository: Repository<AnalyticsEntity>;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AnalyticsService,
+        {
+          provide: getRepositoryToken(AnalyticsEntity),
+          useClass: Repository,
+        },
+      ],
+    }).compile();
+
+    service = module.get<AnalyticsService>(AnalyticsService);
+    repository = module.get<Repository<AnalyticsEntity>>(
+      getRepositoryToken(AnalyticsEntity),
+    );
+  });
+
+  it('should fetch analytics data', async () => {
+    // Arrange
+    const mockData = [{ id: 1, value: 100 }];
+    jest.spyOn(repository, 'find').mockResolvedValue(mockData as any);
+
+    // Act
+    const result = await service.getAnalytics({});
+
+    // Assert
+    expect(result).toEqual(mockData);
+    expect(repository.find).toHaveBeenCalled();
+  });
+});
+```
+
+### Component Testing Pattern (MUST FOLLOW)
+```typescript
+// Example: DashboardWidget.test.tsx
+describe('DashboardWidget', () => {
+  const mockProps = {
+    data: { series: [1, 2, 3] },
+    options: { title: 'Test Chart' },
+  };
+
+  it('should render chart correctly', async () => {
+    render(<DashboardWidget {...mockProps} />);
+    
+    await waitFor(() => {
+      expect(screen.getByTestId('chart-container')).toBeInTheDocument();
+    });
+  });
+
+  it('should handle config changes', async () => {
+    const onConfigChange = jest.fn();
+    render(
+      <DashboardWidget 
+        {...mockProps} 
+        onConfigChange={onConfigChange} 
+      />
+    );
+    
+    // Test config change logic
+  });
+});
+```
+
+## 🔄 ERROR HANDLING PATTERNS
+
+### Global Exception Filter (MUST IMPLEMENT)
+```typescript
+// Example: http-exception.filter.ts
+@Catch(HttpException)
+export class HttpExceptionFilter implements ExceptionFilter {
+  private readonly logger = new Logger(HttpExceptionFilter.name);
+
+  catch(exception: HttpException, host: ArgumentsHost) {
+    const ctx = host.switchToHttp();
+    const response = ctx.getResponse<Response>();
+    const request = ctx.getRequest<Request>();
+    const status = exception.getStatus();
+
+    this.logger.error(
+      `HTTP Exception: ${exception.message}`,
+      exception.stack,
+    );
+
+    response.status(status).json({
+      statusCode: status,
+      timestamp: new Date().toISOString(),
+      path: request.url,
+      message: exception.message,
+    });
+  }
+}
+```
+
+### Frontend Error Boundary Pattern (SHOULD IMPLEMENT)
+```typescript
+// Example: ErrorBoundary.tsx
+class ErrorBoundary extends React.Component<Props, State> {
+  constructor(props: Props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error): State {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('Error caught by boundary:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <div>Something went wrong.</div>;
+    }
+
+    return this.props.children;
+  }
+}
+```
+
+---
+
+**Key Principle**: Follow the existing patterns in the codebase. When adding new features, look for similar implementations and maintain consistency with the established architecture.
+
+agent_request_description: Use when implementing or refactoring backend/frontend architecture. This guide provides standards for NestJS modules (Controller, Service), React component structure, state management, and overall architectural patterns to ensure consistency and scalability across the VanillaMeta project.

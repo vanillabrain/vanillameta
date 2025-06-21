@@ -1,0 +1,181 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# VanillaMeta Project Coding Standards
+
+## 🎯 CRITICAL RULES - MUST FOLLOW
+
+### File Naming & Structure
+- **MUST USE**: camelCase for files (e.g., `userService.ts`, `dashboardController.ts`)
+- **MUST USE**: PascalCase for classes and React components (e.g., `UserService`, `DashboardWidget`)
+- **MUST USE**: camelCase for variables and functions (e.g., `getUserData`, `chartOptions`)
+- **MUST USE**: UPPER_SNAKE_CASE for constants (e.g., `MAX_RETRY_COUNT`, `API_BASE_URL`)
+- **MUST USE**: Domain-driven folder structure - group related files in domain folders
+- **MUST INCLUDE**: `index.ts(x)` barrel exports in each domain folder
+
+### TypeScript Configuration
+- **MUST FOLLOW**: Backend uses `target: ES2017`, `module: commonjs` as defined in [backend-api/tsconfig.json](mdc:backend-api/tsconfig.json)
+- **MUST FOLLOW**: Frontend uses `target: ES2020`, `module: ESNext` as defined in [frontend-web/tsconfig.json](mdc:frontend-web/tsconfig.json)
+- **MUST USE**: Path aliases `@/*` for frontend imports as configured in [frontend-web/tsconfig.paths.json](mdc:frontend-web/tsconfig.paths.json)
+
+### Code Formatting
+- **MUST FOLLOW**: Prettier configuration:
+  - Backend: `printWidth: 100` as in [backend-api/.prettierrc](mdc:backend-api/.prettierrc)
+  - Frontend: `printWidth: 125` as in [frontend-web/.prettierrc](mdc:frontend-web/.prettierrc)
+  - Common: `singleQuote: true`, `tabWidth: 2`, `trailingComma: all`, `arrowParens: avoid`
+
+## 🚫 CRITICAL PROHIBITIONS - NEVER DO
+
+### Git Workflow Violations
+- **NEVER** commit directly to `main` branch - protected by [.husky/pre-commit](mdc:.husky/pre-commit)
+- **NEVER** push directly to `main` branch - blocked by [.husky/pre-push](mdc:.husky/pre-push)
+- **ALWAYS** create feature branches: `feature/your-feature-name`
+
+### Code Quality Violations
+- **NEVER** disable TypeScript strict checks without justification
+- **NEVER** use `any` type without explicit business reason
+- **NEVER** commit code without proper error handling
+- **NEVER** hardcode sensitive data - use environment variables
+
+## 📁 Project Architecture
+
+### Backend Structure ([backend-api/src](mdc:backend-api/src))
+```
+src/
+├── {domain}/              # Domain modules (analytics, auth, dashboard, etc.)
+│   ├── {domain}.controller.ts
+│   ├── {domain}.service.ts
+│   ├── {domain}.module.ts
+│   ├── dto/              # Data Transfer Objects
+│   ├── entities/         # Database entities
+│   └── interfaces/       # Type definitions
+├── common/               # Shared utilities
+│   ├── decorators/
+│   ├── interceptors/
+│   ├── middleware/
+│   └── utils/
+└── types/               # Global type definitions
+```
+
+### Frontend Structure ([frontend-web/src](mdc:frontend-web/src))
+```
+src/
+├── components/          # Reusable UI components
+├── pages/              # Route-level components
+├── widget/             # Chart and dashboard widgets
+├── hooks/              # Custom React hooks
+├── contexts/           # React contexts
+├── utils/              # Utility functions
+├── types/              # TypeScript definitions
+└── constant/           # Application constants
+```
+
+## 🎨 UI/UX Guidelines
+
+### Chart Design Principles (from [docs/user-manual/차트_유형별_사용_가이드.md](mdc:docs/user-manual/차트_유형별_사용_가이드.md))
+- **Color Usage**: Maximum 5-7 colors, maintain consistency, use accessible color palettes
+- **Labels**: Always include axis titles, use concise labels, ensure readability
+- **Data Integrity**: Y-axis should start from 0, provide context, remove unnecessary elements
+
+### React Component Standards
+- **Props Interface**: Use `I{ComponentName}Props` pattern
+- **Custom Hooks**: Start with `use` prefix (e.g., `useChartData`)
+- **Component Files**: Co-locate related files in same directory
+
+## 🧪 Testing Requirements
+
+### Backend Testing Pattern
+```typescript
+describe('ServiceName', () => {
+  let service: ServiceName;
+  let repository: Repository<Entity>;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [ServiceName, mockRepository],
+    }).compile();
+    // Setup
+  });
+
+  it('should perform expected behavior', async () => {
+    // Arrange, Act, Assert pattern
+  });
+});
+```
+
+### Frontend Testing Pattern
+```typescript
+describe('ComponentName', () => {
+  it('should render correctly', async () => {
+    render(<ComponentName />);
+    await waitFor(() => {
+      expect(screen.getByText('Expected Text')).toBeInTheDocument();
+    });
+  });
+});
+```
+
+## 🔧 Development Workflow
+
+### ESLint Configuration
+- Backend: Follow [backend-api/.eslintrc.js](mdc:backend-api/.eslintrc.js) - TypeScript strict mode with Prettier integration
+- Frontend: Follow `eslintConfig` in [frontend-web/package.json](mdc:frontend-web/package.json) - React + Airbnb standards
+
+### Pre-commit Checklist
+1. Run `npm run lint` and fix all issues
+2. Run `npm run test` and ensure all tests pass
+3. Verify code follows naming conventions
+4. Check that sensitive data is not hardcoded
+5. Ensure proper error handling is implemented
+
+## 📚 Documentation Standards
+
+### Code Comments
+- **MUST** document complex business logic
+- **MUST** include JSDoc for public APIs
+- **SHOULD** explain non-obvious code decisions
+- **AVOID** obvious comments that restate the code
+
+### API Documentation
+- **MUST** use Swagger/OpenAPI annotations for endpoints
+- **MUST** document request/response schemas
+- **MUST** include example requests and responses
+
+## 🚀 Performance Guidelines
+
+### Frontend Performance
+- **MUST** use React.memo for expensive components
+- **MUST** implement proper loading states
+- **SHOULD** use lazy loading for routes
+- **SHOULD** optimize bundle size with code splitting
+
+### Backend Performance
+- **MUST** implement proper database indexing
+- **MUST** use connection pooling as configured
+- **SHOULD** implement caching for frequently accessed data
+- **SHOULD** use pagination for large datasets
+
+## 🔍 Code Review Standards
+
+### What Reviewers Should Check
+1. **Architecture**: Does the code follow domain-driven design?
+2. **Naming**: Are naming conventions followed consistently?
+3. **Testing**: Are there adequate unit and integration tests?
+4. **Performance**: Are there any obvious performance issues?
+5. **Security**: Is sensitive data properly handled?
+6. **Documentation**: Is the code self-documenting or properly commented?
+
+### Approval Criteria
+- All automated checks pass (linting, testing, formatting)
+- Code follows established patterns in the codebase
+- Proper error handling is implemented
+- No hardcoded values or security vulnerabilities
+- Adequate test coverage for new functionality
+
+---
+
+**Remember**: These standards exist to maintain code quality, consistency, and team productivity. When in doubt, refer to existing code patterns in the codebase and follow the principle of least surprise.
+
+agent_request_description: Use for general coding tasks, including file naming, formatting, and Git workflow. This is the primary guide for maintaining code quality, ensuring consistent formatting via Prettier, and following project-wide conventions for variables, functions, and tests.
