@@ -1,5 +1,5 @@
 import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
-import { AppController } from './app.controller';
+import { AppController, HealthController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -128,7 +128,7 @@ import { MonitoringModule } from './common/monitoring/monitoring.module';
     EventsModule,
     InitializationModule,
   ],
-  controllers: [AppController, TestCompressionController, TestFieldSelectionController],
+  controllers: [AppController, HealthController, TestCompressionController, TestFieldSelectionController],
   providers: [
     AppService,
     {

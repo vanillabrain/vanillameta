@@ -1,6 +1,25 @@
 version: '3.8'
 
 services:
+  # Redis 캐시 서비스
+  redis:
+    image: redis:7-alpine
+    container_name: vanillameta-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - vanillameta-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
   # 백엔드 API 서비스
   backend:
     build:
@@ -22,11 +41,18 @@ services:
       - JWT_EXPIRATION=1d
       - JWT_REFRESH_SECRET=vanillameta-local-refresh-secret-key
       - JWT_REFRESH_EXPIRATION=7d
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     volumes:
       # SQLite 데이터베이스 파일 지속성을 위한 볼륨
       - sqlite_data:/app/sqlite_data
+      # 로그 파일 지속성
+      - log_data:/app/logs
     networks:
       - vanillameta-network
+    depends_on:
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/v1/health" ]
       interval: 30s
@@ -40,20 +66,43 @@ services:
     build:
       context: ./frontend-web
       dockerfile: Dockerfile
+      args:
+        - REACT_APP_API_URL=http://localhost/api/v1
+        - REACT_APP_MODE=local
     container_name: vanillameta-frontend
-    ports:
-      - "80:80"
-    environment:
-      - REACT_APP_API_URL=/api/v1
-      - REACT_APP_MODE=local
-      - GENERATE_SOURCEMAP=false
+    networks:
+      - vanillameta-network
     depends_on:
       backend:
         condition: service_healthy
-    networks:
-      - vanillameta-network
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  # Nginx 리버스 프록시
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: vanillameta-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - nginx_logs:/var/log/nginx
+    networks:
+      - vanillameta-network
+    depends_on:
+      frontend:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -63,6 +112,12 @@ services:
 # 볼륨 정의
 volumes:
   sqlite_data:
+    driver: local
+  redis_data:
+    driver: local
+  log_data:
+    driver: local
+  nginx_logs:
     driver: local
 
 # 네트워크 정의

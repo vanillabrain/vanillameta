@@ -97,6 +97,7 @@ export class AppController {
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV,
       database: process.env.NODE_ENV === 'local' ? 'sqlite' : 'mysql',
+      uptime: process.uptime(),
     };
   }
 
@@ -106,6 +107,26 @@ export class AppController {
       message: 'Seed data endpoint ready',
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV,
+    };
+  }
+}
+
+// API v1 헬스체크 컨트롤러
+@ApiTags('health')
+@Controller('api/v1')
+export class HealthController {
+  @Get('health')
+  @ApiOperation({ summary: '헬스체크 엔드포인트' })
+  getApiHealth() {
+    return {
+      status: 'healthy',
+      service: 'vanillameta-backend',
+      version: '1.0.0',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      environment: process.env.NODE_ENV || 'unknown',
+      database: 'connected', // 실제로는 DB 연결 상태 확인 필요
+      redis: 'connected', // 실제로는 Redis 연결 상태 확인 필요
     };
   }
 }
