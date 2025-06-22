@@ -9,9 +9,15 @@
   "private": true,
   "license": "Apache-2.0",
   "scripts": {
+    "build:layer": "npm ci --omit=dev --legacy-peer-deps",
+    "optimize:layer": "node scripts/optimize-layer.js",
+    "analyze:size": "node scripts/size-analyzer.js",
+    "build:optimized": "npm run build:layer && npm run optimize:layer",
+    "deploy:optimized": "./scripts/deploy-optimized.sh",
     "deploy": "serverless deploy",
     "deploy-only": "serverless deploy --package .serverless",
-    "package": "serverless package"
+    "package": "serverless package",
+    "clean": "rm -rf node_modules .serverless"
   },
   "dependencies": {
     "@google-cloud/bigquery": "^6.0.3",
@@ -39,6 +45,7 @@
     "cross-env": "^7.0.3",
     "dylib-node": "^1.0.10",
     "fastify-swagger": "^5.2.0",
+    "glob": "^11.0.3",
     "js-joda": "^1.11.0",
     "knex": "^2.3.0",
     "knex-bigquery": "^2.0.3",
