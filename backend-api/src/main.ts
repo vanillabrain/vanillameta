@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
 import express from 'express';
+import compression from 'compression';
 import { config } from 'dotenv';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './nest-utils/http-exception.filter';
@@ -61,6 +62,34 @@ async function bootstrap() {
   });
 
   // Global middleware
+  // API 응답 압축 설정 (1KB 이상만 압축, 최적화된 압축 레벨)
+  nestApp.use(compression({
+    threshold: 1024, // 1KB 이상만 압축
+    level: 6, // 압축 레벨 (1-9, 6은 속도와 압축률의 균형점)
+    filter: (req, res) => {
+      // Accept-Encoding 헤더 확인
+      if (!req.headers['accept-encoding']) {
+        return false;
+      }
+      
+      // 이미 압축되었거나 압축할 필요가 없는 콘텐츠 제외
+      const contentType = res.getHeader('content-type');
+      if (typeof contentType === 'string') {
+        // 이미지, 동영상, 이미 압축된 파일들 제외
+        if (contentType.startsWith('image/') || 
+            contentType.startsWith('video/') || 
+            contentType.includes('compressed') ||
+            contentType.includes('zip') ||
+            contentType.includes('gzip')) {
+          return false;
+        }
+      }
+      
+      // compression 패키지의 기본 필터 사용
+      return compression.filter(req, res);
+    }
+  }));
+
   nestApp.use(
     new LoggingMiddleware(nestApp.get(CustomLoggerService)).use.bind(
       new LoggingMiddleware(nestApp.get(CustomLoggerService)),
