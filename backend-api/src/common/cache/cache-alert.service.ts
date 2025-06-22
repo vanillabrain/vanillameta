@@ -51,7 +51,7 @@ export class CacheAlertService {
   private readonly logger = new Logger(CacheAlertService.name);
   private alertHistory: Map<string, AlertHistory[]> = new Map();
   private lastAlertTime: Map<string, number> = new Map();
-  
+
   private readonly DEFAULT_RULES: AlertRule[] = [
     {
       id: 'low-hit-rate',
@@ -138,16 +138,16 @@ export class CacheAlertService {
 
     // 적용 가능한 규칙 찾기
     const applicableRules = this.findApplicableRules(event);
-    
+
     for (const rule of applicableRules) {
       // Cooldown 체크
       if (this.isInCooldown(rule.id, event.engine)) {
         continue;
       }
-      
+
       // 알림 발송
       await this.sendAlert(rule, event);
-      
+
       // 히스토리 기록
       this.recordAlert(rule, event);
     }
@@ -157,17 +157,13 @@ export class CacheAlertService {
    * 메트릭 수집 이벤트 처리
    */
   @OnEvent('cache.metrics.collected')
-  async handleMetricsCollected(payload: {
-    engine: string;
-    metrics: any;
-    timestamp: number;
-  }) {
+  async handleMetricsCollected(payload: { engine: string; metrics: any; timestamp: number }) {
     const { engine, metrics } = payload;
-    
+
     // 규칙별로 체크
     for (const rule of this.DEFAULT_RULES) {
       const shouldAlert = this.evaluateRule(rule, metrics);
-      
+
       if (shouldAlert && !this.isInCooldown(rule.id, engine)) {
         const event: CacheMonitoringEvent = {
           type: 'performance',
@@ -177,7 +173,7 @@ export class CacheAlertService {
           message: `${rule.name}: ${rule.description}`,
           timestamp: Date.now(),
         };
-        
+
         await this.sendAlert(rule, event);
         this.recordAlert(rule, event);
       }
@@ -190,7 +186,7 @@ export class CacheAlertService {
   private evaluateRule(rule: AlertRule, metrics: any): boolean {
     const value = this.getMetricValue(rule.condition.metric, metrics);
     if (value === null) return false;
-    
+
     switch (rule.condition.operator) {
       case 'lt':
         return value < rule.condition.threshold;
@@ -244,12 +240,12 @@ export class CacheAlertService {
   private isInCooldown(ruleId: string, engine: string): boolean {
     const key = `${ruleId}:${engine}`;
     const lastAlert = this.lastAlertTime.get(key);
-    
+
     if (!lastAlert) return false;
-    
+
     const rule = this.DEFAULT_RULES.find(r => r.id === ruleId);
     if (!rule) return false;
-    
+
     return Date.now() - lastAlert < rule.cooldown;
   }
 
@@ -277,7 +273,7 @@ export class CacheAlertService {
         this.logger.error(`Failed to send alert via ${channel}:`, error);
       }
     }
-    
+
     // 마지막 알림 시간 업데이트
     const key = `${rule.id}:${event.engine}`;
     this.lastAlertTime.set(key, Date.now());
@@ -287,21 +283,22 @@ export class CacheAlertService {
    * 로그 알림
    */
   private async sendLogAlert(rule: AlertRule, event: CacheMonitoringEvent) {
-    const logLevel = event.severity === 'critical' ? 'error' : 
-                    event.severity === 'error' ? 'error' :
-                    event.severity === 'warning' ? 'warn' : 'log';
-    
-    this.customLogger[logLevel](
-      `[CACHE ALERT] ${rule.name}`,
-      'CacheAlertService',
-      {
-        rule: rule.id,
-        engine: event.engine,
-        severity: event.severity,
-        message: event.message,
-        metrics: event.metrics,
-      },
-    );
+    const logLevel =
+      event.severity === 'critical'
+        ? 'error'
+        : event.severity === 'error'
+        ? 'error'
+        : event.severity === 'warning'
+        ? 'warn'
+        : 'log';
+
+    this.customLogger[logLevel](`[CACHE ALERT] ${rule.name}`, 'CacheAlertService', {
+      rule: rule.id,
+      engine: event.engine,
+      severity: event.severity,
+      message: event.message,
+      metrics: event.metrics,
+    });
   }
 
   /**
@@ -325,40 +322,47 @@ export class CacheAlertService {
       this.logger.warn('Slack webhook URL not configured');
       return;
     }
-    
-    const color = event.severity === 'critical' ? '#FF0000' :
-                 event.severity === 'error' ? '#FF6600' :
-                 event.severity === 'warning' ? '#FFCC00' : '#00CC00';
-    
+
+    const color =
+      event.severity === 'critical'
+        ? '#FF0000'
+        : event.severity === 'error'
+        ? '#FF6600'
+        : event.severity === 'warning'
+        ? '#FFCC00'
+        : '#00CC00';
+
     const payload = {
       username: 'VanillaMeta Cache Monitor',
       icon_emoji: ':warning:',
-      attachments: [{
-        color,
-        title: `${rule.name} (${event.engine})`,
-        text: event.message,
-        fields: [
-          {
-            title: '심각도',
-            value: event.severity.toUpperCase(),
-            short: true,
-          },
-          {
-            title: '엔진',
-            value: event.engine,
-            short: true,
-          },
-          {
-            title: '시간',
-            value: new Date(event.timestamp).toLocaleString('ko-KR'),
-            short: true,
-          },
-        ],
-        footer: 'VanillaMeta Cache Monitoring',
-        ts: Math.floor(event.timestamp / 1000),
-      }],
+      attachments: [
+        {
+          color,
+          title: `${rule.name} (${event.engine})`,
+          text: event.message,
+          fields: [
+            {
+              title: '심각도',
+              value: event.severity.toUpperCase(),
+              short: true,
+            },
+            {
+              title: '엔진',
+              value: event.engine,
+              short: true,
+            },
+            {
+              title: '시간',
+              value: new Date(event.timestamp).toLocaleString('ko-KR'),
+              short: true,
+            },
+          ],
+          footer: 'VanillaMeta Cache Monitoring',
+          ts: Math.floor(event.timestamp / 1000),
+        },
+      ],
     };
-    
+
     // TODO: Slack API 호출
     this.logger.log('Slack alert would be sent:', payload);
   }
@@ -372,7 +376,7 @@ export class CacheAlertService {
       this.logger.warn('Alert webhook URL not configured');
       return;
     }
-    
+
     const payload = {
       timestamp: event.timestamp,
       rule: {
@@ -387,7 +391,7 @@ export class CacheAlertService {
         metrics: event.metrics,
       },
     };
-    
+
     // TODO: Webhook API 호출
     this.logger.log('Webhook alert would be sent:', payload);
   }
@@ -403,7 +407,7 @@ export class CacheAlertService {
       `설명: ${event.message}`,
       `시간: ${new Date(event.timestamp).toLocaleString('ko-KR')}`,
     ];
-    
+
     if (event.metrics) {
       lines.push('');
       lines.push('주요 메트릭:');
@@ -411,7 +415,7 @@ export class CacheAlertService {
       lines.push(`- 평균 응답 시간: ${event.metrics.overall?.avgResponseTime?.toFixed(2)}ms`);
       lines.push(`- 총 요청 수: ${event.metrics.overall?.totalRequests?.toLocaleString()}`);
     }
-    
+
     return lines.join('\n');
   }
 
@@ -429,15 +433,15 @@ export class CacheAlertService {
         metrics: event.metrics,
       },
     };
-    
+
     const key = `${rule.id}:${event.engine}`;
     if (!this.alertHistory.has(key)) {
       this.alertHistory.set(key, []);
     }
-    
+
     const histories = this.alertHistory.get(key)!;
     histories.push(history);
-    
+
     // 최대 100개까지만 유지
     if (histories.length > 100) {
       histories.shift();
@@ -449,16 +453,16 @@ export class CacheAlertService {
    */
   getAlertHistory(engine?: string, ruleId?: string): AlertHistory[] {
     const results: AlertHistory[] = [];
-    
+
     for (const [key, histories] of this.alertHistory.entries()) {
       const [rid, eng] = key.split(':');
-      
+
       if (engine && eng !== engine) continue;
       if (ruleId && rid !== ruleId) continue;
-      
+
       results.push(...histories);
     }
-    
+
     return results.sort((a, b) => b.timestamp - a.timestamp);
   }
 
@@ -482,19 +486,18 @@ export class CacheAlertService {
     }>;
   } {
     const now = Date.now();
-    const recentAlerts = this.getAlertHistory()
-      .filter(alert => now - alert.timestamp < 3600000); // 1시간 이내
-    
+    const recentAlerts = this.getAlertHistory().filter(alert => now - alert.timestamp < 3600000); // 1시간 이내
+
     const cooldowns: Array<{
       rule: string;
       engine: string;
       remainingTime: number;
     }> = [];
-    
+
     for (const [key, lastTime] of this.lastAlertTime.entries()) {
       const [ruleId, engine] = key.split(':');
       const rule = this.DEFAULT_RULES.find(r => r.id === ruleId);
-      
+
       if (rule) {
         const remainingTime = Math.max(0, rule.cooldown - (now - lastTime));
         if (remainingTime > 0) {
@@ -506,9 +509,10 @@ export class CacheAlertService {
         }
       }
     }
-    
+
     return {
-      activeAlerts: recentAlerts.filter(a => a.severity === 'critical' || a.severity === 'error').length,
+      activeAlerts: recentAlerts.filter(a => a.severity === 'critical' || a.severity === 'error')
+        .length,
       recentAlerts: recentAlerts.slice(0, 10),
       cooldowns,
     };

@@ -127,7 +127,7 @@ export class CacheInvalidationService {
    */
   async invalidateDataset(datasetId: number, policy?: InvalidationPolicy): Promise<void> {
     const effectivePolicy = this.getEffectivePolicy(policy);
-    
+
     if (effectivePolicy.async) {
       this.queueInvalidation({
         type: 'dataset',
@@ -153,16 +153,20 @@ export class CacheInvalidationService {
 
         // 영향받는 대시보드들 찾기
         const dashboardIds = [...new Set(widgets.map(w => w.dashboardId))];
-        
+
         // 각 대시보드 캐시 무효화
         for (const dashboardId of dashboardIds) {
           await this.dashboardCacheService.invalidateDashboard(dashboardId);
         }
 
-        this.customLogger.log('Cascaded dataset cache invalidation completed', 'CacheInvalidationService', {
-          datasetId,
-          affectedDashboards: dashboardIds.length,
-        });
+        this.customLogger.log(
+          'Cascaded dataset cache invalidation completed',
+          'CacheInvalidationService',
+          {
+            datasetId,
+            affectedDashboards: dashboardIds.length,
+          },
+        );
       }
 
       // 무효화 완료 이벤트 발생
@@ -183,7 +187,7 @@ export class CacheInvalidationService {
    */
   async invalidateDashboard(dashboardId: number, policy?: InvalidationPolicy): Promise<void> {
     const effectivePolicy = this.getEffectivePolicy(policy);
-    
+
     if (effectivePolicy.async) {
       this.queueInvalidation({
         type: 'dashboard',
@@ -205,11 +209,13 @@ export class CacheInvalidationService {
         });
 
         // 위젯이 사용하는 데이터셋 캐시 무효화 (선택적)
-        const datasetIds = [...new Set(
-          widgets
-            .filter(w => w.datasetType === DatasetType.DATASET && w.datasetId)
-            .map(w => w.datasetId)
-        )];
+        const datasetIds = [
+          ...new Set(
+            widgets
+              .filter(w => w.datasetType === DatasetType.DATASET && w.datasetId)
+              .map(w => w.datasetId),
+          ),
+        ];
 
         for (const datasetId of datasetIds) {
           await this.datasetService.invalidateDatasetCache(datasetId);
@@ -238,7 +244,7 @@ export class CacheInvalidationService {
     policy?: InvalidationPolicy,
   ): Promise<void> {
     const effectivePolicy = this.getEffectivePolicy(policy);
-    
+
     if (effectivePolicy.async) {
       this.queueInvalidation({
         type: 'widget',
@@ -284,7 +290,7 @@ export class CacheInvalidationService {
    */
   async invalidateDatabase(databaseId: number, policy?: InvalidationPolicy): Promise<void> {
     const effectivePolicy = this.getEffectivePolicy(policy);
-    
+
     if (effectivePolicy.async) {
       this.queueInvalidation({
         type: 'database',
@@ -314,21 +320,25 @@ export class CacheInvalidationService {
         const batchSize = effectivePolicy.batchSize || this.DEFAULT_BATCH_SIZE;
         for (let i = 0; i < datasets.length; i += batchSize) {
           const batch = datasets.slice(i, i + batchSize);
-          
+
           await Promise.all(
-            batch.map(dataset => 
+            batch.map(dataset =>
               this.invalidateDataset(dataset.id, {
                 immediate: true,
                 cascade: false, // 중복 cascade 방지
                 async: false,
-              })
-            )
+              }),
+            ),
           );
 
-          this.customLogger.debug(`Invalidated batch ${i / batchSize + 1}`, 'CacheInvalidationService', {
-            databaseId,
-            batchSize: batch.length,
-          });
+          this.customLogger.debug(
+            `Invalidated batch ${i / batchSize + 1}`,
+            'CacheInvalidationService',
+            {
+              databaseId,
+              batchSize: batch.length,
+            },
+          );
         }
       }
 
@@ -350,7 +360,7 @@ export class CacheInvalidationService {
    */
   async invalidateUserCache(userId: number, policy?: InvalidationPolicy): Promise<void> {
     const effectivePolicy = this.getEffectivePolicy(policy);
-    
+
     try {
       // 사용자 대시보드 목록 캐시 무효화
       await this.dashboardCacheService.invalidateUserDashboardList(userId);
@@ -380,11 +390,15 @@ export class CacheInvalidationService {
     try {
       const engine = engineType || 'dashboard';
       await this.hybridCache.invalidateByQuery(engine, pattern);
-      
-      this.customLogger.log('Pattern-based cache invalidation completed', 'CacheInvalidationService', {
-        pattern,
-        engine,
-      });
+
+      this.customLogger.log(
+        'Pattern-based cache invalidation completed',
+        'CacheInvalidationService',
+        {
+          pattern,
+          engine,
+        },
+      );
 
       return 1; // 실제로는 영향받은 키 수를 반환해야 함
     } catch (error) {
@@ -399,9 +413,9 @@ export class CacheInvalidationService {
   async invalidateAll(): Promise<void> {
     try {
       this.customLogger.warn('Starting full cache invalidation', 'CacheInvalidationService');
-      
+
       await this.hybridCache.invalidateAll();
-      
+
       this.customLogger.log('Full cache invalidation completed', 'CacheInvalidationService');
 
       // 전체 무효화 이벤트 발생
@@ -431,7 +445,7 @@ export class CacheInvalidationService {
    */
   private queueInvalidation(event: CacheInvalidationEvent): void {
     this.invalidationQueue.push(event);
-    
+
     if (!this.isProcessing) {
       this.processQueue();
     }
@@ -458,7 +472,7 @@ export class CacheInvalidationService {
 
     this.isProcessing = true;
     const batch = this.invalidationQueue.splice(0, this.DEFAULT_BATCH_SIZE);
-    
+
     try {
       for (const event of batch) {
         await this.processInvalidationEvent(event);
@@ -475,7 +489,7 @@ export class CacheInvalidationService {
    */
   private async processInvalidationEvent(event: CacheInvalidationEvent): Promise<void> {
     const syncPolicy = { ...event.policy, async: false };
-    
+
     switch (event.type) {
       case 'dataset':
         await this.invalidateDataset(event.entityId as number, syncPolicy);

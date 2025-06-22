@@ -142,14 +142,11 @@ export class CacheMonitoringController {
     status: 200,
     description: '메트릭 히스토리가 반환되었습니다.',
   })
-  async getMetricsHistory(
-    @Param('engine') engine: string,
-    @Query('duration') duration?: string,
-  ) {
+  async getMetricsHistory(@Param('engine') engine: string, @Query('duration') duration?: string) {
     try {
       const durationMs = duration ? parseInt(duration, 10) : 86400000; // 기본 24시간
       const history = this.cacheMonitoringService.getMetricsHistory(engine, durationMs);
-      
+
       return {
         status: 'success',
         data: {
@@ -299,14 +296,11 @@ export class CacheMonitoringController {
       },
     },
   })
-  async generateReport(
-    @Query('duration') duration?: string,
-    @Query('format') format: string = 'json',
-  ) {
+  async generateReport(@Query('duration') duration?: string, @Query('format') format = 'json') {
     try {
       const durationMs = duration ? parseInt(duration, 10) : 86400000;
       const report = await this.cacheMonitoringService.generatePerformanceReport(durationMs);
-      
+
       if (format === 'summary') {
         // 요약 형식으로 변환
         return {
@@ -324,7 +318,7 @@ export class CacheMonitoringController {
           },
         };
       }
-      
+
       return {
         status: 'success',
         data: report,
@@ -442,23 +436,25 @@ export class CacheMonitoringController {
   async checkHealth() {
     try {
       const summary = await this.cacheMonitoringService.getCacheSummary();
-      
+
       const checks = {
         l1Cache: true, // L1 캐시는 항상 사용 가능
         l2Cache: summary.engines.every(e => e.status !== 'critical'),
         redisConnection: !summary.engines.some(e => e.issues.includes('Redis 연결 문제')),
         performanceThresholds: summary.overall.avgHitRate >= 0.7,
       };
-      
+
       const allHealthy = Object.values(checks).every(check => check);
       const anyUnhealthy = Object.values(checks).some(check => !check);
-      
+
       return {
         status: allHealthy ? 'healthy' : anyUnhealthy ? 'unhealthy' : 'degraded',
         checks,
-        message: allHealthy ? '모든 캐시 시스템이 정상 작동 중입니다.' :
-                anyUnhealthy ? '일부 캐시 시스템에 문제가 있습니다.' :
-                '캐시 성능이 저하되었습니다.',
+        message: allHealthy
+          ? '모든 캐시 시스템이 정상 작동 중입니다.'
+          : anyUnhealthy
+          ? '일부 캐시 시스템에 문제가 있습니다.'
+          : '캐시 성능이 저하되었습니다.',
       };
     } catch (error) {
       throw new HttpException(

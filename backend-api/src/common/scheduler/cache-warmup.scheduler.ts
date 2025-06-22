@@ -60,15 +60,15 @@ export class CacheWarmupScheduler {
       const batchSize = 5;
       for (let i = 0; i < popularDatasets.length; i += batchSize) {
         const batch = popularDatasets.slice(i, i + batchSize);
-        
+
         await Promise.allSettled(
-          batch.map(async (dataset) => {
+          batch.map(async dataset => {
             try {
               await this.datasetService.executeCachedQuery(dataset.id, {
                 forceRefresh: true,
                 customTtl: 7200, // 2시간 TTL
               });
-              
+
               this.customLogger.debug(
                 `Warmed up dataset ${dataset.id}: ${dataset.title}`,
                 'CacheWarmupScheduler',
@@ -114,14 +114,14 @@ export class CacheWarmupScheduler {
         try {
           // 대시보드의 위젯에서 사용하는 데이터셋 조회
           const datasetIds = await this.getWidgetDatasets(dashboard.id);
-          
+
           if (datasetIds.length === 0) {
             continue;
           }
 
           // 데이터셋 캐시 갱신
           await Promise.allSettled(
-            datasetIds.map(async (datasetId) => {
+            datasetIds.map(async datasetId => {
               try {
                 await this.datasetService.executeCachedQuery(datasetId, {
                   forceRefresh: true,
@@ -169,7 +169,7 @@ export class CacheWarmupScheduler {
 
       // 30일 이상 사용되지 않은 데이터셋 조회
       const unusedDatasets = await this.getUnusedDatasets(30);
-      
+
       for (const dataset of unusedDatasets) {
         try {
           await this.datasetService.invalidateDatasetCache(dataset.id);
@@ -212,12 +212,12 @@ export class CacheWarmupScheduler {
       const batchSize = 3;
       for (let i = 0; i < popularDashboards.length; i += batchSize) {
         const batch = popularDashboards.slice(i, i + batchSize);
-        
+
         await Promise.allSettled(
-          batch.map(async (dashboard) => {
+          batch.map(async dashboard => {
             try {
               await this.warmupDashboard(dashboard.id);
-              
+
               this.customLogger.debug(
                 `Warmed up dashboard ${dashboard.id}: ${dashboard.title}`,
                 'CacheWarmupScheduler',
@@ -311,7 +311,7 @@ export class CacheWarmupScheduler {
 
     // 중복 제거
     const uniqueDatasetIds = [...new Set(widgets.map(w => w.datasetId).filter(id => id !== null))];
-    
+
     return uniqueDatasetIds;
   }
 
@@ -349,10 +349,7 @@ export class CacheWarmupScheduler {
         customTtl: ttl || 3600,
       });
 
-      this.customLogger.log(
-        `Dataset ${datasetId} warmed up successfully`,
-        'CacheWarmupScheduler',
-      );
+      this.customLogger.log(`Dataset ${datasetId} warmed up successfully`, 'CacheWarmupScheduler');
     } catch (error) {
       this.logger.error(`Failed to warm up dataset ${datasetId}:`, error);
       throw error;
@@ -366,17 +363,15 @@ export class CacheWarmupScheduler {
     try {
       // 대시보드 메타데이터 캐싱
       const dashboardResult = await this.dashboardService.findOne(dashboardId);
-      
+
       if (dashboardResult.status !== 'SUCCESS' || !dashboardResult.data) {
         throw new Error(`Dashboard ${dashboardId} not found`);
       }
-      
+
       // 위젯에서 사용하는 데이터셋 워밍업
       const datasetIds = await this.getWidgetDatasets(dashboardId);
-      
-      await Promise.allSettled(
-        datasetIds.map(datasetId => this.warmupDataset(datasetId)),
-      );
+
+      await Promise.allSettled(datasetIds.map(datasetId => this.warmupDataset(datasetId)));
 
       this.customLogger.log(
         `Dashboard ${dashboardId} warmed up with ${datasetIds.length} datasets`,

@@ -80,7 +80,7 @@ export class CacheMonitoringService {
   private readonly logger = new Logger(CacheMonitoringService.name);
   private metricsHistory: Map<string, CacheMetrics[]> = new Map();
   private readonly MAX_HISTORY_SIZE = 1440; // 24시간 (1분 간격)
-  
+
   private readonly DEFAULT_THRESHOLDS: CacheThresholds = {
     minHitRate: 0.7, // 70% 이상
     maxMemoryUsage: 0.9, // 90% 이하
@@ -88,13 +88,16 @@ export class CacheMonitoringService {
     maxEvictionRate: 0.1, // 10% 이하
   };
 
-  private performanceTracking = new Map<string, {
-    requests: number;
-    hits: number;
-    misses: number;
-    totalLatency: number;
-    lastReset: number;
-  }>();
+  private performanceTracking = new Map<
+    string,
+    {
+      requests: number;
+      hits: number;
+      misses: number;
+      totalLatency: number;
+      lastReset: number;
+    }
+  >();
 
   constructor(
     private readonly hybridCache: HybridCacheService,
@@ -151,15 +154,15 @@ export class CacheMonitoringService {
   @Cron(CronExpression.EVERY_MINUTE)
   async collectMetrics() {
     const engines = ['dashboard', 'dataset', 'widget'];
-    
+
     for (const engine of engines) {
       try {
         const metrics = await this.getEngineMetrics(engine);
         this.addToHistory(engine, metrics);
-        
+
         // 임계값 체크
         await this.checkThresholds(engine, metrics);
-        
+
         // 메트릭 이벤트 발생
         this.eventEmitter.emit('cache.metrics.collected', {
           engine,
@@ -186,18 +189,18 @@ export class CacheMonitoringService {
 
     // L1 캐시 통계
     const l1Stats = await this.l1Cache.getStats(engine);
-    
+
     // L2 캐시 통계
     const l2Stats = await this.getRedisStats(engine);
-    
+
     // Redis 연결 상태 및 지연 시간
     const redisInfo = await this.getRedisInfo();
-    
+
     // 전체 통계 계산
     const totalRequests = tracking.requests || 1; // 0으로 나누기 방지
     const hitRate = totalRequests > 0 ? tracking.hits / totalRequests : 0;
     const avgResponseTime = totalRequests > 0 ? tracking.totalLatency / totalRequests : 0;
-    
+
     const metrics: CacheMetrics = {
       timestamp: Date.now(),
       engine,
@@ -253,10 +256,10 @@ export class CacheMonitoringService {
       // Redis INFO 명령으로 통계 조회
       const info = await this.redis.info('stats');
       const memory = await this.redis.info('memory');
-      
+
       // 키 패턴으로 엔진별 키 수 조회
       const keys = await this.redis.keys(`${engine}:*`);
-      
+
       return {
         hitRate: 0.8, // TODO: 실제 히트율 계산
         hits: parseInt(this.parseRedisInfo(info, 'keyspace_hits') || '0'),
@@ -302,10 +305,10 @@ export class CacheMonitoringService {
       const start = Date.now();
       await this.redis.ping();
       const latency = Date.now() - start;
-      
+
       const memory = await this.redis.info('memory');
       const usedMemory = parseInt(this.parseRedisInfo(memory, 'used_memory') || '0');
-      
+
       return {
         connected: true,
         memoryUsage: usedMemory,
@@ -336,7 +339,7 @@ export class CacheMonitoringService {
   private calculateEfficiency(hitRate: number, avgResponseTime: number): number {
     // 히트율과 응답 시간을 기반으로 효율성 점수 계산 (0-100)
     const hitScore = hitRate * 70; // 70% 가중치
-    const latencyScore = Math.max(0, 30 - (avgResponseTime / 10)); // 30% 가중치
+    const latencyScore = Math.max(0, 30 - avgResponseTime / 10); // 30% 가중치
     return Math.min(100, hitScore + latencyScore);
   }
 
@@ -347,10 +350,10 @@ export class CacheMonitoringService {
     if (!this.metricsHistory.has(engine)) {
       this.metricsHistory.set(engine, []);
     }
-    
+
     const history = this.metricsHistory.get(engine)!;
     history.push(metrics);
-    
+
     // 최대 크기 유지
     if (history.length > this.MAX_HISTORY_SIZE) {
       history.shift();
@@ -370,7 +373,9 @@ export class CacheMonitoringService {
         type: 'performance',
         severity: 'warning',
         engine,
-        message: `캐시 히트율이 ${(metrics.overall.hitRate * 100).toFixed(1)}%로 임계값(${thresholds.minHitRate * 100}%) 미만입니다.`,
+        message: `캐시 히트율이 ${(metrics.overall.hitRate * 100).toFixed(1)}%로 임계값(${
+          thresholds.minHitRate * 100
+        }%) 미만입니다.`,
         timestamp: Date.now(),
         metrics,
       });
@@ -383,7 +388,9 @@ export class CacheMonitoringService {
         type: 'health',
         severity: 'warning',
         engine,
-        message: `L1 캐시 메모리 사용률이 ${(l1MemoryUsage * 100).toFixed(1)}%로 임계값(${thresholds.maxMemoryUsage * 100}%)을 초과했습니다.`,
+        message: `L1 캐시 메모리 사용률이 ${(l1MemoryUsage * 100).toFixed(1)}%로 임계값(${
+          thresholds.maxMemoryUsage * 100
+        }%)을 초과했습니다.`,
         timestamp: Date.now(),
         metrics,
       });
@@ -431,12 +438,10 @@ export class CacheMonitoringService {
     if (engine) {
       return await this.getEngineMetrics(engine);
     }
-    
+
     const engines = ['dashboard', 'dataset', 'widget'];
-    const metrics = await Promise.all(
-      engines.map(eng => this.getEngineMetrics(eng))
-    );
-    
+    const metrics = await Promise.all(engines.map(eng => this.getEngineMetrics(eng)));
+
     return metrics;
   }
 
@@ -445,11 +450,11 @@ export class CacheMonitoringService {
    */
   getMetricsHistory(engine: string, duration?: number): CacheMetrics[] {
     const history = this.metricsHistory.get(engine) || [];
-    
+
     if (!duration) {
       return history;
     }
-    
+
     const since = Date.now() - duration;
     return history.filter(m => m.timestamp >= since);
   }
@@ -477,7 +482,7 @@ export class CacheMonitoringService {
       engines.map(async engine => {
         const metrics = await this.getEngineMetrics(engine);
         const issues: string[] = [];
-        
+
         // 문제 확인
         if (metrics.overall.hitRate < this.DEFAULT_THRESHOLDS.minHitRate) {
           issues.push('낮은 히트율');
@@ -488,10 +493,14 @@ export class CacheMonitoringService {
         if (metrics.l2.latency.avg > this.DEFAULT_THRESHOLDS.maxLatency) {
           issues.push('높은 지연 시간');
         }
-        
-        const status = issues.length === 0 ? 'healthy' : 
-                      issues.some(i => i.includes('연결')) ? 'critical' : 'warning';
-        
+
+        const status =
+          issues.length === 0
+            ? 'healthy'
+            : issues.some(i => i.includes('연결'))
+            ? 'critical'
+            : 'warning';
+
         return {
           name: engine,
           status,
@@ -499,21 +508,25 @@ export class CacheMonitoringService {
           efficiency: metrics.overall.cacheEfficiency,
           issues,
         };
-      })
+      }),
     );
-    
+
     // 전체 요약
     const totalRequests = engineSummaries.reduce((sum, e) => {
       const tracking = this.performanceTracking.get(e.name);
       return sum + (tracking?.requests || 0);
     }, 0);
-    
+
     const avgHitRate = engineSummaries.reduce((sum, e) => sum + e.hitRate, 0) / engines.length;
-    const avgEfficiency = engineSummaries.reduce((sum, e) => sum + e.efficiency, 0) / engines.length;
-    
-    const overallStatus = engineSummaries.some(e => e.status === 'critical') ? 'critical' :
-                         engineSummaries.some(e => e.status === 'warning') ? 'warning' : 'healthy';
-    
+    const avgEfficiency =
+      engineSummaries.reduce((sum, e) => sum + e.efficiency, 0) / engines.length;
+
+    const overallStatus = engineSummaries.some(e => e.status === 'critical')
+      ? 'critical'
+      : engineSummaries.some(e => e.status === 'warning')
+      ? 'warning'
+      : 'healthy';
+
     return {
       engines: engineSummaries,
       overall: {
@@ -528,7 +541,7 @@ export class CacheMonitoringService {
   /**
    * 캐시 성능 리포트 생성
    */
-  async generatePerformanceReport(duration: number = 86400000): Promise<{
+  async generatePerformanceReport(duration = 86400000): Promise<{
     period: {
       start: Date;
       end: Date;
@@ -554,11 +567,11 @@ export class CacheMonitoringService {
     const endTime = Date.now();
     const startTime = endTime - duration;
     const engines = ['dashboard', 'dataset', 'widget'];
-    
+
     const engineReports = await Promise.all(
       engines.map(async engine => {
         const history = this.getMetricsHistory(engine, duration);
-        
+
         if (history.length === 0) {
           return {
             name: engine,
@@ -570,12 +583,13 @@ export class CacheMonitoringService {
             recommendations: ['데이터 부족으로 분석 불가'],
           };
         }
-        
+
         // 성능 통계 계산
         const avgHitRate = history.reduce((sum, m) => sum + m.overall.hitRate, 0) / history.length;
-        const avgLatency = history.reduce((sum, m) => sum + m.overall.avgResponseTime, 0) / history.length;
+        const avgLatency =
+          history.reduce((sum, m) => sum + m.overall.avgResponseTime, 0) / history.length;
         const peakLatency = Math.max(...history.map(m => m.overall.avgResponseTime));
-        
+
         // 권장 사항 생성
         const recommendations: string[] = [];
         if (avgHitRate < 0.7) {
@@ -586,7 +600,7 @@ export class CacheMonitoringService {
           recommendations.push('Redis 성능 최적화 필요');
           recommendations.push('쿼리 패턴 분석 권장');
         }
-        
+
         return {
           name: engine,
           performance: {
@@ -596,29 +610,29 @@ export class CacheMonitoringService {
           },
           recommendations,
         };
-      })
+      }),
     );
-    
+
     // 전체 요약 계산
-    const allHistories = engines.flatMap(engine => 
-      this.getMetricsHistory(engine, duration)
-    );
-    
+    const allHistories = engines.flatMap(engine => this.getMetricsHistory(engine, duration));
+
     const totalRequests = allHistories.reduce((sum, m) => sum + m.overall.totalRequests, 0);
-    const totalHits = allHistories.reduce((sum, m) => 
-      sum + (m.overall.totalRequests * m.overall.hitRate), 0
+    const totalHits = allHistories.reduce(
+      (sum, m) => sum + m.overall.totalRequests * m.overall.hitRate,
+      0,
     );
     const totalMisses = totalRequests - totalHits;
     const avgHitRate = totalRequests > 0 ? totalHits / totalRequests : 0;
-    const avgResponseTime = allHistories.reduce((sum, m) => 
-      sum + m.overall.avgResponseTime, 0
-    ) / (allHistories.length || 1);
-    
+    const avgResponseTime =
+      allHistories.reduce((sum, m) => sum + m.overall.avgResponseTime, 0) /
+      (allHistories.length || 1);
+
     // 피크 사용 시간 찾기
-    const peakMetric = allHistories.reduce((peak, m) => 
-      m.overall.totalRequests > (peak?.overall.totalRequests || 0) ? m : peak
-    , allHistories[0]);
-    
+    const peakMetric = allHistories.reduce(
+      (peak, m) => (m.overall.totalRequests > (peak?.overall.totalRequests || 0) ? m : peak),
+      allHistories[0],
+    );
+
     return {
       period: {
         start: new Date(startTime),
@@ -650,12 +664,12 @@ export class CacheMonitoringService {
       memoryAllocation: {} as Record<string, number>,
       warmupStrategy: [] as string[],
     };
-    
+
     for (const engine of engines) {
       const history = this.getMetricsHistory(engine, 86400000); // 24시간
-      
+
       if (history.length === 0) continue;
-      
+
       // TTL 권장사항
       const avgHitRate = history.reduce((sum, m) => sum + m.overall.hitRate, 0) / history.length;
       if (avgHitRate < 0.5) {
@@ -665,19 +679,19 @@ export class CacheMonitoringService {
       } else {
         recommendations.ttl[engine] = 3600; // 1시간
       }
-      
+
       // 메모리 할당 권장사항
       const avgSize = history.reduce((sum, m) => sum + m.l1.size, 0) / history.length;
       recommendations.memoryAllocation[engine] = Math.ceil(avgSize * 1.5); // 50% 여유
     }
-    
+
     // 워밍업 전략 권장사항
     recommendations.warmupStrategy = [
       '매일 새벽 3시 인기 데이터셋 워밍업',
       '1시간마다 실시간 대시보드 갱신',
       '주 1회 사용하지 않는 캐시 정리',
     ];
-    
+
     return recommendations;
   }
 }

@@ -38,7 +38,8 @@ export class CacheInvalidationController {
   @Delete('dataset/:id')
   @ApiOperation({
     summary: '데이터셋 캐시 무효화',
-    description: '특정 데이터셋의 캐시를 무효화합니다. cascade 옵션으로 연관된 대시보드 캐시도 무효화할 수 있습니다.',
+    description:
+      '특정 데이터셋의 캐시를 무효화합니다. cascade 옵션으로 연관된 대시보드 캐시도 무효화할 수 있습니다.',
   })
   @ApiParam({
     name: 'id',
@@ -120,7 +121,8 @@ export class CacheInvalidationController {
   @Delete('dashboard/:id')
   @ApiOperation({
     summary: '대시보드 캐시 무효화',
-    description: '특정 대시보드의 캐시를 무효화합니다. cascade 옵션으로 위젯과 데이터셋 캐시도 무효화할 수 있습니다.',
+    description:
+      '특정 대시보드의 캐시를 무효화합니다. cascade 옵션으로 위젯과 데이터셋 캐시도 무효화할 수 있습니다.',
   })
   @ApiParam({
     name: 'id',
@@ -139,10 +141,7 @@ export class CacheInvalidationController {
     status: 200,
     description: '캐시가 성공적으로 무효화되었습니다.',
   })
-  async invalidateDashboard(
-    @Param('id') id: string,
-    @Query('cascade') cascade?: boolean,
-  ) {
+  async invalidateDashboard(@Param('id') id: string, @Query('cascade') cascade?: boolean) {
     try {
       const policy: InvalidationPolicy = {
         immediate: true,
@@ -179,7 +178,8 @@ export class CacheInvalidationController {
   @Delete('database/:id')
   @ApiOperation({
     summary: '데이터베이스별 캐시 무효화',
-    description: '특정 데이터베이스의 모든 캐시를 무효화합니다. 대량의 캐시가 삭제될 수 있으므로 주의가 필요합니다.',
+    description:
+      '특정 데이터베이스의 모든 캐시를 무효화합니다. 대량의 캐시가 삭제될 수 있으므로 주의가 필요합니다.',
   })
   @ApiParam({
     name: 'id',
@@ -290,7 +290,8 @@ export class CacheInvalidationController {
   @Post('pattern')
   @ApiOperation({
     summary: '패턴 기반 캐시 무효화',
-    description: '특정 패턴과 일치하는 모든 캐시를 무효화합니다. 와일드카드(*)를 사용할 수 있습니다.',
+    description:
+      '특정 패턴과 일치하는 모든 캐시를 무효화합니다. 와일드카드(*)를 사용할 수 있습니다.',
   })
   @ApiBody({
     schema: {
@@ -329,9 +330,7 @@ export class CacheInvalidationController {
       },
     },
   })
-  async invalidateByPattern(
-    @Body() body: { pattern: string; engine?: string },
-  ) {
+  async invalidateByPattern(@Body() body: { pattern: string; engine?: string }) {
     try {
       const count = await this.cacheInvalidationService.invalidateByPattern(
         body.pattern,
@@ -519,11 +518,7 @@ export class CacheInvalidationController {
         async: false,
       };
 
-      await this.cacheInvalidationService.invalidateWidget(
-        +widgetId,
-        +dashboardId,
-        policy,
-      );
+      await this.cacheInvalidationService.invalidateWidget(+widgetId, +dashboardId, policy);
 
       return {
         status: 'success',

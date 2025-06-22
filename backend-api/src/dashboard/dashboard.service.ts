@@ -98,17 +98,17 @@ export class DashboardService {
       newDashboard.layout = JSON.parse(newDashboard.layout);
     }
     await this.dashboardWidgetService.create(saveObjDW);
-    
+
     // 사용자 대시보드 목록 캐시 무효화
     await this.dashboardCacheService.invalidateUserDashboardList(accessToken);
-    
+
     // 새 대시보드 이벤트 발생
     this.eventEmitter.emit('dashboard.created', {
       dashboardId: newDashboard.id,
       userId: accessToken,
       timestamp: Date.now(),
     });
-    
+
     return { status: ResponseStatus.SUCCESS, data: newDashboard };
   }
 
@@ -174,14 +174,14 @@ export class DashboardService {
     delete return_obj.dashboardShare;
 
     console.log(return_obj);
-    
+
     // 대시보드를 캐시에 저장
     await this.dashboardCacheService.cacheDashboard(
       find_dashboard,
       widgetList,
       find_dashboard.dashboardShare,
     );
-    
+
     return {
       status: ResponseStatus.SUCCESS,
       data: return_obj,
@@ -218,16 +218,16 @@ export class DashboardService {
       if (typeof updatedDashboard.layout === 'string') {
         updatedDashboard.layout = JSON.parse(updatedDashboard.layout);
       }
-      
+
       // 업데이트된 대시보드 캐시 무효화
       await this.dashboardCacheService.invalidateDashboard(id);
-      
+
       // 대시보드 업데이트 이벤트 발생
       this.eventEmitter.emit('dashboard.updated', {
         dashboardId: id,
         timestamp: Date.now(),
       });
-      
+
       return { status: ResponseStatus.SUCCESS, data: updatedDashboard };
     }
   }
@@ -244,24 +244,24 @@ export class DashboardService {
       });
       // 캐시 무효화를 위해 userInfoId 저장
       const userInfoId = find_dashboardId?.userInfoId;
-      
+
       await this.userMappingRepository.delete(find_dashboardId.id);
       await this.dashboardShareRepository.delete(find_dashboard.shareId);
-      
+
       // 삭제된 대시보드 캐시 무효화
       await this.dashboardCacheService.invalidateDashboard(id);
-      
+
       // 사용자 대시보드 목록 캐시도 무효화
       if (userInfoId) {
         await this.dashboardCacheService.invalidateUserDashboardList(userInfoId);
       }
-      
+
       // 대시보드 삭제 이벤트 발생
       this.eventEmitter.emit('dashboard.deleted', {
         dashboardId: id,
         timestamp: Date.now(),
       });
-      
+
       return {
         status: ResponseStatus.SUCCESS,
         data: { message: `This action removes a #${id} dashboard` },

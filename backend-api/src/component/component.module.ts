@@ -9,7 +9,7 @@ import { CacheModule } from '../common/optimization/cache.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Component]), 
+    TypeOrmModule.forFeature([Component]),
     LoggerModule,
     CacheModule, // CacheModule import 추가 - @Global()이므로 자동으로 모든 캐시 서비스 사용 가능
   ],

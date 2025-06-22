@@ -85,10 +85,10 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
   private initializeConfig(): void {
     // 로컬 환경에서는 Redis를 기본적으로 비활성화
     const isLocal = this.configService.get('NODE_ENV') === 'local';
-    const redisEnabled = isLocal 
+    const redisEnabled = isLocal
       ? this.configService.get('REDIS_CACHE_ENABLED', 'false') === 'true'
       : this.configService.get('REDIS_CACHE_ENABLED', 'true') === 'true';
-      
+
     this.config = {
       enabled: redisEnabled,
       host: this.configService.get('REDIS_HOST', 'localhost'),
@@ -240,10 +240,10 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
       // CompressionService가 자동으로 크기와 압축 효율을 확인함
       const compressed = await this.compressionService.compress(data);
       const stats = this.compressionService.calculateCompressionStats(compressed);
-      
-      return { 
-        data: compressed, 
-        compressed: stats ? stats.compressionRatio < 0.9 : false 
+
+      return {
+        data: compressed,
+        compressed: stats ? stats.compressionRatio < 0.9 : false,
       };
     } catch (error) {
       this.logger.error('Compression failed, using uncompressed data:', error);
@@ -259,7 +259,7 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
       if (!compressed) {
         return JSON.parse(data);
       }
-      
+
       return await this.compressionService.decompress(data);
     } catch (error) {
       this.logger.error('Decompression failed:', error);

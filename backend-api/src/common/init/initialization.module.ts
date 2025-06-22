@@ -6,10 +6,7 @@ import { DatabaseType } from '../../database/entities/database_type.entity';
 import { LoggerModule } from '../logger/logger.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([User, DatabaseType]),
-    LoggerModule,
-  ],
+  imports: [TypeOrmModule.forFeature([User, DatabaseType]), LoggerModule],
   providers: [InitializationService],
   exports: [InitializationService],
 })

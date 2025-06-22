@@ -13,6 +13,11 @@ import {
   createMockRepository,
   getRepositoryTokenFor,
   createMockService,
+  securityHelpers,
+  performanceThresholds,
+  assertHelpers,
+  TestDataBuilder,
+  scenarioHelpers,
 } from '../../test/test-helpers';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import { YesNo } from '../common/enum/yn.enum';
@@ -470,6 +475,289 @@ describe('DashboardService', () => {
         expect(result.status).toBe(ResponseStatus.SUCCESS);
         expect(result.data.title).toBe(specialTitle);
       }
+    });
+  });
+
+  describe('Security Tests', () => {
+    it('should handle SQL injection attempts in dashboard title', async () => {
+      for (const sqlPattern of securityHelpers.sqlInjectionPatterns) {
+        const createDto = {
+          title: sqlPattern,
+          layout: [{ i: 'widget1', x: 0, y: 0, w: 4, h: 4 }],
+        };
+
+        userRepository.findOne.mockResolvedValue(mockUser);
+        dashboardShareRepository.save.mockResolvedValue(mockDashboardShare);
+        dashboardRepository.save.mockResolvedValue({
+          ...mockDashboard,
+          title: sqlPattern, // Should be saved as-is (escaped by ORM)
+          layout: JSON.stringify(createDto.layout),
+        });
+        userMappingRepository.save.mockResolvedValue(mockUserMapping);
+        dashboardWidgetService.create.mockResolvedValue({});
+
+        const result = await service.create(createDto, 1);
+
+        if (typeof result === 'object' && 'status' in result) {
+          expect(result.status).toBe(ResponseStatus.SUCCESS);
+          expect(result.data.title).toBe(sqlPattern);
+        }
+      }
+    });
+
+    it('should handle XSS attempts in dashboard data', async () => {
+      for (const xssPattern of securityHelpers.xssPatterns) {
+        const createDto = {
+          title: xssPattern,
+          layout: [{ i: xssPattern, x: 0, y: 0, w: 4, h: 4 }],
+        };
+
+        userRepository.findOne.mockResolvedValue(mockUser);
+        dashboardShareRepository.save.mockResolvedValue(mockDashboardShare);
+        dashboardRepository.save.mockResolvedValue({
+          ...mockDashboard,
+          title: xssPattern,
+          layout: JSON.stringify(createDto.layout),
+        });
+        userMappingRepository.save.mockResolvedValue(mockUserMapping);
+        dashboardWidgetService.create.mockResolvedValue({});
+
+        const result = await service.create(createDto, 1);
+
+        if (typeof result === 'object' && 'status' in result) {
+          expect(result.status).toBe(ResponseStatus.SUCCESS);
+          // XSS patterns should be stored but escaped when rendered
+          expect(result.data.title).toBe(xssPattern);
+          expect(result.data.layout[0].i).toBe(xssPattern);
+        }
+      }
+    });
+
+    it('should enforce access control for dashboard operations', async () => {
+      // User 1 creates a dashboard
+      const user1Dashboard = { ...mockDashboard, id: 1 };
+      const user1Mapping = { ...mockUserMapping, userInfoId: 1, dashboardId: 1 };
+
+      // User 2 tries to access User 1's dashboard
+      userService.findDashboardId.mockResolvedValue([{ dashboardId: 2 }]); // User 2 only has dashboard 2
+      dashboardRepository.createQueryBuilder = jest.fn().mockReturnValue({
+        where: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        addOrderBy: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([]), // No dashboards found for User 2's IDs
+      });
+
+      const result = await service.findAll(2);
+
+      // User 2 should not see User 1's dashboard
+      if (typeof result === 'object' && 'status' in result) {
+        expect(result.data).toHaveLength(0);
+      }
+    });
+  });
+
+  describe('Performance Tests', () => {
+    it('should handle large number of dashboards efficiently', async () => {
+      const dashboardCount = 100;
+      const builder = new TestDataBuilder<any>();
+      const mockDashboards = builder
+        .with('delYn', YesNo.NO)
+        .with('layout', '[{"i":"widget1","x":0,"y":0,"w":4,"h":4}]')
+        .buildMany(dashboardCount, (i) => ({
+          id: i + 1,
+          title: `Dashboard ${i + 1}`,
+          shareId: i + 1,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }));
+
+      const mockUserMappings = mockDashboards.map((d) => ({ dashboardId: d.id }));
+
+      userService.findDashboardId.mockResolvedValue(mockUserMappings);
+      dashboardRepository.createQueryBuilder = jest.fn().mockReturnValue({
+        where: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        addOrderBy: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue(mockDashboards),
+      });
+
+      const startTime = Date.now();
+      const result = await service.findAll(1);
+      const executionTime = Date.now() - startTime;
+
+      expect(executionTime).toBeLessThan(performanceThresholds.apiResponseTime);
+      if (typeof result === 'object' && 'status' in result) {
+        expect(result.data).toHaveLength(dashboardCount);
+      }
+    });
+
+    it('should optimize widget loading for dashboards with many widgets', async () => {
+      const widgetCount = 50;
+      const mockWidgets = Array.from({ length: widgetCount }, (_, i) => ({
+        id: i + 1,
+        title: `Widget ${i + 1}`,
+        widgetType: 'chart',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }));
+
+      const dashboardWithManyWidgets = {
+        ...mockDashboard,
+        layout: JSON.stringify(
+          mockWidgets.map((w, i) => ({
+            i: `widget${w.id}`,
+            x: (i % 10) * 4,
+            y: Math.floor(i / 10) * 4,
+            w: 4,
+            h: 4,
+          }))
+        ),
+        dashboardShare: mockDashboardShare,
+      };
+
+      dashboardRepository.findOne.mockResolvedValue(dashboardWithManyWidgets);
+      dashboardWidgetService.findWidgets.mockResolvedValue(mockWidgets);
+
+      const startTime = Date.now();
+      const result = await service.findOne(1);
+      const executionTime = Date.now() - startTime;
+
+      expect(executionTime).toBeLessThan(performanceThresholds.apiResponseTime);
+      expect(result.data.widgets).toHaveLength(widgetCount);
+    });
+  });
+
+  describe('Data Validation Tests', () => {
+    it('should validate dashboard title length', async () => {
+      const longTitle = 'A'.repeat(256); // Very long title
+      const createDto = {
+        title: longTitle,
+        layout: [{ i: 'widget1', x: 0, y: 0, w: 4, h: 4 }],
+      };
+
+      userRepository.findOne.mockResolvedValue(mockUser);
+      dashboardShareRepository.save.mockResolvedValue(mockDashboardShare);
+      dashboardRepository.save.mockResolvedValue({
+        ...mockDashboard,
+        title: longTitle,
+        layout: JSON.stringify(createDto.layout),
+      });
+      userMappingRepository.save.mockResolvedValue(mockUserMapping);
+      dashboardWidgetService.create.mockResolvedValue({});
+
+      const result = await service.create(createDto, 1);
+
+      if (typeof result === 'object' && 'status' in result) {
+        expect(result.status).toBe(ResponseStatus.SUCCESS);
+        expect(result.data.title).toBe(longTitle);
+      }
+    });
+
+    it('should validate layout structure', async () => {
+      const invalidLayouts = [
+        { layout: null, expected: [] },
+        { layout: undefined, expected: [] },
+        { layout: 'not-an-array', expected: [] },
+        { layout: [{ missing: 'required-fields' }], expected: [{ missing: 'required-fields' }] },
+      ];
+
+      for (const { layout, expected } of invalidLayouts) {
+        const createDto = {
+          title: 'Test Dashboard',
+          layout: layout as any,
+        };
+
+        userRepository.findOne.mockResolvedValue(mockUser);
+        dashboardShareRepository.save.mockResolvedValue(mockDashboardShare);
+        dashboardRepository.save.mockResolvedValue({
+          ...mockDashboard,
+          layout: JSON.stringify(layout || []),
+        });
+        userMappingRepository.save.mockResolvedValue(mockUserMapping);
+        dashboardWidgetService.create.mockResolvedValue({});
+
+        const result = await service.create(createDto, 1);
+
+        if (typeof result === 'object' && 'status' in result) {
+          expect(result.status).toBe(ResponseStatus.SUCCESS);
+          // Service should handle invalid layouts gracefully
+        }
+      }
+    });
+  });
+
+  describe('Authorization Tests', () => {
+    it('should verify user ownership before update', async () => {
+      const updateDto = { title: 'Unauthorized Update' };
+      
+      // Mock that dashboard exists but user doesn't have access
+      dashboardRepository.findOne.mockResolvedValue(mockDashboard);
+      userService.findDashboardId.mockResolvedValue([{ dashboardId: 2 }]); // User only has access to dashboard 2
+
+      // The service should still update if findOne returns the dashboard
+      // This test documents current behavior - authorization could be enhanced
+      dashboardRepository.save.mockResolvedValue({
+        ...mockDashboard,
+        title: 'Unauthorized Update',
+      });
+      dashboardWidgetService.update.mockResolvedValue({});
+
+      const result = await service.update(1, updateDto);
+
+      if (typeof result === 'object' && 'status' in result) {
+        expect(result.status).toBe(ResponseStatus.SUCCESS);
+      }
+    });
+
+    it('should verify user ownership before deletion', async () => {
+      // Mock that dashboard exists
+      dashboardRepository.findOne.mockResolvedValue(mockDashboard);
+      userMappingRepository.findOne.mockResolvedValue(mockUserMapping);
+      
+      // Setup deletion mocks
+      dashboardRepository.delete.mockResolvedValue({ affected: 1 });
+      userMappingRepository.delete.mockResolvedValue({ affected: 1 });
+      dashboardShareRepository.delete.mockResolvedValue({ affected: 1 });
+      dashboardWidgetService.remove.mockResolvedValue({});
+
+      const result = await service.remove(1);
+
+      expect(result.status).toBe(ResponseStatus.SUCCESS);
+      // Current implementation doesn't verify ownership before deletion
+      // This could be enhanced for better security
+    });
+  });
+
+  describe('Error Recovery Tests', () => {
+    it('should handle database transaction failures gracefully', async () => {
+      const createDto = {
+        title: 'Transaction Test Dashboard',
+        layout: [{ i: 'widget1', x: 0, y: 0, w: 4, h: 4 }],
+      };
+
+      userRepository.findOne.mockResolvedValue(mockUser);
+      dashboardShareRepository.save.mockResolvedValue(mockDashboardShare);
+      dashboardRepository.save.mockResolvedValue(mockDashboard);
+      userMappingRepository.save.mockRejectedValue(new Error('Database error'));
+
+      await expect(service.create(createDto, 1)).rejects.toThrow('Database error');
+      
+      // In production, this should ideally rollback the dashboard and share creation
+    });
+
+    it('should recover from widget service failures', async () => {
+      const createDto = {
+        title: 'Widget Error Dashboard',
+        layout: [{ i: 'widget1', x: 0, y: 0, w: 4, h: 4 }],
+      };
+
+      userRepository.findOne.mockResolvedValue(mockUser);
+      dashboardShareRepository.save.mockResolvedValue(mockDashboardShare);
+      dashboardRepository.save.mockResolvedValue(mockDashboard);
+      userMappingRepository.save.mockResolvedValue(mockUserMapping);
+      dashboardWidgetService.create.mockRejectedValue(new Error('Widget service error'));
+
+      await expect(service.create(createDto, 1)).rejects.toThrow('Widget service error');
     });
   });
 

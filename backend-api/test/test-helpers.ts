@@ -645,3 +645,171 @@ export const dateHelpers = {
     return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
   },
 };
+
+/**
+ * 보안 테스트 헬퍼
+ */
+export const securityHelpers = {
+  /**
+   * SQL 인젝션 테스트 패턴
+   */
+  sqlInjectionPatterns: [
+    "'; DROP TABLE users; --",
+    "1' OR '1'='1",
+    "admin' --",
+    "' UNION SELECT * FROM users --",
+    "'; DELETE FROM * --",
+  ],
+
+  /**
+   * XSS 테스트 패턴
+   */
+  xssPatterns: [
+    '<script>alert("XSS")</script>',
+    '<img src=x onerror=alert("XSS")>',
+    'javascript:alert("XSS")',
+    '<iframe src="javascript:alert(\'XSS\')">',
+    '<svg onload=alert("XSS")>',
+  ],
+
+  /**
+   * 유효하지 않은 JWT 토큰 생성
+   */
+  createInvalidJWT: () => 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpbnZhbGlkIjp0cnVlfQ.invalid',
+};
+
+/**
+ * 성능 테스트 임계값
+ */
+export const performanceThresholds = {
+  apiResponseTime: 200, // ms
+  dbQueryTime: 100, // ms
+  memoryUsageIncrease: 50, // MB
+  concurrentUsers: 100,
+  testTimeout: 5000, // ms
+};
+
+/**
+ * 테스트 데이터 빌더 패턴
+ */
+export class TestDataBuilder<T> {
+  private data: Partial<T> = {};
+
+  with<K extends keyof T>(key: K, value: T[K]): this {
+    this.data[key] = value;
+    return this;
+  }
+
+  withMany(data: Partial<T>): this {
+    this.data = { ...this.data, ...data };
+    return this;
+  }
+
+  build(): T {
+    return this.data as T;
+  }
+
+  buildMany(count: number, customizer?: (index: number) => Partial<T>): T[] {
+    return Array.from({ length: count }, (_, i) => ({
+      ...this.data,
+      ...(customizer ? customizer(i) : {}),
+    })) as T[];
+  }
+}
+
+/**
+ * 테스트 시나리오 헬퍼
+ */
+export const scenarioHelpers = {
+  /**
+   * 인증된 사용자 시나리오 설정
+   */
+  setupAuthenticatedUser: (userId = 1, email = 'test@example.com') => ({
+    user: { id: userId, email, userId: `user${userId}` },
+    accessToken: 'mock-access-token',
+    refreshToken: 'mock-refresh-token',
+    headers: { authorization: 'Bearer mock-access-token' },
+  }),
+
+  /**
+   * 데이터베이스 연결 시나리오 설정
+   */
+  setupDatabaseConnection: (engine = 'mysql') => ({
+    connection: mockConnectionInfo[engine],
+    mockConnection: createMockKnexConnection(),
+  }),
+
+  /**
+   * 대시보드 생성 시나리오 설정
+   */
+  setupDashboardScenario: (userId = 1) => ({
+    user: mockUser,
+    dashboard: { ...mockDashboard, userId },
+    widgets: [mockWidget],
+    shareUrl: mockShareUrl,
+  }),
+};
+
+/**
+ * 테스트 assertion 헬퍼
+ */
+export const assertHelpers = {
+  /**
+   * API 응답 구조 검증
+   */
+  assertApiResponse: (response: any, expectedStatus = 'SUCCESS') => {
+    expect(response).toHaveProperty('status', expectedStatus);
+    if (expectedStatus === 'SUCCESS') {
+      expect(response).toHaveProperty('data');
+    } else {
+      expect(response).toHaveProperty('message');
+    }
+  },
+
+  /**
+   * 페이지네이션 응답 검증
+   */
+  assertPaginatedResponse: (response: any) => {
+    expect(response).toHaveProperty('data');
+    expect(response).toHaveProperty('total');
+    expect(response).toHaveProperty('page');
+    expect(response).toHaveProperty('limit');
+    expect(Array.isArray(response.data)).toBe(true);
+  },
+
+  /**
+   * 에러 응답 검증
+   */
+  assertErrorResponse: (response: any, expectedStatus: number) => {
+    expect(response).toHaveProperty('statusCode', expectedStatus);
+    expect(response).toHaveProperty('message');
+    expect(response).toHaveProperty('error');
+  },
+};
+
+/**
+ * 통합 테스트 헬퍼
+ */
+export const integrationHelpers = {
+  /**
+   * 전체 인증 플로우 테스트
+   */
+  testAuthFlow: async (authService: any, userRepo: any) => {
+    const user = await authService.validateUser('testuser', 'testpass');
+    const accessToken = await authService.generateAccessToken(user);
+    const refreshToken = await authService.generateRefreshToken(user);
+    await authService.setRefreshKey(`Bearer ${refreshToken}`, user.id);
+    return { user, accessToken, refreshToken };
+  },
+
+  /**
+   * 대시보드 CRUD 플로우 테스트
+   */
+  testDashboardCRUD: async (dashboardService: any, userId: number) => {
+    const created = await dashboardService.create({ title: 'Test Dashboard', userId });
+    const updated = await dashboardService.update(created.id, { title: 'Updated Dashboard' });
+    const found = await dashboardService.findOne(created.id);
+    await dashboardService.remove(created.id);
+    return { created, updated, found };
+  },
+};

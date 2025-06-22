@@ -128,7 +128,12 @@ import { MonitoringModule } from './common/monitoring/monitoring.module';
     EventsModule,
     InitializationModule,
   ],
-  controllers: [AppController, HealthController, TestCompressionController, TestFieldSelectionController],
+  controllers: [
+    AppController,
+    HealthController,
+    TestCompressionController,
+    TestFieldSelectionController,
+  ],
   providers: [
     AppService,
     {

@@ -25,8 +25,7 @@ export class DatabaseService {
     @InjectRepository(DatabaseType) private databaseTypeRepository: Repository<DatabaseType>,
     @InjectRepository(Dataset) private datasetRepository: Repository<Dataset>,
     @InjectRepository(TableQuery) private tableQueryRepository: Repository<TableQuery>,
-    private readonly connectionService: ConnectionService,
-    // @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private readonly connectionService: ConnectionService, // @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
   /**
@@ -262,7 +261,7 @@ export class DatabaseService {
     } else {
       parsedConfig = updateDatabaseDto.connectionConfig || {};
     }
-    
+
     if (updateDatabaseDto.engine === 'sqlite' || updateDatabaseDto.engine === 'better-sqlite3') {
       updateDatabaseDto.connectionConfig = JSON.stringify({
         database: parsedConfig.database || './demo.db',
@@ -359,10 +358,10 @@ export class DatabaseService {
    * @returns 지원하는 데이터베이스 타입 목록
    */
   async findTypeList() {
-    const dbTypes = await this.findAllDbTypes() as DatabaseType[];
+    const dbTypes = (await this.findAllDbTypes()) as DatabaseType[];
 
     // Controller에서 기대하는 형식으로 변환
-    return dbTypes.map((type) => ({
+    return dbTypes.map(type => ({
       value: type.type,
       label: type.title,
       engine: type.engine,

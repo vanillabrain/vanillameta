@@ -82,7 +82,7 @@ export class CacheMetricsController {
   async getAllStats() {
     try {
       const hybridStats = await this.hybridCache.getHybridStats();
-      
+
       if (!hybridStats || !(hybridStats instanceof Map)) {
         return {
           summary: {
@@ -107,15 +107,15 @@ export class CacheMetricsController {
 
       for (const [engine, stats] of hybridStats) {
         enginesObj[engine] = stats;
-        
+
         if (stats.l1Cache) {
           totalL1Size += stats.l1Cache.totalSize || 0;
         }
-        
+
         if (stats.l2Cache) {
           totalL2Size += stats.l2Cache.totalSize || 0;
         }
-        
+
         totalPromotions += stats.hybridMetrics.promotionCount || 0;
         totalHitRate += stats.hybridMetrics.overallHitRate || 0;
         engineCount++;
@@ -164,7 +164,7 @@ export class CacheMetricsController {
   async getEngineStats(@Param('engine') engine: string) {
     try {
       const stats = await this.hybridCache.getHybridStats(engine);
-      
+
       if (!stats) {
         throw new HttpException(
           {
@@ -183,7 +183,7 @@ export class CacheMetricsController {
       if (error instanceof HttpException) {
         throw error;
       }
-      
+
       throw new HttpException(
         {
           status: 'error',
@@ -272,7 +272,7 @@ export class CacheMetricsController {
   async invalidateByEngine(@Param('engine') engine: string) {
     try {
       await this.hybridCache.invalidateByEngine(engine);
-      
+
       return {
         status: 'success',
         message: `엔진 '${engine}'의 모든 캐시가 무효화되었습니다.`,
@@ -310,7 +310,7 @@ export class CacheMetricsController {
   async invalidateByDatabase(@Param('databaseId') databaseId: string) {
     try {
       await this.hybridCache.invalidateByDatabase(databaseId);
-      
+
       return {
         status: 'success',
         message: `데이터베이스 ${databaseId}의 모든 캐시가 무효화되었습니다.`,
@@ -342,7 +342,7 @@ export class CacheMetricsController {
   async invalidateAll() {
     try {
       await this.hybridCache.invalidateAll();
-      
+
       return {
         status: 'success',
         message: '모든 캐시가 무효화되었습니다.',
@@ -384,13 +384,10 @@ export class CacheMetricsController {
     status: 200,
     description: '데이터셋 캐시 워밍업이 완료되었습니다.',
   })
-  async warmupDataset(
-    @Param('id') id: string,
-    @Query('ttl') ttl?: string,
-  ) {
+  async warmupDataset(@Param('id') id: string, @Query('ttl') ttl?: string) {
     try {
       await this.cacheWarmup.warmupDataset(+id, ttl ? +ttl : undefined);
-      
+
       return {
         status: 'success',
         message: `데이터셋 ${id}의 캐시 워밍업이 완료되었습니다.`,
@@ -428,7 +425,7 @@ export class CacheMetricsController {
   async warmupDashboard(@Param('id') id: string) {
     try {
       await this.cacheWarmup.warmupDashboard(+id);
-      
+
       return {
         status: 'success',
         message: `대시보드 ${id}의 캐시 워밍업이 완료되었습니다.`,
@@ -500,9 +497,7 @@ export class CacheMetricsController {
       },
     },
   })
-  async warmupBatch(
-    @Body() body: { datasetIds: number[]; ttl?: number },
-  ) {
+  async warmupBatch(@Body() body: { datasetIds: number[]; ttl?: number }) {
     const { datasetIds, ttl } = body;
     const results = {
       success: 0,
@@ -550,7 +545,7 @@ export class CacheMetricsController {
   async getL1Status() {
     try {
       const diagnostics = this.l1Cache.getDiagnostics();
-      
+
       return {
         status: 'success',
         data: diagnostics,
@@ -583,7 +578,7 @@ export class CacheMetricsController {
     try {
       const isConnected = this.l2Cache.isConnected();
       const diagnostics = isConnected ? await this.l2Cache.getDiagnostics() : null;
-      
+
       return {
         status: 'success',
         data: {

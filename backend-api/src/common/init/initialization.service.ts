@@ -36,7 +36,10 @@ export class InitializationService implements OnModuleInit {
           email: 'admin@example.com',
           password: hashedPassword,
         });
-        this.logger.log('✅ Default admin user created (admin@example.com / admin123)', 'InitializationService');
+        this.logger.log(
+          '✅ Default admin user created (admin@example.com / admin123)',
+          'InitializationService',
+        );
       }
 
       // 2. SQLite 데이터베이스 타입 생성
