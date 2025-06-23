@@ -25,6 +25,7 @@ import { QueryCollector } from '../../src/common/utils/query-collector';
 import { QueryAnalyzerService } from '../../src/common/monitoring/query-analyzer.service';
 import { SlowQueryMonitorService } from '../../src/common/monitoring/slow-query-monitor.service';
 import { KnexQueryMonitor } from '../../src/common/monitoring/knex-query-monitor';
+import { IntegratedMetricsService } from '../../src/common/monitoring/integrated-metrics.service';
 
 // Mock CustomLoggerService
 export const mockCustomLoggerService = {
@@ -371,6 +372,25 @@ export const mockKnexQueryMonitor = {
   },
 };
 
+// Mock IntegratedMetricsService
+export const mockIntegratedMetricsService = {
+  provide: IntegratedMetricsService,
+  useValue: {
+    recordApiRequest: jest.fn(),
+    recordConnectionPoolMetrics: jest.fn(),
+    recordLambdaMetrics: jest.fn(),
+    recordBusinessMetric: jest.fn(),
+    getCurrentMetrics: jest.fn().mockResolvedValue({
+      cpuUsage: 25.5,
+      memoryUsage: 60.2,
+      activeConnections: 5,
+      requestRate: 100,
+      errorRate: 2.1,
+      avgResponseTime: 150,
+    }),
+  },
+};
+
 // Common test providers
 export const commonTestProviders = [
   mockCustomLoggerService,
@@ -399,4 +419,5 @@ export const commonTestProviders = [
   mockQueryAnalyzerService,
   mockSlowQueryMonitorService,
   mockKnexQueryMonitor,
+  mockIntegratedMetricsService,
 ];

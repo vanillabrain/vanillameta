@@ -22,8 +22,9 @@ export class CacheKeyService {
     }
 
     // 사용자별 캐싱
-    if (config.userSpecific && request.user) {
-      parts.push(`user:${(request.user as any).id || 'anonymous'}`);
+    if (config.userSpecific) {
+      const userId = request.user ? (request.user as any).id : 'anonymous';
+      parts.push(`user:${userId}`);
     }
 
     // HTTP 메서드

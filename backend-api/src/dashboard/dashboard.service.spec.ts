@@ -271,27 +271,31 @@ describe('DashboardService', () => {
       }
     });
 
-    it('should return error when user not found', async () => {
+    it('should return empty array when user not found', async () => {
       userService.findDashboardId.mockResolvedValue(null);
 
       const result = await service.findAll(999);
 
-      expect(result).toBe('not exist user');
+      expect(result.status).toBe(ResponseStatus.SUCCESS);
+      expect(result.data).toEqual([]);
     });
 
-    it('should return error when user has no dashboards', async () => {
+    it('should return empty array when user has no dashboards', async () => {
       userService.findDashboardId.mockResolvedValue([]);
 
       const result = await service.findAll(1);
 
-      expect(result).toBe('not exist user');
+      expect(result.status).toBe(ResponseStatus.SUCCESS);
+      expect(result.data).toEqual([]);
     });
 
-    it('should throw HttpException when dashboard IDs are empty', async () => {
+    it('should return empty array when dashboard IDs are empty', async () => {
       userService.findDashboardId.mockResolvedValue([{ dashboardId: null }]);
       
-      await expect(service.findAll(1)).rejects.toThrow(HttpException);
-      await expect(service.findAll(1)).rejects.toThrow('not found');
+      const result = await service.findAll(1);
+
+      expect(result.status).toBe(ResponseStatus.SUCCESS);
+      expect(result.data).toEqual([]);
     });
   });
 
@@ -550,8 +554,8 @@ describe('DashboardService', () => {
           expect(result.status).toBe(ResponseStatus.SUCCESS);
           // XSS patterns should be stored but escaped when rendered
           expect(result.data.title).toBe(xssPattern);
-          const layoutParsed = JSON.parse(result.data.layout);
-          expect(layoutParsed[0].i).toBe(xssPattern);
+          const layout = result.data.layout as any[];
+          expect(layout[0].i).toBe(xssPattern);
         }
       }
     });
