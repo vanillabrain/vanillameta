@@ -5,7 +5,7 @@ import AdminDashboard from '../../components/admin/dashboard/AdminDashboard';
 import UserManagement from '../../components/admin/users/UserManagement';
 import UserApproval from '../../components/admin/approval/UserApproval';
 import RoleManagement from '../../components/admin/roles/RoleManagement';
-import AuditLogs from '../../components/admin/audit/AuditLogs';
+import { AuditLogManagement } from '../../components/admin/audit/AuditLogManagement';
 
 const SystemSettings: React.FC = () => (
   <div style={{ padding: '20px', textAlign: 'center' }}>
@@ -26,7 +26,7 @@ const AdminRoutes: React.FC = () => {
               <Route path="users" element={<UserManagement />} />
               <Route path="users/approval" element={<UserApproval />} />
               <Route path="roles" element={<RoleManagement />} />
-              <Route path="audit" element={<AuditLogs />} />
+              <Route path="audit" element={<AuditLogManagement />} />
               <Route path="settings" element={<SystemSettings />} />
               
               {/* 404 페이지 */}

@@ -1,0 +1,349 @@
+.audit-log-stats-cards {
+  margin-bottom: 24px;
+}
+
+/* 통계 카드 */
+.stat-card {
+  height: 100%;
+  transition: all 0.3s ease;
+  border-radius: 8px;
+  border: 1px solid #f0f0f0;
+}
+
+.stat-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.stat-card .ant-card-body {
+  padding: 20px;
+}
+
+.stat-card .ant-statistic-title {
+  color: #8c8c8c;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.stat-card .ant-statistic-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.stat-card .ant-statistic-content-prefix {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.stat-card .ant-statistic-content-value {
+  font-size: 28px;
+  font-weight: 600;
+  color: #262626;
+}
+
+/* 성장 지표 */
+.growth-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 14px;
+  font-weight: normal;
+  margin-left: 8px;
+}
+
+.growth-indicator.up {
+  color: #52c41a;
+}
+
+.growth-indicator.down {
+  color: #f5222d;
+}
+
+/* 성공률 카드 */
+.success-rate-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stat-title {
+  font-size: 14px;
+  color: #8c8c8c;
+}
+
+.success-rate-value {
+  font-size: 28px;
+  font-weight: 600;
+  color: #52c41a;
+}
+
+.success-rate-card .ant-progress {
+  margin: 0;
+}
+
+/* 분포 카드 */
+.distribution-card .ant-card-head {
+  border-bottom: 1px solid #f0f0f0;
+  padding: 12px 20px;
+}
+
+.distribution-card .ant-card-head-title {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.distribution-card .ant-card-body {
+  padding: 20px;
+}
+
+.status-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 16px;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+.status-item:hover {
+  background: #fafafa;
+}
+
+.status-item .anticon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.status-item.success {
+  color: #52c41a;
+}
+
+.status-item.error {
+  color: #f5222d;
+}
+
+.status-item.warning {
+  color: #faad14;
+}
+
+.status-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.status-count {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.status-label {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+/* 주요 정보 카드 */
+.highlights-card .ant-card-head {
+  border-bottom: 1px solid #f0f0f0;
+  padding: 12px 20px;
+}
+
+.highlights-card .ant-card-head-title {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.highlights-card .ant-card-body {
+  padding: 20px;
+}
+
+.highlight-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.highlight-item:last-child {
+  border-bottom: none;
+}
+
+.highlight-label {
+  font-size: 14px;
+  color: #8c8c8c;
+}
+
+.highlight-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: #262626;
+}
+
+.highlight-count {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin-left: 4px;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 1200px) {
+  .stat-card .ant-statistic-content-value {
+    font-size: 24px;
+  }
+
+  .status-item .anticon {
+    font-size: 28px;
+  }
+
+  .status-count {
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 768px) {
+  .stat-card .ant-card-body {
+    padding: 16px;
+  }
+
+  .stat-card .ant-statistic-content-value {
+    font-size: 20px;
+  }
+
+  .stat-card .ant-statistic-content-prefix {
+    font-size: 20px;
+  }
+
+  .status-item {
+    padding: 12px 8px;
+  }
+
+  .distribution-card .ant-row {
+    gap: 8px;
+  }
+}
+
+/* 다크 모드 지원 */
+@media (prefers-color-scheme: dark) {
+  .stat-card {
+    background: #1f1f1f;
+    border-color: #303030;
+  }
+
+  .stat-card:hover {
+    background: #262626;
+  }
+
+  .stat-card .ant-statistic-title {
+    color: #bfbfbf;
+  }
+
+  .stat-card .ant-statistic-content-value {
+    color: #f0f0f0;
+  }
+
+  .success-rate-value {
+    color: #73d13d;
+  }
+
+  .distribution-card .ant-card-head,
+  .highlights-card .ant-card-head {
+    background: #262626;
+    border-bottom-color: #303030;
+  }
+
+  .distribution-card .ant-card-head-title,
+  .highlights-card .ant-card-head-title {
+    color: #f0f0f0;
+  }
+
+  .status-item:hover {
+    background: #303030;
+  }
+
+  .status-label,
+  .highlight-label {
+    color: #bfbfbf;
+  }
+
+  .highlight-value {
+    color: #f0f0f0;
+  }
+
+  .highlight-item {
+    border-bottom-color: #303030;
+  }
+
+  .highlight-count {
+    color: #8c8c8c;
+  }
+}
+
+/* 애니메이션 */
+.stat-card {
+  animation: fadeInUp 0.3s ease-in-out;
+  animation-fill-mode: both;
+}
+
+.stat-card:nth-child(1) {
+  animation-delay: 0.1s;
+}
+
+.stat-card:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.stat-card:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.stat-card:nth-child(4) {
+  animation-delay: 0.4s;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 로딩 상태 */
+.stat-card.loading .ant-statistic-content-value {
+  background: #f0f0f0;
+  border-radius: 4px;
+  color: transparent;
+  min-width: 100px;
+}
+
+.stat-card.loading .ant-statistic-content-value::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
