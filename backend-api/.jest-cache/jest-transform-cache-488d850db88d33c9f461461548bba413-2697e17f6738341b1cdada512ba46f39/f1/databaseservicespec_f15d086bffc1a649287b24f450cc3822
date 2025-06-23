@@ -1,0 +1,110 @@
+8a455657a32e6d868c753e6587aeaf09
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const testing_1 = require("@nestjs/testing");
+const database_service_1 = require("./database.service");
+const database_entity_1 = require("./entities/database.entity");
+const database_type_entity_1 = require("./entities/database_type.entity");
+const dataset_entity_1 = require("../dataset/entities/dataset.entity");
+const table_query_entity_1 = require("../widget/table-query/entity/table-query.entity");
+const connection_service_1 = require("../connection/connection.service");
+const test_helpers_1 = require("../../test/test-helpers");
+const yn_enum_1 = require("../common/enum/yn.enum");
+const cache_manager_1 = require("@nestjs/cache-manager");
+describe('DatabaseService', () => {
+    let service;
+    let databaseRepository;
+    let databaseTypeRepository;
+    let datasetRepository;
+    let tableQueryRepository;
+    let connectionService;
+    let cacheManager;
+    beforeEach(async () => {
+        const module = await testing_1.Test.createTestingModule({
+            providers: [
+                database_service_1.DatabaseService,
+                {
+                    provide: (0, test_helpers_1.getRepositoryTokenFor)(database_entity_1.Database),
+                    useValue: (0, test_helpers_1.createMockRepository)(),
+                },
+                {
+                    provide: (0, test_helpers_1.getRepositoryTokenFor)(database_type_entity_1.DatabaseType),
+                    useValue: (0, test_helpers_1.createMockRepository)(),
+                },
+                {
+                    provide: (0, test_helpers_1.getRepositoryTokenFor)(dataset_entity_1.Dataset),
+                    useValue: (0, test_helpers_1.createMockRepository)(),
+                },
+                {
+                    provide: (0, test_helpers_1.getRepositoryTokenFor)(table_query_entity_1.TableQuery),
+                    useValue: (0, test_helpers_1.createMockRepository)(),
+                },
+                {
+                    provide: connection_service_1.ConnectionService,
+                    useValue: (0, test_helpers_1.createMockService)([
+                        'testConnection',
+                        'createConnection',
+                        'getSchema',
+                        'executeQuery',
+                    ]),
+                },
+                {
+                    provide: cache_manager_1.CACHE_MANAGER,
+                    useValue: (0, test_helpers_1.createMockService)(['get', 'set', 'del', 'reset']),
+                },
+            ],
+        }).compile();
+        service = module.get(database_service_1.DatabaseService);
+        databaseRepository = module.get((0, test_helpers_1.getRepositoryTokenFor)(database_entity_1.Database));
+        databaseTypeRepository = module.get((0, test_helpers_1.getRepositoryTokenFor)(database_type_entity_1.DatabaseType));
+        datasetRepository = module.get((0, test_helpers_1.getRepositoryTokenFor)(dataset_entity_1.Dataset));
+        tableQueryRepository = module.get((0, test_helpers_1.getRepositoryTokenFor)(table_query_entity_1.TableQuery));
+        connectionService = module.get(connection_service_1.ConnectionService);
+        cacheManager = module.get(cache_manager_1.CACHE_MANAGER);
+    });
+    it('should be defined', () => {
+        expect(service).toBeDefined();
+    });
+    describe('findAllDbTypes', () => {
+        it('should return list of all database types ordered by rank and type', async () => {
+            const mockDatabaseTypes = [
+                { id: 1, name: 'MySQL', engine: 'mysql2', useYn: yn_enum_1.YesNo.YES, rank: 1, type: 'A' },
+                { id: 2, name: 'PostgreSQL', engine: 'pg', useYn: yn_enum_1.YesNo.YES, rank: 2, type: 'B' },
+            ];
+            cacheManager.get.mockResolvedValue(null); // 캐시에 없음
+            databaseTypeRepository.find.mockResolvedValue(mockDatabaseTypes);
+            cacheManager.set.mockResolvedValue(undefined);
+            const result = await service.findAllDbTypes();
+            expect(result).toEqual(mockDatabaseTypes);
+            expect(databaseTypeRepository.find).toHaveBeenCalledWith({ order: { rank: 'ASC', type: 'ASC' } });
+        });
+    });
+    describe('create', () => {
+        it('should create a new database connection', async () => {
+            const createDto = {
+                name: 'Test DB',
+                description: 'Test database',
+                connectionConfig: JSON.stringify({
+                    host: 'localhost',
+                    port: 3306,
+                    user: 'testuser',
+                    password: 'testpass',
+                    database: 'testdb',
+                }),
+                engine: 'mysql2',
+                type: 'mysql',
+                timezone: 'Asia/Seoul',
+            };
+            const savedDatabase = Object.assign({ id: 1 }, createDto);
+            // Mock Database.toDto static method
+            const mockDatabase = new database_entity_1.Database();
+            Object.assign(mockDatabase, Object.assign(Object.assign({ id: 1 }, createDto), { getFullDescription: () => `${createDto.name} ${createDto.description}`, createdAt: new Date(), updatedAt: new Date() }));
+            const mockToDto = jest.spyOn(database_entity_1.Database, 'toDto').mockReturnValue(mockDatabase);
+            databaseRepository.save.mockResolvedValue(savedDatabase);
+            const result = await service.create(createDto);
+            expect(mockToDto).toHaveBeenCalledWith(createDto);
+            expect(databaseRepository.save).toHaveBeenCalled();
+            mockToDto.mockRestore();
+        });
+    });
+});

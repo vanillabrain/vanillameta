@@ -1,0 +1,76 @@
+033ad93f07c66bd37e9fe3a81350e59a
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const testing_1 = require("@nestjs/testing");
+const typeorm_1 = require("@nestjs/typeorm");
+const widget_controller_1 = require("./widget.controller");
+const widget_service_1 = require("./widget.service");
+const widget_entity_1 = require("./entities/widget.entity");
+const component_entity_1 = require("../component/entities/component.entity");
+const table_query_service_1 = require("./table-query/table-query.service");
+const logger_service_1 = require("../common/logger/logger.service");
+const pagination_service_1 = require("../common/pagination/pagination.service");
+describe('WidgetController', () => {
+    let controller;
+    const mockWidgetRepository = {
+        find: jest.fn(),
+        findOne: jest.fn(),
+        save: jest.fn(),
+        delete: jest.fn(),
+        createQueryBuilder: jest.fn().mockReturnValue({
+            leftJoinAndSelect: jest.fn().mockReturnThis(),
+            where: jest.fn().mockReturnThis(),
+            getMany: jest.fn(),
+        }),
+    };
+    const mockComponentRepository = {
+        find: jest.fn(),
+        findOne: jest.fn(),
+    };
+    const mockTableQueryService = {
+        findWidgetDataById: jest.fn(),
+    };
+    const mockCustomLoggerService = {
+        log: jest.fn(),
+        error: jest.fn(),
+        warn: jest.fn(),
+        debug: jest.fn(),
+        info: jest.fn(),
+    };
+    const mockPaginationService = {
+        paginate: jest.fn(),
+        getPaginationMeta: jest.fn(),
+    };
+    beforeEach(async () => {
+        const module = await testing_1.Test.createTestingModule({
+            controllers: [widget_controller_1.WidgetController],
+            providers: [
+                widget_service_1.WidgetService,
+                {
+                    provide: (0, typeorm_1.getRepositoryToken)(widget_entity_1.Widget),
+                    useValue: mockWidgetRepository,
+                },
+                {
+                    provide: (0, typeorm_1.getRepositoryToken)(component_entity_1.Component),
+                    useValue: mockComponentRepository,
+                },
+                {
+                    provide: table_query_service_1.TableQueryService,
+                    useValue: mockTableQueryService,
+                },
+                {
+                    provide: logger_service_1.CustomLoggerService,
+                    useValue: mockCustomLoggerService,
+                },
+                {
+                    provide: pagination_service_1.PaginationService,
+                    useValue: mockPaginationService,
+                },
+            ],
+        }).compile();
+        controller = module.get(widget_controller_1.WidgetController);
+    });
+    it('should be defined', () => {
+        expect(controller).toBeDefined();
+    });
+});

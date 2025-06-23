@@ -1,0 +1,233 @@
+695805ee51133a8b5270164561d89ce8
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const testing_1 = require("@nestjs/testing");
+const batch_controller_1 = require("./batch.controller");
+const batch_service_1 = require("./batch.service");
+const batch_job_response_dto_1 = require("./dto/batch-job-response.dto");
+const batch_job_entity_1 = require("./entities/batch-job.entity");
+describe('BatchController', () => {
+    let controller;
+    let service;
+    const mockBatchService = {
+        createBatchJob: jest.fn(),
+        findAll: jest.fn(),
+        findOne: jest.fn(),
+        restartBatchJob: jest.fn(),
+        cancelBatchJob: jest.fn(),
+    };
+    const mockUser = {
+        sub: 'test-user-id',
+        email: 'test@example.com',
+    };
+    beforeEach(async () => {
+        const module = await testing_1.Test.createTestingModule({
+            controllers: [batch_controller_1.BatchController],
+            providers: [
+                {
+                    provide: batch_service_1.BatchService,
+                    useValue: mockBatchService,
+                },
+            ],
+        }).compile();
+        controller = module.get(batch_controller_1.BatchController);
+        service = module.get(batch_service_1.BatchService);
+    });
+    afterEach(() => {
+        jest.clearAllMocks();
+    });
+    describe('createBatchJob', () => {
+        it('배치 작업을 생성하고 응답 DTO를 반환해야 함', async () => {
+            const createDto = {
+                type: batch_job_entity_1.BatchJobType.DATASET_QUERY,
+                datasetId: 1,
+                chunkSize: 1000,
+            };
+            const mockBatchJob = {
+                id: 1,
+                type: batch_job_entity_1.BatchJobType.DATASET_QUERY,
+                status: batch_job_entity_1.BatchJobStatus.PENDING,
+                totalRecords: 0,
+                processedRecords: 0,
+                chunkSize: 1000,
+                totalChunks: 0,
+                completedChunks: 0,
+                failedChunks: 0,
+                datasetId: 1,
+                createdBy: mockUser.sub,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                get progress() {
+                    return 0;
+                },
+                get estimatedTimeRemaining() {
+                    return null;
+                },
+            };
+            mockBatchService.createBatchJob.mockResolvedValue(mockBatchJob);
+            const result = await controller.createBatchJob(createDto, mockUser);
+            expect(result).toBeInstanceOf(batch_job_response_dto_1.BatchJobResponseDto);
+            expect(result.id).toBe(1);
+            expect(result.type).toBe(batch_job_entity_1.BatchJobType.DATASET_QUERY);
+            expect(mockBatchService.createBatchJob).toHaveBeenCalledWith(createDto, mockUser.sub);
+        });
+    });
+    describe('findAllBatchJobs', () => {
+        it('사용자의 모든 배치 작업을 반환해야 함', async () => {
+            const mockBatchJobs = [
+                {
+                    id: 1,
+                    type: batch_job_entity_1.BatchJobType.DATASET_QUERY,
+                    status: batch_job_entity_1.BatchJobStatus.COMPLETED,
+                    totalRecords: 1000,
+                    processedRecords: 1000,
+                    get progress() {
+                        return 100;
+                    },
+                    get estimatedTimeRemaining() {
+                        return null;
+                    },
+                },
+                {
+                    id: 2,
+                    type: batch_job_entity_1.BatchJobType.WIDGET_DATA,
+                    status: batch_job_entity_1.BatchJobStatus.PROCESSING,
+                    totalRecords: 500,
+                    processedRecords: 250,
+                    get progress() {
+                        return 50;
+                    },
+                    get estimatedTimeRemaining() {
+                        return 5000;
+                    },
+                },
+            ];
+            mockBatchService.findAll.mockResolvedValue(mockBatchJobs);
+            const result = await controller.findAllBatchJobs(mockUser);
+            expect(result).toHaveLength(2);
+            expect(result[0]).toBeInstanceOf(batch_job_response_dto_1.BatchJobResponseDto);
+            expect(result[0].progress).toBe(100);
+            expect(result[1].progress).toBe(50);
+            expect(mockBatchService.findAll).toHaveBeenCalledWith(mockUser.sub);
+        });
+    });
+    describe('findOneBatchJob', () => {
+        it('특정 배치 작업을 반환해야 함', async () => {
+            const mockBatchJob = {
+                id: 1,
+                type: batch_job_entity_1.BatchJobType.DATASET_QUERY,
+                status: batch_job_entity_1.BatchJobStatus.PROCESSING,
+                totalRecords: 1000,
+                processedRecords: 500,
+                chunks: [],
+                get progress() {
+                    return 50;
+                },
+                get estimatedTimeRemaining() {
+                    return 10000;
+                },
+            };
+            mockBatchService.findOne.mockResolvedValue(mockBatchJob);
+            const result = await controller.findOneBatchJob(1);
+            expect(result).toBeInstanceOf(batch_job_response_dto_1.BatchJobResponseDto);
+            expect(result.id).toBe(1);
+            expect(result.progress).toBe(50);
+            expect(result.estimatedTimeRemaining).toBe(10000);
+        });
+    });
+    describe('findBatchChunks', () => {
+        it('배치 작업의 청크 목록을 반환해야 함', async () => {
+            const mockBatchJob = {
+                id: 1,
+                chunks: [
+                    {
+                        id: 1,
+                        sequence: 0,
+                        status: 'completed',
+                        startOffset: 0,
+                        endOffset: 1000,
+                        recordCount: 1000,
+                        processedCount: 1000,
+                        retryCount: 0,
+                        get progress() {
+                            return 100;
+                        },
+                        get processingTime() {
+                            return 5000;
+                        },
+                    },
+                    {
+                        id: 2,
+                        sequence: 1,
+                        status: 'processing',
+                        startOffset: 1000,
+                        endOffset: 2000,
+                        recordCount: 1000,
+                        processedCount: 500,
+                        retryCount: 0,
+                        get progress() {
+                            return 50;
+                        },
+                        get processingTime() {
+                            return null;
+                        },
+                    },
+                ],
+            };
+            mockBatchService.findOne.mockResolvedValue(mockBatchJob);
+            const result = await controller.findBatchChunks(1);
+            expect(result).toHaveLength(2);
+            expect(result[0].progress).toBe(100);
+            expect(result[0].processingTime).toBe(5000);
+            expect(result[1].progress).toBe(50);
+            expect(result[1].processingTime).toBeNull();
+        });
+    });
+    describe('restartBatchJob', () => {
+        it('배치 작업을 재시작하고 업데이트된 정보를 반환해야 함', async () => {
+            const mockRestartedJob = {
+                id: 1,
+                type: batch_job_entity_1.BatchJobType.DATASET_QUERY,
+                status: batch_job_entity_1.BatchJobStatus.PROCESSING,
+                totalRecords: 1000,
+                processedRecords: 0,
+                failedChunks: 0,
+                get progress() {
+                    return 0;
+                },
+                get estimatedTimeRemaining() {
+                    return null;
+                },
+            };
+            mockBatchService.restartBatchJob.mockResolvedValue(mockRestartedJob);
+            const result = await controller.restartBatchJob(1, mockUser);
+            expect(result).toBeInstanceOf(batch_job_response_dto_1.BatchJobResponseDto);
+            expect(result.status).toBe(batch_job_entity_1.BatchJobStatus.PROCESSING);
+            expect(result.processedRecords).toBe(0);
+            expect(mockBatchService.restartBatchJob).toHaveBeenCalledWith(1, mockUser.sub);
+        });
+    });
+    describe('cancelBatchJob', () => {
+        it('배치 작업을 취소하고 업데이트된 정보를 반환해야 함', async () => {
+            const mockCancelledJob = {
+                id: 1,
+                type: batch_job_entity_1.BatchJobType.DATASET_QUERY,
+                status: batch_job_entity_1.BatchJobStatus.CANCELLED,
+                totalRecords: 1000,
+                processedRecords: 600,
+                get progress() {
+                    return 60;
+                },
+                get estimatedTimeRemaining() {
+                    return null;
+                },
+            };
+            mockBatchService.cancelBatchJob.mockResolvedValue(mockCancelledJob);
+            const result = await controller.cancelBatchJob(1, mockUser);
+            expect(result).toBeInstanceOf(batch_job_response_dto_1.BatchJobResponseDto);
+            expect(result.status).toBe(batch_job_entity_1.BatchJobStatus.CANCELLED);
+            expect(result.progress).toBe(60);
+            expect(mockBatchService.cancelBatchJob).toHaveBeenCalledWith(1, mockUser.sub);
+        });
+    });
+});

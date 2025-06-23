@@ -1,0 +1,40 @@
+0234be157415697eace15fbad1dc64c3
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.RealtimeCache = exports.StaticCache = exports.UserCache = exports.NoCache = exports.CacheConfig = exports.CACHE_CONFIG_KEY = void 0;
+const common_1 = require("@nestjs/common");
+exports.CACHE_CONFIG_KEY = 'cache:config';
+/**
+ * API 응답 캐싱 설정 데코레이터
+ *
+ * @example
+ * ```typescript
+ * @CacheConfig({ ttl: 300, prefix: 'dashboard' })
+ * @Get(':id')
+ * async getDashboard(@Param('id') id: number) {
+ *   return this.dashboardService.findOne(id);
+ * }
+ * ```
+ */
+const CacheConfig = (config) => (0, common_1.SetMetadata)(exports.CACHE_CONFIG_KEY, config);
+exports.CacheConfig = CacheConfig;
+/**
+ * 캐싱 비활성화 데코레이터
+ */
+const NoCache = () => (0, exports.CacheConfig)({ disabled: true });
+exports.NoCache = NoCache;
+/**
+ * 사용자별 캐싱 데코레이터
+ */
+const UserCache = (ttl = 900) => (0, exports.CacheConfig)({ ttl, userSpecific: true });
+exports.UserCache = UserCache;
+/**
+ * 정적 데이터 캐싱 데코레이터 (24시간)
+ */
+const StaticCache = () => (0, exports.CacheConfig)({ ttl: 86400 });
+exports.StaticCache = StaticCache;
+/**
+ * 실시간 데이터 캐싱 데코레이터 (1분)
+ */
+const RealtimeCache = () => (0, exports.CacheConfig)({ ttl: 60 });
+exports.RealtimeCache = RealtimeCache;

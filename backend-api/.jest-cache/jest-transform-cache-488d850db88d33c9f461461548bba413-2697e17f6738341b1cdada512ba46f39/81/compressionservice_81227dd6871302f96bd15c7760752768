@@ -1,0 +1,263 @@
+01a768af7f2dac55caec574a6b5c0caf
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var CompressionService_1;
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CompressionService = exports.CompressionType = void 0;
+const common_1 = require("@nestjs/common");
+const zlib = __importStar(require("zlib"));
+const util_1 = require("util");
+const gzip = (0, util_1.promisify)(zlib.gzip);
+const gunzip = (0, util_1.promisify)(zlib.gunzip);
+const brotliCompress = (0, util_1.promisify)(zlib.brotliCompress);
+const brotliDecompress = (0, util_1.promisify)(zlib.brotliDecompress);
+var CompressionType;
+(function (CompressionType) {
+    CompressionType[CompressionType["NONE"] = 0] = "NONE";
+    CompressionType[CompressionType["GZIP"] = 1] = "GZIP";
+    CompressionType[CompressionType["BROTLI"] = 2] = "BROTLI";
+})(CompressionType = exports.CompressionType || (exports.CompressionType = {}));
+/**
+ * 캐시 데이터 압축 서비스
+ * 대용량 데이터를 효율적으로 압축하여 캐시 공간을 절약합니다.
+ */
+let CompressionService = CompressionService_1 = class CompressionService {
+    constructor() {
+        this.logger = new common_1.Logger(CompressionService_1.name);
+        this.MIN_COMPRESSION_SIZE = 1024; // 1KB
+        this.MIN_COMPRESSION_RATIO = 0.9; // 10% 이상 압축되어야 함
+    }
+    /**
+     * 데이터 압축
+     * @param data 압축할 데이터
+     * @param forceCompression 강제 압축 여부
+     * @returns 압축된 데이터 문자열
+     */
+    async compress(data, forceCompression = false) {
+        try {
+            const json = JSON.stringify(data);
+            const originalSize = Buffer.byteLength(json, 'utf8');
+            // 최소 크기 미만이면 압축하지 않음
+            if (!forceCompression && originalSize < this.MIN_COMPRESSION_SIZE) {
+                return JSON.stringify({
+                    type: CompressionType.NONE,
+                    data: Buffer.from(json).toString('base64'),
+                    originalSize,
+                    compressedSize: originalSize,
+                });
+            }
+            // 데이터 크기에 따라 압축 알고리즘 선택
+            const compressionResult = originalSize > 10 * 1024 // 10KB 이상
+                ? await this.compressBrotli(json, originalSize)
+                : await this.compressGzip(json, originalSize);
+            // 압축률 확인
+            const compressionRatio = compressionResult.compressedSize / originalSize;
+            if (!forceCompression && compressionRatio > this.MIN_COMPRESSION_RATIO) {
+                // 압축 효과가 미미하면 원본 사용
+                this.logger.debug(`Compression ratio ${compressionRatio.toFixed(2)} is below threshold, using original data`);
+                return JSON.stringify({
+                    type: CompressionType.NONE,
+                    data: Buffer.from(json).toString('base64'),
+                    originalSize,
+                    compressedSize: originalSize,
+                });
+            }
+            this.logger.debug(`Compressed data from ${originalSize} to ${compressionResult.compressedSize} bytes ` +
+                `(${((1 - compressionRatio) * 100).toFixed(1)}% reduction) using ${CompressionType[compressionResult.type]}`);
+            return JSON.stringify(compressionResult);
+        }
+        catch (error) {
+            this.logger.error('Compression failed:', error);
+            throw error;
+        }
+    }
+    /**
+     * 데이터 압축 해제
+     * @param compressedStr 압축된 데이터 문자열
+     * @returns 원본 데이터
+     */
+    async decompress(compressedStr) {
+        try {
+            const compressed = JSON.parse(compressedStr);
+            if (compressed.type === CompressionType.NONE) {
+                const json = Buffer.from(compressed.data, 'base64').toString('utf8');
+                return JSON.parse(json);
+            }
+            const decompressed = compressed.type === CompressionType.BROTLI
+                ? await this.decompressBrotli(compressed.data)
+                : await this.decompressGzip(compressed.data);
+            return JSON.parse(decompressed);
+        }
+        catch (error) {
+            // 압축되지 않은 데이터일 수 있음
+            try {
+                return JSON.parse(compressedStr);
+            }
+            catch (_a) {
+                this.logger.error('Decompression failed:', error);
+                throw error;
+            }
+        }
+    }
+    /**
+     * GZIP 압축
+     */
+    async compressGzip(data, originalSize) {
+        const compressed = await gzip(data, {
+            level: zlib.constants.Z_DEFAULT_COMPRESSION,
+        });
+        return {
+            type: CompressionType.GZIP,
+            data: compressed.toString('base64'),
+            originalSize,
+            compressedSize: compressed.length,
+        };
+    }
+    /**
+     * GZIP 압축 해제
+     */
+    async decompressGzip(data) {
+        const buffer = Buffer.from(data, 'base64');
+        const decompressed = await gunzip(buffer);
+        return decompressed.toString('utf8');
+    }
+    /**
+     * Brotli 압축
+     */
+    async compressBrotli(data, originalSize) {
+        const compressed = await brotliCompress(data, {
+            params: {
+                [zlib.constants.BROTLI_PARAM_MODE]: zlib.constants.BROTLI_MODE_TEXT,
+                [zlib.constants.BROTLI_PARAM_QUALITY]: 4, // 0-11, 4는 균형잡힌 설정
+            },
+        });
+        return {
+            type: CompressionType.BROTLI,
+            data: compressed.toString('base64'),
+            originalSize,
+            compressedSize: compressed.length,
+        };
+    }
+    /**
+     * Brotli 압축 해제
+     */
+    async decompressBrotli(data) {
+        const buffer = Buffer.from(data, 'base64');
+        const decompressed = await brotliDecompress(buffer);
+        return decompressed.toString('utf8');
+    }
+    /**
+     * 압축 통계 계산
+     */
+    calculateCompressionStats(compressedStr) {
+        try {
+            const compressed = JSON.parse(compressedStr);
+            if (!compressed.originalSize || !compressed.compressedSize) {
+                return null;
+            }
+            const compressionRatio = compressed.compressedSize / compressed.originalSize;
+            const spaceSaved = compressed.originalSize - compressed.compressedSize;
+            return {
+                type: CompressionType[compressed.type],
+                originalSize: compressed.originalSize,
+                compressedSize: compressed.compressedSize,
+                compressionRatio,
+                spaceSaved,
+            };
+        }
+        catch (_a) {
+            return null;
+        }
+    }
+    /**
+     * 여러 데이터를 배치로 압축
+     */
+    async compressBatch(items, forceCompression = false) {
+        const results = await Promise.all(items.map(async (item) => {
+            try {
+                const compressed = await this.compress(item.data, forceCompression);
+                const stats = this.calculateCompressionStats(compressed);
+                return {
+                    key: item.key,
+                    compressed,
+                    stats,
+                };
+            }
+            catch (error) {
+                this.logger.error(`Failed to compress item ${item.key}:`, error);
+                // 압축 실패 시 원본 반환
+                return {
+                    key: item.key,
+                    compressed: JSON.stringify(item.data),
+                    stats: null,
+                };
+            }
+        }));
+        // 압축 통계 로깅
+        const totalOriginal = results.reduce((sum, r) => { var _a; return sum + (((_a = r.stats) === null || _a === void 0 ? void 0 : _a.originalSize) || 0); }, 0);
+        const totalCompressed = results.reduce((sum, r) => { var _a; return sum + (((_a = r.stats) === null || _a === void 0 ? void 0 : _a.compressedSize) || 0); }, 0);
+        if (totalOriginal > 0) {
+            const overallRatio = totalCompressed / totalOriginal;
+            this.logger.log(`Batch compression completed: ${items.length} items, ` +
+                `${totalOriginal} → ${totalCompressed} bytes ` +
+                `(${((1 - overallRatio) * 100).toFixed(1)}% reduction)`);
+        }
+        return results;
+    }
+    /**
+     * 압축 가능 여부 확인
+     */
+    isCompressible(data) {
+        try {
+            const json = JSON.stringify(data);
+            const size = Buffer.byteLength(json, 'utf8');
+            return size >= this.MIN_COMPRESSION_SIZE;
+        }
+        catch (_a) {
+            return false;
+        }
+    }
+    /**
+     * 최적 압축 알고리즘 추천
+     */
+    recommendCompressionType(dataSize) {
+        if (dataSize < this.MIN_COMPRESSION_SIZE) {
+            return CompressionType.NONE;
+        }
+        // 10KB 이상은 Brotli (더 나은 압축률)
+        // 그 이하는 GZIP (더 빠른 압축/해제)
+        return dataSize > 10 * 1024 ? CompressionType.BROTLI : CompressionType.GZIP;
+    }
+};
+CompressionService = CompressionService_1 = __decorate([
+    (0, common_1.Injectable)()
+], CompressionService);
+exports.CompressionService = CompressionService;

@@ -3,9 +3,6 @@ module.exports = {
   testEnvironment: 'node',
   rootDir: '.',
   testMatch: ['**/*.spec.ts'],
-  transform: {
-    '^.+\\.(t|j)s$': 'ts-jest',
-  },
   moduleFileExtensions: ['js', 'json', 'ts'],
   moduleNameMapper: {
     '^src/(.*)$': '<rootDir>/src/$1',
@@ -37,15 +34,15 @@ module.exports = {
   testEnvironmentOptions: {
     NODE_ENV: 'test',
   },
-  // 글로벌 설정
-  globals: {
-    'ts-jest': {
+  // 글로벌 설정 - ts-jest v29 호환
+  transform: {
+    '^.+\\.(t|j)s$': ['ts-jest', {
       tsconfig: {
         allowJs: true,
         esModuleInterop: true,
         resolveJsonModule: true,
       },
-    },
+    }],
   },
   // 무시할 패턴
   testPathIgnorePatterns: [

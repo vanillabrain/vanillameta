@@ -1,0 +1,120 @@
+d26e09cdb3ec723c02600a478267cb39
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const testing_1 = require("@nestjs/testing");
+const dataset_service_1 = require("./dataset.service");
+const dataset_entity_1 = require("./entities/dataset.entity");
+const widget_entity_1 = require("../widget/entities/widget.entity");
+const connection_service_1 = require("../connection/connection.service");
+const test_helpers_1 = require("../../test/test-helpers");
+const response_status_enum_1 = require("../common/enum/response-status.enum");
+const dataset_type_enum_1 = require("../common/enum/dataset-type.enum");
+const database_entity_1 = require("../database/entities/database.entity");
+const hybrid_cache_service_1 = require("../common/optimization/hybrid-cache.service");
+const logger_service_1 = require("../common/logger/logger.service");
+const business_metrics_service_1 = require("../common/monitoring/business-metrics.service");
+const pagination_service_1 = require("../common/pagination/pagination.service");
+describe('DatasetService', () => {
+    let service;
+    let datasetRepository;
+    let widgetRepository;
+    let connectionService;
+    beforeEach(async () => {
+        const module = await testing_1.Test.createTestingModule({
+            providers: [
+                dataset_service_1.DatasetService,
+                {
+                    provide: (0, test_helpers_1.getRepositoryTokenFor)(dataset_entity_1.Dataset),
+                    useValue: (0, test_helpers_1.createMockRepository)(),
+                },
+                {
+                    provide: (0, test_helpers_1.getRepositoryTokenFor)(widget_entity_1.Widget),
+                    useValue: (0, test_helpers_1.createMockRepository)(),
+                },
+                {
+                    provide: (0, test_helpers_1.getRepositoryTokenFor)(database_entity_1.Database),
+                    useValue: (0, test_helpers_1.createMockRepository)(),
+                },
+                {
+                    provide: connection_service_1.ConnectionService,
+                    useValue: (0, test_helpers_1.createMockService)(['executeQuery', 'testConnection']),
+                },
+                {
+                    provide: hybrid_cache_service_1.HybridCacheService,
+                    useValue: (0, test_helpers_1.createMockService)(['get', 'set', 'del', 'invalidate']),
+                },
+                {
+                    provide: logger_service_1.CustomLoggerService,
+                    useValue: (0, test_helpers_1.createMockService)(['log', 'error', 'warn', 'debug']),
+                },
+                {
+                    provide: business_metrics_service_1.BusinessMetricsService,
+                    useValue: (0, test_helpers_1.createMockService)(['recordDatasetCreation', 'recordDatasetQuery']),
+                },
+                {
+                    provide: pagination_service_1.PaginationService,
+                    useValue: (0, test_helpers_1.createMockService)(['paginate']),
+                },
+            ],
+        }).compile();
+        service = module.get(dataset_service_1.DatasetService);
+        datasetRepository = module.get((0, test_helpers_1.getRepositoryTokenFor)(dataset_entity_1.Dataset));
+        widgetRepository = module.get((0, test_helpers_1.getRepositoryTokenFor)(widget_entity_1.Widget));
+        connectionService = module.get(connection_service_1.ConnectionService);
+    });
+    it('should be defined', () => {
+        expect(service).toBeDefined();
+    });
+    describe('create', () => {
+        it('should create a new dataset when query is valid', async () => {
+            const createDto = {
+                title: 'Test Dataset',
+                databaseId: 1,
+                query: 'SELECT * FROM users',
+            };
+            const mockQueryResult = {
+                status: response_status_enum_1.ResponseStatus.SUCCESS,
+                data: [{ id: 1, name: 'John' }],
+                columns: [
+                    { name: 'id', type: 'number' },
+                    { name: 'name', type: 'string' },
+                ],
+            };
+            const savedDataset = Object.assign({ id: 1 }, createDto);
+            connectionService.executeQuery.mockResolvedValue(mockQueryResult);
+            datasetRepository.save.mockResolvedValue(savedDataset);
+            const result = await service.create(createDto);
+            expect(connectionService.executeQuery).toHaveBeenCalledWith({
+                id: createDto.databaseId,
+                query: createDto.query,
+            });
+            expect(datasetRepository.save).toHaveBeenCalled();
+        });
+        it('should return error when query execution fails', async () => {
+            const createDto = {
+                title: 'Test Dataset',
+                databaseId: 1,
+                query: 'INVALID QUERY',
+            };
+            const mockQueryResult = {
+                status: response_status_enum_1.ResponseStatus.ERROR,
+                message: 'SQL syntax error',
+            };
+            connectionService.executeQuery.mockResolvedValue(mockQueryResult);
+            const result = await service.create(createDto);
+            expect(result.status).toBe(response_status_enum_1.ResponseStatus.ERROR);
+            expect(datasetRepository.save).not.toHaveBeenCalled();
+        });
+    });
+    describe('findAll', () => {
+        it('should return all datasets', async () => {
+            const mockDatasets = [
+                { id: 1, name: 'Dataset 1', type: dataset_type_enum_1.DatasetType.DATASET },
+                { id: 2, name: 'Dataset 2', type: dataset_type_enum_1.DatasetType.TABLE },
+            ];
+            datasetRepository.find.mockResolvedValue(mockDatasets);
+            const result = await service.findAll();
+            expect(result).toEqual(mockDatasets);
+        });
+    });
+});

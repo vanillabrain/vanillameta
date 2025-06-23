@@ -1,0 +1,334 @@
+6be4f2ec95ef8d9a74bf8d192321d4a5
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const testing_1 = require("@nestjs/testing");
+const typeorm_1 = require("@nestjs/typeorm");
+const query_timeout_service_1 = require("./query-timeout.service");
+const timeout_configuration_service_1 = require("./services/timeout-configuration.service");
+const adaptive_timeout_service_1 = require("./services/adaptive-timeout.service");
+const timeout_monitoring_service_1 = require("./services/timeout-monitoring.service");
+const database_entity_1 = require("../database/entities/database.entity");
+const timeout_config_dto_1 = require("./dto/timeout-config.dto");
+const response_status_enum_1 = require("../common/enum/response-status.enum");
+describe('QueryTimeoutService', () => {
+    let service;
+    let databaseRepository;
+    let configService;
+    let adaptiveService;
+    let monitoringService;
+    const mockDatabase = {
+        id: 1,
+        name: 'test-db',
+        description: 'Test database',
+        engine: 'pg',
+        type: 'postgresql',
+        connectionConfig: '{"host":"localhost","port":5432}',
+        timezone: 'UTC',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        getFullDescription: jest.fn().mockReturnValue('test-db Test database'),
+    };
+    beforeEach(async () => {
+        const mockDatabaseRepository = {
+            findOne: jest.fn(),
+        };
+        const mockConfigService = {
+            getEngineTimeoutRules: jest.fn(),
+            getDatabaseDefaultConfig: jest.fn(),
+            analyzeQueryComplexity: jest.fn(),
+            calculateRecommendedTimeout: jest.fn(),
+            updateTimeoutRule: jest.fn(),
+            getSystemTimeoutStatistics: jest.fn(),
+        };
+        const mockAdaptiveService = {
+            calculateAdaptiveTimeout: jest.fn(),
+            recordExecution: jest.fn(),
+            analyzeTimeoutRequirements: jest.fn(),
+            getExecutionStatistics: jest.fn(),
+        };
+        const mockMonitoringService = {
+            generateStatistics: jest.fn(),
+            recordExecution: jest.fn(),
+            generateMonitoringReport: jest.fn(),
+            getMemoryInfo: jest.fn(),
+            getTimeoutTrend: jest.fn(),
+        };
+        const module = await testing_1.Test.createTestingModule({
+            providers: [
+                query_timeout_service_1.QueryTimeoutService,
+                {
+                    provide: (0, typeorm_1.getRepositoryToken)(database_entity_1.Database),
+                    useValue: mockDatabaseRepository,
+                },
+                {
+                    provide: timeout_configuration_service_1.TimeoutConfigurationService,
+                    useValue: mockConfigService,
+                },
+                {
+                    provide: adaptive_timeout_service_1.AdaptiveTimeoutService,
+                    useValue: mockAdaptiveService,
+                },
+                {
+                    provide: timeout_monitoring_service_1.TimeoutMonitoringService,
+                    useValue: mockMonitoringService,
+                },
+            ],
+        }).compile();
+        service = module.get(query_timeout_service_1.QueryTimeoutService);
+        databaseRepository = module.get((0, typeorm_1.getRepositoryToken)(database_entity_1.Database));
+        configService = module.get(timeout_configuration_service_1.TimeoutConfigurationService);
+        adaptiveService = module.get(adaptive_timeout_service_1.AdaptiveTimeoutService);
+        monitoringService = module.get(timeout_monitoring_service_1.TimeoutMonitoringService);
+    });
+    it('should be defined', () => {
+        expect(service).toBeDefined();
+    });
+    describe('getTimeoutConfig', () => {
+        it('should return timeout configuration for existing database', async () => {
+            var _a, _b, _c, _d;
+            // Arrange
+            const databaseId = 1;
+            const mockRules = [
+                {
+                    engine: timeout_config_dto_1.DatabaseEngine.POSTGRESQL,
+                    complexity: timeout_config_dto_1.QueryComplexity.SIMPLE,
+                    timeoutMs: 30000,
+                    description: 'PostgreSQL simple query',
+                },
+            ];
+            const mockDefaultConfig = {
+                engine: timeout_config_dto_1.DatabaseEngine.POSTGRESQL,
+                defaultTimeoutMs: 30000,
+                maxTimeoutMs: 300000,
+            };
+            const mockStatistics = {
+                engine: timeout_config_dto_1.DatabaseEngine.POSTGRESQL,
+                totalQueries: 100,
+                timeoutCount: 5,
+                timeoutRate: 5,
+                averageExecutionTime: 15000,
+                p95ExecutionTime: 45000,
+                p99ExecutionTime: 60000,
+                optimalTimeoutSuggestion: 50000,
+            };
+            databaseRepository.findOne.mockResolvedValue(mockDatabase);
+            configService.getEngineTimeoutRules.mockReturnValue(mockRules);
+            configService.getDatabaseDefaultConfig.mockResolvedValue(mockDefaultConfig);
+            monitoringService.generateStatistics.mockReturnValue(mockStatistics);
+            // Act
+            const result = await service.getTimeoutConfig(databaseId);
+            // Assert
+            expect(result.status).toBe(response_status_enum_1.ResponseStatus.SUCCESS);
+            expect((_b = (_a = result.data) === null || _a === void 0 ? void 0 : _a.currentConfig) === null || _b === void 0 ? void 0 : _b.engine).toBe(timeout_config_dto_1.DatabaseEngine.POSTGRESQL);
+            expect((_c = result.data) === null || _c === void 0 ? void 0 : _c.rules).toHaveLength(1);
+            expect((_d = result.data) === null || _d === void 0 ? void 0 : _d.statistics).toHaveLength(1);
+            expect(databaseRepository.findOne).toHaveBeenCalledWith({ where: { id: databaseId } });
+        });
+        it('should throw BadRequestException for non-existent database', async () => {
+            // Arrange
+            const databaseId = 999;
+            databaseRepository.findOne.mockResolvedValue(null);
+            // Act
+            const result = await service.getTimeoutConfig(databaseId);
+            // Assert
+            expect(result.status).toBe(response_status_enum_1.ResponseStatus.ERROR);
+            expect(result.message).toContain('Database not found');
+        });
+    });
+    describe('calculateOptimalTimeout', () => {
+        it('should calculate adaptive timeout when enabled', async () => {
+            var _a, _b;
+            // Arrange
+            const configDto = {
+                databaseId: 1,
+                query: 'SELECT * FROM users',
+                enableAdaptive: true,
+            };
+            const mockAdaptiveResult = {
+                originalTimeoutMs: 30000,
+                adaptedTimeoutMs: 45000,
+                adjustmentReason: 'Increased based on historical data',
+                confidenceLevel: 85,
+                appliedMultiplier: 1.5,
+                historicalAverage: 25000,
+                recommendation: 'Good optimization',
+            };
+            databaseRepository.findOne.mockResolvedValue(mockDatabase);
+            configService.analyzeQueryComplexity.mockReturnValue(timeout_config_dto_1.QueryComplexity.SIMPLE);
+            configService.calculateRecommendedTimeout.mockReturnValue(30000);
+            adaptiveService.calculateAdaptiveTimeout.mockResolvedValue(mockAdaptiveResult);
+            // Act
+            const result = await service.calculateOptimalTimeout(configDto);
+            // Assert
+            expect(result.status).toBe(response_status_enum_1.ResponseStatus.SUCCESS);
+            expect((_a = result.data) === null || _a === void 0 ? void 0 : _a.adaptedTimeoutMs).toBe(45000);
+            expect((_b = result.data) === null || _b === void 0 ? void 0 : _b.confidenceLevel).toBe(85);
+            expect(adaptiveService.calculateAdaptiveTimeout).toHaveBeenCalledWith(1, 'SELECT * FROM users', timeout_config_dto_1.DatabaseEngine.POSTGRESQL, 30000);
+        });
+        it('should return static timeout when adaptive is disabled', async () => {
+            var _a, _b, _c;
+            // Arrange
+            const configDto = {
+                databaseId: 1,
+                query: 'SELECT * FROM users',
+                enableAdaptive: false,
+            };
+            databaseRepository.findOne.mockResolvedValue(mockDatabase);
+            configService.analyzeQueryComplexity.mockReturnValue(timeout_config_dto_1.QueryComplexity.SIMPLE);
+            configService.calculateRecommendedTimeout.mockReturnValue(30000);
+            // Act
+            const result = await service.calculateOptimalTimeout(configDto);
+            // Assert
+            expect(result.status).toBe(response_status_enum_1.ResponseStatus.SUCCESS);
+            expect((_a = result.data) === null || _a === void 0 ? void 0 : _a.originalTimeoutMs).toBe(30000);
+            expect((_b = result.data) === null || _b === void 0 ? void 0 : _b.adaptedTimeoutMs).toBe(30000);
+            expect((_c = result.data) === null || _c === void 0 ? void 0 : _c.appliedMultiplier).toBe(1.0);
+        });
+    });
+    describe('recordQueryExecution', () => {
+        it('should record successful query execution', async () => {
+            // Arrange
+            const databaseId = 1;
+            const query = 'SELECT * FROM users';
+            const executionTimeMs = 25000;
+            const timeoutMs = 30000;
+            const userId = 'user123';
+            databaseRepository.findOne.mockResolvedValue(mockDatabase);
+            configService.analyzeQueryComplexity.mockReturnValue(timeout_config_dto_1.QueryComplexity.SIMPLE);
+            // Act
+            await service.recordQueryExecution(databaseId, query, executionTimeMs, timeoutMs, false, // not timed out
+            undefined, // no error
+            userId);
+            // Assert
+            expect(monitoringService.recordExecution).toHaveBeenCalledWith(expect.objectContaining({
+                success: true,
+                executionTimeMs,
+                timeoutMs,
+                wasTimedOut: false,
+                query,
+                databaseEngine: timeout_config_dto_1.DatabaseEngine.POSTGRESQL,
+                complexity: timeout_config_dto_1.QueryComplexity.SIMPLE,
+            }), userId);
+            expect(adaptiveService.recordExecution).toHaveBeenCalledWith(databaseId, query, executionTimeMs, true);
+        });
+        it('should record timed out query execution', async () => {
+            // Arrange
+            const databaseId = 1;
+            const query = 'SELECT * FROM large_table';
+            const executionTimeMs = 35000;
+            const timeoutMs = 30000;
+            databaseRepository.findOne.mockResolvedValue(mockDatabase);
+            configService.analyzeQueryComplexity.mockReturnValue(timeout_config_dto_1.QueryComplexity.COMPLEX);
+            // Act
+            await service.recordQueryExecution(databaseId, query, executionTimeMs, timeoutMs, true, // timed out
+            'Query execution timeout');
+            // Assert
+            expect(monitoringService.recordExecution).toHaveBeenCalledWith(expect.objectContaining({
+                success: false,
+                executionTimeMs,
+                timeoutMs,
+                wasTimedOut: true,
+                errorMessage: 'Query execution timeout',
+            }), undefined);
+            // 타임아웃된 경우 adaptive service에 기록하지 않음
+            expect(adaptiveService.recordExecution).not.toHaveBeenCalled();
+        });
+    });
+    describe('generateMonitoringReport', () => {
+        it('should generate monitoring report for specified period', async () => {
+            var _a;
+            // Arrange
+            const periodHours = 24;
+            const mockReport = {
+                reportPeriod: {
+                    startTime: new Date(),
+                    endTime: new Date(),
+                },
+                summary: {
+                    totalQueries: 1000,
+                    totalTimeouts: 50,
+                    overallTimeoutRate: 5,
+                    averageExecutionTime: 15000,
+                    savedTimeFromOptimization: 120000,
+                },
+                byEngine: [],
+                byComplexity: [],
+                recommendations: ['Optimize slow queries'],
+                alertsTriggered: [],
+            };
+            monitoringService.generateMonitoringReport.mockReturnValue(mockReport);
+            // Act
+            const result = await service.generateMonitoringReport(periodHours);
+            // Assert
+            expect(result.status).toBe(response_status_enum_1.ResponseStatus.SUCCESS);
+            expect((_a = result.data) === null || _a === void 0 ? void 0 : _a.monitoringReport).toBe(mockReport);
+            expect(monitoringService.generateMonitoringReport).toHaveBeenCalledWith(periodHours);
+        });
+    });
+    describe('healthCheck', () => {
+        it('should return healthy status when all systems are working', async () => {
+            // Arrange
+            const mockSystemStats = {
+                totalRules: 20,
+                averageTimeout: 45000,
+                byEngine: {},
+                byComplexity: {},
+                maxTimeout: 300000,
+                minTimeout: 15000,
+            };
+            const mockAdaptiveStats = {
+                totalQueries: 500,
+                averageExecutionTime: 20000,
+                adaptationRate: 75,
+                memoryUsageKB: 2048,
+            };
+            const mockMonitoringMemory = {
+                eventCount: 1000,
+                memoryUsageEstimateKB: 1024,
+                oldestEventAge: 86400000,
+                newestEventAge: 0,
+            };
+            configService.getSystemTimeoutStatistics.mockReturnValue(mockSystemStats);
+            adaptiveService.getExecutionStatistics.mockReturnValue(mockAdaptiveStats);
+            monitoringService.getMemoryInfo.mockReturnValue(mockMonitoringMemory);
+            // Act
+            const result = await service.healthCheck();
+            // Assert
+            expect(result.status).toBe('healthy');
+            expect(result.details.configuredRules).toBe(20);
+            expect(result.details.adaptiveQueries).toBe(500);
+            expect(result.details.adaptationRate).toBe(75);
+        });
+        it('should return degraded status when memory usage is high', async () => {
+            // Arrange
+            const mockSystemStats = {
+                totalRules: 20,
+                averageTimeout: 45000,
+                byEngine: {},
+                byComplexity: {},
+                maxTimeout: 300000,
+                minTimeout: 15000,
+            };
+            const mockAdaptiveStats = {
+                totalQueries: 100,
+                averageExecutionTime: 20000,
+                adaptationRate: 5,
+                memoryUsageKB: 15000, // High memory usage
+            };
+            const mockMonitoringMemory = {
+                eventCount: 10000,
+                memoryUsageEstimateKB: 12000,
+                oldestEventAge: 86400000,
+                newestEventAge: 0,
+            };
+            configService.getSystemTimeoutStatistics.mockReturnValue(mockSystemStats);
+            adaptiveService.getExecutionStatistics.mockReturnValue(mockAdaptiveStats);
+            monitoringService.getMemoryInfo.mockReturnValue(mockMonitoringMemory);
+            // Act
+            const result = await service.healthCheck();
+            // Assert
+            expect(result.status).toBe('degraded');
+            expect(result.details.memoryUsageKB).toBeGreaterThan(10000);
+        });
+    });
+});

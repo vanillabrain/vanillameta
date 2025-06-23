@@ -1,0 +1,235 @@
+67b0dd1e3379cdd0091c56d19044b451
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const testing_1 = require("@nestjs/testing");
+const events_controller_1 = require("./events.controller");
+const events_service_1 = require("./events.service");
+const analytics_query_dto_1 = require("./dto/analytics-query.dto");
+describe('EventsController', () => {
+    let controller;
+    let service;
+    const mockEventsService = {
+        trackEvents: jest.fn(),
+        trackMetrics: jest.fn(),
+        getAnalyticsSummary: jest.fn(),
+        getEvents: jest.fn(),
+        getMetrics: jest.fn(),
+        getFunnelAnalysis: jest.fn(),
+        getRetentionAnalysis: jest.fn(),
+        getUserFlow: jest.fn(),
+    };
+    const mockRequest = {
+        headers: {
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        },
+        connection: {
+            remoteAddress: '192.168.1.1',
+        },
+        socket: {
+            remoteAddress: '192.168.1.1',
+        },
+        user: {
+            userId: 'test-user-id',
+        },
+    };
+    beforeEach(async () => {
+        const module = await testing_1.Test.createTestingModule({
+            controllers: [events_controller_1.EventsController],
+            providers: [
+                {
+                    provide: events_service_1.EventsService,
+                    useValue: mockEventsService,
+                },
+            ],
+        }).compile();
+        controller = module.get(events_controller_1.EventsController);
+        service = module.get(events_service_1.EventsService);
+    });
+    afterEach(() => {
+        jest.clearAllMocks();
+    });
+    it('should be defined', () => {
+        expect(controller).toBeDefined();
+    });
+    describe('trackEvents', () => {
+        it('이벤트를 성공적으로 추적해야 함', async () => {
+            const trackEventDto = {
+                events: [
+                    {
+                        action: 'dashboard_created',
+                        category: 'Dashboard',
+                        label: 'test-dashboard',
+                        value: 1,
+                        properties: {
+                            dashboardId: 'dash-123',
+                            templateUsed: 'blank',
+                        },
+                    },
+                ],
+                sessionInfo: {
+                    sessionId: 'session-123',
+                    startTime: Date.now(),
+                    lastActivityTime: Date.now(),
+                    pageViews: 1,
+                    eventCount: 1,
+                },
+            };
+            await controller.trackEvents(trackEventDto, mockRequest);
+            expect(service.trackEvents).toHaveBeenCalledWith(trackEventDto, '192.168.1.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+        });
+        it('IP 주소를 올바르게 추출해야 함', async () => {
+            const requestWithForwardedIp = Object.assign(Object.assign({}, mockRequest), { headers: Object.assign(Object.assign({}, mockRequest.headers), { 'x-forwarded-for': '10.0.0.1, 192.168.1.1' }) });
+            const trackEventDto = {
+                events: [],
+            };
+            await controller.trackEvents(trackEventDto, requestWithForwardedIp);
+            expect(service.trackEvents).toHaveBeenCalledWith(trackEventDto, '10.0.0.1', expect.any(String));
+        });
+    });
+    describe('trackMetrics', () => {
+        it('성능 메트릭을 성공적으로 추적해야 함', async () => {
+            const trackMetricDto = {
+                metrics: [
+                    {
+                        name: 'page_load',
+                        value: 1234.56,
+                        category: 'performance',
+                        tags: { page: '/dashboard' },
+                    },
+                ],
+            };
+            await controller.trackMetrics(trackMetricDto, mockRequest);
+            expect(service.trackMetrics).toHaveBeenCalledWith(trackMetricDto, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+        });
+    });
+    describe('getAnalyticsSummary', () => {
+        it('분석 요약 데이터를 반환해야 함', async () => {
+            const query = {
+                timeRange: analytics_query_dto_1.TimeRange.LAST_7_DAYS,
+                limit: 10,
+                offset: 0,
+            };
+            const expectedSummary = {
+                totalEvents: 1000,
+                uniqueUsers: 50,
+                totalSessions: 200,
+                avgSessionDuration: 300,
+                topEvents: [],
+                eventsByCategory: [],
+                dateRange: {
+                    start: new Date(),
+                    end: new Date(),
+                },
+            };
+            mockEventsService.getAnalyticsSummary.mockResolvedValue(expectedSummary);
+            const result = await controller.getAnalyticsSummary(query, mockRequest);
+            expect(service.getAnalyticsSummary).toHaveBeenCalledWith(query, 'test-user-id');
+            expect(result).toEqual(expectedSummary);
+        });
+    });
+    describe('getEvents', () => {
+        it('이벤트 목록을 반환해야 함', async () => {
+            const query = {
+                timeRange: analytics_query_dto_1.TimeRange.LAST_24_HOURS,
+                category: 'Dashboard',
+                limit: 20,
+                offset: 0,
+            };
+            const expectedEvents = {
+                events: [],
+                total: 100,
+                limit: 20,
+                offset: 0,
+            };
+            mockEventsService.getEvents.mockResolvedValue(expectedEvents);
+            const result = await controller.getEvents(query, mockRequest);
+            expect(service.getEvents).toHaveBeenCalledWith(query, 'test-user-id');
+            expect(result).toEqual(expectedEvents);
+        });
+    });
+    describe('getMetrics', () => {
+        it('성능 메트릭 데이터를 반환해야 함', async () => {
+            const query = {
+                timeRange: analytics_query_dto_1.TimeRange.LAST_HOUR,
+                category: 'performance',
+            };
+            const expectedMetrics = [
+                {
+                    name: 'page_load',
+                    category: 'performance',
+                    avg: 1500,
+                    min: 500,
+                    max: 3000,
+                    count: 100,
+                },
+            ];
+            mockEventsService.getMetrics.mockResolvedValue(expectedMetrics);
+            const result = await controller.getMetrics(query, mockRequest);
+            expect(service.getMetrics).toHaveBeenCalledWith(query, 'test-user-id');
+            expect(result).toEqual(expectedMetrics);
+        });
+    });
+    describe('getFunnelAnalysis', () => {
+        it('퍼널 분석 데이터를 반환해야 함', async () => {
+            const steps = 'user_login,dashboard_viewed,widget_created';
+            const query = {
+                timeRange: analytics_query_dto_1.TimeRange.LAST_30_DAYS,
+            };
+            const expectedFunnel = {
+                funnel: [
+                    { step: 'user_login', users: 100, index: 0, conversionRate: 100, dropOffRate: 0 },
+                    { step: 'dashboard_viewed', users: 80, index: 1, conversionRate: 80, dropOffRate: 20 },
+                    { step: 'widget_created', users: 50, index: 2, conversionRate: 50, dropOffRate: 37.5 },
+                ],
+                dateRange: { start: new Date(), end: new Date() },
+            };
+            mockEventsService.getFunnelAnalysis.mockResolvedValue(expectedFunnel);
+            const result = await controller.getFunnelAnalysis(steps, query, mockRequest);
+            expect(service.getFunnelAnalysis).toHaveBeenCalledWith(['user_login', 'dashboard_viewed', 'widget_created'], query, 'test-user-id');
+            expect(result).toEqual(expectedFunnel);
+        });
+    });
+    describe('getRetentionAnalysis', () => {
+        it('리텐션 분석 데이터를 반환해야 함', async () => {
+            const query = {
+                timeRange: analytics_query_dto_1.TimeRange.LAST_90_DAYS,
+            };
+            const expectedRetention = {
+                retention: [
+                    {
+                        cohort: '2024-01-01',
+                        totalUsers: 100,
+                        retention: [
+                            { period: 'Week 1', activeUsers: 80, retentionRate: 80 },
+                            { period: 'Week 2', activeUsers: 60, retentionRate: 60 },
+                        ],
+                    },
+                ],
+                dateRange: { start: new Date(), end: new Date() },
+            };
+            mockEventsService.getRetentionAnalysis.mockResolvedValue(expectedRetention);
+            const result = await controller.getRetentionAnalysis(query, mockRequest);
+            expect(service.getRetentionAnalysis).toHaveBeenCalledWith(query, 'test-user-id');
+            expect(result).toEqual(expectedRetention);
+        });
+    });
+    describe('getUserFlow', () => {
+        it('사용자 플로우 데이터를 반환해야 함', async () => {
+            const query = {
+                timeRange: analytics_query_dto_1.TimeRange.LAST_7_DAYS,
+            };
+            const expectedFlow = {
+                topPatterns: [
+                    { pattern: 'login → dashboard_view', count: 150 },
+                    { pattern: 'dashboard_view → widget_create', count: 100 },
+                ],
+                totalSessions: 200,
+                dateRange: { start: new Date(), end: new Date() },
+            };
+            mockEventsService.getUserFlow.mockResolvedValue(expectedFlow);
+            const result = await controller.getUserFlow(query, mockRequest);
+            expect(service.getUserFlow).toHaveBeenCalledWith(query, 'test-user-id');
+            expect(result).toEqual(expectedFlow);
+        });
+    });
+});

@@ -1,0 +1,191 @@
+a2199e6050e77d7c4926203c6422cc04
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CacheKeyService = void 0;
+const common_1 = require("@nestjs/common");
+const crypto = __importStar(require("crypto"));
+let CacheKeyService = class CacheKeyService {
+    /**
+     * API 요청에 대한 캐시 키 생성
+     */
+    generateKey(request, config) {
+        const parts = [];
+        // 접두사 추가
+        if (config.prefix) {
+            parts.push(config.prefix);
+        }
+        // 버전 추가
+        if (config.version !== undefined) {
+            parts.push(`v${config.version}`);
+        }
+        // 사용자별 캐싱
+        if (config.userSpecific && request.user) {
+            parts.push(`user:${request.user.id || 'anonymous'}`);
+        }
+        // HTTP 메서드
+        parts.push(request.method.toLowerCase());
+        // URL 경로
+        parts.push(this.normalizePath(request.path));
+        // 쿼리 파라미터 처리
+        if (config.includeQuery) {
+            const queryKey = this.generateQueryKey(request.query, config.includeQuery);
+            if (queryKey) {
+                parts.push(`query:${queryKey}`);
+            }
+        }
+        // 헤더 처리
+        if (config.includeHeaders && config.includeHeaders.length > 0) {
+            const headerKey = this.generateHeaderKey(request.headers, config.includeHeaders);
+            if (headerKey) {
+                parts.push(`headers:${headerKey}`);
+            }
+        }
+        // 최종 키 생성
+        const key = parts.join(':');
+        // 키가 너무 길면 해시 처리
+        if (key.length > 200) {
+            const hash = this.hashKey(key);
+            return `${parts[0]}:${parts[1]}:hash:${hash}`;
+        }
+        return key;
+    }
+    /**
+     * 경로 정규화
+     */
+    normalizePath(path) {
+        // 슬래시 중복 제거
+        let normalized = path.replace(/\/+/g, '/');
+        // 마지막 슬래시 제거
+        if (normalized.length > 1 && normalized.endsWith('/')) {
+            normalized = normalized.slice(0, -1);
+        }
+        return normalized;
+    }
+    /**
+     * 쿼리 파라미터 키 생성
+     */
+    generateQueryKey(query, includeQuery) {
+        if (!query || Object.keys(query).length === 0) {
+            return '';
+        }
+        let filteredQuery = {};
+        if (includeQuery === true) {
+            // 모든 쿼리 파라미터 포함
+            filteredQuery = query;
+        }
+        else if (Array.isArray(includeQuery)) {
+            // 특정 쿼리 파라미터만 포함
+            includeQuery.forEach(key => {
+                if (query[key] !== undefined) {
+                    filteredQuery[key] = query[key];
+                }
+            });
+        }
+        // 쿼리 파라미터 정렬 및 문자열화
+        const sortedKeys = Object.keys(filteredQuery).sort();
+        const queryParts = sortedKeys.map(key => {
+            const value = Array.isArray(filteredQuery[key])
+                ? filteredQuery[key].sort().join(',')
+                : filteredQuery[key];
+            return `${key}=${value}`;
+        });
+        return queryParts.join('&');
+    }
+    /**
+     * 헤더 키 생성
+     */
+    generateHeaderKey(headers, includeHeaders) {
+        const headerParts = [];
+        includeHeaders.forEach(headerName => {
+            const value = headers[headerName.toLowerCase()];
+            if (value) {
+                headerParts.push(`${headerName}=${value}`);
+            }
+        });
+        return headerParts.join('&');
+    }
+    /**
+     * 키 해시 생성
+     */
+    hashKey(key) {
+        return crypto
+            .createHash('sha256')
+            .update(key)
+            .digest('hex')
+            .substring(0, 16);
+    }
+    /**
+     * 패턴 기반 캐시 키 생성 (무효화용)
+     */
+    generatePattern(pattern, params = {}) {
+        let result = pattern;
+        // 파라미터 치환
+        Object.entries(params).forEach(([key, value]) => {
+            result = result.replace(`{${key}}`, value);
+        });
+        // 와일드카드 처리
+        result = result.replace(/{[^}]+}/g, '*');
+        return result;
+    }
+    /**
+     * 대시보드 관련 캐시 키 생성
+     */
+    generateDashboardKey(dashboardId, type = 'metadata') {
+        return `dashboard:${dashboardId}:${type}`;
+    }
+    /**
+     * 데이터셋 관련 캐시 키 생성
+     */
+    generateDatasetKey(datasetId, queryHash) {
+        const parts = ['dataset', datasetId];
+        if (queryHash) {
+            parts.push('query', queryHash);
+        }
+        return parts.join(':');
+    }
+    /**
+     * 위젯 관련 캐시 키 생성
+     */
+    generateWidgetKey(dashboardId, widgetId) {
+        return `dashboard:${dashboardId}:widget:${widgetId}`;
+    }
+    /**
+     * 사용자 관련 캐시 키 생성
+     */
+    generateUserKey(userId, resource) {
+        return `user:${userId}:${resource}`;
+    }
+};
+CacheKeyService = __decorate([
+    (0, common_1.Injectable)()
+], CacheKeyService);
+exports.CacheKeyService = CacheKeyService;
