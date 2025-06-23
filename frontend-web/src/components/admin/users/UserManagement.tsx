@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { adminUsersService } from '../../../api/adminUsersService';
 import UserTable from './UserTable';
-import UserFilters from './UserFilters';
+import UserFiltersComponent from './UserFilters';
+import CreateUserModal from './CreateUserModal';
+import EditUserModal from './EditUserModal';
+import UserDetailModal from './UserDetailModal';
+import BulkActionBar from './BulkActionBar';
 import './UserManagement.css';
 
 interface User {
@@ -14,6 +18,9 @@ interface User {
   createdAt: string;
   updatedAt: string;
   lastLoginAt: string | null;
+  department?: string;
+  phone?: string;
+  avatar?: string;
 }
 
 interface UserFilters {
@@ -47,6 +54,9 @@ const UserManagement: React.FC = () => {
     sortBy: 'createdAt',
     sortOrder: 'DESC',
   });
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [viewingUserId, setViewingUserId] = useState<string | null>(null);
 
   useEffect(() => {
     loadUsers();
@@ -92,6 +102,18 @@ const UserManagement: React.FC = () => {
     }
   };
 
+  const handleDeleteUser = async (userId: string) => {
+    if (!window.confirm('사용자를 삭제하시겠습니까? (복구 가능)')) return;
+
+    try {
+      await adminUsersService.deleteUser(userId);
+      loadUsers();
+    } catch (error) {
+      console.error('Failed to delete user:', error);
+      alert('사용자 삭제에 실패했습니다.');
+    }
+  };
+
   if (loading && !users) {
     return (
       <div className="user-management loading">
@@ -121,7 +143,11 @@ const UserManagement: React.FC = () => {
           <button onClick={handleRefresh} className="btn-refresh" title="새로고침">
             🔄 새로고침
           </button>
-          <button className="btn-primary" title="사용자 추가">
+          <button 
+            className="btn-primary" 
+            title="사용자 추가"
+            onClick={() => setIsCreateModalOpen(true)}
+          >
             ➕ 사용자 추가
           </button>
         </div>
@@ -138,27 +164,18 @@ const UserManagement: React.FC = () => {
         </div>
       </div>
 
-      <UserFilters
+      <UserFiltersComponent
         filters={filters}
         onFilterChange={handleFilterChange}
       />
 
       {selectedUsers.length > 0 && (
-        <div className="bulk-actions">
-          <span className="bulk-info">
-            {selectedUsers.length}명이 선택되었습니다
-          </span>
-          <div className="bulk-buttons">
-            <button className="btn-bulk btn-activate">활성화</button>
-            <button className="btn-bulk btn-deactivate">비활성화</button>
-            <button 
-              className="btn-bulk btn-clear"
-              onClick={() => setSelectedUsers([])}
-            >
-              선택 해제
-            </button>
-          </div>
-        </div>
+        <BulkActionBar
+          selectedCount={selectedUsers.length}
+          selectedUserIds={selectedUsers}
+          onAction={loadUsers}
+          onClear={() => setSelectedUsers([])}
+        />
       )}
 
       <UserTable
@@ -167,6 +184,9 @@ const UserManagement: React.FC = () => {
         selectedUsers={selectedUsers}
         onSelectionChange={setSelectedUsers}
         onUserStatusChange={handleUserStatusChange}
+        onUserEdit={(user) => setEditingUser(user)}
+        onUserView={(userId) => setViewingUserId(userId)}
+        onUserDelete={handleDeleteUser}
         onRefresh={loadUsers}
       />
 
@@ -193,6 +213,25 @@ const UserManagement: React.FC = () => {
           </button>
         </div>
       )}
+
+      <CreateUserModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSuccess={loadUsers}
+      />
+
+      <EditUserModal
+        isOpen={!!editingUser}
+        user={editingUser}
+        onClose={() => setEditingUser(null)}
+        onSuccess={loadUsers}
+      />
+
+      <UserDetailModal
+        isOpen={!!viewingUserId}
+        userId={viewingUserId}
+        onClose={() => setViewingUserId(null)}
+      />
     </div>
   );
 };

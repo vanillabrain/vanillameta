@@ -2,7 +2,19 @@ import { Controller, Get, Query, UseGuards, Param, Put, Body, Post, Delete } fro
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AdminUsersService } from './admin-users.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { GetUsersQueryDto, UserResponseDto, UpdateUserStatusDto, ApproveUserDto, RejectUserDto } from './dto/admin-users.dto';
+import { 
+  GetUsersQueryDto, 
+  UserResponseDto, 
+  UserDetailDto,
+  UpdateUserStatusDto, 
+  ApproveUserDto, 
+  RejectUserDto,
+  CreateUserDto,
+  UpdateUserDto,
+  BulkActionDto,
+  PaginatedUsersResponseDto,
+  UserStatsDto
+} from './dto/admin-users.dto';
 
 @ApiTags('Admin Users')
 @Controller('admin/users')
@@ -14,15 +26,43 @@ export class AdminUsersController {
   @Get()
   @ApiOperation({ 
     summary: 'Get all users',
-    description: '모든 사용자 목록을 조회합니다.'
+    description: '모든 사용자 목록을 조회합니다. 페이지네이션, 검색, 필터링을 지원합니다.'
   })
   @ApiResponse({ 
     status: 200, 
     description: '사용자 목록 조회 성공',
-    type: [UserResponseDto]
+    type: PaginatedUsersResponseDto
   })
-  async getUsers(@Query() query: GetUsersQueryDto) {
+  async getUsers(@Query() query: GetUsersQueryDto): Promise<PaginatedUsersResponseDto> {
     return await this.adminUsersService.getUsers(query);
+  }
+
+  @Get('stats/summary')
+  @ApiOperation({ 
+    summary: 'Get user statistics',
+    description: '사용자 통계 정보를 조회합니다.'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: '사용자 통계 조회 성공',
+    type: UserStatsDto
+  })
+  async getUserStats(): Promise<UserStatsDto> {
+    return await this.adminUsersService.getUserStats();
+  }
+
+  @Get('pending')
+  @ApiOperation({ 
+    summary: 'Get pending users',
+    description: '승인 대기 중인 사용자 목록을 조회합니다.'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: '승인 대기 사용자 목록 조회 성공',
+    type: PaginatedUsersResponseDto
+  })
+  async getPendingUsers(@Query() query: GetUsersQueryDto): Promise<PaginatedUsersResponseDto> {
+    return await this.adminUsersService.getPendingUsers(query);
   }
 
   @Get(':id')
@@ -33,14 +73,53 @@ export class AdminUsersController {
   @ApiResponse({ 
     status: 200, 
     description: '사용자 정보 조회 성공',
+    type: UserDetailDto
+  })
+  @ApiResponse({ 
+    status: 404, 
+    description: '사용자를 찾을 수 없음'
+  })
+  async getUserById(@Param('id') id: string): Promise<UserDetailDto> {
+    return await this.adminUsersService.getUserById(id);
+  }
+
+  @Post()
+  @ApiOperation({ 
+    summary: 'Create new user',
+    description: '새로운 사용자를 생성합니다. 임시 비밀번호가 발급됩니다.'
+  })
+  @ApiResponse({ 
+    status: 201, 
+    description: '사용자 생성 성공',
+    type: UserResponseDto
+  })
+  @ApiResponse({ 
+    status: 409, 
+    description: '이미 존재하는 사용자'
+  })
+  async createUser(@Body() createUserDto: CreateUserDto): Promise<UserResponseDto> {
+    return await this.adminUsersService.createUser(createUserDto);
+  }
+
+  @Put(':id')
+  @ApiOperation({ 
+    summary: 'Update user',
+    description: '사용자 정보를 수정합니다.'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: '사용자 정보 수정 성공',
     type: UserResponseDto
   })
   @ApiResponse({ 
     status: 404, 
     description: '사용자를 찾을 수 없음'
   })
-  async getUserById(@Param('id') id: string) {
-    return await this.adminUsersService.getUserById(id);
+  async updateUser(
+    @Param('id') id: string,
+    @Body() updateUserDto: UpdateUserDto
+  ): Promise<UserResponseDto> {
+    return await this.adminUsersService.updateUser(id, updateUserDto);
   }
 
   @Put(':id/status')
@@ -59,27 +138,34 @@ export class AdminUsersController {
     return await this.adminUsersService.updateUserStatus(id, updateStatusDto.status);
   }
 
-  @Get('stats/summary')
+  @Delete(':id')
   @ApiOperation({ 
-    summary: 'Get user statistics',
-    description: '사용자 통계 정보를 조회합니다.'
+    summary: 'Delete user',
+    description: '사용자를 삭제합니다. (소프트 삭제)'
   })
-  async getUserStats() {
-    return await this.adminUsersService.getUserStats();
+  @ApiResponse({ 
+    status: 204, 
+    description: '사용자 삭제 성공'
+  })
+  @ApiResponse({ 
+    status: 404, 
+    description: '사용자를 찾을 수 없음'
+  })
+  async deleteUser(@Param('id') id: string): Promise<void> {
+    return await this.adminUsersService.deleteUser(id);
   }
 
-  @Get('pending')
+  @Post('bulk-action')
   @ApiOperation({ 
-    summary: 'Get pending users',
-    description: '승인 대기 중인 사용자 목록을 조회합니다.'
+    summary: 'Bulk user action',
+    description: '여러 사용자에 대해 일괄 작업을 수행합니다.'
   })
   @ApiResponse({ 
     status: 200, 
-    description: '승인 대기 사용자 목록 조회 성공',
-    type: [UserResponseDto]
+    description: '일괄 작업 성공'
   })
-  async getPendingUsers(@Query() query: GetUsersQueryDto) {
-    return await this.adminUsersService.getPendingUsers(query);
+  async bulkAction(@Body() bulkActionDto: BulkActionDto): Promise<void> {
+    return await this.adminUsersService.bulkAction(bulkActionDto);
   }
 
   @Post(':id/approve')
@@ -120,7 +206,7 @@ export class AdminUsersController {
   async rejectUser(
     @Param('id') id: string,
     @Body() rejectDto: RejectUserDto
-  ) {
+  ): Promise<UserResponseDto> {
     return await this.adminUsersService.rejectUser(id, rejectDto);
   }
 }

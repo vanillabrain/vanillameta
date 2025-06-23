@@ -1,0 +1,139 @@
+/* 상태 배지 컨테이너 */
+.status-badge-container {
+  position: relative;
+  display: inline-block;
+}
+
+/* 상태 배지 */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.status-badge.editable {
+  cursor: pointer;
+}
+
+.status-badge.editable:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* 상태별 색상 */
+.status-badge.status-success {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge.status-warning {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.status-badge.status-info {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.status-badge.status-danger {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.status-badge.status-muted {
+  background-color: #f3f4f6;
+  color: #4b5563;
+}
+
+/* 아이콘 및 레이블 */
+.status-icon {
+  font-size: 0.875rem;
+}
+
+.status-label {
+  font-weight: 500;
+}
+
+.dropdown-arrow {
+  margin-left: 4px;
+  font-size: 0.625rem;
+  opacity: 0.6;
+  transition: transform 0.2s;
+}
+
+.status-badge:hover .dropdown-arrow {
+  transform: translateY(1px);
+}
+
+/* 드롭다운 메뉴 */
+.status-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  min-width: 150px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+  animation: dropdownFadeIn 0.2s ease-out;
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 드롭다운 옵션 */
+.status-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-size: 0.875rem;
+}
+
+.status-option:first-child {
+  border-radius: 6px 6px 0 0;
+}
+
+.status-option:last-child {
+  border-radius: 0 0 6px 6px;
+}
+
+.status-option:hover {
+  background-color: #f3f4f6;
+}
+
+.status-option.selected {
+  background-color: #eff6ff;
+  font-weight: 500;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+  .status-dropdown {
+    min-width: 120px;
+  }
+  
+  .status-badge {
+    font-size: 0.75rem;
+    padding: 3px 10px;
+  }
+}

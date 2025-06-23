@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, IsInt, IsIn, IsEnum } from 'class-validator';
-import { Transform } from 'class-transformer';
+import { IsOptional, IsString, IsInt, IsIn, IsEnum, IsEmail, IsArray, IsDateString } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
 
 export class GetUsersQueryDto {
   @ApiProperty({ description: '페이지 번호', required: false, default: 1 })
@@ -34,6 +34,21 @@ export class GetUsersQueryDto {
   @IsOptional()
   @IsString()
   status?: string;
+
+  @ApiProperty({ description: '역할 필터', required: false })
+  @IsOptional()
+  @IsString()
+  role?: string;
+
+  @ApiProperty({ description: '가입일 시작', required: false })
+  @IsOptional()
+  @IsDateString()
+  createdAfter?: string;
+
+  @ApiProperty({ description: '가입일 종료', required: false })
+  @IsOptional()
+  @IsDateString()
+  createdBefore?: string;
 }
 
 export class UserResponseDto {
@@ -63,6 +78,29 @@ export class UserResponseDto {
 
   @ApiProperty({ description: '최종 로그인 시간', nullable: true })
   lastLoginAt: Date | null;
+
+  @ApiProperty({ description: '프로필 이미지 URL', nullable: true })
+  avatar?: string;
+
+  @ApiProperty({ description: '전화번호', nullable: true })
+  phone?: string;
+
+  @ApiProperty({ description: '부서', nullable: true })
+  department?: string;
+
+  @ApiProperty({ description: '삭제일', nullable: true })
+  deletedAt?: Date;
+}
+
+export class UserDetailDto extends UserResponseDto {
+  @ApiProperty({ description: '이메일 인증 시간', nullable: true })
+  emailVerifiedAt?: Date;
+
+  @ApiProperty({ description: '생성자 ID', nullable: true })
+  createdBy?: string;
+
+  @ApiProperty({ description: '수정자 ID', nullable: true })
+  updatedBy?: string;
 }
 
 export enum UserStatus {
@@ -132,4 +170,80 @@ export class RejectUserDto {
   @ApiProperty({ description: '거부 사유' })
   @IsString()
   reason: string;
+}
+
+export class CreateUserDto {
+  @ApiProperty({ description: '사용자 고유 ID' })
+  @IsString()
+  userId: string;
+
+  @ApiProperty({ description: '이메일' })
+  @IsEmail()
+  email: string;
+
+  @ApiProperty({ description: '이름' })
+  @IsString()
+  name: string;
+
+  @ApiProperty({ description: '역할 ID 리스트', required: false })
+  @IsOptional()
+  @IsArray()
+  @Type(() => Number)
+  roleIds?: number[];
+
+  @ApiProperty({ description: '부서', required: false })
+  @IsOptional()
+  @IsString()
+  department?: string;
+
+  @ApiProperty({ description: '전화번호', required: false })
+  @IsOptional()
+  @IsString()
+  phone?: string;
+}
+
+export class UpdateUserDto {
+  @ApiProperty({ description: '이름', required: false })
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiProperty({ description: '이메일', required: false })
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @ApiProperty({ description: '부서', required: false })
+  @IsOptional()
+  @IsString()
+  department?: string;
+
+  @ApiProperty({ description: '전화번호', required: false })
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @ApiProperty({ description: '역할 ID 리스트', required: false })
+  @IsOptional()
+  @IsArray()
+  @Type(() => Number)
+  roleIds?: number[];
+}
+
+export enum BulkAction {
+  ACTIVATE = 'activate',
+  DEACTIVATE = 'deactivate',
+  DELETE = 'delete',
+  SUSPEND = 'suspend'
+}
+
+export class BulkActionDto {
+  @ApiProperty({ description: '일괄 작업 타입', enum: BulkAction })
+  @IsEnum(BulkAction)
+  action: BulkAction;
+
+  @ApiProperty({ description: '대상 사용자 ID 리스트' })
+  @IsArray()
+  @Type(() => Number)
+  userIds: number[];
 }

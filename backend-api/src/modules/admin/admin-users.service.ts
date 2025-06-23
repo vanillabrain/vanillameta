@@ -30,14 +30,11 @@ export class AdminUsersService {
         });
       }
 
-      // 비밀번호 필드 제외
-      qb.select([
-        'user.id',
-        'user.userId',
-        'user.email',
-        'user.createdAt',
-        'user.updatedAt'
-      ]);
+      // 역할 조인
+      qb.leftJoinAndSelect('user.roles', 'roles');
+
+      // 삭제된 사용자도 포함
+      qb.withDeleted();
 
       // 정렬
       qb.orderBy(`user.${sortBy}`, sortOrder as 'ASC' | 'DESC');
@@ -154,14 +151,10 @@ export class AdminUsersService {
         sortOrder = 'DESC'
       } = query;
 
-      // 최근 7일 내 가입한 사용자를 승인 대기로 간주
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
       const qb = this.userRepository.createQueryBuilder('user');
 
-      // 최근 7일 내 가입한 사용자 필터
-      qb.where('user.createdAt >= :sevenDaysAgo', { sevenDaysAgo });
+      // PENDING 상태 사용자만 필터
+      qb.where('user.status = :status', { status: UserStatus.PENDING });
 
       // 검색 기능
       if (search) {
@@ -170,14 +163,11 @@ export class AdminUsersService {
         });
       }
 
-      // 비밀번호 필드 제외
-      qb.select([
-        'user.id',
-        'user.userId',
-        'user.email',
-        'user.createdAt',
-        'user.updatedAt'
-      ]);
+      // 역할 조인
+      qb.leftJoinAndSelect('user.roles', 'roles');
+
+      // 삭제된 사용자도 포함
+      qb.withDeleted();
 
       // 정렬
       qb.orderBy(`user.${sortBy}`, sortOrder as 'ASC' | 'DESC');

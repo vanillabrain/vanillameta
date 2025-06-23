@@ -1,4 +1,5 @@
 import React from 'react';
+import UserStatusBadge from './UserStatusBadge';
 import './UserTable.css';
 
 interface User {
@@ -11,6 +12,9 @@ interface User {
   createdAt: string;
   updatedAt: string;
   lastLoginAt: string | null;
+  department?: string;
+  phone?: string;
+  avatar?: string;
 }
 
 interface UserTableProps {
@@ -19,6 +23,9 @@ interface UserTableProps {
   selectedUsers: string[];
   onSelectionChange: (userIds: string[]) => void;
   onUserStatusChange: (userId: string, status: string) => void;
+  onUserEdit?: (user: User) => void;
+  onUserView?: (userId: string) => void;
+  onUserDelete?: (userId: string) => void;
   onRefresh: () => void;
 }
 
@@ -28,6 +35,9 @@ const UserTable: React.FC<UserTableProps> = ({
   selectedUsers,
   onSelectionChange,
   onUserStatusChange,
+  onUserEdit,
+  onUserView,
+  onUserDelete,
   onRefresh,
 }) => {
   const handleSelectAll = (checked: boolean) => {
@@ -61,35 +71,7 @@ const UserTable: React.FC<UserTableProps> = ({
     }
   };
 
-  const getStatusBadge = (status: string): React.ReactNode => {
-    const statusConfig = {
-      active: { label: '활성', color: '#28a745' },
-      inactive: { label: '비활성', color: '#6c757d' },
-      pending: { label: '대기', color: '#ffc107' },
-      suspended: { label: '정지', color: '#dc3545' },
-      deleted: { label: '삭제', color: '#343a40' },
-    };
 
-    const config = statusConfig[status as keyof typeof statusConfig] || {
-      label: status,
-      color: '#6c757d'
-    };
-
-    return (
-      <span 
-        className="status-badge" 
-        style={{ backgroundColor: config.color }}
-      >
-        {config.label}
-      </span>
-    );
-  };
-
-  const handleStatusChange = (userId: string, newStatus: string) => {
-    if (window.confirm(`사용자 상태를 '${newStatus}'로 변경하시겠습니까?`)) {
-      onUserStatusChange(userId, newStatus);
-    }
-  };
 
   if (loading) {
     return (
@@ -155,12 +137,19 @@ const UserTable: React.FC<UserTableProps> = ({
               </td>
               <td className="user-info">
                 <div className="user-avatar">
-                  {user.name.charAt(0).toUpperCase()}
+                  {user.avatar ? (
+                    <img src={user.avatar} alt={user.name} />
+                  ) : (
+                    user.name.charAt(0).toUpperCase()
+                  )}
                 </div>
                 <div className="user-details">
                   <div className="user-name">{user.name}</div>
                   <div className="user-email">{user.email}</div>
-                  <div className="user-id">ID: {user.userId}</div>
+                  <div className="user-meta">
+                    <span>ID: {user.userId}</span>
+                    {user.department && <span> • {user.department}</span>}
+                  </div>
                 </div>
               </td>
               <td>
@@ -173,19 +162,11 @@ const UserTable: React.FC<UserTableProps> = ({
                 </div>
               </td>
               <td>
-                <div className="status-cell">
-                  {getStatusBadge(user.status)}
-                  <select
-                    className="status-select"
-                    value={user.status}
-                    onChange={(e) => handleStatusChange(user.id, e.target.value)}
-                  >
-                    <option value="active">활성</option>
-                    <option value="inactive">비활성</option>
-                    <option value="pending">대기</option>
-                    <option value="suspended">정지</option>
-                  </select>
-                </div>
+                <UserStatusBadge
+                  status={user.status}
+                  userId={user.id}
+                  onStatusChange={onUserStatusChange}
+                />
               </td>
               <td>
                 {user.lastLoginAt ? formatDate(user.lastLoginAt) : '접속 기록 없음'}
@@ -196,19 +177,21 @@ const UserTable: React.FC<UserTableProps> = ({
                   <button 
                     className="btn-action btn-view"
                     title="상세 보기"
+                    onClick={() => onUserView?.(user.id)}
                   >
                     👁️
                   </button>
                   <button 
                     className="btn-action btn-edit"
                     title="편집"
+                    onClick={() => onUserEdit?.(user)}
                   >
                     ✏️
                   </button>
                   <button 
                     className="btn-action btn-delete"
                     title="삭제"
-                    onClick={() => handleStatusChange(user.id, 'deleted')}
+                    onClick={() => onUserDelete?.(user.id)}
                   >
                     🗑️
                   </button>

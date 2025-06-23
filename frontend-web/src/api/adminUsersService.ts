@@ -1,10 +1,13 @@
-import { apiHelper } from '../helpers/apiHelper';
+import { get, post, put, del } from '../helpers/apiHelper';
 
 interface UserFilters {
   page?: number;
   limit?: number;
   search?: string;
   status?: string;
+  role?: string;
+  createdAfter?: string;
+  createdBefore?: string;
   sortBy?: string;
   sortOrder?: 'ASC' | 'DESC';
 }
@@ -19,6 +22,33 @@ interface User {
   createdAt: string;
   updatedAt: string;
   lastLoginAt: string | null;
+  department?: string;
+  phone?: string;
+  avatar?: string;
+  emailVerifiedAt?: string;
+  deletedAt?: string;
+}
+
+interface CreateUserDto {
+  userId: string;
+  email: string;
+  name: string;
+  department?: string;
+  phone?: string;
+  roleIds?: number[];
+}
+
+interface UpdateUserDto {
+  name?: string;
+  email?: string;
+  department?: string;
+  phone?: string;
+  roleIds?: number[];
+}
+
+interface BulkActionDto {
+  action: 'activate' | 'deactivate' | 'delete' | 'suspend';
+  userIds: number[];
 }
 
 interface PaginatedResponse<T> {
@@ -56,7 +86,7 @@ class AdminUsersService {
       });
 
       const url = `${this.baseUrl}?${queryParams.toString()}`;
-      const response = await apiHelper.get<PaginatedResponse<User>>(url);
+      const response = await get<PaginatedResponse<User>>(url);
       
       return response;
     } catch (error) {
@@ -70,7 +100,7 @@ class AdminUsersService {
    */
   async getUserById(id: string): Promise<User> {
     try {
-      const response = await apiHelper.get<User>(`${this.baseUrl}/${id}`);
+      const response = await get<User>(`${this.baseUrl}/${id}`);
       return response;
     } catch (error) {
       console.error('Failed to get user by id:', error);
@@ -83,7 +113,7 @@ class AdminUsersService {
    */
   async updateUserStatus(id: string, status: string): Promise<User> {
     try {
-      const response = await apiHelper.put<User>(`${this.baseUrl}/${id}/status`, {
+      const response = await put<User>(`${this.baseUrl}/${id}/status`, {
         status
       });
       return response;
@@ -98,7 +128,7 @@ class AdminUsersService {
    */
   async getUserStats(): Promise<UserStats> {
     try {
-      const response = await apiHelper.get<UserStats>(`${this.baseUrl}/stats/summary`);
+      const response = await get<UserStats>(`${this.baseUrl}/stats/summary`);
       return response;
     } catch (error) {
       console.error('Failed to get user stats:', error);
@@ -107,14 +137,11 @@ class AdminUsersService {
   }
 
   /**
-   * 일괄 작업 (향후 구현)
+   * 일괄 작업
    */
-  async bulkAction(action: string, userIds: string[]): Promise<void> {
+  async bulkAction(bulkActionDto: BulkActionDto): Promise<void> {
     try {
-      await apiHelper.post(`${this.baseUrl}/bulk-action`, {
-        action,
-        userIds
-      });
+      await post(`${this.baseUrl}/bulk-action`, bulkActionDto);
     } catch (error) {
       console.error('Failed to perform bulk action:', error);
       throw new Error('일괄 작업에 실패했습니다.');
@@ -122,11 +149,11 @@ class AdminUsersService {
   }
 
   /**
-   * 사용자 생성 (향후 구현)
+   * 사용자 생성
    */
-  async createUser(userData: Partial<User>): Promise<User> {
+  async createUser(userData: CreateUserDto): Promise<User> {
     try {
-      const response = await apiHelper.post<User>(this.baseUrl, userData);
+      const response = await post<User>(this.baseUrl, userData);
       return response;
     } catch (error) {
       console.error('Failed to create user:', error);
@@ -135,11 +162,11 @@ class AdminUsersService {
   }
 
   /**
-   * 사용자 정보 수정 (향후 구현)
+   * 사용자 정보 수정
    */
-  async updateUser(id: string, userData: Partial<User>): Promise<User> {
+  async updateUser(id: string, userData: UpdateUserDto): Promise<User> {
     try {
-      const response = await apiHelper.put<User>(`${this.baseUrl}/${id}`, userData);
+      const response = await put<User>(`${this.baseUrl}/${id}`, userData);
       return response;
     } catch (error) {
       console.error('Failed to update user:', error);
@@ -148,11 +175,11 @@ class AdminUsersService {
   }
 
   /**
-   * 사용자 삭제 (향후 구현)
+   * 사용자 삭제
    */
   async deleteUser(id: string): Promise<void> {
     try {
-      await apiHelper.delete(`${this.baseUrl}/${id}`);
+      await del(`${this.baseUrl}/${id}`);
     } catch (error) {
       console.error('Failed to delete user:', error);
       throw new Error('사용자 삭제에 실패했습니다.');
@@ -173,7 +200,7 @@ class AdminUsersService {
       });
 
       const url = `${this.baseUrl}/pending?${queryParams.toString()}`;
-      const response = await apiHelper.get<PaginatedResponse<User>>(url);
+      const response = await get<PaginatedResponse<User>>(url);
       
       return response;
     } catch (error) {
@@ -187,7 +214,7 @@ class AdminUsersService {
    */
   async approveUser(id: string, reason?: string): Promise<User> {
     try {
-      const response = await apiHelper.post<User>(`${this.baseUrl}/${id}/approve`, {
+      const response = await post<User>(`${this.baseUrl}/${id}/approve`, {
         reason
       });
       return response;
@@ -202,7 +229,7 @@ class AdminUsersService {
    */
   async rejectUser(id: string, reason: string): Promise<User> {
     try {
-      const response = await apiHelper.post<User>(`${this.baseUrl}/${id}/reject`, {
+      const response = await post<User>(`${this.baseUrl}/${id}/reject`, {
         reason
       });
       return response;
