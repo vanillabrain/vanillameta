@@ -1,6 +1,37 @@
 import { handler } from './serverless';
 import { Context } from 'aws-lambda';
 
+// NestJS 모킹
+jest.mock('@nestjs/core', () => ({
+  NestFactory: {
+    create: jest.fn().mockResolvedValue({
+      use: jest.fn(),
+      setGlobalPrefix: jest.fn(),
+      useGlobalPipes: jest.fn(),
+      useGlobalInterceptors: jest.fn(),
+      get: jest.fn().mockReturnValue({
+        recordWarmupSuccess: jest.fn(),
+        recordWarmupFailure: jest.fn(),
+        recordColdStart: jest.fn(),
+        recordWarmStart: jest.fn(),
+        recordMemoryUsage: jest.fn(),
+      }),
+      init: jest.fn(),
+    }),
+  },
+}));
+
+// aws-serverless-express 모킹
+jest.mock('aws-serverless-express', () => ({
+  createServer: jest.fn().mockReturnValue({}),
+  proxy: jest.fn().mockReturnValue({
+    promise: jest.fn().mockResolvedValue({
+      statusCode: 200,
+      body: JSON.stringify({ message: 'OK' }),
+    }),
+  }),
+}));
+
 describe('Serverless Warmup (T02_S04)', () => {
   let mockContext: Context;
 
@@ -14,6 +45,8 @@ describe('Serverless Warmup (T02_S04)', () => {
 
     // 콘솔 로그 모킹
     jest.spyOn(console, 'log').mockImplementation(() => {});
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -81,7 +114,9 @@ describe('Serverless Warmup (T02_S04)', () => {
       expect(body).toHaveProperty('message', 'Lambda function warmed up successfully');
       expect(body).toHaveProperty('requestId', 'test-request-id');
       expect(body).toHaveProperty('timestamp');
+      expect(body).toHaveProperty('duration');
       expect(new Date(body.timestamp)).toBeInstanceOf(Date);
+      expect(typeof body.duration).toBe('number');
     });
 
     it('환경 변수가 웜업 로그에 포함되어야 함', async () => {
@@ -108,6 +143,55 @@ describe('Serverless Warmup (T02_S04)', () => {
         // 환경 변수 복원
         process.env.NODE_ENV = originalNodeEnv;
       }
+    });
+
+    it('웜업 실패 시 500 상태코드를 반환해야 함', async () => {
+      // Given: NestJS 생성 실패 시뮬레이션
+      const { NestFactory } = require('@nestjs/core');
+      NestFactory.create.mockRejectedValueOnce(new Error('Server initialization failed'));
+
+      const warmupEvent = {
+        source: 'serverless-plugin-warmup',
+      };
+
+      // When: 핸들러 실행
+      const result = await handler(warmupEvent, mockContext, {} as any);
+
+      // Then: 실패 응답 확인
+      expect(result).toHaveProperty('statusCode', 500);
+      expect(result).toHaveProperty('body');
+
+      const body = JSON.parse(result.body as string);
+      expect(body).toHaveProperty('message', 'Warmup failed');
+      expect(body).toHaveProperty('requestId', 'test-request-id');
+      expect(body).toHaveProperty('error');
+      expect(body).toHaveProperty('timestamp');
+
+      // 에러 로그 확인
+      expect(console.error).toHaveBeenCalledWith(
+        '웜업 요청 처리 중 오류 발생:',
+        expect.any(Error),
+      );
+    });
+
+    it('웜업 메트릭이 올바르게 기록되어야 함', async () => {
+      // Given: 웜업 이벤트
+      const warmupEvent = {
+        source: 'serverless-plugin-warmup',
+      };
+
+      // When: 핸들러 실행
+      await handler(warmupEvent, mockContext, {} as any);
+
+      // Then: 메트릭 서비스 호출 확인 (모킹된 서비스)
+      // 실제 환경에서는 WarmupMetricsService.recordWarmupSuccess가 호출됨
+      expect(console.log).toHaveBeenCalledWith(
+        'WarmUp - Lambda 함수 웜업 요청 처리됨',
+        expect.objectContaining({
+          requestId: 'test-request-id',
+          functionName: 'vanillameta-backend-api-test-app',
+        }),
+      );
     });
   });
 

@@ -22,7 +22,7 @@ import { TestCompressionController } from './test-compression.controller';
 import { TestFieldSelectionController } from './test-field-selection.controller';
 import { FieldSelectionModule } from './common/field-selection/field-selection.module';
 import { BatchModule } from './batch/batch.module';
-import { CacheModule } from './common/optimization/cache.module';
+// import { CacheModule } from './common/optimization/cache.module';
 import { PaginationModule } from './common/pagination/pagination.module';
 import { BackgroundJobModule } from './background-job/background-job.module';
 import { MemoryMonitorModule } from './common/monitoring/memory-monitor.module';
@@ -35,6 +35,7 @@ import { QueryAnalyzerService } from './common/monitoring/query-analyzer.service
 import { AnalyticsModule } from './analytics/analytics.module';
 import { MetricsInterceptor } from './common/interceptors/metrics.interceptor';
 import { EventsModule } from './events/events.module';
+import { PerformanceMonitoringInterceptor } from './common/interceptors/performance-monitoring.interceptor';
 import { DatabaseModule } from './database/database.module';
 import { InitializationModule } from './common/init/initialization.module';
 import { DatasetModule } from './dataset/dataset.module';
@@ -45,6 +46,8 @@ import { ComponentModule } from './component/component.module';
 import { ConnectionModule } from './connection/connection.module';
 import { ShareUrlModule } from './share-url/share-url.module';
 import { MonitoringModule } from './common/monitoring/monitoring.module';
+import { PerformanceMonitoringModule } from './modules/monitoring/performance-monitoring.module';
+import { AllExceptionsFilter } from './nest-utils/all-exceptions.filter';
 
 @Module({
   imports: [
@@ -118,9 +121,10 @@ import { MonitoringModule } from './common/monitoring/monitoring.module';
     LoginModule,
     ShareUrlModule,
     MonitoringModule,
+    PerformanceMonitoringModule,
     FieldSelectionModule,
     BatchModule,
-    CacheModule,
+    // CacheModule,
     PaginationModule,
     BackgroundJobModule,
     MemoryMonitorModule,
@@ -136,6 +140,7 @@ import { MonitoringModule } from './common/monitoring/monitoring.module';
   ],
   providers: [
     AppService,
+    AllExceptionsFilter,
     {
       provide: 'APP_INTERCEPTOR',
       useClass: ResponseTimeInterceptor,
@@ -143,6 +148,10 @@ import { MonitoringModule } from './common/monitoring/monitoring.module';
     {
       provide: 'APP_INTERCEPTOR',
       useClass: MetricsInterceptor,
+    },
+    {
+      provide: 'APP_INTERCEPTOR',
+      useClass: PerformanceMonitoringInterceptor,
     },
   ],
 })

@@ -246,7 +246,6 @@ export class CacheMonitoringController {
     required: false,
     description: '리포트 형식',
     enum: ['json', 'summary'],
-    default: 'json',
   })
   @ApiResponse({
     status: 200,

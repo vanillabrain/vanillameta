@@ -28,6 +28,7 @@ import { TypeOrmSlowQueryLogger } from './typeorm-slow-query-logger';
 import { KnexQueryMonitor } from './knex-query-monitor';
 import { QueryAnalyzerService } from './query-analyzer.service';
 import { IntegratedMetricsService } from './integrated-metrics.service';
+import { WarmupMetricsService } from './warmup-metrics.service';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { IntegratedMetricsService } from './integrated-metrics.service';
     QueryOptimizationService,
     CloudWatchMetricsService,
     IntegratedMetricsService,
+    WarmupMetricsService,
     QueryPerformanceMetricsInterceptor,
     TypeOrmSlowQueryLogger,
     KnexQueryMonitor,
@@ -65,6 +67,7 @@ import { IntegratedMetricsService } from './integrated-metrics.service';
     QueryCollector,
     CloudWatchMetricsService,
     IntegratedMetricsService,
+    WarmupMetricsService,
     BusinessMetricsModule,
     QueryPerformanceMetricsInterceptor,
     TypeOrmSlowQueryLogger,

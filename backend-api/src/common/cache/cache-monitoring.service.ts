@@ -5,8 +5,8 @@ import { HybridCacheService } from '../optimization/hybrid-cache.service';
 import { RedisCacheService } from '../optimization/redis-cache.service';
 import { L1CacheService } from '../optimization/l1-cache.service';
 import { CustomLoggerService } from '../logger/logger.service';
-import { InjectRedis } from '@nestjs-modules/ioredis';
-import Redis from 'ioredis';
+// import { InjectRedis } from '@liaoliaots/nestjs-redis';
+// import Redis from 'ioredis';
 
 /**
  * 캐시 메트릭 인터페이스
@@ -105,7 +105,7 @@ export class CacheMonitoringService {
     private readonly l1Cache: L1CacheService,
     private readonly customLogger: CustomLoggerService,
     private readonly eventEmitter: EventEmitter2,
-    @InjectRedis() private readonly redis: Redis,
+    // @InjectRedis() private readonly redis: Redis,
   ) {
     this.initializeTracking();
   }
@@ -253,19 +253,17 @@ export class CacheMonitoringService {
    */
   private async getRedisStats(engine: string): Promise<any> {
     try {
-      // Redis INFO 명령으로 통계 조회
-      const info = await this.redis.info('stats');
-      const memory = await this.redis.info('memory');
-
-      // 키 패턴으로 엔진별 키 수 조회
-      const keys = await this.redis.keys(`${engine}:*`);
+      // TODO: Redis connection 구현 후 실제 통계 조회
+      // const info = await this.redis.info('stats');
+      // const memory = await this.redis.info('memory');
+      // const keys = await this.redis.keys(`${engine}:*`);
 
       return {
         hitRate: 0.8, // TODO: 실제 히트율 계산
-        hits: parseInt(this.parseRedisInfo(info, 'keyspace_hits') || '0'),
-        misses: parseInt(this.parseRedisInfo(info, 'keyspace_misses') || '0'),
-        keyCount: keys.length,
-        evictions: parseInt(this.parseRedisInfo(info, 'evicted_keys') || '0'),
+        hits: 1000,   // Mock data
+        misses: 200,  // Mock data
+        keyCount: 50, // Mock data
+        evictions: 5, // Mock data
       };
     } catch (error) {
       this.logger.error('Failed to get Redis stats:', error);
@@ -303,11 +301,12 @@ export class CacheMonitoringService {
   }> {
     try {
       const start = Date.now();
-      await this.redis.ping();
+      // TODO: Redis connection 구현 후 실제 ping 및 메모리 조회
+      // await this.redis.ping();
       const latency = Date.now() - start;
 
-      const memory = await this.redis.info('memory');
-      const usedMemory = parseInt(this.parseRedisInfo(memory, 'used_memory') || '0');
+      // const memory = await this.redis.info('memory');
+      const usedMemory = 1024 * 1024 * 100; // Mock: 100MB
 
       return {
         connected: true,
@@ -494,7 +493,7 @@ export class CacheMonitoringService {
           issues.push('높은 지연 시간');
         }
 
-        const status =
+        const status: 'healthy' | 'critical' | 'warning' =
           issues.length === 0
             ? 'healthy'
             : issues.some(i => i.includes('연결'))

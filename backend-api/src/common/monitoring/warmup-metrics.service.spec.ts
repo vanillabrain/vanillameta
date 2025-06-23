@@ -1,0 +1,399 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
+import { WarmupMetricsService } from './warmup-metrics.service';
+import { CloudWatchMetricsService } from './cloudwatch-metrics.service';
+
+describe('WarmupMetricsService', () => {
+  let service: WarmupMetricsService;
+  let cloudWatchMetrics: jest.Mocked<CloudWatchMetricsService>;
+  let configService: jest.Mocked<ConfigService>;
+
+  beforeEach(async () => {
+    const mockCloudWatchMetrics = {
+      putMetric: jest.fn().mockResolvedValue(undefined),
+      getMetricStatistics: jest.fn().mockResolvedValue([]),
+    };
+
+    const mockConfigService = {
+      get: jest.fn(),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        WarmupMetricsService,
+        {
+          provide: CloudWatchMetricsService,
+          useValue: mockCloudWatchMetrics,
+        },
+        {
+          provide: ConfigService,
+          useValue: mockConfigService,
+        },
+      ],
+    }).compile();
+
+    service = module.get<WarmupMetricsService>(WarmupMetricsService);
+    cloudWatchMetrics = module.get(CloudWatchMetricsService);
+    configService = module.get(ConfigService);
+
+    // 기본 설정값 모킹
+    configService.get.mockImplementation((key: string, defaultValue?: any) => {
+      switch (key) {
+        case 'WARMUP_METRICS_ENABLED':
+          return true;
+        case 'METRICS_NAMESPACE':
+          return 'VanillaMeta';
+        default:
+          return defaultValue;
+      }
+    });
+  });
+
+  it('서비스가 정의되어야 함', () => {
+    expect(service).toBeDefined();
+  });
+
+  describe('recordWarmupSuccess', () => {
+    it('웜업 성공 메트릭을 기록해야 함', async () => {
+      // Given
+      const requestId = 'test-request-id';
+      const duration = 150;
+
+      // When
+      await service.recordWarmupSuccess(requestId, duration);
+
+      // Then
+      expect(cloudWatchMetrics.putMetric).toHaveBeenCalledWith(
+        'VanillaMeta',
+        'WarmupRequestCount',
+        1,
+        'Count',
+        {
+          Status: 'Success',
+          RequestId: requestId,
+        },
+      );
+
+      expect(cloudWatchMetrics.putMetric).toHaveBeenCalledWith(
+        'VanillaMeta',
+        'WarmupDuration',
+        duration,
+        'Milliseconds',
+        {
+          RequestId: requestId,
+        },
+      );
+    });
+
+    it('duration이 없어도 성공 메트릭을 기록해야 함', async () => {
+      // Given
+      const requestId = 'test-request-id';
+
+      // When
+      await service.recordWarmupSuccess(requestId);
+
+      // Then
+      expect(cloudWatchMetrics.putMetric).toHaveBeenCalledWith(
+        'VanillaMeta',
+        'WarmupRequestCount',
+        1,
+        'Count',
+        {
+          Status: 'Success',
+          RequestId: requestId,
+        },
+      );
+
+      expect(cloudWatchMetrics.putMetric).toHaveBeenCalledTimes(1);
+    });
+
+    it('메트릭이 비활성화된 경우 아무것도 기록하지 않아야 함', async () => {
+      // Given
+      configService.get.mockImplementation((key: string, defaultValue?: any) => {
+        if (key === 'WARMUP_METRICS_ENABLED') return false;
+        return defaultValue;
+      });
+
+      // When
+      await service.recordWarmupSuccess('test-id', 100);
+
+      // Then
+      expect(cloudWatchMetrics.putMetric).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('recordWarmupFailure', () => {
+    it('웜업 실패 메트릭을 기록해야 함', async () => {
+      // Given
+      const requestId = 'test-request-id';
+      const error = 'Connection timeout';
+
+      // When
+      await service.recordWarmupFailure(requestId, error);
+
+      // Then
+      expect(cloudWatchMetrics.putMetric).toHaveBeenCalledWith(
+        'VanillaMeta',
+        'WarmupRequestCount',
+        1,
+        'Count',
+        {
+          Status: 'Failure',
+          RequestId: requestId,
+        },
+      );
+
+      expect(cloudWatchMetrics.putMetric).toHaveBeenCalledWith(
+        'VanillaMeta',
+        'WarmupFailureCount',
+        1,
+        'Count',
+        {
+          RequestId: requestId,
+          ErrorType: error,
+        },
+      );
+    });
+  });
+
+  describe('recordColdStart', () => {
+    it('콜드 스타트 메트릭을 기록해야 함', async () => {
+      // Given
+      const functionName = 'vanillameta-backend-api-test-app';
+      const initDuration = 2500;
+
+      // When
+      await service.recordColdStart(functionName, initDuration);
+
+      // Then
+      expect(cloudWatchMetrics.putMetric).toHaveBeenCalledWith(
+        'VanillaMeta',
+        'ColdStartCount',
+        1,
+        'Count',
+        {
+          FunctionName: functionName,
+        },
+      );
+
+      expect(cloudWatchMetrics.putMetric).toHaveBeenCalledWith(
+        'VanillaMeta',
+        'InitDuration',
+        initDuration,
+        'Milliseconds',
+        {
+          FunctionName: functionName,
+        },
+      );
+    });
+  });
+
+  describe('recordWarmStart', () => {
+    it('웜 스타트 메트릭을 기록해야 함', async () => {
+      // Given
+      const functionName = 'vanillameta-backend-api-test-app';
+      const responseTime = 50;
+
+      // When
+      await service.recordWarmStart(functionName, responseTime);
+
+      // Then
+      expect(cloudWatchMetrics.putMetric).toHaveBeenCalledWith(
+        'VanillaMeta',
+        'WarmStartCount',
+        1,
+        'Count',
+        {
+          FunctionName: functionName,
+        },
+      );
+
+      expect(cloudWatchMetrics.putMetric).toHaveBeenCalledWith(
+        'VanillaMeta',
+        'WarmStartResponseTime',
+        responseTime,
+        'Milliseconds',
+        {
+          FunctionName: functionName,
+        },
+      );
+    });
+  });
+
+  describe('recordMemoryUsage', () => {
+    it('메모리 사용량 메트릭을 기록해야 함', async () => {
+      // Given
+      const functionName = 'vanillameta-backend-api-test-app';
+      const memoryUsed = 512;
+      const memoryLimit = 1024;
+      const expectedUtilization = (memoryUsed / memoryLimit) * 100;
+
+      // When
+      await service.recordMemoryUsage(functionName, memoryUsed, memoryLimit);
+
+      // Then
+      expect(cloudWatchMetrics.putMetric).toHaveBeenCalledWith(
+        'VanillaMeta',
+        'MemoryUtilization',
+        expectedUtilization,
+        'Percent',
+        {
+          FunctionName: functionName,
+        },
+      );
+
+      expect(cloudWatchMetrics.putMetric).toHaveBeenCalledWith(
+        'VanillaMeta',
+        'MemoryUsed',
+        memoryUsed,
+        'Megabytes',
+        {
+          FunctionName: functionName,
+        },
+      );
+    });
+  });
+
+  describe('calculateWarmupEfficiency', () => {
+    it('웜업 효율성을 계산해야 함', async () => {
+      // Given
+      const mockMetricData = [
+        { timestamp: new Date(), value: 10, unit: 'Count' },
+        { timestamp: new Date(), value: 5, unit: 'Count' },
+      ];
+
+      cloudWatchMetrics.getMetricStatistics.mockImplementation(
+        (namespace: string, metricName: string) => {
+          switch (metricName) {
+            case 'WarmupRequestCount':
+              return Promise.resolve([{ timestamp: new Date(), value: 20, unit: 'Count' }]);
+            case 'WarmupFailureCount':
+              return Promise.resolve([{ timestamp: new Date(), value: 2, unit: 'Count' }]);
+            case 'ColdStartCount':
+              return Promise.resolve([{ timestamp: new Date(), value: 5, unit: 'Count' }]);
+            case 'WarmStartCount':
+              return Promise.resolve([{ timestamp: new Date(), value: 15, unit: 'Count' }]);
+            case 'WarmupDuration':
+              return Promise.resolve([{ timestamp: new Date(), value: 100, unit: 'Milliseconds' }]);
+            default:
+              return Promise.resolve([]);
+          }
+        },
+      );
+
+      // When
+      const result = await service.calculateWarmupEfficiency(3600);
+
+      // Then
+      expect(result).toEqual({
+        totalWarmupRequests: 20,
+        successfulWarmups: 18,
+        failedWarmups: 2,
+        averageWarmupDuration: 100,
+        coldStartCount: 5,
+        warmStartCount: 15,
+      });
+
+      // 효율성 메트릭이 발행되었는지 확인
+      expect(cloudWatchMetrics.putMetric).toHaveBeenCalledWith(
+        'VanillaMeta',
+        'WarmupSuccessRate',
+        90, // (20-2)/20 * 100
+        'Percent',
+      );
+
+      expect(cloudWatchMetrics.putMetric).toHaveBeenCalledWith(
+        'VanillaMeta',
+        'ColdStartReductionRate',
+        75, // 15/(5+15) * 100
+        'Percent',
+      );
+    });
+
+    it('메트릭이 비활성화된 경우 기본값을 반환해야 함', async () => {
+      // Given
+      configService.get.mockImplementation((key: string, defaultValue?: any) => {
+        if (key === 'WARMUP_METRICS_ENABLED') return false;
+        return defaultValue;
+      });
+
+      // When
+      const result = await service.calculateWarmupEfficiency();
+
+      // Then
+      expect(result).toEqual({
+        totalWarmupRequests: 0,
+        successfulWarmups: 0,
+        failedWarmups: 0,
+        averageWarmupDuration: 0,
+        coldStartCount: 0,
+        warmStartCount: 0,
+      });
+    });
+  });
+
+  describe('calculateWarmupCost', () => {
+    it('웜업 비용을 계산해야 함', async () => {
+      // Given
+      cloudWatchMetrics.getMetricStatistics.mockResolvedValue([
+        { timestamp: new Date(), value: 1000, unit: 'Count' },
+      ]);
+
+      // When
+      const result = await service.calculateWarmupCost(86400);
+
+      // Then
+      expect(result).toBeGreaterThan(0);
+      expect(cloudWatchMetrics.putMetric).toHaveBeenCalledWith(
+        'VanillaMeta',
+        'WarmupCostUSD',
+        expect.any(Number),
+        'None',
+      );
+    });
+  });
+
+  describe('suggestOptimalWarmupSchedule', () => {
+    it('콜드 스타트가 많은 경우 더 짧은 간격을 제안해야 함', async () => {
+      // Given - 높은 콜드 스타트 빈도
+      cloudWatchMetrics.getMetricStatistics.mockResolvedValue([
+        { timestamp: new Date(), value: 15, unit: 'Count' },
+      ]);
+
+      // When
+      const result = await service.suggestOptimalWarmupSchedule();
+
+      // Then
+      expect(result.suggestedInterval).toBe(3);
+      expect(result.reason).toContain('더 자주 웜업 필요');
+    });
+
+    it('콜드 스타트가 적은 경우 더 긴 간격을 제안해야 함', async () => {
+      // Given - 낮은 콜드 스타트 빈도
+      cloudWatchMetrics.getMetricStatistics.mockResolvedValue([
+        { timestamp: new Date(), value: 1, unit: 'Count' },
+      ]);
+
+      // When
+      const result = await service.suggestOptimalWarmupSchedule();
+
+      // Then
+      expect(result.suggestedInterval).toBe(10);
+      expect(result.reason).toContain('웜업 간격 연장 가능');
+    });
+
+    it('적당한 콜드 스타트인 경우 기본 간격을 제안해야 함', async () => {
+      // Given - 보통 콜드 스타트 빈도
+      cloudWatchMetrics.getMetricStatistics.mockResolvedValue([
+        { timestamp: new Date(), value: 5, unit: 'Count' },
+      ]);
+
+      // When
+      const result = await service.suggestOptimalWarmupSchedule();
+
+      // Then
+      expect(result.suggestedInterval).toBe(5);
+      expect(result.reason).toContain('기본 권장 설정');
+    });
+  });
+});

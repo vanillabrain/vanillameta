@@ -17,6 +17,7 @@ import { LoggingMiddleware } from './middleware/logging.middleware';
 import { CompressionLoggingMiddleware } from './middleware/compression-logging.middleware';
 import { ResponseTimeInterceptor } from './common/interceptors/response-time.interceptor';
 import { BusinessMetricsService } from './common/monitoring/business-metrics.service';
+import { WarmupMetricsService } from './common/monitoring/warmup-metrics.service';
 
 // NOTE: If you get ERR_CONTENT_DECODING_FAILED in your browser, this is likely
 // due to a compressed response (e.g. gzip) which has not been handled correctly
@@ -105,6 +106,8 @@ export const handler: Handler = async (event: any, context: Context) => {
   // 연결이 있는 동안 Lambda 컨테이너를 활성 상태로 유지
   context.callbackWaitsForEmptyEventLoop = false;
 
+  const startTime = Date.now();
+
   // 웜업 요청 감지 및 처리 (T02_S04)
   if (event.source === 'serverless-plugin-warmup') {
     console.log('WarmUp - Lambda 함수 웜업 요청 처리됨', {
@@ -114,27 +117,101 @@ export const handler: Handler = async (event: any, context: Context) => {
       environment: process.env.NODE_ENV,
     });
 
-    // 웜업 요청에 대한 즉시 응답 (실제 비즈니스 로직 실행 안함)
-    return {
-      statusCode: 200,
-      body: JSON.stringify({
-        message: 'Lambda function warmed up successfully',
-        requestId: context.awsRequestId,
-        timestamp: new Date().toISOString(),
-      }),
-    };
+    try {
+      // 웜업 서버 초기화 (실제 애플리케이션 로딩 확인)
+      const server = await bootstrapServer();
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+
+      // 웜업 성공 메트릭 기록
+      const nestApp = (server as any)?._events?.request?.app;
+      if (nestApp) {
+        try {
+          const warmupMetrics = nestApp.get(WarmupMetricsService);
+          await warmupMetrics.recordWarmupSuccess(context.awsRequestId, duration);
+        } catch (error) {
+          console.warn('웜업 메트릭 기록 실패:', error.message);
+        }
+      }
+
+      // 웜업 요청에 대한 즉시 응답 (실제 비즈니스 로직 실행 안함)
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          message: 'Lambda function warmed up successfully',
+          requestId: context.awsRequestId,
+          timestamp: new Date().toISOString(),
+          duration,
+        }),
+      };
+    } catch (error) {
+      console.error('웜업 요청 처리 중 오류 발생:', error);
+      
+      // 웜업 실패 메트릭 기록 시도
+      try {
+        const server = await bootstrapServer();
+        const nestApp = (server as any)?._events?.request?.app;
+        if (nestApp) {
+          const warmupMetrics = nestApp.get(WarmupMetricsService);
+          await warmupMetrics.recordWarmupFailure(context.awsRequestId, error.message);
+        }
+      } catch (metricError) {
+        console.warn('웜업 실패 메트릭 기록 실패:', metricError.message);
+      }
+
+      return {
+        statusCode: 500,
+        body: JSON.stringify({
+          message: 'Warmup failed',
+          requestId: context.awsRequestId,
+          error: error.message,
+          timestamp: new Date().toISOString(),
+        }),
+      };
+    }
   }
 
-  // 콘텍스트 정보 로깅 (첫 요청 시만)
-  if (!cachedServer) {
-    console.log('Lambda context:', {
-      functionName: context.functionName,
-      memoryLimitInMB: context.memoryLimitInMB,
-      requestId: context.awsRequestId,
-      isWarmStart: !!cachedServer,
-    });
-  }
+  // 콜드/웜 스타트 감지 및 메트릭 기록
+  const isWarmStart = !!cachedServer;
+  
+  console.log('Lambda context:', {
+    functionName: context.functionName,
+    memoryLimitInMB: context.memoryLimitInMB,
+    requestId: context.awsRequestId,
+    isWarmStart,
+    environment: process.env.NODE_ENV,
+  });
 
-  cachedServer = await bootstrapServer();
-  return proxy(cachedServer, event, context, 'PROMISE').promise;
+  try {
+    const serverStartTime = Date.now();
+    cachedServer = await bootstrapServer();
+    const serverEndTime = Date.now();
+    const serverInitDuration = serverEndTime - serverStartTime;
+
+    // 메트릭 기록
+    try {
+      const nestApp = (cachedServer as any)?._events?.request?.app;
+      if (nestApp) {
+        const warmupMetrics = nestApp.get(WarmupMetricsService);
+        
+        if (isWarmStart) {
+          await warmupMetrics.recordWarmStart(context.functionName, serverInitDuration);
+        } else {
+          await warmupMetrics.recordColdStart(context.functionName, serverInitDuration);
+        }
+
+        // 메모리 사용량 기록
+        const memoryLimit = parseInt(context.memoryLimitInMB);
+        const memoryUsed = process.memoryUsage().heapUsed / 1024 / 1024; // MB 단위
+        await warmupMetrics.recordMemoryUsage(context.functionName, memoryUsed, memoryLimit);
+      }
+    } catch (error) {
+      console.warn('시작 메트릭 기록 실패:', error.message);
+    }
+
+    return proxy(cachedServer, event, context, 'PROMISE').promise;
+  } catch (error) {
+    console.error('서버 초기화 실패:', error);
+    throw error;
+  }
 };

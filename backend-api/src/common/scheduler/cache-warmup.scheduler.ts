@@ -5,6 +5,7 @@ import { Repository, MoreThan } from 'typeorm';
 import { Dataset } from '../../dataset/entities/dataset.entity';
 import { Dashboard } from '../../dashboard/entities/dashboard.entity';
 import { Widget } from '../../widget/entities/widget.entity';
+import { DashboardWidget } from '../../dashboard/dashboard-widget/entities/dashboard-widget.entity';
 import { DatasetService } from '../../dataset/dataset.service';
 import { DashboardService } from '../../dashboard/dashboard.service';
 import { DashboardCacheService } from '../../dashboard/dashboard-cache.service';
@@ -27,6 +28,8 @@ export class CacheWarmupScheduler {
     private readonly dashboardRepository: Repository<Dashboard>,
     @InjectRepository(Widget)
     private readonly widgetRepository: Repository<Widget>,
+    @InjectRepository(DashboardWidget)
+    private readonly dashboardWidgetRepository: Repository<DashboardWidget>,
     private readonly datasetService: DatasetService,
     private readonly dashboardService: DashboardService,
     private readonly dashboardCacheService: DashboardCacheService,
@@ -301,11 +304,18 @@ export class CacheWarmupScheduler {
    * 대시보드의 위젯에서 사용하는 데이터셋 ID 조회
    */
   private async getWidgetDatasets(dashboardId: number): Promise<number[]> {
+    // 대시보드에 연결된 위젯 찾기
+    const dashboardWidgets = await this.dashboardWidgetRepository.find({
+      where: { dashboardId },
+    });
+    const widgetIds = dashboardWidgets.map(dw => dw.widgetId);
+    
+    // 위젯의 데이터셋 정보 조회
     const widgets = await this.widgetRepository.find({
-      where: {
-        dashboardId,
+      where: widgetIds.map(widgetId => ({
+        id: widgetId,
         datasetType: DatasetType.DATASET,
-      },
+      })),
       select: ['datasetId'],
     });
 

@@ -1,0 +1,445 @@
+name: Performance Tests
+
+on:
+  # 매일 새벽 2시에 자동 실행
+  schedule:
+    - cron: '0 2 * * *'
+  
+  # 수동 실행 허용
+  workflow_dispatch:
+    inputs:
+      test_type:
+        description: 'Test type to run'
+        required: true
+        default: 'basic'
+        type: choice
+        options:
+          - basic
+          - stress
+          - spike
+          - api
+          - all
+      
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      
+      duration:
+        description: 'Test duration override (for custom tests)'
+        required: false
+        default: ''
+
+  # PR에서 성능에 영향을 줄 수 있는 변경사항이 있을 때
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'serverless.yml'
+      - '.github/workflows/performance-tests.yml'
+    types: [opened, synchronize, reopened]
+
+env:
+  NODE_VERSION: '18'
+  K6_VERSION: '0.45.0'
+  ARTILLERY_VERSION: 'latest'
+
+jobs:
+  # 기본 성능 테스트 (빠른 피드백)
+  quick-performance-check:
+    name: Quick Performance Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: backend-api/package-lock.json
+      
+      - name: Install dependencies
+        working-directory: backend-api
+        run: npm ci
+      
+      - name: Install K6
+        run: |
+          curl -s https://dl.k6.io/key.gpg | sudo apt-key add -
+          echo "deb https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6=${{ env.K6_VERSION }}*
+      
+      - name: Start test server
+        working-directory: backend-api
+        run: |
+          npm run start:test &
+          sleep 30
+          curl -f http://localhost:3000/health || exit 1
+        env:
+          NODE_ENV: test
+      
+      - name: Create performance baseline
+        working-directory: backend-api
+        run: |
+          node scripts/performance-baseline.js create http://localhost:3000
+      
+      - name: Run quick performance test
+        working-directory: backend-api
+        run: |
+          k6 run --duration 2m --vus 10 --out json=quick-test-results.json test/performance/k6/load-test.js
+        env:
+          API_URL: http://localhost:3000
+      
+      - name: Analyze results
+        working-directory: backend-api
+        run: |
+          node scripts/performance-baseline.js analyze quick-test-results.json
+      
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quick-performance-results
+          path: |
+            backend-api/quick-test-results.json
+            backend-api/quick-test-results-analysis.json
+            backend-api/test-results/performance-baseline.json
+          retention-days: 30
+
+  # 전체 성능 테스트 스위트
+  full-performance-tests:
+    name: Full Performance Test Suite
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    
+    strategy:
+      matrix:
+        test_type: 
+          - ${{ github.event.inputs.test_type == 'all' && 'basic' || github.event.inputs.test_type || 'basic' }}
+          - ${{ github.event.inputs.test_type == 'all' && 'api' || '' }}
+          - ${{ github.event.inputs.test_type == 'all' && 'spike' || '' }}
+        exclude:
+          - test_type: ''
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: backend-api/package-lock.json
+      
+      - name: Install dependencies
+        working-directory: backend-api
+        run: npm ci
+      
+      - name: Install testing tools
+        run: |
+          # Install K6
+          curl -s https://dl.k6.io/key.gpg | sudo apt-key add -
+          echo "deb https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
+          
+          # Install Artillery
+          npm install -g artillery@${{ env.ARTILLERY_VERSION }}
+          
+          # Verify installations
+          k6 version
+          artillery --version
+      
+      - name: Set target environment
+        run: |
+          case "${{ github.event.inputs.environment || 'staging' }}" in
+            "staging")
+              echo "API_URL=https://staging-api.vanillameta.com" >> $GITHUB_ENV
+              ;;
+            "production")
+              echo "API_URL=https://api.vanillameta.com" >> $GITHUB_ENV
+              echo "PRODUCTION_TEST=true" >> $GITHUB_ENV
+              ;;
+            *)
+              echo "API_URL=http://localhost:3000" >> $GITHUB_ENV
+              echo "LOCAL_TEST=true" >> $GITHUB_ENV
+              ;;
+          esac
+      
+      - name: Start local server (if needed)
+        if: env.LOCAL_TEST == 'true'
+        working-directory: backend-api
+        run: |
+          npm run start:test &
+          sleep 30
+          curl -f http://localhost:3000/health || exit 1
+        env:
+          NODE_ENV: test
+      
+      - name: Verify target environment
+        run: |
+          echo "Testing against: $API_URL"
+          curl -f $API_URL/health || exit 1
+      
+      - name: Production safety check
+        if: env.PRODUCTION_TEST == 'true'
+        run: |
+          echo "⚠️  WARNING: Running performance tests against PRODUCTION"
+          echo "This should only happen during scheduled maintenance windows"
+          echo "Test type: ${{ matrix.test_type }}"
+          
+          # 프로덕션에서는 더 보수적인 테스트만 실행
+          case "${{ matrix.test_type }}" in
+            "stress"|"endurance")
+              echo "❌ Stress and endurance tests are not allowed in production"
+              exit 1
+              ;;
+          esac
+      
+      - name: Create/Load performance baseline
+        working-directory: backend-api
+        run: |
+          if [ -f "test-results/performance-baseline.json" ]; then
+            echo "Using existing baseline"
+          else
+            echo "Creating new baseline"
+            node scripts/performance-baseline.js create $API_URL
+          fi
+      
+      - name: Run performance tests
+        working-directory: backend-api
+        run: |
+          # 결과 디렉토리 생성
+          mkdir -p test-results/load-tests
+          
+          # 테스트 실행
+          case "${{ matrix.test_type }}" in
+            "basic")
+              ./scripts/run-load-tests.sh basic staging
+              ;;
+            "stress")
+              ./scripts/run-load-tests.sh stress staging
+              ;;
+            "spike")
+              ./scripts/run-load-tests.sh spike staging
+              ;;
+            "api")
+              ./scripts/run-load-tests.sh api staging
+              ;;
+            "artillery")
+              ./scripts/run-load-tests.sh artillery staging
+              ;;
+            *)
+              echo "Unknown test type: ${{ matrix.test_type }}"
+              exit 1
+              ;;
+          esac
+        env:
+          API_URL: ${{ env.API_URL }}
+      
+      - name: Analyze performance regression
+        working-directory: backend-api
+        run: |
+          # 최신 결과 파일 찾기
+          LATEST_RESULT=$(find test-results/load-tests -name "*results.json" -type f -printf '%T@ %p\n' | sort -n | tail -1 | cut -d' ' -f2-)
+          
+          if [ -n "$LATEST_RESULT" ]; then
+            echo "Analyzing: $LATEST_RESULT"
+            node scripts/performance-baseline.js analyze "$LATEST_RESULT"
+          else
+            echo "No results file found"
+            exit 1
+          fi
+      
+      - name: Generate performance report
+        working-directory: backend-api
+        run: |
+          # 성능 리포트 생성
+          cat > performance-report.md << 'EOF'
+          # Performance Test Report
+          
+          **Test Type:** ${{ matrix.test_type }}
+          **Environment:** ${{ github.event.inputs.environment || 'staging' }}
+          **Date:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          **Commit:** ${{ github.sha }}
+          
+          ## Test Configuration
+          - Target URL: ${{ env.API_URL }}
+          - Test Duration: Variable based on test type
+          - Virtual Users: Variable based on test type
+          
+          ## Results Summary
+          EOF
+          
+          # 분석 결과 추가
+          if [ -f test-results/load-tests/*/index.html ]; then
+            echo "✅ Test completed successfully" >> performance-report.md
+            echo "📊 Detailed results available in artifacts" >> performance-report.md
+          else
+            echo "❌ Test failed or incomplete" >> performance-report.md
+          fi
+          
+          # 기준선 비교 결과 추가 (if available)
+          ANALYSIS_FILE=$(find . -name "*-analysis.json" -type f | head -1)
+          if [ -n "$ANALYSIS_FILE" ]; then
+            echo "" >> performance-report.md
+            echo "## Regression Analysis" >> performance-report.md
+            echo '```json' >> performance-report.md
+            cat "$ANALYSIS_FILE" >> performance-report.md
+            echo '```' >> performance-report.md
+          fi
+      
+      - name: Comment PR (if applicable)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            if (fs.existsSync('backend-api/performance-report.md')) {
+              const report = fs.readFileSync('backend-api/performance-report.md', 'utf8');
+              
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `## 🚀 Performance Test Results\n\n${report}`
+              });
+            }
+      
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: performance-results-${{ matrix.test_type }}
+          path: |
+            backend-api/test-results/
+            backend-api/performance-report.md
+            backend-api/*-analysis.json
+          retention-days: 90
+      
+      - name: Fail job on performance regression
+        working-directory: backend-api
+        run: |
+          # 회귀 분석 결과 확인
+          ANALYSIS_FILE=$(find . -name "*-analysis.json" -type f | head -1)
+          
+          if [ -n "$ANALYSIS_FILE" ]; then
+            OVERALL_STATUS=$(cat "$ANALYSIS_FILE" | jq -r '.overall_status // "UNKNOWN"')
+            REGRESSION_DETECTED=$(cat "$ANALYSIS_FILE" | jq -r '.regression_detected // false')
+            
+            echo "Overall Status: $OVERALL_STATUS"
+            echo "Regression Detected: $REGRESSION_DETECTED"
+            
+            if [ "$OVERALL_STATUS" = "FAIL" ]; then
+              echo "❌ Performance test failed - thresholds exceeded"
+              exit 1
+            fi
+            
+            if [ "$REGRESSION_DETECTED" = "true" ]; then
+              echo "⚠️  Performance regression detected"
+              # 회귀는 경고만 표시하고 실패하지 않음 (스케줄된 테스트에서만)
+              if [ "${{ github.event_name }}" = "pull_request" ]; then
+                exit 1
+              fi
+            fi
+          fi
+          
+          echo "✅ Performance test passed"
+
+  # 성능 트렌드 분석 (매일 실행)
+  performance-trend-analysis:
+    name: Performance Trend Analysis
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    needs: full-performance-tests
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Download all test results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: performance-results-*
+          merge-multiple: true
+          path: performance-results
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      
+      - name: Analyze performance trends
+        run: |
+          # 성능 트렌드 분석 스크립트 실행
+          # (향후 구현 예정)
+          echo "Performance trend analysis would run here"
+          
+          # 과거 7일간의 데이터와 비교
+          # 성능 저하 트렌드 감지
+          # 알림 발송 (Slack, Email 등)
+      
+      - name: Generate trend report
+        run: |
+          echo "Trend analysis report generation would run here"
+          # HTML 리포트 생성
+          # 차트 및 그래프 포함
+          # 성능 개선/저하 요약
+
+  # 알림 발송
+  notify:
+    name: Send Performance Notifications
+    runs-on: ubuntu-latest
+    if: always() && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production'))
+    needs: [full-performance-tests]
+    
+    steps:
+      - name: Send Slack notification
+        if: needs.full-performance-tests.result == 'failure'
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          custom_payload: |
+            {
+              text: "🚨 Performance Test Alert",
+              attachments: [{
+                color: "danger",
+                fields: [{
+                  title: "Performance Test Failed",
+                  value: "Environment: ${{ github.event.inputs.environment || 'staging' }}\nWorkflow: ${{ github.workflow }}\nCommit: ${{ github.sha }}",
+                  short: false
+                }]
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      
+      - name: Send success notification
+        if: needs.full-performance-tests.result == 'success'
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          custom_payload: |
+            {
+              text: "✅ Performance Tests Passed",
+              attachments: [{
+                color: "good",
+                fields: [{
+                  title: "All Performance Tests Successful",
+                  value: "Environment: ${{ github.event.inputs.environment || 'staging' }}\nWorkflow: ${{ github.workflow }}",
+                  short: false
+                }]
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

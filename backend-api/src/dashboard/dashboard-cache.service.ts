@@ -158,7 +158,7 @@ export class DashboardCacheService {
       );
 
       this.customLogger.debug('User dashboard list cached', 'DashboardCacheService', {
-        userId,
+        userId: String(userId),
         dashboardCount: dashboards.length,
         ttl: ttl || this.USER_DASHBOARD_LIST_TTL,
       });
@@ -178,7 +178,7 @@ export class DashboardCacheService {
 
       if (cached) {
         this.customLogger.debug('User dashboard list cache hit', 'DashboardCacheService', {
-          userId,
+          userId: String(userId),
           dashboardCount: cached.data.length,
         });
 
@@ -335,7 +335,7 @@ export class DashboardCacheService {
       await this.hybridCache.invalidateByQuery('dashboard', cacheKey);
 
       this.customLogger.log('User dashboard list cache invalidated', 'DashboardCacheService', {
-        userId,
+        userId: String(userId),
       });
     } catch (error) {
       this.logger.error(`Failed to invalidate user dashboard list for user ${userId}:`, error);
@@ -373,7 +373,7 @@ export class DashboardCacheService {
 
       this.customLogger.log('All dashboard caches invalidated', 'DashboardCacheService', {
         dashboardId,
-        userId,
+        userId: userId ? String(userId) : undefined,
       });
     } catch (error) {
       this.logger.error('Failed to invalidate all dashboard caches:', error);

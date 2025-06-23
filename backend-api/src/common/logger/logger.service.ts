@@ -1,4 +1,4 @@
-import { Injectable, LoggerService, LogLevel } from '@nestjs/common';
+import { Injectable, LoggerService as NestLoggerService, LogLevel } from '@nestjs/common';
 import * as winston from 'winston';
 import { CorrelationIdService } from '../../middleware/correlation-id/correlation-id.service';
 
@@ -13,8 +13,20 @@ export interface LogContext {
   [key: string]: any;
 }
 
+export interface ICustomLoggerService {
+  log(message: any, context?: string, metadata?: LogContext): void;
+  info(message: any, context?: string, metadata?: LogContext): void;
+  error(message: any, stack?: string, context?: string, metadata?: LogContext): void;
+  warn(message: any, context?: string, metadata?: LogContext): void;
+  debug(message: any, context?: string, metadata?: LogContext): void;
+  verbose(message: any, context?: string, metadata?: LogContext): void;
+  logRequest(req: any, res?: any, executionTime?: number): void;
+  logQuery(query: string, params?: any[], executionTime?: number, context?: string): void;
+  logBusiness(event: string, data?: any, userId?: string, context?: string): void;
+}
+
 @Injectable()
-export class CustomLoggerService implements LoggerService {
+export class LoggerService implements NestLoggerService, ICustomLoggerService {
   private readonly winston: winston.Logger;
 
   constructor() {
@@ -214,3 +226,7 @@ export class CustomLoggerService implements LoggerService {
     this.log(`Business Event: ${event}`, context || 'Business', metadata);
   }
 }
+
+// Alias for backward compatibility
+export type CustomLoggerService = ICustomLoggerService;
+export const CustomLoggerService = LoggerService;

@@ -5,7 +5,7 @@ import express from 'express';
 import compression from 'compression';
 import { config } from 'dotenv';
 import { AppModule } from './app.module';
-import { HttpExceptionFilter } from './nest-utils/http-exception.filter';
+import { AllExceptionsFilter } from './nest-utils/all-exceptions.filter';
 import { setupSwagger } from './utils/swagger';
 import { CustomLoggerService } from './common/logger/logger.service';
 import { LoggingMiddleware } from './middleware/logging.middleware';
@@ -98,7 +98,7 @@ async function bootstrap() {
 
   nestApp.setGlobalPrefix('v1');
   nestApp.use(cookieParser());
-  nestApp.useGlobalFilters(new HttpExceptionFilter());
+  nestApp.useGlobalFilters(nestApp.get(AllExceptionsFilter));
   setupSwagger(nestApp);
 
   // Global interceptors for CloudWatch metrics

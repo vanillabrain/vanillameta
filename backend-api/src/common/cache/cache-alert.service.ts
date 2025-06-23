@@ -292,13 +292,22 @@ export class CacheAlertService {
         ? 'warn'
         : 'log';
 
-    this.customLogger[logLevel](`[CACHE ALERT] ${rule.name}`, 'CacheAlertService', {
+    const message = `[CACHE ALERT] ${rule.name}`;
+    const metadata = {
       rule: rule.id,
       engine: event.engine,
       severity: event.severity,
       message: event.message,
       metrics: event.metrics,
-    });
+    };
+    
+    if (logLevel === 'error') {
+      this.customLogger.error(message, undefined, 'CacheAlertService', metadata);
+    } else if (logLevel === 'warn') {
+      this.customLogger.warn(message, 'CacheAlertService', metadata);
+    } else {
+      this.customLogger.log(message, 'CacheAlertService', metadata);
+    }
   }
 
   /**

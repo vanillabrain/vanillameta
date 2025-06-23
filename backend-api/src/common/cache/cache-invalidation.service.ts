@@ -9,6 +9,7 @@ import { Repository } from 'typeorm';
 import { Widget } from '../../widget/entities/widget.entity';
 import { Dataset } from '../../dataset/entities/dataset.entity';
 import { DatasetType } from '../enum/dataset-type.enum';
+import { DashboardWidget } from '../../dashboard/dashboard-widget/entities/dashboard-widget.entity';
 
 /**
  * 캐시 무효화 정책
@@ -52,6 +53,8 @@ export class CacheInvalidationService {
     private readonly widgetRepository: Repository<Widget>,
     @InjectRepository(Dataset)
     private readonly datasetRepository: Repository<Dataset>,
+    @InjectRepository(DashboardWidget)
+    private readonly dashboardWidgetRepository: Repository<DashboardWidget>,
   ) {
     // 배치 처리 시작
     this.startBatchProcessor();
@@ -152,7 +155,11 @@ export class CacheInvalidationService {
         });
 
         // 영향받는 대시보드들 찾기
-        const dashboardIds = [...new Set(widgets.map(w => w.dashboardId))];
+        const widgetIds = widgets.map(w => w.id);
+        const dashboardWidgets = await this.dashboardWidgetRepository.find({
+          where: widgetIds.map(widgetId => ({ widgetId })),
+        });
+        const dashboardIds = [...new Set(dashboardWidgets.map(dw => dw.dashboardId))];
 
         // 각 대시보드 캐시 무효화
         for (const dashboardId of dashboardIds) {
@@ -204,9 +211,11 @@ export class CacheInvalidationService {
 
       if (effectivePolicy.cascade) {
         // 위젯 캐시도 무효화
-        const widgets = await this.widgetRepository.find({
+        const dashboardWidgets = await this.dashboardWidgetRepository.find({
           where: { dashboardId },
         });
+        const widgetIds = dashboardWidgets.map(dw => dw.widgetId);
+        const widgets = await this.widgetRepository.findByIds(widgetIds);
 
         // 위젯이 사용하는 데이터셋 캐시 무효화 (선택적)
         const datasetIds = [

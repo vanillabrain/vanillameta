@@ -21,7 +21,7 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:fast": "jest --config jest.config.fast.js",
-    "test:unit": "jest --testPathPattern='(service|controller)\\.spec\\.ts$' --testTimeout=5000",
+    "test:unit": "jest --testPathPattern='controller\\.spec\\.ts$|service\\.spec\\.ts$' --testTimeout=30000",
     "test:integration": "jest --testPathPattern='integration\\.spec\\.ts$'",
     "deploy": "serverless deploy --stage prod",
     "seed": "cross-env NODE_ENV=dev ts-node -r tsconfig-paths/register ./node_modules/typeorm-extension/dist/cli/index.js seed",
@@ -29,7 +29,6 @@
     "deploy:prod": "serverless deploy --stage prod",
     "yolo": "./scripts/yolo-mode.sh",
     "quick": "./scripts/quick-check.sh",
-    "test:unit": "jest --testPathPattern='controller\\.spec\\.ts$|service\\.spec\\.ts$' --testTimeout=30000",
     "test:baseline": "yarn test:unit && echo '✅ 모든 베이스라인 테스트 통과!'",
     "monitor:lambda": "node scripts/monitor-lambda-performance.js",
     "monitor:performance": "node scripts/monitor-lambda-performance.js",
@@ -47,6 +46,7 @@
     "performance:all": "yarn test:performance && yarn artillery:run && yarn k6:load"
   },
   "dependencies": {
+    "@aws-sdk/client-cloudwatch": "^3.830.0",
     "@google-cloud/bigquery": "^6.0.3",
     "@nestjs/axios": "^3.0.0",
     "@nestjs/bull": "^10.0.0",
@@ -54,6 +54,7 @@
     "@nestjs/common": "^10.0.0",
     "@nestjs/config": "^3.0.0",
     "@nestjs/core": "^10.0.0",
+    "@nestjs/event-emitter": "^3.0.1",
     "@nestjs/jwt": "^10.0.0",
     "@nestjs/mapped-types": "^2.0.0",
     "@nestjs/passport": "^10.0.0",
