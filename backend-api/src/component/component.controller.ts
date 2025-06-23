@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { CacheConfig } from '../common/decorators/cache-config.decorator';
 import { ComponentService } from './component.service';
 import { CreateComponentDto } from './dto/create-component.dto';
 import { UpdateComponentDto } from './dto/update-component.dto';
@@ -52,6 +53,7 @@ export class ComponentController {
     return this.componentService.create(createComponent);
   }
 
+  @CacheConfig({ ttl: 3600 }) // 컴포넌트 목록 - 1시간 캐시 (정적 데이터)
   @Get()
   @ApiOperation({
     summary: '전체 차트 컴포넌트 목록 조회',
@@ -66,6 +68,7 @@ export class ComponentController {
     return this.componentService.findAll();
   }
 
+  @CacheConfig({ ttl: 3600 }) // 컴포넌트 상세 - 1시간 캐시 (정적 데이터)
   @Get(':id')
   @ApiOperation({
     summary: '특정 차트 컴포넌트 조회',

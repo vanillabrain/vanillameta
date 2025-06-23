@@ -695,4 +695,35 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
 
     return diagnostics;
   }
+
+  /**
+   * API 응답 캐싱을 위한 간단한 키-값 조회
+   */
+  async getSimple(key: string): Promise<string | null> {
+    if (!this.connected) {
+      return null;
+    }
+
+    try {
+      return await this.redis.get(key);
+    } catch (error) {
+      this.logger.error('Redis simple get error:', error);
+      return null;
+    }
+  }
+
+  /**
+   * API 응답 캐싱을 위한 간단한 키-값 저장
+   */
+  async setSimple(key: string, value: string, ttl: number): Promise<void> {
+    if (!this.connected) {
+      return;
+    }
+
+    try {
+      await this.redis.setex(key, ttl, value);
+    } catch (error) {
+      this.logger.error('Redis simple set error:', error);
+    }
+  }
 }

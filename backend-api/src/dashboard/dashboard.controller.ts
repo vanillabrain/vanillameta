@@ -29,6 +29,7 @@ import {
   ApiBadRequestResponse,
 } from '@nestjs/swagger';
 import { FieldSelection } from '../common/field-selection/field-selection.decorator';
+import { UserCache, CacheConfig } from '../common/decorators/cache-config.decorator';
 
 @ApiTags('대시보드')
 @UseGuards(JwtAuthGuard)
@@ -54,6 +55,7 @@ export class DashboardController {
     return this.dashboardService.create(createDashboardDto, accessKeyData.id);
   }
 
+  @UserCache(300) // 대시보드 목록 - 5분 캐시
   @FieldSelection({
     allowedFields: [
       'id',
@@ -109,6 +111,7 @@ export class DashboardController {
     return this.dashboardService.findAll(accessKeyData.id);
   }
 
+  @UserCache(300) // 대시보드 상세 - 5분 캐시
   @FieldSelection({
     allowedFields: [
       'id',

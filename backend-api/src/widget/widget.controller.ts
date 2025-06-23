@@ -7,6 +7,7 @@ import {
   FieldSelection,
   PredefinedFields,
 } from '../common/field-selection/field-selection.decorator';
+import { UserCache } from '../common/decorators/cache-config.decorator';
 import {
   ApiTags,
   ApiBearerAuth,
@@ -49,6 +50,7 @@ export class WidgetController {
   /**
    * 위젯 목록 조회
    */
+  @UserCache(600) // 위젯 설정 - 10분 캐시
   @FieldSelection({
     allowedFields: [
       'id',
@@ -102,6 +104,7 @@ export class WidgetController {
    * 위젯 단건 조회
    * @param id
    */
+  @UserCache(600) // 위젯 상세 - 10분 캐시
   @PredefinedFields('widgetWithConfig')
   @Get(':id')
   @ApiOperation({

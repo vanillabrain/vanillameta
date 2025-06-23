@@ -8,9 +8,9 @@ import {
 import { Reflector } from '@nestjs/core';
 import { Observable, of } from 'rxjs';
 import { tap } from 'rxjs/operators';
-import { Request } from 'express';
-import { InjectRedis } from '@liaoliaots/nestjs-redis';
-import Redis from 'ioredis';
+import { Request, Response } from 'express';
+import { createHash } from 'crypto';
+import { RedisCacheService } from '../optimization/redis-cache.service';
 import { CacheKeyService } from '../services/cache-key.service';
 import { CacheMetricsService } from '../services/cache-metrics.service';
 import { CACHE_CONFIG_KEY, CacheConfig } from '../decorators/cache-config.decorator';
@@ -20,7 +20,7 @@ export class ApiCacheInterceptor implements NestInterceptor {
   private readonly logger = new Logger(ApiCacheInterceptor.name);
 
   constructor(
-    @InjectRedis() private readonly redis: Redis,
+    private readonly redisCacheService: RedisCacheService,
     private readonly reflector: Reflector,
     private readonly cacheKeyService: CacheKeyService,
     private readonly cacheMetricsService: CacheMetricsService,
@@ -32,6 +32,7 @@ export class ApiCacheInterceptor implements NestInterceptor {
   ): Promise<Observable<any>> {
     const startTime = Date.now();
     const request = context.switchToHttp().getRequest<Request>();
+    const response = context.switchToHttp().getResponse<Response>();
     
     // 캐시 설정 확인
     const cacheConfig = this.reflector.getAllAndOverride<CacheConfig>(
@@ -54,7 +55,7 @@ export class ApiCacheInterceptor implements NestInterceptor {
       const cacheKey = this.cacheKeyService.generateKey(request, cacheConfig);
 
       // 캐시에서 데이터 조회
-      const cachedData = await this.redis.get(cacheKey);
+      const cachedData = await this.redisCacheService.getSimple(cacheKey);
 
       if (cachedData) {
         // 캐시 히트
@@ -63,8 +64,12 @@ export class ApiCacheInterceptor implements NestInterceptor {
         
         this.logger.debug(`Cache hit for key: ${cacheKey} (${responseTime}ms)`);
         
-        // 캐시된 데이터 반환
+        // 캐시된 데이터 파싱
         const data = JSON.parse(cachedData);
+        
+        // HTTP 캐싱 헤더 설정
+        this.setHttpCacheHeaders(response, data, cacheConfig, true);
+        
         return of(data);
       }
 
@@ -83,16 +88,19 @@ export class ApiCacheInterceptor implements NestInterceptor {
             const dataToCache = await this.prepareDataForCache(data, cacheConfig);
             
             // Redis에 캐싱
-            await this.redis.setex(
+            await this.redisCacheService.setSimple(
               cacheKey,
-              ttl,
               JSON.stringify(dataToCache),
+              ttl,
             );
 
             const responseTime = Date.now() - startTime;
             this.logger.debug(
               `Cached response for key: ${cacheKey} with TTL: ${ttl}s (${responseTime}ms)`,
             );
+
+            // HTTP 캐싱 헤더 설정
+            this.setHttpCacheHeaders(response, data, cacheConfig, false);
           } catch (error) {
             // 캐싱 실패는 로그만 남기고 응답은 정상 반환
             this.logger.error(`Failed to cache response: ${error.message}`);
@@ -149,5 +157,70 @@ export class ApiCacheInterceptor implements NestInterceptor {
   private shouldCompress(data: any): boolean {
     const jsonString = JSON.stringify(data);
     return jsonString.length > 1024; // 1KB 이상
+  }
+
+  /**
+   * HTTP 캐싱 헤더 설정
+   */
+  private setHttpCacheHeaders(
+    response: Response,
+    data: any,
+    config: CacheConfig,
+    isCacheHit: boolean,
+  ): void {
+    try {
+      const ttl = config.ttl || 3600;
+      
+      // Cache-Control 헤더 설정
+      const cacheControl = this.getCacheControlHeader(config, ttl);
+      response.setHeader('Cache-Control', cacheControl);
+      
+      // ETag 생성 및 설정
+      const etag = this.generateETag(data);
+      response.setHeader('ETag', etag);
+      
+      // Last-Modified 헤더 설정 (현재 시간)
+      response.setHeader('Last-Modified', new Date().toUTCString());
+      
+      // 캐시 히트 여부를 커스텀 헤더로 표시 (디버깅용)
+      response.setHeader('X-Cache', isCacheHit ? 'HIT' : 'MISS');
+      
+      // TTL 정보 제공 (디버깅용)
+      response.setHeader('X-Cache-TTL', ttl.toString());
+      
+    } catch (error) {
+      this.logger.error(`Failed to set HTTP cache headers: ${error.message}`);
+    }
+  }
+
+  /**
+   * Cache-Control 헤더 생성
+   */
+  private getCacheControlHeader(config: CacheConfig, ttl: number): string {
+    const directives = ['public']; // 기본적으로 public 캐시 허용
+    
+    // max-age 설정
+    directives.push(`max-age=${ttl}`);
+    
+    // 사용자별 캐싱인 경우 private으로 변경
+    if (config.userSpecific) {
+      directives[0] = 'private';
+    }
+    
+    // 정적 데이터인 경우 더 긴 캐시 허용
+    if (ttl >= 3600) { // 1시간 이상
+      directives.push('immutable');
+    }
+    
+    return directives.join(', ');
+  }
+
+  /**
+   * ETag 생성
+   */
+  private generateETag(data: any): string {
+    const content = JSON.stringify(data);
+    const hash = createHash('md5').update(content).digest('hex');
+    return `"${hash}"`;
   }
 }

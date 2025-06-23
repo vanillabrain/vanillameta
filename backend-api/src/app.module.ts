@@ -22,7 +22,7 @@ import { TestCompressionController } from './test-compression.controller';
 import { TestFieldSelectionController } from './test-field-selection.controller';
 import { FieldSelectionModule } from './common/field-selection/field-selection.module';
 import { BatchModule } from './batch/batch.module';
-// import { CacheModule } from './common/optimization/cache.module';
+import { CacheModule } from './common/optimization/cache.module';
 import { PaginationModule } from './common/pagination/pagination.module';
 import { BackgroundJobModule } from './background-job/background-job.module';
 import { MemoryMonitorModule } from './common/monitoring/memory-monitor.module';
@@ -36,6 +36,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { MetricsInterceptor } from './common/interceptors/metrics.interceptor';
 import { EventsModule } from './events/events.module';
 import { PerformanceMonitoringInterceptor } from './common/interceptors/performance-monitoring.interceptor';
+import { ApiCacheInterceptor } from './common/interceptors/api-cache.interceptor';
 import { DatabaseModule } from './database/database.module';
 import { InitializationModule } from './common/init/initialization.module';
 import { DatasetModule } from './dataset/dataset.module';
@@ -124,7 +125,7 @@ import { AllExceptionsFilter } from './nest-utils/all-exceptions.filter';
     PerformanceMonitoringModule,
     FieldSelectionModule,
     BatchModule,
-    // CacheModule,
+    CacheModule,
     PaginationModule,
     BackgroundJobModule,
     MemoryMonitorModule,
@@ -152,6 +153,10 @@ import { AllExceptionsFilter } from './nest-utils/all-exceptions.filter';
     {
       provide: 'APP_INTERCEPTOR',
       useClass: PerformanceMonitoringInterceptor,
+    },
+    {
+      provide: 'APP_INTERCEPTOR',
+      useClass: ApiCacheInterceptor,
     },
   ],
 })
