@@ -6,6 +6,10 @@ process.env.NODE_ENV = 'test';
 process.env.ACCESS_SECRET = 'test-access-secret';
 process.env.REFRESH_SECRET = 'test-refresh-secret';
 process.env.URL_ACCESS_SECRET = 'test-url-access-secret';
+process.env.REDIS_HOST = 'localhost';
+process.env.REDIS_PORT = '6379';
+process.env.REDIS_PASSWORD = '';
+process.env.REDIS_DB = '0';
 
 // Increase test timeout for slower operations
 jest.setTimeout(30000);
@@ -119,6 +123,88 @@ jest.mock('ioredis', () => {
     disconnect: jest.fn(),
   }));
 });
+
+// Mock Bull Queue
+jest.mock('bull', () => {
+  return jest.fn().mockImplementation((name: string) => ({
+    add: jest.fn().mockResolvedValue({ id: 'mock-job-id' }),
+    process: jest.fn(),
+    on: jest.fn(),
+    close: jest.fn().mockResolvedValue(undefined),
+    getJobs: jest.fn().mockResolvedValue([]),
+    getJobCounts: jest.fn().mockResolvedValue({
+      waiting: 0,
+      active: 0,
+      completed: 0,
+      failed: 0,
+      delayed: 0,
+    }),
+    clean: jest.fn().mockResolvedValue([]),
+    pause: jest.fn().mockResolvedValue(undefined),
+    resume: jest.fn().mockResolvedValue(undefined),
+    empty: jest.fn().mockResolvedValue(undefined),
+    destroy: jest.fn().mockResolvedValue(undefined),
+  }));
+});
+
+// Mock @nestjs/bull
+jest.mock('@nestjs/bull', () => ({
+  ...jest.requireActual('@nestjs/bull'),
+  BullModule: {
+    forRoot: jest.fn().mockReturnValue({
+      module: class MockBullModule {},
+      providers: [],
+      exports: [],
+    }),
+    registerQueue: jest.fn().mockReturnValue({
+      module: class MockBullQueueModule {},
+      providers: [],
+      exports: [],
+    }),
+  },
+  InjectQueue: jest.fn().mockImplementation((queueName: string) => {
+    return (target: any, propertyKey: string, parameterIndex: number) => {
+      // Mock decorator
+    };
+  }),
+}));
+
+// Mock cache-manager
+jest.mock('cache-manager', () => ({
+  caching: jest.fn().mockResolvedValue({
+    get: jest.fn(),
+    set: jest.fn(),
+    del: jest.fn(),
+    keys: jest.fn().mockResolvedValue([]),
+    reset: jest.fn(),
+    wrap: jest.fn().mockImplementation(async (key, fn) => fn()),
+  }),
+  multiCaching: jest.fn().mockResolvedValue({
+    get: jest.fn(),
+    set: jest.fn(),
+    del: jest.fn(),
+    keys: jest.fn().mockResolvedValue([]),
+    reset: jest.fn(),
+    wrap: jest.fn().mockImplementation(async (key, fn) => fn()),
+  }),
+}));
+
+// Mock @nestjs/cache-manager
+jest.mock('@nestjs/cache-manager', () => ({
+  CacheModule: {
+    register: jest.fn().mockReturnValue({
+      module: class MockCacheModule {},
+      providers: [],
+      exports: [],
+    }),
+    forRoot: jest.fn().mockReturnValue({
+      module: class MockCacheModule {},
+      providers: [],
+      exports: [],
+    }),
+  },
+  CACHE_MANAGER: 'CACHE_MANAGER',
+}));
 
 // Mock AWS SDK
 jest.mock('aws-sdk', () => ({
