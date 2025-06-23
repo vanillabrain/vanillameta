@@ -6,9 +6,11 @@ import { DashboardShare } from './entities/dashboard_share.entity';
 import { User } from '../user/entities/user.entity';
 import { UserMapping } from '../user/entities/user-mapping.entity';
 import { DashboardWidgetService } from './dashboard-widget/dashboard-widget.service';
+import { DashboardCacheService } from './dashboard-cache.service';
 import { UserService } from 'src/user/user.service';
 import { AuthService } from 'src/auth/auth.service';
 import { CustomLoggerService } from '../common/logger/logger.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   createMockRepository,
   getRepositoryTokenFor,
@@ -29,9 +31,11 @@ describe('DashboardService', () => {
   let dashboardShareRepository: any;
   let userMappingRepository: any;
   let dashboardWidgetService: any;
+  let dashboardCacheService: any;
   let userService: any;
   let authService: any;
   let logger: any;
+  let eventEmitter: any;
 
   const mockUser = {
     id: 1,
@@ -109,6 +113,22 @@ describe('DashboardService', () => {
           provide: CustomLoggerService,
           useValue: createMockService(['debug', 'error', 'log']),
         },
+        {
+          provide: DashboardCacheService,
+          useValue: createMockService([
+            'getCachedDashboard', 
+            'setCachedDashboard', 
+            'invalidateDashboardCache',
+            'invalidateUserDashboardList',
+            'cacheDashboard',
+            'invalidateDashboard',
+            'cacheUserDashboardList'
+          ]),
+        },
+        {
+          provide: EventEmitter2,
+          useValue: createMockService(['emit', 'emitAsync']),
+        },
       ],
     }).compile();
 
@@ -118,9 +138,11 @@ describe('DashboardService', () => {
     dashboardShareRepository = module.get(getRepositoryTokenFor(DashboardShare));
     userMappingRepository = module.get(getRepositoryTokenFor(UserMapping));
     dashboardWidgetService = module.get<DashboardWidgetService>(DashboardWidgetService);
+    dashboardCacheService = module.get<DashboardCacheService>(DashboardCacheService);
     userService = module.get<UserService>(UserService);
     authService = module.get<AuthService>(AuthService);
     logger = module.get<CustomLoggerService>(CustomLoggerService);
+    eventEmitter = module.get<EventEmitter2>(EventEmitter2);
 
     // Mock 초기화
     jest.clearAllMocks();

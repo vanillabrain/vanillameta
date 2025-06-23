@@ -1,8 +1,7 @@
-module.exports = {
+const baseConfig = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   rootDir: '.',
-  testMatch: ['**/*.spec.ts'],
   moduleFileExtensions: ['js', 'json', 'ts'],
   moduleNameMapper: {
     '^src/(.*)$': '<rootDir>/src/$1',
@@ -17,24 +16,9 @@ module.exports = {
     '!src/serverless.ts',
   ],
   coverageDirectory: './coverage',
-  testTimeout: 10000,
-  maxWorkers: 2,
-  // 캐시 활성화로 테스트 속도 향상
   cache: true,
-  // 테스트 실행 순서 최적화
-  // testSequencer: '<rootDir>/test/custom-sequencer.js',
-  // 느린 테스트 감지
-  slowTestThreshold: 5,
-  // 메모리 누수 방지
   detectOpenHandles: true,
   forceExit: true,
-  // 병렬 실행 최적화
-  maxConcurrency: 10,
-  // 테스트 환경 변수
-  testEnvironmentOptions: {
-    NODE_ENV: 'test',
-  },
-  // 글로벌 설정 - ts-jest v29 호환
   transform: {
     '^.+\\.(t|j)s$': ['ts-jest', {
       tsconfig: {
@@ -44,14 +28,22 @@ module.exports = {
       },
     }],
   },
-  // 무시할 패턴
   testPathIgnorePatterns: [
     '/node_modules/',
     '/dist/',
     '/coverage/',
     '/test/fixtures/',
   ],
-  // 커버리지 임계값
+  reporters: ['default'],
+};
+
+module.exports = {
+  ...baseConfig,
+  // 기본 설정: 단위 테스트
+  testMatch: ['**/*.spec.ts', '!**/test/e2e/**', '!**/test/performance/**'],
+  testTimeout: 10000,
+  maxWorkers: 2,
+  maxConcurrency: 10,
   coverageThreshold: {
     global: {
       branches: 80,
@@ -60,6 +52,26 @@ module.exports = {
       statements: 85,
     },
   },
-  // 리포터 설정
-  reporters: ['default'],
+  // 프로젝트별 설정
+  projects: [
+    {
+      ...baseConfig,
+      displayName: 'unit',
+      testMatch: ['<rootDir>/src/**/*.spec.ts'],
+      testTimeout: 5000,
+    },
+    {
+      ...baseConfig,
+      displayName: 'integration', 
+      testMatch: ['<rootDir>/test/integration/**/*.spec.ts'],
+      testTimeout: 15000,
+    },
+    {
+      ...baseConfig,
+      displayName: 'e2e',
+      testMatch: ['<rootDir>/test/e2e/**/*.e2e-spec.ts'],
+      testTimeout: 30000,
+      maxWorkers: 1,
+    }
+  ]
 };

@@ -16,9 +16,16 @@ config.serverless.yml
 
 # testing
 /coverage
+/test-results
+*.test.js
+*.spec.js
+jest-cache
+/cypress/screenshots
+/cypress/videos
 
 # production
 /build
+/dist
 
 # misc
 .DS_Store
@@ -30,3 +37,15 @@ config.serverless.yml
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Temporary files
+*.tmp
+*.backup
+*.bak
+*.swp
+*~
+
+# Build artifacts
+*.tsbuildinfo
+build-output.txt
+build-stats.txt
