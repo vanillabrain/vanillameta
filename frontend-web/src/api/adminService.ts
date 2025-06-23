@@ -1,4 +1,4 @@
-import { apiHelper } from '../helpers/apiHelper';
+import { get } from '../helpers/apiHelper';
 
 interface DashboardStats {
   totalUsers: number;
@@ -28,7 +28,7 @@ class AdminService {
    */
   async getDashboardStats(): Promise<DashboardStats> {
     try {
-      const response = await apiHelper.get<DashboardStats>(`${this.baseUrl}/dashboard/stats`);
+      const response = await get<DashboardStats>(`${this.baseUrl}/dashboard/stats`);
       return response;
     } catch (error) {
       console.error('Failed to get dashboard stats:', error);
@@ -41,7 +41,7 @@ class AdminService {
    */
   async healthCheck(): Promise<AdminHealthCheck> {
     try {
-      const response = await apiHelper.get<AdminHealthCheck>(`${this.baseUrl}/health`);
+      const response = await get<AdminHealthCheck>(`${this.baseUrl}/health`);
       return response;
     } catch (error) {
       console.error('Failed to check admin health:', error);
@@ -54,9 +54,7 @@ class AdminService {
    */
   async getUsers(page: number = 1, limit: number = 10): Promise<any> {
     try {
-      const response = await apiHelper.get(`${this.baseUrl}/users`, {
-        params: { page, limit }
-      });
+      const response = await get(`${this.baseUrl}/users?page=${page}&limit=${limit}`);
       return response;
     } catch (error) {
       console.error('Failed to get users:', error);
@@ -69,7 +67,7 @@ class AdminService {
    */
   async getPendingUsers(): Promise<any> {
     try {
-      const response = await apiHelper.get(`${this.baseUrl}/users/pending`);
+      const response = await get(`${this.baseUrl}/users/pending`);
       return response;
     } catch (error) {
       console.error('Failed to get pending users:', error);
@@ -82,9 +80,7 @@ class AdminService {
    */
   async getAuditLogs(page: number = 1, limit: number = 20): Promise<any> {
     try {
-      const response = await apiHelper.get(`${this.baseUrl}/audit`, {
-        params: { page, limit }
-      });
+      const response = await get(`${this.baseUrl}/audit?page=${page}&limit=${limit}`);
       return response;
     } catch (error) {
       console.error('Failed to get audit logs:', error);

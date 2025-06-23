@@ -4,8 +4,8 @@ current_milestone_id: M01
 highest_sprint_in_milestone: S10
 current_sprint_id: S08
 status: active
-last_updated: 2025-06-23 20:20
-milestone_progress: 75.3%
+last_updated: 2025-06-23 19:35
+milestone_progress: 76.6%
 active_task: completed
 ---
 
@@ -126,11 +126,11 @@ This project follows a milestone-based development approach.
 ✅ T07_S07: 폼 유효성 검사 개선
 ✅ T08_S07: 배포 및 운영 가이드 작성
 
-### S08: Admin 핵심 기능 (🚧 IN_PROGRESS - 25%)
+### S08: Admin 핵심 기능 (🚧 IN_PROGRESS - 37.5%)
 
 ✅ T01_S08: Admin 대시보드 UI 구축
 ✅ T02_S08: 사용자 관리 기능 구현
-📋 T03_S08: 사용자 승인 프로세스
+✅ T03_S08: 사용자 승인 프로세스
 📋 T04_S08: RBAC 시스템 기초 구현
 📋 T05_S08: 역할 관리 UI
 📋 T06_S08: 기본 감사 로그 구현

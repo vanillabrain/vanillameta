@@ -27,10 +27,24 @@ export class CreateAuditLogDto {
   @IsString()
   userEmail?: string;
 
-  @ApiProperty({ description: '상세 설명', required: false })
+  @ApiProperty({ description: '사용자 이름', required: false })
   @IsOptional()
   @IsString()
-  details?: string;
+  userName?: string;
+
+  @ApiProperty({ description: 'HTTP 메소드', required: false })
+  @IsOptional()
+  @IsString()
+  method?: string;
+
+  @ApiProperty({ description: '요청 URL', required: false })
+  @IsOptional()
+  @IsString()
+  url?: string;
+
+  @ApiProperty({ description: '상세 설명', required: false })
+  @IsOptional()
+  details?: any;
 
   @ApiProperty({ description: '메타데이터', required: false })
   @IsOptional()

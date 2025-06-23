@@ -1,4 +1,4 @@
-import { apiHelper } from '../helpers/apiHelper';
+import { get, post } from '../helpers/apiHelper';
 
 interface AuditLogFilters {
   page?: number;
@@ -92,7 +92,7 @@ class AuditLogService {
       });
 
       const url = `${this.baseUrl}?${queryParams.toString()}`;
-      const response = await apiHelper.get<PaginatedResponse<AuditLog>>(url);
+      const response = await get<PaginatedResponse<AuditLog>>(url);
       
       return response;
     } catch (error) {
@@ -106,7 +106,7 @@ class AuditLogService {
    */
   async getAuditLogById(id: number): Promise<AuditLog> {
     try {
-      const response = await apiHelper.get<AuditLog>(`${this.baseUrl}/${id}`);
+      const response = await get<AuditLog>(`${this.baseUrl}/${id}`);
       return response;
     } catch (error) {
       console.error('Failed to get audit log by id:', error);
@@ -119,7 +119,7 @@ class AuditLogService {
    */
   async createAuditLog(logData: CreateAuditLogRequest): Promise<AuditLog> {
     try {
-      const response = await apiHelper.post<AuditLog>(this.baseUrl, logData);
+      const response = await post<AuditLog>(this.baseUrl, logData);
       return response;
     } catch (error) {
       console.error('Failed to create audit log:', error);
@@ -132,7 +132,7 @@ class AuditLogService {
    */
   async getAuditLogStats(): Promise<AuditLogStats> {
     try {
-      const response = await apiHelper.get<AuditLogStats>(`${this.baseUrl}/stats`);
+      const response = await get<AuditLogStats>(`${this.baseUrl}/stats`);
       return response;
     } catch (error) {
       console.error('Failed to get audit log stats:', error);
@@ -145,7 +145,7 @@ class AuditLogService {
    */
   async getAvailableActions(): Promise<AvailableActions> {
     try {
-      const response = await apiHelper.get<AvailableActions>(`${this.baseUrl}/actions`);
+      const response = await get<AvailableActions>(`${this.baseUrl}/actions`);
       return response;
     } catch (error) {
       console.error('Failed to get available actions:', error);
@@ -164,7 +164,7 @@ class AuditLogService {
       }
 
       const url = `${this.baseUrl}/user/${userId}?${queryParams.toString()}`;
-      const response = await apiHelper.get<AuditLog[]>(url);
+      const response = await get<AuditLog[]>(url);
       return response;
     } catch (error) {
       console.error('Failed to get user audit logs:', error);

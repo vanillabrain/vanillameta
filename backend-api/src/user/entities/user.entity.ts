@@ -53,8 +53,8 @@ export class User {
   name: string;
 
   @Column({
-    type: 'enum',
-    enum: UserStatus,
+    type: process.env.NODE_ENV === 'local' ? 'varchar' : 'enum',
+    enum: process.env.NODE_ENV === 'local' ? undefined : UserStatus,
     default: UserStatus.PENDING,
     comment: '사용자 상태'
   })
@@ -73,11 +73,11 @@ export class User {
   @ApiProperty({ description: '부서' })
   department: string;
 
-  @Column({ type: 'timestamp', nullable: true, comment: '마지막 로그인 시간' })
+  @Column({ type: process.env.NODE_ENV === 'local' ? 'datetime' : 'timestamp', nullable: true, comment: '마지막 로그인 시간' })
   @ApiProperty({ description: '마지막 로그인 시간' })
   lastLoginAt: Date;
 
-  @Column({ type: 'timestamp', nullable: true, comment: '이메일 인증 시간' })
+  @Column({ type: process.env.NODE_ENV === 'local' ? 'datetime' : 'timestamp', nullable: true, comment: '이메일 인증 시간' })
   @ApiProperty({ description: '이메일 인증 시간' })
   emailVerifiedAt: Date;
 

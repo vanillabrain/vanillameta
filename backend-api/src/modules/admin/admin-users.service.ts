@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like, MoreThanOrEqual } from 'typeorm';
-import { User } from '../../user/entities/user.entity';
+import { User, UserStatus } from '../../user/entities/user.entity';
 import { GetUsersQueryDto, UserResponseDto, ApproveUserDto, RejectUserDto } from './dto/admin-users.dto';
 
 @Injectable()
@@ -273,5 +273,37 @@ export class AdminUsersService {
       updatedAt: user.updatedAt,
       lastLoginAt: null, // 추후 구현
     };
+  }
+
+  /**
+   * 사용자 생성
+   */
+  async createUser(createUserDto: any): Promise<UserResponseDto> {
+    // TODO: 구현 필요
+    throw new Error('Method not implemented.');
+  }
+
+  /**
+   * 사용자 수정
+   */
+  async updateUser(id: string, updateUserDto: any): Promise<UserResponseDto> {
+    // TODO: 구현 필요
+    throw new Error('Method not implemented.');
+  }
+
+  /**
+   * 사용자 삭제
+   */
+  async deleteUser(id: string): Promise<void> {
+    // TODO: 구현 필요
+    throw new Error('Method not implemented.');
+  }
+
+  /**
+   * 일괄 작업
+   */
+  async bulkAction(bulkActionDto: any): Promise<void> {
+    // TODO: 구현 필요
+    throw new Error('Method not implemented.');
   }
 }

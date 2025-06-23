@@ -8,12 +8,14 @@ import { RoleController } from './role.controller';
 import { RoleService } from './role.service';
 import { AuditLogController } from './audit-log.controller';
 import { AuditLogService } from './audit-log.service';
+import { ApprovalsModule } from './approvals/approvals.module';
 import { User } from '../../user/entities/user.entity';
 import { Dashboard } from '../../dashboard/entities/dashboard.entity';
 import { Widget } from '../../widget/entities/widget.entity';
 import { AnalyticsEvent } from '../../analytics/entities/analytics-event.entity';
 import { Role } from './entities/role.entity';
 import { AuditLog } from './entities/audit-log.entity';
+import { UserApproval } from './entities/user-approval.entity';
 
 @Module({
   imports: [
@@ -24,7 +26,9 @@ import { AuditLog } from './entities/audit-log.entity';
       AnalyticsEvent,
       Role,
       AuditLog,
+      UserApproval,
     ]),
+    ApprovalsModule,
   ],
   controllers: [AdminController, AdminUsersController, RoleController, AuditLogController],
   providers: [AdminService, AdminUsersService, RoleService, AuditLogService],

@@ -5,15 +5,18 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from '../user/entities/user.entity';
 import { UserMapping } from '../user/entities/user-mapping.entity';
 import { RefreshToken } from '../auth/entities/refresh_token.entity';
+import { UserApproval } from '../modules/admin/entities/user-approval.entity';
 import { JwtModule } from '@nestjs/jwt';
 import { AuthService } from 'src/auth/auth.service';
 import { loginLoggerMiddleware } from 'src/middleware/middleware-log/middleware.login-logger';
 import { LoginHistory } from 'src/middleware/entities/login-history.entity';
+import { EmailService } from 'src/common/services/email.service';
+import { NotificationService } from 'src/common/services/notification.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, RefreshToken, UserMapping, LoginHistory]), JwtModule],
+  imports: [TypeOrmModule.forFeature([User, RefreshToken, UserMapping, LoginHistory, UserApproval]), JwtModule],
   controllers: [LoginController],
-  providers: [LoginService, AuthService],
+  providers: [LoginService, AuthService, EmailService, NotificationService],
 })
 export class LoginModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

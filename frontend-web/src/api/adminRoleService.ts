@@ -1,4 +1,4 @@
-import { apiHelper } from '../helpers/apiHelper';
+import { get, post, put, del } from '../helpers/apiHelper';
 
 interface RoleFilters {
   page?: number;
@@ -75,7 +75,7 @@ class AdminRoleService {
       });
 
       const url = `${this.baseUrl}?${queryParams.toString()}`;
-      const response = await apiHelper.get<PaginatedResponse<Role>>(url);
+      const response = await get<PaginatedResponse<Role>>(url);
       
       return response;
     } catch (error) {
@@ -89,7 +89,7 @@ class AdminRoleService {
    */
   async getRoleById(id: number): Promise<Role> {
     try {
-      const response = await apiHelper.get<Role>(`${this.baseUrl}/${id}`);
+      const response = await get<Role>(`${this.baseUrl}/${id}`);
       return response;
     } catch (error) {
       console.error('Failed to get role by id:', error);
@@ -102,7 +102,7 @@ class AdminRoleService {
    */
   async createRole(roleData: CreateRoleRequest): Promise<Role> {
     try {
-      const response = await apiHelper.post<Role>(this.baseUrl, roleData);
+      const response = await post<Role>(this.baseUrl, roleData);
       return response;
     } catch (error) {
       console.error('Failed to create role:', error);
@@ -115,7 +115,7 @@ class AdminRoleService {
    */
   async updateRole(id: number, roleData: UpdateRoleRequest): Promise<Role> {
     try {
-      const response = await apiHelper.put<Role>(`${this.baseUrl}/${id}`, roleData);
+      const response = await put<Role>(`${this.baseUrl}/${id}`, roleData);
       return response;
     } catch (error) {
       console.error('Failed to update role:', error);
@@ -128,7 +128,7 @@ class AdminRoleService {
    */
   async deleteRole(id: number): Promise<void> {
     try {
-      await apiHelper.delete(`${this.baseUrl}/${id}`);
+      await del(`${this.baseUrl}/${id}`);
     } catch (error) {
       console.error('Failed to delete role:', error);
       throw new Error('역할 삭제에 실패했습니다.');
@@ -140,7 +140,7 @@ class AdminRoleService {
    */
   async getAvailablePermissions(): Promise<AvailablePermissions> {
     try {
-      const response = await apiHelper.get<AvailablePermissions>(`${this.baseUrl}/permissions`);
+      const response = await get<AvailablePermissions>(`${this.baseUrl}/permissions`);
       return response;
     } catch (error) {
       console.error('Failed to get available permissions:', error);
@@ -153,7 +153,7 @@ class AdminRoleService {
    */
   async initializeDefaultRoles(): Promise<void> {
     try {
-      await apiHelper.post(`${this.baseUrl}/initialize-defaults`, {});
+      await post(`${this.baseUrl}/initialize-defaults`, {});
     } catch (error) {
       console.error('Failed to initialize default roles:', error);
       throw new Error('기본 역할 초기화에 실패했습니다.');
