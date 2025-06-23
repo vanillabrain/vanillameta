@@ -325,6 +325,15 @@ describe('DashboardCacheService', () => {
           missRate: 0.15,
           evictionCount: 5,
           createdAt: Date.now(),
+          evictions: [],
+          memoryUsage: {
+            rss: 1024,
+            heapUsed: 512,
+            heapTotal: 1024,
+            external: 256,
+            arrayBuffers: 128,
+          },
+          topQueries: [],
         },
         l2Cache: {
           engine: 'redis',

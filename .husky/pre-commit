@@ -16,4 +16,33 @@ if [ "$current_branch" = "main" ]; then
     exit 1
 fi
 
+# 빌드 검증 (선택적 - 환경변수로 활성화 가능)
+if [ "$HUSKY_BUILD_CHECK" = "true" ]; then
+    echo "🔨 Running build verification..."
+    
+    # Backend build check
+    if [ -d "backend-api" ]; then
+        echo "  📦 Checking backend build..."
+        cd backend-api && yarn build > /dev/null 2>&1
+        if [ $? -ne 0 ]; then
+            echo "  ❌ Backend build failed! Please fix build errors before committing."
+            exit 1
+        fi
+        cd ..
+    fi
+    
+    # Frontend build check
+    if [ -d "frontend-web" ]; then
+        echo "  📦 Checking frontend build..."
+        cd frontend-web && yarn build > /dev/null 2>&1
+        if [ $? -ne 0 ]; then
+            echo "  ❌ Frontend build failed! Please fix build errors before committing."
+            exit 1
+        fi
+        cd ..
+    fi
+    
+    echo "  ✅ Build verification passed."
+fi
+
 echo "✅ Pre-commit validation passed."

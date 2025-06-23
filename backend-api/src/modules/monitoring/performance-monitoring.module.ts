@@ -6,7 +6,7 @@ import { PerformanceMetricsService } from '../../common/services/performance-met
 import { CloudWatchIntegrationService } from '../../common/services/cloudwatch-integration.service';
 import { XRayIntegrationService } from '../../common/services/xray-integration.service';
 import { SLOTrackingService } from '../../common/services/slo-tracking.service';
-import { Redis } from 'ioredis';
+import Redis from 'ioredis';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 

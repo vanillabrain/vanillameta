@@ -554,6 +554,7 @@ describe('DashboardService', () => {
           expect(result.status).toBe(ResponseStatus.SUCCESS);
           // XSS patterns should be stored but escaped when rendered
           expect(result.data.title).toBe(xssPattern);
+          // result.data.layout은 이미 파싱된 배열이므로 직접 사용
           const layout = result.data.layout as any[];
           expect(layout[0].i).toBe(xssPattern);
         }

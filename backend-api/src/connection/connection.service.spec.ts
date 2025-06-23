@@ -535,7 +535,7 @@ describe('ConnectionService', () => {
       const result = await service.testConnection(mockCreateDatabaseDto);
 
       expect(result.status).toBe(ResponseStatus.ERROR);
-      expect(result.message).toBe('Access denied');
+      expect(result.message).toBe('데이터베이스 연결 테스트에 실패했습니다.');
       expect(mockKnex.destroy).toHaveBeenCalled();
       expect(logger.error).toHaveBeenCalledWith(
         'Database connection test failed',
