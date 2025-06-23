@@ -25,6 +25,21 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
     {
       provide: 'REDIS_CLIENT',
       useFactory: (configService: ConfigService) => {
+        const nodeEnv = configService.get<string>('NODE_ENV');
+        
+        // 로컬 환경에서는 Redis Mock 사용
+        if (nodeEnv === 'local') {
+          return {
+            get: () => Promise.resolve(null),
+            set: () => Promise.resolve('OK'),
+            del: () => Promise.resolve(1),
+            incr: () => Promise.resolve(1),
+            expire: () => Promise.resolve(1),
+            exists: () => Promise.resolve(0),
+            quit: () => Promise.resolve('OK'),
+          };
+        }
+        
         const redis = new Redis({
           host: configService.get<string>('REDIS_HOST', 'localhost'),
           port: configService.get<number>('REDIS_PORT', 6379),

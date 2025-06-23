@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { CacheModule } from '@nestjs/cache-manager';
 import { ApprovalsController } from './approvals.controller';
 import { ApprovalsService } from './approvals.service';
 import { User } from '../../../user/entities/user.entity';
@@ -13,6 +14,7 @@ import { AuditLog } from '../entities/audit-log.entity';
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, UserApproval, Role, AuditLog]),
+    CacheModule.register(),
   ],
   controllers: [ApprovalsController],
   providers: [

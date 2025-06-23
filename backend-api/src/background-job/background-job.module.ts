@@ -17,33 +17,36 @@ import { ScheduleModule } from '@nestjs/schedule';
 @Module({
   imports: [
     TypeOrmModule.forFeature([BackgroundJob, JobResult]),
-    BullModule.registerQueueAsync({
-      name: 'query-execution',
-      imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => {
-        const nodeEnv = configService.get<string>('NODE_ENV') || 'local';
+    // 로컬 환경에서는 BullModule 비활성화
+    ...((process.env.NODE_ENV !== 'local') ? [
+      BullModule.registerQueueAsync({
+        name: 'query-execution',
+        imports: [ConfigModule],
+        useFactory: async (configService: ConfigService) => {
+          const nodeEnv = configService.get<string>('NODE_ENV') || 'local';
 
-        // Lambda 환경에서는 SQS 사용을 권장하지만, 현재는 Bull 사용
-        return {
-          redis: {
-            host: configService.get<string>('REDIS_HOST') || 'localhost',
-            port: configService.get<number>('REDIS_PORT') || 6379,
-            password: configService.get<string>('REDIS_PASSWORD'),
-            db: configService.get<number>('REDIS_DB') || 0,
-          },
-          defaultJobOptions: {
-            removeOnComplete: false, // 완료된 작업 보존
-            removeOnFail: false, // 실패한 작업 보존
-            attempts: 3, // 최대 재시도 횟수
-            backoff: {
-              type: 'exponential',
-              delay: 2000, // 2초부터 시작
+          // Lambda 환경에서는 SQS 사용을 권장하지만, 현재는 Bull 사용
+          return {
+            redis: {
+              host: configService.get<string>('REDIS_HOST') || 'localhost',
+              port: configService.get<number>('REDIS_PORT') || 6379,
+              password: configService.get<string>('REDIS_PASSWORD'),
+              db: configService.get<number>('REDIS_DB') || 0,
             },
-          },
-        };
-      },
-      inject: [ConfigService],
-    }),
+            defaultJobOptions: {
+              removeOnComplete: false, // 완료된 작업 보존
+              removeOnFail: false, // 실패한 작업 보존
+              attempts: 3, // 최대 재시도 횟수
+              backoff: {
+                type: 'exponential',
+                delay: 2000, // 2초부터 시작
+              },
+            },
+          };
+        },
+        inject: [ConfigService],
+      })
+    ] : []),
     DatasetModule,
     DatabaseModule,
     ConnectionModule,
@@ -51,7 +54,21 @@ import { ScheduleModule } from '@nestjs/schedule';
     ScheduleModule.forRoot(),
   ],
   controllers: [BackgroundJobController],
-  providers: [BackgroundJobService, QueryJobProcessor, BackgroundJobScheduler],
+  providers: [
+    BackgroundJobService, 
+    QueryJobProcessor, 
+    BackgroundJobScheduler,
+    // 로컬 환경에서는 목 큐 프로바이더 제공
+    ...(process.env.NODE_ENV === 'local' ? [{
+      provide: 'BullQueue_query-execution',
+      useValue: {
+        add: async () => ({ id: 'mock-job-id' }),
+        getJob: async () => ({
+          remove: async () => undefined,
+        }),
+      },
+    }] : []),
+  ],
   exports: [BackgroundJobService],
 })
 export class BackgroundJobModule {}

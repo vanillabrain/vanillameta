@@ -113,6 +113,12 @@ async function bootstrap() {
   });
 
   await nestApp.listen(4000);
+  
+  logger.log('Application is listening on port 4000', 'Bootstrap', {
+    environment: process.env.NODE_ENV,
+    port: 4000,
+    url: 'http://localhost:4000',
+  });
 }
 
 bootstrap();

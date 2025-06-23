@@ -2187,21 +2187,33 @@
     "/v1/admin/dashboard/stats": {},
     "/v1/admin/health": {},
     "/v1/admin/users": {},
-    "/v1/admin/users/{id}": {},
-    "/v1/admin/users/{id}/status": {},
     "/v1/admin/users/stats/summary": {},
     "/v1/admin/users/pending": {},
+    "/v1/admin/users/{id}": {},
+    "/v1/admin/users/{id}/status": {},
+    "/v1/admin/users/bulk-action": {},
     "/v1/admin/users/{id}/approve": {},
     "/v1/admin/users/{id}/reject": {},
     "/v1/admin/roles": {},
-    "/v1/admin/roles/permissions": {},
+    "/v1/admin/roles/permissions/grouped": {},
     "/v1/admin/roles/{id}": {},
-    "/v1/admin/roles/initialize-defaults": {},
+    "/v1/admin/roles/{id}/permissions": {},
+    "/v1/admin/roles/{id}/users": {},
+    "/v1/admin/roles/{id}/assign-users": {},
+    "/v1/admin/roles/{id}/users/{userId}": {},
+    "/v1/admin/roles/{id}/clone": {},
+    "/v1/admin/roles/{id}/impact-analysis": {},
     "/v1/admin/audit-logs": {},
     "/v1/admin/audit-logs/stats": {},
     "/v1/admin/audit-logs/actions": {},
     "/v1/admin/audit-logs/user/{userId}": {},
     "/v1/admin/audit-logs/{id}": {},
+    "/v1/admin/approvals/pending": {},
+    "/v1/admin/approvals/stats": {},
+    "/v1/admin/approvals/{id}": {},
+    "/v1/admin/approvals/{id}/approve": {},
+    "/v1/admin/approvals/{id}/reject": {},
+    "/v1/admin/approvals/bulk-approve": {},
     "/v1/batch/jobs": {},
     "/v1/batch/jobs/{id}": {},
     "/v1/batch/jobs/{id}/chunks": {},
@@ -2805,17 +2817,28 @@
       "UpdateUserDto": {
         "type": "object",
         "properties": {
-          "userId": {
+          "name": {
             "type": "string",
-            "description": "유저Id"
-          },
-          "password": {
-            "type": "string",
-            "description": "유저password"
+            "description": "이름"
           },
           "email": {
             "type": "string",
-            "description": "유저email"
+            "description": "이메일"
+          },
+          "department": {
+            "type": "string",
+            "description": "부서"
+          },
+          "phone": {
+            "type": "string",
+            "description": "전화번호"
+          },
+          "roleIds": {
+            "description": "역할 ID 리스트",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
@@ -2824,21 +2847,36 @@
         "properties": {
           "userId": {
             "type": "string",
-            "description": "유저Id"
-          },
-          "password": {
-            "type": "string",
-            "description": "유저password"
+            "description": "사용자 고유 ID"
           },
           "email": {
             "type": "string",
-            "description": "유저email"
+            "description": "이메일"
+          },
+          "name": {
+            "type": "string",
+            "description": "이름"
+          },
+          "roleIds": {
+            "description": "역할 ID 리스트",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "department": {
+            "type": "string",
+            "description": "부서"
+          },
+          "phone": {
+            "type": "string",
+            "description": "전화번호"
           }
         },
         "required": [
           "userId",
-          "password",
-          "email"
+          "email",
+          "name"
         ]
       },
       "LoginUserDto": {
@@ -2881,6 +2919,11 @@
             "description": "사용자 이메일 주소",
             "example": "johndoe@example.com",
             "format": "email"
+          },
+          "applicationNote": {
+            "type": "string",
+            "description": "가입 신청 메모 (선택사항)",
+            "example": "데이터 분석팀에서 VanillaMeta를 사용하고자 합니다."
           }
         },
         "required": [
@@ -3026,6 +3069,27 @@
             "type": "string",
             "description": "최종 로그인 시간",
             "nullable": true
+          },
+          "avatar": {
+            "type": "string",
+            "description": "프로필 이미지 URL",
+            "nullable": true
+          },
+          "phone": {
+            "type": "string",
+            "description": "전화번호",
+            "nullable": true
+          },
+          "department": {
+            "type": "string",
+            "description": "부서",
+            "nullable": true
+          },
+          "deletedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "삭제일",
+            "nullable": true
           }
         },
         "required": [
@@ -3037,7 +3101,197 @@
           "roles",
           "createdAt",
           "updatedAt",
-          "lastLoginAt"
+          "lastLoginAt",
+          "avatar",
+          "phone",
+          "department",
+          "deletedAt"
+        ]
+      },
+      "PaginationMetaDto": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "number",
+            "description": "전체 항목 수"
+          },
+          "page": {
+            "type": "number",
+            "description": "현재 페이지"
+          },
+          "limit": {
+            "type": "number",
+            "description": "페이지당 항목 수"
+          },
+          "totalPages": {
+            "type": "number",
+            "description": "전체 페이지 수"
+          }
+        },
+        "required": [
+          "total",
+          "page",
+          "limit",
+          "totalPages"
+        ]
+      },
+      "PaginatedUsersResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "description": "사용자 목록",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserResponseDto"
+            }
+          },
+          "meta": {
+            "description": "페이지네이션 정보",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaginationMetaDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ]
+      },
+      "UserStatsDto": {
+        "type": "object",
+        "properties": {
+          "totalUsers": {
+            "type": "number",
+            "description": "전체 사용자 수"
+          },
+          "recentUsers": {
+            "type": "number",
+            "description": "최근 30일 신규 사용자 수"
+          },
+          "activeUsers": {
+            "type": "number",
+            "description": "활성 사용자 수"
+          },
+          "inactiveUsers": {
+            "type": "number",
+            "description": "비활성 사용자 수"
+          },
+          "pendingUsers": {
+            "type": "number",
+            "description": "승인 대기 사용자 수"
+          }
+        },
+        "required": [
+          "totalUsers",
+          "recentUsers",
+          "activeUsers",
+          "inactiveUsers",
+          "pendingUsers"
+        ]
+      },
+      "UserDetailDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "사용자 ID"
+          },
+          "userId": {
+            "type": "string",
+            "description": "사용자 고유 ID"
+          },
+          "email": {
+            "type": "string",
+            "description": "이메일"
+          },
+          "name": {
+            "type": "string",
+            "description": "이름"
+          },
+          "status": {
+            "type": "string",
+            "description": "상태"
+          },
+          "roles": {
+            "description": "역할 목록",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "생성일"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "수정일"
+          },
+          "lastLoginAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "최종 로그인 시간",
+            "nullable": true
+          },
+          "avatar": {
+            "type": "string",
+            "description": "프로필 이미지 URL",
+            "nullable": true
+          },
+          "phone": {
+            "type": "string",
+            "description": "전화번호",
+            "nullable": true
+          },
+          "department": {
+            "type": "string",
+            "description": "부서",
+            "nullable": true
+          },
+          "deletedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "삭제일",
+            "nullable": true
+          },
+          "emailVerifiedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "이메일 인증 시간",
+            "nullable": true
+          },
+          "createdBy": {
+            "type": "string",
+            "description": "생성자 ID",
+            "nullable": true
+          },
+          "updatedBy": {
+            "type": "string",
+            "description": "수정자 ID",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "userId",
+          "email",
+          "name",
+          "status",
+          "roles",
+          "createdAt",
+          "updatedAt",
+          "lastLoginAt",
+          "avatar",
+          "phone",
+          "department",
+          "deletedAt",
+          "emailVerifiedAt",
+          "createdBy",
+          "updatedBy"
         ]
       },
       "UpdateUserStatusDto": {
@@ -3059,12 +3313,46 @@
           "status"
         ]
       },
+      "BulkActionDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "일괄 작업 타입",
+            "enum": [
+              "activate",
+              "deactivate",
+              "delete",
+              "suspend"
+            ]
+          },
+          "userIds": {
+            "description": "대상 사용자 ID 리스트",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "action",
+          "userIds"
+        ]
+      },
       "ApproveUserDto": {
         "type": "object",
         "properties": {
-          "reason": {
+          "defaultRole": {
             "type": "string",
-            "description": "승인 사유"
+            "description": "기본 역할"
+          },
+          "welcomeMessage": {
+            "type": "string",
+            "description": "환영 메시지"
+          },
+          "reviewNote": {
+            "type": "string",
+            "description": "검토 메모"
           }
         }
       },
@@ -3074,10 +3362,20 @@
           "reason": {
             "type": "string",
             "description": "거부 사유"
+          },
+          "reviewNote": {
+            "type": "string",
+            "description": "검토 메모"
+          },
+          "deleteAccount": {
+            "type": "boolean",
+            "description": "계정 삭제 여부",
+            "default": false
           }
         },
         "required": [
-          "reason"
+          "reason",
+          "deleteAccount"
         ]
       },
       "CreateRoleDto": {
@@ -3095,17 +3393,27 @@
             "type": "string",
             "description": "역할 설명"
           },
-          "permissions": {
-            "description": "권한 목록",
+          "permissionIds": {
+            "description": "권한 ID 목록",
             "type": "array",
             "items": {
               "type": "string"
             }
           },
+          "level": {
+            "type": "number",
+            "description": "권한 레벨",
+            "default": 0
+          },
           "isActive": {
             "type": "boolean",
             "description": "활성 상태",
             "default": true
+          },
+          "isDefault": {
+            "type": "boolean",
+            "description": "기본 역할 여부",
+            "default": false
           }
         },
         "required": [
@@ -3116,7 +3424,7 @@
         "type": "object",
         "properties": {
           "id": {
-            "type": "number",
+            "type": "string",
             "description": "역할 ID"
           },
           "name": {
@@ -3131,6 +3439,10 @@
             "type": "string",
             "description": "역할 설명"
           },
+          "level": {
+            "type": "number",
+            "description": "권한 레벨"
+          },
           "permissions": {
             "description": "권한 목록",
             "type": "array",
@@ -3142,9 +3454,9 @@
             "type": "boolean",
             "description": "활성 상태"
           },
-          "isSystemRole": {
+          "isDefault": {
             "type": "boolean",
-            "description": "시스템 역할 여부"
+            "description": "기본 역할 여부"
           },
           "createdAt": {
             "format": "date-time",
@@ -3162,36 +3474,25 @@
           "name",
           "displayName",
           "description",
+          "level",
           "permissions",
           "isActive",
-          "isSystemRole",
+          "isDefault",
           "createdAt",
           "updatedAt"
         ]
       },
-      "PaginatedRolesResponseDto": {
+      "RoleWithStatsDto": {
         "type": "object",
         "properties": {
-          "data": {
-            "description": "역할 목록",
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/RoleResponseDto"
-            }
+          "id": {
+            "type": "string",
+            "description": "역할 ID"
           },
-          "meta": {
-            "type": "object",
-            "description": "페이지네이션 정보"
-          }
-        },
-        "required": [
-          "data",
-          "meta"
-        ]
-      },
-      "UpdateRoleDto": {
-        "type": "object",
-        "properties": {
+          "name": {
+            "type": "string",
+            "description": "역할 이름"
+          },
           "displayName": {
             "type": "string",
             "description": "표시 이름"
@@ -3199,6 +3500,10 @@
           "description": {
             "type": "string",
             "description": "역할 설명"
+          },
+          "level": {
+            "type": "number",
+            "description": "권한 레벨"
           },
           "permissions": {
             "description": "권한 목록",
@@ -3210,8 +3515,294 @@
           "isActive": {
             "type": "boolean",
             "description": "활성 상태"
+          },
+          "isDefault": {
+            "type": "boolean",
+            "description": "기본 역할 여부"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "생성일"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "수정일"
+          },
+          "userCount": {
+            "type": "number",
+            "description": "해당 역할에 할당된 사용자 수"
+          },
+          "permissionCount": {
+            "type": "number",
+            "description": "해당 역할에 할당된 권한 수"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "displayName",
+          "description",
+          "level",
+          "permissions",
+          "isActive",
+          "isDefault",
+          "createdAt",
+          "updatedAt",
+          "userCount",
+          "permissionCount"
+        ]
+      },
+      "RoleDetailDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "역할 ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "역할 이름"
+          },
+          "displayName": {
+            "type": "string",
+            "description": "표시 이름"
+          },
+          "description": {
+            "type": "string",
+            "description": "역할 설명"
+          },
+          "level": {
+            "type": "number",
+            "description": "권한 레벨"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "활성 상태"
+          },
+          "isDefault": {
+            "type": "boolean",
+            "description": "기본 역할 여부"
+          },
+          "permissions": {
+            "description": "권한 상세 정보 목록",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "users": {
+            "description": "해당 역할을 가진 사용자 목록",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "생성일"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "수정일"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "displayName",
+          "description",
+          "level",
+          "isActive",
+          "isDefault",
+          "permissions",
+          "users",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "UpdateRoleDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "역할 이름"
+          },
+          "displayName": {
+            "type": "string",
+            "description": "표시 이름"
+          },
+          "description": {
+            "type": "string",
+            "description": "역할 설명"
+          },
+          "permissionIds": {
+            "description": "권한 ID 목록",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "level": {
+            "type": "number",
+            "description": "권한 레벨"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "활성 상태"
+          },
+          "isDefault": {
+            "type": "boolean",
+            "description": "기본 역할 여부"
           }
         }
+      },
+      "PermissionDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "권한 ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "권한 이름"
+          },
+          "displayName": {
+            "type": "string",
+            "description": "권한 표시 이름"
+          },
+          "description": {
+            "type": "string",
+            "description": "권한 설명"
+          },
+          "module": {
+            "type": "string",
+            "description": "모듈"
+          },
+          "resource": {
+            "type": "string",
+            "description": "리소스"
+          },
+          "action": {
+            "type": "string",
+            "description": "액션"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "displayName",
+          "description",
+          "module",
+          "resource",
+          "action"
+        ]
+      },
+      "UpdateRolePermissionsDto": {
+        "type": "object",
+        "properties": {
+          "permissionIds": {
+            "description": "할당할 권한 ID 목록",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "permissionIds"
+        ]
+      },
+      "AssignUsersToRoleDto": {
+        "type": "object",
+        "properties": {
+          "userIds": {
+            "description": "할당할 사용자 ID 목록",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expiresAt": {
+            "type": "string",
+            "description": "만료일 (임시 역할의 경우)"
+          }
+        },
+        "required": [
+          "userIds"
+        ]
+      },
+      "CloneRoleDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "새 역할 이름"
+          },
+          "displayName": {
+            "type": "string",
+            "description": "새 역할 표시 이름"
+          },
+          "description": {
+            "type": "string",
+            "description": "새 역할 설명"
+          },
+          "level": {
+            "type": "number",
+            "description": "새 역할 권한 레벨"
+          }
+        },
+        "required": [
+          "name",
+          "displayName"
+        ]
+      },
+      "RoleDeletionImpactDto": {
+        "type": "object",
+        "properties": {
+          "roleId": {
+            "type": "string",
+            "description": "역할 ID"
+          },
+          "roleName": {
+            "type": "string",
+            "description": "역할 이름"
+          },
+          "affectedUserCount": {
+            "type": "number",
+            "description": "영향받는 사용자 수"
+          },
+          "affectedUsers": {
+            "description": "영향받는 사용자 목록",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "canDelete": {
+            "type": "boolean",
+            "description": "삭제 가능 여부"
+          },
+          "warnings": {
+            "description": "경고 메시지 목록",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "roleId",
+          "roleName",
+          "affectedUserCount",
+          "affectedUsers",
+          "canDelete",
+          "warnings"
+        ]
       },
       "CreateAuditLogDto": {
         "type": "object",
@@ -3236,8 +3827,20 @@
             "type": "string",
             "description": "사용자 이메일"
           },
-          "details": {
+          "userName": {
             "type": "string",
+            "description": "사용자 이름"
+          },
+          "method": {
+            "type": "string",
+            "description": "HTTP 메소드"
+          },
+          "url": {
+            "type": "string",
+            "description": "요청 URL"
+          },
+          "details": {
+            "type": "object",
             "description": "상세 설명"
           },
           "metadata": {
@@ -3348,6 +3951,29 @@
         "required": [
           "data",
           "meta"
+        ]
+      },
+      "BulkApproveDto": {
+        "type": "object",
+        "properties": {
+          "approvalIds": {
+            "description": "승인할 승인 요청 ID 목록",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "defaultRole": {
+            "type": "string",
+            "description": "기본 역할"
+          },
+          "welcomeMessage": {
+            "type": "string",
+            "description": "환영 메시지"
+          }
+        },
+        "required": [
+          "approvalIds"
         ]
       },
       "CreateBatchJobDto": {

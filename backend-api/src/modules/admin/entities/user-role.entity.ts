@@ -29,7 +29,7 @@ export class UserRole {
   @JoinColumn({ name: 'roleId' })
   role: Role;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: process.env.NODE_ENV === 'local' ? 'datetime' : 'timestamp', nullable: true })
   expiresAt: Date; // 임시 역할 만료일
 
   @Column({ default: true })

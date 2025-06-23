@@ -15,8 +15,11 @@ const dataSourceOptions: DataSourceOptions = {
   password: configService.get<string>('DB_PASSWORD'),
   database: configNodeenv == 'local' ? './sqlite_data/sqlite.db' : configService.get<string>('DB_NAME'),
   entities: [__dirname + '/**/*.entity{.ts,.js}'],
-  synchronize: configNodeenv != 'prod',
+  synchronize: configNodeenv === 'local',
   logging: configNodeenv != 'prod',
+  // 로컬 환경에서는 마이그레이션 비활성화 (synchronize 사용)
+  migrations: configNodeenv === 'local' ? [] : [__dirname + '/migrations/*{.ts,.js}'],
+  migrationsRun: configNodeenv !== 'local',
   // Lambda 환경에 최적화된 연결 풀 설정
   ...(configNodeenv !== 'local' && {
     extra: {

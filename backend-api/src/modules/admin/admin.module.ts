@@ -7,6 +7,7 @@ import { AdminUsersController } from './admin-users.controller';
 import { AdminUsersService } from './admin-users.service';
 import { RoleController } from './role.controller';
 import { RoleService } from './role.service';
+import { AdminRolesService } from './admin-roles.service';
 import { AuditLogController } from './audit-log.controller';
 import { AuditLogService } from './audit-log.service';
 import { RBACService } from './rbac.service';
@@ -39,7 +40,7 @@ import { UserApproval } from './entities/user-approval.entity';
     ApprovalsModule,
   ],
   controllers: [AdminController, AdminUsersController, RoleController, AuditLogController],
-  providers: [AdminService, AdminUsersService, RoleService, AuditLogService, RBACService, PermissionGuard],
-  exports: [AdminService, AdminUsersService, RoleService, AuditLogService, RBACService, PermissionGuard],
+  providers: [AdminService, AdminUsersService, RoleService, AdminRolesService, AuditLogService, RBACService, PermissionGuard],
+  exports: [AdminService, AdminUsersService, RoleService, AdminRolesService, AuditLogService, RBACService, PermissionGuard],
 })
 export class AdminModule {}
