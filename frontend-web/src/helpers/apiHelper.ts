@@ -4,6 +4,7 @@ import { getShareToken } from '@/helpers/shareHelper';
 import authService from '@/api/authService';
 import { trackError } from '@/utils/eventTracking';
 import { trackEvent } from '@/utils/analytics';
+import { ErrorType, ErrorSeverity } from '@/components/ErrorBoundary/types';
 
 // axios 요청 설정에 metadata 추가를 위한 인터페이스 확장
 interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
@@ -26,6 +27,31 @@ const generateCorrelationId = (): string => {
     const v = c === 'x' ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
+};
+
+// 전역 에러 핸들러 타입
+type GlobalErrorHandler = (error: any, errorType: ErrorType, severity: ErrorSeverity, metadata?: Record<string, unknown>) => void;
+
+// 전역 에러 핸들러 (Error Context에서 설정됨)
+let globalErrorHandler: GlobalErrorHandler | null = null;
+
+// 전역 에러 핸들러 설정
+export const setGlobalErrorHandler = (handler: GlobalErrorHandler) => {
+  globalErrorHandler = handler;
+};
+
+// API 에러를 Error Context에 리포팅
+const reportApiError = (error: any, metadata?: Record<string, unknown>) => {
+  if (globalErrorHandler) {
+    const errorType = error.code === 'NETWORK_ERROR' ? ErrorType.NETWORK_ERROR : ErrorType.API_ERROR;
+    const severity = error.response?.status >= 500 ? ErrorSeverity.HIGH : ErrorSeverity.MEDIUM;
+    
+    globalErrorHandler(error, errorType, severity, {
+      ...metadata,
+      apiContext: true,
+      timestamp: Date.now(),
+    });
+  }
 };
 
 // apply base url for axios
@@ -239,6 +265,16 @@ instance.interceptors.response.use(
 
         // 이벤트 추적 시스템으로 에러 전송
         trackError('api', `${perfData.method} ${perfData.url} - Status: ${perfData.status}`, {
+          method: perfData.method,
+          url: perfData.url,
+          status: perfData.status,
+          duration: duration,
+          correlationId: perfData.correlationId,
+          errorMessage: errorResponse?.data?.message || error.message,
+        });
+
+        // 전역 에러 핸들러로 에러 리포팅
+        reportApiError(error, {
           method: perfData.method,
           url: perfData.url,
           status: perfData.status,

@@ -1,10 +1,12 @@
 import React, { Component, ReactNode, ErrorInfo } from 'react';
 import { Box, Button, Typography, Alert } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import { ErrorType, ErrorSeverity, ErrorInfo as CustomErrorInfo } from './types';
 
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
+  onError?: (error: Error, errorInfo: CustomErrorInfo) => void;
 }
 
 interface State {
@@ -24,9 +26,37 @@ export default class ChartErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    // 커스텀 에러 정보 생성
+    const customErrorInfo: CustomErrorInfo = {
+      type: ErrorType.CHART_RENDER_ERROR,
+      severity: ErrorSeverity.MEDIUM,
+      message: error.message,
+      stack: error.stack,
+      componentStack: errorInfo.componentStack,
+      timestamp: Date.now(),
+      url: window.location.href,
+      userAgent: navigator.userAgent,
+      metadata: {
+        componentName: 'ChartErrorBoundary',
+        chartContext: true,
+      },
+    };
+
+    // 에러 리포팅
+    if (this.props.onError) {
+      this.props.onError(error, customErrorInfo);
+    }
+
     // Log error to console in development
     if (process.env.NODE_ENV === 'development') {
       console.error('ChartErrorBoundary caught an error:', error, errorInfo);
+      console.error('Custom error info:', customErrorInfo);
+    }
+
+    // 프로덕션 환경에서 에러 리포팅
+    if (process.env.NODE_ENV === 'production') {
+      // TODO: 에러 리포팅 서비스로 전송
+      console.log('Chart error would be reported:', customErrorInfo);
     }
   }
 

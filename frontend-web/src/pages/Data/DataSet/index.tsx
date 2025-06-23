@@ -6,7 +6,7 @@ import SubmitButton from '@/components/button/SubmitButton';
 import ConfirmCancelButton from '@/components/button/ConfirmCancelButton';
 // AceEditor 레이지 로딩
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-expect-error - AceEditor의 타입 정의가 동적 import와 호환되지 않음
+// @ts-ignore - AceEditor의 타입 정의가 동적 import와 호환되지 않음
 const AceEditor = lazy(() =>
   import('react-ace').then(async ace => {
     // 필요한 모듈들도 함께 로드

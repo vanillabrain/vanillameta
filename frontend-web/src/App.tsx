@@ -4,6 +4,8 @@ import Router from './router';
 import Seo from '@/seo/Seo';
 import { setupIdlePreloading, setupPreloadObserver } from '@/utils/preloadComponents';
 import { ChartProvider } from '@/contexts/ChartContext';
+import { ErrorProvider } from '@/contexts/ErrorContext';
+import { GlobalErrorBoundary } from '@/components/ErrorBoundary';
 import ServiceWorkerUpdatePrompt from '@/components/ServiceWorkerUpdatePrompt';
 import { initializeGA, eventTracker } from '@/utils/analytics';
 
@@ -40,9 +42,13 @@ function App() {
     <>
       <Seo />
       <CssBaseline />
-      <ChartProvider>
-        <Router />
-      </ChartProvider>
+      <ErrorProvider>
+        <GlobalErrorBoundary level="global">
+          <ChartProvider>
+            <Router />
+          </ChartProvider>
+        </GlobalErrorBoundary>
+      </ErrorProvider>
       <ServiceWorkerUpdatePrompt />
     </>
   );
