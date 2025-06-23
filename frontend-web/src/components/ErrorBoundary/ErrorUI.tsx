@@ -6,7 +6,6 @@ import {
   Alert,
   Stack,
   Collapse,
-  IconButton,
   Paper,
   Chip,
 } from '@mui/material';
@@ -20,7 +19,6 @@ import {
 import { ErrorUIProps, ErrorType, ErrorSeverity } from './types';
 
 const ErrorUI: React.FC<ErrorUIProps> = ({
-  error,
   errorInfo,
   onRetry,
   onReload,

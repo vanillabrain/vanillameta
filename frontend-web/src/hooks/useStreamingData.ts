@@ -59,7 +59,7 @@ export const useStreamingData = (options?: UseStreamingDataOptions) => {
   const startStreaming = useCallback(
     async (datasetId: string) => {
       // 이전 스트리밍 중단
-      if (abortControllerRef.current) {
+      if (abortControllerRef.current && typeof abortControllerRef.current.abort === 'function') {
         abortControllerRef.current.abort();
       }
 
@@ -160,7 +160,7 @@ export const useStreamingData = (options?: UseStreamingDataOptions) => {
   // 컴포넌트 언마운트 시 정리
   useEffect(() => {
     return () => {
-      if (abortControllerRef.current) {
+      if (abortControllerRef.current && typeof abortControllerRef.current.abort === 'function') {
         abortControllerRef.current.abort();
       }
       if (updateTimeoutRef.current) {

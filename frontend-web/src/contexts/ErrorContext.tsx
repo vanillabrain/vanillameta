@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, ReactNode, useEffect } from 'react';
+import { createContext, useContext, useReducer, ReactNode, useEffect } from 'react';
 import { ErrorInfo, ErrorSeverity, ErrorType } from '@/components/ErrorBoundary/types';
 import { setGlobalErrorHandler } from '@/helpers/apiHelper';
 
@@ -77,9 +77,9 @@ interface ErrorProviderProps {
 export function ErrorProvider({ children }: ErrorProviderProps) {
   const [state, dispatch] = useReducer(errorReducer, initialState);
 
-  const generateErrorId = (error: ErrorInfo): string => {
-    return `${error.timestamp}-${error.type}`;
-  };
+  // const generateErrorId = (error: ErrorInfo): string => {
+  //   return `${error.timestamp}-${error.type}`;
+  // };
 
   const reportError = (
     error: Error,
