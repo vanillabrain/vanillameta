@@ -140,19 +140,16 @@ export class ApprovalsService {
 
     // 감사 로그 기록
     await this.auditLogService.createAuditLog({
-      action: AUDIT_ACTIONS.USER_UPDATE,
-      entityType: 'User',
-      entityId: approval.userId,
+      action: AUDIT_ACTIONS.USER_APPROVED,
+      resourceType: 'User',
+      resourceId: approval.userId,
       userId: reviewer.id.toString(),
       userEmail: reviewer.email,
       userName: reviewer.name,
-      method: 'POST',
-      url: `/admin/approvals/${approvalId}/approve`,
       details: {
         reviewNote: approveDto.reviewNote,
         defaultRole: approveDto.defaultRole,
       },
-      status: 'success',
     });
   }
 
@@ -194,19 +191,16 @@ export class ApprovalsService {
 
     // 감사 로그 기록
     await this.auditLogService.createAuditLog({
-      action: AUDIT_ACTIONS.USER_UPDATE,
-      entityType: 'User',
-      entityId: approval.userId,
+      action: AUDIT_ACTIONS.USER_REJECTED,
+      resourceType: 'User',
+      resourceId: approval.userId,
       userId: reviewer.id.toString(),
       userEmail: reviewer.email,
       userName: reviewer.name,
-      method: 'POST',
-      url: `/admin/approvals/${approvalId}/reject`,
       details: {
         reason: rejectDto.reason,
         deleteAccount: rejectDto.deleteAccount,
       },
-      status: 'success',
     });
   }
 

@@ -118,12 +118,12 @@ export class AdminRolesService {
     // 감사 로그 기록
     await this.auditLogService.createAuditLog({
       action: 'ROLE_CREATED',
-      entityType: 'role',
-      entityId: savedRole.id,
+      resourceType: 'role',
+      resourceId: savedRole.id,
       userId: creator.id.toString(),
       userEmail: creator.email,
-      details: `새 역할 생성: ${savedRole.name}`,
-      metadata: {
+      details: { 
+        message: `새 역할 생성: ${savedRole.name}`,
         roleName: savedRole.name,
         permissionCount: createRoleDto.permissionIds?.length || 0,
       },
@@ -161,12 +161,12 @@ export class AdminRolesService {
     // 감사 로그 기록
     await this.auditLogService.createAuditLog({
       action: 'ROLE_UPDATED',
-      entityType: 'role',
-      entityId: id,
+      resourceType: 'role',
+      resourceId: id,
       userId: updater.id.toString(),
       userEmail: updater.email,
-      details: `역할 업데이트: ${role.name}`,
-      metadata: {
+      details: { 
+        message: `역할 업데이트: ${role.name}`,
         oldData: {
           displayName: oldData.displayName,
           description: oldData.description,
@@ -217,12 +217,12 @@ export class AdminRolesService {
     // 감사 로그 기록
     await this.auditLogService.createAuditLog({
       action: 'ROLE_PERMISSIONS_UPDATED',
-      entityType: 'role',
-      entityId: roleId,
+      resourceType: 'role',
+      resourceId: roleId,
       userId: updater.id.toString(),
       userEmail: updater.email,
-      details: `역할 권한 업데이트: ${role.name}`,
-      metadata: {
+      details: { 
+        message: `역할 권한 업데이트: ${role.name}`,
         oldPermissionIds,
         newPermissionIds: updatePermissionsDto.permissionIds,
         affectedUserCount: usersWithRole.length,
@@ -314,12 +314,12 @@ export class AdminRolesService {
     // 감사 로그 기록
     await this.auditLogService.createAuditLog({
       action: 'USERS_ASSIGNED_TO_ROLE',
-      entityType: 'role',
-      entityId: roleId,
+      resourceType: 'role',
+      resourceId: roleId,
       userId: assigner.id.toString(),
       userEmail: assigner.email,
-      details: `사용자 역할 할당: ${role.name}`,
-      metadata: {
+      details: { 
+        message: `사용자 역할 할당: ${role.name}`,
         roleName: role.name,
         assignedUserIds: assignUsersDto.userIds,
         expiresAt: assignUsersDto.expiresAt,
@@ -345,12 +345,12 @@ export class AdminRolesService {
     // 감사 로그 기록
     await this.auditLogService.createAuditLog({
       action: 'USER_REMOVED_FROM_ROLE',
-      entityType: 'role',
-      entityId: roleId,
+      resourceType: 'role',
+      resourceId: roleId,
       userId: remover.id.toString(),
       userEmail: remover.email,
-      details: `사용자 역할 제거`,
-      metadata: {
+      details: { 
+        message: `사용자 역할 제거`,
         removedUserId: userId,
       },
     });
@@ -403,12 +403,12 @@ export class AdminRolesService {
     // 감사 로그 기록
     await this.auditLogService.createAuditLog({
       action: 'ROLE_CLONED',
-      entityType: 'role',
-      entityId: savedRole.id,
+      resourceType: 'role',
+      resourceId: savedRole.id,
       userId: creator.id.toString(),
       userEmail: creator.email,
-      details: `역할 복사: ${sourceRole.name} -> ${savedRole.name}`,
-      metadata: {
+      details: { 
+        message: `역할 복사: ${sourceRole.name} -> ${savedRole.name}`,
         sourceRoleId,
         sourceRoleName: sourceRole.name,
         newRoleName: savedRole.name,
@@ -460,12 +460,12 @@ export class AdminRolesService {
     // 감사 로그 기록
     await this.auditLogService.createAuditLog({
       action: 'ROLE_DELETED',
-      entityType: 'role',
-      entityId: id,
+      resourceType: 'role',
+      resourceId: id,
       userId: deleter.id.toString(),
       userEmail: deleter.email,
-      details: `역할 삭제: ${role.name}`,
-      metadata: {
+      details: { 
+        message: `역할 삭제: ${role.name}`,
         roleName: role.name,
       },
     });

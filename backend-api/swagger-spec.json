@@ -2203,11 +2203,12 @@
     "/v1/admin/roles/{id}/users/{userId}": {},
     "/v1/admin/roles/{id}/clone": {},
     "/v1/admin/roles/{id}/impact-analysis": {},
-    "/v1/admin/audit-logs": {},
-    "/v1/admin/audit-logs/stats": {},
-    "/v1/admin/audit-logs/actions": {},
-    "/v1/admin/audit-logs/user/{userId}": {},
-    "/v1/admin/audit-logs/{id}": {},
+    "/v1/admin/audit/logs": {},
+    "/v1/admin/audit/logs/{id}": {},
+    "/v1/admin/audit/statistics": {},
+    "/v1/admin/audit/export": {},
+    "/v1/admin/audit/actions": {},
+    "/v1/admin/audit/resource-types": {},
     "/v1/admin/approvals/pending": {},
     "/v1/admin/approvals/stats": {},
     "/v1/admin/approvals/{id}": {},
@@ -3804,101 +3805,48 @@
           "warnings"
         ]
       },
-      "CreateAuditLogDto": {
-        "type": "object",
-        "properties": {
-          "action": {
-            "type": "string",
-            "description": "수행된 작업"
-          },
-          "entityType": {
-            "type": "string",
-            "description": "대상 엔티티 타입"
-          },
-          "entityId": {
-            "type": "string",
-            "description": "대상 엔티티 ID"
-          },
-          "userId": {
-            "type": "string",
-            "description": "사용자 ID"
-          },
-          "userEmail": {
-            "type": "string",
-            "description": "사용자 이메일"
-          },
-          "userName": {
-            "type": "string",
-            "description": "사용자 이름"
-          },
-          "method": {
-            "type": "string",
-            "description": "HTTP 메소드"
-          },
-          "url": {
-            "type": "string",
-            "description": "요청 URL"
-          },
-          "details": {
-            "type": "object",
-            "description": "상세 설명"
-          },
-          "metadata": {
-            "type": "object",
-            "description": "메타데이터"
-          },
-          "ipAddress": {
-            "type": "string",
-            "description": "IP 주소"
-          },
-          "userAgent": {
-            "type": "string",
-            "description": "User Agent"
-          },
-          "status": {
-            "type": "string",
-            "description": "상태",
-            "default": "success"
-          }
-        },
-        "required": [
-          "action"
-        ]
-      },
       "AuditLogResponseDto": {
         "type": "object",
         "properties": {
           "id": {
-            "type": "number",
+            "type": "string",
             "description": "로그 ID"
           },
           "action": {
             "type": "string",
             "description": "수행된 작업"
           },
-          "entityType": {
+          "resourceType": {
             "type": "string",
-            "description": "대상 엔티티 타입"
+            "description": "리소스 타입"
           },
-          "entityId": {
+          "resourceId": {
             "type": "string",
-            "description": "대상 엔티티 ID"
+            "description": "리소스 ID"
           },
           "userId": {
             "type": "string",
             "description": "사용자 ID"
+          },
+          "userName": {
+            "type": "string",
+            "description": "사용자 이름"
           },
           "userEmail": {
             "type": "string",
             "description": "사용자 이메일"
           },
           "details": {
-            "type": "string",
-            "description": "상세 설명"
-          },
-          "metadata": {
             "type": "object",
-            "description": "메타데이터"
+            "description": "상세 정보"
+          },
+          "oldValues": {
+            "type": "object",
+            "description": "변경 전 값"
+          },
+          "newValues": {
+            "type": "object",
+            "description": "변경 후 값"
           },
           "ipAddress": {
             "type": "string",
@@ -3908,9 +3856,37 @@
             "type": "string",
             "description": "User Agent"
           },
-          "status": {
+          "level": {
             "type": "string",
-            "description": "상태"
+            "description": "로그 레벨",
+            "enum": [
+              "debug",
+              "info",
+              "warn",
+              "error",
+              "critical"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "description": "로그 카테고리",
+            "enum": [
+              "authentication",
+              "authorization",
+              "user_management",
+              "role_management",
+              "data_access",
+              "system_config",
+              "general"
+            ]
+          },
+          "isSystem": {
+            "type": "boolean",
+            "description": "시스템 로그 여부"
+          },
+          "isSensitive": {
+            "type": "boolean",
+            "description": "민감한 정보 포함 여부"
           },
           "createdAt": {
             "format": "date-time",
@@ -3921,15 +3897,18 @@
         "required": [
           "id",
           "action",
-          "entityType",
-          "entityId",
+          "resourceType",
+          "resourceId",
           "userId",
+          "userName",
           "userEmail",
           "details",
-          "metadata",
           "ipAddress",
           "userAgent",
-          "status",
+          "level",
+          "category",
+          "isSystem",
+          "isSensitive",
           "createdAt"
         ]
       },
@@ -3951,6 +3930,167 @@
         "required": [
           "data",
           "meta"
+        ]
+      },
+      "AuditLogDetailDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "로그 ID"
+          },
+          "action": {
+            "type": "string",
+            "description": "수행된 작업"
+          },
+          "resourceType": {
+            "type": "string",
+            "description": "리소스 타입"
+          },
+          "resourceId": {
+            "type": "string",
+            "description": "리소스 ID"
+          },
+          "userId": {
+            "type": "string",
+            "description": "사용자 ID"
+          },
+          "userName": {
+            "type": "string",
+            "description": "사용자 이름"
+          },
+          "userEmail": {
+            "type": "string",
+            "description": "사용자 이메일"
+          },
+          "details": {
+            "type": "object",
+            "description": "상세 정보"
+          },
+          "oldValues": {
+            "type": "object",
+            "description": "변경 전 값"
+          },
+          "newValues": {
+            "type": "object",
+            "description": "변경 후 값"
+          },
+          "ipAddress": {
+            "type": "string",
+            "description": "IP 주소"
+          },
+          "userAgent": {
+            "type": "string",
+            "description": "User Agent"
+          },
+          "level": {
+            "type": "string",
+            "description": "로그 레벨",
+            "enum": [
+              "debug",
+              "info",
+              "warn",
+              "error",
+              "critical"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "description": "로그 카테고리",
+            "enum": [
+              "authentication",
+              "authorization",
+              "user_management",
+              "role_management",
+              "data_access",
+              "system_config",
+              "general"
+            ]
+          },
+          "isSystem": {
+            "type": "boolean",
+            "description": "시스템 로그 여부"
+          },
+          "isSensitive": {
+            "type": "boolean",
+            "description": "민감한 정보 포함 여부"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "생성일"
+          },
+          "user": {
+            "type": "object",
+            "description": "사용자 정보"
+          }
+        },
+        "required": [
+          "id",
+          "action",
+          "resourceType",
+          "resourceId",
+          "userId",
+          "userName",
+          "userEmail",
+          "details",
+          "ipAddress",
+          "userAgent",
+          "level",
+          "category",
+          "isSystem",
+          "isSensitive",
+          "createdAt"
+        ]
+      },
+      "AuditLogStatsDto": {
+        "type": "object",
+        "properties": {
+          "totalLogs": {
+            "type": "number",
+            "description": "전체 로그 수"
+          },
+          "loginAttempts": {
+            "type": "number",
+            "description": "로그인 시도 수"
+          },
+          "failedLogins": {
+            "type": "number",
+            "description": "실패한 로그인 수"
+          },
+          "userActions": {
+            "type": "number",
+            "description": "사용자 액션 수"
+          },
+          "systemActions": {
+            "type": "number",
+            "description": "시스템 액션 수"
+          },
+          "categoryBreakdown": {
+            "type": "object",
+            "description": "카테고리별 분석"
+          },
+          "levelBreakdown": {
+            "type": "object",
+            "description": "레벨별 분석"
+          },
+          "hourlyActivity": {
+            "description": "시간대별 활동",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "totalLogs",
+          "loginAttempts",
+          "failedLogins",
+          "userActions",
+          "systemActions",
+          "categoryBreakdown",
+          "levelBreakdown",
+          "hourlyActivity"
         ]
       },
       "BulkApproveDto": {

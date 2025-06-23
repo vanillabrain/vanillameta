@@ -1,98 +1,142 @@
-import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, UseGuards, Res } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { Response } from 'express';
 import { AuditLogService } from './audit-log.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { PermissionGuard } from './guards/permission.guard';
+import { RequirePermissions } from './decorators/permissions.decorator';
 import { 
   CreateAuditLogDto, 
-  GetAuditLogsQueryDto, 
+  GetAuditLogsQueryDto,
+  GetAuditStatsQueryDto,
+  ExportAuditLogsDto,
   AuditLogResponseDto,
+  AuditLogDetailDto,
+  AuditLogStatsDto,
   PaginatedAuditLogsResponseDto 
 } from './dto/audit-log.dto';
+import { PaginatedResponseDto } from '../../common/dto/paginated-response.dto';
 
-@ApiTags('Admin Audit Logs')
-@Controller('admin/audit-logs')
-@UseGuards(JwtAuthGuard)
+@ApiTags('Admin - Audit Logs')
+@Controller('admin/audit')
+@UseGuards(JwtAuthGuard, PermissionGuard)
 @ApiBearerAuth()
 export class AuditLogController {
   constructor(private readonly auditLogService: AuditLogService) {}
 
-  @Post()
+  @Get('logs')
+  @RequirePermissions('admin.audit.view')
   @ApiOperation({ 
-    summary: 'Create audit log',
-    description: '새로운 감사 로그를 생성합니다.'
-  })
-  @ApiResponse({ 
-    status: 201, 
-    description: '감사 로그 생성 성공'
-  })
-  async createAuditLog(@Body() createAuditLogDto: CreateAuditLogDto) {
-    return await this.auditLogService.createAuditLog(createAuditLogDto);
-  }
-
-  @Get()
-  @ApiOperation({ 
-    summary: 'Get all audit logs',
-    description: '모든 감사 로그 목록을 조회합니다.'
+    summary: '감사 로그 목록 조회',
+    description: '필터링 및 페이지네이션이 적용된 감사 로그 목록을 조회합니다.'
   })
   @ApiResponse({ 
     status: 200, 
     description: '감사 로그 목록 조회 성공',
     type: PaginatedAuditLogsResponseDto
   })
-  async getAuditLogs(@Query() query: GetAuditLogsQueryDto) {
-    return await this.auditLogService.getAuditLogs(query);
+  async getLogs(
+    @Query() query: GetAuditLogsQueryDto,
+  ): Promise<PaginatedResponseDto<AuditLogResponseDto>> {
+    return this.auditLogService.getLogs(query);
   }
 
-  @Get('stats')
+  @Get('logs/:id')
+  @RequirePermissions('admin.audit.view')
   @ApiOperation({ 
-    summary: 'Get audit log statistics',
-    description: '감사 로그 통계 정보를 조회합니다.'
-  })
-  async getAuditLogStats() {
-    return await this.auditLogService.getAuditLogStats();
-  }
-
-  @Get('actions')
-  @ApiOperation({ 
-    summary: 'Get available actions',
-    description: '사용 가능한 감사 로그 액션 목록을 조회합니다.'
-  })
-  async getAvailableActions() {
-    return await this.auditLogService.getAvailableActions();
-  }
-
-  @Get('user/:userId')
-  @ApiOperation({ 
-    summary: 'Get user audit logs',
-    description: '특정 사용자의 감사 로그를 조회합니다.'
+    summary: '특정 감사 로그 상세 조회',
+    description: 'ID를 통해 특정 감사 로그의 상세 정보를 조회합니다.'
   })
   @ApiResponse({ 
     status: 200, 
-    description: '사용자 감사 로그 조회 성공',
-    type: [AuditLogResponseDto]
-  })
-  async getUserAuditLogs(
-    @Param('userId') userId: string,
-    @Query('limit') limit?: number
-  ) {
-    return await this.auditLogService.getUserAuditLogs(userId, limit);
-  }
-
-  @Get(':id')
-  @ApiOperation({ 
-    summary: 'Get audit log by ID',
-    description: '특정 감사 로그의 상세 정보를 조회합니다.'
-  })
-  @ApiResponse({ 
-    status: 200, 
-    description: '감사 로그 정보 조회 성공',
-    type: AuditLogResponseDto
+    description: '감사 로그 상세 정보 조회 성공',
+    type: AuditLogDetailDto
   })
   @ApiResponse({ 
     status: 404, 
     description: '감사 로그를 찾을 수 없음'
   })
-  async getAuditLogById(@Param('id') id: string) {
-    return await this.auditLogService.getAuditLogById(parseInt(id, 10));
+  async getLogById(@Param('id') id: string): Promise<AuditLogDetailDto> {
+    return this.auditLogService.getLogById(id);
+  }
+
+  @Get('statistics')
+  @RequirePermissions('admin.audit.view')
+  @ApiOperation({ 
+    summary: '감사 로그 통계 조회',
+    description: '지정된 기간 동안의 감사 로그 통계 정보를 조회합니다.'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: '감사 로그 통계 조회 성공',
+    type: AuditLogStatsDto
+  })
+  async getStatistics(
+    @Query() query: GetAuditStatsQueryDto,
+  ): Promise<AuditLogStatsDto> {
+    const dateRange = {
+      from: query.dateFrom ? new Date(query.dateFrom) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 기본 7일
+      to: query.dateTo ? new Date(query.dateTo) : new Date(),
+    };
+    
+    return this.auditLogService.getLogStatistics(dateRange);
+  }
+
+  @Get('export')
+  @RequirePermissions('admin.audit.export')
+  @ApiOperation({ 
+    summary: '감사 로그 내보내기',
+    description: '감사 로그를 CSV 또는 JSON 형식으로 내보냅니다.'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: '감사 로그 내보내기 성공'
+  })
+  async exportLogs(
+    @Query() query: ExportAuditLogsDto,
+    @Res() response: Response,
+  ): Promise<void> {
+    const buffer = await this.auditLogService.exportLogs(query);
+    
+    const contentType = query.format === 'json' ? 'application/json' : 'text/csv';
+    const fileExtension = query.format === 'json' ? 'json' : 'csv';
+    
+    response.setHeader('Content-Type', contentType);
+    response.setHeader(
+      'Content-Disposition',
+      `attachment; filename=audit-logs-${new Date().toISOString().split('T')[0]}.${fileExtension}`,
+    );
+    
+    response.send(buffer);
+  }
+
+  @Get('actions')
+  @RequirePermissions('admin.audit.view')
+  @ApiOperation({ 
+    summary: '사용 가능한 액션 목록 조회',
+    description: '감사 로그에서 사용 가능한 모든 액션 목록을 조회합니다.'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: '액션 목록 조회 성공',
+    type: [String]
+  })
+  async getAvailableActions(): Promise<string[]> {
+    return this.auditLogService.getAvailableActions();
+  }
+
+  @Get('resource-types')
+  @RequirePermissions('admin.audit.view')
+  @ApiOperation({ 
+    summary: '사용 가능한 리소스 타입 목록 조회',
+    description: '감사 로그에서 사용 가능한 모든 리소스 타입 목록을 조회합니다.'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: '리소스 타입 목록 조회 성공',
+    type: [String]
+  })
+  async getAvailableResourceTypes(): Promise<string[]> {
+    return this.auditLogService.getAvailableResourceTypes();
   }
 }
