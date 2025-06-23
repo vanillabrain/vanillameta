@@ -136,7 +136,7 @@ describe('JobRetryService', () => {
       jobRepository.save.mockResolvedValue({
         ...exhaustedJob,
         status: JobStatus.FAILED,
-      });
+      } as QueueJob);
 
       // Act
       await service.scheduleRetry(exhaustedJob);

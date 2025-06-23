@@ -55,7 +55,8 @@ export class RoleController {
     description: '사용 가능한 모든 권한 목록을 조회합니다.'
   })
   async getAvailablePermissions() {
-    return await this.roleService.getAvailablePermissions();
+    // TODO: Permission 엔티티에서 모든 권한 조회 로직 구현
+    return [];
   }
 
   @Get(':id')
@@ -73,7 +74,7 @@ export class RoleController {
     description: '역할을 찾을 수 없음'
   })
   async getRoleById(@Param('id') id: string) {
-    return await this.roleService.getRoleById(parseInt(id, 10));
+    return await this.roleService.getRoleById(id);
   }
 
   @Put(':id')
@@ -94,7 +95,7 @@ export class RoleController {
     @Param('id') id: string,
     @Body() updateRoleDto: UpdateRoleDto
   ) {
-    return await this.roleService.updateRole(parseInt(id, 10), updateRoleDto);
+    return await this.roleService.updateRole(id, updateRoleDto);
   }
 
   @Delete(':id')
@@ -115,16 +116,6 @@ export class RoleController {
     description: '시스템 역할은 삭제할 수 없음'
   })
   async deleteRole(@Param('id') id: string) {
-    return await this.roleService.deleteRole(parseInt(id, 10));
-  }
-
-  @Post('initialize-defaults')
-  @ApiOperation({ 
-    summary: 'Initialize default roles',
-    description: '기본 역할들을 생성합니다.'
-  })
-  async initializeDefaultRoles() {
-    await this.roleService.initializeDefaultRoles();
-    return { message: '기본 역할 생성이 완료되었습니다.' };
+    return await this.roleService.deleteRole(id);
   }
 }

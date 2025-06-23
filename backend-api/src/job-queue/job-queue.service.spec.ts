@@ -307,7 +307,7 @@ describe('JobQueueService', () => {
       };
 
       const completedJob = { ...mockJob, status: JobStatus.COMPLETED };
-      jobRepository.findOne.mockResolvedValue(completedJob);
+      jobRepository.findOne.mockResolvedValue(completedJob as any);
 
       // Act & Assert
       await expect(service.updateJobStatus('job-123', updateDto)).rejects.toThrow(
@@ -334,7 +334,7 @@ describe('JobQueueService', () => {
         getMany: jest.fn().mockResolvedValue([mockJob]),
       };
 
-      jobRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
+      jobRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder as any);
 
       // Act
       const result = await service.getJobs(queryDto, 'user-123');
@@ -360,7 +360,7 @@ describe('JobQueueService', () => {
         getMany: jest.fn().mockResolvedValue([]),
       };
 
-      jobRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
+      jobRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder as any);
 
       // Act
       await service.getJobs(queryDto, 'user-123');
@@ -401,8 +401,8 @@ describe('JobQueueService', () => {
     it('should cancel pending job', async () => {
       // Arrange
       const pendingJob = { ...mockJob, status: JobStatus.PENDING };
-      jobRepository.findOne.mockResolvedValue(pendingJob);
-      jobRepository.save.mockResolvedValue({ ...pendingJob, status: JobStatus.CANCELLED });
+      jobRepository.findOne.mockResolvedValue(pendingJob as any);
+      jobRepository.save.mockResolvedValue({ ...pendingJob, status: JobStatus.CANCELLED } as any);
       jobSchedulerService.removeJob.mockResolvedValue(undefined);
 
       // Act
@@ -415,7 +415,7 @@ describe('JobQueueService', () => {
     it('should not cancel completed job', async () => {
       // Arrange
       const completedJob = { ...mockJob, status: JobStatus.COMPLETED };
-      jobRepository.findOne.mockResolvedValue(completedJob);
+      jobRepository.findOne.mockResolvedValue(completedJob as any);
 
       // Act & Assert
       await expect(service.cancelJob('job-123', 'Cannot cancel', 'user-123')).rejects.toThrow(
@@ -436,8 +436,8 @@ describe('JobQueueService', () => {
         getOne: jest.fn().mockResolvedValue(mockJob),
       };
 
-      jobRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
-      jobRepository.save.mockResolvedValue({ ...mockJob, status: JobStatus.RUNNING });
+      jobRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder as any);
+      jobRepository.save.mockResolvedValue({ ...mockJob, status: JobStatus.RUNNING } as any);
 
       // Act
       const result = await service.getNextJob('worker-123');
@@ -460,7 +460,7 @@ describe('JobQueueService', () => {
         getOne: jest.fn().mockResolvedValue(null),
       };
 
-      jobRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
+      jobRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder as any);
 
       // Act
       const result = await service.getNextJob('worker-123');

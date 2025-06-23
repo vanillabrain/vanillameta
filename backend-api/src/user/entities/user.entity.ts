@@ -10,8 +10,10 @@ import {
   Index,
   ManyToMany,
   JoinTable,
+  OneToMany,
 } from 'typeorm';
 import { Role } from '../../modules/admin/entities/role.entity';
+import { UserRole } from '../../modules/admin/entities/user-role.entity';
 
 export enum UserStatus {
   ACTIVE = 'active',        // 활성
@@ -88,6 +90,9 @@ export class User {
     inverseJoinColumn: { name: 'roleId', referencedColumnName: 'id' },
   })
   roles: Role[];
+
+  @OneToMany(() => UserRole, (userRole) => userRole.user)
+  userRoles: UserRole[];
 
   @CreateDateColumn({ default: () => 'CURRENT_TIMESTAMP', comment: '생성일' })
   createdAt: Date;

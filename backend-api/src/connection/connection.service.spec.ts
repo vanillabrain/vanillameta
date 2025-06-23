@@ -866,6 +866,19 @@ describe('ConnectionService', () => {
             useValue: createMockService(['logSlowQuery']),
           },
           {
+            provide: DatabaseOptimizerFactory,
+            useValue: createMockService([
+              'getOptimizedConnectionConfig',
+              'isSupported',
+              'getOptimizationStats',
+              'getOptimizer',
+            ]),
+          },
+          {
+            provide: KnexQueryMonitor,
+            useValue: createMockService(['monitor', 'getMetrics', 'attachToKnex']),
+          },
+          {
             provide: REQUEST,
             useValue: null,
           },

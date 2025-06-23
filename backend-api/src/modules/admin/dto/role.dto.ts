@@ -17,19 +17,34 @@ export class CreateRoleDto {
   @IsString()
   description?: string;
 
-  @ApiProperty({ description: '권한 목록', required: false })
+  @ApiProperty({ description: '권한 ID 목록', required: false })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  permissions?: string[];
+  permissionIds?: string[];
+
+  @ApiProperty({ description: '권한 레벨', required: false, default: 0 })
+  @IsOptional()
+  @IsInt()
+  level?: number;
 
   @ApiProperty({ description: '활성 상태', required: false, default: true })
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiProperty({ description: '기본 역할 여부', required: false, default: false })
+  @IsOptional()
+  @IsBoolean()
+  isDefault?: boolean;
 }
 
 export class UpdateRoleDto {
+  @ApiProperty({ description: '역할 이름', required: false })
+  @IsOptional()
+  @IsString()
+  name?: string;
+
   @ApiProperty({ description: '표시 이름', required: false })
   @IsOptional()
   @IsString()
@@ -40,16 +55,26 @@ export class UpdateRoleDto {
   @IsString()
   description?: string;
 
-  @ApiProperty({ description: '권한 목록', required: false })
+  @ApiProperty({ description: '권한 ID 목록', required: false })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  permissions?: string[];
+  permissionIds?: string[];
+
+  @ApiProperty({ description: '권한 레벨', required: false })
+  @IsOptional()
+  @IsInt()
+  level?: number;
 
   @ApiProperty({ description: '활성 상태', required: false })
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiProperty({ description: '기본 역할 여부', required: false })
+  @IsOptional()
+  @IsBoolean()
+  isDefault?: boolean;
 }
 
 export class GetRolesQueryDto {
@@ -89,7 +114,7 @@ export class GetRolesQueryDto {
 
 export class RoleResponseDto {
   @ApiProperty({ description: '역할 ID' })
-  id: number;
+  id: string;
 
   @ApiProperty({ description: '역할 이름' })
   name: string;
@@ -100,14 +125,17 @@ export class RoleResponseDto {
   @ApiProperty({ description: '역할 설명' })
   description: string;
 
+  @ApiProperty({ description: '권한 레벨' })
+  level: number;
+
   @ApiProperty({ description: '권한 목록' })
   permissions: string[];
 
   @ApiProperty({ description: '활성 상태' })
   isActive: boolean;
 
-  @ApiProperty({ description: '시스템 역할 여부' })
-  isSystemRole: boolean;
+  @ApiProperty({ description: '기본 역할 여부' })
+  isDefault: boolean;
 
   @ApiProperty({ description: '생성일' })
   createdAt: Date;
@@ -129,39 +157,3 @@ export class PaginatedRolesResponseDto {
   };
 }
 
-// 기본 권한 정의
-export const DEFAULT_PERMISSIONS = {
-  // 사용자 관리
-  USER_READ: 'user:read',
-  USER_CREATE: 'user:create',
-  USER_UPDATE: 'user:update',
-  USER_DELETE: 'user:delete',
-  USER_APPROVE: 'user:approve',
-  
-  // 대시보드 관리
-  DASHBOARD_READ: 'dashboard:read',
-  DASHBOARD_CREATE: 'dashboard:create',
-  DASHBOARD_UPDATE: 'dashboard:update',
-  DASHBOARD_DELETE: 'dashboard:delete',
-  DASHBOARD_SHARE: 'dashboard:share',
-  
-  // 위젯 관리
-  WIDGET_READ: 'widget:read',
-  WIDGET_CREATE: 'widget:create',
-  WIDGET_UPDATE: 'widget:update',
-  WIDGET_DELETE: 'widget:delete',
-  
-  // 관리자 기능
-  ADMIN_PANEL: 'admin:panel',
-  ADMIN_USERS: 'admin:users',
-  ADMIN_ROLES: 'admin:roles',
-  ADMIN_SETTINGS: 'admin:settings',
-  ADMIN_AUDIT: 'admin:audit',
-  
-  // 시스템 관리
-  SYSTEM_CONFIG: 'system:config',
-  SYSTEM_BACKUP: 'system:backup',
-  SYSTEM_LOGS: 'system:logs',
-} as const;
-
-export type Permission = typeof DEFAULT_PERMISSIONS[keyof typeof DEFAULT_PERMISSIONS];

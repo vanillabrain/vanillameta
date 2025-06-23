@@ -208,7 +208,7 @@ describe('DashboardCacheService', () => {
         'User dashboard list cached',
         'DashboardCacheService',
         expect.objectContaining({
-          userId: 123,
+          userId: '123',
           dashboardCount: 1,
           ttl: 300,
         }),
@@ -354,7 +354,7 @@ describe('DashboardCacheService', () => {
         },
       };
 
-      hybridCacheService.getHybridStats.mockResolvedValueOnce(mockStats);
+      hybridCacheService.getHybridStats.mockResolvedValueOnce(mockStats as any);
 
       const result = await service.getCacheStats();
 
