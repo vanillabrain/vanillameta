@@ -304,7 +304,7 @@ describe('QueryCacheService', () => {
       const queryDto: QueryExecuteDto = {
         id: 1,
         query: 'SELECT * FROM users WHERE id = ?',
-        parameters: [{ type: 'number', value: '123' }],
+        parameters: [{ name: 'id', type: 'number', value: '123' }],
       };
 
       cacheManager.get.mockResolvedValue(null);
@@ -324,12 +324,12 @@ describe('QueryCacheService', () => {
       const queryDto1: QueryExecuteDto = {
         id: 1,
         query: baseQuery,
-        parameters: [{ type: 'number', value: '123' }],
+        parameters: [{ name: 'id', type: 'number', value: '123' }],
       };
       const queryDto2: QueryExecuteDto = {
         id: 1,
         query: baseQuery,
-        parameters: [{ type: 'number', value: '456' }],
+        parameters: [{ name: 'id', type: 'number', value: '456' }],
       };
 
       cacheManager.get.mockResolvedValue(null);
