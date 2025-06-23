@@ -303,7 +303,7 @@ describe('PerformanceMetricsService', () => {
 
   describe('메트릭 정리', () => {
     it('주기적으로 오래된 메트릭을 정리해야 함', async () => {
-      jest.useFakeTimers();
+      jest.useFakeTimers({ legacyFakeTimers: true });
       
       const mockKeys = [
         'metrics:request:old-1',

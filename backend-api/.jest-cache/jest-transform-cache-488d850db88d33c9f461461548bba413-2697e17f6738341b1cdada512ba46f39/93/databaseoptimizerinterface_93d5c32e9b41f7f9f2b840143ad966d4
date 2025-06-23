@@ -1,0 +1,24 @@
+d3e637e776c2bc72f30a71d3c7c1125c
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.DatabaseFeature = void 0;
+/**
+ * 데이터베이스 특화 기능 열거형
+ */
+var DatabaseFeature;
+(function (DatabaseFeature) {
+    DatabaseFeature["JSON_OPERATIONS"] = "json_operations";
+    DatabaseFeature["ARRAY_OPERATIONS"] = "array_operations";
+    DatabaseFeature["WINDOW_FUNCTIONS"] = "window_functions";
+    DatabaseFeature["CTE"] = "common_table_expressions";
+    DatabaseFeature["PARTITIONING"] = "partitioning";
+    DatabaseFeature["CLUSTERING"] = "clustering";
+    DatabaseFeature["MATERIALIZED_VIEWS"] = "materialized_views";
+    DatabaseFeature["STORED_PROCEDURES"] = "stored_procedures";
+    DatabaseFeature["FULL_TEXT_SEARCH"] = "full_text_search";
+    DatabaseFeature["GEOSPATIAL"] = "geospatial";
+    DatabaseFeature["TIME_SERIES"] = "time_series";
+    DatabaseFeature["UPSERT"] = "upsert";
+    DatabaseFeature["BULK_INSERT"] = "bulk_insert";
+    DatabaseFeature["STREAMING"] = "streaming";
+})(DatabaseFeature = exports.DatabaseFeature || (exports.DatabaseFeature = {}));

@@ -65,7 +65,7 @@ describe('CloudWatchIntegrationService', () => {
     });
 
     it('주기적으로 메트릭을 플러시해야 함', () => {
-      jest.useFakeTimers();
+      jest.useFakeTimers({ legacyFakeTimers: true });
       const flushSpy = jest.spyOn(service as any, 'flushMetrics');
       
       service.onModuleInit();

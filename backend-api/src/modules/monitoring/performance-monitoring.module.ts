@@ -1,7 +1,11 @@
 import { Module } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
 import { MonitoringController } from './monitoring.controller';
+import { SLOMonitoringController } from './slo-monitoring.controller';
 import { PerformanceMetricsService } from '../../common/services/performance-metrics.service';
 import { CloudWatchIntegrationService } from '../../common/services/cloudwatch-integration.service';
+import { XRayIntegrationService } from '../../common/services/xray-integration.service';
+import { SLOTrackingService } from '../../common/services/slo-tracking.service';
 import { Redis } from 'ioredis';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
@@ -12,8 +16,11 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
  * API 성능 모니터링 관련 컨트롤러와 서비스를 제공합니다.
  */
 @Module({
-  imports: [EventEmitterModule.forRoot()],
-  controllers: [MonitoringController],
+  imports: [
+    EventEmitterModule.forRoot(),
+    ScheduleModule.forRoot(), // SLO 추적을 위한 스케줄러 활성화
+  ],
+  controllers: [MonitoringController, SLOMonitoringController],
   providers: [
     {
       provide: 'REDIS_CLIENT',
@@ -30,10 +37,14 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
     },
     PerformanceMetricsService,
     CloudWatchIntegrationService,
+    XRayIntegrationService,
+    SLOTrackingService,
   ],
   exports: [
     PerformanceMetricsService,
     CloudWatchIntegrationService,
+    XRayIntegrationService,
+    SLOTrackingService,
   ],
 })
 export class PerformanceMonitoringModule {}

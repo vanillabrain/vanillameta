@@ -9,6 +9,8 @@ import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { Request, Response } from 'express';
 import { PerformanceMetricsService } from '../services/performance-metrics.service';
+import { XRayIntegrationService } from '../services/xray-integration.service';
+import { SLOTrackingService } from '../services/slo-tracking.service';
 
 /**
  * 성능 모니터링 인터셉터
@@ -23,6 +25,8 @@ export class PerformanceMonitoringInterceptor implements NestInterceptor {
 
   constructor(
     private readonly metricsService: PerformanceMetricsService,
+    private readonly xrayService: XRayIntegrationService,
+    private readonly sloService: SLOTrackingService,
   ) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
@@ -45,6 +49,16 @@ export class PerformanceMonitoringInterceptor implements NestInterceptor {
     // 요청 ID 생성
     const requestId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
+    // X-Ray 트레이싱 시작
+    const endpoint = this.extractEndpoint(url);
+    const xraySegment = this.xrayService.startApiTrace(endpoint, {
+      method,
+      url,
+      requestId,
+      clientIp,
+      userAgent,
+    });
+    
     // 요청 로깅
     this.logger.log({
       requestId,
@@ -53,6 +67,7 @@ export class PerformanceMonitoringInterceptor implements NestInterceptor {
       clientIp,
       userAgent,
       timestamp: new Date().toISOString(),
+      xrayTraceId: xraySegment ? 'enabled' : 'disabled',
     });
 
     return next.handle().pipe(
@@ -73,6 +88,9 @@ export class PerformanceMonitoringInterceptor implements NestInterceptor {
           // CPU 사용률 계산
           const cpuUsage = process.cpuUsage();
           
+          // 응답 크기 계산 (대략적)
+          const responseSize = this.calculateResponseSize(data);
+          
           // 동시 요청 수 감소
           this.activeRequests--;
           this.metricsService.updateActiveRequests(this.activeRequests);
@@ -81,7 +99,7 @@ export class PerformanceMonitoringInterceptor implements NestInterceptor {
           const metrics = {
             requestId,
             method,
-            endpoint: this.extractEndpoint(url),
+            endpoint,
             url,
             statusCode,
             responseTime,
@@ -94,8 +112,21 @@ export class PerformanceMonitoringInterceptor implements NestInterceptor {
           // 메트릭 서비스에 전송
           this.metricsService.recordRequestMetrics(metrics);
           
-          // 응답 크기 계산 (대략적)
-          const responseSize = this.calculateResponseSize(data);
+          // X-Ray 트레이싱에 응답 정보 추가
+          if (xraySegment) {
+            const segment = xraySegment;
+            if (segment.addAnnotation) {
+              segment.addAnnotation('response_time', responseTime);
+              segment.addAnnotation('status_code', statusCode);
+              segment.addAnnotation('response_size', responseSize);
+            }
+            this.xrayService.closeTrace(xraySegment, true);
+          }
+          
+          // SLO 메트릭 업데이트 (비동기)
+          this.updateSLOMetrics(endpoint, responseTime, statusCode).catch(error => {
+            this.logger.warn('Failed to update SLO metrics', error);
+          });
           
           // 성능 임계값 체크
           if (responseTime > 1000) {
@@ -134,7 +165,7 @@ export class PerformanceMonitoringInterceptor implements NestInterceptor {
           const metrics = {
             requestId,
             method,
-            endpoint: this.extractEndpoint(url),
+            endpoint,
             url,
             statusCode,
             responseTime,
@@ -146,6 +177,17 @@ export class PerformanceMonitoringInterceptor implements NestInterceptor {
           
           // 메트릭 서비스에 전송
           this.metricsService.recordErrorMetrics(metrics);
+          
+          // X-Ray 에러 기록
+          if (xraySegment) {
+            this.xrayService.recordError(error, xraySegment);
+            this.xrayService.closeTrace(xraySegment, false);
+          }
+          
+          // SLO 메트릭 업데이트 (에러 케이스)
+          this.updateSLOMetrics(endpoint, responseTime, statusCode).catch(sloError => {
+            this.logger.warn('Failed to update SLO metrics for error case', sloError);
+          });
           
           // 에러 로깅
           this.logger.error({
@@ -197,6 +239,27 @@ export class PerformanceMonitoringInterceptor implements NestInterceptor {
     } catch (error) {
       // 직렬화 실패 시 0 반환
       return 0;
+    }
+  }
+
+  /**
+   * SLO 메트릭 업데이트
+   * 
+   * @param endpoint - API 엔드포인트
+   * @param responseTime - 응답 시간
+   * @param statusCode - HTTP 상태 코드
+   */
+  private async updateSLOMetrics(endpoint: string, responseTime: number, statusCode: number): Promise<void> {
+    try {
+      // 대시보드 관련 엔드포인트인 경우 대시보드 로드 시간 SLO 업데이트
+      if (endpoint.includes('/dashboard')) {
+        await this.sloService.updateSLOMetric('dashboard_load_time', responseTime);
+      }
+
+      // 전체 API 응답 시간은 일별 집계에서 처리됨 (SLOTrackingService의 cron job)
+      
+    } catch (error) {
+      this.logger.warn('Failed to update specific SLO metrics', error);
     }
   }
 }

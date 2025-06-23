@@ -1,0 +1,379 @@
+36b96d2206530aefb38acfa6f886139e
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.commonTestProviders = exports.mockKnexQueryMonitor = exports.mockSlowQueryMonitorService = exports.mockQueryAnalyzerService = exports.mockQueryCollector = exports.mockEventEmitter = exports.mockDashboardWidgetService = exports.mockDashboardCacheService = exports.mockDashboardWidgetRepository = exports.mockDashboardRepository = exports.mockRequest = exports.mockDatabaseOptimizerFactory = exports.mockBusinessMetricsService = exports.mockHybridCacheService = exports.mockConnectionService = exports.mockComponentRepository = exports.mockWidgetRepository = exports.mockDatasetRepository = exports.mockDatabaseRepository = exports.mockPaginationService = exports.mockUserMappingRepository = exports.mockDashboardShareRepository = exports.mockAuthService = exports.mockUserService = exports.mockUserRepository = exports.mockSqlValidationService = exports.mockCustomLoggerService = void 0;
+const logger_service_1 = require("../../src/common/logger/logger.service");
+const sql_validation_service_1 = require("../../src/common/security/sql-validation.service");
+const typeorm_1 = require("@nestjs/typeorm");
+const user_entity_1 = require("../../src/user/entities/user.entity");
+const user_service_1 = require("../../src/user/user.service");
+const auth_service_1 = require("../../src/auth/auth.service");
+const dashboard_share_entity_1 = require("../../src/dashboard/entities/dashboard_share.entity");
+const user_mapping_entity_1 = require("../../src/user/entities/user-mapping.entity");
+const pagination_service_1 = require("../../src/common/pagination/pagination.service");
+const database_entity_1 = require("../../src/database/entities/database.entity");
+const dataset_entity_1 = require("../../src/dataset/entities/dataset.entity");
+const widget_entity_1 = require("../../src/widget/entities/widget.entity");
+const component_entity_1 = require("../../src/component/entities/component.entity");
+const connection_service_1 = require("../../src/connection/connection.service");
+const hybrid_cache_service_1 = require("../../src/common/optimization/hybrid-cache.service");
+const business_metrics_service_1 = require("../../src/common/monitoring/business-metrics.service");
+const database_optimizer_factory_1 = require("../../src/connection/optimizers/database-optimizer.factory");
+const core_1 = require("@nestjs/core");
+const dashboard_entity_1 = require("../../src/dashboard/entities/dashboard.entity");
+const dashboard_widget_entity_1 = require("../../src/dashboard/dashboard-widget/entities/dashboard-widget.entity");
+const dashboard_cache_service_1 = require("../../src/dashboard/dashboard-cache.service");
+const dashboard_widget_service_1 = require("../../src/dashboard/dashboard-widget/dashboard-widget.service");
+const event_emitter_1 = require("@nestjs/event-emitter");
+const query_collector_1 = require("../../src/common/utils/query-collector");
+const query_analyzer_service_1 = require("../../src/common/monitoring/query-analyzer.service");
+const slow_query_monitor_service_1 = require("../../src/common/monitoring/slow-query-monitor.service");
+const knex_query_monitor_1 = require("../../src/common/monitoring/knex-query-monitor");
+// Mock CustomLoggerService
+exports.mockCustomLoggerService = {
+    provide: logger_service_1.CustomLoggerService,
+    useValue: {
+        error: jest.fn(),
+        warn: jest.fn(),
+        log: jest.fn(),
+        debug: jest.fn(),
+        verbose: jest.fn(),
+    },
+};
+// Mock SqlValidationService
+exports.mockSqlValidationService = {
+    provide: sql_validation_service_1.SqlValidationService,
+    useValue: {
+        validate: jest.fn().mockReturnValue(true),
+        validateQuery: jest.fn().mockReturnValue(true),
+        validateDatabaseName: jest.fn().mockReturnValue(true),
+        validateTableName: jest.fn().mockReturnValue(true),
+    },
+};
+// Mock UserRepository
+exports.mockUserRepository = {
+    provide: (0, typeorm_1.getRepositoryToken)(user_entity_1.User),
+    useValue: {
+        findOne: jest.fn(),
+        find: jest.fn(),
+        save: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+    },
+};
+// Mock UserService
+exports.mockUserService = {
+    provide: user_service_1.UserService,
+    useValue: {
+        findByEmailAndCompanyId: jest.fn(),
+        create: jest.fn(),
+        findAll: jest.fn(),
+        findOne: jest.fn(),
+        update: jest.fn(),
+        remove: jest.fn(),
+    },
+};
+// Mock AuthService
+exports.mockAuthService = {
+    provide: auth_service_1.AuthService,
+    useValue: {
+        login: jest.fn(),
+        validateUser: jest.fn(),
+        generateAccessToken: jest.fn(),
+        generateRefreshToken: jest.fn(),
+        generateUrlAccessToken: jest.fn(),
+    },
+};
+// Mock DashboardShareRepository
+exports.mockDashboardShareRepository = {
+    provide: (0, typeorm_1.getRepositoryToken)(dashboard_share_entity_1.DashboardShare),
+    useValue: {
+        findOne: jest.fn(),
+        find: jest.fn(),
+        save: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+    },
+};
+// Mock UserMappingRepository
+exports.mockUserMappingRepository = {
+    provide: (0, typeorm_1.getRepositoryToken)(user_mapping_entity_1.UserMapping),
+    useValue: {
+        findOne: jest.fn(),
+        find: jest.fn(),
+        save: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+    },
+};
+// Mock PaginationService
+exports.mockPaginationService = {
+    provide: pagination_service_1.PaginationService,
+    useValue: {
+        paginateOffset: jest.fn().mockResolvedValue({
+            data: [],
+            total: 0,
+            page: 1,
+            totalPages: 0,
+        }),
+        paginateCursor: jest.fn().mockResolvedValue({
+            data: [],
+            total: 0,
+            nextCursor: null,
+            prevCursor: null,
+            hasMore: false,
+        }),
+    },
+};
+// Mock Database Repository
+exports.mockDatabaseRepository = {
+    provide: (0, typeorm_1.getRepositoryToken)(database_entity_1.Database),
+    useValue: {
+        findOne: jest.fn(),
+        find: jest.fn(),
+        save: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+    },
+};
+// Mock Dataset Repository
+exports.mockDatasetRepository = {
+    provide: (0, typeorm_1.getRepositoryToken)(dataset_entity_1.Dataset),
+    useValue: {
+        findOne: jest.fn(),
+        find: jest.fn(),
+        save: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+    },
+};
+// Mock Widget Repository
+exports.mockWidgetRepository = {
+    provide: (0, typeorm_1.getRepositoryToken)(widget_entity_1.Widget),
+    useValue: {
+        findOne: jest.fn(),
+        find: jest.fn(),
+        save: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+        createQueryBuilder: jest.fn().mockReturnValue({
+            leftJoinAndSelect: jest.fn().mockReturnThis(),
+            where: jest.fn().mockReturnThis(),
+            getMany: jest.fn().mockResolvedValue([]),
+            getOne: jest.fn().mockResolvedValue(null),
+        }),
+    },
+};
+// Mock Component Repository
+exports.mockComponentRepository = {
+    provide: (0, typeorm_1.getRepositoryToken)(component_entity_1.Component),
+    useValue: {
+        findOne: jest.fn(),
+        find: jest.fn(),
+        save: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+    },
+};
+// Mock ConnectionService
+exports.mockConnectionService = {
+    provide: connection_service_1.ConnectionService,
+    useValue: {
+        testConnection: jest.fn().mockResolvedValue(true),
+        executeQuery: jest.fn().mockResolvedValue({ rows: [] }),
+        getConnection: jest.fn(),
+        addKnex: jest.fn(),
+        removeKnex: jest.fn(),
+    },
+};
+// Mock HybridCacheService
+exports.mockHybridCacheService = {
+    provide: hybrid_cache_service_1.HybridCacheService,
+    useValue: {
+        get: jest.fn(),
+        set: jest.fn(),
+        del: jest.fn(),
+        clear: jest.fn(),
+        keys: jest.fn().mockResolvedValue([]),
+    },
+};
+// Mock BusinessMetricsService
+exports.mockBusinessMetricsService = {
+    provide: business_metrics_service_1.BusinessMetricsService,
+    useValue: {
+        recordQueryExecution: jest.fn(),
+        recordDashboardView: jest.fn(),
+        recordWidgetCreation: jest.fn(),
+        getMetrics: jest.fn().mockResolvedValue({}),
+    },
+};
+// Mock DatabaseOptimizerFactory
+exports.mockDatabaseOptimizerFactory = {
+    provide: database_optimizer_factory_1.DatabaseOptimizerFactory,
+    useValue: {
+        getOptimizer: jest.fn().mockReturnValue({
+            getOptimizedConnectionConfig: jest.fn().mockReturnValue({}),
+            getDatabaseType: jest.fn().mockReturnValue('mysql'),
+        }),
+    },
+};
+// Mock REQUEST
+exports.mockRequest = {
+    provide: core_1.REQUEST,
+    useValue: {
+        headers: {},
+        user: { id: 1, email: 'test@test.com' },
+        ip: '127.0.0.1',
+        method: 'GET',
+        url: '/test',
+    },
+};
+// Mock Dashboard Repository
+exports.mockDashboardRepository = {
+    provide: (0, typeorm_1.getRepositoryToken)(dashboard_entity_1.Dashboard),
+    useValue: {
+        findOne: jest.fn(),
+        find: jest.fn(),
+        save: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+        createQueryBuilder: jest.fn().mockReturnValue({
+            leftJoinAndSelect: jest.fn().mockReturnThis(),
+            where: jest.fn().mockReturnThis(),
+            getMany: jest.fn().mockResolvedValue([]),
+            getOne: jest.fn().mockResolvedValue(null),
+        }),
+    },
+};
+// Mock DashboardWidget Repository
+exports.mockDashboardWidgetRepository = {
+    provide: (0, typeorm_1.getRepositoryToken)(dashboard_widget_entity_1.DashboardWidget),
+    useValue: {
+        findOne: jest.fn(),
+        find: jest.fn(),
+        save: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+    },
+};
+// Mock DashboardCacheService
+exports.mockDashboardCacheService = {
+    provide: dashboard_cache_service_1.DashboardCacheService,
+    useValue: {
+        get: jest.fn(),
+        set: jest.fn(),
+        del: jest.fn(),
+        clear: jest.fn(),
+        invalidateUserDashboards: jest.fn(),
+    },
+};
+// Mock DashboardWidgetService
+exports.mockDashboardWidgetService = {
+    provide: dashboard_widget_service_1.DashboardWidgetService,
+    useValue: {
+        create: jest.fn(),
+        findAll: jest.fn(),
+        findOne: jest.fn(),
+        update: jest.fn(),
+        remove: jest.fn(),
+        findByDashboardId: jest.fn().mockResolvedValue([]),
+    },
+};
+// Mock EventEmitter2
+exports.mockEventEmitter = {
+    provide: event_emitter_1.EventEmitter2,
+    useValue: {
+        emit: jest.fn(),
+        on: jest.fn(),
+        off: jest.fn(),
+        removeAllListeners: jest.fn(),
+    },
+};
+// Mock QueryCollector
+exports.mockQueryCollector = {
+    provide: query_collector_1.QueryCollector,
+    useValue: {
+        collectQuery: jest.fn(),
+        getCollectedQueries: jest.fn().mockReturnValue([]),
+        clearQueries: jest.fn(),
+        getQueryCount: jest.fn().mockReturnValue(0),
+    },
+};
+// Mock QueryAnalyzerService
+exports.mockQueryAnalyzerService = {
+    provide: query_analyzer_service_1.QueryAnalyzerService,
+    useValue: {
+        analyzeQuery: jest.fn().mockResolvedValue({
+            query: 'SELECT * FROM test',
+            executionTime: 100,
+            rowsExamined: 10,
+            rowsReturned: 5,
+            indexUsed: true,
+            optimizationSuggestions: [],
+        }),
+        getQueryMetrics: jest.fn().mockResolvedValue({}),
+        optimizeQuery: jest.fn().mockResolvedValue('SELECT * FROM test'),
+    },
+};
+// Mock SlowQueryMonitorService
+exports.mockSlowQueryMonitorService = {
+    provide: slow_query_monitor_service_1.SlowQueryMonitorService,
+    useValue: {
+        recordSlowQuery: jest.fn(),
+        getSlowQueries: jest.fn().mockResolvedValue([]),
+        getSlowQueryStats: jest.fn().mockResolvedValue({ count: 0, avgTime: 0 }),
+        clearOldLogs: jest.fn(),
+    },
+};
+// Mock KnexQueryMonitor
+exports.mockKnexQueryMonitor = {
+    provide: knex_query_monitor_1.KnexQueryMonitor,
+    useValue: {
+        attach: jest.fn(),
+        detach: jest.fn(),
+        getMetrics: jest.fn().mockReturnValue({
+            queryCount: 0,
+            totalTime: 0,
+            avgTime: 0,
+        }),
+        clearMetrics: jest.fn(),
+    },
+};
+// Common test providers
+exports.commonTestProviders = [
+    exports.mockCustomLoggerService,
+    exports.mockSqlValidationService,
+    exports.mockUserRepository,
+    exports.mockUserService,
+    exports.mockAuthService,
+    exports.mockDashboardShareRepository,
+    exports.mockUserMappingRepository,
+    exports.mockPaginationService,
+    exports.mockDatabaseRepository,
+    exports.mockDatasetRepository,
+    exports.mockWidgetRepository,
+    exports.mockComponentRepository,
+    exports.mockConnectionService,
+    exports.mockHybridCacheService,
+    exports.mockBusinessMetricsService,
+    exports.mockDatabaseOptimizerFactory,
+    exports.mockRequest,
+    exports.mockDashboardRepository,
+    exports.mockDashboardWidgetRepository,
+    exports.mockDashboardCacheService,
+    exports.mockDashboardWidgetService,
+    exports.mockEventEmitter,
+    exports.mockQueryCollector,
+    exports.mockQueryAnalyzerService,
+    exports.mockSlowQueryMonitorService,
+    exports.mockKnexQueryMonitor,
+];

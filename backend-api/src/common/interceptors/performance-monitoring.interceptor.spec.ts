@@ -3,6 +3,8 @@ import { ExecutionContext, CallHandler } from '@nestjs/common';
 import { of, throwError } from 'rxjs';
 import { PerformanceMonitoringInterceptor } from './performance-monitoring.interceptor';
 import { PerformanceMetricsService } from '../services/performance-metrics.service';
+import { XRayIntegrationService } from '../services/xray-integration.service';
+import { SLOTrackingService } from '../services/slo-tracking.service';
 
 describe('PerformanceMonitoringInterceptor', () => {
   let interceptor: PerformanceMonitoringInterceptor;
@@ -53,6 +55,25 @@ describe('PerformanceMonitoringInterceptor', () => {
             recordRequestMetrics: jest.fn(),
             recordErrorMetrics: jest.fn(),
             updateActiveRequests: jest.fn(),
+          },
+        },
+        {
+          provide: XRayIntegrationService,
+          useValue: {
+            startSegment: jest.fn(),
+            endSegment: jest.fn(),
+            addAnnotation: jest.fn(),
+            addMetadata: jest.fn(),
+            startApiTrace: jest.fn().mockReturnValue({ segmentId: 'test-segment' }),
+            endApiTrace: jest.fn(),
+          },
+        },
+        {
+          provide: SLOTrackingService,
+          useValue: {
+            recordRequestLatency: jest.fn(),
+            recordError: jest.fn(),
+            checkSLOViolations: jest.fn(),
           },
         },
       ],

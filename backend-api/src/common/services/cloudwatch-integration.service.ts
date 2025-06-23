@@ -332,6 +332,28 @@ export class CloudWatchIntegrationService implements OnModuleInit {
   }
 
   /**
+   * 메트릭 데이터 직접 전송 (배열 형태)
+   */
+  async putMetricData(metricData: MetricDatum[]): Promise<void> {
+    if (metricData.length === 0) return;
+
+    try {
+      const params: PutMetricDataCommandInput = {
+        Namespace: this.namespace,
+        MetricData: metricData,
+      };
+
+      const command = new PutMetricDataCommand(params);
+      await this.cloudWatchClient.send(command);
+
+      this.logger.debug(`Sent ${metricData.length} metrics to CloudWatch`);
+
+    } catch (error) {
+      this.logger.error('Failed to put metric data to CloudWatch', error);
+    }
+  }
+
+  /**
    * CloudWatch 대시보드 설정을 위한 메트릭 정보 반환
    */
   getMetricDefinitions(): Record<string, any> {

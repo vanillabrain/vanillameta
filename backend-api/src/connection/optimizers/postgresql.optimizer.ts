@@ -276,7 +276,7 @@ export class PostgreSQLOptimizer implements IDatabaseOptimizer {
    */
   private optimizeJsonQuery(queryBuilder: Knex.QueryBuilder): Knex.QueryBuilder {
     // JSONB 연산자 최적화 힌트 추가
-    return queryBuilder.hint('/*+ USE_NL(t1 t2) */');
+    return (queryBuilder as any).hint('/*+ USE_NL(t1 t2) */');
   }
 
   /**
@@ -292,7 +292,7 @@ export class PostgreSQLOptimizer implements IDatabaseOptimizer {
    */
   private optimizeArrayQuery(queryBuilder: Knex.QueryBuilder): Knex.QueryBuilder {
     // GIN 인덱스 사용 힌트
-    return queryBuilder.hint('/*+ GIN_INDEX */');
+    return (queryBuilder as any).hint('/*+ GIN_INDEX */');
   }
 
   /**
@@ -348,7 +348,7 @@ export class PostgreSQLOptimizer implements IDatabaseOptimizer {
     return knex(tableName)
       .select('*')
       .whereRaw(`${jsonColumn}->>'${jsonPath}' = ?`, [value])
-      .orderBy(knex.raw(`${jsonColumn}->>'created_at'`));
+      .orderBy(knex.raw(`${jsonColumn}->>'created_at'`) as any);
   }
 
   /**

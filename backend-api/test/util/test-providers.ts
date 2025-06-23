@@ -12,15 +12,19 @@ import { Dataset } from '../../src/dataset/entities/dataset.entity';
 import { Widget } from '../../src/widget/entities/widget.entity';
 import { Component } from '../../src/component/entities/component.entity';
 import { ConnectionService } from '../../src/connection/connection.service';
-import { HybridCacheService } from '../../src/common/cache/hybrid-cache.service';
-import { BusinessMetricsService } from '../../src/common/metrics/business-metrics.service';
-import { DatabaseOptimizerFactory } from '../../src/database/optimizer/database-optimizer.factory';
+import { HybridCacheService } from '../../src/common/optimization/hybrid-cache.service';
+import { BusinessMetricsService } from '../../src/common/monitoring/business-metrics.service';
+import { DatabaseOptimizerFactory } from '../../src/connection/optimizers/database-optimizer.factory';
 import { REQUEST } from '@nestjs/core';
 import { Dashboard } from '../../src/dashboard/entities/dashboard.entity';
-import { DashboardWidget } from '../../src/dashboard/entities/dashboard-widget.entity';
+import { DashboardWidget } from '../../src/dashboard/dashboard-widget/entities/dashboard-widget.entity';
 import { DashboardCacheService } from '../../src/dashboard/dashboard-cache.service';
-import { DashboardWidgetService } from '../../src/dashboard/dashboard-widget.service';
+import { DashboardWidgetService } from '../../src/dashboard/dashboard-widget/dashboard-widget.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { QueryCollector } from '../../src/common/utils/query-collector';
+import { QueryAnalyzerService } from '../../src/common/monitoring/query-analyzer.service';
+import { SlowQueryMonitorService } from '../../src/common/monitoring/slow-query-monitor.service';
+import { KnexQueryMonitor } from '../../src/common/monitoring/knex-query-monitor';
 
 // Mock CustomLoggerService
 export const mockCustomLoggerService = {
@@ -313,6 +317,60 @@ export const mockEventEmitter = {
   },
 };
 
+// Mock QueryCollector
+export const mockQueryCollector = {
+  provide: QueryCollector,
+  useValue: {
+    collectQuery: jest.fn(),
+    getCollectedQueries: jest.fn().mockReturnValue([]),
+    clearQueries: jest.fn(),
+    getQueryCount: jest.fn().mockReturnValue(0),
+  },
+};
+
+// Mock QueryAnalyzerService
+export const mockQueryAnalyzerService = {
+  provide: QueryAnalyzerService,
+  useValue: {
+    analyzeQuery: jest.fn().mockResolvedValue({
+      query: 'SELECT * FROM test',
+      executionTime: 100,
+      rowsExamined: 10,
+      rowsReturned: 5,
+      indexUsed: true,
+      optimizationSuggestions: [],
+    }),
+    getQueryMetrics: jest.fn().mockResolvedValue({}),
+    optimizeQuery: jest.fn().mockResolvedValue('SELECT * FROM test'),
+  },
+};
+
+// Mock SlowQueryMonitorService
+export const mockSlowQueryMonitorService = {
+  provide: SlowQueryMonitorService,
+  useValue: {
+    recordSlowQuery: jest.fn(),
+    getSlowQueries: jest.fn().mockResolvedValue([]),
+    getSlowQueryStats: jest.fn().mockResolvedValue({ count: 0, avgTime: 0 }),
+    clearOldLogs: jest.fn(),
+  },
+};
+
+// Mock KnexQueryMonitor
+export const mockKnexQueryMonitor = {
+  provide: KnexQueryMonitor,
+  useValue: {
+    attach: jest.fn(),
+    detach: jest.fn(),
+    getMetrics: jest.fn().mockReturnValue({
+      queryCount: 0,
+      totalTime: 0,
+      avgTime: 0,
+    }),
+    clearMetrics: jest.fn(),
+  },
+};
+
 // Common test providers
 export const commonTestProviders = [
   mockCustomLoggerService,
@@ -337,4 +395,8 @@ export const commonTestProviders = [
   mockDashboardCacheService,
   mockDashboardWidgetService,
   mockEventEmitter,
+  mockQueryCollector,
+  mockQueryAnalyzerService,
+  mockSlowQueryMonitorService,
+  mockKnexQueryMonitor,
 ];
