@@ -19,10 +19,13 @@ import { CacheInvalidationController } from '../cache/cache-invalidation.control
 import { CacheMonitoringService } from '../cache/cache-monitoring.service';
 import { CacheMonitoringController } from '../cache/cache-monitoring.controller';
 import { CacheAlertService } from '../cache/cache-alert.service';
+import { CacheKeyService } from '../services/cache-key.service';
+import { CacheMetricsService } from '../services/cache-metrics.service';
 
 import { Dataset } from '../../dataset/entities/dataset.entity';
 import { Widget } from '../../widget/entities/widget.entity';
 import { Dashboard } from '../../dashboard/entities/dashboard.entity';
+import { DashboardWidget } from '../../dashboard/dashboard-widget/entities/dashboard-widget.entity';
 import { DatasetModule } from '../../dataset/dataset.module';
 import { DashboardModule } from '../../dashboard/dashboard.module';
 
@@ -32,7 +35,7 @@ import { DashboardModule } from '../../dashboard/dashboard.module';
     ConfigModule,
     ScheduleModule.forRoot(),
     EventEmitterModule.forRoot(),
-    TypeOrmModule.forFeature([Dataset, Widget, Dashboard]),
+    TypeOrmModule.forFeature([Dataset, Widget, Dashboard, DashboardWidget]),
     forwardRef(() => DatasetModule),
     forwardRef(() => DashboardModule),
   ],
@@ -48,6 +51,8 @@ import { DashboardModule } from '../../dashboard/dashboard.module';
     CacheInvalidationService,
     CacheMonitoringService,
     CacheAlertService,
+    CacheKeyService,
+    CacheMetricsService,
   ],
   controllers: [
     CacheController,
@@ -64,6 +69,8 @@ import { DashboardModule } from '../../dashboard/dashboard.module';
     CacheInvalidationService,
     CacheMonitoringService,
     CacheAlertService,
+    CacheKeyService,
+    CacheMetricsService,
   ],
 })
 export class CacheModule {}

@@ -5,6 +5,7 @@
     "/v1/health": {},
     "/v1/ip": {},
     "/v1/seed": {},
+    "/v1/api/v1/health": {},
     "/v1/test/large-data": {},
     "/v1/test/small-data": {},
     "/v1/test/already-compressed": {},
@@ -648,6 +649,268 @@
     "/v1/cache/warmup": {},
     "/v1/cache/health": {},
     "/v1/cache/metrics": {},
+    "/v1/cache/stats/{engine}": {},
+    "/v1/cache/invalidate/all": {},
+    "/v1/cache/warmup/dataset/{id}": {},
+    "/v1/cache/warmup/dashboard/{id}": {},
+    "/v1/cache/warmup/batch": {},
+    "/v1/cache/l1/status": {},
+    "/v1/cache/l2/status": {},
+    "/v1/cache/invalidate/dataset/{id}": {},
+    "/v1/cache/invalidate/dashboard/{id}": {},
+    "/v1/cache/invalidate/database/{id}": {},
+    "/v1/cache/invalidate/user/{id}": {},
+    "/v1/cache/invalidate/queue/status": {},
+    "/v1/cache/invalidate/widget/{widgetId}/dashboard/{dashboardId}": {},
+    "/v1/cache/monitoring/metrics/current": {},
+    "/v1/cache/monitoring/metrics/history/{engine}": {},
+    "/v1/cache/monitoring/summary": {},
+    "/v1/cache/monitoring/report": {},
+    "/v1/cache/monitoring/recommendations": {},
+    "/v1/cache/monitoring/events/stream": {},
+    "/v1/cache/monitoring/health": {},
+    "/v1/dashboard": {
+      "post": {
+        "operationId": "DashboardController_create",
+        "summary": "대시보드 생성",
+        "description": "새로운 대시보드를 생성합니다.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDashboardDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "대시보드가 성공적으로 생성되었습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateDashboardDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "잘못된 요청 데이터"
+          },
+          "401": {
+            "description": "인증 실패"
+          }
+        },
+        "tags": [
+          "대시보드"
+        ],
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ]
+      },
+      "get": {
+        "operationId": "DashboardController_findAll",
+        "summary": "대시보드 목록 조회",
+        "description": "현재 사용자의 모든 대시보드를 조회합니다.",
+        "parameters": [
+          {
+            "name": "fields",
+            "required": false,
+            "in": "query",
+            "description": "반환할 필드 선택 (쉼표로 구분). 중첩 필드는 점(.)으로 구분. 예: id,title,widgets.id,widgets.name",
+            "schema": {
+              "example": "id,title,description,widgets.id,widgets.name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "대시보드 목록이 성공적으로 반환되었습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "number"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "widgets": {
+                        "type": "array",
+                        "items": {
+                          "type": "object"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "인증 실패"
+          }
+        },
+        "tags": [
+          "대시보드"
+        ],
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ]
+      }
+    },
+    "/v1/dashboard/{id}": {
+      "get": {
+        "operationId": "DashboardController_findOne",
+        "summary": "대시보드 상세 조회",
+        "description": "특정 대시보드의 상세 정보를 조회합니다.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "대시보드 ID",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "fields",
+            "required": false,
+            "in": "query",
+            "description": "반환할 필드 선택 (쉼표로 구분). 중첩 필드는 점(.)으로 구분",
+            "schema": {
+              "example": "id,title,widgets.id,widgets.config.title",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "대시보드 상세 정보가 성공적으로 반환되었습니다."
+          },
+          "401": {
+            "description": "인증 실패"
+          },
+          "404": {
+            "description": "대시보드를 찾을 수 없습니다."
+          }
+        },
+        "tags": [
+          "대시보드"
+        ],
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ]
+      },
+      "put": {
+        "operationId": "DashboardController_update",
+        "summary": "대시보드 수정",
+        "description": "기존 대시보드의 정보를 수정합니다.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "대시보드 ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDashboardDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "대시보드가 성공적으로 수정되었습니다."
+          },
+          "400": {
+            "description": "잘못된 요청 데이터"
+          },
+          "401": {
+            "description": "인증 실패"
+          },
+          "404": {
+            "description": "대시보드를 찾을 수 없습니다."
+          }
+        },
+        "tags": [
+          "대시보드"
+        ],
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "DashboardController_remove",
+        "summary": "대시보드 삭제",
+        "description": "대시보드를 영구적으로 삭제합니다.",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "대시보드 ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "대시보드가 성공적으로 삭제되었습니다."
+          },
+          "401": {
+            "description": "인증 실패"
+          },
+          "404": {
+            "description": "대시보드를 찾을 수 없습니다."
+          }
+        },
+        "tags": [
+          "대시보드"
+        ],
+        "security": [
+          {
+            "AccessToken": []
+          }
+        ]
+      }
+    },
     "/v1/widget": {
       "post": {
         "operationId": "WidgetController_create",
@@ -884,248 +1147,6 @@
         },
         "tags": [
           "위젯"
-        ],
-        "security": [
-          {
-            "AccessToken": []
-          }
-        ]
-      }
-    },
-    "/v1/dashboard": {
-      "post": {
-        "operationId": "DashboardController_create",
-        "summary": "대시보드 생성",
-        "description": "새로운 대시보드를 생성합니다.",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateDashboardDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "대시보드가 성공적으로 생성되었습니다.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CreateDashboardDto"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "잘못된 요청 데이터"
-          },
-          "401": {
-            "description": "인증 실패"
-          }
-        },
-        "tags": [
-          "대시보드"
-        ],
-        "security": [
-          {
-            "AccessToken": []
-          }
-        ]
-      },
-      "get": {
-        "operationId": "DashboardController_findAll",
-        "summary": "대시보드 목록 조회",
-        "description": "현재 사용자의 모든 대시보드를 조회합니다.",
-        "parameters": [
-          {
-            "name": "fields",
-            "required": false,
-            "in": "query",
-            "description": "반환할 필드 선택 (쉼표로 구분). 중첩 필드는 점(.)으로 구분. 예: id,title,widgets.id,widgets.name",
-            "schema": {
-              "example": "id,title,description,widgets.id,widgets.name",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "대시보드 목록이 성공적으로 반환되었습니다.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "id": {
-                        "type": "number"
-                      },
-                      "title": {
-                        "type": "string"
-                      },
-                      "description": {
-                        "type": "string"
-                      },
-                      "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                      },
-                      "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                      },
-                      "widgets": {
-                        "type": "array",
-                        "items": {
-                          "type": "object"
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "인증 실패"
-          }
-        },
-        "tags": [
-          "대시보드"
-        ],
-        "security": [
-          {
-            "AccessToken": []
-          }
-        ]
-      }
-    },
-    "/v1/dashboard/{id}": {
-      "get": {
-        "operationId": "DashboardController_findOne",
-        "summary": "대시보드 상세 조회",
-        "description": "특정 대시보드의 상세 정보를 조회합니다.",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "description": "대시보드 ID",
-            "schema": {
-              "type": "number"
-            }
-          },
-          {
-            "name": "fields",
-            "required": false,
-            "in": "query",
-            "description": "반환할 필드 선택 (쉼표로 구분). 중첩 필드는 점(.)으로 구분",
-            "schema": {
-              "example": "id,title,widgets.id,widgets.config.title",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "대시보드 상세 정보가 성공적으로 반환되었습니다."
-          },
-          "401": {
-            "description": "인증 실패"
-          },
-          "404": {
-            "description": "대시보드를 찾을 수 없습니다."
-          }
-        },
-        "tags": [
-          "대시보드"
-        ],
-        "security": [
-          {
-            "AccessToken": []
-          }
-        ]
-      },
-      "put": {
-        "operationId": "DashboardController_update",
-        "summary": "대시보드 수정",
-        "description": "기존 대시보드의 정보를 수정합니다.",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "description": "대시보드 ID",
-            "schema": {
-              "type": "number"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateDashboardDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "대시보드가 성공적으로 수정되었습니다."
-          },
-          "400": {
-            "description": "잘못된 요청 데이터"
-          },
-          "401": {
-            "description": "인증 실패"
-          },
-          "404": {
-            "description": "대시보드를 찾을 수 없습니다."
-          }
-        },
-        "tags": [
-          "대시보드"
-        ],
-        "security": [
-          {
-            "AccessToken": []
-          }
-        ]
-      },
-      "delete": {
-        "operationId": "DashboardController_remove",
-        "summary": "대시보드 삭제",
-        "description": "대시보드를 영구적으로 삭제합니다.",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "description": "대시보드 ID",
-            "schema": {
-              "type": "number"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "대시보드가 성공적으로 삭제되었습니다."
-          },
-          "401": {
-            "description": "인증 실패"
-          },
-          "404": {
-            "description": "대시보드를 찾을 수 없습니다."
-          }
-        },
-        "tags": [
-          "대시보드"
         ],
         "security": [
           {
@@ -2152,6 +2173,35 @@
         ]
       }
     },
+    "/v1/monitoring/metrics/endpoint/{endpoint}": {},
+    "/v1/monitoring/metrics/endpoints": {},
+    "/v1/monitoring/cloudwatch/definitions": {},
+    "/v1/monitoring/metrics/system": {},
+    "/v1/monitoring/report": {},
+    "/v1/monitoring/slo/metrics": {},
+    "/v1/monitoring/slo/metrics/{sloName}": {},
+    "/v1/monitoring/slo/definitions": {},
+    "/v1/monitoring/slo/report": {},
+    "/v1/monitoring/slo/dashboard-config": {},
+    "/v1/monitoring/slo/status": {},
+    "/v1/admin/dashboard/stats": {},
+    "/v1/admin/health": {},
+    "/v1/admin/users": {},
+    "/v1/admin/users/{id}": {},
+    "/v1/admin/users/{id}/status": {},
+    "/v1/admin/users/stats/summary": {},
+    "/v1/admin/users/pending": {},
+    "/v1/admin/users/{id}/approve": {},
+    "/v1/admin/users/{id}/reject": {},
+    "/v1/admin/roles": {},
+    "/v1/admin/roles/permissions": {},
+    "/v1/admin/roles/{id}": {},
+    "/v1/admin/roles/initialize-defaults": {},
+    "/v1/admin/audit-logs": {},
+    "/v1/admin/audit-logs/stats": {},
+    "/v1/admin/audit-logs/actions": {},
+    "/v1/admin/audit-logs/user/{userId}": {},
+    "/v1/admin/audit-logs/{id}": {},
     "/v1/batch/jobs": {},
     "/v1/batch/jobs/{id}": {},
     "/v1/batch/jobs/{id}/chunks": {},
@@ -2450,78 +2500,6 @@
         "type": "object",
         "properties": {}
       },
-      "CreateWidgetDto": {
-        "type": "object",
-        "properties": {
-          "title": {
-            "type": "string",
-            "description": "위젯 제목",
-            "example": "월별 매출 추이 차트",
-            "maxLength": 255
-          },
-          "description": {
-            "type": "string",
-            "description": "위젯 설명",
-            "example": "2024년 월별 매출 현황을 보여주는 라인 차트"
-          },
-          "databaseId": {
-            "type": "number",
-            "description": "데이터베이스 ID",
-            "example": 1
-          },
-          "componentId": {
-            "type": "number",
-            "description": "차트 컴포넌트 ID",
-            "example": 1,
-            "minimum": 1
-          },
-          "datasetType": {
-            "type": "string",
-            "description": "데이터셋 타입",
-            "enum": [
-              "DATASET",
-              "TABLE"
-            ],
-            "example": "DATASET"
-          },
-          "datasetId": {
-            "type": "number",
-            "description": "데이터셋 ID",
-            "example": 1,
-            "minimum": 1
-          },
-          "tableName": {
-            "type": "string",
-            "description": "테이블 이름 (데이터셋 타입이 TABLE인 경우)",
-            "example": "sales_monthly"
-          },
-          "option": {
-            "type": "string",
-            "description": "차트 옵션 (ECharts 설정 JSON)",
-            "example": "{\"xAxis\":{\"type\":\"category\",\"data\":[\"Jan\",\"Feb\",\"Mar\"]},\"yAxis\":{\"type\":\"value\"},\"series\":[{\"type\":\"line\",\"data\":[820,932,901]}]}",
-            "format": "json"
-          },
-          "delYn": {
-            "type": "string",
-            "description": "삭제 여부",
-            "enum": [
-              "Y",
-              "N"
-            ],
-            "default": "N"
-          }
-        },
-        "required": [
-          "componentId",
-          "datasetType",
-          "datasetId",
-          "option"
-        ]
-      },
-      "UpdateWidgetDto": {
-        "type": "object",
-        "properties": {}
-      },
       "DashboardLayout": {
         "type": "object",
         "properties": {
@@ -2609,6 +2587,78 @@
         ]
       },
       "UpdateDashboardDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateWidgetDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "위젯 제목",
+            "example": "월별 매출 추이 차트",
+            "maxLength": 255
+          },
+          "description": {
+            "type": "string",
+            "description": "위젯 설명",
+            "example": "2024년 월별 매출 현황을 보여주는 라인 차트"
+          },
+          "databaseId": {
+            "type": "number",
+            "description": "데이터베이스 ID",
+            "example": 1
+          },
+          "componentId": {
+            "type": "number",
+            "description": "차트 컴포넌트 ID",
+            "example": 1,
+            "minimum": 1
+          },
+          "datasetType": {
+            "type": "string",
+            "description": "데이터셋 타입",
+            "enum": [
+              "DATASET",
+              "TABLE"
+            ],
+            "example": "DATASET"
+          },
+          "datasetId": {
+            "type": "number",
+            "description": "데이터셋 ID",
+            "example": 1,
+            "minimum": 1
+          },
+          "tableName": {
+            "type": "string",
+            "description": "테이블 이름 (데이터셋 타입이 TABLE인 경우)",
+            "example": "sales_monthly"
+          },
+          "option": {
+            "type": "string",
+            "description": "차트 옵션 (ECharts 설정 JSON)",
+            "example": "{\"xAxis\":{\"type\":\"category\",\"data\":[\"Jan\",\"Feb\",\"Mar\"]},\"yAxis\":{\"type\":\"value\"},\"series\":[{\"type\":\"line\",\"data\":[820,932,901]}]}",
+            "format": "json"
+          },
+          "delYn": {
+            "type": "string",
+            "description": "삭제 여부",
+            "enum": [
+              "Y",
+              "N"
+            ],
+            "default": "N"
+          }
+        },
+        "required": [
+          "componentId",
+          "datasetType",
+          "datasetId",
+          "option"
+        ]
+      },
+      "UpdateWidgetDto": {
         "type": "object",
         "properties": {}
       },
@@ -2856,6 +2906,448 @@
         "required": [
           "userId",
           "endDate"
+        ]
+      },
+      "AuditLogSummaryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "감사 로그 ID"
+          },
+          "userEmail": {
+            "type": "string",
+            "description": "사용자 이메일"
+          },
+          "action": {
+            "type": "string",
+            "description": "수행 동작"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "생성 시간"
+          }
+        },
+        "required": [
+          "id",
+          "userEmail",
+          "action",
+          "createdAt"
+        ]
+      },
+      "DashboardStatsDto": {
+        "type": "object",
+        "properties": {
+          "totalUsers": {
+            "type": "number",
+            "description": "전체 사용자 수"
+          },
+          "pendingApprovals": {
+            "type": "number",
+            "description": "승인 대기 중인 사용자 수"
+          },
+          "todayLogins": {
+            "type": "number",
+            "description": "오늘 로그인 수"
+          },
+          "activeSessions": {
+            "type": "number",
+            "description": "활성 세션 수"
+          },
+          "totalDashboards": {
+            "type": "number",
+            "description": "전체 대시보드 수"
+          },
+          "totalWidgets": {
+            "type": "number",
+            "description": "전체 위젯 수"
+          },
+          "recentLogs": {
+            "description": "최근 감사 로그",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditLogSummaryDto"
+            }
+          }
+        },
+        "required": [
+          "totalUsers",
+          "pendingApprovals",
+          "todayLogins",
+          "activeSessions",
+          "totalDashboards",
+          "totalWidgets",
+          "recentLogs"
+        ]
+      },
+      "UserResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "사용자 ID"
+          },
+          "userId": {
+            "type": "string",
+            "description": "사용자 고유 ID"
+          },
+          "email": {
+            "type": "string",
+            "description": "이메일"
+          },
+          "name": {
+            "type": "string",
+            "description": "이름"
+          },
+          "status": {
+            "type": "string",
+            "description": "상태"
+          },
+          "roles": {
+            "description": "역할 목록",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "생성일"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "수정일"
+          },
+          "lastLoginAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "최종 로그인 시간",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "userId",
+          "email",
+          "name",
+          "status",
+          "roles",
+          "createdAt",
+          "updatedAt",
+          "lastLoginAt"
+        ]
+      },
+      "UpdateUserStatusDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "변경할 사용자 상태",
+            "enum": [
+              "active",
+              "inactive",
+              "pending",
+              "suspended",
+              "deleted"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "ApproveUserDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "승인 사유"
+          }
+        }
+      },
+      "RejectUserDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "거부 사유"
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "CreateRoleDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "역할 이름 (고유)"
+          },
+          "displayName": {
+            "type": "string",
+            "description": "표시 이름"
+          },
+          "description": {
+            "type": "string",
+            "description": "역할 설명"
+          },
+          "permissions": {
+            "description": "권한 목록",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "활성 상태",
+            "default": true
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "RoleResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "description": "역할 ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "역할 이름"
+          },
+          "displayName": {
+            "type": "string",
+            "description": "표시 이름"
+          },
+          "description": {
+            "type": "string",
+            "description": "역할 설명"
+          },
+          "permissions": {
+            "description": "권한 목록",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "활성 상태"
+          },
+          "isSystemRole": {
+            "type": "boolean",
+            "description": "시스템 역할 여부"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "생성일"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "수정일"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "displayName",
+          "description",
+          "permissions",
+          "isActive",
+          "isSystemRole",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "PaginatedRolesResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "description": "역할 목록",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoleResponseDto"
+            }
+          },
+          "meta": {
+            "type": "object",
+            "description": "페이지네이션 정보"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ]
+      },
+      "UpdateRoleDto": {
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "type": "string",
+            "description": "표시 이름"
+          },
+          "description": {
+            "type": "string",
+            "description": "역할 설명"
+          },
+          "permissions": {
+            "description": "권한 목록",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "활성 상태"
+          }
+        }
+      },
+      "CreateAuditLogDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "수행된 작업"
+          },
+          "entityType": {
+            "type": "string",
+            "description": "대상 엔티티 타입"
+          },
+          "entityId": {
+            "type": "string",
+            "description": "대상 엔티티 ID"
+          },
+          "userId": {
+            "type": "string",
+            "description": "사용자 ID"
+          },
+          "userEmail": {
+            "type": "string",
+            "description": "사용자 이메일"
+          },
+          "details": {
+            "type": "string",
+            "description": "상세 설명"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "메타데이터"
+          },
+          "ipAddress": {
+            "type": "string",
+            "description": "IP 주소"
+          },
+          "userAgent": {
+            "type": "string",
+            "description": "User Agent"
+          },
+          "status": {
+            "type": "string",
+            "description": "상태",
+            "default": "success"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      },
+      "AuditLogResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "description": "로그 ID"
+          },
+          "action": {
+            "type": "string",
+            "description": "수행된 작업"
+          },
+          "entityType": {
+            "type": "string",
+            "description": "대상 엔티티 타입"
+          },
+          "entityId": {
+            "type": "string",
+            "description": "대상 엔티티 ID"
+          },
+          "userId": {
+            "type": "string",
+            "description": "사용자 ID"
+          },
+          "userEmail": {
+            "type": "string",
+            "description": "사용자 이메일"
+          },
+          "details": {
+            "type": "string",
+            "description": "상세 설명"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "메타데이터"
+          },
+          "ipAddress": {
+            "type": "string",
+            "description": "IP 주소"
+          },
+          "userAgent": {
+            "type": "string",
+            "description": "User Agent"
+          },
+          "status": {
+            "type": "string",
+            "description": "상태"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "생성일"
+          }
+        },
+        "required": [
+          "id",
+          "action",
+          "entityType",
+          "entityId",
+          "userId",
+          "userEmail",
+          "details",
+          "metadata",
+          "ipAddress",
+          "userAgent",
+          "status",
+          "createdAt"
+        ]
+      },
+      "PaginatedAuditLogsResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "description": "감사 로그 목록",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditLogResponseDto"
+            }
+          },
+          "meta": {
+            "type": "object",
+            "description": "페이지네이션 정보"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
         ]
       },
       "CreateBatchJobDto": {
@@ -3544,7 +4036,7 @@
         "type": "object",
         "properties": {
           "success": {
-            "type": "boolean",
+            "type": "object",
             "description": "성공 여부",
             "example": false
           },
@@ -3597,7 +4089,7 @@
         "type": "object",
         "properties": {
           "success": {
-            "type": "boolean",
+            "type": "object",
             "description": "성공 여부",
             "example": true
           },
@@ -3628,7 +4120,7 @@
         "type": "object",
         "properties": {
           "success": {
-            "type": "boolean",
+            "type": "object",
             "description": "성공 여부",
             "example": true
           },

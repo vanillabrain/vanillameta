@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
 import { DashboardController } from './dashboard.controller';
 import { DashboardCacheService } from './dashboard-cache.service';
@@ -32,7 +32,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
       RefreshToken,
     ]),
     PaginationModule,
-    CacheModule,
+    forwardRef(() => CacheModule),
     EventEmitterModule.forRoot(),
   ],
   controllers: [DashboardController],

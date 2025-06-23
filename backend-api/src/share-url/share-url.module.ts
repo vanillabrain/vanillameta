@@ -1,4 +1,4 @@
-import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule, forwardRef } from '@nestjs/common';
 import { ShareUrlService } from './share-url.service';
 import { ShareUrlController } from './share-url.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -17,6 +17,7 @@ import { Component } from 'src/component/entities/component.entity';
 import { UserService } from 'src/user/user.service';
 import { UserMapping } from 'src/user/entities/user-mapping.entity';
 import { DashboardShare } from 'src/dashboard/entities/dashboard_share.entity';
+import { DashboardModule } from 'src/dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -32,9 +33,10 @@ import { DashboardShare } from 'src/dashboard/entities/dashboard_share.entity';
       DashboardShare,
     ]),
     JwtModule,
+    forwardRef(() => DashboardModule),
   ],
   controllers: [ShareUrlController],
-  providers: [ShareUrlService, AuthService, DashboardService, DashboardWidgetService, UserService],
+  providers: [ShareUrlService, AuthService, UserService],
 })
 export class ShareUrlModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

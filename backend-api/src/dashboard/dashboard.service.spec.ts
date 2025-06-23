@@ -528,7 +528,8 @@ describe('DashboardService', () => {
           expect(result.status).toBe(ResponseStatus.SUCCESS);
           // XSS patterns should be stored but escaped when rendered
           expect(result.data.title).toBe(xssPattern);
-          expect(result.data.layout[0].i).toBe(xssPattern);
+          const layoutParsed = JSON.parse(result.data.layout);
+          expect(layoutParsed[0].i).toBe(xssPattern);
         }
       }
     });

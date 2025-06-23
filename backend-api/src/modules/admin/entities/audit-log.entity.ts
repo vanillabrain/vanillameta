@@ -27,7 +27,14 @@ export class AuditLog {
   @Column({ type: 'text', nullable: true })
   details: string;
 
-  @Column({ type: 'json', nullable: true })
+  @Column({ 
+    type: 'text', 
+    nullable: true,
+    transformer: {
+      to: (value: Record<string, any>) => value ? JSON.stringify(value) : null,
+      from: (value: string) => value ? JSON.parse(value) : {}
+    }
+  })
   metadata: Record<string, any>;
 
   @Column({ length: 45, nullable: true })

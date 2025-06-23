@@ -1,7 +1,8 @@
 import { Injectable, BadRequestException, ForbiddenException, Inject } from '@nestjs/common';
 import { CreateDatabaseDto } from '../database/dto/create-database.dto';
 import { QueryExecuteDto } from '../database/dto/query-execute.dto';
-import { Knex, knex } from 'knex';
+import { Knex } from 'knex';
+const knex = require('knex');
 import { FieldTypeUtil } from '../utils/field-type.util';
 import { Database } from '../database/entities/database.entity';
 import { InjectRepository } from '@nestjs/typeorm';

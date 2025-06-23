@@ -14,7 +14,14 @@ export class Role {
   @Column({ type: 'text', nullable: true })
   description: string;
 
-  @Column({ type: 'json', nullable: true })
+  @Column({ 
+    type: 'text', 
+    nullable: true,
+    transformer: {
+      to: (value: string[]) => value ? JSON.stringify(value) : null,
+      from: (value: string) => value ? JSON.parse(value) : []
+    }
+  })
   permissions: string[];
 
   @Column({ default: true })
