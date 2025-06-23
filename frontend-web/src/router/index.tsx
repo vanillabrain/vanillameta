@@ -23,6 +23,7 @@ const DashboardModify = lazy(() => import(/* webpackChunkName: "dashboard-modify
 const Login = lazy(() => import(/* webpackChunkName: "login" */ '@/pages/Login'));
 const Share = lazy(() => import(/* webpackChunkName: "share" */ '@/pages/Share'));
 const SignUp = lazy(() => import(/* webpackChunkName: "signup" */ '@/pages/SignUp'));
+const AdminRoutes = lazy(() => import(/* webpackChunkName: "admin" */ '@/pages/Admin/AdminRoutes'));
 
 // Loading fallback component
 const PageLoading = () => <Loading in={true} style={{ opacity: 0.4 }} />;
@@ -175,6 +176,14 @@ function Router() {
             element={
               <RouteErrorBoundary routeName="signup">
                 <SignUp />
+              </RouteErrorBoundary>
+            } 
+          />
+          <Route 
+            path="/admin/*" 
+            element={
+              <RouteErrorBoundary routeName="admin">
+                <AdminRoutes />
               </RouteErrorBoundary>
             } 
           />

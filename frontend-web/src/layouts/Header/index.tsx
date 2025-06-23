@@ -8,6 +8,7 @@ import ProfileViewButton from '@/components/user/ProfileViewButton';
 import Logout from '@/components/user/Logout';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { useTranslation } from 'react-i18next';
+import { useAuthContext } from '@/contexts/AuthContext';
 
 const getMenuList = (t: any) => [
   { name: t('navigation.database'), link: '/data/source/create' },
@@ -19,12 +20,22 @@ const getMenuList = (t: any) => [
 function Header() {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { user } = useAuthContext();
 
-  const navItems = [
+  // 기본 네비게이션 항목
+  const baseNavItems = [
     { id: 1, name: t('navigation.dashboard'), link: 'dashboard' },
     { id: 2, name: t('navigation.widget'), link: 'widget' },
     { id: 3, name: t('navigation.data'), link: 'data' },
   ];
+
+  // 관리자 권한 체크 (임시로 모든 인증된 사용자에게 허용)
+  const hasAdminPermission = user && true; // 향후 실제 권한 체크 로직으로 교체
+
+  // 관리자 권한이 있으면 Admin 링크 추가
+  const navItems = hasAdminPermission 
+    ? [...baseNavItems, { id: 4, name: '🔧 관리자', link: 'admin' }]
+    : baseNavItems;
 
   const menuList = getMenuList(t);
 
