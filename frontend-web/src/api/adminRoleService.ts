@@ -43,7 +43,7 @@ interface UserBasic {
   email: string;
 }
 
-interface RoleDetail extends Role {
+interface RoleDetail extends Omit<Role, 'permissions'> {
   permissions: Permission[];
   users: UserBasic[];
 }

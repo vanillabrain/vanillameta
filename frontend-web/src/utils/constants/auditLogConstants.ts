@@ -23,6 +23,7 @@ export const TIME_RANGE_OPTIONS = [
 
 // 레벨별 아이콘
 export const LEVEL_ICONS: Record<AuditLogLevel, string> = {
+  [AuditLogLevel.DEBUG]: 'BugOutlined',
   [AuditLogLevel.INFO]: 'InfoCircleOutlined',
   [AuditLogLevel.WARNING]: 'WarningOutlined',
   [AuditLogLevel.ERROR]: 'CloseCircleOutlined',

@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import dayjs from 'dayjs';
+import { Download, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
 import { auditLogServiceV2 } from '../../../api/auditLogServiceV2';
 import {
   AuditLog,
@@ -14,7 +19,6 @@ import { AuditLogDetailModal } from './AuditLogDetailModal';
 import { ExportAuditLogsModal } from './ExportAuditLogsModal';
 import { AuditLogStatsCards } from './AuditLogStatsCards';
 import { DEFAULT_PAGE_SIZE, DEFAULT_DATE_RANGE_DAYS } from '../../../utils/constants/auditLogConstants';
-import './AuditLogManagement.css';
 
 export const AuditLogManagement: React.FC = () => {
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
@@ -29,11 +33,13 @@ export const AuditLogManagement: React.FC = () => {
     sortOrder: 'DESC',
   });
 
+  const { toast } = useToast();
+
   // 감사 로그 목록 조회
-  const { data: logs, isLoading, refetch } = useQuery({
+  const { data: logs, isPending: isLoading, refetch } = useQuery({
     queryKey: ['audit-logs', filters],
     queryFn: () => auditLogServiceV2.getAuditLogs(filters),
-    keepPreviousData: true,
+    placeholderData: (previousData: any) => previousData,
   });
 
   // 통계 조회
@@ -81,11 +87,18 @@ export const AuditLogManagement: React.FC = () => {
       a.download = `audit-logs-${dayjs().format('YYYY-MM-DD_HHmmss')}.csv`;
       a.click();
       window.URL.revokeObjectURL(url);
-      message.success('감사 로그가 성공적으로 내보내졌습니다.');
+      toast({
+        title: '성공',
+        description: '감사 로그가 성공적으로 내보내졌습니다.',
+      });
     },
     onError: (error) => {
       console.error('Export failed:', error);
-      message.error('감사 로그 내보내기에 실패했습니다.');
+      toast({
+        title: '오류',
+        description: '감사 로그 내보내기에 실패했습니다.',
+        variant: 'destructive',
+      });
     },
   });
 
@@ -108,36 +121,42 @@ export const AuditLogManagement: React.FC = () => {
   };
 
   return (
-    <div className="audit-log-management">
-      <div className="audit-header">
-        <div className="audit-title">
-          <h1>감사 로그</h1>
-          <p className="audit-description">
-            시스템에서 발생한 모든 활동을 추적하고 모니터링합니다.
-          </p>
-        </div>
-        <div className="audit-actions">
-          <Space>
-            <Button
-              icon={<DownloadOutlined />}
-              onClick={() => setShowExportModal(true)}
-            >
-              내보내기
-            </Button>
-            <Button
-              icon={<ReloadOutlined />}
-              onClick={() => refetch()}
-              loading={isLoading}
-            >
-              새로고침
-            </Button>
-          </Space>
-        </div>
-      </div>
+    <div className="space-y-6 p-6">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-2xl font-bold">감사 로그</CardTitle>
+              <CardDescription>
+                시스템에서 발생한 모든 활동을 추적하고 모니터링합니다.
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowExportModal(true)}
+                className="flex items-center gap-2"
+              >
+                <Download className="h-4 w-4" />
+                내보내기
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => refetch()}
+                disabled={isLoading}
+                className="flex items-center gap-2"
+              >
+                <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                새로고침
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
 
       {stats && <AuditLogStatsCards stats={stats} />}
 
-      <div className="audit-content">
+      <div className="space-y-4">
         <AuditLogFiltersComponent
           filters={filters}
           onFilterChange={handleFilterChange}
@@ -155,26 +174,21 @@ export const AuditLogManagement: React.FC = () => {
         />
 
         {logs && logs.meta && (
-          <div className="audit-pagination">
-            <div className="pagination-info">
-              총 {logs.meta.total.toLocaleString()}개의 로그 중{' '}
-              {((filters.page! - 1) * filters.limit! + 1).toLocaleString()}-
-              {Math.min(filters.page! * filters.limit!, logs.meta.total).toLocaleString()}개 표시
-            </div>
-            <antd.Pagination
-              current={filters.page}
-              total={logs.meta.total}
-              pageSize={filters.limit}
-              showSizeChanger
-              pageSizeOptions={['10', '20', '50', '100']}
-              onChange={handlePaginationChange}
-              onShowSizeChange={handlePaginationChange}
-              showQuickJumper
-              showTotal={(total, range) =>
-                `${range[0]}-${range[1]} / ${total}`
-              }
-            />
-          </div>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-muted-foreground">
+                  총 {logs.meta.total.toLocaleString()}개의 로그 중{' '}
+                  {((filters.page! - 1) * filters.limit! + 1).toLocaleString()}-
+                  {Math.min(filters.page! * filters.limit!, logs.meta.total).toLocaleString()}개 표시
+                </div>
+                {/* TODO: Replace with shadcn Pagination component */}
+                <div className="text-sm text-muted-foreground">
+                  페이지 {filters.page} / {Math.ceil(logs.meta.total / filters.limit!)}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         )}
       </div>
 
@@ -196,7 +210,7 @@ export const AuditLogManagement: React.FC = () => {
             exportMutation.mutate(exportParams);
             setShowExportModal(false);
           }}
-          loading={exportMutation.isLoading}
+          loading={exportMutation.isPending}
         />
       )}
     </div>

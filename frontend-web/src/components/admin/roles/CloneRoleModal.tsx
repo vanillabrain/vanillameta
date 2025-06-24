@@ -86,7 +86,16 @@ const CloneRoleModal: React.FC<CloneRoleModalProps> = ({
       form.setError('name', { message: '원본과 동일한 ID는 사용할 수 없습니다' });
       return;
     }
-    cloneRoleMutation.mutate(data);
+    
+    // CloneRoleRequest 타입에 맞게 변환
+    const requestData: CloneRoleRequest = {
+      name: data.name,
+      displayName: data.displayName,
+      description: data.description,
+      level: data.level,
+    };
+    
+    cloneRoleMutation.mutate(requestData);
   };
 
   return (

@@ -68,7 +68,7 @@ const RoleManagementV2: React.FC = () => {
       toast({
         description: '역할이 삭제되었습니다.',
       });
-      queryClient.invalidateQueries(['admin-roles']);
+      queryClient.invalidateQueries({ queryKey: ['admin-roles'] });
       setSelectedRole(null);
       setDeleteDialogRole(null);
     },
@@ -244,7 +244,7 @@ const RoleManagementV2: React.FC = () => {
             <RoleDetailPanel
               role={selectedRole}
               groupedPermissions={groupedPermissions}
-              onRoleUpdate={() => queryClient.invalidateQueries(['admin-roles'])}
+              onRoleUpdate={() => queryClient.invalidateQueries({ queryKey: ['admin-roles'] })}
             />
           ) : (
             <Card>

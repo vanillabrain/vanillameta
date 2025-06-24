@@ -284,6 +284,7 @@ class AuditLogServiceV2 {
    */
   getLevelColor(level: AuditLogLevel): string {
     const colorMap: Record<AuditLogLevel, string> = {
+      [AuditLogLevel.DEBUG]: 'gray',
       [AuditLogLevel.INFO]: 'blue',
       [AuditLogLevel.WARNING]: 'gold',
       [AuditLogLevel.ERROR]: 'red',

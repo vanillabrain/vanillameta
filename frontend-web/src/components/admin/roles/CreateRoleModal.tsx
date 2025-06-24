@@ -86,10 +86,15 @@ const CreateRoleModal: React.FC<CreateRoleModalProps> = ({
 
   // 폼 제출 핸들러
   const handleSubmit = (data: CreateRoleFormData) => {
-    createRoleMutation.mutate({
-      ...data,
+    const requestData: CreateRoleRequest = {
+      name: data.name,
+      displayName: data.displayName,
+      description: data.description,
+      level: data.level,
       permissionIds: selectedPermissions,
-    });
+    };
+    
+    createRoleMutation.mutate(requestData);
   };
 
   // 다음 단계로

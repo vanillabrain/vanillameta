@@ -5,9 +5,9 @@ import { Checkbox } from "@/components/ui/checkbox"
 
 interface TreeNode {
   id: string
-  label: string
+  label: React.ReactNode
   children?: TreeNode[]
-  checked?: boolean
+  checked?: boolean | "indeterminate"
   expanded?: boolean
 }
 
@@ -82,7 +82,7 @@ const TreeItem: React.FC<TreeItemProps> = ({
           />
         )}
         
-        <span className="text-sm">{node.label}</span>
+        <div className="text-sm">{node.label}</div>
       </div>
       
       {hasChildren && expanded && (

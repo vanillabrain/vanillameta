@@ -1,6 +1,7 @@
 // 감사 로그 관련 타입 정의
 
 export enum AuditLogLevel {
+  DEBUG = 'debug',
   INFO = 'info',
   WARNING = 'warning',
   ERROR = 'error',

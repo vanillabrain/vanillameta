@@ -85,7 +85,7 @@ const RoleDetailPanel: React.FC<RoleDetailPanelProps> = ({
         description: '역할 정보가 업데이트되었습니다.',
       });
       setIsEditing(false);
-      queryClient.invalidateQueries(['role-detail', role.id]);
+      queryClient.invalidateQueries({ queryKey: ['role-detail', role.id] });
       onRoleUpdate();
     },
     onError: (error: any) => {
@@ -104,7 +104,7 @@ const RoleDetailPanel: React.FC<RoleDetailPanelProps> = ({
       toast({
         description: '권한이 업데이트되었습니다.',
       });
-      queryClient.invalidateQueries(['role-detail', role.id]);
+      queryClient.invalidateQueries({ queryKey: ['role-detail', role.id] });
       onRoleUpdate();
     },
     onError: (error: any) => {

@@ -1,6 +1,6 @@
 import * as React from "react"
 
-export interface Toast {
+export interface ToastType {
   id: string
   title?: string
   description?: string
@@ -8,8 +8,9 @@ export interface Toast {
   variant?: "default" | "destructive"
 }
 
-export interface ToasterToast extends Toast {
+export interface ToasterToast extends ToastType {
   open: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 const TOAST_LIMIT = 1
@@ -121,7 +122,7 @@ function dispatch(action: ActionType) {
   })
 }
 
-type Toast = Omit<ToasterToast, "id">
+type Toast = Omit<ToasterToast, "id" | "open">
 
 function toast({ ...props }: Toast) {
   const id = genId()

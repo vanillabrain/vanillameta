@@ -85,7 +85,7 @@ export const ExportAuditLogsModal: React.FC<ExportAuditLogsModalProps> = ({
 
   // 내보내기 미리보기
   const previewMutation = useMutation({
-    mutationFn: (params: Partial<ExportAuditLogsDto>) => 
+    mutationFn: (params: Partial<ExportAuditLogsDto> & { format: 'csv' | 'json' }) => 
       auditLogServiceV2.getExportPreview(params),
     onSuccess: (data) => {
       setRecordCount(data.recordCount);
@@ -104,13 +104,13 @@ export const ExportAuditLogsModal: React.FC<ExportAuditLogsModalProps> = ({
     const exportParams: ExportAuditLogsDto = {
       dateFrom: dateRange.from,
       dateTo: dateRange.to,
-      level: initialFilters.level,
-      action: initialFilters.action,
+      levels: initialFilters.level ? [initialFilters.level] : undefined,
+      actions: initialFilters.action ? [initialFilters.action] : undefined,
       userId: initialFilters.userId,
       resourceType: initialFilters.resourceType,
-      category: initialFilters.category,
+      categories: initialFilters.category ? [initialFilters.category] : undefined,
       status: initialFilters.status,
-      format: exportFormat as 'excel' | 'csv' | 'json',
+      format: exportFormat as 'csv' | 'json',
       includeColumns,
       maxRecords,
       filename,
@@ -125,12 +125,13 @@ export const ExportAuditLogsModal: React.FC<ExportAuditLogsModalProps> = ({
       previewMutation.mutate({
         dateFrom: dateRange.from,
         dateTo: dateRange.to,
-        level: initialFilters.level,
-        action: initialFilters.action,
+        levels: initialFilters.level ? [initialFilters.level] : undefined,
+        actions: initialFilters.action ? [initialFilters.action] : undefined,
         userId: initialFilters.userId,
         resourceType: initialFilters.resourceType,
-        category: initialFilters.category,
+        categories: initialFilters.category ? [initialFilters.category] : undefined,
         status: initialFilters.status,
+        format: exportFormat as 'csv' | 'json',
         maxRecords,
       });
     }
