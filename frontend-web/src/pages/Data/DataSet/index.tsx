@@ -308,7 +308,7 @@ const DataSet = () => {
       upperTitle="데이터"
       upperTitleLink="/data"
       title={`데이터셋 ${isModifyMode ? '수정' : '생성'}`}
-      sx={{ p: 0 }}
+      className="p-0"
       button={
         <Stack>
           <ConfirmCancelButton

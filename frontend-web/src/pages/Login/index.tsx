@@ -1,6 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
-import { Box, Button, Stack, TextField, Typography } from '@mui/material';
 import { useAlert } from 'react-alert';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { ReactComponent as Logo } from '@/assets/images/logo.svg';
@@ -12,6 +11,9 @@ import { SnackbarContext } from '@/contexts/AlertContext';
 import Seo from '@/seo/Seo';
 import { getToken, setToken } from '@/helpers/authHelper';
 import { trackUserSession } from '@/utils/eventTracking';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 const Login = () => {
   const { showLoading, hideLoading } = useContext(LoadingContext);
@@ -122,170 +124,76 @@ const Login = () => {
 
   if (!token) {
     return (
-      <Box
-        component="main"
-        sx={{
-          position: 'relative',
-          zIndex: 0,
-          width: '100%',
-          height: '100%',
-          minWidth: '100vw',
-          backgroundColor: '#f5f6f8',
-        }}
-      >
+      <main className="relative z-0 w-full h-full min-w-screen bg-[#f5f6f8]">
         <Seo title="로그인" />
-        <Box
-          sx={{
-            pt: '90px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-          }}
-        >
+        <div className="pt-[90px] flex flex-col items-center">
           <RouterLink to="/">
             <Logo width="223px" height="43px" />
           </RouterLink>
-          <Typography sx={{ mt: '17px', fontSize: '16px', color: '#043f84', textAlign: 'center' }}>
+          <p className="mt-4 text-base text-[#043f84] text-center">
             통합 데이터 분석을 위한{' '}
-            <Typography component="span" sx={{ fontSize: '16px', fontWeight: 'bold' }}>
-              대시보드 리포팅 솔루션
-            </Typography>
-          </Typography>
-          <Stack
-            component="form"
+            <span className="text-base font-bold">대시보드 리포팅 솔루션</span>
+          </p>
+          <form
             onSubmit={handleLogin}
             noValidate
-            sx={{ width: { xs: 'calc(100% - 40px)', sm: '360px' }, mt: '56px' }}
-            spacing="20px"
+            className="w-[calc(100%-40px)] sm:w-[360px] mt-14 space-y-5"
           >
-            <TextField
-              autoFocus={true}
-              label="User ID"
-              name="userId"
-              value={userInfo.userId}
-              onChange={handleChange}
-              margin="normal"
-              required={true}
-              fullWidth
-              sx={{ height: { xs: '44px', sm: '36px' } }}
-              InputLabelProps={{ sx: { pt: { xs: '6px', sm: 0 } } }}
-              InputProps={{
-                sx: { height: { xs: '44px', sm: '36px' }, input: { padding: '12px 14px' } },
-              }}
-            />
-            <TextField
-              label="Password"
-              name="userPwd"
-              value={userInfo.userPwd}
-              onChange={handleChange}
-              type="password"
-              margin="normal"
-              required={true}
-              fullWidth
-              sx={{ height: { xs: '44px', sm: '36px' } }}
-              InputLabelProps={{ sx: { pt: { xs: '6px', sm: 0 } } }}
-              InputProps={{
-                sx: { height: { xs: '44px', sm: '36px' }, input: { padding: '12px 14px' } },
-              }}
-            />
+            <div className="space-y-2">
+              <Label htmlFor="userId">User ID</Label>
+              <Input
+                autoFocus={true}
+                id="userId"
+                name="userId"
+                value={userInfo.userId}
+                onChange={handleChange}
+                required={true}
+                className="h-11 sm:h-9"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="userPwd">Password</Label>
+              <Input
+                id="userPwd"
+                name="userPwd"
+                value={userInfo.userPwd}
+                onChange={handleChange}
+                type="password"
+                required={true}
+                className="h-11 sm:h-9"
+              />
+            </div>
             <Button
               type="submit"
-              size="large"
-              fullWidth
-              variant="contained"
-              sx={{ height: { xs: '50px', sm: '44px' }, mt: 3, mb: 2 }}
+              size="lg"
+              className="w-full h-[50px] sm:h-11 mt-3 mb-2"
             >
               Login
             </Button>
-          </Stack>
+          </form>
           {APP_MODE != 'prod' && (
-            <Stack
-              sx={{
-                display: 'flex',
-                flexDirection: 'row',
-                justifyContent: 'center',
-                alignItems: 'center',
-                gap: '12px',
-                mt: '40px',
-                fontSize: '14px',
-                textAlign: 'center',
-                color: '#4a4a4a',
-              }}
-            >
-              <Button
-                component={RouterLink}
+            <div className="flex flex-row justify-center items-center gap-3 mt-10 text-sm text-center text-[#4a4a4a]">
+              <RouterLink
                 to="/signup"
-                disableRipple
-                disableFocusRipple
-                disableTouchRipple
-                sx={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  minWidth: 0,
-                  minHeight: 0,
-                  m: 0,
-                  p: 0,
-                  gap: '12px',
-                  fontSize: 'inherit',
-                  fontWeight: 'inherit',
-                  textDecoration: 'underline',
-                  color: 'inherit',
-                  '&:hover': {
-                    textDecoration: 'underline',
-                    backgroundColor: 'inherit',
-                  },
-
-                  '&:after': {
-                    content: `""`,
-                    width: '1px',
-                    height: '10px',
-                    backgroundColor: '#cccfd8',
-                  },
-                }}
+                className="flex justify-center items-center min-w-0 min-h-0 m-0 p-0 gap-3 text-inherit font-inherit underline hover:underline hover:bg-inherit after:content-[''] after:w-[1px] after:h-[10px] after:bg-[#cccfd8]"
               >
                 회원가입
-              </Button>
-              <Button
-                disableRipple
-                disableFocusRipple
-                disableTouchRipple
-                sx={{
-                  minWidth: 0,
-                  minHeight: 0,
-                  m: 0,
-                  p: 0,
-                  fontSize: 'inherit',
-                  fontWeight: 'inherit',
-                  // textDecoration: 'underline',
-                  color: 'inherit',
-                  '&:hover': {
-                    // textDecoration: 'underline',
-                    backgroundColor: 'inherit',
-                  },
-                }}
+              </RouterLink>
+              <button
+                className="min-w-0 min-h-0 m-0 p-0 text-inherit font-inherit text-[#4a4a4a] hover:bg-inherit"
               >
                 아이디/비번찾기
-              </Button>
-            </Stack>
+              </button>
+            </div>
           )}
-        </Box>
-        <Copyright sx={{ mt: '50px', mb: 4 }} />
-        <Box
-          component="img"
+        </div>
+        <Copyright className="mt-[50px] mb-4" />
+        <img
           src={backgroundImage}
-          sx={{
-            position: 'fixed',
-            zIndex: -1,
-            bottom: 0,
-            left: '50%',
-            margin: 'auto',
-            width: '1024px',
-            height: '508px',
-            transform: 'translateX(-50%)',
-          }}
+          className="fixed z-[-1] bottom-0 left-1/2 m-auto w-[1024px] h-[508px] -translate-x-1/2"
+          alt="Background"
         />
-      </Box>
+      </main>
     );
   }
 };

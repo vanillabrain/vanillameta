@@ -416,7 +416,7 @@ function DashboardModify() {
       upperTitle="대시보드"
       upperTitleLink="/dashboard"
       title={topTitle}
-      sx={{ width: '100%', marginTop: { xs: 0, sm: '22px' }, flex: '1 1 auto', p: { xs: 0 } }}
+      className="w-full mt-0 sm:mt-[22px] flex-auto p-0"
       button={
         <Stack direction="row" spacing={3} sx={{ marginRight: '20px' }}>
           <ConfirmCancelButton

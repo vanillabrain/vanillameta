@@ -310,7 +310,7 @@ function DataSource() {
           cancelProps={{ onClick: handleCancelClick }}
         />
       }
-      sx={{ p: 0 }}
+      className="p-0"
     >
       <Stack sx={{ width: '100%' }}>
         <Stack sx={{ p: '30px 25px 50px 25px' }}>

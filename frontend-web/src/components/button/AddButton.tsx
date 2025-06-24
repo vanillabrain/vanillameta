@@ -1,12 +1,13 @@
 import React from 'react';
-import { Button } from '@mui/material';
+import { Button } from '@/components/ui/button';
 import { ReactComponent as IconAdd } from '@/assets/images/icon/ic-add.svg';
 
-const AddButton = ({ sx = null, ...props }) => {
+const AddButton = ({ className = '', ...props }) => {
   return (
     <Button
-      variant="contained"
-      sx={{ width: '24px', height: '24px', p: 0, m: 0, borderRadius: '4px', minWidth: 0, ...sx }}
+      variant="default"
+      size="icon"
+      className={`w-6 h-6 p-0 m-0 rounded ${className}`}
       {...props}
     >
       <IconAdd />

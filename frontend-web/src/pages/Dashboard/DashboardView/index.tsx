@@ -214,7 +214,7 @@ const DashboardView = () => {
       upperTitle="대시보드"
       upperTitleLink="/dashboard"
       title="대시보드 조회"
-      sx={{ width: '100%', marginTop: { xs: 0, sm: '22px' }, flex: '1 1 auto', p: { xs: 0 } }}
+      className="w-full mt-0 sm:mt-[22px] flex-auto p-0"
     >
       <>
         <Seo title={dashboardInfo.title} />

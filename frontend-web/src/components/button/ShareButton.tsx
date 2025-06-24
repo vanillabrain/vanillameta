@@ -1,24 +1,17 @@
 import React, { forwardRef, Ref, useRef } from 'react';
-import {
-  Box,
-  Button,
-  ClickAwayListener,
-  IconButton,
-  Paper,
-  Popper,
-  Stack,
-  SxProps,
-  TextField,
-  Typography,
-  useMediaQuery,
-  useTheme,
-} from '@mui/material';
 import { ReactComponent as IconShare } from '@/assets/images/icon/ic-share.svg';
 import { ReactComponent as IconToggleOn } from '@/assets/images/icon/toggle-on.svg';
 import { ReactComponent as IconToggleOff } from '@/assets/images/icon/toggle-off.svg';
 import { ReactComponent as IconLink } from '@/assets/images/icon/ic-link.svg';
 import { useAlert } from 'react-alert';
 import DatePicker from '@/components/form/DatePicker';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 
 interface ShareButtonProps {
   handleShareToggle?: () => void;
@@ -32,12 +25,7 @@ interface SharePopupProps extends ShareButtonProps {
   matches: boolean;
 }
 
-const paperSx: SxProps = {
-  marginTop: '3px',
-  border: 'solid 1px #ddd',
-  borderRadius: '6px',
-  boxShadow: '2px 2px 9px 0 rgba(42, 50, 62, 0.1), 0 4px 4px 0 rgba(0, 0, 0, 0.02)',
-};
+const paperStyles = "mt-[3px] border border-[#ddd] rounded-md shadow-[2px_2px_9px_0_rgba(42,50,62,0.1),0_4px_4px_0_rgba(0,0,0,0.02)]";
 
 const ShareOnPopup = forwardRef((props: SharePopupProps, ref: Ref<HTMLDivElement>) => {
   const { matches, handleShareToggle, shareLimitDate, shareId } = props;
@@ -57,80 +45,72 @@ const ShareOnPopup = forwardRef((props: SharePopupProps, ref: Ref<HTMLDivElement
   };
 
   return matches ? (
-    <Paper sx={{ ...paperSx, minWidth: '410px' }} ref={ref}>
-      <Stack sx={{ width: '100%', padding: '24px' }}>
-        <Typography sx={{ mb: '6px', fontSize: '16px', fontWeight: 600, color: '#141414' }}>페이지 공유</Typography>
-        <Stack
-          component="form"
+    <div className={`${paperStyles} min-w-[410px] bg-white`} ref={ref}>
+      <div className="w-full p-6">
+        <h3 className="mb-[6px] text-base font-semibold text-[#141414]">페이지 공유</h3>
+        <form
           onSubmit={event => {
             event.preventDefault();
             handleShareToggle();
           }}
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-          mb="3px"
+          className="flex flex-row justify-between items-center mb-[3px]"
         >
-          <Typography sx={{ mr: '12px', fontSize: '14px', color: '#141414' }}>링크를 통한 읽기를 허용합니다.</Typography>
-          <IconButton type="submit" sx={{ minWidth: '44px', width: '44px', height: '24px', m: 0, p: 0 }}>
+          <p className="mr-3 text-sm text-[#141414]">링크를 통한 읽기를 허용합니다.</p>
+          <button type="submit" className="min-w-[44px] w-11 h-6 m-0 p-0 bg-transparent border-0 cursor-pointer">
             <IconToggleOn />
-          </IconButton>
-        </Stack>
-        <Typography>
+          </button>
+        </form>
+        <p className="text-sm text-[#141414]">
           설정하신&nbsp;
-          <Box component="span" sx={{ color: '#0f5ab2' }}>
+          <span className="text-[#0f5ab2]">
             {shareLimitDate}
-          </Box>
+          </span>
           까지&nbsp;
-          <Box component="span" sx={{ fontWeight: 600, color: '#0f5ab2' }}>
+          <span className="font-semibold text-[#0f5ab2]">
             공유중
-          </Box>
+          </span>
           입니다.
-        </Typography>
-        <Stack direction="row" justifyContent="space-between" mt="18px">
-          <TextField sx={{ width: '298px', height: '32px' }} disabled value={shareLink} />
-          <Button variant="contained" sx={{ minWidth: '55px' }} onClick={handleCopyClick}>
+        </p>
+        <div className="flex flex-row justify-between mt-[18px] gap-3">
+          <Input className="w-[298px] h-8" disabled value={shareLink} />
+          <Button size="sm" onClick={handleCopyClick}>
             복사
           </Button>
-        </Stack>
-      </Stack>
-    </Paper>
+        </div>
+      </div>
+    </div>
   ) : (
-    <Paper sx={{ ...paperSx, width: '243px' }} ref={ref}>
-      <Stack sx={{ width: '100%', p: '22px 24px 20px' }}>
-        <Stack
-          component="form"
+    <div className={`${paperStyles} w-[243px] bg-white`} ref={ref}>
+      <div className="w-full py-[22px] px-6">
+        <form
           onSubmit={event => {
             event.preventDefault();
             handleShareToggle();
           }}
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-          sx={{ mb: '22px' }}
+          className="flex flex-row justify-between items-center mb-[22px]"
         >
-          <Typography sx={{ fontSize: '16px', fontWeight: 600, color: '#141414' }}>페이지 공유 중</Typography>
-          <IconButton type="submit" sx={{ minWidth: '44px', width: '44px', height: '24px', m: 0, p: 0 }}>
+          <h3 className="text-base font-semibold text-[#141414]">페이지 공유 중</h3>
+          <button type="submit" className="min-w-[44px] w-11 h-6 m-0 p-0 bg-transparent border-0 cursor-pointer">
             <IconToggleOn />
-          </IconButton>
-        </Stack>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Typography sx={{ fontSize: '14px', color: '#141414' }}>
+          </button>
+        </form>
+        <div className="flex flex-row justify-between items-center">
+          <p className="text-sm text-[#141414]">
             공유 기한:
-            <Box component="span" sx={{ ml: '4px', fontWeight: 'bold', color: '#333' }}>
+            <span className="ml-1 font-bold text-[#333]">
               {shareLimitDate}
-            </Box>
-          </Typography>
+            </span>
+          </p>
           <Button
-            variant="contained"
-            sx={{ width: '32px', minWidth: '32px', height: '32px', p: 0 }}
+            size="icon"
+            className="w-8 h-8"
             onClick={handleCopyClick}
           >
             <IconLink />
           </Button>
-        </Stack>
-      </Stack>
-    </Paper>
+        </div>
+      </div>
+    </div>
   );
 });
 
@@ -138,148 +118,103 @@ const ShareOffPopup = forwardRef((props: SharePopupProps, ref: Ref<HTMLDivElemen
   const { matches, handleShareToggle, shareLimitDate, setShareLimitDate } = props;
 
   return matches ? (
-    <Paper sx={{ ...paperSx, minWidth: '410px' }} ref={ref}>
-      <Stack sx={{ width: '100%', padding: '24px' }}>
-        <Typography sx={{ mb: '6px', fontSize: '16px', fontWeight: 600, color: '#141414' }}>페이지 공유</Typography>
-        <Stack
-          component="form"
+    <div className={`${paperStyles} min-w-[410px] bg-white`} ref={ref}>
+      <div className="w-full p-6">
+        <h3 className="mb-[6px] text-base font-semibold text-[#141414]">페이지 공유</h3>
+        <form
           onSubmit={event => {
             event.preventDefault();
             handleShareToggle();
           }}
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-          mb="16px"
+          className="flex flex-row justify-between items-center mb-4"
         >
-          <Typography sx={{ mr: '12px', fontSize: '14px', color: '#141414' }}>
+          <p className="mr-3 text-sm text-[#141414]">
             링크를 통한 읽기를 허용하지 않습니다.
-          </Typography>
-          <IconButton type="submit" sx={{ minWidth: '44px', width: '44px', height: '24px', m: 0, p: 0 }}>
+          </p>
+          <button type="submit" className="min-w-[44px] w-11 h-6 m-0 p-0 bg-transparent border-0 cursor-pointer">
             <IconToggleOff />
-          </IconButton>
-        </Stack>
-        <Stack sx={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Typography component="span" mr="8px">
+          </button>
+        </form>
+        <div className="flex flex-row items-center">
+          <span className="mr-2">
             공유 기한:
-          </Typography>
+          </span>
           <DatePicker shareLimitDate={shareLimitDate} setShareLimitDate={setShareLimitDate} />
-        </Stack>
-      </Stack>
-    </Paper>
+        </div>
+      </div>
+    </div>
   ) : (
-    <Paper sx={{ ...paperSx, width: '243px' }} ref={ref}>
-      <Stack sx={{ width: '100%', p: '22px 24px 20px' }}>
-        <Stack
-          component="form"
+    <div className={`${paperStyles} w-[243px] bg-white`} ref={ref}>
+      <div className="w-full py-[22px] px-6">
+        <form
           onSubmit={event => {
             event.preventDefault();
             handleShareToggle();
           }}
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-          sx={{ mb: '22px' }}
+          className="flex flex-row justify-between items-center mb-[22px]"
         >
-          <Typography sx={{ fontSize: '16px', fontWeight: 600, color: '#141414' }}>페이지 공유하지 않음</Typography>
-          <IconButton type="submit" sx={{ minWidth: '44px', width: '44px', height: '24px', m: 0, p: 0 }}>
+          <h3 className="text-base font-semibold text-[#141414]">페이지 공유하지 않음</h3>
+          <button type="submit" className="min-w-[44px] w-11 h-6 m-0 p-0 bg-transparent border-0 cursor-pointer">
             <IconToggleOff />
-          </IconButton>
-        </Stack>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Typography sx={{ fontSize: '14px', color: '#141414' }}>공유 기한:</Typography>
+          </button>
+        </form>
+        <div className="flex flex-row justify-between items-center">
+          <p className="text-sm text-[#141414]">공유 기한:</p>
           <DatePicker shareLimitDate={shareLimitDate} setShareLimitDate={setShareLimitDate} />
-        </Stack>
-      </Stack>
-    </Paper>
+        </div>
+      </div>
+    </div>
   );
 });
 
-const shareOnButtonSx: SxProps = {
-  flexShrink: 0,
-  border: '1px solid #0f5ab2',
-  backgroundColor: '#fff',
-  color: '#0f5ab2',
-  fill: '#0f5ab2',
-  '& span': { mr: '6px' },
-  '&:hover': { color: '#fff', fill: '#fff' },
-};
-
-const shareOffButtonSx: SxProps = {
-  flexShrink: 0,
-  fill: '#fff',
-  '& span': { mr: '6px' },
-  '&:hover': { border: '1px solid #0f5ab2', backgroundColor: '#fff', color: '#0f5ab2', fill: '#0f5ab2' },
-};
 
 function ShareButton(props: ShareButtonProps) {
   const { handleShareToggle, isShareOn, shareId, shareLimitDate, setShareLimitDate } = props;
-  const [anchorEl, setAnchorEl] = React.useState<HTMLButtonElement | null>(null);
-  const open = Boolean(anchorEl);
-  const id = open ? 'simple-popover' : undefined;
-  const theme = useTheme();
-  const matches = useMediaQuery(theme.breakpoints.up('sm'));
+  const [open, setOpen] = React.useState(false);
+  const matches = typeof window !== 'undefined' ? window.innerWidth >= 640 : true;
   const ref: Ref<HTMLDivElement> = useRef();
 
-  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleClose = event => {
-    event.preventDefault();
-    event.stopPropagation();
-    setAnchorEl(null);
-  };
-
   return (
-    <React.Fragment>
-      {isShareOn ? (
-        <Button
-          startIcon={<IconShare fill="inherit" />}
-          variant="contained"
-          onClick={handleClick}
-          sx={{
-            ...shareOnButtonSx,
-            px: { xs: '8px', sm: '12px' },
-          }}
-        >
-          공유중
-        </Button>
-      ) : (
-        <Button
-          startIcon={<IconShare fill="inherit" />}
-          variant="contained"
-          onClick={handleClick}
-          sx={{
-            ...shareOffButtonSx,
-            px: { xs: '8px', sm: '12px' },
-          }}
-        >
-          공유
-        </Button>
-      )}
-      <Popper id={id} open={open} anchorEl={anchorEl} disablePortal={false} placement="bottom-end">
-        <ClickAwayListener onClickAway={handleClose}>
-          {isShareOn ? (
-            <ShareOnPopup
-              ref={ref}
-              matches={matches}
-              handleShareToggle={handleShareToggle}
-              shareLimitDate={shareLimitDate}
-              shareId={shareId}
-            />
-          ) : (
-            <ShareOffPopup
-              ref={ref}
-              matches={matches}
-              handleShareToggle={handleShareToggle}
-              shareLimitDate={shareLimitDate}
-              setShareLimitDate={setShareLimitDate}
-            />
-          )}
-        </ClickAwayListener>
-      </Popper>
-    </React.Fragment>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        {isShareOn ? (
+          <Button
+            variant="outline"
+            className="flex-shrink-0 border-[#0f5ab2] bg-white text-[#0f5ab2] hover:bg-[#0f5ab2] hover:text-white px-2 sm:px-3 gap-1.5"
+          >
+            <IconShare className="w-4 h-4 fill-current" />
+            공유중
+          </Button>
+        ) : (
+          <Button
+            variant="default"
+            className="flex-shrink-0 px-2 sm:px-3 gap-1.5"
+          >
+            <IconShare className="w-4 h-4 fill-white" />
+            공유
+          </Button>
+        )}
+      </PopoverTrigger>
+      <PopoverContent align="end" className="p-0 border-0 shadow-none">
+        {isShareOn ? (
+          <ShareOnPopup
+            ref={ref}
+            matches={matches}
+            handleShareToggle={handleShareToggle}
+            shareLimitDate={shareLimitDate}
+            shareId={shareId}
+          />
+        ) : (
+          <ShareOffPopup
+            ref={ref}
+            matches={matches}
+            handleShareToggle={handleShareToggle}
+            shareLimitDate={shareLimitDate}
+            setShareLimitDate={setShareLimitDate}
+          />
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }
 

@@ -1,7 +1,5 @@
 import React, { ReactElement } from 'react';
 import { Transition } from 'react-transition-group';
-import { styled } from '@mui/material/styles';
-import { Box } from '@mui/material';
 import loadingGif from '@/assets/images/loading.gif';
 
 interface LoadingProps {
@@ -24,25 +22,12 @@ const transitionStyles = {
   exited: { opacity: 0, display: 'none' },
 };
 
-const LoadingBox = styled(Box)(() => ({
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  position: 'fixed',
-  width: '100%',
-  height: '100%',
-  background: '#FFFFFF',
-  opacity: 0,
-  boxSizing: 'border-box',
-  borderRadius: '4px',
-  zIndex: 100,
-}));
-
 export const Loading = ({ in: inProp, style, ...rest }: LoadingProps): ReactElement => {
   return (
     <Transition in={inProp} timeout={duration}>
       {state => (
-        <LoadingBox
+        <div
+          className="flex items-center justify-center fixed w-full h-full bg-white opacity-0 rounded z-[100]"
           style={{
             ...defaultStyle,
             ...transitionStyles[state],
@@ -51,7 +36,7 @@ export const Loading = ({ in: inProp, style, ...rest }: LoadingProps): ReactElem
           {...rest}
         >
           <img src={loadingGif} alt="Logo" width="40px" height="40px" />
-        </LoadingBox>
+        </div>
       )}
     </Transition>
   );

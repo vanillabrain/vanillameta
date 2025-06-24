@@ -1,5 +1,4 @@
 import React, { useContext } from 'react';
-import { Box, Stack } from '@mui/material';
 import Footer from '@/layouts/Footer';
 import { Outlet } from 'react-router-dom';
 import { LandingLogo } from '@/layouts/Header/Logo';
@@ -11,23 +10,18 @@ const PublicLayout = props => {
   const { fixed, footerBg } = useContext(LayoutContext);
 
   return (
-    <Box
-      sx={{
-        width: '100%',
-        height: '100%',
-        flex: '1 1 auto',
-        overflow: fixed ? 'hidden' : 'visible',
-        backgroundColor: footerBg ? footerBg : '#fff',
-      }}
+    <div
+      className={`w-full h-full flex-auto ${fixed ? 'overflow-hidden' : 'overflow-visible'}`}
+      style={{ backgroundColor: footerBg || '#fff' }}
     >
-      <Stack sx={{ width: '100%', maxWidth: MAX_WIDTH, mx: 'auto', backgroundColor: '#fff' }}>
-        <Stack sx={{ height: 65, justifyContent: 'center', pl: '20px' }}>
+      <div className="w-full mx-auto bg-white" style={{ maxWidth: MAX_WIDTH }}>
+        <div className="h-16 flex items-center pl-5">
           <LandingLogo />
-        </Stack>
+        </div>
         {children || <Outlet />}
-      </Stack>
+      </div>
       <Footer />
-    </Box>
+    </div>
   );
 };
 

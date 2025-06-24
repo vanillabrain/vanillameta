@@ -1,9 +1,7 @@
 import React from 'react';
-import { Box, Hidden, ListItem, ListItemIcon, Stack, useMediaQuery, useTheme } from '@mui/material';
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import DeleteButton from '@/components/button/DeleteButton';
 import ModifyButton from '@/components/button/ModifyButton';
-import { styled } from '@mui/material/styles';
 import { dateData } from '@/utils/util';
 
 interface BoardItemDataProps {
@@ -26,59 +24,16 @@ interface TitleSpanProps {
   children: React.ReactNode;
 }
 
-const MobileTitleSpan = styled('span')<TitleSpanProps>({
-  display: 'block',
-  flexGrow: 0,
-  width: '100%',
-  fontSize: '14px',
-  fontWeight: '600',
-  lineHeight: '1.43',
-  color: '#333333',
-});
-
-const TitleSpan = styled('span')<TitleSpanProps>({
-  display: 'block',
-  flexGrow: 0,
-  width: '100%',
-  height: '14px',
-  fontSize: '14px',
-  fontWeight: '600',
-  lineHeight: '1.14',
-  color: '#333333',
-  overflow: 'hidden',
-  whiteSpace: 'nowrap',
-  textOverflow: 'ellipsis',
-});
-
-interface SubTitleSpanProps {
-  children: React.ReactNode;
-  matches?: boolean;
-}
-
-const SubTitleSpan = styled('span')<SubTitleSpanProps>(({ matches }) => ({
-  display: 'flex',
-  height: '14px',
-  justifyContent: 'space-between',
-  fontSize: matches ? '14px' : '10px',
-  fontWeight: '500',
-  lineHeight: '1.14',
-  color: '#333333',
-}));
 
 const IconRowHeader = ({ icon }) => {
   return (
-    <ListItemIcon
-      sx={{
-        minWidth: '24px',
-        mr: '18px',
-      }}
-    >
-      <Box
-        component="img"
+    <div className="min-w-[24px] mr-[18px]">
+      <img
         src={`static/images/${icon}`}
-        sx={{ width: 'auto', height: '30px', borderRadius: 0, objectFit: 'contain', backgroundColor: 'transparent' }}
+        className="w-auto h-[30px] rounded-none object-contain bg-transparent"
+        alt=""
       />
-    </ListItemIcon>
+    </div>
   );
 };
 
@@ -86,81 +41,44 @@ function BoardItem(props: BoardItemProps) {
   const { data, handleDeleteSelect } = props;
   const { id, title, componentType, icon, updatedAt } = data;
 
-  const theme = useTheme();
-  const matches = useMediaQuery(theme.breakpoints.up('sm'));
+  const matches = typeof window !== 'undefined' ? window.innerWidth >= 640 : true;
   const navigate = useNavigate();
   const location = useLocation();
   const pathname = location.pathname;
 
   return (
-    <ListItem
-      disablePadding
-      sx={{
-        py: { xs: '20px', sm: '7px' },
-        px: { xs: '16px', sm: '20px' },
-        pr: { sm: '28px' },
-        borderBottom: tableBorder,
-        '&:last-of-type': { borderBottom: 0 },
-      }}
-      component={RouterLink}
+    <RouterLink
       to={`${id}`}
       state={{ from: pathname }}
+      className="block py-5 sm:py-[7px] px-4 sm:px-5 sm:pr-7 border-b border-[#DADDDD] last:border-b-0 hover:bg-gray-50 transition-colors"
     >
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ width: '100%' }}>
-        <Stack direction="row" alignItems="center" sx={{ width: '100%', maxWidth: `calc(100% - ${matches ? 300 : 110}px)` }}>
+      <div className="flex flex-row items-center justify-between w-full">
+        <div className={`flex flex-row items-center w-full ${matches ? 'max-w-[calc(100%-300px)]' : 'max-w-[calc(100%-110px)]'}`}>
           {matches && componentType && <IconRowHeader icon={icon} />}
           {matches ? (
             <span
-              style={{
-                display: 'block',
-                flexGrow: 0,
-                width: '100%',
-                height: '14px',
-                fontSize: '14px',
-                fontWeight: '600',
-                lineHeight: '1.14',
-                color: '#333333',
-                overflow: 'hidden',
-                whiteSpace: 'nowrap',
-                textOverflow: 'ellipsis',
-              }}
+              className="block flex-grow-0 w-full h-[14px] text-sm font-semibold leading-[1.14] text-[#333333] overflow-hidden whitespace-nowrap text-ellipsis"
             >
               {title}
             </span>
           ) : (
             <span
-              style={{
-                display: 'block',
-                flexGrow: 0,
-                width: '100%',
-                fontSize: '14px',
-                fontWeight: '600',
-                lineHeight: '1.43',
-                color: '#333333',
-              }}
+              className="block flex-grow-0 w-full text-sm font-semibold leading-[1.43] text-[#333333]"
             >
               {title}
             </span>
           )}
-        </Stack>
-        <Stack alignItems="center" direction="row">
+        </div>
+        <div className="flex items-center flex-row">
           <span
-            style={{
-              display: 'flex',
-              height: '14px',
-              justifyContent: 'space-between',
-              fontSize: matches ? '14px' : '10px',
-              fontWeight: '500',
-              lineHeight: '1.14',
-              color: '#333333',
-            }}
+            className={`flex h-[14px] justify-between font-medium leading-[1.14] text-[#333333] ${matches ? 'text-sm' : 'text-[10px]'}`}
           >
             {dateData(updatedAt)}
           </span>
-          <Hidden smDown>
-            <Stack direction="row" gap="18px" ml="48px">
+          {matches && (
+            <div className="flex flex-row gap-[18px] ml-12">
               <ModifyButton
-                size="medium"
+                size="default"
                 onClick={event => {
                   event.preventDefault();
                   event.stopPropagation();
@@ -168,18 +86,18 @@ function BoardItem(props: BoardItemProps) {
                 }}
               />
               <DeleteButton
-                size="medium"
+                size="default"
                 onClick={event => {
                   event.preventDefault();
                   event.stopPropagation();
                   handleDeleteSelect(id, title);
                 }}
               />
-            </Stack>
-          </Hidden>
-        </Stack>
-      </Stack>
-    </ListItem>
+            </div>
+          )}
+        </div>
+      </div>
+    </RouterLink>
   );
 }
 

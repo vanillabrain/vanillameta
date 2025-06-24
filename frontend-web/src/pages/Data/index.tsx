@@ -12,7 +12,7 @@ import { useTranslation } from 'react-i18next';
 const Data = () => {
   const { t } = useTranslation('navigation');
   return (
-    <PageTitleBox title={t('data')} sx={{ paddingLeft: 0, paddingRight: 0, width: '100%', height: '100%' }}>
+    <PageTitleBox title={t('data')} className="!px-0">
       <Seo title={t('data')} />
       <DataLayout />
     </PageTitleBox>

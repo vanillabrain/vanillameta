@@ -3,12 +3,10 @@ import PageTitleBox from '@/components/PageTitleBox';
 import BoardList from '@/components/BoardList';
 import { Outlet, useNavigate, useParams } from 'react-router-dom';
 import { MenuButton } from '@/components/button/AddIconButton';
-import AddIcon from '@mui/icons-material/Add';
-import { Box, Stack, useMediaQuery, useTheme } from '@mui/material';
+import { Plus } from 'lucide-react';
 import DashboardService from '@/api/dashboardService';
 import { STATUS } from '@/constant';
 import { useAlert } from 'react-alert';
-import { styled } from '@mui/system';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import Seo from '@/seo/Seo';
@@ -23,20 +21,8 @@ function Dashboard() {
   const [loadedDashboardData, setLoadedDashboardData] = useState([]);
   const [noData, setNoData] = useState(false);
   const { showLoading, hideLoading } = useContext(LoadingContext);
-  const theme = useTheme();
-  const matches = useMediaQuery(theme.breakpoints.up('sm'));
+  const matches = typeof window !== 'undefined' ? window.innerWidth >= 640 : true;
 
-  const GTSpan = styled('span')({
-    fontFamily: 'Pretendard',
-    fontSize: matches ? '13px' : '10px',
-    fontWeight: '500',
-    fontStretch: 'normal',
-    fontStyle: 'normal',
-    lineHeight: '1.23',
-    letterSpacing: 'normal',
-    textAlign: 'left',
-    color: '#767676',
-  });
 
   const menuList = [
     { name: '대시보드', link: '/dashboard/create', id: 'dashboard' },
@@ -79,11 +65,11 @@ function Dashboard() {
   const handleDeleteSelect = useCallback(
     (id, title) => {
       alert.success(
-        <Box sx={{ span: { fontWeight: 600 } }}>
-          <span>{title}</span>
+        <div>
+          <span className="font-semibold">{title}</span>
           <br />
           대시보드를 삭제하시겠습니까?
-        </Box>,
+        </div>,
         {
           closeCopy: '취소',
           actions: [
@@ -130,51 +116,29 @@ function Dashboard() {
   const getEmptyView = useMemo(() => {
     return (
       <>
-        <Stack
-          flexDirection="row"
-          justifyContent="space-between"
-          sx={{ paddingLeft: '20px', paddingRight: { xs: '44px', sm: '217px' }, marginBottom: '11px', marginTop: '36px' }}
+        <div
+          className="flex flex-row justify-between pl-5 pr-11 sm:pr-[217px] mb-[11px] mt-9"
         >
-          <GTSpan>이름</GTSpan>
-          <GTSpan>수정일</GTSpan>
-        </Stack>
-        <Box
-          sx={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            flexGrow: '0',
-            py: '18px',
-            margin: '0 0 0 0',
-            borderRadius: '6px',
-            border: 'solid 1px #ddd',
-            backgroundColor: '#fff',
-          }}
+          <span className="text-[10px] sm:text-[13px] font-medium leading-[1.23] text-[#767676]">이름</span>
+          <span className="text-[10px] sm:text-[13px] font-medium leading-[1.23] text-[#767676]">수정일</span>
+        </div>
+        <div
+          className="flex justify-center items-center py-[18px] rounded-md border border-[#ddd] bg-white"
         >
           <span
-            style={{
-              fontFamily: 'Pretendard',
-              fontSize: matches ? '16px' : '14px',
-              fontWeight: 600,
-              fontStretch: 'normal',
-              fontStyle: 'normal',
-              lineHeight: 1.43,
-              letterSpacing: 'normal',
-              textAlign: 'center',
-              color: '#333333',
-            }}
+            className="font-semibold text-center text-[#333333] text-sm sm:text-base leading-[1.43]"
           >
             생성한 대시보드가 없습니다.
             {matches ? ' ' : <br />}
             대시보드를 생성 후 확인해 보세요.
           </span>
-        </Box>
+        </div>
       </>
     );
-  }, [matches, GTSpan]);
+  }, [matches]);
 
   return (
-    <Stack sx={{ width: '100%', height: '100%', flex: '1 1 auto' }}>
+    <div className="w-full h-full flex-auto flex flex-col">
       <Seo title={title} />
 
       {!dashboardId ? (
@@ -185,7 +149,7 @@ function Dashboard() {
               <MenuButton
                 menuList={menuList}
                 handleSelect={handleMenuSelect}
-                icon={<AddIcon />}
+                icon={<Plus className="w-4 h-4" />}
                 title="대시보드 추가"
                 sizeOption={{ width: 108, height: 32 }}
               />
@@ -203,7 +167,7 @@ function Dashboard() {
       ) : (
         <Outlet />
       )}
-    </Stack>
+    </div>
   );
 }
 

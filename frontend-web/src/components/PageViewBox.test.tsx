@@ -98,13 +98,11 @@ describe('PageViewBox 컴포넌트', () => {
     });
 
     it('커스텀 스타일이 적용되어야 함', () => {
-      const customSx = { backgroundColor: 'red' };
+      const { container } = renderWithProviders(<PageViewBox title="테스트 제목" className="bg-red-500" />);
 
-      const { container } = renderWithProviders(<PageViewBox title="테스트 제목" sx={customSx} />);
-
-      // 스타일이 적용된 Box 찾기
-      const styledBox = container.querySelector('[class*="MuiBox-root"]');
-      expect(styledBox).toBeInTheDocument();
+      // 스타일이 적용된 div 찾기
+      const styledDiv = container.querySelector('.bg-red-500');
+      expect(styledDiv).toBeInTheDocument();
     });
   });
 

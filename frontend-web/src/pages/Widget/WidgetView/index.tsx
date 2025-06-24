@@ -125,7 +125,7 @@ const WidgetView = () => {
       upperTitle="위젯"
       upperTitleLink="/widget"
       title="위젯 조회"
-      sx={{ width: '100%', marginTop: { xs: 0, sm: '22px' }, flex: '1 1 auto', p: { xs: 0 } }}
+      className="w-full mt-0 sm:mt-[22px] flex-auto p-0"
     >
       <Seo title={widgetOption.title} />
       <PageViewBox

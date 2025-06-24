@@ -1,5 +1,4 @@
 import React from 'react';
-import { AppBar, Box, Divider, Hidden, Toolbar } from '@mui/material';
 import { AddMenuIconButton } from '@/components/button/AddIconButton';
 import Logo from './Logo';
 import NavBar from './NavBar';
@@ -46,24 +45,24 @@ function Header() {
   };
 
   return (
-    <AppBar elevation={0} component="nav" sx={{ left: 0, height: { xs: '56px', sm: '65px' } }}>
-      <Toolbar variant="dense" sx={{ height: 65, justifyContent: 'space-between', columnGap: { xs: '20px', sm: '32px' } }}>
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-white shadow-sm h-14 sm:h-16">
+      <div className="h-16 flex items-center justify-between px-4 gap-5 sm:gap-8">
         <Logo />
-        <Hidden smDown>
+        <div className="hidden sm:flex items-center justify-between flex-1">
           <NavBar navItems={navItems} />
-          <Box sx={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+          <div className="flex gap-4 items-center">
             <AddMenuIconButton menuList={menuList} handleSelect={handleMenuSelect} />
             <LanguageSwitcher />
             <ProfileViewButton />
-          </Box>
-        </Hidden>
-        <Hidden smUp>
+          </div>
+        </div>
+        <div className="flex sm:hidden items-center gap-4">
           <NavBar navItems={navItems.slice(0, 2)} />
           <Logout sx={{ fontSize: '12px', color: '#767676' }} />
-        </Hidden>
-      </Toolbar>
-      <Divider />
-    </AppBar>
+        </div>
+      </div>
+      <div className="border-b border-gray-200" />
+    </nav>
   );
 }
 

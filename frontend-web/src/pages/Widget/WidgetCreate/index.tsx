@@ -120,7 +120,7 @@ const WidgetCreate = () => {
       title={title}
       upperTitle="위젯"
       upperTitleLink="/widget"
-      sx={{ paddingLeft: 0, paddingRight: 0, width: '100%', height: '100%' }}
+      className="pl-0 pr-0 w-full h-full"
       button={
         <Stack direction="row" gap="10px">
           <Button

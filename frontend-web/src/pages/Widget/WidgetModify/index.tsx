@@ -104,7 +104,7 @@ const WidgetModify = () => {
       upperTitle="위젯"
       upperTitleLink="/widget"
       title="위젯 편집"
-      sx={{ padding: 0 }}
+      className="p-0"
       button={
         <ConfirmButton
           confirmLabel="저장"

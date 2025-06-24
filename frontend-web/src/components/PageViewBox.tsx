@@ -1,7 +1,7 @@
 import React, { useContext, useEffect } from 'react';
-import { Avatar, Box, Divider, Stack, SxProps, Typography, useMediaQuery, useTheme } from '@mui/material';
 import { MAX_WIDTH } from '@/constant';
 import { LayoutContext } from '@/contexts/LayoutContext';
+import { cn } from '@/lib/utils';
 
 interface PageViewBoxProps {
   iconName?: string;
@@ -9,19 +9,18 @@ interface PageViewBoxProps {
   titleElement?: React.ReactNode;
   date?: string;
   button?: React.ReactNode;
-  sx?: SxProps;
+  className?: string;
   children?: React.ReactNode;
 }
 
 function PageViewBox(props: PageViewBoxProps) {
-  const theme = useTheme();
-  const matches = useMediaQuery(theme.breakpoints.up('sm'));
+  const matches = typeof window !== 'undefined' ? window.innerWidth >= 640 : true;
   return matches ? <DesktopViewBox {...props} /> : <MobileViewBox {...props} />;
 }
 export default PageViewBox;
 
 const MobileViewBox = props => {
-  const { iconName, title, titleElement, date, button, sx } = props;
+  const { iconName, title, titleElement, date, button, className } = props;
   const { changeFooterBg } = useContext(LayoutContext);
 
   useEffect(() => {
@@ -32,197 +31,114 @@ const MobileViewBox = props => {
   }, []);
 
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        flex: '1 1 auto',
-        width: '100%',
-        flexDirection: 'column',
-        alignItems: 'center',
-      }}
+    <div
+      className="flex flex-auto w-full flex-col items-center"
     >
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        sx={{
-          width: '100%',
-          minHeight: '66px',
-          px: '20px',
-          backgroundColor: '#ffffff',
-          ...sx,
-        }}
+      <div
+        className={cn(
+          "flex flex-row justify-between items-center w-full min-h-[66px] px-5 bg-white",
+          className
+        )}
       >
-        <Stack direction="row" alignItems="center">
+        <div className="flex flex-row items-center">
           {iconName && (
-            <Avatar
+            <img
               src={`/static/images/${iconName}`}
-              sx={{
-                width: '30px',
-                height: '30px',
-                marginRight: '12px',
-                borderRadius: 0,
-                objectFit: 'contain',
-                backgroundColor: 'transparent',
-              }}
+              className="w-[30px] h-[30px] mr-3 rounded-none object-contain bg-transparent"
+              alt=""
             />
           )}
-          <Stack direction="column" gap="4px" sx={{ mt: '18px', mb: '10px' }}>
+          <div className="flex flex-col gap-1 mt-[18px] mb-[10px]">
             {titleElement ? (
               titleElement
             ) : (
-              <Typography
-                sx={{
-                  display: '-webkit-box',
-                  WebkitLineClamp: '3',
-                  WebkitBoxOrient: 'vertical',
-                  maxHeight: '60px',
-                  pr: '12px',
-                  fontSize: '16px',
-                  fontWeight: 600,
-                  lineHeight: 1.3,
-                  color: '#333',
-                  textOverflow: 'ellipsis',
-                  overflow: 'hidden',
-                  wordWrap: 'break-word',
-                }}
+              <h2
+                className="line-clamp-3 max-h-[60px] pr-3 text-base font-semibold leading-[1.3] text-[#333] break-words"
               >
                 {title}
-              </Typography>
+              </h2>
             )}
             {date && (
-              <Typography sx={{ fontSize: '10px', fontWeight: 500, lineHeight: 1.6, color: '#333' }}>
+              <p className="text-[10px] font-medium leading-[1.6] text-[#333]">
                 수정일: {date}
-              </Typography>
+              </p>
             )}
-          </Stack>{' '}
-        </Stack>
+          </div>{' '}
+        </div>
 
         {button}
-      </Stack>
-      <Box
-        sx={{
-          width: '100%',
-          minWidth: '100%',
-          height: '100%',
-          flex: '1 1 auto',
-          backgroundColor: '#f9f9fa',
-        }}
+      </div>
+      <div
+        className="w-full min-w-full h-full flex-auto bg-[#f9f9fa]"
       >
-        <Divider sx={{ width: '100%', height: '1px' }} />
+        <div className="w-full h-px bg-gray-300" />
         {props.children}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 };
 
 const DesktopViewBox = props => {
-  const { iconName, title, titleElement, date, button, sx } = props;
+  const { iconName, title, titleElement, date, button, className } = props;
 
   return (
-    <Box
-      sx={{
-        width: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        px: '20px',
-      }}
+    <div
+      className="w-full flex flex-col items-center px-5"
     >
-      <Box
-        sx={{
-          width: '100%',
-          maxWidth: MAX_WIDTH,
-          height: '100%',
-          borderRadius: '6px',
-          border: 'solid 1px #ddd',
-          backgroundColor: '#f9f9fa',
-          ...sx,
-        }}
+      <div
+        className={cn(
+          "w-full h-full rounded-md border border-[#ddd] bg-[#f9f9fa]",
+          className
+        )}
+        style={{ maxWidth: MAX_WIDTH }}
       >
-        <Stack
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-          sx={{ width: '100%', height: '57px', px: '20px', backgroundColor: '#ffffff', borderRadius: '6px 6px 0px 0px' }}
+        <div
+          className="flex flex-row justify-between items-center w-full h-[57px] px-5 bg-white rounded-t-md"
         >
           {/* title */}
-          <Stack
-            direction="row"
-            alignItems="center"
-            sx={{
-              width: '100%',
-              maxWidth: { sm: `calc(100% - ${button ? 390 : 100}px)`, md: `calc(100% - ${button ? 360 : 100}px)` },
+          <div
+            className="flex flex-row items-center w-full"
+            style={{
+              maxWidth: button ? `calc(100% - ${window.innerWidth >= 768 ? 360 : 390}px)` : 'calc(100% - 100px)'
             }}
           >
             {iconName && (
-              <Avatar
+              <img
                 src={`/static/images/${iconName}`}
-                sx={{
-                  width: '30px',
-                  height: '30px',
-                  borderRadius: 0,
-                  objectFit: 'contain',
-                  backgroundColor: 'transparent',
-                  mr: '18px',
-                }}
+                className="w-[30px] h-[30px] rounded-none object-contain bg-transparent mr-[18px]"
+                alt=""
               />
             )}
             {titleElement ? (
               titleElement
             ) : (
-              <Typography
-                variant="subtitle1"
-                component="span"
-                sx={{
-                  flexGrow: 0,
-                  display: 'block',
-                  width: '100%',
-                  maxWidth: MAX_WIDTH,
-                  height: '16px',
-                  fontWeight: 500,
-                  fontSize: { xs: '16px', sm: '18px' },
-                  lineHeight: 0.89,
-                  letterSpacing: '-0.18px',
-                  color: '#141414',
-                  textOverflow: 'ellipsis',
-                  overflow: 'hidden',
-                  whiteSpace: 'nowrap',
-                }}
+              <span
+                className="flex-grow-0 block w-full h-4 font-medium text-base sm:text-lg leading-[0.89] tracking-[-0.18px] text-[#141414] truncate"
+                style={{ maxWidth: MAX_WIDTH }}
               >
                 {title}
-              </Typography>
+              </span>
             )}
-          </Stack>
+          </div>
 
           {/* date, button */}
-          <Stack direction="row" justifyContent="flex-end" alignItems="center" flexShrink="0">
-            <Box
-              component="span"
-              sx={{
-                marginRight: button ? { sm: '26px', md: '36px' } : {},
-                height: '16px',
-                fontFamily: 'Pretendard',
-                fontSize: '14px',
-                fontWeight: '500',
-                fontStretch: 'normal',
-                fontStyle: 'normal',
-                lineHeight: '1.14',
-                letterSpacing: 'normal',
-                textAlign: 'left',
-                color: '#333333',
-              }}
+          <div className="flex flex-row justify-end items-center flex-shrink-0">
+            <span
+              className={cn(
+                "h-4 text-sm font-medium leading-[1.14] text-[#333333]",
+                button && "mr-[26px] md:mr-9"
+              )}
             >
               {date}
-            </Box>
-            <Stack direction="row" justifyContent="flex-end" alignItems="center">
+            </span>
+            <div className="flex flex-row justify-end items-center">
               {button}
-            </Stack>
-          </Stack>
-        </Stack>
-        <Divider sx={{ width: '100%', height: '1px' }} />
+            </div>
+          </div>
+        </div>
+        <div className="w-full h-px bg-gray-300" />
         {props.children}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 };

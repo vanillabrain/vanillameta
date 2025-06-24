@@ -1,5 +1,4 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Stack, Typography } from '@mui/material';
 import DatabaseService from '@/api/databaseService';
 import { STATUS } from '@/constant';
 import { useAlert } from 'react-alert';
@@ -237,18 +236,16 @@ const DataLayout = props => {
   };
 
   return (
-    <Stack direction={{ xs: 'column', sm: 'row' }} flex="1 1 auto" sx={{ width: '100%' }}>
-      <Stack
-        direction="column"
-        flex="1 1 auto"
-        sx={{ width: { xs: '100%', md: '404px' }, height: '100%', px: '24px', pt: '30px' }}
+    <div className="flex flex-col sm:flex-row flex-auto w-full">
+      <div
+        className="flex flex-col flex-auto w-full md:w-[404px] h-full px-6 pt-[30px]"
       >
-        <Stack direction="row">
-          <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold', fontSize: '16px', color: '#141414' }}>
+        <div className="flex flex-row">
+          <span className="font-bold text-base text-[#141414]">
             데이터 소스
-          </Typography>
-          {isViewMode ? <></> : <AddButton component={RouterLink} to={`source/create`} sx={{ ml: '14px' }} />}
-        </Stack>
+          </span>
+          {isViewMode ? <></> : <AddButton component={RouterLink} to={`source/create`} className="ml-[14px]" />}
+        </div>
         <DatabaseCardList
           data={databaseList}
           selectedData={selectedDatabase}
@@ -256,23 +253,22 @@ const DataLayout = props => {
           handleDataClick={handleDatabaseClick}
           handleDataRemove={handleDatabaseRemove}
         />
-      </Stack>
+      </div>
 
-      <Stack
-        direction="column"
-        sx={{ flex: '1 1 auto', width: { xs: '100%', md: 'calc(100% - 404px)' }, backgroundColor: '#f5f6f8' }}
+      <div
+        className="flex flex-col flex-auto w-full md:w-[calc(100%-404px)] bg-[#f5f6f8]"
       >
-        <Stack direction="column" sx={{ width: '100%', px: '24px', pt: '30px' }}>
-          <Stack direction="row">
-            <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold', fontSize: '16px', color: '#141414' }}>
+        <div className="flex flex-col w-full px-6 pt-[30px]">
+          <div className="flex flex-row">
+            <span className="font-bold text-base text-[#141414]">
               데이터 셋
-            </Typography>
+            </span>
             {isViewMode ? (
               <></>
             ) : (
-              <AddButton component={RouterLink} to={`set/create/${selectedDatabase.id}`} sx={{ ml: '14px' }} />
+              <AddButton component={RouterLink} to={`set/create/${selectedDatabase.id}`} className="ml-[14px]" />
             )}
-          </Stack>
+          </div>
           <DatasetCardList
             isViewMode={isViewMode}
             data={datasetList}
@@ -281,13 +277,13 @@ const DataLayout = props => {
             handleDataRemove={handleDataSetRemove}
             handleModifyClick={handleModifyClick}
           />
-        </Stack>
-        <Stack direction="column" sx={{ flex: '1 1 auto', width: '100%', minHeight: '50%', px: '24px', pt: '30px' }}>
-          <Stack direction="row">
-            <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold', fontSize: '16px', color: '#141414' }}>
+        </div>
+        <div className="flex flex-col flex-auto w-full min-h-[50%] px-6 pt-[30px]">
+          <div className="flex flex-row">
+            <span className="font-bold text-base text-[#141414]">
               테이블 목록
-            </Typography>
-          </Stack>
+            </span>
+          </div>
           <DatasetCardList
             isTableView
             isViewMode={isViewMode}
@@ -318,9 +314,9 @@ const DataLayout = props => {
               </DataGridWrapper>
             )}
           </ModalPopup>
-        </Stack>
-      </Stack>
-    </Stack>
+        </div>
+      </div>
+    </div>
   );
 };
 

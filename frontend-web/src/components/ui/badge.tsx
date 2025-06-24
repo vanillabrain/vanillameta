@@ -34,9 +34,9 @@ const Badge = React.forwardRef<
 
   return (
     <Comp
+      ref={asChild ? undefined : ref}
       data-slot="badge"
       className={cn(badgeVariants({ variant }), className)}
-      {...(asChild ? {} : { ref })}
       {...props}
     />
   )

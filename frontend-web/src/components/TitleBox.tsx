@@ -1,34 +1,30 @@
 import React from 'react';
-import { Divider, Box, Stack, Typography } from '@mui/material';
 
-function TitleBox(props) {
-  const { title, width, button } = props;
-
-  return (
-    <Box
-      sx={{
-        width: width,
-        height: '100%',
-      }}
-    >
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ width: '100%', py: 1 }}>
-        <Typography variant="subtitle1" component="span" sx={{ fontWeight: 500 }}>
-          {title}
-        </Typography>
-        {button}
-      </Stack>
-      <Divider sx={{ marginBottom: 4 }} />
-      {props.children}
-    </Box>
-  );
+interface TitleBoxProps {
+  title?: string;
+  width?: string;
+  button?: React.ReactNode;
+  children?: React.ReactNode;
 }
 
-TitleBox.defaultProps = {
-  title: '',
-  width: '100%',
-  menuList: false,
-  naviUrl: false,
-  button: false,
-};
+function TitleBox(props: TitleBoxProps) {
+  const { title = '', width = '100%', button, children } = props;
+
+  return (
+    <div
+      className="h-full"
+      style={{ width }}
+    >
+      <div className="flex flex-row justify-between items-center w-full py-2">
+        <span className="text-lg font-medium">
+          {title}
+        </span>
+        {button}
+      </div>
+      <div className="border-b border-gray-200 mb-8" />
+      {children}
+    </div>
+  );
+}
 
 export default TitleBox;

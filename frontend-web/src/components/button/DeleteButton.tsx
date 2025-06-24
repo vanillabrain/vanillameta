@@ -1,12 +1,12 @@
 import React from 'react';
-import { IconButton } from '@mui/material';
+import { Button } from '@/components/ui/button';
 import { ReactComponent as IconDelete } from '@/assets/images/icon/trash-can.svg';
 
-const DeleteButton = ({ fill = '#4A4A4A', width = '24', height = '24', ...props }) => {
+const DeleteButton = ({ fill = '#4A4A4A', width = '24', height = '24', size = 'icon' as 'icon' | 'default' | 'sm' | 'lg', ...props }) => {
   return (
-    <IconButton {...props}>
+    <Button variant="ghost" size={size} className="p-0" {...props}>
       <IconDelete style={{ width: width, height: height }} fill={fill} />
-    </IconButton>
+    </Button>
   );
 };
 
