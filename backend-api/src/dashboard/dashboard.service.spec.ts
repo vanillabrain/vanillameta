@@ -6,9 +6,11 @@ import { DashboardShare } from './entities/dashboard_share.entity';
 import { User } from '../user/entities/user.entity';
 import { UserMapping } from '../user/entities/user-mapping.entity';
 import { DashboardWidgetService } from './dashboard-widget/dashboard-widget.service';
+import { DashboardCacheService } from './dashboard-cache.service';
 import { UserService } from 'src/user/user.service';
 import { AuthService } from 'src/auth/auth.service';
 import { CustomLoggerService } from '../common/logger/logger.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   createMockRepository,
   getRepositoryTokenFor,
@@ -29,9 +31,11 @@ describe('DashboardService', () => {
   let dashboardShareRepository: any;
   let userMappingRepository: any;
   let dashboardWidgetService: any;
+  let dashboardCacheService: any;
   let userService: any;
   let authService: any;
   let logger: any;
+  let eventEmitter: any;
 
   const mockUser = {
     id: 1,
@@ -109,6 +113,22 @@ describe('DashboardService', () => {
           provide: CustomLoggerService,
           useValue: createMockService(['debug', 'error', 'log']),
         },
+        {
+          provide: DashboardCacheService,
+          useValue: createMockService([
+            'getCachedDashboard', 
+            'setCachedDashboard', 
+            'invalidateDashboardCache',
+            'invalidateUserDashboardList',
+            'cacheDashboard',
+            'invalidateDashboard',
+            'cacheUserDashboardList'
+          ]),
+        },
+        {
+          provide: EventEmitter2,
+          useValue: createMockService(['emit', 'emitAsync']),
+        },
       ],
     }).compile();
 
@@ -118,9 +138,11 @@ describe('DashboardService', () => {
     dashboardShareRepository = module.get(getRepositoryTokenFor(DashboardShare));
     userMappingRepository = module.get(getRepositoryTokenFor(UserMapping));
     dashboardWidgetService = module.get<DashboardWidgetService>(DashboardWidgetService);
+    dashboardCacheService = module.get<DashboardCacheService>(DashboardCacheService);
     userService = module.get<UserService>(UserService);
     authService = module.get<AuthService>(AuthService);
     logger = module.get<CustomLoggerService>(CustomLoggerService);
+    eventEmitter = module.get<EventEmitter2>(EventEmitter2);
 
     // Mock 초기화
     jest.clearAllMocks();
@@ -249,27 +271,31 @@ describe('DashboardService', () => {
       }
     });
 
-    it('should return error when user not found', async () => {
+    it('should return empty array when user not found', async () => {
       userService.findDashboardId.mockResolvedValue(null);
 
       const result = await service.findAll(999);
 
-      expect(result).toBe('not exist user');
+      expect(result.status).toBe(ResponseStatus.SUCCESS);
+      expect(result.data).toEqual([]);
     });
 
-    it('should return error when user has no dashboards', async () => {
+    it('should return empty array when user has no dashboards', async () => {
       userService.findDashboardId.mockResolvedValue([]);
 
       const result = await service.findAll(1);
 
-      expect(result).toBe('not exist user');
+      expect(result.status).toBe(ResponseStatus.SUCCESS);
+      expect(result.data).toEqual([]);
     });
 
-    it('should throw HttpException when dashboard IDs are empty', async () => {
+    it('should return empty array when dashboard IDs are empty', async () => {
       userService.findDashboardId.mockResolvedValue([{ dashboardId: null }]);
       
-      await expect(service.findAll(1)).rejects.toThrow(HttpException);
-      await expect(service.findAll(1)).rejects.toThrow('not found');
+      const result = await service.findAll(1);
+
+      expect(result.status).toBe(ResponseStatus.SUCCESS);
+      expect(result.data).toEqual([]);
     });
   });
 
@@ -528,7 +554,9 @@ describe('DashboardService', () => {
           expect(result.status).toBe(ResponseStatus.SUCCESS);
           // XSS patterns should be stored but escaped when rendered
           expect(result.data.title).toBe(xssPattern);
-          expect(result.data.layout[0].i).toBe(xssPattern);
+          // result.data.layout은 이미 파싱된 배열이므로 직접 사용
+          const layout = result.data.layout as unknown as any[];
+          expect(layout[0].i).toBe(xssPattern);
         }
       }
     });

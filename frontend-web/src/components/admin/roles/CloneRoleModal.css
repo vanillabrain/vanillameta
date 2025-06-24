@@ -1,0 +1,11 @@
+.clone-role-info {
+  background: #f0f0f0;
+  border-radius: 4px;
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+.clone-role-info p {
+  margin: 0;
+  line-height: 1.6;
+}

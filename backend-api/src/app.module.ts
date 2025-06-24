@@ -48,6 +48,7 @@ import { ConnectionModule } from './connection/connection.module';
 import { ShareUrlModule } from './share-url/share-url.module';
 import { MonitoringModule } from './common/monitoring/monitoring.module';
 import { PerformanceMonitoringModule } from './modules/monitoring/performance-monitoring.module';
+import { AdminModule } from './modules/admin/admin.module';
 import { AllExceptionsFilter } from './nest-utils/all-exceptions.filter';
 
 @Module({
@@ -123,6 +124,7 @@ import { AllExceptionsFilter } from './nest-utils/all-exceptions.filter';
     ShareUrlModule,
     MonitoringModule,
     PerformanceMonitoringModule,
+    AdminModule,
     FieldSelectionModule,
     BatchModule,
     CacheModule,

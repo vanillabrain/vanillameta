@@ -29,6 +29,12 @@ lerna-debug.log*
 # Tests
 /coverage
 /.nyc_output
+/test-results
+/.jest-cache
+*.spec.js
+*.e2e.js
+test-results.json
+test-run-*.json
 
 # IDEs and editors
 /.idea
@@ -45,3 +51,14 @@ lerna-debug.log*
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
+
+# Temporary files
+*.tmp
+*.backup
+*.bak
+*.swp
+*~
+
+# Build artifacts
+/build
+swagger-spec.json

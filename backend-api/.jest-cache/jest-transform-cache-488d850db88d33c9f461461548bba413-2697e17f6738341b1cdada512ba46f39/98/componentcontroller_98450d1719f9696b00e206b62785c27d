@@ -1,0 +1,199 @@
+2e1cba47c3daabe81313b152e2d0acda
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ComponentController = void 0;
+const common_1 = require("@nestjs/common");
+const swagger_1 = require("@nestjs/swagger");
+const jwt_auth_guard_1 = require("src/auth/guards/jwt-auth.guard");
+const cache_config_decorator_1 = require("../common/decorators/cache-config.decorator");
+const component_service_1 = require("./component.service");
+const create_component_dto_1 = require("./dto/create-component.dto");
+const update_component_dto_1 = require("./dto/update-component.dto");
+let ComponentController = class ComponentController {
+    constructor(componentService) {
+        this.componentService = componentService;
+    }
+    async multipleCreate(createComponents) {
+        return this.componentService.multipleCreate(createComponents);
+    }
+    async create(createComponent) {
+        return this.componentService.create(createComponent);
+    }
+    findAll() {
+        return this.componentService.findAll();
+    }
+    findOne(id) {
+        return this.componentService.findOne(+id);
+    }
+    update(id, body) {
+        return this.componentService.update(+id, body);
+    }
+    remove(id) {
+        return this.componentService.remove(+id);
+    }
+};
+__decorate([
+    (0, common_1.Post)('/seed'),
+    (0, swagger_1.ApiOperation)({
+        summary: '차트 컴포넌트 일괄 등록',
+        description: '여러 차트 컴포넌트를 한 번에 등록합니다. 초기 시드 데이터 생성 시 사용됩니다.',
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 201,
+        description: '컴포넌트들이 성공적으로 생성되었습니다.',
+        type: [create_component_dto_1.CreateComponentDto],
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 400,
+        description: '잘못된 요청 데이터입니다.',
+    }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Array]),
+    __metadata("design:returntype", Promise)
+], ComponentController.prototype, "multipleCreate", null);
+__decorate([
+    (0, common_1.Post)(),
+    (0, swagger_1.ApiOperation)({
+        summary: '차트 컴포넌트 생성',
+        description: '새로운 차트 컴포넌트를 등록합니다.',
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 201,
+        description: '컴포넌트가 성공적으로 생성되었습니다.',
+        type: create_component_dto_1.CreateComponentDto,
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 400,
+        description: '잘못된 요청 데이터입니다.',
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 409,
+        description: '이미 존재하는 컴포넌트입니다.',
+    }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [create_component_dto_1.CreateComponentDto]),
+    __metadata("design:returntype", Promise)
+], ComponentController.prototype, "create", null);
+__decorate([
+    (0, cache_config_decorator_1.CacheConfig)({ ttl: 3600 }) // 컴포넌트 목록 - 1시간 캐시 (정적 데이터)
+    ,
+    (0, common_1.Get)(),
+    (0, swagger_1.ApiOperation)({
+        summary: '전체 차트 컴포넌트 목록 조회',
+        description: '시스템에서 사용 가능한 모든 차트 컴포넌트 목록을 조회합니다.',
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: '컴포넌트 목록이 반환되었습니다.',
+        type: [create_component_dto_1.CreateComponentDto],
+    }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], ComponentController.prototype, "findAll", null);
+__decorate([
+    (0, cache_config_decorator_1.CacheConfig)({ ttl: 3600 }) // 컴포넌트 상세 - 1시간 캐시 (정적 데이터)
+    ,
+    (0, common_1.Get)(':id'),
+    (0, swagger_1.ApiOperation)({
+        summary: '특정 차트 컴포넌트 조회',
+        description: '지정된 ID의 차트 컴포넌트 상세 정보를 조회합니다.',
+    }),
+    (0, swagger_1.ApiParam)({
+        name: 'id',
+        description: '컴포넌트 ID',
+        type: Number,
+        example: 1,
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: '컴포넌트 정보가 반환되었습니다.',
+        type: create_component_dto_1.CreateComponentDto,
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 404,
+        description: '컴포넌트를 찾을 수 없습니다.',
+    }),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number]),
+    __metadata("design:returntype", void 0)
+], ComponentController.prototype, "findOne", null);
+__decorate([
+    (0, common_1.Patch)(':id'),
+    (0, swagger_1.ApiOperation)({
+        summary: '차트 컴포넌트 수정',
+        description: '기존 차트 컴포넌트의 정보를 수정합니다.',
+    }),
+    (0, swagger_1.ApiParam)({
+        name: 'id',
+        description: '컴포넌트 ID',
+        type: Number,
+        example: 1,
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: '컴포넌트가 성공적으로 수정되었습니다.',
+        type: update_component_dto_1.UpdateComponentDto,
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 404,
+        description: '컴포넌트를 찾을 수 없습니다.',
+    }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number, update_component_dto_1.UpdateComponentDto]),
+    __metadata("design:returntype", void 0)
+], ComponentController.prototype, "update", null);
+__decorate([
+    (0, common_1.Delete)(':id'),
+    (0, swagger_1.ApiOperation)({
+        summary: '차트 컴포넌트 삭제',
+        description: '지정된 차트 컴포넌트를 삭제합니다. 위젯에서 사용 중인 컴포넌트는 삭제할 수 없습니다.',
+    }),
+    (0, swagger_1.ApiParam)({
+        name: 'id',
+        description: '컴포넌트 ID',
+        type: Number,
+        example: 1,
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: '컴포넌트가 성공적으로 삭제되었습니다.',
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 404,
+        description: '컴포넌트를 찾을 수 없습니다.',
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 409,
+        description: '사용 중인 컴포넌트는 삭제할 수 없습니다.',
+    }),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number]),
+    __metadata("design:returntype", void 0)
+], ComponentController.prototype, "remove", null);
+ComponentController = __decorate([
+    (0, swagger_1.ApiTags)('컴포넌트'),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.Controller)('component'),
+    __metadata("design:paramtypes", [component_service_1.ComponentService])
+], ComponentController);
+exports.ComponentController = ComponentController;

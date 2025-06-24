@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ExecutionContext, CallHandler } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { of, throwError } from 'rxjs';
+import { of, throwError, firstValueFrom } from 'rxjs';
 import Redis from 'ioredis';
 import { ApiCacheInterceptor } from './api-cache.interceptor';
 import { CacheKeyService } from '../services/cache-key.service';
@@ -227,10 +227,10 @@ describe('ApiCacheInterceptor', () => {
       mockCallHandler.handle.mockReturnValue(of({ data: 'test' }));
 
       // When
-      await interceptor.intercept(
+      await firstValueFrom(interceptor.intercept(
         mockExecutionContext as any,
         mockCallHandler as any,
-      ).toPromise();
+      ));
 
       // Then
       expect(dynamicTTL).toHaveBeenCalledWith(mockRequest);

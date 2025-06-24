@@ -1,0 +1,23 @@
+3decd72f90f5c9a8d1f076bc6fcd946e
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const testing_1 = require("@nestjs/testing");
+const component_controller_1 = require("./component.controller");
+const component_service_1 = require("./component.service");
+const test_providers_1 = require("../../test/util/test-providers");
+describe('ComponentController', () => {
+    let controller;
+    beforeEach(async () => {
+        const module = await testing_1.Test.createTestingModule({
+            controllers: [component_controller_1.ComponentController],
+            providers: [
+                component_service_1.ComponentService,
+                ...test_providers_1.commonTestProviders,
+            ],
+        }).compile();
+        controller = module.get(component_controller_1.ComponentController);
+    });
+    it('should be defined', () => {
+        expect(controller).toBeDefined();
+    });
+});

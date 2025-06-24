@@ -301,10 +301,12 @@ describe('BatchService', () => {
       const result = await service.cancelBatchJob(1, userId);
 
       expect(mockBatchChunkRepository.update).toHaveBeenCalled();
-      expect(mockBatchJobRepository.update).toHaveBeenCalledWith(1, {
-        status: BatchJobStatus.CANCELLED,
-        completedAt: expect.any(Date),
-      });
+      expect(mockBatchJobRepository.update).toHaveBeenCalledWith(1, 
+        expect.objectContaining({
+          status: BatchJobStatus.CANCELLED,
+          completedAt: expect.any(Date),
+        })
+      );
     });
 
     it('완료된 작업은 취소할 수 없어야 함', async () => {

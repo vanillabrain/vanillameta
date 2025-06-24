@@ -91,7 +91,7 @@ export class OracleOptimizer implements IDatabaseOptimizer {
     // Oracle 힌트 추가
     const hints = this.getOptimalHints(queryBuilder);
     if (hints.length > 0) {
-      queryBuilder = queryBuilder.hint(hints.join(' '));
+      queryBuilder = (queryBuilder as any).hint(hints.join(' '));
     }
 
     // ROWNUM 최적화 (Oracle 12c 이전 버전 고려)
@@ -322,7 +322,7 @@ export class OracleOptimizer implements IDatabaseOptimizer {
    */
   private optimizePartitionPruning(queryBuilder: Knex.QueryBuilder): Knex.QueryBuilder {
     // 파티션 키를 이용한 WHERE 절 최적화
-    return queryBuilder.hint('/*+ PARTITION */');
+    return (queryBuilder as any).hint('/*+ PARTITION */');
   }
 
   /**

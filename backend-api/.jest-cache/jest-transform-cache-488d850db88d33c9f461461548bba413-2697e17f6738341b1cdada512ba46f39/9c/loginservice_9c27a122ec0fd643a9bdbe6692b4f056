@@ -1,0 +1,100 @@
+b0a436642615966474bdb6a8ab51934d
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.LoginService = void 0;
+const common_1 = require("@nestjs/common");
+const typeorm_1 = require("@nestjs/typeorm");
+const auth_service_1 = require("src/auth/auth.service");
+const user_entity_1 = require("src/user/entities/user.entity");
+const typeorm_2 = require("typeorm");
+const refresh_token_entity_1 = require("src/auth/entities/refresh_token.entity");
+const crypto = __importStar(require("crypto"));
+let LoginService = class LoginService {
+    constructor(authService, userRepository, refreshRepository) {
+        this.authService = authService;
+        this.userRepository = userRepository;
+        this.refreshRepository = refreshRepository;
+    }
+    async signin(loginDto) {
+        const { userId, password } = loginDto;
+        // const salt = crypto.randomBytes(128).toString('base64');
+        const hashPassword = crypto.createHash('sha512').update(password).digest('hex');
+        console.log(hashPassword);
+        const findUser = await this.authService.validateUser(userId, hashPassword); // 요저의 존재여부 확인
+        if (!findUser) {
+            throw new common_1.HttpException('Invalid credentials', common_1.HttpStatus.UNAUTHORIZED);
+        }
+        return findUser;
+    }
+    async signup(createLoginDto) {
+        // N+1 쿼리 방지: OR 조건을 사용하여 한 번의 쿼리로 email과 userId 중복 체크
+        const existingUser = await this.userRepository
+            .createQueryBuilder('user')
+            .where('user.email = :email', { email: createLoginDto.email })
+            .orWhere('user.userId = :userId', { userId: createLoginDto.userId })
+            .getOne();
+        if (!existingUser) {
+            const { email, password, userId } = createLoginDto;
+            const hashPassword = crypto.createHash('sha512').update(password).digest('hex');
+            const createUserInfo = await this.userRepository.save({
+                email: email,
+                password: hashPassword,
+                userId: userId,
+                jwtId: null,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            });
+            return 'success';
+        }
+        else if (existingUser.userId === createLoginDto.userId) {
+            throw new common_1.HttpException('conflict userId', common_1.HttpStatus.CONFLICT);
+        }
+        else {
+            throw new common_1.HttpException('conflict email', common_1.HttpStatus.CONFLICT);
+        }
+    }
+};
+LoginService = __decorate([
+    (0, common_1.Injectable)(),
+    __param(1, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
+    __param(2, (0, typeorm_1.InjectRepository)(refresh_token_entity_1.RefreshToken)),
+    __metadata("design:paramtypes", [auth_service_1.AuthService,
+        typeorm_2.Repository,
+        typeorm_2.Repository])
+], LoginService);
+exports.LoginService = LoginService;

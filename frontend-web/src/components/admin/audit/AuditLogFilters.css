@@ -1,0 +1,185 @@
+.audit-log-filters {
+  padding: 24px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+
+/* 빠른 필터 */
+.quick-filters {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #f0f0f0;
+}
+
+.quick-filter-label,
+.date-preset-label {
+  font-weight: 500;
+  color: #595959;
+  margin-right: 8px;
+}
+
+.quick-filters .ant-btn-sm {
+  height: 28px;
+  padding: 0 12px;
+}
+
+/* 날짜 범위 프리셋 */
+.date-range-presets {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #f0f0f0;
+}
+
+.date-range-presets .ant-btn-primary {
+  background: #1890ff;
+  border-color: #1890ff;
+}
+
+/* 필터 폼 */
+.filter-form {
+  width: 100%;
+}
+
+.filter-form .ant-form-item {
+  margin-bottom: 16px;
+}
+
+.filter-form .ant-form-item-label {
+  font-weight: 500;
+  color: #262626;
+}
+
+/* 고급 필터 */
+.filter-form .ant-collapse {
+  border: none;
+  background: transparent;
+}
+
+.filter-form .ant-collapse-content {
+  background: white;
+  border-radius: 6px;
+  padding: 16px;
+  margin-top: 8px;
+  border: 1px solid #f0f0f0;
+}
+
+.filter-form .ant-collapse-content-box {
+  padding: 0;
+}
+
+/* 필터 카운트 표시 */
+.ant-btn-link {
+  padding: 4px 8px;
+  height: auto;
+}
+
+/* 입력 필드 스타일 */
+.filter-form .ant-input,
+.filter-form .ant-select-selector,
+.filter-form .ant-picker {
+  border-radius: 6px;
+}
+
+.filter-form .ant-input:hover,
+.filter-form .ant-select-selector:hover,
+.filter-form .ant-picker:hover {
+  border-color: #40a9ff;
+}
+
+/* 체크박스 그룹 */
+.filter-form .ant-checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.filter-form .ant-checkbox-wrapper {
+  margin: 0;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+  .audit-log-filters {
+    padding: 16px;
+  }
+
+  .quick-filters,
+  .date-range-presets {
+    padding: 8px;
+  }
+
+  .quick-filters .ant-space,
+  .date-range-presets .ant-space {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .quick-filter-label,
+  .date-preset-label {
+    width: 100%;
+    margin-bottom: 8px;
+  }
+
+  .filter-form .ant-col {
+    margin-bottom: 8px;
+  }
+}
+
+/* 다크 모드 지원 */
+@media (prefers-color-scheme: dark) {
+  .audit-log-filters {
+    background: #1f1f1f;
+    border-bottom-color: #303030;
+  }
+
+  .quick-filters,
+  .date-range-presets {
+    background: #262626;
+    border-color: #303030;
+  }
+
+  .quick-filter-label,
+  .date-preset-label {
+    color: #d9d9d9;
+  }
+
+  .filter-form .ant-form-item-label {
+    color: #f0f0f0;
+  }
+
+  .filter-form .ant-collapse-content {
+    background: #262626;
+    border-color: #303030;
+  }
+}
+
+/* 애니메이션 */
+.quick-filters,
+.date-range-presets {
+  transition: all 0.3s ease;
+}
+
+.quick-filters:hover,
+.date-range-presets:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.filter-form .ant-collapse-content {
+  animation: slideDown 0.3s ease-in-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

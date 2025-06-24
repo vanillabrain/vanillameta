@@ -1,9 +1,11 @@
 {
   "preset": "ts-jest",
-  "moduleFileExtensions": ["js", "json", "jsx", "ts", "tsx", "json"],
+  "moduleFileExtensions": ["js", "json", "jsx", "ts", "tsx"],
   "transform": {
-    "^.+\\.(js|jsx)?$": "babel-jest",
-    "^.+\\.(ts|tsx)?$": "ts-jest"
+    "^.+\\.(js|jsx)$": "babel-jest",
+    "^.+\\.(ts|tsx)$": ["ts-jest", {
+      "tsconfig": "./tsconfig.test.json"
+    }]
   },
   "testEnvironment": "jsdom",
   "moduleDirectories": [
@@ -11,16 +13,27 @@
     "src"
   ],
   "moduleNameMapper": {
-    "@/(.*)": "<rootDir>/src/$1"
+    "@/(.*)": "<rootDir>/src/$1",
+    "\\.(css|less|scss|sass)$": "identity-obj-proxy",
+    "\\.(jpg|jpeg|png|gif|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga)$": "jest-transform-stub"
   },
   "testMatch": [
     "<rootDir>/**/*.test.(js|jsx|ts|tsx)",
     "<rootDir>/(tests/unit/**/*.spec.(js|jsx|ts|tsx)|**/__tests__/*.(js|jsx|ts|tsx))"
   ],
-  "transformIgnorePatterns": ["<rootDir>/node_modules/"],
-  "globals": {
-    "ts-jest": {
-      "tsconfig": "./tsconfig.test.json"
-    }
-  }
+  "transformIgnorePatterns": [
+    "node_modules/(?!(.*\\.mjs$|@testing-library))"
+  ],
+  "setupFilesAfterEnv": ["<rootDir>/src/setupTests.ts"],
+  "collectCoverageFrom": [
+    "src/**/*.{js,jsx,ts,tsx}",
+    "!src/**/*.d.ts",
+    "!src/index.tsx",
+    "!src/reportWebVitals.ts"
+  ],
+  "coverageDirectory": "coverage",
+  "testTimeout": 10000,
+  "clearMocks": true,
+  "resetMocks": true,
+  "restoreMocks": true
 }

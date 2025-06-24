@@ -21,39 +21,34 @@ describe('JobQueueService', () => {
   let jobRetryService: jest.Mocked<JobRetryService>;
   let jobNotificationService: jest.Mocked<JobNotificationService>;
 
-  const mockJob: QueueJob = {
-    id: 'job-123',
-    jobType: JobType.QUERY_EXECUTION,
-    status: JobStatus.PENDING,
-    priority: JobPriority.NORMAL,
-    userId: 'user-123',
-    jobData: JSON.stringify({ query: 'SELECT * FROM users' }),
-    result: null,
-    errorMessage: null,
-    errorStack: null,
-    retryCount: 0,
-    maxRetries: 3,
-    progress: 0,
-    scheduledAt: null,
-    startedAt: null,
-    completedAt: null,
-    executionTimeMs: null,
-    estimatedTimeMs: 30000,
-    workerId: null,
-    metadata: null,
-    correlationId: null,
-    requiresNotification: false,
-    notificationEmail: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    isCompleted: false,
-    isFailed: false,
-    isRunning: false,
-    canRetry: true,
-    jobDataParsed: { query: 'SELECT * FROM users' },
-    resultParsed: null,
-    metadataParsed: {},
-  };
+  const mockJob = (() => {
+    const job = new QueueJob();
+    job.id = 'job-123';
+    job.jobType = JobType.QUERY_EXECUTION;
+    job.status = JobStatus.PENDING;
+    job.priority = JobPriority.NORMAL;
+    job.userId = 'user-123';
+    job.jobData = JSON.stringify({ query: 'SELECT * FROM users' });
+    job.result = null;
+    job.errorMessage = null;
+    job.errorStack = null;
+    job.retryCount = 0;
+    job.maxRetries = 3;
+    job.progress = 0;
+    job.scheduledAt = null;
+    job.startedAt = null;
+    job.completedAt = null;
+    job.executionTimeMs = null;
+    job.estimatedTimeMs = 30000;
+    job.workerId = null;
+    job.metadata = null;
+    job.correlationId = null;
+    job.requiresNotification = false;
+    job.notificationEmail = null;
+    job.createdAt = new Date();
+    job.updatedAt = new Date();
+    return job;
+  })();
 
   beforeEach(async () => {
     const mockJobRepository = {
@@ -312,7 +307,7 @@ describe('JobQueueService', () => {
       };
 
       const completedJob = { ...mockJob, status: JobStatus.COMPLETED };
-      jobRepository.findOne.mockResolvedValue(completedJob);
+      jobRepository.findOne.mockResolvedValue(completedJob as any);
 
       // Act & Assert
       await expect(service.updateJobStatus('job-123', updateDto)).rejects.toThrow(
@@ -339,7 +334,7 @@ describe('JobQueueService', () => {
         getMany: jest.fn().mockResolvedValue([mockJob]),
       };
 
-      jobRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
+      jobRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder as any);
 
       // Act
       const result = await service.getJobs(queryDto, 'user-123');
@@ -365,7 +360,7 @@ describe('JobQueueService', () => {
         getMany: jest.fn().mockResolvedValue([]),
       };
 
-      jobRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
+      jobRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder as any);
 
       // Act
       await service.getJobs(queryDto, 'user-123');
@@ -406,8 +401,8 @@ describe('JobQueueService', () => {
     it('should cancel pending job', async () => {
       // Arrange
       const pendingJob = { ...mockJob, status: JobStatus.PENDING };
-      jobRepository.findOne.mockResolvedValue(pendingJob);
-      jobRepository.save.mockResolvedValue({ ...pendingJob, status: JobStatus.CANCELLED });
+      jobRepository.findOne.mockResolvedValue(pendingJob as any);
+      jobRepository.save.mockResolvedValue({ ...pendingJob, status: JobStatus.CANCELLED } as any);
       jobSchedulerService.removeJob.mockResolvedValue(undefined);
 
       // Act
@@ -420,7 +415,7 @@ describe('JobQueueService', () => {
     it('should not cancel completed job', async () => {
       // Arrange
       const completedJob = { ...mockJob, status: JobStatus.COMPLETED };
-      jobRepository.findOne.mockResolvedValue(completedJob);
+      jobRepository.findOne.mockResolvedValue(completedJob as any);
 
       // Act & Assert
       await expect(service.cancelJob('job-123', 'Cannot cancel', 'user-123')).rejects.toThrow(
@@ -441,8 +436,8 @@ describe('JobQueueService', () => {
         getOne: jest.fn().mockResolvedValue(mockJob),
       };
 
-      jobRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
-      jobRepository.save.mockResolvedValue({ ...mockJob, status: JobStatus.RUNNING });
+      jobRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder as any);
+      jobRepository.save.mockResolvedValue({ ...mockJob, status: JobStatus.RUNNING } as any);
 
       // Act
       const result = await service.getNextJob('worker-123');
@@ -465,7 +460,7 @@ describe('JobQueueService', () => {
         getOne: jest.fn().mockResolvedValue(null),
       };
 
-      jobRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
+      jobRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder as any);
 
       // Act
       const result = await service.getNextJob('worker-123');
@@ -478,7 +473,11 @@ describe('JobQueueService', () => {
   describe('retryJob', () => {
     it('should retry failed job', async () => {
       // Arrange
-      const failedJob = { ...mockJob, status: JobStatus.FAILED, retryCount: 1, maxRetries: 3 };
+      const failedJob = Object.assign(new QueueJob(), mockJob, { 
+        status: JobStatus.FAILED, 
+        retryCount: 1, 
+        maxRetries: 3 
+      });
       jobRepository.findOne.mockResolvedValue(failedJob);
       jobRetryService.retryJob.mockResolvedValue(undefined);
 
@@ -491,13 +490,11 @@ describe('JobQueueService', () => {
 
     it('should not retry job that cannot be retried', async () => {
       // Arrange
-      const jobAtMaxRetries = {
-        ...mockJob,
+      const jobAtMaxRetries = Object.assign(new QueueJob(), mockJob, {
         status: JobStatus.FAILED,
         retryCount: 3,
         maxRetries: 3,
-        canRetry: false,
-      };
+      });
       jobRepository.findOne.mockResolvedValue(jobAtMaxRetries);
 
       // Act & Assert

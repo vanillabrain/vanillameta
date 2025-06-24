@@ -20,7 +20,7 @@ import { ResponseStatus } from '../common/enum/response-status.enum';
 // Knex Mock
 const mockKnex = {
   raw: jest.fn(),
-  destroy: jest.fn(),
+  destroy: jest.fn().mockResolvedValue(undefined),
   client: {
     config: {
       client: 'mysql2',
@@ -167,9 +167,24 @@ describe('ConnectionService', () => {
     knexConnections.clear();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     // 테스트 후 연결 정리
-    knexConnections.clear();
+    try {
+      // 모든 knex 연결을 안전하게 종료
+      for (const [id, knex] of knexConnections.entries()) {
+        try {
+          if (knex && typeof knex.destroy === 'function') {
+            await knex.destroy();
+          }
+        } catch (error) {
+          // destroy 오류는 무시 (테스트 환경에서는 정상적)
+        }
+      }
+    } catch (error) {
+      // 전체 정리 오류도 무시
+    } finally {
+      knexConnections.clear();
+    }
   });
 
   it('should be defined', () => {
@@ -535,7 +550,7 @@ describe('ConnectionService', () => {
       const result = await service.testConnection(mockCreateDatabaseDto);
 
       expect(result.status).toBe(ResponseStatus.ERROR);
-      expect(result.message).toBe('Access denied');
+      expect(result.message).toBe('데이터베이스 연결 테스트에 실패했습니다.');
       expect(mockKnex.destroy).toHaveBeenCalled();
       expect(logger.error).toHaveBeenCalledWith(
         'Database connection test failed',
@@ -864,6 +879,19 @@ describe('ConnectionService', () => {
           {
             provide: SlowQueryMonitorService,
             useValue: createMockService(['logSlowQuery']),
+          },
+          {
+            provide: DatabaseOptimizerFactory,
+            useValue: createMockService([
+              'getOptimizedConnectionConfig',
+              'isSupported',
+              'getOptimizationStats',
+              'getOptimizer',
+            ]),
+          },
+          {
+            provide: KnexQueryMonitor,
+            useValue: createMockService(['monitor', 'getMetrics', 'attachToKnex']),
           },
           {
             provide: REQUEST,

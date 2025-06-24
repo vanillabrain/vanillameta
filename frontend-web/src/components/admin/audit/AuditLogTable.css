@@ -1,0 +1,289 @@
+.audit-log-table {
+  border-radius: 0;
+}
+
+/* 테이블 헤더 */
+.audit-log-table .ant-table-thead > tr > th {
+  background: #fafafa;
+  font-weight: 600;
+  color: #262626;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+/* 테이블 행 */
+.audit-log-table .ant-table-tbody > tr {
+  transition: all 0.3s ease;
+}
+
+.audit-log-table .ant-table-tbody > tr:hover {
+  background: #f5f5f5;
+  cursor: pointer;
+}
+
+/* 레벨별 행 색상 */
+.audit-log-row.level-error {
+  background-color: #fff2f0;
+}
+
+.audit-log-row.level-error:hover {
+  background-color: #ffebe8;
+}
+
+.audit-log-row.level-warning {
+  background-color: #fffbe6;
+}
+
+.audit-log-row.level-warning:hover {
+  background-color: #fff7cc;
+}
+
+.audit-log-row.level-critical {
+  background-color: #fff0f6;
+}
+
+.audit-log-row.level-critical:hover {
+  background-color: #ffe5f0;
+}
+
+/* 중요도별 표시 */
+.audit-log-row.importance-high td:first-child {
+  border-left: 3px solid #f5222d;
+}
+
+.audit-log-row.importance-medium td:first-child {
+  border-left: 3px solid #faad14;
+}
+
+.audit-log-row.importance-low td:first-child {
+  border-left: 3px solid #52c41a;
+}
+
+/* 셀 스타일 */
+.timestamp-cell {
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+}
+
+.timestamp-cell .date {
+  font-size: 13px;
+  color: #262626;
+}
+
+.timestamp-cell .time {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.level-tag {
+  font-weight: 500;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+
+.action-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.action-cell .action-name {
+  font-weight: 500;
+  color: #262626;
+  font-size: 13px;
+}
+
+.action-cell .action-tag {
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-size: 11px;
+  background: #f0f0f0;
+  border: none;
+}
+
+.user-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-info .user-name {
+  font-weight: 500;
+  color: #262626;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-info .user-email {
+  font-size: 12px;
+  color: #8c8c8c;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.system-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #8c8c8c;
+  font-style: italic;
+}
+
+.resource-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.resource-cell .resource-type {
+  font-weight: 500;
+  color: #262626;
+  font-size: 13px;
+}
+
+.resource-cell .resource-id {
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.resource-cell .no-resource {
+  color: #d9d9d9;
+}
+
+.ip-address {
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-size: 12px;
+  background: #f5f5f5;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #595959;
+}
+
+.details-preview {
+  display: block;
+  max-width: 300px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  color: #595959;
+}
+
+.no-details {
+  color: #d9d9d9;
+}
+
+/* 액션 버튼 */
+.audit-log-table .ant-btn-link {
+  padding: 4px;
+  height: auto;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 1200px) {
+  .audit-log-table .ant-table {
+    font-size: 13px;
+  }
+
+  .timestamp-cell .date {
+    font-size: 12px;
+  }
+
+  .timestamp-cell .time {
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 768px) {
+  .audit-log-table .ant-table-cell {
+    padding: 8px;
+  }
+
+  .user-cell,
+  .action-cell,
+  .resource-cell {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .user-cell .ant-avatar {
+    display: none;
+  }
+}
+
+/* 다크 모드 지원 */
+@media (prefers-color-scheme: dark) {
+  .audit-log-table .ant-table {
+    background: #1f1f1f;
+  }
+
+  .audit-log-table .ant-table-thead > tr > th {
+    background: #262626;
+    color: #f0f0f0;
+    border-bottom-color: #303030;
+  }
+
+  .audit-log-table .ant-table-tbody > tr {
+    border-bottom-color: #303030;
+  }
+
+  .audit-log-table .ant-table-tbody > tr:hover {
+    background: #2a2a2a;
+  }
+
+  .audit-log-row.level-error {
+    background-color: rgba(245, 34, 45, 0.1);
+  }
+
+  .audit-log-row.level-warning {
+    background-color: rgba(250, 173, 20, 0.1);
+  }
+
+  .audit-log-row.level-critical {
+    background-color: rgba(235, 47, 150, 0.1);
+  }
+
+  .timestamp-cell .date,
+  .action-cell .action-name,
+  .user-info .user-name,
+  .resource-cell .resource-type {
+    color: #f0f0f0;
+  }
+
+  .timestamp-cell .time,
+  .user-info .user-email,
+  .resource-cell .resource-id,
+  .details-preview {
+    color: #bfbfbf;
+  }
+
+  .action-cell .action-tag {
+    background: #303030;
+  }
+
+  .ip-address {
+    background: #303030;
+    color: #d9d9d9;
+  }
+}
+
+/* 애니메이션 */
+.audit-log-table .ant-table-tbody > tr {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

@@ -1,0 +1,102 @@
+1ccd6d70758e398c5bbe30a088d4a4ae
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const testing_1 = require("@nestjs/testing");
+const user_service_1 = require("./user.service");
+const user_entity_1 = require("./entities/user.entity");
+const user_mapping_entity_1 = require("./entities/user-mapping.entity");
+const auth_service_1 = require("../auth/auth.service");
+const test_helpers_1 = require("../../test/test-helpers");
+describe('UserService', () => {
+    let service;
+    let userRepository;
+    let userMappingRepository;
+    let authService;
+    beforeEach(async () => {
+        const module = await testing_1.Test.createTestingModule({
+            providers: [
+                user_service_1.UserService,
+                {
+                    provide: (0, test_helpers_1.getRepositoryTokenFor)(user_entity_1.User),
+                    useValue: (0, test_helpers_1.createMockRepository)(),
+                },
+                {
+                    provide: (0, test_helpers_1.getRepositoryTokenFor)(user_mapping_entity_1.UserMapping),
+                    useValue: (0, test_helpers_1.createMockRepository)(),
+                },
+                {
+                    provide: auth_service_1.AuthService,
+                    useValue: (0, test_helpers_1.createMockService)(['validateUser', 'generateAccessToken', 'checkAccess']),
+                },
+            ],
+        }).compile();
+        service = module.get(user_service_1.UserService);
+        userRepository = module.get((0, test_helpers_1.getRepositoryTokenFor)(user_entity_1.User));
+        userMappingRepository = module.get((0, test_helpers_1.getRepositoryTokenFor)(user_mapping_entity_1.UserMapping));
+        authService = module.get(auth_service_1.AuthService);
+    });
+    it('should be defined', () => {
+        expect(service).toBeDefined();
+    });
+    describe('findOne', () => {
+        it('should return user data without password when user exists', async () => {
+            const mockUser = {
+                id: 1,
+                userId: 'testuser',
+                email: 'test@example.com',
+                password: 'hashedpassword',
+            };
+            userRepository.findOne.mockResolvedValue(mockUser);
+            const result = await service.findOne(1);
+            expect(result.data).toEqual({
+                id: 1,
+                userId: 'testuser',
+                email: 'test@example.com',
+            });
+            expect(result.data.password).toBeUndefined();
+            expect(result.message).toBe('success');
+        });
+        it('should throw HttpException when user not found', async () => {
+            userRepository.findOne.mockResolvedValue(null);
+            await expect(service.findOne(999)).rejects.toThrow('User not found');
+        });
+    });
+    describe('findDashboardId', () => {
+        it('should return user dashboard mappings', async () => {
+            const mockMappings = [
+                { dashboardId: 1, userInfoId: 1 },
+                { dashboardId: 2, userInfoId: 1 },
+                { dashboardId: null, userInfoId: 1 } // Test null dashboard ID
+            ];
+            userMappingRepository.find.mockResolvedValue(mockMappings);
+            const result = await service.findDashboardId(1);
+            expect(result).toEqual([1, 2]); // Should only return non-null dashboard IDs
+            expect(userMappingRepository.find).toHaveBeenCalledWith({
+                where: { userInfoId: 1 },
+            });
+        });
+    });
+    describe('updateUserInfo', () => {
+        it('should update user information', async () => {
+            const updateDto = {
+                email: 'newemail@example.com',
+                password: 'newpassword',
+                userId: 'testuser',
+                new_password: 'newpassword123',
+            };
+            const mockUser = {
+                id: 1,
+                userId: 'testuser',
+                email: 'old@example.com',
+                password: 'oldpassword',
+            };
+            const updatedUser = Object.assign(Object.assign({}, mockUser), updateDto);
+            userRepository.findOne.mockResolvedValue(mockUser);
+            userRepository.save.mockResolvedValue(updatedUser);
+            authService.checkAccess.mockResolvedValue(mockUser);
+            const result = await service.updateUserInfo('testuser', updateDto);
+            expect(authService.checkAccess).toHaveBeenCalledWith('testuser', expect.any(String));
+            expect(userRepository.save).toHaveBeenCalled();
+        });
+    });
+});

@@ -92,14 +92,14 @@ export class MySQLOptimizer implements IDatabaseOptimizer {
   optimizeQuery(queryBuilder: Knex.QueryBuilder): Knex.QueryBuilder {
     // MySQL STRAIGHT_JOIN 힌트 적용 (필요시)
     if (this.shouldUseStraightJoin(queryBuilder)) {
-      queryBuilder = queryBuilder.hint('STRAIGHT_JOIN');
+      queryBuilder = (queryBuilder as any).hint('STRAIGHT_JOIN');
     }
 
     // MySQL 인덱스 힌트 적용
     const indexHints = this.getIndexHints(queryBuilder);
     if (indexHints.length > 0) {
       indexHints.forEach(hint => {
-        queryBuilder = queryBuilder.hint(hint);
+        queryBuilder = (queryBuilder as any).hint(hint);
       });
     }
 

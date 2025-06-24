@@ -1,0 +1,323 @@
+.audit-log-detail-modal .ant-modal-content {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.log-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.log-modal-title > span:first-child {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* 탭 스타일 */
+.audit-log-detail-modal .ant-tabs-tab {
+  padding: 12px 16px;
+}
+
+.audit-log-detail-modal .ant-tabs-tab .tab-icon {
+  margin-right: 4px;
+}
+
+/* 개요 탭 */
+.log-overview {
+  padding: 16px 0;
+}
+
+.log-overview .ant-descriptions-item-label {
+  font-weight: 500;
+  color: #595959;
+  background: #fafafa;
+}
+
+.timestamp-detail {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.timestamp-detail .relative-time {
+  color: #8c8c8c;
+  font-size: 13px;
+}
+
+.action-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.user-detail {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-detail .user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-detail .user-email {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.resource-detail {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.resource-detail .resource-id {
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-size: 12px;
+  background: #f5f5f5;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.detail-text {
+  line-height: 1.6;
+  color: #595959;
+}
+
+/* 상세 정보 탭 */
+.log-details {
+  padding: 16px 0;
+}
+
+.changes-section,
+.metadata-section {
+  margin-bottom: 24px;
+}
+
+.changes-section h4,
+.metadata-section h4 {
+  margin-bottom: 16px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #262626;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.change-values {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.change-values .old-value,
+.change-values .new-value {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.change-values .label {
+  min-width: 40px;
+  font-weight: 500;
+  color: #595959;
+}
+
+.change-values code {
+  flex: 1;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-size: 12px;
+  background: #f5f5f5;
+  padding: 4px 8px;
+  border-radius: 4px;
+  word-break: break-word;
+}
+
+.ant-list-item.changed {
+  background: #fffbe6;
+  border-left: 3px solid #faad14;
+  padding-left: 12px;
+}
+
+/* 관련 로그 탭 */
+.related-logs {
+  padding: 16px 0;
+}
+
+.related-log-item {
+  padding: 16px;
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  transition: all 0.3s ease;
+}
+
+.related-log-item:hover {
+  background: #fafafa;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.related-log-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.related-log-title .timestamp {
+  margin-left: auto;
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.related-log-description {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #595959;
+}
+
+.related-log-description .details {
+  margin-top: 4px;
+  font-style: italic;
+}
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+}
+
+/* Raw 데이터 탭 */
+.raw-data {
+  padding: 16px 0;
+}
+
+.raw-data h4 {
+  margin-bottom: 16px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #262626;
+}
+
+/* JSON 뷰어 스타일 */
+.audit-log-detail-modal .react-json-view {
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 16px;
+  background: #f5f5f5;
+  border-radius: 6px;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+  .audit-log-detail-modal .ant-modal {
+    max-width: calc(100vw - 32px);
+    margin: 16px;
+  }
+
+  .log-overview .ant-descriptions-item {
+    padding: 8px 12px;
+  }
+
+  .change-values {
+    font-size: 12px;
+  }
+
+  .related-log-title {
+    flex-wrap: wrap;
+  }
+
+  .related-log-title .timestamp {
+    width: 100%;
+    margin-left: 0;
+    margin-top: 4px;
+  }
+}
+
+/* 다크 모드 지원 */
+@media (prefers-color-scheme: dark) {
+  .audit-log-detail-modal .ant-modal-content {
+    background: #1f1f1f;
+  }
+
+  .audit-log-detail-modal .ant-modal-header {
+    background: #1f1f1f;
+    border-bottom-color: #303030;
+  }
+
+  .log-modal-title > span:first-child {
+    color: #f0f0f0;
+  }
+
+  .log-overview .ant-descriptions-item-label {
+    background: #262626;
+    color: #d9d9d9;
+  }
+
+  .changes-section h4,
+  .metadata-section h4,
+  .raw-data h4 {
+    color: #f0f0f0;
+  }
+
+  .change-values code,
+  .resource-detail .resource-id {
+    background: #303030;
+    color: #d9d9d9;
+  }
+
+  .ant-list-item.changed {
+    background: rgba(250, 173, 20, 0.1);
+  }
+
+  .related-log-item {
+    background: #262626;
+    border-color: #303030;
+  }
+
+  .related-log-item:hover {
+    background: #2a2a2a;
+  }
+
+  .audit-log-detail-modal .react-json-view {
+    background: #262626;
+  }
+}
+
+/* 애니메이션 */
+.audit-log-detail-modal .ant-tabs-tabpane {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.related-log-item {
+  animation: slideIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}

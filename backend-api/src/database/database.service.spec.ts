@@ -73,10 +73,10 @@ describe('DatabaseService', () => {
   });
 
   describe('findAllDbTypes', () => {
-    it('should return list of all database types ordered by rank and type', async () => {
+    it('should return list of all database types ordered by seq and type', async () => {
       const mockDatabaseTypes = [
-        { id: 1, name: 'MySQL', engine: 'mysql2', useYn: YesNo.YES, rank: 1, type: 'A' },
-        { id: 2, name: 'PostgreSQL', engine: 'pg', useYn: YesNo.YES, rank: 2, type: 'B' },
+        { id: 1, name: 'MySQL', engine: 'mysql2', useYn: YesNo.YES, seq: 1, type: 'A' },
+        { id: 2, name: 'PostgreSQL', engine: 'pg', useYn: YesNo.YES, seq: 2, type: 'B' },
       ];
       cacheManager.get.mockResolvedValue(null); // 캐시에 없음
       databaseTypeRepository.find.mockResolvedValue(mockDatabaseTypes);
@@ -85,7 +85,7 @@ describe('DatabaseService', () => {
       const result = await service.findAllDbTypes();
 
       expect(result).toEqual(mockDatabaseTypes);
-      expect(databaseTypeRepository.find).toHaveBeenCalledWith({ order: { rank: 'ASC', type: 'ASC' } });
+      expect(databaseTypeRepository.find).toHaveBeenCalledWith({ order: { seq: 'ASC', type: 'ASC' } });
     });
   });
 

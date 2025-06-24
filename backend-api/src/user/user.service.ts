@@ -53,7 +53,7 @@ export class UserService {
     const hashPassword = crypto.createHash('sha512').update(String(password)).digest('hex');
     const findUser = await this.authService.checkAccess(userId, hashPassword);
     if (findUser) {
-      await this.userRepository.delete(findUser);
+      await this.userRepository.delete({ id: findUser.id });
     }
     return `success`;
   }

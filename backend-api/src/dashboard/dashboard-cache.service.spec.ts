@@ -152,6 +152,7 @@ describe('DashboardCacheService', () => {
           cachedAt: Date.now(),
           ttl: 3600,
         },
+        fields: [],
       };
 
       hybridCacheService.get.mockResolvedValueOnce(cachedData);
@@ -207,7 +208,7 @@ describe('DashboardCacheService', () => {
         'User dashboard list cached',
         'DashboardCacheService',
         expect.objectContaining({
-          userId: 123,
+          userId: '123',
           dashboardCount: 1,
           ttl: 300,
         }),
@@ -218,7 +219,7 @@ describe('DashboardCacheService', () => {
   describe('getCachedUserDashboardList', () => {
     it('should return cached user dashboard list', async () => {
       const dashboards = [mockDashboard];
-      hybridCacheService.get.mockResolvedValueOnce({ data: dashboards });
+      hybridCacheService.get.mockResolvedValueOnce({ data: dashboards, fields: [] });
 
       const result = await service.getCachedUserDashboardList(123);
 
@@ -316,11 +317,44 @@ describe('DashboardCacheService', () => {
     it('should return cache statistics', async () => {
       const mockStats = {
         engine: 'dashboard',
-        l1Cache: { hitRate: 0.85 },
-        l2Cache: { hitRate: 0.75 },
+        l1Cache: {
+          engine: 'L1',
+          totalEntries: 100,
+          totalSize: 1024,
+          hitRate: 0.85,
+          missRate: 0.15,
+          evictionCount: 5,
+          createdAt: Date.now(),
+          evictions: [],
+          memoryUsage: {
+            rss: 1024,
+            heapUsed: 512,
+            heapTotal: 1024,
+            external: 256,
+            arrayBuffers: 128,
+          },
+          topQueries: [],
+        },
+        l2Cache: {
+          engine: 'redis',
+          hitRate: 0.75,
+          missRate: 0.25,
+          totalKeys: 500,
+          usedMemory: 2048,
+          evictionCount: 10,
+        },
+        hybridMetrics: {
+          l1HitRate: 0.85,
+          l2HitRate: 0.75,
+          overallHitRate: 0.8,
+          l1Size: 100,
+          l2Size: 500,
+          promotionCount: 20,
+          demotionCount: 10,
+        },
       };
 
-      hybridCacheService.getHybridStats.mockResolvedValueOnce(mockStats);
+      hybridCacheService.getHybridStats.mockResolvedValueOnce(mockStats as any);
 
       const result = await service.getCacheStats();
 

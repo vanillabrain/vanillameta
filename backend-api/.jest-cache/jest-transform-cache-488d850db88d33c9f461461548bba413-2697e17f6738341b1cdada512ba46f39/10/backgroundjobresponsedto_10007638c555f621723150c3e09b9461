@@ -1,0 +1,101 @@
+312e51f1690a7127baab994e86b39c7a
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.BackgroundJobListResponseDto = exports.BackgroundJobResponseDto = void 0;
+const swagger_1 = require("@nestjs/swagger");
+const background_job_entity_1 = require("../entities/background-job.entity");
+class BackgroundJobResponseDto {
+}
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '작업 ID' }),
+    __metadata("design:type", String)
+], BackgroundJobResponseDto.prototype, "id", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '작업 유형', enum: background_job_entity_1.JobType }),
+    __metadata("design:type", String)
+], BackgroundJobResponseDto.prototype, "jobType", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '작업 상태', enum: background_job_entity_1.JobStatus }),
+    __metadata("design:type", String)
+], BackgroundJobResponseDto.prototype, "status", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '작업 제목' }),
+    __metadata("design:type", String)
+], BackgroundJobResponseDto.prototype, "title", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: '작업 설명' }),
+    __metadata("design:type", String)
+], BackgroundJobResponseDto.prototype, "description", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '진행률 (0-100)', example: 50 }),
+    __metadata("design:type", Number)
+], BackgroundJobResponseDto.prototype, "progress", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: '에러 메시지' }),
+    __metadata("design:type", String)
+], BackgroundJobResponseDto.prototype, "errorMessage", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '시도 횟수', example: 1 }),
+    __metadata("design:type", Number)
+], BackgroundJobResponseDto.prototype, "attemptCount", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: '시작 시간' }),
+    __metadata("design:type", Date)
+], BackgroundJobResponseDto.prototype, "startedAt", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: '완료 시간' }),
+    __metadata("design:type", Date)
+], BackgroundJobResponseDto.prototype, "completedAt", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: '처리 시간 (ms)' }),
+    __metadata("design:type", Number)
+], BackgroundJobResponseDto.prototype, "processingTimeMs", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '생성 시간' }),
+    __metadata("design:type", Date)
+], BackgroundJobResponseDto.prototype, "createdAt", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '수정 시간' }),
+    __metadata("design:type", Date)
+], BackgroundJobResponseDto.prototype, "updatedAt", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: '결과 데이터 가용 여부' }),
+    __metadata("design:type", Boolean)
+], BackgroundJobResponseDto.prototype, "hasResult", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: '결과 크기 (bytes)' }),
+    __metadata("design:type", Number)
+], BackgroundJobResponseDto.prototype, "resultSizeBytes", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: '결과 행 수' }),
+    __metadata("design:type", Number)
+], BackgroundJobResponseDto.prototype, "rowCount", void 0);
+exports.BackgroundJobResponseDto = BackgroundJobResponseDto;
+class BackgroundJobListResponseDto {
+}
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '작업 목록', type: [BackgroundJobResponseDto] }),
+    __metadata("design:type", Array)
+], BackgroundJobListResponseDto.prototype, "items", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '전체 개수' }),
+    __metadata("design:type", Number)
+], BackgroundJobListResponseDto.prototype, "total", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '현재 페이지' }),
+    __metadata("design:type", Number)
+], BackgroundJobListResponseDto.prototype, "page", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: '페이지 크기' }),
+    __metadata("design:type", Number)
+], BackgroundJobListResponseDto.prototype, "pageSize", void 0);
+exports.BackgroundJobListResponseDto = BackgroundJobListResponseDto;

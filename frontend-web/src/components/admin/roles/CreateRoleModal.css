@@ -1,0 +1,45 @@
+.step-content {
+  min-height: 400px;
+}
+
+.permission-selection {
+  height: 400px;
+  display: flex;
+  flex-direction: column;
+}
+
+.permission-selection-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.permission-selection-header h4 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.selection-summary {
+  font-size: 14px;
+  color: #1890ff;
+  font-weight: 500;
+}
+
+.role-summary {
+  padding: 24px 0;
+}
+
+.role-summary h4 {
+  margin: 0 0 24px 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+}

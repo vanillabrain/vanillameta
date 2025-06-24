@@ -323,8 +323,14 @@ export const getOracleConfig = (): DatabaseSpecificConfig => ({
 /**
  * 데이터베이스별 설정 팩토리
  */
-export const getDatabaseSpecificConfig = (databaseType: string): DatabaseSpecificConfig | null => {
-  const normalizedType = databaseType?.toLowerCase().trim();
+export const getDatabaseSpecificConfig = (databaseType: string | any): DatabaseSpecificConfig | null => {
+  if (!databaseType) {
+    return null;
+  }
+  
+  // databaseType이 string이 아닌 경우 처리
+  const typeString = typeof databaseType === 'string' ? databaseType : String(databaseType);
+  const normalizedType = typeString.toLowerCase().trim();
 
   switch (normalizedType) {
     case 'mysql':

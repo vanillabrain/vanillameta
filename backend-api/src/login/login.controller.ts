@@ -65,7 +65,7 @@ export class LoginController {
   @ApiBadRequestResponse({ description: '잘못된 요청 (유효성 검사 실패)' })
   @ApiUnauthorizedResponse({ description: '인증 실패 (이메일 또는 비밀번호 오류)' })
   async logIn(@Res() res, @Req() req, @Body() loginDto: LoginUserDto) {
-    const findUser = await this.loginService.signin(loginDto);
+    const findUser = await this.loginService.signin(loginDto, req);
     // 유저존재여부 확인
     const accessToken = await this.authService.generateAccessToken(findUser);
     // AccessToken발급
@@ -126,8 +126,9 @@ export class LoginController {
   })
   @ApiUnauthorizedResponse({ description: '인증 실패' })
   async signOut(@Res() res, @Req() req) {
-    const { jwtId } = req.user.refreshKeyData;
+    const { jwtId, userId } = req.user.refreshKeyData;
     await this.authService.deleteRefreshToken(jwtId);
+    await this.loginService.logout(userId, req);
     const message = 'success';
     return res.status(201).clearCookie('jwt_re').json({ message });
   }

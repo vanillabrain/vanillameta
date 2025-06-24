@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsNumber, IsString, IsEmail } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsString, IsEmail, IsOptional } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateLoginDto {
@@ -29,4 +29,13 @@ export class CreateLoginDto {
     format: 'email',
   })
   email: string;
+
+  @IsString()
+  @IsOptional()
+  @ApiProperty({
+    description: '가입 신청 메모 (선택사항)',
+    example: '데이터 분석팀에서 VanillaMeta를 사용하고자 합니다.',
+    required: false,
+  })
+  applicationNote?: string;
 }

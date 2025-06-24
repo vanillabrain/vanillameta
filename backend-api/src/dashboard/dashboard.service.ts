@@ -44,9 +44,11 @@ export class DashboardService {
       return 'Bad Request';
     }
     const widgetIds = [];
-    createDashboardDto.layout.map(item => {
-      widgetIds.push(item.i);
-    });
+    if (createDashboardDto.layout && Array.isArray(createDashboardDto.layout)) {
+      createDashboardDto.layout.map(item => {
+        widgetIds.push(item.i);
+      });
+    }
     const share_id = await this.dashboardShareRepository.save({
       uuid: uuidv4(), // uuid의 버전 uuidv1의 결우 mac의 정보등을 담고있음.
       createdAt: new Date(),
@@ -118,7 +120,6 @@ export class DashboardService {
       // 빈 배열 반환 (대시보드가 없는 정상적인 상황)
       return { status: ResponseStatus.SUCCESS, data: [] };
     }
-    console.log(findUser);
     const findId = findUser.map(el => el['dashboardId']);
 
     // null 값 필터링
@@ -127,8 +128,6 @@ export class DashboardService {
       // 대시보드가 없는 경우 빈 배열 반환
       return { status: ResponseStatus.SUCCESS, data: [] };
     }
-
-    console.log(validIds);
 
     // N+1 쿼리 문제 해결: In 조건으로 한 번에 조회
     const find_all = await this.dashboardRepository
@@ -140,7 +139,6 @@ export class DashboardService {
 
     if (find_all && find_all.length > 0) {
       find_all.forEach(el => {
-        console.log('adf,', el);
         el.layout = JSON.parse(el.layout);
       });
     }
@@ -159,7 +157,6 @@ export class DashboardService {
     }
 
     const widgetList = await this.dashboardWidgetService.findWidgets(find_dashboard.id);
-    console.log('widgetList', widgetList);
     try {
       (find_dashboard as any).layout = JSON.parse(find_dashboard.layout);
     } catch (error) {
@@ -172,8 +169,6 @@ export class DashboardService {
       widgets: widgetList,
     };
     delete return_obj.dashboardShare;
-
-    console.log(return_obj);
 
     // 대시보드를 캐시에 저장
     await this.dashboardCacheService.cacheDashboard(
@@ -199,7 +194,7 @@ export class DashboardService {
       if (updateDashboardDto.title) {
         find_dashboard.title = updateDashboardDto.title;
       }
-      if (updateDashboardDto.layout) {
+      if (updateDashboardDto.layout && Array.isArray(updateDashboardDto.layout)) {
         updateDashboardDto.layout.map(item => {
           widgetIds.push(item.i);
         });

@@ -15,7 +15,7 @@ describe('CacheInvalidationService', () => {
   };
 
   beforeAll(() => {
-    jest.useFakeTimers();
+    jest.useFakeTimers({ legacyFakeTimers: true });
   });
 
   afterAll(() => {

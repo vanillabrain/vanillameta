@@ -1,0 +1,70 @@
+6826a139cb20f5ef273e34c350e93184
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const testing_1 = require("@nestjs/testing");
+const typeorm_1 = require("@nestjs/typeorm");
+const database_controller_1 = require("./database.controller");
+const database_service_1 = require("./database.service");
+const database_entity_1 = require("./entities/database.entity");
+const database_type_entity_1 = require("./entities/database_type.entity");
+const dataset_entity_1 = require("../dataset/entities/dataset.entity");
+const table_query_entity_1 = require("../widget/table-query/entity/table-query.entity");
+const connection_service_1 = require("../connection/connection.service");
+describe('DatabaseController', () => {
+    let controller;
+    const mockDatabaseRepository = {
+        findOne: jest.fn(),
+        save: jest.fn(),
+        find: jest.fn(),
+        delete: jest.fn(),
+    };
+    const mockDatabaseTypeRepository = {
+        find: jest.fn(),
+    };
+    const mockDatasetRepository = {
+        find: jest.fn(),
+        createQueryBuilder: jest.fn().mockReturnValue({
+            where: jest.fn().mockReturnThis(),
+            getMany: jest.fn(),
+        }),
+    };
+    const mockTableQueryRepository = {
+        find: jest.fn(),
+    };
+    const mockConnectionService = {
+        execute: jest.fn(),
+        testConnection: jest.fn(),
+    };
+    beforeEach(async () => {
+        const module = await testing_1.Test.createTestingModule({
+            controllers: [database_controller_1.DatabaseController],
+            providers: [
+                database_service_1.DatabaseService,
+                {
+                    provide: (0, typeorm_1.getRepositoryToken)(database_entity_1.Database),
+                    useValue: mockDatabaseRepository,
+                },
+                {
+                    provide: (0, typeorm_1.getRepositoryToken)(database_type_entity_1.DatabaseType),
+                    useValue: mockDatabaseTypeRepository,
+                },
+                {
+                    provide: (0, typeorm_1.getRepositoryToken)(dataset_entity_1.Dataset),
+                    useValue: mockDatasetRepository,
+                },
+                {
+                    provide: (0, typeorm_1.getRepositoryToken)(table_query_entity_1.TableQuery),
+                    useValue: mockTableQueryRepository,
+                },
+                {
+                    provide: connection_service_1.ConnectionService,
+                    useValue: mockConnectionService,
+                },
+            ],
+        }).compile();
+        controller = module.get(database_controller_1.DatabaseController);
+    });
+    it('should be defined', () => {
+        expect(controller).toBeDefined();
+    });
+});
