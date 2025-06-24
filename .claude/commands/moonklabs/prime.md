@@ -1,10 +1,9 @@
 # 지식 프라임
 
-이 프로젝트에 대한 기본 정보로 자신을 프라임하세요.
-환경을 인식하고 있는지 확인하세요.
+Prime yourself with basic information about this project.
+Make sure you are aware of the environment.
 
-## **병렬 에이전트**를 사용하여
+## USE **PARALLEL AGENTS** to
 
-- 기본 파일정보를 위해 `git ls-files` 실행
-- 기본 프로젝트 정보를 위해 .moonklabs/01_PROJECT_DOCS/ARCHITECTURE.md 읽기
-- 프로젝트 상태를 위해 .moonklabs/00_PROJECT_MANIFEST.md 읽기
+- READ .moonklabs/01_PROJECT_DOCS/ARCHITECTURE.md for basic Project Information
+- READ .moonklabs/00_PROJECT_MANIFEST.md for the Project status

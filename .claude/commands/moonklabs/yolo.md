@@ -1,157 +1,157 @@
 # YOLO 모드에서 모든 열린 태스크 실행
 
-이 모드는 사용자 상호작용 없이 실행되도록 만들어졌습니다.
-질문을 하거나 확인을 요청하지 **마세요. DO NOT ASK**
-의심스러우면 최선의 해결책에 대해 **RESEARCH**하고 **ULTRATHINK**하세요.
+This mode is meant to be run without user interaction.
+You **DO NOT** ask the user any questions or ask for confirmation
+If in doubt you **RESEARCH** and **ULTRATHINK** about the best solution.
 
-**IMPORTANT** 특정 지점에서 멈추지 않으려고 노력하되 신중한 고려 후 필요하다면 그렇게 하세요.
+**IMPORTANT** you try not to stop at any certain point but do so if you need after thoughtful consideration.
 
-우선순위는 작업을 완료하는 것입니다.
+Priority is to get the work completed.
 
-## 모드 선택
+## Mode Selection
 
-<$ARGUMENTS> 확인:
+Check <$ARGUMENTS>:
 
-- 스프린트 ID가 제공된 경우 (예: S03): 해당 스프린트에서만 작업
-- 비어있는 경우: 일반 태스크를 먼저, 그 다음 활성 스프린트 태스크
+- If sprint ID provided (e.g., S03): Work ONLY on that sprint
+- If empty: Work on general tasks first, then active sprint tasks
 
-**모드를 사용자에게 보고하세요!**
+**Report Mode** to the User!
 
-## 안전 가이드라인
+## Safety Guidelines
 
-- NEVER: 중요한 파일(.env, alembic 마이그레이션, 프로덕션 설정)을 **절대** 수정하지 마세요
-- STOP: 데이터베이스 스키마 변경을 만나면 **중지**
-- STOP: 5개 이상의 파일을 삭제해야 하면 **중지**
-- STOP: 변경 후 테스트가 실패하면 **중지**
-- ALWAYS: 태스크 구현 후 **항상** 테스트 실행
+- **NEVER** modify critical files (.env, alembic migrations, production configs)
+- **STOP** if you encounter database schema changes
+- **STOP** if you need to delete more than 5 files
+- **STOP** if tests are failing after your changes
+- **ALWAYS** run tests after implementing a task
 
-## 정확한 프로세스 따르기
+## Follow this exact process
 
-이 프로세스를 고수하고 **정확히** 따라야 합니다
+You need to stick to this process and **PRECISELY** follow it
 
-시작하기 전에:
+Before you start:
 
-- test.md 명령을 사용하여 깨끗한 기준선을 보장하기 위해 테스트 실행 (@.claude/commands/moonklabs/test.md)
-- **만약** 실패율이 10%를 넘으면 수정이 가능한지 평가. 가능하면 수정하고 계속. 그렇지 않으면 어쨌든 계속.
+- Run tests to ensure clean baseline using test.md command (@.claude/commands/moonklabs/test.md)
+- **If** FAIL rate is above 10% asses if a fix is possible. If so, fix and move on. If not, move on anyways.
 
-- 깨끗한 작업 디렉토리를 보장하기 위해 git 상태 확인
-- **만약** git 상태가 깨끗하지 않으면 기억해두고 마지막에 사용자에게 보고하되 계속 진행.
+- Check git status to ensure clean working directory
+- **If** git status is not clean just remember and report to the user at the end, but move on.
 
-또한 <$ARGUMENTS>를 고려 - <>사이의 내용이 추가 지침으로 간주될 수 있다면 프로세스에서 우선순위를 두세요.
+Also consider <$ARGUMENTS> - if anything between <> can be considered additional instructions, prioritize them in the process.
 
-시스템에서 현재 날짜시간 스탬프를 가져와 기억하세요
+Get the current datetime stamp from the system and remember it
 
-### 열린 작업 찾기
+### FIND OPEN WORK
 
-모드에 따라 실행:
+Execute based on mode:
 
-**인자에 스프린트 ID가 제공된 경우:**
+**If Sprint ID provided in arguments:**
 
-- .moonklabs/03_SPRINTS/{sprint_id}/로 이동
-- 스프린트에 태스크가 있는지 확인 (T*.md 파일)
-- 태스크가 존재하지 않으면:
-  - 스프린트 메타 파일 확인
-  - 메타가 존재하면: ### CREATE SPRINT TASKS로 이동
-  - 메타가 없으면: 오류와 함께 종료 - 스프린트가 존재하지 않음
-- 태스크가 존재하면: 아래 **태스크 선택** 섹션으로 계속
+- Navigate to .moonklabs/03_SPRINTS/{sprint_id}/
+- Check if sprint has tasks (T\*.md files)
+- If NO tasks exist:
+  - Check for sprint meta file
+  - If meta exists: Jump to ### CREATE SPRINT TASKS
+  - If no meta: Exit with error - sprint doesn't exist
+- If tasks exist: Continue to **Task selection** section below
 
-**인자가 없는 경우 (일반 모드):**
+**If NO arguments (general mode):**
 
-- 병렬 서브에이전트를 사용하여 확인:
-  - 열린 일반 태스크를 위해 .moonklabs/04_GENERAL_TASKS
-  - 현재 활성 스프린트를 위해 .moonklabs/00_PROJECT_MANIFEST.md
-  - 메타 파일만 있는 스프린트를 위해 .moonklabs/03_SPRINTS/
-- 우선순위 순서:
-  1. 일반 태스크 (열린 것이 있으면)
-  2. 활성 스프린트 태스크 (열린 것이 있으면)
-  3. 태스크 생성이 필요한 스프린트 (발견되면) - 스프린트 순서 유지
+- Use PARALLEL SUBAGENTS to check:
+  - .moonklabs/04_GENERAL_TASKS for open general tasks
+  - .moonklabs/00_PROJECT_MANIFEST.md for currently active sprint
+  - .moonklabs/03_SPRINTS/ for any sprint with only meta file
+- Priority order:
+  1. General tasks (if any open)
+  2. Active sprint tasks (if any open)
+  3. Sprint needing task creation (if found) - maintain order of Sprints
 
-**태스크 선택:**
+**Task Selection:**
 
-- 발견된 태스크에서 완료되지 않은 하나를 선택. 스프린트 또는 일반 태스크에서 가장 낮은 ID 선택
-- 이전에 시도한 태스크 건너뛰기 (OUTPUT LOG 확인)
-- 적합한 태스크를 찾지 못하고 태스크가 필요한 스프린트가 없으면: 우아하게 종료
+- From found tasks, select ONE that is not completed. Take the lowest ID in Sprint or General Tasks
+- Skip tasks you've previously attempted (check OUTPUT LOG)
+- If no suitable task found and no sprint needs tasks: Exit gracefully
 
-### 스프린트 태스크 생성
+### CREATE SPRINT TASKS
 
-**ONLY EXECUTE:** 스프린트에 태스크 생성이 필요한 경우에만 **오직 실행**
+**ONLY EXECUTE** if sprint needs task creation
 
-- **SUBAGENT**를 사용하고 스프린트 ID를 인자로 하여 @.claude/commands/moonklabs/create_sprint_tasks.md를 포함하도록 하세요
-- 완료까지 대기
-- 태스크 생성 후 `### FIND OPEN WORK`로 돌아가기
+- Use a **SUBAGENT** and have it include @.claude/commands/moonklabs/create_sprint_tasks.md with Sprint ID as argument
+- Wait for completion
+- After task creation move back to `### FIND OPEN WORK`
 
-### 태스크 작업
+### WORK ON TASK
 
-- 이전에 이 태스크를 건드린 적이 있으면 무시하고 다음 태스크로 이동
-- 이전에 수정을 시도하지 않은 태스크를 찾을 수 없으면 ### EXECUTE PROJECT REVIEW로 이동
-- 이미 작업이 완료되어 수정할 수 없는 태스크를 찾으면, 태스크를 닫고 태스크의 Output Log에 메모.
-- **BEFORE STARTING:** 태스크를 위한 git 브랜치 생성: `git checkout -b task/<task-id>`
-- **USE A SUBAGENT:** 태스크 ID를 인자로 하여 @.claude/commands/moonklabs/do_task.md를 포함하여 태스크를 실행하도록 하세요.
-- **AFTER TASK COMPLETION:** test.md 명령을 사용하여 아무것도 깨지지 않았는지 확인하기 위해 테스트 실행 (@.claude/commands/moonklabs/test.md)
-- 태스크 실행의 실패 시 오류의 심각도 평가:
-  - 중요 오류 (테스트 중단, 보안 문제, 데이터 손실 위험): **문제 수정**
-  - 비중요 오류 (린팅, 포맷팅, 사소한 문제): OUTPUT LOG에 메모하고 계속
-- 성공 시 계속
+- if you have touched this task before ignore it and jump to the next task
+- if you can't find a task that you have not tried fixing before jump to ### EXECUTE PROJECT REVIEW
+- if you find a task that you cannot fix because the work was done already, close the task and note in Output Log of task.
+- **BEFORE STARTING**: Create a git branch for the task: `git checkout -b task/<task-id>`
+- **USE A SUBAGENT** and have it include @.claude/commands/moonklabs/do_task.md with the Task ID as Argument to execute the Task.
+- **AFTER TASK COMPLETION**: Run tests to verify nothing broke using test.md command (@.claude/commands/moonklabs/test.md)
+- on any failure in the task execution assess the severity of the error:
+  - CRITICAL errors (breaking tests, security issues, data loss risk): **FIX PROBLEMS**
+  - NON-CRITICAL errors (linting, formatting, minor issues): note in OUTPUT LOG and continue
+- on success move on
 
-### 작업 커밋
+### COMMIT WORK
 
-- **ONLY IF :** 테스트가 통과하고 중요한 문제가 없는 경우에만
-- **USE A SUBAGENT:** 태스크 ID를 인자로, YOLO를 추가 인자로 하여 @.claude/commands/moonklabs/commit.md를 포함하도록 하세요
-- 커밋 시 실패하면, 태스크의 OUTPUT LOG 에 문제를 메모하고 계속
-- 성공적인 커밋 후, main으로 병합: `git checkout main && git merge task/<task-id>`
-- 성공 시 계속
+- **ONLY IF** tests are passing and no critical issues exist
+- **USE A SUBAGENT** and have it include @.claude/commands/moonklabs/commit.md with the Task ID as Argument and YOLO as additional argument
+- on any failure when committing, note the problem in the OUTPUT LOG of the task and continue
+- after successful commit, merge to main: `git checkout main && git merge task/<task-id>`
+- on success move on
 
-### 모든 열린 태스크에 대해 반복
+### REPEAT FOR ALL OPEN TASKS
 
-**현재 모드에 따라:**
+**Based on current mode:**
 
-**스프린트별 모드:**
+**Sprint-specific mode:**
 
-- 지정된 스프린트에서만 다음 태스크로 계속
-- 모든 스프린트 태스크가 완료될 때까지 ### WORK ON TASK로 돌아가기
-- 스프린트가 완료되면 프로젝트 리뷰로 이동
+- Continue with next task in the specified sprint only
+- Go back to ### WORK ON TASK until all sprint tasks are done
+- When sprint is complete, move to project review
 
-**일반 모드:**
+**General mode:**
 
-- 일반 태스크 완료 후, 먼저 더 많은 일반 태스크 확인
-- 일반 태스크가 남아있지 않으면, 활성 스프린트 태스크로 이동
-- 접근 가능한 모든 태스크가 완료될 때까지 계속
-- 완료되면 계속
+- After completing a general task, check for more general tasks first
+- If no general tasks remain, move to active sprint tasks
+- Continue until all accessible tasks are done
+- When done move on
 
-## 프로젝트 리뷰 실행
+## EXECUTE PROJECT REVIEW
 
-- **서브에이전트를 사용**하고 @.claude/commands/moonklabs/project_review.md를 포함하도록 하세요
-- 리뷰 결과에 따라:
-  - 실패 시: 가능한 수정에 대해 생각.
-  - 수정이 빠르게 완료되면, 즉시 수정하고 `## EXECUTE PROJECT REVIEW` 반복
-  - 수정이 더 복잡하면 **서브에이전트를 사용**하고 필요에 따라 새로운 일반 태스크를 생성하기 위해 @.claude/commands/moonklabs/create_general_task.md를 포함하도록 하세요.
-  - 이러한 수정사항을 작업하기 위해 `### FIND OPEN WORK`로 돌아가기
-  - 합격 시: 계속
+- **USE A SUBAGENT** and have it include @.claude/commands/moonklabs/project_review.md
+- Depending on the results of the review:
+  - On FAIL: Think about possible fixes.
+  - If fixes are quickly done, fix right away and repeat `## EXECUTE PROJECT REVIEW``
+  - If fixes are more complex **USE A SUBAGENT** and have it include @.claude/commands/moonklabs/create_general_task.md to create new general tasks as needed.
+  - Go back to `### FIND OPEN WORK` to work on these fixes
+  - On PASS: move on
 
-## 더 할 일이 있나요?
+## MORE WORK TO DO?
 
-**현재 모드에 따라:**
+**Based on current mode:**
 
-**스프린트별 모드:**
+**Sprint-specific mode:**
 
-작업이 완료되었습니다. `## CREATE SUMMARY`로 이동
+Your work is done. Move to `## CREATE SUMMARY`
 
-**일반 모드:**
+**General mode:**
 
-- 더 많은 열린 태스크나 스프린트를 확인하러 계속. `### FIND OPEN WORK`로 이동
+- Move on to check for more open Tasks or Sprints. Move to `### FIND OPEN WORK`
 
-## 요약 생성
+## CREATE SUMMARY
 
-- 시스템에서 현재 날짜시간 스탬프를 가져와 처음에 기억한 타임스탬프와 비교. 프로세스 지속 시간 계산.
-- 다음을 포함한 요약 보고서 생성:
-  - 실행된 모드 (스프린트별 또는 일반)
-  - 생성된 스프린트 태스크 (해당되는 경우)
-  - 완료된 태스크 수
-  - 건너뛴/실패한 태스크 수
-  - 총 지속 시간
-  - 발생한 중요 문제
-  - 현재 테스트 상태
-  - 다음 권장 조치
-- 지속 시간을 포함하여 리뷰 결과를 사용자에게 보고.
+- Get current datetime stamp from the system and compare to initially remembered timestamp. Calculate duration of the process.
+- Create a summary report including:
+  - Mode executed (Sprint-specific or General)
+  - Sprint tasks created (if applicable)
+  - Number of tasks completed
+  - Number of tasks skipped/failed
+  - Total duration
+  - Any critical issues encountered
+  - Current test status
+  - Next recommended action
+- Report the result of the review to the user including the duration.
 
-작업이 완료되었습니다. 감사합니다.
+Your work is done. Thank you.

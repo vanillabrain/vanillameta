@@ -1,123 +1,134 @@
 # Moonklabs 프레임워크 초기화
 
-적응형 대화식 프로세스를 통해 Moonklabs 프로젝트 관리 프레임워크를 초기화합니다.
+Initialize the Moonklabs project management framework through an adaptive, interactive process.
 
-## 정확히 다음 항목들로 TODO 생성
+## Create a TODO with EXACTLY these items
 
-1. 프로젝트 스캔 및 분석
-2. 사용자와 대화식 확인
-3. 기존 Moonklabs 문서 확인
-4. 문서 생성 프로세스 안내
-5. Moonklabs을 위한 첫 번째 마일스톤 생성
-6. 프로젝트 매니페스트 생성
-7. 다음 단계 제공
+1. Scan and analyze the project
+2. Interactive confirmation with user
+3. Check for existing Moonklabs documents
+4. Guide document creation process
+5. Create first milestone for Moonklabs
+6. Generate project manifest
+7. Provide next steps
 
-## 모든 TODO 항목의 세부사항
+## DETAILS on every TODO item
 
-### 1. 프로젝트 스캔 및 분석
+### 1. Scan and analyze the project
 
-**프로젝트 특성 감지:**
-- package.json, requirements.txt, composer.json 등 확인
-- 프로젝트 유형 식별 (Node.js, Python, PHP 등)
-- 전체 프로젝트 구조 스캔
-- 신규 또는 기존 프로젝트인지 확인
-- 기존 문서 찾기 (README, docs/ 등)
+**Detect project characteristics:**
 
-**발견사항을 간결하게 유지** - 필수사항만 식별할것
+- Check for package.json, requirements.txt, composer.json, etc.
+- Identify project type (Node.js, Python, PHP, etc.)
+- Scan overall project structure
+- Check if this is a new or existing project
+- Look for existing documentation (README, docs/, etc.)
 
-### 2. 사용자와 대화식 확인
+**Keep findings brief** - Just identify the essentials
 
-**발견사항을 대화식으로 제시:**
+### 2. Interactive confirmation with user
+
+**Present findings conversationally:**
+
 ```
-[프로젝트 유형]의 [감지된 이름] 프로젝트로 확인되었습니다.
-맞습니까? Moonklabs 설정을 진행할까요?
-```
-
-**계속하기 전에 사용자 확인 받기**
-
-### 3. 기존 Moonklabs 문서 확인
-
-**.moonklabs/ 디렉토리에서 스캔:**
-- 01_PROJECT_DOCS/의 모든 문서
-- 02_REQUIREMENTS/의 모든 마일스톤
-- 기존 스프린트나 태스크
-- 현재 매니페스트 상태
-
-**대화식 결정:**
-- 문서가 발견된 경우: "기존 문서를 발견했습니다: [목록]. 이것들을 사용하거나 확장할까요?"
-- 문서가 없는 경우: "아직 Moonklabs 문서가 없습니다. 계속하기 전에 복사하고 싶은 기존 프로젝트 문서가 있나요?"
-
-**사용자가 할 수 있는 선택:**
-- 기존 문서 사용
-- 새 문서 추가
-- 처음부터 시작
-- 먼저 수동으로 문서를 추가하기 위해 취소
-
-### 4. 문서 생성 프로세스 안내
-
-**사용자의 선택에 따라:**
-
-**처음부터 시작하거나 확장하는 경우:**
-- 코드베이스의 심층 분석 수행
-- 주요 컴포넌트와 아키텍처 패턴 식별
-- 분석을 기반으로 초안 ARCHITECTURE.md 생성
-- Q&A 스타일로 개선하고 완성:
-  - "이 프로젝트의 주요 목적은 무엇입니까?"
-  - "주요 기술적 결정은 무엇입니까?"
-  - "중요한 제약이나 요구사항이 있습니까?"
-
-**기존 문서를 사용하는 경우:**
-- 기존 문서 가져오기 및 조정
-- Moonklabs 특정 섹션 채우기
-- 프레임워크 구조와의 호환성 보장
-
-**대화식이고 적응적으로 유지**
-
-### 5. Moonklabs을 위한 첫 번째 마일스톤 생성
-
-**적절한 첫 번째 마일스톤 결정:**
-- 신규 프로젝트인 경우: 설정/기초 마일스톤으로 시작
-- 기존 프로젝트인 경우: 현재 단계를 식별하고 적절한 마일스톤 생성
-
-**대화식 마일스톤 생성:**
-- "프로젝트 상태를 기반으로 다음 마일스톤을 제안합니다: [이름]"
-- "이 마일스톤에서 무엇에 집중하고 싶으신가요?"
-- 초기 요구사항과 함께 마일스톤 구조 생성
-- 범위를 현실적이고 집중적으로 유지
-
-### 6. 프로젝트 매니페스트 생성
-
-**다음을 사용하여 매니페스트 자동 생성:**
-- 설정 중 수집된 정보
-- 생성/가져온 문서
-- 현재 마일스톤 세부사항
-- 프로젝트 메타데이터
-
-**사용자 상호작용 불필요** - 완료되면 알림만
-
-### 7. 다음 단계 제공
-
-**설정에 따라 맞춤형 안내:**
-```
-✅ [프로젝트 이름]에 대한 Moonklabs이 초기화되었습니다!
-
-현재 설정:
-- 프로젝트 유형: [유형]
-- 현재 마일스톤: [마일스톤]
-- 문서: [생성/가져옴]
-
-다음 단계:
-- 아키텍처 검토: 01_PROJECT_DOCS/ARCHITECTURE.md
-- 마일스톤 요구사항 확인: 02_REQUIREMENTS/[마일스톤]/
-- 첫 번째 태스크 시작: /project:moonklabs:create_general_task
-
-개발을 시작할 준비가 되었습니다!
+I found this to be a [project type] project named [detected name].
+Is this correct? Should I proceed with Moonklabs setup?
 ```
 
-## 적응형 프로세스 노트
+**Get user confirmation before continuing**
 
-- **대화식 유지** - 양식처럼이 아니라 자연스럽게 질문
-- **똑똑하게** - AI를 사용하여 컨텍스트를 이해하고 지능적인 제안 만들기
-- **유연성 허용** - 사용자는 언제든 건너뛰거나, 취소하거나, 수정할 수 있음
-- **가치에 집중** - 특정 프로젝트에 유용한 것만 생성
-- **단순하게 유지** - 옵션이나 세부사항으로 압도하지 않기
+### 3. Check for existing Moonklabs documents
+
+**Scan .moonklabs/ directory for:**
+
+- Any documents in 01_PROJECT_DOCS/
+- Any milestones in 02_REQUIREMENTS/
+- Any existing sprints or tasks
+- Current manifest status
+
+**Interactive decision:**
+
+- If documents found: "I found existing documents: [list]. Should we work with these or extend them?"
+- If no documents: "No Moonklabs documents found yet. Do you have any existing project documentation you'd like to copy in before we continue?"
+
+**Allow user to:**
+
+- Use existing documents
+- Add new documents
+- Start fresh
+- Cancel to add documents manually first
+
+### 4. Guide document creation process
+
+**Based on user's choice:**
+
+**If starting fresh or extending:**
+
+- Perform deep analysis of the codebase
+- Identify key components and architecture patterns
+- Create draft ARCHITECTURE.md based on analysis
+- Use Q&A style to refine and complete:
+  - "What's the main purpose of this project?"
+  - "What are the key technical decisions?"
+  - "Any important constraints or requirements?"
+
+**If using existing docs:**
+
+- Import and adapt existing documentation
+- Fill in any Moonklabs-specific sections
+- Ensure compatibility with framework structure
+
+**Keep it conversational and adaptive**
+
+### 5. Create first milestone for Moonklabs
+
+**Determine appropriate first milestone:**
+
+- If new project: Start with setup/foundation milestone
+- If existing project: Identify current phase and create appropriate milestone
+
+**Interactive milestone creation:**
+
+- "Based on the project state, I suggest creating milestone: [name]"
+- "What would you like to focus on in this milestone?"
+- Create milestone structure with initial requirements
+- Keep scope realistic and focused
+
+### 6. Generate project manifest
+
+**Automatically generate manifest using:**
+
+- Information gathered during setup
+- Created/imported documentation
+- Current milestone details
+- Project metadata
+
+**No user interaction needed** - Just inform when complete
+
+### 7. Provide next steps
+
+**Customized guidance based on setup:**
+
+```
+✅ Moonklabs initialized for [project name]!
+
+Current setup:
+- Project type: [type]
+- Current milestone: [milestone]
+- Documents: [created/imported]
+
+Next steps:
+- Review your architecture: 01_PROJECT_DOCS/ARCHITECTURE.md
+- Check milestone requirements: 02_REQUIREMENTS/[milestone]/
+- Start first task: /project:moonklabs:create_general_task
+
+Ready to begin development!
+```
+
+## ADAPTIVE PROCESS NOTES
+
+- **Stay conversational** - Ask questions naturally, not like a form
+- **Be smart** - Use AI to understand context and make intelligent suggestions
+- **Allow flexibility** - User can skip, cancel, or modify at any point
+- **Focus on value** - Only create what's useful for the specific project
+- **Keep it simple** - Don't overwhelm with options or details

@@ -1,259 +1,261 @@
 # 프로젝트 리뷰 - 탑 다운 실행
 
-아키텍처, 진행 상황, 기술 결정에 초점을 맞춘 포괄적인 프로젝트 수준 리뷰를 수행합니다.
+Perform a comprehensive project-level review focusing on architecture, progress, and technical decisions.
 
-**중요:**
+**IMPORTANT:**
 
-- 이것은 최근 변경사항이 아닌 전체 프로젝트 상태의 상위 수준 리뷰입니다.
-- 프로젝트 문서에 명확히 언급되지 않는 한, 타임라인이 없고 일정은 관련이 없습니다
+- This is a high-level review of overall project state, not recent changes.
+- Unless clearly mentioned in project documents, there is no timeline and schedule is irrelevant
 
-## 정확히 다음 9개 항목으로 TODO 생성
+## Create a TODO with EXACTLY these 9 Items
 
-1. 리뷰 범위 및 타이밍 분석
-2. 테스트 인프라 상태 실행 및 평가
-3. 프로젝트 문서 정렬 평가
-4. 마일스톤 및 스프린트 진행 상황 검토
-5. 코드베이스 아키텍처 및 구조 분석
-6. 파일 구성 및 워크플로우 준수 감사
-7. 기술 결정 및 복잡성 평가
-8. 구현 품질 비평 (John Carmack 관점)
-9. 권장사항과 함께 포괄적인 평가 제공
+1. Analyze review scope and timing
+2. Execute and assess test infrastructure health
+3. Assess project documentation alignment
+4. Review milestone and sprint progress
+5. Analyze codebase architecture and structure
+6. Audit file organization and workflow compliance
+7. Evaluate technical decisions and complexity
+8. Critique implementation quality (John Carmack perspective)
+9. Provide comprehensive assessment with recommendations
 
-각 단계에 대한 다음 지침을 단계별로 따르고 엄격히 준수하세요.
+Follow step by step and adhere closely to the following instructions for each step.
 
-## 모든 TODO 항목의 세부사항
+## DETAILS on every TODO item
 
-### 1. 리뷰 범위 및 타이밍 분석
+### 1. Analyze review scope and timing
 
-확인: <$ARGUMENTS>
+Check: <$ARGUMENTS>
 
-비어있으면 전체 프로젝트 리뷰를 수행합니다. 그렇지 않으면 <$ARGUMENTS>를 해석하여 특정 focus 영역(마일스톤, 스프린트, 아키텍처 구성요소 등)을 식별합니다. 인자에 명시되지 않는 한 `.moonklabs/10_STATE_OF_PROJECT`의 이전 프로젝트 리뷰와 비교하지 마세요.
+If empty, perform full project review. Otherwise interpret <$ARGUMENTS> to identify specific focus areas (milestone, sprint, architecture component, etc.). Unless stated in Argument do not compare to previews project reviews in `.moonklabs/10_STATE_OF_PROJECT`.
 
-**IMPORTANT:** 이 리뷰는 최근 변경사항의 맥락에서 전체 프로젝트 상태를 봅니다.
+**IMPORTANT:** This review looks at overall project state in context of recent changes.
 
-**CRITICAL:** 먼저 `.moonklabs/00_PROJECT_MANIFEST.md`를 읽어 다음을 이해하세요:
+**CRITICAL:** Read `.moonklabs/00_PROJECT_MANIFEST.md` FIRST to understand:
 
-- 현재 마일스톤 및 스프린트 상태
-- 완료 vs 진행 중 vs 계획된 작업
-- 활성 스프린트 목표와 산출물
+- Current milestone and sprint status
+- What work is complete vs in-progress vs planned
+- Active sprint objectives and deliverables
 
-**컨텍스트 확인:** 기능을 평가하기 전에:
+**CONTEXT CHECK:** Before evaluating functionality:
 
-- 현재 스프린트를 찾기 위해 `.moonklabs/03_SPRINTS/`로 이동
-- 범위 내 항목을 이해하기 위해 스프린트 메타 파일 읽기
-- 스프린트 내에서 완료된 vs 계획된 태스크 확인
-- 미래 스프린트가 제공할 내용 이해
+- Navigate to `.moonklabs/03_SPRINTS/` to find the current sprint
+- Read the sprint meta file to understand what's in scope
+- Check completed vs planned tasks within the sprint
+- Understand what future sprints will deliver
 
-**리뷰 원칙:** 전체 마일스톤 범위가 아닌 현재 스프린트 산출물에 대해 평가합니다.
+**REVIEW PRINCIPLE:** Evaluate against CURRENT SPRINT deliverables, not full milestone scope.
 
-### 2. 테스트 인프라 상태 실행 및 평가
+### 2. Execute and assess test infrastructure health
 
-**CRITICAL:** 테스트 인프라 상태는 스프린트/마일스톤 진행을 위한 BLOCKING 기준입니다.
+**CRITICAL:** Test infrastructure health is a BLOCKING criteria for sprint/milestone progression.
 
-- USE: 전체 테스트 스위트를 실행하기 위해 test.md 명령 사용 (@.claude/commands/moonklabs/test.md)
-- ANALYZE: 테스트 결과 분석: pass/failed/skipped 수와 실패 카테고리
-- CALCULATE: 테스트 건강 점수 계산 (0-10 척도):
-  - 10: 100% 통과율, 인프라 문제 없음
-  - 8-9: >95% 통과율, 사소한 문제만
-  - 6-7: 80-95% 통과율, 일부 중요하지 않은 실패
-  - 4-5: 60-80% 통과율, 중요한 문제
-  - 0-3: <60% 통과율, 중요한 인프라 문제
-- CATEGORIZE: 실패 분류:
-  - 인프라: 임포트 오류, 누락된 모듈
-  - 구성: 환경 변수, 데이터베이스 연결
-  - 논리: 어설션 실패, 실제 버그
-  - 불안정: 간헐적 실패
-- DETERMINE: 차단 상태 결정:
-  - 점수 < 6: BLOCKS 스프린트 진행 차단
-  - 점수 < 8: BLOCKS 마일스톤 완료 차단
-  - 점수 < 4: TRIGGER 긴급 에스컬레이션 트리거
-- IDENTIFY: 인프라 실패의 근본 원인 식별
-- TRACK: 이전 리뷰 대비 추세 추적 (개선/악화)
-- ASSESS: 프로젝트 범위에 대한 테스트 전략 유효성 평가. 테스트는 실용적이어야 하고 기능을 보장하는 데 도움이 되어야 하지만 개발 진행을 너무 방해해서는 안 됨.
+- USE test.md command to execute full test suite (@.claude/commands/moonklabs/test.md)
+- ANALYZE test results: passed/failed/skipped counts and failure categories
+- CALCULATE test health score (0-10 scale):
+  - 10: 100% pass rate, no infrastructure issues
+  - 8-9: >95% pass rate, minor issues only
+  - 6-7: 80-95% pass rate, some non-critical failures
+  - 4-5: 60-80% pass rate, significant issues
+  - 0-3: <60% pass rate, critical infrastructure problems
+- CATEGORIZE failures:
+  - Infrastructure: Import errors, missing modules
+  - Configuration: Environment variables, database connections
+  - Logic: Assertion failures, actual bugs
+  - Flaky: Intermittent failures
+- DETERMINE blocking status:
+  - Score < 6: BLOCKS sprint progression
+  - Score < 8: BLOCKS milestone completion
+  - Score < 4: TRIGGERS emergency escalation
+- IDENTIFY root causes of any infrastructure failures
+- TRACK trend vs previous review (improvement/degradation)
+- ASSESS test strategy validity for scope of the project. Tests should be pragmatic and help assuring functionality but not get in the way of development progress too much.
 
-### 3. 프로젝트 문서 정렬 평가
+### 3. Assess project documentation alignment
 
-**병렬 에이전트를 사용**하여 다음 단계 따르기:
+**USE PARALLEL AGENTS** to follow these steps:
 
-- READ: 특히 ARCHITECTURE.md를 포함하여 `.moonklabs/01_PROJECT_DOCS/`의 모든 핵심 문서 읽기
-- READ: `.moonklabs/02_REQUIREMENTS/`의 현재 마일스톤 요구사항 읽기
-- READ: 다른 문서를 확장/모순할 수 있으므로 `.moonklabs/05_ARCHITECTURE_DECISIONS`의 아키텍처 결정 읽기
-- IDENTIFY: 문서와 현재 구현 간의 격차 식별
-- CHECK: 프로젝트가 여전히 문서화된 아키텍처 비전을 따르고 있는지 확인
-- VERIFY: 현재 코드 구조가 문서화된 패턴과 일치하는지 확인
+- READ all core documents in `.moonklabs/01_PROJECT_DOCS/` especially ARCHITECTURE.md
+- READ current milestone requirements in `.moonklabs/02_REQUIREMENTS/`
+- READ architecture decisions in `.moonklabs/05_ARCHITECTURE_DECISIONS` as they might extend/contradict other documents
+- IDENTIFY any gaps between documentation and current implementation
+- CHECK if the project is still following the documented architecture vision
+- VERIFY that current code structure matches documented patterns
 
-**IMPORTANT:** 문서는 우리의 진실의 원천입니다. 모든 편차는 정당화가 필요합니다.
+**IMPORTANT:** Documentation is our source of truth. Any deviation needs justification.
 
-### 4. 마일스톤 및 스프린트 진행 상황 검토
+### 4. Review milestone and sprint progress
 
-**병렬 에이전트를 사용**하여 다음 단계 따르기:
+**USE PARALLEL AGENTS** to follow these steps:
 
-- READ: 현재 상태를 위해 `.moonklabs/00_PROJECT_MANIFEST.md` 읽기
-- ANALYZE: `.moonklabs/03_SPRINTS/`에서 완료된 스프린트 분석
-- COMPARE: 현재 스프린트 산출물(전체 마일스톤이 아님)에 대한 실제 진행 상황 비교
-- DISTINGUISH: 스프린트 수준 태스크 vs 마일스톤 수준 기능 구분
-- ASSESS: 현재 스프린트 focus가 마일스톤 목표와 일치하는지 평가
+- READ `.moonklabs/00_PROJECT_MANIFEST.md` for current status
+- ANALYZE completed sprints in `.moonklabs/03_SPRINTS/`
+- COMPARE actual progress against CURRENT SPRINT deliverables (not full milestone)
+- DISTINGUISH between sprint-level tasks vs milestone-level features
+- ASSESS if current sprint focus aligns with milestone goals
 
-### 5. 코드베이스 아키텍처 및 구조 분석
+### 5. Analyze codebase architecture and structure
 
-**병렬 에이전트를 사용**하여 다음 단계 따르기:
+#
 
-- EXAMINE: 전체 프로젝트 구조와 조직 검토
-- ANALYZE: 임포트 패턴과 의존성 관계 분석
-- REVIEW: 일관성을 위한 데이터베이스 모델과 API 구조 검토
-- CHECK: 아키텍처 패턴 확인: DDD, 클린 아키텍처 등을 따르고 있는가?
-- IDENTIFY: 아키텍처 부채나 불일치 식별
+**USE PARALLEL AGENTS** to follow these steps:
 
-**주요 관심 분야:**
+- EXAMINE overall project structure and organization
+- ANALYZE import patterns and dependency relationships
+- REVIEW database models and API structure for consistency
+- CHECK for architectural patterns: are we following DDD, clean architecture, etc.?
+- IDENTIFY any architectural debt or inconsistencies
 
-- **디렉토리 구조** — 논리적 조직, 관심사 분리
-- **의존성** — 과도한 엔지니어링인가? 불필요한 라이브러리를 사용하나요?
-- **모델/스키마** — 일관성, 적절한 관계, 정규화
-- **API** — RESTful 설계, 적절한 HTTP 메서드, 일관된 패턴
-- **구성** — 환경 관리, 시크릿 처리
+**Focus areas:**
 
-### 6. 파일 구성 및 워크플로우 준수 감사
+- **Directory structure** — logical organization, separation of concerns
+- **Dependencies** — are we over-engineering? unnecessary libraries?
+- **Models/Schemas** — consistency, proper relationships, normalization
+- **APIs** — RESTful design, proper HTTP methods, consistent patterns
+- **Configuration** — environment management, secrets handling
 
-**IMPORTANT:** 워크플로우 규율과 아키텍처 경계 위반을 확인합니다.
+### 6. Audit file organization and workflow compliance
 
-- **루트 디렉토리 감사** — 프로젝트 루트에 속하지 않는 파일 식별
-- **개발 스크립트** — 모든 개발 스크립트가 `run_dev.py` 패턴을 따르는지 확인
-- **테스트 파일 구성** — 테스트가 흩어져 있지 않고 `tests/` 디렉토리에 있는지 확인
-- **문서 배치** — 문서가 적절한 위치에 있는지 확인
-- **임시/실험 파일** — 임시적이거나 실험적으로 보이는 `.py` 파일 플래그
+**IMPORTANT:** Check for workflow discipline and architectural boundary violations.
 
-**적용할 파일 구성 규칙:**
+- **Root directory audit** — identify files that don't belong in project root
+- **Development scripts** — verify all dev scripts follow `run_dev.py` pattern
+- **Test file organization** — check tests are in `tests/` directory, not scattered
+- **Documentation placement** — verify docs are in proper locations
+- **Temporary/experimental files** — flag any `.py` files that look ad-hoc or experimental
 
-- **개발 스크립트** — MUST : 독립 파일이 아닌 `run_dev.py`를 통해야 함
-- **테스트 파일** — MUST : 적절한 명명(`test_*.py`)으로 `tests/` 디렉토리에 있어야 함
-- **문서** — MUST : `docs/` 또는 `.moonklabs/01_PROJECT_DOCS/`에 있어야 함
-- **구성** — MUST : 확립된 패턴을 따라야 함 (`.env.example`, `pyproject.toml`)
-- **임시 파일** — SHOULD NOT : 커밋된 코드에 존재해서는 안 됨
+**File Organization Rules to Enforce:**
 
-**식별할 위험 신호:**
+- **Development scripts** — MUST go through `run_dev.py`, not standalone files
+- **Test files** — MUST be in `tests/` directory with proper naming (`test_*.py`)
+- **Documentation** — MUST be in `docs/` or `.moonklabs/01_PROJECT_DOCS/`
+- **Configuration** — MUST follow established patterns (`.env.example`, `pyproject.toml`)
+- **Temporary files** — SHOULD NOT exist in committed code
 
-- 유사한 작업을 수행하는 여러 스크립트 (중복 기능)
-- 루트 디렉토리의 무작위 `.py` 파일
-- `tests/` 디렉토리 외부의 테스트 파일
-- `run_dev.py`를 우회하는 개발 스크립트
-- 불명확한 파일 목적이나 실험적 코드
+**Red Flags to Identify:**
 
-**CRITICAL:** 파일 증식은 워크플로우 붕괴를 나타냅니다. 즉각적인 정리 태스크 생성을 위해 플래그.
+- Multiple scripts doing similar things (duplicate functionality)
+- Random `.py` files in root directory
+- Test files outside `tests/` directory
+- Development scripts bypassing `run_dev.py`
+- Unclear file purposes or experimental code
 
-### 7. 기술 결정 및 복잡성 평가
+**CRITICAL:** File proliferation indicates workflow breakdown. Flag for immediate cleanup task creation.
 
-- ASSESS: 복잡성 vs. 비즈니스 가치 비율 평가
-- REVIEW: 프레임워크, 라이브러리, 도구 선택 검토
-- ANALYZE: 현재 패턴이 프로젝트 성장과 함께 확장될지 분석
-- IDENTIFY: 간단한 문제를 과도하게 복잡하게 만드는 영역 식별
-- CHECK: 조기 최적화나 과소 최적화 확인
+### 7. Evaluate technical decisions and complexity
 
-**IMPORTANT:** 경험 많은 개발자처럼 생각하세요. 우리가 올바른 문제를 올바른 방법으로 해결하고 있습니까?
+- ASSESS complexity vs. business value ratio
+- REVIEW choice of frameworks, libraries, and tools
+- ANALYZE if current patterns will scale with project growth
+- IDENTIFY areas where we might be over-complicating simple problems
+- CHECK for premature optimization or under-optimization
 
-### 8. 구현 품질 비평 (John Carmack 관점)
+**IMPORTANT:** Think like an experienced developer. Are we solving the right problems the right way?
 
-John Carmack이 생각하는 것처럼 생각하세요: 단순성, 성능, 유지보수성에 집중하되 프로젝트 목표를 염두에 두세요. 특히 장기 비전도 염두에 두세요. 지나치게 단순화하지 마세요.
+### 8. Critique implementation quality (John Carmack perspective)
 
-- **단순성:** 우리는 가장 간단한 방법으로 문제를 해결하고 있는가?
-- **성능:** 눈에 띄는 성능 문제나 병목 현상이 있나요?
-- **유지보수성:** 새로운 개발자가 6개월 안에 이 코드를 이해할 수 있을까?
-- **견고성:** 시스템은 예외 상황과 장애를 어떻게 처리하는가?
-- **기술 부채:** 나중에 우리에게 해를 끼칠 지름길은 무엇인가?
+Think as John Carmack would: focus on simplicity, performance, and maintainability, but keep the projects goal in mind. Especially long term vision as well. Don't over simplify.
 
-**잔인할 정도로 정직**하세요. Carmack 수준의 비판은 미화하지 않지만 여전히 프로젝트의 현실에 충실하다는 것을 의미합니다.
-꼼꼼하고 분석에 있어 **한계를 뛰어넘으세요** - 한치의 오차도 허용하지 마세요.
+- **Simplicity:** Are we solving problems in the most straightforward way?
+- **Performance:** Are there obvious performance issues or bottlenecks?
+- **Maintainability:** Will a new developer understand this code in 6 months?
+- **Robustness:** How does the system handle edge cases and failures?
+- **Technical debt:** What shortcuts are we taking that will hurt us later?
 
-### 9. 권장사항과 함께 포괄적인 평가 제공
+Be **brutally honest**. Carmack-level critique means no sugar-coating but still staying true to the project's reality.
+Be thorough and **go above and beyond** in your analysis - leave no stone unturned.
 
-**IMPORTANT:** 현재 타임스탬프를 가져오고 출력 파일을 만듭니다.
+### 9. Provide comprehensive assessment with recommendations
 
-- 시스템 날짜 명령을 사용하여 현재 타임스탬프 가져오기
-- 파일명 생성: `.moonklabs/10_STATE_OF_PROJECT/`에 `YYYY-MM-DD-HH-MM-<judgment-slug>.md`
-- 판단 슬러그는 전체 프로젝트 건강을 설명하는 2-3 단어여야 함 (예: "견고한-진행", "집중-필요", "중요한-문제", "훌륭한-진행", "적절한-진행")
+**IMPORTANT:** Get current timestamp and create output file
 
-**IMPORTANT:** 다음 형식으로 타임스탬프가 찍힌 파일에 전체 보고서를 작성하세요:
+- Get current timestamp using system date command
+- Create filename: `YYYY-MM-DD-HH-MM-<judgment-slug>.md` in `.moonklabs/10_STATE_OF_PROJECT/`
+- Judgment slug should be 2-3 words describing overall project health (e.g., "solid-progress", "needs-focus", "critical-issues", "doing-great", "on-track")
+
+**IMPORTANT:** Write full report to the timestamped file with this format:
 
 ```markdown
-# 프로젝트 리뷰 - [YYYY-MM-DD HH:MM]
+# Project Review - [YYYY-MM-DD HH:MM]
 
-## 🎭 리뷰 감정
+## 🎭 Review Sentiment
 
-[이모지 3개만 - 설명 없음]
+[3 emojis only - no explanations]
 
-## 요약
+## Executive Summary
 
-- **결과:** EXCELLENT | GOOD | NEEDS_WORK | CRITICAL_ISSUES
-- **범위:** 검토된 영역
-- **전체 판단:** [파일명에 사용된 2-3단어 평가 사용]
+- **Result:** EXCELLENT | GOOD | NEEDS_WORK | CRITICAL_ISSUES
+- **Scope:** What areas were reviewed
+- **Overall Judgment:** [2-3 word assessment used in filename]
 
-## 테스트 인프라 평가
+## Test Infrastructure Assessment
 
-- **테스트 스위트 상태**: [PASSING/FAILING/BLOCKED] (X/Y 테스트)
-- **테스트 통과율**: X% (Y 통과, Z 실패)
-- **테스트 건강 점수**: X/10
-- **인프라 건강**: [HEALTHY/DEGRADED/BROKEN]
-  - 임포트 오류: [count]
-  - 구성 오류: [count]
-  - 픽스처 문제: [count]
-- **테스트 카테고리**:
-  - 단위 테스트: X/Y 통과
-  - 통합 테스트: X/Y 통과
-  - API 테스트: X/Y 통과
-- **중요 문제**:
-  - [차단 테스트 인프라 문제 목록]
-  - [모듈 임포트 불일치]
-  - [환경 구성 실패]
-- **스프린트 커버리지**: [통과 테스트가 있는 스프린트 산출물의 %]
-- **차단 상태**: [CLEAR/BLOCKED - reason]
-- **권장사항**:
-  - [즉각적인 수정이 필요]
-  - [필요한 테스트 인프라 개선이 필요]
+- **Test Suite Status**: [PASSING/FAILING/BLOCKED] (X/Y tests)
+- **Test Pass Rate**: X% (Y passed, Z failed)
+- **Test Health Score**: X/10
+- **Infrastructure Health**: [HEALTHY/DEGRADED/BROKEN]
+  - Import errors: [count]
+  - Configuration errors: [count]
+  - Fixture issues: [count]
+- **Test Categories**:
+  - Unit Tests: X/Y passing
+  - Integration Tests: X/Y passing
+  - API Tests: X/Y passing
+- **Critical Issues**:
+  - [List of blocking test infrastructure problems]
+  - [Module import mismatches]
+  - [Environment configuration failures]
+- **Sprint Coverage**: [% of sprint deliverables with passing tests]
+- **Blocking Status**: [CLEAR/BLOCKED - reason]
+- **Recommendations**:
+  - [Immediate fixes required]
+  - [Test infrastructure improvements needed]
 
-## 개발 컨텍스트
+## Development Context
 
-- **현재 마일스톤:** [매니페스트의 ID 및 상태]
-- **현재 스프린트:** [ID 및 focus]
-- **예상 완성도:** [이 단계에서 수행되어야 하는 것]
+- **Current Milestone:** [ID and status from manifest]
+- **Current Sprint:** [ID and focus]
+- **Expected Completeness:** [what SHOULD be done at this stage]
 
-## 진행 상황 평가
+## Progress Assessment
 
-- **마일스톤 진행률:** [완료율]
-- **스프린트 상태:** [현재 스프린트 평가]
-- **산출물 추적:** [완료된 것 vs 계획된 것]
+- **Milestone Progress:** [percentage complete]
+- **Sprint Status:** [current sprint assessment]
+- **Deliverable Tracking:** [what's done vs planned]
 
-## 아키텍처 & 기술 평가
+## Architecture & Technical Assessment
 
-- **아키텍처 점수:** 설명이 포함된 1~10점 평가
-- **기술 부채 수준:** LOW | MEDIUM | HIGH (구체적인 예와 함께)
-- **코드 품질:** [예제와 함께 전체 평가]
+- **Architecture Score:** 1-10 rating with explanation
+- **Technical Debt Level:** LOW | MEDIUM | HIGH with specific examples
+- **Code Quality:** [overall assessment with examples]
 
-## 파일 구성 감사
+## File Organization Audit
 
-- **워크플로우 준수:** GOOD | NEEDS_ATTENTION | CRITICAL_VIOLATIONS
-- **파일 구성 문제:** [잘못 배치된 파일, 중복 스크립트 등 나열]
-- **필요한 정리 작업:** [필요한 특정 파일 이동/삭제/통합]
+- **Workflow Compliance:** GOOD | NEEDS_ATTENTION | CRITICAL_VIOLATIONS
+- **File Organization Issues:** [list any misplaced files, duplicate scripts, etc.]
+- **Cleanup Tasks Needed:** [specific file moves/deletions/consolidations required]
 
-## 중요 발견사항
-### 중요 문제 (심각도 8-10)
+## Critical Findings
 
-[#### 제목으로 시작하는 반드시 수정해야 할 문제 목록, 빈 줄 하나 후 세부사항 목록]
+### Critical Issues (Severity 8-10)
 
-### 개선 기회 (심각도 4-7)
+[Lists of must-fix problems headed with #### heading, one empty line and then list of details]
 
-[#### 제목으로 시작하는 권장 개선사항 목록, 빈 줄 하나 후 세부사항 목록]
+### Improvement Opportunities (Severity 4-7)
 
-## John Carmack 비평 🔥
+[List of recommended enhancements headed with #### heading, one empty line and then list of details]
 
-[기술 결정에 대한 잔인할 정도로 정직한 상위 3개 관찰]
+## John Carmack Critique 🔥
 
-## 권장사항
+[Top 3 brutally honest observations about technical decisions]
 
-발견사항을 기반으로 행동 항목 권장 - 발견사항에 맞는 것을 선택
+## Recommendations
 
-- **중요 수정:** 즉시 수정해야 하는 것은?
-- **선택적 수정/변경:** 선택사항이지만 여전히 권장되는 것은?
-- **다음 스프린트 초점:** 사용자가 다음 스프린트로 이동할 수 있습니까?
+Based on your findings recommend Action items - chose whatever fits your findings
 
+- **Important fixes:** What needs to be fixed immediately?
+- **Optional fixes/changes:** What would still be recommended though optional?
+- **Next Sprint Focus:** Can the user move to the next sprint?
 ```
 
-**IMPORTANT:** 파일 경로와 줄 번호를 구체적으로 명시해 주세요. 이 리뷰는 실행 가능하며 영구 보관되어야 합니다.
+**IMPORTANT:** Be specific with file paths and line numbers. This review should be actionable and permanently archived.

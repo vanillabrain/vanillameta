@@ -1,189 +1,189 @@
 # 스프린트를 위한 Task 생성 - 탑 다운 실행
 
-통합 구현 가이드와 함께 기존 스프린트를 위한 상세 Task를 생성합니다.
+Create detailed tasks for an existing sprint with integrated implementation guidance.
 
-## 정확히 다음 8개 항목으로 TODO 생성
+## Create a TODO with EXACTLY these 8 Items
 
-1. 대상 스프린트 식별 및 존재 확인
-2. 스프린트 컨텍스트 및 관련 문서 로드
-3. 기존 ADR 및 기술 가이드 확인
-4. Task 분해를 위한 스프린트 산출물 분석
-5. 구현 가이드가 포함된 개별 Task 파일 생성
-6. 관련 Task에 ADR 연결
-7. Task 참조로 스프린트 메타 업데이트
-8. 작업 품질 점검
+1. Identify target sprint and verify it exists
+2. Load sprint context and related documentation
+3. Check for existing ADRs and technical guidance
+4. Analyze sprint deliverables for task breakdown
+5. Create individual task files with implementation guidance
+6. Link ADRs to relevant tasks
+7. Update sprint meta with task references
+8. Check quality of your work
 
-각 단계에 대한 다음 지침을 단계별로 따르고 엄격히 준수하세요.
+Follow step by step and adhere closely to the following instructions for each step.
 
-## 모든 TODO 항목의 세부사항
+## DETAILS on every TODO item
 
-### 1. 대상 스프린트 식별 및 존재 확인
+### 1. Identify target sprint and verify it exists
 
-확인: <$ARGUMENTS>
+Check: <$ARGUMENTS>
 
-**필수:** 스프린트 ID가 제공되어야 함 (예: S02). 비어있으면 사용자에게 어떤 스프린트를 상세화할지 지정하도록 요청.
+**REQUIRED:** Sprint ID must be provided (e.g., S02). If empty, ask user to specify which sprint to detail.
 
-- `.moonklabs/03_SPRINTS/`에 스프린트 디렉토리가 존재하는지 확인
-- 스프린트 메타 파일이 존재하는지 확인 (예: `S02_sprint_meta.md`)
-- 스프린트 상태가 이미 "완료"가 아닌지 확인
-- Task가 이미 존재하면 사용자에게 재생성 여부나 다른 가이드를 원하는지 질문
+- VERIFY sprint directory exists in `.moonklabs/03_SPRINTS/`
+- CHECK sprint meta file exists (e.g., `S02_sprint_meta.md`)
+- VERIFY sprint status is not already "completed"
+- If tasks already exist, ask user if they want to recreate them or any other guidance
 
-### 2. 스프린트 컨텍스트 및 관련 문서 로드
+### 2. Load sprint context and related documentation
 
-병렬 서브에이전트를 사용하여 프로젝트 컨텍스트를 읽고 이해:
+Use PARALLEL SUBAGENTS to READ and UNDERSTAND the project's context:
 
-- 프로젝트 컨텍스트를 위해 `.moonklabs/00_PROJECT_MANIFEST.md` 읽기
-- 목표와 산출물을 이해하기 위해 스프린트 메타 파일을 완전히 읽기
-- `.moonklabs/02_REQUIREMENTS/`에서 상위 마일스톤 요구사항 읽기
-- 기술 컨텍스트를 위해 `.moonklabs/01_PROJECT_DOCS/ARCHITECTURE.md` 읽기
-- 아키텍처 결정을 이해하기 위해 `.moonklabs/01_PROJECT_DOCS/LONG_TERM_VISION.md` 읽기
+- READ `.moonklabs/00_PROJECT_MANIFEST.md` for project context
+- READ sprint meta file completely to understand goals and deliverables
+- READ parent milestone requirements from `.moonklabs/02_REQUIREMENTS/`
+- READ `.moonklabs/01_PROJECT_DOCS/ARCHITECTURE.md` for technical context
+- READ `.moonklabs/01_PROJECT_DOCS/LONG_TERM_VISION.md` to understand architectural decisions
 
-**중요:** 스프린트 Task는 범위를 확장하지 않고 문서화된 스프린트 목표와 일치해야 함.
+**IMPORTANT:** Sprint tasks must align with documented sprint goals, not expand scope.
 
-### 3. 기존 ADR 및 기술 가이드 확인
+### 3. Check for existing ADRs and technical guidance
 
-**병렬 서브에이전트를 사용**하여 다음 명령 실행:
+**USE PARALLEL SUBAGENTS** to execute these commands:
 
-- 스프린트 ID와 일치하는 ADR을 위해 `.moonklabs/05_ARCHITECTURE_DECISIONS/` 검색 (예: `ADR*_S02_*.md`)
-- 기술 결정을 이해하기 위해 발견된 모든 ADR 읽기
-- ADR 참조 섹션을 위해 스프린트 메타 확인
-- Task 구현에 영향을 줄 기술 결정 메모
-- Task와 하위 Task의 관계를 구축하고 구현할 내용을 명확히 하기
+- SEARCH `.moonklabs/05_ARCHITECTURE_DECISIONS/` for ADRs matching sprint ID (e.g., `ADR*_S02_*.md`)
+- READ all found ADRs to understand technical decisions
+- CHECK sprint meta for ADR references section
+- NOTE which technical decisions will affect task implementation
+- BUILD RELATIONSHIP in task and subtasks and make clear what to implement
 
-**범위 충돌** ADR과 스프린트 목표 사이에 충돌이 있으면, 생각해보고 사용자에게 충돌 해결을 요청.
+**If conflict in Scope** Between ADR and Sprint goal, try to think about it and ask the user to resolve the conflict.
 
-**ADR이 발견되지 않으면:** 진행하되 구현 중에 Task가 명확히 될 필요가 있을 수 있음을 메모.
+**If no ADRs found:** Proceed but note that tasks may need clarification during implementation.
 
-### 4. Task 분해를 위한 스프린트 산출물 분석
+### 4. Analyze sprint deliverables for task breakdown
 
-스프린트 목표와 산출물을 기반으로 (병렬 서브에이전트에서 실행):
+Based on sprint goals and deliverables (execute in Parallel Subagents):
 
-- 상위 수준 산출물을 구체적이고 구현 가능한 Task로 분해
-- 각 Task가 일관된 기능이나 컴포넌트를 나타내는지 확인
-- Task 간의 논리적 종속성 고려
-- 기술 가이드를 위해 Task를 관련 ADR에 매핑
-- 하위 Task가 포함된 Task가 완전히 생성될 때까지 복잡성 평가 연기
+- BREAK DOWN high-level deliverables into concrete, implementable tasks
+- ENSURE each task represents a coherent feature or component
+- CONSIDER logical dependencies between tasks
+- MAP tasks to relevant ADRs for technical guidance
+- DEFER complexity assessment until after tasks are fully created with subtasks
 
-### 5. 구현 가이드가 포함된 개별 Task 파일 생성
+### 5. Create individual task files with implementation guidance
 
-**이제** 식별된 각 Task에 대해 다음 지침으로 병렬 서브에이전트 실행:
+**NOW** For each identified Task spin up a Parallel Subagent with these Instructions:
 
-    #### 각 Task에 대한 TODO 생성
+    #### Create a TODO for EACH task
 
-    1. 기본 Task 구조 생성
-    2. 코드베이스 인터페이스 조사
-    3. 기술 가이드 추가
-    4. Task 완전성 검증
+    1. Create basic task structure
+    2. Research codebase interfaces
+    3. Add technical guidance
+    4. Validate task completeness
 
-    ### 1. 기본 Task 구조 생성
+    ### 1. Create basic task structure
 
-    - 모든 Task 파일은 스프린트 디렉토리에 생성되어야 함 (스프린트 메타 파일이 있는 곳)
-    - 명명 규칙으로 파일 생성: `T<NN>_S<NN>_<설명적_이름>.md`
-    - T01부터 시작하는 순차 번호 사용
-    - `.moonklabs/99_TEMPLATES/task_template.md`의 Task 템플릿 구조를 정확히 따르기
-    - 스프린트 목표에서 기본 설명과 목표 추가
+    - ALL TASK FILES must to be created in the Sprint Directory (where the sprint meta file is)
+    - CREATE file with naming: `T<NN>_S<NN>_<Descriptive_Name>.md`
+    - USE sequential numbering starting from T01
+    - FOLLOW task template structure exactly from `.moonklabs/99_TEMPLATES/task_template.md`
+    - ADD basic description and objectives from sprint goals
 
-    ### 2. 코드베이스 인터페이스 조사
+    ### 2. Research codebase interfaces
 
-    - 유사한 패턴과 인터페이스를 위해 기존 코드베이스 검토
-    - 필요한 특정 클래스, 함수, 임포트 식별
-    - 기존 모듈과의 통합 지점 찾기
-    - 인터페이스할 데이터베이스 모델, API 엔드포인트 또는 서비스 메모
-    - 기존 오류 처리 및 로깅 패턴 확인
+    - EXAMINE existing codebase for similar patterns and interfaces
+    - IDENTIFY specific classes, functions, and imports that will be needed
+    - FIND integration points with existing modules
+    - NOTE database models, API endpoints, or services to interface with
+    - CHECK existing error handling and logging patterns
 
-    ### 3. 기술 가이드 추가
+    ### 3. Add technical guidance
 
-    Task 파일에 다음 섹션 추가 (템플릿에 없으면 추가):
+    Add these sections to the task file (add to template if not present):
 
-    **기술 가이드 섹션:**
+    **Technical Guidance section:**
 
-    - 코드베이스의 주요 인터페이스 및 통합 지점
-    - 특정 임포트 및 모듈 참조
-    - 따라야 할 기존 패턴
-    - 작업할 데이터베이스 모델 또는 API 계약
-    - 유사한 코드에서 사용된 오류 처리 접근법
+    - Key interfaces and integration points in the codebase
+    - Specific imports and module references
+    - Existing patterns to follow
+    - Database models or API contracts to work with
+    - Error handling approach used in similar code
 
-    **구현 노트 섹션:**
+    **Implementation Notes section:**
 
-    - 단계별 구현 접근법
-    - 존중해야 할 주요 아키텍처 결정
-    - 기존 테스트 패턴을 기반으로 한 테스트 접근법
-    - 관련된 경우 성능 고려사항
+    - Step-by-step implementation approach
+    - Key architectural decisions to respect
+    - Testing approach based on existing test patterns
+    - Performance considerations if relevant
 
-    **중요:** 코드 예제를 포함하지 마세요. 구조적 가이드와 참조만 제공하세요.
+    **IMPORTANT:** Do NOT include code examples. Provide structural guidance and references only.
 
-    #### 4. Task 완전성 검증
+    #### 4. Validate task completeness
 
-    - Task가 명확한 구현 경로를 가지고 있는지 확인
-    - 모든 통합 지점이 문서화되었는지 확인
-    - 가이드가 실제 코드베이스 요소를 참조하는지 확인
-    - Task가 독립적이고 실행 가능한지 확인
+    - ENSURE task has clear implementation path
+    - VERIFY all integration points are documented
+    - CHECK that guidance references actual codebase elements
+    - CONFIRM task is self-contained and actionable
 
-    **반복** 모든 Task에 대해 `### 5. 구현 가이드가 포함된 개별 Task 파일 생성`
+    **REPEAT** `### 5. Create individual task files with implementation guidance` for every Task
 
-### 6. 관련 Task에 ADR 연결
+### 6. Link ADRs to relevant tasks
 
-- 관련 ADR이 존재하는 경우
-- 관련된 ADR 참조
-- 각 ADR이 적용되는 방법에 대해 기술 가이드 섹션에 설명 추가
-- Task가 구현에 영향을 주는 ADR만 참조하도록 확인
+- IF relevant ADRs exist
+- REFERENCE ADRs that are related
+- ADD explanation in Technical Guidance section for how each ADR applies
+- ENSURE tasks ONLY reference ADRs that affect their implementation
 
-### 7. Task 참조로 스프린트 메타 업데이트
+### 7. Update sprint meta with task references
 
-- Task 목록을 추가/업데이트하기 위해 스프린트 메타 파일 편집
-- 논리적 그룹화 또는 종속성 순서로 Task 구성
-- 각 Task에 대한 간단한 설명 추가
+- EDIT sprint meta file to add/update task list
+- ORGANIZE tasks by logical grouping or dependency order
+- ADD brief description for each task
 
-### 8. 작업 품질 점검
+### 8. Check quality of your work
 
-복잡성을 위해 생성된 모든 Task를 검토하고 높은 복잡성 Task 분할:
+Review all created tasks for complexity and split any High complexity tasks:
 
-**복잡성 평가 프로세스:**
+**Complexity Assessment Process:**
 
-- 설명, 목표, 수락 기준, 하위 Task를 포함한 각 Task 파일을 완전히 읽기
-- 전체 범위와 도전에 대한 판단을 사용하여 복잡성 평가
-- 파일 수나 예상 시간과 같은 단순한 메트릭에 기반하지 않기
-- 개념적 난이도, 통합 과제, 미지의 것들 고려
-- Task frontmatter에 복잡성을 낮음, 중간, 높음으로 표시
+- READ each task file completely including description, goals, acceptance criteria, and subtasks
+- ASSESS complexity using your judgment about the overall scope and challenge
+- DO NOT base complexity on simple metrics like file counts or estimated hours
+- CONSIDER the conceptual difficulty, integration challenges, and unknowns
+- MARK complexity as Low, Medium, or High in the task frontmatter
 
-**높은 복잡성으로 표시된 Task가 있는 경우:**
+**If ANY task is marked as High complexity:**
 
-- Task를 낮음 또는 중간 복잡성의 2-3개 작은 Task로 분할
-- 적절한 순차 번호로 새 Task 파일 생성
-- 원래 높은 복잡성 Task 파일 업데이트 또는 삭제
-- 분할된 Task가 함께 원래 목표를 달성하는지 확인
-- 논리적 그룹화와 종속성 유지
+- SPLIT the task into 2-3 smaller tasks of Low or Medium complexity
+- CREATE new task files with proper sequential numbering
+- UPDATE the original high-complexity task file or DELETE it
+- ENSURE the split tasks together achieve the original goal
+- MAINTAIN logical grouping and dependencies
 
-**모든 Task가 최종화된 후:**
+**After all tasks are finalized:**
 
-- 모든 Task가 낮음 또는 중간 복잡성만인지 확인
-- Task 번호가 순차적인지 확인 (T01, T02, T03...)
-- 최종 Task 목록으로 스프린트 메타 파일 업데이트
-- 실제 생성된 Task를 반영하도록 프로젝트 매니페스트 스프린트 섹션 업데이트
-- 완료 보고서 생성
+- VERIFY all tasks are Low or Medium complexity only
+- CHECK task numbering is sequential (T01, T02, T03...)
+- UPDATE sprint meta file with final task list
+- UPDATE project manifest sprint section to reflect actual tasks created
+- GENERATE completion report
 
-**출력 형식:**
+**Output format:**
 
     ```Markdown
-    ## 스프린트 상세화 완료 - [YYYY-MM-DD HH:MM]
+    ## Sprint Detailed - [YYYY-MM-DD HH:MM]
 
-    **스프린트:** [스프린트 ID] - [스프린트 이름]
-    **상태:** 계획 완료
+    **Sprint:** [Sprint ID] - [Sprint Name]
+    **Status:** Planning Complete
 
-    **생성된 Task:** [분할 후 최종 수]
-    - 중간 복잡성: [수]
-    - 낮은 복잡성: [수]
+    **Tasks Created:** [final count after any splits]
+    - Medium Complexity: [count]
+    - Low Complexity: [count]
 
-    **Task 분할 요약:**
-    - [범위로 인해 원래 T03이 T03과 T04로 분할됨]
-    - [다른 분할은 필요하지 않음]
+    **Task Splitting Summary:**
+    - [Original T03 split into T03 and T04 due to scope]
+    - [No other splits needed]
 
-    **최종 Task 목록:**
-    1. T01_S02 - [제목] (복잡성: [레벨])
-    2. T02_S02 - [제목] (복잡성: [레벨])
-    [모든 Task에 대해 계속]
+    **Final Task List:**
+    1. T01_S02 - [Title] (Complexity: [Level])
+    2. T02_S02 - [Title] (Complexity: [Level])
+    [Continue for all tasks]
 
-    **다음 단계:**
-    - 완전성을 위해 Task 검토
-    - 구현을 시작하려면 `/do_task [스프린트의_첫_번째_Task]` 실행
+    **Next Steps:**
+    - Review tasks for completeness
+    - Run `/do_task [FIRST_TASK_IN_SPRINT]` to begin implementation
     ```

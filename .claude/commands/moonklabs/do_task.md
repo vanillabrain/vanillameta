@@ -1,92 +1,92 @@
 # $Argument 기반 Moonklabs 태스크 처리
 
-**중요:** 탑 다운 방식으로 따르기 - 아무것도 건너뛰지 마세요!
+**IMPORTANT:** Follow from Top to Bottom - don't skip anything!
 
-**정확히 다음 8개 항목으로 TODO 목록 생성**
+**CREATE A TODO LIST** with exactly these 8 items
 
-1. 인자에서 범위 분석
-2. 태스크 파일 식별
-3. 태스크 분석
-4. 상태를 진행 중으로 설정
-5. 태스크 작업 실행
-6. 자리 표시자
-7. 코드 리뷰 실행
-8. 태스크 상태 최종화
+1. Analyse scope from argument
+2. Identify task file
+3. Analyse the task
+4. Set status to in_progress
+5. Execute task work
+6. Placeholder
+7. Execute Code review
+8. Finalize Task status
 
-## 1 · 인자에서 범위 분석
+## 1 · Analyse scope from argument
 
-<$ARGUMENTS> ⇒ 태스크 ID, 스프린트 ID, 또는 비어있음 (현재 스프린트에서 다음 열린 태스크 선택).
+<$ARGUMENTS> ⇒ Task ID, Sprint ID, or empty (select next open task in current sprint).
 
-## 2 · 태스크 파일 식별
+## 2 · Identify task file
 
-.moonklabs/03_SPRINTS/와 .moonklabs/04_GENERAL_TASKS/ 검색.
-열린 태스크가 일치하지 않으면, 일시 정지하고 사용자에게 진행 방법을 질문.
+Search .moonklabs/03_SPRINTS/ and .moonklabs/04_GENERAL_TASKS/.
+If no open task matches, pause and ask the user how to proceed.
 
-## 3 · 태스크 분석
+## 3 · Analyse the task
 
-태스크 설명 읽기. 불명확한 것이 있으면 계속하기 전에 명확히 하는 질문을 하세요.
+Read the task description. If anything is unclear, ask clarifying questions before continuing.
 
-**CRITICAL 컨텍스트 검증:** 태스크를 실행하기 전에 다음 작업을 위한 병렬 서브에이전트 실행:
+**CRITICAL CONTEXT VALIDATION:** Before executing any task spin up Parallel Subagents for these tasks:
 
-1. **스프린트 컨텍스트:** 태스크가 현재 스프린트 범위에 속하는지 확인
-2. **종속성:** 먼저 완료해야 할 종속 태스크가 있는지 확인
-3. **요구사항:** `.moonklabs/02_REQUIREMENTS/`의 관련 요구사항 문서 읽기
-4. **범위 확인:** 태스크가 현재 스프린트 목표와 일치하는지 확인
+1. **Sprint Context:** Confirm task belongs to current sprint scope
+2. **Dependencies:** Check if any dependent tasks need to be completed first
+3. **Requirements:** Read relevant requirements docs in `.moonklabs/02_REQUIREMENTS/`
+4. **Scope Verification:** Ensure task aligns with current sprint objectives
 
-**IMPORTANT:** 태스크가 미래 스프린트의 기능을 참조하거나 충족되지 않은 종속성이 있는 경우, 일시 정지하고 명확히 요청.
+**IMPORTANT:** If task references functionality from future sprints or has unmet dependencies, pause and ask for clarification.
 
-## 4 · 상태를 진행 중으로 설정
+## 4 · Set status to in_progress
 
-- 현재 로컬 타임스탬프 찾기 (YYYY-MM-DD HH:MM).
-- front-matter를 **status: in_progress**로 업데이트하고 Updated 시간 설정
-- .moonklabs/00_PROJECT_MANIFEST.md를 업데이트하여 태스크를 진행 중으로 설정, 업데이트 시간 및 현재 스프린트 상태.
+- Find out the current local timestamp (YYYY-MM-DD HH:MM).
+- Update front-matter to **status: in_progress** and set Updated time
+- Update ./moonklabs/00_PROJECT_MANIFEST.md to set task in progress, updated time and current Sprint Status.
 
-## 5 · 태스크 작업 실행
+## 5 · Execute task work
 
-- 설명, 목표 및 수락 기준 따르기.
-- .moonklabs/01_PROJECT_DOCS/와 .moonklabs/02_REQUIREMENTS/의 지원 문서 참조.
-- 하위 태스크 반복:
-  1. 다음 미완료 하위 태스크 선택.
-  2. 필요에 따라 문서를 참조하여 필요한 변경사항 구현.
-  3. 하위 태스크를 완료로 표시.
-  4. `[YYYY-MM-DD HH:MM]: <메시지>` 형식을 사용하여 **## Output Log**에 로그 항목 추가.
-  5. 모든 하위 태스크가 완료될 때까지 반복.
+- Follow Description, Goal and Acceptance Criteria.
+- Consult supporting docs in .moonklabs/01_PROJECT_DOCS/ and .moonklabs/02_REQUIREMENTS/.
+- Iterate over subtasks:
+  1. Pick the next incomplete subtask.
+  2. Implement the required changes, consulting docs as needed.
+  3. Mark the subtask done.
+  4. Append a log entry to **## Output Log** using the format `[YYYY-MM-DD HH:MM]: <message>`.
+  5. Repeat until all subtasks are complete.
 
-## 6 · 자리 표시자
+## 6 · Placeholder
 
-자리 표시자 - 다음 단계로 이동
+Placeholder - just move on to the next step
 
-## 7 · 코드 리뷰 실행
+## 7 · Execute Code Review
 
-코드 리뷰를 위해 다음 단계 따르기 (순서대로)
+Follow these steps for a Code Review (in order)
 
-- @.claude/commands/moonklabs/code_review.md를 포함하고 태스크 ID를 범위로 사용.
-- 파일의 지침을 따라 **병렬 서브에이전트**에서 코드 리뷰 실행
-- 완료되면 결과에 따라 계속 행동
-- 결과를 이해하고 생각하기
-- **FAIL** 시
-  - 문제를 철저히 이해
-  - 리뷰에서 식별된 하위 태스크로 현재 태스크 확장
-  - "5 · 태스크 작업 실행"으로 돌아가기
-- **PASS** 시
-  - 다음 단계로 이동
+- include @.claude/commands/moonklabs/code_review.md and use the Task ID as Scope.
+- Follow the instructions in the file to run a code review in **PARALLEL SUBAGENTS**
+- When done continue acting on the results accordingly
+- Understand and think about the results
+- on **FAIL**
+  - thoroughly understand the problem
+  - extend the Current Task with the Subtasks identified by the review
+  - go back to "5 · Execute task work"
+- on **PASS**
+  - move on to next step
 
-## 8 · 태스크 상태 최종화
+## 8 · Finalize task status
 
-- 태스크 상태를 **completed**로 설정
-- 파일명에서 적절한 완료 인식을 위해 태스크 파일 이름 변경 (TX[TASK_ID]...)
-- 새 상태를 반영하도록 .moonklabs/00_PROJECT_MANIFEST.md 업데이트
-- 사용자에게 결과 **보고**
+- set the Task status to **completed**
+- Rename the Task file accordingly to enable proper Completed recognition from the filename (TX[TASK_ID]...)
+- Update .moonklabs/00_PROJECT_MANIFEST.md to reflect the new status
+- **Report** the result to the user
 
-  ✅ **결과**: 성공의 간단한 설명
+  ✅ **Result**: Quick statement of success
 
-  🔎 **범위**: 식별된 태스크 또는 처리되지 않은 이유
+  🔎 **Scope**: Identified task or reason none was processed
 
-  💬 **요약**: 수행된 작업 또는 차단된 이유의 한 단락 요약
+  💬 **Summary**: One-paragraph recap of what was done or why blocked
 
-  ⏭️ **다음 단계**: 권장 후속 조치
+  ⏭️ **Next steps**: Recommended follow-up actions
 
-- 사용자를 위한 **제안**:
+- **Suggestions** for the User:
 
-  - 🛠️ 변경사항을 git에 커밋하려면 /project:moonklabs:commit `TASK_ID` 사용
-  - 🧹  다음 태스크를 시작하기 전에 컨텍스트를 지우려면 /clear 사용
+  - 🛠️ Use /project:moonklabs:commit `TASK_ID` to commit the changes to git
+  - 🧹 Use /clear to clear the context before starting the next Task

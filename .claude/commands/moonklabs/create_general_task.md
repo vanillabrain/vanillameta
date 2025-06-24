@@ -1,147 +1,147 @@
 # 일반 Task 생성 - 탑 다운 실행
 
-프로젝트 문서 표준을 따라 `.moonklabs/04_GENERAL_TASKS/`에 새로운 일반 Task를 생성합니다.
+Creates a new general task in `.moonklabs/04_GENERAL_TASKS/` following project documentation standards.
 
-## 정확히 다음 10개 항목으로 TODO 생성
+## Create a TODO with EXACTLY these 10 Items
 
-1. Task argument 파싱 및 Task ID 결정
-2. 프로젝트 컨텍스트 및 문서 요구사항 로드
-3. 기존 작업과 중복되지 않는지 확인
-4. 구현 컨텍스트를 위한 코드베이스 조사
-5. 표준 템플릿을 사용하여 Task 파일 생성
-6. 적절한 컨텍스트로 Task 세부사항 작성
-7. 기술 가이드 및 코드베이스 참조 추가
-8. 새 Task로 project manifest 업데이트
-9. 아키텍처와의 Task 정합성 검증
-10. 최종 품질 점검 및 보고
+1. Parse task arguments and determine task ID
+2. Load project context and documentation requirements
+3. Verify task doesn't duplicate existing work
+4. Research codebase for implementation context
+5. Create task file using standard template
+6. Fill in task details with proper context
+7. Add technical guidance and codebase references
+8. Update project manifest with new task
+9. Validate task alignment with architecture
+10. Perform final quality check and report
 
-## 모든 TODO 항목의 세부사항
+## DETAILS on every TODO item
 
-### 1. Task argument 파싱 및 Task ID 결정
+### 1. Parse task arguments and determine task ID
 
-인자 형식: `<Task 제목 또는 설명>`
+The argument format is: `<Task Title or Description>`
 
-- 인자가 비어있으면 사용자에게 Task 세부사항 요청
-- `.moonklabs/04_GENERAL_TASKS/`의 기존 Task를 검토하여 순차적 Task ID 생성
-- 가장 높은 Task 번호(T###)를 찾아 1 증가
-- 형식: `T###_<Task_제목_스네이크_케이스>.md`
-- **IMPORTANT:** Task ID는 간격 없이 순차적이어야 함
+- If arguments are empty, prompt user for task details
+- Generate sequential task ID by examining existing tasks in `.moonklabs/04_GENERAL_TASKS/`
+- Find highest task number (T###) and increment by 1
+- Format: `T###_<Task_Title_Snake_Case>.md`
+- **IMPORTANT:** Task IDs must be sequential with no gaps
 
-### 2. 프로젝트 컨텍스트 및 문서 요구사항 로드
+### 2. Load project context and documentation requirements
 
-병렬 서브에이전트를 사용하여 프로젝트 컨텍스트를 읽고 이해:
+Use PARALLEL SUBAGENTS to READ and UNDERSTAND the project's context:
 
-- `.moonklabs/00_PROJECT_MANIFEST.md` 읽기 - 현재 프로젝트 상태 파악
-- `.moonklabs/01_PROJECT_DOCS/ARCHITECTURE.md` 읽기 - 시스템 제약사항 이해
-- `.moonklabs/01_PROJECT_DOCS/LONG_TERM_VISION.md` 읽기 - 미래 방향 이해
-- `.moonklabs/10_STATE_OF_PROJECT/`의 최신 파일 읽기 - 현재 상태 검토
-- 관련 ADR을 위해 `.moonklabs/05_ARCHITECTURE_DECISIONS/` 스캔
-- **IMPORTANT:** 일반 Task는 문서화된 아키텍처와 일치해야 함
+- READ `.moonklabs/00_PROJECT_MANIFEST.md` - Get current project state
+- READ `.moonklabs/01_PROJECT_DOCS/ARCHITECTURE.md` - Understand system constraints
+- READ `.moonklabs/01_PROJECT_DOCS/LONG_TERM_VISION.md` - Understand future direction
+- READ latest files in `.moonklabs/10_STATE_OF_PROJECT/` - Review current state
+- SCAN `.moonklabs/05_ARCHITECTURE_DECISIONS/` for relevant ADRs
+- **IMPORTANT:** General tasks must align with documented architecture
 
-### 3. 기존 작업과 중복되지 않는지 확인
+### 3. Verify task doesn't duplicate existing work
 
-잠재적 중복을 위해 **포괄적으로 검색**:
+**SEARCH** comprehensively for potential duplicates:
 
-- `.moonklabs/04_GENERAL_TASKS/`의 모든 파일 확인
-- `.moonklabs/03_SPRINTS/*/T*.md`에서 스프린트 Task 검색
-- 완료된 마일스톤에서 유사한 기능 찾기
-- **CRITICAL:** 중복이 발견되면 중지하고 파일 참조와 함께 사용자에게 보고
+- Check all files in `.moonklabs/04_GENERAL_TASKS/`
+- Search sprint tasks in `.moonklabs/03_SPRINTS/*/T*.md`
+- Look for similar functionality in completed milestones
+- **CRITICAL:** If duplicate found, stop and report to user with file reference
 
-### 4. 구현 컨텍스트를 위한 코드베이스 조사
+### 4. Research codebase for implementation context
 
-Task 설명을 기반으로 병렬 서브에이전트를 사용하여:
+Based on the task description, use PARALLEL SUBAGENTS to:
 
-- Task가 요구하는 것과 유사한 기존 패턴 검색
-- 영향을 받을 주요 인터페이스, 클래스 또는 모듈 식별
-- 코드베이스에서 유사한 구현 예제 찾기
-- 관련 테스트 패턴 및 기존 테스트 파일 위치 파악
-- 사용된 오류 처리 및 로깅 패턴 발견
-- 기존 코드와의 통합 지점 매핑
-- **DOCUMENT:** Task에 포함할 모든 발견사항 문서화
+- SEARCH for existing patterns similar to what the task requires
+- IDENTIFY key interfaces, classes, or modules that will be affected
+- FIND examples of similar implementations in the codebase
+- LOCATE relevant test patterns and existing test files
+- DISCOVER error handling and logging patterns used
+- MAP OUT integration points with existing code
+- **DOCUMENT** all findings for inclusion in task
 
-### 5. 표준 템플릿을 사용하여 Task 파일 생성
+### 5. Create task file using standard template
 
-`.moonklabs/99_TEMPLATES/task_template.md`의 Task 템플릿을 기본 구조로 **사용**:
+**USE** the task template in `.moonklabs/99_TEMPLATES/task_template.md` as base structure:
 
-- 템플릿 구조를 정확히 복사
-- 파일을 `.moonklabs/04_GENERAL_TASKS/T###_<제목>.md`에 배치
-- 타임스탬프 포함: 생성 시간을 위해 `date '+%Y-%m-%d %H:%M:%S'` 실행
-- **IMPORTANT:** 템플릿 구조를 정확히 따르기 - 편차 없음
+- Copy template structure exactly
+- Place file in `.moonklabs/04_GENERAL_TASKS/T###_<Title>.md`
+- Include timestamp: Execute `date '+%Y-%m-%d %H:%M:%S'` for creation time
+- **IMPORTANT:** Follow template structure precisely - no deviations
 
-### 6. 적절한 컨텍스트로 Task 세부사항 작성
+### 6. Fill in task details with proper context
 
-Task 파일을 다음으로 채우기:
+Populate the task file with:
 
-- **제목**: 명확하고 실행 가능한 Task 이름
-- **컨텍스트**: 아키텍처 문서 및 프로젝트 상태 링크
-- **요구사항**: 구체적이고 측정 가능한 결과
-- **수락 기준**: 완료의 명확한 정의
-- **종속성**: 관련 스프린트/마일스톤 참조
-- **구현 노트**: 아키텍처와 일치하는 기술적 접근
-- **CRITICAL:** 모든 내용은 기존 문서를 참조해야 함
+- **Title**: Clear, actionable task name
+- **Context**: Link to architecture docs and project state
+- **Requirements**: Specific, measurable outcomes
+- **Acceptance Criteria**: Clear definition of done
+- **Dependencies**: Reference relevant sprints/milestones
+- **Implementation Notes**: Technical approach aligned with architecture
+- **CRITICAL:** All content must reference existing documentation
 
-### 7. 기술 가이드 및 코드베이스 참조 추가
+### 7. Add technical guidance and codebase references
 
-**기술 가이드 섹션:**
+**Technical Guidance section:**
 
-- 4단계에서 발견한 주요 인터페이스 및 통합 지점
-- 코드베이스의 특정 임포트 및 모듈 참조
-- 따라야 할 기존 패턴 (파일 참조 포함)
-- 작업할 데이터베이스 모델 또는 API 계약
-- 유사한 코드에서 사용된 오류 처리 접근법
-- 코드베이스에서 발견된 테스트 패턴
+- Key interfaces and integration points discovered in step 4
+- Specific imports and module references from codebase
+- Existing patterns to follow (with file references)
+- Database models or API contracts to work with
+- Error handling approach used in similar code
+- Testing patterns found in the codebase
 
-**구현 노트 섹션:**
+**Implementation Notes section:**
 
-- 조사를 기반으로 한 단계별 구현 접근법
-- 존중해야 할 주요 아키텍처 결정 (ADR 참조)
-- 수정하거나 확장할 특정 파일 및 함수
-- 기존 테스트 패턴을 기반으로 한 테스트 접근법
-- 관련된 경우 성능 고려사항
+- Step-by-step implementation approach based on research
+- Key architectural decisions to respect (reference ADRs)
+- Specific files and functions to modify or extend
+- Testing approach based on existing test patterns
+- Performance considerations if relevant
 
-**IMPORTANT:** 코드 예제를 포함하지 마세요. 구조적 가이드와 파일 참조만 제공하세요.
+**IMPORTANT:** Do NOT include code examples. Provide structural guidance and file references only.
 
-### 8. 새 Task로 프로젝트 매니페스트 업데이트
+### 8. Update project manifest with new task
 
-`.moonklabs/00_PROJECT_MANIFEST.md` **업데이트**:
+**UPDATE** `.moonklabs/00_PROJECT_MANIFEST.md`:
 
-- "## General Tasks" 섹션에 Task 추가
-- 형식: `- [ ] T###: [Task 제목] - 상태: 시작 전`
-- 알파벳/숫자 순서 유지
-- Task 파일 링크: `[T###](04_GENERAL_TASKS/T###_제목.md)`
-- **CRITICAL:** 모든 기존 내용 보존
+- Add task to "## General Tasks" section
+- Format: `- [ ] T###: [Task Title] - Status: Not Started`
+- Maintain alphabetical/numerical ordering
+- Link to task file: `[T###](04_GENERAL_TASKS/T###_Title.md)`
+- **IMPORTANT:** Preserve all existing content
 
-### 9. 아키텍처와의 Task 정합성 검증
+### 9. Validate task alignment with architecture
 
-Task 준수 **확인**:
+**VERIFY** task compliance:
 
-- Task가 아키텍처 원칙과 모순되지 않는지 확인
-- 구현 접근법이 확립된 패턴을 사용하는지 확인
-- 종속성이 존재하고 올바른지 검증
-- Task 범위가 적절한지 확인 (너무 넓거나 좁지 않은지)
-- 기술 가이드가 기존 코드베이스 패턴과 일치하는지
-- **중요:** 문서가 진실의 원천 - 모든 편차는 정당화 필요
+- Check task doesn't contradict architecture principles
+- Ensure implementation approach uses established patterns
+- Validate dependencies exist and are correct
+- Confirm task scope is appropriate (not too broad/narrow)
+- Technical guidance aligns with existing codebase patterns
+- **CRITICAL:** Documentation is source of truth - any deviation needs justification
 
-### 10. 최종 품질 점검 및 보고
+### 10. Perform final quality check and report
 
-**품질 점검**:
+**QUALITY CHECK**:
 
-- Task 파일이 템플릿을 완전히 따름
-- 새로운 기술 가이드를 포함한 모든 섹션이 적절히 채워짐
-- 문서 및 코드베이스에 대한 참조가 유효함
-- Task ID가 순차적이고 고유함
-- 매니페스트가 올바르게 업데이트됨
-- 기술 가이드가 실제 파일과 패턴을 참조함
-- 범위 확대나 아키텍처 위반 없음
+- Task file follows template completely
+- All sections properly filled including new technical guidance
+- References to documentation and codebase are valid
+- Task ID is sequential and unique
+- Manifest updated correctly
+- Technical guidance references actual files and patterns
+- No scope creep or architecture violations
 
-**출력 형식**:
+**OUTPUT FORMAT**:
 
 ```markdown
-✅ **생성됨**: T###_<제목>.md
-📋 **유형**: 일반 Task
-🎯 **목적**: [한 줄 요약]
-📚 **참조**: [주요 문서 링크]
-🔧 **주요 통합 지점**: [수정할 주요 파일/모듈]
-🧪 **테스트 접근법**: [따를 테스트 패턴]
-⏭️ **다음 단계**: Task 세부사항을 검토하고 `/do_task T###`를 실행하여 시작
+✅ **Created**: T###\_<Title>.md
+📋 **Type**: General Task
+🎯 **Purpose**: [One-line summary]
+📚 **References**: [Key documentation links]
+🔧 **Key Integration Points**: [Main files/modules to modify]
+🧪 **Test Approach**: [Testing pattern to follow]
+⏭️ **Next Step**: Review task details and run `/do_task T###` to begin
 ```

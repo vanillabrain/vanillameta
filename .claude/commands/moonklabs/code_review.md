@@ -1,88 +1,88 @@
 # 코드 리뷰 - 탑 다운 실행
 
-코드 리뷰를 실행하기 위해 다음 지침을 탑 다운 방식으로 따르세요.
+Use the following instructions from top to bottom to execute a Code Review.
 
-## '정확히' 다음 6개 항목으로 TODO 생성
+## Create a TODO with EXACTLY these 6 Items
 
-1. 주어진 범위 분석
-2. 범위 내에서 코드 변경사항 찾기
-3. 관련 명세서 및 문서 찾기
-4. 문서 및 요구사항과 코드 변경사항 비교
-5. 가능한 차이점 분석
-6. 세부사항과 함께 PASS/FAIL 판정 제공
+1. Analyze the Scope given
+2. Find code changes within Scope
+3. Find relevant Specification and Documentation
+4. Compare code changes against Documentation and Requirements
+5. Analyze possible differences
+6. Provide PASS/FAIL verdict with details
 
-각 단계에 대한 다음 지침을 단계별로 따르고 엄격히 준수하세요.
+Follow step by step and adhere closely to the following instructions for each step.
 
-## 모든 TODO 항목의 '세부사항'
+## DETAILS on every TODO item
 
-### 1. 주어진 범위 분석
+### 1. Analyze the Scope given
 
-확인: <$ARGUMENTS>
+check: <$ARGUMENTS>
 
-비어있으면 기본값을 사용하고, 그렇지 않으면 <$ARGUMENTS>를 해석하여 리뷰 범위를 식별합니다. 의미있는 변경사항을 찾을 수 있는 경우에만 계속하세요.
+If empty, use default, otherwise interpret <$ARGUMENTS> to identify the scope of the Review. Only continue if you can find meaningful changes to review.
 
-**CONTEXT:** 코드 변경사항을 리뷰하기 전에:
+**CONTEXT:** Before reviewing code changes:
 
-- 현재 스프린트와 마일스톤 컨텍스트를 이해하기 위해 `.moonklabs/00_PROJECT_MANIFEST.md` 읽기
-- 매니페스트를 사용하여 활성 스프린트와 범위 내 작업 식별
-- 현재 스프린트의 산출물에 적합한 요구사항만 평가
+- Read `.moonklabs/00_PROJECT_MANIFEST.md` to understand current sprint and milestone context
+- Use the manifest to identify which sprint is active and what work is in scope
+- Only evaluate against requirements appropriate for the current sprint's deliverables
 
-### 2. 범위 내에서 코드 변경사항 찾기
+### 2. Find code changes within Scope
 
-식별된 범위로 `git diff` (기본값: `git diff HEAD~1`)를 사용하여 코드 변경사항을 찾습니다.
+With the identified Scope use `git diff` (on default: `git diff HEAD~1`) to find code changes.
 
-### 3. 관련 명세서 및 문서 찾기
+### 3. Find relevant Specifications and Documentation
 
-- FIND: 수행된 작업과 관련된 태스크, 스프린트, 마일스톤을 찾고 결과를 출력
-- NAVIGATE: 현재 스프린트 디렉토리를 찾기 위해 `.moonklabs/03_SPRINTS/`로 이동
-- READ: 스프린트 목표와 산출물을 이해하기 위해 스프린트 메타 파일 읽기
-- READ: 특정 태스크가 범위에 있다면, 스프린트 디렉토리에서 태스크 파일 찾고 읽기
-- IDENTIFY: 현재 마일스톤에 대한 `.moonklabs/02_REQUIREMENTS/`의 관련 요구사항 식별
-- READ: 특히 `.moonklabs/01_PROJECT_DOCS/`와 `.moonklabs/02_REQUIREMENTS/`의 관련 문서 읽기
-- **IMPORTANT:** 미래 마일스톤 기능이 아닌 현재 스프린트 산출물에 집중
+- FIND the Task, Sprint and Milestone involved in the work that was done and output your findings
+- Navigate to `.moonklabs/03_SPRINTS/` to find the current sprint directory
+- READ the sprint meta file to understand sprint objectives and deliverables
+- If a specific task is in scope, find and READ the task file in the sprint directory
+- IDENTIFY related requirements in `.moonklabs/02_REQUIREMENTS/` for the current milestone
+- READ involved Documents especially in `.moonklabs/01_PROJECT_DOCS/` and `.moonklabs/02_REQUIREMENTS/`
+- **IMPORTANT:** Focus on current sprint deliverables, not future milestone features
 
-### 4. 문서 및 요구사항과 코드 변경사항 비교
+### 4. Compare code changes against Documentation and Requirements
 
-- 딥 씽킹을 사용하여 발견된 요구사항 및 명세와 변경사항 비교
-- 특히 다음 사항들을 비교:
-  - **Data Model / Schema** — 필드, 타입, 제약조건, 관계
-  - **API / Interface** — 엔드포인트, 매개변수, 반환 형태, 상태 코드, 오류
-  - **Configuration / Environment** — 키, 기본값, 필수/선택
-  - **Behavior** — 비즈니스 규칙, 부작용, 오류 처리
-  - **Quality** — 명명, 포맷팅, 테스트, 린터 상태
+- Use DEEP THINKING to compare changes against found Requirements and Specs.
+- Compare especially these things:
+  - **Data models / schemas** — fields, types, constraints, relationships.
+  - **APIs / interfaces** — endpoints, params, return shapes, status codes, errors.
+  - **Config / environment** — keys, defaults, required/optional.
+  - **Behaviour** — business rules, side-effects, error handling.
+  - **Quality** — naming, formatting, tests, linter status.
 
 **IMPORTANT**:
 
-- 명세서와의 편차는 허용되지 않습니다. 작은 것도 안됩니다. 여기서 매우 까다롭게 하세요!
-- 의심스러우면 **FAIL**을 선언하고 사용자에게 물어보세요.
-- 명세서와 문서를 따르지 않는 것에 대한 무관용 원칙.
+- Deviations from the Specs is not allowed. Not even small ones. Be very picky here!
+- If in doubt call a **FAIL** and ask the User.
+- Zero tolerance on not following the Specs and Documentation.
 
-### 5. 차이점 분석
+### 5. Analyze the differences
 
-- 발견된 모든 차이점 분석
-- 모든 이슈에 심각도 점수 부여
-- 심각도는 1(낮음)에서 10(높음)까지
-- 출력을 위해 이슈 목록과 점수 기억
+- Analyze any difference found
+- Give every issue a Severity Score
+- Severity ranges from 1 (low) to 10 (high)
+- Remember List of issues and Scores for output
 
-### 6. 세부사항과 함께 PASS/FAIL 판정 제공
+### 6. Provide PASS/FAIL verdict with details
 
-- 발견된 차이점에 대해 **FAIL** 선언
-  - 무관용 원칙 - 선의의 추가사항도 포함
-  - 작은 변경사항이 허용되는지는 사용자가 결정하도록 남겨둠
-- 불일치가 없는 경우에만 **PASS**
+- Call a **FAIL** on any differences found.
+  - Zero Tolerance - even on well meant additions.
+  - Leave it on the user to decide if small changes are allowed.
+- Only **PASS** if no discrepancy appeared.
 
-#### IMPORTANT: 출력 형식
+#### IMPORTANT: Output Format
 
-- 태스크 파일의 **## Output Log** 섹션에 리뷰 결과 출력
-- 범위에 따라 `.moonklabs/03_SPRINTS/` 또는 `.moonklabs/04_GENERAL_TASKS/`에서 태스크 파일 찾기
-- 타임스탬프와 함께 기존 Output Log에 리뷰 결과 추가
-- 출력 형식:
+- Output the results of your review to the task's **## Output Log** section in the task file
+- Find the task file in `.moonklabs/03_SPRINTS/` or `.moonklabs/04_GENERAL_TASKS/` based on the scope
+- Append the review results to the existing Output Log with timestamp
+- Output Format:
   ```
-  [YYYY-MM-DD HH:MM]: 코드 리뷰 - PASS/FAIL
-  결과: **FAIL/PASS** 합격 또는 불합격에 대한 최종 결정.
-  **범위:** 리뷰 범위에 대해 사용자에게 알림.
-  **발견사항:** 발견된 모든 이슈와 심각도 점수가 포함된 상세 목록.
-  **요약:** 무엇이 잘못되었거나 문제없는지에 대한 간단한 요약.
-  **권장사항:** 다음 단계에 대한 개인적인 권장사항.
+  [YYYY-MM-DD HH:MM]: Code Review - PASS/FAIL
+  Result: **FAIL/PASS** Your final decision on if it's a PASS or a FAIL.
+  **Scope:** Inform the user about the review scope.
+  **Findings:** Detailed list with all Issues found and Severity Score.
+  **Summary:** Short summary on what is wrong or not.
+  **Recommendation:** Your personal recommendation on further steps.
   ```
-- 즉각적인 피드백을 위해 콘솔에 간단한 결과 요약도 출력
+- Also output a brief result summary to the console for immediate feedback
