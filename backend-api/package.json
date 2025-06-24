@@ -43,7 +43,11 @@
     "k6:load": "k6 run test/performance/k6/load-test.js",
     "k6:stress": "k6 run test/performance/k6/stress-test.js",
     "k6:cloud": "k6 cloud test/performance/k6/load-test.js",
-    "performance:all": "yarn test:performance && yarn artillery:run && yarn k6:load"
+    "performance:all": "yarn test:performance && yarn artillery:run && yarn k6:load",
+    "test:permissions": "jest --testPathPattern='api-permissions\\.test\\.ts$' --testTimeout=60000",
+    "test:security": "jest --testPathPattern='security-vulnerability\\.test\\.ts$' --testTimeout=60000",
+    "test:permissions:all": "ts-node test/scripts/run-permission-tests.ts",
+    "generate:permission-matrix": "ts-node test/scripts/generate-permission-matrix.ts"
   },
   "dependencies": {
     "@aws-sdk/client-cloudwatch": "^3.830.0",
