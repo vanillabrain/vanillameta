@@ -30,14 +30,14 @@ export class InitializationService implements OnModuleInit {
       });
 
       if (!adminExists) {
-        const hashedPassword = crypto.createHash('sha512').update('admin123').digest('hex');
+        const hashedPassword = crypto.createHash('sha512').update('Admin!@12').digest('hex');
         await this.userRepository.save({
           userId: 'admin',
           email: 'admin@example.com',
           password: hashedPassword,
         });
         this.logger.log(
-          '✅ Default admin user created (admin@example.com / admin123)',
+          '✅ Default admin user created (admin@example.com / Admin!@12)',
           'InitializationService',
         );
       }
