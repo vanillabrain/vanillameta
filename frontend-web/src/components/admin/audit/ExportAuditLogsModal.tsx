@@ -1,27 +1,45 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Modal,
-  Form,
-  DatePicker,
-  Radio,
-  InputNumber,
-  Checkbox,
-  Select,
-  Button,
-  Alert,
-  Divider,
-  Space,
-  Spin,
-  message,
-} from 'antd';
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
-  FileExcelOutlined,
-  FileTextOutlined,
-  DownloadOutlined,
-  InfoCircleOutlined,
-} from '@ant-design/icons';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Calendar } from '@/components/ui/calendar';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Separator } from '@/components/ui/separator';
+import { useToast } from '@/hooks/use-toast';
+import { 
+  Download, 
+  FileSpreadsheet, 
+  FileText, 
+  Info, 
+  CalendarIcon,
+  Loader2 
+} from 'lucide-react';
+import { format } from 'date-fns';
+import { ko } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 import dayjs from 'dayjs';
-import { useMutation } from 'react-query';
+import { useMutation } from '@tanstack/react-query';
 import {
   AuditLogFilters,
   ExportAuditLogsDto,
@@ -34,9 +52,6 @@ import {
   MAX_EXPORT_RECORDS,
   EXPORT_FORMAT_OPTIONS,
 } from '../../../utils/constants/auditLogConstants';
-import './ExportAuditLogsModal.css';
-
-const { RangePicker } = DatePicker;
 
 interface ExportAuditLogsModalProps {
   initialFilters: AuditLogFilters;
@@ -51,278 +66,281 @@ export const ExportAuditLogsModal: React.FC<ExportAuditLogsModalProps> = ({
   onExport,
   loading,
 }) => {
-  const [form] = Form.useForm();
   const [estimatedSize, setEstimatedSize] = useState<number>(0);
   const [recordCount, setRecordCount] = useState<number>(0);
+  const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
+    from: initialFilters.dateFrom || dayjs().subtract(7, 'days').toDate(),
+    to: initialFilters.dateTo || new Date(),
+  });
+  
+  // Form state
+  const [exportFormat, setExportFormat] = useState<string>('excel');
+  const [includeColumns, setIncludeColumns] = useState<string[]>([
+    'timestamp', 'level', 'action', 'user', 'details'
+  ]);
+  const [maxRecords, setMaxRecords] = useState<number>(10000);
+  const [filename, setFilename] = useState<string>('audit_logs');
+  
+  const { toast } = useToast();
 
   // 내보내기 미리보기
   const previewMutation = useMutation({
-    mutationFn: (values: any) => {
-      const exportParams: ExportAuditLogsDto = {
-        dateFrom: values.dateRange?.[0]?.toDate(),
-        dateTo: values.dateRange?.[1]?.toDate(),
-        format: values.format,
-        limit: values.limit,
-        includeDetails: values.includeDetails,
-        includeSensitive: values.includeSensitive,
-        actions: values.actions,
-        levels: values.levels,
-        categories: values.categories,
-        userId: values.userId,
-        resourceType: values.resourceType,
-        resourceId: values.resourceId,
-      };
-      return auditLogServiceV2.getExportPreview(exportParams);
+    mutationFn: (params: Partial<ExportAuditLogsDto>) => 
+      auditLogServiceV2.getExportPreview(params),
+    onSuccess: (data) => {
+      setRecordCount(data.recordCount);
+      setEstimatedSize(data.estimatedSize);
     },
-    onSuccess: (preview) => {
-      setEstimatedSize(preview.estimatedSize);
-      setRecordCount(preview.recordCount);
-    },
-    onError: (error) => {
-      console.error('Preview failed:', error);
-      message.error('미리보기를 불러오는데 실패했습니다.');
+    onError: () => {
+      toast({
+        description: '미리보기를 가져오는 중 오류가 발생했습니다.',
+        variant: 'destructive',
+      });
     },
   });
 
-  // 초기값 설정
-  useEffect(() => {
-    const initialValues = {
-      dateRange: [
-        initialFilters.dateFrom ? dayjs(initialFilters.dateFrom) : dayjs().subtract(7, 'days'),
-        initialFilters.dateTo ? dayjs(initialFilters.dateTo) : dayjs(),
-      ],
-      format: 'csv',
-      limit: 10000,
-      includeDetails: true,
-      includeSensitive: false,
-      actions: [],
-      levels: [],
-      categories: [],
+  // 내보내기 실행
+  const handleExport = () => {
+    const exportParams: ExportAuditLogsDto = {
+      dateFrom: dateRange.from,
+      dateTo: dateRange.to,
+      level: initialFilters.level,
+      action: initialFilters.action,
+      userId: initialFilters.userId,
+      resourceType: initialFilters.resourceType,
+      category: initialFilters.category,
+      status: initialFilters.status,
+      format: exportFormat as 'excel' | 'csv' | 'json',
+      includeColumns,
+      maxRecords,
+      filename,
     };
-    form.setFieldsValue(initialValues);
-    // 초기 미리보기 로드
-    previewMutation.mutate(initialValues);
-  }, []);
 
-  // 폼 값 변경시 미리보기 업데이트
-  const handleFormChange = () => {
-    const values = form.getFieldsValue();
-    previewMutation.mutate(values);
+    onExport(exportParams);
   };
 
-  // 내보내기 실행
-  const handleExport = async () => {
-    try {
-      const values = await form.validateFields();
-      const exportParams: ExportAuditLogsDto = {
-        dateFrom: values.dateRange?.[0]?.toDate(),
-        dateTo: values.dateRange?.[1]?.toDate(),
-        format: values.format,
-        limit: values.limit,
-        includeDetails: values.includeDetails,
-        includeSensitive: values.includeSensitive,
-        actions: values.actions,
-        levels: values.levels,
-        categories: values.categories,
-        userId: values.userId,
-        resourceType: values.resourceType,
-        resourceId: values.resourceId,
-      };
-      onExport(exportParams);
-    } catch (error) {
-      console.error('Validation failed:', error);
+  // 미리보기 업데이트
+  const updatePreview = () => {
+    if (dateRange.from && dateRange.to) {
+      previewMutation.mutate({
+        dateFrom: dateRange.from,
+        dateTo: dateRange.to,
+        level: initialFilters.level,
+        action: initialFilters.action,
+        userId: initialFilters.userId,
+        resourceType: initialFilters.resourceType,
+        category: initialFilters.category,
+        status: initialFilters.status,
+        maxRecords,
+      });
     }
   };
 
+  // 컴포넌트 마운트 시 미리보기 로드
+  useEffect(() => {
+    updatePreview();
+  }, [dateRange, maxRecords]);
+
+  // 날짜 범위 변경 핸들러
+  const handleDateRangeChange = (newDateRange: { from: Date | undefined; to: Date | undefined }) => {
+    setDateRange(newDateRange);
+  };
+
+  // 컬럼 체크박스 변경
+  const handleColumnChange = (column: string, checked: boolean) => {
+    if (checked) {
+      setIncludeColumns([...includeColumns, column]);
+    } else {
+      setIncludeColumns(includeColumns.filter(col => col !== column));
+    }
+  };
+
+  const availableColumns = [
+    { key: 'timestamp', label: '시간' },
+    { key: 'level', label: '레벨' },
+    { key: 'action', label: '액션' },
+    { key: 'user', label: '사용자' },
+    { key: 'resource', label: '리소스' },
+    { key: 'category', label: '카테고리' },
+    { key: 'status', label: '상태' },
+    { key: 'ipAddress', label: 'IP 주소' },
+    { key: 'details', label: '상세 내용' },
+    { key: 'metadata', label: '메타데이터' },
+  ];
+
   return (
-    <Modal
-      title={
-        <Space>
-          <DownloadOutlined />
-          <span>감사 로그 내보내기</span>
-        </Space>
-      }
-      open={true}
-      onCancel={onClose}
-      width={700}
-      footer={[
-        <Button key="cancel" onClick={onClose}>
-          취소
-        </Button>,
-        <Button
-          key="export"
-          type="primary"
-          onClick={handleExport}
-          loading={loading}
-          icon={<DownloadOutlined />}
-          disabled={recordCount === 0}
-        >
-          내보내기
-        </Button>,
-      ]}
-      className="export-audit-logs-modal"
-    >
-      <Form
-        form={form}
-        layout="vertical"
-        onValuesChange={handleFormChange}
-        className="export-form"
-      >
-        {/* 기본 설정 섹션 */}
-        <div className="form-section">
-          <h4>기본 설정</h4>
-          
-          <Form.Item
-            name="dateRange"
-            label="내보낼 기간"
-            rules={[{ required: true, message: '기간을 선택하세요' }]}
-          >
-            <RangePicker
-              showTime={{ format: 'HH:mm' }}
-              format="YYYY-MM-DD HH:mm"
-              style={{ width: '100%' }}
-              placeholder={['시작일', '종료일']}
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="format"
-            label="파일 형식"
-            rules={[{ required: true }]}
-          >
-            <Radio.Group>
-              {EXPORT_FORMAT_OPTIONS.map(option => (
-                <Radio key={option.value} value={option.value} disabled={option.disabled}>
-                  <Space>
-                    {option.icon === 'FileExcelOutlined' && <FileExcelOutlined />}
-                    {option.icon === 'FileTextOutlined' && <FileTextOutlined />}
-                    {option.label}
-                  </Space>
-                </Radio>
-              ))}
-            </Radio.Group>
-          </Form.Item>
-
-          <Form.Item
-            name="limit"
-            label="최대 레코드 수"
-            extra={`최대 ${MAX_EXPORT_RECORDS.toLocaleString()}개까지 내보낼 수 있습니다`}
-          >
-            <InputNumber
-              min={1}
-              max={MAX_EXPORT_RECORDS}
-              style={{ width: '100%' }}
-              formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-              parser={(value) => value!.replace(/\$\s?|(,*)/g, '') as any}
-            />
-          </Form.Item>
-
-          <Space>
-            <Form.Item name="includeDetails" valuePropName="checked">
-              <Checkbox>상세 정보 포함</Checkbox>
-            </Form.Item>
-
-            <Form.Item name="includeSensitive" valuePropName="checked">
-              <Checkbox>민감한 정보 포함</Checkbox>
-            </Form.Item>
-          </Space>
-        </div>
-
-        <Divider />
-
-        {/* 필터 옵션 섹션 */}
-        <div className="form-section">
-          <h4>필터 옵션</h4>
-          
-          <Form.Item name="levels" label="포함할 레벨">
-            <Checkbox.Group>
-              {Object.values(AuditLogLevel).map(level => (
-                <Checkbox key={level} value={level}>
-                  <span style={{ color: auditLogServiceV2.getLevelColor(level) }}>
-                    {level.toUpperCase()}
-                  </span>
-                </Checkbox>
-              ))}
-            </Checkbox.Group>
-          </Form.Item>
-
-          <Form.Item name="categories" label="포함할 카테고리">
-            <Select
-              mode="multiple"
-              placeholder="모든 카테고리 포함"
-              allowClear
-              style={{ width: '100%' }}
-            >
-              {Object.values(AuditLogCategory).map(category => (
-                <Select.Option key={category} value={category}>
-                  {auditLogServiceV2.getCategoryDisplayName(category)}
-                </Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
-
-          <Form.Item name="actions" label="포함할 액션">
-            <Select
-              mode="tags"
-              placeholder="모든 액션 포함 (액션명 입력)"
-              allowClear
-              style={{ width: '100%' }}
-            />
-          </Form.Item>
-
-          <Form.Item name="userId" label="특정 사용자">
-            <Input placeholder="사용자 ID (선택사항)" />
-          </Form.Item>
-
-          <Form.Item name="resourceType" label="리소스 타입">
-            <Input placeholder="리소스 타입 (선택사항)" />
-          </Form.Item>
-
-          <Form.Item name="resourceId" label="리소스 ID">
-            <Input placeholder="리소스 ID (선택사항)" />
-          </Form.Item>
-        </div>
-      </Form>
-
-      {/* 미리보기 정보 */}
-      <div className="preview-section">
-        {previewMutation.isLoading ? (
-          <div className="preview-loading">
-            <Spin tip="미리보기 계산 중..." />
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Download className="h-5 w-5" />
+            감사 로그 내보내기
+          </DialogTitle>
+        </DialogHeader>
+        
+        <div className="overflow-y-auto max-h-[calc(90vh-160px)] space-y-6">
+          {/* 기간 선택 */}
+          <div className="space-y-2">
+            <Label>내보내기 기간</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !dateRange.from && !dateRange.to && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dateRange.from ? (
+                    dateRange.to ? (
+                      <>
+                        {format(dateRange.from, "PPP", { locale: ko })} -{" "}
+                        {format(dateRange.to, "PPP", { locale: ko })}
+                      </>
+                    ) : (
+                      format(dateRange.from, "PPP", { locale: ko })
+                    )
+                  ) : (
+                    <span>날짜 선택</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  initialFocus
+                  mode="range"
+                  defaultMonth={dateRange.from || new Date()}
+                  selected={dateRange}
+                  onSelect={handleDateRangeChange}
+                  numberOfMonths={2}
+                  locale={ko}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
-        ) : (
-          <>
-            {recordCount > 0 ? (
-              <Alert
-                message="내보내기 미리보기"
-                description={
-                  <Space direction="vertical">
-                    <div>예상 레코드 수: {recordCount.toLocaleString()}개</div>
-                    <div>예상 파일 크기: {formatFileSize(estimatedSize)}</div>
-                  </Space>
-                }
-                type="info"
-                icon={<InfoCircleOutlined />}
-              />
-            ) : (
-              <Alert
-                message="내보낼 로그가 없습니다"
-                description="선택한 조건에 해당하는 감사 로그가 없습니다."
-                type="warning"
-              />
-            )}
 
-            {recordCount > MAX_EXPORT_RECORDS && (
-              <Alert
-                message={`레코드 수 제한 초과`}
-                description={`최대 ${MAX_EXPORT_RECORDS.toLocaleString()}개까지만 내보낼 수 있습니다. 기간을 줄이거나 필터를 추가해주세요.`}
-                type="error"
-                style={{ marginTop: 8 }}
-              />
-            )}
-          </>
-        )}
-      </div>
-    </Modal>
+          {/* 내보내기 형식 */}
+          <div className="space-y-3">
+            <Label>내보내기 형식</Label>
+            <RadioGroup value={exportFormat} onValueChange={setExportFormat}>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="excel" id="excel" />
+                <Label htmlFor="excel" className="flex items-center gap-2">
+                  <FileSpreadsheet className="h-4 w-4" />
+                  Excel (.xlsx)
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="csv" id="csv" />
+                <Label htmlFor="csv" className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  CSV (.csv)
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="json" id="json" />
+                <Label htmlFor="json" className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  JSON (.json)
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
+
+          <Separator />
+
+          {/* 포함할 컬럼 */}
+          <div className="space-y-3">
+            <Label>포함할 항목</Label>
+            <div className="grid grid-cols-2 gap-3">
+              {availableColumns.map((column) => (
+                <div key={column.key} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={column.key}
+                    checked={includeColumns.includes(column.key)}
+                    onCheckedChange={(checked) => 
+                      handleColumnChange(column.key, checked as boolean)
+                    }
+                  />
+                  <Label 
+                    htmlFor={column.key} 
+                    className="text-sm font-normal"
+                  >
+                    {column.label}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* 최대 레코드 수 */}
+          <div className="space-y-2">
+            <Label htmlFor="maxRecords">최대 레코드 수</Label>
+            <Input
+              id="maxRecords"
+              type="number"
+              value={maxRecords}
+              onChange={(e) => setMaxRecords(parseInt(e.target.value) || 0)}
+              max={MAX_EXPORT_RECORDS}
+              min={1}
+            />
+            <p className="text-xs text-muted-foreground">
+              최대 {MAX_EXPORT_RECORDS.toLocaleString()}개까지 내보낼 수 있습니다.
+            </p>
+          </div>
+
+          {/* 파일명 */}
+          <div className="space-y-2">
+            <Label htmlFor="filename">파일명</Label>
+            <Input
+              id="filename"
+              value={filename}
+              onChange={(e) => setFilename(e.target.value)}
+              placeholder="audit_logs"
+            />
+          </div>
+
+          {/* 미리보기 정보 */}
+          {previewMutation.isPending ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              미리보기 로딩 중...
+            </div>
+          ) : recordCount > 0 && (
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                <div className="space-y-1">
+                  <div>예상 레코드 수: <strong>{recordCount.toLocaleString()}개</strong></div>
+                  <div>예상 파일 크기: <strong>{formatFileSize(estimatedSize)}</strong></div>
+                  {recordCount > maxRecords && (
+                    <div className="text-amber-600">
+                      설정된 최대 레코드 수({maxRecords.toLocaleString()}개)로 제한됩니다.
+                    </div>
+                  )}
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            취소
+          </Button>
+          <Button 
+            onClick={handleExport}
+            disabled={loading || includeColumns.length === 0 || !dateRange.from || !dateRange.to}
+          >
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Download className="mr-2 h-4 w-4" />
+            내보내기
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };

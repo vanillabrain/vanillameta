@@ -1,20 +1,22 @@
 import React from 'react';
-import { Card, Row, Col, Statistic, Progress, Space, Tooltip } from 'antd';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
-  FileTextOutlined,
-  CalendarOutlined,
-  LineChartOutlined,
-  WarningOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  InfoCircleOutlined,
-  RiseOutlined,
-  FallOutlined,
-} from '@ant-design/icons';
+  FileText,
+  Calendar,
+  BarChart3,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  Info,
+  TrendingUp,
+  TrendingDown,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { AuditLogStats } from '../../../types/audit';
 import { auditLogServiceV2 } from '../../../api/auditLogServiceV2';
 import { STAT_CARD_CONFIGS } from '../../../utils/constants/auditLogConstants';
-import './AuditLogStatsCards.css';
 
 interface AuditLogStatsCardsProps {
   stats: AuditLogStats;
@@ -43,159 +45,173 @@ export const AuditLogStatsCards: React.FC<AuditLogStatsCardsProps> = ({ stats })
   const topAction = stats.topActions?.[0];
 
   return (
-    <div className="audit-log-stats-cards">
-      <Row gutter={[16, 16]}>
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* 전체 로그 */}
-        <Col xs={24} sm={12} md={6}>
-          <Card className="stat-card">
-            <Statistic
-              title="전체 로그"
-              value={stats.totalLogs}
-              prefix={<FileTextOutlined style={{ color: '#1890ff' }} />}
-              formatter={(value) => value.toLocaleString()}
-            />
-          </Card>
-        </Col>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-2">
+              <FileText className="h-4 w-4 text-blue-500" />
+              <span className="text-sm font-medium text-muted-foreground">전체 로그</span>
+            </div>
+            <div className="mt-2">
+              <div className="text-2xl font-bold">{stats.totalLogs.toLocaleString()}</div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* 오늘 로그 */}
-        <Col xs={24} sm={12} md={6}>
-          <Card className="stat-card">
-            <Statistic
-              title="오늘 로그"
-              value={stats.todayLogs}
-              prefix={<CalendarOutlined style={{ color: '#52c41a' }} />}
-              suffix={
-                dailyGrowth !== 0 && (
-                  <Tooltip title={`전일 대비 ${Math.abs(dailyGrowth)}%`}>
-                    <span className={`growth-indicator ${dailyGrowth > 0 ? 'up' : 'down'}`}>
-                      {dailyGrowth > 0 ? <RiseOutlined /> : <FallOutlined />}
-                      {Math.abs(dailyGrowth)}%
-                    </span>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-2">
+              <Calendar className="h-4 w-4 text-green-500" />
+              <span className="text-sm font-medium text-muted-foreground">오늘 로그</span>
+            </div>
+            <div className="mt-2 flex items-center space-x-2">
+              <div className="text-2xl font-bold">{stats.todayLogs.toLocaleString()}</div>
+              {dailyGrowth !== 0 && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <div className={cn(
+                        "flex items-center text-xs",
+                        dailyGrowth > 0 ? "text-green-600" : "text-red-600"
+                      )}>
+                        {dailyGrowth > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                        <span className="ml-1">{Math.abs(dailyGrowth)}%</span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>전일 대비 {Math.abs(dailyGrowth)}%</p>
+                    </TooltipContent>
                   </Tooltip>
-                )
-              }
-              formatter={(value) => value.toLocaleString()}
-            />
-          </Card>
-        </Col>
+                </TooltipProvider>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* 주간 로그 */}
-        <Col xs={24} sm={12} md={6}>
-          <Card className="stat-card">
-            <Statistic
-              title="주간 로그"
-              value={stats.weeklyLogs}
-              prefix={<LineChartOutlined style={{ color: '#722ed1' }} />}
-              formatter={(value) => value.toLocaleString()}
-            />
-          </Card>
-        </Col>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-2">
+              <BarChart3 className="h-4 w-4 text-purple-500" />
+              <span className="text-sm font-medium text-muted-foreground">주간 로그</span>
+            </div>
+            <div className="mt-2">
+              <div className="text-2xl font-bold">{stats.weeklyLogs.toLocaleString()}</div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* 성공률 */}
-        <Col xs={24} sm={12} md={6}>
-          <Card className="stat-card">
-            <div className="success-rate-card">
-              <div className="stat-header">
-                <span className="stat-title">성공률</span>
-                <Tooltip title="성공 / 전체 상태">
-                  <InfoCircleOutlined />
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-muted-foreground">성공률</span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Info className="h-4 w-4 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>성공 / 전체 상태</p>
+                  </TooltipContent>
                 </Tooltip>
-              </div>
-              <div className="success-rate-value">
-                {successRate.toFixed(1)}%
-              </div>
-              <Progress
-                percent={successRate}
-                showInfo={false}
-                strokeColor={{
-                  '0%': '#52c41a',
-                  '100%': '#73d13d',
-                }}
-                trailColor="#f0f0f0"
-              />
+              </TooltipProvider>
             </div>
-          </Card>
-        </Col>
+            <div className="mt-2">
+              <div className="text-2xl font-bold">{successRate.toFixed(1)}%</div>
+              <div className="mt-2">
+                <Progress value={successRate} className="h-2" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* 상태별 분포 */}
-        <Col xs={24} sm={24} md={12}>
-          <Card 
-            className="stat-card distribution-card"
-            title="상태별 분포"
-          >
-            <Row gutter={16}>
-              <Col span={8}>
-                <div className="status-item success">
-                  <CheckCircleOutlined />
-                  <div className="status-info">
-                    <div className="status-count">
-                      {stats.statusBreakdown.success.toLocaleString()}
-                    </div>
-                    <div className="status-label">성공</div>
+        <Card>
+          <CardHeader>
+            <CardTitle>상태별 분포</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="flex items-center space-x-3">
+                <CheckCircle className="h-5 w-5 text-green-500" />
+                <div>
+                  <div className="text-lg font-semibold">
+                    {stats.statusBreakdown.success.toLocaleString()}
                   </div>
+                  <div className="text-sm text-muted-foreground">성공</div>
                 </div>
-              </Col>
-              <Col span={8}>
-                <div className="status-item error">
-                  <CloseCircleOutlined />
-                  <div className="status-info">
-                    <div className="status-count">
-                      {stats.statusBreakdown.error.toLocaleString()}
-                    </div>
-                    <div className="status-label">오류</div>
+              </div>
+              <div className="flex items-center space-x-3">
+                <XCircle className="h-5 w-5 text-red-500" />
+                <div>
+                  <div className="text-lg font-semibold">
+                    {stats.statusBreakdown.error.toLocaleString()}
                   </div>
+                  <div className="text-sm text-muted-foreground">오류</div>
                 </div>
-              </Col>
-              <Col span={8}>
-                <div className="status-item warning">
-                  <WarningOutlined />
-                  <div className="status-info">
-                    <div className="status-count">
-                      {stats.statusBreakdown.warning.toLocaleString()}
-                    </div>
-                    <div className="status-label">경고</div>
+              </div>
+              <div className="flex items-center space-x-3">
+                <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                <div>
+                  <div className="text-lg font-semibold">
+                    {stats.statusBreakdown.warning.toLocaleString()}
                   </div>
+                  <div className="text-sm text-muted-foreground">경고</div>
                 </div>
-              </Col>
-            </Row>
-          </Card>
-        </Col>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* 주요 정보 */}
-        <Col xs={24} sm={24} md={12}>
-          <Card 
-            className="stat-card highlights-card"
-            title="주요 정보"
-          >
-            <Space direction="vertical" style={{ width: '100%' }}>
+        <Card>
+          <CardHeader>
+            <CardTitle>주요 정보</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
               {topCategory && (
-                <div className="highlight-item">
-                  <span className="highlight-label">가장 많은 카테고리:</span>
-                  <span className="highlight-value">
-                    {auditLogServiceV2.getCategoryDisplayName(topCategory.category as any)}
-                    <span className="highlight-count">({topCategory.count.toLocaleString()})</span>
-                  </span>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">가장 많은 카테고리:</span>
+                  <div className="text-right">
+                    <div className="font-medium">
+                      {auditLogServiceV2.getCategoryDisplayName(topCategory.category as any)}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      ({topCategory.count.toLocaleString()})
+                    </div>
+                  </div>
                 </div>
               )}
               {topAction && (
-                <div className="highlight-item">
-                  <span className="highlight-label">가장 많은 액션:</span>
-                  <span className="highlight-value">
-                    {auditLogServiceV2.getActionDisplayName(topAction.action)}
-                    <span className="highlight-count">({topAction.count.toLocaleString()})</span>
-                  </span>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">가장 많은 액션:</span>
+                  <div className="text-right">
+                    <div className="font-medium">
+                      {auditLogServiceV2.getActionDisplayName(topAction.action)}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      ({topAction.count.toLocaleString()})
+                    </div>
+                  </div>
                 </div>
               )}
-              <div className="highlight-item">
-                <span className="highlight-label">월간 로그:</span>
-                <span className="highlight-value">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">월간 로그:</span>
+                <div className="font-medium">
                   {stats.monthlyLogs.toLocaleString()}
-                </span>
+                </div>
               </div>
-            </Space>
-          </Card>
-        </Col>
-      </Row>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };

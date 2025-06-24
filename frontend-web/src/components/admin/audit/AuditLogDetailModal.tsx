@@ -1,30 +1,19 @@
 import React, { useState } from 'react';
 import {
-  Modal,
-  Tabs,
-  Descriptions,
-  Tag,
-  Avatar,
-  Button,
-  List,
-  Empty,
-  Tooltip,
-  Space,
-  message,
-  Spin,
-} from 'antd';
-import {
-  CopyOutlined,
-  UserOutlined,
-  RobotOutlined,
-  ClockCircleOutlined,
-  EnvironmentOutlined,
-  TagOutlined,
-  FileTextOutlined,
-  LinkOutlined,
-  CodeOutlined,
-} from '@ant-design/icons';
-import { useQuery } from 'react-query';
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2, Copy, User, Bot, Clock, MapPin, Tag, FileText, Link, Code } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import ReactJson from 'react-json-view';
 import { AuditLog } from '../../../types/audit';
 import { auditLogServiceV2 } from '../../../api/auditLogServiceV2';
@@ -36,7 +25,7 @@ import {
   parseUserAgent,
 } from '../../../utils/auditLogHelpers';
 import { LOG_DETAIL_TABS } from '../../../utils/constants/auditLogConstants';
-import './AuditLogDetailModal.css';
+import { cn } from '@/lib/utils';
 
 interface AuditLogDetailModalProps {
   log: AuditLog;
@@ -48,6 +37,7 @@ export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
   onClose,
 }) => {
   const [activeTab, setActiveTab] = useState<string>('overview');
+  const { toast } = useToast();
 
   // 관련 로그 조회
   const { data: relatedLogs, isLoading: isLoadingRelated } = useQuery({
@@ -66,9 +56,14 @@ export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
   const copyToClipboard = async (text: string, label?: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      message.success(`${label || '내용'}이(가) 클립보드에 복사되었습니다`);
+      toast({
+        description: `${label || '내용'}이(가) 클립보드에 복사되었습니다`,
+      });
     } catch (error) {
-      message.error('복사에 실패했습니다');
+      toast({
+        description: '복사에 실패했습니다',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -85,156 +80,202 @@ export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
     switch (tabKey) {
       case 'overview':
         return (
-          <div className="log-overview">
-            <Descriptions column={{ xxl: 2, xl: 2, lg: 2, md: 1, sm: 1, xs: 1 }} bordered>
-              <Descriptions.Item label="시간" span={2}>
-                <div className="timestamp-detail">
-                  <ClockCircleOutlined /> {formatAbsoluteTime(log.createdAt)}
-                  <span className="relative-time">({formatRelativeTime(log.createdAt)})</span>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border rounded-lg p-4">
+              <div className="col-span-2 space-y-2">
+                <div className="text-sm font-medium text-muted-foreground">시간</div>
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  <span>{formatAbsoluteTime(log.createdAt)}</span>
+                  <span className="text-muted-foreground">({formatRelativeTime(log.createdAt)})</span>
                 </div>
-              </Descriptions.Item>
+              </div>
               
-              <Descriptions.Item label="액션">
-                <div className="action-detail">
-                  <Tag color="blue">{log.action}</Tag>
-                  <div>{auditLogServiceV2.getActionDisplayName(log.action)}</div>
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-muted-foreground">액션</div>
+                <div className="flex flex-col gap-1">
+                  <Badge variant="default">{log.action}</Badge>
+                  <div className="text-sm">{auditLogServiceV2.getActionDisplayName(log.action)}</div>
                 </div>
-              </Descriptions.Item>
+              </div>
               
-              <Descriptions.Item label="레벨">
-                <Tag color={auditLogServiceV2.getLevelColor(log.level)}>
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-muted-foreground">레벨</div>
+                <Badge className={cn(
+                  'text-white',
+                  log.level === 'error' && 'bg-red-500',
+                  log.level === 'warning' && 'bg-yellow-500',
+                  log.level === 'info' && 'bg-blue-500',
+                  log.level === 'debug' && 'bg-gray-500'
+                )}>
                   {log.level.toUpperCase()}
-                </Tag>
-              </Descriptions.Item>
+                </Badge>
+              </div>
               
-              <Descriptions.Item label="사용자">
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-muted-foreground">사용자</div>
                 {log.user ? (
-                  <div className="user-detail">
-                    <Avatar src={log.user.avatar} icon={<UserOutlined />} />
-                    <div className="user-info">
-                      <div>{log.userName || log.user.name}</div>
-                      <div className="user-email">{log.userEmail || log.user.email}</div>
+                  <div className="flex items-start gap-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={log.user.avatar} />
+                      <AvatarFallback><User className="h-4 w-4" /></AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div className="font-medium">{log.userName || log.user.name}</div>
+                      <div className="text-sm text-muted-foreground">{log.userEmail || log.user.email}</div>
                     </div>
                   </div>
                 ) : log.userId ? (
-                  <div className="user-detail">
-                    <Avatar icon={<UserOutlined />} />
-                    <div className="user-info">
-                      <div>{log.userName || 'Unknown User'}</div>
-                      <div className="user-email">{log.userEmail || `ID: ${log.userId}`}</div>
+                  <div className="flex items-start gap-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarFallback><User className="h-4 w-4" /></AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div className="font-medium">{log.userName || 'Unknown User'}</div>
+                      <div className="text-sm text-muted-foreground">{log.userEmail || `ID: ${log.userId}`}</div>
                     </div>
                   </div>
                 ) : (
-                  <Tag icon={<RobotOutlined />}>시스템</Tag>
+                  <Badge variant="secondary" className="gap-1">
+                    <Bot className="h-3 w-3" />
+                    시스템
+                  </Badge>
                 )}
-              </Descriptions.Item>
+              </div>
               
-              <Descriptions.Item label="IP 주소">
-                <Space>
-                  <EnvironmentOutlined />
-                  <code>{log.ipAddress || '-'}</code>
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-muted-foreground">IP 주소</div>
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  <code className="text-sm">{log.ipAddress || '-'}</code>
                   {log.ipAddress && (
                     <Button
-                      size="small"
-                      icon={<CopyOutlined />}
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0"
                       onClick={() => copyToClipboard(log.ipAddress!, 'IP 주소')}
-                    />
+                    >
+                      <Copy className="h-3 w-3" />
+                    </Button>
                   )}
-                </Space>
-              </Descriptions.Item>
+                </div>
+              </div>
               
-              <Descriptions.Item label="리소스">
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-muted-foreground">리소스</div>
                 {log.resourceType ? (
-                  <div className="resource-detail">
-                    <TagOutlined />
-                    <span>{auditLogServiceV2.getResourceTypeDisplayName(log.resourceType)}</span>
+                  <div className="flex items-center gap-2">
+                    <Tag className="h-4 w-4" />
+                    <span className="text-sm">{auditLogServiceV2.getResourceTypeDisplayName(log.resourceType)}</span>
                     {log.resourceId && (
-                      <code className="resource-id">#{log.resourceId}</code>
+                      <code className="text-sm text-muted-foreground">#{log.resourceId}</code>
                     )}
                   </div>
                 ) : (
-                  <span>-</span>
+                  <span className="text-sm">-</span>
                 )}
-              </Descriptions.Item>
+              </div>
               
-              <Descriptions.Item label="카테고리">
-                <Tag color={auditLogServiceV2.getCategoryColor(log.category)}>
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-muted-foreground">카테고리</div>
+                <Badge variant="outline">
                   {auditLogServiceV2.getCategoryDisplayName(log.category)}
-                </Tag>
-              </Descriptions.Item>
+                </Badge>
+              </div>
               
-              <Descriptions.Item label="상태">
-                <Tag color={auditLogServiceV2.getStatusColor(log.status)}>
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-muted-foreground">상태</div>
+                <Badge className={cn(
+                  log.status === 'success' && 'bg-green-500 text-white',
+                  log.status === 'failed' && 'bg-red-500 text-white',
+                  log.status === 'pending' && 'bg-yellow-500 text-white'
+                )}>
                   {auditLogServiceV2.getStatusDisplayName(log.status)}
-                </Tag>
-              </Descriptions.Item>
+                </Badge>
+              </div>
               
               {log.details && (
-                <Descriptions.Item label="상세 설명" span={2}>
-                  <div className="detail-text">{log.details}</div>
-                </Descriptions.Item>
+                <div className="col-span-2 space-y-2">
+                  <div className="text-sm font-medium text-muted-foreground">상세 설명</div>
+                  <div className="text-sm">{log.details}</div>
+                </div>
               )}
               
               {userAgentInfo && (
-                <Descriptions.Item label="클라이언트 정보" span={2}>
-                  <Space>
-                    <Tag>{userAgentInfo.browser}</Tag>
-                    <Tag>{userAgentInfo.os}</Tag>
-                    <Tag>{userAgentInfo.device}</Tag>
-                  </Space>
-                  {log.userAgent && (
-                    <Tooltip title={log.userAgent}>
-                      <Button size="small" icon={<FileTextOutlined />}>
-                        전체 보기
-                      </Button>
-                    </Tooltip>
-                  )}
-                </Descriptions.Item>
+                <div className="col-span-2 space-y-2">
+                  <div className="text-sm font-medium text-muted-foreground">클라이언트 정보</div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="secondary">{userAgentInfo.browser}</Badge>
+                    <Badge variant="secondary">{userAgentInfo.os}</Badge>
+                    <Badge variant="secondary">{userAgentInfo.device}</Badge>
+                    {log.userAgent && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button size="sm" variant="outline" className="gap-1">
+                              <FileText className="h-3 w-3" />
+                              전체 보기
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="max-w-xs">{log.userAgent}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                  </div>
+                </div>
               )}
-            </Descriptions>
+            </div>
           </div>
         );
 
       case 'details':
         return (
-          <div className="log-details">
+          <div className="space-y-6">
             {changes && changes.length > 0 && (
-              <div className="changes-section">
-                <h4>변경사항</h4>
-                <List
-                  dataSource={changes}
-                  renderItem={(change) => (
-                    <List.Item className={change.isChanged ? 'changed' : ''}>
-                      <List.Item.Meta
-                        title={change.key}
-                        description={
-                          <div className="change-values">
-                            <div className="old-value">
-                              <span className="label">이전:</span>
-                              <code>{JSON.stringify(change.oldValue)}</code>
-                            </div>
-                            <div className="new-value">
-                              <span className="label">이후:</span>
-                              <code>{JSON.stringify(change.newValue)}</code>
-                            </div>
-                          </div>
-                        }
-                      />
-                    </List.Item>
-                  )}
-                />
+              <div>
+                <h4 className="text-lg font-semibold mb-4">변경사항</h4>
+                <div className="space-y-3">
+                  {changes.map((change, index) => (
+                    <div
+                      key={index}
+                      className={cn(
+                        "border rounded-lg p-4",
+                        change.isChanged && "border-orange-500 bg-orange-50"
+                      )}
+                    >
+                      <div className="font-medium mb-2">{change.key}</div>
+                      <div className="space-y-2">
+                        <div className="flex gap-2">
+                          <span className="text-sm text-muted-foreground min-w-[3rem]">이전:</span>
+                          <code className="text-sm bg-muted px-2 py-1 rounded">
+                            {JSON.stringify(change.oldValue)}
+                          </code>
+                        </div>
+                        <div className="flex gap-2">
+                          <span className="text-sm text-muted-foreground min-w-[3rem]">이후:</span>
+                          <code className="text-sm bg-muted px-2 py-1 rounded">
+                            {JSON.stringify(change.newValue)}
+                          </code>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
             {log.metadata && Object.keys(log.metadata).length > 0 && (
-              <div className="metadata-section">
-                <div className="section-header">
-                  <h4>메타데이터</h4>
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-lg font-semibold">메타데이터</h4>
                   <Button
-                    size="small"
-                    icon={<CopyOutlined />}
+                    size="sm"
+                    variant="outline"
                     onClick={() => copyToClipboard(JSON.stringify(log.metadata, null, 2), '메타데이터')}
                   >
+                    <Copy className="h-3 w-3 mr-1" />
                     복사
                   </Button>
                 </div>
@@ -249,27 +290,61 @@ export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
             )}
 
             {!changes && !log.metadata && (
-              <Empty description="추가 상세 정보가 없습니다" />
+              <div className="text-center py-8 text-muted-foreground">
+                추가 상세 정보가 없습니다
+              </div>
             )}
           </div>
         );
 
       case 'related':
         return (
-          <div className="related-logs">
+          <div>
             {isLoadingRelated ? (
-              <div className="loading-container">
-                <Spin tip="관련 로그를 불러오는 중..." />
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                <span className="text-muted-foreground">관련 로그를 불러오는 중...</span>
               </div>
             ) : relatedLogs && relatedLogs.length > 0 ? (
-              <List
-                dataSource={relatedLogs}
-                renderItem={(relatedLog) => (
-                  <List.Item
-                    className="related-log-item"
-                    actions={[
+              <div className="space-y-3">
+                {relatedLogs.map((relatedLog, index) => (
+                  <div key={index} className="border rounded-lg p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-3 flex-1">
+                        <Badge className={cn(
+                          'text-white mt-1',
+                          relatedLog.level === 'error' && 'bg-red-500',
+                          relatedLog.level === 'warning' && 'bg-yellow-500',
+                          relatedLog.level === 'info' && 'bg-blue-500',
+                          relatedLog.level === 'debug' && 'bg-gray-500'
+                        )}>
+                          {relatedLog.level}
+                        </Badge>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-medium">
+                              {auditLogServiceV2.getActionDisplayName(relatedLog.action)}
+                            </span>
+                            <span className="text-sm text-muted-foreground">
+                              {formatRelativeTime(relatedLog.createdAt)}
+                            </span>
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {relatedLog.resourceType && (
+                              <span>
+                                {auditLogServiceV2.getResourceTypeDisplayName(relatedLog.resourceType)}
+                                {relatedLog.resourceId && `: ${relatedLog.resourceId}`}
+                              </span>
+                            )}
+                            {relatedLog.details && (
+                              <div className="mt-1">{relatedLog.details}</div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                       <Button
-                        type="link"
+                        variant="link"
+                        size="sm"
                         onClick={() => {
                           // 관련 로그 상세 보기
                           onClose();
@@ -278,55 +353,29 @@ export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
                       >
                         상세 보기
                       </Button>
-                    ]}
-                  >
-                    <List.Item.Meta
-                      avatar={
-                        <Tag color={auditLogServiceV2.getLevelColor(relatedLog.level)}>
-                          {relatedLog.level}
-                        </Tag>
-                      }
-                      title={
-                        <div className="related-log-title">
-                          <span>{auditLogServiceV2.getActionDisplayName(relatedLog.action)}</span>
-                          <span className="timestamp">
-                            {formatRelativeTime(relatedLog.createdAt)}
-                          </span>
-                        </div>
-                      }
-                      description={
-                        <div className="related-log-description">
-                          {relatedLog.resourceType && (
-                            <span>
-                              {auditLogServiceV2.getResourceTypeDisplayName(relatedLog.resourceType)}
-                              {relatedLog.resourceId && `: ${relatedLog.resourceId}`}
-                            </span>
-                          )}
-                          {relatedLog.details && (
-                            <div className="details">{relatedLog.details}</div>
-                          )}
-                        </div>
-                      }
-                    />
-                  </List.Item>
-                )}
-              />
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : (
-              <Empty description="관련 로그가 없습니다" />
+              <div className="text-center py-8 text-muted-foreground">
+                관련 로그가 없습니다
+              </div>
             )}
           </div>
         );
 
       case 'raw':
         return (
-          <div className="raw-data">
-            <div className="section-header">
-              <h4>Raw 데이터</h4>
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-lg font-semibold">Raw 데이터</h4>
               <Button
-                size="small"
-                icon={<CopyOutlined />}
+                size="sm"
+                variant="outline"
                 onClick={() => copyToClipboard(JSON.stringify(log, null, 2), 'Raw 데이터')}
               >
+                <Copy className="h-3 w-3 mr-1" />
                 복사
               </Button>
             </div>
@@ -346,42 +395,49 @@ export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
   };
 
   return (
-    <Modal
-      title={
-        <div className="log-modal-title">
-          <span>감사 로그 상세</span>
-          <Tag color={auditLogServiceV2.getLevelColor(log.level)}>
-            {log.level.toUpperCase()}
-          </Tag>
-          <Tag color={auditLogServiceV2.getStatusColor(log.status)}>
-            {auditLogServiceV2.getStatusDisplayName(log.status)}
-          </Tag>
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <span>감사 로그 상세</span>
+            <Badge className={cn(
+              'text-white',
+              log.level === 'error' && 'bg-red-500',
+              log.level === 'warning' && 'bg-yellow-500',
+              log.level === 'info' && 'bg-blue-500',
+              log.level === 'debug' && 'bg-gray-500'
+            )}>
+              {log.level.toUpperCase()}
+            </Badge>
+            <Badge className={cn(
+              log.status === 'success' && 'bg-green-500 text-white',
+              log.status === 'failed' && 'bg-red-500 text-white',
+              log.status === 'pending' && 'bg-yellow-500 text-white'
+            )}>
+              {auditLogServiceV2.getStatusDisplayName(log.status)}
+            </Badge>
+          </DialogTitle>
+        </DialogHeader>
+        <div className="overflow-y-auto max-h-[calc(90vh-120px)]">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid w-full grid-cols-4">
+              {LOG_DETAIL_TABS.map(tab => (
+                <TabsTrigger key={tab.key} value={tab.key}>
+                  {tab.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            {LOG_DETAIL_TABS.map(tab => (
+              <TabsContent key={tab.key} value={tab.key} className="mt-4">
+                {renderTabContent(tab.key)}
+              </TabsContent>
+            ))}
+          </Tabs>
         </div>
-      }
-      open={true}
-      onCancel={onClose}
-      width={900}
-      footer={[
-        <Button key="close" onClick={onClose}>
-          닫기
-        </Button>,
-      ]}
-      className="audit-log-detail-modal"
-    >
-      <Tabs
-        activeKey={activeTab}
-        onChange={setActiveTab}
-        items={LOG_DETAIL_TABS.map(tab => ({
-          key: tab.key,
-          label: (
-            <span>
-              {tab.icon && <span className="tab-icon">{tab.icon}</span>}
-              {tab.label}
-            </span>
-          ),
-          children: renderTabContent(tab.key),
-        }))}
-      />
-    </Modal>
+        <DialogFooter>
+          <Button onClick={onClose}>닫기</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };

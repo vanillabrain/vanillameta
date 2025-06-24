@@ -1,8 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { Tree, Button, Spin } from 'antd';
-import type { DataNode } from 'antd/es/tree';
+import { ChevronRight, ChevronDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Tree, TreeNode } from '@/components/ui/tree';
+import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { GroupedPermissions, Permission } from '../../../api/adminRoleService';
-import './PermissionTree.css';
 
 interface PermissionTreeProps {
   groupedPermissions: GroupedPermissions;
@@ -52,48 +55,55 @@ const PermissionTree: React.FC<PermissionTreeProps> = ({
   loading = false,
   disabled = false,
 }) => {
-  const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
-  const [checkedKeys, setCheckedKeys] = useState<string[]>(selectedPermissions);
+  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
+  const [checkedKeys, setCheckedKeys] = useState<Set<string>>(new Set(selectedPermissions));
 
   // 트리 데이터 구성
   const treeData = useMemo(() => {
-    const data: DataNode[] = [];
+    const data: TreeNode[] = [];
 
     Object.entries(groupedPermissions).forEach(([module, resources]) => {
       const moduleKey = `module-${module}`;
       const modulePermissionCount = Object.values(resources).flat().length;
       
-      const moduleNode: DataNode = {
-        title: (
-          <div className="permission-module">
-            <span className="module-name">{getModuleDisplayName(module)}</span>
-            <span className="module-count">({modulePermissionCount}개 권한)</span>
+      const moduleNode: TreeNode = {
+        id: moduleKey,
+        label: (
+          <div className="flex items-center justify-between w-full">
+            <div className="flex flex-col">
+              <span className="font-medium">{getModuleDisplayName(module)}</span>
+              <span className="text-xs text-muted-foreground">
+                {modulePermissionCount}개 권한
+              </span>
+            </div>
           </div>
         ),
-        key: moduleKey,
         children: [],
       };
 
       Object.entries(resources).forEach(([resource, permissions]) => {
         const resourceKey = `resource-${module}-${resource}`;
         
-        const resourceNode: DataNode = {
-          title: (
-            <div className="permission-resource">
-              <span className="resource-name">{getResourceDisplayName(resource)}</span>
-              <span className="resource-count">({permissions.length}개)</span>
+        const resourceNode: TreeNode = {
+          id: resourceKey,
+          label: (
+            <div className="flex items-center justify-between w-full">
+              <span className="font-medium">{getResourceDisplayName(resource)}</span>
+              <span className="text-xs text-muted-foreground">
+                {permissions.length}개
+              </span>
             </div>
           ),
-          key: resourceKey,
           children: permissions.map(permission => ({
-            title: (
-              <div className="permission-item">
-                <span className="permission-name">{permission.displayName}</span>
-                <span className="permission-description">{permission.description}</span>
+            id: permission.id,
+            label: (
+              <div className="flex flex-col">
+                <span className="text-sm">{permission.displayName}</span>
+                <span className="text-xs text-muted-foreground">
+                  {permission.description}
+                </span>
               </div>
             ),
-            key: permission.id,
-            isLeaf: true,
           })),
         };
 
@@ -107,129 +117,175 @@ const PermissionTree: React.FC<PermissionTreeProps> = ({
   }, [groupedPermissions]);
 
   // 체크 핸들러
-  const handleCheck = (checkedKeysValue: any) => {
-    // 리프 노드(실제 권한)만 필터링
-    const permissionIds = checkedKeysValue.filter((key: string) => 
+  const handleNodeCheck = (nodeId: string, checked: boolean) => {
+    const newCheckedKeys = new Set(checkedKeys);
+    
+    // 실제 권한 ID인지 확인
+    const isPermission = !nodeId.startsWith('module-') && !nodeId.startsWith('resource-');
+    
+    if (isPermission) {
+      if (checked) {
+        newCheckedKeys.add(nodeId);
+      } else {
+        newCheckedKeys.delete(nodeId);
+      }
+    } else {
+      // 모듈이나 리소스의 경우 하위 권한들도 함께 처리
+      const updateChildNodes = (node: TreeNode, check: boolean) => {
+        if (node.children) {
+          node.children.forEach(child => {
+            if (!child.id.startsWith('module-') && !child.id.startsWith('resource-')) {
+              if (check) {
+                newCheckedKeys.add(child.id);
+              } else {
+                newCheckedKeys.delete(child.id);
+              }
+            }
+            updateChildNodes(child, check);
+          });
+        }
+      };
+
+      const findAndUpdateNode = (nodes: TreeNode[], targetId: string) => {
+        for (const node of nodes) {
+          if (node.id === targetId) {
+            updateChildNodes(node, checked);
+            return;
+          }
+          if (node.children) {
+            findAndUpdateNode(node.children, targetId);
+          }
+        }
+      };
+
+      findAndUpdateNode(treeData, nodeId);
+    }
+    
+    setCheckedKeys(newCheckedKeys);
+    
+    // 실제 권한 ID만 필터링하여 콜백
+    const permissionIds = Array.from(newCheckedKeys).filter(key => 
       !key.startsWith('module-') && !key.startsWith('resource-')
     );
-    setCheckedKeys(checkedKeysValue);
     onPermissionChange(permissionIds);
   };
 
-  // 모듈별 전체 선택/해제
-  const handleSelectAllInModule = (module: string) => {
-    const modulePermissions = Object.values(groupedPermissions[module] || {})
-      .flat()
-      .map(p => p.id);
-    
-    const allModuleKeys = [
-      `module-${module}`,
-      ...Object.keys(groupedPermissions[module] || {}).map(resource => 
-        `resource-${module}-${resource}`
-      ),
-      ...modulePermissions,
-    ];
-    
-    const newCheckedKeys = [...new Set([...checkedKeys, ...allModuleKeys])];
-    setCheckedKeys(newCheckedKeys);
-    
-    const permissionIds = newCheckedKeys.filter(key => 
-      !key.startsWith('module-') && !key.startsWith('resource-')
-    );
-    onPermissionChange(permissionIds);
+  // 확장/축소 핸들러
+  const handleNodeExpand = (nodeId: string, expanded: boolean) => {
+    const newExpandedKeys = new Set(expandedKeys);
+    if (expanded) {
+      newExpandedKeys.add(nodeId);
+    } else {
+      newExpandedKeys.delete(nodeId);
+    }
+    setExpandedKeys(newExpandedKeys);
   };
 
-  // 모듈별 전체 해제
-  const handleDeselectAllInModule = (module: string) => {
-    const modulePermissions = Object.values(groupedPermissions[module] || {})
-      .flat()
-      .map(p => p.id);
-    
-    const moduleKeys = [
-      `module-${module}`,
-      ...Object.keys(groupedPermissions[module] || {}).map(resource => 
-        `resource-${module}-${resource}`
-      ),
-      ...modulePermissions,
-    ];
-    
-    const newCheckedKeys = checkedKeys.filter(key => !moduleKeys.includes(key));
-    setCheckedKeys(newCheckedKeys);
-    
-    const permissionIds = newCheckedKeys.filter(key => 
-      !key.startsWith('module-') && !key.startsWith('resource-')
-    );
-    onPermissionChange(permissionIds);
+  // 전체 확장/축소
+  const expandAll = () => {
+    const allKeys = new Set<string>();
+    const collectKeys = (nodes: TreeNode[]) => {
+      nodes.forEach(node => {
+        if (node.children && node.children.length > 0) {
+          allKeys.add(node.id);
+          collectKeys(node.children);
+        }
+      });
+    };
+    collectKeys(treeData);
+    setExpandedKeys(allKeys);
   };
+
+  const collapseAll = () => {
+    setExpandedKeys(new Set());
+  };
+
+  // 권한 체크 상태 확인
+  const getCheckedState = (node: TreeNode): boolean | 'indeterminate' => {
+    if (!node.children || node.children.length === 0) {
+      return checkedKeys.has(node.id);
+    }
+
+    let checkedCount = 0;
+    let totalCount = 0;
+
+    const countChecked = (children: TreeNode[]) => {
+      children.forEach(child => {
+        if (!child.children || child.children.length === 0) {
+          totalCount++;
+          if (checkedKeys.has(child.id)) {
+            checkedCount++;
+          }
+        } else {
+          countChecked(child.children);
+        }
+      });
+    };
+
+    countChecked(node.children);
+
+    if (checkedCount === 0) return false;
+    if (checkedCount === totalCount) return true;
+    return 'indeterminate';
+  };
+
+  // 수정된 트리 데이터 (체크 상태 포함)
+  const treeDataWithChecked = useMemo(() => {
+    const addCheckedState = (nodes: TreeNode[]): TreeNode[] => {
+      return nodes.map(node => ({
+        ...node,
+        checked: getCheckedState(node),
+        expanded: expandedKeys.has(node.id),
+        children: node.children ? addCheckedState(node.children) : undefined,
+      }));
+    };
+    return addCheckedState(treeData);
+  }, [treeData, checkedKeys, expandedKeys]);
 
   return (
-    <div className="permission-tree">
-      <div className="permission-tree-header">
-        <div className="bulk-actions">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-medium">권한 설정</h3>
+        <div className="flex gap-2">
           <Button
-            size="small"
-            onClick={() => {
-              const allKeys = treeData.map(node => node.key as string);
-              setExpandedKeys(allKeys);
-            }}
+            size="sm"
+            variant="outline"
+            onClick={expandAll}
+            disabled={disabled}
           >
             모두 펼치기
           </Button>
           <Button
-            size="small"
-            onClick={() => setExpandedKeys([])}
+            size="sm"
+            variant="outline"
+            onClick={collapseAll}
+            disabled={disabled}
           >
             모두 접기
           </Button>
         </div>
       </div>
 
-      <Tree
-        checkable
-        disabled={disabled}
-        checkedKeys={checkedKeys}
-        expandedKeys={expandedKeys}
-        onExpand={setExpandedKeys}
-        onCheck={handleCheck}
-        treeData={treeData}
-        className="permission-tree-content"
-        titleRender={(nodeData: any) => {
-          if (nodeData.key.startsWith('module-')) {
-            const module = nodeData.key.replace('module-', '');
-            return (
-              <div className="tree-node-title">
-                {nodeData.title}
-                {!disabled && (
-                  <div className="module-actions" onClick={(e) => e.stopPropagation()}>
-                    <Button
-                      size="small"
-                      type="text"
-                      onClick={() => handleSelectAllInModule(module)}
-                    >
-                      전체 선택
-                    </Button>
-                    <Button
-                      size="small"
-                      type="text"
-                      onClick={() => handleDeselectAllInModule(module)}
-                    >
-                      전체 해제
-                    </Button>
-                  </div>
-                )}
-              </div>
-            );
-          }
-          return nodeData.title;
-        }}
-      />
-
-      {loading && (
-        <div className="permission-tree-loading">
-          <Spin size="small" />
-          <span>권한 업데이트 중...</span>
+      <ScrollArea className="h-[500px] rounded-md border">
+        <div className="p-4">
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Spinner size="md" />
+              <span className="ml-2 text-sm text-muted-foreground">
+                권한 업데이트 중...
+              </span>
+            </div>
+          ) : (
+            <Tree
+              data={treeDataWithChecked}
+              onNodeCheck={handleNodeCheck}
+              onNodeExpand={handleNodeExpand}
+              showCheckbox={!disabled}
+              className="space-y-2"
+            />
+          )}
         </div>
-      )}
+      </ScrollArea>
     </div>
   );
 };
