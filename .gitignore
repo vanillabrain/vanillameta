@@ -286,3 +286,19 @@ key.pem
 
 # package-lock.json은 각 프로젝트 디렉토리에만 있어야 함
 /package-lock.json
+
+dev-debug.log
+# Environment variables
+# Editor directories and files
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+# OS specific
+
+# Task files
+# tasks.json
+# tasks/ 
