@@ -9,11 +9,17 @@ import { YesNo } from '../../common/enum/yn.enum';
 
 export default class CreateInitialData implements Seeder {
   public async run(dataSource: DataSource): Promise<any> {
-    await dataSource
-      .createQueryBuilder()
-      .insert()
-      .into(Component)
-      .values([
+    console.log('🌱 Starting CreateInitialData seeder...');
+    
+    // Component 데이터가 이미 있는지 확인
+    const componentCount = await dataSource.getRepository(Component).count();
+    console.log(`📊 Current component count: ${componentCount}`);
+    if (componentCount === 0) {
+      await dataSource
+        .createQueryBuilder()
+        .insert()
+        .into(Component)
+        .values([
         {
           createdAt: '2022-09-28 19:55:38',
           updatedAt: '2022-11-04 11:08:50.607012',
@@ -721,11 +727,19 @@ export default class CreateInitialData implements Seeder {
         },
       ])
       .execute();
+      console.log('✅ Components seeded (53 items)');
+    } else {
+      console.log('⏩ Components already exist, skipping...');
+    }
 
-    await dataSource
-      .createQueryBuilder()
-      .insert()
-      .into(DatabaseType)
+    // DatabaseType 데이터가 이미 있는지 확인
+    const databaseTypeCount = await dataSource.getRepository(DatabaseType).count();
+    console.log(`📊 Current databaseType count: ${databaseTypeCount}`);
+    if (databaseTypeCount === 0) {
+      await dataSource
+        .createQueryBuilder()
+        .insert()
+        .into(DatabaseType)
       .values([
         {
           id: 1,
@@ -859,11 +873,19 @@ export default class CreateInitialData implements Seeder {
         },
       ])
       .execute();
+      console.log('✅ DatabaseTypes seeded (13 items)');
+    } else {
+      console.log('⏩ DatabaseTypes already exist, skipping...');
+    }
 
-    await dataSource
-      .createQueryBuilder()
-      .insert()
-      .into(Template)
+    // Template 데이터가 이미 있는지 확인
+    const templateCount = await dataSource.getRepository(Template).count();
+    console.log(`📊 Current template count: ${templateCount}`);
+    if (templateCount === 0) {
+      await dataSource
+        .createQueryBuilder()
+        .insert()
+        .into(Template)
       .values([
         {
           createdAt: '2022-10-18 20:09:15.813098',
@@ -952,11 +974,19 @@ export default class CreateInitialData implements Seeder {
         },
       ])
       .execute();
+      console.log('✅ Templates seeded (10 items)');
+    } else {
+      console.log('⏩ Templates already exist, skipping...');
+    }
 
-    await dataSource
-      .createQueryBuilder()
-      .insert()
-      .into(TemplateItem)
+    // TemplateItem 데이터가 이미 있는지 확인
+    const templateItemCount = await dataSource.getRepository(TemplateItem).count();
+    console.log(`📊 Current templateItem count: ${templateItemCount}`);
+    if (templateItemCount === 0) {
+      await dataSource
+        .createQueryBuilder()
+        .insert()
+        .into(TemplateItem)
       .values([
         {
           createdAt: '2022-10-18 20:09:30.535188',
@@ -1512,11 +1542,18 @@ export default class CreateInitialData implements Seeder {
         },
       ])
       .execute();
+      console.log('✅ TemplateItems seeded (49 items)');
+    } else {
+      console.log('⏩ TemplateItems already exist, skipping...');
+    }
 
-    await dataSource
-      .createQueryBuilder()
-      .insert()
-      .into(User)
+    // Guest 사용자가 이미 있는지 확인
+    const guestUser = await dataSource.getRepository(User).findOne({ where: { email: 'guest@gmail.com' } });
+    if (!guestUser) {
+      await dataSource
+        .createQueryBuilder()
+        .insert()
+        .into(User)
       .values([
         {
           id: 1,
@@ -1527,5 +1564,11 @@ export default class CreateInitialData implements Seeder {
         },
       ])
       .execute();
+      console.log('✅ Guest user seeded');
+    } else {
+      console.log('⏩ Guest user already exists, skipping...');
+    }
+    
+    console.log('🎉 CreateInitialData seeder completed!');
   }
 }

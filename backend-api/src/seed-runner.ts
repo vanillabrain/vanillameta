@@ -4,6 +4,7 @@ import { DataSource } from 'typeorm';
 import { seedDemoData, createDemoSalesTable } from './database/seeds/demo-data.seed';
 import { User, UserStatus } from './user/entities/user.entity';
 import * as crypto from 'crypto';
+import CreateInitialData from './database/seeds/create-initial-data';
 
 async function runSeed() {
   console.log('🌱 Starting seed process...');
@@ -31,6 +32,11 @@ async function runSeed() {
       console.log('ℹ️ Admin user already exists');
     }
 
+    // 초기 데이터 시더 실행 (components, database types, templates 등)
+    const initialDataSeeder = new CreateInitialData();
+    await initialDataSeeder.run(dataSource);
+    console.log('✅ Initial data seeded');
+    
     // 데모 데이터 생성
     await seedDemoData(dataSource);
 

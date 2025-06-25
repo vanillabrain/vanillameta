@@ -1,9 +1,11 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { User, UserStatus } from '../../user/entities/user.entity';
 import { DatabaseType } from '../../database/entities/database_type.entity';
+import { Component } from '../../component/entities/component.entity';
 import { CustomLoggerService } from '../logger/logger.service';
+import CreateInitialData from '../../database/seeds/create-initial-data';
 import * as crypto from 'crypto';
 
 @Injectable()
@@ -13,7 +15,10 @@ export class InitializationService implements OnModuleInit {
     private readonly userRepository: Repository<User>,
     @InjectRepository(DatabaseType)
     private readonly databaseTypeRepository: Repository<DatabaseType>,
+    @InjectRepository(Component)
+    private readonly componentRepository: Repository<Component>,
     private readonly logger: CustomLoggerService,
+    private readonly dataSource: DataSource,
   ) {}
 
   async onModuleInit() {
@@ -24,7 +29,12 @@ export class InitializationService implements OnModuleInit {
 
   private async initializeLocalData() {
     try {
-      // 1. 기본 관리자 사용자 생성
+      // 1. create-initial-data.ts 실행 (Components, DatabaseTypes, Templates, TemplateItems, Guest user)
+      const initialDataSeeder = new CreateInitialData();
+      await initialDataSeeder.run(this.dataSource);
+      this.logger.log('✅ Initial data seeded from create-initial-data.ts', 'InitializationService');
+      
+      // 2. 기본 관리자 사용자 생성
       const adminExists = await this.userRepository.findOne({
         where: { email: 'admin@example.com' },
       });
@@ -43,42 +53,6 @@ export class InitializationService implements OnModuleInit {
         );
       }
 
-      // 2. SQLite 데이터베이스 타입 생성
-      const sqliteExists = await this.databaseTypeRepository.findOne({
-        where: { engine: 'sqlite' },
-      });
-
-      if (!sqliteExists) {
-        await this.databaseTypeRepository.save({
-          type: 'sqlite',
-          engine: 'sqlite',
-          title: 'SQLite',
-          seq: 1,
-          useYn: 'Y',
-        });
-        this.logger.log('✅ SQLite database type created', 'InitializationService');
-      }
-
-      // 3. 기타 데이터베이스 타입 생성
-      const dbTypes = [
-        { type: 'mysql', engine: 'mysql', title: 'MySQL', seq: 2 },
-        { type: 'postgresql', engine: 'postgresql', title: 'PostgreSQL', seq: 3 },
-        { type: 'mariadb', engine: 'mariadb', title: 'MariaDB', seq: 4 },
-      ];
-
-      for (const dbType of dbTypes) {
-        const exists = await this.databaseTypeRepository.findOne({
-          where: { engine: dbType.engine },
-        });
-
-        if (!exists) {
-          await this.databaseTypeRepository.save({
-            ...dbType,
-            useYn: 'Y',
-          });
-          this.logger.log(`✅ ${dbType.title} database type created`, 'InitializationService');
-        }
-      }
 
       this.logger.log('🎉 Local environment initialization completed', 'InitializationService');
     } catch (error) {
