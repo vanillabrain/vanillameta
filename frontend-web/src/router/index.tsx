@@ -24,6 +24,7 @@ const Login = lazy(() => import(/* webpackChunkName: "login" */ '@/pages/Login')
 const Share = lazy(() => import(/* webpackChunkName: "share" */ '@/pages/Share'));
 const SignUp = lazy(() => import(/* webpackChunkName: "signup" */ '@/pages/SignUp'));
 const AdminRoutes = lazy(() => import(/* webpackChunkName: "admin" */ '@/pages/Admin/AdminRoutes'));
+const ComponentShowcase = lazy(() => import(/* webpackChunkName: "component-showcase" */ '@/pages/ComponentShowcase'));
 
 // Loading fallback component
 const PageLoading = () => <Loading in={true} style={{ opacity: 0.4 }} />;
@@ -43,24 +44,24 @@ function Router() {
             }
           >
             <Route index element={<Navigate to="/dashboard" replace={true} />} />
-            <Route 
-              path="/dashboard" 
+            <Route
+              path="/dashboard"
               element={
                 <RouteErrorBoundary routeName="dashboard">
                   <Dashboard />
                 </RouteErrorBoundary>
-              } 
+              }
             />
-            <Route 
-              path="/dashboard/:dashboardId" 
+            <Route
+              path="/dashboard/:dashboardId"
               element={
                 <RouteErrorBoundary routeName="dashboard-view">
                   <DashboardView />
                 </RouteErrorBoundary>
-              } 
+              }
             />
-            <Route 
-              path="/dashboard/create" 
+            <Route
+              path="/dashboard/create"
               element={
                 <RouteErrorBoundary routeName="dashboard-create">
                   <DashboardCreate />
@@ -69,8 +70,8 @@ function Router() {
             >
               <Route path=":createType" element={<DashboardCreate />} />
             </Route>
-            <Route 
-              path="/dashboard/modify" 
+            <Route
+              path="/dashboard/modify"
               element={
                 <RouteErrorBoundary routeName="dashboard-modify">
                   <DashboardModify />
@@ -79,32 +80,32 @@ function Router() {
             >
               <Route path=":dashboardId" element={<DashboardModify />} />
             </Route>
-            <Route 
-              path="/widget" 
+            <Route
+              path="/widget"
               element={
                 <RouteErrorBoundary routeName="widget">
                   <Widget />
                 </RouteErrorBoundary>
-              } 
+              }
             />
-            <Route 
-              path="/widget/:widgetId" 
+            <Route
+              path="/widget/:widgetId"
               element={
                 <RouteErrorBoundary routeName="widget-view">
                   <WidgetView />
                 </RouteErrorBoundary>
-              } 
+              }
             />
-            <Route 
-              path="/widget/create" 
+            <Route
+              path="/widget/create"
               element={
                 <RouteErrorBoundary routeName="widget-create">
                   <WidgetCreate />
                 </RouteErrorBoundary>
-              } 
+              }
             />
-            <Route 
-              path="/widget/modify" 
+            <Route
+              path="/widget/modify"
               element={
                 <RouteErrorBoundary routeName="widget-modify">
                   <WidgetModify />
@@ -114,24 +115,24 @@ function Router() {
               <Route path=":widgetId" element={<WidgetModify />} />
             </Route>
 
-            <Route 
-              path="/data" 
+            <Route
+              path="/data"
               element={
                 <RouteErrorBoundary routeName="data">
                   <Data />
                 </RouteErrorBoundary>
-              } 
+              }
             />
-            <Route 
-              path="/data/source/create" 
+            <Route
+              path="/data/source/create"
               element={
                 <RouteErrorBoundary routeName="data-source-create">
                   <DataSource />
                 </RouteErrorBoundary>
-              } 
+              }
             />
-            <Route 
-              path="/data/source/modify" 
+            <Route
+              path="/data/source/modify"
               element={
                 <RouteErrorBoundary routeName="data-source-modify">
                   <DataSource />
@@ -141,8 +142,8 @@ function Router() {
               <Route path=":sourceId" element={<DataSource />} />
             </Route>
 
-            <Route 
-              path="/data/set/create" 
+            <Route
+              path="/data/set/create"
               element={
                 <RouteErrorBoundary routeName="data-set-create">
                   <DataSet />
@@ -151,8 +152,8 @@ function Router() {
             >
               <Route path=":sourceId" element={<DataSet />} />
             </Route>
-            <Route 
-              path="/data/set/modify" 
+            <Route
+              path="/data/set/modify"
               element={
                 <RouteErrorBoundary routeName="data-set-modify">
                   <DataSet />
@@ -163,38 +164,48 @@ function Router() {
             </Route>
             <Route path="/*" element={<Status404 />} />
           </Route>
-          <Route 
-            path="/login" 
+          <Route
+            path="/login"
             element={
               <RouteErrorBoundary routeName="login">
                 <Login />
               </RouteErrorBoundary>
-            } 
+            }
           />
-          <Route 
-            path="/signup" 
+          <Route
+            path="/signup"
             element={
               <RouteErrorBoundary routeName="signup">
                 <SignUp />
               </RouteErrorBoundary>
-            } 
+            }
           />
-          <Route 
-            path="/admin/*" 
+          <Route
+            path="/admin/*"
             element={
               <RouteErrorBoundary routeName="admin">
                 <AdminRoutes />
               </RouteErrorBoundary>
-            } 
+            }
+          />
+          <Route
+            path="/component-showcase"
+            element={
+              <ProtectedRoute>
+                <RouteErrorBoundary routeName="component-showcase">
+                  <ComponentShowcase />
+                </RouteErrorBoundary>
+              </ProtectedRoute>
+            }
           />
           <Route path="/" element={<PublicLayout />}>
-            <Route 
-              path="/share/:dashboardUuid" 
+            <Route
+              path="/share/:dashboardUuid"
               element={
                 <RouteErrorBoundary routeName="share">
                   <Share />
                 </RouteErrorBoundary>
-              } 
+              }
             />
             <Route path="*" element={<Status404 />} />
           </Route>

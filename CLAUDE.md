@@ -1,361 +1,417 @@
-# CLAUDE.md
+# Task Master AI - Claude Code Integration Guide
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+## Essential Commands
 
-## 프로젝트 개요
+### Core Workflow Commands
 
-VanillaMeta는 기업용 비즈니스 인텔리전스(BI) 웹 애플리케이션으로, 사용자가 코드 작성 없이 다양한 데이터베이스에 연결하여 시각화를 생성하고 대시보드를 구축할 수 있습니다.
+```bash
+# Project Setup
+task-master init                                    # Initialize Task Master in current project
+task-master parse-prd .taskmaster/docs/prd.txt      # Generate tasks from PRD document
+task-master models --setup                        # Configure AI models interactively
 
-### 주요 기능
+# Daily Development Workflow
+task-master list                                   # Show all tasks with status
+task-master next                                   # Get next available task to work on
+task-master show <id>                             # View detailed task information (e.g., task-master show 1.2)
+task-master set-status --id=<id> --status=done    # Mark task complete
 
-- 🎨 코딩 없는 차트 제작: 직관적인 UI로 차트 위젯 생성
-- 📊 50+ 차트 타입 지원: Apache ECharts 기반 다양한 시각화 옵션
-- 📱 반응형 대시보드: 드래그 앤 드롭으로 레이아웃 편집
-- 🔗 다중 데이터베이스 지원: PostgreSQL, MySQL, Oracle, Snowflake 등 10개 이상의 SQL 데이터베이스 연결
-- ⚡ 고성능 SQL 편집기: 실시간 쿼리 실행 및 데이터 미리보기
-- 🎯 템플릿 시스템: 사전 정의된 대시보드 템플릿 제공
-- 🔒 보안 인증: JWT 기반 사용자 인증 및 권한 관리
+# Task Management
+task-master add-task --prompt="description" --research        # Add new task with AI assistance
+task-master expand --id=<id> --research --force              # Break task into subtasks
+task-master update-task --id=<id> --prompt="changes"         # Update specific task
+task-master update --from=<id> --prompt="changes"            # Update multiple tasks from ID onwards
+task-master update-subtask --id=<id> --prompt="notes"        # Add implementation notes to subtask
 
-## 개발 가이드라인
+# Analysis & Planning
+task-master analyze-complexity --research          # Analyze task complexity
+task-master complexity-report                      # View complexity analysis
+task-master expand --all --research               # Expand all eligible tasks
 
-### 브랜치 전략
-
-- 변경작업 시작 전에 항상 `develop-refactor-` 로 시작하는 working 브랜치를 만들고 작업
-- 변경작업이 끝나고 PR 할 때는 `develop-refactor` 브랜치로 할것
-- develop 브랜치에 직접 커밋하지 말것 (Git hooks로 보호됨)
-
-### 빌드 & 테스트 체크리스트
-
-- Backend 개발 TODO 완료시 마지막 단계는 항상 아래의 프로세스가 추가로 있어야 한다
-  1. `yarn build:dev` 를 실행하고 발생하는 오류를 모두 수정
-  2. `yarn start:local` 을 실행하고 발생하는 오류를 모두 수정
-- develop 브랜치 커밋 전 다음 순서대로 항상 수행하고 커밋할것
-  1. backend 의 `yarn build:dev` 를 실행하고 오류 수정
-  2. backend 의 `yarn start:local` 을 실행하고 오류수정
-
-## 프로젝트 구조
-
-```
-vanillameta/
-├── backend-api/                    # NestJS 백엔드 API (AWS Lambda)
-│   ├── src/
-│   │   ├── {domain}/              # 도메인 모듈 (analytics, auth, dashboard 등)
-│   │   ├── common/                # 공통 유틸리티, 데코레이터, 인터셉터
-│   │   └── types/                 # 글로벌 타입 정의
-│   └── tsconfig.json             # target: ES2017, module: commonjs
-├── frontend-web/                   # React 프론트엔드 웹 애플리케이션
-│   ├── src/
-│   │   ├── components/           # 재사용 가능한 UI 컴포넌트
-│   │   ├── pages/               # 라우트 레벨 컴포넌트
-│   │   ├── widget/              # 차트 및 대시보드 위젯
-│   │   ├── hooks/               # 커스텀 React hooks
-│   │   └── utils/               # 유틸리티 함수
-│   └── tsconfig.json            # target: ES2020, module: ESNext
-├── landing-page/                   # 정적 랜딩 페이지
-├── backend-api-libs-lambda-layer/  # Lambda 레이어 (의존성 관리)
-├── design/                         # 디자인 리소스 및 이미지
-└── docs/                          # 프로젝트 문서 및 화면 설계서
+# Dependencies & Organization
+task-master add-dependency --id=<id> --depends-on=<id>       # Add task dependency
+task-master move --from=<id> --to=<id>                       # Reorganize task hierarchy
+task-master validate-dependencies                            # Check for dependency issues
+task-master generate                                         # Update task markdown files (usually auto-called)
 ```
 
-## 코딩 표준
+## Key Files & Project Structure
 
-### 네이밍 컨벤션
+### Core Files
 
-- **파일명**: camelCase (예: `userService.ts`, `dashboardController.ts`)
-- **클래스/React 컴포넌트**: PascalCase (예: `UserService`, `DashboardWidget`)
-- **변수/함수**: camelCase (예: `getUserData`, `chartOptions`)
-- **상수**: UPPER_SNAKE_CASE (예: `MAX_RETRY_COUNT`, `API_BASE_URL`)
-- **React Props Interface**: `I{ComponentName}Props` 패턴
-- **Custom Hooks**: `use` 접두사 (예: `useChartData`)
+- `.taskmaster/tasks/tasks.json` - Main task data file (auto-managed)
+- `.taskmaster/config.json` - AI model configuration (use `task-master models` to modify)
+- `.taskmaster/docs/prd.txt` - Product Requirements Document for parsing
+- `.taskmaster/tasks/*.txt` - Individual task files (auto-generated from tasks.json)
+- `.env` - API keys for CLI usage
 
-### TypeScript 설정
+### Claude Code Integration Files
 
-- Backend: `target: ES2017`, `module: commonjs`
-- Frontend: `target: ES2020`, `module: ESNext`
-- Frontend path alias: `@/*` 사용
+- `CLAUDE.md` - Auto-loaded context for Claude Code (this file)
+- `.claude/settings.json` - Claude Code tool allowlist and preferences
+- `.claude/commands/` - Custom slash commands for repeated workflows
+- `.mcp.json` - MCP server configuration (project-specific)
 
-### Prettier 설정
+### Directory Structure
 
-- Backend: `printWidth: 100`
-- Frontend: `printWidth: 125`
-- 공통: `singleQuote: true`, `tabWidth: 2`, `trailingComma: all`
-
-## 아키텍처 패턴
-
-### NestJS 백엔드 패턴
-
-#### 모듈 구조
-
-```typescript
-@Module({
-  imports: [TypeOrmModule.forFeature([Entity])],
-  controllers: [Controller],
-  providers: [Service],
-  exports: [Service], // 다른 모듈에서 사용 시
-})
-export class ModuleName {}
+```
+project/
+├── .taskmaster/
+│   ├── tasks/              # Task files directory
+│   │   ├── tasks.json      # Main task database
+│   │   ├── task-1.md      # Individual task files
+│   │   └── task-2.md
+│   ├── docs/              # Documentation directory
+│   │   ├── prd.txt        # Product requirements
+│   ├── reports/           # Analysis reports directory
+│   │   └── task-complexity-report.json
+│   ├── templates/         # Template files
+│   │   └── example_prd.txt  # Example PRD template
+│   └── config.json        # AI models & settings
+├── .claude/
+│   ├── settings.json      # Claude Code configuration
+│   └── commands/         # Custom slash commands
+├── .env                  # API keys
+├── .mcp.json            # MCP configuration
+└── CLAUDE.md            # This file - auto-loaded by Claude Code
 ```
 
-#### 컨트롤러 패턴
+## MCP Integration
 
-```typescript
-@Controller("route")
-@UseGuards(JwtAuthGuard)
-export class NameController {
-  constructor(private readonly service: NameService) {}
+Task Master provides an MCP server that Claude Code can connect to. Configure in `.mcp.json`:
 
-  @Get()
-  @ApiOperation({ summary: "API 설명" })
-  async getMethod(@Query() query: QueryDto) {
-    return this.service.getMethod(query);
-  }
-}
-```
-
-#### 서비스 패턴
-
-```typescript
-@Injectable()
-export class NameService {
-  private readonly logger = new Logger(NameService.name);
-
-  constructor(
-    @InjectRepository(Entity)
-    private repository: Repository<Entity>
-  ) {}
-
-  async getMethod(query: QueryDto): Promise<Response> {
-    try {
-      this.logger.debug("작업 설명");
-      return await this.repository.find(query);
-    } catch (error) {
-      this.logger.error("에러 메시지", error);
-      throw new InternalServerErrorException("작업 실패");
+```json
+{
+  "mcpServers": {
+    "task-master-ai": {
+      "command": "npx",
+      "args": ["-y", "--package=task-master-ai", "task-master-ai"],
+      "env": {
+        "ANTHROPIC_API_KEY": "your_key_here",
+        "PERPLEXITY_API_KEY": "your_key_here",
+        "OPENAI_API_KEY": "OPENAI_API_KEY_HERE",
+        "GOOGLE_API_KEY": "GOOGLE_API_KEY_HERE",
+        "XAI_API_KEY": "XAI_API_KEY_HERE",
+        "OPENROUTER_API_KEY": "OPENROUTER_API_KEY_HERE",
+        "MISTRAL_API_KEY": "MISTRAL_API_KEY_HERE",
+        "AZURE_OPENAI_API_KEY": "AZURE_OPENAI_API_KEY_HERE",
+        "OLLAMA_API_KEY": "OLLAMA_API_KEY_HERE"
+      }
     }
   }
 }
 ```
 
-### React 프론트엔드 패턴
+### Essential MCP Tools
 
-#### 컴포넌트 구조
+```javascript
+help; // = shows available taskmaster commands
+// Project setup
+initialize_project; // = task-master init
+parse_prd; // = task-master parse-prd
 
-```typescript
-interface IComponentNameProps {
-  data: DataType;
-  onAction?: (param: ParamType) => void;
-}
+// Daily workflow
+get_tasks; // = task-master list
+next_task; // = task-master next
+get_task; // = task-master show <id>
+set_task_status; // = task-master set-status
 
-const ComponentName: React.FC<IComponentNameProps> = ({ data, onAction }) => {
-  // Hook 사용
-  const theme = useTheme();
+// Task management
+add_task; // = task-master add-task
+expand_task; // = task-master expand
+update_task; // = task-master update-task
+update_subtask; // = task-master update-subtask
+update; // = task-master update
 
-  // Effect 처리
-  useEffect(() => {
-    // 초기화 로직
-    return () => {
-      // 클린업
-    };
-  }, [data]);
-
-  return <Component />;
-};
-
-export default React.memo(ComponentName);
+// Analysis
+analyze_project_complexity; // = task-master analyze-complexity
+complexity_report; // = task-master complexity-report
 ```
 
-#### Custom Hook 패턴
+## Claude Code Workflow Integration
 
-```typescript
-export const useCustomHook = (param: ParamType) => {
-  const [state, setState] = useState<StateType | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+### Standard Development Workflow
 
-  useEffect(() => {
-    // 비동기 작업
-  }, [param]);
+#### 1. Project Initialization
 
-  return { state, loading, error, refetch: () => {} };
-};
+```bash
+# Initialize Task Master
+task-master init
+
+# Create or obtain PRD, then parse it
+task-master parse-prd .taskmaster/docs/prd.txt
+
+# Analyze complexity and expand tasks
+task-master analyze-complexity --research
+task-master expand --all --research
 ```
 
-## UI/UX 가이드라인
+If tasks already exist, another PRD can be parsed (with new information only!) using parse-prd with --append flag. This will add the generated tasks to the existing list of tasks..
 
-### Material-UI 표준
+#### 2. Daily Development Loop
 
-- **우선순위**: sx prop > styled() components > theme overrides > CSS classes
-- **테마 색상**:
-  - Primary: `#0f5ab2`
-  - Secondary: `#f50057`
-- **컴포넌트 기본값**: 모든 폼 컴포넌트와 버튼은 `size="small"`
+```bash
+# Start each session
+task-master next                           # Find next available task
+task-master show <id>                     # Review task details
 
-### Styling 패턴
+# During implementation, check in code context into the tasks and subtasks
+task-master update-subtask --id=<id> --prompt="implementation notes..."
 
-```typescript
-// sx prop 사용 (권장)
-<Box sx={{
-  display: 'flex',
-  alignItems: 'center',
-  padding: { xs: '16px', sm: '24px' },
-  backgroundColor: 'primary.light'
-}}>
-
-// styled() 컴포넌트 (재사용 시)
-const StyledCard = styled(Card)(({ theme }) => ({
-  borderRadius: '12px',
-  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-  '&:hover': {
-    boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-  },
-}));
+# Complete tasks
+task-master set-status --id=<id> --status=done
 ```
 
-### 폰트 시스템 (Pretendard)
+#### 3. Multi-Claude Workflows
 
-- 우선순위: 400 (Regular) > 500 (Medium) > 600 (SemiBold) > 700 (Bold)
-- font-display: swap 사용 (FOIT 방지)
-- 폴백: `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`
+For complex projects, use multiple Claude Code sessions:
 
-### 차트 디자인 원칙
+```bash
+# Terminal 1: Main implementation
+cd project && claude
 
-- 최대 5-7개 색상 사용
-- 일관된 색상 팔레트 유지
-- Y축은 항상 0부터 시작
-- 축 제목과 라벨 필수 포함
-- 접근성 고려한 색상 대비
+# Terminal 2: Testing and validation
+cd project-test-worktree && claude
 
-## 데이터베이스 패턴
-
-### 다중 데이터베이스 연결
-
-```typescript
-// Knex.js 기반 연결 패턴
-const connection = knex({
-  client: "mysql2", // 또는 'pg', 'oracledb' 등
-  connection: {
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-  },
-  pool: { min: 2, max: 10 },
-});
+# Terminal 3: Documentation updates
+cd project-docs-worktree && claude
 ```
 
-### 쿼리 보안
+### Custom Slash Commands
 
-- **항상 사용**: 파라미터화된 쿼리
-- **절대 금지**: 문자열 연결로 쿼리 생성
-- **필수 검증**: 테이블명, 컬럼명 입력값
+Create `.claude/commands/taskmaster-next.md`:
 
-### 트랜잭션 패턴
+```markdown
+Find the next available Task Master task and show its details.
 
-```typescript
-async executeInTransaction<T>(
-  connection: any,
-  operation: (trx: any) => Promise<T>,
-): Promise<T> {
-  const trx = await connection.transaction();
-  try {
-    const result = await operation(trx);
-    await trx.commit();
-    return result;
-  } catch (error) {
-    await trx.rollback();
-    throw error;
-  }
+Steps:
+
+1. Run `task-master next` to get the next task
+2. If a task is available, run `task-master show <id>` for full details
+3. Provide a summary of what needs to be implemented
+4. Suggest the first implementation step
+```
+
+Create `.claude/commands/taskmaster-complete.md`:
+
+```markdown
+Complete a Task Master task: $ARGUMENTS
+
+Steps:
+
+1. Review the current task with `task-master show $ARGUMENTS`
+2. Verify all implementation is complete
+3. Run any tests related to this task
+4. Mark as complete: `task-master set-status --id=$ARGUMENTS --status=done`
+5. Show the next available task with `task-master next`
+```
+
+## Tool Allowlist Recommendations
+
+Add to `.claude/settings.json`:
+
+```json
+{
+  "allowedTools": [
+    "Edit",
+    "Bash(task-master *)",
+    "Bash(git commit:*)",
+    "Bash(git add:*)",
+    "Bash(npm run *)",
+    "mcp__task_master_ai__*"
+  ]
 }
 ```
 
-## 성능 최적화
+## Configuration & Setup
 
-### 프론트엔드
+### API Keys Required
 
-- React.memo로 expensive 컴포넌트 최적화
-- 적절한 로딩 상태 구현
-- 라우트 lazy loading 사용
-- 코드 스플리팅으로 번들 크기 최적화
+At least **one** of these API keys must be configured:
 
-### 백엔드
+- `ANTHROPIC_API_KEY` (Claude models) - **Recommended**
+- `PERPLEXITY_API_KEY` (Research features) - **Highly recommended**
+- `OPENAI_API_KEY` (GPT models)
+- `GOOGLE_API_KEY` (Gemini models)
+- `MISTRAL_API_KEY` (Mistral models)
+- `OPENROUTER_API_KEY` (Multiple models)
+- `XAI_API_KEY` (Grok models)
 
-- 데이터베이스 인덱싱 구현
-- 연결 풀링 사용
-- 자주 접근하는 데이터 캐싱
-- 대용량 데이터셋 페이지네이션
+An API key is required for any provider used across any of the 3 roles defined in the `models` command.
 
-## 보안 가이드라인
+### Model Configuration
 
-### 인증 & 권한
+```bash
+# Interactive setup (recommended)
+task-master models --setup
 
-- JWT 기반 인증 사용
-- JwtAuthGuard로 엔드포인트 보호
-- 민감한 데이터는 환경 변수로 관리
-
-### 입력 검증
-
-- class-validator로 DTO 검증
-- 파일 업로드 크기 및 타입 제한
-- SQL 인젝션 방지 (파라미터화된 쿼리)
-
-## 테스팅 전략
-
-### 백엔드 테스트
-
-```typescript
-describe("ServiceName", () => {
-  let service: ServiceName;
-  let repository: Repository<Entity>;
-
-  beforeEach(async () => {
-    // 테스트 모듈 설정
-  });
-
-  it("should perform expected behavior", async () => {
-    // Arrange, Act, Assert 패턴
-  });
-});
+# Set specific models
+task-master models --set-main claude-3-5-sonnet-20241022
+task-master models --set-research perplexity-llama-3.1-sonar-large-128k-online
+task-master models --set-fallback gpt-4o-mini
 ```
 
-### 프론트엔드 테스트
+## Task Structure & IDs
 
-```typescript
-describe("ComponentName", () => {
-  it("should render correctly", async () => {
-    render(<ComponentName />);
-    await waitFor(() => {
-      expect(screen.getByText("Expected")).toBeInTheDocument();
-    });
-  });
-});
+### Task ID Format
+
+- Main tasks: `1`, `2`, `3`, etc.
+- Subtasks: `1.1`, `1.2`, `2.1`, etc.
+- Sub-subtasks: `1.1.1`, `1.1.2`, etc.
+
+### Task Status Values
+
+- `pending` - Ready to work on
+- `in-progress` - Currently being worked on
+- `done` - Completed and verified
+- `deferred` - Postponed
+- `cancelled` - No longer needed
+- `blocked` - Waiting on external factors
+
+### Task Fields
+
+```json
+{
+  "id": "1.2",
+  "title": "Implement user authentication",
+  "description": "Set up JWT-based auth system",
+  "status": "pending",
+  "priority": "high",
+  "dependencies": ["1.1"],
+  "details": "Use bcrypt for hashing, JWT for tokens...",
+  "testStrategy": "Unit tests for auth functions, integration tests for login flow",
+  "subtasks": []
+}
 ```
 
-## 코드 리뷰 체크리스트
+## Claude Code Best Practices with Task Master
 
-1. **아키텍처**: 도메인 주도 설계를 따르는가?
-2. **네이밍**: 네이밍 컨벤션이 일관되게 적용되었는가?
-3. **테스팅**: 적절한 단위/통합 테스트가 있는가?
-4. **성능**: 명백한 성능 이슈가 있는가?
-5. **보안**: 민감한 데이터가 적절히 처리되는가?
-6. **문서화**: 코드가 자체 문서화되거나 적절히 주석처리되었는가?
+### Context Management
 
-## 환경 설정
+- Use `/clear` between different tasks to maintain focus
+- This CLAUDE.md file is automatically loaded for context
+- Use `task-master show <id>` to pull specific task context when needed
 
-### 로컬 개발 환경
+### Iterative Implementation
 
-- Node.js 16+
-- Redis Server (캐싱 및 세션 관리)
-- Docker Compose (권장)
+1. `task-master show <subtask-id>` - Understand requirements
+2. Explore codebase and plan implementation
+3. `task-master update-subtask --id=<id> --prompt="detailed plan"` - Log plan
+4. `task-master set-status --id=<id> --status=in-progress` - Start work
+5. Implement code following logged plan
+6. `task-master update-subtask --id=<id> --prompt="what worked/didn't work"` - Log progress
+7. `task-master set-status --id=<id> --status=done` - Complete task
 
-### 환경 변수
+### Complex Workflows with Checklists
 
-- `NODE_ENV`: development | production
-- `DATABASE_*`: 데이터베이스 연결 정보
-- `JWT_SECRET`: JWT 토큰 시크릿
-- `REDIS_*`: Redis 연결 정보
+For large migrations or multi-step processes:
+
+1. Create a markdown PRD file describing the new changes: `touch task-migration-checklist.md` (prds can be .txt or .md)
+2. Use Taskmaster to parse the new prd with `task-master parse-prd --append` (also available in MCP)
+3. Use Taskmaster to expand the newly generated tasks into subtasks. Consdier using `analyze-complexity` with the correct --to and --from IDs (the new ids) to identify the ideal subtask amounts for each task. Then expand them.
+4. Work through items systematically, checking them off as completed
+5. Use `task-master update-subtask` to log progress on each task/subtask and/or updating/researching them before/during implementation if getting stuck
+
+### Git Integration
+
+Task Master works well with `gh` CLI:
+
+```bash
+# Create PR for completed task
+gh pr create --title "Complete task 1.2: User authentication" --body "Implements JWT auth system as specified in task 1.2"
+
+# Reference task in commits
+git commit -m "feat: implement JWT auth (task 1.2)"
+```
+
+### Parallel Development with Git Worktrees
+
+```bash
+# Create worktrees for parallel task development
+git worktree add ../project-auth feature/auth-system
+git worktree add ../project-api feature/api-refactor
+
+# Run Claude Code in each worktree
+cd ../project-auth && claude    # Terminal 1: Auth work
+cd ../project-api && claude     # Terminal 2: API work
+```
+
+## Troubleshooting
+
+### AI Commands Failing
+
+```bash
+# Check API keys are configured
+cat .env                           # For CLI usage
+
+# Verify model configuration
+task-master models
+
+# Test with different model
+task-master models --set-fallback gpt-4o-mini
+```
+
+### MCP Connection Issues
+
+- Check `.mcp.json` configuration
+- Verify Node.js installation
+- Use `--mcp-debug` flag when starting Claude Code
+- Use CLI as fallback if MCP unavailable
+
+### Task File Sync Issues
+
+```bash
+# Regenerate task files from tasks.json
+task-master generate
+
+# Fix dependency issues
+task-master fix-dependencies
+```
+
+DO NOT RE-INITIALIZE. That will not do anything beyond re-adding the same Taskmaster core files.
+
+## Important Notes
+
+### AI-Powered Operations
+
+These commands make AI calls and may take up to a minute:
+
+- `parse_prd` / `task-master parse-prd`
+- `analyze_project_complexity` / `task-master analyze-complexity`
+- `expand_task` / `task-master expand`
+- `expand_all` / `task-master expand --all`
+- `add_task` / `task-master add-task`
+- `update` / `task-master update`
+- `update_task` / `task-master update-task`
+- `update_subtask` / `task-master update-subtask`
+
+### File Management
+
+- Never manually edit `tasks.json` - use commands instead
+- Never manually edit `.taskmaster/config.json` - use `task-master models`
+- Task markdown files in `tasks/` are auto-generated
+- Run `task-master generate` after manual changes to tasks.json
+
+### Claude Code Session Management
+
+- Use `/clear` frequently to maintain focused context
+- Create custom slash commands for repeated Task Master workflows
+- Configure tool allowlist to streamline permissions
+- Use headless mode for automation: `claude -p "task-master next"`
+
+### Multi-Task Updates
+
+- Use `update --from=<id>` to update multiple future tasks
+- Use `update-task --id=<id>` for single task updates
+- Use `update-subtask --id=<id>` for implementation logging
+
+### Research Mode
+
+- Add `--research` flag for research-based AI enhancement
+- Requires a research model API key like Perplexity (`PERPLEXITY_API_KEY`) in environment
+- Provides more informed task creation and updates
+- Recommended for complex technical tasks
 
 ---
 
-**중요**: 이 가이드라인은 코드 품질, 일관성, 팀 생산성을 유지하기 위해 존재합니다.
-의심스러운 경우, 기존 코드베이스의 패턴을 참조하고 최소 놀람의 원칙을 따르세요.
+_This guide ensures Claude Code has immediate access to Task Master's essential functionality for agentic development workflows._

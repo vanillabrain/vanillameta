@@ -22,12 +22,6 @@ export class AuthService {
       id: payload.id,
     };
 
-    // 디버깅용 로그
-    console.log('Environment variables:', {
-      ACCESS_SECRET: process.env.ACCESS_SECRET ? 'EXISTS' : 'MISSING',
-      NODE_ENV: process.env.NODE_ENV,
-    });
-
     const accessToken = await this.jwtService.sign(
       { accessKeyData },
       {
@@ -47,8 +41,7 @@ export class AuthService {
     const accessToken = await this.jwtService.sign(
       { accessKeyData },
       {
-        // secret: process.env.URL_ACCESS_SECRET,
-        secret: 'test1234',
+        secret: process.env.URL_ACCESS_SECRET || process.env.ACCESS_SECRET,
       },
     );
     return accessToken;
@@ -82,18 +75,11 @@ export class AuthService {
   }
 
   async validateUser(userId: string, pass: string) {
-    const user = await this.userRepository.findOne({ where: { userId: userId } });
-    
-    // 디버깅용 로그
-    console.log('=== Password Validation Debug ===');
-    console.log('UserId:', userId);
-    console.log('User found:', !!user);
-    if (user) {
-      console.log('DB password (first 20 chars):', user.password?.substring(0, 20) + '...');
-      console.log('Input password (first 20 chars):', pass?.substring(0, 20) + '...');
-      console.log('Password match:', user.password === pass);
-    }
-    
+    const user = await this.userRepository.findOne({
+      where: { userId: userId },
+      select: ['id', 'userId', 'email', 'password', 'status', 'name', 'jwtId'], // password 필드를 명시적으로 포함
+    });
+
     if (user && user.password === pass) {
       delete user.password;
       return user;

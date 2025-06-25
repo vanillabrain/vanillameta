@@ -9,15 +9,15 @@
         "testStrategy": "설치된 컴포넌트들이 올바르게 렌더링되는지 Storybook으로 확인, 테마 전환 기능 테스트, Tailwind CSS 클래스가 올바르게 적용되는지 시각적 회귀 테스트",
         "priority": "high",
         "dependencies": [],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
             "title": "Tailwind CSS 기반 설정 및 초기화",
             "description": "Tailwind CSS를 프로젝트에 설치하고 기본 설정 파일을 구성합니다",
             "dependencies": [],
-            "details": "npm install -D tailwindcss postcss autoprefixer 실행 후 npx tailwindcss init -p로 설정 파일 생성. tailwind.config.js에서 content 경로 설정하고 global.css에 Tailwind 디렉티브 추가",
-            "status": "pending",
+            "details": "npm install -D tailwindcss postcss autoprefixer 실행 후 npx tailwindcss init -p로 설정 파일 생성. tailwind.config.js에서 content 경로 설정하고 global.css에 Tailwind 디렉티브 추가\n<info added on 2025-06-25T05:18:44.314Z>\n기존 Tailwind CSS 구성 확인 완료: tailwind.config.js의 content 경로, postcss.config.js 설정, index.css의 Tailwind 디렉티브가 모두 정상 구성됨. CSS 변수 기반 테마 시스템(:root, .dark 클래스)과 다크 모드 토글 기능이 이미 구현되어 있어 추가 설정 불필요.\n</info added on 2025-06-25T05:18:44.314Z>",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -27,8 +27,8 @@
             "dependencies": [
               1
             ],
-            "details": "npx shadcn-ui@latest init 실행. TypeScript 사용 여부, 스타일 (Default/New York), 베이스 컬러, CSS 변수 사용 여부 등 대화형 설정 진행. components.json 파일 생성 확인",
-            "status": "pending",
+            "details": "npx shadcn-ui@latest init 실행. TypeScript 사용 여부, 스타일 (Default/New York), 베이스 컬러, CSS 변수 사용 여부 등 대화형 설정 진행. components.json 파일 생성 확인\n<info added on 2025-06-25T05:19:56.086Z>\n초기화 완료 확인됨. components.json이 New York 스타일, TypeScript, CSS 변수 사용으로 정확히 구성되어 있고, lib/utils.ts의 cn() 유틸리티 함수도 정상적으로 구현되어 있어 바로 컴포넌트 추가 작업 진행 가능.\n</info added on 2025-06-25T05:19:56.086Z>",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -39,7 +39,7 @@
               2
             ],
             "details": "globals.css에 :root와 .dark 클래스에 대한 CSS 변수 정의. --background, --foreground, --primary 등 컬러 토큰 설정. next-themes 패키지 설치하고 ThemeProvider 컴포넌트 구성",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -50,7 +50,7 @@
               2
             ],
             "details": "class-variance-authority, clsx, tailwind-merge 설치. lib/utils.ts 파일에 cn() 헬퍼 함수 구현. lucide-react 아이콘 라이브러리 설치",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -62,7 +62,7 @@
               4
             ],
             "details": "npx shadcn-ui@latest add button card dialog form input label 등 핵심 컴포넌트 설치. components/ui 디렉토리에 컴포넌트 파일들이 생성되는지 확인. 각 컴포넌트의 의존성 자동 설치 확인",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -73,7 +73,7 @@
               3
             ],
             "details": "Next.js Font 또는 @fontsource를 통한 폰트 로드 설정. tailwind.config.js에 fontFamily 확장 설정. 헤딩, 본문, 코드 등에 대한 타이포그래피 클래스 정의",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -85,7 +85,7 @@
               6
             ],
             "details": "각 UI 컴포넌트의 기본 동작 테스트 페이지 생성. 선택적으로 Storybook 설치하여 컴포넌트 문서화. 테마 전환 기능 동작 확인. Tailwind IntelliSense 설정 확인",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           }
         ]
@@ -101,7 +101,124 @@
           1
         ],
         "status": "pending",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "공통 유틸리티 함수 및 테마 시스템 마이그레이션",
+            "description": "Material-UI의 테마 시스템과 스타일 유틸리티를 Shadcn/ui의 CSS 변수 기반 시스템으로 마이그레이션",
+            "dependencies": [],
+            "details": "MUI의 createTheme, ThemeProvider를 Shadcn/ui의 globals.css와 tailwind.config.js로 변환. 색상 팔레트, 타이포그래피, spacing 시스템 매핑. CSS-in-JS에서 Tailwind CSS로의 스타일 변환 헬퍼 함수 작성",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "기본 레이아웃 컴포넌트 마이그레이션 (Box, Container, Grid)",
+            "description": "Material-UI의 레이아웃 관련 컴포넌트들을 Tailwind CSS 유틸리티 클래스로 대체",
+            "dependencies": [
+              1
+            ],
+            "details": "Box → div with Tailwind classes, Container → max-w-* classes, Grid → CSS Grid/Flexbox utilities. 기존 prop 시스템을 className 조합으로 변환하는 wrapper 컴포넌트 작성",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "버튼 및 아이콘 버튼 컴포넌트 마이그레이션",
+            "description": "Button, IconButton, ButtonGroup 컴포넌트를 Shadcn/ui Button으로 마이그레이션",
+            "dependencies": [
+              1
+            ],
+            "details": "variant, size, color props 매핑. startIcon/endIcon을 Shadcn Button의 children 패턴으로 변환. ButtonGroup을 Button 조합으로 재구현. 클릭 이벤트와 disabled 상태 호환성 검증",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "폼 입력 컴포넌트 마이그레이션 (TextField, Select, Checkbox)",
+            "description": "Material-UI의 폼 컴포넌트들을 Shadcn/ui의 Input, Select, Checkbox로 변환",
+            "dependencies": [
+              1
+            ],
+            "details": "TextField의 variant(outlined, filled, standard)를 Shadcn Input으로 통합. FormControl, FormHelperText 패턴을 Shadcn의 Form 컴포넌트로 재구성. 유효성 검증 및 에러 상태 처리 마이그레이션",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "다이얼로그 및 모달 컴포넌트 마이그레이션",
+            "description": "Dialog, Modal, Drawer 컴포넌트를 Shadcn/ui Dialog와 Sheet으로 변환",
+            "dependencies": [
+              3
+            ],
+            "details": "Dialog의 open/onClose 패턴을 Shadcn의 controlled/uncontrolled 패턴으로 변환. DialogTitle, DialogContent, DialogActions를 Shadcn 구조로 재구성. Drawer를 Sheet 컴포넌트로 대체하고 position props 매핑",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "데이터 테이블 컴포넌트 마이그레이션",
+            "description": "Table, DataGrid 컴포넌트를 Shadcn/ui Table과 tanstack-table로 마이그레이션",
+            "dependencies": [
+              1,
+              4
+            ],
+            "details": "TableHead, TableBody, TableRow, TableCell 구조 변환. DataGrid의 정렬, 필터링, 페이지네이션 기능을 tanstack-table로 재구현. 열 정의 포맷 변환 및 이벤트 핸들러 마이그레이션",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 7,
+            "title": "네비게이션 컴포넌트 마이그레이션 (AppBar, Tabs, Menu)",
+            "description": "AppBar, Toolbar, Tabs, Menu 컴포넌트를 Shadcn/ui NavigationMenu, Tabs, DropdownMenu로 변환",
+            "dependencies": [
+              3
+            ],
+            "details": "AppBar의 position sticky/fixed 동작 재구현. Tabs의 value/onChange 패턴을 Shadcn Tabs로 변환. Menu/MenuItem을 DropdownMenu로 대체하고 서브메뉴 지원 추가",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 8,
+            "title": "피드백 컴포넌트 마이그레이션 (Alert, Snackbar, Progress)",
+            "description": "Alert, Snackbar, CircularProgress, LinearProgress를 Shadcn/ui Alert, Toast, Progress로 변환",
+            "dependencies": [
+              1
+            ],
+            "details": "Alert severity props를 Shadcn variant로 매핑. Snackbar의 autoHideDuration과 위치 설정을 Toast로 구현. Progress 컴포넌트의 determinate/indeterminate 모드 지원",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 9,
+            "title": "카드 및 아코디언 컴포넌트 마이그레이션",
+            "description": "Card, Accordion, ExpansionPanel 컴포넌트를 Shadcn/ui Card, Accordion으로 변환",
+            "dependencies": [
+              1
+            ],
+            "details": "Card의 elevation을 shadow 유틸리티로 변환. CardMedia를 이미지 컴포넌트로 재구현. Accordion의 expanded/onChange 패턴을 Shadcn의 value/onValueChange로 변환",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 10,
+            "title": "통합 테스트 및 시각적 회귀 테스트 구축",
+            "description": "마이그레이션된 모든 컴포넌트의 기능 테스트와 시각적 일관성 검증",
+            "dependencies": [
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9
+            ],
+            "details": "Jest/React Testing Library로 기능 테스트 작성. Storybook으로 컴포넌트 카탈로그 구축. Chromatic 또는 Percy로 시각적 회귀 테스트 설정. 접근성(a11y) 검증 추가",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
       },
       {
         "id": 3,
@@ -114,7 +231,142 @@
           2
         ],
         "status": "pending",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Next.js 14 프로젝트 초기화 및 기본 설정",
+            "description": "Next.js 14 프로젝트를 생성하고 TypeScript, ESLint, Prettier 등 기본 개발 환경을 구성합니다",
+            "dependencies": [],
+            "details": "npx create-next-app@14로 프로젝트 생성, tsconfig.json 설정, ESLint/Prettier 규칙 정의, 기존 프로젝트의 package.json 의존성 분석 및 호환성 확인",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "프로젝트 구조 재구성 및 App Router 디렉토리 설계",
+            "description": "기존 src 구조를 Next.js 14 App Router 구조로 재구성하고 app 디렉토리 레이아웃을 설계합니다",
+            "dependencies": [
+              1
+            ],
+            "details": "app 디렉토리 생성, layout.tsx와 page.tsx 기본 구조 정의, 기존 컴포넌트 폴더 구조 분석 및 마이그레이션 계획 수립",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "라우팅 시스템 전환 계획 수립",
+            "description": "React Router에서 Next.js App Router로의 라우팅 전환 매핑 테이블을 작성하고 동적 라우트 처리 방안을 설계합니다",
+            "dependencies": [
+              2
+            ],
+            "details": "기존 라우트 구조 분석, 파일 기반 라우팅으로 매핑, 동적 세그먼트 및 catch-all 라우트 설계, 라우트 그룹 구성",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "서버/클라이언트 컴포넌트 분류 및 분리",
+            "description": "기존 컴포넌트를 서버 컴포넌트와 클라이언트 컴포넌트로 분류하고 'use client' 지시문을 적용합니다",
+            "dependencies": [
+              3
+            ],
+            "details": "상태 관리 및 이벤트 핸들러 사용 컴포넌트 식별, 서버 컴포넌트로 전환 가능한 컴포넌트 목록화, use client 경계 설정",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "전역 상태 관리 시스템 마이그레이션",
+            "description": "Redux/Context API 등 기존 상태 관리를 Next.js 환경에 맞게 재구성하고 서버 컴포넌트와의 연동을 설계합니다",
+            "dependencies": [
+              4
+            ],
+            "details": "클라이언트 전용 Provider 컴포넌트 생성, 서버 상태와 클라이언트 상태 분리, Zustand 또는 Redux Toolkit 설정",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "API Routes 구현 및 백엔드 통신 재구성",
+            "description": "기존 API 호출을 Next.js Route Handlers로 마이그레이션하고 서버 액션을 구현합니다",
+            "dependencies": [
+              5
+            ],
+            "details": "app/api 디렉토리 구조 설계, Route Handler로 API 엔드포인트 구현, 서버 액션 함수 작성, fetch 캐싱 전략 설정",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 7,
+            "title": "정적 자산 및 public 디렉토리 마이그레이션",
+            "description": "이미지, 폰트, 아이콘 등 정적 자산을 Next.js 구조로 이전하고 최적화를 적용합니다",
+            "dependencies": [
+              2
+            ],
+            "details": "public 폴더 구조 재구성, Next/Image 컴포넌트로 이미지 최적화, 폰트 최적화 설정, 파비콘 및 메타데이터 설정",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 8,
+            "title": "환경 변수 및 설정 파일 마이그레이션",
+            "description": ".env 파일을 Next.js 규칙에 맞게 재구성하고 런타임/빌드타임 변수를 분리합니다",
+            "dependencies": [
+              1
+            ],
+            "details": "NEXT_PUBLIC_ 프리픽스 적용, 서버 전용 환경 변수 분리, next.config.js 설정, 환경별 설정 파일 구성",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 9,
+            "title": "페이지별 점진적 마이그레이션 실행",
+            "description": "우선순위가 높은 페이지부터 순차적으로 App Router로 마이그레이션을 진행합니다",
+            "dependencies": [
+              3,
+              4,
+              5,
+              6
+            ],
+            "details": "홈페이지 및 주요 페이지 우선 전환, 레이아웃 컴포넌트 구현, 메타데이터 API 적용, 에러 및 로딩 UI 구현",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 10,
+            "title": "빌드 및 배포 파이프라인 구성",
+            "description": "Next.js 빌드 설정을 최적화하고 CI/CD 파이프라인을 구성합니다",
+            "dependencies": [
+              8,
+              9
+            ],
+            "details": "next build 스크립트 설정, 정적 생성 및 ISR 설정, Docker 컨테이너화, Vercel 또는 AWS 배포 설정",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 11,
+            "title": "성능 최적화 및 번들 사이즈 개선",
+            "description": "코드 스플리팅, 동적 임포트, 번들 분석을 통해 성능을 최적화합니다",
+            "dependencies": [
+              10
+            ],
+            "details": "번들 분석기 설정, 동적 임포트 적용, 서드파티 라이브러리 최적화, Lighthouse 성능 측정 및 개선",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 12,
+            "title": "테스트 환경 구성 및 마이그레이션 검증",
+            "description": "Jest와 React Testing Library를 Next.js 환경에 맞게 설정하고 기존 테스트를 마이그레이션합니다",
+            "dependencies": [
+              11
+            ],
+            "details": "Jest 설정 파일 구성, 서버/클라이언트 컴포넌트 테스트 전략, E2E 테스트 환경 구성, 회귀 테스트 실행",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
       },
       {
         "id": 4,
@@ -127,7 +379,98 @@
           3
         ],
         "status": "pending",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "사용자 데이터베이스 스키마 설계 및 마이그레이션",
+            "description": "사용자 테이블 스키마 정의, 인덱스 설정, 관계 설정",
+            "dependencies": [],
+            "details": "users 테이블에 id, email, password_hash, name, role, status, created_at, updated_at 필드 포함. email에 unique 인덱스, role은 enum(admin, user), status는 enum(active, inactive, suspended)",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "인증 토큰 및 세션 관리 스키마 구현",
+            "description": "JWT 토큰 또는 세션 저장을 위한 데이터베이스 구조 설계",
+            "dependencies": [
+              1
+            ],
+            "details": "refresh_tokens 테이블 생성 (token, user_id, expires_at, created_at) 또는 sessions 테이블 구현. 토큰 만료 처리 로직 포함",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "사용자 CRUD 백엔드 API 엔드포인트 구현",
+            "description": "사용자 생성, 조회, 수정, 삭제를 위한 RESTful API 구현",
+            "dependencies": [
+              1
+            ],
+            "details": "POST /api/users (생성), GET /api/users (목록), GET /api/users/:id (상세), PUT /api/users/:id (수정), DELETE /api/users/:id (삭제). 페이지네이션, 필터링, 정렬 기능 포함",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "인증 및 인가 미들웨어 구현",
+            "description": "JWT 토큰 검증, 권한 확인 미들웨어 개발",
+            "dependencies": [
+              2
+            ],
+            "details": "토큰 검증 미들웨어, 역할 기반 접근 제어(RBAC) 미들웨어 구현. 관리자 전용 엔드포인트 보호, 사용자 본인 데이터만 수정 가능하도록 권한 체크",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "로그인/로그아웃 및 토큰 갱신 API 구현",
+            "description": "사용자 인증을 위한 로그인, 로그아웃, 토큰 갱신 엔드포인트 개발",
+            "dependencies": [
+              2,
+              4
+            ],
+            "details": "POST /api/auth/login (이메일/비밀번호 검증), POST /api/auth/logout (토큰 무효화), POST /api/auth/refresh (토큰 갱신). 비밀번호 해싱(bcrypt) 적용",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "사용자 목록 및 관리 UI 컴포넌트 개발",
+            "description": "사용자 목록 표시, 검색, 필터링을 위한 프론트엔드 컴포넌트",
+            "dependencies": [
+              3
+            ],
+            "details": "사용자 테이블 컴포넌트(DataGrid/Table), 검색바, 상태 필터, 역할 필터, 페이지네이션 컴포넌트. 관리자용 사용자 상태 변경 버튼(활성화/비활성화/정지)",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 7,
+            "title": "사용자 프로필 및 계정 설정 UI 개발",
+            "description": "사용자 프로필 조회/수정, 비밀번호 변경 UI 구현",
+            "dependencies": [
+              3,
+              5
+            ],
+            "details": "프로필 폼 컴포넌트(이름, 이메일 수정), 비밀번호 변경 폼(현재 비밀번호, 새 비밀번호, 확인), 계정 삭제 확인 다이얼로그. 폼 유효성 검사 포함",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 8,
+            "title": "로그인/회원가입 UI 및 인증 플로우 통합",
+            "description": "로그인, 회원가입 폼과 인증 상태 관리 구현",
+            "dependencies": [
+              5,
+              6,
+              7
+            ],
+            "details": "로그인 폼, 회원가입 폼, 비밀번호 찾기 UI. 전역 인증 상태 관리(Context API/Redux), 자동 로그인 유지, 토큰 자동 갱신, 인증 실패 시 리다이렉트 처리",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
       },
       {
         "id": 5,
@@ -140,7 +483,108 @@
           4
         ],
         "status": "pending",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "권한 모델 및 데이터 스키마 설계",
+            "description": "RBAC 시스템을 위한 역할(Role), 권한(Permission), 리소스(Resource) 엔티티 설계 및 데이터베이스 스키마 정의",
+            "dependencies": [],
+            "details": "- Role, Permission, Resource 테이블 설계\n- 역할-권한 매핑 테이블 (role_permissions) 설계\n- 사용자-역할 매핑 테이블 (user_roles) 설계\n- 권한 상속 구조 정의 (parent-child role relationships)\n- 리소스 기반 권한 제어를 위한 resource_permissions 테이블 설계\n- 권한 스코프 정의 (global, organization, project 레벨)",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "권한 검증 코어 로직 구현",
+            "description": "권한 확인을 위한 핵심 비즈니스 로직과 권한 계산 알고리즘 구현",
+            "dependencies": [
+              1
+            ],
+            "details": "- hasPermission() 메서드 구현 (사용자, 권한, 리소스 검증)\n- 권한 상속 로직 구현 (부모 역할에서 권한 상속)\n- 권한 충돌 해결 로직 (deny > allow 우선순위)\n- 권한 캐싱 전략 구현\n- 권한 매트릭스 계산 로직\n- 단위 테스트 작성",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "백엔드 권한 미들웨어 구현",
+            "description": "API 엔드포인트를 보호하기 위한 Express/NestJS 미들웨어 구현",
+            "dependencies": [
+              2
+            ],
+            "details": "- JWT 토큰에서 사용자 권한 추출\n- 라우트별 권한 체크 미들웨어 구현\n- @RequirePermission 데코레이터 구현\n- 리소스 기반 권한 검증 미들웨어\n- 권한 부족 시 에러 핸들링 (403 Forbidden)\n- 미들웨어 통합 테스트 작성",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "프론트엔드 권한 컨텍스트 및 훅 구현",
+            "description": "React에서 권한을 관리하기 위한 Context API와 커스텀 훅 개발",
+            "dependencies": [
+              2
+            ],
+            "details": "- PermissionContext 구현 (전역 권한 상태 관리)\n- usePermission() 훅 구현\n- useHasPermission(permission) 훅 구현\n- useRequirePermission() 훅 (권한 없으면 리다이렉트)\n- 권한 정보 로컬 캐싱 전략\n- 권한 변경 시 실시간 업데이트 로직",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "프론트엔드 권한 기반 UI 컴포넌트 구현",
+            "description": "권한에 따라 UI 요소를 조건부 렌더링하는 컴포넌트 개발",
+            "dependencies": [
+              4
+            ],
+            "details": "- <PermissionGuard> 컴포넌트 구현\n- <Can> 컴포넌트 구현 (권한 기반 조건부 렌더링)\n- <ProtectedRoute> 컴포넌트 구현\n- 버튼/메뉴 아이템 비활성화 로직\n- 권한 없는 요소에 대한 툴팁 표시\n- Storybook으로 컴포넌트 문서화",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "역할 및 권한 관리 API 구현",
+            "description": "역할과 권한을 CRUD할 수 있는 RESTful API 엔드포인트 개발",
+            "dependencies": [
+              3
+            ],
+            "details": "- POST/GET/PUT/DELETE /api/roles 엔드포인트\n- POST/GET/PUT/DELETE /api/permissions 엔드포인트\n- POST/DELETE /api/roles/:id/permissions (역할-권한 매핑)\n- POST/DELETE /api/users/:id/roles (사용자-역할 매핑)\n- 권한 매트릭스 조회 API\n- Swagger 문서 작성",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 7,
+            "title": "역할 관리 UI 개발",
+            "description": "관리자가 역할을 생성, 수정, 삭제하고 권한을 할당할 수 있는 UI 개발",
+            "dependencies": [
+              5,
+              6
+            ],
+            "details": "- 역할 목록 테이블 (검색, 필터링, 페이지네이션)\n- 역할 생성/수정 폼 (모달 또는 별도 페이지)\n- 권한 할당 UI (체크박스 트리 구조)\n- 역할 계층 구조 시각화\n- 역할 삭제 시 확인 다이얼로그\n- 실시간 유효성 검사",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 8,
+            "title": "사용자 권한 할당 UI 개발",
+            "description": "사용자에게 역할을 할당하고 권한을 확인할 수 있는 관리 인터페이스 구현",
+            "dependencies": [
+              5,
+              6
+            ],
+            "details": "- 사용자별 역할 할당 인터페이스\n- 다중 역할 선택 UI (멀티 셀렉트)\n- 사용자의 유효 권한 미리보기\n- 권한 충돌 경고 표시\n- 벌크 역할 할당 기능\n- 권한 변경 이력 조회",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 9,
+            "title": "권한 감사 로그 및 모니터링 구현",
+            "description": "권한 변경 이력을 추적하고 보안 이벤트를 모니터링하는 시스템 구현",
+            "dependencies": [
+              3,
+              6
+            ],
+            "details": "- 권한 변경 이벤트 로깅 (누가, 언제, 무엇을)\n- 권한 검증 실패 로깅\n- 감사 로그 조회 API 및 UI\n- 의심스러운 활동 감지 알고리즘\n- 권한 사용 통계 대시보드\n- 정기 권한 검토 알림 시스템",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
       },
       {
         "id": 6,
@@ -153,7 +597,95 @@
           5
         ],
         "status": "pending",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "공유 링크 백엔드 API 설계 및 구현",
+            "description": "공유 링크 생성, 조회, 수정, 삭제를 위한 RESTful API 엔드포인트 구현",
+            "dependencies": [],
+            "details": "POST /api/shares (링크 생성), GET /api/shares (목록 조회), GET /api/shares/:id (상세 조회), PUT /api/shares/:id (수정), DELETE /api/shares/:id (삭제) 엔드포인트 구현. 링크 토큰 생성 로직, 데이터베이스 스키마 설계 포함",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "접근 제어 백엔드 시스템 구현",
+            "description": "공유 링크 접근 권한 검증 및 제어 시스템 개발",
+            "dependencies": [
+              1
+            ],
+            "details": "비밀번호 검증, IP 화이트리스트/블랙리스트 검증, 사용자 인증 연동, 권한 레벨별 접근 제어 로직 구현. 미들웨어 형태로 개발하여 재사용성 확보",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "만료 정책 관리 시스템 개발",
+            "description": "시간 기반, 접근 횟수 기반 만료 정책 처리 시스템 구현",
+            "dependencies": [
+              1
+            ],
+            "details": "만료 일시, 최대 접근 횟수, 최대 다운로드 횟수 체크 로직 구현. 크론 작업으로 만료된 링크 자동 정리, 만료 임박 알림 기능 포함",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "접근 로그 수집 및 저장 시스템 구축",
+            "description": "공유 링크 접근에 대한 상세 로그 수집 및 저장 인프라 구현",
+            "dependencies": [
+              2
+            ],
+            "details": "접근 시간, IP 주소, 사용자 정보, 브라우저 정보, 접근 성공/실패 여부 등 로그 수집. 대용량 로그 처리를 위한 배치 저장, 로그 테이블 파티셔닝 전략 적용",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "공유 링크 생성/관리 프론트엔드 UI 개발",
+            "description": "공유 링크 생성 폼 및 관리 대시보드 UI 구현",
+            "dependencies": [
+              1
+            ],
+            "details": "링크 생성 모달(공유 대상 선택, 만료 설정, 비밀번호 설정), 링크 목록 테이블(검색, 필터, 정렬), 링크 수정/삭제 기능, 링크 복사 및 QR 코드 생성 UI 포함",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "접근 제어 설정 프론트엔드 UI 구현",
+            "description": "공유 링크별 접근 제어 정책 설정 인터페이스 개발",
+            "dependencies": [
+              2,
+              5
+            ],
+            "details": "비밀번호 설정/변경 UI, IP 주소 화이트리스트/블랙리스트 관리 UI, 사용자/그룹별 권한 설정 UI, 접근 가능 시간대 설정 UI 구현",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 7,
+            "title": "분석 및 리포팅 백엔드 API 개발",
+            "description": "공유 링크 사용 통계 및 분석 데이터 제공 API 구현",
+            "dependencies": [
+              4
+            ],
+            "details": "링크별 접근 통계, 시간대별/지역별 접근 분석, 인기 콘텐츠 분석, 사용자별 공유 활동 분석 API 개발. 집계 데이터 캐싱으로 성능 최적화",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 8,
+            "title": "분석 대시보드 프론트엔드 UI 구현",
+            "description": "공유 링크 사용 현황 및 분석 결과 시각화 대시보드 개발",
+            "dependencies": [
+              7
+            ],
+            "details": "실시간 접근 현황 모니터링, 차트 기반 통계 시각화(접근 추이, 지역 분포, 디바이스 분석), 상세 접근 로그 뷰어, 리포트 다운로드 기능 구현",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
       },
       {
         "id": 7,
@@ -166,7 +698,83 @@
           3
         ],
         "status": "pending",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Jest 테스트 환경 설정",
+            "description": "Jest 설치 및 기본 설정 파일 구성",
+            "dependencies": [],
+            "details": "- Jest와 ts-jest 설치\n- jest.config.js 작성 (TypeScript 지원 설정)\n- 테스트 파일 경로 패턴 설정\n- coverage 리포트 설정\n- transform 설정으로 TypeScript 컴파일 옵션 구성",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "React Testing Library 설정 및 헬퍼 함수 구현",
+            "description": "React Testing Library 설치 및 커스텀 렌더러 구현",
+            "dependencies": [
+              1
+            ],
+            "details": "- @testing-library/react, @testing-library/jest-dom 설치\n- 커스텀 render 함수 구현 (Provider 래핑 포함)\n- jest-dom matchers 설정\n- 테스트 유틸리티 함수 작성 (waitFor, screen 등 re-export)\n- setup 파일 작성 및 Jest 설정에 연결",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "MSW(Mock Service Worker) 설정 및 모킹 구조 구축",
+            "description": "MSW 설치 및 API 모킹 인프라 구성",
+            "dependencies": [
+              1
+            ],
+            "details": "- MSW 설치 및 초기 설정\n- handlers 디렉토리 구조 설계\n- server setup 파일 작성 (setupServer)\n- 테스트용 mock 데이터 팩토리 함수 구현\n- beforeAll/afterEach/afterAll 훅 설정",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Playwright E2E 테스트 환경 구축",
+            "description": "Playwright 설치 및 E2E 테스트 설정",
+            "dependencies": [],
+            "details": "- Playwright 설치 및 브라우저 설치\n- playwright.config.ts 작성\n- baseURL 및 테스트 디렉토리 설정\n- viewport, timeout 등 기본 설정\n- 스크린샷 및 비디오 녹화 옵션 설정",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "단위 테스트 및 통합 테스트 샘플 작성",
+            "description": "Jest와 React Testing Library를 활용한 샘플 테스트 작성",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "- 컴포넌트 단위 테스트 샘플 작성\n- 커스텀 훅 테스트 샘플 작성\n- MSW를 활용한 API 통합 테스트 샘플\n- 테스트 작성 가이드라인 문서화\n- 테스트 네이밍 컨벤션 정립",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "E2E 테스트 시나리오 및 Page Object Model 구현",
+            "description": "Playwright를 활용한 E2E 테스트 구조 설계",
+            "dependencies": [
+              4
+            ],
+            "details": "- Page Object Model 패턴 구현\n- 주요 사용자 플로우 E2E 테스트 작성\n- 테스트 데이터 초기화 스크립트 작성\n- 로그인/인증 헬퍼 함수 구현\n- CI 환경을 위한 headless 모드 설정",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 7,
+            "title": "CI/CD 파이프라인 테스트 통합",
+            "description": "GitHub Actions에 테스트 자동화 통합",
+            "dependencies": [
+              5,
+              6
+            ],
+            "details": "- 테스트 실행 workflow 파일 작성\n- 단위/통합 테스트와 E2E 테스트 분리 실행\n- 테스트 커버리지 리포트 생성 및 PR 코멘트 연동\n- 테스트 실패 시 스크린샷/비디오 아티팩트 저장\n- 병렬 실행 최적화 설정",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
       },
       {
         "id": 8,
@@ -179,7 +787,108 @@
           7
         ],
         "status": "pending",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "DuckDB 환경 설정 및 드라이버 구성",
+            "description": "DuckDB 설치, Drizzle ORM DuckDB 어댑터 설정, 기본 연결 테스트 구현",
+            "dependencies": [],
+            "details": "DuckDB 패키지 설치, drizzle-orm/duckdb-driver 설정, 연결 풀 구성, 기본 CRUD 테스트 작성, 환경변수 기반 DB 전환 로직 구현",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "스키마 변환 도구 개발",
+            "description": "SQLite 스키마를 DuckDB 호환 스키마로 자동 변환하는 마이그레이션 스크립트 작성",
+            "dependencies": [
+              1
+            ],
+            "details": "데이터 타입 매핑 정의, 인덱스 변환 로직, 제약조건 처리, Drizzle 스키마 정의 파일 생성, 스키마 버전 관리 시스템 구축",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "점진적 데이터 마이그레이션 파이프라인",
+            "description": "배치 단위 데이터 이전 시스템 구축 및 진행상황 추적 메커니즘 구현",
+            "dependencies": [
+              2
+            ],
+            "details": "청크 기반 데이터 읽기/쓰기, 트랜잭션 단위 처리, 진행률 모니터링, 중단/재개 기능, 병렬 처리 옵션, 메모리 사용량 최적화",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "데이터 무결성 검증 시스템",
+            "description": "마이그레이션 전후 데이터 일관성 검증 도구 개발 및 불일치 리포트 생성",
+            "dependencies": [
+              3
+            ],
+            "details": "체크섬 기반 검증, 레코드 수 비교, 샘플링 검증, 외래키 무결성 확인, 데이터 타입 호환성 검증, 상세 불일치 리포트 생성",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "쿼리 호환성 계층 구현",
+            "description": "기존 SQLite 쿼리를 DuckDB 호환 쿼리로 변환하는 추상화 계층 개발",
+            "dependencies": [
+              2
+            ],
+            "details": "쿼리 파서 구현, SQL 방언 변환기, Drizzle ORM 쿼리 빌더 확장, 동적 쿼리 라우팅, 호환성 경고 시스템",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "성능 벤치마크 및 최적화",
+            "description": "주요 쿼리 성능 측정, 인덱스 최적화, DuckDB 특화 성능 튜닝 적용",
+            "dependencies": [
+              4,
+              5
+            ],
+            "details": "쿼리 실행 계획 분석, 인덱스 사용률 평가, 파티셔닝 전략 수립, 메모리 설정 최적화, 병렬 처리 구성, 성능 비교 리포트",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 7,
+            "title": "롤백 메커니즘 구현",
+            "description": "문제 발생 시 SQLite로 즉시 복귀 가능한 자동화된 롤백 시스템 구축",
+            "dependencies": [
+              3,
+              4
+            ],
+            "details": "데이터베이스 스냅샷 관리, 연결 전환 로직, 트랜잭션 로그 백업, 자동 장애 감지, 무중단 롤백 프로세스, 롤백 테스트 자동화",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 8,
+            "title": "A/B 테스트 환경 구성",
+            "description": "일부 트래픽만 DuckDB로 라우팅하여 점진적 전환 및 성능 비교 가능한 시스템 구축",
+            "dependencies": [
+              6,
+              7
+            ],
+            "details": "트래픽 분할 로직, 실시간 성능 모니터링, 에러율 추적, 자동 트래픽 조절, 비교 대시보드 구현, 카나리 배포 전략",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 9,
+            "title": "운영 모니터링 및 알림 시스템",
+            "description": "DuckDB 전환 후 실시간 모니터링, 이상 징후 감지, 자동 알림 시스템 구축",
+            "dependencies": [
+              8
+            ],
+            "details": "쿼리 지연시간 모니터링, 에러율 추적, 리소스 사용량 감시, 데이터 동기화 상태 확인, Slack/이메일 알림 통합, 대시보드 구축",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
       },
       {
         "id": 9,
@@ -192,7 +901,94 @@
           8
         ],
         "status": "pending",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "TypeORM/Knex 엔티티 및 스키마 분석",
+            "description": "기존 TypeORM 엔티티와 Knex 마이그레이션 파일을 분석하여 Drizzle 스키마로 변환할 테이블 구조와 관계를 파악",
+            "dependencies": [],
+            "details": "- TypeORM 엔티티 데코레이터 분석 (@Entity, @Column, @ManyToOne 등)\n- Knex 마이그레이션 파일에서 테이블 구조 추출\n- 테이블 간 관계(1:1, 1:N, N:M) 매핑 문서화\n- 인덱스, 유니크 제약조건, 기본값 등 메타데이터 수집",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Drizzle 스키마 정의 및 타입 생성",
+            "description": "분석된 구조를 기반으로 Drizzle 스키마를 정의하고 TypeScript 타입을 자동 생성",
+            "dependencies": [
+              1
+            ],
+            "details": "- Drizzle 테이블 스키마 정의 (pgTable, mysqlTable 등)\n- 컬럼 타입 매핑 (varchar, integer, timestamp 등)\n- 관계 정의 (relations() 함수 사용)\n- drizzle-kit generate 명령으로 타입 생성 및 검증",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "쿼리 빌더 패턴 매핑 및 변환",
+            "description": "TypeORM QueryBuilder와 Knex 쿼리를 Drizzle 쿼리 문법으로 변환하는 패턴 정의",
+            "dependencies": [
+              2
+            ],
+            "details": "- SELECT, JOIN, WHERE 절 변환 패턴 정의\n- 집계 함수 및 GROUP BY 변환\n- 서브쿼리 및 CTE 지원 확인\n- 트랜잭션 처리 패턴 변환\n- 타입 안전성 검증을 위한 유닛 테스트 작성",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "마이그레이션 시스템 구축",
+            "description": "Drizzle Kit을 활용한 마이그레이션 시스템 구축 및 기존 DB 스키마와의 동기화",
+            "dependencies": [
+              2
+            ],
+            "details": "- drizzle.config.ts 설정 파일 작성\n- 기존 데이터베이스 스키마 스냅샷 생성\n- Drizzle 마이그레이션 파일 생성 및 검증\n- 롤백 전략 수립 및 테스트\n- 마이그레이션 실행 스크립트 작성",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Repository 레이어 추상화",
+            "description": "ORM 구현체를 교체 가능하도록 Repository 패턴으로 추상화하여 점진적 전환 지원",
+            "dependencies": [
+              3
+            ],
+            "details": "- Repository 인터페이스 정의\n- TypeORM/Knex 구현체와 Drizzle 구현체 병행 개발\n- 의존성 주입을 통한 구현체 선택 메커니즘\n- 기능 동등성 검증을 위한 통합 테스트 작성",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "점진적 전환 전략 실행",
+            "description": "피처 플래그를 활용하여 모듈별로 점진적으로 Drizzle ORM으로 전환",
+            "dependencies": [
+              5
+            ],
+            "details": "- 피처 플래그 시스템 구현\n- 읽기 전용 쿼리부터 단계적 전환\n- 모니터링 및 성능 비교 메트릭 수집\n- 롤백 계획 수립 및 테스트\n- A/B 테스트를 통한 안정성 검증",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 7,
+            "title": "성능 최적화 및 쿼리 튜닝",
+            "description": "Drizzle ORM으로 전환된 쿼리의 성능을 분석하고 최적화",
+            "dependencies": [
+              6
+            ],
+            "details": "- 쿼리 실행 계획 분석 및 비교\n- Prepared Statement 활용 최적화\n- 배치 작업 및 벌크 연산 최적화\n- 커넥션 풀 설정 튜닝\n- 쿼리 로깅 및 슬로우 쿼리 모니터링",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 8,
+            "title": "레거시 코드 제거 및 문서화",
+            "description": "TypeORM/Knex 관련 레거시 코드를 제거하고 Drizzle 마이그레이션 가이드 작성",
+            "dependencies": [
+              7
+            ],
+            "details": "- TypeORM/Knex 의존성 제거\n- 미사용 코드 및 설정 파일 정리\n- Drizzle ORM 사용 가이드 문서 작성\n- 팀 교육 자료 준비\n- 마이그레이션 과정 회고 문서화",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
       },
       {
         "id": 10,
@@ -205,12 +1001,136 @@
           9
         ],
         "status": "pending",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "OpenAI API 통합 모듈 개발",
+            "description": "OpenAI API와의 연동을 위한 기본 모듈 구축",
+            "dependencies": [],
+            "details": "API 키 관리, 연결 설정, 요청/응답 처리를 위한 기본 인터페이스 구현. 환경 변수 관리, 연결 풀링, 타임아웃 설정 포함",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "자연어 전처리 파이프라인 구축",
+            "description": "사용자 입력을 OpenAI API에 전달하기 전 정제 및 표준화",
+            "dependencies": [],
+            "details": "한국어 특수 처리, 문장 정규화, 불필요한 요소 제거, 컨텍스트 보강을 위한 전처리 로직 구현",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "기본 프롬프트 템플릿 설계",
+            "description": "SQL 변환을 위한 초기 프롬프트 구조 설계 및 구현",
+            "dependencies": [
+              1
+            ],
+            "details": "시스템 프롬프트, 사용자 프롬프트 템플릿, 스키마 정보 주입 방식 설계. 다양한 쿼리 유형별 템플릿 준비",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "프롬프트 최적화 실험 시스템",
+            "description": "다양한 프롬프트 변형을 테스트하고 성능을 측정하는 시스템",
+            "dependencies": [
+              3
+            ],
+            "details": "프롬프트 버전 관리, A/B 테스트 프레임워크, 성능 메트릭 수집, 자동화된 프롬프트 개선 제안 기능",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "SQL 쿼리 검증 엔진 개발",
+            "description": "생성된 SQL의 문법 검증 및 안전성 확인",
+            "dependencies": [
+              1
+            ],
+            "details": "SQL 파서 통합, 위험한 쿼리 패턴 감지, 스키마 호환성 검증, 쿼리 복잡도 분석",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "오류 처리 및 복구 시스템",
+            "description": "API 오류, 잘못된 SQL 생성 등에 대한 처리",
+            "dependencies": [
+              1,
+              5
+            ],
+            "details": "재시도 로직, 오류 분류 및 사용자 친화적 메시지 변환, 폴백 전략, 오류 로깅 및 모니터링",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 7,
+            "title": "쿼리 결과 분석 및 시각화",
+            "description": "SQL 실행 결과를 분석하고 사용자에게 표시",
+            "dependencies": [
+              5
+            ],
+            "details": "결과 집계, 데이터 시각화 컴포넌트, 대용량 결과 처리, 다양한 차트 타입 지원",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 8,
+            "title": "비용 추적 및 최적화 시스템",
+            "description": "OpenAI API 사용량 모니터링 및 비용 관리",
+            "dependencies": [
+              1
+            ],
+            "details": "토큰 사용량 추적, 비용 예측, 사용자별 할당량 관리, 비용 최적화 제안, 실시간 대시보드",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 9,
+            "title": "사용자 인터페이스 개발",
+            "description": "자연어 입력 및 결과 표시를 위한 UI",
+            "dependencies": [
+              2,
+              7
+            ],
+            "details": "React 기반 컴포넌트, 실시간 입력 처리, 쿼리 히스토리, 자동완성, 드래그앤드롭 테이블 선택",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 10,
+            "title": "A/B 테스트 인프라 구축",
+            "description": "프롬프트 및 기능 변경사항의 효과 측정",
+            "dependencies": [
+              4,
+              9
+            ],
+            "details": "실험 설계 도구, 사용자 세그멘테이션, 통계적 유의성 검증, 실험 결과 대시보드",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 11,
+            "title": "통합 테스트 및 성능 최적화",
+            "description": "전체 시스템의 통합 테스트 및 성능 튜닝",
+            "dependencies": [
+              6,
+              8,
+              9,
+              10
+            ],
+            "details": "엔드투엔드 테스트, 부하 테스트, 응답 시간 최적화, 캐싱 전략 구현, 프로덕션 배포 준비",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
       }
     ],
     "metadata": {
       "created": "2025-06-25T02:28:08.980Z",
-      "updated": "2025-06-25T02:28:08.980Z",
+      "updated": "2025-06-25T05:49:11.721Z",
       "description": "Tasks for master context"
     }
   }
