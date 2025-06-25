@@ -1,0 +1,217 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "디자인 시스템 마이그레이션 - Shadcn/ui 설정",
+        "description": "Material-UI에서 Shadcn/ui + Tailwind CSS로 전환하기 위한 기본 환경 설정",
+        "details": "1. Shadcn/ui CLI 설치 및 초기 설정\n2. Tailwind CSS 구성 파일 설정 (tailwind.config.js)\n3. 기본 컴포넌트 (Button, Input, Card 등) 설치\n4. 테마 시스템 구성 (라이트/다크 모드 지원)\n5. CSS 변수를 활용한 토큰 시스템 구축\n6. components.json 설정으로 컴포넌트 관리 구조 정의\n7. 기존 Material-UI 테마와 호환성 검토",
+        "testStrategy": "설치된 컴포넌트들이 올바르게 렌더링되는지 Storybook으로 확인, 테마 전환 기능 테스트, Tailwind CSS 클래스가 올바르게 적용되는지 시각적 회귀 테스트",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Tailwind CSS 기반 설정 및 초기화",
+            "description": "Tailwind CSS를 프로젝트에 설치하고 기본 설정 파일을 구성합니다",
+            "dependencies": [],
+            "details": "npm install -D tailwindcss postcss autoprefixer 실행 후 npx tailwindcss init -p로 설정 파일 생성. tailwind.config.js에서 content 경로 설정하고 global.css에 Tailwind 디렉티브 추가",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "shadcn/ui CLI 설치 및 초기 설정",
+            "description": "shadcn/ui CLI를 설치하고 프로젝트에 맞는 초기 구성을 설정합니다",
+            "dependencies": [
+              1
+            ],
+            "details": "npx shadcn-ui@latest init 실행. TypeScript 사용 여부, 스타일 (Default/New York), 베이스 컬러, CSS 변수 사용 여부 등 대화형 설정 진행. components.json 파일 생성 확인",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "CSS 변수 기반 테마 시스템 구성",
+            "description": "라이트/다크 모드를 지원하는 CSS 변수 기반 테마 시스템을 설정합니다",
+            "dependencies": [
+              2
+            ],
+            "details": "globals.css에 :root와 .dark 클래스에 대한 CSS 변수 정의. --background, --foreground, --primary 등 컬러 토큰 설정. next-themes 패키지 설치하고 ThemeProvider 컴포넌트 구성",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "필수 유틸리티 라이브러리 설정",
+            "description": "shadcn/ui 컴포넌트에서 사용하는 필수 유틸리티 라이브러리를 설치하고 구성합니다",
+            "dependencies": [
+              2
+            ],
+            "details": "class-variance-authority, clsx, tailwind-merge 설치. lib/utils.ts 파일에 cn() 헬퍼 함수 구현. lucide-react 아이콘 라이브러리 설치",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "핵심 UI 컴포넌트 설치",
+            "description": "프로젝트에서 사용할 주요 shadcn/ui 컴포넌트들을 선별하여 설치합니다",
+            "dependencies": [
+              3,
+              4
+            ],
+            "details": "npx shadcn-ui@latest add button card dialog form input label 등 핵심 컴포넌트 설치. components/ui 디렉토리에 컴포넌트 파일들이 생성되는지 확인. 각 컴포넌트의 의존성 자동 설치 확인",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "폰트 및 타이포그래피 시스템 구성",
+            "description": "프로젝트의 폰트를 설정하고 타이포그래피 시스템을 구성합니다",
+            "dependencies": [
+              3
+            ],
+            "details": "Next.js Font 또는 @fontsource를 통한 폰트 로드 설정. tailwind.config.js에 fontFamily 확장 설정. 헤딩, 본문, 코드 등에 대한 타이포그래피 클래스 정의",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 7,
+            "title": "컴포넌트 동작 검증 및 스토리북 설정",
+            "description": "설치된 컴포넌트들의 동작을 검증하고 개발 환경을 구성합니다",
+            "dependencies": [
+              5,
+              6
+            ],
+            "details": "각 UI 컴포넌트의 기본 동작 테스트 페이지 생성. 선택적으로 Storybook 설치하여 컴포넌트 문서화. 테마 전환 기능 동작 확인. Tailwind IntelliSense 설정 확인",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "핵심 UI 컴포넌트 마이그레이션",
+        "description": "기존 Material-UI 컴포넌트를 Shadcn/ui 컴포넌트로 점진적 마이그레이션",
+        "details": "1. 공통 컴포넌트 우선 마이그레이션 (Header, Sidebar, Modal)\n2. 폼 관련 컴포넌트 (Input, Select, Checkbox, Radio)\n3. 데이터 표시 컴포넌트 (Table, Card, Badge)\n4. 네비게이션 컴포넌트 (Tabs, Breadcrumb, Pagination)\n5. 피드백 컴포넌트 (Alert, Toast, Progress)\n6. codemod 스크립트 개발로 자동 변환 가능한 부분 처리\n7. 컴포넌트별 props 매핑 문서화",
+        "testStrategy": "각 컴포넌트별 단위 테스트 작성, 시각적 회귀 테스트로 UI 일관성 확인, 기존 기능과 동일한 동작 확인을 위한 통합 테스트",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 3,
+        "title": "Next.js 14 프로젝트 설정 및 마이그레이션",
+        "description": "React SPA에서 Next.js 14 App Router로 프로젝트 구조 전환",
+        "details": "1. Next.js 14 프로젝트 초기화 및 설정\n2. App Router 기반 폴더 구조 재구성 (app/ 디렉토리)\n3. 기존 React Router 라우팅을 Next.js 라우팅으로 전환\n4. Server Components와 Client Components 분리\n5. 메타데이터 API로 SEO 최적화\n6. API Routes 구성으로 BFF 패턴 구현\n7. 환경 변수 및 설정 파일 마이그레이션\n8. 빌드 및 배포 설정 조정",
+        "testStrategy": "모든 페이지 라우팅이 올바르게 작동하는지 E2E 테스트, Server Components 렌더링 테스트, API Routes 기능 테스트, 빌드 프로세스 검증",
+        "priority": "high",
+        "dependencies": [
+          2
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 4,
+        "title": "사용자 관리 시스템 구현",
+        "description": "Admin 기능의 핵심인 사용자 CRUD 및 계정 관리 시스템 구현",
+        "details": "1. 사용자 엔티티 스키마 확장 (활성화 상태, 최종 로그인 등)\n2. 사용자 목록 조회 API (페이지네이션, 검색, 필터링)\n3. 사용자 생성/수정/삭제 API 구현\n4. 계정 활성화/비활성화 기능\n5. 비밀번호 재설정 플로우 (이메일 인증)\n6. 세션 관리 및 강제 로그아웃 기능\n7. 사용자 프로필 편집 기능\n8. Admin 전용 사용자 관리 UI 구현",
+        "testStrategy": "사용자 CRUD API 단위 테스트, 권한 검증 테스트, 비밀번호 재설정 플로우 통합 테스트, Admin UI 기능 E2E 테스트",
+        "priority": "high",
+        "dependencies": [
+          3
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 5,
+        "title": "역할 기반 접근 제어 (RBAC) 시스템",
+        "description": "Admin, Manager, Viewer 역할 및 권한 매트릭스 관리 시스템 구현",
+        "details": "1. 역할(Role) 및 권한(Permission) 엔티티 설계\n2. 역할별 권한 매트릭스 정의 (리소스별 CRUD 권한)\n3. 권한 검증 미들웨어 구현\n4. 사용자-역할 매핑 시스템\n5. 계층적 권한 상속 구조\n6. API 엔드포인트별 권한 데코레이터 적용\n7. 프론트엔드 권한 기반 UI 렌더링\n8. 역할 및 권한 관리 Admin UI",
+        "testStrategy": "권한 검증 로직 단위 테스트, 역할별 API 접근 권한 테스트, 권한 상속 구조 테스트, 각 역할별 UI 접근성 E2E 테스트",
+        "priority": "high",
+        "dependencies": [
+          4
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 6,
+        "title": "공유 및 협업 관리 시스템",
+        "description": "대시보드 공유 링크 중앙 관리 및 접근 제어 시스템 구현",
+        "details": "1. 공유 링크 엔티티 및 관리 테이블 설계\n2. 공유 링크 생성/수정/삭제 API\n3. 만료 정책 및 자동 정리 시스템\n4. 비밀번호 보호 기능\n5. 공유 권한 설정 (읽기전용/편집)\n6. 접근 로그 추적 시스템\n7. 공유 링크 분석 대시보드\n8. 이메일 리포트 예약 발송 기능\n9. PDF/이미지 내보내기 API",
+        "testStrategy": "공유 링크 생성/접근 테스트, 만료 정책 동작 테스트, 권한별 접근 제한 테스트, 접근 로그 기록 검증 테스트",
+        "priority": "medium",
+        "dependencies": [
+          5
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 7,
+        "title": "테스트 인프라 구축",
+        "description": "Jest 단위 테스트 및 Playwright E2E 테스트 환경 구축",
+        "details": "1. Jest 테스트 환경 설정 (Next.js 환경 최적화)\n2. 테스트 유틸리티 및 목킹 헬퍼 함수 구현\n3. React Testing Library 설정\n4. API 테스트를 위한 MSW (Mock Service Worker) 설정\n5. Playwright E2E 테스트 환경 구축\n6. 테스트 데이터베이스 설정 (test fixtures)\n7. CI/CD 파이프라인 테스트 통합\n8. 코드 커버리지 80% 목표 달성\n9. 테스트 리포트 자동화",
+        "testStrategy": "테스트 환경 자체 검증, 샘플 테스트 케이스 작성 및 실행, CI/CD 통합 검증, 커버리지 리포트 생성 확인",
+        "priority": "medium",
+        "dependencies": [
+          3
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 8,
+        "title": "DuckDB 통합 및 마이그레이션",
+        "description": "SQLite에서 DuckDB로 전환하여 분석 성능 향상",
+        "details": "1. DuckDB Node.js 바인딩 설치 및 설정\n2. DuckDB 연결 풀 및 쿼리 실행기 구현\n3. SQLite 스키마를 DuckDB 최적화 스키마로 변환\n4. 데이터 마이그레이션 스크립트 개발\n5. 병렬 데이터 처리 및 컬럼 기반 최적화\n6. 기존 쿼리들의 DuckDB 호환성 검토 및 수정\n7. 성능 벤치마크 및 비교 분석\n8. 점진적 마이그레이션 전략 구현\n9. 백업 및 롤백 시스템",
+        "testStrategy": "데이터 무결성 검증 테스트, 쿼리 성능 벤치마크 테스트, 마이그레이션 프로세스 테스트, DuckDB 특화 기능 테스트",
+        "priority": "medium",
+        "dependencies": [
+          7
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 9,
+        "title": "Drizzle ORM 마이그레이션",
+        "description": "TypeORM + Knex.js에서 Drizzle ORM으로 통합하여 타입 안전성 강화",
+        "details": "1. Drizzle ORM 설정 및 스키마 정의\n2. 기존 TypeORM 엔티티를 Drizzle 스키마로 변환\n3. 데이터베이스 마이그레이션 시스템 구축\n4. 쿼리 빌더 로직 재구현\n5. 관계형 쿼리 최적화\n6. 트랜잭션 처리 구현\n7. 연결 풀 관리 및 성능 최적화\n8. 타입 안전성 검증 및 컴파일 타임 체크\n9. 기존 API의 점진적 마이그레이션",
+        "testStrategy": "스키마 마이그레이션 검증 테스트, 쿼리 결과 일치성 테스트, 타입 안전성 컴파일 테스트, 성능 비교 테스트",
+        "priority": "medium",
+        "dependencies": [
+          8
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 10,
+        "title": "AI/ML 통합 - 자연어 쿼리 시스템",
+        "description": "OpenAI API를 활용한 자연어-SQL 변환 및 인사이트 자동 생성 시스템 구현",
+        "details": "1. OpenAI API 클라이언트 설정 및 프롬프트 엔지니어링\n2. 자연어 쿼리 파싱 및 검증 시스템\n3. 스키마 컨텍스트를 활용한 SQL 생성 최적화\n4. 쿼리 결과 기반 인사이트 자동 생성\n5. 사용량 모니터링 및 비용 관리 시스템\n6. 쿼리 캐싱을 통한 API 호출 최적화\n7. 자연어 쿼리 히스토리 및 학습 데이터 수집\n8. 오류 처리 및 사용자 피드백 시스템\n9. AI 기능 사용률 분석 대시보드",
+        "testStrategy": "자연어-SQL 변환 정확도 테스트, API 응답 시간 성능 테스트, 비용 추적 시스템 테스트, 사용자 경험 A/B 테스트",
+        "priority": "low",
+        "dependencies": [
+          9
+        ],
+        "status": "pending",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "created": "2025-06-25T02:28:08.980Z",
+      "updated": "2025-06-25T02:28:08.980Z",
+      "description": "Tasks for master context"
+    }
+  }
+}

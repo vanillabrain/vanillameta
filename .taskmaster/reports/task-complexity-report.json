@@ -1,0 +1,93 @@
+{
+	"meta": {
+		"generatedAt": "2025-06-25T03:00:50.387Z",
+		"tasksAnalyzed": 10,
+		"totalTasks": 10,
+		"analysisCount": 10,
+		"thresholdScore": 5,
+		"projectName": "Taskmaster",
+		"usedResearch": false
+	},
+	"complexityAnalysis": [
+		{
+			"taskId": 1,
+			"taskTitle": "디자인 시스템 마이그레이션 - Shadcn/ui 설정",
+			"complexityScore": 6,
+			"recommendedSubtasks": 7,
+			"expansionPrompt": "Shadcn/ui + Tailwind CSS 환경 설정의 세부 단계들을 구현 가능한 단위로 분해하여 기술적 구성요소별로 정리해주세요. CLI 설치, 설정 파일 구성, 컴포넌트 설치, 테마 시스템 등 각각의 독립적인 작업 단위로 분리해주세요.",
+			"reasoning": "디자인 시스템 전환은 중간 복잡도이지만 순차적 작업이 많아 7개 세부 단계로 분해하면 각 단계별 검증이 가능합니다."
+		},
+		{
+			"taskId": 2,
+			"taskTitle": "핵심 UI 컴포넌트 마이그레이션",
+			"complexityScore": 8,
+			"recommendedSubtasks": 10,
+			"expansionPrompt": "Material-UI에서 Shadcn/ui로의 컴포넌트 마이그레이션을 컴포넌트 카테고리별로 분해하고, 각 카테고리별 마이그레이션 전략과 검증 방법을 포함하여 구체적인 작업 단위로 나누어주세요. 공통 컴포넌트, 폼 컴포넌트, 데이터 표시 컴포넌트 등으로 분류해주세요.",
+			"reasoning": "다양한 컴포넌트 타입의 개별 마이그레이션이 필요하고, 각각 다른 접근법과 검증이 필요한 고복잡도 작업입니다."
+		},
+		{
+			"taskId": 3,
+			"taskTitle": "Next.js 14 프로젝트 설정 및 마이그레이션",
+			"complexityScore": 9,
+			"recommendedSubtasks": 12,
+			"expansionPrompt": "React SPA에서 Next.js 14 App Router로의 전환을 기술적 영역별로 세분화하여 점진적 마이그레이션이 가능하도록 작업 단위를 나누어주세요. 프로젝트 초기화, 라우팅 전환, 컴포넌트 분리, API 구성, 빌드 설정 등 각각의 독립적 작업으로 구성해주세요.",
+			"reasoning": "프레임워크 전환은 매우 복잡하며 라우팅, 렌더링, API 등 여러 아키텍처 변경이 필요한 고위험 작업입니다."
+		},
+		{
+			"taskId": 4,
+			"taskTitle": "사용자 관리 시스템 구현",
+			"complexityScore": 7,
+			"recommendedSubtasks": 8,
+			"expansionPrompt": "사용자 CRUD 및 계정 관리 시스템을 기능별로 분해하여 백엔드 API 구현과 프론트엔드UI 구현을 분리하고, 각 기능의 독립적 개발이 가능하도록 작업 단위를 나누어주세요. 데이터베이스 스키마, API 엔드포인트, 인증 플로우, UI 컴포넌트 등으로 구분해주세요.",
+			"reasoning": "전형적인 CRUD 시스템이지만 인증/권한과 연결된 보안 요구사항이 있어 중상 복잡도입니다."
+		},
+		{
+			"taskId": 5,
+			"taskTitle": "역할 기반 접근 제어 (RBAC) 시스템",
+			"complexityScore": 8,
+			"recommendedSubtasks": 9,
+			"expansionPrompt": "RBAC 시스템 구현을 권한 모델 설계, 미들웨어 구현, 프론트엔드 권한 제어, 관리 UI 등으로 분해하고, 각 컴포넌트의 독립적 개발과 테스트가 가능하도록 작업 단위를 정의해주세요. 특히 권한 검증 로직과 UI 렌더링 분기 처리를 세분화해주세요.",
+			"reasoning": "보안이 핵심인 시스템으로 권한 매트릭스, 상속 구조, 검증 로직 등 복잡한 비즈니스 규칙이 있습니다."
+		},
+		{
+			"taskId": 6,
+			"taskTitle": "공유 및 협업 관리 시스템",
+			"complexityScore": 7,
+			"recommendedSubtasks": 8,
+			"expansionPrompt": "공유 링크 관리 시스템을 링크 생성/관리, 접근 제어, 분석 및 리포팅 기능으로 분해하고, 각 기능별 백엔드 API와 프론트엔드 UI를 독립적으로 개발할 수 있도록 작업 단위를 나누어주세요. 특히 만료 정책과 접근 로그 처리를 별도 작업으로 분리해주세요.",
+			"reasoning": "다양한 공유 정책과 접근 제어, 로깅 시스템이 통합된 중상 복잡도의 기능입니다."
+		},
+		{
+			"taskId": 7,
+			"taskTitle": "테스트 인프라 구축",
+			"complexityScore": 6,
+			"recommendedSubtasks": 7,
+			"expansionPrompt": "테스트 환경 구축을 테스트 도구별로 분해하고, 각 도구의 설정과 헬퍼 함수 구현, CI/CD 통합을 독립적 작업으로 나누어주세요. Jest, React Testing Library, MSW, Playwright 각각의 설정과 샘플 테스트 작성을 별도 단계로 구성해주세요.",
+			"reasoning": "여러 테스트 도구의 설정이 필요하지만 대부분 독립적이고 잘 정의된 설정 작업들입니다."
+		},
+		{
+			"taskId": 8,
+			"taskTitle": "DuckDB 통합 및 마이그레이션",
+			"complexityScore": 8,
+			"recommendedSubtasks": 9,
+			"expansionPrompt": "SQLite에서 DuckDB로의 마이그레이션을 환경 설정, 스키마 변환, 데이터 마이그레이션, 쿼리 최적화, 성능 검증 단계로 분해하고, 각 단계별 점진적 적용과 롤백이 가능하도록 작업 단위를 구성해주세요. 특히 데이터 무결성 검증을 별도 작업으로 분리해주세요.",
+			"reasoning": "데이터베이스 전환은 고위험 작업으로 데이터 무결성, 성능 최적화, 호환성 등 복합적 고려사항이 있습니다."
+		},
+		{
+			"taskId": 9,
+			"taskTitle": "Drizzle ORM 마이그레이션",
+			"complexityScore": 7,
+			"recommendedSubtasks": 8,
+			"expansionPrompt": "TypeORM/Knex에서 Drizzle ORM으로의 전환을 스키마 변환, 쿼리 빌더 재구현, 마이그레이션 시스템, 점진적 적용 등으로 분해하고, 각 단계별 타입 안전성 검증과 기능 동등성 확인이 가능하도록 작업 단위를 나누어주세요.",
+			"reasoning": "ORM 전환은 타입 안전성과 기존 쿼리 로직의 호환성 보장이 필요한 중상 복잡도 작업입니다."
+		},
+		{
+			"taskId": 10,
+			"taskTitle": "AI/ML 통합 - 자연어 쿼리 시스템",
+			"complexityScore": 9,
+			"recommendedSubtasks": 11,
+			"expansionPrompt": "자연어-SQL 변환 시스템을 OpenAI API 통합, 프롬프트 엔지니어링, 쿼리 검증, 결과 분석, 비용 관리, 사용자 인터페이스 등으로 분해하고, 각 컴포넌트의 독립적 개발과 A/B 테스트가 가능하도록 작업 단위를 구성해주세요. 특히 프롬프트 최적화와 오류 처리를 별도 작업으로 분리해주세요.",
+			"reasoning": "AI API 통합, 자연어 처리, 비용 최적화 등 여러 기술 영역이 결합된 고복잡도의 혁신적 기능입니다."
+		}
+	]
+}
