@@ -4,7 +4,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Button,
   Typography,
   FormControlLabel,
   Checkbox,
@@ -13,6 +12,7 @@ import {
   Snackbar,
   Alert,
 } from '@mui/material';
+import { Button } from '@/components/ui/mui-button-compat';
 import { useAnalytics } from '../../utils/enhanced-analytics';
 
 interface PrivacyConsentProps {

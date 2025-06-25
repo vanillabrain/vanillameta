@@ -1,7 +1,10 @@
 import React from 'react';
-import { ButtonProps, Tooltip } from '@mui/material';
+import { Tooltip } from '@mui/material';
 import { Button } from '@/components/ui/mui-button-compat';
 import { usePermissions } from '@/hooks/usePermissions';
+
+// mui-button-compat의 Button props 타입 재정의
+type ButtonProps = React.ComponentPropsWithoutRef<typeof Button>;
 
 interface PermissionButtonProps extends ButtonProps {
   permission?: string;

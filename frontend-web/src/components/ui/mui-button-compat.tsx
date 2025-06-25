@@ -10,6 +10,9 @@ const muiVariantMap = {
   outlined: "outline",
 } as const
 
+// Shadcn Button variant types
+type ShadcnVariant = "default" | "destructive" | "outline" | "secondary" | "ghost" | "link"
+
 // MUI size mapping
 const muiSizeMap = {
   small: "sm",
@@ -75,7 +78,7 @@ export const Button = React.forwardRef<HTMLButtonElement, MuiButtonProps>(
         return "secondary"
       }
       return shadcnVariant
-    }, [color, shadcnVariant])
+    }, [color, shadcnVariant]) as ShadcnVariant
 
     // sx prop을 style로 변환
     const style = sx ? sx : undefined
@@ -101,8 +104,8 @@ export const Button = React.forwardRef<HTMLButtonElement, MuiButtonProps>(
       return (
         <ShadcnButton
           ref={ref}
-          variant={colorClass as any}
-          size={shadcnSize as any}
+          variant={colorClass}
+          size={shadcnSize}
           className={cn(widthClass, className)}
           style={style}
           disabled={disabled}
@@ -119,8 +122,8 @@ export const Button = React.forwardRef<HTMLButtonElement, MuiButtonProps>(
     return (
       <ShadcnButton
         ref={ref}
-        variant={colorClass as any}
-        size={shadcnSize as any}
+        variant={colorClass}
+        size={shadcnSize}
         className={cn(widthClass, className)}
         style={style}
         disabled={disabled}

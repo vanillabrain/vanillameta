@@ -130,7 +130,7 @@
               1
             ],
             "details": "variant, size, color props 매핑. startIcon/endIcon을 Shadcn Button의 children 패턴으로 변환. ButtonGroup을 Button 조합으로 재구현. 클릭 이벤트와 disabled 상태 호환성 검증",
-            "status": "in-progress",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -1130,7 +1130,7 @@
     ],
     "metadata": {
       "created": "2025-06-25T02:28:08.980Z",
-      "updated": "2025-06-25T08:09:27.822Z",
+      "updated": "2025-06-25T13:08:40.968Z",
       "description": "Tasks for master context"
     }
   }

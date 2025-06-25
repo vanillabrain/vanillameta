@@ -203,8 +203,86 @@ import { Grid } from '@/components/ui';
 2. Tailwind CSS 문서 참조
 3. 기존 마이그레이션된 파일 참고
 
-## 7. 다음 단계
+## 7. Button 컴포넌트 마이그레이션 (Task 2.3 완료)
 
-- Button, IconButton 컴포넌트 마이그레이션 (Task 2.3)
+### 개요
+MUI Button, IconButton, ButtonGroup 컴포넌트가 Shadcn/ui Button으로 마이그레이션되었습니다. 호환성 레이어(`mui-button-compat`)를 통해 점진적 마이그레이션이 가능합니다.
+
+### 기본 사용법
+
+```tsx
+// Before (MUI)
+import { Button, IconButton } from '@mui/material';
+
+<Button variant="contained" color="primary" size="large">
+  Click me
+</Button>
+
+// After (호환성 레이어 사용)
+import { Button } from '@/components/ui/mui-button-compat';
+
+<Button variant="contained" color="primary" size="large">
+  Click me
+</Button>
+```
+
+### 주요 변경사항
+
+1. **Import 경로 변경**
+   ```tsx
+   // Before
+   import { Button } from '@mui/material';
+   
+   // After
+   import { Button } from '@/components/ui/mui-button-compat';
+   ```
+
+2. **Variant 매핑**
+   - `text` → `ghost`
+   - `contained` → `default`
+   - `outlined` → `outline`
+
+3. **Size 매핑**
+   - `small` → `sm`
+   - `medium` → `default`
+   - `large` → `lg`
+
+4. **Color 매핑**
+   - `primary` → `default`
+   - `secondary` → `secondary`
+   - `error`, `warning` → `destructive`
+   - `info` → `secondary`
+   - `success` → `default`
+   - `inherit` → `ghost`
+
+5. **IconButton 변환**
+   ```tsx
+   // Before
+   <IconButton color="primary">
+     <DeleteIcon />
+   </IconButton>
+   
+   // After (자동 변환)
+   <Button variant="text" size="icon">
+     <DeleteIcon />
+   </Button>
+   ```
+
+6. **LoadingButton 지원**
+   ```tsx
+   <LoadingButton loading={isLoading} loadingPosition="start">
+     Save
+   </LoadingButton>
+   ```
+
+### 마이그레이션 상태
+
+- ✅ 69개 컴포넌트 마이그레이션 완료
+- ✅ IconButton → Button variant="text" 자동 변환
+- ✅ ButtonGroup 컴포넌트 구현 (사용되지 않음)
+- ✅ LoadingButton 컴포넌트 구현
+
+## 8. 다음 단계
+
 - TextField, Select 컴포넌트 마이그레이션 (Task 2.4)
 - Card, Paper 컴포넌트 마이그레이션 (Task 2.5)
