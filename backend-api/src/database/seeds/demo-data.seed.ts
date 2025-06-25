@@ -1,5 +1,5 @@
 import { DataSource } from 'typeorm';
-import { User } from '../../user/entities/user.entity';
+import { User, UserStatus } from '../../user/entities/user.entity';
 import { Database } from '../entities/database.entity';
 import { DatabaseType } from '../entities/database_type.entity';
 import { Dataset } from '../../dataset/entities/dataset.entity';
@@ -28,6 +28,7 @@ export async function seedDemoData(dataSource: DataSource) {
         email: 'guest',
         password:
           '0258acb251701900c2abcde987033e032838df1eb39f10bfb9e9f6398866b13acb104f00485b92b11db90544744280626980c3888b9ba98ea8f319f9747d051e', // Admin!@12 (SHA512)
+        status: UserStatus.ACTIVE,
       });
       console.log('✅ Demo user created');
     }

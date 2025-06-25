@@ -25,6 +25,7 @@
     "test:integration": "jest --testPathPattern='integration\\.spec\\.ts$'",
     "deploy": "serverless deploy --stage prod",
     "seed": "cross-env NODE_ENV=dev ts-node -r tsconfig-paths/register ./node_modules/typeorm-extension/dist/cli/index.js seed",
+    "seed:run": "cross-env NODE_ENV=local ts-node -r tsconfig-paths/register src/seed-runner.ts",
     "deploy:dev": "serverless deploy --stage dev",
     "deploy:prod": "serverless deploy --stage prod",
     "yolo": "./scripts/yolo-mode.sh",

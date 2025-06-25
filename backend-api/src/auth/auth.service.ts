@@ -83,6 +83,17 @@ export class AuthService {
 
   async validateUser(userId: string, pass: string) {
     const user = await this.userRepository.findOne({ where: { userId: userId } });
+    
+    // 디버깅용 로그
+    console.log('=== Password Validation Debug ===');
+    console.log('UserId:', userId);
+    console.log('User found:', !!user);
+    if (user) {
+      console.log('DB password (first 20 chars):', user.password?.substring(0, 20) + '...');
+      console.log('Input password (first 20 chars):', pass?.substring(0, 20) + '...');
+      console.log('Password match:', user.password === pass);
+    }
+    
     if (user && user.password === pass) {
       delete user.password;
       return user;

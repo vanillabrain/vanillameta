@@ -1,7 +1,7 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User } from '../../user/entities/user.entity';
+import { User, UserStatus } from '../../user/entities/user.entity';
 import { DatabaseType } from '../../database/entities/database_type.entity';
 import { CustomLoggerService } from '../logger/logger.service';
 import * as crypto from 'crypto';
@@ -35,6 +35,7 @@ export class InitializationService implements OnModuleInit {
           userId: 'admin',
           email: 'admin@example.com',
           password: hashedPassword,
+          status: UserStatus.ACTIVE,
         });
         this.logger.log(
           '✅ Default admin user created (admin@example.com / Admin!@12)',

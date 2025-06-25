@@ -1,57 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Calendar } from '@/components/ui/calendar';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  Download, 
-  FileSpreadsheet, 
-  FileText, 
-  Info, 
-  CalendarIcon,
-  Loader2 
-} from 'lucide-react';
+import { Download, FileSpreadsheet, FileText, Info, CalendarIcon, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import dayjs from 'dayjs';
 import { useMutation } from '@tanstack/react-query';
-import {
-  AuditLogFilters,
-  ExportAuditLogsDto,
-  AuditLogLevel,
-  AuditLogCategory,
-} from '../../../types/audit';
+import { AuditLogFilters, ExportAuditLogsDto, AuditLogLevel, AuditLogCategory } from '../../../types/audit';
 import { auditLogServiceV2 } from '../../../api/auditLogServiceV2';
 import { formatFileSize } from '../../../utils/auditLogHelpers';
-import {
-  MAX_EXPORT_RECORDS,
-  EXPORT_FORMAT_OPTIONS,
-} from '../../../utils/constants/auditLogConstants';
+import { MAX_EXPORT_RECORDS, EXPORT_FORMAT_OPTIONS } from '../../../utils/constants/auditLogConstants';
 
 interface ExportAuditLogsModalProps {
   initialFilters: AuditLogFilters;
@@ -72,22 +41,20 @@ export const ExportAuditLogsModal: React.FC<ExportAuditLogsModalProps> = ({
     from: initialFilters.dateFrom || dayjs().subtract(7, 'days').toDate(),
     to: initialFilters.dateTo || new Date(),
   });
-  
+
   // Form state
   const [exportFormat, setExportFormat] = useState<string>('excel');
-  const [includeColumns, setIncludeColumns] = useState<string[]>([
-    'timestamp', 'level', 'action', 'user', 'details'
-  ]);
+  const [includeColumns, setIncludeColumns] = useState<string[]>(['timestamp', 'level', 'action', 'user', 'details']);
   const [maxRecords, setMaxRecords] = useState<number>(10000);
   const [filename, setFilename] = useState<string>('audit_logs');
-  
+
   const { toast } = useToast();
 
   // 내보내기 미리보기
   const previewMutation = useMutation({
-    mutationFn: (params: Partial<ExportAuditLogsDto> & { format: 'csv' | 'json' }) => 
+    mutationFn: (params: Partial<ExportAuditLogsDto> & { format: 'csv' | 'json' }) =>
       auditLogServiceV2.getExportPreview(params),
-    onSuccess: (data) => {
+    onSuccess: data => {
       setRecordCount(data.recordCount);
       setEstimatedSize(data.estimatedSize);
     },
@@ -109,7 +76,6 @@ export const ExportAuditLogsModal: React.FC<ExportAuditLogsModalProps> = ({
       userId: initialFilters.userId,
       resourceType: initialFilters.resourceType,
       categories: initialFilters.category ? [initialFilters.category] : undefined,
-      status: initialFilters.status,
       format: exportFormat as 'csv' | 'json',
       includeColumns,
       maxRecords,
@@ -130,7 +96,6 @@ export const ExportAuditLogsModal: React.FC<ExportAuditLogsModalProps> = ({
         userId: initialFilters.userId,
         resourceType: initialFilters.resourceType,
         categories: initialFilters.category ? [initialFilters.category] : undefined,
-        status: initialFilters.status,
         format: exportFormat as 'csv' | 'json',
         maxRecords,
       });
@@ -178,7 +143,7 @@ export const ExportAuditLogsModal: React.FC<ExportAuditLogsModalProps> = ({
             감사 로그 내보내기
           </DialogTitle>
         </DialogHeader>
-        
+
         <div className="overflow-y-auto max-h-[calc(90vh-160px)] space-y-6">
           {/* 기간 선택 */}
           <div className="space-y-2">
@@ -188,19 +153,18 @@ export const ExportAuditLogsModal: React.FC<ExportAuditLogsModalProps> = ({
                 <Button
                   variant="outline"
                   className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !dateRange.from && !dateRange.to && "text-muted-foreground"
+                    'w-full justify-start text-left font-normal',
+                    !dateRange.from && !dateRange.to && 'text-muted-foreground',
                   )}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {dateRange.from ? (
                     dateRange.to ? (
                       <>
-                        {format(dateRange.from, "PPP", { locale: ko })} -{" "}
-                        {format(dateRange.to, "PPP", { locale: ko })}
+                        {format(dateRange.from, 'PPP', { locale: ko })} - {format(dateRange.to, 'PPP', { locale: ko })}
                       </>
                     ) : (
-                      format(dateRange.from, "PPP", { locale: ko })
+                      format(dateRange.from, 'PPP', { locale: ko })
                     )
                   ) : (
                     <span>날짜 선택</span>
@@ -255,19 +219,14 @@ export const ExportAuditLogsModal: React.FC<ExportAuditLogsModalProps> = ({
           <div className="space-y-3">
             <Label>포함할 항목</Label>
             <div className="grid grid-cols-2 gap-3">
-              {availableColumns.map((column) => (
+              {availableColumns.map(column => (
                 <div key={column.key} className="flex items-center space-x-2">
                   <Checkbox
                     id={column.key}
                     checked={includeColumns.includes(column.key)}
-                    onCheckedChange={(checked) => 
-                      handleColumnChange(column.key, checked as boolean)
-                    }
+                    onCheckedChange={checked => handleColumnChange(column.key, checked as boolean)}
                   />
-                  <Label 
-                    htmlFor={column.key} 
-                    className="text-sm font-normal"
-                  >
+                  <Label htmlFor={column.key} className="text-sm font-normal">
                     {column.label}
                   </Label>
                 </div>
@@ -284,7 +243,7 @@ export const ExportAuditLogsModal: React.FC<ExportAuditLogsModalProps> = ({
               id="maxRecords"
               type="number"
               value={maxRecords}
-              onChange={(e) => setMaxRecords(parseInt(e.target.value) || 0)}
+              onChange={e => setMaxRecords(parseInt(e.target.value) || 0)}
               max={MAX_EXPORT_RECORDS}
               min={1}
             />
@@ -296,12 +255,7 @@ export const ExportAuditLogsModal: React.FC<ExportAuditLogsModalProps> = ({
           {/* 파일명 */}
           <div className="space-y-2">
             <Label htmlFor="filename">파일명</Label>
-            <Input
-              id="filename"
-              value={filename}
-              onChange={(e) => setFilename(e.target.value)}
-              placeholder="audit_logs"
-            />
+            <Input id="filename" value={filename} onChange={e => setFilename(e.target.value)} placeholder="audit_logs" />
           </div>
 
           {/* 미리보기 정보 */}
@@ -310,21 +264,27 @@ export const ExportAuditLogsModal: React.FC<ExportAuditLogsModalProps> = ({
               <Loader2 className="h-4 w-4 animate-spin" />
               미리보기 로딩 중...
             </div>
-          ) : recordCount > 0 && (
-            <Alert>
-              <Info className="h-4 w-4" />
-              <AlertDescription>
-                <div className="space-y-1">
-                  <div>예상 레코드 수: <strong>{recordCount.toLocaleString()}개</strong></div>
-                  <div>예상 파일 크기: <strong>{formatFileSize(estimatedSize)}</strong></div>
-                  {recordCount > maxRecords && (
-                    <div className="text-amber-600">
-                      설정된 최대 레코드 수({maxRecords.toLocaleString()}개)로 제한됩니다.
+          ) : (
+            recordCount > 0 && (
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertDescription>
+                  <div className="space-y-1">
+                    <div>
+                      예상 레코드 수: <strong>{recordCount.toLocaleString()}개</strong>
                     </div>
-                  )}
-                </div>
-              </AlertDescription>
-            </Alert>
+                    <div>
+                      예상 파일 크기: <strong>{formatFileSize(estimatedSize)}</strong>
+                    </div>
+                    {recordCount > maxRecords && (
+                      <div className="text-amber-600">
+                        설정된 최대 레코드 수({maxRecords.toLocaleString()}개)로 제한됩니다.
+                      </div>
+                    )}
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )
           )}
         </div>
 
@@ -332,7 +292,7 @@ export const ExportAuditLogsModal: React.FC<ExportAuditLogsModalProps> = ({
           <Button variant="outline" onClick={onClose}>
             취소
           </Button>
-          <Button 
+          <Button
             onClick={handleExport}
             disabled={loading || includeColumns.length === 0 || !dateRange.from || !dateRange.to}
           >
