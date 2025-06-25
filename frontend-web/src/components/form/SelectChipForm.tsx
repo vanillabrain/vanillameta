@@ -4,7 +4,6 @@ import {
   Chip,
   FormControl,
   FormLabel,
-  IconButton,
   MenuItem,
   Select,
   SelectChangeEvent,
@@ -13,6 +12,7 @@ import {
   useTheme,
   Popover,
 } from '@mui/material';
+import { Button } from '@/components/ui/button';
 import { SketchPicker, SwatchesPicker } from 'react-color';
 import PaletteIcon from '@mui/icons-material/Palette';
 
@@ -84,9 +84,14 @@ function SelectChipForm(props) {
         </Select>
         {color && (
           <React.Fragment>
-            <IconButton aria-label="색상 선택" onClick={handleClick}>
+            <Button 
+              variant="text" 
+              aria-label="색상 선택" 
+              onClick={handleClick}
+              sx={{ minWidth: 'auto', p: 1 }}
+            >
               <PaletteIcon />
-            </IconButton>
+            </Button>
             <Popover
               id={popoverId}
               open={open}

@@ -1,5 +1,6 @@
 import React, { useContext } from 'react';
-import { Avatar, Box, Button, ClickAwayListener, Paper, Popper, Stack, Typography } from '@mui/material';
+import { Avatar, Box, ClickAwayListener, Paper, Popper, Stack, Typography } from '@mui/material';
+import { Button } from '@/components/ui/mui-button-compat';
 import { ReactComponent as IconUser } from '@/assets/images/icon/ic-user.svg';
 import ProfileModify from '@/components/user/ProfileModify';
 import { AuthContext } from '@/contexts/AuthContext';

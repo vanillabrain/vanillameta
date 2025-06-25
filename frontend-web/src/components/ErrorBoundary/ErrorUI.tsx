@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   Box,
-  Button,
   Typography,
   Alert,
   Stack,
@@ -9,6 +8,7 @@ import {
   Paper,
   Chip,
 } from '@mui/material';
+import { Button } from '@/components/ui/mui-button-compat';
 import {
   Refresh as RefreshIcon,
   ArrowBack as ArrowBackIcon,

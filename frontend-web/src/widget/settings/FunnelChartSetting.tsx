@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { IconButton, ListItem, ListItemText, SvgIcon } from '@mui/material';
+import { ListItem, ListItemText, SvgIcon } from '@mui/material';
+import { Button } from '@/components/ui/button';
 import SelectForm from '@/components/form/SelectForm';
 import ColorFieldForm from '@/components/form/ColorFieldForm';
 import { handleChange } from '@/widget/utils/handler';
@@ -134,7 +135,8 @@ const FunnelChartSetting = props => {
             right: 0,
           }}
         />
-        <IconButton
+        <Button
+          variant="text"
           size="small"
           sx={{
             position: 'absolute',
@@ -142,6 +144,8 @@ const FunnelChartSetting = props => {
             right: 34,
             width: 28,
             height: 28,
+            minWidth: 'auto',
+            p: '6px',
           }}
           onClick={handleColorChangeClick}
         >
@@ -150,7 +154,7 @@ const FunnelChartSetting = props => {
             inheritViewBox
             sx={{ width: 16, height: 16 }}
           />
-        </IconButton>
+        </Button>
         {option.series.field &&
           option.series.color
             .filter((item, index) => index < colorNum)

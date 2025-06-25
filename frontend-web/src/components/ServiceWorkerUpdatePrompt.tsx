@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Snackbar, Button, IconButton } from '@mui/material';
+import { Snackbar } from '@mui/material';
+import { Button } from '@/components/ui/mui-button-compat';
 import CloseIcon from '@mui/icons-material/Close';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import * as serviceWorkerRegistration from '../serviceWorkerRegistration';
@@ -44,9 +45,16 @@ const ServiceWorkerUpdatePrompt: React.FC<ServiceWorkerUpdatePromptProps> = () =
           <Button color="inherit" size="small" startIcon={<RefreshIcon />} onClick={reloadPage}>
             업데이트
           </Button>
-          <IconButton size="small" aria-label="close" color="inherit" onClick={handleClose}>
+          <Button
+            variant="text"
+            size="small"
+            aria-label="close"
+            color="inherit"
+            onClick={handleClose}
+            sx={{ minWidth: 'auto', p: 1 }}
+          >
             <CloseIcon fontSize="small" />
-          </IconButton>
+          </Button>
         </React.Fragment>
       }
     />

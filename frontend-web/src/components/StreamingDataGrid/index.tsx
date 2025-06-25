@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Box, Button, Alert, CircularProgress } from '@mui/material';
+import { Box, Alert, CircularProgress } from '@mui/material';
+import { Button } from '@/components/ui/mui-button-compat';
 import { PlayArrow as PlayArrowIcon, Stop as StopIcon } from '@mui/icons-material';
 import VirtualDataGrid from '@/components/VirtualDataGrid';
 import ProgressIndicator from '@/components/ProgressIndicator';

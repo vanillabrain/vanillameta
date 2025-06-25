@@ -1,5 +1,5 @@
 import React, { useContext } from 'react';
-import { Button } from '@mui/material';
+import { Button } from '@/components/ui/mui-button-compat';
 import authService from '@/api/authService';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { useAlert } from 'react-alert';

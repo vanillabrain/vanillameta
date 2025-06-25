@@ -2,7 +2,6 @@ import React, { useContext, useEffect, useState } from 'react';
 import {
   Avatar,
   Box,
-  Button,
   Checkbox,
   Dialog,
   DialogActions,
@@ -16,6 +15,7 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
+import { Button } from '@/components/ui/mui-button-compat';
 import { useAlert } from 'react-alert';
 import TemplateService from '@/api/templateService';
 import WidgetService from '@/api/widgetService';

@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Box, Button, Stack, Step, StepLabel, Stepper, SvgIcon } from '@mui/material';
+import { Box, Stack, Step, StepLabel, Stepper, SvgIcon } from '@mui/material';
+import { Button } from '@/components/ui/mui-button-compat';
 import PageTitleBox from '@/components/PageTitleBox';
 import WidgetDataSelect from './WidgetDataSelect';
 import WidgetTypeSelect from './WidgetTypeSelect';

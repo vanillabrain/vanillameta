@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { FormControl, IconButton, Popover } from '@mui/material';
+import { FormControl, Popover } from '@mui/material';
+import { Button } from '@/components/ui/button';
 import { SketchPicker } from 'react-color';
 import PaintButton from '@/components/button/PaintButton';
 
@@ -27,9 +28,14 @@ const ColorPickerForm = props => {
 
   return (
     <FormControl sx={{ alignItems: 'flex-end', justifyContent: 'center' }}>
-      <IconButton aria-label="색상 선택" onClick={handleClick}>
+      <Button 
+        variant="text" 
+        aria-label="색상 선택" 
+        sx={{ minWidth: 'auto', p: 1 }} 
+        onClick={handleClick}
+      >
         <PaintButton color={color} />
-      </IconButton>
+      </Button>
       <Popover
         id={popoverId}
         open={open}

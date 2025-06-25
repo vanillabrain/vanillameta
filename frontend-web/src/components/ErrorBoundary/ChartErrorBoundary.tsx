@@ -1,6 +1,7 @@
 import React, { Component, ReactNode, ErrorInfo } from 'react';
-import { Box, Button, Typography, Alert } from '@mui/material';
+import { Box, Typography, Alert } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import { Button } from '@/components/ui/mui-button-compat';
 import { ErrorType, ErrorSeverity, ErrorInfo as CustomErrorInfo } from './types';
 
 interface Props {

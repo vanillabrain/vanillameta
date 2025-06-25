@@ -1,5 +1,6 @@
 import React from 'react';
-import { IconButton, Menu, MenuItem, Box, Typography } from '@mui/material';
+import { Menu, MenuItem, Box, Typography } from '@mui/material';
+import { Button } from '@/components/ui/mui-button-compat';
 import LanguageIcon from '@mui/icons-material/Language';
 import { useTranslation } from 'react-i18next';
 
@@ -29,9 +30,15 @@ const LanguageSwitcher: React.FC = () => {
 
   return (
     <>
-      <IconButton onClick={handleClick} color="inherit" size="large" sx={{ ml: 1 }}>
+      <Button 
+        variant="text"
+        onClick={handleClick} 
+        color="inherit" 
+        size="large" 
+        sx={{ ml: 1, minWidth: 'auto' }}
+      >
         <LanguageIcon />
-      </IconButton>
+      </Button>
       <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}

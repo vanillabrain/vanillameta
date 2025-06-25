@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useState, useCallback } from 'react';
-import { Box, Button, Card, CardHeader, Stack, TextField } from '@mui/material';
+import { Box, Card, CardHeader, Stack, TextField } from '@mui/material';
+import { Button } from '@/components/ui/mui-button-compat';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import PageTitleBox from '@/components/PageTitleBox';
 import AddWidgetPopup from '@/pages/Dashboard/Components/AddWidgetPopup';

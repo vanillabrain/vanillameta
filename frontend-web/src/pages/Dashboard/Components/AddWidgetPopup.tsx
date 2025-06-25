@@ -1,7 +1,6 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import {
   Avatar,
-  Button,
   Checkbox,
   Dialog,
   DialogActions,
@@ -13,6 +12,7 @@ import {
   ListItemText,
   Typography,
 } from '@mui/material';
+import { Button } from '@/components/ui/mui-button-compat';
 import WidgetService from '@/api/widgetService';
 import { STATUS } from '@/constant';
 import { useAlert } from 'react-alert';

@@ -1,5 +1,6 @@
 import React from 'react';
-import { Button, Stack, ListItem } from '@mui/material';
+import { Stack, ListItem } from '@mui/material';
+import { Button } from '@/components/ui/mui-button-compat';
 import { NavLink } from 'react-router-dom';
 
 function NavBar(props) {

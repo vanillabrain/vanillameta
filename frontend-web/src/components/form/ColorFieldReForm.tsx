@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { FormControl, IconButton, OutlinedInput, Popover, Stack } from '@mui/material';
+import { FormControl, OutlinedInput, Popover, Stack } from '@mui/material';
+import { Button } from '@/components/ui/button';
 import { SketchPicker } from 'react-color';
 import PaintButton from '@/components/button/PaintButton';
 
@@ -28,9 +29,14 @@ const ColorFieldReForm = props => {
   return (
     <FormControl fullWidth sx={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
       <Stack flexDirection="row" sx={{ width: '100%' }} justifyContent="space-between" alignItems="center">
-        <IconButton aria-label="색상 선택" sx={{ mr: 1 }} onClick={handleClick}>
+        <Button 
+          variant="text" 
+          aria-label="색상 선택" 
+          sx={{ minWidth: 'auto', p: 1, mr: 1 }} 
+          onClick={handleClick}
+        >
           <PaintButton color={color} />
-        </IconButton>
+        </Button>
         <Popover
           id={popoverId}
           open={open}

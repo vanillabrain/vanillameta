@@ -1,5 +1,6 @@
 import React from 'react';
-import { Button, ButtonProps, Tooltip } from '@mui/material';
+import { ButtonProps, Tooltip } from '@mui/material';
+import { Button } from '@/components/ui/mui-button-compat';
 import { usePermissions } from '@/hooks/usePermissions';
 
 interface PermissionButtonProps extends ButtonProps {

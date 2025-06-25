@@ -1,5 +1,6 @@
 import React from 'react';
-import { Box, LinearProgress, Typography, Paper, IconButton } from '@mui/material';
+import { Box, LinearProgress, Typography, Paper } from '@mui/material';
+import { Button } from '@/components/ui/button';
 import { Stop as StopIcon, CheckCircle as CheckCircleIcon } from '@mui/icons-material';
 
 interface ProgressIndicatorProps {
@@ -51,9 +52,15 @@ const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({
           )}
         </Box>
         {isStreaming && onStop && (
-          <IconButton size="small" onClick={onStop} color="error">
+          <Button 
+            variant="text" 
+            size="small" 
+            onClick={onStop} 
+            color="error"
+            sx={{ minWidth: 'auto', p: 1 }}
+          >
             <StopIcon fontSize="small" />
-          </IconButton>
+          </Button>
         )}
       </Box>
 

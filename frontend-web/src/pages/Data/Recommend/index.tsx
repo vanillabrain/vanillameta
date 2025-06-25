@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 import {
-  IconButton,
   Dialog,
   AppBar,
   Toolbar,
   Typography,
-  Button,
   Slide,
   DialogTitle,
   DialogActions,
@@ -13,6 +11,7 @@ import {
   DialogContent,
   DialogContentText,
 } from '@mui/material';
+import { Button } from '@/components/ui/button';
 import { TransitionProps } from '@mui/material/transitions';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import CloseIcon from '@mui/icons-material/Close';
@@ -73,15 +72,27 @@ function Recommend(props) {
 
   return (
     <React.Fragment>
-      <IconButton onClick={handleOpenClick} size="small">
+      <Button 
+        variant="text" 
+        onClick={handleOpenClick} 
+        size="small"
+        sx={{ minWidth: 'auto', p: 1 }}
+      >
         <AutoAwesomeIcon />
-      </IconButton>
+      </Button>
       <Dialog open={open} onClose={handleClose} TransitionComponent={Transition} fullWidth maxWidth="xl">
         <AppBar sx={{ position: 'relative' }}>
           <Toolbar>
-            <IconButton edge="start" color="inherit" onClick={handleClose} aria-label="close">
+            <Button 
+              variant="text" 
+              edge="start" 
+              color="inherit" 
+              onClick={handleClose} 
+              aria-label="close"
+              sx={{ minWidth: 'auto', p: 1 }}
+            >
               <CloseIcon />
-            </IconButton>
+            </Button>
             <Typography sx={{ ml: 2, flex: 1 }} variant="h6" component="div">
               대시보드 생성
             </Typography>
@@ -105,8 +116,8 @@ function Recommend(props) {
               <TextField margin="dense" id="dashboardName" label="대시보드 이름" type="text" fullWidth variant="standard" />
             </DialogContent>
             <DialogActions>
-              <Button onClick={handleCompleteClose}>취소</Button>
-              <Button onClick={handleSubmit}>대시보드 생성</Button>
+              <Button variant="text" onClick={handleCompleteClose}>취소</Button>
+              <Button variant="text" onClick={handleSubmit}>대시보드 생성</Button>
             </DialogActions>
           </Dialog>
         </DialogActions>

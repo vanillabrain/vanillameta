@@ -1,15 +1,14 @@
 import React, { useContext, useState } from 'react';
 import {
-  Button,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  IconButton,
   Stack,
   styled,
   TextField,
 } from '@mui/material';
+import { Button } from '@/components/ui/button';
 import CloseIcon from '@mui/icons-material/Close';
 import { AuthContext } from '@/contexts/AuthContext';
 import authService from '@/api/authService';
@@ -53,7 +52,8 @@ const BootstrapDialogTitle = (props: DialogTitleProps) => {
     >
       {children}
       {onClose ? (
-        <IconButton
+        <Button
+          variant="text"
           aria-label="close"
           onClick={onClose}
           sx={{
@@ -61,10 +61,12 @@ const BootstrapDialogTitle = (props: DialogTitleProps) => {
             right: '10px',
             top: '10px',
             color: '#4a4a4a',
+            minWidth: 'auto',
+            p: 1,
           }}
         >
           <CloseIcon />
-        </IconButton>
+        </Button>
       ) : null}
     </DialogTitle>
   );
@@ -176,10 +178,8 @@ const ProfileModify = props => {
   return (
     <div>
       <Button
+        variant="text"
         onClick={handleClickOpen}
-        disableRipple
-        disableFocusRipple
-        disableTouchRipple
         sx={{
           minWidth: 0,
           minHeight: 0,
@@ -191,7 +191,7 @@ const ProfileModify = props => {
           color: 'inherit',
           '&:hover': {
             textDecoration: 'underline',
-            backgroundColor: 'inherit',
+            backgroundColor: 'transparent',
           },
         }}
         {...props}
@@ -239,10 +239,10 @@ const ProfileModify = props => {
           </Stack>
         </DialogContent>
         <DialogActions sx={{ height: '64px', borderTop: '1px solid #ececec' }}>
-          <Button onClick={handleClose} sx={{ fontSize: '14px', fontWeight: 600, color: '#767676' }}>
+          <Button variant="text" onClick={handleClose} sx={{ fontSize: '14px', fontWeight: 600, color: '#767676' }}>
             취소
           </Button>
-          <Button autoFocus form="modifyProfile" type="submit" sx={{ fontSize: '14px', fontWeight: 600 }}>
+          <Button variant="text" autoFocus form="modifyProfile" type="submit" sx={{ fontSize: '14px', fontWeight: 600 }}>
             수정하기
           </Button>
         </DialogActions>

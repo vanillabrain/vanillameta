@@ -1,4 +1,5 @@
-import { Box, IconButton, Modal, Paper, Stack, Typography } from '@mui/material';
+import { Box, Modal, Paper, Stack, Typography } from '@mui/material';
+import { Button } from '@/components/ui/mui-button-compat';
 import { ReactComponent as CloseIcon } from '@/assets/images/icon/ic-xmark.svg';
 import React from 'react';
 import { MAX_WIDTH } from '@/constant';
@@ -46,9 +47,13 @@ const ModalPopup = (props: ModalPopupProps) => {
       >
         <Stack direction="row" justifyContent="space-between" alignItems="center" m="20px" mr="10px">
           <Typography sx={{ fontSize: '20px', fontWeight: 600, color: '#141414' }}>{title}</Typography>
-          <IconButton onClick={handleClose} sx={{ p: '10px' }}>
+          <Button 
+            variant="text"
+            onClick={handleClose} 
+            sx={{ p: '10px', minWidth: 'auto' }}
+          >
             <CloseIcon width="16" height="16" />
-          </IconButton>
+          </Button>
         </Stack>
         <Box
           sx={{

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { FormControl, FormLabel, IconButton, OutlinedInput, Popover, Stack } from '@mui/material';
+import { FormControl, FormLabel, OutlinedInput, Popover, Stack } from '@mui/material';
+import { Button } from '@/components/ui/button';
 import { SketchPicker } from 'react-color';
 import PaintButton from '@/components/button/PaintButton';
 
@@ -62,9 +63,14 @@ const ColorFieldForm = props => {
         justifyContent="space-between"
         alignItems="center"
       >
-        <IconButton aria-label="색상 선택" sx={{ mr: 1 }} onClick={handleClick}>
+        <Button 
+          variant="text" 
+          aria-label="색상 선택" 
+          sx={{ minWidth: 'auto', p: 1, mr: 1 }} 
+          onClick={handleClick}
+        >
           <PaintButton color={value} />
-        </IconButton>
+        </Button>
         <Popover
           id={popoverId}
           open={open}

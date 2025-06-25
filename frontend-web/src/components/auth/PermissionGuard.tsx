@@ -1,7 +1,8 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { usePermissions } from '@/hooks/usePermissions';
-import { Box, Typography, Button } from '@mui/material';
+import { Box, Typography } from '@mui/material';
+import { Button } from '@/components/ui/mui-button-compat';
 import { Lock } from 'lucide-react';
 
 interface PermissionGuardProps {

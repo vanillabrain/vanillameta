@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
-import { Stack, Typography, Box, Card, CardActionArea, IconButton, styled } from '@mui/material';
+import { Stack, Typography, Box, Card, CardActionArea, styled } from '@mui/material';
+import { Button } from '@/components/ui/button';
 import { ArrowBack, ArrowForward } from '@mui/icons-material';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import SwiperCore, { Navigation } from 'swiper';
@@ -42,7 +43,7 @@ const StyledSwiperNavigation = styled(Box)({
   width: '100%',
   height: 0,
 
-  '& .MuiIconButton-root': {
+  '& .MuiButtonBase-root': {
     display: 'flex',
     alignItems: 'center',
     height: 100,
@@ -98,12 +99,20 @@ function SecondStep(props) {
 
         <StyledSwiperWrapper>
           <StyledSwiperNavigation>
-            <IconButton ref={navigationNextRef}>
+            <Button 
+              variant="text" 
+              ref={navigationNextRef}
+              sx={{ minWidth: 'auto', p: 1 }}
+            >
               <ArrowForward />
-            </IconButton>
-            <IconButton ref={navigationPrevRef}>
+            </Button>
+            <Button 
+              variant="text" 
+              ref={navigationPrevRef}
+              sx={{ minWidth: 'auto', p: 1 }}
+            >
               <ArrowBack />
-            </IconButton>
+            </Button>
           </StyledSwiperNavigation>
 
           <StyledSwiper {...swiperParams}>

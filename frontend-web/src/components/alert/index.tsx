@@ -4,8 +4,8 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
-import Button from '@mui/material/Button';
 import { Alert, Divider, Portal, Snackbar } from '@mui/material';
+import { Button } from '@/components/ui/mui-button-compat';
 
 interface IProps {
   message: string | ReactElement;
@@ -34,7 +34,7 @@ export const SnackbarTemplate = props => {
   );
 };
 
-const buttonStyle = { minWidth: 80, height: 36, padding: '0 10px', fontSize: '13px', fontWeight: 'bold' };
+// mui-button-compat이 MUI 스타일을 처리하므로 별도 스타일 정의 불필요
 
 const AlertTemplate = ({ close, message, options }: IProps) => {
   const hasTitle = options.title && options.title.toString().trim() !== '';
@@ -87,13 +87,12 @@ const AlertTemplate = ({ close, message, options }: IProps) => {
               autoFocus={true}
               variant="contained"
               color="primary"
-              sx={buttonStyle}
               key={index}
             >
               {action.copy}
             </Button>
           ))}
-        <Button variant="contained" color="primary" sx={buttonStyle} onClick={close} autoFocus={true}>
+        <Button variant="contained" color="primary" onClick={close} autoFocus={true}>
           {options.closeCopy || '확인'}
         </Button>
       </DialogActions>
