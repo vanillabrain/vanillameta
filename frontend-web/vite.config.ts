@@ -130,10 +130,12 @@ export default defineConfig(({ mode }) => {
         'lodash',
         'dayjs',
         'i18next',
-        'react-i18next'
+        'react-i18next',
+        'mathjs',
+        'complex.js'
       ],
       // 대용량 라이브러리는 제외 (레이지 로드를 위해)
-      exclude: ['ace-builds', 'echarts-gl', 'mathjs']
+      exclude: ['ace-builds', 'echarts-gl']
     },
     
     // CSS 설정

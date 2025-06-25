@@ -38,7 +38,9 @@ export const preloadComponents = (componentNames: Array<keyof typeof componentMa
  * Preload components for the main dashboard view
  */
 export const preloadDashboardComponents = () => {
-  preloadComponents(['dashboard', 'widget', 'lineChart', 'pieChart']);
+  // Temporarily disable chart preloading due to complex.js issue
+  preloadComponents(['dashboard', 'widget']);
+  // preloadComponents(['dashboard', 'widget', 'lineChart', 'pieChart']);
 };
 
 /**
@@ -94,7 +96,9 @@ export const setupPreloadObserver = () => {
 export const setupIdlePreloading = () => {
   const idlePreload = () => {
     // Preload commonly used components
-    preloadComponents(['dashboard', 'widget', 'lineChart', 'pieChart']);
+    // Temporarily disable chart preloading due to complex.js issue
+    preloadComponents(['dashboard', 'widget']);
+    // preloadComponents(['dashboard', 'widget', 'lineChart', 'pieChart']);
   };
 
   if ('requestIdleCallback' in window) {

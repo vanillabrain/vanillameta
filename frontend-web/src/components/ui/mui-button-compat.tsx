@@ -42,6 +42,11 @@ interface MuiButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   component?: React.ElementType
   href?: string
   asChild?: boolean
+  // MUI specific props that should be filtered
+  disableRipple?: boolean
+  disableFocusRipple?: boolean
+  disableTouchRipple?: boolean
+  disableElevation?: boolean
 }
 
 /**
@@ -63,6 +68,11 @@ export const Button = React.forwardRef<HTMLButtonElement, MuiButtonProps>(
     children,
     disabled,
     asChild = false,
+    // Filter out MUI specific props
+    disableRipple,
+    disableFocusRipple,
+    disableTouchRipple,
+    disableElevation,
     ...props 
   }, ref) => {
     // MUI variant를 Shadcn variant로 변환
@@ -144,6 +154,10 @@ interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> 
   sx?: React.CSSProperties
   component?: React.ElementType
   href?: string
+  // MUI specific props that should be filtered
+  disableRipple?: boolean
+  disableFocusRipple?: boolean
+  disableTouchRipple?: boolean
 }
 
 export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
@@ -156,6 +170,10 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
     component,
     href,
     children,
+    // Filter out MUI specific props
+    disableRipple,
+    disableFocusRipple,
+    disableTouchRipple,
     ...props 
   }, ref) => {
     // edge prop에 따른 margin 처리
