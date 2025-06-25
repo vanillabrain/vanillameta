@@ -1,5 +1,6 @@
 import React from 'react';
-import { Grid, Card, CardContent, Typography, Box } from '@mui/material';
+import { Card, CardContent, Typography } from '@mui/material';
+import { Grid, Box } from '@/components/ui';
 import {
   People as PeopleIcon,
   Event as EventIcon,
@@ -58,8 +59,8 @@ const AnalyticsSummaryCards: React.FC<Props> = ({ summary }) => {
             }}
           >
             <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                <Box sx={{ color: card.color, mr: 2 }}>{card.icon}</Box>
+              <Box display="flex" alignItems="center" mb={2}>
+                <Box color={card.color} mr={2}>{card.icon}</Box>
                 <Typography variant="h6" component="div">
                   {card.title}
                 </Typography>
