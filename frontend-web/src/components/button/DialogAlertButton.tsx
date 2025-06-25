@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
+// MUI 호환성 레이어 사용 - 점진적 마이그레이션
+import { Button, IconButton } from '../ui/mui-button-compat';
 import {
-  Button,
   ButtonBase,
   Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
   DialogTitle,
-  IconButton,
 } from '@mui/material';
 import { Close } from '@mui/icons-material';
 

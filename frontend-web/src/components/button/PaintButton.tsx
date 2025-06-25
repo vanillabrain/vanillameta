@@ -1,5 +1,7 @@
 import React from 'react';
-import { Box, Stack } from '@mui/material';
+// MUI 호환성 레이어 사용 - 점진적 마이그레이션
+import Box from '../ui/Box';
+import Stack from '../ui/Stack';
 
 const PaintButton = ({ color }) => {
   return (

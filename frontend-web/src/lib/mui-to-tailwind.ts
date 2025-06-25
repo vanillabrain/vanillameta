@@ -1,10 +1,51 @@
 // MUI to Tailwind CSS 변환 헬퍼 함수들
 
 // MUI spacing (theme.spacing(n) * 8px) to Tailwind spacing
-export const muiSpacingToTailwind = (muiSpacing: number): string => {
+export const muiSpacingToTailwind = (property: string, value: number | string): string => {
+  if (typeof value === 'string') {
+    // 문자열 값 처리 (예: '100%', 'auto')
+    if (value === 'auto') return `${property}-auto`;
+    if (value === '100%') return property === 'width' || property === 'w' ? 'w-full' : 'h-full';
+    return ''; // 기타 문자열은 인라인 스타일로 처리
+  }
+  
   // MUI spacing: 1 = 8px, Tailwind: 1 = 0.25rem (4px)
-  const tailwindValue = muiSpacing * 2;
-  return tailwindValue.toString();
+  const tailwindValue = value * 2;
+  return `${property}-${tailwindValue}`;
+};
+
+// MUI flex properties to Tailwind classes
+export const muiFlexToTailwind = (property: string, value: string): string => {
+  const flexMap: Record<string, Record<string, string>> = {
+    flexDirection: {
+      'row': 'flex-row',
+      'row-reverse': 'flex-row-reverse',
+      'column': 'flex-col',
+      'column-reverse': 'flex-col-reverse',
+    },
+    alignItems: {
+      'flex-start': 'items-start',
+      'flex-end': 'items-end',
+      'center': 'items-center',
+      'baseline': 'items-baseline',
+      'stretch': 'items-stretch',
+    },
+    justifyContent: {
+      'flex-start': 'justify-start',
+      'flex-end': 'justify-end',
+      'center': 'justify-center',
+      'space-between': 'justify-between',
+      'space-around': 'justify-around',
+      'space-evenly': 'justify-evenly',
+    },
+    flexWrap: {
+      'nowrap': 'flex-nowrap',
+      'wrap': 'flex-wrap',
+      'wrap-reverse': 'flex-wrap-reverse',
+    },
+  };
+
+  return flexMap[property]?.[value] || '';
 };
 
 // MUI breakpoints to Tailwind responsive prefixes
@@ -20,7 +61,7 @@ export const muiBreakpointToTailwind = (breakpoint: 'xs' | 'sm' | 'md' | 'lg' | 
 };
 
 // MUI color palette to Tailwind color classes
-export const muiColorToTailwind = (color: string, variant?: 'light' | 'main' | 'dark'): string => {
+export const muiColorToTailwind = (prefix: string, color: string, variant?: 'light' | 'main' | 'dark'): string => {
   const colorMap: Record<string, Record<string, string>> = {
     primary: {
       light: 'primary/80',
@@ -54,7 +95,8 @@ export const muiColorToTailwind = (color: string, variant?: 'light' | 'main' | '
     },
   };
 
-  return colorMap[color]?.[variant || 'main'] || color;
+  const colorValue = colorMap[color]?.[variant || 'main'] || color;
+  return `${prefix}-${colorValue}`;
 };
 
 // MUI typography variants to Tailwind classes

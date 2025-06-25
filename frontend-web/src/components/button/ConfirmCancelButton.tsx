@@ -1,5 +1,8 @@
 import React from 'react';
-import { Box, Button, Stack } from '@mui/material';
+// MUI 호환성 레이어 사용 - 점진적 마이그레이션
+import { Button } from '../ui/mui-button-compat';
+import Box from '../ui/Box';
+import Stack from '../ui/Stack';
 
 export const ConfirmButton = props => {
   const { confirmLabel, confirmProps, sx } = props;

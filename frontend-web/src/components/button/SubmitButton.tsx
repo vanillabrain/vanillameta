@@ -1,5 +1,6 @@
 import React from 'react';
-import { Button } from '@mui/material';
+// MUI Button 호환성 레이어 사용 - 점진적 마이그레이션
+import { Button } from '../ui/mui-button-compat';
 
 const SubmitButton = props => {
   const { onClick, sx = null } = props;

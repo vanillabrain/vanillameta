@@ -119,7 +119,7 @@
               1
             ],
             "details": "Box → div with Tailwind classes, Container → max-w-* classes, Grid → CSS Grid/Flexbox utilities. 기존 prop 시스템을 className 조합으로 변환하는 wrapper 컴포넌트 작성",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -130,7 +130,7 @@
               1
             ],
             "details": "variant, size, color props 매핑. startIcon/endIcon을 Shadcn Button의 children 패턴으로 변환. ButtonGroup을 Button 조합으로 재구현. 클릭 이벤트와 disabled 상태 호환성 검증",
-            "status": "pending",
+            "status": "in-progress",
             "testStrategy": ""
           },
           {
@@ -1130,7 +1130,7 @@
     ],
     "metadata": {
       "created": "2025-06-25T02:28:08.980Z",
-      "updated": "2025-06-25T07:57:11.537Z",
+      "updated": "2025-06-25T08:09:27.822Z",
       "description": "Tasks for master context"
     }
   }
