@@ -100,7 +100,7 @@
         "dependencies": [
           1
         ],
-        "status": "pending",
+        "status": "in-progress",
         "subtasks": [
           {
             "id": 1,
@@ -108,7 +108,7 @@
             "description": "Material-UI의 테마 시스템과 스타일 유틸리티를 Shadcn/ui의 CSS 변수 기반 시스템으로 마이그레이션",
             "dependencies": [],
             "details": "MUI의 createTheme, ThemeProvider를 Shadcn/ui의 globals.css와 tailwind.config.js로 변환. 색상 팔레트, 타이포그래피, spacing 시스템 매핑. CSS-in-JS에서 Tailwind CSS로의 스타일 변환 헬퍼 함수 작성",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -1130,7 +1130,7 @@
     ],
     "metadata": {
       "created": "2025-06-25T02:28:08.980Z",
-      "updated": "2025-06-25T05:49:11.721Z",
+      "updated": "2025-06-25T07:57:11.537Z",
       "description": "Tasks for master context"
     }
   }
