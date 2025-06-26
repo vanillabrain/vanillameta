@@ -5,7 +5,7 @@ import Stack from '../ui/Stack';
 
 const PaintButton = ({ color }) => {
   return (
-    <Stack justifyContent="center" alignItems="center" gap="4px">
+    <Stack justifyContent="center" alignItems="center" spacing="4px">
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
         <g clipPath="url(#zp0ysd0z5a)">
           <path

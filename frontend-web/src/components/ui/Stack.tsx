@@ -5,7 +5,7 @@ import Box from './Box';
 interface StackProps extends React.HTMLAttributes<HTMLDivElement> {
   component?: React.ElementType;
   direction?: 'row' | 'row-reverse' | 'column' | 'column-reverse';
-  spacing?: number | { xs?: number; sm?: number; md?: number; lg?: number; xl?: number };
+  spacing?: number | string | { xs?: number; sm?: number; md?: number; lg?: number; xl?: number };
   divider?: React.ReactNode;
   alignItems?: 'flex-start' | 'center' | 'flex-end' | 'stretch' | 'baseline';
   justifyContent?: 'flex-start' | 'center' | 'flex-end' | 'space-between' | 'space-around' | 'space-evenly';
@@ -55,6 +55,11 @@ const Stack = React.forwardRef<HTMLDivElement, StackProps>(
       const baseSpacing = getSpacing();
       if (baseSpacing === 0) return '';
       
+      // string인 경우 그대로 사용 (px 단위 등)
+      if (typeof baseSpacing === 'string') {
+        return ''; // 인라인 스타일로 처리
+      }
+      
       // MUI spacing (1 = 8px) to Tailwind gap (1 = 0.25rem = 4px)
       const tailwindValue = baseSpacing * 2;
       
@@ -73,7 +78,7 @@ const Stack = React.forwardRef<HTMLDivElement, StackProps>(
       
       breakpoints.forEach((bp) => {
         const value = spacing[bp];
-        if (value !== undefined) {
+        if (value !== undefined && typeof value === 'number') {
           const tailwindValue = value * 2;
           if (direction === 'row' || direction === 'row-reverse') {
             classes.push(`${bp}:gap-x-${tailwindValue}`);

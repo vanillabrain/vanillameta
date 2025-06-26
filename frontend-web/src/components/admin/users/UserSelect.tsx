@@ -70,7 +70,7 @@ export const UserSelect: React.FC<UserSelectProps> = ({
 
       const userOptions: UserOption[] = response.data.map(user => ({
         id: user.id,
-        name: user.name || user.username || 'Unknown',
+        name: user.name || user.userId || 'Unknown',
         email: user.email,
         avatar: user.avatar,
       }));
@@ -105,7 +105,7 @@ export const UserSelect: React.FC<UserSelectProps> = ({
           const user = await adminUsersService.getUserById(value);
           const userOption = {
             id: user.id,
-            name: user.name || user.username || 'Unknown',
+            name: user.name || user.userId || 'Unknown',
             email: user.email,
             avatar: user.avatar,
           };

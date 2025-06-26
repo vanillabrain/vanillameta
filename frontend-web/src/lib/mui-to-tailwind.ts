@@ -136,21 +136,21 @@ export const muiSxToTailwind = (sx: Record<string, any>): string => {
   const classes: string[] = [];
 
   // Padding/Margin
-  if (sx.p !== undefined) classes.push(`p-${muiSpacingToTailwind(sx.p)}`);
-  if (sx.px !== undefined) classes.push(`px-${muiSpacingToTailwind(sx.px)}`);
-  if (sx.py !== undefined) classes.push(`py-${muiSpacingToTailwind(sx.py)}`);
-  if (sx.pt !== undefined) classes.push(`pt-${muiSpacingToTailwind(sx.pt)}`);
-  if (sx.pr !== undefined) classes.push(`pr-${muiSpacingToTailwind(sx.pr)}`);
-  if (sx.pb !== undefined) classes.push(`pb-${muiSpacingToTailwind(sx.pb)}`);
-  if (sx.pl !== undefined) classes.push(`pl-${muiSpacingToTailwind(sx.pl)}`);
+  if (sx.p !== undefined) classes.push(muiSpacingToTailwind('p', sx.p));
+  if (sx.px !== undefined) classes.push(muiSpacingToTailwind('px', sx.px));
+  if (sx.py !== undefined) classes.push(muiSpacingToTailwind('py', sx.py));
+  if (sx.pt !== undefined) classes.push(muiSpacingToTailwind('pt', sx.pt));
+  if (sx.pr !== undefined) classes.push(muiSpacingToTailwind('pr', sx.pr));
+  if (sx.pb !== undefined) classes.push(muiSpacingToTailwind('pb', sx.pb));
+  if (sx.pl !== undefined) classes.push(muiSpacingToTailwind('pl', sx.pl));
 
-  if (sx.m !== undefined) classes.push(`m-${muiSpacingToTailwind(sx.m)}`);
-  if (sx.mx !== undefined) classes.push(`mx-${muiSpacingToTailwind(sx.mx)}`);
-  if (sx.my !== undefined) classes.push(`my-${muiSpacingToTailwind(sx.my)}`);
-  if (sx.mt !== undefined) classes.push(`mt-${muiSpacingToTailwind(sx.mt)}`);
-  if (sx.mr !== undefined) classes.push(`mr-${muiSpacingToTailwind(sx.mr)}`);
-  if (sx.mb !== undefined) classes.push(`mb-${muiSpacingToTailwind(sx.mb)}`);
-  if (sx.ml !== undefined) classes.push(`ml-${muiSpacingToTailwind(sx.ml)}`);
+  if (sx.m !== undefined) classes.push(muiSpacingToTailwind('m', sx.m));
+  if (sx.mx !== undefined) classes.push(muiSpacingToTailwind('mx', sx.mx));
+  if (sx.my !== undefined) classes.push(muiSpacingToTailwind('my', sx.my));
+  if (sx.mt !== undefined) classes.push(muiSpacingToTailwind('mt', sx.mt));
+  if (sx.mr !== undefined) classes.push(muiSpacingToTailwind('mr', sx.mr));
+  if (sx.mb !== undefined) classes.push(muiSpacingToTailwind('mb', sx.mb));
+  if (sx.ml !== undefined) classes.push(muiSpacingToTailwind('ml', sx.ml));
 
   // Display
   if (sx.display) {

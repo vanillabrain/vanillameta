@@ -148,7 +148,7 @@ export const PermissionIconButton: React.FC<PermissionIconButtonProps> = ({
       disabled={isDisabled}
       sx={{
         minWidth: 'auto',
-        p: 1,
+        padding: '8px',
         ...buttonProps.sx,
       }}
     >

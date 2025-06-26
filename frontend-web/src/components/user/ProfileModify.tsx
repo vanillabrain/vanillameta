@@ -8,7 +8,7 @@ import {
   styled,
   TextField,
 } from '@mui/material';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/mui-button-compat';
 import CloseIcon from '@mui/icons-material/Close';
 import { AuthContext } from '@/contexts/AuthContext';
 import authService from '@/api/authService';

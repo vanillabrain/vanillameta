@@ -32,7 +32,7 @@ const BulkActionBar: React.FC<BulkActionBarProps> = ({
     try {
       setLoading(true);
       await adminUsersService.bulkAction({
-        action,
+        action: action as 'activate' | 'deactivate' | 'suspend' | 'delete',
         userIds: selectedUserIds.map(id => parseInt(id))
       });
       onAction();
