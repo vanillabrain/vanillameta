@@ -479,7 +479,7 @@
         "dependencies": [
           4
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -487,7 +487,7 @@
             "description": "RBAC 시스템을 위한 역할(Role), 권한(Permission), 리소스(Resource) 엔티티 설계 및 데이터베이스 스키마 정의",
             "dependencies": [],
             "details": "- Role, Permission, Resource 테이블 설계\n- 역할-권한 매핑 테이블 (role_permissions) 설계\n- 사용자-역할 매핑 테이블 (user_roles) 설계\n- 권한 상속 구조 정의 (parent-child role relationships)\n- 리소스 기반 권한 제어를 위한 resource_permissions 테이블 설계\n- 권한 스코프 정의 (global, organization, project 레벨)",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -498,7 +498,7 @@
               1
             ],
             "details": "- hasPermission() 메서드 구현 (사용자, 권한, 리소스 검증)\n- 권한 상속 로직 구현 (부모 역할에서 권한 상속)\n- 권한 충돌 해결 로직 (deny > allow 우선순위)\n- 권한 캐싱 전략 구현\n- 권한 매트릭스 계산 로직\n- 단위 테스트 작성",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -509,7 +509,7 @@
               2
             ],
             "details": "- JWT 토큰에서 사용자 권한 추출\n- 라우트별 권한 체크 미들웨어 구현\n- @RequirePermission 데코레이터 구현\n- 리소스 기반 권한 검증 미들웨어\n- 권한 부족 시 에러 핸들링 (403 Forbidden)\n- 미들웨어 통합 테스트 작성",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -520,7 +520,7 @@
               2
             ],
             "details": "- PermissionContext 구현 (전역 권한 상태 관리)\n- usePermission() 훅 구현\n- useHasPermission(permission) 훅 구현\n- useRequirePermission() 훅 (권한 없으면 리다이렉트)\n- 권한 정보 로컬 캐싱 전략\n- 권한 변경 시 실시간 업데이트 로직",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -531,7 +531,7 @@
               4
             ],
             "details": "- <PermissionGuard> 컴포넌트 구현\n- <Can> 컴포넌트 구현 (권한 기반 조건부 렌더링)\n- <ProtectedRoute> 컴포넌트 구현\n- 버튼/메뉴 아이템 비활성화 로직\n- 권한 없는 요소에 대한 툴팁 표시\n- Storybook으로 컴포넌트 문서화",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -542,7 +542,7 @@
               3
             ],
             "details": "- POST/GET/PUT/DELETE /api/roles 엔드포인트\n- POST/GET/PUT/DELETE /api/permissions 엔드포인트\n- POST/DELETE /api/roles/:id/permissions (역할-권한 매핑)\n- POST/DELETE /api/users/:id/roles (사용자-역할 매핑)\n- 권한 매트릭스 조회 API\n- Swagger 문서 작성",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -554,7 +554,7 @@
               6
             ],
             "details": "- 역할 목록 테이블 (검색, 필터링, 페이지네이션)\n- 역할 생성/수정 폼 (모달 또는 별도 페이지)\n- 권한 할당 UI (체크박스 트리 구조)\n- 역할 계층 구조 시각화\n- 역할 삭제 시 확인 다이얼로그\n- 실시간 유효성 검사",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -566,7 +566,7 @@
               6
             ],
             "details": "- 사용자별 역할 할당 인터페이스\n- 다중 역할 선택 UI (멀티 셀렉트)\n- 사용자의 유효 권한 미리보기\n- 권한 충돌 경고 표시\n- 벌크 역할 할당 기능\n- 권한 변경 이력 조회",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -578,7 +578,7 @@
               6
             ],
             "details": "- 권한 변경 이벤트 로깅 (누가, 언제, 무엇을)\n- 권한 검증 실패 로깅\n- 감사 로그 조회 API 및 UI\n- 의심스러운 활동 감지 알고리즘\n- 권한 사용 통계 대시보드\n- 정기 권한 검토 알림 시스템",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           }
         ]
@@ -1127,7 +1127,7 @@
     ],
     "metadata": {
       "created": "2025-06-25T02:28:08.980Z",
-      "updated": "2025-06-26T12:04:46.266Z",
+      "updated": "2025-06-26T15:17:20.663Z",
       "description": "Tasks for master context"
     }
   }
