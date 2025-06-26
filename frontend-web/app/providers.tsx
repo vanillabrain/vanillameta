@@ -4,14 +4,11 @@ import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
-// 기존 Context Providers import
-// import { AuthProvider } from '../src/contexts/AuthContext';
-// import { AlertProvider } from '../src/contexts/AlertContext';
-// import { LoadingProvider } from '../src/contexts/LoadingContext';
-// import { LayoutProvider } from '../src/contexts/LayoutContext';
-// import { PerformanceProvider } from '../src/contexts/PerformanceContext';
-// import { ChartProvider } from '../src/contexts/ChartContext';
-// import { ErrorProvider } from '../src/contexts/ErrorContext';
+// Next.js 호환 Context Providers
+import { AuthProvider } from './contexts/AuthContext';
+import { AlertProvider } from './contexts/AlertContext';
+import { LoadingProvider } from './contexts/LoadingContext';
+import { LayoutProvider } from './contexts/LayoutContext';
 
 // React Query Client 생성
 const queryClient = new QueryClient({
@@ -27,8 +24,15 @@ const queryClient = new QueryClient({
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
-      {/* 기존 Provider들을 점진적으로 추가 */}
-      {children}
+      <AuthProvider>
+        <AlertProvider>
+          <LoadingProvider>
+            <LayoutProvider>
+              {children}
+            </LayoutProvider>
+          </LoadingProvider>
+        </AlertProvider>
+      </AuthProvider>
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
   );
