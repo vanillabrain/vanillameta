@@ -68,7 +68,7 @@ export const DatabaseCardList = (props: DatabaseCardListProps) => {
             {!isViewMode && (
               <Stack direction="row" justifyContent="flex-end" width="100%" flex={0}>
                 <ModifyButton
-                  size="medium"
+                  size="default"
                   component={RouterLink}
                   to={`/data/source/modify/${item.id}`}
                   width="20"
@@ -79,7 +79,7 @@ export const DatabaseCardList = (props: DatabaseCardListProps) => {
                 />
                 <DeleteButton
                   component="span"
-                  size="medium"
+                  size="default"
                   onClick={event => {
                     event.preventDefault();
                     event.stopPropagation();

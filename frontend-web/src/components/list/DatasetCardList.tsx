@@ -52,7 +52,7 @@ export const DatasetCardList = (props: DatasetCardListProps) => {
             {!isViewMode && (
               <Stack direction="row" justifyContent="flex-end" width="100%" mt="11px" gap={1}>
                 <ModifyButton
-                  size="medium"
+                  size="default"
                   onClick={event => {
                     event.preventDefault();
                     event.stopPropagation();
@@ -67,7 +67,7 @@ export const DatasetCardList = (props: DatasetCardListProps) => {
                 {!isTableView && (
                   <DeleteButton
                     component="span"
-                    size="medium"
+                    size="default"
                     onClick={event => {
                       event.preventDefault();
                       event.stopPropagation();

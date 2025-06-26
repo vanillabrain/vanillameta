@@ -85,10 +85,10 @@ function SelectChipForm(props) {
         {color && (
           <React.Fragment>
             <Button 
-              variant="text" 
+              variant="ghost" 
               aria-label="색상 선택" 
               onClick={handleClick}
-              sx={{ minWidth: 'auto', p: 1 }}
+              className="min-w-0 p-2"
             >
               <PaletteIcon />
             </Button>

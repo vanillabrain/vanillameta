@@ -124,7 +124,7 @@ const RoleManagement: React.FC = () => {
     setShowCreateModal(true);
   };
 
-  const openEditModal = (role: Role) => {
+  const openEditModal = (role: RoleWithStats) => {
     setSelectedRole(role);
     setFormData({
       name: role.name,
@@ -136,7 +136,7 @@ const RoleManagement: React.FC = () => {
     setShowEditModal(true);
   };
 
-  const openDeleteModal = (role: Role) => {
+  const openDeleteModal = (role: RoleWithStats) => {
     setSelectedRole(role);
     setShowDeleteModal(true);
   };
@@ -146,7 +146,7 @@ const RoleManagement: React.FC = () => {
       name: '',
       displayName: '',
       description: '',
-      permissions: [],
+      permissionIds: [],
       isActive: true,
     });
   };
@@ -230,8 +230,8 @@ const RoleManagement: React.FC = () => {
                   <div className="role-header-info">
                     <h3 className="role-name">{role.displayName}</h3>
                     <div className="role-badges">
-                      {role.isSystemRole && (
-                        <span className="system-badge">시스템 역할</span>
+                      {role.isDefault && (
+                        <span className="system-badge">기본 역할</span>
                       )}
                       <span className={`status-badge ${role.isActive ? 'active' : 'inactive'}`}>
                         {role.isActive ? '활성' : '비활성'}
@@ -271,7 +271,7 @@ const RoleManagement: React.FC = () => {
                   >
                     ✏️ 수정
                   </button>
-                  {!role.isSystemRole && (
+                  {!role.isDefault && (
                     <button
                       className="delete-btn"
                       onClick={() => openDeleteModal(role)}
@@ -363,23 +363,28 @@ const RoleManagement: React.FC = () => {
                 <label>권한 설정</label>
                 {availablePermissions && (
                   <div className="permissions-container">
-                    {Object.entries(getPermissionsByCategory()).map(([category, permissions]) => (
-                      <div key={category} className="permission-category">
-                        <h4>{availablePermissions.categories[category] || category}</h4>
-                        <div className="permission-list">
-                          {permissions.map(permission => (
-                            <label key={permission.value} className="permission-item">
-                              <input
-                                type="checkbox"
-                                checked={formData.permissionIds?.includes(permission.value) || false}
-                                onChange={() => handlePermissionToggle(permission.value)}
-                              />
-                              <span className="permission-name">
-                                {permission.action} - {permission.value}
-                              </span>
-                            </label>
-                          ))}
-                        </div>
+                    {Object.entries(getPermissionsByCategory()).map(([module, resources]) => (
+                      <div key={module} className="permission-category">
+                        <h4>{module}</h4>
+                        {Object.entries(resources).map(([resource, permissions]) => (
+                          <div key={resource} className="permission-resource">
+                            <h5>{resource}</h5>
+                            <div className="permission-list">
+                              {permissions.map(permission => (
+                                <label key={permission.id} className="permission-item">
+                                  <input
+                                    type="checkbox"
+                                    checked={formData.permissionIds?.includes(permission.id) || false}
+                                    onChange={() => handlePermissionToggle(permission.id)}
+                                  />
+                                  <span className="permission-name">
+                                    {permission.displayName} - {permission.description}
+                                  </span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     ))}
                   </div>
@@ -453,33 +458,38 @@ const RoleManagement: React.FC = () => {
                     type="checkbox"
                     checked={formData.isActive}
                     onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
-                    disabled={selectedRole.isSystemRole}
+                    disabled={selectedRole.isDefault}
                   />
                   활성 상태
-                  {selectedRole.isSystemRole && <small> (시스템 역할은 비활성화할 수 없습니다)</small>}
+                  {selectedRole.isDefault && <small> (시스템 역할은 비활성화할 수 없습니다)</small>}
                 </label>
               </div>
               <div className="form-group permissions-group">
                 <label>권한 설정</label>
                 {availablePermissions && (
                   <div className="permissions-container">
-                    {Object.entries(getPermissionsByCategory()).map(([category, permissions]) => (
-                      <div key={category} className="permission-category">
-                        <h4>{availablePermissions.categories[category] || category}</h4>
-                        <div className="permission-list">
-                          {permissions.map(permission => (
-                            <label key={permission.value} className="permission-item">
-                              <input
-                                type="checkbox"
-                                checked={formData.permissionIds?.includes(permission.value) || false}
-                                onChange={() => handlePermissionToggle(permission.value)}
-                              />
-                              <span className="permission-name">
-                                {permission.action} - {permission.value}
-                              </span>
-                            </label>
-                          ))}
-                        </div>
+                    {Object.entries(getPermissionsByCategory()).map(([module, resources]) => (
+                      <div key={module} className="permission-category">
+                        <h4>{module}</h4>
+                        {Object.entries(resources).map(([resource, permissions]) => (
+                          <div key={resource} className="permission-resource">
+                            <h5>{resource}</h5>
+                            <div className="permission-list">
+                              {permissions.map(permission => (
+                                <label key={permission.id} className="permission-item">
+                                  <input
+                                    type="checkbox"
+                                    checked={formData.permissionIds?.includes(permission.id) || false}
+                                    onChange={() => handlePermissionToggle(permission.id)}
+                                  />
+                                  <span className="permission-name">
+                                    {permission.displayName} - {permission.description}
+                                  </span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     ))}
                   </div>

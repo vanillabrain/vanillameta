@@ -215,14 +215,7 @@ export const PrivacyConsent: React.FC<PrivacyConsentProps> = ({ onConsentUpdate 
           variant="text"
           color="inherit"
           onClick={handleManageConsent}
-          sx={{
-            fontSize: '0.75rem',
-            textDecoration: 'underline',
-            opacity: 0.7,
-            '&:hover': {
-              opacity: 1,
-            },
-          }}
+          className="text-xs underline opacity-70 hover:opacity-100"
         >
           개인정보 설정
         </Button>

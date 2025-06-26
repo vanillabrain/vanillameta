@@ -64,9 +64,9 @@ const ColorFieldForm = props => {
         alignItems="center"
       >
         <Button 
-          variant="text" 
+          variant="ghost" 
           aria-label="색상 선택" 
-          sx={{ minWidth: 'auto', p: 1, mr: 1 }} 
+          className="min-w-0 p-2 mr-2"
           onClick={handleClick}
         >
           <PaintButton color={value} />
