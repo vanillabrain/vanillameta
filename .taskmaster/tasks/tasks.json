@@ -227,7 +227,7 @@
         "dependencies": [
           2
         ],
-        "status": "in-progress",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -246,7 +246,7 @@
               1
             ],
             "details": "app 디렉토리 생성, layout.tsx와 page.tsx 기본 구조 정의, 기존 컴포넌트 폴더 구조 분석 및 마이그레이션 계획 수립",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -257,7 +257,7 @@
               2
             ],
             "details": "기존 라우트 구조 분석, 파일 기반 라우팅으로 매핑, 동적 세그먼트 및 catch-all 라우트 설계, 라우트 그룹 구성",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -268,7 +268,7 @@
               3
             ],
             "details": "상태 관리 및 이벤트 핸들러 사용 컴포넌트 식별, 서버 컴포넌트로 전환 가능한 컴포넌트 목록화, use client 경계 설정",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -279,7 +279,7 @@
               4
             ],
             "details": "클라이언트 전용 Provider 컴포넌트 생성, 서버 상태와 클라이언트 상태 분리, Zustand 또는 Redux Toolkit 설정",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -290,7 +290,7 @@
               5
             ],
             "details": "app/api 디렉토리 구조 설계, Route Handler로 API 엔드포인트 구현, 서버 액션 함수 작성, fetch 캐싱 전략 설정",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -301,7 +301,7 @@
               2
             ],
             "details": "public 폴더 구조 재구성, Next/Image 컴포넌트로 이미지 최적화, 폰트 최적화 설정, 파비콘 및 메타데이터 설정",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -312,7 +312,7 @@
               1
             ],
             "details": "NEXT_PUBLIC_ 프리픽스 적용, 서버 전용 환경 변수 분리, next.config.js 설정, 환경별 설정 파일 구성",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -326,7 +326,7 @@
               6
             ],
             "details": "홈페이지 및 주요 페이지 우선 전환, 레이아웃 컴포넌트 구현, 메타데이터 API 적용, 에러 및 로딩 UI 구현",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -338,7 +338,7 @@
               9
             ],
             "details": "next build 스크립트 설정, 정적 생성 및 ISR 설정, Docker 컨테이너화, Vercel 또는 AWS 배포 설정",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -349,7 +349,7 @@
               10
             ],
             "details": "번들 분석기 설정, 동적 임포트 적용, 서드파티 라이브러리 최적화, Lighthouse 성능 측정 및 개선",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -360,7 +360,7 @@
               11
             ],
             "details": "Jest 설정 파일 구성, 서버/클라이언트 컴포넌트 테스트 전략, E2E 테스트 환경 구성, 회귀 테스트 실행",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           }
         ]
@@ -375,7 +375,7 @@
         "dependencies": [
           3
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -383,7 +383,7 @@
             "description": "사용자 테이블 스키마 정의, 인덱스 설정, 관계 설정",
             "dependencies": [],
             "details": "users 테이블에 id, email, password_hash, name, role, status, created_at, updated_at 필드 포함. email에 unique 인덱스, role은 enum(admin, user), status는 enum(active, inactive, suspended)",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -394,7 +394,7 @@
               1
             ],
             "details": "refresh_tokens 테이블 생성 (token, user_id, expires_at, created_at) 또는 sessions 테이블 구현. 토큰 만료 처리 로직 포함",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -405,7 +405,7 @@
               1
             ],
             "details": "POST /api/users (생성), GET /api/users (목록), GET /api/users/:id (상세), PUT /api/users/:id (수정), DELETE /api/users/:id (삭제). 페이지네이션, 필터링, 정렬 기능 포함",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -416,7 +416,7 @@
               2
             ],
             "details": "토큰 검증 미들웨어, 역할 기반 접근 제어(RBAC) 미들웨어 구현. 관리자 전용 엔드포인트 보호, 사용자 본인 데이터만 수정 가능하도록 권한 체크",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -428,7 +428,7 @@
               4
             ],
             "details": "POST /api/auth/login (이메일/비밀번호 검증), POST /api/auth/logout (토큰 무효화), POST /api/auth/refresh (토큰 갱신). 비밀번호 해싱(bcrypt) 적용",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -439,7 +439,7 @@
               3
             ],
             "details": "사용자 테이블 컴포넌트(DataGrid/Table), 검색바, 상태 필터, 역할 필터, 페이지네이션 컴포넌트. 관리자용 사용자 상태 변경 버튼(활성화/비활성화/정지)",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -451,7 +451,7 @@
               5
             ],
             "details": "프로필 폼 컴포넌트(이름, 이메일 수정), 비밀번호 변경 폼(현재 비밀번호, 새 비밀번호, 확인), 계정 삭제 확인 다이얼로그. 폼 유효성 검사 포함",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -464,7 +464,7 @@
               7
             ],
             "details": "로그인 폼, 회원가입 폼, 비밀번호 찾기 UI. 전역 인증 상태 관리(Context API/Redux), 자동 로그인 유지, 토큰 자동 갱신, 인증 실패 시 리다이렉트 처리",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           }
         ]
@@ -1127,7 +1127,7 @@
     ],
     "metadata": {
       "created": "2025-06-25T02:28:08.980Z",
-      "updated": "2025-06-26T10:19:33.752Z",
+      "updated": "2025-06-26T12:04:46.266Z",
       "description": "Tasks for master context"
     }
   }
