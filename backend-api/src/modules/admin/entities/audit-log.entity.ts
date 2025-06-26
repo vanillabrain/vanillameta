@@ -50,7 +50,11 @@ export class AuditLog {
   @Column({ nullable: true })
   userEmail: string;
 
-  @Column({ type: 'varchar', length: 45, nullable: true })
+  @Column({ 
+    type: process.env.NODE_ENV === 'local' ? 'varchar' : 'inet', 
+    nullable: true,
+    length: process.env.NODE_ENV === 'local' ? 45 : undefined // IPv6 주소 길이 고려
+  })
   ipAddress: string;
 
   @Column({ type: 'text', nullable: true })

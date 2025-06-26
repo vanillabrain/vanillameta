@@ -58,31 +58,56 @@ export class AuditLog {
   @Column({ nullable: true })
   userEmail: string;
 
-  @Column({ type: 'inet', nullable: true })
+  @Column({ 
+    type: process.env.NODE_ENV === 'local' ? 'varchar' : 'inet', 
+    nullable: true,
+    length: process.env.NODE_ENV === 'local' ? 45 : undefined // IPv6 주소 길이 고려
+  })
   ipAddress: string;
 
   @Column({ type: 'text', nullable: true })
   userAgent: string;
 
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ 
+    type: process.env.NODE_ENV === 'local' ? 'text' : 'jsonb',
+    nullable: true,
+    transformer: process.env.NODE_ENV === 'local' ? {
+      to: (value: Record<string, any>) => value ? JSON.stringify(value) : null,
+      from: (value: string) => value ? JSON.parse(value) : null
+    } : undefined
+  })
   details: Record<string, any>; // 추가 상세 정보
 
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ 
+    type: process.env.NODE_ENV === 'local' ? 'text' : 'jsonb',
+    nullable: true,
+    transformer: process.env.NODE_ENV === 'local' ? {
+      to: (value: Record<string, any>) => value ? JSON.stringify(value) : null,
+      from: (value: string) => value ? JSON.parse(value) : null
+    } : undefined
+  })
   oldValues: Record<string, any>; // 변경 전 값
 
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ 
+    type: process.env.NODE_ENV === 'local' ? 'text' : 'jsonb',
+    nullable: true,
+    transformer: process.env.NODE_ENV === 'local' ? {
+      to: (value: Record<string, any>) => value ? JSON.stringify(value) : null,
+      from: (value: string) => value ? JSON.parse(value) : null
+    } : undefined
+  })
   newValues: Record<string, any>; // 변경 후 값
 
   @Column({
-    type: 'enum',
-    enum: AuditLogLevel,
+    type: process.env.NODE_ENV === 'local' ? 'varchar' : 'enum',
+    enum: process.env.NODE_ENV === 'local' ? undefined : AuditLogLevel,
     default: AuditLogLevel.INFO,
   })
   level: AuditLogLevel;
 
   @Column({
-    type: 'enum',
-    enum: AuditLogCategory,
+    type: process.env.NODE_ENV === 'local' ? 'varchar' : 'enum',
+    enum: process.env.NODE_ENV === 'local' ? undefined : AuditLogCategory,
     default: AuditLogCategory.GENERAL,
   })
   category: AuditLogCategory;
@@ -93,6 +118,6 @@ export class AuditLog {
   @Column({ type: 'boolean', default: false })
   isSensitive: boolean; // 민감한 정보 포함 여부
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: process.env.NODE_ENV === 'local' ? 'datetime' : 'timestamptz' })
   createdAt: Date;
 }
