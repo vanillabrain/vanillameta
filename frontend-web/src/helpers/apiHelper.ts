@@ -30,7 +30,12 @@ const generateCorrelationId = (): string => {
 };
 
 // 전역 에러 핸들러 타입
-type GlobalErrorHandler = (error: any, errorType: ErrorType, severity: ErrorSeverity, metadata?: Record<string, unknown>) => void;
+type GlobalErrorHandler = (
+  error: any,
+  errorType: ErrorType,
+  severity: ErrorSeverity,
+  metadata?: Record<string, unknown>,
+) => void;
 
 // 전역 에러 핸들러 (Error Context에서 설정됨)
 let globalErrorHandler: GlobalErrorHandler | null = null;
@@ -45,7 +50,7 @@ const reportApiError = (error: any, metadata?: Record<string, unknown>) => {
   if (globalErrorHandler) {
     const errorType = error.code === 'NETWORK_ERROR' ? ErrorType.NETWORK_ERROR : ErrorType.API_ERROR;
     const severity = error.response?.status >= 500 ? ErrorSeverity.HIGH : ErrorSeverity.MEDIUM;
-    
+
     globalErrorHandler(error, errorType, severity, {
       ...metadata,
       apiContext: true,
@@ -203,12 +208,7 @@ instance.interceptors.response.use(
       }
 
       // 이벤트 추적 시스템으로도 전송
-      trackEvent(
-        'api_call',
-        'api_performance',
-        `${perfData.method}_${perfData.url}`,
-        Math.round(duration)
-      );
+      trackEvent('api_call', 'api_performance', `${perfData.method}_${perfData.url}`, Math.round(duration));
     }
 
     // 디버깅을 위해 correlation ID 로깅 (개발 환경에서만)
