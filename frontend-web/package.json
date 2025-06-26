@@ -8,7 +8,11 @@
     "url": "https://vanillabrain.com"
   },
   "private": true,
-  "sideEffects": false,
+  "sideEffects": [
+    "*.css",
+    "*.scss",
+    "*.less"
+  ],
   "dependencies": {
     "@babel/core": "^7.18.9",
     "@codemirror/lang-sql": "^6.0.0",
@@ -104,6 +108,7 @@
     "lint": "eslint src --ext .ts,.tsx,.js,.jsx --fix",
     "lint:check": "eslint src --ext .ts,.tsx,.js,.jsx",
     "analyze": "vite build --mode production && rollup-plugin-visualizer",
+    "analyze:bundle": "node scripts/bundle-analyze.js",
     "performance:report": "node scripts/performance-report.js",
     "lighthouse": "lighthouse http://localhost:3000 --view"
   },

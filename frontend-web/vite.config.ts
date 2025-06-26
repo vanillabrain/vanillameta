@@ -89,6 +89,14 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: 'dist',
       sourcemap: mode !== 'production',
+      // 트리 쉐이킹 최적화
+      minify: 'terser',
+      terserOptions: {
+        compress: {
+          drop_console: mode === 'production',
+          drop_debugger: mode === 'production'
+        }
+      },
       // 코드 스플리팅 설정
       rollupOptions: {
         output: {
@@ -96,6 +104,27 @@ export default defineConfig(({ mode }) => {
             // 핵심 라이브러리
             'react-vendor': ['react', 'react-dom', 'react-router-dom'],
             'mui-vendor': ['@mui/material', '@mui/icons-material', '@mui/lab'],
+            // Radix UI 컴포넌트 (shadcn/ui)
+            'radix-ui': [
+              '@radix-ui/react-alert-dialog',
+              '@radix-ui/react-avatar',
+              '@radix-ui/react-checkbox',
+              '@radix-ui/react-collapsible',
+              '@radix-ui/react-dialog',
+              '@radix-ui/react-dropdown-menu',
+              '@radix-ui/react-label',
+              '@radix-ui/react-popover',
+              '@radix-ui/react-progress',
+              '@radix-ui/react-radio-group',
+              '@radix-ui/react-scroll-area',
+              '@radix-ui/react-select',
+              '@radix-ui/react-separator',
+              '@radix-ui/react-slot',
+              '@radix-ui/react-switch',
+              '@radix-ui/react-tabs',
+              '@radix-ui/react-toggle',
+              '@radix-ui/react-tooltip'
+            ],
             // ECharts 기본과 3D 분리
             'echarts-core': ['echarts', 'echarts-for-react'],
             'echarts-gl': ['echarts-gl'],
@@ -108,7 +137,9 @@ export default defineConfig(({ mode }) => {
             // 수학 유틸리티 (특정 차트에서만 사용)
             'math-utils': ['mathjs'],
             // 기타 유틸리티
-            'utils': ['lodash', 'lodash-es', 'axios', 'dayjs']
+            'utils': ['lodash', 'lodash-es', 'axios', 'dayjs'],
+            // Tanstack Query
+            'tanstack-query': ['@tanstack/react-query']
           }
         }
       },
