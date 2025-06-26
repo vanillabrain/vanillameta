@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Box, Paper, Stack, TextField, Typography } from '@mui/material';
-import { Button } from '@/components/ui/mui-button-compat';
+import { Box, Paper, Stack, Typography } from '@mui/material';
+import { Button, TextField } from '@/components/ui';
 import { ReactComponent as Logo } from '@/assets/images/logo.svg';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { LoadingContext } from '@/contexts/LoadingContext';
