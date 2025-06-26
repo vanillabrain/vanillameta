@@ -1,5 +1,6 @@
 import React from 'react';
-import { Stack, TextField } from '@mui/material';
+import { Stack } from '@mui/material';
+import { TextField } from '@/components/ui/mui-textfield-compat';
 import SubmitButton from '@/components/button/SubmitButton';
 
 const SqliteDatabaseForm = props => {

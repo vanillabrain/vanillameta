@@ -10,7 +10,7 @@ import {
   ExportPreview,
   RelatedLogsRequest,
   AuditLogLevel,
-  AuditLogCategory
+  AuditLogCategory,
 } from '../types/audit';
 
 class AuditLogServiceV2 {
@@ -22,7 +22,7 @@ class AuditLogServiceV2 {
   async getAuditLogs(filters: AuditLogFilters = {}): Promise<PaginatedResponse<AuditLog>> {
     try {
       const queryParams = new URLSearchParams();
-      
+
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== '') {
           if (value instanceof Date) {
@@ -35,7 +35,7 @@ class AuditLogServiceV2 {
 
       const url = `${this.baseUrl}?${queryParams.toString()}`;
       const response = await get<PaginatedResponse<AuditLog>>(url);
-      
+
       return response;
     } catch (error) {
       console.error('Failed to get audit logs:', error);
@@ -163,7 +163,7 @@ class AuditLogServiceV2 {
   async exportAuditLogs(params: ExportAuditLogsDto): Promise<Blob> {
     try {
       const response = await post(`${this.baseUrl}/export`, params, {
-        responseType: 'blob'
+        responseType: 'blob',
       });
       return response as unknown as Blob;
     } catch (error) {
@@ -267,13 +267,13 @@ class AuditLogServiceV2 {
    */
   getResourceTypeDisplayName(resourceType: string): string {
     const resourceMap: Record<string, string> = {
-      'user': '사용자',
-      'role': '역할',
-      'dashboard': '대시보드',
-      'widget': '위젯',
-      'database': '데이터베이스',
-      'system': '시스템',
-      'config': '설정',
+      user: '사용자',
+      role: '역할',
+      dashboard: '대시보드',
+      widget: '위젯',
+      database: '데이터베이스',
+      system: '시스템',
+      config: '설정',
     };
 
     return resourceMap[resourceType] || resourceType;
@@ -318,11 +318,11 @@ class AuditLogServiceV2 {
    */
   getStatusDisplayName(status: string): string {
     const statusMap: Record<string, string> = {
-      'success': '성공',
-      'error': '오류',
-      'warning': '경고',
-      'pending': '대기중',
-      'failed': '실패',
+      success: '성공',
+      error: '오류',
+      warning: '경고',
+      pending: '대기중',
+      failed: '실패',
     };
 
     return statusMap[status] || status;
@@ -333,11 +333,11 @@ class AuditLogServiceV2 {
    */
   getStatusColor(status: string): string {
     const colorMap: Record<string, string> = {
-      'success': '#52c41a',
-      'error': '#f5222d',
-      'warning': '#faad14',
-      'pending': '#1890ff',
-      'failed': '#ff4d4f',
+      success: '#52c41a',
+      error: '#f5222d',
+      warning: '#faad14',
+      pending: '#1890ff',
+      failed: '#ff4d4f',
     };
 
     return colorMap[status] || '#d9d9d9';

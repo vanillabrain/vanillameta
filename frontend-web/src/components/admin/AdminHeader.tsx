@@ -26,31 +26,21 @@ const AdminHeader: React.FC = () => {
           <span>Admin</span>
         </div>
       </div>
-      
+
       <div className="header-right">
-        <button 
-          className="btn-secondary"
-          onClick={handleBackToMain}
-          title="메인 사이트로 돌아가기"
-        >
+        <button className="btn-secondary" onClick={handleBackToMain} title="메인 사이트로 돌아가기">
           🏠 메인으로
         </button>
-        
+
         <div className="user-info">
-          <div className="user-avatar">
-            👤
-          </div>
+          <div className="user-avatar">👤</div>
           <div className="user-details">
             <span className="user-name">{user?.email || 'Admin'}</span>
             <span className="user-role">관리자</span>
           </div>
         </div>
-        
-        <button 
-          className="btn-logout"
-          onClick={handleLogout}
-          title="로그아웃"
-        >
+
+        <button className="btn-logout" onClick={handleLogout} title="로그아웃">
           🚪 로그아웃
         </button>
       </div>

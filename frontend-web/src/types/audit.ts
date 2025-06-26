@@ -5,7 +5,7 @@ export enum AuditLogLevel {
   INFO = 'info',
   WARNING = 'warning',
   ERROR = 'error',
-  CRITICAL = 'critical'
+  CRITICAL = 'critical',
 }
 
 export enum AuditLogCategory {
@@ -17,7 +17,7 @@ export enum AuditLogCategory {
   SECURITY = 'security',
   DASHBOARD = 'dashboard',
   WIDGET = 'widget',
-  DATABASE = 'database'
+  DATABASE = 'database',
 }
 
 export interface AuditLog {

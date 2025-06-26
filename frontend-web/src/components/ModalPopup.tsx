@@ -47,11 +47,7 @@ const ModalPopup = (props: ModalPopupProps) => {
       >
         <Stack direction="row" justifyContent="space-between" alignItems="center" m="20px" mr="10px">
           <Typography sx={{ fontSize: '20px', fontWeight: 600, color: '#141414' }}>{title}</Typography>
-          <Button 
-            variant="text"
-            onClick={handleClose} 
-            sx={{ padding: '10px', minWidth: 'auto' }}
-          >
+          <Button variant="text" onClick={handleClose} sx={{ padding: '10px', minWidth: 'auto' }}>
             <CloseIcon width="16" height="16" />
           </Button>
         </Stack>

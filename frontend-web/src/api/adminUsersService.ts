@@ -78,7 +78,7 @@ class AdminUsersService {
   async getUsers(filters: UserFilters = {}): Promise<PaginatedResponse<User>> {
     try {
       const queryParams = new URLSearchParams();
-      
+
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== '') {
           queryParams.append(key, value.toString());
@@ -87,7 +87,7 @@ class AdminUsersService {
 
       const url = `${this.baseUrl}?${queryParams.toString()}`;
       const response = await get<PaginatedResponse<User>>(url);
-      
+
       return response;
     } catch (error) {
       console.error('Failed to get users:', error);
@@ -114,7 +114,7 @@ class AdminUsersService {
   async updateUserStatus(id: string, status: string): Promise<User> {
     try {
       const response = await put<User>(`${this.baseUrl}/${id}/status`, {
-        status
+        status,
       });
       return response;
     } catch (error) {
@@ -192,7 +192,7 @@ class AdminUsersService {
   async getPendingUsers(filters: UserFilters = {}): Promise<PaginatedResponse<User>> {
     try {
       const queryParams = new URLSearchParams();
-      
+
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== '') {
           queryParams.append(key, value.toString());
@@ -201,7 +201,7 @@ class AdminUsersService {
 
       const url = `${this.baseUrl}/pending?${queryParams.toString()}`;
       const response = await get<PaginatedResponse<User>>(url);
-      
+
       return response;
     } catch (error) {
       console.error('Failed to get pending users:', error);
@@ -215,7 +215,7 @@ class AdminUsersService {
   async approveUser(id: string, reason?: string): Promise<User> {
     try {
       const response = await post<User>(`${this.baseUrl}/${id}/approve`, {
-        reason
+        reason,
       });
       return response;
     } catch (error) {
@@ -230,7 +230,7 @@ class AdminUsersService {
   async rejectUser(id: string, reason: string): Promise<User> {
     try {
       const response = await post<User>(`${this.baseUrl}/${id}/reject`, {
-        reason
+        reason,
       });
       return response;
     } catch (error) {

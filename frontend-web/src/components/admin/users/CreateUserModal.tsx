@@ -24,7 +24,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onSu
     name: '',
     department: '',
     phone: '',
-    roleIds: []
+    roleIds: [],
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +47,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onSu
         name: '',
         department: '',
         phone: '',
-        roleIds: []
+        roleIds: [],
       });
     } catch (err: any) {
       console.error('Failed to create user:', err);
@@ -64,19 +64,17 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onSu
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h2>새 사용자 추가</h2>
-          <button className="modal-close" onClick={onClose}>×</button>
+          <button className="modal-close" onClick={onClose}>
+            ×
+          </button>
         </div>
 
         <form onSubmit={handleSubmit}>
           <div className="modal-body">
-            {error && (
-              <div className="error-alert">
-                ❌ {error}
-              </div>
-            )}
+            {error && <div className="error-alert">❌ {error}</div>}
 
             <div className="form-group">
               <label htmlFor="userId">사용자 ID *</label>
@@ -153,19 +151,10 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onSu
           </div>
 
           <div className="modal-footer">
-            <button
-              type="button"
-              className="btn-cancel"
-              onClick={onClose}
-              disabled={loading}
-            >
+            <button type="button" className="btn-cancel" onClick={onClose} disabled={loading}>
               취소
             </button>
-            <button
-              type="submit"
-              className="btn-primary"
-              disabled={loading}
-            >
+            <button type="submit" className="btn-primary" disabled={loading}>
               {loading ? '생성 중...' : '사용자 생성'}
             </button>
           </div>

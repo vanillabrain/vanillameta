@@ -124,7 +124,7 @@ class AdminRoleService {
   async getRoles(filters: RoleFilters = {}): Promise<RoleWithStats[]> {
     try {
       const queryParams = new URLSearchParams();
-      
+
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== '') {
           queryParams.append(key, value.toString());
@@ -133,7 +133,7 @@ class AdminRoleService {
 
       const url = `${this.baseUrl}?${queryParams.toString()}`;
       const response = await get<RoleWithStats[]>(url);
-      
+
       return response;
     } catch (error) {
       console.error('Failed to get roles:', error);
@@ -223,7 +223,7 @@ class AdminRoleService {
   async getRoleUsers(id: string, query: RoleUsersQuery = {}): Promise<PaginatedResponse<UserBasic>> {
     try {
       const queryParams = new URLSearchParams();
-      
+
       Object.entries(query).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== '') {
           queryParams.append(key, value.toString());
@@ -307,14 +307,14 @@ class AdminRoleService {
 export const adminRoleService = new AdminRoleService();
 
 // 타입 내보내기
-export type { 
-  Role, 
+export type {
+  Role,
   RoleWithStats,
   RoleDetail,
   Permission,
   UserBasic,
-  CreateRoleRequest, 
-  UpdateRoleRequest, 
+  CreateRoleRequest,
+  UpdateRoleRequest,
   UpdateRolePermissionsRequest,
   AssignUsersToRoleRequest,
   CloneRoleRequest,
@@ -322,5 +322,5 @@ export type {
   RoleFilters,
   RoleUsersQuery,
   GroupedPermissions,
-  PaginatedResponse
+  PaginatedResponse,
 };

@@ -39,9 +39,7 @@ function BoardList(props: BoardListProps) {
 
   return (
     <div className="w-full mx-auto" style={{ maxWidth: MAX_WIDTH }}>
-      <div
-        className="flex flex-row justify-between w-full px-5 pr-[60px] sm:pr-[216px] mb-[11px] mt-[21px] sm:mt-9"
-      >
+      <div className="flex flex-row justify-between w-full px-5 pr-[60px] sm:pr-[216px] mb-[11px] mt-[21px] sm:mt-9">
         <span
           className="text-[10px] sm:text-[13px] font-medium leading-[1.23] text-[#767676]"
           style={{
@@ -50,16 +48,9 @@ function BoardList(props: BoardListProps) {
         >
           이름
         </span>
-        <span
-          className="text-[10px] sm:text-[13px] font-medium leading-[1.23] text-[#767676]"
-        >
-          수정일
-        </span>
+        <span className="text-[10px] sm:text-[13px] font-medium leading-[1.23] text-[#767676]">수정일</span>
       </div>
-      <div 
-        className="w-full mx-auto rounded-lg bg-white p-0"
-        style={{ border: tableBorder }}
-      >
+      <div className="w-full mx-auto rounded-lg bg-white p-0" style={{ border: tableBorder }}>
         {boardItems}
       </div>
       <div className="flex items-center justify-center mt-[47px]">
@@ -73,10 +64,10 @@ function BoardList(props: BoardListProps) {
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          {Array.from({ length: totalCount }, (_, i) => i + 1).map((pageNum) => (
+          {Array.from({ length: totalCount }, (_, i) => i + 1).map(pageNum => (
             <Button
               key={pageNum}
-              variant={page === pageNum ? "default" : "outline"}
+              variant={page === pageNum ? 'default' : 'outline'}
               size="sm"
               onClick={() => handlePageChange(pageNum)}
               className="h-8 w-8 p-0"

@@ -30,13 +30,7 @@ const LanguageSwitcher: React.FC = () => {
 
   return (
     <>
-      <Button 
-        variant="text"
-        onClick={handleClick} 
-        color="inherit" 
-        size="large" 
-        sx={{ marginLeft: '8px', minWidth: 'auto' }}
-      >
+      <Button variant="text" onClick={handleClick} color="inherit" size="large" sx={{ marginLeft: '8px', minWidth: 'auto' }}>
         <LanguageIcon />
       </Button>
       <Menu

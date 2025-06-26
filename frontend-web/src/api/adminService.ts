@@ -52,7 +52,7 @@ class AdminService {
   /**
    * 사용자 목록 조회 (향후 구현)
    */
-  async getUsers(page: number = 1, limit: number = 10): Promise<any> {
+  async getUsers(page = 1, limit = 10): Promise<any> {
     try {
       const response = await get(`${this.baseUrl}/users?page=${page}&limit=${limit}`);
       return response;
@@ -78,7 +78,7 @@ class AdminService {
   /**
    * 감사 로그 조회 (향후 구현)
    */
-  async getAuditLogs(page: number = 1, limit: number = 20): Promise<any> {
+  async getAuditLogs(page = 1, limit = 20): Promise<any> {
     try {
       const response = await get(`${this.baseUrl}/audit?page=${page}&limit=${limit}`);
       return response;

@@ -23,7 +23,7 @@ interface GlobalErrorBoundaryProps extends Props {
 }
 
 class GlobalErrorBoundaryClass extends Component<GlobalErrorBoundaryProps, ErrorBoundaryState> {
-  private errorId: string = '';
+  private errorId = '';
 
   constructor(props: GlobalErrorBoundaryProps) {
     super(props);
@@ -37,7 +37,7 @@ class GlobalErrorBoundaryClass extends Component<GlobalErrorBoundaryProps, Error
   componentDidCatch(error: Error, errorInfo: ReactErrorInfo) {
     const errorType = this.categorizeError(error);
     const severity = this.getErrorSeverity(errorType, error);
-    
+
     const customErrorInfo: ErrorInfo = {
       type: errorType,
       severity,
@@ -54,7 +54,7 @@ class GlobalErrorBoundaryClass extends Component<GlobalErrorBoundaryProps, Error
     };
 
     this.errorId = `${customErrorInfo.timestamp}-${customErrorInfo.type}`;
-    
+
     this.setState({
       hasError: true,
       error,
@@ -84,39 +84,27 @@ class GlobalErrorBoundaryClass extends Component<GlobalErrorBoundaryProps, Error
     const stack = error.stack?.toLowerCase() || '';
 
     // 청크 로딩 에러
-    if (message.includes('loading chunk') || 
-        message.includes('failed to fetch') ||
-        message.includes('loading css chunk')) {
+    if (message.includes('loading chunk') || message.includes('failed to fetch') || message.includes('loading css chunk')) {
       return ErrorType.CHUNK_LOAD_ERROR;
     }
 
     // 네트워크 에러
-    if (message.includes('network') || 
-        message.includes('fetch') ||
-        message.includes('xhr') ||
-        message.includes('timeout')) {
+    if (message.includes('network') || message.includes('fetch') || message.includes('xhr') || message.includes('timeout')) {
       return ErrorType.NETWORK_ERROR;
     }
 
     // 권한 에러
-    if (message.includes('permission') || 
-        message.includes('unauthorized') ||
-        message.includes('forbidden')) {
+    if (message.includes('permission') || message.includes('unauthorized') || message.includes('forbidden')) {
       return ErrorType.PERMISSION_ERROR;
     }
 
     // 차트 렌더링 에러
-    if (stack.includes('chart') || 
-        stack.includes('echarts') ||
-        stack.includes('d3') ||
-        message.includes('canvas')) {
+    if (stack.includes('chart') || stack.includes('echarts') || stack.includes('d3') || message.includes('canvas')) {
       return ErrorType.CHART_RENDER_ERROR;
     }
 
     // API 에러
-    if (message.includes('api') || 
-        message.includes('http') ||
-        message.includes('response')) {
+    if (message.includes('api') || message.includes('http') || message.includes('response')) {
       return ErrorType.API_ERROR;
     }
 

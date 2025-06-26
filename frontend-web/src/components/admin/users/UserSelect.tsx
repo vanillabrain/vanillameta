@@ -3,18 +3,8 @@ import { User } from 'lucide-react';
 import { debounce } from 'lodash';
 import { cn } from '@/lib/utils';
 import { adminUsersService } from '../../../api/adminUsersService';
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from '@/components/ui/command';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Spinner } from '@/components/ui/spinner';
@@ -85,10 +75,7 @@ export const UserSelect: React.FC<UserSelectProps> = ({
   };
 
   // 디바운스된 검색 함수
-  const debouncedSearch = React.useMemo(
-    () => debounce(searchUsers, 300),
-    []
-  );
+  const debouncedSearch = React.useMemo(() => debounce(searchUsers, 300), []);
 
   // 검색어 변경 핸들러
   const handleSearch = (value: string) => {
@@ -142,7 +129,7 @@ export const UserSelect: React.FC<UserSelectProps> = ({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className={cn("w-full justify-between", className)}
+          className={cn('w-full justify-between', className)}
           disabled={disabled}
         >
           {selectedUser ? (
@@ -160,7 +147,7 @@ export const UserSelect: React.FC<UserSelectProps> = ({
           )}
           {allowClear && selectedUser && !disabled && (
             <button
-              onClick={(e) => {
+              onClick={e => {
                 e.stopPropagation();
                 handleClear();
               }}
@@ -173,34 +160,22 @@ export const UserSelect: React.FC<UserSelectProps> = ({
       </PopoverTrigger>
       <PopoverContent className="w-[300px] p-0">
         <Command>
-          <CommandInput
-            placeholder="사용자 검색..."
-            value={searchValue}
-            onValueChange={handleSearch}
-          />
+          <CommandInput placeholder="사용자 검색..." value={searchValue} onValueChange={handleSearch} />
           <CommandEmpty>
             {loading ? (
               <div className="flex items-center justify-center py-6">
                 <Spinner size="sm" />
               </div>
             ) : searchValue.length < 2 ? (
-              <div className="py-6 text-center text-sm text-muted-foreground">
-                2글자 이상 입력해주세요
-              </div>
+              <div className="py-6 text-center text-sm text-muted-foreground">2글자 이상 입력해주세요</div>
             ) : (
-              <div className="py-6 text-center text-sm text-muted-foreground">
-                검색 결과가 없습니다
-              </div>
+              <div className="py-6 text-center text-sm text-muted-foreground">검색 결과가 없습니다</div>
             )}
           </CommandEmpty>
           {!loading && options.length > 0 && (
             <CommandGroup>
-              {options.map((option) => (
-                <CommandItem
-                  key={option.id}
-                  value={option.id}
-                  onSelect={handleSelect}
-                >
+              {options.map(option => (
+                <CommandItem key={option.id} value={option.id} onSelect={handleSelect}>
                   <div className="flex items-center gap-2 w-full">
                     <Avatar className="h-6 w-6">
                       <AvatarImage src={option.avatar} />
@@ -210,11 +185,7 @@ export const UserSelect: React.FC<UserSelectProps> = ({
                     </Avatar>
                     <div className="flex-1 overflow-hidden">
                       <div className="font-medium truncate">{option.name}</div>
-                      {showEmail && (
-                        <div className="text-xs text-muted-foreground truncate">
-                          {option.email}
-                        </div>
-                      )}
+                      {showEmail && <div className="text-xs text-muted-foreground truncate">{option.email}</div>}
                     </div>
                   </div>
                 </CommandItem>

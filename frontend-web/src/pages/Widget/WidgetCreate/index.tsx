@@ -141,9 +141,6 @@ const WidgetCreate = () => {
             }
             sx={{
               color: '#043f84',
-              '&.Mui-disabled &.MuiButton-startIcon': {
-                color: '#fff',
-              },
             }}
           >
             이전

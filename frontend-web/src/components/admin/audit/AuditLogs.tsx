@@ -22,7 +22,7 @@ const AuditLogs: React.FC = () => {
   const [availableActions, setAvailableActions] = useState<AvailableActions | null>(null);
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  
+
   // 필터 상태
   const [filters, setFilters] = useState({
     search: '',
@@ -32,7 +32,7 @@ const AuditLogs: React.FC = () => {
     startDate: '',
     endDate: '',
     sortBy: 'createdAt',
-    sortOrder: 'DESC' as 'ASC' | 'DESC'
+    sortOrder: 'DESC' as 'ASC' | 'DESC',
   });
 
   useEffect(() => {
@@ -45,11 +45,11 @@ const AuditLogs: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const response = await auditLogService.getAuditLogs({
         page,
         limit: 20,
-        ...filters
+        ...filters,
       });
 
       setAuditLogs(response.data);
@@ -83,7 +83,7 @@ const AuditLogs: React.FC = () => {
   const handleFilterChange = (key: string, value: string) => {
     setFilters(prev => ({
       ...prev,
-      [key]: value
+      [key]: value,
     }));
     setPage(1); // 필터 변경 시 첫 페이지로 이동
   };
@@ -97,7 +97,7 @@ const AuditLogs: React.FC = () => {
       startDate: '',
       endDate: '',
       sortBy: 'createdAt',
-      sortOrder: 'DESC'
+      sortOrder: 'DESC',
     });
     setPage(1);
   };
@@ -118,7 +118,7 @@ const AuditLogs: React.FC = () => {
     const diffMinutes = Math.floor(diffMs / (1000 * 60));
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays > 0) return `${diffDays}일 전`;
     if (diffHours > 0) return `${diffHours}시간 전`;
     if (diffMinutes > 0) return `${diffMinutes}분 전`;
@@ -127,10 +127,14 @@ const AuditLogs: React.FC = () => {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'success': return '✅';
-      case 'error': return '❌';
-      case 'warning': return '⚠️';
-      default: return '📝';
+      case 'success':
+        return '✅';
+      case 'error':
+        return '❌';
+      case 'warning':
+        return '⚠️';
+      default:
+        return '📝';
     }
   };
 
@@ -217,15 +221,15 @@ const AuditLogs: React.FC = () => {
               className="search-input"
               placeholder="작업, 사용자 이메일로 검색..."
               value={filters.search}
-              onChange={(e) => handleFilterChange('search', e.target.value)}
+              onChange={e => handleFilterChange('search', e.target.value)}
             />
             <span className="search-icon">🔍</span>
           </div>
-          
+
           <select
             className="filter-select"
             value={filters.action}
-            onChange={(e) => handleFilterChange('action', e.target.value)}
+            onChange={e => handleFilterChange('action', e.target.value)}
           >
             <option value="">모든 작업</option>
             {availableActions?.actions.map(action => (
@@ -238,7 +242,7 @@ const AuditLogs: React.FC = () => {
           <select
             className="filter-select"
             value={filters.status}
-            onChange={(e) => handleFilterChange('status', e.target.value)}
+            onChange={e => handleFilterChange('status', e.target.value)}
           >
             <option value="">모든 상태</option>
             <option value="success">성공</option>
@@ -250,21 +254,13 @@ const AuditLogs: React.FC = () => {
         <div className="filters-row">
           <div className="date-filter">
             <label>시작일:</label>
-            <input
-              type="date"
-              value={filters.startDate}
-              onChange={(e) => handleFilterChange('startDate', e.target.value)}
-            />
+            <input type="date" value={filters.startDate} onChange={e => handleFilterChange('startDate', e.target.value)} />
           </div>
           <div className="date-filter">
             <label>종료일:</label>
-            <input
-              type="date"
-              value={filters.endDate}
-              onChange={(e) => handleFilterChange('endDate', e.target.value)}
-            />
+            <input type="date" value={filters.endDate} onChange={e => handleFilterChange('endDate', e.target.value)} />
           </div>
-          
+
           <button onClick={handleClearFilters} className="clear-filters-btn">
             🗑️ 필터 초기화
           </button>
@@ -283,17 +279,15 @@ const AuditLogs: React.FC = () => {
       ) : (
         <>
           <div className="audit-logs-list">
-            {auditLogs.map((log) => (
+            {auditLogs.map(log => (
               <div key={log.id} className="audit-log-card">
                 <div className="log-header">
                   <div className="log-action">
                     <span className="action-icon">{getActionIcon(log.action)}</span>
-                    <span className="action-name">
-                      {auditLogService.getActionDisplayName(log.action)}
-                    </span>
+                    <span className="action-name">{auditLogService.getActionDisplayName(log.action)}</span>
                   </div>
                   <div className="log-status">
-                    <span 
+                    <span
                       className={`status-badge ${log.status}`}
                       style={{ backgroundColor: auditLogService.getStatusColor(log.status) }}
                     >
@@ -301,18 +295,16 @@ const AuditLogs: React.FC = () => {
                     </span>
                   </div>
                 </div>
-                
+
                 <div className="log-content">
                   <div className="log-user">
                     <span className="user-icon">👤</span>
                     <span className="user-email">{log.userEmail || 'Unknown User'}</span>
                     {log.userId && <span className="user-id">(ID: {log.userId})</span>}
                   </div>
-                  
-                  {log.details && (
-                    <div className="log-details">{log.details}</div>
-                  )}
-                  
+
+                  {log.details && <div className="log-details">{log.details}</div>}
+
                   {log.entityType && (
                     <div className="log-entity">
                       <span className="entity-type">{log.entityType}</span>
@@ -320,17 +312,14 @@ const AuditLogs: React.FC = () => {
                     </div>
                   )}
                 </div>
-                
+
                 <div className="log-footer">
                   <div className="log-time">
                     <span className="time-relative">{getTimeSince(log.createdAt)}</span>
                     <span className="time-absolute">{formatDate(log.createdAt)}</span>
                   </div>
-                  
-                  <button 
-                    className="detail-btn"
-                    onClick={() => handleShowDetail(log)}
-                  >
+
+                  <button className="detail-btn" onClick={() => handleShowDetail(log)}>
                     🔍 상세보기
                   </button>
                 </div>
@@ -368,10 +357,7 @@ const AuditLogs: React.FC = () => {
           <div className="modal large">
             <div className="modal-header">
               <h3>🔍 감사 로그 상세 정보</h3>
-              <button 
-                className="modal-close" 
-                onClick={() => setShowDetailModal(false)}
-              >
+              <button className="modal-close" onClick={() => setShowDetailModal(false)}>
                 ×
               </button>
             </div>
@@ -389,7 +375,7 @@ const AuditLogs: React.FC = () => {
                 </div>
                 <div className="detail-item">
                   <label>상태:</label>
-                  <span 
+                  <span
                     className={`status-badge ${selectedLog.status}`}
                     style={{ backgroundColor: auditLogService.getStatusColor(selectedLog.status) }}
                   >
@@ -398,11 +384,15 @@ const AuditLogs: React.FC = () => {
                 </div>
                 <div className="detail-item">
                   <label>사용자:</label>
-                  <span>{selectedLog.userEmail} (ID: {selectedLog.userId})</span>
+                  <span>
+                    {selectedLog.userEmail} (ID: {selectedLog.userId})
+                  </span>
                 </div>
                 <div className="detail-item">
                   <label>대상 엔티티:</label>
-                  <span>{selectedLog.entityType} #{selectedLog.entityId}</span>
+                  <span>
+                    {selectedLog.entityType} #{selectedLog.entityId}
+                  </span>
                 </div>
                 <div className="detail-item">
                   <label>발생 시간:</label>
@@ -429,18 +419,13 @@ const AuditLogs: React.FC = () => {
                 {selectedLog.metadata && Object.keys(selectedLog.metadata).length > 0 && (
                   <div className="detail-item full-width">
                     <label>메타데이터:</label>
-                    <pre className="metadata-json">
-                      {JSON.stringify(selectedLog.metadata, null, 2)}
-                    </pre>
+                    <pre className="metadata-json">{JSON.stringify(selectedLog.metadata, null, 2)}</pre>
                   </div>
                 )}
               </div>
             </div>
             <div className="modal-footer">
-              <button 
-                className="btn-cancel" 
-                onClick={() => setShowDetailModal(false)}
-              >
+              <button className="btn-cancel" onClick={() => setShowDetailModal(false)}>
                 닫기
               </button>
             </div>

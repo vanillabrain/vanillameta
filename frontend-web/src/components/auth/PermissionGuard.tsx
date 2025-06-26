@@ -16,19 +16,19 @@ interface PermissionGuardProps {
 
 /**
  * 권한 기반 접근 제어 컴포넌트
- * 
+ *
  * @example
  * // 단일 권한 확인
  * <PermissionGuard permission="admin.users.view">
  *   <UserManagement />
  * </PermissionGuard>
- * 
+ *
  * @example
  * // 여러 권한 중 하나라도 있으면 허용
  * <PermissionGuard permissions={["admin.users.view", "admin.users.edit"]}>
  *   <UserForm />
  * </PermissionGuard>
- * 
+ *
  * @example
  * // 모든 권한이 있어야 허용
  * <PermissionGuard permissions={["admin.users.view", "admin.users.edit"]} requireAll>
@@ -47,13 +47,11 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({
 
   // 권한 확인
   let hasAccess = false;
-  
+
   if (permission) {
     hasAccess = hasPermission(permission);
   } else if (permissions.length > 0) {
-    hasAccess = requireAll 
-      ? hasAllPermissions(permissions)
-      : hasAnyPermission(permissions);
+    hasAccess = requireAll ? hasAllPermissions(permissions) : hasAnyPermission(permissions);
   } else {
     // 권한이 지정되지 않은 경우 접근 허용
     hasAccess = true;
@@ -125,13 +123,11 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
   const { hasRole, hasAnyRole, roles: userRoles } = usePermissions();
 
   let hasAccess = false;
-  
+
   if (role) {
     hasAccess = hasRole(role);
   } else if (roles.length > 0) {
-    hasAccess = requireAll 
-      ? roles.every(r => hasRole(r))
-      : hasAnyRole(roles);
+    hasAccess = requireAll ? roles.every(r => hasRole(r)) : hasAnyRole(roles);
   } else {
     hasAccess = true;
   }

@@ -131,14 +131,9 @@ const Login = () => {
             <Logo width="223px" height="43px" />
           </RouterLink>
           <p className="mt-4 text-base text-[#043f84] text-center">
-            통합 데이터 분석을 위한{' '}
-            <span className="text-base font-bold">대시보드 리포팅 솔루션</span>
+            통합 데이터 분석을 위한 <span className="text-base font-bold">대시보드 리포팅 솔루션</span>
           </p>
-          <form
-            onSubmit={handleLogin}
-            noValidate
-            className="w-[calc(100%-40px)] sm:w-[360px] mt-14 space-y-5"
-          >
+          <form onSubmit={handleLogin} noValidate className="w-[calc(100%-40px)] sm:w-[360px] mt-14 space-y-5">
             <div className="space-y-2">
               <Label htmlFor="userId">User ID</Label>
               <Input
@@ -163,11 +158,7 @@ const Login = () => {
                 className="h-11 sm:h-9"
               />
             </div>
-            <Button
-              type="submit"
-              size="lg"
-              className="w-full h-[50px] sm:h-11 mt-3 mb-2"
-            >
+            <Button type="submit" size="lg" className="w-full h-[50px] sm:h-11 mt-3 mb-2">
               Login
             </Button>
           </form>
@@ -179,9 +170,7 @@ const Login = () => {
               >
                 회원가입
               </RouterLink>
-              <button
-                className="min-w-0 min-h-0 m-0 p-0 text-inherit font-inherit text-[#4a4a4a] hover:bg-inherit"
-              >
+              <button className="min-w-0 min-h-0 m-0 p-0 text-inherit font-inherit text-[#4a4a4a] hover:bg-inherit">
                 아이디/비번찾기
               </button>
             </div>

@@ -37,12 +37,7 @@ function ColorButtonForm(props) {
 
   return (
     <FormControl sx={{ alignItems: 'flex-end', justifyContent: 'center' }}>
-      <Button 
-        variant="text"
-        aria-label="색상 선택" 
-        onClick={handleClick}
-        className="min-w-0 p-2"
-      >
+      <Button variant="text" aria-label="색상 선택" onClick={handleClick} className="min-w-0 p-2">
         <PaintButton color={color} />
       </Button>
       <Popover

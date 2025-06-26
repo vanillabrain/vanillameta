@@ -105,7 +105,7 @@ export const usePermissions = () => {
    * @param fallback 권한이 없을 때 표시할 컴포넌트
    */
   const can = (permission: string, children: React.ReactNode, fallback?: React.ReactNode) => {
-    return hasPermission(permission) ? children : (fallback || null);
+    return hasPermission(permission) ? children : fallback || null;
   };
 
   /**

@@ -14,9 +14,7 @@ const Layout = props => {
       style={{ backgroundColor: footerBg || '#fff' }}
     >
       <Header />
-      <div className="flex-auto w-full pt-14 sm:pt-16 min-h-[calc(100%-50px)]">
-        {children || <Outlet />}
-      </div>
+      <div className="flex-auto w-full pt-14 sm:pt-16 min-h-[calc(100%-50px)]">{children || <Outlet />}</div>
       <Footer />
     </div>
   );

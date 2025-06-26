@@ -64,14 +64,12 @@ const UserTable: React.FC<UserTableProps> = ({
         month: 'short',
         day: 'numeric',
         hour: '2-digit',
-        minute: '2-digit'
+        minute: '2-digit',
       });
     } catch (error) {
       return '날짜 불명';
     }
   };
-
-
 
   if (loading) {
     return (
@@ -111,7 +109,7 @@ const UserTable: React.FC<UserTableProps> = ({
                 ref={input => {
                   if (input) input.indeterminate = someSelected;
                 }}
-                onChange={(e) => handleSelectAll(e.target.checked)}
+                onChange={e => handleSelectAll(e.target.checked)}
               />
             </th>
             <th>사용자 정보</th>
@@ -123,25 +121,18 @@ const UserTable: React.FC<UserTableProps> = ({
           </tr>
         </thead>
         <tbody>
-          {users.map((user) => (
-            <tr 
-              key={user.id} 
-              className={selectedUsers.includes(user.id) ? 'selected' : ''}
-            >
+          {users.map(user => (
+            <tr key={user.id} className={selectedUsers.includes(user.id) ? 'selected' : ''}>
               <td className="checkbox-column">
                 <input
                   type="checkbox"
                   checked={selectedUsers.includes(user.id)}
-                  onChange={(e) => handleSelectUser(user.id, e.target.checked)}
+                  onChange={e => handleSelectUser(user.id, e.target.checked)}
                 />
               </td>
               <td className="user-info">
                 <div className="user-avatar">
-                  {user.avatar ? (
-                    <img src={user.avatar} alt={user.name} />
-                  ) : (
-                    user.name.charAt(0).toUpperCase()
-                  )}
+                  {user.avatar ? <img src={user.avatar} alt={user.name} /> : user.name.charAt(0).toUpperCase()}
                 </div>
                 <div className="user-details">
                   <div className="user-name">{user.name}</div>
@@ -162,37 +153,19 @@ const UserTable: React.FC<UserTableProps> = ({
                 </div>
               </td>
               <td>
-                <UserStatusBadge
-                  status={user.status}
-                  userId={user.id}
-                  onStatusChange={onUserStatusChange}
-                />
+                <UserStatusBadge status={user.status} userId={user.id} onStatusChange={onUserStatusChange} />
               </td>
-              <td>
-                {user.lastLoginAt ? formatDate(user.lastLoginAt) : '접속 기록 없음'}
-              </td>
+              <td>{user.lastLoginAt ? formatDate(user.lastLoginAt) : '접속 기록 없음'}</td>
               <td>{formatDate(user.createdAt)}</td>
               <td>
                 <div className="table-actions">
-                  <button 
-                    className="btn-action btn-view"
-                    title="상세 보기"
-                    onClick={() => onUserView?.(user.id)}
-                  >
+                  <button className="btn-action btn-view" title="상세 보기" onClick={() => onUserView?.(user.id)}>
                     👁️
                   </button>
-                  <button 
-                    className="btn-action btn-edit"
-                    title="편집"
-                    onClick={() => onUserEdit?.(user)}
-                  >
+                  <button className="btn-action btn-edit" title="편집" onClick={() => onUserEdit?.(user)}>
                     ✏️
                   </button>
-                  <button 
-                    className="btn-action btn-delete"
-                    title="삭제"
-                    onClick={() => onUserDelete?.(user.id)}
-                  >
+                  <button className="btn-action btn-delete" title="삭제" onClick={() => onUserDelete?.(user.id)}>
                     🗑️
                   </button>
                 </div>

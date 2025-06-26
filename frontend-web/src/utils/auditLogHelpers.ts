@@ -10,11 +10,11 @@ dayjs.locale('ko');
  */
 export const formatFileSize = (bytes: number): string => {
   if (bytes === 0) return '0 Bytes';
-  
+
   const k = 1024;
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  
+
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 };
 
@@ -23,20 +23,20 @@ export const formatFileSize = (bytes: number): string => {
  */
 export const getActionIcon = (action: string): string => {
   const actionIcons: Record<string, string> = {
-    'create': 'PlusCircleOutlined',
-    'update': 'EditOutlined',
-    'delete': 'DeleteOutlined',
-    'login': 'LoginOutlined',
-    'logout': 'LogoutOutlined',
-    'approve': 'CheckCircleOutlined',
-    'reject': 'CloseCircleOutlined',
-    'view': 'EyeOutlined',
-    'download': 'DownloadOutlined',
-    'upload': 'UploadOutlined',
-    'share': 'ShareAltOutlined',
-    'config': 'SettingOutlined',
-    'backup': 'SaveOutlined',
-    'restore': 'ReloadOutlined',
+    create: 'PlusCircleOutlined',
+    update: 'EditOutlined',
+    delete: 'DeleteOutlined',
+    login: 'LoginOutlined',
+    logout: 'LogoutOutlined',
+    approve: 'CheckCircleOutlined',
+    reject: 'CloseCircleOutlined',
+    view: 'EyeOutlined',
+    download: 'DownloadOutlined',
+    upload: 'UploadOutlined',
+    share: 'ShareAltOutlined',
+    config: 'SettingOutlined',
+    backup: 'SaveOutlined',
+    restore: 'ReloadOutlined',
   };
 
   // 액션에서 키워드 찾기
@@ -60,10 +60,7 @@ export const getDateRangePresets = () => {
     '지난 30일': [dayjs().subtract(30, 'days'), dayjs()],
     '지난 90일': [dayjs().subtract(90, 'days'), dayjs()],
     '이번 달': [dayjs().startOf('month'), dayjs()],
-    '지난 달': [
-      dayjs().subtract(1, 'month').startOf('month'),
-      dayjs().subtract(1, 'month').endOf('month')
-    ],
+    '지난 달': [dayjs().subtract(1, 'month').startOf('month'), dayjs().subtract(1, 'month').endOf('month')],
   };
 };
 
@@ -91,12 +88,12 @@ export const formatSimpleDate = (date: string | Date): string => {
 /**
  * IP 주소 마스킹
  */
-export const maskIpAddress = (ip: string, showLastOctet: boolean = true): string => {
+export const maskIpAddress = (ip: string, showLastOctet = true): string => {
   if (!ip) return '-';
-  
+
   const parts = ip.split('.');
   if (parts.length !== 4) return ip;
-  
+
   if (showLastOctet) {
     return `${parts[0]}.${parts[1]}.*.${parts[3]}`;
   } else {
@@ -109,11 +106,11 @@ export const maskIpAddress = (ip: string, showLastOctet: boolean = true): string
  */
 export const maskEmail = (email: string): string => {
   if (!email || !email.includes('@')) return email;
-  
+
   const [localPart, domain] = email.split('@');
   const visibleChars = Math.min(3, Math.floor(localPart.length / 2));
   const maskedLocal = localPart.substring(0, visibleChars) + '*'.repeat(localPart.length - visibleChars);
-  
+
   return `${maskedLocal}@${domain}`;
 };
 
@@ -131,29 +128,31 @@ export const formatJson = (data: any): string => {
 /**
  * 변경사항 비교 및 하이라이트
  */
-export const compareChanges = (oldValues: any, newValues: any): Array<{
+export const compareChanges = (
+  oldValues: any,
+  newValues: any,
+): Array<{
   key: string;
   oldValue: any;
   newValue: any;
   isChanged: boolean;
 }> => {
-  const allKeys = new Set([
-    ...Object.keys(oldValues || {}),
-    ...Object.keys(newValues || {})
-  ]);
+  const allKeys = new Set([...Object.keys(oldValues || {}), ...Object.keys(newValues || {})]);
 
   return Array.from(allKeys).map(key => ({
     key,
     oldValue: oldValues?.[key],
     newValue: newValues?.[key],
-    isChanged: JSON.stringify(oldValues?.[key]) !== JSON.stringify(newValues?.[key])
+    isChanged: JSON.stringify(oldValues?.[key]) !== JSON.stringify(newValues?.[key]),
   }));
 };
 
 /**
  * 사용자 에이전트 파싱
  */
-export const parseUserAgent = (userAgent: string): {
+export const parseUserAgent = (
+  userAgent: string,
+): {
   browser: string;
   os: string;
   device: string;
@@ -203,11 +202,7 @@ export const calculateLogImportance = (log: any): 'high' | 'medium' | 'low' => {
   }
 
   // 중간 중요도
-  if (
-    log.level === 'warning' ||
-    log.action?.includes('update') ||
-    log.action?.includes('create')
-  ) {
+  if (log.level === 'warning' || log.action?.includes('update') || log.action?.includes('create')) {
     return 'medium';
   }
 
@@ -243,16 +238,7 @@ export const generateCsvData = (logs: any[]): string => {
   if (logs.length === 0) return '';
 
   // 헤더 생성
-  const headers = [
-    '시간',
-    '레벨',
-    '액션',
-    '사용자',
-    '리소스',
-    'IP 주소',
-    '상태',
-    '상세 내용'
-  ];
+  const headers = ['시간', '레벨', '액션', '사용자', '리소스', 'IP 주소', '상태', '상세 내용'];
 
   // 데이터 행 생성
   const rows = logs.map(log => [
@@ -263,14 +249,11 @@ export const generateCsvData = (logs: any[]): string => {
     log.resourceType && log.resourceId ? `${log.resourceType}#${log.resourceId}` : '-',
     log.ipAddress || '-',
     log.status || '-',
-    log.details || '-'
+    log.details || '-',
   ]);
 
   // CSV 문자열 생성
-  const csvContent = [
-    headers.join(','),
-    ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-  ].join('\n');
+  const csvContent = [headers.join(','), ...rows.map(row => row.map(cell => `"${cell}"`).join(','))].join('\n');
 
   return csvContent;
 };

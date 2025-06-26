@@ -72,25 +72,13 @@ function Recommend(props) {
 
   return (
     <React.Fragment>
-      <Button 
-        variant="text" 
-        onClick={handleOpenClick} 
-        size="small"
-        sx={{ minWidth: 'auto', p: 1 }}
-      >
+      <Button variant="ghost" onClick={handleOpenClick} size="sm" className="min-w-0 p-2">
         <AutoAwesomeIcon />
       </Button>
       <Dialog open={open} onClose={handleClose} TransitionComponent={Transition} fullWidth maxWidth="xl">
         <AppBar sx={{ position: 'relative' }}>
           <Toolbar>
-            <Button 
-              variant="text" 
-              edge="start" 
-              color="inherit" 
-              onClick={handleClose} 
-              aria-label="close"
-              sx={{ minWidth: 'auto', p: 1 }}
-            >
+            <Button variant="ghost" onClick={handleClose} aria-label="close" className="min-w-0 p-2">
               <CloseIcon />
             </Button>
             <Typography sx={{ ml: 2, flex: 1 }} variant="h6" component="div">
@@ -116,8 +104,12 @@ function Recommend(props) {
               <TextField margin="dense" id="dashboardName" label="대시보드 이름" type="text" fullWidth variant="standard" />
             </DialogContent>
             <DialogActions>
-              <Button variant="text" onClick={handleCompleteClose}>취소</Button>
-              <Button variant="text" onClick={handleSubmit}>대시보드 생성</Button>
+              <Button variant="ghost" onClick={handleCompleteClose}>
+                취소
+              </Button>
+              <Button variant="ghost" onClick={handleSubmit}>
+                대시보드 생성
+              </Button>
             </DialogActions>
           </Dialog>
         </DialogActions>

@@ -77,10 +77,10 @@ const UserManagement: React.FC = () => {
   };
 
   const handleFilterChange = (newFilters: Partial<UserFilters>) => {
-    setFilters(prev => ({ 
-      ...prev, 
-      ...newFilters, 
-      page: 1 // 필터 변경 시 첫 페이지로
+    setFilters(prev => ({
+      ...prev,
+      ...newFilters,
+      page: 1, // 필터 변경 시 첫 페이지로
     }));
   };
 
@@ -143,11 +143,7 @@ const UserManagement: React.FC = () => {
           <button onClick={handleRefresh} className="btn-refresh" title="새로고침">
             🔄 새로고침
           </button>
-          <button 
-            className="btn-primary" 
-            title="사용자 추가"
-            onClick={() => setIsCreateModalOpen(true)}
-          >
+          <button className="btn-primary" title="사용자 추가" onClick={() => setIsCreateModalOpen(true)}>
             ➕ 사용자 추가
           </button>
         </div>
@@ -164,10 +160,7 @@ const UserManagement: React.FC = () => {
         </div>
       </div>
 
-      <UserFiltersComponent
-        filters={filters}
-        onFilterChange={handleFilterChange}
-      />
+      <UserFiltersComponent filters={filters} onFilterChange={handleFilterChange} />
 
       {selectedUsers.length > 0 && (
         <BulkActionBar
@@ -184,8 +177,8 @@ const UserManagement: React.FC = () => {
         selectedUsers={selectedUsers}
         onSelectionChange={setSelectedUsers}
         onUserStatusChange={handleUserStatusChange}
-        onUserEdit={(user) => setEditingUser(user)}
-        onUserView={(userId) => setViewingUserId(userId)}
+        onUserEdit={user => setEditingUser(user)}
+        onUserView={userId => setViewingUserId(userId)}
         onUserDelete={handleDeleteUser}
         onRefresh={loadUsers}
       />
@@ -199,11 +192,11 @@ const UserManagement: React.FC = () => {
           >
             ← 이전
           </button>
-          
+
           <span className="pagination-info">
             {users.meta.page} / {users.meta.totalPages} 페이지
           </span>
-          
+
           <button
             className="pagination-btn"
             disabled={users.meta.page >= users.meta.totalPages}
@@ -214,24 +207,11 @@ const UserManagement: React.FC = () => {
         </div>
       )}
 
-      <CreateUserModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onSuccess={loadUsers}
-      />
+      <CreateUserModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} onSuccess={loadUsers} />
 
-      <EditUserModal
-        isOpen={!!editingUser}
-        user={editingUser}
-        onClose={() => setEditingUser(null)}
-        onSuccess={loadUsers}
-      />
+      <EditUserModal isOpen={!!editingUser} user={editingUser} onClose={() => setEditingUser(null)} onSuccess={loadUsers} />
 
-      <UserDetailModal
-        isOpen={!!viewingUserId}
-        userId={viewingUserId}
-        onClose={() => setViewingUserId(null)}
-      />
+      <UserDetailModal isOpen={!!viewingUserId} userId={viewingUserId} onClose={() => setViewingUserId(null)} />
     </div>
   );
 };

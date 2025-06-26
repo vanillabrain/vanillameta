@@ -60,30 +60,24 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ isOpen, userId, onClo
       month: '2-digit',
       day: '2-digit',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     });
   };
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content modal-large" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h2>사용자 상세 정보</h2>
-          <button className="modal-close" onClick={onClose}>×</button>
+          <button className="modal-close" onClick={onClose}>
+            ×
+          </button>
         </div>
 
         <div className="modal-body">
-          {loading && (
-            <div className="loading-state">
-              🔄 정보를 불러오는 중...
-            </div>
-          )}
+          {loading && <div className="loading-state">🔄 정보를 불러오는 중...</div>}
 
-          {error && (
-            <div className="error-alert">
-              ❌ {error}
-            </div>
-          )}
+          {error && <div className="error-alert">❌ {error}</div>}
 
           {user && !loading && (
             <div className="user-detail-content">
@@ -128,9 +122,7 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ isOpen, userId, onClo
                   </div>
                   <div className="detail-item">
                     <label>역할</label>
-                    <span>
-                      {user.roles.length > 0 ? user.roles.join(', ') : '역할 없음'}
-                    </span>
+                    <span>{user.roles.length > 0 ? user.roles.join(', ') : '역할 없음'}</span>
                   </div>
                 </div>
               </div>
@@ -152,11 +144,7 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ isOpen, userId, onClo
                   </div>
                   <div className="detail-item">
                     <label>이메일 인증</label>
-                    <span>
-                      {user.emailVerifiedAt 
-                        ? `✅ ${formatDate(user.emailVerifiedAt)}` 
-                        : '❌ 미인증'}
-                    </span>
+                    <span>{user.emailVerifiedAt ? `✅ ${formatDate(user.emailVerifiedAt)}` : '❌ 미인증'}</span>
                   </div>
                   {user.deletedAt && (
                     <div className="detail-item">
@@ -178,11 +166,7 @@ const UserDetailModal: React.FC<UserDetailModalProps> = ({ isOpen, userId, onClo
         </div>
 
         <div className="modal-footer">
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={onClose}
-          >
+          <button type="button" className="btn-primary" onClick={onClose}>
             닫기
           </button>
         </div>

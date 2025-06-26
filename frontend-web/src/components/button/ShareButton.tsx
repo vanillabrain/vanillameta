@@ -7,11 +7,7 @@ import { useAlert } from 'react-alert';
 import DatePicker from '@/components/form/DatePicker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface ShareButtonProps {
   handleShareToggle?: () => void;
@@ -25,7 +21,8 @@ interface SharePopupProps extends ShareButtonProps {
   matches: boolean;
 }
 
-const paperStyles = "mt-[3px] border border-[#ddd] rounded-md shadow-[2px_2px_9px_0_rgba(42,50,62,0.1),0_4px_4px_0_rgba(0,0,0,0.02)]";
+const paperStyles =
+  'mt-[3px] border border-[#ddd] rounded-md shadow-[2px_2px_9px_0_rgba(42,50,62,0.1),0_4px_4px_0_rgba(0,0,0,0.02)]';
 
 const ShareOnPopup = forwardRef((props: SharePopupProps, ref: Ref<HTMLDivElement>) => {
   const { matches, handleShareToggle, shareLimitDate, shareId } = props;
@@ -62,13 +59,9 @@ const ShareOnPopup = forwardRef((props: SharePopupProps, ref: Ref<HTMLDivElement
         </form>
         <p className="text-sm text-[#141414]">
           설정하신&nbsp;
-          <span className="text-[#0f5ab2]">
-            {shareLimitDate}
-          </span>
+          <span className="text-[#0f5ab2]">{shareLimitDate}</span>
           까지&nbsp;
-          <span className="font-semibold text-[#0f5ab2]">
-            공유중
-          </span>
+          <span className="font-semibold text-[#0f5ab2]">공유중</span>
           입니다.
         </p>
         <div className="flex flex-row justify-between mt-[18px] gap-3">
@@ -97,15 +90,9 @@ const ShareOnPopup = forwardRef((props: SharePopupProps, ref: Ref<HTMLDivElement
         <div className="flex flex-row justify-between items-center">
           <p className="text-sm text-[#141414]">
             공유 기한:
-            <span className="ml-1 font-bold text-[#333]">
-              {shareLimitDate}
-            </span>
+            <span className="ml-1 font-bold text-[#333]">{shareLimitDate}</span>
           </p>
-          <Button
-            size="icon"
-            className="w-8 h-8"
-            onClick={handleCopyClick}
-          >
+          <Button size="icon" className="w-8 h-8" onClick={handleCopyClick}>
             <IconLink />
           </Button>
         </div>
@@ -128,17 +115,13 @@ const ShareOffPopup = forwardRef((props: SharePopupProps, ref: Ref<HTMLDivElemen
           }}
           className="flex flex-row justify-between items-center mb-4"
         >
-          <p className="mr-3 text-sm text-[#141414]">
-            링크를 통한 읽기를 허용하지 않습니다.
-          </p>
+          <p className="mr-3 text-sm text-[#141414]">링크를 통한 읽기를 허용하지 않습니다.</p>
           <button type="submit" className="min-w-[44px] w-11 h-6 m-0 p-0 bg-transparent border-0 cursor-pointer">
             <IconToggleOff />
           </button>
         </form>
         <div className="flex flex-row items-center">
-          <span className="mr-2">
-            공유 기한:
-          </span>
+          <span className="mr-2">공유 기한:</span>
           <DatePicker shareLimitDate={shareLimitDate} setShareLimitDate={setShareLimitDate} />
         </div>
       </div>
@@ -167,7 +150,6 @@ const ShareOffPopup = forwardRef((props: SharePopupProps, ref: Ref<HTMLDivElemen
   );
 });
 
-
 function ShareButton(props: ShareButtonProps) {
   const { handleShareToggle, isShareOn, shareId, shareLimitDate, setShareLimitDate } = props;
   const [open, setOpen] = React.useState(false);
@@ -186,10 +168,7 @@ function ShareButton(props: ShareButtonProps) {
             공유중
           </Button>
         ) : (
-          <Button
-            variant="default"
-            className="flex-shrink-0 px-2 sm:px-3 gap-1.5"
-          >
+          <Button variant="default" className="flex-shrink-0 px-2 sm:px-3 gap-1.5">
             <IconShare className="w-4 h-4 fill-white" />
             공유
           </Button>

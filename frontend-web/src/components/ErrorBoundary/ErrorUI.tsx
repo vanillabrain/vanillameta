@@ -1,13 +1,5 @@
 import React from 'react';
-import {
-  Box,
-  Typography,
-  Alert,
-  Stack,
-  Collapse,
-  Paper,
-  Chip,
-} from '@mui/material';
+import { Box, Typography, Alert, Stack, Collapse, Paper, Chip } from '@mui/material';
 import { Button } from '@/components/ui/mui-button-compat';
 import {
   Refresh as RefreshIcon,
@@ -18,13 +10,7 @@ import {
 } from '@mui/icons-material';
 import { ErrorUIProps, ErrorType, ErrorSeverity } from './types';
 
-const ErrorUI: React.FC<ErrorUIProps> = ({
-  errorInfo,
-  onRetry,
-  onReload,
-  onGoBack,
-  recoveryOptions,
-}) => {
+const ErrorUI: React.FC<ErrorUIProps> = ({ errorInfo, onRetry, onReload, onGoBack, recoveryOptions }) => {
   const [showDetails, setShowDetails] = React.useState(false);
 
   const getErrorIcon = (type: ErrorType) => {
@@ -108,25 +94,18 @@ const ErrorUI: React.FC<ErrorUIProps> = ({
         <Typography variant="h1" sx={{ fontSize: '4rem', mb: 2 }}>
           {getErrorIcon(errorInfo.type)}
         </Typography>
-        
+
         <Typography variant="h5" gutterBottom>
           {getErrorTitle(errorInfo.type)}
         </Typography>
-        
+
         {/* 심각도 표시 */}
         <Box mb={2}>
-          <Chip
-            label={errorInfo.severity.toUpperCase()}
-            color={getSeverityColor(errorInfo.severity) as any}
-            size="small"
-          />
+          <Chip label={errorInfo.severity.toUpperCase()} color={getSeverityColor(errorInfo.severity) as any} size="small" />
         </Box>
 
         {/* 에러 설명 */}
-        <Alert 
-          severity={getSeverityColor(errorInfo.severity) as any}
-          sx={{ mb: 3, textAlign: 'left' }}
-        >
+        <Alert severity={getSeverityColor(errorInfo.severity) as any} sx={{ mb: 3, textAlign: 'left' }}>
           <Typography variant="body1" gutterBottom>
             {getErrorDescription(errorInfo.type)}
           </Typography>
@@ -140,41 +119,25 @@ const ErrorUI: React.FC<ErrorUIProps> = ({
         {/* 복구 옵션 버튼들 */}
         <Stack direction="row" spacing={2} justifyContent="center" mb={3}>
           {recoveryOptions.canRetry && (
-            <Button
-              variant="contained"
-              startIcon={<RefreshIcon />}
-              onClick={onRetry}
-              color="primary"
-            >
+            <Button variant="contained" startIcon={<RefreshIcon />} onClick={onRetry} color="primary">
               다시 시도
             </Button>
           )}
-          
+
           {recoveryOptions.canReload && (
-            <Button
-              variant="outlined"
-              startIcon={<RefreshIcon />}
-              onClick={onReload}
-            >
+            <Button variant="outlined" startIcon={<RefreshIcon />} onClick={onReload}>
               페이지 새로고침
             </Button>
           )}
-          
+
           {recoveryOptions.canGoBack && (
-            <Button
-              variant="outlined"
-              startIcon={<ArrowBackIcon />}
-              onClick={onGoBack}
-            >
+            <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={onGoBack}>
               이전 페이지
             </Button>
           )}
-          
+
           {recoveryOptions.customAction && (
-            <Button
-              variant="outlined"
-              onClick={recoveryOptions.customAction.action}
-            >
+            <Button variant="outlined" onClick={recoveryOptions.customAction.action}>
               {recoveryOptions.customAction.label}
             </Button>
           )}
@@ -191,7 +154,7 @@ const ErrorUI: React.FC<ErrorUIProps> = ({
           >
             기술적 세부사항
           </Button>
-          
+
           <Collapse in={showDetails}>
             <Paper
               variant="outlined"
@@ -215,13 +178,15 @@ const ErrorUI: React.FC<ErrorUIProps> = ({
                 {errorInfo.stack && (
                   <>
                     {'\n\n'}스택 트레이스:
-                    {'\n'}{errorInfo.stack}
+                    {'\n'}
+                    {errorInfo.stack}
                   </>
                 )}
                 {errorInfo.componentStack && (
                   <>
                     {'\n\n'}컴포넌트 스택:
-                    {'\n'}{errorInfo.componentStack}
+                    {'\n'}
+                    {errorInfo.componentStack}
                   </>
                 )}
               </Typography>

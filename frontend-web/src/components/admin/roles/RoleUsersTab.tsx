@@ -3,30 +3,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,22 +20,14 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Calendar } from '@/components/ui/calendar';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
 import { UserPlus, Trash2, Search, Loader2, CalendarIcon, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import moment from 'moment';
-import {
-  adminRoleService,
-  UserBasic,
-  AssignUsersToRoleRequest,
-} from '../../../api/adminRoleService';
+import { adminRoleService, UserBasic, AssignUsersToRoleRequest } from '../../../api/adminRoleService';
 import { adminUsersService } from '../../../api/adminUsersService';
 
 interface RoleUsersTabProps {
@@ -63,11 +36,7 @@ interface RoleUsersTabProps {
   onUserUpdate: () => void;
 }
 
-const RoleUsersTab: React.FC<RoleUsersTabProps> = ({
-  roleId,
-  roleName,
-  onUserUpdate,
-}) => {
+const RoleUsersTab: React.FC<RoleUsersTabProps> = ({ roleId, roleName, onUserUpdate }) => {
   const { toast } = useToast();
   const [searchText, setSearchText] = useState('');
   const [page, setPage] = useState(1);
@@ -80,11 +49,12 @@ const RoleUsersTab: React.FC<RoleUsersTabProps> = ({
   // 역할 사용자 조회
   const { data: roleUsers, isLoading } = useQuery({
     queryKey: ['role-users', roleId, page, searchText],
-    queryFn: () => adminRoleService.getRoleUsers(roleId, {
-      page,
-      limit: 10,
-      search: searchText,
-    }),
+    queryFn: () =>
+      adminRoleService.getRoleUsers(roleId, {
+        page,
+        limit: 10,
+        search: searchText,
+      }),
     placeholderData: (previousData: any) => previousData,
   });
 
@@ -97,8 +67,7 @@ const RoleUsersTab: React.FC<RoleUsersTabProps> = ({
 
   // 사용자 역할 할당 뮤테이션
   const assignUsersMutation = useMutation({
-    mutationFn: (data: AssignUsersToRoleRequest) => 
-      adminRoleService.assignUsersToRole(roleId, data),
+    mutationFn: (data: AssignUsersToRoleRequest) => adminRoleService.assignUsersToRole(roleId, data),
     onSuccess: () => {
       toast({
         description: '사용자가 역할에 할당되었습니다.',
@@ -119,8 +88,7 @@ const RoleUsersTab: React.FC<RoleUsersTabProps> = ({
 
   // 사용자 제거 뮤테이션
   const removeUserMutation = useMutation({
-    mutationFn: (userId: string) => 
-      adminRoleService.removeUserFromRole(roleId, userId),
+    mutationFn: (userId: string) => adminRoleService.removeUserFromRole(roleId, userId),
     onSuccess: () => {
       toast({
         description: '사용자가 역할에서 제거되었습니다.',
@@ -161,14 +129,14 @@ const RoleUsersTab: React.FC<RoleUsersTabProps> = ({
   };
 
   // 현재 역할을 가지지 않은 사용자 필터링
-  const availableUsers = (allUsers as any)?.data?.filter((user: any) => 
-    !(roleUsers as any)?.data?.some((roleUser: any) => roleUser.id === user.id.toString())
-  ) || [];
+  const availableUsers =
+    (allUsers as any)?.data?.filter(
+      (user: any) => !(roleUsers as any)?.data?.some((roleUser: any) => roleUser.id === user.id.toString()),
+    ) || [];
 
   // 현재 페이지의 사용자들
   const currentPageUsers = (roleUsers as any)?.data || [];
   const totalUsers = (roleUsers as any)?.meta?.total || 0;
-
 
   return (
     <div className="space-y-4">
@@ -179,7 +147,7 @@ const RoleUsersTab: React.FC<RoleUsersTabProps> = ({
           <Input
             placeholder="사용자 이름 또는 이메일로 검색"
             value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
+            onChange={e => setSearchText(e.target.value)}
             className="pl-8"
           />
         </div>
@@ -207,16 +175,12 @@ const RoleUsersTab: React.FC<RoleUsersTabProps> = ({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {currentPageUsers.map((user) => (
+                  {currentPageUsers.map(user => (
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">{user.name}</TableCell>
                       <TableCell>{user.email}</TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleRemoveUser(user)}
-                        >
+                        <Button size="sm" variant="outline" onClick={() => handleRemoveUser(user)}>
                           <Trash2 className="mr-1 h-3 w-3" />
                           제거
                         </Button>
@@ -225,19 +189,12 @@ const RoleUsersTab: React.FC<RoleUsersTabProps> = ({
                   ))}
                 </TableBody>
               </Table>
-              
+
               {/* 페이지네이션 */}
               <div className="flex items-center justify-between px-4 py-3 border-t">
-                <div className="text-sm text-muted-foreground">
-                  총 {totalUsers}명
-                </div>
+                <div className="text-sm text-muted-foreground">총 {totalUsers}명</div>
                 <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setPage(Math.max(1, page - 1))}
-                    disabled={page <= 1}
-                  >
+                  <Button size="sm" variant="outline" onClick={() => setPage(Math.max(1, page - 1))} disabled={page <= 1}>
                     이전
                   </Button>
                   <span className="text-sm">{page}</span>
@@ -267,13 +224,13 @@ const RoleUsersTab: React.FC<RoleUsersTabProps> = ({
           <DialogHeader>
             <DialogTitle>"{roleName}" 역할에 사용자 할당</DialogTitle>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>사용자 선택</Label>
               <Select
                 value={selectedUserIds.join(',')}
-                onValueChange={(value) => {
+                onValueChange={value => {
                   if (value) {
                     const ids = value.split(',').filter(Boolean);
                     setSelectedUserIds(ids);
@@ -286,7 +243,7 @@ const RoleUsersTab: React.FC<RoleUsersTabProps> = ({
                   <SelectValue placeholder="할당할 사용자를 선택하세요" />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableUsers.map((user) => (
+                  {availableUsers.map(user => (
                     <SelectItem key={user.id} value={user.id.toString()}>
                       {user.name} ({user.email})
                     </SelectItem>
@@ -295,7 +252,7 @@ const RoleUsersTab: React.FC<RoleUsersTabProps> = ({
               </Select>
               {selectedUserIds.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-2">
-                  {selectedUserIds.map((userId) => {
+                  {selectedUserIds.map(userId => {
                     const user = availableUsers.find(u => u.id.toString() === userId);
                     return user ? (
                       <Badge key={userId} variant="secondary">
@@ -319,14 +276,11 @@ const RoleUsersTab: React.FC<RoleUsersTabProps> = ({
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !expiresAt && "text-muted-foreground"
-                    )}
+                    className={cn('w-full justify-start text-left font-normal', !expiresAt && 'text-muted-foreground')}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {expiresAt ? (
-                      format(expiresAt, "PPP HH:mm", { locale: ko })
+                      format(expiresAt, 'PPP HH:mm', { locale: ko })
                     ) : (
                       <span>임시 역할의 경우 만료일을 설정하세요</span>
                     )}
@@ -337,7 +291,7 @@ const RoleUsersTab: React.FC<RoleUsersTabProps> = ({
                     mode="single"
                     selected={expiresAt}
                     onSelect={setExpiresAt}
-                    disabled={(date) => date < new Date()}
+                    disabled={date => date < new Date()}
                     initialFocus
                   />
                 </PopoverContent>
@@ -346,13 +300,9 @@ const RoleUsersTab: React.FC<RoleUsersTabProps> = ({
                 <div className="flex items-center gap-2">
                   <Badge variant="secondary">
                     <Clock className="mr-1 h-3 w-3" />
-                    {format(expiresAt, "yyyy-MM-dd HH:mm")}에 만료
+                    {format(expiresAt, 'yyyy-MM-dd HH:mm')}에 만료
                   </Badge>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setExpiresAt(undefined)}
-                  >
+                  <Button size="sm" variant="ghost" onClick={() => setExpiresAt(undefined)}>
                     제거
                   </Button>
                 </div>
@@ -371,10 +321,7 @@ const RoleUsersTab: React.FC<RoleUsersTabProps> = ({
             >
               취소
             </Button>
-            <Button
-              onClick={handleAssignUsers}
-              disabled={assignUsersMutation.isPending || selectedUserIds.length === 0}
-            >
+            <Button onClick={handleAssignUsers} disabled={assignUsersMutation.isPending || selectedUserIds.length === 0}>
               {assignUsersMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <UserPlus className="mr-2 h-4 w-4" />
               할당

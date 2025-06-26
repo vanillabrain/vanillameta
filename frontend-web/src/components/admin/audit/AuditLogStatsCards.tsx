@@ -24,21 +24,18 @@ interface AuditLogStatsCardsProps {
 
 export const AuditLogStatsCards: React.FC<AuditLogStatsCardsProps> = ({ stats }) => {
   // 성공률 계산
-  const totalStatusCount = stats.statusBreakdown.success + 
-    stats.statusBreakdown.error + 
-    stats.statusBreakdown.warning;
-  const successRate = totalStatusCount > 0 
-    ? (stats.statusBreakdown.success / totalStatusCount) * 100 
-    : 0;
+  const totalStatusCount = stats.statusBreakdown.success + stats.statusBreakdown.error + stats.statusBreakdown.warning;
+  const successRate = totalStatusCount > 0 ? (stats.statusBreakdown.success / totalStatusCount) * 100 : 0;
 
   // 전일 대비 증감률 계산 (임시 - 실제로는 백엔드에서 제공해야 함)
   const dailyGrowth = stats.todayLogs > 0 ? Math.floor(Math.random() * 40 - 10) : 0;
 
   // 가장 많은 카테고리 찾기
-  const topCategory = stats.categoryBreakdown 
-    ? Object.entries(stats.categoryBreakdown).reduce((max, [category, count]) => 
-        count > max.count ? { category, count } : max,
-      { category: '', count: 0 })
+  const topCategory = stats.categoryBreakdown
+    ? Object.entries(stats.categoryBreakdown).reduce(
+        (max, [category, count]) => (count > max.count ? { category, count } : max),
+        { category: '', count: 0 },
+      )
     : null;
 
   // 가장 많은 액션 찾기
@@ -73,10 +70,7 @@ export const AuditLogStatsCards: React.FC<AuditLogStatsCardsProps> = ({ stats })
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger>
-                      <div className={cn(
-                        "flex items-center text-xs",
-                        dailyGrowth > 0 ? "text-green-600" : "text-red-600"
-                      )}>
+                      <div className={cn('flex items-center text-xs', dailyGrowth > 0 ? 'text-green-600' : 'text-red-600')}>
                         {dailyGrowth > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                         <span className="ml-1">{Math.abs(dailyGrowth)}%</span>
                       </div>
@@ -141,27 +135,21 @@ export const AuditLogStatsCards: React.FC<AuditLogStatsCardsProps> = ({ stats })
               <div className="flex items-center space-x-3">
                 <CheckCircle className="h-5 w-5 text-green-500" />
                 <div>
-                  <div className="text-lg font-semibold">
-                    {stats.statusBreakdown.success.toLocaleString()}
-                  </div>
+                  <div className="text-lg font-semibold">{stats.statusBreakdown.success.toLocaleString()}</div>
                   <div className="text-sm text-muted-foreground">성공</div>
                 </div>
               </div>
               <div className="flex items-center space-x-3">
                 <XCircle className="h-5 w-5 text-red-500" />
                 <div>
-                  <div className="text-lg font-semibold">
-                    {stats.statusBreakdown.error.toLocaleString()}
-                  </div>
+                  <div className="text-lg font-semibold">{stats.statusBreakdown.error.toLocaleString()}</div>
                   <div className="text-sm text-muted-foreground">오류</div>
                 </div>
               </div>
               <div className="flex items-center space-x-3">
                 <AlertTriangle className="h-5 w-5 text-yellow-500" />
                 <div>
-                  <div className="text-lg font-semibold">
-                    {stats.statusBreakdown.warning.toLocaleString()}
-                  </div>
+                  <div className="text-lg font-semibold">{stats.statusBreakdown.warning.toLocaleString()}</div>
                   <div className="text-sm text-muted-foreground">경고</div>
                 </div>
               </div>
@@ -183,9 +171,7 @@ export const AuditLogStatsCards: React.FC<AuditLogStatsCardsProps> = ({ stats })
                     <div className="font-medium">
                       {auditLogServiceV2.getCategoryDisplayName(topCategory.category as any)}
                     </div>
-                    <div className="text-sm text-muted-foreground">
-                      ({topCategory.count.toLocaleString()})
-                    </div>
+                    <div className="text-sm text-muted-foreground">({topCategory.count.toLocaleString()})</div>
                   </div>
                 </div>
               )}
@@ -193,20 +179,14 @@ export const AuditLogStatsCards: React.FC<AuditLogStatsCardsProps> = ({ stats })
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">가장 많은 액션:</span>
                   <div className="text-right">
-                    <div className="font-medium">
-                      {auditLogServiceV2.getActionDisplayName(topAction.action)}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      ({topAction.count.toLocaleString()})
-                    </div>
+                    <div className="font-medium">{auditLogServiceV2.getActionDisplayName(topAction.action)}</div>
+                    <div className="text-sm text-muted-foreground">({topAction.count.toLocaleString()})</div>
                   </div>
                 </div>
               )}
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">월간 로그:</span>
-                <div className="font-medium">
-                  {stats.monthlyLogs.toLocaleString()}
-                </div>
+                <div className="font-medium">{stats.monthlyLogs.toLocaleString()}</div>
               </div>
             </div>
           </CardContent>

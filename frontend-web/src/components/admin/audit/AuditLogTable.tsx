@@ -1,32 +1,14 @@
 import React from 'react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import {
-  Eye,
-  User,
-  Bot,
-  Info,
-  ChevronUp,
-  ChevronDown,
-} from 'lucide-react';
+import { Eye, User, Bot, Info, ChevronUp, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AuditLog, AuditLogLevel, AuditLogCategory } from '../../../types/audit';
 import { auditLogServiceV2 } from '../../../api/auditLogServiceV2';
-import {
-  formatRelativeTime,
-  formatSimpleDate,
-  calculateLogImportance,
-} from '../../../utils/auditLogHelpers';
+import { formatRelativeTime, formatSimpleDate, calculateLogImportance } from '../../../utils/auditLogHelpers';
 
 interface AuditLogTableProps {
   logs: AuditLog[];
@@ -57,20 +39,18 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
   const getRowClassName = (record: AuditLog) => {
     const importance = calculateLogImportance(record);
     return cn(
-      "cursor-pointer hover:bg-muted/50 transition-colors",
-      record.level === 'error' && "bg-red-50 hover:bg-red-100",
-      record.level === 'warning' && "bg-yellow-50 hover:bg-yellow-100",
-      importance === 'high' && "border-l-4 border-l-red-500",
-      importance === 'medium' && "border-l-4 border-l-yellow-500"
+      'cursor-pointer hover:bg-muted/50 transition-colors',
+      record.level === 'error' && 'bg-red-50 hover:bg-red-100',
+      record.level === 'warning' && 'bg-yellow-50 hover:bg-yellow-100',
+      importance === 'high' && 'border-l-4 border-l-red-500',
+      importance === 'medium' && 'border-l-4 border-l-yellow-500',
     );
   };
 
   // 정렬 아이콘 렌더링
   const renderSortIcon = (field: string) => {
     if (sortBy !== field) return null;
-    return sortOrder === 'ASC' ? 
-      <ChevronUp className="h-4 w-4" /> : 
-      <ChevronDown className="h-4 w-4" />;
+    return sortOrder === 'ASC' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />;
   };
 
   // 개별 셀 렌더 함수들
@@ -80,9 +60,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
         <TooltipTrigger>
           <div className="space-y-1">
             <div className="text-sm">{formatRelativeTime(timestamp)}</div>
-            <div className="text-xs text-muted-foreground">
-              {new Date(timestamp).toLocaleTimeString('ko-KR')}
-            </div>
+            <div className="text-xs text-muted-foreground">{new Date(timestamp).toLocaleTimeString('ko-KR')}</div>
           </div>
         </TooltipTrigger>
         <TooltipContent>
@@ -93,22 +71,22 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
   );
 
   const renderLevel = (level: AuditLogLevel) => (
-    <Badge className={cn(
-      'text-white',
-      level === 'error' && 'bg-red-500',
-      level === 'warning' && 'bg-yellow-500',
-      level === 'info' && 'bg-blue-500',
-      level === 'debug' && 'bg-gray-500'
-    )}>
+    <Badge
+      className={cn(
+        'text-white',
+        level === 'error' && 'bg-red-500',
+        level === 'warning' && 'bg-yellow-500',
+        level === 'info' && 'bg-blue-500',
+        level === 'debug' && 'bg-gray-500',
+      )}
+    >
       {level.toUpperCase()}
     </Badge>
   );
 
   const renderAction = (action: string) => (
     <div className="space-y-1">
-      <div className="font-medium text-sm">
-        {auditLogServiceV2.getActionDisplayName(action)}
-      </div>
+      <div className="font-medium text-sm">{auditLogServiceV2.getActionDisplayName(action)}</div>
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger>
@@ -130,7 +108,9 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
         <>
           <Avatar className="h-8 w-8">
             <AvatarImage src={log.user.avatar} />
-            <AvatarFallback><User className="h-4 w-4" /></AvatarFallback>
+            <AvatarFallback>
+              <User className="h-4 w-4" />
+            </AvatarFallback>
           </Avatar>
           <div>
             <div className="text-sm font-medium">{log.userName || log.user.name}</div>
@@ -140,7 +120,9 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
       ) : log.userId ? (
         <>
           <Avatar className="h-8 w-8">
-            <AvatarFallback><User className="h-4 w-4" /></AvatarFallback>
+            <AvatarFallback>
+              <User className="h-4 w-4" />
+            </AvatarFallback>
           </Avatar>
           <div>
             <div className="text-sm font-medium">{log.userName || 'Unknown'}</div>
@@ -150,7 +132,9 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
       ) : (
         <div className="flex items-center space-x-2">
           <Avatar className="h-8 w-8">
-            <AvatarFallback><Bot className="h-4 w-4" /></AvatarFallback>
+            <AvatarFallback>
+              <Bot className="h-4 w-4" />
+            </AvatarFallback>
           </Avatar>
           <span className="text-sm">시스템</span>
         </div>
@@ -162,9 +146,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
     <div>
       {log.resourceType ? (
         <>
-          <div className="text-sm font-medium">
-            {auditLogServiceV2.getResourceTypeDisplayName(log.resourceType)}
-          </div>
+          <div className="text-sm font-medium">{auditLogServiceV2.getResourceTypeDisplayName(log.resourceType)}</div>
           {log.resourceId && (
             <TooltipProvider>
               <Tooltip>
@@ -185,18 +167,18 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
   );
 
   const renderCategory = (category: AuditLogCategory) => (
-    <Badge variant="outline">
-      {auditLogServiceV2.getCategoryDisplayName(category)}
-    </Badge>
+    <Badge variant="outline">{auditLogServiceV2.getCategoryDisplayName(category)}</Badge>
   );
 
   const renderStatus = (status: string) => (
-    <Badge className={cn(
-      status === 'success' && 'bg-green-500 text-white',
-      status === 'error' && 'bg-red-500 text-white',
-      status === 'warning' && 'bg-yellow-500 text-white',
-      status === 'pending' && 'bg-blue-500 text-white'
-    )}>
+    <Badge
+      className={cn(
+        status === 'success' && 'bg-green-500 text-white',
+        status === 'error' && 'bg-red-500 text-white',
+        status === 'warning' && 'bg-yellow-500 text-white',
+        status === 'pending' && 'bg-blue-500 text-white',
+      )}
+    >
       {auditLogServiceV2.getStatusDisplayName(status)}
     </Badge>
   );
@@ -205,9 +187,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger>
-          <code className="text-sm bg-muted px-1 py-0.5 rounded">
-            {ip || '-'}
-          </code>
+          <code className="text-sm bg-muted px-1 py-0.5 rounded">{ip || '-'}</code>
         </TooltipTrigger>
         <TooltipContent>
           <p>{ip || '기록되지 않음'}</p>
@@ -216,7 +196,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
     </TooltipProvider>
   );
 
-  const renderDetails = (details: string) => (
+  const renderDetails = (details: string) =>
     details ? (
       <TooltipProvider>
         <Tooltip>
@@ -230,19 +210,14 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
       </TooltipProvider>
     ) : (
       <span className="text-muted-foreground">-</span>
-    )
-  );
+    );
 
   const renderActions = (log: AuditLog) => (
     <div className="flex items-center space-x-1">
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onLogClick(log)}
-            >
+            <Button variant="ghost" size="sm" onClick={() => onLogClick(log)}>
               <Eye className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
@@ -275,11 +250,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
   }
 
   if (!logs.length) {
-    return (
-      <div className="text-center py-8 text-muted-foreground">
-        로그가 없습니다
-      </div>
-    );
+    return <div className="text-center py-8 text-muted-foreground">로그가 없습니다</div>;
   }
 
   return (
@@ -320,12 +291,8 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {logs.map((log) => (
-            <TableRow
-              key={log.id}
-              className={getRowClassName(log)}
-              onClick={() => onLogClick(log)}
-            >
+          {logs.map(log => (
+            <TableRow key={log.id} className={getRowClassName(log)} onClick={() => onLogClick(log)}>
               <TableCell>{renderTimestamp(log.createdAt)}</TableCell>
               <TableCell>{renderLevel(log.level)}</TableCell>
               <TableCell>{renderAction(log.action)}</TableCell>
@@ -335,9 +302,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
               <TableCell>{renderStatus(log.status)}</TableCell>
               <TableCell>{renderIpAddress(log.ipAddress)}</TableCell>
               <TableCell>{renderDetails(log.details)}</TableCell>
-              <TableCell onClick={(e) => e.stopPropagation()}>
-                {renderActions(log)}
-              </TableCell>
+              <TableCell onClick={e => e.stopPropagation()}>{renderActions(log)}</TableCell>
             </TableRow>
           ))}
         </TableBody>

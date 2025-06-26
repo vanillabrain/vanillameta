@@ -1,11 +1,5 @@
 import React, { useState } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -32,23 +26,21 @@ interface AuditLogDetailModalProps {
   onClose: () => void;
 }
 
-export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
-  log,
-  onClose,
-}) => {
+export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({ log, onClose }) => {
   const [activeTab, setActiveTab] = useState<string>('overview');
   const { toast } = useToast();
 
   // 관련 로그 조회
   const { data: relatedLogs, isLoading: isLoadingRelated } = useQuery({
     queryKey: ['related-logs', log.id],
-    queryFn: () => auditLogServiceV2.getRelatedLogs({
-      userId: log.userId,
-      resourceType: log.resourceType,
-      resourceId: log.resourceId,
-      timeRange: '1h',
-      exclude: log.id,
-    }),
+    queryFn: () =>
+      auditLogServiceV2.getRelatedLogs({
+        userId: log.userId,
+        resourceType: log.resourceType,
+        resourceId: log.resourceId,
+        timeRange: '1h',
+        exclude: log.id,
+      }),
     enabled: !!(log.userId || log.resourceId),
   });
 
@@ -71,9 +63,7 @@ export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
   const userAgentInfo = log.userAgent ? parseUserAgent(log.userAgent) : null;
 
   // 변경사항 비교
-  const changes = (log.oldValues && log.newValues) 
-    ? compareChanges(log.oldValues, log.newValues)
-    : null;
+  const changes = log.oldValues && log.newValues ? compareChanges(log.oldValues, log.newValues) : null;
 
   // 탭 내용 렌더링
   const renderTabContent = (tabKey: string) => {
@@ -90,7 +80,7 @@ export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
                   <span className="text-muted-foreground">({formatRelativeTime(log.createdAt)})</span>
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <div className="text-sm font-medium text-muted-foreground">액션</div>
                 <div className="flex flex-col gap-1">
@@ -98,27 +88,31 @@ export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
                   <div className="text-sm">{auditLogServiceV2.getActionDisplayName(log.action)}</div>
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <div className="text-sm font-medium text-muted-foreground">레벨</div>
-                <Badge className={cn(
-                  'text-white',
-                  log.level === 'error' && 'bg-red-500',
-                  log.level === 'warning' && 'bg-yellow-500',
-                  log.level === 'info' && 'bg-blue-500',
-                  log.level === 'debug' && 'bg-gray-500'
-                )}>
+                <Badge
+                  className={cn(
+                    'text-white',
+                    log.level === 'error' && 'bg-red-500',
+                    log.level === 'warning' && 'bg-yellow-500',
+                    log.level === 'info' && 'bg-blue-500',
+                    log.level === 'debug' && 'bg-gray-500',
+                  )}
+                >
                   {log.level.toUpperCase()}
                 </Badge>
               </div>
-              
+
               <div className="space-y-2">
                 <div className="text-sm font-medium text-muted-foreground">사용자</div>
                 {log.user ? (
                   <div className="flex items-start gap-3">
                     <Avatar className="h-10 w-10">
                       <AvatarImage src={log.user.avatar} />
-                      <AvatarFallback><User className="h-4 w-4" /></AvatarFallback>
+                      <AvatarFallback>
+                        <User className="h-4 w-4" />
+                      </AvatarFallback>
                     </Avatar>
                     <div>
                       <div className="font-medium">{log.userName || log.user.name}</div>
@@ -128,7 +122,9 @@ export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
                 ) : log.userId ? (
                   <div className="flex items-start gap-3">
                     <Avatar className="h-10 w-10">
-                      <AvatarFallback><User className="h-4 w-4" /></AvatarFallback>
+                      <AvatarFallback>
+                        <User className="h-4 w-4" />
+                      </AvatarFallback>
                     </Avatar>
                     <div>
                       <div className="font-medium">{log.userName || 'Unknown User'}</div>
@@ -142,7 +138,7 @@ export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
                   </Badge>
                 )}
               </div>
-              
+
               <div className="space-y-2">
                 <div className="text-sm font-medium text-muted-foreground">IP 주소</div>
                 <div className="flex items-center gap-2">
@@ -160,47 +156,45 @@ export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
                   )}
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <div className="text-sm font-medium text-muted-foreground">리소스</div>
                 {log.resourceType ? (
                   <div className="flex items-center gap-2">
                     <Tag className="h-4 w-4" />
                     <span className="text-sm">{auditLogServiceV2.getResourceTypeDisplayName(log.resourceType)}</span>
-                    {log.resourceId && (
-                      <code className="text-sm text-muted-foreground">#{log.resourceId}</code>
-                    )}
+                    {log.resourceId && <code className="text-sm text-muted-foreground">#{log.resourceId}</code>}
                   </div>
                 ) : (
                   <span className="text-sm">-</span>
                 )}
               </div>
-              
+
               <div className="space-y-2">
                 <div className="text-sm font-medium text-muted-foreground">카테고리</div>
-                <Badge variant="outline">
-                  {auditLogServiceV2.getCategoryDisplayName(log.category)}
-                </Badge>
+                <Badge variant="outline">{auditLogServiceV2.getCategoryDisplayName(log.category)}</Badge>
               </div>
-              
+
               <div className="space-y-2">
                 <div className="text-sm font-medium text-muted-foreground">상태</div>
-                <Badge className={cn(
-                  log.status === 'success' && 'bg-green-500 text-white',
-                  log.status === 'failed' && 'bg-red-500 text-white',
-                  log.status === 'pending' && 'bg-yellow-500 text-white'
-                )}>
+                <Badge
+                  className={cn(
+                    log.status === 'success' && 'bg-green-500 text-white',
+                    log.status === 'failed' && 'bg-red-500 text-white',
+                    log.status === 'pending' && 'bg-yellow-500 text-white',
+                  )}
+                >
                   {auditLogServiceV2.getStatusDisplayName(log.status)}
                 </Badge>
               </div>
-              
+
               {log.details && (
                 <div className="col-span-2 space-y-2">
                   <div className="text-sm font-medium text-muted-foreground">상세 설명</div>
                   <div className="text-sm">{log.details}</div>
                 </div>
               )}
-              
+
               {userAgentInfo && (
                 <div className="col-span-2 space-y-2">
                   <div className="text-sm font-medium text-muted-foreground">클라이언트 정보</div>
@@ -240,24 +234,17 @@ export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
                   {changes.map((change, index) => (
                     <div
                       key={index}
-                      className={cn(
-                        "border rounded-lg p-4",
-                        change.isChanged && "border-orange-500 bg-orange-50"
-                      )}
+                      className={cn('border rounded-lg p-4', change.isChanged && 'border-orange-500 bg-orange-50')}
                     >
                       <div className="font-medium mb-2">{change.key}</div>
                       <div className="space-y-2">
                         <div className="flex gap-2">
                           <span className="text-sm text-muted-foreground min-w-[3rem]">이전:</span>
-                          <code className="text-sm bg-muted px-2 py-1 rounded">
-                            {JSON.stringify(change.oldValue)}
-                          </code>
+                          <code className="text-sm bg-muted px-2 py-1 rounded">{JSON.stringify(change.oldValue)}</code>
                         </div>
                         <div className="flex gap-2">
                           <span className="text-sm text-muted-foreground min-w-[3rem]">이후:</span>
-                          <code className="text-sm bg-muted px-2 py-1 rounded">
-                            {JSON.stringify(change.newValue)}
-                          </code>
+                          <code className="text-sm bg-muted px-2 py-1 rounded">{JSON.stringify(change.newValue)}</code>
                         </div>
                       </div>
                     </div>
@@ -290,9 +277,7 @@ export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
             )}
 
             {!changes && !log.metadata && (
-              <div className="text-center py-8 text-muted-foreground">
-                추가 상세 정보가 없습니다
-              </div>
+              <div className="text-center py-8 text-muted-foreground">추가 상세 정보가 없습니다</div>
             )}
           </div>
         );
@@ -311,23 +296,21 @@ export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
                   <div key={index} className="border rounded-lg p-4">
                     <div className="flex items-start justify-between">
                       <div className="flex items-start gap-3 flex-1">
-                        <Badge className={cn(
-                          'text-white mt-1',
-                          relatedLog.level === 'error' && 'bg-red-500',
-                          relatedLog.level === 'warning' && 'bg-yellow-500',
-                          relatedLog.level === 'info' && 'bg-blue-500',
-                          relatedLog.level === 'debug' && 'bg-gray-500'
-                        )}>
+                        <Badge
+                          className={cn(
+                            'text-white mt-1',
+                            relatedLog.level === 'error' && 'bg-red-500',
+                            relatedLog.level === 'warning' && 'bg-yellow-500',
+                            relatedLog.level === 'info' && 'bg-blue-500',
+                            relatedLog.level === 'debug' && 'bg-gray-500',
+                          )}
+                        >
                           {relatedLog.level}
                         </Badge>
                         <div className="flex-1">
                           <div className="flex items-center justify-between mb-1">
-                            <span className="font-medium">
-                              {auditLogServiceV2.getActionDisplayName(relatedLog.action)}
-                            </span>
-                            <span className="text-sm text-muted-foreground">
-                              {formatRelativeTime(relatedLog.createdAt)}
-                            </span>
+                            <span className="font-medium">{auditLogServiceV2.getActionDisplayName(relatedLog.action)}</span>
+                            <span className="text-sm text-muted-foreground">{formatRelativeTime(relatedLog.createdAt)}</span>
                           </div>
                           <div className="text-sm text-muted-foreground">
                             {relatedLog.resourceType && (
@@ -336,9 +319,7 @@ export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
                                 {relatedLog.resourceId && `: ${relatedLog.resourceId}`}
                               </span>
                             )}
-                            {relatedLog.details && (
-                              <div className="mt-1">{relatedLog.details}</div>
-                            )}
+                            {relatedLog.details && <div className="mt-1">{relatedLog.details}</div>}
                           </div>
                         </div>
                       </div>
@@ -358,9 +339,7 @@ export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                관련 로그가 없습니다
-              </div>
+              <div className="text-center py-8 text-muted-foreground">관련 로그가 없습니다</div>
             )}
           </div>
         );
@@ -379,13 +358,7 @@ export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
                 복사
               </Button>
             </div>
-            <ReactJson
-              src={log}
-              theme="rjv-default"
-              collapsed={1}
-              displayDataTypes={false}
-              enableClipboard={true}
-            />
+            <ReactJson src={log} theme="rjv-default" collapsed={1} displayDataTypes={false} enableClipboard={true} />
           </div>
         );
 
@@ -400,20 +373,24 @@ export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <span>감사 로그 상세</span>
-            <Badge className={cn(
-              'text-white',
-              log.level === 'error' && 'bg-red-500',
-              log.level === 'warning' && 'bg-yellow-500',
-              log.level === 'info' && 'bg-blue-500',
-              log.level === 'debug' && 'bg-gray-500'
-            )}>
+            <Badge
+              className={cn(
+                'text-white',
+                log.level === 'error' && 'bg-red-500',
+                log.level === 'warning' && 'bg-yellow-500',
+                log.level === 'info' && 'bg-blue-500',
+                log.level === 'debug' && 'bg-gray-500',
+              )}
+            >
               {log.level.toUpperCase()}
             </Badge>
-            <Badge className={cn(
-              log.status === 'success' && 'bg-green-500 text-white',
-              log.status === 'failed' && 'bg-red-500 text-white',
-              log.status === 'pending' && 'bg-yellow-500 text-white'
-            )}>
+            <Badge
+              className={cn(
+                log.status === 'success' && 'bg-green-500 text-white',
+                log.status === 'failed' && 'bg-red-500 text-white',
+                log.status === 'pending' && 'bg-yellow-500 text-white',
+              )}
+            >
               {auditLogServiceV2.getStatusDisplayName(log.status)}
             </Badge>
           </DialogTitle>

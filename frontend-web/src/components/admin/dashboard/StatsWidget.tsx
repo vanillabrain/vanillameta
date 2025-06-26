@@ -13,14 +13,7 @@ interface StatsWidgetProps {
   };
 }
 
-const StatsWidget: React.FC<StatsWidgetProps> = ({
-  title,
-  value,
-  icon,
-  color = '#3498db',
-  subtitle,
-  change,
-}) => {
+const StatsWidget: React.FC<StatsWidgetProps> = ({ title, value, icon, color = '#3498db', subtitle, change }) => {
   return (
     <div className="stats-widget" style={{ borderLeftColor: color }}>
       <div className="widget-header">
@@ -32,20 +25,15 @@ const StatsWidget: React.FC<StatsWidgetProps> = ({
           <div className="widget-value">{value.toLocaleString()}</div>
         </div>
       </div>
-      
-      {subtitle && (
-        <div className="widget-subtitle">
-          {subtitle}
-        </div>
-      )}
-      
+
+      {subtitle && <div className="widget-subtitle">{subtitle}</div>}
+
       {change && (
         <div className={`widget-change ${change.trend}`}>
-          <span className="change-icon">
-            {change.trend === 'up' ? '📈' : '📉'}
-          </span>
+          <span className="change-icon">{change.trend === 'up' ? '📈' : '📉'}</span>
           <span className="change-value">
-            {change.trend === 'up' ? '+' : ''}{change.value}%
+            {change.trend === 'up' ? '+' : ''}
+            {change.value}%
           </span>
           <span className="change-label">vs 지난주</span>
         </div>

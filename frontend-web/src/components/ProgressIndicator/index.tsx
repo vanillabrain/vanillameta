@@ -52,10 +52,10 @@ const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({
           )}
         </Box>
         {isStreaming && onStop && (
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={onStop} 
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onStop}
             className="text-destructive hover:text-destructive/90 min-w-0 p-1"
           >
             <StopIcon fontSize="small" />

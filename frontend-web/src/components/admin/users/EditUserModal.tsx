@@ -34,7 +34,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, user, onClose, on
     email: '',
     department: '',
     phone: '',
-    roleIds: []
+    roleIds: [],
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +46,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, user, onClose, on
         email: user.email || '',
         department: user.department || '',
         phone: user.phone || '',
-        roleIds: [] // TODO: 역할 ID 매핑 필요
+        roleIds: [], // TODO: 역할 ID 매핑 필요
       });
     }
   }, [user]);
@@ -77,28 +77,21 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, user, onClose, on
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h2>사용자 정보 수정</h2>
-          <button className="modal-close" onClick={onClose}>×</button>
+          <button className="modal-close" onClick={onClose}>
+            ×
+          </button>
         </div>
 
         <form onSubmit={handleSubmit}>
           <div className="modal-body">
-            {error && (
-              <div className="error-alert">
-                ❌ {error}
-              </div>
-            )}
+            {error && <div className="error-alert">❌ {error}</div>}
 
             <div className="form-group">
               <label>사용자 ID</label>
-              <input
-                type="text"
-                value={user.userId}
-                disabled
-                className="disabled-input"
-              />
+              <input type="text" value={user.userId} disabled className="disabled-input" />
             </div>
 
             <div className="form-group">
@@ -168,19 +161,10 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, user, onClose, on
           </div>
 
           <div className="modal-footer">
-            <button
-              type="button"
-              className="btn-cancel"
-              onClick={onClose}
-              disabled={loading}
-            >
+            <button type="button" className="btn-cancel" onClick={onClose} disabled={loading}>
               취소
             </button>
-            <button
-              type="submit"
-              className="btn-primary"
-              disabled={loading}
-            >
+            <button type="submit" className="btn-primary" disabled={loading}>
               {loading ? '수정 중...' : '변경사항 저장'}
             </button>
           </div>

@@ -63,12 +63,7 @@ const ColorFieldForm = props => {
         justifyContent="space-between"
         alignItems="center"
       >
-        <Button 
-          variant="ghost" 
-          aria-label="색상 선택" 
-          className="min-w-0 p-2 mr-2"
-          onClick={handleClick}
-        >
+        <Button variant="ghost" aria-label="색상 선택" className="min-w-0 p-2 mr-2" onClick={handleClick}>
           <PaintButton color={value} />
         </Button>
         <Popover

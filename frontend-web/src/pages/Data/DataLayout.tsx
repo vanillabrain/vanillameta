@@ -237,13 +237,9 @@ const DataLayout = props => {
 
   return (
     <div className="flex flex-col sm:flex-row flex-auto w-full">
-      <div
-        className="flex flex-col flex-auto w-full md:w-[404px] h-full px-6 pt-[30px]"
-      >
+      <div className="flex flex-col flex-auto w-full md:w-[404px] h-full px-6 pt-[30px]">
         <div className="flex flex-row">
-          <span className="font-bold text-base text-[#141414]">
-            데이터 소스
-          </span>
+          <span className="font-bold text-base text-[#141414]">데이터 소스</span>
           {isViewMode ? <></> : <AddButton component={RouterLink} to={`source/create`} className="ml-[14px]" />}
         </div>
         <DatabaseCardList
@@ -255,14 +251,10 @@ const DataLayout = props => {
         />
       </div>
 
-      <div
-        className="flex flex-col flex-auto w-full md:w-[calc(100%-404px)] bg-[#f5f6f8]"
-      >
+      <div className="flex flex-col flex-auto w-full md:w-[calc(100%-404px)] bg-[#f5f6f8]">
         <div className="flex flex-col w-full px-6 pt-[30px]">
           <div className="flex flex-row">
-            <span className="font-bold text-base text-[#141414]">
-              데이터 셋
-            </span>
+            <span className="font-bold text-base text-[#141414]">데이터 셋</span>
             {isViewMode ? (
               <></>
             ) : (
@@ -280,9 +272,7 @@ const DataLayout = props => {
         </div>
         <div className="flex flex-col flex-auto w-full min-h-[50%] px-6 pt-[30px]">
           <div className="flex flex-row">
-            <span className="font-bold text-base text-[#141414]">
-              테이블 목록
-            </span>
+            <span className="font-bold text-base text-[#141414]">테이블 목록</span>
           </div>
           <DatasetCardList
             isTableView

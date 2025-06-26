@@ -28,12 +28,7 @@ const ColorPickerForm = props => {
 
   return (
     <FormControl sx={{ alignItems: 'flex-end', justifyContent: 'center' }}>
-      <Button 
-        variant="ghost" 
-        aria-label="색상 선택" 
-        className="min-w-0 p-2"
-        onClick={handleClick}
-      >
+      <Button variant="ghost" aria-label="색상 선택" className="min-w-0 p-2" onClick={handleClick}>
         <PaintButton color={color} />
       </Button>
       <Popover

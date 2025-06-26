@@ -76,11 +76,7 @@ const AdminSidebar: React.FC = () => {
   };
 
   const toggleMenu = (key: string) => {
-    setExpandedMenus(prev => 
-      prev.includes(key) 
-        ? prev.filter(k => k !== key)
-        : [...prev, key]
-    );
+    setExpandedMenus(prev => (prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]));
   };
 
   const handleMenuClick = (item: MenuItem) => {
@@ -98,7 +94,7 @@ const AdminSidebar: React.FC = () => {
     return location.pathname.startsWith(path);
   };
 
-  const renderMenuItem = (item: MenuItem, level: number = 0) => {
+  const renderMenuItem = (item: MenuItem, level = 0) => {
     if (!hasPermission(item.permission)) {
       return null;
     }
@@ -109,23 +105,14 @@ const AdminSidebar: React.FC = () => {
 
     return (
       <div key={item.key} className="menu-item-container">
-        <div
-          className={`menu-item ${active ? 'active' : ''} level-${level}`}
-          onClick={() => handleMenuClick(item)}
-        >
+        <div className={`menu-item ${active ? 'active' : ''} level-${level}`} onClick={() => handleMenuClick(item)}>
           <span className="menu-icon">{item.icon}</span>
           <span className="menu-label">{item.label}</span>
-          {hasChildren && (
-            <span className={`menu-arrow ${isExpanded ? 'expanded' : ''}`}>
-              ▼
-            </span>
-          )}
+          {hasChildren && <span className={`menu-arrow ${isExpanded ? 'expanded' : ''}`}>▼</span>}
         </div>
-        
+
         {hasChildren && isExpanded && (
-          <div className="submenu">
-            {item.children?.map(child => renderMenuItem(child, level + 1))}
-          </div>
+          <div className="submenu">{item.children?.map(child => renderMenuItem(child, level + 1))}</div>
         )}
       </div>
     );
@@ -136,15 +123,11 @@ const AdminSidebar: React.FC = () => {
       <div className="sidebar-header">
         <h2>🔧 Admin Panel</h2>
       </div>
-      
-      <nav className="sidebar-nav">
-        {menuItems.map(item => renderMenuItem(item))}
-      </nav>
-      
+
+      <nav className="sidebar-nav">{menuItems.map(item => renderMenuItem(item))}</nav>
+
       <div className="sidebar-footer">
-        <div className="version-info">
-          Version 1.0.0
-        </div>
+        <div className="version-info">Version 1.0.0</div>
       </div>
     </div>
   );

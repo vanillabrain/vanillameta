@@ -9,12 +9,7 @@ interface BulkActionBarProps {
   onClear: () => void;
 }
 
-const BulkActionBar: React.FC<BulkActionBarProps> = ({ 
-  selectedCount, 
-  selectedUserIds,
-  onAction, 
-  onClear 
-}) => {
+const BulkActionBar: React.FC<BulkActionBarProps> = ({ selectedCount, selectedUserIds, onAction, onClear }) => {
   const [loading, setLoading] = useState(false);
 
   const handleBulkAction = async (action: string) => {
@@ -24,7 +19,7 @@ const BulkActionBar: React.FC<BulkActionBarProps> = ({
       activate: `${selectedCount}명의 사용자를 활성화하시겠습니까?`,
       deactivate: `${selectedCount}명의 사용자를 비활성화하시겠습니까?`,
       suspend: `${selectedCount}명의 사용자를 정지하시겠습니까?`,
-      delete: `${selectedCount}명의 사용자를 삭제하시겠습니까? (복구 가능)`
+      delete: `${selectedCount}명의 사용자를 삭제하시겠습니까? (복구 가능)`,
     };
 
     if (!window.confirm(confirmMessages[action])) return;
@@ -33,7 +28,7 @@ const BulkActionBar: React.FC<BulkActionBarProps> = ({
       setLoading(true);
       await adminUsersService.bulkAction({
         action: action as 'activate' | 'deactivate' | 'suspend' | 'delete',
-        userIds: selectedUserIds.map(id => parseInt(id))
+        userIds: selectedUserIds.map(id => parseInt(id)),
       });
       onAction();
       onClear();
@@ -53,39 +48,19 @@ const BulkActionBar: React.FC<BulkActionBarProps> = ({
       </div>
 
       <div className="bulk-actions">
-        <button
-          className="bulk-btn bulk-activate"
-          onClick={() => handleBulkAction('activate')}
-          disabled={loading}
-        >
+        <button className="bulk-btn bulk-activate" onClick={() => handleBulkAction('activate')} disabled={loading}>
           ✅ 활성화
         </button>
-        <button
-          className="bulk-btn bulk-deactivate"
-          onClick={() => handleBulkAction('deactivate')}
-          disabled={loading}
-        >
+        <button className="bulk-btn bulk-deactivate" onClick={() => handleBulkAction('deactivate')} disabled={loading}>
           ⏸️ 비활성화
         </button>
-        <button
-          className="bulk-btn bulk-suspend"
-          onClick={() => handleBulkAction('suspend')}
-          disabled={loading}
-        >
+        <button className="bulk-btn bulk-suspend" onClick={() => handleBulkAction('suspend')} disabled={loading}>
           🚫 정지
         </button>
-        <button
-          className="bulk-btn bulk-delete"
-          onClick={() => handleBulkAction('delete')}
-          disabled={loading}
-        >
+        <button className="bulk-btn bulk-delete" onClick={() => handleBulkAction('delete')} disabled={loading}>
           🗑️ 삭제
         </button>
-        <button
-          className="bulk-btn bulk-clear"
-          onClick={onClear}
-          disabled={loading}
-        >
+        <button className="bulk-btn bulk-clear" onClick={onClear} disabled={loading}>
           ❌ 선택 해제
         </button>
       </div>

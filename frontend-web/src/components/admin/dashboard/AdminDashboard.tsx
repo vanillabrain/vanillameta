@@ -97,7 +97,7 @@ const AdminDashboard: React.FC = () => {
           color="#3498db"
           subtitle={`${stats.pendingApprovals}명 승인 대기`}
         />
-        
+
         <StatsWidget
           title="오늘 로그인"
           value={stats.todayLogins}
@@ -105,22 +105,10 @@ const AdminDashboard: React.FC = () => {
           color="#2ecc71"
           subtitle={`${stats.activeSessions}명 활성 세션`}
         />
-        
-        <StatsWidget
-          title="대시보드"
-          value={stats.totalDashboards}
-          icon="📊"
-          color="#e74c3c"
-          subtitle="생성된 대시보드"
-        />
-        
-        <StatsWidget
-          title="위젯"
-          value={stats.totalWidgets}
-          icon="📈"
-          color="#f39c12"
-          subtitle="생성된 위젯"
-        />
+
+        <StatsWidget title="대시보드" value={stats.totalDashboards} icon="📊" color="#e74c3c" subtitle="생성된 대시보드" />
+
+        <StatsWidget title="위젯" value={stats.totalWidgets} icon="📈" color="#f39c12" subtitle="생성된 위젯" />
       </div>
 
       <div className="dashboard-content">
@@ -128,22 +116,14 @@ const AdminDashboard: React.FC = () => {
           <h3>최근 활동</h3>
           <RecentActivity logs={stats.recentLogs} />
         </div>
-        
+
         <div className="content-section">
           <h3>빠른 작업</h3>
           <div className="quick-actions">
-            <button className="quick-action-btn">
-              👤 사용자 관리
-            </button>
-            <button className="quick-action-btn">
-              ⏳ 승인 대기 확인
-            </button>
-            <button className="quick-action-btn">
-              📋 감사 로그 보기
-            </button>
-            <button className="quick-action-btn">
-              ⚙️ 시스템 설정
-            </button>
+            <button className="quick-action-btn">👤 사용자 관리</button>
+            <button className="quick-action-btn">⏳ 승인 대기 확인</button>
+            <button className="quick-action-btn">📋 감사 로그 보기</button>
+            <button className="quick-action-btn">⚙️ 시스템 설정</button>
           </div>
         </div>
       </div>

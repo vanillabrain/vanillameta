@@ -65,16 +65,14 @@ const PermissionTree: React.FC<PermissionTreeProps> = ({
     Object.entries(groupedPermissions).forEach(([module, resources]) => {
       const moduleKey = `module-${module}`;
       const modulePermissionCount = Object.values(resources).flat().length;
-      
+
       const moduleNode: TreeNode = {
         id: moduleKey,
         label: (
           <div className="flex items-center justify-between w-full">
             <div className="flex flex-col">
               <span className="font-medium">{getModuleDisplayName(module)}</span>
-              <span className="text-xs text-muted-foreground">
-                {modulePermissionCount}개 권한
-              </span>
+              <span className="text-xs text-muted-foreground">{modulePermissionCount}개 권한</span>
             </div>
           </div>
         ),
@@ -83,15 +81,13 @@ const PermissionTree: React.FC<PermissionTreeProps> = ({
 
       Object.entries(resources).forEach(([resource, permissions]) => {
         const resourceKey = `resource-${module}-${resource}`;
-        
+
         const resourceNode: TreeNode = {
           id: resourceKey,
           label: (
             <div className="flex items-center justify-between w-full">
               <span className="font-medium">{getResourceDisplayName(resource)}</span>
-              <span className="text-xs text-muted-foreground">
-                {permissions.length}개
-              </span>
+              <span className="text-xs text-muted-foreground">{permissions.length}개</span>
             </div>
           ),
           children: permissions.map(permission => ({
@@ -99,9 +95,7 @@ const PermissionTree: React.FC<PermissionTreeProps> = ({
             label: (
               <div className="flex flex-col">
                 <span className="text-sm">{permission.displayName}</span>
-                <span className="text-xs text-muted-foreground">
-                  {permission.description}
-                </span>
+                <span className="text-xs text-muted-foreground">{permission.description}</span>
               </div>
             ),
           })),
@@ -119,10 +113,10 @@ const PermissionTree: React.FC<PermissionTreeProps> = ({
   // 체크 핸들러
   const handleNodeCheck = (nodeId: string, checked: boolean) => {
     const newCheckedKeys = new Set(checkedKeys);
-    
+
     // 실제 권한 ID인지 확인
     const isPermission = !nodeId.startsWith('module-') && !nodeId.startsWith('resource-');
-    
+
     if (isPermission) {
       if (checked) {
         newCheckedKeys.add(nodeId);
@@ -160,12 +154,12 @@ const PermissionTree: React.FC<PermissionTreeProps> = ({
 
       findAndUpdateNode(treeData, nodeId);
     }
-    
+
     setCheckedKeys(newCheckedKeys);
-    
+
     // 실제 권한 ID만 필터링하여 콜백
-    const permissionIds = Array.from(newCheckedKeys).filter(key => 
-      !key.startsWith('module-') && !key.startsWith('resource-')
+    const permissionIds = Array.from(newCheckedKeys).filter(
+      key => !key.startsWith('module-') && !key.startsWith('resource-'),
     );
     onPermissionChange(permissionIds);
   };
@@ -247,20 +241,10 @@ const PermissionTree: React.FC<PermissionTreeProps> = ({
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium">권한 설정</h3>
         <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={expandAll}
-            disabled={disabled}
-          >
+          <Button size="sm" variant="outline" onClick={expandAll} disabled={disabled}>
             모두 펼치기
           </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={collapseAll}
-            disabled={disabled}
-          >
+          <Button size="sm" variant="outline" onClick={collapseAll} disabled={disabled}>
             모두 접기
           </Button>
         </div>
@@ -271,9 +255,7 @@ const PermissionTree: React.FC<PermissionTreeProps> = ({
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <Spinner size="md" />
-              <span className="ml-2 text-sm text-muted-foreground">
-                권한 업데이트 중...
-              </span>
+              <span className="ml-2 text-sm text-muted-foreground">권한 업데이트 중...</span>
             </div>
           ) : (
             <Tree

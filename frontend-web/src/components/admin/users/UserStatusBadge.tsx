@@ -8,12 +8,7 @@ interface UserStatusBadgeProps {
   editable?: boolean;
 }
 
-const UserStatusBadge: React.FC<UserStatusBadgeProps> = ({ 
-  status, 
-  userId, 
-  onStatusChange, 
-  editable = true 
-}) => {
+const UserStatusBadge: React.FC<UserStatusBadgeProps> = ({ status, userId, onStatusChange, editable = true }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const statusConfig = {
@@ -21,7 +16,7 @@ const UserStatusBadge: React.FC<UserStatusBadgeProps> = ({
     inactive: { label: '비활성', icon: '⏸️', color: 'warning' },
     pending: { label: '승인 대기', icon: '⏳', color: 'info' },
     suspended: { label: '정지', icon: '🚫', color: 'danger' },
-    deleted: { label: '삭제됨', icon: '🗑️', color: 'muted' }
+    deleted: { label: '삭제됨', icon: '🗑️', color: 'muted' },
   };
 
   const currentStatus = statusConfig[status] || statusConfig.pending;

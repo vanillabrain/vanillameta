@@ -8,7 +8,7 @@ export const muiSpacingToTailwind = (property: string, value: number | string): 
     if (value === '100%') return property === 'width' || property === 'w' ? 'w-full' : 'h-full';
     return ''; // 기타 문자열은 인라인 스타일로 처리
   }
-  
+
   // MUI spacing: 1 = 8px, Tailwind: 1 = 0.25rem (4px)
   const tailwindValue = value * 2;
   return `${property}-${tailwindValue}`;
@@ -18,29 +18,29 @@ export const muiSpacingToTailwind = (property: string, value: number | string): 
 export const muiFlexToTailwind = (property: string, value: string): string => {
   const flexMap: Record<string, Record<string, string>> = {
     flexDirection: {
-      'row': 'flex-row',
+      row: 'flex-row',
       'row-reverse': 'flex-row-reverse',
-      'column': 'flex-col',
+      column: 'flex-col',
       'column-reverse': 'flex-col-reverse',
     },
     alignItems: {
       'flex-start': 'items-start',
       'flex-end': 'items-end',
-      'center': 'items-center',
-      'baseline': 'items-baseline',
-      'stretch': 'items-stretch',
+      center: 'items-center',
+      baseline: 'items-baseline',
+      stretch: 'items-stretch',
     },
     justifyContent: {
       'flex-start': 'justify-start',
       'flex-end': 'justify-end',
-      'center': 'justify-center',
+      center: 'justify-center',
       'space-between': 'justify-between',
       'space-around': 'justify-around',
       'space-evenly': 'justify-evenly',
     },
     flexWrap: {
-      'nowrap': 'flex-nowrap',
-      'wrap': 'flex-wrap',
+      nowrap: 'flex-nowrap',
+      wrap: 'flex-wrap',
       'wrap-reverse': 'flex-wrap-reverse',
     },
   };

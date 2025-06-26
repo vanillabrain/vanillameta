@@ -1,13 +1,5 @@
 import React, { useContext, useState } from 'react';
-import {
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Stack,
-  styled,
-  TextField,
-} from '@mui/material';
+import { Dialog, DialogActions, DialogContent, DialogTitle, Stack, styled, TextField } from '@mui/material';
 import { Button } from '@/components/ui/mui-button-compat';
 import CloseIcon from '@mui/icons-material/Close';
 import { AuthContext } from '@/contexts/AuthContext';

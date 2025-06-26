@@ -25,7 +25,8 @@ export const DatabaseCardList = (props: DatabaseCardListProps) => {
 
   return (
     <CardListWrapper sx={{ gridTemplateColumns: 'repeat(100%)' }}>
-      {data && data.length > 0 &&
+      {data &&
+        data.length > 0 &&
         data.map(item => (
           <CardWrapper
             key={item.id}

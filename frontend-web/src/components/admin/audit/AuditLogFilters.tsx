@@ -4,24 +4,10 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { DateRange, DayPicker } from 'react-day-picker';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Search, ChevronDown, ChevronUp, X, Filter, CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -32,7 +18,6 @@ import { auditLogServiceV2 } from '../../../api/auditLogServiceV2';
 import { UserSelect } from '../users/UserSelect';
 import { getDateRangePresets } from '../../../utils/auditLogHelpers';
 import { QUICK_FILTER_PRESETS } from '../../../utils/constants/auditLogConstants';
-
 
 interface AuditLogFiltersProps {
   filters: IAuditLogFilters;
@@ -105,7 +90,7 @@ export const AuditLogFilters: React.FC<AuditLogFiltersProps> = ({
       dateFrom: dayjs().subtract(7, 'days').toDate(),
       dateTo: new Date(),
     };
-    
+
     onFilterChange(defaultFilters);
     reset();
     setDateRange({
@@ -117,13 +102,13 @@ export const AuditLogFilters: React.FC<AuditLogFiltersProps> = ({
   // 활성화된 필터 개수 계산
   const getActiveFilterCount = () => {
     let count = 0;
-    if (filters.search) count++;
-    if (filters.userId) count++;
-    if (filters.action) count++;
-    if (filters.resourceType) count++;
-    if (filters.category) count++;
-    if (filters.level) count++;
-    if (filters.status) count++;
+    if (filters.search) count += 1;
+    if (filters.userId) count += 1;
+    if (filters.action) count += 1;
+    if (filters.resourceType) count += 1;
+    if (filters.category) count += 1;
+    if (filters.level) count += 1;
+    if (filters.status) count += 1;
     return count;
   };
 
@@ -135,12 +120,7 @@ export const AuditLogFilters: React.FC<AuditLogFiltersProps> = ({
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm font-medium">빠른 필터:</span>
         {QUICK_FILTER_PRESETS.map((preset, index) => (
-          <Button
-            key={index}
-            size="sm"
-            variant="outline"
-            onClick={() => handleQuickFilter(preset)}
-          >
+          <Button key={index} size="sm" variant="outline" onClick={() => handleQuickFilter(preset)}>
             <Filter className="h-3 w-3 mr-1" />
             {preset.label}
           </Button>
@@ -151,11 +131,12 @@ export const AuditLogFilters: React.FC<AuditLogFiltersProps> = ({
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm font-medium">기간:</span>
         {Object.keys(dateRangePresets).map(preset => {
-          const isActive = filters.dateFrom &&
+          const isActive =
+            filters.dateFrom &&
             filters.dateTo &&
             dayjs(filters.dateFrom).isSame(dateRangePresets[preset][0], 'day') &&
             dayjs(filters.dateTo).isSame(dateRangePresets[preset][1], 'day');
-          
+
           return (
             <Button
               key={preset}
@@ -178,19 +159,18 @@ export const AuditLogFilters: React.FC<AuditLogFiltersProps> = ({
               <Button
                 variant="outline"
                 className={cn(
-                  "w-full justify-start text-left font-normal",
-                  !dateRange.from && !dateRange.to && "text-muted-foreground"
+                  'w-full justify-start text-left font-normal',
+                  !dateRange.from && !dateRange.to && 'text-muted-foreground',
                 )}
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
                 {dateRange.from ? (
                   dateRange.to ? (
                     <>
-                      {format(dateRange.from, "PPP", { locale: ko })} -{" "}
-                      {format(dateRange.to, "PPP", { locale: ko })}
+                      {format(dateRange.from, 'PPP', { locale: ko })} - {format(dateRange.to, 'PPP', { locale: ko })}
                     </>
                   ) : (
-                    format(dateRange.from, "PPP", { locale: ko })
+                    format(dateRange.from, 'PPP', { locale: ko })
                   )
                 ) : (
                   <span>날짜 선택</span>
@@ -218,16 +198,13 @@ export const AuditLogFilters: React.FC<AuditLogFiltersProps> = ({
               placeholder="액션, 사용자명, 상세 내용 검색"
               className="pl-8"
               value={filters.search || ''}
-              onChange={(e) => handleFieldChange('search', e.target.value)}
+              onChange={e => handleFieldChange('search', e.target.value)}
             />
           </div>
         </div>
         <div className="space-y-2">
           <Label htmlFor="level">레벨</Label>
-          <Select
-            value={filters.level || ''}
-            onValueChange={(value) => handleFieldChange('level', value || undefined)}
-          >
+          <Select value={filters.level || ''} onValueChange={value => handleFieldChange('level', value || undefined)}>
             <SelectTrigger id="level">
               <SelectValue placeholder="모든 레벨" />
             </SelectTrigger>
@@ -237,13 +214,15 @@ export const AuditLogFilters: React.FC<AuditLogFiltersProps> = ({
               </SelectItem>
               {Object.values(AuditLogLevel).map(level => (
                 <SelectItem key={level} value={level}>
-                  <Badge className={cn(
-                    'text-white',
-                    level === 'error' && 'bg-red-500',
-                    level === 'warning' && 'bg-yellow-500',
-                    level === 'info' && 'bg-blue-500',
-                    level === 'debug' && 'bg-gray-500'
-                  )}>
+                  <Badge
+                    className={cn(
+                      'text-white',
+                      level === 'error' && 'bg-red-500',
+                      level === 'warning' && 'bg-yellow-500',
+                      level === 'info' && 'bg-blue-500',
+                      level === 'debug' && 'bg-gray-500',
+                    )}
+                  >
                     {level.toUpperCase()}
                   </Badge>
                 </SelectItem>
@@ -254,20 +233,11 @@ export const AuditLogFilters: React.FC<AuditLogFiltersProps> = ({
         <div className="space-y-2">
           <Label>필터 옵션</Label>
           <div className="flex gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsExpanded(!isExpanded)}
-            >
+            <Button variant="ghost" size="sm" onClick={() => setIsExpanded(!isExpanded)}>
               {isExpanded ? <ChevronUp className="h-4 w-4 mr-1" /> : <ChevronDown className="h-4 w-4 mr-1" />}
               고급 필터 {activeFilterCount > 0 && `(${activeFilterCount})`}
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={clearFilters}
-              disabled={activeFilterCount === 0}
-            >
+            <Button variant="outline" size="sm" onClick={clearFilters} disabled={activeFilterCount === 0}>
               <X className="h-4 w-4 mr-1" />
               초기화
             </Button>
@@ -284,16 +254,13 @@ export const AuditLogFilters: React.FC<AuditLogFiltersProps> = ({
               <UserSelect
                 placeholder="사용자 선택"
                 value={filters.userId}
-                onChange={(value) => handleFieldChange('userId', value)}
+                onChange={value => handleFieldChange('userId', value)}
                 className="w-full"
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="action">액션</Label>
-              <Select
-                value={filters.action || ''}
-                onValueChange={(value) => handleFieldChange('action', value || undefined)}
-              >
+              <Select value={filters.action || ''} onValueChange={value => handleFieldChange('action', value || undefined)}>
                 <SelectTrigger id="action">
                   <SelectValue placeholder="액션 선택" />
                 </SelectTrigger>
@@ -313,7 +280,7 @@ export const AuditLogFilters: React.FC<AuditLogFiltersProps> = ({
               <Label htmlFor="resourceType">리소스 타입</Label>
               <Select
                 value={filters.resourceType || ''}
-                onValueChange={(value) => handleFieldChange('resourceType', value || undefined)}
+                onValueChange={value => handleFieldChange('resourceType', value || undefined)}
               >
                 <SelectTrigger id="resourceType">
                   <SelectValue placeholder="리소스 타입 선택" />
@@ -334,7 +301,7 @@ export const AuditLogFilters: React.FC<AuditLogFiltersProps> = ({
               <Label htmlFor="category">카테고리</Label>
               <Select
                 value={filters.category || ''}
-                onValueChange={(value) => handleFieldChange('category', value || undefined)}
+                onValueChange={value => handleFieldChange('category', value || undefined)}
               >
                 <SelectTrigger id="category">
                   <SelectValue placeholder="카테고리 선택" />
@@ -345,9 +312,7 @@ export const AuditLogFilters: React.FC<AuditLogFiltersProps> = ({
                   </SelectItem>
                   {Object.values(AuditLogCategory).map(category => (
                     <SelectItem key={category} value={category}>
-                      <Badge variant="outline">
-                        {auditLogServiceV2.getCategoryDisplayName(category)}
-                      </Badge>
+                      <Badge variant="outline">{auditLogServiceV2.getCategoryDisplayName(category)}</Badge>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -355,10 +320,7 @@ export const AuditLogFilters: React.FC<AuditLogFiltersProps> = ({
             </div>
             <div className="space-y-2">
               <Label htmlFor="status">상태</Label>
-              <Select
-                value={filters.status || ''}
-                onValueChange={(value) => handleFieldChange('status', value || undefined)}
-              >
+              <Select value={filters.status || ''} onValueChange={value => handleFieldChange('status', value || undefined)}>
                 <SelectTrigger id="status">
                   <SelectValue placeholder="상태 선택" />
                 </SelectTrigger>
@@ -387,7 +349,7 @@ export const AuditLogFilters: React.FC<AuditLogFiltersProps> = ({
                 id="resourceId"
                 placeholder="리소스 ID 입력"
                 value={filters.resourceId || ''}
-                onChange={(e) => handleFieldChange('resourceId', e.target.value)}
+                onChange={e => handleFieldChange('resourceId', e.target.value)}
               />
             </div>
           </div>

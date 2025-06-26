@@ -20,7 +20,9 @@ function PageTitleBox(props: PageTitleBoxProps) {
   return (
     <div className="flex flex-col w-full h-full flex-auto">
       <div className="w-full">
-        <div className={`flex flex-row items-center justify-between w-full h-10 sm:h-14 px-6 border-b border-[#e3e7ea] bg-[#f5f6f8] ${fixedClass}`}>
+        <div
+          className={`flex flex-row items-center justify-between w-full h-10 sm:h-14 px-6 border-b border-[#e3e7ea] bg-[#f5f6f8] ${fixedClass}`}
+        >
           <div className="flex flex-row gap-1.5 sm:gap-2.5 items-center">
             {upperTitle && (
               <>
@@ -30,13 +32,11 @@ function PageTitleBox(props: PageTitleBoxProps) {
                 >
                   {upperTitle}
                 </RouterLink>
-                <span className="h-[19px] flex-grow-0 font-pretendard text-inherit font-medium text-[#767676]">
-                  /
-                </span>
+                <span className="h-[19px] flex-grow-0 font-pretendard text-inherit font-medium text-[#767676]">/</span>
               </>
             )}
             <button
-              onClick={(event) => {
+              onClick={event => {
                 event.preventDefault();
                 navigate(0);
               }}
@@ -49,9 +49,7 @@ function PageTitleBox(props: PageTitleBoxProps) {
         </div>
       </div>
       <div className="flex flex-col justify-start flex-auto w-full h-[calc(100%-56px)]">
-        <div className={`flex-auto px-[25px] w-screen h-full ${className || ''}`}>
-          {children}
-        </div>
+        <div className={`flex-auto px-[25px] w-screen h-full ${className || ''}`}>{children}</div>
       </div>
     </div>
   );

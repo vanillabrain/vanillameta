@@ -47,20 +47,13 @@ interface RoleDetailPanelProps {
 const updateRoleSchema = z.object({
   displayName: z.string().min(1, '표시 이름을 입력하세요'),
   description: z.string().optional(),
-  level: z
-    .number()
-    .min(1, '권한 레벨은 1 이상이어야 합니다')
-    .max(100, '권한 레벨은 100 이하여야 합니다'),
+  level: z.number().min(1, '권한 레벨은 1 이상이어야 합니다').max(100, '권한 레벨은 100 이하여야 합니다'),
   isActive: z.boolean(),
 });
 
 type UpdateRoleFormData = z.infer<typeof updateRoleSchema>;
 
-const RoleDetailPanel: React.FC<RoleDetailPanelProps> = ({
-  role,
-  groupedPermissions,
-  onRoleUpdate,
-}) => {
+const RoleDetailPanel: React.FC<RoleDetailPanelProps> = ({ role, groupedPermissions, onRoleUpdate }) => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<string>('info');
   const [isEditing, setIsEditing] = useState(false);
@@ -98,8 +91,7 @@ const RoleDetailPanel: React.FC<RoleDetailPanelProps> = ({
 
   // 권한 업데이트 뮤테이션
   const updatePermissionsMutation = useMutation({
-    mutationFn: (permissionIds: string[]) =>
-      adminRoleService.updateRolePermissions(role.id, { permissionIds }),
+    mutationFn: (permissionIds: string[]) => adminRoleService.updateRolePermissions(role.id, { permissionIds }),
     onSuccess: () => {
       toast({
         description: '권한이 업데이트되었습니다.',
@@ -145,7 +137,6 @@ const RoleDetailPanel: React.FC<RoleDetailPanelProps> = ({
     );
   }
 
-
   return (
     <div className="space-y-6">
       {/* 역할 헤더 */}
@@ -157,9 +148,7 @@ const RoleDetailPanel: React.FC<RoleDetailPanelProps> = ({
               <Badge variant={roleDetail.isActive ? 'default' : 'secondary'}>
                 {roleDetail.isActive ? '활성' : '비활성'}
               </Badge>
-              {roleDetail.isDefault && (
-                <Badge variant="outline">기본 역할</Badge>
-              )}
+              {roleDetail.isDefault && <Badge variant="outline">기본 역할</Badge>}
             </div>
           </div>
         </div>
@@ -198,9 +187,7 @@ const RoleDetailPanel: React.FC<RoleDetailPanelProps> = ({
           <Card>
             <CardHeader>
               <CardTitle>역할 정보</CardTitle>
-              <CardDescription>
-                역할의 기본 정보를 수정할 수 있습니다.
-              </CardDescription>
+              <CardDescription>역할의 기본 정보를 수정할 수 있습니다.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
@@ -218,9 +205,7 @@ const RoleDetailPanel: React.FC<RoleDetailPanelProps> = ({
                     {...form.register('displayName')}
                   />
                   {form.formState.errors.displayName && (
-                    <p className="text-xs text-destructive">
-                      {form.formState.errors.displayName.message}
-                    </p>
+                    <p className="text-xs text-destructive">{form.formState.errors.displayName.message}</p>
                   )}
                 </div>
 
@@ -245,13 +230,9 @@ const RoleDetailPanel: React.FC<RoleDetailPanelProps> = ({
                     disabled={!isEditing}
                     {...form.register('level', { valueAsNumber: true })}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    높을수록 상위 권한 (1-100)
-                  </p>
+                  <p className="text-xs text-muted-foreground">높을수록 상위 권한 (1-100)</p>
                   {form.formState.errors.level && (
-                    <p className="text-xs text-destructive">
-                      {form.formState.errors.level.message}
-                    </p>
+                    <p className="text-xs text-destructive">{form.formState.errors.level.message}</p>
                   )}
                 </div>
 
@@ -260,7 +241,7 @@ const RoleDetailPanel: React.FC<RoleDetailPanelProps> = ({
                     id="isActive"
                     disabled={!isEditing}
                     checked={form.watch('isActive')}
-                    onCheckedChange={(checked) => form.setValue('isActive', checked)}
+                    onCheckedChange={checked => form.setValue('isActive', checked)}
                   />
                   <Label htmlFor="isActive">활성 상태</Label>
                 </div>
@@ -279,10 +260,7 @@ const RoleDetailPanel: React.FC<RoleDetailPanelProps> = ({
                 <div className="flex gap-2">
                   {isEditing ? (
                     <>
-                      <Button
-                        type="submit"
-                        disabled={updateRoleMutation.isPending}
-                      >
+                      <Button type="submit" disabled={updateRoleMutation.isPending}>
                         {updateRoleMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         <Save className="mr-2 h-4 w-4" />
                         저장
@@ -300,11 +278,7 @@ const RoleDetailPanel: React.FC<RoleDetailPanelProps> = ({
                       </Button>
                     </>
                   ) : (
-                    <Button
-                      type="button"
-                      onClick={() => setIsEditing(true)}
-                      disabled={roleDetail.name === 'super_admin'}
-                    >
+                    <Button type="button" onClick={() => setIsEditing(true)} disabled={roleDetail.name === 'super_admin'}>
                       <Edit2 className="mr-2 h-4 w-4" />
                       수정
                     </Button>
@@ -333,7 +307,7 @@ const RoleDetailPanel: React.FC<RoleDetailPanelProps> = ({
                   <PermissionTree
                     groupedPermissions={groupedPermissions}
                     selectedPermissions={roleDetail.permissions.map(p => p.id)}
-                    onPermissionChange={(permissionIds) => {
+                    onPermissionChange={permissionIds => {
                       // AlertDialog를 통해 확인 후 변경
                     }}
                     loading={updatePermissionsMutation.isPending}
@@ -348,7 +322,11 @@ const RoleDetailPanel: React.FC<RoleDetailPanelProps> = ({
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>취소</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => {/* handlePermissionChange */}}>
+                      <AlertDialogAction
+                        onClick={() => {
+                          /* handlePermissionChange */
+                        }}
+                      >
                         변경
                       </AlertDialogAction>
                     </AlertDialogFooter>
@@ -365,11 +343,7 @@ const RoleDetailPanel: React.FC<RoleDetailPanelProps> = ({
 
         {/* 사용자 탭 */}
         <TabsContent value="users">
-          <RoleUsersTab
-            roleId={role.id}
-            roleName={role.displayName}
-            onUserUpdate={onRoleUpdate}
-          />
+          <RoleUsersTab roleId={role.id} roleName={role.displayName} onUserUpdate={onRoleUpdate} />
         </TabsContent>
       </Tabs>
     </div>

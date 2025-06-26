@@ -136,17 +136,9 @@ const FunnelChartSetting = props => {
           }}
         />
         <Button
-          variant="text"
-          size="small"
-          sx={{
-            position: 'absolute',
-            top: 30,
-            right: 34,
-            width: 28,
-            height: 28,
-            minWidth: 'auto',
-            p: '6px',
-          }}
+          variant="ghost"
+          size="icon"
+          className="absolute top-[30px] right-[34px] w-7 h-7"
           onClick={handleColorChangeClick}
         >
           <SvgIcon

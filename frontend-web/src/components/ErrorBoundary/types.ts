@@ -4,14 +4,14 @@ export enum ErrorType {
   PERMISSION_ERROR = 'permission_error',
   CHART_RENDER_ERROR = 'chart_render_error',
   JAVASCRIPT_ERROR = 'javascript_error',
-  API_ERROR = 'api_error'
+  API_ERROR = 'api_error',
 }
 
 export enum ErrorSeverity {
   LOW = 'low',
   MEDIUM = 'medium',
   HIGH = 'high',
-  CRITICAL = 'critical'
+  CRITICAL = 'critical',
 }
 
 export interface ErrorInfo {

@@ -99,18 +99,10 @@ function SecondStep(props) {
 
         <StyledSwiperWrapper>
           <StyledSwiperNavigation>
-            <Button 
-              variant="ghost" 
-              ref={navigationNextRef}
-              className="min-w-0 p-2"
-            >
+            <Button variant="ghost" ref={navigationNextRef} className="min-w-0 p-2">
               <ArrowForward />
             </Button>
-            <Button 
-              variant="ghost" 
-              ref={navigationPrevRef}
-              className="min-w-0 p-2"
-            >
+            <Button variant="ghost" ref={navigationPrevRef} className="min-w-0 p-2">
               <ArrowBack />
             </Button>
           </StyledSwiperNavigation>

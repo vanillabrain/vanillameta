@@ -126,7 +126,7 @@ const Share = () => {
   };
 
   return !isShareOn ? (
-    <PageViewBox sx={{ borderTop: '1px solid #ddd' }}>
+    <PageViewBox>
       <Box
         sx={{
           flex: '1 1 auto',
@@ -150,11 +150,7 @@ const Share = () => {
       </Box>
     </PageViewBox>
   ) : (
-    <PageViewBox
-      title={dashboardInfo.title}
-      date={`${dateData(dashboardInfo.updatedAt)}`}
-      sx={{ borderTop: '1px solid #ddd' }}
-    >
+    <PageViewBox title={dashboardInfo.title} date={`${dateData(dashboardInfo.updatedAt)}`}>
       <Seo title={dashboardInfo.title} />
       <Box
         sx={{

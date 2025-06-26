@@ -23,7 +23,6 @@ function Dashboard() {
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const matches = typeof window !== 'undefined' ? window.innerWidth >= 640 : true;
 
-
   const menuList = [
     { name: '대시보드', link: '/dashboard/create', id: 'dashboard' },
     { name: '대시보드 추천', link: '', id: 'recommend' },
@@ -116,18 +115,12 @@ function Dashboard() {
   const getEmptyView = useMemo(() => {
     return (
       <>
-        <div
-          className="flex flex-row justify-between pl-5 pr-11 sm:pr-[217px] mb-[11px] mt-9"
-        >
+        <div className="flex flex-row justify-between pl-5 pr-11 sm:pr-[217px] mb-[11px] mt-9">
           <span className="text-[10px] sm:text-[13px] font-medium leading-[1.23] text-[#767676]">이름</span>
           <span className="text-[10px] sm:text-[13px] font-medium leading-[1.23] text-[#767676]">수정일</span>
         </div>
-        <div
-          className="flex justify-center items-center py-[18px] rounded-md border border-[#ddd] bg-white"
-        >
-          <span
-            className="font-semibold text-center text-[#333333] text-sm sm:text-base leading-[1.43]"
-          >
+        <div className="flex justify-center items-center py-[18px] rounded-md border border-[#ddd] bg-white">
+          <span className="font-semibold text-center text-[#333333] text-sm sm:text-base leading-[1.43]">
             생성한 대시보드가 없습니다.
             {matches ? ' ' : <br />}
             대시보드를 생성 후 확인해 보세요.

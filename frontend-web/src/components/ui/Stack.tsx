@@ -40,7 +40,7 @@ const Stack = React.forwardRef<HTMLDivElement, StackProps>(
       sx,
       ...props
     },
-    ref
+    ref,
   ) => {
     // spacing 값 처리
     const getSpacing = (breakpoint?: string) => {
@@ -54,15 +54,15 @@ const Stack = React.forwardRef<HTMLDivElement, StackProps>(
     const gapClass = React.useMemo(() => {
       const baseSpacing = getSpacing();
       if (baseSpacing === 0) return '';
-      
+
       // string인 경우 그대로 사용 (px 단위 등)
       if (typeof baseSpacing === 'string') {
         return ''; // 인라인 스타일로 처리
       }
-      
+
       // MUI spacing (1 = 8px) to Tailwind gap (1 = 0.25rem = 4px)
       const tailwindValue = baseSpacing * 2;
-      
+
       if (direction === 'row' || direction === 'row-reverse') {
         return `gap-x-${tailwindValue}`;
       }
@@ -72,11 +72,11 @@ const Stack = React.forwardRef<HTMLDivElement, StackProps>(
     // 반응형 spacing 처리
     const responsiveGapClasses = React.useMemo(() => {
       if (typeof spacing !== 'object') return '';
-      
+
       const classes: string[] = [];
       const breakpoints = ['sm', 'md', 'lg', 'xl'] as const;
-      
-      breakpoints.forEach((bp) => {
+
+      breakpoints.forEach(bp => {
         const value = spacing[bp];
         if (value !== undefined && typeof value === 'number') {
           const tailwindValue = value * 2;
@@ -87,28 +87,24 @@ const Stack = React.forwardRef<HTMLDivElement, StackProps>(
           }
         }
       });
-      
+
       return classes.join(' ');
     }, [direction, spacing]);
 
     // divider가 있는 경우 자식 요소들 사이에 삽입
     const childrenWithDivider = React.useMemo(() => {
       if (!divider) return children;
-      
+
       const childArray = React.Children.toArray(children);
       const result: React.ReactNode[] = [];
-      
+
       childArray.forEach((child, index) => {
         result.push(child);
         if (index < childArray.length - 1) {
-          result.push(
-            <React.Fragment key={`divider-${index}`}>
-              {divider}
-            </React.Fragment>
-          );
+          result.push(<React.Fragment key={`divider-${index}`}>{divider}</React.Fragment>);
         }
       });
-      
+
       return result;
     }, [children, divider]);
 
@@ -128,7 +124,7 @@ const Stack = React.forwardRef<HTMLDivElement, StackProps>(
         {childrenWithDivider}
       </Box>
     );
-  }
+  },
 );
 
 Stack.displayName = 'Stack';

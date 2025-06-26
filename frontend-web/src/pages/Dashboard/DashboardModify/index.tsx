@@ -433,41 +433,7 @@ function DashboardModify() {
             id="userDashboardName"
             label="대시보드 이름"
             required
-            sx={{
-              width: { xs: '100%', sm: '960px' },
-              height: '32px',
-              marginLeft: { sm: '16px' },
-              marginTop: 0,
-              borderRadius: '4px',
-              backgroundColor: '#fff',
-              input: {
-                fontWeight: 500,
-                paddingLeft: '18px',
-                height: '16px',
-                fontFamily: 'Pretendard',
-                fontSize: '14px',
-                fontStretch: 'normal',
-                fontStyle: 'normal',
-                lineHeight: 0.89,
-                letterSpacing: '-0.18px',
-                textAlign: 'left',
-                color: '#141414',
-                '&::placeholder': {
-                  height: '16px',
-                  flexGrow: 0,
-                  fontFamily: 'Pretendard',
-                  fontSize: '14px',
-                  fontWeight: 'normal',
-                  fontStretch: 'normal',
-                  fontStyle: 'normal',
-                  lineHeight: '1.14',
-                  letterSpacing: 'normal',
-                  textAlign: 'left',
-                  color: '#929292',
-                  opacity: 1,
-                },
-              },
-            }}
+            className="w-full sm:w-[960px] sm:ml-4"
             placeholder="대시보드의 이름을 입력해 주세요"
             value={dashboardTitle}
             onChange={event => {

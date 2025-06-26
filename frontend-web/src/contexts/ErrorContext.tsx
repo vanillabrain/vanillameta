@@ -81,12 +81,7 @@ export function ErrorProvider({ children }: ErrorProviderProps) {
   //   return `${error.timestamp}-${error.type}`;
   // };
 
-  const reportError = (
-    error: Error,
-    type: ErrorType,
-    severity: ErrorSeverity,
-    metadata?: Record<string, unknown>
-  ) => {
+  const reportError = (error: Error, type: ErrorType, severity: ErrorSeverity, metadata?: Record<string, unknown>) => {
     const errorInfo: ErrorInfo = {
       type,
       severity,

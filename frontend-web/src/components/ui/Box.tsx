@@ -68,39 +68,77 @@ const Box = React.forwardRef<HTMLDivElement, BoxProps>(
       className,
       children,
       // Spacing
-      m, mt, mr, mb, ml, mx, my,
-      p, pt, pr, pb, pl, px, py,
+      m,
+      mt,
+      mr,
+      mb,
+      ml,
+      mx,
+      my,
+      p,
+      pt,
+      pr,
+      pb,
+      pl,
+      px,
+      py,
       // Display
       display,
       // Flex
-      flexDirection, alignItems, justifyContent, flexWrap, flex, flexGrow, flexShrink, gap,
+      flexDirection,
+      alignItems,
+      justifyContent,
+      flexWrap,
+      flex,
+      flexGrow,
+      flexShrink,
+      gap,
       // Size
-      width, height, minWidth, minHeight, maxWidth, maxHeight,
+      width,
+      height,
+      minWidth,
+      minHeight,
+      maxWidth,
+      maxHeight,
       // Position
-      position, top, right, bottom, left, zIndex,
+      position,
+      top,
+      right,
+      bottom,
+      left,
+      zIndex,
       // Color
-      bgcolor, color,
+      bgcolor,
+      color,
       // Border
-      border, borderTop, borderRight, borderBottom, borderLeft, borderColor, borderRadius,
+      border,
+      borderTop,
+      borderRight,
+      borderBottom,
+      borderLeft,
+      borderColor,
+      borderRadius,
       // Other
-      overflow, textAlign,
+      overflow,
+      textAlign,
       sx, // Ignored
       style,
       ...props
     },
-    ref
+    ref,
   ) => {
     const classes = cn(
       // Display
-      display && {
-        'flex': display === 'flex',
-        'inline-flex': display === 'inline-flex',
-        'block': display === 'block',
-        'inline-block': display === 'inline-block',
-        'hidden': display === 'none',
-        'grid': display === 'grid',
-        'inline-grid': display === 'inline-grid',
-      }[display],
+      display &&
+        {
+          flex: display === 'flex',
+          'inline-flex': display === 'inline-flex',
+          block: display === 'block',
+          'inline-block': display === 'inline-block',
+          hidden: display === 'none',
+          grid: display === 'grid',
+          'inline-grid': display === 'inline-grid',
+        }[display],
       // Spacing
       m !== undefined && muiSpacingToTailwind('m', m),
       mt !== undefined && muiSpacingToTailwind('mt', mt),
@@ -123,51 +161,56 @@ const Box = React.forwardRef<HTMLDivElement, BoxProps>(
       flexWrap && muiFlexToTailwind('flexWrap', flexWrap),
       gap !== undefined && muiSpacingToTailwind('gap', gap),
       // Position
-      position && {
-        'static': position === 'static',
-        'relative': position === 'relative',
-        'absolute': position === 'absolute',
-        'fixed': position === 'fixed',
-        'sticky': position === 'sticky',
-      }[position],
+      position &&
+        {
+          static: position === 'static',
+          relative: position === 'relative',
+          absolute: position === 'absolute',
+          fixed: position === 'fixed',
+          sticky: position === 'sticky',
+        }[position],
       // Border
-      borderRadius !== undefined && {
-        'rounded-none': borderRadius === 0,
-        'rounded-sm': borderRadius === 2,
-        'rounded': borderRadius === 4,
-        'rounded-md': borderRadius === 6,
-        'rounded-lg': borderRadius === 8,
-        'rounded-xl': borderRadius === 12,
-        'rounded-2xl': borderRadius === 16,
-        'rounded-3xl': borderRadius === 24,
-        'rounded-full': borderRadius === 9999 || borderRadius === '50%',
-      }[borderRadius],
+      borderRadius !== undefined &&
+        {
+          'rounded-none': borderRadius === 0,
+          'rounded-sm': borderRadius === 2,
+          rounded: borderRadius === 4,
+          'rounded-md': borderRadius === 6,
+          'rounded-lg': borderRadius === 8,
+          'rounded-xl': borderRadius === 12,
+          'rounded-2xl': borderRadius === 16,
+          'rounded-3xl': borderRadius === 24,
+          'rounded-full': borderRadius === 9999 || borderRadius === '50%',
+        }[borderRadius],
       // Color
       bgcolor && muiColorToTailwind('bg', bgcolor),
       color && muiColorToTailwind('text', color),
       // Border
-      border !== undefined && {
-        'border': border === 1 || border === '1px',
-        'border-2': border === 2 || border === '2px',
-        'border-4': border === 4 || border === '4px',
-        'border-8': border === 8 || border === '8px',
-      }[border],
+      border !== undefined &&
+        {
+          border: border === 1 || border === '1px',
+          'border-2': border === 2 || border === '2px',
+          'border-4': border === 4 || border === '4px',
+          'border-8': border === 8 || border === '8px',
+        }[border],
       borderColor && muiColorToTailwind('border', borderColor),
       // Overflow
-      overflow && {
-        'overflow-visible': overflow === 'visible',
-        'overflow-hidden': overflow === 'hidden',
-        'overflow-scroll': overflow === 'scroll',
-        'overflow-auto': overflow === 'auto',
-      }[overflow],
+      overflow &&
+        {
+          'overflow-visible': overflow === 'visible',
+          'overflow-hidden': overflow === 'hidden',
+          'overflow-scroll': overflow === 'scroll',
+          'overflow-auto': overflow === 'auto',
+        }[overflow],
       // Text align
-      textAlign && {
-        'text-left': textAlign === 'left',
-        'text-center': textAlign === 'center',
-        'text-right': textAlign === 'right',
-        'text-justify': textAlign === 'justify',
-      }[textAlign],
-      className
+      textAlign &&
+        {
+          'text-left': textAlign === 'left',
+          'text-center': textAlign === 'center',
+          'text-right': textAlign === 'right',
+          'text-justify': textAlign === 'justify',
+        }[textAlign],
+      className,
     );
 
     // 인라인 스타일 처리
@@ -191,16 +234,11 @@ const Box = React.forwardRef<HTMLDivElement, BoxProps>(
     };
 
     return (
-      <Component
-        ref={ref}
-        className={classes}
-        style={inlineStyle}
-        {...props}
-      >
+      <Component ref={ref} className={classes} style={inlineStyle} {...props}>
         {children}
       </Component>
     );
-  }
+  },
 );
 
 Box.displayName = 'Box';

@@ -18,9 +18,7 @@ const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <BrowserRouter>
       <AlertProvider>
-        <ErrorProvider>
-          {children}
-        </ErrorProvider>
+        <ErrorProvider>{children}</ErrorProvider>
       </AlertProvider>
     </BrowserRouter>
   );
@@ -43,7 +41,7 @@ describe('ErrorBoundary Tests', () => {
         <GlobalErrorBoundary>
           <ErrorThrowingComponent shouldThrow={false} />
         </GlobalErrorBoundary>
-      </TestWrapper>
+      </TestWrapper>,
     );
 
     expect(screen.getByText('No error')).toBeInTheDocument();
@@ -55,7 +53,7 @@ describe('ErrorBoundary Tests', () => {
         <GlobalErrorBoundary>
           <ErrorThrowingComponent shouldThrow={true} />
         </GlobalErrorBoundary>
-      </TestWrapper>
+      </TestWrapper>,
     );
 
     expect(screen.getByText(/예상치 못한 오류/)).toBeInTheDocument();
@@ -68,7 +66,7 @@ describe('ErrorBoundary Tests', () => {
         <GlobalErrorBoundary>
           <ErrorThrowingComponent shouldThrow={true} />
         </GlobalErrorBoundary>
-      </TestWrapper>
+      </TestWrapper>,
     );
 
     // 에러 UI가 표시되는지 확인
@@ -84,7 +82,7 @@ describe('ErrorBoundary Tests', () => {
         <GlobalErrorBoundary>
           <ErrorThrowingComponent shouldThrow={false} />
         </GlobalErrorBoundary>
-      </TestWrapper>
+      </TestWrapper>,
     );
 
     expect(screen.getByText('No error')).toBeInTheDocument();
@@ -100,7 +98,7 @@ describe('ErrorBoundary Tests', () => {
         <GlobalErrorBoundary>
           <ChunkErrorComponent />
         </GlobalErrorBoundary>
-      </TestWrapper>
+      </TestWrapper>,
     );
 
     expect(screen.getByText(/페이지 로딩 오류/)).toBeInTheDocument();
@@ -113,7 +111,7 @@ describe('ErrorBoundary Tests', () => {
         <GlobalErrorBoundary>
           <ErrorThrowingComponent shouldThrow={true} />
         </GlobalErrorBoundary>
-      </TestWrapper>
+      </TestWrapper>,
     );
 
     // 기술적 세부사항 버튼 찾기
@@ -136,7 +134,7 @@ describe('ErrorBoundary Tests', () => {
         <GlobalErrorBoundary fallback={customFallback}>
           <ErrorThrowingComponent shouldThrow={true} />
         </GlobalErrorBoundary>
-      </TestWrapper>
+      </TestWrapper>,
     );
 
     expect(screen.getByText('Custom error fallback')).toBeInTheDocument();

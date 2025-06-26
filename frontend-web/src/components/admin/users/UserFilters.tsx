@@ -46,7 +46,7 @@ const UserFilters: React.FC<UserFiltersProps> = ({ filters, onFilterChange }) =>
       status: undefined,
       sortBy: 'createdAt',
       sortOrder: 'DESC',
-      page: 1
+      page: 1,
     });
   };
 
@@ -68,7 +68,7 @@ const UserFilters: React.FC<UserFiltersProps> = ({ filters, onFilterChange }) =>
             className="search-input"
             placeholder="이메일 또는 사용자 ID로 검색..."
             value={searchValue}
-            onChange={(e) => handleSearchChange(e.target.value)}
+            onChange={e => handleSearchChange(e.target.value)}
           />
           <span className="search-icon">🔍</span>
         </div>
@@ -79,7 +79,7 @@ const UserFilters: React.FC<UserFiltersProps> = ({ filters, onFilterChange }) =>
             id="status-filter"
             className="filter-select"
             value={filters.status || 'all'}
-            onChange={(e) => handleStatusChange(e.target.value)}
+            onChange={e => handleStatusChange(e.target.value)}
           >
             <option value="all">전체</option>
             <option value="active">활성</option>
@@ -95,7 +95,7 @@ const UserFilters: React.FC<UserFiltersProps> = ({ filters, onFilterChange }) =>
             id="limit-filter"
             className="filter-select"
             value={filters.limit}
-            onChange={(e) => handleLimitChange(parseInt(e.target.value))}
+            onChange={e => handleLimitChange(parseInt(e.target.value))}
           >
             <option value={10}>10개</option>
             <option value={20}>20개</option>
@@ -105,11 +105,7 @@ const UserFilters: React.FC<UserFiltersProps> = ({ filters, onFilterChange }) =>
         </div>
 
         {hasActiveFilters && (
-          <button
-            className="clear-filters-btn"
-            onClick={handleClearFilters}
-            title="필터 초기화"
-          >
+          <button className="clear-filters-btn" onClick={handleClearFilters} title="필터 초기화">
             🗑️ 초기화
           </button>
         )}
@@ -150,8 +146,7 @@ const UserFilters: React.FC<UserFiltersProps> = ({ filters, onFilterChange }) =>
           <span className="active-filters-label">활성 필터:</span>
           {filters.search && (
             <span className="filter-tag">
-              검색: "{filters.search}"
-              <button onClick={() => handleSearchChange('')}>×</button>
+              검색: "{filters.search}"<button onClick={() => handleSearchChange('')}>×</button>
             </span>
           )}
           {filters.status && (

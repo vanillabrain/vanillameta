@@ -60,7 +60,9 @@ const AnalyticsSummaryCards: React.FC<Props> = ({ summary }) => {
           >
             <CardContent>
               <Box display="flex" alignItems="center" mb={2}>
-                <Box color={card.color} mr={2}>{card.icon}</Box>
+                <Box color={card.color} mr={2}>
+                  {card.icon}
+                </Box>
                 <Typography variant="h6" component="div">
                   {card.title}
                 </Typography>

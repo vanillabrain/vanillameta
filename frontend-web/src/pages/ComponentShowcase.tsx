@@ -1,22 +1,22 @@
-import React from 'react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Checkbox } from '@/components/ui/checkbox'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Switch } from '@/components/ui/switch'
-import { Textarea } from '@/components/ui/textarea'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ThemeToggle } from '@/components/theme-toggle'
-import { AlertCircle, Check } from 'lucide-react'
+import React from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { AlertCircle, Check } from 'lucide-react';
 
 export default function ComponentShowcase() {
-  const [open, setOpen] = React.useState(false)
+  const [open, setOpen] = React.useState(false);
 
   return (
     <div className="container mx-auto p-8 space-y-8">
@@ -52,7 +52,7 @@ export default function ComponentShowcase() {
             <Label htmlFor="email">이메일</Label>
             <Input id="email" type="email" placeholder="email@example.com" />
           </div>
-          
+
           <div>
             <Label htmlFor="message">메시지</Label>
             <Textarea id="message" placeholder="메시지를 입력하세요..." />
@@ -102,17 +102,13 @@ export default function ComponentShowcase() {
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>알림</AlertTitle>
-            <AlertDescription>
-              이것은 기본 알림 메시지입니다.
-            </AlertDescription>
+            <AlertDescription>이것은 기본 알림 메시지입니다.</AlertDescription>
           </Alert>
-          
+
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>오류</AlertTitle>
-            <AlertDescription>
-              작업 중 오류가 발생했습니다.
-            </AlertDescription>
+            <AlertDescription>작업 중 오류가 발생했습니다.</AlertDescription>
           </Alert>
         </CardContent>
       </Card>
@@ -165,15 +161,15 @@ export default function ComponentShowcase() {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>다이얼로그 제목</DialogTitle>
-                <DialogDescription>
-                  이것은 다이얼로그의 설명 텍스트입니다.
-                </DialogDescription>
+                <DialogDescription>이것은 다이얼로그의 설명 텍스트입니다.</DialogDescription>
               </DialogHeader>
               <div className="py-4">
                 <p>다이얼로그 콘텐츠가 여기에 표시됩니다.</p>
               </div>
               <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setOpen(false)}>취소</Button>
+                <Button variant="outline" onClick={() => setOpen(false)}>
+                  취소
+                </Button>
                 <Button onClick={() => setOpen(false)}>확인</Button>
               </div>
             </DialogContent>
@@ -181,5 +177,5 @@ export default function ComponentShowcase() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

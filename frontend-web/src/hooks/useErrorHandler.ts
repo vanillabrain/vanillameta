@@ -37,7 +37,7 @@ export const useErrorHandler = (): UseErrorHandlerReturn => {
     }
 
     const { status } = error.response;
-    
+
     switch (status) {
       case 400:
         return '잘못된 요청입니다. 입력 내용을 확인해 주세요.';
@@ -64,81 +64,96 @@ export const useErrorHandler = (): UseErrorHandlerReturn => {
     }
   };
 
-  const handleError = useCallback((error: Error | ApiError, context?: string) => {
-    console.error('Error handled:', error, 'Context:', context);
-    
-    // API 에러인지 확인
-    if ('response' in error || 'request' in error) {
-      handleApiError(error as ApiError, context);
-      return;
-    }
+  const handleError = useCallback(
+    (error: Error | ApiError, context?: string) => {
+      console.error('Error handled:', error, 'Context:', context);
 
-    // 청크 로딩 에러인지 확인
-    if (error.message.includes('Loading chunk') || error.message.includes('Failed to fetch')) {
-      handleChunkError(error, context);
-      return;
-    }
+      // API 에러인지 확인
+      if ('response' in error || 'request' in error) {
+        handleApiError(error as ApiError, context);
+        return;
+      }
 
-    // 일반 JavaScript 에러
-    reportError(error, ErrorType.JAVASCRIPT_ERROR, ErrorSeverity.MEDIUM, {
-      context,
-      timestamp: Date.now(),
-    });
+      // 청크 로딩 에러인지 확인
+      if (error.message.includes('Loading chunk') || error.message.includes('Failed to fetch')) {
+        handleChunkError(error, context);
+        return;
+      }
 
-    // 사용자에게 알림 표시
-    alert.error('오류가 발생했습니다. 다시 시도해 주세요.');
-  }, [reportError, alert]);
+      // 일반 JavaScript 에러
+      reportError(error, ErrorType.JAVASCRIPT_ERROR, ErrorSeverity.MEDIUM, {
+        context,
+        timestamp: Date.now(),
+      });
 
-  const handleApiError = useCallback((error: ApiError, context?: string) => {
-    const severity = error.response ? getErrorSeverityFromStatus(error.response.status) : ErrorSeverity.HIGH;
-    const userMessage = getUserFriendlyMessage(error);
+      // 사용자에게 알림 표시
+      alert.error('오류가 발생했습니다. 다시 시도해 주세요.');
+    },
+    [reportError, alert],
+  );
 
-    reportError(error, ErrorType.API_ERROR, severity, {
-      context,
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      url: error.request?.responseURL,
-      method: error.request?.method,
-      timestamp: Date.now(),
-    });
+  const handleApiError = useCallback(
+    (error: ApiError, context?: string) => {
+      const severity = error.response ? getErrorSeverityFromStatus(error.response.status) : ErrorSeverity.HIGH;
+      const userMessage = getUserFriendlyMessage(error);
 
-    // 401 에러의 경우 로그인 페이지로 리다이렉트
-    if (error.response?.status === 401) {
-      // 로그인 페이지로 리다이렉트 로직
-      window.location.href = '/login';
-      return;
-    }
+      reportError(error, ErrorType.API_ERROR, severity, {
+        context,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        url: error.request?.responseURL,
+        method: error.request?.method,
+        timestamp: Date.now(),
+      });
 
-    // 사용자에게 친화적인 에러 메시지 표시
-    alert.error(userMessage);
-  }, [reportError, alert]);
+      // 401 에러의 경우 로그인 페이지로 리다이렉트
+      if (error.response?.status === 401) {
+        // 로그인 페이지로 리다이렉트 로직
+        window.location.href = '/login';
+        return;
+      }
 
-  const handleNetworkError = useCallback((error: Error, context?: string) => {
-    reportError(error, ErrorType.NETWORK_ERROR, ErrorSeverity.HIGH, {
-      context,
-      timestamp: Date.now(),
-    });
+      // 사용자에게 친화적인 에러 메시지 표시
+      alert.error(userMessage);
+    },
+    [reportError, alert],
+  );
 
-    alert.error('네트워크 연결을 확인하고 다시 시도해 주세요.');
-  }, [reportError, alert]);
+  const handleNetworkError = useCallback(
+    (error: Error, context?: string) => {
+      reportError(error, ErrorType.NETWORK_ERROR, ErrorSeverity.HIGH, {
+        context,
+        timestamp: Date.now(),
+      });
 
-  const handleChunkError = useCallback((error: Error, context?: string) => {
-    reportError(error, ErrorType.CHUNK_LOAD_ERROR, ErrorSeverity.HIGH, {
-      context,
-      timestamp: Date.now(),
-    });
+      alert.error('네트워크 연결을 확인하고 다시 시도해 주세요.');
+    },
+    [reportError, alert],
+  );
 
-    alert.error('페이지를 새로고침해 주세요.');
-  }, [reportError, alert]);
+  const handleChunkError = useCallback(
+    (error: Error, context?: string) => {
+      reportError(error, ErrorType.CHUNK_LOAD_ERROR, ErrorSeverity.HIGH, {
+        context,
+        timestamp: Date.now(),
+      });
 
-  const handlePermissionError = useCallback((error: Error, context?: string) => {
-    reportError(error, ErrorType.PERMISSION_ERROR, ErrorSeverity.HIGH, {
-      context,
-      timestamp: Date.now(),
-    });
+      alert.error('페이지를 새로고침해 주세요.');
+    },
+    [reportError, alert],
+  );
 
-    alert.error('접근 권한이 없습니다. 관리자에게 문의해 주세요.');
-  }, [reportError, alert]);
+  const handlePermissionError = useCallback(
+    (error: Error, context?: string) => {
+      reportError(error, ErrorType.PERMISSION_ERROR, ErrorSeverity.HIGH, {
+        context,
+        timestamp: Date.now(),
+      });
+
+      alert.error('접근 권한이 없습니다. 관리자에게 문의해 주세요.');
+    },
+    [reportError, alert],
+  );
 
   return {
     handleError,

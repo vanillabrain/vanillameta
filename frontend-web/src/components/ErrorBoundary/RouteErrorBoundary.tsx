@@ -9,33 +9,20 @@ interface RouteErrorBoundaryProps {
   fallback?: React.ReactNode;
 }
 
-const RouteErrorBoundary: React.FC<RouteErrorBoundaryProps> = ({
-  children,
-  routeName,
-  fallback,
-}) => {
+const RouteErrorBoundary: React.FC<RouteErrorBoundaryProps> = ({ children, routeName, fallback }) => {
   const { reportError } = useError();
 
   const handleError = (error: Error, errorInfo: any) => {
     // 라우트별 에러 리포팅
-    reportError(
-      error,
-      ErrorType.JAVASCRIPT_ERROR,
-      ErrorSeverity.HIGH,
-      {
-        routeName,
-        componentStack: errorInfo.componentStack,
-        url: window.location.href,
-      }
-    );
+    reportError(error, ErrorType.JAVASCRIPT_ERROR, ErrorSeverity.HIGH, {
+      routeName,
+      componentStack: errorInfo.componentStack,
+      url: window.location.href,
+    });
   };
 
   return (
-    <GlobalErrorBoundary
-      level="route"
-      onError={handleError}
-      fallback={fallback}
-    >
+    <GlobalErrorBoundary level="route" onError={handleError} fallback={fallback}>
       {children}
     </GlobalErrorBoundary>
   );

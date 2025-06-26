@@ -3,12 +3,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import { Plus, Minus } from 'lucide-react';
 import IconPlus from '@/assets/images/icon/btn-plus.svg';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 const menuWidth = 200;
 
@@ -30,7 +25,7 @@ export const AddMenuButton = ({ menuList, label }) => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size={matches ? "default" : "icon"}>
+        <Button variant="outline" size={matches ? 'default' : 'icon'}>
           {matches ? (
             <>
               <Plus className="mr-2 h-4 w-4" />
@@ -44,9 +39,7 @@ export const AddMenuButton = ({ menuList, label }) => {
       <DropdownMenuContent className="w-[200px]">
         {menuList.map(item => (
           <DropdownMenuItem key={item.name} asChild>
-            <RouterLink to={item.link}>
-              {item.name}
-            </RouterLink>
+            <RouterLink to={item.link}>{item.name}</RouterLink>
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
@@ -70,20 +63,12 @@ export const AddMenuIconButton = ({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="flex-auto">
-          <img 
-            src={iconUrl} 
-            style={sizeOption} 
-            alt="추가메뉴" 
-            className="object-contain"
-          />
+          <img src={iconUrl} style={sizeOption} alt="추가메뉴" className="object-contain" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-[200px]">
         {menuList.map(item => (
-          <DropdownMenuItem 
-            key={item.name} 
-            onClick={() => handleSelect && handleSelect(item)}
-          >
+          <DropdownMenuItem key={item.name} onClick={() => handleSelect && handleSelect(item)}>
             {item.name}
           </DropdownMenuItem>
         ))}
@@ -146,10 +131,7 @@ export const MenuButton = ({ menuList, handleSelect = null, icon, title, sizeOpt
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-[200px]">
         {menuList.map(item => (
-          <DropdownMenuItem 
-            key={item.name} 
-            onClick={() => handleSelect && handleSelect(item)}
-          >
+          <DropdownMenuItem key={item.name} onClick={() => handleSelect && handleSelect(item)}>
             {item.name}
           </DropdownMenuItem>
         ))}

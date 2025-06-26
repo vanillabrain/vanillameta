@@ -47,10 +47,10 @@ const Grid = React.forwardRef<HTMLDivElement, GridProps>(
       zeroMinWidth = false,
       ...props
     },
-    ref
+    ref,
   ) => {
     // 그리드 컬럼 값을 Tailwind 클래스로 변환
-    const getGridColClass = (value: number | 'auto' | boolean | undefined, breakpoint: string = '') => {
+    const getGridColClass = (value: number | 'auto' | boolean | undefined, breakpoint = '') => {
       if (value === undefined) return '';
       if (value === 'auto') return `${breakpoint}${breakpoint ? ':' : ''}col-auto`;
       if (value === true) return `${breakpoint}${breakpoint ? ':' : ''}grow`;
@@ -96,7 +96,7 @@ const Grid = React.forwardRef<HTMLDivElement, GridProps>(
       container && [
         'flex',
         wrap === 'wrap' && 'flex-wrap',
-        wrap === 'nowrap' && 'flex-nowrap', 
+        wrap === 'nowrap' && 'flex-nowrap',
         wrap === 'wrap-reverse' && 'flex-wrap-reverse',
         direction === 'row' && 'flex-row',
         direction === 'row-reverse' && 'flex-row-reverse',
@@ -116,7 +116,7 @@ const Grid = React.forwardRef<HTMLDivElement, GridProps>(
         spacing > 0 && getGapClass(spacing),
         // 음수 마진 처리 (MUI Grid의 특징)
         spacing > 0 && `-m-${spacing}`,
-      ]
+      ],
     );
 
     const itemClasses = cn(
@@ -130,25 +130,17 @@ const Grid = React.forwardRef<HTMLDivElement, GridProps>(
         getGridColClass(md, 'md'),
         getGridColClass(lg, 'lg'),
         getGridColClass(xl, 'xl'),
-      ]
+      ],
     );
 
-    const classes = cn(
-      containerClasses,
-      itemClasses,
-      className
-    );
+    const classes = cn(containerClasses, itemClasses, className);
 
     return (
-      <Component
-        ref={ref}
-        className={classes}
-        {...props}
-      >
+      <Component ref={ref} className={classes} {...props}>
         {children}
       </Component>
     );
-  }
+  },
 );
 
 Grid.displayName = 'Grid';

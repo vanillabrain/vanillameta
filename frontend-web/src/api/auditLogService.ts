@@ -84,7 +84,7 @@ class AuditLogService {
   async getAuditLogs(filters: AuditLogFilters = {}): Promise<PaginatedResponse<AuditLog>> {
     try {
       const queryParams = new URLSearchParams();
-      
+
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== '') {
           queryParams.append(key, value.toString());
@@ -93,7 +93,7 @@ class AuditLogService {
 
       const url = `${this.baseUrl}?${queryParams.toString()}`;
       const response = await get<PaginatedResponse<AuditLog>>(url);
-      
+
       return response;
     } catch (error) {
       console.error('Failed to get audit logs:', error);
@@ -193,28 +193,28 @@ class AuditLogService {
    */
   getActionDisplayName(action: string): string {
     const actionMap: Record<string, string> = {
-      'user_login': '사용자 로그인',
-      'user_logout': '사용자 로그아웃',
-      'user_register': '사용자 가입',
-      'user_update': '사용자 정보 수정',
-      'user_delete': '사용자 삭제',
-      'user_approve': '사용자 승인',
-      'user_reject': '사용자 거부',
-      'role_create': '역할 생성',
-      'role_update': '역할 수정',
-      'role_delete': '역할 삭제',
-      'dashboard_create': '대시보드 생성',
-      'dashboard_update': '대시보드 수정',
-      'dashboard_delete': '대시보드 삭제',
-      'dashboard_share': '대시보드 공유',
-      'widget_create': '위젯 생성',
-      'widget_update': '위젯 수정',
-      'widget_delete': '위젯 삭제',
-      'system_config_update': '시스템 설정 변경',
-      'system_backup': '시스템 백업',
-      'admin_access': '관리자 페이지 접근',
-      'admin_user_view': '관리자 사용자 조회',
-      'admin_role_view': '관리자 역할 조회',
+      user_login: '사용자 로그인',
+      user_logout: '사용자 로그아웃',
+      user_register: '사용자 가입',
+      user_update: '사용자 정보 수정',
+      user_delete: '사용자 삭제',
+      user_approve: '사용자 승인',
+      user_reject: '사용자 거부',
+      role_create: '역할 생성',
+      role_update: '역할 수정',
+      role_delete: '역할 삭제',
+      dashboard_create: '대시보드 생성',
+      dashboard_update: '대시보드 수정',
+      dashboard_delete: '대시보드 삭제',
+      dashboard_share: '대시보드 공유',
+      widget_create: '위젯 생성',
+      widget_update: '위젯 수정',
+      widget_delete: '위젯 삭제',
+      system_config_update: '시스템 설정 변경',
+      system_backup: '시스템 백업',
+      admin_access: '관리자 페이지 접근',
+      admin_user_view: '관리자 사용자 조회',
+      admin_role_view: '관리자 역할 조회',
     };
 
     return actionMap[action] || action;
@@ -225,9 +225,9 @@ class AuditLogService {
    */
   getStatusDisplayName(status: string): string {
     const statusMap: Record<string, string> = {
-      'success': '성공',
-      'error': '오류',
-      'warning': '경고',
+      success: '성공',
+      error: '오류',
+      warning: '경고',
     };
 
     return statusMap[status] || status;
@@ -238,9 +238,9 @@ class AuditLogService {
    */
   getStatusColor(status: string): string {
     const colorMap: Record<string, string> = {
-      'success': '#28a745',
-      'error': '#dc3545',
-      'warning': '#ffc107',
+      success: '#28a745',
+      error: '#dc3545',
+      warning: '#ffc107',
     };
 
     return colorMap[status] || '#6c757d';
@@ -251,11 +251,4 @@ class AuditLogService {
 export const auditLogService = new AuditLogService();
 
 // 타입 내보내기
-export type { 
-  AuditLog, 
-  CreateAuditLogRequest, 
-  AuditLogFilters, 
-  AuditLogStats, 
-  AvailableActions, 
-  ActionInfo 
-};
+export type { AuditLog, CreateAuditLogRequest, AuditLogFilters, AuditLogStats, AvailableActions, ActionInfo };

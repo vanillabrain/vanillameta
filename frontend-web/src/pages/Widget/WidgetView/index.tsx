@@ -144,7 +144,7 @@ const WidgetView = () => {
               }}
             />
             <ModifyButton
-              size="medium"
+              size="default"
               sx={{ marginRight: '36px', padding: 0 }}
               onClick={event => {
                 event.preventDefault();
@@ -153,7 +153,7 @@ const WidgetView = () => {
               }}
             />
             <DeleteButton
-              size="medium"
+              size="default"
               sx={{ padding: 0 }}
               onClick={event => {
                 event.preventDefault();

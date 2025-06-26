@@ -3,13 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useMutation } from '@tanstack/react-query';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,11 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Loader2, CheckCircle, User, Shield, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import {
-  adminRoleService,
-  CreateRoleRequest,
-  GroupedPermissions,
-} from '../../../api/adminRoleService';
+import { adminRoleService, CreateRoleRequest, GroupedPermissions } from '../../../api/adminRoleService';
 import PermissionTree from './PermissionTree';
 
 interface CreateRoleModalProps {
@@ -40,23 +30,16 @@ const createRoleSchema = z.object({
     .regex(/^[a-z_]+$/, '소문자와 언더스코어만 사용 가능합니다'),
   displayName: z.string().min(1, '표시 이름을 입력하세요'),
   description: z.string().optional(),
-  level: z
-    .number()
-    .min(1, '권한 레벨은 1 이상이어야 합니다')
-    .max(100, '권한 레벨은 100 이하여야 합니다'),
+  level: z.number().min(1, '권한 레벨은 1 이상이어야 합니다').max(100, '권한 레벨은 100 이하여야 합니다'),
 });
 
 type CreateRoleFormData = z.infer<typeof createRoleSchema>;
 
-const CreateRoleModal: React.FC<CreateRoleModalProps> = ({
-  groupedPermissions,
-  onClose,
-  onSuccess,
-}) => {
+const CreateRoleModal: React.FC<CreateRoleModalProps> = ({ groupedPermissions, onClose, onSuccess }) => {
   const { toast } = useToast();
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
   const [currentStep, setCurrentStep] = useState(0);
-  
+
   const form = useForm<CreateRoleFormData>({
     resolver: zodResolver(createRoleSchema),
     defaultValues: {
@@ -93,7 +76,7 @@ const CreateRoleModal: React.FC<CreateRoleModalProps> = ({
       level: data.level,
       permissionIds: selectedPermissions,
     };
-    
+
     createRoleMutation.mutate(requestData);
   };
 
@@ -130,32 +113,18 @@ const CreateRoleModal: React.FC<CreateRoleModalProps> = ({
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">역할 ID</Label>
-              <Input
-                id="name"
-                placeholder="예: content_manager"
-                {...form.register('name')}
-              />
-              <p className="text-xs text-muted-foreground">
-                영문 소문자와 언더스코어(_)만 사용 가능합니다
-              </p>
+              <Input id="name" placeholder="예: content_manager" {...form.register('name')} />
+              <p className="text-xs text-muted-foreground">영문 소문자와 언더스코어(_)만 사용 가능합니다</p>
               {form.formState.errors.name && (
-                <p className="text-xs text-destructive">
-                  {form.formState.errors.name.message}
-                </p>
+                <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>
               )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="displayName">표시 이름</Label>
-              <Input
-                id="displayName"
-                placeholder="예: 콘텐츠 관리자"
-                {...form.register('displayName')}
-              />
+              <Input id="displayName" placeholder="예: 콘텐츠 관리자" {...form.register('displayName')} />
               {form.formState.errors.displayName && (
-                <p className="text-xs text-destructive">
-                  {form.formState.errors.displayName.message}
-                </p>
+                <p className="text-xs text-destructive">{form.formState.errors.displayName.message}</p>
               )}
             </div>
 
@@ -179,13 +148,9 @@ const CreateRoleModal: React.FC<CreateRoleModalProps> = ({
                 placeholder="50"
                 {...form.register('level', { valueAsNumber: true })}
               />
-              <p className="text-xs text-muted-foreground">
-                높을수록 상위 권한 (1-100)
-              </p>
+              <p className="text-xs text-muted-foreground">높을수록 상위 권한 (1-100)</p>
               {form.formState.errors.level && (
-                <p className="text-xs text-destructive">
-                  {form.formState.errors.level.message}
-                </p>
+                <p className="text-xs text-destructive">{form.formState.errors.level.message}</p>
               )}
             </div>
           </div>
@@ -196,9 +161,7 @@ const CreateRoleModal: React.FC<CreateRoleModalProps> = ({
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h4 className="font-medium">역할에 할당할 권한을 선택하세요</h4>
-              <div className="text-sm text-muted-foreground">
-                선택된 권한: {selectedPermissions.length}개
-              </div>
+              <div className="text-sm text-muted-foreground">선택된 권한: {selectedPermissions.length}개</div>
             </div>
             <PermissionTree
               groupedPermissions={groupedPermissions}
@@ -257,8 +220,7 @@ const CreateRoleModal: React.FC<CreateRoleModalProps> = ({
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Plus className="h-5 w-5" />
-            새 역할 생성
+            <Plus className="h-5 w-5" />새 역할 생성
           </DialogTitle>
         </DialogHeader>
 
@@ -268,39 +230,38 @@ const CreateRoleModal: React.FC<CreateRoleModalProps> = ({
             const Icon = step.icon;
             const isActive = index === currentStep;
             const isCompleted = index < currentStep;
-            
+
             return (
               <div key={index} className="flex items-center">
-                <div className={cn(
-                  "flex items-center justify-center w-8 h-8 rounded-full border-2 transition-colors",
-                  isActive && "border-primary bg-primary text-primary-foreground",
-                  isCompleted && "border-primary bg-primary text-primary-foreground",
-                  !isActive && !isCompleted && "border-muted-foreground text-muted-foreground"
-                )}>
+                <div
+                  className={cn(
+                    'flex items-center justify-center w-8 h-8 rounded-full border-2 transition-colors',
+                    isActive && 'border-primary bg-primary text-primary-foreground',
+                    isCompleted && 'border-primary bg-primary text-primary-foreground',
+                    !isActive && !isCompleted && 'border-muted-foreground text-muted-foreground',
+                  )}
+                >
                   <Icon className="h-4 w-4" />
                 </div>
-                <span className={cn(
-                  "ml-2 text-sm font-medium",
-                  isActive && "text-primary",
-                  isCompleted && "text-primary",
-                  !isActive && !isCompleted && "text-muted-foreground"
-                )}>
+                <span
+                  className={cn(
+                    'ml-2 text-sm font-medium',
+                    isActive && 'text-primary',
+                    isCompleted && 'text-primary',
+                    !isActive && !isCompleted && 'text-muted-foreground',
+                  )}
+                >
                   {step.title}
                 </span>
                 {index < steps.length - 1 && (
-                  <div className={cn(
-                    "w-12 h-0.5 mx-4",
-                    isCompleted ? "bg-primary" : "bg-muted"
-                  )} />
+                  <div className={cn('w-12 h-0.5 mx-4', isCompleted ? 'bg-primary' : 'bg-muted')} />
                 )}
               </div>
             );
           })}
         </div>
 
-        <div className="overflow-y-auto max-h-[calc(90vh-240px)]">
-          {renderStepContent()}
-        </div>
+        <div className="overflow-y-auto max-h-[calc(90vh-240px)]">{renderStepContent()}</div>
 
         <DialogFooter className="flex justify-between">
           <Button variant="outline" onClick={onClose}>
@@ -313,14 +274,9 @@ const CreateRoleModal: React.FC<CreateRoleModalProps> = ({
               </Button>
             )}
             {currentStep < steps.length - 1 ? (
-              <Button onClick={handleNext}>
-                다음
-              </Button>
+              <Button onClick={handleNext}>다음</Button>
             ) : (
-              <Button 
-                onClick={form.handleSubmit(handleSubmit)}
-                disabled={createRoleMutation.isPending}
-              >
+              <Button onClick={form.handleSubmit(handleSubmit)} disabled={createRoleMutation.isPending}>
                 {createRoleMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 <Plus className="mr-2 h-4 w-4" />
                 생성

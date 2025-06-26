@@ -32,9 +32,7 @@ function Header() {
   const hasAdminPermission = user && true; // 향후 실제 권한 체크 로직으로 교체
 
   // 관리자 권한이 있으면 Admin 링크 추가
-  const navItems = hasAdminPermission 
-    ? [...baseNavItems, { id: 4, name: '🔧 관리자', link: 'admin' }]
-    : baseNavItems;
+  const navItems = hasAdminPermission ? [...baseNavItems, { id: 4, name: '🔧 관리자', link: 'admin' }] : baseNavItems;
 
   const menuList = getMenuList(t);
 

@@ -28,16 +28,16 @@ const AdminRoutes: React.FC = () => {
               <Route path="roles" element={<RoleManagement />} />
               <Route path="audit" element={<AuditLogManagement />} />
               <Route path="settings" element={<SystemSettings />} />
-              
+
               {/* 404 페이지 */}
-              <Route 
-                path="*" 
+              <Route
+                path="*"
                 element={
                   <div style={{ padding: '20px', textAlign: 'center' }}>
                     <h2>❌ 페이지를 찾을 수 없습니다</h2>
                     <p>요청하신 관리자 페이지가 존재하지 않습니다.</p>
                   </div>
-                } 
+                }
               />
             </Routes>
           </AdminLayout>

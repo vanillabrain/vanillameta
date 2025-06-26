@@ -6,13 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { auditLogServiceV2 } from '../../../api/auditLogServiceV2';
-import {
-  AuditLog,
-  AuditLogFilters,
-  ExportAuditLogsDto,
-  AuditLogLevel,
-  AuditLogCategory
-} from '../../../types/audit';
+import { AuditLog, AuditLogFilters, ExportAuditLogsDto, AuditLogLevel, AuditLogCategory } from '../../../types/audit';
 import { AuditLogFilters as AuditLogFiltersComponent } from './AuditLogFilters';
 import { AuditLogTable } from './AuditLogTable';
 import { AuditLogDetailModal } from './AuditLogDetailModal';
@@ -36,7 +30,11 @@ export const AuditLogManagement: React.FC = () => {
   const { toast } = useToast();
 
   // 감사 로그 목록 조회
-  const { data: logs, isPending: isLoading, refetch } = useQuery({
+  const {
+    data: logs,
+    isPending: isLoading,
+    refetch,
+  } = useQuery({
     queryKey: ['audit-logs', filters],
     queryFn: () => auditLogServiceV2.getAuditLogs(filters),
     placeholderData: (previousData: any) => previousData,
@@ -45,10 +43,11 @@ export const AuditLogManagement: React.FC = () => {
   // 통계 조회
   const { data: stats } = useQuery({
     queryKey: ['audit-stats', filters.dateFrom, filters.dateTo],
-    queryFn: () => auditLogServiceV2.getAuditLogStats({
-      dateFrom: filters.dateFrom,
-      dateTo: filters.dateTo,
-    }),
+    queryFn: () =>
+      auditLogServiceV2.getAuditLogStats({
+        dateFrom: filters.dateFrom,
+        dateTo: filters.dateTo,
+      }),
   });
 
   // 사용 가능한 액션 목록 조회
@@ -78,8 +77,7 @@ export const AuditLogManagement: React.FC = () => {
 
   // 내보내기 mutation
   const exportMutation = useMutation({
-    mutationFn: (exportParams: ExportAuditLogsDto) =>
-      auditLogServiceV2.exportAuditLogs(exportParams),
+    mutationFn: (exportParams: ExportAuditLogsDto) => auditLogServiceV2.exportAuditLogs(exportParams),
     onSuccess: (blob, variables) => {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -92,7 +90,7 @@ export const AuditLogManagement: React.FC = () => {
         description: '감사 로그가 성공적으로 내보내졌습니다.',
       });
     },
-    onError: (error) => {
+    onError: error => {
       console.error('Export failed:', error);
       toast({
         title: '오류',
@@ -127,25 +125,14 @@ export const AuditLogManagement: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-2xl font-bold">감사 로그</CardTitle>
-              <CardDescription>
-                시스템에서 발생한 모든 활동을 추적하고 모니터링합니다.
-              </CardDescription>
+              <CardDescription>시스템에서 발생한 모든 활동을 추적하고 모니터링합니다.</CardDescription>
             </div>
             <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setShowExportModal(true)}
-                className="flex items-center gap-2"
-              >
+              <Button variant="outline" onClick={() => setShowExportModal(true)} className="flex items-center gap-2">
                 <Download className="h-4 w-4" />
                 내보내기
               </Button>
-              <Button
-                variant="outline"
-                onClick={() => refetch()}
-                disabled={isLoading}
-                className="flex items-center gap-2"
-              >
+              <Button variant="outline" onClick={() => refetch()} disabled={isLoading} className="flex items-center gap-2">
                 <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
                 새로고침
               </Button>
@@ -206,7 +193,7 @@ export const AuditLogManagement: React.FC = () => {
         <ExportAuditLogsModal
           initialFilters={filters}
           onClose={() => setShowExportModal(false)}
-          onExport={(exportParams) => {
+          onExport={exportParams => {
             exportMutation.mutate(exportParams);
             setShowExportModal(false);
           }}

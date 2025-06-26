@@ -145,7 +145,6 @@ const SignUp = () => {
                 후<br /> 편리하게 이용하세요.
               </Typography>
               <TextField
-                margin="normal"
                 required
                 fullWidth
                 label="User ID"
@@ -155,7 +154,6 @@ const SignUp = () => {
                 onChange={handleChange}
               />
               <TextField
-                margin="normal"
                 required
                 fullWidth
                 name="userPwd"
@@ -163,10 +161,8 @@ const SignUp = () => {
                 onChange={handleChange}
                 label="Password"
                 type="password"
-                sx={{ height: '36px' }}
               />
               <TextField
-                margin="normal"
                 required
                 fullWidth
                 name="userConfirmPwd"
@@ -174,10 +170,8 @@ const SignUp = () => {
                 onChange={handleChange}
                 label="Confirm Password"
                 type="password"
-                sx={{ height: '36px' }}
               />
               <TextField
-                margin="normal"
                 required
                 fullWidth
                 name="userEmail"
@@ -185,9 +179,8 @@ const SignUp = () => {
                 onChange={handleChange}
                 label="E-mail"
                 type="email"
-                sx={{ height: '36px' }}
               />
-              <Button type="submit" size="large" fullWidth variant="contained" sx={{ mt: 3, mb: 2 }}>
+              <Button type="submit" size="large" fullWidth variant="contained" sx={{ marginTop: 3, marginBottom: 2 }}>
                 가입하기
               </Button>
             </Stack>

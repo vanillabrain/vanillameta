@@ -68,7 +68,7 @@ const RecentActivity: React.FC<RecentActivityProps> = ({ logs }) => {
       const date = new Date(dateString);
       const now = new Date();
       const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-      
+
       if (diffInMinutes < 1) {
         return '방금 전';
       } else if (diffInMinutes < 60) {
@@ -81,7 +81,7 @@ const RecentActivity: React.FC<RecentActivityProps> = ({ logs }) => {
           month: 'short',
           day: 'numeric',
           hour: '2-digit',
-          minute: '2-digit'
+          minute: '2-digit',
         });
       }
     } catch (error) {
@@ -103,28 +103,22 @@ const RecentActivity: React.FC<RecentActivityProps> = ({ logs }) => {
   return (
     <div className="recent-activity">
       <div className="activity-list">
-        {logs.map((log) => (
+        {logs.map(log => (
           <div key={log.id} className="activity-item">
-            <div className="activity-icon">
-              {getActionIcon(log.action)}
-            </div>
+            <div className="activity-icon">{getActionIcon(log.action)}</div>
             <div className="activity-content">
               <div className="activity-main">
                 <span className="user-email">{log.userEmail}</span>
                 <span className="activity-action">{getActionText(log.action)}</span>
               </div>
-              <div className="activity-time">
-                {formatTime(log.createdAt)}
-              </div>
+              <div className="activity-time">{formatTime(log.createdAt)}</div>
             </div>
           </div>
         ))}
       </div>
-      
+
       <div className="activity-footer">
-        <button className="btn-view-all">
-          📋 전체 로그 보기
-        </button>
+        <button className="btn-view-all">📋 전체 로그 보기</button>
       </div>
     </div>
   );

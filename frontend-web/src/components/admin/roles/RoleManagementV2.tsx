@@ -19,7 +19,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Users, Key, Copy, Trash2, Search, Loader2, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { 
+import {
   adminRoleService,
   Role,
   RoleWithStats,
@@ -44,11 +44,15 @@ const RoleManagementV2: React.FC = () => {
     search: '',
     isActive: undefined as boolean | undefined,
   });
-  
+
   const queryClient = useQueryClient();
 
   // 역할 목록 조회
-  const { data: roles, isLoading, refetch } = useQuery({
+  const {
+    data: roles,
+    isLoading,
+    refetch,
+  } = useQuery({
     queryKey: ['admin-roles', filters],
     queryFn: () => adminRoleService.getRoles(filters),
     placeholderData: (previousData: any) => previousData,
@@ -84,7 +88,7 @@ const RoleManagementV2: React.FC = () => {
   const handleDeleteRole = async (role: Role) => {
     try {
       const impact = await adminRoleService.getRoleDeletionImpact(role.id);
-      
+
       if (!impact.canDelete) {
         toast({
           title: '역할 삭제 불가',
@@ -112,13 +116,10 @@ const RoleManagementV2: React.FC = () => {
             <Shield className="h-8 w-8" />
             역할 관리
           </h1>
-          <p className="text-muted-foreground mt-2">
-            시스템 내 역할과 권한을 직관적으로 관리합니다.
-          </p>
+          <p className="text-muted-foreground mt-2">시스템 내 역할과 권한을 직관적으로 관리합니다.</p>
         </div>
         <Button onClick={() => setShowCreateModal(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          새 역할 생성
+          <Plus className="mr-2 h-4 w-4" />새 역할 생성
         </Button>
       </div>
 
@@ -128,9 +129,7 @@ const RoleManagementV2: React.FC = () => {
           <Card>
             <CardHeader>
               <CardTitle>역할 목록</CardTitle>
-              <CardDescription>
-                관리할 역할을 선택하세요
-              </CardDescription>
+              <CardDescription>관리할 역할을 선택하세요</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* 검색 */}
@@ -139,7 +138,7 @@ const RoleManagementV2: React.FC = () => {
                 <Input
                   placeholder="역할 이름 또는 설명으로 검색"
                   value={filters.search}
-                  onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                  onChange={e => setFilters({ ...filters, search: e.target.value })}
                   className="pl-8"
                 />
               </div>
@@ -151,12 +150,12 @@ const RoleManagementV2: React.FC = () => {
                     <Loader2 className="h-6 w-6 animate-spin" />
                   </div>
                 ) : roles?.length ? (
-                  roles.map((role) => (
+                  roles.map(role => (
                     <Card
                       key={role.id}
                       className={cn(
-                        "cursor-pointer transition-colors hover:bg-accent",
-                        selectedRole?.id === role.id && "ring-2 ring-primary bg-accent"
+                        'cursor-pointer transition-colors hover:bg-accent',
+                        selectedRole?.id === role.id && 'ring-2 ring-primary bg-accent',
                       )}
                       onClick={() => setSelectedRole(role)}
                     >
@@ -172,12 +171,10 @@ const RoleManagementV2: React.FC = () => {
                               <Badge variant={role.isActive ? 'default' : 'secondary'}>
                                 {role.isActive ? '활성' : '비활성'}
                               </Badge>
-                              {role.isDefault && (
-                                <Badge variant="outline">기본</Badge>
-                              )}
+                              {role.isDefault && <Badge variant="outline">기본</Badge>}
                             </div>
                           </div>
-                          
+
                           {/* 통계 */}
                           <div className="flex items-center gap-4 text-sm text-muted-foreground">
                             <div className="flex items-center gap-1">
@@ -189,19 +186,17 @@ const RoleManagementV2: React.FC = () => {
                               <span>{role.permissionCount || 0}개</span>
                             </div>
                           </div>
-                          
+
                           {/* 설명 */}
-                          <p className="text-xs text-muted-foreground line-clamp-2">
-                            {role.description || '설명 없음'}
-                          </p>
-                          
+                          <p className="text-xs text-muted-foreground line-clamp-2">{role.description || '설명 없음'}</p>
+
                           {/* 액션 */}
                           <Separator />
                           <div className="flex gap-2">
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={(e) => {
+                              onClick={e => {
                                 e.stopPropagation();
                                 setShowCloneModal(role);
                               }}
@@ -213,7 +208,7 @@ const RoleManagementV2: React.FC = () => {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={(e) => {
+                                onClick={e => {
                                   e.stopPropagation();
                                   handleDeleteRole(role);
                                 }}
@@ -252,9 +247,7 @@ const RoleManagementV2: React.FC = () => {
                 <div className="text-center">
                   <Shield className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
                   <h3 className="text-lg font-semibold mb-2">역할을 선택하세요</h3>
-                  <p className="text-muted-foreground">
-                    왼쪽 목록에서 역할을 선택하면 상세 정보를 볼 수 있습니다.
-                  </p>
+                  <p className="text-muted-foreground">왼쪽 목록에서 역할을 선택하면 상세 정보를 볼 수 있습니다.</p>
                 </div>
               </CardContent>
             </Card>
@@ -292,8 +285,7 @@ const RoleManagementV2: React.FC = () => {
             <AlertDialogTitle>역할 삭제 확인</AlertDialogTitle>
             <AlertDialogDescription>
               "{deleteDialogRole?.displayName}" 역할을 삭제하시겠습니까?
-              <br />
-              이 작업은 되돌릴 수 없습니다.
+              <br />이 작업은 되돌릴 수 없습니다.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

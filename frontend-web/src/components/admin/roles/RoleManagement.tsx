@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { adminRoleService, Role, RoleWithStats, CreateRoleRequest, UpdateRoleRequest, Permission, GroupedPermissions } from '../../../api/adminRoleService';
+import {
+  adminRoleService,
+  Role,
+  RoleWithStats,
+  CreateRoleRequest,
+  UpdateRoleRequest,
+  Permission,
+  GroupedPermissions,
+} from '../../../api/adminRoleService';
 import './RoleManagement.css';
 
 interface PaginatedResponse<T> {
@@ -41,13 +49,13 @@ const RoleManagement: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const response = await adminRoleService.getRoles({
         page,
         limit: 10,
         search: searchTerm,
         sortBy: 'createdAt',
-        sortOrder: 'DESC'
+        sortOrder: 'DESC',
       });
 
       // response는 RoleWithStats[] 타입
@@ -156,7 +164,7 @@ const RoleManagement: React.FC = () => {
       ...prev,
       permissionIds: prev.permissionIds?.includes(permission)
         ? prev.permissionIds.filter(p => p !== permission)
-        : [...(prev.permissionIds || []), permission]
+        : [...(prev.permissionIds || []), permission],
     }));
   };
 
@@ -166,7 +174,7 @@ const RoleManagement: React.FC = () => {
 
   const getPermissionsByCategory = () => {
     if (!availablePermissions) return {};
-    
+
     // availablePermissions는 이미 GroupedPermissions 타입 (Record<string, Record<string, Permission[]>>)
     return availablePermissions;
   };
@@ -200,7 +208,7 @@ const RoleManagement: React.FC = () => {
             className="search-input"
             placeholder="역할 이름 또는 설명으로 검색..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={e => setSearchTerm(e.target.value)}
           />
           <span className="search-icon">🔍</span>
         </div>
@@ -224,15 +232,13 @@ const RoleManagement: React.FC = () => {
       ) : (
         <>
           <div className="roles-list">
-            {roles.map((role) => (
+            {roles.map(role => (
               <div key={role.id} className="role-card">
                 <div className="role-info">
                   <div className="role-header-info">
                     <h3 className="role-name">{role.displayName}</h3>
                     <div className="role-badges">
-                      {role.isDefault && (
-                        <span className="system-badge">기본 역할</span>
-                      )}
+                      {role.isDefault && <span className="system-badge">기본 역할</span>}
                       <span className={`status-badge ${role.isActive ? 'active' : 'inactive'}`}>
                         {role.isActive ? '활성' : '비활성'}
                       </span>
@@ -251,9 +257,7 @@ const RoleManagement: React.FC = () => {
                             </span>
                           ))}
                           {role.permissions.length > 3 && (
-                            <span className="permission-tag more">
-                              +{role.permissions.length - 3}개
-                            </span>
+                            <span className="permission-tag more">+{role.permissions.length - 3}개</span>
                           )}
                         </div>
                       )}
@@ -263,19 +267,13 @@ const RoleManagement: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="role-actions">
-                  <button
-                    className="edit-btn"
-                    onClick={() => openEditModal(role)}
-                  >
+                  <button className="edit-btn" onClick={() => openEditModal(role)}>
                     ✏️ 수정
                   </button>
                   {!role.isDefault && (
-                    <button
-                      className="delete-btn"
-                      onClick={() => openDeleteModal(role)}
-                    >
+                    <button className="delete-btn" onClick={() => openDeleteModal(role)}>
                       🗑️ 삭제
                     </button>
                   )}
@@ -314,10 +312,7 @@ const RoleManagement: React.FC = () => {
           <div className="modal large">
             <div className="modal-header">
               <h3>➕ 새 역할 생성</h3>
-              <button 
-                className="modal-close" 
-                onClick={() => setShowCreateModal(false)}
-              >
+              <button className="modal-close" onClick={() => setShowCreateModal(false)}>
                 ×
               </button>
             </div>
@@ -327,7 +322,7 @@ const RoleManagement: React.FC = () => {
                 <input
                   type="text"
                   value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="role_name (영문, 숫자, 밑줄만 가능)"
                 />
               </div>
@@ -336,7 +331,7 @@ const RoleManagement: React.FC = () => {
                 <input
                   type="text"
                   value={formData.displayName}
-                  onChange={(e) => setFormData(prev => ({ ...prev, displayName: e.target.value }))}
+                  onChange={e => setFormData(prev => ({ ...prev, displayName: e.target.value }))}
                   placeholder="사용자에게 표시될 이름"
                 />
               </div>
@@ -344,7 +339,7 @@ const RoleManagement: React.FC = () => {
                 <label>설명</label>
                 <textarea
                   value={formData.description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
                   placeholder="역할에 대한 설명"
                   rows={3}
                 />
@@ -354,7 +349,7 @@ const RoleManagement: React.FC = () => {
                   <input
                     type="checkbox"
                     checked={formData.isActive}
-                    onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
+                    onChange={e => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
                   />
                   활성 상태
                 </label>
@@ -392,17 +387,10 @@ const RoleManagement: React.FC = () => {
               </div>
             </div>
             <div className="modal-footer">
-              <button 
-                className="btn-cancel" 
-                onClick={() => setShowCreateModal(false)}
-              >
+              <button className="btn-cancel" onClick={() => setShowCreateModal(false)}>
                 취소
               </button>
-              <button 
-                className="btn-confirm create-confirm" 
-                onClick={handleCreateRole}
-                disabled={!formData.name}
-              >
+              <button className="btn-confirm create-confirm" onClick={handleCreateRole} disabled={!formData.name}>
                 생성하기
               </button>
             </div>
@@ -416,22 +404,14 @@ const RoleManagement: React.FC = () => {
           <div className="modal large">
             <div className="modal-header">
               <h3>✏️ 역할 수정</h3>
-              <button 
-                className="modal-close" 
-                onClick={() => setShowEditModal(false)}
-              >
+              <button className="modal-close" onClick={() => setShowEditModal(false)}>
                 ×
               </button>
             </div>
             <div className="modal-body">
               <div className="form-group">
                 <label>역할 이름</label>
-                <input
-                  type="text"
-                  value={selectedRole.name}
-                  disabled
-                  className="disabled-input"
-                />
+                <input type="text" value={selectedRole.name} disabled className="disabled-input" />
                 <small>역할 이름은 수정할 수 없습니다.</small>
               </div>
               <div className="form-group">
@@ -439,7 +419,7 @@ const RoleManagement: React.FC = () => {
                 <input
                   type="text"
                   value={formData.displayName}
-                  onChange={(e) => setFormData(prev => ({ ...prev, displayName: e.target.value }))}
+                  onChange={e => setFormData(prev => ({ ...prev, displayName: e.target.value }))}
                   placeholder="사용자에게 표시될 이름"
                 />
               </div>
@@ -447,7 +427,7 @@ const RoleManagement: React.FC = () => {
                 <label>설명</label>
                 <textarea
                   value={formData.description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
                   placeholder="역할에 대한 설명"
                   rows={3}
                 />
@@ -457,7 +437,7 @@ const RoleManagement: React.FC = () => {
                   <input
                     type="checkbox"
                     checked={formData.isActive}
-                    onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
+                    onChange={e => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
                     disabled={selectedRole.isDefault}
                   />
                   활성 상태
@@ -497,16 +477,10 @@ const RoleManagement: React.FC = () => {
               </div>
             </div>
             <div className="modal-footer">
-              <button 
-                className="btn-cancel" 
-                onClick={() => setShowEditModal(false)}
-              >
+              <button className="btn-cancel" onClick={() => setShowEditModal(false)}>
                 취소
               </button>
-              <button 
-                className="btn-confirm edit-confirm" 
-                onClick={handleEditRole}
-              >
+              <button className="btn-confirm edit-confirm" onClick={handleEditRole}>
                 수정하기
               </button>
             </div>
@@ -520,28 +494,21 @@ const RoleManagement: React.FC = () => {
           <div className="modal">
             <div className="modal-header">
               <h3>🗑️ 역할 삭제</h3>
-              <button 
-                className="modal-close" 
-                onClick={() => setShowDeleteModal(false)}
-              >
+              <button className="modal-close" onClick={() => setShowDeleteModal(false)}>
                 ×
               </button>
             </div>
             <div className="modal-body">
-              <p><strong>{selectedRole.displayName}</strong> 역할을 정말 삭제하시겠습니까?</p>
+              <p>
+                <strong>{selectedRole.displayName}</strong> 역할을 정말 삭제하시겠습니까?
+              </p>
               <p className="warning-text">⚠️ 이 작업은 되돌릴 수 없습니다.</p>
             </div>
             <div className="modal-footer">
-              <button 
-                className="btn-cancel" 
-                onClick={() => setShowDeleteModal(false)}
-              >
+              <button className="btn-cancel" onClick={() => setShowDeleteModal(false)}>
                 취소
               </button>
-              <button 
-                className="btn-confirm delete-confirm" 
-                onClick={handleDeleteRole}
-              >
+              <button className="btn-confirm delete-confirm" onClick={handleDeleteRole}>
                 삭제하기
               </button>
             </div>

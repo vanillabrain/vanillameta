@@ -84,12 +84,7 @@ function SelectChipForm(props) {
         </Select>
         {color && (
           <React.Fragment>
-            <Button 
-              variant="ghost" 
-              aria-label="색상 선택" 
-              onClick={handleClick}
-              className="min-w-0 p-2"
-            >
+            <Button variant="ghost" aria-label="색상 선택" onClick={handleClick} className="min-w-0 p-2">
               <PaletteIcon />
             </Button>
             <Popover
