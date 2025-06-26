@@ -40,7 +40,7 @@ const ModalPopup = (props: ModalPopupProps) => {
           borderRadius: '8px',
           boxShadow: '5px 5px 8px 0 rgba(0, 28, 71, 0.15)',
           border: 'solid 1px #ddd',
-          p: '10px',
+          padding: '10px',
           pt: 0,
           backgroundColor: '#fff',
         }}
@@ -50,7 +50,7 @@ const ModalPopup = (props: ModalPopupProps) => {
           <Button 
             variant="text"
             onClick={handleClose} 
-            sx={{ p: '10px', minWidth: 'auto' }}
+            sx={{ padding: '10px', minWidth: 'auto' }}
           >
             <CloseIcon width="16" height="16" />
           </Button>

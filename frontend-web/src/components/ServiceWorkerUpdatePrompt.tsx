@@ -51,7 +51,7 @@ const ServiceWorkerUpdatePrompt: React.FC<ServiceWorkerUpdatePromptProps> = () =
             aria-label="close"
             color="inherit"
             onClick={handleClose}
-            sx={{ minWidth: 'auto', p: 1 }}
+            sx={{ minWidth: 'auto', padding: '8px' }}
           >
             <CloseIcon fontSize="small" />
           </Button>

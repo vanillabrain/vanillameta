@@ -35,7 +35,7 @@ const LanguageSwitcher: React.FC = () => {
         onClick={handleClick} 
         color="inherit" 
         size="large" 
-        sx={{ ml: 1, minWidth: 'auto' }}
+        sx={{ marginLeft: '8px', minWidth: 'auto' }}
       >
         <LanguageIcon />
       </Button>

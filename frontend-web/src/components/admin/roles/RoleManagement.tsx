@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { adminRoleService, Role, CreateRoleRequest, UpdateRoleRequest, AvailablePermissions } from '../../../api/adminRoleService';
+import { adminRoleService, Role, RoleWithStats, CreateRoleRequest, UpdateRoleRequest, Permission, GroupedPermissions } from '../../../api/adminRoleService';
 import './RoleManagement.css';
 
 interface PaginatedResponse<T> {
@@ -13,7 +13,7 @@ interface PaginatedResponse<T> {
 }
 
 const RoleManagement: React.FC = () => {
-  const [roles, setRoles] = useState<Role[]>([]);
+  const [roles, setRoles] = useState<RoleWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -22,13 +22,13 @@ const RoleManagement: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<Role | null>(null);
-  const [availablePermissions, setAvailablePermissions] = useState<AvailablePermissions | null>(null);
+  const [selectedRole, setSelectedRole] = useState<RoleWithStats | null>(null);
+  const [availablePermissions, setAvailablePermissions] = useState<GroupedPermissions | null>(null);
   const [formData, setFormData] = useState<CreateRoleRequest>({
     name: '',
     displayName: '',
     description: '',
-    permissions: [],
+    permissionIds: [],
     isActive: true,
   });
 
@@ -50,8 +50,10 @@ const RoleManagement: React.FC = () => {
         sortOrder: 'DESC'
       });
 
-      setRoles(response.data);
-      setTotalPages(response.meta.totalPages);
+      // response는 RoleWithStats[] 타입
+      setRoles(response);
+      // 페이지네이션 정보는 별도로 처리 필요
+      setTotalPages(Math.ceil(response.length / 10));
     } catch (err) {
       setError('역할 목록을 불러오는데 실패했습니다.');
       console.error('Error loading roles:', err);
@@ -62,7 +64,7 @@ const RoleManagement: React.FC = () => {
 
   const loadAvailablePermissions = async () => {
     try {
-      const permissions = await adminRoleService.getAvailablePermissions();
+      const permissions = await adminRoleService.getGroupedPermissions();
       setAvailablePermissions(permissions);
     } catch (err) {
       console.error('Error loading permissions:', err);
@@ -88,7 +90,7 @@ const RoleManagement: React.FC = () => {
       const updateData: UpdateRoleRequest = {
         displayName: formData.displayName,
         description: formData.description,
-        permissions: formData.permissions,
+        permissionIds: formData.permissionIds,
         isActive: formData.isActive,
       };
 
@@ -128,7 +130,7 @@ const RoleManagement: React.FC = () => {
       name: role.name,
       displayName: role.displayName,
       description: role.description,
-      permissions: role.permissions,
+      permissionIds: role.permissions,
       isActive: role.isActive,
     });
     setShowEditModal(true);
@@ -152,9 +154,9 @@ const RoleManagement: React.FC = () => {
   const handlePermissionToggle = (permission: string) => {
     setFormData(prev => ({
       ...prev,
-      permissions: prev.permissions?.includes(permission)
-        ? prev.permissions.filter(p => p !== permission)
-        : [...(prev.permissions || []), permission]
+      permissionIds: prev.permissionIds?.includes(permission)
+        ? prev.permissionIds.filter(p => p !== permission)
+        : [...(prev.permissionIds || []), permission]
     }));
   };
 
@@ -165,15 +167,8 @@ const RoleManagement: React.FC = () => {
   const getPermissionsByCategory = () => {
     if (!availablePermissions) return {};
     
-    const grouped: Record<string, typeof availablePermissions.permissions> = {};
-    availablePermissions.permissions.forEach(permission => {
-      if (!grouped[permission.category]) {
-        grouped[permission.category] = [];
-      }
-      grouped[permission.category].push(permission);
-    });
-    
-    return grouped;
+    // availablePermissions는 이미 GroupedPermissions 타입 (Record<string, Record<string, Permission[]>>)
+    return availablePermissions;
   };
 
   if (loading) {
@@ -376,7 +371,7 @@ const RoleManagement: React.FC = () => {
                             <label key={permission.value} className="permission-item">
                               <input
                                 type="checkbox"
-                                checked={formData.permissions?.includes(permission.value) || false}
+                                checked={formData.permissionIds?.includes(permission.value) || false}
                                 onChange={() => handlePermissionToggle(permission.value)}
                               />
                               <span className="permission-name">
@@ -476,7 +471,7 @@ const RoleManagement: React.FC = () => {
                             <label key={permission.value} className="permission-item">
                               <input
                                 type="checkbox"
-                                checked={formData.permissions?.includes(permission.value) || false}
+                                checked={formData.permissionIds?.includes(permission.value) || false}
                                 onChange={() => handlePermissionToggle(permission.value)}
                               />
                               <span className="permission-name">

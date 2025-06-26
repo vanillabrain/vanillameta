@@ -77,9 +77,8 @@ export const ExportAuditLogsModal: React.FC<ExportAuditLogsModalProps> = ({
       resourceType: initialFilters.resourceType,
       categories: initialFilters.category ? [initialFilters.category] : undefined,
       format: exportFormat as 'csv' | 'json',
-      includeColumns,
-      maxRecords,
-      filename,
+      // includeColumns와 maxRecords는 ExportAuditLogsDto에 없음
+      // filename도 없음
     };
 
     onExport(exportParams);
@@ -97,7 +96,7 @@ export const ExportAuditLogsModal: React.FC<ExportAuditLogsModalProps> = ({
         resourceType: initialFilters.resourceType,
         categories: initialFilters.category ? [initialFilters.category] : undefined,
         format: exportFormat as 'csv' | 'json',
-        maxRecords,
+        // maxRecords는 미리보기 API에서 사용되지 않음
       });
     }
   };
