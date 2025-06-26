@@ -1,5 +1,6 @@
 import React from 'react';
-import { Box, FormControl, FormLabel, MenuItem, Select, Stack } from '@mui/material';
+import { Box, Stack } from '@mui/material';
+import { Select, MenuItem, FormControl, FormLabel } from '@/components/ui/mui-select-compat';
 
 function SelectForm(props) {
   const {
@@ -44,24 +45,17 @@ function SelectForm(props) {
     <FormControl
       required={required}
       fullWidth
-      sx={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+      className="flex flex-row justify-between items-center"
     >
       {label && (
         <FormLabel
           htmlFor="userInputSelect"
-          sx={{
-            width: '35%',
-            pr: 2,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            textTransform: 'capitalize',
-            whiteSpace: 'nowrap',
-          }}
+          className="w-[35%] pr-2 overflow-hidden text-ellipsis capitalize whitespace-nowrap"
         >
           {label}
         </FormLabel>
       )}
-      <Stack flexDirection="row" justifyContent="space-between" alignItems="center" sx={{ width: label ? '65%' : '100%' }}>
+      <Stack flexDirection="row" justifyContent="space-between" alignItems="center" className={label ? 'w-[65%]' : 'w-full'}>
         <Select
           fullWidth
           displayEmpty

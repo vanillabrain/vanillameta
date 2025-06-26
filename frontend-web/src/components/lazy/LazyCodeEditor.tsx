@@ -1,5 +1,5 @@
 import React, { Suspense, lazy } from 'react';
-import { LoadingWithIcon } from '@/components/loading';
+import { Loading } from '@/components/loading';
 
 // Ace Editor를 레이지 로드
 const AceEditor = lazy(() => 
@@ -35,7 +35,7 @@ interface LazyCodeEditorProps {
 // 에디터 로딩 중 표시할 스켈레톤
 const EditorSkeleton = ({ style, className }: { style?: React.CSSProperties; className?: string }) => (
   <div style={{ ...style, backgroundColor: '#272822', display: 'flex', alignItems: 'center', justifyContent: 'center' }} className={className}>
-    <LoadingWithIcon in={true} style={{ opacity: 0.4 }} />
+    <Loading in={true} style={{ opacity: 0.4 }} />
   </div>
 );
 

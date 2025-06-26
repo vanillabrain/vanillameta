@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 // MUI 호환성 레이어 사용 - 점진적 마이그레이션
 import { Button, IconButton } from '../ui/mui-button-compat';
-import { ButtonBase, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
+import { ButtonBase, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '../ui/mui-dialog-compat';
 import { Close } from '@mui/icons-material';
 
 export const DialogAlertIconButton = props => {

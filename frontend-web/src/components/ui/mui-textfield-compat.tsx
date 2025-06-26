@@ -5,7 +5,7 @@ import { Textarea } from './textarea';
 import { cn } from '@/lib/utils';
 import { cva, type VariantProps } from 'class-variance-authority';
 
-const textFieldVariants = cva('relative w-full', {
+const textFieldVariants = cva('relative', {
   variants: {
     variant: {
       outlined: '',
@@ -18,7 +18,7 @@ const textFieldVariants = cva('relative w-full', {
     },
     fullWidth: {
       true: 'w-full',
-      false: '',
+      false: 'inline-block',
     },
   },
   defaultVariants: {
@@ -27,6 +27,20 @@ const textFieldVariants = cva('relative w-full', {
     fullWidth: true,
   },
 });
+
+// Input variant 스타일
+const inputVariantStyles = {
+  outlined: '',
+  filled: 'bg-muted border-0 border-b rounded-t-md rounded-b-none focus:bg-background',
+  standard: 'border-0 border-b rounded-none px-0 focus:ring-0',
+};
+
+// Label variant 스타일
+const labelVariantStyles = {
+  outlined: '',
+  filled: '',
+  standard: '',
+};
 
 export interface TextFieldProps
   extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size' | 'type'>,
@@ -105,9 +119,11 @@ const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(
               disabled={disabled}
               required={required}
               className={cn(
+                inputVariantStyles[variant || 'outlined'],
                 error && 'border-destructive focus-visible:ring-destructive',
                 InputProps?.startAdornment && 'pl-10',
                 InputProps?.endAdornment && 'pr-10',
+                size === 'small' && 'text-sm py-1',
               )}
               {...(props as any)}
               {...(inputProps as any)}
@@ -149,9 +165,11 @@ const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(
             disabled={disabled}
             required={required}
             className={cn(
+              inputVariantStyles[variant || 'outlined'],
               error && 'border-destructive focus-visible:ring-destructive',
               InputProps?.startAdornment && 'pl-10',
               InputProps?.endAdornment && 'pr-10',
+              size === 'small' && 'h-8 text-sm',
             )}
             {...props}
             {...InputProps?.inputProps}

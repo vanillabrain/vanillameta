@@ -1,5 +1,6 @@
 import React from 'react';
-import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, Box, Typography } from '@mui/material';
+import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@/components/ui/mui-table-compat';
+import { Chip } from '@/components/ui/mui-chip-compat';
 
 interface TopEvent {
   action: string;
@@ -46,7 +47,7 @@ const TopEventsTable: React.FC<Props> = ({ topEvents }) => {
             topEvents.slice(0, 10).map((event, index) => (
               <TableRow key={index} hover>
                 <TableCell>
-                  <Typography variant="body2">{formatActionName(event.action)}</Typography>
+                  <span className="text-sm">{formatActionName(event.action)}</span>
                 </TableCell>
                 <TableCell>
                   <Chip
@@ -60,18 +61,18 @@ const TopEventsTable: React.FC<Props> = ({ topEvents }) => {
                   />
                 </TableCell>
                 <TableCell align="right">
-                  <Typography variant="body2" fontWeight="medium">
+                  <span className="text-sm font-medium">
                     {event.count.toLocaleString()}
-                  </Typography>
+                  </span>
                 </TableCell>
               </TableRow>
             ))
           ) : (
             <TableRow>
               <TableCell colSpan={3} align="center">
-                <Typography variant="body2" color="text.secondary">
+                <span className="text-sm text-muted-foreground">
                   데이터가 없습니다
-                </Typography>
+                </span>
               </TableCell>
             </TableRow>
           )}

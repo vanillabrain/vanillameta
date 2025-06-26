@@ -1,4 +1,4 @@
-import { Box, Modal, Paper, Stack, Typography } from '@mui/material';
+import { Modal, Paper } from '@/components/ui/mui-modal-compat';
 import { Button } from '@/components/ui/mui-button-compat';
 import { ReactComponent as CloseIcon } from '@/assets/images/icon/ic-xmark.svg';
 import React from 'react';
@@ -30,39 +30,22 @@ const ModalPopup = (props: ModalPopupProps) => {
       }}
     >
       <Paper
+        className={`flex flex-col w-[90%] sm:w-[80%] h-[70%] max-h-[754px] rounded-lg p-2.5 pt-0`}
         sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          width: { xs: '90%', sm: '80%' },
           maxWidth: MAX_WIDTH,
-          height: '70%',
-          maxHeight: '754px',
-          borderRadius: '8px',
           boxShadow: '5px 5px 8px 0 rgba(0, 28, 71, 0.15)',
           border: 'solid 1px #ddd',
-          padding: '10px',
-          pt: 0,
-          backgroundColor: '#fff',
         }}
       >
-        <Stack direction="row" justifyContent="space-between" alignItems="center" m="20px" mr="10px">
-          <Typography sx={{ fontSize: '20px', fontWeight: 600, color: '#141414' }}>{title}</Typography>
-          <Button variant="text" onClick={handleClose} sx={{ padding: '10px', minWidth: 'auto' }}>
+        <div className="flex flex-row justify-between items-center m-5 mr-2.5">
+          <h2 className="text-xl font-semibold text-[#141414]">{title}</h2>
+          <Button variant="ghost" onClick={handleClose} className="p-2.5 min-w-0">
             <CloseIcon width="16" height="16" />
           </Button>
-        </Stack>
-        <Box
-          sx={{
-            width: '100%',
-            height: '100%',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            flex: 1,
-          }}
-        >
+        </div>
+        <div className="w-full h-full flex justify-center items-center flex-1">
           {children}
-        </Box>
+        </div>
       </Paper>
     </Modal>
   );

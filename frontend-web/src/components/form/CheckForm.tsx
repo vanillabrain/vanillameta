@@ -1,15 +1,17 @@
 import React from 'react';
-import { FormControlLabel, Checkbox, FormLabel, FormControl, Stack } from '@mui/material';
+import { Stack } from '@mui/material';
+import { Checkbox, FormControlLabel } from '@/components/ui/mui-checkbox-compat';
+import { FormControl, FormLabel } from '@/components/ui/form';
 
 function CheckForm(props) {
   const { id, label, ...rest } = props;
 
   return (
-    <FormControl fullWidth sx={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-      <FormLabel htmlFor={id} sx={{ width: '40%' }}>
+    <FormControl fullWidth className="flex flex-row justify-between items-center">
+      <FormLabel htmlFor={id} className="w-[40%]">
         {label}
       </FormLabel>
-      <Stack flexDirection="row" justifyContent="space-between" sx={{ width: '60%' }}>
+      <Stack flexDirection="row" justifyContent="space-between" className="w-[60%]">
         <FormControlLabel id="userInputCheck" control={<Checkbox />} label={label} {...rest} />
       </Stack>
     </FormControl>

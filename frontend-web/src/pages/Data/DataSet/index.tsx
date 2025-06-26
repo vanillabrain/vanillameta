@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useLayoutEffect, useState, lazy, Suspense } from 'react';
-import { MenuItem, Select, Stack } from '@mui/material';
+import { Stack } from '@mui/material';
+import { Select, MenuItem } from '@/components/ui/mui-select-compat';
 import { TextField } from '@/components/ui';
 import { useAlert } from 'react-alert';
 import PageTitleBox from '@/components/PageTitleBox';

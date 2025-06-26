@@ -1,5 +1,5 @@
 import React, { Suspense, lazy } from 'react';
-import { LoadingWithIcon } from '@/components/loading';
+import { Loading } from '@/components/loading';
 
 // ECharts 컴포넌트를 레이지 로드
 const EChartsComponent = lazy(() => 
@@ -19,7 +19,7 @@ interface LazyChartProps {
 // 차트 로딩 중 표시할 스켈레톤
 const ChartSkeleton = ({ style, className }: { style?: React.CSSProperties; className?: string }) => (
   <div style={style} className={className}>
-    <LoadingWithIcon in={true} style={{ opacity: 0.4 }} />
+    <Loading in={true} style={{ opacity: 0.4 }} />
   </div>
 );
 

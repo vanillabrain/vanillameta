@@ -24,8 +24,8 @@ export const loadMathJS = () => import(/* webpackChunkName: "mathjs" */ 'mathjs'
 export const loadSwiper = () => import(/* webpackChunkName: "swiper" */ 'swiper/react');
 export const loadSwiperModules = () => import(/* webpackChunkName: "swiper-modules" */ 'swiper');
 
-// React Colorful 동적 import
-export const loadReactColorful = () => import(/* webpackChunkName: "react-colorful" */ 'react-colorful');
+// React Colorful 동적 import (필요시 패키지 설치 후 사용)
+// export const loadReactColorful = () => import(/* webpackChunkName: "react-colorful" */ 'react-colorful');
 
 // Lodash 개별 함수 동적 import
 export const loadLodashDebounce = () => import(/* webpackChunkName: "lodash-debounce" */ 'lodash/debounce');
