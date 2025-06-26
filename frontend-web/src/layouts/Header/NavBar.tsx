@@ -34,7 +34,7 @@ function NavBar(props) {
               minWidth: 0,
               color: 'inherit',
               padding: 0,
-              fontSize: { xs: 13, sm: 15 },
+              fontSize: '15px',
               height: 50,
               px: { xs: '14px', sm: '18px' },
               fontFamily: 'Pretendard',

@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useRecoilValue } from 'recoil';
-import { userAtom } from '@/store';
+import { useEffect, useState, useContext } from 'react';
+import { AuthContext } from '@/contexts/AuthContext';
 
 export interface UserPermissions {
   roles: string[];
@@ -8,14 +7,14 @@ export interface UserPermissions {
 }
 
 export const usePermissions = () => {
-  const user = useRecoilValue(userAtom);
+  const { userState } = useContext(AuthContext);
   const [permissions, setPermissions] = useState<UserPermissions>({
     roles: [],
     permissions: [],
   });
 
   useEffect(() => {
-    if (user) {
+    if (userState) {
       // JWT 토큰에서 권한 정보 추출 (실제 구현에 맞게 수정 필요)
       const token = localStorage.getItem('accessToken');
       if (token) {
@@ -33,7 +32,7 @@ export const usePermissions = () => {
     } else {
       setPermissions({ roles: [], permissions: [] });
     }
-  }, [user]);
+  }, [userState]);
 
   /**
    * 사용자가 특정 권한을 가지고 있는지 확인

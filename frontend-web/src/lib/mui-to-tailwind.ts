@@ -206,12 +206,12 @@ export const muiSxToTailwind = (sx: Record<string, any>): string => {
 
   // Background color
   if (sx.bgcolor) {
-    classes.push(`bg-${muiColorToTailwind(sx.bgcolor)}`);
+    classes.push(muiColorToTailwind('bg', sx.bgcolor));
   }
 
   // Text color
   if (sx.color) {
-    classes.push(`text-${muiColorToTailwind(sx.color)}`);
+    classes.push(muiColorToTailwind('text', sx.color));
   }
 
   // Border radius
@@ -247,7 +247,7 @@ export const muiComponentPropsToTailwind = (component: string, props: Record<str
 
       // Color
       if (props.color && props.color !== 'primary') {
-        const color = muiColorToTailwind(props.color);
+        const color = muiColorToTailwind('', props.color).replace('-', '');
         if (props.variant === 'contained') {
           classes.push(`bg-${color} text-${color}-foreground hover:bg-${color}/90`);
         } else {

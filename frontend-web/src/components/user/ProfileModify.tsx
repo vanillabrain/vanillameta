@@ -62,7 +62,7 @@ const BootstrapDialogTitle = (props: DialogTitleProps) => {
             top: '10px',
             color: '#4a4a4a',
             minWidth: 'auto',
-            p: 1,
+            padding: '8px',
           }}
         >
           <CloseIcon />

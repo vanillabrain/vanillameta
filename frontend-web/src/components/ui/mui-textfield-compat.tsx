@@ -116,8 +116,8 @@ const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(
                 InputProps?.startAdornment && "pl-10",
                 InputProps?.endAdornment && "pr-10"
               )}
-              {...props}
-              {...inputProps}
+              {...(props as any)}
+              {...(inputProps as any)}
             />
             {InputProps?.endAdornment && (
               <div className="absolute right-3 top-3 text-muted-foreground">

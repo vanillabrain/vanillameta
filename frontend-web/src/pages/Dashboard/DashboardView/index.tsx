@@ -225,7 +225,7 @@ const DashboardView = () => {
             <>
               <Hidden smDown>
                 <ReloadButton
-                  size="medium"
+                  size="default"
                   sx={{ marginRight: { sm: '14px', md: '24px' }, padding: 0 }}
                   onClick={event => {
                     event.preventDefault();
@@ -234,13 +234,13 @@ const DashboardView = () => {
                   }}
                 />
                 <ModifyButton
-                  size="medium"
+                  size="default"
                   sx={{ marginRight: { sm: '14px', md: '24px' }, padding: 0 }}
                   component={RouterLink}
                   to={`/dashboard/modify?id=${dashboardId}&name=${dashboardInfo.title}`}
                 />
                 <DeleteButton
-                  size="medium"
+                  size="default"
                   sx={{ marginRight: { sm: '14px', md: '24px' }, padding: 0 }}
                   onClick={event => {
                     event.preventDefault();
