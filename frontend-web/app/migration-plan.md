@@ -27,42 +27,55 @@
 - [x] TypeScript 설정 업데이트
 - [x] 미들웨어 설정
 
-### 2단계: 라우트 구조 마이그레이션
-- [ ] React Router → App Router 매핑 테이블 작성 (완료)
-- [ ] 레이아웃 컴포넌트 마이그레이션
-  - [ ] RootLayout (app/layout.tsx)
-  - [ ] ProtectedLayout (app/(protected)/layout.tsx)
-  - [ ] AuthLayout (app/(auth)/layout.tsx)
-  - [ ] AdminLayout (app/admin/layout.tsx)
-  - [ ] PublicLayout (app/(public)/layout.tsx)
+### 2단계: 라우트 구조 마이그레이션 (완료)
+- [x] React Router → App Router 매핑 테이블 작성
+- [x] 레이아웃 컴포넌트 마이그레이션
+  - [x] RootLayout (app/layout.tsx)
+  - [x] ProtectedLayout (app/(protected)/layout.tsx)
+  - [x] AuthLayout (app/(auth)/layout.tsx)
+  - [x] AdminLayout (app/admin/layout.tsx)
+  - [x] PublicLayout (app/(public)/layout.tsx)
+- [x] 모든 페이지 컴포넌트 App Router 구조로 매핑
+- [x] 동적 라우트 ([id]) 구현
+- [x] 에러 및 로딩 페이지 생성
 
-### 3단계: 페이지별 마이그레이션 (우선순위)
+### 3단계: 페이지별 마이그레이션 (완료)
 1. **인증 페이지** (공개 라우트)
-   - [ ] 로그인 페이지
-   - [ ] 회원가입 페이지
+   - [x] 로그인 페이지 (app/(auth)/login/page.tsx)
+   - [x] 회원가입 페이지 (app/(auth)/signup/page.tsx)
    
 2. **대시보드** (핵심 기능)
-   - [ ] 대시보드 목록
-   - [ ] 대시보드 상세
-   - [ ] 대시보드 생성/수정
+   - [x] 대시보드 목록 (app/(protected)/dashboard/page.tsx)
+   - [x] 대시보드 상세 (app/(protected)/dashboard/[dashboardId]/page.tsx)
+   - [x] 대시보드 생성/수정 (app/(protected)/dashboard/create, modify)
 
-3. **데이터 관리**
-   - [ ] 데이터 소스 관리
-   - [ ] 데이터셋 관리
+3. **위젯 관리**
+   - [x] 위젯 목록 (app/(protected)/widget/page.tsx)
+   - [x] 위젯 상세/생성/수정 (app/(protected)/widget/[widgetId], create, modify)
 
-4. **관리자 페이지**
-   - [ ] 사용자 관리
-   - [ ] 역할 관리
-   - [ ] 감사 로그
+4. **데이터 관리**
+   - [x] 데이터 소스 관리 (app/(protected)/data/source)
+   - [x] 데이터셋 관리 (app/(protected)/data/set)
+
+5. **관리자 페이지**
+   - [x] 사용자 관리 (app/admin/users/page.tsx)
+   - [x] 역할 관리 (app/admin/roles/page.tsx)
+   - [x] 감사 로그 (app/admin/audit/page.tsx)
+
+6. **기타 페이지**
+   - [x] 공유 페이지 (app/(public)/share/[dashboardUuid]/page.tsx)
+   - [x] 컴포넌트 쇼케이스 (app/component-showcase/page.tsx)
+   - [x] 404 페이지 (app/not-found.tsx)
 
 ### 4단계: 상태 관리 및 데이터 페칭
 - [ ] Context Providers를 Client Component로 분리
 - [ ] Server Components에서 데이터 페칭 로직 구현
 - [ ] React Query와 Server Components 통합
 
-### 5단계: API Routes 구현
-- [ ] 기존 백엔드 API 프록시
-- [ ] 인증 관련 API Routes
+### 5단계: API Routes 구현 (부분 완료)
+- [x] 기존 백엔드 API 프록시 (next.config.js)
+- [x] 인증 관련 API Routes (login, logout)
+- [x] 헬스체크 API (app/api/health/route.ts)
 - [ ] 파일 업로드/다운로드 처리
 
 ### 6단계: 최적화
