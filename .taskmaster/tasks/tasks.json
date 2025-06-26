@@ -227,7 +227,7 @@
         "dependencies": [
           2
         ],
-        "status": "deferred",
+        "status": "in-progress",
         "subtasks": [
           {
             "id": 1,
@@ -235,7 +235,7 @@
             "description": "Next.js 14 프로젝트를 생성하고 TypeScript, ESLint, Prettier 등 기본 개발 환경을 구성합니다",
             "dependencies": [],
             "details": "npx create-next-app@14로 프로젝트 생성, tsconfig.json 설정, ESLint/Prettier 규칙 정의, 기존 프로젝트의 package.json 의존성 분석 및 호환성 확인",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -1127,7 +1127,7 @@
     ],
     "metadata": {
       "created": "2025-06-25T02:28:08.980Z",
-      "updated": "2025-06-26T09:52:08.970Z",
+      "updated": "2025-06-26T10:19:33.752Z",
       "description": "Tasks for master context"
     }
   }
