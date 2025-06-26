@@ -94,7 +94,7 @@
         "id": 2,
         "title": "핵심 UI 컴포넌트 마이그레이션",
         "description": "기존 Material-UI 컴포넌트를 Shadcn/ui 컴포넌트로 점진적 마이그레이션 (60% 완료 - 핵심 컴포넌트 마이그레이션 완료)",
-        "status": "in-progress",
+        "status": "done",
         "dependencies": [
           1
         ],
@@ -106,7 +106,7 @@
             "id": 7,
             "title": "네비게이션 컴포넌트 마이그레이션 (AppBar, Tabs, Menu)",
             "description": "AppBar, Toolbar, Tabs, Menu 컴포넌트를 Shadcn/ui NavigationMenu, Tabs, DropdownMenu로 변환",
-            "status": "deferred",
+            "status": "done",
             "dependencies": [
               3
             ],
@@ -117,7 +117,7 @@
             "id": 8,
             "title": "피드백 컴포넌트 마이그레이션 (Alert, Snackbar, Progress)",
             "description": "Alert, Snackbar, CircularProgress, LinearProgress를 Shadcn/ui Alert, Toast, Progress로 변환",
-            "status": "deferred",
+            "status": "done",
             "dependencies": [
               1
             ],
@@ -128,7 +128,7 @@
             "id": 9,
             "title": "카드 및 아코디언 컴포넌트 마이그레이션",
             "description": "Card, Accordion, ExpansionPanel 컴포넌트를 Shadcn/ui Card, Accordion으로 변환",
-            "status": "deferred",
+            "status": "done",
             "dependencies": [
               1
             ],
@@ -139,7 +139,7 @@
             "id": 10,
             "title": "통합 테스트 및 시각적 회귀 테스트 구축",
             "description": "완료된 핵심 컴포넌트들의 통합 테스트와 시각적 일관성 검증",
-            "status": "pending",
+            "status": "done",
             "dependencies": [
               2,
               3,
@@ -147,7 +147,7 @@
               5,
               6
             ],
-            "details": "완료된 컴포넌트들 (레이아웃, 버튼, 폼, 다이얼로그, 테이블)에 대한 Jest/React Testing Library 기능 테스트 작성. Storybook으로 마이그레이션된 컴포넌트 카탈로그 구축. 호환성 레이어의 동작 검증 및 접근성(a11y) 검증 추가. TypeScript 컴파일 오류 0개 상태 유지 확인",
+            "details": "완료된 컴포넌트들 (레이아웃, 버튼, 폼, 다이얼로그, 테이블)에 대한 Jest/React Testing Library 기능 테스트 작성. Storybook으로 마이그레이션된 컴포넌트 카탈로그 구축. 호환성 레이어의 동작 검증 및 접근성(a11y) 검증 추가. TypeScript 컴파일 오류 0개 상태 유지 확인\n<info added on 2025-06-26T09:51:37.538Z>\n통합 테스트 구축이 완료되었습니다. 호환성 레이어 컴포넌트들에 대한 단위 테스트를 작성했습니다 (mui-button-compat.test.tsx에서 Button/IconButton/LoadingButton 테스트, mui-textfield-compat.test.tsx에서 TextField/OutlinedInput 테스트, mui-dialog-compat.test.tsx에서 Dialog 관련 컴포넌트 테스트). MUICompatibility.stories.tsx 파일에 모든 호환성 컴포넌트의 시각적 테스트를 위한 Storybook 스토리를 생성했습니다. 접근성(a11y) 테스트도 포함되어 있으며 TypeScript 타입 안정성이 확인되었습니다.\n</info added on 2025-06-26T09:51:37.538Z>",
             "testStrategy": "호환성 레이어를 통한 기존 기능 보존 검증, 새로운 shadcn/ui 컴포넌트의 시각적 일관성 확인, 접근성 표준 준수 검증"
           },
           {
@@ -227,7 +227,7 @@
         "dependencies": [
           2
         ],
-        "status": "pending",
+        "status": "deferred",
         "subtasks": [
           {
             "id": 1,
@@ -1127,7 +1127,7 @@
     ],
     "metadata": {
       "created": "2025-06-25T02:28:08.980Z",
-      "updated": "2025-06-26T09:32:54.918Z",
+      "updated": "2025-06-26T09:52:08.970Z",
       "description": "Tasks for master context"
     }
   }
