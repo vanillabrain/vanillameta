@@ -1,6 +1,6 @@
 import React from 'react';
 import { IconButton } from '@mui/material';
-import { ReactComponent as IconEdit } from '@/assets/images/icon/pen-to-square.svg';
+import IconEdit from '@/assets/images/icon/pen-to-square.svg?react';
 
 const ModifyButton = ({ fill = '#4A4A4A', width = '24', height = '24', ...props }) => {
   return (

@@ -7,7 +7,7 @@ config();
 const configService = new ConfigService();
 const configNodeenv = configService.get<string>('NODE_ENV');
 
-const dataSourceOptions: DataSourceOptions = {
+const dataSourceOptions = {
   type: configNodeenv == 'local' ? 'sqlite' : 'mysql',
   host: configService.get<string>('DB_HOST'),
   port: configService.get<number>('DB_PORT'),
@@ -17,6 +17,6 @@ const dataSourceOptions: DataSourceOptions = {
   entities: [__dirname + '/**/*.entity{.ts,.js}'],
   synchronize: configNodeenv != 'prod',
   logging: configNodeenv != 'prod',
-};
+} as DataSourceOptions;
 
 export default new DataSource(dataSourceOptions);

@@ -13,10 +13,10 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material';
-import { ReactComponent as IconShare } from '@/assets/images/icon/ic-share.svg';
-import { ReactComponent as IconToggleOn } from '@/assets/images/icon/toggle-on.svg';
-import { ReactComponent as IconToggleOff } from '@/assets/images/icon/toggle-off.svg';
-import { ReactComponent as IconLink } from '@/assets/images/icon/ic-link.svg';
+import IconShare from '@/assets/images/icon/ic-share.svg?react';
+import IconToggleOn from '@/assets/images/icon/toggle-on.svg?react';
+import IconToggleOff from '@/assets/images/icon/toggle-off.svg?react';
+import IconLink from '@/assets/images/icon/ic-link.svg?react';
 import { useAlert } from 'react-alert';
 import DatePicker from '@/components/form/DatePicker';
 

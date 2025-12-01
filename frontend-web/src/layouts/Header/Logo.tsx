@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Link } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
-import { ReactComponent as IconLogo } from '@/assets/images/logo.svg';
+import IconLogo from '@/assets/images/logo.svg?react';
 
 export const LandingLogo = props => {
   const { sx, ...rest } = props;

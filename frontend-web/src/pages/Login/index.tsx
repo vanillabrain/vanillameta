@@ -3,7 +3,7 @@ import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { Box, Button, Stack, TextField, Typography } from '@mui/material';
 import { useAlert } from 'react-alert';
 import { LoadingContext } from '@/contexts/LoadingContext';
-import { ReactComponent as Logo } from '@/assets/images/logo.svg';
+import Logo from '@/assets/images/logo.svg?react';
 import backgroundImage from '@/assets/images/visual-bg.png';
 import { Copyright } from '@/layouts/Footer';
 import authService from '@/api/authService';
@@ -23,7 +23,7 @@ const Login = () => {
   });
   let isValid;
   const token = getToken();
-  const APP_MODE = process.env.REACT_APP_MODE;
+  const APP_MODE = import.meta.env.VITE_APP_MODE;
 
   useEffect(() => {
     console.log('APP_MODE', APP_MODE);

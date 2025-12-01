@@ -8,7 +8,7 @@ import componentService from '@/api/componentService';
 import widgetService from '@/api/widgetService';
 import { useNavigate } from 'react-router-dom';
 import { LoadingContext } from '@/contexts/LoadingContext';
-import { ReactComponent as LeftArrow } from '@/assets/images/icon/angle-left.svg';
+import LeftArrow from '@/assets/images/icon/angle-left.svg?react';
 
 const title = '위젯 생성';
 const steps = ['데이터 선택', '위젯 타입 선택', '위젯 속성 설정'];

@@ -6,8 +6,8 @@ import { handleChange } from '@/widget/utils/handler';
 import { AGGREGATION_LIST, COLUMN_TYPE, LEGEND_LIST, PIE_LABEL_LIST } from '@/constant';
 import { getAggregationDataForChart, getColorArr } from '@/widget/modules/utils/chartUtil';
 import { AddButton } from '@/components/button/AddIconButton';
-import { ReactComponent as SingleColorIcon } from '@/assets/images/icon/ic-color.svg';
-import { ReactComponent as GradientColorIcon } from '@/assets/images/icon/ic-gradient.svg';
+import SingleColorIcon from '@/assets/images/icon/ic-color.svg?react';
+import GradientColorIcon from '@/assets/images/icon/ic-gradient.svg?react';
 
 const FunnelChartSetting = props => {
   const { option, setOption, spec, dataSet } = props;

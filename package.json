@@ -4,9 +4,12 @@
   "private": true,
   "description": "VanillaMeta - AI-First Business Intelligence Platform",
   "scripts": {
+    "kill:ports": "lsof -ti:3000,4000 | xargs kill -9 2>/dev/null || true",
+    "predev": "pnpm run kill:ports",
     "dev": "concurrently -n \"API,WEB\" -c \"blue,green\" \"pnpm run dev:api\" \"pnpm run dev:web\"",
     "dev:api": "pnpm --filter backend-api run start:dev",
     "dev:web": "pnpm --filter frontend-web run start:dev",
+    "predev:local": "pnpm run kill:ports",
     "dev:local": "concurrently -n \"API,WEB\" -c \"blue,green\" \"pnpm run local:api\" \"pnpm run local:web\"",
     "local:api": "pnpm --filter backend-api run start:local",
     "local:web": "pnpm --filter frontend-web run start:local",
@@ -21,10 +24,14 @@
     "install:all": "pnpm install"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "sqlite3": "^5.1.7"
   },
   "engines": {
     "node": ">=18.0.0",
     "pnpm": ">=8.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["sqlite3"]
   }
 }

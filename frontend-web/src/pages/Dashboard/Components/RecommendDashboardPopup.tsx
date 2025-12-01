@@ -21,17 +21,17 @@ import TemplateService from '@/api/templateService';
 import WidgetService from '@/api/widgetService';
 import { MAX_WIDTH, STATUS } from '@/constant';
 import CloseButton from '@/components/button/CloseButton';
-import { ReactComponent as TemplateIcon01 } from '@/assets/images/template/template01.svg';
-import { ReactComponent as TemplateIcon02 } from '@/assets/images/template/template02.svg';
-import { ReactComponent as TemplateIcon03 } from '@/assets/images/template/template03.svg';
-import { ReactComponent as TemplateIcon04 } from '@/assets/images/template/template04.svg';
-import { ReactComponent as TemplateIcon05 } from '@/assets/images/template/template05.svg';
-import { ReactComponent as TemplateIcon06 } from '@/assets/images/template/template06.svg';
-import { ReactComponent as TemplateIcon07 } from '@/assets/images/template/template07.svg';
-import { ReactComponent as TemplateIcon08 } from '@/assets/images/template/template08.svg';
-import { ReactComponent as TemplateIcon09 } from '@/assets/images/template/template09.svg';
-import { ReactComponent as TemplateIcon10 } from '@/assets/images/template/template10.svg';
-import { ReactComponent as CheckIcon } from '@/assets/images/icon/ic-check.svg';
+import TemplateIcon01 from '@/assets/images/template/template01.svg?react';
+import TemplateIcon02 from '@/assets/images/template/template02.svg?react';
+import TemplateIcon03 from '@/assets/images/template/template03.svg?react';
+import TemplateIcon04 from '@/assets/images/template/template04.svg?react';
+import TemplateIcon05 from '@/assets/images/template/template05.svg?react';
+import TemplateIcon06 from '@/assets/images/template/template06.svg?react';
+import TemplateIcon07 from '@/assets/images/template/template07.svg?react';
+import TemplateIcon08 from '@/assets/images/template/template08.svg?react';
+import TemplateIcon09 from '@/assets/images/template/template09.svg?react';
+import TemplateIcon10 from '@/assets/images/template/template10.svg?react';
+import CheckIcon from '@/assets/images/icon/ic-check.svg?react';
 import { LoadingContext } from '@/contexts/LoadingContext';
 
 const getTemplateIcon = id => {

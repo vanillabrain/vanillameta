@@ -5,7 +5,7 @@ import CardListWrapper, { CardWrapper } from '@/components/list/CardListWrapper'
 import DeleteButton from '@/components/button/DeleteButton';
 import ModifyButton from '@/components/button/ModifyButton';
 import { DatabaseProps } from '@/pages/Data/DataLayout';
-import { ReactComponent as IconDatabase } from '@/assets/images/icon/ic-data.svg';
+import IconDatabase from '@/assets/images/icon/ic-data.svg?react';
 
 interface DatabaseCardListProps {
   data: DatabaseProps[];
