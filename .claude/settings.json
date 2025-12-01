@@ -1,0 +1,47 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__mysql-mcp-server__mysql_query",
+      "Bash(cat :*)",
+      "Bash(chmod :*)",
+      "Bash(deno task :*)",
+      "Bash(npm run :*)",
+      "Bash(cargo :*)",
+      "Bash(go :*)",
+      "Bash(git :*)",
+      "Bash(gh :*)",
+      "Bash(docker :*)",
+      "Bash(kubectl :*)",
+      "Bash(terraform :*)",
+      "Bash(rg :*)",
+      "Bash(ripgrep :*)",
+      "Bash(fd :*)",
+      "Bash(fzf :*)",
+      "Bash(bat :*)",
+      "Bash(exa :*)",
+      "Bash(eza :*)",
+      "Bash(delta :*)",
+      "Bash(zoxide :*)",
+      "Bash(duf :*)",
+      "Bash(htop :*)",
+      "Bash(jq :*)",
+      "Bash(yq :*)",
+      "Bash(hexyl :*)",
+      "Bash(prettier :*)",
+      "Bash(eslint :*)",
+      "Bash(tsc :*)",
+      "Bash(pnpm :*)",
+      "Bash(yarn :*)",
+      "Bash(mkdir -p /tmp/claude-scratch :*)",
+      "Bash(touch /tmp/claude- :*)",
+      "Bash(echo * > /tmp/claude- :*)",
+      "Bash(cat /tmp/claude- :*)"
+    ]
+  },
+  "enabledMcpjsonServers": [
+    "context7",
+    "mysql-mcp-server"
+  ],
+  "includeCoAuthoredBy": false,
+  "alwaysThinkingEnabled": true
+}

@@ -1,0 +1,4 @@
+packages:
+  - 'backend-api'
+  - 'frontend-web'
+  - 'landing-page'

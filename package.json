@@ -1,0 +1,30 @@
+{
+  "name": "vanillameta",
+  "version": "1.0.0",
+  "private": true,
+  "description": "VanillaMeta - AI-First Business Intelligence Platform",
+  "scripts": {
+    "dev": "concurrently -n \"API,WEB\" -c \"blue,green\" \"pnpm run dev:api\" \"pnpm run dev:web\"",
+    "dev:api": "pnpm --filter backend-api run start:dev",
+    "dev:web": "pnpm --filter frontend-web run start:dev",
+    "dev:local": "concurrently -n \"API,WEB\" -c \"blue,green\" \"pnpm run local:api\" \"pnpm run local:web\"",
+    "local:api": "pnpm --filter backend-api run start:local",
+    "local:web": "pnpm --filter frontend-web run start:local",
+    "build": "pnpm run build:api && pnpm run build:web",
+    "build:api": "pnpm --filter backend-api run build",
+    "build:web": "pnpm --filter frontend-web run build",
+    "test": "pnpm -r run test",
+    "test:api": "pnpm --filter backend-api run test",
+    "test:web": "pnpm --filter frontend-web run test",
+    "lint": "pnpm -r run lint",
+    "seed": "pnpm --filter backend-api run seed",
+    "install:all": "pnpm install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}
