@@ -15,6 +15,7 @@ import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { LoginModule } from './login/login.module';
 import { ShareUrlModule } from './share-url/share-url.module';
+import { SeederService } from './database/seeds/seeder.service';
 
 @Module({
   imports: [
@@ -50,6 +51,6 @@ import { ShareUrlModule } from './share-url/share-url.module';
     ShareUrlModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, SeederService],
 })
 export class AppModule {}
