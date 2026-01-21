@@ -94,48 +94,53 @@ function DataSource() {
     showLoading();
     DatabaseService.selectDatabaseInfo(sourceId)
       .then(response => {
-        const info = response.data;
-        if (info.status === 'SUCCESS') {
-          const databaseInfo = info.data.databaseInfo;
+        console.log('selectDatabaseInfo response:', response);
+        if (response.status === 'SUCCESS') {
+          const databaseInfo = response.data;
+          const connectionConfig =
+            typeof databaseInfo.connectionConfig === 'string'
+              ? JSON.parse(databaseInfo.connectionConfig)
+              : databaseInfo.connectionConfig;
+
           const temp: any = {
             name: databaseInfo.name,
             type: databaseInfo.type,
           };
           if (databaseInfo.type === 'sqlite') {
             temp.sqlite = {
-              filename: databaseInfo.connectionConfig.filename,
+              filename: connectionConfig.filename,
             };
           } else if (databaseInfo.type === 'bigquery') {
             temp.bigquery = {
-              projectId: databaseInfo.connectionConfig.projectId,
-              keyFilename: databaseInfo.connectionConfig.keyFilename,
-              schema: databaseInfo.connectionConfig.schema,
+              projectId: connectionConfig.projectId,
+              keyFilename: connectionConfig.keyFilename,
+              schema: connectionConfig.schema,
             };
           } else if (databaseInfo.type === 'oracle') {
             temp.oracle = {
-              host: databaseInfo.connectionConfig.host,
-              port: Number(databaseInfo.connectionConfig.port),
-              user: databaseInfo.connectionConfig.user,
-              database: databaseInfo.connectionConfig.database,
-              instanceName: databaseInfo.connectionConfig.instanceName,
-              fetchAsString: databaseInfo.connectionConfig.fetchAsString,
-              requestTimeout: databaseInfo.connectionConfig.requestTimeout,
+              host: connectionConfig.host,
+              port: Number(connectionConfig.port),
+              user: connectionConfig.user,
+              database: connectionConfig.database,
+              instanceName: connectionConfig.instanceName,
+              fetchAsString: connectionConfig.fetchAsString,
+              requestTimeout: connectionConfig.requestTimeout,
             };
           } else if (databaseInfo.type === 'snowflake') {
             temp.snowflake = {
-              account: databaseInfo.connectionConfig.account,
-              username: databaseInfo.connectionConfig.username,
-              database: databaseInfo.connectionConfig.database,
-              application: databaseInfo.connectionConfig.application,
-              schema: databaseInfo.connectionConfig.schema,
-              warehouse: databaseInfo.connectionConfig.warehouse,
+              account: connectionConfig.account,
+              username: connectionConfig.username,
+              database: connectionConfig.database,
+              application: connectionConfig.application,
+              schema: connectionConfig.schema,
+              warehouse: connectionConfig.warehouse,
             };
           } else {
             temp.default = {
-              host: databaseInfo.connectionConfig.host,
-              port: Number(databaseInfo.connectionConfig.port),
-              user: databaseInfo.connectionConfig.user,
-              database: databaseInfo.connectionConfig.database,
+              host: connectionConfig.host,
+              port: Number(connectionConfig.port),
+              user: connectionConfig.user,
+              database: connectionConfig.database,
             };
           }
           setFormData(temp);
@@ -157,11 +162,12 @@ function DataSource() {
     DatabaseService.testConnection(param)
       .then(response => {
         console.log(response);
-        if (response.data.status === STATUS.SUCCESS) {
+        console.log('testConnection response:', response);
+        if (response.status === STATUS.SUCCESS) {
           setIsConnected(true);
           snackbar.success('데이터베이스 연결에 성공했습니다.');
         } else {
-          snackbar.error('데이터베이스에 연결할 수 없습니다. 데이터베이스 정보를 확인해주세요');
+          snackbar.error(response.message || '데이터베이스에 연결할 수 없습니다. 데이터베이스 정보를 확인해주세요');
         }
       })
       .finally(() => {
@@ -174,8 +180,9 @@ function DataSource() {
     DatabaseService.selectDatabaseTypeList()
       .then(response => {
         console.log('selectDatabaseTypeList', response.data);
-        if (response.data.status === STATUS.SUCCESS) {
-          const list = response.data.data;
+        console.log('selectDatabaseTypeList response:', response);
+        if (response.status === STATUS.SUCCESS) {
+          const list = response.data;
           list.map(item => (item.icon = getDatabaseIcon(item.type)));
           setTypeList(list);
         }
@@ -232,12 +239,13 @@ function DataSource() {
               DatabaseService.updateDatabase(sourceId, param)
                 .then(response => {
                   console.log(response.data);
-                  if (response.data.status === STATUS.SUCCESS) {
+                  console.log('updateDatabase response:', response);
+                  if (response.status === STATUS.SUCCESS) {
                     console.log('데이터베이스 저장', param);
                     navigate('/data');
                     snackbar.success('데이터베이스가 수정되었습니다.');
                   } else {
-                    alert.error('데이터베이스 저장에 실패했습니다.\n다시 시도해 주세요.');
+                    alert.error(response.message || '데이터베이스 저장에 실패했습니다.\n다시 시도해 주세요.');
                   }
                 })
                 .finally(() => {
@@ -246,12 +254,13 @@ function DataSource() {
             } else {
               DatabaseService.createDatabase(param)
                 .then(response => {
-                  if (response.data.status === STATUS.SUCCESS) {
+                  console.log('createDatabase response:', response);
+                  if (response.status === STATUS.SUCCESS) {
                     console.log('데이터베이스 저장', param);
                     navigate('/data');
                     snackbar.success('데이터베이스가 생성되었습니다.');
                   } else {
-                    alert.error('데이터베이스 저장에 실패했습니다.\n다시 시도해 주세요.');
+                    alert.error(response.message || '데이터베이스 저장에 실패했습니다.\n다시 시도해 주세요.');
                   }
                 })
                 .finally(() => {
@@ -301,7 +310,7 @@ function DataSource() {
           cancelProps={{ onClick: handleCancelClick }}
         />
       }
-      sx={{ p: 0 }}
+      className="p-0"
     >
       <Stack sx={{ width: '100%' }}>
         <Stack sx={{ p: '30px 25px 50px 25px' }}>

@@ -1,48 +1,67 @@
-import { Injectable, NestMiddleware, Logger, ExecutionContext, CallHandler } from '@nestjs/common';
+import { Injectable, NestMiddleware } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { InjectRepository } from '@nestjs/typeorm';
-import { LoginHistory } from '../entities/login-history.entity.js';
+import { LoginHistory } from '../entities/login-history.entity';
 import { Repository } from 'typeorm';
-import { YesNo } from '../../common/enum/yn.enum.js';
+import { YesNo } from '../../common/enum/yn.enum';
+import { CustomLoggerService } from '../../common/logger/logger.service';
 
 @Injectable()
 export class loginLoggerMiddleware implements NestMiddleware {
-  private readonly logger = new Logger(loginLoggerMiddleware.name);
   constructor(
     @InjectRepository(LoginHistory)
-    private readonly loginHisotryRepository: Repository<LoginHistory>,
+    private readonly loginHistoryRepository: Repository<LoginHistory>,
+    private readonly logger: CustomLoggerService,
   ) {}
+
   async use(req: Request, res: Response, next: NextFunction) {
-    if (req.url === '/signin') {
-      const loginSaveObj = {
-        userId: req.body?.userId,
-        path: req?.path,
-        login_Type: req?.headers['user-agent'],
-        login_succYn: YesNo.YES,
-        created_at: new Date(),
-      };
-      this.logger.log(loginSaveObj);
-      await this.loginHisotryRepository.save(loginSaveObj);
-      return next();
+    try {
+      if (req.url === '/signin') {
+        const userId = req.body?.userId;
+        const correlationId = req['correlationId'];
+
+        const loginSaveObj = {
+          userId: userId,
+          path: req?.path,
+          login_Type: req?.headers['user-agent'],
+          login_succYn: YesNo.YES,
+          created_at: new Date(),
+        };
+
+        // 구조화된 로깅
+        this.logger.logBusiness(
+          'user_login',
+          {
+            action: 'login_attempt',
+            path: req.path,
+            userAgent: req.headers['user-agent'],
+            correlationId: correlationId,
+            ip: req.ip || req.connection?.remoteAddress,
+          },
+          userId,
+          'LoginLogger',
+        );
+
+        await this.loginHistoryRepository.save(loginSaveObj);
+        return next();
+      }
+
+      // TODO: 로그아웃 로깅 기능 추가 예정
+      // if (req.url === '/signout') {
+      //   const userId = req.body?.userId;
+      //   this.logger.logBusiness('user_logout', {
+      //     action: 'logout',
+      //     correlationId: req['correlationId']
+      //   }, userId, 'LoginLogger');
+      // }
+
+      next();
+    } catch (error) {
+      this.logger.error('Error in login logger middleware', error.stack, 'LoginLogger', {
+        path: req.path,
+        correlationId: req['correlationId'],
+      });
+      next(error);
     }
-
-    //fixme 우선 logout 로거 삭제
-
-    // if (req.url === '/signout') {
-    //   const logoutSaveObj = {
-    //     userId: req.body.userId,
-    //     path: req.path,
-    //     loginType: req.headers['user-agent'],
-    //     loginSuccYn: YesNo.NO,
-    //     createdAt: new Date(),
-    //   };
-    //   this.logger.log(logoutSaveObj);
-    //   await this.loginHisotryRepository.save(logoutSaveObj);
-    //   return next();
-    // }
-
-    next();
-    // await this.loginHisotryRepository.save(saveObj)
-    // 로그인 시간, 로그아웃 체크, 접속기기..?, explorer 어떤거?
   }
 }

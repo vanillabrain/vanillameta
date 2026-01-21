@@ -1,0 +1,23 @@
+3abbbec4998b8e7929130a523c1ab6fd
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const testing_1 = require("@nestjs/testing");
+const dataset_controller_1 = require("./dataset.controller");
+const dataset_service_1 = require("./dataset.service");
+const test_providers_1 = require("../../test/util/test-providers");
+describe('DatasetController', () => {
+    let controller;
+    beforeEach(async () => {
+        const module = await testing_1.Test.createTestingModule({
+            controllers: [dataset_controller_1.DatasetController],
+            providers: [
+                dataset_service_1.DatasetService,
+                ...test_providers_1.commonTestProviders,
+            ],
+        }).compile();
+        controller = module.get(dataset_controller_1.DatasetController);
+    });
+    it('should be defined', () => {
+        expect(controller).toBeDefined();
+    });
+});

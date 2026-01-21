@@ -1,0 +1,98 @@
+# Lambda Layer용 .npmignore - 불필요한 파일 제거
+
+# 문서 및 설명 파일
+**/*.md
+**/*.txt
+**/README*
+**/CHANGELOG*
+**/AUTHORS*
+**/CONTRIBUTORS*
+**/HISTORY*
+**/LICENSE*
+**/LICENCE*
+**/NOTICE*
+
+# 테스트 관련 파일
+**/test/**
+**/tests/**
+**/spec/**
+**/specs/**
+**/*.test.js
+**/*.spec.js
+**/*.test.ts
+**/*.spec.ts
+**/__tests__/**
+**/__mocks__/**
+**/coverage/**
+**/.nyc_output/**
+
+# 빌드 및 설정 파일
+**/.github/**
+**/.vscode/**
+**/.idea/**
+**/Makefile*
+**/makefile*
+**/gulpfile.js
+**/Gruntfile.js
+**/webpack.config.js
+**/rollup.config.js
+**/babel.config.js
+**/.eslintrc*
+**/.prettierrc*
+**/.babelrc*
+**/tsconfig.json
+**/tslint.json
+**/jest.config.js
+
+# 소스맵 및 타입스크립트 파일
+**/*.map
+**/*.ts
+**/*.tsx
+!**/*.d.ts
+
+# 예제 및 데모
+**/example/**
+**/examples/**
+**/demo/**
+**/demos/**
+**/sample/**
+**/samples/**
+**/docs/**
+**/documentation/**
+
+# 개발 도구
+**/node_modules/.bin/**
+**/.git/**
+**/.svn/**
+**/.hg/**
+**/CVS/**
+
+# 임시 파일
+**/.tmp/**
+**/tmp/**
+**/.temp/**
+**/temp/**
+**/*.log
+**/*.pid
+**/*.seed
+**/*.pid.lock
+
+# 불필요한 설정 파일
+**/.DS_Store
+**/Thumbs.db
+**/.editorconfig
+**/.gitattributes
+**/.gitignore
+**/.npmignore
+**/.yarnrc
+**/.dockerignore
+
+# 특정 패키지의 불필요한 파일들
+**/locale/**
+**/locales/**
+**/i18n/**
+**/translations/**
+
+# 바이너리 및 네이티브 파일 (필요한 것만 제외)
+**/build/Release/**
+**/build/Debug/**

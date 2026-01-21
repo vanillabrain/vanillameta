@@ -3,7 +3,8 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from 'src/user/entities/user.entity';
-import { RefreshToken } from './entites/refresh_token.entity';
+import { RefreshToken } from './entities/refresh_token.entity';
+import { JwtPayload } from './interfaces/jwt-payload.interface';
 
 @Injectable()
 export class AuthService {
@@ -14,12 +15,19 @@ export class AuthService {
     private readonly refreshTokenRepository: Repository<RefreshToken>,
   ) {}
 
-  async generateAccessToken(payload: any) {
-    const accessKeyData = {
+  async generateAccessToken(payload: JwtPayload): Promise<string> {
+    const accessKeyData: JwtPayload = {
       userId: payload.userId,
       email: payload.email,
       id: payload.id,
     };
+
+    // 디버깅용 로그
+    console.log('Environment variables:', {
+      ACCESS_SECRET: process.env.ACCESS_SECRET ? 'EXISTS' : 'MISSING',
+      NODE_ENV: process.env.NODE_ENV,
+    });
+
     const accessToken = await this.jwtService.sign(
       { accessKeyData },
       {
@@ -28,11 +36,10 @@ export class AuthService {
       },
     );
     return accessToken;
-    // accesstoken이 없을때
   }
 
-  async generateUrlAccessToken(payload: any) {
-    const accessKeyData = {
+  async generateUrlAccessToken(payload: JwtPayload): Promise<string> {
+    const accessKeyData: JwtPayload = {
       userId: payload.userId,
       email: payload.email,
       id: payload.id,
@@ -45,11 +52,10 @@ export class AuthService {
       },
     );
     return accessToken;
-    // accesstoken이 없을때
   }
 
-  async generateRefreshToken(payload: any) {
-    const refreshKeyData = {
+  async generateRefreshToken(payload: JwtPayload): Promise<string> {
+    const refreshKeyData: JwtPayload = {
       userId: payload.userId,
       email: payload.email,
       id: payload.id,
@@ -59,7 +65,6 @@ export class AuthService {
       { secret: process.env.REFRESH_SECRET, expiresIn: '43200s' },
     );
     return refreshToken;
-    // accesstoken이 없을때
   }
 
   async setRefreshKey(refreshToken: string, jwt_id: number) {
@@ -82,8 +87,7 @@ export class AuthService {
       delete user.password;
       return user;
     }
-
-    // 회원이 존재하는지 확인
+    return undefined;
   }
 
   async deleteRefreshToken(userId: number) {

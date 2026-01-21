@@ -1,0 +1,125 @@
+f69a973e6f79d16db884021bd1ae1fc7
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var QueryCollector_1;
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.QueryCollector = void 0;
+const common_1 = require("@nestjs/common");
+let QueryCollector = QueryCollector_1 = class QueryCollector {
+    constructor() {
+        this.logger = new common_1.Logger(QueryCollector_1.name);
+        this.queries = [];
+        this.maxQueries = 1000; // 메모리 관리를 위한 최대 쿼리 수
+    }
+    /**
+     * 쿼리 수집
+     */
+    collect(query, source, params, executionTime) {
+        const collectedQuery = {
+            query,
+            params,
+            source,
+            timestamp: new Date(),
+            executionTime,
+        };
+        this.queries.push(collectedQuery);
+        // 메모리 관리: 최대 개수 초과 시 오래된 쿼리 제거
+        if (this.queries.length > this.maxQueries) {
+            this.queries = this.queries.slice(-this.maxQueries);
+        }
+        // 느린 쿼리 즉시 로깅
+        if (executionTime && executionTime > 1000) {
+            this.logger.warn({
+                message: 'Slow query collected',
+                source,
+                executionTime,
+                query: query.substring(0, 200),
+            });
+        }
+    }
+    /**
+     * 수집된 쿼리 조회
+     */
+    getQueries(filter) {
+        let result = [...this.queries];
+        if (filter) {
+            if (filter.source) {
+                result = result.filter(q => q.source === filter.source);
+            }
+            if (filter.minExecutionTime) {
+                result = result.filter(q => q.executionTime && q.executionTime >= filter.minExecutionTime);
+            }
+            if (filter.since) {
+                result = result.filter(q => q.timestamp >= filter.since);
+            }
+        }
+        return result;
+    }
+    /**
+     * 주요 쿼리 패턴 식별
+     */
+    identifyPatterns() {
+        const patterns = new Map();
+        for (const query of this.queries) {
+            // 쿼리 정규화 (파라미터 제거)
+            const normalizedQuery = this.normalizeQuery(query.query);
+            if (!patterns.has(normalizedQuery)) {
+                patterns.set(normalizedQuery, []);
+            }
+            patterns.get(normalizedQuery).push(query);
+        }
+        return patterns;
+    }
+    /**
+     * 쿼리 정규화 (파라미터를 ? 로 치환)
+     */
+    normalizeQuery(query) {
+        // 숫자 리터럴을 ? 로 치환
+        let normalized = query.replace(/\b\d+\b/g, '?');
+        // 문자열 리터럴을 ? 로 치환
+        normalized = normalized.replace(/'[^']*'/g, '?');
+        normalized = normalized.replace(/"[^"]*"/g, '?');
+        // 공백 정규화
+        normalized = normalized.replace(/\s+/g, ' ').trim();
+        return normalized;
+    }
+    /**
+     * 통계 생성
+     */
+    getStatistics() {
+        const slowQueries = this.queries.filter(q => q.executionTime && q.executionTime > 1000);
+        const queriesWithTime = this.queries.filter(q => q.executionTime);
+        const totalExecutionTime = queriesWithTime.reduce((sum, q) => sum + (q.executionTime || 0), 0);
+        const queryBySources = new Map();
+        for (const query of this.queries) {
+            queryBySources.set(query.source, (queryBySources.get(query.source) || 0) + 1);
+        }
+        const slowestQueries = [...this.queries]
+            .filter(q => q.executionTime)
+            .sort((a, b) => (b.executionTime || 0) - (a.executionTime || 0))
+            .slice(0, 10);
+        return {
+            totalQueries: this.queries.length,
+            slowQueries: slowQueries.length,
+            averageExecutionTime: queriesWithTime.length > 0 ? totalExecutionTime / queriesWithTime.length : 0,
+            queryBySources,
+            slowestQueries,
+        };
+    }
+    /**
+     * 수집된 쿼리 초기화
+     */
+    clear() {
+        this.queries = [];
+        this.logger.log('Query collection cleared');
+    }
+};
+QueryCollector = QueryCollector_1 = __decorate([
+    (0, common_1.Injectable)()
+], QueryCollector);
+exports.QueryCollector = QueryCollector;

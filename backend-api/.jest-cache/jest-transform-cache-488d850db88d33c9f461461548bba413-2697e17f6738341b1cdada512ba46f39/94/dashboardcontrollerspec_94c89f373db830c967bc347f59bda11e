@@ -1,0 +1,104 @@
+d2c9360152fcbfaa90dd3fd34f933065
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const testing_1 = require("@nestjs/testing");
+const typeorm_1 = require("@nestjs/typeorm");
+const dashboard_controller_1 = require("./dashboard.controller");
+const dashboard_service_1 = require("./dashboard.service");
+const dashboard_entity_1 = require("./entities/dashboard.entity");
+const dashboard_share_entity_1 = require("./entities/dashboard_share.entity");
+const user_entity_1 = require("../user/entities/user.entity");
+const user_mapping_entity_1 = require("../user/entities/user-mapping.entity");
+const dashboard_widget_service_1 = require("./dashboard-widget/dashboard-widget.service");
+const user_service_1 = require("../user/user.service");
+const auth_service_1 = require("../auth/auth.service");
+const logger_service_1 = require("../common/logger/logger.service");
+describe('DashboardController', () => {
+    let controller;
+    const mockDashboardRepository = {
+        findOne: jest.fn(),
+        save: jest.fn(),
+        find: jest.fn(),
+        delete: jest.fn(),
+        createQueryBuilder: jest.fn().mockReturnValue({
+            innerJoin: jest.fn().mockReturnThis(),
+            where: jest.fn().mockReturnThis(),
+            andWhere: jest.fn().mockReturnThis(),
+            getMany: jest.fn(),
+        }),
+    };
+    const mockUserRepository = {
+        findOne: jest.fn(),
+    };
+    const mockDashboardShareRepository = {
+        save: jest.fn(),
+        findOne: jest.fn(),
+    };
+    const mockUserMappingRepository = {
+        save: jest.fn(),
+        find: jest.fn(),
+        createQueryBuilder: jest.fn().mockReturnValue({
+            select: jest.fn().mockReturnThis(),
+            where: jest.fn().mockReturnThis(),
+            getRawMany: jest.fn(),
+        }),
+    };
+    const mockDashboardWidgetService = {
+        create: jest.fn(),
+    };
+    const mockUserService = {
+        findDashboardId: jest.fn(),
+    };
+    const mockAuthService = {
+        checkAccess: jest.fn(),
+    };
+    const mockLoggerService = {
+        debug: jest.fn(),
+        error: jest.fn(),
+        log: jest.fn(),
+    };
+    beforeEach(async () => {
+        const module = await testing_1.Test.createTestingModule({
+            controllers: [dashboard_controller_1.DashboardController],
+            providers: [
+                dashboard_service_1.DashboardService,
+                {
+                    provide: (0, typeorm_1.getRepositoryToken)(dashboard_entity_1.Dashboard),
+                    useValue: mockDashboardRepository,
+                },
+                {
+                    provide: (0, typeorm_1.getRepositoryToken)(user_entity_1.User),
+                    useValue: mockUserRepository,
+                },
+                {
+                    provide: (0, typeorm_1.getRepositoryToken)(dashboard_share_entity_1.DashboardShare),
+                    useValue: mockDashboardShareRepository,
+                },
+                {
+                    provide: (0, typeorm_1.getRepositoryToken)(user_mapping_entity_1.UserMapping),
+                    useValue: mockUserMappingRepository,
+                },
+                {
+                    provide: dashboard_widget_service_1.DashboardWidgetService,
+                    useValue: mockDashboardWidgetService,
+                },
+                {
+                    provide: user_service_1.UserService,
+                    useValue: mockUserService,
+                },
+                {
+                    provide: auth_service_1.AuthService,
+                    useValue: mockAuthService,
+                },
+                {
+                    provide: logger_service_1.CustomLoggerService,
+                    useValue: mockLoggerService,
+                },
+            ],
+        }).compile();
+        controller = module.get(dashboard_controller_1.DashboardController);
+    });
+    it('should be defined', () => {
+        expect(controller).toBeDefined();
+    });
+});

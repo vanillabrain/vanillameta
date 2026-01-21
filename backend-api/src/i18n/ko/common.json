@@ -1,0 +1,28 @@
+{
+  "success": {
+    "created": "생성되었습니다.",
+    "updated": "수정되었습니다.",
+    "deleted": "삭제되었습니다.",
+    "saved": "저장되었습니다.",
+    "completed": "완료되었습니다."
+  },
+  "error": {
+    "not_found": "데이터를 찾을 수 없습니다.",
+    "unauthorized": "인증되지 않은 요청입니다.",
+    "forbidden": "접근 권한이 없습니다.",
+    "bad_request": "잘못된 요청입니다.",
+    "internal_server": "서버 오류가 발생했습니다.",
+    "duplicate": "이미 존재하는 데이터입니다.",
+    "validation_failed": "유효성 검사에 실패했습니다.",
+    "connection_failed": "연결에 실패했습니다.",
+    "timeout": "요청 시간이 초과되었습니다."
+  },
+  "validation": {
+    "required": "{field}은(는) 필수 항목입니다.",
+    "min_length": "{field}은(는) 최소 {min}자 이상이어야 합니다.",
+    "max_length": "{field}은(는) 최대 {max}자 이하여야 합니다.",
+    "email": "올바른 이메일 형식이 아닙니다.",
+    "number": "숫자만 입력 가능합니다.",
+    "pattern": "올바른 형식이 아닙니다."
+  }
+}

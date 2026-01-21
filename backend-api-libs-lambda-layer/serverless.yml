@@ -7,11 +7,27 @@ package:
     - '!*'
     - '!*/**'
     - node_modules/**
-    - '!node_modules/aws-sdk'
+    - '!node_modules/aws-sdk/**'
+    - '!node_modules/**/*.md'
+    - '!node_modules/**/README*'
+    - '!node_modules/**/test/**'
+    - '!node_modules/**/tests/**'
+    - '!node_modules/**/*.spec.js'
+    - '!node_modules/**/*.test.js'
+    - '!node_modules/**/*.map'
+    - '!node_modules/**/example/**'
+    - '!node_modules/**/examples/**'
+    - '!node_modules/**/docs/**'
+    - '!node_modules/**/.github/**'
+    - '!node_modules/**/coverage/**'
+    - '!node_modules/**/__tests__/**'
+    - '!node_modules/**/*.ts'
+    - '!node_modules/**/*.tsx'
+    - 'node_modules/**/*.d.ts'
 
 provider:
   name: aws
-  runtime: nodejs14.x
+  runtime: nodejs18.x
   stage:  ${file(./config.serverless.yml):STAGE}
   region: ${file(./config.serverless.yml):AWS_REGION}
   deploymentBucket: ${file(./config.serverless.yml):DEPLOYMENT_BUCKET}
@@ -21,6 +37,10 @@ provider:
 layers:
   VanillaMetaApiNodeLibs:
     path: ./
-    description: "vanillameta serverless-api node_modules lambda layer"
+    name: vanillameta-api-libs-optimized-${self:provider.stage}
+    description: "VanillaMeta API 최적화된 Node.js 라이브러리 Layer (크기 최적화 적용)"
     compatibleRuntimes:
-      - nodejs14.x
+      - nodejs18.x
+      - nodejs16.x
+    licenseInfo: Apache-2.0
+    retain: false

@@ -1,0 +1,230 @@
+0196188061392b7be929c52c9aa92027
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ConnectionPoolMonitorService = void 0;
+const common_1 = require("@nestjs/common");
+const typeorm_1 = require("@nestjs/typeorm");
+const typeorm_2 = require("typeorm");
+const logger_service_1 = require("../logger/logger.service");
+const schedule_1 = require("@nestjs/schedule");
+const connection_service_1 = require("../../connection/connection.service");
+const integrated_metrics_service_1 = require("./integrated-metrics.service");
+let ConnectionPoolMonitorService = class ConnectionPoolMonitorService {
+    constructor(dataSource, logger, integratedMetrics) {
+        this.dataSource = dataSource;
+        this.logger = logger;
+        this.integratedMetrics = integratedMetrics;
+        this.metricsHistory = [];
+        this.maxHistorySize = 100;
+    }
+    /**
+     * TypeORM 연결 풀 메트릭 수집
+     */
+    async collectTypeOrmMetrics() {
+        var _a, _b, _c;
+        try {
+            const driver = this.dataSource.driver;
+            const pool = driver.pool;
+            if (!pool) {
+                return null;
+            }
+            // MySQL2 드라이버의 경우
+            if (pool._allConnections) {
+                const metrics = {
+                    totalConnections: pool._allConnections.length,
+                    activeConnections: ((_a = pool._activeConnections) === null || _a === void 0 ? void 0 : _a.length) || 0,
+                    idleConnections: ((_b = pool._freeConnections) === null || _b === void 0 ? void 0 : _b.length) || 0,
+                    waitingRequests: ((_c = pool._connectionQueue) === null || _c === void 0 ? void 0 : _c.length) || 0,
+                    connectionUtilization: 0,
+                    timestamp: new Date(),
+                };
+                // 연결 사용률 계산
+                if (metrics.totalConnections > 0) {
+                    metrics.connectionUtilization =
+                        (metrics.activeConnections / metrics.totalConnections) * 100;
+                }
+                return metrics;
+            }
+            return null;
+        }
+        catch (error) {
+            this.logger.error('Failed to collect TypeORM metrics', error.stack, 'ConnectionPoolMonitor');
+            return null;
+        }
+    }
+    /**
+     * Knex 연결 풀 메트릭 수집
+     */
+    async collectKnexMetrics(knexInstance) {
+        try {
+            const pool = knexInstance.client.pool;
+            if (!pool) {
+                return null;
+            }
+            const metrics = {
+                totalConnections: pool.numUsed() + pool.numFree(),
+                activeConnections: pool.numUsed(),
+                idleConnections: pool.numFree(),
+                waitingRequests: pool.numPendingAcquires(),
+                connectionUtilization: 0,
+                timestamp: new Date(),
+            };
+            // 연결 사용률 계산
+            if (metrics.totalConnections > 0) {
+                metrics.connectionUtilization =
+                    (metrics.activeConnections / metrics.totalConnections) * 100;
+            }
+            return metrics;
+        }
+        catch (error) {
+            this.logger.error('Failed to collect Knex metrics', error.stack, 'ConnectionPoolMonitor');
+            return null;
+        }
+    }
+    /**
+     * 메트릭을 히스토리에 추가
+     */
+    addToHistory(metrics) {
+        this.metricsHistory.push(metrics);
+        // 최대 크기 유지
+        if (this.metricsHistory.length > this.maxHistorySize) {
+            this.metricsHistory.shift();
+        }
+    }
+    /**
+     * 모든 Knex 연결의 메트릭 수집
+     */
+    async collectAllKnexMetrics() {
+        const allMetrics = new Map();
+        for (const [dbId, knexInstance] of connection_service_1.knexConnections) {
+            const metrics = await this.collectKnexMetrics(knexInstance);
+            if (metrics) {
+                allMetrics.set(dbId, metrics);
+            }
+        }
+        return allMetrics;
+    }
+    /**
+     * 현재 메트릭 및 통계 반환
+     */
+    async getMetrics() {
+        const currentMetrics = await this.collectTypeOrmMetrics();
+        if (currentMetrics) {
+            this.addToHistory(currentMetrics);
+        }
+        // 통계 계산
+        const recentMetrics = this.metricsHistory.slice(-20); // 최근 20개
+        const statistics = {
+            avgUtilization: 0,
+            maxUtilization: 0,
+            avgActiveConnections: 0,
+            connectionReusability: 0,
+        };
+        if (recentMetrics.length > 0) {
+            statistics.avgUtilization =
+                recentMetrics.reduce((sum, m) => sum + m.connectionUtilization, 0) / recentMetrics.length;
+            statistics.maxUtilization = Math.max(...recentMetrics.map(m => m.connectionUtilization));
+            statistics.avgActiveConnections =
+                recentMetrics.reduce((sum, m) => sum + m.activeConnections, 0) / recentMetrics.length;
+            // 연결 재사용률 계산 (idle connections가 있는 비율)
+            const withIdleConnections = recentMetrics.filter(m => m.idleConnections > 0).length;
+            statistics.connectionReusability = (withIdleConnections / recentMetrics.length) * 100;
+        }
+        // Knex 연결 풀 메트릭도 수집
+        const knexMetrics = await this.collectAllKnexMetrics();
+        return {
+            current: currentMetrics,
+            knexPools: knexMetrics,
+            statistics,
+        };
+    }
+    /**
+     * 주기적으로 메트릭 수집 및 로깅 (프로덕션에서만 활성화)
+     */
+    async collectAndLogMetrics() {
+        const metrics = await this.getMetrics();
+        if (metrics.current) {
+            // CloudWatch 메트릭 전송
+            await this.integratedMetrics.recordConnectionPoolMetrics(metrics.current.totalConnections, metrics.current.activeConnections, metrics.current.idleConnections, metrics.current.waitingRequests);
+            // 로깅 (프로덕션에서만)
+            if (process.env.NODE_ENV === 'prod') {
+                this.logger.info('Connection pool metrics', 'ConnectionPoolMonitor', {
+                    typeorm: metrics.current,
+                    knexPoolsCount: metrics.knexPools.size,
+                    statistics: metrics.statistics,
+                });
+            }
+            // 경고 조건 확인
+            if (metrics.current.connectionUtilization > 80) {
+                this.logger.warn('High connection pool utilization', 'ConnectionPoolMonitor', {
+                    utilization: metrics.current.connectionUtilization,
+                    activeConnections: metrics.current.activeConnections,
+                    totalConnections: metrics.current.totalConnections,
+                });
+            }
+            if (metrics.current.waitingRequests > 0) {
+                this.logger.warn('Connection pool has waiting requests', 'ConnectionPoolMonitor', {
+                    waitingRequests: metrics.current.waitingRequests,
+                    activeConnections: metrics.current.activeConnections,
+                });
+            }
+        }
+        // Knex 연결 풀 메트릭도 CloudWatch로 전송
+        for (const [dbId, knexMetrics] of metrics.knexPools) {
+            await this.integratedMetrics.recordConnectionPoolMetrics(knexMetrics.totalConnections, knexMetrics.activeConnections, knexMetrics.idleConnections, knexMetrics.waitingRequests);
+        }
+    }
+    /**
+     * 연결 풀 상태 확인 (헬스체크용)
+     */
+    async checkPoolHealth() {
+        const issues = [];
+        const metrics = await this.getMetrics();
+        if (!metrics.current) {
+            issues.push('Unable to collect connection pool metrics');
+            return { isHealthy: false, issues };
+        }
+        // 연결 사용률이 90% 이상
+        if (metrics.current.connectionUtilization > 90) {
+            issues.push(`Connection pool utilization is very high: ${metrics.current.connectionUtilization.toFixed(2)}%`);
+        }
+        // 대기 중인 요청이 있음
+        if (metrics.current.waitingRequests > 0) {
+            issues.push(`${metrics.current.waitingRequests} requests waiting for connections`);
+        }
+        // 연결 재사용률이 낮음 (50% 미만)
+        if (metrics.statistics.connectionReusability < 50) {
+            issues.push(`Low connection reusability: ${metrics.statistics.connectionReusability.toFixed(2)}%`);
+        }
+        return {
+            isHealthy: issues.length === 0,
+            issues,
+        };
+    }
+};
+__decorate([
+    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_MINUTE),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], ConnectionPoolMonitorService.prototype, "collectAndLogMetrics", null);
+ConnectionPoolMonitorService = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, typeorm_1.InjectDataSource)()),
+    __metadata("design:paramtypes", [typeorm_2.DataSource,
+        logger_service_1.CustomLoggerService,
+        integrated_metrics_service_1.IntegratedMetricsService])
+], ConnectionPoolMonitorService);
+exports.ConnectionPoolMonitorService = ConnectionPoolMonitorService;

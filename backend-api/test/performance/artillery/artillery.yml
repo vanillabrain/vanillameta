@@ -1,0 +1,251 @@
+config:
+  target: "http://localhost:3000"
+  phases:
+    # 준비 단계: 낮은 부하로 시작
+    - duration: 60
+      arrivalRate: 5
+      name: "Warm-up phase"
+    
+    # 증가 단계: 점진적으로 부하 증가
+    - duration: 120
+      arrivalRate: 5
+      rampTo: 50
+      name: "Ramp-up phase"
+    
+    # 지속 단계: 일정한 부하 유지
+    - duration: 300
+      arrivalRate: 50
+      name: "Sustained load phase"
+    
+    # 스트레스 단계: 높은 부하
+    - duration: 60
+      arrivalRate: 100
+      name: "Stress test phase"
+  
+  processor: "./processor.js"
+  
+  variables:
+    baseUrl: "{{ $processEnvironment.API_URL }}"
+  
+  defaults:
+    headers:
+      Content-Type: "application/json"
+  
+  plugins:
+    # 메트릭 수집
+    metrics-by-endpoint:
+      useOnlyRequestNames: true
+    
+    # 예상치 설정
+    expect: {}
+    
+    # 성능 메트릭 리포팅
+    publish-metrics:
+      - type: statsd
+        host: localhost
+        port: 8125
+        prefix: "vanillameta.api"
+
+scenarios:
+  # 시나리오 1: 인증 플로우
+  - name: "Authentication Flow"
+    weight: 20
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            userId: "{{ userId }}"
+            password: "{{ password }}"
+          capture:
+            - json: "$.accessToken"
+              as: "accessToken"
+          expect:
+            - statusCode: 201
+            - contentType: json
+            - hasProperty: "accessToken"
+      
+      - think: 2
+      
+      - get:
+          url: "/api/user/profile"
+          headers:
+            Authorization: "Bearer {{ accessToken }}"
+          expect:
+            - statusCode: 200
+      
+      - post:
+          url: "/api/auth/refresh"
+          headers:
+            Authorization: "Bearer refreshToken={{ refreshToken }}"
+          expect:
+            - statusCode: 201
+
+  # 시나리오 2: 대시보드 작업
+  - name: "Dashboard Operations"
+    weight: 30
+    flow:
+      - function: "authenticateUser"
+      
+      - get:
+          url: "/api/dashboard"
+          headers:
+            Authorization: "Bearer {{ accessToken }}"
+          expect:
+            - statusCode: 200
+            - contentType: json
+          capture:
+            - json: "$.data[0].id"
+              as: "dashboardId"
+      
+      - think: 1
+      
+      - get:
+          url: "/api/dashboard/{{ dashboardId }}"
+          headers:
+            Authorization: "Bearer {{ accessToken }}"
+          expect:
+            - statusCode: 200
+      
+      - post:
+          url: "/api/dashboard"
+          headers:
+            Authorization: "Bearer {{ accessToken }}"
+          json:
+            title: "Load Test Dashboard {{ $randomNumber() }}"
+            description: "Created during load testing"
+            layout: []
+          expect:
+            - statusCode: 201
+          capture:
+            - json: "$.data.id"
+              as: "newDashboardId"
+      
+      - think: 2
+      
+      - patch:
+          url: "/api/dashboard/{{ newDashboardId }}"
+          headers:
+            Authorization: "Bearer {{ accessToken }}"
+          json:
+            title: "Updated Dashboard {{ $timestamp }}"
+          expect:
+            - statusCode: 200
+
+  # 시나리오 3: 위젯 관리
+  - name: "Widget Management"
+    weight: 25
+    flow:
+      - function: "authenticateUser"
+      
+      - get:
+          url: "/api/widget"
+          headers:
+            Authorization: "Bearer {{ accessToken }}"
+          expect:
+            - statusCode: 200
+      
+      - post:
+          url: "/api/widget"
+          headers:
+            Authorization: "Bearer {{ accessToken }}"
+          json:
+            name: "Load Test Widget"
+            dashboardId: 1
+            datasetType: "DATASET"
+            datasetId: 1
+            componentType: "barChart"
+            chartOptions:
+              type: "bar"
+              title:
+                text: "Performance Test Chart"
+            size:
+              x: 0
+              y: 0
+              w: 4
+              h: 4
+          expect:
+            - statusCode: 201
+          capture:
+            - json: "$.data.id"
+              as: "widgetId"
+      
+      - think: 1
+      
+      - get:
+          url: "/api/widget/{{ widgetId }}/data"
+          headers:
+            Authorization: "Bearer {{ accessToken }}"
+          expect:
+            - statusCode: 200
+
+  # 시나리오 4: 데이터 쿼리
+  - name: "Data Query Operations"
+    weight: 15
+    flow:
+      - function: "authenticateUser"
+      
+      - get:
+          url: "/api/database"
+          headers:
+            Authorization: "Bearer {{ accessToken }}"
+          expect:
+            - statusCode: 200
+          capture:
+            - json: "$.data[0].id"
+              as: "databaseId"
+      
+      - post:
+          url: "/api/database/execute-query"
+          headers:
+            Authorization: "Bearer {{ accessToken }}"
+          json:
+            id: "{{ databaseId }}"
+            query: "SELECT 1 as test_col, 'load_test' as type"
+            parameters: []
+            limit: 100
+          expect:
+            - statusCode:
+                - 200
+                - 400
+      
+      - get:
+          url: "/api/dataset"
+          headers:
+            Authorization: "Bearer {{ accessToken }}"
+          expect:
+            - statusCode: 200
+
+  # 시나리오 5: 검색 및 필터링
+  - name: "Search and Filter"
+    weight: 10
+    flow:
+      - function: "authenticateUser"
+      
+      - get:
+          url: "/api/dashboard?search=test&page=1&limit=10"
+          headers:
+            Authorization: "Bearer {{ accessToken }}"
+          expect:
+            - statusCode: 200
+      
+      - get:
+          url: "/api/widget?sort=createdAt&order=desc"
+          headers:
+            Authorization: "Bearer {{ accessToken }}"
+          expect:
+            - statusCode: 200
+      
+      - get:
+          url: "/api/template?category=Analytics&tags=dashboard,chart"
+          headers:
+            Authorization: "Bearer {{ accessToken }}"
+          expect:
+            - statusCode: 200
+
+# 성능 임계값 설정
+ensure:
+  thresholds:
+    - http.response_time.p95: 2000  # 95% 요청이 2초 이내
+    - http.response_time.p99: 5000  # 99% 요청이 5초 이내
+    - http.codes.2xx: 95            # 95% 이상 성공률
+    - http.request_rate: 50         # 초당 50개 이상 요청 처리

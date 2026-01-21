@@ -1,10 +1,10 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { AuthService } from '../auth/auth.service.js';
-import { Dashboard } from '../dashboard/entities/dashboard.entity.js';
-import { User } from '../user/entities/user.entity.js';
+import { AuthService } from '../auth/auth.service';
+import { Dashboard } from '../dashboard/entities/dashboard.entity';
+import { User } from '../user/entities/user.entity';
 import { Repository } from 'typeorm';
-import { YesNo } from '../common/enum/yn.enum.js';
+import { YesNo } from '../common/enum/yn.enum';
 import { ShareUrlOnDto } from './dto/create-share-url.dto';
 import { DashboardService } from '../dashboard/dashboard.service';
 import { DashboardShare } from 'src/dashboard/entities/dashboard_share.entity';
@@ -27,11 +27,21 @@ export class ShareUrlService {
       const split = shareUrlOnDto.endDate.split('/');
       const dateForm = `${split[2]}-${split[0]}-${split[1]}`;
 
-      const newToken = await this.authService.generateUrlAccessToken(String(dashboardId)); //새로운 공유 토큰 생성
-      const findDashboard = await this.dashboardRepository.findOne({ where: { id: dashboardId } });
-      const findDashboardShare = await this.dashboardShareRepository.findOne({
-        where: { id: findDashboard.shareId },
+      const payload = {
+        userId: findUser.userId,
+        email: findUser.email,
+        id: findUser.id,
+      };
+      const newToken = await this.authService.generateUrlAccessToken(payload); //새로운 공유 토큰 생성
+      // N+1 쿼리 방지: relations를 사용하여 한 번에 조회
+      const findDashboard = await this.dashboardRepository.findOne({
+        where: { id: dashboardId },
+        relations: ['dashboardShare'],
       });
+      if (!findDashboard || !findDashboard.dashboardShare) {
+        throw new HttpException('Dashboard or share not found', HttpStatus.NOT_FOUND);
+      }
+      const findDashboardShare = findDashboard.dashboardShare;
       findDashboardShare.shareToken = newToken;
       findDashboardShare.shareYn = YesNo.YES;
       findDashboardShare.endDate = new Date(dateForm);
@@ -46,10 +56,15 @@ export class ShareUrlService {
     if (!findUser) {
       return 'not exist user';
     } else {
-      const findDashboard = await this.dashboardRepository.findOne({ where: { id: dashboardId } });
-      const findDashboardShare = await this.dashboardShareRepository.findOne({
-        where: { id: findDashboard.shareId },
+      // N+1 쿼리 방지: relations를 사용하여 한 번에 조회
+      const findDashboard = await this.dashboardRepository.findOne({
+        where: { id: dashboardId },
+        relations: ['dashboardShare'],
       });
+      if (!findDashboard || !findDashboard.dashboardShare) {
+        throw new HttpException('Dashboard or share not found', HttpStatus.NOT_FOUND);
+      }
+      const findDashboardShare = findDashboard.dashboardShare;
       findDashboardShare.shareToken = '';
       findDashboardShare.shareYn = YesNo.NO;
       findDashboardShare.endDate = null;
@@ -63,13 +78,18 @@ export class ShareUrlService {
     let findDashboard = null;
     let findDashboardShareUrl = null;
     try {
-      findDashboardShareUrl = await this.dashboardShareRepository.findOne({
-        where: { uuid: uuid },
-      });
-      findDashboard = await this.dashboardRepository.findOne({
-        where: { shareId: findDashboardShareUrl.id },
-      });
-    } catch {
+      // N+1 쿼리 방지: 한 번의 쿼리로 dashboard와 share 정보를 함께 조회
+      findDashboard = await this.dashboardRepository
+        .createQueryBuilder('dashboard')
+        .innerJoinAndSelect('dashboard.dashboardShare', 'dashboardShare')
+        .where('dashboardShare.uuid = :uuid', { uuid })
+        .getOne();
+
+      if (!findDashboard) {
+        throw new HttpException({ message: 'not exist share dashboard' }, HttpStatus.NOT_FOUND);
+      }
+      findDashboardShareUrl = findDashboard.dashboardShare;
+    } catch (error) {
       throw new HttpException({ message: 'not exist share dashboard' }, HttpStatus.NOT_FOUND);
     }
     const today = `${new Date().getFullYear()}-${new Date().getMonth() + 1}-${

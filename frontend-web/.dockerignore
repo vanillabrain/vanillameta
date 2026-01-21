@@ -1,0 +1,67 @@
+# Node.js
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+build
+dist
+.build
+
+# Environment variables
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+logs
+*.log
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Test coverage
+coverage
+
+# Documentation
+README.md
+docs/
+*.md
+
+# Serverless
+.serverless
+
+# React scripts
+.eslintcache
+
+# Storybook
+.storybook
+storybook-static
+
+# Performance scripts
+scripts/
+
+# Build stats
+build-output.txt
+build-stats.txt
+
+# Global types
+global.d.ts

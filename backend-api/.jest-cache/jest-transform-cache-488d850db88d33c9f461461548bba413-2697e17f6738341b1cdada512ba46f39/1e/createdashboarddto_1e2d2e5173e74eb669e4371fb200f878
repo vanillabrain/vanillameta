@@ -1,0 +1,92 @@
+becc26190dabfe2ce93a59ac970a33f6
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CreateDashboardDto = exports.DashboardLayout = void 0;
+const class_validator_1 = require("class-validator");
+const class_transformer_1 = require("class-transformer");
+const swagger_1 = require("@nestjs/swagger");
+class DashboardLayout {
+}
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: 'X 좌표 (Grid 위치)',
+        example: 0,
+        minimum: 0,
+    }),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], DashboardLayout.prototype, "x", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: 'Y 좌표 (Grid 위치)',
+        example: 0,
+        minimum: 0,
+    }),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], DashboardLayout.prototype, "y", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: '너비 (Grid 크기)',
+        example: 6,
+        minimum: 1,
+        maximum: 12,
+    }),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], DashboardLayout.prototype, "w", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: '높이 (Grid 크기)',
+        example: 4,
+        minimum: 1,
+    }),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], DashboardLayout.prototype, "h", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: '위젯 식별자',
+        example: 'widget-1',
+        oneOf: [{ type: 'string' }, { type: 'number' }],
+    }),
+    __metadata("design:type", Object)
+], DashboardLayout.prototype, "i", void 0);
+exports.DashboardLayout = DashboardLayout;
+class CreateDashboardDto {
+}
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        description: '대시보드 제목',
+        example: '매출 분석 대시보드',
+        maxLength: 255,
+    }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateDashboardDto.prototype, "title", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: '대시보드 레이아웃 설정',
+        type: [DashboardLayout],
+        example: [
+            { x: 0, y: 0, w: 6, h: 4, i: 'widget-1' },
+            { x: 6, y: 0, w: 6, h: 4, i: 'widget-2' },
+        ],
+    }),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ValidateNested)({ each: true }),
+    (0, class_transformer_1.Type)(() => DashboardLayout),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", Array)
+], CreateDashboardDto.prototype, "layout", void 0);
+exports.CreateDashboardDto = CreateDashboardDto;

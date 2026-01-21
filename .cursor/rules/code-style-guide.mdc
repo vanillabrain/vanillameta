@@ -1,0 +1,35 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Code Style Guide
+
+Detailed code style rules for naming and TypeScript usage.
+
+## Naming Conventions
+
+**Do:**
+
+- Use descriptive names with auxiliary verbs for booleans (e.g., `isLoading`, `hasError`).
+- Prefix event handlers with "handle" (e.g., `handleClick`, `handleSubmit`).
+- Use lowercase and dashes for directory names (kebab-case) (e.g., `components/todo-list`).
+- Prefer named exports for components and modules.
+
+**Don't:**
+
+- Don't use ambiguous or single-letter variable names unless their scope is very small and clear (e.g., loop counters).
+- Don't use `snake_case` or `PascalCase` for file or directory names.
+
+## TypeScript Usage
+
+**Do:**
+
+- Prefer `interface` over `type` for defining object shapes, but use `type` for unions, intersections, or primitives.
+- Use `const` assertions or simple objects instead of `enum`.
+- Use the `satisfies` operator for type validation without changing the underlying type.
+
+**Don't:**
+
+- Don't use the `any` type unless absolutely necessary and its usage is well-justified.
+- Don't ignore type errors or suppress them with `// @ts-ignore` without a clear explanation.

@@ -1,10 +1,63 @@
-import axios from 'axios';
+import axios, { InternalAxiosRequestConfig } from 'axios';
 import { getToken, removeToken, setToken } from '@/helpers/authHelper';
 import { getShareToken } from '@/helpers/shareHelper';
 import authService from '@/api/authService';
+import { trackError } from '@/utils/eventTracking';
+import { trackEvent } from '@/utils/analytics';
+import { ErrorType, ErrorSeverity } from '@/components/ErrorBoundary/types';
+
+// axios 요청 설정에 metadata 추가를 위한 인터페이스 확장
+interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
+  metadata?: {
+    startTime: number;
+    correlationId: string;
+  };
+}
+
+// Correlation ID 생성 함수
+const generateCorrelationId = (): string => {
+  // UUID v4 생성 (crypto.randomUUID가 있으면 사용, 없으면 Math.random 기반 생성)
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+
+  // 폴백: Math.random 기반 UUID v4 생성
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
+// 전역 에러 핸들러 타입
+type GlobalErrorHandler = (error: any, errorType: ErrorType, severity: ErrorSeverity, metadata?: Record<string, unknown>) => void;
+
+// 전역 에러 핸들러 (Error Context에서 설정됨)
+let globalErrorHandler: GlobalErrorHandler | null = null;
+
+// 전역 에러 핸들러 설정
+export const setGlobalErrorHandler = (handler: GlobalErrorHandler) => {
+  globalErrorHandler = handler;
+};
+
+// API 에러를 Error Context에 리포팅
+const reportApiError = (error: any, metadata?: Record<string, unknown>) => {
+  if (globalErrorHandler) {
+    const errorType = error.code === 'NETWORK_ERROR' ? ErrorType.NETWORK_ERROR : ErrorType.API_ERROR;
+    const severity = error.response?.status >= 500 ? ErrorSeverity.HIGH : ErrorSeverity.MEDIUM;
+    
+    globalErrorHandler(error, errorType, severity, {
+      ...metadata,
+      apiContext: true,
+      timestamp: Date.now(),
+    });
+  }
+};
 
 // apply base url for axios
-const API_URL = process.env.REACT_APP_API_URL;
+import { getApiUrl } from '@/helpers/envHelper';
+
+const API_URL = getApiUrl();
 
 const instance = axios.create({
   baseURL: API_URL,
@@ -17,35 +70,35 @@ let pendingRequests = {};
 let isLoginUser = true;
 // console.log('pendingRequests', pendingRequests);
 
-// 요청에 대한 unique key 생성
-const generateReqKey = config => {
-  const { method, url, params, data } = config;
-  return [method, url, JSON.stringify(params), JSON.stringify(data)].join('&');
-};
+// 요청에 대한 unique key 생성 (현재 사용하지 않음)
+// const generateReqKey = config => {
+//   const { method, url, params, data } = config;
+//   return [method, url, JSON.stringify(params), JSON.stringify(data)].join('&');
+// };
 
-// 진행중인 요청 저장
-const addPendingRequest = config => {
-  const requestKey = generateReqKey(config);
-  config.cancelToken =
-    config.cancelToken ||
-    new axios.CancelToken(cancel => {
-      if (!pendingRequests[requestKey]) {
-        pendingRequests[requestKey] = [];
-      }
-      pendingRequests[requestKey].push(cancel);
-    });
-};
+// 진행중인 요청 저장 (현재 사용하지 않음)
+// const addPendingRequest = config => {
+//   const requestKey = generateReqKey(config);
+//   config.cancelToken =
+//     config.cancelToken ||
+//     new axios.CancelToken(cancel => {
+//       if (!pendingRequests[requestKey]) {
+//         pendingRequests[requestKey] = [];
+//       }
+//       pendingRequests[requestKey].push(cancel);
+//     });
+// };
 
-// 저장된 요청 취소
-const removePendingRequest = config => {
-  const requestKey = generateReqKey(config);
-  if (pendingRequests[requestKey]) {
-    pendingRequests[requestKey].forEach(cancel => {
-      cancel('Request canceled due to new request.');
-    });
-    delete pendingRequests[requestKey];
-  }
-};
+// 저장된 요청 취소 (현재 사용하지 않음)
+// const removePendingRequest = config => {
+//   const requestKey = generateReqKey(config);
+//   if (pendingRequests[requestKey]) {
+//     pendingRequests[requestKey].forEach(cancel => {
+//       cancel('Request canceled due to new request.');
+//     });
+//     delete pendingRequests[requestKey];
+//   }
+// };
 
 // 토큰 정보 요청 header에 삽입
 const addAuthToHeaders = config => {
@@ -62,11 +115,35 @@ const addAuthToHeaders = config => {
   return config;
 };
 
+// Correlation ID를 요청 헤더에 추가
+const addCorrelationIdToHeaders = config => {
+  // 이미 correlation ID가 설정되어 있지 않은 경우에만 새로 생성
+  if (!config.headers['X-Correlation-ID'] && !config.headers['x-correlation-id']) {
+    config.headers['X-Correlation-ID'] = generateCorrelationId();
+  }
+  return config;
+};
+
+// API 성능 측정을 위한 시작 시간 기록
+const apiPerformanceMap = new Map<string, number>();
+
 // 요청 인터셉터
 instance.interceptors.request.use(async config => {
-  const newConfig = addAuthToHeaders(config);
+  let newConfig = addAuthToHeaders(config);
+  newConfig = addCorrelationIdToHeaders(newConfig);
   // removePendingRequest(newConfig); // 같은 요청이 갔을 경우 기존 요청 취소
   // addPendingRequest(newConfig);
+
+  // API 성능 측정 시작
+  const requestKey = `${config.method}-${config.url}`;
+  apiPerformanceMap.set(requestKey, performance.now());
+
+  // 요청 메타데이터 추가
+  (config as CustomAxiosRequestConfig).metadata = {
+    startTime: performance.now(),
+    correlationId: config.headers['X-Correlation-ID'] as string,
+  };
+
   return newConfig;
 });
 
@@ -87,10 +164,142 @@ const subscribers: ((token: string) => void)[] = [];
 instance.interceptors.response.use(
   response => {
     // removePendingRequest(response.config); // 완료된 요청 삭제
+
+    // API 성능 측정 종료
+    const requestKey = `${response.config.method}-${response.config.url}`;
+    const startTime = apiPerformanceMap.get(requestKey);
+    if (startTime) {
+      const duration = performance.now() - startTime;
+      apiPerformanceMap.delete(requestKey);
+
+      // 성능 데이터 로깅
+      const perfData = {
+        method: response.config.method?.toUpperCase(),
+        url: response.config.url,
+        duration: duration.toFixed(2),
+        status: response.status,
+        correlationId: (response.config as CustomAxiosRequestConfig).metadata?.correlationId,
+      };
+
+      // 개발 환경에서는 콘솔에 출력
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`⚡ API Performance: ${perfData.method} ${perfData.url} - ${perfData.duration}ms`);
+      }
+
+      // 느린 API 요청 경고 (1초 이상)
+      if (duration > 1000) {
+        console.warn(`⚠️ Slow API detected: ${perfData.method} ${perfData.url} took ${perfData.duration}ms`);
+      }
+
+      // 프로덕션에서는 분석 도구로 전송
+      if (window.gtag && process.env.NODE_ENV === 'production') {
+        window.gtag('event', 'api_performance', {
+          method: perfData.method,
+          endpoint: perfData.url,
+          value: Math.round(duration),
+          event_category: 'performance',
+          api_status: perfData.status,
+        });
+      }
+
+      // 이벤트 추적 시스템으로도 전송
+      trackEvent(
+        'api_call',
+        'api_performance',
+        `${perfData.method}_${perfData.url}`,
+        Math.round(duration)
+      );
+    }
+
+    // 디버깅을 위해 correlation ID 로깅 (개발 환경에서만)
+    if (process.env.NODE_ENV === 'development') {
+      const correlationId = response.headers['x-correlation-id'] || response.headers['X-Correlation-ID'];
+      if (correlationId) {
+        console.log(
+          `[API Response] ${response.config.method?.toUpperCase()} ${
+            response.config.url
+          } - Correlation ID: ${correlationId}`,
+        );
+      }
+    }
+
     return response;
   },
   async error => {
     const { response: errorResponse } = error;
+
+    // 에러 응답에서도 API 성능 측정
+    if (error.config) {
+      const requestKey = `${error.config.method}-${error.config.url}`;
+      const startTime = apiPerformanceMap.get(requestKey);
+      if (startTime) {
+        const duration = performance.now() - startTime;
+        apiPerformanceMap.delete(requestKey);
+
+        const perfData = {
+          method: error.config.method?.toUpperCase(),
+          url: error.config.url,
+          duration: duration.toFixed(2),
+          status: errorResponse?.status || 'Network Error',
+          correlationId: error.config.metadata?.correlationId,
+          error: true,
+        };
+
+        // 에러 성능 로깅
+        if (process.env.NODE_ENV === 'development') {
+          console.error(
+            `❌ API Error Performance: ${perfData.method} ${perfData.url} - ${perfData.duration}ms (Status: ${perfData.status})`,
+          );
+        }
+
+        // 프로덕션에서 에러 성능 추적
+        if (window.gtag && process.env.NODE_ENV === 'production') {
+          window.gtag('event', 'api_error_performance', {
+            method: perfData.method,
+            endpoint: perfData.url,
+            value: Math.round(duration),
+            event_category: 'performance',
+            error_status: perfData.status,
+          });
+        }
+
+        // 이벤트 추적 시스템으로 에러 전송
+        trackError('api', `${perfData.method} ${perfData.url} - Status: ${perfData.status}`, {
+          method: perfData.method,
+          url: perfData.url,
+          status: perfData.status,
+          duration: duration,
+          correlationId: perfData.correlationId,
+          errorMessage: errorResponse?.data?.message || error.message,
+        });
+
+        // 전역 에러 핸들러로 에러 리포팅
+        reportApiError(error, {
+          method: perfData.method,
+          url: perfData.url,
+          status: perfData.status,
+          duration: duration,
+          correlationId: perfData.correlationId,
+          errorMessage: errorResponse?.data?.message || error.message,
+        });
+      }
+    }
+
+    // 에러 응답에서도 correlation ID 로깅 (개발 환경에서만)
+    if (process.env.NODE_ENV === 'development' && errorResponse) {
+      const correlationId =
+        errorResponse.headers?.['x-correlation-id'] ||
+        errorResponse.headers?.['X-Correlation-ID'] ||
+        errorResponse.data?.correlationId;
+      if (correlationId) {
+        console.error(
+          `[API Error] ${errorResponse.config?.method?.toUpperCase()} ${
+            errorResponse.config?.url
+          } - Correlation ID: ${correlationId}, Status: ${errorResponse.status}`,
+        );
+      }
+    }
+
     if (errorResponse?.status === 401 && errorResponse?.data?.message === 'accessTokenExpired' && isLoginUser) {
       // 로그인 사용자의 token 만료 후 첫 요청
       await resetTokenAndReattemptRequest(errorResponse);
@@ -148,24 +357,36 @@ function onAccessTokenFetched(accessToken) {
   subscribers.length = 0;
 }
 
-export async function get(url, data?, config = {}) {
-  return instance.get(url, { params: { ...data }, ...config });
+export async function get<T = any>(url: string, data?: any, config = {}): Promise<T> {
+  const response = await instance.get(url, { params: { ...data }, ...config });
+  return response.data;
 }
 
-export async function post(url, data?, config = {}) {
-  return instance.post(url, { ...data }, { ...config });
+export async function post<T = any>(url: string, data?: any, config = {}): Promise<T> {
+  const response = await instance.post(url, { ...data }, { ...config });
+  return response.data;
 }
 
-export async function put(url, data?, config = {}) {
-  return instance.put(url, { ...data }, { ...config });
+export async function put<T = any>(url: string, data?: any, config = {}): Promise<T> {
+  const response = await instance.put(url, { ...data }, { ...config });
+  return response.data;
 }
 
-export async function del(url, config = {}) {
-  return instance.delete(url, { ...config });
+export async function del<T = any>(url: string, config = {}): Promise<T> {
+  const response = await instance.delete(url, { ...config });
+  return response.data;
 }
 
-export async function patch(url, data?, config = {}) {
-  return instance.patch(url, { ...data }, { ...config });
+export async function patch<T = any>(url: string, data?: any, config = {}): Promise<T> {
+  const response = await instance.patch(url, { ...data }, { ...config });
+  return response.data;
+}
+
+// 타입 선언
+declare global {
+  interface Window {
+    gtag: (...args: any[]) => void;
+  }
 }
 
 export default instance;

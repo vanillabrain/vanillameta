@@ -1,0 +1,79 @@
+name: Docker Compose Integration Test
+
+on:
+  push:
+    branches: [ main, develop, develop-refactor ]
+  pull_request:
+    branches: [ main, develop, develop-refactor ]
+
+jobs:
+  docker-compose-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Create .env file
+      run: |
+        cp .env.example .env
+        echo "DB_ROOT_PASSWORD=testroot" >> .env
+        echo "DB_PASSWORD=testpass" >> .env
+        echo "ACCESS_SECRET=test_access" >> .env
+        echo "REFRESH_SECRET=test_refresh" >> .env
+        echo "JWT_ACCESS_SECRET=test_jwt" >> .env
+        echo "URL_ACCESS_SECRET=test_url" >> .env
+    
+    - name: Build Docker images
+      run: docker-compose -f docker-compose.test.yml build
+    
+    - name: Run tests in Docker
+      run: docker-compose -f docker-compose.test.yml up --abort-on-container-exit --exit-code-from test-runner
+    
+    - name: Clean up
+      if: always()
+      run: docker-compose -f docker-compose.test.yml down -v
+    
+    - name: Upload coverage reports
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: coverage-report
+        path: coverage/
+
+  docker-compose-build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        compose-file: [docker-compose.yml, docker-compose.dev.yml, docker-compose.local.yml]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Create .env file
+      run: |
+        cp .env.example .env
+        echo "DB_ROOT_PASSWORD=buildtest" >> .env
+        echo "DB_PASSWORD=buildtest" >> .env
+    
+    - name: Build Docker image
+      run: docker-compose -f ${{ matrix.compose-file }} build api
+    
+    - name: Test Docker image startup
+      run: |
+        docker-compose -f ${{ matrix.compose-file }} up -d
+        sleep 30
+        
+        # API 컨테이너 이름 찾기
+        API_CONTAINER=$(docker-compose -f ${{ matrix.compose-file }} ps -q api)
+        
+        # 헬스체크
+        docker exec $API_CONTAINER wget --spider --tries=3 --timeout=10 http://localhost:3000/api/v1/health || exit 1
+        
+        # 로그 확인
+        docker-compose -f ${{ matrix.compose-file }} logs api
+    
+    - name: Clean up
+      if: always()
+      run: docker-compose -f ${{ matrix.compose-file }} down -v

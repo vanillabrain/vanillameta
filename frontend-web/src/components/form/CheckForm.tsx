@@ -1,5 +1,5 @@
 import React from 'react';
-import { FormGroup, FormControlLabel, Checkbox, FormLabel, FormControl, Stack } from '@mui/material';
+import { FormControlLabel, Checkbox, FormLabel, FormControl, Stack } from '@mui/material';
 
 function CheckForm(props) {
   const { id, label, ...rest } = props;

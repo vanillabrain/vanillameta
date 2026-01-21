@@ -1,27 +1,26 @@
 import React from 'react';
-import { Box, Link } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import { ReactComponent as IconLogo } from '@/assets/images/logo.svg';
 
 export const LandingLogo = props => {
-  const { sx, ...rest } = props;
+  const { className, ...rest } = props;
   return (
-    <Box sx={{ width: 105, height: 50, ...sx }} {...rest}>
-      <Link href="https://vanillameta.net" target="_blank">
+    <div className={`w-[105px] h-[50px] ${className || ''}`} {...rest}>
+      <a href="https://vanillameta.net" target="_blank" rel="noopener noreferrer">
         <IconLogo style={{ width: '100%', height: '100%' }} />
-      </Link>
-    </Box>
+      </a>
+    </div>
   );
 };
 
 const Logo = props => {
-  const { sx, ...rest } = props;
+  const { className, ...rest } = props;
   return (
-    <Box sx={{ width: 105, height: 50, ...sx }} {...rest}>
+    <div className={`w-[105px] h-[50px] ${className || ''}`} {...rest}>
       <RouterLink to="/">
         <IconLogo style={{ width: '100%', height: '100%' }} />
       </RouterLink>
-    </Box>
+    </div>
   );
 };
 

@@ -1,0 +1,63 @@
+de9d1ce6edae9db92cc10d33386982c5
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const testing_1 = require("@nestjs/testing");
+const common_1 = require("@nestjs/common");
+const login_service_1 = require("./login.service");
+const auth_service_1 = require("src/auth/auth.service");
+const user_entity_1 = require("src/user/entities/user.entity");
+const refresh_token_entity_1 = require("src/auth/entities/refresh_token.entity");
+const test_helpers_1 = require("../../test/test-helpers");
+describe('LoginService', () => {
+    let service;
+    let authService;
+    let userRepository;
+    let refreshRepository;
+    beforeEach(async () => {
+        const module = await testing_1.Test.createTestingModule({
+            providers: [
+                login_service_1.LoginService,
+                {
+                    provide: auth_service_1.AuthService,
+                    useValue: (0, test_helpers_1.createMockService)([
+                        'validateUser',
+                        'generateAccessToken',
+                        'generateRefreshToken',
+                        'setRefreshKey',
+                    ]),
+                },
+                {
+                    provide: (0, test_helpers_1.getRepositoryTokenFor)(user_entity_1.User),
+                    useValue: (0, test_helpers_1.createMockRepository)(),
+                },
+                {
+                    provide: (0, test_helpers_1.getRepositoryTokenFor)(refresh_token_entity_1.RefreshToken),
+                    useValue: (0, test_helpers_1.createMockRepository)(),
+                },
+            ],
+        }).compile();
+        service = module.get(login_service_1.LoginService);
+        authService = module.get(auth_service_1.AuthService);
+        userRepository = module.get((0, test_helpers_1.getRepositoryTokenFor)(user_entity_1.User));
+        refreshRepository = module.get((0, test_helpers_1.getRepositoryTokenFor)(refresh_token_entity_1.RefreshToken));
+    });
+    it('should be defined', () => {
+        expect(service).toBeDefined();
+    });
+    describe('signin', () => {
+        it('should return user when credentials are valid', async () => {
+            const loginDto = { userId: 'testuser', password: 'testpass' };
+            const mockUser = { id: 1, userId: 'testuser', email: 'test@example.com' };
+            authService.validateUser.mockResolvedValue(mockUser);
+            const result = await service.signin(loginDto);
+            expect(result).toEqual(mockUser);
+            expect(authService.validateUser).toHaveBeenCalledWith(loginDto.userId, expect.any(String));
+        });
+        it('should throw UnauthorizedException when credentials are invalid', async () => {
+            const loginDto = { userId: 'testuser', password: 'wrongpass' };
+            authService.validateUser.mockResolvedValue(null);
+            await expect(service.signin(loginDto)).rejects.toThrow(common_1.HttpException);
+            await expect(service.signin(loginDto)).rejects.toThrow('Invalid credentials');
+        });
+    });
+});

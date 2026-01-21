@@ -1,15 +1,23 @@
 import React, { useState } from 'react';
-import { Box, Button, IconButton, Menu, MenuItem, SvgIcon, useMediaQuery, useTheme } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
 import { Link as RouterLink } from 'react-router-dom';
+import { Plus, Minus } from 'lucide-react';
 import IconPlus from '@/assets/images/icon/btn-plus.svg';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const menuWidth = 200;
 
 const AddIconButton = ({ link = '', ...props }) => {
   return (
-    <Button disableElevation component={RouterLink} to={link} color="primary" sx={{ minWidth: { xs: 0 } }} {...props}>
-      <AddIcon sx={{ width: 28, height: 28, m: 0 }} />
+    <Button asChild variant="ghost" size="icon" {...props}>
+      <RouterLink to={link}>
+        <Plus className="w-7 h-7" />
+      </RouterLink>
     </Button>
   );
 };
@@ -17,48 +25,32 @@ const AddIconButton = ({ link = '', ...props }) => {
 export default AddIconButton;
 
 export const AddMenuButton = ({ menuList, label }) => {
-  const [anchorEl, setAnchorEl] = useState(null);
-  const open = Boolean(anchorEl);
-
-  const handleClick = event => {
-    setAnchorEl(event.currentTarget);
-  };
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
-
-  const theme = useTheme();
-  const matches = useMediaQuery(theme.breakpoints.up('md'));
+  const matches = typeof window !== 'undefined' ? window.innerWidth >= 768 : true;
 
   return (
-    <>
-      <Button
-        id="styled-menu"
-        aria-controls={open ? 'styled-menu' : undefined}
-        aria-haspopup="true"
-        aria-expanded={open ? 'true' : undefined}
-        onClick={handleClick}
-        startIcon={matches ? <AddIcon /> : false}
-        variant="outlined"
-        sx={{ minWidth: { xs: 0 } }}
-      >
-        {matches ? label : <AddIcon />}
-      </Button>
-      <Menu id="styled-menu" anchorEl={anchorEl} open={open} onClose={handleClose} sx={{ width: menuWidth }}>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size={matches ? "default" : "icon"}>
+          {matches ? (
+            <>
+              <Plus className="mr-2 h-4 w-4" />
+              {label}
+            </>
+          ) : (
+            <Plus className="h-4 w-4" />
+          )}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-[200px]">
         {menuList.map(item => (
-          <MenuItem
-            key={item.name}
-            component={RouterLink}
-            to={item.link}
-            onClick={handleClose}
-            disableRipple
-            sx={{ width: menuWidth }}
-          >
-            {item.name}
-          </MenuItem>
+          <DropdownMenuItem key={item.name} asChild>
+            <RouterLink to={item.link}>
+              {item.name}
+            </RouterLink>
+          </DropdownMenuItem>
         ))}
-      </Menu>
-    </>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
 AddMenuButton.defaultProps = {
@@ -74,41 +66,29 @@ export const AddMenuIconButton = ({
   iconUrl = IconPlus,
   sizeOption = { width: '36px', height: '36px', p: '7.5px' },
 }) => {
-  const [anchorEl, setAnchorEl] = useState(null);
-  const open = Boolean(anchorEl);
-
-  const handleClick = event => {
-    setAnchorEl(event.currentTarget);
-  };
-  const handleClose = item => {
-    if (handleSelect) {
-      handleSelect(item);
-    }
-
-    setAnchorEl(null);
-  };
-
   return (
-    <>
-      <Button
-        id="styled-menu"
-        aria-controls={open ? 'styled-menu' : undefined}
-        aria-haspopup="true"
-        aria-expanded={open ? 'true' : undefined}
-        onClick={handleClick}
-        color="primary"
-        sx={{ minWidth: 0, padding: 0, flex: '1 1 auto' }}
-      >
-        <Box component="img" src={iconUrl} sx={sizeOption} alt="추가메뉴" />
-      </Button>
-      <Menu id="styled-menu" anchorEl={anchorEl} open={open} onClose={handleClose} sx={{ width: menuWidth }}>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="flex-auto">
+          <img 
+            src={iconUrl} 
+            style={sizeOption} 
+            alt="추가메뉴" 
+            className="object-contain"
+          />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-[200px]">
         {menuList.map(item => (
-          <MenuItem key={item.name} onClick={() => handleClose(item)} disableRipple sx={{ width: menuWidth }}>
+          <DropdownMenuItem 
+            key={item.name} 
+            onClick={() => handleSelect && handleSelect(item)}
+          >
             {item.name}
-          </MenuItem>
+          </DropdownMenuItem>
         ))}
-      </Menu>
-    </>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
 AddMenuIconButton.defaultProps = {
@@ -121,13 +101,11 @@ export const SmallButton = props => {
   const { icon, ...rest } = props;
 
   return (
-    <IconButton size="small" sx={{ width: '38px', height: '38px', flex: 'none' }} {...rest}>
-      <SvgIcon fontSize="small">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" fill="#141414">
-          {icon}
-        </svg>
-      </SvgIcon>
-    </IconButton>
+    <Button variant="ghost" size="icon" className="w-[38px] h-[38px] flex-none" {...rest}>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" fill="#141414" className="w-4 h-4">
+        {icon}
+      </svg>
+    </Button>
   );
 };
 
@@ -154,51 +132,29 @@ export const RemoveButton = props => {
 };
 
 export const MenuButton = ({ menuList, handleSelect = null, icon, title, sizeOption = { width: 22, height: 22 } }) => {
-  const [anchorEl, setAnchorEl] = useState(null);
-  const open = Boolean(anchorEl);
-
-  const handleClick = event => {
-    setAnchorEl(event.currentTarget);
-  };
-  const handleClose = item => {
-    if (handleSelect) {
-      handleSelect(item);
-    }
-
-    setAnchorEl(null);
-  };
-
   return (
-    <>
-      <Button
-        id="styled-menu"
-        variant="contained"
-        startIcon={icon}
-        onClick={handleClick}
-        color="primary"
-        sx={{
-          borderRadius: '8px',
-          backgroundColor: '#043f84',
-          height: '32px',
-          display: 'flex',
-          flexDirection: 'row',
-          justifyContent: 'center',
-          alignItems: 'center',
-          padding: '8px 14px',
-          objectFit: 'contain',
-          border: 'solid 1px #0f5ab2',
-        }}
-      >
-        {title}
-      </Button>
-      <Menu id="styled-menu" anchorEl={anchorEl} open={open} onClose={handleClose} sx={{ width: menuWidth }}>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="default"
+          size="sm"
+          className="bg-[#043f84] hover:bg-[#0f5ab2] border-[#0f5ab2] h-8 px-3.5 rounded-lg"
+        >
+          {icon && <span className="mr-2">{icon}</span>}
+          {title}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-[200px]">
         {menuList.map(item => (
-          <MenuItem key={item.name} onClick={() => handleClose(item)} disableRipple sx={{ width: menuWidth }}>
+          <DropdownMenuItem 
+            key={item.name} 
+            onClick={() => handleSelect && handleSelect(item)}
+          >
             {item.name}
-          </MenuItem>
+          </DropdownMenuItem>
         ))}
-      </Menu>
-    </>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
 MenuButton.defaultProps = {

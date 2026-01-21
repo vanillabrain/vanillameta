@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  # Redis 서비스 (테스트용)
+  redis-test:
+    image: redis:7-alpine
+    container_name: vanillameta_redis_test
+    ports:
+      - "6380:6379"
+    networks:
+      - vanillameta_test
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # MySQL 데이터베이스 (테스트용)
+  mysql-test:
+    image: mysql:8.0
+    container_name: vanillameta_mysql_test
+    ports:
+      - "3307:3306"
+    networks:
+      - vanillameta_test
+    environment:
+      MYSQL_ROOT_PASSWORD: testroot
+      MYSQL_DATABASE: vanillameta_test
+      MYSQL_USER: test_user
+      MYSQL_PASSWORD: test_pass
+      TZ: Asia/Seoul
+    volumes:
+      - ./db/conf.d:/etc/mysql/conf.d
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --default-authentication-plugin=mysql_native_password
+      --max_connections=1000
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    tmpfs:
+      - /var/lib/mysql  # 메모리에서 실행하여 테스트 속도 향상
+
+  # 테스트 러너
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: vanillameta_test_runner
+    networks:
+      - vanillameta_test
+    depends_on:
+      mysql-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+    environment:
+      NODE_ENV: test
+      DB_TYPE: mysql
+      DB_HOST: mysql-test
+      DB_PORT: 3306
+      DB_USERNAME: test_user
+      DB_PASSWORD: test_pass
+      DB_NAME: vanillameta_test
+      REDIS_HOST: redis-test
+      REDIS_PORT: 6379
+      ACCESS_SECRET: test_access_secret
+      REFRESH_SECRET: test_refresh_secret
+      JWT_ACCESS_SECRET: test_jwt_secret
+      URL_ACCESS_SECRET: test_url_secret
+    volumes:
+      - ./src:/app/src:ro
+      - ./test:/app/test:ro
+      - ./coverage:/app/coverage
+      - /app/node_modules
+    command: yarn test:cov
+
+networks:
+  vanillameta_test:
+    driver: bridge

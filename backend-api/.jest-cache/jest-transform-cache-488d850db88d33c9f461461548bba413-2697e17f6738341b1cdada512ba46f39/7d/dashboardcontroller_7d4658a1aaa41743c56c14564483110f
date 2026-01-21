@@ -1,0 +1,222 @@
+3de85fd6ab7cdb8b664cfff7a532b211
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.DashboardController = void 0;
+const common_1 = require("@nestjs/common");
+const jwt_auth_guard_1 = require("src/auth/guards/jwt-auth.guard");
+const dashboard_service_1 = require("./dashboard.service");
+const create_dashboard_dto_1 = require("./dto/create-dashboard.dto");
+const update_dashboard_dto_1 = require("./dto/update-dashboard.dto");
+const swagger_1 = require("@nestjs/swagger");
+const field_selection_decorator_1 = require("../common/field-selection/field-selection.decorator");
+let DashboardController = class DashboardController {
+    constructor(dashboardService) {
+        this.dashboardService = dashboardService;
+    }
+    create(createDashboardDto, req) {
+        const { accessKeyData } = req.user;
+        console.log('asdf', accessKeyData);
+        return this.dashboardService.create(createDashboardDto, accessKeyData.id);
+    }
+    findAll(req, fields) {
+        const { accessKeyData } = req.user;
+        return this.dashboardService.findAll(accessKeyData.id);
+    }
+    findOne(id, fields) {
+        return this.dashboardService.findOne(+id);
+    }
+    update(id, updateDashboardDto) {
+        return this.dashboardService.update(+id, updateDashboardDto);
+    }
+    remove(id) {
+        return this.dashboardService.remove(+id);
+    }
+};
+__decorate([
+    (0, common_1.Post)(),
+    (0, swagger_1.ApiOperation)({
+        summary: '대시보드 생성',
+        description: '새로운 대시보드를 생성합니다.'
+    }),
+    (0, swagger_1.ApiCreatedResponse)({
+        description: '대시보드가 성공적으로 생성되었습니다.',
+        type: create_dashboard_dto_1.CreateDashboardDto
+    }),
+    (0, swagger_1.ApiBadRequestResponse)({ description: '잘못된 요청 데이터' }),
+    (0, swagger_1.ApiUnauthorizedResponse)({ description: '인증 실패' }),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [create_dashboard_dto_1.CreateDashboardDto, Object]),
+    __metadata("design:returntype", void 0)
+], DashboardController.prototype, "create", null);
+__decorate([
+    (0, field_selection_decorator_1.FieldSelection)({
+        allowedFields: [
+            'id',
+            'title',
+            'description',
+            'createdAt',
+            'updatedAt',
+            'widgets.id',
+            'widgets.name',
+            'widgets.type',
+            'widgets.order',
+            'widgets.config.title',
+            'widgets.config.chartType',
+            'widgets.config.layout',
+        ],
+        excludeFields: ['widgets.config.queries', 'widgets.data'],
+    }),
+    (0, common_1.Get)(),
+    (0, swagger_1.ApiOperation)({
+        summary: '대시보드 목록 조회',
+        description: '현재 사용자의 모든 대시보드를 조회합니다.'
+    }),
+    (0, swagger_1.ApiQuery)({
+        name: 'fields',
+        required: false,
+        description: '반환할 필드 선택 (쉼표로 구분). 중첩 필드는 점(.)으로 구분. 예: id,title,widgets.id,widgets.name',
+        example: 'id,title,description,widgets.id,widgets.name',
+    }),
+    (0, swagger_1.ApiOkResponse)({
+        description: '대시보드 목록이 성공적으로 반환되었습니다.',
+        schema: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: { type: 'number' },
+                    title: { type: 'string' },
+                    description: { type: 'string' },
+                    createdAt: { type: 'string', format: 'date-time' },
+                    updatedAt: { type: 'string', format: 'date-time' },
+                    widgets: {
+                        type: 'array',
+                        items: { type: 'object' }
+                    }
+                }
+            }
+        }
+    }),
+    (0, swagger_1.ApiUnauthorizedResponse)({ description: '인증 실패' }),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Query)('fields')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], DashboardController.prototype, "findAll", null);
+__decorate([
+    (0, field_selection_decorator_1.FieldSelection)({
+        allowedFields: [
+            'id',
+            'title',
+            'description',
+            'createdAt',
+            'updatedAt',
+            'widgets.id',
+            'widgets.name',
+            'widgets.type',
+            'widgets.order',
+            'widgets.config.title',
+            'widgets.config.chartType',
+            'widgets.config.layout',
+            'widgets.config.xAxis',
+            'widgets.config.yAxis',
+            'widgets.config.groupBy',
+            'widgets.dataset.id',
+            'widgets.dataset.name',
+        ],
+        excludeFields: ['widgets.config.queries', 'widgets.data', 'widgets.rawData'],
+    }),
+    (0, common_1.Get)(':id'),
+    (0, swagger_1.ApiOperation)({
+        summary: '대시보드 상세 조회',
+        description: '특정 대시보드의 상세 정보를 조회합니다.'
+    }),
+    (0, swagger_1.ApiParam)({
+        name: 'id',
+        description: '대시보드 ID',
+        type: 'number'
+    }),
+    (0, swagger_1.ApiQuery)({
+        name: 'fields',
+        required: false,
+        description: '반환할 필드 선택 (쉼표로 구분). 중첩 필드는 점(.)으로 구분',
+        example: 'id,title,widgets.id,widgets.config.title',
+    }),
+    (0, swagger_1.ApiOkResponse)({
+        description: '대시보드 상세 정보가 성공적으로 반환되었습니다.'
+    }),
+    (0, swagger_1.ApiNotFoundResponse)({ description: '대시보드를 찾을 수 없습니다.' }),
+    (0, swagger_1.ApiUnauthorizedResponse)({ description: '인증 실패' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Query)('fields')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], DashboardController.prototype, "findOne", null);
+__decorate([
+    (0, common_1.Put)(':id'),
+    (0, swagger_1.ApiOperation)({
+        summary: '대시보드 수정',
+        description: '기존 대시보드의 정보를 수정합니다.'
+    }),
+    (0, swagger_1.ApiParam)({
+        name: 'id',
+        description: '대시보드 ID',
+        type: 'number'
+    }),
+    (0, swagger_1.ApiOkResponse)({
+        description: '대시보드가 성공적으로 수정되었습니다.'
+    }),
+    (0, swagger_1.ApiNotFoundResponse)({ description: '대시보드를 찾을 수 없습니다.' }),
+    (0, swagger_1.ApiBadRequestResponse)({ description: '잘못된 요청 데이터' }),
+    (0, swagger_1.ApiUnauthorizedResponse)({ description: '인증 실패' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, update_dashboard_dto_1.UpdateDashboardDto]),
+    __metadata("design:returntype", void 0)
+], DashboardController.prototype, "update", null);
+__decorate([
+    (0, common_1.Delete)(':id'),
+    (0, swagger_1.ApiOperation)({
+        summary: '대시보드 삭제',
+        description: '대시보드를 영구적으로 삭제합니다.'
+    }),
+    (0, swagger_1.ApiParam)({
+        name: 'id',
+        description: '대시보드 ID',
+        type: 'number'
+    }),
+    (0, swagger_1.ApiOkResponse)({
+        description: '대시보드가 성공적으로 삭제되었습니다.'
+    }),
+    (0, swagger_1.ApiNotFoundResponse)({ description: '대시보드를 찾을 수 없습니다.' }),
+    (0, swagger_1.ApiUnauthorizedResponse)({ description: '인증 실패' }),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], DashboardController.prototype, "remove", null);
+DashboardController = __decorate([
+    (0, swagger_1.ApiTags)('대시보드'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)('AccessToken'),
+    (0, common_1.Controller)('dashboard'),
+    __metadata("design:paramtypes", [dashboard_service_1.DashboardService])
+], DashboardController);
+exports.DashboardController = DashboardController;

@@ -1,0 +1,230 @@
+feb33d9e32cbccb70531382f990fe963
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const testing_1 = require("@nestjs/testing");
+const compression_service_1 = require("./compression.service");
+describe('CompressionService', () => {
+    let service;
+    beforeEach(async () => {
+        const module = await testing_1.Test.createTestingModule({
+            providers: [compression_service_1.CompressionService],
+        }).compile();
+        service = module.get(compression_service_1.CompressionService);
+    });
+    it('should be defined', () => {
+        expect(service).toBeDefined();
+    });
+    describe('compress', () => {
+        it('should not compress data smaller than threshold', async () => {
+            const smallData = { message: 'small data' };
+            const compressed = await service.compress(smallData);
+            const stats = service.calculateCompressionStats(compressed);
+            expect(stats).toBeTruthy();
+            expect(stats.type).toBe('NONE');
+            expect(stats.originalSize).toBeLessThan(1024);
+        });
+        it('should compress large data with GZIP for medium size', async () => {
+            // 생성할 데이터: 1KB < size < 10KB
+            const mediumData = {
+                items: Array.from({ length: 100 }, (_, i) => ({
+                    id: i,
+                    name: `Item ${i}`,
+                    description: `This is a description for item ${i} with some additional text to increase size`,
+                    metadata: { created: new Date(), updated: new Date(), tags: ['tag1', 'tag2', 'tag3'] },
+                })),
+            };
+            const compressed = await service.compress(mediumData);
+            const stats = service.calculateCompressionStats(compressed);
+            expect(stats).toBeTruthy();
+            expect(stats.type).toBe('GZIP');
+            expect(stats.compressionRatio).toBeLessThan(0.9);
+            expect(stats.spaceSaved).toBeGreaterThan(0);
+        });
+        it('should compress large data with Brotli for large size', async () => {
+            // 생성할 데이터: > 10KB
+            const largeData = {
+                items: Array.from({ length: 500 }, (_, i) => ({
+                    id: i,
+                    name: `Item ${i}`,
+                    description: `This is a very long description for item ${i} with lots of additional text to increase the overall size of the data structure`,
+                    metadata: {
+                        created: new Date(),
+                        updated: new Date(),
+                        tags: Array.from({ length: 10 }, (_, j) => `tag${j}`),
+                        properties: {
+                            color: 'red',
+                            size: 'large',
+                            weight: 100,
+                            dimensions: { width: 10, height: 20, depth: 30 },
+                        },
+                    },
+                })),
+            };
+            const compressed = await service.compress(largeData);
+            const stats = service.calculateCompressionStats(compressed);
+            expect(stats).toBeTruthy();
+            expect(stats.type).toBe('BROTLI');
+            expect(stats.compressionRatio).toBeLessThan(0.9);
+            expect(stats.spaceSaved).toBeGreaterThan(0);
+        });
+        it('should not compress if compression ratio is poor', async () => {
+            // 랜덤 데이터는 압축이 잘 안됨
+            const randomData = {
+                data: Array.from({ length: 200 }, () => Math.random().toString(36).substring(2, 15)).join(''),
+            };
+            const compressed = await service.compress(randomData);
+            const stats = service.calculateCompressionStats(compressed);
+            // 압축률이 나쁘면 원본 데이터 사용
+            if (stats.compressionRatio > 0.9) {
+                expect(stats.type).toBe('NONE');
+            }
+        });
+        it('should force compression when requested', async () => {
+            const smallData = { message: 'force compress this' };
+            const compressed = await service.compress(smallData, true);
+            const stats = service.calculateCompressionStats(compressed);
+            expect(stats).toBeTruthy();
+            // 강제 압축이므로 크기가 작아도 압축됨
+            expect(['GZIP', 'BROTLI']).toContain(stats.type);
+        });
+    });
+    describe('decompress', () => {
+        it('should decompress GZIP compressed data', async () => {
+            const originalData = {
+                message: 'This is a test message that should be compressed and decompressed correctly',
+                array: Array.from({ length: 50 }, (_, i) => i),
+            };
+            const compressed = await service.compress(originalData);
+            const decompressed = await service.decompress(compressed);
+            expect(decompressed).toEqual(originalData);
+        });
+        it('should decompress Brotli compressed data', async () => {
+            const originalData = {
+                largeText: Array.from({ length: 1000 }, () => 'Lorem ipsum dolor sit amet').join(' '),
+            };
+            const compressed = await service.compress(originalData, true);
+            const decompressed = await service.decompress(compressed);
+            expect(decompressed).toEqual(originalData);
+        });
+        it('should handle non-compressed data', async () => {
+            const originalData = { simple: 'data' };
+            const notCompressed = JSON.stringify({
+                type: compression_service_1.CompressionType.NONE,
+                data: Buffer.from(JSON.stringify(originalData)).toString('base64'),
+                originalSize: 100,
+                compressedSize: 100,
+            });
+            const decompressed = await service.decompress(notCompressed);
+            expect(decompressed).toEqual(originalData);
+        });
+        it('should handle plain JSON strings', async () => {
+            const originalData = { plain: 'json' };
+            const plainJson = JSON.stringify(originalData);
+            const decompressed = await service.decompress(plainJson);
+            expect(decompressed).toEqual(originalData);
+        });
+    });
+    describe('compressBatch', () => {
+        it('should compress multiple items in batch', async () => {
+            var _a, _b, _c;
+            const items = [
+                { key: 'item1', data: { content: 'Small content' } },
+                { key: 'item2', data: { content: Array.from({ length: 100 }, () => 'Large content').join(' ') } },
+                { key: 'item3', data: { content: Array.from({ length: 500 }, () => 'Very large content').join(' ') } },
+            ];
+            const results = await service.compressBatch(items);
+            expect(results).toHaveLength(3);
+            expect(results[0].key).toBe('item1');
+            expect(results[1].key).toBe('item2');
+            expect(results[2].key).toBe('item3');
+            // 작은 데이터는 압축 안함
+            expect((_a = results[0].stats) === null || _a === void 0 ? void 0 : _a.type).toBe('NONE');
+            // 큰 데이터는 압축됨
+            expect(['GZIP', 'BROTLI']).toContain((_b = results[1].stats) === null || _b === void 0 ? void 0 : _b.type);
+            expect(['GZIP', 'BROTLI']).toContain((_c = results[2].stats) === null || _c === void 0 ? void 0 : _c.type);
+        });
+        it('should handle compression failures gracefully', async () => {
+            const items = [
+                { key: 'valid', data: { content: 'Valid data' } },
+                { key: 'invalid', data: undefined }, // 이것은 JSON.stringify 실패를 유발
+            ];
+            // CompressionService의 compress 메서드를 spy
+            const compressSpy = jest.spyOn(service, 'compress');
+            const results = await service.compressBatch(items);
+            expect(results).toHaveLength(2);
+            expect(results[0].key).toBe('valid');
+            expect(results[1].key).toBe('invalid');
+            // 실패한 아이템도 결과에 포함되어야 함
+            expect(results[1].stats).toBeNull();
+        });
+    });
+    describe('helper methods', () => {
+        it('should check if data is compressible', () => {
+            const smallData = { tiny: 'data' };
+            const largeData = { large: Array.from({ length: 100 }, () => 'data').join(' ') };
+            expect(service.isCompressible(smallData)).toBe(false);
+            expect(service.isCompressible(largeData)).toBe(true);
+        });
+        it('should recommend compression type based on size', () => {
+            expect(service.recommendCompressionType(500)).toBe(compression_service_1.CompressionType.NONE);
+            expect(service.recommendCompressionType(5 * 1024)).toBe(compression_service_1.CompressionType.GZIP);
+            expect(service.recommendCompressionType(15 * 1024)).toBe(compression_service_1.CompressionType.BROTLI);
+        });
+        it('should calculate compression stats correctly', () => {
+            const compressedData = JSON.stringify({
+                type: compression_service_1.CompressionType.GZIP,
+                data: 'compressed',
+                originalSize: 1000,
+                compressedSize: 300,
+            });
+            const stats = service.calculateCompressionStats(compressedData);
+            expect(stats).toBeTruthy();
+            expect(stats.type).toBe('GZIP');
+            expect(stats.originalSize).toBe(1000);
+            expect(stats.compressedSize).toBe(300);
+            expect(stats.compressionRatio).toBe(0.3);
+            expect(stats.spaceSaved).toBe(700);
+        });
+        it('should return null for invalid compression stats', () => {
+            const invalidData = 'not a compressed format';
+            const stats = service.calculateCompressionStats(invalidData);
+            expect(stats).toBeNull();
+        });
+    });
+    describe('edge cases', () => {
+        it('should handle empty data', async () => {
+            const emptyData = {};
+            const compressed = await service.compress(emptyData);
+            const decompressed = await service.decompress(compressed);
+            expect(decompressed).toEqual(emptyData);
+        });
+        it('should handle null values', async () => {
+            const dataWithNull = { value: null, array: [1, null, 3] };
+            const compressed = await service.compress(dataWithNull);
+            const decompressed = await service.decompress(compressed);
+            expect(decompressed).toEqual(dataWithNull);
+        });
+        it('should handle special characters', async () => {
+            const specialData = {
+                korean: '한글 테스트',
+                emoji: '😀🎉🔥',
+                special: '!@#$%^&*()_+-=[]{}|;:,.<>?',
+            };
+            const compressed = await service.compress(specialData);
+            const decompressed = await service.decompress(compressed);
+            expect(decompressed).toEqual(specialData);
+        });
+        it('should handle very large arrays', async () => {
+            const largeArray = Array.from({ length: 10000 }, (_, i) => ({
+                id: i,
+                value: Math.random(),
+            }));
+            const compressed = await service.compress({ data: largeArray });
+            const stats = service.calculateCompressionStats(compressed);
+            expect(stats).toBeTruthy();
+            expect(stats.compressionRatio).toBeLessThan(0.5); // 배열 데이터는 잘 압축됨
+            const decompressed = await service.decompress(compressed);
+            expect(decompressed.data).toEqual(largeArray);
+        });
+    });
+});

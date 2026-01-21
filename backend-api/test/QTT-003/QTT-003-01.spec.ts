@@ -10,14 +10,15 @@ import { DashboardWidget } from '../../src/dashboard/dashboard-widget/entities/d
 import { DashboardWidgetService } from '../../src/dashboard/dashboard-widget/dashboard-widget.service';
 import { ComponentService } from '../../src/component/component.service';
 import { WidgetService } from '../../src/widget/widget.service';
-import { TableQueryService } from '../../src/widget/tabel-query/table-query.service';
-import { TableQuery } from '../../src/widget/tabel-query/entity/table-query.entity';
+import { TableQueryService } from '../../src/widget/table-query/table-query.service';
+import { TableQuery } from '../../src/widget/table-query/entity/table-query.entity';
 import { Database } from '../../src/database/entities/database.entity';
 import { TemplateService } from '../../src/template/template.service';
 import { CreateDashboardDto } from '../../src/dashboard/dto/create-dashboard.dto';
 import { Template } from '../../src/template/entities/template.entity';
 import { TemplateItem } from '../../src/template/entities/template-item.entity';
 import { ResponseStatus } from '../../src/common/enum/response-status.enum';
+import { commonTestProviders } from '../util/test-providers';
 
 describe('QTT-003: 시각화 종류', () => {
   let dashboardService: DashboardService;
@@ -51,6 +52,7 @@ describe('QTT-003: 시각화 종류', () => {
         TableQueryService,
         ComponentService,
         TemplateService,
+        ...commonTestProviders,
       ],
     }).compile();
 
@@ -80,8 +82,8 @@ describe('QTT-003: 시각화 종류', () => {
   it.each(testData)(
     'QTT-003-%s',
     async (name: string, dashboardTitle: string, componentList: number[]) => {
-      let findWidgetInfo = await widgetService.findAll();
-      let widgetIdList = [];
+      const findWidgetInfo = await widgetService.findAll();
+      const widgetIdList = [];
       for (let i = 0; i < componentList.length; i++) {
         const tempWidgetObj = findWidgetInfo.data.find(
           item => item.componentId === componentList[i],
@@ -93,9 +95,15 @@ describe('QTT-003: 시각화 종류', () => {
       const createDashboardDto: CreateDashboardDto = new CreateDashboardDto();
       createDashboardDto.title = dashboardTitle;
       createDashboardDto.layout = layoutResult.data.layout;
-      const createDashboardResult = await dashboardService.create(createDashboardDto);
-      console.log('::::::::생성된 대시보드 id :: ', createDashboardResult.data.id);
-      return expect(createDashboardResult.status).toEqual(ResponseStatus.SUCCESS);
+      const createDashboardResult = await dashboardService.create(createDashboardDto, 1);
+
+      // 타입 가드를 사용하여 성공적인 결과인지 확인
+      if (typeof createDashboardResult !== 'string' && createDashboardResult.data) {
+        console.log('::::::::생성된 대시보드 id :: ', createDashboardResult.data.id);
+        return expect(createDashboardResult.status).toEqual(ResponseStatus.SUCCESS);
+      } else {
+        throw new Error('Dashboard creation failed');
+      }
     },
   );
 });

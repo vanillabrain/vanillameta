@@ -29,8 +29,9 @@ function AddWidgetPopup({ label, useWidgetIds = [], widgetOpen = false, widgetSe
     showLoading();
     WidgetService.selectWidgetList()
       .then(response => {
-        if (response.data.status == STATUS.SUCCESS) {
-          const widgetList = response.data.data.filter(item => {
+        console.log('selectWidgetList response:', response);
+        if (response.status === STATUS.SUCCESS) {
+          const widgetList = response.data.filter(item => {
             return !useWidgetIds.find(useItem => useItem == item.id);
           });
           setLoadedWidgetData(widgetList);

@@ -1,0 +1,23 @@
+aaddeff2bef9e0e11ff99611b9f91e03
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const testing_1 = require("@nestjs/testing");
+const dashboard_controller_1 = require("./dashboard.controller");
+const dashboard_service_1 = require("./dashboard.service");
+const test_providers_1 = require("../../test/util/test-providers");
+describe('DashboardController', () => {
+    let controller;
+    beforeEach(async () => {
+        const module = await testing_1.Test.createTestingModule({
+            controllers: [dashboard_controller_1.DashboardController],
+            providers: [
+                dashboard_service_1.DashboardService,
+                ...test_providers_1.commonTestProviders,
+            ],
+        }).compile();
+        controller = module.get(dashboard_controller_1.DashboardController);
+    });
+    it('should be defined', () => {
+        expect(controller).toBeDefined();
+    });
+});

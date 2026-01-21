@@ -1,0 +1,46 @@
+94814f2790458ccfde8984a6d2fc9ab2
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CreateDatasetDto = void 0;
+const class_validator_1 = require("class-validator");
+const swagger_1 = require("@nestjs/swagger");
+class CreateDatasetDto {
+}
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: '데이터셋 제목',
+        example: '월별 매출 통계',
+        required: true,
+    }),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateDatasetDto.prototype, "title", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: '데이터베이스 연결 ID',
+        example: 1,
+        type: Number,
+        required: true,
+    }),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], CreateDatasetDto.prototype, "databaseId", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: 'SQL 쿼리문',
+        example: 'SELECT date, revenue FROM sales WHERE date >= "2024-01-01" ORDER BY date',
+        required: true,
+    }),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateDatasetDto.prototype, "query", void 0);
+exports.CreateDatasetDto = CreateDatasetDto;

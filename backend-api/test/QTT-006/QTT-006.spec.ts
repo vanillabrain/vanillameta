@@ -10,15 +10,22 @@ import { TemplateModule } from '../../src/template/template.module';
 import { ConfigModule } from '@nestjs/config';
 import { DashboardService } from '../../src/dashboard/dashboard.service';
 import { DashboardModule } from '../../src/dashboard/dashboard.module';
-import { CreateDashboardDto } from '../../dist/dashboard/dto/create-dashboard.dto';
+import { CreateDashboardDto } from '../../src/dashboard/dto/create-dashboard.dto';
 import { Dashboard } from '../../src/dashboard/entities/dashboard.entity';
 import { DashboardWidget } from '../../src/dashboard/dashboard-widget/entities/dashboard-widget.entity';
 import { DashboardWidgetService } from '../../src/dashboard/dashboard-widget/dashboard-widget.service';
 import { ResponseStatus } from '../../src/common/enum/response-status.enum';
 import { WidgetService } from '../../src/widget/widget.service';
-import { TableQuery } from '../../src/widget/tabel-query/entity/table-query.entity';
+import { TableQuery } from '../../src/widget/table-query/entity/table-query.entity';
 import { Database } from '../../src/database/entities/database.entity';
-import { TableQueryService } from '../../src/widget/tabel-query/table-query.service';
+import { TableQueryService } from '../../src/widget/table-query/table-query.service';
+import { LoggerModule } from '../../src/common/logger/logger.module';
+import { User } from '../../src/user/entities/user.entity';
+import { DashboardShare } from '../../src/dashboard/entities/dashboard_share.entity';
+import { UserMapping } from '../../src/user/entities/user-mapping.entity';
+import { UserService } from '../../src/user/user.service';
+import { AuthService } from '../../src/auth/auth.service';
+import { SqlValidationService } from '../../src/common/security/sql-validation.service';
 
 describe('QTT-006 : 대시보드 템플릿 추천', () => {
   let templateService: TemplateService;
@@ -31,6 +38,7 @@ describe('QTT-006 : 대시보드 템플릿 추천', () => {
       imports: [
         TemplateModule,
         DashboardModule,
+        LoggerModule,
         ConfigModule.forRoot({
           isGlobal: true,
           envFilePath: '.env.dev',
@@ -45,6 +53,9 @@ describe('QTT-006 : 대시보드 템플릿 추천', () => {
           DashboardWidget,
           Database,
           TableQuery,
+          User,
+          DashboardShare,
+          UserMapping,
         ]),
       ],
       providers: [
@@ -53,6 +64,27 @@ describe('QTT-006 : 대시보드 템플릿 추천', () => {
         DashboardWidgetService,
         WidgetService,
         TableQueryService,
+        SqlValidationService,
+        {
+          provide: UserService,
+          useValue: {
+            findByEmail: jest.fn(),
+            create: jest.fn(),
+            findAll: jest.fn(),
+            findOne: jest.fn(),
+            update: jest.fn(),
+            remove: jest.fn(),
+          },
+        },
+        {
+          provide: AuthService,
+          useValue: {
+            validateUser: jest.fn(),
+            login: jest.fn(),
+            register: jest.fn(),
+            refreshToken: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
@@ -64,8 +96,8 @@ describe('QTT-006 : 대시보드 템플릿 추천', () => {
   it('QTT-006-01 : 서로 다른 타입의 위젯 목록', async () => {
     const componentList = [15, 12, 41, 13, 38];
 
-    let findWidgetInfo = await widgetService.findAll();
-    let widgetIdList = [];
+    const findWidgetInfo = await widgetService.findAll();
+    const widgetIdList = [];
     for (let i = 0; i < componentList.length; i++) {
       const tempWidgetObj = findWidgetInfo.data.find(item => item.componentId === componentList[i]);
       widgetIdList.push(tempWidgetObj.id);
@@ -79,8 +111,8 @@ describe('QTT-006 : 대시보드 템플릿 추천', () => {
 
   it('QTT-006-02 : 바차트 타입의 위젯 목록', async () => {
     const componentList = [3, 4, 16, 17, 20, 25];
-    let findWidgetInfo = await widgetService.findAll();
-    let widgetIdList = [];
+    const findWidgetInfo = await widgetService.findAll();
+    const widgetIdList = [];
     for (let i = 0; i < componentList.length; i++) {
       const tempWidgetObj = findWidgetInfo.data.find(item => item.componentId === componentList[i]);
       widgetIdList.push(tempWidgetObj.id);
@@ -95,8 +127,8 @@ describe('QTT-006 : 대시보드 템플릿 추천', () => {
 
   it('QTT-006-03 : 알고리즘 범위를 벗어난 위젯 목록', async () => {
     const componentList = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-    let findWidgetInfo = await widgetService.findAll();
-    let widgetIdList = [];
+    const findWidgetInfo = await widgetService.findAll();
+    const widgetIdList = [];
     for (let i = 0; i < componentList.length; i++) {
       const tempWidgetObj = findWidgetInfo.data.find(item => item.componentId === componentList[i]);
       widgetIdList.push(tempWidgetObj.id);
@@ -112,12 +144,17 @@ describe('QTT-006 : 대시보드 템플릿 추천', () => {
     const createDashboardDto: CreateDashboardDto = new CreateDashboardDto();
     createDashboardDto.title = 'QTT-006-03 dashboard';
     createDashboardDto.layout = layoutResult.data.layout;
-    const createDashboardResult = await dashboardService.create(createDashboardDto);
+    const createDashboardResult = await dashboardService.create(createDashboardDto, 1);
 
-    console.log(
-      '::::::::::::::대시보드 위젯 배치 확인::::::::::::::\n',
-      createDashboardResult.data,
-    );
-    return expect(createDashboardResult.status).toEqual(ResponseStatus.SUCCESS);
+    // 타입 가드를 사용하여 성공적인 결과인지 확인
+    if (typeof createDashboardResult !== 'string' && createDashboardResult.data) {
+      console.log(
+        '::::::::::::::대시보드 위젯 배치 확인::::::::::::::\n',
+        createDashboardResult.data,
+      );
+      return expect(createDashboardResult.status).toEqual(ResponseStatus.SUCCESS);
+    } else {
+      throw new Error('Dashboard creation failed');
+    }
   });
 });

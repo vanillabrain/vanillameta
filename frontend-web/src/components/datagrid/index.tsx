@@ -1,42 +1,6 @@
-import Grid from '@toast-ui/react-grid';
-import React, { forwardRef, HTMLAttributes, PropsWithChildren, useEffect, useRef } from 'react';
-import { GridEventListener, GridOptions } from 'tui-grid';
+import React, { forwardRef, PropsWithChildren } from 'react';
 import { Stack } from '@mui/material';
-
-type EventNameMapping = {
-  onClick: 'click';
-  onDblclick: 'dblclick';
-  onMousedown: 'mousedown';
-  onMouseover: 'mouseover';
-  onMouseout: 'mouseout';
-  onFocusChange: 'focusChange';
-  onColumnResize: 'columnResize';
-  onCheck: 'check';
-  onUncheck: 'uncheck';
-  onCheckAll: 'checkAll';
-  onUncheckAll: 'uncheckAll';
-  onSelection: 'selection';
-  onEditingStart: 'editingStart';
-  onEditingFinish: 'editingFinish';
-  onSort: 'sort';
-  onFilter: 'filter';
-  onScrollEnd: 'scrollEnd';
-  onBeforeRequest: 'beforeRequest';
-  onResponse: 'response';
-  onSuccessResponse: 'successResponse';
-  onFailResponse: 'failResponse';
-  onErrorResponse: 'errorResponse';
-};
-
-type EventMaps = {
-  [K in keyof EventNameMapping]?: GridEventListener;
-};
-
-type Props = Omit<GridOptions, 'el'> &
-  EventMaps &
-  HTMLAttributes<HTMLElement> & {
-    oneTimeBindingProps?: Array<'data' | 'columns' | 'bodyHeight' | 'frozenColumnCount'>;
-  };
+import { DataGrid as MuiDataGrid, GridColDef, GridRowsProp } from '@mui/x-data-grid';
 
 export const DataGridWrapper = forwardRef((props: PropsWithChildren, ref: React.Ref<HTMLDivElement>) => {
   const { children } = props;
@@ -55,33 +19,39 @@ export const DataGridWrapper = forwardRef((props: PropsWithChildren, ref: React.
   );
 });
 
-interface DataGridProps extends Props {
+interface DataGridProps {
+  rows?: GridRowsProp;
+  columns?: GridColDef[];
+  data?: any[];
   resizeObserver?: any;
+  [key: string]: any;
 }
 
-const DataGrid = (props: DataGridProps) => {
-  const gridRef = useRef<Grid>();
-  const { resizeObserver, ...rest } = props;
+const DataGrid = ({ rows, columns, data, resizeObserver, ...rest }: DataGridProps) => {
+  // TUI Grid의 data prop을 MUI DataGrid의 rows로 변환
+  const gridRows = rows || (data?.map((item, index) => ({ id: index, ...item })) ?? []);
 
-  useEffect(() => {
-    if (resizeObserver) {
-      gridRef.current.getInstance().refreshLayout();
-    }
-  }, [resizeObserver]);
+  // TUI Grid의 columns를 MUI DataGrid 형식으로 변환
+  const gridColumns: GridColDef[] = columns || [];
 
   return (
-    <Grid
-      ref={gridRef}
-      header={{
-        height: 36,
-        align: 'center',
+    <MuiDataGrid
+      rows={gridRows}
+      columns={gridColumns}
+      pageSizeOptions={[5, 10, 25, 50, 100]}
+      initialState={{
+        pagination: {
+          paginationModel: { pageSize: 25 },
+        },
       }}
-      rowHeight={36}
-      minRowHeight={36}
-      minBodyHeight={100}
-      usageStatistics={true}
-      columnOptions={{
-        resizable: true,
+      sx={{
+        '& .MuiDataGrid-cell': {
+          fontSize: '0.875rem',
+        },
+        '& .MuiDataGrid-columnHeader': {
+          backgroundColor: '#f5f5f5',
+          fontSize: '0.875rem',
+        },
       }}
       {...rest}
     />

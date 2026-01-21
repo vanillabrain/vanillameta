@@ -1,0 +1,43 @@
+2d31dfeb9fb9d7ef356d0f6fa66037f4
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var CorrelationIdService_1;
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CorrelationIdService = void 0;
+const common_1 = require("@nestjs/common");
+const async_hooks_1 = require("async_hooks");
+let CorrelationIdService = CorrelationIdService_1 = class CorrelationIdService {
+    /**
+     * 현재 요청의 correlation ID를 설정합니다.
+     * @param correlationId 요청의 고유 ID
+     * @param callback 실행할 콜백 함수
+     */
+    static run(correlationId, callback) {
+        return this.asyncLocalStorage.run({ correlationId }, callback);
+    }
+    /**
+     * 현재 요청의 correlation ID를 반환합니다.
+     * @returns correlation ID 또는 undefined
+     */
+    static getCorrelationId() {
+        const context = this.asyncLocalStorage.getStore();
+        return context === null || context === void 0 ? void 0 : context.correlationId;
+    }
+    /**
+     * 현재 요청의 correlation ID를 반환합니다 (인스턴스 메서드).
+     * @returns correlation ID 또는 undefined
+     */
+    getCorrelationId() {
+        return CorrelationIdService_1.getCorrelationId();
+    }
+};
+CorrelationIdService.asyncLocalStorage = new async_hooks_1.AsyncLocalStorage();
+CorrelationIdService = CorrelationIdService_1 = __decorate([
+    (0, common_1.Injectable)({ scope: common_1.Scope.DEFAULT })
+], CorrelationIdService);
+exports.CorrelationIdService = CorrelationIdService;

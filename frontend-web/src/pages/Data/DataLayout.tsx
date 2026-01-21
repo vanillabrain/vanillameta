@@ -1,5 +1,4 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Stack, Typography } from '@mui/material';
 import DatabaseService from '@/api/databaseService';
 import { STATUS } from '@/constant';
 import { useAlert } from 'react-alert';
@@ -32,7 +31,7 @@ export interface DataSetProps {
   id: number;
   databaseId: number;
   datasetType: 'DATASET';
-  title: string;
+  title?: string;
   query: string;
   createdAt: string;
   updatedAt: string;
@@ -77,12 +76,17 @@ const DataLayout = props => {
     showLoading();
     DatabaseService.selectDatabaseList()
       .then(response => {
-        const resData = response.data.data;
+        const resData = response.data || [];
         setDatabaseList(resData);
         if (resData.length > 0) {
           const [firstItem] = resData;
           setSelectedDatabase(firstItem);
         }
+      })
+      .catch(error => {
+        console.error('Database list error:', error);
+        setDatabaseList([]);
+        snackbar.error('데이터베이스 목록을 불러오는데 실패했습니다.');
       })
       .finally(() => {
         hideLoading();
@@ -91,11 +95,15 @@ const DataLayout = props => {
 
   const getDatabaseInfo = databaseId => {
     showLoading();
+    console.log('Getting database info for databaseId:', databaseId);
     DatabaseService.selectDatabase(databaseId)
       .then(response => {
-        if (response.data.status === 'SUCCESS') {
-          setDatasetList(response.data.data.datasets);
-          setTableList(response.data.data.tables);
+        console.log('selectDatabase response:', response);
+        if (response.status === STATUS.SUCCESS && response.data) {
+          // 백엔드 응답 구조에 맞게 데이터 추출
+          const { datasets = [], tables = [] } = response.data;
+          setDatasetList(datasets);
+          setTableList(tables);
         } else {
           alert.error('데이터베이스 조회에 실패했습니다.\n다시 시도해 주세요.');
           setDatasetList([]);
@@ -103,7 +111,12 @@ const DataLayout = props => {
         }
       })
       .catch(error => {
-        snackbar.error(error.message);
+        console.error('Database select error:', error);
+        if (error.response?.status === 403) {
+          snackbar.error('데이터베이스 접근 권한이 없습니다. 다시 로그인해주세요.');
+        } else {
+          snackbar.error(error.message || '데이터베이스 조회에 실패했습니다.');
+        }
         setDatasetList([]);
         setTableList([]);
       })
@@ -128,9 +141,13 @@ const DataLayout = props => {
     showLoading();
     DatabaseService.selectData(param)
       .then(response => {
-        if (response.data.status === STATUS.SUCCESS) {
-          setGridData(response.data.data.datas);
-          setGridColumns(createColumns(response.data.data.datas));
+        console.log('selectData response:', response);
+        if (response.status === STATUS.SUCCESS) {
+          // result 안에 rows가 있는 경우와 datas가 직접 있는 경우 모두 처리
+          const resultData = response.data?.result || response.data;
+          const rows = (resultData as any)?.rows || (resultData as any)?.datas || [];
+          setGridData(rows);
+          setGridColumns(createColumns(rows));
         }
       })
       .catch(error => {
@@ -157,7 +174,7 @@ const DataLayout = props => {
           copy: '삭제',
           onClick: () => {
             DatabaseService.deleteDatabase(item.databaseId).then(response => {
-              if (response.data.status === STATUS.SUCCESS) {
+              if (response.status === STATUS.SUCCESS) {
                 getDatabaseList();
                 snackbar.success('데이터베이스가 삭제되었습니다.');
               }
@@ -219,18 +236,16 @@ const DataLayout = props => {
   };
 
   return (
-    <Stack direction={{ xs: 'column', sm: 'row' }} flex="1 1 auto" sx={{ width: '100%' }}>
-      <Stack
-        direction="column"
-        flex="1 1 auto"
-        sx={{ width: { xs: '100%', md: '404px' }, height: '100%', px: '24px', pt: '30px' }}
+    <div className="flex flex-col sm:flex-row flex-auto w-full">
+      <div
+        className="flex flex-col flex-auto w-full md:w-[404px] h-full px-6 pt-[30px]"
       >
-        <Stack direction="row">
-          <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold', fontSize: '16px', color: '#141414' }}>
+        <div className="flex flex-row">
+          <span className="font-bold text-base text-[#141414]">
             데이터 소스
-          </Typography>
-          {isViewMode ? <></> : <AddButton component={RouterLink} to={`source/create`} sx={{ ml: '14px' }} />}
-        </Stack>
+          </span>
+          {isViewMode ? <></> : <AddButton component={RouterLink} to={`source/create`} className="ml-[14px]" />}
+        </div>
         <DatabaseCardList
           data={databaseList}
           selectedData={selectedDatabase}
@@ -238,23 +253,22 @@ const DataLayout = props => {
           handleDataClick={handleDatabaseClick}
           handleDataRemove={handleDatabaseRemove}
         />
-      </Stack>
+      </div>
 
-      <Stack
-        direction="column"
-        sx={{ flex: '1 1 auto', width: { xs: '100%', md: 'calc(100% - 404px)' }, backgroundColor: '#f5f6f8' }}
+      <div
+        className="flex flex-col flex-auto w-full md:w-[calc(100%-404px)] bg-[#f5f6f8]"
       >
-        <Stack direction="column" sx={{ width: '100%', px: '24px', pt: '30px' }}>
-          <Stack direction="row">
-            <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold', fontSize: '16px', color: '#141414' }}>
+        <div className="flex flex-col w-full px-6 pt-[30px]">
+          <div className="flex flex-row">
+            <span className="font-bold text-base text-[#141414]">
               데이터 셋
-            </Typography>
+            </span>
             {isViewMode ? (
               <></>
             ) : (
-              <AddButton component={RouterLink} to={`set/create/${selectedDatabase.id}`} sx={{ ml: '14px' }} />
+              <AddButton component={RouterLink} to={`set/create/${selectedDatabase.id}`} className="ml-[14px]" />
             )}
-          </Stack>
+          </div>
           <DatasetCardList
             isViewMode={isViewMode}
             data={datasetList}
@@ -263,13 +277,13 @@ const DataLayout = props => {
             handleDataRemove={handleDataSetRemove}
             handleModifyClick={handleModifyClick}
           />
-        </Stack>
-        <Stack direction="column" sx={{ flex: '1 1 auto', width: '100%', minHeight: '50%', px: '24px', pt: '30px' }}>
-          <Stack direction="row">
-            <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold', fontSize: '16px', color: '#141414' }}>
+        </div>
+        <div className="flex flex-col flex-auto w-full min-h-[50%] px-6 pt-[30px]">
+          <div className="flex flex-row">
+            <span className="font-bold text-base text-[#141414]">
               테이블 목록
-            </Typography>
-          </Stack>
+            </span>
+          </div>
           <DatasetCardList
             isTableView
             isViewMode={isViewMode}
@@ -300,9 +314,9 @@ const DataLayout = props => {
               </DataGridWrapper>
             )}
           </ModalPopup>
-        </Stack>
-      </Stack>
-    </Stack>
+        </div>
+      </div>
+    </div>
   );
 };
 

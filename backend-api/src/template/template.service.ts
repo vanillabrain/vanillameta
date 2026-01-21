@@ -93,7 +93,7 @@ export class TemplateService {
       },
     });
 
-    if (templateInfo.id) {
+    if (templateInfo && templateInfo.id) {
       returnObj = new TemplateInfoDto(templateInfo);
       // 템플릿 상세 아이템 조회(layout 조회 및 가공)
       const layoutList = await this.templateItemRepository.find({
@@ -107,9 +107,10 @@ export class TemplateService {
         layout.push(itemInfo);
       });
       returnObj.layout = layout;
+      return { status: ResponseStatus.SUCCESS, data: returnObj };
+    } else {
+      return { status: ResponseStatus.ERROR, message: `${id} 템플릿이 존재하지 않습니다.` };
     }
-
-    return { status: ResponseStatus.SUCCESS, data: returnObj };
   }
 
   /**
@@ -417,7 +418,7 @@ export class TemplateService {
   private async calRecommendScore(templateInfo, widgetInfo): Promise<number> {
     let recommendScore = 0;
 
-    let templateCount = {
+    const templateCount = {
       HORIZONTAL: Number(templateInfo.horizontalCnt),
       VERTICAL: Number(templateInfo.verticalCnt),
       SQUARE: Number(templateInfo.squareCnt),
@@ -425,7 +426,7 @@ export class TemplateService {
       TABLE: 0,
     };
 
-    let widgetCount = {
+    const widgetCount = {
       HORIZONTAL: Number(widgetInfo.horizontalCnt),
       VERTICAL: Number(widgetInfo.verticalCnt),
       SQUARE: Number(widgetInfo.squareCnt),

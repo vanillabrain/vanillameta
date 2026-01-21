@@ -1,0 +1,156 @@
+a3478f5a86bd4e8b697581ad02631c0e
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.AppController = void 0;
+const common_1 = require("@nestjs/common");
+const swagger_1 = require("@nestjs/swagger");
+const app_service_1 = require("./app.service");
+let AppController = class AppController {
+    constructor(appService) {
+        this.appService = appService;
+    }
+    getHello() {
+        return {
+            message: 'Welcome to VanillaMeta API',
+            version: '1.0.0',
+            description: '비즈니스 인텔리전스 플랫폼 API',
+            endpoints: {
+                api: '/api/v1',
+                docs: '/api/v1/docs',
+                health: '/api/v1/health',
+            },
+            demo: {
+                username: 'guest',
+                password: 'Admin!@12',
+                note: '데모 계정으로 로그인하여 VanillaMeta를 체험해보세요!',
+            },
+        };
+    }
+    checkHealth() {
+        return this.appService.checkHealth();
+    }
+    async getIp() {
+        return await this.appService.getIp();
+    }
+    postHello(body) {
+        return body;
+    }
+    getHealth() {
+        return {
+            status: 'ok',
+            timestamp: new Date().toISOString(),
+            environment: process.env.NODE_ENV,
+            database: process.env.NODE_ENV === 'local' ? 'sqlite' : 'mysql',
+        };
+    }
+    async createSeedData() {
+        return {
+            message: 'Seed data endpoint ready',
+            timestamp: new Date().toISOString(),
+            environment: process.env.NODE_ENV,
+        };
+    }
+};
+__decorate([
+    (0, common_1.Get)(),
+    (0, swagger_1.ApiOperation)({ summary: 'API 루트 엔드포인트' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'API 정보 반환' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Object)
+], AppController.prototype, "getHello", null);
+__decorate([
+    (0, common_1.Get)('health'),
+    (0, swagger_1.ApiOperation)({
+        summary: '헬스체크 엔드포인트',
+        description: 'API 서버의 상태를 확인합니다.',
+    }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: '서비스 상태 정상' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], AppController.prototype, "checkHealth", null);
+__decorate([
+    (0, common_1.Get)('/ip'),
+    (0, swagger_1.ApiOperation)({
+        summary: '서버 IP 주소 조회',
+        description: 'API 서버의 공개 IP 주소를 조회합니다. AWS Lambda 환경에서 실행 중인 경우 Lambda 함수의 외부 IP를 반환합니다.',
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: '서버의 IP 주소가 반환되었습니다.',
+        schema: {
+            type: 'string',
+            example: '52.79.123.45',
+        },
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 500,
+        description: 'IP 주소를 가져오는 중 오류가 발생했습니다.',
+    }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], AppController.prototype, "getIp", null);
+__decorate([
+    (0, common_1.Post)(),
+    (0, swagger_1.ApiOperation)({
+        summary: '에코 테스트',
+        description: '전송한 데이터를 그대로 반환합니다. API 테스트 목적으로 사용됩니다.',
+    }),
+    (0, swagger_1.ApiBody)({
+        description: '테스트할 데이터',
+        schema: {
+            type: 'object',
+            example: {
+                message: 'Hello',
+                timestamp: '2024-01-15T10:00:00Z',
+            },
+        },
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: '전송한 데이터가 그대로 반환되었습니다.',
+        schema: {
+            type: 'object',
+            example: {
+                message: 'Hello',
+                timestamp: '2024-01-15T10:00:00Z',
+            },
+        },
+    }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], AppController.prototype, "postHello", null);
+__decorate([
+    (0, common_1.Get)('/health'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], AppController.prototype, "getHealth", null);
+__decorate([
+    (0, common_1.Post)('/seed'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], AppController.prototype, "createSeedData", null);
+AppController = __decorate([
+    (0, swagger_1.ApiTags)('시스템'),
+    (0, common_1.Controller)(),
+    __metadata("design:paramtypes", [app_service_1.AppService])
+], AppController);
+exports.AppController = AppController;

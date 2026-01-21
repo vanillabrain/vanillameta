@@ -1,0 +1,552 @@
+ed789131d061d16f66089969078ddd07
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var SlowQueryMonitorService_1;
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.SlowQueryMonitorService = void 0;
+const common_1 = require("@nestjs/common");
+const typeorm_1 = require("@nestjs/typeorm");
+const typeorm_2 = require("typeorm");
+const schedule_1 = require("@nestjs/schedule");
+const crypto = __importStar(require("crypto"));
+const aws_sdk_1 = require("aws-sdk");
+const slow_query_log_entity_1 = require("./entities/slow-query-log.entity");
+let SlowQueryMonitorService = SlowQueryMonitorService_1 = class SlowQueryMonitorService {
+    constructor(slowQueryLogRepository) {
+        this.slowQueryLogRepository = slowQueryLogRepository;
+        this.logger = new common_1.Logger(SlowQueryMonitorService_1.name);
+        this.config = {
+            enabled: true,
+            threshold: 1000,
+            maxLogEntries: 10000,
+            cleanupIntervalDays: 30,
+            alertThresholds: {
+                low: 1000,
+                medium: 3000,
+                high: 10000,
+                critical: 30000, // 30초
+            },
+        };
+        // CloudWatch 인스턴스 초기화
+        this.cloudwatch = new aws_sdk_1.CloudWatch({
+            region: process.env.AWS_REGION || 'us-east-1',
+        });
+    }
+    /**
+     * 슬로우 쿼리 기록
+     */
+    async logSlowQuery(analysis, metadata = {}) {
+        if (!this.config.enabled ||
+            !analysis.executionTime ||
+            analysis.executionTime < this.config.threshold) {
+            return;
+        }
+        try {
+            // 쿼리 해시 생성 (중복 방지용)
+            const queryHash = this.generateQueryHash(analysis.query, metadata.parameters);
+            // 심각도 결정
+            const severity = this.determineSeverity(analysis.executionTime);
+            const slowQueryLog = new slow_query_log_entity_1.SlowQueryLog();
+            slowQueryLog.queryHash = queryHash;
+            slowQueryLog.query = analysis.query;
+            slowQueryLog.parameters = metadata.parameters ? JSON.stringify(metadata.parameters) : null;
+            slowQueryLog.executionTime = analysis.executionTime;
+            slowQueryLog.databaseId = metadata.databaseId;
+            slowQueryLog.databaseEngine = metadata.databaseEngine;
+            slowQueryLog.rowsExamined = analysis.rowsExamined;
+            slowQueryLog.rowsReturned = analysis.rowsReturned;
+            slowQueryLog.indexUsed = analysis.indexUsed || false;
+            slowQueryLog.scanType = analysis.scanType;
+            slowQueryLog.temporaryTable = analysis.temporaryTable || false;
+            slowQueryLog.filesort = analysis.filesort || false;
+            slowQueryLog.cost = analysis.cost;
+            slowQueryLog.warnings = analysis.warnings ? JSON.stringify(analysis.warnings) : null;
+            slowQueryLog.optimizationSuggestions = analysis.optimizationSuggestions
+                ? JSON.stringify(analysis.optimizationSuggestions)
+                : null;
+            slowQueryLog.explainPlan = analysis.explainPlan;
+            slowQueryLog.userId = metadata.userId;
+            slowQueryLog.requestPath = metadata.requestPath;
+            slowQueryLog.httpMethod = metadata.httpMethod;
+            slowQueryLog.clientIp = metadata.clientIp;
+            slowQueryLog.userAgent = metadata.userAgent;
+            slowQueryLog.requestId = metadata.requestId;
+            slowQueryLog.severity = severity;
+            slowQueryLog.detectedAt = new Date();
+            await this.slowQueryLogRepository.save(slowQueryLog);
+            this.logger.warn({
+                message: `Slow query detected [${severity}]`,
+                executionTime: analysis.executionTime,
+                queryHash,
+                databaseId: metadata.databaseId,
+                userId: metadata.userId,
+                requestId: metadata.requestId,
+            });
+            // CloudWatch 메트릭 전송
+            await this.sendCloudWatchMetrics(analysis.executionTime, severity, metadata.databaseEngine, metadata.databaseId);
+            // Critical 수준의 쿼리는 즉시 알림
+            if (severity === 'CRITICAL') {
+                await this.sendCriticalQueryAlert(slowQueryLog);
+            }
+        }
+        catch (error) {
+            this.logger.error(`Failed to log slow query: ${error.message}`, error.stack);
+        }
+    }
+    /**
+     * 슬로우 쿼리 통계 조회
+     */
+    async getSlowQueryStats(periodHours = 24) {
+        const startDate = new Date(Date.now() - periodHours * 60 * 60 * 1000);
+        try {
+            const [totalQueries, avgExecutionTime, maxExecutionTime, mostFrequentQueries, performanceByDatabase, severityDistribution, trends,] = await Promise.all([
+                this.getTotalSlowQueries(startDate),
+                this.getAverageExecutionTime(startDate),
+                this.getMaxExecutionTime(startDate),
+                this.getMostFrequentQueries(startDate, 10),
+                this.getPerformanceByDatabase(startDate),
+                this.getSeverityDistribution(startDate),
+                this.getTrends24Hours(),
+            ]);
+            return {
+                totalSlowQueries: totalQueries,
+                avgExecutionTime: avgExecutionTime || 0,
+                maxExecutionTime: maxExecutionTime || 0,
+                mostFrequentQueries,
+                performanceByDatabase,
+                severityDistribution,
+                trendsLast24Hours: trends,
+            };
+        }
+        catch (error) {
+            this.logger.error(`Failed to get slow query stats: ${error.message}`, error.stack);
+            throw error;
+        }
+    }
+    /**
+     * 슬로우 쿼리 목록 조회 (페이징)
+     */
+    async getSlowQueries(page = 1, limit = 50, filters = {}) {
+        const query = this.slowQueryLogRepository.createQueryBuilder('sql');
+        // 필터링
+        if (filters.startDate) {
+            query.andWhere('sql.detectedAt >= :startDate', { startDate: filters.startDate });
+        }
+        if (filters.endDate) {
+            query.andWhere('sql.detectedAt <= :endDate', { endDate: filters.endDate });
+        }
+        if (filters.databaseId) {
+            query.andWhere('sql.databaseId = :databaseId', { databaseId: filters.databaseId });
+        }
+        if (filters.severity) {
+            query.andWhere('sql.severity = :severity', { severity: filters.severity });
+        }
+        if (filters.minExecutionTime) {
+            query.andWhere('sql.executionTime >= :minExecutionTime', {
+                minExecutionTime: filters.minExecutionTime,
+            });
+        }
+        if (filters.maxExecutionTime) {
+            query.andWhere('sql.executionTime <= :maxExecutionTime', {
+                maxExecutionTime: filters.maxExecutionTime,
+            });
+        }
+        if (filters.resolved !== undefined) {
+            query.andWhere('sql.resolved = :resolved', { resolved: filters.resolved });
+        }
+        // 정렬 및 페이징
+        query
+            .orderBy('sql.detectedAt', 'DESC')
+            .skip((page - 1) * limit)
+            .take(limit);
+        const [data, total] = await query.getManyAndCount();
+        return {
+            data,
+            total,
+            page,
+            limit,
+        };
+    }
+    /**
+     * 슬로우 쿼리 해결 처리
+     */
+    async resolveSlowQuery(id, resolutionNotes) {
+        await this.slowQueryLogRepository.update(id, {
+            resolved: true,
+            resolutionNotes,
+            resolvedAt: new Date(),
+        });
+        this.logger.log(`Slow query ${id} marked as resolved`);
+    }
+    /**
+     * 쿼리 해시 생성
+     */
+    generateQueryHash(query, parameters) {
+        const normalizedQuery = this.normalizeQuery(query);
+        const paramString = parameters ? JSON.stringify(parameters) : '';
+        return crypto
+            .createHash('md5')
+            .update(normalizedQuery + paramString)
+            .digest('hex');
+    }
+    /**
+     * 쿼리 정규화 (공백, 대소문자 등)
+     */
+    normalizeQuery(query) {
+        return query.replace(/\s+/g, ' ').replace(/\n/g, ' ').trim().toLowerCase();
+    }
+    /**
+     * 심각도 결정
+     */
+    determineSeverity(executionTime) {
+        if (executionTime >= this.config.alertThresholds.critical)
+            return 'CRITICAL';
+        if (executionTime >= this.config.alertThresholds.high)
+            return 'HIGH';
+        if (executionTime >= this.config.alertThresholds.medium)
+            return 'MEDIUM';
+        return 'LOW';
+    }
+    /**
+     * Critical 수준 쿼리 알림
+     */
+    async sendCriticalQueryAlert(slowQueryLog) {
+        // 여기서 실제 알림 시스템 (이메일, Slack 등)과 연동
+        this.logger.error({
+            message: 'CRITICAL SLOW QUERY ALERT',
+            queryHash: slowQueryLog.queryHash,
+            executionTime: slowQueryLog.executionTime,
+            databaseId: slowQueryLog.databaseId,
+            userId: slowQueryLog.userId,
+            query: slowQueryLog.query.substring(0, 200),
+        });
+    }
+    /**
+     * 전체 슬로우 쿼리 수 조회
+     */
+    async getTotalSlowQueries(startDate) {
+        return this.slowQueryLogRepository.count({
+            where: { detectedAt: (0, typeorm_2.Between)(startDate, new Date()) },
+        });
+    }
+    /**
+     * 평균 실행 시간 조회
+     */
+    async getAverageExecutionTime(startDate) {
+        const result = await this.slowQueryLogRepository
+            .createQueryBuilder('sql')
+            .select('AVG(sql.executionTime)', 'avg')
+            .where('sql.detectedAt >= :startDate', { startDate })
+            .getRawOne();
+        return (result === null || result === void 0 ? void 0 : result.avg) ? parseFloat(result.avg) : 0;
+    }
+    /**
+     * 최대 실행 시간 조회
+     */
+    async getMaxExecutionTime(startDate) {
+        const result = await this.slowQueryLogRepository
+            .createQueryBuilder('sql')
+            .select('MAX(sql.executionTime)', 'max')
+            .where('sql.detectedAt >= :startDate', { startDate })
+            .getRawOne();
+        return (result === null || result === void 0 ? void 0 : result.max) ? parseInt(result.max) : 0;
+    }
+    /**
+     * 가장 빈번한 쿼리들 조회
+     */
+    async getMostFrequentQueries(startDate, limit) {
+        const result = await this.slowQueryLogRepository
+            .createQueryBuilder('sql')
+            .select([
+            'sql.queryHash',
+            'sql.query',
+            'COUNT(*) as count',
+            'AVG(sql.executionTime) as avgExecutionTime',
+        ])
+            .where('sql.detectedAt >= :startDate', { startDate })
+            .groupBy('sql.queryHash')
+            .orderBy('count', 'DESC')
+            .limit(limit)
+            .getRawMany();
+        return result.map(row => ({
+            queryHash: row.sql_queryHash,
+            query: row.sql_query.substring(0, 100) + '...',
+            count: parseInt(row.count),
+            avgExecutionTime: parseFloat(row.avgExecutionTime),
+        }));
+    }
+    /**
+     * 데이터베이스별 성능 조회
+     */
+    async getPerformanceByDatabase(startDate) {
+        const result = await this.slowQueryLogRepository
+            .createQueryBuilder('sql')
+            .select([
+            'sql.databaseId',
+            'sql.databaseEngine',
+            'COUNT(*) as count',
+            'AVG(sql.executionTime) as avgExecutionTime',
+        ])
+            .where('sql.detectedAt >= :startDate', { startDate })
+            .andWhere('sql.databaseId IS NOT NULL')
+            .groupBy('sql.databaseId, sql.databaseEngine')
+            .orderBy('count', 'DESC')
+            .getRawMany();
+        return result.map(row => ({
+            databaseId: row.sql_databaseId,
+            databaseEngine: row.sql_databaseEngine,
+            count: parseInt(row.count),
+            avgExecutionTime: parseFloat(row.avgExecutionTime),
+        }));
+    }
+    /**
+     * 심각도별 분포 조회
+     */
+    async getSeverityDistribution(startDate) {
+        const result = await this.slowQueryLogRepository
+            .createQueryBuilder('sql')
+            .select(['sql.severity', 'COUNT(*) as count'])
+            .where('sql.detectedAt >= :startDate', { startDate })
+            .groupBy('sql.severity')
+            .getRawMany();
+        const distribution = { low: 0, medium: 0, high: 0, critical: 0 };
+        result.forEach(row => {
+            const severity = row.sql_severity.toLowerCase();
+            distribution[severity] = parseInt(row.count);
+        });
+        return distribution;
+    }
+    /**
+     * 지난 24시간 트렌드 조회
+     */
+    async getTrends24Hours() {
+        const result = await this.slowQueryLogRepository
+            .createQueryBuilder('sql')
+            .select([
+            'DATE_FORMAT(sql.detectedAt, "%Y-%m-%d %H:00:00") as hour',
+            'COUNT(*) as count',
+            'AVG(sql.executionTime) as avgExecutionTime',
+        ])
+            .where('sql.detectedAt >= DATE_SUB(NOW(), INTERVAL 24 HOUR)')
+            .groupBy('hour')
+            .orderBy('hour', 'ASC')
+            .getRawMany();
+        return result.map(row => ({
+            hour: row.hour,
+            count: parseInt(row.count),
+            avgExecutionTime: parseFloat(row.avgExecutionTime),
+        }));
+    }
+    /**
+     * 주기적 정리 작업 (매일 03:00)
+     */
+    async cleanupOldLogs() {
+        if (!this.config.enabled)
+            return;
+        const cutoffDate = new Date(Date.now() - this.config.cleanupIntervalDays * 24 * 60 * 60 * 1000);
+        try {
+            const result = await this.slowQueryLogRepository.delete({
+                detectedAt: (0, typeorm_2.LessThan)(cutoffDate),
+            });
+            this.logger.log(`Cleaned up ${result.affected} old slow query logs`);
+        }
+        catch (error) {
+            this.logger.error(`Failed to cleanup old logs: ${error.message}`, error.stack);
+        }
+    }
+    /**
+     * 설정 업데이트
+     */
+    updateConfig(newConfig) {
+        this.config = Object.assign(Object.assign({}, this.config), newConfig);
+        this.logger.log('Slow query monitor config updated', this.config);
+    }
+    /**
+     * 현재 설정 조회
+     */
+    getConfig() {
+        return Object.assign({}, this.config);
+    }
+    /**
+     * CloudWatch 메트릭 전송
+     */
+    async sendCloudWatchMetrics(executionTime, severity, databaseEngine, databaseId) {
+        if (!this.config.enabled)
+            return;
+        try {
+            const namespace = `VanillaMeta/${process.env.NODE_ENV || 'dev'}/Database`;
+            const timestamp = new Date();
+            const metricData = [
+                // 슬로우 쿼리 카운트 메트릭
+                {
+                    MetricName: 'SlowQueryCount',
+                    Value: 1,
+                    Unit: 'Count',
+                    Timestamp: timestamp,
+                    Dimensions: [
+                        {
+                            Name: 'Environment',
+                            Value: process.env.NODE_ENV || 'dev',
+                        },
+                    ],
+                },
+                // 실행 시간 메트릭
+                {
+                    MetricName: 'SlowQueryExecutionTime',
+                    Value: executionTime,
+                    Unit: 'Milliseconds',
+                    Timestamp: timestamp,
+                    Dimensions: [
+                        {
+                            Name: 'Environment',
+                            Value: process.env.NODE_ENV || 'dev',
+                        },
+                    ],
+                },
+                // 심각도별 카운트 메트릭
+                {
+                    MetricName: 'SlowQueryBySeverity',
+                    Value: 1,
+                    Unit: 'Count',
+                    Timestamp: timestamp,
+                    Dimensions: [
+                        {
+                            Name: 'Environment',
+                            Value: process.env.NODE_ENV || 'dev',
+                        },
+                        {
+                            Name: 'Severity',
+                            Value: severity,
+                        },
+                    ],
+                },
+            ];
+            // 데이터베이스 엔진별 메트릭 추가
+            if (databaseEngine) {
+                metricData.push({
+                    MetricName: 'SlowQueryByDatabase',
+                    Value: 1,
+                    Unit: 'Count',
+                    Timestamp: timestamp,
+                    Dimensions: [
+                        {
+                            Name: 'Environment',
+                            Value: process.env.NODE_ENV || 'dev',
+                        },
+                        {
+                            Name: 'DatabaseEngine',
+                            Value: databaseEngine,
+                        },
+                    ],
+                });
+                metricData.push({
+                    MetricName: 'SlowQueryExecutionTimeByDatabase',
+                    Value: executionTime,
+                    Unit: 'Milliseconds',
+                    Timestamp: timestamp,
+                    Dimensions: [
+                        {
+                            Name: 'Environment',
+                            Value: process.env.NODE_ENV || 'dev',
+                        },
+                        {
+                            Name: 'DatabaseEngine',
+                            Value: databaseEngine,
+                        },
+                    ],
+                });
+            }
+            // 데이터베이스 ID별 메트릭 추가
+            if (databaseId) {
+                metricData.push({
+                    MetricName: 'SlowQueryByDatabaseId',
+                    Value: 1,
+                    Unit: 'Count',
+                    Timestamp: timestamp,
+                    Dimensions: [
+                        {
+                            Name: 'Environment',
+                            Value: process.env.NODE_ENV || 'dev',
+                        },
+                        {
+                            Name: 'DatabaseId',
+                            Value: databaseId.toString(),
+                        },
+                    ],
+                });
+            }
+            // 메트릭 전송 (최대 20개씩 배치 전송)
+            for (let i = 0; i < metricData.length; i += 20) {
+                const batch = metricData.slice(i, i + 20);
+                await this.cloudwatch
+                    .putMetricData({
+                    Namespace: namespace,
+                    MetricData: batch,
+                })
+                    .promise();
+            }
+            this.logger.debug(`Sent ${metricData.length} CloudWatch metrics for slow query`, {
+                executionTime,
+                severity,
+                databaseEngine,
+                databaseId,
+            });
+        }
+        catch (error) {
+            // CloudWatch 메트릭 전송 실패는 로깅만 하고 에러를 throw하지 않음
+            this.logger.error(`Failed to send CloudWatch metrics: ${error.message}`, {
+                executionTime,
+                severity,
+                databaseEngine,
+                databaseId,
+                error: error.stack,
+            });
+        }
+    }
+};
+__decorate([
+    (0, schedule_1.Cron)('0 3 * * *'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], SlowQueryMonitorService.prototype, "cleanupOldLogs", null);
+SlowQueryMonitorService = SlowQueryMonitorService_1 = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, typeorm_1.InjectRepository)(slow_query_log_entity_1.SlowQueryLog)),
+    __metadata("design:paramtypes", [typeorm_2.Repository])
+], SlowQueryMonitorService);
+exports.SlowQueryMonitorService = SlowQueryMonitorService;

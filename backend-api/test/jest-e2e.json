@@ -2,8 +2,21 @@
   "moduleFileExtensions": ["js", "json", "ts"],
   "rootDir": ".",
   "testEnvironment": "node",
-  "testRegex": ".e2e-spec.ts$",
+  "testMatch": ["**/e2e/**/*.e2e-spec.ts", "**/*.e2e-spec.ts"],
   "transform": {
-    "^.+\\.(t|j)s$": "ts-jest"
-  }
+    "^.+\\.(t|j)s$": ["ts-jest", {
+      "tsconfig": {
+        "allowJs": true,
+        "esModuleInterop": true,
+        "resolveJsonModule": true
+      }
+    }]
+  },
+  "moduleNameMapper": {
+    "^src/(.*)$": "<rootDir>/../src/$1"
+  },
+  "setupFilesAfterEnv": ["<rootDir>/setup.ts"],
+  "testTimeout": 30000,
+  "detectOpenHandles": true,
+  "forceExit": true
 }

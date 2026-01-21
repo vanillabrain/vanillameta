@@ -1,5 +1,5 @@
 // @ts-ignore
-import * as SchemaCompiler_MySQL from "knex/lib/dialects/mysql/schema/mysql-compiler";
+import * as SchemaCompiler_MySQL from 'knex/lib/dialects/mysql/schema/mysql-compiler';
 
 export class SchemaCompiler extends SchemaCompiler_MySQL {
   constructor(client: any, builder: any) {
@@ -8,7 +8,7 @@ export class SchemaCompiler extends SchemaCompiler_MySQL {
 
   // Check whether a table exists on the query.
   hasTable(tableName: string) {
-    const [ schema, table ] = tableName.includes(".") ? tableName.split(".") : [undefined, tableName];
+    const [schema, table] = tableName.includes('.') ? tableName.split('.') : [undefined, tableName];
     let sql = 'select * from information_schema.tables where table_name = ?';
     const bindings = [table.toUpperCase()];
 
@@ -23,8 +23,7 @@ export class SchemaCompiler extends SchemaCompiler_MySQL {
     this.pushQuery({
       sql,
       bindings,
-      output: (resp) => resp.rows.length > 0
+      output: resp => resp.rows.length > 0,
     });
   }
-
 }

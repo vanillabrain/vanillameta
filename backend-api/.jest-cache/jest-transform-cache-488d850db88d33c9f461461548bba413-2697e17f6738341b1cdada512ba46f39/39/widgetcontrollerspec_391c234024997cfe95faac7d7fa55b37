@@ -1,0 +1,34 @@
+6ef24ef2ddce57d0375fffa2a82e091d
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const testing_1 = require("@nestjs/testing");
+const widget_controller_1 = require("./widget.controller");
+const widget_service_1 = require("./widget.service");
+const table_query_service_1 = require("./table-query/table-query.service");
+const test_providers_1 = require("../../test/util/test-providers");
+describe('WidgetController', () => {
+    let controller;
+    // Mock TableQueryService (not in commonTestProviders)
+    const mockTableQueryService = {
+        findWidgetDataById: jest.fn(),
+        executeTableQuery: jest.fn(),
+        getTableStructure: jest.fn(),
+    };
+    beforeEach(async () => {
+        const module = await testing_1.Test.createTestingModule({
+            controllers: [widget_controller_1.WidgetController],
+            providers: [
+                widget_service_1.WidgetService,
+                {
+                    provide: table_query_service_1.TableQueryService,
+                    useValue: mockTableQueryService,
+                },
+                ...test_providers_1.commonTestProviders,
+            ],
+        }).compile();
+        controller = module.get(widget_controller_1.WidgetController);
+    });
+    it('should be defined', () => {
+        expect(controller).toBeDefined();
+    });
+});

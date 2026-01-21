@@ -1,14 +1,30 @@
-import React, { useContext, useEffect, useLayoutEffect, useState } from 'react';
+import React, { useContext, useEffect, useLayoutEffect, useState, lazy, Suspense } from 'react';
 import { MenuItem, Select, Stack, TextField } from '@mui/material';
 import { useAlert } from 'react-alert';
 import PageTitleBox from '@/components/PageTitleBox';
 import SubmitButton from '@/components/button/SubmitButton';
 import ConfirmCancelButton from '@/components/button/ConfirmCancelButton';
-import AceEditor from 'react-ace';
-import 'ace-builds/src-noconflict/mode-mysql';
-import 'ace-builds/src-noconflict/theme-tomorrow';
-import 'ace-builds/src-noconflict/snippets/mysql';
-import LangTools from 'ace-builds/src-min-noconflict/ext-language_tools';
+// AceEditor 레이지 로딩
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore - AceEditor의 타입 정의가 동적 import와 호환되지 않음
+const AceEditor = lazy(() =>
+  import('react-ace').then(async ace => {
+    // 필요한 모듈들도 함께 로드
+    await Promise.all([
+      import('ace-builds/src-noconflict/mode-mysql'),
+      import('ace-builds/src-noconflict/theme-tomorrow'),
+      import('ace-builds/src-noconflict/snippets/mysql'),
+      import('ace-builds/src-min-noconflict/ext-language_tools'),
+    ]);
+    return ace;
+  }),
+);
+
+// LangTools import for autocomplete
+let LangTools: any;
+import('ace-builds/src-min-noconflict/ext-language_tools').then(module => {
+  LangTools = (window as any).ace.require('ace/ext/language_tools');
+});
 import DataGrid from '@/components/datagrid';
 import DatabaseService from '@/api/databaseService';
 import DatasetService from '@/api/datasetService';
@@ -18,6 +34,7 @@ import { getDatabaseIcon } from '@/widget/utils/iconUtil';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import { createColumns } from '@/utils/util';
+import type { Dataset } from '@/types';
 
 const DataSet = () => {
   const { setId, sourceId } = useParams();
@@ -87,7 +104,9 @@ const DataSet = () => {
         );
       },
     };
-    LangTools.addCompleter(rhymeCompleter);
+    if (LangTools) {
+      LangTools.addCompleter(rhymeCompleter);
+    }
   };
 
   const onChange = newValue => {
@@ -114,8 +133,9 @@ const DataSet = () => {
     DatabaseService.selectDatabaseList()
       .then(response => {
         console.log('selectDatabaseTypeList', response.data);
-        if (response.data.status === STATUS.SUCCESS) {
-          const list = response.data.data;
+        console.log('selectDatabaseList response:', response);
+        if (response.status === STATUS.SUCCESS) {
+          const list = response.data;
           list.map(item => (item.icon = getDatabaseIcon(item.engine)));
           setDatabaseList(list);
         }
@@ -139,9 +159,10 @@ const DataSet = () => {
     showLoading();
     DatabaseService.selectDatabase(databaseId)
       .then(response => {
-        if (response.data.status === 'SUCCESS') {
-          setTableList(response.data.data.tables);
-          console.log('tableList ', response.data.data.tables);
+        console.log('selectDatabase response:', response);
+        if (response.status === 'SUCCESS') {
+          setTableList(response.data.tables || []);
+          console.log('tableList ', response.data.tables);
         } else {
           alert.error('데이터베이스 조회에 실패했습니다.\n다시 시도해 주세요.');
           setTableList([]);
@@ -163,11 +184,18 @@ const DataSet = () => {
     showLoading();
     DatasetService.selectDataset(setId)
       .then(response => {
-        console.log('selectDataset', response.data.data.id, response.data.data.databaseId);
-        if (response.data.status === 'SUCCESS') {
-          setDatasetInfo(response.data.data);
+        console.log('selectDataset response:', response);
+        if (response.status === 'SUCCESS') {
+          const datasetData = response.data.dataset || response.data;
+          const dataset = datasetData as Dataset;
+          console.log('selectDataset', dataset.id, dataset.databaseId);
+          setDatasetInfo({
+            databaseId: String(dataset.databaseId),
+            title: dataset.title || '',
+            query: dataset.query || '',
+          });
         } else {
-          alert.error('데이터베이스 조회에 실패했습니다.\n다시 시도해 주세요.');
+          alert.error(response.message || '데이터베이스 조회에 실패했습니다.\n다시 시도해 주세요.');
         }
       })
       .finally(() => {
@@ -181,23 +209,26 @@ const DataSet = () => {
   const excuteQuery = () => {
     showLoading();
     const param = {
-      id: databaseId,
+      databaseId: Number(databaseId),
       query: datasetInfo.query,
     };
     console.log('param', param);
     DatabaseService.executeQuery(param)
       .then(response => {
         console.log(response.data);
-        if (response.data.status === 'SUCCESS') {
+        console.log('executeQuery response:', response);
+        if (response.status === 'SUCCESS') {
           setTestCompleted(true);
-          setData(response.data.datas);
-          setColumns(createColumns(response.data.datas));
+          const resultData = response.data?.result || response.data;
+          const rows = (resultData as any)?.rows || (resultData as any)?.datas || [];
+          setData(rows);
+          setColumns(createColumns(rows));
           snackbar.success('Success!');
         } else {
           setTestCompleted(false);
           setData([]);
           setColumns([]);
-          snackbar.error(`${response.data.message}`);
+          snackbar.error(response.message || 'Query execution failed');
         }
       })
       .catch(error => {
@@ -223,28 +254,38 @@ const DataSet = () => {
           onClick: () => {
             showLoading();
             if (isModifyMode) {
-              DatasetService.updateDataset(setId, datasetInfo)
+              DatasetService.updateDataset(setId, {
+                databaseId: Number(datasetInfo.databaseId),
+                title: datasetInfo.title,
+                query: datasetInfo.query,
+              })
                 .then(response => {
                   console.log(response.data);
-                  if (response.data.status === STATUS.SUCCESS) {
+                  console.log('updateDataset response:', response);
+                  if (response.status === STATUS.SUCCESS) {
                     navigate('/data');
                     snackbar.success('데이터셋이 수정되었습니다.');
                   } else {
-                    alert.error('데이터셋 수정에 실패했습니다.\n다시 시도해 주세요.');
+                    alert.error(response.message || '데이터셋 수정에 실패했습니다.\n다시 시도해 주세요.');
                   }
                 })
                 .finally(() => {
                   hideLoading();
                 });
             } else {
-              DatasetService.createDataset(datasetInfo)
+              DatasetService.createDataset({
+                databaseId: Number(datasetInfo.databaseId),
+                title: datasetInfo.title,
+                query: datasetInfo.query,
+              })
                 .then(response => {
                   console.log(response.data);
-                  if (response.data.status === STATUS.SUCCESS) {
+                  console.log('createDataset response:', response);
+                  if (response.status === STATUS.SUCCESS) {
                     navigate('/data');
                     snackbar.success('데이터셋이 생성되었습니다.');
                   } else {
-                    alert.error('데이터셋 생성에 실패했습니다.\n다시 시도해 주세요.');
+                    alert.error(response.message || '데이터셋 생성에 실패했습니다.\n다시 시도해 주세요.');
                   }
                 })
                 .finally(() => {
@@ -267,7 +308,7 @@ const DataSet = () => {
       upperTitle="데이터"
       upperTitleLink="/data"
       title={`데이터셋 ${isModifyMode ? '수정' : '생성'}`}
-      sx={{ p: 0 }}
+      className="p-0"
       button={
         <Stack>
           <ConfirmCancelButton
@@ -330,26 +371,43 @@ const DataSet = () => {
           onChange={onChangeTitle}
           required
         />
-        <AceEditor
-          placeholder="Please enter a query."
-          style={{ width: '100%', height: '200px', border: 'solid 1px #ddd' }}
-          mode="mysql"
-          theme="tomorrow"
-          name="codeInput"
-          onChange={onChange}
-          fontSize={14}
-          showPrintMargin={true}
-          showGutter={true}
-          highlightActiveLine={true}
-          value={datasetInfo.query}
-          setOptions={{
-            enableBasicAutocompletion: true,
-            enableLiveAutocompletion: true,
-            enableSnippets: true,
-            showLineNumbers: true,
-            tabSize: 2,
-          }}
-        />
+        <Suspense
+          fallback={
+            <div
+              style={{
+                width: '100%',
+                height: '200px',
+                border: 'solid 1px #ddd',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              에디터 로딩중...
+            </div>
+          }
+        >
+          <AceEditor
+            placeholder="Please enter a query."
+            style={{ width: '100%', height: '200px', border: 'solid 1px #ddd' }}
+            mode="mysql"
+            theme="tomorrow"
+            name="codeInput"
+            onChange={onChange}
+            fontSize={14}
+            showPrintMargin={true}
+            showGutter={true}
+            highlightActiveLine={true}
+            value={datasetInfo.query}
+            setOptions={{
+              enableBasicAutocompletion: true,
+              enableLiveAutocompletion: true,
+              enableSnippets: true,
+              showLineNumbers: true,
+              tabSize: 2,
+            }}
+          />
+        </Suspense>
         <SubmitButton
           label="Run"
           type="button"

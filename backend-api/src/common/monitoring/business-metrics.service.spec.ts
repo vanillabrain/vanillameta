@@ -1,0 +1,312 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { BusinessMetricsService } from './business-metrics.service';
+import { CloudWatchMetricsService } from './cloudwatch-metrics.service';
+import { ConfigService } from '@nestjs/config';
+
+describe('BusinessMetricsService', () => {
+  let service: BusinessMetricsService;
+  let mockCloudWatchMetrics: Partial<CloudWatchMetricsService>;
+  let mockConfigService: Partial<ConfigService>;
+
+  beforeEach(async () => {
+    mockCloudWatchMetrics = {
+      putMetric: jest.fn().mockResolvedValue(undefined),
+      getMetricStatistics: jest.fn().mockResolvedValue([]),
+    };
+
+    mockConfigService = {
+      get: jest.fn().mockImplementation((key: string, defaultValue?: any) => {
+        const config = {
+          BUSINESS_METRICS_ENABLED: true,
+          METRICS_NAMESPACE: 'VanillaMeta/Business',
+        };
+        return config[key] ?? defaultValue;
+      }),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        BusinessMetricsService,
+        {
+          provide: CloudWatchMetricsService,
+          useValue: mockCloudWatchMetrics,
+        },
+        {
+          provide: ConfigService,
+          useValue: mockConfigService,
+        },
+      ],
+    }).compile();
+
+    service = module.get<BusinessMetricsService>(BusinessMetricsService);
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+
+  describe('recordDashboardLoadTime', () => {
+    it('should record dashboard load time metric', async () => {
+      await service.recordDashboardLoadTime('dashboard-1', 1500, 'user-123');
+
+      expect(mockCloudWatchMetrics.putMetric).toHaveBeenCalledWith(
+        'VanillaMeta/Business',
+        'DASHBOARD_LOAD_TIME',
+        1500,
+        'Milliseconds',
+        {
+          DashboardId: 'dashboard-1',
+          UserId: 'user-123',
+        },
+      );
+
+      // 백분위 메트릭도 기록되어야 함
+      expect(mockCloudWatchMetrics.putMetric).toHaveBeenCalledWith(
+        'VanillaMeta/Business',
+        'DASHBOARD_LOAD_TIME_VALUES',
+        1500,
+        'Milliseconds',
+      );
+    });
+
+    it('should not record metrics when disabled', async () => {
+      (mockConfigService.get as jest.Mock).mockReturnValue(false);
+
+      const disabledService = new BusinessMetricsService(
+        mockCloudWatchMetrics as CloudWatchMetricsService,
+        mockConfigService as ConfigService,
+      );
+
+      await disabledService.recordDashboardLoadTime('dashboard-1', 1500);
+
+      expect(mockCloudWatchMetrics.putMetric).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('recordWidgetRenderTime', () => {
+    it('should record widget render time metric', async () => {
+      await service.recordWidgetRenderTime('widget-1', 'chart', 250);
+
+      expect(mockCloudWatchMetrics.putMetric).toHaveBeenCalledWith(
+        'VanillaMeta/Business',
+        'WIDGET_RENDER_TIME',
+        250,
+        'Milliseconds',
+        {
+          WidgetId: 'widget-1',
+          WidgetType: 'chart',
+        },
+      );
+    });
+  });
+
+  describe('recordQueryCacheMetrics', () => {
+    it('should record cache hit metric', async () => {
+      await service.recordQueryCacheMetrics(true, 'SELECT');
+
+      expect(mockCloudWatchMetrics.putMetric).toHaveBeenCalledWith(
+        'VanillaMeta/Business',
+        'QUERY_CACHE_HIT',
+        1,
+        'Count',
+        {
+          QueryType: 'SELECT',
+        },
+      );
+    });
+
+    it('should record cache miss metric', async () => {
+      await service.recordQueryCacheMetrics(false, 'SELECT');
+
+      expect(mockCloudWatchMetrics.putMetric).toHaveBeenCalledWith(
+        'VanillaMeta/Business',
+        'QUERY_CACHE_MISS',
+        1,
+        'Count',
+        {
+          QueryType: 'SELECT',
+        },
+      );
+    });
+  });
+
+  describe('recordDataRefreshResult', () => {
+    it('should record successful data refresh', async () => {
+      await service.recordDataRefreshResult(true, 'dataset-1', 3000);
+
+      expect(mockCloudWatchMetrics.putMetric).toHaveBeenCalledWith(
+        'VanillaMeta/Business',
+        'DATA_REFRESH_SUCCESS',
+        1,
+        'Count',
+        {
+          DatasetId: 'dataset-1',
+        },
+      );
+
+      expect(mockCloudWatchMetrics.putMetric).toHaveBeenCalledWith(
+        'VanillaMeta/Business',
+        'DATA_REFRESH_DURATION',
+        3000,
+        'Milliseconds',
+        {
+          DatasetId: 'dataset-1',
+        },
+      );
+    });
+
+    it('should record failed data refresh', async () => {
+      await service.recordDataRefreshResult(false, 'dataset-1');
+
+      expect(mockCloudWatchMetrics.putMetric).toHaveBeenCalledWith(
+        'VanillaMeta/Business',
+        'DATA_REFRESH_FAILURE',
+        1,
+        'Count',
+        {
+          DatasetId: 'dataset-1',
+        },
+      );
+    });
+  });
+
+  describe('recordApiUsage', () => {
+    it('should record API usage metrics', async () => {
+      await service.recordApiUsage('/api/dashboard', 'GET', 200, 150);
+
+      expect(mockCloudWatchMetrics.putMetric).toHaveBeenCalledWith(
+        'VanillaMeta/Business',
+        'API_REQUEST_COUNT',
+        1,
+        'Count',
+        {
+          Endpoint: '/api/dashboard',
+          Method: 'GET',
+          StatusCode: '200',
+        },
+      );
+
+      expect(mockCloudWatchMetrics.putMetric).toHaveBeenCalledWith(
+        'VanillaMeta/Business',
+        'API_RESPONSE_TIME',
+        150,
+        'Milliseconds',
+        {
+          Endpoint: '/api/dashboard',
+          Method: 'GET',
+        },
+      );
+    });
+
+    it('should record 5xx errors', async () => {
+      await service.recordApiUsage('/api/dashboard', 'POST', 500, 100);
+
+      expect(mockCloudWatchMetrics.putMetric).toHaveBeenCalledWith(
+        'VanillaMeta/Business',
+        'API_ERROR_5XX',
+        1,
+        'Count',
+        {
+          Endpoint: '/api/dashboard',
+          Method: 'POST',
+        },
+      );
+    });
+
+    it('should record 4xx errors', async () => {
+      await service.recordApiUsage('/api/dashboard', 'PUT', 404, 50);
+
+      expect(mockCloudWatchMetrics.putMetric).toHaveBeenCalledWith(
+        'VanillaMeta/Business',
+        'API_ERROR_4XX',
+        1,
+        'Count',
+        {
+          Endpoint: '/api/dashboard',
+          Method: 'PUT',
+        },
+      );
+    });
+  });
+
+  describe('recordQueryExecution', () => {
+    it('should record successful query execution', async () => {
+      await service.recordQueryExecution('SELECT', 75, true, 'mysql');
+
+      expect(mockCloudWatchMetrics.putMetric).toHaveBeenCalledWith(
+        'VanillaMeta/Business',
+        'QUERY_EXECUTION_TIME',
+        75,
+        'Milliseconds',
+        {
+          QueryType: 'SELECT',
+          DatabaseType: 'mysql',
+        },
+      );
+
+      expect(mockCloudWatchMetrics.putMetric).toHaveBeenCalledWith(
+        'VanillaMeta/Business',
+        'QUERY_SUCCESS',
+        1,
+        'Count',
+        {
+          QueryType: 'SELECT',
+          DatabaseType: 'mysql',
+        },
+      );
+    });
+
+    it('should record failed query execution', async () => {
+      await service.recordQueryExecution('INSERT', 100, false);
+
+      expect(mockCloudWatchMetrics.putMetric).toHaveBeenCalledWith(
+        'VanillaMeta/Business',
+        'QUERY_ERROR',
+        1,
+        'Count',
+        {
+          QueryType: 'INSERT',
+        },
+      );
+    });
+  });
+
+  describe('recordLambdaColdStart', () => {
+    it('should record Lambda cold start duration', async () => {
+      await service.recordLambdaColdStart(3500);
+
+      expect(mockCloudWatchMetrics.putMetric).toHaveBeenCalledWith(
+        'VanillaMeta/Business',
+        'LAMBDA_COLD_START_DURATION',
+        3500,
+        'Milliseconds',
+        undefined,
+      );
+    });
+  });
+
+  describe('recordMemoryUsage', () => {
+    it('should record memory utilization percentage', async () => {
+      const used = 500 * 1024 * 1024; // 500MB
+      const total = 1024 * 1024 * 1024; // 1GB
+
+      await service.recordMemoryUsage(used, total);
+
+      expect(mockCloudWatchMetrics.putMetric).toHaveBeenCalledWith(
+        'VanillaMeta/Business',
+        'LAMBDA_MEMORY_UTILIZATION',
+        48.828125, // (500/1024) * 100
+        'Percent',
+        undefined,
+      );
+
+      expect(mockCloudWatchMetrics.putMetric).toHaveBeenCalledWith(
+        'VanillaMeta/Business',
+        'LAMBDA_MEMORY_USED',
+        used,
+        'Bytes',
+        undefined,
+      );
+    });
+  });
+});

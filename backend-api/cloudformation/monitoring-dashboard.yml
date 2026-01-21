@@ -1,0 +1,226 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'VanillaMeta Backend API - CloudWatch Monitoring Dashboard'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, prod, local]
+    Description: 'Deployment environment'
+  
+  ServiceName:
+    Type: String
+    Default: vanillameta-backend-api
+    Description: 'Service name for resource naming'
+
+Resources:
+  # CloudWatch Dashboard
+  VanillaMetaDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub '${ServiceName}-${Environment}-monitoring'
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["VanillaMeta/${Environment}", "ErrorCount"],
+                  [".", "Http5xxErrorCount"],
+                  [".", "SlowResponseCount"]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "Error Metrics",
+                "period": 300,
+                "stat": "Sum"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/Lambda", "Duration", "FunctionName", "${ServiceName}-${Environment}-app"],
+                  [".", "Invocations", ".", "."],
+                  [".", "Errors", ".", "."],
+                  [".", "Throttles", ".", "."]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "Lambda Metrics",
+                "period": 300
+              }
+            },
+            {
+              "type": "log",
+              "x": 0,
+              "y": 6,
+              "width": 24,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '/aws/lambda/${ServiceName}-${Environment}-app'\n| fields @timestamp, level, message, metadata.correlationId\n| filter level = \"ERROR\"\n| sort @timestamp desc\n| limit 20",
+                "region": "${AWS::Region}",
+                "title": "Recent Error Logs",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log",
+              "x": 0,
+              "y": 12,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '/aws/lambda/${ServiceName}-${Environment}-app'\n| fields metadata.requestPath, metadata.executionTime\n| filter metadata.executionTime exists\n| stats avg(metadata.executionTime) as avgTime, count() as requestCount by metadata.requestPath\n| sort avgTime desc\n| limit 10",
+                "region": "${AWS::Region}",
+                "title": "API Response Times by Endpoint",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log",
+              "x": 12,
+              "y": 12,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '/aws/lambda/${ServiceName}-${Environment}-app'\n| fields metadata.statusCode\n| filter metadata.statusCode exists\n| stats count() as count by metadata.statusCode\n| sort count desc",
+                "region": "${AWS::Region}",
+                "title": "HTTP Status Code Distribution",
+                "view": "table"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 18,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/ApiGateway", "Count", "ApiName", "${ServiceName}-${Environment}"],
+                  [".", "Latency", ".", "."],
+                  [".", "4XXError", ".", "."],
+                  [".", "5XXError", ".", "."]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "API Gateway Metrics",
+                "period": 300
+              }
+            },
+            {
+              "type": "log",
+              "x": 12,
+              "y": 18,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '/aws/lambda/${ServiceName}-${Environment}-app'\n| fields @timestamp, metadata.userId, metadata.method, metadata.requestPath\n| filter metadata.userId exists\n| stats count() as activityCount by metadata.userId\n| sort activityCount desc\n| limit 10",
+                "region": "${AWS::Region}",
+                "title": "Top Active Users",
+                "view": "table"
+              }
+            }
+          ]
+        }
+
+  # CloudWatch Alarms for Production
+  HighErrorRateAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsProduction
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Environment}-high-error-rate'
+      AlarmDescription: 'High error rate detected'
+      MetricName: ErrorCount
+      Namespace: !Sub 'VanillaMeta/${Environment}'
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 10
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref ErrorNotificationTopic
+
+  LambdaErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsProduction
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Environment}-lambda-errors'
+      AlarmDescription: 'Lambda function errors detected'
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Dimensions:
+        - Name: FunctionName
+          Value: !Sub '${ServiceName}-${Environment}-app'
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref ErrorNotificationTopic
+
+  HighLatencyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsProduction
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Environment}-high-latency'
+      AlarmDescription: 'High API latency detected'
+      MetricName: Duration
+      Namespace: AWS/Lambda
+      Dimensions:
+        - Name: FunctionName
+          Value: !Sub '${ServiceName}-${Environment}-app'
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: 5000  # 5초
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref ErrorNotificationTopic
+
+  # SNS Topic for Notifications (Production only)
+  ErrorNotificationTopic:
+    Type: AWS::SNS::Topic
+    Condition: IsProduction
+    Properties:
+      TopicName: !Sub '${ServiceName}-${Environment}-alerts'
+      DisplayName: 'VanillaMeta Backend Alerts'
+
+Conditions:
+  IsProduction:
+    !Equals [!Ref Environment, 'prod']
+
+Outputs:
+  DashboardURL:
+    Description: 'CloudWatch Dashboard URL'
+    Value: !Sub 'https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${ServiceName}-${Environment}-monitoring'
+
+  ErrorNotificationTopicArn:
+    Description: 'SNS Topic ARN for error notifications'
+    Value: !Ref ErrorNotificationTopic
+    Condition: IsProduction
+    Export:
+      Name: !Sub '${ServiceName}-${Environment}-error-topic-arn'
+
+  DashboardName:
+    Description: 'CloudWatch Dashboard Name'
+    Value: !Ref VanillaMetaDashboard
+    Export:
+      Name: !Sub '${ServiceName}-${Environment}-dashboard-name'

@@ -48,12 +48,22 @@ const Widget = () => {
     showLoading();
     WidgetService.selectWidgetList()
       .then(response => {
-        if (response.data.status == STATUS.SUCCESS) {
-          setWidgetList(response.data.data);
-          setNoData(response.data.data.length == 0);
+        console.log('위젯 응답 전체:', response);
+        console.log('위젯 응답 데이터:', response.data);
+        console.log('response.status:', response.status);
+
+        // API 헬퍼가 response.data를 반환하므로, response 자체가 백엔드의 응답 데이터
+        if (response.status == STATUS.SUCCESS) {
+          setWidgetList(response.data);
+          setNoData(response.data.length == 0);
         } else {
+          console.log('위젯 상태 체크 실패로 인한 오류');
           alert.error('위젯 조회에 실패했습니다.\n다시 시도해 주세요.');
         }
+      })
+      .catch(error => {
+        console.log('위젯 조회 오류:', error);
+        alert.error('위젯 조회에 실패했습니다.\n다시 시도해 주세요.');
       })
       .finally(() => {
         hideLoading();
@@ -77,7 +87,8 @@ const Widget = () => {
               showLoading();
               WidgetService.deleteWidget(id)
                 .then(response => {
-                  if (response.status === 200) {
+                  // API 헬퍼가 response.data를 반환하므로 status 확인
+                  if (response.status === STATUS.SUCCESS) {
                     getWidgetList();
                     snackbar.success('위젯이 삭제되었습니다.');
                   } else {

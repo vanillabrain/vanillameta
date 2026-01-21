@@ -1,0 +1,112 @@
+5a60ff5ba2b3b41148c1a540af7a4025
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CreateWidgetDto = void 0;
+const class_validator_1 = require("class-validator");
+const swagger_1 = require("@nestjs/swagger");
+const dataset_type_enum_1 = require("../../common/enum/dataset-type.enum");
+const yn_enum_1 = require("../../common/enum/yn.enum");
+class CreateWidgetDto {
+}
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        description: '위젯 제목',
+        example: '월별 매출 추이 차트',
+        maxLength: 255,
+    }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateWidgetDto.prototype, "title", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        description: '위젯 설명',
+        example: '2024년 월별 매출 현황을 보여주는 라인 차트',
+    }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateWidgetDto.prototype, "description", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        description: '데이터베이스 ID',
+        example: 1,
+    }),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], CreateWidgetDto.prototype, "databaseId", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: '차트 컴포넌트 ID',
+        example: 1,
+        minimum: 1,
+    }),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", Number)
+], CreateWidgetDto.prototype, "componentId", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: '데이터셋 타입',
+        enum: dataset_type_enum_1.DatasetType,
+        example: dataset_type_enum_1.DatasetType.DATASET,
+    }),
+    (0, class_validator_1.IsEnum)(dataset_type_enum_1.DatasetType),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], CreateWidgetDto.prototype, "datasetType", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: '데이터셋 ID',
+        example: 1,
+        minimum: 1,
+    }),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", Number)
+], CreateWidgetDto.prototype, "datasetId", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        description: '테이블 이름 (데이터셋 타입이 TABLE인 경우)',
+        example: 'sales_monthly',
+    }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateWidgetDto.prototype, "tableName", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: '차트 옵션 (ECharts 설정 JSON)',
+        example: JSON.stringify({
+            xAxis: { type: 'category', data: ['Jan', 'Feb', 'Mar'] },
+            yAxis: { type: 'value' },
+            series: [{ type: 'line', data: [820, 932, 901] }],
+        }),
+        type: 'string',
+        format: 'json',
+    }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], CreateWidgetDto.prototype, "option", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        description: '삭제 여부',
+        enum: yn_enum_1.YesNo,
+        default: yn_enum_1.YesNo.NO,
+    }),
+    (0, class_validator_1.IsEnum)(yn_enum_1.YesNo),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateWidgetDto.prototype, "delYn", void 0);
+exports.CreateWidgetDto = CreateWidgetDto;

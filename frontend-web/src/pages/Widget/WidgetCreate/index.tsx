@@ -48,7 +48,12 @@ const WidgetCreate = () => {
     componentService
       .selectComponentList()
       .then(res => {
-        setComponentList(res.data);
+        console.log('getComponentList response:', res);
+        if (res.status === 'SUCCESS') {
+          setComponentList(res.data || []);
+        } else {
+          setComponentList([]);
+        }
       })
       .finally(() => {
         hideLoading();
@@ -76,7 +81,8 @@ const WidgetCreate = () => {
     widgetService
       .createWidget(param)
       .then(response => {
-        if (response.data.status === 'SUCCESS') {
+        console.log('createWidget response:', response);
+        if (response.status === 'SUCCESS') {
           navigate('/widget');
         }
       })
@@ -114,7 +120,7 @@ const WidgetCreate = () => {
       title={title}
       upperTitle="위젯"
       upperTitleLink="/widget"
-      sx={{ paddingLeft: 0, paddingRight: 0, width: '100%', height: '100%' }}
+      className="pl-0 pr-0 w-full h-full"
       button={
         <Stack direction="row" gap="10px">
           <Button

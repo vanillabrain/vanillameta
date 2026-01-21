@@ -1,12 +1,20 @@
 import { del, get, post, put } from '@/helpers/apiHelper';
+import { ApiResponse, CreateComponentRequest, UpdateComponentRequest, ComponentDetailResponse, Component } from '@/types';
 
 export const URL_COMPONENT = '/component';
 
-const selectComponentList = (): Promise<any> => get(URL_COMPONENT);
-const selectComponent = (id: string, data): Promise<any> => get(URL_COMPONENT + '/' + id, data);
-const createComponent = (data: unknown): Promise<any> => post(URL_COMPONENT, data);
-const updateComponent = (data: unknown): Promise<any> => put(URL_COMPONENT, data);
-const deleteComponent = (data: unknown): Promise<any> => del(URL_COMPONENT, data);
+const selectComponentList = (): Promise<ApiResponse<Component[]>> => get<ApiResponse<Component[]>>(URL_COMPONENT);
+
+const selectComponent = (id: string, data: any = null): Promise<ApiResponse<ComponentDetailResponse>> =>
+  get<ApiResponse<ComponentDetailResponse>>(URL_COMPONENT + '/' + id, data);
+
+const createComponent = (data: CreateComponentRequest): Promise<ApiResponse<Component>> =>
+  post<ApiResponse<Component>>(URL_COMPONENT, data);
+
+const updateComponent = (data: UpdateComponentRequest): Promise<ApiResponse<Component>> =>
+  put<ApiResponse<Component>>(URL_COMPONENT, data);
+
+const deleteComponent = (data: { id: number }): Promise<ApiResponse<null>> => del<ApiResponse<null>>(URL_COMPONENT, data);
 
 const ComponentService = {
   selectComponentList,

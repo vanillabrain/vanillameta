@@ -1,0 +1,259 @@
+aecf02783f8110aecb23ee11878b5be9
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.DashboardService = void 0;
+const common_1 = require("@nestjs/common");
+const typeorm_1 = require("@nestjs/typeorm");
+const typeorm_2 = require("typeorm");
+const dashboard_entity_1 = require("./entities/dashboard.entity");
+const dashboard_widget_service_1 = require("./dashboard-widget/dashboard-widget.service");
+const dashboard_cache_service_1 = require("./dashboard-cache.service");
+const response_status_enum_1 = require("../common/enum/response-status.enum");
+const user_service_1 = require("src/user/user.service");
+const auth_service_1 = require("src/auth/auth.service");
+const user_entity_1 = require("../user/entities/user.entity");
+const yn_enum_1 = require("src/common/enum/yn.enum");
+const dashboard_share_entity_1 = require("src/dashboard/entities/dashboard_share.entity");
+const user_mapping_entity_1 = require("src/user/entities/user-mapping.entity");
+const uuid_1 = require("uuid");
+const logger_service_1 = require("../common/logger/logger.service");
+const event_emitter_1 = require("@nestjs/event-emitter");
+let DashboardService = class DashboardService {
+    constructor(dashboardRepository, userRepository, dashboardShareRepository, userMappingRepository, dashboardWidgetService, dashboardCacheService, userService, authService, logger, eventEmitter) {
+        this.dashboardRepository = dashboardRepository;
+        this.userRepository = userRepository;
+        this.dashboardShareRepository = dashboardShareRepository;
+        this.userMappingRepository = userMappingRepository;
+        this.dashboardWidgetService = dashboardWidgetService;
+        this.dashboardCacheService = dashboardCacheService;
+        this.userService = userService;
+        this.authService = authService;
+        this.logger = logger;
+        this.eventEmitter = eventEmitter;
+    }
+    async create(createDashboardDto, accessToken) {
+        const userData = await this.userRepository.findOne({
+            where: { id: accessToken },
+        });
+        if (!userData) {
+            return 'Bad Request';
+        }
+        const widgetIds = [];
+        createDashboardDto.layout.map(item => {
+            widgetIds.push(item.i);
+        });
+        const share_id = await this.dashboardShareRepository.save({
+            uuid: (0, uuid_1.v4)(),
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        });
+        this.logger.debug('Dashboard share created', 'DashboardService', {
+            shareId: share_id.id,
+            shareUuid: share_id.uuid,
+            userId: accessToken.toString(),
+        });
+        const saveObj = {
+            title: createDashboardDto.title,
+            layout: JSON.stringify(createDashboardDto.layout),
+            delYn: yn_enum_1.YesNo.NO,
+            shareId: share_id.id,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        };
+        const newDashboard = await this.dashboardRepository.save(saveObj);
+        await this.userMappingRepository.save({
+            dashboardId: newDashboard.id,
+            userInfoId: accessToken,
+            createdAt: new Date(),
+        });
+        // const newDashboard = await this.dashboardRepository.save(saveObj);
+        // user테이블에 대시보드id저장
+        const { id } = userData;
+        // const test = await this.dashboardRepository
+        //   .createQueryBuilder()
+        //   .insert()
+        //   .into(Dashboard, ['title', 'layout'])
+        //   .values(saveObj)
+        //   .orUpdate(['title', 'layout'], ['id'])
+        //   .execute();
+        // console.log('test', test.generatedMaps[0].id);
+        // 기존 코드
+        // await this.userService.saveDashboard(newDashboard.id, id);
+        const saveObjDW = {
+            dashboardId: newDashboard.id,
+            widgetIds: widgetIds,
+        };
+        // layout이 이미 배열인 경우와 문자열인 경우를 모두 처리
+        if (typeof newDashboard.layout === 'string') {
+            newDashboard.layout = JSON.parse(newDashboard.layout);
+        }
+        await this.dashboardWidgetService.create(saveObjDW);
+        // 사용자 대시보드 목록 캐시 무효화
+        await this.dashboardCacheService.invalidateUserDashboardList(accessToken);
+        // 새 대시보드 이벤트 발생
+        this.eventEmitter.emit('dashboard.created', {
+            dashboardId: newDashboard.id,
+            userId: accessToken,
+            timestamp: Date.now(),
+        });
+        return { status: response_status_enum_1.ResponseStatus.SUCCESS, data: newDashboard };
+    }
+    async findAll(userId) {
+        const findUser = await this.userService.findDashboardId(userId);
+        if (!findUser || findUser.length === 0) {
+            // 빈 배열 반환 (대시보드가 없는 정상적인 상황)
+            return { status: response_status_enum_1.ResponseStatus.SUCCESS, data: [] };
+        }
+        console.log(findUser);
+        const findId = findUser.map(el => el['dashboardId']);
+        // null 값 필터링
+        const validIds = findId.filter(id => id !== null && id !== undefined);
+        if (validIds.length === 0) {
+            // 대시보드가 없는 경우 빈 배열 반환
+            return { status: response_status_enum_1.ResponseStatus.SUCCESS, data: [] };
+        }
+        console.log(validIds);
+        // N+1 쿼리 문제 해결: In 조건으로 한 번에 조회
+        const find_all = await this.dashboardRepository
+            .createQueryBuilder('dashboard')
+            .where('dashboard.id IN (:...ids)', { ids: validIds })
+            .orderBy('dashboard.updatedAt', 'DESC')
+            .addOrderBy('dashboard.title', 'ASC')
+            .getMany();
+        if (find_all && find_all.length > 0) {
+            find_all.forEach(el => {
+                console.log('adf,', el);
+                el.layout = JSON.parse(el.layout);
+            });
+        }
+        return { status: response_status_enum_1.ResponseStatus.SUCCESS, data: find_all || [] };
+    }
+    // 기존 dashboard all
+    async findOne(id) {
+        var _a;
+        // N+1 쿼리 문제 해결: relations 옵션으로 관련 데이터를 한 번에 조회
+        const find_dashboard = await this.dashboardRepository.findOne({
+            where: { id: id },
+            relations: ['dashboardShare'],
+        });
+        if (!find_dashboard) {
+            return { status: response_status_enum_1.ResponseStatus.ERROR, message: '대시보드가 존재하지 않습니다.' };
+        }
+        const widgetList = await this.dashboardWidgetService.findWidgets(find_dashboard.id);
+        console.log('widgetList', widgetList);
+        try {
+            find_dashboard.layout = JSON.parse(find_dashboard.layout);
+        }
+        catch (error) {
+            find_dashboard.layout = [];
+        }
+        const return_obj = Object.assign(Object.assign({}, find_dashboard), { uuid: (_a = find_dashboard.dashboardShare) === null || _a === void 0 ? void 0 : _a.uuid, widgets: widgetList });
+        delete return_obj.dashboardShare;
+        console.log(return_obj);
+        // 대시보드를 캐시에 저장
+        await this.dashboardCacheService.cacheDashboard(find_dashboard, widgetList, find_dashboard.dashboardShare);
+        return {
+            status: response_status_enum_1.ResponseStatus.SUCCESS,
+            data: return_obj,
+        };
+    }
+    async update(id, updateDashboardDto) {
+        const find_dashboard = await this.dashboardRepository.findOne({ where: { id: id } });
+        if (!find_dashboard) {
+            return 'Not exist dashboard';
+        }
+        else {
+            const widgetIds = [];
+            if (updateDashboardDto.title) {
+                find_dashboard.title = updateDashboardDto.title;
+            }
+            if (updateDashboardDto.layout) {
+                updateDashboardDto.layout.map(item => {
+                    widgetIds.push(item.i);
+                });
+                find_dashboard.layout = JSON.stringify(updateDashboardDto.layout);
+            }
+            const saveObjDW = {
+                dashboardId: id,
+                widgetIds: widgetIds,
+            };
+            // 업데이트할 데이터
+            await this.dashboardWidgetService.update(id, saveObjDW);
+            const updatedDashboard = await this.dashboardRepository.save(find_dashboard);
+            // layout이 이미 배열인 경우와 문자열인 경우를 모두 처리
+            if (typeof updatedDashboard.layout === 'string') {
+                updatedDashboard.layout = JSON.parse(updatedDashboard.layout);
+            }
+            // 업데이트된 대시보드 캐시 무효화
+            await this.dashboardCacheService.invalidateDashboard(id);
+            // 대시보드 업데이트 이벤트 발생
+            this.eventEmitter.emit('dashboard.updated', {
+                dashboardId: id,
+                timestamp: Date.now(),
+            });
+            return { status: response_status_enum_1.ResponseStatus.SUCCESS, data: updatedDashboard };
+        }
+    }
+    async remove(id) {
+        const find_dashboard = await this.dashboardRepository.findOne({ where: { id: id } });
+        if (!find_dashboard) {
+            return { status: response_status_enum_1.ResponseStatus.ERROR, message: 'No exist dashboard' };
+        }
+        else {
+            await this.dashboardRepository.delete(id);
+            await this.dashboardWidgetService.remove(id);
+            const find_dashboardId = await this.userMappingRepository.findOne({
+                where: { dashboardId: id },
+            });
+            // 캐시 무효화를 위해 userInfoId 저장
+            const userInfoId = find_dashboardId === null || find_dashboardId === void 0 ? void 0 : find_dashboardId.userInfoId;
+            await this.userMappingRepository.delete(find_dashboardId.id);
+            await this.dashboardShareRepository.delete(find_dashboard.shareId);
+            // 삭제된 대시보드 캐시 무효화
+            await this.dashboardCacheService.invalidateDashboard(id);
+            // 사용자 대시보드 목록 캐시도 무효화
+            if (userInfoId) {
+                await this.dashboardCacheService.invalidateUserDashboardList(userInfoId);
+            }
+            // 대시보드 삭제 이벤트 발생
+            this.eventEmitter.emit('dashboard.deleted', {
+                dashboardId: id,
+                timestamp: Date.now(),
+            });
+            return {
+                status: response_status_enum_1.ResponseStatus.SUCCESS,
+                data: { message: `This action removes a #${id} dashboard` },
+            };
+        }
+    }
+};
+DashboardService = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, typeorm_1.InjectRepository)(dashboard_entity_1.Dashboard)),
+    __param(1, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
+    __param(2, (0, typeorm_1.InjectRepository)(dashboard_share_entity_1.DashboardShare)),
+    __param(3, (0, typeorm_1.InjectRepository)(user_mapping_entity_1.UserMapping)),
+    __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
+        dashboard_widget_service_1.DashboardWidgetService,
+        dashboard_cache_service_1.DashboardCacheService,
+        user_service_1.UserService,
+        auth_service_1.AuthService,
+        logger_service_1.CustomLoggerService,
+        event_emitter_1.EventEmitter2])
+], DashboardService);
+exports.DashboardService = DashboardService;

@@ -4,9 +4,9 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { User } from '../user/entities/user.entity.js';
-import { LocalStrategy } from '../auth/strategies/local.strategy.js';
-import { RefreshToken } from './entites/refresh_token.entity';
+import { User } from '../user/entities/user.entity';
+import { LocalStrategy } from '../auth/strategies/local.strategy';
+import { RefreshToken } from './entities/refresh_token.entity';
 
 @Module({
   imports: [

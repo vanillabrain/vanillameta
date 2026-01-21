@@ -1,19 +1,19 @@
 import React, { useContext } from 'react';
-import { Link, Stack, Typography } from '@mui/material';
 import { LayoutContext } from '@/contexts/LayoutContext';
 
 export const Copyright = (props: any) => {
+  const { className, style, ...restProps } = props;
   return (
-    <Typography color="text.secondary" align="center" {...props}>
-      <Link
-        color="inherit"
+    <div className={`text-center text-gray-600 ${className || ''}`} style={style} {...restProps}>
+      <a
         href="https://vanillabrain.com/"
         target="_blank"
-        sx={{ fontSize: '13px', color: '#767676', fontWeight: 'bold', textDecoration: 'none' }}
+        rel="noopener noreferrer"
+        className="text-[13px] text-[#767676] font-bold no-underline hover:underline"
       >
         ⓒ VanillaBrain Inc.
-      </Link>
-    </Typography>
+      </a>
+    </div>
   );
 };
 
@@ -21,16 +21,14 @@ const Footer = () => {
   const { footerBg } = useContext(LayoutContext);
 
   return (
-    <Stack
-      sx={{
-        height: '50px',
-        alignItems: 'center',
-        justifyContent: 'center',
+    <div
+      className="flex items-center justify-center h-[50px]"
+      style={{
         backgroundColor: footerBg ? footerBg : '#fff',
       }}
     >
       <Copyright />
-    </Stack>
+    </div>
   );
 };
 

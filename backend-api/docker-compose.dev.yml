@@ -1,0 +1,111 @@
+version: '3.8'
+
+services:
+  # Redis 서비스 (개발 환경)
+  redis:
+    image: redis:7-alpine
+    container_name: vanillameta_redis_dev
+    ports:
+      - "6379:6379"
+    networks:
+      - vanillameta_dev
+    volumes:
+      - redis_dev_data:/data
+    command: redis-server --appendonly yes --loglevel debug
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # MySQL 데이터베이스 (개발 환경)
+  mysql:
+    image: mysql:8.0
+    container_name: vanillameta_mysql_dev
+    ports:
+      - "3306:3306"
+    networks:
+      - vanillameta_dev
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-devroot}
+      MYSQL_DATABASE: ${DB_NAME:-vanillameta_dev}
+      MYSQL_USER: ${DB_USERNAME:-vanillameta}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-devpass123}
+      TZ: Asia/Seoul
+    volumes:
+      - mysql_dev_data:/var/lib/mysql
+      - ./db/conf.d:/etc/mysql/conf.d
+      - ./mysql-init-files:/docker-entrypoint-initdb.d:ro
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --default-authentication-plugin=mysql_native_password
+      --max_connections=1000
+      --max_allowed_packet=64M
+      --innodb_buffer_pool_size=256M
+      --log-error-verbosity=3
+      --general-log=1
+      --general-log-file=/var/lib/mysql/general.log
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # NestJS API 서버 (개발 환경)
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: vanillameta_api_dev
+    ports:
+      - "3000:3000"
+      - "9229:9229"  # 디버그 포트
+    networks:
+      - vanillameta_dev
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      DB_TYPE: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USERNAME: ${DB_USERNAME:-vanillameta}
+      DB_PASSWORD: ${DB_PASSWORD:-devpass123}
+      DB_NAME: ${DB_NAME:-vanillameta_dev}
+      DB_CONNECTION_LIMIT: ${DB_CONNECTION_LIMIT:-10}
+      KNEX_POOL_MAX: ${KNEX_POOL_MAX:-5}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      ACCESS_SECRET: ${ACCESS_SECRET:-dev_access_secret}
+      REFRESH_SECRET: ${REFRESH_SECRET:-dev_refresh_secret}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev_jwt_secret}
+      URL_ACCESS_SECRET: ${URL_ACCESS_SECRET:-dev_url_secret}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3001}
+    volumes:
+      - ./src:/app/src:delegated
+      - ./test:/app/test:delegated
+      - ./sqlite_data:/app/sqlite_data
+      - /app/node_modules  # node_modules를 호스트와 분리
+    command: yarn start:dev
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  mysql_dev_data:
+    driver: local
+  redis_dev_data:
+    driver: local
+
+networks:
+  vanillameta_dev:
+    driver: bridge

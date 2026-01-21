@@ -1,27 +1,17 @@
-import React, { useEffect, useState } from 'react';
-import { Box, List, Pagination, Stack, useMediaQuery, useTheme } from '@mui/material';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import BoardItem from './BoardItem';
-import { styled } from '@mui/system';
 import { MAX_WIDTH } from '@/constant';
-
-interface GTSpanProps {
-  children: React.ReactNode;
-  matches?: boolean;
-  isWidget?: boolean;
-}
-
-// TODO: 오류 수정
-const GTSpan = styled('span')<GTSpanProps>(props => ({
-  marginLeft: props.matches && props.isWidget && '50px',
-  fontSize: props.matches ? '13px' : '10px',
-  fontWeight: '500',
-  lineHeight: '1.23',
-  color: '#767676',
-}));
+import { Button } from '@/components/ui/button';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const tableBorder = '1px solid #DADDDD';
 
-function BoardList(props) {
+interface BoardListProps {
+  postList: any[];
+  handleDeleteSelect: (id: any, title?: any) => void;
+}
+
+function BoardList(props: BoardListProps) {
   const { postList, handleDeleteSelect } = props;
   const [totalCount, setTotalCount] = useState(1);
   const [page, setPage] = useState(1);
@@ -30,50 +20,83 @@ function BoardList(props) {
     setTotalCount(Math.ceil(postList.length / 10));
   }, [postList]);
 
-  const theme = useTheme();
-  const matches = useMediaQuery(theme.breakpoints.up('sm'));
+  const matches = typeof window !== 'undefined' ? window.innerWidth >= 640 : true;
 
-  const handlePageChange = (e, p) => {
-    setPage(p);
-  };
+  const handlePageChange = useCallback((newPage: number) => {
+    setPage(newPage);
+  }, []);
 
-  const generateBoardItem = () => {
+  const boardItems = useMemo(() => {
     return postList.map((item, index) => {
       const currPage = (page - 1) * 10;
       if (index >= currPage && index < currPage + 10) {
-        return <BoardItem data={item} key={item.id} handleDeleteSelect={handleDeleteSelect} />;
+        return <BoardItem key={item.id} data={item} handleDeleteSelect={handleDeleteSelect} />;
       } else {
         return null;
       }
     });
-  };
+  }, [postList, page, handleDeleteSelect]);
 
   return (
-    <Box sx={{ maxWidth: MAX_WIDTH, width: '100%', mx: 'auto' }}>
-      <Stack
-        flexDirection="row"
-        justifyContent="space-between"
-        sx={{
-          width: '100%',
-          paddingLeft: '20px',
-          paddingRight: { xs: '60px', sm: '216px' },
-          marginBottom: '11px',
-          marginTop: { xs: '21px', sm: '36px' },
-        }}
+    <div className="w-full mx-auto" style={{ maxWidth: MAX_WIDTH }}>
+      <div
+        className="flex flex-row justify-between w-full px-5 pr-[60px] sm:pr-[216px] mb-[11px] mt-[21px] sm:mt-9"
       >
-        <GTSpan isWidget={Boolean(postList?.[0]?.componentType)} matches={matches}>
+        <span
+          className="text-[10px] sm:text-[13px] font-medium leading-[1.23] text-[#767676]"
+          style={{
+            marginLeft: matches && Boolean(postList?.[0]?.componentType) ? '50px' : '0',
+          }}
+        >
           이름
-        </GTSpan>
-        <GTSpan matches={matches}>수정일</GTSpan>
-      </Stack>
-      <List sx={{ width: '100%', m: 'auto', border: tableBorder, borderRadius: 2, backgroundColor: '#fff' }} disablePadding>
-        {generateBoardItem()}
-      </List>
-      <Stack alignItems="center" sx={{ marginTop: '47px' }}>
-        <Pagination count={totalCount} page={page} shape="rounded" onChange={handlePageChange} />
-      </Stack>
-    </Box>
+        </span>
+        <span
+          className="text-[10px] sm:text-[13px] font-medium leading-[1.23] text-[#767676]"
+        >
+          수정일
+        </span>
+      </div>
+      <div 
+        className="w-full mx-auto rounded-lg bg-white p-0"
+        style={{ border: tableBorder }}
+      >
+        {boardItems}
+      </div>
+      <div className="flex items-center justify-center mt-[47px]">
+        <div className="flex items-center gap-1">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handlePageChange(page - 1)}
+            disabled={page === 1}
+            className="h-8 w-8 p-0"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          {Array.from({ length: totalCount }, (_, i) => i + 1).map((pageNum) => (
+            <Button
+              key={pageNum}
+              variant={page === pageNum ? "default" : "outline"}
+              size="sm"
+              onClick={() => handlePageChange(pageNum)}
+              className="h-8 w-8 p-0"
+            >
+              {pageNum}
+            </Button>
+          ))}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handlePageChange(page + 1)}
+            disabled={page === totalCount}
+            className="h-8 w-8 p-0"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 
-export default BoardList;
+export default React.memo(BoardList);

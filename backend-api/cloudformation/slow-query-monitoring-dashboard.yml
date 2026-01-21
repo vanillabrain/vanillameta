@@ -1,0 +1,231 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'VanillaMeta Backend API - Slow Query Monitoring Dashboard'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, prod, local]
+    Description: 'Deployment environment'
+  
+  ServiceName:
+    Type: String
+    Default: vanillameta-backend-api
+    Description: 'Service name for resource naming'
+
+Resources:
+  # Slow Query Monitoring Dashboard
+  SlowQueryDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub '${ServiceName}-${Environment}-slow-query-monitoring'
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["VanillaMeta/${Environment}/Database", "SlowQueryCount", { "stat": "Sum" }],
+                  [".", "SlowQueryExecutionTime", { "stat": "Average" }],
+                  [".", "SlowQueryExecutionTime", { "stat": "Maximum" }]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "Slow Query Metrics",
+                "period": 300,
+                "yAxis": {
+                  "left": { "min": 0 }
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["VanillaMeta/${Environment}/Database", "SlowQueryBySeverity", "Severity", "LOW"],
+                  [".", ".", ".", "MEDIUM"],
+                  [".", ".", ".", "HIGH"],
+                  [".", ".", ".", "CRITICAL"]
+                ],
+                "view": "timeSeries",
+                "stacked": true,
+                "region": "${AWS::Region}",
+                "title": "Slow Query Count by Severity",
+                "period": 300
+              }
+            },
+            {
+              "type": "log",
+              "x": 0,
+              "y": 6,
+              "width": 24,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '/aws/lambda/${ServiceName}-${Environment}-app'\n| fields @timestamp, message, metadata.executionTime, metadata.queryHash, metadata.databaseEngine, metadata.severity\n| filter message like /Slow query detected/\n| sort @timestamp desc\n| limit 50",
+                "region": "${AWS::Region}",
+                "title": "Recent Slow Queries",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log",
+              "x": 0,
+              "y": 12,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '/aws/lambda/${ServiceName}-${Environment}-app'\n| fields metadata.executionTime, metadata.databaseEngine\n| filter message like /Slow query detected/\n| stats avg(metadata.executionTime) as avgTime, max(metadata.executionTime) as maxTime, count() as queryCount by metadata.databaseEngine\n| sort avgTime desc",
+                "region": "${AWS::Region}",
+                "title": "Slow Query Performance by Database Engine",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log",
+              "x": 12,
+              "y": 12,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '/aws/lambda/${ServiceName}-${Environment}-app'\n| fields metadata.queryHash, metadata.severity\n| filter message like /Slow query detected/\n| stats count() as occurrences by metadata.queryHash, metadata.severity\n| sort occurrences desc\n| limit 20",
+                "region": "${AWS::Region}",
+                "title": "Most Frequent Slow Queries",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log",
+              "x": 0,
+              "y": 18,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '/aws/lambda/${ServiceName}-${Environment}-app'\n| fields @timestamp, metadata.executionTime\n| filter message like /Slow query detected/\n| stats count() as count by bin(1h)\n| sort @timestamp asc",
+                "region": "${AWS::Region}",
+                "title": "Slow Query Trend (24h)",
+                "view": "line"
+              }
+            },
+            {
+              "type": "log",
+              "x": 12,
+              "y": 18,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '/aws/lambda/${ServiceName}-${Environment}-app'\n| fields metadata.severity\n| filter message like /Slow query detected/\n| stats count() as count by metadata.severity\n| sort count desc",
+                "region": "${AWS::Region}",
+                "title": "Severity Distribution",
+                "view": "pie"
+              }
+            },
+            {
+              "type": "log",
+              "x": 0,
+              "y": 24,
+              "width": 24,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '/aws/lambda/${ServiceName}-${Environment}-app'\n| fields @timestamp, message, metadata.executionTime, metadata.databaseEngine, metadata.userId, metadata.requestPath\n| filter message like /CRITICAL SLOW QUERY ALERT/\n| sort @timestamp desc\n| limit 20",
+                "region": "${AWS::Region}",
+                "title": "Critical Slow Query Alerts",
+                "view": "table"
+              }
+            }
+          ]
+        }
+
+  # Slow Query CloudWatch Alarms for Production
+  CriticalSlowQueryAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsProduction
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Environment}-critical-slow-queries'
+      AlarmDescription: 'Critical slow queries detected (>30 seconds)'
+      MetricName: SlowQueryBySeverity
+      Namespace: !Sub 'VanillaMeta/${Environment}/Database'
+      Dimensions:
+        - Name: Severity
+          Value: CRITICAL
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref SlowQueryNotificationTopic
+
+  HighSlowQueryVolumeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsProduction
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Environment}-high-slow-query-volume'
+      AlarmDescription: 'High volume of slow queries detected'
+      MetricName: SlowQueryCount
+      Namespace: !Sub 'VanillaMeta/${Environment}/Database'
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 50  # More than 50 slow queries in 10 minutes
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref SlowQueryNotificationTopic
+
+  DatabasePerformanceDegradationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsProduction
+    Properties:
+      AlarmName: !Sub '${ServiceName}-${Environment}-db-performance-degradation'
+      AlarmDescription: 'Database performance degradation detected'
+      MetricName: SlowQueryExecutionTime
+      Namespace: !Sub 'VanillaMeta/${Environment}/Database'
+      Statistic: Average
+      Period: 600  # 10 minutes
+      EvaluationPeriods: 3
+      Threshold: 10000  # Average execution time > 10 seconds
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref SlowQueryNotificationTopic
+
+  # SNS Topic for Slow Query Notifications (Production only)
+  SlowQueryNotificationTopic:
+    Type: AWS::SNS::Topic
+    Condition: IsProduction
+    Properties:
+      TopicName: !Sub '${ServiceName}-${Environment}-slow-query-alerts'
+      DisplayName: 'VanillaMeta Slow Query Alerts'
+
+Conditions:
+  IsProduction:
+    !Equals [!Ref Environment, 'prod']
+
+Outputs:
+  SlowQueryDashboardURL:
+    Description: 'Slow Query Monitoring Dashboard URL'
+    Value: !Sub 'https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${ServiceName}-${Environment}-slow-query-monitoring'
+
+  SlowQueryNotificationTopicArn:
+    Description: 'SNS Topic ARN for slow query notifications'
+    Value: !Ref SlowQueryNotificationTopic
+    Condition: IsProduction
+    Export:
+      Name: !Sub '${ServiceName}-${Environment}-slow-query-topic-arn'
+
+  SlowQueryDashboardName:
+    Description: 'Slow Query Dashboard Name'
+    Value: !Ref SlowQueryDashboard
+    Export:
+      Name: !Sub '${ServiceName}-${Environment}-slow-query-dashboard-name'

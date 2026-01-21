@@ -1,0 +1,164 @@
+version: '3.8'
+
+# 다중 데이터베이스 테스트 환경
+# 여러 데이터베이스 타입을 동시에 실행하여 연결 테스트를 수행할 수 있습니다.
+
+services:
+  # Redis (공통)
+  redis:
+    image: redis:7-alpine
+    container_name: vanillameta_redis_multi
+    ports:
+      - "6379:6379"
+    networks:
+      - vanillameta_multi
+    restart: unless-stopped
+
+  # MySQL
+  mysql:
+    image: mysql:8.0
+    container_name: vanillameta_mysql_multi
+    ports:
+      - "3306:3306"
+    networks:
+      - vanillameta_multi
+    environment:
+      MYSQL_ROOT_PASSWORD: mysql_root
+      MYSQL_DATABASE: vanillameta_mysql
+      MYSQL_USER: mysql_user
+      MYSQL_PASSWORD: mysql_pass
+      TZ: Asia/Seoul
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # PostgreSQL
+  postgres:
+    image: postgres:15-alpine
+    container_name: vanillameta_postgres_multi
+    ports:
+      - "5432:5432"
+    networks:
+      - vanillameta_multi
+    environment:
+      POSTGRES_DB: vanillameta_pg
+      POSTGRES_USER: pg_user
+      POSTGRES_PASSWORD: pg_pass
+      TZ: Asia/Seoul
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pg_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # MariaDB
+  mariadb:
+    image: mariadb:11
+    container_name: vanillameta_mariadb_multi
+    ports:
+      - "3308:3306"
+    networks:
+      - vanillameta_multi
+    environment:
+      MYSQL_ROOT_PASSWORD: maria_root
+      MYSQL_DATABASE: vanillameta_maria
+      MYSQL_USER: maria_user
+      MYSQL_PASSWORD: maria_pass
+      TZ: Asia/Seoul
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Oracle Database (XE)
+  oracle:
+    image: gvenzl/oracle-xe:21-slim
+    container_name: vanillameta_oracle_multi
+    ports:
+      - "1521:1521"
+    networks:
+      - vanillameta_multi
+    environment:
+      ORACLE_PASSWORD: oracle_pass
+      APP_USER: oracle_user
+      APP_USER_PASSWORD: oracle_pass
+      TZ: Asia/Seoul
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+    restart: unless-stopped
+
+  # SQL Server
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: vanillameta_sqlserver_multi
+    ports:
+      - "1433:1433"
+    networks:
+      - vanillameta_multi
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "SqlServer123!"
+      MSSQL_PID: "Express"
+      TZ: Asia/Seoul
+    healthcheck:
+      test: ["CMD", "/opt/mssql-tools/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "SqlServer123!", "-Q", "SELECT 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+    restart: unless-stopped
+
+  # NestJS API (다중 DB 테스트용)
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: vanillameta_api_multi
+    ports:
+      - "3000:3000"
+    networks:
+      - vanillameta_multi
+    depends_on:
+      - redis
+      - mysql
+      - postgres
+      - mariadb
+    environment:
+      NODE_ENV: development
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      # 기본 DB는 MySQL로 설정
+      DB_TYPE: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USERNAME: mysql_user
+      DB_PASSWORD: mysql_pass
+      DB_NAME: vanillameta_mysql
+      # 보안 키
+      ACCESS_SECRET: multi_access_secret
+      REFRESH_SECRET: multi_refresh_secret
+      JWT_ACCESS_SECRET: multi_jwt_secret
+      URL_ACCESS_SECRET: multi_url_secret
+      CORS_ORIGIN: http://localhost:3001
+    volumes:
+      - ./src:/app/src:delegated
+      - ./test:/app/test:delegated
+      - /app/node_modules
+    command: yarn start:dev
+    restart: unless-stopped
+
+networks:
+  vanillameta_multi:
+    driver: bridge
