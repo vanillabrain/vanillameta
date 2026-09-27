@@ -52,6 +52,8 @@ npm test                     # jest (jsdom)
 | `QUERY_ALLOW_WRITE` | `true` 면 읽기 전용 가드 비활성(기본 false) |
 | `THROTTLE_TTL` / `THROTTLE_LIMIT` | rate limit 윈도우(초) / 허용 요청 수 |
 | `BODY_LIMIT` | 요청 본문 크기 제한(기본 1mb) |
+| `SECRETS_FROM_SSM` | `true` 면 시크릿을 AWS SSM Parameter Store 에서 로드 |
+| `SSM_PARAM_PREFIX` | SSM 파라미터 prefix(기본 `/vanillameta/<NODE_ENV>`) |
 
 ### Frontend (`frontend-web/.env.*`)
 | 변수 | 설명 |
@@ -59,7 +61,7 @@ npm test                     # jest (jsdom)
 | `VITE_APP_MODE` | 앱 모드 |
 | `VITE_API_URL` | 백엔드 API base URL |
 
-> 주의: `serverless.yml` 의 `package.include` 가 여전히 `.env*` 를 Lambda 번들에 포함합니다. 운영에서는 SSM Parameter Store / Secrets Manager 주입으로 전환해야 합니다(미완).
+> 시크릿: `SECRETS_FROM_SSM=true` 로 부팅하면 `/vanillameta/<stage>/{ACCESS_SECRET,REFRESH_SECRET,URL_ACCESS_SECRET}` 를 SSM(WithDecryption)에서 읽어 주입합니다(런타임 로더 구현됨, `@aws-sdk/client-ssm` 필요). 반면 `serverless.yml` 의 `package.include` 는 아직 `.env*` 를 Lambda 번들에 포함하므로, **번들에서 제거하고 SSM 만 쓰도록 전환하는 것은 미완**(배포 검증 필요).
 
 ## 4. 보안
 
@@ -108,9 +110,9 @@ npm test                     # jest (jsdom)
 ## 10. 남은 항목 (후속)
 
 - 조직/팀(멀티테넌시) 기반 권한·격리
-- `database`/`dataset`/`widget` 소유권 모델
+- `dataset`/`widget` 소유권 모델 (데이터소스 소유권은 구현됨; dataset/widget 은 database 기준 파생 적용 필요)
 - SSO/OIDC, 컴플라이언스 대응
 - 백업 복구(restore) 및 스케줄링
-- 시크릿 관리(SSM/Secrets Manager) 전환, `.env` 번들 제거
+- 시크릿 관리(SSM/Secrets Manager): 런타임 로더 구현됨, `.env` 번들 제거 및 SSM 파라미터 실제 생성은 미완
 - Serverless v3 통일 및 무중단 배포(롤백 전략)
 - 부하 테스트 및 성능 회귀 측정

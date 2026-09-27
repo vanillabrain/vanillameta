@@ -13,6 +13,7 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { ValidationPipe } from '@nestjs/common';
+import { maybeLoadSecretsFromSsm } from './config/secrets';
 
 // NOTE: If you get ERR_CONTENT_DECODING_FAILED in your browser, this is likely
 // due to a compressed response (e.g. gzip) which has not been handled correctly
@@ -25,6 +26,7 @@ let cachedServer: Server;
 async function bootstrapServer(): Promise<Server> {
   // some legacy browsers (IE11, various SmartTVs) choke on 204
   if (!cachedServer) {
+    await maybeLoadSecretsFromSsm();
     const expressApp = express();
     expressApp.use(helmet({ contentSecurityPolicy: false }));
     expressApp.use(express.json({ limit: process.env.BODY_LIMIT || '1mb' }));

@@ -7,8 +7,11 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './nest-utils/http-exception.filter';
 import { setupSwagger } from './utils/swagger';
+import { maybeLoadSecretsFromSsm } from './config/secrets';
 
 async function bootstrap() {
+  await maybeLoadSecretsFromSsm();
+
   const expressApp = express();
   expressApp.use(helmet({ contentSecurityPolicy: false }));
   expressApp.use(express.json({ limit: process.env.BODY_LIMIT || '1mb' }));
