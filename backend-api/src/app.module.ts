@@ -17,6 +17,7 @@ import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { LoginModule } from './login/login.module';
 import { ShareUrlModule } from './share-url/share-url.module';
+import { AdminModule } from './admin/admin.module';
 
 const isTest = process.env.NODE_ENV === 'test';
 const isLocal = process.env.NODE_ENV === 'local';
@@ -63,6 +64,7 @@ const useSqlite = isLocal || isTest;
     AuthModule,
     LoginModule,
     ShareUrlModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [

@@ -7,6 +7,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { UserRole } from '../../common/enum/role.enum';
 
 @Entity()
 export class User {
@@ -32,6 +33,10 @@ export class User {
   @Column({ length: 255, comment: '유저 password' })
   @ApiProperty({ description: '유저 password' })
   password: string;
+
+  @Column({ length: 20, default: UserRole.USER, comment: '권한 역할' })
+  @ApiProperty({ description: '권한 역할' })
+  role: string;
 
   @CreateDateColumn({ default: () => 'CURRENT_TIMESTAMP', comment: '생성일' })
   createdAt: Date;
