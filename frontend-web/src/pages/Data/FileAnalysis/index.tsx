@@ -140,11 +140,6 @@ const FileAnalysis = () => {
 
   const saveAsDataset = () => {
     if (!selectedFile) return;
-    const ext = selectedFile.name.split('.').pop().toLowerCase();
-    if (ext === 'parquet') {
-      alert.error(t('fileAnalysis.saveParquetError'));
-      return;
-    }
     setSaving(true);
     DatabaseService.uploadFile(selectedFile)
       .then(response => {

@@ -61,6 +61,22 @@ describe('DatabaseService uploadFile', () => {
     expect(names).toEqual(['a_b', 'c_d']);
   });
 
+  it('accepts a parquet file upload', async () => {
+    const { ParquetWriter, ParquetSchema } = await import('parquetjs-lite');
+    const schema = new ParquetSchema({ name: { type: 'UTF8' }, score: { type: 'DOUBLE' } });
+    const tmp = path.join(uploadDir, 'sample.parquet');
+    const writer = await ParquetWriter.openFile(schema, tmp);
+    await writer.appendRow({ name: 'a', score: 1.5 });
+    await writer.appendRow({ name: 'b', score: 2.5 });
+    await writer.close();
+    const res = await service.uploadFile({
+      originalname: 'sample.parquet',
+      buffer: fs.readFileSync(tmp),
+    });
+    expect(res.status).toBe(ResponseStatus.SUCCESS);
+    expect(res.data.rows).toBe(2);
+  });
+
   it('accepts a JSON array upload', async () => {
     const json = JSON.stringify([
       { city: 'Seoul', n: 1 },

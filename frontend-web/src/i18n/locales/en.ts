@@ -75,7 +75,6 @@ export default {
     saving: 'Saving...',
     saved: 'Data source created. ({{rows}} rows)',
     saveFailed: 'Failed to save dataset.',
-    saveParquetError: 'Parquet files cannot be saved as a dataset. Export to CSV first.',
     tableLabel: 'table',
     fileLoaded: 'Loaded {{name}}.',
     fileTypeError: 'Only CSV, Parquet, and JSON files are supported.',

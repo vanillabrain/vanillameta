@@ -75,7 +75,6 @@ export default {
     saving: '저장 중...',
     saved: '데이터 소스가 생성되었습니다. ({{rows}}행)',
     saveFailed: '데이터셋 저장에 실패했습니다.',
-    saveParquetError: 'Parquet 파일은 데이터셋 저장을 지원하지 않습니다. CSV로 내보낸 후 저장해 주세요.',
     tableLabel: '테이블',
     fileLoaded: '{{name}} 파일을 불러왔습니다.',
     fileTypeError: 'CSV, Parquet, JSON 파일만 지원합니다.',

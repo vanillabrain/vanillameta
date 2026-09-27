@@ -75,7 +75,12 @@ export class DatabaseService {
       throw new BadRequestException('file is required');
     }
     const ext = path.extname(file.originalname).toLowerCase();
-    const rows = ext === '.json' ? this.parseJsonRows(file.buffer) : this.parseCsvRows(file.buffer);
+    const rows =
+      ext === '.json'
+        ? this.parseJsonRows(file.buffer)
+        : ext === '.parquet'
+        ? await this.parseParquetRows(file.buffer)
+        : this.parseCsvRows(file.buffer);
     if (!rows.length) {
       throw new BadRequestException('no rows found in the uploaded file');
     }
@@ -203,6 +208,31 @@ export class DatabaseService {
         header.forEach((h, i) => (obj[h] = r[i] ?? null));
         return obj;
       });
+  }
+
+  /**
+   * Parquet 버퍼 → 객체 배열 (parquetjs-lite, 서버에서 직접 디코딩)
+   */
+  private async parseParquetRows(buffer: Buffer): Promise<Record<string, unknown>[]> {
+    const { ParquetReader } = await import('parquetjs-lite');
+    let reader;
+    try {
+      reader = await ParquetReader.openBuffer(buffer);
+    } catch {
+      throw new BadRequestException('invalid parquet file');
+    }
+    const rows: Record<string, unknown>[] = [];
+    const cursor = reader.getCursor();
+    try {
+      let record = await cursor.next();
+      while (record && rows.length < UPLOAD_MAX_ROWS) {
+        rows.push(record);
+        record = await cursor.next();
+      }
+    } finally {
+      await reader.close();
+    }
+    return rows;
   }
 
   /**
