@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
 import express from 'express';
@@ -24,6 +25,7 @@ async function bootstrap() {
   });
   nestApp.setGlobalPrefix('v1');
   nestApp.use(cookieParser());
+  nestApp.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   nestApp.useGlobalFilters(new HttpExceptionFilter());
   setupSwagger(nestApp);
   await nestApp.listen(4000);

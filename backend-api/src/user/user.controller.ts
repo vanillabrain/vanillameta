@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, Patch, Delete, UseGuards, Res, Req } from '@nestjs/common';
 import { UserService } from './user.service';
-import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { DeleteAccountDto } from './dto/delete-account.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { AuthService } from 'src/auth/auth.service';
 import { LocalAuthGuard } from 'src/auth/guards/local-auth.guard';
@@ -37,9 +37,9 @@ export class UserController {
   @Delete('delete-account')
   @ApiOperation({ summary: ' 해당유저 삭제 ' })
   @ApiBearerAuth('AccessKey')
-  deleteUser(@Req() req, @Body() createUserDto: CreateUserDto) {
+  deleteUser(@Req() req, @Body() deleteAccountDto: DeleteAccountDto) {
     const { userId } = req.user.accessKeyData;
-    const { password } = createUserDto;
+    const { password } = deleteAccountDto;
     return this.userService.deleteUser(userId, password);
   }
 

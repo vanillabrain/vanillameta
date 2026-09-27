@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsDefined, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 import { DatasetType } from '../../common/enum/dataset-type.enum';
 import { YesNo } from '../../common/enum/yn.enum';
 
@@ -31,9 +31,9 @@ export class CreateWidgetDto {
   @IsOptional()
   tableName: string;
 
-  @IsString()
-  @IsNotEmpty()
-  option: string;
+  // 위젯 옵션은 자유 형식(객체)이며 서비스에서 JSON.stringify 하여 저장한다.
+  @IsDefined()
+  option: any;
 
   @IsString()
   @IsOptional()

@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsDefined, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateDatabaseDto {
@@ -18,13 +18,13 @@ export class CreateDatabaseDto {
   })
   description: string;
 
-  @IsString()
-  @IsOptional()
+  // 접속 설정(호스트/포트/사용자 등). 서비스에서 client/connection 구조로 감싸 저장한다.
+  @IsDefined()
   @ApiProperty({
     example: '{}',
     description: '설정 JSON 상세',
   })
-  connectionConfig: string;
+  connectionConfig: any;
 
   @IsString()
   @IsOptional()
