@@ -23,7 +23,7 @@ const Login = () => {
   });
   let isValid;
   const token = getToken();
-  const APP_MODE = process.env.REACT_APP_MODE;
+  const APP_MODE = import.meta.env.VITE_APP_MODE;
 
   useEffect(() => {
     console.log('APP_MODE', APP_MODE);

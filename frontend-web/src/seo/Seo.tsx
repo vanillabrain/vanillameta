@@ -2,11 +2,12 @@ import React from 'react';
 import { Helmet } from 'react-helmet-async';
 
 const Seo = props => {
+  const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, '');
   const {
     title = 'VanillaMeta',
     description = '최신 엔터프라이즈용 비즈니스 인텔리전스 웹 애플리케이션, VanillaMeta',
-    image = `${process.env.PUBLIC_URL}/static/images/logo/vanillaMeta-og.jpg`,
-    url = process.env.PUBLIC_URL,
+    image = `${BASE_URL}/static/images/logo/vanillaMeta-og.jpg`,
+    url = BASE_URL,
   } = props;
   const titleText = title === 'VanillaMeta' ? 'VanillaMeta' : title + ' - VanillaMeta';
 
