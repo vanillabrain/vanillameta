@@ -4,7 +4,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { LoginHistory } from '../entities/login-history.entity.js';
 import { Repository } from 'typeorm';
 import { YesNo } from '../../common/enum/yn.enum.js';
-import { ApiBearerAuth } from '@nestjs/swagger';
 
 @Injectable()
 export class userLoggerMiddleware implements NestMiddleware {

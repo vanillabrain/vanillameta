@@ -1,9 +1,7 @@
-import { Column, Entity, JoinTable, ManyToMany, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity,    PrimaryGeneratedColumn } from 'typeorm';
 import { BaseEntity } from '../../common/entities/base.entity';
 import { DatasetType } from '../../common/enum/dataset-type.enum';
 import { YesNo } from '../../common/enum/yn.enum';
-import { Component } from '../../component/entities/component.entity';
-import { Dashboard } from '../../dashboard/entities/dashboard.entity';
 
 @Entity()
 export class Widget extends BaseEntity {

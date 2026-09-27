@@ -1,5 +1,4 @@
 import { Optional } from '@nestjs/common';
-import { YesNo } from 'src/common/enum/yn.enum';
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 import { BaseEntity } from '../../common/entities/base.entity';
 

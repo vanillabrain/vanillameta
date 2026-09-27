@@ -5,7 +5,6 @@ import { User } from 'src/user/entities/user.entity';
 import { Repository } from 'typeorm';
 import { CreateLoginDto } from './dto/create-login.dto';
 import { LoginUserDto } from './dto/login-user.dto';
-import { RefreshToken } from 'src/auth/entities/refresh_token.entity';
 import { hashPassword } from '../utils/password.util';
 
 @Injectable()
@@ -13,7 +12,6 @@ export class LoginService {
   constructor(
     private authService: AuthService,
     @InjectRepository(User) private readonly userRepository: Repository<User>,
-    @InjectRepository(RefreshToken) private readonly refreshRepository: Repository<RefreshToken>,
   ) {}
 
   async signin(loginDto: LoginUserDto) {
@@ -35,7 +33,7 @@ export class LoginService {
 
     if (!userInfoEmail && !userInfoId) {
       const { email, password, userId } = createLoginDto;
-      const createUserInfo = await this.userRepository.save({
+      await this.userRepository.save({
         email: email,
         password: hashPassword(password),
         userId: userId,

@@ -3,7 +3,7 @@ import { CreateDashboardWidgetDto } from './dto/create-dashboard-widget.dto';
 import { UpdateDashboardWidgetDto } from './dto/update-dashboard-widget.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DashboardWidget } from './entities/dashboard-widget.entity';
-import { In, Repository } from 'typeorm';
+import {  Repository } from 'typeorm';
 import { Widget } from '../../widget/entities/widget.entity';
 import { Component } from '../../component/entities/component.entity';
 

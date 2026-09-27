@@ -1,5 +1,5 @@
 import { ApiProperty, ApiTags } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
+import { IsNotEmpty,  IsString } from 'class-validator';
 
 @ApiTags('유저생성 Dto')
 export class CreateUserDto {

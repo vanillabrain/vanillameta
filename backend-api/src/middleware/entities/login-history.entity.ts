@@ -1,10 +1,7 @@
-import { YesNo } from 'src/common/enum/yn.enum';
 import {
   Column,
   CreateDateColumn,
   Entity,
-  Index,
-  ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 

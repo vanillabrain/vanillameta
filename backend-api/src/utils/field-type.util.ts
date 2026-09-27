@@ -1,5 +1,3 @@
-import { convert, DateTimeFormatter, LocalDate, LocalDateTime } from 'js-joda';
-
 export class FieldTypeUtil {
   private static FIELD_TYPE_NUMBER = 'number';
   private static FIELD_TYPE_STRING = 'string';

@@ -1,7 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { filterDocumentsPathsByTags } from './swagger-APIhelper';
-import { filterDocumentsDtoPathsByTags } from './swagger/Dtohelper';
 import * as fs from 'fs';
 
 /**

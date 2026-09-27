@@ -7,7 +7,6 @@ import { Dashboard } from './entities/dashboard.entity';
 import { DashboardWidgetService } from './dashboard-widget/dashboard-widget.service';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import { UserService } from 'src/user/user.service';
-import { AuthService } from 'src/auth/auth.service';
 import { User } from '../user/entities/user.entity.js';
 import { YesNo } from 'src/common/enum/yn.enum';
 import { DashboardShare } from 'src/dashboard/entities/dashboard_share.entity';
@@ -27,7 +26,6 @@ export class DashboardService {
     private userMappingRepository: Repository<UserMapping>,
     private readonly dashboardWidgetService: DashboardWidgetService,
     private readonly userService: UserService,
-    private readonly authService: AuthService,
   ) {}
 
   /**
@@ -77,7 +75,6 @@ export class DashboardService {
     // const newDashboard = await this.dashboardRepository.save(saveObj);
 
     // user테이블에 대시보드id저장
-    const { id } = userData;
     // const test = await this.dashboardRepository
     //   .createQueryBuilder()
     //   .insert()

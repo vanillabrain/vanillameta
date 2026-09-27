@@ -1,7 +1,6 @@
 import {Column, Entity, OneToMany, PrimaryGeneratedColumn} from "typeorm";
 import {BaseEntity} from "../../common/entities/base.entity";
 import {YesNo} from "../../common/enum/yn.enum";
-import {Dashboard} from "../../dashboard/entities/dashboard.entity";
 import {TemplateItem} from "./template-item.entity";
 
 @Entity()
