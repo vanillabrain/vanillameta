@@ -153,7 +153,7 @@ export const RemoveButton = props => {
   );
 };
 
-export const MenuButton = ({ menuList, handleSelect = null, icon, title, sizeOption = { width: 22, height: 22 } }) => {
+export const MenuButton = ({ menuList, handleSelect = null, icon, title }) => {
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
 

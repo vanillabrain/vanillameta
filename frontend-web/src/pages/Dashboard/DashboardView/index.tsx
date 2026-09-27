@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Box, Card, Hidden, useMediaQuery, useTheme } from '@mui/material';
+import { Box, Card, Hidden } from '@mui/material';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import PageTitleBox from '@/components/PageTitleBox';
 import WidgetWrapper from '@/widget/wrapper/WidgetWrapper';
@@ -30,8 +30,6 @@ const DashboardView = () => {
   const snackbar = useAlert(SnackbarContext);
   const { userState } = useContext(AuthContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
-  const theme = useTheme();
-  const matches = useMediaQuery(theme.breakpoints.up('sm'));
   const [dashboardInfo, setDashboardInfo] = useState({
     title: '',
     widgets: [],

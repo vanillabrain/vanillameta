@@ -1,4 +1,4 @@
-import { get, post } from '@/helpers/apiHelper';
+import { post } from '@/helpers/apiHelper';
 
 export const URL_TEMPLATE = '/template';
 

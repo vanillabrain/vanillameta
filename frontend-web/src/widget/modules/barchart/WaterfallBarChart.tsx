@@ -3,7 +3,7 @@ import ReactECharts from 'echarts-for-react';
 import { getAggregationDataForChart, getGridSize, getLegendOption } from '@/widget/modules/utils/chartUtil';
 
 const WaterfallBarChart = props => {
-  const { option, dataSet, axis = 'x', seriesOp, defaultOp, createOp } = props;
+  const { option, dataSet, axis = 'x', defaultOp, createOp } = props;
   const reverseAxis = axis === 'x' ? 'y' : 'x';
 
   const [componentOption, setComponentOption] = useState({});

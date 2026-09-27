@@ -13,39 +13,7 @@ const instance = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-let pendingRequests = {};
 let isLoginUser = true;
-// console.log('pendingRequests', pendingRequests);
-
-// 요청에 대한 unique key 생성
-const generateReqKey = config => {
-  const { method, url, params, data } = config;
-  return [method, url, JSON.stringify(params), JSON.stringify(data)].join('&');
-};
-
-// 진행중인 요청 저장
-const addPendingRequest = config => {
-  const requestKey = generateReqKey(config);
-  config.cancelToken =
-    config.cancelToken ||
-    new axios.CancelToken(cancel => {
-      if (!pendingRequests[requestKey]) {
-        pendingRequests[requestKey] = [];
-      }
-      pendingRequests[requestKey].push(cancel);
-    });
-};
-
-// 저장된 요청 취소
-const removePendingRequest = config => {
-  const requestKey = generateReqKey(config);
-  if (pendingRequests[requestKey]) {
-    pendingRequests[requestKey].forEach(cancel => {
-      cancel('Request canceled due to new request.');
-    });
-    delete pendingRequests[requestKey];
-  }
-};
 
 // 토큰 정보 요청 header에 삽입
 const addAuthToHeaders = config => {
@@ -69,16 +37,6 @@ instance.interceptors.request.use(async config => {
   // addPendingRequest(newConfig);
   return newConfig;
 });
-
-// 중단 이벤트 발생 시 모든 요청 중단
-export function cancelAllRequests() {
-  Object.keys(pendingRequests).forEach(key => {
-    pendingRequests[key].forEach(cancel => {
-      cancel('All requests canceled');
-    });
-  });
-  pendingRequests = {};
-}
 
 let isAlreadyFetchingAccessToken = false;
 const subscribers: ((token: string) => void)[] = [];

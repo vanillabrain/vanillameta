@@ -47,7 +47,7 @@ const TreemapChart = props => {
 
       const series = {
         name: option.series.name,
-        data: aggrData.map((item, index) => ({
+        data: aggrData.map(item => ({
           value: item[option.series.field],
           name: item[option.series.name],
           // itemStyle: {

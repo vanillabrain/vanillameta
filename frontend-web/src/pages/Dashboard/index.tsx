@@ -164,13 +164,7 @@ function Dashboard() {
           <PageTitleBox
             title={title}
             button={
-              <MenuButton
-                menuList={menuList}
-                handleSelect={handleMenuSelect}
-                icon={<AddIcon />}
-                title="대시보드 추가"
-                sizeOption={{ width: 108, height: 32 }}
-              />
+              <MenuButton menuList={menuList} handleSelect={handleMenuSelect} icon={<AddIcon />} title="대시보드 추가" />
             }
           >
             {noData ? (
