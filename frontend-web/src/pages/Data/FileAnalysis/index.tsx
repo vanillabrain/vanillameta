@@ -25,7 +25,7 @@ const loadDuckDb = async () => {
     eh: { mainModule: duckdbWasmEh.default, mainWorker: ehWorker.default },
   });
   const worker = new Worker(bundle.mainWorker);
-  const db = new duckdb.AsyncDuckDB(null, worker);
+  const db = new duckdb.AsyncDuckDB(new duckdb.VoidLogger(), worker);
   await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
   return { duckdb, db };
 };
@@ -35,6 +35,16 @@ const ReactECharts = lazy(() => import('echarts-for-react'));
 
 const TABLE_NAME = 'uploaded_data';
 const CHART_TYPES = ['bar', 'line', 'pie'];
+
+// DuckDB는 BIGINT/DECIMAL 등을 BigInt로 반환 — toast-ui grid와 차트가 Number만 처리하므로 정규화
+const normalizeValue = (v: unknown) =>
+  typeof v === 'bigint' ? (Number.isSafeInteger(Number(v)) ? Number(v) : v.toString()) : v;
+const toRows = (result: { toArray: () => { toJSON: () => Record<string, unknown> }[] }) =>
+  result.toArray().map(r => {
+    const row = r.toJSON();
+    for (const k of Object.keys(row)) row[k] = normalizeValue(row[k]);
+    return row;
+  });
 
 const FileAnalysis = () => {
   const { t } = useTranslation();
@@ -97,7 +107,12 @@ const FileAnalysis = () => {
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    const { duckdb, db } = duckDbRef.current;
+    const engine = duckDbRef.current;
+    if (!engine) {
+      alert.error(t('fileAnalysis.engineFailed'));
+      return;
+    }
+    const { duckdb, db } = engine;
     const ext = file.name.split('.').pop().toLowerCase();
     if (!['csv', 'parquet', 'json'].includes(ext)) {
       alert.error(t('fileAnalysis.fileTypeError'));
@@ -116,7 +131,7 @@ const FileAnalysis = () => {
           : `read_csv_auto('${file.name}')`;
       await conn.query(`CREATE TABLE ${TABLE_NAME} AS SELECT * FROM ${readExpr}`);
       const preview = await conn.query(`SELECT * FROM ${TABLE_NAME} LIMIT 500`);
-      const rows = preview.toArray().map(r => r.toJSON());
+      const rows = toRows(preview);
       setData(rows);
       setColumns(createColumns(rows));
       if (rows.length > 0) {
@@ -181,7 +196,7 @@ const FileAnalysis = () => {
     try {
       const conn = await duckDbRef.current.db.connect();
       const result = await conn.query(query);
-      const rows = result.toArray().map(r => r.toJSON());
+      const rows = toRows(result);
       setData(rows);
       setColumns(createColumns(rows));
       if (rows.length > 0) {
