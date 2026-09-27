@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect } from 'react';
 import PageTitleBox from '@/components/PageTitleBox';
 import { ConfirmButton } from '@/components/button/ConfirmCancelButton';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
@@ -7,10 +7,28 @@ import widgetService from '@/api/widgetService';
 import { WidgetInfo } from '@/api/type';
 import { LayoutContext } from '@/contexts/LayoutContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
+import { useIsFetching, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 interface CustomizedState {
   from: string;
 }
+
+const defaultWidgetInfo: WidgetInfo = {
+  componentId: '',
+  createdAt: '',
+  datasetId: '',
+  datasetType: '',
+  delYn: '',
+  description: '',
+  id: '',
+  option: '',
+  title: '',
+  updatedAt: '',
+  widgetViewId: '',
+  icon: '',
+  componentTitle: '',
+  componentDescription: '',
+};
 
 const WidgetModify = () => {
   const [searchParams] = useSearchParams();
@@ -19,65 +37,46 @@ const WidgetModify = () => {
   const location = useLocation();
   const { fixLayout } = useContext(LayoutContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
-
-  const defaultWidgetInfo: WidgetInfo = {
-    componentId: '',
-    createdAt: '',
-    datasetId: '',
-    datasetType: '',
-    delYn: '',
-    description: '',
-    id: '',
-    option: '',
-    title: '',
-    updatedAt: '',
-    widgetViewId: '',
-    icon: '',
-    componentTitle: '',
-    componentDescription: '',
-  };
-
-  const [widgetInfo, setWidgetInfo] = useState<WidgetInfo>(defaultWidgetInfo);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
-    getWidgetInfo();
     fixLayout(true);
     return () => {
       fixLayout(false);
     };
   }, []);
 
-  /**
-   * 위젯 조회
-   */
-  const getWidgetInfo = () => {
-    showLoading();
-    widgetService
-      .selectWidget(widgetId)
-      .then(response => {
-        setWidgetInfo(response.data.data);
-        // console.log(widgetInfo, 'widgetInfo');
-      })
-      .finally(() => {
-        hideLoading();
-      });
-  };
+  // 위젯 조회
+  const { data: widgetInfo = defaultWidgetInfo } = useQuery<WidgetInfo>({
+    queryKey: ['widget', widgetId],
+    queryFn: async () => (await widgetService.selectWidget(String(widgetId))).data.data,
+    enabled: !!widgetId,
+  });
 
-  const saveWidgetInfo = (option, title) => {
+  // 위젯 저장
+  const saveMutation = useMutation({
+    mutationFn: ({ id, param }: { id: string; param: any }) => widgetService.updateWidget(id, param),
+  });
+
+  const isMutating = saveMutation.isPending;
+  const fetchingCount = useIsFetching();
+  useEffect(() => {
+    if (fetchingCount > 0 || isMutating) {
+      showLoading();
+    } else {
+      hideLoading();
+    }
+  }, [fetchingCount, isMutating]);
+
+  const saveWidgetInfo = async (option, title) => {
     const param = {
       title: title,
       option: option,
     };
-    console.log(option, 'option');
-    showLoading();
-    widgetService
-      .updateWidget(widgetInfo.id, param)
-      .then(() => {
-        navigate((location.state as CustomizedState)?.from || '/widget');
-      })
-      .finally(() => {
-        hideLoading();
-      });
+    await saveMutation.mutateAsync({ id: widgetInfo.id, param });
+    queryClient.invalidateQueries({ queryKey: ['widgets'] });
+    queryClient.invalidateQueries({ queryKey: ['widget', widgetId] });
+    navigate((location.state as CustomizedState)?.from || '/widget');
   };
 
   return (
