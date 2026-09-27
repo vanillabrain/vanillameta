@@ -5,11 +5,13 @@
     "^.+\\.(ts|tsx)?$": "ts-jest"
   },
   "testEnvironment": "jsdom",
+  "setupFiles": ["<rootDir>/jest.env.js"],
   "moduleDirectories": [
     "node_modules",
     "src"
   ],
   "moduleNameMapper": {
+    "\\.(svg|png|jpe?g|gif|webp)$": "<rootDir>/test/assetMock.js",
     "@/(.*)": "<rootDir>/src/$1"
   },
   "testMatch": [
