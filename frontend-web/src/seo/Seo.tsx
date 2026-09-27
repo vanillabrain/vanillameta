@@ -1,8 +1,9 @@
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
+import { BASE_URL as ENV_BASE_URL } from '@/lib/env';
 
 const Seo = props => {
-  const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, '');
+  const BASE_URL = ENV_BASE_URL.replace(/\/$/, '');
   const {
     title = 'VanillaMeta',
     description = '최신 엔터프라이즈용 비즈니스 인텔리전스 웹 애플리케이션, VanillaMeta',

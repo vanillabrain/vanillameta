@@ -11,6 +11,7 @@ import { checkId, checkPwd } from '@/utils/util';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import Seo from '@/seo/Seo';
 import { getToken, setToken } from '@/helpers/authHelper';
+import { VITE_APP_MODE } from '@/lib/env';
 
 const Login = () => {
   const { showLoading, hideLoading } = useContext(LoadingContext);
@@ -23,7 +24,7 @@ const Login = () => {
   });
   let isValid;
   const token = getToken();
-  const APP_MODE = import.meta.env.VITE_APP_MODE;
+  const APP_MODE = VITE_APP_MODE;
 
   useEffect(() => {
     console.log('APP_MODE', APP_MODE);

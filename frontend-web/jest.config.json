@@ -12,6 +12,7 @@
   ],
   "moduleNameMapper": {
     "\\.(svg|png|jpe?g|gif|webp)$": "<rootDir>/test/assetMock.js",
+    "^@/lib/env$": "<rootDir>/src/test/envMock.ts",
     "@/(.*)": "<rootDir>/src/$1"
   },
   "testMatch": [

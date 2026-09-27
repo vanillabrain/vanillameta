@@ -2,9 +2,10 @@ import axios from 'axios';
 import { getToken, removeToken, setToken } from '@/helpers/authHelper';
 import { getShareToken } from '@/helpers/shareHelper';
 import authService from '@/api/authService';
+import { VITE_API_URL } from '@/lib/env';
 
 // apply base url for axios
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = VITE_API_URL;
 
 const instance = axios.create({
   baseURL: API_URL,

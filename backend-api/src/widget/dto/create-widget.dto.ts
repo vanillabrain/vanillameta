@@ -23,8 +23,9 @@ export class CreateWidgetDto {
   @IsNotEmpty()
   datasetType: DatasetType;
 
+  // DATASET 타입은 필수, TABLE 타입은 tableName 으로 대체되어 비어 있을 수 있다.
   @IsNumber()
-  @IsNotEmpty()
+  @IsOptional()
   datasetId: number;
 
   @IsString()
