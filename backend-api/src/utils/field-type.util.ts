@@ -59,6 +59,9 @@ export class FieldTypeUtil {
           const objectList = fieldType.filter(el => typeof(el) === 'object')
           return objectList.length === fieldType.length ? this.FIELD_TYPE_DATE : this.FIELD_TYPE_STRING
               break;
+
+        default:
+          return this.FIELD_TYPE_STRING;
       }
 
 

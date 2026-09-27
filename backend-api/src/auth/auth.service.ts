@@ -71,7 +71,7 @@ export class AuthService {
       });
     } else {
       findToken.refreshToken = token;
-      await this.refreshTokenRepository.save(findToken);
+      return await this.refreshTokenRepository.save(findToken);
     }
     // 로그인시 갱신된 refreshToken 저장
   }

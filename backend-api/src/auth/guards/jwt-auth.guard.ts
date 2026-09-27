@@ -27,6 +27,8 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       if (userInfo) request.user = userInfo;
       return !!userInfo;
     }
+
+    return false;
   }
 
   async validate(payload: any, accessPath: boolean) {
