@@ -1,4 +1,3 @@
-import React from 'react';
 import { IconButton } from '@mui/material';
 import { ReactComponent as IconClose } from '@/assets/images/icon/ic-xmark.svg';
 

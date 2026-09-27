@@ -1,4 +1,3 @@
-import React from 'react';
 import { AppBar, Box, Divider, Hidden, Toolbar } from '@mui/material';
 import { AddMenuIconButton } from '@/components/button/AddIconButton';
 import Logo from './Logo';

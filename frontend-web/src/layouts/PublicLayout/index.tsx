@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import { useContext } from 'react';
 import { Box, Stack } from '@mui/material';
 import Footer from '@/layouts/Footer';
 import { Outlet } from 'react-router-dom';

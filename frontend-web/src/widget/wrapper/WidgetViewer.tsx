@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { Box, Stack, Typography } from '@mui/material';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { renderWidgetViewer } from '@/widget/viewerRegistry';

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Stack, Typography } from '@mui/material';
 import { getAggregationData } from '@/widget/modules/utils/chartUtil';
 

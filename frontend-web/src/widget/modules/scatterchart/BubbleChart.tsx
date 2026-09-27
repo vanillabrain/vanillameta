@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { getGridSize, getLegendOption } from '@/widget/modules/utils/chartUtil';
 

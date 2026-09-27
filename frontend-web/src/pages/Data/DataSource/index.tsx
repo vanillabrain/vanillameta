@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useLayoutEffect, useState } from 'react';
+import { useContext, useEffect, useLayoutEffect, useState } from 'react';
 import { Stack, Typography } from '@mui/material';
 import PageTitleBox from '@/components/PageTitleBox';
 import ImgCardList from '@/components/ImgCardList';

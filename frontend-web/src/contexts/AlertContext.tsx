@@ -1,4 +1,4 @@
-import React, { createContext } from 'react';
+import { createContext } from 'react';
 import AlertTemplate, { SnackbarTemplate } from '@/components/alert';
 import { positions, Provider, transitions } from 'react-alert';
 

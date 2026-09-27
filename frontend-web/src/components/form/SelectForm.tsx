@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box, FormControl, FormLabel, MenuItem, Select, Stack } from '@mui/material';
 
 function SelectForm(props) {

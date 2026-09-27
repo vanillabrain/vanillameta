@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box, Stack, Typography } from '@mui/material';
 import TitleBox from '@/components/TitleBox';
 import SmallCardList from '@/components/SmallCardList';

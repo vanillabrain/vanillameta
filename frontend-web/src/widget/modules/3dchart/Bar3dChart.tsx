@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getAggregationDataForChart } from '@/widget/modules/utils/chartUtil';
 import ReactECharts from 'echarts-for-react';
 import 'echarts-gl';

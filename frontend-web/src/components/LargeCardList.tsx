@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box, Card, CardContent, Typography } from '@mui/material';
 
 const CardWrapper = ({ children, selected, onClick, sx = null }) => {

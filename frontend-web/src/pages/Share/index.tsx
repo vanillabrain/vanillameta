@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Box, Card, Typography } from '@mui/material';
 import WidgetWrapper from '@/widget/wrapper/WidgetWrapper';

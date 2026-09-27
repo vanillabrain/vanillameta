@@ -1,4 +1,3 @@
-import React from 'react';
 import DataLayout from './DataLayout';
 import PageTitleBox from '@/components/PageTitleBox';
 import Seo from '@/seo/Seo';

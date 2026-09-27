@@ -1,4 +1,3 @@
-import React from 'react';
 import DataLayout from '@/pages/Data/DataLayout';
 
 function WidgetDataSelect(props) {

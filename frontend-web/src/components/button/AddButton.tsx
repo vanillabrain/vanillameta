@@ -1,4 +1,3 @@
-import React from 'react';
 import { Button } from '@mui/material';
 import { ReactComponent as IconAdd } from '@/assets/images/icon/ic-add.svg';
 

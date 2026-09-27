@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { Divider, List, Stack, styled, Typography } from '@mui/material';
 import WidgetTitleForm from '@/components/widget/WidgetTitleForm';
 import { ConfirmButton } from '@/components/button/ConfirmCancelButton';

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Helmet } from 'react-helmet-async';
 import { BASE_URL as ENV_BASE_URL } from '@/lib/env';
 

@@ -30,7 +30,7 @@ const Transition = React.forwardRef(function Transition(
 });
 
 function Recommend(props) {
-  const { data, ...rest } = props;
+  const { data } = props;
 
   const [open, setOpen] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);

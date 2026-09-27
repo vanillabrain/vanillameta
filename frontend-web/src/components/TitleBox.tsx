@@ -1,4 +1,3 @@
-import React from 'react';
 import { Divider, Box, Stack, Typography } from '@mui/material';
 
 function TitleBox(props) {

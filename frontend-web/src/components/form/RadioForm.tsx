@@ -1,4 +1,3 @@
-import React from 'react';
 import { FormControl, FormControlLabel, FormLabel, Radio, RadioGroup } from '@mui/material';
 
 function RadioForm(props) {

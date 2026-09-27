@@ -7,13 +7,10 @@ import {
   IconButton,
   MenuItem,
   Select,
-  SelectChangeEvent,
   Stack,
-  Theme,
-  useTheme,
   Popover,
 } from '@mui/material';
-import { SketchPicker, SwatchesPicker } from 'react-color';
+import { SketchPicker } from 'react-color';
 import PaletteIcon from '@mui/icons-material/Palette';
 
 interface SelectChipForm {

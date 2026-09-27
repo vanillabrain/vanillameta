@@ -1,4 +1,3 @@
-import React from 'react';
 import PieChart from '@/widget/modules/piechart/PieChart';
 
 function DonutChart(props) {

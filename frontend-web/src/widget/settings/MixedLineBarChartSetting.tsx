@@ -1,4 +1,3 @@
-import React from 'react';
 import LineChartSetting from '@/widget/settings/LineChartSetting';
 
 function MixedLineBarChartSetting({ ...ChartSettingProps }) {

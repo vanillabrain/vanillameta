@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
 import DatabaseService from '@/api/databaseService';
 import { STATUS } from '@/constant';

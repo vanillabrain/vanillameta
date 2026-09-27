@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Stack, Typography, Box, Card, CardActionArea, IconButton, styled } from '@mui/material';
 import { ArrowBack, ArrowForward } from '@mui/icons-material';
 import { Swiper, SwiperSlide } from 'swiper/react';

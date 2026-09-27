@@ -1,4 +1,3 @@
-import React from 'react';
 import { IconButton } from '@mui/material';
 import { ReactComponent as IconEdit } from '@/assets/images/icon/pen-to-square.svg';
 

@@ -1,4 +1,3 @@
-import React from 'react';
 import { CssBaseline } from '@mui/material';
 import Router from './router';
 import 'tui-grid/dist/tui-grid.css';

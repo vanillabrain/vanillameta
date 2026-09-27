@@ -17,6 +17,7 @@
     "noImplicitThis": true,
     "noImplicitReturns": true,
     "noUnusedParameters": true,
+    "noUnusedLocals": true,
     "forceConsistentCasingInFileNames": true,
     "module": "esnext",
     "moduleResolution": "node",

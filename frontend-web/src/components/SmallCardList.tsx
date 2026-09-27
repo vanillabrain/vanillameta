@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Grid, Card, Typography, CardContent, CardActionArea } from '@mui/material';
 
 function SmallCardList(props) {

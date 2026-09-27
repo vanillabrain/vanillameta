@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box, Link } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import { ReactComponent as IconLogo } from '@/assets/images/logo.svg';
