@@ -1,4 +1,4 @@
-import {IsOptional, IsString} from "class-validator";
+import {IsArray, IsOptional, IsString} from "class-validator";
 import {ItemInfoDto} from "./item-info.dto";
 
 export class CreateTemplateDto {
@@ -7,5 +7,6 @@ export class CreateTemplateDto {
     @IsString()
     @IsOptional()
     readonly description: string;
+    @IsArray()
     readonly layout: ItemInfoDto[];
 }

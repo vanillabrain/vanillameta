@@ -1,4 +1,4 @@
-import {IsNotEmpty, IsNumber, IsOptional, IsString} from "class-validator";
+import {IsDefined, IsNotEmpty, IsNumber, IsOptional, IsString} from "class-validator";
 import {YesNo} from "../../common/enum/yn.enum";
 
 export class CreateComponentDto {
@@ -17,9 +17,9 @@ export class CreateComponentDto {
     @IsNotEmpty()
     category: string
 
-    @IsString()
-    @IsNotEmpty()
-    option: string
+    // 컴포넌트 옵션은 자유 형식(객체)이며 서비스에서 JSON.stringify 하여 저장한다.
+    @IsDefined()
+    option: any
 
     @IsString()
     @IsOptional()
