@@ -32,6 +32,26 @@ export class MetricService {
   async create(dto: CreateMetricDto) {
     try {
       this.validateDefinition(dto);
+      // name 유니크 제약이 soft-delete 행에도 적용되므로, 삭제된 메트릭이면 재활성화
+      const existing = await this.metricRepository.findOne({ where: { name: dto.name } });
+      if (existing) {
+        if (existing.useYn === YesNo.YES) {
+          return { status: ResponseStatus.ERROR, message: '이미 존재하는 메트릭명입니다.' };
+        }
+        await this.metricRepository.update(existing.id, {
+          ...dto,
+          filters: dto.filters ? JSON.stringify(dto.filters) : null,
+          useYn: YesNo.YES,
+        });
+        return {
+          status: ResponseStatus.SUCCESS,
+          data: this.parseFilters({
+            ...existing,
+            ...dto,
+            filters: dto.filters ? JSON.stringify(dto.filters) : null,
+          }),
+        };
+      }
       const metric = this.metricRepository.create({
         ...dto,
         filters: dto.filters ? JSON.stringify(dto.filters) : null,

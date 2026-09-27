@@ -58,6 +58,32 @@ describe('MetricService', () => {
       });
       expect(res.status).toBe(ResponseStatus.ERROR);
     });
+
+    it('같은 이름의 활성 메트릭이 있으면 거부한다', async () => {
+      metricRepository.findOne.mockResolvedValueOnce({ id: 5, name: 'dup', useYn: 'Y' });
+      const res = await service.create({
+        name: 'dup',
+        databaseId: 1,
+        tableName: 'orders',
+        aggregation: MetricAggregation.SUM,
+        expression: 'amount',
+      });
+      expect(res.status).toBe(ResponseStatus.ERROR);
+      expect(res.message).toContain('이미 존재');
+    });
+
+    it('soft-delete된 메트릭과 같은 이름이면 재활성화한다', async () => {
+      metricRepository.findOne.mockResolvedValueOnce({ id: 5, name: 'revived', useYn: 'N' });
+      const res = await service.create({
+        name: 'revived',
+        databaseId: 2,
+        tableName: 'orders',
+        aggregation: MetricAggregation.COUNT,
+        expression: 'amount',
+      });
+      expect(res.status).toBe(ResponseStatus.SUCCESS);
+      expect(metricRepository.update).toHaveBeenCalledWith(5, expect.objectContaining({ useYn: 'Y' }));
+    });
   });
 
   describe('evaluate', () => {
