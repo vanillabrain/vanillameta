@@ -14,7 +14,6 @@ export class DashboardController {
   @ApiBearerAuth('AccessKey')
   create(@Body() createDashboardDto: CreateDashboardDto, @Req() req) {
     const { accessKeyData } = req.user;
-    console.log('asdf', accessKeyData)
     return this.dashboardService.create(createDashboardDto, accessKeyData.id);
   }
 
@@ -27,19 +26,19 @@ export class DashboardController {
 
   @Get(':id')
   @ApiBearerAuth('AccessKey')
-  findOne(@Param('id') id: string) {
-    return this.dashboardService.findOne(+id);
+  findOne(@Param('id') id: string, @Req() req) {
+    return this.dashboardService.findOne(+id, req.user.accessKeyData.id);
   }
 
   @Put(':id')
   @ApiBearerAuth('AccessKey')
-  update(@Param('id') id: string, @Body() updateDashboardDto: UpdateDashboardDto) {
-    return this.dashboardService.update(+id, updateDashboardDto);
+  update(@Param('id') id: string, @Body() updateDashboardDto: UpdateDashboardDto, @Req() req) {
+    return this.dashboardService.update(+id, updateDashboardDto, req.user.accessKeyData.id);
   }
 
   @Delete(':id')
   @ApiBearerAuth('AccessKey')
-  remove(@Param('id') id: string) {
-    return this.dashboardService.remove(+id);
+  remove(@Param('id') id: string, @Req() req) {
+    return this.dashboardService.remove(+id, req.user.accessKeyData.id);
   }
 }

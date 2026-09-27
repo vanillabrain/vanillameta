@@ -8,6 +8,7 @@ import { YesNo } from '../common/enum/yn.enum.js';
 import { ShareUrlOnDto } from './dto/create-share-url.dto';
 import { DashboardService } from '../dashboard/dashboard.service';
 import { DashboardShare } from 'src/dashboard/entities/dashboard_share.entity';
+import { UserMapping } from 'src/user/entities/user-mapping.entity';
 
 @Injectable()
 export class ShareUrlService {
@@ -17,13 +18,28 @@ export class ShareUrlService {
     @InjectRepository(DashboardShare) private dashboardShareRepository: Repository<DashboardShare>,
     private readonly authService: AuthService,
     private readonly dashboardService: DashboardService,
+    @InjectRepository(UserMapping)
+    private readonly userMappingRepository: Repository<UserMapping>,
   ) {}
+
+  /**
+   * 대시보드 소유자 검증. 매핑이 없으면 403.
+   */
+  private async assertOwnership(dashboardId: number, userInfoId: number) {
+    const mapping = await this.userMappingRepository.findOne({
+      where: { dashboardId, userInfoId },
+    });
+    if (!mapping) {
+      throw new HttpException('forbidden', HttpStatus.FORBIDDEN);
+    }
+  }
 
   async checkShareUrlOn(userId: string, dashboardId: number, shareUrlOnDto: ShareUrlOnDto) {
     const findUser = await this.userRepository.findOne({ where: { userId: userId } });
     if (!findUser) {
       return 'not exist user';
     } else {
+      await this.assertOwnership(dashboardId, findUser.id);
       const split = shareUrlOnDto.endDate.split('/');
       const dateForm = `${split[2]}-${split[0]}-${split[1]}`;
 
@@ -46,6 +62,7 @@ export class ShareUrlService {
     if (!findUser) {
       return 'not exist user';
     } else {
+      await this.assertOwnership(dashboardId, findUser.id);
       const findDashboard = await this.dashboardRepository.findOne({ where: { id: dashboardId } });
       const findDashboardShare = await this.dashboardShareRepository.findOne({
         where: { id: findDashboard.shareId },

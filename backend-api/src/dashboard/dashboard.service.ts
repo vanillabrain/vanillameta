@@ -30,6 +30,18 @@ export class DashboardService {
     private readonly authService: AuthService,
   ) {}
 
+  /**
+   * 대시보드 소유자 검증. 매핑이 없으면 403.
+   */
+  private async assertOwnership(dashboardId: number, userId: number) {
+    const mapping = await this.userMappingRepository.findOne({
+      where: { dashboardId, userInfoId: userId },
+    });
+    if (!mapping) {
+      throw new HttpException('forbidden', HttpStatus.FORBIDDEN);
+    }
+  }
+
   async create(createDashboardDto: CreateDashboardDto, accessToken: number) {
     const userData = await this.userRepository.findOne({
       where: { id: accessToken },
@@ -46,7 +58,6 @@ export class DashboardService {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    console.log('test', share_id);
     const saveObj = {
       title: createDashboardDto.title,
       layout: JSON.stringify(createDashboardDto.layout),
@@ -93,12 +104,10 @@ export class DashboardService {
     if (!findUser) {
       return 'not exist user';
     }
-    console.log(findUser)
     const findId = findUser.map(el => el['dashboardId']);
     if (findId === null) {
       throw new HttpException('not found', HttpStatus.NOT_FOUND);
     }
-    console.log(findId)
     const find_all = [];
     for (let i = 0; findId.length > i; i++) {
       find_all.push(
@@ -112,14 +121,16 @@ export class DashboardService {
       );
     }
     find_all.forEach(el => {
-      console.log('adf,', el)
       el.layout = JSON.parse(el.layout);
     });
     return { status: ResponseStatus.SUCCESS, data: find_all };
   }
   // 기존 dashboard all
 
-  async findOne(id: number) {
+  async findOne(id: number, userId?: number) {
+    if (userId !== undefined) {
+      await this.assertOwnership(id, userId);
+    }
 
     const find_dashboard = await this.dashboardRepository.findOne({ where: { id: id } });
     if (!find_dashboard) {
@@ -127,20 +138,22 @@ export class DashboardService {
     }
 
     const widgetList = await this.dashboardWidgetService.findWidgets(find_dashboard.id);
-    console.log('widgetList', widgetList)
     find_dashboard.layout = JSON.parse(find_dashboard.layout);
     const find_share_id = await this.dashboardShareRepository.findOne({
       where: { id: find_dashboard.shareId },
     });
     const return_obj = Object.assign(find_dashboard, find_share_id, { widgets: widgetList });
-    console.log(return_obj)
     return {
       status: ResponseStatus.SUCCESS,
       data: return_obj,
     };
   }
 
-  async update(id: number, updateDashboardDto: UpdateDashboardDto) {
+  async update(id: number, updateDashboardDto: UpdateDashboardDto, userId?: number) {
+    if (userId !== undefined) {
+      await this.assertOwnership(id, userId);
+    }
+
     const find_dashboard = await this.dashboardRepository.findOne({ where: { id: id } });
 
     if (!find_dashboard) {
@@ -171,7 +184,11 @@ export class DashboardService {
     }
   }
 
-  async remove(id: number) {
+  async remove(id: number, userId?: number) {
+    if (userId !== undefined) {
+      await this.assertOwnership(id, userId);
+    }
+
     const find_dashboard = await this.dashboardRepository.findOne({ where: { id: id } });
     if (!find_dashboard) {
       return { status: ResponseStatus.ERROR, message: 'No exist dashboard' };
