@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { ListItem, ListItemText } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import { handleChange } from '@/widget/utils/handler';
@@ -6,6 +7,7 @@ import { AGGREGATION_LIST, COLUMN_TYPE, DISPLAY_LIST } from '@/constant';
 import ColorFieldForm from '@/components/form/ColorFieldForm';
 
 const HeatmapChartSetting = props => {
+  const { t } = useTranslation();
   const { option, setOption, spec } = props;
 
   console.log(option, 'option');
@@ -13,11 +15,11 @@ const HeatmapChartSetting = props => {
   return (
     <React.Fragment>
       <ListItem divider>
-        <ListItemText primary="카테고리 설정" sx={{ textTransform: 'uppercase' }} />
+        <ListItemText primary={t('settings.category')} sx={{ textTransform: 'uppercase' }} />
         <SelectForm
           id="xField"
           name="xField"
-          label="x축"
+          label={t('settings.xAxis')}
           optionList={spec.map(item => item.columnName)}
           labelField="columnName"
           valueField="columnType"
@@ -27,7 +29,7 @@ const HeatmapChartSetting = props => {
         <SelectForm
           id="yField"
           name="yField"
-          label="y축"
+          label={t('settings.yAxis')}
           optionList={spec.map(item => item.columnName)}
           labelField="columnName"
           valueField="columnType"
@@ -36,12 +38,12 @@ const HeatmapChartSetting = props => {
         />
       </ListItem>
       <ListItem divider>
-        <ListItemText primary="시리즈 설정" />
+        <ListItemText primary={t('settings.series')} />
         <SelectForm
           required={true}
           id="series"
           name="series"
-          label="필드"
+          label={t('settings.field')}
           labelField="columnName"
           valueField="columnType"
           optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
@@ -51,22 +53,22 @@ const HeatmapChartSetting = props => {
         <SelectForm
           id="aggregation"
           name="aggregation"
-          label="집계 방식"
-          optionList={AGGREGATION_LIST}
+          label={t('settings.aggregation')}
+          optionList={AGGREGATION_LIST(t)}
           value={option.aggregation}
           onChange={event => handleChange(event, setOption)}
           disabledDefaultValue
         />
         <SelectForm
           name="label"
-          label="넘버 레이블"
-          optionList={DISPLAY_LIST}
+          label={t('settings.numberLabel')}
+          optionList={DISPLAY_LIST(t)}
           value={option.label}
           onChange={event => handleChange(event, setOption)}
         />
       </ListItem>
       <ListItem>
-        <ListItemText primary="색상 범위 설정" />
+        <ListItemText primary={t('settings.colorRange')} />
         {option.color.map((item, index) => (
           <React.Fragment key={index}>
             <ColorFieldForm

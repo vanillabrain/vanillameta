@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Stack, Typography } from '@mui/material';
 import { getAggregationData } from '@/widget/modules/utils/chartUtil';
 
 const NumericBoard = props => {
+  const { t } = useTranslation();
   const { option, dataSet, sx } = props;
 
   const defaultComponentOption = {
-    header: { title: '제목입니다', fontSize: 16, color: '#cccccc' },
+    header: { title: t('common.defaultTitle'), fontSize: 16, color: '#cccccc' },
     content: { field: null, aggregation: null, fontSize: 16, color: '#cccccc', prefix: '', suffix: '' },
   };
 

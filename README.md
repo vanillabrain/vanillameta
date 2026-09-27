@@ -46,13 +46,29 @@
 
 ## 설치하기
 
-
 ```
+# 루트에서 한 번에
+npm run install:all
+
+# 또는 개별 설치
 cd ~/vanillameta/backend-api/ npm install
 cd ~/vanillameta/frontend-web/ npm install
 ```
 
 ## 시작하기
+
+### Docker Compose (권장)
+
+```
+# MySQL만 띄우고 앱은 로컬에서 실행
+docker compose up mysql
+
+# 전체 스택 (mysql + seed + backend + frontend)
+docker compose --profile app up
+```
+
+### 로컬에서 직접 실행
+
 ```
 cd 현재위치/vanillameta/backend-api/ npm run seed:run 완료 후
 cd 현재위치/vanillameta/backend-api/ npm run start
@@ -60,6 +76,9 @@ cd 현재위치/vanillameta/backend-api/ npm run start
 새로운 터미널에서
 cd 현재위치/vanillameta/frontend-web/ npm run start
 ```
+
+> 백엔드 환경변수는 `backend-api/.env.example` 참조. 최소 `ACCESS_SECRET`,
+> `REFRESH_SECRET`, `URL_ACCESS_SECRET`, `CONFIG_SECRET_KEY`, `CORS_ORIGIN` 설정 필요.
 실행 후 localhost:3000경로에서
 ![로그인 화면](https://user-images.githubusercontent.com/83908329/219256208-2c8fab3e-751d-4612-bda0-158dd4309032.png)
 화면이 뜬다면 성공 !

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Divider, ListItem, ListItemText } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import { handleChange, handleSeriesChange } from '@/widget/utils/handler';
@@ -6,17 +7,18 @@ import { AGGREGATION_LIST, COLUMN_TYPE, DISPLAY_LIST, LEGEND_LIST } from '@/cons
 import ColorFieldForm from '@/components/form/ColorFieldForm';
 
 const WaterfallChartSetting = props => {
+  const { t } = useTranslation();
   const { option, setOption, axis = 'x', spec } = props;
 
   return (
     <React.Fragment>
       <ListItem divider>
-        <ListItemText primary="카테고리 설정" sx={{ textTransform: 'uppercase' }} />
+        <ListItemText primary={t('settings.category')} sx={{ textTransform: 'uppercase' }} />
         <SelectForm
           required={true}
           id={axis + 'Field'}
           name={axis + 'Field'}
-          label={axis + '축'}
+          label={axis + t('settings.axis')}
           optionList={spec.map(item => item.columnName)}
           labelField="columnName"
           valueField="columnType"
@@ -25,12 +27,12 @@ const WaterfallChartSetting = props => {
         />
       </ListItem>
       <ListItem divider>
-        <ListItemText primary="시리즈 설정" />
+        <ListItemText primary={t('settings.series')} />
         <SelectForm
           required={true}
           id="field"
           name="field"
-          label="필드"
+          label={t('settings.field')}
           labelField="columnName"
           valueField="columnType"
           optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
@@ -40,8 +42,8 @@ const WaterfallChartSetting = props => {
         <SelectForm
           id="aggregation"
           name="aggregation"
-          label="집계 방식"
-          optionList={AGGREGATION_LIST}
+          label={t('settings.aggregation')}
+          optionList={AGGREGATION_LIST(t)}
           value={option.series[0].aggregation}
           onChange={event => handleSeriesChange(event, setOption)}
           disabledDefaultValue
@@ -49,14 +51,14 @@ const WaterfallChartSetting = props => {
         <Divider />
         <SelectForm
           name="mark"
-          label="마크 포인트"
-          optionList={DISPLAY_LIST}
+          label={t('settings.markPoint')}
+          optionList={DISPLAY_LIST(t)}
           value={option.mark}
           onChange={event => handleChange(event, setOption)}
         />
       </ListItem>
       <ListItem divider>
-        <ListItemText primary="색상 설정" />
+        <ListItemText primary={t('settings.colorSetting')} />
         {option.color.map((item, index) => (
           <React.Fragment key={index}>
             <ColorFieldForm
@@ -71,12 +73,12 @@ const WaterfallChartSetting = props => {
         ))}
       </ListItem>
       <ListItem>
-        <ListItemText>범례 설정</ListItemText>
+        <ListItemText>{t('settings.legend')}</ListItemText>
         <SelectForm
           id="legendPosition"
           name="legendPosition"
-          label="위치"
-          optionList={LEGEND_LIST}
+          label={t('settings.position')}
+          optionList={LEGEND_LIST(t)}
           value={option.legendPosition}
           onChange={event => handleChange(event, setOption)}
         />

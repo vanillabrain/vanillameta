@@ -13,11 +13,12 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material';
-import { ReactComponent as IconShare } from '@/assets/images/icon/ic-share.svg';
-import { ReactComponent as IconToggleOn } from '@/assets/images/icon/toggle-on.svg';
-import { ReactComponent as IconToggleOff } from '@/assets/images/icon/toggle-off.svg';
-import { ReactComponent as IconLink } from '@/assets/images/icon/ic-link.svg';
+import IconShare from '@/assets/images/icon/ic-share.svg?react';
+import IconToggleOn from '@/assets/images/icon/toggle-on.svg?react';
+import IconToggleOff from '@/assets/images/icon/toggle-off.svg?react';
+import IconLink from '@/assets/images/icon/ic-link.svg?react';
 import { useAlert } from 'react-alert';
+import { useTranslation } from 'react-i18next';
 import DatePicker from '@/components/form/DatePicker';
 
 interface ShareButtonProps {
@@ -40,26 +41,44 @@ const paperSx: SxProps = {
 };
 
 const ShareOnPopup = forwardRef((props: SharePopupProps, ref: Ref<HTMLDivElement>) => {
+  const { t } = useTranslation();
   const { matches, handleShareToggle, shareLimitDate, shareId } = props;
   const alert = useAlert();
   const shareLink = `${window.location.origin}/share/${shareId ? shareId : ''}`;
+  const embedCode = `<iframe src="${window.location.origin}/embed/${
+    shareId ? shareId : ''
+  }" width="100%" height="600" frameborder="0"></iframe>`;
 
   const handleCopyClick = async () => {
     await navigator.clipboard
       .writeText(shareLink)
       .then(() => {
-        alert.success('클립보드에 링크가 복사되었습니다.');
+        alert.success(t('share.linkCopied'));
       })
       .catch(error => {
         console.log(error);
-        alert.error('링크 복사에 실패했습니다.\n다시 시도해 주세요.');
+        alert.error(t('share.linkCopyFailed'));
+      });
+  };
+
+  const handleEmbedCopyClick = async () => {
+    await navigator.clipboard
+      .writeText(embedCode)
+      .then(() => {
+        alert.success(t('share.embedCopied'));
+      })
+      .catch(error => {
+        console.log(error);
+        alert.error(t('share.embedCopyFailed'));
       });
   };
 
   return matches ? (
     <Paper sx={{ ...paperSx, minWidth: '410px' }} ref={ref}>
       <Stack sx={{ width: '100%', padding: '24px' }}>
-        <Typography sx={{ mb: '6px', fontSize: '16px', fontWeight: 600, color: '#141414' }}>페이지 공유</Typography>
+        <Typography sx={{ mb: '6px', fontSize: '16px', fontWeight: 600, color: '#141414' }}>
+          {t('share.pageShare')}
+        </Typography>
         <Stack
           component="form"
           onSubmit={event => {
@@ -71,26 +90,35 @@ const ShareOnPopup = forwardRef((props: SharePopupProps, ref: Ref<HTMLDivElement
           alignItems="center"
           mb="3px"
         >
-          <Typography sx={{ mr: '12px', fontSize: '14px', color: '#141414' }}>링크를 통한 읽기를 허용합니다.</Typography>
+          <Typography sx={{ mr: '12px', fontSize: '14px', color: '#141414' }}>{t('share.allowRead')}</Typography>
           <IconButton type="submit" sx={{ minWidth: '44px', width: '44px', height: '24px', m: 0, p: 0 }}>
             <IconToggleOn />
           </IconButton>
         </Stack>
         <Typography>
-          설정하신&nbsp;
+          {t('share.untilPrefix')}
           <Box component="span" sx={{ color: '#0f5ab2' }}>
             {shareLimitDate}
           </Box>
-          까지&nbsp;
+          {t('share.untilMiddle')}
           <Box component="span" sx={{ fontWeight: 600, color: '#0f5ab2' }}>
-            공유중
+            {t('share.sharingTag')}
           </Box>
-          입니다.
+          {t('share.untilSuffix')}
         </Typography>
         <Stack direction="row" justifyContent="space-between" mt="18px">
           <TextField sx={{ width: '298px', height: '32px' }} disabled value={shareLink} />
           <Button variant="contained" sx={{ minWidth: '55px' }} onClick={handleCopyClick}>
-            복사
+            {t('share.copy')}
+          </Button>
+        </Stack>
+        <Typography sx={{ mt: '16px', mb: '6px', fontSize: '13px', fontWeight: 600, color: '#141414' }}>
+          {t('share.embedCode')}
+        </Typography>
+        <Stack direction="row" justifyContent="space-between">
+          <TextField sx={{ width: '298px' }} size="small" multiline rows={3} disabled value={embedCode} />
+          <Button variant="contained" sx={{ minWidth: '55px' }} onClick={handleEmbedCopyClick}>
+            {t('share.copy')}
           </Button>
         </Stack>
       </Stack>
@@ -109,14 +137,14 @@ const ShareOnPopup = forwardRef((props: SharePopupProps, ref: Ref<HTMLDivElement
           alignItems="center"
           sx={{ mb: '22px' }}
         >
-          <Typography sx={{ fontSize: '16px', fontWeight: 600, color: '#141414' }}>페이지 공유 중</Typography>
+          <Typography sx={{ fontSize: '16px', fontWeight: 600, color: '#141414' }}>{t('share.sharing')}</Typography>
           <IconButton type="submit" sx={{ minWidth: '44px', width: '44px', height: '24px', m: 0, p: 0 }}>
             <IconToggleOn />
           </IconButton>
         </Stack>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Typography sx={{ fontSize: '14px', color: '#141414' }}>
-            공유 기한:
+            {t('share.expiry')}
             <Box component="span" sx={{ ml: '4px', fontWeight: 'bold', color: '#333' }}>
               {shareLimitDate}
             </Box>
@@ -135,12 +163,15 @@ const ShareOnPopup = forwardRef((props: SharePopupProps, ref: Ref<HTMLDivElement
 });
 
 const ShareOffPopup = forwardRef((props: SharePopupProps, ref: Ref<HTMLDivElement>) => {
+  const { t } = useTranslation();
   const { matches, handleShareToggle, shareLimitDate, setShareLimitDate } = props;
 
   return matches ? (
     <Paper sx={{ ...paperSx, minWidth: '410px' }} ref={ref}>
       <Stack sx={{ width: '100%', padding: '24px' }}>
-        <Typography sx={{ mb: '6px', fontSize: '16px', fontWeight: 600, color: '#141414' }}>페이지 공유</Typography>
+        <Typography sx={{ mb: '6px', fontSize: '16px', fontWeight: 600, color: '#141414' }}>
+          {t('share.pageShare')}
+        </Typography>
         <Stack
           component="form"
           onSubmit={event => {
@@ -152,16 +183,14 @@ const ShareOffPopup = forwardRef((props: SharePopupProps, ref: Ref<HTMLDivElemen
           alignItems="center"
           mb="16px"
         >
-          <Typography sx={{ mr: '12px', fontSize: '14px', color: '#141414' }}>
-            링크를 통한 읽기를 허용하지 않습니다.
-          </Typography>
+          <Typography sx={{ mr: '12px', fontSize: '14px', color: '#141414' }}>{t('share.disallowRead')}</Typography>
           <IconButton type="submit" sx={{ minWidth: '44px', width: '44px', height: '24px', m: 0, p: 0 }}>
             <IconToggleOff />
           </IconButton>
         </Stack>
         <Stack sx={{ flexDirection: 'row', alignItems: 'center' }}>
           <Typography component="span" mr="8px">
-            공유 기한:
+            {t('share.expiry')}
           </Typography>
           <DatePicker shareLimitDate={shareLimitDate} setShareLimitDate={setShareLimitDate} />
         </Stack>
@@ -181,13 +210,13 @@ const ShareOffPopup = forwardRef((props: SharePopupProps, ref: Ref<HTMLDivElemen
           alignItems="center"
           sx={{ mb: '22px' }}
         >
-          <Typography sx={{ fontSize: '16px', fontWeight: 600, color: '#141414' }}>페이지 공유하지 않음</Typography>
+          <Typography sx={{ fontSize: '16px', fontWeight: 600, color: '#141414' }}>{t('share.notSharing')}</Typography>
           <IconButton type="submit" sx={{ minWidth: '44px', width: '44px', height: '24px', m: 0, p: 0 }}>
             <IconToggleOff />
           </IconButton>
         </Stack>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Typography sx={{ fontSize: '14px', color: '#141414' }}>공유 기한:</Typography>
+          <Typography sx={{ fontSize: '14px', color: '#141414' }}>{t('share.expiry')}</Typography>
           <DatePicker shareLimitDate={shareLimitDate} setShareLimitDate={setShareLimitDate} />
         </Stack>
       </Stack>

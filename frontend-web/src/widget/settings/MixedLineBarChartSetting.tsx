@@ -1,10 +1,12 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import LineChartSetting from '@/widget/settings/LineChartSetting';
 
 function MixedLineBarChartSetting({ ...ChartSettingProps }) {
+  const { t } = useTranslation();
   const chartTypeList = [
-    { value: 'line', label: '선형' },
-    { value: 'bar', label: '막대형' },
+    { value: 'line', label: t('settings.lineType') },
+    { value: 'bar', label: t('settings.barType') },
   ];
 
   return (
@@ -14,7 +16,7 @@ function MixedLineBarChartSetting({ ...ChartSettingProps }) {
         required: true,
         id: 'type',
         name: 'type',
-        label: '종류',
+        label: t('settings.kind'),
         optionList: chartTypeList,
         value: 'type',
       }}

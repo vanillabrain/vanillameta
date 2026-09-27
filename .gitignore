@@ -275,3 +275,8 @@ bigquery-key.json
 test-connect-info.json
 cert.pem
 key.pem
+# 업로드된 파일 데이터소스
+uploads/
+
+# agent tooling
+.commandcode/

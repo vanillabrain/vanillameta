@@ -80,8 +80,8 @@ describe('QTT-003: 시각화 종류', () => {
   it.each(testData)(
     'QTT-003-%s',
     async (name: string, dashboardTitle: string, componentList: number[]) => {
-      let findWidgetInfo = await widgetService.findAll();
-      let widgetIdList = [];
+      const findWidgetInfo = await widgetService.findAll();
+      const widgetIdList = [];
       for (let i = 0; i < componentList.length; i++) {
         const tempWidgetObj = findWidgetInfo.data.find(
           item => item.componentId === componentList[i],

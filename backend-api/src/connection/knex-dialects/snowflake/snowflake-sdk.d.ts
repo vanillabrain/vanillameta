@@ -1,1 +1,1 @@
-declare module "snowflake-sdk";
+declare module 'snowflake-sdk';

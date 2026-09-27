@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from '@mui/material';
-import { ReactComponent as IconAdd } from '@/assets/images/icon/ic-add.svg';
+import IconAdd from '@/assets/images/icon/ic-add.svg?react';
 
 const AddButton = ({ sx = null, ...props }) => {
   return (

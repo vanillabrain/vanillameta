@@ -13,37 +13,37 @@ const expectData = {
     max: 99,
     min: 0,
     sum: 29055,
-    avg: 34.589286,
+    avg: 34.6,
   },
   vcost: {
     max: 180,
     min: 2,
     sum: 40119,
-    avg: 47.760714,
+    avg: 47.8,
   },
   travel: {
     max: 1440,
     min: 63,
     sum: 408379,
-    avg: 486.165476,
+    avg: 486.2,
   },
   gcost: {
     max: 269,
     min: 30,
     sum: 93139,
-    avg: 110.879762,
+    avg: 110.9,
   },
   income: {
     max: 72,
     min: 2,
     sum: 29020,
-    avg: 34.547619,
+    avg: 34.5,
   },
   size: {
     max: 6,
     min: 1,
     sum: 1464,
-    avg: 1.742857,
+    avg: 1.7,
   },
 };
 

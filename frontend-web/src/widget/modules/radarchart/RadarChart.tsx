@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import ReactECharts from 'echarts-for-react';
 import { getAggregationDataForChart, getCenter, getLegendOption } from '@/widget/modules/utils/chartUtil';
 import { AGGREGATION_LIST } from '@/constant';
 
 const RadarChart = props => {
+  const { t } = useTranslation();
   const { option, dataSet, seriesOp, defaultOp, createOp } = props;
 
   const [componentOption, setComponentOption] = useState({});
@@ -49,7 +51,7 @@ const RadarChart = props => {
           name:
             (item?.fieldLabel ? item.fieldLabel : item.field) +
             (option?.legendAggregation
-              ? ` (${AGGREGATION_LIST.find(element => element.value === item.aggregation).label})`
+              ? ` (${AGGREGATION_LIST(t).find(element => element.value === item.aggregation).label})`
               : ''),
           itemStyle: {
             color: item.color,

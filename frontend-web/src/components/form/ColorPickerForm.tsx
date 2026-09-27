@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FormControl, IconButton, Popover } from '@mui/material';
 import { SketchPicker } from 'react-color';
 import PaintButton from '@/components/button/PaintButton';
 
 const ColorPickerForm = props => {
+  const { t } = useTranslation();
   const { name, color, onChange } = props;
 
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
@@ -23,11 +25,11 @@ const ColorPickerForm = props => {
   };
 
   const open = Boolean(anchorEl);
-  const popoverId = open ? '색상 선택 팝업' : undefined;
+  const popoverId = open ? t('common.colorPickerPopup') : undefined;
 
   return (
     <FormControl sx={{ alignItems: 'flex-end', justifyContent: 'center' }}>
-      <IconButton aria-label="색상 선택" onClick={handleClick}>
+      <IconButton aria-label={t('common.colorPicker')} onClick={handleClick}>
         <PaintButton color={color} />
       </IconButton>
       <Popover

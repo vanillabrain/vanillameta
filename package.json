@@ -1,0 +1,26 @@
+{
+  "name": "vanillameta",
+  "version": "0.1.0",
+  "private": true,
+  "description": "VanillaMeta - open source BI & data visualization platform",
+  "scripts": {
+    "install:all": "npm --prefix backend-api install --legacy-peer-deps && npm --prefix frontend-web install --legacy-peer-deps",
+    "dev:backend": "npm --prefix backend-api run start:local",
+    "dev:frontend": "npm --prefix frontend-web run start:local",
+    "build": "npm --prefix backend-api run build && npm --prefix frontend-web run build",
+    "lint": "npm --prefix backend-api run lint && npm --prefix frontend-web run lint",
+    "test": "npm --prefix backend-api test && npm --prefix frontend-web test -- --watchAll=false",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.0",
+    "lint-staged": "^15.2.0",
+    "prettier": "^3.3.0",
+    "turbo": "^2.1.0"
+  },
+  "lint-staged": {
+    "backend-api/**/*.ts": "prettier --write",
+    "frontend-web/**/*.{ts,tsx,js,jsx}": "prettier --write",
+    "*.{json,md,yml,yaml}": "prettier --write"
+  }
+}

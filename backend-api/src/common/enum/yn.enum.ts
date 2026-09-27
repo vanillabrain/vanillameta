@@ -1,5 +1,4 @@
 export const YesNo = {
-    YES: 'Y',
-    NO: 'N'
-}
-
+  YES: 'Y',
+  NO: 'N',
+};

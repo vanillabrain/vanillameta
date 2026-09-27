@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { ListItem, ListItemText, Divider } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import ColorPickerForm from '@/components/form/ColorPickerForm';
@@ -8,6 +9,7 @@ import TextFieldForm from '@/components/form/TextFieldForm';
 const fontSizeList = [10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 40, 50, 60, 70, 80, 85, 90, 95, 100];
 
 const NumericBoardSetting = props => {
+  const { t } = useTranslation();
   const { option, setOption, spec } = props;
 
   const handleHeaderChange = event => {
@@ -27,9 +29,9 @@ const NumericBoardSetting = props => {
   return (
     <React.Fragment>
       <ListItem divider>
-        <ListItemText primary="메시지 설정" />
+        <ListItemText primary={t('settings.messageSetting')} />
         <TextFieldForm
-          label="메시지 입력"
+          label={t('settings.messageInput')}
           name="title"
           required={true}
           value={option.header.title}
@@ -37,7 +39,7 @@ const NumericBoardSetting = props => {
         />
         <SelectForm
           name="fontSize"
-          label="사이즈 및 색상"
+          label={t('settings.sizeColor')}
           optionList={fontSizeList}
           value={option.header.fontSize}
           onChange={handleHeaderChange}
@@ -45,19 +47,19 @@ const NumericBoardSetting = props => {
         />
         <SelectForm
           name="titleHidden"
-          label="위젯 이름 숨기기"
-          optionList={HIDDEN_LIST}
+          label={t('settings.hideTitle')}
+          optionList={HIDDEN_LIST(t)}
           value={option.header.titleHidden}
           onChange={handleHeaderChange}
         />
       </ListItem>
       <ListItem>
-        <ListItemText primary="숫자값 설정" />
+        <ListItemText primary={t('settings.numberValue')} />
         <SelectForm
           required={true}
           id="field"
           name="field"
-          label="필드"
+          label={t('settings.field')}
           labelField="columnName"
           valueField="columnType"
           optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
@@ -67,8 +69,8 @@ const NumericBoardSetting = props => {
         <SelectForm
           id="aggregation"
           name="aggregation"
-          label="집계 방식"
-          optionList={AGGREGATION_LIST}
+          label={t('settings.aggregation')}
+          optionList={AGGREGATION_LIST(t)}
           value={option.content.aggregation}
           onChange={handleContentChange}
           disabledDefaultValue
@@ -76,7 +78,7 @@ const NumericBoardSetting = props => {
         <Divider />
         <SelectForm
           name="fontSize"
-          label="사이즈 및 색상"
+          label={t('settings.sizeColor')}
           optionList={fontSizeList}
           value={option.content.fontSize}
           onChange={handleContentChange}
@@ -84,8 +86,8 @@ const NumericBoardSetting = props => {
         />
         <SelectForm
           name="numForm"
-          label="숫자 서식"
-          optionList={DISPLAY_LIST}
+          label={t('settings.numberFormat')}
+          optionList={DISPLAY_LIST(t)}
           value={option.content.numForm}
           onChange={handleContentChange}
         />

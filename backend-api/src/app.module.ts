@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DatabaseModule } from './database/database.module';
 import { DatasetModule } from './dataset/dataset.module';
@@ -15,12 +17,19 @@ import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { LoginModule } from './login/login.module';
 import { ShareUrlModule } from './share-url/share-url.module';
+import { AiModule } from './ai/ai.module';
+import { MetricModule } from './metric/metric.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: process.env.NODE_ENV == 'prod' ? '.env' : '.env.dev',
+    }),
+
+    ThrottlerModule.forRoot({
+      ttl: parseInt(process.env.THROTTLE_TTL) || 60,
+      limit: parseInt(process.env.THROTTLE_LIMIT) || 120,
     }),
 
     TypeOrmModule.forRoot({
@@ -48,8 +57,16 @@ import { ShareUrlModule } from './share-url/share-url.module';
     AuthModule,
     LoginModule,
     ShareUrlModule,
+    AiModule,
+    MetricModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}

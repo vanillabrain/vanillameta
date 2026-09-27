@@ -4,7 +4,7 @@ import { getShareToken } from '@/helpers/shareHelper';
 import authService from '@/api/authService';
 
 // apply base url for axios
-const API_URL = process.env.REACT_APP_API_URL;
+const API_URL = import.meta.env.REACT_APP_API_URL;
 
 const instance = axios.create({
   baseURL: API_URL,
@@ -150,6 +150,10 @@ function onAccessTokenFetched(accessToken) {
 
 export async function get(url, data?, config = {}) {
   return instance.get(url, { params: { ...data }, ...config });
+}
+
+export async function postForm(url, data: FormData, config = {}) {
+  return instance.post(url, data, { ...config, headers: { 'Content-Type': undefined } });
 }
 
 export async function post(url, data?, config = {}) {

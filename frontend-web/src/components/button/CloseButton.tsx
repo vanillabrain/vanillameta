@@ -1,6 +1,6 @@
 import React from 'react';
 import { IconButton } from '@mui/material';
-import { ReactComponent as IconClose } from '@/assets/images/icon/ic-xmark.svg';
+import IconClose from '@/assets/images/icon/ic-xmark.svg?react';
 
 const CloseButton = props => {
   return (

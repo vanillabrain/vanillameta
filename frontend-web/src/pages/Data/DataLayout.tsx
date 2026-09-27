@@ -1,7 +1,8 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Stack, Typography } from '@mui/material';
+import { Button, Stack, Typography } from '@mui/material';
 import DatabaseService from '@/api/databaseService';
 import { STATUS } from '@/constant';
+import { useTranslation } from 'react-i18next';
 import { useAlert } from 'react-alert';
 import { DatabaseCardList } from '@/components/list/DatabaseCardList';
 import { DatasetCardList } from '@/components/list/DatasetCardList';
@@ -11,6 +12,7 @@ import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import { Loading } from '@/components/loading';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import ModalPopup from '@/components/ModalPopup';
 import { createColumns } from '@/utils/util';
 import DataGrid, { DataGridWrapper } from '@/components/datagrid';
@@ -46,71 +48,75 @@ export interface DataTableProps {
 }
 
 const DataLayout = props => {
+  const { t } = useTranslation();
   const { isViewMode, setDataSet } = props;
-  const [databaseList, setDatabaseList] = useState<DatabaseProps[] | []>([]);
-  const [datasetList, setDatasetList] = useState<DataSetProps[] | []>([]);
-  const [tableList, setTableList] = useState<DataTableProps[] | []>([]);
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
   const navigate = useNavigate();
   const { loading, showLoading, hideLoading } = useContext(LoadingContext);
+  const queryClient = useQueryClient();
   const [selectedDatabase, setSelectedDatabase] = useState<DatabaseProps>({ id: null, name: null });
   const [selectedDataset, setSelectedDataset] = useState<DataSetProps | DataTableProps | null>(null);
   const [open, setOpen] = useState(false);
   const [gridData, setGridData] = useState<any[]>([]);
   const [gridColumns, setGridColumns] = useState<any[]>([]);
 
-  useEffect(() => {
-    getDatabaseList();
-  }, []);
-
-  useEffect(() => {
-    if (selectedDatabase.id) {
-      getDatabaseInfo(selectedDatabase.id);
-    }
-  }, [selectedDatabase.id]);
-
   /**
    * 데이터베이스 목록조회
    */
-  const getDatabaseList = () => {
-    showLoading();
-    DatabaseService.selectDatabaseList()
-      .then(response => {
-        const resData = response.data.data;
-        setDatabaseList(resData);
-        if (resData.length > 0) {
-          const [firstItem] = resData;
-          setSelectedDatabase(firstItem);
-        }
-      })
-      .finally(() => {
-        hideLoading();
-      });
-  };
+  const { data: databaseList = [], isFetching: isDatabaseListFetching } = useQuery({
+    queryKey: ['databases'],
+    queryFn: () => DatabaseService.selectDatabaseList().then(response => response.data.data),
+    retry: false,
+  });
 
-  const getDatabaseInfo = databaseId => {
-    showLoading();
-    DatabaseService.selectDatabase(databaseId)
-      .then(response => {
-        if (response.data.status === 'SUCCESS') {
-          setDatasetList(response.data.data.datasets);
-          setTableList(response.data.data.tables);
-        } else {
-          alert.error('데이터베이스 조회에 실패했습니다.\n다시 시도해 주세요.');
-          setDatasetList([]);
-          setTableList([]);
+  // 목록 로딩 후 첫 번째 데이터베이스 자동 선택
+  useEffect(() => {
+    if (!selectedDatabase.id && databaseList.length > 0) {
+      setSelectedDatabase(databaseList[0]);
+    }
+  }, [databaseList]);
+
+  /**
+   * 선택된 데이터베이스의 dataset/table 목록조회
+   */
+  const { data: databaseInfo, isFetching: isDatabaseInfoFetching } = useQuery({
+    queryKey: ['database', selectedDatabase.id],
+    enabled: !!selectedDatabase.id,
+    queryFn: () =>
+      DatabaseService.selectDatabase(selectedDatabase.id).then(response => {
+        if (response.data.status !== 'SUCCESS') {
+          throw new Error('database info fetch failed');
         }
-      })
-      .catch(error => {
-        snackbar.error(error.message);
-        setDatasetList([]);
-        setTableList([]);
-      })
-      .finally(() => {
-        hideLoading();
-      });
-  };
+        return response.data.data;
+      }),
+    retry: false,
+  });
+  const datasetList: DataSetProps[] = databaseInfo?.datasets ?? [];
+  const tableList: DataTableProps[] = databaseInfo?.tables ?? [];
+
+  useEffect(() => {
+    if (isDatabaseListFetching || isDatabaseInfoFetching) showLoading();
+    else hideLoading();
+  }, [isDatabaseListFetching, isDatabaseInfoFetching]);
+
+  const deleteDatabaseMutation = useMutation({
+    mutationFn: (databaseId: number) => DatabaseService.deleteDatabase(databaseId),
+    onSuccess: response => {
+      if (response.data.status === STATUS.SUCCESS) {
+        queryClient.invalidateQueries({ queryKey: ['databases'] });
+        snackbar.success(t('data.dbDeleted'));
+      }
+    },
+  });
+
+  const deleteDatasetMutation = useMutation({
+    mutationFn: (id: number) => DatasetService.deleteDataset(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['database', selectedDatabase.id] });
+      snackbar.success(t('data.dsDeleted'));
+    },
+  });
 
   const getData = selectedData => {
     let param;
@@ -149,20 +155,13 @@ const DataLayout = props => {
 
   const handleDatabaseRemove = item => {
     console.log('handleDatabaseRemove', item);
-    alert.success(`${item.name}\n데이터베이스를 삭제하시겠습니까?`, {
-      title: '데이터베이스 삭제',
-      closeCopy: '취소',
+    alert.success(t('data.dbDeleteConfirm', { name: item.name }), {
+      title: t('data.dbDeleteTitle'),
+      closeCopy: t('data.cancel'),
       actions: [
         {
-          copy: '삭제',
-          onClick: () => {
-            DatabaseService.deleteDatabase(item.databaseId).then(response => {
-              if (response.data.status === STATUS.SUCCESS) {
-                getDatabaseList();
-                snackbar.success('데이터베이스가 삭제되었습니다.');
-              }
-            });
-          },
+          copy: t('data.delete'),
+          onClick: () => deleteDatabaseMutation.mutate(item.databaseId),
         },
       ],
     });
@@ -201,18 +200,13 @@ const DataLayout = props => {
 
   const handleDataSetRemove = item => {
     console.log('handleDataSetRemove', item);
-    alert.success(`${item.title}\n데이터셋을 삭제하시겠습니까?`, {
-      title: '데이터베이스 삭제',
-      closeCopy: '취소',
+    alert.success(t('data.dsDeleteConfirm', { title: item.title }), {
+      title: t('data.dsDeleteTitle'),
+      closeCopy: t('data.cancel'),
       actions: [
         {
-          copy: '삭제',
-          onClick: () => {
-            DatasetService.deleteDataset(item.id).then(() => {
-              getDatabaseInfo(item.id);
-              snackbar.success('데이터셋이 삭제되었습니다.');
-            });
-          },
+          copy: t('data.delete'),
+          onClick: () => deleteDatasetMutation.mutate(item.id),
         },
       ],
     });
@@ -227,9 +221,31 @@ const DataLayout = props => {
       >
         <Stack direction="row">
           <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold', fontSize: '16px', color: '#141414' }}>
-            데이터 소스
+            {t('data.source')}
           </Typography>
-          {isViewMode ? <></> : <AddButton component={RouterLink} to={`source/create`} sx={{ ml: '14px' }} />}
+          {isViewMode ? (
+            <></>
+          ) : (
+            <>
+              <AddButton component={RouterLink} to={`source/create`} sx={{ ml: '14px' }} />
+              <Button
+                component={RouterLink}
+                to={`file`}
+                size="small"
+                sx={{ ml: '8px', fontSize: '11px', minWidth: 0, p: '2px 8px', lineHeight: '20px' }}
+              >
+                {t('data.fileAnalysis')}
+              </Button>
+              <Button
+                component={RouterLink}
+                to={`metric`}
+                size="small"
+                sx={{ ml: '8px', fontSize: '11px', minWidth: 0, p: '2px 8px', lineHeight: '20px' }}
+              >
+                {t('data.metric')}
+              </Button>
+            </>
+          )}
         </Stack>
         <DatabaseCardList
           data={databaseList}
@@ -247,7 +263,7 @@ const DataLayout = props => {
         <Stack direction="column" sx={{ width: '100%', px: '24px', pt: '30px' }}>
           <Stack direction="row">
             <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold', fontSize: '16px', color: '#141414' }}>
-              데이터 셋
+              {t('data.dataset')}
             </Typography>
             {isViewMode ? (
               <></>
@@ -267,7 +283,7 @@ const DataLayout = props => {
         <Stack direction="column" sx={{ flex: '1 1 auto', width: '100%', minHeight: '50%', px: '24px', pt: '30px' }}>
           <Stack direction="row">
             <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold', fontSize: '16px', color: '#141414' }}>
-              테이블 목록
+              {t('data.tableList')}
             </Typography>
           </Stack>
           <DatasetCardList

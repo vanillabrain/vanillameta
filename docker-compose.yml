@@ -1,0 +1,80 @@
+services:
+  # 메타데이터용 MySQL. 로컬에서 npm으로 앱을 띄울 때도 사용 가능
+  mysql:
+    image: mysql:8.0
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_DATABASE: vanillameta
+      MYSQL_USER: vanillameta
+      MYSQL_PASSWORD: vanillameta
+      MYSQL_RANDOM_ROOT_PASSWORD: 'yes'
+    ports:
+      - '3306:3306'
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-uvanillameta', '-pvanillameta']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # 아래 app 프로파일: docker compose --profile app up
+  backend:
+    profiles: ['app']
+    build: ./backend-api
+    environment:
+      NODE_ENV: dev
+      DB_HOST: mysql
+      DB_PORT: '3306'
+      DB_USERNAME: vanillameta
+      DB_PASSWORD: vanillameta
+      DB_NAME: vanillameta
+      ACCESS_SECRET: change-me-access
+      REFRESH_SECRET: change-me-refresh
+      URL_ACCESS_SECRET: change-me-url
+      CONFIG_SECRET_KEY: change-me-config
+      CORS_ORIGIN: http://localhost:3000
+    ports:
+      - '4000:4000'
+    depends_on:
+      mysql:
+        condition: service_healthy
+      seed:
+        condition: service_completed_successfully
+    # Dockerfile의 start:prod는 NODE_ENV=prod로 강제하므로(synchronize off)
+    # 개발용으로 NODE_ENV=dev 환경변수를 그대로 쓰는 plain node 실행
+    command: ['node', 'dist/src/main.js']
+
+  # 초기 데이터(database type, component, guest 계정) 시딩 - 1회성
+  seed:
+    profiles: ['app']
+    build: ./backend-api
+    environment:
+      NODE_ENV: dev
+      DB_HOST: mysql
+      DB_PORT: '3306'
+      DB_USERNAME: vanillameta
+      DB_PASSWORD: vanillameta
+      DB_NAME: vanillameta
+    depends_on:
+      mysql:
+        condition: service_healthy
+    command: ['npm', 'run', 'seed']
+    restart: 'no'
+
+  frontend:
+    profiles: ['app']
+    image: node:20-bookworm-slim
+    working_dir: /app
+    volumes:
+      - ./frontend-web:/app
+      - frontend-node-modules:/app/node_modules
+    command: sh -c "npm install --legacy-peer-deps && npm run start:local"
+    ports:
+      - '3000:3000'
+    depends_on:
+      - backend
+
+volumes:
+  mysql-data:
+  frontend-node-modules:

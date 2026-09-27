@@ -40,6 +40,15 @@ export const getDatabaseIcon = type => {
     case 'postGIS':
       iconUrl = 'logo/postgis-logo.svg';
       break;
+    case 'clickhouse':
+      iconUrl = 'logo/clickhouse-logo.svg';
+      break;
+    case 'trino':
+      iconUrl = 'logo/trino-logo.svg';
+      break;
+    case 'databricks':
+      iconUrl = 'logo/databricks-logo.svg';
+      break;
   }
   return iconUrl;
 };

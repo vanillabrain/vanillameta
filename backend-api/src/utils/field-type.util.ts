@@ -44,27 +44,26 @@ export class FieldTypeUtil {
   }
 
   static FieldType(fieldType: any[]): string {
+    switch (typeof fieldType[0]) {
+      case 'string':
+        const stringList = fieldType.filter(el => typeof el === 'string');
+        return stringList.length === fieldType.length
+          ? this.FIELD_TYPE_STRING
+          : this.FIELD_TYPE_NUMBER;
+        break;
+      case 'number':
+        const numberList = fieldType.filter(el => typeof el === 'number');
+        return numberList.length === fieldType.length
+          ? this.FIELD_TYPE_NUMBER
+          : this.FIELD_TYPE_STRING;
+        break;
 
-      switch (typeof(fieldType[0])) {
-        case 'string':
-          const stringList = fieldType.filter(el => typeof(el) === 'string')
-          return stringList.length === fieldType.length ? this.FIELD_TYPE_STRING : this.FIELD_TYPE_NUMBER
-              break;
-        case 'number':
-          const numberList = fieldType.filter(el => typeof(el) === 'number')
-          return numberList.length === fieldType.length ? this.FIELD_TYPE_NUMBER : this.FIELD_TYPE_STRING
-              break;
-
-        case 'object':
-          const objectList = fieldType.filter(el => typeof(el) === 'object')
-          return objectList.length === fieldType.length ? this.FIELD_TYPE_DATE : this.FIELD_TYPE_STRING
-              break;
-      }
-
-
-
-
-
-
+      case 'object':
+        const objectList = fieldType.filter(el => typeof el === 'object');
+        return objectList.length === fieldType.length
+          ? this.FIELD_TYPE_DATE
+          : this.FIELD_TYPE_STRING;
+        break;
+    }
   }
 }

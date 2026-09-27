@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
@@ -21,6 +22,7 @@ interface IProps {
 }
 
 export const SnackbarTemplate = props => {
+  const { t } = useTranslation();
   const { close, message, options } = props;
   // console.log(props);
   return (
@@ -37,6 +39,7 @@ export const SnackbarTemplate = props => {
 const buttonStyle = { minWidth: 80, height: 36, padding: '0 10px', fontSize: '13px', fontWeight: 'bold' };
 
 const AlertTemplate = ({ close, message, options }: IProps) => {
+  const { t } = useTranslation();
   const hasTitle = options.title && options.title.toString().trim() !== '';
   return (
     <Dialog
@@ -94,7 +97,7 @@ const AlertTemplate = ({ close, message, options }: IProps) => {
             </Button>
           ))}
         <Button variant="contained" color="primary" sx={buttonStyle} onClick={close} autoFocus={true}>
-          {options.closeCopy || '확인'}
+          {options.closeCopy || t('common.confirm')}
         </Button>
       </DialogActions>
     </Dialog>
