@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { CreateDatabaseDto } from './dto/create-database.dto';
 import { UpdateDatabaseDto } from './dto/update-database.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -14,6 +14,8 @@ import { DatabaseType } from './entities/database_type.entity';
 import { YesNo } from '../common/enum/yn.enum';
 import { decryptConnectionConfig, encryptConnectionConfig } from '../utils/crypto.util';
 import { assertSafeIdentifier } from '../utils/query-guard.util';
+import { User } from '../user/entities/user.entity';
+import { UserRole } from '../common/enum/role.enum';
 
 @Injectable()
 export class DatabaseService {
@@ -22,8 +24,33 @@ export class DatabaseService {
     @InjectRepository(DatabaseType) private databaseTypeRepository: Repository<DatabaseType>,
     @InjectRepository(Dataset) private datasetRepository: Repository<Dataset>,
     @InjectRepository(TableQuery) private tableQueryRepository: Repository<TableQuery>,
+    @InjectRepository(User) private userRepository: Repository<User>,
     private readonly connectionService: ConnectionService,
   ) {}
+
+  /**
+   * 데이터소스 소유자/관리자 검증. userId 미지정(내부 호출)이면 통과.
+   */
+  async assertOwnerOrAdmin(databaseId: number, userId?: number) {
+    if (userId === undefined) return;
+
+    const database = await this.databaseRepository.findOne({ where: { id: databaseId } });
+    if (!database) {
+      throw new HttpException('database not found', HttpStatus.NOT_FOUND);
+    }
+    if (database.ownerId === userId) return;
+
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (user?.role === UserRole.ADMIN) return;
+
+    throw new HttpException('forbidden', HttpStatus.FORBIDDEN);
+  }
+
+  private async isAdmin(userId: number): Promise<boolean> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    return user?.role === UserRole.ADMIN;
+  }
+
 
   /**
    * database type 목록 조회
@@ -37,8 +64,9 @@ export class DatabaseService {
    * database(데이터소스) 생성
    * @param createDatabaseDto
    */
-  async create(createDatabaseDto: CreateDatabaseDto) {
+  async create(createDatabaseDto: CreateDatabaseDto, userId?: number) {
     const databaseDto = Database.toDto(createDatabaseDto);
+    databaseDto.ownerId = userId;
     const connectionConfig = {
       client: databaseDto.engine,
       connection: databaseDto.connectionConfig,
@@ -61,8 +89,11 @@ export class DatabaseService {
   /**
    * database 목록 조회
    */
-  async findAll() {
-    const result = await this.databaseRepository.find();
+  async findAll(userId?: number) {
+    const admin = userId !== undefined && (await this.isAdmin(userId));
+    const result = await this.databaseRepository.find(
+      userId === undefined || admin ? {} : { where: { ownerId: userId } },
+    );
     result.forEach(db => {
       db.connectionConfig = JSON.parse(decryptConnectionConfig(db.connectionConfig));
       delete db.connectionConfig['password'];
@@ -76,7 +107,8 @@ export class DatabaseService {
    * database 정보 조회
    * @param id
    */
-  async findOne(id: number): Promise<any> {
+  async findOne(id: number, userId?: number): Promise<any> {
+    await this.assertOwnerOrAdmin(id, userId);
     // 연동 db 정보
     const databaseInfo = await this.databaseRepository.findOne({ where: { id } });
     databaseInfo.connectionConfig = JSON.parse(
@@ -149,7 +181,8 @@ export class DatabaseService {
    * database 정보 단순 조회
    * @param id
    */
-  async findOneInfo(id: number): Promise<any> {
+  async findOneInfo(id: number, userId?: number): Promise<any> {
+    await this.assertOwnerOrAdmin(id, userId);
     // 연동 db 정보
     const databaseInfo = await this.databaseRepository.findOne({ where: { id } });
     databaseInfo.connectionConfig = JSON.parse(
@@ -172,7 +205,8 @@ export class DatabaseService {
     return databaseInfo;
   }
 
-  async update(id: number, updateDatabaseDto: UpdateDatabaseDto) {
+  async update(id: number, updateDatabaseDto: UpdateDatabaseDto, userId?: number) {
+    await this.assertOwnerOrAdmin(id, userId);
     const one = await this.findDB(id);
     if (!one)
       return {
@@ -212,7 +246,8 @@ export class DatabaseService {
     }
   }
 
-  async remove(id: number) {
+  async remove(id: number, userId?: number) {
+    await this.assertOwnerOrAdmin(id, userId);
     const one = await this.findDB(id);
     if (!one)
       return {
@@ -254,7 +289,10 @@ where ((datasetType = 'DATASET' and datasetId in (select id from dataset where d
     databaseId: number,
     datasetId?: number,
     tableName?: string,
+    userId?: number,
   ) {
+    await this.assertOwnerOrAdmin(databaseId, userId);
+
     if (datasetType === DatasetType.DATASET && datasetId === undefined) {
       return {
         status: ResponseStatus.ERROR,

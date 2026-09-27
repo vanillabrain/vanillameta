@@ -4,10 +4,10 @@ import {
   Delete,
   Get,
   Param,
-  Patch,
   Post,
   Put,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { DatabaseService } from './database.service';
@@ -35,8 +35,10 @@ export class DatabaseController {
   findTypeList() {
     return this.databaseService.findTypeList();
   }
+
   @Get('/data')
   async findData(
+    @Req() req,
     @Query('datasetType') datasetType: string,
     @Query('databaseId') databaseId: string,
     @Query('datasetId') datasetId?: string,
@@ -47,6 +49,7 @@ export class DatabaseController {
       +databaseId,
       datasetId !== undefined && datasetId !== '' ? +datasetId : undefined,
       tableName,
+      req.user.accessKeyData.id,
     );
     return res;
   }
@@ -56,8 +59,11 @@ export class DatabaseController {
    * @param id
    */
   @Get('/info/:id')
-  async findOneInfo(@Param('id') id: string) {
-    const databaseInfo = await this.databaseService.findOneInfo(+id);
+  async findOneInfo(@Req() req, @Param('id') id: string) {
+    const databaseInfo = await this.databaseService.findOneInfo(
+      +id,
+      req.user.accessKeyData.id,
+    );
     return databaseInfo;
   }
 
@@ -66,8 +72,8 @@ export class DatabaseController {
    * @param createDatabaseDto
    */
   @Post()
-  create(@Body() createDatabaseDto: CreateDatabaseDto) {
-    return this.databaseService.create(createDatabaseDto);
+  create(@Req() req, @Body() createDatabaseDto: CreateDatabaseDto) {
+    return this.databaseService.create(createDatabaseDto, req.user.accessKeyData.id);
   }
 
   /**
@@ -84,7 +90,11 @@ export class DatabaseController {
    * @param queryExecuteDto
    */
   @Post('execute')
-  executeQuery(@Body() queryExecuteDto: QueryExecuteDto) {
+  async executeQuery(@Req() req, @Body() queryExecuteDto: QueryExecuteDto) {
+    await this.databaseService.assertOwnerOrAdmin(
+      queryExecuteDto.id,
+      req.user.accessKeyData.id,
+    );
     return this.connectionService.executeQuery(queryExecuteDto);
   }
 
@@ -92,8 +102,8 @@ export class DatabaseController {
    * 데이터베이스 목록 조회
    */
   @Get()
-  async findAll() {
-    const res = await this.databaseService.findAll();
+  async findAll(@Req() req) {
+    const res = await this.databaseService.findAll(req.user.accessKeyData.id);
     return res;
   }
 
@@ -102,8 +112,8 @@ export class DatabaseController {
    * @param id
    */
   @Get(':id')
-  async findOne(@Param('id') id: string) {
-    const databaseInfo = await this.databaseService.findOne(+id);
+  async findOne(@Req() req, @Param('id') id: string) {
+    const databaseInfo = await this.databaseService.findOne(+id, req.user.accessKeyData.id);
     return databaseInfo;
   }
 
@@ -113,12 +123,12 @@ export class DatabaseController {
    * @param updateDatabaseDto
    */
   @Put(':id')
-  update(@Param('id') id: string, @Body() updateDatabaseDto: UpdateDatabaseDto) {
-    return this.databaseService.update(+id, updateDatabaseDto);
+  update(@Req() req, @Param('id') id: string, @Body() updateDatabaseDto: UpdateDatabaseDto) {
+    return this.databaseService.update(+id, updateDatabaseDto, req.user.accessKeyData.id);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.databaseService.remove(+id);
+  remove(@Req() req, @Param('id') id: string) {
+    return this.databaseService.remove(+id, req.user.accessKeyData.id);
   }
 }

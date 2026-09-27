@@ -25,6 +25,9 @@ export class Database extends BaseEntity {
   @Column({ length: 100, comment: '타임존', nullable: true })
   timezone: string;
 
+  @Column({ nullable: true, comment: '소유자 User.id' })
+  ownerId: number;
+
   static of(
     name: string,
     description: string,

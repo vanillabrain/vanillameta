@@ -7,10 +7,11 @@ import { ConnectionService } from '../connection/connection.service';
 import { Dataset } from '../dataset/entities/dataset.entity';
 import { TableQuery } from '../widget/table-query/entity/table-query.entity';
 import {DatabaseType} from "./entities/database_type.entity";
+import { User } from '../user/entities/user.entity';
 import { JwtService } from '@nestjs/jwt';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Database, Dataset, TableQuery, DatabaseType])],
+  imports: [TypeOrmModule.forFeature([Database, Dataset, TableQuery, DatabaseType, User])],
   controllers: [DatabaseController],
   providers: [DatabaseService, ConnectionService, JwtService],
 })
