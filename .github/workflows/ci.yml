@@ -56,6 +56,9 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps --no-audit --no-fund
 
+      - name: Type check
+        run: npm run typecheck
+
       - name: Build (Vite)
         run: npm run build
 

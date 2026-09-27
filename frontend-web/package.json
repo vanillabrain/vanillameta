@@ -54,6 +54,7 @@
     "build:dev": "vite build --mode development",
     "build:feat": "vite build --mode feature",
     "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
     "deploy": "serverless deploy",
     "deploy:dev": "serverless deploy --stage dev",
     "deploy:prod": "serverless deploy --stage prod",

@@ -231,6 +231,8 @@ const SignUp = () => {
       </Box>
     );
   }
+
+  return null;
 };
 
 export default SignUp;

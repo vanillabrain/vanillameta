@@ -265,6 +265,8 @@ const Login = () => {
       </Box>
     );
   }
+
+  return null;
 };
 
 export default Login;
