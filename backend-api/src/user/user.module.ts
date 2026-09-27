@@ -5,7 +5,7 @@ import { User } from './entities/user.entity.js';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthService } from 'src/auth/auth.service';
 import { JwtModule } from '@nestjs/jwt';
-import { RefreshToken } from 'src/auth/entites/refresh_token.entity';
+import { RefreshToken } from 'src/auth/entities/refresh_token.entity';
 import { UserMapping } from './entities/user-mapping.entity.js';
 import { Dashboard } from 'src/dashboard/entities/dashboard.entity';
 import { LoginHistory } from 'src/middleware/entities/login-history.entity';

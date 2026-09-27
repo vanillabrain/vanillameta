@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TableQuery } from './entity/table-query.entity';
 import { Database } from '../../database/entities/database.entity';
+import { decryptConnectionConfig } from '../../utils/crypto.util';
+import { assertSafeIdentifier } from '../../utils/query-guard.util';
 
 @Injectable()
 export class TableQueryService {
@@ -28,11 +30,13 @@ export class TableQueryService {
   }
 
   async makeSelectAllQuery(databaseId: number, tableName: string) {
+    assertSafeIdentifier(tableName);
     const databaseOne = await this.databaseRepository.findOne({ where: { id: databaseId } });
     let selectQuery;
     switch (databaseOne.type) {
       case 'bigquery':
-        const schemaName = JSON.parse(databaseOne.connectionConfig).connection.schema;
+        const schemaName = JSON.parse(decryptConnectionConfig(databaseOne.connectionConfig))
+          .connection.schema;
         selectQuery = `SELECT * FROM ${schemaName}.${tableName}`;
         break;
       case 'oracle':

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { CreateDatabaseDto } from '../database/dto/create-database.dto';
 import { QueryExecuteDto } from '../database/dto/query-execute.dto';
 import { Knex, knex } from 'knex';
@@ -8,13 +8,18 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import { SnowflakeDialect } from './knex-dialects/snowflake';
+import { decryptConnectionConfig } from '../utils/crypto.util';
+import { assertReadOnlyQuery } from '../utils/query-guard.util';
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires -- knex-bigquery는 타입 선언이 없음
 const { BigQueryClient } = require('knex-bigquery');
 
 const knexConnections = new Map<number, Knex>();
 
 @Injectable()
 export class ConnectionService {
+  private readonly logger = new Logger(ConnectionService.name);
+
   constructor(@InjectRepository(Database) private databaseRepository: Repository<Database>) {}
 
   /**
@@ -51,7 +56,7 @@ export class ConnectionService {
   async getKnex(id: number): Promise<Knex> {
     if (!this.hasKnex(id)) {
       const one = await this.databaseRepository.findOne({ where: { id: id } });
-      one.connectionConfig = JSON.parse(one.connectionConfig);
+      one.connectionConfig = JSON.parse(decryptConnectionConfig(one.connectionConfig));
       const knexConfig = one.connectionConfig;
       if (knexConfig['client'] == 'bigquery') {
         knexConfig['client'] = BigQueryClient;
@@ -97,8 +102,7 @@ export class ConnectionService {
     try {
       _knex = knex(connectionConfig as Knex.Config);
     } catch (e) {
-      console.log('knex not connected');
-      console.error(e);
+      this.logger.error(`knex not connected: ${e?.message ?? e}`);
       return { status: ResponseStatus.ERROR, message: 'knex not connected' };
     }
 
@@ -108,8 +112,8 @@ export class ConnectionService {
       await _knex.raw(testQuery);
       returnObj = { status: ResponseStatus.SUCCESS, data: { message: 'success' } };
     } catch (e) {
-      console.log(e);
-      returnObj = { status: ResponseStatus.ERROR, message: e.sqlMessage };
+      this.logger.error(`connection test failed: ${e?.message ?? e}`);
+      returnObj = { status: ResponseStatus.ERROR, message: 'connection failed' };
     } finally {
       await _knex.destroy();
     }
@@ -123,12 +127,21 @@ export class ConnectionService {
    */
   async executeQuery(queryExecuteDto: QueryExecuteDto) {
     const knex = await this.getKnex(queryExecuteDto.id);
+    assertReadOnlyQuery(queryExecuteDto.query);
 
     let datas = [];
     const fields = [];
     const resultObj = { status: null, message: null, datas: [], fields: [] };
     try {
-      const queryRes = await knex.raw(queryExecuteDto.query);
+      const timeoutMs = parseInt(process.env.QUERY_TIMEOUT_MS) || 60000;
+      let rawQuery = knex.raw(queryExecuteDto.query);
+      try {
+        // 일부 드라이버(sqlite, bigquery 등)는 timeout 미지원
+        rawQuery = rawQuery.timeout(timeoutMs) as any;
+      } catch {
+        // timeout 미지원 드라이버는 그대로 실행
+      }
+      const queryRes = await rawQuery;
       // bigquery, snowflake
       if (typeof knex.client.config.client === 'function') {
         switch (knex.client.config.client.name) {
@@ -236,10 +249,9 @@ export class ConnectionService {
       resultObj.datas = datas;
       resultObj.fields = fields;
     } catch (e) {
+      this.logger.error(`query execution failed: ${e?.message ?? e}`);
       resultObj.status = ResponseStatus.ERROR;
-      if (e.sqlMessage) resultObj.message = e.sqlMessage;
-      else if (e.message) resultObj.message = e.message; // bigquery
-      console.log(e);
+      resultObj.message = 'query execution failed';
     }
 
     return resultObj;

@@ -13,7 +13,6 @@ export const filterDocumentsPathsByTags = (publicDocument: OpenAPIObject): Paths
 
     for (const method of Object.keys(publicDocument.paths[path])) {
       const endpointTags = publicDocument.paths[path][method].tags; //addTag로 경로 설정한 테그이름
-      console.log(publicDocument.components);
       if (!Array.isArray(endpointTags)) {
         continue;
       }

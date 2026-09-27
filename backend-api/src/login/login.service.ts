@@ -5,8 +5,8 @@ import { User } from 'src/user/entities/user.entity';
 import { Repository } from 'typeorm';
 import { CreateLoginDto } from './dto/create-login.dto';
 import { LoginUserDto } from './dto/login-user.dto';
-import { RefreshToken } from 'src/auth/entites/refresh_token.entity';
-const crypto = require('crypto');
+import { RefreshToken } from 'src/auth/entities/refresh_token.entity';
+import { hashPassword } from '../utils/password.util';
 
 @Injectable()
 export class LoginService {
@@ -18,10 +18,7 @@ export class LoginService {
 
   async signin(loginDto: LoginUserDto) {
     const { userId, password } = loginDto;
-    // const salt = crypto.randomBytes(128).toString('base64');
-    const hashPassword = crypto.createHash('sha512').update(password).digest('hex');
-    console.log(hashPassword);
-    const findUser = await this.authService.validateUser(userId, hashPassword); // 요저의 존재여부 확인
+    const findUser = await this.authService.validateUser(userId, password); // 요저의 존재여부 확인
     if (!findUser) {
       throw new UnauthorizedException(`Unauthorized`);
     }
@@ -38,10 +35,9 @@ export class LoginService {
 
     if (!userInfoEmail && !userInfoId) {
       const { email, password, userId } = createLoginDto;
-      const hashPassword = crypto.createHash('sha512').update(password).digest('hex');
       const createUserInfo = await this.userRepository.save({
         email: email,
-        password: hashPassword,
+        password: hashPassword(password),
         userId: userId,
         jwtId: null,
         createdAt: new Date(),

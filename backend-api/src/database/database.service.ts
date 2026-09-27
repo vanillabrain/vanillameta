@@ -8,10 +8,12 @@ import { ConnectionService } from '../connection/connection.service';
 import { Dataset } from '../dataset/entities/dataset.entity';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import { DatasetType } from '../common/enum/dataset-type.enum';
-import { TableQuery } from '../widget/tabel-query/entity/table-query.entity';
+import { TableQuery } from '../widget/table-query/entity/table-query.entity';
 import { QueryExecuteDto } from './dto/query-execute.dto';
 import { DatabaseType } from './entities/database_type.entity';
 import { YesNo } from '../common/enum/yn.enum';
+import { decryptConnectionConfig, encryptConnectionConfig } from '../utils/crypto.util';
+import { assertSafeIdentifier } from '../utils/query-guard.util';
 
 @Injectable()
 export class DatabaseService {
@@ -48,11 +50,11 @@ export class DatabaseService {
       connectioninfo['connectionString'] = cockroach_url;
     }
 
-    databaseDto.connectionConfig = JSON.stringify(connectionConfig);
+    databaseDto.connectionConfig = encryptConnectionConfig(JSON.stringify(connectionConfig));
     databaseDto.timezone = 'Asia/Seoul';
 
     const saveResult = await this.databaseRepository.save(databaseDto);
-    saveResult.connectionConfig = JSON.parse(saveResult.connectionConfig);
+    saveResult.connectionConfig = JSON.parse(decryptConnectionConfig(saveResult.connectionConfig));
     return { status: ResponseStatus.SUCCESS, data: saveResult };
   }
 
@@ -62,7 +64,7 @@ export class DatabaseService {
   async findAll() {
     const result = await this.databaseRepository.find();
     result.forEach(db => {
-      db.connectionConfig = JSON.parse(db.connectionConfig);
+      db.connectionConfig = JSON.parse(decryptConnectionConfig(db.connectionConfig));
       delete db.connectionConfig['password'];
       const configElement = db.connectionConfig['connection'];
       if (configElement) delete configElement['password'];
@@ -77,7 +79,9 @@ export class DatabaseService {
   async findOne(id: number): Promise<any> {
     // 연동 db 정보
     const databaseInfo = await this.databaseRepository.findOne({ where: { id } });
-    databaseInfo.connectionConfig = JSON.parse(databaseInfo.connectionConfig).connection;
+    databaseInfo.connectionConfig = JSON.parse(
+      decryptConnectionConfig(databaseInfo.connectionConfig),
+    ).connection;
 
     // table 정보 조회
     let selectTableQuery;
@@ -148,7 +152,9 @@ export class DatabaseService {
   async findOneInfo(id: number): Promise<any> {
     // 연동 db 정보
     const databaseInfo = await this.databaseRepository.findOne({ where: { id } });
-    databaseInfo.connectionConfig = JSON.parse(databaseInfo.connectionConfig).connection;
+    databaseInfo.connectionConfig = JSON.parse(
+      decryptConnectionConfig(databaseInfo.connectionConfig),
+    ).connection;
     delete databaseInfo.connectionConfig['password'];
     return { status: ResponseStatus.SUCCESS, data: { databaseInfo } };
   }
@@ -160,7 +166,9 @@ export class DatabaseService {
   private async findDB(id: number) {
     // 연동 db 정보
     const databaseInfo = await this.databaseRepository.findOne({ where: { id } });
-    databaseInfo.connectionConfig = JSON.parse(databaseInfo.connectionConfig);
+    databaseInfo.connectionConfig = JSON.parse(
+      decryptConnectionConfig(databaseInfo.connectionConfig),
+    );
     return databaseInfo;
   }
 
@@ -183,7 +191,7 @@ export class DatabaseService {
       connection: updateDatabaseDto.connectionConfig,
       useNullAsDefault: true,
     };
-    updateDatabaseDto.connectionConfig = JSON.stringify(connectionConfig);
+    updateDatabaseDto.connectionConfig = encryptConnectionConfig(JSON.stringify(connectionConfig));
 
     // const connectionConfig = {
     //   client: one.engine,
@@ -274,11 +282,13 @@ where ((datasetType = 'DATASET' and datasetId in (select id from dataset where d
         queryExecuteDto.id = datasetItem.databaseId;
         queryExecuteDto.query = datasetItem.query;
       } else {
+        assertSafeIdentifier(tableName);
         const databaseOne = await this.databaseRepository.findOne({ where: { id: databaseId } });
         let selectQuery;
         switch (databaseOne.type) {
           case 'bigquery':
-            const schemaName = JSON.parse(databaseOne.connectionConfig).connection.schema;
+            const schemaName = JSON.parse(decryptConnectionConfig(databaseOne.connectionConfig))
+              .connection.schema;
             selectQuery = `SELECT * FROM ${schemaName}.${tableName}`;
             break;
           case 'oracle':

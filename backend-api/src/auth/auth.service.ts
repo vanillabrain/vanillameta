@@ -3,7 +3,8 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from 'src/user/entities/user.entity';
-import { RefreshToken } from './entites/refresh_token.entity';
+import { RefreshToken } from './entities/refresh_token.entity';
+import { hashPassword, verifyPassword } from '../utils/password.util';
 
 @Injectable()
 export class AuthService {
@@ -40,8 +41,7 @@ export class AuthService {
     const accessToken = await this.jwtService.sign(
       { accessKeyData },
       {
-        // secret: process.env.URL_ACCESS_SECRET,
-        secret: 'test1234',
+        secret: process.env.URL_ACCESS_SECRET || process.env.ACCESS_SECRET,
       },
     );
     return accessToken;
@@ -78,10 +78,18 @@ export class AuthService {
 
   async validateUser(userId: string, pass: string) {
     const user = await this.userRepository.findOne({ where: { userId: userId } });
-    if (user && user.password === pass) {
-      delete user.password;
-      return user;
+    if (!user) return null;
+
+    const { ok, needsRehash } = verifyPassword(pass, user.password);
+    if (!ok) return null;
+
+    // 레거시 sha512 해시 사용자는 로그인 성공 시점에 scrypt로 재해싱
+    if (needsRehash) {
+      user.password = hashPassword(pass);
+      await this.userRepository.save(user);
     }
+    delete user.password;
+    return user;
 
     // 회원이 존재하는지 확인
   }

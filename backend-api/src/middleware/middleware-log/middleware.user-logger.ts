@@ -16,7 +16,6 @@ export class userLoggerMiddleware implements NestMiddleware {
 
   async use(req: Request, res: Response, next: NextFunction) {
     // const { userId } = req.user.accessKeyData;
-    console.log('확인', req.user);
     const loginSaveObj = {
       userId: req.body?.userId,
       path: req.path,

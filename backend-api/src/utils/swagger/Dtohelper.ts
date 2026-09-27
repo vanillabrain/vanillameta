@@ -7,7 +7,6 @@ export const filterDocumentsDtoPathsByTags = (publicDocument: OpenAPIObject): Co
     const result: ComponentsObject = {};
 
     const tags = publicDocument.tags.map(({ name }) => name);       // 모든 tage의 이름
-    console.log(tags)
     for (const path of Object.keys(publicDocument.paths)) {
         const pathMethods = {};
 
@@ -22,7 +21,6 @@ export const filterDocumentsDtoPathsByTags = (publicDocument: OpenAPIObject): Co
                 pathMethods[method] = publicDocument.paths[path][method];   // 모든 tag의 이름과 경로 설정한 테그이름이 같은것.
             }
         }
-        console.log(result)
         result[path] = pathMethods;
     }
 

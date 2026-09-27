@@ -7,7 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DatasetType } from '../common/enum/dataset-type.enum';
 import { Component } from '../component/entities/component.entity';
 import { ResponseStatus } from '../common/enum/response-status.enum';
-import { TableQueryService } from './tabel-query/table-query.service';
+import { TableQueryService } from './table-query/table-query.service';
 
 @Injectable()
 export class WidgetService {
