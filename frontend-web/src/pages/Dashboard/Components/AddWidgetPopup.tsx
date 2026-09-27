@@ -14,34 +14,34 @@ import {
   Typography,
 } from '@mui/material';
 import WidgetService from '@/api/widgetService';
-import { STATUS } from '@/constant';
 import { useAlert } from 'react-alert';
 import CloseButton from '@/components/button/CloseButton';
 import { LoadingContext } from '@/contexts/LoadingContext';
+import { useQuery } from '@tanstack/react-query';
 
 function AddWidgetPopup({ label, useWidgetIds = [], widgetOpen = false, widgetSelect = null }) {
   const [open, setOpen] = useState(widgetOpen);
   const [selectedIds, setSelectedIds] = useState([]);
-  const [loadedWidgetData, setLoadedWidgetData] = useState([]);
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const alert = useAlert();
-  const getItems = () => {
-    showLoading();
-    WidgetService.selectWidgetList()
-      .then(response => {
-        if (response.data.status == STATUS.SUCCESS) {
-          const widgetList = response.data.data.filter(item => {
-            return !useWidgetIds.find(useItem => useItem == item.id);
-          });
-          setLoadedWidgetData(widgetList);
-        } else {
-          console.log('조회실패!!!');
-        }
-      })
-      .finally(() => {
-        hideLoading();
-      });
-  };
+
+  // 위젯 목록 조회
+  const { data: widgetList = [], isFetching } = useQuery({
+    queryKey: ['widgets'],
+    queryFn: async () => (await WidgetService.selectWidgetList()).data.data,
+    enabled: open,
+  });
+
+  // 이미 추가된 위젯은 제외
+  const loadedWidgetData = widgetList.filter(item => !useWidgetIds.find(useItem => useItem == item.id));
+
+  useEffect(() => {
+    if (isFetching) {
+      showLoading();
+    } else {
+      hideLoading();
+    }
+  }, [isFetching]);
 
   const descriptionElementRef = useRef<HTMLElement>(null);
 
@@ -57,8 +57,6 @@ function AddWidgetPopup({ label, useWidgetIds = [], widgetOpen = false, widgetSe
       }
 
       setSelectedIds([]);
-      setLoadedWidgetData([]);
-      getItems();
     }
   }, [open]);
 
