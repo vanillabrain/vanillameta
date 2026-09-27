@@ -36,4 +36,10 @@ export class AdminController {
   updateRole(@Param('id') id: string, @Body() updateRoleDto: UpdateRoleDto) {
     return this.adminService.updateRole(+id, updateRoleDto.role);
   }
+
+  @Get('audit-logs')
+  @ApiOperation({ summary: '감사 로그 조회 (관리자)' })
+  findAuditLogs() {
+    return this.adminService.findAuditLogs();
+  }
 }
