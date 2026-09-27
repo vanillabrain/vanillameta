@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect } from 'react';
 import { Link as RouterLink, Outlet, useParams } from 'react-router-dom';
 import { useAlert } from 'react-alert';
 import PageTitleBox from '@/components/PageTitleBox';
@@ -11,6 +11,7 @@ import { styled } from '@mui/system';
 import { STATUS } from '@/constant';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import Seo from '@/seo/Seo';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 const title = '위젯';
 
@@ -19,11 +20,9 @@ const Widget = () => {
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
-
-  const [widgetList, setWidgetList] = useState([]);
-  const [noData, setNoData] = useState(false);
   const theme = useTheme();
   const matches = useMediaQuery(theme.breakpoints.up('sm'));
+  const queryClient = useQueryClient();
 
   const GTSpan = styled('span')({
     fontFamily: 'Pretendard',
@@ -37,28 +36,48 @@ const Widget = () => {
     color: '#767676',
   });
 
-  useEffect(() => {
-    getWidgetList();
-  }, []);
+  // 위젯 목록 조회
+  const {
+    data: widgetList = [],
+    isLoading,
+    isFetching,
+    isError,
+  } = useQuery({
+    queryKey: ['widgets'],
+    queryFn: async () => {
+      const response = await WidgetService.selectWidgetList();
+      if (response.data.status !== STATUS.SUCCESS) {
+        throw new Error('위젯 조회에 실패했습니다.');
+      }
+      return response.data.data;
+    },
+  });
 
-  /**
-   * 위젯 목록 조회
-   */
-  const getWidgetList = () => {
-    showLoading();
-    WidgetService.selectWidgetList()
-      .then(response => {
-        if (response.data.status == STATUS.SUCCESS) {
-          setWidgetList(response.data.data);
-          setNoData(response.data.data.length == 0);
-        } else {
-          alert.error('위젯 조회에 실패했습니다.\n다시 시도해 주세요.');
-        }
-      })
-      .finally(() => {
-        hideLoading();
-      });
-  };
+  useEffect(() => {
+    if (isLoading || isFetching) {
+      showLoading();
+    } else {
+      hideLoading();
+    }
+  }, [isLoading, isFetching]);
+
+  useEffect(() => {
+    if (isError) {
+      alert.error('위젯 조회에 실패했습니다.\n다시 시도해 주세요.');
+    }
+  }, [isError]);
+
+  // 위젯 삭제
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => WidgetService.deleteWidget(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['widgets'] });
+      snackbar.success('위젯이 삭제되었습니다.');
+    },
+    onError: () => {
+      alert.error('위젯 삭제에 실패했습니다.\n다시 시도해 주세요.');
+    },
+  });
 
   const removeWidget = (id, title) => {
     alert.success(
@@ -73,26 +92,14 @@ const Widget = () => {
         actions: [
           {
             copy: '삭제',
-            onClick: () => {
-              showLoading();
-              WidgetService.deleteWidget(id)
-                .then(response => {
-                  if (response.status === 200) {
-                    getWidgetList();
-                    snackbar.success('위젯이 삭제되었습니다.');
-                  } else {
-                    alert.error('위젯 삭제에 실패했습니다.\n다시 시도해 주세요.');
-                  }
-                })
-                .finally(() => {
-                  hideLoading();
-                });
-            },
+            onClick: () => deleteMutation.mutate(id),
           },
         ],
       },
     );
   };
+
+  const noData = widgetList.length === 0;
 
   // 목록이 없을때 보여줄 화면
   const getEmptyView = () => {
