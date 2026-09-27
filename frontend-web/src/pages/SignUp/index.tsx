@@ -10,6 +10,7 @@ import { SnackbarContext } from '@/contexts/AlertContext';
 import { checkEmail, checkId, checkPwd } from '@/utils/util';
 import Seo from '@/seo/Seo';
 import { getToken } from '@/helpers/authHelper';
+import { useMutation } from '@tanstack/react-query';
 
 const SignUp = () => {
   const { showLoading, hideLoading } = useContext(LoadingContext);
@@ -25,6 +26,19 @@ const SignUp = () => {
   const token = getToken();
   let isValid;
 
+  // 회원가입
+  const signupMutation = useMutation({
+    mutationFn: (data: any) => authService.signup(data),
+  });
+
+  useEffect(() => {
+    if (signupMutation.isPending) {
+      showLoading();
+    } else {
+      hideLoading();
+    }
+  }, [signupMutation.isPending]);
+
   useEffect(() => {
     if (token) {
       // token이 있으면 대시보드로 보내기
@@ -34,38 +48,31 @@ const SignUp = () => {
 
   const handleSignup = event => {
     event.preventDefault();
-    showLoading();
     validateData();
-    if (isValid) {
-      const data = {
+    if (!isValid) return;
+
+    signupMutation.mutate(
+      {
         userId: userInfo.userId,
         password: userInfo.userPwd,
         email: userInfo.userEmail,
-      };
-      authService
-        .signup(data)
-        .then(response => {
-          // console.log(response);
-          if (response.status === 201) {
-            alert.success(`${event.target.userId.value}님\n회원가입이 완료되었습니다.`);
-            navigate('/login');
-          }
-        })
-        .catch(error => {
-          console.log(error);
-          if (error.response.status === 409 && error.response.data.data === 'conflict userId') {
+      },
+      {
+        onSuccess: () => {
+          alert.success(`${userInfo.userId}님\n회원가입이 완료되었습니다.`);
+          navigate('/login');
+        },
+        onError: (error: any) => {
+          if (error?.response?.status === 409 && error?.response?.data?.data === 'conflict userId') {
             snackbar.error('이미 가입된 ID입니다.');
-          } else if (error.response.status === 409 && error.response.data.data === 'conflict email') {
+          } else if (error?.response?.status === 409 && error?.response?.data?.data === 'conflict email') {
             snackbar.error('이미 가입된 E-mail입니다.');
           } else {
             alert.error('회원가입에 실패했습니다.\n다시 시도해 주세요.');
           }
-        })
-        .finally(() => {
-          hideLoading();
-        });
-    }
-    hideLoading();
+        },
+      },
+    );
   };
 
   const validateData = () => {

@@ -12,6 +12,7 @@ import { SnackbarContext } from '@/contexts/AlertContext';
 import Seo from '@/seo/Seo';
 import { getToken, setToken } from '@/helpers/authHelper';
 import { VITE_APP_MODE } from '@/lib/env';
+import { useMutation } from '@tanstack/react-query';
 
 const Login = () => {
   const { showLoading, hideLoading } = useContext(LoadingContext);
@@ -26,8 +27,20 @@ const Login = () => {
   const token = getToken();
   const APP_MODE = VITE_APP_MODE;
 
+  // 로그인
+  const loginMutation = useMutation({
+    mutationFn: (data: any) => authService.signin(data),
+  });
+
   useEffect(() => {
-    console.log('APP_MODE', APP_MODE);
+    if (loginMutation.isPending) {
+      showLoading();
+    } else {
+      hideLoading();
+    }
+  }, [loginMutation.isPending]);
+
+  useEffect(() => {
     if (token) {
       // token이 있으면 대시보드로 보내기
       navigate('/dashboard');
@@ -44,34 +57,28 @@ const Login = () => {
 
   const handleLogin = event => {
     event.preventDefault();
-    showLoading();
     validateData();
-    if (isValid) {
-      const data = {
+    if (!isValid) return;
+
+    loginMutation.mutate(
+      {
         userId: userInfo.userId,
         password: userInfo.userPwd,
-      };
-      authService
-        .signin(data)
-        .then(response => {
-          if (response.status === 201) {
-            setToken(response.data.accessToken);
-            navigate('/dashboard');
-          }
-        })
-        .catch(error => {
-          console.log(error);
-          if (error.response.status === 401) {
+      },
+      {
+        onSuccess: response => {
+          setToken(response.data.accessToken);
+          navigate('/dashboard');
+        },
+        onError: (error: any) => {
+          if (error?.response?.status === 401) {
             snackbar.error('ID 또는 비밀번호가 일치하지 않습니다.');
             return;
           }
           alert.error('로그인에 실패했습니다. 다시 시도해주세요.');
-        })
-        .finally(() => {
-          hideLoading();
-        });
-    }
-    hideLoading();
+        },
+      },
+    );
   };
 
   const validateData = () => {
