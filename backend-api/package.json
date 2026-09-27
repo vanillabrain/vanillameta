@@ -21,7 +21,7 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "deploy": "serverless deploy --stage prod",
-    "seed": "cross-env NODE_ENV=dev ts-node -r tsconfig-paths/register ./node_modules/typeorm-extension/dist/cli/index.js seed",
+    "seed": "cross-env NODE_ENV=local ts-node -r tsconfig-paths/register src/database/run-seed.ts",
     "migration:run": "cross-env NODE_ENV=dev ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:run -d src/data-source.ts",
     "migration:revert": "cross-env NODE_ENV=dev ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:revert -d src/data-source.ts",
     "migration:generate": "cross-env NODE_ENV=dev ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:generate -d src/data-source.ts",

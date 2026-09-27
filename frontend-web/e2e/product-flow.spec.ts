@@ -1,4 +1,4 @@
-import { expect, test, Page, APIRequestContext } from '@playwright/test';
+import { expect, test, Page } from '@playwright/test';
 
 /**
  * 제품 전체 플로우 E2E — 실서버 연동
@@ -105,7 +105,10 @@ test.describe('제품 전체 플로우', () => {
     await page.waitForSelector('.MuiDialog-root', { timeout: 5000 });
 
     const dialog = page.locator('.MuiDialog-root');
-    await dialog.getByLabel(/Name|이름/i).first().fill('e2e_total_amount');
+    await dialog
+      .getByLabel(/Name|이름/i)
+      .first()
+      .fill('e2e_total_amount');
     await dialog.locator('.MuiSelect-select').first().click();
     await page.locator('li[role="option"]').first().click();
     await dialog.getByLabel(/Table name|테이블/i).fill('uploaded_data');
@@ -134,7 +137,10 @@ test.describe('제품 전체 플로우', () => {
     // Step 1: 데이터 소스 카드 클릭 → 테이블 카드 클릭
     await page.locator('li, [class*="CardWrapper"], .MuiListItem-root', { hasText: /sales/i }).first().click();
     await page.waitForTimeout(1000);
-    await page.locator('li, [class*="CardWrapper"], .MuiListItem-root', { hasText: /uploaded_data/i }).first().click();
+    await page
+      .locator('li, [class*="CardWrapper"], .MuiListItem-root', { hasText: /uploaded_data/i })
+      .first()
+      .click();
     await page.waitForTimeout(500);
 
     // Next 활성화 확인 후 클릭
@@ -161,7 +167,9 @@ test.describe('제품 전체 플로우', () => {
       .click();
     // 위젯 제목 입력 (WidgetTitleForm: id=title)
     await page.locator('#title').fill(widgetTitle);
-    const createResp = page.waitForResponse(r => r.url().includes('/v1/widget') && r.request().method() === 'POST', { timeout: 15000 });
+    const createResp = page.waitForResponse(r => r.url().includes('/v1/widget') && r.request().method() === 'POST', {
+      timeout: 15000,
+    });
     await page.locator('button:has-text("저장"), button:has-text("Save")').last().click();
     await page.waitForTimeout(500);
     await confirmDialog(page, /저장|Save/);
@@ -187,7 +195,11 @@ test.describe('제품 전체 플로우', () => {
     // 위젯 추가 버튼 → 팝업에서 위젯 선택 → 확인
     await page.locator('button:has-text("위젯 추가"), button:has-text("Add widget")').first().click();
     await page.waitForTimeout(1500);
-    const item = page.locator('.MuiDialog-root .MuiListItemButton-root, .MuiDialog-root li, .MuiDialog-root [role="button"]', { hasText: /E2E 위젯|숫자판/ }).first();
+    const item = page
+      .locator('.MuiDialog-root .MuiListItemButton-root, .MuiDialog-root li, .MuiDialog-root [role="button"]', {
+        hasText: /E2E 위젯|숫자판/,
+      })
+      .first();
     await item.click();
     await page.waitForTimeout(500);
     // 팝업 하단 '위젯 추가' 버튼
@@ -195,7 +207,9 @@ test.describe('제품 전체 플로우', () => {
     await page.waitForTimeout(1500);
 
     // 저장 → 확인 팝업 → 생성 (POST /v1/dashboard 확인)
-    const createResp = page.waitForResponse(r => r.url().match(/\/v1\/dashboard/) && r.request().method() === 'POST', { timeout: 15000 });
+    const createResp = page.waitForResponse(r => r.url().match(/\/v1\/dashboard/) && r.request().method() === 'POST', {
+      timeout: 15000,
+    });
     await page.locator('button:has-text("저장"), button:has-text("Save")').first().click();
     await page.waitForTimeout(500);
     await confirmDialog(page, /생성|Create/);
@@ -245,9 +259,15 @@ test.describe('제품 전체 플로우', () => {
     // 헤더 우측 프로필 아바타 버튼(#styled-menu) → 팝오버의 '로그아웃' → 확인 팝업
     await page.locator('#styled-menu.MuiButton-text').last().click();
     await page.waitForTimeout(500);
-    await page.locator('#transition-popper button', { hasText: /로그아웃|Sign out|Logout/ }).first().click();
+    await page
+      .locator('#transition-popper button', { hasText: /로그아웃|Sign out|Logout/ })
+      .first()
+      .click();
     // 로그아웃 확인 다이얼로그 — DialogActions의 첫 버튼이 액션(OK/확인)
-    await page.locator('[role="dialog"] .MuiDialogActions-root button, .MuiDialog-root button').first().click({ timeout: 10000 });
+    await page
+      .locator('[role="dialog"] .MuiDialogActions-root button, .MuiDialog-root button')
+      .first()
+      .click({ timeout: 10000 });
     await page.waitForURL(/\/login/, { timeout: 15000 });
   });
 });

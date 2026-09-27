@@ -6,6 +6,7 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './e2e',
+  globalSetup: './e2e/global-setup.ts',
   timeout: 30_000,
   retries: 0,
   reporter: 'list',
@@ -19,10 +20,20 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
-  webServer: {
-    command: 'npm run start',
-    url: 'http://localhost:3000',
-    reuseExistingServer: true,
-    timeout: 30_000,
-  },
+  webServer: [
+    {
+      // 백엔드 — 없으면 자동 기동 (local sqlite 모드). /component의 401도 준비 완료로 인정됨
+      command: 'npm run start:local',
+      cwd: '../backend-api',
+      url: 'http://localhost:4000/v1/component',
+      reuseExistingServer: true,
+      timeout: 120_000,
+    },
+    {
+      command: 'npm run start',
+      url: 'http://localhost:3000',
+      reuseExistingServer: true,
+      timeout: 30_000,
+    },
+  ],
 });

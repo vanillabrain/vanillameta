@@ -1,4 +1,5 @@
 import { expect, test, Page } from '@playwright/test';
+import path from 'node:path';
 
 /**
  * 실 서버 연동 E2E — 로그인 → 파일 분석(브라우저 DuckDB) → 데이터셋 저장(서버 업로드)
@@ -17,10 +18,13 @@ async function login(page: Page) {
   await page.waitForURL(url => !url.pathname.includes('/login'), { timeout: 15000 });
 }
 
-
 async function waitEngineReady(page: Page) {
   // 엔진 로딩 중엔 버튼이 disabled — 활성화될 때까지 대기
-  const btn = page.locator('button:has-text("파일 선택"), button:has-text("Choose file"), button:has-text("Select file"), button:has-text("CHOOSE FILE")').first();
+  const btn = page
+    .locator(
+      'button:has-text("파일 선택"), button:has-text("Choose file"), button:has-text("Select file"), button:has-text("CHOOSE FILE")',
+    )
+    .first();
   await expect(btn).toBeEnabled({ timeout: 60000 });
 }
 
@@ -38,13 +42,13 @@ test.describe('실서버 E2E', () => {
 
     // 파일 업로드 (hidden input)
     await waitEngineReady(page);
-    await page.locator('input[type="file"]').setInputFiles('/tmp/vm-testdata/sales.csv');
+    await page.locator('input[type="file"]').setInputFiles(path.join(__dirname, 'fixtures/generated/sales.csv'));
     // DuckDB 로딩 + 미리보기 렌더링 대기
     await expect(page.locator('.tui-grid-container, canvas, table').first()).toBeVisible({ timeout: 30000 });
 
     // SQL 실행 (기본 쿼리가 있으면 그대로, 없으면 입력)
     const queryInput = page.locator('input.MuiInputBase-input').first();
-    await queryInput.fill("SELECT category, SUM(amount) AS total FROM uploaded_data GROUP BY category ORDER BY total DESC");
+    await queryInput.fill('SELECT category, SUM(amount) AS total FROM uploaded_data GROUP BY category ORDER BY total DESC');
     await page.locator('button:has-text("실행"), button:has-text("Run")').first().click();
     await page.waitForTimeout(2000);
 
@@ -60,7 +64,7 @@ test.describe('실서버 E2E', () => {
     await login(page);
     await page.goto('/data/file');
     await waitEngineReady(page);
-    await page.locator('input[type="file"]').setInputFiles('/tmp/vm-testdata/users.parquet');
+    await page.locator('input[type="file"]').setInputFiles(path.join(__dirname, 'fixtures/generated/users.parquet'));
     await expect(page.locator('.tui-grid-container, canvas, table').first()).toBeVisible({ timeout: 30000 });
   });
 
@@ -68,7 +72,7 @@ test.describe('실서버 E2E', () => {
     await login(page);
     await page.goto('/data/file');
     await waitEngineReady(page);
-    await page.locator('input[type="file"]').setInputFiles('/tmp/vm-testdata/sensors.json');
+    await page.locator('input[type="file"]').setInputFiles(path.join(__dirname, 'fixtures/generated/sensors.json'));
     await expect(page.locator('.tui-grid-container, canvas, table').first()).toBeVisible({ timeout: 30000 });
   });
 
@@ -76,7 +80,7 @@ test.describe('실서버 E2E', () => {
     await login(page);
     await page.goto('/data/file');
     await waitEngineReady(page);
-    await page.locator('input[type="file"]').setInputFiles('/tmp/vm-testdata/sales.csv');
+    await page.locator('input[type="file"]').setInputFiles(path.join(__dirname, 'fixtures/generated/sales.csv'));
     await expect(page.locator('.tui-grid-container, canvas, table').first()).toBeVisible({ timeout: 30000 });
 
     // "데이터셋으로 저장" 버튼 → 업로드 → /data/set/create 이동

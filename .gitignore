@@ -280,3 +280,4 @@ uploads/
 
 # agent tooling
 .commandcode/
+frontend-web/e2e/fixtures/generated/

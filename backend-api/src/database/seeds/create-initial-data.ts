@@ -720,6 +720,7 @@ export default class CreateInitialData implements Seeder {
           useYn: YesNo.YES,
         },
       ])
+      .orIgnore()
       .execute();
 
     await dataSource
@@ -888,6 +889,7 @@ export default class CreateInitialData implements Seeder {
           updatedAt: '2022-11-08 10:08:32.831030',
         },
       ])
+      .orIgnore()
       .execute();
 
     await dataSource
@@ -981,6 +983,7 @@ export default class CreateInitialData implements Seeder {
           useYn: YesNo.YES,
         },
       ])
+      .orIgnore()
       .execute();
 
     await dataSource
@@ -1541,6 +1544,7 @@ export default class CreateInitialData implements Seeder {
           recommendType: '',
         },
       ])
+      .orIgnore()
       .execute();
 
     await dataSource
@@ -1556,6 +1560,7 @@ export default class CreateInitialData implements Seeder {
           userId: 'guest',
         },
       ])
+      .orIgnore()
       .execute();
   }
 }
