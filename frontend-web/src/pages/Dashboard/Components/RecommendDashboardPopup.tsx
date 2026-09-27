@@ -33,6 +33,7 @@ import { ReactComponent as TemplateIcon09 } from '@/assets/images/template/templ
 import { ReactComponent as TemplateIcon10 } from '@/assets/images/template/template10.svg';
 import { ReactComponent as CheckIcon } from '@/assets/images/icon/ic-check.svg';
 import { LoadingContext } from '@/contexts/LoadingContext';
+import { useMutation, useQuery } from '@tanstack/react-query';
 
 const getTemplateIcon = id => {
   let icon = null;
@@ -78,13 +79,22 @@ export const WidgetList = ({
   selectedChange = null,
 }) => {
   const alert = useAlert();
-  const [loadedWidgetData, setLoadedWidgetData] = useState([]);
   const [selectedIds, setSelectedIds] = useState(selectedWidgetIds);
   const { showLoading, hideLoading } = useContext(LoadingContext);
 
+  // 위젯 목록 조회
+  const { data: loadedWidgetData = [], isFetching } = useQuery({
+    queryKey: ['widgets'],
+    queryFn: async () => (await WidgetService.selectWidgetList()).data.data,
+  });
+
   useEffect(() => {
-    getItems();
-  }, []);
+    if (isFetching) {
+      showLoading();
+    } else {
+      hideLoading();
+    }
+  }, [isFetching]);
 
   useEffect(() => {
     setSelectedIds(selectedWidgetIds);
@@ -93,21 +103,6 @@ export const WidgetList = ({
   useEffect(() => {
     selectedChange(selectedIds.length);
   }, [selectedIds]);
-
-  const getItems = () => {
-    showLoading();
-    WidgetService.selectWidgetList()
-      .then(response => {
-        if (response.data.status == STATUS.SUCCESS) {
-          setLoadedWidgetData(response.data.data);
-        } else {
-          console.log('조회 실패!!!!');
-        }
-      })
-      .finally(() => {
-        hideLoading();
-      });
-  };
 
   const handleClick = item => {
     const isSelect = isItemSelection(item);
@@ -255,23 +250,17 @@ export const WidgetList = ({
 
 export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = null, selectedWidgetIds = null }) => {
   const alert = useAlert();
-  const [loadedTemplateDataList, setLoadedTemplateDataList] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
 
-  const getItems = () => {
-    TemplateService.selectRecommendTemplateList({ widgets: selectedWidgetIds }).then(response => {
-      // TemplateService.selectRecommendTemplateList({ widgets: [1, 2] }).then(response => {
-      if (response.data.status == STATUS.SUCCESS) {
-        setLoadedTemplateDataList(response.data.data);
-      } else {
-        console.log('조회 실패!!');
-      }
-    });
-  };
+  // 추천 템플릿 목록 조회
+  const { data: loadedTemplateDataList = [] } = useQuery({
+    queryKey: ['recommend-templates', selectedWidgetIds],
+    queryFn: async () =>
+      (await TemplateService.selectRecommendTemplateList({ widgets: selectedWidgetIds })).data.data,
+  });
 
   useEffect(() => {
     setSelectedItem(null);
-    getItems();
   }, []);
 
   // 취소 버튼 클릭
@@ -501,14 +490,15 @@ function RecommendDashboardPopup({ recommendOpen = false, handleComplete = null 
     setSelectedWidgetCount(count);
   };
 
-  const getTemplateResult = item => {
-    TemplateService.selectRecommendTemplateListDashboard(item).then(response => {
-      if (response.data.status == STATUS.SUCCESS) {
-        handleComplete(response.data.data);
-      } else {
-        console.log('조회 실패!!');
-      }
-    });
+  const templateResultMutation = useMutation({
+    mutationFn: (item: any) => TemplateService.selectRecommendTemplateListDashboard(item),
+  });
+
+  const getTemplateResult = async item => {
+    const response = await templateResultMutation.mutateAsync(item);
+    if (response.data.status == STATUS.SUCCESS) {
+      handleComplete(response.data.data);
+    }
   };
 
   return (
