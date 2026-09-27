@@ -99,5 +99,26 @@ PW: Admin!@12
 
 생성한 위젯들로 대시보드를 구성해 보세요!
 
+## 개발 · 테스트
+
+```bash
+# Backend (SQLite 로컬 E2E, 외부 DB 불필요)
+cd backend-api
+npm install --legacy-peer-deps
+npm test          # unit
+npm run test:e2e  # E2E
+
+# Frontend (Vite)
+cd frontend-web
+npm install --legacy-peer-deps
+npm run build
+npm test
+```
+
+CI 는 GitHub Actions(`.github/workflows/ci.yml`)에서 backend(build/unit/e2e)와 frontend(build/test)를 검증합니다.
+
+운영·보안·접근제어·백업 등 상세 내용은 [docs/OPERATIONS.md](docs/OPERATIONS.md) 를 참고하세요.
+
+
 
 
