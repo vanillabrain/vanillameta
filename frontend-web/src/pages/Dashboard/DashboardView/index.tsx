@@ -20,8 +20,19 @@ import shareService from '@/api/shareService';
 import { AuthContext } from '@/contexts/AuthContext';
 import Seo from '@/seo/Seo';
 import { dateData } from '@/utils/util';
+import { useIsFetching, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
+
+const defaultDashboardInfo: any = {
+  title: '',
+  widgets: [],
+  layout: [],
+  updatedAt: '',
+  shareYn: 'N',
+  uuid: null,
+  endDate: null,
+};
 
 const DashboardView = () => {
   const { dashboardId } = useParams();
@@ -30,56 +41,78 @@ const DashboardView = () => {
   const snackbar = useAlert(SnackbarContext);
   const { userState } = useContext(AuthContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
-  const [dashboardInfo, setDashboardInfo] = useState({
-    title: '',
-    widgets: [],
-    layout: [],
-    updatedAt: '',
-    shareYn: 'N',
-    uuid: null,
-    endDate: null,
-  }); // dashboard 정보
+  const queryClient = useQueryClient();
+
   const [layout, setLayout] = useState([]); // grid layout
-  // dashboard id
-  const [isShareOn, setIsShareOn] = useState(false);
   const [shareLimitDate, setShareLimitDate] = useState(null);
 
-  // init useEffect
-  useEffect(() => {
-    getDashboardInfo(dashboardId);
-  }, [isShareOn]);
+  // dashboard info 조회
+  const { data: dashboardInfoResponse } = useQuery({
+    queryKey: ['dashboard', dashboardId],
+    queryFn: async () => (await DashboardService.selectDashboard(dashboardId)).data,
+    enabled: !!dashboardId,
+  });
 
-  // dashboardInfo useEffect
+  const dashboardInfo =
+    dashboardInfoResponse?.status === STATUS.SUCCESS
+      ? dashboardInfoResponse.data
+      : defaultDashboardInfo;
+  const isShareOn = dashboardInfo.shareYn === 'Y';
+
   useEffect(() => {
-    dashboardInfo.layout.map(item => {
-      if (item.i !== undefined) {
-        item.i = item.i.toString();
-      }
-      item.static = true;
-    });
-    setLayout(dashboardInfo.layout);
-    setIsShareOn(dashboardInfo.shareYn === 'Y');
+    if (dashboardInfoResponse && dashboardInfoResponse.status !== STATUS.SUCCESS) {
+      alert.error('대시보드 조회에 실패했습니다.\n다시 시도해 주세요.');
+    }
+  }, [dashboardInfoResponse]);
+
+  // dashboardInfo 로 layout/공유기한 파생
+  useEffect(() => {
+    const nextLayout = (dashboardInfo.layout || []).map(item => ({
+      ...item,
+      i: item.i !== undefined ? String(item.i) : item.i,
+      static: true,
+    }));
+    setLayout(nextLayout);
+
     if (dashboardInfo.endDate) {
-      const date = dateData(dashboardInfo.endDate);
-      setShareLimitDate(date);
+      setShareLimitDate(dateData(dashboardInfo.endDate));
     }
   }, [dashboardInfo]);
 
-  // dashboard info 조회
-  const getDashboardInfo = id => {
-    showLoading();
-    DashboardService.selectDashboard(id)
-      .then(response => {
-        if (response.data.status == STATUS.SUCCESS) {
-          setDashboardInfo(response.data.data);
-        } else {
-          alert.error('대시보드 조회에 실패했습니다.\n다시 시도해 주세요.');
-        }
-      })
-      .finally(() => {
-        hideLoading();
-      });
-  };
+  // 대시보드 삭제
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => DashboardService.deleteDashboard(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dashboards'] });
+      navigate('/dashboard', { replace: true });
+      snackbar.success('대시보드가 삭제되었습니다.');
+    },
+    onError: () => {
+      alert.error('대시보드 삭제에 실패했습니다.\n다시 시도해 주세요.');
+    },
+  });
+
+  // 공유 on/off
+  const shareMutation = useMutation({
+    mutationFn: ({ on, data }: { on: boolean; data: any }) =>
+      on ? shareService.onShareToken(dashboardId, data) : shareService.offShareToken(dashboardId, data),
+    onSuccess: (_response, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['dashboard', dashboardId] });
+      if (!variables.on) {
+        setShareLimitDate(null);
+      }
+    },
+  });
+
+  const isMutating = deleteMutation.isPending || shareMutation.isPending;
+  const fetchingCount = useIsFetching();
+  useEffect(() => {
+    if (fetchingCount > 0 || isMutating) {
+      showLoading();
+    } else {
+      hideLoading();
+    }
+  }, [fetchingCount, isMutating]);
 
   // refrech 버튼 클릭
   const handleRefreshClick = () => {
@@ -119,21 +152,7 @@ const DashboardView = () => {
         actions: [
           {
             copy: '확인',
-            onClick: () => {
-              showLoading();
-              DashboardService.deleteDashboard(dashboardId)
-                .then(response => {
-                  if (response.data.status == STATUS.SUCCESS) {
-                    navigate('/dashboard', { replace: true });
-                    snackbar.success('대시보드가 삭제되었습니다.');
-                  } else {
-                    alert.error('대시보드 삭제에 실패했습니다.\n다시 시도해 주세요.');
-                  }
-                })
-                .finally(() => {
-                  hideLoading();
-                });
-            },
+            onClick: () => deleteMutation.mutate(String(dashboardId)),
           },
         ],
       },
@@ -151,37 +170,9 @@ const DashboardView = () => {
         snackbar.error('공유 기한을 먼저 설정해주세요.');
         return;
       }
-      showLoading();
-      shareService
-        .onShareToken(dashboardId, data)
-        .then(response => {
-          console.log('buttonOn', response);
-          if (response.status === 201) {
-            setIsShareOn(true);
-          }
-        })
-        .catch(error => {
-          console.log(error);
-        })
-        .finally(() => {
-          hideLoading();
-        });
+      shareMutation.mutate({ on: true, data });
     } else {
-      shareService
-        .offShareToken(dashboardId, data)
-        .then(response => {
-          console.log('buttonOff', response);
-          if (response.status === 201) {
-            setIsShareOn(false);
-            setShareLimitDate(null);
-          }
-        })
-        .catch(error => {
-          console.log(error);
-        })
-        .finally(() => {
-          hideLoading();
-        });
+      shareMutation.mutate({ on: false, data });
     }
   };
 
