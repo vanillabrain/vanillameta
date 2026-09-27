@@ -80,7 +80,7 @@ npm test                     # jest (jsdom)
 - **소유권**: 대시보드(`UserMapping`) 및 공유 URL on/off 는 소유자만 접근(그 외 403). 공유된 대시보드 조회는 비로그인 허용.
 - 기본 시드 계정: `guest` (role=admin).
 
-> 미비: `database` / `dataset` / `widget` 은 데이터 모델에 소유자 개념이 없어 접근 제어가 없습니다.
+> 소유권: 데이터소스(`Database.ownerId`)와 그에 속한 `dataset`/`widget`(부모 데이터소스 기준)은 소유자 또는 관리자만 접근합니다(그 외 403). 목록은 소유자 것만, 관리자는 전체.
 
 ## 6. 감사 로그
 
@@ -110,7 +110,6 @@ npm test                     # jest (jsdom)
 ## 10. 남은 항목 (후속)
 
 - 조직/팀(멀티테넌시) 기반 권한·격리
-- `dataset`/`widget` 소유권 모델 (데이터소스 소유권은 구현됨; dataset/widget 은 database 기준 파생 적용 필요)
 - SSO/OIDC, 컴플라이언스 대응
 - 백업 복구(restore) 및 스케줄링
 - 시크릿 관리(SSM/Secrets Manager): 런타임 로더 구현됨, `.env` 번들 제거 및 SSM 파라미터 실제 생성은 미완

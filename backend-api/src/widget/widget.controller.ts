@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Delete, Put, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, Put, Req, UseGuards } from '@nestjs/common';
 import { WidgetService } from './widget.service';
 import { CreateWidgetDto } from './dto/create-widget.dto';
 import { UpdateWidgetDto } from './dto/update-widget.dto';
@@ -14,16 +14,16 @@ export class WidgetController {
    * @param createWidgetDto
    */
   @Post()
-  create(@Body() createWidgetDto: CreateWidgetDto) {
-    return this.widgetService.create(createWidgetDto);
+  create(@Req() req, @Body() createWidgetDto: CreateWidgetDto) {
+    return this.widgetService.create(createWidgetDto, req.user.accessKeyData.id);
   }
 
   /**
    * 위젯 목록 조회
    */
   @Get()
-  findAll() {
-    return this.widgetService.findAll();
+  findAll(@Req() req) {
+    return this.widgetService.findAll(req.user.accessKeyData.id);
   }
 
   /**
@@ -31,8 +31,8 @@ export class WidgetController {
    * @param id
    */
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.widgetService.findOne(+id);
+  findOne(@Req() req, @Param('id') id: string) {
+    return this.widgetService.findOne(+id, req.user.accessKeyData.id);
   }
 
   /**
@@ -41,8 +41,8 @@ export class WidgetController {
    * @param updateWidgetDto
    */
   @Put(':id')
-  update(@Param('id') id: string, @Body() updateWidgetDto: UpdateWidgetDto) {
-    return this.widgetService.update(+id, updateWidgetDto);
+  update(@Req() req, @Param('id') id: string, @Body() updateWidgetDto: UpdateWidgetDto) {
+    return this.widgetService.update(+id, updateWidgetDto, req.user.accessKeyData.id);
   }
 
   /**
@@ -50,7 +50,7 @@ export class WidgetController {
    * @param id
    */
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.widgetService.remove(+id);
+  remove(@Req() req, @Param('id') id: string) {
+    return this.widgetService.remove(+id, req.user.accessKeyData.id);
   }
 }

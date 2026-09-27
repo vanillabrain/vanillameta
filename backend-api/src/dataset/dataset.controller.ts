@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Delete, Put, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, Put, Req, UseGuards } from '@nestjs/common';
 import { DatasetService } from './dataset.service';
 import { CreateDatasetDto } from './dto/create-dataset.dto';
 import { UpdateDatasetDto } from './dto/update-dataset.dto';
@@ -14,16 +14,16 @@ export class DatasetController {
    * @param createDatasetDto
    */
   @Post()
-  create(@Body() createDatasetDto: CreateDatasetDto) {
-    return this.datasetService.create(createDatasetDto);
+  create(@Req() req, @Body() createDatasetDto: CreateDatasetDto) {
+    return this.datasetService.create(createDatasetDto, req.user.accessKeyData.id);
   }
 
   /**
    * 데이터셋 목록 조회
    */
   @Get()
-  findAll() {
-    return this.datasetService.findAll();
+  findAll(@Req() req) {
+    return this.datasetService.findAll(req.user.accessKeyData.id);
   }
 
   /**
@@ -31,8 +31,8 @@ export class DatasetController {
    * @param id
    */
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.datasetService.findOne(+id);
+  findOne(@Req() req, @Param('id') id: string) {
+    return this.datasetService.findOne(+id, req.user.accessKeyData.id);
   }
 
   /**
@@ -41,8 +41,8 @@ export class DatasetController {
    * @param updateDatasetDto
    */
   @Put(':id')
-  update(@Param('id') id: number, @Body() updateDatasetDto: UpdateDatasetDto) {
-    return this.datasetService.update(+id, updateDatasetDto);
+  update(@Req() req, @Param('id') id: string, @Body() updateDatasetDto: UpdateDatasetDto) {
+    return this.datasetService.update(+id, updateDatasetDto, req.user.accessKeyData.id);
   }
 
   /**
@@ -50,7 +50,7 @@ export class DatasetController {
    * @param id
    */
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.datasetService.remove(+id);
+  remove(@Req() req, @Param('id') id: string) {
+    return this.datasetService.remove(+id, req.user.accessKeyData.id);
   }
 }

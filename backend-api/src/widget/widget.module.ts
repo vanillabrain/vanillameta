@@ -7,10 +7,11 @@ import { Component } from '../component/entities/component.entity';
 import { TableQueryService } from './table-query/table-query.service';
 import { TableQuery } from './table-query/entity/table-query.entity';
 import { Database } from '../database/entities/database.entity';
+import { User } from '../user/entities/user.entity';
 import { JwtService } from '@nestjs/jwt';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Widget, Component, TableQuery, Database])],
+  imports: [TypeOrmModule.forFeature([Widget, Component, TableQuery, Database, User])],
   controllers: [WidgetController],
   providers: [WidgetService, TableQueryService, JwtService],
 })

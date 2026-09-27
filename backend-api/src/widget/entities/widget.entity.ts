@@ -19,6 +19,9 @@ export class Widget extends BaseEntity {
   @Column({ comment: '컴포넌트 ID' })
   componentId: number;
 
+  @Column({ nullable: true, comment: '데이터소스 ID' })
+  databaseId: number;
+
   @Column({ length: 255, comment: '데이터셋 구분(데이터셋, 위젯 뷰)', default: DatasetType.TABLE })
   datasetType: DatasetType;
 

@@ -6,10 +6,11 @@ import { Dataset } from './entities/dataset.entity';
 import { ConnectionService } from '../connection/connection.service';
 import { Database } from '../database/entities/database.entity';
 import { Widget } from '../widget/entities/widget.entity';
+import { User } from '../user/entities/user.entity';
 import { JwtService } from '@nestjs/jwt';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Dataset, Database, Widget])],
+  imports: [TypeOrmModule.forFeature([Dataset, Database, Widget, User])],
   controllers: [DatasetController],
   providers: [DatasetService, ConnectionService, JwtService],
 })
