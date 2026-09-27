@@ -46,6 +46,7 @@ export class AuditInterceptor implements NestInterceptor {
         action: `${request.method} ${request.route?.path ?? request.path}`,
         statusCode: statusCode ?? null,
         ip: request.ip,
+        requestId: request.requestId ?? null,
       });
 
     return next.handle().pipe(

@@ -10,6 +10,7 @@ import { setupSwagger } from './utils/swagger';
 async function bootstrap() {
   const expressApp = express();
   expressApp.use(helmet({ contentSecurityPolicy: false }));
+  expressApp.use(express.json({ limit: process.env.BODY_LIMIT || '1mb' }));
 
   const nestApp = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), {
     logger: console,

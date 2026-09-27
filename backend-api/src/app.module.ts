@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
@@ -19,6 +19,7 @@ import { LoginModule } from './login/login.module';
 import { ShareUrlModule } from './share-url/share-url.module';
 import { AdminModule } from './admin/admin.module';
 import { AuditModule } from './audit/audit.module';
+import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 
 const isTest = process.env.NODE_ENV === 'test';
 const isLocal = process.env.NODE_ENV === 'local';
@@ -77,4 +78,8 @@ const useSqlite = isLocal || isTest;
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(RequestIdMiddleware).forRoutes('*');
+  }
+}

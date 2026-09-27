@@ -30,6 +30,9 @@ export class AuditLog {
   @Column({ length: 45, nullable: true, comment: '요청 IP' })
   ip: string;
 
+  @Column({ length: 64, nullable: true, comment: '상관관계 ID' })
+  requestId: string;
+
   @CreateDateColumn({ comment: '생성일' })
   createdAt: Date;
 }
