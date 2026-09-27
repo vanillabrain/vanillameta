@@ -219,7 +219,7 @@ const MixedDonutPieChartSetting = props => {
         {option.series.field &&
           option.pie.field &&
           option.color
-            .filter((item, index) => index < colorNum)
+            .filter((_item, index) => index < colorNum)
             .map((item, index) => (
               <ColorFieldReForm
                 key={index}

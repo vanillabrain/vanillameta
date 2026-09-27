@@ -50,7 +50,7 @@ const StyledSwiperNavigation = styled(Box)({
   },
 });
 
-function SecondStep(props) {
+function SecondStep() {
   const slideData = ['Slide 1', 'Slide 2', 'Slide 3', 'Slide 4', 'Slide 5'];
   const [activeSlide, setActiveSlide] = useState(0);
 

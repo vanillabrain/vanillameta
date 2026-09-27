@@ -95,7 +95,7 @@ const Bar3DChartSetting = props => {
       </ListItem>
       <ListItem>
         <ListItemText primary="색상 범위 설정" />
-        {option.color.map((item, index) => (
+        {option.color.map((_item, index) => (
           <React.Fragment key={index}>
             <ColorFieldForm
               id={`color${index + 1}`}

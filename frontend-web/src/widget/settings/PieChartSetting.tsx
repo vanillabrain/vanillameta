@@ -119,8 +119,8 @@ const PieChartSetting = props => {
         />
         {option.series.field &&
           option.series.color
-            .filter((item, index) => index < colorNum)
-            .map((item, index) => (
+            .filter((_item, index) => index < colorNum)
+            .map((_item, index) => (
               <React.Fragment key={index}>
                 <ColorFieldForm
                   id={`color${index + 1}`}

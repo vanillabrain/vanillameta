@@ -42,7 +42,7 @@ export const handleSeriesChange = (event, setOption, prop = 'series', innerProp 
   });
 };
 
-export const handleAddClick = (event, option, setOption, defaultSeries, prop = 'series') => {
+export const handleAddClick = (_event, option, setOption, defaultSeries, prop = 'series') => {
   setOption(prevState => {
     const obj = { ...prevState };
     const defaultColor = [
@@ -71,7 +71,7 @@ export const handleAddClick = (event, option, setOption, defaultSeries, prop = '
   });
 };
 
-export const handleRemoveClick = (event, index, option, setOption, prop = 'series') => {
+export const handleRemoveClick = (_event, index, option, setOption, prop = 'series') => {
   if (option[prop].length === 1) {
     return;
   }

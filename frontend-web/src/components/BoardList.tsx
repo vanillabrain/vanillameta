@@ -33,7 +33,7 @@ function BoardList(props) {
   const theme = useTheme();
   const matches = useMediaQuery(theme.breakpoints.up('sm'));
 
-  const handlePageChange = (e, p) => {
+  const handlePageChange = (_e, p) => {
     setPage(p);
   };
 

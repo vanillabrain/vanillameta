@@ -70,7 +70,7 @@ const DataSet = () => {
 
   const addCompleter = () => {
     const rhymeCompleter = {
-      getCompletions: (editor, session, pos, prefix, callback) => {
+      getCompletions: (_editor, _session, _pos, prefix, callback) => {
         if (prefix.length === 0) {
           callback(null, []);
           return;

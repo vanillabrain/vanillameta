@@ -2,7 +2,7 @@
  * widget title validation
  * @param title
  */
-export const validateTitle = title => {
+export const validateTitle = _title => {
   const result = false;
   return;
 };
