@@ -15,6 +15,7 @@ import { SnackbarContext } from '@/contexts/AlertContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import SnowflakeDatabaseForm from '@/pages/Data/DataSource/form/SnowflakeDatabaseForm';
 import OracleDatabaseForm from '@/pages/Data/DataSource/form/OracleDatabaseForm';
+import { useIsFetching, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 function DataSource() {
   const { sourceId } = useParams();
@@ -23,6 +24,7 @@ function DataSource() {
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
+  const queryClient = useQueryClient();
 
   const [isModifyMode, setIsModifyMode] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
@@ -39,17 +41,14 @@ function DataSource() {
       database: '',
     },
     sqlite: {
-      // name: '',
       filename: '',
     },
     bigquery: {
-      // name: '',
       projectId: '',
       filename: '',
       database: '',
     },
     oracle: {
-      // name: '',
       host: '',
       port: null,
       user: '',
@@ -60,7 +59,6 @@ function DataSource() {
       requestTimeout: '',
     },
     snowflake: {
-      // name: '',
       account: '',
       username: '',
       password: '',
@@ -71,118 +69,120 @@ function DataSource() {
     },
   });
 
-  useLayoutEffect(() => {
-    getDatabaseTypeList();
-    console.log('modify', pathname.indexOf('modify'));
-    console.log('sourceId', sourceId);
+  // 데이터베이스 타입 목록 조회
+  const { data: databaseTypeResponse } = useQuery({
+    queryKey: ['database-types'],
+    queryFn: async () => (await DatabaseService.selectDatabaseTypeList()).data,
+  });
 
+  useEffect(() => {
+    if (databaseTypeResponse?.status === STATUS.SUCCESS) {
+      const list = databaseTypeResponse.data;
+      list.forEach(item => (item.icon = getDatabaseIcon(item.type)));
+      setTypeList(list);
+    }
+  }, [databaseTypeResponse]);
+
+  // 수정 모드일 경우 데이터베이스 정보 조회
+  const { data: databaseInfoResponse } = useQuery({
+    queryKey: ['database-info-edit', sourceId],
+    queryFn: async () => (await DatabaseService.selectDatabaseInfo(sourceId)).data,
+    enabled: isModifyMode,
+  });
+
+  useEffect(() => {
+    const info = databaseInfoResponse;
+    if (info?.status !== 'SUCCESS') return;
+
+    const databaseInfo = info.data.databaseInfo;
+    const temp: any = {
+      name: databaseInfo.name,
+      type: databaseInfo.type,
+    };
+    if (databaseInfo.type === 'sqlite') {
+      temp.sqlite = { filename: databaseInfo.connectionConfig.filename };
+    } else if (databaseInfo.type === 'bigquery') {
+      temp.bigquery = {
+        projectId: databaseInfo.connectionConfig.projectId,
+        keyFilename: databaseInfo.connectionConfig.keyFilename,
+        schema: databaseInfo.connectionConfig.schema,
+      };
+    } else if (databaseInfo.type === 'oracle') {
+      temp.oracle = {
+        host: databaseInfo.connectionConfig.host,
+        port: Number(databaseInfo.connectionConfig.port),
+        user: databaseInfo.connectionConfig.user,
+        database: databaseInfo.connectionConfig.database,
+        instanceName: databaseInfo.connectionConfig.instanceName,
+        fetchAsString: databaseInfo.connectionConfig.fetchAsString,
+        requestTimeout: databaseInfo.connectionConfig.requestTimeout,
+      };
+    } else if (databaseInfo.type === 'snowflake') {
+      temp.snowflake = {
+        account: databaseInfo.connectionConfig.account,
+        username: databaseInfo.connectionConfig.username,
+        database: databaseInfo.connectionConfig.database,
+        application: databaseInfo.connectionConfig.application,
+        schema: databaseInfo.connectionConfig.schema,
+        warehouse: databaseInfo.connectionConfig.warehouse,
+      };
+    } else {
+      temp.default = {
+        host: databaseInfo.connectionConfig.host,
+        port: Number(databaseInfo.connectionConfig.port),
+        user: databaseInfo.connectionConfig.user,
+        database: databaseInfo.connectionConfig.database,
+      };
+    }
+    setFormData(temp);
+  }, [databaseInfoResponse]);
+
+  // 연결 테스트
+  const testMutation = useMutation({
+    mutationFn: (param: any) => DatabaseService.testConnection(param),
+  });
+
+  // 데이터베이스 생성/수정
+  const saveMutation = useMutation({
+    mutationFn: async ({ id, param }: { id?: string; param: any }) =>
+      id ? DatabaseService.updateDatabase(id, param) : DatabaseService.createDatabase(param),
+  });
+
+  const isMutating = testMutation.isPending || saveMutation.isPending;
+  const fetchingCount = useIsFetching();
+  useEffect(() => {
+    if (fetchingCount > 0 || isMutating) {
+      showLoading();
+    } else {
+      hideLoading();
+    }
+  }, [fetchingCount, isMutating]);
+
+  useLayoutEffect(() => {
     if (pathname.indexOf('modify') > 0 && sourceId) {
-      // 데이터셋 수정일 경우
+      // 데이터소스 수정일 경우
       setIsModifyMode(true);
-      getDatabaseInfo();
     }
   }, []);
 
-  /**
-   * 수정일 경우 데이터베이스 정보 조회
-   */
   useEffect(() => {
     getType();
   }, [typeList, formData.type]);
 
-  const getDatabaseInfo = () => {
-    showLoading();
-    DatabaseService.selectDatabaseInfo(sourceId)
-      .then(response => {
-        const info = response.data;
-        if (info.status === 'SUCCESS') {
-          const databaseInfo = info.data.databaseInfo;
-          const temp: any = {
-            name: databaseInfo.name,
-            type: databaseInfo.type,
-          };
-          if (databaseInfo.type === 'sqlite') {
-            temp.sqlite = {
-              filename: databaseInfo.connectionConfig.filename,
-            };
-          } else if (databaseInfo.type === 'bigquery') {
-            temp.bigquery = {
-              projectId: databaseInfo.connectionConfig.projectId,
-              keyFilename: databaseInfo.connectionConfig.keyFilename,
-              schema: databaseInfo.connectionConfig.schema,
-            };
-          } else if (databaseInfo.type === 'oracle') {
-            temp.oracle = {
-              host: databaseInfo.connectionConfig.host,
-              port: Number(databaseInfo.connectionConfig.port),
-              user: databaseInfo.connectionConfig.user,
-              database: databaseInfo.connectionConfig.database,
-              instanceName: databaseInfo.connectionConfig.instanceName,
-              fetchAsString: databaseInfo.connectionConfig.fetchAsString,
-              requestTimeout: databaseInfo.connectionConfig.requestTimeout,
-            };
-          } else if (databaseInfo.type === 'snowflake') {
-            temp.snowflake = {
-              account: databaseInfo.connectionConfig.account,
-              username: databaseInfo.connectionConfig.username,
-              database: databaseInfo.connectionConfig.database,
-              application: databaseInfo.connectionConfig.application,
-              schema: databaseInfo.connectionConfig.schema,
-              warehouse: databaseInfo.connectionConfig.warehouse,
-            };
-          } else {
-            temp.default = {
-              host: databaseInfo.connectionConfig.host,
-              port: Number(databaseInfo.connectionConfig.port),
-              user: databaseInfo.connectionConfig.user,
-              database: databaseInfo.connectionConfig.database,
-            };
-          }
-          setFormData(temp);
-        }
-      })
-      .finally(() => {
-        hideLoading();
-      });
-  };
-
-  const testConnect = item => {
-    showLoading();
+  const testConnect = async item => {
     const param = {
       name: item.name,
       description: item.name,
       connectionConfig: item,
       engine: dataType.engine,
     };
-    DatabaseService.testConnection(param)
-      .then(response => {
-        console.log(response);
-        if (response.data.status === STATUS.SUCCESS) {
-          setIsConnected(true);
-          snackbar.success('데이터베이스 연결에 성공했습니다.');
-        } else {
-          snackbar.error('데이터베이스에 연결할 수 없습니다. 데이터베이스 정보를 확인해주세요');
-        }
-      })
-      .finally(() => {
-        hideLoading();
-      });
-  };
-
-  const getDatabaseTypeList = () => {
-    showLoading();
-    DatabaseService.selectDatabaseTypeList()
-      .then(response => {
-        console.log('selectDatabaseTypeList', response.data);
-        if (response.data.status === STATUS.SUCCESS) {
-          const list = response.data.data;
-          list.map(item => (item.icon = getDatabaseIcon(item.type)));
-          setTypeList(list);
-        }
-      })
-      .finally(() => {
-        hideLoading();
-      });
+    const response = await testMutation.mutateAsync(param);
+    if (response.data.status === STATUS.SUCCESS) {
+      setIsConnected(true);
+      snackbar.success('데이터베이스 연결에 성공했습니다.');
+    } else {
+      snackbar.error('데이터베이스에 연결할 수 없습니다. 데이터베이스 정보를 확인해주세요');
+    }
   };
 
   const getType = () => {
@@ -208,7 +208,7 @@ function DataSource() {
   };
 
   const handleSaveClick = () => {
-    const param = {
+    const param: any = {
       name: formData.name,
       description: formData.name,
       type: dataType.type,
@@ -226,37 +226,19 @@ function DataSource() {
       actions: [
         {
           copy: '확인',
-          onClick: () => {
-            showLoading();
-            if (isModifyMode) {
-              DatabaseService.updateDatabase(sourceId, param)
-                .then(response => {
-                  console.log(response.data);
-                  if (response.data.status === STATUS.SUCCESS) {
-                    console.log('데이터베이스 저장', param);
-                    navigate('/data');
-                    snackbar.success('데이터베이스가 수정되었습니다.');
-                  } else {
-                    alert.error('데이터베이스 저장에 실패했습니다.\n다시 시도해 주세요.');
-                  }
-                })
-                .finally(() => {
-                  hideLoading();
-                });
+          onClick: async () => {
+            const response = await saveMutation.mutateAsync({
+              id: isModifyMode ? sourceId : undefined,
+              param,
+            });
+            if (response.data.status === STATUS.SUCCESS) {
+              queryClient.invalidateQueries({ queryKey: ['databases'] });
+              navigate('/data');
+              snackbar.success(
+                `데이터베이스가 ${isModifyMode ? '수정' : '생성'}되었습니다.`,
+              );
             } else {
-              DatabaseService.createDatabase(param)
-                .then(response => {
-                  if (response.data.status === STATUS.SUCCESS) {
-                    console.log('데이터베이스 저장', param);
-                    navigate('/data');
-                    snackbar.success('데이터베이스가 생성되었습니다.');
-                  } else {
-                    alert.error('데이터베이스 저장에 실패했습니다.\n다시 시도해 주세요.');
-                  }
-                })
-                .finally(() => {
-                  hideLoading();
-                });
+              alert.error('데이터베이스 저장에 실패했습니다.\n다시 시도해 주세요.');
             }
           },
         },
