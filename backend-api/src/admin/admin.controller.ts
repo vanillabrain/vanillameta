@@ -42,4 +42,10 @@ export class AdminController {
   findAuditLogs() {
     return this.adminService.findAuditLogs();
   }
+
+  @Get('backup')
+  @ApiOperation({ summary: '메타데이터 백업 스냅샷 내보내기 (관리자)' })
+  exportBackup() {
+    return this.adminService.exportBackup();
+  }
 }
