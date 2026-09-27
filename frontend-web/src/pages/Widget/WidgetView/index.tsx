@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect } from 'react';
 import { Box, Card, Hidden } from '@mui/material';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import PageTitleBox from '@/components/PageTitleBox';
@@ -14,6 +14,24 @@ import { LoadingContext } from '@/contexts/LoadingContext';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import Seo from '@/seo/Seo';
 import { dateData } from '@/utils/util';
+import { useIsFetching, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
+const defaultWidgetInfo: WidgetInfo = {
+  componentId: '',
+  createdAt: '',
+  datasetId: '',
+  datasetType: '',
+  delYn: '',
+  description: '',
+  id: '',
+  option: '',
+  title: '',
+  updatedAt: '',
+  widgetViewId: '',
+  icon: '',
+  componentTitle: '',
+  componentDescription: '',
+};
 
 const WidgetView = () => {
   const navigate = useNavigate();
@@ -22,44 +40,39 @@ const WidgetView = () => {
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
-
-  const defaultWidgetInfo: WidgetInfo = {
-    componentId: '',
-    createdAt: '',
-    datasetId: '',
-    datasetType: '',
-    delYn: '',
-    description: '',
-    id: '',
-    option: '',
-    title: '',
-    updatedAt: '',
-    widgetViewId: '',
-    icon: '',
-    componentTitle: '',
-    componentDescription: '',
-  };
-  const [widgetOption, setWidgetOption] = useState<WidgetInfo>(defaultWidgetInfo);
+  const queryClient = useQueryClient();
 
   const { widgetId } = useParams();
 
-  useEffect(() => {
-    getWidgetInfo();
-  }, []);
+  // 위젯 조회
+  const { data: widgetOption = defaultWidgetInfo } = useQuery<WidgetInfo>({
+    queryKey: ['widget', widgetId],
+    queryFn: async () => (await WidgetService.selectWidget(String(widgetId))).data.data,
+    enabled: !!widgetId,
+  });
 
-  /**
-   * 위젯 조회
-   */
-  const getWidgetInfo = () => {
-    showLoading();
-    WidgetService.selectWidget(widgetId)
-      .then(response => {
-        setWidgetOption(response.data.data);
-      })
-      .finally(() => {
-        hideLoading();
-      });
-  };
+  // 위젯 삭제
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => WidgetService.deleteWidget(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['widgets'] });
+      navigate('/widget', { replace: true });
+      snackbar.success('위젯이 삭제되었습니다.');
+    },
+    onError: () => {
+      alert.error('위젯 삭제에 실패했습니다.\n다시 시도해 주세요.');
+    },
+  });
+
+  const isMutating = deleteMutation.isPending;
+  const fetchingCount = useIsFetching();
+  useEffect(() => {
+    if (fetchingCount > 0 || isMutating) {
+      showLoading();
+    } else {
+      hideLoading();
+    }
+  }, [fetchingCount, isMutating]);
 
   // refrech 버튼 클릭
   const handleRefreshClick = () => {
@@ -79,21 +92,7 @@ const WidgetView = () => {
         actions: [
           {
             copy: '삭제',
-            onClick: () => {
-              showLoading();
-              WidgetService.deleteWidget(widgetId)
-                .then(response => {
-                  if (response.status === 200) {
-                    navigate('/widget', { replace: true });
-                    snackbar.success('위젯이 삭제되었습니다.');
-                  } else {
-                    alert.error('위젯 삭제에 실패했습니다.\n다시 시도해 주세요.');
-                  }
-                })
-                .finally(() => {
-                  hideLoading();
-                });
-            },
+            onClick: () => deleteMutation.mutate(String(widgetId)),
           },
         ],
       },
