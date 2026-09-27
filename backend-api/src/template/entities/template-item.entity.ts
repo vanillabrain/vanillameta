@@ -31,7 +31,7 @@ export class TemplateItem extends BaseEntity {
     recommendType: string
 
     @ManyToOne(
-        (type => Template),
+        (_type => Template),
         (template) => template.id
     )
     template!: Template[]

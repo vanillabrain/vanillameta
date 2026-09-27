@@ -31,7 +31,7 @@ export class LoginController {
   @UsePipes(ValidationPipe)
   @Post('signin')
   @ApiOperation({ summary: ' 로그인 ' })
-  async logIn(@Res() res, @Req() req, @Body() loginDto: LoginUserDto) {
+  async logIn(@Res() res, @Req() _req, @Body() loginDto: LoginUserDto) {
     const findUser = await this.loginService.signin(loginDto);
     // 유저존재여부 확인
     const accessToken = await this.authService.generateAccessToken(findUser);

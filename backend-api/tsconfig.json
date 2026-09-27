@@ -17,6 +17,7 @@
     "noImplicitThis": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
+    "noUnusedParameters": true,
   },
   "exclude": ["node_modules", "dist"]
 }

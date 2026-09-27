@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpStatus, Param, Post, Put, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpStatus, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { TemplateService } from './template.service';
 import { CreateTemplateDto } from './dto/create-template.dto';
 import { UpdateTemplateDto } from './dto/update-template.dto';
@@ -34,7 +34,7 @@ export class TemplateController {
    * @param id
    */
   @Get(':id')
-  async findOne(@Res() res, @Param('id') id: number) {
+  async findOne(@Param('id') id: number) {
     return await this.templateService.findOne(id);
   }
 

@@ -24,7 +24,7 @@ export class Template extends BaseEntity {
 
 
     @OneToMany(
-        (type => TemplateItem),
+        (_type => TemplateItem),
         (templateItem) => templateItem.templateId
     )
     templateItems!: TemplateItem[]

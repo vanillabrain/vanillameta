@@ -52,4 +52,15 @@ describe('Template update (e2e)', () => {
     expect(items[0].recommendCategory).toBe('VERTICAL');
     expect(items[0].width).toBe(12);
   });
+
+  it('템플릿 단건 조회가 정상 응답한다', async () => {
+    const res = await request(app.getHttpServer())
+      .get(`/v1/template/${templateId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(res.body.status).toBe('SUCCESS');
+    expect(res.body.data.title).toBe('updated template');
+    expect(Array.isArray(res.body.data.layout)).toBe(true);
+  });
 });

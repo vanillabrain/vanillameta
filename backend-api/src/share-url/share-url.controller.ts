@@ -23,7 +23,7 @@ export class ShareUrlController {
   @Post('share-off/:dashboardId')
   @ApiOperation({ summary: '공유 url Off' })
   @ApiBearerAuth('AccessKey')
-  checkShareUrlOff(@Req() req, @Param() params, @Body() shareUrlOnDto: ShareUrlOnDto) {
+  checkShareUrlOff(@Req() req, @Param() params, @Body() _shareUrlOnDto: ShareUrlOnDto) {
     const { userId } = req.user.accessKeyData;
     const { dashboardId } = params;
     return this.shareUrlService.checkShareUrlOff(userId, dashboardId);

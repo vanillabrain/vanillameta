@@ -64,7 +64,7 @@ export class ComponentService {
       .where({ useYn: YesNo.YES })
       .getRawMany();
 
-    components.forEach((component, index) => {
+    components.forEach((component, _index) => {
       component.option = JSON.parse(component.option);
     });
 

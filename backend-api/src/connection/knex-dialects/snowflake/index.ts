@@ -32,17 +32,17 @@ export class SnowflakeDialect extends knex.Client {
 
   transaction(container: any, config: any, outerTx: any): Knex.Transaction {
     const transax = new Transaction(this, container, config, outerTx);
-    transax.savepoint = (conn: any) => {
+    transax.savepoint = (_conn: any) => {
       // @ts-ignore
       transax.trxClient.logger('Snowflake does not support savepoints.');
     };
 
-    transax.release = (conn: any, value: any) => {
+    transax.release = (_conn: any, _value: any) => {
       // @ts-ignore
       transax.trxClient.logger('Snowflake does not support savepoints.');
     };
 
-    transax.rollbackTo = (conn: any, error: any) => {
+    transax.rollbackTo = (_conn: any, _error: any) => {
       // @ts-ignore
       this.trxClient.logger('Snowflake does not support savepoints.');
     };
@@ -58,12 +58,12 @@ export class SnowflakeDialect extends knex.Client {
     // ColumnBuilder methods are created at runtime, so that it does not play well with TypeScript.
     // So instead of extending ColumnBuilder, we override methods at runtime here
     const columnBuilder = new ColumnBuilder(this, tableBuilder, type, args);
-    columnBuilder.primary = (constraintName?: string | undefined): Knex.ColumnBuilder => {
+    columnBuilder.primary = (_constraintName?: string | undefined): Knex.ColumnBuilder => {
       // @ts-ignore
       columnBuilder.notNullable();
       return columnBuilder;
     };
-    columnBuilder.index = (indexName?: string | undefined): Knex.ColumnBuilder => {
+    columnBuilder.index = (_indexName?: string | undefined): Knex.ColumnBuilder => {
       // @ts-ignore
       columnBuilder.client.logger.warn('Snowflake does not support the creation of indexes.');
       return columnBuilder;
@@ -83,7 +83,7 @@ export class SnowflakeDialect extends knex.Client {
     columnCompiler.increments = 'int not null autoincrement primary key';
     columnCompiler.bigincrements = 'bigint not null autoincrement primary key';
 
-    columnCompiler.mediumint = (colName: string) => 'integer';
+    columnCompiler.mediumint = (_colName: string) => 'integer';
     columnCompiler.decimal = (colName: string, precision?: number, scale?: number) => {
       if (precision) {
         return ColumnCompiler_MySQL.prototype.decimal(colName, precision, scale);
@@ -96,8 +96,8 @@ export class SnowflakeDialect extends knex.Client {
       }
       return 'double';
     };
-    columnCompiler.enu = (colName: string, values: string[]) => 'varchar';
-    columnCompiler.json = columnCompiler.jsonb = (colName: string) => 'variant';
+    columnCompiler.enu = (_colName: string, _values: string[]) => 'varchar';
+    columnCompiler.json = columnCompiler.jsonb = (_colName: string) => 'variant';
     return columnCompiler;
   }
 

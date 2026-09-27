@@ -32,6 +32,6 @@ export class Component extends BaseEntity {
   @Column({ type: 'varchar', length: 1, comment: '사용여부', default: YesNo.YES })
   useYn: string;
 
-  @OneToMany(type => Widget, widget => widget.componentId)
+  @OneToMany(_type => Widget, widget => widget.componentId)
   widgets!: Widget[];
 }

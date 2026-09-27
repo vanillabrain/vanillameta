@@ -12,7 +12,7 @@ export class loginLoggerMiddleware implements NestMiddleware {
     @InjectRepository(LoginHistory)
     private readonly loginHisotryRepository: Repository<LoginHistory>,
   ) {}
-  async use(req: Request, res: Response, next: NextFunction) {
+  async use(req: Request, _res: Response, next: NextFunction) {
     if (req.url === '/signin') {
       const loginSaveObj = {
         userId: req.body?.userId,

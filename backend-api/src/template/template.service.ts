@@ -282,7 +282,7 @@ export class TemplateService {
 
     templateInfo = await this.mappingLayout(widgetList, templateInfo);
 
-    widgetList.forEach((item, i) => {
+    widgetList.forEach((item, _i) => {
       item.option = JSON.parse(item.option);
       // templateInfo.widgets.push(item);
       // if (templateInfo.layout.length > i && template) templateInfo.layout[i].i = item.id;

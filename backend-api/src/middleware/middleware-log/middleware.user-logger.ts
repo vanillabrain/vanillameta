@@ -14,7 +14,7 @@ export class userLoggerMiddleware implements NestMiddleware {
     private readonly loginHisotryRepository: Repository<LoginHistory>,
   ) {}
 
-  async use(req: Request, res: Response, next: NextFunction) {
+  async use(req: Request, _res: Response, next: NextFunction) {
     // const { userId } = req.user.accessKeyData;
     const loginSaveObj = {
       userId: req.body?.userId,

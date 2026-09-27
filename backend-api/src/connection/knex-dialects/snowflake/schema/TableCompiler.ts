@@ -6,12 +6,12 @@ export class TableCompiler extends TableCompiler_MySQL {
     super(client, builder);
   }
 
-  index(columns, indexName, indexType) {
+  index(_columns, _indexName, _indexType) {
     // @ts-ignore
     this.client.logger.warn('Snowflake does not support the creation of indexes.');
   };
 
-  dropIndex(columns, indexName) {
+  dropIndex(_columns, _indexName) {
     // @ts-ignore
     this.client.logger.warn('Snowflake does not support the deletion of indexes.');
   };
