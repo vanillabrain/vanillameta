@@ -21,6 +21,7 @@ import bg from '@/assets/images/dashboard-bg.svg';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import ModifyButton from '@/components/button/ModifyButton';
 import ReloadButton from '@/components/button/ReloadButton';
+import { useIsFetching, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -30,6 +31,7 @@ function DashboardModify() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { showLoading, hideLoading } = useContext(LoadingContext);
+  const queryClient = useQueryClient();
 
   const [dashboardId, setDashboardId] = useState(null); // dashboard id
   const [dashboardTitle, setDashboardTitle] = useState(''); // dashboard 제목
@@ -46,9 +48,31 @@ function DashboardModify() {
     widgets: [],
   };
 
+  // dashboard info 조회
+  const { data: dashboardResponse } = useQuery({
+    queryKey: ['dashboard', dashboardId],
+    queryFn: async () => (await DashboardService.selectDashboard(dashboardId)).data,
+    enabled: !!dashboardId,
+  });
+
+  // dashboard 생성/수정
+  const saveMutation = useMutation({
+    mutationFn: ({ id, param }: { id?: string | null; param: any }) =>
+      id ? DashboardService.updateDashboard(id, param) : DashboardService.createDashboard(param),
+  });
+
+  const isMutating = saveMutation.isPending;
+  const fetchingCount = useIsFetching();
+  useEffect(() => {
+    if (fetchingCount > 0 || isMutating) {
+      showLoading();
+    } else {
+      hideLoading();
+    }
+  }, [fetchingCount, isMutating]);
+
   // init useEffect
   useEffect(() => {
-    console.log("searchParams.get('createType') : ", searchParams.get('createType'));
     // create 와 modify 에 따라 초기 설정을 변경
     if (searchParams.get('createType') != null) {
       if (searchParams.get('createType') == 'recommend') {
@@ -57,38 +81,27 @@ function DashboardModify() {
         // create
         handleWidgetOpen(); // 신규 생성 프로세스 시작
       }
-    } else {
-      if (searchParams.get('id') != null) {
-        setDashboardId(searchParams.get('id'));
-        getDashboardInfo(searchParams.get('id'));
-      }
+    } else if (searchParams.get('id') != null) {
+      setDashboardId(searchParams.get('id'));
     }
     setTopTitle(searchParams.get('id') == null ? '대시보드 추가' : '대시보드 수정');
   }, []);
 
-  // dashboard info 조회
-  const getDashboardInfo = id => {
-    showLoading();
-    DashboardService.selectDashboard(id)
-      .then(response => {
-        if (response.data.status == STATUS.SUCCESS) {
-          setDashboardTitle(response.data.data.title);
-          setWidgets(response.data.data.widgets);
-
-          response.data.data.layout.map(item => {
-            if (item.i !== undefined) {
-              item.i = item.i.toString();
-            }
-          });
-          setLayout(response.data.data.layout);
-        } else {
-          alert.error('대시보드 조회에 실패했습니다.\n다시 시도해 주세요.');
-        }
-      })
-      .finally(() => {
-        hideLoading();
-      });
-  };
+  useEffect(() => {
+    if (!dashboardResponse) return;
+    if (dashboardResponse.status === STATUS.SUCCESS) {
+      setDashboardTitle(dashboardResponse.data.title);
+      setWidgets(dashboardResponse.data.widgets);
+      setLayout(
+        (dashboardResponse.data.layout || []).map(item => ({
+          ...item,
+          i: item.i !== undefined ? String(item.i) : item.i,
+        })),
+      );
+    } else {
+      alert.error('대시보드 조회에 실패했습니다.\n다시 시도해 주세요.');
+    }
+  }, [dashboardResponse]);
 
   useEffect(() => {
     // 여기서 처리
@@ -318,20 +331,15 @@ function DashboardModify() {
           actions: [
             {
               copy: '수정',
-              onClick: () => {
-                showLoading();
-                DashboardService.updateDashboard(dashboardId, dashboardInfo)
-                  .then(response => {
-                    if (response.data.status === 'SUCCESS') {
-                      navigate('/dashboard/' + dashboardId, { replace: true });
-                      snackbar.success('대시보드가 수정되었습니다.');
-                    } else {
-                      alert.error('대시보드 수정에 실패했습니다.\n다시 시도해 주세요.');
-                    }
-                  })
-                  .finally(() => {
-                    hideLoading();
-                  });
+              onClick: async () => {
+                const response = await saveMutation.mutateAsync({ id: dashboardId, param: dashboardInfo });
+                if (response.data.status === 'SUCCESS') {
+                  queryClient.invalidateQueries({ queryKey: ['dashboards'] });
+                  navigate('/dashboard/' + dashboardId, { replace: true });
+                  snackbar.success('대시보드가 수정되었습니다.');
+                } else {
+                  alert.error('대시보드 수정에 실패했습니다.\n다시 시도해 주세요.');
+                }
               },
             },
           ],
@@ -343,20 +351,15 @@ function DashboardModify() {
           actions: [
             {
               copy: '생성',
-              onClick: () => {
-                showLoading();
-                DashboardService.createDashboard(dashboardInfo)
-                  .then(response => {
-                    if (response.data.status === 'SUCCESS') {
-                      navigate('/dashboard');
-                      snackbar.success('대시보드가 생성되었습니다.');
-                    } else {
-                      alert.error('대시보드 생성에 실패했습니다.\n다시 시도해 주세요.');
-                    }
-                  })
-                  .finally(() => {
-                    hideLoading();
-                  });
+              onClick: async () => {
+                const response = await saveMutation.mutateAsync({ id: undefined, param: dashboardInfo });
+                if (response.data.status === 'SUCCESS') {
+                  queryClient.invalidateQueries({ queryKey: ['dashboards'] });
+                  navigate('/dashboard');
+                  snackbar.success('대시보드가 생성되었습니다.');
+                } else {
+                  alert.error('대시보드 생성에 실패했습니다.\n다시 시도해 주세요.');
+                }
               },
             },
           ],
