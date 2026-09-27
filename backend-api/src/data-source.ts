@@ -15,6 +15,8 @@ const dataSourceOptions: DataSourceOptions = {
   password: configService.get<string>('DB_PASSWORD'),
   database: configNodeenv == 'local' ? 'sqlite.db' : configService.get<string>('DB_NAME'),
   entities: [__dirname + '/**/*.entity{.ts,.js}'],
+  migrations: [__dirname + '/migrations/*{.ts,.js}'],
+  migrationsTableName: 'migrations',
   synchronize: configNodeenv != 'prod',
   logging: configNodeenv != 'prod',
 };
