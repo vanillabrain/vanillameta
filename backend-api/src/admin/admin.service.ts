@@ -76,4 +76,26 @@ export class AdminService {
       },
     };
   }
+
+  /**
+   * 메타데이터 스냅샷 복구(비파괴적 upsert).
+   * id 가 있으면 갱신, 없으면 삽입한다. 사용자(자격증명)는 복구하지 않는다.
+   */
+  async restoreBackup(snapshot: { dashboards?: any[]; datasets?: any[]; widgets?: any[] }) {
+    const restored = { dashboards: 0, datasets: 0, widgets: 0 };
+
+    const restore = async (items: any[] | undefined, repository: Repository<any>, key: keyof typeof restored) => {
+      if (!Array.isArray(items)) return;
+      for (const item of items) {
+        await repository.save(item);
+        restored[key] += 1;
+      }
+    };
+
+    await restore(snapshot?.dashboards, this.dashboardRepository, 'dashboards');
+    await restore(snapshot?.datasets, this.datasetRepository, 'datasets');
+    await restore(snapshot?.widgets, this.widgetRepository, 'widgets');
+
+    return { status: ResponseStatus.SUCCESS, data: restored };
+  }
 }

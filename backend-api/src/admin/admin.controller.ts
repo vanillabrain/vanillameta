@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   Patch,
+  Post,
   UseGuards,
   UsePipes,
   ValidationPipe,
@@ -15,6 +16,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../common/enum/role.enum';
 import { AdminService } from './admin.service';
 import { UpdateRoleDto } from './dto/update-role.dto';
+import { RestoreBackupDto } from './dto/restore-backup.dto';
 
 @ApiTags('admin')
 @ApiBearerAuth('AccessKey')
@@ -47,5 +49,12 @@ export class AdminController {
   @ApiOperation({ summary: '메타데이터 백업 스냅샷 내보내기 (관리자)' })
   exportBackup() {
     return this.adminService.exportBackup();
+  }
+
+  @Post('backup/restore')
+  @UsePipes(new ValidationPipe({ transform: true }))
+  @ApiOperation({ summary: '메타데이터 스냅샷 복구 (관리자, upsert)' })
+  restoreBackup(@Body() restoreBackupDto: RestoreBackupDto) {
+    return this.adminService.restoreBackup(restoreBackupDto);
   }
 }
