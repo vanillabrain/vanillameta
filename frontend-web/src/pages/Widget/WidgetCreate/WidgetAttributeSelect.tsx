@@ -9,6 +9,7 @@ import { LayoutContext } from '@/contexts/LayoutContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import grid from '@/assets/images/grid.svg';
 import { SnackbarContext } from '@/contexts/AlertContext';
+import { useIsFetching, useQuery } from '@tanstack/react-query';
 
 const WidgetAttributeSelect = props => {
   const { widgetOption, saveWidgetInfo, dataset, isModifyMode = false, widgetTypeName, widgetTypeDescription } = props;
@@ -19,8 +20,6 @@ const WidgetAttributeSelect = props => {
   const { showLoading, hideLoading } = useContext(LoadingContext);
 
   const [option, setOption] = useState(null);
-  const [data, setData] = useState(null);
-  const [spec, setSpec] = useState(null);
   const [title, setTitle] = useState('');
 
   useEffect(() => {
@@ -31,37 +30,38 @@ const WidgetAttributeSelect = props => {
   }, []);
 
   useEffect(() => {
-    if (dataset || widgetOption) {
-      getData();
-    }
-  }, [dataset, widgetOption]);
-
-  useEffect(() => {
     if (widgetOption.title) {
       setTitle(widgetOption.title);
     }
     setOption(JSON.parse(JSON.stringify(widgetOption.option)));
   }, [widgetOption]);
 
-  const getData = () => {
-    const param = isModifyMode
-      ? { ...widgetOption }
-      : dataset.datasetType === 'TABLE'
+  // 위젯 데이터/스펙 조회
+  const dataParam = isModifyMode
+    ? { ...widgetOption }
+    : dataset
+    ? dataset.datasetType === 'TABLE'
       ? { ...dataset }
-      : { ...dataset, datasetId: dataset.id };
-    console.log('getData param', param);
-    showLoading();
-    DatabaseService.selectData(param)
-      .then(response => {
-        if (response.data.status === STATUS.SUCCESS) {
-          setData(response.data.data.datas);
-          setSpec(response.data.data.fields);
-        }
-      })
-      .finally(() => {
-        hideLoading();
-      });
-  };
+      : { ...dataset, datasetId: dataset.id }
+    : null;
+
+  const { data: dataResponse } = useQuery({
+    queryKey: ['widget-data', dataParam],
+    queryFn: async () => (await DatabaseService.selectData(dataParam)).data,
+    enabled: !!dataParam,
+  });
+
+  const data = dataResponse?.status === STATUS.SUCCESS ? dataResponse.data.datas : null;
+  const spec = dataResponse?.status === STATUS.SUCCESS ? dataResponse.data.fields : null;
+
+  const fetchingCount = useIsFetching();
+  useEffect(() => {
+    if (fetchingCount > 0) {
+      showLoading();
+    } else {
+      hideLoading();
+    }
+  }, [fetchingCount]);
 
   const handleSubmit = event => {
     event.preventDefault();
