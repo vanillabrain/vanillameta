@@ -1,10 +1,11 @@
-import { useContext } from 'react';
+import { useContext, useEffect } from 'react';
 import { Button } from '@mui/material';
 import authService from '@/api/authService';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { useAlert } from 'react-alert';
 import { useNavigate } from 'react-router-dom';
 import { removeToken } from '@/helpers/authHelper';
+import { useMutation } from '@tanstack/react-query';
 
 const Logout = props => {
   const { sx } = props;
@@ -12,36 +13,39 @@ const Logout = props => {
   const navigate = useNavigate();
   const alert = useAlert();
 
+  // 로그아웃
+  const logoutMutation = useMutation({
+    mutationFn: () => authService.signout(),
+    onSuccess: () => {
+      removeToken();
+      navigate('/login');
+    },
+    onError: (error: any) => {
+      if (error?.response?.status === 401) {
+        // 이미 accessToken이 만료
+        removeToken();
+        navigate('/login');
+      } else {
+        alert.error('로그아웃에 실패했습니다.\n다시 시도해 주세요.');
+      }
+    },
+  });
+
+  useEffect(() => {
+    if (logoutMutation.isPending) {
+      showLoading();
+    } else {
+      hideLoading();
+    }
+  }, [logoutMutation.isPending]);
+
   const handleLogout = () => {
     alert.success('로그아웃 하시겠습니까?', {
       closeCopy: '취소',
       actions: [
         {
           copy: '확인',
-          onClick: () => {
-            showLoading();
-            authService
-              .signout()
-              .then(response => {
-                if (response.status === 201) {
-                  removeToken();
-                  navigate('/login');
-                }
-              })
-              .catch(error => {
-                console.log(error);
-                if (error.response.status === 401) {
-                  // 이미 accessToken이 만료
-                  removeToken();
-                  navigate('/login');
-                } else {
-                  alert.error('로그아웃에 실패했습니다.\n다시 시도해 주세요.');
-                }
-              })
-              .finally(() => {
-                hideLoading();
-              });
-          },
+          onClick: () => logoutMutation.mutate(),
         },
       ],
     });

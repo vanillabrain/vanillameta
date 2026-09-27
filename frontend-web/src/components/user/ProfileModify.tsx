@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import {
   Button,
   Dialog,
@@ -19,6 +19,7 @@ import { LoadingContext } from '@/contexts/LoadingContext';
 import { useAlert } from 'react-alert';
 import { useNavigate } from 'react-router-dom';
 import { removeToken } from '@/helpers/authHelper';
+import { useMutation } from '@tanstack/react-query';
 
 const BootstrapDialog = styled(Dialog)(({ theme }) => ({
   minWidth: '560px',
@@ -86,6 +87,19 @@ const ProfileModify = props => {
   const { showLoading, hideLoading } = useContext(LoadingContext);
   let isValid;
 
+  // 프로필 수정
+  const updateMutation = useMutation({
+    mutationFn: (data: any) => authService.updateUser(data),
+  });
+
+  useEffect(() => {
+    if (updateMutation.isPending) {
+      showLoading();
+    } else {
+      hideLoading();
+    }
+  }, [updateMutation.isPending]);
+
   const validateData = () => {
     const { userOldPwd, userNewPwd, userNewConfirmPwd, userEmail } = changedUserInfo;
     if (!userOldPwd || !userNewPwd || !userNewConfirmPwd || !userEmail) {
@@ -115,25 +129,20 @@ const ProfileModify = props => {
       new_password: changedUserInfo.userNewPwd,
       email: changedUserInfo.userEmail,
     };
-    // console.log(data);
-    showLoading();
-    authService
-      .updateUser(data)
-      .then(response => {
-        if (response.status === 200) {
-          alert.success('프로필 수정에 성공했습니다.', {
-            onClose: () => {
-              getUserState();
-              setChangedUserInfo(initialState);
-            },
-          });
-        }
-      })
-      .catch(error => {
-        console.log(error);
-        if (error.response.data.data === 'not exist user') {
+
+    updateMutation.mutate(data, {
+      onSuccess: () => {
+        alert.success('프로필 수정에 성공했습니다.', {
+          onClose: () => {
+            getUserState();
+            setChangedUserInfo(initialState);
+          },
+        });
+      },
+      onError: (error: any) => {
+        if (error?.response?.data?.data === 'not exist user') {
           snackbar.error('현재 비밀번호 혹은 E-mail이 잘못 입력되었습니다.');
-        } else if (error.response.data.data === 'Unauthorized') {
+        } else if (error?.response?.data?.data === 'Unauthorized') {
           alert.error('로그인이 만료되었습니다.\n다시 로그인 해주세요.', {
             onClose: () => {
               removeToken();
@@ -143,10 +152,8 @@ const ProfileModify = props => {
         } else {
           alert.error('프로필 수정에 실패했습니다.\n다시 시도해 주세요.');
         }
-      })
-      .finally(() => {
-        hideLoading();
-      });
+      },
+    });
   };
 
   const handleClickOpen = () => {
