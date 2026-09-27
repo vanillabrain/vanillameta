@@ -10,8 +10,8 @@ import { DashboardWidget } from '../../src/dashboard/dashboard-widget/entities/d
 import { DashboardWidgetService } from '../../src/dashboard/dashboard-widget/dashboard-widget.service';
 import { ComponentService } from '../../src/component/component.service';
 import { WidgetService } from '../../src/widget/widget.service';
-import { TableQueryService } from '../../src/widget/tabel-query/table-query.service';
-import { TableQuery } from '../../src/widget/tabel-query/entity/table-query.entity';
+import { TableQueryService } from '../../src/widget/table-query/table-query.service';
+import { TableQuery } from '../../src/widget/table-query/entity/table-query.entity';
 import { Database } from '../../src/database/entities/database.entity';
 import { TemplateService } from '../../src/template/template.service';
 import { CreateDashboardDto } from '../../src/dashboard/dto/create-dashboard.dto';

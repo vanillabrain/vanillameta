@@ -16,9 +16,9 @@ import { DashboardWidget } from '../../src/dashboard/dashboard-widget/entities/d
 import { DashboardWidgetService } from '../../src/dashboard/dashboard-widget/dashboard-widget.service';
 import { ResponseStatus } from '../../src/common/enum/response-status.enum';
 import { WidgetService } from '../../src/widget/widget.service';
-import { TableQuery } from '../../src/widget/tabel-query/entity/table-query.entity';
+import { TableQuery } from '../../src/widget/table-query/entity/table-query.entity';
 import { Database } from '../../src/database/entities/database.entity';
-import { TableQueryService } from '../../src/widget/tabel-query/table-query.service';
+import { TableQueryService } from '../../src/widget/table-query/table-query.service';
 
 describe('QTT-006 : 대시보드 템플릿 추천', () => {
   let templateService: TemplateService;

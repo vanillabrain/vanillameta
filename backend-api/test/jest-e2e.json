@@ -1,9 +1,19 @@
 {
   "moduleFileExtensions": ["js", "json", "ts"],
-  "rootDir": ".",
+  "rootDir": "..",
   "testEnvironment": "node",
-  "testRegex": ".e2e-spec.ts$",
+  "testRegex": "test/.*\\.e2e-spec\\.ts$",
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
-  }
+  },
+  "setupFiles": ["<rootDir>/test/setup/load-env.ts"],
+  "globalSetup": "<rootDir>/test/setup/global-setup.ts",
+  "moduleNameMapper": {
+    "^buffer-equal-constant-time$": "<rootDir>/test/shims/buffer-equal-constant-time.js",
+    "^src/(.*)$": "<rootDir>/src/$1",
+    "^(\\.{1,2}/.*)\\.js$": "$1"
+  },
+  "maxWorkers": 1,
+  "forceExit": true,
+  "testTimeout": 60000
 }

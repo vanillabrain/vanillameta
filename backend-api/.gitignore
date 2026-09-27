@@ -1,6 +1,10 @@
 #db정보
 sqlite.db
 config.serverless.yml
+# E2E 테스트 산출물
+*.sqlite
+*.sqlite.db
+test.sqlite.db
 .env.dev
 .env.prod
 .ormconfig.json

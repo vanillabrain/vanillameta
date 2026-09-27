@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop, 'develop-**']
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  backend:
+    name: Backend (build + unit + e2e)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend-api
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend-api/package-lock.json
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps --no-audit --no-fund
+
+      - name: Build
+        run: npm run build
+
+      - name: Unit tests
+        run: npm test
+
+      - name: E2E tests (SQLite, 외부 DB 불필요)
+        run: npm run test:e2e
+
+  # 프론트엔드 CI 는 Phase 3(프론트엔드 현대화)에서 추가한다.
+  # backend 우선 완결 원칙에 따라 지금은 게이트하지 않는다.

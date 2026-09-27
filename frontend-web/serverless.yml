@@ -11,7 +11,7 @@ package:
 
 provider:
   name: aws
-  runtime: nodejs14.x
+  runtime: nodejs20.x
   stage: ${opt:stage, 'dev'}
   region: ${file(./config.serverless.yml):AWS_REGION}
   deploymentBucket: ${file(./config.serverless.yml):DEPLOYMENT_BUCKET}
@@ -51,10 +51,3 @@ custom:
       dnsName: ${self:custom.FRONT_WEB_DOMAIN.${self:provider.stage}}
       acmCertificateArn: ${file(./config.serverless.yml):ACM_CERTIFICATE_ARN}
       hostedZoneName: ${file(./config.serverless.yml):HOSTED_ZONE}
-
-layers:
-  HelloTemp:
-    path: public
-    description: "hello temp layer"
-    compatibleRuntimes:
-      - python3.11

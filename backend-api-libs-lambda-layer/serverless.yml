@@ -11,7 +11,7 @@ package:
 
 provider:
   name: aws
-  runtime: nodejs14.x
+  runtime: nodejs20.x
   stage:  ${file(./config.serverless.yml):STAGE}
   region: ${file(./config.serverless.yml):AWS_REGION}
   deploymentBucket: ${file(./config.serverless.yml):DEPLOYMENT_BUCKET}
@@ -23,4 +23,4 @@ layers:
     path: ./
     description: "vanillameta serverless-api node_modules lambda layer"
     compatibleRuntimes:
-      - nodejs14.x
+      - nodejs20.x

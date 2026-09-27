@@ -4,7 +4,7 @@ import { getTestMysqlModule } from '../util/get-test-mysql.module';
 import { Database } from '../../src/database/entities/database.entity';
 import { ConfigModule } from '@nestjs/config';
 import { Dataset } from '@google-cloud/bigquery';
-import { TableQuery } from '../../src/widget/tabel-query/entity/table-query.entity';
+import { TableQuery } from '../../src/widget/table-query/entity/table-query.entity';
 import { DatabaseType } from '../../src/database/entities/database_type.entity';
 import { ConnectionService } from '../../src/connection/connection.service';
 import * as TestConnectionInfo from '../../test-connect-info.json';
