@@ -14,8 +14,7 @@ import { Loading } from '@/components/loading';
 import ModalPopup from '@/components/ModalPopup';
 import { createColumns } from '@/utils/util';
 import DataGrid, { DataGridWrapper } from '@/components/datagrid';
-
-// import { cancelAllRequests } from '@/helpers/apiHelper';
+import { useIsFetching, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 export interface DatabaseProps {
   id: number | string | null;
@@ -45,143 +44,156 @@ export interface DataTableProps {
   datasetType: 'TABLE';
 }
 
+const buildDataParam = (selectedData: DataTableProps | DataSetProps | null) => {
+  switch (selectedData?.datasetType) {
+    case 'DATASET': {
+      const { id, ...rest } = selectedData;
+      return { ...rest, datasetId: id };
+    }
+    case 'TABLE':
+      return { ...selectedData };
+    default:
+      return null;
+  }
+};
+
 const DataLayout = props => {
   const { isViewMode, setDataSet } = props;
-  const [databaseList, setDatabaseList] = useState<DatabaseProps[] | []>([]);
-  const [datasetList, setDatasetList] = useState<DataSetProps[] | []>([]);
-  const [tableList, setTableList] = useState<DataTableProps[] | []>([]);
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
   const navigate = useNavigate();
   const { loading, showLoading, hideLoading } = useContext(LoadingContext);
+  const queryClient = useQueryClient();
+
   const [selectedDatabase, setSelectedDatabase] = useState<DatabaseProps>({ id: null, name: null });
   const [selectedDataset, setSelectedDataset] = useState<DataSetProps | DataTableProps | null>(null);
   const [open, setOpen] = useState(false);
+  const [datasetList, setDatasetList] = useState<DataSetProps[] | []>([]);
+  const [tableList, setTableList] = useState<DataTableProps[] | []>([]);
   const [gridData, setGridData] = useState<any[]>([]);
   const [gridColumns, setGridColumns] = useState<any[]>([]);
 
+  // 진행 중인 요청이 있으면 로딩 표시
+  const fetchingCount = useIsFetching();
   useEffect(() => {
-    getDatabaseList();
-  }, []);
+    if (fetchingCount > 0) {
+      showLoading();
+    } else {
+      hideLoading();
+    }
+  }, [fetchingCount]);
+
+  // 데이터베이스 목록 조회
+  const { data: databaseList = [] } = useQuery<DatabaseProps[]>({
+    queryKey: ['databases'],
+    queryFn: async () => (await DatabaseService.selectDatabaseList()).data.data,
+  });
 
   useEffect(() => {
-    if (selectedDatabase.id) {
-      getDatabaseInfo(selectedDatabase.id);
+    if (!selectedDatabase.id && databaseList.length > 0) {
+      setSelectedDatabase(databaseList[0]);
     }
-  }, [selectedDatabase.id]);
+  }, [databaseList]);
 
-  /**
-   * 데이터베이스 목록조회
-   */
-  const getDatabaseList = () => {
-    showLoading();
-    DatabaseService.selectDatabaseList()
-      .then(response => {
-        const resData = response.data.data;
-        setDatabaseList(resData);
-        if (resData.length > 0) {
-          const [firstItem] = resData;
-          setSelectedDatabase(firstItem);
-        }
-      })
-      .finally(() => {
-        hideLoading();
-      });
-  };
+  // 선택한 데이터베이스의 데이터셋/테이블 조회
+  const {
+    data: databaseInfo,
+    isError: isDatabaseInfoError,
+    error: databaseInfoError,
+  } = useQuery({
+    queryKey: ['database-info', selectedDatabase.id],
+    queryFn: async () => (await DatabaseService.selectDatabase(String(selectedDatabase.id))).data,
+    enabled: !!selectedDatabase.id,
+  });
 
-  const getDatabaseInfo = databaseId => {
-    showLoading();
-    DatabaseService.selectDatabase(databaseId)
-      .then(response => {
-        if (response.data.status === 'SUCCESS') {
-          setDatasetList(response.data.data.datasets);
-          setTableList(response.data.data.tables);
-        } else {
-          alert.error('데이터베이스 조회에 실패했습니다.\n다시 시도해 주세요.');
-          setDatasetList([]);
-          setTableList([]);
-        }
-      })
-      .catch(error => {
-        snackbar.error(error.message);
-        setDatasetList([]);
-        setTableList([]);
-      })
-      .finally(() => {
-        hideLoading();
-      });
-  };
-
-  const getData = selectedData => {
-    let param;
-    switch (selectedData?.datasetType) {
-      case 'DATASET':
-        const { id, ...rest } = selectedData;
-        param = { ...rest, datasetId: id };
-        break;
-      case 'TABLE':
-        param = { ...selectedData };
-        break;
-      default:
-        return;
+  useEffect(() => {
+    if (!databaseInfo) return;
+    if (databaseInfo.status === STATUS.SUCCESS) {
+      setDatasetList(databaseInfo.data.datasets);
+      setTableList(databaseInfo.data.tables);
+    } else {
+      alert.error('데이터베이스 조회에 실패했습니다.\n다시 시도해 주세요.');
+      setDatasetList([]);
+      setTableList([]);
     }
-    showLoading();
-    DatabaseService.selectData(param)
-      .then(response => {
-        if (response.data.status === STATUS.SUCCESS) {
-          setGridData(response.data.data.datas);
-          setGridColumns(createColumns(response.data.data.datas));
-        }
-      })
-      .catch(error => {
-        console.log('error', error);
-        setGridData([]);
-        setGridColumns([]);
-      })
-      .finally(() => {
-        hideLoading();
-      });
-  };
+  }, [databaseInfo]);
+
+  useEffect(() => {
+    if (isDatabaseInfoError) {
+      snackbar.error((databaseInfoError as any)?.message);
+      setDatasetList([]);
+      setTableList([]);
+    }
+  }, [isDatabaseInfoError]);
+
+  // 모달 그리드 데이터 조회
+  const dataParam = buildDataParam(selectedDataset);
+  const { data: gridResult, isError: isGridError } = useQuery({
+    queryKey: ['dataset-data', selectedDataset],
+    queryFn: async () => (await DatabaseService.selectData(dataParam)).data,
+    enabled: open && !!dataParam,
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (gridResult?.status === STATUS.SUCCESS) {
+      setGridData(gridResult.data.datas);
+      setGridColumns(createColumns(gridResult.data.datas));
+    }
+  }, [gridResult]);
+
+  useEffect(() => {
+    if (isGridError) {
+      setGridData([]);
+      setGridColumns([]);
+    }
+  }, [isGridError]);
+
+  // 데이터베이스 삭제
+  const deleteDatabaseMutation = useMutation({
+    mutationFn: (id: string) => DatabaseService.deleteDatabase(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['databases'] });
+      snackbar.success('데이터베이스가 삭제되었습니다.');
+    },
+  });
+
+  // 데이터셋 삭제
+  const deleteDatasetMutation = useMutation({
+    mutationFn: (id: string) => DatasetService.deleteDataset(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['database-info'] });
+      snackbar.success('데이터셋이 삭제되었습니다.');
+    },
+  });
 
   const handleDatabaseClick = (item: DatabaseProps) => {
     setSelectedDatabase(item);
   };
 
   const handleDatabaseRemove = item => {
-    console.log('handleDatabaseRemove', item);
     alert.success(`${item.name}\n데이터베이스를 삭제하시겠습니까?`, {
       title: '데이터베이스 삭제',
       closeCopy: '취소',
       actions: [
         {
           copy: '삭제',
-          onClick: () => {
-            DatabaseService.deleteDatabase(item.databaseId).then(response => {
-              if (response.data.status === STATUS.SUCCESS) {
-                getDatabaseList();
-                snackbar.success('데이터베이스가 삭제되었습니다.');
-              }
-            });
-          },
+          onClick: () => deleteDatabaseMutation.mutate(String(item.databaseId)),
         },
       ],
     });
   };
 
   const handleDataSetClick = (item: DataTableProps | DataSetProps) => {
-    console.log('selected Data', item);
     if (isViewMode) {
       setDataSet(item);
     } else {
       setOpen(true);
-      getData(item);
     }
     setSelectedDataset(item);
   };
 
   const handleModifyClick = (item: DataTableProps | DataSetProps) => {
-    console.log('selected Data', item);
-
     if (item?.datasetType == 'DATASET') {
       navigate(`/data/set/modify/${item.id}`);
     } else {
@@ -193,26 +205,16 @@ const DataLayout = props => {
     setOpen(false);
     setGridData([]);
     setGridColumns([]);
-    // if (loading) {
-    //   // 진행되고 있는 모든 요청 취소
-    //   cancelAllRequests();
-    // }
   };
 
   const handleDataSetRemove = item => {
-    console.log('handleDataSetRemove', item);
     alert.success(`${item.title}\n데이터셋을 삭제하시겠습니까?`, {
       title: '데이터베이스 삭제',
       closeCopy: '취소',
       actions: [
         {
           copy: '삭제',
-          onClick: () => {
-            DatasetService.deleteDataset(item.id).then(() => {
-              getDatabaseInfo(item.id);
-              snackbar.success('데이터셋이 삭제되었습니다.');
-            });
-          },
+          onClick: () => deleteDatasetMutation.mutate(String(item.id)),
         },
       ],
     });
