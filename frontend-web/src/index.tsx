@@ -9,11 +9,14 @@ import { LoadingProvider } from '@/contexts/LoadingContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { AlertProvider } from '@/contexts/AlertContext';
 import { HelmetProvider } from 'react-helmet-async';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from '@/lib/queryClient';
 import './index.css';
 
 const rootElement = document.getElementById('root');
 const app = (
-  <HelmetProvider>
+  <QueryClientProvider client={queryClient}>
+    <HelmetProvider>
     <LayoutProvider>
       <LoadingProvider>
         <BrowserRouter>
@@ -27,7 +30,8 @@ const app = (
         </BrowserRouter>
       </LoadingProvider>
     </LayoutProvider>
-  </HelmetProvider>
+    </HelmetProvider>
+  </QueryClientProvider>
 );
 
 if (rootElement.hasChildNodes()) {

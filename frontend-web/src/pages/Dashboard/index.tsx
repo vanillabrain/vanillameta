@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect } from 'react';
 import PageTitleBox from '@/components/PageTitleBox';
 import BoardList from '@/components/BoardList';
 import { Outlet, useNavigate, useParams } from 'react-router-dom';
@@ -12,6 +12,7 @@ import { styled } from '@mui/system';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import Seo from '@/seo/Seo';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 const title = '대시보드';
 
@@ -20,11 +21,10 @@ function Dashboard() {
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
   const navigate = useNavigate();
-  const [loadedDashboardData, setLoadedDashboardData] = useState([]);
-  const [noData, setNoData] = useState(false);
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const theme = useTheme();
   const matches = useMediaQuery(theme.breakpoints.up('sm'));
+  const queryClient = useQueryClient();
 
   const GTSpan = styled('span')({
     fontFamily: 'Pretendard',
@@ -43,26 +43,48 @@ function Dashboard() {
     { name: '대시보드 추천', link: '', id: 'recommend' },
   ];
 
-  useEffect(() => {
-    getDashboardList();
-  }, []);
+  // dashboard 목록 조회
+  const {
+    data: loadedDashboardData = [],
+    isLoading,
+    isFetching,
+    isError,
+  } = useQuery({
+    queryKey: ['dashboards'],
+    queryFn: async () => {
+      const response = await DashboardService.selectDashboardList();
+      if (response.data.status !== STATUS.SUCCESS) {
+        throw new Error('대시보드 조회에 실패했습니다.');
+      }
+      return response.data.data;
+    },
+  });
 
-  // dashboard info 조회
-  const getDashboardList = () => {
-    showLoading();
-    DashboardService.selectDashboardList()
-      .then(response => {
-        if (response.data.status == STATUS.SUCCESS) {
-          setLoadedDashboardData(response.data.data);
-          setNoData(response.data.data.length == 0);
-        } else {
-          alert.error('대시보드 조회에 실패했습니다.\n다시 시도해 주세요.');
-        }
-      })
-      .finally(() => {
-        hideLoading();
-      });
-  };
+  useEffect(() => {
+    if (isLoading || isFetching) {
+      showLoading();
+    } else {
+      hideLoading();
+    }
+  }, [isLoading, isFetching]);
+
+  useEffect(() => {
+    if (isError) {
+      alert.error('대시보드 조회에 실패했습니다.\n다시 시도해 주세요.');
+    }
+  }, [isError]);
+
+  // dashboard 삭제
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => DashboardService.deleteDashboard(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dashboards'] });
+      snackbar.success('대시보드가 삭제되었습니다.');
+    },
+    onError: () => {
+      alert.error('대시보드 삭제에 실패했습니다.\n다시 시도해 주세요.');
+    },
+  });
 
   const handleDeleteSelect = (id, title) => {
     alert.success(
@@ -76,21 +98,7 @@ function Dashboard() {
         actions: [
           {
             copy: '확인',
-            onClick: () => {
-              showLoading();
-              DashboardService.deleteDashboard(id)
-                .then(response => {
-                  if (response.data.status == STATUS.SUCCESS) {
-                    getDashboardList();
-                    snackbar.success('대시보드가 삭제되었습니다.');
-                  } else {
-                    alert.error('대시보드 삭제에 실패했습니다.\n다시 시도해 주세요.');
-                  }
-                })
-                .finally(() => {
-                  hideLoading();
-                });
-            },
+            onClick: () => deleteMutation.mutate(id),
           },
         ],
       },
@@ -98,7 +106,6 @@ function Dashboard() {
   };
 
   const handleMenuSelect = item => {
-    console.log(item);
     if (item.id !== undefined) {
       if (item.id == 'dashboard') {
         navigate('/dashboard/create?createType=dashboard');
@@ -107,6 +114,8 @@ function Dashboard() {
       }
     }
   };
+
+  const noData = loadedDashboardData.length === 0;
 
   // 목록이 없을때 보여줄 화면
   const getEmptyView = () => {
