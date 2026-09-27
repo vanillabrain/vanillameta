@@ -18,6 +18,7 @@ import { getDatabaseIcon } from '@/widget/utils/iconUtil';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import { createColumns } from '@/utils/util';
+import { useIsFetching, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 const DataSet = () => {
   const { setId, sourceId } = useParams();
@@ -25,10 +26,11 @@ const DataSet = () => {
   const navigate = useNavigate();
 
   const { showLoading, hideLoading } = useContext(LoadingContext);
+  const queryClient = useQueryClient();
 
   const [isModifyMode, setIsModifyMode] = useState(false);
   const [testCompleted, setTestCompleted] = useState(false);
-  const [datasetInfo, setDatasetInfo] = useState({ databaseId: sourceId, title: '', query: '' });
+  const [datasetInfo, setDatasetInfo] = useState<any>({ databaseId: sourceId, title: '', query: '' });
 
   const [data, setData] = useState([]);
   const [columns, setColumns] = useState([]);
@@ -39,34 +41,103 @@ const DataSet = () => {
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
 
-  useLayoutEffect(() => {
-    console.log('modify', pathname.indexOf('modify'));
-    console.log('setId:', setId, 'sourceId:', sourceId);
-    getDatabaseTypeList();
+  // 데이터베이스(데이터소스) 목록 조회
+  const { data: databaseListResponse } = useQuery({
+    queryKey: ['databases'],
+    queryFn: async () => (await DatabaseService.selectDatabaseList()).data,
+  });
 
+  useEffect(() => {
+    if (databaseListResponse?.status === STATUS.SUCCESS) {
+      const list = databaseListResponse.data;
+      list.forEach(item => (item.icon = getDatabaseIcon(item.engine)));
+      setDatabaseList(list);
+    }
+  }, [databaseListResponse]);
+
+  // 선택한 데이터소스의 테이블 목록 조회
+  const { data: databaseInfoResponse, isError: isDatabaseInfoError, error: databaseInfoError } = useQuery({
+    queryKey: ['database-info', databaseId],
+    queryFn: async () => (await DatabaseService.selectDatabase(String(databaseId))).data,
+    enabled: !!databaseId,
+  });
+
+  useEffect(() => {
+    if (!databaseInfoResponse) return;
+    if (databaseInfoResponse.status === 'SUCCESS') {
+      setTableList(databaseInfoResponse.data.tables);
+    } else {
+      alert.error('데이터베이스 조회에 실패했습니다.\n다시 시도해 주세요.');
+      setTableList([]);
+    }
+  }, [databaseInfoResponse]);
+
+  useEffect(() => {
+    if (isDatabaseInfoError) {
+      snackbar.error((databaseInfoError as any)?.message);
+      setTableList([]);
+    }
+  }, [isDatabaseInfoError]);
+
+  // 수정 모드일 경우 데이터셋 정보 조회
+  const { data: datasetResponse } = useQuery({
+    queryKey: ['dataset', setId],
+    queryFn: async () => (await DatasetService.selectDataset(setId)).data,
+    enabled: isModifyMode && !!setId,
+  });
+
+  useEffect(() => {
+    if (datasetResponse?.status === 'SUCCESS') {
+      setDatasetInfo(datasetResponse.data);
+    } else if (datasetResponse) {
+      alert.error('데이터베이스 조회에 실패했습니다.\n다시 시도해 주세요.');
+    }
+  }, [datasetResponse]);
+
+  // 쿼리 실행
+  const executeMutation = useMutation({
+    mutationFn: (param: any) => DatabaseService.executeQuery(param),
+  });
+
+  // 데이터셋 생성/수정
+  const saveMutation = useMutation({
+    mutationFn: async ({ id, param }: { id?: string; param: any }) =>
+      id ? DatasetService.updateDataset(id, param) : DatasetService.createDataset(param),
+  });
+
+  const isMutating = executeMutation.isPending || saveMutation.isPending;
+  const fetchingCount = useIsFetching();
+  useEffect(() => {
+    if (fetchingCount > 0 || isMutating) {
+      showLoading();
+    } else {
+      hideLoading();
+    }
+  }, [fetchingCount, isMutating]);
+
+  useLayoutEffect(() => {
     if (pathname.indexOf('modify') > 0 && setId) {
       // 데이터셋 수정일 경우
       setIsModifyMode(true);
-      getDatasetInfo();
     } else if (sourceId && state) {
       const { tableName } = state as any;
-      setDatasetInfo(prevState => ({ ...prevState, title: tableName, query: `SELECT * FROM ${tableName}` }));
-      console.log('state:', state);
-      console.log('datasetInfo:', datasetInfo);
+      setDatasetInfo((prevState: any) => ({ ...prevState, title: tableName, query: `SELECT * FROM ${tableName}` }));
     }
   }, []);
 
   useEffect(() => {
-    if (databaseId) getDatabaseInfo();
-  }, [databaseId]);
+    if (databaseId) return;
+    if (databaseList.length === 0) return;
+    if (!isModifyMode) {
+      setDatabaseId(sourceId);
+    } else {
+      setDatabaseId(datasetInfo?.databaseId);
+    }
+  }, [databaseList, datasetInfo]);
 
   useEffect(() => {
     addCompleter();
   }, [tableList]);
-
-  useEffect(() => {
-    if (!databaseId) getDatabaseId();
-  }, [databaseList, datasetInfo]);
 
   const addCompleter = () => {
     const rhymeCompleter = {
@@ -91,165 +162,61 @@ const DataSet = () => {
   };
 
   const onChange = newValue => {
-    console.log('change', newValue);
     setDatasetInfo(prevState => ({ ...prevState, query: newValue }));
   };
 
   const onChangeTitle = event => {
-    console.log('onChangeTitle', event.target.value);
     setDatasetInfo(prevState => ({ ...prevState, title: event.target.value }));
   };
 
   const onChangeDatabaseId = event => {
-    console.log('changeDatabaseId', event.target.value);
     setDatabaseId(event.target.value);
     setDatasetInfo(prevState => ({ ...prevState, databaseId: event.target.value }));
   };
 
   /**
-   * 데이터베이스 타입 목록 조회
-   */
-  const getDatabaseTypeList = () => {
-    showLoading();
-    DatabaseService.selectDatabaseList()
-      .then(response => {
-        console.log('selectDatabaseTypeList', response.data);
-        if (response.data.status === STATUS.SUCCESS) {
-          const list = response.data.data;
-          list.map(item => (item.icon = getDatabaseIcon(item.engine)));
-          setDatabaseList(list);
-        }
-      })
-      .finally(() => {
-        hideLoading();
-      });
-  };
-
-  const getDatabaseId = () => {
-    if (databaseList.length > 0) {
-      if (!isModifyMode) {
-        setDatabaseId(sourceId);
-      } else {
-        setDatabaseId(datasetInfo?.databaseId);
-      }
-    }
-  };
-
-  const getDatabaseInfo = () => {
-    showLoading();
-    DatabaseService.selectDatabase(databaseId)
-      .then(response => {
-        if (response.data.status === 'SUCCESS') {
-          setTableList(response.data.data.tables);
-          console.log('tableList ', response.data.data.tables);
-        } else {
-          alert.error('데이터베이스 조회에 실패했습니다.\n다시 시도해 주세요.');
-          setTableList([]);
-        }
-      })
-      .catch(error => {
-        snackbar.error(error.message);
-        setTableList([]);
-      })
-      .finally(() => {
-        hideLoading();
-      });
-  };
-
-  /**
-   * 수정일 경우 데이터셋 정보 조회
-   */
-  const getDatasetInfo = () => {
-    showLoading();
-    DatasetService.selectDataset(setId)
-      .then(response => {
-        console.log('selectDataset', response.data.data.id, response.data.data.databaseId);
-        if (response.data.status === 'SUCCESS') {
-          setDatasetInfo(response.data.data);
-        } else {
-          alert.error('데이터베이스 조회에 실패했습니다.\n다시 시도해 주세요.');
-        }
-      })
-      .finally(() => {
-        hideLoading();
-      });
-  };
-
-  /**
    * 쿼리 실행
    */
-  const excuteQuery = () => {
-    showLoading();
+  const excuteQuery = async () => {
     const param = {
       id: databaseId,
       query: datasetInfo.query,
     };
-    console.log('param', param);
-    DatabaseService.executeQuery(param)
-      .then(response => {
-        console.log(response.data);
-        if (response.data.status === 'SUCCESS') {
-          setTestCompleted(true);
-          setData(response.data.datas);
-          setColumns(createColumns(response.data.datas));
-          snackbar.success('Success!');
-        } else {
-          setTestCompleted(false);
-          setData([]);
-          setColumns([]);
-          snackbar.error(`${response.data.message}`);
-        }
-      })
-      .catch(error => {
-        snackbar.error(error.message);
-        setTestCompleted(false);
-        setData([]);
-        setColumns([]);
-      })
-      .finally(() => {
-        hideLoading();
-      });
+    const response = await executeMutation.mutateAsync(param);
+    if (response.data.status === 'SUCCESS') {
+      setTestCompleted(true);
+      setData(response.data.datas);
+      setColumns(createColumns(response.data.datas));
+      snackbar.success('Success!');
+    } else {
+      setTestCompleted(false);
+      setData([]);
+      setColumns([]);
+      snackbar.error(`${response.data.message}`);
+    }
   };
 
   const saveDataset = event => {
     event.preventDefault();
-    console.log('저장', datasetInfo);
 
     alert.success(`데이터셋을 ${isModifyMode ? '수정' : '생성'}하시겠습니까?`, {
       closeCopy: '취소',
       actions: [
         {
           copy: '확인',
-          onClick: () => {
-            showLoading();
-            if (isModifyMode) {
-              DatasetService.updateDataset(setId, datasetInfo)
-                .then(response => {
-                  console.log(response.data);
-                  if (response.data.status === STATUS.SUCCESS) {
-                    navigate('/data');
-                    snackbar.success('데이터셋이 수정되었습니다.');
-                  } else {
-                    alert.error('데이터셋 수정에 실패했습니다.\n다시 시도해 주세요.');
-                  }
-                })
-                .finally(() => {
-                  hideLoading();
-                });
+          onClick: async () => {
+            const response = await saveMutation.mutateAsync({
+              id: isModifyMode ? setId : undefined,
+              param: datasetInfo,
+            });
+            if (response.data.status === STATUS.SUCCESS) {
+              queryClient.invalidateQueries({ queryKey: ['database-info'] });
+              navigate('/data');
+              snackbar.success(`데이터셋이 ${isModifyMode ? '수정' : '생성'}되었습니다.`);
             } else {
-              DatasetService.createDataset(datasetInfo)
-                .then(response => {
-                  console.log(response.data);
-                  if (response.data.status === STATUS.SUCCESS) {
-                    navigate('/data');
-                    snackbar.success('데이터셋이 생성되었습니다.');
-                  } else {
-                    alert.error('데이터셋 생성에 실패했습니다.\n다시 시도해 주세요.');
-                  }
-                })
-                .finally(() => {
-                  hideLoading();
-                });
+              alert.error(
+                `데이터셋 ${isModifyMode ? '수정' : '생성'}에 실패했습니다.\n다시 시도해 주세요.`,
+              );
             }
           },
         },
@@ -258,7 +225,6 @@ const DataSet = () => {
   };
 
   const handleCancel = () => {
-    console.log('취소');
     navigate('/data');
   };
 
@@ -301,14 +267,6 @@ const DataSet = () => {
           disabled={isModifyMode || !databaseList.length}
           size="small"
           value={databaseId ?? ''}
-          // renderValue={selected => {
-          //   if (selected.length === 0) {
-          //     return <Typography sx={{ color: '#929292', fontStyle: 'italic' }}>데이터베이스를 선택해 주세요.</Typography>;
-          //   } else {
-          //     const item = databaseList?.find(({ id: value }) => value === selected);
-          //     return item?.name;
-          //   }
-          // }}
           onChange={onChangeDatabaseId}
         >
           {databaseList.length ? (
