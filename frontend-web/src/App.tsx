@@ -1,5 +1,6 @@
 import React from 'react';
 import i18n from '@/i18n';
+import { connectSocket } from '@/helpers/socket';
 import { useTranslation } from 'react-i18next';
 import { CssBaseline } from '@mui/material';
 import Router from './router';
@@ -59,6 +60,9 @@ Grid.setLanguage('ko', {
 
 function App() {
   const { t } = useTranslation();
+  React.useEffect(() => {
+    connectSocket();
+  }, []);
   return (
     <>
       <Seo />

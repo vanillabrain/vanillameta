@@ -1,5 +1,6 @@
 import {
   Body,
+  Headers,
   Controller,
   Delete,
   Get,
@@ -44,8 +45,15 @@ export class DatabaseController {
     @Query('databaseId') databaseId: number,
     @Query('datasetId') datasetId?: number,
     @Query('tableName') tableName?: string,
+    @Headers('x-socket-id') socketId?: string,
   ) {
-    const res = await this.databaseService.findData(datasetType, databaseId, datasetId, tableName);
+    const res = await this.databaseService.findData(
+      datasetType,
+      databaseId,
+      datasetId,
+      tableName,
+      socketId,
+    );
     return res;
   }
 
@@ -92,8 +100,11 @@ export class DatabaseController {
    * @param queryExecuteDto
    */
   @Post('execute')
-  executeQuery(@Body() queryExecuteDto: QueryExecuteDto) {
-    return this.connectionService.executeQuery(queryExecuteDto);
+  executeQuery(
+    @Body() queryExecuteDto: QueryExecuteDto,
+    @Headers('x-socket-id') socketId?: string,
+  ) {
+    return this.connectionService.executeQuery(queryExecuteDto, socketId);
   }
 
   /**

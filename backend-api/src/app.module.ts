@@ -19,6 +19,7 @@ import { LoginModule } from './login/login.module';
 import { ShareUrlModule } from './share-url/share-url.module';
 import { AiModule } from './ai/ai.module';
 import { MetricModule } from './metric/metric.module';
+import { ProgressModule } from './progress/progress.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { MetricModule } from './metric/metric.module';
     ShareUrlModule,
     AiModule,
     MetricModule,
+    ProgressModule,
   ],
   controllers: [AppController],
   providers: [

@@ -75,6 +75,14 @@ services:
     depends_on:
       - backend
 
+  # 쿼리 결과 분산 캐시용 Redis (선택): docker compose --profile cache up redis
+  # 사용 시 backend env에 REDIS_URL=redis://localhost:6379 설정
+  redis:
+    profiles: ['cache']
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+
 volumes:
   mysql-data:
   frontend-node-modules:

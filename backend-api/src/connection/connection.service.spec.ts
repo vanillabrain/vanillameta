@@ -5,9 +5,10 @@ describe('ConnectionService HTTP engines', () => {
   let service: ConnectionService;
   const fetchMock = jest.fn();
   const databaseRepository = { findOne: jest.fn() } as any;
+  const progressGateway = { emitTo: jest.fn() } as any;
 
   beforeAll(() => {
-    service = new ConnectionService(databaseRepository);
+    service = new ConnectionService(databaseRepository, progressGateway);
     global.fetch = fetchMock;
   });
 

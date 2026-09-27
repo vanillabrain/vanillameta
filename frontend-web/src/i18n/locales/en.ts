@@ -345,6 +345,7 @@ export default {
     modified: 'Modified',
     selectNone: 'None',
     noData: 'No data found.',
+    queryRunning: 'Running query... {{sec}}s',
     colorPicker: 'Pick a color',
     colorPickerPopup: 'Color picker',
     warning: 'Warning',

@@ -11,16 +11,72 @@ import { SnowflakeDialect } from './knex-dialects/snowflake';
 import { createHash } from 'crypto';
 import { decryptConnectionConfig } from '../utils/crypto.util';
 import { assertReadOnlyQuery } from '../utils/query-guard.util';
+import { Redis } from 'ioredis';
+import { ProgressGateway } from '../progress/progress.gateway';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires -- knex-bigquery는 타입 선언이 없음
 const { BigQueryClient } = require('knex-bigquery');
 
 const knexConnections = new Map<number, Knex>();
-const queryResultCache = new Map<string, { value: any; expiresAt: number }>();
+
+/**
+ * 쿼리 결과 캐시 백엔드. REDIS_URL 설정 시 Redis(PX TTL), 아니면 인메모리 Map.
+ * 분산 배포에서 인스턴스 간 캐시 공유가 필요하면 REDIS_URL을 사용한다.
+ */
+interface QueryCache {
+  get(key: string): Promise<any | undefined>;
+  set(key: string, value: any, ttlMs: number): Promise<void>;
+}
+
+class MemoryQueryCache implements QueryCache {
+  private store = new Map<string, { value: any; expiresAt: number }>();
+  async get(key: string) {
+    const hit = this.store.get(key);
+    if (!hit) return undefined;
+    if (hit.expiresAt <= Date.now()) {
+      this.store.delete(key);
+      return undefined;
+    }
+    return hit.value;
+  }
+  async set(key: string, value: any, ttlMs: number) {
+    this.store.set(key, { value, expiresAt: Date.now() + ttlMs });
+  }
+}
+
+class RedisQueryCache implements QueryCache {
+  private client: Redis;
+  constructor(url: string) {
+    this.client = new Redis(url, { maxRetriesPerRequest: 1 });
+    this.client.on('error', e => console.warn('[query-cache] redis error:', e.message));
+  }
+  async get(key: string) {
+    try {
+      const raw = await this.client.get(`vm:q:${key}`);
+      return raw ? JSON.parse(raw) : undefined;
+    } catch {
+      return undefined; // Redis 장애 시 캐시 미사용으로 degrade
+    }
+  }
+  async set(key: string, value: any, ttlMs: number) {
+    try {
+      await this.client.set(`vm:q:${key}`, JSON.stringify(value), 'PX', ttlMs);
+    } catch {
+      /* 캐시 기록 실패는 무시 */
+    }
+  }
+}
+
+const queryCache: QueryCache = process.env.REDIS_URL
+  ? new RedisQueryCache(process.env.REDIS_URL)
+  : new MemoryQueryCache();
 
 @Injectable()
 export class ConnectionService {
-  constructor(@InjectRepository(Database) private databaseRepository: Repository<Database>) {}
+  constructor(
+    @InjectRepository(Database) private databaseRepository: Repository<Database>,
+    private readonly progressGateway: ProgressGateway,
+  ) {}
 
   /**
    * Knex 객체 생성 후 pool에 추가
@@ -379,29 +435,50 @@ export class ConnectionService {
    * 쿼리 실행. QUERY_CACHE_TTL_MS>0 이면 동일 (db, 쿼리) 결과를 TTL 캐시
    * @param queryExecuteDto
    */
-  async executeQuery(queryExecuteDto: QueryExecuteDto) {
+  async executeQuery(queryExecuteDto: QueryExecuteDto, clientId?: string) {
     const cacheTtl = parseInt(process.env.QUERY_CACHE_TTL_MS) || 0;
-    if (cacheTtl <= 0) return this.runQuery(queryExecuteDto);
+    if (cacheTtl <= 0) return this.runQuery(queryExecuteDto, clientId);
 
     const cacheKey = `${queryExecuteDto.id}:${createHash('sha256')
       .update(queryExecuteDto.query)
       .digest('hex')}`;
-    const hit = queryResultCache.get(cacheKey);
-    if (hit) {
-      if (hit.expiresAt > Date.now()) return hit.value;
-      queryResultCache.delete(cacheKey);
-    }
+    const hit = await queryCache.get(cacheKey);
+    if (hit !== undefined) return hit;
 
-    const result = await this.runQuery(queryExecuteDto);
+    const result = await this.runQuery(queryExecuteDto, clientId);
     if (result.status === ResponseStatus.SUCCESS) {
-      queryResultCache.set(cacheKey, { value: result, expiresAt: Date.now() + cacheTtl });
+      await queryCache.set(cacheKey, result, cacheTtl);
     }
     return result;
   }
 
-  private async runQuery(queryExecuteDto: QueryExecuteDto) {
+  private async runQuery(queryExecuteDto: QueryExecuteDto, clientId?: string) {
     assertReadOnlyQuery(queryExecuteDto.query);
+    const startedAt = Date.now();
+    const emit = (phase: string, extra: Record<string, unknown> = {}) =>
+      this.progressGateway.emitTo(clientId, 'query:progress', {
+        phase,
+        elapsedMs: Date.now() - startedAt,
+        ...extra,
+      });
+    emit('running');
+    // 장기 실행 쿼리용 진행 틱 (2s 간격)
+    const ticker = clientId ? setInterval(() => emit('running'), 2000) : null;
+    try {
+      const result = await this.runQueryInner(queryExecuteDto);
+      emit(result.status === ResponseStatus.SUCCESS ? 'success' : 'error', {
+        rows: result?.datas?.length ?? 0,
+      });
+      return result;
+    } catch (e) {
+      emit('error', { message: e?.message });
+      throw e;
+    } finally {
+      if (ticker) clearInterval(ticker);
+    }
+  }
 
+  private async runQueryInner(queryExecuteDto: QueryExecuteDto) {
     // HTTP 인터페이스 엔진(knex 미지원) 분기
     const connectionConfig = await this.getConnectionConfig(queryExecuteDto.id);
     if (connectionConfig?.client === 'clickhouse') {

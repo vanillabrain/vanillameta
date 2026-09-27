@@ -1,7 +1,9 @@
 import { Transition } from 'react-transition-group';
 import { styled } from '@mui/material/styles';
 import { Box } from '@mui/material';
-import { ReactElement } from 'react';
+import { ReactElement, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { connectSocket } from '@/helpers/socket';
 import loadingGif from '@/assets/images/loading.gif';
 
 interface LoadingProps {
@@ -26,6 +28,8 @@ const transitionStyles = {
 
 const LoadingBox = styled(Box)(() => ({
   display: 'flex',
+  flexDirection: 'column',
+  gap: '12px',
   alignItems: 'center',
   justifyContent: 'center',
   position: 'fixed',
@@ -39,6 +43,20 @@ const LoadingBox = styled(Box)(() => ({
 }));
 
 export const Loading = ({ in: inProp, style, ...rest }: LoadingProps): ReactElement => {
+  const { t } = useTranslation();
+  const [elapsedMs, setElapsedMs] = useState(0);
+
+  useEffect(() => {
+    const s = connectSocket();
+    const onProgress = (payload: { phase: string; elapsedMs: number }) => {
+      setElapsedMs(payload.phase === 'running' ? payload.elapsedMs : 0);
+    };
+    s.on('query:progress', onProgress);
+    return () => {
+      s.off('query:progress', onProgress);
+    };
+  }, []);
+
   return (
     <Transition in={inProp} timeout={duration}>
       {state => (
@@ -51,6 +69,11 @@ export const Loading = ({ in: inProp, style, ...rest }: LoadingProps): ReactElem
           {...rest}
         >
           <img src={loadingGif} alt="Logo" width="40px" height="40px" />
+          {elapsedMs > 0 && (
+            <Box sx={{ fontSize: '12px', color: '#555' }}>
+              {t('common.queryRunning', { sec: Math.floor(elapsedMs / 1000) })}
+            </Box>
+          )}
         </LoadingBox>
       )}
     </Transition>

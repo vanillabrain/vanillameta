@@ -2,6 +2,7 @@ import axios from 'axios';
 import { getToken, removeToken, setToken } from '@/helpers/authHelper';
 import { getShareToken } from '@/helpers/shareHelper';
 import authService from '@/api/authService';
+import { getSocketId } from '@/helpers/socket';
 
 // apply base url for axios
 const API_URL = import.meta.env.REACT_APP_API_URL;
@@ -65,6 +66,8 @@ const addAuthToHeaders = config => {
 // 요청 인터셉터
 instance.interceptors.request.use(async config => {
   const newConfig = addAuthToHeaders(config);
+  const socketId = getSocketId();
+  if (socketId) newConfig.headers['x-socket-id'] = socketId;
   // removePendingRequest(newConfig); // 같은 요청이 갔을 경우 기존 요청 취소
   // addPendingRequest(newConfig);
   return newConfig;

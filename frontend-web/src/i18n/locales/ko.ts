@@ -345,6 +345,7 @@ export default {
     modified: '수정일',
     selectNone: '선택 안함',
     noData: '조회된 데이터가 없습니다.',
+    queryRunning: '쿼리 실행 중... {{sec}}s',
     colorPicker: '색상 선택',
     colorPickerPopup: '색상 선택 팝업',
     warning: '경고',

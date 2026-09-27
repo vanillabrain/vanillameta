@@ -459,6 +459,7 @@ where ((datasetType = 'DATASET' and datasetId in (select id from dataset where d
     databaseId: number,
     datasetId?: number,
     tableName?: string,
+    clientId?: string,
   ) {
     if (datasetType === DatasetType.DATASET && datasetId === undefined) {
       return {
@@ -507,7 +508,7 @@ where ((datasetType = 'DATASET' and datasetId in (select id from dataset where d
         queryExecuteDto.query = selectQuery;
       }
     }
-    const queryResult = await this.connectionService.executeQuery(queryExecuteDto);
+    const queryResult = await this.connectionService.executeQuery(queryExecuteDto, clientId);
     if (queryResult.status === 'ERROR') return queryResult;
     else
       return {
