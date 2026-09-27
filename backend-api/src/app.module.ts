@@ -52,6 +52,8 @@ const useSqlite = isLocal || isTest;
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
       synchronize: process.env.NODE_ENV != 'prod',
       logging: process.env.NODE_ENV != 'prod' && !isTest,
+      // SQLite(테스트/로컬)는 동시 쓰기 안정성을 위해 WAL 사용
+      ...(useSqlite ? { enableWAL: true } : {}),
       retryAttempts: 1,
     }),
     DatabaseModule,
