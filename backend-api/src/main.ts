@@ -36,7 +36,7 @@ async function bootstrap() {
   nestApp.useGlobalFilters(new HttpExceptionFilter());
   nestApp.useGlobalInterceptors(new RequestLoggingInterceptor());
   setupSwagger(nestApp);
-  await nestApp.listen(4000);
+  await nestApp.listen(parseInt(process.env.PORT) || 4000);
 }
 
 bootstrap();

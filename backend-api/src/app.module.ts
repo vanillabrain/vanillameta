@@ -39,7 +39,10 @@ import { ProgressModule } from './progress/progress.module';
       port: parseInt(process.env.DB_PORT) || 3306,
       username: process.env.DB_USERNAME,
       password: process.env.DB_PASSWORD,
-      database: process.env.NODE_ENV == 'local' ? 'sqlite.db' : process.env.DB_NAME,
+      database:
+        process.env.NODE_ENV == 'local'
+          ? process.env.SQLITE_PATH || 'sqlite.db'
+          : process.env.DB_NAME,
       autoLoadEntities: true,
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
       synchronize: process.env.NODE_ENV != 'prod',
