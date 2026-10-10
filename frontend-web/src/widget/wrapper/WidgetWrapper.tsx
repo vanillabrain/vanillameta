@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
 import DatabaseService from '@/api/databaseService';
 import { STATUS } from '@/constant';
@@ -7,6 +8,7 @@ import { useAlert } from 'react-alert';
 import { SnackbarContext } from '@/contexts/AlertContext';
 
 const WidgetWrapper = props => {
+  const { t } = useTranslation();
   const { widgetOption, dataSetId, size } = props;
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const [dataset, setDataset] = useState(null);
@@ -34,7 +36,7 @@ const WidgetWrapper = props => {
       })
       .catch(error => {
         setIsInvalidData(true);
-        snackbar.error('데이터베이스 조회에 실패했습니다.');
+        snackbar.error(t('common.dbFetchFailed'));
         console.log('error', error);
       })
       .finally(() => {

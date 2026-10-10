@@ -8,7 +8,7 @@ describe('WidgetController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [WidgetController],
-      providers: [WidgetService],
+      providers: [{ provide: WidgetService, useValue: {} }],
     }).compile();
 
     controller = module.get<WidgetController>(WidgetController);

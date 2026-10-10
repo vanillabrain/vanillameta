@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Divider, List, Stack, styled, Typography } from '@mui/material';
 import { WIDGET_TYPE } from '@/constant';
 import LineChartSetting from '@/widget/settings/LineChartSetting';
@@ -54,6 +55,7 @@ const StyledList = styled(List)({
 });
 
 const WidgetSetting = props => {
+  const { t } = useTranslation();
   const {
     title,
     setTitle,
@@ -307,7 +309,7 @@ const WidgetSetting = props => {
         break;
 
       default:
-        module = '컴포넌트가 선택되지 않았다!';
+        module = t('common.componentNotSelected');
         break;
     }
 
@@ -348,7 +350,7 @@ const WidgetSetting = props => {
       </Stack>
       <ConfirmButton
         sx={{ minHeight: '44px', mt: '30px', fontWeight: 'bold', backgroundColor: '#043f84' }}
-        confirmLabel="저장"
+        confirmLabel={t('common.save')}
         confirmProps={{
           form: 'widgetAttribute',
           type: 'submit',

@@ -4,19 +4,24 @@ import { LoginController } from './login.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from '../user/entities/user.entity';
 import { UserMapping } from '../user/entities/user-mapping.entity.js';
-import { RefreshToken } from '../auth/entites/refresh_token.entity.js'
+import { RefreshToken } from '../auth/entites/refresh_token.entity.js';
 import { JwtModule } from '@nestjs/jwt';
 import { AuthService } from 'src/auth/auth.service';
 import { loginLoggerMiddleware } from 'src/middleware/middleware-log/middleware.login-logger';
 import { LoginHistory } from 'src/middleware/entities/login-history.entity';
+import { SampleModule } from '../sample/sample.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, RefreshToken, UserMapping, LoginHistory]), JwtModule],
+  imports: [
+    TypeOrmModule.forFeature([User, RefreshToken, UserMapping, LoginHistory]),
+    JwtModule,
+    SampleModule,
+  ],
   controllers: [LoginController],
-  providers: [LoginService, AuthService]
+  providers: [LoginService, AuthService],
 })
-export class LoginModule  implements NestModule {
+export class LoginModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply( loginLoggerMiddleware ).forRoutes('login');
+    consumer.apply(loginLoggerMiddleware).forRoutes('login');
   }
 }

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   IconButton,
   Dialog,
@@ -30,6 +31,7 @@ const Transition = React.forwardRef(function Transition(
 });
 
 function Recommend(props) {
+  const { t } = useTranslation();
   const { data, ...rest } = props;
 
   const [open, setOpen] = useState(false);
@@ -83,7 +85,7 @@ function Recommend(props) {
               <CloseIcon />
             </IconButton>
             <Typography sx={{ ml: 2, flex: 1 }} variant="h6" component="div">
-              대시보드 생성
+              {t('dataRecommend.create')}
             </Typography>
           </Toolbar>
         </AppBar>
@@ -92,21 +94,28 @@ function Recommend(props) {
 
         <DialogActions sx={{ px: 4, pb: 3 }}>
           <ConfirmCancelButton
-            confirmLabel={isFirstStep ? '다음' : '대시보드 생성'}
-            cancelLabel={isFirstStep ? '취소' : '이전'}
+            confirmLabel={isFirstStep ? t('dataRecommend.next') : t('dataRecommend.create')}
+            cancelLabel={isFirstStep ? t('dataRecommend.cancel') : t('dataRecommend.prev')}
             confirmProps={isFirstStep ? { onClick: handleNextClick } : { onClick: handleCompleteClick }}
             cancelProps={isFirstStep ? { onClick: handleClose } : { onClick: handlePrevClick }}
           />
 
           <Dialog open={openDialog} onClose={handleClose}>
-            <DialogTitle>대시보드 생성</DialogTitle>
+            <DialogTitle>{t('dataRecommend.create')}</DialogTitle>
             <DialogContent>
-              <DialogContentText>생성할 대시보드의 이름을 작성해주세요.</DialogContentText>
-              <TextField margin="dense" id="dashboardName" label="대시보드 이름" type="text" fullWidth variant="standard" />
+              <DialogContentText>{t('dataRecommend.guide')}</DialogContentText>
+              <TextField
+                margin="dense"
+                id="dashboardName"
+                label={t('dataRecommend.nameLabel')}
+                type="text"
+                fullWidth
+                variant="standard"
+              />
             </DialogContent>
             <DialogActions>
-              <Button onClick={handleCompleteClose}>취소</Button>
-              <Button onClick={handleSubmit}>대시보드 생성</Button>
+              <Button onClick={handleCompleteClose}>{t('dataRecommend.cancel')}</Button>
+              <Button onClick={handleSubmit}>{t('dataRecommend.create')}</Button>
             </DialogActions>
           </Dialog>
         </DialogActions>

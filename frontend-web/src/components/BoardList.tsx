@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Box, List, Pagination, Stack, useMediaQuery, useTheme } from '@mui/material';
 import BoardItem from './BoardItem';
 import { styled } from '@mui/system';
@@ -22,6 +23,7 @@ const GTSpan = styled('span')<GTSpanProps>(props => ({
 const tableBorder = '1px solid #DADDDD';
 
 function BoardList(props) {
+  const { t } = useTranslation();
   const { postList, handleDeleteSelect } = props;
   const [totalCount, setTotalCount] = useState(1);
   const [page, setPage] = useState(1);
@@ -62,9 +64,9 @@ function BoardList(props) {
         }}
       >
         <GTSpan isWidget={Boolean(postList?.[0]?.componentType)} matches={matches}>
-          이름
+          {t('settings.name')}
         </GTSpan>
-        <GTSpan matches={matches}>수정일</GTSpan>
+        <GTSpan matches={matches}>{t('common.modified')}</GTSpan>
       </Stack>
       <List sx={{ width: '100%', m: 'auto', border: tableBorder, borderRadius: 2, backgroundColor: '#fff' }} disablePadding>
         {generateBoardItem()}

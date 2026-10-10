@@ -8,14 +8,75 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import { SnowflakeDialect } from './knex-dialects/snowflake';
+import { createHash } from 'crypto';
+import { decryptConnectionConfig } from '../utils/crypto.util';
+import { assertReadOnlyQuery } from '../utils/query-guard.util';
+import { Redis } from 'ioredis';
+import { ProgressGateway } from '../progress/progress.gateway';
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires -- knex-bigquery는 타입 선언이 없음
 const { BigQueryClient } = require('knex-bigquery');
 
 const knexConnections = new Map<number, Knex>();
 
+/**
+ * 쿼리 결과 캐시 백엔드. REDIS_URL 설정 시 Redis(PX TTL), 아니면 인메모리 Map.
+ * 분산 배포에서 인스턴스 간 캐시 공유가 필요하면 REDIS_URL을 사용한다.
+ */
+interface QueryCache {
+  get(key: string): Promise<any | undefined>;
+  set(key: string, value: any, ttlMs: number): Promise<void>;
+}
+
+class MemoryQueryCache implements QueryCache {
+  private store = new Map<string, { value: any; expiresAt: number }>();
+  async get(key: string) {
+    const hit = this.store.get(key);
+    if (!hit) return undefined;
+    if (hit.expiresAt <= Date.now()) {
+      this.store.delete(key);
+      return undefined;
+    }
+    return hit.value;
+  }
+  async set(key: string, value: any, ttlMs: number) {
+    this.store.set(key, { value, expiresAt: Date.now() + ttlMs });
+  }
+}
+
+class RedisQueryCache implements QueryCache {
+  private client: Redis;
+  constructor(url: string) {
+    this.client = new Redis(url, { maxRetriesPerRequest: 1 });
+    this.client.on('error', e => console.warn('[query-cache] redis error:', e.message));
+  }
+  async get(key: string) {
+    try {
+      const raw = await this.client.get(`vm:q:${key}`);
+      return raw ? JSON.parse(raw) : undefined;
+    } catch {
+      return undefined; // Redis 장애 시 캐시 미사용으로 degrade
+    }
+  }
+  async set(key: string, value: any, ttlMs: number) {
+    try {
+      await this.client.set(`vm:q:${key}`, JSON.stringify(value), 'PX', ttlMs);
+    } catch {
+      /* 캐시 기록 실패는 무시 */
+    }
+  }
+}
+
+const queryCache: QueryCache = process.env.REDIS_URL
+  ? new RedisQueryCache(process.env.REDIS_URL)
+  : new MemoryQueryCache();
+
 @Injectable()
 export class ConnectionService {
-  constructor(@InjectRepository(Database) private databaseRepository: Repository<Database>) {}
+  constructor(
+    @InjectRepository(Database) private databaseRepository: Repository<Database>,
+    private readonly progressGateway: ProgressGateway,
+  ) {}
 
   /**
    * Knex 객체 생성 후 pool에 추가
@@ -51,7 +112,7 @@ export class ConnectionService {
   async getKnex(id: number): Promise<Knex> {
     if (!this.hasKnex(id)) {
       const one = await this.databaseRepository.findOne({ where: { id: id } });
-      one.connectionConfig = JSON.parse(one.connectionConfig);
+      one.connectionConfig = JSON.parse(decryptConnectionConfig(one.connectionConfig));
       const knexConfig = one.connectionConfig;
       if (knexConfig['client'] == 'bigquery') {
         knexConfig['client'] = BigQueryClient;
@@ -64,10 +125,263 @@ export class ConnectionService {
   }
 
   /**
+   * 데이터베이스 연결 설정 복호화 조회
+   */
+  private async getConnectionConfig(id: number) {
+    const one = await this.databaseRepository.findOne({ where: { id } });
+    if (!one) return null;
+    return JSON.parse(decryptConnectionConfig(one.connectionConfig));
+  }
+
+  /**
+   * ClickHouse는 네이티브 드라이버 대신 HTTP 인터페이스(포트 8123)로 실행한다.
+   * connectionConfig: { client: 'clickhouse', connection: { host, port, user, password, database, secure? } }
+   */
+  private async executeClickHouse(connectionConfig: any, query: string) {
+    const conn = connectionConfig.connection;
+    const protocol = conn.secure ? 'https' : 'http';
+    const url = `${protocol}://${conn.host}:${conn.port || 8123}/?database=${encodeURIComponent(
+      conn.database || 'default',
+    )}`;
+
+    const controller = new AbortController();
+    const timeoutMs = parseInt(process.env.QUERY_TIMEOUT_MS) || 60000;
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'X-ClickHouse-User': conn.user || 'default',
+          'X-ClickHouse-Key': conn.password || '',
+        },
+        body: `${query}\nFORMAT JSON`,
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        const body = await response.text();
+        return { status: ResponseStatus.ERROR, message: body.slice(0, 500), datas: [], fields: [] };
+      }
+      const json = await response.json();
+      const datas = json.data ?? [];
+      const fields = (json.meta ?? []).map((m: any) => ({
+        columnName: m.name,
+        columnType: FieldTypeUtil.FieldType(datas.slice(0, 100).map((r: any) => r[m.name])),
+      }));
+      return { status: ResponseStatus.SUCCESS, message: 'success', datas, fields };
+    } catch (e) {
+      console.log(e);
+      return {
+        status: ResponseStatus.ERROR,
+        message: e.message || 'clickhouse query failed',
+        datas: [],
+        fields: [],
+      };
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  /**
+   * Trino는 네이티브 드라이버 대신 HTTP 인터페이스(포트 8080)로 실행한다.
+   * POST /v1/statement 후 nextUri를 따라가며 결과를 누적한다.
+   * connectionConfig: { client: 'trino', connection: { host, port, user, password, database(catalog), schema?, secure? } }
+   */
+  private async executeTrino(connectionConfig: any, query: string) {
+    const conn = connectionConfig.connection;
+    const protocol = conn.secure ? 'https' : 'http';
+    const baseUrl = `${protocol}://${conn.host}:${conn.port || 8080}`;
+    const headers: Record<string, string> = {
+      'X-Trino-User': conn.user || 'trino',
+    };
+    if (conn.database) headers['X-Trino-Catalog'] = conn.database;
+    if (conn.schema) headers['X-Trino-Schema'] = conn.schema;
+    if (conn.password) {
+      headers['Authorization'] =
+        'Basic ' + Buffer.from(`${conn.user || 'trino'}:${conn.password}`).toString('base64');
+    }
+
+    const timeoutMs = parseInt(process.env.QUERY_TIMEOUT_MS) || 60000;
+    const deadline = Date.now() + timeoutMs;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const datas: any[] = [];
+    const fields = [];
+    try {
+      let nextUri: string | null = `${baseUrl}/v1/statement`;
+      let method = 'POST';
+      let body: string | undefined = query;
+      let columns: any[] = null;
+      for (let i = 0; nextUri && i < 200; i++) {
+        if (Date.now() > deadline) throw new Error('trino query timeout');
+        const response = await fetch(nextUri, {
+          method,
+          headers,
+          body,
+          signal: controller.signal,
+        });
+        const json = await response.json();
+        if (!response.ok || json.error) {
+          return {
+            status: ResponseStatus.ERROR,
+            message: (json.error?.message || json.message || 'trino query failed').slice(0, 500),
+            datas: [],
+            fields: [],
+          };
+        }
+        if (json.columns && !columns) columns = json.columns;
+        if (json.data) datas.push(...json.data);
+        nextUri = json.nextUri || null;
+        method = 'GET';
+        body = undefined;
+      }
+      if (!columns) {
+        return { status: ResponseStatus.SUCCESS, message: 'success', datas: [], fields: [] };
+      }
+      // trino data는 컬럼 순서의 배열 — 객체 행으로 변환
+      const names = columns.map((c: any) => c.name);
+      const rows = datas.map(r => Object.fromEntries(names.map((n, i) => [n, r[i]])));
+      for (const name of names) {
+        fields.push({
+          columnName: name,
+          columnType: FieldTypeUtil.FieldType(rows.slice(0, 100).map(r => r[name])),
+        });
+      }
+      return { status: ResponseStatus.SUCCESS, message: 'success', datas: rows, fields };
+    } catch (e) {
+      console.log(e);
+      return {
+        status: ResponseStatus.ERROR,
+        message: e.message || 'trino query failed',
+        datas: [],
+        fields: [],
+      };
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  /**
+   * Databricks SQL은 Statement Execution API(HTTPS 443)로 실행한다.
+   * POST /api/2.0/sql/statements → status.state가 SUCCEEDED일 때까지 result GET 폴링.
+   * connectionConfig: { client: 'databricks', connection: { host, token|password, warehouseId|database, catalog?, schema? } }
+   */
+  private async executeDatabricks(connectionConfig: any, query: string) {
+    const conn = connectionConfig.connection;
+    const host = (conn.host || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
+    const token = conn.token || conn.password;
+    const warehouseId = conn.warehouseId || conn.database;
+    if (!host || !token || !warehouseId) {
+      return {
+        status: ResponseStatus.ERROR,
+        message: 'host, token, warehouseId는 필수입니다.',
+        datas: [],
+        fields: [],
+      };
+    }
+    const baseUrl = `https://${host}`;
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    };
+
+    const timeoutMs = parseInt(process.env.QUERY_TIMEOUT_MS) || 60000;
+    const deadline = Date.now() + timeoutMs;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const createRes = await fetch(`${baseUrl}/api/2.0/sql/statements`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          statement: query,
+          warehouse_id: warehouseId,
+          catalog: conn.catalog,
+          schema: conn.schema,
+          wait_timeout: '30s',
+          disposition: 'INLINE',
+          format: 'JSON_ARRAY',
+        }),
+        signal: controller.signal,
+      });
+      let json = await createRes.json();
+      const statementId = json.statement_id;
+
+      // PENDING/RUNNING이면 폴링
+      for (let i = 0; i < 120 && statementId; i++) {
+        const state = json.status?.state;
+        if (
+          state === 'SUCCEEDED' ||
+          state === 'FAILED' ||
+          state === 'CANCELED' ||
+          state === 'CLOSED'
+        )
+          break;
+        if (Date.now() > deadline) throw new Error('databricks query timeout');
+        await new Promise(r => setTimeout(r, 1000));
+        const pollRes = await fetch(`${baseUrl}/api/2.0/sql/statements/${statementId}`, {
+          headers,
+          signal: controller.signal,
+        });
+        json = await pollRes.json();
+      }
+
+      if (json.status?.state !== 'SUCCEEDED') {
+        const msg =
+          json.status?.error?.message || json.message || `query ${json.status?.state || 'failed'}`;
+        return {
+          status: ResponseStatus.ERROR,
+          message: String(msg).slice(0, 500),
+          datas: [],
+          fields: [],
+        };
+      }
+
+      // INLINE JSON_ARRAY: result.data_array + manifest.schema.columns
+      const columns = json.manifest?.schema?.columns ?? [];
+      const rawData = json.result?.data_array ?? [];
+      const names = columns.map((c: any) => c.name);
+      const datas = rawData.map(r => Object.fromEntries(names.map((n, i) => [n, r[i]])));
+      const fields = names.map(name => ({
+        columnName: name,
+        columnType: FieldTypeUtil.FieldType(datas.slice(0, 100).map(r => r[name])),
+      }));
+      return { status: ResponseStatus.SUCCESS, message: 'success', datas, fields };
+    } catch (e) {
+      console.log(e);
+      return {
+        status: ResponseStatus.ERROR,
+        message: e.message || 'databricks query failed',
+        datas: [],
+        fields: [],
+      };
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  /**
    * 데이터베이스 연결 테스트
    * @param createDatabaseDto
    */
   async testConnection(createDatabaseDto: CreateDatabaseDto) {
+    if (['clickhouse', 'trino', 'databricks'].includes(createDatabaseDto.engine)) {
+      const executors = {
+        clickhouse: this.executeClickHouse,
+        trino: this.executeTrino,
+        databricks: this.executeDatabricks,
+      };
+      const executor = executors[createDatabaseDto.engine];
+      const result = await executor.call(
+        this,
+        { connection: createDatabaseDto.connectionConfig },
+        'SELECT 1',
+      );
+      if (result.status === ResponseStatus.SUCCESS) {
+        return { status: ResponseStatus.SUCCESS, data: { message: 'success' } };
+      }
+      return { status: ResponseStatus.ERROR, message: result.message };
+    }
+
     let engine: any = createDatabaseDto.engine;
     switch (createDatabaseDto.engine) {
       case 'bigquery':
@@ -118,17 +432,80 @@ export class ConnectionService {
   }
 
   /**
-   * 쿼리 실행
+   * 쿼리 실행. QUERY_CACHE_TTL_MS>0 이면 동일 (db, 쿼리) 결과를 TTL 캐시
    * @param queryExecuteDto
    */
-  async executeQuery(queryExecuteDto: QueryExecuteDto) {
+  async executeQuery(queryExecuteDto: QueryExecuteDto, clientId?: string) {
+    const cacheTtl = parseInt(process.env.QUERY_CACHE_TTL_MS) || 0;
+    if (cacheTtl <= 0) return this.runQuery(queryExecuteDto, clientId);
+
+    const cacheKey = `${queryExecuteDto.id}:${createHash('sha256')
+      .update(queryExecuteDto.query)
+      .digest('hex')}`;
+    const hit = await queryCache.get(cacheKey);
+    if (hit !== undefined) return hit;
+
+    const result = await this.runQuery(queryExecuteDto, clientId);
+    if (result.status === ResponseStatus.SUCCESS) {
+      await queryCache.set(cacheKey, result, cacheTtl);
+    }
+    return result;
+  }
+
+  private async runQuery(queryExecuteDto: QueryExecuteDto, clientId?: string) {
+    assertReadOnlyQuery(queryExecuteDto.query);
+    const startedAt = Date.now();
+    const emit = (phase: string, extra: Record<string, unknown> = {}) =>
+      this.progressGateway.emitTo(clientId, 'query:progress', {
+        phase,
+        elapsedMs: Date.now() - startedAt,
+        ...extra,
+      });
+    emit('running');
+    // 장기 실행 쿼리용 진행 틱 (2s 간격)
+    const ticker = clientId ? setInterval(() => emit('running'), 2000) : null;
+    try {
+      const result = await this.runQueryInner(queryExecuteDto);
+      emit(result.status === ResponseStatus.SUCCESS ? 'success' : 'error', {
+        rows: result?.datas?.length ?? 0,
+      });
+      return result;
+    } catch (e) {
+      emit('error', { message: e?.message });
+      throw e;
+    } finally {
+      if (ticker) clearInterval(ticker);
+    }
+  }
+
+  private async runQueryInner(queryExecuteDto: QueryExecuteDto) {
+    // HTTP 인터페이스 엔진(knex 미지원) 분기
+    const connectionConfig = await this.getConnectionConfig(queryExecuteDto.id);
+    if (connectionConfig?.client === 'clickhouse') {
+      return this.executeClickHouse(connectionConfig, queryExecuteDto.query);
+    }
+    if (connectionConfig?.client === 'trino') {
+      return this.executeTrino(connectionConfig, queryExecuteDto.query);
+    }
+    if (connectionConfig?.client === 'databricks') {
+      return this.executeDatabricks(connectionConfig, queryExecuteDto.query);
+    }
+
     const knex = await this.getKnex(queryExecuteDto.id);
 
     let datas = [];
     const fields = [];
     const resultObj = { status: null, message: null, datas: [], fields: [] };
     try {
-      const queryRes = await knex.raw(queryExecuteDto.query);
+      const timeoutMs = parseInt(process.env.QUERY_TIMEOUT_MS) || 60000;
+      let rawQuery = knex.raw(queryExecuteDto.query);
+      try {
+        // 일부 드라이버(sqlite, bigquery 등)는 timeout 미지원
+        rawQuery = rawQuery.timeout(timeoutMs) as any;
+      } catch {
+        // timeout 미지원 드라이버는 그대로 실행
+      }
+      const queryRes = await rawQuery;
       // bigquery, snowflake
       if (typeof knex.client.config.client === 'function') {
         switch (knex.client.config.client.name) {

@@ -1,37 +1,49 @@
 {
   "name": "vanillameta",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "private": true,
-  "description": "VanillaMeta - AI-First Business Intelligence Platform",
+  "description": "VanillaMeta - open source BI & data visualization platform",
   "scripts": {
-    "kill:ports": "lsof -ti:3000,4000 | xargs kill -9 2>/dev/null || true",
-    "predev": "pnpm run kill:ports",
-    "dev": "concurrently -n \"API,WEB\" -c \"blue,green\" \"pnpm run dev:api\" \"pnpm run dev:web\"",
-    "dev:api": "pnpm --filter backend-api run start:dev",
-    "dev:web": "pnpm --filter frontend-web run start:dev",
-    "predev:local": "pnpm run kill:ports",
-    "dev:local": "concurrently -n \"API,WEB\" -c \"blue,green\" \"pnpm run local:api\" \"pnpm run local:web\"",
-    "local:api": "pnpm --filter backend-api run start:local",
-    "local:web": "pnpm --filter frontend-web run start:local",
-    "build": "pnpm run build:api && pnpm run build:web",
-    "build:api": "pnpm --filter backend-api run build",
-    "build:web": "pnpm --filter frontend-web run build",
-    "test": "pnpm -r run test",
-    "test:api": "pnpm --filter backend-api run test",
-    "test:web": "pnpm --filter frontend-web run test",
-    "lint": "pnpm -r run lint",
-    "seed": "pnpm --filter backend-api run seed",
-    "install:all": "pnpm install"
+    "install:all": "npm --prefix backend-api install --legacy-peer-deps && npm --prefix frontend-web install --legacy-peer-deps",
+    "dev": "concurrently -n \"API,WEB\" -c \"blue,green\" \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:api": "npm --prefix backend-api run start:dev",
+    "dev:web": "npm --prefix frontend-web run start:dev",
+    "dev:local": "concurrently -n \"API,WEB\" -c \"blue,green\" \"npm run local:api\" \"npm run local:web\"",
+    "local:api": "npm --prefix backend-api run start:local",
+    "local:web": "npm --prefix frontend-web run start:local",
+    "dev:backend": "npm --prefix backend-api run start:local",
+    "dev:frontend": "npm --prefix frontend-web run start:local",
+    "build": "npm run build:api && npm run build:web",
+    "build:api": "npm --prefix backend-api run build",
+    "build:web": "npm --prefix frontend-web run build",
+    "lint": "npm run lint:api && npm run lint:web",
+    "lint:api": "npm --prefix backend-api run lint",
+    "lint:web": "npm --prefix frontend-web run lint",
+    "test": "npm run test:api -- --runInBand && npm run test:web",
+    "test:api": "npm --prefix backend-api run test",
+    "test:web": "npm --prefix frontend-web run test",
+    "seed": "npm --prefix backend-api run seed",
+    "prepare": "husky"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
-    "sqlite3": "^5.1.7"
+    "husky": "^9.1.0",
+    "lint-staged": "^15.2.0",
+    "prettier": "^3.3.0",
+    "turbo": "^2.1.0"
+  },
+  "lint-staged": {
+    "backend-api/**/*.ts": "prettier --write",
+    "frontend-web/**/*.{ts,tsx,js,jsx}": "prettier --write",
+    "*.{json,md,yml,yaml}": "prettier --write"
   },
   "engines": {
-    "node": ">=18.0.0",
+    "node": "^20.19.0 || >=22.12.0",
     "pnpm": ">=8.0.0"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["sqlite3"]
+    "onlyBuiltDependencies": [
+      "sqlite3"
+    ]
   }
 }

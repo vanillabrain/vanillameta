@@ -43,8 +43,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     }
     if (accessPath === false) {
       try {
-        // const secretUrlKey = process.env.URL_ACCESS_SECRET;
-        const secretUrlKey = 'test1234';
+        const secretUrlKey = process.env.URL_ACCESS_SECRET || process.env.ACCESS_SECRET;
         const verifyUrl = await this.jwtService.verify(payload, {
           secret: secretUrlKey,
         });

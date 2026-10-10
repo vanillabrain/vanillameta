@@ -1,12 +1,14 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Helmet } from 'react-helmet-async';
 
 const Seo = props => {
+  const { t } = useTranslation();
   const {
     title = 'VanillaMeta',
-    description = '최신 엔터프라이즈용 비즈니스 인텔리전스 웹 애플리케이션, VanillaMeta',
-    image = '/static/images/logo/vanillaMeta-og.jpg',
-    url = import.meta.env.BASE_URL || '/',
+    description = t('common.seoDesc'),
+    image = `${import.meta.env.BASE_URL}static/images/logo/vanillaMeta-og.jpg`,
+    url = import.meta.env.BASE_URL,
   } = props;
   const titleText = title === 'VanillaMeta' ? 'VanillaMeta' : title + ' - VanillaMeta';
 

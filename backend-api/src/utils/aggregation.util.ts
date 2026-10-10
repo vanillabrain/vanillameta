@@ -73,16 +73,16 @@ export const getAggregationData = (type, data, field) => {
 
 function decimalFits(arr) {
   //소수점 자리수가 가장많은 수 return
-  var decimalN = 0;
-  for (var j = 0; j < arr.length; j++) {
-    var n = arr[j];
+  let decimalN = 0;
+  for (let j = 0; j < arr.length; j++) {
+    const n = arr[j];
     if (!Number.isInteger(n)) {
       //소수
-      var d = String(n).split('.')[1].length; //문자열 소수점 다음 개수
+      const d = String(n).split('.')[1].length; //문자열 소수점 다음 개수
       if (decimalN < d) decimalN = d;
     }
   }
   return decimalN;
 }
-var arr = [0.1, 0.12, 0.123];
+const arr = [0.1, 0.12, 0.123];
 decimalFits(arr);

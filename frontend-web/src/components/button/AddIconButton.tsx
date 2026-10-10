@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Box, Button, IconButton, Menu, MenuItem, SvgIcon, useMediaQuery, useTheme } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { Link as RouterLink } from 'react-router-dom';
@@ -7,6 +8,7 @@ import IconPlus from '@/assets/images/icon/btn-plus.svg';
 const menuWidth = 200;
 
 const AddIconButton = ({ link = '', ...props }) => {
+  const { t } = useTranslation();
   return (
     <Button disableElevation component={RouterLink} to={link} color="primary" sx={{ minWidth: { xs: 0 } }} {...props}>
       <AddIcon sx={{ width: 28, height: 28, m: 0 }} />
@@ -17,6 +19,7 @@ const AddIconButton = ({ link = '', ...props }) => {
 export default AddIconButton;
 
 export const AddMenuButton = ({ menuList, label }) => {
+  const { t } = useTranslation();
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
 
@@ -74,6 +77,7 @@ export const AddMenuIconButton = ({
   iconUrl = IconPlus,
   sizeOption = { width: '36px', height: '36px', p: '7.5px' },
 }) => {
+  const { t } = useTranslation();
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
 
@@ -99,7 +103,7 @@ export const AddMenuIconButton = ({
         color="primary"
         sx={{ minWidth: 0, padding: 0, flex: '1 1 auto' }}
       >
-        <Box component="img" src={iconUrl} sx={sizeOption} alt="추가메뉴" />
+        <Box component="img" src={iconUrl} sx={sizeOption} alt={t('common.addMenu')} />
       </Button>
       <Menu id="styled-menu" anchorEl={anchorEl} open={open} onClose={handleClose} sx={{ width: menuWidth }}>
         {menuList.map(item => (

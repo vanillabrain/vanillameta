@@ -1,13 +1,15 @@
-import React, { useContext, useEffect, useLayoutEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { Stack, Typography } from '@mui/material';
 import PageTitleBox from '@/components/PageTitleBox';
 import ImgCardList from '@/components/ImgCardList';
 import ConfirmCancelButton from '@/components/button/ConfirmCancelButton';
 import DatabaseService from '@/api/databaseService';
+import { useQuery } from '@tanstack/react-query';
 import { STATUS } from '@/constant';
 import { getDatabaseIcon } from '@/widget/utils/iconUtil';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAlert } from 'react-alert';
+import { useTranslation } from 'react-i18next';
 import DatabaseForm from '@/pages/Data/DataSource/form/DatabaseForm';
 import SqliteDatabaseForm from '@/pages/Data/DataSource/form/SqliteDatabaseForm';
 import BigQueryDatabaseForm from '@/pages/Data/DataSource/form/BigQueryDatabaseForm';
@@ -16,7 +18,51 @@ import { LoadingContext } from '@/contexts/LoadingContext';
 import SnowflakeDatabaseForm from '@/pages/Data/DataSource/form/SnowflakeDatabaseForm';
 import OracleDatabaseForm from '@/pages/Data/DataSource/form/OracleDatabaseForm';
 
+const buildFormData = databaseInfo => {
+  const temp: any = {
+    name: databaseInfo.name,
+    type: databaseInfo.type,
+  };
+  if (databaseInfo.type === 'sqlite') {
+    temp.sqlite = { filename: databaseInfo.connectionConfig.filename };
+  } else if (databaseInfo.type === 'bigquery') {
+    temp.bigquery = {
+      projectId: databaseInfo.connectionConfig.projectId,
+      keyFilename: databaseInfo.connectionConfig.keyFilename,
+      schema: databaseInfo.connectionConfig.schema,
+    };
+  } else if (databaseInfo.type === 'oracle') {
+    temp.oracle = {
+      host: databaseInfo.connectionConfig.host,
+      port: Number(databaseInfo.connectionConfig.port),
+      user: databaseInfo.connectionConfig.user,
+      database: databaseInfo.connectionConfig.database,
+      instanceName: databaseInfo.connectionConfig.instanceName,
+      fetchAsString: databaseInfo.connectionConfig.fetchAsString,
+      requestTimeout: databaseInfo.connectionConfig.requestTimeout,
+    };
+  } else if (databaseInfo.type === 'snowflake') {
+    temp.snowflake = {
+      account: databaseInfo.connectionConfig.account,
+      username: databaseInfo.connectionConfig.username,
+      database: databaseInfo.connectionConfig.database,
+      application: databaseInfo.connectionConfig.application,
+      schema: databaseInfo.connectionConfig.schema,
+      warehouse: databaseInfo.connectionConfig.warehouse,
+    };
+  } else {
+    temp.default = {
+      host: databaseInfo.connectionConfig.host,
+      port: Number(databaseInfo.connectionConfig.port),
+      user: databaseInfo.connectionConfig.user,
+      database: databaseInfo.connectionConfig.database,
+    };
+  }
+  return temp;
+};
+
 function DataSource() {
+  const { t } = useTranslation();
   const { sourceId } = useParams();
   const { pathname } = useLocation();
   const navigate = useNavigate();
@@ -24,10 +70,23 @@ function DataSource() {
   const snackbar = useAlert(SnackbarContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
 
-  const [isModifyMode, setIsModifyMode] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [dataType, setDataType] = useState(null);
-  const [typeList, setTypeList] = useState([]);
+  const isModifyMode = pathname.indexOf('modify') > 0 && !!sourceId;
+  const { data: typeList = [] } = useQuery({
+    queryKey: ['databaseTypes'],
+    queryFn: () =>
+      DatabaseService.selectDatabaseTypeList().then(response => {
+        const list = response.data.data;
+        list.map(item => (item.icon = getDatabaseIcon(item.type)));
+        return list;
+      }),
+  });
+  const { data: savedDatabase } = useQuery({
+    queryKey: ['databaseInfo', sourceId],
+    queryFn: () => DatabaseService.selectDatabaseInfo(sourceId).then(response => response.data.data.databaseInfo),
+    enabled: isModifyMode,
+  });
   const [formData, setFormData] = useState<any>({
     type: '',
     name: '',
@@ -71,18 +130,6 @@ function DataSource() {
     },
   });
 
-  useLayoutEffect(() => {
-    getDatabaseTypeList();
-    console.log('modify', pathname.indexOf('modify'));
-    console.log('sourceId', sourceId);
-
-    if (pathname.indexOf('modify') > 0 && sourceId) {
-      // 데이터셋 수정일 경우
-      setIsModifyMode(true);
-      getDatabaseInfo();
-    }
-  }, []);
-
   /**
    * 수정일 경우 데이터베이스 정보 조회
    */
@@ -90,61 +137,9 @@ function DataSource() {
     getType();
   }, [typeList, formData.type]);
 
-  const getDatabaseInfo = () => {
-    showLoading();
-    DatabaseService.selectDatabaseInfo(sourceId)
-      .then(response => {
-        const info = response.data;
-        if (info.status === 'SUCCESS') {
-          const databaseInfo = info.data.databaseInfo;
-          const temp: any = {
-            name: databaseInfo.name,
-            type: databaseInfo.type,
-          };
-          if (databaseInfo.type === 'sqlite') {
-            temp.sqlite = {
-              filename: databaseInfo.connectionConfig.filename,
-            };
-          } else if (databaseInfo.type === 'bigquery') {
-            temp.bigquery = {
-              projectId: databaseInfo.connectionConfig.projectId,
-              keyFilename: databaseInfo.connectionConfig.keyFilename,
-              schema: databaseInfo.connectionConfig.schema,
-            };
-          } else if (databaseInfo.type === 'oracle') {
-            temp.oracle = {
-              host: databaseInfo.connectionConfig.host,
-              port: Number(databaseInfo.connectionConfig.port),
-              user: databaseInfo.connectionConfig.user,
-              database: databaseInfo.connectionConfig.database,
-              instanceName: databaseInfo.connectionConfig.instanceName,
-              fetchAsString: databaseInfo.connectionConfig.fetchAsString,
-              requestTimeout: databaseInfo.connectionConfig.requestTimeout,
-            };
-          } else if (databaseInfo.type === 'snowflake') {
-            temp.snowflake = {
-              account: databaseInfo.connectionConfig.account,
-              username: databaseInfo.connectionConfig.username,
-              database: databaseInfo.connectionConfig.database,
-              application: databaseInfo.connectionConfig.application,
-              schema: databaseInfo.connectionConfig.schema,
-              warehouse: databaseInfo.connectionConfig.warehouse,
-            };
-          } else {
-            temp.default = {
-              host: databaseInfo.connectionConfig.host,
-              port: Number(databaseInfo.connectionConfig.port),
-              user: databaseInfo.connectionConfig.user,
-              database: databaseInfo.connectionConfig.database,
-            };
-          }
-          setFormData(temp);
-        }
-      })
-      .finally(() => {
-        hideLoading();
-      });
-  };
+  useEffect(() => {
+    if (savedDatabase) setFormData(buildFormData(savedDatabase));
+  }, [savedDatabase]);
 
   const testConnect = item => {
     showLoading();
@@ -159,25 +154,9 @@ function DataSource() {
         console.log(response);
         if (response.data.status === STATUS.SUCCESS) {
           setIsConnected(true);
-          snackbar.success('데이터베이스 연결에 성공했습니다.');
+          snackbar.success(t('dataSource.connectOk'));
         } else {
-          snackbar.error('데이터베이스에 연결할 수 없습니다. 데이터베이스 정보를 확인해주세요');
-        }
-      })
-      .finally(() => {
-        hideLoading();
-      });
-  };
-
-  const getDatabaseTypeList = () => {
-    showLoading();
-    DatabaseService.selectDatabaseTypeList()
-      .then(response => {
-        console.log('selectDatabaseTypeList', response.data);
-        if (response.data.status === STATUS.SUCCESS) {
-          const list = response.data.data;
-          list.map(item => (item.icon = getDatabaseIcon(item.type)));
-          setTypeList(list);
+          snackbar.error(t('dataSource.connectFail'));
         }
       })
       .finally(() => {
@@ -221,11 +200,11 @@ function DataSource() {
       param.connectionConfig.port = Number(param.connectionConfig.port);
     }
 
-    alert.success(`데이터베이스를 ${isModifyMode ? '수정' : '생성'}하시겠습니까?`, {
-      closeCopy: '취소',
+    alert.success(t('dataSource.saveConfirm', { mode: isModifyMode ? t('dataset.modify') : t('dataset.create') }), {
+      closeCopy: t('data.cancel'),
       actions: [
         {
-          copy: '확인',
+          copy: t('data.confirm'),
           onClick: () => {
             showLoading();
             if (isModifyMode) {
@@ -235,9 +214,9 @@ function DataSource() {
                   if (response.data.status === STATUS.SUCCESS) {
                     console.log('데이터베이스 저장', param);
                     navigate('/data');
-                    snackbar.success('데이터베이스가 수정되었습니다.');
+                    snackbar.success(t('dataSource.modified'));
                   } else {
-                    alert.error('데이터베이스 저장에 실패했습니다.\n다시 시도해 주세요.');
+                    alert.error(t('dataSource.saveFailed'));
                   }
                 })
                 .finally(() => {
@@ -249,9 +228,9 @@ function DataSource() {
                   if (response.data.status === STATUS.SUCCESS) {
                     console.log('데이터베이스 저장', param);
                     navigate('/data');
-                    snackbar.success('데이터베이스가 생성되었습니다.');
+                    snackbar.success(t('dataSource.created'));
                   } else {
-                    alert.error('데이터베이스 저장에 실패했습니다.\n다시 시도해 주세요.');
+                    alert.error(t('dataSource.saveFailed'));
                   }
                 })
                 .finally(() => {
@@ -284,7 +263,7 @@ function DataSource() {
       case 'snowflake':
         return <SnowflakeDatabaseForm testConnect={testConnect} formData={formData} setFormData={setFormData} />;
       case undefined:
-        return <Typography sx={{ my: '160px', mx: 'auto' }}>데이터 소스 타입을 먼저 선택해 주세요.</Typography>;
+        return <Typography sx={{ my: '160px', mx: 'auto' }}>{t('dataSource.selectType')}</Typography>;
       default:
         return <DatabaseForm testConnect={testConnect} formData={formData} setFormData={setFormData} />;
     }
@@ -292,9 +271,9 @@ function DataSource() {
 
   return (
     <PageTitleBox
-      upperTitle="데이터"
+      upperTitle={t('nav.data')}
       upperTitleLink="/data"
-      title={'데이터 소스 연결'}
+      title={t('dataSource.title')}
       button={
         <ConfirmCancelButton
           confirmProps={{ disabled: !isConnected, onClick: handleSaveClick }}
@@ -310,7 +289,7 @@ function DataSource() {
             component="span"
             sx={{ fontWeight: 'bold', fontSize: '18px', color: '#141414', mb: '14px' }}
           >
-            step.01 타입 설정
+            {t('dataSource.step1')}
           </Typography>
           <ImgCardList
             data={typeList}
@@ -325,7 +304,7 @@ function DataSource() {
             component="span"
             sx={{ fontWeight: 'bold', fontSize: '18px', color: '#141414', mb: '14px' }}
           >
-            step.02 연결 정보 입력
+            {t('dataSource.step2')}
           </Typography>
           {dbType()}
         </Stack>

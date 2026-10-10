@@ -118,3 +118,7 @@ dist
 .yarn/install-state.gz
 .pnp.*
 
+
+# 로컬 런타임 데이터 — 이미지에 포함하면 안 됨
+sqlite.db
+uploads/

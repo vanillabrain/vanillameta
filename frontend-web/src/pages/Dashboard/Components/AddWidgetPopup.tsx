@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Avatar,
   Button,
@@ -20,6 +21,7 @@ import CloseButton from '@/components/button/CloseButton';
 import { LoadingContext } from '@/contexts/LoadingContext';
 
 function AddWidgetPopup({ label, useWidgetIds = [], widgetOpen = false, widgetSelect = null }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(widgetOpen);
   const [selectedIds, setSelectedIds] = useState([]);
   const [loadedWidgetData, setLoadedWidgetData] = useState([]);
@@ -100,7 +102,7 @@ function AddWidgetPopup({ label, useWidgetIds = [], widgetOpen = false, widgetSe
       }
       setOpen(false);
     } else {
-      alert.info('위젯을 선택해주세요.');
+      alert.info(t('common.selectWidgetAlert'));
     }
   };
 
@@ -160,8 +162,10 @@ function AddWidgetPopup({ label, useWidgetIds = [], widgetOpen = false, widgetSe
               paddingTop: '6px',
             }}
           >
-            추가할 위젯을 선택해주세요. (<span style={{ color: '#0f5ab2', fontWeight: 'bold' }}>{selectedIds.length}</span>개
-            선택)
+            {t('common.addWidgetGuide')}{' '}
+            <span style={{ color: '#0f5ab2', fontWeight: 'bold' }}>
+              {t('common.selectedCount', { count: selectedIds.length })}
+            </span>
           </Typography>
         </DialogTitle>
 
@@ -242,7 +246,7 @@ function AddWidgetPopup({ label, useWidgetIds = [], widgetOpen = false, widgetSe
               color: '#767676',
             }}
           >
-            취소
+            {t('common.cancel')}
           </Button>
           <span style={{ width: '4px' }} />
           <Button
@@ -260,7 +264,7 @@ function AddWidgetPopup({ label, useWidgetIds = [], widgetOpen = false, widgetSe
               color: '#0057bd',
             }}
           >
-            위젯 추가
+            {t('common.addWidget')}
           </Button>
         </DialogActions>
       </Dialog>

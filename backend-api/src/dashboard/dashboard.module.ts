@@ -16,7 +16,18 @@ import { RefreshToken } from 'src/auth/entites/refresh_token.entity';
 import { DashboardShare } from 'src/dashboard/entities/dashboard_share.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Dashboard, DashboardWidget, Widget, Component, User, UserMapping, DashboardShare,RefreshToken])],
+  imports: [
+    TypeOrmModule.forFeature([
+      Dashboard,
+      DashboardWidget,
+      Widget,
+      Component,
+      User,
+      UserMapping,
+      DashboardShare,
+      RefreshToken,
+    ]),
+  ],
   controllers: [DashboardController],
   providers: [DashboardService, DashboardWidgetService, UserService, AuthService, JwtService],
 })

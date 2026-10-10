@@ -1,5 +1,6 @@
 import {
   Body,
+  Headers,
   Controller,
   Delete,
   Get,
@@ -8,7 +9,9 @@ import {
   Post,
   Put,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { DatabaseService } from './database.service';
 import { CreateDatabaseDto } from './dto/create-database.dto';
@@ -18,6 +21,7 @@ import { ConnectionService } from '../connection/connection.service';
 import { DatasetType } from '../common/enum/dataset-type.enum';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { ApiTags } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @UseGuards(JwtAuthGuard)
 @Controller('database')
@@ -41,8 +45,15 @@ export class DatabaseController {
     @Query('databaseId') databaseId: number,
     @Query('datasetId') datasetId?: number,
     @Query('tableName') tableName?: string,
+    @Headers('x-socket-id') socketId?: string,
   ) {
-    const res = await this.databaseService.findData(datasetType, databaseId, datasetId, tableName);
+    const res = await this.databaseService.findData(
+      datasetType,
+      databaseId,
+      datasetId,
+      tableName,
+      socketId,
+    );
     return res;
   }
 
@@ -66,6 +77,16 @@ export class DatabaseController {
   }
 
   /**
+   * 파일 업로드 → SQLite 데이터소스 생성
+   * @param file
+   */
+  @Post('upload')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 50 * 1024 * 1024 } }))
+  uploadFile(@UploadedFile() file: { originalname: string; buffer: Buffer }) {
+    return this.databaseService.uploadFile(file);
+  }
+
+  /**
    * 데이터베이스 연결 테스트
    * @param createDatabaseDto
    */
@@ -79,8 +100,11 @@ export class DatabaseController {
    * @param queryExecuteDto
    */
   @Post('execute')
-  executeQuery(@Body() queryExecuteDto: QueryExecuteDto) {
-    return this.connectionService.executeQuery(queryExecuteDto);
+  executeQuery(
+    @Body() queryExecuteDto: QueryExecuteDto,
+    @Headers('x-socket-id') socketId?: string,
+  ) {
+    return this.connectionService.executeQuery(queryExecuteDto, socketId);
   }
 
   /**

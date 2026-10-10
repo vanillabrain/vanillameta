@@ -1,4 +1,5 @@
 import React, { useContext } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@mui/material';
 import authService from '@/api/authService';
 import { LoadingContext } from '@/contexts/LoadingContext';
@@ -11,13 +12,14 @@ const Logout = props => {
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const navigate = useNavigate();
   const alert = useAlert();
+  const { t } = useTranslation();
 
   const handleLogout = () => {
-    alert.success('로그아웃 하시겠습니까?', {
-      closeCopy: '취소',
+    alert.success(t('user.logoutConfirm'), {
+      closeCopy: t('dataRecommend.cancel'),
       actions: [
         {
-          copy: '확인',
+          copy: t('user.confirm'),
           onClick: () => {
             showLoading();
             authService
@@ -35,7 +37,7 @@ const Logout = props => {
                   removeToken();
                   navigate('/login');
                 } else {
-                  alert.error('로그아웃에 실패했습니다.\n다시 시도해 주세요.');
+                  alert.error(t('user.logoutFailed'));
                 }
               })
               .finally(() => {
@@ -68,7 +70,7 @@ const Logout = props => {
         ...sx,
       }}
     >
-      로그아웃
+      {t('user.logout')}
     </Button>
   );
 };

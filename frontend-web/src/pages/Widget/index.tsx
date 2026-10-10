@@ -1,9 +1,11 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect } from 'react';
 import { Link as RouterLink, Outlet, useParams } from 'react-router-dom';
 import { useAlert } from 'react-alert';
+import { useTranslation } from 'react-i18next';
 import PageTitleBox from '@/components/PageTitleBox';
 import BoardList from '@/components/BoardList';
 import WidgetService from '@/api/widgetService';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import AddIcon from '@mui/icons-material/Add';
 import { Box, Button, Stack, useMediaQuery, useTheme } from '@mui/material';
@@ -12,16 +14,53 @@ import { STATUS } from '@/constant';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import Seo from '@/seo/Seo';
 
-const title = '위젯';
-
 const Widget = () => {
+  const { t } = useTranslation();
+  const title = t('common.widget');
   const { widgetId } = useParams();
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
+  const queryClient = useQueryClient();
 
-  const [widgetList, setWidgetList] = useState([]);
-  const [noData, setNoData] = useState(false);
+  const {
+    data: widgetList = [],
+    isFetching,
+    isError,
+  } = useQuery({
+    queryKey: ['widgets'],
+    queryFn: () =>
+      WidgetService.selectWidgetList().then(response => {
+        if (response.data.status !== STATUS.SUCCESS) {
+          throw new Error('widget list fetch failed');
+        }
+        return response.data.data;
+      }),
+    retry: false,
+  });
+  const noData = widgetList.length === 0;
+
+  useEffect(() => {
+    if (isFetching) showLoading();
+    else hideLoading();
+  }, [isFetching]);
+
+  useEffect(() => {
+    if (isError) alert.error(t('widget.loadFailed'));
+  }, [isError]);
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => WidgetService.deleteWidget(id),
+    onSuccess: response => {
+      if (response.status === 200) {
+        queryClient.invalidateQueries({ queryKey: ['widgets'] });
+        snackbar.success(t('widget.deleted'));
+      } else {
+        alert.error(t('widget.deleteFailed'));
+      }
+    },
+  });
+
   const theme = useTheme();
   const matches = useMediaQuery(theme.breakpoints.up('sm'));
 
@@ -37,57 +76,20 @@ const Widget = () => {
     color: '#767676',
   });
 
-  useEffect(() => {
-    getWidgetList();
-  }, []);
-
-  /**
-   * 위젯 목록 조회
-   */
-  const getWidgetList = () => {
-    showLoading();
-    WidgetService.selectWidgetList()
-      .then(response => {
-        if (response.data.status == STATUS.SUCCESS) {
-          setWidgetList(response.data.data);
-          setNoData(response.data.data.length == 0);
-        } else {
-          alert.error('위젯 조회에 실패했습니다.\n다시 시도해 주세요.');
-        }
-      })
-      .finally(() => {
-        hideLoading();
-      });
-  };
-
   const removeWidget = (id, title) => {
     alert.success(
       <Box sx={{ span: { fontWeight: 600 } }}>
         <span>{title}</span>
         <br />
-        위젯을 삭제하시겠습니까?
+        {t('widget.deleteConfirm')}
       </Box>,
       {
-        title: '위젯 삭제',
-        closeCopy: '취소',
+        title: t('widget.deleteTitle'),
+        closeCopy: t('data.cancel'),
         actions: [
           {
-            copy: '삭제',
-            onClick: () => {
-              showLoading();
-              WidgetService.deleteWidget(id)
-                .then(response => {
-                  if (response.status === 200) {
-                    getWidgetList();
-                    snackbar.success('위젯이 삭제되었습니다.');
-                  } else {
-                    alert.error('위젯 삭제에 실패했습니다.\n다시 시도해 주세요.');
-                  }
-                })
-                .finally(() => {
-                  hideLoading();
-                });
-            },
+            copy: t('data.delete'),
+            onClick: () => deleteMutation.mutate(id),
           },
         ],
       },
@@ -103,8 +105,8 @@ const Widget = () => {
           justifyContent="space-between"
           sx={{ paddingLeft: '20px', paddingRight: { xs: '20px', sm: '217px' }, marginBottom: '11px', marginTop: '36px' }}
         >
-          <GTSpan>이름</GTSpan>
-          <GTSpan>수정일</GTSpan>
+          <GTSpan>{t('list.name')}</GTSpan>
+          <GTSpan>{t('list.modifiedAt')}</GTSpan>
         </Stack>
         <Box
           sx={{
@@ -133,9 +135,9 @@ const Widget = () => {
               color: '#333333',
             }}
           >
-            생성한 위젯이 없습니다.
+            {t('list.noWidget')}
             {matches ? ' ' : <br />}
-            위젯을 생성 후 확인해 보세요.
+            {t('list.createWidgetHint')}
           </span>
         </Box>
       </>
@@ -157,7 +159,7 @@ const Widget = () => {
               sx={{ height: '32px', backgroundColor: '#043f84' }}
               startIcon={<AddIcon />}
             >
-              위젯 생성
+              {t('widget.create')}
             </Button>
           }
         >

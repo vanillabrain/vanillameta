@@ -2,9 +2,10 @@ import axios from 'axios';
 import { getToken, removeToken, setToken } from '@/helpers/authHelper';
 import { getShareToken } from '@/helpers/shareHelper';
 import authService from '@/api/authService';
+import { getSocketId } from '@/helpers/socket';
 
 // apply base url for axios
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.REACT_APP_API_URL;
 
 const instance = axios.create({
   baseURL: API_URL,
@@ -65,6 +66,8 @@ const addAuthToHeaders = config => {
 // 요청 인터셉터
 instance.interceptors.request.use(async config => {
   const newConfig = addAuthToHeaders(config);
+  const socketId = getSocketId();
+  if (socketId) newConfig.headers['x-socket-id'] = socketId;
   // removePendingRequest(newConfig); // 같은 요청이 갔을 경우 기존 요청 취소
   // addPendingRequest(newConfig);
   return newConfig;
@@ -150,6 +153,10 @@ function onAccessTokenFetched(accessToken) {
 
 export async function get(url, data?, config = {}) {
   return instance.get(url, { params: { ...data }, ...config });
+}
+
+export async function postForm(url, data: FormData, config = {}) {
+  return instance.post(url, data, { ...config, headers: { 'Content-Type': undefined } });
 }
 
 export async function post(url, data?, config = {}) {

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Divider, ListItem, ListItemText } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import ColorButtonForm from '@/components/form/ColorButtonForm';
@@ -8,6 +9,7 @@ import { handleAddClick, handleChange, handleRemoveClick, handleSeriesChange } f
 import { COLUMN_TYPE, DISPLAY_LIST, LEGEND_LIST } from '@/constant';
 
 const BubbleChartSetting = props => {
+  const { t } = useTranslation();
   const { option, setOption, spec } = props;
 
   // 컴포넌트 별 default series
@@ -22,7 +24,7 @@ const BubbleChartSetting = props => {
   return (
     <React.Fragment>
       <ListItem divider>
-        <ListItemText primary="시리즈 설정" />
+        <ListItemText primary={t('settings.series')} />
         <AddButton
           onClick={event => handleAddClick(event, option, setOption, defaultSeries)}
           sx={{
@@ -45,7 +47,7 @@ const BubbleChartSetting = props => {
               required={true}
               id={`xField${index + 1}`}
               name={`xField${index + 1}`}
-              label="X 필드"
+              label={t('settings.xField')}
               labelField="columnName"
               valueField="columnType"
               optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
@@ -56,7 +58,7 @@ const BubbleChartSetting = props => {
               required={true}
               id={`yField${index + 1}`}
               name={`yField${index + 1}`}
-              label="Y 필드"
+              label={t('settings.yField')}
               labelField="columnName"
               valueField="columnType"
               optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
@@ -67,7 +69,7 @@ const BubbleChartSetting = props => {
               required={true}
               id={`symbolSize${index + 1}`}
               name={`symbolSize${index + 1}`}
-              label="사이즈"
+              label={t('settings.size')}
               labelField="columnName"
               valueField="columnType"
               optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
@@ -86,19 +88,19 @@ const BubbleChartSetting = props => {
         ))}
         <SelectForm
           name="label"
-          label="넘버 레이블"
-          optionList={DISPLAY_LIST}
+          label={t('settings.numberLabel')}
+          optionList={DISPLAY_LIST(t)}
           value={option.label}
           onChange={event => handleChange(event, setOption)}
         />
       </ListItem>
       <ListItem>
-        <ListItemText>범례 설정</ListItemText>
+        <ListItemText>{t('settings.legend')}</ListItemText>
         <SelectForm
           id="legendPosition"
           name="legendPosition"
-          label="위치"
-          optionList={LEGEND_LIST}
+          label={t('settings.position')}
+          optionList={LEGEND_LIST(t)}
           value={option.legendPosition}
           onChange={event => handleChange(event, setOption)}
         />

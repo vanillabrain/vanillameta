@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { Box, Button, Stack, TextField, Typography } from '@mui/material';
 import { useAlert } from 'react-alert';
+import { useTranslation } from 'react-i18next';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import Logo from '@/assets/images/logo.svg?react';
 import backgroundImage from '@/assets/images/visual-bg.png';
@@ -13,6 +14,7 @@ import Seo from '@/seo/Seo';
 import { getToken, setToken } from '@/helpers/authHelper';
 
 const Login = () => {
+  const { t } = useTranslation();
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const navigate = useNavigate();
   const alert = useAlert();
@@ -23,7 +25,7 @@ const Login = () => {
   });
   let isValid;
   const token = getToken();
-  const APP_MODE = import.meta.env.VITE_APP_MODE;
+  const APP_MODE = import.meta.env.REACT_APP_MODE;
 
   useEffect(() => {
     console.log('APP_MODE', APP_MODE);
@@ -61,10 +63,10 @@ const Login = () => {
         .catch(error => {
           console.log(error);
           if (error.response.status === 401) {
-            snackbar.error('ID 또는 비밀번호가 일치하지 않습니다.');
+            snackbar.error(t('login.mismatch'));
             return;
           }
-          alert.error('로그인에 실패했습니다. 다시 시도해주세요.');
+          alert.error(t('login.failed'));
         })
         .finally(() => {
           hideLoading();
@@ -77,19 +79,19 @@ const Login = () => {
     const { userId, userPwd } = userInfo;
     // console.log('userId:', userId, 'userFirstPwd:', userFirstPwd, 'userSecondPwd:', userSecondPwd, 'userEmail:', userEmail);
     if (!userId || !userPwd) {
-      snackbar.error('입력란을 모두 작성해 주세요.');
+      snackbar.error(t('login.fillAll'));
       return;
     } else {
       if (userId.length < 5 || userId.length >= 20) {
-        snackbar.error('ID는 5글자에서 20글자 이내로 작성해 주세요.');
+        snackbar.error(t('login.idLength'));
         return;
       }
       if (!checkId.test(userId)) {
-        snackbar.error('ID는 공백 없는 영문, 숫자만 가능합니다.');
+        snackbar.error(t('login.idFormat'));
         return;
       }
       if (!checkPwd.test(userPwd)) {
-        snackbar.error('비밀번호는 8글자 이상이며 숫자와 영문 대소문자, 특수문자가 포함되어 있어야 합니다.');
+        snackbar.error(t('login.pwdFormat'));
         return;
       }
       isValid = true;
@@ -109,7 +111,7 @@ const Login = () => {
           backgroundColor: '#f5f6f8',
         }}
       >
-        <Seo title="로그인" />
+        <Seo title={t('login.title')} />
         <Box
           sx={{
             pt: '90px',
@@ -122,9 +124,9 @@ const Login = () => {
             <Logo width="223px" height="43px" />
           </RouterLink>
           <Typography sx={{ mt: '17px', fontSize: '16px', color: '#043f84', textAlign: 'center' }}>
-            통합 데이터 분석을 위한{' '}
+            {t('login.taglineA')}
             <Typography component="span" sx={{ fontSize: '16px', fontWeight: 'bold' }}>
-              대시보드 리포팅 솔루션
+              {t('login.taglineB')}
             </Typography>
           </Typography>
           <Stack
@@ -220,7 +222,7 @@ const Login = () => {
                   },
                 }}
               >
-                회원가입
+                {t('login.signup')}
               </Button>
               <Button
                 disableRipple
@@ -241,7 +243,7 @@ const Login = () => {
                   },
                 }}
               >
-                아이디/비번찾기
+                {t('login.findAccount')}
               </Button>
             </Stack>
           )}

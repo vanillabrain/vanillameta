@@ -4,6 +4,7 @@ import Logo from '@/assets/images/logo.svg?react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { useAlert } from 'react-alert';
+import { useTranslation } from 'react-i18next';
 import { Copyright } from '@/layouts/Footer';
 import authService from '@/api/authService';
 import { SnackbarContext } from '@/contexts/AlertContext';
@@ -12,6 +13,7 @@ import Seo from '@/seo/Seo';
 import { getToken } from '@/helpers/authHelper';
 
 const SignUp = () => {
+  const { t } = useTranslation();
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const navigate = useNavigate();
   const alert = useAlert();
@@ -47,18 +49,18 @@ const SignUp = () => {
         .then(response => {
           // console.log(response);
           if (response.status === 201) {
-            alert.success(`${event.target.userId.value}님\n회원가입이 완료되었습니다.`);
+            alert.success(t('signup.welcome', { name: event.target.userId.value }));
             navigate('/login');
           }
         })
         .catch(error => {
           console.log(error);
           if (error.response.status === 409 && error.response.data.data === 'conflict userId') {
-            snackbar.error('이미 가입된 ID입니다.');
+            snackbar.error(t('signup.dupId'));
           } else if (error.response.status === 409 && error.response.data.data === 'conflict email') {
-            snackbar.error('이미 가입된 E-mail입니다.');
+            snackbar.error(t('signup.dupEmail'));
           } else {
-            alert.error('회원가입에 실패했습니다.\n다시 시도해 주세요.');
+            alert.error(t('signup.failed'));
           }
         })
         .finally(() => {
@@ -72,27 +74,27 @@ const SignUp = () => {
     const { userId, userPwd, userConfirmPwd, userEmail } = userInfo;
     // console.log('userId:', userId, 'userPwd:', userPwd, 'userConfirmPwd:', userConfirmPwd, 'userEmail:', userEmail);
     if (!userId || !userPwd || !userConfirmPwd || !userEmail) {
-      snackbar.error('입력란을 모두 작성해 주세요.');
+      snackbar.error(t('login.fillAll'));
       return;
     } else {
       if (userId.length < 5 || userId.length >= 20) {
-        snackbar.error('ID는 5글자에서 20글자 이내로 작성해 주세요.');
+        snackbar.error(t('login.idLength'));
         return;
       }
       if (!checkId.test(userId)) {
-        snackbar.error('ID는 공백 없는 영문, 숫자만 가능합니다.');
+        snackbar.error(t('login.idFormat'));
         return;
       }
       if (!checkPwd.test(userPwd)) {
-        snackbar.error('비밀번호는 8글자 이상이며 숫자와 영문 대소문자, 특수문자가 포함되어 있어야 합니다.');
+        snackbar.error(t('login.pwdFormat'));
         return;
       }
       if (userPwd !== userConfirmPwd) {
-        snackbar.error('비밀번호와 비밀번호 확인이 일치하지 않습니다.');
+        snackbar.error(t('signup.pwdMismatch'));
         return;
       }
       if (!checkEmail.test(userEmail)) {
-        snackbar.error('E-mail의 형식이 맞는지 확인해 주세요.');
+        snackbar.error(t('signup.emailFormat'));
         return;
       }
       isValid = true;
@@ -120,7 +122,7 @@ const SignUp = () => {
           backgroundColor: '#f5f6f8',
         }}
       >
-        <Seo title="회원가입" />
+        <Seo title={t('signup.title')} />
         <Box
           sx={{
             pt: '90px',
@@ -139,9 +141,9 @@ const SignUp = () => {
             <Stack component="form" onSubmit={handleSignup} noValidate sx={{ width: '360px' }} spacing="20px">
               <Typography sx={{ mb: '36px', fontSize: '24px', fontWeight: 600, lineHeight: 1.33, color: '#141414' }}>
                 <Box component="span" sx={{ color: '#0f5ab2' }}>
-                  회원가입
+                  {t('signup.taglineA')}
                 </Box>
-                후<br /> 편리하게 이용하세요.
+                {t('signup.taglineB')}
               </Typography>
               <TextField
                 margin="normal"
@@ -187,7 +189,7 @@ const SignUp = () => {
                 sx={{ height: '36px' }}
               />
               <Button type="submit" size="large" fullWidth variant="contained" sx={{ mt: 3, mb: 2 }}>
-                가입하기
+                {t('signup.submit')}
               </Button>
             </Stack>
             <Typography
@@ -221,9 +223,9 @@ const SignUp = () => {
                   },
                 }}
               >
-                로그인
+                {t('login.title')}
               </Box>
-              <Box>아이디/비번찾기</Box>
+              <Box>{t('login.findAccount')}</Box>
             </Typography>
           </Paper>
         </Box>

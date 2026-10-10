@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import ReactECharts from 'echarts-for-react';
 import { getAggregationDataForChart, getGridSize, getLegendOption } from '@/widget/modules/utils/chartUtil';
 
 const WaterfallBarChart = props => {
+  const { t } = useTranslation();
   const { option, dataSet, axis = 'x', seriesOp, defaultOp, createOp } = props;
   const reverseAxis = axis === 'x' ? 'y' : 'x';
 
@@ -123,7 +125,7 @@ const WaterfallBarChart = props => {
             },
           },
           {
-            name: '수입',
+            name: t('common.income'),
             type: 'bar',
             stack: 'total',
             label: {
@@ -136,7 +138,7 @@ const WaterfallBarChart = props => {
             },
           },
           {
-            name: '지출',
+            name: t('common.expense'),
             type: 'bar',
             stack: 'total',
             label: {
@@ -150,7 +152,7 @@ const WaterfallBarChart = props => {
             },
           },
           // {
-          //   name: '수입',
+          //   name: t('common.income'),
           //   type: 'bar',
           //   stack: 'total',
           //   label: {
@@ -160,7 +162,7 @@ const WaterfallBarChart = props => {
           //   data: incomeNegativeData,
           // },
           // {
-          //   name: '지출',
+          //   name: t('common.expense'),
           //   type: 'bar',
           //   stack: 'total',
           //   label: {

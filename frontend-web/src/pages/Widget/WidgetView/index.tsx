@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Box, Card, Hidden } from '@mui/material';
+import { useTranslation } from 'react-i18next';
+import { Box, Card } from '@mui/material';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import PageTitleBox from '@/components/PageTitleBox';
 import WidgetService from '@/api/widgetService';
@@ -16,6 +17,7 @@ import Seo from '@/seo/Seo';
 import { dateData } from '@/utils/util';
 
 const WidgetView = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const pathname = location.pathname;
@@ -71,23 +73,23 @@ const WidgetView = () => {
       <Box sx={{ span: { fontWeight: 600 } }}>
         <span>{widgetOption.title}</span>
         <br />
-        위젯을 삭제하시겠습니까?
+        {t('widget.deleteConfirm')}
       </Box>,
       {
-        title: '위젯 삭제',
-        closeCopy: '취소',
+        title: t('widget.deleteTitle'),
+        closeCopy: t('data.cancel'),
         actions: [
           {
-            copy: '삭제',
+            copy: t('data.delete'),
             onClick: () => {
               showLoading();
               WidgetService.deleteWidget(widgetId)
                 .then(response => {
                   if (response.status === 200) {
                     navigate('/widget', { replace: true });
-                    snackbar.success('위젯이 삭제되었습니다.');
+                    snackbar.success(t('widget.deleted'));
                   } else {
-                    alert.error('위젯 삭제에 실패했습니다.\n다시 시도해 주세요.');
+                    alert.error(t('widget.deleteFailed'));
                   }
                 })
                 .finally(() => {
@@ -102,9 +104,9 @@ const WidgetView = () => {
 
   return (
     <PageTitleBox
-      upperTitle="위젯"
+      upperTitle={t('widget.title')}
       upperTitleLink="/widget"
-      title="위젯 조회"
+      title={t('widget.view')}
       sx={{ width: '100%', marginTop: { xs: 0, sm: '22px' }, flex: '1 1 auto', p: { xs: 0 } }}
     >
       <Seo title={widgetOption.title} />
@@ -113,7 +115,7 @@ const WidgetView = () => {
         title={widgetOption.componentTitle}
         date={dateData(widgetOption.updatedAt)}
         button={
-          <Hidden smDown>
+          <Box sx={{ display: { xs: 'none', sm: 'contents' } }}>
             <ReloadButton
               size="medium"
               sx={{ marginRight: '36px', padding: 0 }}
@@ -141,7 +143,7 @@ const WidgetView = () => {
                 removeWidget();
               }}
             />
-          </Hidden>
+          </Box>
         }
       >
         <Card

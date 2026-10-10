@@ -8,7 +8,7 @@ describe('ShareUrlController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ShareUrlController],
-      providers: [ShareUrlService],
+      providers: [{ provide: ShareUrlService, useValue: {} }],
     }).compile();
 
     controller = module.get<ShareUrlController>(ShareUrlController);

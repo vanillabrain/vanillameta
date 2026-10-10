@@ -45,3 +45,6 @@ lerna-debug.log*
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
+# 업로드된 파일 데이터소스
+uploads/
+.scratch/

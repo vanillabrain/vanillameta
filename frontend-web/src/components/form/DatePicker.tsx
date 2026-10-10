@@ -29,26 +29,23 @@ const DatePicker = (props: DatePickerProps) => {
           });
           setShareLimitDate(selectDate);
         }}
-        renderInput={params => {
-          return (
-            <TextField
-              {...params}
-              sx={{
-                width: '130px',
-                color: '#4a4a4a',
-                '& .MuiOutlinedInput-root': { pl: '10px', pr: '5px' },
-                '& .MuiInputAdornment-root': { p: 0 },
-                input: { px: 0 },
-                '& .MuiSvgIcon-root': { color: '#4a4a4a' },
-              }}
-            />
-          );
-        }}
-        PopperProps={{
-          disablePortal: true,
-          sx: {
-            '& .MuiPickersDay-root': {
-              fontFamily: 'Pretendard',
+        slotProps={{
+          textField: {
+            sx: {
+              width: '130px',
+              color: '#4a4a4a',
+              '& .MuiOutlinedInput-root': { pl: '10px', pr: '5px' },
+              '& .MuiInputAdornment-root': { p: 0 },
+              input: { px: 0 },
+              '& .MuiSvgIcon-root': { color: '#4a4a4a' },
+            },
+          },
+          popper: {
+            disablePortal: true,
+            sx: {
+              '& .MuiPickersDay-root': {
+                fontFamily: 'Pretendard',
+              },
             },
           },
         }}

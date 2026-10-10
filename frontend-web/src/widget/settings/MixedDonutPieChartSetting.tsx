@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Divider, InputAdornment, ListItem, ListItemText } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import { handleChange, handleSeriesChange } from '@/widget/utils/handler';
@@ -9,6 +10,7 @@ import ColorFieldReForm from '@/components/form/ColorFieldReForm';
 import { AddButton } from '@/components/button/AddIconButton';
 
 const MixedDonutPieChartSetting = props => {
+  const { t } = useTranslation();
   const { option, setOption, spec, dataSet } = props;
 
   const [colorNum, setColorNum] = useState(12);
@@ -74,12 +76,12 @@ const MixedDonutPieChartSetting = props => {
   return (
     <React.Fragment>
       <ListItem divider>
-        <ListItemText primary="도넛형 차트 시리즈 설정" />
+        <ListItemText primary={t('settings.donutSeries')} />
         <SelectForm
           required={true}
           id="name"
           name="name"
-          label="이름"
+          label={t('settings.name')}
           labelField="columnName"
           valueField="columnType"
           optionList={spec.map(item => item.columnName)}
@@ -88,8 +90,8 @@ const MixedDonutPieChartSetting = props => {
         />
         <SelectForm
           name="label"
-          label="레이블 타입"
-          optionList={PIE_LABEL_LIST}
+          label={t('settings.labelType')}
+          optionList={PIE_LABEL_LIST(t)}
           value={option.series.label}
           onChange={event => handleSeriesChange(event, setOption, 'series', 'label')}
           // onChange={handleSeriesChange}
@@ -99,7 +101,7 @@ const MixedDonutPieChartSetting = props => {
           required={true}
           id="field"
           name="field"
-          label="필드"
+          label={t('settings.field')}
           labelField="columnName"
           valueField="columnType"
           optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
@@ -109,20 +111,20 @@ const MixedDonutPieChartSetting = props => {
         <SelectForm
           id="aggregation"
           name="aggregation"
-          label="집계 방식"
-          optionList={AGGREGATION_LIST}
+          label={t('settings.aggregation')}
+          optionList={AGGREGATION_LIST(t)}
           value={option.series.aggregation}
           onChange={event => handleSeriesChange(event, setOption, 'series', 'aggregation')}
           disabledDefaultValue
         />
       </ListItem>
       <ListItem divider>
-        <ListItemText primary="원형 차트 시리즈 설정" />
+        <ListItemText primary={t('settings.pieSeries')} />
         <SelectForm
           required={true}
           id="name"
           name="name"
-          label="이름"
+          label={t('settings.name')}
           labelField="columnName"
           valueField="columnType"
           optionList={spec.map(item => item.columnName)}
@@ -131,8 +133,8 @@ const MixedDonutPieChartSetting = props => {
         />
         <SelectForm
           name="label"
-          label="레이블 타입"
-          optionList={PIE_LABEL_LIST}
+          label={t('settings.labelType')}
+          optionList={PIE_LABEL_LIST(t)}
           value={option.series.label}
           onChange={event => handleSeriesChange(event, setOption, 'pie', 'label')}
           // onChange={handleSeriesChange}
@@ -142,7 +144,7 @@ const MixedDonutPieChartSetting = props => {
           required={true}
           id="field"
           name="field"
-          label="필드"
+          label={t('settings.field')}
           labelField="columnName"
           valueField="columnType"
           optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
@@ -152,8 +154,8 @@ const MixedDonutPieChartSetting = props => {
         <SelectForm
           id="aggregation"
           name="aggregation"
-          label="집계 방식"
-          optionList={AGGREGATION_LIST}
+          label={t('settings.aggregation')}
+          optionList={AGGREGATION_LIST(t)}
           value={option.pie.aggregation}
           onChange={event => handleSeriesChange(event, setOption, 'pie', 'aggregation')}
           disabledDefaultValue
@@ -161,11 +163,11 @@ const MixedDonutPieChartSetting = props => {
       </ListItem>
 
       <ListItem divider>
-        <ListItemText primary="도넛형 차트 모양 설정" />
+        <ListItemText primary={t('settings.donutShape')} />
         <TextFieldForm
           id="radius1"
           name="radius1"
-          label="내부 원 크기"
+          label={t('settings.innerRadius')}
           type="number"
           value={option.series.radius[0].slice(0, -1)}
           onChange={event => handleRadiusChange(event, 'series')}
@@ -174,7 +176,7 @@ const MixedDonutPieChartSetting = props => {
         <TextFieldForm
           id="radius2"
           name="radius2"
-          label="외부 원 크기"
+          label={t('settings.outerRadius')}
           type="number"
           value={option.series.radius[1].slice(0, -1)}
           onChange={event => handleRadiusChange(event, 'series')}
@@ -182,11 +184,11 @@ const MixedDonutPieChartSetting = props => {
         />
       </ListItem>
       <ListItem divider>
-        <ListItemText primary="원형 차트 모양 설정" />
+        <ListItemText primary={t('settings.pieShape')} />
         <TextFieldForm
           id="radius"
           name="radius"
-          label="크기"
+          label={t('settings.size')}
           type="number"
           value={option.pie.radius.slice(0, -1)}
           onChange={event => handleRadiusChange(event, 'pie')}
@@ -195,19 +197,19 @@ const MixedDonutPieChartSetting = props => {
       </ListItem>
 
       <ListItem divider>
-        <ListItemText>범례 설정</ListItemText>
+        <ListItemText>{t('settings.legend')}</ListItemText>
         <SelectForm
           id="legendPosition"
           name="legendPosition"
-          label="위치"
-          optionList={LEGEND_LIST}
+          label={t('settings.position')}
+          optionList={LEGEND_LIST(t)}
           value={option.legendPosition}
           onChange={event => handleChange(event, setOption)}
         />
       </ListItem>
 
       <ListItem>
-        <ListItemText primary="색상 설정" />
+        <ListItemText primary={t('settings.colorSetting')} />
         <AddButton
           onClick={handleAddColorClick}
           sx={{

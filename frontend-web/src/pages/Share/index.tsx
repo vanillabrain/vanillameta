@@ -1,88 +1,22 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { Box, Card, Typography } from '@mui/material';
 import WidgetWrapper from '@/widget/wrapper/WidgetWrapper';
-import { useAlert } from 'react-alert';
 import { Responsive, WidthProvider } from 'react-grid-layout';
-import '/node_modules/react-grid-layout/css/styles.css';
-import '/node_modules/react-resizable/css/styles.css';
+import 'react-grid-layout/css/styles.css';
+import 'react-resizable/css/styles.css';
 import PageViewBox from '../../components/PageViewBox';
-import { LoadingContext } from '@/contexts/LoadingContext';
-import shareService from '@/api/shareService';
 import Seo from '@/seo/Seo';
 import { dateData } from '@/utils/util';
-import { setShareToken } from '@/helpers/shareHelper';
+import { useShareDashboard } from './useShareDashboard';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const Share = () => {
+  const { t } = useTranslation();
   const { dashboardUuid } = useParams();
-  const alert = useAlert();
-  const { loading, showLoading, hideLoading } = useContext(LoadingContext);
-  const [dashboardInfo, setDashboardInfo] = useState({
-    title: '',
-    widgets: [],
-    layout: [],
-    updatedAt: '',
-    shareYn: 'N',
-    uuid: null,
-    shareToken: null,
-  }); // dashboard 정보
-  const [layout, setLayout] = useState([]); // grid layout
-  // dashboard id
-  const [isShareOn, setIsShareOn] = useState(false);
-  const [isInvalidData, setIsInvalidData] = useState(null);
-
-  // init useEffect
-  useEffect(() => {
-    getShareDashboardInfo(dashboardUuid);
-  }, []);
-
-  // dashboardInfo useEffect
-  useEffect(() => {
-    dashboardInfo.layout.map(item => {
-      if (item.i !== undefined) {
-        item.i = item.i.toString();
-      }
-      item.static = true;
-    });
-    setLayout(dashboardInfo.layout);
-    setIsShareOn(dashboardInfo.shareYn === 'Y');
-    if (dashboardInfo.shareToken) {
-      setShareToken(dashboardInfo.shareToken);
-    }
-  }, [dashboardInfo]);
-
-  // dashboard info 조회
-  const getShareDashboardInfo = uuid => {
-    showLoading();
-    shareService
-      .selectDashboard(uuid)
-      .then(response => {
-        console.log('shareDashboard', response);
-        if (response.status == 200) {
-          setDashboardInfo(response.data.data);
-        }
-      })
-      .catch(error => {
-        console.log(error);
-        setIsInvalidData(error.response.status);
-        console.log(isInvalidData);
-        if (error.response.status === 401 && error.response.data.data.message === 'expired date') {
-          alert.error('대시보드의 공유 기간이 만료되었습니다.');
-        } else if (
-          error.response.status === 500
-          // && error.response.data.data.message === 'not exist uuid'
-        ) {
-          alert.error('대시보드가 존재하지 않습니다.');
-        } else {
-          alert.error('대시보드 조회에 실패했습니다.\n다시 시도해 주세요.');
-        }
-      })
-      .finally(() => {
-        hideLoading();
-      });
-  };
+  const { dashboardInfo, layout, isShareOn, isInvalidData, loading } = useShareDashboard(dashboardUuid);
 
   // widget 생성
   const generateWidget = () => {
@@ -108,11 +42,11 @@ const Share = () => {
   // 데이터가 없는 상태별 텍스트
   const generateInvalidText = () => {
     if (loading) {
-      return '데이터를 불러오고 있습니다.';
+      return t('share.loading');
     } else if (isInvalidData === 401) {
-      return '대시보드의 공유 기간이 만료되었습니다.\n대시보드의 공유 상태를 다시 확인해 주세요.';
+      return t('share.expired');
     } else {
-      return '대시보드가 존재하지 않습니다.\n대시보드의 URL을 다시 확인해 주세요.';
+      return t('share.notFound');
     }
   };
 

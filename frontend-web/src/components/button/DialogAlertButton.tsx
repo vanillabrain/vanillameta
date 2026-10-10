@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Button,
   ButtonBase,
@@ -12,6 +13,7 @@ import {
 import { Close } from '@mui/icons-material';
 
 export const DialogAlertIconButton = props => {
+  const { t } = useTranslation();
   const { icon, size, children, handleDialogSelect } = props;
   const iconButton = (
     <IconButton component="div" size={size}>
@@ -29,7 +31,15 @@ DialogAlertIconButton.defaultProps = {
 };
 
 const DialogAlertButton = props => {
-  const { button, children, confirmLabel, cancelLabel, handleDialogSelect, ref } = props;
+  const { t } = useTranslation();
+  const {
+    button,
+    children,
+    confirmLabel = t('common.delete'),
+    cancelLabel = t('common.cancel'),
+    handleDialogSelect,
+    ref,
+  } = props;
   const [open, setOpen] = useState(false);
 
   const handleOpenClick = () => {
@@ -51,8 +61,13 @@ const DialogAlertButton = props => {
     <React.Fragment>
       <ButtonBase onClick={handleOpenClick}>{button}</ButtonBase>
 
-      <Dialog open={open} onClose={handleClose} aria-labelledby="경고" aria-describedby="경고 문구">
-        <DialogTitle id="경고" sx={{ mb: 2 }}>
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        aria-labelledby={t('common.warning')}
+        aria-describedby={t('common.warningText')}
+      >
+        <DialogTitle id={t('common.warning')} sx={{ mb: 2 }}>
           <IconButton
             aria-label="close"
             onClick={handleClose}
@@ -67,7 +82,7 @@ const DialogAlertButton = props => {
           </IconButton>
         </DialogTitle>
         <DialogContent>
-          <DialogContentText id="경고 문구">{children}</DialogContentText>
+          <DialogContentText id={t('common.warningText')}>{children}</DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => handleConfirmCancelClick(1)} color="inherit">
@@ -85,8 +100,6 @@ const DialogAlertButton = props => {
 DialogAlertButton.defaultProps = {
   button: undefined,
   children: '',
-  confirmLabel: '삭제',
-  cancelLabel: '취소',
 };
 
 export default DialogAlertButton;

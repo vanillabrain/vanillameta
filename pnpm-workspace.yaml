@@ -1,4 +1,9 @@
+# pnpm 워크스페이스 (선택 사용)
+# 기본 개발 플로우는 npm --prefix 기반(root package.json scripts 참조).
+# pnpm 전환 시 각 패키지를 pnpm install로 재설치해야 하며,
+# serverless 배포 파이프라인(node_modules 레이아웃) 영향 검증이 필요하다.
 packages:
-  - 'backend-api'
-  - 'frontend-web'
-  - 'landing-page'
+  - "backend-api"
+  - "frontend-web"
+  - "landing-page"
+  - "backend-api-libs-lambda-layer"

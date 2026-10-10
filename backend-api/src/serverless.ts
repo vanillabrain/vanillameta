@@ -11,6 +11,7 @@ import { AppModule } from './app.module';
 import express from 'express';
 // import { logger } from './core/middleware/logger.middleware';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 import { ValidationPipe } from '@nestjs/common';
 
 // NOTE: If you get ERR_CONTENT_DECODING_FAILED in your browser, this is likely
@@ -25,10 +26,11 @@ async function bootstrapServer(): Promise<Server> {
   // some legacy browsers (IE11, various SmartTVs) choke on 204
   if (!cachedServer) {
     const expressApp = express();
+    expressApp.use(helmet({ contentSecurityPolicy: false }));
     const nestApp = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), {
       logger: console,
       cors: {
-        origin: process.env.CORS_ORIGIN.split(',').map((x) => x.trim()),
+        origin: (process.env.CORS_ORIGIN || 'http://localhost:3000').split(',').map(x => x.trim()),
         preflightContinue: false,
         credentials: true,
         optionsSuccessStatus: 200,

@@ -9,24 +9,40 @@ import { LoadingProvider } from '@/contexts/LoadingContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { AlertProvider } from '@/contexts/AlertContext';
 import { HelmetProvider } from 'react-helmet-async';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import '@/i18n';
 import './index.css';
+
+const queryClient = new QueryClient();
+
+if (import.meta.env.REACT_APP_SENTRY_DSN) {
+  void import('@sentry/react').then(Sentry => {
+    Sentry.init({
+      dsn: import.meta.env.REACT_APP_SENTRY_DSN,
+      environment: import.meta.env.MODE,
+      tracesSampleRate: Number(import.meta.env.REACT_APP_SENTRY_TRACES_SAMPLE_RATE || 0),
+    });
+  });
+}
 
 const rootElement = document.getElementById('root');
 const app = (
   <HelmetProvider>
-    <LayoutProvider>
-      <LoadingProvider>
-        <BrowserRouter>
-          <AuthProvider>
-            <ThemeProvider theme={theme}>
-              <AlertProvider>
-                <App />
-              </AlertProvider>
-            </ThemeProvider>
-          </AuthProvider>
-        </BrowserRouter>
-      </LoadingProvider>
-    </LayoutProvider>
+    <QueryClientProvider client={queryClient}>
+      <LayoutProvider>
+        <LoadingProvider>
+          <BrowserRouter>
+            <AuthProvider>
+              <ThemeProvider theme={theme}>
+                <AlertProvider>
+                  <App />
+                </AlertProvider>
+              </ThemeProvider>
+            </AuthProvider>
+          </BrowserRouter>
+        </LoadingProvider>
+      </LayoutProvider>
+    </QueryClientProvider>
   </HelmetProvider>
 );
 

@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Box, Stack } from '@mui/material';
 import { useAlert } from 'react-alert';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
@@ -11,6 +12,7 @@ import grid from '@/assets/images/grid.svg';
 import { SnackbarContext } from '@/contexts/AlertContext';
 
 const WidgetAttributeSelect = props => {
+  const { t } = useTranslation();
   const { widgetOption, saveWidgetInfo, dataset, isModifyMode = false, widgetTypeName, widgetTypeDescription } = props;
 
   const alert = useAlert();
@@ -47,8 +49,8 @@ const WidgetAttributeSelect = props => {
     const param = isModifyMode
       ? { ...widgetOption }
       : dataset.datasetType === 'TABLE'
-      ? { ...dataset }
-      : { ...dataset, datasetId: dataset.id };
+        ? { ...dataset }
+        : { ...dataset, datasetId: dataset.id };
     console.log('getData param', param);
     showLoading();
     DatabaseService.selectData(param)
@@ -67,15 +69,15 @@ const WidgetAttributeSelect = props => {
     event.preventDefault();
 
     // confirm sample
-    alert.success('위젯을 저장하시겠습니까?', {
-      title: '위젯 저장',
-      closeCopy: '취소',
+    alert.success(t('widgetCreate.saveConfirm'), {
+      title: t('widgetCreate.saveTitle'),
+      closeCopy: t('data.cancel'),
       actions: [
         {
-          copy: '저장',
+          copy: t('widget.save'),
           onClick: () => {
             saveWidgetInfo(option, title);
-            snackbar.success('위젯이 저장되었습니다.');
+            snackbar.success(t('widgetCreate.saved'));
           },
         },
       ],
