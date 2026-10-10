@@ -49,7 +49,7 @@ test.describe('제품 전체 플로우', () => {
     await page.locator('input[name="userId"]').fill(uid);
     await page.locator('input[name="userPwd"]').fill('weak');
     await page.locator('input[name="userConfirmPwd"]').fill('weak');
-    await page.locator('input[name="userEmail"]').fill('e2e@test.com');
+    await page.locator('input[name="userEmail"]').fill(`${uid}@test.com`);
     await page.locator('button[type="submit"]').click();
     // 검증 에러가 표시되고 페이지에 머뭄
     await page.waitForTimeout(1000);
@@ -67,6 +67,15 @@ test.describe('제품 전체 플로우', () => {
       const confirm = page.locator('button:has-text("확인"), button:has-text("OK"), button:has-text("Confirm")').first();
       if (await confirm.isVisible().catch(() => false)) await confirm.click();
     }
+
+    // 온보딩: 신규 계정으로 로그인하면 샘플 대시보드가 자동 생성되어 있어야 함
+    await page.waitForTimeout(1500); // 프로비저닝 비동기 완료 대기
+    await page.goto('/login');
+    await page.locator('input[name="userId"]').fill(uid);
+    await page.locator('input[name="userPwd"]').fill('Test1234!');
+    await page.locator('button[type="submit"]').click();
+    await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+    await expect(page.locator('body')).toContainText(/시작하기|샘플|sample/i, { timeout: 15000 });
   });
 
   test('로그인 실패 — 잘못된 비밀번호', async ({ page }) => {
@@ -110,7 +119,10 @@ test.describe('제품 전체 플로우', () => {
       .first()
       .fill('e2e_total_amount');
     await dialog.locator('.MuiSelect-select').first().click();
-    await page.locator('li[role="option"]').first().click();
+    // uploaded_data 테이블이 있는 'sales' 소스 선택 (샘플 DB는 sales_data 테이블)
+    const salesOpt = page.locator('li[role="option"]:has-text("sales")').first();
+    if (await salesOpt.isVisible().catch(() => false)) await salesOpt.click();
+    else await page.locator('li[role="option"]').first().click();
     await dialog.getByLabel(/Table name|테이블/i).fill('uploaded_data');
     await dialog.locator('.MuiSelect-select').nth(1).click();
     await page.locator('li[role="option"]:has-text("SUM")').click();
@@ -124,6 +136,11 @@ test.describe('제품 전체 플로우', () => {
     // 평가 — 카드 내 Evaluate 버튼
     await card.locator('button:has-text("평가"), button:has-text("Evaluate")').click();
     await page.waitForTimeout(3000);
+    // 평가 에러 다이얼로그가 떴으면 닫기
+    const errDialog = page.locator('.MuiDialog-root');
+    if (await errDialog.isVisible().catch(() => false)) {
+      await errDialog.locator('button').first().click();
+    }
 
     // 삭제 — 카드의 마지막 IconButton
     await card.locator('button').last().click();

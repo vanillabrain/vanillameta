@@ -6,6 +6,7 @@ import { Repository } from 'typeorm';
 import { CreateLoginDto } from './dto/create-login.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import { RefreshToken } from 'src/auth/entites/refresh_token.entity';
+import { SampleService } from '../sample/sample.service';
 import { hashPassword } from '../utils/password.util';
 
 @Injectable()
@@ -14,6 +15,7 @@ export class LoginService {
     private authService: AuthService,
     @InjectRepository(User) private readonly userRepository: Repository<User>,
     @InjectRepository(RefreshToken) private readonly refreshRepository: Repository<RefreshToken>,
+    private readonly sampleService: SampleService,
   ) {}
 
   async signin(loginDto: LoginUserDto) {
@@ -43,6 +45,8 @@ export class LoginService {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
+      // 온보딩 샘플 자산 프로비저닝 — 실패해도 가입은 유지 (비동기 fire-and-forget)
+      void this.sampleService.provisionForUser(createUserInfo.id);
       return 'success';
     } else if (!userInfoEmail && userInfoId) {
       throw new HttpException('conflict userId', HttpStatus.CONFLICT);

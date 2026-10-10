@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { CreateDatabaseDto } from './dto/create-database.dto';
 import { UpdateDatabaseDto } from './dto/update-database.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -24,6 +24,8 @@ const UPLOAD_MAX_ROWS = 100000;
 
 @Injectable()
 export class DatabaseService {
+  private readonly logger = new Logger(DatabaseService.name);
+
   constructor(
     @InjectRepository(Database) private databaseRepository: Repository<Database>,
     @InjectRepository(DatabaseType) private databaseTypeRepository: Repository<DatabaseType>,
@@ -259,13 +261,26 @@ export class DatabaseService {
    */
   async findAll() {
     const result = await this.databaseRepository.find();
+    const alive: Database[] = [];
     result.forEach(db => {
-      db.connectionConfig = JSON.parse(decryptConnectionConfig(db.connectionConfig));
+      try {
+        db.connectionConfig = JSON.parse(decryptConnectionConfig(db.connectionConfig));
+      } catch (e) {
+        this.logger.error(
+          `database ${db.id} (${db.name}): connection config decrypt failed`,
+          e instanceof Error ? e.message : e,
+        );
+        (db as any).connectionConfig = {};
+        (db as any).configError = true;
+        alive.push(db);
+        return;
+      }
       delete db.connectionConfig['password'];
       const configElement = db.connectionConfig['connection'];
       if (configElement) delete configElement['password'];
+      alive.push(db);
     });
-    return { status: ResponseStatus.SUCCESS, data: result };
+    return { status: ResponseStatus.SUCCESS, data: alive };
   }
 
   /**
@@ -275,9 +290,15 @@ export class DatabaseService {
   async findOne(id: number): Promise<any> {
     // 연동 db 정보
     const databaseInfo = await this.databaseRepository.findOne({ where: { id } });
-    databaseInfo.connectionConfig = JSON.parse(
-      decryptConnectionConfig(databaseInfo.connectionConfig),
-    ).connection;
+    let connection: any;
+    try {
+      connection = JSON.parse(decryptConnectionConfig(databaseInfo.connectionConfig)).connection;
+    } catch {
+      throw new BadRequestException(
+        '데이터 소스 접속 정보를 복호화할 수 없습니다 (키가 변경됐거나 데이터가 손상됐습니다)',
+      );
+    }
+    databaseInfo.connectionConfig = connection;
 
     // table 정보 조회
     let selectTableQuery;
@@ -357,9 +378,15 @@ export class DatabaseService {
   async findOneInfo(id: number): Promise<any> {
     // 연동 db 정보
     const databaseInfo = await this.databaseRepository.findOne({ where: { id } });
-    databaseInfo.connectionConfig = JSON.parse(
-      decryptConnectionConfig(databaseInfo.connectionConfig),
-    ).connection;
+    let connection: any;
+    try {
+      connection = JSON.parse(decryptConnectionConfig(databaseInfo.connectionConfig)).connection;
+    } catch {
+      throw new BadRequestException(
+        '데이터 소스 접속 정보를 복호화할 수 없습니다 (키가 변경됐거나 데이터가 손상됐습니다)',
+      );
+    }
+    databaseInfo.connectionConfig = connection;
     delete databaseInfo.connectionConfig['password'];
     return { status: ResponseStatus.SUCCESS, data: { databaseInfo } };
   }
