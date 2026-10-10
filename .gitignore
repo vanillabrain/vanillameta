@@ -280,4 +280,8 @@ uploads/
 
 # agent tooling
 .commandcode/
+.agents/
+.aiwf/
+.claude/
+skills-lock.json
 frontend-web/e2e/fixtures/generated/
