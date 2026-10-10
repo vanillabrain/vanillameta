@@ -1,71 +1,71 @@
-# Use Case: View Shared Report
+# 유스케이스: 공유 리포트 열람
 
-## Overview
+## 개요
 
-**Use Case ID:** UC-004  
-**Use Case Name:** View Shared Report  
-**Primary Actor:** Recipient  
-**Goal:** See the report granted by a share link — current data for a live edition, frozen data for a snapshot edition  
-**Trigger:** Recipient opens a share link  
-**Status:** Draft
+**유스케이스 ID:** UC-004  
+**유스케이스명:** View Shared Report  
+**주 액터:** 수신자  
+**목표:** 공유 링크가 부여한 리포트를 본다 — 라이브 에디션은 최신 데이터, 스냅샷 에디션은 동결 데이터로  
+**시작 이벤트:** 수신자가 공유 링크를 연다  
+**상태:** Draft
 
-**Requirements:** [FR-001, FR-003, FR-011, NFR-001, NFR-005, NFR-007, C-004](../requirements.md)
+**요구사항:** [FR-001, FR-003, FR-011, NFR-001, NFR-005, NFR-007, C-004](../requirements.md)
 
-## Preconditions
+## 사전 조건
 
-- Recipient holds a share link issued for a report
+- 수신자가 리포트에 발급된 공유 링크를 보유한다
 
-## Main Success Scenario
+## 주 성공 시나리오
 
-1. Recipient opens the share link.
-2. System checks that the link is active and unexpired, and that the recipient satisfies its access requirements.
-3. System renders the edition the link is bound to: current data for a live edition, stored results for a snapshot edition.
-4. Recipient sees the report's title, widgets, and the time its data reflects.
+1. 수신자가 공유 링크를 연다.
+2. 시스템이 링크가 활성 상태이고 만료되지 않았으며 수신자가 접근 요건을 충족하는지 확인한다.
+3. 시스템이 링크에 고정된 에디션을 렌더링한다 — 라이브 에디션은 최신 데이터, 스냅샷 에디션은 저장된 결과.
+4. 수신자가 리포트의 제목, 위젯, 데이터가 반영된 시점을 본다.
 
-## Alternative Flows
+## 대안 흐름
 
-### A1: Link Expired or Withdrawn
+### A1: 링크 만료 또는 철회
 
-**Trigger:** The link is expired or has been revoked (step 2)  
-**Flow:**
+**트리거:** 링크가 만료됐거나 철회됐다 (2단계)  
+**흐름:**
 
-1. System informs the recipient the link is no longer available.
-2. Use case ends.
+1. 시스템이 링크를 더 이상 사용할 수 없음을 알린다.
+2. 유스케이스 종료.
 
-### A2: Live Data Source Unavailable
+### A2: 라이브 데이터 소스 장애
 
-**Trigger:** A live edition cannot retrieve current data (step 3)  
-**Flow:**
+**트리거:** 라이브 에디션이 최신 데이터를 조회하지 못한다 (3단계)  
+**흐름:**
 
-1. System informs the recipient that current data is unavailable.
-2. If a snapshot of the report exists, System offers the latest stored edition instead.
-3. Recipient accepts: System renders the stored edition; use case continues at step 4.
-4. Recipient declines: Use case ends.
+1. 시스템이 최신 데이터를 사용할 수 없음을 알린다.
+2. 리포트의 스냅샷이 존재하면 시스템이 최신 저장 에디션을 대신 제안한다.
+3. 수신자가 수락하면 시스템이 저장 에디션을 렌더링하고 4단계에서 계속.
+4. 수신자가 거절하면 유스케이스 종료.
 
-### A3: Recipient Holds an Editor Link
+### A3: 에디터 링크 수신자
 
-**Trigger:** The link grants the Editor role (step 4)  
-**Flow:**
+**트리거:** 링크가 에디터 역할을 부여한다 (4단계)  
+**흐름:**
 
-1. System additionally presents edit affordances on the rendered report.
-2. Recipient may proceed to editing (see UC-006).
-3. Use case continues at step 4.
+1. 시스템이 렌더링된 리포트 위에 편집 기능을 추가로 표시한다.
+2. 수신자는 편집으로 이어갈 수 있다(UC-006 참조).
+3. 4단계에서 계속.
 
-## Postconditions
+## 사후 조건
 
-### Success Postconditions
+### 성공 사후 조건
 
-- Recipient sees the report within the bounds of the link's edition and role
-- A snapshot edition renders entirely from stored results
+- 수신자가 링크의 에디션과 역할이 허용하는 범위 안에서 리포트를 본다
+- 스냅샷 에디션은 저장된 결과만으로 렌더링된다
 
-### Failure Postconditions
+### 실패 사후 조건
 
-- No report data is disclosed
-- The report and its versions remain unchanged
+- 어떤 리포트 데이터도 노출되지 않는다
+- 리포트와 버전들은 변하지 않는다
 
-## Business Rules
+## 비즈니스 규칙
 
-### BR-001: The Link Decides Freshness
+### BR-001: 신선도는 링크가 결정
 
-A live edition shows retrieval time; a snapshot edition shows capture time.
-The recipient always sees which moment the displayed data belongs to.
+라이브 에디션은 조회 시각을, 스냅샷 에디션은 캡처 시각을 보여준다. 수신자는
+표시된 데이터가 어느 순간의 것인지 항상 알 수 있다.

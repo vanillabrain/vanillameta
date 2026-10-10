@@ -1,80 +1,80 @@
-# Use Case: Query Report via Agent
+# 유스케이스: 에이전트를 통한 리포트 질의
 
-## Overview
+## 개요
 
-**Use Case ID:** UC-007  
-**Use Case Name:** Query Report via Agent  
-**Primary Actor:** AI Agent  
-**Secondary Actors:** Data Source  
-**Goal:** Answer questions about a shared report by inspecting and retrieving its data through the link's tool surface, within the granted scope  
-**Trigger:** An AI Agent connects to a share link's tool surface on behalf of a recipient  
-**Status:** Draft
+**유스케이스 ID:** UC-007  
+**유스케이스명:** Query Report via Agent  
+**주 액터:** AI 에이전트  
+**보조 액터:** 데이터 소스  
+**목표:** 링크의 도구 표면을 통해 공유 리포트의 구조와 데이터를 부여된 범위 안에서 조회해 질문에 답한다  
+**시작 이벤트:** AI 에이전트가 수신자를 대신해 공유 링크의 도구 표면에 접속한다  
+**상태:** Draft
 
-**Requirements:** [FR-009, NFR-002, NFR-003, NFR-006, NFR-007, C-006](../requirements.md)
+**요구사항:** [FR-009, NFR-002, NFR-003, NFR-006, NFR-007, C-006](../requirements.md)
 
-## Preconditions
+## 사전 조건
 
-- A share link exists and has been granted a scoped tool surface
-- The AI Agent holds valid scoped access bound to that link
+- 공유 링크가 존재하며 스코프 도구 표면이 부여되어 있다
+- AI 에이전트가 그 링크에 바인딩된 유효한 스코프 접근 권한을 보유한다
 
-## Main Success Scenario
+## 주 성공 시나리오
 
-1. AI Agent connects to the share link's tool surface.
-2. System presents the tools the grant allows and the report's structure: its datasets, fields, and edition.
-3. AI Agent requests the report's schema or a bounded retrieval of its data.
-4. System executes the request within the granted scope — current data for a live edition, stored results for a snapshot edition.
-5. System returns the results to the AI Agent.
-6. AI Agent uses the results to answer its user's question.
+1. AI 에이전트가 공유 링크의 도구 표면에 접속한다.
+2. 시스템이 권한이 허용하는 도구들과 리포트 구조 — 데이터셋, 필드, 에디션 — 를 제시한다.
+3. AI 에이전트가 리포트의 스키마 또는 한정된 데이터 조회를 요청한다.
+4. 시스템이 부여된 범위 안에서 요청을 실행한다 — 라이브 에디션은 최신 데이터, 스냅샷 에디션은 저장된 결과.
+5. 시스템이 결과를 AI 에이전트에게 반환한다.
+6. AI 에이전트가 결과로 사용자의 질문에 답한다.
 
-## Alternative Flows
+## 대안 흐름
 
-### A1: Request Exceeds Granted Scope
+### A1: 부여된 범위 초과 요청
 
-**Trigger:** The agent asks for data outside the report's datasets, or attempts a modifying operation (step 3)  
-**Flow:**
+**트리거:** 에이전트가 리포트 데이터셋 밖의 데이터나 변경 작업을 요청한다 (3단계)  
+**흐름:**
 
-1. System rejects the request, explains the boundary, and records the attempt.
-2. AI Agent reformulates within scope.
-3. Use case continues at step 3 or ends.
+1. 시스템이 요청을 거부하고 경계를 설명하며 시도를 기록한다.
+2. AI 에이전트가 범위 안에서 요청을 재구성한다.
+3. 3단계에서 계속하거나 유스케이스 종료.
 
-### A2: Request Exceeds Bounds
+### A2: 한계 초과 요청
 
-**Trigger:** The retrieval exceeds row or time bounds (step 4)  
-**Flow:**
+**트리거:** 조회가 행 또는 시간 한계를 넘는다 (4단계)  
+**흐름:**
 
-1. System returns a bounded result marked as truncated, or fails the request with a clear reason.
-2. AI Agent narrows the request.
-3. Use case continues at step 3.
+1. 시스템이 잘림 표시된 한정 결과를 반환하거나 명확한 사유로 요청을 실패시킨다.
+2. AI 에이전트가 요청을 좁힌다.
+3. 3단계에서 계속.
 
-### A3: Scoped Access Expired or Withdrawn
+### A3: 스코프 접근 만료 또는 철회
 
-**Trigger:** The grant is expired or revoked (step 1 or 4)  
-**Flow:**
+**트리거:** 권한이 만료됐거나 철회됐다 (1단계 또는 4단계)  
+**흐름:**
 
-1. System denies the call and states the grant is no longer valid.
-2. Use case ends.
+1. 시스템이 호출을 거부하고 권한이 더 이상 유효하지 않음을 밝힌다.
+2. 유스케이스 종료.
 
-## Postconditions
+## 사후 조건
 
-### Success Postconditions
+### 성공 사후 조건
 
-- The AI Agent obtained report data strictly within the link's scope
-- Every call was recorded for audit
-- A snapshot edition was answered entirely from stored results
+- AI 에이전트가 링크 범위 안의 리포트 데이터만 획득했다
+- 모든 호출이 감사용으로 기록됐다
+- 스냅샷 에디션은 저장된 결과만으로 응답됐다
 
-### Failure Postconditions
+### 실패 사후 조건
 
-- Nothing outside the granted scope is disclosed
-- The report and data source remain unmodified
+- 부여된 범위 밖의 어떤 것도 노출되지 않는다
+- 리포트와 데이터 소스는 변경되지 않는다
 
-## Business Rules
+## 비즈니스 규칙
 
-### BR-001: The Link Bounds the Agent
+### BR-001: 링크가 에이전트의 경계
 
-An AI Agent may reach exactly the report and edition its link grants — never
-the wider workspace, other datasets, or data source internals.
+AI 에이전트는 링크가 부여한 리포트와 에디션에 정확히만 도달할 수 있다 —
+더 넓은 작업공간, 다른 데이터셋, 데이터 소스 내부에는 절대 닿지 않는다.
 
-### BR-002: Every Agent Call Is Audited
+### BR-002: 모든 에이전트 호출은 감사된다
 
-Each tool call is recorded with time, tool, and outcome, so scoped access is
-always accountable.
+각 도구 호출은 시각, 도구명, 결과와 함께 기록되어 스코프 접근이 항상
+책임 추적 가능하다.

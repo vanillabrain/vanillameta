@@ -1,60 +1,59 @@
-# Vision — Shareable Report Artifacts
+# 비전 — 공유 가능한 리포트 아티팩트
 
-## Problem
+## 문제
 
-Dashboards built inside BI tools die in two ways: they stay trapped in the
-author's account, or they leak out as screenshots and PDFs that are dead on
-arrival. AI assistants make it worse — an LLM can analyze data brilliantly, but
-the result lives and dies inside a chat window. Nothing durable, nothing
-citable, nothing an organization can reuse.
+BI 도구 안에서 만든 대시보드는 두 가지 방식으로 죽는다: 작성자 계정 안에
+갇히거나, 스크린샷과 PDF로 새어 나와 도착하는 순간 죽은 문서가 되거나.
+AI 어시스턴트는 이를 더 악화시킨다 — LLM은 데이터를 훌륭하게 분석하지만,
+그 결과는 대화창 안에서만 살고 죽는다. 영속적인 것도, 인용 가능한 것도,
+조직이 재사용할 수 있는 것도 없다.
 
-## Vision
+## 비전
 
-VanillaMeta becomes an **open report commons**: a self-hosted repository where
-people upload or connect data, turn it into reports, and share those reports as
-**living artifacts** — each one carrying its own data, its own tools, and its
-own permission rules. A shared report is not a picture of data. It is a thing
-you can view, query, remix, and hand to an AI agent.
+VanillaMeta는 **개방형 리포트 커먼즈**가 된다: 사람들이 데이터를 올리거나
+연결하고, 리포트로 만들며, 그 리포트를 **살아있는 아티팩트**로 공유하는
+셀프호스트 저장소 — 각 아티팩트가 자기 데이터, 자기 도구, 자기 권한 규칙을
+품고 다닌다. 공유 리포트는 데이터의 사진이 아니다. 보고, 질의하고,
+리믹스하고, AI 에이전트에게 넘길 수 있는 사물이다.
 
-## The Two Editions
+## 두 가지 에디션
 
-Every shared report exists in one of two modes:
+모든 공유 리포트는 둘 중 하나의 모드로 존재한다:
 
-- **Live edition** — the link renders fresh results from the connected data
-  source every time it is opened. For trusted recipients and ongoing
-  monitoring.
-- **Snapshot edition** — the link renders a frozen capture taken at a moment in
-  time, served entirely from stored results. The data source is never touched.
-  For submissions, audits, public release, and untrusted recipients.
+- **라이브 에디션** — 링크를 열 때마다 연결된 데이터 소스에서 최신 결과를
+  조회해 렌더링한다. 신뢰할 수 있는 수신자와 지속적 모니터링용.
+- **스냅샷 에디션** — 특정 시점에 캡처된 동결본을 저장된 결과만으로
+  렌더링한다. 데이터 소스에는 전혀 접근하지 않는다. 제출, 감사, 공개
+  배포, 신뢰할 수 없는 수신자용.
 
-An author can publish both editions of the same report. Snapshots are
-versioned, so a report accumulates a history of editions — each one citable,
-restorable, and independently shareable.
+작성자는 같은 리포트의 두 에디션을 모두 발행할 수 있다. 스냅샷은 버전이
+매겨지므로 리포트는 에디션의 이력을 축적한다 — 각 판본은 인용 가능하고,
+복원 가능하고, 독립적으로 공유 가능하다.
 
-## AI-Native Sharing
+## AI 네이티브 공유
 
-Every share link optionally exposes a **scoped tool surface** (MCP — Model
-Context Protocol) so that a recipient's AI assistant can work with the report
-directly: inspect its schema, query its data within the granted scope, remix it
-into a new report, or — when permitted — update it. Live links grant tools
-that hit the live database; snapshot links grant tools over the frozen data
-only. The report carries its tools with it.
+모든 공유 링크는 선택적으로 **스코프 도구 표면**(MCP — Model Context
+Protocol)을 노출해 수신자의 AI 어시스턴트가 리포트를 직접 다룰 수 있게
+한다: 스키마 조회, 부여된 범위 안에서의 데이터 질의, 새 리포트로의
+리믹스, 또는 — 허용된 경우 — 수정. 라이브 링크는 라이브 DB를 치는 도구를,
+스냅샷 링크는 동결 데이터만 다루는 도구를 부여한다. 리포트가 자기 도구를
+품고 다닌다.
 
-## Who It Serves
+## 누구를 위한가
 
-- **Report Authors** — consultants, analysts, and internal teams who publish
-  analysis and keep ownership of the original.
-- **Recipients** — clients, colleagues, and the public who receive links: some
-  just view, some edit, some remix into their own copies.
-- **AI Agents** — LLM clients (Claude, ChatGPT, IDE agents) acting on behalf of
-  authors and recipients through scoped, auditable tools.
+- **리포트 작성자** — 분석을 발행하고 원본의 소유권을 유지하는 컨설턴트,
+  분석가, 사내 팀.
+- **수신자** — 링크를 받는 고객, 동료, 대중: 보기만 하는 사람, 편집하는
+  사람, 자기 사본으로 리믹스하는 사람.
+- **AI 에이전트** — 스코프와 감사가 적용된 도구를 통해 작성자와 수신자를
+  대신해 행동하는 LLM 클라이언트(Claude, ChatGPT, IDE 에이전트).
 
-## Success Criteria
+## 성공 기준
 
-- A shared snapshot link discloses only the data captured in it — never a path
-  back to the database.
-- Any recipient can turn a shared report into their own editable copy in one
-  action, without affecting the original.
-- An AI agent connected to a report can answer questions, build a variant, and
-  store the result as a durable artifact — all within its granted scope.
-- The whole system runs self-hosted on SQLite with no external dependencies.
+- 공유된 스냅샷 링크는 캡처된 데이터만 노출한다 — 데이터베이스로 되돌아가는
+  통로는 절대 없다.
+- 어떤 수신자든 공유 리포트를 원본을 건드리지 않고 한 동작으로 자기 편집
+  가능 사본으로 만들 수 있다.
+- 리포트에 연결된 AI 에이전트는 질문에 답하고, 변형을 만들고, 결과를
+  영속적인 아티팩트로 저장한다 — 모두 부여된 범위 안에서.
+- 전체 시스템이 외부 의존 없이 SQLite로 셀프호스트된다.

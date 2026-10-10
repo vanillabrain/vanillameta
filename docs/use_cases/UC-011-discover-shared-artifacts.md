@@ -1,60 +1,60 @@
-# Use Case: Discover Shared Artifacts
+# 유스케이스: 공유 아티팩트 탐색
 
-## Overview
+## 개요
 
-**Use Case ID:** UC-011  
-**Use Case Name:** Discover Shared Artifacts  
-**Primary Actor:** Report Author, Recipient  
-**Goal:** Find reports, datasets, and snapshot versions accessible to the user so existing work can be viewed or reused  
-**Trigger:** A signed-in user searches or browses the artifact catalog  
-**Status:** Draft
+**유스케이스 ID:** UC-011  
+**유스케이스명:** Discover Shared Artifacts  
+**주 액터:** 리포트 작성자, 수신자  
+**목표:** 사용자가 접근 가능한 리포트, 데이터셋, 스냅샷 버전을 찾아 기존 작업을 열람하거나 재사용한다  
+**시작 이벤트:** 로그인한 사용자가 아티팩트 카탈로그를 검색하거나 탐색한다  
+**상태:** Draft
 
-**Requirements:** [FR-012, C-004](../requirements.md)
+**요구사항:** [FR-012, C-004](../requirements.md)
 
-## Preconditions
+## 사전 조건
 
-- User is signed in
-- The user has access to at least one artifact (own or shared)
+- 사용자가 로그인한 상태다
+- 사용자가 최소 하나의 아티팩트(자신의 것이거나 공유받은 것)에 접근 권한이 있다
 
-## Main Success Scenario
+## 주 성공 시나리오
 
-1. User opens the artifact catalog and enters a search term or filter (type, owner, edition).
-2. System returns the artifacts matching the criteria that the user may access.
-3. User selects an artifact.
-4. System opens it — a report for viewing or remix, a dataset for inspection.
+1. 사용자가 아티팩트 카탈로그를 열고 검색어나 필터(유형, 소유자, 에디션)를 입력한다.
+2. 시스템이 사용자가 접근 가능한 아티팩트 중 조건에 맞는 것을 반환한다.
+3. 사용자가 아티팩트를 선택한다.
+4. 시스템이 그것을 연다 — 리포트는 열람 또는 리믹스로, 데이터셋은 조회로.
 
-## Alternative Flows
+## 대안 흐름
 
-### A1: No Matching Artifacts
+### A1: 일치하는 아티팩트 없음
 
-**Trigger:** The search yields nothing within the user's access (step 2)  
-**Flow:**
+**트리거:** 사용자의 접근 범위 안에 검색 결과가 없다 (2단계)  
+**흐름:**
 
-1. System reports no results and suggests broadening the criteria.
-2. User adjusts the search.
-3. Use case continues at step 2 or ends.
+1. 시스템이 결과 없음을 알리고 조건 완화를 제안한다.
+2. 사용자가 검색을 조정한다.
+3. 2단계에서 계속하거나 유스케이스 종료.
 
-### A2: Artifact No Longer Accessible
+### A2: 접근 불가가 된 아티팩트
 
-**Trigger:** A listed artifact was withdrawn between listing and opening (step 4)  
-**Flow:**
+**트리거:** 목록 표시와 열기 사이에 아티팩트가 철회됐다 (4단계)  
+**흐름:**
 
-1. System informs the user the artifact is no longer available.
-2. Use case continues at step 2.
+1. 시스템이 아티팩트를 더 이상 사용할 수 없음을 알린다.
+2. 2단계에서 계속.
 
-## Postconditions
+## 사후 조건
 
-### Success Postconditions
+### 성공 사후 조건
 
-- The user found and opened an artifact they are permitted to access
+- 사용자가 접근이 허용된 아티팩트를 찾아 열었다
 
-### Failure Postconditions
+### 실패 사후 조건
 
-- No artifact outside the user's access is revealed — not even its existence
+- 사용자의 접근 범위 밖 아티팩트는 존재조차 드러나지 않는다
 
-## Business Rules
+## 비즈니스 규칙
 
-### BR-001: Discovery Respects Access
+### BR-001: 탐색은 접근 권한을 따른다
 
-Search results contain only artifacts the user may access; private reports of
-others are invisible to search as if they did not exist.
+검색 결과는 사용자가 접근 가능한 아티팩트만 담는다 — 타인의 비공개
+리포트는 검색에서 없는 것처럼 보인다.

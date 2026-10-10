@@ -1,50 +1,49 @@
-# Requirements — Shareable Report Artifacts
+# 요구사항 — 공유 가능한 리포트 아티팩트
 
-Requirements for the report sharing, snapshot, remix, and scoped AI-tool
-capabilities described in [vision.md](vision.md). Domain terms follow
-[glossary.md](glossary.md).
+[비전](vision.md)에 기술된 리포트 공유, 스냅샷, 리믹스, 스코프 AI 도구
+기능에 대한 요구사항. 도메인 용어는 [용어집](glossary.md)을 따른다.
 
-## Functional Requirements
+## 기능 요구사항 (FR)
 
-| ID     | Title                     | User Story                                                                                                                              | Priority | Status |
-|--------|---------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|----------|--------|
-| FR-001 | Publish Live Edition      | As a Report author, I want to publish a Live Edition share link so that recipients always see data freshly queried from the data source. | High     | Open   |
-| FR-002 | Capture Snapshot          | As a Report author, I want to capture a snapshot of my report so that its data and layout are frozen at a moment in time.                | High     | Open   |
-| FR-003 | Publish Snapshot Edition  | As a Report author, I want to publish a share link bound to a snapshot so that recipients see a fixed edition without touching the data source. | High | Open |
-| FR-004 | Assign Share Role         | As a Report author, I want to assign a Viewer or Editor role to each share link so that I control what recipients may do with it.        | High     | Open   |
-| FR-005 | Remix Shared Report       | As a recipient, I want to remix a shared report into my own workspace so that I can adapt it without affecting the original.             | High     | Open   |
-| FR-006 | Edit Shared Report        | As a recipient with an Editor link, I want to modify the shared report so that I can collaborate on it in place.                         | Medium   | Open   |
-| FR-007 | Restore Report Version    | As a Report author, I want to browse and restore earlier snapshot versions so that I can recover previous states of my report.           | Medium   | Open   |
-| FR-008 | Revoke Share Access       | As a Report author, I want to revoke or expire any share link so that I can withdraw access at any time.                                 | High     | Open   |
-| FR-009 | Query Report via Agent    | As a recipient, I want my AI agent to inspect and query a shared report within the link's scope so that I can ask questions without direct data source access. | High | Open |
-| FR-010 | Modify Report via Agent   | As a recipient, I want my AI agent to remix or update a shared report through its tool surface so that analysis results become durable artifacts. | Medium | Open |
-| FR-011 | Refresh Live Data         | As a recipient, I want a live edition to reflect the latest data source contents on every open so that the link stays current without republishing. | High | Open |
-| FR-012 | Discover Shared Artifacts | As a workspace member, I want to search reports, datasets, and snapshots I have access to so that I can find and reuse existing artifacts. | Medium | Open   |
-| FR-013 | Record Remix Lineage      | As a Report author, I want remixed copies to record their source report so that provenance of derived work stays traceable.              | Low      | Open   |
-| FR-014 | Re-capture Snapshot       | As a Report author, I want to capture a new snapshot of an updated report so that its edition history grows and links can be repointed.  | Medium   | Open   |
+| ID     | 제목                      | 사용자 스토리                                                                                                                            | 우선순위 | 상태 |
+|--------|---------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|----------|------|
+| FR-001 | 라이브 에디션 발행        | 리포트 작성자로서, 수신자가 항상 데이터 소스에서 새로 조회된 데이터를 보게 하기 위해 라이브 에디션 공유 링크를 발행하고 싶다.             | 높음     | Open |
+| FR-002 | 스냅샷 캡처               | 리포트 작성자로서, 리포트의 데이터와 레이아웃을 특정 시점에 동결하기 위해 스냅샷을 캡처하고 싶다.                                         | 높음     | Open |
+| FR-003 | 스냅샷 에디션 발행        | 리포트 작성자로서, 데이터 소스를 건드리지 않고 수신자가 고정된 에디션을 보게 하기 위해 스냅샷에 고정된 공유 링크를 발행하고 싶다.         | 높음     | Open |
+| FR-004 | 공유 역할 부여            | 리포트 작성자로서, 수신자가 링크로 무엇을 할 수 있는지 제어하기 위해 각 공유 링크에 뷰어 또는 에디터 역할을 부여하고 싶다.                | 높음     | Open |
+| FR-005 | 공유 리포트 리믹스        | 수신자로서, 원본에 영향을 주지 않고 각색하기 위해 공유 리포트를 내 작업공간으로 리믹스하고 싶다.                                          | 높음     | Open |
+| FR-006 | 공유 리포트 편집          | 에디터 링크를 가진 수신자로서, 공유 리포트를 제자리에서 수정해 협업하고 싶다.                                                             | 중간     | Open |
+| FR-007 | 리포트 버전 복원          | 리포트 작성자로서, 이전 리포트 상태를 되찾기 위해 과거 스냅샷 버전을 탐색하고 복원하고 싶다.                                              | 중간     | Open |
+| FR-008 | 공유 접근 철회            | 리포트 작성자로서, 언제든 접근을 거둘 수 있도록 공유 링크를 철회하거나 만료시키고 싶다.                                                   | 높음     | Open |
+| FR-009 | 에이전트를 통한 질의      | 수신자로서, 데이터 소스 직접 접근 없이 질문할 수 있도록 내 AI 에이전트가 링크 범위 안에서 공유 리포트를 조회·질의하게 하고 싶다.          | 높음     | Open |
+| FR-010 | 에이전트를 통한 수정      | 수신자로서, 분석 결과가 영속적인 아티팩트가 되도록 내 AI 에이전트가 도구 표면을 통해 공유 리포트를 리믹스하거나 수정하게 하고 싶다.       | 중간     | Open |
+| FR-011 | 라이브 데이터 갱신        | 수신자로서, 재발행 없이 링크가 최신 상태를 유지하도록 라이브 에디션이 열 때마다 최신 데이터 소스 내용을 반영하게 하고 싶다.               | 높음     | Open |
+| FR-012 | 공유 아티팩트 탐색        | 작업공간 멤버로서, 기존 아티팩트를 찾아 재사용하기 위해 접근 가능한 리포트, 데이터셋, 스냅샷을 검색하고 싶다.                             | 중간     | Open |
+| FR-013 | 리믹스 계보 기록          | 리포트 작성자로서, 파생 작업의 출처 추적이 가능하도록 리믹스된 사본이 원본 리포트를 기록하게 하고 싶다.                                   | 낮음     | Open |
+| FR-014 | 스냅샷 재캡처             | 리포트 작성자로서, 에디션 이력이 쌓이고 링크를 재지정할 수 있도록 갱신된 리포트의 새 스냅샷을 캡처하고 싶다.                              | 중간     | Open |
 
-## Non-Functional Requirements
+## 비기능 요구사항 (NFR)
 
-| ID      | Title                    | Requirement                                                                                                                  | Category      | Priority | Status |
-|---------|--------------------------|------------------------------------------------------------------------------------------------------------------------------|---------------|----------|--------|
-| NFR-001 | Snapshot Isolation       | Serving a snapshot edition must execute zero queries against the data source; 100% of rendering comes from stored payload.   | Security      | High     | Open   |
-| NFR-002 | Read-Only Scoped Queries | Every query executed through a share link or scoped token must be read-only; 100% of write statements are rejected.          | Security      | High     | Open   |
-| NFR-003 | Scoped Query Bounds      | Scoped access queries must be bounded to the report's own datasets, at most 10,000 rows per query, and a 30-second timeout. | Security      | High     | Open   |
-| NFR-004 | Snapshot Payload Limit   | A snapshot must store at most 10,000 rows per widget; capture beyond the limit truncates and records the truncation.         | Reliability   | Medium   | Open   |
-| NFR-005 | Share Link Latency       | A shared report must render its first content within 3 seconds on a 4-core server for snapshots up to 50,000 stored rows.    | Performance   | Medium   | Open   |
-| NFR-006 | Scoped Access Audit      | Every scoped token call must be logged with timestamp, tool name, and outcome; logs retained for at least 90 days.           | Auditability  | High     | Open   |
-| NFR-007 | Denial Consistency       | Expired or revoked share links and scoped tokens must deny 100% of access attempts, including cached sessions.               | Security      | High     | Open   |
-| NFR-008 | Edit Conflict Semantics  | Concurrent edits of a shared report must resolve by last-write-wins with every write producing a restorable version.         | Reliability   | Medium   | Open   |
-| NFR-009 | Secret Non-Disclosure    | A share link or snapshot payload must never contain data source credentials or connection strings; 0 occurrences permitted.  | Security      | High     | Open   |
+| ID      | 제목                    | 요구사항                                                                                                                          | 범주          | 우선순위 | 상태 |
+|---------|-------------------------|-----------------------------------------------------------------------------------------------------------------------------------|---------------|----------|------|
+| NFR-001 | 스냅샷 격리             | 스냅샷 에디션 서빙은 데이터 소스에 대한 쿼리를 0회 실행해야 한다 — 렌더링의 100%가 저장된 페이로드에서 온다.                        | 보안          | 높음     | Open |
+| NFR-002 | 읽기 전용 스코프 쿼리   | 공유 링크나 스코프 토큰을 통해 실행되는 모든 쿼리는 읽기 전용이어야 한다 — 쓰기 구문의 100%가 거부된다.                               | 보안          | 높음     | Open |
+| NFR-003 | 스코프 쿼리 한계        | 스코프 접근 쿼리는 리포트 자신의 데이터셋으로 제한되며, 쿼리당 최대 10,000행, 30초 타임아웃이어야 한다.                               | 보안          | 높음     | Open |
+| NFR-004 | 스냅샷 페이로드 한계    | 스냅샷은 위젯당 최대 10,000행까지만 저장해야 한다 — 한계를 넘는 캡처는 잘라내고 잘림을 기록한다.                                      | 신뢰성        | 중간     | Open |
+| NFR-005 | 공유 링크 지연시간      | 공유 리포트는 4코어 서버에서 최대 50,000 저장 행의 스냅샷에 대해 3초 안에 첫 콘텐츠를 렌더링해야 한다.                                | 성능          | 중간     | Open |
+| NFR-006 | 스코프 접근 감사        | 모든 스코프 토큰 호출은 시각, 도구명, 결과와 함께 로깅되어야 한다 — 로그는 최소 90일 보관.                                            | 감사 가능성   | 높음     | Open |
+| NFR-007 | 거부 일관성             | 만료되거나 철회된 공유 링크와 스코프 토큰은 캐시된 세션을 포함해 접근 시도의 100%를 거부해야 한다.                                    | 보안          | 높음     | Open |
+| NFR-008 | 편집 충돌 의미론        | 공유 리포트의 동시 편집은 last-write-wins로 해결하되, 모든 쓰기가 복원 가능한 버전을 낳아야 한다.                                     | 신뢰성        | 중간     | Open |
+| NFR-009 | 비밀 비노출             | 공유 링크나 스냅샷 페이로드는 데이터 소스 자격 증명이나 접속 문자열을 절대 포함하지 않는다 — 허용 발생 건수 0.                        | 보안          | 높음     | Open |
 
-## Constraints
+## 제약 (C)
 
-| ID    | Title                  | Constraint                                                                                                                        | Category   | Source                    | Priority | Status |
-|-------|------------------------|-----------------------------------------------------------------------------------------------------------------------------------|------------|---------------------------|----------|--------|
-| C-001 | Backend Stack          | Implementation must reuse the existing NestJS + TypeORM backend; no additional runtime services beyond optional Redis.              | Technical  |                           | High     | Open   |
-| C-002 | SQLite Support         | All new features must work with SQLite as the metadata store (self-hosted default), not only MySQL.                                 | Technical  |                           | High     | Open   |
-| C-003 | Read-Only Default      | The existing `QUERY_ALLOW_WRITE=false` default must remain unchanged; scoped access must never depend on enabling it.               | Security   | Internal security policy  | High     | Open   |
-| C-004 | Public Access Boundary | Anonymous (unauthenticated) access is permitted only through snapshot edition links with a Viewer role; all other access requires a valid session or scoped token. | Security | | High | Open |
-| C-005 | Share Schema Extension | The existing `dashboard_share` entity (uuid, shareToken, shareYn, endDate) must be extended, not replaced, to keep existing links valid. | Technical |                        | Medium   | Open   |
-| C-006 | MCP Transport          | Scoped tool surface must be exposed via the MCP streamable HTTP transport; a stdio transport may be added for self-hosted use.      | Technical  | MCP specification         | Medium   | Open   |
-| C-007 | License                | All new code must remain compatible with the repository's Apache-2.0 license.                                                       | Legal      | LICENSE                   | High     | Open   |
+| ID    | 제목                   | 제약                                                                                                                                            | 범주       | 출처            | 우선순위 | 상태 |
+|-------|------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------|------------|-----------------|----------|------|
+| C-001 | 백엔드 스택            | 구현은 기존 NestJS + TypeORM 백엔드를 재사용해야 한다 — 선택적 Redis 외 추가 런타임 서비스 불가.                                                  | 기술       |                 | 높음     | Open |
+| C-002 | SQLite 지원            | 모든 신규 기능은 메타데이터 저장소로 SQLite에서 동작해야 한다(셀프호스트 기본값) — MySQL만 지원 불가.                                               | 기술       |                 | 높음     | Open |
+| C-003 | 읽기 전용 기본값       | 기존 `QUERY_ALLOW_WRITE=false` 기본값은 유지되어야 한다 — 스코프 접근이 이를 켜는 것에 의존해선 안 된다.                                            | 보안       | 내부 보안 정책  | 높음     | Open |
+| C-004 | 공개 접근 경계         | 익명(미인증) 접근은 뷰어 역할의 스냅샷 에디션 링크를 통해서만 허용된다 — 그 외 모든 접근은 유효한 세션 또는 스코프 토큰을 요구한다.                  | 보안       |                 | 높음     | Open |
+| C-005 | 공유 스키마 확장       | 기존 `dashboard_share` 엔티티(uuid, shareToken, shareYn, endDate)는 교체가 아니라 확장되어야 한다 — 기존 링크의 유효성 유지.                        | 기술       |                 | 중간     | Open |
+| C-006 | MCP 전송               | 스코프 도구 표면은 MCP streamable HTTP 전송으로 노출되어야 한다 — 셀프호스트용 stdio 전송은 추가될 수 있다.                                          | 기술       | MCP 사양        | 중간     | Open |
+| C-007 | 라이선스               | 모든 신규 코드는 리포지토리의 Apache-2.0 라이선스와 호환되어야 한다.                                                                              | 법률       | LICENSE         | 높음     | Open |

@@ -1,80 +1,80 @@
-# Use Case: Modify Report via Agent
+# 유스케이스: 에이전트를 통한 리포트 수정
 
-## Overview
+## 개요
 
-**Use Case ID:** UC-008  
-**Use Case Name:** Modify Report via Agent  
-**Primary Actor:** AI Agent  
-**Goal:** Turn agent-generated analysis into durable artifacts by remixing or updating a shared report through its tool surface  
-**Trigger:** An AI Agent issues a modifying request against a shared report's tool surface  
-**Status:** Draft
+**유스케이스 ID:** UC-008  
+**유스케이스명:** Modify Report via Agent  
+**주 액터:** AI 에이전트  
+**목표:** 도구 표면을 통해 공유 리포트를 리믹스하거나 수정해 에이전트가 만든 분석 결과를 영속적인 아티팩트로 남긴다  
+**시작 이벤트:** AI 에이전트가 공유 리포트의 도구 표면에 변경 요청을 보낸다  
+**상태:** Draft
 
-**Requirements:** [FR-010, FR-013, NFR-006, NFR-008, C-006](../requirements.md)
+**요구사항:** [FR-010, FR-013, NFR-006, NFR-008, C-006](../requirements.md)
 
-## Preconditions
+## 사전 조건
 
-- A share link exists whose grant permits modification (remix or edit)
-- The AI Agent holds valid scoped access bound to that link
+- 변경(리믹스 또는 편집)을 허용하는 권한의 공유 링크가 존재한다
+- AI 에이전트가 그 링크에 바인딩된 유효한 스코프 접근 권한을 보유한다
 
-## Main Success Scenario
+## 주 성공 시나리오
 
-1. AI Agent inspects the shared report's structure through the tool surface.
-2. AI Agent requests a remix of the report into its user's workspace.
-3. System creates the independent copy and records its origin.
-4. AI Agent submits modifications to the copy — changed widgets, layout, or titles.
-5. System validates and stores the new state as a version.
-6. AI Agent receives the new report's link and hands it to its user.
+1. AI 에이전트가 도구 표면을 통해 공유 리포트의 구조를 살핀다.
+2. AI 에이전트가 리포트를 사용자의 작업공간으로 리믹스할 것을 요청한다.
+3. 시스템이 독립 사본을 만들고 출처를 기록한다.
+4. AI 에이전트가 사본에 대한 수정 — 위젯, 레이아웃, 제목 변경 — 을 제출한다.
+5. 시스템이 검증 후 새 상태를 버전으로 저장한다.
+6. AI 에이전트가 새 리포트의 링크를 받아 사용자에게 전달한다.
 
-## Alternative Flows
+## 대안 흐름
 
-### A1: Grant Is Read-Only
+### A1: 읽기 전용 권한
 
-**Trigger:** The link's grant does not permit modification (step 2 or 4)  
-**Flow:**
+**트리거:** 링크의 권한이 변경을 허용하지 않는다 (2단계 또는 4단계)  
+**흐름:**
 
-1. System rejects the request and states the grant's boundary.
-2. System records the attempt.
-3. Use case ends.
+1. 시스템이 요청을 거부하고 권한의 경계를 밝힌다.
+2. 시스템이 시도를 기록한다.
+3. 유스케이스 종료.
 
-### A2: Modifications Fail Validation
+### A2: 수정 검증 실패
 
-**Trigger:** Submitted changes are malformed or reference unavailable fields (step 4)  
-**Flow:**
+**트리거:** 제출된 변경이 형식에 맞지 않거나 사용 불가한 필드를 참조한다 (4단계)  
+**흐름:**
 
-1. System rejects the changes and explains the problems.
-2. AI Agent corrects and resubmits.
-3. Use case continues at step 5.
-4. Agent abandons the change: Use case ends.
+1. 시스템이 변경을 거부하고 문제를 설명한다.
+2. AI 에이전트가 수정해 재제출한다.
+3. 5단계에서 계속.
+4. 에이전트가 변경을 포기하면 유스케이스 종료.
 
-### A3: Update Attempted on a Snapshot Edition
+### A3: 스냅샷 에디션에 대한 수정 시도
 
-**Trigger:** The agent requests changes against a frozen edition (step 4)  
-**Flow:**
+**트리거:** 에이전트가 동결 에디션에 변경을 요청한다 (4단계)  
+**흐름:**
 
-1. System explains that stored editions are immutable and requires a remix first.
-2. Use case continues at step 2.
+1. 시스템이 저장 에디션은 불변이며 먼저 리믹스가 필요함을 설명한다.
+2. 2단계에서 계속.
 
-## Postconditions
+## 사후 조건
 
-### Success Postconditions
+### 성공 사후 조건
 
-- A durable report artifact — new copy or new version — exists with recorded origin
-- The original shared report is untouched unless the grant permitted editing it
-- Every modifying call was recorded for audit
+- 출처가 기록된 영속적인 리포트 아티팩트 — 새 사본 또는 새 버전 — 가 존재한다
+- 권한이 원본 편집을 허용하지 않는 한 원본 공유 리포트는 변하지 않는다
+- 모든 변경 호출이 감사용으로 기록됐다
 
-### Failure Postconditions
+### 실패 사후 조건
 
-- No partial modification is stored
-- Existing reports, versions, and grants remain unchanged
+- 부분적인 수정이 저장되지 않는다
+- 기존 리포트, 버전, 권한은 변하지 않는다
 
-## Business Rules
+## 비즈니스 규칙
 
-### BR-001: Snapshots Are Write-Proof
+### BR-001: 스냅샷은 변경 불가
 
-Agents may never modify a stored edition in place; modification paths always
-lead through a remix or through the report's live state.
+에이전트는 저장 에디션을 제자리에서 수정할 수 없다 — 수정 경로는 항상
+리믹스 또는 리포트의 라이브 상태를 거친다.
 
-### BR-002: Agent Writes Are Attributable
+### BR-002: 에이전트 변경은 귀속된다
 
-Every agent-driven change is recorded against the grant and the user it acted
-for — there are no anonymous agent edits.
+에이전트가 일으킨 모든 변경은 사용된 권한과 그 대리인이 된 사용자에게
+기록된다 — 익명의 에이전트 편집은 존재하지 않는다.

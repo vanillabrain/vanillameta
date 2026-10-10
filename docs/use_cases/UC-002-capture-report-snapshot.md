@@ -1,78 +1,78 @@
-# Use Case: Capture Report Snapshot
+# 유스케이스: 리포트 스냅샷 캡처
 
-## Overview
+## 개요
 
-**Use Case ID:** UC-002  
-**Use Case Name:** Capture Report Snapshot  
-**Primary Actor:** Report Author  
-**Goal:** Freeze the report's data results, chart options, and layout as a new restorable version  
-**Trigger:** Report Author requests a snapshot capture of a report  
-**Status:** Draft
+**유스케이스 ID:** UC-002  
+**유스케이스명:** Capture Report Snapshot  
+**주 액터:** 리포트 작성자  
+**목표:** 리포트의 데이터 결과, 차트 옵션, 레이아웃을 복원 가능한 새 버전으로 동결한다  
+**시작 이벤트:** 리포트 작성자가 리포트의 스냅샷 캡처를 요청한다  
+**상태:** Draft
 
-**Requirements:** [FR-002, FR-014, NFR-004, NFR-009](../requirements.md)
+**요구사항:** [FR-002, FR-014, NFR-004, NFR-009](../requirements.md)
 
-## Preconditions
+## 사전 조건
 
-- Report Author is signed in
-- The report exists
+- 리포트 작성자가 로그인한 상태다
+- 리포트가 존재한다
 
-## Main Success Scenario
+## 주 성공 시나리오
 
-1. Author requests a snapshot capture for the report.
-2. System retrieves each widget's data once from the data source.
-3. System stores the retrieved results, chart options, and layout as a new snapshot version.
-4. System displays the new version in the report's version history with its capture time.
+1. 작성자가 리포트의 스냅샷 캡처를 요청한다.
+2. 시스템이 각 위젯의 데이터를 데이터 소스에서 한 번씩 조회한다.
+3. 시스템이 조회된 결과, 차트 옵션, 레이아웃을 새 스냅샷 버전으로 저장한다.
+4. 시스템이 새 버전을 캡처 시각과 함께 버전 이력에 표시한다.
 
-## Alternative Flows
+## 대안 흐름
 
-### A1: A Widget Fails to Retrieve
+### A1: 위젯 조회 실패
 
-**Trigger:** One or more widgets cannot retrieve their data (step 2)  
-**Flow:**
+**트리거:** 하나 이상의 위젯이 데이터를 조회하지 못한다 (2단계)  
+**흐름:**
 
-1. System records an error marker for each failed widget in the snapshot.
-2. System completes the capture for the remaining widgets.
-3. System notifies the author which widgets failed.
-4. Use case continues at step 4.
+1. 시스템이 실패한 각 위젯에 오류 표시를 스냅샷에 기록한다.
+2. 시스템이 나머지 위젯의 캡처를 완료한다.
+3. 시스템이 실패한 위젯을 작성자에게 알린다.
+4. 4단계에서 계속.
 
-### A2: Result Exceeds Storage Limit
+### A2: 저장 한계 초과
 
-**Trigger:** A widget's retrieved rows exceed the snapshot storage limit (step 3)  
-**Flow:**
+**트리거:** 위젯의 조회 결과가 스냅샷 저장 한계를 넘는다 (3단계)  
+**흐름:**
 
-1. System truncates the stored rows to the limit and records the truncation on that widget.
-2. The stored edition visibly indicates the truncation when rendered.
-3. Use case continues at step 4.
+1. 시스템이 저장 행을 한계까지 자르고 해당 위젯에 잘림을 기록한다.
+2. 렌더링된 에디션이 잘림을 시각적으로 표시한다.
+3. 4단계에서 계속.
 
-### A3: Report Has No Widgets
+### A3: 리포트에 위젯이 없음
 
-**Trigger:** The report contains no widgets (step 2)  
-**Flow:**
+**트리거:** 리포트에 위젯이 하나도 없다 (2단계)  
+**흐름:**
 
-1. System informs the author that an empty report cannot be captured.
-2. Use case ends.
+1. 시스템이 빈 리포트는 캡처할 수 없음을 알린다.
+2. 유스케이스 종료.
 
-## Postconditions
+## 사후 조건
 
-### Success Postconditions
+### 성공 사후 조건
 
-- A new snapshot version exists containing stored results, chart options, and layout
-- The snapshot is immutable and independently shareable
-- No data source credentials or connection details are stored in the snapshot
+- 저장된 결과, 차트 옵션, 레이아웃을 담은 새 스냅샷 버전이 존재한다
+- 스냅샷은 불변이며 독립적으로 공유 가능하다
+- 스냅샷에 데이터 소스 자격 증명이나 접속 정보가 저장되지 않는다
 
-### Failure Postconditions
+### 실패 사후 조건
 
-- No snapshot is created
-- Previous versions and the report remain unchanged
+- 스냅샷이 생성되지 않는다
+- 이전 버전들과 리포트는 변하지 않는다
 
-## Business Rules
+## 비즈니스 규칙
 
-### BR-001: Snapshots Are Immutable
+### BR-001: 스냅샷은 불변
 
-Once stored, a snapshot's contents never change. Updated data requires a new
-capture producing a new version.
+한번 저장된 스냅샷의 내용은 절대 바뀌지 않는다. 갱신된 데이터는 새 버전을
+만드는 새 캡처로만 반영된다.
 
-### BR-002: Snapshots Carry No Secrets
+### BR-002: 스냅샷은 비밀을 담지 않는다
 
-A snapshot stores result rows and presentation options only — never data
-source credentials, connection strings, or query text containing secrets.
+스냅샷은 결과 행과 표현 옵션만 저장한다 — 데이터 소스 자격 증명, 접속
+문자열, 비밀이 포함된 쿼리문은 절대 저장하지 않는다.

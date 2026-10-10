@@ -1,78 +1,78 @@
-# Use Case: Edit Shared Report
+# 유스케이스: 공유 리포트 편집
 
-## Overview
+## 개요
 
-**Use Case ID:** UC-006  
-**Use Case Name:** Edit Shared Report  
-**Primary Actor:** Recipient  
-**Goal:** Modify a shared report in place — its widgets, layout, and titles — so the shared report reflects the collaboration  
-**Trigger:** Recipient with an Editor link chooses to edit the shared report  
-**Status:** Draft
+**유스케이스 ID:** UC-006  
+**유스케이스명:** Edit Shared Report  
+**주 액터:** 수신자  
+**목표:** 공유 리포트의 위젯, 레이아웃, 제목을 제자리에서 수정해 협업 결과를 리포트에 반영한다  
+**시작 이벤트:** 에디터 링크를 가진 수신자가 공유 리포트의 편집을 선택한다  
+**상태:** Draft
 
-**Requirements:** [FR-006, NFR-008, C-004](../requirements.md)
+**요구사항:** [FR-006, NFR-008, C-004](../requirements.md)
 
-## Preconditions
+## 사전 조건
 
-- Recipient holds an Editor-role share link and is signed in
-- The shared report exists
+- 수신자가 에디터 역할의 공유 링크를 보유하고 로그인한 상태다
+- 공유 리포트가 존재한다
 
-## Main Success Scenario
+## 주 성공 시나리오
 
-1. Recipient opens the shared report and enters editing.
-2. Recipient modifies the report — widgets, layout, or titles.
-3. Recipient saves the changes.
-4. System stores the new report state and records it as a new version.
-5. Everyone viewing the report sees the updated state.
+1. 수신자가 공유 리포트를 열고 편집을 시작한다.
+2. 수신자가 리포트 — 위젯, 레이아웃, 제목 — 를 수정한다.
+3. 수신자가 변경을 저장한다.
+4. 시스템이 새 리포트 상태를 저장하고 새 버전으로 기록한다.
+5. 리포트를 보는 모든 사람이 갱신된 상태를 본다.
 
-## Alternative Flows
+## 대안 흐름
 
-### A1: Changes Rejected as Invalid
+### A1: 유효하지 않은 변경
 
-**Trigger:** The modification fails validation — e.g. a widget refers to a removed dataset (step 3)  
-**Flow:**
+**트리거:** 수정이 검증에 실패한다 — 예: 삭제된 데이터셋을 참조하는 위젯 (3단계)  
+**흐름:**
 
-1. System rejects the save and explains the problem.
-2. Recipient corrects or discards the changes.
-3. Use case continues at step 3 or ends.
+1. 시스템이 저장을 거부하고 문제를 설명한다.
+2. 수신자가 변경을 수정하거나 버린다.
+3. 3단계에서 계속하거나 유스케이스 종료.
 
-### A2: Concurrent Edit
+### A2: 동시 편집
 
-**Trigger:** Another editor saved the report while this recipient was editing (step 3)  
-**Flow:**
+**트리거:** 수신자가 편집하는 동안 다른 에디터가 리포트를 저장했다 (3단계)  
+**흐름:**
 
-1. System accepts the last save and records both states in the version history.
-2. System informs the recipient their save replaced a concurrent change.
-3. Use case continues at step 4.
+1. 시스템이 마지막 저장을 수용하고 두 상태를 모두 버전 이력에 기록한다.
+2. 시스템이 동시 변경을 덮어썼음을 수신자에게 알린다.
+3. 4단계에서 계속.
 
-### A3: Recipient Discards Changes
+### A3: 수신자가 변경 폐기
 
-**Trigger:** Recipient abandons editing without saving (step 2–3)  
-**Flow:**
+**트리거:** 수신자가 저장 없이 편집을 그만둔다 (2–3단계)  
+**흐름:**
 
-1. System discards the unsaved modifications.
-2. Use case ends.
+1. 시스템이 저장되지 않은 수정을 버린다.
+2. 유스케이스 종료.
 
-## Postconditions
+## 사후 조건
 
-### Success Postconditions
+### 성공 사후 조건
 
-- The shared report reflects the saved modifications
-- A restorable version of the prior state exists
-- The report's share links, editions, and ownership are unchanged
+- 공유 리포트가 저장된 수정을 반영한다
+- 이전 상태의 복원 가능한 버전이 존재한다
+- 리포트의 공유 링크, 에디션, 소유권은 변하지 않는다
 
-### Failure Postconditions
+### 실패 사후 조건
 
-- The report's stored state is unchanged
-- Existing versions remain intact
+- 리포트의 저장된 상태는 변하지 않는다
+- 기존 버전들은 그대로 유지된다
 
-## Business Rules
+## 비즈니스 규칙
 
-### BR-001: Editors Need Identity
+### BR-001: 에디터는 신원이 필요하다
 
-Editing a shared report requires a signed-in account so every change is
-attributable — anonymous viewing never implies anonymous editing.
+공유 리포트 편집은 로그인 계정을 요구한다 — 모든 변경이 귀속되어야 하므로,
+익명 열람이 익명 편집을 의미하지는 않는다.
 
-### BR-002: Every Save Keeps History
+### BR-002: 모든 저장은 이력을 남긴다
 
-Each save records the prior state as a restorable version; no edit destroys
-the ability to go back.
+각 저장은 이전 상태를 복원 가능한 버전으로 기록한다 — 어떤 편집도 되돌릴
+수단을 파괴하지 않는다.

@@ -1,77 +1,77 @@
-# Use Case: Manage Share Access
+# 유스케이스: 공유 접근 관리
 
-## Overview
+## 개요
 
-**Use Case ID:** UC-010  
-**Use Case Name:** Manage Share Access  
-**Primary Actor:** Report Author  
-**Goal:** Review, extend, replace, or withdraw the share links of a report so that access stays under the author's control  
-**Trigger:** Report Author opens the share management of a report  
-**Status:** Draft
+**유스케이스 ID:** UC-010  
+**유스케이스명:** Manage Share Access  
+**주 액터:** 리포트 작성자  
+**목표:** 리포트의 공유 링크를 검토·연장·교체·철회해 접근 권한을 작성자 통제 아래 둔다  
+**시작 이벤트:** 리포트 작성자가 리포트의 공유 관리를 연다  
+**상태:** Draft
 
-**Requirements:** [FR-008, NFR-007](../requirements.md)
+**요구사항:** [FR-008, NFR-007](../requirements.md)
 
-## Preconditions
+## 사전 조건
 
-- Report Author is signed in and owns the report
-- The report has at least one share link
+- 리포트 작성자가 로그인하고 리포트를 소유한다
+- 리포트에 공유 링크가 하나 이상 있다
 
-## Main Success Scenario
+## 주 성공 시나리오
 
-1. Author opens the report's share management.
-2. System lists the report's links with their edition, role, expiry, and status.
-3. Author withdraws a link.
-4. System deactivates the link and every scoped access bound to it.
-5. The link immediately stops granting access.
+1. 작성자가 리포트의 공유 관리를 연다.
+2. 시스템이 각 링크의 에디션, 역할, 만료일, 상태를 목록으로 보여준다.
+3. 작성자가 링크를 철회한다.
+4. 시스템이 링크와 그에 바인딩된 모든 스코프 접근을 비활성화한다.
+5. 링크가 즉시 접근 부여를 멈춘다.
 
-## Alternative Flows
+## 대안 흐름
 
-### A1: Extend or Shorten Expiry
+### A1: 만료일 연장 또는 단축
 
-**Trigger:** Author changes a link's expiry instead of withdrawing it (step 3)  
-**Flow:**
+**트리거:** 작성자가 철회 대신 링크의 만료일을 바꾼다 (3단계)  
+**흐름:**
 
-1. System applies the new expiry.
-2. Use case continues at step 4.
+1. 시스템이 새 만료일을 적용한다.
+2. 4단계에서 계속.
 
-### A2: Replace the Link
+### A2: 링크 교체
 
-**Trigger:** Author wants the same grant under a fresh URL (step 3)  
-**Flow:**
+**트리거:** 작성자가 같은 권한의 새 URL을 원한다 (3단계)  
+**흐름:**
 
-1. System withdraws the old link and issues a new one with identical grant.
-2. System returns the new link to the author.
-3. Use case continues at step 5.
+1. 시스템이 기존 링크를 철회하고 동일 권한의 새 링크를 발급한다.
+2. 시스템이 새 링크를 작성자에게 반환한다.
+3. 5단계에서 계속.
 
-### A3: Withdraw All Links
+### A3: 모든 링크 철회
 
-**Trigger:** Author revokes every share link of the report (step 3)  
-**Flow:**
+**트리거:** 작성자가 리포트의 모든 공유 링크를 철회한다 (3단계)  
+**흐름:**
 
-1. System asks for confirmation and lists affected links.
-2. Author confirms: System deactivates all links and their scoped access.
-3. Use case continues at step 5.
+1. 시스템이 확인을 요청하고 영향받는 링크를 나열한다.
+2. 작성자가 확정하면 시스템이 모든 링크와 스코프 접근을 비활성화한다.
+3. 5단계에서 계속.
 
-## Postconditions
+## 사후 조건
 
-### Success Postconditions
+### 성공 사후 조건
 
-- The chosen links no longer grant access; their scoped access is dead
-- Remaining links keep their grants untouched
-- The report and its versions are unchanged
+- 선택된 링크가 더 이상 접근을 부여하지 않고 그 스코프 접근도 죽는다
+- 나머지 링크는 권한이 그대로 유지된다
+- 리포트와 버전들은 변하지 않는다
 
-### Failure Postconditions
+### 실패 사후 조건
 
-- Every link keeps its prior state — no partial withdrawal occurs
+- 모든 링크가 이전 상태를 유지한다 — 부분적인 철회는 일어나지 않는다
 
-## Business Rules
+## 비즈니스 규칙
 
-### BR-001: Withdrawal Is Immediate and Total
+### BR-001: 철회는 즉각적이고 완전하다
 
-A withdrawn link denies every subsequent access, including through tools and
-cached sessions; there is no grace period.
+철회된 링크는 도구와 캐시된 세션을 포함한 이후의 모든 접근을 거부한다 —
+유예 기간은 없다.
 
-### BR-002: Withdrawal Is Not Recall
+### BR-002: 철회는 회수가 아니다
 
-Withdrawing a link stops future access only — it does not erase what a
-recipient already saw or copied while the link was valid.
+링크 철회는 미래의 접근만 차단한다 — 링크가 유효했던 동안 수신자가 보거나
+복사한 것을 지우지는 못한다.

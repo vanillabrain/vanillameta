@@ -1,64 +1,64 @@
-# Use Case: Restore Report Version
+# 유스케이스: 리포트 버전 복원
 
-## Overview
+## 개요
 
-**Use Case ID:** UC-009  
-**Use Case Name:** Restore Report Version  
-**Primary Actor:** Report Author  
-**Goal:** Return a report's current state to a chosen earlier version without losing the history between them  
-**Trigger:** Report Author requests restoration of a report version  
-**Status:** Draft
+**유스케이스 ID:** UC-009  
+**유스케이스명:** Restore Report Version  
+**주 액터:** 리포트 작성자  
+**목표:** 리포트의 현재 상태를 선택한 과거 버전으로 되돌리되 그 사이의 이력은 잃지 않는다  
+**시작 이벤트:** 리포트 작성자가 리포트 버전의 복원을 요청한다  
+**상태:** Draft
 
-**Requirements:** [FR-007, FR-014](../requirements.md)
+**요구사항:** [FR-007, FR-014](../requirements.md)
 
-## Preconditions
+## 사전 조건
 
-- Report Author is signed in and owns the report
-- The report has at least one earlier version
+- 리포트 작성자가 로그인하고 리포트를 소유한다
+- 리포트에 과거 버전이 하나 이상 있다
 
-## Main Success Scenario
+## 주 성공 시나리오
 
-1. Author opens the report's version history.
-2. System lists versions with their capture times and origins.
-3. Author selects a version and previews it.
-4. Author confirms the restore.
-5. System makes the chosen state the report's current state, keeping every version in history.
+1. 작성자가 리포트의 버전 이력을 연다.
+2. 시스템이 캡처 시각과 출처가 표시된 버전 목록을 보여준다.
+3. 작성자가 버전을 선택해 미리 본다.
+4. 작성자가 복원을 확정한다.
+5. 시스템이 선택된 상태를 리포트의 현재 상태로 만들고 모든 버전을 이력에 보존한다.
 
-## Alternative Flows
+## 대안 흐름
 
-### A1: Author Cancels at Preview
+### A1: 미리보기에서 취소
 
-**Trigger:** Author decides against the selected version (step 4)  
-**Flow:**
+**트리거:** 작성자가 선택한 버전의 복원을 포기한다 (4단계)  
+**흐름:**
 
-1. System discards the pending restore.
-2. Use case ends.
+1. 시스템이 대기 중인 복원을 버린다.
+2. 유스케이스 종료.
 
-### A2: Bindings Changed Since the Version
+### A2: 바인딩이 변경됨
 
-**Trigger:** The chosen version's dataset bindings no longer match available datasets (step 4)  
-**Flow:**
+**트리거:** 선택된 버전의 데이터셋 바인딩이 현재 사용 가능한 데이터셋과 맞지 않는다 (4단계)  
+**흐름:**
 
-1. System warns which bindings will be broken by the restore.
-2. Author confirms: the restore proceeds and affected widgets are marked for reconnection.
-3. Author cancels: Use case ends.
+1. 시스템이 복원으로 깨질 바인딩을 경고한다.
+2. 작성자가 확정하면 복원이 진행되고 영향받는 위젯이 재연결 필요로 표시된다.
+3. 작성자가 취소하면 유스케이스 종료.
 
-## Postconditions
+## 사후 조건
 
-### Success Postconditions
+### 성공 사후 조건
 
-- The report's current state equals the chosen version's stored structure and bindings
-- All versions, including the one that was current, remain in history
-- Share links bound to specific versions still serve those versions
+- 리포트의 현재 상태가 선택된 버전의 저장된 구조와 바인딩과 같다
+- 당시 현재였던 것을 포함한 모든 버전이 이력에 남는다
+- 특정 버전에 고정된 공유 링크는 여전히 그 버전을 서빙한다
 
-### Failure Postconditions
+### 실패 사후 조건
 
-- The report's current state is unchanged
-- No version is deleted or altered
+- 리포트의 현재 상태는 변하지 않는다
+- 어떤 버전도 삭제되거나 변경되지 않는다
 
-## Business Rules
+## 비즈니스 규칙
 
-### BR-001: Restore Never Rewrites History
+### BR-001: 복원은 이력을 다시 쓰지 않는다
 
-Restoring creates a new current state; it never deletes or overwrites a
-version — the restored state itself becomes the newest entry.
+복원은 새로운 현재 상태를 만들 뿐 버전을 삭제하거나 덮어쓰지 않는다 —
+복원된 상태 자체가 최신 항목이 된다.

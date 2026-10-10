@@ -1,80 +1,80 @@
-# Use Case: Publish Live Edition
+# 유스케이스: 라이브 에디션 발행
 
-## Overview
+## 개요
 
-**Use Case ID:** UC-001  
-**Use Case Name:** Publish Live Edition  
-**Primary Actor:** Report Author  
-**Goal:** Create a share link that renders the report with data freshly retrieved from the data source on every open  
-**Trigger:** Report Author requests sharing of a report as a live edition  
-**Status:** Draft
+**유스케이스 ID:** UC-001  
+**유스케이스명:** Publish Live Edition  
+**주 액터:** 리포트 작성자  
+**목표:** 열 때마다 데이터 소스에서 최신 데이터를 조회해 렌더링하는 공유 링크를 발행한다  
+**시작 이벤트:** 리포트 작성자가 리포트를 라이브 에디션으로 공유하기를 요청한다  
+**상태:** Draft
 
-**Requirements:** [FR-001, FR-004, FR-011, NFR-002, NFR-003, C-004](../requirements.md)
+**요구사항:** [FR-001, FR-004, FR-011, NFR-002, NFR-003, C-004](../requirements.md)
 
-## Preconditions
+## 사전 조건
 
-- Report Author is signed in
-- The report exists and contains at least one widget bound to a dataset
+- 리포트 작성자가 로그인한 상태다
+- 리포트가 존재하며 데이터셋에 바인딩된 위젯이 하나 이상 있다
 
-## Main Success Scenario
+## 주 성공 시나리오
 
-1. Author opens the sharing settings of the report.
-2. System presents the available edition choices and role choices.
-3. Author selects the live edition and a role (Viewer or Editor).
-4. Author optionally sets an expiry date and remix permission.
-5. System issues a share link encoding the chosen edition, role, and permissions.
-6. Author copies the link and hands it to recipients.
+1. 작성자가 리포트의 공유 설정을 연다.
+2. 시스템이 선택 가능한 에디션과 역할을 보여준다.
+3. 작성자가 라이브 에디션과 역할(뷰어 또는 에디터)을 선택한다.
+4. 작성자가 선택적으로 만료일과 리믹스 허용 여부를 정한다.
+5. 시스템이 선택된 에디션, 역할, 권한을 담은 공유 링크를 발급한다.
+6. 작성자가 링크를 복사해 수신자에게 전달한다.
 
-## Alternative Flows
+## 대안 흐름
 
-### A1: Expiry Date Invalid
+### A1: 만료일이 유효하지 않음
 
-**Trigger:** Author sets an expiry date in the past (step 4)  
-**Flow:**
+**트리거:** 작성자가 과거 날짜를 만료일로 입력한다 (4단계)  
+**흐름:**
 
-1. System rejects the date and explains the requirement.
-2. Author corrects or clears the expiry date.
-3. Use case continues at step 5.
+1. 시스템이 날짜를 거부하고 요구 조건을 설명한다.
+2. 작성자가 만료일을 수정하거나 지운다.
+3. 5단계에서 계속.
 
-### A2: Live Link Already Exists
+### A2: 라이브 링크가 이미 존재함
 
-**Trigger:** An active live-edition link with the same role already exists for the report (step 5)  
-**Flow:**
+**트리거:** 같은 역할의 활성 라이브 링크가 이미 있다 (5단계)  
+**흐름:**
 
-1. System presents the existing link and offers to reuse or replace it.
-2. Author chooses reuse: use case continues at step 6 with the existing link.
-3. Author chooses replace: System withdraws the old link and issues a new one.
-4. Use case continues at step 6.
+1. 시스템이 기존 링크를 보여주며 재사용 또는 교체를 제안한다.
+2. 작성자가 재사용을 선택하면 기존 링크로 6단계에서 계속.
+3. 작성자가 교체를 선택하면 시스템이 기존 링크를 철회하고 새 링크를 발급한다.
+4. 6단계에서 계속.
 
-### A3: Author Cancels
+### A3: 작성자가 취소함
 
-**Trigger:** Author leaves the sharing settings without confirming (step 3–4)  
-**Flow:**
+**트리거:** 작성자가 확정 없이 공유 설정을 닫는다 (3–4단계)  
+**흐름:**
 
-1. System discards the unsaved choices.
-2. Use case ends.
+1. 시스템이 저장되지 않은 선택을 버린다.
+2. 유스케이스 종료.
 
-## Postconditions
+## 사후 조건
 
-### Success Postconditions
+### 성공 사후 조건
 
-- An active live-edition share link exists for the report with the chosen role and expiry
-- Every open of the link retrieves current data from the data source
+- 선택된 역할과 만료일을 가진 활성 라이브 에디션 링크가 존재한다
+- 링크를 열 때마다 데이터 소스에서 최신 데이터를 조회한다
 
-### Failure Postconditions
+### 실패 사후 조건
 
-- No share link is created or modified
-- Existing share links and the report remain unchanged
+- 공유 링크가 생성되거나 변경되지 않는다
+- 기존 공유 링크와 리포트는 변하지 않는다
 
-## Business Rules
+## 비즈니스 규칙
 
-### BR-001: Live Editions Require Identified Recipients
+### BR-001: 라이브 에디션은 식별된 수신자만
 
-A live-edition link never grants anonymous access. Recipients must hold a
-signed-in account or valid scoped access, because a live link is a path to the
-data source.
+라이브 에디션 링크는 익명 접근을 허용하지 않는다. 수신자는 로그인 계정이나
+유효한 스코프 접근 권한을 보유해야 한다 — 라이브 링크는 데이터 소스로 가는
+통로이기 때문이다.
 
-### BR-002: Live Queries Stay Read-Only
+### BR-002: 라이브 쿼리는 읽기 전용
 
-Queries executed through a live share link are read-only and bounded to the
-report's own datasets.
+라이브 공유 링크를 통해 실행되는 쿼리는 읽기 전용이며 해당 리포트의
+데이터셋으로 범위가 제한된다.

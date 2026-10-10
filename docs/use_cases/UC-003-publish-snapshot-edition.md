@@ -1,83 +1,83 @@
-# Use Case: Publish Snapshot Edition
+# 유스케이스: 스냅샷 에디션 발행
 
-## Overview
+## 개요
 
-**Use Case ID:** UC-003  
-**Use Case Name:** Publish Snapshot Edition  
-**Primary Actor:** Report Author  
-**Goal:** Issue a share link that serves a chosen frozen version of the report without touching the data source  
-**Trigger:** Report Author requests sharing of a report as a snapshot edition  
-**Status:** Draft
+**유스케이스 ID:** UC-003  
+**유스케이스명:** Publish Snapshot Edition  
+**주 액터:** 리포트 작성자  
+**목표:** 데이터 소스를 건드리지 않고 선택한 동결 버전을 서빙하는 공유 링크를 발행한다  
+**시작 이벤트:** 리포트 작성자가 리포트를 스냅샷 에디션으로 공유하기를 요청한다  
+**상태:** Draft
 
-**Requirements:** [FR-003, FR-004, FR-014, NFR-001, NFR-005, C-004](../requirements.md)
+**요구사항:** [FR-003, FR-004, FR-014, NFR-001, NFR-005, C-004](../requirements.md)
 
-## Preconditions
+## 사전 조건
 
-- Report Author is signed in
-- The report exists
+- 리포트 작성자가 로그인한 상태다
+- 리포트가 존재한다
 
-## Main Success Scenario
+## 주 성공 시나리오
 
-1. Author opens the sharing settings of the report.
-2. Author selects the snapshot edition.
-3. System presents the report's snapshot versions.
-4. Author chooses a version (default: latest), a role, remix permission, and optional expiry.
-5. System issues a share link bound to the chosen version.
-6. Author copies the link and hands it to recipients.
+1. 작성자가 리포트의 공유 설정을 연다.
+2. 작성자가 스냅샷 에디션을 선택한다.
+3. 시스템이 리포트의 스냅샷 버전 목록을 보여준다.
+4. 작성자가 버전(기본: 최신), 역할, 리믹스 허용 여부, 선택적 만료일을 고른다.
+5. 시스템이 선택된 버전에 고정된 공유 링크를 발급한다.
+6. 작성자가 링크를 복사해 수신자에게 전달한다.
 
-## Alternative Flows
+## 대안 흐름
 
-### A1: No Snapshot Exists
+### A1: 스냅샷이 없음
 
-**Trigger:** The report has no snapshot versions (step 3)  
-**Flow:**
+**트리거:** 리포트에 스냅샷 버전이 없다 (3단계)  
+**흐름:**
 
-1. System informs the author a snapshot is required and offers to capture one.
-2. Author accepts: System performs snapshot capture (see UC-002).
-3. Use case continues at step 3.
-4. Author declines: Use case ends.
+1. 시스템이 스냅샷이 필요함을 알리고 캡처를 제안한다.
+2. 작성자가 수락하면 시스템이 스냅샷 캡처를 수행한다(UC-002 참조).
+3. 3단계에서 계속.
+4. 작성자가 거절하면 유스케이스 종료.
 
-### A2: Repoint Existing Link to a Newer Version
+### A2: 기존 링크를 새 버전으로 재지정
 
-**Trigger:** A snapshot link already exists and a newer version is available (step 4)  
-**Flow:**
+**트리거:** 스냅샷 링크가 이미 있고 더 새로운 버전이 존재한다 (4단계)  
+**흐름:**
 
-1. System offers to repoint the existing link to the newer version.
-2. Author accepts: System rebinds the existing link; its URL stays the same.
-3. Author declines: System issues a separate link for the chosen version.
-4. Use case continues at step 5.
+1. 시스템이 기존 링크를 최신 버전으로 재지정할지 제안한다.
+2. 작성자가 수락하면 시스템이 기존 링크를 재바인딩하고 URL은 그대로 유지된다.
+3. 작성자가 거절하면 시스템이 선택된 버전용 별도 링크를 발급한다.
+4. 5단계에서 계속.
 
-### A3: Expiry Date Invalid
+### A3: 만료일이 유효하지 않음
 
-**Trigger:** Author sets an expiry date in the past (step 4)  
-**Flow:**
+**트리거:** 작성자가 과거 날짜를 만료일로 입력한다 (4단계)  
+**흐름:**
 
-1. System rejects the date and explains the requirement.
-2. Author corrects or clears the expiry date.
-3. Use case continues at step 5.
+1. 시스템이 날짜를 거부하고 요구 조건을 설명한다.
+2. 작성자가 만료일을 수정하거나 지운다.
+3. 5단계에서 계속.
 
-## Postconditions
+## 사후 조건
 
-### Success Postconditions
+### 성공 사후 조건
 
-- An active share link exists bound to a specific snapshot version
-- Opening the link renders stored results only; the data source is never contacted
-- The link may grant anonymous access when its role is Viewer
+- 특정 스냅샷 버전에 고정된 활성 공유 링크가 존재한다
+- 링크를 열면 저장된 결과만 렌더링하고 데이터 소스에는 전혀 접근하지 않는다
+- 역할이 뷰어인 링크는 익명 접근을 허용할 수 있다
 
-### Failure Postconditions
+### 실패 사후 조건
 
-- No share link is created or modified
-- Existing share links and snapshot versions remain unchanged
+- 공유 링크가 생성되거나 변경되지 않는다
+- 기존 공유 링크와 스냅샷 버전은 변하지 않는다
 
-## Business Rules
+## 비즈니스 규칙
 
-### BR-001: Anonymous Access Is Snapshot-Only
+### BR-001: 익명 접근은 스냅샷뿐
 
-Only snapshot-edition links with the Viewer role may be opened without signing
-in. Every other grant requires an identified recipient.
+뷰어 역할의 스냅샷 에디션 링크만 로그인 없이 열 수 있다. 그 외 모든 권한은
+식별된 수신자를 요구한다.
 
-### BR-002: A Link Pins One Version
+### BR-002: 링크는 하나의 버전에 고정
 
-Each snapshot link serves exactly one version. Sharing a newer version means
-repointing the link or issuing a new link — a served edition never changes
-underneath its readers.
+각 스냅샷 링크는 정확히 하나의 버전을 서빙한다. 더 새로운 버전을 공유하려면
+링크를 재지정하거나 새 링크를 발급한다 — 서빙 중인 에디션이 독자 아래서
+바뀌는 일은 없다.

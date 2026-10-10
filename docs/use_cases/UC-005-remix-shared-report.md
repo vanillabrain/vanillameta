@@ -1,78 +1,77 @@
-# Use Case: Remix Shared Report
+# 유스케이스: 공유 리포트 리믹스
 
-## Overview
+## 개요
 
-**Use Case ID:** UC-005  
-**Use Case Name:** Remix Shared Report  
-**Primary Actor:** Recipient  
-**Goal:** Obtain an independent editable copy of a shared report in the recipient's own workspace, leaving the original untouched  
-**Trigger:** Recipient requests to remix a shared report  
-**Status:** Draft
+**유스케이스 ID:** UC-005  
+**유스케이스명:** Remix Shared Report  
+**주 액터:** 수신자  
+**목표:** 원본을 건드리지 않고 공유 리포트의 독립적인 편집 가능 사본을 자신의 작업공간에 얻는다  
+**시작 이벤트:** 수신자가 공유 리포트의 리믹스를 요청한다  
+**상태:** Draft
 
-**Requirements:** [FR-005, FR-013, C-004](../requirements.md)
+**요구사항:** [FR-005, FR-013, C-004](../requirements.md)
 
-## Preconditions
+## 사전 조건
 
-- Recipient holds a share link that permits remix
-- The shared report exists
+- 수신자가 리믹스를 허용하는 공유 링크를 보유한다
+- 공유된 리포트가 존재한다
 
-## Main Success Scenario
+## 주 성공 시나리오
 
-1. Recipient requests a remix of the shared report.
-2. System copies the report's structure, widgets, and dataset bindings into the recipient's workspace.
-3. System records the copy's origin — the source report and its version.
-4. Recipient opens the new copy as its owner and may edit it freely.
+1. 수신자가 공유 리포트의 리믹스를 요청한다.
+2. 시스템이 리포트의 구조, 위젯, 데이터셋 바인딩을 수신자의 작업공간으로 복사한다.
+3. 시스템이 사본의 출처 — 원본 리포트와 버전 — 를 기록한다.
+4. 수신자가 새 사본을 소유자로서 열고 자유롭게 편집할 수 있다.
 
-## Alternative Flows
+## 대안 흐름
 
-### A1: Recipient Not Signed In
+### A1: 수신자 미로그인
 
-**Trigger:** Recipient has no signed-in account (step 1)  
-**Flow:**
+**트리거:** 수신자가 로그인 계정이 없다 (1단계)  
+**흐름:**
 
-1. System asks the recipient to sign in or create an account.
-2. Recipient signs in.
-3. Use case continues at step 2.
-4. Recipient abandons sign-in: Use case ends.
+1. 시스템이 로그인 또는 가입을 요청한다.
+2. 수신자가 로그인한다.
+3. 2단계에서 계속.
+4. 수신자가 로그인을 포기하면 유스케이스 종료.
 
-### A2: Remix Not Permitted
+### A2: 리믹스 불가
 
-**Trigger:** The link does not grant remix permission (step 1)  
-**Flow:**
+**트리거:** 링크가 리믹스를 허용하지 않는다 (1단계)  
+**흐름:**
 
-1. System informs the recipient this report cannot be remixed.
-2. Use case ends.
+1. 시스템이 이 리포트는 리믹스할 수 없음을 알린다.
+2. 유스케이스 종료.
 
-### A3: Datasets Not Accessible to Recipient
+### A3: 수신자가 접근 불가한 데이터셋
 
-**Trigger:** The copy's dataset bindings point to data sources the recipient may not use (step 2)  
-**Flow:**
+**트리거:** 사본의 데이터셋 바인딩이 수신자가 사용할 수 없는 데이터 소스를 가리킨다 (2단계)  
+**흐름:**
 
-1. System copies the report with the edition's stored results carried along as static stand-in data.
-2. System marks those bindings for the recipient to reconnect to their own data source.
-3. Use case continues at step 3.
+1. 시스템이 해당 에디션의 저장된 결과를 정적 대체 데이터로 함께 복사한다.
+2. 시스템이 해당 바인딩을 수신자가 자기 데이터 소스에 다시 연결하도록 표시한다.
+3. 3단계에서 계속.
 
-## Postconditions
+## 사후 조건
 
-### Success Postconditions
+### 성공 사후 조건
 
-- An independent copy of the report exists in the recipient's workspace with recorded origin
-- The original report, its versions, and its share links are unchanged
+- 출처가 기록된 독립적인 리포트 사본이 수신자의 작업공간에 존재한다
+- 원본 리포트, 버전, 공유 링크는 변하지 않는다
 
-### Failure Postconditions
+### 실패 사후 조건
 
-- No copy is created
-- The original report is never modified by a remix attempt
+- 사본이 생성되지 않는다
+- 리믹스 시도로 원본 리포트가 수정되는 일은 없다
 
-## Business Rules
+## 비즈니스 규칙
 
-### BR-001: Remix Never Escalates Visibility
+### BR-001: 리믹스는 공개 범위를 넓히지 않는다
 
-A remixed copy never carries broader sharing grants than the source link
-allowed its recipient — private originals cannot become public copies by
-remix alone.
+리믹스된 사본은 원본 링크가 수신자에게 허용한 것보다 넓은 공유 권한을 갖지
+않는다 — 비공개 원본이 리믹스만으로 공개 사본이 되지는 않는다.
 
-### BR-002: Lineage Is Recorded
+### BR-002: 계보는 기록된다
 
-Every remixed copy records the report and version it was derived from, so
-provenance of derived work stays traceable.
+모든 리믹스 사본은 어떤 리포트의 어느 버전에서 파생됐는지 기록해, 파생
+작업의 출처 추적이 가능해야 한다.

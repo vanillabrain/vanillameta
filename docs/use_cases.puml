@@ -1,11 +1,11 @@
-@startuml Use Cases Overview
+@startuml 유스케이스 개요
 left to right direction
 
-actor "Report Author" as author
-actor "Recipient" as recipient
-actor "AI Agent" as agent
+actor "리포트 작성자" as author
+actor "수신자" as recipient
+actor "AI 에이전트" as agent
 
-rectangle "VanillaMeta Report Commons" {
+rectangle "VanillaMeta 리포트 커먼즈" {
     usecase "UC-001\nPublish Live Edition" as UC001
     usecase "UC-002\nCapture Report Snapshot" as UC002
     usecase "UC-003\nPublish Snapshot Edition" as UC003

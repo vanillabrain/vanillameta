@@ -1,20 +1,20 @@
-# Glossary
+# 용어집
 
-| Term | Definition | Avoid |
-|------|------------|-------|
-| Report | A named collection of widgets (charts, tables, KPI cards) laid out on a page, bound to datasets. The shareable unit of analysis. | dashboard, document |
-| Dataset | A query or file-bound source of rows that feeds one or more widgets. | datasource, table |
-| Data Source | An external system (database connection or uploaded file) whose data can be queried to refresh datasets. | connection |
-| Share Link | A URL that grants access to a Report outside the author's account, carrying a mode, a role, and an optional expiry. | invite, permalink |
-| Live Edition | A Share Link mode that renders fresh query results from the Data Source on every open. | live dashboard, realtime |
-| Snapshot | A frozen capture of a Report: the stored query results, chart options, and layout taken at one moment in time. Also the unit of Report versioning. | screenshot, export, PDF |
-| Snapshot Edition | A Share Link mode that renders a specific Snapshot and never touches the Data Source. | static link |
-| Role | The capability a Share Link grants its recipient: Viewer (view only) or Editor (modify the Report). | permission |
-| Viewer | A Role that may only view a shared Report. | reader |
-| Editor | A Role that may modify a shared Report in place. | collaborator |
-| Remix | The act of copying a shared Report into the recipient's own workspace as an independent editable copy, leaving the original untouched. | fork, duplicate, clone |
-| Version | One entry in a Report's snapshot history, restorable to become the current state. | revision |
-| Scoped Token | A credential that grants an AI Agent access to exactly one Share Link's tools and data scope. | API key |
-| AI Agent | An external LLM client (e.g. Claude, ChatGPT, IDE agent) that acts on a Report through the Scoped Token's tool surface. | bot, assistant |
-| Tool Surface | The set of operations a Share Link exposes to an AI Agent — inspect, query, remix, update — bounded by mode and Role. | API |
-| Workspace | The ownership boundary of a Report; remix targets the recipient's own Workspace. | project, organization |
+| 용어 | 정의 | 사용 금지 |
+|------|------|-----------|
+| 리포트 | 데이터셋에 바인딩된 위젯(차트, 표, KPI 카드)을 페이지에 배열한 이름 있는 모음. 공유 가능한 분석의 단위. | 대시보드, 문서 |
+| 데이터셋 | 하나 이상의 위젯에 행을 공급하는 쿼리 또는 파일 기반 소스. | 데이터소스(데이터 원천과 혼동), 테이블 |
+| 데이터 소스 | 데이터셋을 갱신하기 위해 쿼리할 수 있는 외부 시스템(DB 연결 또는 업로드된 파일). | 연결 |
+| 공유 링크 | 작성자 계정 밖에서 리포트 접근을 부여하는 URL — 에디션, 역할, 선택적 만료일을 담는다. | 초대, 퍼머링크 |
+| 라이브 에디션 | 열 때마다 데이터 소스에서 최신 쿼리 결과를 렌더링하는 공유 링크 모드. | 라이브 대시보드, 실시간 |
+| 스냅샷 | 특정 시점에 캡처된 리포트의 동결본 — 저장된 쿼리 결과, 차트 옵션, 레이아웃. 리포트 버전 관리의 단위이기도 하다. | 스크린샷, 내보내기, PDF |
+| 스냅샷 에디션 | 특정 스냅샷을 렌더링하고 데이터 소스에 전혀 접근하지 않는 공유 링크 모드. | 정적 링크 |
+| 역할 | 공유 링크가 수신자에게 부여하는 권한: 뷰어(보기만) 또는 에디터(리포트 수정). | 권한 |
+| 뷰어 | 공유 리포트를 보기만 할 수 있는 역할. | 읽기 사용자 |
+| 에디터 | 공유 리포트를 제자리에서 수정할 수 있는 역할. | 협업자 |
+| 리믹스 | 공유 리포트를 수신자 자신의 작업공간에 독립적인 편집 가능 사본으로 복사하는 행위 — 원본은 건드리지 않는다. | 포크, 복제, 클론 |
+| 버전 | 리포트의 스냅샷 이력의 한 항목 — 현재 상태가 되도록 복원할 수 있다. | 리비전 |
+| 스코프 토큰 | AI 에이전트에게 정확히 하나의 공유 링크의 도구와 데이터 범위만 부여하는 자격 증명. | API 키 |
+| AI 에이전트 | 스코프 토큰의 도구 표면을 통해 리포트에 행동하는 외부 LLM 클라이언트(예: Claude, ChatGPT, IDE 에이전트). | 봇, 어시스턴트 |
+| 도구 표면 | 공유 링크가 AI 에이전트에게 노출하는 작업 집합 — 조회, 질의, 리믹스, 수정 — 모드와 역할에 의해 경계가 정해진다. | API |
+| 작업공간 | 리포트 소유의 경계 — 모든 리믹스는 수신자 자신의 작업공간을 목적지로 한다. | 프로젝트, 조직 |
