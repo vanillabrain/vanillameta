@@ -10,7 +10,7 @@ describe('SeederService', () => {
   const OLD_CONFIG_SECRET = process.env.CONFIG_SECRET_KEY;
 
   const makeConfigService = (nodeEnv?: string) =>
-    ({ get: jest.fn((key: string) => (key === 'NODE_ENV' ? nodeEnv : undefined)) }) as any;
+    ({ get: jest.fn((key: string) => (key === 'NODE_ENV' ? nodeEnv : undefined)) } as any);
 
   const makeDataSource = (userCount: number, database = sqlitePath) => {
     const chains: any[] = [];

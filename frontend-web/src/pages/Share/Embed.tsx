@@ -60,10 +60,10 @@ const Embed = () => {
           {!isAllowedEmbed
             ? t('embed.notAllowed')
             : loading
-              ? t('embed.loading')
-              : isInvalidData === 401
-                ? t('embed.expired')
-                : t('embed.unavailable')}
+            ? t('embed.loading')
+            : isInvalidData === 401
+            ? t('embed.expired')
+            : t('embed.unavailable')}
         </Typography>
       </Box>
     );

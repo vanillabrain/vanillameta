@@ -81,8 +81,8 @@ export class DatabaseService {
       ext === '.json'
         ? this.parseJsonRows(file.buffer)
         : ext === '.parquet'
-          ? await this.parseParquetRows(file.buffer)
-          : this.parseCsvRows(file.buffer);
+        ? await this.parseParquetRows(file.buffer)
+        : this.parseCsvRows(file.buffer);
     if (!rows.length) {
       throw new BadRequestException('no rows found in the uploaded file');
     }

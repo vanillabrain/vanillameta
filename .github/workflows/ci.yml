@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, develop-v2]
   pull_request:
 
 jobs:
@@ -24,14 +24,14 @@ jobs:
       - run: npm ci --legacy-peer-deps --ignore-scripts
 
       - name: Lint
-        run: npm run lint
+        run: npx eslint src --ext .ts
 
       - name: Build
         run: npm run build
 
       - name: Unit tests
         # TODO: 나머지 spec suite는 DI mock이 없는 스캐폴딩 상태 — 정비 후 전체 jest로 전환
-        run: npx jest src/utils
+        run: npm test -- --runInBand
 
   frontend:
     runs-on: ubuntu-latest
@@ -51,6 +51,9 @@ jobs:
 
       - name: Typecheck
         run: npx tsc --noEmit
+
+      - name: Lint
+        run: npx eslint src e2e --ext .ts,.tsx
 
       - name: Unit tests
         run: npx vitest run

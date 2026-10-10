@@ -119,7 +119,7 @@ export class MetricService {
         ? Array.isArray(result[0])
           ? result[0]
           : result
-        : (result?.rows ?? []);
+        : result?.rows ?? [];
       return {
         status: ResponseStatus.SUCCESS,
         data: { metric: this.parseFilters(metric), result: rows },
@@ -143,9 +143,8 @@ export class MetricService {
       metric.aggregation === MetricAggregation.COUNT
         ? 'COUNT(*)'
         : metric.aggregation === MetricAggregation.COUNT_DISTINCT
-          ? (assertSafeIdentifier(metric.expression), `COUNT(DISTINCT ${metric.expression})`)
-          : (assertSafeIdentifier(metric.expression),
-            `${metric.aggregation}(${metric.expression})`);
+        ? (assertSafeIdentifier(metric.expression), `COUNT(DISTINCT ${metric.expression})`)
+        : (assertSafeIdentifier(metric.expression), `${metric.aggregation}(${metric.expression})`);
 
     if (metric.groupBy) assertSafeIdentifier(metric.groupBy);
 

@@ -21,7 +21,7 @@ describe('ConnectionService HTTP engines', () => {
       ok,
       json: () => Promise.resolve(body),
       text: () => Promise.resolve(JSON.stringify(body)),
-    }) as any;
+    } as any);
 
   describe('executeClickHouse', () => {
     const config = {

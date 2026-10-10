@@ -127,8 +127,8 @@ const FileAnalysis = () => {
         ext === 'parquet'
           ? `read_parquet('${file.name}')`
           : ext === 'json'
-            ? `read_json_auto('${file.name}')`
-            : `read_csv_auto('${file.name}')`;
+          ? `read_json_auto('${file.name}')`
+          : `read_csv_auto('${file.name}')`;
       await conn.query(`CREATE TABLE ${TABLE_NAME} AS SELECT * FROM ${readExpr}`);
       const preview = await conn.query(`SELECT * FROM ${TABLE_NAME} LIMIT 500`);
       const rows = toRows(preview);

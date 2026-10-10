@@ -11,7 +11,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
       void import('@sentry/nestjs').then(Sentry => Sentry.captureException(exception));
     }
     const err = exception.getResponse() as
-      string | { error: string; statusCode: 400; message: string[] };
+      | string
+      | { error: string; statusCode: 400; message: string[] };
     // let msg = '';
     if (typeof err !== 'string' && err.error === 'Bad Request') {
       return response.status(status).json({

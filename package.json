@@ -20,7 +20,7 @@
     "lint:api": "npm --prefix backend-api run lint",
     "lint:web": "npm --prefix frontend-web run lint",
     "test": "npm run test:api -- --runInBand && npm run test:web",
-    "test:api": "npm --prefix backend-api run test",
+    "test:api": "npm --prefix backend-api run test --",
     "test:web": "npm --prefix frontend-web run test",
     "seed": "npm --prefix backend-api run seed",
     "prepare": "husky"
@@ -29,7 +29,7 @@
     "concurrently": "^8.2.2",
     "husky": "^9.1.0",
     "lint-staged": "^15.2.0",
-    "prettier": "^3.3.0",
+    "prettier": "2.8.8",
     "turbo": "^2.1.0"
   },
   "lint-staged": {
