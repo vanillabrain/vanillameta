@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import ReactECharts from 'echarts-for-react';
 import { getAggregationDataForChart, getGridSize, getLegendOption } from '@/widget/modules/utils/chartUtil';
 import { AGGREGATION_LIST } from '@/constant';
 
 const LineChart = props => {
+  const { t } = useTranslation();
   const { option, dataSet, axis = 'x', seriesOp, defaultOp, createOp } = props;
   const reverseAxis = axis === 'x' ? 'y' : 'x';
 
@@ -53,7 +55,7 @@ const LineChart = props => {
           name:
             (item?.fieldLabel ? item.fieldLabel : item.field) +
             (option?.legendAggregation
-              ? ` (${AGGREGATION_LIST.find(element => element.value === item.aggregation).label})`
+              ? ` (${AGGREGATION_LIST(t).find(element => element.value === item.aggregation).label})`
               : ''),
           data: aggrData.map(dataItem => dataItem[item.field]),
           type: item.type ? item.type : 'line',

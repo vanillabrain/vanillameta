@@ -1,7 +1,9 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Box, Button, Stack } from '@mui/material';
 
 export const ConfirmButton = props => {
+  const { t } = useTranslation();
   const { confirmLabel, confirmProps, sx } = props;
   return (
     <Button variant="contained" sx={{ minWidth: '55px', minHeight: '32px', ...sx }} {...confirmProps}>
@@ -20,7 +22,15 @@ export const CancelButton = props => {
 };
 
 const ConfirmCancelButton = props => {
-  const { secondButton, firstButton, confirmLabel, cancelLabel, confirmProps, cancelProps } = props;
+  const { t } = useTranslation();
+  const {
+    secondButton,
+    firstButton,
+    confirmLabel = t('common.save'),
+    cancelLabel = t('common.cancel'),
+    confirmProps,
+    cancelProps,
+  } = props;
 
   return (
     <Stack direction="row-reverse" flexWrap="wrap" component="ul" spacing={{ xs: 1, md: 2 }} p={0}>
@@ -32,11 +42,6 @@ const ConfirmCancelButton = props => {
       </Box>
     </Stack>
   );
-};
-
-ConfirmCancelButton.defaultProps = {
-  confirmLabel: '저장',
-  cancelLabel: '취소',
 };
 
 export default ConfirmCancelButton;

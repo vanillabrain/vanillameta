@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { CreateDatabaseDto } from './dto/create-database.dto';
 import { UpdateDatabaseDto } from './dto/update-database.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -12,9 +12,20 @@ import { TableQuery } from '../widget/tabel-query/entity/table-query.entity';
 import { QueryExecuteDto } from './dto/query-execute.dto';
 import { DatabaseType } from './entities/database_type.entity';
 import { YesNo } from '../common/enum/yn.enum';
+import { decryptConnectionConfig, encryptConnectionConfig } from '../utils/crypto.util';
+import { assertSafeIdentifier } from '../utils/query-guard.util';
+import { knex } from 'knex';
+import * as fs from 'fs';
+import * as path from 'path';
+import { randomUUID } from 'crypto';
+
+const UPLOAD_TABLE = 'uploaded_data';
+const UPLOAD_MAX_ROWS = 100000;
 
 @Injectable()
 export class DatabaseService {
+  private readonly logger = new Logger(DatabaseService.name);
+
   constructor(
     @InjectRepository(Database) private databaseRepository: Repository<Database>,
     @InjectRepository(DatabaseType) private databaseTypeRepository: Repository<DatabaseType>,
@@ -48,12 +59,201 @@ export class DatabaseService {
       connectioninfo['connectionString'] = cockroach_url;
     }
 
-    databaseDto.connectionConfig = JSON.stringify(connectionConfig);
+    databaseDto.connectionConfig = encryptConnectionConfig(JSON.stringify(connectionConfig));
     databaseDto.timezone = 'Asia/Seoul';
 
     const saveResult = await this.databaseRepository.save(databaseDto);
-    saveResult.connectionConfig = JSON.parse(saveResult.connectionConfig);
+    saveResult.connectionConfig = JSON.parse(decryptConnectionConfig(saveResult.connectionConfig));
     return { status: ResponseStatus.SUCCESS, data: saveResult };
+  }
+
+  /**
+   * 업로드된 CSV/JSON 파일을 SQLite 기반 데이터소스로 저장한다.
+   * 파일은 FILE_UPLOAD_DIR(기본 <cwd>/uploads) 아래 <uuid>.db 로 기록되고,
+   * uploaded_data 테이블을 가진 sqlite database 레코드가 생성된다.
+   */
+  async uploadFile(file: { originalname: string; buffer: Buffer }) {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('file is required');
+    }
+    const ext = path.extname(file.originalname).toLowerCase();
+    const rows =
+      ext === '.json'
+        ? this.parseJsonRows(file.buffer)
+        : ext === '.parquet'
+        ? await this.parseParquetRows(file.buffer)
+        : this.parseCsvRows(file.buffer);
+    if (!rows.length) {
+      throw new BadRequestException('no rows found in the uploaded file');
+    }
+    if (rows.length > UPLOAD_MAX_ROWS) {
+      throw new BadRequestException(`row limit exceeded (max ${UPLOAD_MAX_ROWS})`);
+    }
+
+    // 컬럼명 sanitize + dedupe (식별자 인젝션 및 잘못된 헤더 방지)
+    const rawColumns = Object.keys(rows[0]);
+    const seen = new Set<string>();
+    const columns = rawColumns.map((name, i) => {
+      let safe = name.trim().replace(/[^A-Za-z0-9_]/g, '_');
+      if (!safe) safe = `col_${i + 1}`;
+      if (/^[0-9]/.test(safe)) safe = `_${safe}`;
+      while (seen.has(safe)) safe = `${safe}_`;
+      seen.add(safe);
+      return safe;
+    });
+    columns.forEach(c => assertSafeIdentifier(c));
+
+    // 최대 100행 샘플로 숫자 컬럼 추론
+    const numeric = columns.map((_, i) =>
+      rows.slice(0, 100).every(r => {
+        const v = r[rawColumns[i]];
+        return v === null || v === '' || !isNaN(Number(v));
+      }),
+    );
+
+    const uploadDir = process.env.FILE_UPLOAD_DIR || path.join(process.cwd(), 'uploads');
+    fs.mkdirSync(uploadDir, { recursive: true });
+    const dbPath = path.join(uploadDir, `${randomUUID()}.db`);
+    const db = knex({
+      client: 'sqlite3',
+      connection: { filename: dbPath },
+      useNullAsDefault: true,
+    });
+    try {
+      await db.schema.createTable(UPLOAD_TABLE, table => {
+        columns.forEach((c, i) => (numeric[i] ? table.float(c) : table.text(c)));
+      });
+      for (let i = 0; i < rows.length; i += 500) {
+        const batch = rows.slice(i, i + 500).map(r => {
+          const obj: Record<string, unknown> = {};
+          columns.forEach((c, j) => {
+            const v = r[rawColumns[j]];
+            obj[c] = v === '' ? null : typeof v === 'object' ? JSON.stringify(v) : v;
+          });
+          return obj;
+        });
+        await db(UPLOAD_TABLE).insert(batch);
+      }
+    } finally {
+      await db.destroy();
+    }
+
+    const baseName = path.basename(file.originalname, ext);
+    const databaseDto = new Database();
+    databaseDto.name = baseName;
+    databaseDto.description = `File upload: ${file.originalname}`;
+    databaseDto.engine = 'sqlite3';
+    databaseDto.type = 'sqlite';
+    databaseDto.timezone = 'Asia/Seoul';
+    databaseDto.connectionConfig = encryptConnectionConfig(
+      JSON.stringify({
+        client: 'sqlite3',
+        connection: { filename: dbPath },
+        useNullAsDefault: true,
+      }),
+    );
+    const saveResult = await this.databaseRepository.save(databaseDto);
+    return {
+      status: ResponseStatus.SUCCESS,
+      data: { id: saveResult.id, name: baseName, tableName: UPLOAD_TABLE, rows: rows.length },
+    };
+  }
+
+  /**
+   * CSV 텍스트 → 객체 배열 (따옴표/이스케이프/CRLF 처리)
+   */
+  private parseCsvRows(buffer: Buffer): Record<string, unknown>[] {
+    const text = buffer.toString('utf8').replace(/^\uFEFF/, '');
+    const grid: string[][] = [];
+    let field = '';
+    let row: string[] = [];
+    let inQuotes = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (inQuotes) {
+        if (c === '"') {
+          if (text[i + 1] === '"') {
+            field += '"';
+            i++;
+          } else {
+            inQuotes = false;
+          }
+        } else {
+          field += c;
+        }
+      } else if (c === '"' && field === '') {
+        inQuotes = true;
+      } else if (c === ',') {
+        row.push(field);
+        field = '';
+      } else if (c === '\n' || c === '\r') {
+        if (c === '\r' && text[i + 1] === '\n') i++;
+        row.push(field);
+        field = '';
+        if (row.length > 1 || row[0] !== '') grid.push(row);
+        row = [];
+      } else {
+        field += c;
+      }
+    }
+    if (field !== '' || row.length) {
+      row.push(field);
+      grid.push(row);
+    }
+    if (grid.length < 2) return [];
+    const header = grid[0];
+    return grid
+      .slice(1)
+      .filter(r => r.some(v => v !== ''))
+      .map(r => {
+        const obj: Record<string, unknown> = {};
+        header.forEach((h, i) => (obj[h] = r[i] ?? null));
+        return obj;
+      });
+  }
+
+  /**
+   * Parquet 버퍼 → 객체 배열 (parquetjs-lite, 서버에서 직접 디코딩)
+   */
+  private async parseParquetRows(buffer: Buffer): Promise<Record<string, unknown>[]> {
+    const { ParquetReader } = await import('parquetjs-lite');
+    let reader;
+    try {
+      reader = await ParquetReader.openBuffer(buffer);
+    } catch {
+      throw new BadRequestException('invalid parquet file');
+    }
+    const rows: Record<string, unknown>[] = [];
+    const cursor = reader.getCursor();
+    try {
+      let record = await cursor.next();
+      while (record && rows.length < UPLOAD_MAX_ROWS) {
+        rows.push(record);
+        record = await cursor.next();
+      }
+    } finally {
+      await reader.close();
+    }
+    return rows;
+  }
+
+  /**
+   * JSON 배열 → 객체 배열 (flat object만 허용)
+   */
+  private parseJsonRows(buffer: Buffer): Record<string, unknown>[] {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(buffer.toString('utf8'));
+    } catch {
+      throw new BadRequestException('invalid json file');
+    }
+    if (
+      !Array.isArray(parsed) ||
+      !parsed.every(item => item && typeof item === 'object' && !Array.isArray(item))
+    ) {
+      throw new BadRequestException('json file must contain an array of objects');
+    }
+    return parsed as Record<string, unknown>[];
   }
 
   /**
@@ -61,13 +261,26 @@ export class DatabaseService {
    */
   async findAll() {
     const result = await this.databaseRepository.find();
+    const alive: Database[] = [];
     result.forEach(db => {
-      db.connectionConfig = JSON.parse(db.connectionConfig);
+      try {
+        db.connectionConfig = JSON.parse(decryptConnectionConfig(db.connectionConfig));
+      } catch (e) {
+        this.logger.error(
+          `database ${db.id} (${db.name}): connection config decrypt failed`,
+          e instanceof Error ? e.message : e,
+        );
+        (db as any).connectionConfig = {};
+        (db as any).configError = true;
+        alive.push(db);
+        return;
+      }
       delete db.connectionConfig['password'];
       const configElement = db.connectionConfig['connection'];
       if (configElement) delete configElement['password'];
+      alive.push(db);
     });
-    return { status: ResponseStatus.SUCCESS, data: result };
+    return { status: ResponseStatus.SUCCESS, data: alive };
   }
 
   /**
@@ -77,7 +290,15 @@ export class DatabaseService {
   async findOne(id: number): Promise<any> {
     // 연동 db 정보
     const databaseInfo = await this.databaseRepository.findOne({ where: { id } });
-    databaseInfo.connectionConfig = JSON.parse(databaseInfo.connectionConfig).connection;
+    let connection: any;
+    try {
+      connection = JSON.parse(decryptConnectionConfig(databaseInfo.connectionConfig)).connection;
+    } catch {
+      throw new BadRequestException(
+        '데이터 소스 접속 정보를 복호화할 수 없습니다 (키가 변경됐거나 데이터가 손상됐습니다)',
+      );
+    }
+    databaseInfo.connectionConfig = connection;
 
     // table 정보 조회
     let selectTableQuery;
@@ -105,6 +326,15 @@ export class DatabaseService {
         break;
       case 'cockroachdb':
         selectTableQuery = `SELECT TABLE_NAME FROM information_schema.tables WHERE table_type = 'BASE TABLE'`;
+        break;
+      case 'clickhouse':
+        selectTableQuery = 'SHOW TABLES';
+        break;
+      case 'trino':
+        selectTableQuery = 'SHOW TABLES';
+        break;
+      case 'databricks':
+        selectTableQuery = 'SHOW TABLES';
         break;
       default:
         selectTableQuery = 'show tables';
@@ -148,7 +378,15 @@ export class DatabaseService {
   async findOneInfo(id: number): Promise<any> {
     // 연동 db 정보
     const databaseInfo = await this.databaseRepository.findOne({ where: { id } });
-    databaseInfo.connectionConfig = JSON.parse(databaseInfo.connectionConfig).connection;
+    let connection: any;
+    try {
+      connection = JSON.parse(decryptConnectionConfig(databaseInfo.connectionConfig)).connection;
+    } catch {
+      throw new BadRequestException(
+        '데이터 소스 접속 정보를 복호화할 수 없습니다 (키가 변경됐거나 데이터가 손상됐습니다)',
+      );
+    }
+    databaseInfo.connectionConfig = connection;
     delete databaseInfo.connectionConfig['password'];
     return { status: ResponseStatus.SUCCESS, data: { databaseInfo } };
   }
@@ -160,7 +398,9 @@ export class DatabaseService {
   private async findDB(id: number) {
     // 연동 db 정보
     const databaseInfo = await this.databaseRepository.findOne({ where: { id } });
-    databaseInfo.connectionConfig = JSON.parse(databaseInfo.connectionConfig);
+    databaseInfo.connectionConfig = JSON.parse(
+      decryptConnectionConfig(databaseInfo.connectionConfig),
+    );
     return databaseInfo;
   }
 
@@ -183,7 +423,7 @@ export class DatabaseService {
       connection: updateDatabaseDto.connectionConfig,
       useNullAsDefault: true,
     };
-    updateDatabaseDto.connectionConfig = JSON.stringify(connectionConfig);
+    updateDatabaseDto.connectionConfig = encryptConnectionConfig(JSON.stringify(connectionConfig));
 
     // const connectionConfig = {
     //   client: one.engine,
@@ -246,6 +486,7 @@ where ((datasetType = 'DATASET' and datasetId in (select id from dataset where d
     databaseId: number,
     datasetId?: number,
     tableName?: string,
+    clientId?: string,
   ) {
     if (datasetType === DatasetType.DATASET && datasetId === undefined) {
       return {
@@ -274,11 +515,13 @@ where ((datasetType = 'DATASET' and datasetId in (select id from dataset where d
         queryExecuteDto.id = datasetItem.databaseId;
         queryExecuteDto.query = datasetItem.query;
       } else {
+        assertSafeIdentifier(tableName);
         const databaseOne = await this.databaseRepository.findOne({ where: { id: databaseId } });
         let selectQuery;
         switch (databaseOne.type) {
           case 'bigquery':
-            const schemaName = JSON.parse(databaseOne.connectionConfig).connection.schema;
+            const schemaName = JSON.parse(decryptConnectionConfig(databaseOne.connectionConfig))
+              .connection.schema;
             selectQuery = `SELECT * FROM ${schemaName}.${tableName}`;
             break;
           case 'oracle':
@@ -292,7 +535,7 @@ where ((datasetType = 'DATASET' and datasetId in (select id from dataset where d
         queryExecuteDto.query = selectQuery;
       }
     }
-    const queryResult = await this.connectionService.executeQuery(queryExecuteDto);
+    const queryResult = await this.connectionService.executeQuery(queryExecuteDto, clientId);
     if (queryResult.status === 'ERROR') return queryResult;
     else
       return {

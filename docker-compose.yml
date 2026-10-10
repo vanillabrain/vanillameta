@@ -1,0 +1,65 @@
+services:
+  # ── 기본 스택: docker compose up ────────────────────────────────
+  # 외부 DB 없이 SQLite로 동작하는 올인원 데모. 시드 + 샘플 대시보드 자동 준비.
+  backend:
+    build: ./backend-api
+    environment:
+      NODE_ENV: local
+      SQLITE_PATH: /data/sqlite.db
+      FILE_UPLOAD_DIR: /data/uploads
+      # 데모용 기본값 — 프로덕션에서는 반드시 환경변수로 재정의할 것
+      ACCESS_SECRET: ${ACCESS_SECRET:-dev-only-access-secret}
+      REFRESH_SECRET: ${REFRESH_SECRET:-dev-only-refresh-secret}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-only-jwt-secret}
+      URL_ACCESS_SECRET: ${URL_ACCESS_SECRET:-dev-only-url-secret}
+      CONFIG_SECRET_KEY: ${CONFIG_SECRET_KEY:-dev-only-config-secret}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      # REDIS_URL: redis://redis:6379   # --profile cache 사용 시
+    # 부팅 시 시드(멱등) 후 앱 기동
+    command: sh -c "mkdir -p /data/uploads && node dist/src/database/run-seed.js && node dist/src/main.js"
+    ports:
+      - '4000:4000'
+    volumes:
+      - vanillameta-data:/data
+
+  frontend:
+    build:
+      context: ./frontend-web
+      args:
+        REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:4000/v1}
+    ports:
+      - '3000:80'
+    depends_on:
+      - backend
+
+  # ── 선택: 외부 MySQL 메타데이터 DB ─────────────────────────────
+  # docker compose --profile mysql up mysql  (앱은 로컬에서 띄우거나 backend-mysql 프로파일 사용)
+  mysql:
+    profiles: ['mysql']
+    image: mysql:8.0
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_DATABASE: vanillameta
+      MYSQL_USER: vanillameta
+      MYSQL_PASSWORD: vanillameta
+      MYSQL_RANDOM_ROOT_PASSWORD: 'yes'
+    ports:
+      - '3306:3306'
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-uvanillameta', '-pvanillameta']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # 쿼리 결과 분산 캐시용 Redis (선택): docker compose --profile cache up redis
+  redis:
+    profiles: ['cache']
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+
+volumes:
+  vanillameta-data:
+  mysql-data:

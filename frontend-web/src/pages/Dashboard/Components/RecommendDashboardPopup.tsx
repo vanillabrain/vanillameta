@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Avatar,
   Box,
@@ -21,17 +22,17 @@ import TemplateService from '@/api/templateService';
 import WidgetService from '@/api/widgetService';
 import { MAX_WIDTH, STATUS } from '@/constant';
 import CloseButton from '@/components/button/CloseButton';
-import { ReactComponent as TemplateIcon01 } from '@/assets/images/template/template01.svg';
-import { ReactComponent as TemplateIcon02 } from '@/assets/images/template/template02.svg';
-import { ReactComponent as TemplateIcon03 } from '@/assets/images/template/template03.svg';
-import { ReactComponent as TemplateIcon04 } from '@/assets/images/template/template04.svg';
-import { ReactComponent as TemplateIcon05 } from '@/assets/images/template/template05.svg';
-import { ReactComponent as TemplateIcon06 } from '@/assets/images/template/template06.svg';
-import { ReactComponent as TemplateIcon07 } from '@/assets/images/template/template07.svg';
-import { ReactComponent as TemplateIcon08 } from '@/assets/images/template/template08.svg';
-import { ReactComponent as TemplateIcon09 } from '@/assets/images/template/template09.svg';
-import { ReactComponent as TemplateIcon10 } from '@/assets/images/template/template10.svg';
-import { ReactComponent as CheckIcon } from '@/assets/images/icon/ic-check.svg';
+import TemplateIcon01 from '@/assets/images/template/template01.svg?react';
+import TemplateIcon02 from '@/assets/images/template/template02.svg?react';
+import TemplateIcon03 from '@/assets/images/template/template03.svg?react';
+import TemplateIcon04 from '@/assets/images/template/template04.svg?react';
+import TemplateIcon05 from '@/assets/images/template/template05.svg?react';
+import TemplateIcon06 from '@/assets/images/template/template06.svg?react';
+import TemplateIcon07 from '@/assets/images/template/template07.svg?react';
+import TemplateIcon08 from '@/assets/images/template/template08.svg?react';
+import TemplateIcon09 from '@/assets/images/template/template09.svg?react';
+import TemplateIcon10 from '@/assets/images/template/template10.svg?react';
+import CheckIcon from '@/assets/images/icon/ic-check.svg?react';
 import { LoadingContext } from '@/contexts/LoadingContext';
 
 const getTemplateIcon = id => {
@@ -77,6 +78,7 @@ export const WidgetList = ({
   selectedWidgetIds = [],
   selectedChange = null,
 }) => {
+  const { t } = useTranslation();
   const alert = useAlert();
   const [loadedWidgetData, setLoadedWidgetData] = useState([]);
   const [selectedIds, setSelectedIds] = useState(selectedWidgetIds);
@@ -147,7 +149,7 @@ export const WidgetList = ({
         handleWidgetConfirm(widgets);
       }
     } else {
-      alert.info('위젯을 선택해주세요.');
+      alert.info(t('recommend.selectWidgetAlert'));
     }
   };
 
@@ -228,7 +230,7 @@ export const WidgetList = ({
             color: '#767676',
           }}
         >
-          취소
+          {t('recommend.cancel')}
         </Button>
         <span style={{ width: '4px' }} />
         <Button
@@ -246,7 +248,7 @@ export const WidgetList = ({
             color: '#0057bd',
           }}
         >
-          다음
+          {t('recommend.next')}
         </Button>
       </DialogActions>
     </>
@@ -254,6 +256,7 @@ export const WidgetList = ({
 };
 
 export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = null, selectedWidgetIds = null }) => {
+  const { t } = useTranslation();
   const alert = useAlert();
   const [loadedTemplateDataList, setLoadedTemplateDataList] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -289,7 +292,7 @@ export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = 
         handleWidgetConfirm(selectedItem);
       }
     } else {
-      alert.info('템플릿을 선택해주세요.');
+      alert.info(t('recommend.selectTemplateAlert'));
     }
   };
 
@@ -304,7 +307,7 @@ export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = 
           {loadedTemplateDataList.map(item => {
             const selected = selectedItem?.id === item.id;
             return (
-              <Grid item xs={2}>
+              <Grid size={{ xs: 2 }}>
                 <Stack
                   justifyContent="center"
                   alignItems="center"
@@ -403,7 +406,7 @@ export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = 
             color: '#767676',
           }}
         >
-          뒤로가기
+          {t('recommend.back')}
         </Button>
         <span style={{ width: '4px' }} />
         <Button
@@ -421,7 +424,7 @@ export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = 
             color: '#0057bd',
           }}
         >
-          선택완료
+          {t('recommend.done')}
         </Button>
       </DialogActions>
     </>
@@ -429,9 +432,10 @@ export const TemplateList = ({ handleWidgetConfirm = null, handleWidgetCancel = 
 };
 
 function RecommendDashboardPopup({ recommendOpen = false, handleComplete = null }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(recommendOpen);
-  const title = '대시보드 추천 생성';
-  const [subTitle, setSubTitle] = useState('위젯을 선택하세요');
+  const title = t('recommend.title');
+  const [subTitle, setSubTitle] = useState(t('recommend.selectWidget'));
   const [step, setStep] = useState(1);
   const [selectedWidgetIds, setSelectedWidgetIds] = useState([]);
   const [selectedWidgetCount, setSelectedWidgetCount] = useState(0);
@@ -449,10 +453,10 @@ function RecommendDashboardPopup({ recommendOpen = false, handleComplete = null 
 
   useEffect(() => {
     if (step == 1) {
-      setSubTitle('위젯을 선택하세요');
+      setSubTitle(t('recommend.selectWidget'));
       setDialogWidth('600px');
     } else if (step == 2) {
-      setSubTitle('템플릿을 선택하세요');
+      setSubTitle(t('recommend.selectTemplate'));
       setDialogWidth(MAX_WIDTH);
     }
   }, [step]);
@@ -578,9 +582,9 @@ function RecommendDashboardPopup({ recommendOpen = false, handleComplete = null 
         >
           {step == 1 ? (
             <>
-              <span>추가할 위젯을 선택해주세요. (</span>
+              <span>{t('common.addWidgetGuide')} (</span>
               <span style={{ color: '#0f5ab2', fontWeight: 'bold' }}>{selectedWidgetCount}</span>
-              <span>개 선택)</span>
+              <span>{t('common.selectedCount', { count: 0 })}</span>
             </>
           ) : (
             subTitle

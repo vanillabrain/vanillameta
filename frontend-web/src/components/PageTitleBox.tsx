@@ -1,5 +1,5 @@
 import React from 'react';
-import { Hidden, Stack, SxProps, Typography } from '@mui/material';
+import { Box, Stack, SxProps, Typography } from '@mui/material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 
 interface PageTitleBoxProps {
@@ -119,7 +119,7 @@ function PageTitleBox(props: PageTitleBoxProps) {
               {title}
             </Typography>
           </Stack>
-          <Hidden smDown>{button}</Hidden>
+          <Box sx={{ display: { xs: 'none', sm: 'contents' } }}>{button}</Box>
         </Stack>
       </Stack>
       <Stack

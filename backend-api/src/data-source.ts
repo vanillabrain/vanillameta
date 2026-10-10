@@ -13,8 +13,12 @@ const dataSourceOptions: DataSourceOptions = {
   port: configService.get<number>('DB_PORT'),
   username: configService.get<string>('DB_USERNAME'),
   password: configService.get<string>('DB_PASSWORD'),
-  database: configNodeenv == 'local' ? 'sqlite.db' : configService.get<string>('DB_NAME'),
+  database:
+    configNodeenv == 'local'
+      ? process.env.SQLITE_PATH || 'sqlite.db'
+      : configService.get<string>('DB_NAME'),
   entities: [__dirname + '/**/*.entity{.ts,.js}'],
+  migrations: [__dirname + '/migrations/*{.ts,.js}'],
   synchronize: configNodeenv != 'prod',
   logging: configNodeenv != 'prod',
 };

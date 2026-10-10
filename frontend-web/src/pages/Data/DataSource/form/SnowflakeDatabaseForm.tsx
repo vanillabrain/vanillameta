@@ -1,8 +1,10 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Stack, TextField } from '@mui/material';
 import SubmitButton from '@/components/button/SubmitButton';
 
 const SnowflakeDatabaseForm = props => {
+  const { t } = useTranslation();
   const { testConnect, formData, setFormData } = props;
   const handleSubmit = data => {
     data.preventDefault();
@@ -33,7 +35,14 @@ const SnowflakeDatabaseForm = props => {
   return (
     <Stack component="form" sx={{ maxWidth: '800px', width: '100%', mx: 'auto', mt: 3 }} onSubmit={handleSubmit}>
       <Stack sx={{ display: 'flex', justifyContent: 'space-between' }} spacing="20px">
-        <TextField label="이름" name="name" value={formData?.name || ''} required fullWidth onChange={handleNameChange} />
+        <TextField
+          label={t('settings.name')}
+          name="name"
+          value={formData?.name || ''}
+          required
+          fullWidth
+          onChange={handleNameChange}
+        />
         <TextField
           label="Account"
           name="account"

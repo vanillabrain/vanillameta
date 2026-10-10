@@ -5,7 +5,7 @@ import { Repository } from 'typeorm';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
 import { UserMapping } from './entities/user-mapping.entity.js';
-const crypto = require('crypto');
+import { hashPassword } from '../utils/password.util';
 
 @Injectable()
 export class UserService {
@@ -28,16 +28,12 @@ export class UserService {
   }
 
   async updateUserInfo(userId: string, updateUserDto: UpdateUserDto) {
-
-    const hashPassword = crypto.createHash('sha512').update(String(updateUserDto.password)).digest('hex');
-    const findUser = await this.authService.checkAccess(userId, hashPassword);
+    const findUser = await this.authService.checkAccess(userId, String(updateUserDto.password));
     if (!findUser) {
       throw new HttpException('not exist user', HttpStatus.CONFLICT);
     } else {
-
-      const newHashPassword = crypto.createHash('sha512').update(String(updateUserDto.new_password)).digest('hex');
       findUser.email = String(updateUserDto.email);
-      findUser.password = newHashPassword;
+      findUser.password = hashPassword(String(updateUserDto.new_password));
       await this.userRepository.save(findUser);
       return `success`;
     }

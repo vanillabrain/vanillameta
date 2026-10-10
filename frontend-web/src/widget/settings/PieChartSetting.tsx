@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ListItem, ListItemText } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import ColorFieldForm from '@/components/form/ColorFieldForm';
@@ -8,6 +9,7 @@ import { getAggregationDataForChart, getColorArr } from '@/widget/modules/utils/
 import { AddButton } from '@/components/button/AddIconButton';
 
 const PieChartSetting = props => {
+  const { t } = useTranslation();
   const { option, setOption, listItem, spec, dataSet } = props;
   const [colorNum, setColorNum] = useState(12);
 
@@ -44,12 +46,12 @@ const PieChartSetting = props => {
   return (
     <React.Fragment>
       <ListItem divider>
-        <ListItemText primary="카테고리 설정" sx={{ textTransform: 'uppercase' }} />
+        <ListItemText primary={t('settings.category')} sx={{ textTransform: 'uppercase' }} />
         <SelectForm
           required={true}
           id="name"
           name="name"
-          label="이름"
+          label={t('settings.name')}
           labelField="columnName"
           valueField="columnType"
           optionList={spec.map(item => item.columnName)}
@@ -58,19 +60,19 @@ const PieChartSetting = props => {
         />
         <SelectForm
           name="label"
-          label="레이블 타입"
-          optionList={PIE_LABEL_LIST}
+          label={t('settings.labelType')}
+          optionList={PIE_LABEL_LIST(t)}
           value={option.series.label}
           onChange={handleSeriesChange}
         />
       </ListItem>
       <ListItem divider>
-        <ListItemText primary="시리즈 설정" />
+        <ListItemText primary={t('settings.series')} />
         <SelectForm
           required={true}
           id="field"
           name="field"
-          label="필드"
+          label={t('settings.field')}
           labelField="columnName"
           valueField="columnType"
           optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
@@ -80,8 +82,8 @@ const PieChartSetting = props => {
         <SelectForm
           id="aggregation"
           name="aggregation"
-          label="집계 방식"
-          optionList={AGGREGATION_LIST}
+          label={t('settings.aggregation')}
+          optionList={AGGREGATION_LIST(t)}
           value={option.series.aggregation}
           onChange={handleSeriesChange}
           disabledDefaultValue
@@ -97,18 +99,18 @@ const PieChartSetting = props => {
       )}
 
       <ListItem divider>
-        <ListItemText>범례 설정</ListItemText>
+        <ListItemText>{t('settings.legend')}</ListItemText>
         <SelectForm
           id="legendPosition"
           name="legendPosition"
-          label="위치"
-          optionList={LEGEND_LIST}
+          label={t('settings.position')}
+          optionList={LEGEND_LIST(t)}
           value={option.legendPosition}
           onChange={event => handleChange(event, setOption)}
         />
       </ListItem>
       <ListItem>
-        <ListItemText primary="색상 설정" />
+        <ListItemText primary={t('settings.colorSetting')} />
         <AddButton
           onClick={handleAddColorClick}
           sx={{

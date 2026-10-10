@@ -11,23 +11,24 @@ import { YesNo } from '../../common/enum/yn.enum.js';
 
 @Injectable()
 export class shareUrlLoggerMiddleware implements NestMiddleware {
-    private readonly logger = new Logger(shareUrlLoggerMiddleware.name);
-    constructor(
-        @InjectRepository(LoginHistory) private readonly loginHisotryRepository: Repository<LoginHistory>,
-    ) {}
-    async use(req: Request, res: Response, next: NextFunction) {
-        let loginSaveObj = {
-            userId: req.body.userId,
-            path: req.path,
-            login_type: req.headers['user-agent'],
-            login_succ_tn: YesNo.YES,
-            created_at: new Date()
-        }
-        this.logger.log(loginSaveObj)
-        await this.loginHisotryRepository.save(loginSaveObj)
-        next();
+  private readonly logger = new Logger(shareUrlLoggerMiddleware.name);
+  constructor(
+    @InjectRepository(LoginHistory)
+    private readonly loginHisotryRepository: Repository<LoginHistory>,
+  ) {}
+  async use(req: Request, res: Response, next: NextFunction) {
+    const loginSaveObj = {
+      userId: req.body.userId,
+      path: req.path,
+      login_type: req.headers['user-agent'],
+      login_succ_tn: YesNo.YES,
+      created_at: new Date(),
+    };
+    this.logger.log(loginSaveObj);
+    await this.loginHisotryRepository.save(loginSaveObj);
+    next();
 
-        // await this.loginHisotryRepository.save(saveObj)
-        // 로그인 시간, 로그아웃 체크, 접속기기..?, explorer 어떤거?
-    }
+    // await this.loginHisotryRepository.save(saveObj)
+    // 로그인 시간, 로그아웃 체크, 접속기기..?, explorer 어떤거?
+  }
 }

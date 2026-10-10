@@ -20,7 +20,7 @@ function SmallCardList(props) {
       }}
     >
       {props.data.map(item => (
-        <Grid item xs={12} sm={4} md={2} component="li" key={item.id}>
+        <Grid size={{ xs: 12, sm: 4, md: 2 }} component="li" key={item.id}>
           <Card
             sx={{
               position: 'relative',

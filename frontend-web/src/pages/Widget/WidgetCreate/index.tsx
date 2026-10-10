@@ -7,13 +7,13 @@ import WidgetAttributeSelect from './WidgetAttributeSelect';
 import componentService from '@/api/componentService';
 import widgetService from '@/api/widgetService';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { LoadingContext } from '@/contexts/LoadingContext';
-import { ReactComponent as LeftArrow } from '@/assets/images/icon/angle-left.svg';
-
-const title = '위젯 생성';
-const steps = ['데이터 선택', '위젯 타입 선택', '위젯 속성 설정'];
+import LeftArrow from '@/assets/images/icon/angle-left.svg?react';
 
 const WidgetCreate = () => {
+  const { t } = useTranslation();
+  const steps = t('widget.steps', { returnObjects: true }) as string[];
   const navigate = useNavigate();
   const [activeStep, setActiveStep] = useState(0);
 
@@ -111,8 +111,8 @@ const WidgetCreate = () => {
   return (
     <PageTitleBox
       fixed
-      title={title}
-      upperTitle="위젯"
+      title={t('widget.createTitle')}
+      upperTitle={t('widget.title')}
       upperTitleLink="/widget"
       sx={{ paddingLeft: 0, paddingRight: 0, width: '100%', height: '100%' }}
       button={
@@ -139,7 +139,7 @@ const WidgetCreate = () => {
               },
             }}
           >
-            이전
+            {t('widget.prev')}
           </Button>
 
           {activeStep !== 2 ? (
@@ -157,7 +157,7 @@ const WidgetCreate = () => {
               }
               sx={{ backgroundColor: '#043f84' }}
             >
-              다음
+              {t('widget.next')}
             </Button>
           ) : (
             ' '
@@ -208,7 +208,12 @@ const WidgetCreate = () => {
         {activeStep === 0 ? (
           <WidgetDataSelect setDataSet={setDataset} />
         ) : activeStep === 1 ? (
-          <WidgetTypeSelect widgetType={widgetOption} setWidgetType={setWidgetOption} componentList={componentList} />
+          <WidgetTypeSelect
+            widgetType={widgetOption}
+            setWidgetType={setWidgetOption}
+            componentList={componentList}
+            dataset={dataset}
+          />
         ) : (
           <WidgetAttributeSelect
             dataset={dataset}

@@ -1,0 +1,156 @@
+import { MetricService } from './metric.service';
+import { ResponseStatus } from '../common/enum/response-status.enum';
+import { MetricAggregation } from './entities/metric.entity';
+
+describe('MetricService', () => {
+  const rawMock = jest.fn();
+  const mockKnex: any = { raw: rawMock };
+
+  const metricRepository = {
+    find: jest.fn(),
+    findOne: jest.fn(),
+    create: jest.fn(d => d),
+    save: jest.fn(d => Promise.resolve({ id: 1, ...d })),
+    update: jest.fn().mockResolvedValue({ affected: 1 }),
+  } as any;
+
+  const connectionService = {
+    getKnex: jest.fn().mockResolvedValue(mockKnex),
+  } as any;
+
+  let service: MetricService;
+
+  beforeEach(() => {
+    service = new MetricService(metricRepository, connectionService);
+    jest.clearAllMocks();
+  });
+
+  describe('create', () => {
+    it('정상적인 메트릭을 생성한다', async () => {
+      const res = await service.create({
+        name: 'total_sales',
+        databaseId: 1,
+        tableName: 'orders',
+        aggregation: MetricAggregation.SUM,
+        expression: 'amount',
+      });
+      expect(res.status).toBe(ResponseStatus.SUCCESS);
+    });
+
+    it('식별자가 안전하지 않으면 거부한다', async () => {
+      const res = await service.create({
+        name: 'evil',
+        databaseId: 1,
+        tableName: 'orders; DROP TABLE users',
+        aggregation: MetricAggregation.SUM,
+        expression: 'amount',
+      });
+      expect(res.status).toBe(ResponseStatus.ERROR);
+    });
+
+    it('지원하지 않는 집계함수를 거부한다', async () => {
+      const res = await service.create({
+        name: 'evil',
+        databaseId: 1,
+        tableName: 'orders',
+        aggregation: 'EVIL' as any,
+        expression: 'amount',
+      });
+      expect(res.status).toBe(ResponseStatus.ERROR);
+    });
+
+    it('같은 이름의 활성 메트릭이 있으면 거부한다', async () => {
+      metricRepository.findOne.mockResolvedValueOnce({ id: 5, name: 'dup', useYn: 'Y' });
+      const res = await service.create({
+        name: 'dup',
+        databaseId: 1,
+        tableName: 'orders',
+        aggregation: MetricAggregation.SUM,
+        expression: 'amount',
+      });
+      expect(res.status).toBe(ResponseStatus.ERROR);
+      expect(res.message).toContain('이미 존재');
+    });
+
+    it('soft-delete된 메트릭과 같은 이름이면 재활성화한다', async () => {
+      metricRepository.findOne.mockResolvedValueOnce({ id: 5, name: 'revived', useYn: 'N' });
+      const res = await service.create({
+        name: 'revived',
+        databaseId: 2,
+        tableName: 'orders',
+        aggregation: MetricAggregation.COUNT,
+        expression: 'amount',
+      });
+      expect(res.status).toBe(ResponseStatus.SUCCESS);
+      expect(metricRepository.update).toHaveBeenCalledWith(5, expect.objectContaining({ useYn: 'Y' }));
+    });
+  });
+
+  describe('evaluate', () => {
+    const baseMetric = {
+      id: 1,
+      name: 'total_sales',
+      databaseId: 1,
+      tableName: 'orders',
+      aggregation: MetricAggregation.SUM,
+      expression: 'amount',
+      groupBy: null,
+      filters: null,
+    };
+
+    it('단일 값 집계 SQL을 생성하고 실행한다', async () => {
+      metricRepository.findOne.mockResolvedValue(baseMetric);
+      rawMock.mockResolvedValue([[{ value: 1234 }]]);
+
+      const res = await service.evaluate(1);
+      expect(res.status).toBe(ResponseStatus.SUCCESS);
+      const [sql, bindings] = rawMock.mock.calls[0];
+      expect(sql).toBe('SELECT SUM(amount) AS value FROM orders');
+      expect(bindings).toEqual([]);
+    });
+
+    it('groupBy가 있으면 GROUP BY와 LIMIT을 추가한다', async () => {
+      metricRepository.findOne.mockResolvedValue({ ...baseMetric, groupBy: 'region' });
+      rawMock.mockResolvedValue({ rows: [{ region: 'KR', value: 100 }] });
+
+      const res = await service.evaluate(1);
+      expect(res.status).toBe(ResponseStatus.SUCCESS);
+      const [sql] = rawMock.mock.calls[0];
+      expect(sql).toContain('GROUP BY region');
+      expect(sql).toContain('LIMIT 500');
+    });
+
+    it('필터 값은 SQL에 인라인되지 않고 바인딩된다', async () => {
+      metricRepository.findOne.mockResolvedValue({
+        ...baseMetric,
+        filters: JSON.stringify([{ column: 'status', op: '=', value: "x'; DROP TABLE users;--" }]),
+      });
+      rawMock.mockResolvedValue([[{ value: 0 }]]);
+
+      await service.evaluate(1);
+      const [sql, bindings] = rawMock.mock.calls[0];
+      expect(sql).toContain('status = ?');
+      expect(sql).not.toContain('DROP');
+      expect(bindings).toEqual(["x'; DROP TABLE users;--"]);
+    });
+
+    it('IN 필터는 개수만큼 바인딩 플레이스홀더를 생성한다', async () => {
+      metricRepository.findOne.mockResolvedValue({
+        ...baseMetric,
+        filters: JSON.stringify([{ column: 'region', op: 'IN', value: ['KR', 'US', 'JP'] }]),
+      });
+      rawMock.mockResolvedValue([[{ value: 0 }]]);
+
+      await service.evaluate(1);
+      const [sql, bindings] = rawMock.mock.calls[0];
+      expect(sql).toContain('IN (?,?,?)');
+      expect(bindings).toEqual(['KR', 'US', 'JP']);
+    });
+
+    it('메트릭이 없으면 ERROR를 반환한다', async () => {
+      metricRepository.findOne.mockResolvedValue(null);
+      const res = await service.evaluate(999);
+      expect(res.status).toBe(ResponseStatus.ERROR);
+    });
+  });
+});

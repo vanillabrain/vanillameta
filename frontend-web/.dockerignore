@@ -1,0 +1,7 @@
+node_modules/
+build/
+e2e/fixtures/generated/
+test-results/
+playwright-report/
+*.log
+.env.local

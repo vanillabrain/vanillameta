@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Divider, ListItem, ListItemText } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import { AddButton, RemoveButton } from '@/components/button/AddIconButton';
@@ -7,6 +8,7 @@ import { AGGREGATION_LIST, COLUMN_TYPE, DISPLAY_LIST, LEGEND_LIST, WIDGET_AGGREG
 import ColorButtonForm from '@/components/form/ColorButtonForm';
 
 const Line3DChartSetting = props => {
+  const { t } = useTranslation();
   const { option, setOption, seriesItem, spec } = props;
 
   console.log(option);
@@ -20,12 +22,12 @@ const Line3DChartSetting = props => {
   return (
     <React.Fragment>
       <ListItem divider>
-        <ListItemText primary="카테고리 설정" sx={{ textTransform: 'uppercase' }} />
+        <ListItemText primary={t('settings.category')} sx={{ textTransform: 'uppercase' }} />
         <SelectForm
           required={true}
           id="xField"
           name="xField"
-          label="x축"
+          label={t('settings.xAxis')}
           optionList={spec.map(item => item.columnName)}
           labelField="columnName"
           valueField="columnType"
@@ -34,7 +36,7 @@ const Line3DChartSetting = props => {
         />
       </ListItem>
       <ListItem divider>
-        <ListItemText primary="시리즈 설정" />
+        <ListItemText primary={t('settings.series')} />
         <AddButton
           onClick={event => handleAddClick(event, option, setOption, defaultSeries)}
           sx={{
@@ -60,8 +62,8 @@ const Line3DChartSetting = props => {
             <SelectForm
               id={`aggregation${index + 1}`}
               name={`aggregation${index + 1}`}
-              label="집계 방식"
-              optionList={AGGREGATION_LIST}
+              label={t('settings.aggregation')}
+              optionList={AGGREGATION_LIST(t)}
               value={item.aggregation}
               onChange={event => handleSeriesChange(event, setOption)}
               disabledDefaultValue
@@ -89,20 +91,20 @@ const Line3DChartSetting = props => {
         ))}
       </ListItem>
       <ListItem>
-        <ListItemText>범례 설정</ListItemText>
+        <ListItemText>{t('settings.legend')}</ListItemText>
         <SelectForm
           id="legendPosition"
           name="legendPosition"
-          label="위치"
-          optionList={LEGEND_LIST}
+          label={t('settings.position')}
+          optionList={LEGEND_LIST(t)}
           value={option.legendPosition}
           onChange={event => handleChange(event, setOption)}
         />
         <SelectForm
           id="legendAggregation"
           name="legendAggregation"
-          label="집계 방식 표시"
-          optionList={DISPLAY_LIST}
+          label={t('settings.aggregationDisplay')}
+          optionList={DISPLAY_LIST(t)}
           value={option.legendAggregation}
           onChange={event => handleChange(event, setOption)}
         />

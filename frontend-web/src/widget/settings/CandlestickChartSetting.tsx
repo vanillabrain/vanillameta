@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Divider, ListItem, ListItemText } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import { handleChange, handleSeriesChange } from '@/widget/utils/handler';
@@ -6,18 +7,19 @@ import { AGGREGATION_LIST, COLUMN_TYPE, DISPLAY_LIST } from '@/constant';
 import ColorPickerForm from '@/components/form/ColorPickerForm';
 
 const CandlestickChartSetting = props => {
+  const { t } = useTranslation();
   const { option, setOption, spec } = props;
   const candlestickLabel = ['open', 'close', 'lowest', 'highest'];
 
   return (
     <React.Fragment>
       <ListItem divider>
-        <ListItemText primary="카테고리 설정" sx={{ textTransform: 'uppercase' }} />
+        <ListItemText primary={t('settings.category')} sx={{ textTransform: 'uppercase' }} />
         <SelectForm
           required={true}
           id="xField"
           name="xField"
-          label="x축"
+          label={t('settings.xAxis')}
           optionList={spec.map(item => item.columnName)}
           labelField="columnName"
           valueField="columnType"
@@ -26,7 +28,7 @@ const CandlestickChartSetting = props => {
         />
       </ListItem>
       <ListItem>
-        <ListItemText primary="시리즈 설정" />
+        <ListItemText primary={t('settings.series')} />
         {option.series.map((item, index) => (
           <React.Fragment key={index}>
             <SelectForm
@@ -53,8 +55,8 @@ const CandlestickChartSetting = props => {
             <SelectForm
               id={`aggregation${index + 1}`}
               name={`aggregation${index + 1}`}
-              label="집계 방식"
-              optionList={AGGREGATION_LIST}
+              label={t('settings.aggregation')}
+              optionList={AGGREGATION_LIST(t)}
               value={item.aggregation}
               onChange={event => handleSeriesChange(event, setOption)}
               disabledDefaultValue
@@ -64,8 +66,8 @@ const CandlestickChartSetting = props => {
         ))}
         <SelectForm
           name="mark"
-          label="마크 포인트"
-          optionList={DISPLAY_LIST}
+          label={t('settings.markPoint')}
+          optionList={DISPLAY_LIST(t)}
           value={option.mark}
           onChange={event => handleChange(event, setOption)}
         />

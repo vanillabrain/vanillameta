@@ -1,9 +1,11 @@
 import React, { useContext, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import PageTitleBox from '@/components/PageTitleBox';
 import { ConfirmButton } from '@/components/button/ConfirmCancelButton';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import WidgetAttributeSelect from '@/pages/Widget/WidgetCreate/WidgetAttributeSelect';
 import widgetService from '@/api/widgetService';
+import { useQuery } from '@tanstack/react-query';
 import { WidgetInfo } from '@/api/type';
 import { LayoutContext } from '@/contexts/LayoutContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
@@ -13,6 +15,7 @@ interface CustomizedState {
 }
 
 const WidgetModify = () => {
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const widgetId = searchParams.get('id');
   const navigate = useNavigate();
@@ -39,8 +42,13 @@ const WidgetModify = () => {
 
   const [widgetInfo, setWidgetInfo] = useState<WidgetInfo>(defaultWidgetInfo);
 
+  const { data: savedWidget } = useQuery({
+    queryKey: ['widget', widgetId],
+    queryFn: () => widgetService.selectWidget(widgetId).then(response => response.data.data),
+    enabled: !!widgetId,
+  });
+
   useEffect(() => {
-    getWidgetInfo();
     fixLayout(true);
     return () => {
       fixLayout(false);
@@ -50,18 +58,9 @@ const WidgetModify = () => {
   /**
    * 위젯 조회
    */
-  const getWidgetInfo = () => {
-    showLoading();
-    widgetService
-      .selectWidget(widgetId)
-      .then(response => {
-        setWidgetInfo(response.data.data);
-        // console.log(widgetInfo, 'widgetInfo');
-      })
-      .finally(() => {
-        hideLoading();
-      });
-  };
+  useEffect(() => {
+    if (savedWidget) setWidgetInfo(savedWidget);
+  }, [savedWidget]);
 
   const saveWidgetInfo = (option, title) => {
     const param = {
@@ -82,13 +81,13 @@ const WidgetModify = () => {
 
   return (
     <PageTitleBox
-      upperTitle="위젯"
+      upperTitle={t('widget.title')}
       upperTitleLink="/widget"
-      title="위젯 편집"
+      title={t('widget.editTitle')}
       sx={{ padding: 0 }}
       button={
         <ConfirmButton
-          confirmLabel="저장"
+          confirmLabel={t('widget.save')}
           confirmProps={{
             form: 'widgetAttribute',
             type: 'submit',

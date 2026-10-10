@@ -1,5 +1,5 @@
 import { Box, IconButton, Modal, Paper, Stack, Typography } from '@mui/material';
-import { ReactComponent as CloseIcon } from '@/assets/images/icon/ic-xmark.svg';
+import CloseIcon from '@/assets/images/icon/ic-xmark.svg?react';
 import React from 'react';
 import { MAX_WIDTH } from '@/constant';
 

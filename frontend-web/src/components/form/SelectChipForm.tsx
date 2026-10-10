@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Box,
   Chip,
@@ -23,6 +24,7 @@ interface SelectChipForm {
 }
 
 function SelectChipForm(props) {
+  const { t } = useTranslation();
   const { label, color, option, ...rest } = props;
   const [chipColor, setChipColor] = useState('');
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
@@ -47,7 +49,7 @@ function SelectChipForm(props) {
   };
 
   const open = Boolean(anchorEl);
-  const popoverId = open ? '색상 선택 팝업' : undefined;
+  const popoverId = open ? t('common.colorPickerPopup') : undefined;
 
   return (
     <FormControl fullWidth sx={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -84,7 +86,7 @@ function SelectChipForm(props) {
         </Select>
         {color && (
           <React.Fragment>
-            <IconButton aria-label="색상 선택" onClick={handleClick}>
+            <IconButton aria-label={t('common.colorPicker')} onClick={handleClick}>
               <PaletteIcon />
             </IconButton>
             <Popover

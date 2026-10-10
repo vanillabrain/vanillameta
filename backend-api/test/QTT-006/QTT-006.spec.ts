@@ -64,8 +64,8 @@ describe('QTT-006 : 대시보드 템플릿 추천', () => {
   it('QTT-006-01 : 서로 다른 타입의 위젯 목록', async () => {
     const componentList = [15, 12, 41, 13, 38];
 
-    let findWidgetInfo = await widgetService.findAll();
-    let widgetIdList = [];
+    const findWidgetInfo = await widgetService.findAll();
+    const widgetIdList = [];
     for (let i = 0; i < componentList.length; i++) {
       const tempWidgetObj = findWidgetInfo.data.find(item => item.componentId === componentList[i]);
       widgetIdList.push(tempWidgetObj.id);
@@ -79,8 +79,8 @@ describe('QTT-006 : 대시보드 템플릿 추천', () => {
 
   it('QTT-006-02 : 바차트 타입의 위젯 목록', async () => {
     const componentList = [3, 4, 16, 17, 20, 25];
-    let findWidgetInfo = await widgetService.findAll();
-    let widgetIdList = [];
+    const findWidgetInfo = await widgetService.findAll();
+    const widgetIdList = [];
     for (let i = 0; i < componentList.length; i++) {
       const tempWidgetObj = findWidgetInfo.data.find(item => item.componentId === componentList[i]);
       widgetIdList.push(tempWidgetObj.id);
@@ -95,8 +95,8 @@ describe('QTT-006 : 대시보드 템플릿 추천', () => {
 
   it('QTT-006-03 : 알고리즘 범위를 벗어난 위젯 목록', async () => {
     const componentList = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-    let findWidgetInfo = await widgetService.findAll();
-    let widgetIdList = [];
+    const findWidgetInfo = await widgetService.findAll();
+    const widgetIdList = [];
     for (let i = 0; i < componentList.length; i++) {
       const tempWidgetObj = findWidgetInfo.data.find(item => item.componentId === componentList[i]);
       widgetIdList.push(tempWidgetObj.id);

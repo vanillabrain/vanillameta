@@ -1,7 +1,9 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Box, FormControl, FormLabel, MenuItem, Select, Stack } from '@mui/material';
 
 function SelectForm(props) {
+  const { t } = useTranslation();
   const {
     label,
     optionList,
@@ -35,7 +37,7 @@ function SelectForm(props) {
       dropDownList = arr;
     }
     if (!disabledDefaultValue) {
-      dropDownList.unshift({ [valueField]: '', [labelField]: '선택 안함' });
+      dropDownList.unshift({ [valueField]: '', [labelField]: t('common.selectNone') });
     }
     return dropDownList;
   };

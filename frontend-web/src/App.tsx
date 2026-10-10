@@ -1,4 +1,7 @@
 import React from 'react';
+import i18n from '@/i18n';
+import { connectSocket } from '@/helpers/socket';
+import { useTranslation } from 'react-i18next';
 import { CssBaseline } from '@mui/material';
 import Router from './router';
 import 'tui-grid/dist/tui-grid.css';
@@ -51,11 +54,15 @@ Grid.applyTheme('default', {
 Grid.setLanguage('ko', {
   // set new language
   display: {
-    noData: '조회된 데이터가 없습니다.',
+    noData: i18n.t('common.noData'),
   },
 });
 
 function App() {
+  const { t } = useTranslation();
+  React.useEffect(() => {
+    connectSocket();
+  }, []);
   return (
     <>
       <Seo />

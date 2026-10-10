@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Hidden, ListItem, ListItemIcon, Stack, useMediaQuery, useTheme } from '@mui/material';
+import { Box, ListItem, ListItemIcon, Stack, useMediaQuery, useTheme } from '@mui/material';
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import DeleteButton from '@/components/button/DeleteButton';
 import ModifyButton from '@/components/button/ModifyButton';
@@ -108,7 +108,7 @@ function BoardItem(props: BoardItemProps) {
         </Stack>
         <Stack alignItems="center" direction="row">
           <SubTitleSpan matches={matches}>{dateData(updatedAt)}</SubTitleSpan>
-          <Hidden smDown>
+          <Box sx={{ display: { xs: 'none', sm: 'contents' } }}>
             <Stack direction="row" gap="18px" ml="48px">
               <ModifyButton
                 size="medium"
@@ -127,7 +127,7 @@ function BoardItem(props: BoardItemProps) {
                 }}
               />
             </Stack>
-          </Hidden>
+          </Box>
         </Stack>
       </Stack>
     </ListItem>

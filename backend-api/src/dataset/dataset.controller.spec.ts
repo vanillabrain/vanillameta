@@ -8,7 +8,7 @@ describe('DatasetController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [DatasetController],
-      providers: [DatasetService],
+      providers: [{ provide: DatasetService, useValue: {} }],
     }).compile();
 
     controller = module.get<DatasetController>(DatasetController);

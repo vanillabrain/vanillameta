@@ -1,6 +1,6 @@
 import React from 'react';
 import { IconButton } from '@mui/material';
-import { ReactComponent as IconReload } from '@/assets/images/icon/arrow-rotate-right.svg';
+import IconReload from '@/assets/images/icon/arrow-rotate-right.svg?react';
 
 const ReloadButton = props => {
   return (

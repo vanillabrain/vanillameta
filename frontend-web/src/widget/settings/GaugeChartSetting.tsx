@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { ListItem, ListItemText } from '@mui/material';
 import SelectForm from '@/components/form/SelectForm';
 import { handleChange } from '@/widget/utils/handler';
@@ -7,17 +8,18 @@ import TextFieldForm from '@/components/form/TextFieldForm';
 import ColorPickerForm from '@/components/form/ColorPickerForm';
 
 const GaugeChartSetting = props => {
+  const { t } = useTranslation();
   const { option, setOption, spec } = props;
 
   return (
     <React.Fragment>
       <ListItem>
-        <ListItemText primary="시리즈 설정" />
+        <ListItemText primary={t('settings.series')} />
         <SelectForm
           required={true}
           id="field"
           name="field"
-          label="필드"
+          label={t('settings.field')}
           labelField="columnName"
           valueField="columnType"
           optionList={spec.filter(item => item.columnType === COLUMN_TYPE.NUMBER).map(item => item.columnName)}
@@ -36,15 +38,15 @@ const GaugeChartSetting = props => {
         <TextFieldForm
           id="fieldLabel"
           name="fieldLabel"
-          label="레이블"
+          label={t('settings.label')}
           value={option.fieldLabel ? option.fieldLabel : ''}
           onChange={event => handleChange(event, setOption)}
         />
         <SelectForm
           id="aggregation"
           name="aggregation"
-          label="집계 방식"
-          optionList={AGGREGATION_LIST}
+          label={t('settings.aggregation')}
+          optionList={AGGREGATION_LIST(t)}
           value={option.aggregation}
           onChange={event => handleChange(event, setOption)}
           disabledDefaultValue
@@ -52,7 +54,7 @@ const GaugeChartSetting = props => {
         <TextFieldForm
           id="suffix"
           name="suffix"
-          label="단위"
+          label={t('settings.unit')}
           value={option.suffix}
           onChange={event => handleChange(event, setOption)}
         />

@@ -1,4 +1,5 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { Suspense, lazy, useContext, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Box, Stack, Typography } from '@mui/material';
 import { WIDGET_TYPE } from '@/constant';
 import LineChart from '@/widget/modules/linechart/LineChart';
@@ -13,10 +14,10 @@ import TreemapChart from '@/widget/modules/treemapchart/TreemapChart';
 import HeatmapChart from '@/widget/modules/heatmapchart/HeatmapChart';
 import GaugeChart from '@/widget/modules/gaugechart/GaugeChart';
 import CandlestickChart from '@/widget/modules/candlestickchart/CandlestickChart';
-import Bar3DChart from '@/widget/modules/3dchart/Bar3dChart';
-import Line3DChart from '@/widget/modules/3dchart/Line3dChart';
-import Scatter3DChart from '@/widget/modules/3dchart/Scatter3dChart';
-import Bubble3dChart from '@/widget/modules/3dchart/Bubble3dChart';
+const Bar3DChart = lazy(() => import('@/widget/modules/3dchart/Bar3dChart'));
+const Line3DChart = lazy(() => import('@/widget/modules/3dchart/Line3dChart'));
+const Scatter3DChart = lazy(() => import('@/widget/modules/3dchart/Scatter3dChart'));
+const Bubble3dChart = lazy(() => import('@/widget/modules/3dchart/Bubble3dChart'));
 import WaterfallBarChart from '@/widget/modules/barchart/WaterfallBarChart';
 import PolarBarChart from '@/widget/modules/barchart/PolarBarChart';
 import MixedLinePieChart from '@/widget/modules/mixedchart/MixedLinePieChart';
@@ -26,6 +27,7 @@ import FunnelChart from '@/widget/modules/funnelchart/FunnelChart';
 import { LoadingContext } from '@/contexts/LoadingContext';
 
 export const WidgetEmpty = () => {
+  const { t } = useTranslation();
   return (
     <Box
       sx={{
@@ -46,15 +48,14 @@ export const WidgetEmpty = () => {
           color: '#333',
         }}
       >
-        위젯 조회에 실패했습니다.
-        <br />
-        다시 시도해 주세요.
+        {t('share.widgetFetchFailed')} <br />
       </Typography>
     </Box>
   );
 };
 
 const WidgetViewer = props => {
+  const { t } = useTranslation();
   const { title, widgetType, widgetOption, dataSet, isInvalidData, size } = props;
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const [module, setModule] = useState(null);
@@ -438,7 +439,7 @@ const WidgetViewer = props => {
         break;
 
       default:
-        module = '컴포넌트가 선택되지 않았다!';
+        module = t('common.componentNotSelected');
         break;
     }
 
@@ -538,7 +539,7 @@ const WidgetViewer = props => {
             height: '100%',
           }}
         >
-          {isInvalidData ? <WidgetEmpty /> : module}
+          {isInvalidData ? <WidgetEmpty /> : <Suspense fallback={null}>{module}</Suspense>}
           {/*<ReactECharts*/}
           {/*  option={componentOption}*/}
           {/*  style={{ height: '100%', maxHeight: '600px', width: '100%' }}*/}

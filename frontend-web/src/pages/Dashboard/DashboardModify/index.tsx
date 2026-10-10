@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Box, Button, Card, CardHeader, Stack, TextField } from '@mui/material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import PageTitleBox from '@/components/PageTitleBox';
@@ -8,8 +9,8 @@ import { Responsive, WidthProvider } from 'react-grid-layout';
 import { useAlert } from 'react-alert';
 import { SnackbarContext } from '@/contexts/AlertContext';
 
-import '/node_modules/react-grid-layout/css/styles.css';
-import '/node_modules/react-resizable/css/styles.css';
+import 'react-grid-layout/css/styles.css';
+import 'react-resizable/css/styles.css';
 import WidgetWrapper from '@/widget/wrapper/WidgetWrapper';
 import AddIcon from '@mui/icons-material/Add';
 import RecommendDashboardPopup from '@/pages/Dashboard/Components/RecommendDashboardPopup';
@@ -25,6 +26,7 @@ import ReloadButton from '@/components/button/ReloadButton';
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 function DashboardModify() {
+  const { t } = useTranslation();
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
   const [searchParams] = useSearchParams();
@@ -35,7 +37,7 @@ function DashboardModify() {
   const [dashboardTitle, setDashboardTitle] = useState(''); // dashboard 제목
   const [widgets, setWidgets] = useState([]); // widget 정보
   const [layout, setLayout] = useState([]); // layout 정보
-  const [topTitle, setTopTitle] = useState('대시보드');
+  const [topTitle, setTopTitle] = useState(t('dashboardModify.title'));
   const [widgetOpen, setWidgetOpen] = useState(false);
   const [recommendOpen, setRecommendOpen] = useState(false);
   const useWidgetIds = [];
@@ -63,7 +65,7 @@ function DashboardModify() {
         getDashboardInfo(searchParams.get('id'));
       }
     }
-    setTopTitle(searchParams.get('id') == null ? '대시보드 추가' : '대시보드 수정');
+    setTopTitle(searchParams.get('id') == null ? t('dashboardModify.add') : t('dashboardModify.edit'));
   }, []);
 
   // dashboard info 조회
@@ -82,7 +84,7 @@ function DashboardModify() {
           });
           setLayout(response.data.data.layout);
         } else {
-          alert.error('대시보드 조회에 실패했습니다.\n다시 시도해 주세요.');
+          alert.error(t('dashboard.loadFailed'));
         }
       })
       .finally(() => {
@@ -199,7 +201,7 @@ function DashboardModify() {
       if (item?.datasetType == 'DATASET') {
         navigate(`/data/set/modify/${item.datasetId}`);
       } else {
-        alert.info('데이터베이스 테이블 입니다.');
+        alert.info(t('dashboardModify.isTable'));
       }
     };
 
@@ -294,10 +296,10 @@ function DashboardModify() {
     // title null 체크, widgets 수 체크 (0개면 저장 못함)
     if (dashboardTitle == null || dashboardTitle.trim() == '') {
       // title 이 없을 경우
-      alert.info('제목을 입력해주세요.');
+      alert.info(t('dashboardModify.titleRequired'));
     } else if (layout.length == 0 || widgets.length == 0) {
       // 배치된 widget 이 없을경우
-      alert.info('배치된 위젯이 없습니다.');
+      alert.info(t('dashboardModify.noWidgets'));
     } else {
       // 저장 전 react grid layout 에서 필요없는 속성 제거
       layout.map(item => {
@@ -312,21 +314,21 @@ function DashboardModify() {
       dashboardInfo.widgets = widgets;
 
       if (dashboardId != null) {
-        alert.success(`${dashboardTitle}\n대시보드를 수정하시겠습니까?`, {
-          title: '대시보드 수정',
-          closeCopy: '취소',
+        alert.success(t('dashboardModify.modifyConfirm', { title: dashboardTitle }), {
+          title: t('dashboardModify.edit'),
+          closeCopy: t('data.cancel'),
           actions: [
             {
-              copy: '수정',
+              copy: t('dataset.modify'),
               onClick: () => {
                 showLoading();
                 DashboardService.updateDashboard(dashboardId, dashboardInfo)
                   .then(response => {
                     if (response.data.status === 'SUCCESS') {
                       navigate('/dashboard/' + dashboardId, { replace: true });
-                      snackbar.success('대시보드가 수정되었습니다.');
+                      snackbar.success(t('dashboardModify.modified'));
                     } else {
-                      alert.error('대시보드 수정에 실패했습니다.\n다시 시도해 주세요.');
+                      alert.error(t('dashboardModify.modifyFailed'));
                     }
                   })
                   .finally(() => {
@@ -337,21 +339,21 @@ function DashboardModify() {
           ],
         });
       } else {
-        alert.success(`${dashboardTitle}\n대시보드를 생성하시겠습니까?`, {
-          title: '대시보드 생성',
-          closeCopy: '취소',
+        alert.success(t('dashboardModify.createConfirm', { title: dashboardTitle }), {
+          title: t('dashboardModify.add'),
+          closeCopy: t('data.cancel'),
           actions: [
             {
-              copy: '생성',
+              copy: t('dataset.create'),
               onClick: () => {
                 showLoading();
                 DashboardService.createDashboard(dashboardInfo)
                   .then(response => {
                     if (response.data.status === 'SUCCESS') {
                       navigate('/dashboard');
-                      snackbar.success('대시보드가 생성되었습니다.');
+                      snackbar.success(t('dashboardModify.created'));
                     } else {
-                      alert.error('대시보드 생성에 실패했습니다.\n다시 시도해 주세요.');
+                      alert.error(t('dashboardModify.createFailed'));
                     }
                   })
                   .finally(() => {
@@ -389,7 +391,7 @@ function DashboardModify() {
 
   return (
     <PageTitleBox
-      upperTitle="대시보드"
+      upperTitle={t('nav.dashboard')}
       upperTitleLink="/dashboard"
       title={topTitle}
       sx={{ width: '100%', marginTop: { xs: 0, sm: '22px' }, flex: '1 1 auto', p: { xs: 0 } }}
@@ -406,7 +408,7 @@ function DashboardModify() {
         titleElement={
           <TextField
             id="userDashboardName"
-            label="대시보드 이름"
+            label={t('dashboardModify.nameLabel')}
             required
             sx={{
               width: { xs: '100%', sm: '960px' },
@@ -443,7 +445,7 @@ function DashboardModify() {
                 },
               },
             }}
-            placeholder="대시보드의 이름을 입력해 주세요"
+            placeholder={t('dashboardModify.namePlaceholder')}
             value={dashboardTitle}
             onChange={event => {
               setDashboardTitle(event.target.value);
@@ -471,10 +473,10 @@ function DashboardModify() {
                 border: 'solid 1px #0f5ab2',
               }}
             >
-              위젯 추가
+              {t('dashboardModify.addWidget')}
             </Button>
             <AddWidgetPopup
-              label="위젯 추가"
+              label={t('dashboardModify.addWidget')}
               widgetSelect={handleWidgetSelect}
               useWidgetIds={useWidgetIds}
               widgetOpen={widgetOpen}
