@@ -1,0 +1,36 @@
+@startuml Use Cases Overview
+left to right direction
+
+actor "Report Author" as author
+actor "Recipient" as recipient
+actor "AI Agent" as agent
+
+rectangle "VanillaMeta Report Commons" {
+    usecase "UC-001\nPublish Live Edition" as UC001
+    usecase "UC-002\nCapture Report Snapshot" as UC002
+    usecase "UC-003\nPublish Snapshot Edition" as UC003
+    usecase "UC-004\nView Shared Report" as UC004
+    usecase "UC-005\nRemix Shared Report" as UC005
+    usecase "UC-006\nEdit Shared Report" as UC006
+    usecase "UC-007\nQuery Report via Agent" as UC007
+    usecase "UC-008\nModify Report via Agent" as UC008
+    usecase "UC-009\nRestore Report Version" as UC009
+    usecase "UC-010\nManage Share Access" as UC010
+    usecase "UC-011\nDiscover Shared Artifacts" as UC011
+}
+
+author --> UC001
+author --> UC002
+author --> UC003
+author --> UC009
+author --> UC010
+author --> UC011
+recipient --> UC004
+recipient --> UC005
+recipient --> UC006
+recipient --> UC011
+agent --> UC007
+agent --> UC008
+
+UC003 ..> UC002 : <<include>>
+@enduml
