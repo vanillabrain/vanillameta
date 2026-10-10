@@ -31,6 +31,4 @@ recipient --> UC006
 recipient --> UC011
 agent --> UC007
 agent --> UC008
-
-UC003 ..> UC002 : <<include>>
 @enduml
