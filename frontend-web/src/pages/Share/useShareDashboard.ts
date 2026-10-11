@@ -52,8 +52,10 @@ export const useShareDashboard = (dashboardUuid: string): ShareDashboardState =>
       })
       .catch(error => {
         const status = error?.response?.status ?? 500;
+        const errorData = error?.response?.data?.data;
+        const message = typeof errorData === 'string' ? errorData : errorData?.message;
         setIsInvalidData(status);
-        if (status === 401 && error?.response?.data?.data?.message === 'expired date') {
+        if (status === 401 && message === 'expired date') {
           alert.error(t('share.expired'));
         } else if (status === 500) {
           alert.error(t('share.notFound'));
