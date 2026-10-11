@@ -1,5 +1,5 @@
 import * as React from 'react';
-import TextField from '@mui/material/TextField';
+import dayjs, { Dayjs } from 'dayjs';
 import 'dayjs/locale/ko';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -9,8 +9,8 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DesktopDatePicker as MuiDatePicker } from '@mui/x-date-pickers/DesktopDatePicker';
 
 interface DatePickerProps {
-  shareLimitDate: string;
-  setShareLimitDate: React.Dispatch<React.SetStateAction<any>>;
+  shareLimitDate: string | null;
+  setShareLimitDate: React.Dispatch<React.SetStateAction<string | null>>;
 }
 
 const DatePicker = (props: DatePickerProps) => {
@@ -20,14 +20,13 @@ const DatePicker = (props: DatePickerProps) => {
       <MuiDatePicker
         disablePast
         closeOnSelect={false}
-        value={shareLimitDate}
-        onChange={(newValue: any) => {
-          const selectDate = new Date(Date.parse(newValue.$d)).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-          });
-          setShareLimitDate(selectDate);
+        value={shareLimitDate ? dayjs(shareLimitDate) : null}
+        onChange={(newValue: Dayjs | null) => {
+          if (newValue === null) {
+            setShareLimitDate(null);
+          } else if (newValue.isValid()) {
+            setShareLimitDate(newValue.format('MM/DD/YYYY'));
+          }
         }}
         slotProps={{
           textField: {
