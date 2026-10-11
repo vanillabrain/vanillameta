@@ -82,11 +82,54 @@ describe('MetricService', () => {
         expression: 'amount',
       });
       expect(res.status).toBe(ResponseStatus.SUCCESS);
+      expect(res.data.id).toBe(5);
+      expect(res.data.useYn).toBe('Y');
       expect(metricRepository.update).toHaveBeenCalledWith(
         5,
         expect.objectContaining({ useYn: 'Y' }),
       );
     });
+  });
+
+  it('rejects empty IN values before create persistence', async () => {
+    const res = await service.create({
+      name: 'empty_in',
+      databaseId: 1,
+      tableName: 'orders',
+      aggregation: MetricAggregation.SUM,
+      expression: 'amount',
+      filters: [{ column: 'region', op: 'IN', value: [] }],
+    });
+    expect(res.status).toBe(ResponseStatus.ERROR);
+    expect(metricRepository.save).not.toHaveBeenCalled();
+    expect(metricRepository.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects empty IN values before updating an active metric', async () => {
+    metricRepository.findOne.mockResolvedValueOnce({
+      id: 1,
+      name: 'active',
+      databaseId: 1,
+      tableName: 'orders',
+      aggregation: MetricAggregation.SUM,
+      expression: 'amount',
+      filters: null,
+      useYn: 'Y',
+    });
+    const res = await service.update(1, { filters: [{ column: 'region', op: 'IN', value: [] }] });
+    expect(res.status).toBe(ResponseStatus.ERROR);
+    expect(metricRepository.update).not.toHaveBeenCalled();
+  });
+
+  it('does not read, evaluate or update a deleted metric', async () => {
+    metricRepository.findOne.mockResolvedValue({ id: 1, useYn: 'N' });
+    expect((await service.findOne(1)).status).toBe(ResponseStatus.ERROR);
+    expect((await service.evaluate(1)).status).toBe(ResponseStatus.ERROR);
+    expect((await service.update(1, { name: 'should_not_restore' })).status).toBe(
+      ResponseStatus.ERROR,
+    );
+    expect(connectionService.getKnex).not.toHaveBeenCalled();
+    expect(metricRepository.update).not.toHaveBeenCalled();
   });
 
   describe('evaluate', () => {

@@ -1,4 +1,4 @@
-import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { AiService } from './ai.service';
@@ -31,7 +31,7 @@ export class AiController {
    * 대시보드 위젯 데이터 기반 AI 인사이트 요약
    */
   @Post('dashboard-insight/:id')
-  dashboardInsight(@Param('id') id: string) {
-    return this.aiService.dashboardInsight(+id);
+  dashboardInsight(@Param('id') id: string, @Req() req) {
+    return this.aiService.dashboardInsight(+id, req.user.accessKeyData.id);
   }
 }

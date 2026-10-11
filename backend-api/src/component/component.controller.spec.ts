@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ComponentController } from './component.controller';
 import { ComponentService } from './component.service';
 
@@ -9,7 +10,10 @@ describe('ComponentController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ComponentController],
       providers: [{ provide: ComponentService, useValue: {} }],
-    }).compile();
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<ComponentController>(ComponentController);
   });

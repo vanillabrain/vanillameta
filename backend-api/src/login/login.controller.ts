@@ -38,13 +38,14 @@ export class LoginController {
     // AccessToken발급
     const refreshToken = await this.authService.generateRefreshToken(findUser);
     // RefreshToken발급
-    await this.authService.setRefreshKey(refreshToken, findUser.jwtId);
+    await this.authService.setRefreshKey(refreshToken, findUser.jwtId, findUser.id);
     // RefreshToken 저장
 
     res.cookie('jwt_re', refreshToken, {
       httpOnly: true, // 브라우저에서 cookie에 에 접근권한 x
-      sameSite: 'Lax', // 다른 도메인의 cookie를 허용한 주소만 가져올 수 있음
-      secure: true, // 보안처리된 https만 허
+      sameSite: 'lax', // 다른 도메인의 cookie를 허용한 주소만 가져올 수 있음
+      secure: process.env.NODE_ENV === 'prod', // 보안처리된 https만 허
+      path: '/',
     });
     return res.status(201).json({ accessToken: accessToken, message: 'success' });
   }
@@ -63,6 +64,14 @@ export class LoginController {
   async signOut(@Res() res, @Req() req) {
     const { jwtId } = req.user.refreshKeyData;
     await this.authService.deleteRefreshToken(jwtId);
-    return res.status(201).clearCookie('jwt_re').json({ message: 'success' });
+    return res
+      .status(201)
+      .clearCookie('jwt_re', {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'prod',
+        path: '/',
+      })
+      .json({ message: 'success' });
   }
 }

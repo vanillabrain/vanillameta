@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateComponentDto } from './dto/create-component.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Component } from './entities/component.entity';
@@ -78,24 +78,24 @@ export class ComponentService {
 
   async update(id: number, updateComponent: UpdateComponentDto) {
     const find_component = await this.componentRepository.findOne({ where: { id: id } });
-    if (!find_component) {
-      return 'No exist type';
-    } else {
-      const updateObj: UpdateComponentDto = new UpdateComponentDto();
-
-      updateObj.type = updateComponent.type;
-      updateObj.title = updateComponent.title;
-      updateObj.category = updateComponent.category;
-      updateObj.description = updateComponent.description;
-      updateObj.option = JSON.stringify(updateComponent.option);
-      updateObj.icon = updateComponent.icon;
-      updateObj.seq = updateComponent.seq;
-      updateObj.useYn = updateComponent.useYn;
-
-      await this.componentRepository.save(updateObj);
-
-      return 'Success update';
+    if (!find_component) throw new NotFoundException('No exist type');
+    if (updateComponent.type !== undefined && updateComponent.type !== find_component.type) {
+      const duplicate = await this.componentRepository.findOne({
+        where: { type: updateComponent.type },
+      });
+      if (duplicate && duplicate.id !== id) throw new ConflictException('exist same widget');
     }
+    const fields = ['type', 'title', 'category', 'description', 'icon', 'seq', 'useYn'] as const;
+    fields.forEach(field => {
+      if (updateComponent[field] !== undefined) {
+        Object.assign(find_component, { [field]: updateComponent[field] });
+      }
+    });
+    if (updateComponent.option !== undefined) {
+      find_component.option = JSON.stringify(updateComponent.option);
+    }
+    await this.componentRepository.save(find_component);
+    return 'Success update';
   }
 
   async remove(id: number) {

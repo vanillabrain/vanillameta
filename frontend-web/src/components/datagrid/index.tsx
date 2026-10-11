@@ -1,5 +1,5 @@
 import Grid from '@toast-ui/react-grid';
-import React, { forwardRef, HTMLAttributes, PropsWithChildren, useEffect, useRef } from 'react';
+import React, { forwardRef, HTMLAttributes, PropsWithChildren, useEffect, useMemo, useRef } from 'react';
 import { GridEventListener, GridOptions } from 'tui-grid';
 import { Stack } from '@mui/material';
 
@@ -62,6 +62,20 @@ interface DataGridProps extends Props {
 const DataGrid = (props: DataGridProps) => {
   const gridRef = useRef<Grid>();
   const { resizeObserver, ...rest } = props;
+  const gridData = useMemo(() => {
+    if (!Array.isArray(rest.data)) return rest.data;
+    const cloneAttributes = value => {
+      if (Array.isArray(value)) return value.map(cloneAttributes);
+      if (value && typeof value === 'object') {
+        return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, cloneAttributes(item)]));
+      }
+      return value;
+    };
+    return rest.data.map(row => ({
+      ...row,
+      ...(row._attributes ? { _attributes: cloneAttributes(row._attributes) } : {}),
+    }));
+  }, [rest.data]);
 
   useEffect(() => {
     if (resizeObserver) {
@@ -84,6 +98,7 @@ const DataGrid = (props: DataGridProps) => {
         resizable: true,
       }}
       {...rest}
+      data={gridData}
     />
   );
 };

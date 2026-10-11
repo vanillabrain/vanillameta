@@ -9,6 +9,8 @@ import { useQuery } from '@tanstack/react-query';
 import { WidgetInfo } from '@/api/type';
 import { LayoutContext } from '@/contexts/LayoutContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
+import { useAlert } from 'react-alert';
+import { STATUS } from '@/constant';
 
 interface CustomizedState {
   from: string;
@@ -22,6 +24,7 @@ const WidgetModify = () => {
   const location = useLocation();
   const { fixLayout } = useContext(LayoutContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
+  const alert = useAlert();
 
   const defaultWidgetInfo: WidgetInfo = {
     componentId: '',
@@ -42,10 +45,17 @@ const WidgetModify = () => {
 
   const [widgetInfo, setWidgetInfo] = useState<WidgetInfo>(defaultWidgetInfo);
 
-  const { data: savedWidget } = useQuery({
+  const { data: savedWidget, isError } = useQuery({
     queryKey: ['widget', widgetId],
-    queryFn: () => widgetService.selectWidget(widgetId).then(response => response.data.data),
+    queryFn: () =>
+      widgetService.selectWidget(widgetId).then(response => {
+        if (response.data.status !== STATUS.SUCCESS || !response.data.data?.id) {
+          throw new Error(response.data.message || t('widget.loadFailed'));
+        }
+        return response.data.data;
+      }),
     enabled: !!widgetId,
+    retry: false,
   });
 
   useEffect(() => {
@@ -59,24 +69,31 @@ const WidgetModify = () => {
    * 위젯 조회
    */
   useEffect(() => {
-    if (savedWidget) setWidgetInfo(savedWidget);
-  }, [savedWidget]);
+    setWidgetInfo(savedWidget && !isError ? savedWidget : defaultWidgetInfo);
+    if (isError) alert.error(t('widget.loadFailed'));
+  }, [savedWidget, isError, widgetId]);
 
-  const saveWidgetInfo = (option, title) => {
+  const saveWidgetInfo = async (option, title): Promise<boolean> => {
     const param = {
       title: title,
       option: option,
     };
     console.log(option, 'option');
     showLoading();
-    widgetService
-      .updateWidget(widgetInfo.id, param)
-      .then(() => {
+    try {
+      const response = await widgetService.updateWidget(widgetInfo.id, param);
+      if (response.data.status === STATUS.SUCCESS) {
         navigate((location.state as CustomizedState)?.from || '/widget');
-      })
-      .finally(() => {
-        hideLoading();
-      });
+        return true;
+      }
+      alert.error(response.data.message || t('common.genericError'));
+      return false;
+    } catch (error) {
+      alert.error(error.response?.data?.message || error.message || t('common.genericError'));
+      return false;
+    } finally {
+      hideLoading();
+    }
   };
 
   return (

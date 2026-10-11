@@ -101,4 +101,84 @@ describe('DatabaseService uploadFile', () => {
       service.uploadFile({ originalname: 'bad.json', buffer: Buffer.from('{"a":1}') }),
     ).rejects.toThrow('array of objects');
   });
+
+  const uploadedRows = async () => {
+    const cfg = JSON.parse(decryptConnectionConfig(savedEntity.connectionConfig));
+    const db = knex(cfg);
+    try {
+      return await db('uploaded_data').select('*');
+    } finally {
+      await db.destroy();
+    }
+  };
+
+  it('retains both values from identical raw CSV headers', async () => {
+    await service.uploadFile({
+      originalname: 'duplicate.csv',
+      buffer: Buffer.from('amount,amount\n1,2\n'),
+    });
+    expect(await uploadedRows()).toEqual([{ amount: 1, amount_: 2 }]);
+  });
+
+  it('unions heterogeneous JSON keys and preserves SQL nulls', async () => {
+    await service.uploadFile({
+      originalname: 'heterogeneous.json',
+      buffer: Buffer.from(JSON.stringify([{ a: 1 }, { b: 2 }, { a: 3, b: null }])),
+    });
+    expect(await uploadedRows()).toEqual([
+      { a: 1, b: null },
+      { a: null, b: 2 },
+      { a: 3, b: null },
+    ]);
+  });
+
+  it('preserves the three-row amount oracle', async () => {
+    await service.uploadFile({
+      originalname: 'amounts.json',
+      buffer: Buffer.from(JSON.stringify([{ amount: 100 }, { amount: 250 }, { amount: 150 }])),
+    });
+    expect((await uploadedRows()).map(row => row.amount)).toEqual([100, 250, 150]);
+  });
+
+  it('preserves BOM, CRLF, quoted commas, escaped quotes and newlines', () => {
+    expect(
+      (service as any).parseCsvRows(
+        Buffer.from('\uFEFFname,detail\r\n"a,b","line1\nline2 ""quoted"""\r\n'),
+      ),
+    ).toEqual([{ name: 'a,b', detail: 'line1\nline2 "quoted"' }]);
+  });
+
+  it('rejects unsupported text before parsing or saving a source', async () => {
+    const previous = savedEntity;
+    await expect(
+      service.uploadFile({ originalname: 'data.txt', buffer: Buffer.from('a\n1') }),
+    ).rejects.toThrow('unsupported file extension');
+    expect(savedEntity).toBe(previous);
+  });
+
+  it('rejects a supported source without data rows', async () => {
+    await expect(
+      service.uploadFile({ originalname: 'empty.csv', buffer: Buffer.from('amount\n') }),
+    ).rejects.toThrow('no rows');
+  });
+
+  it('rejects the 100001st Parquet row and always closes its reader', async () => {
+    const { ParquetReader } = await import('parquetjs-lite');
+    let count = 0;
+    const close = jest.fn().mockResolvedValue(undefined);
+    const open = jest.spyOn(ParquetReader, 'openBuffer').mockResolvedValue({
+      getCursor: () => ({ next: async () => (++count <= 100001 ? { amount: count } : null) }),
+      close,
+    } as any);
+    const previous = savedEntity;
+    try {
+      await expect(
+        service.uploadFile({ originalname: 'large.parquet', buffer: Buffer.from('mock-parquet') }),
+      ).rejects.toThrow('row limit exceeded');
+      expect(close).toHaveBeenCalledTimes(1);
+      expect(savedEntity).toBe(previous);
+    } finally {
+      open.mockRestore();
+    }
+  });
 });

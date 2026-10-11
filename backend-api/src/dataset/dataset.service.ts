@@ -91,7 +91,7 @@ export class DatasetService {
     const find_dataset = await this.datasetRepository.findOne({ where: { id: id } });
 
     if (!find_dataset) {
-      return 'Not exist dataset';
+      return { status: ResponseStatus.ERROR, message: 'No exist dataset' };
     } else {
       await this.datasetRepository.delete(find_dataset.id);
       await this.widgetRepository.delete({

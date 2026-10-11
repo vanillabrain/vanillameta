@@ -37,13 +37,14 @@ const RadarChart = props => {
 
   const createComponentOption = () => {
     let newOption = {};
+    const categoryField = option.field || option.xField;
 
     // series option에서 가져오기
     const newSeriesData = [];
     let aggrData = [];
 
     option.series.forEach(item => {
-      aggrData = getAggregationDataForChart(dataSet, option.field, item.field, item.aggregation);
+      aggrData = getAggregationDataForChart(dataSet, categoryField, item.field, item.aggregation);
 
       if (item.field) {
         const seriesData = {
@@ -65,7 +66,7 @@ const RadarChart = props => {
     if (aggrData) {
       const op = {
         radar: {
-          indicator: !!option.field ? aggrData.map(item => ({ name: item[option.field] })) : '',
+          indicator: !!categoryField ? aggrData.map(item => ({ name: item[categoryField] })) : '',
           center: getCenter(option.legendPosition),
         },
         series: [

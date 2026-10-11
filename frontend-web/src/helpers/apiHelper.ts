@@ -10,6 +10,7 @@ const API_URL = import.meta.env.REACT_APP_API_URL;
 const instance = axios.create({
   baseURL: API_URL,
   timeout: 10000,
+  withCredentials: true,
   // withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
 });
@@ -54,7 +55,9 @@ const addAuthToHeaders = config => {
   const shareToken = getShareToken();
 
   if (token) {
+    isLoginUser = true;
     config.headers.Authorization = `Bearer ${token}`;
+    delete config.headers['Authorization-url'];
   } else if (shareToken && config.url.includes('/database')) {
     // token 없는 외부 사용자가 share url에 필요한 db api 호출을 할 때만 auth로 shareToken 보내기
     isLoginUser = false;
@@ -83,8 +86,14 @@ export function cancelAllRequests() {
   pendingRequests = {};
 }
 
-let isAlreadyFetchingAccessToken = false;
-const subscribers: ((token: string) => void)[] = [];
+let refreshPromise: Promise<string> | null = null;
+
+const responseMessage = data => {
+  const candidate = typeof data === 'string' ? data : data?.message ?? data?.data;
+  if (typeof candidate === 'string') return candidate;
+  if (typeof candidate?.message === 'string') return candidate.message;
+  return undefined;
+};
 
 // 응답 인터셉터
 instance.interceptors.response.use(
@@ -94,12 +103,21 @@ instance.interceptors.response.use(
   },
   async error => {
     const { response: errorResponse } = error;
-    if (errorResponse?.status === 401 && errorResponse?.data?.message === 'accessTokenExpired' && isLoginUser) {
+    const message = responseMessage(errorResponse?.data);
+    const requestConfig = error.config ?? errorResponse?.config;
+    if (
+      errorResponse?.status === 401 &&
+      message === 'accessTokenExpired' &&
+      isLoginUser &&
+      requestConfig &&
+      !requestConfig._retry &&
+      requestConfig.url !== '/user/get-access-token'
+    ) {
       // 로그인 사용자의 token 만료 후 첫 요청
-      await resetTokenAndReattemptRequest(errorResponse);
+      requestConfig._retry = true;
+      return await resetTokenAndReattemptRequest({ ...errorResponse, config: requestConfig });
     }
-    error.message =
-      (errorResponse && errorResponse?.data && errorResponse?.data?.message) || error?.message || error.toString();
+    error.message = message || error?.message || error.toString();
     return Promise.reject(error);
   },
 );
@@ -110,45 +128,33 @@ async function resetTokenAndReattemptRequest(errorResponse) {
   // access token을 받은 이후 onAccessTokenFetched가 호출될 때
   // access token을 넘겨 다시 axios로 요청하고
   // 결과값을 처음 요청했던 promise의 resolve로 settle시킨다.
-  try {
-    const retryOriginalRequest = new Promise((resolve, reject) => {
-      subscribers.push(async accessToken => {
-        try {
-          errorResponse.config.headers.Authorization = accessToken;
-          resolve(instance(errorResponse.config));
-        } catch (err) {
-          reject(err);
-        }
-      });
-    });
-
-    // refresh token을 이용해서 access token 요청
-    if (!isAlreadyFetchingAccessToken) {
-      isAlreadyFetchingAccessToken = true; // 문닫기 (한 번만 요청)
-
+  // refresh token을 이용해서 access token 요청
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      // 문닫기 (한 번만 요청)
       const { data } = await authService.refreshAccessToken();
       // 새로운 토큰 저장
-      console.log('data', data);
-      const newAccessToken = data.accessToken;
+      const newAccessToken = data?.accessToken;
+      if (typeof newAccessToken !== 'string' || !newAccessToken.trim()) {
+        throw new Error('invalid refresh response');
+      }
       setToken(newAccessToken);
-
-      isAlreadyFetchingAccessToken = false; // 문열기 (초기화)
-      onAccessTokenFetched(data.accessToken);
-    }
-    return retryOriginalRequest; // pending 됐다가 onAccessTokenFetched가 호출될 때 resolve
-  } catch (error) {
-    console.log('error', error);
-    if (error.response.status === 401) {
-      // refresh token 만료
-      removeToken();
-    }
-    return Promise.reject(error);
+      return newAccessToken;
+    })()
+      .catch(error => {
+        // refresh token 만료
+        removeToken();
+        window.location.assign('/login');
+        throw error;
+      })
+      .finally(() => {
+        refreshPromise = null; // 문열기 (초기화)
+      });
   }
-}
-
-function onAccessTokenFetched(accessToken) {
-  subscribers.forEach(callback => callback(accessToken));
-  subscribers.length = 0;
+  const accessToken = await refreshPromise;
+  errorResponse.config.headers = errorResponse.config.headers || {};
+  errorResponse.config.headers.Authorization = `Bearer ${accessToken}`;
+  return instance(errorResponse.config); // pending 됐다가 onAccessTokenFetched가 호출될 때 resolve
 }
 
 export async function get(url, data?, config = {}) {

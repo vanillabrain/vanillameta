@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import { Box, Button, Card, MenuItem, Select, Typography, useMediaQuery, useTheme } from '@mui/material';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import PageTitleBox from '@/components/PageTitleBox';
@@ -24,6 +24,15 @@ import Seo from '@/seo/Seo';
 import { dateData } from '@/utils/util';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
+const defaultDashboardInfo = {
+  title: '',
+  widgets: [],
+  layout: [],
+  updatedAt: '',
+  shareYn: 'N',
+  uuid: null,
+  endDate: null,
+};
 
 const DashboardView = () => {
   const { t } = useTranslation();
@@ -35,15 +44,8 @@ const DashboardView = () => {
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const theme = useTheme();
   const matches = useMediaQuery(theme.breakpoints.up('sm'));
-  const [dashboardInfo, setDashboardInfo] = useState({
-    title: '',
-    widgets: [],
-    layout: [],
-    updatedAt: '',
-    shareYn: 'N',
-    uuid: null,
-    endDate: null,
-  }); // dashboard 정보
+  const [dashboardInfo, setDashboardInfo] = useState(defaultDashboardInfo); // dashboard 정보
+  const dashboardRequest = useRef(0);
   const [layout, setLayout] = useState([]); // grid layout
   // dashboard id
   const [isShareOn, setIsShareOn] = useState(false);
@@ -85,41 +87,60 @@ const DashboardView = () => {
       });
   };
 
+  useEffect(() => {
+    setDashboardInfo(defaultDashboardInfo);
+    setLayout([]);
+    setShareLimitDate(null);
+  }, [dashboardId]);
+
   // init useEffect
   useEffect(() => {
-    getDashboardInfo(dashboardId);
-  }, [isShareOn]);
+    return getDashboardInfo(dashboardId);
+  }, [dashboardId, isShareOn]);
 
   // dashboardInfo useEffect
   useEffect(() => {
-    dashboardInfo.layout.map(item => {
-      if (item.i !== undefined) {
-        item.i = item.i.toString();
-      }
-      item.static = true;
-    });
-    setLayout(dashboardInfo.layout);
+    setLayout(
+      dashboardInfo.layout
+        .filter(item => item && typeof item === 'object')
+        .map(item => ({ ...item, i: item.i?.toString(), static: true })),
+    );
     setIsShareOn(dashboardInfo.shareYn === 'Y');
-    if (dashboardInfo.endDate) {
-      const date = dateData(dashboardInfo.endDate);
-      setShareLimitDate(date);
-    }
+    setShareLimitDate(dashboardInfo.endDate ? dateData(dashboardInfo.endDate) : null);
   }, [dashboardInfo]);
 
   // dashboard info 조회
   const getDashboardInfo = id => {
+    dashboardRequest.current += 1;
+    const request = dashboardRequest.current;
     showLoading();
     DashboardService.selectDashboard(id)
       .then(response => {
-        if (response.data.status == STATUS.SUCCESS) {
-          setDashboardInfo(response.data.data);
+        if (request !== dashboardRequest.current) return;
+        const dashboard = response.data.data;
+        if (
+          response.data.status === STATUS.SUCCESS &&
+          dashboard &&
+          Array.isArray(dashboard.layout) &&
+          Array.isArray(dashboard.widgets)
+        ) {
+          setDashboardInfo(dashboard);
         } else {
-          alert.error(t('dashboard.loadFailed'));
+          throw new Error(t('dashboard.loadFailed'));
         }
+      })
+      .catch(() => {
+        if (request !== dashboardRequest.current) return;
+        setDashboardInfo(defaultDashboardInfo);
+        setLayout([]);
+        alert.error(t('dashboard.loadFailed'));
       })
       .finally(() => {
         hideLoading();
       });
+    return () => {
+      if (request === dashboardRequest.current) dashboardRequest.current += 1;
+    };
   };
 
   // refrech 버튼 클릭
@@ -130,6 +151,7 @@ const DashboardView = () => {
   // widget 생성
   const generateWidget = () => {
     return dashboardInfo.widgets.map((item, index) => {
+      if (!item || !item.id) return null;
       return (
         <Card
           key={item.id}
@@ -142,7 +164,7 @@ const DashboardView = () => {
             backgroundColor: '#fff',
           }}
         >
-          <WidgetWrapper widgetOption={item} dataSetId={item.datasetId} size={dashboardInfo.layout[index].w} />
+          <WidgetWrapper widgetOption={item} dataSetId={item.datasetId} size={dashboardInfo.layout[index]?.w} />
         </Card>
       );
     });

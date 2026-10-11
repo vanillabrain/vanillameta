@@ -6,8 +6,8 @@ import { expect, test, Page } from '@playwright/test';
  * serial: 위젯 → 대시보드 → 공유 순서 의존성 있음
  */
 
-const USER = { userId: 'e2etester', password: 'Test1234!' };
-const API = 'http://localhost:4000/v1';
+const USER = { userId: process.env.E2E_USER_ID ?? 'e2etester', password: process.env.E2E_PASSWORD ?? 'Test1234!' };
+const API = (process.env.E2E_API_URL ?? 'http://localhost:4000/v1').replace(/\/$/, '');
 let widgetTitle = '';
 let dashboardId = '';
 let shareUuid = '';
@@ -103,11 +103,7 @@ test.describe('제품 전체 플로우', () => {
   test('메트릭 생성 → 평가 → 삭제', async ({ page }) => {
     await login(page);
     // 이전 실행 잔여분 정리 (API)
-    const list = await api(page, 'get', '/metric');
-    const metrics = (await list.json().catch(() => ({}))).data || [];
-    for (const m of metrics.filter((x: any) => String(x.name).startsWith('e2e_'))) {
-      await api(page, 'delete', `/metric/${m.id}`);
-    }
+    const metricName = `e2e_total_amount_${Date.now()}`;
 
     await page.goto('/data/metric');
     await page.locator('button:has-text("메트릭 추가"), button:has-text("Add metric")').first().click();
@@ -117,12 +113,12 @@ test.describe('제품 전체 플로우', () => {
     await dialog
       .getByLabel(/Name|이름/i)
       .first()
-      .fill('e2e_total_amount');
+      .fill(metricName);
     await dialog.locator('.MuiSelect-select').first().click();
     // uploaded_data 테이블이 있는 'sales' 소스 선택 (샘플 DB는 sales_data 테이블)
     const salesOpt = page.locator('li[role="option"]:has-text("sales")').first();
-    if (await salesOpt.isVisible().catch(() => false)) await salesOpt.click();
-    else await page.locator('li[role="option"]').first().click();
+    await expect(salesOpt).toBeVisible();
+    await salesOpt.click();
     await dialog.getByLabel(/Table name|테이블/i).fill('uploaded_data');
     await dialog.locator('.MuiSelect-select').nth(1).click();
     await page.locator('li[role="option"]:has-text("SUM")').click();
@@ -130,21 +126,25 @@ test.describe('제품 전체 플로우', () => {
     await dialog.locator('button:has-text("생성"), button:has-text("Create")').click();
     // 다이얼로그가 닫히고 카드가 나타날 때까지
     await expect(page.locator('.MuiDialog-root')).toHaveCount(0, { timeout: 10000 });
-    const card = page.locator('.MuiCard-root', { hasText: 'e2e_total_amount' }).first();
+    const card = page.locator('.MuiCard-root', { hasText: metricName }).first();
     await expect(card).toBeVisible({ timeout: 5000 });
 
     // 평가 — 카드 내 Evaluate 버튼
+    const evaluated = page.waitForResponse(r => /\/metric\/\d+\/evaluate$/.test(r.url()) && r.request().method() === 'POST');
     await card.locator('button:has-text("평가"), button:has-text("Evaluate")').click();
-    await page.waitForTimeout(3000);
+    const evaluatedResponse = await evaluated;
+    expect(evaluatedResponse.ok()).toBe(true);
+    const evaluatedBody = await evaluatedResponse.json();
+    expect(evaluatedBody.status).toBe('SUCCESS');
+    expect(evaluatedBody.data.result).toEqual([{ value: 298250 }]);
+    await expect(page.locator('.tui-grid-container')).toContainText('298250');
     // 평가 에러 다이얼로그가 떴으면 닫기
     const errDialog = page.locator('.MuiDialog-root');
-    if (await errDialog.isVisible().catch(() => false)) {
-      await errDialog.locator('button').first().click();
-    }
+    await expect(errDialog).toHaveCount(0);
 
     // 삭제 — 카드의 마지막 IconButton
     await card.locator('button').last().click();
-    await expect(page.locator('.MuiCard-root', { hasText: 'e2e_total_amount' })).toHaveCount(0, { timeout: 5000 });
+    await expect(page.locator('.MuiCard-root', { hasText: metricName })).toHaveCount(0, { timeout: 5000 });
   });
 
   test('위젯 생성 — 데이터 선택 → 타입 → 속성 → 저장', async ({ page }) => {
@@ -254,7 +254,7 @@ test.describe('제품 전체 플로우', () => {
   });
 
   test('공개 공유 페이지 (/share/:uuid) — 무인증 접근', async ({ browser }) => {
-    test.skip(!shareUuid, 'shareUuid 없음');
+    expect(shareUuid, '공유 URL 생성 실패를 건너뛰지 않는다').not.toBe('');
     const ctx = await browser.newContext(); // 인증 없는 새 세션
     const page = await ctx.newPage();
     await page.goto(`/share/${shareUuid}`);
@@ -264,7 +264,7 @@ test.describe('제품 전체 플로우', () => {
   });
 
   test('임베드 페이지 (/embed/:uuid)', async ({ page }) => {
-    test.skip(!shareUuid, 'shareUuid 없음');
+    expect(shareUuid, '공유 URL 생성 실패를 건너뛰지 않는다').not.toBe('');
     await page.goto(`/embed/${shareUuid}`);
     await expect(page.locator('body')).toContainText('E2E 대시보드', { timeout: 15000 });
     // 임베드는 크롬 없음 — 헤더 nav 없어야 함

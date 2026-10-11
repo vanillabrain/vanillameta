@@ -25,7 +25,8 @@ export class MetricService {
 
   async findOne(id: number) {
     const metric = await this.metricRepository.findOne({ where: { id } });
-    if (!metric) return { status: ResponseStatus.ERROR, message: '메트릭을 찾을 수 없습니다.' };
+    if (!metric || metric.useYn === YesNo.NO)
+      return { status: ResponseStatus.ERROR, message: '메트릭을 찾을 수 없습니다.' };
     return { status: ResponseStatus.SUCCESS, data: this.parseFilters(metric) };
   }
 
@@ -48,6 +49,7 @@ export class MetricService {
           data: this.parseFilters({
             ...existing,
             ...dto,
+            useYn: YesNo.YES,
             filters: dto.filters ? JSON.stringify(dto.filters) : null,
           }),
         };
@@ -65,7 +67,8 @@ export class MetricService {
 
   async update(id: number, dto: UpdateMetricDto) {
     const metric = await this.metricRepository.findOne({ where: { id } });
-    if (!metric) return { status: ResponseStatus.ERROR, message: '메트릭을 찾을 수 없습니다.' };
+    if (!metric || metric.useYn === YesNo.NO)
+      return { status: ResponseStatus.ERROR, message: '메트릭을 찾을 수 없습니다.' };
     try {
       const merged = { ...this.parseFilters(metric), ...dto };
       this.validateDefinition(merged as CreateMetricDto);
@@ -92,7 +95,8 @@ export class MetricService {
    */
   async evaluate(id: number) {
     const metric = await this.metricRepository.findOne({ where: { id } });
-    if (!metric) return { status: ResponseStatus.ERROR, message: '메트릭을 찾을 수 없습니다.' };
+    if (!metric || metric.useYn === YesNo.NO)
+      return { status: ResponseStatus.ERROR, message: '메트릭을 찾을 수 없습니다.' };
 
     try {
       const { selectExpr, whereClause, bindings } = this.buildQuery(metric);
@@ -183,6 +187,9 @@ export class MetricService {
     (dto.filters || []).forEach(f => {
       assertSafeIdentifier(f.column);
       if (!ALLOWED_OPS.has(f.op)) throw new Error(`unsupported operator: ${f.op}`);
+      if (f.op === 'IN' && Array.isArray(f.value) && f.value.length === 0) {
+        throw new Error('IN filter requires values');
+      }
     });
   }
 

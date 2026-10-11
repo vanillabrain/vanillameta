@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Box, Card } from '@mui/material';
+import { Box, Card, Typography } from '@mui/material';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import PageTitleBox from '@/components/PageTitleBox';
 import WidgetService from '@/api/widgetService';
@@ -15,6 +15,7 @@ import { LoadingContext } from '@/contexts/LoadingContext';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import Seo from '@/seo/Seo';
 import { dateData } from '@/utils/util';
+import { STATUS } from '@/constant';
 
 const WidgetView = () => {
   const { t } = useTranslation();
@@ -42,25 +43,45 @@ const WidgetView = () => {
     componentDescription: '',
   };
   const [widgetOption, setWidgetOption] = useState<WidgetInfo>(defaultWidgetInfo);
+  const [loadError, setLoadError] = useState(false);
 
   const { widgetId } = useParams();
 
   useEffect(() => {
-    getWidgetInfo();
-  }, []);
+    return getWidgetInfo();
+  }, [widgetId]);
 
   /**
    * 위젯 조회
    */
   const getWidgetInfo = () => {
+    let active = true;
+    setWidgetOption(defaultWidgetInfo);
+    setLoadError(false);
     showLoading();
     WidgetService.selectWidget(widgetId)
       .then(response => {
-        setWidgetOption(response.data.data);
+        if (!active) return;
+        const widget = response.data.data;
+        if (response.data.status === STATUS.SUCCESS && widget && typeof widget === 'object' && Number(widget.id) > 0) {
+          setWidgetOption(widget);
+        } else {
+          setWidgetOption(defaultWidgetInfo);
+          setLoadError(true);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setWidgetOption(defaultWidgetInfo);
+          setLoadError(true);
+        }
       })
       .finally(() => {
         hideLoading();
       });
+    return () => {
+      active = false;
+    };
   };
 
   // refrech 버튼 클릭
@@ -85,12 +106,15 @@ const WidgetView = () => {
               showLoading();
               WidgetService.deleteWidget(widgetId)
                 .then(response => {
-                  if (response.status === 200) {
+                  if (response.data.status === STATUS.SUCCESS) {
                     navigate('/widget', { replace: true });
                     snackbar.success(t('widget.deleted'));
                   } else {
                     alert.error(t('widget.deleteFailed'));
                   }
+                })
+                .catch(() => {
+                  alert.error(t('widget.deleteFailed'));
                 })
                 .finally(() => {
                   hideLoading();
@@ -159,7 +183,13 @@ const WidgetView = () => {
             backgroundColor: '#fff',
           }}
         >
-          <WidgetWrapper widgetOption={widgetOption} dataSetId={widgetOption.datasetId} />
+          {loadError ? (
+            <Typography role="alert" sx={{ p: '24px', textAlign: 'center' }}>
+              {t('share.widgetFetchFailed')}
+            </Typography>
+          ) : widgetOption.id ? (
+            <WidgetWrapper widgetOption={widgetOption} dataSetId={widgetOption.datasetId} />
+          ) : null}
         </Card>
       </PageViewBox>
     </PageTitleBox>

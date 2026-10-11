@@ -44,6 +44,10 @@ describe('AiService', () => {
     findOne: jest.fn().mockResolvedValue({ id: 1, title: '매출 대시보드' }),
   } as any;
 
+  const userMappingRepository = {
+    findOne: jest.fn().mockResolvedValue({ dashboardId: 1, userInfoId: 7 }),
+  } as any;
+
   const dashboardWidgetService = {
     findWidgets: jest.fn().mockResolvedValue([
       {
@@ -66,6 +70,7 @@ describe('AiService', () => {
       componentRepository,
       dashboardRepository,
       dashboardWidgetService,
+      userMappingRepository,
     );
     jest.clearAllMocks();
     delete process.env.AI_API_KEY;
@@ -176,7 +181,7 @@ describe('AiService', () => {
       }),
     }) as any;
 
-    const res = await service.dashboardInsight(1);
+    const res = await service.dashboardInsight(1, 7);
     expect(res.status).toBe(ResponseStatus.SUCCESS);
     expect(res.data.insight).toContain('매출');
   });
@@ -184,7 +189,25 @@ describe('AiService', () => {
   it('dashboardInsight는 대시보드가 없으면 ERROR를 반환한다', async () => {
     process.env.AI_API_KEY = 'test-key';
     dashboardRepository.findOne.mockResolvedValueOnce(null);
-    const res = await service.dashboardInsight(999);
+    userMappingRepository.findOne.mockResolvedValueOnce({ dashboardId: 999, userInfoId: 7 });
+    const res = await service.dashboardInsight(999, 7);
     expect(res.status).toBe(ResponseStatus.ERROR);
+  });
+
+  it('dashboardInsight rejects non-owners before widget data or LLM access', async () => {
+    process.env.AI_API_KEY = 'test-key';
+    userMappingRepository.findOne.mockResolvedValueOnce(null);
+    await expect(service.dashboardInsight(1, 8)).rejects.toMatchObject({ status: 403 });
+    expect(userMappingRepository.findOne).toHaveBeenCalledWith({
+      where: { dashboardId: 1, userInfoId: 8 },
+    });
+    expect(dashboardWidgetService.findWidgets).not.toHaveBeenCalled();
+    expect(databaseService.findData).not.toHaveBeenCalled();
+  });
+
+  it('dashboardInsight does not allow a missing requester', async () => {
+    await expect(service.dashboardInsight(1, undefined)).rejects.toMatchObject({ status: 403 });
+    expect(userMappingRepository.findOne).not.toHaveBeenCalled();
+    expect(dashboardWidgetService.findWidgets).not.toHaveBeenCalled();
   });
 });

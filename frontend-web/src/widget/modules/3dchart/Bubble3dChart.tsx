@@ -40,15 +40,25 @@ function Scatter3DChart(props) {
     let newOption = {};
     const newSeries = [];
     option.series.forEach(item => {
+      const sizeField = item.symbolSize || item.sizeField;
       if (item.xField && item.yField && item.zField) {
         const series = {
           name: item.title,
-          data: dataSet.map(dataItem => [
-            dataItem[item.xField],
-            dataItem[item.yField],
-            dataItem[item.zField],
-            dataItem[item.symbolSize],
-          ]),
+          data: dataSet
+            .filter(dataItem => {
+              const size = dataItem[sizeField];
+              return (
+                (typeof size === 'number' || (typeof size === 'string' && size.trim() !== '')) &&
+                Number.isFinite(Number(size)) &&
+                Number(size) >= 0
+              );
+            })
+            .map(dataItem => [
+              dataItem[item.xField],
+              dataItem[item.yField],
+              dataItem[item.zField],
+              Number(dataItem[sizeField]),
+            ]),
           type: 'scatter3D',
           symbolSize: function (data) {
             return Math.sqrt(data[3]);

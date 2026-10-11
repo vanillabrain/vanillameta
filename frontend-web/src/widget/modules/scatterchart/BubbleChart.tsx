@@ -43,11 +43,21 @@ function BubbleChart(props) {
     // series option에서 가져오기
     const newSeries = [];
     option.series.forEach(item => {
+      const sizeField = item.symbolSize || item.sizeField;
       if (item.xField || item.yField) {
         const series = {
           type: 'scatter',
           name: item.title,
-          data: dataSet.map(dataItem => [dataItem[item.xField], dataItem[item.yField], dataItem[item.symbolSize]]),
+          data: dataSet
+            .filter(dataItem => {
+              const size = dataItem[sizeField];
+              return (
+                (typeof size === 'number' || (typeof size === 'string' && size.trim() !== '')) &&
+                Number.isFinite(Number(size)) &&
+                Number(size) >= 0
+              );
+            })
+            .map(dataItem => [dataItem[item.xField], dataItem[item.yField], Number(dataItem[sizeField])]),
           symbolSize: function (data) {
             return Math.sqrt(data[2]);
           },

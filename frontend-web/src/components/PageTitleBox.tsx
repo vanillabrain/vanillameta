@@ -41,7 +41,11 @@ function PageTitleBox(props: PageTitleBoxProps) {
           justifyContent="space-between"
           sx={{
             width: '100%',
-            height: { xs: 40, sm: 56 },
+            height: { xs: 'auto', sm: 56 },
+            minHeight: { xs: 40, sm: 56 },
+            flexWrap: { xs: 'wrap', sm: 'nowrap' },
+            rowGap: '8px',
+            py: { xs: button ? '8px' : 0, sm: 0 },
             paddingLeft: '24px',
             paddingRight: '24px',
             borderBottom: '1px solid #e3e7ea',
@@ -119,7 +123,17 @@ function PageTitleBox(props: PageTitleBoxProps) {
               {title}
             </Typography>
           </Stack>
-          <Box sx={{ display: { xs: 'none', sm: 'contents' } }}>{button}</Box>
+          <Box
+            sx={{
+              display: { xs: 'flex', sm: 'contents' },
+              flexWrap: 'wrap',
+              gap: '8px',
+              maxWidth: '100%',
+              '& > .MuiStack-root': { flexWrap: 'wrap', rowGap: '8px' },
+            }}
+          >
+            {button}
+          </Box>
         </Stack>
       </Stack>
       <Stack

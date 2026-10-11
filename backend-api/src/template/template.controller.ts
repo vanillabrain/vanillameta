@@ -7,7 +7,6 @@ import {
   Param,
   Post,
   Put,
-  Res,
   UseGuards,
 } from '@nestjs/common';
 import { TemplateService } from './template.service';
@@ -45,8 +44,8 @@ export class TemplateController {
    * @param id
    */
   @Get(':id')
-  async findOne(@Res() res, @Param('id') id: number) {
-    return await this.templateService.findOne(id);
+  async findOne(@Param('id') id: string) {
+    return await this.templateService.findOne(+id);
   }
 
   /**

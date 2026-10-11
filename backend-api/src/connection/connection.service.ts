@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateDatabaseDto } from '../database/dto/create-database.dto';
 import { QueryExecuteDto } from '../database/dto/query-execute.dto';
 import { Knex, knex } from 'knex';
@@ -93,8 +93,10 @@ export class ConnectionService {
    * Knex 객체 pool에서 삭제
    * @param id
    */
-  removeKnex(id: number) {
+  async removeKnex(id: number) {
+    const old = knexConnections.get(id);
     knexConnections.delete(id);
+    if (old) await old.destroy();
   }
 
   /**
@@ -109,17 +111,16 @@ export class ConnectionService {
    * Knex 객체 가져오기 - 만약 없으면 가져오기
    * @param id
    */
-  async getKnex(id: number): Promise<Knex> {
+  async getKnex(id: number | string): Promise<Knex> {
+    id = this.validateId(id);
+    const knexConfig = await this.getConnectionConfig(id);
     if (!this.hasKnex(id)) {
-      const one = await this.databaseRepository.findOne({ where: { id: id } });
-      one.connectionConfig = JSON.parse(decryptConnectionConfig(one.connectionConfig));
-      const knexConfig = one.connectionConfig;
       if (knexConfig['client'] == 'bigquery') {
         knexConfig['client'] = BigQueryClient;
       } else if (knexConfig['client'] == 'snowflake') {
         knexConfig['client'] = SnowflakeDialect;
       }
-      this.addKnex(id, one.connectionConfig as Knex.Config);
+      this.addKnex(id, knexConfig as Knex.Config);
     }
     return knexConnections.get(id);
   }
@@ -127,10 +128,20 @@ export class ConnectionService {
   /**
    * 데이터베이스 연결 설정 복호화 조회
    */
-  private async getConnectionConfig(id: number) {
-    const one = await this.databaseRepository.findOne({ where: { id } });
-    if (!one) return null;
+  private async getConnectionConfig(id: number | string) {
+    const databaseId = this.validateId(id);
+    const one = await this.databaseRepository.findOne({ where: { id: databaseId } });
+    if (!one) throw new NotFoundException('database not found');
     return JSON.parse(decryptConnectionConfig(one.connectionConfig));
+  }
+
+  private validateId(id: unknown): number {
+    const normalized =
+      typeof id === 'number' ? id : typeof id === 'string' && /^\d+$/.test(id) ? Number(id) : NaN;
+    if (!Number.isSafeInteger(normalized) || normalized <= 0) {
+      throw new BadRequestException('invalid database id');
+    }
+    return normalized;
   }
 
   /**
@@ -436,10 +447,15 @@ export class ConnectionService {
    * @param queryExecuteDto
    */
   async executeQuery(queryExecuteDto: QueryExecuteDto, clientId?: string) {
+    queryExecuteDto = { ...queryExecuteDto, id: this.validateId(queryExecuteDto.id) };
     const cacheTtl = parseInt(process.env.QUERY_CACHE_TTL_MS) || 0;
     if (cacheTtl <= 0) return this.runQuery(queryExecuteDto, clientId);
 
-    const cacheKey = `${queryExecuteDto.id}:${createHash('sha256')
+    assertReadOnlyQuery(queryExecuteDto.query);
+    const stored = await this.databaseRepository.findOne({ where: { id: queryExecuteDto.id } });
+    if (!stored) throw new NotFoundException('database not found');
+    const configHash = createHash('sha256').update(stored.connectionConfig).digest('hex');
+    const cacheKey = `${queryExecuteDto.id}:${configHash}:${createHash('sha256')
       .update(queryExecuteDto.query)
       .digest('hex')}`;
     const hit = await queryCache.get(cacheKey);

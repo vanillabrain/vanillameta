@@ -111,13 +111,17 @@ async function ensureFixtures() {
 }
 
 export default async function globalSetup() {
+  if (process.env.QA_RUN_ROOT) {
+    USER.userId = USER.userId.replace(/_/g, '');
+    process.env.E2E_USER_ID = USER.userId;
+  }
   const api = await request.newContext({ baseURL: API });
   await waitForBackend(api);
   console.log(`[e2e setup] backend OK (${API})`);
 
   // 1) 테스트 계정 — 중복 가입 에러는 무시
   const signup = await api.post('login/signup', {
-    data: { userId: USER.userId, password: USER.password, email: 'e2e@test.com' },
+    data: { userId: USER.userId, password: USER.password, email: process.env.QA_RUN_ROOT ? `${USER.userId}@example.test` : 'e2e@test.com' },
   });
   console.log(`[e2e setup] signup → ${signup.status()}`);
 
@@ -171,5 +175,12 @@ export default async function globalSetup() {
   await ensureFixtures();
   console.log(`[e2e setup] fixtures OK (${FIXTURE_DIR})`);
 
+  if (process.env.QA_RUN_ROOT && process.env.QA_EVIDENCE_DIR) {
+    const inventory = await api.get('component', { headers: auth });
+    const widgets = await api.get('widget', { headers: auth });
+    const widgetData = await widgets.json();
+    fs.writeFileSync(path.join(process.env.QA_EVIDENCE_DIR, 'components.json'), JSON.stringify(await inventory.json(), null, 2), { mode: 0o600 });
+    fs.writeFileSync(path.join(process.env.QA_EVIDENCE_DIR, 'seed-widget-options.json'), JSON.stringify(widgetData.data.filter((w: any) => w.id <= 100), null, 2), { mode: 0o600 });
+  }
   await api.dispose();
 }

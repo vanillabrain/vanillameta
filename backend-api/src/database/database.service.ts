@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { CreateDatabaseDto } from './dto/create-database.dto';
 import { UpdateDatabaseDto } from './dto/update-database.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -33,6 +33,15 @@ export class DatabaseService {
     @InjectRepository(TableQuery) private tableQueryRepository: Repository<TableQuery>,
     private readonly connectionService: ConnectionService,
   ) {}
+
+  private validateId(id: unknown): number {
+    const normalized =
+      typeof id === 'number' ? id : typeof id === 'string' && /^\d+$/.test(id) ? Number(id) : NaN;
+    if (!Number.isSafeInteger(normalized) || normalized <= 0) {
+      throw new BadRequestException('invalid database id');
+    }
+    return normalized;
+  }
 
   /**
    * database type 목록 조회
@@ -77,6 +86,9 @@ export class DatabaseService {
       throw new BadRequestException('file is required');
     }
     const ext = path.extname(file.originalname).toLowerCase();
+    if (!['.csv', '.json', '.parquet'].includes(ext)) {
+      throw new BadRequestException('unsupported file extension');
+    }
     const rows =
       ext === '.json'
         ? this.parseJsonRows(file.buffer)
@@ -91,7 +103,7 @@ export class DatabaseService {
     }
 
     // 컬럼명 sanitize + dedupe (식별자 인젝션 및 잘못된 헤더 방지)
-    const rawColumns = Object.keys(rows[0]);
+    const rawColumns = [...new Set(rows.flatMap(row => Object.keys(row)))];
     const seen = new Set<string>();
     const columns = rawColumns.map((name, i) => {
       let safe = name.trim().replace(/[^A-Za-z0-9_]/g, '_');
@@ -107,7 +119,7 @@ export class DatabaseService {
     const numeric = columns.map((_, i) =>
       rows.slice(0, 100).every(r => {
         const v = r[rawColumns[i]];
-        return v === null || v === '' || !isNaN(Number(v));
+        return v === undefined || v === null || v === '' || !isNaN(Number(v));
       }),
     );
 
@@ -128,7 +140,12 @@ export class DatabaseService {
           const obj: Record<string, unknown> = {};
           columns.forEach((c, j) => {
             const v = r[rawColumns[j]];
-            obj[c] = v === '' ? null : typeof v === 'object' ? JSON.stringify(v) : v;
+            obj[c] =
+              v === undefined || v === null || v === ''
+                ? null
+                : typeof v === 'object'
+                ? JSON.stringify(v)
+                : v;
           });
           return obj;
         });
@@ -201,7 +218,13 @@ export class DatabaseService {
       grid.push(row);
     }
     if (grid.length < 2) return [];
-    const header = grid[0];
+    const seen = new Set<string>();
+    const header = grid[0].map((name, i) => {
+      let unique = name || `col_${i + 1}`;
+      while (seen.has(unique)) unique += '_';
+      seen.add(unique);
+      return unique;
+    });
     return grid
       .slice(1)
       .filter(r => r.some(v => v !== ''))
@@ -227,7 +250,7 @@ export class DatabaseService {
     const cursor = reader.getCursor();
     try {
       let record = await cursor.next();
-      while (record && rows.length < UPLOAD_MAX_ROWS) {
+      while (record && rows.length <= UPLOAD_MAX_ROWS) {
         rows.push(record);
         record = await cursor.next();
       }
@@ -288,8 +311,10 @@ export class DatabaseService {
    * @param id
    */
   async findOne(id: number): Promise<any> {
+    id = this.validateId(id);
     // 연동 db 정보
     const databaseInfo = await this.databaseRepository.findOne({ where: { id } });
+    if (!databaseInfo) throw new NotFoundException('database not found');
     let connection: any;
     try {
       connection = JSON.parse(decryptConnectionConfig(databaseInfo.connectionConfig)).connection;
@@ -376,8 +401,10 @@ export class DatabaseService {
    * @param id
    */
   async findOneInfo(id: number): Promise<any> {
+    id = this.validateId(id);
     // 연동 db 정보
     const databaseInfo = await this.databaseRepository.findOne({ where: { id } });
+    if (!databaseInfo) throw new NotFoundException('database not found');
     let connection: any;
     try {
       connection = JSON.parse(decryptConnectionConfig(databaseInfo.connectionConfig)).connection;
@@ -396,8 +423,10 @@ export class DatabaseService {
    * @param id
    */
   private async findDB(id: number) {
+    id = this.validateId(id);
     // 연동 db 정보
     const databaseInfo = await this.databaseRepository.findOne({ where: { id } });
+    if (!databaseInfo) return null;
     databaseInfo.connectionConfig = JSON.parse(
       decryptConnectionConfig(databaseInfo.connectionConfig),
     );
@@ -405,6 +434,7 @@ export class DatabaseService {
   }
 
   async update(id: number, updateDatabaseDto: UpdateDatabaseDto) {
+    id = this.validateId(id);
     const one = await this.findDB(id);
     if (!one)
       return {
@@ -438,6 +468,7 @@ export class DatabaseService {
     );
 
     if (saveResult.affected === 1) {
+      await this.connectionService.removeKnex(id);
       return { status: ResponseStatus.SUCCESS, data: { message: `${id} 수정 완료` } };
     } else {
       return { status: ResponseStatus.ERROR, message: '수정 실패' };
@@ -445,6 +476,7 @@ export class DatabaseService {
   }
 
   async remove(id: number) {
+    id = this.validateId(id);
     const one = await this.findDB(id);
     if (!one)
       return {
@@ -465,6 +497,7 @@ where ((datasetType = 'DATASET' and datasetId in (select id from dataset where d
     const deletedDataset = await this.datasetRepository.delete({ databaseId: id });
     // database 삭제
     await this.databaseRepository.remove(one);
+    await this.connectionService.removeKnex(id);
 
     return {
       status: ResponseStatus.SUCCESS,

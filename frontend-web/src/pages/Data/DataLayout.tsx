@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import { Button, Stack, Typography } from '@mui/material';
 import DatabaseService from '@/api/databaseService';
 import { STATUS } from '@/constant';
@@ -12,7 +12,7 @@ import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import { Loading } from '@/components/loading';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { isCancelledError, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import ModalPopup from '@/components/ModalPopup';
 import { createColumns } from '@/utils/util';
 import DataGrid, { DataGridWrapper } from '@/components/datagrid';
@@ -47,6 +47,12 @@ export interface DataTableProps {
   datasetType: 'TABLE';
 }
 
+const isCancelledRequest = error =>
+  isCancelledError(error) ||
+  error?.code === 'ERR_CANCELED' ||
+  error?.name === 'AbortError' ||
+  error?.name === 'CanceledError';
+
 const DataLayout = props => {
   const { t } = useTranslation();
   const { isViewMode, setDataSet } = props;
@@ -60,6 +66,13 @@ const DataLayout = props => {
   const [open, setOpen] = useState(false);
   const [gridData, setGridData] = useState<any[]>([]);
   const [gridColumns, setGridColumns] = useState<any[]>([]);
+  const previewRequest = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      previewRequest.current += 1;
+    };
+  }, []);
 
   /**
    * 데이터베이스 목록조회
@@ -80,20 +93,34 @@ const DataLayout = props => {
   /**
    * 선택된 데이터베이스의 dataset/table 목록조회
    */
-  const { data: databaseInfo, isFetching: isDatabaseInfoFetching } = useQuery({
+  const {
+    data: databaseInfo,
+    isFetching: isDatabaseInfoFetching,
+    isError: isDatabaseInfoError,
+    error: databaseInfoError,
+  } = useQuery({
     queryKey: ['database', selectedDatabase.id],
     enabled: !!selectedDatabase.id,
     queryFn: () =>
       DatabaseService.selectDatabase(selectedDatabase.id).then(response => {
-        if (response.data.status !== 'SUCCESS') {
-          throw new Error('database info fetch failed');
+        if (response.data.status !== STATUS.SUCCESS) {
+          throw new Error(response.data.message || t('common.dbFetchFailed'));
         }
         return response.data.data;
       }),
     retry: false,
   });
-  const datasetList: DataSetProps[] = databaseInfo?.datasets ?? [];
-  const tableList: DataTableProps[] = databaseInfo?.tables ?? [];
+  const datasetList: DataSetProps[] =
+    !isDatabaseInfoError && Array.isArray(databaseInfo?.datasets) ? databaseInfo.datasets : [];
+  const tableList: DataTableProps[] = !isDatabaseInfoError && Array.isArray(databaseInfo?.tables) ? databaseInfo.tables : [];
+
+  useEffect(() => {
+    if (!selectedDatabase.id || !isDatabaseInfoError) return;
+    setGridData([]);
+    setGridColumns([]);
+    setSelectedDataset(null);
+    if (!isCancelledRequest(databaseInfoError)) alert.error(t('common.dbFetchFailed'));
+  }, [selectedDatabase.id, isDatabaseInfoError, databaseInfoError]);
 
   useEffect(() => {
     if (isDatabaseListFetching || isDatabaseInfoFetching) showLoading();
@@ -131,18 +158,26 @@ const DataLayout = props => {
       default:
         return;
     }
+    previewRequest.current += 1;
+    const request = previewRequest.current;
+    setGridData([]);
+    setGridColumns([]);
     showLoading();
     DatabaseService.selectData(param)
       .then(response => {
+        if (request !== previewRequest.current) return;
         if (response.data.status === STATUS.SUCCESS) {
           setGridData(response.data.data.datas);
           setGridColumns(createColumns(response.data.data.datas));
+        } else {
+          throw new Error(response.data.message || t('common.dbFetchFailed'));
         }
       })
       .catch(error => {
-        console.log('error', error);
+        if (request !== previewRequest.current) return;
         setGridData([]);
         setGridColumns([]);
+        if (!isCancelledRequest(error)) alert.error(t('common.dbFetchFailed'));
       })
       .finally(() => {
         hideLoading();
@@ -150,6 +185,12 @@ const DataLayout = props => {
   };
 
   const handleDatabaseClick = (item: DatabaseProps) => {
+    if (item.id === selectedDatabase.id) return;
+    previewRequest.current += 1;
+    setGridData([]);
+    setGridColumns([]);
+    setSelectedDataset(null);
+    setOpen(false);
     setSelectedDatabase(item);
   };
 
@@ -189,6 +230,7 @@ const DataLayout = props => {
   };
 
   const handleClose = () => {
+    previewRequest.current += 1;
     setOpen(false);
     setGridData([]);
     setGridColumns([]);

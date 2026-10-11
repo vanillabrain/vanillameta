@@ -7,7 +7,7 @@ import path from 'node:path';
  * 계정: wstester/test1234! (없으면 자동 생성)
  */
 
-const TEST_USER = { userId: 'e2etester', password: 'Test1234!' };
+const TEST_USER = { userId: process.env.E2E_USER_ID ?? 'e2etester', password: process.env.E2E_PASSWORD ?? 'Test1234!' };
 
 async function login(page: Page) {
   await page.goto('/login');
@@ -50,14 +50,17 @@ test.describe('실서버 E2E', () => {
     const queryInput = page.locator('input.MuiInputBase-input').first();
     await queryInput.fill('SELECT category, SUM(amount) AS total FROM uploaded_data GROUP BY category ORDER BY total DESC');
     await page.locator('button:has-text("실행"), button:has-text("Run")').first().click();
-    await page.waitForTimeout(2000);
+    await expect(page.locator('.tui-grid-body-area')).toContainText('60550');
+    const valueSelect = page.locator('.MuiFormControl-root').filter({ has: page.locator('.MuiInputLabel-root').filter({ hasText: /^(값|Value)$/ }) }).getByRole('combobox');
+    await valueSelect.click();
+    await page.getByRole('option', { name: 'total', exact: true }).click();
 
     // 차트 타입 선택 → 미리보기
     const chartSelect = page.locator('div[role="combobox"], .MuiSelect-select').first();
-    if (await chartSelect.isVisible().catch(() => false)) {
-      await chartSelect.click();
-      await page.locator('li[role="option"], .MuiMenuItem-root').first().click();
-    }
+    await expect(chartSelect).toBeVisible();
+    await chartSelect.click();
+    await page.locator('li[role="option"], .MuiMenuItem-root').first().click();
+    await expect(page.locator('.echarts-for-react canvas').first()).toBeVisible();
   });
 
   test('Parquet 파일 분석', async ({ page }) => {
@@ -107,11 +110,10 @@ test.describe('실서버 E2E', () => {
     await login(page);
     await page.goto('/data/file');
     // 헤더 언어 셀렉트
-    const langSelect = page.locator('header .MuiSelect-select, header [role="combobox"]').last();
-    if (await langSelect.isVisible().catch(() => false)) {
-      await langSelect.click();
-      await page.locator('li:has-text("English")').click();
-      await expect(page.locator('body')).toContainText(/file|analysis|upload/i);
-    }
+    const langSelect = page.locator('nav.MuiAppBar-root .MuiSelect-select:visible');
+    await expect(langSelect).toBeVisible();
+    await langSelect.click();
+    await page.locator('li:has-text("English")').click();
+    await expect(page.locator('body')).toContainText(/file|analysis|upload/i);
   });
 });

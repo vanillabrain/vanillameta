@@ -1,8 +1,16 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateDashboardDto } from './dto/create-dashboard.dto';
 import { UpdateDashboardDto } from './dto/update-dashboard.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
+import { Widget } from '../widget/entities/widget.entity';
 import { Dashboard } from './entities/dashboard.entity';
 import { DashboardWidgetService } from './dashboard-widget/dashboard-widget.service';
 import { ResponseStatus } from '../common/enum/response-status.enum';
@@ -28,7 +36,57 @@ export class DashboardService {
     private readonly dashboardWidgetService: DashboardWidgetService,
     private readonly userService: UserService,
     private readonly authService: AuthService,
+    @InjectRepository(Widget) private readonly widgetRepository: Repository<Widget>,
   ) {}
+
+  async assertOwner(dashboardId: number, userId: number): Promise<void> {
+    if (!Number.isInteger(dashboardId) || dashboardId <= 0) {
+      throw new BadRequestException('invalid dashboard id');
+    }
+    const dashboard = await this.dashboardRepository.findOne({ where: { id: dashboardId } });
+    if (!dashboard || dashboard.delYn === YesNo.YES) {
+      throw new NotFoundException('dashboard not found');
+    }
+    if (!Number.isInteger(userId) || userId <= 0)
+      throw new ForbiddenException('not dashboard owner');
+    const mapping = await this.userMappingRepository.findOne({
+      where: { dashboardId, userInfoId: userId },
+    });
+    if (!mapping) throw new ForbiddenException('not dashboard owner');
+  }
+
+  private async validateLayout(layout: unknown): Promise<number[]> {
+    if (!Array.isArray(layout)) throw new BadRequestException('layout must be an array');
+    const ids: number[] = [];
+    for (const item of layout) {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) {
+        throw new BadRequestException('invalid layout item');
+      }
+      const id = typeof item.i === 'number' || typeof item.i === 'string' ? Number(item.i) : NaN;
+      if (
+        !Number.isSafeInteger(id) ||
+        id <= 0 ||
+        !Number.isFinite(item.x) ||
+        item.x < 0 ||
+        !Number.isFinite(item.y) ||
+        item.y < 0 ||
+        !Number.isFinite(item.w) ||
+        item.w <= 0 ||
+        !Number.isFinite(item.h) ||
+        item.h <= 0 ||
+        ids.includes(id)
+      ) {
+        throw new BadRequestException('invalid layout item');
+      }
+      ids.push(id);
+    }
+    if (ids.length) {
+      const widgets = await this.widgetRepository.find({ where: { id: In(ids) } });
+      const existing = new Set(widgets.map(widget => widget.id));
+      if (ids.some(id => !existing.has(id))) throw new BadRequestException('widget not found');
+    }
+    return ids;
+  }
 
   async create(createDashboardDto: CreateDashboardDto, accessToken: number) {
     const userData = await this.userRepository.findOne({
@@ -37,10 +95,7 @@ export class DashboardService {
     if (!userData) {
       return 'Bad Request';
     }
-    const widgetIds = [];
-    createDashboardDto.layout.map(item => {
-      widgetIds.push(item.i);
-    });
+    const widgetIds = await this.validateLayout(createDashboardDto.layout);
     const share_id = await this.dashboardShareRepository.save({
       uuid: uuidv4(), // uuid의 버전 uuidv1의 결우 mac의 정보등을 담고있음.
       createdAt: new Date(),
@@ -101,15 +156,14 @@ export class DashboardService {
     console.log(findId);
     const find_all = [];
     for (let i = 0; findId.length > i; i++) {
-      find_all.push(
-        await this.dashboardRepository.findOne({
-          where: { id: findId[i] },
-          order: {
-            updatedAt: 'desc',
-            title: 'asc',
-          },
-        }),
-      );
+      const dashboard = await this.dashboardRepository.findOne({
+        where: { id: findId[i] },
+        order: {
+          updatedAt: 'desc',
+          title: 'asc',
+        },
+      });
+      if (dashboard && dashboard.delYn !== YesNo.YES) find_all.push(dashboard);
     }
     find_all.forEach(el => {
       console.log('adf,', el);
@@ -119,7 +173,16 @@ export class DashboardService {
   }
   // 기존 dashboard all
 
-  async findOne(id: number) {
+  async findOne(id: number, userId: number) {
+    await this.assertOwner(id, userId);
+    return this.assembleDashboard(id);
+  }
+
+  async findShared(id: number) {
+    return this.assembleDashboard(id);
+  }
+
+  private async assembleDashboard(id: number) {
     const find_dashboard = await this.dashboardRepository.findOne({ where: { id: id } });
     if (!find_dashboard) {
       return { status: ResponseStatus.ERROR, message: '대시보드가 존재하지 않습니다.' };
@@ -131,8 +194,7 @@ export class DashboardService {
     const find_share_id = await this.dashboardShareRepository.findOne({
       where: { id: find_dashboard.shareId },
     });
-    const return_obj = Object.assign(find_dashboard, find_share_id, { widgets: widgetList });
-    console.log(return_obj);
+    const return_obj = Object.assign({}, find_share_id, find_dashboard, { widgets: widgetList });
     return {
       status: ResponseStatus.SUCCESS,
       data: return_obj,
@@ -145,15 +207,13 @@ export class DashboardService {
     if (!find_dashboard) {
       return 'Not exist dashboard';
     } else {
-      const widgetIds = [];
+      const hasLayout = updateDashboardDto.layout !== undefined;
+      const widgetIds = hasLayout ? await this.validateLayout(updateDashboardDto.layout) : [];
 
       if (updateDashboardDto.title) {
         find_dashboard.title = updateDashboardDto.title;
       }
-      if (updateDashboardDto.layout) {
-        updateDashboardDto.layout.map(item => {
-          widgetIds.push(item.i);
-        });
+      if (hasLayout) {
         find_dashboard.layout = JSON.stringify(updateDashboardDto.layout);
       }
 
@@ -162,7 +222,7 @@ export class DashboardService {
         widgetIds: widgetIds,
       };
       // 업데이트할 데이터
-      await this.dashboardWidgetService.update(id, saveObjDW);
+      if (hasLayout) await this.dashboardWidgetService.update(id, saveObjDW);
       const updatedDashboard = await this.dashboardRepository.save(find_dashboard);
 
       updatedDashboard.layout = JSON.parse(updatedDashboard.layout);

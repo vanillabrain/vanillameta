@@ -25,9 +25,14 @@ const loadDuckDb = async () => {
     eh: { mainModule: duckdbWasmEh.default, mainWorker: ehWorker.default },
   });
   const worker = new Worker(bundle.mainWorker);
-  const db = new duckdb.AsyncDuckDB(new duckdb.VoidLogger(), worker);
-  await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
-  return { duckdb, db };
+  try {
+    const db = new duckdb.AsyncDuckDB(new duckdb.VoidLogger(), worker);
+    await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
+    return { duckdb, db };
+  } catch (e) {
+    worker.terminate();
+    throw e;
+  }
 };
 
 // echarts는 차트 탭 사용 시에만 로드 (lazy chunk)
@@ -37,14 +42,41 @@ const TABLE_NAME = 'uploaded_data';
 const CHART_TYPES = ['bar', 'line', 'pie'];
 
 // DuckDB는 BIGINT/DECIMAL 등을 BigInt로 반환 — toast-ui grid와 차트가 Number만 처리하므로 정규화
-const normalizeValue = (v: unknown) =>
-  typeof v === 'bigint' ? (Number.isSafeInteger(Number(v)) ? Number(v) : v.toString()) : v;
-const toRows = (result: { toArray: () => { toJSON: () => Record<string, unknown> }[] }) =>
-  result.toArray().map(r => {
-    const row = r.toJSON();
-    for (const k of Object.keys(row)) row[k] = normalizeValue(row[k]);
+const ARROW_TYPE = { Int: 2, Float: 3, Decimal: 7 };
+type ResultField = { name: string; type: { typeId: number; scale?: number } };
+type QueryResult = {
+  schema: { fields: ResultField[] };
+  toArray: () => { toJSON: () => Record<string, unknown> }[];
+};
+const normalizeValue = (v: unknown, type?: ResultField['type']) => {
+  if (typeof v === 'bigint') return Number.isSafeInteger(Number(v)) ? Number(v) : v.toString();
+  if (type?.typeId === ARROW_TYPE.Decimal && ArrayBuffer.isView(v)) {
+    const unscaled = String(v);
+    const negative = unscaled.startsWith('-');
+    const digits = unscaled.replace(/^-/, '');
+    const scale = type.scale || 0;
+    const padded = digits.padStart(scale + 1, '0');
+    const value =
+      (negative ? '-' : '') +
+      (scale > 0 ? `${padded.slice(0, -scale)}.${padded.slice(-scale)}` : digits + '0'.repeat(-scale));
+    return Number.isSafeInteger(Number(value)) ? Number(value) : value;
+  }
+  return v;
+};
+const toRows = (result: QueryResult) => {
+  const types = new Map(result.schema.fields.map(field => [field.name, field.type]));
+  return result.toArray().map(r => {
+    const row = { ...r.toJSON() };
+    for (const k of Object.keys(row)) row[k] = normalizeValue(row[k], types.get(k));
     return row;
   });
+};
+const getNumericFields = (result: QueryResult) =>
+  result.schema.fields
+    .filter(field => [ARROW_TYPE.Int, ARROW_TYPE.Float, ARROW_TYPE.Decimal].includes(field.type.typeId))
+    .map(field => field.name);
+const chartValue = (value: unknown) =>
+  typeof value === 'string' && Number.isSafeInteger(Number(value)) ? Number(value) : value;
 
 const FileAnalysis = () => {
   const { t } = useTranslation();
@@ -59,6 +91,7 @@ const FileAnalysis = () => {
   const [query, setQuery] = useState('');
   const [data, setData] = useState([]);
   const [columns, setColumns] = useState([]);
+  const [numericFields, setNumericFields] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [engineReady, setEngineReady] = useState(false);
   const [chartType, setChartType] = useState('bar');
@@ -66,16 +99,15 @@ const FileAnalysis = () => {
   const [yField, setYField] = useState('');
   const duckDbRef = useRef<{ duckdb: any; db: any } | null>(null);
 
-  const fieldNames = data.length > 0 ? Object.keys(data[0]) : [];
-  const numericFields = fieldNames.filter(f => typeof data[0][f] === 'number');
+  const fieldNames = columns.map(column => column.name);
   const chartOption =
-    xField && yField
+    data.length > 0 && xField && yField
       ? chartType === 'pie'
         ? {
             series: [
               {
                 type: 'pie',
-                data: data.slice(0, 100).map(r => ({ name: String(r[xField]), value: r[yField] })),
+                data: data.slice(0, 100).map(r => ({ name: String(r[xField]), value: chartValue(r[yField]) })),
               },
             ],
             tooltip: { trigger: 'item' },
@@ -83,26 +115,48 @@ const FileAnalysis = () => {
         : {
             xAxis: { type: 'category', data: data.slice(0, 500).map(r => String(r[xField])) },
             yAxis: { type: 'value' },
-            series: [{ type: chartType, data: data.slice(0, 500).map(r => r[yField]) }],
+            series: [{ type: chartType, data: data.slice(0, 500).map(r => chartValue(r[yField])) }],
             tooltip: { trigger: 'axis' },
           }
       : null;
 
   useEffect(() => {
+    let mounted = true;
+    let ownedInstance: typeof duckDbRef.current = null;
     // 페이지 진입 시 WASM 엔진을 미리 로딩
     loadDuckDb()
       .then(instance => {
+        if (!mounted) {
+          instance.db.terminate();
+          return;
+        }
+        ownedInstance = instance;
         duckDbRef.current = instance;
         setEngineReady(true);
       })
       .catch(e => {
+        if (!mounted) return;
         console.error(e);
         alert.error(t('fileAnalysis.engineFailed'));
       });
     return () => {
-      duckDbRef.current?.db?.terminate();
+      mounted = false;
+      ownedInstance?.db.terminate();
+      if (duckDbRef.current === ownedInstance) duckDbRef.current = null;
     };
   }, []);
+
+  const applyResult = (result: QueryResult) => {
+    const rows = toRows(result);
+    const nextColumns = createColumns(rows);
+    const names = nextColumns.map(column => column.name);
+    const numeric = rows.length > 0 ? getNumericFields(result) : [];
+    setData(rows);
+    setColumns(nextColumns);
+    setNumericFields(numeric);
+    setXField(prev => (names.includes(prev) ? prev : names[0] || ''));
+    setYField(prev => (numeric.includes(prev) ? prev : numeric[0] || ''));
+  };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -119,36 +173,34 @@ const FileAnalysis = () => {
       return;
     }
     setLoading(true);
+    let conn;
     try {
-      const conn = await db.connect();
+      conn = await db.connect();
       await conn.query(`DROP TABLE IF EXISTS ${TABLE_NAME}`);
       await db.registerFileHandle(file.name, file, duckdb.DuckDBDataProtocol.BROWSER_FILEREADER, true);
+      const sqlFileName = file.name.replace(/'/g, "''");
       const readExpr =
         ext === 'parquet'
-          ? `read_parquet('${file.name}')`
+          ? `read_parquet('${sqlFileName}')`
           : ext === 'json'
-          ? `read_json_auto('${file.name}')`
-          : `read_csv_auto('${file.name}')`;
+          ? `read_json_auto('${sqlFileName}')`
+          : `read_csv_auto('${sqlFileName}')`;
       await conn.query(`CREATE TABLE ${TABLE_NAME} AS SELECT * FROM ${readExpr}`);
       const preview = await conn.query(`SELECT * FROM ${TABLE_NAME} LIMIT 500`);
-      const rows = toRows(preview);
-      setData(rows);
-      setColumns(createColumns(rows));
-      if (rows.length > 0) {
-        const names = Object.keys(rows[0]);
-        const numeric = names.filter(f => typeof rows[0][f] === 'number');
-        setXField(prev => (names.includes(prev) ? prev : names[0]));
-        setYField(prev => (numeric.includes(prev) ? prev : numeric[0] || ''));
-      }
+      applyResult(preview);
       setFileName(file.name);
       setSelectedFile(file);
       setQuery(`SELECT * FROM ${TABLE_NAME} LIMIT 100`);
       snackbar.success(t('fileAnalysis.fileLoaded', { name: file.name }));
-      await conn.close();
     } catch (e) {
       console.error(e);
       alert.error(t('fileAnalysis.loadFailed', { message: e.message || e }));
     } finally {
+      try {
+        await conn?.close();
+      } catch (e) {
+        console.error(e);
+      }
       setLoading(false);
     }
   };
@@ -175,12 +227,12 @@ const FileAnalysis = () => {
 
   const exportCsv = () => {
     if (data.length === 0) return;
-    const names = Object.keys(data[0]);
+    const names = columns.map(column => column.name);
     const escape = (v: unknown) => {
       const s = v == null ? '' : String(v);
-      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+      return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
-    const csv = [names.join(','), ...data.map(r => names.map(n => escape(r[n])).join(','))].join('\n');
+    const csv = [names.map(escape).join(','), ...data.map(r => names.map(n => escape(r[n])).join(','))].join('\n');
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -193,22 +245,19 @@ const FileAnalysis = () => {
   const runQuery = async () => {
     if (!query.trim() || !duckDbRef.current) return;
     setLoading(true);
+    let conn;
     try {
-      const conn = await duckDbRef.current.db.connect();
+      conn = await duckDbRef.current.db.connect();
       const result = await conn.query(query);
-      const rows = toRows(result);
-      setData(rows);
-      setColumns(createColumns(rows));
-      if (rows.length > 0) {
-        const names = Object.keys(rows[0]);
-        const numeric = names.filter(f => typeof rows[0][f] === 'number');
-        setXField(prev => (names.includes(prev) ? prev : names[0]));
-        setYField(prev => (numeric.includes(prev) ? prev : numeric[0] || ''));
-      }
-      await conn.close();
+      applyResult(result);
     } catch (e) {
       alert.error(t('fileAnalysis.queryFailed', { message: e.message || e }));
     } finally {
+      try {
+        await conn?.close();
+      } catch (e) {
+        console.error(e);
+      }
       setLoading(false);
     }
   };

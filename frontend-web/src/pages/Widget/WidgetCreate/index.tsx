@@ -10,6 +10,8 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import LeftArrow from '@/assets/images/icon/angle-left.svg?react';
+import { useAlert } from 'react-alert';
+import { STATUS } from '@/constant';
 
 const WidgetCreate = () => {
   const { t } = useTranslation();
@@ -20,6 +22,8 @@ const WidgetCreate = () => {
   const [componentList, setComponentList] = useState([]); // step 1
   const [dataset, setDataset] = useState(null); // step 1
   const [widgetOption, setWidgetOption] = useState(null); // step 2
+  const [draft, setDraft] = useState(null);
+  const alert = useAlert();
   const { showLoading, hideLoading } = useContext(LoadingContext);
 
   useEffect(() => {
@@ -50,12 +54,15 @@ const WidgetCreate = () => {
       .then(res => {
         setComponentList(res.data);
       })
+      .catch(error => {
+        alert.error(error.response?.data?.message || error.message || t('common.genericError'));
+      })
       .finally(() => {
         hideLoading();
       });
   };
 
-  const saveWidgetInfo = (option, title) => {
+  const saveWidgetInfo = async (option, title): Promise<boolean> => {
     const param = {
       title: title,
       description: widgetOption.description,
@@ -73,16 +80,20 @@ const WidgetCreate = () => {
     }
     console.log('위젯 생성', param);
     showLoading();
-    widgetService
-      .createWidget(param)
-      .then(response => {
-        if (response.data.status === 'SUCCESS') {
-          navigate('/widget');
-        }
-      })
-      .finally(() => {
-        hideLoading();
-      });
+    try {
+      const response = await widgetService.createWidget(param);
+      if (response.data.status === STATUS.SUCCESS) {
+        navigate('/widget');
+        return true;
+      }
+      alert.error(response.data.message || t('common.genericError'));
+      return false;
+    } catch (error) {
+      alert.error(error.response?.data?.message || error.message || t('common.genericError'));
+      return false;
+    } finally {
+      hideLoading();
+    }
   };
 
   const handleNext = () => {
@@ -97,15 +108,24 @@ const WidgetCreate = () => {
       return;
     }
 
-    if (activeStep === 1) {
-      setDataset(null);
-    }
-
-    if (activeStep === 2) {
-      setWidgetOption(null);
-    }
-
     setActiveStep(prevState => prevState - 1);
+  };
+
+  const handleDatasetChange = selected => {
+    const sameSource =
+      dataset?.datasetType === selected?.datasetType &&
+      dataset?.databaseId === selected?.databaseId &&
+      (selected?.datasetType === 'TABLE' ? dataset?.tableName === selected?.tableName : dataset?.id === selected?.id);
+    if (sameSource) return;
+    setDataset(selected);
+    setWidgetOption(null);
+    setDraft(null);
+  };
+
+  const handleWidgetTypeChange = selected => {
+    if (widgetOption?.id === selected?.id) return;
+    setWidgetOption(selected);
+    setDraft(null);
   };
 
   return (
@@ -205,24 +225,27 @@ const WidgetCreate = () => {
           mt: '129px',
         }}
       >
-        {activeStep === 0 ? (
-          <WidgetDataSelect setDataSet={setDataset} />
-        ) : activeStep === 1 ? (
+        <Box sx={{ display: activeStep === 0 ? 'flex' : 'none', flex: '1 1 auto' }}>
+          <WidgetDataSelect setDataSet={handleDatasetChange} />
+        </Box>
+        {activeStep === 1 ? (
           <WidgetTypeSelect
             widgetType={widgetOption}
-            setWidgetType={setWidgetOption}
+            setWidgetType={handleWidgetTypeChange}
             componentList={componentList}
             dataset={dataset}
           />
-        ) : (
+        ) : activeStep === 2 ? (
           <WidgetAttributeSelect
             dataset={dataset}
             widgetOption={widgetOption}
             saveWidgetInfo={saveWidgetInfo}
+            initialDraft={draft}
+            onDraftChange={setDraft}
             widgetTypeName={widgetOption.title}
             widgetTypeDescription={widgetOption.description}
           />
-        )}
+        ) : null}
       </Box>
     </PageTitleBox>
   );

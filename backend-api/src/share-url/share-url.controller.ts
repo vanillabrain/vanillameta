@@ -16,7 +16,7 @@ export class ShareUrlController {
   checkShareUrlOn(@Req() req, @Param() params, @Body() shareUrlOnDto: ShareUrlOnDto) {
     const { userId } = req.user.accessKeyData;
     const { dashboardId } = params;
-    return this.shareUrlService.checkShareUrlOn(userId, dashboardId, shareUrlOnDto);
+    return this.shareUrlService.checkShareUrlOn(userId, +dashboardId, shareUrlOnDto);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -26,7 +26,7 @@ export class ShareUrlController {
   checkShareUrlOff(@Req() req, @Param() params, @Body() shareUrlOnDto: ShareUrlOnDto) {
     const { userId } = req.user.accessKeyData;
     const { dashboardId } = params;
-    return this.shareUrlService.checkShareUrlOff(userId, dashboardId);
+    return this.shareUrlService.checkShareUrlOff(userId, +dashboardId);
   }
 
   @Get('share-dashboard/:uuid')

@@ -14,6 +14,7 @@ import { Widget } from '../widget/entities/widget.entity';
 import { TableQuery } from '../widget/tabel-query/entity/table-query.entity';
 import { AiController } from './ai.controller';
 import { AiService } from './ai.service';
+import { UserMapping } from '../user/entities/user-mapping.entity';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { AiService } from './ai.service';
       DatabaseType,
       Component,
       Dashboard,
+      UserMapping,
       DashboardWidget,
       Widget,
     ]),

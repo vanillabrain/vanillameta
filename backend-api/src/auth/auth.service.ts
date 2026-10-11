@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import { User } from 'src/user/entities/user.entity';
 import { RefreshToken } from './entites/refresh_token.entity';
 import { hashPassword, verifyPassword } from '../utils/password.util';
+import { randomBytes } from 'crypto';
 
 @Injectable()
 export class AuthService {
@@ -32,20 +33,26 @@ export class AuthService {
     // accesstoken이 없을때
   }
 
-  async generateUrlAccessToken(payload: any) {
-    const accessKeyData = {
-      userId: payload.userId,
-      email: payload.email,
-      id: payload.id,
-    };
+  async generateUrlAccessToken(payload: { dashboardId: number; uuid: string }) {
     const accessToken = await this.jwtService.sign(
-      { accessKeyData },
+      { shareKeyData: { dashboardId: payload.dashboardId, uuid: payload.uuid } },
       {
         secret: process.env.URL_ACCESS_SECRET || process.env.ACCESS_SECRET,
+        jwtid: randomBytes(12).toString('hex'),
       },
     );
     return accessToken;
     // accesstoken이 없을때
+  }
+
+  async readUrlAccessToken(token: string): Promise<any | null> {
+    try {
+      return await this.jwtService.verify(token, {
+        secret: process.env.URL_ACCESS_SECRET || process.env.ACCESS_SECRET,
+      });
+    } catch {
+      return null;
+    }
   }
 
   async generateRefreshToken(payload: any) {
@@ -56,23 +63,31 @@ export class AuthService {
     };
     const refreshToken = await this.jwtService.sign(
       { refreshKeyData },
-      { secret: process.env.REFRESH_SECRET, expiresIn: '43200s' },
+      {
+        secret: process.env.REFRESH_SECRET,
+        expiresIn: '43200s',
+        jwtid: randomBytes(12).toString('hex'),
+      },
     );
     return refreshToken;
     // accesstoken이 없을때
   }
 
-  async setRefreshKey(refreshToken: string, jwt_id: number) {
-    const findToken = await this.refreshTokenRepository.findOne({ where: { id: jwt_id } });
-    const token = refreshToken.replace('Bearer ', '');
-    if (!findToken) {
-      return await this.refreshTokenRepository.save({
-        refreshToken: token,
-      });
-    } else {
-      findToken.refreshToken = token;
-      await this.refreshTokenRepository.save(findToken);
+  async setRefreshKey(refreshToken: string, jwt_id: number, userId: number) {
+    if (!Number.isSafeInteger(userId) || userId <= 0) {
+      throw new HttpException({ message: 'refreshTokenExpired' }, HttpStatus.UNAUTHORIZED);
     }
+    const findToken =
+      Number.isSafeInteger(jwt_id) && jwt_id > 0
+        ? await this.refreshTokenRepository.findOne({ where: { id: jwt_id } })
+        : null;
+    const token = refreshToken.replace('Bearer ', '');
+    const saved = await this.refreshTokenRepository.save({
+      ...(findToken || {}),
+      refreshToken: token,
+    });
+    await this.userRepository.update(userId, { jwtId: saved.id });
+    return saved;
     // 로그인시 갱신된 refreshToken 저장
   }
 
@@ -95,9 +110,15 @@ export class AuthService {
   }
 
   async deleteRefreshToken(userId: number) {
+    if (!Number.isSafeInteger(userId) || userId <= 0) {
+      throw new HttpException({ message: 'refreshTokenExpired' }, HttpStatus.UNAUTHORIZED);
+    }
     const refreshTokenInfo = await this.refreshTokenRepository.findOne({
       where: { id: userId },
     });
+    if (!refreshTokenInfo) {
+      throw new HttpException({ message: 'refreshTokenExpired' }, HttpStatus.UNAUTHORIZED);
+    }
     refreshTokenInfo.refreshToken = '';
     await this.refreshTokenRepository.save(refreshTokenInfo);
   }
@@ -115,10 +136,27 @@ export class AuthService {
 
   async verifyRefreshToken(token: string) {
     try {
-      const Token = token.replace('Bearer ', '').split('=')[1];
       const secretKey = process.env.REFRESH_SECRET;
-      const findUser = await this.jwtService.verify(Token, { secret: secretKey });
-      return findUser;
+      const decoded = await this.jwtService.verify(token, { secret: secretKey });
+      const actor = decoded?.refreshKeyData;
+      if (
+        !Number.isSafeInteger(actor?.id) ||
+        actor.id <= 0 ||
+        typeof actor.userId !== 'string' ||
+        !actor.userId
+      ) {
+        throw new Error('invalid refresh actor');
+      }
+      const user = await this.userRepository.findOne({
+        where: { id: actor.id, userId: actor.userId },
+      });
+      if (!user || !Number.isSafeInteger(user.jwtId) || user.jwtId <= 0) {
+        throw new Error('missing refresh session');
+      }
+      const stored = await this.refreshTokenRepository.findOne({ where: { id: user.jwtId } });
+      if (!stored || stored.refreshToken !== token) throw new Error('revoked refresh session');
+      decoded.refreshKeyData.jwtId = user.jwtId;
+      return decoded;
     } catch (err) {
       throw new HttpException({ message: 'refreshTokenExpired' }, HttpStatus.UNAUTHORIZED);
     }

@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
+import { UserMapping } from '../user/entities/user-mapping.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ResponseStatus } from '../common/enum/response-status.enum';
@@ -33,6 +34,7 @@ export class AiService {
     @InjectRepository(Component) private componentRepository: Repository<Component>,
     @InjectRepository(Dashboard) private dashboardRepository: Repository<Dashboard>,
     private readonly dashboardWidgetService: DashboardWidgetService,
+    @InjectRepository(UserMapping) private userMappingRepository: Repository<UserMapping>,
   ) {}
 
   /**
@@ -260,10 +262,17 @@ export class AiService {
    * 대시보드의 위젯 데이터를 샘플링해 LLM으로 한국어 인사이트를 생성한다.
    * 위젯별로 최대 6개까지 데이터를 조회하고, 실패한 위젯은 건너뛴다.
    */
-  async dashboardInsight(dashboardId: number) {
+  async dashboardInsight(dashboardId: number, requesterId: number) {
     if (!Number.isInteger(+dashboardId) || +dashboardId <= 0) {
       return { status: ResponseStatus.ERROR, message: 'invalid dashboardId' };
     }
+    if (!Number.isInteger(requesterId) || requesterId <= 0) {
+      throw new ForbiddenException('not dashboard owner');
+    }
+    const mapping = await this.userMappingRepository.findOne({
+      where: { dashboardId: +dashboardId, userInfoId: requesterId },
+    });
+    if (!mapping) throw new ForbiddenException('not dashboard owner');
     if (!process.env.AI_API_KEY) {
       return {
         status: ResponseStatus.ERROR,

@@ -8,6 +8,7 @@ import { Dashboard } from './entities/dashboard.entity';
 import { DashboardShare } from './entities/dashboard_share.entity';
 import { User } from '../user/entities/user.entity';
 import { UserMapping } from '../user/entities/user-mapping.entity';
+import { Widget } from '../widget/entities/widget.entity';
 
 describe('DashboardService', () => {
   let service: DashboardService;
@@ -30,6 +31,7 @@ describe('DashboardService', () => {
         { provide: getRepositoryToken(User), useFactory: mockRepository },
         { provide: getRepositoryToken(DashboardShare), useFactory: mockRepository },
         { provide: getRepositoryToken(UserMapping), useFactory: mockRepository },
+        { provide: getRepositoryToken(Widget), useFactory: mockRepository },
         { provide: DashboardWidgetService, useValue: {} },
         { provide: UserService, useValue: {} },
         { provide: AuthService, useValue: {} },

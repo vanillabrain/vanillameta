@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DatabaseController } from './database.controller';
 import { DatabaseService } from './database.service';
@@ -30,7 +31,10 @@ describe('DatabaseController', () => {
         { provide: getRepositoryToken(Dataset), useFactory: mockRepository },
         { provide: getRepositoryToken(TableQuery), useFactory: mockRepository },
       ],
-    }).compile();
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<DatabaseController>(DatabaseController);
   });
