@@ -1,0 +1,4 @@
+interface:
+  display_name: "VanillaMeta 검증"
+  short_description: "변경 범위에 맞춰 테스트와 브라우저 증빙을 최소 비용으로 선택하고 실행"
+  default_prompt: "$vanillameta-verify로 이번 VanillaMeta 변경에 필요한 검증만 실행하고 결과와 화면 증빙을 남겨줘."

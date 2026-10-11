@@ -4,7 +4,7 @@ import base from './playwright.config';
 
 const evidence = process.env.QA_EVIDENCE_DIR;
 if (!evidence || !process.env.QA_RUN_ROOT || !process.env.E2E_API_URL || !process.env.E2E_BASE_URL) {
-  throw new Error('Run comprehensive E2E through e2e/qa-runtime.mjs --run to provide an isolated local runtime.');
+  throw new Error('Run comprehensive E2E through npm run test:qa to provide an isolated local runtime.');
 }
 
 export default defineConfig({
@@ -23,9 +23,5 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   outputDir: path.join(evidence, 'artifacts'),
-  reporter: [
-    ['list'],
-    ['json', { outputFile: path.join(evidence, 'playwright-results.json') }],
-    ['html', { outputFolder: path.join(evidence, 'html-report'), open: 'never' }],
-  ],
+  reporter: [['list'], ['json', { outputFile: path.join(evidence, 'playwright-results.json') }]],
 });

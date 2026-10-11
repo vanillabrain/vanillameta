@@ -179,7 +179,7 @@ export default async function globalSetup() {
   await ensureFixtures();
   console.log(`[e2e setup] fixtures OK (${FIXTURE_DIR})`);
 
-  if (process.env.QA_RUN_ROOT && process.env.QA_EVIDENCE_DIR) {
+  if (process.env.QA_RUN_ROOT && process.env.QA_EVIDENCE_DIR && process.env.QA_CAPTURE_INVENTORY === '1') {
     const inventory = await api.get('component', { headers: auth });
     const widgets = await api.get('widget', { headers: auth });
     const widgetData = await widgets.json();

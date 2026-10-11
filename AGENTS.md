@@ -13,24 +13,17 @@
 - **Frontend 유닛**: `cd frontend-web && npm run test` (vitest)
 - **Frontend 타입/린트**: `npx tsc --noEmit`, `npx eslint src e2e`
 
-## E2E (Playwright)
+## 변경 범위에 따른 검증
 
-```bash
-cd frontend-web
-npx playwright test                    # 전체 (webServer가 FE·BE 자동 기동)
-npx playwright test e2e/product-flow.spec.ts --project=chromium --workers=1
-```
-
-- `e2e/global-setup.ts`가 실행 전에 자동 프로비저닝한다 (멱등):
-  - 백엔드 헬스 체크 → 테스트 계정(`e2etester`/`Test1234!`) 가입 → 로그인
-  - `component` 시드 없으면 `backend-api`에서 `npm run seed` 실행
-  - `sales` 데이터 소스 없으면 생성된 CSV를 `/v1/database/upload`로 업로드
-  - 파일 분석 픽스처(CSV/JSON/Parquet)를 `e2e/fixtures/generated/`에 생성
-- 환경변수: `E2E_API_URL`, `E2E_USER_ID`, `E2E_PASSWORD`
-- 스펙:
-  - `smoke.spec.ts` — 백엔드 없는 최소 스모크
-  - `full-flow.spec.ts` — 파일 분석(CSV/JSON/Parquet) → SQL → 차트 → 데이터셋 저장
-  - `product-flow.spec.ts` — 회원가입/로그인/메트릭/위젯/대시보드/공유/임베드/로그아웃 (serial)
+- 파일 저장/일반 수정마다 전체 테스트·빌드·E2E를 실행하지 않는다.
+- 관련 단위/API → 기능 완료 시 변경 화면 Aside → 통합 시 핵심 E2E → 출시 시 범위 확대 순으로 선택한다.
+- 같은 코드/환경/픽스처에서 확인한 결과는 관련 변경이 없으면 재사용한다. 미실행은 통과로 보고하지 않는다.
+- 상세 기준과 명령: [docs/testing/workflow.md](docs/testing/workflow.md).
+- MD 시나리오/기대 결과: [docs/testing/cases.md](docs/testing/cases.md).
+- 이 프로젝트 검증에는 `$vanillameta-verify`를 사용한다. 설치 전에는 [skills/vanillameta-verify/SKILL.md](skills/vanillameta-verify/SKILL.md)를 직접 읽는다.
+- 기본 Playwright: `cd frontend-web && npm run test:e2e` (핵심 7개). 파일/`--grep` 선택으로 필요한 것만 실행한다.
+- 격리 실행: `npm run test:e2e:isolated`. 확장 QA는 `npm run test:qa -- --grep '케이스 ID'`로 명시적으로 실행한다.
+- UI 검증은 `aside-browser` 실제 화면으로 수행하고 핵심/실패 캡처를 저장소 밖 증빙 폴더에 남긴다.
 
 ## 주의사항
 
@@ -40,7 +33,7 @@ npx playwright test e2e/product-flow.spec.ts --project=chromium --workers=1
 
 ## develop-v2 개발 검증
 
-- 루트에서 `npm run build`, `npm test` 실행. FE 타입은 `frontend-web`에서 `npx tsc --noEmit`.
+- 통합/출시 검증에서 루트 `npm run build`, `npm test`를 실행한다. 기능 개발 중에는 위 변경 범위 기준으로 선택한다. FE 타입은 `frontend-web`에서 `npx tsc --noEmit`.
 - 기준 패키지 관리자는 npm. `pnpm-lock.yaml`은 이번 통합에서 갱신하지 않았으므로 pnpm 설치·배포는 미검증.
 - `NODE_ENV=local` 백엔드는 `.env.dev`를 읽는다. `SQLITE_PATH`, `FILE_UPLOAD_DIR`로 로컬 DB·업로드 경로를 분리할 수 있다.
 - 자동 seed는 local 환경에서 사용자 테이블이 비어 있을 때만 실행한다. 기존 사용자가 있으면 초기화를 건너뛴다.

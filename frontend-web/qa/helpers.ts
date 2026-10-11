@@ -3,11 +3,11 @@ import { randomBytes } from 'node:crypto';
 import { createRequire } from 'node:module';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import catalog from '../e2e/scenario-catalog.json';
+import oracle from '../e2e/fixtures/oracle.json';
 
 export const API = process.env.E2E_API_URL!;
 export const ROOT = process.env.QA_RUN_ROOT!;
-export const GOLD = catalog.oracle;
+export const GOLD = oracle;
 export const BASE = process.env.E2E_BASE_URL!;
 if (!ROOT || !API?.startsWith('http://127.0.0.1:4100/')) {
   throw new Error('Comprehensive scenarios require the isolated QA runtime.');

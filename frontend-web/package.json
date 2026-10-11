@@ -61,11 +61,21 @@
     "deploy:prod": "serverless deploy --stage prod",
     "test": "vitest run",
     "lint": "eslint src --ext .ts,.tsx",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:isolated": "node e2e/qa-runtime.mjs --run",
+    "test:qa": "node e2e/qa-runtime.mjs --extended"
   },
   "browserslist": {
-    "production": [">0.2%", "not dead", "not op_mini all"],
-    "development": ["last 1 chrome version", "last 1 firefox version", "last 1 safari version"]
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
   },
   "devDependencies": {
     "@babel/eslint-parser": "^7.18.9",

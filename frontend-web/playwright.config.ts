@@ -1,39 +1,37 @@
 import { defineConfig, devices } from '@playwright/test';
 
-/**
- * Phase 3 스모크 E2E: 프론트엔드만으로 검증 가능한 최소 범위.
- * 백엔드 없이 로그인 화면 렌더링과 라우팅 동작만 확인한다.
- */
+const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3000';
+const apiURL = process.env.E2E_API_URL || 'http://localhost:4000/v1';
+const external = process.env.E2E_EXTERNAL_SERVER === '1';
+
+// Explicit invocation only. Extended QA is selected through its own config.
 export default defineConfig({
   testDir: './e2e',
+  testMatch: '*.spec.ts',
   globalSetup: './e2e/global-setup.ts',
-  timeout: 30_000,
+  timeout: 60_000,
+  workers: 1,
   retries: 0,
   reporter: 'list',
+  outputDir: process.env.E2E_EVIDENCE_DIR || '/tmp/vanillameta-e2e-results',
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL,
+    headless: process.env.E2E_HEADED !== '1',
     trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
+    viewport: { width: 1440, height: 1000 },
   },
-  projects: [
-    {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-    },
-  ],
-  webServer: [
-    {
-      // 백엔드 — 없으면 자동 기동 (local sqlite 모드). /component의 401도 준비 완료로 인정됨
-      command: 'npm run start:local',
-      cwd: '../backend-api',
-      url: 'http://localhost:4000/v1/component',
-      reuseExistingServer: true,
-      timeout: 120_000,
-    },
-    {
-      command: 'npm run start',
-      url: 'http://localhost:3000',
-      reuseExistingServer: true,
-      timeout: 30_000,
-    },
-  ],
+  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  webServer: external
+    ? undefined
+    : [
+        {
+          command: 'npm run start:local',
+          cwd: '../backend-api',
+          url: `${apiURL}/component`,
+          reuseExistingServer: true,
+          timeout: 120_000,
+        },
+        { command: 'npm start', url: baseURL, reuseExistingServer: true, timeout: 30_000 },
+      ],
 });

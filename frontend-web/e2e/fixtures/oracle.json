@@ -1,0 +1,26 @@
+{
+  "salesCsv": "id,region,category,amount,qty,name\n1,서울,전자,100,1,alpha\n2,부산,의류,250,2,beta\n3,서울,전자,150,3,gamma\n",
+  "rowCount": 3,
+  "sumAmount": 500,
+  "avgAmount": 166.66666666666666,
+  "minAmount": 100,
+  "maxAmount": 250,
+  "distinctRegions": 2,
+  "filteredSeoulSum": 250,
+  "groupedSums": [
+    {
+      "region": "부산",
+      "value": 250
+    },
+    {
+      "region": "서울",
+      "value": 250
+    }
+  ],
+  "aggregateSql": "SELECT SUM(amount) AS total FROM uploaded_data",
+  "rowsSql": "SELECT id, region, category, amount, qty, name FROM uploaded_data ORDER BY id",
+  "emptySql": "SELECT * FROM uploaded_data WHERE id < 0",
+  "nonMutatingWriteProbe": "UPDATE uploaded_data SET amount = amount WHERE 1 = 0",
+  "multiStatementProbe": "SELECT 1; SELECT 2",
+  "bigIntSql": "SELECT CAST(9007199254740993 AS BIGINT) AS huge FROM uploaded_data LIMIT 1"
+}
