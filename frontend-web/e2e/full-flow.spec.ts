@@ -50,8 +50,11 @@ test.describe('실서버 E2E', () => {
     const queryInput = page.locator('input.MuiInputBase-input').first();
     await queryInput.fill('SELECT category, SUM(amount) AS total FROM uploaded_data GROUP BY category ORDER BY total DESC');
     await page.locator('button:has-text("실행"), button:has-text("Run")').first().click();
-    await expect(page.locator('.tui-grid-body-area')).toContainText('60550');
-    const valueSelect = page.locator('.MuiFormControl-root').filter({ has: page.locator('.MuiInputLabel-root').filter({ hasText: /^(값|Value)$/ }) }).getByRole('combobox');
+    await expect(page.locator('.tui-grid-rside-area .tui-grid-body-area')).toContainText('60550');
+    const valueSelect = page
+      .locator('.MuiFormControl-root')
+      .filter({ has: page.locator('.MuiInputLabel-root').filter({ hasText: /^(값|Value)$/ }) })
+      .getByRole('combobox');
     await valueSelect.click();
     await page.getByRole('option', { name: 'total', exact: true }).click();
 
@@ -113,7 +116,10 @@ test.describe('실서버 E2E', () => {
     const langSelect = page.locator('nav.MuiAppBar-root .MuiSelect-select:visible');
     await expect(langSelect).toBeVisible();
     await langSelect.click();
-    await page.locator('li:has-text("English")').click();
+    await page.getByRole('option', { name: '한국어', exact: true }).click();
+    await expect(page.locator('body')).toContainText('파일 분석');
+    await langSelect.click();
+    await page.getByRole('option', { name: 'English', exact: true }).click();
     await expect(page.locator('body')).toContainText(/file|analysis|upload/i);
   });
 });

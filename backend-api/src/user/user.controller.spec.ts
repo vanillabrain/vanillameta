@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { UserController } from './user.controller';
 import { UserService } from './user.service';
 import { AuthService } from '../auth/auth.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 describe('UserController', () => {
   let controller: UserController;
@@ -13,7 +14,10 @@ describe('UserController', () => {
         { provide: UserService, useValue: {} },
         { provide: AuthService, useValue: {} },
       ],
-    }).compile();
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<UserController>(UserController);
   });
