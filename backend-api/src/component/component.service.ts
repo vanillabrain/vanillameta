@@ -26,7 +26,7 @@ export class ComponentService {
       where: { type: createComponent.type },
     });
     if (find_component) {
-      return 'exist same widget';
+      throw new ConflictException('exist same widget');
     } else {
       const saveObj: CreateComponentDto = new CreateComponentDto();
       saveObj.type = createComponent.type;
@@ -73,6 +73,7 @@ export class ComponentService {
 
   async findOne(id: number) {
     const find_component_one = await this.componentRepository.findOne({ where: { id: id } });
+    if (!find_component_one) throw new NotFoundException('No exist type');
     return find_component_one;
   }
 
@@ -99,7 +100,8 @@ export class ComponentService {
   }
 
   async remove(id: number) {
-    await this.componentRepository.delete({ id });
+    const result = await this.componentRepository.delete({ id });
+    if (result.affected === 0) throw new NotFoundException('No exist type');
     return `This action removes a #${id} component`;
   }
 }
