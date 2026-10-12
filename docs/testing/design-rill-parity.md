@@ -79,3 +79,9 @@
 - FILTER-02 부분 날짜: 시작일만 입력 후 적용하면 오류, preview 요청 0회, 이전 범위 유지 PASS. Aside 실제 화면에서도 안내 확인.
 - AI-DASH-01 수정 초안 취소: 기존 명시적 gpt-6-luna 연결로 제목만 변경한 실제 초안 생성/미리보기 → 취소 → reload. 저장 요청 0회, API의 전체 원본 draft 동일 PASS. 이전 생성·저장/모바일/집계 결과는 재사용.
 - 선택 변형 증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/remaining-ai-filter/RESULTS.md`. 전체 MD 명세 완료 선언 아님.
+
+### AI-DASH-01 오류 변형 후속 — c7c42d43
+
+- 잘못된 쓰기 SQL과 존재하지 않는 valueField를 생성 응답에 주입하면 실제 preview API가 400으로 거절하고 화면 오류·저장 차단·원본 보존 PASS.
+- 생성 ERROR 응답 주입 후 오류·저장 차단 PASS. 응답 주입 제거 후 실제 기존 gpt-6-luna로 정상 수정 초안/미리보기 복구 PASS. 저장 요청 0회, pageerror 0. 실제 모델 장애 발생 자체를 검증한 것은 아니다.
+- 증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/remaining-ai-errors/RESULTS.md`. 제품 수정 추가 없음. 기존 통과 검사는 재사용.

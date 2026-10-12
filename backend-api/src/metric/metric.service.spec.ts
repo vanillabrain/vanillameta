@@ -26,6 +26,34 @@ describe('MetricService', () => {
   });
 
   describe('create', () => {
+    it('recreation replaces optional grouping, description and filters from the deleted definition', async () => {
+      metricRepository.findOne.mockResolvedValueOnce({
+        id: 5,
+        name: 'revived',
+        useYn: 'N',
+        groupBy: 'region',
+        description: 'old description',
+        filters: JSON.stringify([{ column: 'region', op: '=', value: '서울' }]),
+      });
+      const res = await service.create({
+        name: 'revived',
+        databaseId: 2,
+        tableName: 'uploaded_data',
+        aggregation: MetricAggregation.MAX,
+        expression: 'amount',
+      });
+      expect(metricRepository.update).toHaveBeenCalledWith(
+        5,
+        expect.objectContaining({
+          groupBy: null,
+          description: null,
+          filters: null,
+        }),
+      );
+      expect(res.data).toEqual(
+        expect.objectContaining({ groupBy: null, description: null, filters: [] }),
+      );
+    });
     it('정상적인 메트릭을 생성한다', async () => {
       const res = await service.create({
         name: 'total_sales',

@@ -423,6 +423,7 @@
 - Surface: API
 - Action: Soft delete then recreate same name
 - Expected: One active metric, reused ID allowed; recreated definition and new evaluation are correct, not a duplicate-name failure.
+- Recreate without optional groupBy/description/filters after deleting a definition that included them: omitted options must be cleared, not inherited from the deleted definition.
 
 
 ### METRIC-09: Deleted/missing metric evaluation
@@ -745,6 +746,12 @@
 - Surface: API
 - Action: Duplicate component type and missing component ID
 - Expected: Controlled conflict/error without new duplicate rows, server error or unrelated mutations.
+
+## 2026-10-12 메트릭 후속 결과
+
+- METRIC-05 필터7변형, METRIC-06 정의거절5변형, METRIC-07 집계+필터수정/실패보존 PASS.
+- METRIC-08 재생성의 groupBy 잔존 오류 발견 → 재생성 optional필드 null초기화 → 동일ID/활성1개/단일250 API·Aside화면 재검증 PASS.
+- 증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/remaining-metric/RESULTS.md`. 기존 통과 케이스 재사용. 전체 카탈로그 완료 아님.
 
 ## Server DuckDB MVP
 

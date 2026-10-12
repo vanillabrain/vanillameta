@@ -41,6 +41,8 @@ export class MetricService {
         }
         await this.metricRepository.update(existing.id, {
           ...dto,
+          description: dto.description ?? null,
+          groupBy: dto.groupBy ?? null,
           filters: dto.filters ? JSON.stringify(dto.filters) : null,
           useYn: YesNo.YES,
         });
@@ -49,6 +51,8 @@ export class MetricService {
           data: this.parseFilters({
             ...existing,
             ...dto,
+            description: dto.description ?? null,
+            groupBy: dto.groupBy ?? null,
             useYn: YesNo.YES,
             filters: dto.filters ? JSON.stringify(dto.filters) : null,
           }),
