@@ -262,6 +262,7 @@ export default function DashboardAnalysis({ dashboardId, onSaved, children }: an
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
+          <Typography sx={{ fontSize: 13 }}>아래는 이전 조회 결과입니다. 현재 선택 조건은 적용되지 않았습니다.</Typography>
           <Button onClick={reset}>전체 데이터로 복구</Button>
         </Alert>
       )}
@@ -290,7 +291,13 @@ export default function DashboardAnalysis({ dashboardId, onSaved, children }: an
             >
               <WidgetViewer
                 title={widget.title}
-                description={`${active.length || dateRange ? `${period} · 선택한 필터 적용` : '전체 기간 · 필터 없음'} · ${
+                description={`${
+                  busy || error
+                    ? '이전 조회 결과 · 현재 선택 조건 미적용'
+                    : active.length || dateRange
+                    ? `${period} · 선택한 필터 적용`
+                    : '전체 기간 · 필터 없음'
+                } · ${
                   widget.type === 'BOARD_NUMERIC'
                     ? widget.description?.replace(/전체 기간[^·]*· 필터 없음 · [\d,]+행/g, '원본 데이터 집계') || ''
                     : `${widget.datas.length}개 항목`

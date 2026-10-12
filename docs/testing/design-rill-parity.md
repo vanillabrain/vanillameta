@@ -71,3 +71,11 @@
 
 - 로컬LLM 사용하지 않음. AI_PROVIDER=codex, 설치된Codex CLI/기존ChatGPT로그인, 모델gpt-6-luna. 동일질문으로 생성·미리보기. 키/원본행은 전달하지 않음.
 - 모델/로그인 불가, 타임아웃, 빈출력은 오류이며 다른 모델로 자동대체하지 않는다. 실제Codex 결과의 계산식·수치를 고정정답과 비교하고 출력/화면증빙을 남긴다. 단위mock 성공은 실제에이전트 성공으로 보고하지 않는다.
+
+## 2026-10-12 미검증 변형 후속 결과
+
+- FILTER-01 조회 실패/복구: 실제 Chromium에서 preview 503 응답 장애 주입. 이전 값을 현재 필터 적용 결과로 설명하는 오류 발견 → 로딩/오류 시 이전 결과와 조건 미적용 안내로 수정 → 재검증 PASS. 조회 종료/복구도 확인. 실제 워커 프로세스 장애 복구 전체를 의미하지 않는다.
+- FILTER-01 빠른 연속 변경: 열린 목록에서 Connected Device, Personal Computer 연속 선택. 실제 첫 쿼리 응답을 늦게 전달해 역순 응답 재현. 최종 요청 173325000 유지, 늦은 17000 결과가 덮어쓰지 않음 PASS.
+- FILTER-02 부분 날짜: 시작일만 입력 후 적용하면 오류, preview 요청 0회, 이전 범위 유지 PASS. Aside 실제 화면에서도 안내 확인.
+- AI-DASH-01 수정 초안 취소: 기존 명시적 gpt-6-luna 연결로 제목만 변경한 실제 초안 생성/미리보기 → 취소 → reload. 저장 요청 0회, API의 전체 원본 draft 동일 PASS. 이전 생성·저장/모바일/집계 결과는 재사용.
+- 선택 변형 증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/remaining-ai-filter/RESULTS.md`. 전체 MD 명세 완료 선언 아님.

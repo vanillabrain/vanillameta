@@ -5,7 +5,14 @@ import DashboardAnalysis from './DashboardAnalysis';
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));
 vi.mock('@/helpers/apiHelper', () => api);
 vi.mock('./AiDashboardPanel', () => ({ default: () => null }));
-vi.mock('@/widget/wrapper/WidgetViewer', () => ({ default: ({ dataSet }: any) => <span>{dataSet[0].requests}</span> }));
+vi.mock('@/widget/wrapper/WidgetViewer', () => ({
+  default: ({ dataSet, description }: any) => (
+    <span>
+      {description}
+      <span>{dataSet[0].requests}</span>
+    </span>
+  ),
+}));
 // The repository's Vitest runtime cannot import the Emotion/MUI styled engine.
 // Model the Select array event contract while keeping primitive menu values intact.
 vi.mock('@mui/material', () => {
@@ -121,9 +128,13 @@ it('preserves all primitive types, deselects values, and restores after a failed
   await choose('device_type', 'Mobile/Tablet');
   expect(api.post.mock.lastCall?.[1].filters[0].values).toEqual([true, null, 'a,b', 1, '1']);
   expect((await screen.findByRole('alert')).textContent).toContain('worker unavailable');
+  expect(screen.getByText(/이전 조회 결과 · 현재 선택 조건 미적용/)).toBeTruthy();
+  expect(screen.queryByText(/선택한 필터 적용/)).toBeNull();
   expect(screen.getByText('10')).toBeTruthy();
   fireEvent.click(screen.getByText('전체 데이터로 복구'));
   await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+  await idle();
+  expect(screen.queryByText(/이전 조회 결과 · 현재 선택 조건 미적용/)).toBeNull();
   expect(api.post.mock.lastCall?.[1].filters).toEqual([]);
 });
 it('stages UTC dates, rejects partial/reversed ranges without querying, and applies all time', async () => {
