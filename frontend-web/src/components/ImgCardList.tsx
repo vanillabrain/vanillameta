@@ -1,9 +1,11 @@
 import React from 'react';
-import { Box, Card, CardContent, Typography } from '@mui/material';
+import { Box, ButtonBase, Card, CardContent, Typography } from '@mui/material';
 
 const CardWrapper = ({ children, selected, onClick, sx = null }) => {
   return (
     <Card
+      component={ButtonBase}
+      aria-pressed={Boolean(selected)}
       sx={{
         padding: '20px 8px 20px 21px',
         borderRadius: '8px',
@@ -12,6 +14,7 @@ const CardWrapper = ({ children, selected, onClick, sx = null }) => {
         backgroundColor: selected ? '#edf8ff' : '#fff',
         cursor: 'pointer',
         position: 'relative',
+        width: '100%',
         alignItems: 'center',
         '&:hover': {
           backgroundColor: '#ebfbff',
@@ -58,6 +61,7 @@ function ImgCardList(props) {
               >
                 <Box
                   component="img"
+                  alt=""
                   src={srcUrl + item.icon}
                   sx={{ width: 80, height: 60, objectFit: 'contain', mb: 3, border: 0 }}
                 />

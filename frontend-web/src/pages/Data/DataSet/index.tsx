@@ -1,5 +1,5 @@
-import React, { useContext, useEffect, useState } from 'react';
-import { MenuItem, Select, Stack, TextField, Typography } from '@mui/material';
+import React, { useContext, useEffect, useRef, useState } from 'react';
+import { Button, MenuItem, Select, Stack, TextField, Typography } from '@mui/material';
 import { useAlert } from 'react-alert';
 import { useTranslation } from 'react-i18next';
 import PageTitleBox from '@/components/PageTitleBox';
@@ -38,6 +38,12 @@ const DataSet = () => {
   const [columns, setColumns] = useState([]);
   const [databaseId, setDatabaseId] = useState(null);
   const [tableList, setTableList] = useState([]);
+  const runButton = useRef<HTMLButtonElement>(null);
+  const queryInput = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    queryInput.current?.setAttribute('aria-label', t('dataset.sqlQuery'));
+  }, [t]);
 
   const { data: databaseList = [] } = useQuery({
     queryKey: ['databases'],
@@ -289,6 +295,7 @@ const DataSet = () => {
       >
         <Select
           id="databaseId"
+          inputProps={{ 'aria-label': t('data.source') }}
           sx={{ maxWidth: '500px' }}
           displayEmpty
           disabled={isModifyMode || !databaseList.length}
@@ -341,6 +348,7 @@ const DataSet = () => {
           </Typography>
           <TextField
             size="small"
+            inputProps={{ 'aria-label': t('dataset.aiGen') }}
             fullWidth
             placeholder={t('dataset.aiPlaceholder')}
             value={aiPrompt}
@@ -362,33 +370,56 @@ const DataSet = () => {
             disabled={aiLoading}
           />
         </Stack>
-        <AceEditor
-          placeholder="Please enter a query."
-          style={{ width: '100%', height: '200px', border: 'solid 1px #ddd' }}
-          mode="mysql"
-          theme="tomorrow"
-          name="codeInput"
-          onChange={onChange}
-          fontSize={14}
-          showPrintMargin={true}
-          showGutter={true}
-          highlightActiveLine={true}
-          value={datasetInfo.query}
-          setOptions={{
-            enableBasicAutocompletion: true,
-            enableLiveAutocompletion: true,
-            enableSnippets: true,
-            showLineNumbers: true,
-            tabSize: 2,
+        <Stack
+          onKeyDownCapture={event => {
+            if (event.key === 'Escape' && (event.target as HTMLElement).classList.contains('ace_text-input')) {
+              event.preventDefault();
+              event.stopPropagation();
+              runButton.current?.focus();
+            }
           }}
-        />
-        <SubmitButton
-          label="Run"
+        >
+          <AceEditor
+            placeholder="Please enter a query."
+            style={{ width: '100%', height: '200px', border: 'solid 1px #ddd' }}
+            mode="mysql"
+            theme="tomorrow"
+            name="codeInput"
+            onLoad={editor => {
+              const input = editor.container.querySelector<HTMLTextAreaElement>('.ace_text-input');
+              queryInput.current = input;
+              input?.setAttribute('aria-label', t('dataset.sqlQuery'));
+              input?.setAttribute('aria-describedby', 'sql-keyboard-help');
+            }}
+            onChange={onChange}
+            fontSize={14}
+            showPrintMargin={true}
+            showGutter={true}
+            highlightActiveLine={true}
+            value={datasetInfo.query}
+            setOptions={{
+              enableBasicAutocompletion: true,
+              enableLiveAutocompletion: true,
+              enableSnippets: true,
+              showLineNumbers: true,
+              tabSize: 2,
+            }}
+          />
+          <Typography id="sql-keyboard-help" variant="caption" sx={{ mt: 1 }}>
+            {t('dataset.sqlKeyboardHelp')}
+          </Typography>
+        </Stack>
+        <Button
+          ref={runButton}
+          variant="contained"
+          fullWidth
           type="button"
           size="large"
           sx={{ width: '100%', maxWidth: '374px', fontSize: '13px' }}
           onClick={excuteQuery}
-        />
+        >
+          Run
+        </Button>
       </Stack>
       {data.length ? (
         <Stack sx={{ p: '30px 25px 40px 25px', backgroundColor: '#f5f6f8' }}>

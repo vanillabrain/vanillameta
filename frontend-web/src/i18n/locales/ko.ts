@@ -161,6 +161,8 @@ export default {
     createWidgetHint: '위젯을 생성 후 확인해 보세요.',
   },
   dataset: {
+    sqlQuery: 'SQL 쿼리',
+    sqlKeyboardHelp: 'Tab은 들여쓰기입니다. Esc를 누르면 Run 버튼으로 이동합니다.',
     loadFailed: '데이터베이스 조회에 실패했습니다.\n다시 시도해 주세요.',
     createConfirm: '데이터셋을 {{mode}}하시겠습니까?',
     create: '생성',

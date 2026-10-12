@@ -1,5 +1,7 @@
 # MD 검증 현황 — 2026-10-13
 
+DESIGN-04의 소스·데이터셋 폼 키보드 경로는 [data-forms-keyboard.md](data-forms-keyboard.md)에 추가했다. 타입 카드·SQL 편집기 이름/탈출 경로·같은 타입의 입력 보존을 수정하고 실제 키보드 조회/취소·한영·모바일을 확인했다. VoiceOver와 다른 화면의 전체 경로는 남아 있어 부분 완료 유지다.
+
 Node 24·AI SDK 7 통합 검사와 DESIGN-04 데이터 화면 키보드 경로를 [node24-integration.md](node24-integration.md)에 추가했다. 전체 단위 599개·루트 빌드 통과, 데이터 카드 선택·아이콘 이름·미리보기 대화상자를 수정·재검증했다. VoiceOver와 다른 화면 전체 경로는 남아 있어 집계는 129완료/1부분 완료 유지다.
 
 Assistant 저장 충돌·실행 중단의 ASSISTANT-06~07을 [assistant-reliability.md](assistant-reliability.md)에 추가했다. 실제 오래된 적용/되돌리기409, 중단 시 요청의 Codex 프로세스 종료, 실제 모델 후속 응답 복구와 모바일 안내를 확인했다. 신규2개 완료로 현재130개(129완료/1부분 완료)다.

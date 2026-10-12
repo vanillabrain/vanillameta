@@ -161,6 +161,8 @@ export default {
     createWidgetHint: 'Create a widget to see it here.',
   },
   dataset: {
+    sqlQuery: 'SQL query',
+    sqlKeyboardHelp: 'Tab indents the query. Press Esc to move to the Run button.',
     loadFailed: 'Failed to load database.\nPlease try again.',
     createConfirm: '{{mode}} this dataset?',
     create: 'Create',

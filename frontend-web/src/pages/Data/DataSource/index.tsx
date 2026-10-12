@@ -244,7 +244,9 @@ function DataSource() {
   };
 
   const handleTypeClick = item => {
+    if (item.type === formData.type) return;
     setDataType(item);
+    setIsConnected(false);
     setFormData({ type: item.type });
   };
 
