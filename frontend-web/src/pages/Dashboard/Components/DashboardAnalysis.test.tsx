@@ -1,11 +1,13 @@
 import React from 'react';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import DashboardAnalysis from './DashboardAnalysis';
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));
 vi.mock('@/helpers/apiHelper', () => api);
 vi.mock('./AiDashboardPanel', () => ({ default: () => null }));
 vi.mock('@/widget/wrapper/WidgetViewer', () => ({ default: ({ dataSet }: any) => <span>{dataSet[0].requests}</span> }));
+// The repository's Vitest runtime cannot import the Emotion/MUI styled engine.
+// Model the Select array event contract while keeping primitive menu values intact.
 vi.mock('@mui/material', () => {
   const container = ({ children }: any) => <div>{children}</div>;
   return {
@@ -15,19 +17,60 @@ vi.mock('@mui/material', () => {
     Typography: container,
     FormControl: container,
     InputLabel: container,
+    Checkbox: ({ checked }: any) => <input type="checkbox" checked={checked} readOnly />,
     Button: ({ children, onClick, disabled }: any) => (
-      <button disabled={disabled} onClick={onClick}>
+      <button onClick={onClick} disabled={disabled}>
         {children}
       </button>
     ),
     Alert: ({ children }: any) => <div role="alert">{children}</div>,
-    LinearProgress: () => <div>Loading</div>,
-    Select: ({ children, value, onChange, disabled }: any) => (
-      <select aria-label="device_type" value={value} onChange={onChange} disabled={disabled}>
-        {children}
-      </select>
+    LinearProgress: () => <div role="progressbar" />,
+    TextField: ({ label, value, onChange, type }: any) => (
+      <label>
+        {label}
+        <input type={type} value={value} onChange={onChange} />
+      </label>
     ),
-    MenuItem: ({ children, value }: any) => <option value={value}>{children}</option>,
+    Select: ({ label, children, value, onChange, multiple, disabled, renderValue }: any) => {
+      const [open, setOpen] = React.useState(false);
+      return (
+        <>
+          <button role="combobox" aria-label={label} disabled={disabled} onMouseDown={() => setOpen(true)}>
+            {renderValue ? renderValue(value) : value}
+          </button>
+          {open && (
+            <div
+              role="listbox"
+              onKeyDown={e => {
+                if (e.key === 'Escape') setOpen(false);
+              }}
+            >
+              {React.Children.map(children, (child: any) => (
+                <div
+                  role="option"
+                  aria-selected={multiple ? value.includes(child.props.value) : value === child.props.value}
+                  onClick={() => {
+                    if (!child.props.disabled)
+                      onChange({
+                        target: {
+                          value: multiple
+                            ? value.includes(child.props.value)
+                              ? value.filter((key: string) => key !== child.props.value)
+                              : [...value, child.props.value]
+                            : child.props.value,
+                        },
+                      });
+                  }}
+                >
+                  {child.props.children}
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      );
+    },
+    MenuItem: container,
   };
 });
 afterEach(() => {
@@ -37,25 +80,146 @@ afterEach(() => {
 const response = (data: any) => ({ data: { status: 'SUCCESS', data } });
 const preview = (requests: number) => ({
   widgets: [{ type: 'BOARD_NUMERIC', title: 'Requests', valueField: 'requests', datas: [{ requests }] }],
-  dimensions: [{ column: 'device_type', values: ['Mobile/Tablet'] }],
+  dimensions: [{ column: 'device_type', values: ['Mobile/Tablet', 1, '1', true, null, 'a,b'] }],
+  temporalColumns: [{ column: 'created_at', min: null, max: null }],
 });
-it('queries every widget with the same selected source filter and recovers after a failure', async () => {
+const mount = async (data = preview(10)) => {
   api.get.mockResolvedValue(response({ databaseId: 3, widgets: [] }));
-  api.post
-    .mockResolvedValueOnce(response(preview(634513000)))
-    .mockRejectedValueOnce(new Error('worker unavailable'))
-    .mockResolvedValueOnce(response(preview(634513000)));
-  render(
+  api.post.mockResolvedValue(response(data));
+  const view = render(
     <DashboardAnalysis dashboardId={3} onSaved={vi.fn()}>
       Fallback
     </DashboardAnalysis>,
   );
-  await screen.findByText('634513000');
-  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'Mobile/Tablet' } });
-  await screen.findByRole('alert');
-  expect(api.post.mock.calls[1][1].filters).toEqual([{ column: 'device_type', value: 'Mobile/Tablet' }]);
-  expect(screen.getByRole('alert').textContent).toContain('worker unavailable');
+  await screen.findByText(String(data.widgets[0].datas[0].requests));
+  return view;
+};
+const idle = () => waitFor(() => expect(screen.queryByRole('progressbar')).toBeNull());
+const choose = async (label: string, option: string, index = 0) => {
+  fireEvent.mouseDown(screen.getByRole('combobox', { name: label }));
+  fireEvent.click(within(screen.getByRole('listbox')).getAllByRole('option', { name: option })[index]);
+  fireEvent.keyDown(screen.getByRole('listbox'), { key: 'Escape' });
+  await waitFor(() => expect(screen.queryByRole('listbox')).toBeNull());
+  await idle();
+};
+const dates = (start: string, end: string) => {
+  fireEvent.change(screen.getByLabelText('시작일 (UTC)'), { target: { value: start } });
+  fireEvent.change(screen.getByLabelText('종료일 (UTC)'), { target: { value: end } });
+};
+it('preserves all primitive types, deselects values, and restores after a failed query', async () => {
+  await mount();
+  await choose('device_type', 'Mobile/Tablet');
+  await choose('device_type', 'true');
+  await choose('device_type', 'null');
+  await choose('device_type', 'a,b');
+  await choose('device_type', '1');
+  await choose('device_type', '1', 1);
+  expect(api.post.mock.lastCall?.[1].filters).toEqual([
+    { column: 'device_type', values: ['Mobile/Tablet', true, null, 'a,b', 1, '1'] },
+  ]);
+  api.post.mockRejectedValueOnce(new Error('worker unavailable'));
+  await choose('device_type', 'Mobile/Tablet');
+  expect(api.post.mock.lastCall?.[1].filters[0].values).toEqual([true, null, 'a,b', 1, '1']);
+  expect((await screen.findByRole('alert')).textContent).toContain('worker unavailable');
+  expect(screen.getByText('10')).toBeTruthy();
   fireEvent.click(screen.getByText('전체 데이터로 복구'));
   await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
-  expect(api.post.mock.calls[2][1].filters).toEqual([]);
+  expect(api.post.mock.lastCall?.[1].filters).toEqual([]);
+});
+it('stages UTC dates, rejects partial/reversed ranges without querying, and applies all time', async () => {
+  await mount();
+  dates('2024-02-29', '');
+  expect(api.post).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByText('적용'));
+  expect(screen.getByRole('alert').textContent).toContain('시작일과 종료일');
+  expect(api.post).toHaveBeenCalledTimes(1);
+  dates('2024-03-02', '2024-03-01');
+  fireEvent.click(screen.getByText('적용'));
+  expect(api.post).toHaveBeenCalledTimes(1);
+  dates('2024-02-29', '2024-02-29');
+  fireEvent.click(screen.getByText('적용'));
+  await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2));
+  expect(api.post.mock.lastCall?.[1].dateRange).toEqual({ column: 'created_at', start: '2024-02-29', end: '2024-02-29' });
+  await idle();
+  dates('', '');
+  expect(api.post).toHaveBeenCalledTimes(2);
+  fireEvent.click(screen.getByText('적용'));
+  await waitFor(() => expect(api.post).toHaveBeenCalledTimes(3));
+  expect(api.post.mock.lastCall?.[1]).not.toHaveProperty('dateRange');
+});
+it('stages multiple temporal columns and resets all applied and edited filters', async () => {
+  await mount({
+    ...preview(10),
+    temporalColumns: [
+      { column: 'created_at', min: null, max: null },
+      { column: 'updated_at', min: null, max: null },
+    ],
+  });
+  await choose('날짜 컬럼 (UTC)', 'updated_at');
+  dates('2024-01-01', '2024-01-31');
+  expect(api.post).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByText('적용'));
+  await waitFor(() => expect(api.post.mock.lastCall?.[1].dateRange?.column).toBe('updated_at'));
+  await idle();
+  await choose('device_type', 'true');
+  expect(api.post.mock.lastCall?.[1].dateRange.column).toBe('updated_at');
+  dates('2024-02-01', '');
+  fireEvent.click(screen.getByText('적용'));
+  fireEvent.click(screen.getByText('필터 초기화'));
+  await waitFor(() => expect(api.post.mock.lastCall?.[1].filters).toEqual([]));
+  expect(api.post.mock.lastCall?.[1]).not.toHaveProperty('dateRange');
+  expect((screen.getByLabelText('시작일 (UTC)') as HTMLInputElement).value).toBe('');
+  expect((screen.getByLabelText('종료일 (UTC)') as HTMLInputElement).value).toBe('');
+  expect(screen.queryByRole('alert')).toBeNull();
+});
+it('limits dimensions and offered values to five and fifty', async () => {
+  await mount({
+    ...preview(10),
+    dimensions: Array.from({ length: 6 }, (_, i) => ({
+      column: `column${i}`,
+      values: Array.from({ length: 51 }, (_, j) => j),
+    })),
+  });
+  expect(screen.getAllByRole('combobox')).toHaveLength(5);
+  fireEvent.mouseDown(screen.getByRole('combobox', { name: 'column0' }));
+  expect(within(screen.getByRole('listbox')).getAllByRole('option')).toHaveLength(50);
+});
+it.each(['error', 'success'])('ignores stale %s after switching dashboards', async outcome => {
+  const view = await mount();
+  let rejectOld: (reason: Error) => void = () => undefined;
+  let resolveOld: (value: any) => void = () => undefined;
+  api.post.mockImplementationOnce(
+    () =>
+      new Promise((resolve, reject) => {
+        resolveOld = resolve;
+        rejectOld = reject;
+      }),
+  );
+  fireEvent.mouseDown(screen.getByRole('combobox', { name: 'device_type' }));
+  fireEvent.click(within(screen.getByRole('listbox')).getByRole('option', { name: 'true' }));
+  fireEvent.keyDown(screen.getByRole('listbox'), { key: 'Escape' });
+  await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2));
+  api.post.mockResolvedValue(response(preview(42)));
+  view.rerender(
+    <DashboardAnalysis dashboardId={4} onSaved={vi.fn()}>
+      Fallback
+    </DashboardAnalysis>,
+  );
+  await screen.findByText('42');
+  await act(async () => {
+    if (outcome === 'error') rejectOld(new Error('stale error'));
+    else resolveOld(response(preview(999)));
+  });
+  await idle();
+  expect(screen.queryByRole('alert')).toBeNull();
+  expect(screen.getByText('42')).toBeTruthy();
+});
+
+it('keeps ordinary previews without temporal metadata usable', async () => {
+  await mount({ ...preview(10), temporalColumns: [] });
+  expect(screen.queryByLabelText('시작일 (UTC)')).toBeNull();
+  expect(screen.queryByText('적용')).toBeNull();
+  await choose('device_type', 'true');
+  expect(api.post.mock.lastCall?.[1].filters).toEqual([{ column: 'device_type', values: [true] }]);
+  expect(api.post.mock.lastCall?.[1]).not.toHaveProperty('dateRange');
 });

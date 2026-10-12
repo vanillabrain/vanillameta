@@ -4,12 +4,14 @@ import {
   Box,
   Button,
   Card,
+  Checkbox,
   FormControl,
   InputLabel,
   LinearProgress,
   MenuItem,
   Select,
   Stack,
+  TextField,
   Typography,
 } from '@mui/material';
 import { get, post } from '@/helpers/apiHelper';
@@ -17,36 +19,56 @@ import WidgetViewer from '@/widget/wrapper/WidgetViewer';
 import AiDashboardPanel from './AiDashboardPanel';
 import { analysisOptions } from '../analysisOptions';
 
+type FilterValue = string | number | boolean | null;
+type DateRange = { column: string; start: string; end: string };
+const valueKey = (value: FilterValue) => encodeURIComponent(JSON.stringify(value));
+const validDay = (day: string) =>
+  /^\d{4}-\d{2}-\d{2}$/.test(day) &&
+  !Number.isNaN(Date.parse(`${day}T00:00:00Z`)) &&
+  new Date(`${day}T00:00:00Z`).toISOString().slice(0, 10) === day;
+
 export default function DashboardAnalysis({ dashboardId, onSaved, children }: any) {
   const [draft, setDraft] = useState<any>(null);
   const [preview, setPreview] = useState<any>(null);
-  const [filters, setFilters] = useState<Record<string, string>>({});
+  const [filters, setFilters] = useState<Record<string, FilterValue[]>>({});
+  const [dateDraft, setDateDraft] = useState<DateRange>({ column: '', start: '', end: '' });
+  const [dateRange, setDateRange] = useState<DateRange | null>(null);
+  const [dateError, setDateError] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
   const serial = useRef(0);
+  const loadedDashboard = useRef(dashboardId);
+  const loadSerial = useRef(0);
   useEffect(() => {
-    serial.current += 1;
-    const request = serial.current;
+    loadSerial.current += 1;
+    const request = loadSerial.current;
     setDraft(null);
     setPreview(null);
     setFilters({});
+    setDateDraft({ column: '', start: '', end: '' });
+    setDateRange(null);
+    setDateError('');
+    setBusy(false);
     setError('');
     get(`/ai/dashboard-analysis/${dashboardId}`)
       .then(response => {
-        if (request !== serial.current) return;
-        if (response.data.status === 'SUCCESS') setDraft(response.data.data);
+        if (request !== loadSerial.current) return;
+        if (response.data.status === 'SUCCESS') {
+          loadedDashboard.current = dashboardId;
+          setDraft(response.data.data);
+        }
         // Ordinary dashboards remain usable if their sources cannot support common filters.
       })
       .catch(() => {
         // Unsupported dashboards keep their standard viewer.
       });
     return () => {
-      serial.current += 1;
+      loadSerial.current += 1;
     };
   }, [dashboardId]);
   useEffect(() => {
-    if (!draft) return;
+    if (!draft || loadedDashboard.current !== dashboardId) return;
     serial.current += 1;
     const request = serial.current;
     setBusy(true);
@@ -57,8 +79,10 @@ export default function DashboardAnalysis({ dashboardId, onSaved, children }: an
         draft,
         dashboardId: Number(dashboardId),
         filters: Object.entries(filters)
-          .filter(([, value]) => value !== '')
-          .map(([column, value]) => ({ column, value })),
+          .filter(([, values]) => values.length)
+          .slice(0, 5)
+          .map(([column, values]) => ({ column, values: values.slice(0, 50) })),
+        ...(dateRange ? { dateRange } : {}),
       },
       { timeout: 60000 },
     )
@@ -74,17 +98,50 @@ export default function DashboardAnalysis({ dashboardId, onSaved, children }: an
       .finally(() => {
         if (request === serial.current) setBusy(false);
       });
-  }, [draft, filters, dashboardId]);
+    return () => {
+      serial.current += 1;
+    };
+  }, [draft, filters, dateRange, dashboardId]);
   if (!draft) return <>{children}</>;
   const dimensions = preview?.dimensions || [];
-  const active = Object.entries(filters).filter(([, value]) => value !== '');
+  const temporalColumns = preview?.temporalColumns || [];
+  const temporalColumn = dateDraft.column || temporalColumns[0]?.column || '';
+  const active = Object.entries(filters).filter(([, values]) => values.length);
+  const reset = () => {
+    setFilters({});
+    setDateDraft({ column: '', start: '', end: '' });
+    setDateRange(null);
+    setDateError('');
+  };
+  const applyDates = () => {
+    const { start, end } = dateDraft;
+    if (!start && !end) {
+      setDateError('');
+      setDateRange(null);
+      return;
+    }
+    if (!temporalColumn || !validDay(start) || !validDay(end) || start > end) {
+      setDateError('시작일과 종료일을 올바르게 입력해 주세요. 시작일은 종료일 이전이어야 합니다.');
+      return;
+    }
+    setDateError('');
+    setDateRange({ column: temporalColumn, start, end });
+  };
+  const period = dateRange ? `${dateRange.column}: ${dateRange.start} ~ ${dateRange.end} (UTC)` : '전체 기간';
   return (
     <Box sx={{ p: { xs: 1.5, sm: 2.5 }, minWidth: 0 }}>
       <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 1, mb: 1.5, alignItems: 'center' }}>
-        <Typography sx={{ fontSize: 13, mr: 'auto' }}>
-          전체 기간 · {active.length ? active.map(([column, value]) => `${column}: ${value}`).join(' · ') : '필터 없음'}
+        <Typography sx={{ fontSize: 13, mr: 'auto', minWidth: 0, overflowWrap: 'anywhere' }}>
+          {period} ·{' '}
+          {active.length
+            ? active.map(([column, values]) => `${column}: ${values.map(String).join(', ')}`).join(' · ')
+            : '필터 없음'}
         </Typography>
-        <Button size="small" onClick={() => setFilters({})} disabled={busy || !active.length}>
+        <Button
+          size="small"
+          onClick={reset}
+          disabled={busy || (!active.length && !dateRange && !dateDraft.start && !dateDraft.end && !dateDraft.column)}
+        >
           필터 초기화
         </Button>
         <Button size="small" variant="outlined" onClick={() => setEditing(true)}>
@@ -92,31 +149,116 @@ export default function DashboardAnalysis({ dashboardId, onSaved, children }: an
         </Button>
       </Stack>
       <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 1.5, mb: 2 }}>
-        {dimensions.slice(0, 5).map((dimension: any) => (
-          <FormControl key={dimension.column} size="small" sx={{ minWidth: 150, flex: '1 1 150px', maxWidth: { sm: 250 } }}>
-            <InputLabel id={`filter-${dimension.column}`}>{dimension.column}</InputLabel>
-            <Select
-              labelId={`filter-${dimension.column}`}
-              label={dimension.column}
-              value={filters[dimension.column] || ''}
-              disabled={busy}
-              onChange={e => setFilters(values => ({ ...values, [dimension.column]: String(e.target.value) }))}
+        {dimensions.slice(0, 5).map((dimension: any) => {
+          const selected = filters[dimension.column] || [];
+          const options: FilterValue[] = Array.from(
+            new Map<string, FilterValue>(
+              [...selected, ...dimension.values.slice(0, 50)].map((value: FilterValue) => [valueKey(value), value]),
+            ).values(),
+          ).slice(0, 50);
+          return (
+            <FormControl
+              key={dimension.column}
+              size="small"
+              sx={{ minWidth: 0, width: '100%', flex: '1 1 150px', maxWidth: { xs: '100%', sm: 250 } }}
             >
-              <MenuItem value="">전체</MenuItem>
-              {dimension.values.map((value: any) => (
-                <MenuItem key={String(value)} value={String(value)}>
-                  {String(value)}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        ))}
+              <InputLabel shrink id={`filter-${dimension.column}`}>
+                {dimension.column}
+              </InputLabel>
+              <Select
+                multiple
+                labelId={`filter-${dimension.column}`}
+                label={dimension.column}
+                notched
+                value={selected.map(valueKey)}
+                disabled={busy}
+                displayEmpty
+                renderValue={() => (
+                  <Box
+                    component="span"
+                    sx={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                  >
+                    {selected.length ? selected.map(String).join(', ') : '전체'}
+                  </Box>
+                )}
+                onChange={e => {
+                  const keys = typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value;
+                  if (keys.length > 50) return;
+                  setFilters(values => ({
+                    ...values,
+                    [dimension.column]: keys.map(key => JSON.parse(decodeURIComponent(key)) as FilterValue),
+                  }));
+                }}
+              >
+                {options.map(value => (
+                  <MenuItem
+                    key={valueKey(value)}
+                    value={valueKey(value)}
+                    disabled={selected.length >= 50 && !selected.includes(value)}
+                  >
+                    <Checkbox checked={selected.includes(value)} />
+                    {String(value)}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          );
+        })}
+        {temporalColumns.length > 0 && (
+          <>
+            {temporalColumns.length > 1 ? (
+              <FormControl size="small" sx={{ minWidth: 0, flex: '1 1 150px', maxWidth: '100%' }}>
+                <InputLabel id="date-column">날짜 컬럼 (UTC)</InputLabel>
+                <Select
+                  labelId="date-column"
+                  label="날짜 컬럼 (UTC)"
+                  value={temporalColumn}
+                  onChange={e => setDateDraft(value => ({ ...value, column: e.target.value }))}
+                >
+                  {temporalColumns.map((column: any) => (
+                    <MenuItem key={column.column} value={column.column}>
+                      {column.column}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            ) : (
+              <Typography>{temporalColumn} (UTC)</Typography>
+            )}
+            <TextField
+              label="시작일 (UTC)"
+              type="date"
+              size="small"
+              value={dateDraft.start}
+              InputLabelProps={{ shrink: true }}
+              sx={{ minWidth: 0, flex: '1 1 150px', maxWidth: '100%' }}
+              onChange={e => setDateDraft(value => ({ ...value, start: e.target.value }))}
+            />
+            <TextField
+              label="종료일 (UTC)"
+              type="date"
+              size="small"
+              value={dateDraft.end}
+              InputLabelProps={{ shrink: true }}
+              sx={{ minWidth: 0, flex: '1 1 150px', maxWidth: '100%' }}
+              onChange={e => setDateDraft(value => ({ ...value, end: e.target.value }))}
+            />
+            <Button onClick={applyDates} disabled={busy}>
+              적용
+            </Button>
+          </>
+        )}
       </Stack>
+      {dateError && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {dateError}
+        </Alert>
+      )}
       {busy && <LinearProgress aria-label="공통 필터 집계 중" sx={{ mb: 2 }} />}
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
-          <Button onClick={() => setFilters({})}>전체 데이터로 복구</Button>
+          <Button onClick={reset}>전체 데이터로 복구</Button>
         </Alert>
       )}
       {preview ? (
@@ -144,7 +286,7 @@ export default function DashboardAnalysis({ dashboardId, onSaved, children }: an
             >
               <WidgetViewer
                 title={widget.title}
-                description={`${active.length ? '선택한 필터 적용' : '전체 기간 · 필터 없음'} · ${
+                description={`${active.length || dateRange ? `${period} · 선택한 필터 적용` : '전체 기간 · 필터 없음'} · ${
                   widget.type === 'BOARD_NUMERIC'
                     ? widget.description?.replace(/전체 기간[^·]*· 필터 없음 · [\d,]+행/g, '원본 데이터 집계') || ''
                     : `${widget.datas.length}개 항목`

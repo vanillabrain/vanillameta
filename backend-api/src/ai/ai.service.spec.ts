@@ -1,5 +1,11 @@
 import { AiService } from './ai.service';
 import { ResponseStatus } from '../common/enum/response-status.enum';
+import { callCodingAgent } from './coding-agent';
+
+jest.mock('./coding-agent', () => ({
+  CODEX_MODEL: 'gpt-6-luna',
+  callCodingAgent: jest.fn(),
+}));
 
 describe('AiService', () => {
   const mockKnex: any = Object.assign(
@@ -74,10 +80,53 @@ describe('AiService', () => {
     );
     jest.clearAllMocks();
     delete process.env.AI_API_KEY;
+    delete process.env.AI_PROVIDER;
+    delete process.env.AI_MODEL;
   });
 
   afterAll(() => {
     process.env = envBackup;
+  });
+
+  it('routes opt-in Codex without API keys or fallback and forwards JSON mode', async () => {
+    process.env.AI_PROVIDER = 'codex';
+    process.env.AI_MODEL = 'unrelated-api-model';
+    global.fetch = jest.fn();
+    (callCodingAgent as jest.Mock).mockResolvedValueOnce('{"ok":true}');
+    expect(await service.callLlm('schema', 'question', true)).toBe('{"ok":true}');
+    expect(callCodingAgent).toHaveBeenCalledWith('schema', 'question', true);
+    (callCodingAgent as jest.Mock).mockRejectedValueOnce(new Error('LLM_CODEX_UNAVAILABLE'));
+    await expect(service.callLlm('schema', 'question')).rejects.toThrow('LLM_CODEX_UNAVAILABLE');
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('allows all three endpoints with Codex configuration and truthful metadata', async () => {
+    process.env.AI_PROVIDER = 'codex';
+    (callCodingAgent as jest.Mock)
+      .mockResolvedValueOnce('SELECT * FROM users LIMIT 10')
+      .mockResolvedValueOnce('{"type":"LINE_CHART","reason":"시계열"}')
+      .mockResolvedValueOnce('- 매출 100');
+    const results = [
+      await service.textToSql(1, '사용자 조회'),
+      await service.recommendChart({
+        databaseId: 1,
+        datasetType: 'TABLE' as any,
+        tableName: 'sales',
+      }),
+      await service.dashboardInsight(1, 7),
+    ];
+    for (const result of results) {
+      expect(result.status).toBe(ResponseStatus.SUCCESS);
+      expect(result.data.ai).toEqual({ provider: 'codex', requestedModel: 'gpt-6-luna' });
+    }
+  });
+
+  it('reports Codex failure as generation failure rather than unsafe SQL', async () => {
+    process.env.AI_PROVIDER = 'codex';
+    (callCodingAgent as jest.Mock).mockRejectedValueOnce(new Error('LLM_CODEX_TIMEOUT'));
+    const result = await service.textToSql(1, '사용자 조회');
+    expect(result.status).toBe(ResponseStatus.ERROR);
+    expect(result.message).toBe('AI 쿼리 생성 중 오류가 발생했습니다.');
   });
 
   it('uses the DuckDB schema and dialect without invoking Knex', async () => {
@@ -125,6 +174,8 @@ describe('AiService', () => {
     const res = await service.textToSql(1, '사용자 10명 조회');
     expect(res.status).toBe(ResponseStatus.SUCCESS);
     expect(res.data.sql).toBe('SELECT * FROM users LIMIT 10');
+    expect(res.data.ai).toEqual({ provider: 'api', requestedModel: 'gpt-4o-mini' });
+    expect(callCodingAgent).not.toHaveBeenCalled();
   });
 
   it('생성된 쿼리가 쓰기 쿼리면 read-only 가드가 차단한다', async () => {

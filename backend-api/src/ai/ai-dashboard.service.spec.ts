@@ -59,7 +59,7 @@ describe('AI dashboard SQL boundaries', () => {
       ['device_type'],
       [{ column: 'device_type', value }],
     );
-    expect(query.sql).toContain('WHERE "device_type" = ?) SELECT sum');
+    expect(query.sql).toContain('WHERE ("device_type" IN (?))) SELECT sum');
     expect(query.sql).not.toContain(value);
     expect(query.bindings).toEqual([value]);
     expect(() =>

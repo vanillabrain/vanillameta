@@ -44,6 +44,7 @@ parentPort.on('message', async task => {
       allow_unsigned_extensions: 'false',
     });
     connection = await instance.connect();
+    await connection.run("SET TimeZone = 'UTC'");
     runningConnection = connection;
     let result: any;
     if (task.kind === 'import') {

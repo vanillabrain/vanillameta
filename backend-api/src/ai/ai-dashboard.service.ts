@@ -33,7 +33,7 @@ import {
 export class AiDashboardService {
   private readonly dimensionCache = new Map<
     number,
-    { key: string; expires: number; data: any[] }
+    { key: string; expires: number; data: any[]; temporal: any[] }
   >();
   constructor(
     private readonly ai: AiService,
@@ -165,9 +165,16 @@ export class AiDashboardService {
     const draft = validateDraft(body?.draft);
     const schema = await this.schema(draft.databaseId);
     const columns = schema.map(c => c.column_name);
+    const temporal = schema.filter(c => /^(DATE|TIMESTAMP)/i.test(c.column_type));
     const widgets = [];
     for (const definition of draft.widgets) {
-      const query = sourceQuery(definition.sql, columns, body.filters);
+      const query = sourceQuery(
+        definition.sql,
+        columns,
+        body.filters,
+        body.dateRange,
+        temporal.map(c => c.column_name),
+      );
       const result = await this.connection.queryDuckDB(draft.databaseId, query.sql, query.bindings);
       const value = result.fields.find((f: any) => f.columnName === definition.valueField);
       if (!value || value.columnType !== 'number')
@@ -187,6 +194,8 @@ export class AiDashboardService {
     const cached = this.dimensionCache.get(draft.databaseId);
     let dimensions =
       cached?.key === schemaKey && cached.expires > Date.now() ? cached.data : undefined;
+    let temporalColumns =
+      cached?.key === schemaKey && cached.expires > Date.now() ? cached.temporal : undefined;
     if (!dimensions) {
       dimensions = [];
       const categorical = schema
@@ -208,15 +217,25 @@ export class AiDashboardService {
           });
         if (dimensions.length === 5) break;
       }
+      temporalColumns = [];
+      for (const column of temporal.slice(0, 5)) {
+        const name = quoteColumn(column.column_name);
+        const result = await this.connection.queryDuckDB(
+          draft.databaseId,
+          `SELECT CAST(CAST(min(${name}) AS DATE) AS VARCHAR) AS min, CAST(CAST(max(${name}) AS DATE) AS VARCHAR) AS max FROM uploaded_data`,
+        );
+        temporalColumns.push({ column: column.column_name, ...result.datas[0] });
+      }
       if (this.dimensionCache.size >= 100)
         this.dimensionCache.delete(this.dimensionCache.keys().next().value);
       this.dimensionCache.set(draft.databaseId, {
         key: schemaKey,
         expires: Date.now() + 180000,
         data: dimensions,
+        temporal: temporalColumns,
       });
     }
-    return this.success({ draft, widgets, dimensions });
+    return this.success({ draft, widgets, dimensions, temporalColumns });
   }
   async save(body: any, userId: number) {
     if (!Number.isSafeInteger(userId) || userId <= 0) throw new ForbiddenException('invalid owner');

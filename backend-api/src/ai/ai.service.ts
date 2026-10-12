@@ -11,6 +11,7 @@ import { DatabaseService } from '../database/database.service';
 import { assertReadOnlyQuery, assertSafeIdentifier } from '../utils/query-guard.util';
 import { RecommendChartDto } from './dto/recommend-chart.dto';
 import { YesNo } from '../common/enum/yn.enum';
+import { callCodingAgent, CODEX_MODEL } from './coding-agent';
 
 const MAX_SCHEMA_TABLES = 25;
 const MAX_PROMPT_LENGTH = 2000;
@@ -37,10 +38,24 @@ export class AiService {
     @InjectRepository(UserMapping) private userMappingRepository: Repository<UserMapping>,
   ) {}
 
-  /**
-   * OpenAI 호환 chat completions API 호출 (AI_API_BASE_URL로 OpenAI/Azure/로컬LLM 등 설정 가능)
-   */
+  private isConfigured(): boolean {
+    return process.env.AI_PROVIDER === 'codex' || !!process.env.AI_API_KEY;
+  }
+
+  private providerMetadata() {
+    return {
+      provider: process.env.AI_PROVIDER === 'codex' ? 'codex' : 'api',
+      // Requested model only: CLI output does not attest to the model actually used.
+      requestedModel:
+        process.env.AI_PROVIDER === 'codex' ? CODEX_MODEL : process.env.AI_MODEL || 'gpt-4o-mini',
+    };
+  }
+
+  /** Opt-in Codex CLI, otherwise the existing OpenAI-compatible API. */
   async callLlm(systemPrompt: string, userPrompt: string, jsonMode = false): Promise<string> {
+    if (process.env.AI_PROVIDER === 'codex') {
+      return callCodingAgent(systemPrompt, userPrompt, jsonMode);
+    }
     const apiKey = process.env.AI_API_KEY;
     if (!apiKey) {
       throw new Error('AI_NOT_CONFIGURED');
@@ -145,10 +160,11 @@ export class AiService {
     if (typeof prompt !== 'string' || !prompt.trim() || prompt.length > MAX_PROMPT_LENGTH) {
       return { status: ResponseStatus.ERROR, message: 'invalid prompt' };
     }
-    if (!process.env.AI_API_KEY) {
+    if (!this.isConfigured()) {
       return {
         status: ResponseStatus.ERROR,
-        message: 'AI 기능이 설정되지 않았습니다. AI_API_KEY 환경변수를 설정해 주세요.',
+        message:
+          'AI 기능이 설정되지 않았습니다. AI_API_KEY 또는 AI_PROVIDER=codex(설치된 CLI와 ChatGPT 로그인 필요)를 설정해 주세요.',
       };
     }
 
@@ -181,12 +197,13 @@ export class AiService {
         .replace(/\s*```$/, '')
         .replace(/;\s*$/, '');
       assertReadOnlyQuery(sql); // 생성 SQL도 동일 가드 적용
-      return { status: ResponseStatus.SUCCESS, data: { sql } };
+      return { status: ResponseStatus.SUCCESS, data: { sql, ai: this.providerMetadata() } };
     } catch (e) {
       if (e.message === 'AI_NOT_CONFIGURED') {
         return {
           status: ResponseStatus.ERROR,
-          message: 'AI 기능이 설정되지 않았습니다. AI_API_KEY 환경변수를 설정해 주세요.',
+          message:
+            'AI 기능이 설정되지 않았습니다. AI_API_KEY 또는 AI_PROVIDER=codex(설치된 CLI와 ChatGPT 로그인 필요)를 설정해 주세요.',
         };
       }
       console.error(e);
@@ -204,10 +221,11 @@ export class AiService {
    * LLM 응답은 등록된 component 목록 안에서만 검증/반환된다.
    */
   async recommendChart(dto: RecommendChartDto) {
-    if (!process.env.AI_API_KEY) {
+    if (!this.isConfigured()) {
       return {
         status: ResponseStatus.ERROR,
-        message: 'AI 기능이 설정되지 않았습니다. AI_API_KEY 환경변수를 설정해 주세요.',
+        message:
+          'AI 기능이 설정되지 않았습니다. AI_API_KEY 또는 AI_PROVIDER=codex(설치된 CLI와 ChatGPT 로그인 필요)를 설정해 주세요.',
       };
     }
 
@@ -264,7 +282,7 @@ export class AiService {
       }
       return {
         status: ResponseStatus.SUCCESS,
-        data: { component, reason: parsed.reason || '' },
+        data: { component, reason: parsed.reason || '', ai: this.providerMetadata() },
       };
     } catch (e) {
       console.error(e);
@@ -287,10 +305,11 @@ export class AiService {
       where: { dashboardId: +dashboardId, userInfoId: requesterId },
     });
     if (!mapping) throw new ForbiddenException('not dashboard owner');
-    if (!process.env.AI_API_KEY) {
+    if (!this.isConfigured()) {
       return {
         status: ResponseStatus.ERROR,
-        message: 'AI 기능이 설정되지 않았습니다. AI_API_KEY 환경변수를 설정해 주세요.',
+        message:
+          'AI 기능이 설정되지 않았습니다. AI_API_KEY 또는 AI_PROVIDER=codex(설치된 CLI와 ChatGPT 로그인 필요)를 설정해 주세요.',
       };
     }
 
@@ -346,7 +365,10 @@ export class AiService {
 
     try {
       const insight = await this.callLlm(systemPrompt, userPrompt);
-      return { status: ResponseStatus.SUCCESS, data: { insight: insight.trim() } };
+      return {
+        status: ResponseStatus.SUCCESS,
+        data: { insight: insight.trim(), ai: this.providerMetadata() },
+      };
     } catch (e) {
       console.error(e);
       return { status: ResponseStatus.ERROR, message: 'AI 인사이트 생성 중 오류가 발생했습니다.' };

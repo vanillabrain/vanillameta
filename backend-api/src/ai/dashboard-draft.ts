@@ -131,25 +131,72 @@ export function validateDraft(input: any): DashboardDraft {
   };
 }
 export const quoteColumn = (column: string) => `"${column.replace(/"/g, '""')}"`;
-export function sourceQuery(sql: string, columns: string[], filters: any[] = []) {
+export function sourceQuery(
+  sql: string,
+  columns: string[],
+  filters: any[] = [],
+  dateRange?: any,
+  temporalColumns: string[] = [],
+) {
   validateSourceSql(sql);
   if (!Array.isArray(filters) || filters.length > 5)
     throw new BadRequestException('maximum 5 filters');
   const bindings: any[] = [];
+  const seen = new Set<string>();
   const conditions = filters.map(f => {
+    if (!f || !columns.includes(f.column) || seen.has(f.column))
+      throw new BadRequestException('invalid filter column');
+    seen.add(f.column);
+    if ('values' in f && 'value' in f) throw new BadRequestException('ambiguous filter');
+    const values = 'values' in f ? f.values : [f.value];
     if (
-      !f ||
-      !columns.includes(f.column) ||
-      !(['string', 'number', 'boolean'].includes(typeof f.value) || f.value === null) ||
-      (typeof f.value === 'number' && !Number.isFinite(f.value)) ||
-      (typeof f.value === 'string' && f.value.length > 2000)
-    ) {
-      throw new BadRequestException('invalid filter');
+      !Array.isArray(values) ||
+      !values.length ||
+      values.length > 50 ||
+      values.some(
+        value =>
+          !(['string', 'number', 'boolean'].includes(typeof value) || value === null) ||
+          (typeof value === 'number' && !Number.isFinite(value)) ||
+          (typeof value === 'string' && value.length > 2000),
+      )
+    )
+      throw new BadRequestException('invalid filter values');
+    const unique = [...new Set(values)];
+    const nonNull = unique.filter(value => value !== null);
+    const clauses = [];
+    if (nonNull.length) {
+      bindings.push(...nonNull);
+      clauses.push(`${quoteColumn(f.column)} IN (${nonNull.map(() => '?').join(', ')})`);
     }
-    if (f.value === null) return `${quoteColumn(f.column)} IS NULL`;
-    bindings.push(f.value);
-    return `${quoteColumn(f.column)} = ?`;
+    if (unique.includes(null)) clauses.push(`${quoteColumn(f.column)} IS NULL`);
+    return `(${clauses.join(' OR ')})`;
   });
+  if (dateRange !== undefined) {
+    const { column, start, end } = dateRange || {};
+    const validDay = value =>
+      typeof value === 'string' &&
+      /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+      Number.isFinite(Date.parse(`${value}T00:00:00Z`)) &&
+      new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
+    if (
+      !columns.includes(column) ||
+      !temporalColumns.includes(column) ||
+      !validDay(start) ||
+      !validDay(end) ||
+      start > end ||
+      end === '9999-12-31'
+    )
+      throw new BadRequestException('invalid UTC date range');
+    const nextDay = new Date(new Date(`${end}T00:00:00Z`).getTime() + 86400000)
+      .toISOString()
+      .slice(0, 10);
+    conditions.push(
+      `CAST(${quoteColumn(column)} AS TIMESTAMPTZ) >= CAST(? AS TIMESTAMPTZ) AND CAST(${quoteColumn(
+        column,
+      )} AS TIMESTAMPTZ) < CAST(? AS TIMESTAMPTZ)`,
+    );
+    bindings.push(`${start}T00:00:00Z`, `${nextDay}T00:00:00Z`);
+  }
   return {
     sql: `WITH source AS (SELECT * FROM uploaded_data${
       conditions.length ? ' WHERE ' + conditions.join(' AND ') : ''
