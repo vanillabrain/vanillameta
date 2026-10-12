@@ -58,6 +58,7 @@ export default {
     view: 'Dashboard',
     insight: 'AI Insights',
     insightLoading: 'Analyzing...',
+    aiInsight: 'AI insight summary',
     insightFailed: 'Failed to generate AI insights.',
     loadFailed: 'Failed to load dashboard.\nPlease try again.',
     deleteConfirm: 'Delete this dashboard?',

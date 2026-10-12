@@ -58,6 +58,7 @@ export default {
     view: '대시보드 조회',
     insight: 'AI 인사이트',
     insightLoading: 'AI 분석 중...',
+    aiInsight: 'AI 인사이트 요약',
     insightFailed: 'AI 인사이트 생성에 실패했습니다.',
     loadFailed: '대시보드 조회에 실패했습니다.\n다시 시도해 주세요.',
     deleteConfirm: '대시보드를 삭제하시겠습니까?',

@@ -778,3 +778,10 @@ Additional MD scenarios and fixed Rill oracle: [server-duckdb.md](server-duckdb.
 - AUTH-03 필수입력 누락4변형 PASS_SELECTED_VARIANTS: 실제 Aside 안내/가입요청0/페이지예외0/계정미생성401. 약한비밀번호·불일치·이메일 UI 기존증거 재사용, 해당3변형 독립요청차단은 NOT_RUN.
 - AUTH-07 미검증 API조건 PASS: 올바른계정/userinfo200/password·userPwd 미노출. 기존 로그인·프로필·재로드 재사용.
 - 제품수정없음, 전체카탈로그완료아님. 증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/auth-completion/RESULTS.md`. AI codex/gpt-6-luna 설정변경없음.
+
+## 2026-10-12 AUTH-03 / AI 후속 검증
+
+- AUTH-03 남은 약한비밀번호/불일치/잘못된이메일 3변형 요청0·계정미생성401 PASS. 이전 필수입력4변형 재사용.
+- AI-01/03~08 선택조건 확인: 실제 Luna SQL→500/실패시SQL보존, 등록CHART_BAR추천, 인사이트500/빈·없는대시보드거절. 서비스 응답주입 장애검사는 실모델 검사와 분리. 상세 미실행 조건은 증빙표 참조, AI-02 로컬provider fixture NOT_RUN.
+- AI-08 제목 dashboard.aiInsight 번역키 노출 FAIL→한/영 문구추가→실제 브라우저 재검증 PASS_SELECTED. AI codex/gpt-6-luna 연결변경 없음.
+- 증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/auth-ai/RESULTS.md`. FE 타입/변경lint/diff검사 PASS. 전체카탈로그 완료 아님.
