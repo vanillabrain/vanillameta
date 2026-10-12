@@ -20,6 +20,11 @@ export class AiController {
     return this.dashboards.generate(body, req.user.accessKeyData.id);
   }
 
+  @Post('dashboard-assistant')
+  dashboardAssistant(@Body() body: any, @Req() req) {
+    return this.dashboards.assistant(body, req.user.accessKeyData.id);
+  }
+
   @Post('dashboard-preview')
   dashboardPreview(@Body() body: any, @Req() req) {
     return this.dashboards.preview(body, req.user.accessKeyData.id);

@@ -4,7 +4,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import DashboardAnalysis from './DashboardAnalysis';
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));
 vi.mock('@/helpers/apiHelper', () => api);
-vi.mock('./AiDashboardPanel', () => ({ default: () => null }));
+vi.mock('./DashboardAssistant', () => ({ default: () => null }));
 vi.mock('@/widget/wrapper/WidgetViewer', () => ({
   default: ({ dataSet, description }: any) => (
     <span>

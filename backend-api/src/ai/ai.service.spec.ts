@@ -7,6 +7,20 @@ jest.mock('./coding-agent', () => ({
   callCodingAgent: jest.fn(),
 }));
 
+// SDK 7 is ESM-only; legacy Jest 28 cannot load it. Actual SDK integration is
+// verified in Node 24/browser runs; these service units exercise the provider boundary.
+jest.mock('ai', () => ({
+  generateText: async ({ model, system, prompt }) => {
+    const result = await model.doGenerate({
+      prompt: [
+        { role: 'system', content: system },
+        { role: 'user', content: [{ type: 'text', text: prompt }] },
+      ],
+    });
+    return { text: result.content[0].text };
+  },
+}));
+
 describe('AiService', () => {
   const mockKnex: any = Object.assign(
     jest.fn(() => ({

@@ -1,3 +1,4 @@
+jest.mock('./ai.service', () => ({ AiService: class {} }));
 import { AiDashboardService } from './ai-dashboard.service';
 import { buildTrendQuery, chooseTrendGrain } from './dashboard-trend';
 import { validateDraft, validateSourceSql, sourceQuery } from './dashboard-draft';
@@ -376,5 +377,54 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
         )
       ).data.widgets[0].datas,
     ).toEqual([{ value: 15 }]);
+  });
+  it('assistant sends re-queried exact filtered KPI/category/trend values to LLM without writes', async () => {
+    const id = (await service.save({ draft: draft() }, 7)).data.id;
+    const entities = [Dataset, Widget, Dashboard, DashboardShare, DashboardWidget, UserMapping];
+    const before = await Promise.all(entities.map(entity => db.manager.count(entity)));
+    const provider = process.env.AI_PROVIDER;
+    process.env.AI_PROVIDER = 'codex';
+    ai.callLlm.mockClear();
+    ai.callLlm.mockResolvedValueOnce('실제 매출은 30입니다.');
+    try {
+      const response = await service.assistant(
+        {
+          dashboardId: id,
+          currentDraft: draft(),
+          prompt: '매출 설명',
+          filters: [{ column: 'device_type', values: ['phone'] }],
+          dateRange: { column: 'event_time', start: '2026-01-01', end: '2026-01-03' },
+        },
+        7,
+      );
+      expect(response.status).toBe('SUCCESS');
+      const sent = JSON.parse(ai.callLlm.mock.calls[0][1]);
+      expect(sent.context.widgets[0].datas).toEqual([{ value: 30 }]);
+      expect(sent.context.widgets[1].datas).toEqual([{ device_type: 'phone', value: 30 }]);
+      expect(sent.context.widgets[0].trend.points).toEqual([
+        { time: '2026-01-01T00:00:00Z', value: 10 },
+        { time: '2026-01-02T00:00:00Z', value: 20 },
+      ]);
+      expect(await Promise.all(entities.map(entity => db.manager.count(entity)))).toEqual(before);
+    } finally {
+      if (provider === undefined) delete process.env.AI_PROVIDER;
+      else process.env.AI_PROVIDER = provider;
+    }
+  });
+  it('persists numberNotation in saved definitions and ordinary widget options', async () => {
+    const input = draft();
+    input.widgets.forEach(widget => Object.assign(widget, { numberNotation: 'compact' }));
+    const id = (await service.save({ draft: input }, 7)).data.id;
+    expect(
+      (await service.analysis(id, 7)).data.widgets.every(
+        widget => widget.numberNotation === 'compact',
+      ),
+    ).toBe(true);
+    const mappings = await db.manager.findBy(DashboardWidget, { dashboardId: id });
+    for (let index = 0; index < mappings.length; index++) {
+      const widget = await db.manager.findOneBy(Widget, { id: mappings[index].widgetId });
+      const option = JSON.parse(widget.option);
+      expect(index === 0 ? option.content.numberNotation : option.numberNotation).toBe('compact');
+    }
   });
 });

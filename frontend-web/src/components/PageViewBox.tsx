@@ -11,11 +11,13 @@ interface PageViewBoxProps {
   button?: React.ReactNode;
   sx?: SxProps;
   children?: React.ReactNode;
+  preserveChildren?: boolean;
 }
 
 function PageViewBox(props: PageViewBoxProps) {
   const theme = useTheme();
   const matches = useMediaQuery(theme.breakpoints.up('sm'));
+  if (props.preserveChildren) return <DesktopViewBox {...props} responsive />;
   return matches ? <DesktopViewBox {...props} /> : <MobileViewBox {...props} />;
 }
 export default PageViewBox;
@@ -120,7 +122,7 @@ const MobileViewBox = props => {
 };
 
 const DesktopViewBox = props => {
-  const { iconName, title, titleElement, date, button, sx } = props;
+  const { iconName, title, titleElement, date, button, sx, responsive } = props;
 
   return (
     <Box
@@ -129,7 +131,7 @@ const DesktopViewBox = props => {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        px: '20px',
+        px: responsive ? { xs: 0, sm: '20px' } : '20px',
       }}
     >
       <Box
@@ -137,8 +139,8 @@ const DesktopViewBox = props => {
           width: '100%',
           maxWidth: MAX_WIDTH,
           height: '100%',
-          borderRadius: '6px',
-          border: 'solid 1px #ddd',
+          borderRadius: responsive ? { xs: 0, sm: '6px' } : '6px',
+          border: responsive ? { xs: 0, sm: 'solid 1px #ddd' } : 'solid 1px #ddd',
           backgroundColor: '#f9f9fa',
           ...sx,
         }}
@@ -147,7 +149,16 @@ const DesktopViewBox = props => {
           direction="row"
           justifyContent="space-between"
           alignItems="center"
-          sx={{ width: '100%', height: '57px', px: '20px', backgroundColor: '#ffffff', borderRadius: '6px 6px 0px 0px' }}
+          sx={{
+            width: '100%',
+            height: responsive ? { xs: 'auto', sm: '57px' } : '57px',
+            flexWrap: responsive ? { xs: 'wrap', sm: 'nowrap' } : 'nowrap',
+            gap: responsive ? { xs: 1, sm: 0 } : 0,
+            py: responsive ? { xs: 1.5, sm: 0 } : 0,
+            px: '20px',
+            backgroundColor: '#ffffff',
+            borderRadius: '6px 6px 0px 0px',
+          }}
         >
           {/* title */}
           <Stack
@@ -199,7 +210,13 @@ const DesktopViewBox = props => {
           </Stack>
 
           {/* date, button */}
-          <Stack direction="row" justifyContent="flex-end" alignItems="center" flexShrink="0">
+          <Stack
+            direction={responsive ? { xs: 'column', sm: 'row' } : 'row'}
+            justifyContent="flex-end"
+            alignItems={responsive ? { xs: 'flex-start', sm: 'center' } : 'center'}
+            flexShrink="0"
+            sx={{ width: responsive ? { xs: '100%', sm: 'auto' } : 'auto', gap: responsive ? { xs: 1, sm: 0 } : 0 }}
+          >
             <Box
               component="span"
               sx={{
@@ -218,7 +235,12 @@ const DesktopViewBox = props => {
             >
               {date}
             </Box>
-            <Stack direction="row" justifyContent="flex-end" alignItems="center">
+            <Stack
+              direction="row"
+              justifyContent="flex-end"
+              alignItems="center"
+              sx={{ width: responsive ? { xs: '100%', sm: 'auto' } : 'auto', flexWrap: 'wrap' }}
+            >
               {button}
             </Stack>
           </Stack>

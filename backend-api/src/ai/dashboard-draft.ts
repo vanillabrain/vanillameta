@@ -14,6 +14,7 @@ export interface DashboardDraft {
     categoryField?: string;
     decimalPlaces?: number;
     prefix?: string;
+    numberNotation?: 'full' | 'compact';
   }>;
 }
 export function positiveId(value: unknown): number {
@@ -117,6 +118,8 @@ export function validateDraft(input: any): DashboardDraft {
         (!Number.isInteger(w.decimalPlaces) || w.decimalPlaces < 0 || w.decimalPlaces > 6)
       )
         throw new BadRequestException('invalid decimalPlaces');
+      if (w.numberNotation !== undefined && !['full', 'compact'].includes(w.numberNotation))
+        throw new BadRequestException('invalid numberNotation');
       return {
         title: text(w.title, 300),
         description: text(w.description, 1000, true),
@@ -125,6 +128,7 @@ export function validateDraft(input: any): DashboardDraft {
         valueField: text(w.valueField, 255),
         ...(w.categoryField !== undefined ? { categoryField: text(w.categoryField, 255) } : {}),
         ...(w.decimalPlaces !== undefined ? { decimalPlaces: w.decimalPlaces } : {}),
+        ...(w.numberNotation !== undefined ? { numberNotation: w.numberNotation } : {}),
         ...(w.prefix !== undefined ? { prefix: text(w.prefix, 100, true) } : {}),
       };
     }),
@@ -217,6 +221,7 @@ export function widgetOptions(w: DashboardDraft['widgets'][number]) {
         suffix: '',
         numForm: true,
         decimalPlaces: w.decimalPlaces ?? 0,
+        ...(w.numberNotation !== undefined ? { numberNotation: w.numberNotation } : {}),
       },
     };
   return {
@@ -224,6 +229,7 @@ export function widgetOptions(w: DashboardDraft['widgets'][number]) {
     series: [
       { field: w.valueField, fieldLabel: w.valueField, aggregation: 'sum', color: '#2563eb' },
     ],
+    ...(w.numberNotation !== undefined ? { numberNotation: w.numberNotation } : {}),
     label: false,
     mark: false,
     legendPosition: 'none',

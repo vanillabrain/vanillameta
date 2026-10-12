@@ -27,48 +27,7 @@ type Props = {
   currentDraft?: any;
   onSaved: (id: number) => void;
 };
-const widgetTypes = ['BOARD_NUMERIC', 'CHART_COLUMN', 'CHART_BAR', 'CHART_LINE'];
-const validDraft = (draft: any) =>
-  draft &&
-  Number(draft.databaseId) > 0 &&
-  typeof draft.title === 'string' &&
-  draft.title.trim() &&
-  Array.isArray(draft.widgets) &&
-  draft.widgets.length > 0 &&
-  draft.widgets.every(
-    widget =>
-      widgetTypes.includes(widget.type) &&
-      typeof widget.sql === 'string' &&
-      widget.sql.trim() &&
-      typeof widget.valueField === 'string' &&
-      widget.valueField &&
-      (widget.type === 'BOARD_NUMERIC' || (typeof widget.categoryField === 'string' && widget.categoryField)),
-  );
-const validPreview = (preview: any) =>
-  validDraft(preview?.draft) &&
-  Array.isArray(preview.widgets) &&
-  preview.widgets.length === preview.draft.widgets.length &&
-  preview.widgets.every((widget, index) => {
-    const definition = preview.draft.widgets[index];
-    if (!Array.isArray(widget.datas) || !Array.isArray(widget.fields)) return false;
-    const fields = widget.fields.map(field => (typeof field === 'string' ? field : field.name ?? field.columnName));
-    return (
-      widget.type === definition.type &&
-      widget.sql === definition.sql &&
-      widget.valueField === definition.valueField &&
-      widget.categoryField === definition.categoryField &&
-      fields.includes(definition.valueField) &&
-      (definition.type === 'BOARD_NUMERIC' || fields.includes(definition.categoryField))
-    );
-  });
-const responseData = (response: any) => {
-  if (response?.data?.status !== 'SUCCESS') throw new Error(response?.data?.message || 'Request failed.');
-  return response.data.data;
-};
-const errorMessage = (error: any) => {
-  const message = error?.response?.data?.message;
-  return (Array.isArray(message) ? message.join('\n') : message) || error?.message || 'Request failed.';
-};
+import { validDraft, validPreview, responseData, errorMessage } from '../dashboardPreview';
 
 export default function AiDashboardPanel({ open, onClose, dashboardId, currentDraft, onSaved }: Props) {
   const { t } = useTranslation();

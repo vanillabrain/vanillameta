@@ -1,4 +1,4 @@
-FROM node:20-slim
+FROM node:24-bookworm-slim
 # ORACLE 설치 + 네이티브 모듈(odbc 등) 빌드 도구
 RUN apt-get update && apt-get install -y libaio1 wget unzip unixodbc-dev python3 make g++
 WORKDIR /opt/oracle

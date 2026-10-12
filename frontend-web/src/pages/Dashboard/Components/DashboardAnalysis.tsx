@@ -17,7 +17,7 @@ import {
 } from '@mui/material';
 import { get, post } from '@/helpers/apiHelper';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
-import AiDashboardPanel from './AiDashboardPanel';
+import DashboardAssistant from './DashboardAssistant';
 import { analysisOptions } from '../analysisOptions';
 import MetricTrend from './MetricTrend';
 
@@ -29,14 +29,15 @@ const validDay = (day: string) =>
   !Number.isNaN(Date.parse(`${day}T00:00:00Z`)) &&
   new Date(`${day}T00:00:00Z`).toISOString().slice(0, 10) === day;
 
-export default function DashboardAnalysis({ dashboardId, onSaved, children }: any) {
+export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAssistantOpenChange, children }: any) {
   const { t } = useTranslation();
-  const [numberNotation, setNumberNotation] = useState('compact');
+  const [numberNotation, setNumberNotation] = useState('auto');
   useEffect(() => {
     try {
-      setNumberNotation(localStorage.getItem(`dashboard-number-notation:${dashboardId}`) === 'full' ? 'full' : 'compact');
+      const stored = localStorage.getItem(`dashboard-number-notation:${dashboardId}`);
+      setNumberNotation(['full', 'compact'].includes(stored) ? stored : 'auto');
     } catch {
-      setNumberNotation('compact');
+      setNumberNotation('auto');
     }
   }, [dashboardId]);
   const [draft, setDraft] = useState<any>(null);
@@ -48,20 +49,24 @@ export default function DashboardAnalysis({ dashboardId, onSaved, children }: an
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
+  const assistantButton = useRef<HTMLButtonElement>(null);
   const serial = useRef(0);
-  const loadedDashboard = useRef(dashboardId);
+  const loadedDashboard = useRef(null);
   const loadSerial = useRef(0);
   useEffect(() => {
     loadSerial.current += 1;
     const request = loadSerial.current;
-    setDraft(null);
-    setPreview(null);
-    setFilters({});
-    setDateDraft({ column: '', start: '', end: '' });
-    setDateRange(null);
-    setDateError('');
-    setBusy(false);
-    setError('');
+    if (loadedDashboard.current !== dashboardId) {
+      setDraft(null);
+      setPreview(null);
+      setFilters({});
+      setDateDraft({ column: '', start: '', end: '' });
+      setDateRange(null);
+      setDateError('');
+      setBusy(false);
+      setError('');
+      setEditing(false);
+    }
     get(`/ai/dashboard-analysis/${dashboardId}`)
       .then(response => {
         if (request !== loadSerial.current) return;
@@ -77,7 +82,10 @@ export default function DashboardAnalysis({ dashboardId, onSaved, children }: an
     return () => {
       loadSerial.current += 1;
     };
-  }, [dashboardId]);
+  }, [dashboardId, revision]);
+  useEffect(() => {
+    onAssistantOpenChange?.(editing);
+  }, [editing, onAssistantOpenChange]);
   useEffect(() => {
     if (!draft || loadedDashboard.current !== dashboardId) return;
     serial.current += 1;
@@ -156,8 +164,14 @@ export default function DashboardAnalysis({ dashboardId, onSaved, children }: an
         >
           필터 초기화
         </Button>
-        <Button size="small" variant="outlined" onClick={() => setEditing(true)}>
-          AI로 수정
+        <Button
+          ref={assistantButton}
+          size="small"
+          variant="outlined"
+          aria-expanded={editing}
+          onClick={() => setEditing(value => !value)}
+        >
+          Assistant
         </Button>
         <FormControl size="small" sx={{ minWidth: 160 }}>
           <InputLabel id="number-notation">{t('settings.numberNotation')}</InputLabel>
@@ -175,6 +189,7 @@ export default function DashboardAnalysis({ dashboardId, onSaved, children }: an
               }
             }}
           >
+            <MenuItem value="auto">위젯 설정</MenuItem>
             <MenuItem value="compact">{t('settings.numberCompact')}</MenuItem>
             <MenuItem value="full">{t('settings.numberFull')}</MenuItem>
           </Select>
@@ -356,14 +371,27 @@ export default function DashboardAnalysis({ dashboardId, onSaved, children }: an
       ) : (
         children
       )}
-      <AiDashboardPanel
+      <DashboardAssistant
+        key={dashboardId}
         open={editing}
-        onClose={() => setEditing(false)}
-        dashboardId={Number(dashboardId)}
-        currentDraft={draft}
-        onSaved={id => {
+        onClose={() => {
           setEditing(false);
-          onSaved(id);
+          assistantButton.current?.focus();
+        }}
+        dashboardId={Number(dashboardId)}
+        draft={draft}
+        filters={active.map(([column, values]) => ({ column, values }))}
+        dateRange={dateRange}
+        disabled={busy || !!error}
+        onApplied={next => {
+          setNumberNotation('auto');
+          try {
+            localStorage.removeItem(`dashboard-number-notation:${dashboardId}`);
+          } catch {
+            /* Display remains usable without browser storage. */
+          }
+          setDraft(next);
+          onSaved(Number(dashboardId));
         }}
       />
     </Box>

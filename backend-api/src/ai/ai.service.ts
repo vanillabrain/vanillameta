@@ -11,7 +11,9 @@ import { DatabaseService } from '../database/database.service';
 import { assertReadOnlyQuery, assertSafeIdentifier } from '../utils/query-guard.util';
 import { RecommendChartDto } from './dto/recommend-chart.dto';
 import { YesNo } from '../common/enum/yn.enum';
-import { callCodingAgent, CODEX_MODEL } from './coding-agent';
+import { CODEX_MODEL } from './coding-agent';
+import { generateText } from 'ai';
+import { codexSdkModel } from './codex-sdk-model';
 
 const MAX_SCHEMA_TABLES = 25;
 const MAX_PROMPT_LENGTH = 2000;
@@ -54,7 +56,13 @@ export class AiService {
   /** Opt-in Codex CLI, otherwise the existing OpenAI-compatible API. */
   async callLlm(systemPrompt: string, userPrompt: string, jsonMode = false): Promise<string> {
     if (process.env.AI_PROVIDER === 'codex') {
-      return callCodingAgent(systemPrompt, userPrompt, jsonMode);
+      const result = await generateText({
+        model: codexSdkModel(jsonMode),
+        system: systemPrompt,
+        prompt: userPrompt,
+        maxRetries: 0,
+      });
+      return result.text;
     }
     const apiKey = process.env.AI_API_KEY;
     if (!apiKey) {

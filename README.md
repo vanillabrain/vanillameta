@@ -21,6 +21,8 @@ If you need a dashboard engine you can drop into your own product or internal to
 
 ## Quickstart
 
+Local development and CI use **Node.js 24 LTS** (`nvm use`, or install Node 24.11+). The dashboard Assistant uses AI SDK 7 (`@ai-sdk/react` 4) and the existing Codex CLI connection to `gpt-6-luna`. Configuration and supported runtime limits are in [the Assistant verification guide](docs/testing/dashboard-assistant.md). Legacy Lambda deployment files are outside the persistent DuckDB worker deployment path.
+
 ```bash
 docker compose up
 ```

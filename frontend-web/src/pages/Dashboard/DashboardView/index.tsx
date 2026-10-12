@@ -45,6 +45,7 @@ const DashboardView = () => {
   const { userState } = useContext(AuthContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const [dashboardInfo, setDashboardInfo] = useState(defaultDashboardInfo); // dashboard 정보
+  const [assistantOpen, setAssistantOpen] = useState(false);
   const dashboardRequest = useRef(0);
   const [layout, setLayout] = useState([]); // grid layout
   // dashboard id
@@ -258,120 +259,125 @@ const DashboardView = () => {
     >
       <>
         <Seo title={dashboardInfo.title} />
-        <PageViewBox
-          title={dashboardInfo.title}
-          date={dateData(dashboardInfo.updatedAt)}
-          button={
-            <>
-              <Box sx={{ display: { xs: 'none', sm: 'contents' } }}>
-                <Select
+        <Box sx={{ width: { xs: '100%', lg: assistantOpen ? 'calc(100% - 400px)' : '100%' }, minWidth: 0 }}>
+          <PageViewBox
+            preserveChildren
+            title={dashboardInfo.title}
+            date={dateData(dashboardInfo.updatedAt)}
+            button={
+              <>
+                <Box sx={{ display: { xs: 'none', sm: 'contents' } }}>
+                  <Select
+                    size="small"
+                    displayEmpty
+                    inputProps={{ 'aria-label': t('dashboard.autoRefresh') }}
+                    value={refreshIntervalSec}
+                    onChange={event => setRefreshIntervalSec(Number(event.target.value))}
+                    sx={{ height: '32px', mr: '8px', fontSize: '12px', backgroundColor: '#fff' }}
+                  >
+                    <MenuItem value={0}>{t('dashboard.autoRefreshOff')}</MenuItem>
+                    <MenuItem value={15}>{t('dashboard.sec15')}</MenuItem>
+                    <MenuItem value={30}>{t('dashboard.sec30')}</MenuItem>
+                    <MenuItem value={60}>{t('dashboard.min1')}</MenuItem>
+                    <MenuItem value={300}>{t('dashboard.min5')}</MenuItem>
+                  </Select>
+                  <ReloadButton
+                    aria-label={t('dashboard.refresh')}
+                    size="medium"
+                    sx={{ marginRight: { sm: '14px', md: '24px' }, padding: 0 }}
+                    onClick={event => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      handleRefreshClick();
+                    }}
+                  />
+                  <ModifyButton
+                    aria-label={t('dashboardModify.edit')}
+                    size="medium"
+                    sx={{ marginRight: { sm: '14px', md: '24px' }, padding: 0 }}
+                    component={RouterLink}
+                    to={`/dashboard/modify?id=${dashboardId}&name=${dashboardInfo.title}`}
+                  />
+                  <DeleteButton
+                    aria-label={t('dashboard.delete')}
+                    size="medium"
+                    sx={{ marginRight: { sm: '14px', md: '24px' }, padding: 0 }}
+                    onClick={event => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      handleDeleteSelect();
+                    }}
+                  />
+                </Box>
+                <Button
+                  variant="outlined"
                   size="small"
-                  displayEmpty
-                  inputProps={{ 'aria-label': t('dashboard.autoRefresh') }}
-                  value={refreshIntervalSec}
-                  onChange={event => setRefreshIntervalSec(Number(event.target.value))}
-                  sx={{ height: '32px', mr: '8px', fontSize: '12px', backgroundColor: '#fff' }}
+                  onClick={handleInsightClick}
+                  disabled={insightLoading}
+                  sx={{ mr: '8px', backgroundColor: '#fff', whiteSpace: 'nowrap', flexShrink: 0 }}
                 >
-                  <MenuItem value={0}>{t('dashboard.autoRefreshOff')}</MenuItem>
-                  <MenuItem value={15}>{t('dashboard.sec15')}</MenuItem>
-                  <MenuItem value={30}>{t('dashboard.sec30')}</MenuItem>
-                  <MenuItem value={60}>{t('dashboard.min1')}</MenuItem>
-                  <MenuItem value={300}>{t('dashboard.min5')}</MenuItem>
-                </Select>
-                <ReloadButton
-                  aria-label={t('dashboard.refresh')}
-                  size="medium"
-                  sx={{ marginRight: { sm: '14px', md: '24px' }, padding: 0 }}
-                  onClick={event => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    handleRefreshClick();
-                  }}
+                  {insightLoading ? t('dashboard.insightLoading') : t('dashboard.insight')}
+                </Button>
+                <ShareButton
+                  handleShareToggle={handleShareToggle}
+                  isShareOn={isShareOn}
+                  shareId={dashboardInfo.uuid}
+                  shareLimitDate={shareLimitDate}
+                  setShareLimitDate={setShareLimitDate}
                 />
-                <ModifyButton
-                  aria-label={t('dashboardModify.edit')}
-                  size="medium"
-                  sx={{ marginRight: { sm: '14px', md: '24px' }, padding: 0 }}
-                  component={RouterLink}
-                  to={`/dashboard/modify?id=${dashboardId}&name=${dashboardInfo.title}`}
-                />
-                <DeleteButton
-                  aria-label={t('dashboard.delete')}
-                  size="medium"
-                  sx={{ marginRight: { sm: '14px', md: '24px' }, padding: 0 }}
-                  onClick={event => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    handleDeleteSelect();
-                  }}
-                />
-              </Box>
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={handleInsightClick}
-                disabled={insightLoading}
-                sx={{ mr: '8px', backgroundColor: '#fff', whiteSpace: 'nowrap', flexShrink: 0 }}
+              </>
+            }
+          >
+            {insight && (
+              <Box
+                sx={{
+                  mx: { xs: '20px', sm: '24px' },
+                  mt: '16px',
+                  p: '16px 20px',
+                  border: '1px solid #d6e3f5',
+                  borderRadius: '8px',
+                  backgroundColor: '#f4f8ff',
+                }}
               >
-                {insightLoading ? t('dashboard.insightLoading') : t('dashboard.insight')}
-              </Button>
-              <ShareButton
-                handleShareToggle={handleShareToggle}
-                isShareOn={isShareOn}
-                shareId={dashboardInfo.uuid}
-                shareLimitDate={shareLimitDate}
-                setShareLimitDate={setShareLimitDate}
-              />
-            </>
-          }
-        >
-          {insight && (
+                <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#043f84', mb: '6px' }}>
+                  {t('dashboard.aiInsight')}
+                </Typography>
+                <Typography sx={{ fontSize: '13px', color: '#333', whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
+                  {insight}
+                </Typography>
+              </Box>
+            )}
             <Box
               sx={{
-                mx: { xs: '20px', sm: '24px' },
-                mt: '16px',
-                p: '16px 20px',
-                border: '1px solid #d6e3f5',
-                borderRadius: '8px',
-                backgroundColor: '#f4f8ff',
+                flex: '1 1 auto',
+                minWidth: 0,
+                backgroundColor: '#f9f9fa',
+                borderRadius: '0px 0px 6px 6px',
               }}
             >
-              <Typography sx={{ fontSize: '13px', fontWeight: 700, color: '#043f84', mb: '6px' }}>
-                {t('dashboard.aiInsight')}
-              </Typography>
-              <Typography sx={{ fontSize: '13px', color: '#333', whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
-                {insight}
-              </Typography>
-            </Box>
-          )}
-          <Box
-            sx={{
-              flex: '1 1 auto',
-              minWidth: 0,
-              backgroundColor: '#f9f9fa',
-              borderRadius: '0px 0px 6px 6px',
-            }}
-          >
-            <DashboardAnalysis
-              key={`${dashboardId}:${dashboardInfo.updatedAt}`}
-              dashboardId={dashboardId}
-              onSaved={() => getDashboardInfo(dashboardId)}
-            >
-              <ResponsiveGridLayout
-                key={layoutVersion}
-                rowHeight={76}
-                compactType={null}
-                breakpoints={{ xs: 0, md: 800, lg: 1000 }}
-                cols={{ xs: 1, md: 8, lg: 12 }}
-                layouts={readLayouts(layout)}
-                containerPadding={{ xs: [12, 12], md: [16, 16], lg: [20, 20] }}
-                margin={{ xs: [12, 12], md: [16, 16], lg: [20, 20] }}
+              <DashboardAnalysis
+                key={dashboardId}
+                dashboardId={dashboardId}
+                revision={dashboardInfo.updatedAt}
+                onAssistantOpenChange={setAssistantOpen}
+                onSaved={() => getDashboardInfo(dashboardId)}
               >
-                {generateWidget()}
-              </ResponsiveGridLayout>
-            </DashboardAnalysis>
-          </Box>
-        </PageViewBox>
+                <ResponsiveGridLayout
+                  key={layoutVersion}
+                  rowHeight={76}
+                  compactType={null}
+                  breakpoints={{ xs: 0, md: 800, lg: 1000 }}
+                  cols={{ xs: 1, md: 8, lg: 12 }}
+                  layouts={readLayouts(layout)}
+                  containerPadding={{ xs: [12, 12], md: [16, 16], lg: [20, 20] }}
+                  margin={{ xs: [12, 12], md: [16, 16], lg: [20, 20] }}
+                >
+                  {generateWidget()}
+                </ResponsiveGridLayout>
+              </DashboardAnalysis>
+            </Box>
+          </PageViewBox>
+        </Box>
       </>
     </PageTitleBox>
   );
