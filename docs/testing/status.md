@@ -10,10 +10,10 @@
 
 | 범위 | 완료 | 부분 완료 | 미검증 | 합계 |
 | --- | ---: | ---: | ---: | ---: |
-| cases.md | 98 | 4 | 0 | 102 |
+| cases.md | 101 | 1 | 0 | 102 |
 | 서버 DuckDB + 디자인/필터/AI 대시보드 | 8 | 5 | 0 | 13 |
 | COMMERCE-01~08 | 8 | 0 | 0 | 8 |
-| 전체 | 114 | 9 | 0 | 123 |
+| 전체 | 117 | 6 | 0 | 123 |
 
 집계 단위는 고유 MD ID다. 단위 테스트 수·변형 수·스크린샷 수와 다르다. 과거 통과를 현재 전체 출시 회귀 완료로 확대하지 않으며, 관련 변경이 없는 결과만 재사용한다. DATA-04~07의 결과 JSON은 남았지만 상세 HTTP 원본 일부가 덮어써진 기록 한계도 보존한다.
 
@@ -35,7 +35,7 @@
 | AUTH-12 | 완료 | 잘못된 현재 암호는 보존, 정상 수정은 새 로그인·재조회 확인. | [profile] |
 | AUTH-13 | 완료 | 로그아웃·쿠키 철회, 삭제 전후 계정 상태, 손상 저장 JSON 복구. | [authnav] |
 | AUTH-14 | 완료 | 로그아웃·쿠키 철회, 삭제 전후 계정 상태, 손상 저장 JSON 복구. | [authnav] |
-| FILE-01 | 부분 완료 | CSV 분석/500 관찰은 있음. 정확한 3행6열 oracle와 현재 query export를 한 케이스로 대조한 증빙 부족(핵심7개는 500행 별도 정답). | [core], [files], [post] |
+| FILE-01 | 완료 | 동일 oracle 브라우저3행6열/500 증빙 재사용, 현재 집계 CSV 실제 다운로드·파싱으로 total500 정확 일치. | [fileduck], [oraclecreate] |
 | FILE-02 | 완료 | 3행/500 및 쿼리 오류·빈 결과 후 정상 복구. | [post] |
 | FILE-03 | 완료 | 3행/500 및 쿼리 오류·빈 결과 후 정상 복구. | [post] |
 | FILE-04 | 완료 | bar/line/pie, CSV 실제 다운로드 원값, BIGINT 정확 문자열. | [files] |
@@ -78,14 +78,14 @@
 | METRIC-07 | 완료 | 필터7/거절5/수정 보존, 재생성 optional 잔존 수정 후 동일ID·활성1·250. | [metric] |
 | METRIC-08 | 완료 | 필터7/거절5/수정 보존, 재생성 optional 잔존 수정 후 동일ID·활성1·250. | [metric] |
 | METRIC-09 | 완료 | missing 및 deleted 평가 거절 합산. | [major], [profile] |
-| WIDGET-01 | 부분 완료 | 생성 wizard 핵심은 별도 sales 정답, oracle500 위젯 수정/조회 증빙은 있음. 정확한 oracle 소스/amount 선택부터 생성·fresh read500 전체 증빙 부족. | [core], [major] |
+| WIDGET-01 | 완료 | 실제 oracle 소스15/amount/sum/숫자판 신규 저장201, 위젯104 fresh GET 및 reload500·option 동일. | [oraclecreate] |
 | WIDGET-02 | 완료 | 필수/뒤로/취소, 옵션 수정/reload, 삭제 취소/확인. | [major] |
 | WIDGET-03 | 완료 | 필수/뒤로/취소, 옵션 수정/reload, 삭제 취소/확인. | [major] |
 | WIDGET-04 | 완료 | 필수/뒤로/취소, 옵션 수정/reload, 삭제 취소/확인. | [major] |
 | WIDGET-05 | 완료 | TABLE/DATASET CRUD, 옵션 파싱 및 무관 위젯 보존. | [widget] |
 | WIDGET-06 | 완료 | 52개 enabled component 각각 한 명시적 fixture. 실패 차트 수정 후 재검증 포함; 모든 옵션/모바일/디자인 품질 검증은 아님. | [widget], [chart] |
 | WIDGET-07 | 완료 | missing/소스 삭제 오류와 정상500 화면 복귀. | [authnav] |
-| DASH-01 | 부분 완료 | UI 생성 핵심과 oracle500 대시보드 수정/조회 증빙은 있음. oracle 숫자 위젯으로 신규 생성·widget ID/layout 재조회 전체 증빙 부족. | [core], [major] |
+| DASH-01 | 완료 | 위젯104로 신규 대시보드6 UI 생성201, fresh GET/reload 제목500·widget ID/layout 동일. | [oraclecreate] |
 | DASH-02 | 완료 | 제목·위젯·배치 영속/삭제 취소·확인/타계정5행동 거절. | [major] |
 | DASH-03 | 완료 | 제목·위젯·배치 영속/삭제 취소·확인/타계정5행동 거절. | [major] |
 | DASH-04 | 완료 | 제목·위젯·배치 영속/삭제 취소·확인/타계정5행동 거절. | [major] |
@@ -146,7 +146,7 @@
 
 1. **P0 — 이번 선택 범위 완료.** DATA-08 실제 암호 연결 응답과 FILTER-01 신규 필터 API 타계정 차단을 보완했다. AUTH-01/05/06을 포함해 관련 변경 없이 반복하지 않는다. 전체 커넥터/테넌트 보안 감사 완료를 뜻하지 않는다.
 2. **P1 — 현재 DuckDB 수집 경로 완료.** FILE-12~18 잔여 조건을 보완했다. INGEST-01~04/FILE-19·20과 함께 관련 변경 없으면 반복하지 않는다. 느린 기기의 15초 초기화 한도와 JS 로더 모듈 배포 장애는 별도 운영 범위다.
-3. **P1 — 기본 사용자 흐름의 정확한 증빙.** FILE-01의 oracle CSV/현재 결과 export, WIDGET-01·DASH-01의 oracle 생성·재조회, NAV-04의 일반 대시보드 미저장 취소만 보완한다. 기존 편집/삭제/집계 성공은 재사용한다.
+3. **P1 — 일반 대시보드 미저장 취소.** FILE-01·WIDGET-01·DASH-01은 [신규 생성·export 기록](oracle-create-export.md)에서 완료했다. NAV-04의 일반 대시보드 생성·편집 미저장 이동 조건만 남았다. 기존 생성/편집/삭제/집계 성공은 재사용한다.
 4. **P1 — 디자인과 Rill 비교.** 자동 생성된 최종 화면의 DESIGN-01/02 조건, 같은 수정 질문의 Rill 흐름(DESIGN-03/AI-DASH-01), DESIGN-04의 버튼 명칭·대비·키보드/스크린리더를 확인한다. 현재 Luna 설정 미설정 오류는 별도 격리 프로세스에서 확인한다. 사용자 지적 overflow/테마/라벨은 변경 화면에서만 재검증한다.
 5. **운영 파일럿 전 P1 / 다중 사용자 확장 전 P2.** 아래 별도 운영 범위를 정의하고 필요한 최소 검사를 시행한다. 전체 MD 통과와 운영 준비는 다른 판정이다.
 
@@ -194,3 +194,5 @@
 [authremaining]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/auth-remaining-2026-10-12/RESULTS.md
 [boundaries]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/data-filter-boundary/RESULTS.md
 [fileduck]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/file-duckdb-boundaries/RESULTS.md
+
+[oraclecreate]: oracle-create-export.md
