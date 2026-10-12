@@ -300,6 +300,9 @@ export default {
   },
   settings: {
     decimalPlaces: 'Decimal places',
+    numberNotation: 'Number display',
+    numberFull: 'Exact value',
+    numberCompact: 'Compact (K/M/B/T)',
     cnt: 'Count',
     sum: 'Sum',
     avg: 'Average',

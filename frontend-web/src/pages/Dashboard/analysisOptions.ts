@@ -1,5 +1,5 @@
 /** Reuse the standard widgets for server-validated analysis results. */
-export function analysisOptions(widget: any) {
+export function analysisOptions(widget: any, numberNotation = 'compact') {
   if (widget.type === 'BOARD_NUMERIC') {
     return {
       header: { title: '', fontSize: 13, color: '#586579' },
@@ -12,6 +12,7 @@ export function analysisOptions(widget: any) {
         suffix: '',
         numForm: true,
         decimalPlaces: widget.decimalPlaces ?? 0,
+        numberNotation,
       },
     };
   }

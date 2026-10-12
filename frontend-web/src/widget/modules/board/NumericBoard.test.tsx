@@ -47,6 +47,27 @@ const board = (dataSet: any[], content: Record<string, unknown> = {}) =>
   render(<NumericBoard option={option(content)} dataSet={dataSet} />);
 
 describe('NumericBoard precision and readable values', () => {
+  it.each([
+    [634513000, 0, '635M'],
+    [1500, 1, '1.5K'],
+    [1000000000, 0, '1B'],
+    [1000000000000, 0, '1T'],
+    [999500, 0, '1M'],
+    [-1500, 1, '-1.5K'],
+  ])('compacts %s without changing its exact value', (amount, decimalPlaces, display) => {
+    board([{ amount }], { numberNotation: 'compact', decimalPlaces });
+    const value = screen.getByText(display);
+    expect(value.title).toBe(String(amount));
+    expect(value.getAttribute('aria-label')).toBe(String(amount));
+  });
+  it('preserves affixes, sub-thousand precision, and full values when compact is disabled', () => {
+    const view = board([{ amount: 5.57 }], { numberNotation: 'compact', decimalPlaces: 2, prefix: '$' });
+    expect(screen.getByText('$5.57')).not.toBeNull();
+    view.rerender(
+      <NumericBoard option={option({ numberNotation: 'full', numForm: true })} dataSet={[{ amount: 634513000 }]} />,
+    );
+    expect(screen.getByText('634,513,000')).not.toBeNull();
+  });
   it('displays average 5.571 as 5.57 with two decimal places and exposes the unrounded value', () => {
     board([{ amount: 5.57 }, { amount: 5.572 }], { aggregation: 'avg', decimalPlaces: 2 });
     const value = screen.getByText('5.57');
@@ -101,6 +122,14 @@ describe('NumericBoard precision and readable values', () => {
 });
 
 describe('NumericBoard precision setting', () => {
+  it('stores the compact display option without changing other widget settings', () => {
+    const initial = option({ decimalPlaces: 2 });
+    const setOption = vi.fn();
+    render(<NumericBoardSetting option={initial} setOption={setOption} spec={[]} />);
+    fireEvent.change(screen.getByLabelText('Number display'), { target: { value: 'compact' } });
+    expect(setOption.mock.calls[0][0].content).toMatchObject({ numberNotation: 'compact', decimalPlaces: 2 });
+    expect(initial.content).not.toHaveProperty('numberNotation');
+  });
   it('stores numeric precision and removes it on default without mutating input', () => {
     const initial = option();
     const setOption = vi.fn();

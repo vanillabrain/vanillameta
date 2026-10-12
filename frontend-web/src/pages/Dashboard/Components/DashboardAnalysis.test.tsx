@@ -191,7 +191,7 @@ it('limits dimensions and offered values to five and fifty', async () => {
       values: Array.from({ length: 51 }, (_, j) => j),
     })),
   });
-  expect(screen.getAllByRole('combobox')).toHaveLength(5);
+  expect(screen.getAllByRole('combobox', { name: /^column/ })).toHaveLength(5);
   fireEvent.mouseDown(screen.getByRole('combobox', { name: 'column0' }));
   expect(within(screen.getByRole('listbox')).getAllByRole('option')).toHaveLength(50);
 });

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Alert,
   Box,
@@ -29,6 +30,15 @@ const validDay = (day: string) =>
   new Date(`${day}T00:00:00Z`).toISOString().slice(0, 10) === day;
 
 export default function DashboardAnalysis({ dashboardId, onSaved, children }: any) {
+  const { t } = useTranslation();
+  const [numberNotation, setNumberNotation] = useState('compact');
+  useEffect(() => {
+    try {
+      setNumberNotation(localStorage.getItem(`dashboard-number-notation:${dashboardId}`) === 'full' ? 'full' : 'compact');
+    } catch {
+      setNumberNotation('compact');
+    }
+  }, [dashboardId]);
   const [draft, setDraft] = useState<any>(null);
   const [preview, setPreview] = useState<any>(null);
   const [filters, setFilters] = useState<Record<string, FilterValue[]>>({});
@@ -149,6 +159,26 @@ export default function DashboardAnalysis({ dashboardId, onSaved, children }: an
         <Button size="small" variant="outlined" onClick={() => setEditing(true)}>
           AI로 수정
         </Button>
+        <FormControl size="small" sx={{ minWidth: 160 }}>
+          <InputLabel id="number-notation">{t('settings.numberNotation')}</InputLabel>
+          <Select
+            labelId="number-notation"
+            label={t('settings.numberNotation')}
+            value={numberNotation}
+            onChange={event => {
+              const value = event.target.value;
+              setNumberNotation(value);
+              try {
+                localStorage.setItem(`dashboard-number-notation:${dashboardId}`, value);
+              } catch {
+                /* Display remains usable without browser storage. */
+              }
+            }}
+          >
+            <MenuItem value="compact">{t('settings.numberCompact')}</MenuItem>
+            <MenuItem value="full">{t('settings.numberFull')}</MenuItem>
+          </Select>
+        </FormControl>
       </Stack>
       <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 1.5, mb: 2 }}>
         {dimensions.slice(0, 5).map((dimension: any) => {
@@ -307,7 +337,7 @@ export default function DashboardAnalysis({ dashboardId, onSaved, children }: an
                       : `${widget.datas.length}개 항목`
                   }`}
                   widgetType={widget.type}
-                  widgetOption={analysisOptions(widget)}
+                  widgetOption={analysisOptions(widget, numberNotation)}
                   dataSet={widget.datas}
                 />
               </Box>

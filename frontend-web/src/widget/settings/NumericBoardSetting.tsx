@@ -105,6 +105,18 @@ const NumericBoardSetting = props => {
           value={option.content.decimalPlaces ?? ''}
           onChange={handleContentChange}
         />
+        <SelectForm
+          name="numberNotation"
+          label={t('settings.numberNotation', { defaultValue: 'Number display' })}
+          inputProps={{ 'aria-label': t('settings.numberNotation', { defaultValue: 'Number display' }) }}
+          optionList={[
+            { value: 'full', label: t('settings.numberFull', { defaultValue: 'Exact value' }) },
+            { value: 'compact', label: t('settings.numberCompact', { defaultValue: 'Compact (K/M/B/T)' }) },
+          ]}
+          value={option.content.numberNotation || 'full'}
+          disabledDefaultValue
+          onChange={handleContentChange}
+        />
         <TextFieldForm label="Prefix" name="prefix" value={option.content.prefix} onChange={handleContentChange} />
         <TextFieldForm label="Suffix" name="suffix" value={option.content.suffix} onChange={handleContentChange} />
       </ListItem>

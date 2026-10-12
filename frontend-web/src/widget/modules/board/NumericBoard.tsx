@@ -18,7 +18,7 @@ const NumericBoard = props => {
     header: { ...defaultComponentOption.header, ...option?.header },
     content: { ...defaultComponentOption.content, ...option?.content },
   };
-  const { field, aggregation, decimalPlaces, numForm, prefix, suffix } = componentOption.content;
+  const { field, aggregation, decimalPlaces, numForm, prefix, suffix, numberNotation } = componentOption.content;
   const precisionSet =
     typeof decimalPlaces === 'number' && Number.isInteger(decimalPlaces) && decimalPlaces >= 0 && decimalPlaces <= 6;
   const rows = dataSet || [];
@@ -66,6 +66,20 @@ const NumericBoard = props => {
     } else {
       const result = getAggregationData(aggregation, rows, field);
       formatted = numForm ? result.toLocaleString('ko-KR') : String(result);
+    }
+    if (numberNotation === 'compact' && raw.abs().greaterThanOrEqualTo(1000)) {
+      const units = ['K', 'M', 'B', 'T'];
+      let unit = 0;
+      let scaled = raw.dividedBy(1000);
+      const places = precisionSet ? decimalPlaces : 1;
+      while (unit < units.length - 1 && math.bignumber(scaled.abs().toFixed(places)).greaterThanOrEqualTo(1000)) {
+        scaled = scaled.dividedBy(1000);
+        unit += 1;
+      }
+      formatted = `${scaled
+        .toFixed(places)
+        .replace(/(\.\d*?)0+$/, '$1')
+        .replace(/\.$/, '')}${units[unit]}`;
     }
   }
   const score = raw === null ? formatted : `${prefix ?? ''}${formatted}${suffix ?? ''}`;

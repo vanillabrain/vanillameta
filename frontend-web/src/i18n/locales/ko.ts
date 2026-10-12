@@ -300,6 +300,9 @@ export default {
   },
   settings: {
     decimalPlaces: '소수 자릿수',
+    numberNotation: '숫자 표시',
+    numberFull: '전체 숫자',
+    numberCompact: '축약 (K/M/B/T)',
     cnt: '갯수',
     sum: '합계',
     avg: '평균',
