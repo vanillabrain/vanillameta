@@ -24,6 +24,7 @@ const SignUp = React.lazy(() => import('@/pages/SignUp'));
 const Share = React.lazy(() => import('@/pages/Share'));
 const Embed = React.lazy(() => import('@/pages/Share/Embed'));
 const Status404 = React.lazy(() => import('@/pages/Status404'));
+const Commerce = React.lazy(() => import('@/pages/Commerce'));
 
 function Router() {
   return (
@@ -54,6 +55,8 @@ function Router() {
           </Route>
 
           <Route path="/data" element={<Data />} />
+          <Route path="/commerce" element={<Commerce />} />
+          <Route path="/commerce/:projectId" element={<Commerce />} />
           <Route path="/data/file" element={<FileAnalysis />} />
           <Route path="/data/metric" element={<Metric />} />
           <Route path="/data/source/create" element={<DataSource />} />

@@ -2,6 +2,7 @@ import { parentPort } from 'worker_threads';
 import { DuckDBInstance, DuckDBConnection } from '@duckdb/node-api';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { importCommerce } from './commerce-import';
 
 const literal = (value: string) => `'${value.replace(/'/g, "''")}'`;
 const identifier = (value: string) => `"${value.replace(/"/g, '""')}"`;
@@ -33,12 +34,12 @@ parentPort.on('message', async task => {
       return;
     }
     instance = await DuckDBInstance.create(task.filename, {
-      access_mode: task.kind === 'import' ? 'READ_WRITE' : 'READ_ONLY',
+      access_mode: ['import', 'commerce-import'].includes(task.kind) ? 'READ_WRITE' : 'READ_ONLY',
       memory_limit: task.memoryLimit,
       threads: String(task.threads),
       temp_directory: task.tempDirectory,
       max_temp_directory_size: task.tempLimit,
-      enable_external_access: task.kind === 'import' ? 'true' : 'false',
+      enable_external_access: ['import', 'commerce-import'].includes(task.kind) ? 'true' : 'false',
       autoinstall_known_extensions: 'false',
       autoload_known_extensions: 'false',
       allow_unsigned_extensions: 'false',
@@ -47,7 +48,18 @@ parentPort.on('message', async task => {
     await connection.run("SET TimeZone = 'UTC'");
     runningConnection = connection;
     let result: any;
-    if (task.kind === 'import') {
+    if (task.kind === 'commerce-import') {
+      result = await importCommerce(connection, {
+        files: {
+          orders: task.sourcePaths[0],
+          payments: task.sourcePaths[1],
+          refunds: task.sourcePaths[2],
+          ...(task.sourcePaths[3] ? { customers: task.sourcePaths[3] } : {}),
+        },
+        sampleType: task.sampleType,
+      });
+      await connection.run('CHECKPOINT');
+    } else if (task.kind === 'import') {
       const source = literal(task.sourcePath);
       const reader =
         task.extension === '.parquet'
@@ -135,7 +147,11 @@ parentPort.on('message', async task => {
     instance?.closeSync();
     const message = /Expected top-level JSON array/.test(error.message)
       ? 'json file must contain an array of objects'
-      : error.message.replaceAll(task.sourcePath || '\0', '<uploaded file>');
+      : error.message
+          .replaceAll(task.sourcePath || '\0', '<uploaded file>')
+          .replaceAll(task.sourcePaths?.[0] || '\0', '<orders CSV>')
+          .replaceAll(task.sourcePaths?.[1] || '\0', '<payments CSV>')
+          .replaceAll(task.sourcePaths?.[2] || '\0', '<refunds CSV>');
     parentPort.postMessage({ id: task.id, error: message });
   }
 });

@@ -1,11 +1,17 @@
 import React from 'react';
 import { Button, Stack, ListItem } from '@mui/material';
 import { NavLink } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 function NavBar(props) {
+  const { i18n } = useTranslation();
+  const navItems = [
+    ...props.navItems,
+    { id: 'commerce', name: i18n.language?.startsWith('en') ? 'COMMERCE' : '매출·환불', link: '/commerce' },
+  ];
   return (
     <Stack component="ul" direction="row" sx={{ display: 'flex', flexGrow: 1, paddingLeft: 0, m: 0 }}>
-      {props.navItems.map(item => (
+      {navItems.map(item => (
         <ListItem
           key={item.id}
           sx={{

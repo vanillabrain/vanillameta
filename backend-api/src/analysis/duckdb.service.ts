@@ -9,6 +9,7 @@ import { randomUUID } from 'crypto';
 import * as fs from 'fs/promises';
 import { existsSync } from 'fs';
 import * as path from 'path';
+import { CommerceImportInput, CommerceImportResult } from './commerce-import';
 
 export type AnalysisUpload = {
   originalname: string;
@@ -17,6 +18,13 @@ export type AnalysisUpload = {
   size?: number;
 };
 export type AnalysisImport = { filename: string; sourcePath: string; rows: number };
+export type AnalysisCommerceImport = {
+  filename: string;
+  rows: Record<string, number>;
+  summary?: CommerceImportResult['summary'];
+  validation: { valid: boolean; errors: CommerceImportResult['errors']; errorCount: number };
+  sampleType: CommerceImportResult['sampleType'];
+};
 const positive = (value: string, fallback: number) => {
   const number = Number(value);
   return Number.isSafeInteger(number) && number > 0 ? number : fallback;
@@ -126,6 +134,92 @@ export class DuckDBService implements OnModuleDestroy {
     }
   }
 
+  /** Import the normalized commerce CSV bundle into a managed DuckDB file. */
+  async importCommerce(input: CommerceImportInput): Promise<AnalysisCommerceImport> {
+    const files = input?.files;
+    if (!files?.orders || !files?.payments || !files?.refunds) {
+      throw new BadRequestException('orders, payments and refunds CSV files are required');
+    }
+    const sources = [
+      { name: 'orders.csv', path: files.orders },
+      { name: 'payments.csv', path: files.payments },
+      { name: 'refunds.csv', path: files.refunds },
+      ...(files.customers ? [{ name: 'customers.csv', path: files.customers }] : []),
+    ];
+    const storageRoot = await fs.realpath(this.root());
+    const uploadMaxBytes = positive(process.env.FILE_UPLOAD_MAX_BYTES, 512 * 1024 * 1024);
+    const maxStorageBytes = positive(
+      process.env.ANALYSIS_MAX_STORAGE_BYTES,
+      2 * 1024 * 1024 * 1024,
+    );
+    let bundleBytes = 0;
+    for (const source of sources) {
+      const resolved = path.resolve(source.path);
+      const realFilename = await fs.realpath(resolved).catch(() => undefined);
+      if (!realFilename) throw new BadRequestException('commerce source file is missing or empty');
+      const relative = path.relative(storageRoot, realFilename);
+      if (relative.startsWith('..') || path.isAbsolute(relative)) {
+        throw new BadRequestException(
+          'commerce source files must be inside managed upload storage',
+        );
+      }
+      const stat = await fs.stat(realFilename).catch(() => undefined);
+      if (!stat?.isFile() || stat.size === 0) {
+        throw new BadRequestException('commerce source file is missing or empty');
+      }
+      if (stat.size > uploadMaxBytes) {
+        throw new BadRequestException(`${source.name} exceeds the per-file upload limit`);
+      }
+      source.path = realFilename;
+      bundleBytes += stat.size;
+    }
+    if (bundleBytes > maxStorageBytes) {
+      throw new BadRequestException('commerce source bundle exceeds the analysis storage limit');
+    }
+    const directory = path.join(this.root(), randomUUID());
+    try {
+      await fs.mkdir(directory, { recursive: true, mode: 0o700 });
+      for (const source of sources) {
+        const managedCopy = path.join(directory, source.name);
+        await fs.copyFile(source.path, managedCopy);
+        await fs.chmod(managedCopy, 0o600);
+        source.path = managedCopy;
+      }
+      const filename = path.join(directory, 'data.duckdb');
+      const task = {
+        kind: 'commerce-import',
+        filename,
+        sourcePaths: [
+          sources[0].path,
+          sources[1].path,
+          sources[2].path,
+          files.customers ? sources[3].path : undefined,
+        ],
+        sampleType: input.sampleType,
+        maxStorageBytes,
+      };
+      await this.manifest(directory, { status: 'validating', kind: 'commerce' });
+      await this.checkImportStorage(task);
+      const result = await this.submit(task, positive(process.env.FILE_IMPORT_TIMEOUT_MS, 300000));
+      await fs.chmod(filename, 0o600);
+      await this.manifest(directory, {
+        status: result.valid ? 'ready' : 'validation_failed',
+        kind: 'commerce',
+        ...result,
+      });
+      return {
+        filename,
+        rows: result.counts,
+        summary: result.summary,
+        validation: { valid: result.valid, errors: result.errors, errorCount: result.errorCount },
+        sampleType: result.sampleType,
+      };
+    } catch (error) {
+      await fs.rm(directory, { force: true, recursive: true });
+      throw new BadRequestException(error.message || 'commerce import failed');
+    }
+  }
+
   async registerImport(filename: string, databaseId: number) {
     const directory = path.dirname(this.managed(filename));
     const existing = JSON.parse(await fs.readFile(path.join(directory, 'import.json'), 'utf8'));
@@ -194,7 +288,7 @@ export class DuckDBService implements OnModuleDestroy {
         if (this.worker !== worker || this.active?.id !== message.id) return;
         const job = this.active;
         clearInterval(job.storageTimer);
-        if (job.kind === 'import' && !message.error) {
+        if (['import', 'commerce-import'].includes(job.kind) && !message.error) {
           try {
             await this.checkImportStorage(job);
           } catch (error) {
@@ -218,7 +312,7 @@ export class DuckDBService implements OnModuleDestroy {
     }
     this.active = this.queue.shift();
     const job = this.active;
-    if (job.kind === 'import') {
+    if (['import', 'commerce-import'].includes(job.kind)) {
       let checking = false;
       job.storageTimer = setInterval(async () => {
         if (checking || this.active !== job) return;
@@ -232,7 +326,11 @@ export class DuckDBService implements OnModuleDestroy {
         }
       }, 250);
     }
-    const { resolve, reject, timer, storageTimer, ...task } = job;
+    const task = { ...job };
+    delete task.resolve;
+    delete task.reject;
+    delete task.timer;
+    delete task.storageTimer;
     this.worker.postMessage({
       ...task,
       maxResultBytes: positive(process.env.ANALYSIS_MAX_RESULT_BYTES, 8 * 1024 * 1024),

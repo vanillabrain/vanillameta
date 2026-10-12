@@ -22,6 +22,7 @@ import { SeederService } from './database/seeds/seeder.service';
 import { AiModule } from './ai/ai.module';
 import { MetricModule } from './metric/metric.module';
 import { ProgressModule } from './progress/progress.module';
+import { CommerceModule } from './commerce/commerce.module';
 
 @Module({
   imports: [
@@ -67,6 +68,7 @@ import { ProgressModule } from './progress/progress.module';
     AiModule,
     MetricModule,
     ProgressModule,
+    CommerceModule,
   ],
   controllers: [AppController],
   providers: [

@@ -42,5 +42,6 @@ import { UserMapping } from '../user/entities/user-mapping.entity';
     DashboardWidgetService,
     JwtService,
   ],
+  exports: [AiService],
 })
 export class AiModule {}

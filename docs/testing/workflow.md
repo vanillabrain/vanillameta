@@ -92,4 +92,6 @@ CI의 기존 PR/push 빌드·단위 검사는 유지한다. E2E를 저장 훅이
 
 ## AI 대시보드·공통 필터
 
+신규 `/commerce`의 매출·환불 bundle, 게시·소유권, Codex 설명 편집과 모바일은 [sales-refund-mvp.md](sales-refund-mvp.md)의 COMMERCE-01~08을 사용한다. 원본 CSV의 독립 Decimal oracle로 비교하며 기존 광고 샘플/500행 sales 결과를 대신 사용하지 않는다.
+
 구현/운영 범위는 [ai-dashboard.md](ai-dashboard.md), MD 검증은 [design-rill-parity.md](design-rill-parity.md)의 FILTER-01/AI-DASH-01/02를 사용한다. LLM JSON/SQL 실행 성공과 질문 의미·수치 일치는 별개이며 생성 결과마다 요청한 계산식을 대조한다. 로컬 모델 변경은 실패한 LLM 생성만 재검증하고 파일 저장·이미 통과한 차트 전체를 반복하지 않는다.
