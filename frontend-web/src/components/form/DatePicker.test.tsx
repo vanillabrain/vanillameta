@@ -1,7 +1,9 @@
 import React from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import DatePicker from './DatePicker';
+
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 
 function Harness({ initial = null }: { initial?: string | null }) {
   const [date, setDate] = React.useState(initial);
@@ -18,7 +20,7 @@ afterEach(cleanup);
 describe('share expiry picker', () => {
   it('selects a calendar date without crashing when saved string state rerenders', () => {
     render(<Harness />);
-    fireEvent.click(screen.getByRole('button', { name: /choose date/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'share.openCalendar' }));
     const today = new Date().getDate().toString();
     const selectedDay = screen
       .getAllByRole('gridcell')

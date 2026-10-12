@@ -1,5 +1,5 @@
-import { Stack, SxProps, Typography } from '@mui/material';
-import { Link as RouterLink } from 'react-router-dom';
+import { ButtonBase, Stack, SxProps, Typography } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import React from 'react';
 import CardListWrapper, { CardWrapper } from '@/components/list/CardListWrapper';
 import ModifyButton from '@/components/button/ModifyButton';
@@ -20,6 +20,7 @@ interface DatasetCardListProps {
 const selectedSx = { border: 'solid 1px #0f5ab2', backgroundColor: '#edf8ff' };
 
 export const DatasetCardList = (props: DatasetCardListProps) => {
+  const { t } = useTranslation();
   const { data, selectedData, handleDataClick, handleDataRemove, handleModifyClick, isViewMode, isTableView } = props;
 
   return (
@@ -35,6 +36,12 @@ export const DatasetCardList = (props: DatasetCardListProps) => {
             handleClick={() => handleDataClick(item)}
           >
             <Typography
+              component={ButtonBase}
+              aria-label={t('data.previewItem', { name: item.title || item.tableName })}
+              onClick={event => {
+                event.stopPropagation();
+                handleDataClick?.(item);
+              }}
               variant="subtitle2"
               sx={{
                 width: '100%',
@@ -52,6 +59,7 @@ export const DatasetCardList = (props: DatasetCardListProps) => {
             {!isViewMode && (
               <Stack direction="row" justifyContent="flex-end" width="100%" mt="11px" gap={1}>
                 <ModifyButton
+                  aria-label={t('data.editItem', { name: item.title || item.tableName })}
                   size="medium"
                   onClick={event => {
                     event.preventDefault();
@@ -66,6 +74,7 @@ export const DatasetCardList = (props: DatasetCardListProps) => {
                 />
                 {!isTableView && (
                   <DeleteButton
+                    aria-label={t('data.deleteItem', { name: item.title || item.tableName })}
                     component="span"
                     size="medium"
                     onClick={event => {

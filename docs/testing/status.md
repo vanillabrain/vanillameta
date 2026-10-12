@@ -1,5 +1,7 @@
 # MD 검증 현황 — 2026-10-13
 
+Node 24·AI SDK 7 통합 검사와 DESIGN-04 데이터 화면 키보드 경로를 [node24-integration.md](node24-integration.md)에 추가했다. 전체 단위 599개·루트 빌드 통과, 데이터 카드 선택·아이콘 이름·미리보기 대화상자를 수정·재검증했다. VoiceOver와 다른 화면 전체 경로는 남아 있어 집계는 129완료/1부분 완료 유지다.
+
 Assistant 저장 충돌·실행 중단의 ASSISTANT-06~07을 [assistant-reliability.md](assistant-reliability.md)에 추가했다. 실제 오래된 적용/되돌리기409, 중단 시 요청의 Codex 프로세스 종료, 실제 모델 후속 응답 복구와 모바일 안내를 확인했다. 신규2개 완료로 현재130개(129완료/1부분 완료)다.
 
 우측 Assistant·AI SDK7·Node24의 ASSISTANT-01~05를 [dashboard-assistant.md](dashboard-assistant.md)에 추가했다. 실제 모델 질문/수정/적용/되돌리기와 필터·모바일·장애 안내 후 복구를 확인했다. 신규5개 완료로 고유ID는128개(127완료/1부분 완료)다. 기존 완료 케이스는 관련 변경이 없는 결과를 재사용했다.

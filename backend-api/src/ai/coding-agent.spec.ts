@@ -207,6 +207,14 @@ describe('Codex coding agent', () => {
       while (children.length === 0 || !children[0].pid)
         await new Promise(resolve => setImmediate(resolve));
       while (children.length < 2) await new Promise(resolve => setImmediate(resolve));
+      // Temporary-directory creation can resolve in either order. Identify the
+      // aborted request by its prompt, never by the order spawn was called.
+      while (children.some(child => !child.prompt))
+        await new Promise(resolve => setImmediate(resolve));
+      const abortedIndex = children.findIndex(child => child.prompt.includes('question'));
+      const occupyingIndex = children.findIndex(child => child.prompt.includes('occupy'));
+      expect(abortedIndex).toBeGreaterThanOrEqual(0);
+      expect(occupyingIndex).toBeGreaterThanOrEqual(0);
       controller.abort();
       expect(kill).toHaveBeenCalledTimes(1);
       await expect(callCodingAgent('schema', 'busy')).rejects.toThrow('LLM_CODEX_BUSY');
@@ -214,9 +222,13 @@ describe('Codex coding agent', () => {
       void pending.catch(() => (settled = true));
       await new Promise(resolve => setImmediate(resolve));
       expect(settled).toBe(false);
-      children[0].emit('close', null, 'SIGKILL');
-      await writeFile(args[1][args[1].indexOf('--output-last-message') + 1], 'SELECT 3');
-      children[1].emit('close', 0, null);
+      children[abortedIndex].emit('close', null, 'SIGKILL');
+      const occupyingArgs = args[occupyingIndex];
+      await writeFile(
+        occupyingArgs[occupyingArgs.indexOf('--output-last-message') + 1],
+        'SELECT 3',
+      );
+      children[occupyingIndex].emit('close', 0, null);
       await expect(pending).rejects.toThrow('LLM_REQUEST_ABORTED');
       await expect(occupyingSlot).resolves.toBe('SELECT 3');
       behavior = async (child, path) => {

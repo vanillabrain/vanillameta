@@ -5,6 +5,10 @@ import { ForbiddenException } from '@nestjs/common';
 import { DuckDBService } from '../analysis/duckdb.service';
 import { CommerceService } from './commerce.service';
 
+// This contract uses the real DuckDB worker and an injected AI stub. Avoid loading
+// the unrelated ESM-only SDK through Nest's runtime constructor metadata.
+jest.mock('../ai/ai.service', () => ({ AiService: class AiService {} }));
+
 describe('CommerceService report contract', () => {
   let root: string;
   let worker: DuckDBService;

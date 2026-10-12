@@ -132,7 +132,7 @@ beforeEach(() => {
   });
   vi.stubGlobal(
     'Worker',
-    class {
+    class extends EventTarget {
       terminate = state.workerTerminate;
     },
   );

@@ -39,6 +39,13 @@ export default {
     pwdFormat: 'Password must be at least 8 characters with numbers, letters, and symbols.',
   },
   data: {
+    addSource: 'Add data source',
+    addDataset: 'Add dataset',
+    selectSource: 'Select source {{name}}',
+    previewItem: 'Preview {{name}}',
+    editItem: 'Edit {{name}}',
+    deleteItem: 'Delete {{name}}',
+    closePreview: 'Close preview',
     source: 'Data Sources',
     fileAnalysis: 'File Analysis',
     metric: 'Metrics',

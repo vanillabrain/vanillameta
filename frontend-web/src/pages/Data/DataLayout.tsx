@@ -269,7 +269,7 @@ const DataLayout = props => {
             <></>
           ) : (
             <>
-              <AddButton component={RouterLink} to={`source/create`} sx={{ ml: '14px' }} />
+              <AddButton aria-label={t('data.addSource')} component={RouterLink} to={`source/create`} sx={{ ml: '14px' }} />
               <Button
                 component={RouterLink}
                 to={`file`}
@@ -310,7 +310,12 @@ const DataLayout = props => {
             {isViewMode ? (
               <></>
             ) : (
-              <AddButton component={RouterLink} to={`set/create/${selectedDatabase.id}`} sx={{ ml: '14px' }} />
+              <AddButton
+                aria-label={t('data.addDataset')}
+                component={RouterLink}
+                to={`set/create/${selectedDatabase.id}`}
+                sx={{ ml: '14px' }}
+              />
             )}
           </Stack>
           <DatasetCardList

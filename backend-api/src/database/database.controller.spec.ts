@@ -8,6 +8,7 @@ import { Database } from './entities/database.entity';
 import { DatabaseType } from './entities/database_type.entity';
 import { Dataset } from '../dataset/entities/dataset.entity';
 import { TableQuery } from '../widget/tabel-query/entity/table-query.entity';
+import { DuckDBService } from '../analysis/duckdb.service';
 
 describe('DatabaseController', () => {
   let controller: DatabaseController;
@@ -25,6 +26,7 @@ describe('DatabaseController', () => {
       controllers: [DatabaseController],
       providers: [
         DatabaseService,
+        { provide: DuckDBService, useValue: {} },
         { provide: ConnectionService, useValue: { executeQuery: jest.fn() } },
         { provide: getRepositoryToken(Database), useFactory: mockRepository },
         { provide: getRepositoryToken(DatabaseType), useFactory: mockRepository },

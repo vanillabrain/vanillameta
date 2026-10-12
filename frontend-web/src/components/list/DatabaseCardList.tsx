@@ -1,5 +1,6 @@
 import React from 'react';
-import { Box, Stack, Typography } from '@mui/material';
+import { Box, ButtonBase, Stack, Typography } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
 import CardListWrapper, { CardWrapper } from '@/components/list/CardListWrapper';
 import DeleteButton from '@/components/button/DeleteButton';
@@ -21,6 +22,7 @@ const selectedIconSx = { fill: '#0f5ab2' };
 const selectedTypoSx = { fontWeight: 'bold', color: '#0f5ab2' };
 
 export const DatabaseCardList = (props: DatabaseCardListProps) => {
+  const { t } = useTranslation();
   const { data, selectedData, handleDataClick, handleDataRemove, isViewMode, icon = <IconDatabase /> } = props;
 
   return (
@@ -49,6 +51,13 @@ export const DatabaseCardList = (props: DatabaseCardListProps) => {
               {icon}
             </Box>
             <Typography
+              component={ButtonBase}
+              aria-label={t('data.selectSource', { name: item.name })}
+              aria-pressed={selectedData?.id == item.id}
+              onClick={event => {
+                event.stopPropagation();
+                handleDataClick?.(item);
+              }}
               variant="subtitle2"
               sx={{
                 flex: 1,
@@ -68,9 +77,11 @@ export const DatabaseCardList = (props: DatabaseCardListProps) => {
             {!isViewMode && (
               <Stack direction="row" justifyContent="flex-end" width="100%" flex={0}>
                 <ModifyButton
+                  aria-label={t('data.editItem', { name: item.name })}
                   size="medium"
                   component={RouterLink}
                   to={`/data/source/modify/${item.id}`}
+                  onClick={event => event.stopPropagation()}
                   width="20"
                   height="20"
                   padding="0"
@@ -78,6 +89,7 @@ export const DatabaseCardList = (props: DatabaseCardListProps) => {
                   sx={{ p: 0, mr: '18px' }}
                 />
                 <DeleteButton
+                  aria-label={t('data.deleteItem', { name: item.name })}
                   component="span"
                   size="medium"
                   onClick={event => {

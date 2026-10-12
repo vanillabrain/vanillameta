@@ -39,6 +39,13 @@ export default {
     pwdFormat: '비밀번호는 8글자 이상이며 숫자와 영문 대소문자, 특수문자가 포함되어 있어야 합니다.',
   },
   data: {
+    addSource: '데이터 소스 추가',
+    addDataset: '데이터셋 추가',
+    selectSource: '{{name}} 소스 선택',
+    previewItem: '{{name}} 미리보기',
+    editItem: '{{name}} 수정',
+    deleteItem: '{{name}} 삭제',
+    closePreview: '미리보기 닫기',
     source: '데이터 소스',
     fileAnalysis: '파일 분석',
     metric: '메트릭',
