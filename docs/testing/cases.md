@@ -803,3 +803,8 @@ Additional MD scenarios and fixed Rill oracle: [server-duckdb.md](server-duckdb.
 - AI-07 남은 literal조건 PASS: 별도실제provider→backend→정확한SQL삽입/SQLite500, 실제provider503→안내/SQL보존/버튼복구. AI-06 literal insight반환·표시 PASS_SELECTED.
 - AI-08 남은 literal/provider장애·복구 PASS: 고정문구 exact표시→실제provider503→backendERROR/UI안내→정상재시도 exact동일. pageerror0. 이전 Luna검사/브라우저API503주입은 반복하지 않음.
 - 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/ai-ui-contracts/RESULTS.md`. 새제품오류/수정없음, 별도 fixture모델호출0/제품codex gpt-6-luna설정유지. 전체카탈로그완료아님.
+
+## 2026-10-12 AI-05 HTTP 제공자·UI 보완
+
+- AI-05 남은조건 PASS: 실제고정provider→backend→UI에서 unknown type/invalidJSON 거절안내·버튼복구→등록CHART_BAR 정상재시도·선택·추천안내, pageerror0. 이전service주입/실Luna추천 반복없음.
+- 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/ai-chart-contract/RESULTS.md`, run2/results.json/오류·복구PNG. 제품오류/수정없음, fixture모델호출0/기존codex gpt-6-luna설정유지. 전체MD완료아님.
