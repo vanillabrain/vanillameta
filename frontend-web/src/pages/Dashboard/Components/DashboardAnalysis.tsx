@@ -195,6 +195,10 @@ export default function DashboardAnalysis({ dashboardId, onSaved, children }: an
                     key={valueKey(value)}
                     value={valueKey(value)}
                     disabled={selected.length >= 50 && !selected.includes(value)}
+                    onKeyUp={event => {
+                      // MUI Select suppresses Space activation on its option elements.
+                      if (event.key === ' ' && event.target === event.currentTarget) event.currentTarget.click();
+                    }}
                   >
                     <Checkbox checked={selected.includes(value)} />
                     {String(value)}

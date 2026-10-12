@@ -28,6 +28,13 @@
 
 - 390×844에서 layout overflow/잘린 범주/KPI/핵심 버튼 관찰. 키보드 focus/명칭/차트 표 대체수단은 확인 범위별 기록.
 - screenshot만으로 WCAG 준수를 선언하지 않음. 측정하지 않은 대비/스크린리더/전체 키보드 접근은 NOT_RUN.
+- 키보드 선택 관찰: 기기 선택에 focus → Enter로 목록 열기 → Home으로 첫 항목 → Space로 선택 → Escape로 닫기. 선택 상태와 focus 복귀를 확인한다. 초기화·데이터 표·AI 편집은 Enter로 실행하고 편집창은 Escape로 닫는다. 표는 9개 기기 행을 포함해야 한다. 차트 리사이즈/애니메이션 완료 후 캡처한다.
+
+### 2026-10-12 선택 관찰 결과
+
+- DESIGN-04 키보드 항목: 최초 Space 선택 FAIL → MUI Select의 Space 억제에 대한 해당 목록 보완 → 실제 Chromium 재검증 PASS. 초기화, 9행 표 열기, AI 편집 열기/Escape 닫기 PASS. 전체 접근성 준수는 NOT_RUN.
+- DESIGN-02 평균 통화 단위: 실제 gpt-6-luna 수정 요청으로 `$5.57` 저장·reload PASS. SQL·KPI·가로 막대 구성 유지. 전체 디자인 케이스 통과로 확대하지 않는다.
+- 증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/codex-luna-connection/RESULTS.md`. 기존 통과 모바일/날짜 필터/집계 케이스는 관련 변경 없어 재사용.
 
 ## 수동 참조 구성 재검증
 
