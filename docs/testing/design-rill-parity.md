@@ -85,3 +85,7 @@
 - 잘못된 쓰기 SQL과 존재하지 않는 valueField를 생성 응답에 주입하면 실제 preview API가 400으로 거절하고 화면 오류·저장 차단·원본 보존 PASS.
 - 생성 ERROR 응답 주입 후 오류·저장 차단 PASS. 응답 주입 제거 후 실제 기존 gpt-6-luna로 정상 수정 초안/미리보기 복구 PASS. 저장 요청 0회, pageerror 0. 실제 모델 장애 발생 자체를 검증한 것은 아니다.
 - 증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/remaining-ai-errors/RESULTS.md`. 제품 수정 추가 없음. 기존 통과 검사는 재사용.
+
+## 최종 화면·동일 수정문 후속
+
+2026-10-12 [후속 비교](design-final-audit.md)에서 DESIGN-01/02 최종 렌더·설명, DESIGN-03 동일 수정문 Rill 조회/편집 흐름, AI-DASH-01 실제 미설정 API 조건을 보완했다. Rill은 편집 AI가 파일에 즉시 반영하고 VM은 미리보기 후 명시 저장/취소하므로 완전 UX 동일성으로 판정하지 않는다. DESIGN-04 이름 누락은 수정했지만 전체 대비·스크린리더·전체 키보드 검증은 남았다.

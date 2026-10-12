@@ -55,6 +55,9 @@ export default {
     confirm: '확인',
   },
   dashboard: {
+    autoRefresh: '자동새로고침 주기',
+    refresh: '대시보드 새로고침',
+    delete: '대시보드 삭제',
     view: '대시보드 조회',
     insight: 'AI 인사이트',
     insightLoading: 'AI 분석 중...',
@@ -267,6 +270,7 @@ export default {
     done: '선택완료',
   },
   profile: {
+    menu: '계정 메뉴',
     title: '회원정보수정',
     modify: '프로필 수정',
     currentPwd: '현재 비밀번호',
@@ -360,6 +364,7 @@ export default {
     field: '필드',
   },
   common: {
+    language: '언어',
     confirm: '확인',
     cancel: '취소',
     save: '저장',

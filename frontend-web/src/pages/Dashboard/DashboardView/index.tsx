@@ -267,6 +267,7 @@ const DashboardView = () => {
                 <Select
                   size="small"
                   displayEmpty
+                  inputProps={{ 'aria-label': t('dashboard.autoRefresh') }}
                   value={refreshIntervalSec}
                   onChange={event => setRefreshIntervalSec(Number(event.target.value))}
                   sx={{ height: '32px', mr: '8px', fontSize: '12px', backgroundColor: '#fff' }}
@@ -278,6 +279,7 @@ const DashboardView = () => {
                   <MenuItem value={300}>{t('dashboard.min5')}</MenuItem>
                 </Select>
                 <ReloadButton
+                  aria-label={t('dashboard.refresh')}
                   size="medium"
                   sx={{ marginRight: { sm: '14px', md: '24px' }, padding: 0 }}
                   onClick={event => {
@@ -287,12 +289,14 @@ const DashboardView = () => {
                   }}
                 />
                 <ModifyButton
+                  aria-label={t('dashboardModify.edit')}
                   size="medium"
                   sx={{ marginRight: { sm: '14px', md: '24px' }, padding: 0 }}
                   component={RouterLink}
                   to={`/dashboard/modify?id=${dashboardId}&name=${dashboardInfo.title}`}
                 />
                 <DeleteButton
+                  aria-label={t('dashboard.delete')}
                   size="medium"
                   sx={{ marginRight: { sm: '14px', md: '24px' }, padding: 0 }}
                   onClick={event => {

@@ -4,8 +4,10 @@ import IconUser from '@/assets/images/icon/ic-user.svg?react';
 import ProfileModify from '@/components/user/ProfileModify';
 import { AuthContext } from '@/contexts/AuthContext';
 import Logout from '@/components/user/Logout';
+import { useTranslation } from 'react-i18next';
 
 const ProfileViewButton = () => {
+  const { t } = useTranslation();
   const { userState } = useContext(AuthContext);
   const [open, setOpen] = React.useState(false);
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
@@ -26,7 +28,8 @@ const ProfileViewButton = () => {
     <>
       <Button
         id="styled-menu"
-        aria-controls={open ? 'styled-menu' : undefined}
+        aria-label={t('profile.menu')}
+        aria-controls={id}
         aria-haspopup="true"
         aria-expanded={open ? 'true' : undefined}
         onClick={handleClick}

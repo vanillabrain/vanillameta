@@ -42,6 +42,7 @@ function Header() {
               size="small"
               variant="standard"
               disableUnderline
+              inputProps={{ 'aria-label': t('common.language') }}
               value={i18n.language?.startsWith('en') ? 'en' : 'ko'}
               onChange={e => i18n.changeLanguage(e.target.value)}
               sx={{ fontSize: '12px', color: '#767676' }}

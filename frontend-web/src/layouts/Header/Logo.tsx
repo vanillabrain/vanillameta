@@ -18,7 +18,7 @@ const Logo = props => {
   const { sx, ...rest } = props;
   return (
     <Box sx={{ width: 105, height: 50, ...sx }} {...rest}>
-      <RouterLink to="/">
+      <RouterLink to="/" aria-label="VanillaMeta">
         <IconLogo style={{ width: '100%', height: '100%' }} />
       </RouterLink>
     </Box>

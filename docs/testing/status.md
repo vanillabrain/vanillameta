@@ -11,9 +11,9 @@
 | 범위 | 완료 | 부분 완료 | 미검증 | 합계 |
 | --- | ---: | ---: | ---: | ---: |
 | cases.md | 102 | 0 | 0 | 102 |
-| 서버 DuckDB + 디자인/필터/AI 대시보드 | 8 | 5 | 0 | 13 |
+| 서버 DuckDB + 디자인/필터/AI 대시보드 | 12 | 1 | 0 | 13 |
 | COMMERCE-01~08 | 8 | 0 | 0 | 8 |
-| 전체 | 118 | 5 | 0 | 123 |
+| 전체 | 122 | 1 | 0 | 123 |
 
 집계 단위는 고유 MD ID다. 단위 테스트 수·변형 수·스크린샷 수와 다르다. 과거 통과를 현재 전체 출시 회귀 완료로 확대하지 않으며, 관련 변경이 없는 결과만 재사용한다. DATA-04~07의 결과 JSON은 남았지만 상세 HTTP 원본 일부가 덮어써진 기록 한계도 보존한다.
 
@@ -132,13 +132,13 @@
 | INGEST-02 | 완료 | 전체 요청634513000/가중평균/9기기 정답 및 정상 재시작 후 동일. | [ingest] |
 | INGEST-03 | 완료 | 실제 UI 생성·9개 값/순서·reload 지속. | [ingest] |
 | INGEST-04 | 완료 | 기존 제한/timeout/quota 복구+실worker query3개→remove 순서·API 단일경합·정상42. MD가 제외한 stress/전역quota/강제crash는 미검증. | [ingest], [serial] |
-| DESIGN-01 | 부분 완료 | 양 제품 질문 수치 증빙 있음. Rill 최종 생성 차트/설명 전체와 같은 조건의 완료 화면 대조는 불충분. | [rill], [luna] |
-| DESIGN-02 | 부분 완료 | 수동 참조 화면 KPI/9이름/0축/표 및 Luna $5.57 통과. 자동 생성 최종 화면의 모든 가시성 조건을 묶은 감사는 미완료. | [design], [luna] |
-| DESIGN-03 | 부분 완료 | 필터 수치 및 VM 생성·수정 구현/검증됨. 동일 수정문 Rill 재실행은 없음; 완전 UX 동등성 미확인. | [filters], [date], [luna] |
-| DESIGN-04 | 부분 완료 | 390 실제 화면/긴 이름/표, 키보드 선택 Space 오류 수정 후 재검증. 명칭 전체·대비·스크린리더·전체 키보드는 미검증. | [filters], [date], [luna] |
+| DESIGN-01 | 완료 | 기존 Luna 정답 재사용. 현재 All time 동일 질문의 Rill 정확9개/요청/평균·설명·최종 AI 차트 대조. 원본 날짜 이동은 별도. | [luna], [designfinal] |
+| DESIGN-02 | 완료 | 실제 Luna 저장 완료 화면의2KPI·USD2자리·9개 이름/0축/전체 폭·기간/필터·작은값 표, Rill 완료 차트/답변 비교. | [luna], [designfinal] |
+| DESIGN-03 | 완료 | 동일 수정문 Rill 조회/편집 AI 실행 및 reload, 기존 VM/필터 증빙 합산. Rill 즉시 파일 쓰기와 VM 명시저장/취소 차이 기록; UX 동일성은 아님. | [filters], [luna], [designfinal] |
+| DESIGN-04 | 부분 완료 | 기존 모바일/키보드 선택 재사용. 대시보드/헤더 이름 누락 수정·한영/Enter·controls 대상/390폭 검증. 전체 대비·스크린리더·전체 키보드는 미검증. | [luna], [designfinal] |
 | FILTER-01 | 완료 | 기존 수치/초기화/바인딩/역순/503 복구 재사용. 타계정 analysis/필터preview/save/draft 실제403, 원 초안·자산5테이블 해시 동일, 실제 UI 차단. | [filters], [filtererrors], [boundaries] |
 | FILTER-02 | 완료 | 138055400/평균4.633939385003283±1e-9/2기기 정답, VM desktop/mobile·Rill desktop·UTC 경계·역순/부분 입력. Rill 모바일/기간 비교/필터 지속은 추가 범위. | [date], [filtererrors] |
-| AI-DASH-01 | 부분 완료 | Luna 생성/미리보기/같은ID 저장/reload/취소 보존 및 오류 변형 통과. 같은 수정 질문의 Rill 실행 비교와 현재 연결의 미설정 조건 실API 증빙 보완 필요. | [luna], [filtererrors], [aierrors] |
+| AI-DASH-01 | 완료 | 기존 Luna 생성/수정/저장/취소/오류 합산. Rill 동일 수정문 실행 비교 및 복제DB 별도 미설정 실API ERROR→UI 저장차단·5자산테이블 불변. | [luna], [filtererrors], [aierrors], [designfinal] |
 | AI-DASH-02 | 완료 | 실Chromium390 필터/AI편집 취소/KPI/긴 이름/표/overflow 없음. 기존 모바일 실행의 로컬 모델 기록은 역사적 UI 증거로만 재사용; 실AI 성공 근거는 Luna 별도. | [filters], [date] |
 | AI-AGENT-01 | 완료 | 실제 모델 연결 실패→명시 URL/catalog 수정→같은 질문 생성/정답. timeout/빈출력 경계는 해당 하위 회귀; 다른 모델 fallback 없음. | [date], [luna] |
 
@@ -147,7 +147,7 @@
 1. **P0 — 이번 선택 범위 완료.** DATA-08 실제 암호 연결 응답과 FILTER-01 신규 필터 API 타계정 차단을 보완했다. AUTH-01/05/06을 포함해 관련 변경 없이 반복하지 않는다. 전체 커넥터/테넌트 보안 감사 완료를 뜻하지 않는다.
 2. **P1 — 현재 DuckDB 수집 경로 완료.** FILE-12~18 잔여 조건을 보완했다. INGEST-01~04/FILE-19·20과 함께 관련 변경 없으면 반복하지 않는다. 느린 기기의 15초 초기화 한도와 JS 로더 모듈 배포 장애는 별도 운영 범위다.
 3. **기본 MD 102개 완료.** FILE-01·WIDGET-01·DASH-01의 신규 생성·export와 [NAV-04 미저장 취소/이동](dashboard-unsaved.md)까지 보완했다. 관련 변경이 없으면 반복하지 않는다. 전체 출시 회귀나 운영 준비 완료를 뜻하지 않는다.
-4. **P1 — 디자인과 Rill 비교.** 자동 생성된 최종 화면의 DESIGN-01/02 조건, 같은 수정 질문의 Rill 흐름(DESIGN-03/AI-DASH-01), DESIGN-04의 버튼 명칭·대비·키보드/스크린리더를 확인한다. 현재 Luna 설정 미설정 오류는 별도 격리 프로세스에서 확인한다. 사용자 지적 overflow/테마/라벨은 변경 화면에서만 재검증한다.
+4. **P1 — DESIGN-04 접근성 잔여 조건.** 최종 AI 차트/설명·동일 수정 질문 Rill 비교·실제 미설정 조건은 [후속 비교](design-final-audit.md)에서 보완했다. 버튼 이름 누락도 수정했다. 전체 대비 측정·스크린리더·전체 키보드 경로만 남았다. 제품 간 UX 차이를 동일성 PASS로 확대하지 않는다.
 5. **운영 파일럿 전 P1 / 다중 사용자 확장 전 P2.** 아래 별도 운영 범위를 정의하고 필요한 최소 검사를 시행한다. 전체 MD 통과와 운영 준비는 다른 판정이다.
 
 ## 현재 MD 밖의 운영·제품 작업
@@ -198,3 +198,5 @@
 [oraclecreate]: oracle-create-export.md
 
 [dashunsaved]: dashboard-unsaved.md
+
+[designfinal]: design-final-audit.md

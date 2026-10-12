@@ -55,6 +55,9 @@ export default {
     confirm: 'Confirm',
   },
   dashboard: {
+    autoRefresh: 'Auto-refresh interval',
+    refresh: 'Refresh dashboard',
+    delete: 'Delete dashboard',
     view: 'Dashboard',
     insight: 'AI Insights',
     insightLoading: 'Analyzing...',
@@ -267,6 +270,7 @@ export default {
     done: 'Done',
   },
   profile: {
+    menu: 'Account menu',
     title: 'Edit account',
     modify: 'Edit profile',
     currentPwd: 'Current password',
@@ -360,6 +364,7 @@ export default {
     field: 'Field',
   },
   common: {
+    language: 'Language',
     confirm: 'OK',
     cancel: 'Cancel',
     save: 'Save',
