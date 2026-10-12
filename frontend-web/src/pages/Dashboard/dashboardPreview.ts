@@ -37,6 +37,7 @@ export const responseData = (response: any) => {
   return response.data.data;
 };
 export const errorMessage = (error: any) => {
-  const message = error?.response?.data?.message;
+  const payload = error?.response?.data;
+  const message = payload?.message || (typeof payload?.data === 'string' ? payload.data : undefined);
   return (Array.isArray(message) ? message.join('\n') : message) || error?.message || 'Request failed.';
 };

@@ -333,6 +333,69 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
       ),
     ).toBe(true);
   });
+  it('protects apply and undo with the server revision, preserving newer content on conflict', async () => {
+    const id = (await service.save({ draft: draft() }, 7)).data.id;
+    const baseline = await service.analysis(id, 7, true);
+    expect(baseline.data.revision).toMatch(/^[a-f0-9]{64}$/);
+    const edited = { ...draft(), title: 'Newer tab edit' };
+    const saved = await service.save(
+      { dashboardId: id, draft: edited, expectedRevision: baseline.data.revision },
+      7,
+    );
+    expect(saved.data.revision).not.toBe(baseline.data.revision);
+    expect((await service.analysis(id, 7, true)).data.revision).toBe(saved.data.revision);
+    const entities = [Dataset, Widget, Dashboard, DashboardShare, DashboardWidget, UserMapping];
+    const counts = await Promise.all(entities.map(e => db.manager.count(e)));
+    await expect(
+      service.save(
+        { dashboardId: id, draft: draft(), expectedRevision: baseline.data.revision },
+        7,
+      ),
+    ).rejects.toThrow('다른 화면');
+    expect(await Promise.all(entities.map(e => db.manager.count(e)))).toEqual(counts);
+    expect((await service.analysis(id, 7)).data.title).toBe('Newer tab edit');
+    const undo = await service.save(
+      { dashboardId: id, draft: draft(), expectedRevision: saved.data.revision },
+      7,
+    );
+    expect(undo.data.revision).not.toBe(saved.data.revision);
+    expect((await service.analysis(id, 7)).data).toEqual(draft());
+  });
+  it('rolls back new widgets and datasets if the final atomic update loses a race', async () => {
+    const id = (await service.save({ draft: draft() }, 7)).data.id;
+    const { data } = await service.analysis(id, 7, true);
+    const entities = [Dataset, Widget, Dashboard, DashboardShare, DashboardWidget, UserMapping];
+    const counts = await Promise.all(entities.map(e => db.manager.count(e)));
+    const repo: any = {
+      manager: {
+        findOne: db.manager.findOne.bind(db.manager),
+        transaction: run =>
+          db.transaction(async manager => {
+            const create = manager.createQueryBuilder.bind(manager);
+            jest.spyOn(manager, 'createQueryBuilder').mockImplementation((...args: any[]) => {
+              const builder = create(...args);
+              const update = builder.update.bind(builder);
+              jest.spyOn(builder, 'update').mockImplementation((...values: any[]) => {
+                const result = update(...values);
+                if (values[0] === Dashboard)
+                  jest
+                    .spyOn(result, 'execute')
+                    .mockResolvedValue({ affected: 0, raw: [], generatedMaps: [] });
+                return result;
+              });
+              return builder;
+            });
+            return run(manager);
+          }),
+      },
+    };
+    const raced = new AiDashboardService(ai, connection, repo);
+    await expect(
+      raced.save({ dashboardId: id, draft: draft(), expectedRevision: data.revision }, 7),
+    ).rejects.toThrow('다른 화면');
+    expect(await Promise.all(entities.map(e => db.manager.count(e)))).toEqual(counts);
+    expect((await service.analysis(id, 7, true)).data).toEqual(data);
+  });
   it('checks owner before generation, load, preview and save', async () => {
     ai.callLlm.mockClear();
     connection.queryDuckDB.mockClear();

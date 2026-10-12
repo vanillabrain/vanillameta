@@ -10,12 +10,13 @@ jest.mock('./coding-agent', () => ({
 // SDK 7 is ESM-only; legacy Jest 28 cannot load it. Actual SDK integration is
 // verified in Node 24/browser runs; these service units exercise the provider boundary.
 jest.mock('ai', () => ({
-  generateText: async ({ model, system, prompt }) => {
+  generateText: async ({ model, system, prompt, abortSignal }) => {
     const result = await model.doGenerate({
       prompt: [
         { role: 'system', content: system },
         { role: 'user', content: [{ type: 'text', text: prompt }] },
       ],
+      abortSignal,
     });
     return { text: result.content[0].text };
   },
@@ -108,10 +109,18 @@ describe('AiService', () => {
     global.fetch = jest.fn();
     (callCodingAgent as jest.Mock).mockResolvedValueOnce('{"ok":true}');
     expect(await service.callLlm('schema', 'question', true)).toBe('{"ok":true}');
-    expect(callCodingAgent).toHaveBeenCalledWith('schema', 'question', true);
+    expect(callCodingAgent).toHaveBeenCalledWith('schema', 'question', true, undefined);
     (callCodingAgent as jest.Mock).mockRejectedValueOnce(new Error('LLM_CODEX_UNAVAILABLE'));
     await expect(service.callLlm('schema', 'question')).rejects.toThrow('LLM_CODEX_UNAVAILABLE');
     expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('forwards the optional abort signal through the Codex AI SDK boundary', async () => {
+    process.env.AI_PROVIDER = 'codex';
+    const controller = new AbortController();
+    (callCodingAgent as jest.Mock).mockResolvedValueOnce('answer');
+    expect(await service.callLlm('schema', 'question', false, controller.signal)).toBe('answer');
+    expect(callCodingAgent).toHaveBeenCalledWith('schema', 'question', false, controller.signal);
   });
 
   it('allows all three endpoints with Codex configuration and truthful metadata', async () => {

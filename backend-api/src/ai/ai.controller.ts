@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { AiDashboardService } from './ai-dashboard.service';
@@ -15,14 +15,40 @@ export class AiController {
     private readonly dashboards: AiDashboardService,
   ) {}
 
+  private async cancellable(req, res, run: (signal?: AbortSignal) => Promise<any>) {
+    if (!res) return run();
+    const controller = new AbortController();
+    const aborted = () => controller.abort();
+    const closed = () => {
+      if (!res.writableFinished) controller.abort();
+    };
+    req.once('aborted', aborted);
+    res.once('close', closed);
+    if (req.aborted) controller.abort();
+    try {
+      return await run(controller.signal);
+    } finally {
+      req.off('aborted', aborted);
+      res.off('close', closed);
+    }
+  }
+
   @Post('dashboard-draft')
-  dashboardDraft(@Body() body: any, @Req() req) {
-    return this.dashboards.generate(body, req.user.accessKeyData.id);
+  dashboardDraft(@Body() body: any, @Req() req, @Res({ passthrough: true }) res?) {
+    return this.cancellable(req, res, signal =>
+      signal
+        ? this.dashboards.generate(body, req.user.accessKeyData.id, signal)
+        : this.dashboards.generate(body, req.user.accessKeyData.id),
+    );
   }
 
   @Post('dashboard-assistant')
-  dashboardAssistant(@Body() body: any, @Req() req) {
-    return this.dashboards.assistant(body, req.user.accessKeyData.id);
+  dashboardAssistant(@Body() body: any, @Req() req, @Res({ passthrough: true }) res?) {
+    return this.cancellable(req, res, signal =>
+      signal
+        ? this.dashboards.assistant(body, req.user.accessKeyData.id, signal)
+        : this.dashboards.assistant(body, req.user.accessKeyData.id),
+    );
   }
 
   @Post('dashboard-preview')
@@ -37,7 +63,7 @@ export class AiController {
 
   @Get('dashboard-analysis/:id')
   dashboardAnalysis(@Param('id') id: string, @Req() req) {
-    return this.dashboards.analysis(+id, req.user.accessKeyData.id);
+    return this.dashboards.analysis(+id, req.user.accessKeyData.id, true);
   }
 
   /**

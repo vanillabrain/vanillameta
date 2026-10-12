@@ -296,3 +296,49 @@ it('blocks undo after a subsequent dashboard revision', async () => {
   fireEvent.click(undo);
   expect(api.post).toHaveBeenCalledTimes(3);
 });
+
+it('sends the loaded revision on apply and the new revision on undo', async () => {
+  queuePreview();
+  const onApplied = vi.fn();
+  const view = render(
+    <DashboardAssistant
+      {...base}
+      draft={{ ...original, revision: 'a'.repeat(64) }}
+      onApplied={onApplied}
+      onClose={vi.fn()}
+    />,
+  );
+  requestEdit();
+  await ready();
+  api.post.mockResolvedValueOnce(success({ id: 9, revision: 'b'.repeat(64) }));
+  fireEvent.click(screen.getByRole('button', { name: '변경 적용' }));
+  await waitFor(() => expect(onApplied).toHaveBeenCalledWith({ ...revised, revision: 'b'.repeat(64) }));
+  expect(api.post.mock.calls[2][1].expectedRevision).toBe('a'.repeat(64));
+  view.rerender(
+    <DashboardAssistant
+      {...base}
+      draft={{ ...revised, revision: 'b'.repeat(64) }}
+      onApplied={onApplied}
+      onClose={vi.fn()}
+    />,
+  );
+  api.post.mockResolvedValueOnce(success({ id: 9, revision: 'c'.repeat(64) }));
+  fireEvent.click(screen.getByRole('button', { name: '이전 변경 되돌리기' }));
+  await waitFor(() => expect(onApplied).toHaveBeenLastCalledWith({ ...original, revision: 'c'.repeat(64) }));
+  expect(api.post.mock.calls[3][1].expectedRevision).toBe('b'.repeat(64));
+});
+it('shows a server conflict and blocks stale writes until the latest screen is loaded', async () => {
+  queuePreview();
+  const view = mount();
+  requestEdit();
+  await ready();
+  api.post.mockRejectedValueOnce({
+    response: { status: 409, data: { success: false, code: 409, data: '대시보드가 다른 화면에서 변경되었습니다.' } },
+  });
+  fireEvent.click(screen.getByRole('button', { name: '변경 적용' }));
+  await screen.findByText('대시보드가 다른 화면에서 변경되었습니다.');
+  expect(screen.getByRole('button', { name: '최신 화면 불러오기' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: '변경 적용' }).hasAttribute('disabled')).toBe(true);
+  expect(view.onApplied).not.toHaveBeenCalled();
+  expect(api.post).toHaveBeenCalledTimes(3);
+});

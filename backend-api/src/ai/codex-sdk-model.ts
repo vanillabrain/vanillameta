@@ -22,7 +22,12 @@ export function codexSdkModel(jsonMode = false): LanguageModelV3 {
           messages.push(parts.map(part => (part.type === 'text' ? part.text : '')).join('\n'));
         }
       }
-      const text = await callCodingAgent(system.join('\n\n'), messages.join('\n\n'), jsonMode);
+      const text = await callCodingAgent(
+        system.join('\n\n'),
+        messages.join('\n\n'),
+        jsonMode,
+        abortSignal,
+      );
       if (abortSignal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
       return {
         content: [{ type: 'text', text }],

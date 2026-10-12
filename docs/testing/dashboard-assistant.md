@@ -16,8 +16,8 @@
 
 - `useChat`이 대화 메시지/상태/오류/중단을 관리한다. 커스텀 ChatTransport는 기존 인증·토큰 갱신 경로를 재사용한다. 서버 `generateText`는 기존 Codex CLI를 LanguageModelV3 어댑터로 호출한다. SDK7은 V3 모델 호환을 지원한다. `maxRetries:0`, 자동 모델 대체 없음.
 - Codex 로그인과 `AI_PROVIDER=codex`, `gpt-6-luna`, 현재 환경의 연결 URL/카탈로그를 유지한다. 신규 API 키나 로컬 LLM을 사용하지 않는다. CLI 요청 모델 정보는 실제 사용 모델의 공급자 증명을 뜻하지 않는다.
-- 코드 검토에서 현재 대시보드와 요청 소스의 불일치 차단, 이후 draft 변경 시 되돌리기 차단을 추가했고 관련 회귀 검사를 통과했다. 다른 브라우저의 동시 편집을 서버 버전 조건으로 차단하는 CAS는 후속 범위다.
-- CLI는 답변 완성 후 반환한다. 토큰 스트리밍/도구 실행/자동 수집/영속 대화/다단계 에이전트 루프는 이번 범위가 아니다. 응답 중단은 브라우저 요청과 늦은 응답 반영을 취소한다. 이미 실행된 서버 CLI는 기존 timeout/동시 실행 제한 안에서 마무리될 수 있다.
+- 코드 검토에서 현재 대시보드와 요청 소스의 불일치 차단, 이후 draft 변경 시 되돌리기 차단을 추가했고 관련 회귀 검사를 통과했다. 서버 revision과 조건부 UPDATE를 사용한 동시 편집 보호는 [후속 검증](assistant-reliability.md)에 기록한다.
+- CLI는 답변 완성 후 반환한다. 토큰 스트리밍/도구 실행/자동 수집/영속 대화/다단계 에이전트 루프는 이번 범위가 아니다. 최초 검증에서는 응답 중단 후 서버 CLI가 timeout 안에서 마무리될 수 있었다. [후속 수정](assistant-reliability.md)에서는 연결 종료 시 해당 Codex 프로세스 그룹까지 종료한다.
 - 질문마다 기존 preview SQL 및 숫자 KPI 추세 SQL을 실행한다. 열기/닫기는 LLM을 호출하지 않는다. 대화이력10개·메시지2000자·최대6위젯, 각100행/120추세점을 전달하고 누락·잘림을 명시한다. 모든 구간을 분석했다고 보고하지 않는다.
 - 일반 숫자 표시의 전체/축약 선택은 유지한다. `위젯 설정` 모드는 AI로 저장한 위젯별 numberNotation을 사용하며 미지정은 축약이다. AI 적용/되돌리기는 이 모드로 돌아간다. 소수 자릿수/단위 편집은 SQL 값을 스케일링하지 않는다.
 - 기기별 합계를 LLM이 잘못 더한 실제 실패를 보존하고, 서버가 정수 문자열/안전한 정수를 BigInt로 합산한 정확한 합계·차이를 근거로 제공하도록 수정한다. 소수/NULL/잘린 행을 전체 합계로 꾸미지 않는다. 가중 평균을 분모 단독 합계와 잘못 비교하지 않는다. 모델 답변 자체는 실행별 수치 검증이 필요하다.
@@ -43,7 +43,7 @@ Aside 인증 연결 실패에 대한 기존 승인 대체인 headed Chromium 사
 
 최초 실패 `failure-arithmetic-sdk7.png/json`: 실제 기기 합계를615552000, 차이18961000으로 잘못 설명한 모델 산술 오류를 보존했다. 서버 BigInt 합산 근거 추가 후 `desktop-answer-fixed.png`/`sdk7-calls.json`에서634513000·차이0 재검증. 모바일 전환 초기화는 PageViewBox의 Desktop/Mobile 컴포넌트 교체가 원인이었다. 대시보드에 한해 같은 컴포넌트를 유지하고 반응형 스타일을 적용했으며 상태 지속 회귀1개와 실제 브라우저 전환으로 확인했다.
 
-핵심 화면: `applied-sdk7-final.png`, `undo-sdk7.png`, `stale-proposal.png`, `mobile-error.png`, `mobile-recovered-sdk7.png`, `desktop-filtered-sdk7.png`, `tablet-sdk7.png`. `sdk7-calls.json`에는 최초 실패와 후속 실제 응답을 함께 보존했다. 숫자 정확성과 저장 여부는 캡처 외 서버 응답/재조회로 판정했다.
+핵심 화면: `applied-sdk7.png`, `undo-sdk7-final.png`, `stale-proposal.png`, `mobile-error.png`, `mobile-recovered-sdk7.png`, `desktop-filtered-sdk7.png`, `tablet-sdk7.png`. `sdk7-calls.json`에는 최초 실패와 후속 실제 응답을 함께 보존했다. 숫자 정확성과 저장 여부는 캡처 외 서버 응답/재조회로 판정했다. `applied-sdk7-final.png`는 자동 재조회 중 이전 결과635M을 표시하는 과도기 캡처다.
 
 기존 ts-jest의 TS5.9 지원 경고, Vite 설정/레거시 ToastUI CSS 경고는 남아 있지만 관련 검사와 빌드는 성공했다. 기존 DESIGN-04의 실제 VoiceOver 발화 검증은 여전히 부분 완료다.
 

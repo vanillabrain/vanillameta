@@ -42,7 +42,9 @@ export async function callCodingAgent(
   systemPrompt: string,
   userPrompt: string,
   jsonMode = false,
+  abortSignal?: AbortSignal,
 ): Promise<string> {
+  if (abortSignal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
   // POSIX process groups also terminate the native process behind the Node CLI launcher.
   if (process.platform === 'win32') throw new Error('LLM_CODEX_UNSUPPORTED_PLATFORM');
   const prompt = [
@@ -57,6 +59,7 @@ export async function callCodingAgent(
   let directory: string;
   try {
     directory = await mkdtemp(join(tmpdir(), 'vanillameta-ai-'));
+    if (abortSignal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
     const outputPath = join(directory, 'answer.txt');
     const env: NodeJS.ProcessEnv = {};
     for (const key of ['PATH', 'HOME', 'CODEX_HOME']) {
@@ -89,8 +92,9 @@ export async function callCodingAgent(
       );
       let failure: Error;
       let streamBytes = 0;
+      let closed = false;
       const stop = (message: string) => {
-        if (failure) return;
+        if (failure || closed) return;
         failure = new Error(message);
         try {
           if (child.pid) process.kill(-child.pid, 'SIGKILL');
@@ -99,6 +103,9 @@ export async function callCodingAgent(
           child.kill('SIGKILL');
         }
       };
+      const onAbort = () => stop('LLM_REQUEST_ABORTED');
+      abortSignal?.addEventListener('abort', onAbort, { once: true });
+      if (abortSignal?.aborted) onAbort();
       const timeout = setTimeout(() => stop('LLM_CODEX_TIMEOUT'), timeoutMs);
       const countOutput = (chunk: Buffer) => {
         streamBytes += chunk.length;
@@ -112,7 +119,9 @@ export async function callCodingAgent(
       });
       // Retain the concurrency slot and temporary files until the process has stopped.
       child.on('close', (code, signal) => {
+        closed = true;
         clearTimeout(timeout);
+        abortSignal?.removeEventListener('abort', onAbort);
         if (failure) reject(failure);
         else if (code !== 0 || signal) reject(new Error('LLM_CODEX_EXIT_ERROR'));
         else resolve();

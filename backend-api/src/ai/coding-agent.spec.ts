@@ -182,6 +182,53 @@ describe('Codex coding agent', () => {
     expect(children[0].kill).toHaveBeenCalledWith('SIGKILL');
   });
 
+  it('rejects an already-aborted request without spawning', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    await expect(callCodingAgent('schema', 'question', false, controller.signal)).rejects.toThrow(
+      'LLM_REQUEST_ABORTED',
+    );
+    expect(spawnMock).not.toHaveBeenCalled();
+  });
+
+  it('kills the process group on abort and retains its slot until close', async () => {
+    behavior = async child => {
+      child.pid = 123457;
+    };
+    const controller = new AbortController();
+    const kill = jest.spyOn(process, 'kill').mockImplementation((pid, signal) => {
+      expect(pid).toBe(-123457);
+      expect(signal).toBe('SIGKILL');
+      return true;
+    });
+    try {
+      const pending = callCodingAgent('schema', 'question', false, controller.signal);
+      const occupyingSlot = callCodingAgent('schema', 'occupy');
+      while (children.length === 0 || !children[0].pid)
+        await new Promise(resolve => setImmediate(resolve));
+      while (children.length < 2) await new Promise(resolve => setImmediate(resolve));
+      controller.abort();
+      expect(kill).toHaveBeenCalledTimes(1);
+      await expect(callCodingAgent('schema', 'busy')).rejects.toThrow('LLM_CODEX_BUSY');
+      let settled = false;
+      void pending.catch(() => (settled = true));
+      await new Promise(resolve => setImmediate(resolve));
+      expect(settled).toBe(false);
+      children[0].emit('close', null, 'SIGKILL');
+      await writeFile(args[1][args[1].indexOf('--output-last-message') + 1], 'SELECT 3');
+      children[1].emit('close', 0, null);
+      await expect(pending).rejects.toThrow('LLM_REQUEST_ABORTED');
+      await expect(occupyingSlot).resolves.toBe('SELECT 3');
+      behavior = async (child, path) => {
+        await writeFile(path, 'SELECT 2');
+        child.emit('close', 0, null);
+      };
+      expect(await callCodingAgent('schema', 'after-close')).toBe('SELECT 2');
+    } finally {
+      kill.mockRestore();
+    }
+  });
+
   it('terminates the launcher process group before releasing its concurrency slot', async () => {
     process.env.AI_TIMEOUT_MS = '10';
     behavior = async child => {

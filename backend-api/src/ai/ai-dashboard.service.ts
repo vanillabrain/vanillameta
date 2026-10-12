@@ -1,12 +1,13 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { AiService } from './ai.service';
 import { CODEX_MODEL } from './coding-agent';
 import { ConnectionService } from '../connection/connection.service';
@@ -57,6 +58,19 @@ export class AiDashboardService {
     if (!dashboard || dashboard.delYn === YesNo.YES)
       throw new NotFoundException('dashboard not found');
     return dashboard;
+  }
+  private revision(dashboard: Dashboard) {
+    return createHash('sha256')
+      .update(
+        JSON.stringify([
+          dashboard.id,
+          dashboard.title,
+          dashboard.layout ?? null,
+          dashboard.analysisDefinition ?? null,
+          dashboard.delYn,
+        ]),
+      )
+      .digest('hex');
   }
   private async schema(id: number) {
     positiveId(id);
@@ -220,7 +234,7 @@ export class AiDashboardService {
       arithmetic,
     };
   }
-  async assistant(body: any, userId: number) {
+  async assistant(body: any, userId: number, abortSignal?: AbortSignal) {
     // Mandatory authorization precedes validation, source reads, and model invocation.
     await this.owner(body?.dashboardId, userId);
     const current = validateDraft(body?.currentDraft);
@@ -229,6 +243,7 @@ export class AiDashboardService {
       throw new BadRequestException('dashboard source mismatch');
     const history = this.conversation(body, current);
     const context = await this.previewContext(body, current, userId);
+    if (abortSignal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
     const ai = {
       provider: process.env.AI_PROVIDER === 'codex' ? 'codex' : 'api',
       requestedModel:
@@ -248,7 +263,10 @@ export class AiDashboardService {
           'Use concise plain text and simple bullets, without Markdown emphasis or backticks. Avoid internal option names unless the user asks for configuration. Explain coverage limits briefly in user language.',
         ].join('\n'),
         JSON.stringify({ context, history, prompt: body.prompt }),
+        false,
+        abortSignal,
       );
+      if (abortSignal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
       if (typeof answer !== 'string' || !answer.trim()) throw new Error('AI_EMPTY_RESPONSE');
       return this.success({ answer: answer.trim(), context, ai });
     } catch (error) {
@@ -261,7 +279,7 @@ export class AiDashboardService {
       };
     }
   }
-  async generate(body: any, userId: number) {
+  async generate(body: any, userId: number, abortSignal?: AbortSignal) {
     if (body?.dashboardId !== undefined) await this.owner(body.dashboardId, userId);
     const id = positiveId(body?.databaseId);
     const current = body.currentDraft === undefined ? undefined : validateDraft(body.currentDraft);
@@ -276,6 +294,7 @@ export class AiDashboardService {
     if (!current && (body.filters !== undefined || body.dateRange !== undefined))
       throw new BadRequestException('currentDraft required for preview context');
     const context = current ? await this.previewContext(body, current, userId) : null;
+    if (abortSignal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
     const { schemaText } = await this.ai.getSchemaContext(id);
     const counters = [
       ...schemaText.matchAll(
@@ -316,9 +335,11 @@ export class AiDashboardService {
     )}\nSelected widget: ${JSON.stringify(body.selectedWidget ?? null)}\nRequest: ${body.prompt}`;
     let correction = '';
     for (let attempt = 0; attempt < 2; attempt++) {
+      if (abortSignal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
       let raw: string;
       try {
-        raw = await this.ai.callLlm(systemPrompt, request + correction, true);
+        raw = await this.ai.callLlm(systemPrompt, request + correction, true, abortSignal);
+        if (abortSignal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
       } catch (error) {
         return {
           status: ResponseStatus.ERROR,
@@ -508,16 +529,28 @@ export class AiDashboardService {
     });
   }
   async save(body: any, userId: number) {
+    if (
+      body?.expectedRevision !== undefined &&
+      (body.dashboardId === undefined ||
+        typeof body.expectedRevision !== 'string' ||
+        !/^[a-f0-9]{64}$/.test(body.expectedRevision))
+    )
+      throw new BadRequestException('invalid dashboard revision');
     if (!Number.isSafeInteger(userId) || userId <= 0) throw new ForbiddenException('invalid owner');
     if (body?.dashboardId !== undefined) await this.owner(body.dashboardId, userId);
     const {
       data: { draft },
     } = await this.preview({ draft: body?.draft }, userId);
-    const id = await this.dashboards.manager.transaction(async (manager: EntityManager) => {
+    const saved = await this.dashboards.manager.transaction(async (manager: EntityManager) => {
       let dashboard =
         body.dashboardId !== undefined
           ? await this.owner(body.dashboardId, userId, manager)
           : undefined;
+      const previous = dashboard ? { ...dashboard } : null;
+      if (body.expectedRevision !== undefined && this.revision(dashboard) !== body.expectedRevision)
+        throw new ConflictException(
+          '대시보드가 다른 화면에서 변경되었습니다. 새로고침 후 다시 요청해 주세요.',
+        );
       const widgets: Widget[] = [];
       for (const definition of draft.widgets) {
         const component = await manager.findOne(Component, {
@@ -570,7 +603,30 @@ export class AiDashboardService {
           return item;
         }),
       );
-      dashboard = await manager.save(Dashboard, dashboard);
+      if (body.expectedRevision !== undefined) {
+        // Compare-and-swap in the transaction: failed writes roll back new datasets/widgets too.
+        const update = manager
+          .createQueryBuilder()
+          .update(Dashboard)
+          .set({
+            title: dashboard.title,
+            analysisDefinition: dashboard.analysisDefinition,
+            layout: dashboard.layout,
+          })
+          .where('id = :id', { id: dashboard.id });
+        for (const field of ['title', 'layout', 'analysisDefinition', 'delYn']) {
+          if (previous[field] === null || previous[field] === undefined)
+            update.andWhere(`${field} IS NULL`);
+          else
+            update.andWhere(`${field} = :previous_${field}`, {
+              [`previous_${field}`]: previous[field],
+            });
+        }
+        if ((await update.execute()).affected !== 1)
+          throw new ConflictException(
+            '대시보드가 다른 화면에서 변경되었습니다. 새로고침 후 다시 요청해 주세요.',
+          );
+      } else dashboard = await manager.save(Dashboard, dashboard);
       if (body.dashboardId === undefined)
         await manager.save(UserMapping, { dashboardId: dashboard.id, userInfoId: userId });
       await manager.delete(DashboardWidget, { dashboardId: dashboard.id });
@@ -578,14 +634,17 @@ export class AiDashboardService {
         DashboardWidget,
         widgets.map(w => ({ dashboardId: dashboard.id, widgetId: w.id })),
       );
-      return dashboard.id;
+      return { id: dashboard.id, revision: this.revision(dashboard) };
     });
-    return this.success({ id });
+    return this.success(saved);
   }
-  async analysis(id: number, userId: number) {
+  async analysis(id: number, userId: number, includeRevision = false) {
     const dashboard = await this.owner(id, userId);
     if (dashboard.analysisDefinition)
-      return this.success(validateDraft(JSON.parse(dashboard.analysisDefinition)));
+      return this.success({
+        ...validateDraft(JSON.parse(dashboard.analysisDefinition)),
+        ...(includeRevision ? { revision: this.revision(dashboard) } : {}),
+      });
     const manager = this.dashboards.manager;
     const mappings = await manager.find(DashboardWidget, {
       where: { dashboardId: id },
@@ -634,6 +693,9 @@ export class AiDashboardService {
       },
       userId,
     );
-    return this.success(data.draft);
+    return this.success({
+      ...data.draft,
+      ...(includeRevision ? { revision: this.revision(dashboard) } : {}),
+    });
   }
 }

@@ -37,6 +37,7 @@ export default function DashboardAssistant({
   const [undo, setUndo] = useState<any>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [saveConflict, setSaveConflict] = useState(false);
   const [notice, setNotice] = useState('');
   const current = {
     dashboardId,
@@ -80,7 +81,7 @@ export default function DashboardAssistant({
   }, [messages, proposal, open]);
 
   const send = async () => {
-    if (busy || saving || disabled || !input.trim() || input.length > 2000) return;
+    if (busy || saving || disabled || saveConflict || !input.trim() || input.length > 2000) return;
     const text = input.trim();
     setProposal(null);
     setSaveError('');
@@ -90,7 +91,14 @@ export default function DashboardAssistant({
     await sendMessage({ text }, { body: { mode } });
   };
   const apply = async (revert = false) => {
-    if (savingRef.current || busy || disabled || (!revert && (!proposal || stale)) || (revert && (!undo || undoStale)))
+    if (
+      savingRef.current ||
+      busy ||
+      disabled ||
+      saveConflict ||
+      (!revert && (!proposal || stale)) ||
+      (revert && (!undo || undoStale))
+    )
       return;
     savingRef.current = true;
     setSaving(true);
@@ -98,14 +106,22 @@ export default function DashboardAssistant({
     const before = draft;
     const next = revert ? undo.before : proposal.preview.draft;
     try {
-      const result = responseData(await post('/ai/dashboard-save', { dashboardId, draft: next }, { timeout: 180000 }));
+      const result = responseData(
+        await post(
+          '/ai/dashboard-save',
+          { dashboardId, draft: next, expectedRevision: draft.revision },
+          { timeout: 180000 },
+        ),
+      );
       if (result?.id !== dashboardId) throw new Error('변경을 저장하지 못했습니다.');
-      setUndo(revert ? null : { before, after: JSON.stringify(next) });
+      const persisted = { ...next, ...(result.revision ? { revision: result.revision } : {}) };
+      setUndo(revert ? null : { before, after: JSON.stringify(persisted) });
       setProposal(null);
       setSelectedWidget('');
-      onApplied(next);
+      onApplied(persisted);
       setNotice(revert ? '이전 대시보드로 되돌렸습니다.' : '변경을 적용했습니다.');
     } catch (e) {
+      if (e?.response?.status === 409) setSaveConflict(true);
       setSaveError(errorMessage(e));
     } finally {
       savingRef.current = false;
@@ -237,11 +253,6 @@ export default function DashboardAssistant({
             </Typography>
           </Box>
         )}
-        {(error || saveError) && (
-          <Alert severity="error" sx={{ mb: 1, overflowWrap: 'anywhere' }}>
-            {saveError || error?.message}
-          </Alert>
-        )}
         {notice && (
           <Alert severity="success" sx={{ mb: 1 }}>
             {notice}
@@ -287,7 +298,11 @@ export default function DashboardAssistant({
               ))}
             </Box>
             <Stack direction="row" spacing={1}>
-              <Button variant="contained" disabled={busy || saving || stale || disabled} onClick={() => apply()}>
+              <Button
+                variant="contained"
+                disabled={busy || saving || stale || disabled || saveConflict}
+                onClick={() => apply()}
+              >
                 변경 적용
               </Button>
               <Button disabled={saving} onClick={() => setProposal(null)}>
@@ -297,7 +312,11 @@ export default function DashboardAssistant({
           </Stack>
         )}
         {undo && (
-          <Button sx={{ mt: 1 }} disabled={busy || saving || disabled || undoStale} onClick={() => apply(true)}>
+          <Button
+            sx={{ mt: 1 }}
+            disabled={busy || saving || disabled || undoStale || saveConflict}
+            onClick={() => apply(true)}
+          >
             이전 변경 되돌리기
           </Button>
         )}
@@ -310,6 +329,12 @@ export default function DashboardAssistant({
         }}
         sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}
       >
+        {(error || saveError) && (
+          <Alert severity="error" sx={{ mb: 1, overflowWrap: 'anywhere' }}>
+            {saveError || error?.message}
+            {saveConflict && <Button onClick={() => window.location.reload()}>최신 화면 불러오기</Button>}
+          </Alert>
+        )}
         {disabled && (
           <Alert severity="info" sx={{ mb: 1 }}>
             화면 조회를 완료한 뒤 질문할 수 있습니다.
@@ -352,7 +377,7 @@ export default function DashboardAssistant({
           {busy ? (
             <Button onClick={() => stop()}>응답 중단</Button>
           ) : (
-            <Button type="submit" variant="contained" disabled={saving || disabled || !input.trim()}>
+            <Button type="submit" variant="contained" disabled={saving || disabled || saveConflict || !input.trim()}>
               {saving ? '저장 중…' : mode === 'edit' ? '미리보기 요청' : '보내기'}
             </Button>
           )}

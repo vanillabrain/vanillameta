@@ -54,13 +54,19 @@ export class AiService {
   }
 
   /** Opt-in Codex CLI, otherwise the existing OpenAI-compatible API. */
-  async callLlm(systemPrompt: string, userPrompt: string, jsonMode = false): Promise<string> {
+  async callLlm(
+    systemPrompt: string,
+    userPrompt: string,
+    jsonMode = false,
+    abortSignal?: AbortSignal,
+  ): Promise<string> {
     if (process.env.AI_PROVIDER === 'codex') {
       const result = await generateText({
         model: codexSdkModel(jsonMode),
         system: systemPrompt,
         prompt: userPrompt,
         maxRetries: 0,
+        abortSignal,
       });
       return result.text;
     }
@@ -75,6 +81,9 @@ export class AiService {
     const model = process.env.AI_MODEL || 'gpt-4o-mini';
 
     const controller = new AbortController();
+    const onAbort = () => controller.abort();
+    abortSignal?.addEventListener('abort', onAbort, { once: true });
+    if (abortSignal?.aborted) onAbort();
     const configuredTimeout = Number(process.env.AI_TIMEOUT_MS);
     const timeoutMs =
       Number.isFinite(configuredTimeout) && configuredTimeout > 0
@@ -105,6 +114,7 @@ export class AiService {
       });
     } finally {
       clearTimeout(timeout);
+      abortSignal?.removeEventListener('abort', onAbort);
     }
 
     if (!response.ok) {
