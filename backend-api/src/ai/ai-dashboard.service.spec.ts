@@ -1,4 +1,5 @@
 import { AiDashboardService } from './ai-dashboard.service';
+import { buildTrendQuery, chooseTrendGrain } from './dashboard-trend';
 import { validateDraft, validateSourceSql, sourceQuery } from './dashboard-draft';
 import { DuckDBService } from '../analysis/duckdb.service';
 import { DataSource } from 'typeorm';
@@ -34,6 +35,36 @@ const draft = () => ({
       categoryField: 'device_type',
     },
   ],
+});
+describe('dashboard KPI trend query builder', () => {
+  it('preserves weighted formulas and widget WHERE literals while avoiding alias collisions', () => {
+    const trend = buildTrendQuery(
+      `SELECT sum(bid_floor) / sum(has_bid_floor_cnt) AS value FROM source WHERE device_type = 'phone'`,
+      'value',
+      'event date',
+      'day',
+      ['__trend_time'],
+    );
+    expect(trend).toBeDefined();
+    expect(trend!.sql).toContain('sum(bid_floor) / sum(has_bid_floor_cnt)');
+    expect(trend!.sql).toContain("WHERE device_type = 'phone'");
+    expect(trend!.sql).toContain('"event date"');
+    expect(trend!.timeField).toBe('__trend_time_1');
+  });
+  it.each([
+    'SELECT sum(amount) AS value FROM source GROUP BY amount',
+    'SELECT sum(amount) AS value FROM source HAVING sum(amount) > 0',
+    'SELECT sum(amount) OVER () AS value FROM source',
+    'SELECT sum(amount) AS value FROM source ORDER BY value',
+  ])('rejects unsupported trend shape %s', sql => {
+    expect(buildTrendQuery(sql, 'value', 'event_time', 'day')).toBeUndefined();
+  });
+  it('chooses bounded grains from temporal span', () => {
+    expect(chooseTrendGrain('2023-09-09', '2023-09-16')).toBe('hour');
+    expect(chooseTrendGrain('2026-01-01', '2026-01-10')).toBe('day');
+    expect(chooseTrendGrain('2025-01-01', '2026-01-01')).toBe('week');
+    expect(chooseTrendGrain('2020-01-01', '2026-01-01')).toBe('month');
+  });
 });
 describe('AI dashboard SQL boundaries', () => {
   it.each([
@@ -94,7 +125,9 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
     worker = new DuckDBService();
     const file = await worker.importFile({
       originalname: 'metrics.csv',
-      buffer: Buffer.from('device_type,amount\nphone,10\nphone,20\ndesktop,100\n'),
+      buffer: Buffer.from(
+        'device_type,amount,event_time,bid_floor,has_bid_floor_cnt\nphone,10,2026-01-01T00:00:00Z,100,2\nphone,20,2026-01-02T00:00:00Z,,0\ndesktop,100,2026-01-03T00:00:00Z,300,3\n',
+      ),
     });
     db = new DataSource({
       type: 'sqlite',
@@ -153,6 +186,83 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
         )
       ).data.widgets[0].datas,
     ).toEqual([{ value: null }]);
+  });
+  it('adds opt-in trends with identical bound filters and preserves null aggregate values', async () => {
+    const noTrend = await service.preview({ draft: draft() }, 7);
+    expect(noTrend.data.widgets[0]).not.toHaveProperty('trend');
+    expect(noTrend.data.widgets[0]).not.toHaveProperty('trendUnavailable');
+    const withTrend = await service.preview(
+      {
+        draft: {
+          ...draft(),
+          widgets: [
+            {
+              ...draft().widgets[0],
+              sql: "SELECT sum(bid_floor) / nullif(sum(has_bid_floor_cnt), 0) AS value FROM source WHERE device_type = 'phone'",
+            },
+          ],
+        },
+        includeTrends: true,
+        filters: [{ column: 'device_type', value: 'phone' }],
+      },
+      7,
+    );
+    expect(withTrend.data.widgets[0].trend).toEqual({
+      column: 'event_time',
+      grain: 'hour',
+      points: [
+        { time: '2026-01-01T00:00:00Z', value: 50 },
+        { time: '2026-01-02T00:00:00Z', value: null },
+      ],
+    });
+    expect(withTrend.data.widgets[0].datas).toEqual([{ value: 50 }]);
+    const trendCall = connection.queryDuckDB.mock.calls.find(call => call[1].includes('strftime('));
+    expect(trendCall[2]).toEqual(['phone']);
+    expect(trendCall[1]).toContain("device_type = 'phone'");
+  });
+  it('keeps existing numeric results when a query shape cannot be trended', async () => {
+    const result = await service.preview(
+      {
+        draft: {
+          ...draft(),
+          widgets: [
+            {
+              ...draft().widgets[0],
+              sql: 'SELECT sum(amount) AS value FROM source ORDER BY value',
+            },
+          ],
+        },
+        includeTrends: true,
+      },
+      7,
+    );
+    expect(result.data.widgets[0].datas).toEqual([{ value: 130 }]);
+    expect(result.data.widgets[0].trendUnavailable).toMatch(/safely grouped/);
+  });
+  it('trends preserve the weighted KPI formula and select the requested temporal column', async () => {
+    const body = {
+      draft: {
+        ...draft(),
+        widgets: [
+          {
+            ...draft().widgets[0],
+            sql: 'SELECT sum(bid_floor) / nullif(sum(has_bid_floor_cnt), 0) AS value FROM source',
+          },
+        ],
+      },
+      includeTrends: true,
+      dateRange: { column: 'event_time', start: '2026-01-01', end: '2026-01-03' },
+    };
+    const result = await service.preview(body, 7);
+    expect(result.data.widgets[0].trend).toEqual({
+      column: 'event_time',
+      grain: 'hour',
+      points: [
+        { time: '2026-01-01T00:00:00Z', value: 50 },
+        { time: '2026-01-02T00:00:00Z', value: null },
+        { time: '2026-01-03T00:00:00Z', value: 100 },
+      ],
+    });
   });
   it('validates LLM JSON using actual fields', async () => {
     const generated = await service.generate({ databaseId: 1, prompt: 'Revenue' }, 7);

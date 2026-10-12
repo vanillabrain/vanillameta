@@ -1,11 +1,10 @@
-import React, { forwardRef, Ref, useRef } from 'react';
+import React, { forwardRef, Ref } from 'react';
 import {
   Box,
   Button,
-  ClickAwayListener,
   IconButton,
   Paper,
-  Popper,
+  Popover,
   Stack,
   SxProps,
   TextField,
@@ -97,7 +96,13 @@ const ShareOnPopup = forwardRef((props: SharePopupProps, ref: Ref<HTMLDivElement
           mb="3px"
         >
           <Typography sx={{ mr: '12px', fontSize: '14px', color: '#141414' }}>{t('share.allowRead')}</Typography>
-          <IconButton type="submit" sx={{ minWidth: '44px', width: '44px', height: '24px', m: 0, p: 0 }}>
+          <IconButton
+            type="submit"
+            role="switch"
+            aria-checked={true}
+            aria-label={t('share.allowRead')}
+            sx={{ minWidth: '44px', width: '44px', height: '24px', m: 0, p: 0 }}
+          >
             <IconToggleOn />
           </IconButton>
         </Stack>
@@ -113,7 +118,11 @@ const ShareOnPopup = forwardRef((props: SharePopupProps, ref: Ref<HTMLDivElement
           {t('share.untilSuffix')}
         </Typography>
         <Stack direction="row" spacing={1} mt="18px">
-          <TextField sx={{ flex: 1, minWidth: 0 }} slotProps={{ input: { readOnly: true } }} value={shareLink} />
+          <TextField
+            sx={{ flex: 1, minWidth: 0 }}
+            slotProps={{ input: { readOnly: true }, htmlInput: { 'aria-label': t('share.pageShare') } }}
+            value={shareLink}
+          />
           <Button variant="contained" sx={{ minWidth: '55px', flexShrink: 0 }} onClick={handleCopyClick}>
             {t('share.copy')}
           </Button>
@@ -134,7 +143,7 @@ const ShareOnPopup = forwardRef((props: SharePopupProps, ref: Ref<HTMLDivElement
             multiline
             minRows={3}
             maxRows={6}
-            slotProps={{ input: { readOnly: true } }}
+            slotProps={{ input: { readOnly: true }, htmlInput: { 'aria-label': t('share.embedCode') } }}
             value={embedCode}
           />
           <Button variant="contained" sx={{ minWidth: '55px', flexShrink: 0 }} onClick={handleEmbedCopyClick}>
@@ -158,7 +167,13 @@ const ShareOnPopup = forwardRef((props: SharePopupProps, ref: Ref<HTMLDivElement
           sx={{ mb: '22px' }}
         >
           <Typography sx={{ fontSize: '16px', fontWeight: 600, color: '#141414' }}>{t('share.sharing')}</Typography>
-          <IconButton type="submit" sx={{ minWidth: '44px', width: '44px', height: '24px', m: 0, p: 0 }}>
+          <IconButton
+            type="submit"
+            role="switch"
+            aria-checked={true}
+            aria-label={t('share.allowRead')}
+            sx={{ minWidth: '44px', width: '44px', height: '24px', m: 0, p: 0 }}
+          >
             <IconToggleOn />
           </IconButton>
         </Stack>
@@ -173,6 +188,7 @@ const ShareOnPopup = forwardRef((props: SharePopupProps, ref: Ref<HTMLDivElement
             variant="contained"
             sx={{ width: '32px', minWidth: '32px', height: '32px', p: 0 }}
             onClick={handleCopyClick}
+            aria-label={`${t('share.pageShare')} ${t('share.copy')}`}
           >
             <IconLink />
           </Button>
@@ -204,7 +220,13 @@ const ShareOffPopup = forwardRef((props: SharePopupProps, ref: Ref<HTMLDivElemen
           mb="16px"
         >
           <Typography sx={{ mr: '12px', fontSize: '14px', color: '#141414' }}>{t('share.disallowRead')}</Typography>
-          <IconButton type="submit" sx={{ minWidth: '44px', width: '44px', height: '24px', m: 0, p: 0 }}>
+          <IconButton
+            type="submit"
+            role="switch"
+            aria-checked={false}
+            aria-label={t('share.allowRead')}
+            sx={{ minWidth: '44px', width: '44px', height: '24px', m: 0, p: 0 }}
+          >
             <IconToggleOff />
           </IconButton>
         </Stack>
@@ -231,7 +253,13 @@ const ShareOffPopup = forwardRef((props: SharePopupProps, ref: Ref<HTMLDivElemen
           sx={{ mb: '22px' }}
         >
           <Typography sx={{ fontSize: '16px', fontWeight: 600, color: '#141414' }}>{t('share.notSharing')}</Typography>
-          <IconButton type="submit" sx={{ minWidth: '44px', width: '44px', height: '24px', m: 0, p: 0 }}>
+          <IconButton
+            type="submit"
+            role="switch"
+            aria-checked={false}
+            aria-label={t('share.allowRead')}
+            sx={{ minWidth: '44px', width: '44px', height: '24px', m: 0, p: 0 }}
+          >
             <IconToggleOff />
           </IconButton>
         </Stack>
@@ -269,15 +297,12 @@ function ShareButton(props: ShareButtonProps) {
   const theme = useTheme();
   const { t } = useTranslation();
   const matches = useMediaQuery(theme.breakpoints.up('sm'));
-  const ref: Ref<HTMLDivElement> = useRef();
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorEl(event.currentTarget);
   };
 
-  const handleClose = event => {
-    event.preventDefault();
-    event.stopPropagation();
+  const handleClose = () => {
     setAnchorEl(null);
   };
 
@@ -287,6 +312,9 @@ function ShareButton(props: ShareButtonProps) {
         <Button
           startIcon={<IconShare fill="inherit" />}
           variant="outlined"
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          aria-controls={id}
           onClick={handleClick}
           sx={{
             ...shareOnButtonSx,
@@ -299,6 +327,9 @@ function ShareButton(props: ShareButtonProps) {
         <Button
           startIcon={<IconShare fill="inherit" />}
           variant="contained"
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          aria-controls={id}
           onClick={handleClick}
           sx={{
             ...shareOffButtonSx,
@@ -308,34 +339,32 @@ function ShareButton(props: ShareButtonProps) {
           {t('share.button')}
         </Button>
       )}
-      <Popper
+      <Popover
         id={id}
         open={open}
         anchorEl={anchorEl}
-        disablePortal={false}
-        placement="bottom-end"
+        onClose={handleClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        slotProps={{ paper: { role: 'dialog', 'aria-modal': true, 'aria-label': t('share.pageShare') } }}
         sx={{ zIndex: theme.zIndex.modal }}
       >
-        <ClickAwayListener onClickAway={handleClose}>
-          {isShareOn ? (
-            <ShareOnPopup
-              ref={ref}
-              matches={matches}
-              handleShareToggle={handleShareToggle}
-              shareLimitDate={shareLimitDate}
-              shareId={shareId}
-            />
-          ) : (
-            <ShareOffPopup
-              ref={ref}
-              matches={matches}
-              handleShareToggle={handleShareToggle}
-              shareLimitDate={shareLimitDate}
-              setShareLimitDate={setShareLimitDate}
-            />
-          )}
-        </ClickAwayListener>
-      </Popper>
+        {isShareOn ? (
+          <ShareOnPopup
+            matches={matches}
+            handleShareToggle={handleShareToggle}
+            shareLimitDate={shareLimitDate}
+            shareId={shareId}
+          />
+        ) : (
+          <ShareOffPopup
+            matches={matches}
+            handleShareToggle={handleShareToggle}
+            shareLimitDate={shareLimitDate}
+            setShareLimitDate={setShareLimitDate}
+          />
+        )}
+      </Popover>
     </React.Fragment>
   );
 }

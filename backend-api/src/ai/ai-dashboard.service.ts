@@ -17,6 +17,7 @@ import { Dataset } from '../dataset/entities/dataset.entity';
 import { Widget } from '../widget/entities/widget.entity';
 import { Component } from '../component/entities/component.entity';
 import { DatasetType } from '../common/enum/dataset-type.enum';
+import { buildTrendQuery, chooseTrendGrain } from './dashboard-trend';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import { YesNo } from '../common/enum/yn.enum';
 import {
@@ -234,6 +235,60 @@ export class AiDashboardService {
         data: dimensions,
         temporal: temporalColumns,
       });
+    }
+    if (body?.includeTrends === true) {
+      const selectedDate = body?.dateRange?.column;
+      const dateColumn = temporal.some(c => c.column_name === selectedDate)
+        ? selectedDate
+        : temporal[0]?.column_name;
+      for (const widget of widgets) {
+        if (widget.type !== 'BOARD_NUMERIC') continue;
+        if (!dateColumn) {
+          widget.trendUnavailable = 'No temporal column is available.';
+          continue;
+        }
+        const stats = temporalColumns.find((item: any) => item.column === dateColumn);
+        const min = body?.dateRange?.column === dateColumn ? body.dateRange.start : stats?.min;
+        const max = body?.dateRange?.column === dateColumn ? body.dateRange.end : stats?.max;
+        const grain = chooseTrendGrain(min, max);
+        const trendSql = buildTrendQuery(widget.sql, widget.valueField, dateColumn, grain, columns);
+        if (!trendSql) {
+          widget.trendUnavailable = 'The widget SQL cannot be safely grouped into a trend.';
+          continue;
+        }
+        try {
+          const query = sourceQuery(
+            trendSql.sql,
+            columns,
+            body.filters,
+            body.dateRange,
+            temporal.map(c => c.column_name),
+          );
+          const result = await this.connection.queryDuckDB(
+            draft.databaseId,
+            query.sql,
+            query.bindings,
+          );
+          if (result.datas.length > 240) {
+            widget.trendUnavailable = 'The selected trend grain exceeds 240 points.';
+            continue;
+          }
+          widget.trend = {
+            column: dateColumn,
+            grain,
+            points: result.datas.map((row: any) => {
+              const rawValue = row[trendSql.valueAlias];
+              const value = rawValue === null ? null : Number(rawValue);
+              return {
+                time: row[trendSql.timeField],
+                value: value !== null && Number.isFinite(value) ? value : null,
+              };
+            }),
+          };
+        } catch (_error) {
+          widget.trendUnavailable = 'Trend query is unavailable for this widget.';
+        }
+      }
     }
     return this.success({ draft, widgets, dimensions, temporalColumns });
   }

@@ -18,6 +18,7 @@ import { get, post } from '@/helpers/apiHelper';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
 import AiDashboardPanel from './AiDashboardPanel';
 import { analysisOptions } from '../analysisOptions';
+import MetricTrend from './MetricTrend';
 
 type FilterValue = string | number | boolean | null;
 type DateRange = { column: string; start: string; end: string };
@@ -78,6 +79,7 @@ export default function DashboardAnalysis({ dashboardId, onSaved, children }: an
       {
         draft,
         dashboardId: Number(dashboardId),
+        includeTrends: true,
         filters: Object.entries(filters)
           .filter(([, values]) => values.length)
           .slice(0, 5)
@@ -281,7 +283,8 @@ export default function DashboardAnalysis({ dashboardId, onSaved, children }: an
             <Card
               key={i}
               sx={{
-                height: widget.type === 'BOARD_NUMERIC' ? 180 : 460,
+                minHeight: widget.type === 'BOARD_NUMERIC' ? 250 : 460,
+                height: widget.type === 'BOARD_NUMERIC' ? 'auto' : 460,
                 gridColumn: widget.type === 'BOARD_NUMERIC' ? 'auto' : '1 / -1',
                 border: '1px solid',
                 borderColor: 'divider',
@@ -289,23 +292,34 @@ export default function DashboardAnalysis({ dashboardId, onSaved, children }: an
                 boxShadow: '0 2px 6px rgba(42,50,62,.06)',
               }}
             >
-              <WidgetViewer
-                title={widget.title}
-                description={`${
-                  busy || error
-                    ? '이전 조회 결과 · 현재 선택 조건 미적용'
-                    : active.length || dateRange
-                    ? `${period} · 선택한 필터 적용`
-                    : '전체 기간 · 필터 없음'
-                } · ${
-                  widget.type === 'BOARD_NUMERIC'
-                    ? widget.description?.replace(/전체 기간[^·]*· 필터 없음 · [\d,]+행/g, '원본 데이터 집계') || ''
-                    : `${widget.datas.length}개 항목`
-                }`}
-                widgetType={widget.type}
-                widgetOption={analysisOptions(widget)}
-                dataSet={widget.datas}
-              />
+              <Box sx={{ height: widget.type === 'BOARD_NUMERIC' ? 155 : '100%' }}>
+                <WidgetViewer
+                  title={widget.title}
+                  description={`${
+                    busy || error
+                      ? '이전 조회 결과 · 현재 선택 조건 미적용'
+                      : active.length || dateRange
+                      ? `${period} · 선택한 필터 적용`
+                      : '전체 기간 · 필터 없음'
+                  } · ${
+                    widget.type === 'BOARD_NUMERIC'
+                      ? widget.description?.replace(/전체 기간[^·]*· 필터 없음 · [\d,]+행/g, '원본 데이터 집계') || ''
+                      : `${widget.datas.length}개 항목`
+                  }`}
+                  widgetType={widget.type}
+                  widgetOption={analysisOptions(widget)}
+                  dataSet={widget.datas}
+                />
+              </Box>
+              {widget.type === 'BOARD_NUMERIC' && (
+                <MetricTrend
+                  trend={widget.trend}
+                  unavailable={widget.trendUnavailable}
+                  title={widget.title}
+                  prefix={widget.prefix}
+                  decimalPlaces={widget.decimalPlaces ?? 0}
+                />
+              )}
             </Card>
           ))}
         </Box>

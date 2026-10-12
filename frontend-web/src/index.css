@@ -61,6 +61,16 @@
     src: local('Pretendard Thin'), url('assets/fonts/woff2-subset/Pretendard-Thin.subset.woff2') format('woff2'), url('assets/fonts/woff-subset/Pretendard-Thin.subset.woff') format('woff');
 }
 
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible,
+.MuiButtonBase-root.Mui-focusVisible {
+    outline: 2px solid #1d4ed8 !important;
+    outline-offset: 2px;
+}
+
+.MuiOutlinedInput-root:not(.Mui-disabled) .MuiOutlinedInput-notchedOutline {
+    border-color: #858585;
+}
+
 .react-resizable-handle {
     position: absolute;
     width: 10px;

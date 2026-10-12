@@ -88,7 +88,7 @@ function PageTitleBox(props: PageTitleBoxProps) {
                     lineHeight: 'normal',
                     letterSpacing: 'normal',
                     textAlign: 'left',
-                    color: '#767676',
+                    color: '#656565',
                   }}
                 >
                   /

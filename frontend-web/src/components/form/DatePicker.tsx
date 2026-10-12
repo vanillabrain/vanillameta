@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useTranslation } from 'react-i18next';
 import dayjs, { Dayjs } from 'dayjs';
 import 'dayjs/locale/ko';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
@@ -14,10 +15,12 @@ interface DatePickerProps {
 }
 
 const DatePicker = (props: DatePickerProps) => {
+  const { t } = useTranslation();
   const { shareLimitDate, setShareLimitDate } = props;
   return (
     <LocalizationProvider adapterLocale="ko" dateAdapter={AdapterDayjs}>
       <MuiDatePicker
+        localeText={{ openDatePickerDialogue: () => t('share.openCalendar') }}
         disablePast
         closeOnSelect={false}
         value={shareLimitDate ? dayjs(shareLimitDate) : null}
@@ -30,6 +33,7 @@ const DatePicker = (props: DatePickerProps) => {
         }}
         slotProps={{
           textField: {
+            inputProps: { 'aria-label': t('share.expiry') },
             sx: {
               width: '130px',
               color: '#4a4a4a',

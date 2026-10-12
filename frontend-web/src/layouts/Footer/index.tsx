@@ -9,7 +9,7 @@ export const Copyright = (props: any) => {
         color="inherit"
         href="https://vanillabrain.com/"
         target="_blank"
-        sx={{ fontSize: '13px', color: '#767676', fontWeight: 'bold', textDecoration: 'none' }}
+        sx={{ fontSize: '13px', color: '#656565', fontWeight: 'bold', textDecoration: 'none' }}
       >
         ⓒ VanillaBrain Inc.
       </Link>

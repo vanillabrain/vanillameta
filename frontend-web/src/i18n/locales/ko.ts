@@ -221,6 +221,7 @@ export default {
     copy: '복사',
     embedCode: '임베드 코드',
     expiry: '공유 기한:',
+    openCalendar: '공유 기한 달력 열기',
     linkCopied: '클립보드에 링크가 복사되었습니다.',
     linkCopyFailed: '링크 복사에 실패했습니다.\n다시 시도해 주세요.',
     embedCopied: '클립보드에 임베드 코드가 복사되었습니다.',

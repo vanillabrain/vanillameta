@@ -221,6 +221,7 @@ export default {
     copy: 'Copy',
     embedCode: 'Embed code',
     expiry: 'Expires:',
+    openCalendar: 'Open sharing expiry calendar',
     linkCopied: 'Link copied to clipboard.',
     linkCopyFailed: 'Failed to copy link.\nPlease try again.',
     embedCopied: 'Embed code copied to clipboard.',

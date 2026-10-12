@@ -2,7 +2,7 @@
 export function analysisOptions(widget: any) {
   if (widget.type === 'BOARD_NUMERIC') {
     return {
-      header: { title: widget.valueField, fontSize: 13, color: '#586579' },
+      header: { title: '', fontSize: 13, color: '#586579' },
       content: {
         field: widget.valueField,
         aggregation: 'sum',

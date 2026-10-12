@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useId, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
@@ -22,7 +22,6 @@ interface IProps {
 }
 
 export const SnackbarTemplate = props => {
-  const { t } = useTranslation();
   const { close, message, options } = props;
   // console.log(props);
   return (
@@ -41,13 +40,24 @@ const buttonStyle = { minWidth: 80, height: 36, padding: '0 10px', fontSize: '13
 const AlertTemplate = ({ close, message, options }: IProps) => {
   const { t } = useTranslation();
   const hasTitle = options.title && options.title.toString().trim() !== '';
+  const id = useId();
+  const returnFocus = useRef(typeof document === 'undefined' ? null : document.activeElement);
+  useEffect(
+    () => () => {
+      const trigger = returnFocus.current;
+      queueMicrotask(() => {
+        if (trigger instanceof HTMLElement && trigger.isConnected) trigger.focus();
+      });
+    },
+    [],
+  );
   return (
     <Dialog
       open={true}
       onClose={close}
       keepMounted
-      aria-labelledby="alert-dialog-slide-title"
-      aria-describedby="alert-dialog-slide-description"
+      aria-labelledby={`${id}-title`}
+      aria-describedby={`${id}-description`}
       PaperProps={{
         sx: {
           borderRadius: '4px',
@@ -56,14 +66,17 @@ const AlertTemplate = ({ close, message, options }: IProps) => {
       }}
       BackdropProps={{ style: { background: 'rgba(31, 33, 35, 0.85)' } }}
     >
-      <DialogTitle sx={{ padding: '16px 20px', fontSize: '14px', fontWeight: 'bold', lineHeight: 'normal' }}>
-        {options.title}
+      <DialogTitle
+        id={`${id}-title`}
+        sx={{ padding: '16px 20px', fontSize: '14px', fontWeight: 'bold', lineHeight: 'normal' }}
+      >
+        {hasTitle ? options.title : t('common.confirm')}
       </DialogTitle>
       {hasTitle ? <Divider sx={{ backgroundColor: '#1f2123', opacity: 0.1 }} /> : null}
 
       <DialogContent>
         <DialogContentText
-          id="alert-dialog-slide-description"
+          id={`${id}-description`}
           sx={{
             fontSize: '14px',
             color: 'black',
@@ -87,7 +100,6 @@ const AlertTemplate = ({ close, message, options }: IProps) => {
                 action.onClick();
                 close();
               }}
-              autoFocus={true}
               variant="contained"
               color="primary"
               sx={buttonStyle}
