@@ -120,6 +120,7 @@ export default {
     add: '메트릭 추가',
     empty: '등록된 메트릭이 없습니다.',
     evaluate: '평가',
+    evaluateNamed: '{{name}} 평가',
     evalResult: '{{name}} — 평가 결과',
     noResult: '결과가 없습니다.',
     form: {

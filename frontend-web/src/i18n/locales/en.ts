@@ -120,6 +120,7 @@ export default {
     add: 'Add metric',
     empty: 'No metrics yet.',
     evaluate: 'Evaluate',
+    evaluateNamed: 'Evaluate {{name}}',
     evalResult: '{{name}} — result',
     noResult: 'No results.',
     form: {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import {
   Box,
   Button,
@@ -48,6 +48,8 @@ const Metric = () => {
   const alert = useAlert();
   const snackbar = useAlert(SnackbarContext);
   const queryClient = useQueryClient();
+  const databaseLabelId = useId();
+  const aggregationLabelId = useId();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<MetricDefinition>(EMPTY_FORM);
   const [evalResult, setEvalResult] = useState<{ name: string; rows: any[] } | null>(null);
@@ -146,10 +148,19 @@ const Metric = () => {
                 </Typography>
               </Box>
               <Stack direction="row" spacing="8px" alignItems="center" sx={{ flexShrink: 0 }}>
-                <Button size="small" variant="outlined" onClick={() => handleEvaluate(m)}>
+                <Button
+                  aria-label={t('metric.evaluateNamed', { name: m.name })}
+                  size="small"
+                  variant="outlined"
+                  onClick={() => handleEvaluate(m)}
+                >
                   {t('metric.evaluate')}
                 </Button>
-                <IconButton size="small" onClick={() => deleteMutation.mutate(m.id)}>
+                <IconButton
+                  aria-label={t('data.deleteItem', { name: m.name })}
+                  size="small"
+                  onClick={() => deleteMutation.mutate(m.id)}
+                >
                   <DeleteIcon fontSize="small" />
                 </IconButton>
               </Stack>
@@ -158,8 +169,8 @@ const Metric = () => {
         ))}
 
         {evalResult && (
-          <Box>
-            <Typography sx={{ fontSize: '14px', fontWeight: 600, mb: '8px' }}>
+          <Box role="region" aria-label={t('metric.evalResult', { name: evalResult.name })} tabIndex={0}>
+            <Typography role="status" sx={{ fontSize: '14px', fontWeight: 600, mb: '8px' }}>
               {t('metric.evalResult', { name: evalResult.name })}
             </Typography>
             {evalResult.rows.length > 0 ? (
@@ -181,7 +192,14 @@ const Metric = () => {
         <DialogTitle>{t('metric.add')}</DialogTitle>
         <DialogContent>
           <Stack spacing="16px" sx={{ mt: '8px' }}>
-            <TextField size="small" label={t('metric.form.name')} value={form.name} onChange={set('name')} required />
+            <TextField
+              autoFocus
+              size="small"
+              label={t('metric.form.name')}
+              value={form.name}
+              onChange={set('name')}
+              required
+            />
             <TextField
               size="small"
               label={t('metric.form.description')}
@@ -189,8 +207,9 @@ const Metric = () => {
               onChange={set('description')}
             />
             <FormControl size="small" required>
-              <InputLabel>{t('metric.form.database')}</InputLabel>
+              <InputLabel id={databaseLabelId}>{t('metric.form.database')}</InputLabel>
               <Select
+                labelId={databaseLabelId}
                 value={form.databaseId || ''}
                 label={t('metric.form.database')}
                 onChange={e => setForm(prev => ({ ...prev, databaseId: Number(e.target.value) }))}
@@ -209,10 +228,15 @@ const Metric = () => {
               onChange={set('tableName')}
               required
             />
-            <Stack direction="row" spacing="16px">
-              <FormControl size="small" sx={{ minWidth: 180 }} required>
-                <InputLabel>{t('metric.form.aggregation')}</InputLabel>
-                <Select value={form.aggregation} label={t('metric.form.aggregation')} onChange={set('aggregation')}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing="16px">
+              <FormControl size="small" sx={{ minWidth: { xs: 0, sm: 180 } }} required>
+                <InputLabel id={aggregationLabelId}>{t('metric.form.aggregation')}</InputLabel>
+                <Select
+                  labelId={aggregationLabelId}
+                  value={form.aggregation}
+                  label={t('metric.form.aggregation')}
+                  onChange={set('aggregation')}
+                >
                   {AGGREGATIONS.map(a => (
                     <MenuItem key={a} value={a}>
                       {a}
