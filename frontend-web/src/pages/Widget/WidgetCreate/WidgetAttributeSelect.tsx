@@ -132,12 +132,18 @@ const WidgetAttributeSelect = (props: WidgetAttributeSelectProps) => {
 
   return (
     <Stack
-      direction="row"
+      direction={{ xs: 'column', md: 'row' }}
       justifyContent="space-between"
       sx={{
         width: '100%',
-        height: isModifyMode ? 'calc(100vh - 170px)' : 'calc(100vh - 245px)', // 170px
-        overflow: 'hidden',
+        minWidth: 0,
+        height: {
+          xs: isModifyMode ? 'calc(100dvh - 170px)' : 'calc(100dvh - 310px)',
+          sm: isModifyMode ? 'calc(100dvh - 170px)' : 'calc(100dvh - 245px)',
+          md: isModifyMode ? 'calc(100vh - 170px)' : 'calc(100vh - 245px)',
+        },
+        overflowX: 'hidden',
+        overflowY: { xs: 'auto', md: 'hidden' },
         backgroundColor: '#f5f6f8',
         backgroundImage: `url(${grid})`,
         backgroundRepeat: 'repeat',
@@ -154,11 +160,13 @@ const WidgetAttributeSelect = (props: WidgetAttributeSelectProps) => {
         <>
           <Box
             sx={{
-              width: '60%',
-              height: '50vw',
+              width: { xs: 'calc(100% - 32px)', md: '60%' },
+              minWidth: 0,
+              flexShrink: { xs: 0, md: 1 },
+              height: { xs: '300px', sm: '50vw' },
               minHeight: '300px',
-              maxHeight: '100%',
-              margin: '54px auto',
+              maxHeight: { xs: 'none', md: '100%' },
+              margin: { xs: '16px auto', md: '54px auto' },
               border: '1px solid #e2e2e2',
               borderRadius: '8px',
               boxShadow: '2px 2px 9px 0 rgba(42, 50, 62, 0.1), 0 4px 4px 0 rgba(0, 0, 0, 0.02)',

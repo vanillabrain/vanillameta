@@ -11,6 +11,9 @@ export class Dashboard extends BaseEntity {
   @Column({ length: 300, comment: '대시보드명' })
   title: string;
 
+  @Column({ type: 'text', nullable: true })
+  analysisDefinition: string;
+
   @Optional()
   @Column({ nullable: true, comment: '템플릿 ID' })
   templateId: number;

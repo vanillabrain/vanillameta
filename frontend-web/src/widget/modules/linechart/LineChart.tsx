@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Box, Button, Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import ReactECharts from 'echarts-for-react';
 import { getAggregationDataForChart, getGridSize, getLegendOption } from '@/widget/modules/utils/chartUtil';
@@ -9,16 +10,13 @@ const LineChart = props => {
   const { option, dataSet, axis = 'x', seriesOp, defaultOp, createOp } = props;
   const reverseAxis = axis === 'x' ? 'y' : 'x';
 
-  const [componentOption, setComponentOption] = useState({});
+  const [componentOption, setComponentOption] = useState<any>({});
+  const [showTable, setShowTable] = useState(false);
 
   const defaultComponentOption = {
     grid: { top: '3%', right: '3%', bottom: '3%', left: '3%' },
-    tooltip: { trigger: 'axis' },
     [axis + 'Axis']: {
       type: 'category',
-    },
-    [reverseAxis + 'Axis']: {
-      type: 'value',
     },
     series: [],
     emphasis: {
@@ -26,6 +24,19 @@ const LineChart = props => {
       blurScope: 'coordinateSystem',
     },
     ...defaultOp,
+    [reverseAxis + 'Axis']: {
+      type: 'value',
+      ...defaultOp?.[reverseAxis + 'Axis'],
+      axisLabel: {
+        formatter: value => new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(value),
+        ...defaultOp?.[reverseAxis + 'Axis']?.axisLabel,
+      },
+    },
+    tooltip: {
+      trigger: 'axis',
+      ...defaultOp?.tooltip,
+      valueFormatter: value => Number(value).toLocaleString('en-US', { maximumFractionDigits: 6 }),
+    },
   };
 
   useEffect(() => {
@@ -77,11 +88,9 @@ const LineChart = props => {
       const op = {
         [axis + 'Axis']: {
           type: 'category',
-          data: option[axis + 'Field']
-            ? axis === 'x'
-              ? aggrData.map(item => item[option[axis + 'Field']])
-              : aggrData.map(item => item[option[axis + 'Field']]).reverse()
-            : '',
+          data: option[axis + 'Field'] ? aggrData.map(item => item[option[axis + 'Field']]) : '',
+          inverse: axis === 'y',
+          axisLabel: { interval: axis === 'y' ? 0 : 'auto', fontSize: 12 },
         },
         series: newSeries,
         grid: getGridSize(option.legendPosition),
@@ -95,12 +104,54 @@ const LineChart = props => {
   };
 
   return (
-    <ReactECharts
-      option={componentOption}
-      style={{ display: 'flex', alignItems: 'center', height: '100%', width: '100%' }}
-      lazyUpdate={true}
-      notMerge={true}
-    />
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', minWidth: 0 }}>
+      <ReactECharts
+        option={componentOption}
+        style={{ flex: '1 1 auto', minHeight: 160, height: '100%', width: '100%' }}
+        lazyUpdate={true}
+        notMerge={true}
+      />
+      <Button
+        size="small"
+        onClick={() => setShowTable(value => !value)}
+        aria-expanded={showTable}
+        sx={{ alignSelf: 'flex-end', flexShrink: 0, fontSize: 12 }}
+      >
+        {showTable ? t('chart.hideDataTable') : t('chart.showDataTable')}
+      </Button>
+      {showTable && (
+        <Box sx={{ overflow: 'auto', maxHeight: 180, flexShrink: 0 }}>
+          <Table size="small" aria-label={t('chart.showDataTable')}>
+            <TableHead>
+              <TableRow>
+                <TableCell>{option[axis + 'Field']}</TableCell>
+                {componentOption.series?.map((series, index) => (
+                  <TableCell key={index} align="right">
+                    {series.name}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {componentOption[axis + 'Axis']?.data?.map((name, index) => (
+                <TableRow key={index}>
+                  <TableCell component="th" scope="row">
+                    {String(name)}
+                  </TableCell>
+                  {componentOption.series.map((series, seriesIndex) => (
+                    <TableCell key={seriesIndex} align="right">
+                      {typeof series.data[index] === 'number'
+                        ? series.data[index].toLocaleString('en-US', { maximumFractionDigits: 6 })
+                        : String(series.data[index] ?? '')}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Box>
+      )}
+    </Box>
   );
 };
 

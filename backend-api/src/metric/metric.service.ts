@@ -108,15 +108,20 @@ export class MetricService {
         groupByCol ? ` GROUP BY ${groupByCol} LIMIT ${MAX_GROUP_ROWS}` : ''
       }`;
 
-      const knex = await this.connectionService.getKnex(metric.databaseId);
-      const timeoutMs = parseInt(process.env.QUERY_TIMEOUT_MS) || 60000;
-      let rawQuery = knex.raw(sql, bindings);
-      try {
-        rawQuery = rawQuery.timeout(timeoutMs) as any;
-      } catch {
-        // timeout 미지원 드라이버는 그대로 실행
+      let result: any;
+      if (await this.connectionService.isDuckDB?.(metric.databaseId)) {
+        result = (await this.connectionService.queryDuckDB(metric.databaseId, sql, bindings)).datas;
+      } else {
+        const knex = await this.connectionService.getKnex(metric.databaseId);
+        const timeoutMs = parseInt(process.env.QUERY_TIMEOUT_MS) || 60000;
+        let rawQuery = knex.raw(sql, bindings);
+        try {
+          rawQuery = rawQuery.timeout(timeoutMs) as any;
+        } catch {
+          // timeout 미지원 드라이버는 그대로 실행
+        }
+        result = await rawQuery;
       }
-      const result = await rawQuery;
 
       // 드라이버별 결과 형태 정규화
       const rows = Array.isArray(result)

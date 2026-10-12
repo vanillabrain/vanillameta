@@ -1,4 +1,4 @@
-import React, { createRef, forwardRef, Ref, useRef } from 'react';
+import React, { forwardRef, Ref, useRef } from 'react';
 import {
   Box,
   Button,
@@ -35,7 +35,13 @@ interface SharePopupProps extends ShareButtonProps {
 
 const paperSx: SxProps = {
   marginTop: '3px',
-  border: 'solid 1px #ddd',
+  border: '1px solid',
+  borderColor: 'divider',
+  bgcolor: 'background.paper',
+  color: 'text.primary',
+  maxWidth: 'calc(100vw - 32px)',
+  maxHeight: 'calc(100dvh - 96px)',
+  overflowY: 'auto',
   borderRadius: '6px',
   boxShadow: '2px 2px 9px 0 rgba(42, 50, 62, 0.1), 0 4px 4px 0 rgba(0, 0, 0, 0.02)',
 };
@@ -106,18 +112,32 @@ const ShareOnPopup = forwardRef((props: SharePopupProps, ref: Ref<HTMLDivElement
           </Box>
           {t('share.untilSuffix')}
         </Typography>
-        <Stack direction="row" justifyContent="space-between" mt="18px">
-          <TextField sx={{ width: '298px', height: '32px' }} disabled value={shareLink} />
-          <Button variant="contained" sx={{ minWidth: '55px' }} onClick={handleCopyClick}>
+        <Stack direction="row" spacing={1} mt="18px">
+          <TextField sx={{ flex: 1, minWidth: 0 }} slotProps={{ input: { readOnly: true } }} value={shareLink} />
+          <Button variant="contained" sx={{ minWidth: '55px', flexShrink: 0 }} onClick={handleCopyClick}>
             {t('share.copy')}
           </Button>
         </Stack>
         <Typography sx={{ mt: '16px', mb: '6px', fontSize: '13px', fontWeight: 600, color: '#141414' }}>
           {t('share.embedCode')}
         </Typography>
-        <Stack direction="row" justifyContent="space-between">
-          <TextField sx={{ width: '298px' }} size="small" multiline rows={3} disabled value={embedCode} />
-          <Button variant="contained" sx={{ minWidth: '55px' }} onClick={handleEmbedCopyClick}>
+        <Stack direction="row" spacing={1} alignItems="flex-start">
+          <TextField
+            sx={{
+              flex: 1,
+              minWidth: 0,
+              height: 'auto',
+              '& .MuiInputBase-root': { height: 'auto', bgcolor: 'background.default' },
+              '& textarea': { overflowWrap: 'anywhere' },
+            }}
+            size="small"
+            multiline
+            minRows={3}
+            maxRows={6}
+            slotProps={{ input: { readOnly: true } }}
+            value={embedCode}
+          />
+          <Button variant="contained" sx={{ minWidth: '55px', flexShrink: 0 }} onClick={handleEmbedCopyClick}>
             {t('share.copy')}
           </Button>
         </Stack>
@@ -226,19 +246,19 @@ const ShareOffPopup = forwardRef((props: SharePopupProps, ref: Ref<HTMLDivElemen
 
 const shareOnButtonSx: SxProps = {
   flexShrink: 0,
-  border: '1px solid #0f5ab2',
-  backgroundColor: '#fff',
-  color: '#0f5ab2',
-  fill: '#0f5ab2',
+  borderColor: 'primary.main',
+  bgcolor: 'background.paper',
+  color: 'primary.main',
+  '& svg': { fill: 'currentColor' },
   '& span': { mr: '6px' },
-  '&:hover': { color: '#fff', fill: '#fff' },
+  '&:hover': { bgcolor: 'primary.main', color: 'primary.contrastText', borderColor: 'primary.main' },
 };
 
 const shareOffButtonSx: SxProps = {
   flexShrink: 0,
-  fill: '#fff',
+  '& svg': { fill: 'currentColor' },
   '& span': { mr: '6px' },
-  '&:hover': { border: '1px solid #0f5ab2', backgroundColor: '#fff', color: '#0f5ab2', fill: '#0f5ab2' },
+  '&:hover': { bgcolor: 'primary.dark', color: 'primary.contrastText' },
 };
 
 function ShareButton(props: ShareButtonProps) {
@@ -247,6 +267,7 @@ function ShareButton(props: ShareButtonProps) {
   const open = Boolean(anchorEl);
   const id = open ? 'simple-popover' : undefined;
   const theme = useTheme();
+  const { t } = useTranslation();
   const matches = useMediaQuery(theme.breakpoints.up('sm'));
   const ref: Ref<HTMLDivElement> = useRef();
 
@@ -265,14 +286,14 @@ function ShareButton(props: ShareButtonProps) {
       {isShareOn ? (
         <Button
           startIcon={<IconShare fill="inherit" />}
-          variant="contained"
+          variant="outlined"
           onClick={handleClick}
           sx={{
             ...shareOnButtonSx,
             px: { xs: '8px', sm: '12px' },
           }}
         >
-          공유중
+          {t('share.buttonActive')}
         </Button>
       ) : (
         <Button
@@ -284,10 +305,17 @@ function ShareButton(props: ShareButtonProps) {
             px: { xs: '8px', sm: '12px' },
           }}
         >
-          공유
+          {t('share.button')}
         </Button>
       )}
-      <Popper id={id} open={open} anchorEl={anchorEl} disablePortal={false} placement="bottom-end">
+      <Popper
+        id={id}
+        open={open}
+        anchorEl={anchorEl}
+        disablePortal={false}
+        placement="bottom-end"
+        sx={{ zIndex: theme.zIndex.modal }}
+      >
         <ClickAwayListener onClickAway={handleClose}>
           {isShareOn ? (
             <ShareOnPopup

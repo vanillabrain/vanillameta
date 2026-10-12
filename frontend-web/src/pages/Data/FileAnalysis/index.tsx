@@ -93,7 +93,8 @@ const FileAnalysis = () => {
   const [columns, setColumns] = useState([]);
   const [numericFields, setNumericFields] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  const [engineReady, setEngineReady] = useState(false);
+  const [analyzed, setAnalyzed] = useState(false);
+  const mountedRef = useRef(true);
   const [chartType, setChartType] = useState('bar');
   const [xField, setXField] = useState('');
   const [yField, setYField] = useState('');
@@ -121,28 +122,11 @@ const FileAnalysis = () => {
       : null;
 
   useEffect(() => {
-    let mounted = true;
-    let ownedInstance: typeof duckDbRef.current = null;
-    // 페이지 진입 시 WASM 엔진을 미리 로딩
-    loadDuckDb()
-      .then(instance => {
-        if (!mounted) {
-          instance.db.terminate();
-          return;
-        }
-        ownedInstance = instance;
-        duckDbRef.current = instance;
-        setEngineReady(true);
-      })
-      .catch(e => {
-        if (!mounted) return;
-        console.error(e);
-        alert.error(t('fileAnalysis.engineFailed'));
-      });
+    mountedRef.current = true;
     return () => {
-      mounted = false;
-      ownedInstance?.db.terminate();
-      if (duckDbRef.current === ownedInstance) duckDbRef.current = null;
+      mountedRef.current = false;
+      duckDbRef.current?.db.terminate();
+      duckDbRef.current = null;
     };
   }, []);
 
@@ -158,21 +142,46 @@ const FileAnalysis = () => {
     setYField(prev => (numeric.includes(prev) ? prev : numeric[0] || ''));
   };
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
-    const engine = duckDbRef.current;
-    if (!engine) {
-      alert.error(t('fileAnalysis.engineFailed'));
-      return;
-    }
-    const { duckdb, db } = engine;
+    if (!file || loading || saving) return;
     const ext = file.name.split('.').pop().toLowerCase();
     if (!['csv', 'parquet', 'json'].includes(ext)) {
       alert.error(t('fileAnalysis.fileTypeError'));
+      event.target.value = '';
       return;
     }
+    setFileName(file.name);
+    setSelectedFile(file);
+    setAnalyzed(false);
+    setData([]);
+    setColumns([]);
+    setNumericFields([]);
+    setQuery('');
+  };
+
+  const analyzeFile = async () => {
+    if (!selectedFile || loading || saving) return;
+    const file = selectedFile;
+    const ext = file.name.split('.').pop().toLowerCase();
     setLoading(true);
+    if (!duckDbRef.current) {
+      try {
+        const instance = await loadDuckDb();
+        if (!mountedRef.current) {
+          await instance.db.terminate();
+          return;
+        }
+        duckDbRef.current = instance;
+      } catch (e) {
+        if (!mountedRef.current) return;
+        console.error(e);
+        alert.error(t('fileAnalysis.engineFailed'));
+        setLoading(false);
+        return;
+      }
+    }
+    const { duckdb, db } = duckDbRef.current;
     let conn;
     try {
       conn = await db.connect();
@@ -188,8 +197,7 @@ const FileAnalysis = () => {
       await conn.query(`CREATE TABLE ${TABLE_NAME} AS SELECT * FROM ${readExpr}`);
       const preview = await conn.query(`SELECT * FROM ${TABLE_NAME} LIMIT 500`);
       applyResult(preview);
-      setFileName(file.name);
-      setSelectedFile(file);
+      setAnalyzed(true);
       setQuery(`SELECT * FROM ${TABLE_NAME} LIMIT 100`);
       snackbar.success(t('fileAnalysis.fileLoaded', { name: file.name }));
     } catch (e) {
@@ -206,13 +214,15 @@ const FileAnalysis = () => {
   };
 
   const saveAsDataset = () => {
-    if (!selectedFile) return;
+    if (!selectedFile || loading || saving) return;
     setSaving(true);
     DatabaseService.uploadFile(selectedFile)
       .then(response => {
         if (response.data.status === 'SUCCESS') {
           snackbar.success(t('fileAnalysis.saved', { rows: response.data.data.rows }));
-          navigate(`/data/set/create/${response.data.data.id}`, { state: { tableName: 'uploaded_data' } });
+          navigate(`/data/set/create/${response.data.data.id}`, {
+            state: { tableName: response.data.data.tableName },
+          });
         } else {
           alert.error(response.data.message || t('fileAnalysis.saveFailed'));
         }
@@ -243,7 +253,7 @@ const FileAnalysis = () => {
   };
 
   const runQuery = async () => {
-    if (!query.trim() || !duckDbRef.current) return;
+    if (!query.trim() || !analyzed || !duckDbRef.current || loading || saving) return;
     setLoading(true);
     let conn;
     try {
@@ -270,17 +280,21 @@ const FileAnalysis = () => {
       sx={{ p: 0, width: '100%', height: '100%' }}
     >
       <Seo title={t('common.fileAnalysis')} />
-      <Stack spacing="20px" sx={{ p: '30px 25px 40px 25px' }}>
+      <Stack spacing="20px" sx={{ p: { xs: '24px 16px', sm: '30px 25px 40px 25px' }, minWidth: 0 }}>
         <Stack
           direction="row"
-          spacing="16px"
           alignItems="center"
-          sx={{ p: '16px 20px', border: '1px dashed #c9d2e0', borderRadius: '8px', backgroundColor: '#f7f9fc' }}
+          sx={{
+            flexWrap: 'wrap',
+            gap: 2,
+            p: '16px 20px',
+            border: '1px dashed',
+            borderColor: 'divider',
+            borderRadius: '8px',
+            bgcolor: 'background.default',
+          }}
         >
-          <Typography sx={{ fontSize: '14px', color: '#555' }}>
-            {t('fileAnalysis.description')}
-            {!engineReady && ` ${t('fileAnalysis.engineLoading')}`}
-          </Typography>
+          <Typography sx={{ fontSize: '14px', color: '#555' }}>{t('fileAnalysis.description')}</Typography>
           <input
             ref={fileInputRef}
             type="file"
@@ -290,20 +304,37 @@ const FileAnalysis = () => {
           />
           <Button
             variant="contained"
-            disabled={!engineReady || loading}
+            disabled={loading || saving}
             onClick={() => fileInputRef.current?.click()}
             sx={{ flexShrink: 0 }}
           >
-            {loading ? t('fileAnalysis.processing') : t('fileAnalysis.selectFile')}
+            {t('fileAnalysis.selectFile')}
           </Button>
           {fileName && (
-            <Typography sx={{ fontSize: '13px', color: '#767676' }}>
-              {fileName} → <b>{TABLE_NAME}</b> {t('fileAnalysis.tableLabel')}
+            <Typography sx={{ fontSize: '13px', color: 'text.secondary', overflowWrap: 'anywhere', minWidth: 0 }}>
+              {fileName}
+              {analyzed && (
+                <>
+                  {' '}
+                  → <b>{TABLE_NAME}</b> {t('fileAnalysis.tableLabel')}
+                </>
+              )}
             </Typography>
           )}
         </Stack>
 
-        {fileName && (
+        {selectedFile && (
+          <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 2 }}>
+            <Button variant="contained" onClick={saveAsDataset} disabled={saving || loading}>
+              {saving ? t('fileAnalysis.saving') : t('fileAnalysis.saveDataset')}
+            </Button>
+            <Button variant="outlined" onClick={analyzeFile} disabled={loading || saving}>
+              {loading ? t('fileAnalysis.processing') : t('fileAnalysis.analyzeBrowser')}
+            </Button>
+          </Stack>
+        )}
+
+        {analyzed && (
           <>
             <TextField
               size="small"
@@ -320,15 +351,15 @@ const FileAnalysis = () => {
               label={t('fileAnalysis.run')}
               type="button"
               size="large"
-              sx={{ width: '374px', fontSize: '13px' }}
+              sx={{ width: '100%', maxWidth: '374px', fontSize: '13px' }}
               onClick={runQuery}
-              disabled={loading}
+              disabled={loading || saving}
             />
           </>
         )}
 
         {data.length > 0 && (
-          <Stack direction="row" spacing="16px" alignItems="center">
+          <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 2 }} alignItems="center">
             <FormControl size="small" sx={{ minWidth: 110 }}>
               <InputLabel>{t('fileAnalysis.chart')}</InputLabel>
               <Select value={chartType} label={t('fileAnalysis.chart')} onChange={e => setChartType(e.target.value)}>
@@ -361,9 +392,6 @@ const FileAnalysis = () => {
             </FormControl>
             <Button size="small" variant="outlined" onClick={exportCsv} sx={{ flexShrink: 0 }}>
               {t('fileAnalysis.exportCsv')}
-            </Button>
-            <Button size="small" variant="contained" onClick={saveAsDataset} disabled={saving} sx={{ flexShrink: 0 }}>
-              {saving ? t('fileAnalysis.saving') : t('fileAnalysis.saveDataset')}
             </Button>
           </Stack>
         )}

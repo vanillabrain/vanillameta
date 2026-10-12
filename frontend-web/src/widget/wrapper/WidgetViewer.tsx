@@ -56,7 +56,7 @@ export const WidgetEmpty = () => {
 
 const WidgetViewer = props => {
   const { t } = useTranslation();
-  const { title, widgetType, widgetOption, dataSet, isInvalidData, size } = props;
+  const { title, widgetType, widgetOption, dataSet, isInvalidData, description } = props;
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const [module, setModule] = useState(null);
 
@@ -375,7 +375,7 @@ const WidgetViewer = props => {
         module = (
           <React.Fragment>
             <NumericBoard {...chartProps} />
-            <LineChart {...chartProps} seriesOp={{ type: 'bar', stack: 'total' }} />;
+            <LineChart {...chartProps} seriesOp={{ type: 'bar', stack: 'total' }} />
           </React.Fragment>
         );
         break;
@@ -521,13 +521,20 @@ const WidgetViewer = props => {
         </Typography>
       </Stack>
 
+      {description && (
+        <Typography sx={{ px: '20px', fontSize: 12, color: 'text.secondary', overflowWrap: 'anywhere' }}>
+          {description}
+        </Typography>
+      )}
       <Stack
         sx={{
           width: '100%',
+          minHeight: 0,
+          flex: '1 1 auto',
           height: 'calc(100% - 48px)',
           pt: '10px',
-          pb: { xs: '25px', sm: '48px' },
-          px: { xs: '10px', sm: '40px' },
+          pb: { xs: '12px', sm: '20px' },
+          px: { xs: '12px', sm: '20px' },
           overflowY: 'auto',
         }}
       >
@@ -535,7 +542,7 @@ const WidgetViewer = props => {
           sx={{
             position: 'relative',
             width: '100%',
-            minWidth: { xs: `calc(${size} * 80px)`, sm: 0 },
+            minWidth: 0,
             height: '100%',
           }}
         >

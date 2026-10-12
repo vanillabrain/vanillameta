@@ -80,6 +80,23 @@ describe('AiService', () => {
     process.env = envBackup;
   });
 
+  it('uses the DuckDB schema and dialect without invoking Knex', async () => {
+    connectionService.isDuckDB = jest.fn().mockResolvedValue(true);
+    connectionService.queryDuckDB = jest
+      .fn()
+      .mockResolvedValue({ datas: [{ column_name: 'requests', column_type: 'BIGINT' }] });
+    try {
+      expect(await (service as any).getSchemaContext(3)).toEqual({
+        dialect: 'DuckDB',
+        schemaText: '- uploaded_data(requests BIGINT)',
+      });
+      expect(connectionService.getKnex).not.toHaveBeenCalled();
+    } finally {
+      delete connectionService.isDuckDB;
+      delete connectionService.queryDuckDB;
+    }
+  });
+
   it('databaseId가 유효하지 않으면 ERROR를 반환한다', async () => {
     const res = await service.textToSql(0, 'select all users');
     expect(res.status).toBe(ResponseStatus.ERROR);

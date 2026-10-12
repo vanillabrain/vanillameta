@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Box, Button, Card, CardHeader, Stack, TextField } from '@mui/material';
+import { Box, Button, Card, Stack, TextField } from '@mui/material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import PageTitleBox from '@/components/PageTitleBox';
 import AddWidgetPopup from '@/pages/Dashboard/Components/AddWidgetPopup';
@@ -461,7 +461,6 @@ function DashboardModify() {
               color="primary"
               sx={{
                 borderRadius: '8px',
-                backgroundColor: '#043f84',
                 width: '97px',
                 height: '32px',
                 display: 'flex',
@@ -470,7 +469,6 @@ function DashboardModify() {
                 alignItems: 'center',
                 padding: '7px 0',
                 objectFit: 'contain',
-                border: 'solid 1px #0f5ab2',
               }}
             >
               {t('dashboardModify.addWidget')}
@@ -484,29 +482,31 @@ function DashboardModify() {
           </>
         }
       >
-        <Box
-          sx={{
-            width: '1390px',
-            minWidth: '1390px',
-            minHeight: '1080px',
-            backgroundImage: `url(${bg})`,
-            backgroundRepeat: 'repeat',
-            borderRadius: '0px 0px 6px 6px',
-          }}
-        >
-          <ResponsiveGridLayout
-            rowHeight={88}
-            compactType={null}
-            cols={{ lg: 12 }}
-            layouts={{ lg: layout }}
-            preventCollision={true}
-            containerPadding={{ lg: [24, 24] }}
-            margin={{ lg: [24, 24] }}
-            onLayoutChange={onLayoutChange}
+        <Box sx={{ width: '100%', minWidth: 0, overflowX: 'auto' }}>
+          <Box
+            sx={{
+              width: '1390px',
+              minWidth: '1390px',
+              minHeight: '1080px',
+              backgroundImage: `url(${bg})`,
+              backgroundRepeat: 'repeat',
+              borderRadius: '0px 0px 6px 6px',
+            }}
           >
-            {generateWidget()}
-          </ResponsiveGridLayout>
-          <RecommendDashboardPopup recommendOpen={recommendOpen} handleComplete={handleCompleteRecommend} />
+            <ResponsiveGridLayout
+              rowHeight={88}
+              compactType={null}
+              cols={{ lg: 12 }}
+              layouts={{ lg: layout }}
+              preventCollision={true}
+              containerPadding={{ lg: [24, 24] }}
+              margin={{ lg: [24, 24] }}
+              onLayoutChange={onLayoutChange}
+            >
+              {generateWidget()}
+            </ResponsiveGridLayout>
+            <RecommendDashboardPopup recommendOpen={recommendOpen} handleComplete={handleCompleteRecommend} />
+          </Box>
         </Box>
       </PageViewBox>
     </PageTitleBox>

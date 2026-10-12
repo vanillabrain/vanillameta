@@ -117,10 +117,11 @@ export default createTheme({
             border: 0,
           },
         },
-        contained: {
-          border: '1px solid #0f5ab2',
-          backgroundColor: '#043f84',
-        },
+        containedPrimary: ({ theme }) => ({
+          backgroundColor: theme.palette.primary.main,
+          color: theme.palette.primary.contrastText,
+          '&:hover': { backgroundColor: theme.palette.primary.dark, boxShadow: 'none' },
+        }),
         // hover: {},
         sizeLarge: {
           height: '44px',
@@ -128,7 +129,6 @@ export default createTheme({
           fontWeight: 'bold',
           lineHeight: '16px',
           textTransform: 'capitalize',
-          backgroundColor: '#043f84',
         },
       },
     },
@@ -159,7 +159,7 @@ export default createTheme({
       },
       styleOverrides: {
         root: {
-          height: '32px',
+          minHeight: '32px',
           margin: 0,
         },
       },
@@ -228,6 +228,7 @@ export default createTheme({
       styleOverrides: {
         root: {
           height: '32px',
+          '&.MuiInputBase-multiline': { height: 'auto' },
           backgroundColor: '#fff',
           fontFamily: 'Pretendard',
 

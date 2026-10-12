@@ -1,6 +1,7 @@
-import { Body, Controller, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { AiDashboardService } from './ai-dashboard.service';
 import { AiService } from './ai.service';
 import { RecommendChartDto } from './dto/recommend-chart.dto';
 import { TextToSqlDto } from './dto/text-to-sql.dto';
@@ -9,7 +10,30 @@ import { TextToSqlDto } from './dto/text-to-sql.dto';
 @Controller('ai')
 @ApiTags('ai')
 export class AiController {
-  constructor(private readonly aiService: AiService) {}
+  constructor(
+    private readonly aiService: AiService,
+    private readonly dashboards: AiDashboardService,
+  ) {}
+
+  @Post('dashboard-draft')
+  dashboardDraft(@Body() body: any, @Req() req) {
+    return this.dashboards.generate(body, req.user.accessKeyData.id);
+  }
+
+  @Post('dashboard-preview')
+  dashboardPreview(@Body() body: any, @Req() req) {
+    return this.dashboards.preview(body, req.user.accessKeyData.id);
+  }
+
+  @Post('dashboard-save')
+  dashboardSave(@Body() body: any, @Req() req) {
+    return this.dashboards.save(body, req.user.accessKeyData.id);
+  }
+
+  @Get('dashboard-analysis/:id')
+  dashboardAnalysis(@Param('id') id: string, @Req() req) {
+    return this.dashboards.analysis(+id, req.user.accessKeyData.id);
+  }
 
   /**
    * 자연어 → SQL 생성 (데이터셋 SQL 에디터 AI 어시스턴트)

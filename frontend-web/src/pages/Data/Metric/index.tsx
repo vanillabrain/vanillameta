@@ -131,16 +131,21 @@ const Metric = () => {
 
         {metrics.map((m: any) => (
           <Card key={m.id} sx={{ p: '16px 20px', border: 'solid 1px #e2e2e2', boxShadow: 'none', borderRadius: '8px' }}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Box>
-                <Typography sx={{ fontSize: '15px', fontWeight: 600 }}>{m.name}</Typography>
-                <Typography sx={{ fontSize: '12px', color: '#767676', mt: '4px' }}>
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={2}
+              justifyContent="space-between"
+              alignItems={{ xs: 'stretch', sm: 'center' }}
+            >
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography sx={{ fontSize: '15px', fontWeight: 600, overflowWrap: 'anywhere' }}>{m.name}</Typography>
+                <Typography sx={{ fontSize: '12px', color: 'text.secondary', mt: '4px', overflowWrap: 'anywhere' }}>
                   {m.aggregation}({m.expression}) FROM {m.tableName}
                   {m.groupBy ? ` GROUP BY ${m.groupBy}` : ''}
                   {m.description ? ` — ${m.description}` : ''}
                 </Typography>
               </Box>
-              <Stack direction="row" spacing="8px" alignItems="center">
+              <Stack direction="row" spacing="8px" alignItems="center" sx={{ flexShrink: 0 }}>
                 <Button size="small" variant="outlined" onClick={() => handleEvaluate(m)}>
                   {t('metric.evaluate')}
                 </Button>

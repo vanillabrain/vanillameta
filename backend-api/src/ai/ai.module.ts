@@ -13,6 +13,8 @@ import { Dataset } from '../dataset/entities/dataset.entity';
 import { Widget } from '../widget/entities/widget.entity';
 import { TableQuery } from '../widget/tabel-query/entity/table-query.entity';
 import { AiController } from './ai.controller';
+import { AiDashboardService } from './ai-dashboard.service';
+import { DashboardShare } from '../dashboard/entities/dashboard_share.entity';
 import { AiService } from './ai.service';
 import { UserMapping } from '../user/entities/user-mapping.entity';
 
@@ -25,12 +27,20 @@ import { UserMapping } from '../user/entities/user-mapping.entity';
       DatabaseType,
       Component,
       Dashboard,
+      DashboardShare,
       UserMapping,
       DashboardWidget,
       Widget,
     ]),
   ],
   controllers: [AiController],
-  providers: [AiService, ConnectionService, DatabaseService, DashboardWidgetService, JwtService],
+  providers: [
+    AiDashboardService,
+    AiService,
+    ConnectionService,
+    DatabaseService,
+    DashboardWidgetService,
+    JwtService,
+  ],
 })
 export class AiModule {}

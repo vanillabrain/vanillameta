@@ -321,13 +321,14 @@ const WidgetSetting = props => {
     <Stack
       justifyContent="space-between"
       sx={{
-        width: '40%',
-        maxWidth: '440px',
-        minWidth: '340px',
-        height: '100%',
+        width: { xs: '100%', md: '40%' },
+        maxWidth: { xs: 'none', md: '440px' },
+        minWidth: { xs: 0, md: '340px' },
+        height: { xs: 'auto', md: '100%' },
+        flexShrink: { xs: 0, md: 1 },
         px: '24px',
         py: '30px',
-        overflowY: 'auto !important',
+        overflowY: { xs: 'visible', md: 'auto !important' },
         backgroundColor: '#fff',
       }}
     >

@@ -15,7 +15,7 @@ const selectData = (data: unknown): Promise<any> => get(URL_DATABASE + '/data', 
 const uploadFile = (file: File): Promise<any> => {
   const form = new FormData();
   form.append('file', file);
-  return postForm(URL_DATABASE + '/upload', form);
+  return postForm(URL_DATABASE + '/upload', form, { timeout: 360000 });
 };
 
 const DatabaseService = {

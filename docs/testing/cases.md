@@ -212,14 +212,14 @@
 
 - Surface: UI
 - Action: WASM initialization failure and navigation recovery
-- Expected: Explicit engine error and disabled upload while unavailable; navigating away/back with fault removed recovers. This is fault injection, not a live provider test.
+- Expected: Explicit browser-engine error; server save remains available while browser analysis is unavailable; navigating away/back with fault removed recovers. This is fault injection, not a live provider test.
 
 
 ### FILE-13: Server CSV, JSON and Parquet upload
 
 - Surface: API
 - Action: Server CSV, JSON and Parquet upload
-- Expected: Each creates its own SQLite source, reports three rows and executes rowsSql/aggregateSql with exact oracle values.
+- Expected: Each creates its own server DuckDB source (TypeORM metadata DB unchanged), reports three rows and executes rowsSql/aggregateSql with exact oracle values.
 
 
 ### FILE-14: Missing, empty, header-only, malformed JSON, non-object JSON array and corrupt Parquet uploads
@@ -257,17 +257,17 @@
 - Expected: Union of columns is retained, missing values are null and nonmissing values are not dropped.
 
 
-### FILE-19: Upload row cap for CSV, JSON and Parquet
+### FILE-19: Full upload beyond 100000 rows
 
 - Surface: API
-- Action: Upload row cap for CSV, JSON and Parquet
-- Expected: 100001 rows rejected rather than truncated; valid three-row input still works afterward.
+- Action: Upload a CSV with 100001 records; check row count and aggregate; verify the 1391572-row Parquet with INGEST-01.
+- Expected: All 100001 rows stored, no truncation. Row-count cap replaced by upload byte, worker memory, storage and timeout limits. CSV/JSON/Parquet small variants remain FILE-13.
 
 
-### FILE-20: Multipart body exceeds 50 MiB
+### FILE-20: Multipart body exceeds configured file byte limit
 
 - Surface: API
-- Action: Multipart body exceeds 50 MiB
+- Action: Set FILE_UPLOAD_MAX_BYTES to a small test limit and send a larger multipart file; production default is 512 MiB.
 - Expected: 413 with no metadata source creation, no server crash and subsequent health request succeeds.
 
 
@@ -745,3 +745,9 @@
 - Surface: API
 - Action: Duplicate component type and missing component ID
 - Expected: Controlled conflict/error without new duplicate rows, server error or unrelated mutations.
+
+## Server DuckDB MVP
+
+Additional MD scenarios and fixed Rill oracle: [server-duckdb.md](server-duckdb.md). Browser-analysis cases now require explicit **Analyze in browser** after file selection. Server upload uses **Save as dataset** directly.
+
+시각화 디자인/LLM/경쟁 UX 비교 명세: [design-rill-parity.md](design-rill-parity.md). 숫자 집계 성공과 디자인·LLM 동등성은 별도 판정한다.

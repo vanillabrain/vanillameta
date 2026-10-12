@@ -126,6 +126,7 @@ export async function filePage(page: Page) {
 
 export async function browserFile(page: Page, name = `${unique()}.csv`, buffer = Buffer.from(GOLD.salesCsv)) {
   await page.locator('input[type="file"]').setInputFiles({ name, mimeType: 'application/octet-stream', buffer });
+  await page.getByRole('button', { name: /^(브라우저에서 분석|Analyze in browser)$/ }).click();
   await expect(page.getByText(`${name} →`, { exact: false })).toBeVisible({ timeout: 30000 });
   await expect(page.getByRole('button', { name: 'Choose file', exact: true })).toBeEnabled();
 }

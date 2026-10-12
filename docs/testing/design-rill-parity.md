@@ -1,0 +1,54 @@
+# Rill / VanillaMeta 디자인·LLM 결과 비교
+
+## 비교 조건
+
+동일 SHA256 Rill auction_data.parquet 1,391,572행, 전체 기간, 필터 없음, desktop1440×900. Rill 모델은 원본 날짜를 현재로 이동하므로 기간 명시/총량을 비교하며 원본 날짜 동일성은 별도다. 기존 저장/집계 검증은 관련 변경 없으면 재사용한다. 새 화면 캡처는 이번 실행으로 남긴다. 화면 반올림과 실제 집계값을 분리한다.
+
+공통 질문:
+
+> Using all available data, report total requests and average bid floor calculated as SUM(bid_floor)/SUM(has_bid_floor_cnt), then list requests by device_type sorted descending. Show a horizontal bar chart with all nine device labels and explain the calculation and time range. Do not change existing dashboards.
+
+## DESIGN-01 — 데이터·질문·결과 일치
+
+- 실제 제품 LLM 입력창에 위 질문을 입력한다. 미설정/지원하지 않는 작업을 수동 결과로 대체해 PASS하지 않는다.
+- 기대: total634513000, avg5.5712386765263995±1e-9, 기기9개 기존 oracle와 일치. 설명에 전체기간/분모/필터 명시. 숫자 UI와 SQL/API 정답을 대조.
+
+## DESIGN-02 — 읽기 화면
+
+- 기대: 총 요청/평균 KPI, 기기별 내림차순 가로 막대, 9개 이름을 hover 없이 읽을 수 있음, 0기준 축, 단위·정밀도 일관성. 좁은 항목도 값 확인 가능.
+- desktop1440×900에서 주요 정보가 보이고 차트가 절반 화면만 차지하며 나머지가 의미 없이 비어 있지 않음.
+- 동일 기간과 필터 상태를 식별할 수 있음. 미제공 요소는 FAIL로 기록한다. 픽셀/색상 복제보다 작업 완료와 가시성을 비교한다.
+
+## DESIGN-03 — 탐색/편집 UX
+
+- 기대: 동일 화면에서 차원 필터 적용/해제, KPI·차트 갱신, 자연어 결과 확인·수정·취소. 제품에 없는 기능은 NOT_IMPLEMENTED.
+- Rill 필터 Mobile/Tablet의 요청307763000 확인. VanillaMeta 동등 대시보드 필터 유무 확인.
+
+## DESIGN-04 — 반응형·접근성 관찰
+
+- 390×844에서 layout overflow/잘린 범주/KPI/핵심 버튼 관찰. 키보드 focus/명칭/차트 표 대체수단은 확인 범위별 기록.
+- screenshot만으로 WCAG 준수를 선언하지 않음. 측정하지 않은 대비/스크린리더/전체 키보드 접근은 NOT_RUN.
+
+## 수동 참조 구성 재검증
+
+- 읽기 화면 비교에는 요청 KPI(0자리), 가중 평균 KPI(2자리), 기기별 가로막대를 사용한다. 기본 12열에서 KPI 각각 w6/h2, 차트 w12/h5로 배치한다. 데이터셋은 전체 요청/가중 평균과 기기별 집계를 분리한다.
+- 수동/API 픽스처로 구성했다면 LLM 자동 생성 성공과 구분한다. 실제 브라우저에서 저장 후 reload, 범주 9개와 축 단위 확인, 데이터 표 보기/숨기기와 정확값 확인을 기록한다.
+- 같은 데이터에서도 UI 반올림은 원본 값과 다를 수 있다. 숫자 KPI의 원본 title/ARIA와 데이터 표를 확인한다. 모바일 배치 단위검사는 실제 모바일 화면 확인을 대체하지 않는다.
+
+## FILTER-01 — 공통 차원 필터
+
+- 같은 Rill 원본으로 기기 `Mobile/Tablet` 선택: 요청 KPI307763000, 기기 막대1개, 모든 위젯에 동일 원본 범위 적용. 가중 평균은 필터된 원본에서 SUM(bid_floor)/SUM(has_bid_floor_cnt), 전체 평균을 재사용하지 않는다.
+- 초기화로 전체 범위 복귀. 빨리 연속 변경하면 마지막 요청 결과만 반영. 조회 실패는 이전 결과를 현재 필터 결과로 오인하지 않게 표시한다.
+- 컬럼/값/쿼리 검증, 다른 사용자 대시보드 수정 거절. 기존 통과 집계는 반복하지 않고 새 필터 집계만 고정 정답과 대조한다.
+
+## AI-DASH-01 — 생성·수정·저장·취소
+
+- 질문으로 초안 생성: SQL·설명·차트 미리보기 후 명시적으로 저장. 생성 자체는 저장하지 않는다.
+- 수정 질문으로 초안 변경, 취소하면 원본 유지. 저장하면 같은 대시보드 ID를 유지하고 reload 후 변경 유지.
+- 미설정/LLM 오류/잘못된 SQL/결과 필드 불일치는 제어된 오류. mock 제공자 검사는 실LLM 비교 성공이 아니다.
+- 같은 질문과 수정 요청 `Rename the dashboard to Auction device analysis and show requests by device as a horizontal bar chart, keeping the two KPIs.`로 결과·단계·취소/저장 차이를 기록한다.
+
+## AI-DASH-02 — 모바일 브라우저
+
+- 실제 Chromium390×844: 공통 필터 선택/해제, AI 편집 열기·취소, KPI·긴 범주명·표 확인, 가로 document overflow 없음. 키보드/스크린리더 전체 준수는 별도다.
+- Aside가 viewport 변경을 지원하지 않으면 기존 Playwright Chromium을 대안으로 사용하고, 실행별 증빙 스크립트로 남긴다. 사용한 브라우저/실제 viewport를 명시한다.

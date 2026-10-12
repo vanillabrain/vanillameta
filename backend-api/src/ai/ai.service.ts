@@ -40,7 +40,7 @@ export class AiService {
   /**
    * OpenAI 호환 chat completions API 호출 (AI_API_BASE_URL로 OpenAI/Azure/로컬LLM 등 설정 가능)
    */
-  private async callLlm(systemPrompt: string, userPrompt: string): Promise<string> {
+  async callLlm(systemPrompt: string, userPrompt: string, jsonMode = false): Promise<string> {
     const apiKey = process.env.AI_API_KEY;
     if (!apiKey) {
       throw new Error('AI_NOT_CONFIGURED');
@@ -52,7 +52,12 @@ export class AiService {
     const model = process.env.AI_MODEL || 'gpt-4o-mini';
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
+    const configuredTimeout = Number(process.env.AI_TIMEOUT_MS);
+    const timeoutMs =
+      Number.isFinite(configuredTimeout) && configuredTimeout > 0
+        ? Math.min(configuredTimeout, 180000)
+        : 30000;
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
     let response: Response;
     try {
       response = await fetch(`${baseUrl}/chat/completions`, {
@@ -64,6 +69,10 @@ export class AiService {
         body: JSON.stringify({
           model,
           temperature: 0,
+          ...(jsonMode ? { response_format: { type: 'json_object' }, max_tokens: 4096 } : {}),
+          ...(process.env.AI_REASONING_EFFORT
+            ? { reasoning_effort: process.env.AI_REASONING_EFFORT }
+            : {}),
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt },
@@ -92,9 +101,14 @@ export class AiService {
   /**
    * 대상 데이터베이스의 테이블/컬럼 스키마를 프롬프트 컨텍스트로 구성
    */
-  private async getSchemaContext(
-    databaseId: number,
-  ): Promise<{ schemaText: string; dialect: string }> {
+  async getSchemaContext(databaseId: number): Promise<{ schemaText: string; dialect: string }> {
+    if (await this.connectionService.isDuckDB?.(databaseId)) {
+      const schema = await this.connectionService.queryDuckDB(databaseId, 'DESCRIBE uploaded_data');
+      const columns = schema.datas
+        .map((column: any) => `${column.column_name} ${column.column_type}`)
+        .join(', ');
+      return { dialect: 'DuckDB', schemaText: `- uploaded_data(${columns})` };
+    }
     const knex = await this.connectionService.getKnex(databaseId);
     const clientName =
       typeof knex.client.config.client === 'string' ? knex.client.config.client : 'unknown';

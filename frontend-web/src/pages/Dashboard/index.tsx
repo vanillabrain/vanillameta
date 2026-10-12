@@ -1,4 +1,4 @@
-import React, { useContext, useEffect } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import PageTitleBox from '@/components/PageTitleBox';
 import BoardList from '@/components/BoardList';
 import { Outlet, useNavigate, useParams } from 'react-router-dom';
@@ -14,9 +14,11 @@ import { styled } from '@mui/system';
 import { LoadingContext } from '@/contexts/LoadingContext';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import Seo from '@/seo/Seo';
+import AiDashboardPanel from './Components/AiDashboardPanel';
 
 function Dashboard() {
   const { t } = useTranslation();
+  const [aiOpen, setAiOpen] = useState(false);
   const title = t('common.dashboard');
   const { dashboardId } = useParams();
   const alert = useAlert();
@@ -78,6 +80,7 @@ function Dashboard() {
   });
 
   const menuList = [
+    { name: 'AI 대시보드 만들기', link: '', id: 'ai' },
     { name: t('nav.dashboard'), link: '/dashboard/create', id: 'dashboard' },
     { name: t('list.recommend'), link: '', id: 'recommend' },
   ];
@@ -104,7 +107,9 @@ function Dashboard() {
   const handleMenuSelect = item => {
     console.log(item);
     if (item.id !== undefined) {
-      if (item.id == 'dashboard') {
+      if (item.id === 'ai') {
+        setAiOpen(true);
+      } else if (item.id == 'dashboard') {
         navigate('/dashboard/create?createType=dashboard');
       } else {
         navigate('/dashboard/create?createType=recommend');
@@ -162,6 +167,15 @@ function Dashboard() {
   return (
     <Stack sx={{ width: '100%', height: '100%', flex: '1 1 auto' }}>
       <Seo title={title} />
+      <AiDashboardPanel
+        open={aiOpen}
+        onClose={() => setAiOpen(false)}
+        onSaved={id => {
+          setAiOpen(false);
+          queryClient.invalidateQueries({ queryKey: ['dashboards'] });
+          navigate(`/dashboard/${id}`);
+        }}
+      />
 
       {!dashboardId ? (
         <>

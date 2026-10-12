@@ -20,10 +20,17 @@ const NumericBoardSetting = props => {
   };
 
   const handleContentChange = event => {
-    console.log('event', event);
-    const newOption = { ...option };
-    option.content[event.target.name] = event.target.value;
-    setOption({ ...option, ...newOption });
+    const { name, value } = event.target;
+    const content = { ...option.content };
+    if (name === 'decimalPlaces') {
+      if (value === '') delete content.decimalPlaces;
+      else {
+        const decimalPlaces = Number(value);
+        if (!Number.isInteger(decimalPlaces) || decimalPlaces < 0 || decimalPlaces > 6) return;
+        content.decimalPlaces = decimalPlaces;
+      }
+    } else content[name] = value;
+    setOption({ ...option, content });
   };
 
   return (
@@ -89,6 +96,13 @@ const NumericBoardSetting = props => {
           label={t('settings.numberFormat')}
           optionList={DISPLAY_LIST(t)}
           value={option.content.numForm}
+          onChange={handleContentChange}
+        />
+        <SelectForm
+          name="decimalPlaces"
+          label={t('settings.decimalPlaces', { defaultValue: 'Decimal places' })}
+          optionList={[0, 1, 2, 3, 4, 5, 6]}
+          value={option.content.decimalPlaces ?? ''}
           onChange={handleContentChange}
         />
         <TextFieldForm label="Prefix" name="prefix" value={option.content.prefix} onChange={handleContentChange} />

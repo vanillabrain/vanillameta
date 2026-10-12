@@ -1,4 +1,22 @@
 export default {
+  ai: {
+    dashboardCreate: 'AI 대시보드 만들기',
+    dashboardEdit: 'AI로 대시보드 수정',
+    dashboardInstructions:
+      '질문으로 초안을 만든 뒤 미리보기를 확인하고 저장하세요. 수정·취소는 원본에 바로 반영되지 않습니다.',
+    dataSource: '데이터 소스',
+    noSources: '등록된 데이터 소스가 없습니다. 파일을 먼저 저장해 주세요.',
+    dashboardPrompt: '분석하거나 수정할 내용',
+    dashboardPromptExample: '전체 요청 수와 가중 평균 입찰 하한, 기기별 요청을 보여 주세요.',
+    generating: '미리보기 생성 중…',
+    previewNeedsUpdate: '이전 미리보기입니다. 저장하려면 수정 내용을 다시 생성해 주세요.',
+    saving: '저장 중…',
+    generatePreview: '미리보기 생성',
+    revisePreview: '수정 미리보기 생성',
+    createDashboard: 'AI 대시보드 만들기',
+    editDashboard: 'AI로 대시보드 수정',
+  },
+  chart: { showDataTable: '데이터 표 보기', hideDataTable: '데이터 표 숨기기' },
   nav: {
     dashboard: '대시보드',
     widget: '위젯',
@@ -60,9 +78,10 @@ export default {
   },
   fileAnalysis: {
     title: '파일 분석',
-    description: 'CSV / Parquet / JSON 파일을 업로드하면 서버 없이 브라우저에서 바로 분석됩니다.',
+    description: 'CSV / Parquet / JSON 파일을 선택해 데이터셋으로 저장하세요. 브라우저에서 먼저 분석할 수도 있습니다.',
     engineLoading: '엔진 로딩 중...',
     selectFile: '파일 선택',
+    analyzeBrowser: '브라우저에서 분석',
     processing: '처리 중...',
     run: 'Run',
     queryPlaceholder: 'SQL을 입력하세요. 테이블명: {{table}}',
@@ -80,7 +99,7 @@ export default {
     fileTypeError: 'CSV, Parquet, JSON 파일만 지원합니다.',
     loadFailed: '파일 분석에 실패했습니다: {{message}}',
     queryFailed: '쿼리 실행에 실패했습니다: {{message}}',
-    engineFailed: '인브라우저 분석 엔진을 불러오지 못했습니다.',
+    engineFailed: '브라우저 분석을 사용할 수 없습니다. 파일은 데이터셋으로 저장할 수 있습니다.',
     chartType: { bar: '막대', line: '선형', pie: '파이' },
   },
   metric: {
@@ -184,6 +203,8 @@ export default {
     view: '위젯 조회',
   },
   share: {
+    button: '공유',
+    buttonActive: '공유중',
     pageShare: '페이지 공유',
     sharing: '페이지 공유 중',
     notSharing: '페이지 공유하지 않음',
@@ -272,6 +293,7 @@ export default {
     logoutFailed: '로그아웃에 실패했습니다.\n다시 시도해 주세요.',
   },
   settings: {
+    decimalPlaces: '소수 자릿수',
     cnt: '갯수',
     sum: '합계',
     avg: '평균',

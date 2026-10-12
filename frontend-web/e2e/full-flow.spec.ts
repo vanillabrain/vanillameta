@@ -8,6 +8,7 @@ async function openSalesFile(page: Page) {
   await page.goto('/data/file');
   await expect(page.getByRole('button', { name: /^(파일 선택|Choose file)$/ })).toBeEnabled({ timeout: 60000 });
   await page.locator('input[type="file"]').setInputFiles(path.join(__dirname, 'fixtures/generated/sales.csv'));
+  await page.getByRole('button', { name: /^(브라우저에서 분석|Analyze in browser)$/ }).click();
   await expect(page.getByText(/sales\.csv → uploaded_data/)).toBeVisible();
   await expect(page.locator('.tui-grid-container')).toBeVisible({ timeout: 30000 });
 }
@@ -83,7 +84,7 @@ test.describe('CSV 핵심 플로우', () => {
       expect(persisted.ok()).toBe(true);
       expect(await persisted.json()).toMatchObject({
         status: 'SUCCESS',
-        data: { id: datasetId, title, databaseId, query: 'SELECT * FROM uploaded_data' },
+        data: { id: datasetId, title, databaseId, query: 'SELECT * FROM uploaded_data LIMIT 500' },
       });
     } finally {
       try {

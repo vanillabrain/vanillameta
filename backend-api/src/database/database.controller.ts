@@ -1,3 +1,8 @@
+import { diskStorage } from 'multer';
+import * as fs from 'fs';
+import * as path from 'path';
+import { randomUUID } from 'crypto';
+import { AnalysisUpload } from '../analysis/duckdb.service';
 import {
   Body,
   Headers,
@@ -77,12 +82,28 @@ export class DatabaseController {
   }
 
   /**
-   * 파일 업로드 → SQLite 데이터소스 생성
+   * 파일 업로드 → 서버 워커에서 DuckDB 데이터소스 생성
    * @param file
    */
   @Post('upload')
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 50 * 1024 * 1024 } }))
-  uploadFile(@UploadedFile() file: { originalname: string; buffer: Buffer }) {
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: (_request, _file, callback) => {
+          const directory = path.resolve(process.env.FILE_UPLOAD_DIR || 'uploads', 'incoming');
+          fs.mkdir(directory, { recursive: true, mode: 0o700 }, error =>
+            callback(error, directory),
+          );
+        },
+        filename: (_request, _file, callback) => callback(null, randomUUID()),
+      }),
+      limits: {
+        fileSize: Number(process.env.FILE_UPLOAD_MAX_BYTES) || 512 * 1024 * 1024,
+        files: 1,
+      },
+    }),
+  )
+  uploadFile(@UploadedFile() file: AnalysisUpload) {
     return this.databaseService.uploadFile(file);
   }
 

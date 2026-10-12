@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
-import { Box, Button, Card, MenuItem, Select, Typography, useMediaQuery, useTheme } from '@mui/material';
+import { Box, Button, Card, MenuItem, Select, Typography } from '@mui/material';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import PageTitleBox from '@/components/PageTitleBox';
 import WidgetWrapper from '@/widget/wrapper/WidgetWrapper';
@@ -22,6 +22,8 @@ import shareService from '@/api/shareService';
 import { AuthContext } from '@/contexts/AuthContext';
 import Seo from '@/seo/Seo';
 import { dateData } from '@/utils/util';
+import { readLayouts } from '../readLayouts';
+import DashboardAnalysis from '../Components/DashboardAnalysis';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 const defaultDashboardInfo = {
@@ -42,8 +44,6 @@ const DashboardView = () => {
   const snackbar = useAlert(SnackbarContext);
   const { userState } = useContext(AuthContext);
   const { showLoading, hideLoading } = useContext(LoadingContext);
-  const theme = useTheme();
-  const matches = useMediaQuery(theme.breakpoints.up('sm'));
   const [dashboardInfo, setDashboardInfo] = useState(defaultDashboardInfo); // dashboard 정보
   const dashboardRequest = useRef(0);
   const [layout, setLayout] = useState([]); // grid layout
@@ -159,8 +159,9 @@ const DashboardView = () => {
             width: '100%',
             height: '100%',
             borderRadius: '8px',
-            boxShadow: '2px 2px 9px 0 rgba(42, 50, 62, 0.1), 0 4px 4px 0 rgba(0, 0, 0, 0.02)',
-            border: 'solid 1px #e2e2e2',
+            boxShadow: '0 2px 6px rgba(42, 50, 62, 0.06)',
+            border: '1px solid',
+            borderColor: 'divider',
             backgroundColor: '#fff',
           }}
         >
@@ -306,7 +307,7 @@ const DashboardView = () => {
                 size="small"
                 onClick={handleInsightClick}
                 disabled={insightLoading}
-                sx={{ mr: '8px', backgroundColor: '#fff' }}
+                sx={{ mr: '8px', backgroundColor: '#fff', whiteSpace: 'nowrap', flexShrink: 0 }}
               >
                 {insightLoading ? t('dashboard.insightLoading') : t('dashboard.insight')}
               </Button>
@@ -342,23 +343,29 @@ const DashboardView = () => {
           <Box
             sx={{
               flex: '1 1 auto',
-              minHeight: { sm: '1080px' },
+              minWidth: 0,
               backgroundColor: '#f9f9fa',
               borderRadius: '0px 0px 6px 6px',
             }}
           >
-            <ResponsiveGridLayout
-              key={layoutVersion}
-              rowHeight={88}
-              compactType={null}
-              breakpoints={{ xs: 0, md: 800, lg: 1000 }}
-              cols={{ xs: 2, md: 8, lg: 12 }}
-              layouts={{ xs: layout, md: layout, lg: layout }}
-              containerPadding={{ xs: [20, 20], md: [20, 20], lg: [24, 24] }}
-              margin={{ xs: [20, 20], md: [20, 20], lg: [24, 24] }}
+            <DashboardAnalysis
+              key={`${dashboardId}:${dashboardInfo.updatedAt}`}
+              dashboardId={dashboardId}
+              onSaved={() => getDashboardInfo(dashboardId)}
             >
-              {generateWidget()}
-            </ResponsiveGridLayout>
+              <ResponsiveGridLayout
+                key={layoutVersion}
+                rowHeight={76}
+                compactType={null}
+                breakpoints={{ xs: 0, md: 800, lg: 1000 }}
+                cols={{ xs: 1, md: 8, lg: 12 }}
+                layouts={readLayouts(layout)}
+                containerPadding={{ xs: [12, 12], md: [16, 16], lg: [20, 20] }}
+                margin={{ xs: [12, 12], md: [16, 16], lg: [20, 20] }}
+              >
+                {generateWidget()}
+              </ResponsiveGridLayout>
+            </DashboardAnalysis>
           </Box>
         </PageViewBox>
       </>

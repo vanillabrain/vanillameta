@@ -187,10 +187,11 @@ const WidgetCreate = () => {
     >
       <Box
         sx={{
-          position: 'fixed',
+          position: { xs: 'static', md: 'fixed' },
           zIndex: 1000,
           width: '100%',
-          mt: '56px',
+          mt: { xs: '96px', sm: '56px' },
+          flexShrink: 0,
           borderBottom: '1px solid #e3e7ea',
           backgroundColor: '#fff',
         }}
@@ -198,11 +199,22 @@ const WidgetCreate = () => {
         <Stepper
           activeStep={activeStep}
           sx={{
-            width: '50%',
-            minWidth: '450px',
+            width: { xs: '100%', md: '50%' },
+            minWidth: { xs: 0, md: '450px' },
             maxWidth: '564px',
-            height: '72px',
+            height: { xs: 'auto', sm: '72px' },
+            minHeight: '72px',
+            px: { xs: '12px', md: 0 },
+            py: { xs: '12px', sm: 0 },
             m: 'auto',
+            '& .MuiStep-root': { minWidth: { xs: 0, md: 'auto' } },
+            '& .MuiStepLabel-root': { flexDirection: { xs: 'column', md: 'row' } },
+            '& .MuiStepLabel-iconContainer': { pr: { xs: 0, md: '8px' } },
+            '& .MuiStepLabel-labelContainer': {
+              minWidth: 0,
+              textAlign: { xs: 'center', md: 'left' },
+              overflowWrap: 'anywhere',
+            },
           }}
         >
           {steps.map(label => {
@@ -222,7 +234,8 @@ const WidgetCreate = () => {
         sx={{
           display: 'flex',
           flex: '1 1 auto',
-          mt: '129px',
+          mt: { xs: 0, md: '129px' },
+          minWidth: 0,
         }}
       >
         <Box sx={{ display: activeStep === 0 ? 'flex' : 'none', flex: '1 1 auto' }}>

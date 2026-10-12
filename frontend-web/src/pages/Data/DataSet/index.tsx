@@ -69,7 +69,7 @@ const DataSet = () => {
   useEffect(() => {
     if (sourceId && state) {
       const { tableName } = state as any;
-      setDatasetInfo(prevState => ({ ...prevState, title: tableName, query: `SELECT * FROM ${tableName}` }));
+      setDatasetInfo(prevState => ({ ...prevState, title: tableName, query: `SELECT * FROM ${tableName} LIMIT 500` }));
     }
   }, []);
 
@@ -324,10 +324,17 @@ const DataSet = () => {
           required
         />
         <Stack
-          direction="row"
+          direction={{ xs: 'column', sm: 'row' }}
           spacing="12px"
-          alignItems="center"
-          sx={{ p: '12px 16px', border: 'solid 1px #e0e4ea', borderRadius: '8px', backgroundColor: '#f7f9fc' }}
+          alignItems={{ xs: 'stretch', sm: 'center' }}
+          sx={{
+            p: '12px 16px',
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: '8px',
+            bgcolor: 'background.default',
+            minWidth: 0,
+          }}
         >
           <Typography variant="subtitle2" sx={{ whiteSpace: 'nowrap', fontWeight: 600 }}>
             {t('dataset.aiGen')}
@@ -379,7 +386,7 @@ const DataSet = () => {
           label="Run"
           type="button"
           size="large"
-          sx={{ width: '374px', fontSize: '13px' }}
+          sx={{ width: '100%', maxWidth: '374px', fontSize: '13px' }}
           onClick={excuteQuery}
         />
       </Stack>

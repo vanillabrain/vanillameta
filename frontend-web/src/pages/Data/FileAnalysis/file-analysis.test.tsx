@@ -14,6 +14,7 @@ const state = vi.hoisted(() => ({
   error: vi.fn(),
   success: vi.fn(),
   upload: vi.fn(),
+  navigate: vi.fn(),
   option: null as any,
   gridData: null as any,
   gridColumns: null as any,
@@ -95,7 +96,7 @@ vi.mock('@/components/button/SubmitButton', () => ({
 vi.mock('@/seo/Seo', () => ({ default: () => null }));
 vi.mock('@/contexts/AlertContext', () => ({ SnackbarContext: {} }));
 vi.mock('@/api/databaseService', () => ({ default: { uploadFile: state.upload } }));
-vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn() }));
+vi.mock('react-router-dom', () => ({ useNavigate: () => state.navigate }));
 vi.mock('react-alert', () => ({ useAlert: () => ({ error: state.error, success: state.success }) }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 
@@ -126,7 +127,9 @@ beforeEach(() => {
   state.connect.mockResolvedValue({ query: state.query, close: state.close });
   state.query.mockImplementation(async (sql: string) => (sql.startsWith('SELECT') ? uploadResult() : undefined));
   state.register.mockResolvedValue(undefined);
-  state.upload.mockResolvedValue({ data: { status: 'SUCCESS', data: { rows: 3, id: 1 } } });
+  state.upload.mockResolvedValue({
+    data: { status: 'SUCCESS', data: { rows: 3, id: 1, name: 'sales', tableName: 'uploaded_data' } },
+  });
   vi.stubGlobal(
     'Worker',
     class {
@@ -147,9 +150,17 @@ const mountReady = async () => {
   await waitFor(() => expect((screen.getByText('fileAnalysis.selectFile') as HTMLButtonElement).disabled).toBe(false));
   return view;
 };
+const selectFile = (view: ReturnType<typeof render>, file: File) => {
+  fireEvent.change(view.container.querySelector('input[type=file]'), { target: { files: [file] } });
+};
+const startAnalysis = (view: ReturnType<typeof render>) => {
+  selectFile(view, new File(['category,amount\nA,100'], 'sales.csv'));
+  fireEvent.click(screen.getByText('fileAnalysis.analyzeBrowser'));
+};
 const upload = async (view: ReturnType<typeof render>, name = 'sales.csv') => {
   const file = new File(['category,amount\nA,100'], name);
   fireEvent.change(view.container.querySelector('input[type=file]'), { target: { files: [file] } });
+  fireEvent.click(screen.getByText('fileAnalysis.analyzeBrowser'));
   await waitFor(() => expect(state.success).toHaveBeenCalled());
   await waitFor(() => expect(screen.queryByTestId('chart')).not.toBeNull());
   return file;
@@ -183,6 +194,98 @@ const exportText = async () => {
   fireEvent.click(screen.getByText('fileAnalysis.exportCsv'));
   return readBlob(blob);
 };
+
+describe('FileAnalysis direct server save', () => {
+  it.each(['csv', 'json', 'parquet'])('saves a selected %s without starting browser analysis', async ext => {
+    const view = await mountReady();
+    const file = new File(['contents'], `data.${ext}`);
+    selectFile(view, file);
+    expect(state.instantiate).not.toHaveBeenCalled();
+    expect(state.register).not.toHaveBeenCalled();
+    expect(state.query).not.toHaveBeenCalled();
+    state.upload.mockResolvedValueOnce({
+      data: { status: 'SUCCESS', data: { id: 42, name: 'data', tableName: 'server_table', rows: 123 } },
+    });
+    fireEvent.click(screen.getByText('fileAnalysis.saveDataset'));
+    await waitFor(() =>
+      expect(state.navigate).toHaveBeenCalledWith('/data/set/create/42', {
+        state: { tableName: 'server_table' },
+      }),
+    );
+    expect(state.upload).toHaveBeenCalledWith(file);
+    expect(state.instantiate).not.toHaveBeenCalled();
+  });
+
+  it('allows a file larger than 50 MiB to save without reading it in the browser', async () => {
+    const view = await mountReady();
+    const file = new File(['small fixture'], 'large.csv');
+    Object.defineProperty(file, 'size', { value: 511 * 1024 * 1024 });
+    selectFile(view, file);
+    fireEvent.click(screen.getByText('fileAnalysis.saveDataset'));
+    await waitFor(() => expect(state.upload).toHaveBeenCalledWith(file));
+    expect(state.register).not.toHaveBeenCalled();
+    expect(state.instantiate).not.toHaveBeenCalled();
+  });
+
+  it('keeps direct saving available after browser initialization fails', async () => {
+    state.instantiate.mockRejectedValueOnce(new Error('unavailable'));
+    const view = await mountReady();
+    startAnalysis(view);
+    await waitFor(() => expect(state.error).toHaveBeenCalledWith('fileAnalysis.engineFailed'));
+    fireEvent.click(screen.getByText('fileAnalysis.saveDataset'));
+    await waitFor(() => expect(state.navigate).toHaveBeenCalled());
+    expect(state.upload).toHaveBeenCalled();
+    expect(state.workerTerminate).toHaveBeenCalledTimes(1);
+  });
+
+  it('blocks file replacement during upload, then allows retry on failure', async () => {
+    let reject: (error: Error) => void;
+    state.upload.mockImplementationOnce(() => new Promise((_, fail) => (reject = fail)));
+    const view = await mountReady();
+    const file = new File(['data'], 'original.csv');
+    selectFile(view, file);
+    fireEvent.click(screen.getByText('fileAnalysis.saveDataset'));
+    expect((screen.getByText('fileAnalysis.saving') as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByText('fileAnalysis.selectFile') as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByText('fileAnalysis.analyzeBrowser') as HTMLButtonElement).disabled).toBe(true);
+    selectFile(view, new File(['other'], 'other.csv'));
+    expect(view.container.textContent).toContain('original.csv');
+    expect(state.upload).toHaveBeenCalledTimes(1);
+    await act(async () => reject(new Error('upload failed')));
+    expect(state.navigate).not.toHaveBeenCalled();
+    expect(state.error).toHaveBeenCalledWith('upload failed');
+    fireEvent.click(screen.getByText('fileAnalysis.saveDataset'));
+    await waitFor(() => expect(state.upload).toHaveBeenCalledTimes(2));
+    expect(state.upload).toHaveBeenLastCalledWith(file);
+  });
+
+  it('shows a server rejection and keeps the selected file available to retry', async () => {
+    state.upload.mockResolvedValueOnce({ data: { status: 'ERROR', message: 'File rejected' } });
+    const view = await mountReady();
+    selectFile(view, new File(['data'], 'data.json'));
+    fireEvent.click(screen.getByText('fileAnalysis.saveDataset'));
+    await waitFor(() => expect(state.error).toHaveBeenCalledWith('File rejected'));
+    expect(state.navigate).not.toHaveBeenCalled();
+    expect(state.success).not.toHaveBeenCalled();
+    await waitFor(() => expect((screen.getByText('fileAnalysis.saveDataset') as HTMLButtonElement).disabled).toBe(false));
+  });
+
+  it('saves the selected file even when the browser query returns no rows', async () => {
+    const view = await mountReady();
+    const file = await upload(view);
+    await query('SELECT empty', result([], [['empty', 2]]));
+    fireEvent.click(screen.getByText('fileAnalysis.saveDataset'));
+    await waitFor(() => expect(state.upload).toHaveBeenCalledWith(file));
+  });
+
+  it('rejects unsupported extensions without initializing browser analysis', async () => {
+    const view = await mountReady();
+    selectFile(view, new File(['data'], 'data.txt'));
+    expect(state.error).toHaveBeenCalledWith('fileAnalysis.fileTypeError');
+    expect(screen.queryByText('fileAnalysis.saveDataset')).toBeNull();
+    expect(state.instantiate).not.toHaveBeenCalled();
+  });
+});
 
 describe('FileAnalysis settled data and lifecycle regressions', () => {
   it('plots original three values and exports no grid-added fields', async () => {
@@ -261,19 +364,25 @@ describe('FileAnalysis settled data and lifecycle regressions', () => {
     expect((screen.getByLabelText('fileAnalysis.value') as HTMLSelectElement).value).toBe('amount');
   });
 
-  it('closes failed file and query connections, and keeps the previous selected file after load failure', async () => {
+  it('closes failed connections and allows saving the selected file after browser analysis fails', async () => {
     const view = await mountReady();
-    const original = await upload(view);
+    await upload(view);
+    const brokenFile = new File(['bad'], 'broken.csv');
     state.close.mockClear();
     state.query.mockRejectedValueOnce(new Error('load broken'));
     fireEvent.change(view.container.querySelector('input[type=file]'), {
-      target: { files: [new File(['bad'], 'broken.csv')] },
+      target: { files: [brokenFile] },
     });
+    fireEvent.click(screen.getByText('fileAnalysis.analyzeBrowser'));
     await waitFor(() => expect(state.error).toHaveBeenCalledWith('fileAnalysis.loadFailed'));
     expect(state.close).toHaveBeenCalledTimes(1);
-    expect(view.container.textContent).not.toContain('broken.csv');
+    expect(view.container.textContent).toContain('broken.csv');
+    expect(screen.queryByTestId('grid')).toBeNull();
+    expect(screen.queryByLabelText('query')).toBeNull();
     fireEvent.click(screen.getByText('fileAnalysis.saveDataset'));
-    await waitFor(() => expect(state.upload).toHaveBeenCalledWith(original));
+    await waitFor(() => expect(state.upload).toHaveBeenCalledWith(brokenFile));
+    await waitFor(() => expect((screen.getByText('fileAnalysis.saveDataset') as HTMLButtonElement).disabled).toBe(false));
+    await upload(view, 'recovered.csv');
     state.close.mockClear();
     state.query.mockRejectedValueOnce(new Error('query broken'));
     fireEvent.click(screen.getByText('fileAnalysis.run'));
@@ -297,6 +406,7 @@ describe('FileAnalysis settled data and lifecycle regressions', () => {
       fireEvent.change(view.container.querySelector('input[type=file]'), {
         target: { files: [new File(['bad'], 'parsing.csv')] },
       });
+      fireEvent.click(screen.getByText('fileAnalysis.analyzeBrowser'));
     } else {
       state.query.mockResolvedValueOnce(broken);
       fireEvent.click(screen.getByText('fileAnalysis.run'));
@@ -304,16 +414,18 @@ describe('FileAnalysis settled data and lifecycle regressions', () => {
     await waitFor(() => expect(state.error).toHaveBeenCalled());
     expect(state.close).toHaveBeenCalledTimes(1);
     expect(state.success).not.toHaveBeenCalled();
-    expect(view.container.textContent).not.toContain('parsing.csv');
+    if (operation === 'file') expect(screen.queryByLabelText('query')).toBeNull();
   });
 
   it('isolates a late previous engine from a newly mounted engine and terminates each once', async () => {
     let resolve: () => void;
     state.instantiate.mockImplementationOnce(() => new Promise<void>(done => (resolve = done)));
     const previous = render(<FileAnalysis />);
+    startAnalysis(previous);
     await waitFor(() => expect(state.instantiate).toHaveBeenCalledTimes(1));
     previous.unmount();
     const current = await mountReady();
+    await upload(current);
     expect(state.instantiate).toHaveBeenCalledTimes(2);
     expect(state.terminate).not.toHaveBeenCalled();
     await act(async () => resolve());
@@ -329,6 +441,7 @@ describe('FileAnalysis settled data and lifecycle regressions', () => {
     let resolve: () => void;
     state.instantiate.mockImplementation(() => new Promise<void>(done => (resolve = done)));
     const view = render(<FileAnalysis />);
+    startAnalysis(view);
     await waitFor(() => expect(state.instantiate).toHaveBeenCalled());
     view.unmount();
     await act(async () => resolve());
@@ -340,6 +453,7 @@ describe('FileAnalysis settled data and lifecycle regressions', () => {
     let reject: (error: Error) => void;
     state.instantiate.mockImplementation(() => new Promise<void>((_, fail) => (reject = fail)));
     const view = render(<FileAnalysis />);
+    startAnalysis(view);
     await waitFor(() => expect(state.instantiate).toHaveBeenCalled());
     view.unmount();
     await act(async () => reject(new Error('bootstrap failed')));

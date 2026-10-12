@@ -14,13 +14,10 @@ import { DatabaseType } from './entities/database_type.entity';
 import { YesNo } from '../common/enum/yn.enum';
 import { decryptConnectionConfig, encryptConnectionConfig } from '../utils/crypto.util';
 import { assertSafeIdentifier } from '../utils/query-guard.util';
-import { knex } from 'knex';
-import * as fs from 'fs';
 import * as path from 'path';
-import { randomUUID } from 'crypto';
+import { AnalysisUpload, DuckDBService } from '../analysis/duckdb.service';
 
 const UPLOAD_TABLE = 'uploaded_data';
-const UPLOAD_MAX_ROWS = 100000;
 
 @Injectable()
 export class DatabaseService {
@@ -32,6 +29,7 @@ export class DatabaseService {
     @InjectRepository(Dataset) private datasetRepository: Repository<Dataset>,
     @InjectRepository(TableQuery) private tableQueryRepository: Repository<TableQuery>,
     private readonly connectionService: ConnectionService,
+    private readonly duckdbService?: DuckDBService,
   ) {}
 
   private validateId(id: unknown): number {
@@ -76,207 +74,39 @@ export class DatabaseService {
     return { status: ResponseStatus.SUCCESS, data: saveResult };
   }
 
-  /**
-   * 업로드된 CSV/JSON 파일을 SQLite 기반 데이터소스로 저장한다.
-   * 파일은 FILE_UPLOAD_DIR(기본 <cwd>/uploads) 아래 <uuid>.db 로 기록되고,
-   * uploaded_data 테이블을 가진 sqlite database 레코드가 생성된다.
-   */
-  async uploadFile(file: { originalname: string; buffer: Buffer }) {
-    if (!file?.buffer?.length) {
-      throw new BadRequestException('file is required');
-    }
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (!['.csv', '.json', '.parquet'].includes(ext)) {
-      throw new BadRequestException('unsupported file extension');
-    }
-    const rows =
-      ext === '.json'
-        ? this.parseJsonRows(file.buffer)
-        : ext === '.parquet'
-        ? await this.parseParquetRows(file.buffer)
-        : this.parseCsvRows(file.buffer);
-    if (!rows.length) {
-      throw new BadRequestException('no rows found in the uploaded file');
-    }
-    if (rows.length > UPLOAD_MAX_ROWS) {
-      throw new BadRequestException(`row limit exceeded (max ${UPLOAD_MAX_ROWS})`);
-    }
-
-    // 컬럼명 sanitize + dedupe (식별자 인젝션 및 잘못된 헤더 방지)
-    const rawColumns = [...new Set(rows.flatMap(row => Object.keys(row)))];
-    const seen = new Set<string>();
-    const columns = rawColumns.map((name, i) => {
-      let safe = name.trim().replace(/[^A-Za-z0-9_]/g, '_');
-      if (!safe) safe = `col_${i + 1}`;
-      if (/^[0-9]/.test(safe)) safe = `_${safe}`;
-      while (seen.has(safe)) safe = `${safe}_`;
-      seen.add(safe);
-      return safe;
-    });
-    columns.forEach(c => assertSafeIdentifier(c));
-
-    // 최대 100행 샘플로 숫자 컬럼 추론
-    const numeric = columns.map((_, i) =>
-      rows.slice(0, 100).every(r => {
-        const v = r[rawColumns[i]];
-        return v === undefined || v === null || v === '' || !isNaN(Number(v));
-      }),
-    );
-
-    const uploadDir = process.env.FILE_UPLOAD_DIR || path.join(process.cwd(), 'uploads');
-    fs.mkdirSync(uploadDir, { recursive: true });
-    const dbPath = path.join(uploadDir, `${randomUUID()}.db`);
-    const db = knex({
-      client: 'sqlite3',
-      connection: { filename: dbPath },
-      useNullAsDefault: true,
-    });
-    try {
-      await db.schema.createTable(UPLOAD_TABLE, table => {
-        columns.forEach((c, i) => (numeric[i] ? table.float(c) : table.text(c)));
-      });
-      for (let i = 0; i < rows.length; i += 500) {
-        const batch = rows.slice(i, i + 500).map(r => {
-          const obj: Record<string, unknown> = {};
-          columns.forEach((c, j) => {
-            const v = r[rawColumns[j]];
-            obj[c] =
-              v === undefined || v === null || v === ''
-                ? null
-                : typeof v === 'object'
-                ? JSON.stringify(v)
-                : v;
-          });
-          return obj;
-        });
-        await db(UPLOAD_TABLE).insert(batch);
-      }
-    } finally {
-      await db.destroy();
-    }
-
-    const baseName = path.basename(file.originalname, ext);
-    const databaseDto = new Database();
-    databaseDto.name = baseName;
-    databaseDto.description = `File upload: ${file.originalname}`;
-    databaseDto.engine = 'sqlite3';
-    databaseDto.type = 'sqlite';
-    databaseDto.timezone = 'Asia/Seoul';
-    databaseDto.connectionConfig = encryptConnectionConfig(
+  /** Preserve raw files and import analytical data in the worker, leaving metadata in TypeORM. */
+  async uploadFile(file: AnalysisUpload) {
+    const imported = await this.duckdbService.importFile(file);
+    const baseName = path.basename(file.originalname, path.extname(file.originalname));
+    const database = new Database();
+    database.name = baseName;
+    database.description = `File upload: ${file.originalname}`;
+    database.engine = 'duckdb';
+    database.type = 'duckdb';
+    database.timezone = 'Asia/Seoul';
+    database.connectionConfig = encryptConnectionConfig(
       JSON.stringify({
-        client: 'sqlite3',
-        connection: { filename: dbPath },
-        useNullAsDefault: true,
+        client: 'duckdb',
+        connection: { filename: imported.filename },
       }),
     );
-    const saveResult = await this.databaseRepository.save(databaseDto);
+    let saved: Database;
+    try {
+      saved = await this.databaseRepository.save(database);
+    } catch (error) {
+      await this.duckdbService.removeImport(imported.filename);
+      throw error;
+    }
+    // Metadata is authoritative. An auxiliary manifest failure must not delete a registered source.
+    try {
+      await this.duckdbService.registerImport(imported.filename, saved.id);
+    } catch {
+      this.logger.warn(`analysis manifest registration failed for database ${saved.id}`);
+    }
     return {
       status: ResponseStatus.SUCCESS,
-      data: { id: saveResult.id, name: baseName, tableName: UPLOAD_TABLE, rows: rows.length },
+      data: { id: saved.id, name: baseName, tableName: UPLOAD_TABLE, rows: imported.rows },
     };
-  }
-
-  /**
-   * CSV 텍스트 → 객체 배열 (따옴표/이스케이프/CRLF 처리)
-   */
-  private parseCsvRows(buffer: Buffer): Record<string, unknown>[] {
-    const text = buffer.toString('utf8').replace(/^\uFEFF/, '');
-    const grid: string[][] = [];
-    let field = '';
-    let row: string[] = [];
-    let inQuotes = false;
-    for (let i = 0; i < text.length; i++) {
-      const c = text[i];
-      if (inQuotes) {
-        if (c === '"') {
-          if (text[i + 1] === '"') {
-            field += '"';
-            i++;
-          } else {
-            inQuotes = false;
-          }
-        } else {
-          field += c;
-        }
-      } else if (c === '"' && field === '') {
-        inQuotes = true;
-      } else if (c === ',') {
-        row.push(field);
-        field = '';
-      } else if (c === '\n' || c === '\r') {
-        if (c === '\r' && text[i + 1] === '\n') i++;
-        row.push(field);
-        field = '';
-        if (row.length > 1 || row[0] !== '') grid.push(row);
-        row = [];
-      } else {
-        field += c;
-      }
-    }
-    if (field !== '' || row.length) {
-      row.push(field);
-      grid.push(row);
-    }
-    if (grid.length < 2) return [];
-    const seen = new Set<string>();
-    const header = grid[0].map((name, i) => {
-      let unique = name || `col_${i + 1}`;
-      while (seen.has(unique)) unique += '_';
-      seen.add(unique);
-      return unique;
-    });
-    return grid
-      .slice(1)
-      .filter(r => r.some(v => v !== ''))
-      .map(r => {
-        const obj: Record<string, unknown> = {};
-        header.forEach((h, i) => (obj[h] = r[i] ?? null));
-        return obj;
-      });
-  }
-
-  /**
-   * Parquet 버퍼 → 객체 배열 (parquetjs-lite, 서버에서 직접 디코딩)
-   */
-  private async parseParquetRows(buffer: Buffer): Promise<Record<string, unknown>[]> {
-    const { ParquetReader } = await import('parquetjs-lite');
-    let reader;
-    try {
-      reader = await ParquetReader.openBuffer(buffer);
-    } catch {
-      throw new BadRequestException('invalid parquet file');
-    }
-    const rows: Record<string, unknown>[] = [];
-    const cursor = reader.getCursor();
-    try {
-      let record = await cursor.next();
-      while (record && rows.length <= UPLOAD_MAX_ROWS) {
-        rows.push(record);
-        record = await cursor.next();
-      }
-    } finally {
-      await reader.close();
-    }
-    return rows;
-  }
-
-  /**
-   * JSON 배열 → 객체 배열 (flat object만 허용)
-   */
-  private parseJsonRows(buffer: Buffer): Record<string, unknown>[] {
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(buffer.toString('utf8'));
-    } catch {
-      throw new BadRequestException('invalid json file');
-    }
-    if (
-      !Array.isArray(parsed) ||
-      !parsed.every(item => item && typeof item === 'object' && !Array.isArray(item))
-    ) {
-      throw new BadRequestException('json file must contain an array of objects');
-    }
-    return parsed as Record<string, unknown>[];
   }
 
   /**
@@ -333,6 +163,9 @@ export class DatabaseService {
         break;
       case 'pg':
         selectTableQuery = `SELECT table_name FROM information_schema.tables WHERE table_type = 'BASE TABLE' and table_schema not in ('information_schema', 'pg_catalog', 'pg_internal')`;
+        break;
+      case 'duckdb':
+        selectTableQuery = `SELECT table_name FROM information_schema.tables WHERE table_schema = 'main' AND table_type = 'BASE TABLE'`;
         break;
       case 'sqlite3':
         selectTableQuery = `SELECT tbl_name FROM sqlite_master WHERE type = 'table'`;
@@ -498,6 +331,9 @@ where ((datasetType = 'DATASET' and datasetId in (select id from dataset where d
     // database 삭제
     await this.databaseRepository.remove(one);
     await this.connectionService.removeKnex(id);
+    if (one.engine === 'duckdb') {
+      await this.duckdbService.removeImport(one.connectionConfig['connection'].filename);
+    }
 
     return {
       status: ResponseStatus.SUCCESS,
@@ -561,7 +397,9 @@ where ((datasetType = 'DATASET' and datasetId in (select id from dataset where d
             selectQuery = `SELECT * FROM "${tableName}"`;
             break;
           default:
-            selectQuery = `SELECT * FROM ${tableName}`;
+            selectQuery = `SELECT * FROM ${tableName}${
+              databaseOne.engine === 'duckdb' ? ' LIMIT 500' : ''
+            }`;
             break;
         }
         queryExecuteDto.id = databaseId;

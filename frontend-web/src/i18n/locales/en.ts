@@ -1,4 +1,22 @@
 export default {
+  ai: {
+    dashboardCreate: 'Create AI dashboard',
+    dashboardEdit: 'Edit dashboard with AI',
+    dashboardInstructions:
+      'Generate a draft, review its preview, then save. Revisions and cancellation do not change the saved dashboard.',
+    dataSource: 'Data source',
+    noSources: 'No data sources are available. Save a file first.',
+    dashboardPrompt: 'What would you like to see?',
+    dashboardPromptExample: 'Show total requests, weighted average bid floor, and requests by device.',
+    generating: 'Generating preview…',
+    previewNeedsUpdate: 'This is the previous preview. Generate a new preview before saving.',
+    saving: 'Saving…',
+    generatePreview: 'Generate preview',
+    revisePreview: 'Revise preview',
+    createDashboard: 'Create AI dashboard',
+    editDashboard: 'Edit dashboard with AI',
+  },
+  chart: { showDataTable: 'Show data table', hideDataTable: 'Hide data table' },
   nav: {
     dashboard: 'Dashboard',
     widget: 'Widget',
@@ -60,9 +78,10 @@ export default {
   },
   fileAnalysis: {
     title: 'File Analysis',
-    description: 'Upload a CSV, Parquet, or JSON file to analyze it directly in your browser — no server required.',
+    description: 'Choose a CSV, Parquet, or JSON file to save as a dataset. You can also analyze it in your browser.',
     engineLoading: 'Loading engine...',
     selectFile: 'Choose file',
+    analyzeBrowser: 'Analyze in browser',
     processing: 'Processing...',
     run: 'Run',
     queryPlaceholder: 'Enter SQL. Table name: {{table}}',
@@ -80,7 +99,7 @@ export default {
     fileTypeError: 'Only CSV, Parquet, and JSON files are supported.',
     loadFailed: 'File analysis failed: {{message}}',
     queryFailed: 'Query failed: {{message}}',
-    engineFailed: 'Failed to load the in-browser analytics engine.',
+    engineFailed: 'Browser analysis is unavailable. You can still save the file as a dataset.',
     chartType: { bar: 'Bar', line: 'Line', pie: 'Pie' },
   },
   metric: {
@@ -184,6 +203,8 @@ export default {
     view: 'View widget',
   },
   share: {
+    button: 'Share',
+    buttonActive: 'Sharing',
     pageShare: 'Share page',
     sharing: 'Sharing this page',
     notSharing: 'Not sharing this page',
@@ -272,6 +293,7 @@ export default {
     logoutFailed: 'Failed to sign out.\nPlease try again.',
   },
   settings: {
+    decimalPlaces: 'Decimal places',
     cnt: 'Count',
     sum: 'Sum',
     avg: 'Average',

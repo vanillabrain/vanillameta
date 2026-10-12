@@ -81,3 +81,13 @@ CI의 기존 PR/push 빌드·단위 검사는 유지한다. E2E를 저장 훅이
 ## 스킬 사용
 
 저장소 `skills/vanillameta-verify`가 관리 원본이다. 설치·갱신은 이 폴더를 `~/.codex/skills/vanillameta-verify`로 복사한다. 다음 요청부터 `$vanillameta-verify`로 변경 범위에 맞는 검증과 Aside 증빙을 실행한다. 저장 훅이나 주기 실행은 등록하지 않는다.
+
+## 서버 DuckDB 파일 저장
+
+파일 저장·분석 워커 변경은 [server-duckdb.md](server-duckdb.md)의 INGEST-01~04와 영향받는 `full-flow.spec.ts`를 선택한다. 서버 기본 저장은 파일 선택 → 데이터셋으로 저장이며 브라우저 분석은 별도 버튼이다. 메타데이터 DB는 그대로 유지하고 신규 파일만 DuckDB에 저장한다. 운영 전제와 제한: [server-duckdb-operations.md](../strategy/server-duckdb-operations.md).
+
+대시보드는 수치와 시각화 디자인을 각각 검증한다. Rill과 동일 데이터/LLM 질의 비교는 [design-rill-parity.md](design-rill-parity.md)를 사용하고 결과·가시성·상호작용·반응형을 분리 판정한다. 수동 차트 성공을 제품 LLM 성공으로 확대하지 않는다.
+
+## AI 대시보드·공통 필터
+
+구현/운영 범위는 [ai-dashboard.md](ai-dashboard.md), MD 검증은 [design-rill-parity.md](design-rill-parity.md)의 FILTER-01/AI-DASH-01/02를 사용한다. LLM JSON/SQL 실행 성공과 질문 의미·수치 일치는 별개이며 생성 결과마다 요청한 계산식을 대조한다. 로컬 모델 변경은 실패한 LLM 생성만 재검증하고 파일 저장·이미 통과한 차트 전체를 반복하지 않는다.

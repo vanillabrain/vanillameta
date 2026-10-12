@@ -403,6 +403,9 @@ for (const variant of [{ extension: 'txt', buffer: Buffer.from(GOLD.salesCsv), m
     await authenticated(page);
     await filePage(page);
     await page.locator('input[type="file"]').setInputFiles({ name: `${unique()}.${variant.extension}`, mimeType: 'application/octet-stream', buffer: variant.buffer });
+    if (variant.extension !== 'txt') {
+      await page.getByRole('button', { name: /^(브라우저에서 분석|Analyze in browser)$/ }).click();
+    }
     await feedback(page, variant.message);
     await expect(page.locator('.MuiAlert-standardSuccess')).toHaveCount(0);
     await expect(page.locator('.tui-grid-container')).toHaveCount(0);
@@ -414,13 +417,18 @@ for (const variant of [{ extension: 'txt', buffer: Buffer.from(GOLD.salesCsv), m
   });
 }
 
-test('FILE-12 fault injection WASM failure, disabled upload and navigation recovery', async ({ page }) => {
+test('FILE-12 fault injection WASM failure, saving remains available and navigation recovery', async ({ page }) => {
   await authenticated(page);
   await page.route(/\.wasm(?:\?|$)/, route => route.abort('failed'));
-  await page.goto('/data/file');
-  await feedback(page, 'Failed to load the in-browser analytics engine.');
+  await filePage(page);
+  await page.locator('input[type="file"]').setInputFiles({ name: `${unique()}.csv`, mimeType: 'application/octet-stream', buffer: Buffer.from(GOLD.salesCsv) });
+  await page.getByRole('button', { name: /^(브라우저에서 분석|Analyze in browser)$/ }).click();
+  await feedback(page, 'Browser analysis is unavailable. You can still save the file as a dataset.');
   await closeError(page);
-  await expect(page.getByRole('button', { name: 'Choose file' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Choose file', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Save as dataset', exact: true })).toBeEnabled();
+  await expect(page.locator('.MuiAlert-standardSuccess')).toHaveCount(0);
+  await expect(page.locator('.tui-grid-container')).toHaveCount(0);
   await page.unroute(/\.wasm(?:\?|$)/);
   await page.goto('/dashboard');
   await filePage(page);

@@ -1,123 +1,166 @@
 import { DatabaseService } from './database.service';
+import { DuckDBService } from '../analysis/duckdb.service';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { knex } from 'knex';
 import { decryptConnectionConfig } from '../utils/crypto.util';
 
-describe('DatabaseService uploadFile', () => {
-  const uploadDir = fs.mkdtempSync(path.join(os.tmpdir(), 'upload-test-'));
+describe('DatabaseService uploadFile (DuckDB worker)', () => {
+  let uploadDir: string;
   let service: DatabaseService;
+  let duckdb: DuckDBService;
   let savedEntity: any;
+  const repo = { save: jest.fn() };
+  const previousEnv = {
+    CONFIG_SECRET_KEY: process.env.CONFIG_SECRET_KEY,
+    FILE_UPLOAD_DIR: process.env.FILE_UPLOAD_DIR,
+  };
 
   beforeAll(() => {
+    uploadDir = fs.mkdtempSync(path.join(os.tmpdir(), 'upload-duckdb-test-'));
     process.env.CONFIG_SECRET_KEY = 'test-secret';
     process.env.FILE_UPLOAD_DIR = uploadDir;
-    const repo = { save: jest.fn(async e => ({ id: 42, ...e })) };
-    service = new DatabaseService(repo as any, {} as any, {} as any, {} as any, {} as any);
+    duckdb = new DuckDBService();
+    service = new DatabaseService(repo as any, {} as any, {} as any, {} as any, {} as any, duckdb);
+  });
+
+  beforeEach(() => {
     savedEntity = null;
-    repo.save.mockImplementation(async e => {
-      savedEntity = e;
-      return { id: 42, ...e };
+    repo.save.mockReset();
+    repo.save.mockImplementation(async entity => {
+      savedEntity = entity;
+      return { id: 42, ...entity };
     });
   });
 
-  it('creates a sqlite database from a CSV upload', async () => {
-    const csv = 'name,amount\nalpha,10\nbeta,20\n';
-    const res = await service.uploadFile({ originalname: 'sales.csv', buffer: Buffer.from(csv) });
-    expect(res.status).toBe(ResponseStatus.SUCCESS);
-    expect(res.data.tableName).toBe('uploaded_data');
-    expect(res.data.rows).toBe(2);
+  afterAll(async () => {
+    try {
+      if (duckdb) await duckdb.onModuleDestroy();
+    } finally {
+      if (uploadDir) fs.rmSync(uploadDir, { recursive: true, force: true });
+      for (const [key, value] of Object.entries(previousEnv)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
+  });
 
-    // 실제 sqlite 파일이 생성되고 데이터를 조회할 수 있는지 확인
+  const uploadedFilename = () => {
     const cfg = JSON.parse(decryptConnectionConfig(savedEntity.connectionConfig));
-    expect(cfg.client).toBe('sqlite3');
-    const db = knex({
-      client: 'sqlite3',
-      connection: { filename: cfg.connection.filename },
-      useNullAsDefault: true,
+    expect(cfg.client).toBe('duckdb');
+    expect(path.isAbsolute(cfg.connection.filename)).toBe(true);
+    expect(path.basename(cfg.connection.filename)).toBe('data.duckdb');
+    expect(fs.existsSync(cfg.connection.filename)).toBe(true);
+    return cfg.connection.filename as string;
+  };
+
+  const uploadedRows = async (sql = 'SELECT * FROM uploaded_data') =>
+    (await duckdb.query(uploadedFilename(), sql)).datas;
+
+  const uploadedColumnNames = async () =>
+    (await duckdb.query(uploadedFilename(), 'DESCRIBE uploaded_data')).datas.map(
+      column => column.column_name,
+    );
+
+  it('creates a DuckDB database and returns the upload contract for CSV', async () => {
+    const res = await service.uploadFile({
+      originalname: 'sales.csv',
+      buffer: Buffer.from('name,amount\nalpha,10\nbeta,20\n'),
     });
-    const rows = await db('uploaded_data').select('*');
-    await db.destroy();
-    expect(rows).toHaveLength(2);
-    expect(rows[0].name).toBe('alpha');
-    expect(rows[0].amount).toBe(10); // 숫자 컬럼 추론
+    expect(res).toEqual({
+      status: ResponseStatus.SUCCESS,
+      data: { id: 42, name: 'sales', tableName: 'uploaded_data', rows: 2 },
+    });
+    expect(await uploadedRows('SELECT * FROM uploaded_data ORDER BY amount')).toEqual([
+      { name: 'alpha', amount: 10 },
+      { name: 'beta', amount: 20 },
+    ]);
+    expect(await uploadedColumnNames()).toEqual(['name', 'amount']);
   });
 
-  it('sanitizes dangerous column names', async () => {
-    const csv = 'a;b,c"d\n1,2\n';
-    const res = await service.uploadFile({ originalname: 'x.csv', buffer: Buffer.from(csv) });
+  it('accepts a disk-backed upload without a buffer', async () => {
+    const sourcePath = path.join(uploadDir, 'disk-source.csv');
+    fs.writeFileSync(sourcePath, 'name,amount\nfrom-disk,7\n');
+    const res = await service.uploadFile({ originalname: 'disk.csv', path: sourcePath });
     expect(res.status).toBe(ResponseStatus.SUCCESS);
-    const cfg = JSON.parse(decryptConnectionConfig(savedEntity.connectionConfig));
-    const db = knex({
-      client: 'sqlite3',
-      connection: { filename: cfg.connection.filename },
-      useNullAsDefault: true,
-    });
-    const info = await db.raw('PRAGMA table_info(uploaded_data)');
-    await db.destroy();
-    const names = info.map((i: any) => i.name);
-    expect(names).toEqual(['a_b', 'c_d']);
+    expect(res.data.rows).toBe(1);
+    expect(await uploadedRows()).toEqual([{ name: 'from-disk', amount: 7 }]);
   });
 
-  it('accepts a parquet file upload', async () => {
+  it('sanitizes dangerous column names in the stored schema', async () => {
+    const res = await service.uploadFile({
+      originalname: 'x.csv',
+      buffer: Buffer.from('a;b,"c""d"\n1,2\n'),
+    });
+    expect(res.status).toBe(ResponseStatus.SUCCESS);
+    expect(await uploadedColumnNames()).toEqual(['a_b', 'c_d']);
+    expect(await uploadedRows()).toEqual([{ a_b: 1, c_d: 2 }]);
+  });
+
+  it('imports actual Parquet values', async () => {
     const { ParquetWriter, ParquetSchema } = await import('parquetjs-lite');
     const schema = new ParquetSchema({ name: { type: 'UTF8' }, score: { type: 'DOUBLE' } });
-    const tmp = path.join(uploadDir, 'sample.parquet');
-    const writer = await ParquetWriter.openFile(schema, tmp);
-    await writer.appendRow({ name: 'a', score: 1.5 });
-    await writer.appendRow({ name: 'b', score: 2.5 });
-    await writer.close();
+    const sourcePath = path.join(uploadDir, 'sample.parquet');
+    const writer = await ParquetWriter.openFile(schema, sourcePath);
+    try {
+      await writer.appendRow({ name: 'a', score: 1.5 });
+      await writer.appendRow({ name: 'b', score: 2.5 });
+    } finally {
+      await writer.close();
+    }
     const res = await service.uploadFile({
       originalname: 'sample.parquet',
-      buffer: fs.readFileSync(tmp),
+      buffer: fs.readFileSync(sourcePath),
     });
     expect(res.status).toBe(ResponseStatus.SUCCESS);
     expect(res.data.rows).toBe(2);
+    expect(await uploadedRows('SELECT * FROM uploaded_data ORDER BY score')).toEqual([
+      { name: 'a', score: 1.5 },
+      { name: 'b', score: 2.5 },
+    ]);
   });
 
-  it('accepts a JSON array upload', async () => {
-    const json = JSON.stringify([
+  it('imports a JSON array', async () => {
+    const res = await service.uploadFile({
+      originalname: 'cities.json',
+      buffer: Buffer.from(
+        JSON.stringify([
+          { city: 'Seoul', n: 1 },
+          { city: 'Busan', n: 2 },
+        ]),
+      ),
+    });
+    expect(res.status).toBe(ResponseStatus.SUCCESS);
+    expect(res.data.rows).toBe(2);
+    expect(await uploadedRows('SELECT * FROM uploaded_data ORDER BY n')).toEqual([
       { city: 'Seoul', n: 1 },
       { city: 'Busan', n: 2 },
     ]);
-    const res = await service.uploadFile({
-      originalname: 'cities.json',
-      buffer: Buffer.from(json),
-    });
-    expect(res.status).toBe(ResponseStatus.SUCCESS);
-    expect(res.data.rows).toBe(2);
   });
 
-  it('rejects an empty file', async () => {
+  it('rejects an empty file without saving metadata', async () => {
     await expect(
       service.uploadFile({ originalname: 'e.csv', buffer: Buffer.alloc(0) }),
     ).rejects.toThrow();
+    expect(repo.save).not.toHaveBeenCalled();
   });
 
-  it('rejects a json file that is not an array of objects', async () => {
+  it('rejects JSON that is not an array of objects', async () => {
     await expect(
       service.uploadFile({ originalname: 'bad.json', buffer: Buffer.from('{"a":1}') }),
     ).rejects.toThrow('array of objects');
+    expect(repo.save).not.toHaveBeenCalled();
   });
 
-  const uploadedRows = async () => {
-    const cfg = JSON.parse(decryptConnectionConfig(savedEntity.connectionConfig));
-    const db = knex(cfg);
-    try {
-      return await db('uploaded_data').select('*');
-    } finally {
-      await db.destroy();
-    }
-  };
-
-  it('retains both values from identical raw CSV headers', async () => {
+  it('retains both values from duplicate CSV headers using DuckDB native names', async () => {
     await service.uploadFile({
       originalname: 'duplicate.csv',
       buffer: Buffer.from('amount,amount\n1,2\n'),
     });
-    expect(await uploadedRows()).toEqual([{ amount: 1, amount_: 2 }]);
+    // DuckDB deduplicates the second raw header as amount_1 (legacy parser used amount_).
+    expect(await uploadedColumnNames()).toEqual(['amount', 'amount_1']);
+    expect(await uploadedRows()).toEqual([{ amount: 1, amount_1: 2 }]);
   });
 
   it('unions heterogeneous JSON keys and preserves SQL nulls', async () => {
@@ -125,10 +168,11 @@ describe('DatabaseService uploadFile', () => {
       originalname: 'heterogeneous.json',
       buffer: Buffer.from(JSON.stringify([{ a: 1 }, { b: 2 }, { a: 3, b: null }])),
     });
-    expect(await uploadedRows()).toEqual([
+    expect(await uploadedColumnNames()).toEqual(['a', 'b']);
+    expect(await uploadedRows('SELECT * FROM uploaded_data ORDER BY a NULLS LAST')).toEqual([
       { a: 1, b: null },
-      { a: null, b: 2 },
       { a: 3, b: null },
+      { a: null, b: 2 },
     ]);
   });
 
@@ -137,48 +181,72 @@ describe('DatabaseService uploadFile', () => {
       originalname: 'amounts.json',
       buffer: Buffer.from(JSON.stringify([{ amount: 100 }, { amount: 250 }, { amount: 150 }])),
     });
-    expect((await uploadedRows()).map(row => row.amount)).toEqual([100, 250, 150]);
+    expect(await uploadedRows('SELECT amount FROM uploaded_data ORDER BY amount')).toEqual([
+      { amount: 100 },
+      { amount: 150 },
+      { amount: 250 },
+    ]);
   });
 
-  it('preserves BOM, CRLF, quoted commas, escaped quotes and newlines', () => {
-    expect(
-      (service as any).parseCsvRows(
-        Buffer.from('\uFEFFname,detail\r\n"a,b","line1\nline2 ""quoted"""\r\n'),
-      ),
-    ).toEqual([{ name: 'a,b', detail: 'line1\nline2 "quoted"' }]);
+  it('preserves BOM, CRLF, quoted commas, escaped quotes and newlines through import', async () => {
+    await service.uploadFile({
+      originalname: 'quoted.csv',
+      buffer: Buffer.from('\uFEFFname,detail\r\n"a,b","line1\nline2 ""quoted"""\r\n'),
+    });
+    expect(await uploadedRows()).toEqual([{ name: 'a,b', detail: 'line1\nline2 "quoted"' }]);
   });
 
-  it('rejects unsupported text before parsing or saving a source', async () => {
-    const previous = savedEntity;
+  it('rejects unsupported text without saving metadata', async () => {
     await expect(
       service.uploadFile({ originalname: 'data.txt', buffer: Buffer.from('a\n1') }),
     ).rejects.toThrow('unsupported file extension');
-    expect(savedEntity).toBe(previous);
+    expect(repo.save).not.toHaveBeenCalled();
   });
 
-  it('rejects a supported source without data rows', async () => {
+  it.each([
+    ['empty.csv', 'amount\n'],
+    ['empty.json', '[]'],
+  ])(
+    'rejects %s without data rows and removes partial import artifacts',
+    async (originalname, text) => {
+      const before = fs.readdirSync(uploadDir).sort();
+      await expect(service.uploadFile({ originalname, buffer: Buffer.from(text) })).rejects.toThrow(
+        'no rows',
+      );
+      expect(repo.save).not.toHaveBeenCalled();
+      expect(fs.readdirSync(uploadDir).sort()).toEqual(before);
+    },
+  );
+
+  it('imports more than 100000 CSV rows without the legacy cap', async () => {
+    const rowCount = 100001;
+    // A repeated fixture avoids allocating a JS object per row; only aggregate results return.
+    const res = await service.uploadFile({
+      originalname: 'large.csv',
+      buffer: Buffer.from(`amount\n${'1\n'.repeat(rowCount)}`),
+    });
+    expect(res.status).toBe(ResponseStatus.SUCCESS);
+    expect(res.data.rows).toBe(rowCount);
+    expect(
+      await uploadedRows('SELECT COUNT(*) AS row_count, SUM(amount) AS total FROM uploaded_data'),
+    ).toEqual([{ row_count: rowCount, total: rowCount }]);
+  });
+
+  it('removes the imported database and source when metadata saving fails', async () => {
+    const before = fs.readdirSync(uploadDir).sort();
+    let filename = '';
+    repo.save.mockImplementationOnce(async entity => {
+      filename = JSON.parse(decryptConnectionConfig(entity.connectionConfig)).connection.filename;
+      expect(fs.existsSync(filename)).toBe(true);
+      throw new Error('metadata save failed');
+    });
     await expect(
-      service.uploadFile({ originalname: 'empty.csv', buffer: Buffer.from('amount\n') }),
-    ).rejects.toThrow('no rows');
-  });
-
-  it('rejects the 100001st Parquet row and always closes its reader', async () => {
-    const { ParquetReader } = await import('parquetjs-lite');
-    let count = 0;
-    const close = jest.fn().mockResolvedValue(undefined);
-    const open = jest.spyOn(ParquetReader, 'openBuffer').mockResolvedValue({
-      getCursor: () => ({ next: async () => (++count <= 100001 ? { amount: count } : null) }),
-      close,
-    } as any);
-    const previous = savedEntity;
-    try {
-      await expect(
-        service.uploadFile({ originalname: 'large.parquet', buffer: Buffer.from('mock-parquet') }),
-      ).rejects.toThrow('row limit exceeded');
-      expect(close).toHaveBeenCalledTimes(1);
-      expect(savedEntity).toBe(previous);
-    } finally {
-      open.mockRestore();
-    }
+      service.uploadFile({ originalname: 'failed.csv', buffer: Buffer.from('amount\n1\n') }),
+    ).rejects.toThrow('metadata save failed');
+    expect(repo.save).toHaveBeenCalledTimes(1);
+    expect(filename).not.toBe('');
+    expect(fs.existsSync(filename)).toBe(false);
+    expect(fs.existsSync(path.dirname(filename))).toBe(false);
+    expect(fs.readdirSync(uploadDir).sort()).toEqual(before);
   });
 });

@@ -12,6 +12,7 @@ import { createHash } from 'crypto';
 import { decryptConnectionConfig } from '../utils/crypto.util';
 import { assertReadOnlyQuery } from '../utils/query-guard.util';
 import { Redis } from 'ioredis';
+import { DuckDBService } from '../analysis/duckdb.service';
 import { ProgressGateway } from '../progress/progress.gateway';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires -- knex-bigquery는 타입 선언이 없음
@@ -76,6 +77,7 @@ export class ConnectionService {
   constructor(
     @InjectRepository(Database) private databaseRepository: Repository<Database>,
     private readonly progressGateway: ProgressGateway,
+    private readonly duckdbService?: DuckDBService,
   ) {}
 
   /**
@@ -133,6 +135,16 @@ export class ConnectionService {
     const one = await this.databaseRepository.findOne({ where: { id: databaseId } });
     if (!one) throw new NotFoundException('database not found');
     return JSON.parse(decryptConnectionConfig(one.connectionConfig));
+  }
+
+  async isDuckDB(id: number) {
+    return (await this.getConnectionConfig(id)).client === 'duckdb';
+  }
+
+  async queryDuckDB(id: number, sql: string, bindings: any[] = []) {
+    const config = await this.getConnectionConfig(id);
+    if (config.client !== 'duckdb') throw new BadRequestException('not a DuckDB source');
+    return this.duckdbService.query(config.connection.filename, sql, bindings);
   }
 
   private validateId(id: unknown): number {
@@ -497,6 +509,17 @@ export class ConnectionService {
   private async runQueryInner(queryExecuteDto: QueryExecuteDto) {
     // HTTP 인터페이스 엔진(knex 미지원) 분기
     const connectionConfig = await this.getConnectionConfig(queryExecuteDto.id);
+    if (connectionConfig?.client === 'duckdb') {
+      try {
+        const result = await this.duckdbService.query(
+          connectionConfig.connection.filename,
+          queryExecuteDto.query,
+        );
+        return { status: ResponseStatus.SUCCESS, message: 'success', ...result };
+      } catch (error) {
+        return { status: ResponseStatus.ERROR, message: error.message, datas: [], fields: [] };
+      }
+    }
     if (connectionConfig?.client === 'clickhouse') {
       return this.executeClickHouse(connectionConfig, queryExecuteDto.query);
     }

@@ -48,12 +48,15 @@ const MobileViewBox = props => {
         sx={{
           width: '100%',
           minHeight: '66px',
+          flexWrap: 'wrap',
+          gap: '8px',
           px: '20px',
+          pb: '12px',
           backgroundColor: '#ffffff',
           ...sx,
         }}
       >
-        <Stack direction="row" alignItems="center">
+        <Stack direction="row" alignItems="center" sx={{ width: '100%', minWidth: 0 }}>
           {iconName && (
             <Avatar
               src={`/static/images/${iconName}`}

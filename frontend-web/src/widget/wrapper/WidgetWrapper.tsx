@@ -47,6 +47,7 @@ const WidgetWrapper = props => {
   return (
     <WidgetViewer
       title={widgetOption.title}
+      description={widgetOption.description}
       widgetType={widgetOption.componentType}
       widgetOption={widgetOption.option}
       dataSet={dataset}
