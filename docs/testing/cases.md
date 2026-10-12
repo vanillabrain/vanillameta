@@ -772,3 +772,9 @@
 Additional MD scenarios and fixed Rill oracle: [server-duckdb.md](server-duckdb.md). Browser-analysis cases now require explicit **Analyze in browser** after file selection. Server upload uses **Save as dataset** directly.
 
 시각화 디자인/LLM/경쟁 UX 비교 명세: [design-rill-parity.md](design-rill-parity.md). 숫자 집계 성공과 디자인·LLM 동등성은 별도 판정한다.
+
+## 2026-10-12 인증 부분조건 보완
+
+- AUTH-03 필수입력 누락4변형 PASS_SELECTED_VARIANTS: 실제 Aside 안내/가입요청0/페이지예외0/계정미생성401. 약한비밀번호·불일치·이메일 UI 기존증거 재사용, 해당3변형 독립요청차단은 NOT_RUN.
+- AUTH-07 미검증 API조건 PASS: 올바른계정/userinfo200/password·userPwd 미노출. 기존 로그인·프로필·재로드 재사용.
+- 제품수정없음, 전체카탈로그완료아님. 증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/auth-completion/RESULTS.md`. AI codex/gpt-6-luna 설정변경없음.
