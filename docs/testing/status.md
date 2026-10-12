@@ -1,0 +1,190 @@
+# MD 검증 현황 — 2026-10-12
+
+기준 브랜치 `develop-v2`, 기록 기준 커밋 `3ecc67ba`. INGEST-04 직렬화 검증 기록은 이 커밋에 반영했다. 이 문서는 기존 실행 증빙을 감사한 결과이며 제품 테스트·브라우저·모델 호출을 재실행하지 않았다.
+
+완료는 **해당 MD에 명시한 한정 조건의 증빙이 모인 경우**다. 부분 완료는 일부 조건 통과, 기록 누락 또는 관련 구현 변경으로 이전 결과만 재사용할 수 없는 경우다. 미검증은 적합한 실행 증빙을 찾지 못한 경우이며, 과거에 한 번도 실행되지 않았다고 단정하지 않는다. 과거 보고서의 NOT_RUN/BLOCKED는 후속 증빙이 있는 조건에 한해 해소했다.
+
+기본 E2E의 500행 sales 정답(298250/60550)과 MD의 3행 oracle(500)을 혼용하지 않는다. 고정 HTTP AI fixture는 모델 품질 증명이 아니다. 실AI 검증은 현재 Codex `gpt-6-luna` 연결 증빙으로 판정하며 설정은 변경하지 않았다.
+
+| 범위 | 완료 | 부분 완료 | 미검증 | 합계 |
+| --- | ---: | ---: | ---: | ---: |
+| cases.md | 87 | 14 | 1 | 102 |
+| 서버 DuckDB + 디자인/필터/AI 대시보드 | 7 | 6 | 0 | 13 |
+| 전체 | 94 | 20 | 1 | 115 |
+
+집계 단위는 고유 MD ID다. 단위 테스트 수·변형 수·스크린샷 수와 다르다. 과거 통과를 현재 전체 출시 회귀 완료로 확대하지 않으며, 관련 변경이 없는 결과만 재사용한다. DATA-04~07의 결과 JSON은 남았지만 상세 HTTP 원본 일부가 덮어써진 기록 한계도 보존한다.
+
+## 기본 기능 102개
+
+| ID | 상태 | 확인 범위 / 남은 조건 | 증빙 |
+| --- | --- | --- | --- |
+| AUTH-01 | 부분 완료 | 대시보드·unknown 익명 smoke 통과. widget/source/dataset/metric/file 및 root 전체 경로 증빙 부족. | [core] |
+| AUTH-02 | 완료 | 초기 missing/malformed/tampered와 후속 expired/AI 계열 증빙 합산. | [post], [security] |
+| AUTH-03 | 완료 | 필수누락4종+약한 암호/불일치/이메일: 안내·가입요청0·계정 미생성. | [auth], [authai] |
+| AUTH-04 | 완료 | 신규 가입·로그인·숫자가 로드된 온보딩. | [post] |
+| AUTH-05 | 미검증 | ID/이메일 각각 중복409 및 원 계정 보존을 입증하는 실행 기록을 찾지 못함. | [core] |
+| AUTH-06 | 부분 완료 | 잘못된 암호 후 정상 로그인 통과. unknown 계정의 실제 UI/401/token 부재 조건 증빙 부족. | [core] |
+| AUTH-07 | 완료 | 로그인·프로필 reload와 올바른 userinfo/password 미노출 합산. | [post], [auth] |
+| AUTH-08 | 완료 | 실제 refresh cookie 유무별 만료 토큰 복구/로그인 이동. | [security] |
+| AUTH-09 | 완료 | 실제 refresh cookie 유무별 만료 토큰 복구/로그인 이동. | [security] |
+| AUTH-10 | 완료 | 로그아웃·쿠키 철회, 삭제 전후 계정 상태, 손상 저장 JSON 복구. | [authnav] |
+| AUTH-11 | 완료 | 잘못된 현재 암호는 보존, 정상 수정은 새 로그인·재조회 확인. | [profile] |
+| AUTH-12 | 완료 | 잘못된 현재 암호는 보존, 정상 수정은 새 로그인·재조회 확인. | [profile] |
+| AUTH-13 | 완료 | 로그아웃·쿠키 철회, 삭제 전후 계정 상태, 손상 저장 JSON 복구. | [authnav] |
+| AUTH-14 | 완료 | 로그아웃·쿠키 철회, 삭제 전후 계정 상태, 손상 저장 JSON 복구. | [authnav] |
+| FILE-01 | 부분 완료 | CSV 분석/500 관찰은 있음. 정확한 3행6열 oracle와 현재 query export를 한 케이스로 대조한 증빙 부족(핵심7개는 500행 별도 정답). | [core], [files], [post] |
+| FILE-02 | 완료 | 3행/500 및 쿼리 오류·빈 결과 후 정상 복구. | [post] |
+| FILE-03 | 완료 | 3행/500 및 쿼리 오류·빈 결과 후 정상 복구. | [post] |
+| FILE-04 | 완료 | bar/line/pie, CSV 실제 다운로드 원값, BIGINT 정확 문자열. | [files] |
+| FILE-05 | 완료 | 3행/500 및 쿼리 오류·빈 결과 후 정상 복구. | [post] |
+| FILE-06 | 완료 | 3행/500 및 쿼리 오류·빈 결과 후 정상 복구. | [post] |
+| FILE-07 | 완료 | bar/line/pie, CSV 실제 다운로드 원값, BIGINT 정확 문자열. | [files] |
+| FILE-08 | 완료 | bar/line/pie, CSV 실제 다운로드 원값, BIGINT 정확 문자열. | [files] |
+| FILE-09 | 완료 | 교체·특수 파일명·잘못된 형식 UI 오류와 복구. | [bound] |
+| FILE-10 | 완료 | 교체·특수 파일명·잘못된 형식 UI 오류와 복구. | [bound] |
+| FILE-11 | 완료 | 교체·특수 파일명·잘못된 형식 UI 오류와 복구. | [bound] |
+| FILE-12 | 부분 완료 | 이전 WASM 차단·탐색 복구는 통과. 현재 MD의 WASM 실패 중 서버 저장 가능 조건은 별도 증빙 없음. | [security], [ingest] |
+| FILE-13 | 부분 완료 | 이전 3형식3행/500 통과는 SQLite 저장 경로. 현재 DuckDB의 CSV/JSON/Parquet 각 engine·원값 계약은 미완료(대용량 Parquet/CSV는 별도 통과). | [bound], [ingest] |
+| FILE-14 | 부분 완료 | 전환 전 서버 파서 경계 통과 기록은 보존. DuckDB 저장 경로로 변경돼 현재 엔진의 해당 API 변형은 통과로 재사용하지 않음. | [bound], [ingest] |
+| FILE-15 | 부분 완료 | 전환 전 서버 파서 경계 통과 기록은 보존. DuckDB 저장 경로로 변경돼 현재 엔진의 해당 API 변형은 통과로 재사용하지 않음. | [bound], [ingest] |
+| FILE-16 | 부분 완료 | 전환 전 서버 파서 경계 통과 기록은 보존. DuckDB 저장 경로로 변경돼 현재 엔진의 해당 API 변형은 통과로 재사용하지 않음. | [bound], [ingest] |
+| FILE-17 | 부분 완료 | 전환 전 서버 파서 경계 통과 기록은 보존. DuckDB 저장 경로로 변경돼 현재 엔진의 해당 API 변형은 통과로 재사용하지 않음. | [bound], [ingest] |
+| FILE-18 | 부분 완료 | 전환 전 서버 파서 경계 통과 기록은 보존. DuckDB 저장 경로로 변경돼 현재 엔진의 해당 API 변형은 통과로 재사용하지 않음. | [bound], [ingest] |
+| FILE-19 | 완료 | CSV100001 전체 저장·집계, Parquet1391572 기존 결과 합산. | [data], [ingest] |
+| FILE-20 | 완료 | 4096바이트 설정/4097 업로드413·목록불변·후속health200 및 UI 복구. | [data03] |
+| DATA-01 | 완료 | 실제 SQLite 연결 폼 저장/reload, 실패 후 유효 연결 복구. | [profile] |
+| DATA-02 | 완료 | 실제 SQLite 연결 폼 저장/reload, 실패 후 유효 연결 복구. | [profile] |
+| DATA-03 | 완료 | SQLite 풀 초기화 후 같은 ID 연결 교체: 결과500→600. | [data03] |
+| DATA-04 | 완료 | ID20경로/원값·CTE·빈쿼리/쓰기·다중문장 거절/오류 후500. 결과 JSON 보존, 상세 HTTP 원본 일부 덮어쓰기 한계 있음. | [data] |
+| DATA-05 | 완료 | ID20경로/원값·CTE·빈쿼리/쓰기·다중문장 거절/오류 후500. 결과 JSON 보존, 상세 HTTP 원본 일부 덮어쓰기 한계 있음. | [data] |
+| DATA-06 | 완료 | ID20경로/원값·CTE·빈쿼리/쓰기·다중문장 거절/오류 후500. 결과 JSON 보존, 상세 HTTP 원본 일부 덮어쓰기 한계 있음. | [data] |
+| DATA-07 | 완료 | ID20경로/원값·CTE·빈쿼리/쓰기·다중문장 거절/오류 후500. 결과 JSON 보존, 상세 HTTP 원본 일부 덮어쓰기 한계 있음. | [data] |
+| DATA-08 | 부분 완료 | uploaded_data 목록/암호 없는 소스의 미노출 확인. 실제 비밀번호를 가진 연결의 응답 비노출 증빙 부족. | [data] |
+| SET-01 | 완료 | UI 업로드→500→저장, source/query/title 재조회. | [post] |
+| SET-02 | 완료 | 수정/reload 및 invalid query/required title 저장 차단. | [major] |
+| SET-03 | 완료 | 수정/reload 및 invalid query/required title 저장 차단. | [major] |
+| SET-04 | 완료 | CRUD/invalid update 보존과 후속 deleted/missing detail/update/delete 합산. | [major], [profile] |
+| SET-05 | 완료 | CRUD/invalid update 보존과 후속 deleted/missing detail/update/delete 합산. | [major], [profile] |
+| SET-06 | 완료 | 의존 위젯 처리 후 대시보드 계속 사용 가능. | [widget] |
+| METRIC-01 | 완료 | 실제 UI CRUD/500, 6집계/2그룹 독립 정답. | [post] |
+| METRIC-02 | 완료 | 필수/중복/취소 및 활성 목록 보존. | [profile] |
+| METRIC-03 | 완료 | 실제 UI CRUD/500, 6집계/2그룹 독립 정답. | [post] |
+| METRIC-04 | 완료 | 실제 UI CRUD/500, 6집계/2그룹 독립 정답. | [post] |
+| METRIC-05 | 완료 | 필터7/거절5/수정 보존, 재생성 optional 잔존 수정 후 동일ID·활성1·250. | [metric] |
+| METRIC-06 | 완료 | 필터7/거절5/수정 보존, 재생성 optional 잔존 수정 후 동일ID·활성1·250. | [metric] |
+| METRIC-07 | 완료 | 필터7/거절5/수정 보존, 재생성 optional 잔존 수정 후 동일ID·활성1·250. | [metric] |
+| METRIC-08 | 완료 | 필터7/거절5/수정 보존, 재생성 optional 잔존 수정 후 동일ID·활성1·250. | [metric] |
+| METRIC-09 | 완료 | missing 및 deleted 평가 거절 합산. | [major], [profile] |
+| WIDGET-01 | 부분 완료 | 생성 wizard 핵심은 별도 sales 정답, oracle500 위젯 수정/조회 증빙은 있음. 정확한 oracle 소스/amount 선택부터 생성·fresh read500 전체 증빙 부족. | [core], [major] |
+| WIDGET-02 | 완료 | 필수/뒤로/취소, 옵션 수정/reload, 삭제 취소/확인. | [major] |
+| WIDGET-03 | 완료 | 필수/뒤로/취소, 옵션 수정/reload, 삭제 취소/확인. | [major] |
+| WIDGET-04 | 완료 | 필수/뒤로/취소, 옵션 수정/reload, 삭제 취소/확인. | [major] |
+| WIDGET-05 | 완료 | TABLE/DATASET CRUD, 옵션 파싱 및 무관 위젯 보존. | [widget] |
+| WIDGET-06 | 완료 | 52개 enabled component 각각 한 명시적 fixture. 실패 차트 수정 후 재검증 포함; 모든 옵션/모바일/디자인 품질 검증은 아님. | [widget], [chart] |
+| WIDGET-07 | 완료 | missing/소스 삭제 오류와 정상500 화면 복귀. | [authnav] |
+| DASH-01 | 부분 완료 | UI 생성 핵심과 oracle500 대시보드 수정/조회 증빙은 있음. oracle 숫자 위젯으로 신규 생성·widget ID/layout 재조회 전체 증빙 부족. | [core], [major] |
+| DASH-02 | 완료 | 제목·위젯·배치 영속/삭제 취소·확인/타계정5행동 거절. | [major] |
+| DASH-03 | 완료 | 제목·위젯·배치 영속/삭제 취소·확인/타계정5행동 거절. | [major] |
+| DASH-04 | 완료 | 제목·위젯·배치 영속/삭제 취소·확인/타계정5행동 거절. | [major] |
+| DASH-05 | 완료 | title-only 보존+목록 격리+삭제시 mapping/widget/share 청소 합산. | [major], [dash] |
+| DASH-06 | 완료 | 제목·위젯·배치 영속/삭제 취소·확인/타계정5행동 거절. | [major] |
+| DASH-07 | 완료 | unknown/deleted URL 제어된 오류 및 private 내용 부재. | [authnav] |
+| DASH-08 | 완료 | UI 템플릿 생성·선택 위젯1회 매핑/배치/reload500. | [nav] |
+| SHARE-01 | 완료 | 실제 공유 설정/reload·익명 share/embed500·OFF 즉시 철회. | [post] |
+| SHARE-02 | 완료 | 실제 공유 설정/reload·익명 share/embed500·OFF 즉시 철회. | [post] |
+| SHARE-03 | 완료 | 실제 공유 설정/reload·익명 share/embed500·OFF 즉시 철회. | [post] |
+| SHARE-04 | 완료 | 만료/없는/삭제/날짜 경계 및 철회 토큰 읽기·쓰기·다른 보드 차단. | [security] |
+| SHARE-05 | 완료 | 만료/없는/삭제/날짜 경계 및 철회 토큰 읽기·쓰기·다른 보드 차단. | [security] |
+| SHARE-06 | 완료 | 만료/없는/삭제/날짜 경계 및 철회 토큰 읽기·쓰기·다른 보드 차단. | [security] |
+| SHARE-07 | 완료 | 실제 clipboard exact 링크/iframe, 거절 주입 피드백; 후속 embed overflow 재검증. | [authnav], [bound] |
+| TEMPLATE-01 | 완료 | CRUD/추천 매핑/잘못된 값 제어; component duplicate409/missing404 수정 후 재검증. | [authnav] |
+| TEMPLATE-02 | 완료 | CRUD/추천 매핑/잘못된 값 제어; component duplicate409/missing404 수정 후 재검증. | [authnav] |
+| TEMPLATE-03 | 완료 | CRUD/추천 매핑/잘못된 값 제어; component duplicate409/missing404 수정 후 재검증. | [authnav] |
+| AI-01 | 완료 | 설정 없음/빈·2001자/nonpositive ID 제어 오류, 외부 호출 없음. | [authai] |
+| AI-02 | 완료 | 실제 HTTP 고정 fixture→Nest→SQLite500; 쓰기/다중문장 거절 및 원본3행 보존. | [provider] |
+| AI-03 | 완료 | 실제 HTTP 고정 fixture→Nest→SQLite500; 쓰기/다중문장 거절 및 원본3행 보존. | [provider] |
+| AI-04 | 완료 | HTTP503/빈content/잘못된JSON ERROR→정상 복구, 별도 고정 provider. | [recovery] |
+| AI-05 | 완료 | 실Luna 등록차트와 고정 provider unknown/invalidJSON 거절·등록차트 UI 복구 합산. | [authai], [recommend] |
+| AI-06 | 완료 | 빈/missing 거절과 정상 고정 literal API·UI 합산. | [authai], [literal] |
+| AI-07 | 완료 | 실제 고정 provider literal/오류/복구 UI 및 별도 실Luna 복구. mock과 실모델 구분. | [recovery], [literal] |
+| AI-08 | 완료 | 실제 고정 provider literal/오류/복구 UI 및 별도 실Luna 복구. mock과 실모델 구분. | [recovery], [literal] |
+| RELIABILITY-01 | 완료 | 로컬 명세의 socket/cache/429/network/정상재시작/손상소스 복구. 강제 crash·운영 SLA 증거는 아님. | [security] |
+| RELIABILITY-02 | 완료 | 로컬 명세의 socket/cache/429/network/정상재시작/손상소스 복구. 강제 crash·운영 SLA 증거는 아님. | [security] |
+| RELIABILITY-03 | 완료 | 로컬 명세의 socket/cache/429/network/정상재시작/손상소스 복구. 강제 crash·운영 SLA 증거는 아님. | [security] |
+| RELIABILITY-04 | 완료 | 로컬 명세의 socket/cache/429/network/정상재시작/손상소스 복구. 강제 crash·운영 SLA 증거는 아님. | [security] |
+| RELIABILITY-05 | 완료 | 로컬 명세의 socket/cache/429/network/정상재시작/손상소스 복구. 강제 crash·운영 SLA 증거는 아님. | [security] |
+| RELIABILITY-06 | 완료 | 로컬 명세의 socket/cache/429/network/정상재시작/손상소스 복구. 강제 crash·운영 SLA 증거는 아님. | [security] |
+| NAV-01 | 완료 | 한/영 전환·reload 언어 지속. | [authnav] |
+| NAV-02 | 완료 | 390/768 대표 화면 조작, back/forward/deep link/reload/404 복구. | [nav] |
+| NAV-03 | 완료 | 390/768 대표 화면 조작, back/forward/deep link/reload/404 복구. | [nav] |
+| NAV-04 | 부분 완료 | source 생성 취소/dataset 미저장 이동/widget wizard 취소/AI 초안 취소 통과. 일반 dashboard 생성·편집 미저장 이동 조건 증빙 부족. | [authnav], [major], [filtererrors] |
+| COMPONENT-01 | 완료 | CRUD/추천 매핑/잘못된 값 제어; component duplicate409/missing404 수정 후 재검증. | [authnav] |
+| COMPONENT-02 | 완료 | CRUD/추천 매핑/잘못된 값 제어; component duplicate409/missing404 수정 후 재검증. | [authnav] |
+
+## 서버·디자인 추가 명세 13개
+
+| ID | 상태 | 확인 범위 / 남은 조건 | 증빙 |
+| --- | --- | --- | --- |
+| INGEST-01 | 완료 | 1391572행 실제 UI 저장/manifest/engine DuckDB·메타데이터 유지. | [ingest] |
+| INGEST-02 | 완료 | 전체 요청634513000/가중평균/9기기 정답 및 정상 재시작 후 동일. | [ingest] |
+| INGEST-03 | 완료 | 실제 UI 생성·9개 값/순서·reload 지속. | [ingest] |
+| INGEST-04 | 완료 | 기존 제한/timeout/quota 복구+실worker query3개→remove 순서·API 단일경합·정상42. MD가 제외한 stress/전역quota/강제crash는 미검증. | [ingest], [serial] |
+| DESIGN-01 | 부분 완료 | 양 제품 질문 수치 증빙 있음. Rill 최종 생성 차트/설명 전체와 같은 조건의 완료 화면 대조는 불충분. | [rill], [luna] |
+| DESIGN-02 | 부분 완료 | 수동 참조 화면 KPI/9이름/0축/표 및 Luna $5.57 통과. 자동 생성 최종 화면의 모든 가시성 조건을 묶은 감사는 미완료. | [design], [luna] |
+| DESIGN-03 | 부분 완료 | 필터 수치 및 VM 생성·수정 구현/검증됨. 동일 수정문 Rill 재실행은 없음; 완전 UX 동등성 미확인. | [filters], [date], [luna] |
+| DESIGN-04 | 부분 완료 | 390 실제 화면/긴 이름/표, 키보드 선택 Space 오류 수정 후 재검증. 명칭 전체·대비·스크린리더·전체 키보드는 미검증. | [filters], [date], [luna] |
+| FILTER-01 | 부분 완료 | 기기 정답/초기화/바인딩/역순 응답/503 후 복구 통과. 신규 필터 API의 타계정 차단을 기존 DASH-06으로 대신 완료 처리하지 않음. | [filters], [filtererrors] |
+| FILTER-02 | 완료 | 138055400/평균4.633939385003283±1e-9/2기기 정답, VM desktop/mobile·Rill desktop·UTC 경계·역순/부분 입력. Rill 모바일/기간 비교/필터 지속은 추가 범위. | [date], [filtererrors] |
+| AI-DASH-01 | 부분 완료 | Luna 생성/미리보기/같은ID 저장/reload/취소 보존 및 오류 변형 통과. 같은 수정 질문의 Rill 실행 비교와 현재 연결의 미설정 조건 실API 증빙 보완 필요. | [luna], [filtererrors], [aierrors] |
+| AI-DASH-02 | 완료 | 실Chromium390 필터/AI편집 취소/KPI/긴 이름/표/overflow 없음. 기존 모바일 실행의 로컬 모델 기록은 역사적 UI 증거로만 재사용; 실AI 성공 근거는 Luna 별도. | [filters], [date] |
+| AI-AGENT-01 | 완료 | 실제 모델 연결 실패→명시 URL/catalog 수정→같은 질문 생성/정답. timeout/빈출력 경계는 해당 하위 회귀; 다른 모델 fallback 없음. | [date], [luna] |
+
+## 남은 작업 우선순위
+
+1. **P0 — 인증과 데이터 노출 경계.** AUTH-05 중복 ID/이메일, AUTH-01 미확인 보호 경로, AUTH-06 unknown 계정, DATA-08 실제 암호 연결 응답, FILTER-01 신규 필터 API 타계정 차단을 먼저 확인한다. 이미 통과한 로그인/권한 조합은 제외한다.
+2. **P1 — 현재 DuckDB 수집 경로.** FILE-13~18의 현재 엔진 조건과 FILE-12 WASM 장애 중 서버 저장을 보완한다. 이전 SQLite 업로드 통과를 그대로 재실행하는 것이 아니라, 엔진 변경으로 증거가 필요한 변형만 선택한다. INGEST-01~04/FILE-19·20은 관련 변경 없으면 반복하지 않는다.
+3. **P1 — 기본 사용자 흐름의 정확한 증빙.** FILE-01의 oracle CSV/현재 결과 export, WIDGET-01·DASH-01의 oracle 생성·재조회, NAV-04의 일반 대시보드 미저장 취소만 보완한다. 기존 편집/삭제/집계 성공은 재사용한다.
+4. **P1 — 디자인과 Rill 비교.** 자동 생성된 최종 화면의 DESIGN-01/02 조건, 같은 수정 질문의 Rill 흐름(DESIGN-03/AI-DASH-01), DESIGN-04의 버튼 명칭·대비·키보드/스크린리더를 확인한다. 현재 Luna 설정 미설정 오류는 별도 격리 프로세스에서 확인한다. 사용자 지적 overflow/테마/라벨은 변경 화면에서만 재검증한다.
+5. **운영 파일럿 전 P1 / 다중 사용자 확장 전 P2.** 아래 별도 운영 범위를 정의하고 필요한 최소 검사를 시행한다. 전체 MD 통과와 운영 준비는 다른 판정이다.
+
+## 현재 MD 밖의 운영·제품 작업
+
+- 백업과 복원(메타데이터 암호화 키 포함), 운영 메타데이터 마이그레이션, 강제 프로세스 종료/미완료 import/임시 파일 정리의 복구 검증. RELIABILITY-05 정상 재시작은 강제 crash를 입증하지 않는다.
+- 다중 사용자 동시 query/delete stress, 전체 디스크 quota/용량 관찰, 테넌트 권한 설계와 보존·삭제 정책. INGEST-04는 명세상 이 범위를 제외하며 미구현·미검증을 통과로 처리하지 않는다.
+- 외부 API 커넥터·주기 수집·재시도/중복방지와 주문·환불 모델/첫 대시보드는 추가 제품 범위다. 현재 Rill 샘플은 광고 경매 데이터로 매출·환불 검증을 대체하지 않는다.
+- Oracle/ODBC 실연결, pnpm 설치·배포, 출시용 전체 회귀는 별도 미검증 범위다. 매 개발마다 실행하는 항목으로 만들지 않는다.
+
+## 증빙 참조
+
+각 기록 안의 JSON/PNG/최초 실패 및 재검증 기록이 원본이다. 증빙은 저장소 밖에 있으며 이 문서에는 인증정보를 복사하지 않는다. 과거 보고서의 당시 미커밋/미설정 상태는 당시 기록으로 보존한다.
+
+[core]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/hybrid-cleanup/result.md
+[post]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/post-merge/result.md
+[major]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/remaining-major/result.md
+[profile]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/remaining-profile-source/result.md
+[files]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/remaining-files/result.md
+[nav]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/remaining-navigation-template/result.md
+[security]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/remaining-security-recovery/report.md
+[authnav]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/remaining-auth-navigation/report.md
+[bound]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/remaining-file-boundaries/report.md
+[widget]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/remaining-widget-dependencies/REPORT.md
+[chart]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/remaining-charts/REPORT.md
+[metric]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/remaining-metric/RESULTS.md
+[data]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/remaining-data/RESULTS.md
+[data03]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/data03-file20/RESULTS.md
+[dash]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/remaining-dashboard-cleanup/RESULTS.md
+[auth]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/auth-completion/RESULTS.md
+[authai]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/auth-ai/RESULTS.md
+[recovery]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/ai-recovery/RESULTS.md
+[provider]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/ai-provider-db/RESULTS.md
+[literal]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/ai-ui-contracts/RESULTS.md
+[recommend]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/ai-chart-contract/RESULTS.md
+[ingest]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/server-duckdb-1391572/RESULTS.md
+[serial]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/ingest-serialization/RESULTS.md
+[design]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/design-rill-parity-improved/RESULTS.md
+[rill]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/design-rill-parity/RESULTS.md
+[filters]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/ai-common-filters/RESULTS.md
+[date]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/date-multi-filters/RESULTS.md
+[luna]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/codex-luna-connection/RESULTS.md
+[filtererrors]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/remaining-ai-filter/RESULTS.md
+[aierrors]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/remaining-ai-errors/RESULTS.md
