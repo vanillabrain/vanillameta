@@ -9,6 +9,34 @@ const MAX_OUTPUT_BYTES = 64 * 1024;
 const MAX_STREAM_BYTES = 1024 * 1024;
 let activeCalls = 0;
 
+function connectionArgs(): string[] {
+  const args: string[] = [];
+  const base = process.env.AI_CODEX_BASE_URL;
+  if (base) {
+    let url: URL;
+    try {
+      url = new URL(base);
+    } catch {
+      throw new Error('LLM_CODEX_INVALID_CONNECTION');
+    }
+    if (
+      url.username ||
+      url.password ||
+      url.search ||
+      url.hash ||
+      !(
+        ['https:'].includes(url.protocol) ||
+        (url.protocol === 'http:' && ['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname))
+      )
+    )
+      throw new Error('LLM_CODEX_INVALID_CONNECTION');
+    args.push('-c', `openai_base_url=${JSON.stringify(base)}`);
+  }
+  const catalog = process.env.AI_CODEX_MODEL_CATALOG;
+  if (catalog) args.push('-c', `model_catalog_json=${JSON.stringify(catalog)}`);
+  return args;
+}
+
 /** Requires an installed Codex CLI and existing ChatGPT login; never falls back. */
 export async function callCodingAgent(
   systemPrompt: string,
@@ -52,6 +80,7 @@ export async function callCodingAgent(
           'read-only',
           '--model',
           CODEX_MODEL,
+          ...connectionArgs(),
           '--output-last-message',
           outputPath,
           '-',

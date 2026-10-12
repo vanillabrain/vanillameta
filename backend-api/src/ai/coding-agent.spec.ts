@@ -19,6 +19,8 @@ describe('Codex coding agent', () => {
     options = [];
     args = [];
     process.env.AI_TIMEOUT_MS = '1000';
+    delete process.env.AI_CODEX_BASE_URL;
+    delete process.env.AI_CODEX_MODEL_CATALOG;
     behavior = async (child, outputPath) => {
       await writeFile(outputPath, ' SELECT 1 ');
       child.emit('close', 0, null);
@@ -83,6 +85,25 @@ describe('Codex coding agent', () => {
     expect(children[0].prompt).toContain('Schema: users(id)');
     expect(children[0].prompt).toContain('Count users');
     expect(children[0].prompt).toContain('Return only a JSON object.');
+  });
+
+  it('passes only explicit connection settings without loading the global config or changing model', async () => {
+    process.env.AI_CODEX_BASE_URL = 'http://127.0.0.1:10100/v1';
+    process.env.AI_CODEX_MODEL_CATALOG = '/existing/model-catalog.json';
+    await callCodingAgent('public schema', 'question');
+    expect(args[0]).toContain('openai_base_url="http://127.0.0.1:10100/v1"');
+    expect(args[0]).toContain('model_catalog_json="/existing/model-catalog.json"');
+    expect(args[0]).toContain('--ignore-user-config');
+    expect(args[0][args[0].indexOf('--model') + 1]).toBe('gpt-6-luna');
+    expect(options[0].env).not.toHaveProperty('AI_CODEX_BASE_URL');
+  });
+
+  it('rejects credential-bearing connection URLs without spawning', async () => {
+    process.env.AI_CODEX_BASE_URL = 'https://user:secret@example.com/v1';
+    await expect(callCodingAgent('schema', 'question')).rejects.toThrow(
+      'LLM_CODEX_INVALID_CONNECTION',
+    );
+    expect(spawnMock).not.toHaveBeenCalled();
   });
 
   it.each([1, null])('rejects unsuccessful exit %s even with an answer', async code => {

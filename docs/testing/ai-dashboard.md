@@ -7,7 +7,8 @@
 - 소유자 검사, 메타데이터 트랜잭션 저장. 분석 정의는 dashboard.analysisDefinition의 nullable text. prod는 synchronize가 꺼져 있으므로 배포 전 AddDashboardAnalysis1791763200000 마이그레이션 적용 필요. 이번 실행은 로컬SQLite만 검증했으며 운영DB마이그레이션은 미실행.
 - 편집 저장 시 과거 위젯/데이터셋은 다른 대시보드 참조 보호를 위해 보존. 반복 편집의 고아 자원 정리는 후속 운영 항목.
 - 현재 개발/검증 AI는 로컬 코딩 에이전트 방식: AI_PROVIDER=codex, 설치된 Codex CLI와 기존 ChatGPT 로그인, gpt-6-luna 고정. Ollama 등 로컬 LLM은 사용하지 않는다. 임시 read-only 작업 폴더에 스키마·질문만 전달하고 타임아웃180초/동시2개/출력64KiB로 제한. 다른 모델로 자동 대체하지 않는다. API 제공자 기존 경로는 호환용으로 유지.
-- 2026-10-12 실제 CLI 검증: Codex0.154.0 ChatGPT 계정에서 gpt-6-luna unsupported(400). 연결 어댑터/오류 처리 단위검사는 통과했지만 실제 AI 생성은 BLOCKED. 지원되는 연결이 준비되기 전 성공으로 보고하지 않는다.
+- Codex CLI 호출은 사용자 전역 설정을 제외한다. 현재 환경의 OpenCodex 연결은 `AI_CODEX_BASE_URL=http://127.0.0.1:10100/v1`, `AI_CODEX_MODEL_CATALOG=/Users/moonklabs/.codex/opencodex-catalog.json`으로 필요한 설정만 전달한다. 모델은 계속 gpt-6-luna로 고정한다. 전역 설정/모델/로그인 변경 없음.
+- 2026-10-12 최초 unsupported(400)는 `--ignore-user-config`가 연결 주소·카탈로그를 제거해 기본 ChatGPT 경로로 요청한 결과였다. 기존 OpenCodex 경로를 명시한 동일 모델 probe는 성공했다. WebSocket426 시 CLI가 같은 모델 HTTP 전송으로 전환한다. 제품 생성·수정 검증 결과는 실행별 증빙 참조.
 - 날짜 입력은 적용 버튼으로 집계하고 시작·종료일 UTC 양끝 날짜 포함(종료일 다음날00:00 제외). DuckDB 세션 UTC 고정. 필터는 조회 상태이며 저장된 대시보드 정의/공유 링크에 지속하지 않음. min/max 정보는3분 캐시.
 - 새 AI 흐름은 원본행을 모델에 전송하지 않고 스키마·질문·초안만 전달. 구조화JSON+쿼리 실행검증, 실패시1회보정. SQL실행성공이 사용자의 의미/계산식을 항상 보장하지 않으므로 미리보기의 SQL·수치 검증은 필요.
 - 스키마에 `*_request_cnt`/`*_request_count`가 있으면 요청 수 초안은 해당 컬럼의 SUM을 사용하도록 안내·검사한다. COUNT(*)나 다른 카운터를 요청 수로 표시하면 보정을 요청하고, 재실패하면 저장 가능한 초안을 반환하지 않는다. 이 제한된 검사는 모든 지표의 의미를 검증하는 기능은 아니다.
