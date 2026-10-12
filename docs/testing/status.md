@@ -1,6 +1,6 @@
 # MD 검증 현황 — 2026-10-12
 
-신규 매출·환불 MVP의 COMMERCE-01~08은 이번 작업 diff에서 실제 브라우저·API·Codex로 검증했으며 [상세 결과](sales-refund-mvp.md)를 추가했다. 아래 기존115개 ID와 그 설명은 이전 감사 기록이다. 현재 집계는 기존115개+신규8개=123개다. 매출·환불 CSV 모델/첫 대시보드는 구현됐고, 외부 API·주기 수집·상품별 환불 배분·다중 통화는 후속 범위다.
+신규 매출·환불 MVP의 COMMERCE-01~08은 `fd583392`에 커밋했고 [상세 결과](sales-refund-mvp.md)를 추가했다. 이후 [인증 잔여 조건](auth-remaining.md)에서 AUTH-01/05/06을 완료했다. 현재 집계는 기존115개+신규8개=123개다. 매출·환불 CSV 모델/첫 대시보드는 구현됐고, 외부 API·주기 수집·상품별 환불 배분·다중 통화는 후속 범위다.
 
 기준 브랜치 `develop-v2`, 기록 기준 커밋 `3ecc67ba`. INGEST-04 직렬화 검증 기록은 이 커밋에 반영했다. 이 문서는 기존 실행 증빙을 감사한 결과이며 제품 테스트·브라우저·모델 호출을 재실행하지 않았다.
 
@@ -10,10 +10,10 @@
 
 | 범위 | 완료 | 부분 완료 | 미검증 | 합계 |
 | --- | ---: | ---: | ---: | ---: |
-| cases.md | 87 | 14 | 1 | 102 |
+| cases.md | 90 | 12 | 0 | 102 |
 | 서버 DuckDB + 디자인/필터/AI 대시보드 | 7 | 6 | 0 | 13 |
 | COMMERCE-01~08 | 8 | 0 | 0 | 8 |
-| 전체 | 102 | 20 | 1 | 123 |
+| 전체 | 105 | 18 | 0 | 123 |
 
 집계 단위는 고유 MD ID다. 단위 테스트 수·변형 수·스크린샷 수와 다르다. 과거 통과를 현재 전체 출시 회귀 완료로 확대하지 않으며, 관련 변경이 없는 결과만 재사용한다. DATA-04~07의 결과 JSON은 남았지만 상세 HTTP 원본 일부가 덮어써진 기록 한계도 보존한다.
 
@@ -21,12 +21,12 @@
 
 | ID | 상태 | 확인 범위 / 남은 조건 | 증빙 |
 | --- | --- | --- | --- |
-| AUTH-01 | 부분 완료 | 대시보드·unknown 익명 smoke 통과. widget/source/dataset/metric/file 및 root 전체 경로 증빙 부족. | [core] |
+| AUTH-01 | 완료 | 기존 dashboard·unknown 결과 재사용. root/widget/data/source/dataset/metric/file 및 신규 commerce의 14경로 실제 로그인 전환, 보호 API 요청0. | [core], [authremaining] |
 | AUTH-02 | 완료 | 초기 missing/malformed/tampered와 후속 expired/AI 계열 증빙 합산. | [post], [security] |
 | AUTH-03 | 완료 | 필수누락4종+약한 암호/불일치/이메일: 안내·가입요청0·계정 미생성. | [auth], [authai] |
 | AUTH-04 | 완료 | 신규 가입·로그인·숫자가 로드된 온보딩. | [post] |
-| AUTH-05 | 미검증 | ID/이메일 각각 중복409 및 원 계정 보존을 입증하는 실행 기록을 찾지 못함. | [core] |
-| AUTH-06 | 부분 완료 | 잘못된 암호 후 정상 로그인 통과. unknown 계정의 실제 UI/401/token 부재 조건 증빙 부족. | [core] |
+| AUTH-05 | 완료 | ID/이메일 각각409·화면 안내. 가입 시도 전후 19테이블 행 수/해시 동일, 원 계정 로그인201 및 기존 매출·환불 조회200. 동시 중복 가입은 이 순차 명세 밖. | [authremaining] |
+| AUTH-06 | 완료 | 기존 잘못된 암호 결과 재사용. unknown 실제 UI401·오류 안내·토큰/쿠키 부재, 같은 화면 정상 계정 로그인 복구. | [core], [authremaining] |
 | AUTH-07 | 완료 | 로그인·프로필 reload와 올바른 userinfo/password 미노출 합산. | [post], [auth] |
 | AUTH-08 | 완료 | 실제 refresh cookie 유무별 만료 토큰 복구/로그인 이동. | [security] |
 | AUTH-09 | 완료 | 실제 refresh cookie 유무별 만료 토큰 복구/로그인 이동. | [security] |
@@ -144,7 +144,7 @@
 
 ## 남은 작업 우선순위
 
-1. **P0 — 인증과 데이터 노출 경계.** AUTH-05 중복 ID/이메일, AUTH-01 미확인 보호 경로, AUTH-06 unknown 계정, DATA-08 실제 암호 연결 응답, FILTER-01 신규 필터 API 타계정 차단을 먼저 확인한다. 이미 통과한 로그인/권한 조합은 제외한다.
+1. **P0 — 데이터 노출 경계.** DATA-08 실제 암호 연결 응답, FILTER-01 신규 필터 API 타계정 차단을 먼저 확인한다. AUTH-01/05/06은 잔여 조건까지 완료했으므로 관련 변경 없이 반복하지 않는다.
 2. **P1 — 현재 DuckDB 수집 경로.** FILE-13~18의 현재 엔진 조건과 FILE-12 WASM 장애 중 서버 저장을 보완한다. 이전 SQLite 업로드 통과를 그대로 재실행하는 것이 아니라, 엔진 변경으로 증거가 필요한 변형만 선택한다. INGEST-01~04/FILE-19·20은 관련 변경 없으면 반복하지 않는다.
 3. **P1 — 기본 사용자 흐름의 정확한 증빙.** FILE-01의 oracle CSV/현재 결과 export, WIDGET-01·DASH-01의 oracle 생성·재조회, NAV-04의 일반 대시보드 미저장 취소만 보완한다. 기존 편집/삭제/집계 성공은 재사용한다.
 4. **P1 — 디자인과 Rill 비교.** 자동 생성된 최종 화면의 DESIGN-01/02 조건, 같은 수정 질문의 Rill 흐름(DESIGN-03/AI-DASH-01), DESIGN-04의 버튼 명칭·대비·키보드/스크린리더를 확인한다. 현재 Luna 설정 미설정 오류는 별도 격리 프로세스에서 확인한다. 사용자 지적 overflow/테마/라벨은 변경 화면에서만 재검증한다.
@@ -154,7 +154,7 @@
 
 - 백업과 복원(메타데이터 암호화 키 포함), 운영 메타데이터 마이그레이션, 강제 프로세스 종료/미완료 import/임시 파일 정리의 복구 검증. RELIABILITY-05 정상 재시작은 강제 crash를 입증하지 않는다.
 - 다중 사용자 동시 query/delete stress, 전체 디스크 quota/용량 관찰, 테넌트 권한 설계와 보존·삭제 정책. INGEST-04는 명세상 이 범위를 제외하며 미구현·미검증을 통과로 처리하지 않는다.
-- 외부 API 커넥터·주기 수집·재시도/중복방지와 주문·환불 모델/첫 대시보드는 추가 제품 범위다. 현재 Rill 샘플은 광고 경매 데이터로 매출·환불 검증을 대체하지 않는다.
+- 외부 API 커넥터·주기 수집·재시도/중복방지는 추가 제품 범위다. 주문·환불 CSV 모델과 첫 대시보드는 COMMERCE-01~08에서 Analytics Engineering 자료로 검증했다. 기존 광고 경매 샘플과 별도 증빙이다.
 - Oracle/ODBC 실연결, pnpm 설치·배포, 출시용 전체 회귀는 별도 미검증 범위다. 매 개발마다 실행하는 항목으로 만들지 않는다.
 
 ## 증빙 참조
@@ -191,3 +191,4 @@
 [luna]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/codex-luna-connection/RESULTS.md
 [filtererrors]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/remaining-ai-filter/RESULTS.md
 [aierrors]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/remaining-ai-errors/RESULTS.md
+[authremaining]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/auth-remaining-2026-10-12/RESULTS.md
