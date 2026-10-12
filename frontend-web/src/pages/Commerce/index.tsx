@@ -886,6 +886,63 @@ function Commerce() {
                       표시할 일별 데이터가 없습니다.
                     </Typography>
                   )}
+                  {report.daily.length > 0 && (
+                    <Box component="details" sx={{ mt: 1 }}>
+                      <Box component="summary" sx={{ cursor: 'pointer', color: BLUE, fontSize: 14 }}>
+                        일별 정확한 수치 표 보기
+                      </Box>
+                      <Box
+                        role="region"
+                        aria-label="일별 매출·환불 수치 표 스크롤"
+                        tabIndex={0}
+                        sx={{ overflow: 'auto', maxHeight: 320, mt: 1 }}
+                      >
+                        <table
+                          aria-label="일별 매출·환불 수치 (USD)"
+                          style={{ width: '100%', minWidth: 500, borderCollapse: 'collapse' }}
+                        >
+                          <thead>
+                            <tr>
+                              {['날짜 (UTC)', '결제액', '환불액', '차감 수취액'].map(label => (
+                                <th
+                                  key={label}
+                                  scope="col"
+                                  style={{
+                                    textAlign: 'left',
+                                    padding: 6,
+                                    position: 'sticky',
+                                    top: 0,
+                                    background: '#f5f8fb',
+                                  }}
+                                >
+                                  {label}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {report.daily.map(item => (
+                              <tr key={item.date}>
+                                {[
+                                  item.date,
+                                  formatMoney(item.paymentTotal),
+                                  formatMoney(item.refundTotal),
+                                  formatMoney(item.netCollected),
+                                ].map((value, index) => (
+                                  <td
+                                    key={index}
+                                    style={{ padding: 6, borderTop: '1px solid #edf0f4', whiteSpace: 'nowrap' }}
+                                  >
+                                    {value}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </Box>
+                    </Box>
+                  )}
                 </CardContent>
               </Card>
               <Card variant="outlined" sx={{ minWidth: 0, borderColor: '#dce5ee', borderRadius: 2 }}>
@@ -916,8 +973,8 @@ function Commerce() {
                     <Box component="summary" sx={{ cursor: 'pointer', color: BLUE, fontSize: 14 }}>
                       채널별 정확한 수치 표 보기
                     </Box>
-                    <Box sx={{ overflowX: 'auto', mt: 1 }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <Box role="region" aria-label="채널별 수치 표 스크롤" tabIndex={0} sx={{ overflowX: 'auto', mt: 1 }}>
+                      <table aria-label="채널별 매출·환불 수치 (USD)" style={{ width: '100%', borderCollapse: 'collapse' }}>
                         <thead>
                           <tr>
                             {['채널', '결제액', '환불액', '차감 수취액'].map(label => (
@@ -1010,6 +1067,7 @@ function Commerce() {
                       <Button
                         onClick={() => setShowAllOrders(value => !value)}
                         aria-expanded={showAllOrders}
+                        aria-controls="commerce-orders-table"
                         sx={{ flexShrink: 0 }}
                       >
                         {showAllOrders ? '접기' : `전체 ${report.orders.length}건`}
@@ -1017,8 +1075,17 @@ function Commerce() {
                     )}
                   </Stack>
                   {report.orders.length ? (
-                    <Box sx={{ overflowX: 'auto', maxWidth: '100%' }}>
-                      <table style={{ width: '100%', minWidth: 680, borderCollapse: 'collapse' }}>
+                    <Box
+                      role="region"
+                      aria-label="최근 주문 표 스크롤"
+                      tabIndex={0}
+                      sx={{ overflowX: 'auto', maxWidth: '100%' }}
+                    >
+                      <table
+                        id="commerce-orders-table"
+                        aria-label="최근 주문 (금액 USD)"
+                        style={{ width: '100%', minWidth: 680, borderCollapse: 'collapse' }}
+                      >
                         <thead>
                           <tr>
                             {['주문 ID', '주문일', '채널', '상태', '결제액', '환불액', '차감 수취액'].map(label => (
@@ -1099,6 +1166,7 @@ function Commerce() {
             현재 리포트 표현의 제목·설명만 제안합니다. 매출·환불 계산 기준은 변경하지 않습니다.
           </Typography>
           <TextField
+            autoFocus
             label="편집 요청"
             value={aiPrompt}
             onChange={event => setAiPrompt(event.target.value)}
