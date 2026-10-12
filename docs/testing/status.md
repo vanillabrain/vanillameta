@@ -10,10 +10,10 @@
 
 | 범위 | 완료 | 부분 완료 | 미검증 | 합계 |
 | --- | ---: | ---: | ---: | ---: |
-| cases.md | 101 | 1 | 0 | 102 |
+| cases.md | 102 | 0 | 0 | 102 |
 | 서버 DuckDB + 디자인/필터/AI 대시보드 | 8 | 5 | 0 | 13 |
 | COMMERCE-01~08 | 8 | 0 | 0 | 8 |
-| 전체 | 117 | 6 | 0 | 123 |
+| 전체 | 118 | 5 | 0 | 123 |
 
 집계 단위는 고유 MD ID다. 단위 테스트 수·변형 수·스크린샷 수와 다르다. 과거 통과를 현재 전체 출시 회귀 완료로 확대하지 않으며, 관련 변경이 없는 결과만 재사용한다. DATA-04~07의 결과 JSON은 남았지만 상세 HTTP 원본 일부가 덮어써진 기록 한계도 보존한다.
 
@@ -120,7 +120,7 @@
 | NAV-01 | 완료 | 한/영 전환·reload 언어 지속. | [authnav] |
 | NAV-02 | 완료 | 390/768 대표 화면 조작, back/forward/deep link/reload/404 복구. | [nav] |
 | NAV-03 | 완료 | 390/768 대표 화면 조작, back/forward/deep link/reload/404 복구. | [nav] |
-| NAV-04 | 부분 완료 | source 생성 취소/dataset 미저장 이동/widget wizard 취소/AI 초안 취소 통과. 일반 dashboard 생성·편집 미저장 이동 조건 증빙 부족. | [authnav], [major], [filtererrors] |
+| NAV-04 | 완료 | 기존 source/dataset/widget/AI 취소 재사용. 일반 dashboard 생성·편집 각각 취소/메뉴 이동4조건: 쓰기요청0·목록/상세 동일·reload 원 제목/위젯/layout/500. | [authnav], [major], [filtererrors], [dashunsaved] |
 | COMPONENT-01 | 완료 | CRUD/추천 매핑/잘못된 값 제어; component duplicate409/missing404 수정 후 재검증. | [authnav] |
 | COMPONENT-02 | 완료 | CRUD/추천 매핑/잘못된 값 제어; component duplicate409/missing404 수정 후 재검증. | [authnav] |
 
@@ -146,7 +146,7 @@
 
 1. **P0 — 이번 선택 범위 완료.** DATA-08 실제 암호 연결 응답과 FILTER-01 신규 필터 API 타계정 차단을 보완했다. AUTH-01/05/06을 포함해 관련 변경 없이 반복하지 않는다. 전체 커넥터/테넌트 보안 감사 완료를 뜻하지 않는다.
 2. **P1 — 현재 DuckDB 수집 경로 완료.** FILE-12~18 잔여 조건을 보완했다. INGEST-01~04/FILE-19·20과 함께 관련 변경 없으면 반복하지 않는다. 느린 기기의 15초 초기화 한도와 JS 로더 모듈 배포 장애는 별도 운영 범위다.
-3. **P1 — 일반 대시보드 미저장 취소.** FILE-01·WIDGET-01·DASH-01은 [신규 생성·export 기록](oracle-create-export.md)에서 완료했다. NAV-04의 일반 대시보드 생성·편집 미저장 이동 조건만 남았다. 기존 생성/편집/삭제/집계 성공은 재사용한다.
+3. **기본 MD 102개 완료.** FILE-01·WIDGET-01·DASH-01의 신규 생성·export와 [NAV-04 미저장 취소/이동](dashboard-unsaved.md)까지 보완했다. 관련 변경이 없으면 반복하지 않는다. 전체 출시 회귀나 운영 준비 완료를 뜻하지 않는다.
 4. **P1 — 디자인과 Rill 비교.** 자동 생성된 최종 화면의 DESIGN-01/02 조건, 같은 수정 질문의 Rill 흐름(DESIGN-03/AI-DASH-01), DESIGN-04의 버튼 명칭·대비·키보드/스크린리더를 확인한다. 현재 Luna 설정 미설정 오류는 별도 격리 프로세스에서 확인한다. 사용자 지적 overflow/테마/라벨은 변경 화면에서만 재검증한다.
 5. **운영 파일럿 전 P1 / 다중 사용자 확장 전 P2.** 아래 별도 운영 범위를 정의하고 필요한 최소 검사를 시행한다. 전체 MD 통과와 운영 준비는 다른 판정이다.
 
@@ -196,3 +196,5 @@
 [fileduck]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/file-duckdb-boundaries/RESULTS.md
 
 [oraclecreate]: oracle-create-export.md
+
+[dashunsaved]: dashboard-unsaved.md
