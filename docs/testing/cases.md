@@ -785,3 +785,15 @@ Additional MD scenarios and fixed Rill oracle: [server-duckdb.md](server-duckdb.
 - AI-01/03~08 선택조건 확인: 실제 Luna SQL→500/실패시SQL보존, 등록CHART_BAR추천, 인사이트500/빈·없는대시보드거절. 서비스 응답주입 장애검사는 실모델 검사와 분리. 상세 미실행 조건은 증빙표 참조, AI-02 로컬provider fixture NOT_RUN.
 - AI-08 제목 dashboard.aiInsight 번역키 노출 FAIL→한/영 문구추가→실제 브라우저 재검증 PASS_SELECTED. AI codex/gpt-6-luna 연결변경 없음.
 - 증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/auth-ai/RESULTS.md`. FE 타입/변경lint/diff검사 PASS. 전체카탈로그 완료 아님.
+
+## 2026-10-12 AI 장애·복구 보완
+
+- AI-04 HTTP503/빈content/잘못된JSON 3변형: 실제 HTTP adapter + 별도 로컬fixture ERROR→정상응답복구 PASS_SELECTED. 외부모델호출0/제품서버설정변경없음.
+- AI-07/08 실제 headed브라우저 HTTP503 주입→안내/SQL보존/버튼복구→주입해제 후 기존 Codex gpt-6-luna 재시도 SQL500/인사이트500 PASS_SELECTED, pageerror0. Aside route 미지원으로 허용된 Playwright fallback.
+- 새제품오류없음. 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/ai-recovery/RESULTS.md`. AI-02 및 AI-03 전체계약은 아직 미검증, 전체카탈로그완료아님.
+
+## 2026-10-12 AI 제공자·DB 계약 보완
+
+- AI-02 PASS: 별도 루프백고정provider→실제Nest AI API→정확한SQL→실제SQLite500. AI-03 PASS: 쓰기/다중문장 provider응답 controlledERROR/SQL성공미노출, 각거절후 원본3행 exact동일.
+- 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/ai-provider-db/RESULTS.md`, results.json 및 동일SQLite500 보조화면. 모델호출없는fixture계약이며 제품codex/gpt-6-luna설정변경없음.
+- 새제품오류/수정없음. 전체MD완료아님; 기존 fixed-provider literal UI조건과 실LunaUI검증은 별도.
