@@ -26,3 +26,9 @@
 - 동작: 읽기 전용/외부파일 접근/다중문장 차단, 결과행/바이트 상한, 긴 쿼리 timeout, 업로드 저장 quota, 삭제 직렬화 검사.
 - 기대: controlled error, 후속 정상 count 성공. 전체 저장행에 임의 100000행 상한 없음. API 응답 기본 10000행/8MiB; 무제한 SELECT *는 실패하며 aggregate는 전체 행 대상으로 수행.
 - 범위: 하위 테스트/API. 전체 다중 사용자/전역 디스크 quota/강제 프로세스 종료 복구는 별도 운영 검증이며 통과로 확대하지 않는다.
+
+## 2026-10-12 INGEST-04 직렬화 선택조건 보완
+
+- 실제worker activequery+queued3개 뒤 remove 등록→완료순서일치/각sum500/파일디렉토리삭제/삭제파일거절/별도파일42 PASS_SELECTED.
+- 실제API의새소유소스 query/delete 단일경합 no5xx/삭제성공/목록제거/후속조회거절, 다른소스 실제브라우저42/pageerror0 PASS_SELECTED. HTTP도착순서와worker순서검사는분리.
+- 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/ingest-serialization/RESULTS.md`. 기존통과반복없음/제품수정없음/codex gpt-6-luna설정유지. 다중사용자stress·운영crash복구·전체카탈로그완료로확대하지않음.
