@@ -41,6 +41,17 @@ export class DatabaseService {
     return normalized;
   }
 
+  /** Public metadata must not expose credentials or URLs containing credentials. */
+  private publicConnectionConfig(value: any): any {
+    if (Array.isArray(value)) return value.map(item => this.publicConnectionConfig(item));
+    if (!value || typeof value !== 'object') return value;
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([key]) => !['password', 'connectionstring'].includes(key.toLowerCase()))
+        .map(([key, item]) => [key, this.publicConnectionConfig(item)]),
+    );
+  }
+
   /**
    * database type 목록 조회
    */
@@ -70,7 +81,9 @@ export class DatabaseService {
     databaseDto.timezone = 'Asia/Seoul';
 
     const saveResult = await this.databaseRepository.save(databaseDto);
-    saveResult.connectionConfig = JSON.parse(decryptConnectionConfig(saveResult.connectionConfig));
+    saveResult.connectionConfig = this.publicConnectionConfig(
+      JSON.parse(decryptConnectionConfig(saveResult.connectionConfig)),
+    );
     return { status: ResponseStatus.SUCCESS, data: saveResult };
   }
 
@@ -128,9 +141,7 @@ export class DatabaseService {
         alive.push(db);
         return;
       }
-      delete db.connectionConfig['password'];
-      const configElement = db.connectionConfig['connection'];
-      if (configElement) delete configElement['password'];
+      db.connectionConfig = this.publicConnectionConfig(db.connectionConfig);
       alive.push(db);
     });
     return { status: ResponseStatus.SUCCESS, data: alive };
@@ -224,7 +235,7 @@ export class DatabaseService {
       datasets.push(Object.assign({ datasetType: DatasetType.DATASET }, item));
     });
 
-    delete databaseInfo.connectionConfig['password'];
+    databaseInfo.connectionConfig = this.publicConnectionConfig(databaseInfo.connectionConfig);
 
     return { status: ResponseStatus.SUCCESS, data: { databaseInfo, tables, datasets } };
   }
@@ -247,7 +258,7 @@ export class DatabaseService {
       );
     }
     databaseInfo.connectionConfig = connection;
-    delete databaseInfo.connectionConfig['password'];
+    databaseInfo.connectionConfig = this.publicConnectionConfig(databaseInfo.connectionConfig);
     return { status: ResponseStatus.SUCCESS, data: { databaseInfo } };
   }
 

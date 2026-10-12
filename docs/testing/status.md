@@ -10,10 +10,10 @@
 
 | 범위 | 완료 | 부분 완료 | 미검증 | 합계 |
 | --- | ---: | ---: | ---: | ---: |
-| cases.md | 90 | 12 | 0 | 102 |
-| 서버 DuckDB + 디자인/필터/AI 대시보드 | 7 | 6 | 0 | 13 |
+| cases.md | 91 | 11 | 0 | 102 |
+| 서버 DuckDB + 디자인/필터/AI 대시보드 | 8 | 5 | 0 | 13 |
 | COMMERCE-01~08 | 8 | 0 | 0 | 8 |
-| 전체 | 105 | 18 | 0 | 123 |
+| 전체 | 107 | 16 | 0 | 123 |
 
 집계 단위는 고유 MD ID다. 단위 테스트 수·변형 수·스크린샷 수와 다르다. 과거 통과를 현재 전체 출시 회귀 완료로 확대하지 않으며, 관련 변경이 없는 결과만 재사용한다. DATA-04~07의 결과 JSON은 남았지만 상세 HTTP 원본 일부가 덮어써진 기록 한계도 보존한다.
 
@@ -62,7 +62,7 @@
 | DATA-05 | 완료 | ID20경로/원값·CTE·빈쿼리/쓰기·다중문장 거절/오류 후500. 결과 JSON 보존, 상세 HTTP 원본 일부 덮어쓰기 한계 있음. | [data] |
 | DATA-06 | 완료 | ID20경로/원값·CTE·빈쿼리/쓰기·다중문장 거절/오류 후500. 결과 JSON 보존, 상세 HTTP 원본 일부 덮어쓰기 한계 있음. | [data] |
 | DATA-07 | 완료 | ID20경로/원값·CTE·빈쿼리/쓰기·다중문장 거절/오류 후500. 결과 JSON 보존, 상세 HTTP 원본 일부 덮어쓰기 한계 있음. | [data] |
-| DATA-08 | 부분 완료 | uploaded_data 목록/암호 없는 소스의 미노출 확인. 실제 비밀번호를 가진 연결의 응답 비노출 증빙 부족. | [data] |
+| DATA-08 | 완료 | 실제 SCRAM 암호 PostgreSQL의 생성/목록/info/detail/수정 응답 비노출, uploaded_data 및 합계500. 생성 응답 암호·credential URL 노출 수정, 관련 회귀4개 PASS. | [data], [boundaries] |
 | SET-01 | 완료 | UI 업로드→500→저장, source/query/title 재조회. | [post] |
 | SET-02 | 완료 | 수정/reload 및 invalid query/required title 저장 차단. | [major] |
 | SET-03 | 완료 | 수정/reload 및 invalid query/required title 저장 차단. | [major] |
@@ -136,7 +136,7 @@
 | DESIGN-02 | 부분 완료 | 수동 참조 화면 KPI/9이름/0축/표 및 Luna $5.57 통과. 자동 생성 최종 화면의 모든 가시성 조건을 묶은 감사는 미완료. | [design], [luna] |
 | DESIGN-03 | 부분 완료 | 필터 수치 및 VM 생성·수정 구현/검증됨. 동일 수정문 Rill 재실행은 없음; 완전 UX 동등성 미확인. | [filters], [date], [luna] |
 | DESIGN-04 | 부분 완료 | 390 실제 화면/긴 이름/표, 키보드 선택 Space 오류 수정 후 재검증. 명칭 전체·대비·스크린리더·전체 키보드는 미검증. | [filters], [date], [luna] |
-| FILTER-01 | 부분 완료 | 기기 정답/초기화/바인딩/역순 응답/503 후 복구 통과. 신규 필터 API의 타계정 차단을 기존 DASH-06으로 대신 완료 처리하지 않음. | [filters], [filtererrors] |
+| FILTER-01 | 완료 | 기존 수치/초기화/바인딩/역순/503 복구 재사용. 타계정 analysis/필터preview/save/draft 실제403, 원 초안·자산5테이블 해시 동일, 실제 UI 차단. | [filters], [filtererrors], [boundaries] |
 | FILTER-02 | 완료 | 138055400/평균4.633939385003283±1e-9/2기기 정답, VM desktop/mobile·Rill desktop·UTC 경계·역순/부분 입력. Rill 모바일/기간 비교/필터 지속은 추가 범위. | [date], [filtererrors] |
 | AI-DASH-01 | 부분 완료 | Luna 생성/미리보기/같은ID 저장/reload/취소 보존 및 오류 변형 통과. 같은 수정 질문의 Rill 실행 비교와 현재 연결의 미설정 조건 실API 증빙 보완 필요. | [luna], [filtererrors], [aierrors] |
 | AI-DASH-02 | 완료 | 실Chromium390 필터/AI편집 취소/KPI/긴 이름/표/overflow 없음. 기존 모바일 실행의 로컬 모델 기록은 역사적 UI 증거로만 재사용; 실AI 성공 근거는 Luna 별도. | [filters], [date] |
@@ -144,7 +144,7 @@
 
 ## 남은 작업 우선순위
 
-1. **P0 — 데이터 노출 경계.** DATA-08 실제 암호 연결 응답, FILTER-01 신규 필터 API 타계정 차단을 먼저 확인한다. AUTH-01/05/06은 잔여 조건까지 완료했으므로 관련 변경 없이 반복하지 않는다.
+1. **P0 — 이번 선택 범위 완료.** DATA-08 실제 암호 연결 응답과 FILTER-01 신규 필터 API 타계정 차단을 보완했다. AUTH-01/05/06을 포함해 관련 변경 없이 반복하지 않는다. 전체 커넥터/테넌트 보안 감사 완료를 뜻하지 않는다.
 2. **P1 — 현재 DuckDB 수집 경로.** FILE-13~18의 현재 엔진 조건과 FILE-12 WASM 장애 중 서버 저장을 보완한다. 이전 SQLite 업로드 통과를 그대로 재실행하는 것이 아니라, 엔진 변경으로 증거가 필요한 변형만 선택한다. INGEST-01~04/FILE-19·20은 관련 변경 없으면 반복하지 않는다.
 3. **P1 — 기본 사용자 흐름의 정확한 증빙.** FILE-01의 oracle CSV/현재 결과 export, WIDGET-01·DASH-01의 oracle 생성·재조회, NAV-04의 일반 대시보드 미저장 취소만 보완한다. 기존 편집/삭제/집계 성공은 재사용한다.
 4. **P1 — 디자인과 Rill 비교.** 자동 생성된 최종 화면의 DESIGN-01/02 조건, 같은 수정 질문의 Rill 흐름(DESIGN-03/AI-DASH-01), DESIGN-04의 버튼 명칭·대비·키보드/스크린리더를 확인한다. 현재 Luna 설정 미설정 오류는 별도 격리 프로세스에서 확인한다. 사용자 지적 overflow/테마/라벨은 변경 화면에서만 재검증한다.
@@ -192,3 +192,4 @@
 [filtererrors]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/remaining-ai-filter/RESULTS.md
 [aierrors]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/remaining-ai-errors/RESULTS.md
 [authremaining]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/auth-remaining-2026-10-12/RESULTS.md
+[boundaries]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/data-filter-boundary/RESULTS.md
