@@ -390,6 +390,7 @@ export default {
     noData: 'No data found.',
     queryRunning: 'Running query... {{sec}}s',
     colorPicker: 'Pick a color',
+    colorValue: 'Color value',
     colorPickerHelp: 'Enter HEX or RGB, or choose a preset, then apply.',
     presetColors: 'Preset colors',
     invalidColor: 'Enter 3 or 6 HEX digits, or RGB values from 0 to 255.',

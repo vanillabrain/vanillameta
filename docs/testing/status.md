@@ -1,5 +1,7 @@
 # MD 검증 현황 — 2026-10-13
 
+DESIGN-04 별도 색상 입력은 [color-adapters-keyboard.md](color-adapters-keyboard.md)에 추가했다. 중복 선택창3개를 통합하고 색상 입력 이름·불변 업데이트·빠른 입력 누락을 수정했다. 선형/히트맵/복합 차트의 적용·취소·포커스·390폭과 회귀5개를 검증했다. 실제 VoiceOver와 다른 전체 경로는 남아 있어129완료/1부분 완료 집계를 유지한다.
+
 DESIGN-04 색상 선택창은 [color-picker-keyboard.md](color-picker-keyboard.md)에 추가했다. HEX 입력 중 조기 닫힘·preset 역할/Space 선택을 수정하고21개 Tab·적용/취소·모바일·한영과 회귀4개를 검증했다. 실제 VoiceOver 재시도는 런타임/창 선택 제약으로 BLOCKED 유지다.
 
 DESIGN-04 날짜 입력 후속은 [commerce-keyboard.md](commerce-keyboard.md)의 후속 기록에 추가했다. native 미완성 날짜의 전체 기간 오조회·입력 오류 연결·조회 중 포커스 소실을 수정하고 실제 키보드/중복 차단/모바일을 재검증했다. VoiceOver·native 팝업 등은 미검증으로 유지한다.

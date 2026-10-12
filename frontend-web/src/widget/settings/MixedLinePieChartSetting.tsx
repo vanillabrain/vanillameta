@@ -279,7 +279,12 @@ const MixedLinePieChartSetting = props => {
             .filter((item, index) => index < colorNum)
             .map((item, index) => (
               <React.Fragment key={index}>
-                <ColorFieldReForm color={item} onChange={event => handleColorChange(event, index)} setOption={setOption} />
+                <ColorFieldReForm
+                  index={index}
+                  color={item}
+                  onChange={event => handleColorChange(event, index)}
+                  setOption={setOption}
+                />
               </React.Fragment>
             ))}
       </ListItem>

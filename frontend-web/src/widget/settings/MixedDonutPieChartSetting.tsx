@@ -225,6 +225,7 @@ const MixedDonutPieChartSetting = props => {
             .map((item, index) => (
               <ColorFieldReForm
                 key={index}
+                index={index}
                 color={item}
                 onChange={event => handleColorChange(event, index)}
                 setOption={setOption}

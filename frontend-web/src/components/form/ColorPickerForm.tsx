@@ -24,7 +24,7 @@ const PRESET_COLORS = [
 
 const ColorPickerForm = props => {
   const { t } = useTranslation();
-  const { name, color, onChange } = props;
+  const { name, color, onChange, label = t('common.colorPicker') } = props;
   const popoverId = useId();
 
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
@@ -54,7 +54,7 @@ const ColorPickerForm = props => {
   return (
     <FormControl sx={{ alignItems: 'flex-end', justifyContent: 'center' }}>
       <IconButton
-        aria-label={t('common.colorPicker')}
+        aria-label={label}
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={open ? popoverId : undefined}
