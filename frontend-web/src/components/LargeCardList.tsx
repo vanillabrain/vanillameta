@@ -1,9 +1,11 @@
 import React from 'react';
-import { Box, Card, CardContent, Typography } from '@mui/material';
+import { Box, ButtonBase, Card, CardContent, Typography } from '@mui/material';
 
 const CardWrapper = ({ children, selected, onClick, sx = null }) => {
   return (
     <Card
+      component={ButtonBase}
+      aria-pressed={Boolean(selected)}
       sx={{
         padding: '20px 8px 20px 21px',
         borderRadius: '8px',
@@ -68,6 +70,7 @@ function LargeImgCardList(props) {
                 >
                   <Box
                     component="img"
+                    alt=""
                     src={srcUrl + item.icon}
                     sx={{ width: 48, height: 48, objectFit: 'contain', mb: '12px', border: 0 }}
                   />

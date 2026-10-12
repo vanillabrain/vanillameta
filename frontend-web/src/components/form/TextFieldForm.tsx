@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { Box, FormControl, FormLabel, OutlinedInput, Stack } from '@mui/material';
 
 function TextFieldForm(props) {
   const { id, label, type, name, value, endButton, required, onChange, ...rest } = props;
+  const generatedId = useId();
+  const controlId = id ?? generatedId;
 
   const [text, setText] = useState(value);
   const handleChange = event => {
@@ -16,12 +18,12 @@ function TextFieldForm(props) {
       required={required}
       sx={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
     >
-      <FormLabel htmlFor={id} sx={{ width: '35%' }}>
+      <FormLabel htmlFor={controlId} sx={{ width: '35%' }}>
         {label}
       </FormLabel>
       <Stack flexDirection="row" justifyContent="space-between" alignItems="center" sx={{ width: '65%' }}>
         <OutlinedInput
-          id={id}
+          id={controlId}
           type={type}
           name={name}
           value={text}

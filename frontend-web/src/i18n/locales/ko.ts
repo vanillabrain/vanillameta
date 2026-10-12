@@ -42,6 +42,7 @@ export default {
     addSource: '데이터 소스 추가',
     addDataset: '데이터셋 추가',
     selectSource: '{{name}} 소스 선택',
+    selectItem: '{{name}} 선택',
     previewItem: '{{name}} 미리보기',
     editItem: '{{name}} 수정',
     deleteItem: '{{name}} 삭제',

@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Box, FormControl, FormLabel, MenuItem, Select, Stack } from '@mui/material';
 
 function SelectForm(props) {
   const { t } = useTranslation();
   const {
+    id,
+    labelId: providedLabelId,
     label,
     optionList,
     endButton,
@@ -15,6 +17,10 @@ function SelectForm(props) {
     disabledDefaultValue,
     ...rest
   } = props;
+  const generatedId = useId();
+  const generatedLabelId = useId();
+  const controlId = id ?? generatedId;
+  const labelId = providedLabelId ?? generatedLabelId;
 
   const getDropList = (list: any[] | { value: any[]; label: any[] }) => {
     let dropDownList;
@@ -50,7 +56,8 @@ function SelectForm(props) {
     >
       {label && (
         <FormLabel
-          htmlFor="userInputSelect"
+          id={labelId}
+          htmlFor={controlId}
           sx={{
             width: '35%',
             pr: 2,
@@ -65,6 +72,8 @@ function SelectForm(props) {
       )}
       <Stack flexDirection="row" justifyContent="space-between" alignItems="center" sx={{ width: label ? '65%' : '100%' }}>
         <Select
+          id={controlId}
+          labelId={rest.inputProps?.['aria-label'] ? undefined : label ? labelId : providedLabelId}
           fullWidth
           displayEmpty
           size="small"

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FormControl, IconButton, Popover } from '@mui/material';
 import { SketchPicker } from 'react-color';
@@ -7,6 +7,7 @@ import PaintButton from '@/components/button/PaintButton';
 const ColorPickerForm = props => {
   const { t } = useTranslation();
   const { name, color, onChange } = props;
+  const popoverId = useId();
 
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
 
@@ -25,11 +26,16 @@ const ColorPickerForm = props => {
   };
 
   const open = Boolean(anchorEl);
-  const popoverId = open ? t('common.colorPickerPopup') : undefined;
 
   return (
     <FormControl sx={{ alignItems: 'flex-end', justifyContent: 'center' }}>
-      <IconButton aria-label={t('common.colorPicker')} onClick={handleClick}>
+      <IconButton
+        aria-label={t('common.colorPicker')}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-controls={open ? popoverId : undefined}
+        onClick={handleClick}
+      >
         <PaintButton color={color} />
       </IconButton>
       <Popover
@@ -37,6 +43,7 @@ const ColorPickerForm = props => {
         open={open}
         anchorEl={anchorEl}
         onClose={handleClose}
+        PaperProps={{ role: 'dialog', 'aria-label': t('common.colorPicker'), 'aria-modal': true }}
         anchorOrigin={{
           vertical: 'bottom',
           horizontal: 'left',

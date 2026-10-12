@@ -37,7 +37,10 @@ export const DatasetCardList = (props: DatasetCardListProps) => {
           >
             <Typography
               component={ButtonBase}
-              aria-label={t('data.previewItem', { name: item.title || item.tableName })}
+              aria-label={t(isViewMode ? 'data.selectItem' : 'data.previewItem', {
+                name: item.title || item.tableName,
+              })}
+              aria-pressed={isViewMode ? selectedData?.id === item.id : undefined}
               onClick={event => {
                 event.stopPropagation();
                 handleDataClick?.(item);

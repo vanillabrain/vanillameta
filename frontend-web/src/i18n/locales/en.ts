@@ -42,6 +42,7 @@ export default {
     addSource: 'Add data source',
     addDataset: 'Add dataset',
     selectSource: 'Select source {{name}}',
+    selectItem: 'Select {{name}}',
     previewItem: 'Preview {{name}}',
     editItem: 'Edit {{name}}',
     deleteItem: 'Delete {{name}}',

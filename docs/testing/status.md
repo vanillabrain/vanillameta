@@ -1,5 +1,7 @@
 # MD 검증 현황 — 2026-10-13
 
+DESIGN-04의 위젯 생성은 [widget-keyboard.md](widget-keyboard.md)에 추가했다. 타입50개 카드 진입·선택 상태, 숫자판15개 Tab 경로, 공통 폼 이름과 색상 팝업 구조를 수정·재검증했다. 저장 취소·데이터 보존과 모바일을 확인했으며, 다른 차트 속성 전체·VoiceOver는 남아 있어 부분 완료 유지다.
+
 DESIGN-04의 메트릭 화면은 [metric-keyboard.md](metric-keyboard.md)에서 Select/아이콘 이름·모바일 입력 배치를 수정했다. 실제 9개 Tab 순환·입력 취소·포커스 복귀·평가 결과 region과 데이터 보존을 확인했다. VoiceOver 및 다른 화면 전체 경로는 남아 있어 부분 완료 유지다.
 
 DESIGN-04의 소스·데이터셋 폼 키보드 경로는 [data-forms-keyboard.md](data-forms-keyboard.md)에 추가했다. 타입 카드·SQL 편집기 이름/탈출 경로·같은 타입의 입력 보존을 수정하고 실제 키보드 조회/취소·한영·모바일을 확인했다. VoiceOver와 다른 화면의 전체 경로는 남아 있어 부분 완료 유지다.
