@@ -154,6 +154,9 @@ function Commerce() {
   const [pageError, setPageError] = useState('');
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
+  const [dateErrors, setDateErrors] = useState({ start: '', end: '' });
+  const startInput = useRef<HTMLInputElement>(null);
+  const endInput = useRef<HTMLInputElement>(null);
   const [channel, setChannel] = useState('');
   const [appliedScope, setAppliedScope] = useState('');
   const [aiOpen, setAiOpen] = useState(false);
@@ -334,8 +337,19 @@ function Commerce() {
   };
 
   const applyFilters = () => {
+    if (reportBusy) return;
+    const incompleteStart = Boolean(startInput.current?.validity.badInput);
+    const incompleteEnd = Boolean(endInput.current?.validity.badInput);
+    if (incompleteStart || incompleteEnd) {
+      const message = '연·월·일을 모두 입력하거나 날짜를 완전히 지워 주세요.';
+      setDateErrors({ start: incompleteStart ? message : '', end: incompleteEnd ? message : '' });
+      (incompleteStart ? startInput : endInput).current?.focus();
+      return;
+    }
     if (Boolean(start) !== Boolean(end)) {
-      setPageError('시작일과 종료일을 모두 입력하거나 모두 비워 주세요.');
+      const message = '시작일과 종료일을 모두 입력하거나 모두 비워 주세요.';
+      setDateErrors({ start: start ? '' : message, end: end ? '' : message });
+      (start ? endInput : startInput).current?.focus();
       return;
     }
     if (
@@ -343,12 +357,20 @@ function Commerce() {
       end &&
       (Number.isNaN(Date.parse(`${start}T00:00:00Z`)) || Number.isNaN(Date.parse(`${end}T00:00:00Z`)) || start > end)
     ) {
-      setPageError('올바른 UTC 날짜 범위를 입력해 주세요.');
+      const message = '올바른 UTC 날짜 범위를 입력해 주세요.';
+      setDateErrors({ start: message, end: message });
+      startInput.current?.focus();
       return;
     }
+    setDateErrors({ start: '', end: '' });
     if (selectedId) fetchReport(selectedId, { start, end, channel });
   };
   const resetFilters = () => {
+    if (reportBusy) return;
+    // Native date inputs can retain incomplete segments while their value is already ''.
+    if (startInput.current) startInput.current.value = '';
+    if (endInput.current) endInput.current.value = '';
+    setDateErrors({ start: '', end: '' });
     setStart('');
     setEnd('');
     setChannel('');
@@ -735,20 +757,34 @@ function Commerce() {
                 </Typography>
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }}>
                   <TextField
+                    id="commerce-start-date"
+                    inputRef={startInput}
                     type="date"
                     label="시작일 (UTC)"
                     size="small"
                     value={start}
-                    onChange={event => setStart(event.target.value)}
+                    onChange={event => {
+                      setStart(event.target.value);
+                      setDateErrors({ start: '', end: '' });
+                    }}
+                    error={Boolean(dateErrors.start)}
+                    helperText={dateErrors.start || ' '}
                     InputLabelProps={{ shrink: true }}
                     inputProps={{ 'aria-label': '시작일 UTC' }}
                   />
                   <TextField
+                    id="commerce-end-date"
+                    inputRef={endInput}
                     type="date"
                     label="종료일 (UTC)"
                     size="small"
                     value={end}
-                    onChange={event => setEnd(event.target.value)}
+                    onChange={event => {
+                      setEnd(event.target.value);
+                      setDateErrors({ start: '', end: '' });
+                    }}
+                    error={Boolean(dateErrors.end)}
+                    helperText={dateErrors.end || ' '}
                     InputLabelProps={{ shrink: true }}
                     inputProps={{ 'aria-label': '종료일 UTC' }}
                   />
@@ -768,14 +804,24 @@ function Commerce() {
                       ))}
                     </Select>
                   </FormControl>
-                  <Button variant="contained" onClick={applyFilters} disabled={reportBusy} sx={{ minHeight: 40 }}>
+                  <Button
+                    variant="contained"
+                    onClick={applyFilters}
+                    aria-disabled={reportBusy}
+                    sx={{ minHeight: 40, opacity: reportBusy ? 0.5 : 1 }}
+                  >
                     적용
                   </Button>
-                  <Button variant="outlined" onClick={resetFilters} disabled={reportBusy} sx={{ minHeight: 40 }}>
+                  <Button
+                    variant="outlined"
+                    onClick={resetFilters}
+                    aria-disabled={reportBusy}
+                    sx={{ minHeight: 40, opacity: reportBusy ? 0.5 : 1 }}
+                  >
                     초기화
                   </Button>
                 </Stack>
-                <Typography variant="caption" display="block" mt={1} color="text.secondary">
+                <Typography role="status" aria-atomic="true" variant="caption" display="block" mt={1} color="text.secondary">
                   표시 결과 범위: {reportScope || '불러오는 중'}
                   {reportBusy ? ' · 새 범위를 조회 중…' : ''}
                 </Typography>
