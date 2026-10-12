@@ -753,6 +753,20 @@
 - METRIC-08 재생성의 groupBy 잔존 오류 발견 → 재생성 optional필드 null초기화 → 동일ID/활성1개/단일250 API·Aside화면 재검증 PASS.
 - 증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/remaining-metric/RESULTS.md`. 기존 통과 케이스 재사용. 전체 카탈로그 완료 아님.
 
+## 2026-10-12 데이터 소스 후속 결과
+
+- DATA-04~08 선택변형 PASS: 없는/잘못된 ID 20경로, 정상/빈/CTE 쿼리, 쓰기·다중문장 거절, 쿼리 오류 후 복구, 테이블목록/비밀번호미노출.
+- FILE-19 새 CSV100001행 전체저장/행수·합계100001 PASS. 1391572행 Parquet 기존 INGEST-01 결과 재사용.
+- 증빙과 상세응답 기록 한계: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/remaining-data/RESULTS.md`. DATA-03/FILE-20은 아래 후속 실행에서 확인.
+- 후속 DATA-03 PASS: 실제 SQLite 풀 초기화 후 파일 교체, 같은 소스·SQL 결과 500→600 및 연결 지속 확인. FILE-20 PASS: 별도 4096바이트 제한 서버에서 실제 UI4097바이트 업로드413/목록불변/후속health200/로딩해제. 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/data03-file20/RESULTS.md`.
+
+## 2026-10-12 대시보드 후속 결과
+
+### DASH-05 후속 선택변형 — 2026-10-12
+
+- 소유자/타계정 목록 격리, 삭제 후 사용자 매핑·위젯 연결·공유 레코드 1→0 및 원본 위젯/데이터셋 보존 PASS. 기존 title-only 검사는 재사용.
+- 증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/remaining-dashboard-cleanup/RESULTS.md`. 제품 수정 없음, 전체 MD 완료 아님.
+
 ## Server DuckDB MVP
 
 Additional MD scenarios and fixed Rill oracle: [server-duckdb.md](server-duckdb.md). Browser-analysis cases now require explicit **Analyze in browser** after file selection. Server upload uses **Save as dataset** directly.
