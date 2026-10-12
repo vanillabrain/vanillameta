@@ -10,10 +10,10 @@
 
 | 범위 | 완료 | 부분 완료 | 미검증 | 합계 |
 | --- | ---: | ---: | ---: | ---: |
-| cases.md | 91 | 11 | 0 | 102 |
+| cases.md | 98 | 4 | 0 | 102 |
 | 서버 DuckDB + 디자인/필터/AI 대시보드 | 8 | 5 | 0 | 13 |
 | COMMERCE-01~08 | 8 | 0 | 0 | 8 |
-| 전체 | 107 | 16 | 0 | 123 |
+| 전체 | 114 | 9 | 0 | 123 |
 
 집계 단위는 고유 MD ID다. 단위 테스트 수·변형 수·스크린샷 수와 다르다. 과거 통과를 현재 전체 출시 회귀 완료로 확대하지 않으며, 관련 변경이 없는 결과만 재사용한다. DATA-04~07의 결과 JSON은 남았지만 상세 HTTP 원본 일부가 덮어써진 기록 한계도 보존한다.
 
@@ -46,13 +46,13 @@
 | FILE-09 | 완료 | 교체·특수 파일명·잘못된 형식 UI 오류와 복구. | [bound] |
 | FILE-10 | 완료 | 교체·특수 파일명·잘못된 형식 UI 오류와 복구. | [bound] |
 | FILE-11 | 완료 | 교체·특수 파일명·잘못된 형식 UI 오류와 복구. | [bound] |
-| FILE-12 | 부분 완료 | 이전 WASM 차단·탐색 복구는 통과. 현재 MD의 WASM 실패 중 서버 저장 가능 조건은 별도 증빙 없음. | [security], [ingest] |
-| FILE-13 | 부분 완료 | 이전 3형식3행/500 통과는 SQLite 저장 경로. 현재 DuckDB의 CSV/JSON/Parquet 각 engine·원값 계약은 미완료(대용량 Parquet/CSV는 별도 통과). | [bound], [ingest] |
-| FILE-14 | 부분 완료 | 전환 전 서버 파서 경계 통과 기록은 보존. DuckDB 저장 경로로 변경돼 현재 엔진의 해당 API 변형은 통과로 재사용하지 않음. | [bound], [ingest] |
-| FILE-15 | 부분 완료 | 전환 전 서버 파서 경계 통과 기록은 보존. DuckDB 저장 경로로 변경돼 현재 엔진의 해당 API 변형은 통과로 재사용하지 않음. | [bound], [ingest] |
-| FILE-16 | 부분 완료 | 전환 전 서버 파서 경계 통과 기록은 보존. DuckDB 저장 경로로 변경돼 현재 엔진의 해당 API 변형은 통과로 재사용하지 않음. | [bound], [ingest] |
-| FILE-17 | 부분 완료 | 전환 전 서버 파서 경계 통과 기록은 보존. DuckDB 저장 경로로 변경돼 현재 엔진의 해당 API 변형은 통과로 재사용하지 않음. | [bound], [ingest] |
-| FILE-18 | 부분 완료 | 전환 전 서버 파서 경계 통과 기록은 보존. DuckDB 저장 경로로 변경돼 현재 엔진의 해당 API 변형은 통과로 재사용하지 않음. | [bound], [ingest] |
+| FILE-12 | 완료 | 실제 WASM 바이너리 차단 시 초기화 무응답 수정. Worker 오류/15초 제한, 실제 오류 안내→서버3행 저장/500→차단 제거·SPA 이동 후 브라우저3행/500 복구. JS 로더 모듈 장애는 별도 범위. | [fileduck] |
+| FILE-13 | 완료 | 현재 서버 DuckDB CSV/JSON/Parquet 각각3행 원값·500, metadata SQLite 유지. | [fileduck] |
+| FILE-14 | 완료 | 현재 DuckDB missing/empty/header-only/malformed JSON/scalar array/corrupt Parquet 각각400·소스 목록 동일. | [fileduck] |
+| FILE-15 | 완료 | .txt 업로드400·소스 미생성. | [fileduck] |
+| FILE-16 | 완료 | BOM/CRLF/quoted comma·newline·escaped quote 원값 그대로 조회. | [fileduck] |
+| FILE-17 | 완료 | sanitized collisions/duplicate raw headers/대소문자/숫자/Unicode 7열 이름 유일·원값 모두 보존. | [fileduck] |
+| FILE-18 | 완료 | heterogeneous JSON 4열 union·missing/null 및 원값 보존. | [fileduck] |
 | FILE-19 | 완료 | CSV100001 전체 저장·집계, Parquet1391572 기존 결과 합산. | [data], [ingest] |
 | FILE-20 | 완료 | 4096바이트 설정/4097 업로드413·목록불변·후속health200 및 UI 복구. | [data03] |
 | DATA-01 | 완료 | 실제 SQLite 연결 폼 저장/reload, 실패 후 유효 연결 복구. | [profile] |
@@ -145,7 +145,7 @@
 ## 남은 작업 우선순위
 
 1. **P0 — 이번 선택 범위 완료.** DATA-08 실제 암호 연결 응답과 FILTER-01 신규 필터 API 타계정 차단을 보완했다. AUTH-01/05/06을 포함해 관련 변경 없이 반복하지 않는다. 전체 커넥터/테넌트 보안 감사 완료를 뜻하지 않는다.
-2. **P1 — 현재 DuckDB 수집 경로.** FILE-13~18의 현재 엔진 조건과 FILE-12 WASM 장애 중 서버 저장을 보완한다. 이전 SQLite 업로드 통과를 그대로 재실행하는 것이 아니라, 엔진 변경으로 증거가 필요한 변형만 선택한다. INGEST-01~04/FILE-19·20은 관련 변경 없으면 반복하지 않는다.
+2. **P1 — 현재 DuckDB 수집 경로 완료.** FILE-12~18 잔여 조건을 보완했다. INGEST-01~04/FILE-19·20과 함께 관련 변경 없으면 반복하지 않는다. 느린 기기의 15초 초기화 한도와 JS 로더 모듈 배포 장애는 별도 운영 범위다.
 3. **P1 — 기본 사용자 흐름의 정확한 증빙.** FILE-01의 oracle CSV/현재 결과 export, WIDGET-01·DASH-01의 oracle 생성·재조회, NAV-04의 일반 대시보드 미저장 취소만 보완한다. 기존 편집/삭제/집계 성공은 재사용한다.
 4. **P1 — 디자인과 Rill 비교.** 자동 생성된 최종 화면의 DESIGN-01/02 조건, 같은 수정 질문의 Rill 흐름(DESIGN-03/AI-DASH-01), DESIGN-04의 버튼 명칭·대비·키보드/스크린리더를 확인한다. 현재 Luna 설정 미설정 오류는 별도 격리 프로세스에서 확인한다. 사용자 지적 overflow/테마/라벨은 변경 화면에서만 재검증한다.
 5. **운영 파일럿 전 P1 / 다중 사용자 확장 전 P2.** 아래 별도 운영 범위를 정의하고 필요한 최소 검사를 시행한다. 전체 MD 통과와 운영 준비는 다른 판정이다.
@@ -193,3 +193,4 @@
 [aierrors]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/remaining-ai-errors/RESULTS.md
 [authremaining]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/auth-remaining-2026-10-12/RESULTS.md
 [boundaries]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/data-filter-boundary/RESULTS.md
+[fileduck]: /Users/moonklabs/workspace-vanilla/phase2-fix-evidence/file-duckdb-boundaries/RESULTS.md

@@ -9,6 +9,7 @@ import SubmitButton from '@/components/button/SubmitButton';
 import DataGrid from '@/components/datagrid';
 import Seo from '@/seo/Seo';
 import { createColumns } from '@/utils/util';
+import { initializeDuckDbWorker } from '@/utils/util.duckdb-init';
 import { SnackbarContext } from '@/contexts/AlertContext';
 
 // duckdb-wasm 바이너리는 lazy chunk로 분리해 초기 번들에 포함되지 않도록 함
@@ -27,7 +28,7 @@ const loadDuckDb = async () => {
   const worker = new Worker(bundle.mainWorker);
   try {
     const db = new duckdb.AsyncDuckDB(new duckdb.VoidLogger(), worker);
-    await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
+    await initializeDuckDbWorker(worker, () => db.instantiate(bundle.mainModule, bundle.pthreadWorker));
     return { duckdb, db };
   } catch (e) {
     worker.terminate();
