@@ -46,3 +46,20 @@ Pivot·숫자범위·전체차원의변화량정렬·탐색상태저장/내보�
 전체 BE 71개 suite/1,108개 테스트와 FE 45개 파일/690개 테스트 PASS. 루트 BE/FE 빌드, FE 타입·전체 src/e2e lint, 변경 BE lint PASS(기존 경고는 유지). 기존 회귀 테스트의 컨트롤러 인자 누락, 공통 프롬프트 때문에 잘못 식별한 중단 요청, 재시도에 남은 10ms 제한시간, preview 기본 집계/비교 인자 기대값을 수정했다.
 
 격리 API4893/FE3693에서 full-flow와 product-flow의 CSV 집계·데이터셋 저장·로그인 오류/복구·위젯/대시보드 공개 공유 E2E 4개 PASS. 첫 실행은 Chromium 바이너리 누락으로 BLOCKED였고 `/tmp/vm-rill-playwright` 설치 후 재검증했다. 로그는 `/tmp/vm-rill-commit-{test,fe-test,build,e2e,lint,be-lint}.log`에 보관했다. 운영 배포·전체 확장 QA는 NOT_RUN이며 위 기능별 남은 조건은 유지한다.
+
+### 숫자 범위와 변화 순위 — 2026-10-14 후속
+
+원본 숫자 열의 포함 범위 `{column, range:{min?,max?}}`와 차원 순위 `rankingSort:{by:'value'|'delta'|'percentChange',direction:'asc'|'desc'}`를 연결했다. 최소/최대 중 하나를 생략할 수 있으며 0은 유효하다. 유한하지 않은 값, 역순, 값 목록과 범위 혼합, 숫자가 아닌 열은 거절한다. 대시보드 preview/details에도 실제 스키마 기반 숫자 검사를 적용했다. 비교 정렬은 전체 현재/이전 집계를 JOIN한 뒤 LIMIT20을 적용하고 비교 불가 값은 NULLS LAST로 정렬한다. 비교가 없는 정렬은 기본 현재값 내림차순이다. 전체 기간으로 돌아가면 비교/변화 정렬을 해제한다.
+
+| ID         | 검증                                                                        | 결과                                                                                              |
+| ---------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| EXPLORE-09 | 포함/단측/0 범위, 검색값·KPI·순위·추세·원본 공통 조건, 잘못된 입력 거절     | 실제 DuckDB/FE 회귀 PASS. Aside `bid_floor:1~9` 적용 PASS. 모든 잘못된 입력의 실제 화면은 NOT_RUN |
+| EXPLORE-10 | 현재값/변화량/변화율 × 오름/내림, 이전-only/NULL/0/음수, 현재 top20 밖 그룹 | 실제 DuckDB 및 원본 독립 SQL 6조합 PASS. Aside 변화량→변화율→오름차순, 원본 펼치기/XHR201 PASS    |
+
+격리 API4896/FE3696, 새로운 정상 가입 테스트 계정, 별도 `range-metadata.db`/업로드를 사용했다. 공식 샘플 source3/지표1·2에서 2023-09-10~11 UTC와 `bid_floor >=1 AND <=9`: 요청55127800, 평균2.934985272971758±1e-9, 원본122756행. 이전9월8~9일28263800, 변화26864000. 실제 화면 마지막 XHR는 평균2.934985272971808이며 독립 정답과 허용 오차 안에서 일치한다. 범위 칩과 비교·정렬·원본에서 동일 조건을 유지했다. 첫 이벤트 방식의 XHR 수집은 빈 배열이어서 증빙으로 쓰지 않고 요청/응답만 저장하는 프록시로 재검증했다.
+
+Rill 데모의 값/절대 변화/증감률 정렬과 범위 입력 흐름을 대조했다. **Rill의 Measure 숫자 필터는 선택한 차원별 집계 후 임계값 조건이고, 이번 VanillaMeta 범위는 원본 숫자 열의 조건이다. 두 필터를 동등하다고 판정하지 않는다.** Rill 모델은 날짜를 현재로 이동하므로 날짜 비교 수치는 원본 독립 정답으로 검증한다. UI는 기존 좌측 KPI/우측 순위 구조를 유지하되 이번 컨트롤의 전체 모바일·키보드·VoiceOver 대조는 NOT_RUN. 실제 화면의 비교 행 겹침은 자동 높이/최소48px로 수정하고 다시 캡처했다.
+
+검사: 전체 BE71suite/1129개·FE45파일/696개 PASS 후 리뷰 수정. 최종 공통 AI/BI25suite/690개 및 추가 dashboard 실제 preview14개, FE 탐색20개·타입/변경lint PASS. 루트 빌드 PASS, CSV 집계/데이터셋 저장 핵심 E2E2개 PASS. DECIMAL(p,s) 타입의 비교 정확성 경계 누락은 회귀로 발견·수정했다. 전체 운영 부하/확장 QA/배포는 NOT_RUN.
+
+증빙: `/tmp/vm-rill-explore/range-sort-api.json`, `range-browser-xhr.jsonl`, `range-ui-final.log`, `range-sort-final.png`, `/tmp/vm-rill-range-{integration-test,final-be,e2e}.log`. Aside 원본 캡처는 해당 세션에 보존했다. Pivot·탐색 보기 저장/내보내기·집계 지표 임계값 필터는 후속이다.

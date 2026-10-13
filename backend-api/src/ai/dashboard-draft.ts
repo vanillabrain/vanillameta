@@ -169,11 +169,43 @@ export function sourceQuery(
     throw new BadRequestException('maximum 5 filters');
   const bindings: any[] = [];
   const seen = new Set<string>();
+  // A filter is either a member list or one inclusive raw-value range; both are the request contract.
+  const rangeCondition = (column: string, range: any) => {
+    if (!range || typeof range !== 'object' || Array.isArray(range))
+      throw new BadRequestException('invalid filter range');
+    const keys = Object.keys(range);
+    if (!keys.length || keys.some(key => key !== 'min' && key !== 'max'))
+      throw new BadRequestException('invalid filter range');
+    const { min, max } = range;
+    if (
+      (min !== undefined && !Number.isFinite(min)) ||
+      (max !== undefined && !Number.isFinite(max)) ||
+      (min === undefined && max === undefined) ||
+      (min !== undefined && max !== undefined && min > max)
+    )
+      throw new BadRequestException('invalid filter range');
+    const clauses: string[] = [];
+    if (min !== undefined) {
+      clauses.push(`${quoteColumn(column)} >= ?`);
+      bindings.push(min);
+    }
+    if (max !== undefined) {
+      clauses.push(`${quoteColumn(column)} <= ?`);
+      bindings.push(max);
+    }
+    return `(${clauses.join(' AND ')})`;
+  };
   const conditions = filters.map(f => {
-    if (!f || !columns.includes(f.column) || seen.has(f.column))
+    if (!f || typeof f !== 'object' || Array.isArray(f))
+      throw new BadRequestException('invalid filter');
+    if (!columns.includes(f.column) || seen.has(f.column))
       throw new BadRequestException('invalid filter column');
     seen.add(f.column);
-    if ('values' in f && 'value' in f) throw new BadRequestException('ambiguous filter');
+    if (Object.keys(f).some(key => !['column', 'values', 'value', 'range'].includes(key)))
+      throw new BadRequestException('unsupported filter field');
+    if (['values', 'value', 'range'].filter(key => key in f).length !== 1)
+      throw new BadRequestException('ambiguous filter');
+    if ('range' in f) return rangeCondition(f.column, f.range);
     const values = 'values' in f ? f.values : [f.value];
     if (
       !Array.isArray(values) ||

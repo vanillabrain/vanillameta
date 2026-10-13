@@ -33,7 +33,12 @@ const GRAINS: Array<{ value: TrendGrain; label: string }> = [
 const CURRENCY_UNITS = ['$', '€', '₩', '£', '¥'];
 
 type FilterValue = string | number | boolean | null;
-type ExploreFilter = { column: string; values: FilterValue[] };
+type ExploreValueFilter = { column: string; values: FilterValue[] };
+type ExploreRange = { min?: number; max?: number };
+type ExploreRangeFilter = { column: string; range: ExploreRange };
+type ExploreFilter = ExploreValueFilter | ExploreRangeFilter;
+type RankingSortBy = 'value' | 'delta' | 'percentChange';
+type RankingSort = { by: RankingSortBy; direction: 'asc' | 'desc' };
 type ExploreDateRange = { column: string; start: string; end: string; timeZone?: string };
 type TrendGrain = 'day' | 'week' | 'month';
 type Source = { id: number; name: string; engine?: string };
@@ -151,6 +156,41 @@ const isAborted = (error: unknown) => {
 };
 
 const isRevisionConflict = (error: unknown) => (error as { response?: { status?: number } })?.response?.status === 409;
+
+const DEFAULT_RANKING_SORT: RankingSort = { by: 'value', direction: 'desc' };
+
+const isRangeFilter = (filter: ExploreFilter): filter is ExploreRangeFilter => 'range' in filter;
+
+/** Inclusive range keeps finite bounds only; at least one bound must survive and min must not exceed max. */
+const rangeError = (min: string, max: string): string | null => {
+  const hasMin = min.trim() !== '';
+  const hasMax = max.trim() !== '';
+  if (!hasMin && !hasMax) return '범위 값을 하나 이상 입력하세요.';
+  const minValue = hasMin ? Number(min) : undefined;
+  const maxValue = hasMax ? Number(max) : undefined;
+  if (hasMin && !Number.isFinite(minValue)) return '최소값은 유한한 숫자여야 합니다.';
+  if (hasMax && !Number.isFinite(maxValue)) return '최대값은 유한한 숫자여야 합니다.';
+  if (minValue !== undefined && maxValue !== undefined && minValue > maxValue) return '최소값은 최대값보다 클 수 없습니다.';
+  return null;
+};
+
+const buildRange = (min: string, max: string): ExploreRange => {
+  const range: ExploreRange = {};
+  if (min.trim() !== '') range.min = Number(min);
+  if (max.trim() !== '') range.max = Number(max);
+  return range;
+};
+
+const rangeSummary = (range: ExploreRange) => {
+  const { min, max } = range;
+  if (min !== undefined && max !== undefined) return `${min} ~ ${max}`;
+  if (min !== undefined) return `${min} 이상`;
+  if (max !== undefined) return `${max} 이하`;
+  return '범위 없음';
+};
+
+const filterSummary = (filter: ExploreFilter) =>
+  isRangeFilter(filter) ? rangeSummary(filter.range) : filter.values.map(categoryText).join(', ');
 
 function Pill({
   label,
@@ -319,7 +359,9 @@ function LeaderboardCard({
                   sx={{
                     position: 'relative',
                     width: '100%',
-                    minHeight: 32,
+                    height: 'auto',
+                    minHeight: 'previousValue' in row ? 48 : 32,
+                    py: 0.5,
                     px: 0.75,
                     justifyContent: 'space-between',
                     gap: 1,
@@ -403,6 +445,7 @@ export default function SourceExplore() {
   const [measureIds, setMeasureIds] = useState<number[]>([]);
   const [dimensions, setDimensions] = useState<string[]>([]);
   const [rankingMeasureId, setRankingMeasureId] = useState<number | null>(null);
+  const [rankingSort, setRankingSort] = useState<RankingSort>(DEFAULT_RANKING_SORT);
   const [filters, setFilters] = useState<ExploreFilter[]>([]);
   const [grain, setGrain] = useState<TrendGrain>('day');
   const [comparePrevious, setComparePrevious] = useState(false);
@@ -415,6 +458,9 @@ export default function SourceExplore() {
   const [filterColumn, setFilterColumn] = useState('');
   const [filterSearch, setFilterSearch] = useState('');
   const [filterSelection, setFilterSelection] = useState<FilterValue[]>([]);
+  const [filterMode, setFilterMode] = useState<'values' | 'range'>('values');
+  const [rangeMin, setRangeMin] = useState('');
+  const [rangeMax, setRangeMax] = useState('');
   const [result, setResult] = useState<QueryResult | null>(null);
   const [queryBusy, setQueryBusy] = useState(false);
   const [queryError, setQueryError] = useState('');
@@ -448,6 +494,7 @@ export default function SourceExplore() {
     setMeasureIds([]);
     setDimensions([]);
     setRankingMeasureId(null);
+    setRankingSort(DEFAULT_RANKING_SORT);
     setFilters([]);
     setGrain('day');
     setComparePrevious(false);
@@ -460,6 +507,9 @@ export default function SourceExplore() {
     setFilterColumn('');
     setFilterSearch('');
     setFilterSelection([]);
+    setFilterMode('values');
+    setRangeMin('');
+    setRangeMax('');
     setResult(null);
     setQueryError('');
     setRevisionError('');
@@ -533,6 +583,7 @@ export default function SourceExplore() {
       dimensionColumns: dimensions,
       rankingMeasureId: rankingMeasureId ?? measureIds[0],
       filters,
+      rankingSort,
       ...(dateRange ? { dateRange } : {}),
       trendGrain: grain,
       comparePrevious,
@@ -572,6 +623,7 @@ export default function SourceExplore() {
     dimensions,
     rankingMeasureId,
     filters,
+    rankingSort,
     dateRange,
     grain,
     comparePrevious,
@@ -582,11 +634,24 @@ export default function SourceExplore() {
   ]);
 
   const applyFilter = (column: string, values: FilterValue[]) => {
+    setColumnFilter(column, values.length > 0 ? { column, values } : null);
+  };
+  const applyRange = (column: string, range: ExploreRange) => setColumnFilter(column, { column, range });
+  const setColumnFilter = (column: string, filter: ExploreFilter | null) => {
     setFilters(previous => {
       const next = previous.filter(item => item.column !== column);
-      if (values.length > 0) next.push({ column, values });
+      if (filter) next.push(filter);
       return next;
     });
+    setPage(0);
+  };
+  const selectSortBy = (by: RankingSortBy) => {
+    if (by !== 'value' && !comparePrevious) return;
+    setRankingSort(current => (current.by === by ? current : { ...current, by }));
+    setPage(0);
+  };
+  const selectSortDirection = (direction: 'asc' | 'desc') => {
+    setRankingSort(current => (current.direction === direction ? current : { ...current, direction }));
     setPage(0);
   };
   const toggleMeasure = (id: number) => {
@@ -618,10 +683,21 @@ export default function SourceExplore() {
     );
   const applyFilterSelection = () => {
     applyFilter(filterColumn, filterSelection);
+    closeFilterPanel();
+  };
+  const applyRangeSelection = () => {
+    if (!filterColumn || rangeError(rangeMin, rangeMax)) return;
+    applyRange(filterColumn, buildRange(rangeMin, rangeMax));
+    closeFilterPanel();
+  };
+  const closeFilterPanel = () => {
     setFilterPanelOpen(false);
     setFilterColumn('');
     setFilterSearch('');
     setFilterSelection([]);
+    setFilterMode('values');
+    setRangeMin('');
+    setRangeMax('');
   };
   const handleRevisionConflict = () => {
     setRevisionError('데이터 버전이 변경되었습니다. 카탈로그를 다시 불러온 뒤 다시 시도해 주세요.');
@@ -680,6 +756,10 @@ export default function SourceExplore() {
     : queryBusy
     ? '탐색 결과를 불러오는 중…'
     : '';
+  const filterColumnNumeric = !!catalog?.dimensions.find(dimension => dimension.column === filterColumn)?.numeric;
+  const rangeInvalid = filterMode === 'range' && rangeError(rangeMin, rangeMax) !== null;
+  const rangeMessage =
+    filterMode === 'range' && (rangeMin.trim() !== '' || rangeMax.trim() !== '') ? rangeError(rangeMin, rangeMax) : null;
   const reloadCatalog = () => setCatalogReload(value => value + 1);
 
   return (
@@ -745,6 +825,8 @@ export default function SourceExplore() {
           selected={dateMode === 'all'}
           onClick={() => {
             setDateMode('all');
+            setComparePrevious(false);
+            setRankingSort(DEFAULT_RANKING_SORT);
             setPage(0);
           }}
         />
@@ -807,8 +889,11 @@ export default function SourceExplore() {
         <Pill
           label="이전 기간 비교"
           selected={comparePrevious}
+          disabled={!dateRange || rangePaused}
           onClick={() => {
-            setComparePrevious(value => !value);
+            const next = !comparePrevious;
+            setComparePrevious(next);
+            if (!next) setRankingSort(current => (current.by === 'value' ? current : DEFAULT_RANKING_SORT));
             setPage(0);
           }}
         />
@@ -819,8 +904,8 @@ export default function SourceExplore() {
         {filters.map(filter => (
           <Chip
             key={filter.column}
-            label={`${filter.column}: ${filter.values.map(categoryText).join(', ')}`}
-            onDelete={() => applyFilter(filter.column, [])}
+            label={`${filter.column}: ${filterSummary(filter)}`}
+            onDelete={() => setColumnFilter(filter.column, null)}
             sx={{ backgroundColor: '#eef2ff', color: '#312e81' }}
           />
         ))}
@@ -843,6 +928,9 @@ export default function SourceExplore() {
               onChange={event => {
                 setFilterColumn(event.target.value);
                 setFilterSelection([]);
+                setFilterMode('values');
+                setRangeMin('');
+                setRangeMax('');
               }}
               sx={{ minWidth: 220 }}
               slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
@@ -854,32 +942,82 @@ export default function SourceExplore() {
                 </option>
               ))}
             </TextField>
+            {filterColumnNumeric && (
+              <Stack direction="row" spacing={0.5} alignItems="center" role="group" aria-label="필터 모드">
+                <Pill
+                  label="값"
+                  ariaLabel="필터 모드 값"
+                  selected={filterMode === 'values'}
+                  onClick={() => setFilterMode('values')}
+                />
+                <Pill
+                  label="범위"
+                  ariaLabel="필터 모드 범위"
+                  selected={filterMode === 'range'}
+                  onClick={() => setFilterMode('range')}
+                />
+              </Stack>
+            )}
             <TextField
               size="small"
               label="값 검색"
               value={filterSearch}
-              disabled={!filterColumn}
+              disabled={!filterColumn || filterMode === 'range'}
               onChange={event => setFilterSearch(event.target.value)}
               sx={{ minWidth: 220 }}
             />
           </Stack>
           {filterColumn ? (
-            <FilterValueSelect
-              sourceId={catalog.sourceId}
-              sourceRevision={catalog.sourceRevision}
-              column={filterColumn}
-              search={filterSearch}
-              filters={filters}
-              dateRange={dateRange}
-              selected={filterSelection}
-              onToggle={toggleFilterValue}
-              onConflict={handleRevisionConflict}
-            />
+            filterMode === 'range' ? (
+              <Stack spacing={1}>
+                <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ flexWrap: 'wrap' }}>
+                  <TextField
+                    size="small"
+                    type="number"
+                    label="최소값"
+                    value={rangeMin}
+                    onChange={event => setRangeMin(event.target.value)}
+                    sx={{ width: 160 }}
+                  />
+                  <TextField
+                    size="small"
+                    type="number"
+                    label="최대값"
+                    value={rangeMax}
+                    onChange={event => setRangeMax(event.target.value)}
+                    sx={{ width: 160 }}
+                  />
+                </Stack>
+                <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
+                  경계를 포함하며 최소값·최대값 중 하나만 지정해도 됩니다.
+                </Typography>
+                {rangeMessage && (
+                  <Typography role="alert" sx={{ fontSize: 13, color: 'error.main' }}>
+                    {rangeMessage}
+                  </Typography>
+                )}
+              </Stack>
+            ) : (
+              <FilterValueSelect
+                sourceId={catalog.sourceId}
+                sourceRevision={catalog.sourceRevision}
+                column={filterColumn}
+                search={filterSearch}
+                filters={filters}
+                dateRange={dateRange}
+                selected={filterSelection}
+                onToggle={toggleFilterValue}
+                onConflict={handleRevisionConflict}
+              />
+            )
           ) : (
             <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>필터할 열을 선택하세요.</Typography>
           )}
           <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-            <Button disabled={!filterColumn || filterSelection.length === 0} onClick={applyFilterSelection}>
+            <Button
+              disabled={!filterColumn || (filterMode === 'range' ? rangeInvalid : filterSelection.length === 0)}
+              onClick={filterMode === 'range' ? applyRangeSelection : applyFilterSelection}
+            >
               필터 적용
             </Button>
             <Button onClick={() => setFilterPanelOpen(false)}>닫기</Button>
@@ -910,6 +1048,49 @@ export default function SourceExplore() {
             {dimensions.map(column => (
               <Chip key={column} label={column} sx={{ backgroundColor: '#f1f5f9', color: '#334155' }} />
             ))}
+          </Stack>
+          <Stack
+            direction="row"
+            spacing={0.5}
+            alignItems="center"
+            role="group"
+            aria-label="차원 정렬"
+            sx={{ flexWrap: 'wrap' }}
+          >
+            <Typography sx={{ fontSize: 13, fontWeight: 700 }}>차원 정렬</Typography>
+            <Pill
+              label="현재값"
+              ariaLabel="정렬 기준 현재값"
+              selected={rankingSort.by === 'value'}
+              onClick={() => selectSortBy('value')}
+            />
+            <Pill
+              label="변화량"
+              ariaLabel="정렬 기준 변화량"
+              selected={rankingSort.by === 'delta'}
+              disabled={!comparePrevious}
+              onClick={() => selectSortBy('delta')}
+            />
+            <Pill
+              label="변화율"
+              ariaLabel="정렬 기준 변화율"
+              selected={rankingSort.by === 'percentChange'}
+              disabled={!comparePrevious}
+              onClick={() => selectSortBy('percentChange')}
+            />
+            <Divider orientation="vertical" flexItem />
+            <Pill
+              label="내림차순"
+              ariaLabel="정렬 방향 내림차순"
+              selected={rankingSort.direction === 'desc'}
+              onClick={() => selectSortDirection('desc')}
+            />
+            <Pill
+              label="오름차순"
+              ariaLabel="정렬 방향 오름차순"
+              selected={rankingSort.direction === 'asc'}
+              onClick={() => selectSortDirection('asc')}
+            />
           </Stack>
           {settingsOpen && (
             <Box

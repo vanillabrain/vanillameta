@@ -84,4 +84,51 @@ describe('common UTC date and multiple selection filters', () => {
   ])('rejects invalid dates %j', range => {
     expect(() => sourceQuery(sql, columns, [], range, ['event_time'])).toThrow();
   });
+
+  describe('inclusive numeric range filters', () => {
+    it('binds both endpoints inclusively and executes them as bound parameters', async () => {
+      const query = sourceQuery(sql, columns, [{ column: 'amount', range: { min: 20, max: 100 } }]);
+      expect(query.sql).toContain('"amount" >= ?');
+      expect(query.sql).toContain('"amount" <= ?');
+      expect(query.bindings).toEqual([20, 100]);
+      expect((await worker.query(filename, query.sql, query.bindings)).datas).toEqual([
+        { total: 120 },
+      ]);
+    });
+    it('supports either bound on its own', async () => {
+      const lower = sourceQuery(sql, columns, [{ column: 'amount', range: { min: 100 } }]);
+      expect(lower.sql).not.toContain('<= ?');
+      expect((await worker.query(filename, lower.sql, lower.bindings)).datas).toEqual([
+        { total: 1100 },
+      ]);
+      const upper = sourceQuery(sql, columns, [{ column: 'amount', range: { max: 20 } }]);
+      expect(upper.sql).not.toContain('>= ?');
+      expect((await worker.query(filename, upper.sql, upper.bindings)).datas).toEqual([
+        { total: 30 },
+      ]);
+      const single = sourceQuery(sql, columns, [
+        { column: 'amount', range: { min: 100, max: 100 } },
+      ]);
+      expect((await worker.query(filename, single.sql, single.bindings)).datas).toEqual([
+        { total: 100 },
+      ]);
+    });
+    it.each([
+      [{ column: 'amount', range: {} }],
+      [{ column: 'amount', range: { min: 100, max: 20 } }],
+      [{ column: 'amount', range: { min: '20' } }],
+      [{ column: 'amount', range: { min: Number.NaN } }],
+      [{ column: 'amount', range: { min: Number.POSITIVE_INFINITY } }],
+      [{ column: 'amount', range: { min: null } }],
+      [{ column: 'amount', range: { min: 1, extra: 2 } }],
+      [{ column: 'amount', range: null }],
+      [{ column: 'amount', range: [1, 2] }],
+      [{ column: 'amount', values: [10], range: { min: 1 } }],
+      [{ column: 'amount', value: 10, range: { min: 1 } }],
+      [{ column: 'amount', range: { min: 1 }, extra: 1 }],
+      [{ column: 'unknown', range: { min: 1 } }],
+    ])('rejects invalid ranges %j', (...filters) => {
+      expect(() => sourceQuery(sql, columns, filters)).toThrow();
+    });
+  });
 });

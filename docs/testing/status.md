@@ -297,3 +297,5 @@ Assistant 저장 충돌·실행 중단의 ASSISTANT-06~07을 [assistant-reliabil
 2026-10-14 지역 KPI 시점 선택/기여 행: DST 지역 버킷 경계·필터 범위 clipping, FE timezone 유지, canonical 그룹 재검증과 현재/이전 기여 행 연결. 실제 KST Aside/XHR 현재10/20·이전100/999, 시점 선택 preview201 timezone/반개구간/30 유지 PASS_SELECTED_VARIANTS. BE regional-query23/선택75/기존contributor68 및 FE 관련 회귀·타입/lint·BE build 통과. DATE열 선택/일반라인/지역겹쳐보기 미지원. [상세](business-timezone.md).
 
 2026-10-14 Rill 동적 탐색 첫 단위: 저장 Measure/Dimension 선택·검색 다중값필터·기간/시간대/비교·차원 순위·원본 페이지를 `/explore/source`에 연결했다. Rill 원본1391572행의3조건 독립정답/실API, Aside실화면/다중필터/비교/XHR,390px iframe 선택검증 PASS. 비교는 전체집계JOIN후LIMIT로 이전순위밖값 누락을 방지한다. [범위/증빙/차이](rill-exploration.md). Pivot·숫자범위·변화정렬·탐색보기저장/내보내기·전체접근성·운영부하는후속이며 이번통과로확대하지않는다.
+
+2026-10-14 Rill 범위/변화 순위 후속: EXPLORE-09/10 하위 및 Aside 선택 조건 PASS. 원본 숫자 범위 공통 적용·전체 차원 집계 후 값/변화량/변화율 양방향 정렬, 독립 SQL6조합과 실제 XHR55127800/122756행 확인. 대시보드 숫자 열 검사·날짜 없는 비교 비활성화·DECIMAL 비교 정확성 경계 수정. Rill의 집계 지표 임계값 필터와는 의미가 다르며 Pivot/보기 저장/내보내기·이번 컨트롤 전체 접근성/모바일은 NOT_RUN. [상세](rill-exploration.md).

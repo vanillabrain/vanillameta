@@ -60,6 +60,20 @@ export class AiDashboardService {
     private readonly connection: ConnectionService,
     @InjectRepository(Dashboard) private readonly dashboards: Repository<Dashboard>,
   ) {}
+  private validateRangeColumns(filters: any, schema: any[]) {
+    if (!Array.isArray(filters)) return; // sourceQuery owns shape validation.
+    for (const filter of filters) {
+      if (!filter || typeof filter !== 'object' || !('range' in filter)) continue;
+      const column = schema.find(item => item.column_name === filter.column);
+      if (
+        !column ||
+        !/^(U?BIGINT|U?INTEGER|U?SMALLINT|U?TINYINT|U?HUGEINT|FLOAT|DOUBLE|DECIMAL)/i.test(
+          column.column_type,
+        )
+      )
+        throw new BadRequestException('숫자 열에만 범위 필터를 적용할 수 있습니다.');
+    }
+  }
   private success(data: any) {
     return { status: ResponseStatus.SUCCESS, data };
   }
@@ -580,6 +594,7 @@ export class AiDashboardService {
           '파일 버전이 변경되었습니다. 대시보드를 새로고침한 뒤 상세 내역을 다시 열어 주세요.',
         );
       const schema = await this.schema(draft.databaseId);
+      this.validateRangeColumns(body.filters, schema);
       const columns = schema.map(c => c.column_name);
       const temporal = schema
         .filter(c => /^(DATE|TIMESTAMP)/i.test(c.column_type))
@@ -922,6 +937,7 @@ export class AiDashboardService {
       throw new BadRequestException('이전 기간 비교에는 적용한 날짜 범위가 필요합니다.');
     const sourceRevision = await this.connection.duckDBVersion(draft.databaseId);
     const schema = await this.schema(draft.databaseId);
+    this.validateRangeColumns(body.filters, schema);
     const columns = schema.map(c => c.column_name);
     const temporal = schema.filter(c => /^(DATE|TIMESTAMP)/i.test(c.column_type));
     // Validate the current range before deriving or querying either comparison period.

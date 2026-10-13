@@ -211,6 +211,7 @@ it('loads the catalog and queries with default selections over all data', async 
     measureIds: [1, 2, 3],
     dimensionColumns: ['device_type', 'device_os'],
     rankingMeasureId: 1,
+    rankingSort: { by: 'value', direction: 'desc' },
     filters: [],
     trendGrain: 'day',
     comparePrevious: false,
@@ -250,6 +251,9 @@ it('serializes grain, compare toggle, custom dateRange and timeZone into the que
   await mount();
   fireEvent.click(screen.getByRole('button', { name: '집계 단위 주' }));
   await waitFor(() => expect(lastQuery().trendGrain).toBe('week'));
+  fireEvent.click(screen.getByRole('button', { name: '사용자 지정' }));
+  fireEvent.change(screen.getByLabelText('시작일'), { target: { value: '2023-09-10' } });
+  fireEvent.change(screen.getByLabelText('종료일'), { target: { value: '2023-09-11' } });
   fireEvent.click(screen.getByRole('button', { name: '이전 기간 비교' }));
   await waitFor(() => expect(lastQuery().comparePrevious).toBe(true));
   fireEvent.click(screen.getByRole('button', { name: '사용자 지정' }));
@@ -263,6 +267,8 @@ it('serializes grain, compare toggle, custom dateRange and timeZone into the que
   expect(lastQuery().page).toBe(0);
   fireEvent.click(screen.getByRole('button', { name: '전체 기간' }));
   await waitFor(() => expect(lastQuery().dateRange).toBeUndefined());
+  expect(lastQuery().comparePrevious).toBe(false);
+  expect((screen.getByRole('button', { name: '이전 기간 비교' }) as HTMLButtonElement).disabled).toBe(true);
 });
 
 it('applies a distinct null filter from a leaderboard category', async () => {
@@ -472,4 +478,123 @@ it('resets details pagination when a filter or the source changes', async () => 
     includeRows: false,
     measureIds: [1, 2, 3],
   });
+});
+
+it('offers value/range modes only for numeric columns and blocks an empty range', async () => {
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: '필터 추가' }));
+  fireEvent.change(screen.getByLabelText('필터 열'), { target: { value: 'device_os' } });
+  expect(screen.queryByRole('button', { name: '필터 모드 범위' })).toBeNull();
+  fireEvent.change(screen.getByLabelText('필터 열'), { target: { value: 'bid_floor' } });
+  fireEvent.click(screen.getByRole('button', { name: '필터 모드 범위' }));
+  expect((screen.getByRole('button', { name: '필터 적용' }) as HTMLButtonElement).disabled).toBe(true);
+  const before = queries().length;
+  fireEvent.click(screen.getByRole('button', { name: '필터 적용' }));
+  await act(async () => undefined);
+  expect(queries().length).toBe(before);
+  expect(queries().some(([, body]) => (body as any).filters.some((filter: any) => 'range' in filter))).toBe(false);
+});
+
+it('applies an inclusive single-bound range from a numeric column and resets the page', async () => {
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: '필터 추가' }));
+  fireEvent.change(screen.getByLabelText('필터 열'), { target: { value: 'bid_floor' } });
+  fireEvent.click(screen.getByRole('button', { name: '필터 모드 범위' }));
+  fireEvent.change(screen.getByLabelText('최소값'), { target: { value: '1.5' } });
+  expect((screen.getByRole('button', { name: '필터 적용' }) as HTMLButtonElement).disabled).toBe(false);
+  fireEvent.click(screen.getByRole('button', { name: '필터 적용' }));
+  await waitFor(() => expect(lastQuery().filters).toEqual([{ column: 'bid_floor', range: { min: 1.5 } }]));
+  expect(lastQuery().page).toBe(0);
+  expect(screen.getByText('bid_floor: 1.5 이상')).not.toBeNull();
+});
+
+it('blocks a reversed range and warns about inclusive bounds ordering', async () => {
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: '필터 추가' }));
+  fireEvent.change(screen.getByLabelText('필터 열'), { target: { value: 'bid_floor' } });
+  fireEvent.click(screen.getByRole('button', { name: '필터 모드 범위' }));
+  fireEvent.change(screen.getByLabelText('최소값'), { target: { value: '10' } });
+  fireEvent.change(screen.getByLabelText('최대값'), { target: { value: '5' } });
+  await screen.findByText('최소값은 최대값보다 클 수 없습니다.');
+  expect((screen.getByRole('button', { name: '필터 적용' }) as HTMLButtonElement).disabled).toBe(true);
+  const before = queries().length;
+  fireEvent.click(screen.getByRole('button', { name: '필터 적용' }));
+  await act(async () => undefined);
+  expect(queries().length).toBe(before);
+});
+
+it('sends both range bounds, keeps the category filter, and removes the range chip', async () => {
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: '필터 적용: device_type = Mobile/Tablet' }));
+  await waitFor(() => expect(lastQuery().filters).toEqual([{ column: 'device_type', values: ['Mobile/Tablet'] }]));
+  fireEvent.click(screen.getByRole('button', { name: '필터 추가' }));
+  fireEvent.change(screen.getByLabelText('필터 열'), { target: { value: 'bid_floor' } });
+  fireEvent.click(screen.getByRole('button', { name: '필터 모드 범위' }));
+  fireEvent.change(screen.getByLabelText('최소값'), { target: { value: '1' } });
+  fireEvent.change(screen.getByLabelText('최대값'), { target: { value: '9' } });
+  fireEvent.click(screen.getByRole('button', { name: '필터 적용' }));
+  await waitFor(() =>
+    expect(lastQuery().filters).toEqual([
+      { column: 'device_type', values: ['Mobile/Tablet'] },
+      { column: 'bid_floor', range: { min: 1, max: 9 } },
+    ]),
+  );
+  expect(screen.getByText('bid_floor: 1 ~ 9')).not.toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: '삭제 bid_floor: 1 ~ 9' }));
+  await waitFor(() => expect(lastQuery().filters).toEqual([{ column: 'device_type', values: ['Mobile/Tablet'] }]));
+  expect(screen.queryByText('bid_floor: 1 ~ 9')).toBeNull();
+  expect(lastQuery().page).toBe(0);
+});
+
+it('sends the dimension sort and resets it to value desc when the comparison is disabled', async () => {
+  await mount();
+  expect((screen.getByRole('button', { name: '정렬 기준 변화량' }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole('button', { name: '정렬 기준 변화율' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(lastQuery().rankingSort).toEqual({ by: 'value', direction: 'desc' });
+  fireEvent.click(screen.getByRole('button', { name: '사용자 지정' }));
+  fireEvent.change(screen.getByLabelText('시작일'), { target: { value: '2023-09-10' } });
+  fireEvent.change(screen.getByLabelText('종료일'), { target: { value: '2023-09-11' } });
+  fireEvent.click(screen.getByRole('button', { name: '이전 기간 비교' }));
+  await waitFor(() => expect(lastQuery().comparePrevious).toBe(true));
+  expect((screen.getByRole('button', { name: '정렬 기준 변화량' }) as HTMLButtonElement).disabled).toBe(false);
+  fireEvent.click(screen.getByRole('button', { name: '정렬 기준 변화량' }));
+  await waitFor(() => expect(lastQuery().rankingSort).toEqual({ by: 'delta', direction: 'desc' }));
+  fireEvent.click(screen.getByRole('button', { name: '정렬 방향 오름차순' }));
+  await waitFor(() => expect(lastQuery().rankingSort).toEqual({ by: 'delta', direction: 'asc' }));
+  fireEvent.click(screen.getByRole('button', { name: '이전 기간 비교' }));
+  await waitFor(() => expect(lastQuery().rankingSort).toEqual({ by: 'value', direction: 'desc' }));
+  expect(lastQuery().comparePrevious).toBe(false);
+  expect((screen.getByRole('button', { name: '정렬 기준 변화량' }) as HTMLButtonElement).disabled).toBe(true);
+});
+
+it('ignores a superseded query response when the dimension sort changes', async () => {
+  const deferred = () => {
+    let settle!: (value: unknown) => void;
+    const promise = new Promise(resolve => {
+      settle = resolve;
+    });
+    return { promise, settle };
+  };
+  const slow = deferred();
+  let count = 0;
+  api.post.mockImplementation(async (url: string, body: any) => {
+    if (url === '/bi/explore/catalog') return success({ ...catalog, sourceRevision: 'rev-3' });
+    if (url === '/bi/explore/query') {
+      count += 1;
+      return count === 2 ? slow.promise : success(queryResult({ sourceRevision: 'rev-3' }));
+    }
+    return success({ values: [], truncated: false, sourceRevision: body.sourceRevision });
+  });
+  render(<SourceExplore />);
+  await waitFor(() => expect(lastQuery()).toBeTruthy());
+  fireEvent.click(screen.getByRole('button', { name: '정렬 방향 오름차순' }));
+  await waitFor(() => expect(count).toBe(2));
+  fireEvent.click(screen.getByRole('button', { name: '정렬 방향 내림차순' }));
+  await waitFor(() => expect(count).toBe(3));
+  await waitFor(() => expect(lastQuery().rankingSort).toEqual({ by: 'value', direction: 'desc' }));
+  await act(async () =>
+    slow.settle(success(queryResult({ sourceRevision: 'rev-3', kpis: [{ id: 9, title: 'Stale Sort KPI', value: 1 }] }))),
+  );
+  expect(screen.queryByText('Stale Sort KPI')).toBeNull();
+  expect(lastQuery().rankingSort).toEqual({ by: 'value', direction: 'desc' });
 });

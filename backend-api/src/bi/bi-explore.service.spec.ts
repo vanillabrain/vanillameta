@@ -265,6 +265,7 @@ describe('BiExploreService dynamic exploration over real DuckDB', () => {
       filters: [{ column: 'channel', values: ['web'] }],
       trendGrain: 'auto',
       comparePrevious: false,
+      rankingSort: { by: 'value', direction: 'desc' },
     });
   });
 
@@ -563,5 +564,411 @@ describe('BiExploreService dynamic exploration over real DuckDB', () => {
     await expect(
       service.values({ sourceId: 1, sourceRevision, column: 'region', filters: [] }, 20),
     ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('applies one inclusive numeric range to kpis, leaderboards, details and values', async () => {
+    const sourceRevision = await revision();
+    const scoped = [{ column: 'amount', range: { min: 20, max: 60 } }];
+    const result = await service.query(
+      {
+        sourceId: 1,
+        sourceRevision,
+        measureIds: [1],
+        rankingMeasureId: 1,
+        dimensionColumns: ['region'],
+        filters: scoped,
+        trendGrain: 'auto',
+        comparePrevious: false,
+        page: 0,
+        pageSize: 25,
+        includeRows: true,
+      },
+      actor,
+    );
+    // Both endpoints are included: 20 + 36 + 40 + 50 + 60.
+    expect(result.kpis[0].value).toBe(206);
+    expect(result.leaderboards[0].rows).toEqual([
+      { category: 'B', value: 90 },
+      { category: 'C', value: 60 },
+      { category: null, value: 36 },
+      { category: 'A', value: 20 },
+    ]);
+    expect(result.details).toMatchObject({ totalRows: '5', page: 0, pageSize: 25 });
+    expect(
+      result.details.rows.map((detail: any) => detail.amount).sort((a: number, b: number) => a - b),
+    ).toEqual([20, 36, 40, 50, 60]);
+    expect(result.applied).toMatchObject({
+      filters: scoped,
+      rankingSort: { by: 'value', direction: 'desc' },
+    });
+    const values = await service.values(
+      { sourceId: 1, sourceRevision, column: 'region', search: '', filters: scoped },
+      actor,
+    );
+    expect(values.values).toEqual(['A', 'B', 'C', null]);
+    // One-sided bounds keep the same inclusive comparison.
+    const minOnly = await service.query(
+      {
+        sourceId: 1,
+        sourceRevision,
+        measureIds: [1],
+        rankingMeasureId: 1,
+        dimensionColumns: [],
+        filters: [{ column: 'amount', range: { min: 60 } }],
+        page: 0,
+        pageSize: 25,
+        includeRows: false,
+      },
+      actor,
+    );
+    expect(minOnly.kpis[0].value).toBe(130);
+    const maxOnly = await service.query(
+      {
+        sourceId: 1,
+        sourceRevision,
+        measureIds: [1],
+        rankingMeasureId: 1,
+        dimensionColumns: [],
+        filters: [{ column: 'amount', range: { max: 12 } }],
+        page: 0,
+        pageSize: 25,
+        includeRows: false,
+      },
+      actor,
+    );
+    // Only 12 and 5 fall at or below the upper bound.
+    expect(maxOnly.kpis[0].value).toBe(17);
+    // Without a compared period only the measure value direction is available.
+    const ascending = await service.query(
+      {
+        sourceId: 1,
+        sourceRevision,
+        measureIds: [1],
+        rankingMeasureId: 1,
+        dimensionColumns: ['region'],
+        filters: [],
+        trendGrain: 'auto',
+        comparePrevious: false,
+        rankingSort: { by: 'value', direction: 'asc' },
+        page: 0,
+        pageSize: 25,
+        includeRows: false,
+      },
+      actor,
+    );
+    expect(ascending.leaderboards[0].rows.map((entry: any) => entry.category)).toEqual([
+      'D',
+      null,
+      'C',
+      'B',
+      'A',
+    ]);
+  });
+
+  it('rejects nonnumeric, malformed and ambiguous range filters on query and values', async () => {
+    const sourceRevision = await revision();
+    const body = (filters: any[]) => ({
+      sourceId: 1,
+      sourceRevision,
+      measureIds: [1],
+      rankingMeasureId: 1,
+      dimensionColumns: [],
+      filters,
+      trendGrain: 'auto',
+      comparePrevious: false,
+      page: 0,
+      pageSize: 25,
+      includeRows: false,
+    });
+    const cases = [
+      // A range compares raw values, so a text column has no numeric order to compare against.
+      [{ column: 'region', range: { min: 1 } }],
+      [{ column: 'missing', range: { min: 1 } }],
+      [{ column: 'amount', range: {} }],
+      [{ column: 'amount', range: { min: 10, max: 5 } }],
+      [{ column: 'amount', range: { min: '10' } }],
+      [{ column: 'amount', range: { min: Number.NaN } }],
+      [{ column: 'amount', range: { min: Number.POSITIVE_INFINITY } }],
+      [{ column: 'amount', range: { min: 1, extra: 2 } }],
+      [{ column: 'amount', range: null }],
+      [{ column: 'amount', range: [1, 2] }],
+      [{ column: 'amount', values: [1], range: { min: 1 } }],
+      [{ column: 'amount', value: 1, range: { min: 1 } }],
+      [{ column: 'amount', range: { min: 1 }, extra: 1 }],
+    ];
+    for (const filters of cases)
+      await expect(service.query(body(filters), actor)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      service.values(
+        {
+          sourceId: 1,
+          sourceRevision,
+          column: 'region',
+          search: '',
+          filters: [{ column: 'region', range: { min: 1 } }],
+        },
+        actor,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect((await service.catalog({ sourceId: 1 }, actor)).rowCount).toBe('9');
+  });
+
+  it('sorts every compared group by delta and percentChange before limiting', async () => {
+    state.filename = await writeSource(`CREATE TABLE uploaded_data AS
+      SELECT 'ok' AS region, 10::DOUBLE AS amount, DATE '2026-01-01' AS day
+      UNION ALL SELECT 'ok', 20, DATE '2026-01-02'
+      UNION ALL SELECT 'zero', 0, DATE '2026-01-01'
+      UNION ALL SELECT 'zero', 5, DATE '2026-01-02'
+      UNION ALL SELECT 'gone', 10, DATE '2026-01-01'
+      UNION ALL SELECT 'huge', 1e16, DATE '2026-01-01'
+      UNION ALL SELECT 'huge', 2e16, DATE '2026-01-02'
+      UNION ALL SELECT 'X', 1, DATE '2026-01-01'
+      UNION ALL SELECT 'X', 100, DATE '2026-01-02'
+      UNION ALL SELECT 'Y', 100, DATE '2026-01-01'
+      UNION ALL SELECT 'Y', 150, DATE '2026-01-02'
+      UNION ALL SELECT 'Z', 1000, DATE '2026-01-01'
+      UNION ALL SELECT 'Z', 1000, DATE '2026-01-02'
+      UNION ALL SELECT 'W', 500, DATE '2026-01-01'
+      UNION ALL SELECT 'W', 600, DATE '2026-01-02'
+      UNION ALL SELECT 'N', 300, DATE '2026-01-02'`);
+    metrics = [metric(1, 'Revenue', { aggregation: 'SUM', column: 'amount' })];
+    const sourceRevision = await revision();
+    const body = (rankingSort?: any) => ({
+      sourceId: 1,
+      sourceRevision,
+      measureIds: [1],
+      rankingMeasureId: 1,
+      dimensionColumns: ['region'],
+      filters: [],
+      dateRange: { column: 'day', start: '2026-01-02', end: '2026-01-02' },
+      trendGrain: 'auto',
+      comparePrevious: true,
+      page: 0,
+      pageSize: 25,
+      includeRows: false,
+      ...(rankingSort ? { rankingSort } : {}),
+    });
+    const order = async (sort: any) =>
+      (await service.query(body(sort), actor)).leaderboards[0].rows.map(
+        (entry: any) => entry.category,
+      );
+    expect(await order({ by: 'delta', direction: 'desc' })).toEqual([
+      'W',
+      'X',
+      'Y',
+      'ok',
+      'zero',
+      'Z',
+      'N',
+      'gone',
+      'huge',
+    ]);
+    expect(await order({ by: 'delta', direction: 'asc' })).toEqual([
+      'Z',
+      'zero',
+      'ok',
+      'Y',
+      'X',
+      'W',
+      'N',
+      'gone',
+      'huge',
+    ]);
+    // percentChange divides by abs(previous), so a negative baseline keeps the delta's sign.
+    expect(await order({ by: 'percentChange', direction: 'desc' })).toEqual([
+      'X',
+      'ok',
+      'Y',
+      'W',
+      'Z',
+      'N',
+      'gone',
+      'huge',
+      'zero',
+    ]);
+    expect(await order({ by: 'percentChange', direction: 'asc' })).toEqual([
+      'Z',
+      'W',
+      'Y',
+      'ok',
+      'X',
+      'N',
+      'gone',
+      'huge',
+      'zero',
+    ]);
+    const rows = (await service.query(body({ by: 'delta', direction: 'desc' }), actor))
+      .leaderboards[0].rows;
+    expect(rows.find((row: any) => row.category === 'X')).toEqual({
+      category: 'X',
+      value: 100,
+      previousValue: 1,
+      delta: 99,
+      percentChange: 9900,
+    });
+    // A zero baseline reports no percent change instead of an infinite one.
+    expect(rows.find((row: any) => row.category === 'zero')).toEqual({
+      category: 'zero',
+      value: 5,
+      previousValue: 0,
+      delta: 5,
+      percentChange: null,
+    });
+    // A previous-only group keeps its null current value and is ordered last.
+    expect(rows.find((row: any) => row.category === 'gone')).toEqual({
+      category: 'gone',
+      value: null,
+      previousValue: 10,
+      delta: null,
+      percentChange: null,
+    });
+    expect(rows.find((row: any) => row.category === 'N')).toEqual({
+      category: 'N',
+      value: 300,
+      previousValue: null,
+      delta: null,
+      percentChange: null,
+    });
+    // Beyond the exact integer range the change is suppressed and cannot lead a change sort.
+    expect(rows[rows.length - 1]).toMatchObject({
+      category: 'huge',
+      delta: null,
+      percentChange: null,
+      unavailable: expect.any(String),
+    });
+    const percent = (await service.query(body({ by: 'percentChange', direction: 'desc' }), actor))
+      .leaderboards[0].rows;
+    expect(percent[0]).toEqual({
+      category: 'X',
+      value: 100,
+      previousValue: 1,
+      delta: 99,
+      percentChange: 9900,
+    });
+    expect(percent[percent.length - 1]).toMatchObject({ category: 'zero', percentChange: null });
+  });
+
+  it('returns a category outside the current top twenty through a change sort', async () => {
+    state.filename = await writeSource(`CREATE TABLE uploaded_data AS
+      SELECT 'X' AS region, -400::DOUBLE AS amount, DATE '2026-01-02' AS day
+      UNION ALL SELECT 'X', -500, DATE '2026-01-01'
+      UNION ALL SELECT 'P' || lpad(CAST(i AS VARCHAR), 2, '0'), CAST(100 + i AS DOUBLE),
+        DATE '2026-01-02' FROM range(30) t(i)`);
+    metrics = [metric(1, 'Revenue', { aggregation: 'SUM', column: 'amount' })];
+    const sourceRevision = await revision();
+    const body = (rankingSort?: any) => ({
+      sourceId: 1,
+      sourceRevision,
+      measureIds: [1],
+      rankingMeasureId: 1,
+      dimensionColumns: ['region'],
+      filters: [],
+      dateRange: { column: 'day', start: '2026-01-02', end: '2026-01-02' },
+      trendGrain: 'auto',
+      comparePrevious: true,
+      page: 0,
+      pageSize: 25,
+      includeRows: false,
+      ...(rankingSort ? { rankingSort } : {}),
+    });
+    const byValue = await service.query(body(), actor);
+    expect(byValue.leaderboards[0].truncated).toBe(true);
+    expect(byValue.leaderboards[0].rows).toHaveLength(20);
+    expect(byValue.leaderboards[0].rows.map((row: any) => row.category)).not.toContain('X');
+    const byDelta = await service.query(body({ by: 'delta', direction: 'desc' }), actor);
+    expect(byDelta.leaderboards[0].truncated).toBe(true);
+    expect(byDelta.leaderboards[0].rows).toHaveLength(20);
+    // The negative previous baseline keeps a positive delta and a positive percent change.
+    expect(byDelta.leaderboards[0].rows[0]).toEqual({
+      category: 'X',
+      value: -400,
+      previousValue: -500,
+      delta: 100,
+      percentChange: 20,
+    });
+    const byPercent = await service.query(body({ by: 'percentChange', direction: 'desc' }), actor);
+    expect(byPercent.leaderboards[0].rows[0]).toEqual({
+      category: 'X',
+      value: -400,
+      previousValue: -500,
+      delta: 100,
+      percentChange: 20,
+    });
+  });
+
+  it('suppresses decimal text that rounds inward at the exact integer boundary', async () => {
+    state.filename = await writeSource(`CREATE TABLE uploaded_data AS
+      SELECT 'edge' AS region, 9007199254740991.0000::DECIMAL(38, 4) AS amount,
+        DATE '2026-01-01' AS day
+      UNION ALL SELECT 'edge', 9007199254740991.0000::DECIMAL(38, 4), DATE '2026-01-02'
+      UNION ALL SELECT 'safe', 2::DECIMAL(38, 4), DATE '2026-01-01'
+      UNION ALL SELECT 'safe', 4::DECIMAL(38, 4), DATE '2026-01-02'`);
+    metrics = [metric(1, 'Revenue', { aggregation: 'SUM', column: 'amount' })];
+    const sourceRevision = await revision();
+    const result = await service.query(
+      {
+        sourceId: 1,
+        sourceRevision,
+        measureIds: [1],
+        rankingMeasureId: 1,
+        dimensionColumns: ['region'],
+        filters: [],
+        dateRange: { column: 'day', start: '2026-01-02', end: '2026-01-02' },
+        trendGrain: 'auto',
+        comparePrevious: true,
+        rankingSort: { by: 'delta', direction: 'asc' },
+        page: 0,
+        pageSize: 25,
+        includeRows: false,
+      },
+      actor,
+    );
+    const rows = result.leaderboards[0].rows;
+    // Without the exact-range guard the boundary row would sort first on its zero delta.
+    expect(rows.map((row: any) => row.category)).toEqual(['safe', 'edge']);
+    expect(rows[0]).toMatchObject({ delta: 2, percentChange: 100 });
+    expect(rows[1]).toMatchObject({
+      category: 'edge',
+      delta: null,
+      percentChange: null,
+      unavailable: expect.any(String),
+    });
+  });
+
+  it('rejects change sorts without a compared period and unknown sort fields', async () => {
+    const sourceRevision = await revision();
+    const body = (rankingSort: any) => ({
+      sourceId: 1,
+      sourceRevision,
+      measureIds: [1],
+      rankingMeasureId: 1,
+      dimensionColumns: ['region'],
+      filters: [],
+      trendGrain: 'auto',
+      comparePrevious: false,
+      rankingSort,
+      page: 0,
+      pageSize: 25,
+      includeRows: false,
+    });
+    const cases = [
+      { by: 'delta' },
+      { by: 'delta', direction: 'desc' },
+      { by: 'percentChange', direction: 'asc' },
+      { by: 'median' },
+      { by: 'value', direction: 'sideways' },
+      { by: 'value', extra: true },
+      'value',
+      [],
+    ];
+    for (const rankingSort of cases)
+      await expect(service.query(body(rankingSort), actor)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+    const defaulted = await service.query(
+      { ...body({ by: 'value' }), dimensionColumns: [] },
+      actor,
+    );
+    expect(defaulted.applied.rankingSort).toEqual({ by: 'value', direction: 'desc' });
   });
 });
