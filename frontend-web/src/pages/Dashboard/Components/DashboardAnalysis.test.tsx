@@ -5,6 +5,11 @@ import DashboardAnalysis from './DashboardAnalysis';
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));
 vi.mock('@/helpers/apiHelper', () => api);
 vi.mock('./DashboardAssistant', () => ({ default: () => null }));
+// Saved-view API/UI behavior is exercised by PersonalSavedViews.test.tsx.
+vi.mock('./PersonalSavedViews', async importOriginal => ({
+  ...(await importOriginal<typeof import('./PersonalSavedViews')>()),
+  default: () => null,
+}));
 vi.mock('@/widget/wrapper/WidgetViewer', () => ({
   default: ({ dataSet, description }: any) => (
     <span>

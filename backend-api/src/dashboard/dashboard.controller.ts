@@ -6,6 +6,7 @@ import { DashboardService } from './dashboard.service';
 import { CreateDashboardDto } from './dto/create-dashboard.dto';
 import { UpdateDashboardDto } from './dto/update-dashboard.dto';
 import { ApiBearerAuth } from '@nestjs/swagger';
+import { PersonalViewService } from './personal-view.service';
 
 @UseGuards(JwtAuthGuard, SourceOwnershipGuard)
 @Controller('dashboard')
@@ -13,6 +14,7 @@ export class DashboardController {
   constructor(
     private readonly dashboardService: DashboardService,
     private readonly access: SourceAccessService,
+    private readonly views: PersonalViewService,
   ) {}
 
   @Post()
@@ -37,6 +39,23 @@ export class DashboardController {
   @ApiBearerAuth('AccessKey')
   async findOne(@Param('id') id: string, @Req() req) {
     return this.dashboardService.findOne(+id, req.user.accessKeyData.id);
+  }
+
+  @Get(':id/views')
+  listViews(@Param('id') id: string, @Req() req) {
+    return this.views.list(this.access.id(id), req.user.accessKeyData.id);
+  }
+  @Post(':id/views')
+  createView(@Param('id') id: string, @Body() body: any, @Req() req) {
+    return this.views.create(this.access.id(id), req.user.accessKeyData.id, body);
+  }
+  @Get(':id/views/:viewId')
+  loadView(@Param('id') id: string, @Param('viewId') viewId: string, @Req() req) {
+    return this.views.load(this.access.id(id), this.access.id(viewId), req.user.accessKeyData.id);
+  }
+  @Delete(':id/views/:viewId')
+  removeView(@Param('id') id: string, @Param('viewId') viewId: string, @Req() req) {
+    return this.views.remove(this.access.id(id), this.access.id(viewId), req.user.accessKeyData.id);
   }
 
   @Put(':id')

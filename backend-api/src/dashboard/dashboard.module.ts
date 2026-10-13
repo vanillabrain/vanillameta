@@ -14,10 +14,13 @@ import { UserMapping } from 'src/user/entities/user-mapping.entity';
 import { JwtService } from '@nestjs/jwt';
 import { RefreshToken } from 'src/auth/entites/refresh_token.entity';
 import { DashboardShare } from 'src/dashboard/entities/dashboard_share.entity';
+import { PersonalView } from './entities/personal-view.entity';
+import { PersonalViewService } from './personal-view.service';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
+      PersonalView,
       Dashboard,
       DashboardWidget,
       Widget,
@@ -29,6 +32,13 @@ import { DashboardShare } from 'src/dashboard/entities/dashboard_share.entity';
     ]),
   ],
   controllers: [DashboardController],
-  providers: [DashboardService, DashboardWidgetService, UserService, AuthService, JwtService],
+  providers: [
+    DashboardService,
+    DashboardWidgetService,
+    UserService,
+    AuthService,
+    JwtService,
+    PersonalViewService,
+  ],
 })
 export class DashboardModule {}

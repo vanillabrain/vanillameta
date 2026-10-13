@@ -144,7 +144,7 @@ const LineChart = props => {
       <ReactECharts
         ref={chartRef}
         option={componentOption}
-        style={{ flex: '1 1 auto', minHeight: 160, height: '100%', width: '100%' }}
+        style={{ flex: '1 1 auto', minHeight: showTable ? 80 : 160, height: showTable ? 'auto' : '100%', width: '100%' }}
         lazyUpdate={true}
         notMerge={true}
       />
@@ -157,7 +157,12 @@ const LineChart = props => {
         {showTable ? t('chart.hideDataTable') : t('chart.showDataTable')}
       </Button>
       {showTable && (
-        <Box sx={{ overflow: 'auto', maxHeight: 180, flexShrink: 0 }}>
+        <Box
+          role="region"
+          aria-label={t('chart.showDataTable')}
+          tabIndex={0}
+          sx={{ overflow: 'auto', maxHeight: 'min(180px, 40%)', flexShrink: 0 }}
+        >
           <Table size="small" aria-label={t('chart.showDataTable')}>
             <TableHead>
               <TableRow>

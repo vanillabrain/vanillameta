@@ -20,22 +20,24 @@ import WidgetViewer from '@/widget/wrapper/WidgetViewer';
 import DashboardAssistant from './DashboardAssistant';
 import { analysisOptions } from '../analysisOptions';
 import MetricTrend from './MetricTrend';
+import PersonalSavedViews, {
+  DateRange,
+  FilterValue,
+  RelativePeriod,
+  SavedViewState,
+  resolveRelativePeriod,
+  validDay,
+} from './PersonalSavedViews';
 
-type FilterValue = string | number | boolean | null;
-type DateRange = { column: string; start: string; end: string };
 const valueKey = (value: FilterValue) => encodeURIComponent(JSON.stringify(value));
-const validDay = (day: string) =>
-  /^\d{4}-\d{2}-\d{2}$/.test(day) &&
-  !Number.isNaN(Date.parse(`${day}T00:00:00Z`)) &&
-  new Date(`${day}T00:00:00Z`).toISOString().slice(0, 10) === day;
 
 export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAssistantOpenChange, children }: any) {
   const { t } = useTranslation();
-  const [numberNotation, setNumberNotation] = useState('auto');
+  const [numberNotation, setNumberNotation] = useState<SavedViewState['numberNotation']>('auto');
   useEffect(() => {
     try {
       const stored = localStorage.getItem(`dashboard-number-notation:${dashboardId}`);
-      setNumberNotation(['full', 'compact'].includes(stored) ? stored : 'auto');
+      setNumberNotation(stored === 'full' || stored === 'compact' ? stored : 'auto');
     } catch {
       setNumberNotation('auto');
     }
@@ -45,6 +47,9 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
   const [filters, setFilters] = useState<Record<string, FilterValue[]>>({});
   const [dateDraft, setDateDraft] = useState<DateRange>({ column: '', start: '', end: '' });
   const [dateRange, setDateRange] = useState<DateRange | null>(null);
+  const [relativePeriod, setRelativePeriod] = useState<RelativePeriod | null>(null);
+  const [recentDays, setRecentDays] = useState<7 | 30 | 90>(7);
+  const [analysisLoading, setAnalysisLoading] = useState(true);
   const [dateError, setDateError] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -56,12 +61,15 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
   useEffect(() => {
     loadSerial.current += 1;
     const request = loadSerial.current;
+    setAnalysisLoading(true);
     if (loadedDashboard.current !== dashboardId) {
       setDraft(null);
       setPreview(null);
       setFilters({});
       setDateDraft({ column: '', start: '', end: '' });
       setDateRange(null);
+      setRelativePeriod(null);
+      setRecentDays(7);
       setDateError('');
       setBusy(false);
       setError('');
@@ -78,6 +86,9 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
       })
       .catch(() => {
         // Unsupported dashboards keep their standard viewer.
+      })
+      .finally(() => {
+        if (request === loadSerial.current) setAnalysisLoading(false);
       });
     return () => {
       loadSerial.current += 1;
@@ -127,17 +138,47 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
   const temporalColumns = preview?.temporalColumns || [];
   const temporalColumn = dateDraft.column || temporalColumns[0]?.column || '';
   const active = Object.entries(filters).filter(([, values]) => values.length);
+  const unappliedDates =
+    dateDraft.start !== (dateRange?.start ?? '') ||
+    dateDraft.end !== (dateRange?.end ?? '') ||
+    (!!dateDraft.column && dateDraft.column !== (dateRange?.column ?? ''));
+  const viewDisabledReason =
+    analysisLoading || busy
+      ? '현재 조회가 완료된 뒤 저장 보기를 사용할 수 있습니다.'
+      : error || dateError
+      ? '조회 또는 날짜 오류를 해결한 뒤 저장 보기를 사용할 수 있습니다.'
+      : unappliedDates
+      ? '입력한 날짜를 적용하거나 초기화한 뒤 저장 보기를 사용할 수 있습니다.'
+      : '';
+  const setNotation = (value: SavedViewState['numberNotation']) => {
+    setNumberNotation(value);
+    try {
+      localStorage.setItem(`dashboard-number-notation:${dashboardId}`, value);
+    } catch {
+      /* Display remains usable without browser storage. */
+    }
+  };
+  const viewState: SavedViewState = {
+    version: 1,
+    filters: active.map(([column, values]) => ({ column, values })),
+    dateRange: relativePeriod ? null : dateRange,
+    relativePeriod,
+    numberNotation,
+  };
   const reset = () => {
     setFilters({});
     setDateDraft({ column: '', start: '', end: '' });
     setDateRange(null);
+    setRelativePeriod(null);
     setDateError('');
   };
   const applyDates = () => {
     const { start, end } = dateDraft;
+    setRelativePeriod(null);
     if (!start && !end) {
       setDateError('');
       setDateRange(null);
+      setDateDraft({ column: '', start: '', end: '' });
       return;
     }
     if (!temporalColumn || !validDay(start) || !validDay(end) || start > end) {
@@ -146,6 +187,15 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
     }
     setDateError('');
     setDateRange({ column: temporalColumn, start, end });
+  };
+  const applyRecent = () => {
+    if (busy || analysisLoading || error || !temporalColumn) return;
+    const relative = { column: temporalColumn, days: recentDays };
+    const range = resolveRelativePeriod(relative);
+    setRelativePeriod(relative);
+    setDateRange(range);
+    setDateDraft(range);
+    setDateError('');
   };
   const period = dateRange ? `${dateRange.column}: ${dateRange.start} ~ ${dateRange.end} (UTC)` : '전체 기간';
   return (
@@ -180,13 +230,7 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
             label={t('settings.numberNotation')}
             value={numberNotation}
             onChange={event => {
-              const value = event.target.value;
-              setNumberNotation(value);
-              try {
-                localStorage.setItem(`dashboard-number-notation:${dashboardId}`, value);
-              } catch {
-                /* Display remains usable without browser storage. */
-              }
+              setNotation(event.target.value as SavedViewState['numberNotation']);
             }}
           >
             <MenuItem value="auto">위젯 설정</MenuItem>
@@ -264,7 +308,11 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
                   labelId="date-column"
                   label="날짜 컬럼 (UTC)"
                   value={temporalColumn}
-                  onChange={e => setDateDraft(value => ({ ...value, column: e.target.value }))}
+                  disabled={busy}
+                  onChange={e => {
+                    setRelativePeriod(null);
+                    setDateDraft(value => ({ ...value, column: e.target.value }));
+                  }}
                 >
                   {temporalColumns.map((column: any) => (
                     <MenuItem key={column.column} value={column.column}>
@@ -281,21 +329,45 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
               type="date"
               size="small"
               value={dateDraft.start}
+              disabled={busy}
               InputLabelProps={{ shrink: true }}
               sx={{ minWidth: 0, flex: '1 1 150px', maxWidth: '100%' }}
-              onChange={e => setDateDraft(value => ({ ...value, start: e.target.value }))}
+              onChange={e => {
+                setRelativePeriod(null);
+                setDateDraft(value => ({ ...value, start: e.target.value }));
+              }}
             />
             <TextField
               label="종료일 (UTC)"
               type="date"
               size="small"
               value={dateDraft.end}
+              disabled={busy}
               InputLabelProps={{ shrink: true }}
               sx={{ minWidth: 0, flex: '1 1 150px', maxWidth: '100%' }}
-              onChange={e => setDateDraft(value => ({ ...value, end: e.target.value }))}
+              onChange={e => {
+                setRelativePeriod(null);
+                setDateDraft(value => ({ ...value, end: e.target.value }));
+              }}
             />
             <Button onClick={applyDates} disabled={busy}>
               적용
+            </Button>
+            <TextField
+              select
+              label="최근 기간 (UTC)"
+              value={recentDays}
+              disabled={busy}
+              size="small"
+              sx={{ minWidth: 0, flex: '1 1 150px' }}
+              onChange={event => setRecentDays(Number(event.target.value) as 7 | 30 | 90)}
+            >
+              <MenuItem value={7}>최근 7일</MenuItem>
+              <MenuItem value={30}>최근 30일</MenuItem>
+              <MenuItem value={90}>최근 90일</MenuItem>
+            </TextField>
+            <Button disabled={busy || analysisLoading || !!error} onClick={applyRecent}>
+              최근 기간 적용
             </Button>
           </>
         )}
@@ -313,6 +385,27 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
           <Button onClick={reset}>전체 데이터로 복구</Button>
         </Alert>
       )}
+      <PersonalSavedViews
+        key={`personal-views-${dashboardId}`}
+        dashboardId={Number(dashboardId)}
+        revision={draft.revision}
+        state={viewState}
+        disabledReason={viewDisabledReason}
+        sourceRevision={preview?.sourceRevision}
+        onApply={(state, range) => {
+          if (!draft.revision || viewDisabledReason) return;
+          serial.current += 1;
+          setBusy(true);
+          setError('');
+          setDateError('');
+          setFilters(Object.fromEntries(state.filters.map(filter => [filter.column, filter.values])));
+          setDateRange(range);
+          setDateDraft(range ?? { column: '', start: '', end: '' });
+          setRelativePeriod(state.relativePeriod);
+          if (state.relativePeriod) setRecentDays(state.relativePeriod.days);
+          setNotation(state.numberNotation);
+        }}
+      />
       {preview ? (
         <Box
           aria-busy={busy}

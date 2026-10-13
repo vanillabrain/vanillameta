@@ -1,5 +1,7 @@
 # MD 검증 현황 — 2026-10-13
 
+2026-10-13 개인 저장 보기 후속: [personal-saved-views.md](personal-saved-views.md). 절대/상대기간·다중 필터·숫자 표시의 저장/복원/삭제, 오류 복구·계정 차단·실제21동시 한도·모바일/키보드 선택 조건 PASS. 신규 BE26+FE27 통과. SSBI-09 전체는 지표/정렬 선택·팀 보기·MySQL 실통합/VoiceOver가 남아 부분 완료이며 기존130개 집계와 분리한다.
+
 [파일 교체·버전 복원](file-versions.md): SSBI-10 선택 VERSION-01~08을 검증했다. source24/metric30/dashboard26 정의·배치 유지, 독립 합계60→220→60·차원/날짜 캐시 갱신, 같은 파일 no-op(재수입0),400/403/409·CAS·최대5개·진행 중 조회 버전 고정 확인. 모바일 표/상단축 잘림 보정 및 Tab/Enter 확인. 자동 매핑/의미·장기 보존/전역 quota/crash 복구·VoiceOver는 남아 전체 SSBI는 부분 완료다. 기존130개 집계 유지, gpt-6-luna 유지·모델 호출0.
 
 [가중 평균·합계 비율 후속](advanced-metrics.md): SSBI-03의 선택 조건 ADV-01~04를 보완했다. Rill 전체 평균5.571238676523254·독립 정답 대조, 정상 가중17.5/15%·NULL/0·음수 정책·정의/snapshot 저장·재조회·모바일/Enter 확인. 차트 표NaN을 수정·재검증했다. 원격/통화/임의식/파일 교체·VoiceOver는 남아 전체 SSBI는 부분 완료다. gpt-6-luna 유지·모델 호출0.
@@ -10,7 +12,7 @@
 
 [SQL 없는 제작 2A](self-service-builder.md)의 새 DuckDB 프로파일·기본 6집계·정의 snapshot·숫자/막대/선 저장·내 파일 연결·503 복구는 선택 조건 PASS. 1440/390 화면과 Tab/입력/Enter도 확인했다. native select popup 자동화는 BLOCKED, VoiceOver는 NOT_RUN이며 SSBI-02/03/08/14 전체는 부분 완료다. 기존 130개 카탈로그 집계를 늘리지 않는다. AI 호출 0, gpt-6-luna 유지.
 
-2026-10-13 후속: [개인 소스 소유권](source-ownership.md)의 기존 API/계보/공유 선택 조건은 수정·재검증 PASS. SSBI-04 전체는 부분 완료이며 저장 보기/팀 권한/전체 SaaS 운영 감사와 실제 legacy owner 배정은 남아 있다.
+2026-10-13 후속: [개인 소스 소유권](source-ownership.md)의 기존 API/계보/공유 선택 조건은 수정·재검증 PASS. 저장 보기 요청의 소유권 재검사는 personal-saved-views.md 후속으로 확인했다. SSBI-04 전체는 팀 권한/전체 SaaS 운영 감사와 실제 legacy owner 배정이 남아 부분 완료다.
 
 아래는 수정 전 발견 기록이다. 신규 SSBI-04 권한 계약은 [단계0 감사](../strategy/2026-10-13-self-service-contract-audit.md)에서 일반 source/metric/preview 계정 간 접근을 재현해 미해결 FAIL로 기록했다. 기존 단일 인스턴스 카탈로그130개 완료 집계를 새 개인 소유 격리 완료로 해석하지 않는다. 다음 보강은 일반 API 전체의 owner/참조 검사와 명시적 legacy migration이다.
 

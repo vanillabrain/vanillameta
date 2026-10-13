@@ -7,7 +7,8 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
-import { createHash, randomUUID } from 'crypto';
+import { randomUUID } from 'crypto';
+import { dashboardRevision } from '../dashboard/dashboard-revision';
 import { AiService } from './ai.service';
 import { CODEX_MODEL } from './coding-agent';
 import { ConnectionService } from '../connection/connection.service';
@@ -60,18 +61,7 @@ export class AiDashboardService {
     return dashboard;
   }
   private revision(dashboard: Dashboard) {
-    return createHash('sha256')
-      .update(
-        JSON.stringify([
-          dashboard.id,
-          dashboard.title,
-          dashboard.layout ?? null,
-          dashboard.analysisDefinition ?? null,
-          dashboard.structuredDefinition ?? null,
-          dashboard.delYn,
-        ]),
-      )
-      .digest('hex');
+    return dashboardRevision(dashboard);
   }
   private async schema(id: number) {
     positiveId(id);
