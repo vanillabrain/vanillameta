@@ -2,10 +2,15 @@ import React from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import SourceDetails, { ContributionRequest, canRequestNextPage } from './SourceDetails';
+import SourceDetails, {
+  ContributionRequest,
+  canRequestNextPage,
+  validPreviousContributionRange,
+  sameContributionDateRange,
+} from './SourceDetails';
 import DashboardAnalysis from './DashboardAnalysis';
 
-const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), widget: vi.fn(), trend: vi.fn() }));
+const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), widget: vi.fn(), trend: vi.fn(), previous: vi.fn() }));
 vi.mock('@/helpers/apiHelper', () => api);
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 vi.mock('./DashboardAssistant', () => ({ default: () => null }));
@@ -18,9 +23,31 @@ vi.mock('./MetricTrend', () => ({
           props.trend?.points?.map((point: any) => (
             <button
               key={point.time}
-              aria-label={`추세 원본 ${point.time}`}
+              aria-label={`${props.title.endsWith(' · 이전 기간') ? '이전 추세 원본' : '추세 원본'} ${point.time}`}
               aria-disabled={props.contributionDisabled}
               onClick={() => props.onContributionSelect(point.time)}
+            >
+              집계 원본 행 보기
+            </button>
+          ))}
+        {props.contributionDisabledReason && <span>{props.contributionDisabledReason}</span>}
+      </div>
+    );
+  },
+}));
+vi.mock('./PeriodComparison', async importOriginal => ({
+  ...(await importOriginal<typeof import('./PeriodComparison')>()),
+  PreviousPeriodData: (props: any) => {
+    api.previous(props);
+    return (
+      <div>
+        {props.onContributionSelect &&
+          props.data?.map((row: any, index: number) => (
+            <button
+              key={index}
+              aria-label={`이전 그룹 ${JSON.stringify(row[props.categoryField])}`}
+              aria-disabled={props.contributionDisabled}
+              onClick={() => props.onContributionSelect(row[props.categoryField])}
             >
               집계 원본 행 보기
             </button>
@@ -783,6 +810,7 @@ const contributionData = (request = contribution, page = 0, pageSize = 25, title
       ? { groupFingerprint: request.groupFingerprint }
       : {}),
     ...(Object.prototype.hasOwnProperty.call(request, 'trendPoint') ? { trendPoint: request.trendPoint } : {}),
+    ...(request.period ? { period: request.period, dateRange: previousRange } : {}),
     title,
     components: ['SUM(amount)', 'COUNT(*)'],
     semantics: '집계 함수 입력 행의 합집합입니다. MIN/MAX는 모든 비NULL 입력, 비율은 각 구성요소 입력을 포함합니다.',
@@ -973,7 +1001,7 @@ const contributorCalls = () =>
 async function contributorAnalysis(data: any = contributorPreview) {
   await analysis(
     data,
-    data.widgets.some((widget: any) => widget.trend?.contribution)
+    data.widgets.some((widget: any) => widget.trend?.contribution || widget.previousContribution)
       ? { ...draft, widgets: data.widgets.map((widget: any) => ({ type: widget.type })) }
       : draft,
   );
@@ -1509,4 +1537,429 @@ it('trend point contributor cannot appear in an ordinary whole-widget response',
   render(<SourceDetails {...props} contribution={contribution} />);
   await screen.findByText(/원본 행 응답의 조건/);
   expect(screen.queryByText('record-A')).toBeNull();
+});
+
+const previousRange = { column: 'day', start: '2026-01-09', end: '2026-01-10' };
+const previousTime = '2026-01-09T08:00:00Z';
+const previousRequest: ContributionRequest = {
+  ...trendPointRequest,
+  period: 'previous',
+  trendPoint: { ...trendPointRequest.trendPoint, time: previousTime, groupFingerprint: 'c'.repeat(64) },
+};
+const previousProps = { ...trendProps, comparePrevious: true, previousDateRange: previousRange };
+const previousNumericPreview = {
+  ...trendPreview,
+  comparison: { current: range, previous: previousRange },
+  widgets: [
+    {
+      ...trendPreview.widgets[0],
+      previousTrend: {
+        ...trendPreview.widgets[0].trend,
+        points: [{ time: previousTime, value: null }],
+        contribution: { supported: true, groupFingerprint: 'c'.repeat(64) },
+      },
+    },
+  ],
+};
+const previousLauncher = () => button(`이전 추세 원본 ${previousTime}`);
+const previousTrendProps = () => api.trend.mock.calls.filter(([value]) => value.title.endsWith(' · 이전 기간')).at(-1)[0];
+async function previousAnalysis(data: any = previousNumericPreview) {
+  await contributorAnalysis(data);
+  choose('시작일 (UTC)', range.start);
+  choose('종료일 (UTC)', range.end);
+  fireEvent.click(button('적용'));
+  await idle();
+  fireEvent.click(screen.getByRole('checkbox', { name: '이전 기간 비교' }));
+  await idle();
+}
+
+it.each(['{Enter}', ' '])(
+  'previous contributor numeric keyboard %s preserves current basis and restores launcher',
+  async keys => {
+    await previousAnalysis();
+    fireEvent.click(categoryButton(null));
+    await idle();
+    const saved = screen.getByTestId('saved-state').textContent;
+    const before = previewCalls().length;
+    const launcher = previousLauncher();
+    launcher.focus();
+    await userEvent.keyboard(keys);
+    await screen.findByText('record-A');
+    expect(contributorCalls().at(-1)[1]).toMatchObject({
+      contribution: previousRequest,
+      comparePrevious: true,
+      dateRange: range,
+      filters: [{ column: 'channel', values: [null] }],
+      sourceRevision: props.sourceRevision,
+    });
+    expect(contributorCalls().at(-1)[1].contribution).not.toHaveProperty('dateRange');
+    expect(screen.getByText('이전 기간: day: 2026-01-09 ~ 2026-01-10 (UTC)')).toBeTruthy();
+    expect(screen.getByText(/현재 비교 기준: day: 2026-01-11 ~ 2026-01-12/)).toBeTruthy();
+    expect(previousTrendProps().onTimeSelect).toBeUndefined();
+    expect(screen.getByTestId('saved-state').textContent).toBe(saved);
+    expect(previewCalls()).toHaveLength(before);
+    button('원본 상세 닫기').focus();
+    fireEvent.click(button('원본 상세 닫기'));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(document.activeElement).toBe(launcher);
+    fireEvent.click(trendLauncher());
+    await screen.findByText('record-A');
+    expect(contributorCalls().at(-1)[1].contribution).not.toHaveProperty('period');
+    expect(contributorCalls().at(-1)[1]).not.toHaveProperty('comparePrevious');
+  },
+);
+
+it.each([
+  'period missing',
+  'period current',
+  'range missing',
+  'range length',
+  'range column',
+  'range precision',
+  'range extra',
+  'point time',
+  'source',
+])('previous contributor declines mismatched response %s', async kind => {
+  const data: any = contributionData(previousRequest);
+  data.contribution.dateRange = { ...previousRange };
+  data.contribution.trendPoint = { ...previousRequest.trendPoint };
+  if (kind === 'period missing') delete data.contribution.period;
+  if (kind === 'period current') data.contribution.period = 'current';
+  if (kind === 'range missing') delete data.contribution.dateRange;
+  if (kind === 'range length') data.contribution.dateRange.start = '2026-01-08';
+  if (kind === 'range column') data.contribution.dateRange.column = 'other';
+  if (kind === 'range precision') data.contribution.dateRange.precision = 'timestamp';
+  if (kind === 'range extra') data.contribution.dateRange.extra = true;
+  if (kind === 'point time') data.contribution.trendPoint.time = trendTime;
+  if (kind === 'source') data.sourceRevision = 'wrong-source';
+  api.post.mockResolvedValueOnce(success(data));
+  render(<SourceDetails {...previousProps} contribution={previousRequest} />);
+  await screen.findByText(/원본 행 응답의 조건/);
+  expect(screen.queryByText('record-A')).toBeNull();
+});
+
+it.each(['unexpected period', 'unexpected range'])('previous contributor current response rejects %s', async kind => {
+  const data: any = contributionData(trendPointRequest);
+  if (kind === 'unexpected period') data.contribution.period = 'previous';
+  else data.contribution.dateRange = previousRange;
+  api.post.mockResolvedValueOnce(success(data));
+  render(<SourceDetails {...previousProps} contribution={trendPointRequest} />);
+  await screen.findByText(/원본 행 응답의 조건/);
+  expect(screen.queryByText('record-A')).toBeNull();
+});
+
+it.each([
+  'compare off',
+  'current absent',
+  'previous absent',
+  'gap',
+  'length',
+  'column',
+  'precision',
+  'extra',
+  'wrong period',
+])('previous contributor invalid scope %s prevents transport', async kind => {
+  const changed: any = { ...previousProps, previousDateRange: { ...previousRange } };
+  const request: any = { ...previousRequest };
+  if (kind === 'compare off') changed.comparePrevious = false;
+  if (kind === 'current absent') changed.dateRange = null;
+  if (kind === 'previous absent') changed.previousDateRange = undefined;
+  if (kind === 'gap') changed.previousDateRange = { ...previousRange, start: '2026-01-08', end: '2026-01-09' };
+  if (kind === 'length') changed.previousDateRange.start = '2026-01-08';
+  if (kind === 'column') changed.previousDateRange.column = 'other';
+  if (kind === 'precision') changed.previousDateRange.precision = 'timestamp';
+  if (kind === 'extra') changed.previousDateRange.extra = true;
+  if (kind === 'wrong period') request.period = 'current';
+  render(<SourceDetails {...changed} contribution={request} />);
+  expect(screen.getByText(/집계 조건을 확인/)).toBeTruthy();
+  expect(api.post).not.toHaveBeenCalled();
+});
+
+it('previous contributor timestamp boundary uses exact adjacent equal duration and preserves current request', async () => {
+  const current = {
+    column: 'day',
+    precision: 'timestamp' as const,
+    start: '2026-01-11T08:00:00Z',
+    end: '2026-01-11T10:00:00Z',
+  };
+  const previous = { ...current, start: '2026-01-11T06:00:00Z', end: current.start };
+  expect(validPreviousContributionRange(current, previous)).toBe(true);
+  expect(validPreviousContributionRange(current, { ...previous, end: '2026-01-11T07:59:59Z' })).toBe(false);
+  expect(validPreviousContributionRange(current, { ...previous, start: '2026-01-11T05:00:00Z' })).toBe(false);
+  expect(sameContributionDateRange(current, { ...current, extra: true })).toBe(false);
+  api.post.mockResolvedValueOnce(
+    success({
+      ...contributionData(previousRequest),
+      contribution: {
+        ...contributionData(previousRequest).contribution,
+        dateRange: previous,
+      },
+    }),
+  );
+  render(
+    <SourceDetails {...previousProps} dateRange={current} previousDateRange={previous} contribution={previousRequest} />,
+  );
+  await screen.findByText('record-A');
+  expect(api.post.mock.lastCall[1]).toMatchObject({ dateRange: current, comparePrevious: true });
+  expect(screen.getByText(/이전 기간: day: UTC 2026-01-11 06:00:00 ~ 2026-01-11 08:00:00 \(종료 미포함\)/)).toBeTruthy();
+});
+
+it.each(['period', 'previous range', 'compare off', 'source', 'current range'])(
+  'previous contributor context change %s hides rows and ignores pending replies',
+  async kind => {
+    api.post.mockResolvedValueOnce(success(contributionData(previousRequest)));
+    const view = render(<SourceDetails {...previousProps} contribution={previousRequest} />);
+    await screen.findByText('record-A');
+    const late = deferred();
+    api.post.mockReturnValueOnce(late.promise);
+    fireEvent.click(button('다음 페이지'));
+    const signal = api.post.mock.lastCall[2].signal;
+    const changed: any = { ...previousProps };
+    const request = kind === 'period' ? trendPointRequest : previousRequest;
+    if (kind === 'previous range') changed.previousDateRange = { ...previousRange, start: '2026-01-08' };
+    if (kind === 'compare off') changed.comparePrevious = false;
+    if (kind === 'source') changed.sourceRevision = 'new-source';
+    if (kind === 'current range') changed.dateRange = { ...range, start: '2026-01-12' };
+    const fresh = deferred();
+    api.post.mockReturnValueOnce(fresh.promise);
+    view.rerender(<SourceDetails {...changed} contribution={request} />);
+    expect(signal.aborted).toBe(true);
+    expect(screen.queryByText('record-A')).toBeNull();
+    await act(async () =>
+      late.resolve(success({ ...contributionData(previousRequest, 1), datas: [{ channel: 'old-previous' }] })),
+    );
+    expect(screen.queryByText('old-previous')).toBeNull();
+    if (kind === 'period' || kind === 'source') {
+      expect(api.post.mock.lastCall[1]).toMatchObject({ contribution: request, page: 0 });
+      await act(async () =>
+        fresh.resolve(
+          success({
+            ...contributionData(request),
+            sourceRevision: changed.sourceRevision,
+            datas: [{ channel: 'fresh-mode' }],
+          }),
+        ),
+      );
+      await screen.findByText('fresh-mode');
+    }
+  },
+);
+
+it.each(['unapplied', 'pending', 'error', 'editing', 'compare off', 'old preview'])(
+  'previous contributor numeric live guard %s rejects retained callbacks',
+  async kind => {
+    await previousAnalysis();
+    const select = previousTrendProps().onContributionSelect;
+    if (kind === 'unapplied') choose('시작일 (UTC)', '2026-01-12');
+    else if (kind === 'editing') fireEvent.click(button('Assistant'));
+    else if (kind === 'compare off') {
+      fireEvent.click(screen.getByRole('checkbox', { name: '이전 기간 비교' }));
+      await idle();
+    } else {
+      const pending = deferred();
+      api.post.mockReturnValueOnce(pending.promise);
+      fireEvent.click(categoryButton(null));
+      if (kind === 'error') await act(async () => pending.reject(new Error('failed preview')));
+      if (kind === 'old preview') {
+        await act(async () => pending.resolve(success({ ...previousNumericPreview, sourceRevision: 'new-source' })));
+        await idle();
+      }
+    }
+    const count = contributorCalls().length;
+    act(() => select(previousTime));
+    expect(contributorCalls()).toHaveLength(count);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  },
+);
+
+it.each([
+  'current mismatch',
+  'previous length',
+  'previous gap',
+  'previous column',
+  'previous precision',
+  'no points',
+  'fingerprint',
+])('previous contributor preview proof %s blocks before transport', async kind => {
+  const data: any = structuredClone(previousNumericPreview);
+  if (kind === 'current mismatch') data.comparison.current.start = '2026-01-10';
+  if (kind === 'previous length') data.comparison.previous.start = '2026-01-08';
+  if (kind === 'previous gap') data.comparison.previous = { ...previousRange, start: '2026-01-08', end: '2026-01-09' };
+  if (kind === 'previous column') data.comparison.previous.column = 'other';
+  if (kind === 'previous precision') data.comparison.previous.precision = 'timestamp';
+  if (kind === 'no points') data.widgets[0].previousTrend.points = [];
+  if (kind === 'fingerprint') data.widgets[0].previousTrend.contribution.groupFingerprint = 'bad';
+  await previousAnalysis(data);
+  const select = previousTrendProps().onContributionSelect;
+  expect(previousTrendProps().contributionDisabled).toBe(true);
+  act(() => select(previousTime));
+  expect(contributorCalls()).toHaveLength(0);
+});
+
+const previousCategory = '2026-01-09T00:00:00Z';
+const previousLinePreview = {
+  ...contributorPreview,
+  comparison: { current: range, previous: previousRange },
+  widgets: [
+    {
+      ...contributorPreview.widgets[0],
+      type: 'CHART_LINE',
+      previousDatas: [{ category: previousCategory, amount: 10 }],
+      previousTimeSelection: {
+        column: 'day',
+        grain: 'day',
+        ranges: [{ column: 'day', precision: 'timestamp', start: previousCategory, end: '2026-01-10T00:00:00Z' }],
+      },
+      previousContribution: { supported: true, groupFingerprint: 'd'.repeat(64) },
+    },
+  ],
+};
+
+it('previous contributor safe line group sends stored typed category and fingerprint, preserves dates and restores focus', async () => {
+  await previousAnalysis(previousLinePreview);
+  const launcher = button(`이전 그룹 ${JSON.stringify(previousCategory)}`);
+  launcher.focus();
+  await userEvent.keyboard('{Enter}');
+  await screen.findByText('record-A');
+  expect(contributorCalls().at(-1)[1]).toMatchObject({
+    dateRange: range,
+    comparePrevious: true,
+    contribution: {
+      widgetIndex: 0,
+      expectedRevision: draft.revision,
+      trendGrain: 'auto',
+      period: 'previous',
+      category: previousCategory,
+      groupFingerprint: 'd'.repeat(64),
+    },
+  });
+  button('원본 상세 닫기').focus();
+  fireEvent.click(button('원본 상세 닫기'));
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  expect(document.activeElement).toBe(launcher);
+});
+
+it.each(['bar', 'unsupported', 'fingerprint', 'unaligned', 'unknown group'])(
+  'previous contributor line guard %s offers no wrong group request',
+  async kind => {
+    const data: any = structuredClone(previousLinePreview);
+    if (kind === 'bar') data.widgets[0].type = 'CHART_COLUMN';
+    if (kind === 'unsupported')
+      data.widgets[0].previousContribution = { supported: false, reason: '안전하지 않은 시간 집계' };
+    if (kind === 'fingerprint') data.widgets[0].previousContribution.groupFingerprint = '';
+    if (kind === 'unaligned') data.widgets[0].previousTimeSelection.ranges = [];
+    await previousAnalysis(data);
+    const callback = api.previous.mock.lastCall[0].onContributionSelect;
+    if (kind === 'bar') expect(callback).toBeUndefined();
+    else act(() => callback(kind === 'unknown group' ? 'other' : previousCategory));
+    expect(contributorCalls()).toHaveLength(0);
+  },
+);
+
+it('previous contributor 409 canonical refresh preserves comparison and current dates before reopening previous point', async () => {
+  await previousAnalysis();
+  fireEvent.click(categoryButton(null));
+  await idle();
+  api.post.mockRejectedValueOnce({ response: { status: 409, data: { message: 'changed prior groups' } } });
+  fireEvent.click(previousLauncher());
+  await screen.findByText(/집계 정의 또는 원본/);
+  const nextDraft = { ...trendProps.draft, revision: 'fresh-definition' };
+  api.get.mockResolvedValueOnce(success(nextDraft));
+  const refreshed = { ...previousNumericPreview, sourceRevision: 'fresh-source' };
+  api.post.mockImplementation(async (url, body) =>
+    success(
+      url === '/ai/dashboard-preview'
+        ? refreshed
+        : {
+            ...contributionData(body.contribution),
+            sourceRevision: body.sourceRevision,
+          },
+    ),
+  );
+  fireEvent.click(button('대시보드 데이터 새로 조회'));
+  await idle();
+  expect(previewCalls().at(-1)[1]).toMatchObject({
+    draft: nextDraft,
+    dateRange: range,
+    comparePrevious: true,
+    filters: [{ column: 'channel', values: [null] }],
+  });
+  fireEvent.click(previousLauncher());
+  await screen.findByText('record-A');
+  expect(contributorCalls().at(-1)[1]).toMatchObject({
+    dateRange: range,
+    comparePrevious: true,
+    sourceRevision: 'fresh-source',
+    contribution: { ...previousRequest, expectedRevision: nextDraft.revision },
+  });
+});
+
+it('previous contributor stored NULL line group is distinct from string null without local range inference', async () => {
+  const widget = previousLinePreview.widgets[0];
+  await previousAnalysis({
+    ...previousLinePreview,
+    widgets: [
+      {
+        ...widget,
+        previousDatas: [...widget.previousDatas, { category: null, amount: 10 }],
+        previousTimeSelection: { ...widget.previousTimeSelection, ranges: [...widget.previousTimeSelection.ranges, null] },
+      },
+    ],
+  });
+  const callback = api.previous.mock.lastCall[0].onContributionSelect;
+  act(() => callback('null'));
+  expect(contributorCalls()).toHaveLength(0);
+  act(() => callback(null));
+  await screen.findByText('record-A');
+  expect(contributorCalls().at(-1)[1].contribution).toMatchObject({ period: 'previous', category: null });
+});
+
+it.each(['success', 'failure'])(
+  'retry focus recovery %s keeps focus on the stable named close button and Escape closes',
+  async outcome => {
+    api.post.mockRejectedValueOnce({ response: { status: 503, data: { message: '일시적 조회 오류' } } });
+    const pending = deferred();
+    api.post.mockReturnValueOnce(pending.promise);
+    render(<SourceDetails {...previousProps} contribution={previousRequest} />);
+    await screen.findByText('일시적 조회 오류');
+    const retry = button('원본 행 다시 조회');
+    const close = button('원본 상세 닫기');
+    const originalRequest = api.post.mock.calls[0][1];
+    retry.focus();
+    await userEvent.keyboard('{Enter}');
+    expect(retry.isConnected).toBe(false);
+    expect(document.activeElement).toBe(close);
+    expect(within(screen.getByRole('dialog')).getByRole('button', { name: '원본 상세 닫기' })).toBe(close);
+    expect(api.post.mock.lastCall[1]).toEqual(originalRequest);
+    if (outcome === 'success') {
+      await act(async () => pending.resolve(success(contributionData(previousRequest))));
+      await screen.findByText('record-A');
+    } else {
+      await act(async () => pending.reject(new Error('재시도 오류')));
+      await screen.findByText('재시도 오류');
+    }
+    expect(document.activeElement).toBe(close);
+    await userEvent.keyboard('{Escape}');
+    expect(props.onClose).toHaveBeenCalledTimes(1);
+  },
+);
+
+it('retry focus recovery does not steal focus moved by the user while the request is pending', async () => {
+  api.post.mockRejectedValueOnce(new Error('조회 오류'));
+  const pending = deferred();
+  api.post.mockReturnValueOnce(pending.promise);
+  render(<SourceDetails {...previousProps} contribution={previousRequest} />);
+  await screen.findByText('조회 오류');
+  button('원본 행 다시 조회').focus();
+  await userEvent.keyboard('{Enter}');
+  expect(document.activeElement).toBe(button('원본 상세 닫기'));
+  const other = document.createElement('button');
+  other.textContent = '사용자가 선택한 대상';
+  screen.getByRole('dialog').append(other);
+  other.focus();
+  await act(async () => pending.resolve(success(contributionData(previousRequest))));
+  await screen.findByText('record-A');
+  expect(document.activeElement).toBe(other);
+  await userEvent.keyboard('{Escape}');
+  expect(props.onClose).toHaveBeenCalledTimes(1);
 });

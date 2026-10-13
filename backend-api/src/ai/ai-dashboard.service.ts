@@ -503,6 +503,7 @@ export class AiDashboardService {
               'category',
               'groupFingerprint',
               'trendPoint',
+              'period',
             ].includes(key),
         ) ||
         !Number.isSafeInteger(input.widgetIndex) ||
@@ -545,6 +546,21 @@ export class AiDashboardService {
         )
           throw new BadRequestException('invalid trend point contribution request');
         utcInstant(point.time, true);
+      }
+      if ('period' in input) {
+        const widget = saved.data.widgets[input.widgetIndex];
+        if (
+          input.period !== 'previous' ||
+          body.comparePrevious !== true ||
+          !body.dateRange ||
+          !(
+            (widget.type === 'BOARD_NUMERIC' && input.trendPoint) ||
+            (widget.type === 'CHART_LINE' &&
+              Object.prototype.hasOwnProperty.call(input, 'category'))
+          )
+        )
+          throw new BadRequestException('invalid previous contribution request');
+        previousDateRange(body.dateRange);
       }
       validatePeriodOptions({ trendGrain: input.trendGrain });
       if (
@@ -668,23 +684,18 @@ export class AiDashboardService {
     const temporal = schema
       .filter(column => /^(DATE|TIMESTAMP)/i.test(column.column_type))
       .map(column => column.column_name);
-    const query = (sql: string) =>
-      sourceQuery(sql, columns, body.filters, body.dateRange, temporal);
-    // Validate common scope before reading current groups or deriving effective regrouping.
-    query(definition.sql);
+    // Validate the current range against actual schema before deriving the previous scope.
+    sourceQuery(definition.sql, columns, body.filters, body.dateRange, temporal);
+    const dateRange =
+      input.period === 'previous' ? previousDateRange(body.dateRange) : body.dateRange;
+    const query = (sql: string) => sourceQuery(sql, columns, body.filters, dateRange, temporal);
     const { trendGrain } = validatePeriodOptions({ trendGrain: input.trendGrain });
     const dateColumn = temporal.includes(body.dateRange?.column)
       ? body.dateRange.column
       : temporal[0];
     const trendPoint = input.trendPoint;
     const trend = trendPoint
-      ? await this.numericTrendQuery(
-          definition,
-          saved.databaseId,
-          schema,
-          body.dateRange,
-          trendGrain,
-        )
+      ? await this.numericTrendQuery(definition, saved.databaseId, schema, dateRange, trendGrain)
       : undefined;
     if (
       trendPoint &&
@@ -703,6 +714,17 @@ export class AiDashboardService {
         }
       : definition;
     const plan = compileContribution({ ...groupedDefinition, sql: effective.sql }, schema);
+    if (
+      input.period === 'previous' &&
+      definition.type === 'CHART_LINE' &&
+      !resolveTimeChartBucket(
+        effective.sql,
+        definition.valueField,
+        definition.categoryField,
+        schema,
+      )
+    )
+      throw new UnprocessableEntityException(CONTRIBUTION_UNAVAILABLE);
     if (
       !plan.supported ||
       (definition.type === 'CHART_LINE' && trendGrain !== 'auto' && !effective.regroup)
@@ -816,6 +838,7 @@ export class AiDashboardService {
         widgetIndex: input.widgetIndex,
         expectedRevision: input.expectedRevision,
         title: definition.title,
+        ...(input.period === 'previous' ? { period: 'previous', dateRange } : {}),
         ...(trendPoint
           ? { trendPoint: { ...trendPoint } }
           : selected
@@ -960,11 +983,36 @@ export class AiDashboardService {
             result.datas[0][definition.valueField],
             prior.datas[0][definition.valueField],
           );
-        } else if (regroup && prior.datas.length > 240) {
+        } else if (definition.type === 'CHART_LINE' && prior.datas.length > 240) {
           widget.previousDatas = [];
           widget.previousUnavailable =
             '이전 기간 집계가 240개 시점을 초과합니다. 기간을 줄이거나 더 큰 단위를 선택해 주세요.';
         } else widget.previousDatas = prior.datas;
+        if (definition.type === 'CHART_LINE') {
+          const bucket = resolveTimeChartBucket(
+            widgetSql,
+            definition.valueField,
+            definition.categoryField,
+            schema,
+          );
+          const fingerprint = contributionGroupFingerprint(
+            prior.datas.map(row => row[definition.categoryField]),
+          );
+          widget.previousContribution =
+            bucket && contribution.supported && fingerprint && (trendGrain === 'auto' || regroup)
+              ? {
+                  supported: true,
+                  components: contribution.components,
+                  groupFingerprint: fingerprint,
+                }
+              : { supported: false, reason: CONTRIBUTION_UNAVAILABLE };
+          if (bucket && prior.datas.length <= CONTRIBUTION_GROUP_LIMIT)
+            widget.previousTimeSelection = buildTimeSelection(
+              prior.datas.map(row => row[definition.categoryField]),
+              bucket,
+              previous,
+            );
+        }
       }
       widgets.push(widget);
     }
@@ -1016,80 +1064,94 @@ export class AiDashboardService {
     if (body?.includeTrends === true) {
       for (const widget of widgets) {
         if (widget.type !== 'BOARD_NUMERIC') continue;
-        if (!dateColumn) {
-          widget.trendUnavailable = 'No temporal column is available.';
-          continue;
-        }
-        const trendSql = await this.numericTrendQuery(
-          widget,
-          draft.databaseId,
-          schema,
-          body.dateRange,
-          trendGrain,
-          temporalColumns.find((item: any) => item.column === dateColumn),
-        );
-        if (!trendSql) {
-          widget.trendUnavailable = 'The widget SQL cannot be safely grouped into a trend.';
-          continue;
-        }
-        try {
-          const query = sourceQuery(
-            trendSql.sql,
-            columns,
-            body.filters,
-            body.dateRange,
-            temporal.map(c => c.column_name),
-          );
-          queries.push({ widgetIndex: widgets.indexOf(widget), kind: 'trend', ...query });
-          const result = await this.connection.queryDuckDB(
-            draft.databaseId,
-            query.sql,
-            query.bindings,
-          );
-          if (result.datas.length > 240) {
-            widget.trendUnavailable =
-              '선택한 집계가 240개 시점을 초과합니다. 기간을 줄이거나 더 큰 집계 단위를 선택해 주세요.';
+        for (const period of [
+          { key: 'trend', unavailable: 'trendUnavailable', range: body.dateRange, kind: 'trend' },
+          ...(previous
+            ? [
+                {
+                  key: 'previousTrend',
+                  unavailable: 'previousTrendUnavailable',
+                  range: previous,
+                  kind: 'previous-trend',
+                },
+              ]
+            : []),
+        ]) {
+          if (!dateColumn) {
+            widget[period.unavailable] = 'No temporal column is available.';
             continue;
           }
-          widget.trend = {
-            column: dateColumn,
-            grain: trendSql.grain,
-            points: result.datas.map((row: any) => {
-              const rawValue = row[trendSql.valueAlias];
-              const value = rawValue === null ? null : Number(rawValue);
-              return {
-                time: row[trendSql.timeField],
-                value: value !== null && Number.isFinite(value) ? value : null,
-              };
-            }),
-          };
-          const plan = compileContribution(
-            {
-              ...widget,
-              type: 'CHART_LINE',
-              sql: trendSql.sql,
-              categoryField: trendSql.timeField,
-              valueField: trendSql.valueAlias,
-            },
+          const trendSql = await this.numericTrendQuery(
+            widget,
+            draft.databaseId,
             schema,
+            period.range,
+            trendGrain,
+            temporalColumns.find((item: any) => item.column === dateColumn),
           );
-          const fingerprint = contributionGroupFingerprint(
-            widget.trend.points.map(point => point.time),
-          );
-          widget.trend.contribution =
-            plan.supported && fingerprint
-              ? { supported: true, groupFingerprint: fingerprint }
-              : {
-                  supported: false,
-                  reason: 'reason' in plan ? plan.reason : CONTRIBUTION_UNAVAILABLE,
+          if (!trendSql) {
+            widget[period.unavailable] = 'The widget SQL cannot be safely grouped into a trend.';
+            continue;
+          }
+          try {
+            const query = sourceQuery(
+              trendSql.sql,
+              columns,
+              body.filters,
+              period.range,
+              temporal.map(c => c.column_name),
+            );
+            queries.push({ widgetIndex: widgets.indexOf(widget), kind: period.kind, ...query });
+            const result = await this.connection.queryDuckDB(
+              draft.databaseId,
+              query.sql,
+              query.bindings,
+            );
+            if (result.datas.length > 240) {
+              widget[period.unavailable] =
+                '선택한 집계가 240개 시점을 초과합니다. 기간을 줄이거나 더 큰 집계 단위를 선택해 주세요.';
+              continue;
+            }
+            widget[period.key] = {
+              column: dateColumn,
+              grain: trendSql.grain,
+              points: result.datas.map((row: any) => {
+                const rawValue = row[trendSql.valueAlias];
+                const value = rawValue === null ? null : Number(rawValue);
+                return {
+                  time: row[trendSql.timeField],
+                  value: value !== null && Number.isFinite(value) ? value : null,
                 };
-          widget.trend.timeSelection = buildTimeSelection(
-            widget.trend.points.map(point => point.time),
-            { column: dateColumn, grain: trendSql.grain, format: 'timestamp' },
-            body.dateRange,
-          );
-        } catch (_error) {
-          widget.trendUnavailable = 'Trend query is unavailable for this widget.';
+              }),
+            };
+            const plan = compileContribution(
+              {
+                ...widget,
+                type: 'CHART_LINE',
+                sql: trendSql.sql,
+                categoryField: trendSql.timeField,
+                valueField: trendSql.valueAlias,
+              },
+              schema,
+            );
+            const fingerprint = contributionGroupFingerprint(
+              widget[period.key].points.map(point => point.time),
+            );
+            widget[period.key].contribution =
+              plan.supported && fingerprint
+                ? { supported: true, groupFingerprint: fingerprint }
+                : {
+                    supported: false,
+                    reason: 'reason' in plan ? plan.reason : CONTRIBUTION_UNAVAILABLE,
+                  };
+            widget[period.key].timeSelection = buildTimeSelection(
+              widget[period.key].points.map(point => point.time),
+              { column: dateColumn, grain: trendSql.grain, format: 'timestamp' },
+              period.range,
+            );
+          } catch (_error) {
+            widget[period.unavailable] = 'Trend query is unavailable for this widget.';
+          }
         }
       }
     }

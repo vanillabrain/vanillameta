@@ -58,6 +58,7 @@ export default function MetricTrend({
     }
   };
   const interactive = !!onTimeSelect && selectable.length > 0;
+  const contributionPointer = !onTimeSelect && contributionInteractive;
   const navigable = interactive || contributionInteractive;
   const contributionReason = contributionDisabledReason || trend?.contribution?.reason;
   const pointLabel = (time: string) => time.replace('T', ' ').replace(/Z$/, ' UTC');
@@ -108,7 +109,7 @@ export default function MetricTrend({
       )}. 정확한 값은 시계열 데이터 표에서 확인하세요.`
     : '';
   const pointerTime = (event: React.MouseEvent<SVGSVGElement> | React.PointerEvent<SVGSVGElement>) => {
-    if (!interactive || timeSelectionDisabled) return;
+    if (interactive ? timeSelectionDisabled : !contributionPointer || contributionDisabled) return;
     const rect = event.currentTarget.getBoundingClientRect();
     const scale = Math.min(rect.width / 600, rect.height / 60);
     if (!scale) return;
@@ -116,7 +117,9 @@ export default function MetricTrend({
     const times = points.map(point => Date.parse(point.time));
     const start = Math.min(...times),
       span = Math.max(...times) - start;
-    const visible = selectable.filter(point => point.value !== null && Number.isFinite(point.value));
+    const visible = (interactive ? selectable : points).filter(
+      point => point.value !== null && Number.isFinite(point.value),
+    );
     const nearest = visible.reduce<typeof active | undefined>((best, point) => {
       const distance = (p: typeof point) => Math.abs((span ? 4 + ((Date.parse(p.time) - start) / span) * 592 : 300) - x);
       return !best || distance(point) < distance(best) ? point : best;
@@ -158,14 +161,20 @@ export default function MetricTrend({
               aria-describedby={`${id}-desc${interactive ? ` ${id}-selection` : ''}${
                 contributionInteractive ? ` ${id}-contribution` : ''
               }`}
-              style={{ cursor: interactive ? 'pointer' : undefined, WebkitTapHighlightColor: 'transparent' }}
+              style={{
+                cursor: interactive || contributionPointer ? 'pointer' : undefined,
+                WebkitTapHighlightColor: 'transparent',
+              }}
               onPointerMove={event => {
                 const time = pointerTime(event);
                 if (time) setActiveTime(time);
               }}
               onClick={event => {
                 const time = pointerTime(event);
-                if (time) select(time);
+                if (time) {
+                  if (interactive) select(time);
+                  else setActiveTime(time);
+                }
               }}
               onKeyDown={event => {
                 if (!navigable || (!contributionInteractive && timeSelectionDisabled)) return;

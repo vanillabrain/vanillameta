@@ -30,7 +30,13 @@ import PersonalSavedViews, {
   validDay,
 } from './PersonalSavedViews';
 import { PreviousPeriodData } from './PeriodComparison';
-import SourceDetails, { ContributionRequest, validGroupFingerprint, validTrendPointContribution } from './SourceDetails';
+import SourceDetails, {
+  ContributionRequest,
+  validGroupFingerprint,
+  validTrendPointContribution,
+  validPreviousContributionRange,
+  sameContributionDateRange,
+} from './SourceDetails';
 import { TimeSelection, timeRangeLabel, validTimeRange } from './timeSelection';
 
 const valueKey = (value: FilterValue) => encodeURIComponent(JSON.stringify(value));
@@ -88,7 +94,7 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
   const [contribution, setContribution] = useState<{ request: ContributionRequest; title: string } | null>(null);
   const detailsLauncher = useRef<Element | null>(null);
   const contributionButtons = useRef(new Map<number, HTMLButtonElement>());
-  const contributionInteraction = useRef({ disabled: true, preview: null as any });
+  const contributionInteraction = useRef({ disabled: true, preview: null as any, periodKey: '' });
   const [previewRefresh, setPreviewRefresh] = useState(0);
   const [analysisRefresh, setAnalysisRefresh] = useState(0);
   const canonicalRefreshDone = useRef(0);
@@ -270,7 +276,7 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
     if (abandoned && target && !target.disabled && !document.querySelector('[role="dialog"]')) target.focus();
   }, [busy, analysisLoading, error, preview, filters, dashboardId, detailsOpen, editing]);
   if (!draft) {
-    contributionInteraction.current = { disabled: true, preview: null };
+    contributionInteraction.current = { disabled: true, preview: null, periodKey: '' };
     return <>{children}</>;
   }
   const dimensions = preview?.dimensions || [];
@@ -299,7 +305,7 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
     !preview.sourceRevision ||
     !draft.revision ||
     loadedDashboard.current !== dashboardId;
-  contributionInteraction.current = { disabled: !!contributionDisabled, preview };
+
   const contributionReason = (widget: any) => {
     if (widget?.contribution?.supported !== true)
       return typeof widget?.contribution?.reason === 'string' && widget.contribution.reason.trim()
@@ -340,8 +346,16 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
     });
     setDetailsOpen(true);
   };
-  const trendContributionReason = (widget: any) => {
-    const trend = widget?.trend;
+  const previousComparisonReady =
+    !!comparePrevious &&
+    sameContributionDateRange(preview?.comparison?.current, dateRange) &&
+    validPreviousContributionRange(dateRange, preview?.comparison?.previous);
+  const periodKey = JSON.stringify({ comparePrevious, dateRange, trendGrain, comparison: preview?.comparison });
+  contributionInteraction.current = { disabled: !!contributionDisabled, preview, periodKey };
+  const previousComparisonReason = previousComparisonReady ? '' : '이전 기간 비교를 적용한 뒤 조회해 주세요.';
+  const trendContributionReason = (widget: any, period?: 'previous') => {
+    const trend = period === 'previous' ? widget?.previousTrend : widget?.trend;
+    if (period === 'previous' && !previousComparisonReady) return previousComparisonReason;
     if (widget?.type !== 'BOARD_NUMERIC' || trend?.contribution?.supported !== true)
       return typeof trend?.contribution?.reason === 'string' && trend.contribution.reason.trim()
         ? trend.contribution.reason
@@ -358,27 +372,74 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
       ? ''
       : '추세 시점 또는 그룹 버전을 확인할 수 없습니다. 대시보드 데이터를 새로 조회해 주세요.';
   };
-  const openTrendContribution = (widgetIndex: number, time: string) => {
+  const openTrendContribution = (widgetIndex: number, time: string, period?: 'previous') => {
     const widget = preview?.widgets?.[widgetIndex];
+    const trend = period === 'previous' ? widget?.previousTrend : widget?.trend;
     if (
       contributionInteraction.current.disabled ||
       contributionInteraction.current.preview !== preview ||
-      !!trendContributionReason(widget) ||
-      !widget.trend.points.some((point: any) => point?.time === time)
+      (period === 'previous' && contributionInteraction.current.periodKey !== periodKey) ||
+      !!trendContributionReason(widget, period) ||
+      !trend.points.some((point: any) => point?.time === time)
     )
       return;
     const trendPoint = {
-      column: widget.trend.column,
-      grain: widget.trend.grain,
+      column: trend.column,
+      grain: trend.grain,
       time,
-      groupFingerprint: widget.trend.contribution.groupFingerprint,
+      groupFingerprint: trend.contribution.groupFingerprint,
     };
     if (!validTrendPointContribution(trendPoint)) return;
     detailsLauncher.current =
       (document.activeElement !== document.body ? document.activeElement : contributionButtons.current.get(widgetIndex)) ||
       null;
     setContribution({
-      request: { widgetIndex, expectedRevision: draft.revision, trendGrain, trendPoint },
+      request: { widgetIndex, expectedRevision: draft.revision, trendGrain, trendPoint, ...(period ? { period } : {}) },
+      title: widget.title,
+    });
+    setDetailsOpen(true);
+  };
+  const previousChartContributionReason = (widget: any) => {
+    if (!previousComparisonReady) return previousComparisonReason;
+    if (widget?.type !== 'CHART_LINE' || widget?.previousContribution?.supported !== true)
+      return widget?.previousContribution?.reason || '이 차트의 이전 기간 원본 행 조회는 지원하지 않습니다.';
+    const selection = widget.previousTimeSelection;
+    return validGroupFingerprint(widget.previousContribution.groupFingerprint) &&
+      ['hour', 'day', 'week', 'month'].includes(selection?.grain) &&
+      Array.isArray(widget.previousDatas) &&
+      selectableTime(selection, widget.previousDatas.length, null)
+      ? ''
+      : '이전 기간 시점 또는 그룹 버전을 확인할 수 없습니다. 대시보드 데이터를 새로 조회해 주세요.';
+  };
+  const openPreviousChartContribution = (widgetIndex: number, category: unknown) => {
+    const widget = preview?.widgets?.[widgetIndex];
+    if (
+      contributionInteraction.current.disabled ||
+      contributionInteraction.current.preview !== preview ||
+      contributionInteraction.current.periodKey !== periodKey ||
+      previousChartContributionReason(widget) ||
+      !(
+        category === null ||
+        typeof category === 'string' ||
+        typeof category === 'boolean' ||
+        (typeof category === 'number' && Number.isFinite(category))
+      ) ||
+      !widget.previousDatas.some(
+        (row: any) =>
+          Object.prototype.hasOwnProperty.call(row, widget.categoryField) && Object.is(row[widget.categoryField], category),
+      )
+    )
+      return;
+    detailsLauncher.current = document.activeElement !== document.body ? document.activeElement : null;
+    setContribution({
+      request: {
+        widgetIndex,
+        expectedRevision: draft.revision,
+        trendGrain,
+        period: 'previous',
+        category: category as FilterValue,
+        groupFingerprint: widget.previousContribution.groupFingerprint,
+      },
       title: widget.title,
     });
     setDetailsOpen(true);
@@ -1033,6 +1094,39 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
                   }
                 />
               )}
+              {widget.type === 'BOARD_NUMERIC' && (widget.previousTrend || widget.previousTrendUnavailable) && (
+                <Box
+                  component="details"
+                  sx={{ p: 2, minWidth: 0, '& summary': { minHeight: 44, cursor: 'pointer', alignContent: 'center' } }}
+                >
+                  <summary>{widget.title} 이전 기간 시계열</summary>
+                  {preview.comparison?.previous && (
+                    <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
+                      이전 기간:{' '}
+                      {preview.comparison.previous.precision === 'timestamp'
+                        ? timeRangeLabel(preview.comparison.previous)
+                        : `${preview.comparison.previous.start} ~ ${preview.comparison.previous.end} (UTC)`}
+                    </Typography>
+                  )}
+                  <MetricTrend
+                    trend={widget.previousTrend}
+                    unavailable={widget.previousTrendUnavailable}
+                    title={`${widget.title} · 이전 기간`}
+                    prefix={widget.prefix}
+                    decimalPlaces={widget.decimalPlaces ?? 0}
+                    suffix={widget.suffix}
+                    onContributionSelect={
+                      widget.previousTrend?.contribution ? time => openTrendContribution(i, time, 'previous') : undefined
+                    }
+                    contributionDisabled={!!contributionDisabled || !!trendContributionReason(widget, 'previous')}
+                    contributionDisabledReason={
+                      trendContributionReason(widget, 'previous') ||
+                      detailsDisabledReason ||
+                      (editing ? '편집을 마친 뒤 조회해 주세요.' : '')
+                    }
+                  />
+                </Box>
+              )}
               {widget.type !== 'BOARD_NUMERIC' && (Array.isArray(widget.previousDatas) || widget.previousUnavailable) && (
                 <PreviousPeriodData
                   title={widget.title}
@@ -1040,6 +1134,17 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
                   categoryField={widget.categoryField}
                   valueField={widget.valueField}
                   unavailable={widget.previousUnavailable}
+                  onContributionSelect={
+                    widget.type === 'CHART_LINE' && widget.previousContribution
+                      ? category => openPreviousChartContribution(i, category)
+                      : undefined
+                  }
+                  contributionDisabled={!!contributionDisabled || !!previousChartContributionReason(widget)}
+                  contributionDisabledReason={
+                    widget.type === 'CHART_LINE'
+                      ? previousChartContributionReason(widget) || detailsDisabledReason
+                      : undefined
+                  }
                   period={
                     preview.comparison
                       ? preview.comparison.previous.precision === 'timestamp'
@@ -1063,6 +1168,8 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
           draft={draft}
           filters={active.map(([column, values]) => ({ column, values }))}
           dateRange={dateRange}
+          comparePrevious={comparePrevious}
+          previousDateRange={preview?.comparison?.previous}
           sourceRevision={preview?.sourceRevision}
           disabledReason={detailsDisabledReason}
           contribution={contribution?.request}

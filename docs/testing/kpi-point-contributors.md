@@ -1,5 +1,7 @@
 # KPI 미니 시계열 시점별 집계 입력 행
 
+후속: [previous-point-contributors.md](previous-point-contributors.md)에서 이전 기간 KPI/시간 차트 시점 상세의 새 조건을 구현·검증했다. 아래 이전 기간 NOT_RUN은 당시 기록이며 이 후속의 선택 범위에서 해소했다.
+
 기존 CONTRIB/TIME의 통과 조건은 반복하지 않는다. 이번 선택 범위는 숫자 지표 아래 미니 시계열의 개별 시점 원본 행 상세다. AI 제공자·모델은 Codex `gpt-6-luna`를 유지하며 수동 탐색에는 모델 호출이 필요하지 않다.
 
 ## 계약

@@ -1,5 +1,5 @@
-import React from 'react';
-import { Alert, Box, Typography } from '@mui/material';
+import React, { useId } from 'react';
+import { Alert, Box, Button, Typography } from '@mui/material';
 
 export type MetricComparisonData = {
   previousValue: number | null;
@@ -80,6 +80,9 @@ export function PreviousPeriodData({
   valueField,
   period,
   unavailable,
+  onContributionSelect,
+  contributionDisabled = false,
+  contributionDisabledReason,
 }: {
   title: string;
   data?: Record<string, unknown>[];
@@ -87,7 +90,27 @@ export function PreviousPeriodData({
   valueField: string;
   period?: string;
   unavailable?: string;
+  onContributionSelect?: (category: unknown) => void;
+  contributionDisabled?: boolean;
+  contributionDisabledReason?: string;
 }) {
+  const id = useId();
+  const canContribute = (row: Record<string, unknown>) => {
+    const category = row[categoryField];
+    return (
+      Object.prototype.hasOwnProperty.call(row, categoryField) &&
+      (category === null ||
+        typeof category === 'boolean' ||
+        (typeof category === 'string' && category.length <= 2000) ||
+        (typeof category === 'number' && Number.isFinite(category)))
+    );
+  };
+  const categoryLabel = (category: unknown) =>
+    category === null
+      ? '값 없음 (NULL)'
+      : `${String(category)} (${
+          typeof category === 'number' ? '숫자' : typeof category === 'boolean' ? '불리언' : '문자열'
+        })`;
   const text = (value: unknown) =>
     value === null || value === undefined ? '값 없음' : typeof value === 'object' ? JSON.stringify(value) : String(value);
   return (
@@ -106,6 +129,11 @@ export function PreviousPeriodData({
           <Typography variant="caption">
             원래 집계식과 동일한 필터로 조회한 결과입니다. 없는 날짜를 0으로 채우지 않습니다.
           </Typography>
+          {onContributionSelect && contributionDisabled && contributionDisabledReason && (
+            <Typography id={`${id}-contribution-reason`} sx={{ fontSize: 12, overflowWrap: 'anywhere' }}>
+              {contributionDisabledReason}
+            </Typography>
+          )}
           <Box
             role="region"
             aria-label={`${title} 이전 기간 값`}
@@ -127,13 +155,49 @@ export function PreviousPeriodData({
                 <tr>
                   <th scope="col">{categoryField}</th>
                   <th scope="col">{valueField}</th>
+                  {onContributionSelect && <th scope="col">집계 원본 행</th>}
                 </tr>
               </thead>
               <tbody>
                 {(data ?? []).map((row, index) => (
-                  <tr key={index}>
+                  <tr
+                    key={
+                      onContributionSelect && canContribute(row)
+                        ? JSON.stringify([typeof row[categoryField], row[categoryField], index])
+                        : index
+                    }
+                  >
                     <th scope="row">{text(row[categoryField])}</th>
                     <td>{text(row[valueField])}</td>
+                    {onContributionSelect && (
+                      <td>
+                        {canContribute(row) && (
+                          <Button
+                            type="button"
+                            size="small"
+                            aria-label={`이전 기간 시점 원본 행 보기: ${title} · ${categoryLabel(row[categoryField])}`}
+                            aria-disabled={contributionDisabled || undefined}
+                            aria-describedby={
+                              contributionDisabled && contributionDisabledReason ? `${id}-contribution-reason` : undefined
+                            }
+                            sx={{
+                              minWidth: 44,
+                              minHeight: 44,
+                              textTransform: 'none',
+                              whiteSpace: 'normal',
+                              overflowWrap: 'anywhere',
+                              textAlign: 'left',
+                              '&:focus-visible': { outline: '2px solid #1d4ed8', outlineOffset: 2 },
+                            }}
+                            onClick={() => {
+                              if (!contributionDisabled && canContribute(row)) onContributionSelect(row[categoryField]);
+                            }}
+                          >
+                            이전 기간 시점 원본 행 보기
+                          </Button>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

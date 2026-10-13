@@ -15,7 +15,8 @@ import {
 } from '@mui/material';
 import { post } from '@/helpers/apiHelper';
 import type { DateRange, FilterValue, TrendGrain } from './PersonalSavedViews';
-import { timeRangeLabel } from './timeSelection';
+import { validDay } from './PersonalSavedViews';
+import { timeRangeLabel, validTimeRange } from './timeSelection';
 
 export type TrendPointContribution = {
   column: string;
@@ -30,8 +31,10 @@ export type ContributionRequest = {
   category?: FilterValue;
   groupFingerprint?: string;
   trendPoint?: TrendPointContribution;
+  period?: 'previous';
 };
 type ContributionData = Omit<ContributionRequest, 'trendGrain'> & {
+  dateRange?: DateRange;
   title: string;
   components: string[];
   semantics: string;
@@ -42,6 +45,8 @@ type Props = {
   draft: unknown;
   filters: { column: string; values: FilterValue[] }[];
   dateRange?: DateRange | null;
+  comparePrevious?: boolean;
+  previousDateRange?: DateRange;
   sourceRevision?: string;
   disabledReason?: string;
   contribution?: ContributionRequest | null;
@@ -65,6 +70,54 @@ type DetailData = {
 const ownsCategory = (value: object) => Object.prototype.hasOwnProperty.call(value, 'category');
 const ownsFingerprint = (value: object) => Object.prototype.hasOwnProperty.call(value, 'groupFingerprint');
 const ownsTrendPoint = (value: object) => Object.prototype.hasOwnProperty.call(value, 'trendPoint');
+const ownsPeriod = (value: object) => Object.prototype.hasOwnProperty.call(value, 'period');
+const ownsDateRange = (value: object) => Object.prototype.hasOwnProperty.call(value, 'dateRange');
+export function validContributionDateRange(value: unknown): value is DateRange {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const range = value as DateRange;
+  return (
+    Object.keys(range).every(key => ['column', 'start', 'end', 'precision'].includes(key)) &&
+    typeof range.column === 'string' &&
+    !!range.column.trim() &&
+    range.column.length <= 128 &&
+    (Object.prototype.hasOwnProperty.call(range, 'precision')
+      ? validTimeRange(range)
+      : typeof range.start === 'string' &&
+        typeof range.end === 'string' &&
+        !range.start.startsWith('0000') &&
+        !range.end.startsWith('0000') &&
+        validDay(range.start) &&
+        validDay(range.end) &&
+        range.start <= range.end)
+  );
+}
+export function sameContributionDateRange(a: unknown, b: unknown) {
+  return (
+    validContributionDateRange(a) &&
+    validContributionDateRange(b) &&
+    a.column === b.column &&
+    a.start === b.start &&
+    a.end === b.end &&
+    a.precision === b.precision
+  );
+}
+export function validPreviousContributionRange(current: unknown, previous: unknown) {
+  if (
+    !validContributionDateRange(current) ||
+    !validContributionDateRange(previous) ||
+    current.column !== previous.column ||
+    current.precision !== previous.precision
+  )
+    return false;
+  const timestamp = current.precision === 'timestamp';
+  const instant = (value: string) => Date.parse(timestamp ? value : `${value}T00:00:00Z`);
+  const start = instant(current.start);
+  const day = 86400000;
+  const duration = instant(current.end) - start + (timestamp ? 0 : day);
+  return instant(previous.start) === start - duration && instant(previous.end) === start - (timestamp ? 0 : day);
+}
+const periodCaption = (range: DateRange) =>
+  `${range.column}: ${range.precision === 'timestamp' ? timeRangeLabel(range) : `${range.start} ~ ${range.end} (UTC)`}`;
 export const validGroupFingerprint = (value: unknown): value is string =>
   typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
 export function validTrendPointContribution(value: unknown): value is TrendPointContribution {
@@ -103,13 +156,19 @@ const stringLabels = (value: unknown): value is string[] =>
   value.length > 0 &&
   value.every(label => typeof label === 'string' && !!label.trim()) &&
   new Set(value).size === value.length;
-function validContribution(data: DetailData, requested: ContributionRequest, title?: string) {
+function validContribution(data: DetailData, requested: ContributionRequest, title?: string, previousDateRange?: DateRange) {
   const response = data.contribution;
   return (
     !!response &&
     data.scope === 'widget aggregate input rows' &&
     response.widgetIndex === requested.widgetIndex &&
     response.expectedRevision === requested.expectedRevision &&
+    ownsPeriod(response) === ownsPeriod(requested) &&
+    (requested.period === 'previous'
+      ? response.period === 'previous' &&
+        ownsDateRange(response) &&
+        sameContributionDateRange(response.dateRange, previousDateRange)
+      : !ownsDateRange(response)) &&
     ownsTrendPoint(response) === ownsTrendPoint(requested) &&
     (!ownsTrendPoint(requested) ||
       (validTrendPointContribution(response.trendPoint) &&
@@ -168,6 +227,8 @@ export default function SourceDetails({
   draft,
   filters,
   dateRange,
+  comparePrevious = false,
+  previousDateRange,
   sourceRevision,
   disabledReason = '',
   contribution,
@@ -178,11 +239,14 @@ export default function SourceDetails({
 }: Props) {
   const titleId = useId();
   const descriptionId = useId();
+  const closeButton = useRef<HTMLButtonElement>(null);
   const contextKey = JSON.stringify({
     dashboardId,
     draft,
     filters,
     dateRange: dateRange ?? null,
+    comparePrevious,
+    previousDateRange,
     sourceRevision,
     contribution: contribution ?? null,
     widgetTitle,
@@ -201,6 +265,15 @@ export default function SourceDetails({
       !['auto', 'day', 'week', 'month'].includes(contribution.trendGrain) ||
       (ownsFingerprint(contribution) && !validGroupFingerprint(contribution.groupFingerprint)) ||
       (ownsCategory(contribution) && !primitiveCategory(contribution.category)) ||
+      ownsDateRange(contribution) ||
+      (ownsPeriod(contribution) &&
+        (contribution.period !== 'previous' ||
+          !comparePrevious ||
+          !validPreviousContributionRange(dateRange, previousDateRange) ||
+          !(
+            (selectedWidget?.type === 'BOARD_NUMERIC' && ownsTrendPoint(contribution)) ||
+            (selectedWidget?.type === 'CHART_LINE' && ownsCategory(contribution))
+          ))) ||
       (ownsTrendPoint(contribution) &&
         (!validTrendPointContribution(contribution.trendPoint) ||
           selectedWidget?.type !== 'BOARD_NUMERIC' ||
@@ -230,6 +303,7 @@ export default function SourceDetails({
           draft,
           filters,
           ...(dateRange ? { dateRange } : {}),
+          ...(contribution?.period === 'previous' ? { comparePrevious: true } : {}),
           sourceRevision,
           page,
           pageSize,
@@ -260,7 +334,7 @@ export default function SourceDetails({
             data.pageSize !== pageSize ||
             data.sourceRevision !== sourceRevision ||
             (contribution
-              ? !validContribution(data, contribution, widgetTitle)
+              ? !validContribution(data, contribution, widgetTitle, previousDateRange)
               : data.contribution !== undefined || data.contributionComponents !== undefined)
           )
             throw new Error('원본 행 응답의 조건 또는 데이터 버전을 확인할 수 없습니다. 다시 조회해 주세요.');
@@ -298,7 +372,9 @@ export default function SourceDetails({
       <DialogContent sx={{ minWidth: 0 }}>
         <Typography id={descriptionId} variant="body2" sx={{ mb: 1, overflowWrap: 'anywhere' }}>
           {contribution
-            ? '현재 공통 필터와 적용 기간, 해당 차트의 추가 조건을 적용한 집계 입력 행입니다.'
+            ? `${
+                contribution.period === 'previous' ? '이전 기간' : '현재 적용 기간'
+              }과 공통 필터, 해당 차트의 추가 조건을 적용한 집계 입력 행입니다.`
             : '현재 공통 필터와 적용 기간에 해당하는 원본 데이터입니다. 개별 차트에 설정한 추가 조건은 포함하지 않습니다.'}
         </Typography>
         {contribution && (
@@ -311,7 +387,13 @@ export default function SourceDetails({
               : '위젯 전체'}
           </Typography>
         )}
+        {contribution?.period === 'previous' && validContributionDateRange(previousDateRange) && (
+          <Typography variant="body2" sx={{ mb: 1, overflowWrap: 'anywhere' }}>
+            이전 기간: {periodCaption(previousDateRange)}
+          </Typography>
+        )}
         <Typography variant="body2" sx={{ mb: 1, overflowWrap: 'anywhere' }}>
+          {contribution?.period === 'previous' ? '현재 비교 기준: ' : ''}
           {dateRange
             ? `${dateRange.column}: ${
                 dateRange.precision === 'timestamp'
@@ -330,7 +412,17 @@ export default function SourceDetails({
         {error && (
           <Alert severity="error">
             {error.message}
-            <Button onClick={error.stale ? onRefresh : () => setReload(value => value + 1)}>
+            <Button
+              onClick={
+                error.stale
+                  ? onRefresh
+                  : event => {
+                      // Keep keyboard focus inside the paper before the retry button is removed.
+                      if (document.activeElement === event.currentTarget) closeButton.current?.focus();
+                      setReload(value => value + 1);
+                    }
+              }
+            >
               {error.stale ? '대시보드 데이터 새로 조회' : '원본 행 다시 조회'}
             </Button>
           </Alert>
@@ -465,7 +557,7 @@ export default function SourceDetails({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} sx={{ minHeight: 44 }}>
+        <Button ref={closeButton} onClick={onClose} sx={{ minHeight: 44 }}>
           원본 상세 닫기
         </Button>
       </DialogActions>
