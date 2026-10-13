@@ -1,5 +1,7 @@
 # MD 검증 현황 — 2026-10-13
 
+셀프서비스 BI1A 신규 조건은 [self-service-onboarding.md](self-service-onboarding.md)에 별도 기록했다. 샘플37주문 실제 DuckDB 집계·재조회, 내 파일 진입/가져오기,503 재시도, 모바일·키보드가 선택 조건 PASS다. SSBI-01/02/11/14 전체 계획 완료로 확대하지 않고 기존130개 집계는 유지한다. AI 호출0, gpt-6-luna 설정 유지.
+
 DESIGN-04 별도 색상 입력은 [color-adapters-keyboard.md](color-adapters-keyboard.md)에 추가했다. 중복 선택창3개를 통합하고 색상 입력 이름·불변 업데이트·빠른 입력 누락을 수정했다. 선형/히트맵/복합 차트의 적용·취소·포커스·390폭과 회귀5개를 검증했다. 실제 VoiceOver와 다른 전체 경로는 남아 있어129완료/1부분 완료 집계를 유지한다.
 
 DESIGN-04 색상 선택창은 [color-picker-keyboard.md](color-picker-keyboard.md)에 추가했다. HEX 입력 중 조기 닫힘·preset 역할/Space 선택을 수정하고21개 Tab·적용/취소·모바일·한영과 회귀4개를 검증했다. 실제 VoiceOver 재시도는 런타임/창 선택 제약으로 BLOCKED 유지다.

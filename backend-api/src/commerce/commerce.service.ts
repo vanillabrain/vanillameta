@@ -8,8 +8,9 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { createReadStream } from 'fs';
+import * as fs from 'fs/promises';
 import * as path from 'path';
 import { DuckDBService } from '../analysis/duckdb.service';
 import { AiService } from '../ai/ai.service';
@@ -47,12 +48,47 @@ const money = (minor: bigint): string => {
 
 @Injectable()
 export class CommerceService {
+  private readonly sampleRequests = new Map<number, Promise<any>>();
   constructor(
     @InjectRepository(CommerceSource) private readonly sources: Repository<CommerceSource>,
     @InjectRepository(CommerceRun) private readonly runs: Repository<CommerceRun>,
     private readonly duckdb: DuckDBService,
     private readonly ai: AiService,
   ) {}
+
+  openSample(ownerId: number) {
+    const pending = this.sampleRequests.get(ownerId);
+    if (pending) return pending;
+    const request = this.installSample(ownerId).finally(() => this.sampleRequests.delete(ownerId));
+    this.sampleRequests.set(ownerId, request);
+    return request;
+  }
+
+  private async installSample(ownerId: number) {
+    const bundled: Record<string, Uploaded[]> = {};
+    for (const key of ['orders', 'payments', 'refunds', 'customers']) {
+      bundled[key] = [{ path: path.join(__dirname, 'samples', `${key}.csv`) }];
+    }
+    const digest = await this.digestBundle(bundled, 'normal');
+    const existing = await this.sources.findOne({
+      where: { ownerId, status: 'ready', publishedDigest: digest },
+    });
+    if (existing)
+      return { status: ResponseStatus.SUCCESS, data: { projectId: existing.id, reused: true } };
+    const incoming = path.resolve(process.env.FILE_UPLOAD_DIR || 'uploads', 'commerce-incoming');
+    await fs.mkdir(incoming, { recursive: true, mode: 0o700 });
+    const files: Record<string, Uploaded[]> = {};
+    try {
+      for (const key of Object.keys(bundled)) {
+        const destination = path.join(incoming, randomUUID());
+        files[key] = [{ path: destination, originalname: `${key}.csv` }];
+        await fs.copyFile(bundled[key][0].path, destination);
+      }
+      return await this.createAndImport(ownerId, '매출·환불 샘플 · AE 합성 데이터', files);
+    } finally {
+      await this.cleanupUploads(files);
+    }
+  }
 
   async createSource(ownerId: number, name: string) {
     const clean = typeof name === 'string' ? name.trim() : '';

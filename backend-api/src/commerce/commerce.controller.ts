@@ -32,6 +32,11 @@ export class CommerceController {
     return id;
   }
 
+  @Post('sample')
+  sample(@Req() req: any) {
+    return this.commerce.openSample(this.actor(req));
+  }
+
   @Post('sources')
   createSource(@Body() body: { name: string }, @Req() req: any) {
     return this.commerce.createSource(this.actor(req), body?.name);

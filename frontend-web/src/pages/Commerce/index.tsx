@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -133,6 +133,7 @@ const previewCsv = async (file: File) => {
 function Commerce() {
   const { projectId: routeProjectId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [projects, setProjects] = useState<CommerceProject[]>([]);
   const [selectedId, setSelectedId] = useState(routeProjectId ?? '');
   const [projectName, setProjectName] = useState('');
@@ -149,7 +150,7 @@ function Commerce() {
   const [projectsBusy, setProjectsBusy] = useState(true);
   const [uploadBusy, setUploadBusy] = useState(false);
   const [importFeedback, setImportFeedback] = useState('');
-  const [importOpen, setImportOpen] = useState(!routeProjectId);
+  const [importOpen, setImportOpen] = useState(!routeProjectId || searchParams.get('import') === '1');
   const [importTargetId, setImportTargetId] = useState(routeProjectId ?? '');
   const [pageError, setPageError] = useState('');
   const [start, setStart] = useState('');
@@ -567,9 +568,24 @@ function Commerce() {
           </Stack>
         </Stack>
 
+        {searchParams.get('sample') === '1' && (
+          <Alert severity="info">
+            Analytics Engineering의 공개 합성 데이터 일부입니다(CC BY 4.0). 실제 고객 매출이 아닙니다. USD·UTC 기준,
+            세금·배송을 포함한 결제액에서 환불액을 뺀 차감수취액이며 상품 순매출·이익이 아닙니다.
+            <Button href="https://www.analyticsengineering.com/datasets/ecommerce-sales" target="_blank" rel="noreferrer">
+              데이터 출처
+            </Button>
+            <Button onClick={() => navigate('/commerce?import=1')}>내 매출·환불 파일 연결</Button>
+          </Alert>
+        )}
         {pageError && (
           <Alert severity="error" onClose={() => setPageError('')} sx={{ overflowWrap: 'anywhere' }}>
             {pageError}
+            <Typography variant="body2">
+              프로젝트 접근 권한, 필수 CSV와 날짜·금액 형식을 확인해 주세요. 실패한 가져오기는 마지막 정상 보고서를 교체하지
+              않습니다.
+            </Typography>
+            <Button onClick={loadProjects}>프로젝트 목록 다시 불러오기</Button>
           </Alert>
         )}
         {importFeedback && (

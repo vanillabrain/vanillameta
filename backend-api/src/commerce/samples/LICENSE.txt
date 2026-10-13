@@ -1,0 +1,9 @@
+License: Creative Commons Attribution 4.0 International (CC BY 4.0)
+License text: https://creativecommons.org/licenses/by/4.0/legalcode
+
+You may share and adapt this material with appropriate attribution. No warranty is provided.
+
+This synthetic educational dataset was created by Analytics Engineering. It contains no real people or organizations and does not establish industry benchmarks.
+
+Suggested attribution:
+Attribution: Analytics Engineering, "Ecommerce Sales & Returns Dataset v1.0.0". https://www.analyticsengineering.com/datasets/ecommerce-sales
