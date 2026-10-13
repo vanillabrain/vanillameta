@@ -7,11 +7,13 @@ const state = vi.hoisted(() => ({
   disconnect: vi.fn(),
   observe: vi.fn(),
   callback: null as (() => void) | null,
+  option: null as any,
 }));
 vi.mock('echarts-for-react', async () => {
   const React = await import('react');
   return {
-    default: React.forwardRef((_props: any, ref) => {
+    default: React.forwardRef((props: any, ref) => {
+      state.option = props.option;
       const element = React.useRef<HTMLDivElement>(null);
       React.useImperativeHandle(ref, () => ({
         getEchartsInstance: () => ({ getDom: () => element.current, resize: state.resize, isDisposed: () => false }),
@@ -19,6 +21,30 @@ vi.mock('echarts-for-react', async () => {
       return <div ref={element} data-testid="chart" />;
     }),
   };
+});
+it('avoids crowded value labels without dropping devices or rounding their exact values', () => {
+  const devices = [
+    { device: 'Mobile/Tablet', value: 307763000 },
+    { device: 'Connected Device', value: 17000 },
+  ];
+  render(
+    <LineChart
+      axis="y"
+      seriesOp={{ type: 'bar' }}
+      option={{ yField: 'device', series: [{ field: 'value', aggregation: 'sum' }] }}
+      dataSet={devices}
+    />,
+  );
+  expect(state.option.xAxis.axisLabel.hideOverlap).toBe(true);
+  expect(state.option.media).toEqual([
+    { query: { maxWidth: 480 }, option: { xAxis: { splitNumber: 2 }, grid: { right: 28 } } },
+    { option: { xAxis: { splitNumber: 5 }, grid: { right: '3%' } } },
+  ]);
+  expect(state.option.xAxis.axisLabel.formatter(307763000)).toBe('307.8M');
+  expect(state.option.yAxis.data).toEqual(devices.map(device => device.device));
+  expect(state.option.yAxis.axisLabel.interval).toBe(0);
+  expect(state.option.series[0].data).toEqual([307763000, 17000]);
+  expect(state.option.tooltip.valueFormatter(307763000)).toBe('307,763,000');
 });
 vi.mock('@mui/material', () => {
   const element =

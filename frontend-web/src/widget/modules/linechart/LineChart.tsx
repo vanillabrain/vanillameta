@@ -45,6 +45,7 @@ const LineChart = props => {
       type: 'value',
       ...defaultOp?.[reverseAxis + 'Axis'],
       axisLabel: {
+        hideOverlap: true,
         formatter: value => new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(value),
         ...defaultOp?.[reverseAxis + 'Axis']?.axisLabel,
       },
@@ -54,6 +55,21 @@ const LineChart = props => {
       ...defaultOp?.tooltip,
       valueFormatter: value => Number(value).toLocaleString('en-US', { maximumFractionDigits: 6 }),
     },
+    media:
+      axis === 'y'
+        ? [
+            {
+              query: { maxWidth: 480 },
+              option: { xAxis: { splitNumber: 2 }, grid: { right: option?.legendPosition === 'right' ? 120 : 28 } },
+            },
+            {
+              option: {
+                xAxis: { splitNumber: defaultOp?.xAxis?.splitNumber ?? 5 },
+                grid: { right: getGridSize(option?.legendPosition).right },
+              },
+            },
+          ]
+        : [],
   };
 
   useEffect(() => {

@@ -1,5 +1,7 @@
 # MD 검증 현황 — 2026-10-13
 
+[139만 행 구조화 제작 후속](structured-rill-large.md): 새 소스 프로파일·저장 SUM/COUNT·3차트 편집·저장/reload·9기기 정답·snapshot 및 1440/390 화면을 확인했다. LARGE-01~03 PASS(모바일 숫자 축 밀집 수정 후 재검증). LARGE-04는 AVG와 Rill 가중 공식 구분만 PASS이며 구조화 가중 지표는 미구현이다. SSBI 전체의 부분 완료와 기존130개 집계 유지, gpt-6-luna 유지·AI 호출0.
+
 [여러 지표·차트 편집](dashboard-chart-editor.md)의 SSBI-08 신규 조건 EDIT-01~09 PASS. 한 DuckDB 소스의 1~6개 차트 추가·표현/크기/순서·저장/reload·SQL/삭제 정의 보존·409·503 복구와 1440/390 실제 키보드를 검증했다. 재조회 크기 배열 오류와 삭제 후 초점 소실을 수정·재검증했다. 원격/다중 소스·제작 필터/고급 지표·VoiceOver는 남아 전체 SSBI-08/14는 부분 완료이며 기존 카탈로그 집계는 유지한다. gpt-6-luna 유지, AI 호출 0.
 
 [SQL 없는 제작 2A](self-service-builder.md)의 새 DuckDB 프로파일·기본 6집계·정의 snapshot·숫자/막대/선 저장·내 파일 연결·503 복구는 선택 조건 PASS. 1440/390 화면과 Tab/입력/Enter도 확인했다. native select popup 자동화는 BLOCKED, VoiceOver는 NOT_RUN이며 SSBI-02/03/08/14 전체는 부분 완료다. 기존 130개 카탈로그 집계를 늘리지 않는다. AI 호출 0, gpt-6-luna 유지.
