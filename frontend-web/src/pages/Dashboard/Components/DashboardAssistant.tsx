@@ -18,6 +18,7 @@ import { assistantTransport, AssistantMessage, messageText } from '../assistantT
 import { errorMessage, responseData } from '../dashboardPreview';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
 import { analysisOptions } from '../analysisOptions';
+import { timeRangeLabel } from './timeSelection';
 
 export default function DashboardAssistant({
   open,
@@ -181,8 +182,12 @@ export default function DashboardAssistant({
           {draft.title}
         </Typography>
         <Typography fontSize={12} color="text.secondary" sx={{ mt: 0.5, overflowWrap: 'anywhere' }}>
-          {dateRange ? `${dateRange.start} ~ ${dateRange.end} (UTC)` : '전체 기간'} ·{' '}
-          {filters.length ? filters.map(f => `${f.column}: ${f.values.map(String).join(', ')}`).join(' · ') : '필터 없음'}
+          {dateRange
+            ? dateRange.precision === 'timestamp'
+              ? timeRangeLabel(dateRange)
+              : `${dateRange.start} ~ ${dateRange.end} (UTC)`
+            : '전체 기간'}{' '}
+          · {filters.length ? filters.map(f => `${f.column}: ${f.values.map(String).join(', ')}`).join(' · ') : '필터 없음'}
         </Typography>
         <Typography fontSize={12} color="text.secondary" sx={{ mt: 0.5, overflowWrap: 'anywhere' }}>
           집계 단위: {({ auto: '자동', day: '일별', week: '주별', month: '월별' } as Record<string, string>)[trendGrain]} ·{' '}

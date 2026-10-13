@@ -4,12 +4,18 @@ import { useTranslation } from 'react-i18next';
 import ReactECharts from 'echarts-for-react';
 import { getAggregationDataForChart, getGridSize, getLegendOption } from '@/widget/modules/utils/chartUtil';
 import { AGGREGATION_LIST } from '@/constant';
+import type { DateRange } from '@/pages/Dashboard/Components/PersonalSavedViews';
+import { TimeSelection, categoryTimeRange, sameTimeRange, timeRangeLabel } from '@/pages/Dashboard/Components/timeSelection';
 
 export type CategoryValue = string | number | boolean | null;
 export interface CategorySelectionProps {
   onCategorySelect?: (value: CategoryValue) => void;
   selectedCategoryValues?: CategoryValue[];
   categorySelectionDisabled?: boolean;
+  onTimeSelect?: (range: DateRange) => void;
+  timeSelection?: TimeSelection;
+  timeSelectionDisabled?: boolean;
+  selectedTimeRange?: DateRange | null;
 }
 
 const isCategoryValue = (value: unknown): value is CategoryValue =>
@@ -40,6 +46,10 @@ const LineChart = (
     onCategorySelect,
     selectedCategoryValues = [],
     categorySelectionDisabled = false,
+    onTimeSelect,
+    timeSelection,
+    timeSelectionDisabled = false,
+    selectedTimeRange,
   } = props;
   const reverseAxis = axis === 'x' ? 'y' : 'x';
 
@@ -118,7 +128,7 @@ const LineChart = (
     let aggrData = [];
     option.series.forEach(item => {
       const categoryField = option[axis + 'Field'];
-      if (onCategorySelect) {
+      if (onCategorySelect || onTimeSelect) {
         // Group by the original typed key instead of the utility's string-coerced object key.
         const groups = new Map<unknown, any[]>();
         dataSet.forEach(row => {
@@ -191,20 +201,33 @@ const LineChart = (
 
   const componentOption: any = useMemo(
     () => (option && dataSet ? createComponentOption() : {}),
-    [option, dataSet, axis, seriesOp, defaultOp, createOp, onCategorySelect, t],
+    [option, dataSet, axis, seriesOp, defaultOp, createOp, onCategorySelect, onTimeSelect, t],
   );
   const chartEvents = useMemo(
     () => ({
       click: (params: any) => {
-        if (!onCategorySelect || categorySelectionDisabled || params?.componentType !== 'series') return;
+        if (params?.componentType !== 'series') return;
         const categories = componentOption[axis + 'Axis']?.data;
         const index = params.dataIndex;
         if (!Number.isInteger(index) || index < 0 || index >= (categories?.length ?? 0)) return;
         const value = categories[index];
-        if (isCategoryValue(value)) onCategorySelect(value);
+        if (onTimeSelect) {
+          const range = categoryTimeRange(dataSet, option[axis + 'Field'], value, timeSelection);
+          if (!timeSelectionDisabled && range) onTimeSelect(range);
+        } else if (onCategorySelect && !categorySelectionDisabled && isCategoryValue(value)) onCategorySelect(value);
       },
     }),
-    [componentOption, axis, onCategorySelect, categorySelectionDisabled],
+    [
+      componentOption,
+      axis,
+      onCategorySelect,
+      categorySelectionDisabled,
+      onTimeSelect,
+      timeSelectionDisabled,
+      timeSelection,
+      dataSet,
+      option,
+    ],
   );
 
   return (
@@ -215,8 +238,13 @@ const LineChart = (
         style={{ flex: '1 1 auto', minHeight: showTable ? 80 : 160, height: showTable ? 'auto' : '100%', width: '100%' }}
         lazyUpdate={true}
         notMerge={true}
-        onEvents={onCategorySelect ? chartEvents : undefined}
+        onEvents={onCategorySelect || onTimeSelect ? chartEvents : undefined}
       />
+      {onTimeSelect && (
+        <Box sx={{ px: 1, fontSize: 12, color: 'text.secondary' }}>
+          시점을 눌러 기간 필터링 · 키보드는 데이터 표에서 선택
+        </Box>
+      )}
       <Button
         size="small"
         onClick={() => setShowTable(value => !value)}
@@ -245,9 +273,37 @@ const LineChart = (
             </TableHead>
             <TableBody>
               {componentOption[axis + 'Axis']?.data?.map((name, index) => (
-                <TableRow key={onCategorySelect ? JSON.stringify([typeof name, name]) : index}>
+                <TableRow key={onCategorySelect || onTimeSelect ? JSON.stringify([typeof name, name]) : index}>
                   <TableCell component="th" scope="row">
-                    {onCategorySelect ? (
+                    {onTimeSelect ? (
+                      (() => {
+                        const range = categoryTimeRange(dataSet, option[axis + 'Field'], name, timeSelection);
+                        return range ? (
+                          <Button
+                            type="button"
+                            size="small"
+                            aria-label={`기간 선택: ${timeRangeLabel(range)}`}
+                            aria-pressed={sameTimeRange(selectedTimeRange, range)}
+                            aria-disabled={timeSelectionDisabled || undefined}
+                            sx={{
+                              minWidth: 44,
+                              minHeight: 44,
+                              textTransform: 'none',
+                              textAlign: 'left',
+                              whiteSpace: 'normal',
+                              overflowWrap: 'anywhere',
+                            }}
+                            onClick={() => {
+                              if (!timeSelectionDisabled) onTimeSelect(range);
+                            }}
+                          >
+                            {String(name).replace('T', ' ').replace('Z', '')}
+                          </Button>
+                        ) : (
+                          String(name)
+                        );
+                      })()
+                    ) : onCategorySelect ? (
                       <Button
                         type="button"
                         size="small"

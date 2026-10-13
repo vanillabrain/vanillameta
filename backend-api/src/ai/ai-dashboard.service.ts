@@ -20,7 +20,13 @@ import { Dataset } from '../dataset/entities/dataset.entity';
 import { Widget } from '../widget/entities/widget.entity';
 import { Component } from '../component/entities/component.entity';
 import { DatasetType } from '../common/enum/dataset-type.enum';
-import { buildTimeChartQuery, buildTrendQuery, chooseTrendGrain } from './dashboard-trend';
+import {
+  buildTimeChartQuery,
+  buildTrendQuery,
+  chooseTrendGrain,
+  resolveTimeChartBucket,
+} from './dashboard-trend';
+import { buildTimeSelection } from './dashboard-time-selection';
 import { comparisonValues, previousDateRange, validatePeriodOptions } from './dashboard-period';
 import { resolveDimensionColumn } from './dashboard-dimension';
 import { ResponseStatus } from '../common/enum/response-status.enum';
@@ -150,7 +156,28 @@ export class AiDashboardService {
           ? { previousDatas: bound(widget.previousDatas.slice(0, 100)) }
           : {}),
         ...(widget.trendGrain ? { trendGrain: widget.trendGrain } : {}),
-        trend: widget.trend ? { ...widget.trend, points } : null,
+        ...(widget.timeSelection
+          ? {
+              timeSelection: {
+                ...widget.timeSelection,
+                ranges: widget.timeSelection.ranges.slice(0, rows.length),
+              },
+            }
+          : {}),
+        trend: widget.trend
+          ? {
+              ...widget.trend,
+              points,
+              ...(widget.trend.timeSelection
+                ? {
+                    timeSelection: {
+                      ...widget.trend.timeSelection,
+                      ranges: widget.trend.timeSelection.ranges.slice(0, points.length),
+                    },
+                  }
+                : {}),
+            }
+          : null,
         coverage: {
           returnedRows: widget.datas.length,
           includedRows: rows.length,
@@ -221,12 +248,17 @@ export class AiDashboardService {
         };
       });
     return {
-      period: body.dateRange ? 'selected UTC dates (inclusive)' : 'all time',
+      period: body.dateRange
+        ? body.dateRange.precision === 'timestamp'
+          ? 'selected UTC timestamps [start, end)'
+          : 'selected UTC dates (inclusive)'
+        : 'all time',
       dateRange: body.dateRange
         ? {
             column: body.dateRange.column,
             start: body.dateRange.start,
             end: body.dateRange.end,
+            ...(body.dateRange.precision === 'timestamp' ? { precision: 'timestamp' } : {}),
           }
         : null,
       filters: (body.filters || []).map((filter: any) => ({
@@ -555,6 +587,28 @@ export class AiDashboardService {
             '선택한 집계가 240개 시점을 초과합니다. 기간을 줄이거나 더 큰 집계 단위를 선택해 주세요.';
         } else widget.trendGrain = trendGrain;
       }
+      if (definition.type === 'CHART_LINE' && widget.datas.length && !widget.grainUnavailable) {
+        const bucket = regroup
+          ? {
+              column: dateColumn,
+              grain: trendGrain as 'day' | 'week' | 'month',
+              format: 'timestamp' as const,
+            }
+          : resolveTimeChartBucket(
+              definition.sql,
+              definition.valueField,
+              definition.categoryField,
+              schema,
+            );
+        if (bucket) {
+          const selection = buildTimeSelection(
+            widget.datas.map(row => row[definition.categoryField]),
+            bucket,
+            body.dateRange,
+          );
+          if (selection) widget.timeSelection = selection;
+        }
+      }
       if (previous) {
         const previousQuery = sourceQuery(
           widgetSql,
@@ -676,6 +730,11 @@ export class AiDashboardService {
               };
             }),
           };
+          widget.trend.timeSelection = buildTimeSelection(
+            widget.trend.points.map(point => point.time),
+            { column: dateColumn, grain, format: 'timestamp' },
+            body.dateRange,
+          );
         } catch (_error) {
           widget.trendUnavailable = 'Trend query is unavailable for this widget.';
         }

@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
+import { dateRangeBounds, isoSecond, validateDateRange } from './dashboard-date-range';
 
 export const DASHBOARD_TYPES = ['BOARD_NUMERIC', 'CHART_COLUMN', 'CHART_BAR', 'CHART_LINE'];
 export interface DashboardDraft {
@@ -191,30 +192,17 @@ export function sourceQuery(
     return `(${clauses.join(' OR ')})`;
   });
   if (dateRange !== undefined) {
-    const { column, start, end } = dateRange || {};
-    const validDay = value =>
-      typeof value === 'string' &&
-      /^\d{4}-\d{2}-\d{2}$/.test(value) &&
-      Number.isFinite(Date.parse(`${value}T00:00:00Z`)) &&
-      new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
-    if (
-      !columns.includes(column) ||
-      !temporalColumns.includes(column) ||
-      !validDay(start) ||
-      !validDay(end) ||
-      start > end ||
-      end === '9999-12-31'
-    )
+    const range = validateDateRange(dateRange);
+    const { column } = range;
+    if (!columns.includes(column) || !temporalColumns.includes(column))
       throw new BadRequestException('invalid UTC date range');
-    const nextDay = new Date(new Date(`${end}T00:00:00Z`).getTime() + 86400000)
-      .toISOString()
-      .slice(0, 10);
+    const { start, end } = dateRangeBounds(range);
     conditions.push(
       `CAST(${quoteColumn(column)} AS TIMESTAMPTZ) >= CAST(? AS TIMESTAMPTZ) AND CAST(${quoteColumn(
         column,
       )} AS TIMESTAMPTZ) < CAST(? AS TIMESTAMPTZ)`,
     );
-    bindings.push(`${start}T00:00:00Z`, `${nextDay}T00:00:00Z`);
+    bindings.push(isoSecond(start), isoSecond(end));
   }
   return {
     sql: `WITH source AS (SELECT * FROM uploaded_data${

@@ -213,6 +213,16 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
     expect(withTrend.data.widgets[0].trend).toEqual({
       column: 'event_time',
       grain: 'hour',
+      timeSelection: {
+        column: 'event_time',
+        grain: 'hour',
+        ranges: ['2026-01-01', '2026-01-02'].map(day => ({
+          column: 'event_time',
+          start: `${day}T00:00:00Z`,
+          end: `${day}T01:00:00Z`,
+          precision: 'timestamp',
+        })),
+      },
       points: [
         { time: '2026-01-01T00:00:00Z', value: 50 },
         { time: '2026-01-02T00:00:00Z', value: null },
@@ -260,6 +270,16 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
     expect(result.data.widgets[0].trend).toEqual({
       column: 'event_time',
       grain: 'hour',
+      timeSelection: {
+        column: 'event_time',
+        grain: 'hour',
+        ranges: ['2026-01-01', '2026-01-02', '2026-01-03'].map(day => ({
+          column: 'event_time',
+          start: `${day}T00:00:00Z`,
+          end: `${day}T01:00:00Z`,
+          precision: 'timestamp',
+        })),
+      },
       points: [
         { time: '2026-01-01T00:00:00Z', value: 50 },
         { time: '2026-01-02T00:00:00Z', value: null },

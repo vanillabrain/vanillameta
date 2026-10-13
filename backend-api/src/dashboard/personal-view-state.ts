@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
+import { DashboardDateRange, dateRangeBounds } from '../ai/dashboard-date-range';
 
-export type ViewDateRange = { column: string; start: string; end: string };
+export type ViewDateRange = DashboardDateRange;
 export type PersonalViewState = {
   version: 1;
   filters: { column: string; values: (string | number | boolean | null)[] }[];
@@ -19,11 +20,6 @@ const object = (value: any, keys: string[]) => {
 };
 const column = (value: unknown) => {
   if (typeof value !== 'string' || !value.trim() || value.length > 128) invalid();
-};
-const validDay = (value: unknown) => {
-  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) invalid();
-  const time = Date.parse(`${value}T00:00:00Z`);
-  if (!Number.isFinite(time) || new Date(time).toISOString().slice(0, 10) !== value) invalid();
 };
 
 export function validatePersonalViewState(input: any): PersonalViewState {
@@ -70,11 +66,7 @@ export function validatePersonalViewState(input: any): PersonalViewState {
     }
   }
   if (input.dateRange !== null) {
-    object(input.dateRange, ['column', 'start', 'end']);
-    column(input.dateRange.column);
-    validDay(input.dateRange.start);
-    validDay(input.dateRange.end);
-    if (input.dateRange.start > input.dateRange.end) invalid();
+    dateRangeBounds(input.dateRange);
   }
   if (input.relativePeriod !== null) {
     object(input.relativePeriod, ['column', 'days']);

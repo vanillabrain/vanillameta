@@ -75,6 +75,27 @@ describe('personal saved views', () => {
     expect((await reloaded.list(26, 5)).data).toEqual([]);
     expect(await db.getRepository(Dashboard).count()).toBe(2);
   });
+  it('persists and restores a half-open timestamp selection without converting it to inclusive days', async () => {
+    const dateRange = {
+      column: 'event_time',
+      start: '2024-02-29T12:30:00Z',
+      end: '2024-02-29T13:00:00Z',
+      precision: 'timestamp' as const,
+    };
+    const created = await service.create(26, 5, {
+      name: 'Hour selection',
+      revision,
+      state: { ...state(), dateRange, comparePrevious: true },
+    });
+    const loaded = await new PersonalViewService(db.getRepository(PersonalView), access).load(
+      26,
+      created.data.id,
+      5,
+    );
+    expect(loaded.data.state.dateRange).toEqual(dateRange);
+    expect(loaded.data.resolvedDateRange).toEqual(dateRange);
+    expect(loaded.data.state.comparePrevious).toBe(true);
+  });
   it('re-evaluates a relative period each open across UTC month/leap boundaries while absolute dates stay fixed', () => {
     const relative = validatePersonalViewState({
       ...state(),

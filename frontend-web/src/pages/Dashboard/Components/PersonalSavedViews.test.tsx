@@ -1,7 +1,7 @@
 import React from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import PersonalSavedViews, { resolveRelativePeriod, SavedViewState } from './PersonalSavedViews';
+import PersonalSavedViews, { DateRange, resolveRelativePeriod, SavedViewState } from './PersonalSavedViews';
 import DashboardAnalysis from './DashboardAnalysis';
 
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), del: vi.fn(), apply: vi.fn() }));
@@ -767,3 +767,84 @@ it.each(['grain', 'comparison'] as const)(
     expect(document.activeElement).toBe(control);
   },
 );
+
+const selectedHour: DateRange = {
+  column: 'created_at',
+  start: '2026-01-11T10:00:00Z',
+  end: '2026-01-11T11:00:00Z',
+  precision: 'timestamp',
+};
+it('time bucket saves only the timestamp range whitelist including precision', async () => {
+  const selected: SavedViewState = { ...state(), dateRange: selectedHour, trendGrain: 'day', comparePrevious: true };
+  await mount({ state: { ...selected, dateRange: { ...selectedHour, rawRows: [1], sql: 'private' } } });
+  nameView();
+  fireEvent.click(button('현재 보기 저장'));
+  await screen.findByRole('button', { name: '보기 2 보기 불러오기' });
+  expect(api.post.mock.calls[0][1]).toEqual({ name: '내 조건', state: selected, revision });
+});
+
+it('time bucket loads exact timestamp precision instead of flattening it to days', async () => {
+  await mount();
+  const selected: SavedViewState = { ...state(), dateRange: selectedHour, comparePrevious: true };
+  api.get.mockResolvedValueOnce(success(row(1, selected)));
+  fireEvent.click(button('보기 1 보기 불러오기'));
+  await screen.findByText('보기 1 보기를 적용했습니다.');
+  expect(api.apply).toHaveBeenCalledWith(selected, selectedHour);
+});
+
+it.each([
+  { ...selectedHour, precision: 'day' },
+  { ...selectedHour, start: '2026-01-11T10:00:00+00:00' },
+  { ...selectedHour, start: '2026-02-30T10:00:00Z' },
+  { ...selectedHour, start: '2026-01-11T10:00:00.000Z' },
+  { ...selectedHour, end: selectedHour.start },
+  { ...selectedHour, start: selectedHour.end, end: selectedHour.start },
+])('time bucket rejects malformed saved timestamp range %j before applying', async dateRange => {
+  await mount();
+  api.get.mockResolvedValueOnce(success(row(1, { ...state(), dateRange } as SavedViewState)));
+  fireEvent.click(button('보기 1 보기 불러오기'));
+  await screen.findByText('저장 보기의 조건을 확인할 수 없습니다. 다시 불러와 주세요.');
+  expect(api.apply).not.toHaveBeenCalled();
+});
+
+it('time bucket rejects a timestamp resolution for an inclusive relative day expression', async () => {
+  await mount();
+  const selected = { ...state(), relativePeriod: { column: 'created_at', days: 7 as const } };
+  api.get.mockResolvedValueOnce(success({ ...row(1, selected), resolvedDateRange: selectedHour }));
+  fireEvent.click(button('보기 1 보기 불러오기'));
+  await screen.findByText('서버에서 상대 기간을 확인하지 못했습니다. 저장 보기를 다시 불러와 주세요.');
+  expect(api.apply).not.toHaveBeenCalled();
+});
+
+it('time bucket applied saved hour keeps date inputs usable and preserves precision through later category changes and save', async () => {
+  await analysis();
+  const selected: SavedViewState = {
+    ...state(),
+    dateRange: selectedHour,
+    filters: [{ column: 'device', values: ['Mobile'] }],
+    trendGrain: 'week',
+    comparePrevious: true,
+    numberNotation: 'compact',
+  };
+  api.get.mockResolvedValueOnce(success(row(1, selected)));
+  fireEvent.click(button('보기 1 보기 불러오기'));
+  await screen.findByText('보기 1 보기를 적용했습니다.');
+  await idle();
+  expect(previewCalls().at(-1)[1]).toMatchObject({ dateRange: selectedHour, trendGrain: 'week', comparePrevious: true });
+  expect(screen.getByLabelText('시작일 (UTC)')).toHaveProperty('value', '2026-01-11');
+  expect(screen.getByLabelText('종료일 (UTC)')).toHaveProperty('value', '2026-01-11');
+  expect(disabled('보기 1 보기 불러오기')).toBe(false);
+  // Clear the active category while keeping the hour boundary.
+  fireEvent.click(screen.getByRole('button', { name: /device: Mobile .*공통 필터 해제/ }));
+  await idle();
+  nameView();
+  expect(disabled('현재 보기 저장')).toBe(false);
+  fireEvent.click(button('현재 보기 저장'));
+  await screen.findByRole('button', { name: '내 조건 보기 불러오기' });
+  expect(api.post.mock.lastCall[1].state).toEqual({ ...selected, filters: [] });
+  expect(localStorage.getItem('dashboard-number-notation:3')).toBe('compact');
+  expect(disabled('선택한 기간 되돌리기')).toBe(false);
+  choose('시작일 (UTC)', '2026-01-10');
+  expect(disabled('현재 보기 저장')).toBe(true);
+  expect(disabled('보기 1 보기 불러오기')).toBe(true);
+});

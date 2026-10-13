@@ -31,8 +31,24 @@ import PersonalSavedViews, {
 } from './PersonalSavedViews';
 import { PreviousPeriodData } from './PeriodComparison';
 import SourceDetails from './SourceDetails';
+import { TimeSelection, timeRangeLabel, validTimeRange } from './timeSelection';
 
 const valueKey = (value: FilterValue) => encodeURIComponent(JSON.stringify(value));
+const displayedDates = (range: DateRange | null): DateRange =>
+  range?.precision === 'timestamp'
+    ? {
+        column: range.column,
+        start: range.start.slice(0, 10),
+        end: new Date(Date.parse(range.end) - 1).toISOString().slice(0, 10),
+      }
+    : range ?? { column: '', start: '', end: '' };
+type PeriodBackup = { dateRange: DateRange | null; relativePeriod: RelativePeriod | null; dateDraft: DateRange };
+const selectableTime = (selection: TimeSelection | undefined, length: number, dateRange: DateRange | null) =>
+  selection &&
+  (!dateRange || selection.column === dateRange.column) &&
+  Array.isArray(selection.ranges) &&
+  selection.ranges.length === length &&
+  selection.ranges.some(range => validTimeRange(range) && range.column === selection.column);
 
 export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAssistantOpenChange, children }: any) {
   const { t } = useTranslation();
@@ -53,6 +69,15 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
   const [trendGrain, setTrendGrain] = useState<TrendGrain>('auto');
   const [comparePrevious, setComparePrevious] = useState(false);
   const [relativePeriod, setRelativePeriod] = useState<RelativePeriod | null>(null);
+  const [periodHistory, setPeriodHistory] = useState<PeriodBackup[]>([]);
+  const periodRecovery = useRef<HTMLButtonElement>(null);
+  const pendingTimeFocus = useRef<{
+    dashboardId: unknown;
+    range: string;
+    afterRequest: number;
+    button: Element;
+    cancel: () => void;
+  } | null>(null);
   const [recentDays, setRecentDays] = useState<7 | 30 | 90>(7);
   const [analysisLoading, setAnalysisLoading] = useState(true);
   const [dateError, setDateError] = useState('');
@@ -88,6 +113,7 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
       setTrendGrain('auto');
       setComparePrevious(false);
       setRelativePeriod(null);
+      setPeriodHistory([]);
       setRecentDays(7);
       setDateError('');
       setBusy(false);
@@ -158,6 +184,33 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
     };
   }, [draft, filters, dateRange, dashboardId, trendGrain, comparePrevious, previewRefresh]);
   useEffect(() => () => pendingFocusIntent.current?.cancel(), []);
+  useEffect(() => () => pendingTimeFocus.current?.cancel(), []);
+  useEffect(() => {
+    const intent = pendingTimeFocus.current;
+    if (!intent) return;
+    if (
+      intent.dashboardId !== dashboardId ||
+      intent.range !== JSON.stringify(dateRange) ||
+      detailsOpen ||
+      editing ||
+      error
+    ) {
+      intent.cancel();
+      return;
+    }
+    if (
+      busy ||
+      analysisLoading ||
+      completedPreview.current !== serial.current ||
+      completedPreview.current <= intent.afterRequest
+    )
+      return;
+    const abandoned = document.activeElement === document.body;
+    intent.cancel();
+    // A surviving chart-table row keeps focus; only a removed focused row needs recovery.
+    if (abandoned && !intent.button.isConnected && !document.querySelector('[role="dialog"]'))
+      periodRecovery.current?.focus();
+  }, [busy, analysisLoading, error, preview, dateRange, dashboardId, detailsOpen, editing]);
   useEffect(() => {
     const intent = pendingFocusIntent.current;
     if (!intent) return;
@@ -188,10 +241,11 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
   const temporalColumns = preview?.temporalColumns || [];
   const temporalColumn = dateDraft.column || temporalColumns[0]?.column || '';
   const active = Object.entries(filters).filter(([, values]) => values.length);
+  const displayedRange = displayedDates(dateRange);
   const unappliedDates =
-    dateDraft.start !== (dateRange?.start ?? '') ||
-    dateDraft.end !== (dateRange?.end ?? '') ||
-    (!!dateDraft.column && dateDraft.column !== (dateRange?.column ?? ''));
+    dateDraft.start !== displayedRange.start ||
+    dateDraft.end !== displayedRange.end ||
+    (!!dateDraft.column && dateDraft.column !== displayedRange.column);
   const viewDisabledReason =
     analysisLoading || busy
       ? '현재 조회가 완료된 뒤 저장 보기를 사용할 수 있습니다.'
@@ -202,6 +256,55 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
       : '';
   const detailsDisabledReason = viewDisabledReason.replace('저장 보기', '원본 상세');
   const selectionDisabled = busy || analysisLoading || !!error || !!dateError;
+  const timeSelectionDisabled = selectionDisabled || unappliedDates || editing || detailsOpen;
+  const periodRecoveryDisabled = busy || analysisLoading || editing || detailsOpen || unappliedDates || !!dateError;
+  const selectTime = (range: DateRange) => {
+    if (timeSelectionDisabled || !validTimeRange(range) || (dateRange && range.column !== dateRange.column)) return;
+    const button = document.activeElement;
+    if (button instanceof Element && button !== document.body && typeof (button as HTMLElement).focus === 'function') {
+      pendingTimeFocus.current?.cancel();
+      const cancel = () => {
+        document.removeEventListener('focusin', movedFocus, true);
+        document.removeEventListener('keydown', cancel, true);
+        document.removeEventListener('pointerdown', cancel, true);
+        window.removeEventListener('blur', cancel);
+        if (pendingTimeFocus.current?.cancel === cancel) pendingTimeFocus.current = null;
+      };
+      const movedFocus = (event: FocusEvent) => {
+        if (event.target !== button && event.target !== document.body) cancel();
+      };
+      pendingTimeFocus.current = {
+        dashboardId,
+        range: JSON.stringify(range),
+        afterRequest: serial.current,
+        button,
+        cancel,
+      };
+      document.addEventListener('focusin', movedFocus, true);
+      document.addEventListener('keydown', cancel, true);
+      document.addEventListener('pointerdown', cancel, true);
+      window.addEventListener('blur', cancel);
+    }
+    setPeriodHistory(history => [...history.slice(-9), { dateRange, relativePeriod, dateDraft }]);
+    setRelativePeriod(null);
+    setDateRange({ column: range.column, start: range.start, end: range.end, precision: 'timestamp' });
+    setDateDraft(displayedDates(range));
+    setDateError('');
+    setBusy(true);
+  };
+  const restorePeriod = () => {
+    if (periodRecoveryDisabled || !periodHistory.length) return;
+    pendingTimeFocus.current?.cancel();
+    const previous = periodHistory[periodHistory.length - 1];
+    setPeriodHistory(history => history.slice(0, -1));
+    setDateRange(previous.dateRange);
+    setRelativePeriod(previous.relativePeriod);
+    setDateDraft(previous.dateDraft);
+    if (!previous.dateRange) setComparePrevious(false);
+    setDateError('');
+    setError('');
+    setBusy(true);
+  };
   const selectedValues = (column: string): FilterValue[] =>
     Object.prototype.hasOwnProperty.call(filters, column) && Array.isArray(filters[column]) ? filters[column] : [];
   const categoryLabel = (value: FilterValue) =>
@@ -291,6 +394,8 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
     comparePrevious: comparePrevious && !!dateRange,
   };
   const reset = () => {
+    setPeriodHistory([]);
+    pendingTimeFocus.current?.cancel();
     setFilters({});
     setCategoryNotice('공통 필터를 초기화했습니다.');
     setDateDraft({ column: '', start: '', end: '' });
@@ -304,6 +409,7 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
     const { start, end } = dateDraft;
     setRelativePeriod(null);
     if (!start && !end) {
+      setPeriodHistory([]);
       setDateError('');
       setDateRange(null);
       setComparePrevious(false);
@@ -316,18 +422,24 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
       return;
     }
     setDateError('');
+    setPeriodHistory([]);
     setDateRange({ column: temporalColumn, start, end });
   };
   const applyRecent = () => {
     if (busy || analysisLoading || error || !temporalColumn) return;
     const relative = { column: temporalColumn, days: recentDays };
     const range = resolveRelativePeriod(relative);
+    setPeriodHistory([]);
     setRelativePeriod(relative);
     setDateRange(range);
     setDateDraft(range);
     setDateError('');
   };
-  const period = dateRange ? `${dateRange.column}: ${dateRange.start} ~ ${dateRange.end} (UTC)` : '전체 기간';
+  const period = dateRange
+    ? `${dateRange.column}: ${
+        dateRange.precision === 'timestamp' ? timeRangeLabel(dateRange) : `${dateRange.start} ~ ${dateRange.end} (UTC)`
+      }`
+    : '전체 기간';
   return (
     <Box sx={{ p: { xs: 1.5, sm: 2.5 }, minWidth: 0 }}>
       <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 1, mb: 1.5, alignItems: 'center' }}>
@@ -337,6 +449,15 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
             ? active.map(([column, values]) => `${column}: ${values.map(String).join(', ')}`).join(' · ')
             : '필터 없음'}
         </Typography>
+        <Button
+          ref={periodRecovery}
+          size="small"
+          variant="outlined"
+          aria-disabled={periodRecoveryDisabled || !periodHistory.length}
+          onClick={restorePeriod}
+        >
+          선택한 기간 되돌리기
+        </Button>
         <Button
           size="small"
           onClick={reset}
@@ -574,13 +695,15 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
       </Stack>
       <Typography variant="body2" sx={{ mb: 2 }}>
         주별은 UTC 월요일 시작, 월별은 UTC 달력의 월 기준입니다. 선택 범위에 걸친 주·월은 범위 안의 데이터만 집계합니다. 이전
-        기간은 적용된 기간 바로 앞의 같은 일수이며 동일한 필터로 조회합니다.
+        기간은 적용된 기간 바로 앞의 같은 길이이며 동일한 필터로 조회합니다.
         {!dateRange && ' 이전 기간 비교는 날짜를 적용한 뒤 사용할 수 있습니다.'}
       </Typography>
       {preview?.comparison && (
         <Typography role="status" sx={{ mb: 2, overflowWrap: 'anywhere' }}>
           {busy || error ? '이전 조회 결과의 비교 기간' : '이전 기간'}: {preview.comparison.previous.column} ·{' '}
-          {preview.comparison.previous.start} ~ {preview.comparison.previous.end} (UTC)
+          {preview.comparison.previous.precision === 'timestamp'
+            ? timeRangeLabel(preview.comparison.previous)
+            : `${preview.comparison.previous.start} ~ ${preview.comparison.previous.end} (UTC)`}
         </Typography>
       )}
       {dateError && (
@@ -610,8 +733,10 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
           setError('');
           setDateError('');
           setFilters(Object.fromEntries(state.filters.map(filter => [filter.column, filter.values])));
+          setPeriodHistory([]);
+          pendingTimeFocus.current?.cancel();
           setDateRange(range);
-          setDateDraft(range ?? { column: '', start: '', end: '' });
+          setDateDraft(displayedDates(range));
           setRelativePeriod(state.relativePeriod);
           setTrendGrain(state.trendGrain ?? 'auto');
           setComparePrevious(state.comparePrevious === true && !!range);
@@ -680,6 +805,12 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
                   widgetType={widget.type}
                   widgetOption={analysisOptions(widget, numberNotation)}
                   dataSet={widget.datas}
+                  timeSelection={widget.timeSelection}
+                  onTimeSelect={
+                    selectableTime(widget.timeSelection, widget.datas.length, dateRange) ? selectTime : undefined
+                  }
+                  timeSelectionDisabled={timeSelectionDisabled}
+                  selectedTimeRange={dateRange}
                   onCategorySelect={
                     typeof widget.dimensionColumn === 'string' &&
                     widget.dimensionColumn &&
@@ -715,6 +846,13 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
                   decimalPlaces={widget.decimalPlaces ?? 0}
                   comparison={widget.comparison}
                   suffix={widget.suffix}
+                  onTimeSelect={
+                    selectableTime(widget.trend?.timeSelection, widget.trend?.points?.length, dateRange)
+                      ? selectTime
+                      : undefined
+                  }
+                  timeSelectionDisabled={timeSelectionDisabled}
+                  selectedTimeRange={dateRange}
                 />
               )}
               {widget.type !== 'BOARD_NUMERIC' && (Array.isArray(widget.previousDatas) || widget.previousUnavailable) && (
@@ -726,7 +864,9 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
                   unavailable={widget.previousUnavailable}
                   period={
                     preview.comparison
-                      ? `${preview.comparison.previous.start} ~ ${preview.comparison.previous.end}`
+                      ? preview.comparison.previous.precision === 'timestamp'
+                        ? timeRangeLabel(preview.comparison.previous)
+                        : `${preview.comparison.previous.start} ~ ${preview.comparison.previous.end}`
                       : undefined
                   }
                 />
@@ -779,6 +919,8 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
             /* Display remains usable without browser storage. */
           }
           setDraft(next);
+          setPeriodHistory([]);
+          pendingTimeFocus.current?.cancel();
           onSaved(Number(dashboardId));
         }}
       />

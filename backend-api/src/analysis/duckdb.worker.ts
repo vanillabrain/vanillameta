@@ -1,8 +1,11 @@
 import { parentPort } from 'worker_threads';
-import { DuckDBInstance, DuckDBConnection } from '@duckdb/node-api';
+import { DuckDBInstance, DuckDBConnection, DuckDBTimestampTZValue } from '@duckdb/node-api';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { importCommerce } from './commerce-import';
+
+// The adapter defaults to the host offset independently of the connection's UTC setting.
+DuckDBTimestampTZValue.timezoneOffsetInMinutes = 0;
 
 const literal = (value: string) => `'${value.replace(/'/g, "''")}'`;
 const identifier = (value: string) => `"${value.replace(/"/g, '""')}"`;

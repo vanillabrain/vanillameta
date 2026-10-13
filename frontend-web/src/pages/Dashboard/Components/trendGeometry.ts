@@ -1,5 +1,10 @@
 export type TrendPoint = { time: string; value: number | null };
-export type MetricTrendData = { column: string; grain: string; points: TrendPoint[] };
+export type MetricTrendData = {
+  column: string;
+  grain: string;
+  points: TrendPoint[];
+  timeSelection?: import('./timeSelection').TimeSelection;
+};
 
 /** Null observations break the line rather than implying a zero or interpolation. */
 export function trendGeometry(points: TrendPoint[]) {

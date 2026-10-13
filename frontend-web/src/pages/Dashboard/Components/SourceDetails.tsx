@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import { post } from '@/helpers/apiHelper';
 import type { DateRange, FilterValue } from './PersonalSavedViews';
+import { timeRangeLabel } from './timeSelection';
 
 type Props = {
   open: boolean;
@@ -167,7 +168,14 @@ export default function SourceDetails({
           현재 공통 필터와 적용 기간에 해당하는 원본 데이터입니다. 개별 차트에 설정한 추가 조건은 포함하지 않습니다.
         </Typography>
         <Typography variant="body2" sx={{ mb: 1, overflowWrap: 'anywhere' }}>
-          {dateRange ? `${dateRange.column}: ${dateRange.start} ~ ${dateRange.end} (UTC)` : '전체 기간'} ·{' '}
+          {dateRange
+            ? `${dateRange.column}: ${
+                dateRange.precision === 'timestamp'
+                  ? timeRangeLabel(dateRange)
+                  : `${dateRange.start} ~ ${dateRange.end} (UTC)`
+              }`
+            : '전체 기간'}{' '}
+          ·{' '}
           {filters.length
             ? filters.map(filter => `${filter.column}: ${filter.values.map(cellText).join(', ')}`).join(' · ')
             : '필터 없음'}

@@ -1,11 +1,14 @@
 import { BadRequestException } from '@nestjs/common';
+import {
+  DashboardDateRange,
+  isoSecond,
+  UTC_MIN,
+  utcInstant,
+  validateDateRange,
+} from './dashboard-date-range';
 
 export type PeriodGrain = 'auto' | 'day' | 'week' | 'month';
-export interface PeriodDateRange {
-  column: string;
-  start: string;
-  end: string;
-}
+export type PeriodDateRange = DashboardDateRange;
 
 export function validatePeriodOptions(body: any): {
   trendGrain: PeriodGrain;
@@ -20,35 +23,24 @@ export function validatePeriodOptions(body: any): {
   return { trendGrain, comparePrevious };
 }
 
-function utcDay(value: unknown): number {
-  if (typeof value !== 'string' || !/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(value))
-    throw new BadRequestException('invalid UTC date range');
-  const day = Date.parse(`${value}T00:00:00Z`);
-  if (!Number.isFinite(day) || new Date(day).toISOString().slice(0, 10) !== value)
-    throw new BadRequestException('invalid UTC date range');
-  return day;
-}
-
-/** Inclusive day ranges, with the immediately preceding equally long period. */
+/** Immediately preceding period: inclusive days or an equal number of UTC seconds. */
 export function previousDateRange(range: PeriodDateRange): PeriodDateRange {
-  if (!range || typeof range.column !== 'string' || !range.column.trim())
-    throw new BadRequestException('invalid UTC date range');
-  const start = utcDay(range.start);
-  const end = utcDay(range.end);
-  if (end < start) throw new BadRequestException('invalid UTC date range');
-  const length = end - start + 86400000;
+  range = validateDateRange(range);
+  const timestamp = range.precision === 'timestamp';
+  const start = utcInstant(range.start, timestamp);
+  const end = utcInstant(range.end, timestamp);
+  const length = end - start + (timestamp ? 0 : 86400000);
   const previousStart = start - length;
-  const previousEnd = start - 86400000;
-  if (
-    !Number.isFinite(previousStart) ||
-    !Number.isFinite(previousEnd) ||
-    previousStart < utcDay('0001-01-01')
-  )
+  const previousEnd = start - (timestamp ? 0 : 86400000);
+  if (!Number.isFinite(previousStart) || !Number.isFinite(previousEnd) || previousStart < UTC_MIN)
     throw new BadRequestException('previous UTC date range underflow');
   return {
     column: range.column,
-    start: new Date(previousStart).toISOString().slice(0, 10),
-    end: new Date(previousEnd).toISOString().slice(0, 10),
+    start: timestamp
+      ? isoSecond(previousStart)
+      : new Date(previousStart).toISOString().slice(0, 10),
+    end: timestamp ? isoSecond(previousEnd) : new Date(previousEnd).toISOString().slice(0, 10),
+    ...(timestamp ? { precision: 'timestamp' as const } : {}),
   };
 }
 

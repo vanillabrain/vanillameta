@@ -187,6 +187,19 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+it('time bucket details preserves the exact timestamp request and captions its exclusive UTC end', async () => {
+  const dateRange = {
+    column: 'day',
+    start: '2026-01-11T10:00:00Z',
+    end: '2026-01-11T11:00:00Z',
+    precision: 'timestamp' as const,
+  };
+  render(<SourceDetails {...props} dateRange={dateRange} />);
+  await screen.findByText('record-A');
+  expect(api.post.mock.lastCall[1].dateRange).toEqual(dateRange);
+  expect(screen.getByText(/day: UTC 2026-01-11 10:00:00 ~ 2026-01-11 11:00:00 \(종료 미포함\)/)).toBeTruthy();
+});
+
 it('requests only the specified details contract and renders a bounded keyboard region with safe NULL/date text', async () => {
   api.post.mockResolvedValueOnce(success({ ...detailData(), datas: [{ channel: '<img onerror=attack>', day: null }] }));
   render(<SourceDetails {...props} />);

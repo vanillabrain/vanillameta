@@ -12,9 +12,10 @@ import {
   Typography,
 } from '@mui/material';
 import { del, get, post } from '@/helpers/apiHelper';
+import { validTimeRange } from './timeSelection';
 
 export type FilterValue = string | number | boolean | null;
-export type DateRange = { column: string; start: string; end: string };
+export type DateRange = { column: string; start: string; end: string; precision?: 'timestamp' };
 export type RelativePeriod = { column: string; days: 7 | 30 | 90 };
 export type TrendGrain = 'auto' | 'day' | 'week' | 'month';
 export type SavedViewState = {
@@ -58,7 +59,14 @@ export function resolveRelativePeriod(period: RelativePeriod, today = new Date()
 
 const validColumn = (column: unknown) => typeof column === 'string' && !!column.trim();
 const validRange = (range: DateRange) =>
-  range && validColumn(range.column) && validDay(range.start) && validDay(range.end) && range.start <= range.end;
+  range &&
+  (range.precision === 'timestamp'
+    ? validTimeRange(range)
+    : range.precision === undefined &&
+      validColumn(range.column) &&
+      validDay(range.start) &&
+      validDay(range.end) &&
+      range.start <= range.end);
 function stateData(value: unknown): SavedViewState {
   const state = value as SavedViewState;
   if (
@@ -95,7 +103,12 @@ function stateData(value: unknown): SavedViewState {
     version: 1,
     filters: state.filters.map(({ column, values }) => ({ column, values: [...values] })),
     dateRange: state.dateRange
-      ? { column: state.dateRange.column, start: state.dateRange.start, end: state.dateRange.end }
+      ? {
+          column: state.dateRange.column,
+          start: state.dateRange.start,
+          end: state.dateRange.end,
+          ...(state.dateRange.precision === 'timestamp' ? { precision: 'timestamp' as const } : {}),
+        }
       : null,
     relativePeriod: state.relativePeriod ? { column: state.relativePeriod.column, days: state.relativePeriod.days } : null,
     numberNotation: state.numberNotation,
@@ -259,7 +272,10 @@ export default function PersonalSavedViews({
         if (saved.revision !== latest.revision)
           throw Object.assign(new Error('저장 보기 버전 불일치'), { response: { status: 409 } });
         const range = saved.state.relativePeriod ? saved.resolvedDateRange : saved.state.dateRange;
-        if (saved.state.relativePeriod && (!validRange(range) || range.column !== saved.state.relativePeriod.column))
+        if (
+          saved.state.relativePeriod &&
+          (!validRange(range) || range.precision !== undefined || range.column !== saved.state.relativePeriod.column)
+        )
           throw new Error('서버에서 상대 기간을 확인하지 못했습니다. 저장 보기를 다시 불러와 주세요.');
         latest.onApply(saved.state, range ?? null);
         setNotice(`${saved.name} 보기를 적용했습니다.`);

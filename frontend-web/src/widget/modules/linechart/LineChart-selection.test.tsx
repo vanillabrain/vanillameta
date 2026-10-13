@@ -63,6 +63,109 @@ const dataSet = [
 const seriesClick = (dataIndex: number, extras = {}) =>
   act(() => state.events?.click({ componentType: 'series', dataIndex, name: 'formatted wrong value', ...extras }));
 
+const hourRange = (hour: string) => ({
+  column: 'event_time',
+  start: `2026-01-12T${hour}:00:00Z`,
+  end: `2026-01-12T${String(Number(hour) + 1).padStart(2, '0')}:00:00Z`,
+  precision: 'timestamp' as const,
+});
+const timeRows = [
+  { category: '2026-01-12T10:00:00Z', value: 3 },
+  { category: '2026-01-12T11:00:00Z', value: 7 },
+];
+const timeMetadata = { column: 'event_time', grain: 'hour' as const, ranges: [hourRange('10'), hourRange('11')] };
+it('time bucket canvas selects proven aligned ranges rather than the formatted name', () => {
+  const selected = vi.fn();
+  const view = render(<LineChart option={option} dataSet={timeRows} onTimeSelect={selected} timeSelection={timeMetadata} />);
+  seriesClick(1);
+  expect(selected).toHaveBeenCalledWith(hourRange('11'));
+  seriesClick(0, { componentType: 'xAxis' });
+  seriesClick(3);
+  expect(selected).toHaveBeenCalledTimes(1);
+  view.rerender(
+    <LineChart
+      option={option}
+      dataSet={[timeRows[1]]}
+      onTimeSelect={selected}
+      timeSelection={{ ...timeMetadata, ranges: [hourRange('11')] }}
+      timeSelectionDisabled
+    />,
+  );
+  seriesClick(0);
+  expect(selected).toHaveBeenCalledTimes(1);
+});
+it.each(['{Enter}', ' '])('time bucket table retains focus with native %s and pending guard', async key => {
+  const selected = vi.fn();
+  const chart = (pending: boolean) => (
+    <LineChart
+      option={option}
+      dataSet={timeRows}
+      onTimeSelect={selected}
+      timeSelection={timeMetadata}
+      timeSelectionDisabled={pending}
+      selectedTimeRange={hourRange('11')}
+    />
+  );
+  const view = render(chart(false));
+  fireEvent.click(view.getByRole('button', { name: 'chart.showDataTable' }));
+  const button = view.getByRole('button', { name: /기간 선택: UTC 2026-01-12 11:00:00/ });
+  button.focus();
+  await userEvent.keyboard(key);
+  expect(selected.mock.calls).toEqual([[hourRange('11')]]);
+  view.rerender(chart(true));
+  expect(document.activeElement).toBe(button);
+  expect(button.getAttribute('aria-pressed')).toBe('true');
+  expect(button.getAttribute('aria-disabled')).toBe('true');
+  await userEvent.keyboard(key);
+  seriesClick(1);
+  expect(selected).toHaveBeenCalledTimes(1);
+});
+it('time bucket metadata mismatch and conflicting duplicate axes cannot apply a fabricated range', () => {
+  const selected = vi.fn();
+  const view = render(
+    <LineChart
+      option={option}
+      dataSet={timeRows}
+      onTimeSelect={selected}
+      timeSelection={{ ...timeMetadata, ranges: [hourRange('10')] }}
+    />,
+  );
+  seriesClick(0);
+  expect(selected).not.toHaveBeenCalled();
+  view.rerender(
+    <LineChart option={option} dataSet={[timeRows[0], timeRows[0]]} onTimeSelect={selected} timeSelection={timeMetadata} />,
+  );
+  seriesClick(0);
+  expect(selected).not.toHaveBeenCalled();
+  fireEvent.click(view.getByRole('button', { name: 'chart.showDataTable' }));
+  expect(view.queryByRole('button', { name: /기간 선택:/ })).toBeNull();
+});
+it('time bucket props propagate through WidgetViewer and refresh current range callbacks', () => {
+  const first = vi.fn(),
+    second = vi.fn();
+  const widget = (callback: typeof first, pending = false) => (
+    <LoadingContext.Provider value={{ loading: false, showLoading: vi.fn(), hideLoading: vi.fn() }}>
+      <WidgetViewer
+        title="Hourly revenue"
+        widgetType="CHART_LINE"
+        widgetOption={option}
+        dataSet={timeRows}
+        onTimeSelect={callback}
+        timeSelection={timeMetadata}
+        timeSelectionDisabled={pending}
+      />
+    </LoadingContext.Provider>
+  );
+  const view = render(widget(first));
+  seriesClick(0);
+  view.rerender(widget(second));
+  seriesClick(1);
+  view.rerender(widget(second, true));
+  seriesClick(0);
+  expect(first.mock.calls).toEqual([[hourRange('10')]]);
+  expect(second.mock.calls).toEqual([[hourRange('11')]]);
+});
+
 it.each(['x', 'y'] as const)(
   'maps %s-axis canvas indices to distinct original typed categories and matching aggregates',
   axis => {

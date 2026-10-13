@@ -2,26 +2,71 @@ import React from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import DashboardAnalysis from './DashboardAnalysis';
-const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));
+import userEvent from '@testing-library/user-event';
+import type { DateRange } from './PersonalSavedViews';
+const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), timeProps: vi.fn() }));
 vi.mock('@/helpers/apiHelper', () => api);
 vi.mock('./DashboardAssistant', () => ({ default: () => null }));
 // Saved-view API/UI behavior is exercised by PersonalSavedViews.test.tsx.
 vi.mock('./PersonalSavedViews', async importOriginal => ({
   ...(await importOriginal<typeof import('./PersonalSavedViews')>()),
-  default: () => null,
-}));
-vi.mock('@/widget/wrapper/WidgetViewer', () => ({
-  default: ({ dataSet, description }: any) => (
-    <span>
-      {description}
-      <span>{dataSet[0].requests}</span>
+  default: ({ state, disabledReason }: any) => (
+    <span data-testid="saved-state" data-blocked={disabledReason}>
+      {JSON.stringify(state)}
     </span>
   ),
+}));
+vi.mock('./MetricTrend', () => ({
+  default: ({ trend, onTimeSelect, timeSelectionDisabled, selectedTimeRange }: any) => (
+    <span data-testid="trend-range">
+      {JSON.stringify(selectedTimeRange)}
+      {onTimeSelect &&
+        trend?.timeSelection?.ranges.map((range: DateRange, i: number) => (
+          <button key={range.start} aria-disabled={timeSelectionDisabled} onClick={() => onTimeSelect(range)}>
+            KPI 기간 {i}
+          </button>
+        ))}
+    </span>
+  ),
+}));
+vi.mock('@/widget/wrapper/WidgetViewer', () => ({
+  default: ({ dataSet, description, timeSelection, onTimeSelect, timeSelectionDisabled, selectedTimeRange }: any) => {
+    api.timeProps(onTimeSelect);
+    return (
+      <span>
+        {description}
+        <span data-testid="line-range">{JSON.stringify(selectedTimeRange)}</span>
+        <span>{dataSet[0].requests}</span>
+        {onTimeSelect &&
+          timeSelection?.ranges.map((range: DateRange, i: number) => (
+            <button key={range.start} aria-disabled={timeSelectionDisabled} onClick={() => onTimeSelect(range)}>
+              차트 기간 {i}
+            </button>
+          ))}
+        {onTimeSelect && (
+          <svg>
+            {timeSelection?.ranges.map((range: DateRange, i: number) => (
+              <g
+                key={range.start}
+                tabIndex={0}
+                role="button"
+                aria-label={`SVG 기간 ${i}`}
+                onClick={() => onTimeSelect(range)}
+                onKeyDown={event => {
+                  if (event.key === 'Enter') onTimeSelect(range);
+                }}
+              />
+            ))}
+          </svg>
+        )}
+      </span>
+    );
+  },
 }));
 // The repository's Vitest runtime cannot import the Emotion/MUI styled engine.
 // Model the Select array event contract while keeping primitive menu values intact.
 vi.mock('@mui/material', () => {
-  const container = ({ children }: any) => <div>{children}</div>;
+  const container = ({ children, component: Tag = 'div' }: any) => <Tag>{children}</Tag>;
   return {
     Box: container,
     Card: container,
@@ -30,11 +75,11 @@ vi.mock('@mui/material', () => {
     FormControl: container,
     InputLabel: container,
     Checkbox: ({ checked }: any) => <input type="checkbox" checked={checked} readOnly />,
-    Button: ({ children, onClick, disabled }: any) => (
-      <button onClick={onClick} disabled={disabled}>
+    Button: React.forwardRef<HTMLButtonElement, any>(({ children, onClick, disabled, ...props }, ref) => (
+      <button ref={ref} onClick={onClick} disabled={disabled} aria-disabled={props['aria-disabled']}>
         {children}
       </button>
-    ),
+    )),
     Alert: ({ children }: any) => <div role="alert">{children}</div>,
     LinearProgress: () => <div role="progressbar" />,
     TextField: ({ label, value, onChange, type }: any) => (
@@ -95,7 +140,7 @@ const preview = (requests: number) => ({
   dimensions: [{ column: 'device_type', values: ['Mobile/Tablet', 1, '1', true, null, 'a,b'] }],
   temporalColumns: [{ column: 'created_at', min: null, max: null }],
 });
-const mount = async (data = preview(10)) => {
+const mount = async (data: any = preview(10)) => {
   api.get.mockResolvedValue(response({ databaseId: 3, widgets: [] }));
   api.post.mockResolvedValue(response(data));
   const view = render(
@@ -308,4 +353,296 @@ it('keeps the three-widget preview visible when a one-widget revision awaits rep
   expect(screen.getByText('44')).toBeTruthy();
   expect(screen.queryByText('22')).toBeNull();
   expect(screen.queryByText('33')).toBeNull();
+});
+
+const hourRange: DateRange = {
+  column: 'created_at',
+  start: '2026-01-11T10:00:00Z',
+  end: '2026-01-11T11:00:00Z',
+  precision: 'timestamp',
+};
+const timePreview = (ranges: DateRange[] = [hourRange]) => {
+  const selection = { column: 'created_at', grain: 'hour', ranges };
+  return {
+    ...preview(10),
+    widgets: [
+      {
+        ...preview(10).widgets[0],
+        timeSelection: selection,
+        trend: { timeSelection: selection, points: ranges.map(range => ({ time: range.start, value: 10 })) },
+      },
+    ],
+  };
+};
+const recovery = () => screen.getByRole('button', { name: '선택한 기간 되돌리기' }) as HTMLButtonElement;
+const savedState = () => JSON.parse(screen.getByTestId('saved-state').textContent);
+const stageAndApply = async (start: string, end: string) => {
+  dates(start, end);
+  fireEvent.click(screen.getByText('적용'));
+  await idle();
+};
+function pendingPreview() {
+  let resolve!: (value: any) => void;
+  let reject!: (value: any) => void;
+  api.post.mockReturnValueOnce(
+    new Promise((done, fail) => {
+      resolve = done;
+      reject = fail;
+    }),
+  );
+  return { resolve, reject };
+}
+
+it.each(['차트', 'KPI'])(
+  'time bucket %s applies exact UTC hour and retains categories, grain and comparison',
+  async label => {
+    await mount(timePreview());
+    await choose('device_type', 'true');
+    await stageAndApply('2026-01-01', '2026-01-31');
+    fireEvent.click(screen.getByRole('checkbox', { name: '이전 기간 비교' }));
+    await idle();
+    // The mocked grain TextField is a native input; production uses a select.
+    fireEvent.change(screen.getByLabelText('시계열 집계 단위'), { target: { value: 'week' } });
+    await idle();
+    fireEvent.click(screen.getByRole('button', { name: `${label} 기간 0` }));
+    await idle();
+    expect(api.post.mock.lastCall[1]).toMatchObject({
+      dateRange: hourRange,
+      filters: [{ column: 'device_type', values: [true] }],
+      trendGrain: 'week',
+      comparePrevious: true,
+    });
+    expect(screen.getByLabelText('시작일 (UTC)')).toHaveProperty('value', '2026-01-11');
+    expect(screen.getByLabelText('종료일 (UTC)')).toHaveProperty('value', '2026-01-11');
+    expect(screen.getAllByText(/created_at: UTC 2026-01-11 10:00:00 ~ 2026-01-11 11:00:00 \(종료 미포함\)/)).toHaveLength(2);
+    expect(screen.getByTestId('saved-state').dataset.blocked).toBe('');
+    expect(savedState()).toMatchObject({ dateRange: hourRange, relativePeriod: null });
+    expect(screen.getByTestId('line-range').textContent).toBe(JSON.stringify(hourRange));
+    expect(screen.getByTestId('trend-range').textContent).toContain(JSON.stringify(hourRange));
+  },
+);
+
+it('time bucket displays the last included UTC day for a midnight end and manual apply deliberately returns to inclusive days', async () => {
+  const month: DateRange = { ...hourRange, start: '2026-01-01T00:00:00Z', end: '2026-02-01T00:00:00Z' };
+  await mount(timePreview([month]));
+  fireEvent.click(screen.getByRole('button', { name: '차트 기간 0' }));
+  await idle();
+  expect(screen.getByLabelText('종료일 (UTC)')).toHaveProperty('value', '2026-01-31');
+  expect(screen.getByTestId('saved-state').dataset.blocked).toBe('');
+  fireEvent.click(screen.getByText('적용'));
+  await idle();
+  expect(api.post.mock.lastCall[1].dateRange).toEqual({ column: 'created_at', start: '2026-01-01', end: '2026-01-31' });
+  expect(recovery().getAttribute('aria-disabled')).toBe('true');
+});
+
+it.each(['pending', 'error', 'unapplied', 'invalid', 'malformed'])(
+  'time bucket guards %s callbacks without changing current range',
+  async blocked => {
+    await mount(timePreview(blocked === 'malformed' ? [{ ...hourRange, end: hourRange.start }] : [hourRange]));
+    if (blocked === 'pending' || blocked === 'error') {
+      const pending = pendingPreview();
+      fireEvent.click(screen.getByText('최근 기간 적용'));
+      if (blocked === 'error') await act(async () => pending.reject(new Error('조회 실패')));
+    } else if (blocked === 'unapplied' || blocked === 'invalid') {
+      dates('2026-01-31', blocked === 'invalid' ? '2026-01-01' : '2026-02-01');
+      if (blocked === 'invalid') fireEvent.click(screen.getByText('적용'));
+    }
+    const count = api.post.mock.calls.length;
+    const before = savedState();
+    if (blocked === 'malformed') {
+      expect(screen.queryByRole('button', { name: '차트 기간 0' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'KPI 기간 0' })).toBeNull();
+    } else {
+      fireEvent.click(screen.getByRole('button', { name: '차트 기간 0' }));
+      fireEvent.click(screen.getByRole('button', { name: 'KPI 기간 0' }));
+    }
+    expect(api.post).toHaveBeenCalledTimes(count);
+    expect(savedState()).toEqual(before);
+    expect(recovery().getAttribute('aria-disabled')).toBe('true');
+  },
+);
+
+it('time bucket restores the relative expression and original day inputs while preserving newly changed categories', async () => {
+  await mount(timePreview());
+  fireEvent.click(screen.getByText('최근 기간 적용'));
+  await idle();
+  const previous = api.post.mock.lastCall[1].dateRange;
+  fireEvent.click(screen.getByRole('button', { name: '차트 기간 0' }));
+  await idle();
+  expect(savedState().relativePeriod).toBeNull();
+  await choose('device_type', 'true');
+  recovery().focus();
+  const pending = pendingPreview();
+  fireEvent.click(recovery());
+  expect(api.post.mock.lastCall[1]).toMatchObject({
+    dateRange: previous,
+    filters: [{ column: 'device_type', values: [true] }],
+  });
+  expect(savedState().relativePeriod).toEqual({ column: 'created_at', days: 7 });
+  expect(recovery().disabled).toBe(false);
+  expect(recovery().getAttribute('aria-disabled')).toBe('true');
+  expect(document.activeElement).toBe(recovery());
+  fireEvent.click(recovery());
+  expect(api.post).toHaveBeenCalledTimes(5);
+  await act(async () => pending.resolve(response(timePreview())));
+  await idle();
+  expect(document.activeElement).toBe(recovery());
+  expect(screen.getByLabelText('시작일 (UTC)')).toHaveProperty('value', previous.start);
+});
+
+it('time bucket keeps at most ten period backups and reset clears them', async () => {
+  await mount(timePreview());
+  for (let i = 0; i < 12; i++) {
+    fireEvent.click(screen.getByRole('button', { name: '차트 기간 0' }));
+    await idle();
+  }
+  for (let i = 0; i < 10; i++) {
+    expect(recovery().getAttribute('aria-disabled')).toBe('false');
+    fireEvent.click(recovery());
+    await idle();
+  }
+  expect(recovery().getAttribute('aria-disabled')).toBe('true');
+  expect(api.post.mock.lastCall[1].dateRange).toEqual(hourRange);
+  fireEvent.click(screen.getByRole('button', { name: '차트 기간 0' }));
+  await idle();
+  fireEvent.click(screen.getByText('필터 초기화'));
+  await idle();
+  expect(recovery().getAttribute('aria-disabled')).toBe('true');
+  expect(api.post.mock.lastCall[1]).not.toHaveProperty('dateRange');
+});
+
+it.each(['{enter}', ' '])('time bucket keyboard %s recovers only removed row focus after successful preview', async key => {
+  await mount(timePreview());
+  const button = screen.getByRole('button', { name: '차트 기간 0' });
+  button.focus();
+  const pending = pendingPreview();
+  userEvent.keyboard(key);
+  expect(document.activeElement).toBe(button);
+  expect(recovery().getAttribute('aria-disabled')).toBe('true');
+  await act(async () => pending.resolve(response(timePreview([]))));
+  await idle();
+  expect(document.activeElement).toBe(recovery());
+});
+
+it.each(['surviving', 'moved', 'failed'])('time bucket avoids stealing %s focus after preview', async kind => {
+  await mount(timePreview());
+  const button = screen.getByRole('button', { name: 'KPI 기간 0' });
+  button.focus();
+  const pending = pendingPreview();
+  userEvent.keyboard('{enter}');
+  const elsewhere = screen.getByRole('button', { name: 'Assistant' });
+  if (kind === 'moved') elsewhere.focus();
+  await act(async () => {
+    if (kind === 'failed') pending.reject(new Error('집계 실패'));
+    else pending.resolve(response(timePreview(kind === 'moved' ? [] : [hourRange])));
+  });
+  await idle();
+  expect(document.activeElement).toBe(kind === 'moved' ? elsewhere : button);
+});
+
+it.each(['absent', 'unaligned', 'null', 'other-column'])(
+  'time bucket %s metadata leaves ordinary chart and KPI previews noninteractive',
+  async kind => {
+    const data = timePreview();
+    const ranges =
+      kind === 'unaligned' ? [hourRange, hourRange] : kind === 'null' ? [null] : [{ ...hourRange, column: 'other' }];
+    const selection = kind === 'absent' ? undefined : { column: 'created_at', grain: 'hour', ranges };
+    await mount({
+      ...data,
+      widgets: [
+        { ...data.widgets[0], timeSelection: selection, trend: { ...data.widgets[0].trend, timeSelection: selection } },
+      ],
+    } as any);
+    expect(screen.queryByRole('button', { name: '차트 기간 0' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'KPI 기간 0' })).toBeNull();
+    expect(api.post).toHaveBeenCalledTimes(1);
+  },
+);
+
+it.each([
+  ['day', '2026-01-11T00:00:00Z', '2026-01-12T00:00:00Z'],
+  ['week', '2026-01-11T00:00:00Z', '2026-01-12T00:00:00Z'],
+  ['month', '2026-01-11T00:00:00Z', '2026-02-01T00:00:00Z'],
+])('time bucket applies server-proven %s bounds without inferring full calendar periods', async (grain, start, end) => {
+  const range = { ...hourRange, start, end };
+  const data = timePreview([range]);
+  await mount({ ...data, widgets: [{ ...data.widgets[0], timeSelection: { ...data.widgets[0].timeSelection, grain } }] });
+  fireEvent.click(screen.getByRole('button', { name: '차트 기간 0' }));
+  await idle();
+  expect(api.post.mock.lastCall[1].dateRange).toEqual(range);
+});
+
+it.each(['removed', 'surviving'])(
+  'time bucket SVG %s focus follows the same recovery rule as native buttons',
+  async kind => {
+    await mount(timePreview());
+    const point = screen.getByRole('button', { name: 'SVG 기간 0' }) as unknown as SVGElement;
+    (point as SVGElement & { focus: () => void }).focus();
+    expect(document.activeElement).toBe(point);
+    const pending = pendingPreview();
+    fireEvent.keyDown(point, { key: 'Enter' });
+    await act(async () => pending.resolve(response(timePreview(kind === 'removed' ? [] : [hourRange]))));
+    await idle();
+    expect(document.activeElement).toBe(kind === 'removed' ? recovery() : point);
+  },
+);
+
+it('time bucket failed preview keeps undo accessible and recovers the exact prior timestamp range', async () => {
+  const first = { ...hourRange, start: '2026-01-11T00:00:00Z', end: '2026-01-12T00:00:00Z' };
+  await mount(timePreview([first]));
+  fireEvent.click(screen.getByRole('button', { name: '차트 기간 0' }));
+  await idle();
+  api.post.mockResolvedValueOnce(response(timePreview()));
+  await choose('device_type', 'true');
+  api.post.mockRejectedValueOnce(new Error('선택 기간 조회 실패'));
+  fireEvent.click(screen.getByRole('button', { name: 'KPI 기간 0' }));
+  await screen.findByText('선택 기간 조회 실패');
+  expect(savedState().dateRange).toEqual(hourRange);
+  expect(recovery().getAttribute('aria-disabled')).toBe('false');
+  recovery().focus();
+  userEvent.keyboard('{enter}');
+  await idle();
+  expect(api.post.mock.lastCall[1]).toMatchObject({
+    dateRange: first,
+    filters: [{ column: 'device_type', values: [true] }],
+  });
+  expect(screen.queryByRole('alert')).toBeNull();
+  expect(document.activeElement).toBe(recovery());
+});
+
+it('time bucket different active date column stays plain and rejects callbacks until the period is cleared', async () => {
+  await mount(timePreview());
+  await stageAndApply('2026-01-01', '2026-01-31');
+  const selected = savedState();
+  const count = api.post.mock.calls.length;
+  const otherRange = { ...hourRange, column: 'updated_at' };
+  act(() => api.timeProps.mock.lastCall[0](otherRange));
+  expect(api.post).toHaveBeenCalledTimes(count);
+  expect(savedState()).toEqual(selected);
+  expect(recovery().getAttribute('aria-disabled')).toBe('true');
+
+  const data = timePreview([otherRange]);
+  const otherSelection = { ...data.widgets[0].timeSelection, column: 'updated_at' };
+  const otherPreview = {
+    ...data,
+    widgets: [
+      {
+        ...data.widgets[0],
+        timeSelection: otherSelection,
+        trend: { ...data.widgets[0].trend, timeSelection: otherSelection },
+      },
+    ],
+  };
+  api.post.mockResolvedValue(response(otherPreview));
+  fireEvent.change(screen.getByLabelText('시계열 집계 단위'), { target: { value: 'day' } });
+  await idle();
+  expect(screen.queryByRole('button', { name: '차트 기간 0' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'KPI 기간 0' })).toBeNull();
+  expect(savedState().dateRange).toEqual(selected.dateRange);
+  expect(recovery().getAttribute('aria-disabled')).toBe('true');
+
+  await stageAndApply('', '');
+  fireEvent.click(screen.getByRole('button', { name: '차트 기간 0' }));
+  await idle();
+  expect(api.post.mock.lastCall[1].dateRange).toEqual(otherRange);
 });

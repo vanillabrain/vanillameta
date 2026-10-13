@@ -2,6 +2,55 @@ import { quoteColumn, validateSourceSql } from './dashboard-draft';
 
 export type TrendGrain = 'hour' | 'day' | 'week' | 'month';
 
+export interface TimeBucket {
+  column: string;
+  grain: TrendGrain;
+  format: 'day' | 'month' | 'hour' | 'timestamp' | 'duckdb';
+}
+
+/** Exact supported expressions only; an unbucketed timestamp has no proven grain. */
+function temporalProjection(expression: string, column: string, type = 'TIMESTAMP') {
+  const normalized = (value: string) =>
+    (value.match(/'(?:''|[^'])*'|"(?:""|[^"])*"|[A-Za-z_][A-Za-z_0-9]*|[^\s]/g) || [])
+      .map(token => (token.startsWith("'") || token.startsWith('"') ? token : token.toLowerCase()))
+      .join(' ');
+  const direct = (value: string) => {
+    const name = normalized(quoteColumn(column));
+    const bare = /^[A-Za-z_][A-Za-z_0-9]*$/.test(column) ? column.toLowerCase() : undefined;
+    return [name, bare, `source . ${name}`, bare && `source . ${bare}`].includes(value);
+  };
+  const value = normalized(expression);
+  const base = (expr: string): { grain?: TrendGrain; format: TimeBucket['format'] } | undefined => {
+    if (direct(expr)) return { grain: type === 'DATE' ? 'day' : undefined, format: 'day' };
+    const trunc = /^date_trunc \( '(hour|day|week|month)' , (.+) \)$/.exec(expr);
+    if (trunc && direct(trunc[2])) return { grain: trunc[1] as TrendGrain, format: 'duckdb' };
+    return undefined;
+  };
+  const plain = base(value);
+  if (plain) return plain;
+  const formats = '%Y-%m-%d|%Y-%m|%Y-%m-%dT%H:%M:%SZ|%Y-%m-%dT%H:00:00Z';
+  const formatted = new RegExp(`^strftime \\( (.+) , '(${formats})' \\)$`).exec(value);
+  const first = new RegExp(`^strftime \\( '(${formats})' , (.+) \\)$`).exec(value);
+  const expr = formatted?.[1] || first?.[2];
+  const format = formatted?.[2] || first?.[1];
+  if (!expr) return undefined;
+  const inner = base(expr);
+  if (!inner) return undefined;
+  if (format === '%Y-%m') {
+    if (!direct(expr) && inner.grain !== 'month') return undefined;
+    return { grain: 'month' as const, format: 'month' as const };
+  }
+  if (format === '%Y-%m-%d') {
+    if (inner.grain === 'hour') return undefined;
+    return { grain: direct(expr) ? ('day' as const) : inner.grain, format: 'day' as const };
+  }
+  if (format === '%Y-%m-%dT%H:00:00Z') {
+    if (!direct(expr) && inner.grain !== 'hour') return undefined;
+    return { grain: 'hour' as const, format: 'hour' as const };
+  }
+  return { grain: inner.grain, format: 'timestamp' as const };
+}
+
 function timeQuery(
   expression: string,
   where: string,
@@ -171,24 +220,7 @@ export function buildTimeChartQuery(
     )
       .map(token => (token.startsWith("'") || token.startsWith('"') ? token : token.toLowerCase()))
       .join(' ');
-  const date = normalized(quoteColumn(dateColumn));
-  const bareDate = /^[A-Za-z_][A-Za-z_0-9]*$/.test(dateColumn)
-    ? dateColumn.toLowerCase()
-    : undefined;
-  const isDate = (expression: string): boolean => {
-    const normalizedExpression = normalized(expression);
-    if (normalizedExpression === date || normalizedExpression === bareDate) return true;
-    const trunc = /^date_trunc \( '(hour|day|week|month)' , (.+) \)$/.exec(normalizedExpression);
-    if (trunc) return trunc[2] === date || trunc[2] === bareDate;
-    const formatted = /^strftime \( (.+) , '(%Y-%m-%d|%Y-%m|%Y-%m-%dT%H:%M:%SZ)' \)$/.exec(
-      normalizedExpression,
-    );
-    const formatFirst = /^strftime \( '(%Y-%m-%d|%Y-%m|%Y-%m-%dT%H:%M:%SZ)' , (.+) \)$/.exec(
-      normalizedExpression,
-    );
-    return (!!formatted && isDate(formatted[1])) || (!!formatFirst && isDate(formatFirst[2]));
-  };
-  if (!isDate(category.expression)) return undefined;
+  if (!temporalProjection(category.expression, dateColumn)) return undefined;
   const groupEnd = order >= 0 ? top[order].index : limit >= 0 ? top[limit].index : sql.length;
   const groupExpression = sql.slice(top[group + 1].index + 2, groupEnd).trim();
   if (
@@ -265,6 +297,59 @@ export function buildTimeChartQuery(
   return trend
     ? timeQuery(value.expression, where, dateColumn, grain, categoryField, valueField)
     : undefined;
+}
+
+/** Reuse the reaggregation proof, then recover the original category's actual bucket. */
+export function resolveTimeChartBucket(
+  sql: string,
+  valueField: string,
+  categoryField: string | undefined,
+  schema: Array<{ column_name: string; column_type: string }>,
+): TimeBucket | undefined {
+  if (!categoryField) return undefined;
+  const tokens = sql.match(/'(?:''|[^'])*'|"(?:""|[^"])*"|[A-Za-z_][A-Za-z_0-9]*|\s+|./g) || [];
+  let depth = 0;
+  let offset = 0;
+  let start = 0;
+  const projections: string[] = [];
+  for (const token of tokens) {
+    if (depth === 0 && token.toLowerCase() === 'select') start = offset + token.length;
+    if (depth === 0 && (token === ',' || token.toLowerCase() === 'from')) {
+      projections.push(sql.slice(start, offset).trim());
+      start = offset + token.length;
+      if (token.toLowerCase() === 'from') break;
+    }
+    if (token === '(') depth++;
+    if (token === ')') depth--;
+    offset += token.length;
+  }
+  const expression = projections.flatMap(projection => {
+    const match = /\s+AS\s+("[A-Za-z_][A-Za-z_0-9]*"|[A-Za-z_][A-Za-z_0-9]*)\s*$/i.exec(projection);
+    return match && match[1].replace(/"/g, '') === categoryField
+      ? [projection.slice(0, match.index)]
+      : [];
+  });
+  if (expression.length !== 1) return undefined;
+  for (const column of schema.filter(item => /^(DATE|TIMESTAMP)/i.test(item.column_type))) {
+    const bucket = temporalProjection(
+      expression[0],
+      column.column_name,
+      column.column_type.toUpperCase(),
+    );
+    if (
+      bucket?.grain &&
+      buildTimeChartQuery(
+        sql,
+        valueField,
+        categoryField,
+        column.column_name,
+        bucket.grain,
+        schema.map(item => item.column_name),
+      )
+    )
+      return { column: column.column_name, grain: bucket.grain, format: bucket.format };
+  }
+  return undefined;
 }
 
 export function chooseTrendGrain(

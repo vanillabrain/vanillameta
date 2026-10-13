@@ -153,3 +153,27 @@ it('does not publish a late answer after abort, even when the API ignores the si
   await rejected;
   expect(api.post.mock.calls[0][2].signal.aborted).toBe(true);
 });
+
+it('time bucket forwards exact UTC timestamp precision to proposal and preview and fingerprints the entire range', async () => {
+  const dateRange = {
+    column: 'created_at',
+    start: '2026-01-11T10:00:00Z',
+    end: '2026-01-11T11:00:00Z',
+    precision: 'timestamp',
+  };
+  const current = { ...context, dateRange, trendGrain: 'day', comparePrevious: true };
+  api.post.mockResolvedValueOnce(success(draft)).mockResolvedValueOnce(success(preview));
+  const result = await chunks(await send(current));
+  expect(api.post.mock.calls[0][1]).toMatchObject({ dateRange, trendGrain: 'day', comparePrevious: true });
+  expect(api.post.mock.calls[1][1]).toEqual({
+    draft,
+    dashboardId: context.dashboardId,
+    filters: context.filters,
+    dateRange,
+    trendGrain: 'day',
+    comparePrevious: true,
+    includeTrends: true,
+  });
+  expect(result[0].messageMetadata.result.base).toBe(JSON.stringify(current));
+  expect(api.post).toHaveBeenCalledTimes(2);
+});

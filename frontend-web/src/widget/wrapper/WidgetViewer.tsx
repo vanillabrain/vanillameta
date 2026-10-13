@@ -66,6 +66,10 @@ const WidgetViewer = props => {
     onCategorySelect,
     selectedCategoryValues,
     categorySelectionDisabled,
+    onTimeSelect,
+    timeSelection,
+    timeSelectionDisabled,
+    selectedTimeRange,
   } = props;
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const [module, setModule] = useState(null);
@@ -76,7 +80,18 @@ const WidgetViewer = props => {
 
   useEffect(() => {
     if (widgetType && widgetOption && dataSet) renderWidget();
-  }, [widgetType, widgetOption, dataSet, onCategorySelect, selectedCategoryValues, categorySelectionDisabled]);
+  }, [
+    widgetType,
+    widgetOption,
+    dataSet,
+    onCategorySelect,
+    selectedCategoryValues,
+    categorySelectionDisabled,
+    onTimeSelect,
+    timeSelection,
+    timeSelectionDisabled,
+    selectedTimeRange,
+  ]);
 
   const renderWidget = () => {
     console.log('===== renderWidget');
@@ -87,6 +102,10 @@ const WidgetViewer = props => {
       onCategorySelect,
       selectedCategoryValues,
       categorySelectionDisabled,
+      onTimeSelect,
+      timeSelection,
+      timeSelectionDisabled,
+      selectedTimeRange,
     };
     showLoading();
     switch (widgetType) {
