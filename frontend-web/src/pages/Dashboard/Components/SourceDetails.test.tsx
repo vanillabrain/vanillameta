@@ -98,7 +98,18 @@ vi.mock('@/widget/wrapper/WidgetViewer', () => ({
 vi.mock('@mui/material', () => {
   const Container = React.forwardRef<HTMLElement, any>(
     (
-      { children, component: Tag = 'div', role, id, onSubmit, 'aria-label': label, 'aria-live': live, sx, tabIndex },
+      {
+        children,
+        component: Tag = 'div',
+        role,
+        id,
+        onSubmit,
+        'aria-label': label,
+        'aria-live': live,
+        'aria-atomic': atomic,
+        sx,
+        tabIndex,
+      },
       ref,
     ) => (
       <Tag
@@ -108,6 +119,7 @@ vi.mock('@mui/material', () => {
         onSubmit={onSubmit}
         aria-label={label}
         aria-live={live}
+        aria-atomic={atomic}
         tabIndex={tabIndex}
         style={{ maxHeight: sx?.maxHeight, maxWidth: sx?.maxWidth, overflow: sx?.overflow }}
       >
@@ -403,6 +415,33 @@ it.each([
   render(<SourceDetails {...props} />);
   await screen.findByText(/원본 행 응답의 조건 또는 데이터 버전/);
   expect(screen.queryByText('record-A')).toBeNull();
+});
+
+it('announces detail loading and completion in the same atomic live status across pages and retry', async () => {
+  const first = deferred();
+  api.post.mockReturnValueOnce(first.promise);
+  render(<SourceDetails {...props} />);
+  const status = screen.getByRole('status');
+  expect(status.textContent).toBe('원본 행 조회 중 · 1페이지 · 페이지당 25행');
+  expect(status.getAttribute('aria-live')).toBe('polite');
+  expect(status.getAttribute('aria-atomic')).toBe('true');
+  await act(async () => first.resolve(success(detailData())));
+  expect(screen.getByRole('status')).toBe(status);
+  expect(status.textContent).toBe('총 26행 · 1페이지 · 현재 1행');
+  const next = deferred();
+  api.post.mockReturnValueOnce(next.promise);
+  fireEvent.click(button('다음 페이지'));
+  expect(status.textContent).toBe('원본 행 조회 중 · 2페이지 · 페이지당 25행');
+  await act(async () => next.reject(new Error('조회 실패')));
+  await screen.findByText('조회 실패');
+  expect(status.textContent).toBe('');
+  const retry = deferred();
+  api.post.mockReturnValueOnce(retry.promise);
+  fireEvent.click(button('원본 행 다시 조회'));
+  expect(screen.getByRole('status')).toBe(status);
+  expect(status.textContent).toBe('원본 행 조회 중 · 2페이지 · 페이지당 25행');
+  await act(async () => retry.resolve(success(detailData(1))));
+  expect(status.textContent).toBe('총 26행 · 2페이지 · 현재 1행');
 });
 
 it('ignores failed envelopes and late errors after closing, aborts and restores focus after dialog exit', async () => {

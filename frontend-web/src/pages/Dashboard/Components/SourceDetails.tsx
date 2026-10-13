@@ -408,6 +408,13 @@ export default function SourceDetails({
         </Typography>
         {sourceRevision && <Typography variant="caption">데이터 버전: {sourceRevision.slice(0, 12)}</Typography>}
         {blocked && <Alert severity="info">{blocked} 이전 원본 행은 표시하지 않습니다.</Alert>}
+        <Typography role="status" aria-live="polite" aria-atomic="true" sx={{ my: 1 }}>
+          {busy
+            ? `원본 행 조회 중 · ${page + 1}페이지 · 페이지당 ${pageSize}행`
+            : data
+            ? `총 ${data.totalRows}행 · ${page + 1}페이지 · 현재 ${data.datas.length}행`
+            : ''}
+        </Typography>
         {busy && <LinearProgress aria-label="원본 행 조회 중" sx={{ my: 1 }} />}
         {error && (
           <Alert severity="error">
@@ -440,9 +447,6 @@ export default function SourceDetails({
             {page >= 10000 && BigInt(page + 1) * BigInt(pageSize) < BigInt(data.totalRows) && (
               <Alert severity="info">조회 한도에 도달했습니다. 필터로 범위를 좁혀 주세요.</Alert>
             )}
-            <Typography role="status" aria-live="polite" sx={{ my: 1 }}>
-              총 {data.totalRows}행 · {page + 1}페이지 · 현재 {data.datas.length}행
-            </Typography>
             <Box
               role="region"
               aria-label={contribution ? '집계에 사용된 원본 행 표' : '현재 공통 필터의 원본 행 표'}

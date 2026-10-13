@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | DETAIL-LARGE-01 | 전체 COUNT 1,391,572행의 첫·다음 페이지25행과 원본 Parquet의 ORDER BY ALL 정답 대조. 현재09-13~15와 이전09-10~12의 같은09-11 주 시점은 서로 다른 범위의 입력이어야 한다. HTTP 크기·시간 기록 | PASS_SELECTED_VARIANTS |
 | DETAIL-LARGE-02 | 25만·100만 offset의 깊은 페이지100행, 응답·RSS·독립 쿼리 계획 기록. 단일 조회5초/응답1MiB 이내를 이번 로컬 관찰 목표로 설정하며 출시 SLO·동시 부하로 확대하지 않는다 | PASS_SELECTED_VARIANTS |
-| DETAIL-SR-01 | dialog 이름·설명, 표 caption·열 헤더, 조회 완료·페이지 변경·오류 안내와 현재/이전 문맥을 AX로 확인. 조회 중 안내는 미확인이고 실제 발화로 대체하지 않는다 | PASS_SELECTED_VARIANTS_AX_ONLY |
+| DETAIL-SR-01 | dialog 이름·설명, 표 caption·열 헤더, 조회 완료·페이지 변경·오류 안내와 현재/이전 문맥을 AX로 확인. 아래 후속에서 조회 중 안내도 보완했으며 실제 발화로 대체하지 않는다 | PASS_SELECTED_VARIANTS_AX_ONLY |
 | DETAIL-SR-02 | 실제 macOS VoiceOver: 검증 창 고정→dialog 제목→표 열·셀 탐색→다음 페이지 안내→오류/복구→Escape·실행 버튼 읽기. 실제 발화·캡처 증거가 있어야 PASS | BLOCKED |
 
 증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/detail-large-screenreader/`. FE3483/API4683·메타데이터 DB·서버 DuckDB 워커를 유지했다. 원본은 모든 컬럼의 ORDER BY ALL로 정렬하며 물리 중복을 제거하지 않는다. 순차 조건만 실행하고 인위적 동시 장애·전체 회귀를 추가하지 않는다.
@@ -61,3 +61,13 @@ VoiceOver `open` exit0만으로 활성화·발화를 주장하지 않는다. 설
 - 차단·보존: `voiceover-blocker.json`, `preserved-fixture.json`, `verification-results.json`.
 
 DETAIL-LARGE-01/02 및 DETAIL-SR-01은 선택 PASS다. 실제 VoiceOver DETAIL-SR-02는 BLOCKED로 남기며 DESIGN-04 전체의 부분 완료·기존130개 카탈로그 집계를 유지한다.
+
+## 조회 중 상태 안내 후속 — 2026-10-13
+
+기준 `ab7e63dc`에서 앞서 미확인으로 남긴 조회 중 상태만 선택했다. 기존 진행 막대에는 이름이 있었지만 live status는 없어 수동 탐색 없이 조회 중임을 알리는 구조가 부족했다. `loading-before-ax.txt`와 `loading-before-mobile.png`가 수정 전 증거다.
+
+SourceDetails의 동일한 상태 영역을 유지하면서 `role=status`, `aria-live=polite`, `aria-atomic=true`로 조회 중 페이지/행 수와 완료 결과를 갱신한다. 오류는 기존 alert로 제공하고 상태 텍스트는 비운다. 최초 모바일390px, 다음 페이지 데스크톱1440px, 503 fixture 뒤 Enter 재시도의 조회 중 상태를 AX·화면에서 확인했다. 재시도 중 닫기 버튼의 초점과 완료 후 Escape의 실행 버튼 복귀도 확인했다. 실제 VoiceOver 발화는 여전히 BLOCKED다.
+
+증빙: `loading-after-mobile.png`, `loading-page2-desktop.png`, `loading-retry-desktop.png`와 각 `*-ax.txt`, `loading-completed-desktop.png`, `loading-verification.json`. 2.2초 응답 보류는 브라우저 관찰용 fixture이며 실제 DuckDB 지연 성능으로 해석하지 않는다. 완료 화면 axe는 violation0, incomplete1(페이지당 행 수 select의 배경 겹침 판정 불가)로 자동 대비 전체 PASS를 주장하지 않는다. 전환 중 나온 임시 대비 오류와 최종 결과는 각각 `loading-completion-axe.json`, `loading-completion-axe-stable.json`에 분리했다.
+
+기존 대용량 수치·페이지 정답과 이미 통과한 E2E는 반복하지 않았다. FE 타입·변경 파일 lint·빌드가 통과했고, 변경 컴포넌트 단위174개(새 live 상태 회귀 포함)가 통과했다. API는 기존4683, FE는 서버가 허용한 `http://127.0.0.1:3483`을 재사용했다. localhost 출처 실패·10초 이상 보류한 하네스 종료는 제품 실패와 구분한다. 임시로 기동한3484 서버·검증 창·개인 로그인 파일만 정리했다. 저장된 정의·파일은 변경하지 않았고 AI 호출0/gpt-6-luna를 유지한다.
