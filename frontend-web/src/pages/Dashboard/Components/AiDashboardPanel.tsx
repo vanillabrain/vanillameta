@@ -25,11 +25,12 @@ type Props = {
   onClose: () => void;
   dashboardId?: number;
   currentDraft?: any;
+  initialDatabaseId?: number;
   onSaved: (id: number) => void;
 };
 import { validDraft, validPreview, responseData, errorMessage } from '../dashboardPreview';
 
-export default function AiDashboardPanel({ open, onClose, dashboardId, currentDraft, onSaved }: Props) {
+export default function AiDashboardPanel({ open, onClose, dashboardId, currentDraft, initialDatabaseId, onSaved }: Props) {
   const { t } = useTranslation();
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
@@ -67,6 +68,13 @@ export default function AiDashboardPanel({ open, onClose, dashboardId, currentDr
         const list = responseData(response);
         if (!Array.isArray(list)) throw new Error('Could not load data sources.');
         setSources(list);
+        if (
+          initialDatabaseId !== undefined &&
+          !initialDraft.current &&
+          list.some(source => Number(source.id) === initialDatabaseId)
+        ) {
+          setDatabaseId(initialDatabaseId);
+        }
       })
       .catch(err => {
         if (token === session.current) setError(errorMessage(err));
@@ -77,7 +85,7 @@ export default function AiDashboardPanel({ open, onClose, dashboardId, currentDr
     return () => {
       session.current += 1;
     };
-  }, [open, dashboardId]);
+  }, [open, dashboardId, initialDatabaseId]);
 
   const close = () => {
     if (busy === 'save') return;
@@ -154,8 +162,8 @@ export default function AiDashboardPanel({ open, onClose, dashboardId, currentDr
       setPreview(null);
       setBusy(null);
       activeRequest.current = false;
-      onSaved(saved.id);
       onClose();
+      onSaved(saved.id);
     } catch (err) {
       if (token === session.current) {
         setError(errorMessage(err));
@@ -190,6 +198,8 @@ export default function AiDashboardPanel({ open, onClose, dashboardId, currentDr
             </Alert>
           )}
           <TextField
+            id="ai-dashboard-source"
+            SelectProps={{ inputProps: { 'aria-labelledby': 'ai-dashboard-source-label' } }}
             select
             fullWidth
             label={t('ai.dataSource', { defaultValue: 'Data source' })}
@@ -212,6 +222,7 @@ export default function AiDashboardPanel({ open, onClose, dashboardId, currentDr
             </Typography>
           )}
           <TextField
+            id="ai-dashboard-prompt"
             multiline
             minRows={3}
             fullWidth

@@ -297,3 +297,13 @@ Assistant 저장 충돌·실행 중단의 ASSISTANT-06~07을 [assistant-reliabil
 2026-10-14 지역 KPI 시점 선택/기여 행: DST 지역 버킷 경계·필터 범위 clipping, FE timezone 유지, canonical 그룹 재검증과 현재/이전 기여 행 연결. 실제 KST Aside/XHR 현재10/20·이전100/999, 시점 선택 preview201 timezone/반개구간/30 유지 PASS_SELECTED_VARIANTS. BE regional-query23/선택75/기존contributor68 및 FE 관련 회귀·타입/lint·BE build 통과. DATE열 선택/일반라인/지역겹쳐보기 미지원. [상세](business-timezone.md).
 
 2026-10-14 Rill 동적 탐색 첫 단위: 저장 Measure/Dimension 선택·검색 다중값필터·기간/시간대/비교·차원 순위·원본 페이지를 `/explore/source`에 연결했다. Rill 원본1391572행의3조건 독립정답/실API, Aside실화면/다중필터/비교/XHR,390px iframe 선택검증 PASS. 비교는 전체집계JOIN후LIMIT로 이전순위밖값 누락을 방지한다. [범위/증빙/차이](rill-exploration.md). Pivot·숫자범위·변화정렬·탐색보기저장/내보내기·전체접근성·운영부하는후속이며 이번통과로확대하지않는다.
+
+## 2026-10-14 신규 작업공간의 동일 예제 제작 비교
+
+[Rill cold start](rill-cold-start.md)의 COLD-01~05를 별도 사용자 여정으로 추가했다. 기존 102개/추가 명세 완료 집계를 다시 계산하지 않았다. 같은 139만행 Parquet와 생성·수정문으로 VM/Rill 새 프로젝트를 비교했다. VM 생성·수정·저장·재조회 및 정확값 대조 완료. Rill 최초 계산식/기간 불일치를 추가 AI 질문으로 보완한 뒤 화면 비교;9개 원시값 전체 UI 추출은 미실행. 파일→AI 경로·저장후이동·KPI를밀어내던 보조영역을 즉시 수정하고 모바일·선택 키보드 재검증했다. 실제 VoiceOver 차단과 전체출시회귀 미실행을 유지한다. 새 브랜치 변경이며 develop-v2 병합/커밋으로 보고하지 않는다.
+
+## 2026-10-14 최신 통합 코드와 작업 diff 재검증
+
+기준 `791ec485`(로컬 origin/develop-v2와 동일) + `codex/self-service-next-20261014` 현재 diff. [실행 결과](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/develop-v2-reverify-20261014/RESULTS.md). 최신 BE로 검증 API를 재시작했다. BE71suite/1108개·FE45파일/693개, BE/FE빌드·FE타입·lint오류0(기존경고33) PASS. 영향받는 핵심 E2E4개 중 CSV브라우저분석2개는 워크트리 심볼릭링크의WASM MIME오류로 최초FAIL→Vite preserveSymlinks/React dedupe 수정→실패한2개만 재실행PASS. 정식설정에서FE693개/타입/설정lint/build도PASS, 임시설정제거.
+
+COLD-02~05 선택조건: 같은1391572행으로 실제gpt-6-luna 생성→dashboard6저장/새로고침→Assistant제목수정/적용/재조회PASS. 634513000/5.5712386765 및9기기 독립정답일치, 제목외SQL/표현설정불변. EXPLORE-01/02/08 선택조건: 저장지표1 생성·전체→Mobile/Tablet 키보드필터→원본307763000/710193행, 실제XHR·화면PASS. dashboard/explore390px에서scrollWidth390, AI/Assistant/접힘영역/차원·원본선택키보드PASS. 캡처는외부실행폴더. 모바일필터바의긴배치/탐색KPI축약표시 미연결은UX잔여로기록. 기존통과전조건·전체출시QA·Rill전체·실기기터치 반복안함, 실제VoiceOverBLOCKED유지. 수정/기록은미커밋워크트리이며develop-v2병합/푸시로보고하지않는다.

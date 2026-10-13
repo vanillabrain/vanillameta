@@ -10,6 +10,9 @@ export default defineConfig({
     svgr(),
   ],
   resolve: {
+    // Managed worktrees share node_modules; keep asset ?url imports inside the worktree.
+    preserveSymlinks: true,
+    dedupe: ['react', 'react-dom'],
     alias: {
       '@': path.resolve(__dirname, 'src'),
     },

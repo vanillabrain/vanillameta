@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Box, Button, Card, Stack, TextField, Typography, useTheme } from '@mui/material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { get, post } from '@/helpers/apiHelper';
 import NumericBoard from '@/widget/modules/board/NumericBoard';
 import { analysisOptions } from '@/pages/Dashboard/analysisOptions';
@@ -100,6 +101,8 @@ function Select({
 
 export default function Explore() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
+  const useAiLabel = t('fileAnalysis.buildWithAi');
   const theme = useTheme();
   const [searchParams] = useSearchParams();
   const [sources, setSources] = useState<Source[]>([]);
@@ -286,6 +289,11 @@ export default function Explore() {
       <Typography color="text.secondary" sx={{ mb: 3 }}>
         저장된 파일의 열을 선택해 지표와 차트를 만들고 대시보드에 저장하세요.
       </Typography>
+      {ready && profile.engine === 'duckdb' && !busy && (
+        <Button variant="outlined" sx={{ mb: 2 }} onClick={() => navigate(`/dashboard?aiSourceId=${profile.sourceId}`)}>
+          {useAiLabel}
+        </Button>
+      )}
       <Typography role="status" aria-live="polite" sx={{ mb: 1 }}>
         {busy}
       </Typography>

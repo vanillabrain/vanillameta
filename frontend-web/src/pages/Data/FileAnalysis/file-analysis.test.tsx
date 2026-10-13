@@ -213,6 +213,21 @@ describe('FileAnalysis direct server save', () => {
     expect(state.query).not.toHaveBeenCalled();
   });
 
+  it('uploads once and carries the source directly into AI creation without WASM', async () => {
+    const view = await mountReady();
+    const file = new File(['contents'], 'auction.parquet');
+    selectFile(view, file);
+    state.upload.mockResolvedValueOnce({
+      data: { status: 'SUCCESS', data: { id: 42, tableName: 'uploaded_data', rows: 1391572 } },
+    });
+    fireEvent.click(screen.getByText('fileAnalysis.buildWithAi'));
+    await waitFor(() =>
+      expect(state.navigate).toHaveBeenCalledWith('/dashboard?aiSourceId=42', { state: { tableName: 'uploaded_data' } }),
+    );
+    expect(state.upload).toHaveBeenCalledTimes(1);
+    expect(state.instantiate).not.toHaveBeenCalled();
+  });
+
   it.each(['csv', 'json', 'parquet'])('saves a selected %s without starting browser analysis', async ext => {
     const view = await mountReady();
     const file = new File(['contents'], `data.${ext}`);

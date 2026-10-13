@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react';
 import PageTitleBox from '@/components/PageTitleBox';
 import BoardList from '@/components/BoardList';
-import { Outlet, useNavigate, useParams } from 'react-router-dom';
+import { Outlet, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { MenuButton } from '@/components/button/AddIconButton';
 import AddIcon from '@mui/icons-material/Add';
 import { Box, Stack } from '@mui/material';
@@ -18,7 +18,11 @@ import GettingStarted from './Components/GettingStarted';
 
 function Dashboard() {
   const { t } = useTranslation();
-  const [aiOpen, setAiOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sourceParam = searchParams.get('aiSourceId') || '';
+  const aiSourceId =
+    /^[1-9]\d*$/.test(sourceParam) && Number.isSafeInteger(Number(sourceParam)) ? Number(sourceParam) : undefined;
+  const [aiOpen, setAiOpen] = useState(!!aiSourceId);
   const title = t('common.dashboard');
   const { dashboardId } = useParams();
   const alert = useAlert();
@@ -107,7 +111,15 @@ function Dashboard() {
       <Seo title={title} />
       <AiDashboardPanel
         open={aiOpen}
-        onClose={() => setAiOpen(false)}
+        initialDatabaseId={aiSourceId}
+        onClose={() => {
+          setAiOpen(false);
+          if (searchParams.has('aiSourceId')) {
+            const next = new URLSearchParams(searchParams);
+            next.delete('aiSourceId');
+            setSearchParams(next, { replace: true });
+          }
+        }}
         onSaved={id => {
           setAiOpen(false);
           queryClient.invalidateQueries({ queryKey: ['dashboards'] });

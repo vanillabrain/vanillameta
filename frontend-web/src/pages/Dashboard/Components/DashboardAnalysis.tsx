@@ -924,13 +924,18 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
           이전 기간 비교
         </Box>
       </Stack>
-      <Typography variant="body2" sx={{ mb: 2 }}>
-        {dateRange?.timeZone && dateRange.timeZone !== 'UTC'
-          ? '업무 시간대는 KPI·원본 행·기간 비교에 적용됩니다. KPI 추이는 지역 달력의 일·주·월로 집계합니다. 주 시작은 월요일입니다. KPI 추이 시점을 선택해 기간을 좁히거나 해당 집계의 원본 행을 확인할 수 있습니다. 일반 라인 차트 재집계는 아직 지원하지 않습니다. 날짜 비교는 같은 달력 날짜 수를 사용합니다.'
-          : '주별은 UTC 월요일 시작, 월별은 UTC 달력의 월 기준입니다. 선택 범위에 걸친 주·월은 범위 안의 데이터만 집계합니다.'}{' '}
-        이전 기간은 적용된 기간 바로 앞의 같은 길이이며 동일한 필터로 조회합니다.
-        {!dateRange && ' 이전 기간 비교는 날짜를 적용한 뒤 사용할 수 있습니다.'}
-      </Typography>
+      <Box component="details" sx={{ mb: 2 }}>
+        <Typography component="summary" sx={{ cursor: 'pointer', minHeight: 32 }}>
+          집계·기간 비교 안내
+        </Typography>
+        <Typography variant="body2" sx={{ mt: 1 }}>
+          {dateRange?.timeZone && dateRange.timeZone !== 'UTC'
+            ? '업무 시간대는 KPI·원본 행·기간 비교에 적용됩니다. KPI 추이는 지역 달력의 일·주·월로 집계합니다. 주 시작은 월요일입니다. KPI 추이 시점을 선택해 기간을 좁히거나 해당 집계의 원본 행을 확인할 수 있습니다. 일반 라인 차트 재집계는 아직 지원하지 않습니다. 날짜 비교는 같은 달력 날짜 수를 사용합니다.'
+            : '주별은 UTC 월요일 시작, 월별은 UTC 달력의 월 기준입니다. 선택 범위에 걸친 주·월은 범위 안의 데이터만 집계합니다.'}{' '}
+          이전 기간은 적용된 기간 바로 앞의 같은 길이이며 동일한 필터로 조회합니다.
+          {!dateRange && ' 이전 기간 비교는 날짜를 적용한 뒤 사용할 수 있습니다.'}
+        </Typography>
+      </Box>
       {preview?.comparison && (
         <Typography role="status" sx={{ mb: 2, overflowWrap: 'anywhere' }}>
           {busy || error ? '이전 조회 결과의 비교 기간' : '이전 기간'}: {preview.comparison.previous.column} ·{' '}
@@ -966,31 +971,38 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
           )}
         </Alert>
       )}
-      <PersonalSavedViews
-        key={`personal-views-${dashboardId}`}
-        dashboardId={Number(dashboardId)}
-        revision={draft.revision}
-        state={viewState}
-        disabledReason={viewDisabledReason}
-        sourceRevision={preview?.sourceRevision}
-        onApply={(state, range) => {
-          if (!draft.revision || viewDisabledReason) return;
-          serial.current += 1;
-          setBusy(true);
-          setError('');
-          setDateError('');
-          setFilters(Object.fromEntries(state.filters.map(filter => [filter.column, filter.values])));
-          setPeriodHistory([]);
-          pendingTimeFocus.current?.cancel();
-          setDateRange(range);
-          setDateDraft(displayedDates(range));
-          setRelativePeriod(state.relativePeriod);
-          setTrendGrain(state.trendGrain ?? 'auto');
-          setComparePrevious(state.comparePrevious === true && !!range);
-          if (state.relativePeriod) setRecentDays(state.relativePeriod.days);
-          setNotation(state.numberNotation);
-        }}
-      />
+      <Box component="details" sx={{ mb: 2 }}>
+        <Typography component="summary" sx={{ cursor: 'pointer', minHeight: 32 }}>
+          개인 저장 보기
+        </Typography>
+        <Box sx={{ mt: 1 }}>
+          <PersonalSavedViews
+            key={`personal-views-${dashboardId}`}
+            dashboardId={Number(dashboardId)}
+            revision={draft.revision}
+            state={viewState}
+            disabledReason={viewDisabledReason}
+            sourceRevision={preview?.sourceRevision}
+            onApply={(state, range) => {
+              if (!draft.revision || viewDisabledReason) return;
+              serial.current += 1;
+              setBusy(true);
+              setError('');
+              setDateError('');
+              setFilters(Object.fromEntries(state.filters.map(filter => [filter.column, filter.values])));
+              setPeriodHistory([]);
+              pendingTimeFocus.current?.cancel();
+              setDateRange(range);
+              setDateDraft(displayedDates(range));
+              setRelativePeriod(state.relativePeriod);
+              setTrendGrain(state.trendGrain ?? 'auto');
+              setComparePrevious(state.comparePrevious === true && !!range);
+              if (state.relativePeriod) setRecentDays(state.relativePeriod.days);
+              setNotation(state.numberNotation);
+            }}
+          />
+        </Box>
+      </Box>
       {preview ? (
         <Box
           aria-busy={busy}

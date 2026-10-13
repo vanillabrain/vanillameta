@@ -214,7 +214,7 @@ const FileAnalysis = () => {
     }
   };
 
-  const saveAsDataset = (destination?: 'builder') => {
+  const saveAsDataset = (destination?: 'builder' | 'ai') => {
     if (!selectedFile || loading || saving) return;
     setSaving(true);
     DatabaseService.uploadFile(selectedFile)
@@ -222,7 +222,9 @@ const FileAnalysis = () => {
         if (response.data.status === 'SUCCESS') {
           snackbar.success(t('fileAnalysis.saved', { rows: response.data.data.rows }));
           navigate(
-            destination === 'builder'
+            destination === 'ai'
+              ? `/dashboard?aiSourceId=${response.data.data.id}`
+              : destination === 'builder'
               ? `/explore?sourceId=${response.data.data.id}`
               : `/data/set/create/${response.data.data.id}`,
             {
@@ -336,6 +338,9 @@ const FileAnalysis = () => {
             </Button>
             <Button variant="outlined" onClick={() => saveAsDataset('builder')} disabled={saving || loading}>
               {t('fileAnalysis.buildChart')}
+            </Button>
+            <Button variant="outlined" onClick={() => saveAsDataset('ai')} disabled={saving || loading}>
+              {t('fileAnalysis.buildWithAi')}
             </Button>
             <Button variant="outlined" onClick={analyzeFile} disabled={loading || saving}>
               {loading ? t('fileAnalysis.processing') : t('fileAnalysis.analyzeBrowser')}

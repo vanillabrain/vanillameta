@@ -89,6 +89,7 @@ export default {
     unavailable: 'Unable to display the dashboard.',
   },
   fileAnalysis: {
+    buildWithAi: 'Build a dashboard with AI',
     buildChart: 'Build a chart without SQL',
     title: 'File Analysis',
     description: 'Choose a CSV, Parquet, or JSON file to save as a dataset. You can also analyze it in your browser.',

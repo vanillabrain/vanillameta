@@ -81,6 +81,7 @@ it('requires a valid preview and explicit Save, passes dashboardId and local-mod
   await waitFor(() => expect(view.onSaved).toHaveBeenCalledWith(99));
   expect(api.post).toHaveBeenNthCalledWith(3, '/ai/dashboard-save', { draft, dashboardId: 3 }, { timeout: 180000 });
   expect(view.onClose).toHaveBeenCalledTimes(1);
+  expect(view.onClose.mock.invocationCallOrder[0]).toBeLessThan(view.onSaved.mock.invocationCallOrder[0]);
 });
 it('revises the current draft and preserves the old preview but disables stale Save on AI failure', async () => {
   api.post.mockResolvedValueOnce(success(draft)).mockResolvedValueOnce(success(preview));
@@ -150,4 +151,16 @@ it('reports a save rejection without notifying success or closing, and requires 
   expect(view.onClose).not.toHaveBeenCalled();
   expect(screen.getByTestId('preview')).not.toBeNull();
   expect((screen.getByText('Save') as HTMLButtonElement).disabled).toBe(true);
+});
+
+it('preselects the uploaded source and requires explicit generation', async () => {
+  await mount({ initialDatabaseId: 7 });
+  await waitFor(() => expect((screen.getByLabelText('Data source') as HTMLSelectElement).value).toBe('7'));
+  expect(api.post).not.toHaveBeenCalled();
+  expect((screen.getByText('Generate preview') as HTMLButtonElement).disabled).toBe(true);
+});
+it('does not select a URL source absent from the authorized list', async () => {
+  await mount({ initialDatabaseId: 999 });
+  expect((screen.getByLabelText('Data source') as HTMLSelectElement).value).toBe('');
+  expect(api.post).not.toHaveBeenCalled();
 });

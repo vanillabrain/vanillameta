@@ -89,6 +89,7 @@ export default {
     unavailable: '대시보드를 표시할 수 없습니다.',
   },
   fileAnalysis: {
+    buildWithAi: 'AI로 대시보드 만들기',
     buildChart: 'SQL 없이 차트 만들기',
     title: '파일 분석',
     description: 'CSV / Parquet / JSON 파일을 선택해 데이터셋으로 저장하세요. 브라우저에서 먼저 분석할 수도 있습니다.',
