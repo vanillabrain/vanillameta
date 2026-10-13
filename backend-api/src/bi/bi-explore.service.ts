@@ -3,6 +3,7 @@ import { AiDashboardService } from '../ai/ai-dashboard.service';
 import { quoteColumn, sourceQuery } from '../ai/dashboard-draft';
 import { comparisonValues, previousDateRange, validatePeriodOptions } from '../ai/dashboard-period';
 import { ConnectionService } from '../connection/connection.service';
+import { EXPORT_LIMITS, EXPORT_MIME, ExportAxis, ExportEntry, toCsv } from './bi-explore-export';
 import { BiService } from './bi.service';
 
 const MAX_MEASURES = 6;
@@ -61,6 +62,7 @@ const PIVOT_FIELDS = [
   'dateRange',
   'comparePrevious',
 ];
+const EXPORT_FIELDS = ['mode', 'query'];
 
 /** Dynamic exploration over a managed DuckDB source: catalog, aggregate query and value search. */
 @Injectable()
@@ -629,6 +631,210 @@ export class BiExploreService {
     if (parts.length !== 2) throw new BadRequestException('search parameter could not be bound');
     const pattern = `%${search.toLowerCase().replace(/[\\%_]/g, character => `\\${character}`)}%`;
     return { sql: parts.join('?'), bindings: [...query.bindings, pattern] };
+  }
+
+  /**
+   * Bounded CSV export reuses the canonical aggregate/pivot path, so ownership, source revision
+   * and every cap are enforced by query/pivot before a single byte is serialized. Model rows are
+   * never exported: an explore request that asks for includeRows is rejected, not truncated.
+   */
+  async exportCsv(body: any, actor: number) {
+    const input = this.fields(body, EXPORT_FIELDS);
+    if (input.mode !== 'explore' && input.mode !== 'pivot')
+      throw new BadRequestException('mode must be explore or pivot');
+    const query = input.query;
+    if (!query || typeof query !== 'object' || Array.isArray(query))
+      throw new BadRequestException('invalid query');
+    if (input.mode === 'explore') {
+      if (query.includeRows === true)
+        throw new BadRequestException(
+          'CSV 내보내기에는 원본 행을 포함할 수 없습니다. includeRows를 끄고 다시 시도해 주세요.',
+        );
+      const result = await this.query(query, actor);
+      const { csv, rowCount, bytes } = toCsv(
+        this.exploreEntries(result, query),
+        this.exploreConditions(query),
+      );
+      return this.exportResponse(
+        result.sourceRevision,
+        `bi-explore-${query.sourceId}.csv`,
+        csv,
+        rowCount,
+        bytes,
+      );
+    }
+    const result = await this.pivot(query, actor);
+    const labels = await this.measureLabels(result.sourceId, actor);
+    const { csv, rowCount, bytes } = toCsv(
+      this.pivotEntries(result, labels),
+      this.pivotConditions(query),
+    );
+    return this.exportResponse(
+      result.sourceRevision,
+      `bi-pivot-${result.sourceId}.csv`,
+      csv,
+      rowCount,
+      bytes,
+    );
+  }
+
+  private exportResponse(
+    sourceRevision: string,
+    filename: string,
+    csv: string,
+    rowCount: number,
+    bytes: number,
+  ) {
+    return {
+      sourceRevision,
+      filename,
+      mimeType: EXPORT_MIME,
+      csv,
+      rowCount,
+      bytes,
+      limits: { ...EXPORT_LIMITS },
+    };
+  }
+
+  /** Explore sections in display order: headline, current and previous trend, then each ranking. */
+  private exploreEntries(result: any, query: any): ExportEntry[] {
+    const labels = new Map<number, string>(
+      result.kpis.map((kpi: any) => [kpi.id, kpi.title] as [number, string]),
+    );
+    const entries: ExportEntry[] = [];
+    for (const kpi of result.kpis) {
+      entries.push({
+        section: 'kpi',
+        rowAxis: null,
+        columnAxis: null,
+        measureId: kpi.id,
+        measureLabel: kpi.title ?? null,
+        value: kpi.value,
+        previousValue: kpi.comparison?.previousValue,
+        delta: kpi.comparison?.delta,
+        percentChange: kpi.comparison?.percentChange,
+        unavailable: kpi.comparison?.unavailable ?? null,
+      });
+      entries.push(...this.exploreTrend(kpi, 'trend', kpi.trend));
+      entries.push(...this.exploreTrend(kpi, 'previous_trend', kpi.previousTrend));
+    }
+    entries.push(...this.exploreRanking(result, query, labels));
+    return entries;
+  }
+
+  private exploreTrend(kpi: any, section: string, trend: any): ExportEntry[] {
+    if (!trend?.points?.length) return [];
+    return trend.points.map((point: any) => ({
+      section,
+      rowAxis: { time: point.time ?? null },
+      columnAxis: null,
+      measureId: kpi.id,
+      measureLabel: kpi.title ?? null,
+      value: point.value,
+    }));
+  }
+
+  private exploreRanking(result: any, query: any, labels: Map<number, string>): ExportEntry[] {
+    const measureId = Number.isSafeInteger(query.rankingMeasureId)
+      ? Number(query.rankingMeasureId)
+      : null;
+    const measureLabel = measureId === null ? null : labels.get(measureId) ?? null;
+    const entries: ExportEntry[] = [];
+    for (const board of result.leaderboards) {
+      for (const row of board.rows) {
+        entries.push({
+          section: 'ranking',
+          rowAxis: { [board.column]: row.category ?? null },
+          columnAxis: null,
+          measureId,
+          measureLabel,
+          value: row.value,
+          previousValue: row.previousValue,
+          delta: row.delta,
+          percentChange: row.percentChange,
+          unavailable: row.unavailable ?? null,
+        });
+      }
+    }
+    return entries;
+  }
+
+  /** Cells plus the three canonical totals, each keyed by the axis tuple positions it uses. */
+  private pivotEntries(result: any, labels: Map<number, string>): ExportEntry[] {
+    const entries: ExportEntry[] = [];
+    const rowAxis = (index: number) => this.axisObject(result.rowColumns, result.rows, index);
+    const columnAxis = (index: number) =>
+      this.axisObject(result.columnColumns, result.columns, index);
+    const push = (section: string, row: ExportAxis, column: ExportAxis, measures: any[]) => {
+      for (const measure of measures)
+        entries.push({
+          section,
+          rowAxis: row,
+          columnAxis: column,
+          measureId: measure.measureId,
+          measureLabel: labels.get(measure.measureId) ?? null,
+          value: measure.value,
+          previousValue: measure.comparison?.previousValue,
+          delta: measure.comparison?.delta,
+          percentChange: measure.comparison?.percentChange,
+          unavailable: measure.comparison?.unavailable ?? null,
+        });
+    };
+    for (const cell of result.cells)
+      push('cell', rowAxis(cell.row), columnAxis(cell.column), cell.measures);
+    result.rowTotals.forEach((measures: any[], index: number) =>
+      push('row_total', rowAxis(index), null, measures),
+    );
+    result.columnTotals.forEach((measures: any[], index: number) =>
+      push('column_total', null, columnAxis(index), measures),
+    );
+    push('grand_total', null, null, result.grandTotal);
+    return entries;
+  }
+
+  /** Null axis tuples stay null so a grand total or a one-sided total carries no axis object. */
+  private axisObject(columns: string[], tuples: unknown[][], index: number): ExportAxis {
+    if (!columns.length) return null;
+    const tuple = tuples[index] ?? [];
+    return Object.fromEntries(
+      columns.map((column, position): [string, unknown] => [column, tuple[position] ?? null]),
+    );
+  }
+
+  /** Labels come from the same catalog the pivot already validated, after the revision check. */
+  private async measureLabels(sourceId: number, actor: number) {
+    const metrics = await this.bi.metrics(sourceId, actor);
+    return new Map<number, string>(
+      metrics.map((measure: any) => [measure.id, measure.label] as [number, string]),
+    );
+  }
+
+  /** Canonical JSON of the applied request, emitted as leading condition rows in the CSV. */
+  private exploreConditions(query: any): Record<string, unknown> {
+    return {
+      sourceId: query.sourceId,
+      sourceRevision: query.sourceRevision,
+      filters: query.filters ?? [],
+      dateRange: query.dateRange ?? null,
+      comparePrevious: query.comparePrevious ?? false,
+      trendGrain: query.trendGrain ?? 'auto',
+      rankingSort: query.rankingSort ?? { by: 'value', direction: 'desc' },
+      measureIds: query.measureIds ?? [],
+      dimensionColumns: query.dimensionColumns ?? [],
+    };
+  }
+
+  private pivotConditions(query: any): Record<string, unknown> {
+    return {
+      sourceId: query.sourceId,
+      sourceRevision: query.sourceRevision,
+      measureIds: query.measureIds ?? [],
+      rowColumns: query.rowColumns ?? [],
+      columnColumns: query.columnColumns ?? [],
+      filters: query.filters ?? [],
+      dateRange: query.dateRange ?? null,
+      comparePrevious: query.comparePrevious ?? false,
+    };
   }
 
   /** Bounded pivot: axis tuples plus canonical totals reaggregated outside the cell grid. */

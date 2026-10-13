@@ -24,4 +24,7 @@ export class BiExploreController {
   @Post('pivot') async pivot(@Body() body: any, @Req() req) {
     return this.success(await this.explore.pivot(body, this.actor(req)));
   }
+  @Post('export') async exportCsv(@Body() body: any, @Req() req) {
+    return this.success(await this.explore.exportCsv(body, this.actor(req)));
+  }
 }

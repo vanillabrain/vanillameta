@@ -1,8 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import { API, authHeaders, createResponse, createdId, login, removeOwned } from './core-helpers';
 
-test('탐색·Pivot 조건 저장 → 새로고침 → 서버 보기 복원 → 삭제', async ({ page }) => {
+test('탐색·Pivot 조건 저장 → 새로고침 → 복원 → CSV 다운로드 → 삭제', async ({ page }) => {
   await login(page);
   const headers = await authHeaders(page);
   let sourceId: number | undefined;
@@ -72,6 +73,20 @@ test('탐색·Pivot 조건 저장 → 새로고침 → 서버 보기 복원 → 
       includeRows: true,
     });
     await expect(page.getByText(`“${name}” 조건을 복원했습니다.`, { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: '내보내기 ▾', exact: true }).click();
+    const exploreExport = createResponse(page, 'bi/explore/export');
+    const exploreDownload = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'CSV 다운로드', exact: true }).click();
+    const exploreResponse = await exploreExport;
+    expect(exploreResponse.request().postDataJSON()).toMatchObject({
+      mode: 'explore',
+      query: { filters: savedState.filters, includeRows: false },
+    });
+    const exploreFile = await exploreDownload;
+    const exploreCsv = (await exploreResponse.json()).data.csv;
+    expect(await readFile((await exploreFile.path())!, 'utf8')).toBe(exploreCsv);
+    expect(exploreCsv).toContain('"300"');
+    expect(exploreCsv).not.toContain('"600"');
     const removed = createResponse(page, 'bi/explore/views/remove');
     await page.getByRole('button', { name: '보기 삭제', exact: true }).click();
     expect((await removed).ok()).toBe(true);
@@ -112,6 +127,21 @@ test('탐색·Pivot 조건 저장 → 새로고침 → 서버 보기 복원 → 
     expect(Number(pivotData.cells.find((cell: any) => cell.row === a && cell.column === app).measures[0].value)).toBe(100);
     await expect(page.getByRole('region', { name: 'Pivot 결과' })).toBeVisible();
     await expect(page.getByLabel('열 차원 1')).toHaveValue('channel');
+    await page.getByRole('button', { name: '내보내기 ▾', exact: true }).click();
+    const pivotExport = createResponse(page, 'bi/explore/export');
+    const pivotDownload = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'CSV 다운로드', exact: true }).click();
+    const pivotResponse = await pivotExport;
+    expect(pivotResponse.request().postDataJSON()).toMatchObject({
+      mode: 'pivot',
+      query: { rowColumns: ['category'], columnColumns: ['channel'] },
+    });
+    const pivotFile = await pivotDownload;
+    const pivotCsv = (await pivotResponse.json()).data.csv;
+    expect(await readFile((await pivotFile.path())!, 'utf8')).toBe(pivotCsv);
+    expect(pivotCsv).toContain('"600"');
+    expect(pivotCsv).toContain('"grand_total"');
+    expect(pivotCsv).toContain('"cell"');
     const pivotRemoved = createResponse(page, 'bi/explore/views/remove');
     await page.getByRole('button', { name: '보기 삭제', exact: true }).click();
     expect((await pivotRemoved).ok()).toBe(true);

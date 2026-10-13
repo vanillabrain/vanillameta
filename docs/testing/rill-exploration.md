@@ -114,3 +114,29 @@ Rill 로컬 실제 Pivot에서 Device Type 행, App or Site 열, Total Requests/
 - **NOT_RUN**: 전체 핵심8개/확장 QA·운영 부하·모바일 실제 화면·계층/시간 축 등 위에 명시한 미구현 parity. Aside REPL은 `setViewportSize`를 지원하지 않아 모바일 화면 검증으로 집계하지 않았다. 비교 시 원본 날짜와 Rill 날짜 이동 모델의 기간을 혼동하지 않는다.
 
 증빙: `/tmp/vm-rill-pivot/api-oracle.json`, `whole-oracle.json`, `browser-xhr.jsonl`, `rill-pivot-reference.png`, `vm-pivot-all.png`, `vm-pivot-restored.png`, `vm-pivot-limit.txt`, `integration-test.log`, `frontend-build.log`, `fe-final.log`, `e2e/`. Aside 원본 캡처/스냅샷은 기존 세션의 artifacts에 보존한다.
+
+## CSV 내보내기 — 2026-10-14 후속
+
+탐색/Pivot 전환 아래의 `내보내기 ▾` → `CSV 다운로드`에서 현재 지표·차원/축·필터·기간·시간대·비교 조건을 서버에 전달한다. 서버는 클라이언트 표 데이터를 신뢰하지 않고 기존 조회/Pivot의 소유권·revision·구조화 지표·제한 계약으로 재집계한다. `POST /v1/bi/explore/export`의 엄격한 요청은 `{mode:'explore'|'pivot',query:<해당 조회 요청>}`다. 반환 JSON의 서버 CSV를 브라우저 Blob 다운로드로 저장하며 조건 변경/소스 전환/해제 후 늦은 응답은 다운로드하지 않는다.
+
+첫 형식은 지표별 행 CSV다. 탐색은 KPI·현재/이전 추세·차원 순위(화면과 같은 상위20개), Pivot은 셀·행 합계·열 합계·총합을 포함한다. 조건 metadata 행도 함께 보존한다. 전체 원본 데이터·모든 차원 그룹 다운로드는 포함하지 않는다. `includeRows:true` 내보내기는 거절한다. 최대10,000행/2MiB(UTF-8 실제 byte)이며 제한을 넘으면 일부 CSV를 성공으로 반환하지 않는다. UTF-8 BOM·CRLF·인용부호 escaping을 사용하고 위험한 텍스트 수식 접두사를 보호한다. NULL은 빈 value와 `value_type=null`, 실제0은 `value_type=number`로 구별한다. 큰 정수 문자열은 반올림하지 않지만 스프레드시트 자동 타입 추론은 제품이 보장하지 않으므로 가져오기 시 문자열 타입을 사용한다.
+
+| ID         | 기대 결과                                                                                                            | 실행 결과      |
+| ---------- | -------------------------------------------------------------------------------------------------------------------- | -------------- |
+| EXPLORE-18 | Rill Device Type × App/Site CSV를 실제 다운로드. VM 전체 기간 셀/총합 CSV가 기존 독립 Parquet 정답과 일치            | 실행 기록 참조 |
+| EXPLORE-19 | 저장한 v2 기간/범위/비교 조건으로 복원 후 CSV. 요청55127800·비율2.934985272971758±1e-9·이전28263800, 각 셀/합계 보존 | 실행 기록 참조 |
+| EXPLORE-20 | 수식 텍스트·따옴표/쉼표/개행·NULL/0·큰 정수·행/byte 경계·권한/revision·추가SQL 거절                                  | 실행 기록 참조 |
+| EXPLORE-21 | 탐색/Pivot 실제 다운로드 파일=서버 CSV, 조건 변경 후 지연 응답 차단, 오류 재시도·유효 결과 전 비활성                 | 실행 기록 참조 |
+
+Rill `ExportMenu.svelte`와 `pivot-export.ts`는 현재 탐색 기간·필터·행/열·지표를 서버 export query에 전달한다. 실제 로컬 Pivot All time에서 CSV를 내려받아 `Device Type,App_Total Requests,App_Avg Bid Floor,Site_Total Requests,Site_Avg Bid Floor` 가로형 header와 9개 기기 행을 확인했다. VM 첫 형식은 지표별 세로 행·조건 metadata·합계를 포함한다. Rill 가로형 배열, Parquet/XLSX·원본 전체 export·예약 export는 이번 범위의 동등성으로 보고하지 않는다.
+
+### CSV 실행 기록
+
+- **EXPLORE-18 PASS(선택 조건)**: Rill 실제 다운로드의9행/18개 셀을 직접 Parquet 정답과 대조했다. VM 전체 기간 CSV의 모든 존재 셀·행/열 합계·총합도 같은 독립 정답과 일치했다. 평균/비율은 병렬 부동소수 집계의 차이를 고려해 ±1e-9로 대조하며 별도 집계 파일끼리 byte 동일성을 요구하지 않는다.
+- **EXPLORE-19 PASS**: API CSV의 기간2023-09-10~11 UTC·bid_floor 1~9·이전 비교를 metadata에서 확인했다. 셀과 각 합계/총합의 독립 대조, 총 요청55127800·비율2.934985272971758±1e-9·이전28263800이 일치했다. Aside에서 기존 `Rill Pivot UI` 보기를 복원한 뒤 실제 `bi-pivot-7.csv` 68행을 다운로드해 같은 조건·정답을 확인했다.
+- **EXPLORE-20 PASS(단위/API)**: serializer의 BOM·escaping·수식 텍스트·음수/큰 정수·NULL/0·행/byte 제한과 실제 DuckDB 조회 재사용 회귀12개가 통과했다. 실제 API에서 권한403, revision409, 추가SQL/알 수 없는 외부 필드/미지원 모드/원본 포함/그룹 제한400을 확인했다. 독립 리뷰의 음수 DECIMAL/지수 표기 문자열 보호 문제는 숫자 literal을 정확한 문자열로 보존하고 수식 텍스트는 계속 보호하도록 보완했다.
+- **EXPLORE-21 PASS(선택 화면/E2E/단위)**: Aside에서 탐색 `bi-explore-7.csv` 56행과 Pivot 68행의 실제 파일을 각각 자신의 XHR CSV와 byte 단위로 확인했다. 그룹 제한 오류에서는 CSV 다운로드가 비활성이고 축 복구 후 활성화됐다. 기존 저장/복원 핵심 E2E에 탐색/Pivot 파일 다운로드→실제 파일 내용=서버 CSV 검증을 추가해1개 통과했다. FE9개는 성공/UTF-8 크기/비활성/재시도/409·실제 예외 envelope/지연 응답/해제/잘못된 응답을 검증했다.
+- 전체 빠른 단위 검사: BE75 suites/1172개, FE46 files/715개 PASS. 변경 BE lint/build와 FE type/lint/build PASS. serializer의 DECIMAL 보완 뒤 관련13개·lint/build PASS를 다시 확인하고, 관련 변경이 없는 전체/E2E 증거는 재사용했다.
+- **NOT_RUN**: 전체 핵심8개·확장 QA·모바일 화면·대표 운영 부하/동시성·10초 이상 export 및 XLSX/Parquet/원본 전체 다운로드. 공유 axios의10초 제한은 기존 조회와 같으며 장시간 export용 백그라운드 작업/스트리밍은 구현하지 않았다. 본 실행을 대규모 운영 지원이나 Rill 전체 export parity로 확대하지 않는다.
+
+증빙: `/tmp/vm-rill-export/`의 `rill-pivot-export.csv`, `whole.csv`, `range.csv`, `explore.csv`, `aside-explore.csv`, `aside-pivot.csv`, `api-checks.json`, `browser-xhr.jsonl`, `integration-test.log`, `frontend-build.log`, `e2e/`, `vm-pivot-export-success.png`. Aside 성공/실패 캡처와 스냅샷은 기존 세션 artifacts에 보존한다.

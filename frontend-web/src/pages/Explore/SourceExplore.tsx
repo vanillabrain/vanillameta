@@ -18,6 +18,7 @@ import { get, post } from '@/helpers/apiHelper';
 import MetricTrend from '@/pages/Dashboard/Components/MetricTrend';
 import ExploreSavedViews, { ExploreViewState } from './ExploreSavedViews';
 import ExplorePivot, { PivotAxes } from './ExplorePivot';
+import ExploreExport from './ExploreExport';
 import type { MetricComparisonData } from '@/pages/Dashboard/Components/PeriodComparison';
 import type { MetricTrendData } from '@/pages/Dashboard/Components/trendGeometry';
 
@@ -823,6 +824,27 @@ export default function SourceExplore() {
     setQueryReload(value => value + 1);
   };
 
+  const exportPayload = {
+    mode: pivotMode ? ('pivot' as const) : ('explore' as const),
+    query: {
+      sourceId: catalog?.sourceId,
+      sourceRevision: catalog?.sourceRevision,
+      measureIds,
+      filters,
+      ...(dateRange ? { dateRange } : {}),
+      comparePrevious,
+      ...(pivotMode
+        ? pivotAxes
+        : {
+            dimensionColumns: dimensions,
+            rankingMeasureId: rankingMeasureId ?? measureIds[0],
+            rankingSort,
+            trendGrain: grain,
+            includeRows: false,
+          }),
+    },
+  };
+
   return (
     <Box
       sx={{
@@ -1126,6 +1148,13 @@ export default function SourceExplore() {
             }}
           />
         </Stack>
+      )}
+
+      {catalog && (
+        <ExploreExport
+          payload={exportPayload}
+          disabled={(pivotMode ? !pivotReady : !result || queryBusy) || rangePaused || !!revisionError || !measureIds.length}
+        />
       )}
 
       {catalog && !pivotMode && (
