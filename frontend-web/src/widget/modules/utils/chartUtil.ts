@@ -199,8 +199,8 @@ export const getAggregationDataForChart = (array, keys, variable, aggr = WIDGET_
   });
   const data = array.reduce((result, currentValue) => {
     key = currentValue[keys];
-    if (!result[key]) {
-      result[key] = 0;
+    if (!Object.prototype.hasOwnProperty.call(result, key)) {
+      result[key] = aggr === WIDGET_AGGREGATION.SUM ? null : 0;
     }
     if (aggr === WIDGET_AGGREGATION.AVG) {
       result[key] += parseFloat(currentValue[variable]);
@@ -209,12 +209,13 @@ export const getAggregationDataForChart = (array, keys, variable, aggr = WIDGET_
     } else if (aggr === WIDGET_AGGREGATION.MIN) {
       result[key] = !result[key] ? currentValue[variable] : Math.min(result[key], currentValue[variable]);
     } else if (aggr === WIDGET_AGGREGATION.SUM) {
-      result[key] += parseFloat(currentValue[variable]);
+      const value = parseFloat(currentValue[variable]);
+      if (Number.isFinite(value)) result[key] = (result[key] ?? 0) + value;
     } else {
       result[key] = countInfo[key];
     }
     return result;
-  }, {});
+  }, Object.create(null));
   const grouped = [];
   Object.keys(data).forEach(function (key) {
     temp = {};

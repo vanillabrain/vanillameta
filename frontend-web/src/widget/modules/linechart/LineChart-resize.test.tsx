@@ -1,5 +1,5 @@
 import React from 'react';
-import { cleanup, render } from '@testing-library/react';
+import { cleanup, fireEvent, render } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import LineChart from './LineChart';
 const state = vi.hoisted(() => ({
@@ -97,4 +97,21 @@ it('resizes the canvas after its container changes and disconnects on unmount', 
   expect(state.resize).toHaveBeenCalledTimes(1);
   view.unmount();
   expect(state.disconnect).toHaveBeenCalledTimes(1);
+});
+it('keeps SQL NULL as a gap and a dash in the chart table while retaining real zero', () => {
+  const view = render(
+    <LineChart
+      axis="y"
+      option={{ yField: 'group', series: [{ field: 'value', aggregation: 'sum' }] }}
+      dataSet={[
+        { group: 'missing', value: null },
+        { group: 'zero', value: 0 },
+      ]}
+    />,
+  );
+  expect(state.option.series[0].data).toEqual([null, 0]);
+  expect(state.option.tooltip.valueFormatter(null)).toBe('—');
+  fireEvent.click(view.getByRole('button', { name: 'chart.showDataTable' }));
+  expect(view.getByRole('table').textContent).toContain('missing—zero0');
+  expect(view.getByRole('table').textContent).not.toContain('NaN');
 });

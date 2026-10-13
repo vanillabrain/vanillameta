@@ -266,4 +266,106 @@ describe('BiService structured file analysis', () => {
     const metric = await service.createMetric(metricBody({ column: 'empty_amount' }), 10);
     expect((await service.preview(chartBody(metric.id), 10)).rows).toEqual([{ value: null }]);
   });
+
+  async function pairs() {
+    await duck.run(`DROP TABLE uploaded_data;
+      CREATE TABLE uploaded_data (amount DOUBLE, weight DOUBLE, category VARCHAR);
+      INSERT INTO uploaded_data VALUES (10,2,'A'),(20,4,'A'),
+        (NULL,3,'B'),(5,0,'B'),(8,NULL,'C'),(NULL,NULL,'D'),(9,-1,'E')`);
+  }
+  it('advanced ratio uses aggregate totals rather than averaging per-row ratios and preserves the snapshot', async () => {
+    await pairs();
+    const metric = await service.createMetric(
+      metricBody({
+        aggregation: 'RATIO_SUM',
+        denominatorColumn: 'weight',
+        scale: 100,
+      }),
+      10,
+    );
+    const result = await service.preview(
+      chartBody(metric.id, { chart: 'bar', dimension: 'category' }),
+      10,
+    );
+    const rows = Object.fromEntries(result.rows.map(r => [r.dimension, r.value]));
+    expect(rows.A).toBe(500);
+    expect(rows.B).toBeCloseTo(500 / 3, 9);
+    expect(rows.C).toBeNull();
+    expect(rows.D).toBeNull();
+    expect(rows.E).toBe(-900);
+    await service.save(chartBody(metric.id), 10);
+    expect(saveDashboard.mock.calls[0][2].definition).toMatchObject({
+      aggregation: 'RATIO_SUM',
+      column: 'amount',
+      denominatorColumn: 'weight',
+      scale: 100,
+    });
+  });
+  it('advanced weighted mean excludes incomplete pairs and leaves zero or negative weights without a value', async () => {
+    await pairs();
+    const metric = await service.createMetric(
+      metricBody({
+        aggregation: 'WEIGHTED_AVG',
+        weightColumn: 'weight',
+      }),
+      10,
+    );
+    const result = await service.preview(
+      chartBody(metric.id, { chart: 'bar', dimension: 'category' }),
+      10,
+    );
+    const rows = Object.fromEntries(result.rows.map(r => [r.dimension, r.value]));
+    expect(rows.A).toBeCloseTo(100 / 6, 9);
+    for (const key of ['B', 'C', 'D', 'E']) expect(rows[key]).toBeNull();
+  });
+  it('advanced ratio leaves an all-null numerator and a zero denominator null', async () => {
+    await duck.run('ALTER TABLE uploaded_data ADD COLUMN zero_value DOUBLE DEFAULT 0');
+    for (const fields of [
+      { column: 'amount', denominatorColumn: 'zero_value' },
+      { column: 'empty_amount', denominatorColumn: 'amount' },
+    ]) {
+      const metric = await service.createMetric(
+        metricBody({ aggregation: 'RATIO_SUM', scale: 1, ...fields }),
+        10,
+      );
+      expect((await service.preview(chartBody(metric.id), 10)).rows).toEqual([{ value: null }]);
+    }
+  });
+  it.each(['RATIO_SUM', 'WEIGHTED_AVG'])(
+    'advanced %s validates both fields before executing SQL',
+    async aggregation => {
+      const key = aggregation === 'RATIO_SUM' ? 'denominatorColumn' : 'weightColumn';
+      for (const value of [
+        'category',
+        'unknown',
+        'amount" FROM source; DROP TABLE uploaded_data; --',
+      ]) {
+        await expect(
+          service.createMetric(metricBody({ aggregation, [key]: value, scale: 1 }), 10),
+        ).rejects.toBeInstanceOf(BadRequestException);
+      }
+      const metric = await service.createMetric(
+        metricBody({ aggregation, [key]: 'amount', scale: 1 }),
+        10,
+      );
+      metrics[0].definition = JSON.stringify({ ...metric.definition, [key]: 'category' });
+      queryDuckDB.mockClear();
+      await expect(service.preview(chartBody(metric.id), 10)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect(queryDuckDB).not.toHaveBeenCalled();
+    },
+  );
+  it.each([0, 2, Infinity, '100', null])(
+    'advanced ratio rejects an arbitrary scale %s',
+    async scale => {
+      await expect(
+        service.createMetric(
+          metricBody({ aggregation: 'RATIO_SUM', denominatorColumn: 'amount', scale }),
+          10,
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(metricRepo.save).not.toHaveBeenCalled();
+    },
+  );
 });

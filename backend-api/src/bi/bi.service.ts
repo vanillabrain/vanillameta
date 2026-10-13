@@ -93,20 +93,52 @@ export class BiService {
       throw new BadRequestException('표시 이름을 확인해 주세요.');
     return value.trim();
   }
+  private metricFields(body: any, profile: any) {
+    const aggregation = body.aggregation;
+    if (![...Object.values(MetricAggregation), 'RATIO_SUM', 'WEIGHTED_AVG'].includes(aggregation))
+      throw new BadRequestException('지원하지 않는 집계입니다.');
+    const field = profile.columns.find(c => c.name === body.column);
+    if (aggregation !== 'COUNT' && (!field || (aggregation !== 'COUNT_DISTINCT' && !field.numeric)))
+      throw new BadRequestException('집계에 맞는 숫자 컬럼을 선택해 주세요.');
+    const fields: any = { column: aggregation === 'COUNT' ? '*' : field.name };
+    if (aggregation === 'RATIO_SUM' || aggregation === 'WEIGHTED_AVG') {
+      const key = aggregation === 'RATIO_SUM' ? 'denominatorColumn' : 'weightColumn';
+      const secondary = profile.columns.find(c => c.name === body[key]);
+      if (!secondary?.numeric)
+        throw new BadRequestException('분모 또는 가중치에 사용할 숫자 컬럼을 선택해 주세요.');
+      fields[key] = secondary.name;
+      if (aggregation === 'RATIO_SUM') {
+        if (![1, 100].includes(body.scale))
+          throw new BadRequestException('비율은 1배, 백분율은 100배를 선택해 주세요.');
+        fields.scale = body.scale;
+      }
+    }
+    return fields;
+  }
+  private metricExpression(definition: any, profile: any) {
+    const fields = this.metricFields(definition, profile);
+    const value = quoteColumn(fields.column);
+    if (definition.aggregation === 'RATIO_SUM')
+      return `SUM(CAST(${value} AS DOUBLE)) / NULLIF(SUM(CAST(${quoteColumn(
+        fields.denominatorColumn,
+      )} AS DOUBLE)), 0) * ${fields.scale}`;
+    if (definition.aggregation === 'WEIGHTED_AVG') {
+      const weight = quoteColumn(fields.weightColumn);
+      return `CASE WHEN MIN(${weight}) < 0 THEN NULL ELSE SUM(CAST(${value} AS DOUBLE) * CAST(${weight} AS DOUBLE)) / NULLIF(SUM(CASE WHEN ${value} IS NOT NULL THEN CAST(${weight} AS DOUBLE) END), 0) END`;
+    }
+    return definition.aggregation === 'COUNT'
+      ? 'COUNT(*)'
+      : definition.aggregation === 'COUNT_DISTINCT'
+      ? `COUNT(DISTINCT ${value})`
+      : `${definition.aggregation}(${value})`;
+  }
   async createMetric(body: any, actor: number) {
     const profile = await this.profile(body?.sourceId, actor);
     if (!profile.supported)
       throw new BadRequestException('서버에 저장한 DuckDB 파일을 선택해 주세요.');
     const aggregation = body.aggregation;
-    if (!Object.values(MetricAggregation).includes(aggregation))
-      throw new BadRequestException('지원하지 않는 집계입니다.');
     const label = this.text(body.label, 100);
-    const field = profile.columns.find(c => c.name === body.column);
-    if (
-      aggregation !== 'COUNT' &&
-      (!field || (['SUM', 'AVG', 'MIN', 'MAX'].includes(aggregation) && !field.numeric))
-    )
-      throw new BadRequestException('집계에 맞는 컬럼을 선택해 주세요.');
+    const fields = this.metricFields(body, profile);
     if (
       !Number.isInteger(body.decimalPlaces) ||
       body.decimalPlaces < 0 ||
@@ -123,7 +155,7 @@ export class BiService {
       tableName: 'uploaded_data',
       label,
       aggregation,
-      column: aggregation === 'COUNT' ? '*' : field.name,
+      ...fields,
       unit: body.unit,
       decimalPlaces: body.decimalPlaces,
       numberNotation: body.numberNotation,
@@ -135,7 +167,7 @@ export class BiService {
         databaseId: profile.sourceId,
         tableName: 'uploaded_data',
         aggregation,
-        expression: aggregation === 'COUNT' ? 'count_rows' : field.name,
+        expression: aggregation === 'COUNT' ? 'count_rows' : fields.column,
         description: label,
         definition: JSON.stringify(definition),
         useYn: 'Y',
@@ -175,20 +207,7 @@ export class BiService {
       definition.sourceId !== profile.sourceId
     )
       throw new BadRequestException('지표 정의를 확인해 주세요.');
-    const field = profile.columns.find(c => c.name === definition.column);
-    if (
-      definition.aggregation !== 'COUNT' &&
-      (!field || (['SUM', 'AVG', 'MIN', 'MAX'].includes(definition.aggregation) && !field.numeric))
-    )
-      throw new BadRequestException('저장 지표의 컬럼이 변경됐습니다. 새 지표를 만들어 주세요.');
-    if (!Object.values(MetricAggregation).includes(definition.aggregation))
-      throw new BadRequestException('invalid saved aggregation');
-    const expr =
-      definition.aggregation === 'COUNT'
-        ? 'COUNT(*)'
-        : definition.aggregation === 'COUNT_DISTINCT'
-        ? `COUNT(DISTINCT ${quoteColumn(definition.column)})`
-        : `${definition.aggregation}(${quoteColumn(definition.column)})`;
+    const expr = this.metricExpression(definition, profile);
     if (!['number', 'bar', 'line'].includes(body.chart))
       throw new BadRequestException('차트를 선택해 주세요.');
     const dimension =

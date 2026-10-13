@@ -1,5 +1,7 @@
 # MD 검증 현황 — 2026-10-13
 
+[가중 평균·합계 비율 후속](advanced-metrics.md): SSBI-03의 선택 조건 ADV-01~04를 보완했다. Rill 전체 평균5.571238676523254·독립 정답 대조, 정상 가중17.5/15%·NULL/0·음수 정책·정의/snapshot 저장·재조회·모바일/Enter 확인. 차트 표NaN을 수정·재검증했다. 원격/통화/임의식/파일 교체·VoiceOver는 남아 전체 SSBI는 부분 완료다. gpt-6-luna 유지·모델 호출0.
+
 [139만 행 구조화 제작 후속](structured-rill-large.md): 새 소스 프로파일·저장 SUM/COUNT·3차트 편집·저장/reload·9기기 정답·snapshot 및 1440/390 화면을 확인했다. LARGE-01~03 PASS(모바일 숫자 축 밀집 수정 후 재검증). LARGE-04는 AVG와 Rill 가중 공식 구분만 PASS이며 구조화 가중 지표는 미구현이다. SSBI 전체의 부분 완료와 기존130개 집계 유지, gpt-6-luna 유지·AI 호출0.
 
 [여러 지표·차트 편집](dashboard-chart-editor.md)의 SSBI-08 신규 조건 EDIT-01~09 PASS. 한 DuckDB 소스의 1~6개 차트 추가·표현/크기/순서·저장/reload·SQL/삭제 정의 보존·409·503 복구와 1440/390 실제 키보드를 검증했다. 재조회 크기 배열 오류와 삭제 후 초점 소실을 수정·재검증했다. 원격/다중 소스·제작 필터/고급 지표·VoiceOver는 남아 전체 SSBI-08/14는 부분 완료이며 기존 카탈로그 집계는 유지한다. gpt-6-luna 유지, AI 호출 0.

@@ -53,7 +53,7 @@ const LineChart = props => {
     tooltip: {
       trigger: 'axis',
       ...defaultOp?.tooltip,
-      valueFormatter: value => Number(value).toLocaleString('en-US', { maximumFractionDigits: 6 }),
+      valueFormatter: value => (value == null ? '—' : Number(value).toLocaleString('en-US', { maximumFractionDigits: 6 })),
     },
     media:
       axis === 'y'
@@ -176,7 +176,7 @@ const LineChart = props => {
                     <TableCell key={seriesIndex} align="right">
                       {typeof series.data[index] === 'number'
                         ? series.data[index].toLocaleString('en-US', { maximumFractionDigits: 6 })
-                        : String(series.data[index] ?? '')}
+                        : String(series.data[index] ?? '—')}
                     </TableCell>
                   ))}
                 </TableRow>
