@@ -30,6 +30,7 @@ import PersonalSavedViews, {
   validDay,
 } from './PersonalSavedViews';
 import { PreviousPeriodData } from './PeriodComparison';
+import SourceDetails from './SourceDetails';
 
 const valueKey = (value: FilterValue) => encodeURIComponent(JSON.stringify(value));
 
@@ -58,8 +59,20 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [previewRefresh, setPreviewRefresh] = useState(0);
+  const [categoryNotice, setCategoryNotice] = useState('');
+  const detailsButton = useRef<HTMLButtonElement>(null);
   const assistantButton = useRef<HTMLButtonElement>(null);
   const serial = useRef(0);
+  const completedPreview = useRef(0);
+  const pendingFocusIntent = useRef<{
+    dashboardId: unknown;
+    filters: string;
+    afterRequest: number;
+    button: HTMLButtonElement;
+    cancel: () => void;
+  } | null>(null);
   const loadedDashboard = useRef(null);
   const loadSerial = useRef(0);
   useEffect(() => {
@@ -80,6 +93,8 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
       setBusy(false);
       setError('');
       setEditing(false);
+      setDetailsOpen(false);
+      setCategoryNotice('');
     }
     get(`/ai/dashboard-analysis/${dashboardId}`)
       .then(response => {
@@ -128,6 +143,7 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
       .then(response => {
         if (request !== serial.current) return;
         if (response.data.status !== 'SUCCESS') throw new Error(response.data.message || '필터 조회 실패');
+        completedPreview.current = request;
         setPreview(response.data.data);
       })
       .catch(e => {
@@ -140,7 +156,33 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
     return () => {
       serial.current += 1;
     };
-  }, [draft, filters, dateRange, dashboardId, trendGrain, comparePrevious]);
+  }, [draft, filters, dateRange, dashboardId, trendGrain, comparePrevious, previewRefresh]);
+  useEffect(() => () => pendingFocusIntent.current?.cancel(), []);
+  useEffect(() => {
+    const intent = pendingFocusIntent.current;
+    if (!intent) return;
+    if (
+      intent.dashboardId !== dashboardId ||
+      intent.filters !== JSON.stringify(filters) ||
+      detailsOpen ||
+      editing ||
+      error
+    ) {
+      intent.cancel();
+      return;
+    }
+    if (
+      busy ||
+      analysisLoading ||
+      completedPreview.current !== serial.current ||
+      completedPreview.current <= intent.afterRequest
+    )
+      return;
+    const target = detailsButton.current;
+    const abandoned = document.activeElement === document.body || document.activeElement === intent.button;
+    intent.cancel();
+    if (abandoned && target && !target.disabled && !document.querySelector('[role="dialog"]')) target.focus();
+  }, [busy, analysisLoading, error, preview, filters, dashboardId, detailsOpen, editing]);
   if (!draft) return <>{children}</>;
   const dimensions = preview?.dimensions || [];
   const temporalColumns = preview?.temporalColumns || [];
@@ -158,6 +200,79 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
       : unappliedDates
       ? '입력한 날짜를 적용하거나 초기화한 뒤 저장 보기를 사용할 수 있습니다.'
       : '';
+  const detailsDisabledReason = viewDisabledReason.replace('저장 보기', '원본 상세');
+  const selectionDisabled = busy || analysisLoading || !!error || !!dateError;
+  const selectedValues = (column: string): FilterValue[] =>
+    Object.prototype.hasOwnProperty.call(filters, column) && Array.isArray(filters[column]) ? filters[column] : [];
+  const categoryLabel = (value: FilterValue) =>
+    value === null
+      ? '값 없음 (NULL)'
+      : `${String(value)} (${typeof value === 'number' ? '숫자' : typeof value === 'boolean' ? '불리언' : '문자열'})`;
+  const applyColumnValues = (column: string, values: FilterValue[], notice: string) => {
+    if (selectionDisabled) return;
+    if (values.length > 50) {
+      setCategoryNotice('한 컬럼에서 최대 50개 값까지 선택할 수 있습니다. 기존 값을 해제해 주세요.');
+      return;
+    }
+    if (values.length && !selectedValues(column).length && active.length >= 5) {
+      setCategoryNotice('공통 필터는 최대 5개 컬럼까지 선택할 수 있습니다. 기존 필터를 해제해 주세요.');
+      return;
+    }
+    setFilters(current => ({ ...current, [column]: values }));
+    setCategoryNotice(notice);
+  };
+  const toggleCategory = (column: string, value: unknown) => {
+    if (
+      selectionDisabled ||
+      !(
+        value === null ||
+        typeof value === 'string' ||
+        typeof value === 'boolean' ||
+        (typeof value === 'number' && Number.isFinite(value))
+      )
+    )
+      return;
+    const category = value as FilterValue;
+    const selected = selectedValues(column);
+    const exists = selected.some(item => valueKey(item) === valueKey(category));
+    applyColumnValues(
+      column,
+      exists ? selected.filter(item => valueKey(item) !== valueKey(category)) : [...selected, category],
+      `공통 필터 변경: ${column} · ${categoryLabel(category)} ${exists ? '해제' : '선택'}`,
+    );
+  };
+  const rememberFocusAfterPreview = (button: HTMLButtonElement, nextFilters = filters) => {
+    if (document.activeElement === button) {
+      pendingFocusIntent.current?.cancel();
+      const cancel = () => {
+        document.removeEventListener('focusin', movedFocus, true);
+        document.removeEventListener('keydown', cancel, true);
+        document.removeEventListener('pointerdown', cancel, true);
+        window.removeEventListener('blur', cancel);
+        if (pendingFocusIntent.current?.cancel === cancel) pendingFocusIntent.current = null;
+      };
+      const movedFocus = (event: FocusEvent) => {
+        if (event.target !== button && event.target !== document.body && event.target !== detailsButton.current) cancel();
+      };
+      pendingFocusIntent.current = {
+        dashboardId,
+        filters: JSON.stringify(nextFilters),
+        afterRequest: serial.current,
+        button,
+        cancel,
+      };
+      document.addEventListener('focusin', movedFocus, true);
+      document.addEventListener('keydown', cancel, true);
+      document.addEventListener('pointerdown', cancel, true);
+      window.addEventListener('blur', cancel);
+    }
+  };
+  const clearCategoryChip = (button: HTMLButtonElement, column: string, value: FilterValue) => {
+    if (selectionDisabled) return;
+    const remaining = selectedValues(column).filter(item => valueKey(item) !== valueKey(value));
+    rememberFocusAfterPreview(button, { ...filters, [column]: remaining });
+    applyColumnValues(column, remaining, `공통 필터 변경: ${column} · ${categoryLabel(value)} 해제`);
+  };
   const setNotation = (value: SavedViewState['numberNotation']) => {
     setNumberNotation(value);
     try {
@@ -177,6 +292,7 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
   };
   const reset = () => {
     setFilters({});
+    setCategoryNotice('공통 필터를 초기화했습니다.');
     setDateDraft({ column: '', start: '', end: '' });
     setDateRange(null);
     setRelativePeriod(null);
@@ -238,6 +354,19 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
           필터 초기화
         </Button>
         <Button
+          ref={detailsButton}
+          size="small"
+          variant="outlined"
+          disabled={typeof preview?.sourceRevision !== 'string' || !preview.sourceRevision}
+          aria-disabled={!!viewDisabledReason}
+          onClick={() => {
+            if (viewDisabledReason) return;
+            setDetailsOpen(true);
+          }}
+        >
+          원본 상세 보기
+        </Button>
+        <Button
           ref={assistantButton}
           size="small"
           variant="outlined"
@@ -262,9 +391,30 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
           </Select>
         </FormControl>
       </Stack>
+      <Stack direction="row" aria-label="적용된 공통 필터" sx={{ flexWrap: 'wrap', gap: 1, mb: 1 }}>
+        {active.flatMap(([column, values]) =>
+          values.map(value => (
+            <Button
+              key={`${column}:${valueKey(value)}`}
+              size="small"
+              variant="outlined"
+              aria-disabled={selectionDisabled}
+              aria-label={`${column}: ${categoryLabel(value)} 공통 필터 해제`}
+              sx={{ maxWidth: '100%', textAlign: 'left', overflowWrap: 'anywhere', borderRadius: 4 }}
+              onClick={event => clearCategoryChip(event.currentTarget, column, value)}
+            >
+              {column}: {categoryLabel(value)} ×
+            </Button>
+          )),
+        )}
+      </Stack>
+      <Typography role="status" aria-live="polite" sx={{ fontSize: 13, mb: 1, overflowWrap: 'anywhere' }}>
+        {categoryNotice}
+        {categoryNotice && (busy ? ' · 조회 중' : error ? ' · 조건 적용 실패' : ' · 조회 완료')}
+      </Typography>
       <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 1.5, mb: 2 }}>
         {dimensions.slice(0, 5).map((dimension: any) => {
-          const selected = filters[dimension.column] || [];
+          const selected = selectedValues(dimension.column);
           const options: FilterValue[] = Array.from(
             new Map<string, FilterValue>(
               [...selected, ...dimension.values.slice(0, 50)].map((value: FilterValue) => [valueKey(value), value]),
@@ -285,7 +435,7 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
                 label={dimension.column}
                 notched
                 value={selected.map(valueKey)}
-                disabled={busy}
+                disabled={selectionDisabled}
                 displayEmpty
                 renderValue={() => (
                   <Box
@@ -298,10 +448,11 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
                 onChange={e => {
                   const keys = typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value;
                   if (keys.length > 50) return;
-                  setFilters(values => ({
-                    ...values,
-                    [dimension.column]: keys.map(key => JSON.parse(decodeURIComponent(key)) as FilterValue),
-                  }));
+                  applyColumnValues(
+                    dimension.column,
+                    keys.map(key => JSON.parse(decodeURIComponent(key)) as FilterValue),
+                    `공통 필터 변경: ${dimension.column}`,
+                  );
                 }}
               >
                 {options.map(value => (
@@ -529,6 +680,17 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
                   widgetType={widget.type}
                   widgetOption={analysisOptions(widget, numberNotation)}
                   dataSet={widget.datas}
+                  onCategorySelect={
+                    typeof widget.dimensionColumn === 'string' &&
+                    widget.dimensionColumn &&
+                    !temporalColumns.some((column: any) => column.column === widget.dimensionColumn)
+                      ? value => toggleCategory(widget.dimensionColumn, value)
+                      : undefined
+                  }
+                  selectedCategoryValues={
+                    typeof widget.dimensionColumn === 'string' ? selectedValues(widget.dimensionColumn) : []
+                  }
+                  categorySelectionDisabled={selectionDisabled}
                 />
               </Box>
               {widget.trendGrain && (
@@ -574,6 +736,26 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
         </Box>
       ) : (
         children
+      )}
+      {preview?.sourceRevision && (
+        <SourceDetails
+          key={`source-details-${dashboardId}`}
+          open={detailsOpen}
+          dashboardId={Number(dashboardId)}
+          draft={draft}
+          filters={active.map(([column, values]) => ({ column, values }))}
+          dateRange={dateRange}
+          sourceRevision={preview?.sourceRevision}
+          disabledReason={detailsDisabledReason}
+          onClose={() => setDetailsOpen(false)}
+          onExited={() => {
+            if (document.activeElement === document.body) detailsButton.current?.focus();
+          }}
+          onRefresh={() => {
+            setDetailsOpen(false);
+            setPreviewRefresh(value => value + 1);
+          }}
+        />
       )}
       <DashboardAssistant
         key={dashboardId}

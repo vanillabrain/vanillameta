@@ -62,6 +62,11 @@ export class AiController {
     return this.dashboards.save(body, req.user.accessKeyData.id);
   }
 
+  @Post('dashboard-details')
+  dashboardDetails(@Body() body: any, @Req() req) {
+    return this.dashboards.details(body, req.user.accessKeyData.id);
+  }
+
   @Get('dashboard-analysis/:id')
   dashboardAnalysis(@Param('id') id: string, @Req() req) {
     return this.dashboards.analysis(+id, req.user.accessKeyData.id, true);

@@ -56,7 +56,17 @@ export const WidgetEmpty = () => {
 
 const WidgetViewer = props => {
   const { t } = useTranslation();
-  const { title, widgetType, widgetOption, dataSet, isInvalidData, description } = props;
+  const {
+    title,
+    widgetType,
+    widgetOption,
+    dataSet,
+    isInvalidData,
+    description,
+    onCategorySelect,
+    selectedCategoryValues,
+    categorySelectionDisabled,
+  } = props;
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const [module, setModule] = useState(null);
 
@@ -66,12 +76,18 @@ const WidgetViewer = props => {
 
   useEffect(() => {
     if (widgetType && widgetOption && dataSet) renderWidget();
-  }, [widgetType, widgetOption, dataSet]);
+  }, [widgetType, widgetOption, dataSet, onCategorySelect, selectedCategoryValues, categorySelectionDisabled]);
 
   const renderWidget = () => {
     console.log('===== renderWidget');
     let module;
-    const chartProps = { option: widgetOption, dataSet: dataSet };
+    const chartProps = {
+      option: widgetOption,
+      dataSet: dataSet,
+      onCategorySelect,
+      selectedCategoryValues,
+      categorySelectionDisabled,
+    };
     showLoading();
     switch (widgetType) {
       case WIDGET_TYPE.BOARD_NUMERIC:

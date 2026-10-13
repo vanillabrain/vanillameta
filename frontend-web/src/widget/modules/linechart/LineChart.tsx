@@ -1,16 +1,48 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Button, Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import ReactECharts from 'echarts-for-react';
 import { getAggregationDataForChart, getGridSize, getLegendOption } from '@/widget/modules/utils/chartUtil';
 import { AGGREGATION_LIST } from '@/constant';
 
-const LineChart = props => {
+export type CategoryValue = string | number | boolean | null;
+export interface CategorySelectionProps {
+  onCategorySelect?: (value: CategoryValue) => void;
+  selectedCategoryValues?: CategoryValue[];
+  categorySelectionDisabled?: boolean;
+}
+
+const isCategoryValue = (value: unknown): value is CategoryValue =>
+  value === null ||
+  (typeof value === 'string' && value.length <= 2000) ||
+  typeof value === 'boolean' ||
+  (typeof value === 'number' && Number.isFinite(value));
+
+const LineChart = (
+  props: CategorySelectionProps & {
+    option: any;
+    dataSet: any[];
+    axis?: string;
+    seriesOp?: any;
+    defaultOp?: any;
+    createOp?: any;
+    [key: string]: any;
+  },
+) => {
   const { t } = useTranslation();
-  const { option, dataSet, axis = 'x', seriesOp, defaultOp, createOp } = props;
+  const {
+    option,
+    dataSet,
+    axis = 'x',
+    seriesOp,
+    defaultOp,
+    createOp,
+    onCategorySelect,
+    selectedCategoryValues = [],
+    categorySelectionDisabled = false,
+  } = props;
   const reverseAxis = axis === 'x' ? 'y' : 'x';
 
-  const [componentOption, setComponentOption] = useState<any>({});
   const [showTable, setShowTable] = useState(false);
   const chartRef = useRef<ReactECharts>(null);
   useEffect(() => {
@@ -72,13 +104,6 @@ const LineChart = props => {
         : [],
   };
 
-  useEffect(() => {
-    if (option && dataSet) {
-      const newOption = createComponentOption();
-      setComponentOption(newOption);
-    }
-  }, [option, dataSet]);
-
   /**
    *
    * 위젯옵션과 데이터로
@@ -92,7 +117,22 @@ const LineChart = props => {
     const newSeries = [];
     let aggrData = [];
     option.series.forEach(item => {
-      aggrData = getAggregationDataForChart(dataSet, option[axis + 'Field'], item.field, item.aggregation);
+      const categoryField = option[axis + 'Field'];
+      if (onCategorySelect) {
+        // Group by the original typed key instead of the utility's string-coerced object key.
+        const groups = new Map<unknown, any[]>();
+        dataSet.forEach(row => {
+          const category = row[categoryField];
+          if (!groups.has(category)) groups.set(category, []);
+          groups.get(category).push(row);
+        });
+        aggrData = Array.from(groups, ([category, rows]) => ({
+          ...getAggregationDataForChart(rows, categoryField, item.field, item.aggregation)[0],
+          [categoryField]: category,
+        }));
+      } else {
+        aggrData = getAggregationDataForChart(dataSet, categoryField, item.field, item.aggregation);
+      }
       // console.log('aggrData : ', aggrData);
       if (item.field) {
         const series = {
@@ -149,6 +189,24 @@ const LineChart = props => {
     return newOption;
   };
 
+  const componentOption: any = useMemo(
+    () => (option && dataSet ? createComponentOption() : {}),
+    [option, dataSet, axis, seriesOp, defaultOp, createOp, onCategorySelect, t],
+  );
+  const chartEvents = useMemo(
+    () => ({
+      click: (params: any) => {
+        if (!onCategorySelect || categorySelectionDisabled || params?.componentType !== 'series') return;
+        const categories = componentOption[axis + 'Axis']?.data;
+        const index = params.dataIndex;
+        if (!Number.isInteger(index) || index < 0 || index >= (categories?.length ?? 0)) return;
+        const value = categories[index];
+        if (isCategoryValue(value)) onCategorySelect(value);
+      },
+    }),
+    [componentOption, axis, onCategorySelect, categorySelectionDisabled],
+  );
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', minWidth: 0 }}>
       <ReactECharts
@@ -157,6 +215,7 @@ const LineChart = props => {
         style={{ flex: '1 1 auto', minHeight: showTable ? 80 : 160, height: showTable ? 'auto' : '100%', width: '100%' }}
         lazyUpdate={true}
         notMerge={true}
+        onEvents={onCategorySelect ? chartEvents : undefined}
       />
       <Button
         size="small"
@@ -186,9 +245,39 @@ const LineChart = props => {
             </TableHead>
             <TableBody>
               {componentOption[axis + 'Axis']?.data?.map((name, index) => (
-                <TableRow key={index}>
+                <TableRow key={onCategorySelect ? JSON.stringify([typeof name, name]) : index}>
                   <TableCell component="th" scope="row">
-                    {String(name)}
+                    {onCategorySelect ? (
+                      <Button
+                        type="button"
+                        size="small"
+                        variant="text"
+                        aria-label={`필터: ${name === null ? '값 없음 (NULL)' : String(name)}`}
+                        aria-pressed={selectedCategoryValues.some(value => value === name)}
+                        aria-disabled={categorySelectionDisabled || undefined}
+                        disabled={!isCategoryValue(name)}
+                        title={
+                          typeof name === 'string' && name.length > 2000 ? '필터 값은 2,000자 이하만 지원합니다.' : undefined
+                        }
+                        sx={{
+                          textTransform: 'none',
+                          minWidth: 0,
+                          maxWidth: { xs: 180, sm: 260 },
+                          whiteSpace: 'normal',
+                          overflowWrap: 'anywhere',
+                          textAlign: 'left',
+                          justifyContent: 'flex-start',
+                          bgcolor: selectedCategoryValues.some(value => value === name) ? 'action.selected' : undefined,
+                        }}
+                        onClick={() => {
+                          if (!categorySelectionDisabled && isCategoryValue(name)) onCategorySelect(name);
+                        }}
+                      >
+                        {name === null ? '값 없음 (NULL)' : String(name)}
+                      </Button>
+                    ) : (
+                      String(name)
+                    )}
                   </TableCell>
                   {componentOption.series.map((series, seriesIndex) => (
                     <TableCell key={seriesIndex} align="right">

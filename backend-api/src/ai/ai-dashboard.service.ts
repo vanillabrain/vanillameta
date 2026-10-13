@@ -22,6 +22,7 @@ import { Component } from '../component/entities/component.entity';
 import { DatasetType } from '../common/enum/dataset-type.enum';
 import { buildTimeChartQuery, buildTrendQuery, chooseTrendGrain } from './dashboard-trend';
 import { comparisonValues, previousDateRange, validatePeriodOptions } from './dashboard-period';
+import { resolveDimensionColumn } from './dashboard-dimension';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import { YesNo } from '../common/enum/yn.enum';
 import {
@@ -407,6 +408,76 @@ export class AiDashboardService {
       this.previewSnapshot(body, draft),
     );
   }
+
+  /** Original source rows matching common filters, not the contributors to an arbitrary metric SQL. */
+  async details(body: any, userId: number) {
+    positiveId(body?.dashboardId);
+    const draft = validateDraft(body?.draft);
+    const page = body.page === undefined ? 0 : body.page;
+    const pageSize = body.pageSize === undefined ? 50 : body.pageSize;
+    if (!Number.isInteger(page) || page < 0 || page > 10000 || ![25, 50, 100].includes(pageSize))
+      throw new BadRequestException('invalid detail page');
+    if (
+      typeof body.sourceRevision !== 'string' ||
+      !body.sourceRevision.length ||
+      body.sourceRevision.length > 256
+    )
+      throw new BadRequestException('sourceRevision required');
+    const saved = await this.analysis(body.dashboardId, userId);
+    if (saved.data.databaseId !== draft.databaseId)
+      throw new BadRequestException('dashboard source mismatch');
+    return this.connection.withDuckDBSnapshot(draft.databaseId, async () => {
+      const sourceRevision = await this.connection.duckDBVersion(draft.databaseId);
+      if (body.sourceRevision !== sourceRevision)
+        throw new ConflictException(
+          '파일 버전이 변경되었습니다. 대시보드를 새로고침한 뒤 상세 내역을 다시 열어 주세요.',
+        );
+      const schema = await this.schema(draft.databaseId);
+      const columns = schema.map(c => c.column_name);
+      const temporal = schema
+        .filter(c => /^(DATE|TIMESTAMP)/i.test(c.column_type))
+        .map(c => c.column_name);
+      const query = (sql: string) =>
+        sourceQuery(sql, columns, body.filters, body.dateRange, temporal);
+      const countQuery = query('SELECT CAST(count(*) AS VARCHAR) AS total FROM source');
+      const count = await this.connection.queryDuckDB(
+        draft.databaseId,
+        countQuery.sql,
+        countQuery.bindings,
+      );
+      // A bounded projection and deterministic ordering avoid sending an entire wide source to the browser.
+      // Equal projected rows are indistinguishable in this table; ORDER BY ALL also avoids shadowed rowid columns.
+      const selectedColumns = columns.slice(0, 50);
+      // DuckDB's object adapter assigns onto {}, so magic property names need safe transport aliases.
+      const rowsQuery = query(
+        `SELECT ${selectedColumns
+          .map((column, index) => `${quoteColumn(column)} AS "__vm_detail_${index}"`)
+          .join(', ')} FROM source ORDER BY ALL LIMIT ${pageSize} OFFSET ${page * pageSize}`,
+      );
+      const rows = await this.connection.queryDuckDB(
+        draft.databaseId,
+        rowsQuery.sql,
+        rowsQuery.bindings,
+      );
+      return this.success({
+        fields: rows.fields.map((field: any, index: number) => ({
+          ...field,
+          columnName: selectedColumns[index],
+        })),
+        datas: rows.datas.map((row: any) =>
+          Object.fromEntries(
+            selectedColumns.map((column, index) => [column, row[`__vm_detail_${index}`]]),
+          ),
+        ),
+        totalRows: String(count.datas[0].total),
+        page,
+        pageSize,
+        sourceRevision,
+        columnCount: columns.length,
+        scope: 'current common-filter source rows',
+      });
+    });
+  }
   private async previewSnapshot(body: any, draft: ReturnType<typeof validateDraft>) {
     const { trendGrain, comparePrevious } = validatePeriodOptions(body);
     if (comparePrevious && !body.dateRange)
@@ -465,6 +536,15 @@ export class AiDashboardService {
         throw new BadRequestException('chart categoryField missing');
       }
       const widget: any = { ...definition, fields: result.fields, datas: result.datas };
+      if (definition.type !== 'BOARD_NUMERIC') {
+        const dimensionColumn = resolveDimensionColumn(
+          definition.sql,
+          definition.categoryField,
+          columns,
+          temporal.map(c => c.column_name),
+        );
+        if (dimensionColumn) widget.dimensionColumn = dimensionColumn;
+      }
       if (trendGrain !== 'auto' && definition.type === 'CHART_LINE') {
         if (!regroup)
           widget.grainUnavailable =

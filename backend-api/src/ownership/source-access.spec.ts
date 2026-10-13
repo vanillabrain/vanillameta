@@ -147,6 +147,71 @@ describe('source ownership boundary', () => {
       ),
     ).rejects.toThrow();
   });
+  it('dashboardDetails requires ownership of both the draft source and dashboard', async () => {
+    const source = jest.spyOn(access, 'assert');
+    const dashboard = jest.spyOn(access, 'dashboard');
+    await expect(
+      guard.canActivate(
+        request('AiController', 'dashboardDetails', {
+          body: { dashboardId: 51, draft: { databaseId: 1 } },
+          user: { accessKeyData: { id: 7 } },
+        }),
+      ),
+    ).resolves.toBe(true);
+    expect(source).toHaveBeenCalledWith('database', 1, 7);
+    expect(dashboard).toHaveBeenCalledWith(51, 7);
+  });
+  it.each([undefined, null, false, 0, -1, 1.5, 'invalid', '0', Number.MAX_SAFE_INTEGER + 1])(
+    'dashboardDetails rejects missing or invalid dashboardId %p even with a valid draft and decoy URL ID',
+    async dashboardId => {
+      await expect(
+        guard.canActivate(
+          request('AiController', 'dashboardDetails', {
+            params: { id: '51' },
+            body: { dashboardId, draft: { databaseId: 1 } },
+            user: { accessKeyData: { id: 7 } },
+          }),
+        ),
+      ).rejects.toThrow();
+    },
+  );
+  it.each([
+    { dashboardId: 51, draft: { databaseId: 2 } },
+    { dashboardId: 51, draft: { databaseId: 3 } },
+    { dashboardId: 51, draft: {} },
+    { dashboardId: 51 },
+    { dashboardId: 999, draft: { databaseId: 1 } },
+  ])('dashboardDetails rejects inaccessible or missing source/dashboard %j', async body => {
+    await expect(
+      guard.canActivate(
+        request('AiController', 'dashboardDetails', {
+          body,
+          user: { accessKeyData: { id: 7 } },
+        }),
+      ),
+    ).rejects.toThrow();
+  });
+  it('dashboardDetails denies a non-owner dashboard even when the draft source belongs to that actor', async () => {
+    await expect(
+      guard.canActivate(
+        request('AiController', 'dashboardDetails', {
+          body: { dashboardId: 51, draft: { databaseId: 2 } },
+        }),
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+  it('dashboardDetails denies shared tokens before reading raw source rows', async () => {
+    const source = jest.spyOn(access, 'assert');
+    await expect(
+      guard.canActivate(
+        request('AiController', 'dashboardDetails', {
+          body: { dashboardId: 51, draft: { databaseId: 1 } },
+          user: { shareKeyData: { dashboardId: 51 } },
+        }),
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(source).not.toHaveBeenCalled();
+  });
   it('permits linked owner data for shares but rejects foreign data', async () => {
     expect(await access.sharedDashboard(51)).toBe(7);
     await expect(
