@@ -1,5 +1,7 @@
 # DESIGN-04 — 매출·환불 키보드 후속
 
+2026-10-13 후속: 아래 역사 기록의 native 달력·OS 파일 선택창 미검증 중 실제 날짜 일/주 이동·확정/취소와 macOS 주문 CSV 선택/취소를 [날짜·파일 팝업 후속](native-popups-chart-keyboard.md)에서 보완했다. 다른 OS·월/연 전체 변형·다른 파일 버튼과 VoiceOver는 남아 있다.
+
 2026-10-13, develop-v2 시작 `ff65e1e4`. FE3483/API4683의 기존 격리 환경과 승인된 headed Chromium을 재사용했다. Aside 연결 제약은 이전 기록과 같다. 기존 COMMERCE-01~08의 저장·계산·Rill·AI 결과는 재사용하며 이번 결과로 다시 판정하지 않는다. AI는 Codex `gpt-6-luna` 설정 유지, 호출0이다.
 
 ## 발견과 수정

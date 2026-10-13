@@ -1,8 +1,9 @@
 import React from 'react';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import SelectForm from './SelectForm';
 import TextFieldForm from './TextFieldForm';
+import RadioForm from './RadioForm';
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 // Load real MUI through its supported CJS entry to avoid this Vitest runtime's
@@ -52,4 +53,36 @@ it('labels text inputs without caller ids and preserves explicit ids', () => {
   const suffix = screen.getByRole('textbox', { name: 'Suffix' });
   expect(prefix.id).not.toBe(suffix.id);
   expect(screen.getByRole('textbox', { name: 'Message' }).id).toBe('message');
+});
+
+it('names repeated radio groups without duplicate ids and keeps boolean choices', () => {
+  const onChange = vi.fn();
+  render(
+    <>
+      <RadioForm
+        label="First merge"
+        option={[
+          { label: 'Merge', value: true },
+          { label: 'Split', value: false },
+        ]}
+        value={true}
+        onChange={onChange}
+      />
+      <RadioForm
+        label="Second merge"
+        option={[
+          { label: 'Merge', value: true },
+          { label: 'Split', value: false },
+        ]}
+        value={false}
+        onChange={onChange}
+      />
+    </>,
+  );
+  const groups = ['First merge', 'Second merge'].map(name => screen.getByRole('radiogroup', { name }));
+  expect(groups[0].getAttribute('aria-labelledby')).not.toBe(groups[1].getAttribute('aria-labelledby'));
+  expect((within(groups[0]).getByRole('radio', { name: 'Merge' }) as HTMLInputElement).checked).toBe(true);
+  expect((within(groups[1]).getByRole('radio', { name: 'Split' }) as HTMLInputElement).checked).toBe(true);
+  const ids = Array.from(document.querySelectorAll('[id]')).map(element => element.id);
+  expect(new Set(ids).size).toBe(ids.length);
 });

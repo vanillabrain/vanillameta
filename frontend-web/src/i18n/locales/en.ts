@@ -385,6 +385,8 @@ export default {
     field: 'Field',
   },
   common: {
+    addItem: 'Add item',
+    removeItem: 'Remove item',
     language: 'Language',
     confirm: 'OK',
     cancel: 'Cancel',

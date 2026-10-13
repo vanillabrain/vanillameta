@@ -385,6 +385,8 @@ export default {
     field: '필드',
   },
   common: {
+    addItem: '항목 추가',
+    removeItem: '항목 삭제',
     language: '언어',
     confirm: '확인',
     cancel: '취소',

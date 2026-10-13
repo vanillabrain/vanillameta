@@ -51,7 +51,8 @@ const TableBoardSetting = props => {
               onChange={event => handleSeriesChange(event, setOption, 'columns')}
             />
             <RadioForm
-              label={t('settings.columnMerge')}
+              id={`rowSpan${index + 1}`}
+              label={`${t('settings.columnMerge')} ${index + 1}`}
               name={`rowSpan${index + 1}`}
               option={[
                 { label: t('settings.merge'), value: true },
