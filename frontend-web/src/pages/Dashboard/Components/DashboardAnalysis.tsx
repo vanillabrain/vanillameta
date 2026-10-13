@@ -476,7 +476,13 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
     }
     setPeriodHistory(history => [...history.slice(-9), { dateRange, relativePeriod, dateDraft }]);
     setRelativePeriod(null);
-    setDateRange({ column: range.column, start: range.start, end: range.end, precision: 'timestamp' });
+    setDateRange({
+      column: range.column,
+      start: range.start,
+      end: range.end,
+      precision: 'timestamp',
+      ...(range.timeZone ? { timeZone: range.timeZone } : {}),
+    });
     setDateDraft(displayedDates(range));
     setDateError('');
     setBusy(true);
@@ -612,11 +618,15 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
     }
     setDateError('');
     setPeriodHistory([]);
-    setDateRange({ column: temporalColumn, start, end });
+    setDateRange({ column: temporalColumn, start, end, ...(dateDraft.timeZone ? { timeZone: dateDraft.timeZone } : {}) });
   };
   const applyRecent = () => {
     if (busy || analysisLoading || error || !temporalColumn) return;
-    const relative = { column: temporalColumn, days: recentDays };
+    const relative = {
+      column: temporalColumn,
+      days: recentDays,
+      ...(dateDraft.timeZone ? { timeZone: dateDraft.timeZone } : {}),
+    };
     const range = resolveRelativePeriod(relative);
     setPeriodHistory([]);
     setRelativePeriod(relative);
@@ -626,7 +636,9 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
   };
   const period = dateRange
     ? `${dateRange.column}: ${
-        dateRange.precision === 'timestamp' ? timeRangeLabel(dateRange) : `${dateRange.start} ~ ${dateRange.end} (UTC)`
+        dateRange.precision === 'timestamp'
+          ? timeRangeLabel(dateRange)
+          : `${dateRange.start} ~ ${dateRange.end} (${dateRange.timeZone ?? 'UTC'})`
       }`
     : '전체 기간';
   return (
@@ -703,6 +715,34 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
           </Select>
         </FormControl>
       </Stack>
+      <FormControl size="small" sx={{ minWidth: 220, mb: 2 }}>
+        <InputLabel id="business-time-zone">업무 시간대</InputLabel>
+        <Select
+          labelId="business-time-zone"
+          label="업무 시간대"
+          value={dateDraft.timeZone ?? dateRange?.timeZone ?? 'UTC'}
+          disabled={busy || analysisLoading || editing || detailsOpen}
+          onChange={event => {
+            const timeZone = String(event.target.value);
+            setPeriodHistory([]);
+            setDateError('');
+            setDateDraft(value => ({ ...value, timeZone }));
+            if (relativePeriod) {
+              const relative = { ...relativePeriod, timeZone };
+              const range = resolveRelativePeriod(relative);
+              setRelativePeriod(relative);
+              setDateRange(range);
+              setDateDraft(range);
+            } else if (dateRange) setDateRange({ ...dateRange, timeZone });
+          }}
+        >
+          <MenuItem value="UTC">UTC</MenuItem>
+          <MenuItem value="Asia/Seoul">한국 (Asia/Seoul)</MenuItem>
+          {dateDraft.timeZone && !['UTC', 'Asia/Seoul'].includes(dateDraft.timeZone) && (
+            <MenuItem value={dateDraft.timeZone}>{dateDraft.timeZone}</MenuItem>
+          )}
+        </Select>
+      </FormControl>
       <Stack direction="row" aria-label="적용된 공통 필터" sx={{ flexWrap: 'wrap', gap: 1, mb: 1 }}>
         {active.flatMap(([column, values]) =>
           values.map(value => (
@@ -811,7 +851,7 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
               <Typography>{temporalColumn} (UTC)</Typography>
             )}
             <TextField
-              label="시작일 (UTC)"
+              label={`시작일 (${dateDraft.timeZone ?? 'UTC'})`}
               type="date"
               size="small"
               value={dateDraft.start}
@@ -824,7 +864,7 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
               }}
             />
             <TextField
-              label="종료일 (UTC)"
+              label={`종료일 (${dateDraft.timeZone ?? 'UTC'})`}
               type="date"
               size="small"
               value={dateDraft.end}
@@ -841,7 +881,7 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
             </Button>
             <TextField
               select
-              label="최근 기간 (UTC)"
+              label={`최근 기간 (${dateDraft.timeZone ?? 'UTC'})`}
               value={recentDays}
               disabled={busy}
               size="small"
@@ -885,8 +925,10 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
         </Box>
       </Stack>
       <Typography variant="body2" sx={{ mb: 2 }}>
-        주별은 UTC 월요일 시작, 월별은 UTC 달력의 월 기준입니다. 선택 범위에 걸친 주·월은 범위 안의 데이터만 집계합니다. 이전
-        기간은 적용된 기간 바로 앞의 같은 길이이며 동일한 필터로 조회합니다.
+        {dateRange?.timeZone && dateRange.timeZone !== 'UTC'
+          ? '업무 시간대는 KPI·원본 행·기간 비교에 적용됩니다. KPI 추이는 지역 달력의 일·주·월로 집계합니다. 주 시작은 월요일입니다. KPI 추이 시점을 선택해 기간을 좁히거나 해당 집계의 원본 행을 확인할 수 있습니다. 일반 라인 차트 재집계는 아직 지원하지 않습니다. 날짜 비교는 같은 달력 날짜 수를 사용합니다.'
+          : '주별은 UTC 월요일 시작, 월별은 UTC 달력의 월 기준입니다. 선택 범위에 걸친 주·월은 범위 안의 데이터만 집계합니다.'}{' '}
+        이전 기간은 적용된 기간 바로 앞의 같은 길이이며 동일한 필터로 조회합니다.
         {!dateRange && ' 이전 기간 비교는 날짜를 적용한 뒤 사용할 수 있습니다.'}
       </Typography>
       {preview?.comparison && (
@@ -894,7 +936,9 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
           {busy || error ? '이전 조회 결과의 비교 기간' : '이전 기간'}: {preview.comparison.previous.column} ·{' '}
           {preview.comparison.previous.precision === 'timestamp'
             ? timeRangeLabel(preview.comparison.previous)
-            : `${preview.comparison.previous.start} ~ ${preview.comparison.previous.end} (UTC)`}
+            : `${preview.comparison.previous.start} ~ ${preview.comparison.previous.end} (${
+                preview.comparison.previous.timeZone ?? 'UTC'
+              })`}
         </Typography>
       )}
       {dateError && (
@@ -1077,6 +1121,8 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
                   prefix={widget.prefix}
                   decimalPlaces={widget.decimalPlaces ?? 0}
                   comparison={widget.comparison}
+                  previousTrend={widget.previousTrend}
+                  periods={preview.comparison}
                   suffix={widget.suffix}
                   onTimeSelect={
                     selectableTime(widget.trend?.timeSelection, widget.trend?.points?.length, dateRange)
@@ -1105,7 +1151,9 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
                       이전 기간:{' '}
                       {preview.comparison.previous.precision === 'timestamp'
                         ? timeRangeLabel(preview.comparison.previous)
-                        : `${preview.comparison.previous.start} ~ ${preview.comparison.previous.end} (UTC)`}
+                        : `${preview.comparison.previous.start} ~ ${preview.comparison.previous.end} (${
+                            preview.comparison.previous.timeZone ?? 'UTC'
+                          })`}
                     </Typography>
                   )}
                   <MetricTrend

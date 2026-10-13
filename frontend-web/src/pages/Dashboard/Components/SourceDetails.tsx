@@ -15,7 +15,7 @@ import {
 } from '@mui/material';
 import { post } from '@/helpers/apiHelper';
 import type { DateRange, FilterValue, TrendGrain } from './PersonalSavedViews';
-import { validDay } from './PersonalSavedViews';
+import { validDay, validTimeZone } from './PersonalSavedViews';
 import { timeRangeLabel, validTimeRange } from './timeSelection';
 
 export type TrendPointContribution = {
@@ -76,7 +76,8 @@ export function validContributionDateRange(value: unknown): value is DateRange {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const range = value as DateRange;
   return (
-    Object.keys(range).every(key => ['column', 'start', 'end', 'precision'].includes(key)) &&
+    Object.keys(range).every(key => ['column', 'start', 'end', 'precision', 'timeZone'].includes(key)) &&
+    (range.timeZone === undefined || validTimeZone(range.timeZone)) &&
     typeof range.column === 'string' &&
     !!range.column.trim() &&
     range.column.length <= 128 &&
@@ -98,7 +99,8 @@ export function sameContributionDateRange(a: unknown, b: unknown) {
     a.column === b.column &&
     a.start === b.start &&
     a.end === b.end &&
-    a.precision === b.precision
+    a.precision === b.precision &&
+    (a.timeZone ?? 'UTC') === (b.timeZone ?? 'UTC')
   );
 }
 export function validPreviousContributionRange(current: unknown, previous: unknown) {
@@ -106,7 +108,8 @@ export function validPreviousContributionRange(current: unknown, previous: unkno
     !validContributionDateRange(current) ||
     !validContributionDateRange(previous) ||
     current.column !== previous.column ||
-    current.precision !== previous.precision
+    current.precision !== previous.precision ||
+    (current.timeZone ?? 'UTC') !== (previous.timeZone ?? 'UTC')
   )
     return false;
   const timestamp = current.precision === 'timestamp';
@@ -117,7 +120,9 @@ export function validPreviousContributionRange(current: unknown, previous: unkno
   return instant(previous.start) === start - duration && instant(previous.end) === start - (timestamp ? 0 : day);
 }
 const periodCaption = (range: DateRange) =>
-  `${range.column}: ${range.precision === 'timestamp' ? timeRangeLabel(range) : `${range.start} ~ ${range.end} (UTC)`}`;
+  `${range.column}: ${
+    range.precision === 'timestamp' ? timeRangeLabel(range) : `${range.start} ~ ${range.end} (${range.timeZone ?? 'UTC'})`
+  }`;
 export const validGroupFingerprint = (value: unknown): value is string =>
   typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
 export function validTrendPointContribution(value: unknown): value is TrendPointContribution {
@@ -398,7 +403,7 @@ export default function SourceDetails({
             ? `${dateRange.column}: ${
                 dateRange.precision === 'timestamp'
                   ? timeRangeLabel(dateRange)
-                  : `${dateRange.start} ~ ${dateRange.end} (UTC)`
+                  : `${dateRange.start} ~ ${dateRange.end} (${dateRange.timeZone ?? 'UTC'})`
               }`
             : '전체 기간'}{' '}
           ·{' '}

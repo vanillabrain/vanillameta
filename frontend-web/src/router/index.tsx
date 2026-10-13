@@ -26,6 +26,7 @@ const Share = React.lazy(() => import('@/pages/Share'));
 const Embed = React.lazy(() => import('@/pages/Share/Embed'));
 const Status404 = React.lazy(() => import('@/pages/Status404'));
 const Explore = React.lazy(() => import('@/pages/Explore'));
+const SourceExplore = React.lazy(() => import('@/pages/Explore/SourceExplore'));
 const Commerce = React.lazy(() => import('@/pages/Commerce'));
 
 function Router() {
@@ -58,6 +59,7 @@ function Router() {
           </Route>
 
           <Route path="/explore" element={<Explore />} />
+          <Route path="/explore/source" element={<SourceExplore />} />
           <Route path="/data" element={<Data />} />
           <Route path="/commerce" element={<Commerce />} />
           <Route path="/commerce/:projectId" element={<Commerce />} />

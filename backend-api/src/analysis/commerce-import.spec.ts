@@ -304,4 +304,39 @@ describe('DuckDB commerce bundle import', () => {
     expect(imported.validation.errorCount).toBe(173);
     expect(imported.validation.errors).toHaveLength(10);
   });
+  it('identifies missing columns without exposing source values or filenames', async () => {
+    const wrong = csv('private-customer.csv', 'secret_column\npassword=hidden\n');
+    const imported = await worker.importCommerce({
+      files: { orders: wrong, payments: wrong, refunds: wrong },
+    });
+    expect(imported.validation.valid).toBe(false);
+    expect(imported.validation.helpErrorCode).toBe('IMPORT_MISSING_COLUMNS');
+    expect(JSON.stringify(imported.validation)).not.toMatch(
+      /password|hidden|private-customer|secret_column/,
+    );
+    await expect(
+      worker.query(imported.filename, 'SELECT * FROM commerce_orders'),
+    ).rejects.toThrow();
+  });
+  it.each(['orders', 'payments', 'refunds'])(
+    'identifies an unreadable date in %s before publication',
+    async table => {
+      const files = Object.fromEntries(
+        ['orders', 'payments', 'refunds', 'customers'].map(key => {
+          let content = fs.readFileSync(
+            path.join(__dirname, '../commerce/samples', `${key}.csv`),
+            'utf8',
+          );
+          if (key === table) content = content.replace(/\d{4}-\d{2}-\d{2}T[0-9:]+Z/, 'not-a-date');
+          return [key, csv(`date-${table}-${key}.csv`, content)];
+        }),
+      );
+      const imported = await worker.importCommerce({ files: files as any });
+      expect(imported.validation.valid).toBe(false);
+      expect(imported.validation.helpErrorCode).toBe('IMPORT_INVALID_DATE');
+      await expect(
+        worker.query(imported.filename, 'SELECT * FROM commerce_orders'),
+      ).rejects.toThrow();
+    },
+  );
 });

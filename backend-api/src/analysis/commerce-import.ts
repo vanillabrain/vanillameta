@@ -20,6 +20,7 @@ export type CommerceImportResult = {
   errors: Array<{ code: string; rowId: string; detail: string }>;
   errorCount: number;
   sampleType: 'normal' | 'error';
+  helpErrorCode?: 'IMPORT_INVALID_DATE' | 'IMPORT_MISSING_COLUMNS';
   summary?: { salesMinor: number; refundMinor: number; orderCount: number };
 };
 
@@ -55,8 +56,7 @@ async function createSource(connection: DuckConnection, table: string, filename:
   const columns = await connection.runAndReadAll(`DESCRIBE _commerce_${table}_source`);
   const actual = new Set(columns.getRowObjects().map(row => String(row.column_name).toLowerCase()));
   const missing = requiredColumns[table].filter(column => !actual.has(column));
-  if (missing.length)
-    throw new Error(`${table} CSV is missing required columns: ${missing.join(', ')}`);
+  return missing;
 }
 
 /** Import three CSVs atomically into normalized commerce tables after bundle checks. */
@@ -65,12 +65,24 @@ export async function importCommerce(
   input: CommerceImportInput,
 ): Promise<CommerceImportResult> {
   const files = input.files;
-  await createSource(connection, 'orders', files.orders);
-  await createSource(connection, 'payments', files.payments);
-  await createSource(connection, 'refunds', files.refunds);
   const hasCustomers = Boolean(files.customers);
-  if (hasCustomers) {
-    await createSource(connection, 'customers', files.customers);
+  for (const table of ['orders', 'payments', 'refunds', ...(hasCustomers ? ['customers'] : [])]) {
+    const missing = await createSource(connection, table, files[table]);
+    if (missing.length)
+      return {
+        valid: false,
+        counts: { orders: 0, payments: 0, refunds: 0 },
+        errors: [
+          {
+            code: 'missing_required_columns',
+            rowId: '',
+            detail: 'Required CSV columns are missing.',
+          },
+        ],
+        errorCount: missing.length,
+        helpErrorCode: 'IMPORT_MISSING_COLUMNS',
+        sampleType: input.sampleType || 'normal',
+      };
   }
 
   const castColumns = [
@@ -209,7 +221,14 @@ export async function importCommerce(
   const rowCounts = counts.getRowObjects()[0];
 
   if (errorCount) {
+    const invalidDates = await connection.runAndReadAll(`SELECT
+      (SELECT count(*) FROM _commerce_orders WHERE ordered_at IS NULL) +
+      (SELECT count(*) FROM _commerce_payments WHERE paid_at IS NULL) +
+      (SELECT count(*) FROM _commerce_refunds WHERE refunded_at IS NULL) AS n`);
     return {
+      ...(Number(invalidDates.getRowObjects()[0].n) > 0
+        ? { helpErrorCode: 'IMPORT_INVALID_DATE' as const }
+        : {}),
       valid: false,
       counts: {
         orders: Number(rowCounts.orders),

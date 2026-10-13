@@ -56,7 +56,7 @@ describe('owned bundled commerce sample', () => {
       .mockRejectedValueOnce(new Error('temporary import failure'));
     const first = service.openSample(7);
     expect(service.openSample(7)).toBe(first);
-    await expect(first).rejects.toThrow('temporary import failure');
+    await expect(first).rejects.toThrow('샘플을 준비하지 못했습니다.');
     expect(fs.readdirSync(path.join(root, 'commerce-incoming'))).toEqual([]);
     sources.findOne.mockResolvedValue({ id: 20 });
     expect((await service.openSample(7)).data.projectId).toBe(20);

@@ -9,6 +9,7 @@ import {
   Put,
   Query,
   Req,
+  Res,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
@@ -35,6 +36,42 @@ export class CommerceController {
   @Post('sample')
   sample(@Req() req: any) {
     return this.commerce.openSample(this.actor(req));
+  }
+
+  @Post('sample-help')
+  async sampleHelp(@Body() body: any, @Req() req: any, @Res({ passthrough: true }) res) {
+    const abort = new AbortController();
+    const onAbort = () => abort.abort();
+    const onClose = () => {
+      if (!res.writableFinished) abort.abort();
+    };
+    req.once('aborted', onAbort);
+    res.once('close', onClose);
+    if (req.aborted) abort.abort();
+    try {
+      return await this.commerce.sampleHelp(this.actor(req), body, abort.signal);
+    } finally {
+      req.off('aborted', onAbort);
+      res.off('close', onClose);
+    }
+  }
+
+  @Post('import-help')
+  async importHelp(@Body() body: any, @Req() req: any, @Res({ passthrough: true }) res) {
+    const abort = new AbortController();
+    const onAbort = () => abort.abort();
+    const onClose = () => {
+      if (!res.writableFinished) abort.abort();
+    };
+    req.once('aborted', onAbort);
+    res.once('close', onClose);
+    if (req.aborted) abort.abort();
+    try {
+      return await this.commerce.importHelp(this.actor(req), body, abort.signal);
+    } finally {
+      req.off('aborted', onAbort);
+      res.off('close', onClose);
+    }
   }
 
   @Post('sources')

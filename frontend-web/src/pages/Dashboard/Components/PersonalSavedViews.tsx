@@ -12,11 +12,17 @@ import {
   Typography,
 } from '@mui/material';
 import { del, get, post } from '@/helpers/apiHelper';
-import { validTimeRange } from './timeSelection';
+import { validTimeRange, validTimeZone } from './timeSelection';
 
 export type FilterValue = string | number | boolean | null;
-export type DateRange = { column: string; start: string; end: string; precision?: 'timestamp' };
-export type RelativePeriod = { column: string; days: 7 | 30 | 90 };
+export type DateRange = {
+  column: string;
+  start: string;
+  end: string;
+  precision?: 'timestamp';
+  timeZone?: string;
+};
+export type RelativePeriod = { column: string; days: 7 | 30 | 90; timeZone?: string };
 export type TrendGrain = 'auto' | 'day' | 'week' | 'month';
 export type SavedViewState = {
   version: 1;
@@ -49,17 +55,54 @@ export const validDay = (day: string) =>
   !Number.isNaN(Date.parse(`${day}T00:00:00Z`)) &&
   new Date(`${day}T00:00:00Z`).toISOString().slice(0, 10) === day;
 
-/** Inclusive UTC calendar days, independent of the browser's local timezone. */
+/**
+ * Explicit IANA region names or UTC; never the host timezone. An omitted field keeps the legacy
+ * UTC behavior, so only a supplied value is validated.
+ */
+export { validTimeZone } from './timeSelection';
+
+/** Undefined keeps the legacy UTC default; any supplied field must be a real zone. */
+const optionalTimeZone = (value: unknown) => value === undefined || validTimeZone(value);
+const sameTimeZone = (a?: string | null, b?: string | null) => (a ?? 'UTC') === (b ?? 'UTC');
+
+/** Calendar date in the given zone (default UTC), independent of the browser's local timezone. */
+function calendarDate(now: Date, timeZone?: string): string {
+  if (timeZone === undefined || timeZone === 'UTC') return now.toISOString().slice(0, 10);
+  if (!validTimeZone(timeZone)) throw new Error('저장 보기의 기간·시간대 형식을 확인해 주세요.');
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      calendar: 'gregory',
+      numberingSystem: 'latn',
+      era: 'short',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    })
+      .formatToParts(now)
+      .map(part => [part.type, part.value]),
+  );
+  const year = parts.era === 'BC' ? 1 - Number(parts.year) : Number(parts.year);
+  return `${String(year).padStart(4, '0')}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')}`;
+}
+
+/** Inclusive calendar days resolved in the period's timezone, independent of the host. */
 export function resolveRelativePeriod(period: RelativePeriod, today = new Date()): DateRange {
-  const end = today.toISOString().slice(0, 10);
+  const end = calendarDate(today, period.timeZone);
   const start = new Date(`${end}T00:00:00Z`);
   start.setUTCDate(start.getUTCDate() - period.days + 1);
-  return { column: period.column, start: start.toISOString().slice(0, 10), end };
+  return {
+    column: period.column,
+    start: start.toISOString().slice(0, 10),
+    end,
+    ...(period.timeZone !== undefined ? { timeZone: period.timeZone } : {}),
+  };
 }
 
 const validColumn = (column: unknown) => typeof column === 'string' && !!column.trim();
 const validRange = (range: DateRange) =>
   range &&
+  optionalTimeZone(range.timeZone) &&
   (range.precision === 'timestamp'
     ? validTimeRange(range)
     : range.precision === undefined &&
@@ -93,7 +136,9 @@ function stateData(value: unknown): SavedViewState {
     new Set(state.filters.map(filter => filter.column)).size !== state.filters.length ||
     (state.dateRange !== null && !validRange(state.dateRange)) ||
     (state.relativePeriod !== null &&
-      (!validColumn(state.relativePeriod?.column) || ![7, 30, 90].includes(state.relativePeriod?.days))) ||
+      (!validColumn(state.relativePeriod?.column) ||
+        ![7, 30, 90].includes(state.relativePeriod?.days) ||
+        !optionalTimeZone(state.relativePeriod?.timeZone))) ||
     (state.dateRange !== null && state.relativePeriod !== null)
   ) {
     throw new Error('저장 보기의 조건을 확인할 수 없습니다. 다시 불러와 주세요.');
@@ -108,9 +153,16 @@ function stateData(value: unknown): SavedViewState {
           start: state.dateRange.start,
           end: state.dateRange.end,
           ...(state.dateRange.precision === 'timestamp' ? { precision: 'timestamp' as const } : {}),
+          ...(state.dateRange.timeZone !== undefined ? { timeZone: state.dateRange.timeZone } : {}),
         }
       : null,
-    relativePeriod: state.relativePeriod ? { column: state.relativePeriod.column, days: state.relativePeriod.days } : null,
+    relativePeriod: state.relativePeriod
+      ? {
+          column: state.relativePeriod.column,
+          days: state.relativePeriod.days,
+          ...(state.relativePeriod.timeZone !== undefined ? { timeZone: state.relativePeriod.timeZone } : {}),
+        }
+      : null,
     numberNotation: state.numberNotation,
     ...(state.trendGrain !== undefined ? { trendGrain: state.trendGrain } : {}),
     ...(state.comparePrevious !== undefined ? { comparePrevious: state.comparePrevious } : {}),
@@ -274,7 +326,10 @@ export default function PersonalSavedViews({
         const range = saved.state.relativePeriod ? saved.resolvedDateRange : saved.state.dateRange;
         if (
           saved.state.relativePeriod &&
-          (!validRange(range) || range.precision !== undefined || range.column !== saved.state.relativePeriod.column)
+          (!validRange(range) ||
+            range.precision !== undefined ||
+            range.column !== saved.state.relativePeriod.column ||
+            !sameTimeZone(range.timeZone, saved.state.relativePeriod.timeZone))
         )
           throw new Error('서버에서 상대 기간을 확인하지 못했습니다. 저장 보기를 다시 불러와 주세요.');
         latest.onApply(saved.state, range ?? null);

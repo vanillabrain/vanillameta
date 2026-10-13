@@ -77,3 +77,21 @@ it('does not enable categories from missing, mismatched or invalid metadata', ()
     expect(categoryTimeRange(rows, 'category', 'bucket', metadata)).toBeUndefined();
   }
 });
+it('preserves timezone identity while UTC timestamps remain absolute', () => {
+  expect(validTimeRange({ ...hour, timeZone: 'Asia/Seoul' })).toBe(true);
+  expect(validTimeRange({ ...hour, timeZone: 'KST' })).toBe(false);
+  expect(sameTimeRange(hour, { ...hour, timeZone: 'UTC' })).toBe(true);
+  expect(sameTimeRange(hour, { ...hour, timeZone: 'Asia/Seoul' })).toBe(false);
+});
+
+it('labels an absolute DST interval in its business timezone', () => {
+  expect(
+    timeRangeLabel({
+      column: 'date',
+      start: '2026-03-08T05:00:00Z',
+      end: '2026-03-09T04:00:00Z',
+      precision: 'timestamp',
+      timeZone: 'America/New_York',
+    }),
+  ).toBe('America/New_York 2026-03-08 00:00:00 ~ 2026-03-09 00:00:00 (종료 미포함)');
+});

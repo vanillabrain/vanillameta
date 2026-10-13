@@ -26,6 +26,7 @@ type ImportResult = {
   summary?: { salesMinor: number; refundMinor: number; orderCount: number };
   validation: {
     valid: boolean;
+    helpErrorCode?: 'IMPORT_INVALID_DATE' | 'IMPORT_MISSING_COLUMNS';
     errors: Array<{ code: string; rowId: string; detail: string }>;
     errorCount: number;
   };
@@ -49,6 +50,28 @@ const money = (minor: bigint): string => {
 @Injectable()
 export class CommerceService {
   private readonly sampleRequests = new Map<number, Promise<any>>();
+  private readonly importAttempts = new Map<number, symbol>();
+  // Single-server, short-lived context: no raw errors, paths, customer rows or credentials.
+  private readonly sampleFailures = new Map<
+    number,
+    {
+      requestId: string;
+      expiresAt: number;
+      pending: boolean;
+      explanation?: string;
+      errorCode?: string;
+    }
+  >();
+  private readonly importFailures = new Map<
+    number,
+    {
+      requestId: string;
+      expiresAt: number;
+      pending: boolean;
+      explanation?: string;
+      errorCode?: string;
+    }
+  >();
   constructor(
     @InjectRepository(CommerceSource) private readonly sources: Repository<CommerceSource>,
     @InjectRepository(CommerceRun) private readonly runs: Repository<CommerceRun>,
@@ -59,9 +82,132 @@ export class CommerceService {
   openSample(ownerId: number) {
     const pending = this.sampleRequests.get(ownerId);
     if (pending) return pending;
-    const request = this.installSample(ownerId).finally(() => this.sampleRequests.delete(ownerId));
+    this.sampleFailures.delete(ownerId);
+    const request = this.installSample(ownerId)
+      .catch(() => {
+        const now = Date.now();
+        for (const [owner, failure] of this.sampleFailures) {
+          if (failure.expiresAt <= now) this.sampleFailures.delete(owner);
+        }
+        if (this.sampleFailures.size >= 1000)
+          this.sampleFailures.delete(this.sampleFailures.keys().next().value);
+        const requestId = randomUUID();
+        this.sampleFailures.set(ownerId, { requestId, expiresAt: now + 600000, pending: false });
+        throw new ServiceUnavailableException({
+          message: '샘플을 준비하지 못했습니다. 다시 시도하거나 내 파일을 연결해 주세요.',
+          diagnostic: {
+            requestId,
+            errorCode: 'SAMPLE_UNAVAILABLE',
+            stage: 'sample-install',
+            version: 1,
+            target: 'commerce-sample',
+            dataHealth: 'unverified',
+          },
+        });
+      })
+      .finally(() => this.sampleRequests.delete(ownerId));
     this.sampleRequests.set(ownerId, request);
     return request;
+  }
+
+  sampleHelp(ownerId: number, body: any, signal?: AbortSignal) {
+    return this.errorHelp(ownerId, body, signal, false);
+  }
+
+  importHelp(ownerId: number, body: any, signal?: AbortSignal) {
+    return this.errorHelp(ownerId, body, signal, true);
+  }
+
+  private async errorHelp(
+    ownerId: number,
+    body: any,
+    signal: AbortSignal | undefined,
+    importing: boolean,
+  ) {
+    const failures = importing ? this.importFailures : this.sampleFailures;
+    if (
+      !body ||
+      typeof body !== 'object' ||
+      Array.isArray(body) ||
+      Object.keys(body).some(key => key !== 'requestId') ||
+      typeof body.requestId !== 'string' ||
+      !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(body.requestId)
+    )
+      throw new BadRequestException('오류 도움 요청을 확인해 주세요.');
+    const failure = failures.get(ownerId);
+    const current = () =>
+      failure &&
+      failure.requestId === body.requestId &&
+      failure.expiresAt > Date.now() &&
+      failures.get(ownerId) === failure;
+    if (!current())
+      throw new ConflictException('오류 상태가 바뀌었습니다. 샘플을 다시 시도해 주세요.');
+    const result = () => ({
+      status: ResponseStatus.SUCCESS,
+      data: {
+        requestId: failure.requestId,
+        explanation: failure.explanation,
+        actions: importing ? ['reselect-files'] : ['retry-sample', 'open-files'],
+        dataHealth: 'unverified',
+      },
+    });
+    if (signal?.aborted) throw new ServiceUnavailableException('오류 도움 요청이 중단됐습니다.');
+    if (failure.explanation) return result();
+    if (failure.pending) throw new ConflictException('오류 설명을 준비하고 있습니다.');
+    // This path never falls back to the API provider or a different model.
+    if (process.env.AI_PROVIDER !== 'codex')
+      throw new ServiceUnavailableException(
+        'AI 도움을 사용할 수 없습니다. 샘플 재시도와 파일 연결은 계속 사용할 수 있습니다.',
+      );
+    failure.pending = true;
+    try {
+      const raw = await this.ai.callLlm(
+        '한국어로 데이터 준비 실패를 설명하세요. 제공된 사실만 사용하세요. 정확한 원인은 확인되지 않았습니다. 가능한 원인은 추정이라고 표시하세요. 복구됐다고 말하지 마세요. 허용 동작은 제공된 allowedActions뿐입니다. reselect-files는 날짜/필수 컬럼 형식을 확인하고 수정된 CSV를 다시 선택하는 동작입니다. retry-sample은 샘플 다시 시도, open-files는 내 파일 연결입니다. SQL, 명령, 파일 경로, URL, 설정 변경을 제안하지 마세요. 내부 action 코드 자체는 설명에 출력하지 말고 사용자에게 자연스러운 한국어로 안내하세요. JSON {"explanation":"최대 1000자 설명"}만 반환하세요.',
+        JSON.stringify({
+          errorCode: importing ? failure.errorCode : 'SAMPLE_UNAVAILABLE',
+          stage: importing ? 'commerce-import' : 'sample-install',
+          version: 1,
+          target: importing ? 'commerce-bundle' : 'commerce-sample',
+          facts: importing
+            ? [
+                failure.errorCode === 'IMPORT_INVALID_DATE'
+                  ? '날짜 값을 읽을 수 없어 CSV 검증이 거부됐습니다. 날짜 예시는 2025-01-02T09:00:00Z입니다.'
+                  : '정해진 필수 컬럼이 누락되어 CSV 검증이 거부됐습니다. 주문·결제·환불 CSV의 필수 컬럼 안내를 확인하세요.',
+                '정상 보고서는 새 파일로 교체되지 않았습니다. 수정된 CSV를 다시 선택하고 검증해야 합니다.',
+              ]
+            : [
+                '고정 매출·환불 샘플 준비 요청이 실패했습니다.',
+                '원인은 확인되지 않았습니다.',
+                '정상 데이터 조회는 아직 확인되지 않았습니다.',
+              ],
+          allowedActions: importing ? ['reselect-files'] : ['retry-sample', 'open-files'],
+        }),
+        true,
+        signal,
+      );
+      if (!current())
+        throw new ConflictException('오류 상태가 바뀌었습니다. 샘플을 다시 시도해 주세요.');
+      if (signal?.aborted) throw new Error('aborted');
+      if (typeof raw !== 'string' || raw.length > 4096) throw new Error('invalid help');
+      const parsed = JSON.parse(raw);
+      if (
+        !parsed ||
+        typeof parsed.explanation !== 'string' ||
+        !parsed.explanation.trim() ||
+        parsed.explanation.length > 1000 ||
+        Object.keys(parsed).some(key => key !== 'explanation')
+      )
+        throw new Error('invalid help');
+      failure.explanation = parsed.explanation.trim();
+      return result();
+    } catch (error) {
+      if (error instanceof ConflictException) throw error;
+      throw new ServiceUnavailableException(
+        'AI 설명을 준비하지 못했습니다. 샘플 재시도와 파일 연결은 계속 사용할 수 있습니다.',
+      );
+    } finally {
+      failure.pending = false;
+    }
   }
 
   private async installSample(ownerId: number) {
@@ -177,9 +323,13 @@ export class CommerceService {
     files: Record<string, Uploaded[]>,
     sampleType: 'normal' | 'error' = 'normal',
   ) {
+    const attempt = Symbol('import');
+    this.importAttempts.set(ownerId, attempt);
     try {
-      return await this.importBundleOwned(ownerId, sourceId, files, sampleType);
+      this.importFailures.delete(ownerId);
+      return await this.importBundleOwned(ownerId, sourceId, files, sampleType, attempt);
     } finally {
+      if (this.importAttempts.get(ownerId) === attempt) this.importAttempts.delete(ownerId);
       await this.cleanupUploads(files || {});
     }
   }
@@ -189,6 +339,7 @@ export class CommerceService {
     sourceId: number,
     files: Record<string, Uploaded[]>,
     sampleType: 'normal' | 'error',
+    attempt: symbol,
   ) {
     const source = await this.owned(ownerId, sourceId);
     if (!['normal', 'error'].includes(sampleType))
@@ -223,7 +374,36 @@ export class CommerceService {
             validation: result.validation,
           }),
         });
+        const code = result.validation.helpErrorCode;
+        let diagnostic;
+        if (
+          this.importAttempts.get(ownerId) === attempt &&
+          (code === 'IMPORT_INVALID_DATE' || code === 'IMPORT_MISSING_COLUMNS')
+        ) {
+          const now = Date.now();
+          for (const [owner, failure] of this.importFailures) {
+            if (failure.expiresAt <= now) this.importFailures.delete(owner);
+          }
+          if (this.importFailures.size >= 1000)
+            this.importFailures.delete(this.importFailures.keys().next().value);
+          const requestId = randomUUID();
+          this.importFailures.set(ownerId, {
+            requestId,
+            expiresAt: now + 600000,
+            pending: false,
+            errorCode: code,
+          });
+          diagnostic = {
+            requestId,
+            errorCode: code,
+            stage: 'commerce-import',
+            version: 1,
+            target: 'commerce-bundle',
+            dataHealth: 'unverified',
+          };
+        }
         throw new BadRequestException({
+          ...(diagnostic ? { diagnostic } : {}),
           message: 'Commerce bundle failed validation; no report was published.',
           runId: run.id,
           state: 'rejected',

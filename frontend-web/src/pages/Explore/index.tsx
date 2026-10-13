@@ -275,9 +275,14 @@ export default function Explore() {
         '& .MuiInputBase-root': { minHeight: 44 },
       }}
     >
-      <Typography component="h1" variant="h4" sx={{ mb: 1 }}>
-        SQL 없이 차트 만들기
-      </Typography>
+      <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" sx={{ flexWrap: 'wrap', mb: 1 }}>
+        <Typography component="h1" variant="h4">
+          SQL 없이 차트 만들기
+        </Typography>
+        <Button onClick={() => navigate(`/explore/source${sourceId ? `?sourceId=${encodeURIComponent(sourceId)}` : ''}`)}>
+          지표 탐색
+        </Button>
+      </Stack>
       <Typography color="text.secondary" sx={{ mb: 3 }}>
         저장된 파일의 열을 선택해 지표와 차트를 만들고 대시보드에 저장하세요.
       </Typography>

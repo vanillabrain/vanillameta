@@ -28,7 +28,7 @@ import {
   resolveTimeChartBucket,
 } from './dashboard-trend';
 import { buildTimeSelection } from './dashboard-time-selection';
-import { utcInstant } from './dashboard-date-range';
+import { businessDate, dateRangeBounds, isoSecond, utcInstant } from './dashboard-date-range';
 import {
   compileContribution,
   CONTRIBUTION_GROUP_LIMIT,
@@ -259,7 +259,7 @@ export class AiDashboardService {
       period: body.dateRange
         ? body.dateRange.precision === 'timestamp'
           ? 'selected UTC timestamps [start, end)'
-          : 'selected UTC dates (inclusive)'
+          : `selected ${body.dateRange.timeZone ?? 'UTC'} dates (inclusive)`
         : 'all time',
       dateRange: body.dateRange
         ? {
@@ -267,6 +267,7 @@ export class AiDashboardService {
             start: body.dateRange.start,
             end: body.dateRange.end,
             ...(body.dateRange.precision === 'timestamp' ? { precision: 'timestamp' } : {}),
+            ...(body.dateRange.timeZone !== undefined ? { timeZone: body.dateRange.timeZone } : {}),
           }
         : null,
       filters: (body.filters || []).map((filter: any) => ({
@@ -656,16 +657,23 @@ export class AiDashboardService {
       );
       stats = result.datas[0];
     }
-    const grain =
+    let grain =
       trendGrain === 'auto'
         ? chooseTrendGrain(dateRange?.start ?? stats?.min, dateRange?.end ?? stats?.max)
         : trendGrain;
+    if (dateRange?.timeZone && dateRange.timeZone !== 'UTC' && grain === 'hour') grain = 'day';
     const query = buildTrendQuery(
       definition.sql,
       definition.valueField,
       column,
       grain,
       schema.map(item => item.column_name),
+      dateRange?.timeZone
+        ? {
+            timeZone: dateRange.timeZone,
+            columnType: temporal.find(item => item.column_name === column).column_type,
+          }
+        : undefined,
     );
     return query ? { ...query, column, grain } : undefined;
   }
@@ -680,6 +688,14 @@ export class AiDashboardService {
   ) {
     const input = body.contribution;
     const definition = validateDraft(saved).widgets[input.widgetIndex];
+    if (
+      body.dateRange?.timeZone &&
+      body.dateRange.timeZone !== 'UTC' &&
+      definition.type === 'CHART_LINE'
+    )
+      throw new UnprocessableEntityException(
+        '업무 시간대 차트 집계 입력 행 조회는 아직 지원하지 않습니다.',
+      );
     const columns = schema.map(column => column.column_name);
     const temporal = schema
       .filter(column => /^(DATE|TIMESTAMP)/i.test(column.column_type))
@@ -713,7 +729,11 @@ export class AiDashboardService {
           valueField: trend.valueAlias,
         }
       : definition;
-    const plan = compileContribution({ ...groupedDefinition, sql: effective.sql }, schema);
+    const regionalPoint = !!(trendPoint && dateRange?.timeZone && dateRange.timeZone !== 'UTC');
+    const plan = compileContribution(
+      regionalPoint ? definition : { ...groupedDefinition, sql: effective.sql },
+      schema,
+    );
     if (
       input.period === 'previous' &&
       definition.type === 'CHART_LINE' &&
@@ -744,7 +764,53 @@ export class AiDashboardService {
     const selectedCategory = trendPoint ? trendPoint.time : input.category;
     let groups: any[] = [];
     let groupFingerprint: string | undefined;
-    if (plan.categoryExpression) {
+    let regionalCondition = '';
+    let regionalBindings: string[] = [];
+    if (regionalPoint) {
+      const times = current.datas.map(row =>
+        isoSecond(
+          dateRangeBounds({
+            column: dateColumn,
+            start: row[trend.timeField],
+            end: row[trend.timeField],
+            timeZone: dateRange.timeZone,
+          }).start,
+        ),
+      );
+      if (
+        contributionGroupFingerprint(times) !== trendPoint.groupFingerprint ||
+        !times.includes(trendPoint.time)
+      )
+        throw new ConflictException(
+          '표시 그룹이 변경되었습니다. 새로고침한 뒤 다시 선택해 주세요.',
+        );
+      const civilStart = businessDate(
+        new Date(utcInstant(trendPoint.time, true)),
+        dateRange.timeZone,
+      );
+      const calendar = new Date(`${civilStart}T00:00:00Z`);
+      if (trend.grain === 'month') calendar.setUTCMonth(calendar.getUTCMonth() + 1);
+      else calendar.setUTCDate(calendar.getUTCDate() + (trend.grain === 'week' ? 7 : 1));
+      calendar.setUTCDate(calendar.getUTCDate() - 1);
+      const civilEnd = calendar.toISOString().slice(0, 10);
+      const bounds = dateRangeBounds({
+        column: dateColumn,
+        start: civilStart,
+        end: civilEnd,
+        timeZone: dateRange.timeZone,
+      });
+      const name = quoteColumn(dateColumn);
+      if (
+        schema.find(column => column.column_name === dateColumn)?.column_type.toUpperCase() ===
+        'DATE'
+      ) {
+        regionalCondition = ` AND (${name} >= CAST(? AS DATE) AND ${name} <= CAST(? AS DATE))`;
+        regionalBindings = [civilStart, civilEnd];
+      } else {
+        regionalCondition = ` AND (CAST(${name} AS TIMESTAMPTZ) >= CAST(? AS TIMESTAMPTZ) AND CAST(${name} AS TIMESTAMPTZ) < CAST(? AS TIMESTAMPTZ))`;
+        regionalBindings = [isoSecond(bounds.start), isoSecond(bounds.end)];
+      }
+    } else if (plan.categoryExpression) {
       groups = current.datas.map(row => row[groupedDefinition.categoryField]);
       groupFingerprint = contributionGroupFingerprint(groups);
       if (!groupFingerprint) throw new UnprocessableEntityException(CONTRIBUTION_UNAVAILABLE);
@@ -766,7 +832,7 @@ export class AiDashboardService {
     } else if (selected || current.datas.length !== 1) {
       throw new BadRequestException('invalid numeric contribution selection');
     }
-    const groupBindings: any[] = [];
+    const groupBindings: any[] = [...regionalBindings];
     const groupPredicates = plan.categoryExpression
       ? groups.map(value => {
           if (value === null) return `(${plan.categoryExpression}) IS NULL`;
@@ -781,7 +847,7 @@ export class AiDashboardService {
       : [];
     const groupCondition = plan.categoryExpression
       ? ` AND (${groupPredicates.join(' OR ') || 'FALSE'})`
-      : '';
+      : regionalCondition;
     const where = `${plan.where ? `(${plan.where}) AND ` : ''}(${plan.eligibility.join(' OR ')})`;
     const countQuery = query(
       `SELECT CAST(count(*) AS VARCHAR) AS total FROM source WHERE ${where}`,
@@ -901,6 +967,11 @@ export class AiDashboardService {
         throw new BadRequestException('chart categoryField missing');
       }
       const widget: any = { ...definition, fields: result.fields, datas: result.datas };
+      const businessZone = body.dateRange?.timeZone && body.dateRange.timeZone !== 'UTC';
+      if (businessZone && definition.type === 'CHART_LINE') {
+        widget.datas = [];
+        widget.grainUnavailable = '업무 시간대의 일·주·월 차트 집계는 아직 지원하지 않습니다.';
+      }
       if (definition.type !== 'BOARD_NUMERIC') {
         const dimensionColumn = resolveDimensionColumn(
           definition.sql,
@@ -910,7 +981,7 @@ export class AiDashboardService {
         );
         if (dimensionColumn) widget.dimensionColumn = dimensionColumn;
       }
-      if (trendGrain !== 'auto' && definition.type === 'CHART_LINE') {
+      if (!businessZone && trendGrain !== 'auto' && definition.type === 'CHART_LINE') {
         if (!regroup)
           widget.grainUnavailable =
             '이 차트의 SQL은 선택한 시간 단위로 안전하게 집계할 수 없습니다. 원래 집계를 표시합니다.';
@@ -988,7 +1059,11 @@ export class AiDashboardService {
           widget.previousUnavailable =
             '이전 기간 집계가 240개 시점을 초과합니다. 기간을 줄이거나 더 큰 단위를 선택해 주세요.';
         } else widget.previousDatas = prior.datas;
-        if (definition.type === 'CHART_LINE') {
+        if (businessZone && definition.type === 'CHART_LINE') {
+          widget.previousDatas = [];
+          widget.previousUnavailable = widget.grainUnavailable;
+        }
+        if (definition.type === 'CHART_LINE' && !businessZone) {
           const bucket = resolveTimeChartBucket(
             widgetSql,
             definition.valueField,
@@ -1115,28 +1190,44 @@ export class AiDashboardService {
             widget[period.key] = {
               column: dateColumn,
               grain: trendSql.grain,
+              ...(period.range?.timeZone ? { timeZone: period.range.timeZone } : {}),
               points: result.datas.map((row: any) => {
                 const rawValue = row[trendSql.valueAlias];
                 const value = rawValue === null ? null : Number(rawValue);
                 return {
-                  time: row[trendSql.timeField],
+                  time:
+                    period.range?.timeZone && period.range.timeZone !== 'UTC'
+                      ? isoSecond(
+                          dateRangeBounds({
+                            column: dateColumn,
+                            start: row[trendSql.timeField],
+                            end: row[trendSql.timeField],
+                            timeZone: period.range.timeZone,
+                          }).start,
+                        )
+                      : row[trendSql.timeField],
                   value: value !== null && Number.isFinite(value) ? value : null,
                 };
               }),
             };
+            const regional = !!(period.range?.timeZone && period.range.timeZone !== 'UTC');
+            const pointTimes = widget[period.key].points.map((point: any) => point.time);
+            // Regional buckets group civil labels, so the grouped SQL projects AT TIME ZONE and is
+            // not a contribution expression. Prove row eligibility from the plain aggregate the
+            // widget actually ran; the per-point bucket scope is applied as a date predicate later.
             const plan = compileContribution(
-              {
-                ...widget,
-                type: 'CHART_LINE',
-                sql: trendSql.sql,
-                categoryField: trendSql.timeField,
-                valueField: trendSql.valueAlias,
-              },
+              regional
+                ? { ...widget, sql: widget.sql, type: 'BOARD_NUMERIC' as const }
+                : {
+                    ...widget,
+                    type: 'CHART_LINE',
+                    sql: trendSql.sql,
+                    categoryField: trendSql.timeField,
+                    valueField: trendSql.valueAlias,
+                  },
               schema,
             );
-            const fingerprint = contributionGroupFingerprint(
-              widget[period.key].points.map(point => point.time),
-            );
+            const fingerprint = contributionGroupFingerprint(pointTimes);
             widget[period.key].contribution =
               plan.supported && fingerprint
                 ? { supported: true, groupFingerprint: fingerprint }
@@ -1144,11 +1235,22 @@ export class AiDashboardService {
                     supported: false,
                     reason: 'reason' in plan ? plan.reason : CONTRIBUTION_UNAVAILABLE,
                   };
-            widget[period.key].timeSelection = buildTimeSelection(
-              widget[period.key].points.map(point => point.time),
-              { column: dateColumn, grain: trendSql.grain, format: 'timestamp' },
-              period.range,
+            const civilColumn = /^DATE$/i.test(
+              schema.find(column => column.column_name === dateColumn)?.column_type ?? '',
             );
+            if (regional && civilColumn) {
+              // sourceQuery only treats DATE as civil when precision is absent, so zone-shifted
+              // canonical instants cannot scope a civil DATE column yet. The contributor query
+              // maps the canonical instant back to civil bounds instead.
+              widget[period.key].timeSelectionUnavailable =
+                '업무 시간대 날짜(DATE) 열의 추이 시점 선택은 아직 지원하지 않습니다.';
+            } else {
+              widget[period.key].timeSelection = buildTimeSelection(
+                pointTimes,
+                { column: dateColumn, grain: trendSql.grain, format: 'timestamp' },
+                period.range,
+              );
+            }
           } catch (_error) {
             widget[period.unavailable] = 'Trend query is unavailable for this widget.';
           }

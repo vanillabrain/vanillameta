@@ -182,6 +182,33 @@ describe('Codex coding agent', () => {
     expect(children[0].kill).toHaveBeenCalledWith('SIGKILL');
   });
 
+  it.each(['abort', 'timeout'])(
+    'handles %s winning a deadline race and permits recovery',
+    async winner => {
+      process.env.AI_TIMEOUT_MS = '10';
+      const controller = new AbortController();
+      behavior = async child => {
+        child.kill.mockImplementation(() => {
+          // Timeout and HTTP disconnect may arrive before the child has closed.
+          controller.abort();
+          setTimeout(() => child.emit('close', null, 'SIGKILL'), 30);
+          return true;
+        });
+        if (winner === 'abort') controller.abort();
+      };
+      await expect(callCodingAgent('schema', 'race', false, controller.signal)).rejects.toThrow(
+        winner === 'abort' ? 'LLM_REQUEST_ABORTED' : 'LLM_CODEX_TIMEOUT',
+      );
+      expect(children[0].kill).toHaveBeenCalledTimes(1);
+      process.env.AI_TIMEOUT_MS = '1000';
+      behavior = async (child, outputPath) => {
+        await writeFile(outputPath, 'recovered');
+        child.emit('close', 0, null);
+      };
+      expect(await callCodingAgent('schema', 'retry')).toBe('recovered');
+    },
+  );
+
   it('rejects an already-aborted request without spawning', async () => {
     const controller = new AbortController();
     controller.abort();
@@ -209,10 +236,10 @@ describe('Codex coding agent', () => {
       while (children.length < 2) await new Promise(resolve => setImmediate(resolve));
       // Temporary-directory creation can resolve in either order. Identify the
       // aborted request by its prompt, never by the order spawn was called.
-      while (children.some(child => !child.prompt))
+      while (children.some(child => !child.prompt || !child.pid))
         await new Promise(resolve => setImmediate(resolve));
-      const abortedIndex = children.findIndex(child => child.prompt.includes('question'));
-      const occupyingIndex = children.findIndex(child => child.prompt.includes('occupy'));
+      const abortedIndex = children.findIndex(child => child.prompt.endsWith('\n\nquestion'));
+      const occupyingIndex = children.findIndex(child => child.prompt.endsWith('\n\noccupy'));
       expect(abortedIndex).toBeGreaterThanOrEqual(0);
       expect(occupyingIndex).toBeGreaterThanOrEqual(0);
       controller.abort();

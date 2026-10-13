@@ -274,7 +274,7 @@ describe('dashboard layout, membership and private-owner regressions', () => {
   });
 
   it('controller private GET carries the requester and writes/deletes reject before mutations', async () => {
-    const controller = new DashboardController(service, {} as any);
+    const controller = new DashboardController(service, {} as any, {} as any);
     const req = { user: { accessKeyData: { id: 8 } } };
     mappings.findOne.mockResolvedValue(null);
     await expect(controller.findOne('17', req)).rejects.toBeInstanceOf(ForbiddenException);

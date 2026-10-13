@@ -1,4 +1,5 @@
 import { quoteColumn, validateSourceSql } from './dashboard-draft';
+import { validateBusinessTimeZone } from './dashboard-date-range';
 
 export type TrendGrain = 'hour' | 'day' | 'week' | 'month';
 
@@ -58,12 +59,22 @@ function timeQuery(
   grain: TrendGrain,
   timeField: string,
   valueAlias: string,
+  business?: { timeZone: string; columnType: string },
 ) {
-  const bucket = `date_trunc('${grain}', ${quoteColumn(dateColumn)})`;
+  const zone = business ? validateBusinessTimeZone(business.timeZone) : 'UTC';
+  const regional = zone !== 'UTC';
+  const civil = business?.columnType.toUpperCase() === 'DATE';
+  const local =
+    regional && !civil
+      ? `(CAST(${quoteColumn(dateColumn)} AS TIMESTAMPTZ) AT TIME ZONE '${zone}')`
+      : quoteColumn(dateColumn);
+  const bucket = `date_trunc('${grain}', ${local})`;
   return {
-    sql: `SELECT strftime(${bucket}, '%Y-%m-%dT%H:%M:%SZ') AS ${quoteColumn(
-      timeField,
-    )}, ${expression} AS ${quoteColumn(valueAlias)} FROM source${
+    // Regional queries return civil labels; the service resolves canonical day boundaries.
+    // Avoid SQL's ambiguous/skipped-midnight choice disagreeing with dateRangeBounds.
+    sql: `SELECT strftime(${bucket}, '${
+      regional ? '%Y-%m-%d' : '%Y-%m-%dT%H:%M:%SZ'
+    }') AS ${quoteColumn(timeField)}, ${expression} AS ${quoteColumn(valueAlias)} FROM source${
       where ? ` ${where}` : ''
     } GROUP BY ${bucket} ORDER BY ${bucket} LIMIT 241`,
     timeField,
@@ -78,8 +89,11 @@ export function buildTrendQuery(
   dateColumn: string,
   grain: TrendGrain,
   reservedNames: string[] = [],
+  business?: { timeZone: string; columnType: string },
 ): { sql: string; timeField: string; valueAlias: string } | undefined {
   if (!['hour', 'day', 'week', 'month'].includes(grain)) return undefined;
+  if (business?.timeZone !== undefined && business.timeZone !== 'UTC' && grain === 'hour')
+    return undefined;
   const tokens = sql.match(/'(?:''|[^'])*'|"(?:""|[^"])*"|[A-Za-z_][A-Za-z_0-9]*|\s+|./g) || [];
   if (tokens.join('') !== sql) return undefined;
   let offset = 0;
@@ -135,7 +149,7 @@ export function buildTrendQuery(
   const timeField = unique('__trend_time');
   const valueAlias = unique('__trend_value');
   const where = tail.length ? sql.slice(tail[0].index).trim() : '';
-  return timeQuery(expression, where, dateColumn, grain, timeField, valueAlias);
+  return timeQuery(expression, where, dateColumn, grain, timeField, valueAlias, business);
 }
 
 /** Rebucket a chart only when its two projections prove one date and one aggregate. */

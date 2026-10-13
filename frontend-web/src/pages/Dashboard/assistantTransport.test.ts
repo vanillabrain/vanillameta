@@ -59,7 +59,15 @@ it('publishes an edit only after server preview validation and forwards current 
   expect(api.post).toHaveBeenNthCalledWith(
     2,
     '/ai/dashboard-preview',
-    { draft, dashboardId: 9, filters: context.filters, dateRange: context.dateRange, includeTrends: true },
+    {
+      draft,
+      dashboardId: 9,
+      filters: context.filters,
+      dateRange: context.dateRange,
+      includeTrends: true,
+      trendGrain: 'auto',
+      comparePrevious: false,
+    },
     { timeout: 180000, signal },
   );
   expect(result[0]).toMatchObject({

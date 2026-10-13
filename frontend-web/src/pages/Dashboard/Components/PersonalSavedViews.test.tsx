@@ -1,7 +1,7 @@
 import React from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import PersonalSavedViews, { DateRange, resolveRelativePeriod, SavedViewState } from './PersonalSavedViews';
+import PersonalSavedViews, { DateRange, resolveRelativePeriod, SavedViewState, validTimeZone } from './PersonalSavedViews';
 import DashboardAnalysis from './DashboardAnalysis';
 
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), del: vi.fn(), apply: vi.fn() }));
@@ -847,4 +847,107 @@ it('time bucket applied saved hour keeps date inputs usable and preserves precis
   choose('시작일 (UTC)', '2026-01-10');
   expect(disabled('현재 보기 저장')).toBe(true);
   expect(disabled('보기 1 보기 불러오기')).toBe(true);
+});
+
+it('accepts UTC and real region names while rejecting malformed or unknown zones', () => {
+  expect(validTimeZone('UTC')).toBe(true);
+  expect(validTimeZone('Asia/Seoul')).toBe(true);
+  expect(validTimeZone('America/Argentina/Buenos_Aires')).toBe(true);
+  expect(validTimeZone('invalid')).toBe(false);
+  expect(validTimeZone('Invalid/Zone')).toBe(false);
+  expect(validTimeZone('')).toBe(false);
+  expect(validTimeZone(undefined)).toBe(false);
+});
+
+it('treats an omitted relative timezone as the legacy UTC default', () => {
+  const instant = new Date('2024-03-01T15:30:00Z');
+  expect(resolveRelativePeriod({ column: 'created_at', days: 30 }, instant)).toEqual({
+    ...resolveRelativePeriod({ column: 'created_at', days: 30, timeZone: 'UTC' }, instant),
+    timeZone: undefined,
+  });
+});
+
+it.each([
+  ['Asia/Seoul', '2024-03-01T15:30:00Z', '2024-02-25', '2024-03-02'],
+  ['America/New_York', '2024-03-01T04:30:00Z', '2024-02-23', '2024-02-29'],
+  ['UTC', '2024-03-01T15:30:00Z', '2024-02-24', '2024-03-01'],
+] as const)('resolves inclusive days in the %s calendar independent of the host', (timeZone, instant, start, end) => {
+  expect(resolveRelativePeriod({ column: 'created_at', days: 7, timeZone }, new Date(instant))).toEqual({
+    column: 'created_at',
+    start,
+    end,
+    timeZone,
+  });
+});
+
+it('preserves the date range timezone through the save whitelist without leaking extra keys', async () => {
+  const selected: SavedViewState = {
+    ...state(),
+    dateRange: { column: 'created_at', start: '2026-01-01', end: '2026-01-31', timeZone: 'Asia/Seoul' },
+    numberNotation: 'full',
+  };
+  await mount({
+    state: { ...selected, dateRange: { ...selected.dateRange, rawRows: [1], sql: 'private', credentials: 'x' } },
+  });
+  nameView();
+  fireEvent.click(button('현재 보기 저장'));
+  await screen.findByRole('button', { name: '보기 2 보기 불러오기' });
+  expect(api.post.mock.calls[0][1]).toEqual({ name: '내 조건', state: selected, revision });
+});
+
+it('preserves the relative period timezone through the save whitelist', async () => {
+  const selected: SavedViewState = {
+    ...state(),
+    relativePeriod: { column: 'created_at', days: 30, timeZone: 'America/New_York' },
+    trendGrain: 'week',
+    comparePrevious: true,
+  };
+  await mount({
+    state: { ...selected, relativePeriod: { ...selected.relativePeriod, rows: [42], sql: 'private' } },
+  });
+  nameView();
+  fireEvent.click(button('현재 보기 저장'));
+  await screen.findByRole('button', { name: '보기 2 보기 불러오기' });
+  expect(api.post.mock.calls[0][1]).toEqual({ name: '내 조건', state: selected, revision });
+});
+
+it.each([
+  { dateRange: { column: 'created_at', start: '2026-01-01', end: '2026-01-31', timeZone: 'Invalid/Zone' } },
+  { dateRange: { column: 'created_at', start: '2026-01-01', end: '2026-01-31', timeZone: 'Asia Seoul' } },
+  { relativePeriod: { column: 'created_at', days: 7 as const, timeZone: 'GMT+9' } },
+])('rejects a saved state with a malformed timezone before applying: %j', async over => {
+  await mount();
+  api.get.mockResolvedValueOnce(success(row(1, { ...state(), ...over } as SavedViewState)));
+  fireEvent.click(button('보기 1 보기 불러오기'));
+  await screen.findByText('저장 보기의 조건을 확인할 수 없습니다. 다시 불러와 주세요.');
+  expect(api.apply).not.toHaveBeenCalled();
+});
+
+it.each([
+  { column: 'created_at', start: '2026-09-14', end: '2026-10-13' },
+  { column: 'created_at', start: '2026-09-14', end: '2026-10-13', timeZone: 'UTC' },
+  { column: 'created_at', start: '2026-09-14', end: '2026-10-13', timeZone: 'America/New_York' },
+])('refuses a relative view whose resolved range timezone does not match the saved period: %j', async resolved => {
+  await mount();
+  const relative = {
+    ...state(),
+    relativePeriod: { column: 'created_at', days: 30 as const, timeZone: 'Asia/Seoul' },
+  };
+  api.get.mockResolvedValueOnce(success({ ...row(1, relative), resolvedDateRange: resolved }));
+  fireEvent.click(button('보기 1 보기 불러오기'));
+  await screen.findByText('서버에서 상대 기간을 확인하지 못했습니다. 저장 보기를 다시 불러와 주세요.');
+  expect(api.apply).not.toHaveBeenCalled();
+});
+
+it('applies a relative view when the resolved range carries the matching timezone', async () => {
+  await mount();
+  const relative = {
+    ...state(),
+    relativePeriod: { column: 'created_at', days: 30 as const, timeZone: 'Asia/Seoul' },
+  };
+  const resolved = { column: 'created_at', start: '2026-09-14', end: '2026-10-13', timeZone: 'Asia/Seoul' };
+  api.get.mockResolvedValueOnce(success({ ...row(1, relative), resolvedDateRange: resolved }));
+  fireEvent.click(button('보기 1 보기 불러오기'));
+  await screen.findByText('보기 1 보기를 적용했습니다.');
+  expect(api.apply).toHaveBeenCalledWith(relative, resolved);
 });

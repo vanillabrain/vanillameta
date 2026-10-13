@@ -22,7 +22,12 @@ export type AnalysisCommerceImport = {
   filename: string;
   rows: Record<string, number>;
   summary?: CommerceImportResult['summary'];
-  validation: { valid: boolean; errors: CommerceImportResult['errors']; errorCount: number };
+  validation: {
+    valid: boolean;
+    errors: CommerceImportResult['errors'];
+    errorCount: number;
+    helpErrorCode?: CommerceImportResult['helpErrorCode'];
+  };
   sampleType: CommerceImportResult['sampleType'];
 };
 const positive = (value: string, fallback: number) => {
@@ -211,7 +216,12 @@ export class DuckDBService implements OnModuleDestroy {
         filename,
         rows: result.counts,
         summary: result.summary,
-        validation: { valid: result.valid, errors: result.errors, errorCount: result.errorCount },
+        validation: {
+          valid: result.valid,
+          errors: result.errors,
+          errorCount: result.errorCount,
+          ...(result.helpErrorCode ? { helpErrorCode: result.helpErrorCode } : {}),
+        },
         sampleType: result.sampleType,
       };
     } catch (error) {

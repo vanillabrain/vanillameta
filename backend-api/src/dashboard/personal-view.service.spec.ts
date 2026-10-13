@@ -75,6 +75,25 @@ describe('personal saved views', () => {
     expect((await reloaded.list(26, 5)).data).toEqual([]);
     expect(await db.getRepository(Dashboard).count()).toBe(2);
   });
+
+  it('persists timezone across a fresh service and resolves relative calendar dates', async () => {
+    const zoned = {
+      ...state(),
+      dateRange: null,
+      relativePeriod: { column: 'day', days: 7, timeZone: 'Asia/Seoul' },
+    };
+    const created = await service.create(26, 5, { name: 'KST', state: zoned, revision });
+    const loaded = await new PersonalViewService(db.getRepository(PersonalView), access).load(
+      26,
+      created.data.id,
+      5,
+    );
+    expect(loaded.data.state).toEqual(zoned);
+    expect(loaded.data.resolvedDateRange.timeZone).toBe('Asia/Seoul');
+    expect(loaded.data.resolvedDateRange).toEqual(
+      resolveViewDates(validatePersonalViewState(zoned)),
+    );
+  });
   it('persists and restores a half-open timestamp selection without converting it to inclusive days', async () => {
     const dateRange = {
       column: 'event_time',

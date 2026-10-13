@@ -1,5 +1,6 @@
 import {
   DashboardDateRange,
+  businessDate,
   dateRangeBounds,
   isoSecond,
   UTC_MAX,
@@ -43,6 +44,31 @@ function bucketStart(value: unknown, bucket: TimeBucket): number | undefined {
   }
 }
 
+/** Canonical local calendar buckets, including DST-short/long days. */
+function regionalBounds(value: unknown, bucket: TimeBucket, zone: string) {
+  if (bucket.grain === 'hour' || typeof value !== 'string') return undefined;
+  try {
+    const instant = utcInstant(value, true);
+    const day = businessDate(new Date(instant), zone);
+    const calendar = new Date(`${day}T00:00:00Z`);
+    if (bucket.grain === 'week' && calendar.getUTCDay() !== 1) return undefined;
+    if (bucket.grain === 'month' && calendar.getUTCDate() !== 1) return undefined;
+    if (bucket.grain === 'month') calendar.setUTCMonth(calendar.getUTCMonth() + 1);
+    else calendar.setUTCDate(calendar.getUTCDate() + (bucket.grain === 'week' ? 7 : 1));
+    // The last included civil date allows dateRangeBounds to handle a skipped next date.
+    calendar.setUTCDate(calendar.getUTCDate() - 1);
+    const bounds = dateRangeBounds({
+      column: bucket.column,
+      start: day,
+      end: calendar.toISOString().slice(0, 10),
+      timeZone: zone,
+    });
+    return bounds.start === instant ? bounds : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Preserve row order; replacing a different-column period would broaden the filter scope. */
 export function buildTimeSelection(
   values: unknown[],
@@ -57,6 +83,22 @@ export function buildTimeSelection(
     column: bucket.column,
     grain: bucket.grain,
     ranges: values.map(value => {
+      const zone = appliedRange?.timeZone;
+      if (zone && zone !== 'UTC') {
+        const bounds = regionalBounds(value, bucket, zone);
+        if (!bounds) return null;
+        const start = Math.max(bounds.start, applied?.start ?? bounds.start);
+        const end = Math.min(bounds.end, applied?.end ?? bounds.end);
+        return start < end
+          ? {
+              column: bucket.column,
+              start: isoSecond(start),
+              end: isoSecond(end),
+              precision: 'timestamp' as const,
+              timeZone: zone,
+            }
+          : null;
+      }
       const instant = bucketStart(value, bucket);
       if (instant === undefined) return null;
       const next = new Date(instant);

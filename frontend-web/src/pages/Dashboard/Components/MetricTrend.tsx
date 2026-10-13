@@ -1,10 +1,11 @@
 import React, { useId, useState } from 'react';
 import { Box, Button, Typography } from '@mui/material';
 
-import { MetricTrendData, trendGeometry } from './trendGeometry';
+import { MetricTrendData, trendBucketLabel, trendGeometry, trendTimeZone } from './trendGeometry';
 import type { DateRange } from './PersonalSavedViews';
 import { validTimeRange, sameTimeRange, timeRangeLabel } from './timeSelection';
 import PeriodComparison, { MetricComparisonData } from './PeriodComparison';
+import { comparisonTrend, TrendPeriods } from './comparisonTrend';
 
 export default function MetricTrend({
   trend,
@@ -13,6 +14,8 @@ export default function MetricTrend({
   decimalPlaces = 0,
   unavailable,
   comparison,
+  previousTrend,
+  periods,
   suffix = '',
   onTimeSelect,
   timeSelectionDisabled = false,
@@ -27,6 +30,8 @@ export default function MetricTrend({
   decimalPlaces?: number;
   unavailable?: string;
   comparison?: MetricComparisonData;
+  previousTrend?: MetricTrendData;
+  periods?: TrendPeriods;
   suffix?: string;
   onTimeSelect?: (range: DateRange) => void;
   timeSelectionDisabled?: boolean;
@@ -61,7 +66,10 @@ export default function MetricTrend({
   const contributionPointer = !onTimeSelect && contributionInteractive;
   const navigable = interactive || contributionInteractive;
   const contributionReason = contributionDisabledReason || trend?.contribution?.reason;
-  const pointLabel = (time: string) => time.replace('T', ' ').replace(/Z$/, ' UTC');
+  const pointLabel = (time: string) =>
+    trend?.timeZone && trend.timeZone !== 'UTC'
+      ? `${trendBucketLabel(time, trend.grain, trend.timeZone)} ${trend.timeZone}`
+      : time.replace('T', ' ').replace(/Z$/, ' UTC');
   const contribute = (time: string) => {
     if (contributionInteractive && !contributionDisabled && points.some(point => point.time === time)) {
       setActiveTime(time);
@@ -99,11 +107,21 @@ export default function MetricTrend({
           maximumFractionDigits: decimalPlaces,
         })}`;
   const day = (time: string) => time.slice(0, 10);
-  const { path, area, dots } = trendGeometry(points);
+  const zone = trendTimeZone(trend?.timeZone);
+  const label = (time: string) => trendBucketLabel(time, trend?.grain, trend?.timeZone);
+  // Overlay stays UTC-only: never compare regional (local-midnight) buckets against UTC periods.
+  const overlayUtc = (data?: MetricTrendData) => !data?.timeZone || data.timeZone === 'UTC';
+  const overlay =
+    trend && previousTrend && periods && overlayUtc(trend) && overlayUtc(previousTrend)
+      ? comparisonTrend(trend, previousTrend, periods)
+      : undefined;
+  const { path, area, dots } = overlay?.current ?? trendGeometry(points);
+  const axisStart = overlay?.axes.start ?? Math.min(...points.map(point => Date.parse(point.time)));
+  const axisEnd = overlay?.axes.end ?? Math.max(...points.map(point => Date.parse(point.time)));
   const grain =
     trend?.grain === 'hour' ? '시간별' : trend?.grain === 'month' ? '월별' : trend?.grain === 'week' ? '주별' : '일별';
   const summary = numeric.length
-    ? `${title} ${grain} 추세, UTC ${day(points[0].time)}부터 ${day(points[points.length - 1].time)}까지. ` +
+    ? `${title} ${grain} 추세, ${zone} ${label(points[0].time)}부터 ${label(points[points.length - 1].time)}까지. ` +
       `첫 값 ${format(numeric[0].value)}, 마지막 값 ${format(
         numeric[numeric.length - 1].value,
       )}. 정확한 값은 시계열 데이터 표에서 확인하세요.`
@@ -114,9 +132,8 @@ export default function MetricTrend({
     const scale = Math.min(rect.width / 600, rect.height / 60);
     if (!scale) return;
     const x = (event.clientX - rect.left - (rect.width - 600 * scale) / 2) / scale;
-    const times = points.map(point => Date.parse(point.time));
-    const start = Math.min(...times),
-      span = Math.max(...times) - start;
+    const start = axisStart,
+      span = axisEnd - axisStart;
     const visible = (interactive ? selectable : points).filter(
       point => point.value !== null && Number.isFinite(point.value),
     );
@@ -140,7 +157,7 @@ export default function MetricTrend({
       {unavailable && (
         <Typography sx={{ fontSize: 12, color: '#475569' }}>이 지표의 시계열을 표시할 수 없습니다. {unavailable}</Typography>
       )}
-      {!numeric.length && !contributionInteractive ? (
+      {!numeric.length && !overlay?.previous.dots.length && !contributionInteractive ? (
         !unavailable && <Typography sx={{ fontSize: 12, color: '#475569' }}>표시할 시계열 데이터가 없습니다.</Typography>
       ) : (
         <>
@@ -204,30 +221,61 @@ export default function MetricTrend({
                   <stop offset="100%" stopColor="#1d4ed8" stopOpacity="0.015" />
                 </linearGradient>
               </defs>
+              {overlay && (
+                <>
+                  <path
+                    d={overlay.previous.path}
+                    fill="none"
+                    stroke="#64748b"
+                    strokeWidth="1.5"
+                    strokeDasharray="5 3"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                  {overlay.previous.dots.length > 0 &&
+                    overlay.previous.dots.map((dot, index) => (
+                      <circle key={index} cx={dot.x} cy={dot.y} r="3" fill="#64748b" />
+                    ))}
+                </>
+              )}
               <path d={area} fill={`url(#${id}-fill)`} />
               <path d={path} fill="none" stroke="#1d4ed8" strokeWidth="1.25" vectorEffect="non-scaling-stroke" />
               {navigable &&
                 active &&
                 (() => {
-                  const dates = points.map(point => Date.parse(point.time));
-                  const first = Math.min(...dates),
-                    span = Math.max(...dates) - first;
+                  const first = axisStart,
+                    span = axisEnd - axisStart;
                   const x = span ? 4 + ((Date.parse(active.time) - first) / span) * 592 : 300;
                   return <line x1={x} x2={x} y1={4} y2={56} stroke="#1d4ed8" strokeDasharray="3 3" pointerEvents="none" />;
                 })()}
-              {numeric.length === 1 &&
+              {(overlay || numeric.length === 1) &&
                 dots.map((dot, index) => <circle key={index} cx={dot.x} cy={dot.y} r="3" fill="#1d4ed8" />)}
             </svg>
             <Box
               component="figcaption"
               sx={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#475569' }}
             >
-              <span>{day(points[0].time)}</span>
-              <span>{grain} · UTC</span>
-              <span>{day(points[points.length - 1].time)}</span>
+              <span>{overlay ? day(periods.current.start) : label(points[0].time)}</span>
+              <span>
+                {grain} · {overlay ? 'UTC' : zone}
+              </span>
+              <span>{overlay ? day(periods.current.end) : label(points[points.length - 1].time)}</span>
             </Box>
           </Box>
         </>
+      )}
+      {overlay && (
+        <Typography sx={{ fontSize: 12, color: '#475569', overflowWrap: 'anywhere' }}>
+          실선: 현재 기간 · 점선: 이전 기간 ({periods.previous.start} ~ {periods.previous.end}, UTC). 각 기간 시작일부터 같은
+          일차를 비교합니다. 정확한 날짜·값과 이전 원본 조회는 아래 개별 표에서 확인하세요.
+        </Typography>
+      )}
+      {previousTrend && periods && !overlay && (
+        <Typography sx={{ fontSize: 12, color: '#475569' }}>
+          겹쳐 보기는 같은 길이의 UTC 일별 기간에서 지원합니다. 이전 기간은 개별 추세와 표에서 확인하세요.
+        </Typography>
+      )}
+      {trend?.timeSelectionUnavailable && (
+        <Typography sx={{ fontSize: 12, color: '#475569' }}>{trend.timeSelectionUnavailable}</Typography>
       )}
       {interactive && (
         <Typography
@@ -278,7 +326,7 @@ export default function MetricTrend({
         >
           <table>
             <caption>
-              {title} · {grain} · UTC
+              {title} · {grain} · {zone}
             </caption>
             <thead>
               <tr>
@@ -303,12 +351,10 @@ export default function MetricTrend({
                           sx={{ minWidth: 44, minHeight: 44, textTransform: 'none', textAlign: 'left' }}
                           onClick={() => select(point.time)}
                         >
-                          {trend?.grain === 'hour' ? point.time.slice(0, 16).replace('T', ' ') : day(point.time)}
+                          {label(point.time)}
                         </Button>
-                      ) : trend?.grain === 'hour' ? (
-                        point.time.slice(0, 16).replace('T', ' ')
                       ) : (
-                        day(point.time)
+                        label(point.time)
                       )}
                     </th>
                     <td>{format(point.value)}</td>

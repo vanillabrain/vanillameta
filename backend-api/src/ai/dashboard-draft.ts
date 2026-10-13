@@ -203,11 +203,19 @@ export function sourceQuery(
     if (!columns.includes(column) || !temporalColumns.includes(column))
       throw new BadRequestException('invalid UTC date range');
     const { start, end } = dateRangeBounds(range);
-    conditions.push(
-      `CAST(${quoteColumn(column)} AS TIMESTAMPTZ) >= CAST(? AS TIMESTAMPTZ) AND CAST(${quoteColumn(
-        column,
-      )} AS TIMESTAMPTZ) < CAST(? AS TIMESTAMPTZ)`,
-    );
+    const instantCondition = `CAST(${quoteColumn(
+      column,
+    )} AS TIMESTAMPTZ) >= CAST(? AS TIMESTAMPTZ) AND CAST(${quoteColumn(
+      column,
+    )} AS TIMESTAMPTZ) < CAST(? AS TIMESTAMPTZ)`;
+    if (range.timeZone && range.timeZone !== 'UTC' && !range.precision) {
+      // DATE is already a civil date; TIMESTAMP without zone keeps the source's UTC convention.
+      conditions.push(`CASE WHEN typeof(${quoteColumn(column)}) = 'DATE' THEN
+        CAST(${quoteColumn(column)} AS DATE) >= CAST(? AS DATE) AND
+        CAST(${quoteColumn(column)} AS DATE) <= CAST(? AS DATE)
+        ELSE ${instantCondition} END`);
+      bindings.push(range.start, range.end);
+    } else conditions.push(instantCondition);
     bindings.push(isoSecond(start), isoSecond(end));
   }
   return {

@@ -1,0 +1,19 @@
+{
+  "name": "Rill Open RTB Ads — auction",
+  "url": "https://storage.googleapis.com/rilldata-public/auction_data.parquet",
+  "sha256": "7549d18b0294932802407f6bd851a807ff88ba1406b2958bbd8b4c261a4ee157",
+  "localVerificationFile": "/tmp/vanillameta-rill-demo/auction_data.parquet",
+  "timeColumn": "__time",
+  "originalDateStart": "2023-09-09 00:00:00",
+  "originalDateEnd": "2023-09-16 00:00:00",
+  "oracle": {
+    "rows": 1391572,
+    "requests": 634513000,
+    "avgBidFloor": 5.571238676526892,
+    "avgBidFloorTolerance": 1e-9
+  },
+  "measureExpressions": {
+    "requests": "sum(bid_request_cnt)",
+    "avgBidFloor": "sum(bid_floor) / sum(has_bid_floor_cnt)"
+  }
+}

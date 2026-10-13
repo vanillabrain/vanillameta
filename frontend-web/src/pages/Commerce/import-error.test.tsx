@@ -1,0 +1,242 @@
+import React from 'react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import Commerce from './index';
+
+const mocks = vi.hoisted(() => ({
+  navigate: vi.fn(),
+  get: vi.fn(),
+  post: vi.fn(),
+  postForm: vi.fn(),
+  put: vi.fn(),
+  params: {} as Record<string, string>,
+}));
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => mocks.navigate,
+  useParams: () => mocks.params,
+  useSearchParams: () => [new URLSearchParams(''), vi.fn()],
+}));
+vi.mock('@/helpers/apiHelper', () => ({
+  get: mocks.get,
+  post: mocks.post,
+  postForm: mocks.postForm,
+  put: mocks.put,
+}));
+vi.mock('echarts-for-react', () => ({ default: () => null }));
+vi.mock('@mui/icons-material/UploadFileOutlined', () => ({ default: () => null }));
+vi.mock('@mui/icons-material/AutoAwesomeOutlined', () => ({ default: () => null }));
+vi.mock('@/components/PageTitleBox', () => ({ default: ({ children }: any) => <div>{children}</div> }));
+vi.mock('@/seo/Seo', () => ({ default: () => null }));
+vi.mock('@mui/material', async () => {
+  const { createRequire } = await import('node:module');
+  return createRequire(import.meta.url)('@mui/material');
+});
+
+const REQUEST_ID = '3f1a2b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b';
+const diagnostic = {
+  requestId: REQUEST_ID,
+  errorCode: 'IMPORT_INVALID_DATE',
+  stage: 'commerce-import',
+  version: 1,
+  target: 'commerce-bundle',
+  dataHealth: 'unverified',
+};
+const importFailure = () => ({
+  response: {
+    status: 400,
+    data: { success: false, code: 400, data: { message: 'raw internal detail rowId 42', diagnostic } },
+  },
+});
+const helpOk = (explanation: string) => ({
+  data: {
+    status: 'SUCCESS',
+    data: { requestId: REQUEST_ID, explanation, actions: ['reselect-files'], dataHealth: 'unverified' },
+  },
+});
+const csvFile = (name: string) => {
+  const file = new File(['a,b\n1,2'], name, { type: 'text/csv' });
+  Object.defineProperty(file, 'slice', { value: () => ({ text: () => Promise.resolve('a,b\n1,2') }) });
+  return file;
+};
+const reportPayload = {
+  project: { id: 7, name: '기존 프로젝트' },
+  summary: { paymentTotal: 100, refundTotal: 10, netCollected: 90, paidOrders: 2, refundedOrders: 1, refundOrderRate: 0.5 },
+  daily: [{ date: '2024-01-31', paymentTotal: 100, refundTotal: 10, netCollected: 90 }],
+  channels: [{ channel: 'direct', paymentTotal: 100, refundTotal: 10, netCollected: 90 }],
+  reasons: [{ reason: 'damaged', refundTotal: 10, refunds: 1 }],
+  orders: [
+    {
+      orderId: 'o1',
+      orderedAt: '2024-01-31T00:00:00Z',
+      channel: 'direct',
+      orderStatus: 'completed',
+      paidAmount: 100,
+      refundAmount: 10,
+      netCollected: 90,
+    },
+  ],
+  availableChannels: ['direct'],
+};
+const pendingUpload = () => {
+  let reject: (value: unknown) => void = () => undefined;
+  mocks.postForm.mockImplementationOnce(
+    () =>
+      new Promise((_resolve, rejectUpload) => {
+        reject = rejectUpload;
+      }),
+  );
+  return () => reject;
+};
+const projectAndReport = (url: string) => {
+  if (url === '/commerce/7/report') return Promise.resolve({ data: { status: 'SUCCESS', data: reportPayload } });
+  return Promise.resolve({ data: { status: 'SUCCESS', data: [{ id: 7, name: '기존 프로젝트' }] } });
+};
+const pickFile = (label: string, name: string) =>
+  fireEvent.change(screen.getByLabelText(label), { target: { files: [csvFile(name)] } });
+const helpButton = () => screen.queryByRole('button', { name: 'AI로 오류 설명 보기' });
+const importBundle = async () => {
+  fireEvent.change(screen.getByLabelText('프로젝트 이름'), { target: { value: '테스트 프로젝트' } });
+  pickFile('주문 CSV 파일 선택', 'orders.csv');
+  pickFile('결제 CSV 파일 선택', 'payments.csv');
+  pickFile('환불 CSV 파일 선택', 'refunds.csv');
+  fireEvent.click(screen.getByRole('button', { name: 'CSV 가져오기' }));
+  await screen.findByText(/CSV 가져오기에 실패했습니다/);
+};
+beforeEach(() => {
+  mocks.navigate.mockReset();
+  mocks.get.mockReset();
+  mocks.post.mockReset();
+  mocks.postForm.mockReset();
+  mocks.put.mockReset();
+  mocks.params = {};
+  mocks.get.mockResolvedValue({ data: { status: 'SUCCESS', data: [] } });
+});
+afterEach(cleanup);
+
+it('shows fixed safe copy and offers help only on an explicit click', async () => {
+  mocks.postForm.mockRejectedValueOnce(importFailure());
+  render(<Commerce />);
+  await importBundle();
+  expect(screen.getByText(/CSV 가져오기에 실패했습니다/)).toBeTruthy();
+  expect(screen.queryByText(/raw internal detail/)).toBeNull();
+  expect(screen.queryByText(/rowId/)).toBeNull();
+  expect(mocks.post).not.toHaveBeenCalled();
+  mocks.post.mockResolvedValueOnce(helpOk('날짜 열에 잘못된 값이 있습니다.'));
+  fireEvent.click(screen.getByRole('button', { name: 'AI로 오류 설명 보기' }));
+  await screen.findByText('날짜 열에 잘못된 값이 있습니다.');
+  expect(mocks.post).toHaveBeenCalledTimes(1);
+  expect(mocks.post.mock.calls[0][0]).toBe('/commerce/import-help');
+  expect(mocks.post.mock.calls[0][1]).toEqual({ requestId: REQUEST_ID });
+  expect(mocks.post.mock.calls[0][2]).toMatchObject({ timeout: 120000, signal: expect.any(AbortSignal) });
+  fireEvent.click(screen.getByRole('button', { name: '파일 다시 선택' }));
+  expect(mocks.postForm).toHaveBeenCalledTimes(1);
+});
+
+it('keeps manual file recovery while a new import aborts pending help', async () => {
+  let resolveHelp: (value: unknown) => void = () => undefined;
+  mocks.postForm.mockRejectedValueOnce(importFailure());
+  mocks.post.mockImplementationOnce(
+    () =>
+      new Promise(r => {
+        resolveHelp = r;
+      }),
+  );
+  render(<Commerce />);
+  await importBundle();
+  fireEvent.click(screen.getByRole('button', { name: 'AI로 오류 설명 보기' }));
+  const signal = mocks.post.mock.calls[0][2].signal as AbortSignal;
+  mocks.postForm.mockRejectedValueOnce(importFailure());
+  fireEvent.click(screen.getByRole('button', { name: 'CSV 가져오기' }));
+  await waitFor(() => expect(signal.aborted).toBe(true));
+  await act(async () => {
+    resolveHelp(helpOk('늦게 도착한 설명'));
+  });
+  expect(screen.queryByText('늦게 도착한 설명')).toBeNull();
+  expect(screen.getByRole('button', { name: '주문 CSV 선택' })).toBeTruthy();
+  expect(screen.getByLabelText('주문 CSV 파일 선택')).toBeTruthy();
+});
+
+it('clears the help offer when a file is reselected after a help failure', async () => {
+  mocks.postForm.mockRejectedValueOnce(importFailure());
+  mocks.post.mockRejectedValueOnce(new Error('ai unavailable'));
+  render(<Commerce />);
+  await importBundle();
+  fireEvent.click(screen.getByRole('button', { name: 'AI로 오류 설명 보기' }));
+  await screen.findByText(/AI 오류 설명을 가져오지 못했습니다/);
+  expect(screen.getByRole('button', { name: 'CSV 가져오기' })).toBeTruthy();
+  pickFile('주문 CSV 파일 선택', 'orders-2.csv');
+  await waitFor(() => expect(helpButton()).toBeNull());
+});
+
+it('shows fixed required-header guidance and keeps reselect available before and after AI help', async () => {
+  mocks.postForm.mockRejectedValueOnce(importFailure());
+  render(<Commerce />);
+  await importBundle();
+  expect(screen.getByText(/order_total/)).toBeTruthy();
+  expect(screen.getByText(/refund_reason/)).toBeTruthy();
+  expect(screen.getByText(/acquisition_channel/)).toBeTruthy();
+  expect(screen.getAllByText(/2024-01-31T00:00:00Z/).length).toBeGreaterThan(0);
+  expect(mocks.post).not.toHaveBeenCalled();
+  expect(screen.getByRole('button', { name: '파일 다시 선택' })).toBeTruthy();
+  mocks.post.mockRejectedValueOnce(new Error('ai unavailable'));
+  fireEvent.click(screen.getByRole('button', { name: 'AI로 오류 설명 보기' }));
+  await screen.findByText(/AI 오류 설명을 가져오지 못했습니다/);
+  expect(screen.getByRole('button', { name: '파일 다시 선택' })).toBeTruthy();
+});
+
+it('discards a pending upload rejection after the file selection changes', async () => {
+  const rejectUpload = pendingUpload();
+  render(<Commerce />);
+  fireEvent.change(screen.getByLabelText('프로젝트 이름'), { target: { value: '테스트 프로젝트' } });
+  pickFile('주문 CSV 파일 선택', 'orders.csv');
+  pickFile('결제 CSV 파일 선택', 'payments.csv');
+  pickFile('환불 CSV 파일 선택', 'refunds.csv');
+  fireEvent.click(screen.getByRole('button', { name: 'CSV 가져오기' }));
+  expect(mocks.postForm).toHaveBeenCalledTimes(1);
+  pickFile('주문 CSV 파일 선택', 'orders-2.csv');
+  await act(async () => {
+    rejectUpload()(importFailure());
+  });
+  expect(screen.queryByText(/CSV 가져오기에 실패했습니다/)).toBeNull();
+  expect(helpButton()).toBeNull();
+  expect((screen.getByRole('button', { name: 'CSV 가져오기' }) as HTMLButtonElement).disabled).toBe(false);
+});
+
+it('discards a pending upload rejection when the route changes', async () => {
+  const rejectUpload = pendingUpload();
+  mocks.get.mockImplementation(projectAndReport);
+  const view = render(<Commerce />);
+  fireEvent.change(screen.getByLabelText('프로젝트 이름'), { target: { value: '테스트 프로젝트' } });
+  pickFile('주문 CSV 파일 선택', 'orders.csv');
+  pickFile('결제 CSV 파일 선택', 'payments.csv');
+  pickFile('환불 CSV 파일 선택', 'refunds.csv');
+  fireEvent.click(screen.getByRole('button', { name: 'CSV 가져오기' }));
+  expect(mocks.postForm).toHaveBeenCalledTimes(1);
+  mocks.params = { projectId: '7' };
+  view.rerender(<Commerce />);
+  await act(async () => {
+    rejectUpload()(importFailure());
+  });
+  expect(screen.queryByText(/CSV 가져오기에 실패했습니다/)).toBeNull();
+  expect(helpButton()).toBeNull();
+});
+
+it('reopens the collapsed import card and triggers the file input on reselect', async () => {
+  mocks.get.mockImplementation(projectAndReport);
+  mocks.params = { projectId: '7' };
+  mocks.postForm.mockRejectedValueOnce(importFailure());
+  render(<Commerce />);
+  fireEvent.click(await screen.findByRole('button', { name: '데이터 가져오기 / 교체' }));
+  pickFile('주문 CSV 파일 선택', 'orders.csv');
+  pickFile('결제 CSV 파일 선택', 'payments.csv');
+  pickFile('환불 CSV 파일 선택', 'refunds.csv');
+  fireEvent.click(screen.getByRole('button', { name: 'CSV 가져오기' }));
+  await screen.findByText(/CSV 가져오기에 실패했습니다/);
+  fireEvent.click(screen.getByRole('button', { name: '데이터 가져오기 닫기' }));
+  expect(screen.queryByLabelText('주문 CSV 파일 선택')).toBeNull();
+  const clickSpy = vi.spyOn(HTMLInputElement.prototype, 'click');
+  fireEvent.click(screen.getByRole('button', { name: '파일 다시 선택' }));
+  await waitFor(() => expect(screen.getByLabelText('주문 CSV 파일 선택')).toBeTruthy());
+  expect(clickSpy).toHaveBeenCalledTimes(1);
+  clickSpy.mockRestore();
+});

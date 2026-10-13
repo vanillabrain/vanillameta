@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import {
   DashboardDateRange,
+  dateRangeBounds,
   isoSecond,
   UTC_MIN,
   utcInstant,
@@ -24,9 +25,16 @@ export function validatePeriodOptions(body: any): {
 }
 
 /** Immediately preceding period: inclusive days or an equal number of UTC seconds. */
-export function previousDateRange(range: PeriodDateRange): PeriodDateRange {
+export function previousDateRange(
+  range: PeriodDateRange,
+  timeZone = range?.timeZone ?? 'UTC',
+): PeriodDateRange {
   range = validateDateRange(range);
+  // Calendar comparisons retain equal date counts, not equal elapsed hours across DST.
+  if (timeZone !== 'UTC') dateRangeBounds(range, timeZone);
   const timestamp = range.precision === 'timestamp';
+  // Civil strings are date labels: UTC arithmetic advances labels, not regional instants.
+  // Resolve both resulting periods separately through dateRangeBounds with the same zone.
   const start = utcInstant(range.start, timestamp);
   const end = utcInstant(range.end, timestamp);
   const length = end - start + (timestamp ? 0 : 86400000);
@@ -34,14 +42,17 @@ export function previousDateRange(range: PeriodDateRange): PeriodDateRange {
   const previousEnd = start - (timestamp ? 0 : 86400000);
   if (!Number.isFinite(previousStart) || !Number.isFinite(previousEnd) || previousStart < UTC_MIN)
     throw new BadRequestException('previous UTC date range underflow');
-  return {
+  const previous: PeriodDateRange = {
     column: range.column,
     start: timestamp
       ? isoSecond(previousStart)
       : new Date(previousStart).toISOString().slice(0, 10),
     end: timestamp ? isoSecond(previousEnd) : new Date(previousEnd).toISOString().slice(0, 10),
     ...(timestamp ? { precision: 'timestamp' as const } : {}),
+    ...(range.timeZone !== undefined ? { timeZone: range.timeZone } : {}),
   };
+  if (timeZone !== 'UTC') dateRangeBounds(previous, timeZone);
+  return previous;
 }
 
 function finiteValue(value: unknown): number | null {

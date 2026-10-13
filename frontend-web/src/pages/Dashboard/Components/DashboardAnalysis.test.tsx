@@ -102,7 +102,7 @@ vi.mock('@mui/material', () => {
                 if (e.key === 'Escape') setOpen(false);
               }}
             >
-              {React.Children.map(children, (child: any) => (
+              {React.Children.map(React.Children.toArray(children), (child: any) => (
                 <div
                   role="option"
                   aria-selected={multiple ? value.includes(child.props.value) : value === child.props.value}
@@ -645,4 +645,31 @@ it('time bucket different active date column stays plain and rejects callbacks u
   fireEvent.click(screen.getByRole('button', { name: '차트 기간 0' }));
   await idle();
   expect(api.post.mock.lastCall[1].dateRange).toEqual(otherRange);
+});
+it('applies KST calendar dates to preview and saved state', async () => {
+  await mount();
+  await idle();
+  await choose('업무 시간대', '한국 (Asia/Seoul)');
+  fireEvent.change(screen.getByLabelText('시작일 (Asia/Seoul)'), { target: { value: '2026-01-01' } });
+  fireEvent.change(screen.getByLabelText('종료일 (Asia/Seoul)'), { target: { value: '2026-01-02' } });
+  fireEvent.click(screen.getByRole('button', { name: '적용', exact: true }));
+  await waitFor(() =>
+    expect(api.post).toHaveBeenLastCalledWith(
+      '/ai/dashboard-preview',
+      expect.objectContaining({
+        dateRange: { column: 'created_at', start: '2026-01-01', end: '2026-01-02', timeZone: 'Asia/Seoul' },
+      }),
+      expect.anything(),
+    ),
+  );
+  expect(JSON.parse(screen.getByTestId('saved-state').textContent).dateRange.timeZone).toBe('Asia/Seoul');
+});
+
+it('keeps business timezone when selecting a KPI bucket', async () => {
+  const range = { ...hourRange, start: '2025-12-31T15:00:00Z', end: '2026-01-01T15:00:00Z', timeZone: 'Asia/Seoul' };
+  const data = timePreview([range]);
+  await mount(data);
+  fireEvent.click(screen.getByRole('button', { name: 'KPI 기간 0' }));
+  await idle();
+  expect(api.post.mock.lastCall[1].dateRange).toEqual(range);
 });

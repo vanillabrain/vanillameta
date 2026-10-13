@@ -2,26 +2,26 @@
 
 ## 실행 시점
 
-| 시점 | 실행 |
-| --- | --- |
-| 파일 저장·작성 중 | 에디터 진단. 전체 테스트/빌드/E2E 자동 실행 없음 |
-| 의미 있는 수정 완료 | 변경 동작 관련 단위/API 테스트만 |
-| 기능 완료 | 필요한 타입/린트/빌드 + 변경된 UI의 Aside 확인 |
-| 통합/PR 준비 | 전체 빠른 단위 검사 + 영향받는 핵심 E2E |
-| 출시 준비 | 기본 핵심 E2E 전체 + 변경된 주요 MD 케이스. 확장 검증은 위험/변경 범위에 따라 선택 |
+| 시점                | 실행                                                                               |
+| ------------------- | ---------------------------------------------------------------------------------- |
+| 파일 저장·작성 중   | 에디터 진단. 전체 테스트/빌드/E2E 자동 실행 없음                                   |
+| 의미 있는 수정 완료 | 변경 동작 관련 단위/API 테스트만                                                   |
+| 기능 완료           | 필요한 타입/린트/빌드 + 변경된 UI의 Aside 확인                                     |
+| 통합/PR 준비        | 전체 빠른 단위 검사 + 영향받는 핵심 E2E                                            |
+| 출시 준비           | 기본 핵심 E2E 전체 + 변경된 주요 MD 케이스. 확장 검증은 위험/변경 범위에 따라 선택 |
 
 같은 코드·설정·픽스처·환경에서 이미 통과한 검사는 반복하지 않는다. 관련 변경이 있거나 실패가 해결됐을 때 해당 검사부터 재실행한다. 관련성 판단이 어려우면 영향 범위를 넓힌다. 사용자 지정 검증 범위가 우선한다.
 
 ## 변경 범위별 선택
 
-| 변경 | 최소 검증 | 확대 조건 |
-| --- | --- | --- |
-| 문구/CSS/레이아웃 | 변경 화면 Aside, 필요할 때 관련 lint/type | 공통 레이아웃은 주요 화면 대표 확인 |
-| SQL/숫자/파일 파싱 | 관련 단위/API, FILE/DATA/METRIC 명세 | 저장 경로 변경은 full-flow |
-| 데이터셋/위젯/대시보드 저장 | 관련 단위/API + 해당 core E2E + 변경 화면 | 공통 저장 API는 전체 core |
-| 인증/권한/토큰/공통 API | 관련 회귀 + product-flow, smoke | 공유 영향은 SHARE 계열 API/Aside |
-| 의존성/런타임 설정 | 빌드/기동 + core | 변경 SDK와 관련 확장 |
-| 문서/스킬만 | 링크/명세 ID/스킬 validation | 실제 실행 가이드 변경은 대표 실행 확인 |
+| 변경                        | 최소 검증                                 | 확대 조건                              |
+| --------------------------- | ----------------------------------------- | -------------------------------------- |
+| 문구/CSS/레이아웃           | 변경 화면 Aside, 필요할 때 관련 lint/type | 공통 레이아웃은 주요 화면 대표 확인    |
+| SQL/숫자/파일 파싱          | 관련 단위/API, FILE/DATA/METRIC 명세      | 저장 경로 변경은 full-flow             |
+| 데이터셋/위젯/대시보드 저장 | 관련 단위/API + 해당 core E2E + 변경 화면 | 공통 저장 API는 전체 core              |
+| 인증/권한/토큰/공통 API     | 관련 회귀 + product-flow, smoke           | 공유 영향은 SHARE 계열 API/Aside       |
+| 의존성/런타임 설정          | 빌드/기동 + core                          | 변경 SDK와 관련 확장                   |
+| 문서/스킬만                 | 링크/명세 ID/스킬 validation              | 실제 실행 가이드 변경은 대표 실행 확인 |
 
 새 테스트는 재발 위험이 높은 동작에만 추가한다. 각 계산/권한 조합을 UI로 모두 반복하지 않는다. 기존 하위 검증을 먼저 활용한다.
 
@@ -59,16 +59,16 @@ E2E_HEADED=1이면 실제 Chromium 창으로 실행한다. E2E_EVIDENCE_DIR로 �
 
 이전 기본에서 제외한 기능은 삭제된 검증이 아니다:
 
-| 이전 항목 | 필요할 때 실행할 경로 |
-| --- | --- |
-| 회원가입/온보딩 | MD AUTH-03/04 + qa/ui-journeys |
-| 로그인 후 재로드/프로필 | MD AUTH-07/11/12 + qa/ui-journeys |
-| JSON/Parquet | MD FILE-02/03 + qa/ui-journeys |
-| 메트릭 생성/평가/삭제 | MD METRIC-01/02 + qa/ui-journeys, 수치 조합은 qa/api-contracts |
-| 언어 전환/탐색 | MD NAV 계열 + qa/ui-journeys |
-| 전체 차트 종류 | MD WIDGET-06 + qa/chart-matrix |
-| 공유 설정 UI/철회/만료 | MD SHARE 계열 + qa/ui-journeys/api-contracts |
-| cache/socket/restart/provider 오류 | MD RELIABILITY/AI + qa/reliability/api-contracts |
+| 이전 항목                          | 필요할 때 실행할 경로                                          |
+| ---------------------------------- | -------------------------------------------------------------- |
+| 회원가입/온보딩                    | MD AUTH-03/04 + qa/ui-journeys                                 |
+| 로그인 후 재로드/프로필            | MD AUTH-07/11/12 + qa/ui-journeys                              |
+| JSON/Parquet                       | MD FILE-02/03 + qa/ui-journeys                                 |
+| 메트릭 생성/평가/삭제              | MD METRIC-01/02 + qa/ui-journeys, 수치 조합은 qa/api-contracts |
+| 언어 전환/탐색                     | MD NAV 계열 + qa/ui-journeys                                   |
+| 전체 차트 종류                     | MD WIDGET-06 + qa/chart-matrix                                 |
+| 공유 설정 UI/철회/만료             | MD SHARE 계열 + qa/ui-journeys/api-contracts                   |
+| cache/socket/restart/provider 오류 | MD RELIABILITY/AI + qa/reliability/api-contracts               |
 
 고유 확장 코드에는 실패 재현과 하위 정확성 검증 가치가 있어 보존한다. 앞으로 변화가 잦은 화면의 비슷한 순서를 새 Playwright 코드로 무조건 늘리지 않고 MD/Aside를 우선한다. MD의 케이스 ID/기대 결과가 기준이며 fixtures/oracle.json은 자동 검증용 고정 입력이다. 변경하면 두 정답 관계를 확인한다.
 
@@ -89,6 +89,8 @@ CI의 기존 PR/push 빌드·단위 검사는 유지한다. E2E를 저장 훅이
 파일 저장·분석 워커 변경은 [server-duckdb.md](server-duckdb.md)의 INGEST-01~04와 영향받는 `full-flow.spec.ts`를 선택한다. 서버 기본 저장은 파일 선택 → 데이터셋으로 저장이며 브라우저 분석은 별도 버튼이다. 메타데이터 DB는 그대로 유지하고 신규 파일만 DuckDB에 저장한다. 운영 전제와 제한: [server-duckdb-operations.md](../strategy/server-duckdb-operations.md).
 
 대시보드는 수치와 시각화 디자인을 각각 검증한다. Rill과 동일 데이터/LLM 질의 비교는 [design-rill-parity.md](design-rill-parity.md)를 사용하고 결과·가시성·상호작용·반응형을 분리 판정한다. 수동 차트 성공을 제품 LLM 성공으로 확대하지 않는다.
+
+Rill 탐색 기능 개발은 [사용자 지정 비교·UI 기준](../strategy/2026-10-14-rill-feature-integration.md#사용자-지정-비교ui-기준--2026-10-14)을 따른다. 기능별 Rill 조작과 같은 조건의 VanillaMeta 조작을 대조하고, 같은 뷰포트/상태 캡처 및 API/XHR 수치 증빙을 남긴다. UI는 Rill의 배치·밀도·컨트롤·상태·탐색 흐름과 유사하게 구현한다. 기존 단위 검증만으로 화면 유사성과 동작 대조를 대체하지 않는다.
 
 ## AI 대시보드·공통 필터
 

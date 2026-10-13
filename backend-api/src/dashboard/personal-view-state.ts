@@ -1,12 +1,17 @@
 import { BadRequestException } from '@nestjs/common';
-import { DashboardDateRange, dateRangeBounds } from '../ai/dashboard-date-range';
+import {
+  businessDate,
+  DashboardDateRange,
+  dateRangeBounds,
+  validateBusinessTimeZone,
+} from '../ai/dashboard-date-range';
 
 export type ViewDateRange = DashboardDateRange;
 export type PersonalViewState = {
   version: 1;
   filters: { column: string; values: (string | number | boolean | null)[] }[];
   dateRange: ViewDateRange | null;
-  relativePeriod: { column: string; days: 7 | 30 | 90 } | null;
+  relativePeriod: { column: string; days: 7 | 30 | 90; timeZone?: string } | null;
   numberNotation: 'auto' | 'compact' | 'full';
   trendGrain?: 'auto' | 'day' | 'week' | 'month';
   comparePrevious?: boolean;
@@ -69,7 +74,11 @@ export function validatePersonalViewState(input: any): PersonalViewState {
     dateRangeBounds(input.dateRange);
   }
   if (input.relativePeriod !== null) {
-    object(input.relativePeriod, ['column', 'days']);
+    object(input.relativePeriod, ['column', 'days', 'timeZone']);
+    if ('timeZone' in input.relativePeriod) {
+      if (input.relativePeriod.timeZone === undefined) invalid();
+      validateBusinessTimeZone(input.relativePeriod.timeZone);
+    }
     column(input.relativePeriod.column);
     if (![7, 30, 90].includes(input.relativePeriod.days) || input.dateRange !== null) invalid();
   }
@@ -78,11 +87,22 @@ export function validatePersonalViewState(input: any): PersonalViewState {
   return JSON.parse(JSON.stringify(input));
 }
 
-/** Relative periods include today and are resolved afresh on each open, in UTC. */
-export function resolveViewDates(state: PersonalViewState, now = new Date()): ViewDateRange | null {
+/** Relative periods include calendar today, resolved on each open; default remains UTC. */
+export function resolveViewDates(
+  state: PersonalViewState,
+  now = new Date(),
+  timeZone = state.relativePeriod?.timeZone ?? state.dateRange?.timeZone ?? 'UTC',
+): ViewDateRange | null {
   if (!state.relativePeriod) return state.dateRange;
-  const end = now.toISOString().slice(0, 10);
+  const end = businessDate(now, timeZone);
   const start = new Date(`${end}T00:00:00Z`);
   start.setUTCDate(start.getUTCDate() - state.relativePeriod.days + 1);
-  return { column: state.relativePeriod.column, start: start.toISOString().slice(0, 10), end };
+  return {
+    column: state.relativePeriod.column,
+    start: start.toISOString().slice(0, 10),
+    end,
+    ...(state.relativePeriod.timeZone !== undefined
+      ? { timeZone: state.relativePeriod.timeZone }
+      : {}),
+  };
 }

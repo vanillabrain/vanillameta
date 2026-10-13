@@ -27,6 +27,7 @@ import PageTitleBox from '@/components/PageTitleBox';
 import Seo from '@/seo/Seo';
 import { get, post, postForm, put } from '@/helpers/apiHelper';
 import type { CommercePresentation, CommerceProject, CommerceReport } from './types';
+import ImportHelp, { parseImportDiagnostic } from './ImportHelp';
 
 const BLUE = '#0f5ab2';
 const CURRENCY = new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
@@ -36,6 +37,25 @@ const AXIS_CURRENCY = new Intl.NumberFormat('en-US', {
   notation: 'compact',
   maximumFractionDigits: 1,
 });
+// Fixed, non-customer guidance. Required header names mirror the server bundle contract in
+// backend-api/src/analysis/commerce-import.ts; the date columns accept ISO 8601 UTC values.
+const requiredFileHeaders: Record<string, string[]> = {
+  orders: [
+    'order_id',
+    'customer_id',
+    'ordered_at',
+    'order_status',
+    'currency',
+    'subtotal',
+    'tax_amount',
+    'shipping_amount',
+    'order_total',
+  ],
+  payments: ['payment_id', 'order_id', 'paid_at', 'payment_status', 'amount'],
+  refunds: ['refund_id', 'payment_id', 'order_id', 'refunded_at', 'refund_reason', 'amount'],
+  customers: ['customer_id', 'acquisition_channel'],
+};
+const DATE_COLUMN_EXAMPLE = '2024-01-31T00:00:00Z';
 const numberValue = (value: unknown) => {
   if (value === null || value === undefined || value === '') return null;
   const parsed = typeof value === 'number' ? value : Number(value);
@@ -151,8 +171,13 @@ function Commerce() {
   const [uploadBusy, setUploadBusy] = useState(false);
   const [importFeedback, setImportFeedback] = useState('');
   const [importOpen, setImportOpen] = useState(!routeProjectId || searchParams.get('import') === '1');
+  const [reselectTick, setReselectTick] = useState(0);
   const [importTargetId, setImportTargetId] = useState(routeProjectId ?? '');
   const [pageError, setPageError] = useState('');
+  const [importFailure, setImportFailure] = useState<{
+    message: string;
+    diagnostic: ReturnType<typeof parseImportDiagnostic>;
+  } | null>(null);
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
   const [dateErrors, setDateErrors] = useState({ start: '', end: '' });
@@ -170,7 +195,15 @@ function Commerce() {
   const [showAllOrders, setShowAllOrders] = useState(false);
   const reportRequest = useRef(0);
   const projectRequest = useRef(0);
+  const uploadRequest = useRef(0);
+  const pendingReselect = useRef(false);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  // Abandon any in-flight import so a late resolution or rejection cannot restore stale error state.
+  const abandonUpload = useCallback(() => {
+    uploadRequest.current += 1;
+    setUploadBusy(false);
+  }, []);
 
   const loadProjects = useCallback(async () => {
     projectRequest.current += 1;
@@ -200,7 +233,14 @@ function Commerce() {
     setSelectedId(routeProjectId ?? '');
     setImportTargetId(routeProjectId ?? '');
     setImportOpen(!routeProjectId);
-  }, [routeProjectId]);
+    abandonUpload();
+  }, [routeProjectId, abandonUpload]);
+  useEffect(
+    () => () => {
+      uploadRequest.current += 1;
+    },
+    [],
+  );
 
   const fetchReport = useCallback(
     async (id: string, filters: { start?: string; end?: string; channel?: string } = {}) => {
@@ -253,6 +293,8 @@ function Commerce() {
   const selectedProject = projects.find(project => String(project.id) === selectedId);
   const onPickFile = async (key: string, file?: File) => {
     if (!file) return;
+    setImportFailure(null);
+    abandonUpload();
     if (!file.name.toLowerCase().endsWith('.csv')) {
       setPageError('CSV 파일만 업로드할 수 있습니다.');
       return;
@@ -271,9 +313,12 @@ function Commerce() {
       setPageError('새 프로젝트 이름과 주문·결제·환불 CSV를 입력·선택해 주세요.');
       return;
     }
+    uploadRequest.current += 1;
+    const requestId = uploadRequest.current;
     setUploadBusy(true);
     setPageError('');
     setImportFeedback('');
+    setImportFailure(null);
     try {
       const form = new FormData();
       const targetProject = projects.find(project => String(project.id) === importTargetId);
@@ -284,6 +329,7 @@ function Commerce() {
       form.append('refunds', files.refunds);
       if (files.customers) form.append('customers', files.customers);
       const response = await postForm('/commerce/import', form, { timeout: 300000 });
+      if (requestId !== uploadRequest.current) return;
       const value = unwrap(response);
       if (value?.status === 'ERROR' || value?.validation?.valid === false || value?.validation?.ok === false) {
         const counts = value?.counts || value?.rows;
@@ -311,6 +357,7 @@ function Commerce() {
             .join(' · ')}${value?.sampleType ? ` · 샘플 유형: ${value.sampleType}` : ''}`,
         );
       await loadProjects();
+      if (requestId !== uploadRequest.current) return;
       if (id != null) {
         setSelectedId(String(id));
         navigate(`/commerce/${id}`);
@@ -319,21 +366,21 @@ function Commerce() {
         setPageError('가져오기는 완료했지만 응답에 projectId가 없습니다. 프로젝트 목록에서 새 프로젝트를 선택해 주세요.');
       }
     } catch (error) {
-      const body = error?.response?.data;
-      const validation = body?.validation ?? body?.data?.validation;
-      const diagnostics = validation
-        ? ` 검증 오류 ${validation.errorCount}건. ${validation.errors
-            .slice(0, 10)
-            .map(item => `${item.code}: ${item.rowId}`)
-            .join(' · ')}`
-        : '';
-      setPageError(
-        `가져오기에 실패했습니다: ${String(errorText(error))}${diagnostics}${
-          report ? ` 이전 리포트(${reportScope})는 유지했습니다.` : ''
-        }`,
-      );
+      if (requestId !== uploadRequest.current) return;
+      const diagnostic = parseImportDiagnostic(error);
+      const detail =
+        diagnostic?.errorCode === 'IMPORT_INVALID_DATE'
+          ? `날짜 값 형식을 확인해 주세요. 권장 예시: ${DATE_COLUMN_EXAMPLE} (UTC).`
+          : diagnostic?.errorCode === 'IMPORT_MISSING_COLUMNS'
+          ? '주문·결제·환불 파일에 필수 열이 있는지 확인해 주세요.'
+          : '파일 형식과 필수 열·날짜 값을 확인해 주세요.';
+      const message = `CSV 가져오기에 실패했습니다. ${detail}${
+        report ? ` 이전 리포트(${reportScope})는 유지했습니다.` : ''
+      }`;
+      setPageError(message);
+      setImportFailure({ message, diagnostic });
     } finally {
-      setUploadBusy(false);
+      if (requestId === uploadRequest.current) setUploadBusy(false);
     }
   };
 
@@ -382,6 +429,23 @@ function Commerce() {
     setImportTargetId(String(id));
     navigate(`/commerce/${id}`);
   };
+  const reselectImportFiles = () => {
+    const input = fileInputRefs.current.orders;
+    if (importOpen && input) {
+      input.click();
+      return;
+    }
+    // The card can be collapsed, so the file input is not mounted yet. Open it and click after render.
+    pendingReselect.current = true;
+    setImportOpen(true);
+    setReselectTick(value => value + 1);
+  };
+
+  useEffect(() => {
+    if (!pendingReselect.current) return;
+    pendingReselect.current = false;
+    fileInputRefs.current.orders?.click();
+  }, [importOpen, reselectTick]);
 
   const dailyOption = useMemo(
     () => ({
@@ -510,6 +574,7 @@ function Commerce() {
     customers: '고객 CSV (선택)',
   };
   const presentationTitle = presentation.title || heading;
+  const importDiagnostic = importFailure && importFailure.message === pageError ? importFailure.diagnostic : null;
 
   return (
     <PageTitleBox
@@ -586,6 +651,18 @@ function Commerce() {
               않습니다.
             </Typography>
             <Button onClick={loadProjects}>프로젝트 목록 다시 불러오기</Button>
+            {importFailure && !importDiagnostic && (
+              <Button onClick={reselectImportFiles} sx={{ minHeight: 44 }}>
+                파일 다시 선택
+              </Button>
+            )}
+            {importDiagnostic && (
+              <ImportHelp
+                key={importDiagnostic.requestId}
+                diagnostic={importDiagnostic}
+                onReselectFiles={reselectImportFiles}
+              />
+            )}
           </Alert>
         )}
         {importFeedback && (
@@ -618,7 +695,9 @@ function Commerce() {
                 주문·결제·환불 데이터 가져오기
               </Typography>
               <Typography variant="body2" color="text.secondary" mb={2}>
-                CSV 파일을 서버 DuckDB 워커로 가져옵니다. 실패하면 기존 프로젝트 리포트는 유지됩니다.
+                CSV 파일을 서버 DuckDB 워커로 가져옵니다. 실패하면 기존 프로젝트 리포트는 유지됩니다. 각 파일에는 카드에
+                표시된 필수 헤더가 필요합니다. 날짜 열(ordered_at·paid_at·refunded_at)은 UTC 타임스탬프 형식을 권장하며, 권장
+                예시는 {DATE_COLUMN_EXAMPLE}입니다.
               </Typography>
               <Stack spacing={1.5}>
                 <FormControl size="small" fullWidth>
@@ -627,7 +706,11 @@ function Commerce() {
                     labelId="commerce-import-target-label"
                     label="가져올 대상"
                     value={importTargetId}
-                    onChange={event => setImportTargetId(event.target.value)}
+                    onChange={event => {
+                      setImportTargetId(event.target.value);
+                      setImportFailure(null);
+                      abandonUpload();
+                    }}
                   >
                     <MenuItem value="">새 프로젝트</MenuItem>
                     {projects.map(project => (
@@ -687,6 +770,14 @@ function Commerce() {
                             >
                               {files[key]?.name || `${label} 선택`}
                             </Button>
+                            <Typography
+                              variant="caption"
+                              component="div"
+                              color="text.secondary"
+                              sx={{ overflowWrap: 'anywhere' }}
+                            >
+                              필수 헤더: {requiredFileHeaders[key].join(' · ')}
+                            </Typography>
                             {preview && (
                               <Box sx={{ minWidth: 0 }}>
                                 <Typography variant="caption" color="text.secondary" display="block">

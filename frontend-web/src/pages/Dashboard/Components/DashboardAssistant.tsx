@@ -185,7 +185,7 @@ export default function DashboardAssistant({
           {dateRange
             ? dateRange.precision === 'timestamp'
               ? timeRangeLabel(dateRange)
-              : `${dateRange.start} ~ ${dateRange.end} (UTC)`
+              : `${dateRange.start} ~ ${dateRange.end} (${dateRange.timeZone ?? 'UTC'})`
             : '전체 기간'}{' '}
           · {filters.length ? filters.map(f => `${f.column}: ${f.values.map(String).join(', ')}`).join(' · ') : '필터 없음'}
         </Typography>

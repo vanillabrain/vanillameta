@@ -118,4 +118,27 @@ describe('personal view trend and comparison settings', () => {
       validatePersonalViewState({ ...legacyState(), trendGrain: 'day', unknown }),
     ).toThrow(BadRequestException);
   });
+  it('round-trips timezone in absolute and relative periods', () => {
+    const absoluteState = { ...legacyState(), dateRange: { ...absolute, timeZone: 'Asia/Seoul' } };
+    expect(roundTrip(absoluteState)).toEqual(absoluteState);
+    const relativeState = {
+      ...legacyState(),
+      relativePeriod: { ...relative, timeZone: 'Asia/Seoul' },
+    };
+    expect(roundTrip(relativeState)).toEqual(relativeState);
+    expect(resolveViewDates(relativeState, new Date('2026-01-01T16:00:00Z'))).toEqual({
+      column: 'day',
+      start: '2025-12-27',
+      end: '2026-01-02',
+      timeZone: 'Asia/Seoul',
+    });
+  });
+  it.each(['KST', 'Asia/Unknown', null, 9, ''])('rejects invalid saved timezone %p', timeZone => {
+    expect(() =>
+      validatePersonalViewState({ ...legacyState(), dateRange: { ...absolute, timeZone } }),
+    ).toThrow();
+    expect(() =>
+      validatePersonalViewState({ ...legacyState(), relativePeriod: { ...relative, timeZone } }),
+    ).toThrow();
+  });
 });
