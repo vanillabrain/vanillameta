@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { get, post } from '@/helpers/apiHelper';
 import NumericBoard from '@/widget/modules/board/NumericBoard';
 import { analysisOptions } from '@/pages/Dashboard/analysisOptions';
+import FileVersions from './FileVersions';
 
 const ChartPreview = React.lazy(() => import('echarts-for-react'));
 
@@ -401,6 +402,16 @@ export default function Explore() {
                   </tbody>
                 </table>
               </Box>
+              {profile.engine?.toLowerCase() === 'duckdb' && (
+                <FileVersions
+                  sourceId={profile.sourceId}
+                  disabled={!!busy}
+                  onChanged={() => {
+                    invalidate();
+                    setReload(value => value + 1);
+                  }}
+                />
+              )}
             </>
           )}
         </Card>

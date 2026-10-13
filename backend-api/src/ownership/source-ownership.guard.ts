@@ -45,7 +45,17 @@ export class SourceOwnershipGuard implements CanActivate {
             actor,
           );
         else await this.access.assert('database', q.databaseId, actor);
-      } else if (['findOne', 'findOneInfo', 'update', 'remove'].includes(handler))
+      } else if (
+        [
+          'findOne',
+          'findOneInfo',
+          'update',
+          'remove',
+          'fileVersions',
+          'replaceFile',
+          'restoreFile',
+        ].includes(handler)
+      )
         await this.access.assert('database', param, actor);
       else throw new ForbiddenException('unsupported data access');
     } else if (['MetricController', 'DatasetController', 'WidgetController'].includes(group)) {

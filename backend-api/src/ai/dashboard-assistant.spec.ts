@@ -57,6 +57,8 @@ describe('dashboard assistant', () => {
       transaction: jest.fn(),
     };
     connection = {
+      withDuckDBSnapshot: jest.fn((_id, callback) => callback()),
+      duckDBVersion: jest.fn().mockResolvedValue('file-v1'),
       isDuckDB: jest.fn().mockResolvedValue(true),
       queryDuckDB: jest.fn(async (_id, sql) => {
         if (sql.startsWith('DESCRIBE'))

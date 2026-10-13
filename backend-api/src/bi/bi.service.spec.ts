@@ -82,7 +82,12 @@ describe('BiService structured file analysis', () => {
     service = new BiService(
       db as any,
       new SourceAccessService(db as any),
-      { queryDuckDB } as any,
+      {
+        queryDuckDB,
+        withDuckDBSnapshot: (_id, run) => run(),
+        duckDBVersion: async id =>
+          sources.find(s => s.id === id).connectionConfig || 'initial-file',
+      } as any,
       { save: saveDashboard } as any,
     );
   });
@@ -102,6 +107,15 @@ describe('BiService structured file analysis', () => {
     expect(queryDuckDB).not.toHaveBeenCalled();
   });
 
+  it('invalidates profile cache on file pointer changes even with identical timestamps', async () => {
+    sources[0].connectionConfig = 'version-one';
+    const first = await service.profile(1, 10);
+    await duck.run("INSERT INTO uploaded_data VALUES (42, 'C', DATE '2026-01-11', NULL)");
+    sources[0].connectionConfig = 'version-two';
+    const second = await service.profile(1, 10);
+    expect(second.dataVersion).not.toBe(first.dataVersion);
+    expect(second.rowCount).toBe('8');
+  });
   it('profiles all uploaded rows for counts, nulls and date bounds independently of preview', async () => {
     const profile = await service.profile(1, 10);
     expect(profile).toMatchObject({ sourceId: 1, supported: true, rowCount: '7' });

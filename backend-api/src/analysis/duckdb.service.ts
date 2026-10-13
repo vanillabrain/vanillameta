@@ -5,9 +5,9 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { Worker } from 'worker_threads';
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import * as fs from 'fs/promises';
-import { existsSync } from 'fs';
+import { createReadStream, existsSync } from 'fs';
 import * as path from 'path';
 import { CommerceImportInput, CommerceImportResult } from './commerce-import';
 
@@ -220,6 +220,35 @@ export class DuckDBService implements OnModuleDestroy {
     }
   }
 
+  private async digestPath(filename: string) {
+    const hash = createHash('sha256');
+    for await (const chunk of createReadStream(filename)) hash.update(chunk);
+    return hash.digest('hex');
+  }
+
+  async uploadDigest(file: AnalysisUpload) {
+    if (
+      !['.csv', '.json', '.parquet'].includes(path.extname(file?.originalname || '').toLowerCase())
+    )
+      throw new BadRequestException('unsupported file extension');
+    const size = file.path ? (await fs.stat(file.path)).size : file.buffer?.length;
+    if (!size) throw new BadRequestException('file is required');
+    if (size > positive(process.env.FILE_UPLOAD_MAX_BYTES, 512 * 1024 * 1024))
+      throw new BadRequestException('file size limit exceeded');
+    return file.path
+      ? this.digestPath(file.path)
+      : createHash('sha256').update(file.buffer).digest('hex');
+  }
+
+  async sourceDigest(filename: string) {
+    const directory = path.dirname(this.managed(filename));
+    const source = ['.csv', '.json', '.parquet']
+      .map(ext => path.join(directory, 'source' + ext))
+      .find(candidate => existsSync(candidate));
+    if (!source) throw new BadRequestException('보관된 원본 파일을 찾을 수 없습니다.');
+    return this.digestPath(source);
+  }
+
   async registerImport(filename: string, databaseId: number) {
     const directory = path.dirname(this.managed(filename));
     const existing = JSON.parse(await fs.readFile(path.join(directory, 'import.json'), 'utf8'));
@@ -231,6 +260,11 @@ export class DuckDBService implements OnModuleDestroy {
       { kind: 'remove', filename: this.managed(filename) },
       positive(process.env.FILE_IMPORT_TIMEOUT_MS, 300000),
     );
+  }
+
+  /** Only for a settled import never registered in metadata; no query can reference it. */
+  async discardImport(filename: string) {
+    await fs.rm(path.dirname(this.managed(filename)), { recursive: true, force: true });
   }
 
   async query(filename: string, sql: string, bindings: any[] = []) {

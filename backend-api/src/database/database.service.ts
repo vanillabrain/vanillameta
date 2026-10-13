@@ -1,4 +1,11 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateDatabaseDto } from './dto/create-database.dto';
 import { UpdateDatabaseDto } from './dto/update-database.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -15,6 +22,8 @@ import { YesNo } from '../common/enum/yn.enum';
 import { decryptConnectionConfig, encryptConnectionConfig } from '../utils/crypto.util';
 import { assertSafeIdentifier } from '../utils/query-guard.util';
 import * as path from 'path';
+import * as fs from 'fs/promises';
+import { createHash } from 'crypto';
 import { AnalysisUpload, DuckDBService } from '../analysis/duckdb.service';
 
 const UPLOAD_TABLE = 'uploaded_data';
@@ -47,7 +56,9 @@ export class DatabaseService {
     if (!value || typeof value !== 'object') return value;
     return Object.fromEntries(
       Object.entries(value)
-        .filter(([key]) => !['password', 'connectionstring'].includes(key.toLowerCase()))
+        .filter(
+          ([key]) => !['password', 'connectionstring', 'fileversions'].includes(key.toLowerCase()),
+        )
         .map(([key, item]) => [key, this.publicConnectionConfig(item)]),
     );
   }
@@ -99,17 +110,29 @@ export class DatabaseService {
     database.engine = 'duckdb';
     database.type = 'duckdb';
     database.timezone = 'Asia/Seoul';
-    database.connectionConfig = encryptConnectionConfig(
-      JSON.stringify({
-        client: 'duckdb',
-        connection: { filename: imported.filename },
-      }),
-    );
     let saved: Database;
     try {
+      database.connectionConfig = encryptConnectionConfig(
+        JSON.stringify({
+          client: 'duckdb',
+          connection: { filename: imported.filename },
+          fileVersions: [
+            {
+              id: path.basename(path.dirname(imported.filename)),
+              filename: imported.filename,
+              originalname: file.originalname,
+              rows: imported.rows,
+              uploadedAt: new Date().toISOString(),
+              sha256: await this.duckdbService.sourceDigest(imported.filename),
+            },
+          ],
+        }),
+      );
       saved = await this.databaseRepository.save(database);
     } catch (error) {
-      await this.duckdbService.removeImport(imported.filename);
+      await this.duckdbService
+        .discardImport(imported.filename)
+        .catch(() => this.logger.warn('unregistered analysis import cleanup failed'));
       throw error;
     }
     // Metadata is authoritative. An auxiliary manifest failure must not delete a registered source.
@@ -122,6 +145,167 @@ export class DatabaseService {
       status: ResponseStatus.SUCCESS,
       data: { id: saved.id, name: baseName, tableName: UPLOAD_TABLE, rows: imported.rows },
     };
+  }
+
+  private async fileState(id: number, ownerId: number) {
+    id = this.validateId(id);
+    const row = await this.databaseRepository.findOne({ where: { id } });
+    if (!row) throw new NotFoundException('데이터 소스를 찾을 수 없습니다.');
+    if (row.ownerId !== ownerId || !Number.isSafeInteger(ownerId) || ownerId <= 0)
+      throw new ForbiddenException('다른 사용자의 파일은 변경할 수 없습니다.');
+    if (row.engine !== 'duckdb')
+      throw new BadRequestException('서버에 저장한 파일만 교체할 수 있습니다.');
+    const config = JSON.parse(decryptConnectionConfig(row.connectionConfig));
+    const filename = config.connection?.filename;
+    // A commerce bundle has several tables and a separate publishing contract.
+    await this.duckdbService.query(filename, 'DESCRIBE uploaded_data');
+    const versions = config.fileVersions || [
+      {
+        id: path.basename(path.dirname(filename)),
+        filename,
+        originalname: row.description?.startsWith('File upload: ')
+          ? row.description.slice(13)
+          : row.name,
+        rows: Number(
+          (await this.duckdbService.query(filename, 'SELECT COUNT(*) AS n FROM uploaded_data'))
+            .datas[0].n,
+        ),
+        uploadedAt: row.createdAt?.toISOString?.() || row.createdAt || new Date().toISOString(),
+        sha256: await this.duckdbService.sourceDigest(filename),
+      },
+    ];
+    return {
+      row,
+      config,
+      versions,
+      revision: createHash('sha256').update(row.connectionConfig).digest('hex'),
+    };
+  }
+
+  private publicVersions(state: any) {
+    return {
+      status: ResponseStatus.SUCCESS,
+      data: {
+        sourceId: state.row.id,
+        revision: state.revision,
+        limit: 5,
+        currentVersionId: path.basename(path.dirname(state.config.connection.filename)),
+        versions: state.versions.map(v => ({
+          id: v.id,
+          originalname: v.originalname,
+          rows: v.rows,
+          uploadedAt: v.uploadedAt,
+          current: v.filename === state.config.connection.filename,
+        })),
+      },
+    };
+  }
+
+  async fileVersions(id: number, ownerId: number) {
+    return this.publicVersions(await this.fileState(id, ownerId));
+  }
+
+  private expectFileRevision(state: any, expected: unknown) {
+    if (typeof expected !== 'string' || !/^[a-f0-9]{64}$/.test(expected))
+      throw new BadRequestException('파일 버전을 다시 불러와 주세요.');
+    if (state.revision !== expected)
+      throw new ConflictException(
+        '다른 화면에서 파일이 변경되었습니다. 최신 버전을 다시 불러와 주세요.',
+      );
+  }
+
+  private async switchFile(state: any, version: any, versions: any[]) {
+    const config = {
+      ...state.config,
+      connection: { ...state.config.connection, filename: version.filename },
+      fileVersions: versions,
+    };
+    const connectionConfig = encryptConnectionConfig(JSON.stringify(config));
+    const updated = await this.databaseRepository.update(
+      {
+        id: state.row.id,
+        ownerId: state.row.ownerId,
+        connectionConfig: state.row.connectionConfig,
+      },
+      { connectionConfig },
+    );
+    if (updated.affected !== 1)
+      throw new ConflictException('파일이 동시에 변경되었습니다. 최신 버전을 다시 불러와 주세요.');
+    // Return the state this request committed; a later request may already have switched again.
+    return this.publicVersions({
+      ...state,
+      config,
+      versions,
+      revision: createHash('sha256').update(connectionConfig).digest('hex'),
+    });
+  }
+
+  async replaceFile(id: number, file: AnalysisUpload, expectedRevision: unknown, ownerId: number) {
+    let imported: Awaited<ReturnType<DuckDBService['importFile']>>;
+    let committed = false;
+    try {
+      const state = await this.fileState(id, ownerId);
+      this.expectFileRevision(state, expectedRevision);
+      const sha256 = await this.duckdbService.uploadDigest(file);
+      const current = state.versions.find(v => v.filename === state.config.connection.filename);
+      if (
+        current?.sha256 === sha256 &&
+        path.extname(current.originalname).toLowerCase() ===
+          path.extname(file.originalname).toLowerCase()
+      ) {
+        const latest = await this.fileState(id, ownerId);
+        this.expectFileRevision(latest, expectedRevision);
+        return { ...this.publicVersions(latest), unchanged: true };
+      }
+      if (state.versions.length >= 5)
+        throw new BadRequestException(
+          '최대 5개 파일 버전을 보관합니다. 추가 갱신은 보존 정책 정리 후 진행해 주세요.',
+        );
+      imported = await this.duckdbService.importFile(file);
+      const schema = async (filename: string) =>
+        JSON.stringify(
+          (await this.duckdbService.query(filename, 'DESCRIBE uploaded_data')).datas
+            .map(c => [c.column_name, c.column_type])
+            .sort((a, b) => a[0].localeCompare(b[0])),
+        );
+      if ((await schema(state.config.connection.filename)) !== (await schema(imported.filename)))
+        throw new BadRequestException(
+          '컬럼 이름 또는 타입이 기존 파일과 다릅니다. 기존 데이터는 유지됩니다. 같은 형식으로 수정하거나 새 데이터 소스로 연결해 주세요.',
+        );
+      const version = {
+        id: path.basename(path.dirname(imported.filename)),
+        filename: imported.filename,
+        originalname: file.originalname,
+        rows: imported.rows,
+        uploadedAt: new Date().toISOString(),
+        sha256,
+      };
+      const result = await this.switchFile(state, version, [...state.versions, version]);
+      committed = true;
+      try {
+        await this.duckdbService.registerImport(imported.filename, id);
+      } catch {
+        this.logger.warn(`analysis manifest registration failed for database ${id}`);
+      }
+      return result;
+    } finally {
+      // Only discard this request's unregistered candidate, never an active or historical file.
+      if (imported && !committed)
+        await this.duckdbService
+          .discardImport(imported.filename)
+          .catch(() => this.logger.warn('unregistered analysis candidate cleanup failed'));
+      if (file?.path) await fs.rm(file.path, { force: true });
+    }
+  }
+
+  async restoreFile(id: number, body: any, ownerId: number) {
+    const state = await this.fileState(id, ownerId);
+    this.expectFileRevision(state, body?.expectedRevision);
+    const version = state.versions.find(v => v.id === body?.versionId);
+    if (!version) throw new BadRequestException('보관된 파일 버전을 선택해 주세요.');
+    if (version.filename === state.config.connection.filename) return this.publicVersions(state);
+    await this.duckdbService.query(version.filename, 'DESCRIBE uploaded_data');
+    return this.switchFile(state, version, state.versions);
   }
 
   /**
@@ -345,7 +529,11 @@ where ((datasetType = 'DATASET' and datasetId in (select id from dataset where d
     await this.databaseRepository.remove(one);
     await this.connectionService.removeKnex(id);
     if (one.engine === 'duckdb') {
-      await this.duckdbService.removeImport(one.connectionConfig['connection'].filename);
+      const files = new Set<string>([
+        one.connectionConfig['connection'].filename,
+        ...(one.connectionConfig['fileVersions'] || []).map(v => v.filename),
+      ]);
+      for (const filename of files) await this.duckdbService.removeImport(filename);
     }
 
     return {

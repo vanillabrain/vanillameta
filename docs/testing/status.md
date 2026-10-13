@@ -1,5 +1,7 @@
 # MD 검증 현황 — 2026-10-13
 
+[파일 교체·버전 복원](file-versions.md): SSBI-10 선택 VERSION-01~08을 검증했다. source24/metric30/dashboard26 정의·배치 유지, 독립 합계60→220→60·차원/날짜 캐시 갱신, 같은 파일 no-op(재수입0),400/403/409·CAS·최대5개·진행 중 조회 버전 고정 확인. 모바일 표/상단축 잘림 보정 및 Tab/Enter 확인. 자동 매핑/의미·장기 보존/전역 quota/crash 복구·VoiceOver는 남아 전체 SSBI는 부분 완료다. 기존130개 집계 유지, gpt-6-luna 유지·모델 호출0.
+
 [가중 평균·합계 비율 후속](advanced-metrics.md): SSBI-03의 선택 조건 ADV-01~04를 보완했다. Rill 전체 평균5.571238676523254·독립 정답 대조, 정상 가중17.5/15%·NULL/0·음수 정책·정의/snapshot 저장·재조회·모바일/Enter 확인. 차트 표NaN을 수정·재검증했다. 원격/통화/임의식/파일 교체·VoiceOver는 남아 전체 SSBI는 부분 완료다. gpt-6-luna 유지·모델 호출0.
 
 [139만 행 구조화 제작 후속](structured-rill-large.md): 새 소스 프로파일·저장 SUM/COUNT·3차트 편집·저장/reload·9기기 정답·snapshot 및 1440/390 화면을 확인했다. LARGE-01~03 PASS(모바일 숫자 축 밀집 수정 후 재검증). LARGE-04는 AVG와 Rill 가중 공식 구분만 PASS이며 구조화 가중 지표는 미구현이다. SSBI 전체의 부분 완료와 기존130개 집계 유지, gpt-6-luna 유지·AI 호출0.

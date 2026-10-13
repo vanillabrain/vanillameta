@@ -14,6 +14,7 @@ import { assertReadOnlyQuery } from '../utils/query-guard.util';
 import { Redis } from 'ioredis';
 import { DuckDBService } from '../analysis/duckdb.service';
 import { ProgressGateway } from '../progress/progress.gateway';
+import { AsyncLocalStorage } from 'async_hooks';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires -- knex-bigquery는 타입 선언이 없음
 const { BigQueryClient } = require('knex-bigquery');
@@ -74,6 +75,8 @@ const queryCache: QueryCache = process.env.REDIS_URL
 
 @Injectable()
 export class ConnectionService {
+  private readonly duckDBSnapshots = new AsyncLocalStorage<Map<number, Record<string, any>>>();
+
   constructor(
     @InjectRepository(Database) private databaseRepository: Repository<Database>,
     private readonly progressGateway: ProgressGateway,
@@ -132,9 +135,30 @@ export class ConnectionService {
    */
   private async getConnectionConfig(id: number | string) {
     const databaseId = this.validateId(id);
+    const snapshot = this.duckDBSnapshots.getStore()?.get(databaseId);
+    if (snapshot) return snapshot;
     const one = await this.databaseRepository.findOne({ where: { id: databaseId } });
     if (!one) throw new NotFoundException('database not found');
     return JSON.parse(decryptConnectionConfig(one.connectionConfig));
+  }
+
+  /** Pin the selected immutable file for every query in this async operation. */
+  async withDuckDBSnapshot<T>(id: number, callback: () => T | Promise<T>): Promise<T> {
+    const databaseId = this.validateId(id);
+    const snapshots = this.duckDBSnapshots.getStore();
+    if (snapshots?.has(databaseId)) return callback();
+    const config = await this.getConnectionConfig(databaseId);
+    if (config.client !== 'duckdb') throw new BadRequestException('not a DuckDB source');
+    const pinned = new Map(snapshots);
+    pinned.set(databaseId, config);
+    return this.duckDBSnapshots.run(pinned, callback);
+  }
+
+  /** Opaque revision of the selected file; respects any active snapshot. */
+  async duckDBVersion(id: number): Promise<string> {
+    const config = await this.getConnectionConfig(id);
+    if (config.client !== 'duckdb') throw new BadRequestException('not a DuckDB source');
+    return createHash('sha256').update(config.connection.filename).digest('hex');
   }
 
   async isDuckDB(id: number) {

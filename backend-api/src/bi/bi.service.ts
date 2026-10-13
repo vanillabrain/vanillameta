@@ -26,17 +26,33 @@ export class BiService {
   }
   async profile(id: unknown, actor: number) {
     await this.access.assert('database', id, actor);
+    const sourceId = this.access.id(id);
+    const source = await this.db.getRepository(Database).findOne({ where: { id: sourceId } });
+    if (source.engine !== 'duckdb') return this.profileSnapshot(id, actor);
+    return this.connection.withDuckDBSnapshot(sourceId, () => this.profileSnapshot(id, actor));
+  }
+  private async profileSnapshot(id: unknown, actor: number) {
+    await this.access.assert('database', id, actor);
     const source = await this.db
       .getRepository(Database)
       .findOne({ where: { id: this.access.id(id) } });
     const version = createHash('sha256')
-      .update(JSON.stringify([source.id, source.createdAt, source.updatedAt]))
+      .update(
+        JSON.stringify([
+          source.id,
+          source.createdAt,
+          source.updatedAt,
+          source.engine === 'duckdb'
+            ? await this.connection.duckDBVersion(source.id)
+            : source.connectionConfig,
+        ]),
+      )
       .digest('hex');
     const base = {
       sourceId: source.id,
       name: source.name,
       engine: source.engine,
-      storedAt: source.createdAt,
+      storedAt: source.updatedAt || source.createdAt,
       dataVersion: version,
     };
     if (source.engine !== 'duckdb')
@@ -262,6 +278,12 @@ export class BiService {
     return { draft, snapshot, profile, definition };
   }
   async preview(body: any, actor: number) {
+    await this.access.assert('database', body?.sourceId, actor);
+    return this.connection.withDuckDBSnapshot(this.access.id(body.sourceId), () =>
+      this.previewSnapshot(body, actor),
+    );
+  }
+  private async previewSnapshot(body: any, actor: number) {
     const { draft, snapshot, profile, definition } = await this.prepare(body, actor);
     const rows = (
       await this.connection.queryDuckDB(profile.sourceId, sourceQuery(draft.widgets[0].sql, []).sql)

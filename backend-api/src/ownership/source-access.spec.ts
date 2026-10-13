@@ -66,6 +66,31 @@ describe('source ownership boundary', () => {
       await expect(access.assert(kind, ids[kind], 8)).rejects.toBeInstanceOf(ForbiddenException);
     },
   );
+  it.each(['fileVersions', 'replaceFile', 'restoreFile'])(
+    'protects file version handler %s before upload',
+    async handler => {
+      await expect(
+        guard.canActivate(request('DatabaseController', handler, { params: { id: '1' } })),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(
+        guard.canActivate(request('DatabaseController', handler, { params: { id: '2' } })),
+      ).resolves.toBe(true);
+    },
+  );
+  it.each(['fileVersions', 'replaceFile', 'restoreFile'])(
+    'rejects share tokens for file version handler %s',
+    async handler => {
+      await expect(
+        guard.canActivate(
+          request('DatabaseController', handler, {
+            params: { id: '2' },
+            user: { shareKeyData: { dashboardId: 51 } },
+            method: 'GET',
+          }),
+        ),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    },
+  );
   it('locks NULL owners and hides foreign list entries', async () => {
     await expect(access.assert('database', 3, 7)).rejects.toThrow();
     expect(await access.filterResults('database', 8, { data: rows.Database })).toEqual({

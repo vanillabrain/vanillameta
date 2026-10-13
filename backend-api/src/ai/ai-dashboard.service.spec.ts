@@ -146,6 +146,8 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
     });
     await db.initialize();
     connection = {
+      withDuckDBSnapshot: jest.fn((_id, callback) => callback()),
+      duckDBVersion: jest.fn().mockResolvedValue(file.filename),
       isDuckDB: jest.fn().mockResolvedValue(true),
       queryDuckDB: jest.fn((id, sql, bindings) => worker.query(file.filename, sql, bindings)),
     };

@@ -392,6 +392,12 @@ export class AiDashboardService {
   async preview(body: any, userId: number) {
     if (body?.dashboardId !== undefined) await this.owner(body.dashboardId, userId);
     const draft = validateDraft(body?.draft);
+    return this.connection.withDuckDBSnapshot(draft.databaseId, () =>
+      this.previewSnapshot(body, draft),
+    );
+  }
+  private async previewSnapshot(body: any, draft: ReturnType<typeof validateDraft>) {
+    const sourceRevision = await this.connection.duckDBVersion(draft.databaseId);
     const schema = await this.schema(draft.databaseId);
     const columns = schema.map(c => c.column_name);
     const temporal = schema.filter(c => /^(DATE|TIMESTAMP)/i.test(c.column_type));
@@ -421,7 +427,7 @@ export class AiDashboardService {
       }
       widgets.push({ ...definition, fields: result.fields, datas: result.datas });
     }
-    const schemaKey = JSON.stringify(schema);
+    const schemaKey = JSON.stringify([sourceRevision, schema]);
     const cached = this.dimensionCache.get(draft.databaseId);
     let dimensions =
       cached?.key === schemaKey && cached.expires > Date.now() ? cached.data : undefined;
@@ -523,6 +529,7 @@ export class AiDashboardService {
     }
     return this.success({
       draft,
+      sourceRevision,
       widgets,
       dimensions,
       temporalColumns,

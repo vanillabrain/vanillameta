@@ -114,6 +114,52 @@ export class DatabaseController {
     return this.databaseService.uploadFile(file, this.access.actor(req.user.accessKeyData.id));
   }
 
+  @Get(':id/file-versions')
+  fileVersions(@Param('id') id: string, @Req() req) {
+    return this.databaseService.fileVersions(+id, this.access.actor(req.user.accessKeyData.id));
+  }
+
+  @Post(':id/file-replacement')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: (_request, _file, callback) => {
+          const directory = path.resolve(process.env.FILE_UPLOAD_DIR || 'uploads', 'incoming');
+          fs.mkdir(directory, { recursive: true, mode: 0o700 }, error =>
+            callback(error, directory),
+          );
+        },
+        filename: (_request, _file, callback) => callback(null, randomUUID()),
+      }),
+      limits: {
+        fileSize: Number(process.env.FILE_UPLOAD_MAX_BYTES) || 512 * 1024 * 1024,
+        files: 1,
+      },
+    }),
+  )
+  replaceFile(
+    @Param('id') id: string,
+    @UploadedFile() file: AnalysisUpload,
+    @Body('expectedRevision') expectedRevision: string,
+    @Req() req,
+  ) {
+    return this.databaseService.replaceFile(
+      +id,
+      file,
+      expectedRevision,
+      this.access.actor(req.user.accessKeyData.id),
+    );
+  }
+
+  @Post(':id/file-restore')
+  restoreFile(@Param('id') id: string, @Body() body: any, @Req() req) {
+    return this.databaseService.restoreFile(
+      +id,
+      body,
+      this.access.actor(req.user.accessKeyData.id),
+    );
+  }
+
   /**
    * 데이터베이스 연결 테스트
    * @param createDatabaseDto

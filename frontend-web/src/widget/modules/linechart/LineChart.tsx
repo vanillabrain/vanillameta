@@ -126,7 +126,10 @@ const LineChart = props => {
           axisLabel: { interval: axis === 'y' ? 0 : 'auto', fontSize: 12 },
         },
         series: newSeries,
-        grid: getGridSize(option.legendPosition),
+        grid: {
+          ...getGridSize(option.legendPosition),
+          ...(axis === 'x' && option.legendPosition !== 'top' ? { top: 12 } : {}),
+        },
         legend: getLegendOption(option.legendPosition),
         ...createOp,
       };
