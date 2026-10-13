@@ -1,5 +1,5 @@
 import React from 'react';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import Explore from './index';
 
@@ -105,6 +105,41 @@ const save = async () => {
   await waitFor(() => expect(value('저장된 지표')).toBe('20'));
   return api.post.mock.calls.find(([url]) => url === '/bi/metrics')[1];
 };
+
+it('keeps source selection available while loading and ignores a superseded profile', async () => {
+  const deferred = () => {
+    let resolve!: (value: unknown) => void;
+    const promise = new Promise(result => {
+      resolve = result;
+    });
+    return { promise, resolve };
+  };
+  const second = deferred();
+  const third = deferred();
+  api.get.mockImplementation(async (url: string) => {
+    if (url === '/bi/sources/2/profile') return second.promise;
+    if (url === '/bi/sources/3/profile') return third.promise;
+    if (url.endsWith('/profile')) return success(profile);
+    if (url === '/bi/metrics') return success(api.metrics);
+    return success([1, 2, 3].map(id => ({ id, name: `파일${id}`, engine: 'duckdb' })));
+  });
+  await mount();
+  const source = screen.getByLabelText('데이터 소스') as HTMLSelectElement;
+  source.focus();
+  choose('데이터 소스', '2');
+  await screen.findByText('데이터 불러오는 중…');
+  expect(source.disabled).toBe(false);
+  expect(document.activeElement).toBe(source);
+  choose('데이터 소스', '3');
+  third.resolve(success({ ...profile, sourceId: 3, rowCount: '33' }));
+  await screen.findByText(/저장된 전체 행 수: 33/);
+  await act(async () => second.resolve(success({ ...profile, sourceId: 2, rowCount: '22' })));
+  expect(value('데이터 소스')).toBe('3');
+  expect(screen.getByText(/저장된 전체 행 수: 33/)).not.toBeNull();
+  expect(screen.queryByText(/저장된 전체 행 수: 22/)).toBeNull();
+  expect(document.activeElement).toBe(source);
+  expect(api.post).not.toHaveBeenCalled();
+});
 
 it.each([
   ['10', weighted, '가중치 열', 'weight'],

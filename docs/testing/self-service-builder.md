@@ -1,5 +1,7 @@
 # 셀프서비스 BI 2A — 프로파일·지표·SQL 없는 제작
 
+네이티브 선택 메뉴 후속: [builder-native-select.md](builder-native-select.md). 실제 CUA 메뉴·방향키/Space/Enter/Escape를 사용해 데스크톱·390px의 선택 변형을 확인했고, 소스 조회 중 초점 소실을 수정·재검증했다. 아래 native popup BLOCKED는 당시 기록이며 선택 변형에 한해 해소했다. 실제 VoiceOver와 전체 SSBI 범위는 남는다.
+
 기준: develop-v2의 `9f74f8be` 이후 변경, 2026-10-13. 기존 통과 케이스는 반복하지 않았다. `$vanillameta-verify`의 선택 검증을 사용한다. 이 문서의 선택 조건 통과를 전체 SSBI 계획 완료로 확대하지 않는다.
 
 ## 구현 계약

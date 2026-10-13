@@ -307,7 +307,7 @@ export default function Explore() {
           <Select
             label="데이터 소스"
             value={sourceId}
-            disabled={!!busy}
+            disabled={!!busy && busy !== '데이터 불러오는 중…'}
             onChange={value => {
               invalidate();
               setSourceId(value);
