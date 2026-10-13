@@ -1,5 +1,7 @@
 # MD 검증 현황 — 2026-10-13
 
+2026-10-13 대용량 원본 상세·스크린리더 후속: [detail-large-screenreader.md](detail-large-screenreader.md). Rill 1391572행의 전체·현재/이전 주 시점 page0/1·25만/100만 offset 100행을 원본 Parquet 정답과 대조했다. 초기 UI 1.095초·나머지 API 0.216~0.765초/응답 최대64653bytes,390px 25/100행 AX·이전 문맥/페이지/오류 복구와 axe 3화면 오류0은 선택 PASS다. 실제 VoiceOver는 OS 보조 접근/도구 창 연결 실패로 BLOCKED이며 DOM/axe로 발화를 대체하지 않는다. DESIGN-04 부분 완료·기존130개 집계 유지, 모델 호출0/gpt-6-luna 유지·제품 코드 변경0이다. 페이지10000 상한·전체 deadline/abort 전파·동시 부하는 운영 잔여로 보존한다.
+
 2026-10-13 이전 기간 시점 상세 후속: [previous-point-contributors.md](previous-point-contributors.md). 이전 KPI 추세·안전한 시간 차트의 실제 표시 시점 입력을 현재 필터/기간을 바꾸지 않고 조회한다. 같은 주 시작의 현재40/1행과 이전190/5행, NULL SUM0행/분모 전용1행·정밀 UTC 교집합을 분리했다. 실제 API16조건/거부11조건·1440/390·키보드·정의409 복구가 선택 PASS다.503 재시도에서 초점 소실/Escape 실패를 발견해 수정 후 해당 조건만 재검증했다. PREV-INPUT-01~04 선택 변형 PASS, 모델 호출0/gpt-6-luna 유지. 아래 과거 기록의 이전 시점 상세 잔여를 보강했으며 복잡한 SQL·대용량 상세/VoiceOver·전체 출시 회귀는 남아 있다. 기존130개 카탈로그 집계는 유지한다.
 
 2026-10-13 KPI 미니 추세 시점 후속: [kpi-point-contributors.md](kpi-point-contributors.md). 실제 표시한 시간·일·주·월 시점의 집계 입력을 공통 필터/기간 변경 없이 탐색한다. NULL 결과의 빈 SUM과 분모 전용 가중 입력을 구분하고 표시 시점 목록·정의·파일 버전을 확인한다. 독립 정답 API14조건/거부10조건, 실제1440/390·방향키/Tab/Enter/Space/초점·503 fixture/실제409 복구를 확인했다. KPI-INPUT-01~04 선택 변형 PASS, 기존 MD 통과 반복 없음, 모델 호출0/gpt-6-luna 유지. 아래 이전 기록의 KPI 현재 추세 시점 잔여는 이 후속으로 보강했다. 이전 기간 상세·복잡한 SQL·대용량 성능·VoiceOver는 남아 있으며 기존130개 집계는 유지한다.

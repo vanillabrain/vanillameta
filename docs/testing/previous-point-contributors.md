@@ -1,5 +1,7 @@
 # 이전 기간 시점별 집계 입력 원본
 
+대용량/스크린리더 후속: [detail-large-screenreader.md](detail-large-screenreader.md)에서 139만 행의 선택 원본 상세 성능·AX를 검증했다. 아래 미검증은 당시 기록이며 실제 VoiceOver는 후속도 BLOCKED다.
+
 기존 KPI-INPUT/CONTRIB/TIME의 통과 조건은 반복하지 않는다. 이번 명세는 이전 기간의 KPI 추세·시간 차트 시점 상세를 검증한다. Codex `gpt-6-luna` 설정은 유지하며 수동 탐색에는 모델 호출이 필요하지 않다.
 
 ## 계약
