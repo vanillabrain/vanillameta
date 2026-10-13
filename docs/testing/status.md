@@ -1,5 +1,7 @@
 # MD 검증 현황 — 2026-10-13
 
+2026-10-13 상세 선택창 대비 후속: [detail-large-screenreader.md](detail-large-screenreader.md). 자동 미판정1건은 유지하면서 실제 선택값·레이블의 white 배경 대비16.07/5.74/6.72:1과 텍스트 가림 없음을 관찰해 해당 텍스트만 선택 PASS로 보완했다. desktop Enter/Escape·mobile ArrowDown/Enter의50행 선택도 확인했다. 사용자 권한 허용 후 VoiceOver 프로세스는 발견됐지만 창 접근·발화 읽기(-1728)와 CUA/Orca 연결은 실패해 실제 발화 BLOCKED를 유지한다. 제품 변경0·모델 호출0, 기존 수치·E2E 통과 반복 없음.
+
 2026-10-13 원본 상세 로딩 안내 후속: [detail-large-screenreader.md](detail-large-screenreader.md)의 DETAIL-SR-01 미확인 로딩 조건을 보완했다. 동일 atomic/live 상태 영역에서 조회 중 페이지·행 수와 완료 안내를 갱신한다.390px 최초 조회·1440px 페이지 이동·503 후 Enter 재시도와 Escape 초점 복귀를 선택 검증했다. 실제 발화는 BLOCKED, 완료 화면 axe는 오류0/미판정1로 남긴다. 기존 수치·E2E 통과 조건 반복 없음, gpt-6-luna 유지·모델 호출0.
 
 2026-10-13 대용량 원본 상세·스크린리더 후속: [detail-large-screenreader.md](detail-large-screenreader.md). Rill 1391572행의 전체·현재/이전 주 시점 page0/1·25만/100만 offset 100행을 원본 Parquet 정답과 대조했다. 초기 UI 1.095초·나머지 API 0.216~0.765초/응답 최대64653bytes,390px 25/100행 AX·이전 문맥/페이지/오류 복구와 axe 3화면 오류0은 선택 PASS다. 실제 VoiceOver는 OS 보조 접근/도구 창 연결 실패로 BLOCKED이며 DOM/axe로 발화를 대체하지 않는다. DESIGN-04 부분 완료·기존130개 집계 유지, 모델 호출0/gpt-6-luna 유지·제품 코드 변경0이다. 페이지10000 상한·전체 deadline/abort 전파·동시 부하는 운영 잔여로 보존한다.

@@ -71,3 +71,15 @@ SourceDetails의 동일한 상태 영역을 유지하면서 `role=status`, `aria
 증빙: `loading-after-mobile.png`, `loading-page2-desktop.png`, `loading-retry-desktop.png`와 각 `*-ax.txt`, `loading-completed-desktop.png`, `loading-verification.json`. 2.2초 응답 보류는 브라우저 관찰용 fixture이며 실제 DuckDB 지연 성능으로 해석하지 않는다. 완료 화면 axe는 violation0, incomplete1(페이지당 행 수 select의 배경 겹침 판정 불가)로 자동 대비 전체 PASS를 주장하지 않는다. 전환 중 나온 임시 대비 오류와 최종 결과는 각각 `loading-completion-axe.json`, `loading-completion-axe-stable.json`에 분리했다.
 
 기존 대용량 수치·페이지 정답과 이미 통과한 E2E는 반복하지 않았다. FE 타입·변경 파일 lint·빌드가 통과했고, 변경 컴포넌트 단위174개(새 live 상태 회귀 포함)가 통과했다. API는 기존4683, FE는 서버가 허용한 `http://127.0.0.1:3483`을 재사용했다. localhost 출처 실패·10초 이상 보류한 하네스 종료는 제품 실패와 구분한다. 임시로 기동한3484 서버·검증 창·개인 로그인 파일만 정리했다. 저장된 정의·파일은 변경하지 않았고 AI 호출0/gpt-6-luna를 유지한다.
+
+## 선택창 대비 미판정·키보드 후속 — 2026-10-13
+
+기준 `a146f259`에서 남은 페이지당 행 수 select의 대비 미판정만 조사했다. 모바일에서 스크롤 아래의 선택창을 focus하면 보이는 영역으로 이동했고, 텍스트 위치의 hit-test는 선택창 자신이었다. desktop1440에서도 실제 텍스트 중앙을 다른 요소가 가리지 않았다. axe의 선택창 배경 겹침 미판정은 일부 상태에서 여전히1건이며 자동 PASS로 바꾸지 않는다.
+
+렌더링된 선택값은 `rgba(0,0,0,0.87)`, 불투명 배경은 white, 모든 조상 opacity는1이다. alpha를 white에 합성한 WCAG 상대 휘도 대비는 약16.07:1이다. 레이블 기본색 `rgba(0,0,0,0.6)`은5.74:1, 전환 완료 후 초점색 `rgb(15,90,178)`은6.72:1로4.5:1 기준을 충족한다. 이 텍스트·레이블만 **PASS_SELECTED_TEXT_ONLY**이며 전체 화면·전체 대비의 통과로 확대하지 않는다. 제품 CSS 변경은 필요하지 않았다.
+
+desktop Enter로 listbox의25/50/100행 옵션이 노출되고 Escape가 select로 초점을 복귀시켰다. mobile390에서 Enter→ArrowDown→Enter로50행을 선택하고 실제 표50행·완료 상태를 확인했다. 이는 앞선 페이지당100행 수치 검사를 반복한 것이 아니라 미확인 키보드 선택 변형이다. `detail-select-settled.json`, `detail-select-contrast-observations.json`, `detail-select-text-hit.json`, 해당 `*-axe.json`/`*-ax.txt`, `detail-select-keyboard-options-desktop.png`/`mobile.png`, `detail-select-50-mobile-settled.png`가 증빙이다.
+
+사용자가 보조 접근 권한 허용을 알린 뒤 OS 도구를 재확인했다. VoiceOver 프로세스는 발견됐으나 창 열거는 여전히 `osascript` 보조 접근 거부(-1728), 마지막 실제 발화 읽기도 content를 가져올 수 없음(-1728)이었다. CUA 앱 연결은 timeoutReached, Orca는 runtime_unavailable/open_timeout이었다. 단순 frontmost 이름 읽기 성공을 창 제어 권한으로 해석하지 않는다. 실제 발화·읽기 순서는 **BLOCKED**이며 `voiceover-permission-followup.json`에 남겼다. 허용한 앱과 실행 도구의 권한 대응 확인을 요청했으며 VoiceOver나 사용자 앱은 종료하지 않는다.
+
+이번 후속은 제품 코드 변경0·AI 호출0/gpt-6-luna 유지다. 이전 성능·수치·E2E 통과는 재사용했고 문서만 변경하므로 단위·타입·빌드는 재실행하지 않는다.
