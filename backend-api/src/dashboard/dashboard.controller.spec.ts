@@ -1,3 +1,4 @@
+import { SourceAccessService } from '../ownership/source-access.service';
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { DashboardController } from './dashboard.controller';
@@ -9,7 +10,10 @@ describe('DashboardController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [DashboardController],
-      providers: [{ provide: DashboardService, useValue: {} }],
+      providers: [
+        { provide: SourceAccessService, useValue: {} },
+        { provide: DashboardService, useValue: {} },
+      ],
     })
       .overrideGuard(JwtAuthGuard)
       .useValue({ canActivate: () => true })

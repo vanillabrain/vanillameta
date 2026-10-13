@@ -28,7 +28,7 @@ const CATEGORIES = ['전자제품', '의류', '식품', '가구', '도서'];
 
 /**
  * 신규 가입 사용자 온보딩 프로비저닝.
- * - 샘플 sqlite DB/데이터셋/위젯은 전역 공유 자산으로 1회만 생성(idempotent)
+ * - 샘플 sqlite DB/데이터셋/위젯은 사용자별 비공개 자산으로 생성(idempotent)
  * - 대시보드는 가입할 때마다 해당 사용자에게 귀속되도록 생성
  * 모든 실패는 로그만 남기고 가입 플로우를 막지 않는다.
  */
@@ -50,7 +50,7 @@ export class SampleService {
 
   async provisionForUser(userInfoId: number): Promise<void> {
     try {
-      const dataset = await this.ensureSampleAssets();
+      const dataset = await this.ensureSampleAssets(userInfoId);
       const widgets = await this.ensureSampleWidgets(dataset.id);
       await this.createDashboardForUser(
         userInfoId,
@@ -62,8 +62,10 @@ export class SampleService {
     }
   }
 
-  private async ensureSampleAssets(): Promise<Dataset> {
-    let database = await this.databaseRepository.findOne({ where: { name: SAMPLE_DB_NAME } });
+  private async ensureSampleAssets(userInfoId: number): Promise<Dataset> {
+    let database = await this.databaseRepository.findOne({
+      where: { name: SAMPLE_DB_NAME, ownerId: userInfoId },
+    });
     if (!database) {
       const dbPath = await this.writeSampleSqlite();
       const entity = new Database();
@@ -72,6 +74,7 @@ export class SampleService {
       entity.engine = 'sqlite3';
       entity.type = 'sqlite';
       entity.timezone = 'Asia/Seoul';
+      entity.ownerId = userInfoId;
       entity.connectionConfig = encryptConnectionConfig(
         JSON.stringify({
           client: 'sqlite3',
@@ -82,7 +85,9 @@ export class SampleService {
       database = await this.databaseRepository.save(entity);
     }
 
-    let dataset = await this.datasetRepository.findOne({ where: { title: SAMPLE_DATASET_TITLE } });
+    let dataset = await this.datasetRepository.findOne({
+      where: { title: SAMPLE_DATASET_TITLE, databaseId: database.id },
+    });
     if (!dataset) {
       dataset = await this.datasetRepository.save({
         title: SAMPLE_DATASET_TITLE,
@@ -171,7 +176,12 @@ export class SampleService {
     const widgets: Widget[] = [];
     for (const spec of specs) {
       let widget = await this.widgetRepository.findOne({
-        where: { title: spec.title, delYn: YesNo.NO },
+        where: {
+          datasetId,
+          datasetType: DatasetType.DATASET,
+          componentId: spec.componentId,
+          delYn: YesNo.NO,
+        },
       });
       if (!widget) {
         widget = await this.widgetRepository.save({

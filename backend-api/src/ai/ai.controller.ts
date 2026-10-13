@@ -1,3 +1,4 @@
+import { SourceOwnershipGuard } from '../ownership/source-ownership.guard';
 import { Body, Controller, Get, Param, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
@@ -6,7 +7,7 @@ import { AiService } from './ai.service';
 import { RecommendChartDto } from './dto/recommend-chart.dto';
 import { TextToSqlDto } from './dto/text-to-sql.dto';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, SourceOwnershipGuard)
 @Controller('ai')
 @ApiTags('ai')
 export class AiController {

@@ -1,3 +1,4 @@
+import { SourceAccessService } from '../ownership/source-access.service';
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { DatasetController } from './dataset.controller';
@@ -9,7 +10,10 @@ describe('DatasetController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [DatasetController],
-      providers: [{ provide: DatasetService, useValue: {} }],
+      providers: [
+        { provide: SourceAccessService, useValue: {} },
+        { provide: DatasetService, useValue: {} },
+      ],
     })
       .overrideGuard(JwtAuthGuard)
       .useValue({ canActivate: () => true })

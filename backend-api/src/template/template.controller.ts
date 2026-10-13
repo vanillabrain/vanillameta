@@ -1,3 +1,4 @@
+import { SourceOwnershipGuard } from '../ownership/source-ownership.guard';
 import {
   Body,
   Controller,
@@ -17,7 +18,7 @@ import { UpdateTemplateItemDto } from './dto/update-template-item.dto';
 import { TemplateInfoDto } from './dto/template-info.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, SourceOwnershipGuard)
 @Controller('template')
 export class TemplateController {
   constructor(private readonly templateService: TemplateService) {}

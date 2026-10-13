@@ -64,8 +64,9 @@ export class DatabaseService {
    * database(데이터소스) 생성
    * @param createDatabaseDto
    */
-  async create(createDatabaseDto: CreateDatabaseDto) {
+  async create(createDatabaseDto: CreateDatabaseDto, ownerId?: number) {
     const databaseDto = Database.toDto(createDatabaseDto);
+    databaseDto.ownerId = ownerId ?? null;
     const connectionConfig = {
       client: databaseDto.engine,
       connection: databaseDto.connectionConfig,
@@ -88,10 +89,11 @@ export class DatabaseService {
   }
 
   /** Preserve raw files and import analytical data in the worker, leaving metadata in TypeORM. */
-  async uploadFile(file: AnalysisUpload) {
+  async uploadFile(file: AnalysisUpload, ownerId?: number) {
     const imported = await this.duckdbService.importFile(file);
     const baseName = path.basename(file.originalname, path.extname(file.originalname));
     const database = new Database();
+    database.ownerId = ownerId ?? null;
     database.name = baseName;
     database.description = `File upload: ${file.originalname}`;
     database.engine = 'duckdb';

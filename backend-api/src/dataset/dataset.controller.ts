@@ -1,13 +1,18 @@
-import { Controller, Get, Post, Body, Param, Delete, Put, UseGuards } from '@nestjs/common';
+import { SourceAccessService } from '../ownership/source-access.service';
+import { SourceOwnershipGuard } from '../ownership/source-ownership.guard';
+import { Controller, Get, Post, Body, Param, Delete, Put, UseGuards, Req } from '@nestjs/common';
 import { DatasetService } from './dataset.service';
 import { CreateDatasetDto } from './dto/create-dataset.dto';
 import { UpdateDatasetDto } from './dto/update-dataset.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, SourceOwnershipGuard)
 @Controller('dataset')
 export class DatasetController {
-  constructor(private readonly datasetService: DatasetService) {}
+  constructor(
+    private readonly datasetService: DatasetService,
+    private readonly access: SourceAccessService,
+  ) {}
 
   /**
    * 데이터셋 생성
@@ -22,8 +27,12 @@ export class DatasetController {
    * 데이터셋 목록 조회
    */
   @Get()
-  findAll() {
-    return this.datasetService.findAll();
+  async findAll(@Req() req) {
+    return this.access.filterResults(
+      'dataset',
+      this.access.actor(req.user.accessKeyData.id),
+      await this.datasetService.findAll(),
+    );
   }
 
   /**

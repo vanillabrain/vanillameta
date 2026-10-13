@@ -1,6 +1,8 @@
 # MD 검증 현황 — 2026-10-13
 
-신규 SSBI-04 권한 계약은 [단계0 감사](../strategy/2026-10-13-self-service-contract-audit.md)에서 일반 source/metric/preview 계정 간 접근을 재현해 미해결 FAIL로 기록했다. 기존 단일 인스턴스 카탈로그130개 완료 집계를 새 개인 소유 격리 완료로 해석하지 않는다. 다음 보강은 일반 API 전체의 owner/참조 검사와 명시적 legacy migration이다.
+2026-10-13 후속: [개인 소스 소유권](source-ownership.md)의 기존 API/계보/공유 선택 조건은 수정·재검증 PASS. SSBI-04 전체는 부분 완료이며 저장 보기/팀 권한/전체 SaaS 운영 감사와 실제 legacy owner 배정은 남아 있다.
+
+아래는 수정 전 발견 기록이다. 신규 SSBI-04 권한 계약은 [단계0 감사](../strategy/2026-10-13-self-service-contract-audit.md)에서 일반 source/metric/preview 계정 간 접근을 재현해 미해결 FAIL로 기록했다. 기존 단일 인스턴스 카탈로그130개 완료 집계를 새 개인 소유 격리 완료로 해석하지 않는다. 다음 보강은 일반 API 전체의 owner/참조 검사와 명시적 legacy migration이다.
 
 셀프서비스 BI1A 신규 조건은 [self-service-onboarding.md](self-service-onboarding.md)에 별도 기록했다. 샘플37주문 실제 DuckDB 집계·재조회, 내 파일 진입/가져오기,503 재시도, 모바일·키보드가 선택 조건 PASS다. SSBI-01/02/11/14 전체 계획 완료로 확대하지 않고 기존130개 집계는 유지한다. AI 호출0, gpt-6-luna 설정 유지.
 

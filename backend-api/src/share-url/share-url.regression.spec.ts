@@ -52,8 +52,10 @@ describe('share ownership, calendar expiry and legacy token rotation regressions
   afterEach(() => jest.useRealTimers());
 
   it('canonicalizes route dashboard ids before owner checks and signed claims', async () => {
-    const controller = new ShareUrlController(service);
-    const req = { user: { accessKeyData: { userId: 'unitactor' } } };
+    const controller = new ShareUrlController(service, {
+      dashboard: jest.fn().mockResolvedValue(undefined),
+    } as any);
+    const req = { user: { accessKeyData: { id: 7, userId: 'unitactor' } } };
     await controller.checkShareUrlOn(
       req,
       { dashboardId: '17' },

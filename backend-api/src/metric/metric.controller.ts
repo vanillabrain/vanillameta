@@ -1,21 +1,30 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { SourceAccessService } from '../ownership/source-access.service';
+import { SourceOwnershipGuard } from '../ownership/source-ownership.guard';
+import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards, Req } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CreateMetricDto, UpdateMetricDto } from './dto/metric.dto';
 import { MetricService } from './metric.service';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, SourceOwnershipGuard)
 @Controller('metric')
 @ApiTags('metric')
 export class MetricController {
-  constructor(private readonly metricService: MetricService) {}
+  constructor(
+    private readonly metricService: MetricService,
+    private readonly access: SourceAccessService,
+  ) {}
 
   /**
    * 메트릭 목록 조회 (시맨틱 레이어)
    */
   @Get()
-  findAll() {
-    return this.metricService.findAll();
+  async findAll(@Req() req) {
+    return this.access.filterResults(
+      'metric',
+      this.access.actor(req.user.accessKeyData.id),
+      await this.metricService.findAll(),
+    );
   }
 
   @Get(':id')

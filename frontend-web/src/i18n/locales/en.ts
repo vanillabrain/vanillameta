@@ -188,6 +188,11 @@ export default {
     titleModify: 'Edit dataset',
   },
   dataSource: {
+    accessUnavailable:
+      'This data source is unavailable. Check that it belongs to you, or ask your administrator to migrate legacy ownership.',
+    managedFile: 'Connect file sources by uploading a file. Server file paths cannot be entered or changed directly.',
+    uploadFile: 'Upload file',
+
     connectOk: 'Connected to database.',
     connectFail: 'Cannot connect. Please check the database info.',
     saveConfirm: '{{mode}} this database?',

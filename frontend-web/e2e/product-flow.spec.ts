@@ -50,7 +50,7 @@ test.describe('제품 핵심 플로우', () => {
       // Resolve the existing uploaded fixture from the UI's actual source list.
       const sourceIndex = salesSources.findIndex(
         (source: { description: string; engine: string }) =>
-          source.description === 'File upload: sales.csv' && source.engine === 'sqlite3',
+          source.description === 'File upload: sales.csv' && source.engine === 'duckdb',
       );
       expect(sourceIndex, 'generated sales upload must be provisioned').toBeGreaterThanOrEqual(0);
       const source = salesSources[sourceIndex];

@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Stack, Typography } from '@mui/material';
+import { Alert, Button, Stack, Typography } from '@mui/material';
 import PageTitleBox from '@/components/PageTitleBox';
 import ImgCardList from '@/components/ImgCardList';
 import ConfirmCancelButton from '@/components/button/ConfirmCancelButton';
@@ -11,7 +11,6 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAlert } from 'react-alert';
 import { useTranslation } from 'react-i18next';
 import DatabaseForm from '@/pages/Data/DataSource/form/DatabaseForm';
-import SqliteDatabaseForm from '@/pages/Data/DataSource/form/SqliteDatabaseForm';
 import BigQueryDatabaseForm from '@/pages/Data/DataSource/form/BigQueryDatabaseForm';
 import { SnackbarContext } from '@/contexts/AlertContext';
 import { LoadingContext } from '@/contexts/LoadingContext';
@@ -82,10 +81,11 @@ function DataSource() {
         return list;
       }),
   });
-  const { data: savedDatabase } = useQuery({
+  const { data: savedDatabase, error: sourceError } = useQuery({
     queryKey: ['databaseInfo', sourceId],
     queryFn: () => DatabaseService.selectDatabaseInfo(sourceId).then(response => response.data.data.databaseInfo),
     enabled: isModifyMode,
+    retry: false,
   });
   const [formData, setFormData] = useState<any>({
     type: '',
@@ -254,10 +254,16 @@ function DataSource() {
     navigate('/data');
   };
 
+  const fileSourceGuide = () => (
+    <Alert severity="info" action={<Button onClick={() => navigate('/data/file')}>{t('dataSource.uploadFile')}</Button>}>
+      {t('dataSource.managedFile')}
+    </Alert>
+  );
+
   const dbType = () => {
     switch (dataType?.type) {
       case 'sqlite':
-        return <SqliteDatabaseForm testConnect={testConnect} formData={formData} setFormData={setFormData} />;
+        return fileSourceGuide();
       case 'bigquery':
         return <BigQueryDatabaseForm testConnect={testConnect} formData={formData} setFormData={setFormData} />;
       case 'oracle':
@@ -284,33 +290,41 @@ function DataSource() {
       }
       sx={{ p: 0 }}
     >
-      <Stack sx={{ width: '100%' }}>
-        <Stack sx={{ p: '30px 25px 50px 25px' }}>
-          <Typography
-            variant="subtitle1"
-            component="span"
-            sx={{ fontWeight: 'bold', fontSize: '18px', color: '#141414', mb: '14px' }}
-          >
-            {t('dataSource.step1')}
-          </Typography>
-          <ImgCardList
-            data={typeList}
-            selectedType={dataType}
-            setSelectedType={setDataType}
-            handleTypeClick={handleTypeClick}
-          />
+      {isModifyMode && sourceError ? (
+        <Alert severity="error" sx={{ m: 3 }} action={<Button onClick={() => navigate('/data')}>{t('data.cancel')}</Button>}>
+          {t('dataSource.accessUnavailable')}
+        </Alert>
+      ) : savedDatabase && ['duckdb', 'sqlite3'].includes(savedDatabase.engine) ? (
+        <Stack sx={{ p: 3 }}>{fileSourceGuide()}</Stack>
+      ) : (
+        <Stack sx={{ width: '100%' }}>
+          <Stack sx={{ p: '30px 25px 50px 25px' }}>
+            <Typography
+              variant="subtitle1"
+              component="span"
+              sx={{ fontWeight: 'bold', fontSize: '18px', color: '#141414', mb: '14px' }}
+            >
+              {t('dataSource.step1')}
+            </Typography>
+            <ImgCardList
+              data={typeList}
+              selectedType={dataType}
+              setSelectedType={setDataType}
+              handleTypeClick={handleTypeClick}
+            />
+          </Stack>
+          <Stack sx={{ p: '30px 25px 50px 25px', bgcolor: '#f5f6f8' }}>
+            <Typography
+              variant="subtitle1"
+              component="span"
+              sx={{ fontWeight: 'bold', fontSize: '18px', color: '#141414', mb: '14px' }}
+            >
+              {t('dataSource.step2')}
+            </Typography>
+            {dbType()}
+          </Stack>
         </Stack>
-        <Stack sx={{ p: '30px 25px 50px 25px', bgcolor: '#f5f6f8' }}>
-          <Typography
-            variant="subtitle1"
-            component="span"
-            sx={{ fontWeight: 'bold', fontSize: '18px', color: '#141414', mb: '14px' }}
-          >
-            {t('dataSource.step2')}
-          </Typography>
-          {dbType()}
-        </Stack>
-      </Stack>
+      )}
     </PageTitleBox>
   );
 }

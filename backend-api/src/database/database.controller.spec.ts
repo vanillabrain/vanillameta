@@ -1,3 +1,4 @@
+import { SourceAccessService } from '../ownership/source-access.service';
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { getRepositoryToken } from '@nestjs/typeorm';
@@ -25,6 +26,7 @@ describe('DatabaseController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [DatabaseController],
       providers: [
+        { provide: SourceAccessService, useValue: {} },
         DatabaseService,
         { provide: DuckDBService, useValue: {} },
         { provide: ConnectionService, useValue: { executeQuery: jest.fn() } },

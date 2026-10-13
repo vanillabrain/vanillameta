@@ -69,3 +69,8 @@ FE3483/API4683, 분리된 테스트 DB·업로드 볼륨, Node24. 새 검증 파
 기존 계획 검토 담당 에이전트가 읽기 전용으로 별도 감사했다. 일반 source/dataset/metric/widget 인증-only, 대시보드 참조 위젯의 존재-only 검증, editable config owner 위조 및 신규 endpoint만 보호하는 우회를 동일하게 지적했다. 원격 자료나 새 라이브러리를 추가하지 않았다.
 
 완료: 접근 행렬, 실제 교차 접근 재현, legacy/버전/집계 호환 전략, 기존 성능 기준선의 출처 기록. 남음: owner migration·공통 권한 구현 및 재검증, source profile, SQL 없는2A 제작 UI, 실제 저장 snapshot. 개인 소유권은 미해결이며 이 감사로 PASS 처리하지 않는다.
+
+
+## 후속 구현·재검증
+
+[소스 소유권 검증](../testing/source-ownership.md)에서 Database owner 추가·공통 기존 API 경계·사용자별 신규 샘플·NULL legacy 잠금과 인벤토리를 구현했다. 최초 교차 접근 FAIL은 새 fixture A/B로 수정·재검증했으며 선택 조건 PASS. 기존 데이터 소유자는 추정 배정하지 않았다. 전체 SSBI-04/운영 SaaS와 저장 보기 완료로 확대하지 않는다.

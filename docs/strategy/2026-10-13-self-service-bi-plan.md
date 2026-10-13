@@ -263,3 +263,6 @@ Rill에도 AI 제작·지표 정의·오류 상태 확인 기능이 있으므로
 ## 단계0 점검 후속 — 2026-10-13
 
 [권한·호환 계약 감사](2026-10-13-self-service-contract-audit.md)를 완료했다. 신규3행 fixture로 일반 source/metric/preview의 계정 간 접근을 재현했다. 개인 소유 기대 SSBI-04는 미해결 FAIL이며, 기존 dashboard owner 검사만으로 source 계보 격리를 주장하지 않는다. 다음 구현 순서는 legacy dry-run·명시 migration/공통 권한 → profile/정의 snapshot →2A 제작 화면이다. 상세 접근 행렬과 호환 정책은 감사 문서를 따른다.
+
+
+단계0 후속 구현: [개인 소스 권한 및 이관 기준](../testing/source-ownership.md). 일반 API 접근 경계의 선택 조건은 PASS, legacy 실제 owner 배정과 전체 SaaS 감사는 남아 있다. 다음 제품 범위는 source profile·정의 snapshot·2A 수동 제작 흐름이다.

@@ -1,3 +1,4 @@
+import { SourceAccessService } from '../ownership/source-access.service';
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ShareUrlController } from './share-url.controller';
@@ -9,7 +10,10 @@ describe('ShareUrlController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ShareUrlController],
-      providers: [{ provide: ShareUrlService, useValue: {} }],
+      providers: [
+        { provide: SourceAccessService, useValue: {} },
+        { provide: ShareUrlService, useValue: {} },
+      ],
     })
       .overrideGuard(JwtAuthGuard)
       .useValue({ canActivate: () => true })

@@ -188,6 +188,11 @@ export default {
     titleModify: '데이터셋 수정',
   },
   dataSource: {
+    accessUnavailable:
+      '이 데이터 소스에 접근할 수 없습니다. 본인 소스인지 확인하거나 기존 데이터 소유권 이관을 관리자에게 요청해 주세요.',
+    managedFile: '파일 소스는 업로드로 연결합니다. 서버 파일 경로는 직접 입력하거나 변경할 수 없습니다.',
+    uploadFile: '파일 업로드',
+
     connectOk: '데이터베이스 연결에 성공했습니다.',
     connectFail: '데이터베이스에 연결할 수 없습니다. 데이터베이스 정보를 확인해주세요',
     saveConfirm: '데이터베이스를 {{mode}}하시겠습니까?',

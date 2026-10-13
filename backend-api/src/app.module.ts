@@ -1,3 +1,5 @@
+import { SourceOwnershipModule } from './ownership/source-ownership.module';
+import { AddSourceOwner1791850000000 } from './migrations/1791850000000-add-source-owner';
 import { AnalysisModule } from './analysis/analysis.module';
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
@@ -27,6 +29,7 @@ import { CommerceModule } from './commerce/commerce.module';
 @Module({
   imports: [
     AnalysisModule,
+    SourceOwnershipModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: process.env.NODE_ENV == 'prod' ? '.env' : '.env.dev',
@@ -48,6 +51,8 @@ import { CommerceModule } from './commerce/commerce.module';
           ? process.env.SQLITE_PATH || 'sqlite.db'
           : process.env.DB_NAME,
       autoLoadEntities: true,
+      migrations: [AddSourceOwner1791850000000],
+      migrationsRun: process.env.NODE_ENV === 'local',
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
       synchronize: process.env.NODE_ENV != 'prod',
       logging: process.env.NODE_ENV != 'prod',

@@ -1,3 +1,5 @@
+import { SourceAccessService } from '../ownership/source-access.service';
+import { SourceOwnershipGuard } from '../ownership/source-ownership.guard';
 import { diskStorage } from 'multer';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -14,6 +16,7 @@ import {
   Post,
   Put,
   Query,
+  Req,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -28,13 +31,14 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { ApiTags } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, SourceOwnershipGuard)
 @Controller('database')
 @ApiTags('dashboard')
 export class DatabaseController {
   constructor(
     private readonly databaseService: DatabaseService,
     private readonly connectionService: ConnectionService,
+    private readonly access: SourceAccessService,
   ) {}
 
   /**
@@ -77,8 +81,11 @@ export class DatabaseController {
    * @param createDatabaseDto
    */
   @Post()
-  create(@Body() createDatabaseDto: CreateDatabaseDto) {
-    return this.databaseService.create(createDatabaseDto);
+  create(@Body() createDatabaseDto: CreateDatabaseDto, @Req() req) {
+    return this.databaseService.create(
+      createDatabaseDto,
+      this.access.actor(req.user.accessKeyData.id),
+    );
   }
 
   /**
@@ -103,8 +110,8 @@ export class DatabaseController {
       },
     }),
   )
-  uploadFile(@UploadedFile() file: AnalysisUpload) {
-    return this.databaseService.uploadFile(file);
+  uploadFile(@UploadedFile() file: AnalysisUpload, @Req() req) {
+    return this.databaseService.uploadFile(file, this.access.actor(req.user.accessKeyData.id));
   }
 
   /**
@@ -132,9 +139,9 @@ export class DatabaseController {
    * 데이터베이스 목록 조회
    */
   @Get()
-  async findAll() {
+  async findAll(@Req() req) {
     const res = await this.databaseService.findAll();
-    return res;
+    return this.access.filterResults('database', req.user.accessKeyData.id, res);
   }
 
   /**
