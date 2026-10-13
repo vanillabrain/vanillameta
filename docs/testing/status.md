@@ -1,5 +1,7 @@
 # MD 검증 현황 — 2026-10-13
 
+2026-10-13 이전 기간 비교·일/주/월 후속: [period-comparison-grain.md](period-comparison-grain.md). 같은 필터/파일 snapshot의50↔10/+40/+400%, UTC 일/주/월 원본 재집계·보기 저장/reload·390/1440·키보드·NULL/0·상위 N/정밀도 경고·503 fixture 복구의 선택 조건 PASS. 신규 BE180+FE28와 관련 기존12개만 확인했다. SSBI-06 전체는 업무 시간대/전년·Commerce 날짜 의미/이전 선 겹침·VoiceOver가 남아 부분 완료이며 기존130개 집계와 분리한다. gpt-6-luna 유지·실제 모델 호출0.
+
 2026-10-13 개인 저장 보기 후속: [personal-saved-views.md](personal-saved-views.md). 절대/상대기간·다중 필터·숫자 표시의 저장/복원/삭제, 오류 복구·계정 차단·실제21동시 한도·모바일/키보드 선택 조건 PASS. 신규 BE26+FE27 통과. SSBI-09 전체는 지표/정렬 선택·팀 보기·MySQL 실통합/VoiceOver가 남아 부분 완료이며 기존130개 집계와 분리한다.
 
 [파일 교체·버전 복원](file-versions.md): SSBI-10 선택 VERSION-01~08을 검증했다. source24/metric30/dashboard26 정의·배치 유지, 독립 합계60→220→60·차원/날짜 캐시 갱신, 같은 파일 no-op(재수입0),400/403/409·CAS·최대5개·진행 중 조회 버전 고정 확인. 모바일 표/상단축 잘림 보정 및 Tab/Enter 확인. 자동 매핑/의미·장기 보존/전역 quota/crash 복구·VoiceOver는 남아 전체 SSBI는 부분 완료다. 기존130개 집계 유지, gpt-6-luna 유지·모델 호출0.

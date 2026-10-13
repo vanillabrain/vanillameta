@@ -20,7 +20,8 @@ import { Dataset } from '../dataset/entities/dataset.entity';
 import { Widget } from '../widget/entities/widget.entity';
 import { Component } from '../component/entities/component.entity';
 import { DatasetType } from '../common/enum/dataset-type.enum';
-import { buildTrendQuery, chooseTrendGrain } from './dashboard-trend';
+import { buildTimeChartQuery, buildTrendQuery, chooseTrendGrain } from './dashboard-trend';
+import { comparisonValues, previousDateRange, validatePeriodOptions } from './dashboard-period';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import { YesNo } from '../common/enum/yn.enum';
 import {
@@ -109,6 +110,8 @@ export class AiDashboardService {
         draft: current,
         filters: body.filters,
         dateRange: body.dateRange,
+        trendGrain: body.trendGrain,
+        comparePrevious: body.comparePrevious,
         includeTrends: true,
       },
       userId,
@@ -141,6 +144,11 @@ export class AiDashboardService {
         valueField: widget.valueField,
         categoryField: widget.categoryField,
         datas: rows,
+        ...(widget.comparison ? { comparison: widget.comparison } : {}),
+        ...(widget.previousDatas
+          ? { previousDatas: bound(widget.previousDatas.slice(0, 100)) }
+          : {}),
+        ...(widget.trendGrain ? { trendGrain: widget.trendGrain } : {}),
         trend: widget.trend ? { ...widget.trend, points } : null,
         coverage: {
           returnedRows: widget.datas.length,
@@ -155,6 +163,11 @@ export class AiDashboardService {
           includedTrendPoints: points.length,
           trendTruncated: (widget.trend?.points.length || 0) > points.length,
           trendUnavailable: widget.trendUnavailable || null,
+          grainUnavailable: widget.grainUnavailable || null,
+          returnedPreviousRows: widget.previousDatas?.length || 0,
+          includedPreviousRows: Math.min(widget.previousDatas?.length || 0, 100),
+          previousRowsTruncated: (widget.previousDatas?.length || 0) > 100,
+          previousUnavailable: widget.previousUnavailable || null,
           labelsTruncated,
           missingData: !rows.length || rows.some((row: any) => row[widget.valueField] == null),
           missingTrendValues: points.some((point: any) => point.value == null),
@@ -220,6 +233,8 @@ export class AiDashboardService {
         values: [...new Set('values' in filter ? filter.values : [filter.value])],
       })),
       selectedWidget: body.selectedWidget ?? null,
+      trendGrain: data.trendGrain,
+      comparison: data.comparison || null,
       queries: data.queries,
       widgets,
       arithmetic,
@@ -282,7 +297,13 @@ export class AiDashboardService {
     }
     const history = this.conversation(body, current);
     await this.schema(id);
-    if (!current && (body.filters !== undefined || body.dateRange !== undefined))
+    if (
+      !current &&
+      (body.filters !== undefined ||
+        body.dateRange !== undefined ||
+        body.trendGrain !== undefined ||
+        body.comparePrevious !== undefined)
+    )
       throw new BadRequestException('currentDraft required for preview context');
     const context = current ? await this.previewContext(body, current, userId) : null;
     if (abortSignal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
@@ -387,15 +408,43 @@ export class AiDashboardService {
     );
   }
   private async previewSnapshot(body: any, draft: ReturnType<typeof validateDraft>) {
+    const { trendGrain, comparePrevious } = validatePeriodOptions(body);
+    if (comparePrevious && !body.dateRange)
+      throw new BadRequestException('이전 기간 비교에는 적용한 날짜 범위가 필요합니다.');
     const sourceRevision = await this.connection.duckDBVersion(draft.databaseId);
     const schema = await this.schema(draft.databaseId);
     const columns = schema.map(c => c.column_name);
     const temporal = schema.filter(c => /^(DATE|TIMESTAMP)/i.test(c.column_type));
+    // Validate the current range before deriving or querying either comparison period.
+    sourceQuery(
+      draft.widgets[0].sql,
+      columns,
+      body.filters,
+      body.dateRange,
+      temporal.map(c => c.column_name),
+    );
+    const previous = comparePrevious ? previousDateRange(body.dateRange) : undefined;
+    const dateColumn = temporal.some(c => c.column_name === body?.dateRange?.column)
+      ? body.dateRange.column
+      : temporal[0]?.column_name;
     const widgets = [];
     const queries = [];
     for (const definition of draft.widgets) {
+      const regroup =
+        trendGrain !== 'auto' && definition.type === 'CHART_LINE'
+          ? dateColumn &&
+            buildTimeChartQuery(
+              definition.sql,
+              definition.valueField,
+              definition.categoryField,
+              dateColumn,
+              trendGrain,
+              columns,
+            )
+          : undefined;
+      const widgetSql = regroup ? regroup.sql : definition.sql;
       const query = sourceQuery(
-        definition.sql,
+        widgetSql,
         columns,
         body.filters,
         body.dateRange,
@@ -415,7 +464,45 @@ export class AiDashboardService {
       ) {
         throw new BadRequestException('chart categoryField missing');
       }
-      widgets.push({ ...definition, fields: result.fields, datas: result.datas });
+      const widget: any = { ...definition, fields: result.fields, datas: result.datas };
+      if (trendGrain !== 'auto' && definition.type === 'CHART_LINE') {
+        if (!regroup)
+          widget.grainUnavailable =
+            '이 차트의 SQL은 선택한 시간 단위로 안전하게 집계할 수 없습니다. 원래 집계를 표시합니다.';
+        else if (result.datas.length > 240) {
+          widget.datas = [];
+          widget.grainUnavailable =
+            '선택한 집계가 240개 시점을 초과합니다. 기간을 줄이거나 더 큰 집계 단위를 선택해 주세요.';
+        } else widget.trendGrain = trendGrain;
+      }
+      if (previous) {
+        const previousQuery = sourceQuery(
+          widgetSql,
+          columns,
+          body.filters,
+          previous,
+          temporal.map(c => c.column_name),
+        );
+        queries.push({ widgetIndex: widgets.length, kind: 'previous-widget', ...previousQuery });
+        const prior = await this.connection.queryDuckDB(
+          draft.databaseId,
+          previousQuery.sql,
+          previousQuery.bindings,
+        );
+        if (definition.type === 'BOARD_NUMERIC') {
+          if (prior.datas.length !== 1)
+            throw new BadRequestException('numeric comparison requires one aggregate row');
+          widget.comparison = comparisonValues(
+            result.datas[0][definition.valueField],
+            prior.datas[0][definition.valueField],
+          );
+        } else if (regroup && prior.datas.length > 240) {
+          widget.previousDatas = [];
+          widget.previousUnavailable =
+            '이전 기간 집계가 240개 시점을 초과합니다. 기간을 줄이거나 더 큰 단위를 선택해 주세요.';
+        } else widget.previousDatas = prior.datas;
+      }
+      widgets.push(widget);
     }
     const schemaKey = JSON.stringify([sourceRevision, schema]);
     const cached = this.dimensionCache.get(draft.databaseId);
@@ -463,10 +550,6 @@ export class AiDashboardService {
       });
     }
     if (body?.includeTrends === true) {
-      const selectedDate = body?.dateRange?.column;
-      const dateColumn = temporal.some(c => c.column_name === selectedDate)
-        ? selectedDate
-        : temporal[0]?.column_name;
       for (const widget of widgets) {
         if (widget.type !== 'BOARD_NUMERIC') continue;
         if (!dateColumn) {
@@ -476,7 +559,7 @@ export class AiDashboardService {
         const stats = temporalColumns.find((item: any) => item.column === dateColumn);
         const min = body?.dateRange?.column === dateColumn ? body.dateRange.start : stats?.min;
         const max = body?.dateRange?.column === dateColumn ? body.dateRange.end : stats?.max;
-        const grain = chooseTrendGrain(min, max);
+        const grain = trendGrain === 'auto' ? chooseTrendGrain(min, max) : trendGrain;
         const trendSql = buildTrendQuery(widget.sql, widget.valueField, dateColumn, grain, columns);
         if (!trendSql) {
           widget.trendUnavailable = 'The widget SQL cannot be safely grouped into a trend.';
@@ -497,7 +580,8 @@ export class AiDashboardService {
             query.bindings,
           );
           if (result.datas.length > 240) {
-            widget.trendUnavailable = 'The selected trend grain exceeds 240 points.';
+            widget.trendUnavailable =
+              '선택한 집계가 240개 시점을 초과합니다. 기간을 줄이거나 더 큰 집계 단위를 선택해 주세요.';
             continue;
           }
           widget.trend = {
@@ -523,6 +607,8 @@ export class AiDashboardService {
       widgets,
       dimensions,
       temporalColumns,
+      trendGrain,
+      ...(previous ? { comparison: { current: body.dateRange, previous } } : {}),
       ...(body?.includeTrends === true ? { queries } : {}),
     });
   }

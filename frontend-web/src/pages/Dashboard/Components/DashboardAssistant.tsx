@@ -26,6 +26,8 @@ export default function DashboardAssistant({
   draft,
   filters,
   dateRange,
+  trendGrain = 'auto',
+  comparePrevious = false,
   disabled,
   onApplied,
 }: any) {
@@ -44,6 +46,8 @@ export default function DashboardAssistant({
     databaseId: draft.databaseId,
     currentDraft: draft,
     filters,
+    trendGrain,
+    comparePrevious,
     ...(dateRange ? { dateRange } : {}),
     ...(selectedWidget !== '' ? { selectedWidget } : {}),
   };
@@ -179,6 +183,10 @@ export default function DashboardAssistant({
         <Typography fontSize={12} color="text.secondary" sx={{ mt: 0.5, overflowWrap: 'anywhere' }}>
           {dateRange ? `${dateRange.start} ~ ${dateRange.end} (UTC)` : '전체 기간'} ·{' '}
           {filters.length ? filters.map(f => `${f.column}: ${f.values.map(String).join(', ')}`).join(' · ') : '필터 없음'}
+        </Typography>
+        <Typography fontSize={12} color="text.secondary" sx={{ mt: 0.5, overflowWrap: 'anywhere' }}>
+          집계 단위: {({ auto: '자동', day: '일별', week: '주별', month: '월별' } as Record<string, string>)[trendGrain]} ·{' '}
+          이전 기간 비교: {comparePrevious ? '사용 (적용 기간과 같은 길이)' : '사용 안 함'}
         </Typography>
         <TextField
           select

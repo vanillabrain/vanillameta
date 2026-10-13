@@ -115,3 +115,16 @@ it('keeps SQL NULL as a gap and a dash in the chart table while retaining real z
   expect(view.getByRole('table').textContent).toContain('missing—zero0');
   expect(view.getByRole('table').textContent).not.toContain('NaN');
 });
+it('shows short UTC bucket dates on the axis while retaining exact category values in the table', () => {
+  const view = render(
+    <LineChart
+      option={{ xField: 'day', categoryDateFormat: 'day', series: [{ field: 'value', aggregation: 'sum' }] }}
+      dataSet={[{ day: '2026-01-05T00:00:00Z', value: 30 }]}
+    />,
+  );
+  expect(state.option.xAxis.axisLabel.formatter('2026-01-05T00:00:00Z')).toBe('2026-01-05');
+  expect(state.option.xAxis.axisLabel.formatter('other')).toBe('other');
+  expect(state.option.xAxis.data).toEqual(['2026-01-05T00:00:00Z']);
+  fireEvent.click(view.getByRole('button', { name: 'chart.showDataTable' }));
+  expect(view.getByRole('table').textContent).toContain('2026-01-05T00:00:00Z30');
+});

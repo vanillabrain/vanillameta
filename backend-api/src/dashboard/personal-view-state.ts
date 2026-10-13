@@ -7,6 +7,8 @@ export type PersonalViewState = {
   dateRange: ViewDateRange | null;
   relativePeriod: { column: string; days: 7 | 30 | 90 } | null;
   numberNotation: 'auto' | 'compact' | 'full';
+  trendGrain?: 'auto' | 'day' | 'week' | 'month';
+  comparePrevious?: boolean;
 };
 const invalid = () => {
   throw new BadRequestException('저장 보기의 기간·필터 형식을 확인해 주세요.');
@@ -25,8 +27,27 @@ const validDay = (value: unknown) => {
 };
 
 export function validatePersonalViewState(input: any): PersonalViewState {
-  object(input, ['version', 'filters', 'dateRange', 'relativePeriod', 'numberNotation']);
+  object(input, [
+    'version',
+    'filters',
+    'dateRange',
+    'relativePeriod',
+    'numberNotation',
+    'trendGrain',
+    'comparePrevious',
+  ]);
   if (input.version !== 1 || !['auto', 'compact', 'full'].includes(input.numberNotation)) invalid();
+  if (
+    Object.prototype.hasOwnProperty.call(input, 'trendGrain') &&
+    (typeof input.trendGrain !== 'string' ||
+      !['auto', 'day', 'week', 'month'].includes(input.trendGrain))
+  )
+    invalid();
+  if (
+    Object.prototype.hasOwnProperty.call(input, 'comparePrevious') &&
+    typeof input.comparePrevious !== 'boolean'
+  )
+    invalid();
   if (!Array.isArray(input.filters) || input.filters.length > 5) invalid();
   const names = new Set<string>();
   for (const filter of input.filters) {
@@ -60,6 +81,8 @@ export function validatePersonalViewState(input: any): PersonalViewState {
     column(input.relativePeriod.column);
     if (![7, 30, 90].includes(input.relativePeriod.days) || input.dateRange !== null) invalid();
   }
+  if (input.comparePrevious === true && input.dateRange === null && input.relativePeriod === null)
+    invalid();
   return JSON.parse(JSON.stringify(input));
 }
 

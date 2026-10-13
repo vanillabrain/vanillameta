@@ -342,3 +342,54 @@ it('shows a server conflict and blocks stale writes until the latest screen is l
   expect(view.onApplied).not.toHaveBeenCalled();
   expect(api.post).toHaveBeenCalledTimes(3);
 });
+
+it('period context forwards grain and comparison to question transport and shows both in the toolbar', async () => {
+  api.post.mockResolvedValueOnce(
+    success({
+      answer: '검증된 비교 답변',
+      context: { comparison: { previous: { start: '2025-11-30', end: '2025-12-31' } } },
+    }),
+  );
+  render(<DashboardAssistant {...base} trendGrain="week" comparePrevious onApplied={vi.fn()} onClose={vi.fn()} />);
+  expect(screen.getByText(/집계 단위: 주별 · 이전 기간 비교: 사용/)).toBeTruthy();
+  fireEvent.change(screen.getByLabelText('데이터에 질문하기'), { target: { value: '이전 기간과 비교해 주세요' } });
+  fireEvent.click(screen.getByRole('button', { name: '보내기' }));
+  await screen.findByText('검증된 비교 답변');
+  expect(api.post).toHaveBeenCalledWith(
+    '/ai/dashboard-assistant',
+    expect.objectContaining({ trendGrain: 'week', comparePrevious: true, dateRange: base.dateRange }),
+    expect.objectContaining({ signal: expect.any(AbortSignal) }),
+  );
+  expect(screen.getByText(/2025-11-30/)).toBeTruthy();
+  expect(api.post).toHaveBeenCalledTimes(1);
+});
+
+it.each([{ trendGrain: 'month' }, { comparePrevious: true }])(
+  'period context includes %j in the proposal fingerprint and blocks stale apply',
+  async changed => {
+    queuePreview();
+    const view = mount();
+    requestEdit();
+    await ready();
+    expect(api.post.mock.calls[0][1]).toMatchObject({ trendGrain: 'auto', comparePrevious: false });
+    expect(api.post.mock.calls[1][1]).toMatchObject({ trendGrain: 'auto', comparePrevious: false });
+    view.rerender(<DashboardAssistant {...base} {...changed} onApplied={view.onApplied} onClose={view.onClose} />);
+    await screen.findByText('화면 조건이 바뀌었습니다. 새 미리보기를 요청해 주세요.');
+    fireEvent.click(screen.getByRole('button', { name: '변경 적용' }));
+    expect(api.post).toHaveBeenCalledTimes(2);
+    expect(view.onApplied).not.toHaveBeenCalled();
+  },
+);
+
+it('period context forwards selected settings to draft and preview without model settings', async () => {
+  queuePreview();
+  render(<DashboardAssistant {...base} trendGrain="day" comparePrevious onApplied={vi.fn()} onClose={vi.fn()} />);
+  requestEdit();
+  await ready();
+  for (const [url, body] of api.post.mock.calls) {
+    expect(['/ai/dashboard-draft', '/ai/dashboard-preview']).toContain(url);
+    expect(body).toMatchObject({ trendGrain: 'day', comparePrevious: true, dateRange: base.dateRange, filters: [] });
+    expect(body).not.toHaveProperty('model');
+    expect(body).not.toHaveProperty('settings');
+  }
+});

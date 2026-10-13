@@ -19,6 +19,7 @@ export function analysisOptions(widget: any, numberNotation = widget.numberNotat
   const axis = widget.type === 'CHART_COLUMN' ? 'yField' : 'xField';
   return {
     [axis]: widget.categoryField,
+    ...(widget.type === 'CHART_LINE' && widget.trendGrain ? { categoryDateFormat: 'day' } : {}),
     series: [{ field: widget.valueField, fieldLabel: widget.valueField, aggregation: 'sum', color: '#2563eb' }],
     label: false,
     mark: false,

@@ -38,6 +38,8 @@ export function assistantTransport(context: () => any): ChatTransport<AssistantM
                 filters: current.filters,
                 ...(current.dateRange ? { dateRange: current.dateRange } : {}),
                 includeTrends: true,
+                trendGrain: current.trendGrain ?? 'auto',
+                comparePrevious: current.comparePrevious ?? false,
               },
               config,
             ),

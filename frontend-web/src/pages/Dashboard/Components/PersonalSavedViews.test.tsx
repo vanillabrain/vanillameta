@@ -7,12 +7,26 @@ import DashboardAnalysis from './DashboardAnalysis';
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), del: vi.fn(), apply: vi.fn() }));
 vi.mock('@/helpers/apiHelper', () => ({ get: api.get, post: api.post, del: api.del }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
-vi.mock('./DashboardAssistant', () => ({ default: () => <aside>Assistant</aside> }));
-vi.mock('./MetricTrend', () => ({ default: () => null }));
+vi.mock('./DashboardAssistant', () => ({
+  default: ({ trendGrain, comparePrevious, disabled }: any) => (
+    <aside
+      data-testid="assistant"
+      data-grain={trendGrain}
+      data-compare={String(comparePrevious)}
+      data-disabled={String(disabled)}
+    >
+      Assistant
+    </aside>
+  ),
+}));
+vi.mock('./MetricTrend', () => ({
+  default: ({ comparison }: any) =>
+    comparison ? <div data-testid="metric-comparison">{JSON.stringify(comparison)}</div> : null,
+}));
 vi.mock('@/widget/wrapper/WidgetViewer', () => ({
   default: ({ widgetOption, description, dataSet }: any) => (
     <div data-testid="widget">
-      {description} · {dataSet[0].requests} · {widgetOption.content.numberNotation}
+      {description} · {dataSet[0]?.requests} · {widgetOption.content?.numberNotation} · {JSON.stringify(dataSet)}
     </div>
   ),
 }));
@@ -29,7 +43,11 @@ vi.mock('@mui/material', () => {
   return {
     Box: Container,
     Stack: Container,
-    Card: Container,
+    Card: ({ children, sx }: any) => (
+      <div data-testid="analysis-card" data-height={sx?.height}>
+        {children}
+      </div>
+    ),
     Typography: Container,
     FormControl: Container,
     InputLabel: Container,
@@ -398,7 +416,7 @@ it.each([7, 30, 90] as const)(
     await screen.findByRole('button', { name: '내 조건 보기 불러오기' });
     expect(api.post.mock.lastCall[1]).toEqual({
       name: '내 조건',
-      state: { ...state(), relativePeriod: { column: 'created_at', days } },
+      state: { ...state(), relativePeriod: { column: 'created_at', days }, trendGrain: 'auto', comparePrevious: false },
       revision,
     });
   },
@@ -426,7 +444,7 @@ it('blocks saving/loading unapplied absolute date edits and clears the relative 
   nameView('초기화');
   fireEvent.click(button('현재 보기 저장'));
   await screen.findByRole('button', { name: '초기화 보기 불러오기' });
-  expect(api.post.mock.lastCall[1].state).toEqual(state());
+  expect(api.post.mock.lastCall[1].state).toEqual({ ...state(), trendGrain: 'auto', comparePrevious: false });
 });
 
 it('allows saving all time after explicitly clearing and applying a previously relative date range', async () => {
@@ -442,7 +460,7 @@ it('allows saving all time after explicitly clearing and applying a previously r
   expect(disabled('현재 보기 저장')).toBe(false);
   fireEvent.click(button('현재 보기 저장'));
   await screen.findByRole('button', { name: '내 조건 보기 불러오기' });
-  expect(api.post.mock.lastCall[1].state).toEqual(state());
+  expect(api.post.mock.lastCall[1].state).toEqual({ ...state(), trendGrain: 'auto', comparePrevious: false });
   expect(previewCalls().at(-1)[1]).not.toHaveProperty('dateRange');
 });
 
@@ -466,6 +484,8 @@ it('atomically loads filters, resolved dates and notation, preserves the definit
     draft,
     dashboardId: 3,
     includeTrends: true,
+    trendGrain: 'auto',
+    comparePrevious: false,
     filters: selected.filters,
     dateRange: range,
   });
@@ -521,3 +541,229 @@ it('blocks saved views until the analysis draft revision is available', async ()
   expect(disabled('현재 보기 저장')).toBe(true);
   expect(disabled('보기 1 보기 불러오기')).toBe(true);
 });
+
+const comparisonToggle = () => screen.getByRole('checkbox', { name: '이전 기간 비교' }) as HTMLInputElement;
+const appliedRange = { column: 'created_at', start: '2026-01-11', end: '2026-01-12' };
+async function applyComparisonDates() {
+  choose('시작일 (UTC)', appliedRange.start);
+  choose('종료일 (UTC)', appliedRange.end);
+  fireEvent.click(button('적용'));
+  await idle();
+}
+
+it.each(['day', 'week', 'month'] as const)(
+  'period comparison sends %s grain with applied dates and preserves Assistant access',
+  async grain => {
+    await analysis();
+    expect(previewCalls().at(-1)[1]).toMatchObject({ trendGrain: 'auto', comparePrevious: false });
+    expect(comparisonToggle().disabled).toBe(true);
+    await applyComparisonDates();
+    choose('시계열 집계 단위', grain);
+    await idle();
+    fireEvent.click(comparisonToggle());
+    await idle();
+    expect(previewCalls().at(-1)[1]).toMatchObject({
+      trendGrain: grain,
+      comparePrevious: true,
+      dateRange: appliedRange,
+      filters: [],
+    });
+    expect(disabled('Assistant')).toBe(false);
+    expect(screen.getByTestId('assistant').dataset).toMatchObject({ grain, compare: 'true', disabled: 'false' });
+    expect(screen.getByText(/선택 범위에 걸친 주·월은 범위 안의 데이터만 집계합니다/)).toBeTruthy();
+  },
+);
+
+it.each(['clear', 'reset'] as const)('period comparison %s disables comparison and resets grain to auto', async action => {
+  await analysis();
+  await applyComparisonDates();
+  choose('시계열 집계 단위', 'week');
+  await idle();
+  fireEvent.click(comparisonToggle());
+  await idle();
+  choose('시작일 (UTC)', '2026-01-10');
+  expect(comparisonToggle().disabled).toBe(true);
+  expect(disabled('현재 보기 저장')).toBe(true);
+  if (action === 'clear') {
+    choose('시작일 (UTC)', '');
+    choose('종료일 (UTC)', '');
+    fireEvent.click(button('적용'));
+  } else fireEvent.click(button('필터 초기화'));
+  await idle();
+  const body = previewCalls().at(-1)[1];
+  expect(body).toMatchObject({ trendGrain: 'auto', comparePrevious: false });
+  expect(body).not.toHaveProperty('dateRange');
+  expect(comparisonToggle().checked).toBe(false);
+  expect(comparisonToggle().disabled).toBe(true);
+});
+
+it('period comparison saves whitelisted new settings with relative dates and no definition or data', async () => {
+  const selected = {
+    ...state(),
+    relativePeriod: { column: 'created_at', days: 30 as const },
+    trendGrain: 'month' as const,
+    comparePrevious: true,
+  };
+  await mount({ state: { ...selected, draft: { sql: 'private' }, rows: [42], credentials: 'private' } });
+  nameView();
+  fireEvent.click(button('현재 보기 저장'));
+  await screen.findByRole('button', { name: '보기 2 보기 불러오기' });
+  expect(api.post.mock.calls[0][1]).toEqual({ name: '내 조건', state: selected, revision });
+});
+
+it.each([
+  ['new', { trendGrain: 'week' as const, comparePrevious: true }],
+  ['legacy', {} as Pick<SavedViewState, 'trendGrain' | 'comparePrevious'>],
+])('period comparison atomically loads %s view settings and server resolved dates', async (_name, extra) => {
+  await analysis();
+  await applyComparisonDates();
+  choose('시계열 집계 단위', 'month');
+  await idle();
+  fireEvent.click(comparisonToggle());
+  await idle();
+  const selected = {
+    ...state(),
+    filters: [{ column: 'device', values: ['Mobile'] }],
+    relativePeriod: { column: 'created_at', days: 30 as const },
+    numberNotation: 'compact' as const,
+    ...extra,
+  };
+  api.get.mockResolvedValueOnce(success({ ...row(1, selected), resolvedDateRange: appliedRange }));
+  const before = previewCalls().length;
+  fireEvent.click(button('보기 1 보기 불러오기'));
+  await screen.findByText('보기 1 보기를 적용했습니다.');
+  await idle();
+  expect(previewCalls()).toHaveLength(before + 1);
+  expect(previewCalls().at(-1)[1]).toMatchObject({
+    filters: selected.filters,
+    dateRange: appliedRange,
+    trendGrain: extra.trendGrain ?? 'auto',
+    comparePrevious: extra.comparePrevious ?? false,
+  });
+  expect(localStorage.getItem('dashboard-number-notation:3')).toBe('compact');
+  expect((screen.getByLabelText('시계열 집계 단위') as HTMLSelectElement).value).toBe(extra.trendGrain ?? 'auto');
+  expect(comparisonToggle().checked).toBe(extra.comparePrevious ?? false);
+});
+
+it.each([{ trendGrain: 'year' }, { comparePrevious: 'true' }, { comparePrevious: true }])(
+  'period comparison rejects invalid saved settings %j before apply',
+  async invalid => {
+    await mount();
+    api.get.mockResolvedValueOnce(success(row(1, { ...state(), ...invalid } as SavedViewState)));
+    fireEvent.click(button('보기 1 보기 불러오기'));
+    await screen.findByText('저장 보기의 조건을 확인할 수 없습니다. 다시 불러와 주세요.');
+    expect(api.apply).not.toHaveBeenCalled();
+  },
+);
+
+it('period comparison renders authoritative dates, KPI comparison and actual previous chart dates with no fill', async () => {
+  await analysis();
+  await applyComparisonDates();
+  const comparison = { previousValue: 10, delta: 40, percentChange: 400 };
+  api.post.mockResolvedValueOnce(
+    success({
+      ...preview,
+      comparison: { current: appliedRange, previous: { column: 'created_at', start: '2026-01-09', end: '2026-01-10' } },
+      widgets: [
+        { ...preview.widgets[0], comparison },
+        {
+          title: '일별 매출',
+          type: 'CHART_LINE',
+          categoryField: 'day',
+          valueField: 'amount',
+          datas: [{ day: '2026-01-11', amount: 20 }],
+          previousDatas: [{ day: '2026-01-10', amount: 10 }],
+          trendGrain: 'week',
+        },
+      ],
+    }),
+  );
+  fireEvent.click(comparisonToggle());
+  await idle();
+  expect(screen.getByText('이전 기간: created_at · 2026-01-09 ~ 2026-01-10 (UTC)')).toBeTruthy();
+  expect(screen.getByTestId('metric-comparison').textContent).toBe(JSON.stringify(comparison));
+  expect(screen.getAllByTestId('analysis-card').every(card => card.dataset.height === 'auto')).toBe(true);
+  expect(screen.getByText(/적용된 집계 단위: 주별/)).toBeTruthy();
+  const table = screen.getByRole('table', { hidden: true });
+  expect(within(table).getAllByRole('row', { hidden: true })).toHaveLength(2);
+  expect(within(table).getByText('2026-01-10')).toBeTruthy();
+  expect(screen.getAllByTestId('widget')[1].textContent).toContain('"amount":20');
+});
+
+it('period comparison shows unsupported grain and previous limit messages while retaining original data', async () => {
+  await analysis();
+  api.post.mockResolvedValueOnce(
+    success({
+      ...preview,
+      widgets: [
+        {
+          title: '원본',
+          type: 'CHART_LINE',
+          categoryField: 'day',
+          valueField: 'amount',
+          datas: [{ day: '2026-01-11', amount: 20 }],
+          grainUnavailable: '지원하지 않는 SQL입니다.',
+          previousUnavailable: '이전 기간 행 수 제한입니다.',
+        },
+      ],
+    }),
+  );
+  choose('시계열 집계 단위', 'week');
+  await idle();
+  expect(screen.getByText(/선택한 집계 단위를 적용하지 못했습니다/).textContent).toContain('지원하지 않는 SQL입니다.');
+  expect(screen.getByText(/이전 기간 결과를 표시할 수 없습니다/).textContent).toContain('이전 기간 행 수 제한입니다.');
+  expect(screen.getByTestId('widget').textContent).toContain('"amount":20');
+  expect(screen.queryByText(/적용된 집계 단위/)).toBeNull();
+});
+
+it.each(['grain', 'comparison'] as const)(
+  'pending focus keeps %s enabled and focused, accepts another commit and ignores the stale response',
+  async kind => {
+    await analysis();
+    await applyComparisonDates();
+    const first = deferred();
+    const latest = deferred();
+    api.post.mockReturnValueOnce(first.promise).mockReturnValueOnce(latest.promise);
+    const control = (kind === 'grain' ? screen.getByLabelText('시계열 집계 단위') : comparisonToggle()) as
+      | HTMLSelectElement
+      | HTMLInputElement;
+    control.focus();
+    if (kind === 'grain') choose('시계열 집계 단위', 'day');
+    else fireEvent.click(control);
+    await screen.findByRole('progressbar');
+    expect(control.disabled).toBe(false);
+    expect(document.activeElement).toBe(control);
+    expect(disabled('현재 보기 저장')).toBe(true);
+    if (kind === 'grain') choose('시계열 집계 단위', 'week');
+    else fireEvent.click(control);
+    expect(control.disabled).toBe(false);
+    expect(document.activeElement).toBe(control);
+    expect(previewCalls().at(-1)[1]).toMatchObject({
+      dateRange: appliedRange,
+      trendGrain: kind === 'grain' ? 'week' : 'auto',
+      comparePrevious: false,
+    });
+    await act(async () =>
+      latest.resolve(
+        success({
+          ...preview,
+          widgets: [{ ...preview.widgets[0], datas: [{ requests: 84 }] }],
+        }),
+      ),
+    );
+    await idle();
+    expect(screen.getByTestId('widget').textContent).toContain('"requests":84');
+    expect(document.activeElement).toBe(control);
+    await act(async () =>
+      first.resolve(
+        success({
+          ...preview,
+          widgets: [{ ...preview.widgets[0], datas: [{ requests: 999 }] }],
+        }),
+      ),
+    );
+    expect(screen.getByTestId('widget').textContent).toContain('"requests":84');
+    expect(screen.getByTestId('widget').textContent).not.toContain('999');
+    expect(document.activeElement).toBe(control);
+  },
+);

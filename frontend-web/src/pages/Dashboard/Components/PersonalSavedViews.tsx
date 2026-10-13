@@ -16,12 +16,15 @@ import { del, get, post } from '@/helpers/apiHelper';
 export type FilterValue = string | number | boolean | null;
 export type DateRange = { column: string; start: string; end: string };
 export type RelativePeriod = { column: string; days: 7 | 30 | 90 };
+export type TrendGrain = 'auto' | 'day' | 'week' | 'month';
 export type SavedViewState = {
   version: 1;
   filters: { column: string; values: FilterValue[] }[];
   dateRange: DateRange | null;
   relativePeriod: RelativePeriod | null;
   numberNotation: 'auto' | 'compact' | 'full';
+  trendGrain?: TrendGrain;
+  comparePrevious?: boolean;
 };
 type SavedView = {
   id: number | string;
@@ -62,6 +65,9 @@ function stateData(value: unknown): SavedViewState {
     !state ||
     state.version !== 1 ||
     !['auto', 'compact', 'full'].includes(state.numberNotation) ||
+    (state.trendGrain !== undefined && !['auto', 'day', 'week', 'month'].includes(state.trendGrain)) ||
+    (state.comparePrevious !== undefined && typeof state.comparePrevious !== 'boolean') ||
+    (state.comparePrevious === true && !state.dateRange && !state.relativePeriod) ||
     !Array.isArray(state.filters) ||
     state.filters.length > 5 ||
     !state.filters.every(
@@ -93,6 +99,8 @@ function stateData(value: unknown): SavedViewState {
       : null,
     relativePeriod: state.relativePeriod ? { column: state.relativePeriod.column, days: state.relativePeriod.days } : null,
     numberNotation: state.numberNotation,
+    ...(state.trendGrain !== undefined ? { trendGrain: state.trendGrain } : {}),
+    ...(state.comparePrevious !== undefined ? { comparePrevious: state.comparePrevious } : {}),
   };
 }
 
@@ -290,7 +298,8 @@ export default function PersonalSavedViews({
         개인 저장 보기
       </Typography>
       <Typography variant="body2" sx={{ mb: 1 }}>
-        현재 적용한 필터·기간·숫자 표시만 개인별로 저장합니다. 대시보드 정의는 바뀌지 않습니다. 최대 20개입니다.
+        현재 적용한 필터·기간·숫자 표시·집계 단위·이전 기간 비교를 개인별로 저장합니다. 대시보드 정의는 바뀌지 않습니다. 최대
+        20개입니다.
       </Typography>
       {sourceRevision && (
         <Typography variant="caption" sx={{ overflowWrap: 'anywhere' }}>

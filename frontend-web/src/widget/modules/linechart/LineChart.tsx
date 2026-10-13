@@ -123,7 +123,17 @@ const LineChart = props => {
           type: 'category',
           data: option[axis + 'Field'] ? aggrData.map(item => item[option[axis + 'Field']]) : '',
           inverse: axis === 'y',
-          axisLabel: { interval: axis === 'y' ? 0 : 'auto', fontSize: 12 },
+          axisLabel: {
+            interval: axis === 'y' ? 0 : 'auto',
+            fontSize: 12,
+            hideOverlap: true,
+            ...(option.categoryDateFormat === 'day'
+              ? {
+                  formatter: (value: string) =>
+                    /^\d{4}-\d{2}-\d{2}T/.test(String(value)) ? String(value).slice(0, 10) : String(value),
+                }
+              : {}),
+          },
         },
         series: newSeries,
         grid: {

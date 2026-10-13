@@ -25,9 +25,11 @@ import PersonalSavedViews, {
   FilterValue,
   RelativePeriod,
   SavedViewState,
+  TrendGrain,
   resolveRelativePeriod,
   validDay,
 } from './PersonalSavedViews';
+import { PreviousPeriodData } from './PeriodComparison';
 
 const valueKey = (value: FilterValue) => encodeURIComponent(JSON.stringify(value));
 
@@ -47,6 +49,8 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
   const [filters, setFilters] = useState<Record<string, FilterValue[]>>({});
   const [dateDraft, setDateDraft] = useState<DateRange>({ column: '', start: '', end: '' });
   const [dateRange, setDateRange] = useState<DateRange | null>(null);
+  const [trendGrain, setTrendGrain] = useState<TrendGrain>('auto');
+  const [comparePrevious, setComparePrevious] = useState(false);
   const [relativePeriod, setRelativePeriod] = useState<RelativePeriod | null>(null);
   const [recentDays, setRecentDays] = useState<7 | 30 | 90>(7);
   const [analysisLoading, setAnalysisLoading] = useState(true);
@@ -68,6 +72,8 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
       setFilters({});
       setDateDraft({ column: '', start: '', end: '' });
       setDateRange(null);
+      setTrendGrain('auto');
+      setComparePrevious(false);
       setRelativePeriod(null);
       setRecentDays(7);
       setDateError('');
@@ -109,6 +115,8 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
         draft,
         dashboardId: Number(dashboardId),
         includeTrends: true,
+        trendGrain,
+        comparePrevious: comparePrevious && !!dateRange,
         filters: Object.entries(filters)
           .filter(([, values]) => values.length)
           .slice(0, 5)
@@ -132,7 +140,7 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
     return () => {
       serial.current += 1;
     };
-  }, [draft, filters, dateRange, dashboardId]);
+  }, [draft, filters, dateRange, dashboardId, trendGrain, comparePrevious]);
   if (!draft) return <>{children}</>;
   const dimensions = preview?.dimensions || [];
   const temporalColumns = preview?.temporalColumns || [];
@@ -164,12 +172,16 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
     dateRange: relativePeriod ? null : dateRange,
     relativePeriod,
     numberNotation,
+    trendGrain,
+    comparePrevious: comparePrevious && !!dateRange,
   };
   const reset = () => {
     setFilters({});
     setDateDraft({ column: '', start: '', end: '' });
     setDateRange(null);
     setRelativePeriod(null);
+    setTrendGrain('auto');
+    setComparePrevious(false);
     setDateError('');
   };
   const applyDates = () => {
@@ -178,6 +190,8 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
     if (!start && !end) {
       setDateError('');
       setDateRange(null);
+      setComparePrevious(false);
+      setTrendGrain('auto');
       setDateDraft({ column: '', start: '', end: '' });
       return;
     }
@@ -210,7 +224,16 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
         <Button
           size="small"
           onClick={reset}
-          disabled={busy || (!active.length && !dateRange && !dateDraft.start && !dateDraft.end && !dateDraft.column)}
+          disabled={
+            busy ||
+            (!active.length &&
+              !dateRange &&
+              !dateDraft.start &&
+              !dateDraft.end &&
+              !dateDraft.column &&
+              trendGrain === 'auto' &&
+              !comparePrevious)
+          }
         >
           필터 초기화
         </Button>
@@ -372,6 +395,43 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
           </>
         )}
       </Stack>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mb: 2, alignItems: { sm: 'center' } }}>
+        <TextField
+          select
+          label="시계열 집계 단위"
+          value={trendGrain}
+          disabled={analysisLoading}
+          size="small"
+          sx={{ minWidth: 160, maxWidth: '100%' }}
+          onChange={event => setTrendGrain(event.target.value as TrendGrain)}
+        >
+          <MenuItem value="auto">자동</MenuItem>
+          <MenuItem value="day">일별</MenuItem>
+          <MenuItem value="week">주별</MenuItem>
+          <MenuItem value="month">월별</MenuItem>
+        </TextField>
+        <Box component="label" sx={{ display: 'flex', alignItems: 'center', gap: 1, minHeight: 44 }}>
+          <input
+            type="checkbox"
+            checked={comparePrevious}
+            disabled={analysisLoading || !dateRange || unappliedDates || !!dateError}
+            onChange={event => setComparePrevious(event.target.checked)}
+            style={{ width: 20, height: 20 }}
+          />
+          이전 기간 비교
+        </Box>
+      </Stack>
+      <Typography variant="body2" sx={{ mb: 2 }}>
+        주별은 UTC 월요일 시작, 월별은 UTC 달력의 월 기준입니다. 선택 범위에 걸친 주·월은 범위 안의 데이터만 집계합니다. 이전
+        기간은 적용된 기간 바로 앞의 같은 일수이며 동일한 필터로 조회합니다.
+        {!dateRange && ' 이전 기간 비교는 날짜를 적용한 뒤 사용할 수 있습니다.'}
+      </Typography>
+      {preview?.comparison && (
+        <Typography role="status" sx={{ mb: 2, overflowWrap: 'anywhere' }}>
+          {busy || error ? '이전 조회 결과의 비교 기간' : '이전 기간'}: {preview.comparison.previous.column} ·{' '}
+          {preview.comparison.previous.start} ~ {preview.comparison.previous.end} (UTC)
+        </Typography>
+      )}
       {dateError && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {dateError}
@@ -402,6 +462,8 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
           setDateRange(range);
           setDateDraft(range ?? { column: '', start: '', end: '' });
           setRelativePeriod(state.relativePeriod);
+          setTrendGrain(state.trendGrain ?? 'auto');
+          setComparePrevious(state.comparePrevious === true && !!range);
           if (state.relativePeriod) setRecentDays(state.relativePeriod.days);
           setNotation(state.numberNotation);
         }}
@@ -426,11 +488,7 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
                   : widget.type === 'BOARD_NUMERIC'
                   ? 250
                   : 460,
-                height: preview.draft?.layoutSizes?.[i]
-                  ? preview.draft.layoutSizes[i].height * 80 + 60
-                  : widget.type === 'BOARD_NUMERIC'
-                  ? 'auto'
-                  : 460,
+                height: 'auto',
                 gridColumn: preview.draft?.layoutSizes?.[i]
                   ? preview.draft.layoutSizes[i].width === 12
                     ? '1 / -1'
@@ -444,7 +502,17 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
                 boxShadow: '0 2px 6px rgba(42,50,62,.06)',
               }}
             >
-              <Box sx={{ height: widget.type === 'BOARD_NUMERIC' ? 155 : '100%' }}>
+              <Box
+                sx={{
+                  height:
+                    widget.type === 'BOARD_NUMERIC'
+                      ? 155
+                      : preview.draft?.layoutSizes?.[i]
+                      ? preview.draft.layoutSizes[i].height * 80 + 60
+                      : 460,
+                  minWidth: 0,
+                }}
+              >
                 <WidgetViewer
                   title={widget.title}
                   description={`${
@@ -463,6 +531,19 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
                   dataSet={widget.datas}
                 />
               </Box>
+              {widget.trendGrain && (
+                <Typography variant="caption" sx={{ px: 2.5 }}>
+                  적용된 집계 단위:{' '}
+                  {({ day: '일별', week: '주별', month: '월별' } as Record<string, string>)[widget.trendGrain] ??
+                    widget.trendGrain}{' '}
+                  · UTC
+                </Typography>
+              )}
+              {widget.grainUnavailable && (
+                <Alert severity="warning" sx={{ m: 2 }}>
+                  선택한 집계 단위를 적용하지 못했습니다. {widget.grainUnavailable}
+                </Alert>
+              )}
               {widget.type === 'BOARD_NUMERIC' && (
                 <MetricTrend
                   trend={widget.trend}
@@ -470,6 +551,22 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
                   title={widget.title}
                   prefix={widget.prefix}
                   decimalPlaces={widget.decimalPlaces ?? 0}
+                  comparison={widget.comparison}
+                  suffix={widget.suffix}
+                />
+              )}
+              {widget.type !== 'BOARD_NUMERIC' && (Array.isArray(widget.previousDatas) || widget.previousUnavailable) && (
+                <PreviousPeriodData
+                  title={widget.title}
+                  data={widget.previousDatas}
+                  categoryField={widget.categoryField}
+                  valueField={widget.valueField}
+                  unavailable={widget.previousUnavailable}
+                  period={
+                    preview.comparison
+                      ? `${preview.comparison.previous.start} ~ ${preview.comparison.previous.end}`
+                      : undefined
+                  }
                 />
               )}
             </Card>
@@ -489,6 +586,8 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
         draft={draft}
         filters={active.map(([column, values]) => ({ column, values }))}
         dateRange={dateRange}
+        trendGrain={trendGrain}
+        comparePrevious={comparePrevious && !!dateRange}
         disabled={busy || !!error}
         onApplied={next => {
           setNumberNotation('auto');
