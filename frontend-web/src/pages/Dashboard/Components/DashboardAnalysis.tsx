@@ -328,9 +328,23 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
             <Card
               key={i}
               sx={{
-                minHeight: widget.type === 'BOARD_NUMERIC' ? 250 : 460,
-                height: widget.type === 'BOARD_NUMERIC' ? 'auto' : 460,
-                gridColumn: widget.type === 'BOARD_NUMERIC' ? 'auto' : '1 / -1',
+                minHeight: preview.draft?.layoutSizes?.[i]
+                  ? preview.draft.layoutSizes[i].height * 80 + 60
+                  : widget.type === 'BOARD_NUMERIC'
+                  ? 250
+                  : 460,
+                height: preview.draft?.layoutSizes?.[i]
+                  ? preview.draft.layoutSizes[i].height * 80 + 60
+                  : widget.type === 'BOARD_NUMERIC'
+                  ? 'auto'
+                  : 460,
+                gridColumn: preview.draft?.layoutSizes?.[i]
+                  ? preview.draft.layoutSizes[i].width === 12
+                    ? '1 / -1'
+                    : 'auto'
+                  : widget.type === 'BOARD_NUMERIC'
+                  ? 'auto'
+                  : '1 / -1',
                 border: '1px solid',
                 borderColor: 'divider',
                 borderRadius: 2,

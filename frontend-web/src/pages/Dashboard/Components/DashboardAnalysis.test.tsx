@@ -234,3 +234,73 @@ it('keeps ordinary previews without temporal metadata usable', async () => {
   expect(api.post.mock.lastCall?.[1].filters).toEqual([{ column: 'device_type', values: [true] }]);
   expect(api.post.mock.lastCall?.[1]).not.toHaveProperty('dateRange');
 });
+
+it('keeps the three-widget preview visible when a one-widget revision awaits repreview', async () => {
+  class RenderBoundary extends React.Component<{ children: React.ReactNode }, { error: Error | null }> {
+    state = { error: null as Error | null };
+    static getDerivedStateFromError(error: Error) {
+      return { error };
+    }
+    render() {
+      return this.state.error ? <div data-testid="render-error">{this.state.error.message}</div> : this.props.children;
+    }
+  }
+  const oldDraft = {
+    databaseId: 3,
+    widgets: Array.from({ length: 3 }, () => ({ type: 'BOARD_NUMERIC' })),
+    layoutSizes: [
+      { width: 6, height: 3 },
+      { width: 6, height: 5 },
+      { width: 12, height: 7 },
+    ],
+  };
+  const oldPreview = {
+    ...preview(11),
+    draft: oldDraft,
+    widgets: [11, 22, 33].map(requests => ({ ...preview(requests).widgets[0] })),
+  };
+  const nextDraft = { ...oldDraft, widgets: oldDraft.widgets.slice(0, 1), layoutSizes: [{ width: 12, height: 3 }] };
+  let resolveAnalysis: (value: any) => void = () => undefined;
+  let resolvePreview: (value: any) => void = () => undefined;
+  api.get.mockResolvedValueOnce(response(oldDraft)).mockImplementationOnce(
+    () =>
+      new Promise(resolve => {
+        resolveAnalysis = resolve;
+      }),
+  );
+  api.post.mockResolvedValueOnce(response(oldPreview)).mockImplementationOnce(
+    () =>
+      new Promise(resolve => {
+        resolvePreview = resolve;
+      }),
+  );
+  const content = (revision: number) => (
+    <RenderBoundary>
+      <DashboardAnalysis dashboardId={3} revision={revision} onSaved={vi.fn()}>
+        Fallback
+      </DashboardAnalysis>
+    </RenderBoundary>
+  );
+  const view = render(content(1));
+  await screen.findByText('33');
+  await idle();
+  view.rerender(content(2));
+  await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2));
+  await act(async () => {
+    resolveAnalysis(response(nextDraft));
+  });
+  // A render error must fail the test; catching it avoids an unhandled React error.
+  expect(screen.queryByTestId('render-error')).toBeNull();
+  expect(api.post).toHaveBeenCalledTimes(2);
+  expect(screen.getByText('11')).toBeTruthy();
+  expect(screen.getByText('22')).toBeTruthy();
+  expect(screen.getByText('33')).toBeTruthy();
+  expect(screen.getByRole('progressbar')).toBeTruthy();
+  await act(async () => {
+    resolvePreview(response({ ...preview(44), draft: nextDraft }));
+  });
+  await idle();
+  expect(screen.getByText('44')).toBeTruthy();
+  expect(screen.queryByText('22')).toBeNull();
+  expect(screen.queryByText('33')).toBeNull();
+});

@@ -67,6 +67,7 @@ export class AiDashboardService {
           dashboard.title,
           dashboard.layout ?? null,
           dashboard.analysisDefinition ?? null,
+          dashboard.structuredDefinition ?? null,
           dashboard.delYn,
         ]),
       )
@@ -585,8 +586,27 @@ export class AiDashboardService {
       dashboard.analysisDefinition = JSON.stringify(draft);
       let y = 0;
       let halfRow = false;
+      let x = 0;
+      let rowHeight = 0;
       dashboard.layout = JSON.stringify(
         widgets.map((w, i) => {
+          if (draft.layoutSizes) {
+            const { width, height } = draft.layoutSizes[i];
+            if (x + width > 12) {
+              y += rowHeight;
+              x = 0;
+              rowHeight = 0;
+            }
+            const item = { i: String(w.id), x, y, w: width, h: height };
+            x += width;
+            rowHeight = Math.max(rowHeight, height);
+            if (x === 12) {
+              y += rowHeight;
+              x = 0;
+              rowHeight = 0;
+            }
+            return item;
+          }
           const numeric = draft.widgets[i].type === 'BOARD_NUMERIC';
           if (!numeric && halfRow) {
             y += 2;
@@ -618,7 +638,13 @@ export class AiDashboardService {
             layout: dashboard.layout,
           })
           .where('id = :id', { id: dashboard.id });
-        for (const field of ['title', 'layout', 'analysisDefinition', 'delYn']) {
+        for (const field of [
+          'title',
+          'layout',
+          'analysisDefinition',
+          'structuredDefinition',
+          'delYn',
+        ]) {
           if (previous[field] === null || previous[field] === undefined)
             update.andWhere(`${field} IS NULL`);
           else

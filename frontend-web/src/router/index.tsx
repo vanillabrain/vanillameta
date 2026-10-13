@@ -9,6 +9,7 @@ import PublicLayout from '@/layouts/PublicLayout';
 const Dashboard = React.lazy(() => import('@/pages/Dashboard'));
 const DashboardView = React.lazy(() => import('@/pages/Dashboard/DashboardView'));
 const DashboardCreate = React.lazy(() => import('@/pages/Dashboard/DashboardCreate'));
+const DashboardEdit = React.lazy(() => import('@/pages/Dashboard/DashboardEdit'));
 const DashboardModify = React.lazy(() => import('@/pages/Dashboard/DashboardModify'));
 const Widget = React.lazy(() => import('@/pages/Widget'));
 const WidgetView = React.lazy(() => import('@/pages/Widget/WidgetView'));
@@ -42,6 +43,7 @@ function Router() {
           <Route index element={<Navigate to="/dashboard" replace={true} />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/dashboard/:dashboardId" element={<DashboardView />} />
+          <Route path="/dashboard/:dashboardId/edit-charts" element={<DashboardEdit />} />
           <Route path="/dashboard/create" element={<DashboardCreate />}>
             <Route path=":createType" element={<DashboardCreate />} />
           </Route>

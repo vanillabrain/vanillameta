@@ -1,0 +1,372 @@
+jest.mock('../connection/connection.service', () => ({ ConnectionService: class {} }));
+jest.mock('../ai/ai-dashboard.service', () => ({ AiDashboardService: class {} }));
+
+import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { Dashboard } from '../dashboard/entities/dashboard.entity';
+import { Metric } from '../metric/entities/metric.entity';
+import { BiService } from './bi.service';
+
+describe('BiService dashboard editor boundaries', () => {
+  const actor = 10;
+  const dashboardId = 42;
+  const revision = 'a'.repeat(64);
+  const originalSql = 'SELECT SUM("amount") AS value FROM source WHERE "category" = \'A\'';
+  let service: BiService;
+  let access: any;
+  let dashboards: any;
+  let dashboard: any;
+  let analysis: any;
+  let db: any;
+  let metricRows: any[];
+  let availableMetrics: any[];
+  let profile: any;
+
+  const item = (overrides = {}) => ({
+    key: 'new-sum',
+    kind: 'metric',
+    metricId: 11,
+    title: 'Revenue',
+    chart: 'number',
+    dimension: undefined as string | undefined,
+    unit: 'USD',
+    decimalPlaces: 2,
+    numberNotation: 'plain',
+    width: 6,
+    height: 3,
+    ...overrides,
+  });
+  const body = (overrides = {}) => ({
+    expectedRevision: revision,
+    title: 'Edited dashboard',
+    items: [item()],
+    ...overrides,
+  });
+
+  beforeEach(() => {
+    profile = {
+      sourceId: 1,
+      supported: true,
+      dataVersion: 'source-version',
+      columns: [
+        { name: 'amount', numeric: true, temporal: false },
+        { name: 'category', numeric: false, temporal: false },
+        { name: 'day', numeric: false, temporal: true },
+      ],
+    };
+    metricRows = [
+      { id: 11, aggregation: 'SUM', column: 'amount', sourceId: 1 },
+      { id: 12, aggregation: 'COUNT', column: '*', sourceId: 1 },
+      { id: 13, aggregation: 'SUM', column: 'amount', sourceId: 2 },
+    ].map(m => ({
+      id: m.id,
+      databaseId: m.sourceId,
+      useYn: 'Y',
+      definition: JSON.stringify({
+        schemaVersion: 1,
+        definitionVersion: 1,
+        sourceId: m.sourceId,
+        tableName: 'uploaded_data',
+        label: `Metric ${m.id}`,
+        aggregation: m.aggregation,
+        column: m.column,
+        unit: 'original',
+        decimalPlaces: 0,
+        numberNotation: 'compact',
+      }),
+    }));
+    availableMetrics = metricRows
+      .filter(m => m.databaseId === 1)
+      .map(m => ({
+        id: m.id,
+        definition: JSON.parse(m.definition),
+      }));
+    analysis = {
+      databaseId: 1,
+      title: 'Original dashboard',
+      explanation: 'Saved analysis',
+      revision,
+      widgets: [
+        {
+          title: 'Original filtered total',
+          description: 'Original description',
+          type: 'BOARD_NUMERIC',
+          sql: originalSql,
+          valueField: 'value',
+          suffix: ' kg',
+          decimalPlaces: 1,
+          numberNotation: 'compact',
+        },
+      ],
+      layoutSizes: [{ width: 6, height: 3 }],
+    };
+    dashboard = { id: dashboardId, structuredDefinition: null, layout: '[]' };
+    db = {
+      getRepository: jest.fn(entity => {
+        if (entity === Dashboard) return { findOne: jest.fn(async () => dashboard) };
+        if (entity === Metric)
+          return {
+            findOne: jest.fn(async ({ where }) => metricRows.find(m => m.id === where.id)),
+          };
+        throw new Error('unexpected repository');
+      }),
+    };
+    access = { assert: jest.fn().mockResolvedValue(undefined), id: jest.fn(Number) };
+    dashboards = {
+      analysis: jest.fn(async () => ({ data: analysis })),
+      preview: jest.fn().mockResolvedValue({ data: { widgets: [{ rows: [{ value: 150 }] }] } }),
+      save: jest.fn().mockResolvedValue({ data: { id: dashboardId, revision: 'b'.repeat(64) } }),
+    };
+    service = new BiService(db, access, {} as any, dashboards);
+    jest.spyOn(service, 'profile').mockImplementation(async () => profile);
+    jest.spyOn(service, 'metrics').mockImplementation(async () => availableMetrics);
+  });
+
+  it('loads the owned, revisioned baseline and exposes presentation without raw SQL', async () => {
+    const result = await service.editor(String(dashboardId), actor);
+    expect(access.assert).toHaveBeenCalledWith('dashboard', String(dashboardId), actor);
+    expect(dashboards.analysis).toHaveBeenCalledWith(dashboardId, actor, true);
+    expect(service.profile).toHaveBeenCalledWith(1, actor);
+    expect(service.metrics).toHaveBeenCalledWith(1, actor);
+    expect(result).toMatchObject({
+      dashboardId,
+      title: analysis.title,
+      sourceId: 1,
+      revision,
+      profile,
+      metrics: availableMetrics,
+      items: [
+        {
+          key: 'existing-0',
+          kind: 'existing',
+          title: analysis.widgets[0].title,
+          chart: 'number',
+          unit: 'kg',
+          decimalPlaces: 1,
+          numberNotation: 'compact',
+          width: 6,
+          height: 3,
+        },
+      ],
+    });
+    expect(result).not.toHaveProperty('analysis');
+    expect(result.items[0]).not.toHaveProperty('sql');
+  });
+
+  it('compiles SUM/bar and COUNT/line plus a number with per-widget formats and atomic v2 snapshot', async () => {
+    const request = body({
+      items: [
+        item({ key: 'sum-bar', chart: 'bar', dimension: 'category', width: 12, height: 5 }),
+        item({
+          key: 'count-line',
+          metricId: 12,
+          chart: 'line',
+          dimension: 'day',
+          unit: 'rows',
+          decimalPlaces: 0,
+          numberNotation: 'compact',
+          width: 12,
+          height: 7,
+        }),
+        item({ key: 'sum-number', unit: 'kg', decimalPlaces: 3 }),
+      ],
+    });
+    expect(await service.saveEditor(dashboardId, request, actor)).toEqual({
+      id: dashboardId,
+      revision: 'b'.repeat(64),
+    });
+    expect(dashboards.save).toHaveBeenCalledTimes(1);
+    const [saved, savedActor, snapshot] = dashboards.save.mock.calls[0];
+    expect(savedActor).toBe(actor);
+    expect(saved).toMatchObject({
+      dashboardId,
+      expectedRevision: revision,
+      draft: {
+        databaseId: 1,
+        title: request.title,
+        layoutSizes: [
+          { width: 12, height: 5 },
+          { width: 12, height: 7 },
+          { width: 6, height: 3 },
+        ],
+      },
+    });
+    expect(saved.draft.widgets).toEqual([
+      expect.objectContaining({
+        type: 'CHART_COLUMN',
+        categoryField: 'dimension',
+        sql: 'SELECT "category" AS dimension, SUM("amount") AS value FROM source GROUP BY "category" ORDER BY value DESC LIMIT 500',
+        suffix: ' USD',
+        decimalPlaces: 2,
+        numberNotation: 'full',
+      }),
+      expect.objectContaining({
+        type: 'CHART_LINE',
+        categoryField: 'dimension',
+        sql: 'SELECT "day" AS dimension, COUNT(*) AS value FROM source GROUP BY "day" ORDER BY dimension LIMIT 500',
+        suffix: ' rows',
+        decimalPlaces: 0,
+        numberNotation: 'compact',
+      }),
+      expect.objectContaining({
+        type: 'BOARD_NUMERIC',
+        sql: 'SELECT SUM("amount") AS value FROM source',
+        suffix: ' kg',
+        decimalPlaces: 3,
+        numberNotation: 'full',
+      }),
+    ]);
+    expect(snapshot).toMatchObject({
+      schemaVersion: 2,
+      kind: 'structured-bi-dashboard',
+      sourceId: 1,
+      dataVersion: profile.dataVersion,
+    });
+    expect(snapshot.items).toEqual(
+      request.items.map(i =>
+        expect.objectContaining({
+          key: i.key,
+          metricId: i.metricId,
+          chart: i.chart,
+          dimension: i.dimension,
+          definition: JSON.parse(metricRows.find(m => m.id === i.metricId).definition),
+          presentation: {
+            unit: i.unit,
+            decimalPlaces: i.decimalPlaces,
+            numberNotation: i.numberNotation,
+          },
+        }),
+      ),
+    );
+    expect(JSON.parse(metricRows[0].definition)).toMatchObject({
+      unit: 'original',
+      decimalPlaces: 0,
+    });
+  });
+
+  it('previews and saves only the server SQL for an existing key despite forged client SQL/source', async () => {
+    const existing = (await service.editor(dashboardId, actor)).items[0];
+    const request = body({
+      sourceId: 2,
+      items: [
+        {
+          ...existing,
+          title: 'Renamed',
+          sql: 'SELECT * FROM secret',
+          databaseId: 2,
+          unit: 'USD',
+          decimalPlaces: 2,
+        },
+      ],
+    });
+    expect(await service.editorPreview(dashboardId, request, actor)).toEqual({
+      widgets: [{ rows: [{ value: 150 }] }],
+    });
+    expect(dashboards.preview).toHaveBeenCalledWith(
+      {
+        draft: expect.objectContaining({
+          databaseId: 1,
+          widgets: [
+            expect.objectContaining({ sql: originalSql, title: 'Renamed', suffix: ' USD' }),
+          ],
+        }),
+      },
+      actor,
+    );
+    await service.saveEditor(dashboardId, request, actor);
+    expect(dashboards.save.mock.calls[0][0].draft.widgets[0].sql).toBe(originalSql);
+    expect(analysis.widgets[0].title).toBe('Original filtered total');
+  });
+
+  it('falls back to the original SQL when the saved metric has been deleted', async () => {
+    dashboard.structuredDefinition = JSON.stringify({
+      schemaVersion: 2,
+      kind: 'structured-bi-dashboard',
+      sourceId: 1,
+      items: [
+        {
+          key: 'saved-revenue',
+          metricId: 99,
+          chart: 'number',
+          definition: { aggregation: 'SUM', column: 'amount' },
+        },
+      ],
+    });
+    const editor = await service.editor(dashboardId, actor);
+    expect(editor.items[0]).toMatchObject({
+      key: 'saved-revenue',
+      kind: 'existing',
+      metricId: 99,
+      metricAvailable: false,
+    });
+    const prepare = jest.spyOn(service, 'prepare');
+    await service.saveEditor(dashboardId, body({ items: editor.items }), actor);
+    expect(prepare).not.toHaveBeenCalled();
+    expect(dashboards.save.mock.calls[0][0].draft.widgets[0].sql).toBe(originalSql);
+    expect(dashboards.save.mock.calls[0][2].items[0]).toMatchObject({
+      key: 'saved-revenue',
+      metricId: 99,
+    });
+  });
+
+  it.each(['editor', 'editorPreview', 'saveEditor'] as const)(
+    '%s denies unauthorized access before reading the baseline or executing SQL',
+    async operation => {
+      access.assert.mockRejectedValueOnce(new ForbiddenException('not dashboard owner'));
+      const result =
+        operation === 'editor'
+          ? service.editor(dashboardId, 20)
+          : service[operation](dashboardId, body(), 20);
+      await expect(result).rejects.toBeInstanceOf(ForbiddenException);
+      expect(access.assert).toHaveBeenCalledWith('dashboard', dashboardId, 20);
+      expect(dashboards.analysis).not.toHaveBeenCalled();
+      expect(db.getRepository).not.toHaveBeenCalled();
+      expect(dashboards.preview).not.toHaveBeenCalled();
+      expect(dashboards.save).not.toHaveBeenCalled();
+    },
+  );
+
+  it('rejects a metric from another source through real prepare even if both sources are owned', async () => {
+    const prepare = jest.spyOn(service, 'prepare');
+    await expect(
+      service.saveEditor(dashboardId, body({ items: [item({ metricId: 13 })] }), actor),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(prepare).toHaveBeenCalledWith(
+      expect.objectContaining({ sourceId: 1, metricId: 13 }),
+      actor,
+    );
+    expect(access.assert).toHaveBeenCalledWith('metric', 13, actor);
+    expect(dashboards.save).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['missing revision', { expectedRevision: undefined }],
+    ['invalid revision', { expectedRevision: 'g'.repeat(64) }],
+    ['short revision', { expectedRevision: 'a'.repeat(63) }],
+    ['empty title', { title: ' ' }],
+    ['zero items', { items: [] }],
+    ['seven items', { items: Array.from({ length: 7 }, (_, i) => item({ key: `metric-${i}` })) }],
+    ['invalid width', { items: [item({ width: 7 })] }],
+    ['invalid height', { items: [item({ height: 4 })] }],
+    ['duplicate keys', { items: [item(), item()] }],
+    ['invalid key', { items: [item({ key: 'injected key' })] }],
+    ['unknown existing key', { items: [item({ kind: 'existing', key: 'forged-baseline' })] }],
+    ['invalid precision', { items: [item({ decimalPlaces: 7 })] }],
+  ])('rejects %s without preview or persistence', async (_name, overrides) => {
+    await expect(service.saveEditor(dashboardId, body(overrides), actor)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(dashboards.preview).not.toHaveBeenCalled();
+    expect(dashboards.save).not.toHaveBeenCalled();
+  });
+
+  it.each(['editorPreview', 'saveEditor'] as const)(
+    '%s rejects a stale revision',
+    async operation => {
+      await expect(
+        service[operation](dashboardId, body({ expectedRevision: 'b'.repeat(64) }), actor),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(dashboards.preview).not.toHaveBeenCalled();
+      expect(dashboards.save).not.toHaveBeenCalled();
+    },
+  );
+});

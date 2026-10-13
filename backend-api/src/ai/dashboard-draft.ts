@@ -5,6 +5,7 @@ export interface DashboardDraft {
   databaseId: number;
   title: string;
   explanation: string;
+  layoutSizes?: Array<{ width: 6 | 12; height: 3 | 5 | 7 }>;
   widgets: Array<{
     title: string;
     description: string;
@@ -107,10 +108,22 @@ export function validateDraft(input: any): DashboardDraft {
   ) {
     throw new BadRequestException('draft requires 1 to 6 widgets');
   }
+  if (
+    input.layoutSizes !== undefined &&
+    (!Array.isArray(input.layoutSizes) ||
+      input.layoutSizes.length !== input.widgets.length ||
+      input.layoutSizes.some(
+        s => !s || ![6, 12].includes(s.width) || ![3, 5, 7].includes(s.height),
+      ))
+  )
+    throw new BadRequestException('invalid layout sizes');
   return {
     databaseId: positiveId(input.databaseId),
     title: text(input.title, 300),
     explanation: text(input.explanation, 4000, true),
+    ...(input.layoutSizes !== undefined
+      ? { layoutSizes: input.layoutSizes.map(s => ({ width: s.width, height: s.height })) }
+      : {}),
     widgets: input.widgets.map((w: any) => {
       if (!w || !DASHBOARD_TYPES.includes(w.type))
         throw new BadRequestException('invalid widget type');

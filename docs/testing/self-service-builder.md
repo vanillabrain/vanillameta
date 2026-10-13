@@ -85,3 +85,6 @@ SSBI-02/03/08/14 전체는 **부분 완료**다. 원격 DB 프로파일, 가중 
 - **단위 위치:** 새 지표 unit을 prefix로 저장하면 미리보기 `150 kg`와 저장 `kg150`가 달라진다. suffix를 draft 검증·저장 옵션·일반 분석 렌더까지 전달하고 숫자 미리보기도 기존 NumericBoard를 재사용해 소수·큰 정수·축약 계약을 일치시켰다. 별도 1행 fixture 소스 21(업로드가 열을 `amount_FROM_source`로 normalize), 지표 22/대시보드 19에서 preview→save→reload `150 kg`, 정확값 150·suffix ` kg`를 확인했다. `unit-results.json`, `unit-preview-mobile.png`, `unit-saved-mobile.png`와 실제 SQLite/렌더 회귀를 남겼다. 이 fixture는 단위 표시 검증용이며 주문 금액을 실제 무게로 해석하지 않는다.
 - **migration 발견:** TypeORM source glob에 Jest spec이 들어가지 않도록 테스트를 `src/bi/bi-migration.spec.ts`로 옮겼다. 실제 SQLite 멱등/NULL 보존과 compiled CLI 목록을 확인했다.
 - native 메뉴 확인을 위해 CUA 앱 경로도 시도했지만 Chrome for Testing bundle 중복 및 정확한 경로 선택 timeout으로 추가 확인하지 못했다. 위 BLOCKED와 VoiceOver NOT_RUN을 유지한다.
+
+
+후속 여러 위젯·배치/순서·저장 조건은 [여러 지표·차트 편집](dashboard-chart-editor.md)에서 선택 검증했다. 위의 최초 단일 제작 범위와 당시 미검증 기록은 이력으로 유지한다.

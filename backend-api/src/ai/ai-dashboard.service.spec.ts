@@ -391,6 +391,34 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
     expect(undo.data.revision).not.toBe(saved.data.revision);
     expect((await service.analysis(id, 7)).data).toEqual(draft());
   });
+  it('persists custom sizes in order, remaps widget ids and packs unequal rows without overlap', async () => {
+    const custom = {
+      ...draft(),
+      widgets: [...draft().widgets, draft().widgets[0]],
+      layoutSizes: [
+        { width: 6, height: 3 },
+        { width: 6, height: 7 },
+        { width: 12, height: 5 },
+      ],
+    };
+    const id = (await service.save({ draft: custom }, 7)).data.id;
+    const metadata = await db.manager.findOneBy(Dashboard, { id });
+    const layout = JSON.parse(metadata.layout);
+    expect(layout.map(x => [x.x, x.y, x.w, x.h])).toEqual([
+      [0, 0, 6, 3],
+      [6, 0, 6, 7],
+      [0, 7, 12, 5],
+    ]);
+    expect(new Set(layout.map(x => x.i)).size).toBe(3);
+    expect((await service.analysis(id, 7)).data.layoutSizes).toEqual(custom.layoutSizes);
+    const revision = (await service.analysis(id, 7, true)).data.revision;
+    await db.manager.update(Dashboard, id, {
+      structuredDefinition: JSON.stringify({ changed: true }),
+    });
+    await expect(
+      service.save({ dashboardId: id, draft: custom, expectedRevision: revision }, 7),
+    ).rejects.toThrow('대시보드가 다른 화면');
+  });
   it('rolls back new widgets and datasets if the final atomic update loses a race', async () => {
     const id = (await service.save({ draft: draft() }, 7)).data.id;
     const { data } = await service.analysis(id, 7, true);

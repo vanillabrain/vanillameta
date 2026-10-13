@@ -1,12 +1,13 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { createHash, randomUUID } from 'crypto';
 import { Database } from '../database/entities/database.entity';
 import { Metric, MetricAggregation } from '../metric/entities/metric.entity';
+import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { SourceAccessService } from '../ownership/source-access.service';
 import { ConnectionService } from '../connection/connection.service';
 import { AiDashboardService } from '../ai/ai-dashboard.service';
-import { quoteColumn, sourceQuery } from '../ai/dashboard-draft';
+import { quoteColumn, sourceQuery, validateDraft } from '../ai/dashboard-draft';
 
 @Injectable()
 export class BiService {
@@ -259,5 +260,182 @@ export class BiService {
   async save(body: any, actor: number) {
     const { draft, snapshot } = await this.prepare(body, actor);
     return (await this.dashboards.save({ draft }, actor, snapshot)).data;
+  }
+  private async editorState(id: unknown, actor: number) {
+    await this.access.assert('dashboard', id, actor);
+    const dashboardId = this.access.id(id);
+    const analysis = (await this.dashboards.analysis(dashboardId, actor, true)).data;
+    const profile = await this.profile(analysis.databaseId, actor);
+    if (!profile.supported)
+      throw new BadRequestException('서버에 저장한 DuckDB 파일 대시보드를 선택해 주세요.');
+    const metrics = await this.metrics(profile.sourceId, actor);
+    const row = await this.db.getRepository(Dashboard).findOne({ where: { id: dashboardId } });
+    const snapshot = row.structuredDefinition ? JSON.parse(row.structuredDefinition) : null;
+    const definitions =
+      snapshot?.schemaVersion === 2 && snapshot.kind === 'structured-bi-dashboard'
+        ? snapshot.items
+        : snapshot?.schemaVersion === 1 && snapshot.kind === 'structured-bi'
+        ? [snapshot]
+        : [];
+    const layout = row.layout ? JSON.parse(row.layout) : [];
+    const items = analysis.widgets.map((widget, index) => {
+      const stored = definitions?.[index];
+      const metricAvailable = !!stored?.metricId && metrics.some(m => m.id === stored.metricId);
+      const chart =
+        widget.type === 'BOARD_NUMERIC' ? 'number' : widget.type === 'CHART_LINE' ? 'line' : 'bar';
+      const sizes = analysis.layoutSizes?.[index];
+      return {
+        key: stored?.key || `existing-${index}`,
+        kind: metricAvailable ? 'metric' : 'existing',
+        title: widget.title,
+        ...(stored?.metricId ? { metricId: stored.metricId, metricAvailable } : {}),
+        chart,
+        dimension: stored?.dimension,
+        unit: (widget.suffix || '').trim(),
+        decimalPlaces: widget.decimalPlaces ?? 0,
+        numberNotation: widget.numberNotation === 'compact' ? 'compact' : 'plain',
+        width: sizes?.width ?? (layout[index]?.w === 6 ? 6 : 12),
+        height:
+          sizes?.height ??
+          ([3, 5, 7].includes(layout[index]?.h) ? layout[index].h : chart === 'number' ? 3 : 5),
+      };
+    });
+    return {
+      dashboardId,
+      title: analysis.title,
+      sourceId: profile.sourceId,
+      revision: analysis.revision,
+      profile,
+      metrics,
+      items,
+      analysis,
+      definitions,
+    };
+  }
+  async editor(id: unknown, actor: number) {
+    const state = await this.editorState(id, actor);
+    return {
+      dashboardId: state.dashboardId,
+      title: state.title,
+      sourceId: state.sourceId,
+      revision: state.revision,
+      profile: state.profile,
+      metrics: state.metrics,
+      items: state.items,
+    };
+  }
+  private async compileEditor(id: unknown, body: any, actor: number) {
+    const state = await this.editorState(id, actor);
+    if (typeof body?.expectedRevision !== 'string' || !/^[a-f0-9]{64}$/.test(body.expectedRevision))
+      throw new BadRequestException('대시보드를 다시 불러와 주세요.');
+    if (state.revision !== body.expectedRevision)
+      throw new ConflictException(
+        '대시보드가 다른 화면에서 변경되었습니다. 작성 중인 내용을 확인하고 다시 불러와 주세요.',
+      );
+    if (!Array.isArray(body.items) || body.items.length < 1 || body.items.length > 6)
+      throw new BadRequestException('차트는 1~6개까지 저장할 수 있습니다.');
+    const title = this.text(body.title, 300);
+    const keys = new Set<string>();
+    const widgets = [];
+    const snapshots = [];
+    const layoutSizes = [];
+    for (const item of body.items) {
+      if (
+        !item ||
+        typeof item.key !== 'string' ||
+        !/^[a-zA-Z0-9_-]{1,80}$/.test(item.key) ||
+        keys.has(item.key)
+      )
+        throw new BadRequestException('차트 식별자를 확인해 주세요.');
+      keys.add(item.key);
+      if (![6, 12].includes(item.width) || ![3, 5, 7].includes(item.height))
+        throw new BadRequestException('차트 크기를 확인해 주세요.');
+      if (
+        typeof item.unit !== 'string' ||
+        item.unit.length > 12 ||
+        !Number.isInteger(item.decimalPlaces) ||
+        item.decimalPlaces < 0 ||
+        item.decimalPlaces > 6 ||
+        !['plain', 'compact'].includes(item.numberNotation)
+      )
+        throw new BadRequestException('차트 표시 형식을 확인해 주세요.');
+      let widget;
+      let snapshot;
+      if (item.kind === 'metric') {
+        const prepared = await this.prepare(
+          {
+            sourceId: state.sourceId,
+            metricId: item.metricId,
+            chart: item.chart,
+            dimension: item.dimension,
+            title: item.title,
+          },
+          actor,
+        );
+        widget = prepared.draft.widgets[0];
+        snapshot = prepared.snapshot;
+      } else if (item.kind === 'existing') {
+        const index = state.items.findIndex(original => original.key === item.key);
+        const original = state.items[index];
+        if (!original || item.chart !== original.chart || item.dimension !== original.dimension)
+          throw new BadRequestException(
+            '기존 SQL 차트의 표현을 바꾸려면 저장 지표를 선택해 주세요.',
+          );
+        widget = { ...state.analysis.widgets[index], title: this.text(item.title, 300) };
+        snapshot = state.definitions?.[index] || {};
+      } else throw new BadRequestException('차트 종류를 확인해 주세요.');
+      widget = {
+        ...widget,
+        decimalPlaces: item.decimalPlaces,
+        suffix: item.unit ? ' ' + item.unit : '',
+        numberNotation: item.numberNotation === 'plain' ? 'full' : 'compact',
+      };
+      widgets.push(widget);
+      layoutSizes.push({ width: item.width, height: item.height });
+      snapshots.push({
+        ...snapshot,
+        key: item.key,
+        chart: item.chart,
+        dimension: item.dimension,
+        presentation: {
+          unit: item.unit,
+          decimalPlaces: item.decimalPlaces,
+          numberNotation: item.numberNotation,
+        },
+      });
+    }
+    const draft = validateDraft({
+      databaseId: state.sourceId,
+      title,
+      explanation: state.analysis.explanation,
+      widgets,
+      layoutSizes,
+    });
+    const snapshot = {
+      schemaVersion: 2,
+      kind: 'structured-bi-dashboard',
+      sourceId: state.sourceId,
+      dataVersion: state.profile.dataVersion,
+      items: snapshots,
+    };
+    return {
+      draft,
+      snapshot,
+      dashboardId: state.dashboardId,
+      expectedRevision: body.expectedRevision,
+    };
+  }
+  async editorPreview(id: unknown, body: any, actor: number) {
+    const { draft } = await this.compileEditor(id, body, actor);
+    return (await this.dashboards.preview({ draft }, actor)).data;
+  }
+  async saveEditor(id: unknown, body: any, actor: number) {
+    const { draft, snapshot, dashboardId, expectedRevision } = await this.compileEditor(
+      id,
+      body,
+      actor,
+    );
+    return (await this.dashboards.save({ draft, dashboardId, expectedRevision }, actor, snapshot))
+      .data;
   }
 }

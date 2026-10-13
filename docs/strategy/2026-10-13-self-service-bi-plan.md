@@ -269,3 +269,6 @@ Rill에도 AI 제작·지표 정의·오류 상태 확인 기능이 있으므로
 
 
 2A 후속 구현: [프로파일·지표 정의·SQL 없는 제작 검증](../testing/self-service-builder.md). 서버 DuckDB 파일의 기본 6집계와 단일 숫자/막대/날짜 선 제작·snapshot 저장을 구현했다. 이력/가중 평균/다중 위젯·필터 설계·native 메뉴 및 VoiceOver는 후속이며 전체 단계 완료로 확대하지 않는다.
+
+
+2A 후속: [여러 지표·차트 편집 검증](../testing/dashboard-chart-editor.md). 한 DuckDB 소스의 기존 대시보드에 1~6개 지표 차트를 추가하고 표현/크기/순서를 편집하여 저장·재조회한다. 원본 SQL과 삭제 지표 snapshot 보존, 충돌·장애 안내, DOM 메뉴 키보드·모바일을 구현/검증했다. 다중 소스·고급 지표·제작 단계 필터·VoiceOver는 남아 있다.

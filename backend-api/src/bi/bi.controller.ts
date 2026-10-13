@@ -29,4 +29,21 @@ export class BiController {
   @Post('dashboards') async save(@Body() body: any, @Req() req) {
     return this.success(await this.bi.save(body, this.actor(req)));
   }
+  @Get('dashboards/:id/editor') async editor(@Param('id') id: string, @Req() req) {
+    return this.success(await this.bi.editor(id, this.actor(req)));
+  }
+  @Post('dashboards/:id/editor/preview') async editorPreview(
+    @Param('id') id: string,
+    @Body() body: any,
+    @Req() req,
+  ) {
+    return this.success(await this.bi.editorPreview(id, body, this.actor(req)));
+  }
+  @Post('dashboards/:id/editor') async saveEditor(
+    @Param('id') id: string,
+    @Body() body: any,
+    @Req() req,
+  ) {
+    return this.success(await this.bi.saveEditor(id, body, this.actor(req)));
+  }
 }

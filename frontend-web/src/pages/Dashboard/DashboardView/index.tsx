@@ -312,6 +312,15 @@ const DashboardView = () => {
                 <Button
                   variant="outlined"
                   size="small"
+                  component={RouterLink}
+                  to={`/dashboard/${dashboardId}/edit-charts`}
+                  sx={{ mr: 1, minHeight: 44, flexShrink: 0 }}
+                >
+                  차트·배치 편집
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="small"
                   onClick={handleInsightClick}
                   disabled={insightLoading}
                   sx={{ mr: '8px', backgroundColor: '#fff', whiteSpace: 'nowrap', flexShrink: 0 }}
