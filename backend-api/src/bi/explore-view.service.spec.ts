@@ -32,6 +32,7 @@ describe('ExploreViewService saved exploration views', () => {
     includeRows: true,
     ...over,
   });
+  const v2 = (pivot: any, over: any = {}) => ({ ...state(over), version: 2, pivot });
   const mainSql =
     'CREATE TABLE uploaded_data AS SELECT ' +
     'CAST("column0" AS VARCHAR) AS region, CAST("column1" AS VARCHAR) AS channel, ' +
@@ -578,5 +579,142 @@ describe('ExploreViewService saved exploration views', () => {
     await expect(
       service.load({ sourceId: 1, viewId: valid.data.id }, actor),
     ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('round-trips a version 2 pivot view through create, load and list', async () => {
+    const sourceRevision = await revision();
+    const pivot = { enabled: true, rowColumns: ['region'], columnColumns: ['channel'] };
+    const created = await service.create(
+      {
+        sourceId: 1,
+        name: 'pivot',
+        sourceRevision,
+        state: v2(pivot),
+        measureVersions: { 1: 1 },
+      },
+      actor,
+    );
+    expect(created.data.state).toEqual(v2(pivot));
+    const rows = await views().find();
+    expect(JSON.parse(rows[0].state)).toEqual(v2(pivot));
+    const listed = await service.list({ sourceId: 1 }, actor);
+    expect(listed.data[0]).toMatchObject({ id: created.data.id, stale: false });
+    expect(listed.data[0].state).toEqual(v2(pivot));
+    const loaded = await new ExploreViewService(db, access, bi, connection).load(
+      { sourceId: 1, viewId: created.data.id },
+      actor,
+    );
+    expect(loaded.data).toEqual({ ...created.data });
+  });
+
+  it('keeps the two-per-axis limit at its boundary and retains axes toggled off', async () => {
+    const created = await service.create(
+      {
+        sourceId: 1,
+        name: 'boundary',
+        sourceRevision: await revision(),
+        measureVersions: { 1: 1 },
+        state: v2({
+          enabled: true,
+          rowColumns: ['region', 'channel'],
+          columnColumns: ['day', 'event_time'],
+        }),
+      },
+      actor,
+    );
+    expect(created.data.state.pivot).toEqual({
+      enabled: true,
+      rowColumns: ['region', 'channel'],
+      columnColumns: ['day', 'event_time'],
+    });
+    const off = await service.create(
+      {
+        sourceId: 1,
+        name: 'off',
+        sourceRevision: await revision(),
+        measureVersions: { 1: 1 },
+        state: v2({ enabled: false, rowColumns: ['region', 'channel'], columnColumns: [] }),
+      },
+      actor,
+    );
+    expect(off.data.state.pivot).toEqual({
+      enabled: false,
+      rowColumns: ['region', 'channel'],
+      columnColumns: [],
+    });
+    const loaded = await service.load({ sourceId: 1, viewId: off.data.id }, actor);
+    expect(loaded.data.state).toEqual(off.data.state);
+    expect(loaded.data.state.version).toBe(2);
+  });
+
+  it('still reads a legacy version 1 row alongside version 2 rows', async () => {
+    const sourceRevision = await revision();
+    const legacy = await views().save(
+      views().create({
+        sourceId: 1,
+        userId: actor,
+        name: 'legacy',
+        sourceRevision,
+        measureVersions: '{"1":1}',
+        state: JSON.stringify(state()),
+      }),
+    );
+    const listed = await service.list({ sourceId: 1 }, actor);
+    expect(listed.data[0]).toMatchObject({ id: legacy.id, stale: false });
+    expect(listed.data[0].state).toEqual(state());
+    expect(listed.data[0].state.pivot).toBeUndefined();
+    const loaded = await service.load({ sourceId: 1, viewId: legacy.id }, actor);
+    expect(loaded.data.state).toEqual(state());
+    expect(loaded.data.state.version).toBe(1);
+  });
+
+  it('rejects malformed pivot payloads and an unknown pivot column', async () => {
+    const base = {
+      sourceId: 1,
+      name: 'view',
+      sourceRevision: await revision(),
+      measureVersions: { 1: 1 },
+    };
+    const cases: any[] = [
+      {
+        ...base,
+        state: { ...state(), pivot: { enabled: true, rowColumns: ['region'], columnColumns: [] } },
+      },
+      { ...base, state: { ...state(), version: 2 } },
+      {
+        ...base,
+        state: v2({ enabled: true, rowColumns: ['region'], columnColumns: [], extra: 1 }),
+      },
+      { ...base, state: v2({ enabled: 'yes', rowColumns: [], columnColumns: [] }) },
+      { ...base, state: v2({ enabled: true, rowColumns: 'region', columnColumns: [] }) },
+      { ...base, state: v2({ enabled: true, rowColumns: ['region'], columnColumns: null }) },
+      { ...base, state: v2({ enabled: true, rowColumns: ['region', ''], columnColumns: [] }) },
+      {
+        ...base,
+        state: v2({ enabled: true, rowColumns: ['region', 'x'.repeat(129)], columnColumns: [] }),
+      },
+      {
+        ...base,
+        state: v2({ enabled: true, rowColumns: ['region', 'region'], columnColumns: [] }),
+      },
+      { ...base, state: v2({ enabled: true, rowColumns: ['region'], columnColumns: ['region'] }) },
+      {
+        ...base,
+        state: v2({ enabled: true, rowColumns: ['region', 'channel', 'day'], columnColumns: [] }),
+      },
+      {
+        ...base,
+        state: v2({
+          enabled: true,
+          rowColumns: [],
+          columnColumns: ['day', 'event_time', 'amount'],
+        }),
+      },
+      { ...base, state: { ...state(), version: 3 } },
+      { ...base, state: v2({ enabled: true, rowColumns: ['missing'], columnColumns: [] }) },
+    ];
+    for (const body of cases)
+      await expect(service.create(body, actor)).rejects.toBeInstanceOf(BadRequestException);
+    expect(await views().count()).toBe(0);
   });
 });

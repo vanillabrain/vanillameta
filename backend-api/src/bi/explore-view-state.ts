@@ -14,11 +14,16 @@ export type ExploreViewFilter =
   | { column: string; values: (string | number | boolean | null)[] }
   | { column: string; range: { min?: number; max?: number } };
 /**
- * Versioned saved exploration state. It is a strict whitelist: one unknown key is a client bug.
- * The page offset is intentionally not stored; opening a view always restores page 0.
+ * Pivot layout for version 2 views. Axes live on the view so a layout toggled off keeps its
+ * selection, and every name is validated exactly like a dimension column.
  */
-export type ExploreViewState = {
-  version: 1;
+export type ExplorePivot = {
+  enabled: boolean;
+  rowColumns: string[];
+  columnColumns: string[];
+};
+/** Fields every state version shares. */
+type ExploreViewStateBase = {
   timeZone: string;
   measureIds: number[];
   dimensionColumns: string[];
@@ -30,6 +35,14 @@ export type ExploreViewState = {
   comparePrevious: boolean;
   includeRows: boolean;
 };
+export type ExploreViewStateV1 = ExploreViewStateBase & { version: 1 };
+export type ExploreViewStateV2 = ExploreViewStateBase & { version: 2; pivot: ExplorePivot };
+/**
+ * Versioned saved exploration state. It is a strict whitelist: one unknown key is a client bug.
+ * The page offset is intentionally not stored; opening a view always restores page 0.
+ * Version 1 is unchanged and rejects a stored pivot; version 2 requires one.
+ */
+export type ExploreViewState = ExploreViewStateV1 | ExploreViewStateV2;
 
 const MAX_MEASURES = 6;
 const MAX_DIMENSIONS = 4;
@@ -37,6 +50,8 @@ const MAX_FILTERS = 20;
 const MAX_FILTER_VALUES = 50;
 const MAX_FILTER_STRING = 256;
 const MAX_COLUMN_LENGTH = 128;
+const MAX_PIVOT_AXIS_COLUMNS = 2;
+const MAX_PIVOT_COLUMNS = 4;
 const GRAINS = ['day', 'week', 'month'];
 const SORT_FIELDS = ['value', 'delta', 'percentChange'];
 const STATE_FIELDS = [
@@ -52,6 +67,9 @@ const STATE_FIELDS = [
   'comparePrevious',
   'includeRows',
 ];
+const PIVOT_FIELDS = ['enabled', 'rowColumns', 'columnColumns'];
+/** Version 2 adds the pivot layout; a version 1 state keeps rejecting the key as unknown. */
+const V2_STATE_FIELDS = [...STATE_FIELDS, 'pivot'];
 
 const invalid = (): never => {
   throw new BadRequestException('저장 탐색 조건의 형식을 확인해 주세요.');
@@ -129,6 +147,32 @@ function dimensions(value: any): string[] {
   });
 }
 
+/** One pivot axis: at most two distinct names, each validated like a dimension column. */
+function pivotAxis(value: any): string[] {
+  if (!Array.isArray(value) || value.length > MAX_PIVOT_AXIS_COLUMNS) invalid();
+  const seen = new Set<string>();
+  return value.map(candidate => {
+    const name = column(candidate);
+    if (seen.has(name)) invalid();
+    seen.add(name);
+    return name;
+  });
+}
+
+/**
+ * Version 2 pivot layout. A layout toggled off keeps its axes, so both axes are always required
+ * and validated; a name may not repeat within an axis or across the two axes.
+ */
+function pivot(value: any): ExplorePivot {
+  object(value, PIVOT_FIELDS);
+  if (typeof value.enabled !== 'boolean') invalid();
+  const rowColumns = pivotAxis(value.rowColumns);
+  const columnColumns = pivotAxis(value.columnColumns);
+  if (rowColumns.length + columnColumns.length > MAX_PIVOT_COLUMNS) invalid();
+  for (const name of rowColumns) if (columnColumns.includes(name)) invalid();
+  return { enabled: value.enabled, rowColumns, columnColumns };
+}
+
 /** Change sorts compare against the previous period, so they require comparePrevious. */
 function rankingSort(value: any, comparePrevious: boolean): ExploreRankingSort {
   object(value, ['by', 'direction']);
@@ -143,8 +187,10 @@ function rankingSort(value: any, comparePrevious: boolean): ExploreRankingSort {
  * separately against the live source so this stays free of heavy queries.
  */
 export function validateExploreViewState(input: any): ExploreViewState {
-  object(input, STATE_FIELDS);
-  if (input.version !== 1) invalid();
+  const version = input && input.version;
+  if (version !== 1 && version !== 2) invalid();
+  // Version 1 rejects a stored pivot as an unknown key; version 2 requires one.
+  object(input, version === 2 ? V2_STATE_FIELDS : STATE_FIELDS);
   if (typeof input.timeZone !== 'string') invalid();
   const timeZone = validateBusinessTimeZone(input.timeZone);
   const ids = measureIds(input.measureIds);
@@ -159,8 +205,8 @@ export function validateExploreViewState(input: any): ExploreViewState {
   // The query compares against the period preceding an applied date range, so a stored view must
   // carry that range too; a non-value sort without it would not be executable.
   if (input.comparePrevious && input.dateRange === undefined) invalid();
-  const state: ExploreViewState = {
-    version: 1,
+  const state: any = {
+    version,
     timeZone,
     measureIds: ids,
     dimensionColumns,
@@ -171,6 +217,7 @@ export function validateExploreViewState(input: any): ExploreViewState {
     comparePrevious: input.comparePrevious,
     includeRows: input.includeRows,
   };
+  if (version === 2) state.pivot = pivot(input.pivot);
   if (input.dateRange !== undefined) {
     const dateRange = validateDateRange(input.dateRange);
     // The exploration picker stores civil YYYY-MM-DD days only; the query API keeps timestamp

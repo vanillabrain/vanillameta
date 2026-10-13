@@ -13,12 +13,20 @@ const MAX_PAGE = 10000;
 const MAX_SEARCH_LENGTH = 200;
 const MAX_VALUES = 50;
 const DETAIL_COLUMNS = 50;
+const MAX_PIVOT_AXIS = 2;
+const MAX_PIVOT_ROWS = 50;
+const MAX_PIVOT_COLUMNS = 20;
+const MAX_PIVOT_CELLS = 6000;
 /** Aggregates beyond the exact integer range are suppressed by comparisonValues; sorts must agree. */
 const MAX_EXACT = Number.MAX_SAFE_INTEGER;
 type RankingSort = { by: 'value' | 'delta' | 'percentChange'; direction: 'asc' | 'desc' };
 type ExploreFilter =
   | { column: string; values: any[] }
   | { column: string; range: { min?: number; max?: number } };
+type PivotMeasure = { metricId: number; definition: any; expression: string };
+type PivotTuple = unknown[];
+type PivotValues = Array<number | string | null>;
+type PivotGroups = Record<'cells' | 'rows' | 'columns' | 'grand', Map<string, PivotValues>>;
 /**
  * sourceQuery validates a deliberately small SELECT grammar that has no parameter token, so the
  * search pattern is written as a sentinel literal during validation and swapped for a bound
@@ -43,6 +51,16 @@ const QUERY_FIELDS = [
   'includeRows',
 ];
 const VALUES_FIELDS = ['sourceId', 'sourceRevision', 'column', 'search', 'filters', 'dateRange'];
+const PIVOT_FIELDS = [
+  'sourceId',
+  'sourceRevision',
+  'measureIds',
+  'rowColumns',
+  'columnColumns',
+  'filters',
+  'dateRange',
+  'comparePrevious',
+];
 
 /** Dynamic exploration over a managed DuckDB source: catalog, aggregate query and value search. */
 @Injectable()
@@ -312,27 +330,12 @@ export class BiExploreService {
     for (const measureId of input.measureIds)
       if (!known.has(measureId)) throw new BadRequestException('unknown measure id');
 
-    const measures = [];
-    const widgets = [];
-    for (const measureId of input.measureIds) {
-      const prepared = await this.bi.prepare(
-        {
-          sourceId: profile.sourceId,
-          metricId: measureId,
-          chart: 'number',
-          title: known.get(measureId).label,
-        },
-        input.actor,
-      );
-      const widget = prepared.draft.widgets[0];
-      measures.push({
-        metricId: measureId,
-        definition: prepared.definition,
-        // Only for the ranking leaderboard; canonical text still comes from prepare.
-        expression: this.expression(widget.sql),
-      });
-      widgets.push(widget);
-    }
+    const { measures, widgets } = await this.measureExpressions(
+      profile,
+      input.measureIds,
+      input.actor,
+      known,
+    );
 
     const preview = await this.dashboards.preview(
       {
@@ -626,5 +629,434 @@ export class BiExploreService {
     if (parts.length !== 2) throw new BadRequestException('search parameter could not be bound');
     const pattern = `%${search.toLowerCase().replace(/[\\%_]/g, character => `\\${character}`)}%`;
     return { sql: parts.join('?'), bindings: [...query.bindings, pattern] };
+  }
+
+  /** Bounded pivot: axis tuples plus canonical totals reaggregated outside the cell grid. */
+  async pivot(body: any, actor: number) {
+    const input = this.fields(body, PIVOT_FIELDS);
+    const expected = this.revision(input.sourceRevision);
+    const measureIds = this.measureIds(input.measureIds);
+    const { comparePrevious } = validatePeriodOptions(input);
+    const filters = this.filters(input.filters);
+    const dateRange = input.dateRange;
+    if (comparePrevious && dateRange === undefined)
+      throw new BadRequestException('이전 기간 비교에는 적용한 날짜 범위가 필요합니다.');
+    return this.connection.withDuckDBSnapshot(input.sourceId, () =>
+      this.pivotSnapshot({
+        actor,
+        sourceId: input.sourceId,
+        expected,
+        measureIds,
+        rowColumns: input.rowColumns,
+        columnColumns: input.columnColumns,
+        filters,
+        dateRange,
+        comparePrevious,
+      }),
+    );
+  }
+
+  private async pivotSnapshot(input: {
+    actor: number;
+    sourceId: unknown;
+    expected: string;
+    measureIds: number[];
+    rowColumns: unknown;
+    columnColumns: unknown;
+    filters: ExploreFilter[];
+    dateRange: any;
+    comparePrevious: boolean;
+  }) {
+    const profile = await this.bi.profile(input.sourceId, input.actor);
+    if (!profile.supported)
+      throw new BadRequestException('서버에 저장한 DuckDB 파일을 선택해 주세요.');
+    const sourceRevision = await this.connection.duckDBVersion(profile.sourceId);
+    if (sourceRevision !== input.expected)
+      throw new ConflictException(
+        '파일 버전이 변경되었습니다. 소스를 새로고침한 뒤 다시 시도해 주세요.',
+      );
+    const columns = profile.columns.map((column: any) => column.name);
+    const temporal = profile.columns
+      .filter((column: any) => column.temporal)
+      .map((column: any) => column.name);
+    this.validateRangeFilters(input.filters, profile);
+    const rowColumns = this.axis(input.rowColumns, columns, '행');
+    const columnColumns = this.axis(input.columnColumns, columns, '열');
+    if (columnColumns.some(column => rowColumns.includes(column)))
+      throw new BadRequestException('같은 열을 행과 열 축에 함께 사용할 수 없습니다.');
+    const catalog = await this.bi.metrics(profile.sourceId, input.actor);
+    const known = new Map(catalog.map((measure: any) => [measure.id, measure]));
+    for (const measureId of input.measureIds)
+      if (!known.has(measureId)) throw new BadRequestException('unknown measure id');
+    const { measures } = await this.measureExpressions(
+      profile,
+      input.measureIds,
+      input.actor,
+      known,
+    );
+
+    // A compared period needs an explicit range, exactly like the aggregate query contract.
+    const previous =
+      input.comparePrevious && input.dateRange !== undefined
+        ? previousDateRange(input.dateRange)
+        : undefined;
+    const currentTuples = await this.pivotTuples(
+      profile.sourceId,
+      rowColumns,
+      columnColumns,
+      columns,
+      input.filters,
+      input.dateRange,
+      temporal,
+    );
+    const priorTuples =
+      previous === undefined
+        ? undefined
+        : await this.pivotTuples(
+            profile.sourceId,
+            rowColumns,
+            columnColumns,
+            columns,
+            input.filters,
+            previous,
+            temporal,
+          );
+    // Bound the union of both periods after the union: a previous-only tuple must still be shown.
+    const rows = this.boundedTuples(
+      [currentTuples.rows, ...(priorTuples ? [priorTuples.rows] : [])],
+      MAX_PIVOT_ROWS,
+      '행',
+    );
+    const columnTuples = this.boundedTuples(
+      [currentTuples.columns, ...(priorTuples ? [priorTuples.columns] : [])],
+      MAX_PIVOT_COLUMNS,
+      '열',
+    );
+    if (rows.length * columnTuples.length * measures.length > MAX_PIVOT_CELLS)
+      throw new BadRequestException(
+        `표시할 값이 ${MAX_PIVOT_CELLS}개를 넘습니다. 필터를 좁히거나 행·열 축을 줄여 주세요.`,
+      );
+
+    const current = await this.pivotGroups(
+      profile.sourceId,
+      rowColumns,
+      columnColumns,
+      measures,
+      columns,
+      input.filters,
+      input.dateRange,
+      temporal,
+    );
+    const prior =
+      previous === undefined
+        ? undefined
+        : await this.pivotGroups(
+            profile.sourceId,
+            rowColumns,
+            columnColumns,
+            measures,
+            columns,
+            input.filters,
+            previous,
+            temporal,
+          );
+    const empty = measures.map(() => null);
+    /**
+     * Every cell and total is read from the aggregate of its own grain, so a non-additive measure
+     * stays canonical. A missing tuple is null, never zero, and an empty count stays 0.
+     */
+    const at = (groups: PivotGroups, grain: keyof PivotGroups, tuple: PivotTuple) =>
+      groups[grain].get(JSON.stringify(tuple)) ?? empty;
+    const measureValues = (values: PivotValues, compared: PivotValues | undefined) =>
+      measures.map((measure, index) => ({
+        measureId: measure.metricId,
+        value: values[index] ?? null,
+        ...(input.comparePrevious
+          ? { comparison: comparisonValues(values[index] ?? null, compared?.[index] ?? null) }
+          : {}),
+      }));
+
+    const cells = [];
+    rows.forEach((rowTuple, row) =>
+      columnTuples.forEach((columnTuple, column) => {
+        const tuple = [...rowTuple, ...columnTuple];
+        cells.push({
+          row,
+          column,
+          measures: measureValues(
+            at(current, 'cells', tuple),
+            prior ? at(prior, 'cells', tuple) : undefined,
+          ),
+        });
+      }),
+    );
+
+    return {
+      sourceId: profile.sourceId,
+      sourceRevision,
+      rowColumns,
+      columnColumns,
+      rows,
+      columns: columnTuples,
+      cells,
+      rowTotals: rows.map(tuple =>
+        measureValues(at(current, 'rows', tuple), prior ? at(prior, 'rows', tuple) : undefined),
+      ),
+      columnTotals: columnTuples.map(tuple =>
+        measureValues(
+          at(current, 'columns', tuple),
+          prior ? at(prior, 'columns', tuple) : undefined,
+        ),
+      ),
+      grandTotal: measureValues(
+        at(current, 'grand', []),
+        prior ? at(prior, 'grand', []) : undefined,
+      ),
+      applied: {
+        filters: input.filters,
+        ...(input.dateRange !== undefined ? { dateRange: input.dateRange } : {}),
+        comparePrevious: input.comparePrevious,
+      },
+      limits: { rows: MAX_PIVOT_ROWS, columns: MAX_PIVOT_COLUMNS, cells: MAX_PIVOT_CELLS },
+    };
+  }
+
+  /** Up to two columns per axis; membership and within-axis duplicates reuse the dimension rules. */
+  private axis(value: unknown, columns: string[], label: '행' | '열') {
+    if (value === undefined) return [];
+    if (!Array.isArray(value) || value.length > MAX_PIVOT_AXIS)
+      throw new BadRequestException(`${label} 축은 최대 2개 열까지 지정할 수 있습니다.`);
+    return this.dimensions(value, columns);
+  }
+
+  /** Both axis tuple lists of one period, before the previous period is unioned in. */
+  private async pivotTuples(
+    sourceId: number,
+    rowColumns: string[],
+    columnColumns: string[],
+    columns: string[],
+    filters: ExploreFilter[],
+    dateRange: any,
+    temporal: string[],
+  ) {
+    return {
+      rows: await this.axisTuples(
+        sourceId,
+        rowColumns,
+        MAX_PIVOT_ROWS,
+        columns,
+        filters,
+        dateRange,
+        temporal,
+      ),
+      columns: await this.axisTuples(
+        sourceId,
+        columnColumns,
+        MAX_PIVOT_COLUMNS,
+        columns,
+        filters,
+        dateRange,
+        temporal,
+      ),
+    };
+  }
+
+  /** Distinct axis tuples, capped one past the limit so overflow is reported instead of truncated. */
+  private async axisTuples(
+    sourceId: number,
+    axis: string[],
+    max: number,
+    columns: string[],
+    filters: ExploreFilter[],
+    dateRange: any,
+    temporal: string[],
+  ) {
+    // An empty axis is the overall aggregate: one singleton tuple, no group query.
+    if (!axis.length) return [[]] as PivotTuple[];
+    const sql = `SELECT DISTINCT ${axis
+      .map((column, index) => `${quoteColumn(column)} AS "__vm_axis_${index}"`)
+      .join(', ')} FROM source LIMIT ${max + 1}`;
+    const query = sourceQuery(sql, columns, filters, dateRange, temporal);
+    const result = await this.connection.queryDuckDB(sourceId, query.sql, query.bindings);
+    return result.datas.map((row: any) =>
+      axis.map((_column, index) => this.grouping(row[`__vm_axis_${index}`])),
+    ) as PivotTuple[];
+  }
+
+  private boundedTuples(lists: PivotTuple[][], max: number, label: '행' | '열') {
+    const unique = new Map<string, PivotTuple>();
+    for (const list of lists)
+      for (const tuple of list) {
+        const key = JSON.stringify(tuple);
+        if (!unique.has(key)) unique.set(key, tuple);
+      }
+    const tuples = [...unique.values()].sort((left, right) => this.compareTuples(left, right));
+    if (tuples.length > max)
+      throw new BadRequestException(
+        `${label} 조합이 ${max}개를 넘습니다. 필터를 좁히거나 축을 줄여 주세요.`,
+      );
+    return tuples;
+  }
+
+  /** Deterministic ascending order with null last; numbers compare numerically, everything as text. */
+  private compareTuples(left: PivotTuple, right: PivotTuple) {
+    for (let index = 0; index < Math.max(left.length, right.length); index++) {
+      const one = left[index] ?? null;
+      const other = right[index] ?? null;
+      if (one === other) continue;
+      if (one === null) return 1;
+      if (other === null) return -1;
+      if (typeof one === 'number' && typeof other === 'number') return one < other ? -1 : 1;
+      const oneText = String(one);
+      const otherText = String(other);
+      if (oneText === otherText) continue;
+      return oneText < otherText ? -1 : 1;
+    }
+    return 0;
+  }
+
+  /** Grouping values stay primitives the client can render; a null group stays an actual null. */
+  private grouping(value: unknown): unknown {
+    if (value === null || value === undefined) return null;
+    if (typeof value === 'number') return Number.isFinite(value) ? value : String(value);
+    if (typeof value === 'string' || typeof value === 'boolean') return value;
+    if (typeof value === 'bigint') {
+      const numeric = Number(value);
+      return Number.isSafeInteger(numeric) ? numeric : value.toString();
+    }
+    try {
+      return JSON.stringify(value) ?? String(value);
+    } catch {
+      return String(value);
+    }
+  }
+
+  /** One canonical aggregate per grain; measures never get re-summed from the cell grid. */
+  private async pivotAggregate(
+    sourceId: number,
+    axis: string[],
+    measures: PivotMeasure[],
+    columns: string[],
+    filters: ExploreFilter[],
+    dateRange: any,
+    temporal: string[],
+  ) {
+    const projection = [
+      ...axis.map((column, index) => `${quoteColumn(column)} AS "__vm_axis_${index}"`),
+      ...measures.map((measure, index) => `${measure.expression} AS "__vm_measure_${index}"`),
+    ].join(', ');
+    const query = sourceQuery(
+      axis.length
+        ? `SELECT ${projection} FROM source GROUP BY ${axis
+            .map((_column, index) => index + 1)
+            .join(', ')}`
+        : `SELECT ${projection} FROM source`,
+      columns,
+      filters,
+      dateRange,
+      temporal,
+    );
+    const result = await this.connection.queryDuckDB(sourceId, query.sql, query.bindings);
+    const groups = new Map<string, PivotValues>();
+    for (const row of result.datas) {
+      const tuple = axis.map((_column, index) => this.grouping(row[`__vm_axis_${index}`]));
+      // COUNT over no rows stays 0 while SUM/AVG stay null; scalar keeps large integers exact.
+      groups.set(
+        JSON.stringify(tuple),
+        measures.map((_measure, index) => this.scalar(row[`__vm_measure_${index}`])),
+      );
+    }
+    return groups;
+  }
+
+  /** Cells, both axis totals and the overall total for one period, each at its own grain. */
+  private async pivotGroups(
+    sourceId: number,
+    rowColumns: string[],
+    columnColumns: string[],
+    measures: PivotMeasure[],
+    columns: string[],
+    filters: ExploreFilter[],
+    dateRange: any,
+    temporal: string[],
+  ): Promise<PivotGroups> {
+    const grand = await this.pivotAggregate(
+      sourceId,
+      [],
+      measures,
+      columns,
+      filters,
+      dateRange,
+      temporal,
+    );
+    const grain = [...rowColumns, ...columnColumns];
+    // An empty axis group is the grand total itself; no second query is needed for it.
+    return {
+      cells: grain.length
+        ? await this.pivotAggregate(
+            sourceId,
+            grain,
+            measures,
+            columns,
+            filters,
+            dateRange,
+            temporal,
+          )
+        : grand,
+      rows: rowColumns.length
+        ? await this.pivotAggregate(
+            sourceId,
+            rowColumns,
+            measures,
+            columns,
+            filters,
+            dateRange,
+            temporal,
+          )
+        : grand,
+      columns: columnColumns.length
+        ? await this.pivotAggregate(
+            sourceId,
+            columnColumns,
+            measures,
+            columns,
+            filters,
+            dateRange,
+            temporal,
+          )
+        : grand,
+      grand,
+    };
+  }
+
+  /** Canonical measure SQL comes from BiService.prepare; the explore layer never rebuilds it. */
+  private async measureExpressions(
+    profile: any,
+    measureIds: number[],
+    actor: number,
+    known: Map<number, any>,
+  ) {
+    const measures: PivotMeasure[] = [];
+    const widgets: any[] = [];
+    for (const measureId of measureIds) {
+      const prepared = await this.bi.prepare(
+        {
+          sourceId: profile.sourceId,
+          metricId: measureId,
+          chart: 'number',
+          title: known.get(measureId).label,
+        },
+        actor,
+      );
+      const widget = prepared.draft.widgets[0];
+      measures.push({
+        metricId: measureId,
+        definition: prepared.definition,
+        // Only for grouped aggregates that reuse the canonical text produced by prepare.
+        expression: this.expression(widget.sql),
+      });
+      widgets.push(widget);
+    }
+    return { measures, widgets };
   }
 }

@@ -3,7 +3,8 @@ import { Alert, Button, Stack, TextField, Typography } from '@mui/material';
 import { post } from '@/helpers/apiHelper';
 
 export type ExploreViewState = {
-  version: 1;
+  version: 1 | 2;
+  pivot?: { enabled: boolean; rowColumns: string[]; columnColumns: string[] };
   measureIds: number[];
   dimensionColumns: string[];
   rankingMeasureId: number;
@@ -57,7 +58,18 @@ const restorable = (input: unknown): input is ExploreViewState => {
   if (!input || typeof input !== 'object') return false;
   const value = input as Partial<ExploreViewState>;
   return (
-    value.version === 1 &&
+    (value.version === 1 || value.version === 2) &&
+    (value.version === 1
+      ? value.pivot === undefined
+      : !!value.pivot &&
+        typeof value.pivot.enabled === 'boolean' &&
+        Array.isArray(value.pivot.rowColumns) &&
+        Array.isArray(value.pivot.columnColumns) &&
+        value.pivot.rowColumns.length <= 2 &&
+        value.pivot.columnColumns.length <= 2 &&
+        [...value.pivot.rowColumns, ...value.pivot.columnColumns].every(column => typeof column === 'string') &&
+        new Set([...value.pivot.rowColumns, ...value.pivot.columnColumns]).size ===
+          value.pivot.rowColumns.length + value.pivot.columnColumns.length) &&
     Array.isArray(value.measureIds) &&
     value.measureIds.length > 0 &&
     value.measureIds.every(id => Number.isSafeInteger(id) && id > 0) &&
@@ -162,13 +174,14 @@ export default function ExploreSavedViews({
       if (token !== generation.current) return;
       if (action === 'create') {
         const view = unwrap<SavedView>(response);
-        setViews(current => [view, ...current]);
+        setViews(current => [view, ...current.filter(existing => existing.id !== view.id)]);
         setSelected(String(view.id));
         setName('');
         setNotice('탐색 보기를 저장했습니다.');
       } else if (action === 'load') {
         const view = unwrap<SavedView>(response);
-        if (view.sourceRevision !== sourceRevision) throw { response: { status: 409 } };
+        if (view.sourceRevision !== sourceRevision)
+          throw Object.assign(new Error('source revision changed'), { response: { status: 409 } });
         if (!restorable(view.state))
           throw new Error('저장된 탐색 조건의 버전을 확인할 수 없습니다. 다른 보기를 선택하거나 삭제해 주세요.');
         onRestore(view.state);

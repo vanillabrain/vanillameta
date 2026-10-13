@@ -2,7 +2,7 @@
 
 ## 구현 범위
 
-SQL 없는 제작 화면(`/explore`)에서 저장한 지표를 별도 탐색 화면(`/explore/source?sourceId=...`)에서 선택한다. 서버의 소유권·지표 정의·소스 버전을 사용하며 클라이언트 SQL을 실행하지 않는다. 이번 단위는 Measure/Dimension 선택, 검색 가능한 값 필터, 기간/시간대/비교, KPI·추세·차원 순위·페이지 단위 원본 행이다. 숫자 범위·변화 정렬과 개인 탐색 보기 저장/복원은 아래 후속 기록까지 구현했다. Pivot, 내보내기와 운영 규모 부하는 후속 구현 항목이다.
+SQL 없는 제작 화면(`/explore`)에서 저장한 지표를 별도 탐색 화면(`/explore/source?sourceId=...`)에서 선택한다. 서버의 소유권·지표 정의·소스 버전을 사용하며 클라이언트 SQL을 실행하지 않는다. 이번 단위는 Measure/Dimension 선택, 검색 가능한 값 필터, 기간/시간대/비교, KPI·추세·차원 순위·페이지 단위 원본 행이다. 숫자 범위·변화 정렬과 개인 탐색 보기 저장/복원은 아래 후속 기록까지 구현했다. Pivot의 첫 행·열 집계/UI와 v2 보기 저장은 아래 후속 기록까지 구현했다. 내보내기와 운영 규모 부하는 후속 구현 항목이다.
 
 ## 비교 조건
 
@@ -83,3 +83,34 @@ Rill 로컬 v0.90.5 Explore 화면의 컨트롤과 기본 상태 저장 위치�
 전체 빠른 단위 검사: BE73suite/1144개, FE45파일/702개 PASS. BE/FE 빌드와 FE 타입/변경 lint PASS. 저장/재로드/복원/삭제 핵심 E2E1개 PASS. 최종 별칭 지표 키 거절 추가 회귀를 포함한 보기 서비스13개 PASS와 BE 재빌드 PASS. 전체 핵심 E2E·확장 QA·운영 부하·배포는 NOT_RUN.
 
 증빙: `/tmp/vm-rill-views/api-checks.json`, `browser-xhr.jsonl`, `vm-views-restored.png`, `integration-test.log`, `frontend-build.log`, `e2e/`. Aside 원본 캡처는 `/Users/drumcap/.aside/u/0/sessions/2026-10-14_olA4jURGvmDeql8n/artifacts/`에 보존한다. 다음은 같은 필터/기간/지표 계약을 재사용하는 Pivot의 행·열·복수 지표 집계와 UI다. 내보내기, 공유 보기, 집계 지표 임계값 필터는 이후다.
+
+## Pivot — 2026-10-14 후속
+
+탐색/Pivot 전환, 좌측 필드 검색·지표 선택, 행/열 차원 배치, 행·열 바꾸기와 구성 초기화를 추가했다. 기간·시간대·값/숫자 범위 필터와 이전 기간 비교를 공유한다. 행 값 클릭으로 탐색 필터를 적용한다. 각 축 최대 2개 차원, 전체 최대 4개이며 같은 차원을 양쪽에 중복 배치하지 않는다. 선택 지표는 열에 배치한다. 복수 차원의 첫 구현은 평탄한 tuple 행/열이다.
+
+`POST /v1/bi/explore/pivot`는 소유권과 파일 snapshot/revision을 검증하고 저장된 지표의 canonical 식을 재사용한다. 셀, 행 합계, 열 합계, 총합을 각각 원본 필터 데이터에서 집계한다. 평균·비율을 셀의 합/평균으로 대체하지 않는다. 값 없는 조합은 NULL이며 빈 데이터 COUNT의 실제 0은 유지한다. 이전에만 있던 조합도 두 기간의 축 합집합에 포함한다. 최대 50행/20열 그룹/6개 지표로 최대 6,000개 값까지이며 축 제한 초과 시 일부 값을 성공으로 표시하지 않고 필터/축 축소를 안내한다. 기간/필터 기준은 기존 탐색 API와 같다.
+
+저장 보기 v2에 `pivot:{enabled,rowColumns,columnColumns}`를 추가했다. 기존 v1 보기 조회·복원은 유지하며 v1에 pivot 필드를 넣으면 거절한다. Pivot에서 보기 저장 후 새로고침해 다시 열면 같은 축·지표·필터·기간·비교가 적용된다. Pivot을 끄면 같은 조건의 기존 탐색으로 돌아간다.
+
+| ID         | 입력/기대 결과                                                                                                                                  | 검증                |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
+| EXPLORE-14 | device_type × app_or_site, Total Requests/Avg Bid Floor. 전체 총합634513000, 비율5.571238676526892±1e-9                                         | 아래 실행 기록 참조 |
+| EXPLORE-15 | 기간2023-09-10~11 UTC, bid_floor 1~9, 이전 비교. 총합55127800/2.934985272971758±1e-9, 이전 요청28263800. 셀·축 합계도 원본 직접 GROUP BY와 일치 | 아래 실행 기록 참조 |
+| EXPLORE-16 | 축 교환/빈 축/다중 축, NULL·희소 셀·이전-only·평균/비율/가중평균·큰 정수·그룹 제한·다른 사용자·revision                                         | 아래 실행 기록 참조 |
+| EXPLORE-17 | Pivot v2 저장→재로드→복원, v1 호환, 조건 변경·오류 후 복구·지연 응답 차단                                                                       | 아래 실행 기록 참조 |
+
+Rill 로컬 실제 Pivot에서 Device Type 행, App or Site 열, Total Requests/Avg Bid Floor를 배치하고 All time을 선택했다. 총합634.5M/$5.57, App/Site 열별 값과 전체9개 기기 행을 확인했다. 참고 소스는 `web-common/src/features/dashboards/pivot/`, `runtime/metricsview/executor/executor_pivot.go`와 로컬 `docs/docs/guide/dashboards/explore/pivot.md`이다. 기간 라벨은 Rill 모델의 현재 날짜 이동을 반영하므로 날짜 필터 수치는 원본 독립 정답으로 검증한다. Rill 기본 설정을 저장하지 않았다.
+
+현재 UI는 Rill의 좌측 필드·행/열 영역·상단 합계·지표별 열 구조를 따른다. 차이는 drag/drop 대신 선택/추가 버튼, tuple를 평탄하게 표시하는 방식과 문자열 오름차순이다. Rill의 계층 펼침/부분합·시간 grain 축·Flat 모드·총합 위치 변경·내보내기는 이번 단위에 포함하지 않는다. 이 차이를 전체 Pivot 동등성 PASS로 확대하지 않는다.
+
+### Pivot 실행 기록
+
+- 격리 API `127.0.0.1:4898`, FE `3698`, XHR 기록 프록시 `4899`와 정상 로그인 계정을 사용했다. 공식 auction Parquet 1,391,572행, 저장된 SUM/RATIO_SUM 지표를 재사용했다.
+- **EXPLORE-14 PASS(선택 조건)**: Aside 실제 화면에서 device_type × app_or_site와 두 지표를 배치했다. 전체 요청634513000, 평균$5.57, App213275400/Site421237600으로 Rill All time 화면의 표시값과 일치했다. 전체 기간의 모든 존재 셀·행/열/총합 XHR도 직접 Parquet GROUP BY와 일치했고 비율5.571238676526892±1e-9을 확인했다.
+- **EXPLORE-15 PASS**: API 응답의 모든 원본 존재 셀·행 합계·열 합계·총합을 제품 SQL builder를 사용하지 않는 직접 Parquet GROUP BY와 대조했다. 요청55127800, 비율2.934985272971758±1e-9, 이전 요청28263800. Aside 복원 화면과 XHR도 같은 조건·수치를 확인했다.
+- **EXPLORE-16 PASS(단위/API/선택 화면)**: 실제 DuckDB 테스트11개에서 2+2/2+1 다중 축 tuple·셀/합계 매핑, NULL/빈 데이터 COUNT 0, 희소 조합, 이전-only, 비율·가중평균 재집계, 안전 정수 범위 밖 문자열과 50×20×6 경계를 검증했다. 실제 API의 소스409·소유권403·잘못된 축/추가 SQL/그룹 제한400을 확인했다. Aside에서 50행 초과 안내·이전 표 제거·축 변경 후201 복구, 축 교환과 App 행 클릭 필터 적용을 확인했다.
+- **EXPLORE-17 PASS(선택 조건)**: Aside에서 `Rill Pivot UI` v2 보기 저장→새로고침→복원 후 축·두 지표·날짜·숫자 범위·이전 비교가 유지됐다. 기존 핵심 탐색 보기 E2E에 v2 Pivot 저장/복원을 추가해 1개 통과했다. FE의 지연 응답 차단·오류 복구 회귀30개와 BE v1/v2 저장 회귀17개가 통과했다.
+- 전체 빠른 단위 검사: BE74 suites/1159개, FE45 files/706개 PASS. BE build·변경 BE lint, FE typecheck·변경 FE/E2E lint·build PASS. 최종 FE 수정 후 관련30개·type/lint/build를 다시 통과했다. 이후 테스트만 추가한 다중 축 회귀는 Pivot suite11개·lint PASS로 확인했다. 독립 코드 리뷰에서 중간 이상 결함은 없었고 저장 목록 중복과 빈 축의 두 번째 선택 슬롯을 보완했다.
+- **NOT_RUN**: 전체 핵심8개/확장 QA·운영 부하·모바일 실제 화면·계층/시간 축 등 위에 명시한 미구현 parity. Aside REPL은 `setViewportSize`를 지원하지 않아 모바일 화면 검증으로 집계하지 않았다. 비교 시 원본 날짜와 Rill 날짜 이동 모델의 기간을 혼동하지 않는다.
+
+증빙: `/tmp/vm-rill-pivot/api-oracle.json`, `whole-oracle.json`, `browser-xhr.jsonl`, `rill-pivot-reference.png`, `vm-pivot-all.png`, `vm-pivot-restored.png`, `vm-pivot-limit.txt`, `integration-test.log`, `frontend-build.log`, `fe-final.log`, `e2e/`. Aside 원본 캡처/스냅샷은 기존 세션의 artifacts에 보존한다.

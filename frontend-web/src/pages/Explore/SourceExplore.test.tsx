@@ -779,3 +779,152 @@ it('blocks saving when a selected catalog measure has no definition version', as
   expect(screen.getByText(/지표 정의 버전을 확인할 수 없습니다/)).toBeTruthy();
   expect(api.post.mock.calls.some(([url]) => url === '/bi/explore/views/create')).toBe(false);
 });
+
+const pivotResult = (body: any) => ({
+  sourceRevision: body.sourceRevision,
+  rowColumns: body.rowColumns,
+  columnColumns: body.columnColumns,
+  rows: [[null], ['null'], ['Mobile/Tablet']],
+  columns: body.columnColumns.length ? [['App'], ['Site']] : [[]],
+  cells: [
+    {
+      row: 2,
+      column: 0,
+      measures: [
+        { measureId: 1, value: '9007199254740993' },
+        { measureId: 2, value: 2.5 },
+      ],
+    },
+  ],
+  rowTotals: [
+    [],
+    [],
+    [
+      { measureId: 1, value: '9007199254740993' },
+      { measureId: 2, value: 2.5 },
+    ],
+  ],
+  columnTotals: [
+    [
+      { measureId: 1, value: 30 },
+      { measureId: 2, value: 2.4 },
+    ],
+    [],
+  ],
+  grandTotal: [
+    { measureId: 1, value: 30 },
+    { measureId: 2, value: 2.4 },
+  ],
+});
+const pivots = () => api.post.mock.calls.filter(([url]) => url === '/bi/explore/pivot');
+const withPivot = () => {
+  const original = currentPost();
+  api.post.mockImplementation(async (url: string, body: any, ...options: any[]) =>
+    url === '/bi/explore/pivot' ? success(pivotResult(body)) : original(url, body, ...options),
+  );
+};
+it('uses Pivot server totals and sparse null cells, preserves large integers, swaps axes and filters from rows', async () => {
+  withPivot();
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: 'Pivot', exact: true }));
+  await screen.findByRole('region', { name: 'Pivot 결과' });
+  expect(pivots().at(-1)?.[1]).toMatchObject({
+    measureIds: [1, 2, 3],
+    rowColumns: ['device_type'],
+    columnColumns: [],
+    filters: [],
+  });
+  expect(screen.getAllByText('9,007,199,254,740,993').length).toBe(1);
+  expect(screen.getByText('$2.40')).toBeTruthy();
+  expect(screen.getByRole('button', { name: '(값 없음)', exact: true })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'null', exact: true })).toBeTruthy();
+  fireEvent.change(screen.getByLabelText('열 차원 1'), { target: { value: 'device_os' } });
+  await waitFor(() => expect(pivots().at(-1)?.[1].columnColumns).toEqual(['device_os']));
+  fireEvent.click(screen.getByRole('button', { name: '행·열 바꾸기' }));
+  await waitFor(() =>
+    expect(pivots().at(-1)?.[1]).toMatchObject({ rowColumns: ['device_os'], columnColumns: ['device_type'] }),
+  );
+  await screen.findByRole('region', { name: 'Pivot 결과' });
+  fireEvent.click(screen.getByRole('button', { name: 'Mobile/Tablet', exact: true }));
+  await waitFor(() => expect(pivots().at(-1)?.[1].filters).toEqual([{ column: 'device_os', values: ['Mobile/Tablet'] }]));
+});
+it('saves and restores v2 Pivot axes while retaining period, filters and comparison', async () => {
+  withViews();
+  withPivot();
+  const original = currentPost();
+  const v2 = {
+    ...savedState,
+    version: 2,
+    pivot: { enabled: true, rowColumns: ['device_type'], columnColumns: ['device_os'] },
+  };
+  api.post.mockImplementation((url: string, ...args: any[]) =>
+    url === '/bi/explore/views/load' ? Promise.resolve(success({ ...savedView, state: v2 })) : original(url, ...args),
+  );
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: '탐색 보기', exact: true }));
+  await screen.findByRole('option', { name: savedView.name });
+  fireEvent.change(screen.getByLabelText('저장한 탐색 보기'), { target: { value: '11' } });
+  fireEvent.click(screen.getByRole('button', { name: '보기 열기' }));
+  await waitFor(() =>
+    expect(pivots().at(-1)?.[1]).toMatchObject({
+      rowColumns: ['device_type'],
+      columnColumns: ['device_os'],
+      measureIds: [2, 1],
+      dateRange: savedState.dateRange,
+      filters: savedState.filters,
+      comparePrevious: true,
+    }),
+  );
+  await screen.findByRole('region', { name: 'Pivot 결과' });
+  fireEvent.change(screen.getByLabelText('새 보기 이름'), { target: { value: 'Pivot 저장' } });
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: '현재 조건 저장' }) as HTMLButtonElement).disabled).toBe(false),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '현재 조건 저장' }));
+  await waitFor(() =>
+    expect(api.post.mock.calls.find(([url]) => url === '/bi/explore/views/create')?.[1].state).toEqual(v2),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '탐색', exact: true }));
+  await waitFor(() => expect(lastQuery()).toMatchObject({ filters: savedState.filters, comparePrevious: true }));
+});
+it('clears old Pivot results on limit error and permits changing axes to recover', async () => {
+  withPivot();
+  const original = currentPost();
+  api.post.mockImplementation((url: string, body: any, ...opts: any[]) =>
+    url === '/bi/explore/pivot' && body.columnColumns.length
+      ? Promise.reject({
+          response: { status: 400, data: { success: false, data: 'Pivot 열 그룹은 최대 20개입니다. 필터를 좁혀 주세요.' } },
+        })
+      : original(url, body, ...opts),
+  );
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: 'Pivot', exact: true }));
+  await screen.findByRole('region', { name: 'Pivot 결과' });
+  fireEvent.change(screen.getByLabelText('열 차원 1'), { target: { value: 'device_os' } });
+  await screen.findByText(/Pivot 열 그룹은 최대 20개/);
+  expect(screen.queryByRole('region', { name: 'Pivot 결과' })).toBeNull();
+  fireEvent.change(screen.getByLabelText('열 차원 1'), { target: { value: '' } });
+  await screen.findByRole('region', { name: 'Pivot 결과' });
+  expect(screen.queryByText(/Pivot 열 그룹은 최대 20개/)).toBeNull();
+});
+it('ignores a delayed Pivot response after source changes', async () => {
+  withPivot();
+  const original = currentPost();
+  let resolvePivot: (value: unknown) => void = () => undefined;
+  api.post.mockImplementation((url: string, ...args: any[]) =>
+    url === '/bi/explore/pivot'
+      ? new Promise(resolve => {
+          resolvePivot = resolve;
+        })
+      : original(url, ...args),
+  );
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: 'Pivot', exact: true }));
+  await waitFor(() => expect(pivots().length).toBe(1));
+  fireEvent.change(screen.getByLabelText('데이터 소스'), { target: { value: '4' } });
+  await waitFor(() => expect(lastQuery().sourceId).toBe(4));
+  await act(async () =>
+    resolvePivot(success(pivotResult({ sourceRevision: 'rev-3', rowColumns: ['device_type'], columnColumns: [] }))),
+  );
+  expect(screen.queryByRole('region', { name: 'Pivot 결과' })).toBeNull();
+});

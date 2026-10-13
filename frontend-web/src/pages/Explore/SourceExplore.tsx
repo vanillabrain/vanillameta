@@ -17,6 +17,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { get, post } from '@/helpers/apiHelper';
 import MetricTrend from '@/pages/Dashboard/Components/MetricTrend';
 import ExploreSavedViews, { ExploreViewState } from './ExploreSavedViews';
+import ExplorePivot, { PivotAxes } from './ExplorePivot';
 import type { MetricComparisonData } from '@/pages/Dashboard/Components/PeriodComparison';
 import type { MetricTrendData } from '@/pages/Dashboard/Components/trendGeometry';
 
@@ -453,6 +454,9 @@ export default function SourceExplore() {
   const [dateMode, setDateMode] = useState<'all' | 'custom'>('all');
   const [timeZone, setTimeZone] = useState('UTC');
   const [dateColumn, setDateColumn] = useState('');
+  const [pivotMode, setPivotMode] = useState(false);
+  const [pivotAxes, setPivotAxes] = useState<PivotAxes>({ rowColumns: [], columnColumns: [] });
+  const [pivotReady, setPivotReady] = useState(false);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
@@ -503,6 +507,9 @@ export default function SourceExplore() {
     setDateMode('all');
     setTimeZone('UTC');
     setDateColumn('');
+    setPivotMode(false);
+    setPivotAxes({ rowColumns: [], columnColumns: [] });
+    setPivotReady(false);
     setStartDate('');
     setEndDate('');
     setFilterPanelOpen(false);
@@ -563,7 +570,7 @@ export default function SourceExplore() {
   }, [sourceId, catalogReload]);
 
   useEffect(() => {
-    if (!catalog || !sourceId || measureIds.length === 0 || rangePaused) {
+    if (!catalog || !sourceId || measureIds.length === 0 || rangePaused || pivotMode) {
       setResult(null);
       setQueryBusy(false);
       setQueryError('');
@@ -634,6 +641,7 @@ export default function SourceExplore() {
     includeRows,
     queryReload,
     rangePaused,
+    pivotMode,
   ]);
 
   const applyFilter = (column: string, values: FilterValue[]) => {
@@ -769,7 +777,10 @@ export default function SourceExplore() {
     return Number.isSafeInteger(version) && Number(version) > 0;
   });
   const viewState: ExploreViewState = {
-    version: 1,
+    version: pivotMode || pivotAxes.rowColumns.length || pivotAxes.columnColumns.length ? 2 : 1,
+    ...(pivotMode || pivotAxes.rowColumns.length || pivotAxes.columnColumns.length
+      ? { pivot: { enabled: pivotMode, ...pivotAxes } }
+      : {}),
     measureIds,
     dimensionColumns: dimensions,
     rankingMeasureId: rankingMeasureId ?? measureIds[0],
@@ -787,6 +798,13 @@ export default function SourceExplore() {
     setResult(null);
     setQueryError('');
     setRevisionError('');
+    setPivotMode(state.pivot?.enabled ?? false);
+    setPivotAxes(
+      state.pivot
+        ? { rowColumns: state.pivot.rowColumns, columnColumns: state.pivot.columnColumns }
+        : { rowColumns: [], columnColumns: [] },
+    );
+    setPivotReady(false);
     setMeasureIds(state.measureIds);
     setDimensions(state.dimensionColumns);
     setRankingMeasureId(state.rankingMeasureId);
@@ -871,7 +889,13 @@ export default function SourceExplore() {
               .map(measure => [String(measure.id), Number(measure.definitionVersion)]),
           )}
           state={viewState}
-          canSave={!!result && !queryBusy && !rangePaused && !revisionError && measureIds.length > 0 && versionsKnown}
+          canSave={
+            (pivotMode ? pivotReady : !!result && !queryBusy) &&
+            !rangePaused &&
+            !revisionError &&
+            measureIds.length > 0 &&
+            versionsKnown
+          }
           disabledReason={!versionsKnown ? '지표 정의 버전을 확인할 수 없습니다. 카탈로그를 다시 불러와 주세요.' : undefined}
           onRestore={restoreView}
         />
@@ -931,20 +955,22 @@ export default function SourceExplore() {
           </Stack>
         )}
         <Divider orientation="vertical" flexItem />
-        <Stack direction="row" spacing={0.5} alignItems="center" role="group" aria-label="집계 단위">
-          {GRAINS.map(item => (
-            <Pill
-              key={item.value}
-              label={item.label}
-              ariaLabel={`집계 단위 ${item.label}`}
-              selected={grain === item.value}
-              onClick={() => {
-                setGrain(item.value);
-                setPage(0);
-              }}
-            />
-          ))}
-        </Stack>
+        {!pivotMode && (
+          <Stack direction="row" spacing={0.5} alignItems="center" role="group" aria-label="집계 단위">
+            {GRAINS.map(item => (
+              <Pill
+                key={item.value}
+                label={item.label}
+                ariaLabel={`집계 단위 ${item.label}`}
+                selected={grain === item.value}
+                onClick={() => {
+                  setGrain(item.value);
+                  setPage(0);
+                }}
+              />
+            ))}
+          </Stack>
+        )}
         <Pill
           label="이전 기간 비교"
           selected={comparePrevious}
@@ -1087,6 +1113,22 @@ export default function SourceExplore() {
       <Divider sx={{ my: 1.5 }} />
 
       {catalog && (
+        <Stack direction="row" spacing={1} role="group" aria-label="탐색 방식" sx={{ mt: 2 }}>
+          <Pill label="탐색" selected={!pivotMode} onClick={() => setPivotMode(false)} />
+          <Pill
+            label="Pivot"
+            selected={pivotMode}
+            onClick={() => {
+              if (!pivotAxes.rowColumns.length && !pivotAxes.columnColumns.length)
+                setPivotAxes({ rowColumns: dimensions.slice(0, 1), columnColumns: [] });
+              setPivotReady(false);
+              setPivotMode(true);
+            }}
+          />
+        </Stack>
+      )}
+
+      {catalog && !pivotMode && (
         <Stack spacing={1} sx={{ minWidth: 0 }}>
           <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap' }}>
             <Button
@@ -1246,7 +1288,40 @@ export default function SourceExplore() {
         <Alert severity="info">지표를 하나 이상 선택하세요. 위의 지표 목록에서 선택하면 결과가 표시됩니다.</Alert>
       )}
 
-      {result && measureIds.length > 0 && (
+      {catalog && pivotMode && (
+        <ExplorePivot
+          sourceId={catalog.sourceId}
+          sourceRevision={catalog.sourceRevision}
+          measures={catalog.measures}
+          dimensions={catalog.dimensions}
+          state={viewState}
+          axes={pivotAxes}
+          onAxesChange={axes => {
+            setPivotReady(false);
+            setPivotAxes(axes);
+          }}
+          onReady={setPivotReady}
+          blocked={rangePaused || measureIds.length === 0}
+          onFilter={applyFilter}
+          onReloadCatalog={reloadCatalog}
+          onMeasureToggle={toggleMeasure}
+          formatValue={value => {
+            const units = unitPartsOf(value.measureId);
+            return numberText(value.value, decimalsOf(value.measureId), units.prefix, units.suffix);
+          }}
+          formatComparison={value => {
+            const units = unitPartsOf(value.measureId);
+            return compareText(
+              { category: '', value: value.value, ...value.comparison },
+              decimalsOf(value.measureId),
+              units.prefix,
+              units.suffix,
+            );
+          }}
+        />
+      )}
+
+      {result && !pivotMode && measureIds.length > 0 && (
         <>
           <Typography sx={{ mt: 1, fontSize: 12, color: 'text.secondary' }}>
             적용됨 · {result.applied?.trendGrain ?? grain} ·{' '}
@@ -1300,77 +1375,79 @@ export default function SourceExplore() {
         </>
       )}
 
-      <Box sx={{ mt: 3 }}>
-        <Button
-          type="button"
-          aria-expanded={includeRows}
-          aria-controls="model-data"
-          onClick={() => {
-            setIncludeRows(value => !value);
-            setPage(0);
-          }}
-          sx={{ textTransform: 'none' }}
-        >
-          Model Data {includeRows ? '접기' : '펼치기'}
-        </Button>
-        {includeRows && (
-          <Box id="model-data" role="region" aria-label="Model Data" sx={{ mt: 1, overflowX: 'auto' }}>
-            <Typography sx={{ fontSize: 12, color: 'text.secondary', mb: 1 }}>
-              집계 결과 행입니다. 실제 물리 요청 수와 다를 수 있습니다.
-            </Typography>
-            {detailRows.length > 0 && (
-              <>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                  <caption style={{ textAlign: 'left', paddingBottom: 4, color: '#475569' }}>
-                    총 {numberText(details?.totalRows)}행 중 {page * detailsSize + 1}–
-                    {Math.min((page + 1) * detailsSize, totalRows)}행
-                  </caption>
-                  <thead>
-                    <tr>
-                      {detailColumns.map(column => (
-                        <th
-                          key={column}
-                          scope="col"
-                          style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0', padding: '4px 8px' }}
-                        >
-                          {column}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {detailRows.map((row, rowIndex) => (
-                      <tr key={rowIndex}>
+      {!pivotMode && (
+        <Box sx={{ mt: 3 }}>
+          <Button
+            type="button"
+            aria-expanded={includeRows}
+            aria-controls="model-data"
+            onClick={() => {
+              setIncludeRows(value => !value);
+              setPage(0);
+            }}
+            sx={{ textTransform: 'none' }}
+          >
+            Model Data {includeRows ? '접기' : '펼치기'}
+          </Button>
+          {includeRows && (
+            <Box id="model-data" role="region" aria-label="Model Data" sx={{ mt: 1, overflowX: 'auto' }}>
+              <Typography sx={{ fontSize: 12, color: 'text.secondary', mb: 1 }}>
+                집계 결과 행입니다. 실제 물리 요청 수와 다를 수 있습니다.
+              </Typography>
+              {detailRows.length > 0 && (
+                <>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                    <caption style={{ textAlign: 'left', paddingBottom: 4, color: '#475569' }}>
+                      총 {numberText(details?.totalRows)}행 중 {page * detailsSize + 1}–
+                      {Math.min((page + 1) * detailsSize, totalRows)}행
+                    </caption>
+                    <thead>
+                      <tr>
                         {detailColumns.map(column => (
-                          <td key={column} style={{ borderBottom: '1px solid #f1f5f9', padding: '4px 8px' }}>
-                            {categoryText(row[column])}
-                          </td>
+                          <th
+                            key={column}
+                            scope="col"
+                            style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0', padding: '4px 8px' }}
+                          >
+                            {column}
+                          </th>
                         ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
-                  <Button disabled={page <= 0} onClick={() => setPage(current => Math.max(0, current - 1))}>
-                    이전
-                  </Button>
-                  <Typography sx={{ fontSize: 13 }}>
-                    {page + 1} / {totalPages} 페이지
-                  </Typography>
-                  <Button disabled={page + 1 >= totalPages} onClick={() => setPage(current => current + 1)}>
-                    다음
-                  </Button>
-                </Stack>
-              </>
-            )}
-            {detailRows.length === 0 && (
-              <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
-                {queryBusy ? '결과를 불러오는 중…' : '표시할 행이 없습니다.'}
-              </Typography>
-            )}
-          </Box>
-        )}
-      </Box>
+                    </thead>
+                    <tbody>
+                      {detailRows.map((row, rowIndex) => (
+                        <tr key={rowIndex}>
+                          {detailColumns.map(column => (
+                            <td key={column} style={{ borderBottom: '1px solid #f1f5f9', padding: '4px 8px' }}>
+                              {categoryText(row[column])}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
+                    <Button disabled={page <= 0} onClick={() => setPage(current => Math.max(0, current - 1))}>
+                      이전
+                    </Button>
+                    <Typography sx={{ fontSize: 13 }}>
+                      {page + 1} / {totalPages} 페이지
+                    </Typography>
+                    <Button disabled={page + 1 >= totalPages} onClick={() => setPage(current => current + 1)}>
+                      다음
+                    </Button>
+                  </Stack>
+                </>
+              )}
+              {detailRows.length === 0 && (
+                <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
+                  {queryBusy ? '결과를 불러오는 중…' : '표시할 행이 없습니다.'}
+                </Typography>
+              )}
+            </Box>
+          )}
+        </Box>
+      )}
     </Box>
   );
 }

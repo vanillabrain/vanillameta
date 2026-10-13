@@ -236,6 +236,11 @@ export class ExploreViewService {
     );
     for (const name of state.dimensionColumns)
       if (!columns.has(name)) throw new BadRequestException('unknown dimension column');
+    // Version 2 stores a pivot layout beside the dimension columns; each axis name must exist in
+    // the same catalog the query runs against.
+    if (state.version === 2)
+      for (const name of state.pivot.rowColumns.concat(state.pivot.columnColumns))
+        if (!columns.has(name)) throw new BadRequestException('unknown pivot column');
     for (const filter of state.filters) {
       if (!columns.has(filter.column)) throw new BadRequestException('unknown filter column');
       if ('range' in filter && !numeric.has(filter.column))

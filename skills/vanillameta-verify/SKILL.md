@@ -23,7 +23,7 @@ description: Select and run low-overhead VanillaMeta verification using targeted
 
 ## 실행
 
-`workflow.md`의 정확한 명령을 사용한다. 기본 Playwright 7개는 직접 실행하거나 파일/grep으로 선택한다. 확장 `qa`는 명시적 위험/시나리오가 있을 때만 실행하며 4개 BE/provider 기동 비용을 고려한다. 기본 suite를 실행했다고 확장 QA가 통과했다고 말하지 않는다.
+`workflow.md`의 정확한 명령을 사용한다. 기본 Playwright 8개는 직접 실행하거나 파일/grep으로 선택한다. 확장 `qa`는 명시적 위험/시나리오가 있을 때만 실행하며 4개 BE/provider 기동 비용을 고려한다. 기본 suite를 실행했다고 확장 QA가 통과했다고 말하지 않는다.
 
 테스트용 기존 서버를 재사용할 수 있으면 재사용한다. 데이터 초기화가 필요하거나 공유 상태가 적절하지 않으면 격리 명령을 사용한다. 포트 충돌로 다른 세션 서버를 종료하지 않는다. 테스트별로 만든 정확한 자원 ID만 정리한다. 브라우저의 비인증 검증에는 로그인된 사용자 탭을 재사용하지 않는다.
 

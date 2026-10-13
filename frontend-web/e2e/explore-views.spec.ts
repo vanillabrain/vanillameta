@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { API, authHeaders, createResponse, createdId, login, removeOwned } from './core-helpers';
 
-test('탐색 조건 저장 → 새로고침 → 서버 보기 복원 → 삭제', async ({ page }) => {
+test('탐색·Pivot 조건 저장 → 새로고침 → 서버 보기 복원 → 삭제', async ({ page }) => {
   await login(page);
   const headers = await authHeaders(page);
   let sourceId: number | undefined;
@@ -16,7 +16,7 @@ test('탐색 조건 저장 → 새로고침 → 서버 보기 복원 → 삭제'
         file: {
           name: 'explore-views.csv',
           mimeType: 'text/csv',
-          buffer: Buffer.from('category,amount\nA,100\nA,200\nB,300\n'),
+          buffer: Buffer.from('category,channel,amount\nA,App,100\nA,Site,200\nB,App,300\n'),
         },
       },
     });
@@ -80,6 +80,42 @@ test('탐색 조건 저장 → 새로고침 → 서버 보기 복원 → 삭제'
     await page.getByRole('button', { name: '탐색 보기', exact: true }).click();
     await expect(page.getByLabel('저장한 탐색 보기')).toBeEnabled();
     await expect(page.getByRole('option', { name, exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Pivot', exact: true }).click();
+    await page.getByLabel('열 차원 1').selectOption('channel');
+    await expect(page.getByRole('region', { name: 'Pivot 결과' })).toContainText('App');
+    await expect(page.getByRole('region', { name: 'Pivot 결과' })).toContainText('600');
+    await page.getByLabel('새 보기 이름').fill(`${name} Pivot`);
+    await expect(page.getByRole('button', { name: '현재 조건 저장', exact: true })).toBeEnabled();
+    const pivotSaved = createResponse(page, 'bi/explore/views/create');
+    await page.getByRole('button', { name: '현재 조건 저장', exact: true }).click();
+    const pivotSaveResponse = await pivotSaved;
+    viewId = await createdId(pivotSaveResponse);
+    const pivotState = (await pivotSaveResponse.json()).data.state;
+    expect(pivotState).toMatchObject({
+      version: 2,
+      pivot: { enabled: true, rowColumns: ['category'], columnColumns: ['channel'] },
+    });
+    await page.reload();
+    await page.getByRole('button', { name: '탐색 보기', exact: true }).click();
+    await expect(page.getByLabel('저장한 탐색 보기')).toBeEnabled();
+    await page.getByLabel('저장한 탐색 보기').selectOption(String(viewId));
+    const pivotRestored = page.waitForResponse(
+      response =>
+        response.url().endsWith('/bi/explore/pivot') &&
+        response.request().postDataJSON()?.columnColumns?.includes('channel'),
+    );
+    await page.getByRole('button', { name: '보기 열기', exact: true }).click();
+    const pivotData = (await (await pivotRestored).json()).data;
+    expect(Number(pivotData.grandTotal[0].value)).toBe(600);
+    const a = pivotData.rows.findIndex((row: string[]) => row[0] === 'A');
+    const app = pivotData.columns.findIndex((column: string[]) => column[0] === 'App');
+    expect(Number(pivotData.cells.find((cell: any) => cell.row === a && cell.column === app).measures[0].value)).toBe(100);
+    await expect(page.getByRole('region', { name: 'Pivot 결과' })).toBeVisible();
+    await expect(page.getByLabel('열 차원 1')).toHaveValue('channel');
+    const pivotRemoved = createResponse(page, 'bi/explore/views/remove');
+    await page.getByRole('button', { name: '보기 삭제', exact: true }).click();
+    expect((await pivotRemoved).ok()).toBe(true);
+    viewId = undefined;
   } finally {
     if (viewId && sourceId)
       await page.request.post(`${API}/bi/explore/views/remove`, { headers, data: { sourceId, viewId } });
