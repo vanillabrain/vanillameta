@@ -24,6 +24,7 @@ const SignUp = React.lazy(() => import('@/pages/SignUp'));
 const Share = React.lazy(() => import('@/pages/Share'));
 const Embed = React.lazy(() => import('@/pages/Share/Embed'));
 const Status404 = React.lazy(() => import('@/pages/Status404'));
+const Explore = React.lazy(() => import('@/pages/Explore'));
 const Commerce = React.lazy(() => import('@/pages/Commerce'));
 
 function Router() {
@@ -54,6 +55,7 @@ function Router() {
             <Route path=":widgetId" element={<WidgetModify />} />
           </Route>
 
+          <Route path="/explore" element={<Explore />} />
           <Route path="/data" element={<Data />} />
           <Route path="/commerce" element={<Commerce />} />
           <Route path="/commerce/:projectId" element={<Commerce />} />

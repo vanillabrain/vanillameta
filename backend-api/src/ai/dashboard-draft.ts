@@ -14,6 +14,7 @@ export interface DashboardDraft {
     categoryField?: string;
     decimalPlaces?: number;
     prefix?: string;
+    suffix?: string;
     numberNotation?: 'full' | 'compact';
   }>;
 }
@@ -130,6 +131,7 @@ export function validateDraft(input: any): DashboardDraft {
         ...(w.decimalPlaces !== undefined ? { decimalPlaces: w.decimalPlaces } : {}),
         ...(w.numberNotation !== undefined ? { numberNotation: w.numberNotation } : {}),
         ...(w.prefix !== undefined ? { prefix: text(w.prefix, 100, true) } : {}),
+        ...(w.suffix !== undefined ? { suffix: text(w.suffix, 100, true) } : {}),
       };
     }),
   };
@@ -218,7 +220,7 @@ export function widgetOptions(w: DashboardDraft['widgets'][number]) {
         fontSize: 42,
         color: '#14243c',
         prefix: w.prefix || '',
-        suffix: '',
+        suffix: w.suffix || '',
         numForm: true,
         decimalPlaces: w.decimalPlaces ?? 0,
         ...(w.numberNotation !== undefined ? { numberNotation: w.numberNotation } : {}),

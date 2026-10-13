@@ -58,6 +58,9 @@ export default function GettingStarted({ returning = false }: { returning?: bool
           </Typography>
           <Typography sx={{ my: 1.5 }}>매출·환불은 주문·결제·환불 CSV를 준비하세요. 고객 CSV는 선택입니다.</Typography>
           <Stack spacing={1} alignItems="flex-start">
+            <Button variant="contained" onClick={() => navigate('/explore')} sx={{ minHeight: 44 }}>
+              SQL 없이 차트 만들기
+            </Button>
             <Button variant="outlined" onClick={() => navigate('/commerce?import=1')} sx={{ minHeight: 44 }}>
               매출·환불 파일 연결
             </Button>

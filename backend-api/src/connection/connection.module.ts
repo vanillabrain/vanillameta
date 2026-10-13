@@ -8,5 +8,6 @@ import { Dataset } from '../dataset/entities/dataset.entity';
 @Module({
   imports: [TypeOrmModule.forFeature([Database, Dataset])],
   providers: [ConnectionService],
+  exports: [ConnectionService],
 })
 export class ConnectionModule {}

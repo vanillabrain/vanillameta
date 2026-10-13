@@ -266,3 +266,6 @@ Rill에도 AI 제작·지표 정의·오류 상태 확인 기능이 있으므로
 
 
 단계0 후속 구현: [개인 소스 권한 및 이관 기준](../testing/source-ownership.md). 일반 API 접근 경계의 선택 조건은 PASS, legacy 실제 owner 배정과 전체 SaaS 감사는 남아 있다. 다음 제품 범위는 source profile·정의 snapshot·2A 수동 제작 흐름이다.
+
+
+2A 후속 구현: [프로파일·지표 정의·SQL 없는 제작 검증](../testing/self-service-builder.md). 서버 DuckDB 파일의 기본 6집계와 단일 숫자/막대/날짜 선 제작·snapshot 저장을 구현했다. 이력/가중 평균/다중 위젯·필터 설계·native 메뉴 및 VoiceOver는 후속이며 전체 단계 완료로 확대하지 않는다.

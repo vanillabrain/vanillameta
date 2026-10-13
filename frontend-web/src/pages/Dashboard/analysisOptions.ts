@@ -9,7 +9,7 @@ export function analysisOptions(widget: any, numberNotation = widget.numberNotat
         fontSize: 42,
         color: '#14243c',
         prefix: widget.prefix || '',
-        suffix: '',
+        suffix: widget.suffix || '',
         numForm: true,
         decimalPlaces: widget.decimalPlaces ?? 0,
         numberNotation: numberNotation === 'auto' ? widget.numberNotation || 'compact' : numberNotation,

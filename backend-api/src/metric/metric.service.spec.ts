@@ -160,6 +160,74 @@ describe('MetricService', () => {
     expect(metricRepository.update).not.toHaveBeenCalled();
   });
 
+  describe('legacy API structured definition boundary', () => {
+    const legacyDto = {
+      name: 'bi_saved_metric',
+      databaseId: 1,
+      tableName: 'uploaded_data',
+      aggregation: MetricAggregation.SUM,
+      expression: 'amount',
+    };
+    const definition = JSON.stringify({
+      schemaVersion: 1,
+      definitionVersion: 1,
+      sourceId: 1,
+      tableName: 'uploaded_data',
+      label: 'Revenue',
+      aggregation: 'SUM',
+      column: 'amount',
+    });
+
+    it.each(['create', 'update'] as const)(
+      'rejects forged definition JSON through legacy %s before persistence',
+      async operation => {
+        metricRepository.findOne.mockResolvedValue({
+          ...legacyDto,
+          id: 5,
+          definition: null,
+          useYn: 'Y',
+        });
+        // Extra JSON fields can reach the service at runtime despite DTO typing.
+        const dto = { ...legacyDto, definition };
+        const result =
+          operation === 'create' ? await service.create(dto) : await service.update(5, dto);
+        expect(result.status).toBe(ResponseStatus.ERROR);
+        expect(metricRepository.save).not.toHaveBeenCalled();
+        expect(metricRepository.update).not.toHaveBeenCalled();
+      },
+    );
+
+    it('does not reactivate a soft-deleted structured metric through legacy create', async () => {
+      const stored = { ...legacyDto, id: 5, definition, useYn: 'N' };
+      metricRepository.findOne.mockResolvedValueOnce(stored);
+      const result = await service.create({ ...legacyDto, expression: 'other_amount' });
+      expect(result.status).toBe(ResponseStatus.ERROR);
+      expect(metricRepository.findOne).toHaveBeenCalledWith({ where: { name: legacyDto.name } });
+      expect(metricRepository.save).not.toHaveBeenCalled();
+      expect(metricRepository.update).not.toHaveBeenCalled();
+      expect(stored).toMatchObject({ definition, useYn: 'N', expression: 'amount' });
+    });
+
+    it('keeps an active structured metric immutable even when update supplies no definition', async () => {
+      const stored = { ...legacyDto, id: 5, definition, useYn: 'Y' };
+      metricRepository.findOne.mockResolvedValueOnce(stored);
+      const result = await service.update(5, {
+        databaseId: 2,
+        aggregation: MetricAggregation.AVG,
+        expression: 'other_amount',
+      });
+      expect(result.status).toBe(ResponseStatus.ERROR);
+      expect(metricRepository.save).not.toHaveBeenCalled();
+      expect(metricRepository.update).not.toHaveBeenCalled();
+      expect(stored).toMatchObject({
+        definition,
+        databaseId: 1,
+        aggregation: MetricAggregation.SUM,
+        expression: 'amount',
+      });
+    });
+  });
+
   describe('evaluate', () => {
     const baseMetric = {
       id: 1,

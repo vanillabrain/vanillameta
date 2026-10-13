@@ -31,11 +31,21 @@ export class MetricService {
   }
 
   async create(dto: CreateMetricDto) {
+    if ((dto as any).definition !== undefined)
+      return {
+        status: ResponseStatus.ERROR,
+        message: '정의 snapshot은 제작 API에서만 저장합니다.',
+      };
     try {
       this.validateDefinition(dto);
       // name 유니크 제약이 soft-delete 행에도 적용되므로, 삭제된 메트릭이면 재활성화
       const existing = await this.metricRepository.findOne({ where: { name: dto.name } });
       if (existing) {
+        if (existing.definition)
+          return {
+            status: ResponseStatus.ERROR,
+            message: '저장한 제작 지표는 새 정의로 만들어 주세요.',
+          };
         if (existing.useYn === YesNo.YES) {
           return { status: ResponseStatus.ERROR, message: '이미 존재하는 메트릭명입니다.' };
         }
@@ -70,9 +80,19 @@ export class MetricService {
   }
 
   async update(id: number, dto: UpdateMetricDto) {
+    if ((dto as any).definition !== undefined)
+      return {
+        status: ResponseStatus.ERROR,
+        message: '정의 snapshot은 제작 API에서만 저장합니다.',
+      };
     const metric = await this.metricRepository.findOne({ where: { id } });
     if (!metric || metric.useYn === YesNo.NO)
       return { status: ResponseStatus.ERROR, message: '메트릭을 찾을 수 없습니다.' };
+    if (metric.definition)
+      return {
+        status: ResponseStatus.ERROR,
+        message: '저장한 제작 지표는 변경하지 않습니다. 새 지표를 만들어 적용해 주세요.',
+      };
     try {
       const merged = { ...this.parseFilters(metric), ...dto };
       this.validateDefinition(merged as CreateMetricDto);
@@ -205,6 +225,7 @@ export class MetricService {
   private parseFilters(metric: Metric): any {
     return {
       ...metric,
+      name: metric.definition ? JSON.parse(metric.definition).label : metric.name,
       filters: metric.filters ? JSON.parse(metric.filters as unknown as string) : [],
     };
   }

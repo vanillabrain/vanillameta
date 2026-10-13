@@ -1,6 +1,7 @@
 import React from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { analysisOptions } from '@/pages/Dashboard/analysisOptions';
 import NumericBoard from './NumericBoard';
 import NumericBoardSetting from '@/widget/settings/NumericBoardSetting';
 const styles = vi.hoisted(() => ({ value: null as any }));
@@ -47,6 +48,22 @@ const board = (dataSet: any[], content: Record<string, unknown> = {}) =>
   render(<NumericBoard option={option(content)} dataSet={dataSet} />);
 
 describe('NumericBoard precision and readable values', () => {
+  it('renders a saved analysis unit after the value while preserving the exact amount', () => {
+    render(
+      <NumericBoard
+        option={analysisOptions({
+          type: 'BOARD_NUMERIC',
+          valueField: 'value',
+          suffix: ' kg',
+          decimalPlaces: 0,
+          numberNotation: 'full',
+        })}
+        dataSet={[{ value: 150 }]}
+      />,
+    );
+    expect(screen.getByText('150 kg').title).toBe('150');
+  });
+
   it.each([
     [634513000, 0, '635M'],
     [1500, 1, '1.5K'],

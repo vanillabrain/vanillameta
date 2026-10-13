@@ -196,6 +196,23 @@ const exportText = async () => {
 };
 
 describe('FileAnalysis direct server save', () => {
+  it('uploads once and carries the server source into the SQL-free builder without WASM', async () => {
+    const view = await mountReady();
+    const file = new File(['amount\n150'], 'orders.csv');
+    selectFile(view, file);
+    state.upload.mockResolvedValueOnce({
+      data: { status: 'SUCCESS', data: { id: 42, tableName: 'uploaded_data', rows: 6 } },
+    });
+    fireEvent.click(screen.getByText('fileAnalysis.buildChart'));
+    await waitFor(() =>
+      expect(state.navigate).toHaveBeenCalledWith('/explore?sourceId=42', { state: { tableName: 'uploaded_data' } }),
+    );
+    expect(state.upload).toHaveBeenCalledTimes(1);
+    expect(state.upload).toHaveBeenCalledWith(file);
+    expect(state.instantiate).not.toHaveBeenCalled();
+    expect(state.query).not.toHaveBeenCalled();
+  });
+
   it.each(['csv', 'json', 'parquet'])('saves a selected %s without starting browser analysis', async ext => {
     const view = await mountReady();
     const file = new File(['contents'], `data.${ext}`);

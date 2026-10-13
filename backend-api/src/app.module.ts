@@ -1,3 +1,5 @@
+import { BiModule } from './bi/bi.module';
+import { AddBiDefinitions1791853000000 } from './migrations/1791853000000-add-bi-definitions';
 import { SourceOwnershipModule } from './ownership/source-ownership.module';
 import { AddSourceOwner1791850000000 } from './migrations/1791850000000-add-source-owner';
 import { AnalysisModule } from './analysis/analysis.module';
@@ -29,6 +31,7 @@ import { CommerceModule } from './commerce/commerce.module';
 @Module({
   imports: [
     AnalysisModule,
+    BiModule,
     SourceOwnershipModule,
     ConfigModule.forRoot({
       isGlobal: true,
@@ -51,7 +54,7 @@ import { CommerceModule } from './commerce/commerce.module';
           ? process.env.SQLITE_PATH || 'sqlite.db'
           : process.env.DB_NAME,
       autoLoadEntities: true,
-      migrations: [AddSourceOwner1791850000000],
+      migrations: [AddSourceOwner1791850000000, AddBiDefinitions1791853000000],
       migrationsRun: process.env.NODE_ENV === 'local',
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
       synchronize: process.env.NODE_ENV != 'prod',

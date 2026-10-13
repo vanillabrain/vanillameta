@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Box, Button, Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import ReactECharts from 'echarts-for-react';
@@ -12,6 +12,23 @@ const LineChart = props => {
 
   const [componentOption, setComponentOption] = useState<any>({});
   const [showTable, setShowTable] = useState(false);
+  const chartRef = useRef<ReactECharts>(null);
+  useEffect(() => {
+    const instance = chartRef.current?.getEchartsInstance();
+    if (!instance || typeof ResizeObserver === 'undefined') return;
+    let frame = 0;
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        if (!instance.isDisposed()) instance.resize();
+      });
+    });
+    observer.observe(instance.getDom());
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+    };
+  }, []);
 
   const defaultComponentOption = {
     grid: { top: '3%', right: '3%', bottom: '3%', left: '3%' },
@@ -106,6 +123,7 @@ const LineChart = props => {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', minWidth: 0 }}>
       <ReactECharts
+        ref={chartRef}
         option={componentOption}
         style={{ flex: '1 1 auto', minHeight: 160, height: '100%', width: '100%' }}
         lazyUpdate={true}

@@ -214,16 +214,21 @@ const FileAnalysis = () => {
     }
   };
 
-  const saveAsDataset = () => {
+  const saveAsDataset = (destination?: 'builder') => {
     if (!selectedFile || loading || saving) return;
     setSaving(true);
     DatabaseService.uploadFile(selectedFile)
       .then(response => {
         if (response.data.status === 'SUCCESS') {
           snackbar.success(t('fileAnalysis.saved', { rows: response.data.data.rows }));
-          navigate(`/data/set/create/${response.data.data.id}`, {
-            state: { tableName: response.data.data.tableName },
-          });
+          navigate(
+            destination === 'builder'
+              ? `/explore?sourceId=${response.data.data.id}`
+              : `/data/set/create/${response.data.data.id}`,
+            {
+              state: { tableName: response.data.data.tableName },
+            },
+          );
         } else {
           alert.error(response.data.message || t('fileAnalysis.saveFailed'));
         }
@@ -326,8 +331,11 @@ const FileAnalysis = () => {
 
         {selectedFile && (
           <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 2 }}>
-            <Button variant="contained" onClick={saveAsDataset} disabled={saving || loading}>
+            <Button variant="contained" onClick={() => saveAsDataset()} disabled={saving || loading}>
               {saving ? t('fileAnalysis.saving') : t('fileAnalysis.saveDataset')}
+            </Button>
+            <Button variant="outlined" onClick={() => saveAsDataset('builder')} disabled={saving || loading}>
+              {t('fileAnalysis.buildChart')}
             </Button>
             <Button variant="outlined" onClick={analyzeFile} disabled={loading || saving}>
               {loading ? t('fileAnalysis.processing') : t('fileAnalysis.analyzeBrowser')}

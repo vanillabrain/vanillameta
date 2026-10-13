@@ -314,6 +314,36 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
       ).toBe(false);
     },
   );
+
+  it('preserves unit suffix through validation, save, reload and widget options', async () => {
+    const input = { ...draft(), widgets: [{ ...draft().widgets[0], suffix: ' kg' }] };
+    const id = (await service.save({ draft: input }, 7)).data.id;
+    expect((await service.analysis(id, 7)).data.widgets[0].suffix).toBe(' kg');
+    const mapping = await db.manager.findOneBy(DashboardWidget, { dashboardId: id });
+    const widget = await db.manager.findOneBy(Widget, { id: mapping.widgetId });
+    expect(JSON.parse(widget.option).content).toMatchObject({ prefix: '', suffix: ' kg' });
+  });
+
+  it('persists a structured snapshot atomically and clears it when raw SQL replaces the definition', async () => {
+    const snapshot = {
+      schemaVersion: 1,
+      metricId: 17,
+      definitionVersion: 1,
+      dataVersion: 'upload-revision',
+      definition: { aggregation: 'SUM', column: 'amount' },
+    };
+    const id = (await service.save({ draft: draft() }, 7, snapshot)).data.id;
+    expect(
+      JSON.parse((await db.manager.findOneBy(Dashboard, { id })).structuredDefinition),
+    ).toEqual(snapshot);
+    const revision = (await service.analysis(id, 7, true)).data.revision;
+    await service.save(
+      { dashboardId: id, draft: { ...draft(), title: 'Manual SQL' }, expectedRevision: revision },
+      7,
+    );
+    expect((await db.manager.findOneBy(Dashboard, { id })).structuredDefinition).toBeNull();
+    expect((await service.analysis(id, 7)).data.title).toBe('Manual SQL');
+  });
   it('saves ordinary query SQL, definition, layout; edits preserve old shared widgets', async () => {
     const id = (await service.save({ draft: draft() }, 7)).data.id;
     const old = await db.manager.find(Widget);

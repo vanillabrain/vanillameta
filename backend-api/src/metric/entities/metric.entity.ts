@@ -20,6 +20,9 @@ export class Metric extends BaseEntity {
   @PrimaryGeneratedColumn({ comment: '메트릭 ID' })
   id: number;
 
+  @Column({ type: 'text', nullable: true, comment: 'Immutable structured definition version 1' })
+  definition: string;
+
   @Column({ unique: true, length: 100, comment: '메트릭명' })
   name: string;
 

@@ -528,7 +528,7 @@ export class AiDashboardService {
       ...(body?.includeTrends === true ? { queries } : {}),
     });
   }
-  async save(body: any, userId: number) {
+  async save(body: any, userId: number, structuredSnapshot?: object) {
     if (
       body?.expectedRevision !== undefined &&
       (body.dashboardId === undefined ||
@@ -578,6 +578,9 @@ export class AiDashboardService {
         const share = await manager.save(DashboardShare, { uuid: randomUUID(), shareYn: YesNo.NO });
         dashboard = manager.create(Dashboard, { shareId: share.id, delYn: YesNo.NO });
       }
+      dashboard.structuredDefinition = structuredSnapshot
+        ? JSON.stringify(structuredSnapshot)
+        : null;
       dashboard.title = draft.title;
       dashboard.analysisDefinition = JSON.stringify(draft);
       let y = 0;
@@ -611,6 +614,7 @@ export class AiDashboardService {
           .set({
             title: dashboard.title,
             analysisDefinition: dashboard.analysisDefinition,
+            structuredDefinition: dashboard.structuredDefinition,
             layout: dashboard.layout,
           })
           .where('id = :id', { id: dashboard.id });
@@ -679,6 +683,7 @@ export class AiDashboardService {
         categoryField: component?.type === 'CHART_COLUMN' ? option.yField : option.xField,
         decimalPlaces: option.content?.decimalPlaces,
         prefix: option.content?.prefix,
+        suffix: option.content?.suffix,
         numberNotation: option.content?.numberNotation ?? option.numberNotation,
       });
     }
