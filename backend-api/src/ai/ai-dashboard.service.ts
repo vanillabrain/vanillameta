@@ -28,6 +28,7 @@ import {
   resolveTimeChartBucket,
 } from './dashboard-trend';
 import { buildTimeSelection } from './dashboard-time-selection';
+import { utcInstant } from './dashboard-date-range';
 import {
   compileContribution,
   CONTRIBUTION_GROUP_LIMIT,
@@ -501,6 +502,7 @@ export class AiDashboardService {
               'trendGrain',
               'category',
               'groupFingerprint',
+              'trendPoint',
             ].includes(key),
         ) ||
         !Number.isSafeInteger(input.widgetIndex) ||
@@ -521,6 +523,29 @@ export class AiDashboardService {
           ))
       )
         throw new BadRequestException('invalid contribution request');
+      if ('trendPoint' in input) {
+        const point = input.trendPoint;
+        if (
+          saved.data.widgets[input.widgetIndex].type !== 'BOARD_NUMERIC' ||
+          'category' in input ||
+          'groupFingerprint' in input ||
+          !point ||
+          typeof point !== 'object' ||
+          Array.isArray(point) ||
+          Object.keys(point).length !== 4 ||
+          Object.keys(point).some(
+            key => !['column', 'grain', 'time', 'groupFingerprint'].includes(key),
+          ) ||
+          typeof point.column !== 'string' ||
+          !point.column.trim() ||
+          point.column.length > 128 ||
+          !['hour', 'day', 'week', 'month'].includes(point.grain) ||
+          typeof point.groupFingerprint !== 'string' ||
+          !/^[a-f0-9]{64}$/.test(point.groupFingerprint)
+        )
+          throw new BadRequestException('invalid trend point contribution request');
+        utcInstant(point.time, true);
+      }
       validatePeriodOptions({ trendGrain: input.trendGrain });
       if (
         input.expectedRevision !== saved.data.revision ||
@@ -593,6 +618,41 @@ export class AiDashboardService {
       });
     });
   }
+  /** Preview and point details share column selection, full-source auto stats and SQL. */
+  private async numericTrendQuery(
+    definition: any,
+    databaseId: number,
+    schema: Array<{ column_name: string; column_type: string }>,
+    dateRange: any,
+    trendGrain: ReturnType<typeof validatePeriodOptions>['trendGrain'],
+    stats?: { min: string; max: string },
+  ) {
+    const temporal = schema.filter(column => /^(DATE|TIMESTAMP)/i.test(column.column_type));
+    const column = temporal.some(item => item.column_name === dateRange?.column)
+      ? dateRange.column
+      : temporal[0]?.column_name;
+    if (!column) return undefined;
+    if (trendGrain === 'auto' && !dateRange && !stats) {
+      const name = quoteColumn(column);
+      const result = await this.connection.queryDuckDB(
+        databaseId,
+        `SELECT CAST(CAST(min(${name}) AS DATE) AS VARCHAR) AS min, CAST(CAST(max(${name}) AS DATE) AS VARCHAR) AS max FROM uploaded_data`,
+      );
+      stats = result.datas[0];
+    }
+    const grain =
+      trendGrain === 'auto'
+        ? chooseTrendGrain(dateRange?.start ?? stats?.min, dateRange?.end ?? stats?.max)
+        : trendGrain;
+    const query = buildTrendQuery(
+      definition.sql,
+      definition.valueField,
+      column,
+      grain,
+      schema.map(item => item.column_name),
+    );
+    return query ? { ...query, column, grain } : undefined;
+  }
   private async contributionDetails(
     body: any,
     saved: any,
@@ -616,8 +676,33 @@ export class AiDashboardService {
     const dateColumn = temporal.includes(body.dateRange?.column)
       ? body.dateRange.column
       : temporal[0];
-    const effective = this.effectiveWidgetQuery(definition, trendGrain, dateColumn, columns);
-    const plan = compileContribution({ ...definition, sql: effective.sql }, schema);
+    const trendPoint = input.trendPoint;
+    const trend = trendPoint
+      ? await this.numericTrendQuery(
+          definition,
+          saved.databaseId,
+          schema,
+          body.dateRange,
+          trendGrain,
+        )
+      : undefined;
+    if (
+      trendPoint &&
+      (!trend || trend.column !== trendPoint.column || trend.grain !== trendPoint.grain)
+    )
+      throw new ConflictException('추이 집계가 변경되었습니다. 새로고침한 뒤 다시 선택해 주세요.');
+    const effective = trend
+      ? { sql: trend.sql, regroup: trend }
+      : this.effectiveWidgetQuery(definition, trendGrain, dateColumn, columns);
+    const groupedDefinition = trend
+      ? {
+          ...definition,
+          type: 'CHART_LINE' as const,
+          categoryField: trend.timeField,
+          valueField: trend.valueAlias,
+        }
+      : definition;
+    const plan = compileContribution({ ...groupedDefinition, sql: effective.sql }, schema);
     if (
       !plan.supported ||
       (definition.type === 'CHART_LINE' && trendGrain !== 'auto' && !effective.regroup)
@@ -633,27 +718,28 @@ export class AiDashboardService {
       throw new UnprocessableEntityException(
         '표시 그룹이 240개를 초과하여 집계 입력 행을 확인할 수 없습니다. 기간이나 그룹을 줄여 주세요.',
       );
-    const selected = Object.prototype.hasOwnProperty.call(input, 'category');
+    const selected = !!trendPoint || Object.prototype.hasOwnProperty.call(input, 'category');
+    const selectedCategory = trendPoint ? trendPoint.time : input.category;
     let groups: any[] = [];
     let groupFingerprint: string | undefined;
     if (plan.categoryExpression) {
-      groups = current.datas.map(row => row[definition.categoryField]);
+      groups = current.datas.map(row => row[groupedDefinition.categoryField]);
       groupFingerprint = contributionGroupFingerprint(groups);
       if (!groupFingerprint) throw new UnprocessableEntityException(CONTRIBUTION_UNAVAILABLE);
-      if (groupFingerprint !== input.groupFingerprint)
+      if (groupFingerprint !== (trendPoint ? trendPoint.groupFingerprint : input.groupFingerprint))
         throw new ConflictException(
           '표시 그룹이 변경되었습니다. 새로고침한 뒤 집계 입력 행을 다시 열어 주세요.',
         );
       if (selected) {
         if (
           !groups.some(
-            value => typeof value === typeof input.category && Object.is(value, input.category),
+            value => typeof value === typeof selectedCategory && Object.is(value, selectedCategory),
           )
         )
           throw new ConflictException(
             '선택한 그룹이 현재 차트에 없습니다. 새로고침한 뒤 다시 선택해 주세요.',
           );
-        groups = [input.category];
+        groups = [selectedCategory];
       }
     } else if (selected || current.datas.length !== 1) {
       throw new BadRequestException('invalid numeric contribution selection');
@@ -730,9 +816,13 @@ export class AiDashboardService {
         widgetIndex: input.widgetIndex,
         expectedRevision: input.expectedRevision,
         title: definition.title,
-        ...(selected ? { category: input.category } : {}),
+        ...(trendPoint
+          ? { trendPoint: { ...trendPoint } }
+          : selected
+          ? { category: input.category }
+          : {}),
         components: plan.components,
-        ...(groupFingerprint ? { groupFingerprint } : {}),
+        ...(!trendPoint && groupFingerprint ? { groupFingerprint } : {}),
         semantics: plan.semantics,
       },
     });
@@ -930,11 +1020,14 @@ export class AiDashboardService {
           widget.trendUnavailable = 'No temporal column is available.';
           continue;
         }
-        const stats = temporalColumns.find((item: any) => item.column === dateColumn);
-        const min = body?.dateRange?.column === dateColumn ? body.dateRange.start : stats?.min;
-        const max = body?.dateRange?.column === dateColumn ? body.dateRange.end : stats?.max;
-        const grain = trendGrain === 'auto' ? chooseTrendGrain(min, max) : trendGrain;
-        const trendSql = buildTrendQuery(widget.sql, widget.valueField, dateColumn, grain, columns);
+        const trendSql = await this.numericTrendQuery(
+          widget,
+          draft.databaseId,
+          schema,
+          body.dateRange,
+          trendGrain,
+          temporalColumns.find((item: any) => item.column === dateColumn),
+        );
         if (!trendSql) {
           widget.trendUnavailable = 'The widget SQL cannot be safely grouped into a trend.';
           continue;
@@ -960,7 +1053,7 @@ export class AiDashboardService {
           }
           widget.trend = {
             column: dateColumn,
-            grain,
+            grain: trendSql.grain,
             points: result.datas.map((row: any) => {
               const rawValue = row[trendSql.valueAlias];
               const value = rawValue === null ? null : Number(rawValue);
@@ -970,9 +1063,29 @@ export class AiDashboardService {
               };
             }),
           };
+          const plan = compileContribution(
+            {
+              ...widget,
+              type: 'CHART_LINE',
+              sql: trendSql.sql,
+              categoryField: trendSql.timeField,
+              valueField: trendSql.valueAlias,
+            },
+            schema,
+          );
+          const fingerprint = contributionGroupFingerprint(
+            widget.trend.points.map(point => point.time),
+          );
+          widget.trend.contribution =
+            plan.supported && fingerprint
+              ? { supported: true, groupFingerprint: fingerprint }
+              : {
+                  supported: false,
+                  reason: 'reason' in plan ? plan.reason : CONTRIBUTION_UNAVAILABLE,
+                };
           widget.trend.timeSelection = buildTimeSelection(
             widget.trend.points.map(point => point.time),
-            { column: dateColumn, grain, format: 'timestamp' },
+            { column: dateColumn, grain: trendSql.grain, format: 'timestamp' },
             body.dateRange,
           );
         } catch (_error) {

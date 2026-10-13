@@ -5,11 +5,31 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import SourceDetails, { ContributionRequest, canRequestNextPage } from './SourceDetails';
 import DashboardAnalysis from './DashboardAnalysis';
 
-const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), widget: vi.fn() }));
+const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), widget: vi.fn(), trend: vi.fn() }));
 vi.mock('@/helpers/apiHelper', () => api);
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 vi.mock('./DashboardAssistant', () => ({ default: () => null }));
-vi.mock('./MetricTrend', () => ({ default: () => null }));
+vi.mock('./MetricTrend', () => ({
+  default: (props: any) => {
+    api.trend(props);
+    return (
+      <div>
+        {props.onContributionSelect &&
+          props.trend?.points?.map((point: any) => (
+            <button
+              key={point.time}
+              aria-label={`추세 원본 ${point.time}`}
+              aria-disabled={props.contributionDisabled}
+              onClick={() => props.onContributionSelect(point.time)}
+            >
+              집계 원본 행 보기
+            </button>
+          ))}
+        {props.contributionDisabledReason && <span>{props.contributionDisabledReason}</span>}
+      </div>
+    );
+  },
+}));
 vi.mock('./PersonalSavedViews', async importOriginal => ({
   ...(await importOriginal<typeof import('./PersonalSavedViews')>()),
   default: ({ state }: any) => <div data-testid="saved-state">{JSON.stringify(state)}</div>,
@@ -391,8 +411,8 @@ const preview = {
   temporalColumns: [{ column: 'day' }],
 };
 const previewCalls = () => api.post.mock.calls.filter(([url]) => url === '/ai/dashboard-preview');
-async function analysis(data = preview) {
-  api.get.mockResolvedValue(success(draft));
+async function analysis(data = preview, definition: any = draft) {
+  api.get.mockResolvedValue(success(definition));
   api.post.mockImplementation(async (url, body) =>
     success(url === '/ai/dashboard-preview' ? data : detailData(body.page, body.pageSize, body.sourceRevision)),
   );
@@ -762,6 +782,7 @@ const contributionData = (request = contribution, page = 0, pageSize = 25, title
     ...(Object.prototype.hasOwnProperty.call(request, 'groupFingerprint')
       ? { groupFingerprint: request.groupFingerprint }
       : {}),
+    ...(Object.prototype.hasOwnProperty.call(request, 'trendPoint') ? { trendPoint: request.trendPoint } : {}),
     title,
     components: ['SUM(amount)', 'COUNT(*)'],
     semantics: '집계 함수 입력 행의 합집합입니다. MIN/MAX는 모든 비NULL 입력, 비율은 각 구성요소 입력을 포함합니다.',
@@ -950,7 +971,12 @@ const contributorPreview = {
 const contributorCalls = () =>
   api.post.mock.calls.filter(([url, body]) => url === '/ai/dashboard-details' && body.contribution);
 async function contributorAnalysis(data: any = contributorPreview) {
-  await analysis(data);
+  await analysis(
+    data,
+    data.widgets.some((widget: any) => widget.trend?.contribution)
+      ? { ...draft, widgets: data.widgets.map((widget: any) => ({ type: widget.type })) }
+      : draft,
+  );
   api.post.mockImplementation(async (url, body) =>
     success(
       url === '/ai/dashboard-preview'
@@ -1170,4 +1196,317 @@ it('contributor detail failed canonical refresh does not query an old definition
   await idle();
   expect(previewCalls().at(-1)[1].draft).toEqual(nextDraft);
   expect(screen.queryByRole('alert')).toBeNull();
+});
+
+const trendTime = '2026-01-11T08:00:00Z';
+const trendPointRequest: ContributionRequest = {
+  widgetIndex: 0,
+  expectedRevision: draft.revision,
+  trendGrain: 'auto',
+  trendPoint: { column: 'day', grain: 'hour', time: trendTime, groupFingerprint },
+};
+const trendProps = { ...props, draft: { ...draft, widgets: [{ type: 'BOARD_NUMERIC' }] } };
+const trendPreview = {
+  ...contributorPreview,
+  widgets: [
+    {
+      ...contributorPreview.widgets[0],
+      type: 'BOARD_NUMERIC',
+      trend: {
+        column: 'day',
+        grain: 'hour',
+        points: [
+          { time: trendTime, value: 10 },
+          { time: '2026-01-11T09:00:00Z', value: null },
+        ],
+        contribution: { supported: true, groupFingerprint },
+      },
+    },
+  ],
+};
+const trendLauncher = () => button(`추세 원본 ${trendTime}`);
+
+it.each(['{Enter}', ' '])(
+  'trend point contributor keyboard %s preserves view state and returns exact launcher focus',
+  async keys => {
+    await contributorAnalysis(trendPreview);
+    choose('시작일 (UTC)', range.start);
+    choose('종료일 (UTC)', range.end);
+    fireEvent.click(button('적용'));
+    await idle();
+    choose('시계열 집계 단위', 'week');
+    await idle();
+    fireEvent.click(screen.getByRole('checkbox', { name: '이전 기간 비교' }));
+    await idle();
+    fireEvent.click(categoryButton(null));
+    await idle();
+    const saved = screen.getByTestId('saved-state').textContent;
+    const before = previewCalls().length;
+    const launcher = trendLauncher();
+    launcher.focus();
+    await userEvent.keyboard(keys);
+    await screen.findByText('record-A');
+    expect(contributorCalls().at(-1)[1]).toMatchObject({
+      contribution: { ...trendPointRequest, trendGrain: 'week' },
+      filters: [{ column: 'channel', values: [null] }],
+      dateRange: range,
+      sourceRevision: props.sourceRevision,
+    });
+    expect(contributorCalls().at(-1)[1].contribution).not.toHaveProperty('category');
+    expect(contributorCalls().at(-1)[1].contribution).not.toHaveProperty('groupFingerprint');
+    expect(previewCalls()).toHaveLength(before);
+    expect(screen.getByTestId('saved-state').textContent).toBe(saved);
+    expect(screen.getByText(/추세 시점: day · UTC 2026-01-11 08:00:00 · 시간 집계/)).toBeTruthy();
+    button('원본 상세 닫기').focus();
+    fireEvent.click(button('원본 상세 닫기'));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(document.activeElement).toBe(launcher);
+  },
+);
+
+it.each([
+  'column',
+  'grain',
+  'time',
+  'groupFingerprint',
+  'extra',
+  'missing',
+  'unexpected category',
+  'unexpected fingerprint',
+  'source version',
+])('trend point contributor rejects mismatched echo %s without rendering records', async kind => {
+  const data: any = contributionData(trendPointRequest);
+  data.contribution.trendPoint = { ...trendPointRequest.trendPoint };
+  if (kind === 'missing') delete data.contribution.trendPoint;
+  else if (kind === 'extra') data.contribution.trendPoint.extra = true;
+  else if (kind === 'unexpected category') data.contribution.category = null;
+  else if (kind === 'unexpected fingerprint') data.contribution.groupFingerprint = groupFingerprint;
+  else if (kind === 'source version') data.sourceRevision = 'other-source';
+  else
+    data.contribution.trendPoint[kind] = (
+      { column: 'other', grain: 'day', time: '2026-01-11T09:00:00Z', groupFingerprint: 'c'.repeat(64) } as any
+    )[kind];
+  api.post.mockResolvedValueOnce(success(data));
+  render(<SourceDetails {...trendProps} contribution={trendPointRequest} widgetTitle={contributionTitle} />);
+  await screen.findByText(/원본 행 응답의 조건/);
+  expect(screen.queryByText('record-A')).toBeNull();
+});
+
+it.each(['category', 'fingerprint', 'nonnumeric', 'invalid instant', 'extra key'])(
+  'trend point contributor blocks invalid request %s before transport',
+  async kind => {
+    const request: any = { ...trendPointRequest, trendPoint: { ...trendPointRequest.trendPoint } };
+    if (kind === 'category') request.category = null;
+    if (kind === 'fingerprint') request.groupFingerprint = groupFingerprint;
+    if (kind === 'invalid instant') request.trendPoint.time = '2026-02-30T08:00:00Z';
+    if (kind === 'extra key') request.trendPoint.extra = true;
+    render(
+      <SourceDetails
+        {...trendProps}
+        draft={kind === 'nonnumeric' ? { ...draft, widgets: [{ type: 'CHART_LINE' }] } : trendProps.draft}
+        contribution={request}
+      />,
+    );
+    expect(screen.getByText(/집계 조건을 확인/)).toBeTruthy();
+    expect(api.post).not.toHaveBeenCalled();
+  },
+);
+
+it.each(['time', 'fingerprint', 'source', 'filters', 'dates'])(
+  'trend point contributor context %s aborts late responses and clears old records',
+  async kind => {
+    api.post.mockResolvedValueOnce(success(contributionData(trendPointRequest)));
+    const view = render(<SourceDetails {...trendProps} contribution={trendPointRequest} />);
+    await screen.findByText('record-A');
+    const earlier = deferred();
+    api.post.mockReturnValueOnce(earlier.promise);
+    fireEvent.click(button('다음 페이지'));
+    const signal = api.post.mock.lastCall[2].signal;
+    const pending = deferred();
+    api.post.mockReturnValueOnce(pending.promise);
+    const changed = { ...trendPointRequest, trendPoint: { ...trendPointRequest.trendPoint } };
+    if (kind === 'time') changed.trendPoint.time = '2026-01-11T09:00:00Z';
+    if (kind === 'fingerprint') changed.trendPoint.groupFingerprint = 'c'.repeat(64);
+    const changedProps = {
+      ...trendProps,
+      ...(kind === 'source' ? { sourceRevision: 'new-source' } : {}),
+      ...(kind === 'filters' ? { filters: [] } : {}),
+      ...(kind === 'dates' ? { dateRange: { ...range, start: '2026-01-12' } } : {}),
+    };
+    view.rerender(<SourceDetails {...changedProps} contribution={changed} />);
+    expect(signal.aborted).toBe(true);
+    expect(screen.queryByText('record-A')).toBeNull();
+    expect(api.post.mock.lastCall[1]).toMatchObject({ contribution: changed, page: 0 });
+    await act(async () =>
+      pending.resolve(
+        success({
+          ...contributionData(changed),
+          sourceRevision: changedProps.sourceRevision,
+          datas: [{ channel: 'new-point' }],
+        }),
+      ),
+    );
+    await screen.findByText('new-point');
+    await act(async () =>
+      earlier.resolve(success({ ...contributionData(trendPointRequest, 1), datas: [{ channel: 'old-point' }] })),
+    );
+    expect(screen.queryByText('old-point')).toBeNull();
+  },
+);
+
+it.each(['column', 'grain', 'fingerprint', 'unsupported', 'missing source', 'raw time'])(
+  'trend point contributor current preview metadata guard %s',
+  async kind => {
+    const data: any = structuredClone(trendPreview);
+    if (kind === 'column') data.widgets[0].trend.column = '';
+    if (kind === 'grain') data.widgets[0].trend.grain = 'auto';
+    if (kind === 'fingerprint') data.widgets[0].trend.contribution.groupFingerprint = 'bad';
+    if (kind === 'unsupported') data.widgets[0].trend.contribution = { supported: false, reason: '지원하지 않는 추세 집계' };
+    if (kind === 'missing source') delete data.sourceRevision;
+    await contributorAnalysis(data);
+    const select = api.trend.mock.lastCall[0].onContributionSelect;
+    const count = contributorCalls().length;
+    act(() => select(kind === 'raw time' ? '2026-01-11T08:00:00.000Z' : trendTime));
+    expect(contributorCalls()).toHaveLength(count);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    if (kind !== 'raw time') expect(api.trend.mock.lastCall[0].contributionDisabled).toBe(true);
+  },
+);
+
+it.each(['unapplied', 'invalid date', 'pending', 'error', 'editing', 'old preview', 'dialog'])(
+  'trend point contributor live interaction guard %s rejects retained callbacks',
+  async kind => {
+    await contributorAnalysis(trendPreview);
+    const select = api.trend.mock.lastCall[0].onContributionSelect;
+    if (kind === 'unapplied' || kind === 'invalid date') {
+      choose('시작일 (UTC)', range.start);
+      if (kind === 'invalid date') fireEvent.click(button('적용'));
+    } else if (kind === 'editing') fireEvent.click(button('Assistant'));
+    else if (kind === 'dialog') {
+      fireEvent.click(button('원본 상세 보기'));
+      await screen.findByText('record-A');
+    } else {
+      const pending = deferred();
+      api.post.mockReturnValueOnce(pending.promise);
+      fireEvent.click(categoryButton(null));
+      if (kind === 'error') await act(async () => pending.reject(new Error('preview failed')));
+      if (kind === 'old preview') {
+        await act(async () => pending.resolve(success({ ...trendPreview, sourceRevision: 'fresh-source' })));
+        await idle();
+      }
+    }
+    const count = contributorCalls().length;
+    act(() => select(trendTime));
+    expect(contributorCalls()).toHaveLength(count);
+    if (kind !== 'dialog') expect(screen.queryByRole('dialog')).toBeNull();
+  },
+);
+
+it('trend point contributor 409 reloads canonical definition then fresh source preview without narrowing common dates', async () => {
+  await contributorAnalysis(trendPreview);
+  choose('시작일 (UTC)', range.start);
+  choose('종료일 (UTC)', range.end);
+  fireEvent.click(button('적용'));
+  await idle();
+  fireEvent.click(categoryButton(null));
+  await idle();
+  api.post.mockRejectedValueOnce({ response: { status: 409, data: { message: 'changed trend groups' } } });
+  fireEvent.click(trendLauncher());
+  await screen.findByText(/집계 정의 또는 원본 데이터 버전이 변경/);
+  const canonical = deferred();
+  api.get.mockReturnValueOnce(canonical.promise);
+  const before = previewCalls().length;
+  fireEvent.click(button('대시보드 데이터 새로 조회'));
+  expect(api.get.mock.lastCall[0]).toBe('/ai/dashboard-analysis/26');
+  expect(previewCalls()).toHaveLength(before);
+  const nextDraft = { ...trendProps.draft, revision: 'fresh-definition' };
+  const freshPreview = { ...trendPreview, sourceRevision: 'fresh-source' };
+  api.post.mockImplementation(async (url, body) =>
+    success(
+      url === '/ai/dashboard-preview'
+        ? freshPreview
+        : { ...contributionData(body.contribution), sourceRevision: body.sourceRevision },
+    ),
+  );
+  await act(async () => canonical.resolve(success(nextDraft)));
+  await idle();
+  expect(previewCalls().at(-1)[1]).toMatchObject({
+    draft: nextDraft,
+    dateRange: range,
+    filters: [{ column: 'channel', values: [null] }],
+  });
+  fireEvent.click(trendLauncher());
+  await screen.findByText('record-A');
+  expect(contributorCalls().at(-1)[1]).toMatchObject({
+    sourceRevision: 'fresh-source',
+    dateRange: range,
+    contribution: { ...trendPointRequest, expectedRevision: nextDraft.revision },
+  });
+});
+
+it('trend point contributor missing definition revision cannot open point detail', async () => {
+  await analysis(trendPreview, { ...trendProps.draft, revision: '' });
+  const select = api.trend.mock.lastCall[0].onContributionSelect;
+  expect(api.trend.mock.lastCall[0].contributionDisabled).toBe(true);
+  act(() => select(trendTime));
+  expect(contributorCalls()).toHaveLength(0);
+  expect(screen.queryByRole('dialog')).toBeNull();
+});
+
+it('trend point contributor is numeric only even with copied trend metadata', async () => {
+  await contributorAnalysis({ ...trendPreview, widgets: [{ ...trendPreview.widgets[0], type: 'CHART_LINE' }] });
+  expect(api.trend).not.toHaveBeenCalled();
+  expect(screen.queryByRole('button', { name: `추세 원본 ${trendTime}` })).toBeNull();
+});
+
+it('trend point contributor retry retains the exact point and common scope', async () => {
+  api.post.mockRejectedValueOnce(new Error('잠시 후 다시 시도해 주세요.'));
+  api.post.mockResolvedValueOnce(success(contributionData(trendPointRequest)));
+  render(<SourceDetails {...trendProps} contribution={trendPointRequest} />);
+  await screen.findByText('잠시 후 다시 시도해 주세요.');
+  expect(screen.queryByText('record-A')).toBeNull();
+  fireEvent.click(button('원본 행 다시 조회'));
+  await screen.findByText('record-A');
+  expect(api.post.mock.calls[0][1]).toEqual(api.post.mock.calls[1][1]);
+  expect(api.post.mock.lastCall[1]).toMatchObject({
+    contribution: trendPointRequest,
+    filters: props.filters,
+    dateRange: range,
+  });
+});
+
+it('trend point contributor keeps the independent time filter action available', async () => {
+  const bucket = { column: 'day', precision: 'timestamp' as const, start: trendTime, end: '2026-01-11T09:00:00Z' };
+  await contributorAnalysis({
+    ...trendPreview,
+    widgets: [
+      {
+        ...trendPreview.widgets[0],
+        trend: {
+          ...trendPreview.widgets[0].trend,
+          timeSelection: { column: 'day', grain: 'hour', ranges: [bucket, null] },
+        },
+      },
+    ],
+  });
+  const selectTime = api.trend.mock.lastCall[0].onTimeSelect;
+  expect(typeof selectTime).toBe('function');
+  act(() => selectTime(bucket));
+  await idle();
+  expect(previewCalls().at(-1)[1].dateRange).toEqual(bucket);
+  expect(contributorCalls()).toHaveLength(0);
+  fireEvent.click(trendLauncher());
+  await screen.findByText('record-A');
+  expect(contributorCalls().at(-1)[1]).toMatchObject({ dateRange: bucket, contribution: trendPointRequest });
+});
+
+it('trend point contributor cannot appear in an ordinary whole-widget response', async () => {
+  const data = {
+    ...contributionData(contribution),
+    contribution: { ...contributionData(contribution).contribution, trendPoint: trendPointRequest.trendPoint },
+  };
+  api.post.mockResolvedValueOnce(success(data));
+  render(<SourceDetails {...props} contribution={contribution} />);
+  await screen.findByText(/원본 행 응답의 조건/);
+  expect(screen.queryByText('record-A')).toBeNull();
 });

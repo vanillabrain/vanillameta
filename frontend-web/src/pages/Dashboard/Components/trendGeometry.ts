@@ -4,6 +4,7 @@ export type MetricTrendData = {
   grain: string;
   points: TrendPoint[];
   timeSelection?: import('./timeSelection').TimeSelection;
+  contribution?: { supported: boolean; groupFingerprint?: string; reason?: string };
 };
 
 /** Null observations break the line rather than implying a zero or interpolation. */

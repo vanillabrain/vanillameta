@@ -17,12 +17,19 @@ import { post } from '@/helpers/apiHelper';
 import type { DateRange, FilterValue, TrendGrain } from './PersonalSavedViews';
 import { timeRangeLabel } from './timeSelection';
 
+export type TrendPointContribution = {
+  column: string;
+  grain: 'hour' | 'day' | 'week' | 'month';
+  time: string;
+  groupFingerprint: string;
+};
 export type ContributionRequest = {
   widgetIndex: number;
   expectedRevision: string;
   trendGrain: TrendGrain;
   category?: FilterValue;
   groupFingerprint?: string;
+  trendPoint?: TrendPointContribution;
 };
 type ContributionData = Omit<ContributionRequest, 'trendGrain'> & {
   title: string;
@@ -57,8 +64,31 @@ type DetailData = {
 };
 const ownsCategory = (value: object) => Object.prototype.hasOwnProperty.call(value, 'category');
 const ownsFingerprint = (value: object) => Object.prototype.hasOwnProperty.call(value, 'groupFingerprint');
+const ownsTrendPoint = (value: object) => Object.prototype.hasOwnProperty.call(value, 'trendPoint');
 export const validGroupFingerprint = (value: unknown): value is string =>
   typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
+export function validTrendPointContribution(value: unknown): value is TrendPointContribution {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const point = value as TrendPointContribution;
+  const instant = typeof point.time === 'string' ? Date.parse(point.time) : NaN;
+  return (
+    Object.keys(point).length === 4 &&
+    Object.keys(point).every(key => ['column', 'grain', 'time', 'groupFingerprint'].includes(key)) &&
+    typeof point.column === 'string' &&
+    !!point.column.trim() &&
+    point.column.length <= 128 &&
+    ['hour', 'day', 'week', 'month'].includes(point.grain) &&
+    validGroupFingerprint(point.groupFingerprint) &&
+    typeof point.time === 'string' &&
+    /^(?!0000)\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(point.time) &&
+    Number.isFinite(instant) &&
+    new Date(instant).toISOString().replace('.000Z', 'Z') === point.time
+  );
+}
+const trendPointCaption = (point: TrendPointContribution) =>
+  `추세 시점: ${point.column} · UTC ${point.time.replace('T', ' ').replace(/Z$/, '')} · ${
+    { hour: '시간', day: '일', week: '주', month: '월' }[point.grain]
+  } 집계`;
 const primitiveCategory = (value: unknown) =>
   value === null ||
   typeof value === 'string' ||
@@ -80,6 +110,12 @@ function validContribution(data: DetailData, requested: ContributionRequest, tit
     data.scope === 'widget aggregate input rows' &&
     response.widgetIndex === requested.widgetIndex &&
     response.expectedRevision === requested.expectedRevision &&
+    ownsTrendPoint(response) === ownsTrendPoint(requested) &&
+    (!ownsTrendPoint(requested) ||
+      (validTrendPointContribution(response.trendPoint) &&
+        ['column', 'grain', 'time', 'groupFingerprint'].every(
+          key => response.trendPoint[key] === requested.trendPoint[key],
+        ))) &&
     ownsFingerprint(response) === ownsFingerprint(requested) &&
     (!ownsFingerprint(requested) ||
       (validGroupFingerprint(response.groupFingerprint) && response.groupFingerprint === requested.groupFingerprint)) &&
@@ -155,6 +191,7 @@ export default function SourceDetails({
   const page = pagination.contextKey === contextKey ? pagination.page : 0;
   const pageSize = pagination.pageSize;
   const [reload, setReload] = useState(0);
+  const selectedWidget = (draft as { widgets?: { type?: string }[] })?.widgets?.[contribution?.widgetIndex];
   const invalidContribution =
     !!contribution &&
     (!Number.isInteger(contribution.widgetIndex) ||
@@ -163,7 +200,12 @@ export default function SourceDetails({
       !contribution.expectedRevision.trim() ||
       !['auto', 'day', 'week', 'month'].includes(contribution.trendGrain) ||
       (ownsFingerprint(contribution) && !validGroupFingerprint(contribution.groupFingerprint)) ||
-      (ownsCategory(contribution) && !primitiveCategory(contribution.category)));
+      (ownsCategory(contribution) && !primitiveCategory(contribution.category)) ||
+      (ownsTrendPoint(contribution) &&
+        (!validTrendPointContribution(contribution.trendPoint) ||
+          selectedWidget?.type !== 'BOARD_NUMERIC' ||
+          ownsCategory(contribution) ||
+          ownsFingerprint(contribution))));
   const blocked =
     disabledReason ||
     (invalidContribution ? '집계 조건을 확인한 뒤 원본 행을 조회할 수 있습니다.' : '') ||
@@ -262,7 +304,11 @@ export default function SourceDetails({
         {contribution && (
           <Typography variant="body2" sx={{ mb: 1, overflowWrap: 'anywhere' }}>
             차트: {widgetTitle || data?.contribution?.title || '선택한 집계'} ·{' '}
-            {ownsCategory(contribution) ? `그룹: ${categoryText(contribution.category)}` : '위젯 전체'}
+            {contribution.trendPoint && validTrendPointContribution(contribution.trendPoint)
+              ? trendPointCaption(contribution.trendPoint)
+              : ownsCategory(contribution)
+              ? `그룹: ${categoryText(contribution.category)}`
+              : '위젯 전체'}
           </Typography>
         )}
         <Typography variant="body2" sx={{ mb: 1, overflowWrap: 'anywhere' }}>

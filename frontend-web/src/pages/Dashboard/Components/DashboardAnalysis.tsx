@@ -30,7 +30,7 @@ import PersonalSavedViews, {
   validDay,
 } from './PersonalSavedViews';
 import { PreviousPeriodData } from './PeriodComparison';
-import SourceDetails, { ContributionRequest, validGroupFingerprint } from './SourceDetails';
+import SourceDetails, { ContributionRequest, validGroupFingerprint, validTrendPointContribution } from './SourceDetails';
 import { TimeSelection, timeRangeLabel, validTimeRange } from './timeSelection';
 
 const valueKey = (value: FilterValue) => encodeURIComponent(JSON.stringify(value));
@@ -336,6 +336,49 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
         ...(widget.type !== 'BOARD_NUMERIC' ? { groupFingerprint: widget.contribution.groupFingerprint } : {}),
         ...(group ? { category: group.category as FilterValue } : {}),
       },
+      title: widget.title,
+    });
+    setDetailsOpen(true);
+  };
+  const trendContributionReason = (widget: any) => {
+    const trend = widget?.trend;
+    if (widget?.type !== 'BOARD_NUMERIC' || trend?.contribution?.supported !== true)
+      return typeof trend?.contribution?.reason === 'string' && trend.contribution.reason.trim()
+        ? trend.contribution.reason
+        : '이 추세 시점의 집계 원본 행 조회는 지원하지 않습니다.';
+    return Array.isArray(trend.points) &&
+      trend.points.some((point: any) =>
+        validTrendPointContribution({
+          column: trend.column,
+          grain: trend.grain,
+          time: point?.time,
+          groupFingerprint: trend.contribution.groupFingerprint,
+        }),
+      )
+      ? ''
+      : '추세 시점 또는 그룹 버전을 확인할 수 없습니다. 대시보드 데이터를 새로 조회해 주세요.';
+  };
+  const openTrendContribution = (widgetIndex: number, time: string) => {
+    const widget = preview?.widgets?.[widgetIndex];
+    if (
+      contributionInteraction.current.disabled ||
+      contributionInteraction.current.preview !== preview ||
+      !!trendContributionReason(widget) ||
+      !widget.trend.points.some((point: any) => point?.time === time)
+    )
+      return;
+    const trendPoint = {
+      column: widget.trend.column,
+      grain: widget.trend.grain,
+      time,
+      groupFingerprint: widget.trend.contribution.groupFingerprint,
+    };
+    if (!validTrendPointContribution(trendPoint)) return;
+    detailsLauncher.current =
+      (document.activeElement !== document.body ? document.activeElement : contributionButtons.current.get(widgetIndex)) ||
+      null;
+    setContribution({
+      request: { widgetIndex, expectedRevision: draft.revision, trendGrain, trendPoint },
       title: widget.title,
     });
     setDetailsOpen(true);
@@ -981,6 +1024,13 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
                   }
                   timeSelectionDisabled={timeSelectionDisabled}
                   selectedTimeRange={dateRange}
+                  onContributionSelect={widget.trend?.contribution ? time => openTrendContribution(i, time) : undefined}
+                  contributionDisabled={!!contributionDisabled || !!trendContributionReason(widget)}
+                  contributionDisabledReason={
+                    trendContributionReason(widget) ||
+                    detailsDisabledReason ||
+                    (editing ? '편집을 마친 뒤 조회해 주세요.' : '')
+                  }
                 />
               )}
               {widget.type !== 'BOARD_NUMERIC' && (Array.isArray(widget.previousDatas) || widget.previousUnavailable) && (

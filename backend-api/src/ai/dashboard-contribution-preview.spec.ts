@@ -129,6 +129,281 @@ describe('aggregate inputs: actual DuckDB, stored definitions and snapshots', ()
     (await service.details(await request(contribution, options), 7)).data;
   const ids = (data: any) => data.datas.map(row => row.row_id);
 
+  const trendRequest = async (options: any = {}, time?: string) => {
+    const saved = (await service.analysis(42, 7, true)).data;
+    const preview = (await service.preview({ draft: saved, includeTrends: true, ...options }, 7))
+      .data;
+    const trend = preview.widgets[0].trend;
+    return {
+      dashboardId: 42,
+      draft: saved,
+      sourceRevision: preview.sourceRevision,
+      ...options,
+      contribution: {
+        widgetIndex: 0,
+        expectedRevision: saved.revision,
+        trendGrain: options.trendGrain,
+        trendPoint: {
+          column: trend.column,
+          grain: trend.grain,
+          time: time ?? trend.points[0].time,
+          groupFingerprint: trend.contribution.groupFingerprint,
+        },
+      },
+    };
+  };
+  it('drills an auto-hour KPI point into its exact input rows without changing common scope', async () => {
+    const body = await trendRequest();
+    expect(body.contribution.trendPoint.grain).toBe('hour');
+    const result = (await service.details(body, 7)).data;
+    expect(ids(result)).toEqual([1, 1]);
+    expect(result.totalRows).toBe('2');
+    expect(result.contribution.title).toBe('Metric');
+    expect(result.contribution.trendPoint).toEqual(body.contribution.trendPoint);
+    expect(result.contribution).not.toHaveProperty('category');
+    expect(result.contribution).not.toHaveProperty('groupFingerprint');
+    expect(body).not.toHaveProperty('dateRange');
+  });
+  it('includes NULL-valued points in the fingerprint and retains denominator-only weighted input', async () => {
+    saveDefinition(numeric('sum(amount * weight) / nullif(sum(weight), 0)'));
+    const saved = (await service.analysis(42, 7, true)).data;
+    const trend = (await service.preview({ draft: saved, includeTrends: true }, 7)).data.widgets[0]
+      .trend;
+    expect(trend.points.find(point => point.time === '2026-01-06T10:00:00Z').value).toBeNull();
+    expect(trend.contribution).toEqual({
+      supported: true,
+      groupFingerprint: contributionGroupFingerprint(trend.points.map(point => point.time)),
+    });
+    const result = (await service.details(await trendRequest({}, '2026-01-06T10:00:00Z'), 7)).data;
+    expect(ids(result)).toEqual([11]);
+    expect(result.contributionComponents).toEqual([['SUM(weight)']]);
+    saveDefinition(numeric());
+    const nullSum = (await service.details(await trendRequest({}, '2026-01-06T10:00:00Z'), 7)).data;
+    expect(nullSum.totalRows).toBe('0');
+    expect(nullSum.datas).toEqual([]);
+  });
+  it.each(['day', 'week', 'month'] as const)(
+    'clips a selected %s point to existing filters and partial UTC range',
+    async grain => {
+      const options = {
+        trendGrain: grain,
+        filters: [{ column: 'channel', values: ['online'] }],
+        dateRange: {
+          column: 'event_time',
+          start: '2026-01-01T10:30:00Z',
+          end: '2026-01-06T10:30:00Z',
+          precision: 'timestamp',
+        },
+      };
+      const body = await trendRequest(options);
+      const result = (await service.details(body, 7)).data;
+      expect(ids(result)).toEqual(grain === 'month' ? [2, 9] : [2]);
+      expect(result.datas.every(row => row.accepted === true && row.channel === 'online')).toBe(
+        true,
+      );
+      expect(body.dateRange).toEqual(options.dateRange);
+    },
+  );
+  it.each([
+    { category: null },
+    { groupFingerprint: 'a'.repeat(64) },
+    { trendPoint: null },
+    { trendPoint: undefined },
+    {
+      trendPoint: {
+        column: 'event_time',
+        grain: 'hour',
+        time: '2026-01-01T10:00:00Z',
+        groupFingerprint: 'a'.repeat(64),
+        extra: true,
+      },
+    },
+    {
+      trendPoint: {
+        column: 'event_time',
+        grain: 'hour',
+        time: '2026-02-30T10:00:00Z',
+        groupFingerprint: 'a'.repeat(64),
+      },
+    },
+    {
+      trendPoint: {
+        column: 'event_time',
+        grain: 'minute',
+        time: '2026-01-01T10:00:00Z',
+        groupFingerprint: 'a'.repeat(64),
+      },
+    },
+    {
+      trendPoint: {
+        column: 'event_time',
+        grain: 'hour',
+        time: "2026-01-01') OR TRUE --",
+        groupFingerprint: 'a'.repeat(64),
+      },
+    },
+  ])('rejects mixed or malformed trend point contexts before queries: %j', async invalid => {
+    const body = await trendRequest();
+    const spy = jest.spyOn(connection, 'queryDuckDB');
+    await expect(
+      service.details({ ...body, contribution: { ...body.contribution, ...invalid } }, 7),
+    ).rejects.toThrow();
+    expect(spy).not.toHaveBeenCalled();
+  });
+  it('rejects stale time, auto grain, temporal column and fingerprint before count on every page', async () => {
+    const body = await trendRequest();
+    const spy = jest.spyOn(connection, 'queryDuckDB');
+    for (const point of [
+      { time: '2026-01-01T09:00:00Z' },
+      { column: 'amount' },
+      { grain: 'day' },
+      { groupFingerprint: '0'.repeat(64) },
+    ])
+      for (const page of [0, 1]) {
+        await expect(
+          service.details(
+            {
+              ...body,
+              page,
+              contribution: {
+                ...body.contribution,
+                trendPoint: { ...body.contribution.trendPoint, ...point },
+              },
+            },
+            7,
+          ),
+        ).rejects.toBeInstanceOf(ConflictException);
+      }
+    expect(spy.mock.calls.every(([, sql]) => !sql.includes('CAST(count(*) AS VARCHAR)'))).toBe(
+      true,
+    );
+  });
+  it('rejects chart trendPoint contexts and unsupported KPI lineage', async () => {
+    const body = await trendRequest();
+    saveDefinition(chart());
+    const saved = (await service.analysis(42, 7, true)).data;
+    await expect(
+      service.details(
+        {
+          ...body,
+          draft: saved,
+          contribution: { ...body.contribution, expectedRevision: saved.revision },
+        },
+        7,
+      ),
+    ).rejects.toThrow('invalid contribution request');
+    saveDefinition(numeric('sum(DISTINCT amount)'));
+    const next = (await service.analysis(42, 7, true)).data;
+    const trend = (await service.preview({ draft: next, includeTrends: true }, 7)).data.widgets[0]
+      .trend;
+    expect(trend.contribution.supported).toBe(false);
+    await expect(
+      service.details(
+        {
+          ...body,
+          draft: next,
+          contribution: { ...body.contribution, expectedRevision: next.revision },
+        },
+        7,
+      ),
+    ).rejects.toBeInstanceOf(UnprocessableEntityException);
+  });
+  it('preserves trend ownership, pinned source and final canonical definition checks', async () => {
+    const body = await trendRequest();
+    await expect(service.details(body, 8)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.details({ ...body, sourceRevision: 'stale' }, 7)).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+    const run = worker.query.bind(worker);
+    const spy = jest.spyOn(worker, 'query').mockImplementation(async (file, sql, bindings) => {
+      if (sql.includes('strftime(')) filename = files[1];
+      return run(file, sql, bindings);
+    });
+    const result = (await service.details(body, 7)).data;
+    expect(ids(result)).toEqual([1, 1]);
+    expect(result.sourceRevision).toBe(body.sourceRevision);
+    expect(spy.mock.calls.every(([file]) => file === files[0])).toBe(true);
+    spy.mockRestore();
+    filename = files[0];
+    jest.spyOn(worker, 'query').mockImplementation(async (file, sql, bindings) => {
+      const result = await run(file, sql, bindings);
+      if (sql.includes('AS "__vm_contribution_0"')) saveDefinition(numeric('avg(amount)'));
+      return result;
+    });
+    await expect(service.details(body, 7)).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it.each([
+    ['2026-01-12', 'day'],
+    ['2027-01-01', 'week'],
+    ['2030-01-01', 'month'],
+  ])(
+    'reconstructs auto grain %s from the same full-source stats even with excluded far rows',
+    async (end, grain) => {
+      const original = filename;
+      filename = (
+        await worker.importFile({
+          originalname: 'auto.csv',
+          buffer: Buffer.from(
+            `row_id,event_time,amount,accepted\n1,2026-01-01 10:00:00,10,true\n2,${end} 10:00:00,999,false\n`,
+          ),
+        })
+      ).filename;
+      try {
+        const body = await trendRequest();
+        expect(body.contribution.trendPoint.grain).toBe(grain);
+        const result = (await service.details(body, 7)).data;
+        expect(ids(result)).toEqual([1]);
+        expect(result.contribution.trendPoint).toEqual(body.contribution.trendPoint);
+      } finally {
+        filename = original;
+      }
+    },
+  );
+  it('declines KPI contributor queries over 240 trend points without returning truncated inputs', async () => {
+    const original = filename;
+    filename = (
+      await worker.importFile({
+        originalname: 'many-times.csv',
+        buffer: Buffer.from(
+          'row_id,event_time,amount,accepted\n' +
+            Array.from(
+              { length: 241 },
+              (_, i) => `${i},${new Date(Date.UTC(2026, 0, 1 + i)).toISOString()},1,true`,
+            ).join('\n') +
+            '\n',
+        ),
+      })
+    ).filename;
+    try {
+      const body = await request({ trendGrain: 'day' });
+      const preview = (
+        await service.preview({ draft: body.draft, includeTrends: true, trendGrain: 'day' }, 7)
+      ).data.widgets[0];
+      expect(preview.trend).toBeUndefined();
+      expect(preview.trendUnavailable).toContain('240');
+      await expect(
+        service.details(
+          {
+            ...body,
+            contribution: {
+              ...body.contribution,
+              trendPoint: {
+                column: 'event_time',
+                grain: 'day',
+                time: '2026-01-01T00:00:00Z',
+                groupFingerprint: '0'.repeat(64),
+              },
+            },
+          },
+          7,
+        ),
+      ).rejects.toBeInstanceOf(UnprocessableEntityException);
+    } finally {
+      filename = original;
+    }
+  });
+
   it('returns original WHERE inputs, retaining zeros and physical duplicates with collision-safe component metadata', async () => {
     const result = await details();
     expect(result.totalRows).toBe('10');

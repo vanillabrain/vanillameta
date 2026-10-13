@@ -213,6 +213,7 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
     expect(withTrend.data.widgets[0].trend).toEqual({
       column: 'event_time',
       grain: 'hour',
+      contribution: { supported: true, groupFingerprint: expect.stringMatching(/^[a-f0-9]{64}$/) },
       timeSelection: {
         column: 'event_time',
         grain: 'hour',
@@ -270,6 +271,7 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
     expect(result.data.widgets[0].trend).toEqual({
       column: 'event_time',
       grain: 'hour',
+      contribution: { supported: true, groupFingerprint: expect.stringMatching(/^[a-f0-9]{64}$/) },
       timeSelection: {
         column: 'event_time',
         grain: 'hour',

@@ -17,6 +17,9 @@ export default function MetricTrend({
   onTimeSelect,
   timeSelectionDisabled = false,
   selectedTimeRange,
+  onContributionSelect,
+  contributionDisabled = false,
+  contributionDisabledReason,
 }: {
   trend?: MetricTrendData;
   title: string;
@@ -28,6 +31,9 @@ export default function MetricTrend({
   onTimeSelect?: (range: DateRange) => void;
   timeSelectionDisabled?: boolean;
   selectedTimeRange?: DateRange | null;
+  onContributionSelect?: (time: string) => void;
+  contributionDisabled?: boolean;
+  contributionDisabledReason?: string;
 }) {
   const id = useId();
   const [activeTime, setActiveTime] = useState<string | null>(null);
@@ -39,7 +45,10 @@ export default function MetricTrend({
     return validTimeRange(range) && range.column === selection.column ? range : undefined;
   };
   const selectable = (trend?.points || []).filter(point => rangeFor(point.time));
-  const active = selectable.find(point => point.time === activeTime) || selectable[0];
+  const points = (trend?.points || []).filter(point => Number.isFinite(Date.parse(point.time)));
+  const contributionInteractive = !!onContributionSelect && trend?.contribution?.supported === true && points.length > 0;
+  const navigationPoints = contributionInteractive ? points : selectable;
+  const active = navigationPoints.find(point => point.time === activeTime) || navigationPoints[0];
   const activeRange = active ? rangeFor(active.time) : undefined;
   const select = (time: string) => {
     const range = rangeFor(time);
@@ -49,7 +58,37 @@ export default function MetricTrend({
     }
   };
   const interactive = !!onTimeSelect && selectable.length > 0;
-  const points = (trend?.points || []).filter(point => Number.isFinite(Date.parse(point.time)));
+  const navigable = interactive || contributionInteractive;
+  const contributionReason = contributionDisabledReason || trend?.contribution?.reason;
+  const pointLabel = (time: string) => time.replace('T', ' ').replace(/Z$/, ' UTC');
+  const contribute = (time: string) => {
+    if (contributionInteractive && !contributionDisabled && points.some(point => point.time === time)) {
+      setActiveTime(time);
+      onContributionSelect?.(time);
+    }
+  };
+  const contributionButton = (time: string) => (
+    <Button
+      type="button"
+      size="small"
+      aria-label={`이 시점의 집계 원본 행 보기: ${title} · ${pointLabel(time)}`}
+      aria-disabled={contributionDisabled || undefined}
+      aria-describedby={contributionDisabled && contributionReason ? `${id}-contribution-reason` : undefined}
+      sx={{
+        minWidth: 44,
+        minHeight: 44,
+        textTransform: 'none',
+        whiteSpace: 'normal',
+        overflowWrap: 'anywhere',
+        textAlign: 'left',
+        '&:focus-visible': { outline: '2px solid #1d4ed8', outlineOffset: 2 },
+      }}
+      onFocus={() => setActiveTime(time)}
+      onClick={() => contribute(time)}
+    >
+      이 시점의 집계 원본 행 보기
+    </Button>
+  );
   const numeric = points.filter(point => point.value !== null && Number.isFinite(point.value));
   const format = (value: number | null) =>
     value === null || !Number.isFinite(value)
@@ -85,7 +124,7 @@ export default function MetricTrend({
     return nearest?.time;
   };
   return (
-    <Box sx={{ px: 2.5, pb: 1, minWidth: 0 }}>
+    <Box sx={{ px: 2.5, pb: 1, minWidth: 0, '& svg:focus-visible': { outline: '2px solid #1d4ed8', outlineOffset: 2 } }}>
       {comparison && (
         <PeriodComparison
           comparison={comparison}
@@ -98,7 +137,7 @@ export default function MetricTrend({
       {unavailable && (
         <Typography sx={{ fontSize: 12, color: '#475569' }}>이 지표의 시계열을 표시할 수 없습니다. {unavailable}</Typography>
       )}
-      {!numeric.length ? (
+      {!numeric.length && !contributionInteractive ? (
         !unavailable && <Typography sx={{ fontSize: 12, color: '#475569' }}>표시할 시계열 데이터가 없습니다.</Typography>
       ) : (
         <>
@@ -107,11 +146,18 @@ export default function MetricTrend({
               viewBox="0 0 600 60"
               width="100%"
               height="60"
-              role={interactive ? 'group' : 'img'}
-              tabIndex={interactive ? 0 : undefined}
-              aria-disabled={(interactive && timeSelectionDisabled) || undefined}
+              role={navigable ? 'group' : 'img'}
+              tabIndex={navigable ? 0 : undefined}
+              aria-disabled={
+                (navigable &&
+                  (!interactive || timeSelectionDisabled) &&
+                  (!contributionInteractive || contributionDisabled)) ||
+                undefined
+              }
               aria-labelledby={`${id}-title`}
-              aria-describedby={interactive ? `${id}-desc ${id}-selection` : `${id}-desc`}
+              aria-describedby={`${id}-desc${interactive ? ` ${id}-selection` : ''}${
+                contributionInteractive ? ` ${id}-contribution` : ''
+              }`}
               style={{ cursor: interactive ? 'pointer' : undefined, WebkitTapHighlightColor: 'transparent' }}
               onPointerMove={event => {
                 const time = pointerTime(event);
@@ -122,18 +168,18 @@ export default function MetricTrend({
                 if (time) select(time);
               }}
               onKeyDown={event => {
-                if (!interactive || timeSelectionDisabled) return;
+                if (!navigable || (!contributionInteractive && timeSelectionDisabled)) return;
                 if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
                   event.preventDefault();
-                  let index = selectable.findIndex(point => point.time === active?.time);
+                  let index = navigationPoints.findIndex(point => point.time === active?.time);
                   index =
                     event.key === 'Home'
                       ? 0
                       : event.key === 'End'
-                      ? selectable.length - 1
-                      : Math.max(0, Math.min(selectable.length - 1, index + (event.key === 'ArrowRight' ? 1 : -1)));
-                  setActiveTime(selectable[index].time);
-                } else if ((event.key === 'Enter' || event.key === ' ') && active) {
+                      ? navigationPoints.length - 1
+                      : Math.max(0, Math.min(navigationPoints.length - 1, index + (event.key === 'ArrowRight' ? 1 : -1)));
+                  setActiveTime(navigationPoints[index].time);
+                } else if (interactive && (event.key === 'Enter' || event.key === ' ') && active) {
                   event.preventDefault();
                   select(active.time);
                 }
@@ -151,7 +197,7 @@ export default function MetricTrend({
               </defs>
               <path d={area} fill={`url(#${id}-fill)`} />
               <path d={path} fill="none" stroke="#1d4ed8" strokeWidth="1.25" vectorEffect="non-scaling-stroke" />
-              {interactive &&
+              {navigable &&
                 active &&
                 (() => {
                   const dates = points.map(point => Date.parse(point.time));
@@ -183,6 +229,26 @@ export default function MetricTrend({
           시점을 눌러 기간 필터링 · ← → 이동, Enter/Space 선택. {activeRange && timeRangeLabel(activeRange)}
         </Typography>
       )}
+      {contributionInteractive && active && (
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1, minWidth: 0 }}>
+          <Typography
+            id={`${id}-contribution`}
+            aria-live="polite"
+            sx={{ fontSize: 12, overflowWrap: 'anywhere', minWidth: 0 }}
+          >
+            집계 원본 시점: {pointLabel(active.time)} · {format(active.value)}. ← → / Home / End 이동
+          </Typography>
+          {contributionButton(active.time)}
+        </Box>
+      )}
+      {onContributionSelect && contributionReason && (!contributionInteractive || contributionDisabled) && (
+        <Typography
+          id={`${id}-contribution-reason`}
+          sx={{ fontSize: 12, color: 'text.secondary', overflowWrap: 'anywhere' }}
+        >
+          {contributionReason}
+        </Typography>
+      )}
       <Box
         component="details"
         sx={{ mt: 0.5, fontSize: 12, color: '#1d4ed8', '& summary': { cursor: 'pointer', width: 'fit-content' } }}
@@ -209,6 +275,7 @@ export default function MetricTrend({
               <tr>
                 <th scope="col">날짜</th>
                 <th scope="col">값</th>
+                {contributionInteractive && <th scope="col">집계 원본 행</th>}
               </tr>
             </thead>
             <tbody>
@@ -236,6 +303,7 @@ export default function MetricTrend({
                       )}
                     </th>
                     <td>{format(point.value)}</td>
+                    {contributionInteractive && <td>{contributionButton(point.time)}</td>}
                   </tr>
                 );
               })}
