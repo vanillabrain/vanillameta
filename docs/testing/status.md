@@ -1,5 +1,7 @@
 # MD 검증 현황 — 2026-10-13
 
+2026-10-13 인증·설정 복구 후 VoiceOver 재시도: [detail-large-screenreader.md](detail-large-screenreader.md). 사용자 확인 후 AppleScript 제어 체크상자0을 네이티브 도구로 확인해 복구 완료로 기록했다. 중복된 빈 검증 앱을 정리해 dashboard23의1391572행 상세 화면 연결은 해결했다. 실제 VoiceOver 앱 연결은 timeoutReached, OS 프로세스 조회는 -10827로 발화·읽기 순서 DETAIL-SR-02는 BLOCKED 유지다. 임시 인증파일·전용 창 정리, 제품 변경0/AI 호출0/gpt-6-luna 유지, 기존 통과 반복 없음.
+
 2026-10-13 상세 선택창 대비 후속: [detail-large-screenreader.md](detail-large-screenreader.md). 자동 미판정1건은 유지하면서 실제 선택값·레이블의 white 배경 대비16.07/5.74/6.72:1과 텍스트 가림 없음을 관찰해 해당 텍스트만 선택 PASS로 보완했다. desktop Enter/Escape·mobile ArrowDown/Enter의50행 선택도 확인했다. 사용자 권한 허용 후 VoiceOver 프로세스는 발견됐지만 창 접근·발화 읽기(-1728)와 CUA/Orca 연결은 실패해 실제 발화 BLOCKED를 유지한다. 제품 변경0·모델 호출0, 기존 수치·E2E 통과 반복 없음.
 
 2026-10-13 원본 상세 로딩 안내 후속: [detail-large-screenreader.md](detail-large-screenreader.md)의 DETAIL-SR-01 미확인 로딩 조건을 보완했다. 동일 atomic/live 상태 영역에서 조회 중 페이지·행 수와 완료 안내를 갱신한다.390px 최초 조회·1440px 페이지 이동·503 후 Enter 재시도와 Escape 초점 복귀를 선택 검증했다. 실제 발화는 BLOCKED, 완료 화면 axe는 오류0/미판정1로 남긴다. 기존 수치·E2E 통과 조건 반복 없음, gpt-6-luna 유지·모델 호출0.

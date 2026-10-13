@@ -83,3 +83,13 @@ desktop Enter로 listbox의25/50/100행 옵션이 노출되고 Escape가 select�
 사용자가 보조 접근 권한 허용을 알린 뒤 OS 도구를 재확인했다. VoiceOver 프로세스는 발견됐으나 창 열거는 여전히 `osascript` 보조 접근 거부(-1728), 마지막 실제 발화 읽기도 content를 가져올 수 없음(-1728)이었다. CUA 앱 연결은 timeoutReached, Orca는 runtime_unavailable/open_timeout이었다. 단순 frontmost 이름 읽기 성공을 창 제어 권한으로 해석하지 않는다. 실제 발화·읽기 순서는 **BLOCKED**이며 `voiceover-permission-followup.json`에 남겼다. 허용한 앱과 실행 도구의 권한 대응 확인을 요청했으며 VoiceOver나 사용자 앱은 종료하지 않는다.
 
 이번 후속은 제품 코드 변경0·AI 호출0/gpt-6-luna 유지다. 이전 성능·수치·E2E 통과는 재사용했고 문서만 변경하므로 단위·타입·빌드는 재실행하지 않는다.
+
+## 인증·설정 복구 이후 실제 발화 재시도 — 2026-10-13
+
+기준 `0a2d9e6d`. 사용자가 OS 인증 완료와 AppleScript 제어 허용 해제를 알린 뒤 CUA에서 해당 체크상자 `Value: 0`을 직접 확인했다. 설정 복구는 **CONFIRMED_OFF**이며 다시 켜지 않았다. 기존 자막 패널은 켜져 있었고 변경하지 않았다. 시스템 설정의 VoiceOver 스위치는 on이었다.
+
+이 작업에서 만든 중복된 빈 로그인 검증 앱만 종료한 뒤, 실제 인증된 `http://127.0.0.1:3483/dashboard/23` 창에 네이티브 도구로 연결했다. 원본 상세 제목·1,391,572행·1페이지·25행 표를 확인하고 VoiceOver 탐색 키를 보냈다. 그러나 VoiceOver 앱 연결은 `timeoutReached`, System Events의 VoiceOver 프로세스 조회는 오류 `-10827`이었다. 실제 자막·발화 결과를 확보하지 못했으므로 키 전송이나 화면 연결 성공을 읽기 성공으로 해석하지 않는다. DETAIL-SR-02는 **BLOCKED**를 유지한다.
+
+이전 시도에서 잠시 읽은 ‘Conversation 지역’은 다른 앱의 발화이며 이 케이스의 증거가 아니다. 테스트 계정5의 인증정보 읽기는 자동 승인 검토 거절 이후 사용자의 해당 계정·로컬4683 목적에 대한 명시적 승인을 받은 뒤에만 수행했다. 비밀번호·토큰 출력 없이 인증했고 임시 로그인 파일을 삭제했다. 사용자 OS 암호는 읽거나 기록하지 않았다.
+
+`voiceover-retry-20261013.json`에 최초 차단·명시적 승인·인증·최종 복구 상태를 구분해 기록했다. `voiceover-native-ready-dialog.png`는 연결된 상세 화면 증거이며 실제 발화 캡처가 아니다. 전용 검증 브라우저만 종료하고 기존 FE/API 서버·source22/dashboard23을 보존했다. 제품 코드 변경0·AI 호출0/gpt-6-luna 유지이며 기존 성능·수치·모바일·키보드·E2E 통과는 반복하지 않았다. 문서 diff와 증빙 파일만 검사했다.
