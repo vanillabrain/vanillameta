@@ -220,7 +220,8 @@ export function buildTimeChartQuery(
     )
       .map(token => (token.startsWith("'") || token.startsWith('"') ? token : token.toLowerCase()))
       .join(' ');
-  if (!temporalProjection(category.expression, dateColumn)) return undefined;
+  const categoryTime = temporalProjection(category.expression, dateColumn);
+  if (!categoryTime) return undefined;
   const groupEnd = order >= 0 ? top[order].index : limit >= 0 ? top[limit].index : sql.length;
   const groupExpression = sql.slice(top[group + 1].index + 2, groupEnd).trim();
   if (
@@ -228,7 +229,12 @@ export function buildTimeChartQuery(
       normalized(category.expression),
       normalized(categoryField),
       normalized(quoteColumn(categoryField)),
-    ].includes(normalized(groupExpression))
+    ].includes(normalized(groupExpression)) &&
+    !(
+      categoryTime.grain &&
+      /^date_trunc \(/.test(normalized(groupExpression)) &&
+      temporalProjection(groupExpression, dateColumn)?.grain === categoryTime.grain
+    )
   )
     return undefined;
   if (limit >= 0) {
@@ -243,7 +249,12 @@ export function buildTimeChartQuery(
     if (
       ![category.expression, categoryField, quoteColumn(categoryField)]
         .map(normalized)
-        .includes(normalized(orderExpression))
+        .includes(normalized(orderExpression)) &&
+      !(
+        categoryTime.grain &&
+        /^date_trunc \(/.test(normalized(orderExpression)) &&
+        temporalProjection(orderExpression, dateColumn)?.grain === categoryTime.grain
+      )
     )
       return undefined;
   }

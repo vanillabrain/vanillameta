@@ -94,7 +94,13 @@ export function validateSourceSql(sql: string): string {
     'over',
   ]);
   for (let i = 0; i < normalized.length - 1; i++) {
-    if (words[i + 1] === '(' && /^[a-z_"']/i.test(words[i]) && !functions.has(normalized[i])) {
+    const groupingKeyword = /^(select|where|and|or|not|when|then|else|having|by)$/;
+    if (
+      words[i + 1] === '(' &&
+      /^[a-z_"']/i.test(words[i]) &&
+      !functions.has(normalized[i]) &&
+      !groupingKeyword.test(normalized[i])
+    ) {
       throw new BadRequestException('unsupported SQL function');
     }
   }

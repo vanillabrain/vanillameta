@@ -14,9 +14,21 @@ import {
   Typography,
 } from '@mui/material';
 import { post } from '@/helpers/apiHelper';
-import type { DateRange, FilterValue } from './PersonalSavedViews';
+import type { DateRange, FilterValue, TrendGrain } from './PersonalSavedViews';
 import { timeRangeLabel } from './timeSelection';
 
+export type ContributionRequest = {
+  widgetIndex: number;
+  expectedRevision: string;
+  trendGrain: TrendGrain;
+  category?: FilterValue;
+  groupFingerprint?: string;
+};
+type ContributionData = Omit<ContributionRequest, 'trendGrain'> & {
+  title: string;
+  components: string[];
+  semantics: string;
+};
 type Props = {
   open: boolean;
   dashboardId: number;
@@ -25,6 +37,8 @@ type Props = {
   dateRange?: DateRange | null;
   sourceRevision?: string;
   disabledReason?: string;
+  contribution?: ContributionRequest | null;
+  widgetTitle?: string;
   onClose: () => void;
   onRefresh: () => void;
   onExited?: () => void;
@@ -38,11 +52,57 @@ type DetailData = {
   sourceRevision: string;
   columnCount?: number;
   scope?: string;
+  contribution?: ContributionData;
+  contributionComponents?: string[][];
 };
+const ownsCategory = (value: object) => Object.prototype.hasOwnProperty.call(value, 'category');
+const ownsFingerprint = (value: object) => Object.prototype.hasOwnProperty.call(value, 'groupFingerprint');
+export const validGroupFingerprint = (value: unknown): value is string =>
+  typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
+const primitiveCategory = (value: unknown) =>
+  value === null ||
+  typeof value === 'string' ||
+  typeof value === 'boolean' ||
+  (typeof value === 'number' && Number.isFinite(value));
+const categoryText = (value: FilterValue) =>
+  value === null
+    ? '값 없음 (NULL)'
+    : `${String(value)} (${typeof value === 'number' ? '숫자' : typeof value === 'boolean' ? '불리언' : '문자열'})`;
+const stringLabels = (value: unknown): value is string[] =>
+  Array.isArray(value) &&
+  value.length > 0 &&
+  value.every(label => typeof label === 'string' && !!label.trim()) &&
+  new Set(value).size === value.length;
+function validContribution(data: DetailData, requested: ContributionRequest, title?: string) {
+  const response = data.contribution;
+  return (
+    !!response &&
+    data.scope === 'widget aggregate input rows' &&
+    response.widgetIndex === requested.widgetIndex &&
+    response.expectedRevision === requested.expectedRevision &&
+    ownsFingerprint(response) === ownsFingerprint(requested) &&
+    (!ownsFingerprint(requested) ||
+      (validGroupFingerprint(response.groupFingerprint) && response.groupFingerprint === requested.groupFingerprint)) &&
+    ownsCategory(response) === ownsCategory(requested) &&
+    (!ownsCategory(requested) ||
+      (primitiveCategory(response.category) && Object.is(response.category, requested.category))) &&
+    typeof response.title === 'string' &&
+    !!response.title.trim() &&
+    (!title || response.title === title) &&
+    typeof response.semantics === 'string' &&
+    !!response.semantics.trim() &&
+    stringLabels(response.components) &&
+    Array.isArray(data.contributionComponents) &&
+    data.contributionComponents.length === data.datas.length &&
+    data.contributionComponents.every(
+      labels => stringLabels(labels) && labels.every(label => response.components.includes(label)),
+    )
+  );
+}
 export function canRequestNextPage(page: number, pageSize: number, totalRows: string) {
   return page < 10000 && BigInt(page + 1) * BigInt(pageSize) < BigInt(totalRows);
 }
-function errorText(error: unknown) {
+function errorText(error: unknown, contribution = false) {
   const e = error as { response?: { status?: number; data?: { data?: unknown; message?: unknown } }; message?: unknown };
   const body = e?.response?.data;
   const nested = body?.data as { message?: unknown };
@@ -53,7 +113,9 @@ function errorText(error: unknown) {
   return {
     stale,
     message: stale
-      ? `원본 데이터 버전이 변경되었습니다. 대시보드 데이터를 새로 조회한 뒤 상세를 다시 열어 주세요.${
+      ? `${
+          contribution ? '집계 정의 또는 원본 데이터 버전' : '원본 데이터 버전'
+        }이 변경되었습니다. 대시보드 데이터를 새로 조회한 뒤 상세를 다시 열어 주세요.${
           typeof message === 'string' ? ` ${message}` : ''
         }`
       : typeof message === 'string'
@@ -72,18 +134,40 @@ export default function SourceDetails({
   dateRange,
   sourceRevision,
   disabledReason = '',
+  contribution,
+  widgetTitle,
   onClose,
   onRefresh,
   onExited,
 }: Props) {
   const titleId = useId();
   const descriptionId = useId();
-  const contextKey = JSON.stringify({ dashboardId, draft, filters, dateRange: dateRange ?? null, sourceRevision });
+  const contextKey = JSON.stringify({
+    dashboardId,
+    draft,
+    filters,
+    dateRange: dateRange ?? null,
+    sourceRevision,
+    contribution: contribution ?? null,
+    widgetTitle,
+  });
   const [pagination, setPagination] = useState({ contextKey, page: 0, pageSize: 25 });
   const page = pagination.contextKey === contextKey ? pagination.page : 0;
   const pageSize = pagination.pageSize;
   const [reload, setReload] = useState(0);
-  const blocked = disabledReason || (!sourceRevision ? '데이터 버전을 확인한 뒤 원본 행을 조회할 수 있습니다.' : '');
+  const invalidContribution =
+    !!contribution &&
+    (!Number.isInteger(contribution.widgetIndex) ||
+      contribution.widgetIndex < 0 ||
+      typeof contribution.expectedRevision !== 'string' ||
+      !contribution.expectedRevision.trim() ||
+      !['auto', 'day', 'week', 'month'].includes(contribution.trendGrain) ||
+      (ownsFingerprint(contribution) && !validGroupFingerprint(contribution.groupFingerprint)) ||
+      (ownsCategory(contribution) && !primitiveCategory(contribution.category)));
+  const blocked =
+    disabledReason ||
+    (invalidContribution ? '집계 조건을 확인한 뒤 원본 행을 조회할 수 있습니다.' : '') ||
+    (!sourceRevision ? '데이터 버전을 확인한 뒤 원본 행을 조회할 수 있습니다.' : '');
   const requestKey = JSON.stringify({ contextKey, page, pageSize, reload, open, blocked });
   const [result, setResult] = useState<{ key: string; data?: DetailData; error?: ReturnType<typeof errorText> } | null>(
     null,
@@ -107,6 +191,7 @@ export default function SourceDetails({
           sourceRevision,
           page,
           pageSize,
+          ...(contribution ? { contribution } : {}),
         },
         { timeout: 60000, signal: controller.signal },
       )
@@ -116,7 +201,9 @@ export default function SourceDetails({
           const data = response.data.data as DetailData;
           if (
             !data ||
-            (data.scope !== undefined && data.scope !== 'current common-filter source rows') ||
+            (contribution
+              ? data.scope !== 'widget aggregate input rows'
+              : data.scope !== 'current common-filter source rows') ||
             (data.columnCount !== undefined &&
               (!Number.isInteger(data.columnCount) || data.columnCount < data.fields?.length)) ||
             !Array.isArray(data.fields) ||
@@ -129,14 +216,17 @@ export default function SourceDetails({
             !/^\d+$/.test(data.totalRows) ||
             data.page !== page ||
             data.pageSize !== pageSize ||
-            data.sourceRevision !== sourceRevision
+            data.sourceRevision !== sourceRevision ||
+            (contribution
+              ? !validContribution(data, contribution, widgetTitle)
+              : data.contribution !== undefined || data.contributionComponents !== undefined)
           )
             throw new Error('원본 행 응답의 조건 또는 데이터 버전을 확인할 수 없습니다. 다시 조회해 주세요.');
           setResult({ key: requestKey, data });
         })
         .catch(error => {
           if (!controller.signal.aborted && request === serial.current && currentKey.current === requestKey)
-            setResult({ key: requestKey, error: errorText(error) });
+            setResult({ key: requestKey, error: errorText(error, !!contribution) });
         });
     }
     return () => {
@@ -162,11 +252,19 @@ export default function SourceDetails({
       TransitionProps={{ onExited }}
       PaperProps={{ sx: { m: 2, width: 'calc(100% - 32px)', maxHeight: 'calc(100dvh - 32px)', minWidth: 0 } }}
     >
-      <DialogTitle id={titleId}>현재 공통 필터의 원본 행</DialogTitle>
+      <DialogTitle id={titleId}>{contribution ? '집계에 사용된 원본 행' : '현재 공통 필터의 원본 행'}</DialogTitle>
       <DialogContent sx={{ minWidth: 0 }}>
         <Typography id={descriptionId} variant="body2" sx={{ mb: 1, overflowWrap: 'anywhere' }}>
-          현재 공통 필터와 적용 기간에 해당하는 원본 데이터입니다. 개별 차트에 설정한 추가 조건은 포함하지 않습니다.
+          {contribution
+            ? '현재 공통 필터와 적용 기간, 해당 차트의 추가 조건을 적용한 집계 입력 행입니다.'
+            : '현재 공통 필터와 적용 기간에 해당하는 원본 데이터입니다. 개별 차트에 설정한 추가 조건은 포함하지 않습니다.'}
         </Typography>
+        {contribution && (
+          <Typography variant="body2" sx={{ mb: 1, overflowWrap: 'anywhere' }}>
+            차트: {widgetTitle || data?.contribution?.title || '선택한 집계'} ·{' '}
+            {ownsCategory(contribution) ? `그룹: ${categoryText(contribution.category)}` : '위젯 전체'}
+          </Typography>
+        )}
         <Typography variant="body2" sx={{ mb: 1, overflowWrap: 'anywhere' }}>
           {dateRange
             ? `${dateRange.column}: ${
@@ -193,6 +291,11 @@ export default function SourceDetails({
         )}
         {data && (
           <>
+            {data.contribution && (
+              <Typography variant="body2" sx={{ mb: 1, overflowWrap: 'anywhere' }}>
+                {data.contribution.semantics}
+              </Typography>
+            )}
             {data.columnCount !== undefined && data.columnCount > 50 && (
               <Alert severity="info">원본 {data.columnCount}개 컬럼 중 처음 50개 컬럼만 표시합니다.</Alert>
             )}
@@ -204,7 +307,7 @@ export default function SourceDetails({
             </Typography>
             <Box
               role="region"
-              aria-label="현재 공통 필터의 원본 행 표"
+              aria-label={contribution ? '집계에 사용된 원본 행 표' : '현재 공통 필터의 원본 행 표'}
               tabIndex={0}
               sx={{
                 maxHeight: '50dvh',
@@ -226,9 +329,16 @@ export default function SourceDetails({
               }}
             >
               <table>
-                <caption>현재 공통 필터의 원본 데이터 · {page + 1}페이지</caption>
+                <caption>
+                  {contribution ? '집계에 사용된 원본 데이터' : '현재 공통 필터의 원본 데이터'} · {page + 1}페이지
+                </caption>
                 <thead>
                   <tr>
+                    {contribution && (
+                      <th scope="col" style={{ minWidth: 128 }}>
+                        집계 구성요소
+                      </th>
+                    )}
                     {data.fields.map(field => (
                       <th scope="col" key={field.columnName}>
                         {field.columnName}
@@ -242,6 +352,33 @@ export default function SourceDetails({
                 <tbody>
                   {data.datas.map((row, index) => (
                     <tr key={index}>
+                      {contribution && (
+                        <td style={{ minWidth: 128 }}>
+                          {data.contributionComponents[index].map(label => (
+                            <Box
+                              component="span"
+                              key={label}
+                              sx={{
+                                display: 'inline-block',
+                                boxSizing: 'border-box',
+                                maxWidth: '100%',
+                                mr: 0.5,
+                                mb: 0.5,
+                                px: 0.75,
+                                py: 0.25,
+                                border: 1,
+                                borderColor: 'divider',
+                                borderRadius: 1,
+                                fontSize: 12,
+                                whiteSpace: 'normal',
+                                overflowWrap: 'anywhere',
+                              }}
+                            >
+                              {label}
+                            </Box>
+                          ))}
+                        </td>
+                      )}
                       {data.fields.map(field => (
                         <td key={field.columnName}>
                           {cellText(
@@ -282,7 +419,9 @@ export default function SourceDetails({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>원본 상세 닫기</Button>
+        <Button onClick={onClose} sx={{ minHeight: 44 }}>
+          원본 상세 닫기
+        </Button>
       </DialogActions>
     </Dialog>
   );

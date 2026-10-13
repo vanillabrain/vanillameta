@@ -70,6 +70,8 @@ const WidgetViewer = props => {
     timeSelection,
     timeSelectionDisabled,
     selectedTimeRange,
+    onContributionSelect,
+    contributionDisabled,
   } = props;
   const { showLoading, hideLoading } = useContext(LoadingContext);
   const [module, setModule] = useState(null);
@@ -91,6 +93,8 @@ const WidgetViewer = props => {
     timeSelection,
     timeSelectionDisabled,
     selectedTimeRange,
+    onContributionSelect,
+    contributionDisabled,
   ]);
 
   const renderWidget = () => {
@@ -106,6 +110,8 @@ const WidgetViewer = props => {
       timeSelection,
       timeSelectionDisabled,
       selectedTimeRange,
+      onContributionSelect,
+      contributionDisabled,
     };
     showLoading();
     switch (widgetType) {

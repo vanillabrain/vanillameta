@@ -2,7 +2,7 @@ import React from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import SourceDetails, { canRequestNextPage } from './SourceDetails';
+import SourceDetails, { ContributionRequest, canRequestNextPage } from './SourceDetails';
 import DashboardAnalysis from './DashboardAnalysis';
 
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), widget: vi.fn() }));
@@ -33,6 +33,17 @@ vi.mock('@/widget/wrapper/WidgetViewer', () => ({
             {JSON.stringify(row.category)}
           </button>
         ))}
+        {props.onContributionSelect &&
+          props.dataSet.map((row: any, index: number) => (
+            <button
+              key={`contribution-${index}`}
+              aria-disabled={props.contributionDisabled}
+              aria-label={`집계 그룹 ${JSON.stringify(row.category)}`}
+              onClick={() => props.onContributionSelect(row.category)}
+            >
+              집계 원본 행 보기
+            </button>
+          ))}
       </div>
     );
   },
@@ -731,4 +742,432 @@ it('retains stale refresh focus when MUI automatically restores the enabled laun
   await act(async () => pending.resolve(success({ ...preview, sourceRevision: 'updated-source-version' })));
   await idle();
   expect(document.activeElement).toBe(button('원본 상세 보기'));
+});
+
+const groupFingerprint = 'b'.repeat(64);
+const contribution: ContributionRequest = {
+  widgetIndex: 0,
+  expectedRevision: draft.revision,
+  trendGrain: 'week',
+  groupFingerprint,
+};
+const contributionTitle = '채널 매출';
+const contributionData = (request = contribution, page = 0, pageSize = 25, title = contributionTitle) => ({
+  ...detailData(page, pageSize),
+  scope: 'widget aggregate input rows',
+  contribution: {
+    widgetIndex: request.widgetIndex,
+    expectedRevision: request.expectedRevision,
+    ...(Object.prototype.hasOwnProperty.call(request, 'category') ? { category: request.category } : {}),
+    ...(Object.prototype.hasOwnProperty.call(request, 'groupFingerprint')
+      ? { groupFingerprint: request.groupFingerprint }
+      : {}),
+    title,
+    components: ['SUM(amount)', 'COUNT(*)'],
+    semantics: '집계 함수 입력 행의 합집합입니다. MIN/MAX는 모든 비NULL 입력, 비율은 각 구성요소 입력을 포함합니다.',
+  },
+  contributionComponents: [['SUM(amount)', 'COUNT(*)']],
+});
+
+it('contributor detail sends the whole-widget contract, keeps original columns untouched and renders component labels separately', async () => {
+  const data = contributionData();
+  data.fields = [
+    { columnName: '집계 구성요소', columnType: 'VARCHAR' },
+    { columnName: '__proto__', columnType: 'INTEGER' },
+  ];
+  data.datas = [
+    Object.fromEntries([
+      ['집계 구성요소', '<img onerror=unsafe>'],
+      ['__proto__', 0],
+    ]),
+  ];
+  api.post.mockResolvedValueOnce(success(data));
+  render(<SourceDetails {...props} contribution={contribution} widgetTitle={contributionTitle} />);
+  await screen.findByText('<img onerror=unsafe>');
+  expect(api.post.mock.lastCall[1]).toEqual({
+    dashboardId: props.dashboardId,
+    draft,
+    filters: props.filters,
+    dateRange: range,
+    sourceRevision: props.sourceRevision,
+    page: 0,
+    pageSize: 25,
+    contribution,
+  });
+  expect(api.post.mock.lastCall[1].contribution).not.toHaveProperty('category');
+  const dialog = screen.getByRole('dialog', { name: '집계에 사용된 원본 행' });
+  expect(within(dialog).getByText('차트: 채널 매출 · 위젯 전체')).toBeTruthy();
+  expect(within(dialog).getByText(/MIN\/MAX는 모든 비NULL 입력/)).toBeTruthy();
+  expect(within(dialog).queryByText(/개별 차트에 설정한 추가 조건은 포함하지 않습니다/)).toBeNull();
+  const region = screen.getByRole('region', { name: '집계에 사용된 원본 행 표' });
+  expect(region.tabIndex).toBe(0);
+  expect(region.style.maxHeight).toBe('50dvh');
+  const cells = within(region).getAllByRole('cell');
+  expect(cells.map(cell => cell.textContent)).toEqual(['SUM(amount)COUNT(*)', '<img onerror=unsafe>', '0']);
+  expect(within(cells[0]).getByText('SUM(amount)').tagName).toBe('SPAN');
+  expect(region.querySelector('img')).toBeNull();
+  expect(data.fields.map(field => field.columnName)).toEqual(['집계 구성요소', '__proto__']);
+});
+
+it.each([null, 'null', 1, '1', true])('contributor detail retains category type and own presence for %j', async category => {
+  const request = { ...contribution, category };
+  api.post.mockResolvedValueOnce(success(contributionData(request)));
+  render(<SourceDetails {...props} contribution={request} widgetTitle={contributionTitle} />);
+  await screen.findByText('record-A');
+  expect(api.post.mock.lastCall[1].contribution.category).toBe(category);
+  expect(Object.prototype.hasOwnProperty.call(api.post.mock.lastCall[1].contribution, 'category')).toBe(true);
+  const label =
+    category === null
+      ? '값 없음 (NULL)'
+      : `${String(category)} (${
+          typeof category === 'number' ? '숫자' : typeof category === 'boolean' ? '불리언' : '문자열'
+        })`;
+  expect(screen.getByText(`차트: 채널 매출 · 그룹: ${label}`)).toBeTruthy();
+});
+
+it.each([
+  [
+    'scope',
+    (data: any) => {
+      data.scope = 'current common-filter source rows';
+    },
+  ],
+  [
+    'widget',
+    (data: any) => {
+      data.contribution.widgetIndex = 1;
+    },
+  ],
+  [
+    'definition',
+    (data: any) => {
+      data.contribution.expectedRevision = 'different';
+    },
+  ],
+  [
+    'category presence',
+    (data: any) => {
+      data.contribution.category = null;
+    },
+  ],
+  [
+    'category type',
+    (data: any) => {
+      data.contribution.category = 'null';
+    },
+  ],
+  [
+    'title',
+    (data: any) => {
+      data.contribution.title = 'another widget';
+    },
+  ],
+  [
+    'labels alignment',
+    (data: any) => {
+      data.contributionComponents = [];
+    },
+  ],
+  [
+    'labels identity',
+    (data: any) => {
+      data.contributionComponents = [['unrelated SQL']];
+    },
+  ],
+  [
+    'semantics',
+    (data: any) => {
+      data.contribution.semantics = { message: 'unknown' };
+    },
+  ],
+])('contributor detail rejects mismatched %s without displaying wrong rows', async (kind, mutate) => {
+  const request = kind === 'category type' ? { ...contribution, category: null } : contribution;
+  const data = contributionData(request);
+  mutate(data);
+  api.post.mockResolvedValueOnce(success(data));
+  render(<SourceDetails {...props} contribution={request} widgetTitle={contributionTitle} />);
+  await screen.findByText(/원본 행 응답의 조건 또는 데이터 버전/);
+  expect(screen.queryByText('record-A')).toBeNull();
+  expect(screen.queryByRole('table')).toBeNull();
+  expect(button('원본 행 다시 조회')).toBeTruthy();
+});
+
+it.each([
+  { ...contribution, widgetIndex: 1 },
+  { ...contribution, expectedRevision: 'new-definition' },
+  { ...contribution, trendGrain: 'month' as const },
+  { ...contribution, category: null },
+])('contributor detail pins changed identity %j and ignores aborted older records', async changed => {
+  api.post
+    .mockResolvedValueOnce(success(contributionData()))
+    .mockResolvedValueOnce(success(contributionData(contribution, 1)));
+  const view = render(<SourceDetails {...props} contribution={contribution} widgetTitle={contributionTitle} />);
+  await screen.findByText('record-A');
+  fireEvent.click(button('다음 페이지'));
+  await idle();
+  const old = deferred();
+  api.post.mockReturnValueOnce(old.promise);
+  fireEvent.click(button('이전 페이지'));
+  const oldSignal = api.post.mock.lastCall[2].signal;
+  const current = deferred();
+  api.post.mockReturnValueOnce(current.promise);
+  view.rerender(<SourceDetails {...props} contribution={changed} widgetTitle={contributionTitle} />);
+  expect(oldSignal.aborted).toBe(true);
+  expect(screen.queryByText('record-A')).toBeNull();
+  expect(api.post.mock.lastCall[1]).toMatchObject({ contribution: changed, page: 0 });
+  await act(async () => current.resolve(success({ ...contributionData(changed), datas: [{ channel: 'fresh-row' }] })));
+  await screen.findByText('fresh-row');
+  await act(async () => old.resolve(success({ ...contributionData(), datas: [{ channel: 'stale-row' }] })));
+  expect(screen.queryByText('stale-row')).toBeNull();
+});
+
+it('contributor detail preserves grouping across pagination and changes cleanly back to raw source mode', async () => {
+  const request = { ...contribution, category: null };
+  api.post.mockImplementation(async (_url, body) => success(contributionData(body.contribution, body.page, body.pageSize)));
+  const view = render(<SourceDetails {...props} contribution={request} widgetTitle={contributionTitle} />);
+  await screen.findByText('record-A');
+  fireEvent.click(button('다음 페이지'));
+  await idle();
+  expect(api.post.mock.lastCall[1]).toMatchObject({ contribution: request, page: 1, pageSize: 25 });
+  choose('페이지당 행 수', '50');
+  await idle();
+  expect(api.post.mock.lastCall[1]).toMatchObject({ contribution: request, page: 0, pageSize: 50 });
+  const raw = deferred();
+  api.post.mockReturnValueOnce(raw.promise);
+  view.rerender(<SourceDetails {...props} />);
+  expect(screen.queryByText('record-A')).toBeNull();
+  expect(api.post.mock.lastCall[1]).not.toHaveProperty('contribution');
+  await act(async () => raw.resolve(success(detailData(0, 50))));
+  await screen.findByRole('dialog', { name: '현재 공통 필터의 원본 행' });
+  await screen.findByText('record-A');
+  expect(screen.queryByText('SUM(amount)')).toBeNull();
+});
+
+const contributorPreview = {
+  ...preview,
+  widgets: [{ ...preview.widgets[0], contribution: { supported: true, components: ['SUM(amount)'], groupFingerprint } }],
+};
+const contributorCalls = () =>
+  api.post.mock.calls.filter(([url, body]) => url === '/ai/dashboard-details' && body.contribution);
+async function contributorAnalysis(data: any = contributorPreview) {
+  await analysis(data);
+  api.post.mockImplementation(async (url, body) =>
+    success(
+      url === '/ai/dashboard-preview'
+        ? data
+        : body.contribution
+        ? contributionData(body.contribution, body.page, body.pageSize, data.widgets[body.contribution.widgetIndex].title)
+        : detailData(body.page, body.pageSize),
+    ),
+  );
+}
+
+it.each(['{Enter}', ' '])(
+  'contributor detail whole-widget launcher keyboard %s preserves current conditions and restores exact focus',
+  async keys => {
+    await contributorAnalysis();
+    choose('시작일 (UTC)', range.start);
+    choose('종료일 (UTC)', range.end);
+    fireEvent.click(button('적용'));
+    await idle();
+    choose('시계열 집계 단위', 'week');
+    await idle();
+    fireEvent.click(screen.getByRole('checkbox', { name: '이전 기간 비교' }));
+    await idle();
+    fireEvent.click(categoryButton(null));
+    await idle();
+    const launcher = button('채널 매출 집계 원본 행 보기');
+    launcher.focus();
+    userEvent.keyboard(keys);
+    await screen.findByText('record-A');
+    expect(contributorCalls().at(-1)[1]).toMatchObject({
+      contribution,
+      dateRange: range,
+      filters: [{ column: 'channel', values: [null] }],
+    });
+    expect(JSON.parse(screen.getByTestId('saved-state').textContent)).toMatchObject({
+      comparePrevious: true,
+      trendGrain: 'week',
+      dateRange: range,
+    });
+    expect(api.widget.mock.lastCall[0].contributionDisabled).toBe(true);
+    button('원본 상세 닫기').focus();
+    fireEvent.click(button('원본 상세 닫기'));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(document.activeElement).toBe(launcher);
+    button('원본 상세 보기').focus();
+    fireEvent.click(button('원본 상세 보기'));
+    await screen.findByText('record-A');
+    expect(api.post.mock.lastCall[1]).not.toHaveProperty('contribution');
+  },
+);
+
+it.each([null, 'null', 1, '1'])(
+  'contributor detail row launcher keeps raw category %j and returns to that exact row',
+  async category => {
+    await contributorAnalysis();
+    const launcher = button(`집계 그룹 ${JSON.stringify(category)}`);
+    launcher.focus();
+    userEvent.keyboard('{Enter}');
+    await screen.findByText('record-A');
+    expect(contributorCalls().at(-1)[1].contribution).toEqual({ ...contribution, trendGrain: 'auto', category });
+    button('원본 상세 닫기').focus();
+    fireEvent.click(button('원본 상세 닫기'));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(document.activeElement).toBe(launcher);
+  },
+);
+
+it('contributor detail unsupported/KPI cards expose reasons and only KPI whole-widget entry', async () => {
+  await contributorAnalysis({
+    ...preview,
+    widgets: [
+      { ...preview.widgets[0], type: 'BOARD_NUMERIC', title: '총 매출', contribution: { supported: true } },
+      {
+        ...preview.widgets[0],
+        title: 'DISTINCT 건수',
+        contribution: { supported: false, reason: 'DISTINCT는 입력 행을 확인할 수 없습니다.' },
+      },
+    ],
+  });
+  expect(button('DISTINCT 건수 집계 원본 행 보기').disabled).toBe(true);
+  expect(screen.getByText('DISTINCT는 입력 행을 확인할 수 없습니다.')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: /^집계 그룹/ })).toBeNull();
+  fireEvent.click(button('총 매출 집계 원본 행 보기'));
+  await screen.findByText('record-A');
+  expect(contributorCalls().at(-1)[1].contribution).not.toHaveProperty('category');
+  expect(contributorCalls().at(-1)[1].contribution).not.toHaveProperty('groupFingerprint');
+});
+
+it.each([undefined, 'b'.repeat(63), 'B'.repeat(64)])(
+  'contributor fingerprint blocks a chart with missing or invalid hint %j before any request',
+  async value => {
+    await contributorAnalysis({
+      ...preview,
+      widgets: [{ ...preview.widgets[0], contribution: { supported: true, groupFingerprint: value } }],
+    });
+    const launcher = button('채널 매출 집계 원본 행 보기');
+    expect(launcher.disabled).toBe(true);
+    expect(launcher.getAttribute('aria-disabled')).toBe('true');
+    expect(screen.getByText('집계 그룹 버전을 확인할 수 없습니다. 대시보드 데이터를 새로 조회해 주세요.')).toBeTruthy();
+    expect(api.widget.mock.lastCall[0].onContributionSelect).toBeUndefined();
+    expect(api.widget.mock.lastCall[0].contributionDisabled).toBe(true);
+    fireEvent.click(launcher);
+    expect(contributorCalls()).toHaveLength(0);
+  },
+);
+
+it.each(['missing', 'different', 'unexpected numeric'])(
+  'contributor fingerprint rejects %s echo without showing records',
+  async kind => {
+    const request: ContributionRequest =
+      kind === 'unexpected numeric'
+        ? { widgetIndex: 0, expectedRevision: draft.revision, trendGrain: 'week' }
+        : contribution;
+    const data = contributionData(request);
+    if (kind === 'missing') delete data.contribution.groupFingerprint;
+    else data.contribution.groupFingerprint = kind === 'different' ? 'c'.repeat(64) : groupFingerprint;
+    api.post.mockResolvedValueOnce(success(data));
+    render(<SourceDetails {...props} contribution={request} widgetTitle={contributionTitle} />);
+    await screen.findByText(/원본 행 응답의 조건 또는 데이터 버전/);
+    expect(screen.queryByText('record-A')).toBeNull();
+    expect(screen.queryByRole('table')).toBeNull();
+  },
+);
+
+it('contributor fingerprint context change hides rows, aborts and ignores the earlier group selection', async () => {
+  api.post.mockResolvedValueOnce(success(contributionData()));
+  const view = render(<SourceDetails {...props} contribution={contribution} widgetTitle={contributionTitle} />);
+  await screen.findByText('record-A');
+  const earlier = deferred();
+  api.post.mockReturnValueOnce(earlier.promise);
+  fireEvent.click(button('다음 페이지'));
+  const oldSignal = api.post.mock.lastCall[2].signal;
+  const current = deferred();
+  api.post.mockReturnValueOnce(current.promise);
+  const changed = { ...contribution, groupFingerprint: 'c'.repeat(64) };
+  view.rerender(<SourceDetails {...props} contribution={changed} widgetTitle={contributionTitle} />);
+  expect(oldSignal.aborted).toBe(true);
+  expect(screen.queryByText('record-A')).toBeNull();
+  expect(api.post.mock.lastCall[1]).toMatchObject({ contribution: changed, page: 0 });
+  await act(async () => current.resolve(success({ ...contributionData(changed), datas: [{ channel: 'fresh-group' }] })));
+  await screen.findByText('fresh-group');
+  await act(async () =>
+    earlier.resolve(success({ ...contributionData(contribution, 1), datas: [{ channel: 'old-group' }] })),
+  );
+  expect(screen.queryByText('old-group')).toBeNull();
+});
+
+it.each(['unapplied', 'invalid date', 'pending', 'error', 'editing', 'invalid category'])(
+  'contributor detail guards %s including retained chart callbacks',
+  async blocked => {
+    await contributorAnalysis();
+    const select = api.widget.mock.lastCall[0].onContributionSelect;
+    if (blocked === 'unapplied' || blocked === 'invalid date') {
+      choose('시작일 (UTC)', range.start);
+      if (blocked === 'invalid date') fireEvent.click(button('적용'));
+    } else if (blocked === 'editing') fireEvent.click(button('Assistant'));
+    else if (blocked === 'pending' || blocked === 'error') {
+      const pending = deferred();
+      api.post.mockReturnValueOnce(pending.promise);
+      fireEvent.click(categoryButton(null));
+      if (blocked === 'error') await act(async () => pending.reject(new Error('preview failed')));
+    }
+    const count = contributorCalls().length;
+    act(() => select(blocked === 'invalid category' ? { raw: 'value' } : null));
+    if (blocked !== 'invalid category') fireEvent.click(button('채널 매출 집계 원본 행 보기'));
+    expect(contributorCalls()).toHaveLength(count);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  },
+);
+
+it('contributor detail 409 refresh fetches the canonical definition before preview while retaining filters and dates', async () => {
+  await contributorAnalysis();
+  choose('시작일 (UTC)', range.start);
+  choose('종료일 (UTC)', range.end);
+  fireEvent.click(button('적용'));
+  await idle();
+  fireEvent.click(categoryButton(null));
+  await idle();
+  api.post.mockRejectedValueOnce({ response: { status: 409, data: { data: 'definition changed' } } });
+  fireEvent.click(button('채널 매출 집계 원본 행 보기'));
+  await screen.findByText(/집계 정의 또는 원본 데이터 버전이 변경되었습니다/);
+  const nextDraft = { ...draft, revision: 'updated-definition' };
+  const canonical = deferred();
+  api.get.mockReturnValueOnce(canonical.promise);
+  const before = previewCalls().length;
+  button('대시보드 데이터 새로 조회').focus();
+  fireEvent.click(button('대시보드 데이터 새로 조회'));
+  expect(api.get.mock.lastCall[0]).toBe('/ai/dashboard-analysis/26');
+  expect(previewCalls()).toHaveLength(before);
+  expect(screen.queryByRole('dialog')).toBeNull();
+  await act(async () => canonical.resolve(success(nextDraft)));
+  await idle();
+  expect(previewCalls()).toHaveLength(before + 1);
+  expect(previewCalls().at(-1)[1]).toMatchObject({
+    draft: nextDraft,
+    dateRange: range,
+    filters: [{ column: 'channel', values: [null] }],
+  });
+  fireEvent.click(button('채널 매출 집계 원본 행 보기'));
+  await screen.findByText('record-A');
+  expect(contributorCalls().at(-1)[1].contribution.expectedRevision).toBe(nextDraft.revision);
+});
+
+it('contributor detail failed canonical refresh does not query an old definition and offers a canonical retry', async () => {
+  await contributorAnalysis();
+  api.post.mockRejectedValueOnce({ response: { status: 409, data: { message: 'definition changed' } } });
+  fireEvent.click(button('채널 매출 집계 원본 행 보기'));
+  await screen.findByText(/집계 정의 또는 원본/);
+  api.get.mockRejectedValueOnce(new Error('canonical unavailable'));
+  const before = previewCalls().length;
+  fireEvent.click(button('대시보드 데이터 새로 조회'));
+  await screen.findByText('저장된 대시보드 정의를 다시 읽지 못했습니다. 화면을 다시 열어 주세요.');
+  expect(previewCalls()).toHaveLength(before);
+  const nextDraft = { ...draft, revision: 'recovered-definition' };
+  api.get.mockResolvedValueOnce(success(nextDraft));
+  fireEvent.click(button('대시보드 정의 다시 조회'));
+  await idle();
+  expect(previewCalls().at(-1)[1].draft).toEqual(nextDraft);
+  expect(screen.queryByRole('alert')).toBeNull();
 });

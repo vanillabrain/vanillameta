@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, cleanup, fireEvent, render } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import LineChart from './LineChart';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
@@ -62,6 +62,143 @@ const dataSet = [
 ];
 const seriesClick = (dataIndex: number, extras = {}) =>
   act(() => state.events?.click({ componentType: 'series', dataIndex, name: 'formatted wrong value', ...extras }));
+
+const contributionAction = /^이 항목의 집계 원본 행 보기:/;
+it.each(['x', 'y'] as const)(
+  'contribution action preserves each %s-axis typed group and coalesces duplicate rows without changing canvas selection',
+  axis => {
+    const contribution = vi.fn();
+    const view = render(<LineChart option={option} dataSet={dataSet} axis={axis} onContributionSelect={contribution} />);
+    expect(state.option[axis + 'Axis'].data).toEqual([null, 'null', 1, '1', false, 'false']);
+    expect(state.option.series[0].data).toEqual([10, 3, 4, 5, 6, 7]);
+    expect(state.events).toBeUndefined();
+    fireEvent.click(view.getByRole('button', { name: 'chart.showDataTable' }));
+    const actions = view.getAllByRole('button', { name: contributionAction });
+    expect(actions).toHaveLength(6);
+    expect(actions.map(button => button.getAttribute('aria-label'))).toEqual([
+      '이 항목의 집계 원본 행 보기: 값 없음 (NULL)',
+      '이 항목의 집계 원본 행 보기: null (문자열)',
+      '이 항목의 집계 원본 행 보기: 1 (숫자)',
+      '이 항목의 집계 원본 행 보기: 1 (문자열)',
+      '이 항목의 집계 원본 행 보기: false (불리언)',
+      '이 항목의 집계 원본 행 보기: false (문자열)',
+    ]);
+    expect(within(view.getAllByRole('row')[1]).getByRole('cell', { name: '10' })).toBeTruthy();
+    actions.forEach(button => fireEvent.click(button));
+    expect(contribution.mock.calls).toEqual([[null], ['null'], [1], ['1'], [false], ['false']]);
+  },
+);
+it.each(['{Enter}', ' '])('contribution action retains focus and guards native %s while pending', async key => {
+  const contribution = vi.fn();
+  const chart = (pending: boolean, rows = dataSet) => (
+    <LineChart option={option} dataSet={rows} onContributionSelect={contribution} contributionDisabled={pending} />
+  );
+  const view = render(chart(false));
+  fireEvent.click(view.getByRole('button', { name: 'chart.showDataTable' }));
+  const action = view.getByRole('button', { name: '이 항목의 집계 원본 행 보기: 1 (숫자)' });
+  action.focus();
+  await userEvent.keyboard(key);
+  expect(contribution.mock.calls).toEqual([[1]]);
+  view.rerender(chart(true));
+  expect(document.activeElement).toBe(action);
+  expect(action.hasAttribute('disabled')).toBe(false);
+  expect(action.getAttribute('aria-disabled')).toBe('true');
+  await userEvent.keyboard(key);
+  fireEvent.click(action);
+  expect(contribution).toHaveBeenCalledTimes(1);
+  view.rerender(chart(false, [dataSet[2]]));
+  expect(document.activeElement).toBe(action);
+  expect(action.getAttribute('aria-disabled')).toBeNull();
+  await userEvent.keyboard(key);
+  expect(contribution.mock.calls).toEqual([[1], [1]]);
+});
+it('contribution action stays separate from common category filtering and time selection, including raw temporal labels', () => {
+  const contribution = vi.fn(),
+    category = vi.fn(),
+    time = vi.fn();
+  const view = render(
+    <LineChart option={option} dataSet={dataSet} onContributionSelect={contribution} onCategorySelect={category} />,
+  );
+  seriesClick(0);
+  fireEvent.click(view.getByRole('button', { name: 'chart.showDataTable' }));
+  fireEvent.click(view.getByRole('button', { name: '필터: null' }));
+  expect(category.mock.calls).toEqual([[null], ['null']]);
+  expect(contribution).not.toHaveBeenCalled();
+  fireEvent.click(view.getByRole('button', { name: '이 항목의 집계 원본 행 보기: 1 (문자열)' }));
+  expect(category).toHaveBeenCalledTimes(2);
+  expect(contribution.mock.calls).toEqual([['1']]);
+  view.rerender(
+    <LineChart
+      option={option}
+      dataSet={timeRows}
+      onContributionSelect={contribution}
+      onTimeSelect={time}
+      timeSelection={timeMetadata}
+    />,
+  );
+  seriesClick(1);
+  fireEvent.click(view.getByRole('button', { name: /기간 선택: UTC 2026-01-12 10:00:00/ }));
+  expect(time.mock.calls).toEqual([[hourRange('11')], [hourRange('10')]]);
+  expect(contribution).toHaveBeenCalledTimes(1);
+  fireEvent.click(view.getByRole('button', { name: '이 항목의 집계 원본 행 보기: 2026-01-12T11:00:00Z (문자열)' }));
+  expect(contribution.mock.calls).toEqual([['1'], ['2026-01-12T11:00:00Z']]);
+  expect(time).toHaveBeenCalledTimes(2);
+});
+it('contribution action requires a callback and an own finite primitive raw category', () => {
+  const contribution = vi.fn();
+  const view = render(<LineChart option={option} dataSet={dataSet} />);
+  fireEvent.click(view.getByRole('button', { name: 'chart.showDataTable' }));
+  expect(view.queryByRole('button', { name: contributionAction })).toBeNull();
+  expect(view.queryByText('집계 원본 행')).toBeNull();
+  view.rerender(
+    <LineChart
+      option={option}
+      dataSet={[
+        { value: 1 },
+        { category: {}, value: 2 },
+        { category: NaN, value: 3 },
+        { category: 'x'.repeat(2001), value: 4 },
+        Object.assign(Object.create({ category: 'inherited' }), { value: 5 }),
+      ]}
+      onContributionSelect={contribution}
+    />,
+  );
+  expect(view.queryByRole('button', { name: contributionAction })).toBeNull();
+  expect(contribution).not.toHaveBeenCalled();
+});
+it.each(['CHART_LINE', 'CHART_COLUMN', 'CHART_BAR'])(
+  'contribution action propagates through WidgetViewer for %s with current callbacks and disabled state',
+  widgetType => {
+    const first = vi.fn(),
+      second = vi.fn();
+    const loading = { loading: false, showLoading: vi.fn(), hideLoading: vi.fn() };
+    const widget = (callback: typeof first, pending = false) => (
+      <LoadingContext.Provider value={loading}>
+        <WidgetViewer
+          title="Groups"
+          widgetType={widgetType}
+          widgetOption={option}
+          dataSet={dataSet}
+          onContributionSelect={callback}
+          contributionDisabled={pending}
+        />
+      </LoadingContext.Provider>
+    );
+    const view = render(widget(first));
+    fireEvent.click(view.getByRole('button', { name: 'chart.showDataTable' }));
+    const action = view.getByRole('button', { name: '이 항목의 집계 원본 행 보기: 값 없음 (NULL)' });
+    fireEvent.click(action);
+    view.rerender(widget(second));
+    fireEvent.click(action);
+    view.rerender(widget(second, true));
+    expect(action.getAttribute('aria-disabled')).toBe('true');
+    fireEvent.click(action);
+    expect(first.mock.calls).toEqual([[null]]);
+    expect(second.mock.calls).toEqual([[null]]);
+    view.rerender(widget(undefined));
+    expect(view.queryByRole('button', { name: contributionAction })).toBeNull();
+  },
+);
 
 const hourRange = (hour: string) => ({
   column: 'event_time',

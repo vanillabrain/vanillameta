@@ -8,7 +8,11 @@ import type { DateRange } from '@/pages/Dashboard/Components/PersonalSavedViews'
 import { TimeSelection, categoryTimeRange, sameTimeRange, timeRangeLabel } from '@/pages/Dashboard/Components/timeSelection';
 
 export type CategoryValue = string | number | boolean | null;
-export interface CategorySelectionProps {
+export interface ContributionSelectionProps {
+  onContributionSelect?: (category: CategoryValue) => void;
+  contributionDisabled?: boolean;
+}
+export interface CategorySelectionProps extends ContributionSelectionProps {
   onCategorySelect?: (value: CategoryValue) => void;
   selectedCategoryValues?: CategoryValue[];
   categorySelectionDisabled?: boolean;
@@ -50,6 +54,8 @@ const LineChart = (
     timeSelection,
     timeSelectionDisabled = false,
     selectedTimeRange,
+    onContributionSelect,
+    contributionDisabled = false,
   } = props;
   const reverseAxis = axis === 'x' ? 'y' : 'x';
 
@@ -128,7 +134,7 @@ const LineChart = (
     let aggrData = [];
     option.series.forEach(item => {
       const categoryField = option[axis + 'Field'];
-      if (onCategorySelect || onTimeSelect) {
+      if (onCategorySelect || onTimeSelect || onContributionSelect) {
         // Group by the original typed key instead of the utility's string-coerced object key.
         const groups = new Map<unknown, any[]>();
         dataSet.forEach(row => {
@@ -201,8 +207,23 @@ const LineChart = (
 
   const componentOption: any = useMemo(
     () => (option && dataSet ? createComponentOption() : {}),
-    [option, dataSet, axis, seriesOp, defaultOp, createOp, onCategorySelect, onTimeSelect, t],
+    [option, dataSet, axis, seriesOp, defaultOp, createOp, onCategorySelect, onTimeSelect, onContributionSelect, t],
   );
+
+  const canContribute = (category: unknown): category is CategoryValue =>
+    isCategoryValue(category) &&
+    typeof option[axis + 'Field'] === 'string' &&
+    !!option[axis + 'Field'] &&
+    dataSet.some(
+      row =>
+        row && Object.prototype.hasOwnProperty.call(row, option[axis + 'Field']) && row[option[axis + 'Field']] === category,
+    );
+  const contributionLabel = (category: CategoryValue) =>
+    category === null
+      ? '값 없음 (NULL)'
+      : `${String(category)} (${
+          typeof category === 'number' ? '숫자' : typeof category === 'boolean' ? '불리언' : '문자열'
+        })`;
   const chartEvents = useMemo(
     () => ({
       click: (params: any) => {
@@ -269,11 +290,16 @@ const LineChart = (
                     {series.name}
                   </TableCell>
                 ))}
+                {onContributionSelect && <TableCell>집계 원본 행</TableCell>}
               </TableRow>
             </TableHead>
             <TableBody>
               {componentOption[axis + 'Axis']?.data?.map((name, index) => (
-                <TableRow key={onCategorySelect || onTimeSelect ? JSON.stringify([typeof name, name]) : index}>
+                <TableRow
+                  key={
+                    onCategorySelect || onTimeSelect || onContributionSelect ? JSON.stringify([typeof name, name]) : index
+                  }
+                >
                   <TableCell component="th" scope="row">
                     {onTimeSelect ? (
                       (() => {
@@ -342,6 +368,24 @@ const LineChart = (
                         : String(series.data[index] ?? '—')}
                     </TableCell>
                   ))}
+                  {onContributionSelect && (
+                    <TableCell>
+                      {canContribute(name) && (
+                        <Button
+                          type="button"
+                          size="small"
+                          aria-label={`이 항목의 집계 원본 행 보기: ${contributionLabel(name)}`}
+                          aria-disabled={contributionDisabled || undefined}
+                          sx={{ minWidth: 44, minHeight: 44, whiteSpace: 'normal', textTransform: 'none' }}
+                          onClick={() => {
+                            if (!contributionDisabled && canContribute(name)) onContributionSelect(name);
+                          }}
+                        >
+                          이 항목의 집계 원본 행 보기
+                        </Button>
+                      )}
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>

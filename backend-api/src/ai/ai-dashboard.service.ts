@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
@@ -27,6 +28,12 @@ import {
   resolveTimeChartBucket,
 } from './dashboard-trend';
 import { buildTimeSelection } from './dashboard-time-selection';
+import {
+  compileContribution,
+  CONTRIBUTION_GROUP_LIMIT,
+  CONTRIBUTION_UNAVAILABLE,
+  contributionGroupFingerprint,
+} from './dashboard-contribution';
 import { comparisonValues, previousDateRange, validatePeriodOptions } from './dashboard-period';
 import { resolveDimensionColumn } from './dashboard-dimension';
 import { ResponseStatus } from '../common/enum/response-status.enum';
@@ -441,7 +448,28 @@ export class AiDashboardService {
     );
   }
 
-  /** Original source rows matching common filters, not the contributors to an arbitrary metric SQL. */
+  private effectiveWidgetQuery(
+    definition: ReturnType<typeof validateDraft>['widgets'][number],
+    trendGrain: ReturnType<typeof validatePeriodOptions>['trendGrain'],
+    dateColumn: string | undefined,
+    columns: string[],
+  ) {
+    const regroup =
+      trendGrain !== 'auto' && definition.type === 'CHART_LINE'
+        ? dateColumn &&
+          buildTimeChartQuery(
+            definition.sql,
+            definition.valueField,
+            definition.categoryField,
+            dateColumn,
+            trendGrain,
+            columns,
+          )
+        : undefined;
+    return { sql: regroup ? regroup.sql : definition.sql, regroup };
+  }
+
+  /** Raw common-filter rows by default; opt-in contribution requests use the saved definition. */
   async details(body: any, userId: number) {
     positiveId(body?.dashboardId);
     const draft = validateDraft(body?.draft);
@@ -455,8 +483,53 @@ export class AiDashboardService {
       body.sourceRevision.length > 256
     )
       throw new BadRequestException('sourceRevision required');
-    const saved = await this.analysis(body.dashboardId, userId);
-    if (saved.data.databaseId !== draft.databaseId)
+    const contributionMode = body.contribution !== undefined;
+    const saved = contributionMode
+      ? await this.analysis(body.dashboardId, userId, true)
+      : await this.analysis(body.dashboardId, userId);
+    if (contributionMode) {
+      const input = body.contribution;
+      if (
+        !input ||
+        typeof input !== 'object' ||
+        Array.isArray(input) ||
+        Object.keys(input).some(
+          key =>
+            ![
+              'widgetIndex',
+              'expectedRevision',
+              'trendGrain',
+              'category',
+              'groupFingerprint',
+            ].includes(key),
+        ) ||
+        !Number.isSafeInteger(input.widgetIndex) ||
+        input.widgetIndex < 0 ||
+        input.widgetIndex >= saved.data.widgets.length ||
+        typeof input.expectedRevision !== 'string' ||
+        !/^[a-f0-9]{64}$/.test(input.expectedRevision) ||
+        ((saved.data.widgets[input.widgetIndex].type !== 'BOARD_NUMERIC' ||
+          'groupFingerprint' in input) &&
+          (typeof input.groupFingerprint !== 'string' ||
+            !/^[a-f0-9]{64}$/.test(input.groupFingerprint))) ||
+        (Object.prototype.hasOwnProperty.call(input, 'category') &&
+          !(
+            input.category === null ||
+            typeof input.category === 'boolean' ||
+            (typeof input.category === 'string' && input.category.length <= 2000) ||
+            (typeof input.category === 'number' && Number.isFinite(input.category))
+          ))
+      )
+        throw new BadRequestException('invalid contribution request');
+      validatePeriodOptions({ trendGrain: input.trendGrain });
+      if (
+        input.expectedRevision !== saved.data.revision ||
+        JSON.stringify(draft) !== JSON.stringify(validateDraft(saved.data))
+      )
+        throw new ConflictException(
+          '대시보드 정의가 변경되었습니다. 새로고침한 뒤 집계 입력 행을 다시 열어 주세요.',
+        );
+    } else if (saved.data.databaseId !== draft.databaseId)
       throw new BadRequestException('dashboard source mismatch');
     return this.connection.withDuckDBSnapshot(draft.databaseId, async () => {
       const sourceRevision = await this.connection.duckDBVersion(draft.databaseId);
@@ -469,6 +542,16 @@ export class AiDashboardService {
       const temporal = schema
         .filter(c => /^(DATE|TIMESTAMP)/i.test(c.column_type))
         .map(c => c.column_name);
+      if (contributionMode)
+        return this.contributionDetails(
+          body,
+          saved.data,
+          schema,
+          sourceRevision,
+          page,
+          pageSize,
+          userId,
+        );
       const query = (sql: string) =>
         sourceQuery(sql, columns, body.filters, body.dateRange, temporal);
       const countQuery = query('SELECT CAST(count(*) AS VARCHAR) AS total FROM source');
@@ -510,6 +593,150 @@ export class AiDashboardService {
       });
     });
   }
+  private async contributionDetails(
+    body: any,
+    saved: any,
+    schema: Array<{ column_name: string; column_type: string }>,
+    sourceRevision: string,
+    page: number,
+    pageSize: number,
+    userId: number,
+  ) {
+    const input = body.contribution;
+    const definition = validateDraft(saved).widgets[input.widgetIndex];
+    const columns = schema.map(column => column.column_name);
+    const temporal = schema
+      .filter(column => /^(DATE|TIMESTAMP)/i.test(column.column_type))
+      .map(column => column.column_name);
+    const query = (sql: string) =>
+      sourceQuery(sql, columns, body.filters, body.dateRange, temporal);
+    // Validate common scope before reading current groups or deriving effective regrouping.
+    query(definition.sql);
+    const { trendGrain } = validatePeriodOptions({ trendGrain: input.trendGrain });
+    const dateColumn = temporal.includes(body.dateRange?.column)
+      ? body.dateRange.column
+      : temporal[0];
+    const effective = this.effectiveWidgetQuery(definition, trendGrain, dateColumn, columns);
+    const plan = compileContribution({ ...definition, sql: effective.sql }, schema);
+    if (
+      !plan.supported ||
+      (definition.type === 'CHART_LINE' && trendGrain !== 'auto' && !effective.regroup)
+    )
+      throw new UnprocessableEntityException(CONTRIBUTION_UNAVAILABLE);
+    const groupQuery = query(effective.sql);
+    const current = await this.connection.queryDuckDB(
+      saved.databaseId,
+      groupQuery.sql,
+      groupQuery.bindings,
+    );
+    if (current.datas.length > CONTRIBUTION_GROUP_LIMIT)
+      throw new UnprocessableEntityException(
+        '표시 그룹이 240개를 초과하여 집계 입력 행을 확인할 수 없습니다. 기간이나 그룹을 줄여 주세요.',
+      );
+    const selected = Object.prototype.hasOwnProperty.call(input, 'category');
+    let groups: any[] = [];
+    let groupFingerprint: string | undefined;
+    if (plan.categoryExpression) {
+      groups = current.datas.map(row => row[definition.categoryField]);
+      groupFingerprint = contributionGroupFingerprint(groups);
+      if (!groupFingerprint) throw new UnprocessableEntityException(CONTRIBUTION_UNAVAILABLE);
+      if (groupFingerprint !== input.groupFingerprint)
+        throw new ConflictException(
+          '표시 그룹이 변경되었습니다. 새로고침한 뒤 집계 입력 행을 다시 열어 주세요.',
+        );
+      if (selected) {
+        if (
+          !groups.some(
+            value => typeof value === typeof input.category && Object.is(value, input.category),
+          )
+        )
+          throw new ConflictException(
+            '선택한 그룹이 현재 차트에 없습니다. 새로고침한 뒤 다시 선택해 주세요.',
+          );
+        groups = [input.category];
+      }
+    } else if (selected || current.datas.length !== 1) {
+      throw new BadRequestException('invalid numeric contribution selection');
+    }
+    const groupBindings: any[] = [];
+    const groupPredicates = plan.categoryExpression
+      ? groups.map(value => {
+          if (value === null) return `(${plan.categoryExpression}) IS NULL`;
+          if (
+            !['string', 'number', 'boolean'].includes(typeof value) ||
+            (typeof value === 'number' && !Number.isFinite(value))
+          )
+            throw new UnprocessableEntityException(CONTRIBUTION_UNAVAILABLE);
+          groupBindings.push(value);
+          return `(${plan.categoryExpression}) = ?`;
+        })
+      : [];
+    const groupCondition = plan.categoryExpression
+      ? ` AND (${groupPredicates.join(' OR ') || 'FALSE'})`
+      : '';
+    const where = `${plan.where ? `(${plan.where}) AND ` : ''}(${plan.eligibility.join(' OR ')})`;
+    const countQuery = query(
+      `SELECT CAST(count(*) AS VARCHAR) AS total FROM source WHERE ${where}`,
+    );
+    const count = await this.connection.queryDuckDB(
+      saved.databaseId,
+      countQuery.sql + groupCondition,
+      [...countQuery.bindings, ...groupBindings],
+    );
+    const selectedColumns = columns.slice(0, 50);
+    const projection = selectedColumns.map(
+      (column, index) => `${quoteColumn(column)} AS "__vm_detail_${index}"`,
+    );
+    projection.push(
+      ...plan.eligibility.map(
+        (eligible, index) =>
+          `CASE WHEN ${eligible} THEN TRUE ELSE FALSE END AS "__vm_contribution_${index}"`,
+      ),
+    );
+    const rowsQuery = query(`SELECT ${projection.join(', ')} FROM source WHERE ${where}`);
+    const rows = await this.connection.queryDuckDB(
+      saved.databaseId,
+      `${rowsQuery.sql}${groupCondition} ORDER BY ALL LIMIT ${pageSize} OFFSET ${page * pageSize}`,
+      [...rowsQuery.bindings, ...groupBindings],
+    );
+    // The file is pinned; independently recheck the mutable stored dashboard definition.
+    const final = await this.analysis(body.dashboardId, userId, true);
+    if (
+      final.data.revision !== input.expectedRevision ||
+      JSON.stringify(validateDraft(final.data)) !== JSON.stringify(validateDraft(saved))
+    )
+      throw new ConflictException(
+        '대시보드 정의가 변경되었습니다. 새로고침한 뒤 집계 입력 행을 다시 열어 주세요.',
+      );
+    return this.success({
+      fields: rows.fields
+        .slice(0, selectedColumns.length)
+        .map((field: any, index: number) => ({ ...field, columnName: selectedColumns[index] })),
+      datas: rows.datas.map(row =>
+        Object.fromEntries(
+          selectedColumns.map((column, index) => [column, row[`__vm_detail_${index}`]]),
+        ),
+      ),
+      contributionComponents: rows.datas.map(row =>
+        plan.components.filter((_component, index) => row[`__vm_contribution_${index}`] === true),
+      ),
+      totalRows: String(count.datas[0].total),
+      page,
+      pageSize,
+      sourceRevision,
+      columnCount: columns.length,
+      scope: 'widget aggregate input rows',
+      contribution: {
+        widgetIndex: input.widgetIndex,
+        expectedRevision: input.expectedRevision,
+        title: definition.title,
+        ...(selected ? { category: input.category } : {}),
+        components: plan.components,
+        ...(groupFingerprint ? { groupFingerprint } : {}),
+        semantics: plan.semantics,
+      },
+    });
+  }
   private async previewSnapshot(body: any, draft: ReturnType<typeof validateDraft>) {
     const { trendGrain, comparePrevious } = validatePeriodOptions(body);
     if (comparePrevious && !body.dateRange)
@@ -533,19 +760,12 @@ export class AiDashboardService {
     const widgets = [];
     const queries = [];
     for (const definition of draft.widgets) {
-      const regroup =
-        trendGrain !== 'auto' && definition.type === 'CHART_LINE'
-          ? dateColumn &&
-            buildTimeChartQuery(
-              definition.sql,
-              definition.valueField,
-              definition.categoryField,
-              dateColumn,
-              trendGrain,
-              columns,
-            )
-          : undefined;
-      const widgetSql = regroup ? regroup.sql : definition.sql;
+      const { regroup, sql: widgetSql } = this.effectiveWidgetQuery(
+        definition,
+        trendGrain,
+        dateColumn,
+        columns,
+      );
       const query = sourceQuery(
         widgetSql,
         columns,
@@ -609,6 +829,26 @@ export class AiDashboardService {
           if (selection) widget.timeSelection = selection;
         }
       }
+      const contribution = compileContribution({ ...definition, sql: widgetSql }, schema);
+      const groupFingerprint =
+        contribution.supported && contribution.categoryExpression
+          ? contributionGroupFingerprint(widget.datas.map(row => row[definition.categoryField]))
+          : undefined;
+      widget.contribution = !contribution.supported
+        ? contribution
+        : widget.datas.length > CONTRIBUTION_GROUP_LIMIT || widget.grainUnavailable
+        ? {
+            supported: false,
+            reason:
+              '표시 그룹이나 시간 집계를 안전하게 확인할 수 없습니다. 기간이나 그룹을 줄여 주세요.',
+          }
+        : contribution.categoryExpression && !groupFingerprint
+        ? { supported: false, reason: CONTRIBUTION_UNAVAILABLE }
+        : {
+            supported: true,
+            components: contribution.components,
+            ...(groupFingerprint ? { groupFingerprint } : {}),
+          };
       if (previous) {
         const previousQuery = sourceQuery(
           widgetSql,

@@ -30,7 +30,7 @@ import PersonalSavedViews, {
   validDay,
 } from './PersonalSavedViews';
 import { PreviousPeriodData } from './PeriodComparison';
-import SourceDetails from './SourceDetails';
+import SourceDetails, { ContributionRequest, validGroupFingerprint } from './SourceDetails';
 import { TimeSelection, timeRangeLabel, validTimeRange } from './timeSelection';
 
 const valueKey = (value: FilterValue) => encodeURIComponent(JSON.stringify(value));
@@ -85,7 +85,13 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [contribution, setContribution] = useState<{ request: ContributionRequest; title: string } | null>(null);
+  const detailsLauncher = useRef<Element | null>(null);
+  const contributionButtons = useRef(new Map<number, HTMLButtonElement>());
+  const contributionInteraction = useRef({ disabled: true, preview: null as any });
   const [previewRefresh, setPreviewRefresh] = useState(0);
+  const [analysisRefresh, setAnalysisRefresh] = useState(0);
+  const canonicalRefreshDone = useRef(0);
   const [categoryNotice, setCategoryNotice] = useState('');
   const detailsButton = useRef<HTMLButtonElement>(null);
   const assistantButton = useRef<HTMLButtonElement>(null);
@@ -120,18 +126,29 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
       setError('');
       setEditing(false);
       setDetailsOpen(false);
+      setContribution(null);
+      detailsLauncher.current = null;
       setCategoryNotice('');
     }
     get(`/ai/dashboard-analysis/${dashboardId}`)
       .then(response => {
         if (request !== loadSerial.current) return;
         if (response.data.status === 'SUCCESS') {
+          if (analysisRefresh && (typeof response.data.data?.revision !== 'string' || !response.data.data.revision.trim()))
+            throw new Error('저장된 대시보드 정의의 버전을 확인할 수 없습니다. 다시 조회해 주세요.');
+          canonicalRefreshDone.current = analysisRefresh;
           loadedDashboard.current = dashboardId;
           setDraft(response.data.data);
+        } else if (analysisRefresh) {
+          throw new Error('저장된 대시보드 정의를 다시 읽지 못했습니다. 전체 데이터로 복구하거나 화면을 다시 열어 주세요.');
         }
         // Ordinary dashboards remain usable if their sources cannot support common filters.
       })
       .catch(() => {
+        if (request === loadSerial.current && analysisRefresh) {
+          setError('저장된 대시보드 정의를 다시 읽지 못했습니다. 화면을 다시 열어 주세요.');
+          setBusy(false);
+        }
         // Unsupported dashboards keep their standard viewer.
       })
       .finally(() => {
@@ -140,12 +157,18 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
     return () => {
       loadSerial.current += 1;
     };
-  }, [dashboardId, revision]);
+  }, [dashboardId, revision, analysisRefresh]);
   useEffect(() => {
     onAssistantOpenChange?.(editing);
   }, [editing, onAssistantOpenChange]);
   useEffect(() => {
-    if (!draft || loadedDashboard.current !== dashboardId) return;
+    if (
+      !draft ||
+      loadedDashboard.current !== dashboardId ||
+      analysisLoading ||
+      canonicalRefreshDone.current !== analysisRefresh
+    )
+      return;
     serial.current += 1;
     const request = serial.current;
     setBusy(true);
@@ -182,7 +205,17 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
     return () => {
       serial.current += 1;
     };
-  }, [draft, filters, dateRange, dashboardId, trendGrain, comparePrevious, previewRefresh]);
+  }, [
+    draft,
+    filters,
+    dateRange,
+    dashboardId,
+    trendGrain,
+    comparePrevious,
+    previewRefresh,
+    analysisLoading,
+    analysisRefresh,
+  ]);
   useEffect(() => () => pendingFocusIntent.current?.cancel(), []);
   useEffect(() => () => pendingTimeFocus.current?.cancel(), []);
   useEffect(() => {
@@ -236,7 +269,10 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
     intent.cancel();
     if (abandoned && target && !target.disabled && !document.querySelector('[role="dialog"]')) target.focus();
   }, [busy, analysisLoading, error, preview, filters, dashboardId, detailsOpen, editing]);
-  if (!draft) return <>{children}</>;
+  if (!draft) {
+    contributionInteraction.current = { disabled: true, preview: null };
+    return <>{children}</>;
+  }
   const dimensions = preview?.dimensions || [];
   const temporalColumns = preview?.temporalColumns || [];
   const temporalColumn = dateDraft.column || temporalColumns[0]?.column || '';
@@ -255,6 +291,55 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
       ? '입력한 날짜를 적용하거나 초기화한 뒤 저장 보기를 사용할 수 있습니다.'
       : '';
   const detailsDisabledReason = viewDisabledReason.replace('저장 보기', '원본 상세');
+  const contributionDisabled =
+    !!viewDisabledReason ||
+    editing ||
+    detailsOpen ||
+    typeof preview?.sourceRevision !== 'string' ||
+    !preview.sourceRevision ||
+    !draft.revision ||
+    loadedDashboard.current !== dashboardId;
+  contributionInteraction.current = { disabled: !!contributionDisabled, preview };
+  const contributionReason = (widget: any) => {
+    if (widget?.contribution?.supported !== true)
+      return typeof widget?.contribution?.reason === 'string' && widget.contribution.reason.trim()
+        ? widget.contribution.reason
+        : '이 집계의 원본 행 조회는 지원하지 않습니다.';
+    return widget.type !== 'BOARD_NUMERIC' && !validGroupFingerprint(widget.contribution.groupFingerprint)
+      ? '집계 그룹 버전을 확인할 수 없습니다. 대시보드 데이터를 새로 조회해 주세요.'
+      : '';
+  };
+  const openContribution = (widgetIndex: number, group?: { category: unknown }, launcher?: Element) => {
+    const widget = preview?.widgets?.[widgetIndex];
+    if (
+      contributionInteraction.current.disabled ||
+      contributionInteraction.current.preview !== preview ||
+      !!contributionReason(widget) ||
+      (group &&
+        !(
+          group.category === null ||
+          typeof group.category === 'string' ||
+          typeof group.category === 'boolean' ||
+          (typeof group.category === 'number' && Number.isFinite(group.category))
+        ))
+    )
+      return;
+    detailsLauncher.current =
+      launcher ||
+      (document.activeElement !== document.body ? document.activeElement : contributionButtons.current.get(widgetIndex)) ||
+      null;
+    setContribution({
+      request: {
+        widgetIndex,
+        expectedRevision: draft.revision,
+        trendGrain,
+        ...(widget.type !== 'BOARD_NUMERIC' ? { groupFingerprint: widget.contribution.groupFingerprint } : {}),
+        ...(group ? { category: group.category as FilterValue } : {}),
+      },
+      title: widget.title,
+    });
+    setDetailsOpen(true);
+  };
   const selectionDisabled = busy || analysisLoading || !!error || !!dateError;
   const timeSelectionDisabled = selectionDisabled || unappliedDates || editing || detailsOpen;
   const periodRecoveryDisabled = busy || analysisLoading || editing || detailsOpen || unappliedDates || !!dateError;
@@ -482,6 +567,8 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
           aria-disabled={!!viewDisabledReason}
           onClick={() => {
             if (viewDisabledReason) return;
+            detailsLauncher.current = detailsButton.current;
+            setContribution(null);
             setDetailsOpen(true);
           }}
         >
@@ -716,7 +803,19 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
           <Typography sx={{ fontSize: 13 }}>아래는 이전 조회 결과입니다. 현재 선택 조건은 적용되지 않았습니다.</Typography>
-          <Button onClick={reset}>전체 데이터로 복구</Button>
+          {canonicalRefreshDone.current !== analysisRefresh ? (
+            <Button
+              onClick={() => {
+                setBusy(true);
+                setError('');
+                setAnalysisRefresh(value => value + 1);
+              }}
+            >
+              대시보드 정의 다시 조회
+            </Button>
+          ) : (
+            <Button onClick={reset}>전체 데이터로 복구</Button>
+          )}
         </Alert>
       )}
       <PersonalSavedViews
@@ -822,8 +921,37 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
                     typeof widget.dimensionColumn === 'string' ? selectedValues(widget.dimensionColumn) : []
                   }
                   categorySelectionDisabled={selectionDisabled}
+                  onContributionSelect={
+                    widget.type !== 'BOARD_NUMERIC' && !contributionReason(widget)
+                      ? category => openContribution(i, { category })
+                      : undefined
+                  }
+                  contributionDisabled={!!contributionDisabled || !!contributionReason(widget)}
                 />
               </Box>
+              {widget.contribution && (
+                <Box sx={{ px: 2.5, py: 1, minWidth: 0 }}>
+                  <Button
+                    ref={button => {
+                      if (button) contributionButtons.current.set(i, button);
+                      else contributionButtons.current.delete(i);
+                    }}
+                    variant="outlined"
+                    aria-label={`${widget.title} 집계 원본 행 보기`}
+                    aria-disabled={!!contributionDisabled || !!contributionReason(widget)}
+                    disabled={!!contributionReason(widget) || !draft.revision || !preview.sourceRevision}
+                    sx={{ minHeight: 44, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere' }}
+                    onClick={event => openContribution(i, undefined, event.currentTarget)}
+                  >
+                    집계 원본 행 보기
+                  </Button>
+                  {!!contributionReason(widget) && (
+                    <Typography variant="body2" sx={{ mt: 1, overflowWrap: 'anywhere' }}>
+                      {contributionReason(widget)}
+                    </Typography>
+                  )}
+                </Box>
+              )}
               {widget.trendGrain && (
                 <Typography variant="caption" sx={{ px: 2.5 }}>
                   적용된 집계 단위:{' '}
@@ -887,13 +1015,23 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
           dateRange={dateRange}
           sourceRevision={preview?.sourceRevision}
           disabledReason={detailsDisabledReason}
+          contribution={contribution?.request}
+          widgetTitle={contribution?.title}
           onClose={() => setDetailsOpen(false)}
           onExited={() => {
-            if (document.activeElement === document.body) detailsButton.current?.focus();
+            if (document.activeElement !== document.body) return;
+            const launcher = detailsLauncher.current as HTMLElement | null;
+            if (launcher?.isConnected && typeof launcher.focus === 'function' && !(launcher as HTMLButtonElement).disabled)
+              launcher.focus();
+            else detailsButton.current?.focus();
           }}
           onRefresh={() => {
             setDetailsOpen(false);
-            setPreviewRefresh(value => value + 1);
+            if (contribution) {
+              setBusy(true);
+              setError('');
+              setAnalysisRefresh(value => value + 1);
+            } else setPreviewRefresh(value => value + 1);
           }}
         />
       )}
