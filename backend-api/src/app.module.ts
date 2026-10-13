@@ -1,5 +1,6 @@
 import { BiModule } from './bi/bi.module';
 import { AddPersonalViews1791854000000 } from './migrations/1791854000000-add-personal-views';
+import { AddExploreViews1791855000000 } from './migrations/1791855000000-add-explore-views';
 import { AddBiDefinitions1791853000000 } from './migrations/1791853000000-add-bi-definitions';
 import { SourceOwnershipModule } from './ownership/source-ownership.module';
 import { AddSourceOwner1791850000000 } from './migrations/1791850000000-add-source-owner';
@@ -59,6 +60,7 @@ import { CommerceModule } from './commerce/commerce.module';
         AddSourceOwner1791850000000,
         AddBiDefinitions1791853000000,
         AddPersonalViews1791854000000,
+        AddExploreViews1791855000000,
       ],
       migrationsRun: process.env.NODE_ENV === 'local',
       entities: [__dirname + '/**/*.entity{.ts,.js}'],

@@ -16,6 +16,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { get, post } from '@/helpers/apiHelper';
 import MetricTrend from '@/pages/Dashboard/Components/MetricTrend';
+import ExploreSavedViews, { ExploreViewState } from './ExploreSavedViews';
 import type { MetricComparisonData } from '@/pages/Dashboard/Components/PeriodComparison';
 import type { MetricTrendData } from '@/pages/Dashboard/Components/trendGeometry';
 
@@ -451,6 +452,7 @@ export default function SourceExplore() {
   const [comparePrevious, setComparePrevious] = useState(false);
   const [dateMode, setDateMode] = useState<'all' | 'custom'>('all');
   const [timeZone, setTimeZone] = useState('UTC');
+  const [dateColumn, setDateColumn] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
@@ -481,7 +483,7 @@ export default function SourceExplore() {
     return () => abort.abort();
   }, []);
 
-  const temporalColumn = catalog?.temporalColumns?.[0]?.column || '';
+  const temporalColumn = dateColumn || catalog?.temporalColumns?.[0]?.column || '';
   const dateRange = useMemo<ExploreDateRange | undefined>(() => {
     if (dateMode !== 'custom' || !temporalColumn || !startDate || !endDate) return undefined;
     return { column: temporalColumn, start: startDate, end: endDate, timeZone };
@@ -500,6 +502,7 @@ export default function SourceExplore() {
     setComparePrevious(false);
     setDateMode('all');
     setTimeZone('UTC');
+    setDateColumn('');
     setStartDate('');
     setEndDate('');
     setFilterPanelOpen(false);
@@ -761,6 +764,46 @@ export default function SourceExplore() {
   const rangeMessage =
     filterMode === 'range' && (rangeMin.trim() !== '' || rangeMax.trim() !== '') ? rangeError(rangeMin, rangeMax) : null;
   const reloadCatalog = () => setCatalogReload(value => value + 1);
+  const versionsKnown = measureIds.every(id => {
+    const version = catalog?.measures.find(measure => measure.id === id)?.definitionVersion;
+    return Number.isSafeInteger(version) && Number(version) > 0;
+  });
+  const viewState: ExploreViewState = {
+    version: 1,
+    measureIds,
+    dimensionColumns: dimensions,
+    rankingMeasureId: rankingMeasureId ?? measureIds[0],
+    rankingSort,
+    filters,
+    ...(dateRange ? { dateRange } : {}),
+    timeZone,
+    trendGrain: grain,
+    comparePrevious,
+    includeRows,
+  };
+  const restoreView = (state: ExploreViewState) => {
+    queryRevision.current += 1;
+    queryAbort.current?.abort();
+    setResult(null);
+    setQueryError('');
+    setRevisionError('');
+    setMeasureIds(state.measureIds);
+    setDimensions(state.dimensionColumns);
+    setRankingMeasureId(state.rankingMeasureId);
+    setRankingSort(state.rankingSort);
+    setFilters(state.filters);
+    setGrain(state.trendGrain);
+    setComparePrevious(state.comparePrevious);
+    setTimeZone(state.timeZone);
+    setDateMode(state.dateRange ? 'custom' : 'all');
+    setDateColumn(state.dateRange?.column ?? '');
+    setStartDate(state.dateRange?.start ?? '');
+    setEndDate(state.dateRange?.end ?? '');
+    setIncludeRows(state.includeRows);
+    setPage(0);
+    closeFilterPanel();
+    setQueryReload(value => value + 1);
+  };
 
   return (
     <Box
@@ -818,6 +861,21 @@ export default function SourceExplore() {
       </Stack>
 
       <Divider />
+      {catalog && (
+        <ExploreSavedViews
+          sourceId={catalog.sourceId}
+          sourceRevision={catalog.sourceRevision}
+          measureVersions={Object.fromEntries(
+            catalog.measures
+              .filter(measure => measureIds.includes(measure.id))
+              .map(measure => [String(measure.id), Number(measure.definitionVersion)]),
+          )}
+          state={viewState}
+          canSave={!!result && !queryBusy && !rangePaused && !revisionError && measureIds.length > 0 && versionsKnown}
+          disabledReason={!versionsKnown ? '지표 정의 버전을 확인할 수 없습니다. 카탈로그를 다시 불러와 주세요.' : undefined}
+          onRestore={restoreView}
+        />
+      )}
 
       <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', mt: 1.5 }}>
         <Pill
@@ -833,6 +891,7 @@ export default function SourceExplore() {
         <Pill label="사용자 지정" selected={dateMode === 'custom'} onClick={() => setDateMode('custom')} />
         {dateMode === 'custom' && (
           <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap' }}>
+            <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>기간 열: {temporalColumn}</Typography>
             <TextField
               size="small"
               type="date"
@@ -856,7 +915,7 @@ export default function SourceExplore() {
               sx={{ width: 160 }}
             />
             <Stack direction="row" spacing={0.5} alignItems="center" role="group" aria-label="표시 시간대">
-              {TIME_ZONES.map(zone => (
+              {Array.from(new Set([...TIME_ZONES, timeZone])).map(zone => (
                 <Pill
                   key={zone}
                   label={zone}

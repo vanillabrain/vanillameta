@@ -30,7 +30,7 @@
 - 상세 기준과 명령: [docs/testing/workflow.md](docs/testing/workflow.md).
 - MD 시나리오/기대 결과: [docs/testing/cases.md](docs/testing/cases.md).
 - 이 프로젝트 검증에는 `$vanillameta-verify`를 사용한다. 설치 전에는 [skills/vanillameta-verify/SKILL.md](skills/vanillameta-verify/SKILL.md)를 직접 읽는다.
-- 기본 Playwright: `cd frontend-web && npm run test:e2e` (핵심 7개). 파일/`--grep` 선택으로 필요한 것만 실행한다.
+- 기본 Playwright: `cd frontend-web && npm run test:e2e` (핵심 8개). 파일/`--grep` 선택으로 필요한 것만 실행한다.
 - 격리 실행: `npm run test:e2e:isolated`. 확장 QA는 `npm run test:qa -- --grep '케이스 ID'`로 명시적으로 실행한다.
 - UI 검증은 `aside-browser` 실제 화면으로 수행하고 핵심/실패 캡처를 저장소 밖 증빙 폴더에 남긴다.
 

@@ -598,3 +598,184 @@ it('ignores a superseded query response when the dimension sort changes', async 
   expect(screen.queryByText('Stale Sort KPI')).toBeNull();
   expect(lastQuery().rankingSort).toEqual({ by: 'value', direction: 'desc' });
 });
+
+const savedState = {
+  version: 1,
+  measureIds: [2, 1],
+  dimensionColumns: ['device_os'],
+  rankingMeasureId: 2,
+  rankingSort: { by: 'percentChange', direction: 'asc' },
+  filters: [
+    { column: 'bid_floor', range: { min: 1, max: 9 } },
+    { column: 'device_type', values: [null, 'Mobile/Tablet'] },
+  ],
+  dateRange: { column: '__time', start: '2023-09-10', end: '2023-09-11', timeZone: 'Asia/Seoul' },
+  timeZone: 'Asia/Seoul',
+  trendGrain: 'week',
+  comparePrevious: true,
+  includeRows: true,
+};
+const savedView = { id: 11, name: '주간 입찰 분석', sourceRevision: 'rev-3', state: savedState };
+const currentPost = () => {
+  const original = api.post.getMockImplementation();
+  if (!original) throw new Error('Missing API mock');
+  return original;
+};
+const withViews = () => {
+  const original = currentPost();
+  api.post.mockImplementation(async (url: string, body: any, ...options: any[]) => {
+    if (url === '/bi/explore/views/list') return success(body.sourceId === 3 ? [savedView] : []);
+    if (url === '/bi/explore/views/load') return success(savedView);
+    if (url === '/bi/explore/views/create') return success({ ...savedView, name: body.name, state: body.state });
+    if (url === '/bi/explore/views/remove') return success({ id: body.viewId });
+    return original(url, body, ...options);
+  });
+};
+
+it('restores persisted exploration conditions after remount and resets raw pagination', async () => {
+  withViews();
+  const mounted = render(<SourceExplore />);
+  fireEvent.click(await screen.findByRole('button', { name: '탐색 보기', exact: true }));
+  await screen.findByRole('option', { name: savedView.name });
+  mounted.unmount();
+  render(<SourceExplore />);
+  fireEvent.click(await screen.findByRole('button', { name: '탐색 보기', exact: true }));
+  await screen.findByRole('option', { name: savedView.name });
+  fireEvent.change(screen.getByLabelText('저장한 탐색 보기'), { target: { value: '11' } });
+  fireEvent.click(screen.getByRole('button', { name: '보기 열기' }));
+  await waitFor(() =>
+    expect(lastQuery()).toMatchObject({
+      measureIds: [2, 1],
+      dimensionColumns: ['device_os'],
+      rankingMeasureId: 2,
+      rankingSort: savedState.rankingSort,
+      filters: savedState.filters,
+      dateRange: savedState.dateRange,
+      trendGrain: 'week',
+      comparePrevious: true,
+      includeRows: true,
+      page: 0,
+    }),
+  );
+  expect((screen.getByLabelText('시작일') as HTMLInputElement).value).toBe('2023-09-10');
+  expect(screen.getByText('“주간 입찰 분석” 조건을 복원했습니다.')).toBeTruthy();
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: '현재 조건 저장' }) as HTMLButtonElement).disabled).toBe(true),
+  );
+  fireEvent.change(screen.getByLabelText('새 보기 이름'), { target: { value: ' 복원한 보기 ' } });
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: '현재 조건 저장' }) as HTMLButtonElement).disabled).toBe(false),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '현재 조건 저장' }));
+  await waitFor(() =>
+    expect(api.post.mock.calls.find(([url]) => url === '/bi/explore/views/create')?.[1]).toEqual({
+      sourceId: 3,
+      sourceRevision: 'rev-3',
+      name: '복원한 보기',
+      measureVersions: { '1': 1, '2': 1 },
+      state: savedState,
+    }),
+  );
+});
+
+it('keeps current query on stale saved-view conflict and permits removing the stale view', async () => {
+  withViews();
+  const original = currentPost();
+  api.post.mockImplementation((url: string, ...args: any[]) =>
+    url === '/bi/explore/views/load' ? Promise.reject(conflict()) : original(url, ...args),
+  );
+  await mount();
+  fireEvent.click(await screen.findByRole('button', { name: '탐색 보기', exact: true }));
+  await screen.findByRole('option', { name: savedView.name });
+  const before = lastQuery();
+  fireEvent.change(screen.getByLabelText('저장한 탐색 보기'), { target: { value: '11' } });
+  fireEvent.click(screen.getByRole('button', { name: '보기 열기' }));
+  await screen.findByText(/데이터 또는 지표 버전이 변경되어/);
+  expect(lastQuery()).toEqual(before);
+  fireEvent.click(screen.getByRole('button', { name: '보기 삭제' }));
+  await waitFor(() => expect(screen.queryByRole('option', { name: savedView.name })).toBeNull());
+});
+
+it('ignores a delayed saved-view restore after changing source', async () => {
+  withViews();
+  let resolveLoad: (value: unknown) => void = () => undefined;
+  const original = currentPost();
+  api.post.mockImplementation((url: string, ...args: any[]) =>
+    url === '/bi/explore/views/load'
+      ? new Promise(resolve => {
+          resolveLoad = resolve;
+        })
+      : original(url, ...args),
+  );
+  await mount();
+  fireEvent.click(await screen.findByRole('button', { name: '탐색 보기', exact: true }));
+  await screen.findByRole('option', { name: savedView.name });
+  fireEvent.change(screen.getByLabelText('저장한 탐색 보기'), { target: { value: '11' } });
+  fireEvent.click(screen.getByRole('button', { name: '보기 열기' }));
+  fireEvent.change(screen.getByLabelText('데이터 소스'), { target: { value: '4' } });
+  await waitFor(() => expect(lastQuery().sourceId).toBe(4));
+  await act(async () => {
+    resolveLoad(success(savedView));
+  });
+  expect(lastQuery()).toMatchObject({ sourceId: 4, filters: [], comparePrevious: false, page: 0 });
+  expect(screen.queryByText(/조건을 복원했습니다/)).toBeNull();
+});
+
+it('shows the server rejection reason from the actual HTTP exception envelope', async () => {
+  withViews();
+  const original = currentPost();
+  api.post.mockImplementation((url: string, ...args: any[]) =>
+    url === '/bi/explore/views/create'
+      ? Promise.reject({
+          response: {
+            status: 400,
+            data: { success: false, code: 400, data: '탐색 보기는 소스별 최대 20개까지 저장할 수 있습니다.' },
+          },
+        })
+      : original(url, ...args),
+  );
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: '탐색 보기', exact: true }));
+  fireEvent.change(screen.getByLabelText('새 보기 이름'), { target: { value: '새 보기' } });
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: '현재 조건 저장' }) as HTMLButtonElement).disabled).toBe(false),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '현재 조건 저장' }));
+  expect(await screen.findByText('탐색 보기는 소스별 최대 20개까지 저장할 수 있습니다.')).toBeTruthy();
+});
+
+it('rejects an unsupported loaded state version without changing current conditions', async () => {
+  withViews();
+  const original = currentPost();
+  api.post.mockImplementation((url: string, ...args: any[]) =>
+    url === '/bi/explore/views/load'
+      ? Promise.resolve(success({ ...savedView, state: { version: 2 } }))
+      : original(url, ...args),
+  );
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: '탐색 보기', exact: true }));
+  await screen.findByRole('option', { name: savedView.name });
+  const before = lastQuery();
+  fireEvent.change(screen.getByLabelText('저장한 탐색 보기'), { target: { value: '11' } });
+  fireEvent.click(screen.getByRole('button', { name: '보기 열기' }));
+  await screen.findByText(/저장된 탐색 조건의 버전을 확인할 수 없습니다/);
+  expect(lastQuery()).toEqual(before);
+});
+
+it('blocks saving when a selected catalog measure has no definition version', async () => {
+  withViews();
+  const original = currentPost();
+  api.post.mockImplementation((url: string, ...args: any[]) =>
+    url === '/bi/explore/catalog'
+      ? Promise.resolve(
+          success({ ...catalog, measures: catalog.measures.map(measure => ({ ...measure, definitionVersion: undefined })) }),
+        )
+      : original(url, ...args),
+  );
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: '탐색 보기', exact: true }));
+  fireEvent.change(screen.getByLabelText('새 보기 이름'), { target: { value: '새 보기' } });
+  expect((screen.getByRole('button', { name: '현재 조건 저장' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.getByText(/지표 정의 버전을 확인할 수 없습니다/)).toBeTruthy();
+  expect(api.post.mock.calls.some(([url]) => url === '/bi/explore/views/create')).toBe(false);
+});

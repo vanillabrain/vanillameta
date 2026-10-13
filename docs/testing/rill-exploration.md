@@ -2,7 +2,7 @@
 
 ## 구현 범위
 
-SQL 없는 제작 화면(`/explore`)에서 저장한 지표를 별도 탐색 화면(`/explore/source?sourceId=...`)에서 선택한다. 서버의 소유권·지표 정의·소스 버전을 사용하며 클라이언트 SQL을 실행하지 않는다. 이번 단위는 Measure/Dimension 선택, 검색 가능한 값 필터, 기간/시간대/비교, KPI·추세·차원 순위·페이지 단위 원본 행이다. Pivot, 숫자 범위 필터, 탐색 상태 저장/내보내기와 운영 규모 부하는 후속 구현 항목이다.
+SQL 없는 제작 화면(`/explore`)에서 저장한 지표를 별도 탐색 화면(`/explore/source?sourceId=...`)에서 선택한다. 서버의 소유권·지표 정의·소스 버전을 사용하며 클라이언트 SQL을 실행하지 않는다. 이번 단위는 Measure/Dimension 선택, 검색 가능한 값 필터, 기간/시간대/비교, KPI·추세·차원 순위·페이지 단위 원본 행이다. 숫자 범위·변화 정렬과 개인 탐색 보기 저장/복원은 아래 후속 기록까지 구현했다. Pivot, 내보내기와 운영 규모 부하는 후속 구현 항목이다.
 
 ## 비교 조건
 
@@ -63,3 +63,23 @@ Rill 데모의 값/절대 변화/증감률 정렬과 범위 입력 흐름을 대
 검사: 전체 BE71suite/1129개·FE45파일/696개 PASS 후 리뷰 수정. 최종 공통 AI/BI25suite/690개 및 추가 dashboard 실제 preview14개, FE 탐색20개·타입/변경lint PASS. 루트 빌드 PASS, CSV 집계/데이터셋 저장 핵심 E2E2개 PASS. DECIMAL(p,s) 타입의 비교 정확성 경계 누락은 회귀로 발견·수정했다. 전체 운영 부하/확장 QA/배포는 NOT_RUN.
 
 증빙: `/tmp/vm-rill-explore/range-sort-api.json`, `range-browser-xhr.jsonl`, `range-ui-final.log`, `range-sort-final.png`, `/tmp/vm-rill-range-{integration-test,final-be,e2e}.log`. Aside 원본 캡처는 해당 세션에 보존했다. Pivot·탐색 보기 저장/내보내기·집계 지표 임계값 필터는 후속이다.
+
+## 개인 탐색 보기 — 2026-10-14 후속
+
+탐색 화면의 접을 수 있는 `탐색 보기` 패널에서 이름을 입력해 현재 조건을 서버에 저장하고 목록에서 다시 열거나 삭제한다. 지표·차원·순위 지표/정렬·값/숫자 범위 필터·기간 열/날짜/시간대·집계 단위·이전 비교·원본 펼침을 v1 상태로 보존한다. 원본 페이지 번호는 저장하지 않고 복원 시 0으로 초기화한다. 이름은 1~80자, 사용자/소스별 최대 20개다. 저장 기간은 현재 UI의 civil 날짜(YYYY-MM-DD) 계약이며 timestamp 정밀도는 이 저장 계약에서 거절한다.
+
+별도 `explore_view` 테이블과 멱등 마이그레이션을 추가했다. 기존 대시보드 `personal_view` 계약은 유지한다. API는 `/v1/bi/explore/views/{create,list,load,remove}`이며 JWT 사용자와 소스 소유권을 모두 검사한다. 저장 시 클라이언트 catalog의 선택 지표 정의 버전과 서버의 버전이 일치해야 하며 서버에서 확정한 매핑을 보존한다. 소스 revision 또는 지표 정의 버전이 변경된 보기는 409로 복원을 막는다. 손상/미지원 상태는 목록에 삭제 가능한 항목으로 남기고 다른 정상 보기의 조회는 유지한다. UI는 오류 이유와 목록 새로 확인/새 보기 저장 안내를 표시하고 현재 탐색 조건을 보존한다.
+
+| ID         | 조작                                                                   | 실행 범위와 결과                                                                                                                                              |
+| ---------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| EXPLORE-11 | 조건 저장 → 새로고침 → 선택/열기 → 원본 다음 페이지 → 다시 열기 → 삭제 | FE 회귀, 실제 API, 핵심 E2E PASS. Aside 공식 Rill 원본에서 저장/새로고침/복원/페이지 초기화 및 XHR PASS. 삭제/재로드는 E2E와 API에서 PASS                     |
+| EXPLORE-12 | 다른 사용자 접근, 저장 직전 소스/지표 변경, 복원 시 버전 변경          | API 다른 사용자 4개 작업 403, 저장 시 revision/지표 불일치409 PASS. 복원 변경/현재 상태 보존/지연 응답은 BE·FE 회귀 PASS. 모든 실패의 실제 Aside UI는 NOT_RUN |
+| EXPLORE-13 | 손상/미지원 상태·버전 매핑, 최대 수량 경합, 마이그레이션               | BE 회귀 PASS. 손상 항목 목록/삭제, 엄격한 복원, 정의 버전 누락, SQLite 동시 저장 상한 검증. 실제 MySQL 서버 경합은 NOT_RUN                                    |
+
+검증 환경은 복사한 로컬 SQLite `/tmp/vm-rill-views/metadata.db`, API4898/프록시4899/FE3698이다. 원래 실행 서버와 데이터를 유지했다. 정상 로그인과 공식 Parquet 업로드로 source7, Total Requests/Avg Bid Floor 지표3/4를 준비했다. 기간 2023-09-10~11 UTC, bid_floor 1~9, 이전 비교, 변화율 오름차순, 원본 펼침을 저장해 새로고침 후 복원했다. 요청55127800, 평균2.934985272971758±1e-9, 원본122756행의 독립 정답과 실제 응답이 일치했다. 두 번째 원본 페이지에서 다시 열었을 때 XHR의 `page:0`과 첫 페이지 표시를 확인했다.
+
+Rill 로컬 v0.90.5 Explore 화면의 컨트롤과 기본 상태 저장 위치를 확인했고, cloned 소스의 `ExploreBookmarks.svelte`/`Bookmarks.svelte`에서 URL 기반 조건과 개인/공유/홈 보기 흐름을 대조했다. 이 로컬 개발 데모에는 개인 Bookmark UI가 표시되지 않아 개인 보기 저장 동작의 Rill 실화면 검증은 NOT_RUN이다. VanillaMeta는 상단 접이식 개인 보기 패널을 사용하며 Rill의 Bookmark 드롭다운·공유/홈 보기는 후속 차이다. Rill 데모의 기본 상태는 변경하지 않았다. 이번 패널의 전체 모바일/접근성 검증은 NOT_RUN.
+
+전체 빠른 단위 검사: BE73suite/1144개, FE45파일/702개 PASS. BE/FE 빌드와 FE 타입/변경 lint PASS. 저장/재로드/복원/삭제 핵심 E2E1개 PASS. 최종 별칭 지표 키 거절 추가 회귀를 포함한 보기 서비스13개 PASS와 BE 재빌드 PASS. 전체 핵심 E2E·확장 QA·운영 부하·배포는 NOT_RUN.
+
+증빙: `/tmp/vm-rill-views/api-checks.json`, `browser-xhr.jsonl`, `vm-views-restored.png`, `integration-test.log`, `frontend-build.log`, `e2e/`. Aside 원본 캡처는 `/Users/drumcap/.aside/u/0/sessions/2026-10-14_olA4jURGvmDeql8n/artifacts/`에 보존한다. 다음은 같은 필터/기간/지표 계약을 재사용하는 Pivot의 행·열·복수 지표 집계와 UI다. 내보내기, 공유 보기, 집계 지표 임계값 필터는 이후다.
