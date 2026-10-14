@@ -524,3 +524,73 @@ it('UC-011 keeps the current draft after a rejected layout proposal and leaves s
   expect((screen.getByRole('button', { name: '되돌리기' }) as HTMLButtonElement).disabled).toBe(true);
   expect((screen.getByRole('button', { name: '변경 내용 저장' }) as HTMLButtonElement).disabled).toBe(true);
 });
+
+it('TC-011-07 preserves duplicate identity across direct/content/layout edits and four-step history', async () => {
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: '1번 차트 복제' }));
+  document.querySelectorAll('details').forEach(element => {
+    element.open = true;
+  });
+  fireEvent.change(screen.getByLabelText('2번 차트 제목'), { target: { value: '연속 편집' } });
+  fireEvent.click(screen.getByRole('button', { name: '2번 차트 AI로 수정' }));
+  fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '소수 1자리' } });
+  let copyKey = '';
+  let generated: any;
+  api.post.mockImplementationOnce(async (_url, body) => {
+    copyKey = body.items[1].key;
+    expect(body.items[1]).toMatchObject({ copyOf: 'old', title: '연속 편집' });
+    generated = {
+      ...body.items[1],
+      kind: 'draft',
+      copyOf: undefined,
+      decimalPlaces: 1,
+      definition: {
+        title: '연속 편집',
+        description: '',
+        type: 'BOARD_NUMERIC',
+        sql: 'SELECT SUM(amount) AS value FROM source',
+        valueField: 'value',
+        decimalPlaces: 1,
+      },
+    };
+    return success({ item: generated, preview: preview(2) });
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'AI 변경 미리보기' }));
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: '변경 내용 저장' }) as HTMLButtonElement).disabled).toBe(false),
+  );
+  fireEvent.click(within(screen.getByRole('radiogroup', { name: 'AI 변경 목적' })).getByLabelText('배치'));
+  fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '세로 위치 30' } });
+  api.post.mockImplementationOnce(async (_url, body) => {
+    expect(body.items[1]).toMatchObject({ key: copyKey, kind: 'draft', decimalPlaces: 1 });
+    expect(body.items[1].copyOf).toBeUndefined();
+    return success({
+      item: { ...generated, layouts: { desktop: { x: 0, y: 30, w: 6, h: 3 } } },
+      editMode: 'layout',
+      preview: preview(2),
+    });
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'AI 변경 미리보기' }));
+  await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2));
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: 'AI 변경 미리보기' }) as HTMLButtonElement).disabled).toBe(false),
+  );
+  for (let i = 0; i < 4; i++) fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
+  expect(screen.queryByRole('heading', { name: /^2번 차트 ·/ })).toBeNull();
+  for (let i = 0; i < 4; i++) fireEvent.click(screen.getByRole('button', { name: '다시 실행' }));
+  expect(screen.getByRole('heading', { name: '2번 차트 · 연속 편집' })).not.toBeNull();
+  expect((screen.getByRole('button', { name: '변경 내용 저장' }) as HTMLButtonElement).disabled).toBe(true);
+  await requestPreview(2);
+  const body = api.post.mock.calls[2][1];
+  expect(body.items[0]).toMatchObject({ key: 'old', kind: 'existing', title: item.title });
+  expect(body.items[1]).toMatchObject({
+    key: copyKey,
+    kind: 'draft',
+    decimalPlaces: 1,
+    definition: generated.definition,
+    layouts: { desktop: { x: 0, y: 30, w: 6, h: 3 } },
+  });
+  api.post.mockResolvedValueOnce(success({ id: 8 }));
+  fireEvent.click(screen.getByRole('button', { name: '변경 내용 저장' }));
+  await waitFor(() => expect(api.navigate).toHaveBeenCalledWith('/dashboard/8'));
+});
