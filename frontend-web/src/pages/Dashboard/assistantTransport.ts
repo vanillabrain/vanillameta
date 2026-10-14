@@ -49,6 +49,7 @@ export function assistantTransport(context: () => any): ChatTransport<AssistantM
           result = {
             mode,
             preview,
+            metricReferences: draft.metricReferences ?? [],
             base: JSON.stringify(current),
             answer: preview.draft.explanation || '변경 미리보기가 준비되었습니다.',
           };

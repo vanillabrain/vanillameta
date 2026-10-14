@@ -4,8 +4,8 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import DashboardAssistant from './DashboardAssistant';
 
 // Keep the real useChat/transport pipeline; replace only network and visual surfaces.
-const api = vi.hoisted(() => ({ post: vi.fn() }));
-vi.mock('@/helpers/apiHelper', () => ({ post: api.post }));
+const api = vi.hoisted(() => ({ post: vi.fn(), get: vi.fn() }));
+vi.mock('@/helpers/apiHelper', () => ({ post: api.post, get: api.get }));
 vi.mock('@mui/material/styles', async () => {
   const { createRequire } = await import('node:module');
   return createRequire(import.meta.url)('@mui/material/styles');
@@ -86,7 +86,10 @@ const base = {
   filters: [],
   dateRange: { start: '2026-01-01', end: '2026-02-01' },
 };
-beforeEach(() => api.post.mockReset());
+beforeEach(() => {
+  api.post.mockReset();
+  api.get.mockReset().mockResolvedValue(success([]));
+});
 afterEach(cleanup);
 const mount = () => {
   const onApplied = vi.fn();
@@ -423,4 +426,33 @@ it('UC-001 BR-001 displays numeric trend in an edit proposal before explicit per
   expect(api.post.mock.calls.map(c => c[0])).toEqual(['/ai/dashboard-draft', '/ai/dashboard-preview']);
   expect(api.post.mock.calls[1][1].includeTrends).toBe(true);
   expect(screen.getByText('변경 적용')).toBeTruthy();
+});
+
+it('binds a selected saved metric, shows verified reuse and invalidates preview after selection changes', async () => {
+  api.get.mockResolvedValue(success([{ id: 3, label: 'Saved total' }]));
+  api.post
+    .mockResolvedValueOnce(
+      success({ ...revised, metricReferences: [{ widgetIndex: 0, metricId: 3, label: 'Saved total' }] }),
+    )
+    .mockResolvedValueOnce(success(preview));
+  mount();
+  fireEvent.click(screen.getByRole('button', { name: '대시보드 수정', exact: true }));
+  fireEvent.change(screen.getByLabelText('분석할 차트'), { target: { value: '0' } });
+  await screen.findByRole('option', { name: 'Saved total' });
+  fireEvent.change(screen.getByLabelText('재사용할 저장 지표'), { target: { value: '3' } });
+  fireEvent.change(screen.getByLabelText('대시보드 수정 요청'), { target: { value: 'Change this chart' } });
+  fireEvent.click(screen.getByRole('button', { name: '미리보기 요청' }));
+  await ready();
+  expect(api.post.mock.calls[0][1].selectedMetricId).toBe(3);
+  expect(screen.getByText('저장 지표 재사용: Saved total · 저장 시 계산식 유지')).toBeTruthy();
+  fireEvent.change(screen.getByLabelText('재사용할 저장 지표'), { target: { value: '' } });
+  expect(screen.getByRole('button', { name: '변경 적용' }).hasAttribute('disabled')).toBe(true);
+});
+it('reports catalog failure while leaving natural language editing available', async () => {
+  api.get.mockRejectedValue(new Error('offline'));
+  mount();
+  fireEvent.click(screen.getByRole('button', { name: '대시보드 수정', exact: true }));
+  fireEvent.change(screen.getByLabelText('분석할 차트'), { target: { value: '0' } });
+  await screen.findByText(/저장 지표를 불러오지 못しました|저장 지표를 불러오지 못했습니다/);
+  expect(screen.getByLabelText('대시보드 수정 요청').hasAttribute('disabled')).toBe(false);
 });

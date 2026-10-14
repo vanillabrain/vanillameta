@@ -54,3 +54,26 @@ export function applyMetricReferences(
   });
   return validateDraft({ ...draft, widgets });
 }
+
+/** Explicit UI selection targets exactly one chart; unrelated widgets remain immutable. */
+export function explicitMetricTarget(
+  input: any,
+  current: any,
+  selectedWidget: any,
+  selectedMetricId: any,
+) {
+  if (selectedMetricId === undefined) return input;
+  if (!current || !Number.isInteger(selectedWidget) || !current.widgets[selectedWidget])
+    throw new BadRequestException('selected metric requires a target widget');
+  if (
+    !Array.isArray(input?.widgets) ||
+    input.widgets.length !== 1 ||
+    input.widgets[0]?.title !== current.widgets[selectedWidget].title
+  )
+    throw new BadRequestException('return exactly one selected widget with its original title');
+  const base = validateDraft(current);
+  const widgets = base.widgets.map((w, i) =>
+    i === selectedWidget ? { ...input.widgets[0], metricId: selectedMetricId } : w,
+  );
+  return { ...base, explanation: input.explanation, widgets };
+}

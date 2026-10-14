@@ -66,3 +66,7 @@
 ### BR-003: Immutable source definition
 
 분석의 표시·제목·차트 변경은 저장 지표를 수정하지 않는다. 생성 결과의 참조는 계산식 snapshot으로 저장되며 live 참조형 새 DB스키마는 추가하지 않는다.
+
+### BR-004: Explicit target selection
+
+수정 모드에서 특정 차트와 저장 지표를 선택하면 서버는 해당 차트만 canonical 계산식으로 교체한다. AI의 참조 누락/상충에 선택 ID가 우선하며, 다른 차트는 기존 snapshot을 유지한다. 미리보기에 검증된 재사용 지표명을 표시하고 선택 변경 시 다시 요청해야 한다. 저장은 SQL snapshot이며 live 참조를 의미하지 않는다.

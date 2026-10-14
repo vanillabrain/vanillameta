@@ -33,3 +33,10 @@
 ## Postconditions
 
 - 검증용 분석은 남기며 원본 지표는 수정/삭제하지 않는다.
+
+## Explicit selection regression
+
+- OS별 차트와 Total Requests를 선택해 수정 요청한다. AI가 metricId를 생략해도 SUM(bid_request_cnt)가 적용되고 두 KPI는 그대로다.
+- 미리보기에서 서버 확인된 지표명을 읽고 저장·새로고침 후 같은 분류 수치/SQL을 확인한다.
+- 목록/선택 상태 변경은 기존 미리보기 저장을 차단한다. 잘못된 ID/대상/복수 출력은 거부한다.
+- 데스크톱과 390px에서 선택 입력·버튼·주변 레이아웃의 높이, 폰트, 정렬, overflow를 확인한다.

@@ -34,6 +34,11 @@ export class AiController {
     }
   }
 
+  @Get('dashboard-metrics/:id')
+  dashboardMetrics(@Param('id') id: string, @Req() req) {
+    return this.dashboards.metricChoices(Number(id), req.user.accessKeyData.id);
+  }
+
   @Post('dashboard-draft')
   dashboardDraft(@Body() body: any, @Req() req, @Res({ passthrough: true }) res?) {
     return this.cancellable(req, res, signal =>

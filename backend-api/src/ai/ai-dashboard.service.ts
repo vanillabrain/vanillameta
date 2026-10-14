@@ -23,7 +23,7 @@ import { Component } from '../component/entities/component.entity';
 import { Database } from '../database/entities/database.entity';
 import { Metric } from '../metric/entities/metric.entity';
 import { metricExpression } from '../bi/metric-expression';
-import { applyMetricReferences } from './saved-metric-reference';
+import { applyMetricReferences, explicitMetricTarget } from './saved-metric-reference';
 import { DatasetType } from '../common/enum/dataset-type.enum';
 import {
   buildTimeChartQuery,
@@ -391,6 +391,10 @@ export class AiDashboardService {
       } // corrupt definitions never become guessed expressions.
     });
   }
+  async metricChoices(sourceId: number, userId: number) {
+    const metrics = await this.savedMetrics(sourceId, userId, await this.schema(sourceId));
+    return this.success(metrics.map(({ id, label }) => ({ id, label })));
+  }
   async generate(body: any, userId: number, abortSignal?: AbortSignal) {
     if (body?.dashboardId !== undefined) await this.owner(body.dashboardId, userId);
     const id = positiveId(body?.databaseId);
@@ -404,6 +408,14 @@ export class AiDashboardService {
     const history = this.conversation(body, current);
     const sourceSchema = await this.schema(id);
     const savedMetrics = await this.savedMetrics(id, userId, sourceSchema);
+    if (
+      body.selectedMetricId !== undefined &&
+      (!current ||
+        body.selectedWidget === undefined ||
+        !Number.isSafeInteger(body.selectedMetricId) ||
+        !savedMetrics.some(m => m.id === body.selectedMetricId))
+    )
+      throw new BadRequestException('selected metric unavailable for this target/source');
     if (
       !current &&
       (body.filters !== undefined ||
@@ -452,7 +464,11 @@ export class AiDashboardService {
       current || null,
     )}\nServer preview context: ${JSON.stringify(context)}\nHistory: ${JSON.stringify(
       history,
-    )}\nSelected widget: ${JSON.stringify(body.selectedWidget ?? null)}\nRequest: ${body.prompt}`;
+    )}\nExplicit saved metric: ${JSON.stringify(
+      body.selectedMetricId ?? null,
+    )}. If an explicit saved metric is selected, return ONLY one widget with the exact original title of the selected widget, an explicit AS value alias and the requested source category. Keep its display options unless asked to change them. The server preserves all other widgets and the dashboard title.\nSelected widget: ${JSON.stringify(
+      body.selectedWidget ?? null,
+    )}\nRequest: ${body.prompt}`;
     let correction = '';
     for (let attempt = 0; attempt < 2; attempt++) {
       if (abortSignal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
@@ -470,13 +486,18 @@ export class AiDashboardService {
         };
       }
       try {
-        const parsed = JSON.parse(
+        let parsed = JSON.parse(
           raw
             .trim()
             .replace(/^```(?:json)?\s*/i, '')
             .replace(/\s*```$/, ''),
         );
         if (parsed?.databaseId !== id) throw new BadRequestException('AI database mismatch');
+        parsed = explicitMetricTarget(parsed, current, body.selectedWidget, body.selectedMetricId);
+        const metricReferences = (parsed.widgets || []).flatMap((w, widgetIndex) => {
+          const metric = savedMetrics.find(m => m.id === w.metricId);
+          return metric ? [{ widgetIndex, metricId: metric.id, label: metric.label }] : [];
+        });
         const reusedMetricIds = [
           ...new Set(
             (parsed.widgets || []).flatMap(w => (w.metricId === undefined ? [] : [w.metricId])),
@@ -506,7 +527,7 @@ export class AiDashboardService {
         const preview = await this.preview({ draft: parsed }, userId);
         return this.success({
           ...preview.data.draft,
-          ...(reusedMetricIds.length ? { reusedMetricIds } : {}),
+          ...(reusedMetricIds.length ? { reusedMetricIds, metricReferences } : {}),
         });
       } catch (error) {
         const message =

@@ -2,7 +2,7 @@
 
 ## Scope
 
-기존 BiService의 구조화 Metric.definition을 재사용한다. 저장 스키마·live reference registry·전면 리팩터링·새 UI 메뉴는 추가하지 않는다. 공통 구조화 계산기만 추출해 제작/AI가 공유한다.
+기존 BiService의 구조화 Metric.definition을 재사용한다. 저장 스키마·live reference registry·전면 리팩터링·새 탐색 메뉴는 추가하지 않는다. Assistant 안의 선택적 지표 입력만 추가한다. 공통 구조화 계산기만 추출해 제작/AI가 공유한다.
 
 ## Contract
 
@@ -19,3 +19,15 @@
 ## Implementation review
 
 구현 후 별도 검토 pass(동일 작성자): 기존 Bi 계산기 함수를 추출해 기능 중복을 피했다. 투영식의 지정 alias만 교체해 기존 WHERE·분류·정렬을 보존한다. 컬럼 인용의 SUM 검사 충돌을 실제 UI에서 재현해 따옴표 포함/미포함 표기를 회귀로 보완했다. 생성 응답의 reusedMetricIds는 선택 참조 증거이며 저장 정의에는 canonical SQL snapshot만 남긴다. 실제 두 KPI 참조3/4 재사용과 정의 불변을 확인했고, OS막대에는 참조 ID가 없으므로 자동 전파 완료로 과장하지 않는다.
+
+## Explicit selection extension
+
+Assistant 수정 모드에서 차트를 선택한 경우에만 선택적 저장 지표 입력을 노출한다. 선택하지 않으면 기존 자연어 생성 흐름을 유지한다. selectedMetricId는 소유권 확인한 활성 catalog의 ID여야 하고 selectedWidget/currentDraft가 필요하다. AI는 선택 대상과 같은 제목의 위젯 하나만 반환한다. 서버는 선택 ID를 강제하여 canonical 계산식을 적용하고 원래 배열의 선택 위치에만 합성한다. 다른 차트와 대시보드 제목은 그대로 유지한다. 대상 불일치·복수 출력은 재생성/실패 처리한다.
+
+미리보기는 서버가 검증한 widgetIndex/metricId/label을 표시한다. 이 표시는 이번 생성의 재사용 증거이며 저장 후 SQL snapshot으로 유지된다. live 연결이나 새로고침 후 지표 링크는 주장하지 않는다. 선택 변경은 미리보기를 stale 처리한다. 목록 로드 실패는 안내하며 기존 자연어 수정은 사용 가능하다.
+
+검증: 참조 누락/상충에도 명시 선택 우선, 잘못된 선택 거부, 다른 위젯 보존, 상태 변경 시 저장 차단, 실제 선택→질문→미리보기→저장→새로고침 및 데스크톱/390px 크기 확인.
+
+## Explicit selection implementation review
+
+별도 검토 pass(동일 작성자): 선택 대상은 제목/단일 결과 계약으로 확인하고 서버에서 원래 배열에 합성해 다른 위젯을 보존한다. 누락 또는 상충 metricId는 선택 ID로 대체한다. 새 catalog GET은 기존 소스 권한 가드에 포함하고 공유/외부/legacy 접근을 차단한다. 정의가 없는 경우와 목록 실패는 자연어 수정 흐름을 유지한다. 선택 변경의 stale guard와 generation provenance 전달은 실제 transport 회귀에서 확인했다. 지표 삭제/수정이 생성 이후 일어나도 기존 저장 SQL snapshot은 독립적으로 유지된다. 목표 차트의 제목 변경은 명시 지표 선택 모드에서 지원하지 않으며 선택 해제 후 일반 수정으로 진행한다.

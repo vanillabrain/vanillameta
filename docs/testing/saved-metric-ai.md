@@ -35,3 +35,29 @@
 - `/tmp/vm-saved-metrics/`: unit-final.log, build-final.log, lint-final.log(기존4경고 포함), lint-production.log, definitions-before.txt, persisted.json, api-result.log. raw API로그는 packet에 넣지 않는다.
 - Aside `/Users/drumcap/.aside/u/0/sessions/2026-10-14_ElRAuMzDbgj1MolF/artifacts/`: saved-metric-first-failure.png, saved-metric-preview.png, metric-reuse-response.json(인증 없는 생성 응답), metric-reuse-reloaded.txt/png.
 - `.aiwf/` pin/check/packet은 로컬에 보관하며 awaiting_review / acceptance not_recorded를 유지한다. 문서·코드는 Git에 저장한다.
+
+## Explicit selection — follow-up
+
+AIWF 설계·BR-004·TC 회귀를 먼저 추가하고 구현했다. Assistant에서 수정 모드/단일 차트 선택일 때만 저장 지표 입력을 표시한다. 목록은 생성과 같은 authorized/valid/30개 catalog이며 선택하지 않으면 기존 SQL 생성 흐름이다. server-confirmed metricReferences는 미리보기 해당 차트 위에 표시하고 SQL snapshot으로 저장한다. 재사용 표시는 생성 단계 증거이며 새로고침 후 live 연결 배지를 만들지 않는다.
+
+| Gate                        | Result                 | Evidence                                                                                                                                                                                                  |
+| --------------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| BE targeted                 | PASS                   | 4 suites/130 tests. 누락·상충 참조 강제, 타 위젯/title 보존, 잘못된 대상/지표/복수 출력 거부, indexed provenance, catalog source ownership 포함                                                           |
+| FE targeted                 | PASS                   | 2 files/34 tests. 실제 SDK transport, 선택 ID 전달, 재사용 표시, 선택 변경 stale 차단, catalog 실패 안내와 기존 질문 유지                                                                                 |
+| Type/lint/build             | PASS                   | FE tsc, 변경 BE/FE eslint, Nest/Vite build                                                                                                                                                                |
+| Existing environment UI/XHR | PASS                   | 분석5에서 device_os별 차트→Total Requests→질문→미리보기. metricReferences=[{widgetIndex:2,metricId:3,label:Total Requests}], canonical SUM("bid_request_cnt"), 28개 범주 합계634513000                    |
+| Save/reload                 | PASS                   | 실제 변경 적용→reload; 두 KPI634513000/$5.57 및 두 시계열 유지. 저장 SQL snapshot 확인. 앞 두 위젯/title 동일 및 Metric3/4 definition byte동일                                                            |
+| UI design                   | PASS_SELECTED_WIDTHS   | Aside1727·Playwright390/1440. 선택 입력 높이32px·폰트12px, 같은 x/width. 좁은 화면 긴 지표 이름, footer 질문 입력/버튼, 패널 수평 overflow 없음                                                           |
+| Rill comparison             | PASS_SELECTED_ELEMENTS | 실제1727 화면 캡처: Rill635M/$5.57 숫자+추세와 Total Requests 기준 OS 순위. VM634513000/$5.57 및 OS별 합계 일치. Rill은 막대가 있는 순위표, VM은 세로 막대이며 픽셀 동등성/AI 수정 동등성은 주장하지 않음 |
+
+최초 실제 catalog GET은 새 route의 권한 가드 분기 누락으로 거부됐다. 실패 캡처 후 가드에 source 권한 검사를 추가하고 같은 계정에서 목록·선택을 재검증했다. 최초1440 크기 검사는 Drawer 전환 애니메이션 중 offscreen 좌표를 읽어 실패했고, 전환 완료 조건을 기다려 재검증했다. 390에서는 처음부터 정렬·overflow 검사가 통과했다. 제품 CSS 변경으로 검사 결과를 우회하지 않았다.
+
+모바일 검증은 별도 demoverify 계정의 분석7/source21을 사용하고 재사용할 저장 SUM(amount) 지표 테스트 fixture를 추가했다. 모바일에서는 선택/입력·레이아웃만 검증했고 LLM 저장 흐름은 데스크톱 분석5에서 확인했다. 기존 사용자 로그인·DB·업로드 경로를 유지했다.
+
+### Follow-up limits and artifacts
+
+제목 변경은 명시 선택 모드에서 거부하며 기존 자연어 모드로 수정한다. 저장 참조의 live propagation/원래 지표 자동 변경·30초과 paging·전체 E2E·VoiceOver·운영 배포는 NOT_RUN. 초기 자동 참조의 OS ID 누락 문제는 이번 명시 선택으로 해결했지만 자동 자연어 이름 매칭 완전 보장으로 확대하지 않는다.
+
+- `/tmp/vm-explicit-metrics/`: be-complete.log, fe-tests.log, type.log, lint-be.log, build-final.log, fe-build.log, responses.json, persisted.json, definitions-before.json, mobile-layout.json, controls-390/1440.png, rill.png/txt. API 원본 로그는 비공개이며 packet에 넣지 않는다.
+- 기존 Aside artifacts: explicit-catalog-failure.png, explicit-metric-responses.json, explicit-metric-preview.png, explicit-metric-reload.txt/png.
+- 기능 PASS와 지정 폭 디자인 PASS를 분리했다. packet은 awaiting_review/acceptance not_recorded를 유지한다.

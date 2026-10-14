@@ -1,5 +1,5 @@
 jest.mock('./ai.service', () => ({ AiService: class {} }));
-import { applyMetricReferences } from './saved-metric-reference';
+import { applyMetricReferences, explicitMetricTarget } from './saved-metric-reference';
 import { metricExpression } from '../bi/metric-expression';
 import { AiDashboardService } from './ai-dashboard.service';
 
@@ -172,4 +172,76 @@ it('accepts a canonical quoted request counter rather than falsely rejecting it'
   expect(result.data.widgets[0].sql).toContain('SUM("bid_request_cnt")');
   expect(result.data.reusedMetricIds).toEqual([3]);
   expect(ai.callLlm).toHaveBeenCalledTimes(1);
+});
+
+it.each([undefined, 99])(
+  'explicit selection overrides missing/conflicting AI reference %s without touching other widgets',
+  id => {
+    const current = draft();
+    current.widgets.push({ ...current.widgets[0], title: 'Other' });
+    delete current.widgets[0].metricId;
+    delete current.widgets[1].metricId;
+    const candidate = draft(id);
+    const merged = explicitMetricTarget(candidate, current, 0, 3);
+    const output = applyMetricReferences(merged, catalog, ['amount']);
+    expect(output.widgets[0].sql).toContain('SUM("amount")');
+    expect(output.widgets[1]).toEqual(current.widgets[1]);
+    expect(output.title).toBe(current.title);
+  },
+);
+it('rejects ambiguous output rather than applying a selected metric to unrelated charts', () => {
+  const current = draft();
+  expect(() => explicitMetricTarget({ ...draft(), widgets: [] }, current, 0, 3)).toThrow(
+    'exactly one',
+  );
+  const candidate = draft();
+  candidate.widgets[0].title = 'Unrelated';
+  expect(() => explicitMetricTarget(candidate, current, 0, 3)).toThrow('original title');
+  expect(() => explicitMetricTarget(candidate, current, 9, 3)).toThrow('target widget');
+});
+
+it.each([99, '3', null])(
+  'rejects an explicit unavailable selection %s before calling AI',
+  async selectedMetricId => {
+    const { service, ai } = setup();
+    await expect(
+      service.generate(
+        {
+          databaseId: 7,
+          prompt: 'update',
+          currentDraft: draft(),
+          selectedWidget: 0,
+          selectedMetricId,
+        },
+        9,
+      ),
+    ).rejects.toThrow('selected metric unavailable');
+    expect(ai.callLlm).not.toHaveBeenCalled();
+  },
+);
+it('enforces an explicit selection in generation and reports the correct widget index', async () => {
+  const { service, ai } = setup();
+  jest.spyOn(service as any, 'previewContext').mockResolvedValue({});
+  const current = draft();
+  delete current.widgets[0].metricId;
+  current.widgets.unshift({ ...current.widgets[0], title: 'Keep this KPI' });
+  const candidate = draft();
+  delete candidate.widgets[0].metricId;
+  ai.callLlm.mockResolvedValue(JSON.stringify(candidate));
+  const result = await service.generate(
+    {
+      databaseId: 7,
+      prompt: 'update',
+      currentDraft: current,
+      selectedWidget: 1,
+      selectedMetricId: 3,
+    },
+    9,
+  );
+  if (!('data' in result)) throw new Error(result.message);
+  expect(result.data.widgets[0]).toEqual(current.widgets[0]);
+  expect(result.data.widgets[1].sql).toContain('SUM("amount")');
+  expect(result.data.metricReferences).toEqual([
+    { widgetIndex: 1, metricId: 3, label: 'Stored Requests' },
+  ]);
 });
