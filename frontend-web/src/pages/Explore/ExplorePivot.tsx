@@ -50,6 +50,42 @@ export const PIVOT_GRAINS: Array<{ value: PivotGrain; label: string }> = [
   { value: 'month', label: '월' },
 ];
 
+/** One compact control baseline: selects match the theme's 32px button height with a smaller font. */
+const FIELD_SX = {
+  minWidth: 0,
+  '& .MuiInputBase-root': { height: 32, fontSize: 13 },
+  // The native select element carries its own padding, so pin it to the same 32px box as the button.
+  '& .MuiInputBase-input': {
+    height: 32,
+    boxSizing: 'border-box',
+    paddingTop: 0,
+    paddingBottom: 0,
+    fontSize: 13,
+  },
+  '& .MuiSelect-select': { fontSize: 13 },
+  '& .MuiInputLabel-root': { fontSize: 13 },
+} as const;
+/** Selects that show a column or measure name take a full row on mobile so the name is not clipped. */
+const NAME_FIELD_SX = {
+  ...FIELD_SX,
+  flex: { xs: '1 1 100%', sm: '1 1 140px' },
+  maxWidth: { xs: '100%', sm: 220 },
+} as const;
+/** Toolbar toggles carry a visible selected look so the `aria-pressed` state is seen, not just announced. */
+const TOGGLE_BUTTON_SX = {
+  textTransform: 'none',
+  whiteSpace: 'nowrap',
+  color: 'text.secondary',
+  border: '1px solid',
+  borderColor: 'divider',
+  '&[aria-pressed="true"]': {
+    color: 'primary.main',
+    borderColor: 'primary.main',
+    backgroundColor: 'action.selected',
+  },
+} as const;
+const PLAIN_BUTTON_SX = { textTransform: 'none', whiteSpace: 'nowrap' } as const;
+
 /**
  * Drop any part of a requested row sort the current axes, measures or comparison can no longer
  * execute: an unknown measure falls back to the label order, a change order without a previous
@@ -337,9 +373,20 @@ export default function ExplorePivot({
     const value = values?.find(item => item.measureId === measureId) ?? { measureId, value: null };
     return (
       <>
-        <div>{formatValue(value)}</div>
+        <div style={{ whiteSpace: 'nowrap' }}>{formatValue(value)}</div>
         {state.comparePrevious && (
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>{formatComparison(value)}</div>
+          <div
+            style={{
+              fontSize: 11,
+              lineHeight: 1.35,
+              color: '#64748b',
+              marginTop: 2,
+              whiteSpace: 'normal',
+              overflowWrap: 'anywhere',
+            }}
+          >
+            {formatComparison(value)}
+          </div>
         )}
       </>
     );
@@ -426,13 +473,16 @@ export default function ExplorePivot({
         : [...(axes.expandedRows ?? []).slice(-49), values as PivotTuple],
     });
   };
+  // Bounded columns keep the comparison summary readable instead of letting nowrap cells expand.
   const cellStyle: React.CSSProperties = {
-    padding: '10px 12px',
+    padding: '8px 10px',
     borderBottom: '1px solid #e2e8f0',
     borderRight: '1px solid #f1f5f9',
     textAlign: 'right',
-    minWidth: 145,
-    whiteSpace: 'nowrap',
+    minWidth: state.comparePrevious ? 180 : 145,
+    maxWidth: 220,
+    verticalAlign: 'top',
+    whiteSpace: 'normal',
   };
   const headerStyle: React.CSSProperties = { ...cellStyle, background: '#f8fafc', fontWeight: 600 };
   const headerButtonStyle: React.CSSProperties = {
@@ -449,10 +499,11 @@ export default function ExplorePivot({
       <Box
         sx={{
           flex: { md: '0 0 210px' },
+          minWidth: 0,
           border: '1px solid #e2e8f0',
           borderRadius: 2,
           p: 1.5,
-          maxHeight: 700,
+          maxHeight: { xs: 320, md: 700 },
           overflowY: 'auto',
         }}
       >
@@ -461,7 +512,7 @@ export default function ExplorePivot({
           size="small"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          sx={{ width: '100%', mb: 1 }}
+          sx={{ width: '100%', mb: 1, '& .MuiInputBase-root': { fontSize: 13 } }}
         />
         <Typography sx={{ fontSize: 12, fontWeight: 700, mt: 1 }}>지표 · 열에 표시</Typography>
         {measures
@@ -476,6 +527,7 @@ export default function ExplorePivot({
                 textAlign: 'left',
                 textTransform: 'none',
                 color: state.measureIds.includes(m.id) ? '#4f46e5' : '#64748b',
+                '&[aria-pressed="true"]': { backgroundColor: 'action.selected' },
               }}
             >
               {state.measureIds.includes(m.id) ? '✓ ' : '+ '}
@@ -513,11 +565,17 @@ export default function ExplorePivot({
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Stack
           direction="row"
-          spacing={2}
-          sx={{ flexWrap: 'wrap', rowGap: 1, p: 1.5, border: '1px solid #e2e8f0', borderRadius: 2, background: '#f8fafc' }}
+          sx={{
+            flexWrap: 'wrap',
+            gap: 1.5,
+            p: 1.5,
+            border: '1px solid #e2e8f0',
+            borderRadius: 2,
+            background: '#f8fafc',
+          }}
         >
           {(['rowColumns', 'columnColumns'] as const).map(axis => (
-            <Stack key={axis} direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', rowGap: 1 }}>
+            <Stack key={axis} direction="row" alignItems="center" sx={{ flexWrap: 'wrap', gap: 1 }}>
               <Typography sx={{ fontSize: 13, fontWeight: 700 }}>{axis === 'rowColumns' ? '행' : '열'}</Typography>
               {[0, 1].map(index => (
                 <TextField
@@ -528,7 +586,7 @@ export default function ExplorePivot({
                   value={axes[axis][index] ?? ''}
                   disabled={index > axes[axis].length}
                   onChange={event => changeAxis(axis, index, event.target.value)}
-                  sx={{ minWidth: 150 }}
+                  sx={NAME_FIELD_SX}
                   slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
                 >
                   <option value="">{index ? '추가하지 않음' : '전체'}</option>
@@ -545,13 +603,18 @@ export default function ExplorePivot({
               ))}
             </Stack>
           ))}
-          <Button onClick={swapAxes}>행·열 바꾸기</Button>
-          <Button onClick={resetAxes}>구성 초기화</Button>
+          <Button onClick={swapAxes} sx={PLAIN_BUTTON_SX}>
+            행·열 바꾸기
+          </Button>
+          <Button onClick={resetAxes} sx={PLAIN_BUTTON_SX}>
+            구성 초기화
+          </Button>
         </Stack>
-        <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', gap: 1, mt: 1 }}>
+        <Stack direction="row" alignItems="center" sx={{ flexWrap: 'wrap', gap: 1, mt: 1 }}>
           <Button
             aria-pressed={!!axes.rowHierarchy}
             onClick={() => onAxes({ rowHierarchy: !axes.rowHierarchy, expandedRows: [] })}
+            sx={TOGGLE_BUTTON_SX}
           >
             행 계층 {axes.rowHierarchy ? '켜짐' : '꺼짐'}
           </Button>
@@ -559,11 +622,16 @@ export default function ExplorePivot({
             aria-pressed={!!timeAxis}
             disabled={!timeAxis && temporalAxisColumns.length === 0}
             onClick={toggleTimeAxis}
+            sx={TOGGLE_BUTTON_SX}
           >
             시간 축 {timeAxis ? '켜짐' : '꺼짐'}
           </Button>
           {timeAxis && (
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', rowGap: 1 }}>
+            <Stack
+              direction="row"
+              alignItems="center"
+              sx={{ flexWrap: 'wrap', gap: 1, minWidth: 0, flex: { xs: '1 1 100%', sm: '0 1 430px' } }}
+            >
               <TextField
                 select
                 size="small"
@@ -574,7 +642,7 @@ export default function ExplorePivot({
                   if (!column) return;
                   applyTimeAxis({ column, grain: timeAxis.grain, timeZone: state.timeZone }, true);
                 }}
-                sx={{ minWidth: 160 }}
+                sx={NAME_FIELD_SX}
                 slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
               >
                 {temporalAxisColumns.length === 0 && <option value="">날짜 축 열 없음</option>}
@@ -595,7 +663,7 @@ export default function ExplorePivot({
                     true,
                   )
                 }
-                sx={{ minWidth: 110 }}
+                sx={{ ...FIELD_SX, flex: '0 1 96px', maxWidth: 140 }}
                 slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
               >
                 {PIVOT_GRAINS.map(grain => (
@@ -610,7 +678,7 @@ export default function ExplorePivot({
             </Stack>
           )}
         </Stack>
-        <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', gap: 1, mt: 1 }}>
+        <Stack direction="row" alignItems="center" sx={{ flexWrap: 'wrap', gap: 1, mt: 1 }}>
           <TextField
             select
             size="small"
@@ -628,6 +696,7 @@ export default function ExplorePivot({
                 },
               });
             }}
+            sx={NAME_FIELD_SX}
             slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
           >
             <option value="label">차원 이름</option>
@@ -657,7 +726,7 @@ export default function ExplorePivot({
                 },
               });
             }}
-            sx={{ minWidth: 150 }}
+            sx={NAME_FIELD_SX}
             slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
           >
             <option value="total">행 합계</option>
@@ -673,6 +742,7 @@ export default function ExplorePivot({
               aria-label={`정렬 계산 ${by === 'value' ? '현재값' : by === 'delta' ? '변화량' : '변화율'}`}
               aria-pressed={sort.by === by}
               disabled={by !== 'value' && !state.comparePrevious}
+              sx={TOGGLE_BUTTON_SX}
               onClick={() => {
                 const measureId = sort.measureId ?? selectedMeasures[0]?.id;
                 if (!measureId) return;
@@ -692,6 +762,7 @@ export default function ExplorePivot({
           <Button
             aria-label="행 정렬 방향"
             onClick={() => onAxes({ rowSort: { ...sort, direction: sort.direction === 'asc' ? 'desc' : 'asc' } })}
+            sx={PLAIN_BUTTON_SX}
           >
             {sort.direction === 'asc' ? '오름차순 ↑' : '내림차순 ↓'}
           </Button>
@@ -699,13 +770,14 @@ export default function ExplorePivot({
             <>
               <Button
                 disabled={!result}
+                sx={PLAIN_BUTTON_SX}
                 onClick={() =>
                   onAxes({ expandedRows: (result?.rowSubtotals ?? []).map(parent => parent.tuple as PivotTuple) })
                 }
               >
                 모두 펼치기
               </Button>
-              <Button disabled={!expanded.size} onClick={() => onAxes({ expandedRows: [] })}>
+              <Button disabled={!expanded.size} sx={PLAIN_BUTTON_SX} onClick={() => onAxes({ expandedRows: [] })}>
                 모두 접기
               </Button>
             </>
