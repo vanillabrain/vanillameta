@@ -1,6 +1,6 @@
 # Entity Model
 
-이번 범위의 논리 모델이며 신규 DB 테이블 생성 설계가 아니다. 기존 JSON 위젯 정의에 포함된 지표 정의를 독립 지표 엔티티로 이미 구현했다고 주장하지 않는다.
+UC-001~004의 현재 논리 모델과 UC-005의 목표 논리 모델을 구분하며 신규 DB 테이블 생성 명령이 아니다. 기존 JSON 위젯 정의에 포함된 지표 정의를 독립 지표 엔티티로 이미 구현했다고 주장하지 않는다.
 
 ## Entity Relationship Diagram
 
@@ -59,3 +59,67 @@ erDiagram
 UC-003은 기존 Metric.definition의 definitionVersion(양의 정수)을 증가시키며 선택 분석 SQL snapshot과 atomic 저장한다. live FK/전체 자동 전파는 추가하지 않는다.
 
 UC-004은 기존 structuredDefinition의 sourceId/metricId와 widget index 연결을 사용한다. 미연결 raw AI는 명시 선택 저장부터 metric-linked-analysis JSON snapshot을 기록한다. 같은 지표의 선택 분석들을 하나의 transaction에서 갱신한다.
+
+## UC-005 Target Model
+
+아래는 목표 모델이며 미구현이다. ANALYSIS는 제품의 Dashboard에 해당한다. 기존 ANALYSIS_WIDGET/Metric/JSON/layout에서 버전 있는 adapter로 전환하고 데이터 삭제·테이블 일괄 신설은 하지 않는다. 자세한 계약은 [통합 설계](architecture/prompt-to-dashboard.md)이다.
+
+```mermaid
+erDiagram
+  DATA_SOURCE ||--o{ DIMENSION : defines
+  ANALYSIS ||--o{ BLOCK : contains
+  BLOCK ||--o{ BLOCK_LAYOUT : places
+  SAVED_METRIC o|--o{ BLOCK : measures
+  DIMENSION o|--o{ BLOCK : groups
+  ANALYSIS ||--o{ PUBLICATION : publishes
+```
+
+### DIMENSION
+
+소스 열을 재사용 가능한 분류 기준으로 정의한다.
+
+| Attribute  | Description                   | Data Type | Length/Precision | Validation Rules                       |
+| ---------- | ----------------------------- | --------- | ---------------- | -------------------------------------- |
+| id         | 논리 ID                       | String    | 128              | Primary Key                            |
+| sourceId   | 원본 참조                     | Long      | 19               | Not Null, Foreign Key (DATA_SOURCE.id) |
+| definition | 열/타입/표시/시간 의미와 버전 | String    | 10000            | Not Null                               |
+
+### BLOCK
+
+대시보드 내용과 표시를 안정적 ID로 식별한다.
+
+| Attribute  | Description                 | Data Type | Length/Precision | Validation Rules                    |
+| ---------- | --------------------------- | --------- | ---------------- | ----------------------------------- |
+| id         | 안정적 ID                   | String    | 128              | Primary Key                         |
+| analysisId | 소유 대시보드               | Long      | 19               | Not Null, Foreign Key (ANALYSIS.id) |
+| kind       | 숫자/차트/표/설명/필터      | String    | 50               | Not Null                            |
+| definition | 지표·차원 참조/버전 및 표시 | String    | 10000            | Not Null                            |
+
+**Constraints:** 여러 지표/차원 참조는 definition의 목록으로 검증한다. ER의 optional 연결은 한 개 필수 참조를 강제하지 않는다. SQL snapshot은 기존 실행 호환용이며 논리 ID는 DB widget 재생성으로 바뀌지 않는다.
+
+### BLOCK_LAYOUT
+
+breakpoint마다 블록의 grid 위치와 크기를 저장한다.
+
+| Attribute  | Description              | Data Type | Length/Precision | Validation Rules                 |
+| ---------- | ------------------------ | --------- | ---------------- | -------------------------------- |
+| id         | block/breakpoint 논리 키 | String    | 256              | Primary Key                      |
+| blockId    | 대상 블록                | String    | 128              | Not Null, Foreign Key (BLOCK.id) |
+| breakpoint | 표시 폭 구간             | String    | 50               | Not Null                         |
+| geometry   | x/y/w/h 및 제약          | String    | 1000             | Not Null                         |
+
+### PUBLICATION
+
+초안과 분리된 게시 정의 및 데이터 범위를 관리한다.
+
+| Attribute  | Description                       | Data Type | Length/Precision | Validation Rules                    |
+| ---------- | --------------------------------- | --------- | ---------------- | ----------------------------------- |
+| id         | 게시 ID                           | String    | 128              | Primary Key                         |
+| analysisId | 원본 분석                         | Long      | 19               | Not Null, Foreign Key (ANALYSIS.id) |
+| version    | 게시 버전                         | Integer   | 10               | Not Null, Min: 1, Max: 2147483647   |
+| definition | 검증된 정의 snapshot              | String    | 100000           | Not Null                            |
+| dataPolicy | snapshot/live 및 데이터 시점/조건 | String    | 10000            | Not Null                            |
+| visibility | 계정 내부/링크                    | String    | 50               | Not Null                            |
+| revoked    | 조회 중지                         | Boolean   | 1                | Not Null                            |
+
+**Constraints:** 게시 데이터는 별도 결과 저장소 참조로 보존할 수 있다. 용량/만료/URL 버전 정책은 P4 상세 설계에서 정한다. 대화/작업 이력은 dashboardId/revision/requestId에 연결하는 서비스 책임이며 지금 새 DB 엔티티로 확정하지 않는다.
