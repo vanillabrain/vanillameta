@@ -76,6 +76,8 @@ const NAME_FIELD_SX = {
 } as const;
 /** Toolbar toggles carry a visible selected look so the `aria-pressed` state is seen, not just announced. */
 const TOGGLE_BUTTON_SX = {
+  height: 32,
+  fontSize: 13,
   textTransform: 'none',
   whiteSpace: 'nowrap',
   color: 'text.secondary',
@@ -515,6 +517,7 @@ export default function ExplorePivot({
     maxWidth: 220,
     verticalAlign: 'top',
     whiteSpace: 'normal',
+    fontVariantNumeric: 'tabular-nums',
   };
   const headerStyle: React.CSSProperties = { ...cellStyle, background: '#f8fafc', fontWeight: 600 };
   const headerButtonStyle: React.CSSProperties = {
@@ -524,6 +527,10 @@ export default function ExplorePivot({
     font: 'inherit',
     padding: 0,
     cursor: 'pointer',
+    width: '100%',
+    minHeight: 24,
+    textAlign: 'inherit',
+    lineHeight: 1.4,
   };
   /** One flat record's measures sit on its single column group, with the row total as a fallback. */
   const flatMeasures = (row: { total: PivotValue[]; columns: Map<number, PivotValue[]> }) => {
@@ -620,7 +627,18 @@ export default function ExplorePivot({
             </Box>
           ))}
       </Box>
-      <Box sx={{ flex: 1, minWidth: 0 }}>
+      <Box
+        sx={{
+          flex: 1,
+          minWidth: 0,
+          '& table button:focus-visible': {
+            outline: '2px solid',
+            outlineColor: 'primary.main',
+            outlineOffset: 2,
+            borderRadius: '2px',
+          },
+        }}
+      >
         <Stack
           direction="row"
           sx={{
@@ -668,13 +686,35 @@ export default function ExplorePivot({
             구성 초기화
           </Button>
         </Stack>
+        <Stack direction="row" alignItems="center" sx={{ flexWrap: 'wrap', gap: 1.5, mt: 1.5 }}>
+          <Stack direction="row" alignItems="center" sx={{ gap: 1 }}>
+            <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>표시 방식</Typography>
+            <Stack
+              role="group"
+              aria-label="Pivot 표시 방식"
+              direction="row"
+              sx={{
+                p: '2px',
+                gap: '2px',
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: 1,
+                bgcolor: 'background.paper',
+              }}
+            >
+              <Button aria-pressed={!flat} onClick={() => toggleTableMode('nest')} sx={{ ...TOGGLE_BUTTON_SX, border: 0 }}>
+                Pivot 테이블
+              </Button>
+              <Button aria-pressed={flat} onClick={() => toggleTableMode('flat')} sx={{ ...TOGGLE_BUTTON_SX, border: 0 }}>
+                Flat
+              </Button>
+            </Stack>
+          </Stack>
+          <Typography role="status" sx={{ fontSize: 12, color: 'text.secondary' }}>
+            {flat ? '차원별 레코드' : '행·열 교차 집계'}
+          </Typography>
+        </Stack>
         <Stack direction="row" alignItems="center" sx={{ flexWrap: 'wrap', gap: 1, mt: 1 }}>
-          <Button aria-pressed={!flat} onClick={() => toggleTableMode('nest')} sx={TOGGLE_BUTTON_SX}>
-            Pivot 테이블
-          </Button>
-          <Button aria-pressed={flat} onClick={() => toggleTableMode('flat')} sx={TOGGLE_BUTTON_SX}>
-            Flat
-          </Button>
           <Button
             aria-pressed={!!axes.rowHierarchy}
             disabled={flat}
