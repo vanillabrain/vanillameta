@@ -1,3 +1,5 @@
+2026-10-14 고객 데모 검증: [8분 대본·질문·실행 결과](../demo/customer-demo.md). 독립 CSV/Decimal 5조건, 실제 gpt-6-luna 질문2개·초안 격리·저장/재조회·데이터/게시 버전/해시 불변, Aside 설명 저장→새로고침·날짜 재적용, core Explore/Pivot E2E1개 통과. Rill 공식 광고 데이터 계층 보기45 저장/복원·합계307763000·CSV 파일/API 일치도 확인. 신규 AI 서버3798/4998 사용; 기존3698 AI 미설정은 보존. 새 Rill 탭 비교·모바일·VoiceOver는 NOT_RUN이며 기존 집계는 유지한다.
+
 2026-10-14 필수 컬럼 누락 경합·모델 오류 후속: [error-help-deadline-model.md](error-help-deadline-model.md). Aside 실제 XHR120003ms 종료→Codex SIGKILL→동일 진단201, 실제 모델 거부503→동일 진단 gpt-6-luna201 확인. 기존 게시 버전/해시/요약 불변, 정상파일 재선택 noop·새로고침 수치 유지(PASS_SELECTED_VARIANTS). 제품 변경0·주입 없는API 복원·기존130개 집계 유지. 모바일/VoiceOver·provider 로그인 오류·전체 자손PID는 NOT_RUN.
 
 2026-10-14 Aside 연결 복구 후속: [error-help-deadline-model.md](error-help-deadline-model.md). 실제 브라우저 XHR 샘플60초·날짜CSV120초 종료→Codex SIGKILL→재요청201, 샘플/CSV 실제 미지원 모델503→gpt-6-luna 명시 재요청201, 정상CSV 보고서·새로고침 수치 유지 확인(PASS_SELECTED_VARIANTS). 기존 화면/XHR BLOCKED 해소. 제품 변경0·기존 검사 재사용·130개 집계 유지. 필수 컬럼 경합 변형·모바일/VoiceOver·전체 자손PID는 NOT_RUN.
