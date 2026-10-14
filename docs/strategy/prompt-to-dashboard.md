@@ -28,7 +28,7 @@ Rill은 데이터 의미·계산·탐색의 기준이며, Claude Artifact의 대
 | P5   | 복제·소스 교체·재사용                   | 원본 불변, 소스/열/지표/차원 매핑, 새 소스 정답과 일치                             | Open    |
 | 통합 | TC-005 전체 여정                        | 실LLM·실제UI/API·Rill 계산 비교·모바일/데스크톱 전부 통과                          | not_run |
 
-기존 생성·수정·공유·그리드·지표 API를 재사용한다. 위 단계가 기존 기반을 전부 새로 만드는 작업이라는 뜻은 아니다. P1 첫 단위인 안정적 블록 ID·선택 AI 수정·배치 보존/표시는 [UC-006 검증](../testing/block-layout-continuity.md) 범위로 구현했다. 편집기 복제·로컬 undo/redo는 [UC-007](../testing/block-editor-history.md) 단위/API PASS, 실제 UI BLOCKED다. [UC-008](../testing/working-draft-ai.md)에서 선택 AI 수정도 같은 미저장 초안·이력에 연결했다(단위/실LLM/API PASS, UI BLOCKED). [UC-009](../testing/responsive-block-layout.md)에서 화면 폭별 좌표 저장·복원을 연결했다(단위/실LLM/API PASS, UI BLOCKED). [UC-010](../testing/pointer-block-layout.md)에서 포인터 drag/resize 연결과 키보드 편집을 추가했다(컴포넌트/API PASS, 실제 포인터·UI BLOCKED). 다음은 화면 회귀·프롬프트 이동이며 P1 전체는 Open이다. 신규 기능은 관련 UC/BR/TC와 최소 단위로 나누어 설계한 뒤 구현한다.
+기존 생성·수정·공유·그리드·지표 API를 재사용한다. 위 단계가 기존 기반을 전부 새로 만드는 작업이라는 뜻은 아니다. P1 첫 단위인 안정적 블록 ID·선택 AI 수정·배치 보존/표시는 [UC-006 검증](../testing/block-layout-continuity.md) 범위로 구현했다. 편집기 복제·로컬 undo/redo는 [UC-007](../testing/block-editor-history.md) 단위/API PASS, 실제 UI BLOCKED다. [UC-008](../testing/working-draft-ai.md)에서 선택 AI 수정도 같은 미저장 초안·이력에 연결했다(단위/실LLM/API PASS, UI BLOCKED). [UC-009](../testing/responsive-block-layout.md)에서 화면 폭별 좌표 저장·복원을 연결했다(단위/실LLM/API PASS, UI BLOCKED). [UC-010](../testing/pointer-block-layout.md)에서 포인터 drag/resize 연결과 키보드 편집을 추가했다(컴포넌트/API 및 실제 키보드·저장·새로고침 PASS, 대표 반응형 화면 확인, 실제 마우스·터치 미검증). 다음은 화면 회귀·프롬프트 이동이며 P1 전체는 Open이다. 신규 기능은 관련 UC/BR/TC와 최소 단위로 나누어 설계한 뒤 구현한다.
 
 ## 방향 이탈 방지
 

@@ -929,7 +929,7 @@ function DashboardEditContent() {
                     <Typography component="h3" variant="h6" sx={{ overflowWrap: 'anywhere' }}>
                       {widget.title}
                     </Typography>
-                    <Box sx={{ height: items[index].height * 60, minWidth: 0 }}>
+                    <Box sx={{ height: widget.type === 'BOARD_NUMERIC' ? 64 : items[index].height * 60, minWidth: 0 }}>
                       {widget.type === 'BOARD_NUMERIC' ? (
                         <NumericBoard option={analysisOptions(widget)} dataSet={widget.datas} />
                       ) : (

@@ -158,7 +158,15 @@ export default function MetricTrend({
     return nearest?.time;
   };
   return (
-    <Box sx={{ px: 2.5, pb: 1, minWidth: 0, '& svg:focus-visible': { outline: '2px solid #1d4ed8', outlineOffset: 2 } }}>
+    <Box
+      sx={{
+        px: 2.5,
+        pb: 1,
+        minWidth: 0,
+        containerType: 'inline-size',
+        '& svg:focus-visible': { outline: '2px solid #1d4ed8', outlineOffset: 2 },
+      }}
+    >
       {comparison && (
         <PeriodComparison
           comparison={comparison}
@@ -268,7 +276,23 @@ export default function MetricTrend({
             </svg>
             <Box
               component="figcaption"
-              sx={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#475569' }}
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                gap: 1,
+                fontSize: 11,
+                color: '#475569',
+                '& span': { whiteSpace: 'nowrap' },
+                '@container (max-width: 360px)': {
+                  display: 'grid',
+                  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
+                  columnGap: 1,
+                  rowGap: 0.25,
+                  '& span': { whiteSpace: 'normal', overflowWrap: 'anywhere' },
+                  '& span:nth-of-type(2)': { gridColumn: '1 / -1', gridRow: 2, textAlign: 'center' },
+                  '& span:last-of-type': { textAlign: 'right' },
+                },
+              }}
             >
               <span>{overlay ? day(periods.current.start) : label(points[0].time)}</span>
               <span>
