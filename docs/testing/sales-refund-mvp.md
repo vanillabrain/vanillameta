@@ -58,15 +58,15 @@
 
 2026-10-12, `develop-v2` HEAD `8e4efa81` 이후 작업 diff에서 아래 범위를 실제 검증했다. API4670/웹3470/Rill9010의 격리 환경이며 기존 실행 중 서버와 기존 사용자 데이터는 초기화하지 않았다. Aside가 실행 중이지 않아 사전에 허용된 headed Chromium으로 실제 화면을 조작했다. 새 자동 Playwright E2E 파일은 저장소에 추가하지 않았다.
 
-| ID | 상태 | 실제 확인과 증빙 파일 |
-| --- | --- | --- |
-| COMMERCE-01 | PASS | 화면 CSV4개 선택→저장99827/105209/7737, 전체 정확액·일별1096일/채널 대조, ID1/v1·reload. vm-normal-responses.json, vm-oracle-comparison.json, commerce-final-1440.png |
-| COMMERCE-02 | PASS | 실제 오류 bundle400/173건·10개 예시·정상v1 유지. 중복/orphan/과다환불/필수컬럼·파일 거절, 정리 후 복구. vm-validation-responses.json, api-checks.json, storage-checks.json, commerce-173-errors-1440.png |
-| COMMERCE-03 | PASS | UI에서 프로젝트2 교체v3→v4, 같은 파일 noop/v4 유지. 서로 다른 동시 입력은 하나201/하나409·버전1회 전진, 이전 게시 파일 보존. vm-complete-responses.json, storage-checks.json, commerce-ui-noop-1440.png |
-| COMMERCE-04 | PASS | 실제 날짜·paid_search 선택, Sep30일·채널 정확액/코호트 정답. 빈 결과0/null/—, 역순 UI 요청0, 부분/없는 날짜/없는 채널 API400. vm-filter-responses.json, vm-channel-empty-comparison.json, commerce-empty-1440.png, commerce-mobile-date-error-390.png |
-| COMMERCE-05 | PASS | 소유 목록 격리, 타계정 report/교체/표현/AI403, 익명401·UI 로그인 이동, unknown404·프로젝트 선택 복귀. 고객 원본행은 AI에 보내지 않으며 확인한 응답에 저장 경로 없음. api-checks.json, commerce-unknown-mobile-390.png |
-| COMMERCE-06 | PASS(참조 구성 범위) | 실제 Rill 전체/Sep/paid_search의 금액·주문·비율·일별을 독립 oracle와 비교. rill-oracle-comparison.json, rill-daily-comparison.json, rill-provenance.json, rill-september-1440.png, rill-paid-search-1440.png |
-| COMMERCE-07 | PASS(표현 편집 범위) | 실제 Codex gpt-6-luna 요청·응답, 초안 취소 원본 유지, 저장·reload 제목 유지·금액/버전 불변. UI503 주입 안내·버튼 회복 후 실제 모델 정상 응답. verification-receipt.json, vm-complete-responses.json, commerce-mobile-ai-final-390.png, commerce-mobile-ai-error-390.png |
+| ID          | 상태                 | 실제 확인과 증빙 파일                                                                                                                                                                                                                                                                            |
+| ----------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| COMMERCE-01 | PASS                 | 화면 CSV4개 선택→저장99827/105209/7737, 전체 정확액·일별1096일/채널 대조, ID1/v1·reload. vm-normal-responses.json, vm-oracle-comparison.json, commerce-final-1440.png                                                                                                                            |
+| COMMERCE-02 | PASS                 | 실제 오류 bundle400/173건·10개 예시·정상v1 유지. 중복/orphan/과다환불/필수컬럼·파일 거절, 정리 후 복구. vm-validation-responses.json, api-checks.json, storage-checks.json, commerce-173-errors-1440.png                                                                                         |
+| COMMERCE-03 | PASS                 | UI에서 프로젝트2 교체v3→v4, 같은 파일 noop/v4 유지. 서로 다른 동시 입력은 하나201/하나409·버전1회 전진, 이전 게시 파일 보존. vm-complete-responses.json, storage-checks.json, commerce-ui-noop-1440.png                                                                                          |
+| COMMERCE-04 | PASS                 | 실제 날짜·paid_search 선택, Sep30일·채널 정확액/코호트 정답. 빈 결과0/null/—, 역순 UI 요청0, 부분/없는 날짜/없는 채널 API400. vm-filter-responses.json, vm-channel-empty-comparison.json, commerce-empty-1440.png, commerce-mobile-date-error-390.png                                            |
+| COMMERCE-05 | PASS                 | 소유 목록 격리, 타계정 report/교체/표현/AI403, 익명401·UI 로그인 이동, unknown404·프로젝트 선택 복귀. 고객 원본행은 AI에 보내지 않으며 확인한 응답에 저장 경로 없음. api-checks.json, commerce-unknown-mobile-390.png                                                                            |
+| COMMERCE-06 | PASS(참조 구성 범위) | 실제 Rill 전체/Sep/paid_search의 금액·주문·비율·일별을 독립 oracle와 비교. rill-oracle-comparison.json, rill-daily-comparison.json, rill-provenance.json, rill-september-1440.png, rill-paid-search-1440.png                                                                                     |
+| COMMERCE-07 | PASS(표현 편집 범위) | 실제 Codex gpt-6-luna 요청·응답, 초안 취소 원본 유지, 저장·reload 제목 유지·금액/버전 불변. UI503 주입 안내·버튼 회복 후 실제 모델 정상 응답. verification-receipt.json, vm-complete-responses.json, commerce-mobile-ai-final-390.png, commerce-mobile-ai-error-390.png                          |
 | COMMERCE-08 | PASS(명시 조작 범위) | 실제390×844 파일/프로젝트 선택·날짜/채널·KPI·표·AI취소/저장, document390=viewport390, pageerror0. 축/숫자 겹침 수정 후 재확인. commerce-mobile-file-selection-390.png, commerce-mobile-kpi-390.png, commerce-mobile-table-390.png, commerce-mobile-chart-final-390.png, browser-page-errors.json |
 
 금액 전체: 결제 **63,355,735.41 USD**, 환불 **3,325,529.62 USD**, 차감 수취액 **60,030,205.79 USD**. Sep2025는 **1,708,961.79 / 81,369.40 / 1,627,592.39**, Sep paid_search는 **485,798.57 / 19,151.96 / 466,646.61**다. 주문일 코호트는 각각 **96851/7737**, **2700/208**, **721/58**이다. 화면 비율은 7.99%/7.70%/8.04%로 반올림한다. 현금 흐름과 상품 순매출을 구분했다.
@@ -92,3 +92,39 @@ Rill은 compact KPI+sparkline, 고급 시간 범위/비교 기간·동적 dimens
 요청 모델은 기존 CLI 연결의 `gpt-6-luna`이며 로컬 LLM/다른 모델 fallback은 추가하지 않았다. 모델 지정·실응답과 제공자 내부 모델 라우팅의 독립 attestation은 구분한다.503은 신규 UI 오류 경로 검증을 위한 명시적 주입이며 실제 Codex 장애가 아니다. 이전 제공자 장애 검증은 관련 변경 없이 재사용했다.
 
 기존 통과 케이스·전체 출시 회귀, 운영 백업 복원/강제 crash/SLA, Rill 내장 AI, 전체 WCAG·스크린리더는 이번에 실행하지 않았다. 신규8개 명세의 한정 범위 완료이며 전체123개 출시 검증 완료를 의미하지 않는다.
+
+## 현금 이벤트와 주문 코호트 대표 분석 — 2026-10-14
+
+이번 실행은 위 100k 자료와 별개인 저장소 동봉 `ae-commerce-demo-v1`이다. 원본 SHA를 검증한 공개 합성 CSV 37주문/40결제/8환불/37고객의 값을 변경하지 않았다. 격리 API `127.0.0.1:4898/v1`, 웹 `127.0.0.1:3698`, 소유 데모 프로젝트1/version1에서 검증했다. 증빙은 저장소 밖 `/tmp/vm-commerce-representative/`에 보관한다. 이 임시 경로는 영구 배포 산출물이 아니다.
+
+| UTC 범위                   | 결제 USD | 환불 USD | 차감 수취 USD | 결제/환불 주문 코호트 | 환불률 |
+| -------------------------- | -------: | -------: | ------------: | --------------------- | ------ |
+| 전체 2023-01-05~2025-12-12 | 20994.61 |  4457.60 |      16537.01 | 35 / 8                | 22.86% |
+| 2025-06-24                 |   200.23 |     0.00 |        200.23 | 1 / 1                 | 100%   |
+| 2025-07-20                 |     0.00 |    34.50 |        -34.50 | 0 / 0                 | NULL   |
+| 2025-07-20, referral       |     0.00 |    34.50 |        -34.50 | 0 / 0                 | NULL   |
+| 2030-01-01 빈 결과         |     0.00 |     0.00 |          0.00 | 0 / 0                 | NULL   |
+
+6월24일 주문 O0000013의 34.50 환불은 7월20일 현금 이벤트다. 주문일 화면의 환불액은0이지만 확보한 파일 전체 기간의 환불 이력을 반영하는 주문 코호트 환불률은100%다. 주문 상세의 환불액34.50/차감165.73 역시 해당 주문의 전체 파일 이력이다. 7월20일에는 환불 현금이 있으나 당일 주문 코호트가 없어 비율은 NULL/—다. 날짜별 환불액을 주문 코호트 환불률로 해석하지 않는다.
+
+- **독립 정답/API PASS**: `verify-report.py`가 원본 CSV를 Decimal·집합으로 계산하고 5조건의 요약, 전체1073일을 포함한 일별, 채널별 금액과 합계, 반복 조회의 버전/지표 불변, 데모 생성 멱등성을 검증했다. `oracle-api.json`에 기대값·조회 범위·게시 digest를 남긴다.
+- **Rill 참조 구성/API PASS**: `prepare-rill-reference.py`로 같은 원본에서 결제 발생일 행, 환불 발생일 행, 금액0인 주문일 코호트 표시 행을 생성한다. 80행이며 환불 주문은 주문별 한 번만 표시한다. 수동 작성한 6지표·채널·UTC 참조를 별도 Rill `localhost:9011`/gRPC49011에서 실행했다. 사용자 광고 데모9009는 유지했다. `verify-rill-reference.py`가 실제 metrics-view aggregation API 5조건을 독립 정답과 비교했다. `rill-api.json`, `rill/provenance.json`에 원본/생성 SHA와 변환 계약을 보관한다. 빈 집합 SUM은 Rill NULL, VM은0이며 이 차이만 명시적으로 정규화한다. 분모0 환불률은 양쪽 NULL이다.
+- **실제 화면 PASS(관찰 범위)**: Aside에서 전체, 6월24일, 7월20일 보고서의 KPI·범위·의미 안내·주문 상세를 확인했다. Rill 실제 Explore에서 전체, 두 날짜의 6지표와 채널/행 수를 대조했다. `commerce-order-day.png`, `commerce-refund-day.png`, `rill-order-day.png`, `rill-refund-day.png`를 남긴다. 금액 소수 표시는 VM 고정2자리/Rill compact로 다르다.
+- **디자인 관찰**: VM 데스크톱1440×900 캡처에서 날짜 컨트롤·6개 KPI·의미 안내의 잘림/겹침이 보이지 않았다. Rill 캡처는1280×720이며 세로 지표+sparkline/우측 leaderboard, VM은가로 KPI+금액3시리즈 구조다. 신규 UI/CSS 변경은 없으며 픽셀 동등성·모바일 재검증은 주장하지 않는다.
+- **실제 워커 회귀 PASS**: `commerce.service.spec.ts`에 별도4주문/5결제/2환불 fixture의 3조건을 추가했다. 주문일 이후 지연 결제, 분할 성공 결제의 날짜별 합계와 주문별 합계, 같은 주문의 복수 부분 환불과 distinct 코호트를 검증한다. 대상 Jest10개·ESLint 통과. AI는 호출하지 않았다.
+
+재현(기존 로컬 검증 계정의 비밀번호를 환경변수로 설정; 증빙에 비밀번호/토큰을 저장하지 않는다):
+
+```sh
+python3 scripts/commerce/verify-report.py --api-url http://127.0.0.1:4898/v1 --user-id rillrange1014 --output /tmp/vm-commerce-representative/oracle-api.json
+python3 scripts/commerce/prepare-rill-reference.py --output /tmp/vm-commerce-representative/rill
+rill start /tmp/vm-commerce-representative/rill --port 9011 --port-grpc 49011 --no-open --pull-env=false
+# Rill 시작은 별도 터미널에서 유지한다.
+python3 scripts/commerce/verify-rill-reference.py --rill-url http://localhost:9011 --oracle /tmp/vm-commerce-representative/oracle-api.json --output /tmp/vm-commerce-representative/rill-api.json
+```
+
+`COMMERCE_VERIFY_PASSWORD`가 필요하며 첫 명령은 계정 소유 데모를 멱등 생성할 수 있다. Python은 표준 라이브러리만 사용하며 검증 assert가 활성화된 기본 실행으로 사용한다.
+
+**남은 경계**: 커머스 번들은 `commerce_source.publishedFilename`을 통해 별도 보고서 서비스가 조회한다. 일반 BI Explore/Pivot은 `database`의 DuckDB sourceId를 조회하므로 현재 이 커머스 소스를 직접 선택할 수 없다. 이번 참조 투영을 제품 연결 완료로 취급하지 않는다. 제품 연결·저장 보기/CSV 계약, 파일 갱신/운영 제한, 전체 출시·모바일·AI 회귀는 이번 실행 밖이다. 프로덕션 코드는 변경하지 않았다.
+
+이번 커머스 화면의 XHR 응답 별도 수집은 미확인이다. 기존 검증 프록시는 BI POST만 기록하고 있었으며 커머스 GET을 추가한 후에도 실제 화면 요청의 응답을 확보하지 못했다. 독립 HTTP 검사와 화면 관찰을 XHR 증거로 대체해 주장하지 않는다. 새로고침 뒤 프로젝트와 전체 지표는 유지되고 날짜 필터는 기본 범위로 초기화되는 것을 관찰했다.

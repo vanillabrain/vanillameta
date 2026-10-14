@@ -242,3 +242,199 @@ describe('CommerceService report contract', () => {
     );
   });
 });
+
+// Boundary fixtures for the documented split: cash totals follow payment/refund
+// event dates while paid/refunded order counts follow the ordered_at cohort.
+describe('CommerceService cash-event versus order-cohort boundaries', () => {
+  let root: string;
+  let worker: DuckDBService;
+  let service: CommerceService;
+
+  beforeAll(async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'commerce-boundary-'));
+    process.env.FILE_UPLOAD_DIR = root;
+    const paths = {
+      orders: path.join(root, 'orders.csv'),
+      payments: path.join(root, 'payments.csv'),
+      refunds: path.join(root, 'refunds.csv'),
+    };
+    fs.writeFileSync(
+      paths.orders,
+      [
+        'order_id,customer_id,ordered_at,order_status,currency,subtotal,tax_amount,shipping_amount,order_total',
+        'O1,C1,2025-02-01T10:00:00Z,completed,USD,100.00,0,0,100.00',
+        'O2,C1,2025-02-02T10:00:00Z,completed,USD,60.00,0,0,60.00',
+        'O3,C1,2025-02-03T09:00:00Z,partially_refunded,USD,50.00,0,0,50.00',
+        'O4,C1,2025-02-01T12:00:00Z,cancelled,USD,5.00,0,0,5.00',
+        '',
+      ].join('\n'),
+    );
+    fs.writeFileSync(
+      paths.payments,
+      [
+        'payment_id,order_id,paid_at,payment_status,amount',
+        'P1,O1,2025-02-05T10:00:00Z,succeeded,100.00',
+        'P2A,O2,2025-02-02T11:00:00Z,succeeded,30.00',
+        'P2B,O2,2025-02-03T11:00:00Z,succeeded,30.00',
+        'P3,O3,2025-02-03T09:30:00Z,succeeded,50.00',
+        'P4,O4,2025-02-01T12:30:00Z,failed,5.00',
+        '',
+      ].join('\n'),
+    );
+    fs.writeFileSync(
+      paths.refunds,
+      [
+        'refund_id,payment_id,order_id,refunded_at,refund_reason,amount',
+        'R3A,P3,O3,2025-02-04T10:00:00Z,damaged,20.00',
+        'R3B,P3,O3,2025-02-06T10:00:00Z,wrong_item,10.00',
+        '',
+      ].join('\n'),
+    );
+    worker = new DuckDBService();
+    const imported = await worker.importCommerce({ files: paths });
+    expect(imported.validation.valid).toBe(true);
+    expect(imported.rows).toEqual({ orders: 4, payments: 5, refunds: 2 });
+    const source: any = {
+      id: 1,
+      ownerId: 7,
+      name: 'boundary',
+      status: 'ready',
+      publishedFilename: imported.filename,
+      summaryJson: JSON.stringify({ sampleType: 'normal' }),
+      presentationJson: null,
+    };
+    const sources: any = {
+      findOne: jest.fn().mockResolvedValue(source),
+      find: jest.fn(),
+      save: jest.fn(),
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
+    };
+    service = new CommerceService(sources, {} as any, worker, {} as any);
+  });
+
+  afterAll(async () => {
+    await worker?.onModuleDestroy();
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it('separates cash totals by event date from the order-date cohort', async () => {
+    const orderDay: any = (await service.report(7, 1, '2025-02-01', '2025-02-01')).data;
+    expect(orderDay.summary).toEqual({
+      paymentTotal: '0.00',
+      refundTotal: '0.00',
+      netCollected: '0.00',
+      paidOrders: 1,
+      refundedOrders: 0,
+      refundOrderRate: 0,
+    });
+    expect(orderDay.orders.map((row: any) => row.orderId)).toEqual(['O4', 'O1']);
+    expect(orderDay.orders[0]).toMatchObject({
+      orderId: 'O4',
+      orderStatus: 'cancelled',
+      paidAmount: '0.00',
+      refundAmount: '0.00',
+      netCollected: '0.00',
+    });
+    expect(orderDay.orders[1]).toEqual({
+      orderId: 'O1',
+      orderedAt: '2025-02-01T10:00:00Z',
+      channel: 'Unassigned',
+      orderStatus: 'completed',
+      paidAmount: '100.00',
+      refundAmount: '0.00',
+      netCollected: '100.00',
+    });
+    expect(orderDay.availableChannels).toEqual(['Unassigned']);
+
+    const paymentDay: any = (await service.report(7, 1, '2025-02-05', '2025-02-05')).data;
+    expect(paymentDay.summary).toEqual({
+      paymentTotal: '100.00',
+      refundTotal: '0.00',
+      netCollected: '100.00',
+      paidOrders: 0,
+      refundedOrders: 0,
+      refundOrderRate: null,
+    });
+    expect(paymentDay.orders).toEqual([]);
+    expect(paymentDay.scope).toMatchObject({
+      paymentAndRefundTotalsByEventDate: true,
+      refundOrderRateByOrderDateCohort: true,
+      currency: 'USD',
+      start: '2025-02-05',
+      end: '2025-02-05',
+    });
+  });
+
+  it('aggregates split successful payments per event date while collapsing them per order', async () => {
+    const firstInstallment: any = (await service.report(7, 1, '2025-02-02', '2025-02-02')).data;
+    expect(firstInstallment.summary.paymentTotal).toBe('30.00');
+    expect(firstInstallment.summary.paidOrders).toBe(1);
+    expect(firstInstallment.daily).toEqual([
+      { date: '2025-02-02', paymentTotal: '30.00', refundTotal: '0.00', netCollected: '30.00' },
+    ]);
+    expect(firstInstallment.orders).toHaveLength(1);
+    expect(firstInstallment.orders[0]).toMatchObject({
+      orderId: 'O2',
+      paidAmount: '60.00',
+      refundAmount: '0.00',
+      netCollected: '60.00',
+    });
+
+    const spanning: any = (await service.report(7, 1, '2025-02-02', '2025-02-03')).data;
+    expect(spanning.summary.paymentTotal).toBe('110.00');
+    expect(spanning.summary.paidOrders).toBe(2);
+    expect(spanning.summary.refundedOrders).toBe(1);
+    expect(spanning.summary.refundOrderRate).toBe(0.5);
+    expect(spanning.daily).toEqual([
+      { date: '2025-02-02', paymentTotal: '30.00', refundTotal: '0.00', netCollected: '30.00' },
+      { date: '2025-02-03', paymentTotal: '80.00', refundTotal: '0.00', netCollected: '80.00' },
+    ]);
+  });
+
+  it('keeps every refund event in the cash timeline and the refunded order in the cohort', async () => {
+    const refundWindow: any = (await service.report(7, 1, '2025-02-04', '2025-02-06')).data;
+    expect(refundWindow.summary).toEqual({
+      paymentTotal: '100.00',
+      refundTotal: '30.00',
+      netCollected: '70.00',
+      paidOrders: 0,
+      refundedOrders: 0,
+      refundOrderRate: null,
+    });
+    expect(refundWindow.daily).toEqual([
+      { date: '2025-02-04', paymentTotal: '0.00', refundTotal: '20.00', netCollected: '-20.00' },
+      { date: '2025-02-05', paymentTotal: '100.00', refundTotal: '0.00', netCollected: '100.00' },
+      { date: '2025-02-06', paymentTotal: '0.00', refundTotal: '10.00', netCollected: '-10.00' },
+    ]);
+    expect(refundWindow.reasons).toEqual([
+      { reason: 'damaged', refundTotal: '20.00', refunds: 1 },
+      { reason: 'wrong_item', refundTotal: '10.00', refunds: 1 },
+    ]);
+    expect(refundWindow.channels).toEqual([
+      {
+        channel: 'Unassigned',
+        paymentTotal: '100.00',
+        refundTotal: '30.00',
+        netCollected: '70.00',
+      },
+    ]);
+
+    const orderDay: any = (await service.report(7, 1, '2025-02-03', '2025-02-03')).data;
+    expect(orderDay.summary).toEqual({
+      paymentTotal: '80.00',
+      refundTotal: '0.00',
+      netCollected: '80.00',
+      paidOrders: 1,
+      refundedOrders: 1,
+      refundOrderRate: 1,
+    });
+    expect(orderDay.orders).toHaveLength(1);
+    expect(orderDay.orders[0]).toMatchObject({
+      orderId: 'O3',
+      orderStatus: 'partially_refunded',
+      paidAmount: '50.00',
+      refundAmount: '30.00',
+      netCollected: '20.00',
+    });
+  });
+});
