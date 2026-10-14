@@ -42,3 +42,12 @@ PIVOT-DASH-02/04 잔여 경고 변형: 기본bid_floor + 공통5컬럼=6개, 저
 최초 status가 원인과 다른 기간·지표선택 문구여서 pauseReason으로 원인별 중지 안내를 보완했다. 최종390px overflow0·경고/기간 줄바꿈·제목/버튼/비활성상태 디자인 직접 캡처검토 PASS. Aside desktop 최초화면/헤디드390 최종화면 증빙. FE관련11PASS/타입·린트·build·diffcheck PASS. 테스트fixture시간문자열 및 미등록matcher오류는 검증코드에서 수정했다.
 
 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/pivot-limits-20261014/RESULTS.md`, `filter-mobile.png`, `time-mobile.png`, `ui-results.json`. 생성 QA보기5/6만 삭제. gpt-6-luna/VoiceOverBLOCKED 유지. 현재 명세의 Pivot 연결 잔여 경고·복구·긴제목 변형은 완료. 실제지표편집UI·실기기touch/VoiceOver는 미검증 범위로 유지한다.
+
+
+## PIVOT-DASH-05 — 여러 Pivot 중복 조회 최적화 (2026-10-14)
+
+동일소스/기간/필터/지표/축의 저장Pivot을 UI에서같은대시보드에2개추가해3카드로측정. 기대: 동일진행중요청1개공유·서로다른조건분리·필터변경새조회·한카드취소가형제조회취소않음·완료결과캐시않음.
+
+**PASS_SELECTED_VARIANTS**: 초기실제POST3→1(66.7%감소), 모든카드56663800. App열키보드Enter공통필터추가후추가POST1회·모든카드18363600, 저장bid_floor범위/기간유지.1440/390캡처디자인확인·모바일문서overflow0/표내부포커스ArrowRight PASS. 신규요청풀대시보드mount범위/동일semantic key, 마지막구독자만취소, 완료/실패즉시제거; 값같은filterobject재렌더추가조회0. 관련단위14+신규rerender1·FEtype/lint/build PASS. 생성attachment정확한ID2개씩정리/원카드유지. 제품diff미커밋.
+
+완료결과캐시/다른조건쿼리통합/빠른연속필터debounce는추가하지않았다. 별도대시보드/사용자전역공유없음. 전체Tab·실기기touch/VoiceOver미실행/차단유지. gpt-6-luna유지/호출0, 기존통과전체반복없음. 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/pivot-dedup-20261014/RESULTS.md`, `before-results.json`, `after-results.json`, `after-desktop.png`, `after-mobile.png`.

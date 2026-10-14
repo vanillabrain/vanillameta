@@ -291,3 +291,15 @@ it('explains rate limiting and blocks export until retry succeeds', async () => 
   await screen.findByRole('table');
   expect((screen.getByRole('button', { name: 'Pivot CSV 내보내기' }) as HTMLButtonElement).disabled).toBe(false);
 });
+
+it('does not refetch for equal-value filter objects after a parent rerender', async () => {
+  const p = { ...props(), filters: [{ column: 'device_type', values: ['Mobile'] }] };
+  const rendered = render(<PivotTable {...p} />);
+  await screen.findByRole('table');
+  const calls = api.post.mock.calls.length;
+  rendered.rerender(<PivotTable {...p} filters={[{ column: 'device_type', values: ['Mobile'] }]} />);
+  await act(async () => {
+    await Promise.resolve();
+  });
+  expect(api.post.mock.calls.length).toBe(calls);
+});

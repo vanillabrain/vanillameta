@@ -350,3 +350,12 @@ source4 원본연결은 현서버 암호화키와 달라 config백업/동일sour
 PIVOT-10 **PASS_SELECTED_VARIANTS** (2026-10-14): 기본요청제한120회/60초 유지·8클라이언트·실측181.4초·455요청중183성공201/272제한429. 성공183건 모두4개필터정답·지표/revision·50×12상한일치,500/전송실패/timeout0. 성공응답p95=595ms. RSS1초표본peak347.0MiB/종료45.9MiB, 장시간누수판정아님. 제한해제뒤정상복구201/154ms, 총복구관찰20.2초는15초idle포함. 실제1440px429 표없음/CSV차단→수정한요청제한안내·부하종료정상표/634513000/pageerror0/overflow0 캡처PASS. 일반오류만보이던429안내를명확히수정, 새선택단위1PASS(8skip)·FEtype/lint/build PASS.
 
 초기helper는429를503로가정해중단→기존보호동작을그대로반영해재실행. 이실행은rate limit에따른대기포함이며3분내내worker포화검증이아니다. 무제한worker지속포화·장시간soak·다중사용자/tenant·운영하드웨어·혼합write/import·multi-replica/crash NOT_RUN. 기존단발부하·통과UI/Rill전체반복없음. gpt-6-luna/VoiceOverBLOCKED 유지. 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/pivot-sustained-20261014/RESULTS.md`, `results.json`, `during-desktop.png`, `after-desktop.png`.
+
+
+## PIVOT-DASH-05 — 여러 Pivot 중복 조회 최적화 (2026-10-14)
+
+동일소스/기간/필터/지표/축의 저장Pivot을 UI에서같은대시보드에2개추가해3카드로측정. 기대: 동일진행중요청1개공유·서로다른조건분리·필터변경새조회·한카드취소가형제조회취소않음·완료결과캐시않음.
+
+**PASS_SELECTED_VARIANTS**: 초기실제POST3→1(66.7%감소), 모든카드56663800. App열키보드Enter공통필터추가후추가POST1회·모든카드18363600, 저장bid_floor범위/기간유지.1440/390캡처디자인확인·모바일문서overflow0/표내부포커스ArrowRight PASS. 신규요청풀대시보드mount범위/동일semantic key, 마지막구독자만취소, 완료/실패즉시제거; 값같은filterobject재렌더추가조회0. 관련단위14+신규rerender1·FEtype/lint/build PASS. 생성attachment정확한ID2개씩정리/원카드유지. 제품diff미커밋.
+
+완료결과캐시/다른조건쿼리통합/빠른연속필터debounce는추가하지않았다. 별도대시보드/사용자전역공유없음. 전체Tab·실기기touch/VoiceOver미실행/차단유지. gpt-6-luna유지/호출0, 기존통과전체반복없음. 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/pivot-dedup-20261014/RESULTS.md`, `before-results.json`, `after-results.json`, `after-desktop.png`, `after-mobile.png`.

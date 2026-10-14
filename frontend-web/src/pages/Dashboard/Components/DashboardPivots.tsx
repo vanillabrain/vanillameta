@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Box, Button, Card, Stack, Typography } from '@mui/material';
 import { get, del } from '@/helpers/apiHelper';
 import PivotTable from '@/pages/Explore/PivotTable';
+import type { PivotRequestPool } from '@/pages/Explore/pivotRequests';
 import type { ExploreFilter, ExploreDateRange } from '@/pages/Explore/exploreViewState';
 export function mergePivotFilters(saved: ExploreFilter[], common: ExploreFilter[]) {
   return [...saved.filter(filter => !common.some(c => c.column === filter.column)), ...common];
@@ -19,6 +20,7 @@ export default function DashboardPivots({
   paused: boolean;
   onFilter: (filters: ExploreFilter[]) => void;
 }) {
+  const requestPool = useMemo<PivotRequestPool>(() => new Map(), [dashboardId]);
   const [items, setItems] = useState<any[]>([]),
     [error, setError] = useState(''),
     [reload, setReload] = useState(0),
@@ -77,6 +79,7 @@ export default function DashboardPivots({
         <DashboardPivot
           key={item.id}
           item={item}
+          requestPool={requestPool}
           common={stableFilters}
           dateRange={dateRange}
           paused={paused}
@@ -126,7 +129,7 @@ function DashboardPivot(props: any) {
     </Card>
   );
 }
-function ValidDashboardPivot({ item, common, dateRange, paused, onFilter, onRemove, removing }: any) {
+function ValidDashboardPivot({ item, common, dateRange, paused, onFilter, onRemove, removing, requestPool }: any) {
   const filters = useMemo(() => mergePivotFilters(item.state.filters, common), [item.state.filters, common]);
   const range: ExploreDateRange | undefined = dateRange ?? item.state.dateRange ?? undefined;
   const timeUnsupported = !!range && (!/^\d{4}-\d{2}-\d{2}$/.test(range.start) || !/^\d{4}-\d{2}-\d{2}$/.test(range.end));
@@ -159,6 +162,7 @@ function ValidDashboardPivot({ item, common, dateRange, paused, onFilter, onRemo
       </Typography>
       <PivotTable
         embedded
+        requestPool={requestPool}
         sourceId={item.sourceId}
         sourceRevision={item.sourceRevision}
         dimensions={item.dimensions}

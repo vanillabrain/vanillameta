@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Box, Button, Stack, TextField, Typography } from '@mui/material';
-import { post } from '@/helpers/apiHelper';
+import { acquirePivotRequest, type PivotRequestPool } from './pivotRequests';
 import { formatMetric, metricNumericText } from '@/utils/formatMetric';
 import type { ExploreDateRange, ExploreFilter, PivotAxes } from './exploreViewState';
 
@@ -42,6 +42,7 @@ type Props = {
   pauseReason?: string;
   fixedAxes?: boolean;
   embedded?: boolean;
+  requestPool?: PivotRequestPool;
   axes?: PivotAxes;
   onAxesChange?: (axes: PivotAxes) => void;
   onReady?: (status: { key: string; reason: string }) => void;
@@ -78,6 +79,7 @@ export default function PivotTable(props: Props) {
   const [error, setError] = useState('');
   const [conflict, setConflict] = useState(false);
   const generation = useRef(0);
+  const localPool = useRef<PivotRequestPool>(new Map());
   const rowDimensions = [row1, row2].filter(Boolean);
   const invalid =
     !row1 || new Set([...rowDimensions, column].filter(Boolean)).size !== rowDimensions.length + Number(!!column);
@@ -110,19 +112,16 @@ export default function PivotTable(props: Props) {
       };
     }
     setBusy(true);
-    void post(
-      '/bi/explore/pivot',
-      {
-        sourceId: props.sourceId,
-        sourceRevision: props.sourceRevision,
-        measureIds: props.measureIds,
-        rowDimensions: [row1, row2].filter(Boolean),
-        columnDimensions: column ? [column] : [],
-        filters: props.filters,
-        ...(props.dateRange ? { dateRange: props.dateRange } : {}),
-      },
-      { signal: abort.signal },
-    )
+    const subscription = acquirePivotRequest(props.requestPool ?? localPool.current, requestKey, {
+      sourceId: props.sourceId,
+      sourceRevision: props.sourceRevision,
+      measureIds: props.measureIds,
+      rowDimensions: [row1, row2].filter(Boolean),
+      columnDimensions: column ? [column] : [],
+      filters: props.filters,
+      ...(props.dateRange ? { dateRange: props.dateRange } : {}),
+    });
+    void subscription.promise
       .then(response => {
         if (generation.current !== token || abort.signal.aborted) return;
         if (response.data?.status !== 'SUCCESS' || response.data.data?.sourceRevision !== props.sourceRevision)
@@ -141,19 +140,9 @@ export default function PivotTable(props: Props) {
     return () => {
       generation.current += 1;
       abort.abort();
+      subscription.release();
     };
-  }, [
-    props.sourceId,
-    props.sourceRevision,
-    props.measureIds,
-    props.filters,
-    props.dateRange,
-    paused,
-    row1,
-    row2,
-    column,
-    reload,
-  ]);
+  }, [requestKey, paused, reload, props.requestPool]);
   const downloadCsv = () => {
     if (!current) return;
     try {
