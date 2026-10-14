@@ -280,3 +280,14 @@ it('explains paused reason without querying or enabling export', async () => {
   expect(api.post).not.toHaveBeenCalled();
   expect((screen.getByRole('button', { name: 'Pivot CSV 내보내기' }) as HTMLButtonElement).disabled).toBe(true);
 });
+
+it('explains rate limiting and blocks export until retry succeeds', async () => {
+  api.post.mockRejectedValueOnce(Object.assign(new Error('429'), { response: { status: 429 } }));
+  render(<PivotTable {...props()} />);
+  await screen.findByText('요청이 많아 잠시 제한되었습니다. 잠시 후 다시 시도해 주세요.');
+  expect(screen.queryByRole('table')).toBeNull();
+  expect((screen.getByRole('button', { name: 'Pivot CSV 내보내기' }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: 'Pivot 다시 시도' }));
+  await screen.findByRole('table');
+  expect((screen.getByRole('button', { name: 'Pivot CSV 내보내기' }) as HTMLButtonElement).disabled).toBe(false);
+});

@@ -59,3 +59,14 @@ source4 원본연결은 현서버 암호화키와 달라 config백업/동일sour
 - 결과 **PASS_SELECTED_VARIANTS**: 4/8/16은 전부201,24는17성공/7큐busy503. 52요청중45성공·모든성공정답일치,4개후속복구201. p95 351/688/1653/1767ms; 복구93~113ms. API peakRSS302.5MiB(300ms표본, 누수판정아님). 실제32부하중브라우저503→표제거/CSV차단→Enter재시도201/표복구 캡처PASS. 제품변경0·기존빌드/단위/Rill/모바일전체반복없음.
 - 범위: 단일로컬서버/같은QA사용자의 독립요청; 다중tenant·지속부하·실운영하드웨어·혼합import/write·multi-replica·crash복구 NOT_RUN.16은측정지점이며보장사용자한도아님. VoiceOverBLOCKED·gpt-6-luna유지/호출0.
 - 증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/pivot-load-20261014/RESULTS.md`, `results.json`, `browser-results.json`, `busy-desktop.png`, `recovered-desktop.png`.
+
+## PIVOT-10 — 지속 부하 선택 조건
+
+- 사전 범위: 단일 로컬 QA 서버·Rill1391572행·동일사용자·4개 필터, 8개 독립 클라이언트가 180초간 응답 직후 다음 요청을 전송(닫힌 부하 모델). 기존 단발4/8/16/24 burst는 반복하지 않는다.
+- 기대: 성공응답의 요청합계/지표/revision/표 제한 정확, 비정상500·타임아웃·전송실패 없음. busy503·요청제한429는 별도 집계하고 성공으로 세지 않는다. 429는5초대기후재시도하고 제한해제까지최대65초복구대기한다. (초기실행에서기존120회/60초제한을발견해범위명시) 부하 종료 후 정상 조회·화면 유지.
+- 측정:30초 구간 처리량/응답p95와1초 RSS표본·종료후15초안정구간. 지연/RSS 증가만으로 누수나운영SLA를 사후단정하지 않는다. 실제화면 부하중/종료후 캡처. 장시간 soak·운영하드웨어·다중사용자/tenant·쓰기혼합은 별도미검증.
+
+
+PIVOT-10 **PASS_SELECTED_VARIANTS** (2026-10-14): 기본요청제한120회/60초 유지·8클라이언트·실측181.4초·455요청중183성공201/272제한429. 성공183건 모두4개필터정답·지표/revision·50×12상한일치,500/전송실패/timeout0. 성공응답p95=595ms. RSS1초표본peak347.0MiB/종료45.9MiB, 장시간누수판정아님. 제한해제뒤정상복구201/154ms, 총복구관찰20.2초는15초idle포함. 실제1440px429 표없음/CSV차단→수정한요청제한안내·부하종료정상표/634513000/pageerror0/overflow0 캡처PASS. 일반오류만보이던429안내를명확히수정, 새선택단위1PASS(8skip)·FEtype/lint/build PASS.
+
+초기helper는429를503로가정해중단→기존보호동작을그대로반영해재실행. 이실행은rate limit에따른대기포함이며3분내내worker포화검증이아니다. 무제한worker지속포화·장시간soak·다중사용자/tenant·운영하드웨어·혼합write/import·multi-replica/crash NOT_RUN. 기존단발부하·통과UI/Rill전체반복없음. gpt-6-luna/VoiceOverBLOCKED 유지. 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/pivot-sustained-20261014/RESULTS.md`, `results.json`, `during-desktop.png`, `after-desktop.png`.

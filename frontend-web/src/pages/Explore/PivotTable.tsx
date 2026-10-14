@@ -50,6 +50,7 @@ type Props = {
 };
 const category = (v: unknown) => (v === null ? '(NULL)' : v === '' ? '(빈 문자열)' : String(v));
 const errorMessage = (err: any) => {
+  if (err?.response?.status === 429) return '요청이 많아 잠시 제한되었습니다. 잠시 후 다시 시도해 주세요.';
   const message = err?.response?.data?.data?.message;
   return typeof message === 'string' ? message : 'Pivot을 불러오지 못했습니다. 다시 시도해 주세요.';
 };
