@@ -12,6 +12,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Widget } from '../widget/entities/widget.entity';
 import { Dashboard } from './entities/dashboard.entity';
+import { DashboardWidget } from './dashboard-widget/entities/dashboard-widget.entity';
 import { DashboardWidgetService } from './dashboard-widget/dashboard-widget.service';
 import { ResponseStatus } from '../common/enum/response-status.enum';
 import { UserService } from 'src/user/user.service';
@@ -208,7 +209,19 @@ export class DashboardService {
       return 'Not exist dashboard';
     } else {
       const hasLayout = updateDashboardDto.layout !== undefined;
-      const widgetIds = hasLayout ? await this.validateLayout(updateDashboardDto.layout) : [];
+      let widgetIds = hasLayout ? await this.validateLayout(updateDashboardDto.layout) : [];
+      // UC-006: grid order is presentation, not analysis widget identity/order.
+      if (hasLayout && find_dashboard.analysisDefinition) {
+        const original = await this.dashboardRepository.manager.find(DashboardWidget, {
+          where: { dashboardId: id },
+          order: { id: 'ASC' },
+        });
+        if (
+          original.length === widgetIds.length &&
+          original.every(m => widgetIds.includes(m.widgetId))
+        )
+          widgetIds = original.map(m => m.widgetId);
+      }
 
       if (updateDashboardDto.title) {
         find_dashboard.title = updateDashboardDto.title;

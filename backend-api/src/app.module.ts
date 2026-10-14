@@ -1,6 +1,7 @@
 import { AddDashboardPivots1791951000000 } from './migrations/1791951000000-add-dashboard-pivots';
 import { BiModule } from './bi/bi.module';
 import { AddPersonalViews1791854000000 } from './migrations/1791854000000-add-personal-views';
+import { AddExploreViews1791855000000 } from './migrations/1791855000000-add-explore-views';
 import { AddBiDefinitions1791853000000 } from './migrations/1791853000000-add-bi-definitions';
 import { SourceOwnershipModule } from './ownership/source-ownership.module';
 import { AddSourceOwner1791850000000 } from './migrations/1791850000000-add-source-owner';
@@ -29,6 +30,7 @@ import { AiModule } from './ai/ai.module';
 import { MetricModule } from './metric/metric.module';
 import { ProgressModule } from './progress/progress.module';
 import { CommerceModule } from './commerce/commerce.module';
+import { apiEnvFiles } from './config-env';
 
 @Module({
   imports: [
@@ -37,7 +39,7 @@ import { CommerceModule } from './commerce/commerce.module';
     SourceOwnershipModule,
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: process.env.NODE_ENV == 'prod' ? '.env' : '.env.dev',
+      envFilePath: apiEnvFiles(),
     }),
 
     ThrottlerModule.forRoot({
@@ -61,6 +63,7 @@ import { CommerceModule } from './commerce/commerce.module';
         AddSourceOwner1791850000000,
         AddBiDefinitions1791853000000,
         AddPersonalViews1791854000000,
+        AddExploreViews1791855000000,
       ],
       migrationsRun: process.env.NODE_ENV === 'local',
       entities: [__dirname + '/**/*.entity{.ts,.js}'],

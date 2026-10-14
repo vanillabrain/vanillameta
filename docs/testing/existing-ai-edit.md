@@ -1,0 +1,96 @@
+# 기존 실행 환경 AI 편집 — 2026-10-14
+
+## 수정과 설정
+
+기존 `NODE_ENV=local` API가 `.env.dev`만 읽어 `.env.local`의 로컬 연결 설정을 사용하지 못했다. 이제 `.env.local` → `.env.dev` 순으로 읽고 셸 환경변수가 최우선이다. dev/prod 파일 선택은 유지했다.
+
+`backend-api/.env.local`은 파일을 보존하면서 Git 추적에서 제외했다. 기존 인증 설정은 유지하고 현재 호스트의 Codex 연결만 추가했다. 다른 호스트에서는 설치된 연결 주소·카탈로그 경로·기존 Codex 로그인을 확인한다.
+
+```dotenv
+AI_PROVIDER=codex
+AI_CODEX_BASE_URL=http://127.0.0.1:10100/v1
+AI_CODEX_MODEL_CATALOG=/Users/drumcap/.codex/opencodex-catalog.json
+AI_TIMEOUT_MS=180000
+```
+
+설정 변경 후 API를 재시작한다. 기존 셸에 `AI_PROVIDER` 등 다른 값이 지정되어 있으면 해당 값이 우선한다. 이 수정은 API ConfigModule에 적용되며 별도 CLI seed의 dotenv 로더를 변경하지 않는다. 요청 모델은 `gpt-6-luna` 고정이며 자동 대체하지 않는다.
+
+## 실제 실행 검증
+
+기존 화면 **http://127.0.0.1:3698/commerce/1?sample=1**에서 수행했다. API는 **4898**, 브라우저는 기존 **4899 프록시**를 경유한다. 기존 `/tmp/vm-rill-views/metadata.db`, `/tmp/vm-rill-views/uploads`, 인증·CORS 설정을 그대로 사용했다. DB 복사나 별도 데모 서버 없이 빌드된 기존 API를 재시작했다. 시연 계정과 API 전용 테스트 계정을 분리했다.
+
+| 검증                  | 결과                   | 증거                                                                                                                                |
+| --------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| 실제 화면 질문 → 초안 | PASS                   | 제목을 매출·환불 운영 현황으로 변경하고 차감 수취액/주문일 코호트 환불률 설명 요청. `gpt-6-luna`, POST `/commerce/1/ai` 201, 6830ms |
+| 저장 → 새로고침       | PASS                   | PUT `/commerce/1/presentation` 200 → GET report 200. 새로고침 완료 후 제목·설명·차트 제목 유지                                      |
+| 화면 수치 유지        | PASS                   | 결제 20,994.61 / 환불 4,457.60 / 차감 수취액 16,537.01 USD, 주문 35/8, 비율 22.86%                                                  |
+| API 실제 LLM 질문 2회 | PASS                   | 전체/2025-06-24 질문, 초안 미저장·저장/재조회·리포트/게시 digest/version 불변. 전용 테스트 계정 프로젝트2의 원래 표현 복원          |
+| 독립 CSV/Decimal      | PASS                   | 전체·주문일·환불일·채널·빈 결과 5조건, 일별/채널 합계·재조회·샘플 멱등                                                              |
+| 설정/AI/커머스 단위   | PASS                   | 3 suites / 36 tests. 로컬 우선·누락 fallback·셸 우선·dev/prod 유지 포함                                                             |
+| 빌드·린트             | PASS                   | 루트 npm run build(BE/FE), 변경 BE 3파일 ESLint                                                                                     |
+| 디자인                | PASS_SELECTED_VARIANTS | 1440×900 CSS 실제 캡처의 긴 질문/답변, 버튼 크기·정렬, 입력 높이·간격·폰트와 저장 후 KPI 배치 확인. 잘림 없음                       |
+
+증빙은 저장소 밖에 보관한다:
+
+- `/tmp/vm-existing-ai/ai-api.json`, `oracle-api.json`, `ui-requests.json`(인증 없는 요청 메타데이터).
+- `/Users/drumcap/.aside/u/0/sessions/2026-10-14_xFQKdMnZS9BMOCgf/artifacts/existing-ai-preview.png`, `existing-ai-saved-reloaded.png`, `existing-ai-reloaded.txt`.
+
+```sh
+# 저장소 루트. 전용 테스트 계정 비밀번호를 COMMERCE_VERIFY_PASSWORD로 전달한다.
+python3 scripts/commerce/verify-report.py --api-url http://127.0.0.1:4898/v1 \
+  --user-id demoverify1014 --output /tmp/vm-existing-ai/oracle-api.json
+python3 scripts/commerce/verify-ai-demo.py --api-url http://127.0.0.1:4898/v1 \
+  --user-id demoverify1014 --output /tmp/vm-existing-ai/ai-api.json
+```
+
+UI 저장 표현은 시연용으로 유지했다. 저장 설명은 정적 텍스트이며 기간을 바꾸면 필요에 따라 다시 질문한다. 새 모바일/VoiceOver, Rill 재비교, 운영 배포, 전체 E2E 회귀는 NOT_RUN이다. UI 코드는 변경하지 않았으며 이전 Explore/Pivot 검증은 재사용한다. provider 내부 실제 모델의 독립 증명이 아니라 지정 모델 요청과 실제 응답을 확인했다.
+
+## 분석 진입·컨트롤 디자인 후속
+
+매출·환불 보고서의 고정 계산과 문구 편집은 유지하면서 상단에 **AI 분석 만들기**를 추가했다. 기존 AiDashboardPanel을 재사용해 파일 소스 선택 → 질문 → KPI/차트 미리보기 → 별도 대시보드 저장으로 이어진다. 커머스 묶음의 여러 테이블 계산식을 이 패널에서 직접 수정하는 기능은 아니다.
+
+Commerce에 기존 AnalysisUiProvider를 적용했다. 프로젝트·AI 버튼과 날짜·채널·적용/초기화를 **32px / 12px**, 아이콘16px로 맞췄다. 날짜의 빈 helperText를 제거하고 실제 오류만 표시하며, 오류가 생겨도 컨트롤 상단 정렬을 유지한다. 좁은 행은 줄바꿈한다.
+
+- Aside 기존3698 화면에서 실제 Rill 파일 소스7 질문으로 `Rill 요청 분석` KPI와 device_type별 막대 미리보기 생성 확인. 표시 KPI635M은 반올림 표시이며 이번 검증에서 원본 총합의 독립 재계산은 하지 않았다. 저장 없이 취소했다.
+- 처음 예전 소스3 선택 시 복호화500 발생. API의 configError가 있는 소스와 미지원 엔진을 AI 소스 목록에서 제외했다. 실제 재개방에서 정상 rill-auction/sales만 보임을 확인했다. 기존 DB 레코드/암호화키는 변경하지 않았다.
+- 실제1727×1080 CSS 화면에서 프로젝트와 AI 버튼 상단145.945px/높이32px, 날짜·채널·적용/초기화 상단453.781px/높이32px 확인. 최종 버튼·선택 글꼴12px. 긴 문구·기본/비활성·생성중·날짜 역전 오류와 취소 복귀 확인.
+- FE 관련15단위, 타입/변경린트 PASS. 테스트의 MUI styles 로더는 기존 CJS material 테스트 로더와 맞췄다.
+- 증빙: `/Users/drumcap/.aside/u/0/sessions/2026-10-14_YU4NiBChRz3j5nJw/artifacts/`의 `commerce-controls-final.png`, `commerce-date-error.png`, `ai-analysis-preview.png`.
+- 이번 새 분석 저장/새로고침·모바일/VoiceOver·Rill 실화면 재비교는 NOT_RUN. 기존 분석 UI Kit의 Rill 기준 토큰을 재사용했다. Aside에는 setViewportSize가 없어 좁은 폭 확인을 이번 결과에 포함하지 않는다.
+
+## AI 분석 저장·새로고침·모바일 후속
+
+기존3698/4898 실행 환경과 원래 DB·업로드를 유지했다. Aside 시연 계정으로 **AI 분석 만들기**에서 정상 `rill-auction` 소스7을 선택하고 다음 질문을 입력했다.
+
+> 전체 기간 요청 수를 요청 카운터 합계로 표시하고 device_type별 요청 수 막대 차트를 만들어 줘. 제목은 Rill 고객 검증 분석 1014로 설정하고 총 요청 수는 숫자를 생략하지 않고 표시해줘.
+
+| 검증                 | 결과                   | 확인 내용                                                                                                                             |
+| -------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| 실제 질문 → 미리보기 | PASS                   | 지정 `gpt-6-luna` 실제 응답. 총 요청 수634,513,000과 device_type별 막대9항목 생성                                                     |
+| 저장 → 새로고침      | PASS                   | 저장 후 [대시보드5](http://127.0.0.1:3698/dashboard/5) 이동. 브라우저 새로고침 완료 후 제목·KPI·차트 유지                             |
+| API 요청             | PASS                   | draft/preview/save POST201, 저장 대시보드·분석 GET200, 새로고침 후 preview201                                                         |
+| 모바일 컨트롤        | PASS_SELECTED_VARIANTS | Chromium 모바일 에뮬레이션390×844·768×844. 날짜·AI·적용/초기화 높이32px/글꼴12px, 버튼 쌍 동일 상단, 화면 경계 안 배치·가로 넘침 없음 |
+| 모바일 질문 패널     | PASS_SELECTED_VARIANTS | 소스 선택·질문 입력·미리보기 생성 활성 상태·취소 복귀. 390폭 전체 화면, 768폭704px 패널의 경계·정렬·캡처 확인                         |
+| FE 회귀              | PASS                   | Commerce import-error와 AiDashboardPanel의15개 단위, 타입 검사, 변경 파일 ESLint                                                      |
+
+모바일에서 AI 버튼과 적용/초기화가 각각 별도 행을 차지하던 배치를 버튼 쌍마다 한 행으로 묶었다. 좁은 폭의 AI 행은 필요하면 줄바꿈한다. 기존 크기·클릭 동작을 유지했다. 테스트 브라우저 언어를 한국어로 명시하고 패널 닫힘을 기다린 최종 실행이 통과했다.
+
+시연 대시보드5는 남겨 두었다. 모바일은 별도 테스트 계정 프로젝트2에서 질문 입력·취소만 수행해 시연 계정 로그인을 유지했다. 모바일에서 LLM 생성·저장, 물리 모바일 기기·VoiceOver, 새 Rill9009 실화면 비교, 전체 E2E·운영 배포는 NOT_RUN이다. 숫자는 기존 Rill 검증 기준634,513,000과 일치하며 이번 독립 원본 재집계는 수행하지 않았다.
+
+증빙(저장소 밖):
+
+- `/Users/drumcap/.aside/u/0/sessions/2026-10-14_JQMLIJ6ttJRlnWo1/artifacts/ai-analysis-before-save.png`, `ai-analysis-saved-reloaded.png`, `ai-analysis-reloaded.txt`.
+- `/tmp/vm-ai-full-flow/desktop-requests.json`: 인증 없는 API 요청 메타데이터. 앞부분에는 이전 초안 요청도 포함되며 최종 save201 및 대시보드5 재조회가 이번 저장 검증이다.
+- `/tmp/vm-ai-full-flow/mobile.json`, `mobile-390-filters.png`, `mobile-768-filters.png`, `mobile-390-ai.png`, `mobile-768-ai.png`: 최종 화면·크기 증거. 임시 검증 스크립트 `mobile.cjs`는 설치된 Playwright를 사용했다.
+
+## 저장 분석 재질문·지표·차트 수정 후속
+
+기존3698의 대시보드5에서 **Assistant → 대시보드 수정**을 사용했다. 새 기능을 중복 구현하지 않고 기존 초안·미리보기·revision 조건 저장 경로를 검증했다. 지정 `gpt-6-luna`에 총 요청 수 유지, 평균 Bid Floor 추가, device_type 막대를 device_os별 요청 수 내림차순으로 교체하는 요청을 보냈다.
+
+- **AI-DASH-01 선택 흐름 PASS**: 실제 질문 → 변경 미리보기 → 변경 적용(동일 대시보드5 저장) → 브라우저 새로고침. 제목 `Rill 고객 검증 분석 1014 수정`, KPI634,513,000/5.57, OS28항목 유지. 서버 저장 정의도 일치.
+- **계산·정렬 PASS**: 평균 SQL은 `SUM(bid_floor) / NULLIF(SUM(has_bid_floor_cnt), 0)`이며 소수점2자리. 기존 Rill 평균 기준5.5712386765의 표시5.57과 일치한다. 실제 화면 데이터 표28행의 내림차순과 합계634,513,000을 검사했다. 신규 독립 원본 집계/Rill9009 실화면 비교는 NOT_RUN.
+- **재질문 보정 PASS**: 첫 미리보기 SQL·수치는 맞았지만 설명에 “요청당 평균”, “계산 결과는 제공되지 않았습니다”가 포함됐다. 저장 전에 재질문해 “Bid Floor 유효 건수 기준 평균”과 계산식 설명으로 보정했다. 설명 정확성은 AI 결과 검토가 필요하며 자동 보정된다고 주장하지 않는다.
+- **디자인 PASS_SELECTED_VARIANTS**:1727×1080 실제 캡처의400px Assistant. 버튼28px/12px, 차트 선택32px/12px, 모드·저장/취소 버튼 쌍 동일 상단, 패널 가로 넘침 없음. 긴 질문은 여러 줄 입력과 내부 스크롤, 미리보기는 대화 영역 스크롤을 사용한다. 공통 Analysis UI 토큰을 적용하고 긴 추천 질문은 높이가 늘어날 수 있도록 했다. 변경 적용이 현재 대시보드에 저장한다는 안내를 추가했다. 이번 모바일/VoiceOver 검증은 NOT_RUN.
+- **FE PASS**: DashboardAssistant/assistantTransport31개 단위(미리보기·저장·stale/409·취소·되돌리기 회귀 포함), 타입 검사, 변경2파일 ESLint. MUI styles 테스트 로더를 기존 CJS 로더 패턴과 맞췄다. BE 변경 없음. 전체 E2E·운영 배포는 NOT_RUN.
+
+증빙은 저장소 밖에 남겼다. `/Users/drumcap/.aside/u/0/sessions/2026-10-14_JQMLIJ6ttJRlnWo1/artifacts/`의 `assistant-before.png`, `assistant-edit-first-preview.png`(설명 보정 전), `assistant-edit-preview.png`, `assistant-edit-reloaded.png`, `assistant-edit-reloaded.txt`, `assistant-controls-final.png`, `assistant-layout.json`, `assistant-os-table.json`. `/tmp/vm-ai-edit-flow/persisted.json`은 저장 정의, `requests.json`은 인증 없는 요청 메타데이터다. 새로고침 후 대화 이력은 초기화되지만 저장한 분석 정의는 유지한다.

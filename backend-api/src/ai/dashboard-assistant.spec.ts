@@ -1,3 +1,5 @@
+import { DashboardWidget } from '../dashboard/dashboard-widget/entities/dashboard-widget.entity';
+import { Database } from '../database/entities/database.entity';
 jest.mock('./ai.service', () => ({ AiService: class {} }));
 import { AiDashboardService } from './ai-dashboard.service';
 import { AiController } from './ai.controller';
@@ -48,10 +50,23 @@ describe('dashboard assistant', () => {
         .mockResolvedValue({ schemaText: 'amount BIGINT, device VARCHAR' }),
     };
     manager = {
+      find: jest.fn(async entity =>
+        entity === DashboardWidget ? [{ widgetId: 5 }, { widgetId: 6 }] : [],
+      ),
       findOne: jest.fn(async entity =>
-        entity === UserMapping
+        entity === Database
+          ? { id: 1, ownerId: 7 }
+          : entity === UserMapping
           ? { id: 1 }
-          : { id: 3, delYn: 'N', analysisDefinition: JSON.stringify(draft()) },
+          : {
+              id: 3,
+              delYn: 'N',
+              layout: JSON.stringify([
+                { i: '5', x: 0, y: 0, w: 6, h: 3 },
+                { i: '6', x: 0, y: 3, w: 12, h: 5 },
+              ]),
+              analysisDefinition: JSON.stringify(draft()),
+            },
       ),
       save: jest.fn(),
       transaction: jest.fn(),
@@ -337,7 +352,13 @@ describe('numberNotation persistence', () => {
       find: jest.fn().mockResolvedValue([{ widgetId: 5 }]),
       findOne: jest.fn(async entity => {
         if (entity === UserMapping) return { id: 1 };
-        if (entity === Dashboard) return { id: 3, title: 'Recovered', delYn: 'N' };
+        if (entity === Dashboard)
+          return {
+            id: 3,
+            title: 'Recovered',
+            delYn: 'N',
+            layout: JSON.stringify([{ i: '5', x: 0, y: 0, w: 6, h: 3 }]),
+          };
         if (entity === Widget)
           return {
             title: definition.title,

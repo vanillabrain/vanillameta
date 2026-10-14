@@ -16,6 +16,10 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { get, post } from '@/helpers/apiHelper';
 import PersonalSavedViews from '@/pages/Dashboard/Components/PersonalSavedViews';
+import ExploreSavedViews, { ExploreViewState as VersionedExploreViewState } from './ExploreSavedViews';
+import ExplorePivot, { DEFAULT_PIVOT_SORT, normalizePivotSort, PivotAxes as AdvancedPivotAxes } from './ExplorePivot';
+import ExploreExport from './ExploreExport';
+import { AnalysisUiProvider } from '@/components/analysis/AnalysisUi';
 import {
   parseExploreViewState,
   ExploreViewState,
@@ -434,7 +438,7 @@ function LeaderboardCard({
   );
 }
 
-export default function SourceExplore() {
+function SourceExploreContent() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [sources, setSources] = useState<Source[]>([]);
@@ -465,7 +469,9 @@ export default function SourceExplore() {
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [pivotAxes, setPivotAxes] = useState({ rowDimensions: [] as string[], columnDimensions: [] as string[] });
   const [pivotReady, setPivotReady] = useState({ key: '', reason: 'Pivot을 조회한 뒤 저장해 주세요.' });
-  const [mode, setMode] = useState<'explore' | 'pivot'>('explore');
+  const [mode, setMode] = useState<'explore' | 'pivot' | 'advanced'>('explore');
+  const [advancedAxes, setAdvancedAxes] = useState<AdvancedPivotAxes>({ rowColumns: [], columnColumns: [] });
+  const [advancedReady, setAdvancedReady] = useState(false);
   const [savedViewsOpen, setSavedViewsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [filterColumn, setFilterColumn] = useState('');
@@ -503,6 +509,8 @@ export default function SourceExplore() {
   const resetAllState = () => {
     setMode('explore');
     setPivotAxes({ rowDimensions: [], columnDimensions: [] });
+    setAdvancedAxes({ rowColumns: [], columnColumns: [] });
+    setAdvancedReady(false);
     setMeasureIds([]);
     setDimensions([]);
     setRankingMeasureId(null);
@@ -852,6 +860,148 @@ export default function SourceExplore() {
     setSettingsOpen(false);
   };
 
+  const versionsKnown = measureIds.every(id => {
+    const version = catalog?.measures.find(measure => measure.id === id)?.definitionVersion;
+    return Number.isSafeInteger(version) && Number(version) > 0;
+  });
+  // The advanced Pivot and the versioned saved views share one normalized order: a stale measure, a
+  // change order without a compared period or a cell scope the axes no longer bound all fall back.
+  const advancedSort = normalizePivotSort(advancedAxes.rowSort, {
+    measureIds,
+    comparePrevious,
+    columnColumns: advancedAxes.columnColumns,
+  });
+  const effectiveAdvancedAxes: AdvancedPivotAxes = {
+    ...advancedAxes,
+    ...(advancedSort ? { rowSort: advancedSort } : {}),
+  };
+  const advancedExtended =
+    !!advancedAxes.rowHierarchy || (!!advancedSort && (advancedSort.by !== 'label' || advancedSort.direction !== 'asc'));
+  const advancedStored = advancedAxes.rowColumns.length > 0 || advancedAxes.columnColumns.length > 0;
+  const advancedRequiresV4 =
+    !!advancedAxes.timeAxis ||
+    advancedSort?.columnTuple !== undefined ||
+    advancedSort?.by === 'delta' ||
+    advancedSort?.by === 'percentChange';
+  // Flat joins the two axes into one record axis, which only the fifth view version can carry.
+  const advancedFlat = advancedAxes.tableMode === 'flat';
+  const versionedVersion: VersionedExploreViewState['version'] = advancedFlat
+    ? 5
+    : advancedRequiresV4
+    ? 4
+    : advancedExtended
+    ? 3
+    : advancedStored
+    ? 2
+    : 1;
+  // The restful V1 state above stays the canonical share for PersonalSavedViews; the versioned
+  // schema below carries the advanced Pivot for the POST /bi/explore/views/* compatibility API.
+  const versionedViewState: VersionedExploreViewState = {
+    version: versionedVersion,
+    ...(versionedVersion >= 2
+      ? {
+          pivot: {
+            enabled: mode === 'advanced',
+            rowColumns: advancedAxes.rowColumns,
+            columnColumns: advancedAxes.columnColumns,
+            ...(versionedVersion >= 3
+              ? {
+                  rowHierarchy: advancedFlat ? false : advancedAxes.rowHierarchy ?? false,
+                  rowSort: advancedSort ?? DEFAULT_PIVOT_SORT,
+                  expandedRows:
+                    !advancedFlat && advancedAxes.rowHierarchy && advancedAxes.rowColumns.length === 2
+                      ? advancedAxes.expandedRows ?? []
+                      : [],
+                }
+              : {}),
+            ...(versionedVersion >= 4 && advancedAxes.timeAxis ? { timeAxis: advancedAxes.timeAxis } : {}),
+            ...(advancedFlat ? { tableMode: 'flat' as const } : {}),
+          },
+        }
+      : {}),
+    measureIds,
+    dimensionColumns: dimensions,
+    rankingMeasureId: rankingMeasureId ?? measureIds[0],
+    rankingSort: leaderboardSort,
+    filters,
+    ...(dateRange ? { dateRange } : {}),
+    timeZone,
+    trendGrain: grain,
+    comparePrevious,
+    includeRows,
+  };
+  const restoreVersionedView = (state: VersionedExploreViewState) => {
+    queryRevision.current += 1;
+    queryAbort.current?.abort();
+    setResult(null);
+    setQueryError('');
+    setRevisionError('');
+    setAdvancedAxes(
+      state.pivot
+        ? {
+            rowColumns: state.pivot.rowColumns,
+            columnColumns: state.pivot.columnColumns,
+            ...(state.version >= 3
+              ? {
+                  rowHierarchy: state.pivot.rowHierarchy,
+                  rowSort: state.pivot.rowSort,
+                  expandedRows: state.pivot.expandedRows,
+                }
+              : {}),
+            ...(state.version >= 4 && state.pivot.timeAxis ? { timeAxis: state.pivot.timeAxis } : {}),
+            ...(state.version >= 5 && state.pivot.tableMode ? { tableMode: state.pivot.tableMode } : {}),
+          }
+        : { rowColumns: [], columnColumns: [] },
+    );
+    setAdvancedReady(false);
+    setMode(state.pivot?.enabled ? 'advanced' : 'explore');
+    setMeasureIds(state.measureIds);
+    setDimensions(state.dimensionColumns);
+    setRankingMeasureId(state.rankingMeasureId);
+    setLeaderboardSort(state.rankingSort);
+    setFilters(state.filters);
+    setGrain(state.trendGrain);
+    setComparePrevious(state.comparePrevious);
+    setTimeZone(state.timeZone);
+    setDateMode(state.dateRange ? 'custom' : 'all');
+    setStartDate(state.dateRange?.start ?? '');
+    setEndDate(state.dateRange?.end ?? '');
+    setIncludeRows(state.includeRows);
+    setPage(0);
+    closeFilters();
+    setQueryReload(value => value + 1);
+  };
+  const exportPayload = {
+    mode: mode === 'advanced' ? ('pivot' as const) : ('explore' as const),
+    query: {
+      sourceId: catalog?.sourceId,
+      sourceRevision: catalog?.sourceRevision,
+      measureIds,
+      filters,
+      ...(dateRange ? { dateRange } : {}),
+      comparePrevious,
+      ...(mode === 'advanced'
+        ? {
+            rowColumns: advancedAxes.rowColumns,
+            columnColumns: advancedAxes.columnColumns,
+            ...(advancedFlat
+              ? { tableMode: 'flat' as const, rowHierarchy: false }
+              : advancedAxes.rowHierarchy !== undefined
+              ? { rowHierarchy: advancedAxes.rowHierarchy }
+              : {}),
+            ...(advancedSort ? { rowSort: advancedSort } : {}),
+            ...(advancedAxes.timeAxis ? { timeAxis: advancedAxes.timeAxis } : {}),
+          }
+        : {
+            dimensionColumns: dimensions,
+            rankingMeasureId: rankingMeasureId ?? measureIds[0],
+            rankingSort: leaderboardSort,
+            trendGrain: grain,
+            includeRows: false,
+          }),
+    },
+  };
+
   return (
     <Box
       sx={{
@@ -945,49 +1095,89 @@ export default function SourceExplore() {
 
       <Divider />
       {catalog && (
-        <Box sx={{ mt: 1 }}>
-          <Button aria-expanded={savedViewsOpen} onClick={() => setSavedViewsOpen(open => !open)}>
-            {savedViewsOpen ? '저장 보기 닫기' : '저장 보기'}
-          </Button>
-          {savedViewsOpen && (
-            <PersonalSavedViews<ExploreViewState>
-              key={`explore-views-${catalog.sourceId}`}
-              endpoint={`/bi/explore/${catalog.sourceId}/views`}
-              subject="explore"
-              parseState={parseExploreViewState}
-              revision={catalog.viewRevision}
-              sourceRevision={catalog.sourceRevision}
-              state={viewState}
-              disabledReason={
-                rangePaused
-                  ? '완성한 기간을 적용한 뒤 저장해 주세요.'
-                  : !measureIds.length
-                  ? '지표를 하나 이상 선택해 주세요.'
-                  : mode === 'pivot'
-                  ? pivotReady.key ===
-                    pivotRequestKey({
-                      sourceId: catalog.sourceId,
-                      sourceRevision: catalog.sourceRevision,
-                      measureIds,
-                      ...pivotAxes,
-                      filters,
-                      dateRange,
-                    })
-                    ? pivotReady.reason
-                    : '현재 Pivot 조건을 조회한 뒤 저장해 주세요.'
-                  : queryBusy
-                  ? '현재 조건 조회가 끝난 뒤 사용할 수 있습니다.'
-                  : queryError || revisionError || (!result ? '정상 탐색 결과를 확인한 뒤 사용할 수 있습니다.' : '')
-              }
-              onApply={applySavedView}
-              renderViewAction={view =>
-                view.state.mode === 'pivot' ? (
-                  <PivotDashboardAdd sourceId={catalog.sourceId} viewId={view.id} name={view.name} />
-                ) : null
-              }
-            />
+        <Stack direction="row" spacing={1.5} alignItems="flex-start" sx={{ mt: 1, flexWrap: 'wrap', minWidth: 0 }}>
+          {/* Our restful V1 state cannot carry the advanced Pivot, so classic save/load hides there. */}
+          {mode !== 'advanced' && (
+            <Box sx={{ minWidth: 0 }}>
+              <Button aria-expanded={savedViewsOpen} onClick={() => setSavedViewsOpen(open => !open)}>
+                {savedViewsOpen ? '저장 보기 닫기' : '저장 보기'}
+              </Button>
+              {savedViewsOpen && (
+                <PersonalSavedViews<ExploreViewState>
+                  key={`explore-views-${catalog.sourceId}`}
+                  endpoint={`/bi/explore/${catalog.sourceId}/views`}
+                  subject="explore"
+                  parseState={parseExploreViewState}
+                  revision={catalog.viewRevision}
+                  sourceRevision={catalog.sourceRevision}
+                  state={viewState}
+                  disabledReason={
+                    rangePaused
+                      ? '완성한 기간을 적용한 뒤 저장해 주세요.'
+                      : !measureIds.length
+                      ? '지표를 하나 이상 선택해 주세요.'
+                      : mode === 'pivot'
+                      ? pivotReady.key ===
+                        pivotRequestKey({
+                          sourceId: catalog.sourceId,
+                          sourceRevision: catalog.sourceRevision,
+                          measureIds,
+                          ...pivotAxes,
+                          filters,
+                          dateRange,
+                        })
+                        ? pivotReady.reason
+                        : '현재 Pivot 조건을 조회한 뒤 저장해 주세요.'
+                      : queryBusy
+                      ? '현재 조건 조회가 끝난 뒤 사용할 수 있습니다.'
+                      : queryError || revisionError || (!result ? '정상 탐색 결과를 확인한 뒤 사용할 수 있습니다.' : '')
+                  }
+                  onApply={applySavedView}
+                  renderViewAction={view =>
+                    view.state.mode === 'pivot' ? (
+                      <PivotDashboardAdd sourceId={catalog.sourceId} viewId={view.id} name={view.name} />
+                    ) : null
+                  }
+                />
+              )}
+            </Box>
           )}
-        </Box>
+          {/* Classic Pivot keeps its own PivotTable save/CSV, so the versioned controls stay hidden there. */}
+          {mode !== 'pivot' && (
+            <>
+              <ExploreSavedViews
+                sourceId={catalog.sourceId}
+                sourceRevision={catalog.sourceRevision}
+                measureVersions={Object.fromEntries(
+                  catalog.measures
+                    .filter(measure => measureIds.includes(measure.id))
+                    .map(measure => [String(measure.id), Number(measure.definitionVersion)]),
+                )}
+                state={versionedViewState}
+                canSave={
+                  (mode === 'advanced' ? advancedReady : !!result && !queryBusy) &&
+                  !rangePaused &&
+                  !revisionError &&
+                  measureIds.length > 0 &&
+                  versionsKnown
+                }
+                disabledReason={
+                  !versionsKnown ? '지표 정의 버전을 확인할 수 없습니다. 카탈로그를 다시 불러와 주세요.' : undefined
+                }
+                onRestore={restoreVersionedView}
+              />
+              <ExploreExport
+                payload={exportPayload}
+                disabled={
+                  rangePaused ||
+                  !!revisionError ||
+                  measureIds.length === 0 ||
+                  (mode === 'explore' ? !result || queryBusy : !advancedReady)
+                }
+              />
+            </>
+          )}
+        </Stack>
       )}
 
       <Box
@@ -1006,6 +1196,17 @@ export default function SourceExplore() {
             selected={mode === 'pivot'}
             onClick={() => {
               setMode('pivot');
+              setSavedViewsOpen(false);
+            }}
+          />
+          <Pill
+            label="고급 Pivot"
+            selected={mode === 'advanced'}
+            onClick={() => {
+              if (!advancedAxes.rowColumns.length && !advancedAxes.columnColumns.length)
+                setAdvancedAxes({ rowColumns: dimensions.slice(0, 1), columnColumns: [] });
+              setAdvancedReady(false);
+              setMode('advanced');
               setSavedViewsOpen(false);
             }}
           />
@@ -1077,7 +1278,7 @@ export default function SourceExplore() {
               </Stack>
             </Stack>
           )}
-          {mode === 'explore' && (
+          {mode !== 'pivot' && (
             <>
               <Stack
                 direction="row"
@@ -1554,6 +1755,56 @@ export default function SourceExplore() {
         />
       )}
 
+      {catalog && mode === 'advanced' && (
+        <ExplorePivot
+          sourceId={catalog.sourceId}
+          sourceRevision={catalog.sourceRevision}
+          measures={catalog.measures}
+          dimensions={catalog.dimensions}
+          temporalColumns={catalog.temporalColumns?.map(column => column.column)}
+          state={versionedViewState}
+          axes={effectiveAdvancedAxes}
+          onAxesChange={axes => {
+            const queryKey = (value: AdvancedPivotAxes) =>
+              JSON.stringify({
+                rowColumns: value.rowColumns,
+                columnColumns: value.columnColumns,
+                rowHierarchy: value.rowHierarchy,
+                rowSort: value.rowSort,
+                timeAxis: value.timeAxis,
+                tableMode: value.tableMode,
+              });
+            if (queryKey(axes) !== queryKey(effectiveAdvancedAxes)) setAdvancedReady(false);
+            setAdvancedAxes(axes);
+          }}
+          onReady={setAdvancedReady}
+          blocked={rangePaused || measureIds.length === 0}
+          onFilter={applyFilter}
+          onReloadCatalog={reloadCatalog}
+          onMeasureToggle={toggleMeasure}
+          refreshKey={queryReload}
+          formatValue={value => {
+            const units = unitPartsOf(value.measureId);
+            return formatMetric(value.value, {
+              decimalPlaces: decimalsOf(value.measureId),
+              prefix: units.prefix,
+              suffix: units.suffix,
+              numberNotation: notationOf(value.measureId),
+            }).text;
+          }}
+          formatComparison={value => {
+            const units = unitPartsOf(value.measureId);
+            return compareText(
+              { category: '', value: value.value, ...value.comparison },
+              decimalsOf(value.measureId),
+              units.prefix,
+              units.suffix,
+              notationOf(value.measureId),
+            );
+          }}
+        />
+      )}
+
       {result && mode === 'explore' && measureIds.length > 0 && (
         <>
           <Typography sx={{ mt: 1, fontSize: 12, color: 'text.secondary' }}>
@@ -1716,5 +1967,18 @@ export default function SourceExplore() {
         </Box>
       )}
     </Box>
+  );
+}
+
+/**
+ * Modes: our Explore/Pivot (PivotTable + restful saved views) stay the default design; the remote
+ * advanced ExplorePivot keeps its own mode and its versioned saved views/CSV export, so neither
+ * implementation is lost.
+ */
+export default function SourceExplore() {
+  return (
+    <AnalysisUiProvider>
+      <SourceExploreContent />
+    </AnalysisUiProvider>
   );
 }

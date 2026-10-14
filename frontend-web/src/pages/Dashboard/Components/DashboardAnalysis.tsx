@@ -21,6 +21,7 @@ import WidgetViewer from '@/widget/wrapper/WidgetViewer';
 import DashboardAssistant from './DashboardAssistant';
 import { analysisOptions } from '../analysisOptions';
 import MetricTrend from './MetricTrend';
+import { AnalysisUiProvider } from '@/components/analysis/AnalysisUi';
 import PersonalSavedViews, {
   DateRange,
   FilterValue,
@@ -57,7 +58,7 @@ const selectableTime = (selection: TimeSelection | undefined, length: number, da
   selection.ranges.length === length &&
   selection.ranges.some(range => validTimeRange(range) && range.column === selection.column);
 
-export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAssistantOpenChange, children }: any) {
+function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantOpenChange, children }: any) {
   const { t } = useTranslation();
   const [numberNotation, setNumberNotation] = useState<SavedViewState['numberNotation']>('auto');
   useEffect(() => {
@@ -1139,7 +1140,11 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
           aria-busy={busy}
           sx={{
             display: 'grid',
-            gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'repeat(2, minmax(0, 1fr))' },
+            gridTemplateColumns: {
+              xs: 'minmax(0, 1fr)',
+              md: draft?.blockLayouts ? 'repeat(12, minmax(0, 1fr))' : 'repeat(2, minmax(0, 1fr))',
+            },
+            gridAutoRows: draft?.blockLayouts ? { md: 'minmax(80px, auto)' } : undefined,
             gap: 2,
             opacity: busy || error ? 0.4 : 1,
             pointerEvents: busy || error ? 'none' : 'auto',
@@ -1147,7 +1152,8 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
         >
           {preview.widgets.map((widget: any, i: number) => (
             <Card
-              key={i}
+              key={draft?.widgets?.[i]?.blockId || i}
+              data-block-id={draft?.widgets?.[i]?.blockId}
               sx={{
                 minHeight: preview.draft?.layoutSizes?.[i]
                   ? preview.draft.layoutSizes[i].height * 80 + 60
@@ -1155,7 +1161,22 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
                   ? 250
                   : 460,
                 height: 'auto',
-                gridColumn: preview.draft?.layoutSizes?.[i]
+                gridRow: draft?.blockLayouts?.[draft?.widgets?.[i]?.blockId]
+                  ? {
+                      xs: 'auto',
+                      md: `${draft.blockLayouts[draft?.widgets?.[i]?.blockId].y + 1} / span ${
+                        draft.blockLayouts[draft?.widgets?.[i]?.blockId].h
+                      }`,
+                    }
+                  : undefined,
+                gridColumn: draft?.blockLayouts?.[draft?.widgets?.[i]?.blockId]
+                  ? {
+                      xs: 'auto',
+                      md: `${draft.blockLayouts[draft?.widgets?.[i]?.blockId].x + 1} / span ${
+                        draft.blockLayouts[draft?.widgets?.[i]?.blockId].w
+                      }`,
+                    }
+                  : preview.draft?.layoutSizes?.[i]
                   ? preview.draft.layoutSizes[i].width === 12
                     ? '1 / -1'
                     : 'auto'
@@ -1221,7 +1242,10 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
                 />
               </Box>
               {widget.contribution && (
-                <Box sx={{ px: 2.5, py: 1, minWidth: 0 }}>
+                <Box component="details" sx={{ px: 2.5, py: 1, minWidth: 0 }}>
+                  <Typography component="summary" sx={{ cursor: 'pointer', fontSize: 12 }}>
+                    집계 원본 확인
+                  </Typography>
                   <Button
                     ref={button => {
                       if (button) contributionButtons.current.set(i, button);
@@ -1428,5 +1452,13 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
         }}
       />
     </Box>
+  );
+}
+
+export default function DashboardAnalysis(props: any) {
+  return (
+    <AnalysisUiProvider>
+      <DashboardAnalysisContent {...props} />
+    </AnalysisUiProvider>
   );
 }

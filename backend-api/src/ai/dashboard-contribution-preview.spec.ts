@@ -81,7 +81,7 @@ describe('aggregate inputs: actual DuckDB, stored definitions and snapshots', ()
       id: 42,
       delYn: 'N',
       title: 'Contributors',
-      layout: null,
+      layout: JSON.stringify([{ i: '5', x: 0, y: 0, w: 6, h: 3 }]),
       structuredDefinition: null,
       analysisDefinition: JSON.stringify(definition()),
     };
@@ -92,6 +92,7 @@ describe('aggregate inputs: actual DuckDB, stored definitions and snapshots', ()
     };
     connection = new ConnectionService(source as any, {} as any, worker);
     const manager = {
+      find: jest.fn().mockResolvedValue([{ widgetId: 5 }]),
       findOne: jest.fn(async (entity, options) =>
         entity === UserMapping ? (options.where.userInfoId === 7 ? { id: 1 } : null) : stored,
       ),

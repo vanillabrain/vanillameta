@@ -10,12 +10,15 @@ import {
 } from '../ai/dashboard-draft';
 import { comparisonValues, previousDateRange, validatePeriodOptions } from '../ai/dashboard-period';
 import { ConnectionService } from '../connection/connection.service';
+import { EXPORT_LIMITS, EXPORT_MIME, ExportAxis, ExportEntry, toCsv } from './bi-explore-export';
+import { PivotRowSort, compareTuples, sortPivotRows } from './bi-explore-sort';
+import { PivotBucket, pivotAxisExpression, pivotBucket, previousBucket } from './bi-explore-time';
 import { exploreViewRevision } from './explore-view-state';
 import { BiService } from './bi.service';
 
+const MAX_MEASURES = 6;
 const PIVOT_ROW_LIMIT = 50;
 const PIVOT_COLUMN_LIMIT = 12;
-const MAX_MEASURES = 6;
 const MAX_DIMENSIONS = 4;
 const LEADERBOARD_LIMIT = 20;
 const MAX_PAGE_SIZE = 50;
@@ -23,6 +26,26 @@ const MAX_PAGE = 10000;
 const MAX_SEARCH_LENGTH = 200;
 const MAX_VALUES = 50;
 const DETAIL_COLUMNS = 50;
+const MAX_PIVOT_AXIS = 2;
+const MAX_PIVOT_ROWS = 50;
+const MAX_PIVOT_COLUMNS = 20;
+const MAX_PIVOT_CELLS = 6000;
+/** Aggregates beyond the exact integer range are suppressed by comparisonValues; sorts must agree. */
+const MAX_EXACT = Number.MAX_SAFE_INTEGER;
+type RankingSort = { by: 'value' | 'delta' | 'percentChange'; direction: 'asc' | 'desc' };
+/** An optional flat table merges both axes onto the row side; the default keeps the nested grid. */
+type PivotTableMode = 'nest' | 'flat';
+type PivotMeasure = { metricId: number; definition: any; expression: string };
+type PivotTuple = unknown[];
+type PivotValues = Array<number | string | null>;
+type PivotGroups = Record<'cells' | 'rows' | 'columns' | 'grand', Map<string, PivotValues>>;
+type PivotValue = { measureId: number; value: number | string | null; comparison?: unknown };
+/** One parent row of a two-column row hierarchy, reaggregated at its own grain. */
+type PivotSubtotal = {
+  tuple: unknown[];
+  measures: PivotValue[];
+  cells: Array<{ column: number; measures: PivotValue[] }>;
+};
 /**
  * sourceQuery validates a deliberately small SELECT grammar that has no parameter token, so the
  * search pattern is written as a sentinel literal during validation and swapped for a bound
@@ -30,15 +53,6 @@ const DETAIL_COLUMNS = 50;
  */
 const SEARCH_PARAMETER = "'__vm_explore_search__'";
 
-const PIVOT_FIELDS = [
-  'sourceId',
-  'sourceRevision',
-  'measureIds',
-  'rowDimensions',
-  'columnDimensions',
-  'filters',
-  'dateRange',
-];
 const CATALOG_FIELDS = ['sourceId'];
 const QUERY_FIELDS = [
   'sourceId',
@@ -47,6 +61,7 @@ const QUERY_FIELDS = [
   'dimensionColumns',
   'rankingMeasureId',
   'leaderboardSort',
+  'rankingSort',
   'filters',
   'dateRange',
   'trendGrain',
@@ -56,6 +71,27 @@ const QUERY_FIELDS = [
   'includeRows',
 ];
 const VALUES_FIELDS = ['sourceId', 'sourceRevision', 'column', 'search', 'filters', 'dateRange'];
+/**
+ * rowDimensions/columnDimensions are the original exploration axis names; they stay accepted so a
+ * stored v1 exploration view keeps loading after the pivot contract was widened.
+ */
+const PIVOT_FIELDS = [
+  'sourceId',
+  'sourceRevision',
+  'measureIds',
+  'rowColumns',
+  'columnColumns',
+  'rowDimensions',
+  'columnDimensions',
+  'filters',
+  'dateRange',
+  'comparePrevious',
+  'rowHierarchy',
+  'rowSort',
+  'timeAxis',
+  'tableMode',
+];
+const EXPORT_FIELDS = ['mode', 'query'];
 
 /** Dynamic exploration over a managed DuckDB source: catalog, aggregate query and value search. */
 @Injectable()
@@ -110,25 +146,84 @@ export class BiExploreService {
     });
   }
 
+  /** Shape and bounds come from normalizeSourceFilters; sourceQuery authorizes columns and types. */
   private filters(value: unknown) {
     return normalizeSourceFilters(value === undefined ? [] : (value as any[]), false);
   }
 
-  private leaderboardSort(value: unknown, comparePrevious: boolean) {
-    const sort =
-      value === undefined
-        ? { by: 'value', direction: 'desc' }
-        : this.fields(value, ['by', 'direction']);
+  /**
+   * Default is the current measure value descending; a change sort requires a compared period.
+   * The response field the client used travels into the message so a rejection stays traceable.
+   */
+  private rankingSort(value: unknown, name: string, comparePrevious: boolean): RankingSort {
+    if (value === undefined) return { by: 'value', direction: 'desc' };
+    if (!value || typeof value !== 'object' || Array.isArray(value))
+      throw new BadRequestException(`invalid ${name}`);
+    if (Object.keys(value).some(key => key !== 'by' && key !== 'direction'))
+      throw new BadRequestException(`unsupported ${name} field`);
+    const by = (value as any).by ?? 'value';
+    const direction = (value as any).direction ?? 'desc';
+    if (!['value', 'delta', 'percentChange'].includes(by))
+      throw new BadRequestException(`invalid ${name} by`);
+    if (!['asc', 'desc'].includes(direction))
+      throw new BadRequestException(`invalid ${name} direction`);
+    if (by !== 'value' && !comparePrevious)
+      throw new BadRequestException('변화량 정렬에는 이전 기간 비교가 필요합니다.');
+    return { by, direction } as RankingSort;
+  }
+
+  /**
+   * Default is the ascending label order, which is the deterministic tuple order already in use.
+   * A supplied object must state both fields; a label order carries no measure, while metric
+   * orders name a selected measure. Cell and change orders use the saved-view version 4 shape.
+   */
+  private rowSortOption(
+    value: unknown,
+    measureIds: number[],
+    comparePrevious: boolean,
+  ): PivotRowSort {
+    if (value === undefined) return { by: 'label', direction: 'asc' };
+    if (!value || typeof value !== 'object' || Array.isArray(value))
+      throw new BadRequestException('invalid rowSort');
     if (
-      !['value', 'delta', 'percentChange'].includes(sort.by) ||
-      !['asc', 'desc'].includes(sort.direction)
+      Object.keys(value).some(key => !['by', 'direction', 'measureId', 'columnTuple'].includes(key))
     )
-      throw new BadRequestException('invalid leaderboardSort');
-    if (sort.by !== 'value' && !comparePrevious)
-      throw new BadRequestException('comparison sort requires comparePrevious and dateRange');
+      throw new BadRequestException('unsupported rowSort field');
+    const by = (value as any).by;
+    const direction = (value as any).direction;
+    if (!['label', 'value', 'delta', 'percentChange'].includes(by))
+      throw new BadRequestException('invalid rowSort by');
+    if (direction !== 'asc' && direction !== 'desc')
+      throw new BadRequestException('invalid rowSort direction');
+    const measureId = (value as any).measureId;
+    if (by === 'label') {
+      if (measureId !== undefined || (value as any).columnTuple !== undefined)
+        throw new BadRequestException('label 정렬에는 measureId를 지정할 수 없습니다.');
+      return { by, direction };
+    }
+    if (!Number.isSafeInteger(measureId) || !measureIds.includes(measureId))
+      throw new BadRequestException('value 정렬에는 선택한 measureId가 필요합니다.');
+    if (by !== 'value' && !comparePrevious)
+      throw new BadRequestException('변화 정렬에는 이전 기간 비교가 필요합니다.');
+    const columnTuple = (value as any).columnTuple;
+    if (
+      columnTuple !== undefined &&
+      (!Array.isArray(columnTuple) ||
+        columnTuple.length > 2 ||
+        columnTuple.some(
+          v =>
+            v !== null &&
+            typeof v !== 'string' &&
+            typeof v !== 'boolean' &&
+            !(typeof v === 'number' && Number.isFinite(v)),
+        ))
+    )
+      throw new BadRequestException('invalid rowSort columnTuple');
     return {
-      by: sort.by as 'value' | 'delta' | 'percentChange',
-      direction: sort.direction as 'asc' | 'desc',
+      by,
+      direction,
+      measureId: Number(measureId),
+      ...(columnTuple !== undefined ? { columnTuple } : {}),
     };
   }
 
@@ -149,6 +244,14 @@ export class BiExploreService {
   private flag(value: unknown, fallback: boolean, name: string) {
     if (value === undefined) return fallback;
     if (typeof value !== 'boolean') throw new BadRequestException(`invalid ${name}`);
+    return value;
+  }
+
+  /** Flat merges both axes onto the row side; an omitted mode keeps the nested grid. */
+  private tableModeOption(value: unknown): PivotTableMode {
+    if (value === undefined) return 'nest';
+    if (value !== 'nest' && value !== 'flat')
+      throw new BadRequestException('tableMode은 nest 또는 flat이어야 합니다.');
     return value;
   }
 
@@ -200,9 +303,11 @@ export class BiExploreService {
     };
     return { ...catalog, viewRevision: exploreViewRevision(catalog) };
   }
-
-  async pivot(body: any, actor: number) {
-    const input = this.fields(body, PIVOT_FIELDS);
+  /**
+   * The original classic grid: one or two row dimensions and at most one column dimension.
+   * Its response keeps the flat rows/columns/cells shape that PivotTable renders.
+   */
+  private async pivotClassic(input: Record<string, any>, actor: number) {
     const sourceId = positiveId(input.sourceId);
     const expected = this.revision(input.sourceRevision);
     const measureIds = this.measureIds(input.measureIds);
@@ -382,7 +487,13 @@ export class BiExploreService {
     const expected = this.revision(input.sourceRevision);
     const measureIds = this.measureIds(input.measureIds);
     const { trendGrain, comparePrevious } = validatePeriodOptions(input);
-    const leaderboardSort = this.leaderboardSort(input.leaderboardSort, comparePrevious);
+    // rankingSort is the current name for the leaderboard order; leaderboardSort is the v1 alias.
+    const sortField = input.rankingSort === undefined ? 'leaderboardSort' : 'rankingSort';
+    const rankingSort = this.rankingSort(
+      input.rankingSort ?? input.leaderboardSort,
+      sortField,
+      comparePrevious,
+    );
     const page = this.page(input.page);
     const pageSize = this.pageSize(input.pageSize);
     const includeRows = this.flag(input.includeRows, false, 'includeRows');
@@ -403,7 +514,8 @@ export class BiExploreService {
         expected,
         measureIds,
         rankingMeasureId,
-        leaderboardSort,
+        rankingSort,
+        ...(input.leaderboardSort !== undefined ? { leaderboardSort: input.leaderboardSort } : {}),
         dimensionColumns: input.dimensionColumns,
         filters,
         dateRange,
@@ -422,7 +534,9 @@ export class BiExploreService {
     expected: string;
     measureIds: number[];
     rankingMeasureId: number;
-    leaderboardSort: { by: 'value' | 'delta' | 'percentChange'; direction: 'asc' | 'desc' };
+    rankingSort: RankingSort;
+    /** Echoed only for a v1 client that still sends the original field name. */
+    leaderboardSort?: unknown;
     dimensionColumns: unknown;
     filters: SourceFilter[];
     dateRange: any;
@@ -453,27 +567,12 @@ export class BiExploreService {
     for (const measureId of input.measureIds)
       if (!known.has(measureId)) throw new BadRequestException('unknown measure id');
 
-    const measures = [];
-    const widgets = [];
-    for (const measureId of input.measureIds) {
-      const prepared = await this.bi.prepare(
-        {
-          sourceId: profile.sourceId,
-          metricId: measureId,
-          chart: 'number',
-          title: known.get(measureId).label,
-        },
-        input.actor,
-      );
-      const widget = prepared.draft.widgets[0];
-      measures.push({
-        metricId: measureId,
-        definition: prepared.definition,
-        // Only for the ranking leaderboard; canonical text still comes from prepare.
-        expression: this.expression(widget.sql),
-      });
-      widgets.push(widget);
-    }
+    const { measures, widgets } = await this.measureExpressions(
+      profile,
+      input.measureIds,
+      input.actor,
+      known,
+    );
 
     const preview = await this.dashboards.preview(
       {
@@ -498,20 +597,16 @@ export class BiExploreService {
     if (dimensionColumns.length) {
       const ranking = measures.find(measure => measure.metricId === input.rankingMeasureId);
       for (const column of dimensionColumns) {
-        const sql = this.leaderboardSql(
-          column,
-          ranking.expression,
-          input.leaderboardSort.direction,
-        );
-        const currentQuery = sourceQuery(
-          sql,
-          columns,
-          input.filters,
-          input.dateRange,
-          temporal,
-          numeric,
-        );
         if (!previous) {
+          const sql = this.leaderboardSql(column, ranking.expression, input.rankingSort);
+          const currentQuery = sourceQuery(
+            sql,
+            columns,
+            input.filters,
+            input.dateRange,
+            temporal,
+            numeric,
+          );
           const current = await this.connection.queryDuckDB(
             profile.sourceId,
             currentQuery.sql,
@@ -539,29 +634,11 @@ export class BiExploreService {
             temporal,
             numeric,
           );
-          const split = (query: string, name: string) =>
-            query
-              .replace('WITH source AS', `WITH ${name} AS`)
-              .replace('FROM source GROUP', `FROM ${name} GROUP`);
-          const value = 'c."__vm_value"';
-          const previousValue = 'p."__vm_value"';
-          const delta = `(${value} - ${previousValue})`;
-          const percent = `CASE WHEN ${previousValue} IS NULL OR ${previousValue} = 0 THEN NULL ELSE ${delta} / abs(${previousValue}) * 100 END`;
-          const order = { value, delta, percentChange: percent }[input.leaderboardSort.by];
+          const joined = this.joinLeaderboardSql(current, prior, input.rankingSort);
           const result = await this.connection.queryDuckDB(
             profile.sourceId,
-            `WITH current_groups AS (${split(
-              current.sql,
-              'current_source',
-            )}), prior_groups AS (${split(prior.sql, 'prior_source')})
-             SELECT COALESCE(c."__vm_category", p."__vm_category") AS category,
-               c."__vm_value" AS value, p."__vm_value" AS previous
-             FROM current_groups c FULL OUTER JOIN prior_groups p
-               ON c."__vm_category" IS NOT DISTINCT FROM p."__vm_category"
-             ORDER BY ${order} ${input.leaderboardSort.direction.toUpperCase()} NULLS LAST, category ASC NULLS LAST LIMIT ${
-              LEADERBOARD_LIMIT + 1
-            }`,
-            [...current.bindings, ...prior.bindings],
+            joined.sql,
+            joined.bindings,
           );
           leaderboards.push({
             column,
@@ -634,10 +711,11 @@ export class BiExploreService {
       ...(details ? { details } : {}),
       applied: {
         filters: input.filters,
-        leaderboardSort: input.leaderboardSort,
+        leaderboardSort: input.rankingSort,
         ...(input.dateRange !== undefined ? { dateRange: input.dateRange } : {}),
         trendGrain: input.trendGrain,
         comparePrevious: input.comparePrevious,
+        rankingSort: input.rankingSort,
       },
     };
   }
@@ -675,12 +753,56 @@ export class BiExploreService {
     };
   }
 
-  private leaderboardSql(column: string, expression: string, direction: 'asc' | 'desc') {
+  private leaderboardSql(column: string, expression: string, sort: RankingSort) {
+    const direction = sort.direction === 'asc' ? 'ASC' : 'DESC';
     return `SELECT ${quoteColumn(
       column,
-    )} AS "__vm_category", ${expression} AS "__vm_value" FROM source GROUP BY 1 ORDER BY "__vm_value" ${direction.toUpperCase()} NULLS LAST, "__vm_category" ASC NULLS LAST LIMIT ${
+    )} AS "__vm_category", ${expression} AS "__vm_value" FROM source GROUP BY 1 ORDER BY "__vm_value" ${direction} NULLS LAST, "__vm_category" ASC NULLS LAST LIMIT ${
       LEADERBOARD_LIMIT + 1
     }`;
+  }
+
+  /**
+   * Both periods aggregate completely before the join, so a change sort can surface a category
+   * that never reaches the current head. The ordered aliases mirror comparisonValues: rows whose
+   * delta or percentChange the exact-integer guard suppresses are NULL here and sorted last.
+   */
+  private joinLeaderboardSql(
+    current: { sql: string; bindings: any[] },
+    prior: { sql: string; bindings: any[] },
+    sort: RankingSort,
+  ) {
+    const split = (query: string, name: string) =>
+      query
+        .replace('WITH source AS', `WITH ${name} AS`)
+        .replace('FROM source GROUP', `FROM ${name} GROUP`);
+    const left = 'c."__vm_value"';
+    const right = 'p."__vm_value"';
+    // A rounded decimal or huge-integer text value cannot be reported exactly, so its change is
+    // suppressed here and sorted last, exactly as comparisonValues suppresses it. Plain integer
+    // magnitudes stay exact in SQL, so an exact BIGINT pair still orders by its true difference.
+    const unsafe = (value: string) =>
+      `((typeof(${value}) IN ('DOUBLE', 'FLOAT') AND abs(${value}) > ${MAX_EXACT}) OR ((typeof(${value}) IN ('BIGINT', 'UBIGINT', 'HUGEINT', 'UHUGEINT') OR typeof(${value}) LIKE 'DECIMAL%') AND abs(${value}) >= ${MAX_EXACT} AND NOT regexp_matches(CAST(${value} AS VARCHAR), '^[+-]?[0-9]+$')))`;
+    const difference = `${left} - ${right}`;
+    const delta = `CASE WHEN ${unsafe(left)} OR ${unsafe(right)} THEN NULL ELSE ${difference} END`;
+    const percentChange = `CASE WHEN ${right} IS NULL OR ${right} = 0 THEN NULL ELSE (${delta}) / abs(${right}) * 100 END`;
+    const order = { value: 'value', delta: 'delta', percentChange: 'percent_change' }[sort.by];
+    const direction = sort.direction === 'asc' ? 'ASC' : 'DESC';
+    return {
+      sql: `WITH current_groups AS (${split(
+        current.sql,
+        'current_source',
+      )}), prior_groups AS (${split(prior.sql, 'prior_source')})
+        SELECT COALESCE(c."__vm_category", p."__vm_category") AS category,
+          ${left} AS value, ${right} AS previous,
+          ${delta} AS delta, ${percentChange} AS percent_change
+        FROM current_groups c FULL OUTER JOIN prior_groups p
+          ON c."__vm_category" IS NOT DISTINCT FROM p."__vm_category"
+        ORDER BY ${order} ${direction} NULLS LAST, category ASC NULLS LAST LIMIT ${
+        LEADERBOARD_LIMIT + 1
+      }`,
+      bindings: [...current.bindings, ...prior.bindings],
+    };
   }
 
   private leaderboard(column: string, rows: any[]) {
@@ -766,5 +888,886 @@ export class BiExploreService {
     if (parts.length !== 2) throw new BadRequestException('search parameter could not be bound');
     const pattern = `%${search.toLowerCase().replace(/[\\%_]/g, character => `\\${character}`)}%`;
     return { sql: parts.join('?'), bindings: [...query.bindings, pattern] };
+  }
+
+  /**
+   * Bounded CSV export reuses the canonical aggregate/pivot path, so ownership, source revision
+   * and every cap are enforced by query/pivot before a single byte is serialized. Model rows are
+   * never exported: an explore request that asks for includeRows is rejected, not truncated.
+   */
+  async exportCsv(body: any, actor: number) {
+    const input = this.fields(body, EXPORT_FIELDS);
+    if (input.mode !== 'explore' && input.mode !== 'pivot')
+      throw new BadRequestException('mode must be explore or pivot');
+    const query = input.query;
+    if (!query || typeof query !== 'object' || Array.isArray(query))
+      throw new BadRequestException('invalid query');
+    if (input.mode === 'explore') {
+      if (query.includeRows === true)
+        throw new BadRequestException(
+          'CSV 내보내기에는 원본 행을 포함할 수 없습니다. includeRows를 끄고 다시 시도해 주세요.',
+        );
+      const result = await this.query(query, actor);
+      const { csv, rowCount, bytes } = toCsv(
+        this.exploreEntries(result, query),
+        this.exploreConditions(query),
+      );
+      return this.exportResponse(
+        result.sourceRevision,
+        `bi-explore-${query.sourceId}.csv`,
+        csv,
+        rowCount,
+        bytes,
+      );
+    }
+    if ('rowDimensions' in query || 'columnDimensions' in query)
+      throw new BadRequestException('고급 Pivot 조건으로 CSV를 내보내 주세요.');
+    const result: any = await this.pivot(query, actor);
+    const labels = await this.measureLabels(result.sourceId, actor);
+    const { csv, rowCount, bytes } = toCsv(
+      this.pivotEntries(result, labels),
+      this.pivotConditions(query),
+    );
+    return this.exportResponse(
+      result.sourceRevision,
+      `bi-pivot-${result.sourceId}.csv`,
+      csv,
+      rowCount,
+      bytes,
+    );
+  }
+
+  private exportResponse(
+    sourceRevision: string,
+    filename: string,
+    csv: string,
+    rowCount: number,
+    bytes: number,
+  ) {
+    return {
+      sourceRevision,
+      filename,
+      mimeType: EXPORT_MIME,
+      csv,
+      rowCount,
+      bytes,
+      limits: { ...EXPORT_LIMITS },
+    };
+  }
+
+  /** Explore sections in display order: headline, current and previous trend, then each ranking. */
+  private exploreEntries(result: any, query: any): ExportEntry[] {
+    const labels = new Map<number, string>(
+      result.kpis.map((kpi: any) => [kpi.id, kpi.title] as [number, string]),
+    );
+    const entries: ExportEntry[] = [];
+    for (const kpi of result.kpis) {
+      entries.push({
+        section: 'kpi',
+        rowAxis: null,
+        columnAxis: null,
+        measureId: kpi.id,
+        measureLabel: kpi.title ?? null,
+        value: kpi.value,
+        previousValue: kpi.comparison?.previousValue,
+        delta: kpi.comparison?.delta,
+        percentChange: kpi.comparison?.percentChange,
+        unavailable: kpi.comparison?.unavailable ?? null,
+      });
+      entries.push(...this.exploreTrend(kpi, 'trend', kpi.trend));
+      entries.push(...this.exploreTrend(kpi, 'previous_trend', kpi.previousTrend));
+    }
+    entries.push(...this.exploreRanking(result, query, labels));
+    return entries;
+  }
+
+  private exploreTrend(kpi: any, section: string, trend: any): ExportEntry[] {
+    if (!trend?.points?.length) return [];
+    return trend.points.map((point: any) => ({
+      section,
+      rowAxis: { time: point.time ?? null },
+      columnAxis: null,
+      measureId: kpi.id,
+      measureLabel: kpi.title ?? null,
+      value: point.value,
+    }));
+  }
+
+  private exploreRanking(result: any, query: any, labels: Map<number, string>): ExportEntry[] {
+    const measureId = Number.isSafeInteger(query.rankingMeasureId)
+      ? Number(query.rankingMeasureId)
+      : null;
+    const measureLabel = measureId === null ? null : labels.get(measureId) ?? null;
+    const entries: ExportEntry[] = [];
+    for (const board of result.leaderboards) {
+      for (const row of board.rows) {
+        entries.push({
+          section: 'ranking',
+          rowAxis: { [board.column]: row.category ?? null },
+          columnAxis: null,
+          measureId,
+          measureLabel,
+          value: row.value,
+          previousValue: row.previousValue,
+          delta: row.delta,
+          percentChange: row.percentChange,
+          unavailable: row.unavailable ?? null,
+        });
+      }
+    }
+    return entries;
+  }
+
+  /** Cells plus the three canonical totals, each keyed by the axis tuple positions it uses. */
+  private pivotEntries(result: any, labels: Map<number, string>): ExportEntry[] {
+    const entries: ExportEntry[] = [];
+    const rowAxis = (index: number) => this.axisObject(result.rowColumns, result.rows, index);
+    const columnAxis = (index: number) =>
+      this.axisObject(result.columnColumns, result.columns, index);
+    const push = (section: string, row: ExportAxis, column: ExportAxis, measures: any[]) => {
+      for (const measure of measures)
+        entries.push({
+          section,
+          rowAxis: row,
+          columnAxis: column,
+          measureId: measure.measureId,
+          measureLabel: labels.get(measure.measureId) ?? null,
+          value: measure.value,
+          previousValue: measure.comparison?.previousValue,
+          delta: measure.comparison?.delta,
+          percentChange: measure.comparison?.percentChange,
+          unavailable: measure.comparison?.unavailable ?? null,
+        });
+    };
+    for (const cell of result.cells)
+      push('cell', rowAxis(cell.row), columnAxis(cell.column), cell.measures);
+    if (result.rowSubtotals?.length) {
+      // A parent row carries only the first row column, so its axis object keeps that one key.
+      const parentAxis = (index: number) =>
+        this.axisObject(
+          result.rowColumns.slice(0, 1),
+          result.rowSubtotals.map((subtotal: any) => subtotal.tuple),
+          index,
+        );
+      result.rowSubtotals.forEach((subtotal: any, index: number) => {
+        for (const cell of subtotal.cells)
+          push('subtotal_cell', parentAxis(index), columnAxis(cell.column), cell.measures);
+        push('subtotal_total', parentAxis(index), null, subtotal.measures);
+      });
+    }
+    result.rowTotals.forEach((measures: any[], index: number) =>
+      push('row_total', rowAxis(index), null, measures),
+    );
+    result.columnTotals.forEach((measures: any[], index: number) =>
+      push('column_total', null, columnAxis(index), measures),
+    );
+    push('grand_total', null, null, result.grandTotal);
+    return entries;
+  }
+
+  /** Null axis tuples stay null so a grand total or a one-sided total carries no axis object. */
+  private axisObject(columns: string[], tuples: unknown[][], index: number): ExportAxis {
+    if (!columns.length) return null;
+    const tuple = tuples[index] ?? [];
+    return Object.fromEntries(
+      columns.map((column, position): [string, unknown] => [column, tuple[position] ?? null]),
+    );
+  }
+
+  /** Labels come from the same catalog the pivot already validated, after the revision check. */
+  private async measureLabels(sourceId: number, actor: number) {
+    const metrics = await this.bi.metrics(sourceId, actor);
+    return new Map<number, string>(
+      metrics.map((measure: any) => [measure.id, measure.label] as [number, string]),
+    );
+  }
+
+  /** Canonical JSON of the applied request, emitted as leading condition rows in the CSV. */
+  private exploreConditions(query: any): Record<string, unknown> {
+    return {
+      sourceId: query.sourceId,
+      sourceRevision: query.sourceRevision,
+      filters: query.filters ?? [],
+      dateRange: query.dateRange ?? null,
+      comparePrevious: query.comparePrevious ?? false,
+      trendGrain: query.trendGrain ?? 'auto',
+      rankingSort: query.rankingSort ?? { by: 'value', direction: 'desc' },
+      measureIds: query.measureIds ?? [],
+      dimensionColumns: query.dimensionColumns ?? [],
+    };
+  }
+
+  private pivotConditions(query: any): Record<string, unknown> {
+    return {
+      sourceId: query.sourceId,
+      sourceRevision: query.sourceRevision,
+      measureIds: query.measureIds ?? [],
+      rowColumns: query.rowColumns ?? [],
+      columnColumns: query.columnColumns ?? [],
+      filters: query.filters ?? [],
+      dateRange: query.dateRange ?? null,
+      comparePrevious: query.comparePrevious ?? false,
+      rowHierarchy: query.rowHierarchy ?? false,
+      tableMode: query.tableMode ?? 'nest',
+      ...(query.timeAxis !== undefined ? { timeAxis: query.timeAxis } : {}),
+      // The applied sort is echoed with its defaults filled in, never as an expanded presentation.
+      rowSort:
+        query.rowSort === undefined
+          ? { by: 'label', direction: 'asc' }
+          : {
+              by: query.rowSort.by ?? 'label',
+              direction: query.rowSort.direction ?? 'asc',
+              ...(query.rowSort.columnTuple !== undefined
+                ? { columnTuple: query.rowSort.columnTuple }
+                : {}),
+              ...(query.rowSort.measureId !== undefined
+                ? { measureId: query.rowSort.measureId }
+                : {}),
+            },
+    };
+  }
+
+  /** Bounded pivot: axis tuples plus canonical totals reaggregated outside the cell grid. */
+  /**
+   * Bounded pivot with hierarchy, scoped sorting, a time axis and a flat table mode. The classic
+   * rowDimensions/columnDimensions request is a separate shape with its own response, so the
+   * presence of those two fields selects it and mixing both shapes in one request is rejected.
+   */
+  async pivot(body: any, actor: number): Promise<any> {
+    const input = this.fields(body, PIVOT_FIELDS);
+    if (input.rowDimensions !== undefined || input.columnDimensions !== undefined) {
+      if (
+        ['rowColumns', 'columnColumns', 'rowHierarchy', 'rowSort', 'timeAxis', 'tableMode'].some(
+          key => input[key] !== undefined,
+        )
+      )
+        throw new BadRequestException('rowDimensions와 rowColumns는 함께 사용할 수 없습니다.');
+      return this.pivotClassic(input, actor);
+    }
+    const expected = this.revision(input.sourceRevision);
+    const measureIds = this.measureIds(input.measureIds);
+    const { comparePrevious } = validatePeriodOptions(input);
+    const filters = this.filters(input.filters);
+    const dateRange = input.dateRange;
+    if (comparePrevious && dateRange === undefined)
+      throw new BadRequestException('이전 기간 비교에는 적용한 날짜 범위가 필요합니다.');
+    const rowHierarchy = this.flag(input.rowHierarchy, false, 'rowHierarchy');
+    const rowSort = this.rowSortOption(input.rowSort, measureIds, comparePrevious);
+    const tableMode = this.tableModeOption(input.tableMode);
+    // A flat table has no hierarchy and no column cell, so either is a contradictory request.
+    if (tableMode === 'flat' && rowHierarchy)
+      throw new BadRequestException('플랫 표에는 행 계층을 사용할 수 없습니다.');
+    if (tableMode === 'flat' && rowSort.columnTuple !== undefined)
+      throw new BadRequestException('플랫 표에는 열 셀 정렬을 사용할 수 없습니다.');
+    return this.connection.withDuckDBSnapshot(input.sourceId, () =>
+      this.pivotSnapshot({
+        actor,
+        sourceId: input.sourceId,
+        expected,
+        measureIds,
+        rowColumns: input.rowColumns,
+        columnColumns: input.columnColumns,
+        filters,
+        dateRange,
+        comparePrevious,
+        rowHierarchy,
+        rowSort,
+        timeAxis: input.timeAxis,
+        tableMode,
+      }),
+    );
+  }
+
+  private async pivotSnapshot(input: {
+    actor: number;
+    sourceId: unknown;
+    expected: string;
+    measureIds: number[];
+    rowColumns: unknown;
+    columnColumns: unknown;
+    filters: SourceFilter[];
+    dateRange: any;
+    comparePrevious: boolean;
+    rowHierarchy: boolean;
+    rowSort: PivotRowSort;
+    timeAxis: unknown;
+    tableMode: PivotTableMode;
+  }) {
+    const profile = await this.bi.profile(input.sourceId, input.actor);
+    if (!profile.supported)
+      throw new BadRequestException('서버에 저장한 DuckDB 파일을 선택해 주세요.');
+    const sourceRevision = await this.connection.duckDBVersion(profile.sourceId);
+    if (sourceRevision !== input.expected)
+      throw new ConflictException(
+        '파일 버전이 변경되었습니다. 소스를 새로고침한 뒤 다시 시도해 주세요.',
+      );
+    const columns = profile.columns.map((column: any) => column.name);
+    const temporal = profile.columns
+      .filter((column: any) => column.temporal)
+      .map((column: any) => column.name);
+    const numeric = numericSourceColumns(
+      profile.columns.map((column: any) => ({
+        column_name: column.name,
+        column_type: column.type,
+      })),
+    );
+    const requestedRows = this.axis(input.rowColumns, columns, '행');
+    const requestedColumns = this.axis(input.columnColumns, columns, '열');
+    if (requestedColumns.some(column => requestedRows.includes(column)))
+      throw new BadRequestException('같은 열을 행과 열 축에 함께 사용할 수 없습니다.');
+    // Flat merges the column axis ahead of the row axis and drops the column side, so each
+    // combined record is one row of the table; the grouping and totals below are otherwise shared.
+    const flat = input.tableMode === 'flat';
+    const rowColumns = flat ? [...requestedColumns, ...requestedRows] : requestedRows;
+    const columnColumns = flat ? [] : requestedColumns;
+    const bucket = pivotBucket(
+      input.timeAxis,
+      profile.columns,
+      [...requestedRows, ...requestedColumns],
+      input.dateRange,
+    );
+    const catalog = await this.bi.metrics(profile.sourceId, input.actor);
+    const known = new Map(catalog.map((measure: any) => [measure.id, measure]));
+    for (const measureId of input.measureIds)
+      if (!known.has(measureId)) throw new BadRequestException('unknown measure id');
+    const { measures } = await this.measureExpressions(
+      profile,
+      input.measureIds,
+      input.actor,
+      known,
+    );
+
+    // A compared period needs an explicit range, exactly like the aggregate query contract.
+    const previous =
+      input.comparePrevious && input.dateRange !== undefined
+        ? previousDateRange(input.dateRange)
+        : undefined;
+    const priorBucket = previousBucket(bucket, input.dateRange, previous);
+    const currentTuples = await this.pivotTuples(
+      profile.sourceId,
+      rowColumns,
+      columnColumns,
+      columns,
+      input.filters,
+      input.dateRange,
+      temporal,
+      numeric,
+      bucket,
+    );
+    const priorTuples =
+      previous === undefined
+        ? undefined
+        : await this.pivotTuples(
+            profile.sourceId,
+            rowColumns,
+            columnColumns,
+            columns,
+            input.filters,
+            previous,
+            temporal,
+            numeric,
+            priorBucket,
+          );
+    // Bound the union of both periods after the union: a previous-only tuple must still be shown.
+    const rows = this.boundedTuples(
+      [currentTuples.rows, ...(priorTuples ? [priorTuples.rows] : [])],
+      MAX_PIVOT_ROWS,
+      '행',
+    );
+    const columnTuples = this.boundedTuples(
+      [currentTuples.columns, ...(priorTuples ? [priorTuples.columns] : [])],
+      MAX_PIVOT_COLUMNS,
+      '열',
+    );
+    if (
+      input.rowSort.columnTuple !== undefined &&
+      (input.rowSort.columnTuple.length !== columnColumns.length ||
+        !columnTuples.some(
+          tuple => JSON.stringify(tuple) === JSON.stringify(input.rowSort.columnTuple),
+        ))
+    )
+      throw new BadRequestException('정렬할 열 셀을 다시 선택해 주세요.');
+    // A hierarchy adds one subtotal row per parent, and those values share the same cell budget.
+    const hierarchy = !flat && input.rowHierarchy && rowColumns.length === 2;
+    const parents: unknown[] = [];
+    if (hierarchy) {
+      const seen = new Set<string>();
+      for (const tuple of rows) {
+        const parent = tuple[0] ?? null;
+        const key = JSON.stringify([parent]);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        parents.push(parent);
+      }
+    }
+    if ((rows.length + parents.length) * columnTuples.length * measures.length > MAX_PIVOT_CELLS)
+      throw new BadRequestException(
+        `표시할 값이 ${MAX_PIVOT_CELLS}개를 넘습니다. 필터를 좁히거나 행·열 축을 줄여 주세요.`,
+      );
+
+    const current = await this.pivotGroups(
+      profile.sourceId,
+      rowColumns,
+      columnColumns,
+      measures,
+      columns,
+      input.filters,
+      input.dateRange,
+      temporal,
+      numeric,
+      bucket,
+    );
+    const prior =
+      previous === undefined
+        ? undefined
+        : await this.pivotGroups(
+            profile.sourceId,
+            rowColumns,
+            columnColumns,
+            measures,
+            columns,
+            input.filters,
+            previous,
+            temporal,
+            numeric,
+            priorBucket,
+          );
+    // Parent grain and parent x full-column grain are reaggregated from the raw source too.
+    const parentTotals = hierarchy
+      ? await this.pivotAggregate(
+          profile.sourceId,
+          [rowColumns[0]],
+          measures,
+          columns,
+          input.filters,
+          input.dateRange,
+          temporal,
+          numeric,
+          bucket,
+        )
+      : undefined;
+    const priorParentTotals =
+      hierarchy && previous !== undefined
+        ? await this.pivotAggregate(
+            profile.sourceId,
+            [rowColumns[0]],
+            measures,
+            columns,
+            input.filters,
+            previous,
+            temporal,
+            numeric,
+            priorBucket,
+          )
+        : undefined;
+    const empty = measures.map(() => null);
+    /**
+     * Every cell and total is read from the aggregate of its own grain, so a non-additive measure
+     * stays canonical. A missing tuple is null, never zero, and an empty count stays 0.
+     */
+    const at = (groups: PivotGroups, grain: keyof PivotGroups, tuple: PivotTuple) =>
+      groups[grain].get(JSON.stringify(tuple)) ?? empty;
+    const measureValues = (values: PivotValues, compared: PivotValues | undefined) =>
+      measures.map((measure, index) => ({
+        measureId: measure.metricId,
+        value: values[index] ?? null,
+        ...(input.comparePrevious
+          ? { comparison: comparisonValues(values[index] ?? null, compared?.[index] ?? null) }
+          : {}),
+      }));
+
+    const pick = (groups: Map<string, PivotValues>, tuple: PivotTuple) =>
+      groups.get(JSON.stringify(tuple)) ?? empty;
+    const parentCells =
+      hierarchy && columnColumns.length
+        ? await this.pivotAggregate(
+            profile.sourceId,
+            [rowColumns[0], ...columnColumns],
+            measures,
+            columns,
+            input.filters,
+            input.dateRange,
+            temporal,
+            numeric,
+            bucket,
+          )
+        : parentTotals;
+    const priorParentCells =
+      !hierarchy || previous === undefined
+        ? undefined
+        : columnColumns.length
+        ? await this.pivotAggregate(
+            profile.sourceId,
+            [rowColumns[0], ...columnColumns],
+            measures,
+            columns,
+            input.filters,
+            previous,
+            temporal,
+            numeric,
+            priorBucket,
+          )
+        : priorParentTotals;
+    const measureIndex =
+      input.rowSort.by !== 'label'
+        ? input.measureIds.indexOf(input.rowSort.measureId as number)
+        : -1;
+    // The default label order already equals the deterministic tuple order, so a request without
+    // options keeps its earlier row sequence and only an explicit sort or hierarchy reorders it.
+    const sortValue = (current: unknown, prior: unknown) =>
+      input.rowSort.by === 'delta' || input.rowSort.by === 'percentChange'
+        ? comparisonValues(current, prior)[input.rowSort.by]
+        : current;
+    const orderedRows = sortPivotRows({
+      tuples: rows,
+      sort: input.rowSort,
+      hierarchy,
+      value: tuple => {
+        const column = input.rowSort.columnTuple;
+        const key = column ? [...tuple, ...column] : tuple;
+        const grain = column ? 'cells' : 'rows';
+        return sortValue(
+          at(current, grain, key)[measureIndex],
+          prior ? at(prior, grain, key)[measureIndex] : null,
+        );
+      },
+      parentValue: parent => {
+        const column = input.rowSort.columnTuple;
+        const key = column ? [parent, ...column] : [parent];
+        const currentGroups = column ? parentCells : parentTotals;
+        const priorGroups = column ? priorParentCells : priorParentTotals;
+        return sortValue(
+          currentGroups ? pick(currentGroups, key)[measureIndex] : null,
+          priorGroups ? pick(priorGroups, key)[measureIndex] : null,
+        );
+      },
+    });
+    const rowSubtotals: PivotSubtotal[] = [];
+    if (hierarchy && parentTotals) {
+      // Parents keep the sorted presentation order so each subtotal row lines up under the grid.
+      const seen = new Set<string>();
+      for (const tuple of orderedRows) {
+        const parent = tuple[0] ?? null;
+        const key = JSON.stringify([parent]);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        rowSubtotals.push({
+          tuple: [parent],
+          measures: measureValues(
+            pick(parentTotals, [parent]),
+            priorParentTotals ? pick(priorParentTotals, [parent]) : undefined,
+          ),
+          cells: columnTuples.map((columnTuple, column) => ({
+            column,
+            measures: measureValues(
+              pick(parentCells, [parent, ...columnTuple]),
+              priorParentCells ? pick(priorParentCells, [parent, ...columnTuple]) : undefined,
+            ),
+          })),
+        });
+      }
+    }
+
+    const cells = [];
+    orderedRows.forEach((rowTuple, row) =>
+      columnTuples.forEach((columnTuple, column) => {
+        const tuple = [...rowTuple, ...columnTuple];
+        cells.push({
+          row,
+          column,
+          measures: measureValues(
+            at(current, 'cells', tuple),
+            prior ? at(prior, 'cells', tuple) : undefined,
+          ),
+        });
+      }),
+    );
+
+    return {
+      sourceId: profile.sourceId,
+      sourceRevision,
+      rowColumns,
+      columnColumns,
+      rows: orderedRows,
+      columns: columnTuples,
+      cells,
+      rowSubtotals,
+      rowTotals: orderedRows.map(tuple =>
+        measureValues(at(current, 'rows', tuple), prior ? at(prior, 'rows', tuple) : undefined),
+      ),
+      columnTotals: columnTuples.map(tuple =>
+        measureValues(
+          at(current, 'columns', tuple),
+          prior ? at(prior, 'columns', tuple) : undefined,
+        ),
+      ),
+      grandTotal: measureValues(
+        at(current, 'grand', []),
+        prior ? at(prior, 'grand', []) : undefined,
+      ),
+      applied: {
+        filters: input.filters,
+        ...(input.dateRange !== undefined ? { dateRange: input.dateRange } : {}),
+        comparePrevious: input.comparePrevious,
+        rowHierarchy: input.rowHierarchy,
+        tableMode: input.tableMode,
+        // Canonical shape: a label order carries no measure key, so nothing reads back as null.
+        ...(bucket ? { timeAxis: bucket.axis } : {}),
+        rowSort: {
+          by: input.rowSort.by,
+          direction: input.rowSort.direction,
+          ...(input.rowSort.columnTuple !== undefined
+            ? { columnTuple: input.rowSort.columnTuple }
+            : {}),
+          ...(input.rowSort.measureId !== undefined ? { measureId: input.rowSort.measureId } : {}),
+        },
+      },
+      limits: { rows: MAX_PIVOT_ROWS, columns: MAX_PIVOT_COLUMNS, cells: MAX_PIVOT_CELLS },
+    };
+  }
+
+  /** Up to two columns per axis; membership and within-axis duplicates reuse the dimension rules. */
+  private axis(value: unknown, columns: string[], label: '행' | '열') {
+    if (value === undefined) return [];
+    if (!Array.isArray(value) || value.length > MAX_PIVOT_AXIS)
+      throw new BadRequestException(`${label} 축은 최대 2개 열까지 지정할 수 있습니다.`);
+    return this.dimensions(value, columns);
+  }
+
+  /** Both axis tuple lists of one period, before the previous period is unioned in. */
+  private async pivotTuples(
+    sourceId: number,
+    rowColumns: string[],
+    columnColumns: string[],
+    columns: string[],
+    filters: SourceFilter[],
+    dateRange: any,
+    temporal: string[],
+    numeric: string[],
+    bucket?: PivotBucket,
+  ) {
+    return {
+      rows: await this.axisTuples(
+        sourceId,
+        rowColumns,
+        MAX_PIVOT_ROWS,
+        columns,
+        filters,
+        dateRange,
+        temporal,
+        numeric,
+        bucket,
+      ),
+      columns: await this.axisTuples(
+        sourceId,
+        columnColumns,
+        MAX_PIVOT_COLUMNS,
+        columns,
+        filters,
+        dateRange,
+        temporal,
+        numeric,
+        bucket,
+      ),
+    };
+  }
+
+  /** Distinct axis tuples, capped one past the limit so overflow is reported instead of truncated. */
+  private async axisTuples(
+    sourceId: number,
+    axis: string[],
+    max: number,
+    columns: string[],
+    filters: SourceFilter[],
+    dateRange: any,
+    temporal: string[],
+    numeric: string[],
+    bucket?: PivotBucket,
+  ) {
+    // An empty axis is the overall aggregate: one singleton tuple, no group query.
+    if (!axis.length) return [[]] as PivotTuple[];
+    const sql = `SELECT DISTINCT ${axis
+      .map((column, index) => `${pivotAxisExpression(column, bucket)} AS "__vm_axis_${index}"`)
+      .join(', ')} FROM source LIMIT ${max + 1}`;
+    const query = sourceQuery(sql, columns, filters, dateRange, temporal, numeric);
+    const result = await this.connection.queryDuckDB(sourceId, query.sql, query.bindings);
+    return result.datas.map((row: any) =>
+      axis.map((_column, index) => this.grouping(row[`__vm_axis_${index}`])),
+    ) as PivotTuple[];
+  }
+
+  private boundedTuples(lists: PivotTuple[][], max: number, label: '행' | '열') {
+    const unique = new Map<string, PivotTuple>();
+    for (const list of lists)
+      for (const tuple of list) {
+        const key = JSON.stringify(tuple);
+        if (!unique.has(key)) unique.set(key, tuple);
+      }
+    const tuples = [...unique.values()].sort((left, right) => compareTuples(left, right));
+    if (tuples.length > max)
+      throw new BadRequestException(
+        `${label} 조합이 ${max}개를 넘습니다. 필터를 좁히거나 축을 줄여 주세요.`,
+      );
+    return tuples;
+  }
+
+  /** Grouping values stay primitives the client can render; a null group stays an actual null. */
+  private grouping(value: unknown): unknown {
+    if (value === null || value === undefined) return null;
+    if (typeof value === 'number') return Number.isFinite(value) ? value : String(value);
+    if (typeof value === 'string' || typeof value === 'boolean') return value;
+    if (typeof value === 'bigint') {
+      const numeric = Number(value);
+      return Number.isSafeInteger(numeric) ? numeric : value.toString();
+    }
+    try {
+      return JSON.stringify(value) ?? String(value);
+    } catch {
+      return String(value);
+    }
+  }
+
+  /** One canonical aggregate per grain; measures never get re-summed from the cell grid. */
+  private async pivotAggregate(
+    sourceId: number,
+    axis: string[],
+    measures: PivotMeasure[],
+    columns: string[],
+    filters: SourceFilter[],
+    dateRange: any,
+    temporal: string[],
+    numeric: string[],
+    bucket?: PivotBucket,
+  ) {
+    const projection = [
+      ...axis.map(
+        (column, index) => `${pivotAxisExpression(column, bucket)} AS "__vm_axis_${index}"`,
+      ),
+      ...measures.map((measure, index) => `${measure.expression} AS "__vm_measure_${index}"`),
+    ].join(', ');
+    const query = sourceQuery(
+      axis.length
+        ? `SELECT ${projection} FROM source GROUP BY ${axis
+            .map((_column, index) => index + 1)
+            .join(', ')}`
+        : `SELECT ${projection} FROM source`,
+      columns,
+      filters,
+      dateRange,
+      temporal,
+      numeric,
+    );
+    const result = await this.connection.queryDuckDB(sourceId, query.sql, query.bindings);
+    const groups = new Map<string, PivotValues>();
+    for (const row of result.datas) {
+      const tuple = axis.map((_column, index) => this.grouping(row[`__vm_axis_${index}`]));
+      // COUNT over no rows stays 0 while SUM/AVG stay null; scalar keeps large integers exact.
+      groups.set(
+        JSON.stringify(tuple),
+        measures.map((_measure, index) => this.scalar(row[`__vm_measure_${index}`])),
+      );
+    }
+    return groups;
+  }
+
+  /** Cells, both axis totals and the overall total for one period, each at its own grain. */
+  private async pivotGroups(
+    sourceId: number,
+    rowColumns: string[],
+    columnColumns: string[],
+    measures: PivotMeasure[],
+    columns: string[],
+    filters: SourceFilter[],
+    dateRange: any,
+    temporal: string[],
+    numeric: string[],
+    bucket?: PivotBucket,
+  ): Promise<PivotGroups> {
+    const grand = await this.pivotAggregate(
+      sourceId,
+      [],
+      measures,
+      columns,
+      filters,
+      dateRange,
+      temporal,
+      numeric,
+      bucket,
+    );
+    const grain = [...rowColumns, ...columnColumns];
+    // An empty axis group is the grand total itself; no second query is needed for it.
+    return {
+      cells: grain.length
+        ? await this.pivotAggregate(
+            sourceId,
+            grain,
+            measures,
+            columns,
+            filters,
+            dateRange,
+            temporal,
+            numeric,
+            bucket,
+          )
+        : grand,
+      rows: rowColumns.length
+        ? await this.pivotAggregate(
+            sourceId,
+            rowColumns,
+            measures,
+            columns,
+            filters,
+            dateRange,
+            temporal,
+            numeric,
+            bucket,
+          )
+        : grand,
+      columns: columnColumns.length
+        ? await this.pivotAggregate(
+            sourceId,
+            columnColumns,
+            measures,
+            columns,
+            filters,
+            dateRange,
+            temporal,
+            numeric,
+            bucket,
+          )
+        : grand,
+      grand,
+    };
+  }
+
+  /** Canonical measure SQL comes from BiService.prepare; the explore layer never rebuilds it. */
+  private async measureExpressions(
+    profile: any,
+    measureIds: number[],
+    actor: number,
+    known: Map<number, any>,
+  ) {
+    const measures: PivotMeasure[] = [];
+    const widgets: any[] = [];
+    for (const measureId of measureIds) {
+      const prepared = await this.bi.prepare(
+        {
+          sourceId: profile.sourceId,
+          metricId: measureId,
+          chart: 'number',
+          title: known.get(measureId).label,
+        },
+        actor,
+      );
+      const widget = prepared.draft.widgets[0];
+      measures.push({
+        metricId: measureId,
+        definition: prepared.definition,
+        // Only for grouped aggregates that reuse the canonical text produced by prepare.
+        expression: this.expression(widget.sql),
+      });
+      widgets.push(widget);
+    }
+    return { measures, widgets };
   }
 }

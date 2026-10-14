@@ -34,6 +34,32 @@ export class AiController {
     }
   }
 
+  @Get('dashboard-metrics/:id')
+  dashboardMetrics(@Param('id') id: string, @Req() req) {
+    return this.dashboards.metricChoices(Number(id), req.user.accessKeyData.id);
+  }
+
+  @Post('metric-change/impact')
+  metricImpact(@Body() body: any, @Req() req) {
+    return this.dashboards.metricImpact(body, req.user.accessKeyData.id);
+  }
+  @Post('metric-change/batch-preview')
+  metricBatchPreview(@Body() body: any, @Req() req) {
+    return this.dashboards.metricBatchPreview(body, req.user.accessKeyData.id);
+  }
+  @Post('metric-change/batch-save')
+  metricBatchSave(@Body() body: any, @Req() req) {
+    return this.dashboards.metricBatchSave(body, req.user.accessKeyData.id);
+  }
+  @Post('metric-change/preview')
+  metricChangePreview(@Body() body: any, @Req() req) {
+    return this.dashboards.metricChangePreview(body, req.user.accessKeyData.id);
+  }
+  @Post('metric-change/save')
+  metricChangeSave(@Body() body: any, @Req() req) {
+    return this.dashboards.metricChangeSave(body, req.user.accessKeyData.id);
+  }
+
   @Post('dashboard-draft')
   dashboardDraft(@Body() body: any, @Req() req, @Res({ passthrough: true }) res?) {
     return this.cancellable(req, res, signal =>

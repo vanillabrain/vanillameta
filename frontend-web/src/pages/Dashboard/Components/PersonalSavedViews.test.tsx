@@ -6,6 +6,10 @@ import PersonalSavedViews, { DateRange, resolveRelativePeriod, SavedViewState, v
 import DashboardAnalysis from './DashboardAnalysis';
 
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), del: vi.fn(), apply: vi.fn() }));
+vi.mock('@mui/material/styles', async () => {
+  const { createRequire } = await import('node:module');
+  return createRequire(import.meta.url)('@mui/material/styles');
+});
 vi.mock('@/helpers/apiHelper', () => ({ get: api.get, post: api.post, del: api.del }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 vi.mock('./DashboardAssistant', () => ({

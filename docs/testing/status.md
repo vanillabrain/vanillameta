@@ -5,6 +5,19 @@
 2026-10-14 숫자 범위·차원 변화 정렬: [explore-range-sort.md](explore-range-sort.md). 같은 원본 Rill139만행에 범위/날짜/비교 집계와 여섯 정렬을 독립SQL·실제UI XHR로 검증했다. BE267/FE19·타입/lint/build, Aside/390px·키보드 선택 조건 PASS_SELECTED_VARIANTS. Pivot·탐색보기 저장·VoiceOver BLOCKED 유지, 기존130개 집계 불변. AI호출0/gpt-6-luna 설정 유지.
 
 2026-10-14 밀도·숫자표시 보강: [compact-controls-formatting.md](compact-controls-formatting.md). 기간/필터 접기·적용칩 유지·저장된K/M을 KPI/차원/비교/추세에 연결하고 정확값 표·unsafe숫자 문자열 보존. FE125개·타입/lint/build, Aside desktop 및 실제390/1440 키보드·XHR PASS_SELECTED_VARIANTS. 모바일 KPI y800→486, overflow0. 기존130개 카탈로그·VoiceOver BLOCKED 유지, AI호출0/gpt-6-luna 설정 유지. Rill 기간팝오버/축·내부스크롤/Pivot·숫자범위·변화정렬·탐색보기저장은 후속.
+2026-10-14 저장 지표 AI 재사용: [UC-002 결과](saved-metric-ai.md). 기존 제작 계산기 공유, 소유 소스 활성 지표 최대30개 제공, 명시 metricId의 서버 계산식 적용·기존 필터/정렬 보존. BE137단위·빌드·production lint PASS. 실제 두 KPI 지표3/4 재사용→저장→reload 및 원래 정의 불변 PASS. OS막대 참조 자동 전파는 미완료이며 참조 없는 기존식 유지. 새 모바일/전체E2E/운영은 NOT_RUN.
+
+2026-10-14 AIWF 단순 분석 후속: [UC-001 실행 결과](simple-analysis-parity.md). 문서/설계 선행 후 생성·수정 미리보기를 숫자+시계열로 통일하고 설정·저장 보기 관리 접기, UI Kit 국소 적용. FE305단위 및 라벨9개 재검사·타입·린트 PASS. 기존 분석5 실제 수정→저장→reload와 새 분석7 생성→저장→reload,390/1440·Rill1727 실제 화면 비교 PASS_SELECTED_VARIANTS. 평균 SVG의8.5e-14 오차와 날짜 이동/배치 차이는 명시. 인간 수락·물리 기기·VoiceOver·운영은 미기록/NOT_RUN.
+
+2026-10-14 저장 AI 분석 재질문 후속: [Assistant 수정→미리보기→동일 분석 저장→새로고침](existing-ai-edit.md#저장-분석-재질문지표차트-수정-후속) PASS. 대시보드5에 평균 Bid Floor5.57 추가, OS별28항목 막대로 교체·내림차순/합계634,513,000 확인. 첫 AI 설명 오류는 저장 전 재질문으로 보정. Assistant28px/12px·선택32px·400px 패널 정렬/가로 넘침 확인. FE31단위·타입·변경린트 PASS. 이번 모바일/VoiceOver·새 Rill 실화면·전체 E2E는 NOT_RUN.
+
+2026-10-14 AI 분석 저장·모바일 후속: [실제 질문→미리보기→저장→새로고침](existing-ai-edit.md#ai-분석-저장새로고침모바일-후속) PASS. 기존3698에서 Rill 소스7의 대시보드5 생성, 총 요청 수634,513,000·device_type9항목 및 새로고침 유지 확인. 모바일390/768 에뮬레이션의32px·12px·버튼 쌍 정렬·가로 넘침·질문 입력/취소 PASS. 모바일 버튼을 한 행으로 묶음. FE15단위·타입·변경린트 PASS. 물리 기기/VoiceOver·모바일 LLM 저장·새 Rill 실화면 비교는 NOT_RUN. 아래 기록의 분석 저장·모바일 미실행은 당시 범위이며 이번 선택 조건으로 보완했다.
+
+2026-10-14 Commerce AI 진입·디자인 후속: [existing-ai-edit.md](existing-ai-edit.md#분석-진입컨트롤-디자인-후속). AI 분석 만들기 진입 추가, 실제 Rill KPI/기기 차트 초안 생성·취소 확인, 미지원/복호화 오류 소스 제외, 컨트롤32px·12px·동일 상단 정렬 및 날짜 역전 오류 확인. FE15단위·타입·린트 PASS. 이번 분석 저장·모바일·새 Rill 실화면 비교는 NOT_RUN.
+
+2026-10-14 기존 환경 AI 편집: [설정·실제 화면·증빙](existing-ai-edit.md). 기존3698/4898 및 원래 DB·업로드·인증 유지, `.env.local` 우선 로딩과 Git 추적 제외 적용. Aside 질문201→저장200→새로고침 제목/설명/차트·수치 유지, 실제 LLM API2질문·리포트/게시 digest/version 불변, 독립 CSV5조건, BE36단위·루트빌드·변경린트 통과. 기존 AI 미설정 해소. 모바일/VoiceOver·새 Rill 비교·전체 E2E는 NOT_RUN.
+
+2026-10-14 고객 데모 검증: [8분 대본·질문·실행 결과](../demo/customer-demo.md). 독립 CSV/Decimal 5조건, 실제 gpt-6-luna 질문2개·초안 격리·저장/재조회·데이터/게시 버전/해시 불변, Aside 설명 저장→새로고침·날짜 재적용, core Explore/Pivot E2E1개 통과. Rill 공식 광고 데이터 계층 보기45 저장/복원·합계307763000·CSV 파일/API 일치도 확인. 신규 AI 서버3798/4998 사용; 기존3698 AI 미설정은 보존. 새 Rill 탭 비교·모바일·VoiceOver는 NOT_RUN이며 기존 집계는 유지한다.
 
 2026-10-14 필수 컬럼 누락 경합·모델 오류 후속: [error-help-deadline-model.md](error-help-deadline-model.md). Aside 실제 XHR120003ms 종료→Codex SIGKILL→동일 진단201, 실제 모델 거부503→동일 진단 gpt-6-luna201 확인. 기존 게시 버전/해시/요약 불변, 정상파일 재선택 noop·새로고침 수치 유지(PASS_SELECTED_VARIANTS). 제품 변경0·주입 없는API 복원·기존130개 집계 유지. 모바일/VoiceOver·provider 로그인 오류·전체 자손PID는 NOT_RUN.
 
@@ -612,3 +625,8 @@ MySQL·다중 서버/tenant·강제 스키마 변경·실기기/전체 키보드
 - PASS_SELECTED_VARIANTS:1440/390px에서 복원 확인 중 별도 정상 갱신→낡은 복원409·최신 합계900/이력 보존→목록 새로고침 시 낡은 확인창 해제→명시적 재확인201·원합계300/세 이력 유지.
 - 새 오류/제품 변경0, 이전 관련18개·타입/lint/build 재사용·문서 diff check. 임시 source/metric56~58 정리·원보기1 보존. 교체409/정상 복원 전체는 반복하지 않았다.
 - 상세: [파일 전체 교체·복원](file-versions.md), 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/file-stale-restore-20261014/`. 미커밋, gpt-6-luna 설정·VoiceOver BLOCKED 유지.
+2026-10-14 Rill 범위/변화 순위 후속: EXPLORE-09/10 하위 및 Aside 선택 조건 PASS. 원본 숫자 범위 공통 적용·전체 차원 집계 후 값/변화량/변화율 양방향 정렬, 독립 SQL6조합과 실제 XHR55127800/122756행 확인. 대시보드 숫자 열 검사·날짜 없는 비교 비활성화·DECIMAL 비교 정확성 경계 수정. Rill의 집계 지표 임계값 필터와는 의미가 다르며 Pivot/보기 저장/내보내기·이번 컨트롤 전체 접근성/모바일은 NOT_RUN. [상세](rill-exploration.md).
+
+## 2026-10-14 develop-v2 통합 검증
+
+`90dbfd71`과 `7bc1220d`를 통합하고 전체 단위 검사(backend 1,361 / frontend 822), 서버·웹 빌드, FE 타입 검사, 영향 범위 headed 탐색·Pivot E2E 1개를 통과했다. 상세 결정과 제한은 [통합 기록](develop-v2-integration-20261014.md)을 참조한다. gpt-6-luna와 VoiceOver BLOCKED는 유지한다.

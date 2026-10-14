@@ -22,6 +22,18 @@ vi.mock('@/helpers/apiHelper', () => ({
   postForm: mocks.postForm,
   put: mocks.put,
 }));
+vi.mock('@mui/material/styles', async () => {
+  const { createRequire } = await import('node:module');
+  return createRequire(import.meta.url)('@mui/material/styles');
+});
+vi.mock('@/pages/Dashboard/Components/AiDashboardPanel', () => ({
+  default: ({ open, onClose }: any) =>
+    open ? (
+      <div role="dialog" aria-label="AI 분석 만들기">
+        <button onClick={onClose}>분석 닫기</button>
+      </div>
+    ) : null,
+}));
 vi.mock('echarts-for-react', () => ({ default: () => null }));
 vi.mock('@mui/icons-material/UploadFileOutlined', () => ({ default: () => null }));
 vi.mock('@mui/icons-material/AutoAwesomeOutlined', () => ({ default: () => null }));
@@ -239,4 +251,16 @@ it('reopens the collapsed import card and triggers the file input on reselect', 
   await waitFor(() => expect(screen.getByLabelText('주문 CSV 파일 선택')).toBeTruthy());
   expect(clickSpy).toHaveBeenCalledTimes(1);
   clickSpy.mockRestore();
+});
+
+it('offers analysis creation separately from commerce presentation editing', async () => {
+  mocks.params = { projectId: '7' };
+  mocks.get.mockImplementation(projectAndReport);
+  render(<Commerce />);
+  await screen.findByRole('button', { name: 'AI로 설명·제목 편집' });
+  fireEvent.click(screen.getByRole('button', { name: 'AI 분석 만들기' }));
+  expect(screen.getByRole('dialog', { name: 'AI 분석 만들기' })).toBeTruthy();
+  expect(mocks.post).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: '분석 닫기' }));
+  expect(screen.queryByRole('dialog', { name: 'AI 분석 만들기' })).toBeNull();
 });

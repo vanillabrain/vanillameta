@@ -1,5 +1,25 @@
 # VanillaMeta — 개발자/에이전트 가이드
 
+## 세션 시작 핵심 지침
+
+- **최상위 목표:** 프롬프트로 대시보드 생성·수정·저장·게시를 이어가고, 반응형 블록 편집과 복제·소스 교체·재사용까지 완성한다. [제품 목표](docs/strategy/prompt-to-dashboard.md)가 우선순위의 기준이며 [통합 설계](docs/architecture/prompt-to-dashboard.md), [UC-005/계획](docs/plans/UC-005.md)에 구현·검증 계약이 있다. UC-001~004와 Rill 작업은 이 전체 여정을 지원하는 기반이다.
+- **방향 유지:** 새 작업은 P1~P5/FR/수용 기준과 연결하고 관찰된 부족점·최소 변경 범위·검증·종료 조건을 기록한다. P1 첫 단위의 블록 ID·선택 AI 수정·배치 보존/표시는 [UC-006](docs/use_cases/UC-006-preserve-block-layout.md) 범위로 완료했다. 다음은 P1의 블록 작업 UI·undo와 breakpoint별 편집이며 P1 전체는 Open이다. 직접 기여 또는 해당 여정의 정확성·권한·UI 회귀 방지가 없는 확장은 보류한다. 요청 없이 단순 Rill 기능 고도화로 우선순위를 바꾸지 않는다.
+- **제품 계약:** 고객에게 모드/내부 구조 선택을 기본 선행 단계로 요구하지 않는다. AI와 직접 편집은 같은 블록 정의·배치를 수정하고, 기존 비대상 블록을 유지한다. Source·Measure·Dimension·Block·Dashboard·Publication 책임은 분리한다. 초안과 게시 버전, 원본과 복제본을 구분한다. 목표 전체 완료는 TC-005 실제 여정 통과이며 현재 not_run이다.
+
+- 매 세션 시작·재개 시 이 요약과 현재 브랜치·변경 사항·선택 P 단계/UC/BR·작업에 필요한 파일만 먼저 확인한다. 전체 이력과 상세 설계 문서는 반복해서 읽지 않고 필요한 부분만 추가로 불러온다. 사용자의 최신 지시를 우선한다.
+- DuckDB Measure·Dimension·탐색·Pivot·보기 저장의 기존 상태는 [Rill 통합 계획](docs/strategy/2026-10-14-rill-feature-integration.md)을 참고한다. 이 문서의 과거 다음 작업보다 제품 목표의 P1~P5를 우선한다. 탐색 화면은 Rill과 비교하고 대화/블록/게시 경험까지 Rill 화면으로 제한하지 않는다.
+- Rill 공식 데모 데이터를 기준으로 기능과 UI를 항상 비교한다. 유사한 탐색 UI를 구현하고, 같은 조건의 수치·API/XHR·실제 화면으로 검증하며 미확인은 명시한다.
+- 분석 UI는 [UI Kit](docs/design/analysis-ui-kit.md)의 토큰·국소 테마·공통 선택 버튼을 먼저 재사용한다. 부모 화면에서 버튼 최소 높이를 강제하거나 화면별 크기 예외를 중첩하지 않고 실제 크기·밀도·상태를 확인한다.
+- UI 요소 추가·수정 전 [검증 스킬의 디자인·레이아웃 회귀 기준](skills/vanillameta-verify/SKILL.md#ui-컴포넌트-디자인레이아웃-회귀)을 적용한다. 작업 중과 완료 시 크기·높이·정렬·간격·레이아웃·폰트 및 주변 요소의 틀어짐을 실제 화면으로 확인하고 기능/디자인 결과를 분리한다.
+- 지표·분석 요청의 의미와 UI/저장 상태를 특정 엔진의 SQL·드라이버 실행과 구분한다. 이 경계는 현재 변경 범위에서 유지한다.
+- BigQuery·AWS Athena 연결은 고객 수요가 확인된 향후 단계로 미룬다. 미래 확장만을 위한 범용 엔진 프레임워크나 전면 리팩터링을 현재 완료 조건에 추가하지 않는다.
+- 외부 엔진을 실제로 설계·구현할 때만 [외부 분석 엔진 도입 지침](docs/strategy/2026-10-14-rill-feature-integration.md#외부-분석-엔진-도입-지침--사용자-합의-2026-10-14)의 상세 기준을 확인한다.
+
+- AI 생성의 저장 지표 재사용은 [UC-002](docs/use_cases/UC-002-reuse-saved-metric.md)를 따른다. 동일 소스의 활성 구조화 정의만 제공하고 명시 참조의 계산식은 기존 제작 계산기로 적용한다. Assistant 수정 모드의 차트 선택 시 저장 지표를 지정하면 서버가 해당 차트에만 계산식을 강제하고 미리보기에 재사용을 표시한다. 분석에는 SQL snapshot을 저장하며 live 참조·자동 이름 매칭 완전 보장은 후속 범위다.
+
+- 저장 지표 계산식 변경은 [UC-003](docs/use_cases/UC-003-update-metric-calculation.md)을 따른다. Assistant에서 지표·차트를 명시 선택하고 변경 미리보기 후 두 버전을 확인하여 지표와 선택 분석을 atomic 저장한다. 기본 단일 저장은 다른 분석의 snapshot을 유지한다. 지표 버전은 양의 정수이며 기존 제작 링크의 선택 snapshot도 갱신한다.
+- 같은 지표의 일괄 반영은 [UC-004](docs/use_cases/UC-004-batch-metric-update.md)를 따른다. 영향 확인 → 연결된 소유 분석 최대10개 선택 → 전체 미리보기 → atomic 저장이며 지표 버전은 한 번 증가한다. 명시 연결 없는 이전 분석은 자동 추측하지 않고, 계산식 저장으로 연결을 기록한다. 차트 배치와 미선택 분석은 유지한다.
+
 ## 로컬 실행
 
 - **Backend**: `cd backend-api && npm run start:local` → http://localhost:4000 (SQLite `sqlite.db`, API prefix `/v1`)
@@ -21,7 +41,7 @@
 - 상세 기준과 명령: [docs/testing/workflow.md](docs/testing/workflow.md).
 - MD 시나리오/기대 결과: [docs/testing/cases.md](docs/testing/cases.md).
 - 이 프로젝트 검증에는 `$vanillameta-verify`를 사용한다. 설치 전에는 [skills/vanillameta-verify/SKILL.md](skills/vanillameta-verify/SKILL.md)를 직접 읽는다.
-- 기본 Playwright: `cd frontend-web && npm run test:e2e` (핵심 7개). 파일/`--grep` 선택으로 필요한 것만 실행한다.
+- 기본 Playwright: `cd frontend-web && npm run test:e2e` (핵심 8개). 파일/`--grep` 선택으로 필요한 것만 실행한다.
 - 격리 실행: `npm run test:e2e:isolated`. 확장 QA는 `npm run test:qa -- --grep '케이스 ID'`로 명시적으로 실행한다.
 - UI 검증은 `aside-browser` 실제 화면으로 수행하고 핵심/실패 캡처를 저장소 밖 증빙 폴더에 남긴다.
 
@@ -35,7 +55,7 @@
 
 - 통합/출시 검증에서 루트 `npm run build`, `npm test`를 실행한다. 기능 개발 중에는 위 변경 범위 기준으로 선택한다. FE 타입은 `frontend-web`에서 `npx tsc --noEmit`.
 - 기준 패키지 관리자는 npm. `pnpm-lock.yaml`은 이번 통합에서 갱신하지 않았으므로 pnpm 설치·배포는 미검증.
-- `NODE_ENV=local` 백엔드는 `.env.dev`를 읽는다. `SQLITE_PATH`, `FILE_UPLOAD_DIR`로 로컬 DB·업로드 경로를 분리할 수 있다.
+- `NODE_ENV=local` 백엔드는 `.env.local` → `.env.dev` 순으로 읽으며 명시한 셸 환경변수가 우선한다. Codex AI 연결은 추적하지 않는 `.env.local`에 설정한다. `SQLITE_PATH`, `FILE_UPLOAD_DIR`로 로컬 DB·업로드 경로를 분리할 수 있다.
 - 자동 seed는 local 환경에서 사용자 테이블이 비어 있을 때만 실행한다. 기존 사용자가 있으면 초기화를 건너뛴다.
 - Swagger JSON은 자동으로 추적 파일을 덮어쓰지 않는다. 내보내기가 필요하면 `SWAGGER_SPEC_PATH`에 출력 경로를 지정한다.
 - Oracle/ODBC는 선택적 드라이버이며, 대상 OS의 네이티브 라이브러리 준비와 별도 연결 검증이 필요하다.

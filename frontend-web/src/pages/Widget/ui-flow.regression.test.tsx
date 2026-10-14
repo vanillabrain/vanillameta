@@ -34,6 +34,10 @@ const mocks = vi.hoisted(() => ({
   grid: null as any,
 }));
 
+vi.mock('@mui/material/styles', async () => {
+  const { createRequire } = await import('node:module');
+  return createRequire(import.meta.url)('@mui/material/styles');
+});
 vi.mock('@mui/material', () => {
   const Container = ({ children, sx, component, onSubmit, id }: any) => {
     const Tag = (typeof component === 'string' ? component : 'div') as React.ElementType;

@@ -18,10 +18,13 @@ export class BiExploreController {
   @Post('query') async query(@Body() body: any, @Req() req) {
     return this.success(await this.explore.query(body, this.actor(req)));
   }
+  @Post('values') async values(@Body() body: any, @Req() req) {
+    return this.success(await this.explore.values(body, this.actor(req)));
+  }
   @Post('pivot') async pivot(@Body() body: any, @Req() req) {
     return this.success(await this.explore.pivot(body, this.actor(req)));
   }
-  @Post('values') async values(@Body() body: any, @Req() req) {
-    return this.success(await this.explore.values(body, this.actor(req)));
+  @Post('export') async exportCsv(@Body() body: any, @Req() req) {
+    return this.success(await this.explore.exportCsv(body, this.actor(req)));
   }
 }

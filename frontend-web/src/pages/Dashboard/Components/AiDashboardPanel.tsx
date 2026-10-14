@@ -18,6 +18,8 @@ import { useTranslation } from 'react-i18next';
 import DatabaseService from '@/api/databaseService';
 import { post } from '@/helpers/apiHelper';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
+import MetricTrend from './MetricTrend';
+import { AnalysisUiProvider } from '@/components/analysis/AnalysisUi';
 import { analysisOptions } from '../analysisOptions';
 
 type Props = {
@@ -30,7 +32,7 @@ type Props = {
 };
 import { validDraft, validPreview, responseData, errorMessage } from '../dashboardPreview';
 
-export default function AiDashboardPanel({ open, onClose, dashboardId, currentDraft, initialDatabaseId, onSaved }: Props) {
+function AiDashboardPanelContent({ open, onClose, dashboardId, currentDraft, initialDatabaseId, onSaved }: Props) {
   const { t } = useTranslation();
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
@@ -67,11 +69,12 @@ export default function AiDashboardPanel({ open, onClose, dashboardId, currentDr
         if (token !== session.current) return;
         const list = responseData(response);
         if (!Array.isArray(list)) throw new Error('Could not load data sources.');
-        setSources(list);
+        const available = list.filter(source => source.engine === 'duckdb' && !source.configError);
+        setSources(available);
         if (
           initialDatabaseId !== undefined &&
           !initialDraft.current &&
-          list.some(source => Number(source.id) === initialDatabaseId)
+          available.some(source => Number(source.id) === initialDatabaseId)
         ) {
           setDatabaseId(initialDatabaseId);
         }
@@ -125,7 +128,7 @@ export default function AiDashboardPanel({ open, onClose, dashboardId, currentDr
         throw new Error('The generated dashboard is incomplete. Please try again.');
       setDraft(candidate);
       const nextPreview = responseData(
-        await post('/ai/dashboard-preview', { draft: candidate, dashboardId }, { timeout: 180000 }),
+        await post('/ai/dashboard-preview', { draft: candidate, dashboardId, includeTrends: true }, { timeout: 180000 }),
       );
       if (token !== session.current) return;
       if (!validPreview(nextPreview) || Number(nextPreview.draft.databaseId) !== databaseId)
@@ -224,6 +227,7 @@ export default function AiDashboardPanel({ open, onClose, dashboardId, currentDr
           <TextField
             id="ai-dashboard-prompt"
             multiline
+            InputLabelProps={{ shrink: true }}
             minRows={3}
             fullWidth
             label={t('ai.dashboardPrompt', { defaultValue: 'What would you like to see?' })}
@@ -291,21 +295,40 @@ export default function AiDashboardPanel({ open, onClose, dashboardId, currentDr
                     sx={{
                       minWidth: 0,
                       gridColumn: widget.type === 'BOARD_NUMERIC' ? 'auto' : '1 / -1',
-                      height:
-                        widget.type === 'BOARD_NUMERIC' ? 220 : Math.min(900, Math.max(360, widget.datas.length * 28 + 100)),
+
                       border: '1px solid',
                       borderColor: 'divider',
                       borderRadius: 2,
                     }}
                   >
-                    <WidgetViewer
-                      title={widget.title}
-                      description={widget.description}
-                      widgetType={widget.type}
-                      widgetOption={analysisOptions(widget)}
-                      dataSet={widget.datas}
-                      isInvalidData={false}
-                    />
+                    <Box
+                      sx={{
+                        height:
+                          widget.type === 'BOARD_NUMERIC'
+                            ? 150
+                            : Math.min(900, Math.max(360, widget.datas.length * 28 + 100)),
+                        minWidth: 0,
+                      }}
+                    >
+                      <WidgetViewer
+                        title={widget.title}
+                        description={widget.description}
+                        widgetType={widget.type}
+                        widgetOption={analysisOptions(widget)}
+                        dataSet={widget.datas}
+                        isInvalidData={false}
+                      />
+                    </Box>
+                    {widget.type === 'BOARD_NUMERIC' && (
+                      <MetricTrend
+                        trend={widget.trend}
+                        unavailable={widget.trendUnavailable}
+                        title={widget.title}
+                        prefix={widget.prefix}
+                        suffix={widget.suffix}
+                        decimalPlaces={widget.decimalPlaces ?? 0}
+                      />
+                    )}
                   </Box>
                 ))}
               </Box>
@@ -322,5 +345,13 @@ export default function AiDashboardPanel({ open, onClose, dashboardId, currentDr
         </Button>
       </DialogActions>
     </Dialog>
+  );
+}
+
+export default function AiDashboardPanel(props: Props) {
+  return (
+    <AnalysisUiProvider>
+      <AiDashboardPanelContent {...props} />
+    </AnalysisUiProvider>
   );
 }

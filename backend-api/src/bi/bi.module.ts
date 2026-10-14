@@ -11,11 +11,26 @@ import { AiModule } from '../ai/ai.module';
 import { ConnectionModule } from '../connection/connection.module';
 import { BiController } from './bi.controller';
 import { BiExploreController } from './bi-explore.controller';
+import { VersionedExploreViewService } from './versioned-explore-view.service';
+import { BiExploreViewsController } from './bi-explore-views.controller';
 import { BiExploreService } from './bi-explore.service';
 import { BiService } from './bi.service';
 @Module({
   imports: [AiModule, ConnectionModule, TypeOrmModule.forFeature([PersonalView, Dashboard])],
-  controllers: [BiController, BiExploreController, ExploreViewController, DashboardPivotController],
-  providers: [BiService, BiExploreService, ExploreViewService, DashboardPivotService, JwtService],
+  controllers: [
+    BiController,
+    BiExploreController,
+    ExploreViewController,
+    DashboardPivotController,
+    BiExploreViewsController,
+  ],
+  providers: [
+    BiService,
+    BiExploreService,
+    ExploreViewService,
+    DashboardPivotService,
+    VersionedExploreViewService,
+    JwtService,
+  ],
 })
 export class BiModule {}

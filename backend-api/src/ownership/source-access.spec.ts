@@ -24,6 +24,41 @@ describe('source ownership boundary', () => {
     DashboardWidget: [{ dashboardId: 51, widgetId: 41 }],
     UserMapping: [{ dashboardId: 51, userInfoId: 7 }],
   };
+  it('checks the saved-metric catalog source for owner, foreign and legacy access', async () => {
+    await expect(
+      guard.canActivate(
+        request('AiController', 'dashboardMetrics', { method: 'GET', params: { id: '2' } }),
+      ),
+    ).resolves.toBe(true);
+    for (const id of ['1', '3']) {
+      await expect(
+        guard.canActivate(
+          request('AiController', 'dashboardMetrics', { method: 'GET', params: { id } }),
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    }
+  });
+  it.each([
+    'metricChangePreview',
+    'metricChangeSave',
+    'metricImpact',
+    'metricBatchPreview',
+    'metricBatchSave',
+  ])('checks both source-linked metric and analysis owners for %s', async handler => {
+    await expect(
+      guard.canActivate(
+        request('AiController', handler, {
+          body: { dashboardId: 51, metricId: 21 },
+          user: { accessKeyData: { id: 7 } },
+        }),
+      ),
+    ).resolves.toBe(true);
+    await expect(
+      guard.canActivate(
+        request('AiController', handler, { body: { dashboardId: 51, metricId: 21 } }),
+      ),
+    ).rejects.toThrow(ForbiddenException);
+  });
   beforeEach(() => {
     const db: any = {
       getRepository: entity => ({

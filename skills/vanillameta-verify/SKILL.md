@@ -1,6 +1,6 @@
 ---
 name: vanillameta-verify
-description: Select and run low-overhead VanillaMeta verification using targeted unit/API checks, core Playwright regression and MD-driven Aside browser evidence. Use for VanillaMeta feature completion, regression checks and release verification.
+description: Select and run low-overhead VanillaMeta verification using targeted unit/API checks, core Playwright regression, UI component design and layout regression checks, and MD-driven Aside browser evidence. Use while adding or changing VanillaMeta UI components and for feature completion, regression checks and release verification.
 ---
 
 # VanillaMeta 검증
@@ -23,7 +23,7 @@ description: Select and run low-overhead VanillaMeta verification using targeted
 
 ## 실행
 
-`workflow.md`의 정확한 명령을 사용한다. 기본 Playwright 7개는 직접 실행하거나 파일/grep으로 선택한다. 확장 `qa`는 명시적 위험/시나리오가 있을 때만 실행하며 4개 BE/provider 기동 비용을 고려한다. 기본 suite를 실행했다고 확장 QA가 통과했다고 말하지 않는다.
+`workflow.md`의 정확한 명령을 사용한다. 기본 Playwright 8개는 직접 실행하거나 파일/grep으로 선택한다. 확장 `qa`는 명시적 위험/시나리오가 있을 때만 실행하며 4개 BE/provider 기동 비용을 고려한다. 기본 suite를 실행했다고 확장 QA가 통과했다고 말하지 않는다.
 
 테스트용 기존 서버를 재사용할 수 있으면 재사용한다. 데이터 초기화가 필요하거나 공유 상태가 적절하지 않으면 격리 명령을 사용한다. 포트 충돌로 다른 세션 서버를 종료하지 않는다. 테스트별로 만든 정확한 자원 ID만 정리한다. 브라우저의 비인증 검증에는 로그인된 사용자 탭을 재사용하지 않는다.
 
@@ -38,6 +38,18 @@ Aside UI는 사용 가능한 `aside-browser` 스킬을 읽고 `aside guide`(직�
 PASS / FAIL / BLOCKED / NOT_RUN으로 기록한다. 일부 변형만 확인했다면 그 범위를 적는다. 예상과 다른 화면은 최초 실패 증빙을 남기고 재검사 기록을 분리한다. 현재 요청에 필요한 검증이 확인되면 중단하고 임의로 모든 케이스를 추가 실행하지 않는다.
 
 최종 보고는 변경 범위, 실행한 검사와 명세 ID, 결과/증빙, 생략 범위와 이유, 남은 위험을 짧게 적는다. 검사를 위한 검사의 숫자를 늘리지 않는다.
+
+## UI 컴포넌트 디자인·레이아웃 회귀
+
+UI 요소를 추가하거나 변경할 때 구현 전 기준을 잡고, 의미 있는 배치 변경 뒤 실제 화면에서 아래 항목을 확인한다. 기능 완료 시에도 마지막 코드의 화면을 확인한다. 변경 요소뿐 아니라 같은 행·패널의 주변 요소와 부모 컨테이너까지 비교한다. 전체 화면·전체 테스트를 매 저장마다 반복하지 않는다.
+
+- **기준**: 기존 공통 컴포넌트·테마의 크기/간격/타이포그래피를 먼저 사용한다. Rill 참조 화면은 같은 뷰포트·상태에서 배치·밀도·컨트롤을 대조한다. 변경 전 캡처 또는 확인된 기준 화면을 남겨 작업 중 틀어짐을 판별한다.
+- **크기·높이·정렬**: 버튼·입력·선택·아이콘의 폭/높이, padding, gap, margin, 라벨/값/아이콘의 기준선과 수직 중앙 정렬을 확인한다. 같은 역할의 컨트롤은 크기와 높이가 일관되어야 하며 텍스트·아이콘이 잘리거나 클릭 영역을 벗어나지 않아야 한다.
+- **레이아웃**: 행/열 배치, 컨테이너 폭·여백, flex/grid 줄바꿈, 표의 열 폭·헤더·셀 정렬, 고정 영역, 스크롤과 overflow를 확인한다. 요소 추가로 주변 컨트롤이 밀리거나 겹치거나 불필요한 빈 공간·스크롤이 생겼는지 비교한다.
+- **폰트·표현**: font family/size/weight, line-height, 제목·라벨·값·보조 문구의 위계, 숫자/단위 가독성, 색 대비, 테두리·배경·radius와 아이콘 크기의 일관성을 확인한다. 예외 크기는 기존 토큰과 다른 이유가 있어야 한다.
+- **상태·폭 변화**: 영향받는 기본/선택/비활성/포커스/로딩/빈 결과/오류 상태와 긴 라벨·큰 수치를 확인한다. 기본 데스크톱과 좁은 지원 뷰포트에서 줄바꿈·높이 변화·잘림·겹침을 점검한다. 전체 반응형 검증을 하지 않았다면 확인한 폭만 보고한다.
+
+Aside 실제 캡처로 눈에 보이는 균형을 확인하고, 애매한 크기·정렬 차이는 해당 요소의 bounding box/computed style을 지원되는 브라우저 도구로 확인한다. DOM snapshot·타입 검사·기능 테스트 통과만으로 디자인 PASS를 선언하지 않는다. 발견한 회귀는 수정 후 같은 뷰포트·상태로 재확인한다. 증빙에 변경 요소, 뷰포트, 상태, 기준 대비 결과와 미확인 항목을 적고 **기능 PASS와 디자인 PASS를 별도로** 기록한다.
 
 ## 시각화 디자인·경쟁 UX 비교
 

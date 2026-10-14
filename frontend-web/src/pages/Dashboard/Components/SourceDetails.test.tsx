@@ -11,6 +11,10 @@ import SourceDetails, {
 import DashboardAnalysis from './DashboardAnalysis';
 
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), widget: vi.fn(), trend: vi.fn(), previous: vi.fn() }));
+vi.mock('@mui/material/styles', async () => {
+  const { createRequire } = await import('node:module');
+  return createRequire(import.meta.url)('@mui/material/styles');
+});
 vi.mock('@/helpers/apiHelper', () => api);
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 vi.mock('./DashboardAssistant', () => ({ default: () => null }));
@@ -255,7 +259,10 @@ beforeEach(() => {
   localStorage.clear();
   api.post.mockResolvedValue(success(detailData()));
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 it('time bucket details preserves the exact timestamp request and captions its exclusive UTC end', async () => {
   const dateRange = {
@@ -457,6 +464,7 @@ it('ignores failed envelopes and late errors after closing, aborts and restores 
   view.rerender(<SourceDetails {...props} open={false} />);
   expect(signal.aborted).toBe(true);
   expect(props.onExited).toHaveBeenCalledTimes(1);
+  await waitFor(() => expect(api.post.mock.results.some(result => result.value === pending.promise)).toBe(true));
   await act(async () => pending.reject(new Error('late error')));
   expect(screen.queryByRole('dialog')).toBeNull();
 });
@@ -478,7 +486,7 @@ const preview = {
 };
 const previewCalls = () => api.post.mock.calls.filter(([url]) => url === '/ai/dashboard-preview');
 async function analysis(data = preview, definition: any = draft) {
-  api.get.mockResolvedValue(success(definition));
+  api.get.mockImplementation(async (url: string) => success(url.endsWith('/pivots') ? [] : definition));
   api.post.mockImplementation(async (url, body) =>
     success(url === '/ai/dashboard-preview' ? data : detailData(body.page, body.pageSize, body.sourceRevision)),
   );
@@ -538,13 +546,14 @@ it('supports keyboard category activation and disables selection/detail while pe
   categoryButton(null).focus();
   userEvent.keyboard('{Enter}');
   await screen.findByRole('progressbar');
-  expect(previewCalls().at(-1)[1].filters).toEqual([{ column: 'channel', values: [null] }]);
+  await waitFor(() => expect(previewCalls().at(-1)[1].filters).toEqual([{ column: 'channel', values: [null] }]));
   expect(categoryButton('null').disabled).toBe(true);
   expect(button('원본 상세 보기').disabled).toBe(false);
   expect(button('원본 상세 보기').getAttribute('aria-disabled')).toBe('true');
   const before = api.post.mock.calls.length;
   fireEvent.click(categoryButton('null'));
   expect(api.post).toHaveBeenCalledTimes(before);
+  await waitFor(() => expect(api.post.mock.results.some(result => result.value === pending.promise)).toBe(true));
   await act(async () => pending.reject(new Error('preview failed')));
   await screen.findByText(/preview failed/);
   expect(categoryButton('null').disabled).toBe(true);
@@ -574,9 +583,11 @@ it('limits chart selections to fifty values and five columns while keeping desel
     })),
   };
   await analysis(many);
+  vi.useFakeTimers();
   const widgets = screen.getAllByTestId('widget');
   for (let i = 0; i < 50; i++) {
     fireEvent.click(within(widgets[0]).getByRole('button', { name: `차원 ${i}`, exact: true }));
+    await act(async () => vi.advanceTimersByTimeAsync(250));
     await idle();
   }
   fireEvent.click(within(widgets[0]).getByRole('button', { name: '차원 50', exact: true }));
@@ -584,6 +595,7 @@ it('limits chart selections to fifty values and five columns while keeping desel
   expect(previewCalls().at(-1)[1].filters[0].values).toHaveLength(50);
   for (let i = 1; i < 5; i++) {
     fireEvent.click(within(widgets[i]).getByRole('button', { name: '차원 0', exact: true }));
+    await act(async () => vi.advanceTimersByTimeAsync(250));
     await idle();
   }
   const before = previewCalls().length;
@@ -591,6 +603,7 @@ it('limits chart selections to fifty values and five columns while keeping desel
   expect(screen.getByText(/최대 5개 컬럼까지 선택/)).toBeTruthy();
   expect(previewCalls()).toHaveLength(before);
   fireEvent.click(within(widgets[0]).getByRole('button', { name: '차원 0', exact: true }));
+  await act(async () => vi.advanceTimersByTimeAsync(250));
   await idle();
   expect(previewCalls().at(-1)[1].filters[0].values).toHaveLength(49);
 });
@@ -719,6 +732,7 @@ it('chip focus does not infer restore intent from an unfocused pointer clear', a
 
 it('chip focus does not restore on a failed preview response', async () => {
   const pending = await pendingChipClear();
+  await waitFor(() => expect(api.post.mock.results.some(result => result.value === pending.promise)).toBe(true));
   await act(async () => pending.reject(new Error('chip request failed')));
   await screen.findByText(/chip request failed/);
   expect(document.activeElement).toBe(document.body);
@@ -1204,7 +1218,10 @@ it.each(['unapplied', 'invalid date', 'pending', 'error', 'editing', 'invalid ca
       const pending = deferred();
       api.post.mockReturnValueOnce(pending.promise);
       fireEvent.click(categoryButton(null));
-      if (blocked === 'error') await act(async () => pending.reject(new Error('preview failed')));
+      if (blocked === 'error') {
+        await waitFor(() => expect(api.post.mock.results.some(result => result.value === pending.promise)).toBe(true));
+        await act(async () => pending.reject(new Error('preview failed')));
+      }
     }
     const count = contributorCalls().length;
     act(() => select(blocked === 'invalid category' ? { raw: 'value' } : null));
@@ -1456,7 +1473,10 @@ it.each(['unapplied', 'invalid date', 'pending', 'error', 'editing', 'old previe
       const pending = deferred();
       api.post.mockReturnValueOnce(pending.promise);
       fireEvent.click(categoryButton(null));
-      if (kind === 'error') await act(async () => pending.reject(new Error('preview failed')));
+      if (kind === 'error') {
+        await waitFor(() => expect(api.post.mock.results.some(result => result.value === pending.promise)).toBe(true));
+        await act(async () => pending.reject(new Error('preview failed')));
+      }
       if (kind === 'old preview') {
         await act(async () => pending.resolve(success({ ...trendPreview, sourceRevision: 'fresh-source' })));
         await idle();
@@ -1798,7 +1818,10 @@ it.each(['unapplied', 'pending', 'error', 'editing', 'compare off', 'old preview
       const pending = deferred();
       api.post.mockReturnValueOnce(pending.promise);
       fireEvent.click(categoryButton(null));
-      if (kind === 'error') await act(async () => pending.reject(new Error('failed preview')));
+      if (kind === 'error') {
+        await waitFor(() => expect(api.post.mock.results.some(result => result.value === pending.promise)).toBe(true));
+        await act(async () => pending.reject(new Error('failed preview')));
+      }
       if (kind === 'old preview') {
         await act(async () => pending.resolve(success({ ...previousNumericPreview, sourceRevision: 'new-source' })));
         await idle();
@@ -1974,6 +1997,7 @@ it.each(['success', 'failure'])(
       await act(async () => pending.resolve(success(contributionData(previousRequest))));
       await screen.findByText('record-A');
     } else {
+      await waitFor(() => expect(api.post.mock.results.some(result => result.value === pending.promise)).toBe(true));
       await act(async () => pending.reject(new Error('재시도 오류')));
       await screen.findByText('재시도 오류');
     }

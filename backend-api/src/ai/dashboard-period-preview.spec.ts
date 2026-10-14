@@ -61,6 +61,23 @@ describe('period comparison and grain: actual DuckDB preview', () => {
     if (oldRoot === undefined) delete process.env.FILE_UPLOAD_DIR;
     else process.env.FILE_UPLOAD_DIR = oldRoot;
   });
+  it('accepts numeric ranges and rejects text/date ranges before dashboard queries', async () => {
+    const result = await service.preview(
+      { draft: draft(), filters: [{ column: 'amount', range: { min: 20, max: 30 } }] },
+      1,
+    );
+    expect(result.data.widgets[0].datas[0].value).toBe(50);
+    for (const column of ['channel', 'day', 'unknown']) {
+      const calls = connection.queryDuckDB.mock.calls.length;
+      await expect(
+        service.preview({ draft: draft(), filters: [{ column, range: { min: 1 } }] }, 1),
+      ).rejects.toThrow(column === 'unknown' ? 'invalid filter column' : '숫자 열');
+      // Schema discovery may query, but no filtered SQL should run after rejection.
+      expect(
+        connection.queryDuckDB.mock.calls.slice(calls).some((call: any[]) => call[2]?.includes(1)),
+      ).toBe(false);
+    }
+  });
   it('uses the preceding equal-length UTC interval, identical filters and one pinned snapshot', async () => {
     connection.withDuckDBSnapshot.mockClear();
     const result = await service.preview(

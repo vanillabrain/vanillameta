@@ -79,7 +79,13 @@ describe('previous-period contributor points: actual DuckDB', () => {
   });
   beforeEach(() => {
     filename = original;
-    stored = { id: 42, delYn: 'N', title: 'Previous', layout: null, structuredDefinition: null };
+    stored = {
+      id: 42,
+      delYn: 'N',
+      title: 'Previous',
+      layout: JSON.stringify([{ i: '5', x: 0, y: 0, w: 6, h: 3 }]),
+      structuredDefinition: null,
+    };
     save();
     connection = new ConnectionService(
       {
@@ -91,6 +97,7 @@ describe('previous-period contributor points: actual DuckDB', () => {
       worker,
     );
     const manager = {
+      find: jest.fn().mockResolvedValue([{ widgetId: 5 }]),
       findOne: jest.fn(async (entity, options) =>
         entity === UserMapping ? (options.where.userInfoId === 7 ? { id: 1 } : null) : stored,
       ),

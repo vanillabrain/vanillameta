@@ -44,4 +44,23 @@ describe('DashboardService', () => {
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
+  it('UC-006 keeps analysis mapping order when a grid save reorders presentation entries', async () => {
+    const row = { id: 42, analysisDefinition: '{}', layout: '[]' };
+    const repo = (service as any).dashboardRepository;
+    repo.findOne.mockResolvedValue(row);
+    repo.manager = { find: jest.fn().mockResolvedValue([{ widgetId: 10 }, { widgetId: 20 }]) };
+    repo.save.mockImplementation(async x => x);
+    (service as any).widgetRepository.find.mockResolvedValue([{ id: 10 }, { id: 20 }]);
+    (service as any).dashboardWidgetService.update = jest.fn();
+    const layout = [
+      { i: '20', x: 0, y: 3, w: 6, h: 2 },
+      { i: '10', x: 6, y: 8, w: 6, h: 4 },
+    ];
+    await service.update(42, { layout } as any);
+    expect((service as any).dashboardWidgetService.update).toHaveBeenCalledWith(42, {
+      dashboardId: 42,
+      widgetIds: [10, 20],
+    });
+    expect(row.layout).toEqual(layout);
+  });
 });

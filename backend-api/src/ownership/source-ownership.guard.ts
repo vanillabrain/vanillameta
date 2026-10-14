@@ -80,7 +80,20 @@ export class SourceOwnershipGuard implements CanActivate {
       if (handler === 'create' && group !== 'WidgetController' && body.databaseId === undefined)
         throw new ForbiddenException('source required');
     } else if (group === 'AiController') {
-      if (handler === 'dashboardDetails') {
+      if (
+        [
+          'metricChangePreview',
+          'metricChangeSave',
+          'metricImpact',
+          'metricBatchPreview',
+          'metricBatchSave',
+        ].includes(handler)
+      ) {
+        await this.access.dashboard(body.dashboardId, actor);
+        await this.access.assert('metric', body.metricId, actor);
+      } else if (handler === 'dashboardMetrics') {
+        await this.access.assert('database', param, actor);
+      } else if (handler === 'dashboardDetails') {
         const dashboardId = this.access.id(body.dashboardId);
         await this.access.assert('database', body.draft?.databaseId, actor);
         await this.access.dashboard(dashboardId, actor);
