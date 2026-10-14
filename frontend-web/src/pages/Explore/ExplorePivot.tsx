@@ -1,6 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Box, Button, Stack, TextField, Typography } from '@mui/material';
 import { post } from '@/helpers/apiHelper';
+import {
+  ANALYSIS_UI,
+  analysisFieldSx,
+  analysisToggleSx,
+  analysisModeGroupSx,
+  analysisPanelSx,
+  analysisTableCellStyle,
+} from '@/components/analysis/AnalysisUi';
 import type { ExploreViewState } from './ExploreSavedViews';
 
 export type PivotValue = {
@@ -53,42 +61,14 @@ export const PIVOT_GRAINS: Array<{ value: PivotGrain; label: string }> = [
   { value: 'month', label: '월' },
 ];
 
-/** One compact control baseline: selects match the theme's 32px button height with a smaller font. */
-const FIELD_SX = {
-  minWidth: 0,
-  '& .MuiInputBase-root': { height: 32, fontSize: 13 },
-  // The native select element carries its own padding, so pin it to the same 32px box as the button.
-  '& .MuiInputBase-input': {
-    height: 32,
-    boxSizing: 'border-box',
-    paddingTop: 0,
-    paddingBottom: 0,
-    fontSize: 13,
-  },
-  '& .MuiSelect-select': { fontSize: 13 },
-  '& .MuiInputLabel-root': { fontSize: 13 },
-} as const;
+const FIELD_SX = analysisFieldSx;
 /** Selects that show a column or measure name take a full row on mobile so the name is not clipped. */
 const NAME_FIELD_SX = {
   ...FIELD_SX,
   flex: { xs: '1 1 100%', sm: '1 1 140px' },
   maxWidth: { xs: '100%', sm: 220 },
 } as const;
-/** Toolbar toggles carry a visible selected look so the `aria-pressed` state is seen, not just announced. */
-const TOGGLE_BUTTON_SX = {
-  height: 28,
-  fontSize: 12,
-  textTransform: 'none',
-  whiteSpace: 'nowrap',
-  color: 'text.secondary',
-  border: '1px solid',
-  borderColor: 'divider',
-  '&[aria-pressed="true"]': {
-    color: 'primary.main',
-    borderColor: 'primary.main',
-    backgroundColor: 'action.selected',
-  },
-} as const;
+const TOGGLE_BUTTON_SX = analysisToggleSx;
 const PLAIN_BUTTON_SX = { textTransform: 'none', whiteSpace: 'nowrap' } as const;
 
 /**
@@ -509,9 +489,7 @@ export default function ExplorePivot({
   };
   // Bounded columns keep the comparison summary readable instead of letting nowrap cells expand.
   const cellStyle: React.CSSProperties = {
-    padding: '8px 10px',
-    borderBottom: '1px solid #e2e8f0',
-    borderRight: '1px solid #f1f5f9',
+    ...analysisTableCellStyle,
     textAlign: 'right',
     minWidth: state.comparePrevious ? 180 : 145,
     maxWidth: 220,
@@ -567,20 +545,6 @@ export default function ExplorePivot({
         display: 'flex',
         flexDirection: { xs: 'column', md: 'row' },
         gap: 2,
-        '& .MuiButton-root': {
-          height: 28,
-          minHeight: 28,
-          minWidth: 0,
-          px: 1,
-          fontSize: 12,
-          lineHeight: 1.4,
-          borderRadius: '4px',
-          '&.Mui-disabled': {
-            color: 'text.disabled',
-            bgcolor: 'transparent',
-            border: '1px solid transparent',
-          },
-        },
       }}
     >
       <Box
@@ -588,7 +552,7 @@ export default function ExplorePivot({
           flex: { md: '0 0 210px' },
           minWidth: 0,
           border: '1px solid #e2e8f0',
-          borderRadius: 2,
+          borderRadius: `${ANALYSIS_UI.radius}px`,
           p: 1.5,
           maxHeight: { xs: 320, md: 700 },
           overflowY: 'auto',
@@ -599,7 +563,7 @@ export default function ExplorePivot({
           size="small"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          sx={{ width: '100%', mb: 1, '& .MuiInputBase-root': { fontSize: 13 } }}
+          sx={{ ...FIELD_SX, width: '100%', mb: 1 }}
         />
         <Typography sx={{ fontSize: 12, fontWeight: 700, mt: 1 }}>지표 · 열에 표시</Typography>
         {measures
@@ -666,10 +630,7 @@ export default function ExplorePivot({
           sx={{
             flexWrap: 'wrap',
             gap: 1.5,
-            p: 1.5,
-            border: '1px solid #e2e8f0',
-            borderRadius: 2,
-            background: '#f8fafc',
+            ...analysisPanelSx,
           }}
         >
           {(['rowColumns', 'columnColumns'] as const).map(axis => (
@@ -711,19 +672,7 @@ export default function ExplorePivot({
         <Stack direction="row" alignItems="center" sx={{ flexWrap: 'wrap', gap: 1.5, mt: 1.5 }}>
           <Stack direction="row" alignItems="center" sx={{ gap: 1 }}>
             <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>표시 방식</Typography>
-            <Stack
-              role="group"
-              aria-label="Pivot 표시 방식"
-              direction="row"
-              sx={{
-                p: '2px',
-                gap: '2px',
-                border: '1px solid',
-                borderColor: 'divider',
-                borderRadius: 1,
-                bgcolor: 'background.paper',
-              }}
-            >
+            <Stack role="group" aria-label="Pivot 표시 방식" direction="row" sx={analysisModeGroupSx}>
               <Button aria-pressed={!flat} onClick={() => toggleTableMode('nest')} sx={{ ...TOGGLE_BUTTON_SX, border: 0 }}>
                 Pivot 테이블
               </Button>
@@ -946,7 +895,7 @@ export default function ExplorePivot({
             tabIndex={0}
             sx={{ mt: 1.5, overflow: 'auto', maxHeight: 620, border: '1px solid #e2e8f0', borderRadius: 2 }}
           >
-            <table style={{ borderCollapse: 'separate', borderSpacing: 0, width: '100%', fontSize: 13 }}>
+            <table style={{ borderCollapse: 'separate', borderSpacing: 0, width: '100%', fontSize: ANALYSIS_UI.fontSize }}>
               <caption style={{ textAlign: 'left', padding: 12 }}>
                 Pivot · Flat · {result.rows.length}개 레코드 · 필터 {state.filters.length}개
                 {state.comparePrevious ? ' · 이전 기간 비교' : ''}
@@ -1033,7 +982,7 @@ export default function ExplorePivot({
             tabIndex={0}
             sx={{ mt: 1.5, overflow: 'auto', maxHeight: 620, border: '1px solid #e2e8f0', borderRadius: 2 }}
           >
-            <table style={{ borderCollapse: 'separate', borderSpacing: 0, width: '100%', fontSize: 13 }}>
+            <table style={{ borderCollapse: 'separate', borderSpacing: 0, width: '100%', fontSize: ANALYSIS_UI.fontSize }}>
               <caption style={{ textAlign: 'left', padding: 12 }}>
                 Pivot · {result.rows.length}행 × {result.columns.length}열 그룹 · 필터 {state.filters.length}개
                 {state.comparePrevious ? ' · 이전 기간 비교' : ''}

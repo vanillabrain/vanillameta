@@ -22,7 +22,8 @@ import ExploreExport from './ExploreExport';
 import type { MetricComparisonData } from '@/pages/Dashboard/Components/PeriodComparison';
 import type { MetricTrendData } from '@/pages/Dashboard/Components/trendGeometry';
 
-const ACCENT = '#4f46e5';
+import { AnalysisChoice, AnalysisUiProvider, analysisModeGroupSx, analysisPanelSx } from '@/components/analysis/AnalysisUi';
+
 const PAGE_SIZE = 20;
 const MAX_MEASURES = 6;
 const MAX_DIMENSIONS = 4;
@@ -194,46 +195,6 @@ const rangeSummary = (range: ExploreRange) => {
 
 const filterSummary = (filter: ExploreFilter) =>
   isRangeFilter(filter) ? rangeSummary(filter.range) : filter.values.map(categoryText).join(', ');
-
-function Pill({
-  label,
-  selected,
-  onClick,
-  disabled,
-  ariaLabel,
-}: {
-  label: React.ReactNode;
-  selected?: boolean;
-  onClick?: () => void;
-  disabled?: boolean;
-  ariaLabel?: string;
-}) {
-  return (
-    <Button
-      type="button"
-      size="small"
-      aria-pressed={selected}
-      aria-label={ariaLabel}
-      disabled={disabled}
-      onClick={onClick}
-      sx={{
-        minHeight: 32,
-        px: 1.5,
-        borderRadius: 999,
-        textTransform: 'none',
-        fontWeight: 600,
-        fontSize: 13,
-        color: selected ? '#ffffff' : '#334155',
-        backgroundColor: selected ? ACCENT : '#ffffff',
-        border: '1px solid',
-        borderColor: selected ? ACCENT : '#e2e8f0',
-        '&:hover': { backgroundColor: selected ? '#4338ca' : '#f8fafc' },
-      }}
-    >
-      {label}
-    </Button>
-  );
-}
 
 function FilterValueSelect({
   sourceId,
@@ -434,7 +395,7 @@ function LeaderboardCard({
   );
 }
 
-export default function SourceExplore() {
+function SourceExploreContent() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [sources, setSources] = useState<Source[]>([]);
@@ -913,8 +874,6 @@ export default function SourceExplore() {
         mx: 'auto',
         minWidth: 0,
         backgroundColor: '#ffffff',
-        '& .MuiButton-root': { minHeight: 32 },
-        '& .MuiInputBase-root': { minHeight: 36 },
       }}
     >
       <Stack
@@ -982,8 +941,8 @@ export default function SourceExplore() {
         />
       )}
 
-      <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', mt: 1.5 }}>
-        <Pill
+      <Stack direction="row" alignItems="center" sx={{ gap: 1, flexWrap: 'wrap', mt: 1.5 }}>
+        <AnalysisChoice
           label="전체 기간"
           selected={dateMode === 'all'}
           onClick={() => {
@@ -993,9 +952,9 @@ export default function SourceExplore() {
             setPage(0);
           }}
         />
-        <Pill label="사용자 지정" selected={dateMode === 'custom'} onClick={() => setDateMode('custom')} />
+        <AnalysisChoice label="사용자 지정" selected={dateMode === 'custom'} onClick={() => setDateMode('custom')} />
         {dateMode === 'custom' && (
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap' }}>
+          <Stack direction="row" alignItems="center" sx={{ gap: 1, flexWrap: 'wrap' }}>
             <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>기간 열: {temporalColumn}</Typography>
             <TextField
               size="small"
@@ -1021,7 +980,7 @@ export default function SourceExplore() {
             />
             <Stack direction="row" spacing={0.5} alignItems="center" role="group" aria-label="표시 시간대">
               {Array.from(new Set([...TIME_ZONES, timeZone])).map(zone => (
-                <Pill
+                <AnalysisChoice
                   key={zone}
                   label={zone}
                   ariaLabel={`표시 시간대 ${zone}`}
@@ -1039,7 +998,7 @@ export default function SourceExplore() {
         {!pivotMode && (
           <Stack direction="row" spacing={0.5} alignItems="center" role="group" aria-label="집계 단위">
             {GRAINS.map(item => (
-              <Pill
+              <AnalysisChoice
                 key={item.value}
                 label={item.label}
                 ariaLabel={`집계 단위 ${item.label}`}
@@ -1052,7 +1011,7 @@ export default function SourceExplore() {
             ))}
           </Stack>
         )}
-        <Pill
+        <AnalysisChoice
           label="이전 기간 비교"
           selected={comparePrevious}
           disabled={!dateRange || rangePaused}
@@ -1065,7 +1024,7 @@ export default function SourceExplore() {
         />
       </Stack>
 
-      <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', mt: 1.5, minWidth: 0 }}>
+      <Stack direction="row" alignItems="center" sx={{ gap: 1, flexWrap: 'wrap', mt: 1.5, minWidth: 0 }}>
         {filters.length === 0 && <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>필터 없음</Typography>}
         {filters.map(filter => (
           <Chip
@@ -1075,7 +1034,7 @@ export default function SourceExplore() {
             sx={{ backgroundColor: '#eef2ff', color: '#312e81' }}
           />
         ))}
-        <Pill
+        <AnalysisChoice
           label="필터 추가"
           ariaLabel="필터 추가"
           selected={filterPanelOpen}
@@ -1084,7 +1043,7 @@ export default function SourceExplore() {
       </Stack>
 
       {filterPanelOpen && catalog && (
-        <Box sx={{ mt: 1, p: 1.5, border: '1px solid #e2e8f0', borderRadius: 2, backgroundColor: '#f8fafc' }}>
+        <Box sx={{ ...analysisPanelSx, mt: 1 }}>
           <Stack direction="row" spacing={1.5} sx={{ mb: 1, flexWrap: 'wrap' }}>
             <TextField
               select
@@ -1110,13 +1069,13 @@ export default function SourceExplore() {
             </TextField>
             {filterColumnNumeric && (
               <Stack direction="row" spacing={0.5} alignItems="center" role="group" aria-label="필터 모드">
-                <Pill
+                <AnalysisChoice
                   label="값"
                   ariaLabel="필터 모드 값"
                   selected={filterMode === 'values'}
                   onClick={() => setFilterMode('values')}
                 />
-                <Pill
+                <AnalysisChoice
                   label="범위"
                   ariaLabel="필터 모드 범위"
                   selected={filterMode === 'range'}
@@ -1194,9 +1153,9 @@ export default function SourceExplore() {
       <Divider sx={{ my: 1.5 }} />
 
       {catalog && (
-        <Stack direction="row" spacing={1} role="group" aria-label="탐색 방식" sx={{ mt: 2 }}>
-          <Pill label="탐색" selected={!pivotMode} onClick={() => setPivotMode(false)} />
-          <Pill
+        <Stack direction="row" role="group" aria-label="탐색 방식" sx={{ ...analysisModeGroupSx, mt: 1 }}>
+          <AnalysisChoice label="탐색" selected={!pivotMode} onClick={() => setPivotMode(false)} />
+          <AnalysisChoice
             label="Pivot"
             selected={pivotMode}
             onClick={() => {
@@ -1218,7 +1177,7 @@ export default function SourceExplore() {
 
       {catalog && !pivotMode && (
         <Stack spacing={1} sx={{ minWidth: 0 }}>
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap' }}>
+          <Stack direction="row" alignItems="center" sx={{ gap: 1, flexWrap: 'wrap' }}>
             <Button
               type="button"
               aria-expanded={settingsOpen}
@@ -1247,20 +1206,20 @@ export default function SourceExplore() {
             sx={{ flexWrap: 'wrap' }}
           >
             <Typography sx={{ fontSize: 13, fontWeight: 700 }}>차원 정렬</Typography>
-            <Pill
+            <AnalysisChoice
               label="현재값"
               ariaLabel="정렬 기준 현재값"
               selected={rankingSort.by === 'value'}
               onClick={() => selectSortBy('value')}
             />
-            <Pill
+            <AnalysisChoice
               label="변화량"
               ariaLabel="정렬 기준 변화량"
               selected={rankingSort.by === 'delta'}
               disabled={!comparePrevious}
               onClick={() => selectSortBy('delta')}
             />
-            <Pill
+            <AnalysisChoice
               label="변화율"
               ariaLabel="정렬 기준 변화율"
               selected={rankingSort.by === 'percentChange'}
@@ -1268,13 +1227,13 @@ export default function SourceExplore() {
               onClick={() => selectSortBy('percentChange')}
             />
             <Divider orientation="vertical" flexItem />
-            <Pill
+            <AnalysisChoice
               label="내림차순"
               ariaLabel="정렬 방향 내림차순"
               selected={rankingSort.direction === 'desc'}
               onClick={() => selectSortDirection('desc')}
             />
-            <Pill
+            <AnalysisChoice
               label="오름차순"
               ariaLabel="정렬 방향 오름차순"
               selected={rankingSort.direction === 'asc'}
@@ -1282,16 +1241,11 @@ export default function SourceExplore() {
             />
           </Stack>
           {settingsOpen && (
-            <Box
-              id="display-settings"
-              role="group"
-              aria-label="표시 설정"
-              sx={{ p: 1.5, border: '1px solid #e2e8f0', borderRadius: 2, backgroundColor: '#f8fafc' }}
-            >
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', mb: 1 }}>
+            <Box id="display-settings" role="group" aria-label="표시 설정" sx={analysisPanelSx}>
+              <Stack direction="row" alignItems="center" sx={{ gap: 1, flexWrap: 'wrap', mb: 1 }}>
                 <Typography sx={{ fontSize: 13, fontWeight: 700 }}>지표 (최대 {MAX_MEASURES})</Typography>
                 {catalog.measures.map(measure => (
-                  <Pill
+                  <AnalysisChoice
                     key={measure.id}
                     label={measure.label}
                     ariaLabel={`지표 ${measure.label}`}
@@ -1300,10 +1254,10 @@ export default function SourceExplore() {
                   />
                 ))}
               </Stack>
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', mb: 1 }}>
+              <Stack direction="row" alignItems="center" sx={{ gap: 1, flexWrap: 'wrap', mb: 1 }}>
                 <Typography sx={{ fontSize: 13, fontWeight: 700 }}>차원 (최대 {MAX_DIMENSIONS})</Typography>
                 {catalog.dimensions.map(dimension => (
-                  <Pill
+                  <AnalysisChoice
                     key={dimension.column}
                     label={dimension.column}
                     ariaLabel={`차원 ${dimension.column}`}
@@ -1312,12 +1266,12 @@ export default function SourceExplore() {
                   />
                 ))}
               </Stack>
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap' }}>
+              <Stack direction="row" alignItems="center" sx={{ gap: 1, flexWrap: 'wrap' }}>
                 <Typography sx={{ fontSize: 13, fontWeight: 700 }}>기준 지표</Typography>
                 {catalog.measures
                   .filter(measure => measureIds.includes(measure.id))
                   .map(measure => (
-                    <Pill
+                    <AnalysisChoice
                       key={measure.id}
                       label={measure.label}
                       ariaLabel={`기준 지표 ${measure.label}`}
@@ -1548,5 +1502,13 @@ export default function SourceExplore() {
         </Box>
       )}
     </Box>
+  );
+}
+
+export default function SourceExplore() {
+  return (
+    <AnalysisUiProvider>
+      <SourceExploreContent />
+    </AnalysisUiProvider>
   );
 }

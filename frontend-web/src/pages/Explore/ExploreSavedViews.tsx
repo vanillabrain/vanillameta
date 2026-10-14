@@ -1,3 +1,4 @@
+import { analysisPanelSx } from '@/components/analysis/AnalysisUi';
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Button, Stack, TextField, Typography } from '@mui/material';
 import { post } from '@/helpers/apiHelper';
@@ -310,12 +311,12 @@ export default function ExploreSavedViews({
       <Button
         aria-expanded={open}
         onClick={() => setOpen(value => !value)}
-        sx={{ alignSelf: 'flex-start', borderRadius: 999, border: '1px solid #e2e8f0', color: '#334155' }}
+        sx={{ alignSelf: 'flex-start', borderRadius: '4px', border: '1px solid #e2e8f0', color: '#334155' }}
       >
         탐색 보기
       </Button>
       {open && (
-        <Stack spacing={1} sx={{ p: 1.5, border: '1px solid #e2e8f0', borderRadius: 2, backgroundColor: '#f8fafc' }}>
+        <Stack spacing={1} sx={analysisPanelSx}>
           <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', rowGap: 1 }}>
             <TextField
               select

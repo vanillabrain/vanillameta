@@ -5,6 +5,12 @@ import SourceExplore from './SourceExplore';
 
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), navigate: vi.fn(), search: 'sourceId=3' }));
 vi.mock('@/helpers/apiHelper', () => ({ get: api.get, post: api.post }));
+// Behavioral tests mock MUI controls; real theme/layout is verified in the browser.
+vi.mock('@mui/material/styles', () => ({
+  useTheme: () => ({}),
+  createTheme: () => ({}),
+  ThemeProvider: ({ children }: React.PropsWithChildren) => <>{children}</>,
+}));
 vi.mock('react-router-dom', () => ({
   useNavigate: () => api.navigate,
   useSearchParams: () => [new URLSearchParams(api.search)],
