@@ -51,3 +51,12 @@ PIVOT-DASH-02/04 잔여 경고 변형: 기본bid_floor + 공통5컬럼=6개, 저
 **PASS_SELECTED_VARIANTS**: 초기실제POST3→1(66.7%감소), 모든카드56663800. App열키보드Enter공통필터추가후추가POST1회·모든카드18363600, 저장bid_floor범위/기간유지.1440/390캡처디자인확인·모바일문서overflow0/표내부포커스ArrowRight PASS. 신규요청풀대시보드mount범위/동일semantic key, 마지막구독자만취소, 완료/실패즉시제거; 값같은filterobject재렌더추가조회0. 관련단위14+신규rerender1·FEtype/lint/build PASS. 생성attachment정확한ID2개씩정리/원카드유지. 제품diff미커밋.
 
 완료결과캐시/다른조건쿼리통합/빠른연속필터debounce는추가하지않았다. 별도대시보드/사용자전역공유없음. 전체Tab·실기기touch/VoiceOver미실행/차단유지. gpt-6-luna유지/호출0, 기존통과전체반복없음. 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/pivot-dedup-20261014/RESULTS.md`, `before-results.json`, `after-results.json`, `after-desktop.png`, `after-mobile.png`.
+
+
+## PIVOT-DASH-06 — 빠른 필터 변경 최종 조회 (2026-10-14)
+
+기준3d8c3a87+diff. 대시보드Pivot만최종필터250ms대기(초기/축/재시도즉시). 동일조건pending공유·완료캐시없음유지. 공통analysispause시예약취소/마지막제출필터비교유지. 초기화가조회중disabled여서키보드입력무시오류발견→busy조건제거·최종재검증.
+
+**PASS_SELECTED_VARIANTS**: UI동일Pivot2개추가해3카드,1440/390에서App열Enter→초기화Enter(327/211ms)·Pivot추가요청각1회/최종App없음·모든카드56663800 exact. 데스크톱은250ms초과지만공통조회pause가중간예약취소; 모바일은250ms내. 신규단위빠른Mobile→Tablet최종1조회/대기표·CSV차단/unmount예약취소 PASS. 관련Pivot+DashboardAnalysis50PASS·FEtype/lint/build PASS. 모바일overflow0/캡처레이아웃/폰트/표내스크롤확인. 생성카드정확ID정리·원카드보존.
+
+공통AIpreview·독립Explore조회는변경없음(전체요청최적화로확대않음). 기존마지막제출필터로복귀시즉시조회; 다른필터변경은250ms대기. FullTab·실기기/VoiceOverNOT_RUN/BLOCKED. gpt-6-luna유지/호출0. 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/pivot-filter-debounce-20261014/RESULTS.md`, `rapid-results.json`, `after-results.json`, `rapid-1440.png`, `rapid-390.png`. 이번후속변경미커밋,이전중복조회3d8c3a87커밋/push완료.

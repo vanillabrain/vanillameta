@@ -303,3 +303,31 @@ it('does not refetch for equal-value filter objects after a parent rerender', as
   });
   expect(api.post.mock.calls.length).toBe(calls);
 });
+
+it('coalesces rapid filters, blocks stale exports during the delay and queries only the last condition', async () => {
+  const p = { ...props(), filterDelayMs: 250 };
+  const rendered = render(<PivotTable {...p} />);
+  await screen.findByRole('table');
+  const before = api.post.mock.calls.length;
+  rendered.rerender(<PivotTable {...p} filters={[{ column: 'device_type', values: ['Mobile'] }]} />);
+  expect((screen.getByRole('button', { name: 'Pivot CSV 내보내기' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.queryByRole('table')).toBeNull();
+  rendered.rerender(<PivotTable {...p} filters={[{ column: 'device_type', values: ['Tablet'] }]} />);
+  expect(api.post.mock.calls.length).toBe(before);
+  await screen.findByRole('table');
+  expect(api.post.mock.calls.length).toBe(before + 1);
+  expect(api.post.mock.calls.at(-1)[1].filters).toEqual([{ column: 'device_type', values: ['Tablet'] }]);
+});
+
+it('cancels a scheduled filter query when unmounted', async () => {
+  const p = { ...props(), filterDelayMs: 250 };
+  const rendered = render(<PivotTable {...p} />);
+  await screen.findByRole('table');
+  const before = api.post.mock.calls.length;
+  rendered.rerender(<PivotTable {...p} filters={[{ column: 'device_type', values: ['Mobile'] }]} />);
+  rendered.unmount();
+  await act(async () => {
+    await new Promise(resolve => setTimeout(resolve, 300));
+  });
+  expect(api.post.mock.calls.length).toBe(before);
+});

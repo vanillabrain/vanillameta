@@ -664,14 +664,13 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
           size="small"
           onClick={reset}
           disabled={
-            busy ||
-            (!active.length &&
-              !dateRange &&
-              !dateDraft.start &&
-              !dateDraft.end &&
-              !dateDraft.column &&
-              trendGrain === 'auto' &&
-              !comparePrevious)
+            !active.length &&
+            !dateRange &&
+            !dateDraft.start &&
+            !dateDraft.end &&
+            !dateDraft.column &&
+            trendGrain === 'auto' &&
+            !comparePrevious
           }
         >
           필터 초기화

@@ -163,6 +163,7 @@ function ValidDashboardPivot({ item, common, dateRange, paused, onFilter, onRemo
       <PivotTable
         embedded
         requestPool={requestPool}
+        filterDelayMs={250}
         sourceId={item.sourceId}
         sourceRevision={item.sourceRevision}
         dimensions={item.dimensions}

@@ -43,6 +43,7 @@ type Props = {
   fixedAxes?: boolean;
   embedded?: boolean;
   requestPool?: PivotRequestPool;
+  filterDelayMs?: number;
   axes?: PivotAxes;
   onAxesChange?: (axes: PivotAxes) => void;
   onReady?: (status: { key: string; reason: string }) => void;
@@ -93,6 +94,8 @@ export default function PivotTable(props: Props) {
     filters: props.filters,
     dateRange: props.dateRange,
   });
+  const filterKey = JSON.stringify(props.filters);
+  const previousFilters = useRef(filterKey);
   const current = !!result && resultKey === requestKey && !paused && !busy && !error;
   useEffect(() => {
     props.onReady?.({ key: requestKey, reason: current ? '' : error || '현재 Pivot 조건을 조회한 뒤 저장해 주세요.' });
@@ -101,6 +104,7 @@ export default function PivotTable(props: Props) {
     generation.current += 1;
     const token = generation.current;
     const abort = new AbortController();
+    const delay = previousFilters.current !== filterKey ? props.filterDelayMs ?? 0 : 0;
     setResult(null);
     setExportNotice('');
     setError('');
@@ -112,37 +116,44 @@ export default function PivotTable(props: Props) {
       };
     }
     setBusy(true);
-    const subscription = acquirePivotRequest(props.requestPool ?? localPool.current, requestKey, {
-      sourceId: props.sourceId,
-      sourceRevision: props.sourceRevision,
-      measureIds: props.measureIds,
-      rowDimensions: [row1, row2].filter(Boolean),
-      columnDimensions: column ? [column] : [],
-      filters: props.filters,
-      ...(props.dateRange ? { dateRange: props.dateRange } : {}),
-    });
-    void subscription.promise
-      .then(response => {
-        if (generation.current !== token || abort.signal.aborted) return;
-        if (response.data?.status !== 'SUCCESS' || response.data.data?.sourceRevision !== props.sourceRevision)
-          throw new Error('invalid Pivot response');
-        setResult(response.data.data);
-        setResultKey(requestKey);
-      })
-      .catch(err => {
-        if (generation.current !== token || abort.signal.aborted) return;
-        setError(errorMessage(err));
-        setConflict(err?.response?.status === 409);
-      })
-      .finally(() => {
-        if (generation.current === token) setBusy(false);
+    let subscription: ReturnType<typeof acquirePivotRequest> | undefined;
+    const run = () => {
+      previousFilters.current = filterKey;
+      subscription = acquirePivotRequest(props.requestPool ?? localPool.current, requestKey, {
+        sourceId: props.sourceId,
+        sourceRevision: props.sourceRevision,
+        measureIds: props.measureIds,
+        rowDimensions: [row1, row2].filter(Boolean),
+        columnDimensions: column ? [column] : [],
+        filters: props.filters,
+        ...(props.dateRange ? { dateRange: props.dateRange } : {}),
       });
+      void subscription.promise
+        .then(response => {
+          if (generation.current !== token || abort.signal.aborted) return;
+          if (response.data?.status !== 'SUCCESS' || response.data.data?.sourceRevision !== props.sourceRevision)
+            throw new Error('invalid Pivot response');
+          setResult(response.data.data);
+          setResultKey(requestKey);
+        })
+        .catch(err => {
+          if (generation.current !== token || abort.signal.aborted) return;
+          setError(errorMessage(err));
+          setConflict(err?.response?.status === 409);
+        })
+        .finally(() => {
+          if (generation.current === token) setBusy(false);
+        });
+    };
+    const timer = delay ? window.setTimeout(run, delay) : undefined;
+    if (!delay) run();
     return () => {
       generation.current += 1;
       abort.abort();
-      subscription.release();
+      if (timer !== undefined) window.clearTimeout(timer);
+      subscription?.release();
     };
-  }, [requestKey, paused, reload, props.requestPool]);
+  }, [requestKey, paused, reload, props.requestPool, props.filterDelayMs]);
   const downloadCsv = () => {
     if (!current) return;
     try {
