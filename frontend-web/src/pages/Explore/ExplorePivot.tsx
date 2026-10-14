@@ -76,8 +76,8 @@ const NAME_FIELD_SX = {
 } as const;
 /** Toolbar toggles carry a visible selected look so the `aria-pressed` state is seen, not just announced. */
 const TOGGLE_BUTTON_SX = {
-  height: 32,
-  fontSize: 13,
+  height: 28,
+  fontSize: 12,
   textTransform: 'none',
   whiteSpace: 'nowrap',
   color: 'text.secondary',
@@ -560,7 +560,29 @@ export default function ExplorePivot({
   };
   const timeAxisInvalid = !!timeAxis && !temporalAxisColumns.includes(timeAxis.column);
   return (
-    <Box sx={{ mt: 2, minWidth: 0, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
+    <Box
+      sx={{
+        mt: 2,
+        minWidth: 0,
+        display: 'flex',
+        flexDirection: { xs: 'column', md: 'row' },
+        gap: 2,
+        '& .MuiButton-root': {
+          height: 28,
+          minHeight: 28,
+          minWidth: 0,
+          px: 1,
+          fontSize: 12,
+          lineHeight: 1.4,
+          borderRadius: '4px',
+          '&.Mui-disabled': {
+            color: 'text.disabled',
+            bgcolor: 'transparent',
+            border: '1px solid transparent',
+          },
+        },
+      }}
+    >
       <Box
         sx={{
           flex: { md: '0 0 210px' },

@@ -253,3 +253,12 @@ Rill 로컬 소스의 `pivot-data-config.ts` isFlat 분기와 `pivot-data-assemb
 - **NOT_RUN**: 전체 E2E·BE 재검사·빌드, 새 XHR 수집, 전체 접근성 및 모든 화면 폭. 프런트 스타일/레이아웃 변경에 맞춰 기존 수치·저장·CSV 검증을 재사용했다.
 
 증빙은 저장소 밖 `/tmp/vm-pivot-design/`의 nest/flat/hierarchy-1440.png, flat-390.png, header-focus-390.png, rill-nest/flat-1440.png 및 receipt.json이다. 기존 검증 스킬의 크기·높이·정렬·폰트·좁은 화면 기준을 적용했다.
+
+### 버튼 밀도 재조정 — 사용자 피드백
+
+직전 디자인 PASS는 크기·줄바꿈의 관찰 결과였으며 사용자가 기대한 조밀함을 충분히 충족하지 못했다. 공통 테마의 좌우14px 여백·짙은 비활성 배경과 SourceExplore의 최소 높이32px가 Pivot에도 적용됐다. Pivot 내부 MUI 버튼에만 높이/최소 높이28px·폰트12px·좌우8px·radius4px를 적용하고 비활성 배경을 투명하게 조정했다. 모드·계층·정렬·필드 추가 버튼을 함께 조정하여 주변 요소의 밀도를 맞춘다. 입력 크기와 다른 화면의 공통 테마는 유지한다.
+
+- **PASS**: Aside 1440×900 실제 캡처와 높이28px/폰트12px/좌우8px 측정, Codex 브라우저390×844 Flat 선택/계층 비활성 및 줄바꿈 캡처, FE 타입·변경 파일 린트·공백 검사. 총합634,513,000/$5.57 유지.
+- **NOT_RUN**: 집계·저장 로직을 변경하지 않아 직전 단위59개와 저장/API 검증을 재사용하며 전체 테스트·E2E·빌드는 반복하지 않았다. 전체 접근성 및 Rill 픽셀 동등성은 미검증이다.
+
+증빙: `/tmp/vm-pivot-design/compact-1440.png`, `compact-390.png`.
