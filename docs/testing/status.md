@@ -331,3 +331,9 @@ COLD-02~05 선택조건: 같은1391572행으로 실제gpt-6-luna 생성→dashbo
 ## 2026-10-14 지연 응답·소스 전환 후속
 
 PIVOT-04 **PASS_SELECTED_VARIANTS**: 실제headed1440/390에서 source3 Pivot 응답을 보류→source4(지표0) 전환→늦은 응답 해제. 기존 요청 취소/늦은 응답 후 source4 표 없음·CSV 차단, source3 복귀 새201/정상표 PASS. 지연 중 저장/CSV차단·Pivot Enter 조작·문서overflow0 및 캡처 디자인 확인 PASS. source4 기존 연결 암호화키가 현재 서버와 달라 같은 Rill source3 설정을 임시 차용했고 원본 정확히 복구/백업삭제. 지표있는 두 소스의 경쟁응답/취소불가transport는 NOT_RUN; 취소 및 빈소스격리 범위만 통과. CSV다운로드·전체Tab·실기기·운영동시부하 재실행안함, VoiceOverBLOCKED/gpt-6-luna유지. 새제품수정0, 이전단위/빌드재사용. 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/pivot-stale-20261014/RESULTS.md`, `ui-results.json`, `pending-*.png`, `source4-*.png`, `recovered-*.png`. 미커밋.
+
+## 2026-10-14 지표 있는 두 소스 경쟁 응답 후속
+
+PIVOT-04 **PASS_SELECTED_VARIANTS**: bca84b2b 기준, 동일 Rill1391572행 source3/4·각2지표. source3 실제Pivot응답 보류→source4 카탈로그/Pivot201·표 표시→이전응답 해제 후 새표/소스 유지 PASS(1440/390). 기존 요청은 브라우저에서 취소됨; 취소불가transport 검증으로 확대하지 않는다. 지연중 저장/CSV차단·새결과 저장가능·Enter CSV다운로드 PASS. 실제CSV 지표ID3/4만 포함·총요청634513000 exact·비율새응답±1e-9 PASS. 문서overflow0/컨트롤배치·모바일표내스크롤 캡처검토 PASS.
+
+source4 원본연결은 현서버 암호화키와 달라 config백업/동일source3 연결임시차용, 신규검증지표3/4만추가. 실행뒤 정확히삭제·원본config복구/백업삭제. 기존지표·저장보기변경없음. 새제품오류/수정0, 기존단위/빌드/Rill대조재사용. 신규항목만검증; VoiceOverBLOCKED·gpt-6-luna유지/모델호출0. 운영동시부하·실기기touch/취소불가transport NOT_RUN. 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/pivot-race-20261014/RESULTS.md`, `ui-results.json`, `csv-results.json`, `source4-1440.png`, `source4-390.png`.
