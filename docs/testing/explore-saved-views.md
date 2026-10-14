@@ -104,3 +104,14 @@ VanillaMeta는 소스/사용자별 이름을 붙인 조건을 metadata에 저장
 390px에서빌더다시열기→정상same-schema3행40+60+80파일선택→Enter교체201→탐색기존보기복원180/3행 PASS. 이는빌더재진입후정상파일재시도이며, 같은오류컴포넌트세션내재선택전체경로·OS네이티브파일대화상자·실기기터치는미검증. 파일선택은Playwright setInputFiles, 교체/복원은Enter. UI저장기능/이전파일복원전체는재실행않음. 강제로스키마변경후stale뷰409/삭제는별도미검증이고지원정책은스키마변경게시거부.
 
 기존Rill소스/보기/지표변경없음, 이번생성소스/보기를API삭제·지표비활성화. cleanup temporarySources/Views=0·primaryViewPresent=1 확인. 제품변경없어기존단위/빌드재사용·문서diffcheck. gpt-6-luna유지/호출0·VoiceOverBLOCKED유지. 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/view-schema-ui-20261014/` results.json, schema-denied-1440.png/schema-denied-390.png, recovered-390.png, cleanup.json. 기록미커밋.
+
+
+## 2026-10-14 동일 오류 화면의 파일 재선택 후속
+
+탐색디자인·권한안내·이전검증기록을 `cfa25f63`으로drumcap계정에서현재브랜치codex/self-service-next-20261014에commit/push완료. 이후 EXP-VIEW-05/VERSION-07의남은'같은오류컴포넌트안에서정상파일재선택'390px조건만진행.
+
+**PASS_SELECTED_VARIANTS**: 임시2행CSV/지표/보기생성→빌더에서amount→revenue파일교체400→버전revision/저장보기state불변·파일선택버튼활성확인→페이지이동/새로고침없이동일hiddenfileinput에같은스키마정상3행파일재선택→오류alert0/교체버튼활성→Enter교체201→탐색기존보기Enter복원180. 초기합계30은픽스처기준이며오류후데이터보존은파일revision불변으로확인;30UI재조회는이전통과결과재사용. 모바일overflow0·오류/복구캡처직접검토. nativeOS파일대화상자는미실행(setInputFiles사용).
+
+제품변경0/새결함0, 이전단위·타입·lint·빌드재사용·문서diffcheck. helper최초수정에서첫빌더진입까지제거해요소없음실패→초기진입보존/오류후재진입만제거→정확조건재검증PASS. 임시소스·보기API삭제/지표비활성화, cleanup.json임시0/기존보기1보존확인. gpt-6-luna설정유지/호출0·VoiceOverBLOCKED/실기기touch유지.
+
+증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/view-schema-inline-retry-20261014/` results.json, schema-denied-390.png, recovered-390.png, cleanup.json. 이후속기록만미커밋. 모든스키마강제변경/MySQL운영/스크린리더조건완료로확대않음.

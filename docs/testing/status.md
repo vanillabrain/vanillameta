@@ -466,3 +466,14 @@ CHART-FILTER-02: 공통 차트 조회 중 재선택 및 늦은 성공/오류. �
 **PASS_SELECTED_VARIANTS**: 실제1440×1000/390×844 임시CSV두행200+300=500, 같은source명·지표로사용자이미지와비교. 두뷰포트scrollWidth=width, Enter Explore→Pivot표→Explore500복귀·포커스유지. 최종캡처직접검토(버튼/입력높이·폰트·선택/비활성·패널·KPI·차원카드). 최초시안모바일집계월버튼/비교겹침→최소폭0/분리grid조정, 데스크톱집계폭과헤더버튼여백/중복배지보정→최종재캡처. 복원숫자/전체저장케이스반복않음. 영향받는초기선택단위1PASS/22skip·최종FEtype/lint/build·diffcheckPASS. 실제파일/지표설정조합/VoiceOver/실기기touch전체는확대검증않음.
 
 임시소스API삭제·지표비활성화/cleanup.json0확인. 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/explore-design-20261014/` updated-1440.png/updated-390.png, results.json, build.log. 이전화면 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/view-list-race-20261014/source-switched-390.png`. 앞선권한안내미커밋수정과기록보존, 이번디자인도미커밋. gpt-6-luna/VoiceOverBLOCKED유지·AI호출0.
+
+
+## 2026-10-14 동일 오류 화면의 파일 재선택 후속
+
+탐색디자인·권한안내·이전검증기록을 `cfa25f63`으로drumcap계정에서현재브랜치codex/self-service-next-20261014에commit/push완료. 이후 EXP-VIEW-05/VERSION-07의남은'같은오류컴포넌트안에서정상파일재선택'390px조건만진행.
+
+**PASS_SELECTED_VARIANTS**: 임시2행CSV/지표/보기생성→빌더에서amount→revenue파일교체400→버전revision/저장보기state불변·파일선택버튼활성확인→페이지이동/새로고침없이동일hiddenfileinput에같은스키마정상3행파일재선택→오류alert0/교체버튼활성→Enter교체201→탐색기존보기Enter복원180. 초기합계30은픽스처기준이며오류후데이터보존은파일revision불변으로확인;30UI재조회는이전통과결과재사용. 모바일overflow0·오류/복구캡처직접검토. nativeOS파일대화상자는미실행(setInputFiles사용).
+
+제품변경0/새결함0, 이전단위·타입·lint·빌드재사용·문서diffcheck. helper최초수정에서첫빌더진입까지제거해요소없음실패→초기진입보존/오류후재진입만제거→정확조건재검증PASS. 임시소스·보기API삭제/지표비활성화, cleanup.json임시0/기존보기1보존확인. gpt-6-luna설정유지/호출0·VoiceOverBLOCKED/실기기touch유지.
+
+증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/view-schema-inline-retry-20261014/` results.json, schema-denied-390.png, recovered-390.png, cleanup.json. 이후속기록만미커밋. 모든스키마강제변경/MySQL운영/스크린리더조건완료로확대않음.
