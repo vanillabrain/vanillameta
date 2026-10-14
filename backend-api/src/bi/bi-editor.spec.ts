@@ -113,6 +113,7 @@ describe('BiService dashboard editor boundaries', () => {
     access = { assert: jest.fn().mockResolvedValue(undefined), id: jest.fn(Number) };
     dashboards = {
       generate: jest.fn(),
+      proposeBlockLayout: jest.fn(),
       analysis: jest.fn(async () => ({ data: analysis })),
       preview: jest.fn().mockResolvedValue({ data: { widgets: [{ rows: [{ value: 150 }] }] } }),
       save: jest.fn().mockResolvedValue({ data: { id: dashboardId, revision: 'b'.repeat(64) } }),
@@ -368,6 +369,54 @@ describe('BiService dashboard editor boundaries', () => {
     },
   );
 
+  it('UC-011 changes only selected breakpoint, preserves SQL, recompiles and never saves automatically', async () => {
+    const existing = (await service.editor(dashboardId, actor)).items[0];
+    const layouts = { mobile: { x: 0, y: 0, w: 4, h: 3 }, desktop: { x: 0, y: 0, w: 6, h: 3 } };
+    dashboards.proposeBlockLayout.mockResolvedValue({ x: 1, y: 0, w: 6, h: 3 });
+    const result = await service.editorAi(
+      dashboardId,
+      body({
+        items: [{ ...existing, layouts }],
+        selectedKey: existing.key,
+        prompt: '오른쪽 한 칸',
+        editMode: 'layout',
+        layoutMode: 'desktop',
+      }),
+      actor,
+    );
+    expect(result.item).toEqual({
+      ...existing,
+      layouts: { ...layouts, desktop: { x: 1, y: 0, w: 6, h: 3 } },
+    });
+    expect(dashboards.preview.mock.calls[0][0].draft.widgets[0].sql).toBe(originalSql);
+    expect(JSON.stringify(dashboards.proposeBlockLayout.mock.calls[0][0])).not.toContain(
+      originalSql,
+    );
+    expect(dashboards.generate).not.toHaveBeenCalled();
+    expect(dashboards.save).not.toHaveBeenCalled();
+  });
+  it('UC-011 rejects overlapping layout and stale revisions after provider response', async () => {
+    const items = [
+      item({ key: 'a', layouts: { desktop: { x: 0, y: 0, w: 6, h: 3 } } }),
+      item({ key: 'b', layouts: { desktop: { x: 6, y: 0, w: 6, h: 3 } } }),
+    ];
+    const request = body({
+      items,
+      selectedKey: 'a',
+      prompt: '오른쪽',
+      editMode: 'layout',
+      layoutMode: 'desktop',
+    });
+    dashboards.proposeBlockLayout.mockResolvedValueOnce({ x: 1, y: 0, w: 6, h: 3 });
+    await expect(service.editorAi(dashboardId, request, actor)).rejects.toThrow(/겹/);
+    dashboards.proposeBlockLayout.mockImplementationOnce(async () => {
+      analysis.revision = 'b'.repeat(64);
+      return { x: 0, y: 4, w: 6, h: 3 };
+    });
+    await expect(service.editorAi(dashboardId, request, actor)).rejects.toThrow(ConflictException);
+    expect(dashboards.preview).not.toHaveBeenCalled();
+    expect(dashboards.save).not.toHaveBeenCalled();
+  });
   it('generates against unsaved edits, returns a local draft and never saves it', async () => {
     const existing = (await service.editor(dashboardId, actor)).items[0];
     const definition = {

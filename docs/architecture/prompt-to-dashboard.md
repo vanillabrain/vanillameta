@@ -95,3 +95,9 @@ blockId를 기존 JSON에 추가하고 레거시 조회는 결정적 ID를 반�
 ## P1 화면 폭별 좌표 — UC-009
 
 기존 분석 JSON에 responsiveLayouts를 blockId별로 추가한다. 모바일4/태블릿8/데스크톱12열 좌표를 editor compiler의 명시 배치 입력에서 검증하고 저장 transaction에서 새 서버 ID에 연결한다. desktop은 canonical dashboard.layout과 일치하며 모바일/태블릿은 별도 보관한다. 기존 분석 조회는 읽기 배치를 도출하고 명시 저장에서만 기록한다. 일반 AI 내용 수정은 이전 배치를 유지한다. 소유 분석의 읽기 CSS grid와 편집기 좌표/undo에 연결했으나 pointer drag/자연어 위치 변경·공유 수신 화면까지 완료한 것은 아니다. [실행 기록](../testing/responsive-block-layout.md).
+
+## P1 AI 배치 요청 — UC-011
+
+`editor/ai`의 `editMode=layout`은 선택 화면 폭의 선택 블록만 대상으로 한다. 서버가 compile한 좌표와 제목만 기존 LLM 제공자에 전달하고 x/y/w/h 외 필드는 거절한다. 내용 AI 수정은 기존 경로를 유지한다. 자동 의도 분류는 하지 않는다.
+
+제안 후 소유권·버전과 전체 배치를 다시 compile하여 겹침을 거절한다. 선택 item의 layouts만 반환·합치므로 SQL·차트 종류·비대상·다른 폭은 유지된다. 성공 미리보기는 기존 초안 이력과 저장 경로를 사용하며 자동 저장하지 않는다. 신규 엔티티·DB 컬럼·외부 엔진 계약은 없다. 자연어 다중 블록 재배치는 별도 후속이다.

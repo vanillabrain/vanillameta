@@ -9,7 +9,12 @@ import { ConnectionService } from '../connection/connection.service';
 import { AiDashboardService } from '../ai/ai-dashboard.service';
 import { metricFields, metricExpression } from './metric-expression';
 import { quoteColumn, sourceQuery, validateDraft } from '../ai/dashboard-draft';
-import { validateBlockLayouts, responsiveLayouts } from '../ai/responsive-layout';
+import {
+  validateBlockLayouts,
+  responsiveLayouts,
+  layoutColumns,
+  LayoutSize,
+} from '../ai/responsive-layout';
 
 @Injectable()
 export class BiService {
@@ -513,6 +518,41 @@ export class BiService {
     if (index < 0) throw new BadRequestException('수정할 블록을 선택해 주세요.');
     if (typeof body.prompt !== 'string' || !body.prompt.trim() || body.prompt.length > 2000)
       throw new BadRequestException('변경 요청을 확인해 주세요.');
+    if (body.editMode !== undefined && !['content', 'layout'].includes(body.editMode))
+      throw new BadRequestException('AI 변경 목적을 확인해 주세요.');
+    if (body.editMode === 'layout') {
+      if (!Object.prototype.hasOwnProperty.call(layoutColumns, body.layoutMode))
+        throw new BadRequestException('편집할 화면 폭을 확인해 주세요.');
+      const mode = body.layoutMode as LayoutSize;
+      const rect = await this.dashboards.proposeBlockLayout(
+        {
+          selectedKey: body.selectedKey,
+          mode,
+          blocks: body.items.map(item => ({
+            key: item.key,
+            title: item.title,
+            rect: compiled.layouts[mode][item.key],
+          })),
+          prompt: body.prompt,
+        },
+        signal,
+      );
+      if (signal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
+      const item = {
+        ...body.items[index],
+        layouts: { ...body.items[index].layouts, [mode]: rect },
+      };
+      const next = await this.compileEditor(
+        id,
+        { ...body, items: body.items.map((original, i) => (i === index ? item : original)) },
+        actor,
+      );
+      const preview = (
+        await this.dashboards.preview({ draft: next.draft, includeTrends: true }, actor)
+      ).data;
+      if (signal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
+      return { item, editMode: 'layout', preview: { ...preview, responsiveLayouts: next.layouts } };
+    }
     const result = await this.dashboards.generate(
       {
         dashboardId: compiled.dashboardId,

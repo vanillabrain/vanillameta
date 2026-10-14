@@ -483,3 +483,44 @@ it('keyboard layout changes preserve results and other breakpoints but require p
   fireEvent.change(screen.getByLabelText('1번 차트 단위'), { target: { value: '달러' } });
   expect(screen.queryByRole('cell', { name: '12345678901234567890.12' })).toBeNull();
 });
+
+it('UC-011 sends layout intent and applies geometry only through common undo history', async () => {
+  const layouts = { mobile: { x: 0, y: 0, w: 4, h: 3 }, desktop: { x: 0, y: 0, w: 6, h: 3 } };
+  api.get.mockResolvedValueOnce(success({ ...editor, items: [{ ...item, layouts }] }));
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: '1번 차트 AI로 수정' }));
+  fireEvent.click(within(screen.getByRole('radiogroup', { name: 'AI 변경 목적' })).getByLabelText('배치'));
+  fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '오른쪽 한 칸 옮겨 줘' } });
+  api.post.mockResolvedValueOnce(
+    success({
+      item: { ...item, title: 'must ignore content change', layouts: { ...layouts, desktop: { x: 1, y: 0, w: 6, h: 3 } } },
+      editMode: 'layout',
+      preview: preview(),
+    }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'AI 변경 미리보기' }));
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: '변경 내용 저장' }) as HTMLButtonElement).disabled).toBe(false),
+  );
+  expect(api.post.mock.calls[0][1]).toMatchObject({ editMode: 'layout', layoutMode: 'desktop', selectedKey: 'old' });
+  expect((screen.getByLabelText('1번 차트 제목') as HTMLInputElement).value).toBe(item.title);
+  fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
+  await requestPreview();
+  expect(api.post.mock.calls[1][1].items[0].layouts).toEqual(layouts);
+  fireEvent.click(screen.getByRole('button', { name: '다시 실행' }));
+  await requestPreview();
+  expect(api.post.mock.calls[2][1].items[0].layouts).toEqual({ ...layouts, desktop: { x: 1, y: 0, w: 6, h: 3 } });
+});
+
+it('UC-011 keeps the current draft after a rejected layout proposal and leaves save disabled', async () => {
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: '1번 차트 AI로 수정' }));
+  fireEvent.click(within(screen.getByRole('radiogroup', { name: 'AI 변경 목적' })).getByLabelText('배치'));
+  fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '겹치는 위치로 이동' } });
+  api.post.mockRejectedValueOnce({ response: { status: 400 } });
+  fireEvent.click(screen.getByRole('button', { name: 'AI 변경 미리보기' }));
+  await screen.findByText(/AI 변경을 적용하지 못했습니다/);
+  expect((screen.getByLabelText('1번 차트 제목') as HTMLInputElement).value).toBe(item.title);
+  expect((screen.getByRole('button', { name: '되돌리기' }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole('button', { name: '변경 내용 저장' }) as HTMLButtonElement).disabled).toBe(true);
+});
