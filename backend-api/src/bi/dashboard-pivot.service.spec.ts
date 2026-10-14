@@ -94,6 +94,12 @@ describe('dashboard Pivot snapshots', () => {
   it('reports changed metric definitions without silently changing snapshots', async () => {
     await service.add(1, 2, { sourceId: 3, viewId: 7 });
     explore.catalog.mockResolvedValue({ ...(await explore.catalog()), viewRevision: 'changed' });
-    await expect(service.list(1, 2)).rejects.toThrow('정의가 변경');
+    const list = await service.list(1, 2);
+    expect(list.data[0].error).toContain('정의가 변경');
+    expect(list.data[0].state).toBeUndefined();
+    const row = await db.getRepository(Dashboard).findOneBy({ id: 1 });
+    expect(JSON.parse(row.pivotDefinitions)[0].state).toEqual(state);
+    await service.remove(1, list.data[0].id, 2);
+    expect((await service.list(1, 2)).data).toEqual([]);
   });
 });

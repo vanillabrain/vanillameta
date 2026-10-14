@@ -42,16 +42,21 @@ export class DashboardPivotService {
     const sourceId = this.source(row);
     const catalog = await this.explore.catalog({ sourceId }, actor);
     const data = items.map(item => {
-      if (item.sourceId !== sourceId || item.revision !== catalog.viewRevision)
-        throw new ConflictException('Pivot 지표·열 정의가 변경되었습니다. 다시 추가해 주세요.');
-      const state = validateExploreViewState(item.state, catalog);
-      if (state.mode !== 'pivot') throw new ConflictException('잘못된 Pivot 설정입니다.');
-      return {
-        ...item,
-        state,
-        sourceRevision: catalog.sourceRevision,
-        dimensions: catalog.dimensions,
-      };
+      try {
+        if (item.sourceId !== sourceId || item.revision !== catalog.viewRevision)
+          throw new ConflictException('Pivot 지표·열 정의가 변경되었습니다. 저장 보기를 갱신한 뒤 다시 추가해 주세요.');
+        const state = validateExploreViewState(item.state, catalog);
+        if (state.mode !== 'pivot') throw new ConflictException('잘못된 Pivot 설정입니다.');
+        return {
+          ...item,
+          state,
+          sourceRevision: catalog.sourceRevision,
+          dimensions: catalog.dimensions,
+        };
+      } catch (error) {
+        if (!(error instanceof BadRequestException || error instanceof ConflictException)) throw error;
+        return { id: item.id, name: item.name, sourceId: item.sourceId, error: error.message };
+      }
     });
     return { status: 'SUCCESS', data };
   }

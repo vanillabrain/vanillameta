@@ -37,11 +37,12 @@ export default function DashboardPivots({
           r.data.data.some(
             (item: any) =>
               !item?.id ||
-              !Array.isArray(item.dimensions) ||
-              !Array.isArray(item.state?.measureIds) ||
-              !item.state?.pivot ||
-              !Array.isArray(item.state.filters) ||
-              typeof item.sourceRevision !== 'string',
+              (!item.error &&
+                (!Array.isArray(item.dimensions) ||
+                  !Array.isArray(item.state?.measureIds) ||
+                  !item.state?.pivot ||
+                  !Array.isArray(item.state.filters) ||
+                  typeof item.sourceRevision !== 'string')),
           )
         )
           throw new Error('Pivot 응답을 확인할 수 없습니다.');
@@ -97,7 +98,35 @@ export default function DashboardPivots({
     </Box>
   );
 }
-function DashboardPivot({ item, common, dateRange, paused, onFilter, onRemove, removing }: any) {
+function DashboardPivot(props: any) {
+  const { item, onRemove, removing } = props;
+  if (!item.error) return <ValidDashboardPivot {...props} />;
+  return (
+    <Card variant="outlined" sx={{ p: { xs: 1.5, md: 2 }, minWidth: 0, borderRadius: 2, boxShadow: 'none' }}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+        <Typography component="h2" sx={{ fontSize: 18, fontWeight: 600, overflowWrap: 'anywhere', minWidth: 0 }}>
+          {item.name}
+        </Typography>
+        <Button
+          size="small"
+          disabled={removing}
+          onClick={onRemove}
+          aria-label={`${item.name} 대시보드에서 제거`}
+          sx={{ flexShrink: 0, minHeight: 36 }}
+        >
+          제거
+        </Button>
+      </Stack>
+      <Alert severity="warning" sx={{ mt: 1 }}>
+        {item.error}
+      </Alert>
+      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+        다른 차트와 원본 저장 보기는 유지됩니다. 이 Pivot을 제거하고 탐색 화면에서 갱신한 저장 보기를 다시 추가해 주세요.
+      </Typography>
+    </Card>
+  );
+}
+function ValidDashboardPivot({ item, common, dateRange, paused, onFilter, onRemove, removing }: any) {
   const filters = useMemo(() => mergePivotFilters(item.state.filters, common), [item.state.filters, common]);
   const range: ExploreDateRange | undefined = dateRange ?? item.state.dateRange ?? undefined;
   const timeUnsupported = !!range && (!/^\d{4}-\d{2}-\d{2}$/.test(range.start) || !/^\d{4}-\d{2}-\d{2}$/.test(range.end));

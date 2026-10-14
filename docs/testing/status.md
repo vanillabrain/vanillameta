@@ -319,3 +319,5 @@ COLD-02~05 선택조건: 같은1391572행으로 실제gpt-6-luna 생성→dashbo
 2026-10-14 Pivot 저장·CSV: PIVOT-06~08 PASS_SELECTED_VARIANTS. [명세/범위](explore-pivot.md). 실제 다운로드 정수 exact, 비율1e-9·저장/새로고침복원·390px/Tab/Enter 확인. VoiceOver BLOCKED/gpt-6-luna 유지.
 
 2026-10-14 PIVOT-DASH-01~04 PASS_SELECTED_VARIANTS: 저장 Pivot 대시보드스냅샷·App공통필터·날짜override·390px키보드/디자인. [상세](dashboard-pivot.md). gpt-6-luna/VoiceOver차단유지.
+
+2026-10-14 PIVOT-DASH-03 정의 불일치 후속: 전체409로 제거 경로가 사라지는 오류 수정→Aside1440/Chromium390·Enter 제거/재조회 PASS. 기존 QA snapshot 원복. 정의 편집·재추가 전체 여정/혼합목록 UI는 NOT_RUN. [상세](dashboard-pivot.md#2026-10-14-정의-변경-복구-후속). gpt-6-luna 및 VoiceOver BLOCKED 유지.

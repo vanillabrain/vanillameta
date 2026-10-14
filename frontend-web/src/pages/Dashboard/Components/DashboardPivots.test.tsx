@@ -1,6 +1,6 @@
 import React from 'react';
 import { expect, it, vi, afterEach } from 'vitest';
-import { render, cleanup, waitFor } from '@testing-library/react';
+import { render, cleanup, waitFor, fireEvent } from '@testing-library/react';
 import DashboardPivots, { mergePivotFilters } from './DashboardPivots';
 const api = vi.hoisted(() => ({ get: vi.fn(), del: vi.fn(), pivot: vi.fn() }));
 vi.mock('@/helpers/apiHelper', () => api);
@@ -72,4 +72,28 @@ it('mounted dashboard forwards common date/filter to saved Pivot and updates on 
     { column: 'device', values: ['Phone'] },
   ]);
   expect(onFilter).toHaveBeenCalledWith([{ column: 'device', values: ['Phone'] }]);
+});
+
+it('keeps stale Pivot removable while valid sibling stays visible', async () => {
+  api.pivot.mockClear();
+  const valid = {
+    id: 'valid',
+    name: 'Valid',
+    sourceId: 3,
+    sourceRevision: 'rev',
+    dimensions: [],
+    state: { measureIds: [1], pivot: { rowDimensions: ['device'], columnDimensions: [] }, filters: [] },
+  };
+  api.get.mockResolvedValueOnce({
+    data: { status: 'SUCCESS', data: [{ id: 'stale', name: 'Stale', error: 'Pivot 정의가 변경되었습니다.' }, valid] },
+  });
+  api.get.mockResolvedValue({ data: { status: 'SUCCESS', data: [valid] } });
+  api.del.mockResolvedValue({ data: { status: 'SUCCESS' } });
+  const ui = render(<DashboardPivots dashboardId={2} filters={[]} paused={false} onFilter={vi.fn()} />);
+  await waitFor(() => expect(ui.getByText('Pivot 정의가 변경되었습니다.')).toBeTruthy());
+  expect(api.pivot.mock.lastCall[0].sourceRevision).toBe('rev');
+  fireEvent.click(ui.getAllByText('제거')[0]);
+  await waitFor(() => expect(api.del).toHaveBeenCalledWith('/bi/dashboard/2/pivots/stale'));
+  await waitFor(() => expect(ui.queryByText('Stale')).toBeNull());
+  expect(ui.getByText('Valid')).toBeTruthy();
 });
