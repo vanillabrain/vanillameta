@@ -1,24 +1,72 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useReducer, useRef, useState } from 'react';
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, useMediaQuery } from '@mui/material';
+import StudioCanvas from './StudioCanvas';
+import StudioInspector from './StudioInspector';
+import { createStudioState, studioReducer, applyStudioOperation } from './studioReducer';
+import { studioOrderOperations } from './studioEditing';
+import { sampleBlock, studioSample } from './studioSample';
+import { StudioOperation, STUDIO_COLUMNS, STUDIO_BREAKPOINTS } from './studioTypes';
 import StudioShell, { StudioDesignDocument, StudioDesignStage } from './StudioShell';
 
 /** Synthetic, development-only preview. No API requests, real source data, or generated claims. */
 export default function StudioDesignPreview() {
-  const [document, setDocument] = useState<StudioDesignDocument>({
-    title: '온라인 스토어 매출·환불',
+  const [state, dispatch] = useReducer(studioReducer, studioSample, createStudioState);
+  const [message, setMessage] = useState('');
+  const tablet = useMediaQuery('(max-width:1199px)', { noSsr: true });
+  const mobile = useMediaQuery('(max-width:599px)', { noSsr: true });
+  const breakpoint = mobile ? 'xs' : tablet ? 'md' : 'lg';
+  useEffect(() => dispatch({ type: 'breakpoint', breakpoint }), [breakpoint]);
+  const document: StudioDesignDocument = {
+    title: state.present.title,
     source: '주문·환불 샘플.csv',
     period: '2026.10.01 – 10.07',
-    blockTitle: '일별 매출 추이',
-  });
+    blockTitle: state.present.blocks.find(b => b.id === state.selectedBlockId)?.title ?? '블록을 선택하세요',
+  };
+  const applyOperations = (operations: StudioOperation[]) => {
+    if (!operations.length) return false;
+    try {
+      operations.reduce(applyStudioOperation, state.present);
+      dispatch({ type: 'applyBatch', operations });
+      setMessage('편집 내용을 반영했습니다. 아직 저장되지 않았습니다.');
+      return true;
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '편집을 적용하지 못했습니다. 기존 내용을 유지했습니다.');
+      return false;
+    }
+  };
+  const operation = (op: StudioOperation) => applyOperations([op]);
+  const nextId = () => {
+    if (!crypto.randomUUID) {
+      setMessage('이 브라우저에서는 새 블록 ID를 만들 수 없습니다. localhost 또는 HTTPS로 열어 주세요.');
+      return null;
+    }
+    return `new:${crypto.randomUUID()}`;
+  };
+  const selected = state.present.blocks.find(b => b.id === state.selectedBlockId) ?? null;
+  const geometry = state.present.layouts[breakpoint].find(g => g.id === state.selectedBlockId);
+  const ordered = [...state.present.layouts[breakpoint]].sort((a, b) => a.y - b.y || a.x - b.x);
+  const selectedOrder = ordered.findIndex(g => g.id === state.selectedBlockId);
+  const reorder = (direction: -1 | 1) => {
+    if (!state.selectedBlockId) return;
+    const operations = studioOrderOperations(state.present, breakpoint, state.selectedBlockId, direction);
+    if (!operations.length) return;
+    if (applyOperations(operations)) setMessage('현재 화면 크기의 블록 순서를 변경했습니다.');
+  };
   const compact = useMediaQuery('(max-width:899px)', { noSsr: true });
   const [status, setStatus] = useState<'ready' | 'loading' | 'error'>('ready');
   const [stage, setStage] = useState<StudioDesignStage>('result');
   const [panel, setPanel] = useState<'ai' | 'settings' | null>(compact ? null : 'ai');
+  useEffect(() => {
+    if (compact) setPanel(null);
+  }, [compact]);
   const previousStage = useRef<StudioDesignStage>('result');
   const changeStage = (next: StudioDesignStage) => {
     if (next === 'publish') previousStage.current = stage === 'publish' ? 'result' : stage;
     setStage(next);
-    if (next === 'settings') setPanel('settings');
+    if (next === 'settings') {
+      dispatch({ type: 'select', blockId: state.selectedBlockId ?? state.present.blocks[0]?.id ?? null });
+      setPanel('settings');
+    }
     if (next === 'result') setPanel(compact ? null : 'ai');
   };
   return (
@@ -31,7 +79,121 @@ export default function StudioDesignPreview() {
         panel={panel}
         onStageChange={changeStage}
         onPanelChange={setPanel}
-        onBlockTitleChange={blockTitle => setDocument(old => ({ ...old, blockTitle }))}
+        history={{
+          canUndo: !!state.past.length,
+          canRedo: !!state.future.length,
+          count: state.past.length,
+          onUndo: () => dispatch({ type: 'undo' }),
+          onRedo: () => dispatch({ type: 'redo' }),
+        }}
+        canvas={
+          <StudioCanvas
+            document={state.present}
+            breakpoint={breakpoint}
+            selectedBlockId={state.selectedBlockId}
+            onOperation={operation}
+            onSelect={blockId => dispatch({ type: 'select', blockId })}
+            onSettings={() => setPanel('settings')}
+          />
+        }
+        inspector={
+          <StudioInspector
+            key={selected?.id ?? 'none'}
+            block={selected}
+            onOperation={operation}
+            canDuplicate={state.present.blocks.length < 6}
+            onDuplicate={() => {
+              const id = nextId();
+              if (selected && id) operation({ type: 'duplicateBlock', blockId: selected.id, newId: id });
+            }}
+            onRemove={() => {
+              if (selected) {
+                operation({ type: 'removeBlock', blockId: selected.id });
+                setPanel(null);
+              }
+            }}
+          />
+        }
+        editToolbar={
+          <>
+            <div className="studio-edit-toolbar">
+              <label>
+                블록 추가
+                <select
+                  aria-label="추가할 블록"
+                  disabled={state.present.blocks.length >= 6}
+                  value=""
+                  onChange={e => {
+                    if (!e.target.value) return;
+                    const id = nextId();
+                    if (!id) return;
+                    const block = sampleBlock(id, e.target.value as 'BOARD_NUMERIC' | 'CHART_LINE', '새 매출 블록');
+                    applyOperations([
+                      { type: 'addBlock', block },
+                      ...STUDIO_BREAKPOINTS.map(bp => ({
+                        type: 'resizeBlock' as const,
+                        blockId: block.id,
+                        breakpoint: bp,
+                        w: bp === 'xs' ? 1 : block.kind === 'BOARD_NUMERIC' ? STUDIO_COLUMNS[bp] / 2 : STUDIO_COLUMNS[bp],
+                        h: block.kind === 'BOARD_NUMERIC' ? 5 : 6,
+                      })),
+                    ]);
+                  }}
+                >
+                  <option value="">유형 선택</option>
+                  <option value="BOARD_NUMERIC">숫자 지표</option>
+                  <option value="CHART_LINE">시계열 차트</option>
+                </select>
+              </label>
+              <span>
+                {state.present.blocks.length}/6 블록 ·{' '}
+                {breakpoint === 'xs' ? '모바일' : breakpoint === 'md' ? '태블릿' : '데스크톱'} 배치
+              </span>
+              {selected && geometry && (
+                <div className="studio-placement" role="group" aria-label="선택 블록 배치">
+                  <Button disabled={selectedOrder <= 0} onClick={() => reorder(-1)}>
+                    앞으로
+                  </Button>
+                  <Button disabled={selectedOrder >= ordered.length - 1} onClick={() => reorder(1)}>
+                    뒤로
+                  </Button>
+                  <Button
+                    onClick={() =>
+                      operation({
+                        type: 'resizeBlock',
+                        blockId: selected.id,
+                        breakpoint,
+                        w:
+                          breakpoint === 'xs'
+                            ? 1
+                            : Math.min(STUDIO_COLUMNS[breakpoint] - geometry.x, Math.ceil(STUDIO_COLUMNS[breakpoint] / 2)),
+                        h: selected.kind === 'BOARD_NUMERIC' ? 5 : 6,
+                      })
+                    }
+                  >
+                    기본 크기
+                  </Button>
+                  <Button
+                    onClick={() =>
+                      operation({
+                        type: 'resizeBlock',
+                        blockId: selected.id,
+                        breakpoint,
+                        w: STUDIO_COLUMNS[breakpoint] - geometry.x,
+                        h: Math.max(geometry.h, 6),
+                      })
+                    }
+                  >
+                    크게
+                  </Button>
+                </div>
+              )}
+            </div>
+            <p role="status" className="studio-edit-message">
+              {message || '블록을 선택해 내용·순서·크기를 편집하세요. 최대 6개 블록을 지원합니다.'}
+            </p>
+          </>
+        }
       />
       <Dialog
         open={stage === 'publish'}

@@ -129,3 +129,40 @@
   .vm-studio .MuiButton-root { min-width:44px; }
   .vm-studio .MuiInputBase-root:not(.MuiInputBase-multiline) { min-height:44px; }
 }
+
+/* T3 editing controls: same compact desktop tokens, 44px mobile hit targets. */
+.studio-edit-toolbar {display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:10px;min-width:0;}
+.studio-edit-toolbar label {display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;}
+.studio-edit-toolbar select {border:1px solid var(--studio-border);border-radius:6px;background:white;padding:6px;font:inherit;max-width:160px;}
+.studio-edit-toolbar > span,.studio-edit-message {font-size:12px;color:var(--studio-muted);}
+.studio-edit-message {min-height:36px;line-height:1.6;margin-bottom:12px!important;}
+.studio-placement {display:flex;flex-wrap:wrap;gap:4px;}
+.studio-edit-grid {min-width:0;}
+.studio-edit-card {display:flex;flex-direction:column;overflow:auto;}
+.studio-edit-card .studio-card-label {align-items:center;flex-shrink:0;}
+.studio-edit-card h3 {flex:1;min-width:0;}
+.vm-studio .studio-drag-handle {display:flex;align-items:center;justify-content:center;width:28px;height:32px;border:0;background:transparent;color:#6c788a;border-radius:4px;cursor:grab;flex-shrink:0;}
+.studio-drag-handle:focus-visible {outline:2px solid var(--studio-accent);outline-offset:2px;}
+.studio-edit-card .studio-metric-value {font-size:clamp(24px,2.3vw,34px);overflow-wrap:anywhere;margin-top:18px;}
+.studio-edit-card > p {font-size:12px;color:var(--studio-muted);margin:8px 0;overflow-wrap:anywhere;}
+.studio-edit-card figure {margin-top:auto;}
+.studio-edit-card .react-resizable-handle {width:24px;height:24px;}
+.studio-sample-bars {list-style:none;padding:0;margin:20px 0 0;display:grid;gap:22px;}
+.studio-sample-bars li>div:first-child {display:flex;justify-content:space-between;gap:8px;font-size:12px;margin-bottom:8px;}
+.studio-empty {padding:40px 24px;border:1px dashed var(--studio-border);border-radius:10px;text-align:center;background:white;}
+.studio-empty p {font-size:13px;color:var(--studio-muted);margin-top:12px;}
+.studio-history-count {font-size:11px;color:var(--studio-muted);}
+@media(max-width:599px){
+ .studio-edit-toolbar {align-items:flex-start;gap:10px;}
+ .studio-edit-toolbar label {width:100%;justify-content:space-between;}
+ .studio-edit-toolbar select {min-height:44px;flex:1;max-width:220px;}
+ .vm-studio .studio-drag-handle {width:44px;height:44px;cursor:default;}
+ .studio-edit-card {padding:12px;}
+ .studio-edit-card .studio-metric-value {font-size:30px;margin-top:12px;}
+ .studio-edit-card .studio-card-label {gap:4px;}
+ .studio-placement {width:100%;}
+ .studio-history-count {position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;}
+}
+/* Width changes must update position and size together, without transient card overlap. */
+.studio-edit-grid .react-grid-item { transition:none; }
+.studio-edit-grid .react-grid-item.react-draggable-dragging { z-index:4; }

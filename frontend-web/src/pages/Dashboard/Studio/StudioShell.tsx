@@ -4,7 +4,6 @@ import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
 import TuneOutlined from '@mui/icons-material/TuneOutlined';
 import CloseOutlined from '@mui/icons-material/CloseOutlined';
 import ArrowForwardOutlined from '@mui/icons-material/ArrowForwardOutlined';
-import MetricTrend from '../Components/MetricTrend';
 import './studio.css';
 
 export type StudioDesignStage = 'start' | 'result' | 'settings' | 'publish';
@@ -17,30 +16,21 @@ type Props = {
   onStatusChange: (status: 'ready' | 'loading' | 'error') => void;
   onStageChange: (stage: StudioDesignStage) => void;
   onPanelChange: (panel: 'ai' | 'settings' | null) => void;
-  onBlockTitleChange: (title: string) => void;
+  canvas: React.ReactNode;
+  inspector: React.ReactNode;
+  editToolbar: React.ReactNode;
+  history: { canUndo: boolean; canRedo: boolean; count: number; onUndo: () => void; onRedo: () => void };
 };
-const trend = (scale = 1) => ({
-  column: 'ordered_at',
-  grain: 'day',
-  timeZone: 'UTC',
-  points: [5.1, 6.4, 5.9, 8.2, 6.7, 7.3, 8.66].map((value, i) => ({
-    time: `2026-10-${String(i + 1).padStart(2, '0')}T00:00:00Z`,
-    value: Math.round(value * 1000000 * scale),
-  })),
-});
-const channels = [
-  { name: '자사몰', amount: '₩28,956,000', width: '60%' },
-  { name: '네이버', amount: '₩12,065,000', width: '25%' },
-  { name: '기타', amount: '₩7,239,000', width: '15%' },
-];
-
 export default function StudioShell({
   document: doc,
   stage,
   panel,
   onStageChange,
   onPanelChange,
-  onBlockTitleChange,
+  canvas,
+  inspector,
+  editToolbar,
+  history,
   status,
   onStatusChange,
 }: Props) {
@@ -102,55 +92,23 @@ export default function StudioShell({
           </div>
         </div>
       ) : (
-        <div className="studio-inspector">
-          <span className="studio-eyebrow">선택한 블록</span>
-          <h2>{doc.blockTitle}</h2>
-          <p>차트의 내용과 표현을 이곳에서 조정합니다.</p>
-          <TextField
-            size="small"
-            label="블록 제목 · 시안에서만 변경"
-            value={doc.blockTitle}
-            onChange={e => onBlockTitleChange(e.target.value)}
-            inputProps={{ maxLength: 160 }}
-            fullWidth
-          />
-          <TextField size="small" label="지표" value="총매출" slotProps={{ input: { readOnly: true } }} fullWidth />
-          <TextField
-            size="small"
-            label="나눠 볼 기준"
-            value="주문일 · 일별"
-            slotProps={{ input: { readOnly: true } }}
-            fullWidth
-          />
-          <TextField size="small" label="표현" value="시계열 차트" slotProps={{ input: { readOnly: true } }} fullWidth />
-          <div className="studio-definition">
-            <b>계산 기준</b>
-            <code>SUM(order_amount)</code>
-            <span>단위 KRW · 주문일 기준 · UTC</span>
-          </div>
-          <div className="studio-inspector-actions">
-            <Button disabled variant="outlined">
-              블록 복제
-            </Button>
-            <Button disabled>블록 삭제</Button>
-          </div>
-          <p className="studio-panel-note">
-            선택·설정 패널의 디자인 시안입니다.
-            <br />
-            배치 편집·저장은 다음 구현 단계입니다.
-          </p>
-        </div>
+        inspector
       )}
     </aside>
   );
   return (
-    <div className="vm-studio">
+    <div
+      className="vm-studio"
+      onKeyDown={e => {
+        if (e.key === 'Escape') onPanelChange(null);
+      }}
+    >
       <a className="studio-skip" href="#studio-main">
         캔버스로 건너뛰기
       </a>
       <div className="studio-notice">
         <span className="studio-dot" />
-        디자인 미리보기 <span>가상 데이터 · AI·저장·게시 연결 전</span>
+        로컬 편집 미리보기 <span>가상 데이터 · AI·저장·게시 연결 전</span>
       </div>
       <header className="studio-header">
         <div className="studio-heading">
@@ -165,9 +123,20 @@ export default function StudioShell({
         </div>
         <div className="studio-header-actions">
           <span className="studio-draft">시안 · 저장되지 않음</span>
-          <Button disabled aria-label="되돌리기 · 후속 구현">
+          <Button disabled={!history.canUndo} onClick={history.onUndo}>
             되돌리기
           </Button>
+          <Button disabled={!history.canRedo} onClick={history.onRedo}>
+            다시 실행
+          </Button>
+          <span
+            role="status"
+            aria-live="polite"
+            className="studio-history-count"
+            aria-label={`편집 이력 ${history.count}회 변경`}
+          >
+            {history.count}회 변경
+          </span>
           <Button variant="outlined" disabled>
             저장
           </Button>
@@ -284,7 +253,7 @@ export default function StudioShell({
                   <span className="studio-filter-tag">모든 채널</span>
                   <span className="studio-filter-tag">KRW</span>
                 </div>
-                <span>읽기 전용 시안</span>
+                <span>브라우저 안에서 편집 · 새로고침 시 초기화</span>
               </div>
               <div className="studio-canvas">
                 <div className="studio-canvas-title">
@@ -294,70 +263,8 @@ export default function StudioShell({
                   </div>
                   <span className="studio-live-label">가상 데이터</span>
                 </div>
-                <div className="studio-kpis">
-                  {[
-                    { title: '총매출', value: '₩48,260,000', hint: '주문 금액 합계', scale: 1 },
-                    { title: '환불액', value: '₩1,930,400', hint: '전체 환불 금액', scale: 0.04 },
-                    { title: '순매출', value: '₩46,329,600', hint: '총매출 − 환불액', scale: 0.96 },
-                  ].map(item => (
-                    <article className="studio-kpi studio-card" key={item.title}>
-                      <div className="studio-card-label">
-                        <h3>{item.title}</h3>
-                        <span>KRW</span>
-                      </div>
-                      <div className="studio-metric-value">{item.value}</div>
-                      <p>{item.hint}</p>
-                      <MetricTrend title={item.title} trend={trend(item.scale)} prefix="₩" numberNotation="compact" />
-                    </article>
-                  ))}
-                </div>
-                <div className="studio-charts">
-                  <section
-                    className={`studio-card studio-timeseries ${panel === 'settings' ? 'studio-card-selected' : ''}`}
-                    aria-label="일별 매출 추이 블록"
-                  >
-                    <div className="studio-card-label">
-                      <div>
-                        <h3>{doc.blockTitle}</h3>
-                        <p>2026.10.01 – 10.07 · UTC</p>
-                      </div>
-                      <Button
-                        className="studio-config-trigger"
-                        aria-label="일별 매출 블록 설정 미리보기"
-                        aria-expanded={panel === 'settings'}
-                        onClick={() => onStageChange('settings')}
-                        startIcon={<TuneOutlined />}
-                      >
-                        설정
-                      </Button>
-                    </div>
-                    <MetricTrend title="일별 매출" trend={trend()} prefix="₩" numberNotation="compact" />
-                  </section>
-                  <section className="studio-card studio-channel" aria-label="채널별 매출 블록">
-                    <div className="studio-card-label">
-                      <div>
-                        <h3>채널별 매출</h3>
-                        <p>총매출에서 차지하는 비중</p>
-                      </div>
-                    </div>
-                    <ul>
-                      {channels.map(row => (
-                        <li key={row.name}>
-                          <div>
-                            <span>{row.name}</span>
-                            <strong>{row.amount}</strong>
-                          </div>
-                          <div className="studio-bar-track">
-                            <span style={{ width: row.width }} />
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
-                </div>
-                <div className="studio-canvas-footnote">
-                  지표·계산과 데이터 출처를 확인할 수 있는 영역입니다. 현재 값은 디자인용이며 실제 집계 결과가 아닙니다.
-                </div>
+                {editToolbar}
+                {canvas}
               </div>
             </>
           )}

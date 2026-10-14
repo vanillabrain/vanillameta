@@ -59,6 +59,7 @@ export type StudioState = {
 };
 export type StudioAction =
   | { type: 'apply'; operation: StudioOperation }
+  | { type: 'applyBatch'; operations: StudioOperation[] }
   | { type: 'undo' }
   | { type: 'redo' }
   | { type: 'select'; blockId: string | null }

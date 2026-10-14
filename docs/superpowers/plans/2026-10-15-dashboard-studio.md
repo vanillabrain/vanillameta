@@ -30,7 +30,7 @@
 
 ## 범위·진행 원칙
 
-T1은 합성 fixture의 선택 디자인/상호작용 범위로 구현·검증했다. [실행 기록](../../testing/dashboard-studio.md)을 참조한다. T2는 순수 계약/변경 이력·adapter 범위로 구현·검증했다. T3~T10은 PLANNED / NOT_RUN이다. 화면 배치·API는 구현 전에 관련 코드와 좁은 계약 검사를 확인한다. 다수 기능을 한 번에 작성하고 마지막에 검증하지 않는다. 아래 T 하나가 구현·검증·변경 기록·리뷰·커밋의 단위다. 선행 조건이 통과하면 다음 작업으로 진행하며 형식적인 승인 질문을 반복하지 않는다. 사용자 취소/실제 권한·파괴적 경계가 있으면 해당 조건을 따른다.
+T1은 합성 fixture의 선택 디자인/상호작용 범위로 구현·검증했다. [실행 기록](../../testing/dashboard-studio.md)을 참조한다. T2는 순수 계약/변경 이력·adapter 범위로 구현·검증했다. T3는 합성 문서의 실제 로컬 편집·반응형 범위로 구현·검증했다. T4~T10은 PLANNED / NOT_RUN이다. 화면 배치·API는 구현 전에 관련 코드와 좁은 계약 검사를 확인한다. 다수 기능을 한 번에 작성하고 마지막에 검증하지 않는다. 아래 T 하나가 구현·검증·변경 기록·리뷰·커밋의 단위다. 선행 조건이 통과하면 다음 작업으로 진행하며 형식적인 승인 질문을 반복하지 않는다. 사용자 취소/실제 권한·파괴적 경계가 있으면 해당 조건을 따른다.
 
 기존 numeric/chart와 단일 소스 분석을 첫 구현에 사용한다. 기존 생성기의 1~6 위젯 한도는 첫 시연에 적용하며 UI에 숨기지 않는다. 모든 블록 종류·다중 소스·대규모 보드 지원을 첫 시연 완료로 주장하지 않는다. 이 한도가 실제 수용 흐름을 막을 때 해당 compiler 계약과 함께 확장한다. 임의 코드 실행·새 chart engine·실시간 공동 편집·커넥터 확대는 제외한다. 텍스트/표/필터 블록은 T6에서 기존 렌더러 지원 범위를 확인하고 미지원 종류는 별도 승인된 구현 단위로 남긴다.
 
@@ -105,11 +105,11 @@ StudioState는 dashboard별 한 행의 JSON 정의와 revision을 저장한다. 
 
 **Interfaces:** `StudioCanvas({document,breakpoint,selectedBlockId,onOperation,onSelect})`. grid item key는 blockId, canvas width는 container 측정. legacy lg를 최초 변환할 때만 md/xs를 도출하고 그 후 명시 편집 배치를 보존.
 
-- [ ] 추가/복제/삭제, 핸들 drag·resize, 키보드 이동/순서·크기 preset을 같은 연산으로 연결. 선택·panel tab 전환은 history 변경 아님.
-- [ ] 드래그1회=undo1회, typing중 방향키는 입력 편집 유지, Escape로 선택/패널 문맥 종료, 빈 캔버스 안내를 테스트.
-- [ ] `npx vitest run src/pages/Dashboard/Studio`와 FE 타입/변경 lint 실행. 숫자 renderer/MetricTrend를 재사용.
-- [ ] STUDIO-E01: b1 위치/크기 변경→복제→삭제→undo/redo. 390→768→1440→390에서 선택/내용/history/각 배치 보존, overflow0 실제 확인·캡처.
-- [ ] 편집 단위 커밋. DB 저장은 아직 NOT_RUN으로 표시.
+- [x] 추가/복제/삭제, 핸들 drag·resize, 키보드 이동/순서·크기 preset을 같은 연산으로 연결. 선택·panel tab 전환은 history 변경 아님.
+- [x] 드래그1회=undo1회, typing중 방향키는 입력 편집 유지, Escape로 선택/패널 문맥 종료, 빈 캔버스 안내를 테스트.
+- [x] `npx vitest run src/pages/Dashboard/Studio`와 FE 타입/변경 lint 실행. 숫자 renderer/MetricTrend를 재사용.
+- [x] STUDIO-E01: b1 위치/크기 변경→복제→삭제→undo/redo. 390→768→1440→390에서 선택/내용/history/각 배치 보존, overflow0 실제 확인·캡처.
+- [x] 편집 단위 커밋. DB 저장은 아직 NOT_RUN으로 표시.
 
 ### T4: 저장·재조회·기존 경로 호환 (P1 / FR-003·NFR-004)
 

@@ -1,3 +1,5 @@
+2026-10-15 Studio T3: [dashboard-studio.md](dashboard-studio.md). 합성 문서의 실제 블록 추가·복제·삭제·drag/resize·undo/redo, 폭별 배치 보존·모바일 키보드 편집 STUDIO-E01 PASS. 1440/768/390px overflow/겹침0, 긴 제목·전체 숫자 디자인 확인. Studio33·타입/lint/build PASS. 서버 저장·AI·게시 NOT_RUN, VoiceOver BLOCKED 유지. 기존 집계 소급 변경 없음.
+
 2026-10-14 Pivot 탐색: [explore-pivot.md](explore-pivot.md) PIVOT-01~05 PASS_SELECTED_VARIANTS. 같은Rill원본1391572행/9×2/17실제조합·모든합계독립SQL 일치(56663800/3.07170877372671), Rill표시값·UX실화면비교. BE13/PivotFE6·전환1·타입/lint/build,1440/390·Tab/Enter·OSnative방향키·표스크롤·503복구·50행제한선택조건PASS. 실제깨진타소유자500→권한확인먼저수정→403재검증. 전체카탈로그130불변/VoiceOverBLOCKED/AI gpt-6-luna유지호출0. Pivot시간축·계층·이전기간·정렬편집·저장/공유/Export·운영부하는후속. 미커밋워크트리작업. 아래과거Pivot미구현기록은이번첫범위로보강됐다.
 
 2026-10-14 탐색 개인 저장 보기: [explore-saved-views.md](explore-saved-views.md). source/user별 지표·차원·범위·기간·비교·집계·정렬·원본 펼침을 저장하고 최신 정상 데이터로 복원한다. BE55/FE28·타입/lint/build, Aside 저장/reload와 실제1440/390·키보드·새 세션·503 복구·실제 정의409/복구 PASS_SELECTED_VARIANTS. Rill URL reload와 비교했고 원본 요청56663800/이전29059200/126090행이 일치한다. 기존130개 집계 불변. Pivot·팀/URL 공유·실제 파일 게시 복원·MySQL 통합/VoiceOver BLOCKED는 후속, AI호출0/gpt-6-luna 유지. 미커밋 워크트리 작업이다. 아래 이전 기록의 탐색보기 저장 잔여는 이 선택 범위에서 보강됐다.

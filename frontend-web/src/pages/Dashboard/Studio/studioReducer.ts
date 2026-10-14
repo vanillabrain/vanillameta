@@ -158,8 +158,10 @@ export function remapStudioIds(state: StudioState, idMap: Record<string, string>
 }
 export function studioReducer(state: StudioState, action: StudioAction): StudioState {
   switch (action.type) {
-    case 'apply': {
-      const doc = applyStudioOperation(state.present, action.operation);
+    case 'apply':
+    case 'applyBatch': {
+      const operations = action.type === 'apply' ? [action.operation] : action.operations;
+      const doc = operations.reduce(applyStudioOperation, state.present);
       if (same(doc, state.present)) return state;
       return withPresent({ ...state, past: [...state.past, state.present].slice(-100), future: [] }, doc);
     }
