@@ -70,3 +70,14 @@ source4 원본연결은 현서버 암호화키와 달라 config백업/동일sour
 PIVOT-10 **PASS_SELECTED_VARIANTS** (2026-10-14): 기본요청제한120회/60초 유지·8클라이언트·실측181.4초·455요청중183성공201/272제한429. 성공183건 모두4개필터정답·지표/revision·50×12상한일치,500/전송실패/timeout0. 성공응답p95=595ms. RSS1초표본peak347.0MiB/종료45.9MiB, 장시간누수판정아님. 제한해제뒤정상복구201/154ms, 총복구관찰20.2초는15초idle포함. 실제1440px429 표없음/CSV차단→수정한요청제한안내·부하종료정상표/634513000/pageerror0/overflow0 캡처PASS. 일반오류만보이던429안내를명확히수정, 새선택단위1PASS(8skip)·FEtype/lint/build PASS.
 
 초기helper는429를503로가정해중단→기존보호동작을그대로반영해재실행. 이실행은rate limit에따른대기포함이며3분내내worker포화검증이아니다. 무제한worker지속포화·장시간soak·다중사용자/tenant·운영하드웨어·혼합write/import·multi-replica/crash NOT_RUN. 기존단발부하·통과UI/Rill전체반복없음. gpt-6-luna/VoiceOverBLOCKED 유지. 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/pivot-sustained-20261014/RESULTS.md`, `results.json`, `during-desktop.png`, `after-desktop.png`.
+
+
+## 2026-10-14 취소불가 응답·진행 중 필터 변경 후속
+
+기준 `6d88eb80`(drumcap으로 현재 워크트리 브랜치 커밋·push 완료). PIVOT-04 잔여 취소불가 transport 변형은 단위 수준에서 PASS_SELECTED_VARIANTS: 동일 shared pool에서 source3 요청을 취소 신호를 무시하는 Promise로 보류하고 source4/revision/지표3·4 조회를 완료한 뒤 이전 성공 또는 오류를 반환했다. 최신 전체합계123456789·CSV활성·오류없음·pool정리 유지. 실제 네트워크가 취소를 무시하는 환경까지 검증한 것은 아니다.
+
+CHART-FILTER-02: 공통 차트 조회 중 재선택 및 늦은 성공/오류. 단위 2조건 PASS: 첫 Mobile/Tablet 요청이 이미 제출된 뒤 true 추가 선택→최신42 표시→취소 무시 이전999/오류 도착해도42 유지. 기존 단위 재실행 대신 신규4개만 선택 실행(4 PASS/51 skipped). 최초 Pivot 검사 fixture가 열 없는 표의 숨겨진 전체합계를 찾고 정상 범위안내 alert를 오류로 오인해 실패했으며 검사 fixture/판정만 수정했다. 제품 오류/코드 수정 없음.
+
+실제 headed Chromium 1440×1000/390×844에서는 Rill source3/dashboard2 첫 Mobile/Tablet 실제 API 응답307763000을 route.fetch 후 보류→키보드 Space로 Personal Computer 추가→최종481071000·상세활성→이전 응답 해제 후 최신 결과 유지 PASS. 진행 중 옵션 선택 가능, Escape/Enter/Space 경로 및 문서overflow0, 포커스·레이블·테마·줄바꿈 캡처 확인. 브라우저의 이전 요청은 취소되므로 이 화면 검증을 취소불가 transport 증명으로 확대하지 않는다. 원본 파일/지표/대시보드 저장내용 변경 없음, 필터 초기화로 종료.
+
+증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/chart-inflight-20261014/`의 results.json, pending-1440.png, pending-390.png, final-1440.png, final-390.png, selected-tests.log. 기존 빌드 재사용(제품 변경 없음); FE 타입/변경 검사 lint 통과. 전체통과 MD 반복 없음. gpt-6-luna 설정 유지/호출0. VoiceOver BLOCKED·실기기touch·다중tenant/혼합write/import·장시간운영soak는 미검증 유지. 이번 후속 검사/기록은 미커밋.

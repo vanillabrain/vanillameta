@@ -331,3 +331,37 @@ it('cancels a scheduled filter query when unmounted', async () => {
   });
   expect(api.post.mock.calls.length).toBe(before);
 });
+
+it.each(['success', 'error'])(
+  'keeps the new source after an uncancellable old-source %s with a shared request pool',
+  async outcome => {
+    let finish: (value: any) => void = () => undefined;
+    let fail: (error: Error) => void = () => undefined;
+    api.post.mockImplementationOnce(
+      () =>
+        new Promise((resolve, reject) => {
+          finish = resolve;
+          fail = reject;
+        }),
+    );
+    const pool = new Map();
+    const p = { ...props(), requestPool: pool, axes: { rowDimensions: ['device_type'], columnDimensions: ['app_or_site'] } };
+    const mounted = render(<PivotTable {...p} />);
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
+    const oldSignal = api.post.mock.calls[0][2].signal;
+    api.post.mockResolvedValue(success({ ...sample, sourceRevision: 'source4-rev', grandTotals: ['123456789', null] }));
+    mounted.rerender(<PivotTable {...p} sourceId={4} sourceRevision="source4-rev" measureIds={[3, 4]} />);
+    await screen.findByLabelText('123456789');
+    expect(oldSignal.aborted).toBe(true);
+    expect(api.post.mock.calls.at(-1)[1]).toMatchObject({ sourceId: 4, sourceRevision: 'source4-rev', measureIds: [3, 4] });
+    await act(async () => {
+      if (outcome === 'success') finish(success({ ...sample, rows: [] }));
+      else fail(new Error('old source failure'));
+    });
+    expect(screen.getByLabelText('123456789')).toBeTruthy();
+    expect(screen.queryByText('old source failure')).toBeNull();
+    expect(screen.queryByText(/조건에 해당하는 원본 행/)).toBeNull();
+    expect((screen.getByRole('button', { name: 'Pivot CSV 내보내기' }) as HTMLButtonElement).disabled).toBe(false);
+    expect(pool.size).toBe(0);
+  },
+);

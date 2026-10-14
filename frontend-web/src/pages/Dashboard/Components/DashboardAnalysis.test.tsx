@@ -720,3 +720,32 @@ it('coalesces rapid filter edits and cancels scheduled previews on unmount', asy
   await new Promise(resolve => setTimeout(resolve, 300));
   expect(api.post.mock.calls.length).toBe(initial + 1);
 });
+
+it.each(['success', 'error'])('keeps the latest filter result after an uncancellable in-flight %s', async outcome => {
+  await mount();
+  let finish: (value: any) => void = () => undefined;
+  let fail: (error: Error) => void = () => undefined;
+  api.post.mockImplementationOnce(
+    () =>
+      new Promise((resolve, reject) => {
+        finish = resolve;
+        fail = reject;
+      }),
+  );
+  fireEvent.mouseDown(screen.getByRole('combobox', { name: 'device_type' }));
+  fireEvent.click(within(screen.getByRole('listbox')).getByRole('option', { name: 'Mobile/Tablet' }));
+  await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2));
+  const oldSignal = api.post.mock.calls[1][2].signal;
+  api.post.mockResolvedValue(response(preview(42)));
+  fireEvent.click(within(screen.getByRole('listbox')).getByRole('option', { name: 'true' }));
+  await screen.findByText('42');
+  expect(oldSignal.aborted).toBe(true);
+  await act(async () => {
+    if (outcome === 'success') finish(response(preview(999)));
+    else fail(new Error('old filter failure'));
+  });
+  expect(screen.getByText('42')).toBeTruthy();
+  expect(screen.queryByText('999')).toBeNull();
+  expect(screen.queryByRole('alert')).toBeNull();
+  expect(api.post.mock.calls.at(-1)[1].filters).toEqual([{ column: 'device_type', values: ['Mobile/Tablet', true] }]);
+});

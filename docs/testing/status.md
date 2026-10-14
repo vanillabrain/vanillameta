@@ -377,3 +377,24 @@ PIVOT-10 **PASS_SELECTED_VARIANTS** (2026-10-14): 기본요청제한120회/60초
 결과 PASS_SELECTED_VARIANTS: 데스크톱 204ms/모바일 172ms 두 변경 각각 1요청; 두 화면 정확한 합계 481071000, 독립 DuckDB Parquet 계산 일치. 초기화 복귀 및 화면 확인. 관련 단위 39 PASS, FE 타입/변경 파일 lint PASS. 이전 응답은 serial로 무시하고 cleanup에서 AbortController 및 대기 timer 취소. HTTP 취소는 서버 실행 중 SQL 중단 보장이 아님. 최초조회·기간·집계·명시적 새로고침은 즉시 실행; 차원 선택창 필터만 250ms 대기. 전체 Tab/VoiceOver/실기기 touch NOT_RUN 또는 기존 BLOCKED 유지. gpt-6-luna 설정 변경/호출 없음. 이미 완료한 기능 MD 반복 없음.
 증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/chart-filter-debounce-20261014/`의 results.json, oracle.json, chart-1440.png, chart-390.png. 일시 검증 스크립트는 저장소 밖 보관.
 이전 Pivot 최적화는 ed66a773 커밋·push, 이번 공통 차트 변경은 후속 작업으로 분리.
+
+
+## 2026-10-14 취소불가 응답·진행 중 필터 변경 후속
+
+기준 `6d88eb80`(drumcap으로 현재 워크트리 브랜치 커밋·push 완료). PIVOT-04 잔여 취소불가 transport 변형은 단위 수준에서 PASS_SELECTED_VARIANTS: 동일 shared pool에서 source3 요청을 취소 신호를 무시하는 Promise로 보류하고 source4/revision/지표3·4 조회를 완료한 뒤 이전 성공 또는 오류를 반환했다. 최신 전체합계123456789·CSV활성·오류없음·pool정리 유지. 실제 네트워크가 취소를 무시하는 환경까지 검증한 것은 아니다.
+
+CHART-FILTER-02: 공통 차트 조회 중 재선택 및 늦은 성공/오류. 단위 2조건 PASS: 첫 Mobile/Tablet 요청이 이미 제출된 뒤 true 추가 선택→최신42 표시→취소 무시 이전999/오류 도착해도42 유지. 기존 단위 재실행 대신 신규4개만 선택 실행(4 PASS/51 skipped). 최초 Pivot 검사 fixture가 열 없는 표의 숨겨진 전체합계를 찾고 정상 범위안내 alert를 오류로 오인해 실패했으며 검사 fixture/판정만 수정했다. 제품 오류/코드 수정 없음.
+
+실제 headed Chromium 1440×1000/390×844에서는 Rill source3/dashboard2 첫 Mobile/Tablet 실제 API 응답307763000을 route.fetch 후 보류→키보드 Space로 Personal Computer 추가→최종481071000·상세활성→이전 응답 해제 후 최신 결과 유지 PASS. 진행 중 옵션 선택 가능, Escape/Enter/Space 경로 및 문서overflow0, 포커스·레이블·테마·줄바꿈 캡처 확인. 브라우저의 이전 요청은 취소되므로 이 화면 검증을 취소불가 transport 증명으로 확대하지 않는다. 원본 파일/지표/대시보드 저장내용 변경 없음, 필터 초기화로 종료.
+
+증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/chart-inflight-20261014/`의 results.json, pending-1440.png, pending-390.png, final-1440.png, final-390.png, selected-tests.log. 기존 빌드 재사용(제품 변경 없음); FE 타입/변경 검사 lint 통과. 전체통과 MD 반복 없음. gpt-6-luna 설정 유지/호출0. VoiceOver BLOCKED·실기기touch·다중tenant/혼합write/import·장시간운영soak는 미검증 유지. 이번 후속 검사/기록은 미커밋.
+
+
+## DESIGN-DASH-01 — 대시보드 버튼·필터 룩앤필 (2026-10-14)
+
+사용자 제공 1440px 화면을 기준으로 공통 차트 분석 영역과 대시보드 헤더만 변경. 버튼 대문자 변환 제거, 8px 반경/13px 글꼴, 헤더36px·모바일40px, 아이콘36px 터치영역 통일. 보조 외곽선은 중립색, 공유/Assistant는 브랜드색으로 강조. 필터 칩은 12px·32px, 값 타입은 접근성 이름에 보존하고 화면에는 컬럼/값만 표시. 조회 상태는 보조 문구로 낮췄다. 기간 패널은 흰색 배경/헤더 구분선/정렬된 차원·날짜·집계 그룹으로 재배치하고 모바일은 한 열로 표시. 카드 원본 행 동작은 테두리 없는 보조 버튼으로 정리. 전역 테마·데이터·집계·AI 설정은 변경하지 않음.
+
+기대: 1440×1000/390×844, 필터 두 값의 긴 이름에서도 버튼/레이블이 사라지지 않음·문서overflow0·설정 접힘/펼침·키보드 Enter/Space/Escape 유지. 기존 토큰/브랜드색 안에서 버튼/입력/간격 계층을 정리.
+결과 PASS_SELECTED_VARIANTS: headed Chromium 1440/390 두 상태 캡처 직접 검토, 문서scrollWidth=viewport, 키보드 선택창 열기/닫기 PASS. Aside 기존 탭에서도 최신 DOM/명칭 확인. Aside 절대경로 캡처는 세션 디렉터리 제한으로 저장되지 않아 Chromium 캡처를 증빙으로 사용. 타입·변경 파일 lint·FE build·diffcheck PASS. 단순 스타일 변경이므로 기존 숫자/SQL/통과 전체 테스트 재실행하지 않음. 실제 VoiceOver/실기기 touch/전체Tab 미검증 또는 차단 유지. gpt-6-luna 유지/호출0.
+
+증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/dashboard-design-20261014/`의 updated-1440.png, updated-390.png(펼침), overview-1440.png, overview-390.png(접힘), results.json, build.log. 이전 화면은 chart-inflight-20261014/final-1440.png. 이번 디자인 수정과 MD는 미커밋. 앞선 미커밋 경합 검증 기록/테스트는 그대로 보존.

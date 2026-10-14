@@ -265,7 +265,21 @@ const DashboardView = () => {
             title={dashboardInfo.title}
             date={dateData(dashboardInfo.updatedAt)}
             button={
-              <>
+              <Box
+                sx={{
+                  display: 'contents',
+                  '& .MuiButton-root': {
+                    minHeight: { xs: 40, sm: 36 },
+                    borderRadius: '8px',
+                    textTransform: 'none',
+                    fontWeight: 500,
+                    fontSize: 13,
+                    boxShadow: 'none',
+                  },
+                  '& .MuiButton-outlined': { borderColor: '#d8e0eb', color: 'text.primary' },
+                  '& .MuiIconButton-root': { width: 36, height: 36, borderRadius: '8px', '&:hover': { bgcolor: '#edf3fb' } },
+                }}
+              >
                 <Box sx={{ display: { xs: 'none', sm: 'contents' } }}>
                   <Select
                     size="small"
@@ -273,7 +287,14 @@ const DashboardView = () => {
                     inputProps={{ 'aria-label': t('dashboard.autoRefresh') }}
                     value={refreshIntervalSec}
                     onChange={event => setRefreshIntervalSec(Number(event.target.value))}
-                    sx={{ height: '32px', mr: '8px', fontSize: '12px', backgroundColor: '#fff' }}
+                    sx={{
+                      height: '36px',
+                      mr: '8px',
+                      fontSize: '12px',
+                      backgroundColor: '#fff',
+                      borderRadius: '8px',
+                      '& fieldset': { borderColor: '#d8e0eb' },
+                    }}
                   >
                     <MenuItem value={0}>{t('dashboard.autoRefreshOff')}</MenuItem>
                     <MenuItem value={15}>{t('dashboard.sec15')}</MenuItem>
@@ -284,7 +305,7 @@ const DashboardView = () => {
                   <ReloadButton
                     aria-label={t('dashboard.refresh')}
                     size="medium"
-                    sx={{ marginRight: { sm: '14px', md: '24px' }, padding: 0 }}
+                    sx={{ marginRight: 0.5, padding: 1 }}
                     onClick={event => {
                       event.preventDefault();
                       event.stopPropagation();
@@ -294,14 +315,14 @@ const DashboardView = () => {
                   <ModifyButton
                     aria-label={t('dashboardModify.edit')}
                     size="medium"
-                    sx={{ marginRight: { sm: '14px', md: '24px' }, padding: 0 }}
+                    sx={{ marginRight: 0.5, padding: 1 }}
                     component={RouterLink}
                     to={`/dashboard/modify?id=${dashboardId}&name=${dashboardInfo.title}`}
                   />
                   <DeleteButton
                     aria-label={t('dashboard.delete')}
                     size="medium"
-                    sx={{ marginRight: { sm: '14px', md: '24px' }, padding: 0 }}
+                    sx={{ marginRight: 0.5, padding: 1 }}
                     onClick={event => {
                       event.preventDefault();
                       event.stopPropagation();
@@ -314,7 +335,7 @@ const DashboardView = () => {
                   size="small"
                   component={RouterLink}
                   to={`/dashboard/${dashboardId}/edit-charts`}
-                  sx={{ mr: 1, minHeight: 44, flexShrink: 0 }}
+                  sx={{ mr: 1, flexShrink: 0 }}
                 >
                   차트·배치 편집
                 </Button>
@@ -334,7 +355,7 @@ const DashboardView = () => {
                   shareLimitDate={shareLimitDate}
                   setShareLimitDate={setShareLimitDate}
                 />
-              </>
+              </Box>
             }
           >
             {insight && (

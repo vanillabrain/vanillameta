@@ -667,9 +667,39 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
       }`
     : '전체 기간';
   return (
-    <Box sx={{ p: { xs: 1.5, sm: 2.5 }, minWidth: 0 }}>
+    <Box
+      sx={{
+        p: { xs: 1.5, sm: 2.5 },
+        minWidth: 0,
+        '& .MuiButton-root': {
+          textTransform: 'none',
+          fontWeight: 500,
+          fontSize: 13,
+          minHeight: { xs: 40, sm: 36 },
+          borderRadius: '8px',
+          px: 1.5,
+          boxShadow: 'none',
+        },
+        '& .MuiButton-outlined': {
+          borderColor: '#d8e0eb',
+          color: 'text.primary',
+          bgcolor: 'background.paper',
+          '&:hover': { borderColor: 'primary.main', bgcolor: '#f3f7fc' },
+        },
+        '& .MuiButton-root[aria-disabled="true"]': { color: 'text.disabled', borderColor: 'divider', cursor: 'default' },
+        '& .MuiOutlinedInput-root': {
+          bgcolor: 'background.paper',
+          borderRadius: '8px',
+          fontSize: 13,
+          minHeight: 40,
+          '& fieldset': { borderColor: '#d8e0eb' },
+        },
+        '& .MuiInputLabel-root': { fontSize: 13 },
+        '& .MuiButton-root:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 2 },
+      }}
+    >
       <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 1, mb: 1.5, alignItems: 'center' }}>
-        <Typography sx={{ fontSize: 13, mr: 'auto', minWidth: 0, overflowWrap: 'anywhere' }}>
+        <Typography sx={{ fontSize: 13, color: 'text.secondary', flex: '1 1 100%', minWidth: 0, overflowWrap: 'anywhere' }}>
           {period} ·{' '}
           {active.length
             ? active.map(([column, values]) => `${column}: ${values.map(String).join(', ')}`).join(' · ')
@@ -678,7 +708,7 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
         <Button
           ref={periodRecovery}
           size="small"
-          variant="outlined"
+          variant="text"
           aria-disabled={periodRecoveryDisabled || !periodHistory.length}
           onClick={restorePeriod}
         >
@@ -717,13 +747,13 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
         <Button
           ref={assistantButton}
           size="small"
-          variant="outlined"
+          variant="contained"
           aria-expanded={editing}
           onClick={() => setEditing(value => !value)}
         >
           Assistant
         </Button>
-        <FormControl size="small" sx={{ minWidth: 160 }}>
+        <FormControl size="small" sx={{ minWidth: 150, ml: { sm: 'auto' } }}>
           <InputLabel id="number-notation">{t('settings.numberNotation')}</InputLabel>
           <Select
             labelId="number-notation"
@@ -748,26 +778,50 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
               variant="outlined"
               aria-disabled={selectionDisabled}
               aria-label={`${column}: ${categoryLabel(value)} 공통 필터 해제`}
-              sx={{ maxWidth: '100%', textAlign: 'left', overflowWrap: 'anywhere', borderRadius: 4 }}
+              sx={{
+                maxWidth: '100%',
+                textAlign: 'left',
+                overflowWrap: 'anywhere',
+                borderRadius: '6px !important',
+                bgcolor: '#edf3fb !important',
+                borderColor: '#d8e5f6 !important',
+                color: '#214c80 !important',
+                minHeight: '32px !important',
+                fontSize: '12px !important',
+              }}
               onClick={event => clearCategoryChip(event.currentTarget, column, value)}
             >
-              {column}: {categoryLabel(value)} ×
+              {column}: {value === null ? '값 없음' : String(value)} ×
             </Button>
           )),
         )}
       </Stack>
-      <Typography role="status" aria-live="polite" sx={{ fontSize: 13, mb: 1, overflowWrap: 'anywhere' }}>
+      <Typography
+        role="status"
+        aria-live="polite"
+        sx={{ fontSize: 12, color: 'text.secondary', mb: categoryNotice ? 1.5 : 0, overflowWrap: 'anywhere' }}
+      >
         {categoryNotice}
         {categoryNotice && (busy ? ' · 조회 중' : error ? ' · 조건 적용 실패' : ' · 조회 완료')}
       </Typography>
-      <Box component="details" sx={{ mb: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+      <Box
+        component="details"
+        sx={{
+          mb: 2,
+          border: '1px solid #e0e6ee',
+          bgcolor: 'background.paper',
+          borderRadius: '10px',
+          '&[open] > summary': { borderBottom: '1px solid #e8edf3' },
+        }}
+      >
         <Box
           component="summary"
           sx={{
             cursor: 'pointer',
             minHeight: 44,
             boxSizing: 'border-box',
-            p: 1.25,
+            px: 2,
+            py: 1.5,
             fontSize: 13,
             color: 'text.primary',
             overflowWrap: 'anywhere',
@@ -784,36 +838,44 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
             {unappliedDates ? ' · 날짜 입력 미적용' : ''}
           </Box>
         </Box>
-        <Box sx={{ p: { xs: 1.25, sm: 2 }, pt: 1 }}>
-          <FormControl size="small" sx={{ minWidth: 0, width: { xs: '100%', sm: 220 }, mb: 2 }}>
-            <InputLabel id="business-time-zone">업무 시간대</InputLabel>
-            <Select
-              labelId="business-time-zone"
-              label="업무 시간대"
-              value={dateDraft.timeZone ?? dateRange?.timeZone ?? 'UTC'}
-              disabled={busy || analysisLoading || editing || detailsOpen}
-              onChange={event => {
-                const timeZone = String(event.target.value);
-                setPeriodHistory([]);
-                setDateError('');
-                setDateDraft(value => ({ ...value, timeZone }));
-                if (relativePeriod) {
-                  const relative = { ...relativePeriod, timeZone };
-                  const range = resolveRelativePeriod(relative);
-                  setRelativePeriod(relative);
-                  setDateRange(range);
-                  setDateDraft(range);
-                } else if (dateRange) setDateRange({ ...dateRange, timeZone });
-              }}
-            >
-              <MenuItem value="UTC">UTC</MenuItem>
-              <MenuItem value="Asia/Seoul">한국 (Asia/Seoul)</MenuItem>
-              {dateDraft.timeZone && !['UTC', 'Asia/Seoul'].includes(dateDraft.timeZone) && (
-                <MenuItem value={dateDraft.timeZone}>{dateDraft.timeZone}</MenuItem>
-              )}
-            </Select>
-          </FormControl>
-          <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 1.5, mb: 2 }}>
+        <Box sx={{ p: { xs: 1.5, sm: 2 } }}>
+          <Stack
+            direction="row"
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: 'minmax(0, 1fr)', sm: 'repeat(3, minmax(0, 1fr))' },
+              gap: 2,
+              mb: 2.5,
+            }}
+          >
+            <FormControl size="small" sx={{ minWidth: 0 }}>
+              <InputLabel id="business-time-zone">업무 시간대</InputLabel>
+              <Select
+                labelId="business-time-zone"
+                label="업무 시간대"
+                value={dateDraft.timeZone ?? dateRange?.timeZone ?? 'UTC'}
+                disabled={busy || analysisLoading || editing || detailsOpen}
+                onChange={event => {
+                  const timeZone = String(event.target.value);
+                  setPeriodHistory([]);
+                  setDateError('');
+                  setDateDraft(value => ({ ...value, timeZone }));
+                  if (relativePeriod) {
+                    const relative = { ...relativePeriod, timeZone };
+                    const range = resolveRelativePeriod(relative);
+                    setRelativePeriod(relative);
+                    setDateRange(range);
+                    setDateDraft(range);
+                  } else if (dateRange) setDateRange({ ...dateRange, timeZone });
+                }}
+              >
+                <MenuItem value="UTC">UTC</MenuItem>
+                <MenuItem value="Asia/Seoul">한국 (Asia/Seoul)</MenuItem>
+                {dateDraft.timeZone && !['UTC', 'Asia/Seoul'].includes(dateDraft.timeZone) && (
+                  <MenuItem value={dateDraft.timeZone}>{dateDraft.timeZone}</MenuItem>
+                )}
+              </Select>
+            </FormControl>
             {dimensions.slice(0, 5).map((dimension: any) => {
               const selected = selectedValues(dimension.column);
               const options: FilterValue[] = Array.from(
@@ -822,11 +884,7 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
                 ).values(),
               ).slice(0, 50);
               return (
-                <FormControl
-                  key={dimension.column}
-                  size="small"
-                  sx={{ minWidth: 0, width: '100%', flex: '1 1 150px', maxWidth: { xs: '100%', sm: 250 } }}
-                >
+                <FormControl key={dimension.column} size="small" sx={{ minWidth: 0, width: '100%' }}>
                   <InputLabel shrink id={`filter-${dimension.column}`}>
                     {dimension.column}
                   </InputLabel>
@@ -875,6 +933,21 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
                 </FormControl>
               );
             })}
+          </Stack>
+          <Stack
+            direction="row"
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: 'minmax(0, 1fr)',
+                sm: 'repeat(2, minmax(0, 1fr))',
+                lg: '1.2fr 1.2fr auto 1fr auto',
+              },
+              gap: 1.5,
+              alignItems: 'center',
+              mb: 2.5,
+            }}
+          >
             {temporalColumns.length > 0 && (
               <>
                 {temporalColumns.length > 1 ? (
@@ -898,7 +971,9 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
                     </Select>
                   </FormControl>
                 ) : (
-                  <Typography>{temporalColumn} (UTC)</Typography>
+                  <Typography sx={{ gridColumn: '1 / -1', fontSize: 12, color: 'text.secondary' }}>
+                    날짜 기준 · {temporalColumn}
+                  </Typography>
                 )}
                 <TextField
                   label={`시작일 (${dateDraft.timeZone ?? 'UTC'})`}
@@ -926,7 +1001,7 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
                     setDateDraft(value => ({ ...value, end: e.target.value }));
                   }}
                 />
-                <Button onClick={applyDates} disabled={busy}>
+                <Button variant="outlined" onClick={applyDates} disabled={busy}>
                   적용
                 </Button>
                 <TextField
@@ -942,13 +1017,17 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
                   <MenuItem value={30}>최근 30일</MenuItem>
                   <MenuItem value={90}>최근 90일</MenuItem>
                 </TextField>
-                <Button disabled={busy || analysisLoading || !!error} onClick={applyRecent}>
+                <Button variant="outlined" disabled={busy || analysisLoading || !!error} onClick={applyRecent}>
                   최근 기간 적용
                 </Button>
               </>
             )}
           </Stack>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mb: 2, alignItems: { sm: 'center' } }}>
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={1}
+            sx={{ mb: 1, pt: 2, borderTop: '1px solid #e8edf3', alignItems: { sm: 'center' } }}
+          >
             <TextField
               select
               label="시계열 집계 단위"
@@ -974,8 +1053,8 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
               이전 기간 비교
             </Box>
           </Stack>
-          <Box component="details" sx={{ mb: 2 }}>
-            <Typography component="summary" sx={{ cursor: 'pointer', minHeight: 32 }}>
+          <Box component="details" sx={{ color: 'text.secondary', fontSize: 12 }}>
+            <Typography component="summary" sx={{ cursor: 'pointer', minHeight: 28, fontSize: 12 }}>
               집계·기간 비교 안내
             </Typography>
             <Typography variant="body2" sx={{ mt: 1 }}>
@@ -1148,11 +1227,17 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
                       if (button) contributionButtons.current.set(i, button);
                       else contributionButtons.current.delete(i);
                     }}
-                    variant="outlined"
+                    variant="text"
                     aria-label={`${widget.title} 집계 원본 행 보기`}
                     aria-disabled={!!contributionDisabled || !!contributionReason(widget)}
                     disabled={!!contributionReason(widget) || !draft.revision || !preview.sourceRevision}
-                    sx={{ minHeight: 44, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere' }}
+                    sx={{
+                      maxWidth: '100%',
+                      whiteSpace: 'normal',
+                      overflowWrap: 'anywhere',
+                      px: '0 !important',
+                      color: 'text.secondary',
+                    }}
                     onClick={event => openContribution(i, undefined, event.currentTarget)}
                   >
                     집계 원본 행 보기
