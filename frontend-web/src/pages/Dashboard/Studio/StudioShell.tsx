@@ -1,0 +1,377 @@
+import React from 'react';
+import { Alert, Button, Drawer, TextField, useMediaQuery } from '@mui/material';
+import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
+import TuneOutlined from '@mui/icons-material/TuneOutlined';
+import CloseOutlined from '@mui/icons-material/CloseOutlined';
+import ArrowForwardOutlined from '@mui/icons-material/ArrowForwardOutlined';
+import MetricTrend from '../Components/MetricTrend';
+import './studio.css';
+
+export type StudioDesignStage = 'start' | 'result' | 'settings' | 'publish';
+export type StudioDesignDocument = { title: string; source: string; period: string; blockTitle: string };
+type Props = {
+  document: StudioDesignDocument;
+  stage: StudioDesignStage;
+  panel: 'ai' | 'settings' | null;
+  status: 'ready' | 'loading' | 'error';
+  onStatusChange: (status: 'ready' | 'loading' | 'error') => void;
+  onStageChange: (stage: StudioDesignStage) => void;
+  onPanelChange: (panel: 'ai' | 'settings' | null) => void;
+  onBlockTitleChange: (title: string) => void;
+};
+const trend = (scale = 1) => ({
+  column: 'ordered_at',
+  grain: 'day',
+  timeZone: 'UTC',
+  points: [5.1, 6.4, 5.9, 8.2, 6.7, 7.3, 8.66].map((value, i) => ({
+    time: `2026-10-${String(i + 1).padStart(2, '0')}T00:00:00Z`,
+    value: Math.round(value * 1000000 * scale),
+  })),
+});
+const channels = [
+  { name: '자사몰', amount: '₩28,956,000', width: '60%' },
+  { name: '네이버', amount: '₩12,065,000', width: '25%' },
+  { name: '기타', amount: '₩7,239,000', width: '15%' },
+];
+
+export default function StudioShell({
+  document: doc,
+  stage,
+  panel,
+  onStageChange,
+  onPanelChange,
+  onBlockTitleChange,
+  status,
+  onStatusChange,
+}: Props) {
+  const start = stage === 'start';
+  const compact = useMediaQuery('(max-width:899px)');
+  const panelContent = (
+    <aside className="studio-panel" aria-label="Studio 보조 패널">
+      <div className="studio-panel-tabs" role="group" aria-label="패널 선택">
+        <Button aria-pressed={panel === 'ai'} onClick={() => onPanelChange('ai')} startIcon={<AutoAwesomeOutlined />}>
+          AI
+        </Button>
+        <Button aria-pressed={panel === 'settings'} onClick={() => onPanelChange('settings')} startIcon={<TuneOutlined />}>
+          블록 설정
+        </Button>
+        <Button className="studio-panel-close" aria-label="보조 패널 닫기" onClick={() => onPanelChange(null)}>
+          <CloseOutlined fontSize="small" />
+        </Button>
+      </div>
+      {panel === 'ai' ? (
+        <div className="studio-ai">
+          <div className="studio-ai-content">
+            <span className="studio-ai-avatar">
+              <AutoAwesomeOutlined fontSize="small" />
+            </span>
+            <h2>함께 다듬어 보세요</h2>
+            <p>
+              데이터와 현재 대시보드를 바탕으로
+              <br />
+              원하는 변경을 요청할 수 있습니다.
+            </p>
+            <div className="studio-context-card">
+              <span className="studio-eyebrow">현재 문맥</span>
+              <strong>{doc.source}</strong>
+              <span>총매출 · 환불액 · 순매출</span>
+              <span>{doc.period} · 모든 채널</span>
+            </div>
+            <div className="studio-suggestion">“환불액이 큰 채널을 보여 줘”</div>
+            <div className="studio-suggestion">“이 차트를 주간으로 바꿔 줘”</div>
+            <p className="studio-panel-note">
+              AI 연결 전의 배치 시안입니다.
+              <br />
+              실제 요청은 전송되지 않습니다.
+            </p>
+          </div>
+          <div className="studio-ai-composer">
+            <TextField
+              fullWidth
+              multiline
+              minRows={3}
+              label="AI에게 요청할 내용"
+              placeholder="변경하고 싶은 내용을 입력하세요"
+            />
+            <div>
+              <span>시안 · 전송 불가</span>
+              <Button disabled variant="contained">
+                전송
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="studio-inspector">
+          <span className="studio-eyebrow">선택한 블록</span>
+          <h2>{doc.blockTitle}</h2>
+          <p>차트의 내용과 표현을 이곳에서 조정합니다.</p>
+          <TextField
+            size="small"
+            label="블록 제목 · 시안에서만 변경"
+            value={doc.blockTitle}
+            onChange={e => onBlockTitleChange(e.target.value)}
+            inputProps={{ maxLength: 160 }}
+            fullWidth
+          />
+          <TextField size="small" label="지표" value="총매출" slotProps={{ input: { readOnly: true } }} fullWidth />
+          <TextField
+            size="small"
+            label="나눠 볼 기준"
+            value="주문일 · 일별"
+            slotProps={{ input: { readOnly: true } }}
+            fullWidth
+          />
+          <TextField size="small" label="표현" value="시계열 차트" slotProps={{ input: { readOnly: true } }} fullWidth />
+          <div className="studio-definition">
+            <b>계산 기준</b>
+            <code>SUM(order_amount)</code>
+            <span>단위 KRW · 주문일 기준 · UTC</span>
+          </div>
+          <div className="studio-inspector-actions">
+            <Button disabled variant="outlined">
+              블록 복제
+            </Button>
+            <Button disabled>블록 삭제</Button>
+          </div>
+          <p className="studio-panel-note">
+            선택·설정 패널의 디자인 시안입니다.
+            <br />
+            배치 편집·저장은 다음 구현 단계입니다.
+          </p>
+        </div>
+      )}
+    </aside>
+  );
+  return (
+    <div className="vm-studio">
+      <a className="studio-skip" href="#studio-main">
+        캔버스로 건너뛰기
+      </a>
+      <div className="studio-notice">
+        <span className="studio-dot" />
+        디자인 미리보기 <span>가상 데이터 · AI·저장·게시 연결 전</span>
+      </div>
+      <header className="studio-header">
+        <div className="studio-heading">
+          <span className="studio-brand">
+            vanilla<span>Meta</span>
+          </span>
+          <span className="studio-header-divider" />
+          <div>
+            <div className="studio-eyebrow">DASHBOARD STUDIO</div>
+            <h1>{start ? '새 대시보드' : doc.title}</h1>
+          </div>
+        </div>
+        <div className="studio-header-actions">
+          <span className="studio-draft">시안 · 저장되지 않음</span>
+          <Button disabled aria-label="되돌리기 · 후속 구현">
+            되돌리기
+          </Button>
+          <Button variant="outlined" disabled>
+            저장
+          </Button>
+          <Button variant="contained" disableElevation onClick={() => onStageChange('publish')}>
+            공유 미리보기
+          </Button>
+        </div>
+      </header>
+      <nav className="studio-scenarios" aria-label="디자인 상태">
+        <span>시안 보기</span>
+        {(
+          [
+            { id: 'start', label: '01 시작' },
+            { id: 'result', label: '02 생성 결과' },
+            { id: 'settings', label: '03 블록 설정' },
+            { id: 'publish', label: '04 공유' },
+          ] as const
+        ).map(item => (
+          <Button key={item.id} aria-pressed={stage === item.id} onClick={() => onStageChange(item.id)}>
+            {item.label}
+          </Button>
+        ))}
+        <label className="studio-status-select">
+          상태 시안{' '}
+          <select value={status} onChange={e => onStatusChange(e.target.value as 'ready' | 'loading' | 'error')}>
+            <option value="ready">정상</option>
+            <option value="loading">로딩</option>
+            <option value="error">오류</option>
+          </select>
+        </label>
+      </nav>
+      <div className={`studio-workspace ${panel && !start ? 'studio-has-panel' : ''}`}>
+        <main id="studio-main" tabIndex={-1}>
+          {start ? (
+            <section className="studio-welcome" aria-label="새 대시보드 시작">
+              <span className="studio-welcome-icon">
+                <AutoAwesomeOutlined />
+              </span>
+              <div className="studio-eyebrow">데이터에서 첫 인사이트까지</div>
+              <h2>
+                어떤 대시보드를
+                <br />
+                만들어 볼까요?
+              </h2>
+              <p>
+                데이터를 연결하고 필요한 내용을 설명해 주세요.
+                <br />
+                지표와 차트를 제안받고, 원하는 모습으로 다듬으세요.
+              </p>
+              <div className="studio-prompt">
+                <TextField
+                  fullWidth
+                  multiline
+                  minRows={3}
+                  label="만들고 싶은 대시보드"
+                  placeholder="예: 매출·환불과 채널별 현황을 한눈에 보여 줘"
+                />
+                <div className="studio-prompt-footer">
+                  <span>데이터 연결은 다음 단계에서 지원합니다</span>
+                  <Button disabled variant="contained">
+                    생성
+                  </Button>
+                </div>
+              </div>
+              <div className="studio-source-choices">
+                <Button disabled variant="outlined">
+                  파일 연결
+                </Button>
+                <Button disabled variant="outlined">
+                  기존 데이터 선택
+                </Button>
+                <Button variant="outlined" endIcon={<ArrowForwardOutlined />} onClick={() => onStageChange('result')}>
+                  매출·환불 샘플 시안
+                </Button>
+              </div>
+              <div className="studio-start-steps">
+                <span>
+                  <b>01</b> 데이터 연결
+                </span>
+                <span>
+                  <b>02</b> AI와 제작
+                </span>
+                <span>
+                  <b>03</b> 편집하고 공유
+                </span>
+              </div>
+            </section>
+          ) : (
+            <>
+              <div className="studio-context">
+                <div>
+                  <span className="studio-source-label">데이터</span>
+                  <strong>{doc.source}</strong>
+                  <span className="studio-source-meta">주문·환불 · 디자인용 샘플</span>
+                </div>
+                <Button variant="outlined" onClick={() => onPanelChange('ai')} startIcon={<AutoAwesomeOutlined />}>
+                  AI 열기
+                </Button>
+              </div>
+              {status === 'error' && (
+                <Alert severity="error" className="studio-status-banner">
+                  데이터 갱신 오류 안내 시안입니다. 기존 결과와 편집 내용은 보존하고 실패한 단계만 다시 시도합니다. 실제
+                  장애가 아닙니다.
+                </Alert>
+              )}
+              {status === 'loading' && (
+                <div role="status" className="studio-status-banner studio-loading">
+                  로딩 상태 시안 · 새 결과를 준비하는 동안 이전 내용을 유지합니다. 실제 요청은 실행하지 않습니다.
+                </div>
+              )}
+              <div className="studio-canvas-toolbar">
+                <div className="studio-filters">
+                  <span className="studio-filter-tag">{doc.period}</span>
+                  <span className="studio-filter-tag">모든 채널</span>
+                  <span className="studio-filter-tag">KRW</span>
+                </div>
+                <span>읽기 전용 시안</span>
+              </div>
+              <div className="studio-canvas">
+                <div className="studio-canvas-title">
+                  <div>
+                    <h2>매출·환불 한눈에 보기</h2>
+                    <p>성과를 확인하고, 변화가 생긴 채널을 살펴보세요.</p>
+                  </div>
+                  <span className="studio-live-label">가상 데이터</span>
+                </div>
+                <div className="studio-kpis">
+                  {[
+                    { title: '총매출', value: '₩48,260,000', hint: '주문 금액 합계', scale: 1 },
+                    { title: '환불액', value: '₩1,930,400', hint: '전체 환불 금액', scale: 0.04 },
+                    { title: '순매출', value: '₩46,329,600', hint: '총매출 − 환불액', scale: 0.96 },
+                  ].map(item => (
+                    <article className="studio-kpi studio-card" key={item.title}>
+                      <div className="studio-card-label">
+                        <h3>{item.title}</h3>
+                        <span>KRW</span>
+                      </div>
+                      <div className="studio-metric-value">{item.value}</div>
+                      <p>{item.hint}</p>
+                      <MetricTrend title={item.title} trend={trend(item.scale)} prefix="₩" numberNotation="compact" />
+                    </article>
+                  ))}
+                </div>
+                <div className="studio-charts">
+                  <section
+                    className={`studio-card studio-timeseries ${panel === 'settings' ? 'studio-card-selected' : ''}`}
+                    aria-label="일별 매출 추이 블록"
+                  >
+                    <div className="studio-card-label">
+                      <div>
+                        <h3>{doc.blockTitle}</h3>
+                        <p>2026.10.01 – 10.07 · UTC</p>
+                      </div>
+                      <Button
+                        className="studio-config-trigger"
+                        aria-label="일별 매출 블록 설정 미리보기"
+                        aria-expanded={panel === 'settings'}
+                        onClick={() => onStageChange('settings')}
+                        startIcon={<TuneOutlined />}
+                      >
+                        설정
+                      </Button>
+                    </div>
+                    <MetricTrend title="일별 매출" trend={trend()} prefix="₩" numberNotation="compact" />
+                  </section>
+                  <section className="studio-card studio-channel" aria-label="채널별 매출 블록">
+                    <div className="studio-card-label">
+                      <div>
+                        <h3>채널별 매출</h3>
+                        <p>총매출에서 차지하는 비중</p>
+                      </div>
+                    </div>
+                    <ul>
+                      {channels.map(row => (
+                        <li key={row.name}>
+                          <div>
+                            <span>{row.name}</span>
+                            <strong>{row.amount}</strong>
+                          </div>
+                          <div className="studio-bar-track">
+                            <span style={{ width: row.width }} />
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                </div>
+                <div className="studio-canvas-footnote">
+                  지표·계산과 데이터 출처를 확인할 수 있는 영역입니다. 현재 값은 디자인용이며 실제 집계 결과가 아닙니다.
+                </div>
+              </div>
+            </>
+          )}
+        </main>
+        {!start &&
+          panel &&
+          (compact ? (
+            <Drawer className="studio-panel-drawer" anchor="right" open onClose={() => onPanelChange(null)}>
+              <div className="vm-studio">{panelContent}</div>
+            </Drawer>
+          ) : (
+            panelContent
+          ))}
+      </div>
+    </div>
+  );
+}

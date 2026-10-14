@@ -29,10 +29,15 @@ const Explore = React.lazy(() => import('@/pages/Explore'));
 const SourceExplore = React.lazy(() => import('@/pages/Explore/SourceExplore'));
 const Commerce = React.lazy(() => import('@/pages/Commerce'));
 
+const StudioDesignPreview = import.meta.env.DEV
+  ? React.lazy(() => import('@/pages/Dashboard/Studio/StudioDesignPreview'))
+  : null;
+
 function Router() {
   return (
     <Suspense fallback={null}>
       <Routes>
+        {import.meta.env.DEV && <Route path="/_design/studio" element={<StudioDesignPreview />} />}
         <Route
           path="/"
           element={

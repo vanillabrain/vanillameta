@@ -630,3 +630,7 @@ MySQL·다중 서버/tenant·강제 스키마 변경·실기기/전체 키보드
 ## 2026-10-14 develop-v2 통합 검증
 
 `90dbfd71`과 `7bc1220d`를 통합하고 전체 단위 검사(backend 1,361 / frontend 822), 서버·웹 빌드, FE 타입 검사, 영향 범위 headed 탐색·Pivot E2E 1개를 통과했다. 상세 결정과 제한은 [통합 기록](develop-v2-integration-20261014.md)을 참조한다. gpt-6-luna와 VoiceOver BLOCKED는 유지한다.
+
+## 2026-10-15 Studio T1 디자인 시안
+
+개발 전용 합성 데이터 시안의 시작·결과·블록 설정·공유 미리보기를 1440/768/390px로 확인했다. 모바일 상태 버튼 간격·패널 기본 열림을 수정하고 키보드 복귀를 검증했다. 기능은 시안 전환/로컬 입력만 PASS_SELECTED이며 실제 AI/저장/게시/복제는 NOT_RUN이다. 상세·캡처·제한: [Studio MD](dashboard-studio.md). gpt-6-luna/VoiceOver BLOCKED 유지.
