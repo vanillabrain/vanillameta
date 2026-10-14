@@ -143,3 +143,18 @@ VanillaMeta는 소스/사용자별 이름을 붙인 조건을 metadata에 저장
 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/view-limit-ui-20261014/`: results.json, fixture.json, limit-1440.png/limit-390.png, restored-20-long-name-390.png, aside-initial.txt, cleanup.json. 임시 소스/보기 API 삭제·지표 soft-delete 후 DB에서 temporarySources/Views/activeTemporaryMetrics=0, 기존 source3/view1 보존을 확인했다. gpt-6-luna 설정/VoiceOver BLOCKED 유지, AI 호출0.
 
 20개 단일 서버 UI 경계와 삭제 후 복구만 완료했다. MySQL·다중 서버 동시성, 실제 VoiceOver·실기기 터치/전체 키보드 조합 및 강제 스키마 변경 조건은 미검증으로 유지한다.
+
+
+## 2026-10-14 EXP-VIEW-04·06·07 — 다른 소스 ID·외부 삭제 404 후속
+
+복원 완료 안내 수정과 앞선 VERSION-06·07 기록을 `fb51a1de`로 현재 `codex/self-service-next-20261014` 브랜치에 drumcap 계정으로 커밋·push하고 원격 일치를 확인했다. 이번 실행은 제품 변경 없이 아직 실제 HTTP/화면으로 확인하지 않았던 다른 소스 ID와 없는 보기404 조건만 진행했다.
+
+**PASS_SELECTED_VARIANTS**: 임시 CSV 소스A(1행500)/B(1행700), 각 SUM 지표·개인 보기를 준비했다. 같은 소유자의 A경로/B보기와 B경로/A보기에 각각 GET·DELETE를 보내 실제 HTTP4조건 모두404를 확인했다. 원래 소스에서 해당 보기를 다시 GET200해 state 불변과 A목록3개/B목록1개 유지도 확인했다. 이 검증은 다른 계정403/공유토큰 조건을 반복한 것이 아니다.
+
+실제 headed Chromium1440×1000/390×844에서 A 저장 보기 목록을 연 뒤 별도 API 삭제로 다른 창에서 삭제된 상황을 재현했다. 목록에 남은 보기 Enter 불러오기→GET404·‘탐색 저장 보기를 찾을 수 없습니다’ 안내, 현재 합계500 보존. Enter 목록 재조회→삭제된 행/오류 제거·정상 보기 활성화, A/B의 정상 보기 state 보존·모바일/데스크톱 문서 overflow0 PASS. 일반 정상 저장·정의409·CSV내보내기는 재실행하지 않았다. 오류/복구/현재조건 화면의 레이블·줄바꿈·버튼/패널 배치를 캡처로 직접 검토했다. 외부 삭제는 두 번째 브라우저의 클릭이 아니라 정상 DELETE API이며, 실제 스크린리더 발화나 실기기 터치까지 확인한 것은 아니다.
+
+제품 결함·수정0, 관련 단위/타입/lint/build의 기존 통과 결과를 재사용하고 문서 diff check만 추가했다. 최초 helper는 합계500과 행/시계열의 같은 값까지 함께 찾아 strict locator 오류가 났다. 실제 DOM에서 관찰한 KPI의 p[aria-label="500"]로 범위를 제한해 재검증했다. 해당 실패는 제품 오류로 세지 않았다. Aside 기존 탭의 로그인 화면 확인 후 기존 허용된 별도 headed 브라우저에서 정상 로그인/대표 뷰포트 검증을 수행했으며 Aside PASS로 표시하지 않았다.
+
+증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/view-cross-source-404-20261014/`: results.json(HTTP4조건/화면2조건), missing-view-1440.png/missing-view-390.png, list-recovered-1440.png/list-recovered-390.png, conditions-preserved-1440.png/conditions-preserved-390.png, cleanup.json. 생성 source30~33/보기만 API 삭제·지표 soft-delete 후 DB temporarySources/Views/activeTemporaryMetrics=0, 기존 source3/view1 보존을 확인했다. 인증정보 출력/기록 없음.
+
+MySQL·다중 서버/tenant·강제 스키마 변경·실기기/전체 키보드 조건은 미검증 유지. gpt-6-luna 설정과 VoiceOver BLOCKED 유지/AI 호출0. 전체130개 카탈로그 완료 집계는 확대하지 않는다.
