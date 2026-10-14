@@ -60,3 +60,12 @@ PIVOT-DASH-02/04 잔여 경고 변형: 기본bid_floor + 공통5컬럼=6개, 저
 **PASS_SELECTED_VARIANTS**: UI동일Pivot2개추가해3카드,1440/390에서App열Enter→초기화Enter(327/211ms)·Pivot추가요청각1회/최종App없음·모든카드56663800 exact. 데스크톱은250ms초과지만공통조회pause가중간예약취소; 모바일은250ms내. 신규단위빠른Mobile→Tablet최종1조회/대기표·CSV차단/unmount예약취소 PASS. 관련Pivot+DashboardAnalysis50PASS·FEtype/lint/build PASS. 모바일overflow0/캡처레이아웃/폰트/표내스크롤확인. 생성카드정확ID정리·원카드보존.
 
 공통AIpreview·독립Explore조회는변경없음(전체요청최적화로확대않음). 기존마지막제출필터로복귀시즉시조회; 다른필터변경은250ms대기. FullTab·실기기/VoiceOverNOT_RUN/BLOCKED. gpt-6-luna유지/호출0. 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/pivot-filter-debounce-20261014/RESULTS.md`, `rapid-results.json`, `after-results.json`, `rapid-1440.png`, `rapid-390.png`. 이번후속변경미커밋,이전중복조회3d8c3a87커밋/push완료.
+
+
+## CHART-FILTER-01 — 공통 차트 연속 필터 최종 조회 (2026-10-14)
+
+입력: dashboard/2, Rill auction_data 1,391,572행, 전체 기간에서 device_type Mobile/Tablet → Personal Computer를 250ms 이내 추가 선택. 1440×1000 및 390×844에서 Enter로 선택창 열기, Space로 두 옵션 선택, Escape로 닫기, Enter로 초기화.
+기대: /ai/dashboard-preview는 최종 두 값을 담은 1건만 전송, 원본 합계 481,071,000(307,763,000 + 173,308,000), 조회 중 선택창은 계속 사용 가능하고 이전 차트의 상세 탐색은 차단. 페이지 가로 넘침 없음, 포커스 표시 유지.
+결과 PASS_SELECTED_VARIANTS: 데스크톱 204ms/모바일 172ms 두 변경 각각 1요청; 두 화면 정확한 합계 481071000, 독립 DuckDB Parquet 계산 일치. 초기화 복귀 및 화면 확인. 관련 단위 39 PASS, FE 타입/변경 파일 lint PASS. 이전 응답은 serial로 무시하고 cleanup에서 AbortController 및 대기 timer 취소. HTTP 취소는 서버 실행 중 SQL 중단 보장이 아님. 최초조회·기간·집계·명시적 새로고침은 즉시 실행; 차원 선택창 필터만 250ms 대기. 전체 Tab/VoiceOver/실기기 touch NOT_RUN 또는 기존 BLOCKED 유지. gpt-6-luna 설정 변경/호출 없음. 이미 완료한 기능 MD 반복 없음.
+증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/chart-filter-debounce-20261014/`의 results.json, oracle.json, chart-1440.png, chart-390.png. 일시 검증 스크립트는 저장소 밖 보관.
+이전 Pivot 최적화는 ed66a773 커밋·push, 이번 공통 차트 변경은 후속 작업으로 분리.

@@ -701,3 +701,22 @@ it('starts with only the applied summary visible without changing the query', as
   expect(screen.getByText('개인 저장 보기').closest('details')?.open).toBe(false);
   expect(api.post.mock.calls[0][1]).toMatchObject({ filters: [], comparePrevious: false });
 });
+
+it('coalesces rapid filter edits and cancels scheduled previews on unmount', async () => {
+  const mounted = await mount();
+  const initial = api.post.mock.calls.length;
+  fireEvent.mouseDown(screen.getByRole('combobox', { name: 'device_type' }));
+  const menu = screen.getByRole('listbox');
+  fireEvent.click(within(menu).getByRole('option', { name: 'Mobile/Tablet' }));
+  expect((screen.getByRole('combobox', { name: 'device_type' }) as HTMLButtonElement).disabled).toBe(false);
+  fireEvent.click(within(menu).getByRole('option', { name: 'true' }));
+  expect(api.post.mock.calls.length).toBe(initial);
+  await idle();
+  expect(api.post.mock.calls.length).toBe(initial + 1);
+  expect(api.post.mock.calls.at(-1)?.[1].filters).toEqual([{ column: 'device_type', values: ['Mobile/Tablet', true] }]);
+  expect(api.post.mock.calls[0][2].signal.aborted).toBe(true);
+  fireEvent.click(within(menu).getByRole('option', { name: 'true' }));
+  mounted.unmount();
+  await new Promise(resolve => setTimeout(resolve, 300));
+  expect(api.post.mock.calls.length).toBe(initial + 1);
+});

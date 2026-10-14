@@ -104,6 +104,7 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
   const assistantButton = useRef<HTMLButtonElement>(null);
   const serial = useRef(0);
   const completedPreview = useRef(0);
+  const submittedPreview = useRef<{ filters: string; context: string } | null>(null);
   const pendingFocusIntent = useRef<{
     dashboardId: unknown;
     filters: string;
@@ -168,6 +169,12 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
   useEffect(() => {
     onAssistantOpenChange?.(editing);
   }, [editing, onAssistantOpenChange]);
+  const previewFilterKey = JSON.stringify(
+    Object.entries(filters)
+      .filter(([, values]) => values.length)
+      .slice(0, 5)
+      .map(([column, values]) => ({ column, values: values.slice(0, 50) })),
+  );
   useEffect(() => {
     if (
       !draft ||
@@ -180,41 +187,57 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
     const request = serial.current;
     setBusy(true);
     setError('');
-    post(
-      '/ai/dashboard-preview',
-      {
-        draft,
-        dashboardId: Number(dashboardId),
-        includeTrends: true,
-        trendGrain,
-        comparePrevious: comparePrevious && !!dateRange,
-        filters: Object.entries(filters)
-          .filter(([, values]) => values.length)
-          .slice(0, 5)
-          .map(([column, values]) => ({ column, values: values.slice(0, 50) })),
-        ...(dateRange ? { dateRange } : {}),
-      },
-      { timeout: 60000 },
-    )
-      .then(response => {
-        if (request !== serial.current) return;
-        if (response.data.status !== 'SUCCESS') throw new Error(response.data.message || '필터 조회 실패');
-        completedPreview.current = request;
-        setPreview(response.data.data);
-      })
-      .catch(e => {
-        if (request !== serial.current) return;
-        setError(e.response?.data?.message || e.message || '필터 조회 실패');
-      })
-      .finally(() => {
-        if (request === serial.current) setBusy(false);
-      });
+    const controller = new AbortController();
+    const context = JSON.stringify([
+      dashboardId,
+      draft,
+      dateRange,
+      trendGrain,
+      comparePrevious,
+      previewRefresh,
+      analysisRefresh,
+    ]);
+    const delay =
+      submittedPreview.current?.context === context && submittedPreview.current.filters !== previewFilterKey ? 250 : 0;
+    const run = () => {
+      submittedPreview.current = { context, filters: previewFilterKey };
+      post(
+        '/ai/dashboard-preview',
+        {
+          draft,
+          dashboardId: Number(dashboardId),
+          includeTrends: true,
+          trendGrain,
+          comparePrevious: comparePrevious && !!dateRange,
+          filters: JSON.parse(previewFilterKey),
+          ...(dateRange ? { dateRange } : {}),
+        },
+        { timeout: 60000, signal: controller.signal },
+      )
+        .then(response => {
+          if (request !== serial.current) return;
+          if (response.data.status !== 'SUCCESS') throw new Error(response.data.message || '필터 조회 실패');
+          completedPreview.current = request;
+          setPreview(response.data.data);
+        })
+        .catch(e => {
+          if (request !== serial.current || controller.signal.aborted) return;
+          setError(e.response?.data?.message || e.message || '필터 조회 실패');
+        })
+        .finally(() => {
+          if (request === serial.current) setBusy(false);
+        });
+    };
+    const timer = delay ? setTimeout(run, delay) : undefined;
+    if (!delay) run();
     return () => {
       serial.current += 1;
+      clearTimeout(timer);
+      controller.abort();
     };
   }, [
     draft,
-    filters,
+    previewFilterKey,
     dateRange,
     dashboardId,
     trendGrain,
@@ -223,6 +246,7 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
     analysisLoading,
     analysisRefresh,
   ]);
+
   useEffect(() => () => pendingFocusIntent.current?.cancel(), []);
   useEffect(() => () => pendingTimeFocus.current?.cancel(), []);
   useEffect(() => {
@@ -507,8 +531,8 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
     value === null
       ? '값 없음 (NULL)'
       : `${String(value)} (${typeof value === 'number' ? '숫자' : typeof value === 'boolean' ? '불리언' : '문자열'})`;
-  const applyColumnValues = (column: string, values: FilterValue[], notice: string) => {
-    if (selectionDisabled) return;
+  const applyColumnValues = (column: string, values: FilterValue[], notice: string, allowPending = false) => {
+    if (analysisLoading || !!error || !!dateError || (busy && !allowPending)) return;
     if (values.length > 50) {
       setCategoryNotice('한 컬럼에서 최대 50개 값까지 선택할 수 있습니다. 기존 값을 해제해 주세요.');
       return;
@@ -812,7 +836,7 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
                     label={dimension.column}
                     notched
                     value={selected.map(valueKey)}
-                    disabled={selectionDisabled}
+                    disabled={analysisLoading || !!error || !!dateError}
                     displayEmpty
                     renderValue={() => (
                       <Box
@@ -829,6 +853,7 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
                         dimension.column,
                         keys.map(key => JSON.parse(decodeURIComponent(key)) as FilterValue),
                         `공통 필터 변경: ${dimension.column}`,
+                        true,
                       );
                     }}
                   >
