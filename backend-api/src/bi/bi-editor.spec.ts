@@ -259,7 +259,7 @@ describe('BiService dashboard editor boundaries', () => {
         },
       ],
     });
-    expect(await service.editorPreview(dashboardId, request, actor)).toEqual({
+    expect(await service.editorPreview(dashboardId, request, actor)).toMatchObject({
       widgets: [{ rows: [{ value: 150 }] }],
     });
     expect(dashboards.preview).toHaveBeenCalledWith(

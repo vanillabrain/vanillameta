@@ -1,3 +1,4 @@
+import { responsiveBlockStyle } from '../responsiveBlockStyle';
 import DashboardPivots from './DashboardPivots';
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -1141,10 +1142,16 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
           sx={{
             display: 'grid',
             gridTemplateColumns: {
-              xs: 'minmax(0, 1fr)',
-              md: draft?.blockLayouts ? 'repeat(12, minmax(0, 1fr))' : 'repeat(2, minmax(0, 1fr))',
+              xs: draft?.responsiveLayouts ? 'repeat(4, minmax(0, 1fr))' : 'minmax(0, 1fr)',
+              sm: draft?.responsiveLayouts ? 'repeat(8, minmax(0, 1fr))' : undefined,
+              md:
+                draft?.responsiveLayouts || draft?.blockLayouts ? 'repeat(12, minmax(0, 1fr))' : 'repeat(2, minmax(0, 1fr))',
             },
-            gridAutoRows: draft?.blockLayouts ? { md: 'minmax(80px, auto)' } : undefined,
+            gridAutoRows: draft?.responsiveLayouts
+              ? 'minmax(80px, auto)'
+              : draft?.blockLayouts
+              ? { md: 'minmax(80px, auto)' }
+              : undefined,
             gap: 2,
             opacity: busy || error ? 0.4 : 1,
             pointerEvents: busy || error ? 'none' : 'auto',
@@ -1183,6 +1190,7 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
                   : widget.type === 'BOARD_NUMERIC'
                   ? 'auto'
                   : '1 / -1',
+                ...responsiveBlockStyle(draft?.responsiveLayouts, draft?.widgets?.[i]?.blockId),
                 border: '1px solid',
                 borderColor: 'divider',
                 borderRadius: 2,

@@ -230,6 +230,30 @@ const aiResult = () => ({
   },
   preview: preview(),
 });
+it('edits independent screen layouts and restores coordinates through undo', async () => {
+  api.get.mockResolvedValueOnce(
+    success({
+      ...editor,
+      items: [
+        {
+          ...item,
+          layouts: {
+            mobile: { x: 0, y: 0, w: 4, h: 3 },
+            tablet: { x: 0, y: 0, w: 4, h: 3 },
+            desktop: { x: 0, y: 0, w: 6, h: 3 },
+          },
+        },
+      ],
+    }),
+  );
+  await mount();
+  fireEvent.click(within(screen.getByRole('radiogroup', { name: '편집할 화면 폭' })).getByLabelText('모바일'));
+  fireEvent.change(screen.getByLabelText('1번 차트 모바일 세로 위치'), { target: { value: '5' } });
+  await requestPreview();
+  expect(api.post.mock.calls[0][1].items[0].layouts).toMatchObject({ mobile: { y: 5 }, desktop: { y: 0 } });
+  fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
+  expect((screen.getByLabelText('1번 차트 모바일 세로 위치') as HTMLInputElement).value).toBe('0');
+});
 it('applies AI to the unsaved draft and shares undo/redo and save transport with direct edits', async () => {
   await mount();
   fireEvent.change(screen.getByLabelText('대시보드 제목'), { target: { value: '미저장 제목' } });

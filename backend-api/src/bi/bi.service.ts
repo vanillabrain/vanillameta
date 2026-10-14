@@ -9,6 +9,7 @@ import { ConnectionService } from '../connection/connection.service';
 import { AiDashboardService } from '../ai/ai-dashboard.service';
 import { metricFields, metricExpression } from './metric-expression';
 import { quoteColumn, sourceQuery, validateDraft } from '../ai/dashboard-draft';
+import { validateBlockLayouts, responsiveLayouts } from '../ai/responsive-layout';
 
 @Injectable()
 export class BiService {
@@ -301,6 +302,16 @@ export class BiService {
         height:
           sizes?.height ??
           ([3, 5, 7].includes(layout[index]?.h) ? layout[index].h : chart === 'number' ? 3 : 5),
+        ...(analysis.responsiveLayouts
+          ? {
+              layouts: Object.fromEntries(
+                Object.entries(analysis.responsiveLayouts).map(([name, values]: [string, any]) => [
+                  name,
+                  values[widget.blockId],
+                ]),
+              ),
+            }
+          : {}),
       };
     });
     return {
@@ -352,6 +363,7 @@ export class BiService {
       )
         throw new BadRequestException('차트 식별자를 확인해 주세요.');
       keys.add(item.key);
+      if (item.layouts !== undefined) validateBlockLayouts(item.layouts);
       const originalIndex = state.items.findIndex(original => original.key === item.key);
       const originalItem = state.items[originalIndex];
       if (originalItem && item.width === originalItem.width && item.height === originalItem.height)
@@ -461,17 +473,39 @@ export class BiService {
       dataVersion: state.profile.dataVersion,
       items: snapshots,
     };
+    let bottom = Math.max(
+      0,
+      ...Object.values(state.analysis.blockLayouts || {}).map((g: any) => g.y + g.h),
+    );
+    const desktop = body.items.map(item => {
+      const previous = state.analysis.blockLayouts?.[item.key];
+      if (previous) return previous;
+      const rect = { x: 0, y: bottom, w: item.width, h: item.height };
+      bottom += rect.h;
+      return rect;
+    });
+    const layouts = responsiveLayouts(
+      body.items.map(item => item.key),
+      desktop,
+      state.analysis.responsiveLayouts,
+      body.items.map(item => item.layouts),
+    );
     return {
       draft,
       snapshot,
       dashboardId: state.dashboardId,
       expectedRevision: body.expectedRevision,
       preserveSizeIds,
+      layoutEdits: body.items.map(item => item.layouts),
+      layouts,
     };
   }
   async editorPreview(id: unknown, body: any, actor: number) {
-    const { draft } = await this.compileEditor(id, body, actor);
-    return (await this.dashboards.preview({ draft, includeTrends: true }, actor)).data;
+    const { draft, layouts } = await this.compileEditor(id, body, actor);
+    return {
+      ...(await this.dashboards.preview({ draft, includeTrends: true }, actor)).data,
+      responsiveLayouts: layouts,
+    };
   }
   async editorAi(id: unknown, body: any, actor: number, signal?: AbortSignal) {
     const compiled = await this.compileEditor(id, body, actor);
@@ -522,10 +556,10 @@ export class BiService {
     const preview = (
       await this.dashboards.preview({ draft: next.draft, includeTrends: true }, actor)
     ).data;
-    return { item, preview };
+    return { item, preview: { ...preview, responsiveLayouts: next.layouts } };
   }
   async saveEditor(id: unknown, body: any, actor: number) {
-    const { draft, snapshot, dashboardId, expectedRevision, preserveSizeIds } =
+    const { draft, snapshot, dashboardId, expectedRevision, preserveSizeIds, layoutEdits } =
       await this.compileEditor(id, body, actor);
     return (
       await this.dashboards.save(
@@ -536,6 +570,7 @@ export class BiService {
         undefined,
         false,
         preserveSizeIds,
+        layoutEdits,
       )
     ).data;
   }

@@ -35,9 +35,13 @@ type Metric = {
   label: string;
   definition: { unit: string; decimalPlaces: number; numberNotation: 'plain' | 'compact' };
 };
+type Rect = { x: number; y: number; w: number; h: number };
+type LayoutMode = 'mobile' | 'tablet' | 'desktop';
+const columns = { mobile: 4, tablet: 8, desktop: 12 };
 type Item = {
   key: string;
   copyOf?: string;
+  layouts?: Partial<Record<LayoutMode, Rect>>;
   kind: 'metric' | 'existing' | 'draft';
   definition?: {
     title: string;
@@ -85,7 +89,7 @@ type PreviewWidget = {
   numberNotation: string;
   datas: Record<string, unknown>[];
 };
-type Preview = { widgets: PreviewWidget[] };
+type Preview = { widgets: PreviewWidget[]; responsiveLayouts?: Record<LayoutMode, Record<string, Rect>> };
 const unwrap = <T,>(response: { data: { status: string; data: T } }): T => {
   if (response.data.status !== 'SUCCESS' || !response.data.data) throw new Error('Invalid response');
   return response.data.data;
@@ -164,6 +168,9 @@ function DashboardEditContent() {
   const [newMetricId, setNewMetricId] = useState('');
   const [selectedKey, setSelectedKey] = useState('');
   const [aiPrompt, setAiPrompt] = useState('');
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>(() =>
+    window.matchMedia?.('(max-width: 599px)').matches ? 'mobile' : 'desktop',
+  );
   const [preview, setPreview] = useState<Preview | null>(null);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
@@ -281,6 +288,7 @@ function DashboardEditContent() {
     const copy = {
       ...original,
       key,
+      layouts: undefined,
       title: original.title.slice(0, 296) + ' 복사',
       ...(original.kind === 'existing' ? { copyOf: original.copyOf ?? original.key } : {}),
     };
@@ -292,7 +300,27 @@ function DashboardEditContent() {
     if (pending.current) return;
     change(
       title,
-      items.map(item => (item.key === key ? { ...item, ...changes } : item)),
+      items.map(item =>
+        item.key === key
+          ? {
+              ...item,
+              ...changes,
+              ...(item.layouts?.desktop && (changes.width !== undefined || changes.height !== undefined)
+                ? {
+                    layouts: {
+                      ...item.layouts,
+                      desktop: {
+                        ...item.layouts.desktop,
+                        x: Math.min(item.layouts.desktop.x, 12 - (changes.width ?? item.layouts.desktop.w)),
+                        w: changes.width ?? item.layouts.desktop.w,
+                        h: changes.height ?? item.layouts.desktop.h,
+                      },
+                    },
+                  }
+                : {}),
+            }
+          : item,
+      ),
     );
   };
   const selectMetric = (key: string, metricId: string) => {
@@ -363,6 +391,7 @@ function DashboardEditContent() {
     items: items.map(item => ({
       key: item.key,
       kind: item.kind,
+      ...(item.layouts ? { layouts: item.layouts } : {}),
       ...(item.kind === 'draft' ? { definition: item.definition } : {}),
       ...(item.copyOf ? { copyOf: item.copyOf } : {}),
       title: item.title.trim(),
@@ -480,7 +509,12 @@ function DashboardEditContent() {
           '다른 변경이 저장되어 최신 상태와 충돌했습니다.' +
             ' 현재 편집 내용은 유지됩니다. 최신 내용을 다시 불러온 뒤 편집해 주세요.',
         );
-      } else
+      } else if (
+        typeof (failure as any)?.response?.data?.message === 'string' &&
+        (failure as any).response.data.message.startsWith('블록 배치')
+      )
+        setError((failure as any).response.data.message);
+      else
         setError(
           save
             ? '저장하지 못했습니다. 편집 내용은 유지됩니다. 연결 상태를 확인하고 저장을 다시 시도해 주세요.'
@@ -534,6 +568,19 @@ function DashboardEditContent() {
           <Alert severity="info" sx={{ my: 2 }}>
             데이터 소스: {editor.profile.name} · 이 대시보드의 데이터 소스는 변경할 수 없습니다.
           </Alert>
+          <Box sx={{ my: 2 }}>
+            <Choice
+              id="layout-mode"
+              label="편집할 화면 폭"
+              value={layoutMode}
+              options={[
+                ['mobile', '모바일'],
+                ['tablet', '태블릿'],
+                ['desktop', '데스크톱'],
+              ]}
+              onChange={value => setLayoutMode(value as LayoutMode)}
+            />
+          </Box>
           <Box component="section" aria-label="AI 블록 편집" sx={{ my: 2, minWidth: 0 }}>
             <Typography sx={{ mb: 1, fontSize: 13, overflowWrap: 'anywhere' }}>
               {items.find(item => item.key === selectedKey)?.title
@@ -699,29 +746,74 @@ function DashboardEditContent() {
                           ]}
                           onChange={value => patch(item.key, { numberNotation: value as Item['numberNotation'] })}
                         />
-                        <Choice
-                          disabled={!!busy}
-                          id={`width-${item.key}`}
-                          label={`${label} 너비`}
-                          value={String(item.width)}
-                          options={[
-                            ['6', '절반'],
-                            ['12', '전체'],
-                          ]}
-                          onChange={value => patch(item.key, { width: Number(value) as Item['width'] })}
-                        />
-                        <Choice
-                          disabled={!!busy}
-                          id={`height-${item.key}`}
-                          label={`${label} 높이`}
-                          value={String(item.height)}
-                          options={[
-                            ['3', '작게'],
-                            ['5', '보통'],
-                            ['7', '크게'],
-                          ]}
-                          onChange={value => patch(item.key, { height: Number(value) as Item['height'] })}
-                        />
+                        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                          {(['x', 'y', 'w', 'h'] as const).map(field => (
+                            <TextField
+                              key={field}
+                              type="number"
+                              label={`${label} ${{ mobile: '모바일', tablet: '태블릿', desktop: '데스크톱' }[layoutMode]} ${
+                                { x: '가로 위치', y: '세로 위치', w: '너비', h: '높이' }[field]
+                              }`}
+                              value={
+                                Number.isNaN(item.layouts?.[layoutMode]?.[field])
+                                  ? ''
+                                  : item.layouts?.[layoutMode]?.[field] ?? ''
+                              }
+                              disabled={!!busy}
+                              sx={{ width: 100 }}
+                              slotProps={{
+                                htmlInput: {
+                                  min: field === 'w' || field === 'h' ? 1 : 0,
+                                  max: field === 'x' || field === 'w' ? columns[layoutMode] : field === 'h' ? 50 : 1000,
+                                },
+                              }}
+                              onChange={event => {
+                                const defaults = item.layouts?.[layoutMode] ?? {
+                                  x: 0,
+                                  y: 0,
+                                  w: columns[layoutMode],
+                                  h: item.height,
+                                };
+                                patch(item.key, {
+                                  layouts: {
+                                    ...item.layouts,
+                                    [layoutMode]: {
+                                      ...defaults,
+                                      [field]: event.target.value === '' ? NaN : Number(event.target.value),
+                                    },
+                                  },
+                                });
+                              }}
+                            />
+                          ))}
+                        </Stack>
+                        {!item.layouts && (
+                          <>
+                            <Choice
+                              disabled={!!busy}
+                              id={`width-${item.key}`}
+                              label={`${label} 너비`}
+                              value={String(item.width)}
+                              options={[
+                                ['6', '절반'],
+                                ['12', '전체'],
+                              ]}
+                              onChange={value => patch(item.key, { width: Number(value) as Item['width'] })}
+                            />
+                            <Choice
+                              disabled={!!busy}
+                              id={`height-${item.key}`}
+                              label={`${label} 높이`}
+                              value={String(item.height)}
+                              options={[
+                                ['3', '작게'],
+                                ['5', '보통'],
+                                ['7', '크게'],
+                              ]}
+                              onChange={value => patch(item.key, { height: Number(value) as Item['height'] })}
+                            />
+                          </>
+                        )}
                       </Stack>
                     </Box>
                     <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
@@ -801,7 +893,8 @@ function DashboardEditContent() {
               <Box
                 sx={{
                   display: 'grid',
-                  gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'repeat(12, minmax(0, 1fr))' },
+                  gridTemplateColumns: `repeat(${columns[layoutMode]}, minmax(0, 1fr))`,
+                  gridAutoRows: 'minmax(60px, auto)',
                   gap: 2,
                 }}
               >
@@ -809,7 +902,20 @@ function DashboardEditContent() {
                   <Card
                     key={items[index].key}
                     variant="outlined"
-                    sx={{ p: 2, minWidth: 0, gridColumn: { xs: '1', md: `span ${items[index].width}` } }}
+                    sx={{
+                      p: 2,
+                      minWidth: 0,
+                      gridColumn: preview.responsiveLayouts
+                        ? `${preview.responsiveLayouts[layoutMode][items[index].key].x + 1} / span ${
+                            preview.responsiveLayouts[layoutMode][items[index].key].w
+                          }`
+                        : { xs: '1 / -1', md: `span ${items[index].width}` },
+                      gridRow: preview.responsiveLayouts
+                        ? `${preview.responsiveLayouts[layoutMode][items[index].key].y + 1} / span ${
+                            preview.responsiveLayouts[layoutMode][items[index].key].h
+                          }`
+                        : undefined,
+                    }}
                   >
                     <Typography component="h3" variant="h6" sx={{ overflowWrap: 'anywhere' }}>
                       {widget.title}

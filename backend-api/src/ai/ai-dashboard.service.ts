@@ -9,6 +9,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { randomUUID } from 'crypto';
+import { responsiveLayouts, BlockLayouts } from './responsive-layout';
 import {
   legacyBlockIds,
   storedBlockIds,
@@ -690,10 +691,12 @@ export class AiDashboardService {
     if (body?.dashboardId !== undefined) await this.owner(body.dashboardId, userId);
     const id = positiveId(body?.databaseId);
     const current = body.currentDraft === undefined ? undefined : validateDraft(body.currentDraft);
+    let savedResponsiveLayouts;
     if (current && current.databaseId !== id)
       throw new BadRequestException('draft database mismatch');
     if (body.dashboardId !== undefined) {
       const { data: saved } = await this.analysis(body.dashboardId, userId);
+      savedResponsiveLayouts = saved.responsiveLayouts;
       if (id !== saved.databaseId) throw new BadRequestException('dashboard source mismatch');
     }
     const history = this.conversation(body, current);
@@ -850,6 +853,7 @@ export class AiDashboardService {
         const preview = await this.preview({ draft: parsed }, userId);
         return this.success({
           ...preview.data.draft,
+          ...(savedResponsiveLayouts ? { responsiveLayouts: savedResponsiveLayouts } : {}),
           ...(reusedMetricIds.length ? { reusedMetricIds, metricReferences } : {}),
         });
       } catch (error) {
@@ -1733,6 +1737,7 @@ export class AiDashboardService {
     sharedManager?: EntityManager,
     preserveLayout = false,
     preserveSizeIds: readonly string[] = [],
+    layoutEdits?: BlockLayouts[],
   ) {
     if (
       body?.expectedRevision !== undefined &&
@@ -1875,6 +1880,23 @@ export class AiDashboardService {
           return item;
         }),
       );
+      const responsive = responsiveLayouts(
+        draft.widgets.map(w => w.blockId),
+        JSON.parse(dashboard.layout),
+        previous?.analysisDefinition
+          ? JSON.parse(previous.analysisDefinition).responsiveLayouts
+          : undefined,
+        layoutEdits,
+      );
+      dashboard.analysisDefinition = JSON.stringify({ ...draft, responsiveLayouts: responsive });
+      const canonicalLayout = JSON.parse(dashboard.layout);
+      dashboard.layout = JSON.stringify(
+        widgets.map((w, i) => ({
+          ...canonicalLayout[i],
+          ...responsive.desktop[draft.widgets[i].blockId],
+          i: String(w.id),
+        })),
+      );
       if (body.expectedRevision !== undefined) {
         // Compare-and-swap in the transaction: failed writes roll back new datasets/widgets too.
         const update = manager
@@ -1918,6 +1940,7 @@ export class AiDashboardService {
         revision: this.revision(dashboard),
         draft: {
           ...draft,
+          responsiveLayouts: responsive,
           blockLayouts: readBlockLayouts(
             draft,
             JSON.parse(dashboard.layout || 'null'),
@@ -1945,6 +1968,11 @@ export class AiDashboardService {
       return this.success({
         ...draft,
         blockLayouts: readBlockLayouts(draft, JSON.parse(dashboard.layout || 'null'), mappings),
+        responsiveLayouts: responsiveLayouts(
+          draft.widgets.map(w => w.blockId),
+          Object.values(readBlockLayouts(draft, JSON.parse(dashboard.layout || 'null'), mappings)),
+          JSON.parse(dashboard.analysisDefinition).responsiveLayouts,
+        ),
         ...(includeRevision ? { revision: this.revision(dashboard) } : {}),
       });
     }

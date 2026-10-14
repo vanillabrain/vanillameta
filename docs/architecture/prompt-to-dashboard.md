@@ -91,3 +91,7 @@ blockId를 기존 JSON에 추가하고 레거시 조회는 결정적 ID를 반�
 차트·배치 편집기의 복제·로컬 undo/redo에 이어 선택 AI 수정도 같은 items/제목/revision/이력에 적용한다. 미저장 추가/복제·순서·크기를 compiler로 검증해 AI currentDraft로 전달하고 선택 key의 결과만 다시 compiler/preview로 반영한다. 저장은 명시 동작이다. AI 변경은 분석 snapshot이며 중앙 지표 수정/일괄 반영을 대신하지 않는다. 기존 source SQL guard와 소유권·identity·버전 경계를 유지한다.
 
 [UC-008 실행](../testing/working-draft-ai.md)은 단위/실LLM/API PASS이며 실제 UI BLOCKED다. 공통 편집 초안에 연결했으나 자유 드래그·breakpoint 배치·프롬프트 이동과 전체 작업 실행기의 계약까지 완성한 것은 아니다.
+
+## P1 화면 폭별 좌표 — UC-009
+
+기존 분석 JSON에 responsiveLayouts를 blockId별로 추가한다. 모바일4/태블릿8/데스크톱12열 좌표를 editor compiler의 명시 배치 입력에서 검증하고 저장 transaction에서 새 서버 ID에 연결한다. desktop은 canonical dashboard.layout과 일치하며 모바일/태블릿은 별도 보관한다. 기존 분석 조회는 읽기 배치를 도출하고 명시 저장에서만 기록한다. 일반 AI 내용 수정은 이전 배치를 유지한다. 소유 분석의 읽기 CSS grid와 편집기 좌표/undo에 연결했으나 pointer drag/자연어 위치 변경·공유 수신 화면까지 완료한 것은 아니다. [실행 기록](../testing/responsive-block-layout.md).
