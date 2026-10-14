@@ -23,6 +23,8 @@ const MAX_PIVOT_CELLS = 6000;
 /** Aggregates beyond the exact integer range are suppressed by comparisonValues; sorts must agree. */
 const MAX_EXACT = Number.MAX_SAFE_INTEGER;
 type RankingSort = { by: 'value' | 'delta' | 'percentChange'; direction: 'asc' | 'desc' };
+/** An optional flat table merges both axes onto the row side; the default keeps the nested grid. */
+type PivotTableMode = 'nest' | 'flat';
 type ExploreFilter =
   | { column: string; values: any[] }
   | { column: string; range: { min?: number; max?: number } };
@@ -73,6 +75,7 @@ const PIVOT_FIELDS = [
   'rowHierarchy',
   'rowSort',
   'timeAxis',
+  'tableMode',
 ];
 const EXPORT_FIELDS = ['mode', 'query'];
 
@@ -274,6 +277,14 @@ export class BiExploreService {
   private flag(value: unknown, fallback: boolean, name: string) {
     if (value === undefined) return fallback;
     if (typeof value !== 'boolean') throw new BadRequestException(`invalid ${name}`);
+    return value;
+  }
+
+  /** Flat merges both axes onto the row side; an omitted mode keeps the nested grid. */
+  private tableModeOption(value: unknown): PivotTableMode {
+    if (value === undefined) return 'nest';
+    if (value !== 'nest' && value !== 'flat')
+      throw new BadRequestException('tableMode은 nest 또는 flat이어야 합니다.');
     return value;
   }
 
@@ -916,6 +927,7 @@ export class BiExploreService {
       dateRange: query.dateRange ?? null,
       comparePrevious: query.comparePrevious ?? false,
       rowHierarchy: query.rowHierarchy ?? false,
+      tableMode: query.tableMode ?? 'nest',
       ...(query.timeAxis !== undefined ? { timeAxis: query.timeAxis } : {}),
       // The applied sort is echoed with its defaults filled in, never as an expanded presentation.
       rowSort:
@@ -946,6 +958,12 @@ export class BiExploreService {
       throw new BadRequestException('이전 기간 비교에는 적용한 날짜 범위가 필요합니다.');
     const rowHierarchy = this.flag(input.rowHierarchy, false, 'rowHierarchy');
     const rowSort = this.rowSortOption(input.rowSort, measureIds, comparePrevious);
+    const tableMode = this.tableModeOption(input.tableMode);
+    // A flat table has no hierarchy and no column cell, so either is a contradictory request.
+    if (tableMode === 'flat' && rowHierarchy)
+      throw new BadRequestException('플랫 표에는 행 계층을 사용할 수 없습니다.');
+    if (tableMode === 'flat' && rowSort.columnTuple !== undefined)
+      throw new BadRequestException('플랫 표에는 열 셀 정렬을 사용할 수 없습니다.');
     return this.connection.withDuckDBSnapshot(input.sourceId, () =>
       this.pivotSnapshot({
         actor,
@@ -960,6 +978,7 @@ export class BiExploreService {
         rowHierarchy,
         rowSort,
         timeAxis: input.timeAxis,
+        tableMode,
       }),
     );
   }
@@ -977,6 +996,7 @@ export class BiExploreService {
     rowHierarchy: boolean;
     rowSort: PivotRowSort;
     timeAxis: unknown;
+    tableMode: PivotTableMode;
   }) {
     const profile = await this.bi.profile(input.sourceId, input.actor);
     if (!profile.supported)
@@ -991,14 +1011,19 @@ export class BiExploreService {
       .filter((column: any) => column.temporal)
       .map((column: any) => column.name);
     this.validateRangeFilters(input.filters, profile);
-    const rowColumns = this.axis(input.rowColumns, columns, '행');
-    const columnColumns = this.axis(input.columnColumns, columns, '열');
-    if (columnColumns.some(column => rowColumns.includes(column)))
+    const requestedRows = this.axis(input.rowColumns, columns, '행');
+    const requestedColumns = this.axis(input.columnColumns, columns, '열');
+    if (requestedColumns.some(column => requestedRows.includes(column)))
       throw new BadRequestException('같은 열을 행과 열 축에 함께 사용할 수 없습니다.');
+    // Flat merges the column axis ahead of the row axis and drops the column side, so each
+    // combined record is one row of the table; the grouping and totals below are otherwise shared.
+    const flat = input.tableMode === 'flat';
+    const rowColumns = flat ? [...requestedColumns, ...requestedRows] : requestedRows;
+    const columnColumns = flat ? [] : requestedColumns;
     const bucket = pivotBucket(
       input.timeAxis,
       profile.columns,
-      [...rowColumns, ...columnColumns],
+      [...requestedRows, ...requestedColumns],
       input.dateRange,
     );
     const catalog = await this.bi.metrics(profile.sourceId, input.actor);
@@ -1061,7 +1086,7 @@ export class BiExploreService {
     )
       throw new BadRequestException('정렬할 열 셀을 다시 선택해 주세요.');
     // A hierarchy adds one subtotal row per parent, and those values share the same cell budget.
-    const hierarchy = input.rowHierarchy && rowColumns.length === 2;
+    const hierarchy = !flat && input.rowHierarchy && rowColumns.length === 2;
     const parents: unknown[] = [];
     if (hierarchy) {
       const seen = new Set<string>();
@@ -1277,6 +1302,7 @@ export class BiExploreService {
         ...(input.dateRange !== undefined ? { dateRange: input.dateRange } : {}),
         comparePrevious: input.comparePrevious,
         rowHierarchy: input.rowHierarchy,
+        tableMode: input.tableMode,
         // Canonical shape: a label order carries no measure key, so nothing reads back as null.
         ...(bucket ? { timeAxis: bucket.axis } : {}),
         rowSort: {

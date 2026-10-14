@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Button, Stack, TextField, Typography } from '@mui/material';
 import { post } from '@/helpers/apiHelper';
-import type { PivotRowSort, PivotTimeAxis } from './ExplorePivot';
+import type { PivotRowSort, PivotTableMode, PivotTimeAxis } from './ExplorePivot';
 
 export type ExploreViewState = {
-  version: 1 | 2 | 3 | 4;
+  version: 1 | 2 | 3 | 4 | 5;
   pivot?: {
     enabled: boolean;
     rowColumns: string[];
@@ -13,6 +13,7 @@ export type ExploreViewState = {
     rowSort?: PivotRowSort;
     expandedRows?: Array<Array<string | number | boolean | null>>;
     timeAxis?: PivotTimeAxis;
+    tableMode?: PivotTableMode;
   };
   measureIds: number[];
   dimensionColumns: string[];
@@ -72,9 +73,9 @@ const member = (item: unknown): boolean =>
 const columnTupleShape = (tuple: unknown, columnColumns: string[]): boolean =>
   Array.isArray(tuple) && tuple.length === columnColumns.length && tuple.every(member);
 /**
- * Row ordering shape for versions 3 and 4. A label order carries no measure; a value order must name
- * a selected measure. Version 4 adds the change orders, which need a compared period, and the
- * optional cell scope, which must match the column axis arity.
+ * Row ordering shape for versions 3 and later. A label order carries no measure; a value order must
+ * name a selected measure. Versions 4 and 5 add the change orders, which need a compared period,
+ * and the optional cell scope, which must match the column axis arity.
  */
 const rowSortShape = (
   sort: PivotRowSort | undefined,
@@ -87,13 +88,13 @@ const rowSortShape = (
   if (!['asc', 'desc'].includes(sort.direction)) return false;
   if (sort.by === 'label') {
     if (sort.measureId !== undefined) return false;
-    if (version === 4 && sort.columnTuple !== undefined) return false;
+    if (version >= 4 && sort.columnTuple !== undefined) return false;
     return true;
   }
   if (!['value', 'delta', 'percentChange'].includes(sort.by)) return false;
-  if (version !== 4 && sort.by !== 'value') return false;
+  if (version < 4 && sort.by !== 'value') return false;
   if (!measureIds?.includes(sort.measureId ?? 0)) return false;
-  if (version === 4) {
+  if (version >= 4) {
     if (sort.by !== 'value' && comparePrevious !== true) return false;
     if (sort.columnTuple !== undefined && !columnTupleShape(sort.columnTuple, columnColumns ?? [])) return false;
   }
@@ -122,7 +123,7 @@ const restorable = (input: unknown): input is ExploreViewState => {
   if (!input || typeof input !== 'object') return false;
   const value = input as Partial<ExploreViewState>;
   return (
-    (value.version === 1 || value.version === 2 || value.version === 3 || value.version === 4) &&
+    (value.version === 1 || value.version === 2 || value.version === 3 || value.version === 4 || value.version === 5) &&
     (value.version === 1
       ? value.pivot === undefined
       : !!value.pivot &&
@@ -134,7 +135,7 @@ const restorable = (input: unknown): input is ExploreViewState => {
         [...value.pivot.rowColumns, ...value.pivot.columnColumns].every(column => typeof column === 'string') &&
         new Set([...value.pivot.rowColumns, ...value.pivot.columnColumns]).size ===
           value.pivot.rowColumns.length + value.pivot.columnColumns.length) &&
-    ((value.version !== 3 && value.version !== 4) ||
+    (value.version < 3 ||
       (!!value.pivot &&
         typeof value.pivot.rowHierarchy === 'boolean' &&
         rowSortShape(
@@ -160,10 +161,18 @@ const restorable = (input: unknown): input is ExploreViewState => {
                 (typeof item === 'string' && item.length <= 256),
             ),
         ))) &&
-    (value.version !== 4 ||
+    (value.version < 4 ||
       (!!value.pivot &&
         (value.pivot.timeAxis === undefined ||
           timeAxisShape(value.pivot.timeAxis, value.pivot.rowColumns, value.pivot.columnColumns, value.dateRange)))) &&
+    (value.version !== 5 ||
+      (!!value.pivot &&
+        (value.pivot.tableMode === 'nest' || value.pivot.tableMode === 'flat') &&
+        // Flat has one record axis, so a stored hierarchy, expansion or cell scope contradicts it.
+        (value.pivot.tableMode !== 'flat' ||
+          (value.pivot.rowHierarchy === false &&
+            value.pivot.expandedRows?.length === 0 &&
+            value.pivot.rowSort?.columnTuple === undefined)))) &&
     Array.isArray(value.measureIds) &&
     value.measureIds.length > 0 &&
     value.measureIds.every(id => Number.isSafeInteger(id) && id > 0) &&

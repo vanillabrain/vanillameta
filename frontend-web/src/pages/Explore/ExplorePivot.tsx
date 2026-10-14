@@ -28,6 +28,8 @@ export type PivotGrain = 'day' | 'week' | 'month';
 /** One temporal axis: the column must already sit on a single row or column axis. */
 export type PivotTimeAxis = { column: string; grain: PivotGrain; timeZone: string };
 export type PivotTuple = Array<string | number | boolean | null>;
+/** Nested keeps the two axes; flat joins them into one record axis with no column split. */
+export type PivotTableMode = 'nest' | 'flat';
 /** Row ordering by label or by one measure; a cell scope names a bounded column tuple. */
 export type PivotRowSort = {
   by: 'label' | 'value' | 'delta' | 'percentChange';
@@ -42,6 +44,7 @@ export type PivotAxes = {
   rowSort?: PivotRowSort;
   expandedRows?: PivotTuple[];
   timeAxis?: PivotTimeAxis;
+  tableMode?: PivotTableMode;
 };
 export const DEFAULT_PIVOT_SORT: PivotRowSort = { by: 'label', direction: 'asc' };
 export const PIVOT_GRAINS: Array<{ value: PivotGrain; label: string }> = [
@@ -198,6 +201,7 @@ export default function ExplorePivot({
     if (value.rowSort !== undefined) next.rowSort = value.rowSort;
     if (value.expandedRows !== undefined) next.expandedRows = value.expandedRows;
     if (value.timeAxis !== undefined) next.timeAxis = value.timeAxis;
+    if (value.tableMode !== undefined) next.tableMode = value.tableMode;
     return next;
   };
   const onAxes = (changes: Partial<PivotAxes>) => onAxesChange(compact({ ...axes, ...changes }));
@@ -232,6 +236,10 @@ export default function ExplorePivot({
   const rawSortKey = JSON.stringify(axes.rowSort ?? null);
   const sortKey = JSON.stringify(sort);
   const timeAxisKey = JSON.stringify(axes.timeAxis ?? null);
+  const flat = axes.tableMode === 'flat';
+  // Flat sends one record axis, so a cell scope the nested grid allowed never reaches the request.
+  const requestSort: PivotRowSort = flat ? dropCellScope(sort) ?? DEFAULT_PIVOT_SORT : sort;
+  const requestSortKey = JSON.stringify(requestSort);
   const payload = useMemo(
     () => ({
       sourceId,
@@ -240,11 +248,12 @@ export default function ExplorePivot({
       rowColumns: axes.rowColumns,
       columnColumns: axes.columnColumns,
       ...(axes.rowHierarchy !== undefined ? { rowHierarchy: axes.rowHierarchy } : {}),
-      ...(axes.rowSort !== undefined ? { rowSort: sort } : {}),
+      ...(axes.rowSort !== undefined ? { rowSort: requestSort } : {}),
       ...(axes.timeAxis ? { timeAxis: axes.timeAxis } : {}),
       filters: state.filters,
       ...(state.dateRange ? { dateRange: state.dateRange } : {}),
       comparePrevious: state.comparePrevious,
+      ...(flat ? { tableMode: 'flat' as const, rowHierarchy: false } : {}),
     }),
     // Keys are JSON so an equivalent, re-derived sort never refetches on object identity alone.
     [
@@ -255,7 +264,8 @@ export default function ExplorePivot({
       axes.columnColumns,
       axes.rowHierarchy,
       rawSortKey,
-      sortKey,
+      requestSortKey,
+      flat,
       timeAxisKey,
       state.filters,
       state.dateRange,
@@ -347,6 +357,14 @@ export default function ExplorePivot({
     });
   const resetAxes = () =>
     onAxes({ rowColumns: [], columnColumns: [], rowSort: dropCellScope(axes.rowSort), timeAxis: undefined });
+  /**
+   * Both modes keep the two axes. Only the nested grid can nest groups or scope an order to one
+   * bounded column cell, so switching modes drops those parts and keeps the measure calculation.
+   */
+  const toggleTableMode = (mode: PivotTableMode) => {
+    if ((axes.tableMode ?? 'nest') === mode) return;
+    onAxes({ tableMode: mode, rowHierarchy: false, expandedRows: [], rowSort: dropCellScope(axes.rowSort) });
+  };
 
   const axisColumns = [...axes.rowColumns, ...axes.columnColumns];
   const temporalAxisColumns = axisColumns.filter(column => temporalSet.has(column));
@@ -391,8 +409,9 @@ export default function ExplorePivot({
       </>
     );
   };
-  const hasColumnSplits = axes.columnColumns.length > 0;
-  const hierarchical = !!axes.rowHierarchy && axes.rowColumns.length === 2;
+  // Flat sends both axes as one record axis, so its response has no column split and no nesting.
+  const hasColumnSplits = !flat && axes.columnColumns.length > 0;
+  const hierarchical = !flat && !!axes.rowHierarchy && axes.rowColumns.length === 2;
   const expanded = new Set((axes.expandedRows ?? []).map(value => JSON.stringify(value)));
   /** Header groups trace the grid: an extra row-total column when columns are split, then each column. */
   const columnGroups = useMemo(() => {
@@ -426,6 +445,19 @@ export default function ExplorePivot({
         direction,
         measureId,
         ...(columnTuple ? { columnTuple } : {}),
+      },
+    });
+  };
+  /** The flat grid keeps one measure column per record, so a header sorts the whole record axis. */
+  const isActiveFlatSort = (measureId: number) =>
+    flat && sort.by !== 'label' && sort.measureId === measureId && sort.columnTuple === undefined;
+  const toggleFlatSort = (measureId: number) => {
+    const active = isActiveFlatSort(measureId);
+    onAxes({
+      rowSort: {
+        by: sort.by === 'label' ? 'value' : sort.by,
+        direction: active ? (sort.direction === 'asc' ? 'desc' : 'asc') : sort.direction,
+        measureId,
       },
     });
   };
@@ -492,6 +524,32 @@ export default function ExplorePivot({
     font: 'inherit',
     padding: 0,
     cursor: 'pointer',
+  };
+  /** One flat record's measures sit on its single column group, with the row total as a fallback. */
+  const flatMeasures = (row: { total: PivotValue[]; columns: Map<number, PivotValue[]> }) => {
+    const group = row.columns.get(0);
+    return group && group.length ? group : row.total;
+  };
+  /**
+   * Flat echoes its effective record axis: the original column axis first, then the original row
+   * axis. Headers, record values and row filters follow that response, while the two original axes
+   * stay in the saved axes state so switching back to the nested grid keeps them.
+   */
+  const flatDimensions = result && flat ? result.rowColumns : [];
+  /** A record axis with no dimension has nothing to label, so its one grand-total row stands alone. */
+  const flatRows = flatDimensions.length > 0 ? displayRows : [];
+  /**
+   * A flat row shows every joined dimension, so each label wraps inside a bounded left-aligned box.
+   * The labels scroll with their measures instead of sticking: a frozen first dimension would cover
+   * the measure cells it should sit beside once the record axis is wider than the region.
+   */
+  const flatLabelStyle: React.CSSProperties = {
+    ...cellStyle,
+    textAlign: 'left',
+    minWidth: 110,
+    maxWidth: 240,
+    background: '#fff',
+    overflowWrap: 'anywhere',
   };
   const timeAxisInvalid = !!timeAxis && !temporalAxisColumns.includes(timeAxis.column);
   return (
@@ -611,8 +669,15 @@ export default function ExplorePivot({
           </Button>
         </Stack>
         <Stack direction="row" alignItems="center" sx={{ flexWrap: 'wrap', gap: 1, mt: 1 }}>
+          <Button aria-pressed={!flat} onClick={() => toggleTableMode('nest')} sx={TOGGLE_BUTTON_SX}>
+            Pivot 테이블
+          </Button>
+          <Button aria-pressed={flat} onClick={() => toggleTableMode('flat')} sx={TOGGLE_BUTTON_SX}>
+            Flat
+          </Button>
           <Button
             aria-pressed={!!axes.rowHierarchy}
+            disabled={flat}
             onClick={() => onAxes({ rowHierarchy: !axes.rowHierarchy, expandedRows: [] })}
             sx={TOGGLE_BUTTON_SX}
           >
@@ -706,36 +771,39 @@ export default function ExplorePivot({
               </option>
             ))}
           </TextField>
-          <TextField
-            select
-            size="small"
-            label="정렬 범위"
-            value={scopeValue}
-            disabled={sort.by === 'label'}
-            onChange={event => {
-              const value = event.target.value;
-              const group = value === 'total' ? undefined : columnGroups.find(item => String(item.index) === value);
-              const columnTuple = group && group.tuple.length ? group.tuple : undefined;
-              // Scope is another axis of the same order, so the chosen value/change calc is preserved.
-              onAxes({
-                rowSort: {
-                  by: sort.by === 'label' ? 'value' : sort.by,
-                  direction: sort.direction,
-                  measureId: sort.measureId ?? selectedMeasures[0]?.id,
-                  ...(columnTuple ? { columnTuple } : {}),
-                },
-              });
-            }}
-            sx={NAME_FIELD_SX}
-            slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
-          >
-            <option value="total">행 합계</option>
-            {columnScopeOptions.map(group => (
-              <option key={group.key} value={group.index}>
-                {group.label}
-              </option>
-            ))}
-          </TextField>
+          {/* Flat has one record axis, so there is no column cell to scope an order to. */}
+          {!flat && (
+            <TextField
+              select
+              size="small"
+              label="정렬 범위"
+              value={scopeValue}
+              disabled={sort.by === 'label'}
+              onChange={event => {
+                const value = event.target.value;
+                const group = value === 'total' ? undefined : columnGroups.find(item => String(item.index) === value);
+                const columnTuple = group && group.tuple.length ? group.tuple : undefined;
+                // Scope is another axis of the same order, so the chosen value/change calc is preserved.
+                onAxes({
+                  rowSort: {
+                    by: sort.by === 'label' ? 'value' : sort.by,
+                    direction: sort.direction,
+                    measureId: sort.measureId ?? selectedMeasures[0]?.id,
+                    ...(columnTuple ? { columnTuple } : {}),
+                  },
+                });
+              }}
+              sx={NAME_FIELD_SX}
+              slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
+            >
+              <option value="total">행 합계</option>
+              {columnScopeOptions.map(group => (
+                <option key={group.key} value={group.index}>
+                  {group.label}
+                </option>
+              ))}
+            </TextField>
+          )}
           {(['value', 'delta', 'percentChange'] as const).map(by => (
             <Button
               key={by}
@@ -785,8 +853,10 @@ export default function ExplorePivot({
         </Stack>
         <Typography sx={{ fontSize: 12, color: 'text.secondary', mt: 1 }}>
           지표 {selectedMeasures.map(m => m.label).join(' · ')} · 최대 50행 / 20열 그룹 / 6,000개 값 · 합계는 원본에서 다시
-          집계 · 계층은 행 차원 2개에서 상위 그룹 부분합을 표시합니다. 정렬은 같은 계층 안에서 적용하고, 셀 헤더를 누르면 그
-          열의 지표 셀로 정렬합니다.
+          집계 ·{' '}
+          {flat
+            ? 'Flat은 행·열 차원을 하나의 레코드 축으로 합쳐 각 차원을 한 열씩 나열하고, 지표 헤더를 누르면 전체 레코드를 그 지표로 정렬합니다. 계층과 열 셀 정렬은 사용하지 않습니다.'
+            : '계층은 행 차원 2개에서 상위 그룹 부분합을 표시합니다. 정렬은 같은 계층 안에서 적용하고, 셀 헤더를 누르면 그 열의 지표 셀로 정렬합니다.'}
           {timeAxis ? ` · 시간 축 ${timeAxis.column}(${timeAxis.grain}, ${timeAxis.timeZone})` : ''}
         </Typography>
         {timeAxisInvalid && (
@@ -807,7 +877,94 @@ export default function ExplorePivot({
             <Button onClick={onReloadCatalog}>카탈로그 다시 불러오기</Button>
           </Alert>
         )}
-        {result && (
+        {result && flat && (
+          <Box
+            role="region"
+            aria-label="Pivot 결과"
+            tabIndex={0}
+            sx={{ mt: 1.5, overflow: 'auto', maxHeight: 620, border: '1px solid #e2e8f0', borderRadius: 2 }}
+          >
+            <table style={{ borderCollapse: 'separate', borderSpacing: 0, width: '100%', fontSize: 13 }}>
+              <caption style={{ textAlign: 'left', padding: 12 }}>
+                Pivot · Flat · {result.rows.length}개 레코드 · 필터 {state.filters.length}개
+                {state.comparePrevious ? ' · 이전 기간 비교' : ''}
+                {timeAxis ? ` · 시간 축 ${timeAxis.column}(${timeAxis.grain})` : ''}
+              </caption>
+              <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
+                <tr>
+                  {flatDimensions.map(column => (
+                    <th key={column} style={{ ...headerStyle, textAlign: 'left' }}>
+                      {column}
+                    </th>
+                  ))}
+                  {selectedMeasures.map(m => {
+                    const active = isActiveFlatSort(m.id);
+                    return (
+                      <th key={m.id} style={headerStyle}>
+                        <button
+                          type="button"
+                          aria-label={`Flat 정렬 ${m.label}`}
+                          aria-pressed={active}
+                          onClick={() => toggleFlatSort(m.id)}
+                          style={headerButtonStyle}
+                        >
+                          {m.label}
+                          {active ? (sort.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                        </button>
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+              <tbody>
+                <tr aria-label="총합">
+                  {/* A record axis with no dimension keeps only the measure cells, so totals stay aligned. */}
+                  {flatDimensions.length > 0 && (
+                    <th scope="row" style={{ ...cellStyle, textAlign: 'left', background: '#eef2ff' }}>
+                      총합
+                    </th>
+                  )}
+                  {flatDimensions.slice(1).map(column => (
+                    <td key={column} style={{ ...cellStyle, background: '#eef2ff' }} />
+                  ))}
+                  {selectedMeasures.map(m => (
+                    <td key={m.id} style={{ ...cellStyle, fontWeight: 700, background: '#eef2ff' }}>
+                      {renderValue(result.grandTotal, m.id)}
+                    </td>
+                  ))}
+                </tr>
+                {flatRows.map(row => (
+                  <tr key={row.key}>
+                    {flatDimensions.map((column, i) => (
+                      <th key={column} scope="row" style={flatLabelStyle}>
+                        {/* A bucket label is not a raw column member, so only raw members filter. */}
+                        {column === timeAxis?.column ? (
+                          category(row.values[i])
+                        ) : (
+                          <button
+                            type="button"
+                            title={`${column} 필터 적용`}
+                            onClick={() => onFilter(column, [row.values[i] as string | number | boolean | null])}
+                            style={{ border: 0, background: 'none', color: '#334155', padding: 2, cursor: 'pointer' }}
+                          >
+                            {category(row.values[i])}
+                          </button>
+                        )}
+                      </th>
+                    ))}
+                    {selectedMeasures.map(m => (
+                      <td key={m.id} style={cellStyle}>
+                        {renderValue(flatMeasures(row), m.id)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {!result.rows.length && <Typography sx={{ p: 2 }}>조건에 맞는 데이터가 없습니다.</Typography>}
+          </Box>
+        )}
+        {result && !flat && (
           <Box
             role="region"
             aria-label="Pivot 결과"

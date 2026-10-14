@@ -236,14 +236,14 @@ export class ExploreViewService {
     );
     for (const name of state.dimensionColumns)
       if (!columns.has(name)) throw new BadRequestException('unknown dimension column');
-    // Versions 2 and 3 store a pivot layout beside the dimension columns; each axis name must exist
-    // in the same catalog the query runs against.
+    // Versions 2 through 5 store a pivot layout beside the dimension columns; each axis name must
+    // exist in the same catalog the query runs against.
     if (state.version !== 1)
       for (const name of state.pivot.rowColumns.concat(state.pivot.columnColumns))
         if (!columns.has(name)) throw new BadRequestException('unknown pivot column');
-    // A version 4 bucket axis needs a temporal axis column, and its timezone must agree with the
-    // saved period; the tuple-level cell match is decided by the bounded pivot query itself.
-    if (state.version === 4 && state.pivot.timeAxis) {
+    // A version 4 or 5 bucket axis needs a temporal axis column, and its timezone must agree with
+    // the saved period; the tuple-level cell match is decided by the bounded pivot query itself.
+    if ((state.version === 4 || state.version === 5) && state.pivot.timeAxis) {
       const axis = state.pivot.timeAxis;
       if (!temporal.has(axis.column))
         throw new BadRequestException('시간 축에는 날짜 열이 필요합니다.');

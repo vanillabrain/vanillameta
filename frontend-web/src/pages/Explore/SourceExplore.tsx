@@ -793,7 +793,9 @@ export default function SourceExplore() {
     pivotSort?.columnTuple !== undefined ||
     pivotSort?.by === 'delta' ||
     pivotSort?.by === 'percentChange';
-  const viewVersion: ExploreViewState['version'] = requiresV4 ? 4 : extendedPivot ? 3 : pivotStored ? 2 : 1;
+  // Flat joins the two axes into one record axis, which only the fifth view version can carry.
+  const flatPivot = pivotAxes.tableMode === 'flat';
+  const viewVersion: ExploreViewState['version'] = flatPivot ? 5 : requiresV4 ? 4 : extendedPivot ? 3 : pivotStored ? 2 : 1;
   const viewState: ExploreViewState = {
     version: viewVersion,
     ...(viewVersion >= 2
@@ -804,13 +806,16 @@ export default function SourceExplore() {
             columnColumns: pivotAxes.columnColumns,
             ...(viewVersion >= 3
               ? {
-                  rowHierarchy: pivotAxes.rowHierarchy ?? false,
+                  rowHierarchy: flatPivot ? false : pivotAxes.rowHierarchy ?? false,
                   rowSort: pivotSort ?? DEFAULT_PIVOT_SORT,
                   expandedRows:
-                    pivotAxes.rowHierarchy && pivotAxes.rowColumns.length === 2 ? pivotAxes.expandedRows ?? [] : [],
+                    !flatPivot && pivotAxes.rowHierarchy && pivotAxes.rowColumns.length === 2
+                      ? pivotAxes.expandedRows ?? []
+                      : [],
                 }
               : {}),
-            ...(viewVersion === 4 && pivotAxes.timeAxis ? { timeAxis: pivotAxes.timeAxis } : {}),
+            ...(viewVersion >= 4 && pivotAxes.timeAxis ? { timeAxis: pivotAxes.timeAxis } : {}),
+            ...(flatPivot ? { tableMode: 'flat' as const } : {}),
           },
         }
       : {}),
@@ -844,7 +849,8 @@ export default function SourceExplore() {
                   expandedRows: state.pivot.expandedRows,
                 }
               : {}),
-            ...(state.version === 4 && state.pivot.timeAxis ? { timeAxis: state.pivot.timeAxis } : {}),
+            ...(state.version >= 4 && state.pivot.timeAxis ? { timeAxis: state.pivot.timeAxis } : {}),
+            ...(state.version >= 5 && state.pivot.tableMode ? { tableMode: state.pivot.tableMode } : {}),
           }
         : { rowColumns: [], columnColumns: [] },
     );
@@ -880,7 +886,11 @@ export default function SourceExplore() {
         ? {
             rowColumns: pivotAxes.rowColumns,
             columnColumns: pivotAxes.columnColumns,
-            ...(pivotAxes.rowHierarchy !== undefined ? { rowHierarchy: pivotAxes.rowHierarchy } : {}),
+            ...(flatPivot
+              ? { tableMode: 'flat' as const, rowHierarchy: false }
+              : pivotAxes.rowHierarchy !== undefined
+              ? { rowHierarchy: pivotAxes.rowHierarchy }
+              : {}),
             ...(pivotSort ? { rowSort: pivotSort } : {}),
             ...(pivotAxes.timeAxis ? { timeAxis: pivotAxes.timeAxis } : {}),
           }
@@ -1383,6 +1393,7 @@ export default function SourceExplore() {
                 rowHierarchy: query.rowHierarchy,
                 rowSort: query.rowSort,
                 timeAxis: query.timeAxis,
+                tableMode: query.tableMode,
               });
             if (queryKey(axes) !== queryKey(effectivePivotAxes)) setPivotReady(false);
             setPivotAxes(axes);

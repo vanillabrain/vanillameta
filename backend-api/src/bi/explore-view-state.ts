@@ -71,6 +71,11 @@ export type ExplorePivotV4 = ExplorePivot & {
   expandedRows: ExploreExpandedRow[];
   timeAxis?: ExploreTimeAxis;
 };
+/**
+ * Version 5 pivot layout: the version 4 fields plus the required table mode. A flat table merges
+ * both axes onto the row side, so it has no row hierarchy, no expanded rows and no column cell.
+ */
+export type ExplorePivotV5 = ExplorePivotV4 & { tableMode: 'nest' | 'flat' };
 /** Fields every state version shares. */
 type ExploreViewStateBase = {
   timeZone: string;
@@ -88,18 +93,21 @@ export type ExploreViewStateV1 = ExploreViewStateBase & { version: 1 };
 export type ExploreViewStateV2 = ExploreViewStateBase & { version: 2; pivot: ExplorePivot };
 export type ExploreViewStateV3 = ExploreViewStateBase & { version: 3; pivot: ExplorePivotV3 };
 export type ExploreViewStateV4 = ExploreViewStateBase & { version: 4; pivot: ExplorePivotV4 };
+export type ExploreViewStateV5 = ExploreViewStateBase & { version: 5; pivot: ExplorePivotV5 };
 /**
  * Versioned saved exploration state. It is a strict whitelist: one unknown key is a client bug.
  * The page offset is intentionally not stored; opening a view always restores page 0.
  * Version 1 is unchanged and rejects a stored pivot; version 2 requires one. Version 3 adds the
  * nested row hierarchy, its ordering and the expanded rows on top of the same axes. Version 4 adds
- * an optional bucket axis and widens the row ordering to change sorts and one column cell.
+ * an optional bucket axis and widens the row ordering to change sorts and one column cell. Version
+ * 5 requires the table mode, which may fold both axes onto a flat row side.
  */
 export type ExploreViewState =
   | ExploreViewStateV1
   | ExploreViewStateV2
   | ExploreViewStateV3
-  | ExploreViewStateV4;
+  | ExploreViewStateV4
+  | ExploreViewStateV5;
 
 const MAX_MEASURES = 6;
 const MAX_DIMENSIONS = 4;
@@ -117,6 +125,7 @@ const SORT_FIELDS = ['value', 'delta', 'percentChange'];
 const ROW_SORT_FIELDS = ['label', 'value'];
 /** Version 4 widens the row ordering: change sorts and an optional single column cell. */
 const ROW_SORT_FIELDS_V4 = ['label', 'value', 'delta', 'percentChange'];
+const TABLE_MODES = ['nest', 'flat'];
 const TIME_AXIS_FIELDS = ['column', 'grain', 'timeZone'];
 const STATE_FIELDS = [
   'version',
@@ -136,7 +145,9 @@ const PIVOT_FIELDS = ['enabled', 'rowColumns', 'columnColumns'];
 const PIVOT_V3_FIELDS = [...PIVOT_FIELDS, 'rowHierarchy', 'rowSort', 'expandedRows'];
 /** Version 4 adds the optional bucket axis on top of the version 3 layout. */
 const PIVOT_V4_FIELDS = [...PIVOT_V3_FIELDS, 'timeAxis'];
-/** Versions 2 through 4 store the pivot layout; a version 1 state rejects the key as unknown. */
+/** Version 5 adds the required table mode on top of the version 4 layout. */
+const PIVOT_V5_FIELDS = [...PIVOT_V4_FIELDS, 'tableMode'];
+/** Versions 2 through 5 store the pivot layout; a version 1 state rejects the key as unknown. */
 const PIVOT_STATE_FIELDS = [...STATE_FIELDS, 'pivot'];
 
 const invalid = (): never => {
@@ -355,16 +366,15 @@ function timeAxis(value: any, axes: string[], periodTimeZone?: string): ExploreT
 }
 
 /**
- * Version 4 pivot layout: the version 3 fields plus an optional bucket axis. Temporal membership of
- * the bucket column is checked against the live source at save time, like every other column name.
+ * Shared shape of the version 4 and version 5 pivot layouts: the version 3 fields plus an optional
+ * bucket axis. The caller has already checked that only its own version's keys are present.
  */
-function pivotV4(
+function pivotV4Core(
   value: any,
   measureIds: number[],
   comparePrevious: boolean,
   periodTimeZone?: string,
 ): ExplorePivotV4 {
-  object(value, PIVOT_V4_FIELDS);
   const base = pivot({
     enabled: value.enabled,
     rowColumns: value.rowColumns,
@@ -387,6 +397,41 @@ function pivotV4(
   };
 }
 
+/**
+ * Version 4 pivot layout: the version 3 fields plus an optional bucket axis. Temporal membership of
+ * the bucket column is checked against the live source at save time, like every other column name.
+ */
+function pivotV4(
+  value: any,
+  measureIds: number[],
+  comparePrevious: boolean,
+  periodTimeZone?: string,
+): ExplorePivotV4 {
+  object(value, PIVOT_V4_FIELDS);
+  return pivotV4Core(value, measureIds, comparePrevious, periodTimeZone);
+}
+
+/**
+ * Version 5 pivot layout: the version 4 fields plus a required table mode. A flat table has no row
+ * hierarchy, no expanded rows and no column cell to sort by, so each is a contradictory request.
+ */
+function pivotV5(
+  value: any,
+  measureIds: number[],
+  comparePrevious: boolean,
+  periodTimeZone?: string,
+): ExplorePivotV5 {
+  object(value, PIVOT_V5_FIELDS);
+  const base = pivotV4Core(value, measureIds, comparePrevious, periodTimeZone);
+  if (!TABLE_MODES.includes(value.tableMode)) invalid();
+  if (value.tableMode === 'flat') {
+    if (base.rowHierarchy) invalid();
+    if (base.expandedRows.length) invalid();
+    if (base.rowSort.columnTuple !== undefined) invalid();
+  }
+  return { ...base, tableMode: value.tableMode as ExplorePivotV5['tableMode'] };
+}
+
 /** Change sorts compare against the previous period, so they require comparePrevious. */
 function rankingSort(value: any, comparePrevious: boolean): ExploreRankingSort {
   object(value, ['by', 'direction']);
@@ -402,8 +447,8 @@ function rankingSort(value: any, comparePrevious: boolean): ExploreRankingSort {
  */
 export function validateExploreViewState(input: any): ExploreViewState {
   const version = input && input.version;
-  if (version !== 1 && version !== 2 && version !== 3 && version !== 4) invalid();
-  // Version 1 rejects a stored pivot as an unknown key; versions 2 through 4 require one.
+  if (version !== 1 && version !== 2 && version !== 3 && version !== 4 && version !== 5) invalid();
+  // Version 1 rejects a stored pivot as an unknown key; versions 2 through 5 require one.
   object(input, version === 1 ? STATE_FIELDS : PIVOT_STATE_FIELDS);
   if (typeof input.timeZone !== 'string') invalid();
   const timeZone = validateBusinessTimeZone(input.timeZone);
@@ -437,6 +482,13 @@ export function validateExploreViewState(input: any): ExploreViewState {
   // range always takes the state timezone, so the bucket timezone resolves against that same zone.
   if (version === 4)
     state.pivot = pivotV4(
+      input.pivot,
+      ids,
+      input.comparePrevious,
+      input.dateRange !== undefined ? timeZone : undefined,
+    );
+  if (version === 5)
+    state.pivot = pivotV5(
       input.pivot,
       ids,
       input.comparePrevious,

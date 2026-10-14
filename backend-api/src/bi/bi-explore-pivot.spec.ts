@@ -276,6 +276,7 @@ describe('BiExploreService pivot over real DuckDB', () => {
       filters: [],
       comparePrevious: false,
       rowHierarchy: false,
+      tableMode: 'nest',
       rowSort: { by: 'label', direction: 'asc' },
     });
     expect(result.limits).toEqual({ rows: 50, columns: 20, cells: 6000 });
@@ -1417,6 +1418,115 @@ describe('BiExploreService pivot over real DuckDB', () => {
       columnTuple: [],
       measureId: 1,
     });
+  });
+
+  it('merges both axes onto the row side for a flat table and drops the column axis', async () => {
+    const result = await pivot(
+      body(await revision(), {
+        rowColumns: ['region'],
+        columnColumns: ['channel'],
+        tableMode: 'flat',
+      }),
+    );
+    // Effective rows are the column axis first, then the row axis; the column side is empty.
+    expect(result.rowColumns).toEqual(['channel', 'region']);
+    expect(result.columnColumns).toEqual([]);
+    expect(result.columns).toEqual([[]]);
+    expect(result.applied.tableMode).toBe('flat');
+    expect(result.rowSubtotals).toEqual([]);
+    // One cell per combined record, and each row total is that record's own aggregate.
+    expect(result.cells).toHaveLength(result.rows.length);
+    expect(result.cells.every((cell: any) => cell.column === 0)).toBe(true);
+    expect(result.rows).toEqual([
+      ['app', 'A'],
+      ['app', 'B'],
+      ['app', 'C'],
+      ['bulk', 'D'],
+      ['web', 'A'],
+      ['web', null],
+    ]);
+    expect(result.rowTotals.map((measures: any[]) => measures[0].value)).toEqual([
+      90, 90, 60, 5, 30, 36,
+    ]);
+    // The grand total stays the full-filter aggregate, not the sum of the displayed records.
+    expect(result.grandTotal[0].value).toBe(311);
+  });
+
+  it('keeps a flat table with no axes to a single grand record without inventing rows', async () => {
+    const result = await pivot(
+      body(await revision(), { rowColumns: [], columnColumns: [], tableMode: 'flat' }),
+    );
+    // No axis means no combined record, so the whole table is the one grand-total row.
+    expect(result.rowColumns).toEqual([]);
+    expect(result.columnColumns).toEqual([]);
+    expect(result.rows).toEqual([[]]);
+    expect(result.columns).toEqual([[]]);
+    expect(result.cells).toHaveLength(1);
+    expect(result.rowTotals[0][0].value).toBe(311);
+    expect(result.grandTotal[0].value).toBe(311);
+  });
+
+  it('orders flat records by the combined row total and rejects a contradictory flat request', async () => {
+    const sourceRevision = await revision();
+    const sorted = await pivot(
+      body(sourceRevision, {
+        columnColumns: ['channel'],
+        tableMode: 'flat',
+        rowSort: { by: 'value', direction: 'desc', measureId: 1 },
+      }),
+    );
+    // By total: app/A 90, app/B 90 (label tie asc), app/C 60, web/null 36, web/A 30, bulk/D 5.
+    expect(sorted.rows).toEqual([
+      ['app', 'A'],
+      ['app', 'B'],
+      ['app', 'C'],
+      ['web', null],
+      ['web', 'A'],
+      ['bulk', 'D'],
+    ]);
+    // A flat table disables the hierarchy and the column cell, so either is contradictory.
+    await expect(
+      pivot(body(sourceRevision, { tableMode: 'flat', rowHierarchy: true })),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      pivot(
+        body(sourceRevision, {
+          tableMode: 'flat',
+          rowSort: { by: 'value', direction: 'desc', measureId: 1, columnTuple: ['app'] },
+        }),
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(pivot(body(sourceRevision, { tableMode: 'wide' }))).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+  });
+
+  it('keeps a previous-only flat record and the prior grand ratio under flat mode', async () => {
+    const result = await pivot(
+      body(await revision(), {
+        columnColumns: ['channel'],
+        tableMode: 'flat',
+        comparePrevious: true,
+        dateRange: { column: 'day', start: '2026-01-03', end: '2026-01-04' },
+      }),
+    );
+    // Current 01-03..04 records are app/A 70, app/B 50, app/C 60, bulk/D 5; the previous period
+    // adds web/A 30 and web/null 36, which have no current value and stay null instead of zero.
+    expect(
+      result.rows.map((tuple: any[]) => tuple.map((value: any) => String(value)).join('/')),
+    ).toEqual(['app/A', 'app/B', 'app/C', 'bulk/D', 'web/A', 'web/null']);
+    const missing = at(result, ['web', null], []);
+    expect(values(missing)).toEqual([null]);
+    expect(missing[0].comparison).toMatchObject({
+      previousValue: 36,
+      delta: null,
+      percentChange: null,
+    });
+    // Each row has exactly one cell, and the grand total is the full-filter aggregate.
+    expect(result.cells).toHaveLength(result.rows.length);
+    expect(result.grandTotal[0].value).toBe(185);
+    expect(result.grandTotal[0].comparison).toMatchObject({ previousValue: 126, delta: 59 });
+    expect(result.grandTotal[0].comparison.percentChange).toBeCloseTo(46.8254, 3);
   });
 });
 

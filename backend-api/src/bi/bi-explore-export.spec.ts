@@ -451,6 +451,29 @@ describe('BiExploreService CSV export over real DuckDB', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
+  it('exports a flat table with the applied table mode condition', async () => {
+    const result: any = await call('pivot', pivotBody(await revision(), { tableMode: 'flat' }));
+    const lines = dataLines(result.csv);
+    // The merged record keeps both axes in the row, and the column axis of every cell is empty.
+    expect(
+      lines.some(line =>
+        line.startsWith(
+          '"cell","{""channel"":""app"",""region"":""A""}",,"1","Revenue","90",number',
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      lines.some(line =>
+        line.startsWith('"row_total","{""channel"":""app"",""region"":""A""}",,"1","Revenue","90"'),
+      ),
+    ).toBe(true);
+    expect(lines.some(line => line.startsWith('"grand_total",,,"1","Revenue","311"'))).toBe(true);
+    // The applied table mode is emitted as a leading condition row, exactly like the other fields.
+    expect(lines.find(line => line.includes('""field"":""tableMode""'))).toBe(
+      '"condition","{""field"":""tableMode""}",,,,"""flat""",string,,,,',
+    );
+  });
+
   it('rejects raw model rows, an unknown mode or outer field, and a stale revision', async () => {
     const sourceRevision = await revision();
     await expect(

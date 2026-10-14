@@ -261,6 +261,54 @@ test('탐색·Pivot 조건 저장 → 새로고침 → 복원 → CSV 다운로�
     await page.getByRole('button', { name: '보기 삭제', exact: true }).click();
     expect((await timeRemoved).ok()).toBe(true);
     viewId = undefined;
+
+    // Flat v5 groups the combined dimensions, rather than flattening a sparse Pivot grid.
+    const flatQuery = page.waitForResponse(
+      response => response.url().endsWith('/bi/explore/pivot') && response.request().postDataJSON()?.tableMode === 'flat',
+    );
+    await page.getByRole('button', { name: 'Flat', exact: true }).click();
+    const flatResponse = await flatQuery;
+    const flatData = (await flatResponse.json()).data;
+    expect(flatResponse.request().postDataJSON()).toMatchObject({ tableMode: 'flat', rowHierarchy: false });
+    expect(flatResponse.request().postDataJSON().rowSort).not.toHaveProperty('columnTuple');
+    expect(flatData.rowColumns).toEqual(['created_at', 'category', 'channel']);
+    expect(flatData.rows).toHaveLength(3);
+    expect(flatData.columnColumns).toEqual([]);
+    expect(Number(flatData.grandTotal[0].value)).toBe(600);
+    await expect(page.getByRole('button', { name: 'Flat', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await page.getByLabel('새 보기 이름').fill(`${name} Flat`);
+    const flatSaved = createResponse(page, 'bi/explore/views/create');
+    await page.getByRole('button', { name: '현재 조건 저장', exact: true }).click();
+    const flatSaveResponse = await flatSaved;
+    viewId = await createdId(flatSaveResponse);
+    const flatState = (await flatSaveResponse.json()).data.state;
+    expect(flatState).toMatchObject({ version: 5, pivot: { tableMode: 'flat', rowHierarchy: false, expandedRows: [] } });
+    await page.reload();
+    await page.getByRole('button', { name: '탐색 보기', exact: true }).click();
+    await page.getByLabel('저장한 탐색 보기').selectOption(String(viewId));
+    const flatRestored = page.waitForResponse(
+      response => response.url().endsWith('/bi/explore/pivot') && response.request().postDataJSON()?.tableMode === 'flat',
+    );
+    await page.getByRole('button', { name: '보기 열기', exact: true }).click();
+    expect((await (await flatRestored).json()).data.rows).toHaveLength(3);
+    await expect(page.getByRole('button', { name: 'Flat', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await page.getByRole('button', { name: '내보내기 ▾', exact: true }).click();
+    const flatExport = createResponse(page, 'bi/explore/export');
+    const flatDownload = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'CSV 다운로드', exact: true }).click();
+    const flatExportResponse = await flatExport;
+    expect(flatExportResponse.request().postDataJSON().query).toMatchObject({ tableMode: 'flat', rowHierarchy: false });
+    const flatCsv = (await flatExportResponse.json()).data.csv;
+    expect(flatCsv).toContain('tableMode');
+    expect(flatCsv).toContain('flat');
+    expect(flatCsv).not.toContain('subtotal_cell');
+    expect(await readFile((await (await flatDownload).path())!, 'utf8')).toBe(flatCsv);
+    const flatRemoved = createResponse(page, 'bi/explore/views/remove');
+    await page.getByRole('button', { name: '보기 삭제', exact: true }).click();
+    expect((await flatRemoved).ok()).toBe(true);
+    viewId = undefined;
+    await page.getByRole('button', { name: 'Pivot 테이블', exact: true }).click();
+    await expect(page.getByLabel('열 차원 1')).toHaveValue('created_at');
   } finally {
     if (viewId && sourceId)
       await page.request.post(`${API}/bi/explore/views/remove`, { headers, data: { sourceId, viewId } });

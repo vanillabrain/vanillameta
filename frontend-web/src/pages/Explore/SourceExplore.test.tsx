@@ -1789,3 +1789,260 @@ it('falls back to the row total when a changed date range makes the scoped Pivot
   await screen.findByRole('button', { name: '정렬 2023-09-12 Avg Bid Floor' });
   expect(screen.queryByText(/다시 선택해 주세요/)).toBeNull();
 });
+
+/** Flat echoes one joined record axis: the original column axis first, then the original row axis. */
+const flatResult = (body: any) => ({
+  sourceRevision: body.sourceRevision,
+  rowColumns: [...body.columnColumns, ...body.rowColumns],
+  columnColumns: [],
+  rows: [
+    ['App', null, 'A'],
+    ['Site', 'Android', 'B'],
+  ],
+  columns: [[]],
+  // Only the second record carries a cell, so the first must fall back to its own row total.
+  cells: [{ row: 1, column: 0, measures: [{ measureId: 1, value: '111' }] }],
+  rowTotals: [[{ measureId: 1, value: '300', comparison: { previousValue: '200', delta: '100', percentChange: 50 } }], []],
+  columnTotals: [],
+  grandTotal: [{ measureId: 1, value: '600', comparison: { previousValue: '400', delta: '200', percentChange: 50 } }],
+});
+const withFlatPivot = () => {
+  const original = currentPost();
+  api.post.mockImplementation(async (url: string, body: any, ...options: any[]) =>
+    url === '/bi/explore/pivot'
+      ? success(body.tableMode === 'flat' ? flatResult(body) : pivotResult(body))
+      : original(url, body, ...options),
+  );
+};
+const flatHeaders = () => screen.getAllByRole('columnheader').map(cell => cell.textContent);
+const pivotToggle = (name: string) => screen.getByRole('button', { name, exact: true }).getAttribute('aria-pressed');
+const v5FlatState = {
+  ...savedState,
+  version: 5,
+  pivot: {
+    enabled: true,
+    rowColumns: ['device_type'],
+    columnColumns: ['device_os'],
+    rowHierarchy: false,
+    rowSort: { by: 'value' as const, direction: 'desc' as const, measureId: 2 },
+    expandedRows: [],
+    tableMode: 'flat' as const,
+  },
+};
+it('joins both saved axes into one flat record axis and drops the cell scope that axis cannot carry', async () => {
+  withViewsState(v4State);
+  withFlatPivot();
+  await mount();
+  await openViewPanel();
+  loadSelectedView();
+  await waitFor(() => expect(pivots().at(-1)?.[1].rowSort?.columnTuple).toEqual(['Mobile/Tablet']));
+  expect(pivots().at(-1)?.[1].tableMode).toBeUndefined();
+  fireEvent.click(screen.getByRole('button', { name: 'Flat', exact: true }));
+  await waitFor(() =>
+    expect(pivots().at(-1)?.[1]).toMatchObject({
+      tableMode: 'flat',
+      rowHierarchy: false,
+      rowColumns: ['__time'],
+      columnColumns: ['device_type'],
+    }),
+  );
+  expect(pivots().at(-1)?.[1].rowSort).toEqual({ by: 'delta', direction: 'desc', measureId: 2 });
+  expect(pivotToggle('Flat')).toBe('true');
+  await screen.findByRole('region', { name: 'Pivot 결과' });
+  // The headers follow the joined response axis, not the two saved axes.
+  expect(flatHeaders().slice(0, 2)).toEqual(['device_type', '__time']);
+  expect(screen.getByRole('button', { name: 'Flat 정렬 Avg Bid Floor' }).getAttribute('aria-pressed')).toBe('true');
+});
+it('renders flat records from the joined tuple, keeps null labels and toggles the record order', async () => {
+  withFlatPivot();
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: 'Pivot', exact: true }));
+  await screen.findByRole('region', { name: 'Pivot 결과' });
+  fireEvent.change(screen.getByLabelText('행 차원 2'), { target: { value: 'device_os' } });
+  fireEvent.change(screen.getByLabelText('열 차원 1'), { target: { value: 'bid_floor' } });
+  await waitFor(() => expect(pivots().at(-1)?.[1].columnColumns).toEqual(['bid_floor']));
+  fireEvent.click(screen.getByRole('button', { name: 'Flat', exact: true }));
+  await waitFor(() => expect(pivots().at(-1)?.[1].tableMode).toBe('flat'));
+  await screen.findByRole('region', { name: 'Pivot 결과' });
+  expect(flatHeaders()).toEqual(['bid_floor', 'device_type', 'device_os', 'Total Requests', 'Avg Bid Floor', 'Rows']);
+  expect(screen.getByRole('button', { name: '(값 없음)', exact: true })).toBeTruthy();
+  expect(screen.getByText('111')).toBeTruthy();
+  expect(screen.getByText('300')).toBeTruthy();
+  expect(screen.getByText('600')).toBeTruthy();
+  expect(screen.queryByLabelText('정렬 범위')).toBeNull();
+  clickCellHeader('Flat 정렬 Total Requests');
+  await waitFor(() => expect(pivots().at(-1)?.[1].rowSort).toEqual({ by: 'value', direction: 'asc', measureId: 1 }));
+  clickCellHeader('Flat 정렬 Total Requests');
+  await waitFor(() => expect(pivots().at(-1)?.[1].rowSort).toEqual({ by: 'value', direction: 'desc', measureId: 1 }));
+});
+it('keeps the flat change calculation while the record order moves between measure headers', async () => {
+  withFlatPivot();
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: 'Pivot', exact: true }));
+  await screen.findByRole('region', { name: 'Pivot 결과' });
+  fireEvent.click(screen.getByRole('button', { name: '사용자 지정' }));
+  fireEvent.change(screen.getByLabelText('시작일'), { target: { value: '2023-09-10' } });
+  fireEvent.change(screen.getByLabelText('종료일'), { target: { value: '2023-09-11' } });
+  fireEvent.click(screen.getByRole('button', { name: '이전 기간 비교' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Flat', exact: true }));
+  await waitFor(() => expect(pivots().at(-1)?.[1].tableMode).toBe('flat'));
+  clickCellHeader('Flat 정렬 Total Requests');
+  await waitFor(() => expect(pivots().at(-1)?.[1].rowSort).toEqual({ by: 'value', direction: 'asc', measureId: 1 }));
+  clickCellHeader('정렬 계산 변화량');
+  await waitFor(() => expect(pivots().at(-1)?.[1].rowSort).toEqual({ by: 'delta', direction: 'asc', measureId: 1 }));
+  clickCellHeader('Flat 정렬 Avg Bid Floor');
+  await waitFor(() => expect(pivots().at(-1)?.[1].rowSort).toEqual({ by: 'delta', direction: 'asc', measureId: 2 }));
+  expect(pivots().at(-1)?.[1].rowSort.columnTuple).toBeUndefined();
+});
+it('restores a v5 flat view, keeps both original axes nested, and re-saves the flat mode', async () => {
+  withViewsState(v5FlatState);
+  withFlatPivot();
+  await mount();
+  await openViewPanel();
+  loadSelectedView();
+  await waitFor(() =>
+    expect(pivots().at(-1)?.[1]).toMatchObject({
+      tableMode: 'flat',
+      rowHierarchy: false,
+      rowColumns: ['device_type'],
+      columnColumns: ['device_os'],
+      rowSort: { by: 'value', direction: 'desc', measureId: 2 },
+    }),
+  );
+  await screen.findByRole('region', { name: 'Pivot 결과' });
+  expect(pivotToggle('Flat')).toBe('true');
+  expect(flatHeaders().slice(0, 2)).toEqual(['device_os', 'device_type']);
+  fireEvent.click(screen.getByRole('button', { name: 'Pivot 테이블', exact: true }));
+  await waitFor(() => expect(pivots().at(-1)?.[1].tableMode).toBeUndefined());
+  expect((screen.getByLabelText('열 차원 1') as HTMLInputElement).value).toBe('device_os');
+  expect((screen.getByLabelText('행 차원 1') as HTMLInputElement).value).toBe('device_type');
+  fireEvent.click(screen.getByRole('button', { name: 'Flat', exact: true }));
+  await waitFor(() => expect(pivots().at(-1)?.[1].tableMode).toBe('flat'));
+  fireEvent.change(screen.getByLabelText('새 보기 이름'), { target: { value: 'Flat v5' } });
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: '현재 조건 저장' }) as HTMLButtonElement).disabled).toBe(false),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '현재 조건 저장' }));
+  await waitFor(() => {
+    const state = api.post.mock.calls.find(([url]) => url === '/bi/explore/views/create')?.[1].state;
+    expect(state.version).toBe(5);
+    expect(state.pivot).toMatchObject({
+      tableMode: 'flat',
+      rowHierarchy: false,
+      expandedRows: [],
+      rowColumns: ['device_type'],
+      columnColumns: ['device_os'],
+      rowSort: { by: 'value', direction: 'desc', measureId: 2 },
+    });
+  });
+  fireEvent.click(screen.getByRole('button', { name: /내보내기/ }));
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: 'CSV 다운로드' }) as HTMLButtonElement).disabled).toBe(false),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'CSV 다운로드' }));
+  await waitFor(() => {
+    const body = api.post.mock.calls.find(([url]) => url === '/bi/explore/export')?.[1];
+    expect(body.mode).toBe('pivot');
+    expect(body.query).toMatchObject({ tableMode: 'flat', rowHierarchy: false });
+  });
+});
+it('loads a version 4 view as the nested table so the flat mode stays opt-in', async () => {
+  withViewsState(v4State);
+  withTimedPivot();
+  await mount();
+  await openViewPanel();
+  loadSelectedView();
+  await waitFor(() => expect(pivots().at(-1)?.[1].timeAxis?.grain).toBe('week'));
+  expect(pivots().at(-1)?.[1].tableMode).toBeUndefined();
+  expect(pivotToggle('Pivot 테이블')).toBe('true');
+  expect(pivotToggle('Flat')).toBe('false');
+});
+it('refuses a version 5 view that omits the flat table mode', async () => {
+  withViewsState({ ...v5FlatState, pivot: { ...v5FlatState.pivot, tableMode: undefined } });
+  withFlatPivot();
+  await mount();
+  await openViewPanel();
+  loadSelectedView();
+  await screen.findByText(/저장된 탐색 조건의 버전을 확인할 수 없습니다/);
+  expect(pivots().length).toBe(0);
+});
+it('renders the flat time-axis bucket as plain text while categorical record labels still filter', async () => {
+  withTemporalDimension();
+  const original = currentPost();
+  api.post.mockImplementation(async (url: string, body: any, ...options: any[]) =>
+    url === '/bi/explore/pivot'
+      ? success(
+          body.tableMode === 'flat'
+            ? {
+                ...flatResult(body),
+                // The joined response carries a bucket label for the temporal column and the raw
+                // member for the categorical one.
+                rows: [
+                  ['2023-09-10', 'Mobile/Tablet'],
+                  ['2023-09-11', 'Personal Computer'],
+                ],
+              }
+            : pivotResult(body),
+        )
+      : original(url, body, ...options),
+  );
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: 'Pivot', exact: true }));
+  await screen.findByRole('region', { name: 'Pivot 결과' });
+  fireEvent.change(screen.getByLabelText('열 차원 1'), { target: { value: '__time' } });
+  await waitFor(() => expect(pivots().at(-1)?.[1].columnColumns).toEqual(['__time']));
+  fireEvent.click(screen.getByRole('button', { name: '시간 축 꺼짐' }));
+  await waitFor(() => expect(pivots().at(-1)?.[1].timeAxis).toEqual({ column: '__time', grain: 'day', timeZone: 'UTC' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Flat', exact: true }));
+  await waitFor(() => expect(pivots().at(-1)?.[1].tableMode).toBe('flat'));
+  await screen.findByRole('region', { name: 'Pivot 결과' });
+  expect(flatHeaders().slice(0, 2)).toEqual(['__time', 'device_type']);
+  // A bucket label spans a range, so it must not offer the exact raw-column filter of a member.
+  expect(screen.getByText('2023-09-10')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: '2023-09-10', exact: true })).toBeNull();
+  expect(screen.getByRole('button', { name: 'Personal Computer', exact: true })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Mobile/Tablet', exact: true }));
+  await waitFor(() => expect(pivots().at(-1)?.[1].filters).toEqual([{ column: 'device_type', values: ['Mobile/Tablet'] }]));
+});
+it('renders one flat total row when the joined record axis has no dimension', async () => {
+  withFlatPivot();
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: 'Pivot', exact: true }));
+  await screen.findByRole('region', { name: 'Pivot 결과' });
+  fireEvent.click(screen.getByRole('button', { name: '구성 초기화' }));
+  await waitFor(() => expect(pivots().at(-1)?.[1].rowColumns).toEqual([]));
+  fireEvent.click(screen.getByRole('button', { name: 'Flat', exact: true }));
+  await waitFor(() => expect(pivots().at(-1)?.[1].tableMode).toBe('flat'));
+  await screen.findByRole('region', { name: 'Pivot 결과' });
+  expect(flatHeaders()).toEqual(['Total Requests', 'Avg Bid Floor', 'Rows']);
+  // The response repeats its only record as one empty tuple, so only the total row may render.
+  expect(screen.getAllByRole('row').length).toBe(2);
+  expect(screen.getByText('600')).toBeTruthy();
+  expect(screen.queryByText('300')).toBeNull();
+  expect(screen.queryByText('111')).toBeNull();
+  expect(screen.queryByText('총합')).toBeNull();
+});
+it('ignores a v5 flat view that keeps a hierarchy, an expansion or a cell scope', async () => {
+  const contradictions = [
+    {
+      ...v5FlatState.pivot,
+      rowColumns: ['device_type', 'device_os'],
+      rowHierarchy: true,
+      expandedRows: [['Mobile/Tablet']],
+    },
+    {
+      ...v5FlatState.pivot,
+      rowSort: { by: 'value' as const, direction: 'desc' as const, measureId: 2, columnTuple: ['App'] },
+    },
+  ];
+  for (const pivot of contradictions) {
+    withViewsState({ ...v5FlatState, pivot });
+    withFlatPivot();
+    await mount();
+    await openViewPanel();
+    loadSelectedView();
+    await screen.findByText(/저장된 탐색 조건의 버전을 확인할 수 없습니다/);
+    expect(pivots().length).toBe(0);
+    cleanup();
+  }
+});

@@ -35,6 +35,7 @@ describe('ExploreViewService saved exploration views', () => {
   const v2 = (pivot: any, over: any = {}) => ({ ...state(over), version: 2, pivot });
   const v3 = (pivot: any, over: any = {}) => ({ ...state(over), version: 3, pivot });
   const v4 = (pivot: any, over: any = {}) => ({ ...state(over), version: 4, pivot });
+  const v5 = (pivot: any, over: any = {}) => ({ ...state(over), version: 5, pivot });
   const pivotV3 = (over: any = {}) => ({
     enabled: true,
     rowColumns: ['region', 'channel'],
@@ -50,6 +51,8 @@ describe('ExploreViewService saved exploration views', () => {
       rowSort: { by: 'value', direction: 'desc', measureId: 1, columnTuple: [] },
       ...over,
     });
+  /** Version 5 base: the version 4 layout plus the required table mode; the default stays nested. */
+  const pivotV5 = (over: any = {}) => ({ ...pivotV4(), tableMode: 'nest', ...over });
   const mainSql =
     'CREATE TABLE uploaded_data AS SELECT ' +
     'CAST("column0" AS VARCHAR) AS region, CAST("column1" AS VARCHAR) AS channel, ' +
@@ -1327,6 +1330,140 @@ describe('ExploreViewService saved exploration views', () => {
     for (const body of cases)
       await expect(service.create(body, actor)).rejects.toBeInstanceOf(BadRequestException);
     expect(await views().count()).toBe(0);
+  });
+
+  it('round-trips a version 5 flat view with a merged axis through create, load and list', async () => {
+    const sourceRevision = await revision();
+    const pivot = {
+      enabled: true,
+      rowColumns: ['region'],
+      columnColumns: ['channel'],
+      rowHierarchy: false,
+      rowSort: { by: 'value', direction: 'desc', measureId: 1 },
+      expandedRows: [],
+      tableMode: 'flat',
+    };
+    const saved = v5(pivot);
+    const created = await service.create(
+      {
+        sourceId: 1,
+        name: 'flat',
+        sourceRevision,
+        state: saved,
+        measureVersions: { 1: 1 },
+      },
+      actor,
+    );
+    expect(created.data.state).toEqual(saved);
+    expect(created.data.state.version).toBe(5);
+    expect(created.data.state.pivot.tableMode).toBe('flat');
+    // The stored row keeps the flat mode and the two original axes, so a reload reproduces it.
+    const rows = await views().find();
+    expect(JSON.parse(rows[0].state)).toEqual(saved);
+    const listed = await service.list({ sourceId: 1 }, actor);
+    expect(listed.data[0]).toMatchObject({ id: created.data.id, stale: false });
+    expect(listed.data[0].state).toEqual(saved);
+    const loaded = await new ExploreViewService(db, access, bi, connection).load(
+      { sourceId: 1, viewId: created.data.id },
+      actor,
+    );
+    expect(loaded.data).toEqual({ ...created.data });
+  });
+
+  it('accepts a version 5 nest view and rejects a flat layout that is contradictory', async () => {
+    const sourceRevision = await revision();
+    const nest = await service.create(
+      {
+        sourceId: 1,
+        name: 'nest-five',
+        sourceRevision,
+        measureVersions: { 1: 1 },
+        state: v5(pivotV5({ rowSort: { by: 'value', direction: 'desc', measureId: 1 } })),
+      },
+      actor,
+    );
+    expect(nest.data.state.pivot.tableMode).toBe('nest');
+    expect(nest.data.state.pivot.expandedRows).toEqual([['A'], ['B'], [12], [true], [null]]);
+    const flat = (over: any = {}) =>
+      v5({
+        ...pivotV5({
+          expandedRows: [],
+          rowHierarchy: false,
+          rowSort: { by: 'value', direction: 'desc', measureId: 1 },
+          tableMode: 'flat',
+        }),
+        ...over,
+      });
+    const cases: any[] = [
+      // A flat table has no hierarchy, so a kept hierarchy or expanded row is contradictory.
+      flat({ rowHierarchy: true, expandedRows: [] }),
+      flat({ rowHierarchy: true, expandedRows: [['A']] }),
+      // Neither does it have a column cell, so a cell scope cannot accompany the flat mode.
+      flat({
+        rowColumns: ['region'],
+        columnColumns: ['channel'],
+        rowSort: { by: 'value', direction: 'desc', measureId: 1, columnTuple: ['web'] },
+      }),
+      // The table mode is required and must be exactly nest or flat.
+      v5({ ...pivotV4(), expandedRows: [] }),
+      v5({ ...pivotV4(), expandedRows: [], tableMode: 'wide' }),
+    ];
+    for (const state of cases)
+      await expect(
+        service.create(
+          { sourceId: 1, name: 'flat-five', sourceRevision, measureVersions: { 1: 1 }, state },
+          actor,
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    expect(await views().count()).toBe(1);
+  });
+
+  it('validates the version 5 bucket axis against the live catalog like version 4', async () => {
+    const sourceRevision = await revision();
+    const bucket = (over: any = {}) =>
+      v5(
+        pivotV5({
+          rowColumns: ['region', 'channel'],
+          columnColumns: ['day'],
+          rowHierarchy: true,
+          expandedRows: [],
+          rowSort: { by: 'value', direction: 'desc', measureId: 1 },
+          tableMode: 'nest',
+          ...over,
+        }),
+      );
+    // A non-temporal axis column cannot bucket, exactly like the version 4 rule.
+    await expect(
+      service.create(
+        {
+          sourceId: 1,
+          name: 'v5-bad-bucket',
+          sourceRevision,
+          measureVersions: { 1: 1 },
+          state: bucket({
+            rowColumns: ['region'],
+            columnColumns: [],
+            timeAxis: { column: 'region', grain: 'day', timeZone: 'UTC' },
+          }),
+        },
+        actor,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    const created = await service.create(
+      {
+        sourceId: 1,
+        name: 'v5-bucket',
+        sourceRevision,
+        measureVersions: { 1: 1 },
+        state: bucket({ timeAxis: { column: 'day', grain: 'month', timeZone: 'UTC' } }),
+      },
+      actor,
+    );
+    expect(created.data.state.pivot.timeAxis).toEqual({
+      column: 'day',
+      grain: 'month',
+      timeZone: 'UTC',
+    });
   });
 
   it('still reads legacy version 1, 2 and 3 rows alongside a version 4 row', async () => {
