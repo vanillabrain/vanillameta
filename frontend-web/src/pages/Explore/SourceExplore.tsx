@@ -244,7 +244,19 @@ function FilterValueSelect({
     };
   }, [sourceId, sourceRevision, column, search, filters, dateRange, onConflict]);
   return (
-    <Box role="group" aria-label="값 선택" sx={{ maxHeight: 220, overflow: 'auto' }}>
+    <Box
+      role="group"
+      aria-label="값 선택"
+      sx={{
+        display: 'grid',
+        gridTemplateColumns: { xs: 'minmax(0, 1fr)', sm: 'repeat(2, minmax(0, 1fr))' },
+        gap: 0.5,
+        maxHeight: 220,
+        overflow: 'auto',
+        p: 0.5,
+        '& > .MuiTypography-root': { gridColumn: '1 / -1' },
+      }}
+    >
       {busy && <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>값을 불러오는 중…</Typography>}
       {error && (
         <Typography role="alert" sx={{ fontSize: 13, color: 'error.main' }}>
@@ -260,12 +272,35 @@ function FilterValueSelect({
           control={
             <Checkbox
               size="small"
+              disableRipple
               checked={selected.some(current => Object.is(current, value))}
               onChange={() => onToggle(value)}
               inputProps={{ 'aria-label': categoryText(value) }}
             />
           }
           label={categoryText(value)}
+          sx={{
+            m: 0,
+            minWidth: 0,
+            minHeight: 40,
+            pr: 1,
+            alignItems: 'flex-start',
+            borderRadius: '6px',
+            backgroundColor: selected.some(current => Object.is(current, value)) ? '#eaf2fc' : 'transparent',
+            '&:hover': { backgroundColor: '#edf3fa' },
+            '&:focus-within': { outline: '2px solid #0b5cab', outlineOffset: '-2px' },
+            '& .MuiCheckbox-root': { p: 1, flexShrink: 0, color: '#64748b' },
+            '& .MuiCheckbox-root.Mui-checked': { color: ACCENT },
+            '& .MuiCheckbox-root.Mui-focusVisible, & input:focus-visible': { outline: 'none !important' },
+            '& .MuiFormControlLabel-label': {
+              minWidth: 0,
+              py: 1,
+              fontSize: 13,
+              lineHeight: '24px',
+              overflowWrap: 'anywhere',
+              color: '#334155',
+            },
+          }}
         />
       ))}
       {truncated && (
@@ -316,8 +351,11 @@ function LeaderboardCard({
                   sx={{
                     position: 'relative',
                     width: '100%',
-                    minHeight: 32,
+                    height: 'auto',
+                    minHeight: 40,
                     px: 0.75,
+                    py: 0.75,
+                    lineHeight: '20px',
                     justifyContent: 'space-between',
                     gap: 1,
                     overflow: 'hidden',
@@ -374,6 +412,7 @@ function LeaderboardCard({
                         aria-label={compareText(row, decimalPlaces, unitPrefix, unitSuffix, numberNotation, true)}
                         sx={{
                           fontSize: 11,
+                          lineHeight: 1.5,
                           color: 'text.secondary',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
@@ -1079,49 +1118,84 @@ export default function SourceExplore() {
           )}
         </Stack>
 
-        <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', mt: 1.5, minWidth: 0 }}>
-          {filters.length === 0 && <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>필터 없음</Typography>}
-          {filters.map(filter => (
-            <Chip
-              key={filter.column}
-              label={`${filter.column}: ${
-                'range' in filter
-                  ? `${filter.range.min ?? '제한 없음'} ~ ${filter.range.max ?? '제한 없음'} (양 끝 포함)`
-                  : filter.values.map(categoryText).join(', ')
-              }`}
-              sx={{
-                backgroundColor: '#edf3fb',
-                color: '#214c80',
-                maxWidth: '100%',
-                height: 'auto',
-                '& .MuiChip-label': { whiteSpace: 'normal', overflowWrap: 'anywhere', py: 0.75 },
+        <Box sx={{ mt: 1.5, minWidth: 0 }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ gap: 1, minWidth: 0 }}>
+            <Typography sx={{ fontSize: 12, color: 'text.secondary', fontWeight: 500 }}>
+              {filters.length ? `적용된 필터 ${filters.length}개` : '필터 없음'}
+            </Typography>
+            <Button
+              ref={filterLauncher}
+              disableRipple
+              aria-label="필터 추가"
+              aria-expanded={filterPanelOpen}
+              aria-controls="explore-filter-panel"
+              onClick={() => {
+                setFilterError('');
+                setFilterPanelOpen(value => !value);
               }}
-              onDelete={() => applyFilter(filter.column, [])}
-            />
-          ))}
-          <Button
-            ref={filterLauncher}
-            aria-label="필터 추가"
-            aria-expanded={filterPanelOpen}
-            aria-controls="explore-filter-panel"
-            onClick={() => {
-              setFilterError('');
-              setFilterPanelOpen(value => !value);
-            }}
-            sx={{ border: '1px solid #d8e0eb', borderRadius: '7px', textTransform: 'none', color: 'text.primary' }}
-          >
-            필터 추가
-          </Button>
-        </Stack>
+              variant="outlined"
+              sx={{ flexShrink: 0, borderRadius: '7px', textTransform: 'none' }}
+            >
+              필터 추가
+            </Button>
+          </Stack>
+          {filters.length > 0 && (
+            <Stack
+              direction="row"
+              useFlexGap
+              spacing={0.75}
+              role="group"
+              aria-label="적용된 필터"
+              sx={{ flexWrap: 'wrap', mt: 1, minWidth: 0 }}
+            >
+              {filters.map(filter => (
+                <Chip
+                  key={filter.column}
+                  label={`${filter.column}: ${
+                    'range' in filter
+                      ? `${filter.range.min ?? '제한 없음'} ~ ${filter.range.max ?? '제한 없음'} (양 끝 포함)`
+                      : filter.values.map(categoryText).join(', ')
+                  }`}
+                  sx={{
+                    backgroundColor: '#f1f6fc',
+                    border: '1px solid #d8e5f4',
+                    borderRadius: '6px',
+                    minHeight: 32,
+                    fontSize: 12,
+                    lineHeight: 1.5,
+                    color: '#214c80',
+                    maxWidth: '100%',
+                    height: 'auto',
+                    '& .MuiChip-label': { whiteSpace: 'normal', overflowWrap: 'anywhere', px: 1, py: 0.5 },
+                    '& .MuiChip-deleteIcon': { flexShrink: 0, fontSize: 18, color: '#6c83a1' },
+                  }}
+                  onDelete={() => applyFilter(filter.column, [])}
+                />
+              ))}
+            </Stack>
+          )}
+        </Box>
 
         {filterPanelOpen && catalog && (
           <Box
             id="explore-filter-panel"
             role="group"
             aria-label="필터 설정"
-            sx={{ mt: 1, p: 1.5, border: '1px solid #e2e8f0', borderRadius: 2, backgroundColor: '#f8fafc' }}
+            sx={{
+              mt: 1.25,
+              p: { xs: 1.5, sm: 2 },
+              minWidth: 0,
+              border: '1px solid #dce6f2',
+              borderRadius: '8px',
+              backgroundColor: '#f8fafd',
+            }}
           >
-            <Stack direction="row" spacing={1.5} sx={{ mb: 1, flexWrap: 'wrap' }}>
+            <Stack
+              direction="row"
+              useFlexGap
+              spacing={1.5}
+              sx={{ mb: 1.5, flexWrap: 'wrap', minWidth: 0, '& .MuiFormControl-root': { minWidth: 0 } }}
+            >
               <TextField
                 select
                 size="small"
@@ -1178,7 +1252,12 @@ export default function SourceExplore() {
             )}
             {filterMode === 'range' && numericFilter ? (
               <>
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                <Stack
+                  direction={{ xs: 'column', sm: 'row' }}
+                  useFlexGap
+                  spacing={1.5}
+                  sx={{ '& .MuiFormControl-root': { flex: 1, minWidth: 0, width: '100%' } }}
+                >
                   <TextField
                     label="최솟값 (포함)"
                     value={rangeMin}
@@ -1210,7 +1289,11 @@ export default function SourceExplore() {
                     }}
                   />
                 </Stack>
-                <Typography id="range-filter-help" variant="caption">
+                <Typography
+                  id="range-filter-help"
+                  variant="caption"
+                  sx={{ display: 'block', mt: 1, mb: 1, lineHeight: 1.6, color: 'text.secondary' }}
+                >
                   원본 행의 숫자를 필터링합니다. 한쪽을 비우면 제한하지 않습니다. 양 끝값은 포함하고 NULL은 제외합니다.
                 </Typography>
               </>
@@ -1230,18 +1313,39 @@ export default function SourceExplore() {
               <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>필터할 열을 선택하세요.</Typography>
             )}
             {filterError && (
-              <Alert severity="error" id="range-filter-error">
+              <Alert
+                severity="error"
+                id="range-filter-error"
+                sx={{
+                  mt: 1,
+                  '& .MuiAlert-message': { minWidth: 0, overflowWrap: 'anywhere', fontSize: 12, lineHeight: 1.6 },
+                }}
+              >
                 {filterError}
               </Alert>
             )}
-            <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+            <Stack
+              direction="row"
+              useFlexGap
+              spacing={1}
+              sx={{
+                mt: 1.5,
+                pt: 1.5,
+                borderTop: '1px solid #e2e8f0',
+                '& .MuiButton-root': { flex: { xs: 1, sm: '0 0 auto' } },
+              }}
+            >
               <Button
+                variant="contained"
+                disableRipple
                 disabled={!filterColumn || (filterMode === 'values' && filterSelection.length === 0)}
                 onClick={applyFilterSelection}
               >
                 필터 적용
               </Button>
-              <Button onClick={closeFilters}>닫기</Button>
+              <Button variant="outlined" disableRipple onClick={closeFilters}>
+                닫기
+              </Button>
             </Stack>
           </Box>
         )}

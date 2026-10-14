@@ -1224,7 +1224,12 @@ export class AiDashboardService {
                           }).start,
                         )
                       : row[trendSql.timeField],
-                  value: value !== null && Number.isFinite(value) ? value : null,
+                  value:
+                    value !== null && Number.isFinite(value)
+                      ? typeof rawValue === 'string' && Math.abs(value) > Number.MAX_SAFE_INTEGER
+                        ? rawValue
+                        : value
+                      : null,
                 };
               }),
             };

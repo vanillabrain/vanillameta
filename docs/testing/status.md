@@ -535,3 +535,80 @@ CHART-FILTER-02: 공통 차트 조회 중 재선택 및 늦은 성공/오류. �
 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/view-cross-source-404-20261014/`: results.json(HTTP4조건/화면2조건), missing-view-1440.png/missing-view-390.png, list-recovered-1440.png/list-recovered-390.png, conditions-preserved-1440.png/conditions-preserved-390.png, cleanup.json. 생성 source30~33/보기만 API 삭제·지표 soft-delete 후 DB temporarySources/Views/activeTemporaryMetrics=0, 기존 source3/view1 보존을 확인했다. 인증정보 출력/기록 없음.
 
 MySQL·다중 서버/tenant·강제 스키마 변경·실기기/전체 키보드 조건은 미검증 유지. gpt-6-luna 설정과 VoiceOver BLOCKED 유지/AI 호출0. 전체130개 카탈로그 완료 집계는 확대하지 않는다.
+
+
+## 2026-10-14 EXP-VIEW-06·07 — 삭제 실패 후 키보드 재시도
+
+기준 `a7dc501d` + 삭제 실패 초점 수정. 기존 삭제 실패 단위 검증을 실제 화면으로 연결한 선택 변형이다. 같은 Rill1391572행 source3·기존 지표1/2를 사용하고 임시 보기만 생성했다. 기존 정상 복원·저장·필터/수치 정답 전체는 반복하지 않았다.
+
+**FAIL→PASS_SELECTED_VARIANTS**: 실제1440×1000/390×844에서 임시 보기 삭제 확인의 첫 DELETE에 브라우저503 fixture를 응답했다(실제 서버 장애를 유발한 것은 아님). 확인창/오류 안내·보기/state는 보존됐지만 disabled→enabled 전환 후 초점이 확인창 DIV에 남아 Enter 재시도가 실행되지 않았다. PersonalSavedViews의 삭제 확인 버튼 ref와 실패 완료 effect로 버튼이 다시 활성화됐을 때 초점을 돌렸다. 자동 삭제 재요청은 하지 않는다. 기존 실패 삭제 회귀에 초점 검사를 추가해 수정 전 실패를 재현했고, 수정 후 관련3개 PASS/65skip(삭제 실패·취소/복귀·정의409의 삭제 진입 포함).
+
+수정 후 두 뷰포트에서 503/임시 보기 GET200·state불변 확인→‘삭제 확인’ 초점→같은 창에서 Enter 재시도(응답 주입 해제)→실제 DELETE200/목록에서 해당 보기만 제거→목록 재조회 버튼 초점 복귀 PASS. 기존 보기1 전체 응답/state 불변·현재 합계634513000 유지·문서 가로 넘침0. 실패 안내/포커스/버튼·모바일 줄바꿈·재시도 완료 캡처를 직접 검토했다. FE 타입/변경 lint/production build/diff check PASS. 공유 컴포넌트 영향 회귀만 선택했으며 전체 E2E/기존 MD 통과 조건은 재실행하지 않았다.
+
+증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/view-delete-retry-20261014/`: before-failed-delete-1440.png/before-failed-focus-1440.json(초점DIV), failed-delete-1440.png/failed-delete-390.png(수정 후 초점), retried-delete-1440.png/retried-delete-390.png, results.json, browser-before.log/browser-after.log, regression-before.log/regression-after.log, build.log, cleanup.json. 최초 애니메이션 중 캡처는 안정화 대기 후 다시 저장했고 제품 렌더링 오류로 세지 않았다. 생성한 정확한 보기 ID만 삭제했으며 temporaryViewsRemaining=0/primaryViewUnchanged=true를 API로 확인했다. 원본 파일·지표·대시보드 변경 없음.
+
+기존 허용된 headed Chromium으로 실제 화면/키보드를 검증했다. 전체Tab/실기기 터치·실제 서버 장애 복구·다중서버·VoiceOver 발화로 확대하지 않는다. gpt-6-luna 설정 유지/AI 호출0·VoiceOver BLOCKED 유지. 이번 초점 수정/검증 기록은 미커밋이다.
+
+
+## 2026-10-14 RANGE-03·KEY-01 — 한쪽 경계·비정상 숫자 실제 화면
+
+기준 `a7dc501d` + 앞선 삭제 재시도 초점 diff(그대로 보존). 이번 제품 변경0. 대용량 page10000은 이전 DETAIL-LARGE-02에서 실제 API 정답이 이미 확인돼 반복하지 않았고, RANGE-03의 하위 검사에서만 확인했던 한쪽 경계/비정상 숫자 입력을 실제 화면으로 연결했다. gpt-6-luna 설정과 VoiceOver BLOCKED 유지/AI 호출0.
+
+**PASS_SELECTED_VARIANTS**: 원본 Rill Parquet1391572행 SHA256 `7549d18b0294932802407f6bd851a807ff88ba1406b2958bbd8b4c261a4ee157` 확인 후 별도 메모리 DuckDB에서 직접 SQL 집계했다. 1440×1000의 bid_floor 최솟값1/최댓값빈칸은 요청342506200·가중 평균10.581600405605014, 390×844의 최솟값빈칸/최댓값10은 요청490581800·평균1.2501132274324376. 실제 Enter 적용의 POST201·range에 입력한 경계 키만 포함·요청 합계 exact/평균±1e-9 일치, 적용 뒤 필터 추가로 초점 복귀를 확인했다. 최대/최소 한쪽 입력만 허용하는 제품 계약이며, 기존 양쪽1..10 정답 조건은 재실행하지 않았다.
+
+각 화면에서 이미 적용한 경계를 유지한 채 같은 열의 새 입력 abc/Infinity/9007199254740992를 각각 시도했다. 유효 숫자/안전 범위 안내, aria-describedby=range-filter-error, 적용 후 300ms 관찰 동안 새 explore/query 요청0·기존 KPI 유지 PASS. 잘못된 입력을 서버에 보낸 API 거절 검사로 세지 않는다. 닫기 Enter 뒤 초점 복귀·두 문서 가로 넘침0. 필터칩의 제한 없음 표시, KPI의343M/$10.58·491M 표시, 모바일 입력/오류 줄바꿈·버튼/포커스/인접 배치를 실제 캡처로 검토했다.
+
+증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/range-one-sided-20261014/`: oracle.json, results.json, applied-min-1440.png, applied-max-390.png, invalid-preserves-1440.png/invalid-preserves-390.png. 기존 허용된 headed Chromium과 입력/Enter 경로이며 native 소스 선택은 selectOption을 사용했다. 소스/보기/지표/대시보드 저장 요청0, 신규 리소스0, 브라우저 검증 창만 종료. 제품 코드가 바뀌지 않아 기존 관련 단위·타입/lint/build를 재사용하고 문서 diff check만 수행했다.
+
+이번 검증 기록은 미커밋. 최대5개 혼합필터의 전체 화면 조합·큰 정수 정렬의 실제 화면·실기기/전체Tab·MySQL 운영·실제 VoiceOver는 완료로 확대하지 않는다. 앞선 삭제 재시도 초점 수정도 미커밋 상태로 보존했다.
+
+
+## 2026-10-14 RANGE-03·KEY-01 — 혼합5필터 한도와 같은 열 교체
+
+기준 `a7dc501d` + 앞선 삭제 재시도 초점 diff(보존). 이번 제품 변경0. 하위 검사에서만 확인했던 값·범위 혼합5개/6번째 열 거절/한도에서 같은 열 교체를 실제 화면으로 선택 검증했다. 앞선 한쪽 경계·비정상 숫자·일반 저장/복원·Rill 전체 수치 조건은 반복하지 않았다.
+
+**PASS_SELECTED_VARIANTS**: 임시 CSV App200/Site300, n1..n5가 각1/2인 두 행을 준비했다. category 값필터(App/Site)+n1..n4 범위1..2인 개인 보기 fixture를 API로 생성하고 실제1440×1000/390×844 화면에 적용했다(저장 기능 재검증이 아닌 입력 준비). n5 범위1..2를 Enter 적용하면 최대5개 열 안내·300ms 관찰 동안 새 explore/query 요청0·현재500 유지. 같은 창에서 기존 n1 범위를1..1로 바꾸고 Enter 적용→실제 query201·filters.length5·n5미포함·나머지 값/범위 조건 보존·합계200 exact. 저장한 원래 fixture state도 변경되지 않았다. CSV 두 행의 산술 정답과 대조했으며 제품 SQL 생성기를 oracle로 사용하지 않았다.
+
+두 뷰포트 document overflow0, 칩 wrapping·오류 문구·입력/버튼 높이·정렬·선택 상태·KPI/카드 인접 배치를 캡처로 직접 검토했다. 적용 뒤 ‘필터 추가’ 초점 복귀 PASS. 열 선택은 selectOption, 적용은 Enter이며 OS native 방향키/실기기 touch·전체Tab·VoiceOver 발화로 확대하지 않는다. 제품 오류/수정0, 기존 관련 단위/타입/lint/build를 재사용·문서 diff check만 수행했다.
+
+증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/range-filter-cap-20261014/`: results.json, sixth-rejected-1440.png/sixth-rejected-390.png, same-column-replaced-1440.png/same-column-replaced-390.png, cleanup.json. source34/metric34/view69만 API 삭제·metric soft-delete 후 DB temporarySources/Views/activeTemporaryMetrics=0, 기존 source3/view1 응답 불변 확인. gpt-6-luna 설정 유지/AI 호출0·VoiceOver BLOCKED 유지.
+
+이번 기록과 앞선 삭제 초점 수정은 미커밋. 혼합 필터의 모든 데이터 타입 조합·큰 정수 정렬 실제 화면·운영 다중 서버·실기기/VoiceOver는 미검증으로 유지한다.
+
+
+## 2026-10-14 필터 적용 레이아웃·큰 정수 추세 후속
+
+[explore-range-sort.md](explore-range-sort.md)의 SORT-02/NUMBER-01·02와 DESIGN-FILTER-02 참조. 실제1440/390의 큰 정수1 차이/동률/NULL·0 정렬 PASS, 추세 원값을 Number로 바꾸며2 손실하는 오류를 수정해 정확값 표27021597764222978 재검증 PASS. 여러 칩의 행 시작 어긋남/추가 버튼 밀림을 분리 행+flex gap으로 정리하고 긴 이름·오류·적용/닫기까지 실제 화면/overflow0/console.error0 확인. BE3/FE8 선택 검사·FEtype/lint/BE·FEbuild/diffcheck PASS. 제품 AI 호출0/gpt-6-luna 유지, VoiceOver BLOCKED/실기기 및 전체조건은 미완료 유지. 증빙 sort-bigint-ui-20261014와 filter-layout-20261014(저장소 밖). 이전 삭제 초점 수정과 신규 두 수정·기록 미커밋.
+
+### 2026-10-14 — RANGE-03 음수·소수 경계와 값 선택 디자인
+
+- PASS_SELECTED_VARIANTS: 1440/390px에서 −1.5..0.25 경계 포함·NULL 제외 합계90, 문자 열의 숫자 범위 입력 차단. 기존 통과 Rill/필터 한도 조건은 재실행하지 않았다.
+- FAIL→PASS: 문자 값 체크박스 잘림/라벨 간격을 해당 목록에만 수정. 모바일 한 열·데스크톱 두 열, 긴 이름 줄바꿈/220px 내부 세로 스크롤·Space 선택/해제·Enter 적용 합계20·행 초점·가로 넘침0 확인.
+- 관련 FE4개/타입/lint/build PASS. 임시 source/metric44~48 정리·원보기1 보존. Aside 미실행 상태로 허용된 headed Chromium 대체. 코드/기록 미커밋, AI gpt-6-luna/VoiceOver BLOCKED 유지.
+- 상세/증빙: [숫자 범위와 정렬](explore-range-sort.md), `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/range-decimal-20261014/`.
+
+### 2026-10-14 — SORT-02 상위20·이전0/NULL 비교 실제 화면
+
+- PASS_SELECTED_VARIANTS: 1440/390px에서24그룹 전체 정렬 후 상위20·합계2700/2400·각 행 정확값, 비교 불가 그룹 마지막 배치·이전0과 값 없음 구분을 확인했다. 기존 Rill/큰 정수/동률 통과 조건은 반복하지 않았다.
+- FAIL→PASS: 차원 순위 행의 고정 높이 때문에 잘리던 비교 설명을 해당 버튼의 자동 높이·여백·행간으로 수정했다. 양 방향8조건 설명 bounding box/가로 넘침0 확인.
+- FE 관련5개·타입/lint/build PASS. source/metric49~51·보기75~79 정리/원보기1 보존. 코드/기록 미커밋, gpt-6-luna 설정/VoiceOver BLOCKED 유지.
+- 상세: [숫자 범위와 정렬](explore-range-sort.md), 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/sort-comparison-boundaries-20261014/`.
+
+### 2026-10-14 — NUMBER-01·02 숫자 경계 실제 화면
+
+- PASS_SELECTED_VARIANTS:1440/390px에서999999→$1M,999499→$999K,음수 통화/0/NULL의 KPI·차원·정확값 표 및 title/aria 원값을 확인했다. 두 저장 지표의 compact/plain 표시와 Enter 필터·Delete 해제, 가로 넘침0·콘솔 오류0.
+- 새 제품 오류/수정0, 직전 관련 단위/타입/lint/build 재사용·문서 diff check. 임시 소스/지표 정리·원보기1 보존. 기존 통과 Rill/큰 정수/정렬 조건은 반복하지 않았다.
+- 상세: [숫자 표시](compact-controls-formatting.md), 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/number-boundaries-ui-20261014/`. 기록 미커밋, gpt-6-luna 설정·VoiceOver BLOCKED 유지.
+
+### 2026-10-14 — VERSION-05·07 오래된 교체409와 재시도
+
+- PASS_SELECTED_VARIANTS:1440/390px의 오래된 파일 교체409→선행 버전/합계600 보존→Enter 최신 목록 재조회→재선택/교체201·합계900·완료 안내 유지. 실제 CAS 보호를 사용했으며 다중 서버 동시 부하로 확대하지 않았다.
+- 모바일 복원 버튼의 한 글자 줄바꿈을 반응형 ‘복원’/데스크톱 기존 문구로 보정. 접근성 이름 유지·44px 높이·셀 내부 배치·Enter 확인/취소·가로 넘침0 확인.
+- FE18개·타입/lint/build PASS, 임시 source53~55/metric54~55 정리·원보기1 보존. 코드/기록 미커밋, gpt-6-luna 설정·VoiceOver BLOCKED 유지.
+- 상세: [파일 전체 교체·복원](file-versions.md), 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/file-stale-ui-20261014/`.
+
+### 2026-10-14 — VERSION-05·07 복원 확인 도중 갱신409
+
+- PASS_SELECTED_VARIANTS:1440/390px에서 복원 확인 중 별도 정상 갱신→낡은 복원409·최신 합계900/이력 보존→목록 새로고침 시 낡은 확인창 해제→명시적 재확인201·원합계300/세 이력 유지.
+- 새 오류/제품 변경0, 이전 관련18개·타입/lint/build 재사용·문서 diff check. 임시 source/metric56~58 정리·원보기1 보존. 교체409/정상 복원 전체는 반복하지 않았다.
+- 상세: [파일 전체 교체·복원](file-versions.md), 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/file-stale-restore-20261014/`. 미커밋, gpt-6-luna 설정·VoiceOver BLOCKED 유지.

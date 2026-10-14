@@ -28,8 +28,8 @@ vi.mock('@mui/material', () => {
         {children}
       </Tag>
     ),
-    Button: ({ children, disabled, onClick }: any) => (
-      <button disabled={disabled} onClick={onClick}>
+    Button: ({ children, disabled, onClick, 'aria-label': label }: any) => (
+      <button disabled={disabled} onClick={onClick} aria-label={label}>
         {children}
       </button>
     ),

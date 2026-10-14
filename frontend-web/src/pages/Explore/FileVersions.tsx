@@ -253,12 +253,19 @@ export default function FileVersions({ sourceId, onChanged, disabled = false }: 
                         {!version.current && (
                           <Button
                             disabled={locked}
+                            aria-label="이 버전으로 복원"
+                            sx={{ whiteSpace: 'nowrap' }}
                             onClick={() => {
                               setConfirmId(version.id);
                               setError('');
                             }}
                           >
-                            이 버전으로 복원
+                            <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+                              이 버전으로 복원
+                            </Box>
+                            <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>
+                              복원
+                            </Box>
                           </Button>
                         )}
                         {version.current && '사용 중'}

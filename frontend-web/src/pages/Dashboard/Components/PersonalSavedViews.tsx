@@ -236,11 +236,16 @@ export default function PersonalSavedViews<State extends ViewPeriodState = Saved
   const descriptionId = useId();
   const trigger = useRef<HTMLElement | null>(null);
   const fallbackFocus = useRef<HTMLButtonElement>(null);
+  const deleteConfirm = useRef<HTMLButtonElement>(null);
   const generation = useRef(0);
   const pending = useRef(false);
   const controller = useRef<AbortController | null>(null);
   const context = useRef({ dashboardId, revision, state, disabledReason, onApply });
   context.current = { dashboardId, revision, state, disabledReason, onApply };
+
+  useEffect(() => {
+    if (deleting && !busy && error) deleteConfirm.current?.focus();
+  }, [deleting, busy, error]);
 
   useEffect(() => {
     generation.current += 1;
@@ -482,7 +487,7 @@ export default function PersonalSavedViews<State extends ViewPeriodState = Saved
           {error && <Alert severity="error">{error}</Alert>}
         </DialogContent>
         <DialogActions sx={{ flexWrap: 'wrap', gap: 1 }}>
-          <Button disabled={!!busy} onClick={() => void run('delete', deleting)}>
+          <Button ref={deleteConfirm} disabled={!!busy} onClick={() => void run('delete', deleting)}>
             삭제 확인
           </Button>
           <Button autoFocus disabled={!!busy} onClick={() => setDeleting(null)}>

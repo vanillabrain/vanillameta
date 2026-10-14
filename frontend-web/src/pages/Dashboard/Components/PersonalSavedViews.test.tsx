@@ -351,6 +351,7 @@ it('keeps a failed delete dialog for retry without removing the view', async () 
   fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '삭제 확인' }));
   await waitFor(() => expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toBe('삭제 실패'));
   expect(disabled('보기 1 보기 삭제')).toBe(false);
+  expect(document.activeElement).toBe(within(screen.getByRole('dialog')).getByRole('button', { name: '삭제 확인' }));
   fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '삭제 확인' }));
   await screen.findByText('개인 저장 보기를 삭제했습니다.');
   expect(api.del).toHaveBeenCalledTimes(2);

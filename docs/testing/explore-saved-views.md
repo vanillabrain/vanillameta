@@ -158,3 +158,16 @@ VanillaMeta는 소스/사용자별 이름을 붙인 조건을 metadata에 저장
 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/view-cross-source-404-20261014/`: results.json(HTTP4조건/화면2조건), missing-view-1440.png/missing-view-390.png, list-recovered-1440.png/list-recovered-390.png, conditions-preserved-1440.png/conditions-preserved-390.png, cleanup.json. 생성 source30~33/보기만 API 삭제·지표 soft-delete 후 DB temporarySources/Views/activeTemporaryMetrics=0, 기존 source3/view1 보존을 확인했다. 인증정보 출력/기록 없음.
 
 MySQL·다중 서버/tenant·강제 스키마 변경·실기기/전체 키보드 조건은 미검증 유지. gpt-6-luna 설정과 VoiceOver BLOCKED 유지/AI 호출0. 전체130개 카탈로그 완료 집계는 확대하지 않는다.
+
+
+## 2026-10-14 EXP-VIEW-06·07 — 삭제 실패 후 키보드 재시도
+
+기준 `a7dc501d` + 삭제 실패 초점 수정. 기존 삭제 실패 단위 검증을 실제 화면으로 연결한 선택 변형이다. 같은 Rill1391572행 source3·기존 지표1/2를 사용하고 임시 보기만 생성했다. 기존 정상 복원·저장·필터/수치 정답 전체는 반복하지 않았다.
+
+**FAIL→PASS_SELECTED_VARIANTS**: 실제1440×1000/390×844에서 임시 보기 삭제 확인의 첫 DELETE에 브라우저503 fixture를 응답했다(실제 서버 장애를 유발한 것은 아님). 확인창/오류 안내·보기/state는 보존됐지만 disabled→enabled 전환 후 초점이 확인창 DIV에 남아 Enter 재시도가 실행되지 않았다. PersonalSavedViews의 삭제 확인 버튼 ref와 실패 완료 effect로 버튼이 다시 활성화됐을 때 초점을 돌렸다. 자동 삭제 재요청은 하지 않는다. 기존 실패 삭제 회귀에 초점 검사를 추가해 수정 전 실패를 재현했고, 수정 후 관련3개 PASS/65skip(삭제 실패·취소/복귀·정의409의 삭제 진입 포함).
+
+수정 후 두 뷰포트에서 503/임시 보기 GET200·state불변 확인→‘삭제 확인’ 초점→같은 창에서 Enter 재시도(응답 주입 해제)→실제 DELETE200/목록에서 해당 보기만 제거→목록 재조회 버튼 초점 복귀 PASS. 기존 보기1 전체 응답/state 불변·현재 합계634513000 유지·문서 가로 넘침0. 실패 안내/포커스/버튼·모바일 줄바꿈·재시도 완료 캡처를 직접 검토했다. FE 타입/변경 lint/production build/diff check PASS. 공유 컴포넌트 영향 회귀만 선택했으며 전체 E2E/기존 MD 통과 조건은 재실행하지 않았다.
+
+증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/view-delete-retry-20261014/`: before-failed-delete-1440.png/before-failed-focus-1440.json(초점DIV), failed-delete-1440.png/failed-delete-390.png(수정 후 초점), retried-delete-1440.png/retried-delete-390.png, results.json, browser-before.log/browser-after.log, regression-before.log/regression-after.log, build.log, cleanup.json. 최초 애니메이션 중 캡처는 안정화 대기 후 다시 저장했고 제품 렌더링 오류로 세지 않았다. 생성한 정확한 보기 ID만 삭제했으며 temporaryViewsRemaining=0/primaryViewUnchanged=true를 API로 확인했다. 원본 파일·지표·대시보드 변경 없음.
+
+기존 허용된 headed Chromium으로 실제 화면/키보드를 검증했다. 전체Tab/실기기 터치·실제 서버 장애 복구·다중서버·VoiceOver 발화로 확대하지 않는다. gpt-6-luna 설정 유지/AI 호출0·VoiceOver BLOCKED 유지. 이번 초점 수정/검증 기록은 미커밋이다.

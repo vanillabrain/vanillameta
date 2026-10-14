@@ -282,6 +282,26 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
     expect(trendCall[2]).toEqual(['phone']);
     expect(trendCall[1]).toContain("device_type = 'phone'");
   });
+  it('preserves unsafe integer strings in trend points from DuckDB', async () => {
+    const file = await worker.importFile({
+      originalname: 'unsafe-trend.csv',
+      buffer: Buffer.from(
+        'device_type,amount,event_time\nphone,9007199254740992,2026-01-01T00:00:00Z\nphone,9007199254740993,2026-01-01T00:00:00Z\n',
+      ),
+    });
+    const original = connection.queryDuckDB.getMockImplementation();
+    connection.queryDuckDB.mockImplementation((_id, sql, bindings) =>
+      worker.query(file.filename, sql, bindings),
+    );
+    try {
+      const result = await service.preview({ draft: draft(), includeTrends: true }, 7);
+      expect(result.data.widgets[0].trend.points).toEqual([
+        { time: '2026-01-01T00:00:00Z', value: '18014398509481985' },
+      ]);
+    } finally {
+      connection.queryDuckDB.mockImplementation(original);
+    }
+  });
   it('keeps existing numeric results when a query shape cannot be trended', async () => {
     const result = await service.preview(
       {

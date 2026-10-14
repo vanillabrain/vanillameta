@@ -63,3 +63,25 @@ Aside CLI guide는 읽었으나 daemon auth challenge 실패(Aside 미실행)로
 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/file-version-limit-ui-20261014/`: limit-denied-1440.png/limit-denied-390.png, restore-notice-before-390.png, restored-at-cap-390.png, reloaded-at-cap-390.png, results.json, browser-before.log/browser-after.log/browser-final.log, regression-before.log/regression-after.log, profile-boundary-tests.log, build.log, cleanup.json. 임시 source/metric25~29만 API 삭제/soft-delete했고 DB에서 temporarySources/activeTemporaryMetrics=0·기존 source3/view1 보존을 확인했다. 파일시스템 전체 orphan scan·crash 복구를 수행했다는 뜻은 아니다.
 
 이번 코드/검증 기록은 미커밋. 자동GC·crash 복구·장기 보존 정책·다중 서버/tenant·실기기·VoiceOver는 미검증/BLOCKED 유지. gpt-6-luna 설정 유지/AI 호출0, 기존130개 카탈로그 완료 집계는 확대하지 않았다.
+
+## 2026-10-14 VERSION-05·07 — stale 교체409 화면과 최신 목록 재시도
+
+기준 `a7dc501d` + 앞선 미커밋 수정 보존. 하위/API에서만 확인했던 오래된 revision의 교체 거절을 실제1440×1000/390×844에서 검증했다. 기존 정상 교체 전체·5버전 한도·정렬/숫자/Rill 조건은 반복하지 않았다. Aside 미실행으로 기존 허용된 headed Chromium/FE3484/API4684를 사용했다. gpt-6-luna 설정 유지/AI 호출0, VoiceOver BLOCKED 유지.
+
+**PASS_SELECTED_VARIANTS**: 별도 CSV v1=100+200(300), v2=200+400(600), v3=300+600(900). 화면이 v1 revision을 읽은 뒤 정상 별도 API 요청이 v2를 먼저 게시한 상황을 만들었다. 화면에서 v3 파일 선택/Enter 교체→실제409·‘다른 화면에서 파일이 변경되었습니다. 최신 버전을 다시 불러와 주세요.’ 안내, v2 revision/currentVersionId/전체 이력 불변·독립 합계600 보존 PASS. Enter 버전 목록 새로고침200→두 버전/오류 해제·선택 파일 초기화→v3 재선택/Enter201→세 버전·완료 안내 유지·합계900을 확인했다. 선행 교체는 API이며 실제 두 사용자의 동시 클릭·운영 multi-replica CAS 부하로 확대하지 않는다. 파일 입력은 setInputFiles로 OS 파일창 검증이 아니다.
+
+**디자인 수정·재검증**: 모바일 버전 표의 ‘이 버전으로 복원’이 마지막 한 글자까지 줄바꿈돼 가독성이 떨어졌다. 해당 버튼은 좁은 화면에서 ‘복원’, 데스크톱에서는 기존 문구를 표시하고 aria-label='이 버전으로 복원'을 유지했다. nowrap으로 셀 내부 줄바꿈을 막았으며 전역 버튼/표 열/쿼리 계약은 바꾸지 않았다. 별도 버튼 화면에서 두 뷰포트 표시 문구·44px 높이·버튼 양끝이 셀 안에 있음·가로 넘침0·Enter 확인창/Enter 취소·기존 버전 불변을 확인했다. 오류/재시도 흐름 전체를 디자인 확인을 위해 반복하지 않았다.
+
+파일 버전 FE18개 PASS. 최초7개 실패는 MUI Button 테스트 대역이 aria-label을 전달하지 않아 두 반응형 span을 모두 읽은 문제였다. 대역이 실제 접근성 속성을 보존하게 보정한 뒤18개 통과했다. 제품 역할/이름을 우회한 것이 아니며 실제 브라우저에서도 기존 이름으로 버튼을 조작했다. FE 타입·변경 lint·production build·diff check PASS. 예상409의 브라우저 resource error만 별도 허용했고 pageerror/그 외 console.error0, 문서 가로 넘침0이다. 전체Tab/실제 VoiceOver/실기기·장기 운영은 미검증 유지.
+
+증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/file-stale-ui-20261014/`: results.json/browser.log, stale-denied-1440/390.png, recovered-1440/390.png(버튼 수정 전), restore-button-1440/390.png/button-results.json/button-browser.log(수정 후), tests.log/tests-after.log/build.log, cleanup.json/button-cleanup.json/cleanup-db.json. 임시 source53~55/metric54~55 API 삭제/soft-delete 후 남은 소스0/활성 지표0·기존 source3/view1 응답 보존 확인. 코드/검증 기록은 미커밋이다.
+
+## 2026-10-14 VERSION-05·07 — 복원 확인 도중 갱신409와 재확인
+
+기준 `a7dc501d` + 앞선 미커밋 수정 보존. 직전 파일 교체409 조건은 재사용하고 아직 실제 화면에서 확인하지 않았던 복원 경로만 선택했다. 같은 FE3484/API4684·격리 QA 환경/허용된 headed Chromium1440×1000/390×844를 사용했다. Aside 미실행 대체 경로이며 VoiceOver BLOCKED/gpt-6-luna 유지/AI 호출0.
+
+**PASS_SELECTED_VARIANTS**: 별도 CSV v1합계300→v2합계600을 준비하고, 화면에서 v1 복원 확인창을 연 뒤 다른 정상 API 요청이 v3합계900을 먼저 게시했다. 기존 확인창 Enter 복원→실제 POST409·expectedRevision=v2/대상=v1 확인·최신 버전 안내·기존 확인창 보존 PASS. 서버 v3의 revision/currentVersionId/전체 이력 불변·독립 합계900을 확인했다. Enter 버전 목록 새로고침200→세 버전/오류 및 낡은 확인창 해제→v1을 다시 선택하고 명시 확인→POST201·expectedRevision=v3/대상=v1·원합계300·세 이력 보존·완료 안내 유지 PASS. 자동 재시도/자동 복원을 하지 않는다.
+
+두 화면 document overflow0·pageerror0·예상409 resource error 외 console.error0, 오류/확인창/완료 안내·모바일 줄바꿈/버튼 배치를 캡처로 확인했다. 모바일 완료 캡처는 프로필 재조회 종료/버튼 활성화를 기다려 다시 저장했다. 원본 복원/파일 선택/5버전/Rill/AI 전체는 재검증하지 않았다. 선행 갱신은 API이며 실제 두 사용자의 동시 UI나 multi-replica CAS 부하로 확대하지 않는다. 실제 스크린리더·전체Tab·실기기는 미검증 유지.
+
+새 제품 결함/수정0. 이전 같은 제품 코드의 FE18개·타입/lint/build 결과를 재사용하고 문서 diff check만 추가했다. 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/file-stale-restore-20261014/`: results.json/browser.log, restore-denied-1440/390.png, restored-current-1440/390.png, capture-results.json/capture-final.log, cleanup.json/capture-cleanup.json/cleanup-db.json. 임시 source/metric56~58 API 삭제/soft-delete 뒤 남은 소스0/활성 지표0·기존 source3/view1 응답 보존 확인. 검증 기록과 앞선 코드 수정은 미커밋이다.
