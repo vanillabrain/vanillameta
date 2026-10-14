@@ -10,6 +10,8 @@
 
 | FR-004 | Reuse saved metric | As a 운영 담당자, I want AI가 저장 지표를 참조할 때 검증된 계산식을 사용하기 so that 질문에 따라 계산 기준이 달라지지 않는다. | High | Verified |
 
+| FR-005 | Update metric calculation | As a 운영 담당자, I want 저장 지표 계산식을 바꾸고 선택한 기존 분석에 검토 후 반영하기 so that 같은 계산 기준으로 계속 분석한다. | High | Verified |
+
 ## Non-Functional Requirements
 
 | ID      | Title               | Requirement                                                                                                                                               | Category    | Priority | Status   |

@@ -47,7 +47,7 @@ erDiagram
 
 ### SAVED_METRIC
 
-기존 Metric.definition에 저장된 구조화 계산 snapshot이다. UC-002 생성 시 선택 참조되고 분석에는 SQL snapshot이 저장된다. live FK가 새로 생성되는 것은 아니다.
+기존 Metric.definition에 저장된 버전이 있는 구조화 계산 정의다. UC-002 생성 시 선택 참조되고 분석에는 SQL snapshot이 저장된다. live FK가 새로 생성되는 것은 아니다.
 
 | Attribute  | Description                                         | Data Type | Length/Precision | Validation Rules                       |
 | ---------- | --------------------------------------------------- | --------- | ---------------- | -------------------------------------- |
@@ -55,3 +55,5 @@ erDiagram
 | databaseId | 원본 참조                                           | Long      | 19               | Not Null, Foreign Key (DATA_SOURCE.id) |
 | definition | schemaVersion·label·aggregation·column 등 기존 정의 | String    | 10000            | Not Null                               |
 | useYn      | 활성 여부                                           | String    | 1                | Not Null, Values: Y, N                 |
+
+UC-003은 기존 Metric.definition의 definitionVersion(양의 정수)을 증가시키며 선택 분석 SQL snapshot과 atomic 저장한다. live FK/전체 자동 전파는 추가하지 않는다.

@@ -584,4 +584,176 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
       expect(index === 0 ? option.content.numberNotation : option.numberNotation).toBe('compact');
     }
   });
+  async function metricChangeFixture() {
+    const metric = await db.manager.save(Metric, {
+      name: 'change-' + Math.random(),
+      databaseId: 1,
+      tableName: 'uploaded_data',
+      aggregation: 'SUM' as any,
+      expression: 'amount',
+      useYn: 'Y',
+      definition: JSON.stringify({
+        schemaVersion: 1,
+        definitionVersion: 1,
+        sourceId: 1,
+        label: 'Revenue',
+        aggregation: 'SUM',
+        column: 'amount',
+        decimalPlaces: 2,
+        numberNotation: 'plain',
+        unit: '',
+      }),
+    });
+    const saved = await service.save({ draft: draft() }, 7, {
+      schemaVersion: 1,
+      kind: 'structured-bi',
+      sourceId: 1,
+      metricId: metric.id,
+      definitionVersion: 1,
+      definition: JSON.parse(metric.definition),
+      chart: 'number',
+    });
+    return {
+      metric,
+      body: {
+        dashboardId: saved.data.id,
+        metricId: metric.id,
+        selectedWidget: 0,
+        expectedDefinitionVersion: 1,
+        expectedRevision: saved.data.revision,
+        calculation: { aggregation: 'AVG', column: 'amount' },
+      },
+    };
+  }
+  it('UC-003 previews without writes and atomically persists calculation and selected chart', async () => {
+    const { metric, body } = await metricChangeFixture();
+    const before = (await service.analysis(body.dashboardId, 7)).data;
+    const preview = await service.metricChangePreview(
+      { ...body, includeTrends: true, filters: [{ column: 'device_type', values: ['phone'] }] },
+      7,
+    );
+    expect(preview.data.widgets[0].datas).toEqual([{ value: 15 }]);
+    expect(preview.data.widgets[0].trend.points.map(row => row.value)).toEqual([10, 20]);
+    expect((await db.manager.findOne(Metric, { where: { id: metric.id } })).definition).toBe(
+      metric.definition,
+    );
+    const saved = await service.metricChangeSave(body, 7);
+    const after = (await service.analysis(saved.data.id, 7)).data;
+    expect(after.widgets[0].sql).toContain('AVG("amount")');
+    expect(after.widgets[1]).toEqual(before.widgets[1]);
+    expect(
+      JSON.parse((await db.manager.findOne(Metric, { where: { id: metric.id } })).definition)
+        .definitionVersion,
+    ).toBe(2);
+    expect(
+      (await service.metricChoices(1, 7)).data.find(m => m.id === metric.id).definitionVersion,
+    ).toBe(2);
+    const snapshot = JSON.parse(
+      (await db.manager.findOne(Dashboard, { where: { id: saved.data.id } })).structuredDefinition,
+    );
+    expect(snapshot.metricId).toBe(metric.id);
+    expect(snapshot.definitionVersion).toBe(2);
+    await expect(service.metricChangeSave(body, 7)).rejects.toThrow('분석이 변경');
+  });
+  it('UC-003 rejects invalid definitions/foreign owner and stale metric versions without writes', async () => {
+    const { metric, body } = await metricChangeFixture();
+    await expect(service.metricChangePreview(body, 8)).rejects.toThrow();
+    await expect(service.metricChangePreview({ ...body, metricId: 999999 }, 7)).rejects.toThrow(
+      '활성 저장 지표',
+    );
+    await expect(
+      service.metricChangePreview(
+        { ...body, calculation: { aggregation: 'SUM', column: 'missing' } },
+        7,
+      ),
+    ).rejects.toThrow('숫자 컬럼');
+    await expect(
+      service.metricChangeSave({ ...body, expectedDefinitionVersion: 0 }, 7),
+    ).rejects.toThrow('지표 계산식이 변경');
+    expect((await db.manager.findOne(Metric, { where: { id: metric.id } })).definition).toBe(
+      metric.definition,
+    );
+  });
+  it('UC-003 rolls the metric back if analysis persistence fails after its CAS update', async () => {
+    const { metric, body } = await metricChangeFixture();
+    const before = (await service.analysis(body.dashboardId, 7)).data;
+    const counts = [await db.manager.count(Dataset), await db.manager.count(Widget)];
+    await db.manager.update(Component, { type: 'CHART_COLUMN' }, { useYn: 'N' as any });
+    try {
+      await expect(service.metricChangeSave(body, 7)).rejects.toThrow('component unavailable');
+    } finally {
+      await db.manager.update(Component, { type: 'CHART_COLUMN' }, { useYn: 'Y' as any });
+    }
+    expect((await db.manager.findOne(Metric, { where: { id: metric.id } })).definition).toBe(
+      metric.definition,
+    );
+    expect((await service.analysis(body.dashboardId, 7)).data).toEqual(before);
+    expect([await db.manager.count(Dataset), await db.manager.count(Widget)]).toEqual(counts);
+    expect((await db.manager.findOne(Metric, { where: { id: metric.id } })).aggregation).toBe(
+      'SUM',
+    );
+    connection.queryDuckDB.mockClear();
+  });
+  it('UC-003 rejects a metric write racing after compilation before the atomic CAS', async () => {
+    const { metric, body } = await metricChangeFixture();
+    const before = (await service.analysis(body.dashboardId, 7)).data;
+    const newer = JSON.stringify({
+      ...JSON.parse(metric.definition),
+      definitionVersion: 2,
+      aggregation: 'MAX',
+    });
+    const originalPreview = service.preview.bind(service);
+    const spy = jest.spyOn(service, 'preview').mockImplementationOnce(async (input, actor) => {
+      await db.manager.update(Metric, { id: metric.id }, { definition: newer });
+      return originalPreview(input, actor);
+    });
+    try {
+      await expect(service.metricChangeSave(body, 7)).rejects.toThrow('지표 계산식이 변경');
+    } finally {
+      spy.mockRestore();
+    }
+    expect((await db.manager.findOne(Metric, { where: { id: metric.id } })).definition).toBe(newer);
+    expect((await service.analysis(body.dashboardId, 7)).data).toEqual(before);
+  });
+  it('UC-003 refreshes only the selected item of a structured dashboard snapshot', async () => {
+    const { metric, body } = await metricChangeFixture();
+    const keep = {
+      key: 'second',
+      metricId: metric.id,
+      definitionVersion: 1,
+      definition: JSON.parse(metric.definition),
+      chart: 'bar',
+      dimension: 'device_type',
+    };
+    await db.manager.update(
+      Dashboard,
+      { id: body.dashboardId },
+      {
+        structuredDefinition: JSON.stringify({
+          schemaVersion: 2,
+          kind: 'structured-bi-dashboard',
+          sourceId: 1,
+          items: [
+            {
+              key: 'first',
+              metricId: metric.id,
+              definitionVersion: 1,
+              definition: JSON.parse(metric.definition),
+              chart: 'number',
+            },
+            keep,
+          ],
+        }),
+      },
+    );
+    body.expectedRevision = (await service.analysis(body.dashboardId, 7, true)).data.revision;
+    await service.metricChangeSave(body, 7);
+    const snapshot = JSON.parse(
+      (await db.manager.findOne(Dashboard, { where: { id: body.dashboardId } }))
+        .structuredDefinition,
+    );
+    expect(snapshot.items[0].definitionVersion).toBe(2);
+    expect(snapshot.items[0].key).toBe('first');
+    expect(snapshot.items[1]).toEqual(keep);
+  });
 });

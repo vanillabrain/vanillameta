@@ -20,6 +20,7 @@ import WidgetViewer from '@/widget/wrapper/WidgetViewer';
 import { analysisOptions } from '../analysisOptions';
 import { timeRangeLabel } from './timeSelection';
 import MetricTrend from './MetricTrend';
+import MetricCalculationEditor from './MetricCalculationEditor';
 import { AnalysisUiProvider, analysisFieldSx } from '@/components/analysis/AnalysisUi';
 
 function DashboardAssistantContent({
@@ -39,9 +40,12 @@ function DashboardAssistantContent({
   const [mode, setMode] = useState('ask');
   const [selectedWidget, setSelectedWidget] = useState<number | ''>('');
   const [selectedMetricId, setSelectedMetricId] = useState<number | ''>('');
-  const [metrics, setMetrics] = useState<Array<{ id: number; label: string }>>([]);
+  const [metrics, setMetrics] = useState<Array<{ id: number; label: string; definitionVersion?: number; definition?: any }>>(
+    [],
+  );
   const [metricError, setMetricError] = useState('');
   const [metricsLoading, setMetricsLoading] = useState(false);
+  const [metricEditor, setMetricEditor] = useState(false);
   const [proposal, setProposal] = useState<any>(null);
   const [undo, setUndo] = useState<any>(null);
   const [saving, setSaving] = useState(false);
@@ -172,7 +176,7 @@ function DashboardAssistantContent({
       onClose();
     }
   };
-  return (
+  const drawer = (
     <Drawer
       anchor="right"
       open={open}
@@ -268,6 +272,11 @@ function DashboardAssistantContent({
             <Typography fontSize={12} color="text.secondary" sx={{ mt: 0.5 }}>
               {metricsLoading ? '저장 지표를 확인하고 있습니다…' : '선택하면 이 차트만 같은 계산식으로 수정합니다.'}
             </Typography>
+            {metrics.find(m => m.id === selectedMetricId)?.definition && (
+              <Button sx={{ mt: 0.5 }} disabled={busy || saving || disabled} onClick={() => setMetricEditor(true)}>
+                계산식 변경
+              </Button>
+            )}
             {metricError && (
               <Alert severity="warning" sx={{ mt: 1 }}>
                 {metricError}
@@ -485,6 +494,33 @@ function DashboardAssistantContent({
         </Stack>
       </Box>
     </Drawer>
+  );
+  return (
+    <>
+      {metricEditor && (
+        <MetricCalculationEditor
+          open
+          onClose={() => setMetricEditor(false)}
+          metric={metrics.find(m => m.id === selectedMetricId)}
+          selectedWidget={selectedWidget}
+          draft={draft}
+          dashboardId={dashboardId}
+          filters={filters}
+          dateRange={dateRange}
+          trendGrain={trendGrain}
+          comparePrevious={comparePrevious}
+          onApplied={next => {
+            setProposal(null);
+            setUndo(null);
+            setSelectedMetricId('');
+            setSelectedWidget('');
+            setNotice('지표와 분석의 계산식을 변경했습니다.');
+            onApplied(next);
+          }}
+        />
+      )}
+      {drawer}
+    </>
   );
 }
 

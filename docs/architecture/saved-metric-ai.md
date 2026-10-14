@@ -31,3 +31,5 @@ Assistant 수정 모드에서 차트를 선택한 경우에만 선택적 저장 
 ## Explicit selection implementation review
 
 별도 검토 pass(동일 작성자): 선택 대상은 제목/단일 결과 계약으로 확인하고 서버에서 원래 배열에 합성해 다른 위젯을 보존한다. 누락 또는 상충 metricId는 선택 ID로 대체한다. 새 catalog GET은 기존 소스 권한 가드에 포함하고 공유/외부/legacy 접근을 차단한다. 정의가 없는 경우와 목록 실패는 자연어 수정 흐름을 유지한다. 선택 변경의 stale guard와 generation provenance 전달은 실제 transport 회귀에서 확인했다. 지표 삭제/수정이 생성 이후 일어나도 기존 저장 SQL snapshot은 독립적으로 유지된다. 목표 차트의 제목 변경은 명시 지표 선택 모드에서 지원하지 않으며 선택 해제 후 일반 수정으로 진행한다.
+
+UC-003 도입 후 catalog는 schemaVersion1 및 양의 정수 definitionVersion을 지원한다. 일반 AI 생성은 정의를 변경하지 않고, 계산식 변경은 UC-003의 명시 선택·버전 검사·atomic 저장 경로로만 수행한다.

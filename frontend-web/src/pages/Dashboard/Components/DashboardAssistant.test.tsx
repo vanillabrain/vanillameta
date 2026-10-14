@@ -4,7 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import DashboardAssistant from './DashboardAssistant';
 
 // Keep the real useChat/transport pipeline; replace only network and visual surfaces.
-const api = vi.hoisted(() => ({ post: vi.fn(), get: vi.fn() }));
+const api = vi.hoisted(() => ({ post: vi.fn(), get: vi.fn(), mobile: false }));
 vi.mock('@/helpers/apiHelper', () => ({ post: api.post, get: api.get }));
 vi.mock('@mui/material/styles', async () => {
   const { createRequire } = await import('node:module');
@@ -26,15 +26,19 @@ vi.mock('@mui/material', () => {
     ),
   );
   return {
+    Dialog: ({ open, children }: any) => (open ? <section role="dialog">{children}</section> : null),
+    DialogTitle: Container,
+    DialogContent: Container,
+    DialogActions: Container,
     Box: Container,
     Stack: Container,
     Typography: Container,
-    Drawer: ({ open, children, onClose, PaperProps }: any) =>
+    Drawer: ({ open, children, onClose, PaperProps, variant }: any) =>
       open ? (
-        <aside aria-label={PaperProps['aria-label']}>
+        <div key={variant} aria-label={PaperProps['aria-label']}>
           <button onClick={onClose}>Drawer close</button>
           {children}
-        </aside>
+        </div>
       ) : null,
     Alert: ({ children }: any) => <div role="alert">{children}</div>,
     LinearProgress: () => <progress />,
@@ -59,7 +63,7 @@ vi.mock('@mui/material', () => {
         <textarea ref={inputRef} aria-label={label} value={value} onChange={onChange} disabled={disabled} />
       ),
     useTheme: () => ({ breakpoints: { down: () => 'md' } }),
-    useMediaQuery: () => false,
+    useMediaQuery: () => api.mobile,
   };
 });
 
@@ -87,6 +91,7 @@ const base = {
   dateRange: { start: '2026-01-01', end: '2026-02-01' },
 };
 beforeEach(() => {
+  api.mobile = false;
   api.post.mockReset();
   api.get.mockReset().mockResolvedValue(success([]));
 });
@@ -455,4 +460,36 @@ it('reports catalog failure while leaving natural language editing available', a
   fireEvent.change(screen.getByLabelText('분석할 차트'), { target: { value: '0' } });
   await screen.findByText(/저장 지표를 불러오지 못しました|저장 지표를 불러오지 못했습니다/);
   expect(screen.getByLabelText('대시보드 수정 요청').hasAttribute('disabled')).toBe(false);
+});
+
+it('UC-003 keeps calculation edits and preview across Drawer responsive transitions', async () => {
+  api.get.mockImplementation(url =>
+    Promise.resolve(
+      success(
+        url.includes('/profile')
+          ? { columns: [{ name: 'amount', numeric: true }] }
+          : [{ id: 3, label: 'Saved total', definitionVersion: 1, definition: { aggregation: 'SUM', column: 'amount' } }],
+      ),
+    ),
+  );
+  api.post.mockResolvedValue(
+    success({
+      ...preview,
+      metric: { id: 3, definitionVersion: 1, nextVersion: 2, previousExpression: 'SUM(amount)', expression: 'AVG(amount)' },
+    }),
+  );
+  const view = mount();
+  fireEvent.click(screen.getByRole('button', { name: '대시보드 수정', exact: true }));
+  fireEvent.change(screen.getByLabelText('분석할 차트'), { target: { value: '0' } });
+  await screen.findByRole('option', { name: 'Saved total' });
+  fireEvent.change(screen.getByLabelText('재사용할 저장 지표'), { target: { value: '3' } });
+  fireEvent.click(screen.getByRole('button', { name: '계산식 변경', exact: true }));
+  fireEvent.change(screen.getByLabelText('집계 방식'), { target: { value: 'AVG' } });
+  await waitFor(() => expect(screen.getByRole('button', { name: '계산식 미리보기' }).hasAttribute('disabled')).toBe(false));
+  fireEvent.click(screen.getByRole('button', { name: '계산식 미리보기' }));
+  await screen.findByText('v1 → v2');
+  api.mobile = true;
+  view.rerender(<DashboardAssistant {...base} onApplied={view.onApplied} onClose={view.onClose} />);
+  expect((screen.getByLabelText('집계 방식') as HTMLSelectElement).value).toBe('AVG');
+  expect(screen.getByText('v1 → v2')).toBeTruthy();
 });

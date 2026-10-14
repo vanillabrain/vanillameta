@@ -1,5 +1,9 @@
 jest.mock('./ai.service', () => ({ AiService: class {} }));
-import { applyMetricReferences, explicitMetricTarget } from './saved-metric-reference';
+import {
+  applyMetricReferences,
+  explicitMetricTarget,
+  applyCanonicalCalculation,
+} from './saved-metric-reference';
 import { metricExpression } from '../bi/metric-expression';
 import { AiDashboardService } from './ai-dashboard.service';
 
@@ -142,7 +146,9 @@ it('excludes malformed, mismatched-version/source and unknown-column definitions
     ...[
       { ...definition, sourceId: 8 },
       { ...definition, schemaVersion: 2 },
-      { ...definition, definitionVersion: 2 },
+      { ...definition, definitionVersion: 0 },
+      { ...definition, definitionVersion: -1 },
+      { ...definition, definitionVersion: 1.5 },
       { ...definition, column: 'missing' },
     ].map((d, i) => ({ id: i + 2, definition: JSON.stringify(d) })),
   ]);
@@ -244,4 +250,36 @@ it('enforces an explicit selection in generation and reports the correct widget 
   expect(result.data.metricReferences).toEqual([
     { widgetIndex: 1, metricId: 3, label: 'Stored Requests' },
   ]);
+});
+
+it('UC-003 retains trusted category aliases, filters and sorting while replacing the calculation', () => {
+  const current = draft(undefined, 'CHART_BAR');
+  current.widgets[0].categoryField = 'dimension';
+  current.widgets[0].sql =
+    'SELECT device AS dimension, SUM(amount) AS value FROM source WHERE amount > 0 GROUP BY device ORDER BY value DESC LIMIT 10';
+  expect(applyCanonicalCalculation(current, 0, 'AVG("amount")').widgets[0].sql).toBe(
+    'SELECT device AS dimension, AVG("amount") AS value FROM source WHERE amount > 0 GROUP BY device ORDER BY value DESC LIMIT 10',
+  );
+});
+
+it('UC-003 reuses an updated AVG requests definition without forcing it back to SUM', async () => {
+  const { service, ai } = setup(9, [
+    {
+      id: 3,
+      definition: JSON.stringify({
+        ...definition,
+        definitionVersion: 2,
+        aggregation: 'AVG',
+        column: 'bid_request_cnt',
+      }),
+    },
+  ]);
+  (service as any).connection.queryDuckDB = async () => ({
+    datas: [{ column_name: 'bid_request_cnt', column_type: 'BIGINT' }],
+  });
+  ai.getSchemaContext.mockResolvedValue({ schemaText: 'bid_request_cnt BIGINT' });
+  const result = await service.generate({ databaseId: 7, prompt: '저장 지표로 요청 수 평균' }, 9);
+  if (!('data' in result)) throw new Error(result.message);
+  expect(result.data.widgets[0].sql).toContain('AVG("bid_request_cnt")');
+  expect(ai.callLlm).toHaveBeenCalledTimes(1);
 });

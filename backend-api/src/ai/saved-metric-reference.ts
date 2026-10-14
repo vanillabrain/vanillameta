@@ -77,3 +77,16 @@ export function explicitMetricTarget(
   );
   return { ...base, explanation: input.explanation, widgets };
 }
+
+/** UC-003 uses a validated persisted chart; retain its category aliases and time expressions. */
+export function applyCanonicalCalculation(input: any, index: number, expression: string) {
+  const draft = validateDraft(input);
+  if (!Number.isInteger(index) || !draft.widgets[index])
+    throw new BadRequestException('invalid target widget');
+  return validateDraft({
+    ...draft,
+    widgets: draft.widgets.map((w, i) =>
+      i === index ? { ...w, sql: canonicalProjection(w.sql, w.valueField, expression) } : w,
+    ),
+  });
+}

@@ -38,6 +38,24 @@ describe('source ownership boundary', () => {
       ).rejects.toThrow(ForbiddenException);
     }
   });
+  it.each(['metricChangePreview', 'metricChangeSave'])(
+    'checks both source-linked metric and analysis owners for %s',
+    async handler => {
+      await expect(
+        guard.canActivate(
+          request('AiController', handler, {
+            body: { dashboardId: 51, metricId: 21 },
+            user: { accessKeyData: { id: 7 } },
+          }),
+        ),
+      ).resolves.toBe(true);
+      await expect(
+        guard.canActivate(
+          request('AiController', handler, { body: { dashboardId: 51, metricId: 21 } }),
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    },
+  );
   beforeEach(() => {
     const db: any = {
       getRepository: entity => ({
