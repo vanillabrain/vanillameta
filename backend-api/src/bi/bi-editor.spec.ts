@@ -112,6 +112,7 @@ describe('BiService dashboard editor boundaries', () => {
     };
     access = { assert: jest.fn().mockResolvedValue(undefined), id: jest.fn(Number) };
     dashboards = {
+      generate: jest.fn(),
       analysis: jest.fn(async () => ({ data: analysis })),
       preview: jest.fn().mockResolvedValue({ data: { widgets: [{ rows: [{ value: 150 }] }] } }),
       save: jest.fn().mockResolvedValue({ data: { id: dashboardId, revision: 'b'.repeat(64) } }),
@@ -350,7 +351,7 @@ describe('BiService dashboard editor boundaries', () => {
     expect(dashboards.save.mock.calls[0][0].draft.widgets[0].blockId).toBeUndefined();
   });
 
-  it.each(['editor', 'editorPreview', 'saveEditor'] as const)(
+  it.each(['editor', 'editorPreview', 'saveEditor', 'editorAi'] as const)(
     '%s denies unauthorized access before reading the baseline or executing SQL',
     async operation => {
       access.assert.mockRejectedValueOnce(new ForbiddenException('not dashboard owner'));
@@ -366,6 +367,140 @@ describe('BiService dashboard editor boundaries', () => {
       expect(dashboards.save).not.toHaveBeenCalled();
     },
   );
+
+  it('generates against unsaved edits, returns a local draft and never saves it', async () => {
+    const existing = (await service.editor(dashboardId, actor)).items[0];
+    const definition = {
+      ...analysis.widgets[0],
+      title: 'AI average',
+      sql: 'SELECT AVG("amount") AS value FROM source',
+    };
+    dashboards.generate.mockResolvedValueOnce({
+      status: 'SUCCESS',
+      data: { ...analysis, widgets: [definition] },
+    });
+    const request = body({
+      title: 'Unsaved title',
+      items: [{ ...existing, title: 'Direct edit', height: 7 }],
+      selectedKey: existing.key,
+      prompt: '평균으로 변경',
+    });
+    const result = await service.editorAi(dashboardId, request, actor);
+    expect(dashboards.generate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        databaseId: 1,
+        selectedWidget: 0,
+        currentDraft: expect.objectContaining({
+          title: 'Unsaved title',
+          layoutSizes: [{ width: 6, height: 7 }],
+          widgets: [expect.objectContaining({ title: 'Direct edit' })],
+        }),
+      }),
+      actor,
+      undefined,
+    );
+    expect(result.item).toMatchObject({ key: existing.key, kind: 'draft', definition, height: 7 });
+    expect(dashboards.save).not.toHaveBeenCalled();
+    await service.saveEditor(dashboardId, body({ items: [result.item] }), actor);
+    expect(dashboards.save.mock.calls[0][0].draft.widgets[0].sql).toBe(definition.sql);
+  });
+
+  it('applies only the selected AI widget even if other generated widgets change', async () => {
+    analysis.widgets.push({ ...analysis.widgets[0], blockId: 'second', title: 'Untouched' });
+    const items = (await service.editor(dashboardId, actor)).items;
+    dashboards.generate.mockResolvedValueOnce({
+      status: 'SUCCESS',
+      data: {
+        ...analysis,
+        layoutSizes: undefined,
+        widgets: [
+          { ...analysis.widgets[0], title: 'Selected' },
+          { ...analysis.widgets[1], title: 'Forbidden replacement' },
+        ],
+      },
+    });
+    await service.editorAi(
+      dashboardId,
+      body({ items, selectedKey: items[0].key, prompt: '제목 변경' }),
+      actor,
+    );
+    expect(dashboards.preview.mock.calls[0][0].draft.widgets[1]).toEqual(analysis.widgets[1]);
+  });
+
+  it.each(['SELECT * FROM secret', 'DELETE FROM source'])(
+    'rejects unsafe draft SQL %s',
+    async sql => {
+      const existing = (await service.editor(dashboardId, actor)).items[0];
+      await expect(
+        service.saveEditor(
+          dashboardId,
+          body({
+            items: [{ ...existing, kind: 'draft', definition: { ...analysis.widgets[0], sql } }],
+          }),
+          actor,
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(dashboards.save).not.toHaveBeenCalled();
+    },
+  );
+  it('keeps the owned identity and source for explicit draft changes despite forged metadata', async () => {
+    analysis.widgets[0].blockId = 'owned-block';
+    const existing = (await service.editor(dashboardId, actor)).items[0];
+    await service.saveEditor(
+      dashboardId,
+      body({
+        sourceId: 2,
+        items: [
+          {
+            ...existing,
+            kind: 'draft',
+            definition: { ...analysis.widgets[0], blockId: 'foreign-block', databaseId: 2 },
+          },
+        ],
+      }),
+      actor,
+    );
+    expect(dashboards.save.mock.calls[0][0].draft).toMatchObject({
+      databaseId: 1,
+      widgets: [expect.objectContaining({ blockId: 'owned-block' })],
+    });
+  });
+
+  it('rejects a missing target and stale AI revision before invoking the model', async () => {
+    const items = (await service.editor(dashboardId, actor)).items;
+    await expect(
+      service.editorAi(dashboardId, body({ items, selectedKey: 'foreign', prompt: '변경' }), actor),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      service.editorAi(
+        dashboardId,
+        body({
+          items,
+          selectedKey: items[0].key,
+          prompt: '변경',
+          expectedRevision: 'b'.repeat(64),
+        }),
+        actor,
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(dashboards.generate).not.toHaveBeenCalled();
+  });
+  it('rejects a revision changed during the AI call without returning a stale preview', async () => {
+    const items = (await service.editor(dashboardId, actor)).items;
+    dashboards.generate.mockImplementationOnce(async () => {
+      analysis.revision = 'b'.repeat(64);
+      return { status: 'SUCCESS', data: analysis };
+    });
+    await expect(
+      service.editorAi(
+        dashboardId,
+        body({ items, selectedKey: items[0].key, prompt: '제목 변경' }),
+        actor,
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(dashboards.preview).not.toHaveBeenCalled();
+    expect(dashboards.save).not.toHaveBeenCalled();
+  });
 
   it('rejects a metric from another source through real prepare even if both sources are owned', async () => {
     const prepare = jest.spyOn(service, 'prepare');

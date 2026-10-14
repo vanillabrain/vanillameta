@@ -400,6 +400,25 @@ export class BiService {
           );
         widget = { ...state.analysis.widgets[index], title: this.text(item.title, 300) };
         snapshot = state.definitions?.[index] || {};
+      } else if (item.kind === 'draft') {
+        const validated = validateDraft({
+          databaseId: state.sourceId,
+          title,
+          explanation: '',
+          widgets: [item.definition],
+        }).widgets[0];
+        const chart =
+          validated.type === 'BOARD_NUMERIC'
+            ? 'number'
+            : validated.type === 'CHART_LINE'
+            ? 'line'
+            : 'bar';
+        if (item.chart !== chart) throw new BadRequestException('AI 차트 종류를 확인해 주세요.');
+        widget = { ...validated, title: this.text(item.title, 300) };
+        snapshot =
+          originalIndex >= 0 && validated.sql === state.analysis.widgets[originalIndex].sql
+            ? state.definitions?.[originalIndex] || {}
+            : {};
       } else throw new BadRequestException('차트 종류를 확인해 주세요.');
       widget = {
         ...widget,
@@ -453,6 +472,57 @@ export class BiService {
   async editorPreview(id: unknown, body: any, actor: number) {
     const { draft } = await this.compileEditor(id, body, actor);
     return (await this.dashboards.preview({ draft, includeTrends: true }, actor)).data;
+  }
+  async editorAi(id: unknown, body: any, actor: number, signal?: AbortSignal) {
+    const compiled = await this.compileEditor(id, body, actor);
+    const index = body.items.findIndex(item => item.key === body.selectedKey);
+    if (index < 0) throw new BadRequestException('수정할 블록을 선택해 주세요.');
+    if (typeof body.prompt !== 'string' || !body.prompt.trim() || body.prompt.length > 2000)
+      throw new BadRequestException('변경 요청을 확인해 주세요.');
+    const result = await this.dashboards.generate(
+      {
+        dashboardId: compiled.dashboardId,
+        databaseId: compiled.draft.databaseId,
+        currentDraft: compiled.draft,
+        selectedWidget: index,
+        prompt: body.prompt,
+      },
+      actor,
+      signal,
+    );
+    if (result.status !== 'SUCCESS' || !('data' in result))
+      throw new BadRequestException(
+        'AI 변경을 적용하지 못했습니다. 초안은 유지됩니다. 다시 요청해 주세요.',
+      );
+    const generated = validateDraft(result.data);
+    const widget = generated.widgets[index];
+    if (!widget) throw new BadRequestException('AI 변경 결과를 확인해 주세요.');
+    const item = {
+      ...body.items[index],
+      kind: 'draft',
+      copyOf: undefined,
+      title: widget.title,
+      chart:
+        widget.type === 'BOARD_NUMERIC' ? 'number' : widget.type === 'CHART_LINE' ? 'line' : 'bar',
+      unit: (widget.suffix || '').trim(),
+      decimalPlaces: widget.decimalPlaces ?? 0,
+      numberNotation: widget.numberNotation === 'compact' ? 'compact' : 'plain',
+      definition: widget,
+    };
+    if (signal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
+    // Recompile only the selected replacement. Recheck revision and all presentation constraints.
+    const next = await this.compileEditor(
+      id,
+      {
+        ...body,
+        items: body.items.map((original, i) => (i === index ? item : original)),
+      },
+      actor,
+    );
+    const preview = (
+      await this.dashboards.preview({ draft: next.draft, includeTrends: true }, actor)
+    ).data;
+    return { item, preview };
   }
   async saveEditor(id: unknown, body: any, actor: number) {
     const { draft, snapshot, dashboardId, expectedRevision, preserveSizeIds } =

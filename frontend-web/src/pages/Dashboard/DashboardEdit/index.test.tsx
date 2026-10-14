@@ -214,6 +214,89 @@ it('starts with optional settings collapsed and keeps block actions visible', as
   expect(document.querySelector('details')?.open).toBe(false);
   expect(screen.getByRole('button', { name: '1번 차트 복제' })).not.toBeNull();
 });
+
+const aiResult = () => ({
+  item: {
+    ...item,
+    kind: 'draft',
+    title: 'AI 평균',
+    definition: {
+      title: 'AI 평균',
+      description: '',
+      type: 'BOARD_NUMERIC',
+      sql: 'SELECT AVG(amount) AS value FROM source',
+      valueField: 'value',
+    },
+  },
+  preview: preview(),
+});
+it('applies AI to the unsaved draft and shares undo/redo and save transport with direct edits', async () => {
+  await mount();
+  fireEvent.change(screen.getByLabelText('대시보드 제목'), { target: { value: '미저장 제목' } });
+  fireEvent.click(screen.getByRole('button', { name: '1번 차트 AI로 수정' }));
+  fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '평균으로 변경' } });
+  api.post.mockResolvedValueOnce(success(aiResult()));
+  fireEvent.click(screen.getByRole('button', { name: 'AI 변경 미리보기' }));
+  await screen.findByRole('heading', { name: '1번 차트 · AI 평균' });
+  expect(api.post.mock.calls[0][1]).toMatchObject({
+    title: '미저장 제목',
+    selectedKey: 'old',
+    expectedRevision: editor.revision,
+  });
+  fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
+  expect(screen.getByRole('heading', { name: '1번 차트 · 기존 계산' })).not.toBeNull();
+  expect((screen.getByRole('button', { name: '변경 내용 저장' }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByLabelText('대시보드 제목') as HTMLInputElement).value).toBe('미저장 제목');
+  fireEvent.click(screen.getByRole('button', { name: '다시 실행' }));
+  await requestPreview();
+  expect(api.post.mock.calls[1][1].items[0]).toMatchObject({ kind: 'draft', definition: aiResult().item.definition });
+  api.post.mockResolvedValueOnce(success({ id: 8, revision: 'b'.repeat(64) }));
+  fireEvent.click(screen.getByRole('button', { name: '변경 내용 저장' }));
+  await waitFor(() => expect(api.navigate).toHaveBeenCalledWith('/dashboard/8'));
+});
+
+it('cancels AI without losing the working draft or applying a late reply', async () => {
+  await mount();
+  let resolveAi: (value: unknown) => void = () => undefined;
+  api.post.mockImplementationOnce(
+    () =>
+      new Promise(resolve => {
+        resolveAi = resolve;
+      }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '1번 차트 AI로 수정' }));
+  fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '평균으로 변경' } });
+  fireEvent.click(screen.getByRole('button', { name: 'AI 변경 미리보기' }));
+  fireEvent.click(screen.getByRole('button', { name: 'AI 요청 취소' }));
+  await act(async () => {
+    resolveAi(success(aiResult()));
+  });
+  expect(screen.getByRole('heading', { name: '1번 차트 · 기존 계산' })).not.toBeNull();
+  expect(screen.queryByRole('heading', { name: '1번 차트 · AI 평균' })).toBeNull();
+});
+it('drops obsolete AI replies on route change and prevents duplicate requests', async () => {
+  const view = await mount();
+  let resolveAi: (value: unknown) => void = () => undefined;
+  api.post.mockImplementationOnce(
+    () =>
+      new Promise(resolve => {
+        resolveAi = resolve;
+      }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '1번 차트 AI로 수정' }));
+  fireEvent.change(screen.getByLabelText('AI 변경 요청'), { target: { value: '평균 변경' } });
+  fireEvent.click(screen.getByRole('button', { name: 'AI 변경 미리보기' }));
+  fireEvent.click(screen.getByRole('button', { name: 'AI 변경 미리보기' }));
+  expect(api.post).toHaveBeenCalledTimes(1);
+  api.id = '9';
+  view.rerender(<DashboardEdit />);
+  await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2));
+  await act(async () => {
+    resolveAi(success(aiResult()));
+  });
+  expect(screen.queryByRole('heading', { name: '1번 차트 · AI 평균' })).toBeNull();
+  expect(screen.getByRole('heading', { name: '1번 차트 · 기존 계산' })).not.toBeNull();
+});
 it('converts through saved metric and restricts line dimensions to native date columns', async () => {
   await mount();
   choose('1번 차트 저장된 지표로 전환', '매출');

@@ -85,3 +85,9 @@ snapshot 기본 게시와 모바일 이동 버튼은 이 문서의 구현 제안
 blockId를 기존 JSON에 추가하고 레거시 조회는 결정적 ID를 반환한다. 다음 명시 저장에서 기록하며 DB 위젯을 다시 만들어도 ID를 유지한다. 서버는 저장 layout/mapping을 blockId에 연결해 읽기 전용 blockLayouts를 반환하고 조회 Card는 이 geometry를 표시한다. 직접 grid 저장은 분석 위젯 순서를 유지한다. 선택 AI 수정은 대상 하나만 서버에서 합치며 비대상 widgets/제목과 geometry를 보존한다. 기존 SQL compiler/필터 API는 유지한다.
 
 구현 상세와 증빙은 [UC-006](../use_cases/UC-006-preserve-block-layout.md) 및 [검증 기록](../testing/block-layout-continuity.md). 기존1~6차트/숫자·차트 유형 한도는 유지하며 모든 Block kind/통합 undo/mobile editor 완료는 아니다. 일반 AI 저장의 structured metric snapshot 정리는 기존 경로가 유지되며 모든 지표 링크 보존/신규 정의 기록은 P2의 별도 구현 계약이 남았다.
+
+## P1 공통 초안 반영 — UC-007/008
+
+차트·배치 편집기의 복제·로컬 undo/redo에 이어 선택 AI 수정도 같은 items/제목/revision/이력에 적용한다. 미저장 추가/복제·순서·크기를 compiler로 검증해 AI currentDraft로 전달하고 선택 key의 결과만 다시 compiler/preview로 반영한다. 저장은 명시 동작이다. AI 변경은 분석 snapshot이며 중앙 지표 수정/일괄 반영을 대신하지 않는다. 기존 source SQL guard와 소유권·identity·버전 경계를 유지한다.
+
+[UC-008 실행](../testing/working-draft-ai.md)은 단위/실LLM/API PASS이며 실제 UI BLOCKED다. 공통 편집 초안에 연결했으나 자유 드래그·breakpoint 배치·프롬프트 이동과 전체 작업 실행기의 계약까지 완성한 것은 아니다.
