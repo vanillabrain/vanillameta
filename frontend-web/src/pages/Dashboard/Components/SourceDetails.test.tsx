@@ -11,6 +11,10 @@ import SourceDetails, {
 import DashboardAnalysis from './DashboardAnalysis';
 
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), widget: vi.fn(), trend: vi.fn(), previous: vi.fn() }));
+vi.mock('@mui/material/styles', async () => {
+  const { createRequire } = await import('node:module');
+  return createRequire(import.meta.url)('@mui/material/styles');
+});
 vi.mock('@/helpers/apiHelper', () => api);
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 vi.mock('./DashboardAssistant', () => ({ default: () => null }));

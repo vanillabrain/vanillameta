@@ -1,0 +1,8 @@
+@startuml
+left to right direction
+actor "운영 담당자" as operator
+rectangle "VanillaMeta" {
+ usecase "UC-001\nReview And Save Analysis" as UC001
+}
+operator --> UC001
+@enduml

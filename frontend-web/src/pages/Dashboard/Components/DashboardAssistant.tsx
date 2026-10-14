@@ -19,9 +19,10 @@ import { errorMessage, responseData } from '../dashboardPreview';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
 import { analysisOptions } from '../analysisOptions';
 import { timeRangeLabel } from './timeSelection';
-import { ANALYSIS_UI, analysisFieldSx } from '@/components/analysis/AnalysisUi';
+import MetricTrend from './MetricTrend';
+import { AnalysisUiProvider, analysisFieldSx } from '@/components/analysis/AnalysisUi';
 
-export default function DashboardAssistant({
+function DashboardAssistantContent({
   open,
   onClose,
   dashboardId,
@@ -159,17 +160,6 @@ export default function DashboardAssistant({
           borderColor: 'divider',
           boxShadow: 'none',
           backgroundColor: 'background.paper',
-          '& .MuiButton-root': {
-            minWidth: 0,
-            minHeight: ANALYSIS_UI.controlHeight,
-            fontSize: ANALYSIS_UI.fontSize,
-            lineHeight: 1.4,
-            padding: '4px 8px',
-            borderRadius: `${ANALYSIS_UI.radius}px`,
-            textTransform: 'none',
-          },
-          '& .MuiButton-root:not([data-wrap-label])': { height: ANALYSIS_UI.controlHeight },
-          '& .MuiInputBase-root, & .MuiInputLabel-root': { fontSize: ANALYSIS_UI.fontSize },
         },
       }}
     >
@@ -301,15 +291,29 @@ export default function DashboardAssistant({
                   border: '1px solid',
                   borderColor: 'divider',
                   borderRadius: 1,
-                  height: w.type === 'BOARD_NUMERIC' ? 150 : 280,
                 }}
               >
-                <WidgetViewer
-                  title={w.title}
-                  widgetType={w.type}
-                  widgetOption={analysisOptions(w, w.numberNotation || 'compact')}
-                  dataSet={w.datas}
-                />
+                <Box sx={{ height: w.type === 'BOARD_NUMERIC' ? 150 : 280, minWidth: 0 }}>
+                  <WidgetViewer
+                    title={w.title}
+                    widgetType={w.type}
+                    widgetOption={analysisOptions(w, w.numberNotation || 'compact')}
+                    dataSet={w.datas}
+                  />
+                </Box>
+                {w.type === 'BOARD_NUMERIC' && (
+                  <MetricTrend
+                    trend={w.trend}
+                    unavailable={w.trendUnavailable}
+                    title={w.title}
+                    prefix={w.prefix}
+                    suffix={w.suffix}
+                    decimalPlaces={w.decimalPlaces ?? 0}
+                    comparison={w.comparison}
+                    previousTrend={w.previousTrend}
+                    periods={proposal.preview.comparison}
+                  />
+                )}
               </Box>
             ))}
             <Box component="details">
@@ -411,5 +415,13 @@ export default function DashboardAssistant({
         </Stack>
       </Box>
     </Drawer>
+  );
+}
+
+export default function DashboardAssistant(props: any) {
+  return (
+    <AnalysisUiProvider>
+      <DashboardAssistantContent {...props} />
+    </AnalysisUiProvider>
   );
 }

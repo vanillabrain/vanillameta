@@ -37,3 +37,7 @@ AnalysisUiProvider는 기존 테마를 상속하는 국소 테마다. SourceExpl
 - **NOT_RUN**: 전체 E2E·BE 재검사·운영,모든 뷰포트/hover 변형/접근성,portal 전체 화면,신규 XHR 수집. 기존 수치·저장/CSV 검증은 로직 변경이 없어 재사용한다. Rill이 이동한 시점과 VM 원본 시점의 기간 버킷 수치 동등성 및 픽셀 단위 UI 동등성은 주장하지 않는다.
 
 증빙은 저장소 밖 `/tmp/vm-analysis-ui-kit/`에 보존한다. 변경 전 기준은 직전 커밋bb0e9975의 `/tmp/vm-pivot-design/compact-1440.png`이며 Rill reference/Explore/Pivot/filter/390px 캡처와 테스트·빌드 로그를 함께 기록한다.
+
+## AI 분석 적용 후속
+
+생성/수정 미리보기·저장 조회에 국소 AnalysisUiProvider를 적용하고 숫자+MetricTrend 표시를 통일했다. Assistant 부모 버튼 크기 덮어쓰기는 제거했다. 설정·기간 안내·저장 보기 관리·집계 원본 확인은 native details로 접되 유지한다. 모바일 빈 질문 라벨은 shrink를 사용한다. [AIWF 설계/검증](../testing/simple-analysis-parity.md) 참조.

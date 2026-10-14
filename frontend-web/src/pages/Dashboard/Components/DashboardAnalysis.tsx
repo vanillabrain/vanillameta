@@ -20,6 +20,7 @@ import WidgetViewer from '@/widget/wrapper/WidgetViewer';
 import DashboardAssistant from './DashboardAssistant';
 import { analysisOptions } from '../analysisOptions';
 import MetricTrend from './MetricTrend';
+import { AnalysisUiProvider } from '@/components/analysis/AnalysisUi';
 import PersonalSavedViews, {
   DateRange,
   FilterValue,
@@ -56,7 +57,7 @@ const selectableTime = (selection: TimeSelection | undefined, length: number, da
   selection.ranges.length === length &&
   selection.ranges.some(range => validTimeRange(range) && range.column === selection.column);
 
-export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAssistantOpenChange, children }: any) {
+function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantOpenChange, children }: any) {
   const { t } = useTranslation();
   const [numberNotation, setNumberNotation] = useState<SavedViewState['numberNotation']>('auto');
   useEffect(() => {
@@ -699,50 +700,57 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
         >
           Assistant
         </Button>
-        <FormControl size="small" sx={{ minWidth: 160 }}>
-          <InputLabel id="number-notation">{t('settings.numberNotation')}</InputLabel>
-          <Select
-            labelId="number-notation"
-            label={t('settings.numberNotation')}
-            value={numberNotation}
-            onChange={event => {
-              setNotation(event.target.value as SavedViewState['numberNotation']);
-            }}
-          >
-            <MenuItem value="auto">위젯 설정</MenuItem>
-            <MenuItem value="compact">{t('settings.numberCompact')}</MenuItem>
-            <MenuItem value="full">{t('settings.numberFull')}</MenuItem>
-          </Select>
-        </FormControl>
       </Stack>
-      <FormControl size="small" sx={{ minWidth: 220, mb: 2 }}>
-        <InputLabel id="business-time-zone">업무 시간대</InputLabel>
-        <Select
-          labelId="business-time-zone"
-          label="업무 시간대"
-          value={dateDraft.timeZone ?? dateRange?.timeZone ?? 'UTC'}
-          disabled={busy || analysisLoading || editing || detailsOpen}
-          onChange={event => {
-            const timeZone = String(event.target.value);
-            setPeriodHistory([]);
-            setDateError('');
-            setDateDraft(value => ({ ...value, timeZone }));
-            if (relativePeriod) {
-              const relative = { ...relativePeriod, timeZone };
-              const range = resolveRelativePeriod(relative);
-              setRelativePeriod(relative);
-              setDateRange(range);
-              setDateDraft(range);
-            } else if (dateRange) setDateRange({ ...dateRange, timeZone });
-          }}
-        >
-          <MenuItem value="UTC">UTC</MenuItem>
-          <MenuItem value="Asia/Seoul">한국 (Asia/Seoul)</MenuItem>
-          {dateDraft.timeZone && !['UTC', 'Asia/Seoul'].includes(dateDraft.timeZone) && (
-            <MenuItem value={dateDraft.timeZone}>{dateDraft.timeZone}</MenuItem>
-          )}
-        </Select>
-      </FormControl>
+      <Box component="details" sx={{ mb: 1.5 }}>
+        <Typography component="summary" sx={{ cursor: 'pointer', fontSize: 12 }}>
+          분석 설정
+        </Typography>
+        <Stack direction="row" useFlexGap spacing={1.5} sx={{ flexWrap: 'wrap', mt: 1.5, alignItems: 'flex-start' }}>
+          <FormControl size="small" sx={{ minWidth: 160 }}>
+            <InputLabel id="number-notation">{t('settings.numberNotation')}</InputLabel>
+            <Select
+              labelId="number-notation"
+              label={t('settings.numberNotation')}
+              value={numberNotation}
+              onChange={event => {
+                setNotation(event.target.value as SavedViewState['numberNotation']);
+              }}
+            >
+              <MenuItem value="auto">위젯 설정</MenuItem>
+              <MenuItem value="compact">{t('settings.numberCompact')}</MenuItem>
+              <MenuItem value="full">{t('settings.numberFull')}</MenuItem>
+            </Select>
+          </FormControl>
+          <FormControl size="small" sx={{ minWidth: 220, mb: 2 }}>
+            <InputLabel id="business-time-zone">업무 시간대</InputLabel>
+            <Select
+              labelId="business-time-zone"
+              label="업무 시간대"
+              value={dateDraft.timeZone ?? dateRange?.timeZone ?? 'UTC'}
+              disabled={busy || analysisLoading || editing || detailsOpen}
+              onChange={event => {
+                const timeZone = String(event.target.value);
+                setPeriodHistory([]);
+                setDateError('');
+                setDateDraft(value => ({ ...value, timeZone }));
+                if (relativePeriod) {
+                  const relative = { ...relativePeriod, timeZone };
+                  const range = resolveRelativePeriod(relative);
+                  setRelativePeriod(relative);
+                  setDateRange(range);
+                  setDateDraft(range);
+                } else if (dateRange) setDateRange({ ...dateRange, timeZone });
+              }}
+            >
+              <MenuItem value="UTC">UTC</MenuItem>
+              <MenuItem value="Asia/Seoul">한국 (Asia/Seoul)</MenuItem>
+              {dateDraft.timeZone && !['UTC', 'Asia/Seoul'].includes(dateDraft.timeZone) && (
+                <MenuItem value={dateDraft.timeZone}>{dateDraft.timeZone}</MenuItem>
+              )}
+            </Select>
+          </FormControl>
+        </Stack>
+      </Box>
       <Stack direction="row" aria-label="적용된 공통 필터" sx={{ flexWrap: 'wrap', gap: 1, mb: 1 }}>
         {active.flatMap(([column, values]) =>
           values.map(value => (
@@ -924,13 +932,18 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
           이전 기간 비교
         </Box>
       </Stack>
-      <Typography variant="body2" sx={{ mb: 2 }}>
-        {dateRange?.timeZone && dateRange.timeZone !== 'UTC'
-          ? '업무 시간대는 KPI·원본 행·기간 비교에 적용됩니다. KPI 추이는 지역 달력의 일·주·월로 집계합니다. 주 시작은 월요일입니다. KPI 추이 시점을 선택해 기간을 좁히거나 해당 집계의 원본 행을 확인할 수 있습니다. 일반 라인 차트 재집계는 아직 지원하지 않습니다. 날짜 비교는 같은 달력 날짜 수를 사용합니다.'
-          : '주별은 UTC 월요일 시작, 월별은 UTC 달력의 월 기준입니다. 선택 범위에 걸친 주·월은 범위 안의 데이터만 집계합니다.'}{' '}
-        이전 기간은 적용된 기간 바로 앞의 같은 길이이며 동일한 필터로 조회합니다.
-        {!dateRange && ' 이전 기간 비교는 날짜를 적용한 뒤 사용할 수 있습니다.'}
-      </Typography>
+      <Box component="details" sx={{ mb: 1.5 }}>
+        <Typography component="summary" sx={{ cursor: 'pointer', fontSize: 12 }}>
+          기간 계산 안내
+        </Typography>
+        <Typography variant="body2" sx={{ mb: 2 }}>
+          {dateRange?.timeZone && dateRange.timeZone !== 'UTC'
+            ? '업무 시간대는 KPI·원본 행·기간 비교에 적용됩니다. KPI 추이는 지역 달력의 일·주·월로 집계합니다. 주 시작은 월요일입니다. KPI 추이 시점을 선택해 기간을 좁히거나 해당 집계의 원본 행을 확인할 수 있습니다. 일반 라인 차트 재집계는 아직 지원하지 않습니다. 날짜 비교는 같은 달력 날짜 수를 사용합니다.'
+            : '주별은 UTC 월요일 시작, 월별은 UTC 달력의 월 기준입니다. 선택 범위에 걸친 주·월은 범위 안의 데이터만 집계합니다.'}{' '}
+          이전 기간은 적용된 기간 바로 앞의 같은 길이이며 동일한 필터로 조회합니다.
+          {!dateRange && ' 이전 기간 비교는 날짜를 적용한 뒤 사용할 수 있습니다.'}
+        </Typography>
+      </Box>
       {preview?.comparison && (
         <Typography role="status" sx={{ mb: 2, overflowWrap: 'anywhere' }}>
           {busy || error ? '이전 조회 결과의 비교 기간' : '이전 기간'}: {preview.comparison.previous.column} ·{' '}
@@ -966,31 +979,36 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
           )}
         </Alert>
       )}
-      <PersonalSavedViews
-        key={`personal-views-${dashboardId}`}
-        dashboardId={Number(dashboardId)}
-        revision={draft.revision}
-        state={viewState}
-        disabledReason={viewDisabledReason}
-        sourceRevision={preview?.sourceRevision}
-        onApply={(state, range) => {
-          if (!draft.revision || viewDisabledReason) return;
-          serial.current += 1;
-          setBusy(true);
-          setError('');
-          setDateError('');
-          setFilters(Object.fromEntries(state.filters.map(filter => [filter.column, filter.values])));
-          setPeriodHistory([]);
-          pendingTimeFocus.current?.cancel();
-          setDateRange(range);
-          setDateDraft(displayedDates(range));
-          setRelativePeriod(state.relativePeriod);
-          setTrendGrain(state.trendGrain ?? 'auto');
-          setComparePrevious(state.comparePrevious === true && !!range);
-          if (state.relativePeriod) setRecentDays(state.relativePeriod.days);
-          setNotation(state.numberNotation);
-        }}
-      />
+      <Box component="details" sx={{ mb: 1.5 }}>
+        <Typography component="summary" sx={{ cursor: 'pointer', fontSize: 12 }}>
+          저장 보기 관리
+        </Typography>
+        <PersonalSavedViews
+          key={`personal-views-${dashboardId}`}
+          dashboardId={Number(dashboardId)}
+          revision={draft.revision}
+          state={viewState}
+          disabledReason={viewDisabledReason}
+          sourceRevision={preview?.sourceRevision}
+          onApply={(state, range) => {
+            if (!draft.revision || viewDisabledReason) return;
+            serial.current += 1;
+            setBusy(true);
+            setError('');
+            setDateError('');
+            setFilters(Object.fromEntries(state.filters.map(filter => [filter.column, filter.values])));
+            setPeriodHistory([]);
+            pendingTimeFocus.current?.cancel();
+            setDateRange(range);
+            setDateDraft(displayedDates(range));
+            setRelativePeriod(state.relativePeriod);
+            setTrendGrain(state.trendGrain ?? 'auto');
+            setComparePrevious(state.comparePrevious === true && !!range);
+            if (state.relativePeriod) setRecentDays(state.relativePeriod.days);
+            setNotation(state.numberNotation);
+          }}
+        />
+      </Box>
       {preview ? (
         <Box
           aria-busy={busy}
@@ -1078,7 +1096,10 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
                 />
               </Box>
               {widget.contribution && (
-                <Box sx={{ px: 2.5, py: 1, minWidth: 0 }}>
+                <Box component="details" sx={{ px: 2.5, py: 1, minWidth: 0 }}>
+                  <Typography component="summary" sx={{ cursor: 'pointer', fontSize: 12 }}>
+                    집계 원본 확인
+                  </Typography>
                   <Button
                     ref={button => {
                       if (button) contributionButtons.current.set(i, button);
@@ -1268,5 +1289,13 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
         }}
       />
     </Box>
+  );
+}
+
+export default function DashboardAnalysis(props: any) {
+  return (
+    <AnalysisUiProvider>
+      <DashboardAnalysisContent {...props} />
+    </AnalysisUiProvider>
   );
 }

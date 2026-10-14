@@ -397,3 +397,30 @@ it('period context forwards selected settings to draft and preview without model
     expect(body).not.toHaveProperty('settings');
   }
 });
+
+it('UC-001 BR-001 displays numeric trend in an edit proposal before explicit persistence', async () => {
+  const withTrend = {
+    ...preview,
+    widgets: [
+      {
+        ...preview.widgets[0],
+        trend: {
+          grain: 'day',
+          points: [
+            { time: '2023-09-09T00:00:00Z', value: 20 },
+            { time: '2023-09-10T00:00:00Z', value: 22 },
+          ],
+        },
+      },
+    ],
+  };
+  api.post.mockResolvedValueOnce(success(revised)).mockResolvedValueOnce(success(withTrend));
+  mount();
+  fireEvent.click(screen.getByText('대시보드 수정'));
+  fireEvent.change(screen.getByLabelText('대시보드 수정 요청'), { target: { value: '총합을 유지하고 추세를 보여줘' } });
+  fireEvent.click(screen.getByText('미리보기 요청'));
+  await waitFor(() => expect(screen.getByRole('img', { name: 'Total 일별 추세' })).toBeTruthy());
+  expect(api.post.mock.calls.map(c => c[0])).toEqual(['/ai/dashboard-draft', '/ai/dashboard-preview']);
+  expect(api.post.mock.calls[1][1].includeTrends).toBe(true);
+  expect(screen.getByText('변경 적용')).toBeTruthy();
+});

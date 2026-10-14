@@ -203,3 +203,7 @@ Rill의 계층 펼침/부분합·시간 축·Flat 모드·drag/drop·총합 위�
 ### 분석 화면 UI Kit — 2026-10-14
 
 [Rill 기준 UI Kit](../design/analysis-ui-kit.md)을 정리하고 Explore/Pivot의 공통 토큰·선택 버튼·국소 테마를 적용했다. 화면별 버튼 최소 높이 강제 규칙을 제거하고 입력·필터 칩·보기 그룹·패널·표 밀도를 공유한다. 실제1440px/390px 화면 검증과 남은 Rill 차이는 해당 문서에 기록했다. 이후 분석 UI 요소는 이 기준을 먼저 재사용한다. 기능 후속인 파일 갱신/운영 제한과 별도 변화 열·추가 계층·drag/drop는 유지한다.
+
+## 내부 구조와 단순한 사용자 화면 — 사용자 합의 2026-10-14
+
+내부는 데이터 소스·지표 정의·분석 화면의 책임을 Rill처럼 구분하고 고객 화면은 질문·결과·저장 중심으로 제공한다. 개발자 파일 트리는 고객에게 기본 노출하지 않는다. 현재 위젯 정의와 DuckDB 실행을 유지하며 미래 엔진/알림/API 때문에 전면 리팩터링하지 않는다. AIWF 상세는 [설계](../architecture/simple-analysis.md), [UC-001](../use_cases/UC-001-review-and-save-analysis.md), [실제 검증](../testing/simple-analysis-parity.md) 참조.

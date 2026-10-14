@@ -5,6 +5,10 @@ import DashboardAnalysis from './DashboardAnalysis';
 import userEvent from '@testing-library/user-event';
 import type { DateRange } from './PersonalSavedViews';
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), timeProps: vi.fn() }));
+vi.mock('@mui/material/styles', async () => {
+  const { createRequire } = await import('node:module');
+  return createRequire(import.meta.url)('@mui/material/styles');
+});
 vi.mock('@/helpers/apiHelper', () => api);
 vi.mock('./DashboardAssistant', () => ({ default: () => null }));
 // Saved-view API/UI behavior is exercised by PersonalSavedViews.test.tsx.

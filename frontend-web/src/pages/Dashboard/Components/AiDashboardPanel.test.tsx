@@ -3,6 +3,10 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import AiDashboardPanel from './AiDashboardPanel';
 const api = vi.hoisted(() => ({ post: vi.fn(), sources: vi.fn() }));
+vi.mock('@mui/material/styles', async () => {
+  const { createRequire } = await import('node:module');
+  return createRequire(import.meta.url)('@mui/material/styles');
+});
 vi.mock('@/helpers/apiHelper', () => ({ post: api.post }));
 vi.mock('@/api/databaseService', () => ({ default: { selectDatabaseList: api.sources } }));
 vi.mock('react-i18next', () => ({
@@ -75,7 +79,12 @@ it('requires a valid preview and explicit Save, passes dashboardId and local-mod
   start();
   await waitFor(() => expect((screen.getByText('Save') as HTMLButtonElement).disabled).toBe(false));
   expect(api.post).toHaveBeenCalledTimes(2);
-  expect(api.post).toHaveBeenNthCalledWith(2, '/ai/dashboard-preview', { draft, dashboardId: 3 }, { timeout: 180000 });
+  expect(api.post).toHaveBeenNthCalledWith(
+    2,
+    '/ai/dashboard-preview',
+    { draft, dashboardId: 3, includeTrends: true },
+    { timeout: 180000 },
+  );
   expect(screen.getByText('All records.')).not.toBeNull();
   fireEvent.click(screen.getByText('Save'));
   await waitFor(() => expect(view.onSaved).toHaveBeenCalledWith(99));
@@ -164,4 +173,34 @@ it('only offers supported DuckDB sources, excluding legacy connections', async (
   await screen.findByRole('option', { name: 'Sales' });
   expect(screen.queryByRole('option', { name: 'Legacy' })).toBeNull();
   expect(screen.queryByRole('option', { name: 'Broken file' })).toBeNull();
+});
+
+it.each([true, false])('UC-001 BR-001/004 pairs KPI preview with trend or unavailable (%s)', async available => {
+  const result = {
+    ...preview,
+    widgets: [
+      {
+        ...preview.widgets[0],
+        ...(available
+          ? {
+              trend: {
+                grain: 'day',
+                points: [
+                  { time: '2023-09-09T00:00:00Z', value: 3 },
+                  { time: '2023-09-10T00:00:00Z', value: 2 },
+                ],
+              },
+            }
+          : { trendUnavailable: 'No temporal column is available.' }),
+      },
+    ],
+  };
+  api.post.mockResolvedValueOnce(success(draft)).mockResolvedValueOnce(success(result));
+  await mount();
+  start();
+  await waitFor(() => expect((screen.getByText('Save') as HTMLButtonElement).disabled).toBe(false));
+  expect(screen.getByTestId('preview').textContent).toBe('Total');
+  if (available) expect(screen.getByRole('img', { name: 'Total 일별 추세' })).toBeTruthy();
+  else expect(screen.getByText(/No temporal column is available/)).toBeTruthy();
+  expect(api.post.mock.calls[1][1].includeTrends).toBe(true);
 });
