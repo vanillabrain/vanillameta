@@ -1,3 +1,5 @@
+import { Database } from '../database/entities/database.entity';
+import { Metric } from '../metric/entities/metric.entity';
 jest.mock('./ai.service', () => ({ AiService: class {} }));
 import { AiDashboardService } from './ai-dashboard.service';
 import { buildTrendQuery, chooseTrendGrain } from './dashboard-trend';
@@ -135,6 +137,8 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
       database: ':memory:',
       synchronize: true,
       entities: [
+        Database,
+        Metric,
         Dashboard,
         DashboardShare,
         DashboardWidget,
@@ -145,6 +149,14 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
       ],
     });
     await db.initialize();
+    await db.manager.save(Database, {
+      id: 1,
+      ownerId: 7,
+      name: 'Fixture',
+      connectionConfig: '{}',
+      engine: 'duckdb',
+      type: 'FILE',
+    });
     connection = {
       withDuckDBSnapshot: jest.fn((_id, callback) => callback()),
       duckDBVersion: jest.fn().mockResolvedValue(file.filename),

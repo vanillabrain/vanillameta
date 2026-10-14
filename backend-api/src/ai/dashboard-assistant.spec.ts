@@ -1,3 +1,4 @@
+import { Database } from '../database/entities/database.entity';
 jest.mock('./ai.service', () => ({ AiService: class {} }));
 import { AiDashboardService } from './ai-dashboard.service';
 import { AiController } from './ai.controller';
@@ -48,8 +49,11 @@ describe('dashboard assistant', () => {
         .mockResolvedValue({ schemaText: 'amount BIGINT, device VARCHAR' }),
     };
     manager = {
+      find: jest.fn().mockResolvedValue([]),
       findOne: jest.fn(async entity =>
-        entity === UserMapping
+        entity === Database
+          ? { id: 1, ownerId: 7 }
+          : entity === UserMapping
           ? { id: 1 }
           : { id: 3, delYn: 'N', analysisDefinition: JSON.stringify(draft()) },
       ),

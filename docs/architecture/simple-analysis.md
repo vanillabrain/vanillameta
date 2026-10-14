@@ -6,7 +6,7 @@
 
 ## Current implementation
 
-소스와 버전은 기존 DuckDB 메타데이터, 계산·표시는 analysisDefinition.widgets, 조회 조건은 별도 state다. 독립 지표 레지스트리 재사용은 향후 작업이며 이번 완료 조건이 아니다. 이 문서는 목표 경계를 정하지만 현재 구현을 독립 metrics layer로 과장하지 않는다.
+소스와 버전은 기존 DuckDB 메타데이터, 계산·표시는 analysisDefinition.widgets, 조회 조건은 별도 state다. 기존 구조화 저장 지표의 AI 재사용은 [UC-002 설계](saved-metric-ai.md) 후속으로 연결한다. live reference와 자동 이름 매칭의 완전 보장은 아직 후속 범위다. 이 문서는 목표 경계를 정하지만 현재 구현을 독립 metrics layer로 과장하지 않는다.
 
 ## UI design
 

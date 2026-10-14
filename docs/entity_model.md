@@ -7,6 +7,7 @@
 ```mermaid
 erDiagram
     DATA_SOURCE ||--o{ ANALYSIS : supplies
+    DATA_SOURCE ||--o{ SAVED_METRIC : defines
     ANALYSIS ||--|{ ANALYSIS_WIDGET : contains
 ```
 
@@ -43,3 +44,14 @@ erDiagram
 | decimalPlaces | 표시 정밀도    | Integer   | 10               | Optional                            |
 
 **Constraints:** 실제 위젯은 analysisDefinition.widgets의 배열 항목이다. 시계열은 저장 정의의 별도 위젯이 아닌 현재 조회 조건으로 계산한 파생 결과다. 미리보기의 조회 결과를 저장 정의에 복사하지 않는다.
+
+### SAVED_METRIC
+
+기존 Metric.definition에 저장된 구조화 계산 snapshot이다. UC-002 생성 시 선택 참조되고 분석에는 SQL snapshot이 저장된다. live FK가 새로 생성되는 것은 아니다.
+
+| Attribute  | Description                                         | Data Type | Length/Precision | Validation Rules                       |
+| ---------- | --------------------------------------------------- | --------- | ---------------- | -------------------------------------- |
+| id         | 지표 ID                                             | Long      | 19               | Primary Key, Sequence                  |
+| databaseId | 원본 참조                                           | Long      | 19               | Not Null, Foreign Key (DATA_SOURCE.id) |
+| definition | schemaVersion·label·aggregation·column 등 기존 정의 | String    | 10000            | Not Null                               |
+| useYn      | 활성 여부                                           | String    | 1                | Not Null, Values: Y, N                 |

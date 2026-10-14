@@ -8,6 +8,8 @@
 | FR-002 | Progressive settings      | As a 운영 담당자, I want 보조 설정을 필요할 때 펼치기 so that 결과를 먼저 볼 수 있다.                    | High     | Verified |
 | FR-003 | Persist analysis          | As a 운영 담당자, I want 검토한 분석을 저장하고 다시 조회하기 so that 같은 정의로 작업을 계속할 수 있다. | High     | Verified |
 
+| FR-004 | Reuse saved metric | As a 운영 담당자, I want AI가 저장 지표를 참조할 때 검증된 계산식을 사용하기 so that 질문에 따라 계산 기준이 달라지지 않는다. | High | Verified |
+
 ## Non-Functional Requirements
 
 | ID      | Title               | Requirement                                                                                                                                               | Category    | Priority | Status   |

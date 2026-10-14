@@ -1,3 +1,5 @@
+2026-10-14 저장 지표 AI 재사용: [UC-002 결과](saved-metric-ai.md). 기존 제작 계산기 공유, 소유 소스 활성 지표 최대30개 제공, 명시 metricId의 서버 계산식 적용·기존 필터/정렬 보존. BE137단위·빌드·production lint PASS. 실제 두 KPI 지표3/4 재사용→저장→reload 및 원래 정의 불변 PASS. OS막대 참조 자동 전파는 미완료이며 참조 없는 기존식 유지. 새 모바일/전체E2E/운영은 NOT_RUN.
+
 2026-10-14 AIWF 단순 분석 후속: [UC-001 실행 결과](simple-analysis-parity.md). 문서/설계 선행 후 생성·수정 미리보기를 숫자+시계열로 통일하고 설정·저장 보기 관리 접기, UI Kit 국소 적용. FE305단위 및 라벨9개 재검사·타입·린트 PASS. 기존 분석5 실제 수정→저장→reload와 새 분석7 생성→저장→reload,390/1440·Rill1727 실제 화면 비교 PASS_SELECTED_VARIANTS. 평균 SVG의8.5e-14 오차와 날짜 이동/배치 차이는 명시. 인간 수락·물리 기기·VoiceOver·운영은 미기록/NOT_RUN.
 
 2026-10-14 저장 AI 분석 재질문 후속: [Assistant 수정→미리보기→동일 분석 저장→새로고침](existing-ai-edit.md#저장-분석-재질문지표차트-수정-후속) PASS. 대시보드5에 평균 Bid Floor5.57 추가, OS별28항목 막대로 교체·내림차순/합계634,513,000 확인. 첫 AI 설명 오류는 저장 전 재질문으로 보정. Assistant28px/12px·선택32px·400px 패널 정렬/가로 넘침 확인. FE31단위·타입·변경린트 PASS. 이번 모바일/VoiceOver·새 Rill 실화면·전체 E2E는 NOT_RUN.
