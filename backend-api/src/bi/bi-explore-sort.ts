@@ -3,10 +3,11 @@
  * selected measure, so a row with no value still sorts last in either direction.
  */
 export type PivotRowSort = {
-  by: 'label' | 'value';
+  by: 'label' | 'value' | 'delta' | 'percentChange';
   direction: 'asc' | 'desc';
-  /** Only a value order names a measure, so the label shape omits the key entirely. */
+  /** Every metric order names a selected measure; the label shape omits the key entirely. */
   measureId?: number;
+  columnTuple?: (string | number | boolean | null)[];
 };
 
 export type PivotSortDirection = 'asc' | 'desc';
@@ -99,9 +100,9 @@ export type PivotRowSortInput = {
   sort: PivotRowSort;
   /** Group leaves under their first row column when the hierarchy is present. */
   hierarchy: boolean;
-  /** Current row-total value of the sorted measure for one leaf tuple. */
+  /** Selected current/change score of the row total or scoped cell for one leaf tuple. */
   value: (tuple: unknown[]) => unknown;
-  /** Current subtotal value of the sorted measure for one parent value. */
+  /** Selected score of the parent's raw subtotal or scoped parent cell. */
   parentValue: (parent: unknown) => unknown;
 };
 

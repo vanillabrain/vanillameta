@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Button, Stack, TextField, Typography } from '@mui/material';
 import { post } from '@/helpers/apiHelper';
-import type { PivotRowSort } from './ExplorePivot';
+import type { PivotRowSort, PivotTimeAxis } from './ExplorePivot';
 
 export type ExploreViewState = {
-  version: 1 | 2 | 3;
+  version: 1 | 2 | 3 | 4;
   pivot?: {
     enabled: boolean;
     rowColumns: string[];
@@ -12,6 +12,7 @@ export type ExploreViewState = {
     rowHierarchy?: boolean;
     rowSort?: PivotRowSort;
     expandedRows?: Array<Array<string | number | boolean | null>>;
+    timeAxis?: PivotTimeAxis;
   };
   measureIds: number[];
   dimensionColumns: string[];
@@ -61,12 +62,67 @@ const message = (error: unknown) => {
     } 카탈로그를 다시 불러오고 조건을 확인해 새 보기로 저장해 주세요.`;
   return reason ?? failure?.message ?? '저장 보기를 처리하지 못했습니다. 다시 시도해 주세요.';
 };
+/** One expanded row key or time-axis member: a bounded scalar, never a nested value. */
+const member = (item: unknown): boolean =>
+  item === null ||
+  typeof item === 'boolean' ||
+  (typeof item === 'number' && Number.isFinite(item)) ||
+  (typeof item === 'string' && item.length <= 256);
+/** A cell scope must name members bounded like a filter value, with the column axis's arity. */
+const columnTupleShape = (tuple: unknown, columnColumns: string[]): boolean =>
+  Array.isArray(tuple) && tuple.length === columnColumns.length && tuple.every(member);
+/**
+ * Row ordering shape for versions 3 and 4. A label order carries no measure; a value order must name
+ * a selected measure. Version 4 adds the change orders, which need a compared period, and the
+ * optional cell scope, which must match the column axis arity.
+ */
+const rowSortShape = (
+  sort: PivotRowSort | undefined,
+  measureIds: number[] | undefined,
+  comparePrevious: unknown,
+  columnColumns: string[] | undefined,
+  version: number,
+): boolean => {
+  if (!sort || typeof sort !== 'object') return false;
+  if (!['asc', 'desc'].includes(sort.direction)) return false;
+  if (sort.by === 'label') {
+    if (sort.measureId !== undefined) return false;
+    if (version === 4 && sort.columnTuple !== undefined) return false;
+    return true;
+  }
+  if (!['value', 'delta', 'percentChange'].includes(sort.by)) return false;
+  if (version !== 4 && sort.by !== 'value') return false;
+  if (!measureIds?.includes(sort.measureId ?? 0)) return false;
+  if (version === 4) {
+    if (sort.by !== 'value' && comparePrevious !== true) return false;
+    if (sort.columnTuple !== undefined && !columnTupleShape(sort.columnTuple, columnColumns ?? [])) return false;
+  }
+  return true;
+};
+/** A time axis names one column on exactly one axis and shares the range's business timezone. */
+const timeAxisShape = (
+  axis: PivotTimeAxis | undefined,
+  rowColumns: string[] | undefined,
+  columnColumns: string[] | undefined,
+  dateRange: ExploreViewState['dateRange'],
+): boolean => {
+  if (!axis || typeof axis !== 'object' || Array.isArray(axis)) return false;
+  if (Object.keys(axis).some(key => !['column', 'grain', 'timeZone'].includes(key))) return false;
+  if (typeof axis.column !== 'string' || !axis.column) return false;
+  if (!['day', 'week', 'month'].includes(axis.grain)) return false;
+  if (typeof axis.timeZone !== 'string' || !axis.timeZone) return false;
+  const inRows = (rowColumns ?? []).includes(axis.column);
+  const inColumns = (columnColumns ?? []).includes(axis.column);
+  if (inRows === inColumns) return false;
+  if (dateRange && axis.timeZone !== (dateRange.timeZone ?? 'UTC')) return false;
+  return true;
+};
 /** Guard the response version and render-critical shape before applying any state. */
 const restorable = (input: unknown): input is ExploreViewState => {
   if (!input || typeof input !== 'object') return false;
   const value = input as Partial<ExploreViewState>;
   return (
-    (value.version === 1 || value.version === 2 || value.version === 3) &&
+    (value.version === 1 || value.version === 2 || value.version === 3 || value.version === 4) &&
     (value.version === 1
       ? value.pivot === undefined
       : !!value.pivot &&
@@ -78,15 +134,16 @@ const restorable = (input: unknown): input is ExploreViewState => {
         [...value.pivot.rowColumns, ...value.pivot.columnColumns].every(column => typeof column === 'string') &&
         new Set([...value.pivot.rowColumns, ...value.pivot.columnColumns]).size ===
           value.pivot.rowColumns.length + value.pivot.columnColumns.length) &&
-    (value.version !== 3 ||
+    ((value.version !== 3 && value.version !== 4) ||
       (!!value.pivot &&
         typeof value.pivot.rowHierarchy === 'boolean' &&
-        !!value.pivot.rowSort &&
-        ['label', 'value'].includes(value.pivot.rowSort.by) &&
-        ['asc', 'desc'].includes(value.pivot.rowSort.direction) &&
-        (value.pivot.rowSort.by === 'label'
-          ? value.pivot.rowSort.measureId === undefined
-          : value.measureIds?.includes(value.pivot.rowSort.measureId ?? 0)) &&
+        rowSortShape(
+          value.pivot.rowSort,
+          value.measureIds,
+          value.comparePrevious,
+          value.pivot.columnColumns,
+          value.version,
+        ) &&
         Array.isArray(value.pivot.expandedRows) &&
         value.pivot.expandedRows.length <= 50 &&
         ((value.pivot.rowHierarchy && value.pivot.rowColumns.length === 2) || value.pivot.expandedRows.length === 0) &&
@@ -103,6 +160,10 @@ const restorable = (input: unknown): input is ExploreViewState => {
                 (typeof item === 'string' && item.length <= 256),
             ),
         ))) &&
+    (value.version !== 4 ||
+      (!!value.pivot &&
+        (value.pivot.timeAxis === undefined ||
+          timeAxisShape(value.pivot.timeAxis, value.pivot.rowColumns, value.pivot.columnColumns, value.dateRange)))) &&
     Array.isArray(value.measureIds) &&
     value.measureIds.length > 0 &&
     value.measureIds.every(id => Number.isSafeInteger(id) && id > 0) &&

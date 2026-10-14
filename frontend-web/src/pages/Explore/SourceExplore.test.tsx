@@ -1257,3 +1257,535 @@ it('falls back to flat rows when a hierarchy response omits subtotals', async ()
   expect(screen.queryByRole('button', { name: '(값 없음) 펼치기' })).toBeNull();
   expect(screen.queryByText('부분합')).toBeNull();
 });
+
+/**
+ * Version 4 Pivot time axis and comparison-scoped row sorting.
+ *
+ * The request contract is fixed by the units that already landed with this feature:
+ * backend-api/src/bi/bi-explore-time.ts (timeAxis {column,grain,timeZone}, where the column must
+ * already sit on an axis and the time zone must agree with the applied period) and
+ * backend-api/src/bi/explore-view-state.ts (version 4, rowSort.by widened to delta|percentChange,
+ * an optional columnTuple whose arity is the column axis, and a change sort that needs
+ * comparePrevious).
+ *
+ * The controls these tests drive are the landed ones: the 시간 축 꺼짐 toggle with its 시간 축 열 and
+ * 시간 집계 selects, and the 정렬 <열> <지표> cell-header buttons with the 정렬 계산 변화량 /
+ * 정렬 계산 변화율 buttons.
+ */
+/** Column groups follow the first placed column so a cell header can be addressed by its tuple. */
+const timedColumnGroups = (body: any): unknown[][] => {
+  const first = body.columnColumns?.[0];
+  if (first === 'device_os') return [['Android'], ['iOS']];
+  if (first === 'device_type') return [['Mobile/Tablet'], ['Personal Computer']];
+  return body.columnColumns?.length ? [['A'], ['B']] : [[]];
+};
+const timedPivotResult = (body: any) => ({
+  sourceRevision: body.sourceRevision,
+  rowColumns: body.rowColumns,
+  columnColumns: body.columnColumns,
+  rows: [['2023-09-03'], ['2023-09-10'], ['2023-09-17']],
+  columns: timedColumnGroups(body),
+  cells: [
+    {
+      row: 1,
+      column: 0,
+      measures: [
+        {
+          measureId: 1,
+          value: '30',
+          comparison: { previousValue: '20', delta: '10', percentChange: 50 },
+        },
+      ],
+    },
+  ],
+  rowTotals: [
+    [{ measureId: 1, value: '10', comparison: { previousValue: '8', delta: '2', percentChange: 25 } }],
+    [{ measureId: 1, value: '30', comparison: { previousValue: '20', delta: '10', percentChange: 50 } }],
+    [{ measureId: 1, value: '20', comparison: { previousValue: '25', delta: '-5', percentChange: -20 } }],
+  ],
+  columnTotals: [[{ measureId: 1, value: '60' }], [{ measureId: 1, value: '50' }]],
+  grandTotal: [{ measureId: 1, value: '110' }],
+});
+const withTimedPivot = () => {
+  const original = currentPost();
+  api.post.mockImplementation(async (url: string, body: any, ...options: any[]) =>
+    url === '/bi/explore/pivot' ? success(timedPivotResult(body)) : original(url, body, ...options),
+  );
+};
+/** Saved views that serve one v1-v4 state on both list and load, mirroring the withViews helper. */
+const withViewsState = (state: unknown) => {
+  const original = currentPost();
+  api.post.mockImplementation(async (url: string, body: any, ...options: any[]) => {
+    if (url === '/bi/explore/views/list') return success(body.sourceId === 3 ? [{ ...savedView, state }] : []);
+    if (url === '/bi/explore/views/load') return success({ ...savedView, state });
+    if (url === '/bi/explore/views/create') return success({ ...savedView, name: body.name, state: body.state });
+    if (url === '/bi/explore/views/remove') return success({ id: body.viewId });
+    return original(url, body, ...options);
+  });
+};
+const openViewPanel = async () => {
+  fireEvent.click(screen.getByRole('button', { name: '탐색 보기', exact: true }));
+  await screen.findByRole('option', { name: savedView.name });
+};
+const loadSelectedView = () => {
+  fireEvent.change(screen.getByLabelText('저장한 탐색 보기'), { target: { value: '11' } });
+  fireEvent.click(screen.getByRole('button', { name: '보기 열기' }));
+};
+/** The live catalog lists the temporal column on the dimension list too; the shared fixture omits it. */
+const withTemporalDimension = () => {
+  const original = currentPost();
+  api.post.mockImplementation(async (url: string, body: any, ...options: any[]) =>
+    url === '/bi/explore/catalog'
+      ? success({
+          ...catalog,
+          sourceId: body.sourceId,
+          sourceRevision: `rev-${body.sourceId}`,
+          dimensions: [...catalog.dimensions, { column: '__time', type: 'TIMESTAMP', numeric: false, temporal: true }],
+        })
+      : original(url, body, ...options),
+  );
+};
+const setTimeAxisGrain = (grain: 'day' | 'week' | 'month') =>
+  fireEvent.change(screen.getByLabelText('시간 집계'), { target: { value: grain } });
+const clickCellHeader = (name: string) => fireEvent.click(screen.getByRole('button', { name }));
+const v4State = {
+  ...savedState,
+  version: 4,
+  pivot: {
+    enabled: true,
+    rowColumns: ['__time'],
+    columnColumns: ['device_type'],
+    rowHierarchy: false,
+    rowSort: {
+      by: 'delta' as const,
+      direction: 'desc' as const,
+      measureId: 2,
+      columnTuple: ['Mobile/Tablet'],
+    },
+    expandedRows: [],
+    timeAxis: { column: '__time', grain: 'week' as const, timeZone: 'Asia/Seoul' },
+  },
+};
+it('sends the Pivot time grain as day, week and month with the business time zone', async () => {
+  withTemporalDimension();
+  withTimedPivot();
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: 'Pivot', exact: true }));
+  await screen.findByRole('region', { name: 'Pivot 결과' });
+  fireEvent.change(screen.getByLabelText('행 차원 1'), { target: { value: '__time' } });
+  await waitFor(() => expect(pivots().at(-1)?.[1].rowColumns).toEqual(['__time']));
+  fireEvent.click(screen.getByRole('button', { name: '시간 축 꺼짐' }));
+  await waitFor(() => expect(pivots().at(-1)?.[1].timeAxis).toEqual({ column: '__time', grain: 'day', timeZone: 'UTC' }));
+  expect(screen.getByText('시간대 UTC')).toBeTruthy();
+  for (const grain of ['week', 'month'] as const) {
+    setTimeAxisGrain(grain);
+    await waitFor(() => expect(pivots().at(-1)?.[1].timeAxis).toEqual({ column: '__time', grain, timeZone: 'UTC' }));
+  }
+});
+it('scopes the row sort to the clicked cell header for delta and percentChange', async () => {
+  withTimedPivot();
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: 'Pivot', exact: true }));
+  fireEvent.click(screen.getByRole('button', { name: '사용자 지정' }));
+  fireEvent.change(screen.getByLabelText('시작일'), { target: { value: '2023-09-10' } });
+  fireEvent.change(screen.getByLabelText('종료일'), { target: { value: '2023-09-11' } });
+  fireEvent.click(screen.getByRole('button', { name: '이전 기간 비교' }));
+  fireEvent.change(screen.getByLabelText('열 차원 1'), { target: { value: 'device_os' } });
+  await waitFor(() => expect(pivots().at(-1)?.[1].columnColumns).toEqual(['device_os']));
+  await screen.findByRole('region', { name: 'Pivot 결과' });
+  clickCellHeader('정렬 Android Avg Bid Floor');
+  await waitFor(() =>
+    expect(pivots().at(-1)?.[1].rowSort).toEqual({
+      by: 'value',
+      direction: 'asc',
+      measureId: 2,
+      columnTuple: ['Android'],
+    }),
+  );
+  clickCellHeader('정렬 계산 변화량');
+  await waitFor(() =>
+    expect(pivots().at(-1)?.[1].rowSort).toEqual({
+      by: 'delta',
+      direction: 'asc',
+      measureId: 2,
+      columnTuple: ['Android'],
+    }),
+  );
+  clickCellHeader('정렬 계산 변화율');
+  await waitFor(() =>
+    expect(pivots().at(-1)?.[1].rowSort).toEqual({
+      by: 'percentChange',
+      direction: 'asc',
+      measureId: 2,
+      columnTuple: ['Android'],
+    }),
+  );
+});
+it('falls back to a valid row sort when the previous-period comparison is turned off', async () => {
+  withViewsState(v4State);
+  withTimedPivot();
+  await mount();
+  await openViewPanel();
+  loadSelectedView();
+  await waitFor(() => expect(pivots().at(-1)?.[1].rowSort?.by).toBe('delta'));
+  const before = pivots().at(-1)?.[1].rowSort;
+  fireEvent.click(screen.getByRole('button', { name: '이전 기간 비교' }));
+  await waitFor(() => expect(pivots().at(-1)?.[1].comparePrevious).toBe(false));
+  const sort = pivots().at(-1)?.[1].rowSort;
+  expect(['delta', 'percentChange']).not.toContain(sort?.by);
+  if (sort?.by === 'value') expect([1, 2, 3]).toContain(sort.measureId);
+  if (sort?.by === 'label') {
+    expect(sort.measureId).toBeUndefined();
+    expect(sort.columnTuple).toBeUndefined();
+  }
+  expect(pivots().at(-1)?.[1].rowSort).not.toEqual(before);
+});
+it('restores a v4 view with its time axis and cell-scoped comparison sort', async () => {
+  withViewsState(v4State);
+  withTimedPivot();
+  await mount();
+  await openViewPanel();
+  loadSelectedView();
+  await waitFor(() =>
+    expect(pivots().at(-1)?.[1]).toMatchObject({
+      rowColumns: ['__time'],
+      columnColumns: ['device_type'],
+      rowSort: { by: 'delta', direction: 'desc', measureId: 2, columnTuple: ['Mobile/Tablet'] },
+      timeAxis: { column: '__time', grain: 'week', timeZone: 'Asia/Seoul' },
+      measureIds: [2, 1],
+      dateRange: savedState.dateRange,
+      filters: savedState.filters,
+      comparePrevious: true,
+    }),
+  );
+  await screen.findByRole('region', { name: 'Pivot 결과' });
+  expect(screen.getByText('“주간 입찰 분석” 조건을 복원했습니다.')).toBeTruthy();
+});
+it('saves a restored v4 view with the time axis and the cell tuple intact', async () => {
+  withViewsState(v4State);
+  withTimedPivot();
+  await mount();
+  await openViewPanel();
+  loadSelectedView();
+  await screen.findByRole('region', { name: 'Pivot 결과' });
+  fireEvent.change(screen.getByLabelText('새 보기 이름'), { target: { value: '시간 축 v4' } });
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: '현재 조건 저장' }) as HTMLButtonElement).disabled).toBe(false),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '현재 조건 저장' }));
+  await waitFor(() =>
+    expect(api.post.mock.calls.find(([url]) => url === '/bi/explore/views/create')?.[1].state).toEqual(v4State),
+  );
+});
+it('keeps a restored v3 view free of the time axis and the cell tuple', async () => {
+  withViewsState(v3HierarchyState);
+  withHierarchy();
+  await mount();
+  await openViewPanel();
+  loadSelectedView();
+  await waitFor(() => expect(pivots().at(-1)?.[1].rowHierarchy).toBe(true));
+  expect(pivots().at(-1)?.[1].timeAxis).toBeUndefined();
+  expect(pivots().at(-1)?.[1].rowSort).toEqual({ by: 'value', direction: 'desc', measureId: 2 });
+  await screen.findByRole('region', { name: 'Pivot 결과' });
+  fireEvent.change(screen.getByLabelText('새 보기 이름'), { target: { value: 'Pivot v3 유지' } });
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: '현재 조건 저장' }) as HTMLButtonElement).disabled).toBe(false),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '현재 조건 저장' }));
+  await waitFor(() => {
+    const state = api.post.mock.calls.find(([url]) => url === '/bi/explore/views/create')?.[1].state;
+    expect(state.version).toBe(3);
+    expect(state.pivot.timeAxis).toBeUndefined();
+    expect(state.pivot.rowSort).toEqual({ by: 'value', direction: 'desc', measureId: 2 });
+  });
+});
+it('ignores a superseded Pivot response after the scoped comparison sort changes', async () => {
+  const v4Other = {
+    ...v4State,
+    pivot: {
+      ...v4State.pivot,
+      rowSort: { ...v4State.pivot.rowSort, columnTuple: ['Personal Computer'] },
+    },
+  };
+  let loads = 0;
+  let pivotCalls = 0;
+  let settleStale: (value: unknown) => void = () => undefined;
+  const original = currentPost();
+  api.post.mockImplementation(async (url: string, body: any, ...options: any[]) => {
+    if (url === '/bi/explore/views/list') return success([{ ...savedView, state: v4State }]);
+    if (url === '/bi/explore/views/load') {
+      loads += 1;
+      return success({ ...savedView, state: loads === 1 ? v4State : v4Other });
+    }
+    if (url === '/bi/explore/pivot') {
+      pivotCalls += 1;
+      if (pivotCalls === 1)
+        return new Promise(resolve => {
+          settleStale = resolve;
+        });
+      return success({
+        ...timedPivotResult(body),
+        rows: [['2023-09-17']],
+        rowTotals: [[{ measureId: 1, value: '20' }]],
+      });
+    }
+    return original(url, body, ...options);
+  });
+  await mount();
+  await openViewPanel();
+  loadSelectedView();
+  await waitFor(() => expect(pivotCalls).toBe(1));
+  fireEvent.click(screen.getByRole('button', { name: '보기 열기' }));
+  await waitFor(() => expect(pivotCalls).toBe(2));
+  await screen.findByRole('region', { name: 'Pivot 결과' });
+  await act(async () =>
+    settleStale(
+      success({
+        ...timedPivotResult({ sourceRevision: 'rev-3', rowColumns: ['__time'], columnColumns: ['device_type'] }),
+        rows: [['STALE']],
+        cells: [],
+        rowTotals: [[{ measureId: 1, value: '1' }]],
+      }),
+    ),
+  );
+  expect(screen.queryByText('STALE')).toBeNull();
+  expect(pivots().at(-1)?.[1].rowSort).toEqual({
+    by: 'delta',
+    direction: 'desc',
+    measureId: 2,
+    columnTuple: ['Personal Computer'],
+  });
+});
+it('clears the rendered cells while a same-axis refresh is in flight', async () => {
+  // The same view restores the same axes, so nothing in the request identifies the second load; the
+  // grid must still drop the previous aggregate instead of presenting it as the current one.
+  const collapsed = {
+    ...v3HierarchyState,
+    pivot: { ...v3HierarchyState.pivot, expandedRows: [] },
+  };
+  let pivotCalls = 0;
+  let settleRefresh: (value: unknown) => void = () => undefined;
+  const original = currentPost();
+  api.post.mockImplementation(async (url: string, body: any, ...options: any[]) => {
+    if (url === '/bi/explore/views/list') return success([{ ...savedView, state: collapsed }]);
+    if (url === '/bi/explore/views/load') return success({ ...savedView, state: collapsed });
+    if (url === '/bi/explore/pivot') {
+      pivotCalls += 1;
+      if (pivotCalls === 1) return success(hierarchyResult(body));
+      return new Promise(resolve => {
+        settleRefresh = resolve;
+      });
+    }
+    return original(url, body, ...options);
+  });
+  await mount();
+  await openViewPanel();
+  loadSelectedView();
+  await screen.findByRole('button', { name: '(값 없음) 펼치기' });
+  expect(screen.getAllByText('부분합').length).toBe(3);
+  fireEvent.click(screen.getByRole('button', { name: '보기 열기' }));
+  await waitFor(() => expect(pivotCalls).toBe(2));
+  await waitFor(() => expect(screen.queryByRole('region', { name: 'Pivot 결과' })).toBeNull());
+  expect(screen.queryByRole('button', { name: '(값 없음) 펼치기' })).toBeNull();
+  expect(screen.queryByText('부분합')).toBeNull();
+  const fresh = hierarchyResult({
+    sourceRevision: 'rev-3',
+    rowColumns: ['device_type', 'device_os'],
+    columnColumns: [],
+  });
+  await act(async () =>
+    settleRefresh(
+      success({
+        ...fresh,
+        rows: [['FRESH', 'Android']],
+        rowTotals: [
+          [
+            { measureId: 1, value: '40' },
+            { measureId: 2, value: 1.1 },
+          ],
+        ],
+        rowSubtotals: [
+          {
+            tuple: ['FRESH'],
+            measures: [
+              { measureId: 1, value: '40' },
+              { measureId: 2, value: 1.1 },
+            ],
+            cells: [{ column: 0, measures: [{ measureId: 1, value: '40' }] }],
+          },
+        ],
+      }),
+    ),
+  );
+  await screen.findByRole('button', { name: 'FRESH 펼치기' });
+  expect(screen.queryByRole('button', { name: '(값 없음) 펼치기' })).toBeNull();
+  expect(screen.getAllByText('부분합').length).toBe(1);
+});
+it('saves and exports a cell-scoped change sort without a time axis as version 4', async () => {
+  // A change order and a cell scope only exist in the version 4 row-sort contract, so a state with
+  // neither a time axis nor a stored previous-period layout must still persist as version 4 instead
+  // of emitting a version 3 order the saved-view validator rejects.
+  withViews();
+  withTimedPivot();
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: 'Pivot', exact: true }));
+  fireEvent.click(screen.getByRole('button', { name: '사용자 지정' }));
+  fireEvent.change(screen.getByLabelText('시작일'), { target: { value: '2023-09-10' } });
+  fireEvent.change(screen.getByLabelText('종료일'), { target: { value: '2023-09-11' } });
+  fireEvent.click(screen.getByRole('button', { name: '이전 기간 비교' }));
+  fireEvent.change(screen.getByLabelText('열 차원 1'), { target: { value: 'device_os' } });
+  await waitFor(() => expect(pivots().at(-1)?.[1].columnColumns).toEqual(['device_os']));
+  await screen.findByRole('region', { name: 'Pivot 결과' });
+  clickCellHeader('정렬 Android Avg Bid Floor');
+  clickCellHeader('정렬 계산 변화율');
+  const scoped = { by: 'percentChange', direction: 'asc', measureId: 2, columnTuple: ['Android'] };
+  await waitFor(() => expect(pivots().at(-1)?.[1].rowSort).toEqual(scoped));
+  expect(pivots().at(-1)?.[1].timeAxis).toBeUndefined();
+  fireEvent.click(screen.getByRole('button', { name: '탐색 보기', exact: true }));
+  fireEvent.change(screen.getByLabelText('새 보기 이름'), { target: { value: '변화 정렬' } });
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: '현재 조건 저장' }) as HTMLButtonElement).disabled).toBe(false),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '현재 조건 저장' }));
+  await waitFor(() => {
+    const state = api.post.mock.calls.find(([url]) => url === '/bi/explore/views/create')?.[1].state;
+    expect(state.version).toBe(4);
+    expect(state.pivot.timeAxis).toBeUndefined();
+    expect(state.pivot.rowSort).toEqual(scoped);
+  });
+  fireEvent.click(screen.getByRole('button', { name: /내보내기/ }));
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: 'CSV 다운로드' }) as HTMLButtonElement).disabled).toBe(false),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'CSV 다운로드' }));
+  await waitFor(() => {
+    const body = api.post.mock.calls.find(([url]) => url === '/bi/explore/export')?.[1];
+    expect(body.mode).toBe('pivot');
+    expect(body.query.rowSort).toEqual(scoped);
+    expect(body.query.timeAxis).toBeUndefined();
+  });
+});
+it('drops the cell sort scope when the Pivot time grain changes so the next request succeeds', async () => {
+  const original = currentPost();
+  const buckets = (grain: string) => (grain === 'month' ? [['2023-09'], ['2023-10']] : [['2023-09-10'], ['2023-09-11']]);
+  api.post.mockImplementation(async (url: string, body: any, ...options: any[]) => {
+    if (url === '/bi/explore/catalog')
+      return success({
+        ...catalog,
+        sourceId: body.sourceId,
+        sourceRevision: `rev-${body.sourceId}`,
+        dimensions: [...catalog.dimensions, { column: '__time', type: 'TIMESTAMP', numeric: false, temporal: true }],
+      });
+    if (url === '/bi/explore/pivot') {
+      const columns = buckets(body.timeAxis?.grain ?? 'day');
+      // The server rejects a scoped sort whose cell tuple is absent from the requested grain.
+      const staleTuple =
+        body.rowSort?.columnTuple !== undefined &&
+        !columns.some(values => JSON.stringify(values) === JSON.stringify(body.rowSort.columnTuple));
+      if (staleTuple)
+        return Promise.reject({
+          response: { status: 400, data: { success: false, data: '정렬할 열 셀을 다시 선택해 주세요.' } },
+        });
+      return success({
+        sourceRevision: body.sourceRevision,
+        rowColumns: body.rowColumns,
+        columnColumns: body.columnColumns,
+        rows: [['Android'], ['iOS']],
+        columns,
+        cells: [{ row: 0, column: 0, measures: [{ measureId: 2, value: '30' }] }],
+        rowTotals: [[{ measureId: 2, value: '10' }], [{ measureId: 2, value: '20' }]],
+        columnTotals: columns.map(() => [{ measureId: 2, value: '30' }]),
+        grandTotal: [{ measureId: 2, value: '30' }],
+      });
+    }
+    return original(url, body, ...options);
+  });
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: 'Pivot', exact: true }));
+  fireEvent.change(screen.getByLabelText('열 차원 1'), { target: { value: '__time' } });
+  await waitFor(() => expect(pivots().at(-1)?.[1].columnColumns).toEqual(['__time']));
+  fireEvent.click(screen.getByRole('button', { name: '시간 축 꺼짐' }));
+  await waitFor(() => expect(pivots().at(-1)?.[1].timeAxis).toEqual({ column: '__time', grain: 'day', timeZone: 'UTC' }));
+  await screen.findByRole('region', { name: 'Pivot 결과' });
+  clickCellHeader('정렬 2023-09-10 Avg Bid Floor');
+  await waitFor(() =>
+    expect(pivots().at(-1)?.[1].rowSort).toEqual({
+      by: 'value',
+      direction: 'asc',
+      measureId: 2,
+      columnTuple: ['2023-09-10'],
+    }),
+  );
+  // A day cell scope cannot bind the month grid, so the grain change drops the tuple before the
+  // request. The mock still refuses a stale scope with the server's own reason, so a regression that
+  // replays the day tuple fails here instead of passing leniently.
+  setTimeAxisGrain('month');
+  await waitFor(() => expect(pivots().at(-1)?.[1].timeAxis).toEqual({ column: '__time', grain: 'month', timeZone: 'UTC' }));
+  const monthRequests = pivots().filter(([, body]) => body.timeAxis?.grain === 'month');
+  expect(monthRequests.length).toBe(1);
+  expect(pivots().at(-1)?.[1].rowSort).toEqual({ by: 'value', direction: 'asc', measureId: 2 });
+  await screen.findByRole('button', { name: '정렬 2023-09 Avg Bid Floor' });
+  expect(screen.queryByText(/다시 선택해 주세요/)).toBeNull();
+});
+it('falls back to the row total when a changed date range makes the scoped Pivot cell stale', async () => {
+  const original = currentPost();
+  const dayBuckets = ['2023-09-10', '2023-09-11', '2023-09-12', '2023-09-13'];
+  api.post.mockImplementation(async (url: string, body: any, ...options: any[]) => {
+    if (url === '/bi/explore/catalog')
+      return success({
+        ...catalog,
+        sourceId: body.sourceId,
+        sourceRevision: `rev-${body.sourceId}`,
+        dimensions: [...catalog.dimensions, { column: '__time', type: 'TIMESTAMP', numeric: false, temporal: true }],
+      });
+    if (url === '/bi/explore/pivot') {
+      // Only the day buckets inside the selected range exist, so a scope kept from another range is stale.
+      const range = body.dateRange as { start: string; end: string } | undefined;
+      const columns = (
+        range ? dayBuckets.filter(day => day >= range.start && day <= range.end) : dayBuckets.slice(0, 2)
+      ).map(day => [day]);
+      const staleTuple =
+        body.rowSort?.columnTuple !== undefined &&
+        !columns.some(values => JSON.stringify(values) === JSON.stringify(body.rowSort.columnTuple));
+      if (staleTuple)
+        return Promise.reject({
+          response: { status: 400, data: { success: false, data: '정렬할 열 셀을 다시 선택해 주세요.' } },
+        });
+      return success({
+        sourceRevision: body.sourceRevision,
+        rowColumns: body.rowColumns,
+        columnColumns: body.columnColumns,
+        rows: [['Android'], ['iOS']],
+        columns,
+        cells: [{ row: 0, column: 0, measures: [{ measureId: 2, value: '30' }] }],
+        rowTotals: [[{ measureId: 2, value: '10' }], [{ measureId: 2, value: '20' }]],
+        columnTotals: columns.map(() => [{ measureId: 2, value: '30' }]),
+        grandTotal: [{ measureId: 2, value: '30' }],
+      });
+    }
+    return original(url, body, ...options);
+  });
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: 'Pivot', exact: true }));
+  fireEvent.change(screen.getByLabelText('열 차원 1'), { target: { value: '__time' } });
+  await waitFor(() => expect(pivots().at(-1)?.[1].columnColumns).toEqual(['__time']));
+  fireEvent.click(screen.getByRole('button', { name: '시간 축 꺼짐' }));
+  await waitFor(() => expect(pivots().at(-1)?.[1].timeAxis).toEqual({ column: '__time', grain: 'day', timeZone: 'UTC' }));
+  await screen.findByRole('region', { name: 'Pivot 결과' });
+  clickCellHeader('정렬 2023-09-10 Avg Bid Floor');
+  await waitFor(() => expect(pivots().at(-1)?.[1].rowSort?.columnTuple).toEqual(['2023-09-10']));
+  // A range the client cannot predict drops the scoped bucket from the grid, so the server refuses the
+  // kept scope once and the panel must fall back to the row total instead of staying on the error.
+  fireEvent.click(screen.getByRole('button', { name: '사용자 지정' }));
+  fireEvent.change(screen.getByLabelText('시작일'), { target: { value: '2023-09-12' } });
+  fireEvent.change(screen.getByLabelText('종료일'), { target: { value: '2023-09-13' } });
+  await waitFor(() =>
+    expect(pivots().some(([, body]) => body.dateRange?.start === '2023-09-12' && !!body.rowSort?.columnTuple)).toBe(true),
+  );
+  await waitFor(() => expect(pivots().at(-1)?.[1].rowSort?.columnTuple).toBeUndefined());
+  const refused = pivots().filter(([, body]) => body.dateRange?.start === '2023-09-12' && !!body.rowSort?.columnTuple);
+  expect(refused.length).toBe(1);
+  expect(pivots().at(-1)?.[1].rowSort).toEqual({ by: 'value', direction: 'asc', measureId: 2 });
+  await screen.findByRole('button', { name: '정렬 2023-09-12 Avg Bid Floor' });
+  expect(screen.queryByText(/다시 선택해 주세요/)).toBeNull();
+});

@@ -30,6 +30,28 @@ export type ExploreRowSort = {
 };
 /** One expanded hierarchy row: the value of the single row column the view is nested on. */
 export type ExploreExpandedRow = [string | number | boolean | null];
+/** One saved column tuple, in the same member domain as a filter value. */
+export type ExploreColumnTuple = (string | number | boolean | null)[];
+/**
+ * Version 4 row ordering. The label order compares row tuples; the three measure orders compare the
+ * row total or, when a column tuple names one cell, that cell of the row. A change order needs a
+ * compared period, and the label shape carries neither a measure nor a column cell.
+ */
+export type ExploreRowSortV4 = {
+  by: 'label' | 'value' | 'delta' | 'percentChange';
+  direction: 'asc' | 'desc';
+  measureId?: number;
+  columnTuple?: ExploreColumnTuple;
+};
+/**
+ * Version 4 optional bucket axis. The named column is bucketed to a civil day label in the chosen
+ * timezone, so it must already be one of the axis columns.
+ */
+export type ExploreTimeAxis = {
+  column: string;
+  grain: 'day' | 'week' | 'month';
+  timeZone: string;
+};
 /**
  * Version 3 pivot layout: the version 2 axes plus the row hierarchy, its ordering and the row keys
  * the user expanded. The axes keep the version 2 rules, so a layout toggled off still keeps state.
@@ -38,6 +60,16 @@ export type ExplorePivotV3 = ExplorePivot & {
   rowHierarchy: boolean;
   rowSort: ExploreRowSort;
   expandedRows: ExploreExpandedRow[];
+};
+/**
+ * Version 4 pivot layout: the version 3 hierarchy fields plus an optional bucket axis. The bucket
+ * column must be an axis column and its timezone must agree with the saved period.
+ */
+export type ExplorePivotV4 = ExplorePivot & {
+  rowHierarchy: boolean;
+  rowSort: ExploreRowSortV4;
+  expandedRows: ExploreExpandedRow[];
+  timeAxis?: ExploreTimeAxis;
 };
 /** Fields every state version shares. */
 type ExploreViewStateBase = {
@@ -55,13 +87,19 @@ type ExploreViewStateBase = {
 export type ExploreViewStateV1 = ExploreViewStateBase & { version: 1 };
 export type ExploreViewStateV2 = ExploreViewStateBase & { version: 2; pivot: ExplorePivot };
 export type ExploreViewStateV3 = ExploreViewStateBase & { version: 3; pivot: ExplorePivotV3 };
+export type ExploreViewStateV4 = ExploreViewStateBase & { version: 4; pivot: ExplorePivotV4 };
 /**
  * Versioned saved exploration state. It is a strict whitelist: one unknown key is a client bug.
  * The page offset is intentionally not stored; opening a view always restores page 0.
  * Version 1 is unchanged and rejects a stored pivot; version 2 requires one. Version 3 adds the
- * nested row hierarchy, its ordering and the expanded rows on top of the same axes.
+ * nested row hierarchy, its ordering and the expanded rows on top of the same axes. Version 4 adds
+ * an optional bucket axis and widens the row ordering to change sorts and one column cell.
  */
-export type ExploreViewState = ExploreViewStateV1 | ExploreViewStateV2 | ExploreViewStateV3;
+export type ExploreViewState =
+  | ExploreViewStateV1
+  | ExploreViewStateV2
+  | ExploreViewStateV3
+  | ExploreViewStateV4;
 
 const MAX_MEASURES = 6;
 const MAX_DIMENSIONS = 4;
@@ -77,6 +115,9 @@ const HIERARCHY_ROW_COLUMNS = 2;
 const GRAINS = ['day', 'week', 'month'];
 const SORT_FIELDS = ['value', 'delta', 'percentChange'];
 const ROW_SORT_FIELDS = ['label', 'value'];
+/** Version 4 widens the row ordering: change sorts and an optional single column cell. */
+const ROW_SORT_FIELDS_V4 = ['label', 'value', 'delta', 'percentChange'];
+const TIME_AXIS_FIELDS = ['column', 'grain', 'timeZone'];
 const STATE_FIELDS = [
   'version',
   'timeZone',
@@ -93,7 +134,9 @@ const STATE_FIELDS = [
 const PIVOT_FIELDS = ['enabled', 'rowColumns', 'columnColumns'];
 /** Version 3 adds the row hierarchy, its ordering and the expanded row keys to the same axes. */
 const PIVOT_V3_FIELDS = [...PIVOT_FIELDS, 'rowHierarchy', 'rowSort', 'expandedRows'];
-/** Versions 2 and 3 both store the pivot layout; a version 1 state rejects the key as unknown. */
+/** Version 4 adds the optional bucket axis on top of the version 3 layout. */
+const PIVOT_V4_FIELDS = [...PIVOT_V3_FIELDS, 'timeAxis'];
+/** Versions 2 through 4 store the pivot layout; a version 1 state rejects the key as unknown. */
 const PIVOT_STATE_FIELDS = [...STATE_FIELDS, 'pivot'];
 
 const invalid = (): never => {
@@ -222,6 +265,45 @@ function expandedRow(value: any): ExploreExpandedRow {
 }
 
 /**
+ * One saved column cell. Its arity is fixed by the column axis, so a tuple can only address a cell
+ * of the grid; whether that cell exists in the data is decided by the bounded pivot query.
+ */
+function columnTupleValue(value: any, arity: number): ExploreColumnTuple {
+  if (!Array.isArray(value) || value.length !== arity) invalid();
+  return value.map(member) as ExploreColumnTuple;
+}
+
+/**
+ * Version 4 row ordering. The label order stays measure-free; the three measure orders name a
+ * selected measure, and only the change orders need a compared period. An optional column tuple
+ * narrows the sorted cell to one column of the grid instead of the row total.
+ */
+function rowSortV4(
+  value: any,
+  measureIds: number[],
+  comparePrevious: boolean,
+  columnArity: number,
+): ExploreRowSortV4 {
+  object(value, ['by', 'direction', 'measureId', 'columnTuple']);
+  const { by, direction, measureId, columnTuple } = value;
+  if (!ROW_SORT_FIELDS_V4.includes(by) || !['asc', 'desc'].includes(direction)) invalid();
+  if (by === 'label') {
+    if (measureId !== undefined || columnTuple !== undefined) invalid();
+    return { by, direction };
+  }
+  if (!Number.isSafeInteger(measureId) || !measureIds.includes(measureId)) invalid();
+  if (by !== 'value' && !comparePrevious) invalid();
+  if (columnTuple !== undefined)
+    return {
+      by,
+      direction,
+      measureId: Number(measureId),
+      columnTuple: columnTupleValue(columnTuple, columnArity),
+    };
+  return { by, direction, measureId: Number(measureId) };
+}
+
+/**
  * Expanded hierarchy rows. Every key is a single value, so a duplicate is the same JSON tuple; the
  * list is capped because each entry is one drill path the user opened, not query input.
  */
@@ -257,6 +339,54 @@ function pivotV3(value: any, measureIds: number[]): ExplorePivotV3 {
   return { ...base, rowHierarchy: value.rowHierarchy, rowSort: sort, expandedRows: rows };
 }
 
+/**
+ * Version 4 optional bucket axis. The bucket column is a civil label of one axis column, so it must
+ * already be in exactly one axis, and the bucket timezone must agree with the saved period.
+ */
+function timeAxis(value: any, axes: string[], periodTimeZone?: string): ExploreTimeAxis {
+  object(value, TIME_AXIS_FIELDS);
+  const name = column(value.column);
+  if (typeof value.grain !== 'string' || !GRAINS.includes(value.grain)) invalid();
+  if (typeof value.timeZone !== 'string') invalid();
+  const timeZone = validateBusinessTimeZone(value.timeZone);
+  if (!axes.includes(name)) invalid();
+  if (periodTimeZone !== undefined && timeZone !== periodTimeZone) invalid();
+  return { column: name, grain: value.grain as ExploreTimeAxis['grain'], timeZone };
+}
+
+/**
+ * Version 4 pivot layout: the version 3 fields plus an optional bucket axis. Temporal membership of
+ * the bucket column is checked against the live source at save time, like every other column name.
+ */
+function pivotV4(
+  value: any,
+  measureIds: number[],
+  comparePrevious: boolean,
+  periodTimeZone?: string,
+): ExplorePivotV4 {
+  object(value, PIVOT_V4_FIELDS);
+  const base = pivot({
+    enabled: value.enabled,
+    rowColumns: value.rowColumns,
+    columnColumns: value.columnColumns,
+  });
+  if (typeof value.rowHierarchy !== 'boolean') invalid();
+  const sort = rowSortV4(value.rowSort, measureIds, comparePrevious, base.columnColumns.length);
+  const rows = expandedRows(value.expandedRows);
+  if (rows.length && (!value.rowHierarchy || base.rowColumns.length !== HIERARCHY_ROW_COLUMNS))
+    invalid();
+  const axes = base.rowColumns.concat(base.columnColumns);
+  const bucket =
+    value.timeAxis === undefined ? undefined : timeAxis(value.timeAxis, axes, periodTimeZone);
+  return {
+    ...base,
+    rowHierarchy: value.rowHierarchy,
+    rowSort: sort,
+    expandedRows: rows,
+    ...(bucket !== undefined ? { timeAxis: bucket } : {}),
+  };
+}
+
 /** Change sorts compare against the previous period, so they require comparePrevious. */
 function rankingSort(value: any, comparePrevious: boolean): ExploreRankingSort {
   object(value, ['by', 'direction']);
@@ -272,8 +402,8 @@ function rankingSort(value: any, comparePrevious: boolean): ExploreRankingSort {
  */
 export function validateExploreViewState(input: any): ExploreViewState {
   const version = input && input.version;
-  if (version !== 1 && version !== 2 && version !== 3) invalid();
-  // Version 1 rejects a stored pivot as an unknown key; versions 2 and 3 require one.
+  if (version !== 1 && version !== 2 && version !== 3 && version !== 4) invalid();
+  // Version 1 rejects a stored pivot as an unknown key; versions 2 through 4 require one.
   object(input, version === 1 ? STATE_FIELDS : PIVOT_STATE_FIELDS);
   if (typeof input.timeZone !== 'string') invalid();
   const timeZone = validateBusinessTimeZone(input.timeZone);
@@ -303,6 +433,15 @@ export function validateExploreViewState(input: any): ExploreViewState {
   };
   if (version === 2) state.pivot = pivot(input.pivot);
   if (version === 3) state.pivot = pivotV3(input.pivot, ids);
+  // A bucket axis only has a period to agree with when the state carries a date range, and a saved
+  // range always takes the state timezone, so the bucket timezone resolves against that same zone.
+  if (version === 4)
+    state.pivot = pivotV4(
+      input.pivot,
+      ids,
+      input.comparePrevious,
+      input.dateRange !== undefined ? timeZone : undefined,
+    );
   if (input.dateRange !== undefined) {
     const dateRange = validateDateRange(input.dateRange);
     // The exploration picker stores civil YYYY-MM-DD days only; the query API keeps timestamp

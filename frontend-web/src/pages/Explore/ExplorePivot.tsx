@@ -24,15 +24,60 @@ export type PivotResult = {
     cells: Array<{ column: number; measures: PivotValue[] }>;
   }>;
 };
-export type PivotRowSort = { by: 'label' | 'value'; direction: 'asc' | 'desc'; measureId?: number };
+export type PivotGrain = 'day' | 'week' | 'month';
+/** One temporal axis: the column must already sit on a single row or column axis. */
+export type PivotTimeAxis = { column: string; grain: PivotGrain; timeZone: string };
+export type PivotTuple = Array<string | number | boolean | null>;
+/** Row ordering by label or by one measure; a cell scope names a bounded column tuple. */
+export type PivotRowSort = {
+  by: 'label' | 'value' | 'delta' | 'percentChange';
+  direction: 'asc' | 'desc';
+  measureId?: number;
+  columnTuple?: PivotTuple;
+};
 export type PivotAxes = {
   rowColumns: string[];
   columnColumns: string[];
   rowHierarchy?: boolean;
   rowSort?: PivotRowSort;
-  expandedRows?: Array<Array<string | number | boolean | null>>;
+  expandedRows?: PivotTuple[];
+  timeAxis?: PivotTimeAxis;
 };
 export const DEFAULT_PIVOT_SORT: PivotRowSort = { by: 'label', direction: 'asc' };
+export const PIVOT_GRAINS: Array<{ value: PivotGrain; label: string }> = [
+  { value: 'day', label: '일' },
+  { value: 'week', label: '주' },
+  { value: 'month', label: '월' },
+];
+
+/**
+ * Drop any part of a requested row sort the current axes, measures or comparison can no longer
+ * execute: an unknown measure falls back to the label order, a change order without a previous
+ * period falls back to the current value, and a cell scope whose arity no longer fits the column
+ * axis falls back to the row total. The result is idempotent so callers may re-normalize.
+ */
+export const normalizePivotSort = (
+  sort: PivotRowSort | undefined,
+  options: {
+    measureIds: number[];
+    comparePrevious: boolean;
+    columnColumns: string[];
+  },
+): PivotRowSort | undefined => {
+  if (!sort) return undefined;
+  const direction: 'asc' | 'desc' = sort.direction === 'desc' ? 'desc' : 'asc';
+  if (sort.by === 'label') return { by: 'label', direction };
+  const measureId = sort.measureId;
+  if (!Number.isSafeInteger(measureId) || !options.measureIds.includes(measureId as number))
+    return { by: 'label', direction };
+  const by: PivotRowSort['by'] =
+    sort.by === 'delta' || sort.by === 'percentChange' ? (options.comparePrevious ? sort.by : 'value') : 'value';
+  const columnTuple = sort.columnTuple;
+  if (columnTuple === undefined) return { by, direction, measureId: measureId as number };
+  if (columnTuple.length !== options.columnColumns.length) return { by, direction, measureId: measureId as number };
+  return { by, direction, measureId: measureId as number, columnTuple };
+};
+
 const category = (value: unknown): string => (value == null ? '(값 없음)' : value === '' ? '(빈 문자열)' : String(value));
 const tuple = (values: unknown[]) => (values.length ? values.map(category).join(' / ') : '전체');
 const errorText = (error: unknown) => {
@@ -48,6 +93,14 @@ const errorText = (error: unknown) => {
       : body?.message;
   return typeof reason === 'string' ? reason : 'Pivot을 불러오지 못했습니다. 다시 시도해 주세요.';
 };
+/**
+ * A bucket, filter or axis change can leave a cell scope the bounded grid no longer contains. The
+ * server refuses only that order with this 400, so the pivot drops the scope to the row total once
+ * instead of surfacing an error the grid cannot recover from. Other failures stay visible.
+ */
+const MISSING_CELL_SCOPE_MESSAGE = '정렬할 열 셀을 다시 선택해 주세요.';
+const missingCellScope = (error: unknown) =>
+  (error as { response?: { status?: number } }).response?.status === 400 && errorText(error) === MISSING_CELL_SCOPE_MESSAGE;
 
 /** Bounded server aggregates, including separately aggregated non-additive totals. */
 export default function ExplorePivot({
@@ -55,6 +108,7 @@ export default function ExplorePivot({
   sourceRevision,
   measures,
   dimensions,
+  temporalColumns,
   state,
   axes,
   onAxesChange,
@@ -70,7 +124,8 @@ export default function ExplorePivot({
   sourceId: number;
   sourceRevision: string;
   measures: Array<{ id: number; label: string }>;
-  dimensions: Array<{ column: string }>;
+  dimensions: Array<{ column: string; temporal?: boolean }>;
+  temporalColumns?: string[];
   state: ExploreViewState;
   axes: PivotAxes;
   onAxesChange: (axes: PivotAxes) => void;
@@ -89,6 +144,58 @@ export default function ExplorePivot({
   const [reload, setReload] = useState(0);
   const [search, setSearch] = useState('');
   const sequence = useRef(0);
+
+  const selectedMeasures = state.measureIds
+    .map(id => measures.find(measure => measure.id === id))
+    .filter((m): m is { id: number; label: string } => !!m);
+  const selectedMeasureIds = selectedMeasures.map(measure => measure.id);
+  const temporalSet = useMemo(() => {
+    const names = new Set<string>(temporalColumns ?? []);
+    dimensions.filter(dimension => dimension.temporal).forEach(dimension => names.add(dimension.column));
+    return names;
+  }, [dimensions, temporalColumns]);
+
+  /** Keep an axes object free of explicit undefined keys so payload and saved state stay canonical. */
+  const compact = (value: PivotAxes): PivotAxes => {
+    const next: PivotAxes = { rowColumns: value.rowColumns, columnColumns: value.columnColumns };
+    if (value.rowHierarchy !== undefined) next.rowHierarchy = value.rowHierarchy;
+    if (value.rowSort !== undefined) next.rowSort = value.rowSort;
+    if (value.expandedRows !== undefined) next.expandedRows = value.expandedRows;
+    if (value.timeAxis !== undefined) next.timeAxis = value.timeAxis;
+    return next;
+  };
+  const onAxes = (changes: Partial<PivotAxes>) => onAxesChange(compact({ ...axes, ...changes }));
+  const dropCellScope = (current: PivotRowSort | undefined): PivotRowSort | undefined => {
+    if (!current) return undefined;
+    return current.by === 'label'
+      ? { by: 'label', direction: current.direction }
+      : { by: current.by, direction: current.direction, measureId: current.measureId };
+  };
+  /** A temporal axis survives only while its column still sits on exactly one of the two axes. */
+  const boundTimeAxis = (
+    timeAxis: PivotTimeAxis | undefined,
+    rowColumns: string[],
+    columnColumns: string[],
+  ): PivotTimeAxis | undefined => {
+    if (!timeAxis) return undefined;
+    if (!temporalSet.has(timeAxis.column)) return undefined;
+    const onRows = rowColumns.includes(timeAxis.column);
+    const onColumns = columnColumns.includes(timeAxis.column);
+    return onRows !== onColumns ? timeAxis : undefined;
+  };
+
+  const sort = useMemo(
+    () =>
+      normalizePivotSort(axes.rowSort, {
+        measureIds: selectedMeasureIds,
+        comparePrevious: state.comparePrevious,
+        columnColumns: axes.columnColumns,
+      }) ?? DEFAULT_PIVOT_SORT,
+    [axes.rowSort, axes.columnColumns, state.comparePrevious, selectedMeasureIds.join(',')],
+  );
+  const rawSortKey = JSON.stringify(axes.rowSort ?? null);
+  const sortKey = JSON.stringify(sort);
+  const timeAxisKey = JSON.stringify(axes.timeAxis ?? null);
   const payload = useMemo(
     () => ({
       sourceId,
@@ -97,11 +204,13 @@ export default function ExplorePivot({
       rowColumns: axes.rowColumns,
       columnColumns: axes.columnColumns,
       ...(axes.rowHierarchy !== undefined ? { rowHierarchy: axes.rowHierarchy } : {}),
-      ...(axes.rowSort ? { rowSort: axes.rowSort } : {}),
+      ...(axes.rowSort !== undefined ? { rowSort: sort } : {}),
+      ...(axes.timeAxis ? { timeAxis: axes.timeAxis } : {}),
       filters: state.filters,
       ...(state.dateRange ? { dateRange: state.dateRange } : {}),
       comparePrevious: state.comparePrevious,
     }),
+    // Keys are JSON so an equivalent, re-derived sort never refetches on object identity alone.
     [
       sourceId,
       sourceRevision,
@@ -109,7 +218,9 @@ export default function ExplorePivot({
       axes.rowColumns,
       axes.columnColumns,
       axes.rowHierarchy,
-      axes.rowSort,
+      rawSortKey,
+      sortKey,
+      timeAxisKey,
       state.filters,
       state.dateRange,
       state.comparePrevious,
@@ -138,7 +249,13 @@ export default function ExplorePivot({
         onReady(true);
       })
       .catch(err => {
-        if (token === sequence.current && !abort.signal.aborted) setError(errorText(err));
+        if (token !== sequence.current || abort.signal.aborted) return;
+        // A refused cell scope falls back to the row total once, so the retry fits the new grid.
+        if (axes.rowSort?.columnTuple !== undefined && missingCellScope(err)) {
+          onAxes({ rowSort: dropCellScope(axes.rowSort) });
+          return;
+        }
+        setError(errorText(err));
       })
       .finally(() => {
         if (token === sequence.current) setBusy(false);
@@ -149,14 +266,69 @@ export default function ExplorePivot({
     };
   }, [payload, sourceRevision, blocked, reload, refreshKey, onReady]);
 
+  // A bounded grid can drop a column, so a cell scope that no longer exists falls back to the total.
+  useEffect(() => {
+    if (rawSortKey === 'null' || rawSortKey === sortKey) return;
+    onAxes({ rowSort: sort });
+  }, [rawSortKey, sortKey]);
+  // One business timezone: keep the time axis aligned with the page when the range timezone changes.
+  useEffect(() => {
+    const timeAxis = axes.timeAxis;
+    if (!timeAxis || timeAxis.timeZone === state.timeZone) return;
+    onAxes({ timeAxis: { ...timeAxis, timeZone: state.timeZone } });
+  }, [timeAxisKey, state.timeZone]);
+
   const changeAxis = (axis: 'rowColumns' | 'columnColumns', index: number, column: string) => {
     const next = axes[axis].filter((_, i) => i !== index);
     if (column) next.splice(index, 0, column);
-    onAxesChange({ ...axes, [axis]: next, ...(axis === 'rowColumns' ? { expandedRows: [] } : {}) });
+    const rowColumns = axis === 'rowColumns' ? next : axes.rowColumns;
+    const columnColumns = axis === 'columnColumns' ? next : axes.columnColumns;
+    onAxes({
+      rowColumns,
+      columnColumns,
+      ...(axis === 'rowColumns' ? { expandedRows: [] } : {}),
+      rowSort: dropCellScope(axes.rowSort),
+      timeAxis: boundTimeAxis(axes.timeAxis, rowColumns, columnColumns),
+    });
   };
-  const selectedMeasures = state.measureIds
-    .map(id => measures.find(measure => measure.id === id))
-    .filter((m): m is { id: number; label: string } => !!m);
+  const addColumn = (axis: 'rowColumns' | 'columnColumns', column: string) => {
+    const rowColumns = axis === 'rowColumns' ? [...axes.rowColumns, column] : axes.rowColumns;
+    const columnColumns = axis === 'columnColumns' ? [...axes.columnColumns, column] : axes.columnColumns;
+    onAxes({
+      rowColumns,
+      columnColumns,
+      ...(axis === 'rowColumns' ? { expandedRows: [] } : {}),
+      rowSort: dropCellScope(axes.rowSort),
+    });
+  };
+  const swapAxes = () =>
+    onAxes({
+      rowColumns: axes.columnColumns,
+      columnColumns: axes.rowColumns,
+      expandedRows: [],
+      rowSort: dropCellScope(axes.rowSort),
+      timeAxis: boundTimeAxis(axes.timeAxis, axes.columnColumns, axes.rowColumns),
+    });
+  const resetAxes = () =>
+    onAxes({ rowColumns: [], columnColumns: [], rowSort: dropCellScope(axes.rowSort), timeAxis: undefined });
+
+  const axisColumns = [...axes.rowColumns, ...axes.columnColumns];
+  const temporalAxisColumns = axisColumns.filter(column => temporalSet.has(column));
+  const timeAxis = axes.timeAxis;
+  const applyTimeAxis = (next: PivotTimeAxis | undefined, clearExpanded: boolean) => {
+    const target: Partial<PivotAxes> = { timeAxis: next };
+    if (clearExpanded) target.expandedRows = [];
+    // A bucket or column change rebases the bounded columns, so the old cell scope is dropped.
+    if (axes.rowSort?.columnTuple !== undefined) target.rowSort = dropCellScope(axes.rowSort);
+    onAxes(target);
+  };
+  const toggleTimeAxis = () => {
+    if (timeAxis) return applyTimeAxis(undefined, false);
+    const column = temporalAxisColumns[0];
+    if (!column) return;
+    applyTimeAxis({ column, grain: 'day', timeZone: state.timeZone }, false);
+  };
+
   const cells = useMemo(
     () => new Map(result?.cells.map(cell => [`${cell.row}:${cell.column}`, cell.measures]) ?? []),
     [result],
@@ -175,7 +347,42 @@ export default function ExplorePivot({
   const hasColumnSplits = axes.columnColumns.length > 0;
   const hierarchical = !!axes.rowHierarchy && axes.rowColumns.length === 2;
   const expanded = new Set((axes.expandedRows ?? []).map(value => JSON.stringify(value)));
-  const sort = axes.rowSort ?? DEFAULT_PIVOT_SORT;
+  /** Header groups trace the grid: an extra row-total column when columns are split, then each column. */
+  const columnGroups = useMemo(() => {
+    if (!result) return [] as Array<{ key: string; index: number; tuple: PivotTuple; label: string; total: boolean }>;
+    const groups = result.columns.map((values, index) => ({
+      key: `c${index}`,
+      index,
+      tuple: values as PivotTuple,
+      label: tuple(values),
+      total: false,
+    }));
+    if (!hasColumnSplits) return groups.map(group => ({ ...group, total: true }));
+    return [{ key: 'total', index: -1, tuple: [] as PivotTuple, label: '합계', total: true }, ...groups];
+  }, [result, hasColumnSplits]);
+  const columnScopeOptions = columnGroups.filter(group => group.tuple.length > 0);
+  const scopeIndex =
+    sort.columnTuple === undefined
+      ? -1
+      : columnGroups.findIndex(group => JSON.stringify(group.tuple) === JSON.stringify(sort.columnTuple));
+  const scopeValue = sort.by === 'label' || scopeIndex < 0 ? 'total' : String(columnGroups[scopeIndex].index);
+  const isActiveCell = (group: { tuple: PivotTuple }, measureId: number) =>
+    sort.by !== 'label' &&
+    sort.measureId === measureId &&
+    JSON.stringify(sort.columnTuple ?? null) === JSON.stringify(group.tuple.length ? group.tuple : null);
+  const toggleCellSort = (group: { tuple: PivotTuple }, measureId: number) => {
+    const columnTuple = group.tuple.length ? group.tuple : undefined;
+    const direction = isActiveCell(group, measureId) ? (sort.direction === 'asc' ? 'desc' : 'asc') : sort.direction;
+    onAxes({
+      rowSort: {
+        by: sort.by === 'label' ? 'value' : sort.by,
+        direction,
+        measureId,
+        ...(columnTuple ? { columnTuple } : {}),
+      },
+    });
+  };
+
   const displayRows: Array<{
     key: string;
     values: unknown[];
@@ -213,11 +420,10 @@ export default function ExplorePivot({
   }
   const toggleParent = (values: unknown[]) => {
     const key = JSON.stringify(values);
-    onAxesChange({
-      ...axes,
+    onAxes({
       expandedRows: expanded.has(key)
         ? (axes.expandedRows ?? []).filter(value => JSON.stringify(value) !== key)
-        : [...(axes.expandedRows ?? []).slice(-49), values as Array<string | number | boolean | null>],
+        : [...(axes.expandedRows ?? []).slice(-49), values as PivotTuple],
     });
   };
   const cellStyle: React.CSSProperties = {
@@ -228,11 +434,16 @@ export default function ExplorePivot({
     minWidth: 145,
     whiteSpace: 'nowrap',
   };
-  const headerStyle: React.CSSProperties = {
-    ...cellStyle,
-    background: '#f8fafc',
-    fontWeight: 600,
+  const headerStyle: React.CSSProperties = { ...cellStyle, background: '#f8fafc', fontWeight: 600 };
+  const headerButtonStyle: React.CSSProperties = {
+    border: 0,
+    background: 'none',
+    color: 'inherit',
+    font: 'inherit',
+    padding: 0,
+    cursor: 'pointer',
   };
+  const timeAxisInvalid = !!timeAxis && !temporalAxisColumns.includes(timeAxis.column);
   return (
     <Box sx={{ mt: 2, minWidth: 0, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
       <Box
@@ -276,12 +487,15 @@ export default function ExplorePivot({
           .filter(d => d.column.toLowerCase().includes(search.toLowerCase()))
           .map(d => (
             <Box key={d.column} sx={{ py: 0.5, borderBottom: '1px solid #f1f5f9' }}>
-              <Typography sx={{ fontSize: 12, overflowWrap: 'anywhere' }}>{d.column}</Typography>
+              <Typography sx={{ fontSize: 12, overflowWrap: 'anywhere' }}>
+                {d.column}
+                {temporalSet.has(d.column) ? ' · 날짜' : ''}
+              </Typography>
               <Button
                 size="small"
                 aria-label={`${d.column} 행에 추가`}
                 disabled={axes.rowColumns.length >= 2 || [...axes.rowColumns, ...axes.columnColumns].includes(d.column)}
-                onClick={() => onAxesChange({ ...axes, rowColumns: [...axes.rowColumns, d.column], expandedRows: [] })}
+                onClick={() => addColumn('rowColumns', d.column)}
               >
                 + 행
               </Button>
@@ -289,7 +503,7 @@ export default function ExplorePivot({
                 size="small"
                 aria-label={`${d.column} 열에 추가`}
                 disabled={axes.columnColumns.length >= 2 || [...axes.rowColumns, ...axes.columnColumns].includes(d.column)}
-                onClick={() => onAxesChange({ ...axes, columnColumns: [...axes.columnColumns, d.column] })}
+                onClick={() => addColumn('columnColumns', d.column)}
               >
                 + 열
               </Button>
@@ -331,50 +545,153 @@ export default function ExplorePivot({
               ))}
             </Stack>
           ))}
-          <Button
-            onClick={() =>
-              onAxesChange({ ...axes, rowColumns: axes.columnColumns, columnColumns: axes.rowColumns, expandedRows: [] })
-            }
-          >
-            행·열 바꾸기
-          </Button>
-          <Button onClick={() => onAxesChange({ rowColumns: [], columnColumns: [] })}>구성 초기화</Button>
+          <Button onClick={swapAxes}>행·열 바꾸기</Button>
+          <Button onClick={resetAxes}>구성 초기화</Button>
         </Stack>
         <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', gap: 1, mt: 1 }}>
           <Button
             aria-pressed={!!axes.rowHierarchy}
-            onClick={() => onAxesChange({ ...axes, rowHierarchy: !axes.rowHierarchy, expandedRows: [] })}
+            onClick={() => onAxes({ rowHierarchy: !axes.rowHierarchy, expandedRows: [] })}
           >
             행 계층 {axes.rowHierarchy ? '켜짐' : '꺼짐'}
           </Button>
+          <Button
+            aria-pressed={!!timeAxis}
+            disabled={!timeAxis && temporalAxisColumns.length === 0}
+            onClick={toggleTimeAxis}
+          >
+            시간 축 {timeAxis ? '켜짐' : '꺼짐'}
+          </Button>
+          {timeAxis && (
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', rowGap: 1 }}>
+              <TextField
+                select
+                size="small"
+                label="시간 축 열"
+                value={temporalAxisColumns.includes(timeAxis.column) ? timeAxis.column : ''}
+                onChange={event => {
+                  const column = event.target.value;
+                  if (!column) return;
+                  applyTimeAxis({ column, grain: timeAxis.grain, timeZone: state.timeZone }, true);
+                }}
+                sx={{ minWidth: 160 }}
+                slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
+              >
+                {temporalAxisColumns.length === 0 && <option value="">날짜 축 열 없음</option>}
+                {temporalAxisColumns.map(column => (
+                  <option key={column} value={column}>
+                    {column}
+                  </option>
+                ))}
+              </TextField>
+              <TextField
+                select
+                size="small"
+                label="시간 집계"
+                value={timeAxis.grain}
+                onChange={event =>
+                  applyTimeAxis(
+                    { column: timeAxis.column, grain: event.target.value as PivotGrain, timeZone: state.timeZone },
+                    true,
+                  )
+                }
+                sx={{ minWidth: 110 }}
+                slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
+              >
+                {PIVOT_GRAINS.map(grain => (
+                  <option key={grain.value} value={grain.value}>
+                    {grain.label}
+                  </option>
+                ))}
+              </TextField>
+              <Typography sx={{ fontSize: 12, color: 'text.secondary' }} role="status">
+                시간대 {state.timeZone}
+              </Typography>
+            </Stack>
+          )}
+        </Stack>
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', gap: 1, mt: 1 }}>
           <TextField
             select
             size="small"
             label="행 정렬 기준"
             value={sort.by === 'label' ? 'label' : String(sort.measureId)}
-            onChange={event =>
-              onAxesChange({
-                ...axes,
-                rowSort:
-                  event.target.value === 'label'
-                    ? { by: 'label', direction: sort.direction }
-                    : { by: 'value', direction: sort.direction, measureId: Number(event.target.value) },
-              })
-            }
+            onChange={event => {
+              const value = event.target.value;
+              if (value === 'label') return onAxes({ rowSort: { by: 'label', direction: sort.direction } });
+              onAxes({
+                rowSort: {
+                  by: sort.by === 'label' ? 'value' : sort.by,
+                  direction: sort.direction,
+                  measureId: Number(value),
+                  ...(sort.by !== 'label' && sort.columnTuple ? { columnTuple: sort.columnTuple } : {}),
+                },
+              });
+            }}
             slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
           >
             <option value="label">차원 이름</option>
             {selectedMeasures.map(m => (
               <option key={m.id} value={m.id}>
-                {m.label} · 현재 합계
+                {m.label}
               </option>
             ))}
           </TextField>
+          <TextField
+            select
+            size="small"
+            label="정렬 범위"
+            value={scopeValue}
+            disabled={sort.by === 'label'}
+            onChange={event => {
+              const value = event.target.value;
+              const group = value === 'total' ? undefined : columnGroups.find(item => String(item.index) === value);
+              const columnTuple = group && group.tuple.length ? group.tuple : undefined;
+              // Scope is another axis of the same order, so the chosen value/change calc is preserved.
+              onAxes({
+                rowSort: {
+                  by: sort.by === 'label' ? 'value' : sort.by,
+                  direction: sort.direction,
+                  measureId: sort.measureId ?? selectedMeasures[0]?.id,
+                  ...(columnTuple ? { columnTuple } : {}),
+                },
+              });
+            }}
+            sx={{ minWidth: 150 }}
+            slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
+          >
+            <option value="total">행 합계</option>
+            {columnScopeOptions.map(group => (
+              <option key={group.key} value={group.index}>
+                {group.label}
+              </option>
+            ))}
+          </TextField>
+          {(['value', 'delta', 'percentChange'] as const).map(by => (
+            <Button
+              key={by}
+              aria-label={`정렬 계산 ${by === 'value' ? '현재값' : by === 'delta' ? '변화량' : '변화율'}`}
+              aria-pressed={sort.by === by}
+              disabled={by !== 'value' && !state.comparePrevious}
+              onClick={() => {
+                const measureId = sort.measureId ?? selectedMeasures[0]?.id;
+                if (!measureId) return;
+                onAxes({
+                  rowSort: {
+                    by,
+                    direction: sort.direction,
+                    measureId,
+                    ...(sort.columnTuple ? { columnTuple: sort.columnTuple } : {}),
+                  },
+                });
+              }}
+            >
+              {by === 'value' ? '현재값' : by === 'delta' ? '변화량' : '변화율'}
+            </Button>
+          ))}
           <Button
             aria-label="행 정렬 방향"
-            onClick={() =>
-              onAxesChange({ ...axes, rowSort: { ...sort, direction: sort.direction === 'asc' ? 'desc' : 'asc' } })
-            }
+            onClick={() => onAxes({ rowSort: { ...sort, direction: sort.direction === 'asc' ? 'desc' : 'asc' } })}
           >
             {sort.direction === 'asc' ? '오름차순 ↑' : '내림차순 ↓'}
           </Button>
@@ -383,17 +700,12 @@ export default function ExplorePivot({
               <Button
                 disabled={!result}
                 onClick={() =>
-                  onAxesChange({
-                    ...axes,
-                    expandedRows: (result?.rowSubtotals ?? []).map(
-                      parent => parent.tuple as Array<string | number | boolean | null>,
-                    ),
-                  })
+                  onAxes({ expandedRows: (result?.rowSubtotals ?? []).map(parent => parent.tuple as PivotTuple) })
                 }
               >
                 모두 펼치기
               </Button>
-              <Button disabled={!expanded.size} onClick={() => onAxesChange({ ...axes, expandedRows: [] })}>
+              <Button disabled={!expanded.size} onClick={() => onAxes({ expandedRows: [] })}>
                 모두 접기
               </Button>
             </>
@@ -401,8 +713,15 @@ export default function ExplorePivot({
         </Stack>
         <Typography sx={{ fontSize: 12, color: 'text.secondary', mt: 1 }}>
           지표 {selectedMeasures.map(m => m.label).join(' · ')} · 최대 50행 / 20열 그룹 / 6,000개 값 · 합계는 원본에서 다시
-          집계 · 계층은 행 차원 2개에서 상위 그룹 부분합을 표시합니다. 정렬은 같은 계층 안에서 적용합니다.
+          집계 · 계층은 행 차원 2개에서 상위 그룹 부분합을 표시합니다. 정렬은 같은 계층 안에서 적용하고, 셀 헤더를 누르면 그
+          열의 지표 셀로 정렬합니다.
+          {timeAxis ? ` · 시간 축 ${timeAxis.column}(${timeAxis.grain}, ${timeAxis.timeZone})` : ''}
         </Typography>
+        {timeAxisInvalid && (
+          <Alert severity="warning" sx={{ mt: 1 }}>
+            시간 축 열이 행·열 축에서 제외되었습니다. 날짜 열을 다시 배치하세요.
+          </Alert>
+        )}
         {blocked && <Alert severity="info">유효한 기간과 지표를 선택하세요.</Alert>}
         {busy && (
           <Typography role="status" sx={{ mt: 2 }}>
@@ -427,30 +746,38 @@ export default function ExplorePivot({
               <caption style={{ textAlign: 'left', padding: 12 }}>
                 Pivot · {result.rows.length}행 × {result.columns.length}열 그룹 · 필터 {state.filters.length}개
                 {state.comparePrevious ? ' · 이전 기간 비교' : ''}
+                {timeAxis ? ` · 시간 축 ${timeAxis.column}(${timeAxis.grain})` : ''}
               </caption>
               <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
                 <tr>
                   <th rowSpan={2} style={{ ...headerStyle, textAlign: 'left' }}>
                     {axes.rowColumns.join(' / ') || '전체'}
                   </th>
-                  {hasColumnSplits && (
-                    <th colSpan={selectedMeasures.length} style={headerStyle}>
-                      합계
-                    </th>
-                  )}
-                  {result.columns.map((values, i) => (
-                    <th key={i} colSpan={selectedMeasures.length} style={headerStyle}>
-                      {tuple(values)}
+                  {columnGroups.map(group => (
+                    <th key={group.key} colSpan={selectedMeasures.length} style={headerStyle}>
+                      {group.label}
                     </th>
                   ))}
                 </tr>
                 <tr>
-                  {[...Array(result.columns.length + (hasColumnSplits ? 1 : 0))].map((_, column) =>
-                    selectedMeasures.map(m => (
-                      <th key={`${column}:${m.id}`} style={headerStyle}>
-                        {m.label}
-                      </th>
-                    )),
+                  {columnGroups.map(group =>
+                    selectedMeasures.map(m => {
+                      const active = isActiveCell(group, m.id);
+                      return (
+                        <th key={`${group.key}:${m.id}`} style={headerStyle}>
+                          <button
+                            type="button"
+                            aria-label={`정렬 ${group.label} ${m.label}`}
+                            aria-pressed={active}
+                            onClick={() => toggleCellSort(group, m.id)}
+                            style={headerButtonStyle}
+                          >
+                            {m.label}
+                            {active ? (sort.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                          </button>
+                        </th>
+                      );
+                    }),
                   )}
                 </tr>
               </thead>
@@ -459,16 +786,17 @@ export default function ExplorePivot({
                   <th scope="row" style={{ ...cellStyle, textAlign: 'left', background: '#eef2ff' }}>
                     총합
                   </th>
-                  {hasColumnSplits &&
+                  {columnGroups.map(group =>
                     selectedMeasures.map(m => (
-                      <td key={m.id} style={{ ...cellStyle, fontWeight: 700, background: '#eef2ff' }}>
-                        {renderValue(result.grandTotal, m.id)}
-                      </td>
-                    ))}
-                  {result.columns.map((_, c) =>
-                    selectedMeasures.map(m => (
-                      <td key={`${c}:${m.id}`} style={{ ...cellStyle, background: '#eef2ff' }}>
-                        {renderValue(result.columnTotals[c], m.id)}
+                      <td
+                        key={`${group.key}:${m.id}`}
+                        style={{
+                          ...cellStyle,
+                          fontWeight: group.index < 0 ? 700 : 400,
+                          background: group.index < 0 ? '#eef2ff' : undefined,
+                        }}
+                      >
+                        {renderValue(group.index < 0 ? result.grandTotal : result.columnTotals[group.index], m.id)}
                       </td>
                     )),
                   )}
@@ -526,16 +854,13 @@ export default function ExplorePivot({
                           : '전체'}
                         {row.parent && <span style={{ marginLeft: 8, color: '#64748b', fontSize: 11 }}>부분합</span>}
                       </th>
-                      {hasColumnSplits &&
+                      {columnGroups.map(group =>
                         selectedMeasures.map(m => (
-                          <td key={m.id} style={{ ...cellStyle, fontWeight: 600 }}>
-                            {renderValue(row.total, m.id)}
-                          </td>
-                        ))}
-                      {result.columns.map((_, c) =>
-                        selectedMeasures.map(m => (
-                          <td key={`${c}:${m.id}`} style={cellStyle}>
-                            {renderValue(row.columns.get(c), m.id)}
+                          <td
+                            key={`${group.key}:${m.id}`}
+                            style={group.index < 0 ? { ...cellStyle, fontWeight: 600 } : cellStyle}
+                          >
+                            {renderValue(group.index < 0 ? row.total : row.columns.get(group.index), m.id)}
                           </td>
                         )),
                       )}

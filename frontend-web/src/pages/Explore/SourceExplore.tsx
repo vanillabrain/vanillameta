@@ -17,7 +17,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { get, post } from '@/helpers/apiHelper';
 import MetricTrend from '@/pages/Dashboard/Components/MetricTrend';
 import ExploreSavedViews, { ExploreViewState } from './ExploreSavedViews';
-import ExplorePivot, { DEFAULT_PIVOT_SORT, PivotAxes } from './ExplorePivot';
+import ExplorePivot, { DEFAULT_PIVOT_SORT, normalizePivotSort, PivotAxes } from './ExplorePivot';
 import ExploreExport from './ExploreExport';
 import type { MetricComparisonData } from '@/pages/Dashboard/Components/PeriodComparison';
 import type { MetricTrendData } from '@/pages/Dashboard/Components/trendGeometry';
@@ -777,22 +777,32 @@ export default function SourceExplore() {
     const version = catalog?.measures.find(measure => measure.id === id)?.definitionVersion;
     return Number.isSafeInteger(version) && Number(version) > 0;
   });
-  const pivotSort =
-    pivotAxes.rowSort?.by === 'value' && !measureIds.includes(pivotAxes.rowSort.measureId ?? 0)
-      ? DEFAULT_PIVOT_SORT
-      : pivotAxes.rowSort;
-  const effectivePivotAxes = { ...pivotAxes, ...(pivotAxes.rowSort ? { rowSort: pivotSort } : {}) };
+  // A stale measure, a change order without a compared period or a cell scope the axes no longer
+  // bound all fall back before the request, the saved view and the export share one order.
+  const pivotSort = normalizePivotSort(pivotAxes.rowSort, {
+    measureIds,
+    comparePrevious,
+    columnColumns: pivotAxes.columnColumns,
+  });
+  const effectivePivotAxes: PivotAxes = { ...pivotAxes, ...(pivotSort ? { rowSort: pivotSort } : {}) };
   const extendedPivot =
     !!pivotAxes.rowHierarchy || (!!pivotSort && (pivotSort.by !== 'label' || pivotSort.direction !== 'asc'));
+  const pivotStored = pivotMode || pivotAxes.rowColumns.length > 0 || pivotAxes.columnColumns.length > 0;
+  const requiresV4 =
+    !!pivotAxes.timeAxis ||
+    pivotSort?.columnTuple !== undefined ||
+    pivotSort?.by === 'delta' ||
+    pivotSort?.by === 'percentChange';
+  const viewVersion: ExploreViewState['version'] = requiresV4 ? 4 : extendedPivot ? 3 : pivotStored ? 2 : 1;
   const viewState: ExploreViewState = {
-    version: extendedPivot ? 3 : pivotMode || pivotAxes.rowColumns.length || pivotAxes.columnColumns.length ? 2 : 1,
-    ...(extendedPivot || pivotMode || pivotAxes.rowColumns.length || pivotAxes.columnColumns.length
+    version: viewVersion,
+    ...(viewVersion >= 2
       ? {
           pivot: {
             enabled: pivotMode,
             rowColumns: pivotAxes.rowColumns,
             columnColumns: pivotAxes.columnColumns,
-            ...(extendedPivot
+            ...(viewVersion >= 3
               ? {
                   rowHierarchy: pivotAxes.rowHierarchy ?? false,
                   rowSort: pivotSort ?? DEFAULT_PIVOT_SORT,
@@ -800,6 +810,7 @@ export default function SourceExplore() {
                     pivotAxes.rowHierarchy && pivotAxes.rowColumns.length === 2 ? pivotAxes.expandedRows ?? [] : [],
                 }
               : {}),
+            ...(viewVersion === 4 && pivotAxes.timeAxis ? { timeAxis: pivotAxes.timeAxis } : {}),
           },
         }
       : {}),
@@ -826,13 +837,14 @@ export default function SourceExplore() {
         ? {
             rowColumns: state.pivot.rowColumns,
             columnColumns: state.pivot.columnColumns,
-            ...(state.version === 3
+            ...(state.version >= 3
               ? {
                   rowHierarchy: state.pivot.rowHierarchy,
                   rowSort: state.pivot.rowSort,
                   expandedRows: state.pivot.expandedRows,
                 }
               : {}),
+            ...(state.version === 4 && state.pivot.timeAxis ? { timeAxis: state.pivot.timeAxis } : {}),
           }
         : { rowColumns: [], columnColumns: [] },
     );
@@ -870,6 +882,7 @@ export default function SourceExplore() {
             columnColumns: pivotAxes.columnColumns,
             ...(pivotAxes.rowHierarchy !== undefined ? { rowHierarchy: pivotAxes.rowHierarchy } : {}),
             ...(pivotSort ? { rowSort: pivotSort } : {}),
+            ...(pivotAxes.timeAxis ? { timeAxis: pivotAxes.timeAxis } : {}),
           }
         : {
             dimensionColumns: dimensions,
@@ -1359,6 +1372,7 @@ export default function SourceExplore() {
           sourceRevision={catalog.sourceRevision}
           measures={catalog.measures}
           dimensions={catalog.dimensions}
+          temporalColumns={catalog.temporalColumns?.map(column => column.column)}
           state={viewState}
           axes={effectivePivotAxes}
           onAxesChange={axes => {
@@ -1368,6 +1382,7 @@ export default function SourceExplore() {
                 columnColumns: query.columnColumns,
                 rowHierarchy: query.rowHierarchy,
                 rowSort: query.rowSort,
+                timeAxis: query.timeAxis,
               });
             if (queryKey(axes) !== queryKey(effectivePivotAxes)) setPivotReady(false);
             setPivotAxes(axes);

@@ -402,6 +402,55 @@ describe('BiExploreService CSV export over real DuckDB', () => {
     expect(sortMeta).toContain('""measureId"":1');
   });
 
+  it('exports a bucketed time-axis pivot with the applied axis condition', async () => {
+    state.filename = await writeSource(
+      "CREATE TABLE uploaded_data AS SELECT 'A' AS region, 10::DOUBLE AS amount, DATE '2026-01-15' AS day " +
+        "UNION ALL SELECT 'A', 20, DATE '2026-02-15' " +
+        "UNION ALL SELECT 'B', 30, DATE '2026-01-20'",
+    );
+    metrics = [metric(1, 'Revenue', { aggregation: 'SUM', column: 'amount' })];
+    const query = {
+      sourceId: 1,
+      sourceRevision: await revision(),
+      measureIds: [1],
+      rowColumns: ['region'],
+      columnColumns: ['day'],
+      dateRange: { column: 'day', start: '2026-01-01', end: '2026-02-28' },
+      timeAxis: { column: 'day', grain: 'month', timeZone: 'UTC' },
+    };
+    const result: any = await call('pivot', query);
+    const lines = dataLines(result.csv);
+    // The month label replaces the raw date in the column axis of every exported cell.
+    expect(
+      lines.some(line =>
+        line.startsWith(
+          '"cell","{""region"":""A""}","{""day"":""2026-01-01""}","1","Revenue","10",number',
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      lines.some(line =>
+        line.startsWith(
+          '"cell","{""region"":""A""}","{""day"":""2026-02-01""}","1","Revenue","20",number',
+        ),
+      ),
+    ).toBe(true);
+    expect(lines.some(line => line.startsWith('"grand_total",,,"1","Revenue","60",number'))).toBe(
+      true,
+    );
+    // The applied axis is emitted as a leading condition row, exactly like the other fields.
+    expect(lines.find(line => line.includes('""field"":""timeAxis""'))).toBe(
+      '"condition","{""field"":""timeAxis""}",,,,"{""column"":""day"",""grain"":""month"",""timeZone"":""UTC""}",string,,,,',
+    );
+    // The export surface enforces the same zone match as the pivot endpoint it reuses.
+    await expect(
+      call('pivot', {
+        ...query,
+        timeAxis: { column: 'day', grain: 'month', timeZone: 'Asia/Seoul' },
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
   it('rejects raw model rows, an unknown mode or outer field, and a stale revision', async () => {
     const sourceRevision = await revision();
     await expect(

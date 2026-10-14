@@ -168,3 +168,39 @@ Rill 소스 `pivot-expansion.ts`, `pivot-utils.ts`, `pivot-export.ts`, `toProto.
 - **NOT_RUN/남은 차이**: 전체 핵심8개·확장 QA·운영 부하·모바일/전체 접근성. 3단계 이상 계층, 시간 grain 축, 셀/변화 지표 정렬, drag/drop, Rill Flat 전환/총합 위치/행 한도·리사이즈와 가로형 CSV/XLSX/Parquet는 후속이다. 이번 결과를 Rill 전체 Pivot 동등성으로 확대하지 않는다.
 
 증빙: `/tmp/vm-rill-hierarchy/`의 `api-oracle.json`, `api-export.json`, `rill-hierarchy.csv`, `rill-expanded.jpg/.txt`, `vm-expanded.jpg/.txt`, `vm-hierarchy.csv`, `browser-xhr.json`, `aside-hierarchy-restored.png/.txt`, `integration-test.log`, `build.log`, `fe-final.log`, `e2e/`와 `e2e.log`. 실제 브라우저 XHR은 `/tmp/vm-rill-views/browser-xhr.jsonl`에 보존한다.
+
+## Pivot 시간 축·셀·변화 정렬 — 2026-10-14 후속
+
+배치한 날짜 열 하나를 `timeAxis:{column,grain:'day'|'week'|'month',timeZone}`로 묶는다. 행 또는 열 축에 배치한 실제 temporal 열만 허용하며, 기간이 있으면 기간과 같은 시간대가 필수다. 결과 tuple은 해당 지역의 버킷 시작일 `YYYY-MM-DD`, 주 시작은 월요일이다. DATE는 지역 변환 없이 달력 날짜로 처리하고 TIMESTAMP는 UTC 저장 시점에서 지역 시점으로 변환한다. 축 이름은 원본 열 이름을 유지한다. 50행/20열/6개 지표·부분합을 포함한 6,000개 값 한도는 유지한다.
+
+비교 기간의 원본 행을 현재 기간 시작에 맞게 이동한 뒤 버킷으로 묶는다. 날짜 레이블 기간은 지역 시점에서 시작일 간 달력 일수만큼 이동하므로 DST의 23/25시간 하루를 보존한다. timestamp precision 기간은 UTC 시점 차이만큼 이동한 뒤 지역 버킷을 계산한다. 원본 조회 필터는 이전 기간에 적용하고 이동한 레이블로 현재/이전 셀을 결합한다. 이전에만 존재하는 tuple도 포함하고 누락된 셀은 NULL이다.
+
+`rowSort.by`는 `label|value|delta|percentChange`다. metric 정렬은 선택한 `measureId`가 필수이며, 선택적 `columnTuple`이 없으면 행 합계, 있으면 정확한 해당 열의 셀로 정렬한다. 부모는 부모×열 원본 집계, 자식은 자신의 셀을 사용한다. 변화 정렬은 명시적 기간과 이전 비교가 필요하다. 존재하지 않는/차원 수가 다른 tuple은 400이며 빈 결과의 오래된 선택도 거절한다. NULL은 양방향 마지막, 동률은 이름 오름차순이다. 큰 정수 현재값은 기존 정밀도 비교를 유지하고 안전하게 계산할 수 없는 변화값은 NULL이다.
+
+UI는 시간 축 켜기·날짜 열·일/주/월 선택, 지표 헤더 셀 클릭, 행 합계/특정 열 범위, 현재값/변화량/변화율과 양방향 정렬을 제공한다. 비교 해제·지표 제거·축/기간/시간대/필터 변경으로 부적합해진 정렬은 현재값·행 합계 또는 이름으로 복구한다. v4 보기는 시간 축과 셀/변화 정렬을 저장하며 v1~v3 strict 계약을 유지한다. CSV는 같은 구조화 요청을 재집계하고 timeAxis/columnTuple 조건을 포함하며 펼침 키를 쿼리로 전송하지 않는다.
+
+| ID         | 입력/기대 결과                                                                                 | 검증                        |
+| ---------- | ---------------------------------------------------------------------------------------------- | --------------------------- |
+| EXPLORE-26 | 공식 Parquet, UTC/LA 일·주·월 버킷, 각 셀/비율 및 총합을 독립 원본 SQL과 대조                  | 실제 API·DuckDB 단위        |
+| EXPLORE-27 | 시간 셀 현재값·변화량·변화율 ASC/DESC, 부모/자식 자신의 집계, 이전 레이블 정렬·NULL/정밀도·DST | 실제 API·DuckDB 단위        |
+| EXPLORE-28 | v4 저장→재로드→복원→실제 CSV 파일, v1~v3 기존 흐름 유지                                        | 핵심 E2E·단위·선택 화면/XHR |
+| EXPLORE-29 | 시간 열/zone/grain/tuple/비교 조건 strict 거절, stale 셀/비교 해제 복구                        | 단위·실제 API·선택 화면     |
+
+### Rill 대조 범위와 의도된 차이
+
+로컬 Rill `dd080fc7`의 `pivot-queries.ts`, `pivot-data-config.ts`, `pivot-utils.ts`, `pivot-column-definition.ts` 및 runtime `metricsview/ast.go`를 대조했다. 실제 Rill Pivot에서 Time 열의 주→일 전환, 날짜 지표 헤더 셀 정렬, 2일 기간/이전 기간 비교와 Δ/Δ% 표시 및 변화율 헤더 정렬을 실행했다. Rill은 기간에 따라 허용 grain과 기본 grain을 선택하며 더 많은 시간 단위를 지원한다. VM은 기존 일/주/월 계약으로 제한한다.
+
+Rill의 `auction_data_model.sql`은 `CURRENT_TIMESTAMP - max_time`만큼 원본 시점을 이동하므로 날짜뿐 아니라 하루 내부 시점도 다르다. 같은 화면 날짜가 같은 원본 레코드를 뜻하지 않으므로 Rill 기간 셀의 수치/순서와 VM 원본 날짜 셀을 직접 같다고 판정하지 않았다. 동일한 공식 Parquet의 VM 수치는 독립 원본 SQL로 확인했다. Rill 화면은 조작·배치·비교 표시를 검증한 증거이며 전체 수치 동등성 증거가 아니다.
+
+Rill은 metrics view의 최소 grain 기준 DATEDIFF/interval로 이전 버킷을 이동한다. VM은 기존 기간 계약의 달력 일수 또는 timestamp span을 보존하므로 DST/월 경계에서 완전 동등하지 않다. VM 변화율은 기존 KPI/추세/순위와 같은 `(현재-이전)/abs(이전)*100`의 퍼센트 값이며 Rill은 signed denominator의 fraction을 formatter로 퍼센트 표시한다. 양수 이전값의 표시/순서는 같지만 음수 이전값에서는 부호 의미가 다르다. 이 기존 정의를 이번 Pivot만 바꾸지 않았다. VM은 각 셀 안에 비교 요약을 표시하며 Rill처럼 Δ/Δ%를 각각 별도 열로 펼치지는 않는다.
+
+증빙: `/tmp/vm-rill-time/api-oracle.json`, `rill-time-percent.png/.txt`, `e2e.log`, `e2e/`, `integration-test.log`, `build.log`. 실제 VM 요청/응답은 `/tmp/vm-rill-views/browser-xhr.jsonl`에 보존한다.
+
+### 실행 결과
+
+- **PASS — 서버/원본 대조**: BE 75 suites / 1,212 tests, Pivot·CSV 관련 49 tests. 공식 Parquet 1,391,572행의 UTC/LA 일·주·월, 각 셀의 SUM/비율, 현재/이전 버킷과 셀 정렬을 독립 DuckDB SQL과 대조했다. 봄 DST 전환의 달력 이동과 UTC timestamp 이동은 별도 회귀로 확인했다.
+- **PASS — 실제 Aside/XHR**: 원본 `2023-09-10~11`, UTC, `device_type × __time`의 9행×2열에서 9월 11일 Total Requests 셀의 현재값·변화량·변화율 오름차순이 응답 점수와 일치했다. 총합 181,853,400, 9월 11일 91,805,200 / 이전 87,188,000 / 변화 4,617,200이다. 개인 v4 보기 `Rill 시간 Pivot`을 새로 저장하고 복원했다. 기존 사용자 보기와 소스는 유지했다. 정렬 증빙은 `/tmp/vm-rill-time/aside-sort-xhr.json`이다.
+- **PASS — 실제 파일**: 선택 핵심 `explore-views.spec.ts`에서 v1~v4 저장→새로고침→복원→CSV 파일 다운로드→자체 생성 보기 삭제가 통과했다. 내려받은 CSV 파일의 바이트를 서버 응답과 대조했다.
+- **PASS — 오래된 셀 복구**: 시간 집계 일→월 전환은 첫 요청에서 `columnTuple`을 해제하여 9행×1열을 표시한다. 기간을 9월 12~13일로 바꿔 이전 셀이 사라진 경우 실제 서버 400 이후 셀 범위를 해제한 행 합계 요청이 201로 복구됐다. 다른 오류는 기존 도움 흐름을 유지한다. 정확한 오류 메시지에 의존하는 복구 분기는 서버 문구 변경 시 함께 갱신해야 하며 실제 예외 envelope 회귀를 포함한다. `/tmp/vm-rill-time/aside-recovery-xhr.json`, `aside-sort-desc-xhr.json`과 `vm-time-pivot-viewport.png/.txt`에 기록했다. 변화량 내림차순도 실제 XHR 점수와 일치했다.
+- **PASS — 통합 점검**: FE 전체 46 files / 735 tests, BE/FE 빌드, FE 타입 검사, 변경 파일 린트(오류 0; E2E non-null assertion 경고 4개), 공백 검사와 추가 셀 복구 회귀를 포함한 화면 단위 50개가 통과했다. 선택 E2E 최종 실행은 1개 / 9.4초 통과다. 로그는 `frontend-test-final.log`, `fe-target-final.log`, `type-fe-final.log`, `lint-fe-production-final.log`, `lint-fe-test-final.log`, `frontend-build-final.log`, `e2e-final.log`다.
+- **NOT_RUN**: 핵심 E2E 전체 8개, 확장 QA, 모바일/운영 검증, 가을 DST 및 주·월 경계의 DST 회귀. Rill의 이동된 기간과 VM 원본 기간의 셀 수치 동등성은 검증 범위에서 제외했다.

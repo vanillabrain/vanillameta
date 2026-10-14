@@ -14,6 +14,7 @@ import { Metric } from '../metric/entities/metric.entity';
 import { SourceAccessService } from '../ownership/source-access.service';
 import { BiExploreService } from './bi-explore.service';
 import { sortPivotRows } from './bi-explore-sort';
+import { PivotBucket, pivotAxisExpression } from './bi-explore-time';
 import { BiService } from './bi.service';
 
 describe('BiExploreService pivot over real DuckDB', () => {
@@ -61,6 +62,59 @@ describe('BiExploreService pivot over real DuckDB', () => {
     "CREATE TABLE uploaded_data AS SELECT 'r' || lpad(CAST(i AS VARCHAR), 2, '0') AS r, 'g' AS g, " +
     "'c' || lpad(CAST(j AS VARCHAR), 2, '0') AS col, CAST(i + j AS DOUBLE) AS amount, " +
     'CAST(j AS DOUBLE) AS weight FROM range(50) t(i), range(20) u(j)';
+
+  // Row totals are P 110, Q 51, R 60; the x cell alone is P 10, Q 50, R 30, so the two orders
+  // cannot be confused. The 01-02 rows give every x cell a previous value for the change sorts.
+  const cellSortSql =
+    'CREATE TABLE uploaded_data AS SELECT CAST("column0" AS VARCHAR) AS region, ' +
+    'CAST("column1" AS VARCHAR) AS channel, CAST("column2" AS DOUBLE) AS amount, ' +
+    'CAST("column3" AS DATE) AS day FROM (VALUES ' +
+    [
+      ['P', 'x', 10, '2026-01-03'],
+      ['P', 'y', 100, '2026-01-03'],
+      ['Q', 'x', 50, '2026-01-03'],
+      ['Q', 'y', 1, '2026-01-03'],
+      ['R', 'x', 30, '2026-01-03'],
+      ['R', 'y', 30, '2026-01-03'],
+      ['P', 'x', 1, '2026-01-02'],
+      ['Q', 'x', 40, '2026-01-02'],
+      ['R', 'x', 40, '2026-01-02'],
+    ]
+      .map(row)
+      .join(', ') +
+    ') t(column0, column1, column2, column3)';
+  // Parent x 01-03 totals are P 40, Q 40, R 25, while the parent row totals are P 240, Q 41, R 55.
+  const hierarchyCellSql =
+    'CREATE TABLE uploaded_data AS SELECT CAST("column0" AS VARCHAR) AS region, ' +
+    'CAST("column1" AS VARCHAR) AS channel, CAST("column2" AS DOUBLE) AS amount, ' +
+    'CAST("column3" AS DATE) AS day FROM (VALUES ' +
+    [
+      ['P', 'a', 10, '2026-01-03'],
+      ['P', 'b', 30, '2026-01-03'],
+      ['P', 'a', 200, '2026-01-04'],
+      ['Q', 'a', 40, '2026-01-03'],
+      ['Q', 'a', 1, '2026-01-04'],
+      ['R', 'a', 25, '2026-01-03'],
+      ['R', 'a', 30, '2026-01-04'],
+    ]
+      .map(row)
+      .join(', ') +
+    ') t(column0, column1, column2, column3)';
+  // America/New_York springs forward on 2026-03-08 (05:00Z..04:00Z = 23h). The naive TIMESTAMP
+  // literals are UTC instants: 03-07/03-08 04:30Z are 03-06/03-07 23:30 EST, one hour from the DST
+  // hour, and the 16:00Z current rows are 12:00 EDT on the two current civil days.
+  const dstSql =
+    'CREATE TABLE uploaded_data AS SELECT CAST("column0" AS VARCHAR) AS region, ' +
+    'CAST("column1" AS DOUBLE) AS amount, CAST("column2" AS TIMESTAMP) AS event_time FROM (VALUES ' +
+    [
+      ['X', 5, '2026-03-07 04:30:00'],
+      ['X', 7, '2026-03-08 04:30:00'],
+      ['X', 11, '2026-03-08 16:00:00'],
+      ['X', 13, '2026-03-09 16:00:00'],
+    ]
+      .map(row)
+      .join(', ') +
+    ') t(column0, column1, column2)';
 
   const metric = (id: number, label: string, fields: any, databaseId = 1) => ({
     id,
@@ -872,6 +926,498 @@ describe('BiExploreService pivot over real DuckDB', () => {
     expect(sorted.applied.rowSort).toEqual({ by: 'value', direction: 'asc', measureId: 1 });
     expect(sorted.applied.rowHierarchy).toBe(false);
   });
+
+  it('buckets a temporal axis to YYYY-MM-DD labels for the day, week and month grains', async () => {
+    state.filename = await writeSource(
+      'CREATE TABLE uploaded_data AS SELECT CAST("column0" AS VARCHAR) AS region, ' +
+        'CAST("column1" AS DOUBLE) AS amount, CAST("column2" AS DATE) AS day FROM (VALUES ' +
+        [
+          ['A', 10, '2025-12-29'],
+          ['A', 20, '2026-01-01'],
+          ['B', 30, '2026-01-05'],
+          ['B', 40, '2026-01-08'],
+          ['C', 50, '2026-02-02'],
+        ]
+          .map(row)
+          .join(', ') +
+        ') t(column0, column1, column2)',
+    );
+    metrics = [metric(1, 'Revenue', { aggregation: 'SUM', column: 'amount' })];
+    const sourceRevision = await revision();
+    const bucketed = (grain: 'day' | 'week' | 'month') =>
+      pivot(
+        body(sourceRevision, {
+          columnColumns: ['day'],
+          timeAxis: { column: 'day', grain, timeZone: 'UTC' },
+        }),
+      );
+    const day = await bucketed('day');
+    // The axis keeps the original column name while the tuple value is the bucket label.
+    expect(day.columnColumns).toEqual(['day']);
+    expect(day.columns.map((tuple: any[]) => tuple[0])).toEqual([
+      '2025-12-29',
+      '2026-01-01',
+      '2026-01-05',
+      '2026-01-08',
+      '2026-02-02',
+    ]);
+    expect(day.applied.timeAxis).toEqual({ column: 'day', grain: 'day', timeZone: 'UTC' });
+    const week = await bucketed('week');
+    // A week starts on Monday, so 2025-12-29 owns both 12-29 and 01-01 and sums them.
+    expect(week.columns.map((tuple: any[]) => tuple[0])).toEqual([
+      '2025-12-29',
+      '2026-01-05',
+      '2026-02-02',
+    ]);
+    expect(values(at(week, ['A'], ['2025-12-29']))).toEqual([30]);
+    const month = await bucketed('month');
+    expect(month.columns.map((tuple: any[]) => tuple[0])).toEqual([
+      '2025-12-01',
+      '2026-01-01',
+      '2026-02-01',
+    ]);
+    // The label names the bucket start while the measure still sums every row inside it.
+    expect(values(at(month, ['A'], ['2025-12-01']))).toEqual([10]);
+    expect(values(at(month, ['A'], ['2026-01-01']))).toEqual([20]);
+    expect(month.applied.timeAxis).toEqual({ column: 'day', grain: 'month', timeZone: 'UTC' });
+  });
+
+  it('aligns shifted previous buckets onto the current civil day labels', async () => {
+    state.filename = await writeSource(
+      'CREATE TABLE uploaded_data AS SELECT CAST("column0" AS VARCHAR) AS region, ' +
+        'CAST("column1" AS DOUBLE) AS amount, CAST("column2" AS DATE) AS day FROM (VALUES ' +
+        [
+          ['A', 10, '2026-01-01'],
+          ['A', 20, '2026-01-02'],
+          ['A', 100, '2026-01-03'],
+          ['A', 200, '2026-01-04'],
+          ['B', 5, '2026-01-02'],
+          ['B', 50, '2026-01-04'],
+        ]
+          .map(row)
+          .join(', ') +
+        ') t(column0, column1, column2)',
+    );
+    metrics = [metric(1, 'Revenue', { aggregation: 'SUM', column: 'amount' })];
+    const result = await pivot(
+      body(await revision(), {
+        columnColumns: ['day'],
+        dateRange: { column: 'day', start: '2026-01-03', end: '2026-01-04' },
+        comparePrevious: true,
+        timeAxis: { column: 'day', grain: 'day', timeZone: 'UTC' },
+      }),
+    );
+    // The two-day shift moves 01-01/01-02 onto 01-03/01-04, so no stale label survives.
+    expect(result.columns.map((tuple: any[]) => tuple[0])).toEqual(['2026-01-03', '2026-01-04']);
+    expect(at(result, ['A'], ['2026-01-03'])[0]).toEqual({
+      measureId: 1,
+      value: 100,
+      comparison: { previousValue: 10, delta: 90, percentChange: 900 },
+    });
+    expect(at(result, ['A'], ['2026-01-04'])[0]).toEqual({
+      measureId: 1,
+      value: 200,
+      comparison: { previousValue: 20, delta: 180, percentChange: 900 },
+    });
+    // Region B has neither a current nor a shifted value on 01-03, so the cell stays null.
+    expect(at(result, ['B'], ['2026-01-03'])[0]).toEqual({
+      measureId: 1,
+      value: null,
+      comparison: { previousValue: null, delta: null, percentChange: null },
+    });
+    expect(at(result, ['B'], ['2026-01-04'])[0]).toEqual({
+      measureId: 1,
+      value: 50,
+      comparison: { previousValue: 5, delta: 45, percentChange: 900 },
+    });
+    expect(result.grandTotal[0]).toEqual({
+      measureId: 1,
+      value: 350,
+      comparison: { previousValue: 35, delta: 315, percentChange: 900 },
+    });
+  });
+
+  it('buckets a timestamp axis in the applied business timezone and shifts the previous period first', async () => {
+    state.filename = await writeSource(
+      'CREATE TABLE uploaded_data AS SELECT CAST("column0" AS VARCHAR) AS region, ' +
+        'CAST("column1" AS DOUBLE) AS amount, CAST("column2" AS TIMESTAMP) AS event_time FROM (VALUES ' +
+        [
+          ['X', 100, '2026-01-04 14:00:00'],
+          ['X', 30, '2026-01-04 15:30:00'],
+          ['X', 40, '2026-01-04 16:30:00'],
+          ['X', 10, '2026-01-02 15:30:00'],
+          ['X', 20, '2026-01-03 14:00:00'],
+        ]
+          .map(row)
+          .join(', ') +
+        ') t(column0, column1, column2)',
+    );
+    metrics = [metric(1, 'Revenue', { aggregation: 'SUM', column: 'amount' })];
+    const result = await pivot(
+      body(await revision(), {
+        columnColumns: ['event_time'],
+        dateRange: {
+          column: 'event_time',
+          start: '2026-01-04T00:00:00Z',
+          end: '2026-01-06T00:00:00Z',
+          precision: 'timestamp',
+          timeZone: 'Asia/Seoul',
+        },
+        comparePrevious: true,
+        timeAxis: { column: 'event_time', grain: 'day', timeZone: 'Asia/Seoul' },
+      }),
+    );
+    // KST is UTC+9, so 14:00 stays on 01-04 while 15:30 and 16:30 roll into 01-05.
+    expect(result.columns.map((tuple: any[]) => tuple[0])).toEqual(['2026-01-04', '2026-01-05']);
+    expect(values(at(result, ['X'], ['2026-01-04']))).toEqual([100]);
+    expect(values(at(result, ['X'], ['2026-01-05']))).toEqual([70]);
+    expect(at(result, ['X'], ['2026-01-04'])[0].comparison).toEqual({
+      previousValue: null,
+      delta: null,
+      percentChange: null,
+    });
+    // The previous rows shift by the 48h UTC span before the zone bucket, landing on 01-05.
+    expect(at(result, ['X'], ['2026-01-05'])[0]).toMatchObject({
+      measureId: 1,
+      value: 70,
+      comparison: { previousValue: 30, delta: 40 },
+    });
+    expect(at(result, ['X'], ['2026-01-05'])[0].comparison.percentChange).toBeCloseTo(400 / 3, 6);
+    expect(result.applied.timeAxis).toEqual({
+      column: 'event_time',
+      grain: 'day',
+      timeZone: 'Asia/Seoul',
+    });
+  });
+
+  it('aligns the shifted previous civil days across the New_York DST spring-forward', async () => {
+    state.filename = await writeSource(dstSql);
+    metrics = [metric(1, 'Revenue', { aggregation: 'SUM', column: 'amount' })];
+    // Current = the two civil days 03-08 and 03-09; previous = 03-06 and 03-07 in the same zone.
+    const result = await pivot(
+      body(await revision(), {
+        columnColumns: ['event_time'],
+        dateRange: {
+          column: 'event_time',
+          start: '2026-03-08',
+          end: '2026-03-09',
+          timeZone: 'America/New_York',
+        },
+        comparePrevious: true,
+        timeAxis: { column: 'event_time', grain: 'day', timeZone: 'America/New_York' },
+      }),
+    );
+    // A civil shift adds whole wall-clock days, so the 23-hour 03-08 keeps every prior row on its
+    // own current label. A UTC-seconds shift would have pushed 03-08T04:30Z to a stray 03-10 column.
+    expect(result.columns.map((tuple: any[]) => tuple[0])).toEqual(['2026-03-08', '2026-03-09']);
+    expect(at(result, ['X'], ['2026-03-08'])[0]).toEqual({
+      measureId: 1,
+      value: 11,
+      comparison: { previousValue: 5, delta: 6, percentChange: 120 },
+    });
+    expect(at(result, ['X'], ['2026-03-09'])[0]).toMatchObject({
+      measureId: 1,
+      value: 13,
+      comparison: { previousValue: 7, delta: 6 },
+    });
+    expect(at(result, ['X'], ['2026-03-09'])[0].comparison.percentChange).toBeCloseTo(600 / 7, 6);
+    expect(result.grandTotal[0]).toEqual({
+      measureId: 1,
+      value: 24,
+      comparison: { previousValue: 12, delta: 12, percentChange: 100 },
+    });
+  });
+
+  it('shifts a timestamp-precision period by UTC seconds, distinct from the civil shift', async () => {
+    state.filename = await writeSource(dstSql);
+    metrics = [metric(1, 'Revenue', { aggregation: 'SUM', column: 'amount' })];
+    // The same two current civil days as a 48h UTC window: the prior window shifts 172800 seconds.
+    const result = await pivot(
+      body(await revision(), {
+        columnColumns: ['event_time'],
+        dateRange: {
+          column: 'event_time',
+          start: '2026-03-08T05:00:00Z',
+          end: '2026-03-10T05:00:00Z',
+          precision: 'timestamp',
+          timeZone: 'America/New_York',
+        },
+        comparePrevious: true,
+        timeAxis: { column: 'event_time', grain: 'day', timeZone: 'America/New_York' },
+      }),
+    );
+    // Equal elapsed seconds drift the wall clock by the DST hour: 03-08T04:30Z lands on 03-10,
+    // not the 03-09 the civil shift produced, so this distinguishes the two shift rules.
+    expect(result.columns.map((tuple: any[]) => tuple[0])).toEqual([
+      '2026-03-08',
+      '2026-03-09',
+      '2026-03-10',
+    ]);
+    expect(at(result, ['X'], ['2026-03-08'])[0].comparison).toEqual({
+      previousValue: null,
+      delta: null,
+      percentChange: null,
+    });
+    expect(at(result, ['X'], ['2026-03-09'])[0]).toEqual({
+      measureId: 1,
+      value: 13,
+      comparison: { previousValue: 5, delta: 8, percentChange: 160 },
+    });
+    expect(at(result, ['X'], ['2026-03-10'])[0]).toEqual({
+      measureId: 1,
+      value: null,
+      comparison: { previousValue: 7, delta: null, percentChange: null },
+    });
+    expect(result.grandTotal[0]).toEqual({
+      measureId: 1,
+      value: 24,
+      comparison: { previousValue: 12, delta: 12, percentChange: 100 },
+    });
+  });
+
+  it('keeps a large integer measure exact inside a bucketed month axis', async () => {
+    state.filename = await writeSource(
+      'CREATE TABLE uploaded_data AS SELECT CAST("column0" AS VARCHAR) AS region, ' +
+        'CAST("column1" AS BIGINT) AS amount, CAST("column2" AS DATE) AS day FROM (VALUES ' +
+        [
+          // Keep the literal as text: a JS number token would round before it reaches DuckDB.
+          ['X', '9007199254740993', '2026-01-15'],
+          ['X', '1', '2026-02-15'],
+        ]
+          .map(row)
+          .join(', ') +
+        ') t(column0, column1, column2)',
+    );
+    metrics = [metric(1, 'Revenue', { aggregation: 'SUM', column: 'amount' })];
+    const result = await pivot(
+      body(await revision(), {
+        columnColumns: ['day'],
+        timeAxis: { column: 'day', grain: 'month', timeZone: 'UTC' },
+      }),
+    );
+    expect(result.columns.map((tuple: any[]) => tuple[0])).toEqual(['2026-01-01', '2026-02-01']);
+    expect(values(at(result, ['X'], ['2026-01-01']))).toEqual(['9007199254740993']);
+    expect(values(at(result, ['X'], ['2026-02-01']))).toEqual([1]);
+  });
+
+  it('orders rows by a selected column cell instead of the row total', async () => {
+    state.filename = await writeSource(cellSortSql);
+    metrics = [metric(1, 'Revenue', { aggregation: 'SUM', column: 'amount' })];
+    const sourceRevision = await revision();
+    const dateRange = { column: 'day', start: '2026-01-03', end: '2026-01-03' };
+    const byCell = await pivot(
+      body(sourceRevision, {
+        dateRange,
+        rowSort: { by: 'value', direction: 'desc', measureId: 1, columnTuple: ['x'] },
+      }),
+    );
+    // Only the x cell decides the order: Q 50, R 30, P 10.
+    expect(byCell.rows).toEqual([['Q'], ['R'], ['P']]);
+    expect(byCell.applied.rowSort).toEqual({
+      by: 'value',
+      direction: 'desc',
+      columnTuple: ['x'],
+      measureId: 1,
+    });
+    expect(values(at(byCell, ['Q'], ['x']))).toEqual([50]);
+    const byTotal = await pivot(
+      body(sourceRevision, {
+        dateRange,
+        rowSort: { by: 'value', direction: 'desc', measureId: 1 },
+      }),
+    );
+    // The row total is a different order: P 110, R 60, Q 51.
+    expect(byTotal.rows).toEqual([['P'], ['R'], ['Q']]);
+  });
+
+  it('orders a selected column cell by delta and percentChange against the prior period', async () => {
+    state.filename = await writeSource(cellSortSql);
+    metrics = [metric(1, 'Revenue', { aggregation: 'SUM', column: 'amount' })];
+    const sourceRevision = await revision();
+    const shared = {
+      dateRange: { column: 'day', start: '2026-01-03', end: '2026-01-03' },
+      comparePrevious: true,
+    } as const;
+    const delta = await pivot(
+      body(sourceRevision, {
+        ...shared,
+        rowSort: { by: 'delta', direction: 'desc', measureId: 1, columnTuple: ['x'] },
+      }),
+    );
+    // x deltas: Q 50-40=10, P 10-1=9, R 30-40=-10.
+    expect(delta.rows).toEqual([['Q'], ['P'], ['R']]);
+    expect(at(delta, ['Q'], ['x'])[0].comparison).toEqual({
+      previousValue: 40,
+      delta: 10,
+      percentChange: 25,
+    });
+    const percent = await pivot(
+      body(sourceRevision, {
+        ...shared,
+        rowSort: { by: 'percentChange', direction: 'desc', measureId: 1, columnTuple: ['x'] },
+      }),
+    );
+    // x percents: P 900%, Q 25%, R -25%.
+    expect(percent.rows).toEqual([['P'], ['Q'], ['R']]);
+    expect(percent.applied.rowSort).toEqual({
+      by: 'percentChange',
+      direction: 'desc',
+      columnTuple: ['x'],
+      measureId: 1,
+    });
+  });
+
+  it('orders hierarchy parents by the parent-times-column aggregate', async () => {
+    state.filename = await writeSource(hierarchyCellSql);
+    metrics = [metric(1, 'Revenue', { aggregation: 'SUM', column: 'amount' })];
+    const result = await pivot(
+      body(await revision(), {
+        rowColumns: ['region', 'channel'],
+        columnColumns: ['day'],
+        rowHierarchy: true,
+        rowSort: { by: 'value', direction: 'desc', measureId: 1, columnTuple: ['2026-01-03'] },
+      }),
+    );
+    // P and Q tie at 40 on 01-03 (label asc breaks the tie); the parent row total would be P, R, Q.
+    expect(result.rowSubtotals.map((subtotal: any) => subtotal.tuple[0])).toEqual(['P', 'Q', 'R']);
+    // Leaves sort by their own 01-03 cell, so P/b 30 precedes P/a 10 despite P/a's larger total.
+    expect(result.rows).toEqual([
+      ['P', 'b'],
+      ['P', 'a'],
+      ['Q', 'a'],
+      ['R', 'a'],
+    ]);
+    expect(result.rowTotals.map((measures: any[]) => measures[0].value)).toEqual([30, 210, 41, 55]);
+  });
+
+  it('validates the timeAxis contract strictly', async () => {
+    const sourceRevision = await revision();
+    const rejects = async (overrides: any) => {
+      await expect(pivot(body(sourceRevision, overrides))).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+    };
+    await rejects({ timeAxis: 'day' });
+    await rejects({ timeAxis: null });
+    await rejects({ timeAxis: { column: 'day', grain: 'day', timeZone: 'UTC', extra: 1 } });
+    await rejects({ timeAxis: { column: 'day', grain: 'hour', timeZone: 'UTC' } });
+    await rejects({ timeAxis: { column: 'day', grain: 'day' } });
+    await rejects({ timeAxis: { column: 1, grain: 'day', timeZone: 'UTC' } });
+    // The column must be temporal and placed on one of the two axes.
+    await rejects({
+      rowColumns: ['region'],
+      columnColumns: [],
+      timeAxis: { column: 'region', grain: 'day', timeZone: 'UTC' },
+    });
+    await rejects({ timeAxis: { column: 'day', grain: 'day', timeZone: 'UTC' } });
+    await rejects({
+      rowColumns: ['missing'],
+      columnColumns: [],
+      timeAxis: { column: 'missing', grain: 'day', timeZone: 'UTC' },
+    });
+    // The zone must be a real IANA name and must match the applied range, in either direction.
+    await rejects({
+      rowColumns: ['day'],
+      columnColumns: [],
+      timeAxis: { column: 'day', grain: 'day', timeZone: 'Mars/Base' },
+    });
+    await rejects({
+      rowColumns: ['day'],
+      columnColumns: [],
+      dateRange: { column: 'day', start: '2026-01-01', end: '2026-01-04', timeZone: 'Asia/Seoul' },
+      timeAxis: { column: 'day', grain: 'day', timeZone: 'UTC' },
+    });
+    await rejects({
+      rowColumns: ['day'],
+      columnColumns: [],
+      dateRange: { column: 'day', start: '2026-01-01', end: '2026-01-04' },
+      timeAxis: { column: 'day', grain: 'day', timeZone: 'Asia/Seoul' },
+    });
+    // A matching zone is accepted and echoed as the applied axis.
+    const matched = await pivot(
+      body(sourceRevision, {
+        rowColumns: ['day'],
+        columnColumns: [],
+        dateRange: {
+          column: 'day',
+          start: '2026-01-01',
+          end: '2026-01-04',
+          timeZone: 'Asia/Seoul',
+        },
+        timeAxis: { column: 'day', grain: 'month', timeZone: 'Asia/Seoul' },
+      }),
+    );
+    expect(matched.applied.timeAxis).toEqual({
+      column: 'day',
+      grain: 'month',
+      timeZone: 'Asia/Seoul',
+    });
+  });
+
+  it('validates the expanded rowSort fields and rejects an unbounded column tuple', async () => {
+    const sourceRevision = await revision();
+    const rejects = async (overrides: any) => {
+      await expect(pivot(body(sourceRevision, overrides))).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+    };
+    // A label order carries neither a measure nor a selected cell.
+    await rejects({ rowSort: { by: 'label', direction: 'asc', columnTuple: [] } });
+    await rejects({ rowSort: { by: 'value', direction: 'desc' } });
+    // A change order needs the previous period comparison.
+    await rejects({ rowSort: { by: 'delta', direction: 'desc', measureId: 1 } });
+    await rejects({
+      rowSort: { by: 'percentChange', direction: 'desc', measureId: 1, columnTuple: ['app'] },
+    });
+    await rejects({
+      rowSort: { by: 'value', direction: 'desc', measureId: 1, columnTuple: 'app' },
+    });
+    await rejects({ rowSort: { by: 'value', direction: 'desc', measureId: 1, columnTuple: [{}] } });
+    // The tuple arity must equal the bounded column axis, so this one-column axis rejects all of these.
+    await rejects({ rowSort: { by: 'value', direction: 'desc', measureId: 1, columnTuple: [] } });
+    await rejects({
+      columnColumns: [],
+      rowSort: { by: 'value', direction: 'desc', measureId: 1, columnTuple: ['x'] },
+    });
+    await rejects({
+      rowSort: { by: 'value', direction: 'desc', measureId: 1, columnTuple: ['nope'] },
+    });
+    // A tuple that names no bounded cell is rejected even when the filtered result is empty.
+    await rejects({
+      filters: [{ column: 'region', values: ['Z'] }],
+      rowSort: { by: 'value', direction: 'desc', measureId: 1, columnTuple: ['app'] },
+    });
+    await rejects({
+      rowSort: { by: 'value', direction: 'desc', measureId: 1, columnTuple: ['app', 'bulk'] },
+    });
+    await rejects({
+      rowSort: { by: 'value', direction: 'desc', measureId: 1, columnTuple: ['app', 'bulk', 'x'] },
+    });
+    // A real cell is accepted and echoed, and an empty tuple sorts by the row total.
+    const byCell = await pivot(
+      body(sourceRevision, {
+        rowSort: { by: 'value', direction: 'desc', measureId: 1, columnTuple: ['app'] },
+      }),
+    );
+    expect(byCell.applied.rowSort).toEqual({
+      by: 'value',
+      direction: 'desc',
+      columnTuple: ['app'],
+      measureId: 1,
+    });
+    const byTotal = await pivot(
+      body(sourceRevision, {
+        columnColumns: [],
+        rowSort: { by: 'value', direction: 'desc', measureId: 1, columnTuple: [] },
+      }),
+    );
+    expect(byTotal.applied.rowSort).toEqual({
+      by: 'value',
+      direction: 'desc',
+      columnTuple: [],
+      measureId: 1,
+    });
+  });
 });
 
 describe('BiExploreService pivot row sort comparators', () => {
@@ -908,5 +1454,35 @@ describe('BiExploreService pivot row sort comparators', () => {
   it('keeps a null value last and falls back to text for a non-numeric value', () => {
     expect(order([null, 5, 'abc'], 'asc')).toEqual([5, 'abc', null]);
     expect(order([null, 5, 'abc'], 'desc')).toEqual(['abc', 5, null]);
+  });
+});
+
+describe('BiExploreService pivot time axis SQL', () => {
+  const bucket = (overrides: Partial<PivotBucket> = {}): PivotBucket => ({
+    axis: { column: 'event_time', grain: 'day', timeZone: 'Asia/Seoul' },
+    civil: false,
+    shift: 172800,
+    utcShift: true,
+    ...overrides,
+  });
+
+  it('applies the timestamp shift before the timezone bucket', () => {
+    // The +2 day interval must be inside the TIMESTAMPTZ cast so the shift stays absolute UTC seconds.
+    expect(pivotAxisExpression('event_time', bucket())).toBe(
+      "strftime(date_trunc('day', (CAST((\"event_time\" + INTERVAL '172800 seconds') AS TIMESTAMPTZ) AT TIME ZONE 'Asia/Seoul')), '%Y-%m-%d')",
+    );
+  });
+
+  it('applies the civil shift after the axis stays a local calendar value', () => {
+    expect(
+      pivotAxisExpression(
+        'day',
+        bucket({
+          axis: { column: 'day', grain: 'day', timeZone: 'Asia/Seoul' },
+          civil: true,
+          utcShift: false,
+        }),
+      ),
+    ).toBe("strftime(date_trunc('day', (\"day\" + INTERVAL '172800 seconds')), '%Y-%m-%d')");
   });
 });

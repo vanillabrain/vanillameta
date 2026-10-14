@@ -17,7 +17,9 @@ test('탐색·Pivot 조건 저장 → 새로고침 → 복원 → CSV 다운로�
         file: {
           name: 'explore-views.csv',
           mimeType: 'text/csv',
-          buffer: Buffer.from('category,channel,amount\nA,App,100\nA,Site,200\nB,App,300\n'),
+          buffer: Buffer.from(
+            'category,channel,amount,created_at\nA,App,100,2026-01-03\nA,Site,200,2026-01-04\nB,App,300,2026-01-03\n',
+          ),
         },
       },
     });
@@ -201,6 +203,63 @@ test('탐색·Pivot 조건 저장 → 새로고침 → 복원 → CSV 다운로�
     const hierarchyRemoved = createResponse(page, 'bi/explore/views/remove');
     await page.getByRole('button', { name: '보기 삭제', exact: true }).click();
     expect((await hierarchyRemoved).ok()).toBe(true);
+    viewId = undefined;
+
+    // Version 4 keeps the bucket axis and a selected time cell across a real reload.
+    await page.getByLabel('열 차원 1').selectOption('created_at');
+    await page.getByRole('button', { name: '시간 축 꺼짐', exact: true }).click();
+    await expect(page.getByLabel('시간 집계')).toHaveValue('day');
+    await page.getByRole('button', { name: '정렬 2026-01-03 Test Amount', exact: true }).click();
+    await page.getByLabel('새 보기 이름').fill(`${name} 시간 셀`);
+    const timeSaved = createResponse(page, 'bi/explore/views/create');
+    await page.getByRole('button', { name: '현재 조건 저장', exact: true }).click();
+    const timeSavedResponse = await timeSaved;
+    viewId = await createdId(timeSavedResponse);
+    const timeState = (await timeSavedResponse.json()).data.state;
+    expect(timeState).toMatchObject({
+      version: 4,
+      pivot: {
+        timeAxis: { column: 'created_at', grain: 'day', timeZone: 'UTC' },
+        rowSort: { by: 'value', direction: 'desc', measureId: metricId, columnTuple: ['2026-01-03'] },
+      },
+    });
+    await page.reload();
+    await page.getByRole('button', { name: '탐색 보기', exact: true }).click();
+    await page.getByLabel('저장한 탐색 보기').selectOption(String(viewId));
+    const timeRestored = page.waitForResponse(
+      response =>
+        response.url().endsWith('/bi/explore/pivot') && response.request().postDataJSON()?.timeAxis?.column === 'created_at',
+    );
+    await page.getByRole('button', { name: '보기 열기', exact: true }).click();
+    const timeResponse = await timeRestored;
+    expect(timeResponse.request().postDataJSON()).toMatchObject({
+      timeAxis: timeState.pivot.timeAxis,
+      rowSort: timeState.pivot.rowSort,
+    });
+    const timeData = (await timeResponse.json()).data;
+    expect(timeData.columns).toEqual([['2026-01-03'], ['2026-01-04']]);
+    expect(timeData.rowSubtotals.map((row: any) => row.tuple)).toEqual([['B'], ['A']]);
+    await expect(page.getByLabel('시간 집계')).toHaveValue('day');
+    await expect(page.getByRole('button', { name: '정렬 2026-01-03 Test Amount', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await page.getByRole('button', { name: '내보내기 ▾', exact: true }).click();
+    const timeExport = createResponse(page, 'bi/explore/export');
+    const timeDownload = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'CSV 다운로드', exact: true }).click();
+    const timeExportResponse = await timeExport;
+    expect(timeExportResponse.request().postDataJSON().query).toMatchObject({
+      timeAxis: timeState.pivot.timeAxis,
+      rowSort: timeState.pivot.rowSort,
+    });
+    const timeCsv = (await timeExportResponse.json()).data.csv;
+    expect(timeCsv).toContain('timeAxis');
+    expect(timeCsv).toContain('columnTuple');
+    expect(await readFile((await (await timeDownload).path())!, 'utf8')).toBe(timeCsv);
+    const timeRemoved = createResponse(page, 'bi/explore/views/remove');
+    await page.getByRole('button', { name: '보기 삭제', exact: true }).click();
+    expect((await timeRemoved).ok()).toBe(true);
     viewId = undefined;
   } finally {
     if (viewId && sourceId)

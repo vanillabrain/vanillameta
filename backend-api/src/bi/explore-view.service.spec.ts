@@ -34,6 +34,7 @@ describe('ExploreViewService saved exploration views', () => {
   });
   const v2 = (pivot: any, over: any = {}) => ({ ...state(over), version: 2, pivot });
   const v3 = (pivot: any, over: any = {}) => ({ ...state(over), version: 3, pivot });
+  const v4 = (pivot: any, over: any = {}) => ({ ...state(over), version: 4, pivot });
   const pivotV3 = (over: any = {}) => ({
     enabled: true,
     rowColumns: ['region', 'channel'],
@@ -43,6 +44,12 @@ describe('ExploreViewService saved exploration views', () => {
     expandedRows: [['A'], ['B'], [12], [true], [null]],
     ...over,
   });
+  /** Version 4 base: the version 3 hierarchy with the empty column cell and no bucket axis. */
+  const pivotV4 = (over: any = {}) =>
+    pivotV3({
+      rowSort: { by: 'value', direction: 'desc', measureId: 1, columnTuple: [] },
+      ...over,
+    });
   const mainSql =
     'CREATE TABLE uploaded_data AS SELECT ' +
     'CAST("column0" AS VARCHAR) AS region, CAST("column1" AS VARCHAR) AS channel, ' +
@@ -987,5 +994,447 @@ describe('ExploreViewService saved exploration views', () => {
     await expect(
       service.load({ sourceId: 1, viewId: fresh.data.id }, actor),
     ).resolves.toMatchObject({ status: 'SUCCESS' });
+  });
+
+  const columnsOne = { rowColumns: ['region', 'channel'], columnColumns: ['day'] };
+  const cellOne = { by: 'value', direction: 'desc', measureId: 1, columnTuple: ['2026-01-02'] };
+
+  it('round-trips a version 4 bucket view with a cell row sort through create, load and list', async () => {
+    const sourceRevision = await revision();
+    const pivot = {
+      enabled: true,
+      rowColumns: ['region', 'channel'],
+      columnColumns: ['day'],
+      rowHierarchy: true,
+      rowSort: {
+        by: 'percentChange',
+        direction: 'desc',
+        measureId: 1,
+        columnTuple: ['2026-01-02'],
+      },
+      expandedRows: [['A'], ['B']],
+      timeAxis: { column: 'day', grain: 'month', timeZone: 'UTC' },
+    };
+    const saved = v4(pivot, { measureIds: [1, 2], comparePrevious: true });
+    const created = await service.create(
+      {
+        sourceId: 1,
+        name: 'bucket',
+        sourceRevision,
+        state: saved,
+        measureVersions: { 1: 1, 2: 1 },
+      },
+      actor,
+    );
+    expect(created.data.state).toEqual(saved);
+    expect(created.data.state.version).toBe(4);
+    expect(created.data.state.pivot.timeAxis).toEqual({
+      column: 'day',
+      grain: 'month',
+      timeZone: 'UTC',
+    });
+    // The stored row keeps the exact bucket axis and cell sort, so a reload reproduces query input.
+    const rows = await views().find();
+    expect(JSON.parse(rows[0].state)).toEqual(saved);
+    const listed = await service.list({ sourceId: 1 }, actor);
+    expect(listed.data[0]).toMatchObject({ id: created.data.id, stale: false });
+    expect(listed.data[0].state).toEqual(saved);
+    const loaded = await new ExploreViewService(db, access, bi, connection).load(
+      { sourceId: 1, viewId: created.data.id },
+      actor,
+    );
+    expect(loaded.data).toEqual({ ...created.data });
+  });
+
+  it('accepts a version 4 view with no bucket axis and the empty column cell', async () => {
+    const pivot = {
+      enabled: true,
+      rowColumns: ['region', 'channel'],
+      columnColumns: [],
+      rowHierarchy: true,
+      rowSort: { by: 'value', direction: 'desc', measureId: 1, columnTuple: [] },
+      expandedRows: [],
+    };
+    const created = await service.create(
+      {
+        sourceId: 1,
+        name: 'no-bucket',
+        sourceRevision: await revision(),
+        measureVersions: { 1: 1 },
+        state: v4(pivot),
+      },
+      actor,
+    );
+    expect(created.data.state.pivot).toEqual(pivot);
+    expect(created.data.state.pivot.timeAxis).toBeUndefined();
+    const loaded = await service.load({ sourceId: 1, viewId: created.data.id }, actor);
+    expect(loaded.data.state).toEqual(created.data.state);
+  });
+
+  it('accepts a version 4 change sort and a two-member column cell once a period is saved', async () => {
+    const pivot = {
+      enabled: true,
+      rowColumns: ['region', 'channel'],
+      columnColumns: ['day', 'event_time'],
+      rowHierarchy: true,
+      rowSort: { by: 'delta', direction: 'asc', measureId: 1, columnTuple: ['2026-01-01', null] },
+      expandedRows: [],
+      timeAxis: { column: 'day', grain: 'day', timeZone: 'UTC' },
+    };
+    const saved = v4(pivot, { comparePrevious: true });
+    const created = await service.create(
+      {
+        sourceId: 1,
+        name: 'cell',
+        sourceRevision: await revision(),
+        measureVersions: { 1: 1 },
+        state: saved,
+      },
+      actor,
+    );
+    expect(created.data.state).toEqual(saved);
+    const rows = await views().find();
+    expect(JSON.parse(rows[0].state)).toEqual(saved);
+  });
+
+  it('aligns the version 4 bucket timezone with the saved period and rejects a mismatch', async () => {
+    const range = { column: 'day', start: '2026-01-01', end: '2026-01-03' };
+    const pivot = {
+      enabled: true,
+      rowColumns: ['region', 'channel'],
+      columnColumns: ['day'],
+      rowHierarchy: true,
+      rowSort: cellOne,
+      expandedRows: [],
+      timeAxis: { column: 'day', grain: 'week', timeZone: 'Asia/Seoul' },
+    };
+    const created = await service.create(
+      {
+        sourceId: 1,
+        name: 'seoul-bucket',
+        sourceRevision: await revision(),
+        measureVersions: { 1: 1 },
+        state: v4(pivot, { timeZone: 'Asia/Seoul', dateRange: range }),
+      },
+      actor,
+    );
+    expect(created.data.state.dateRange).toEqual({
+      column: 'day',
+      start: '2026-01-01',
+      end: '2026-01-03',
+      timeZone: 'Asia/Seoul',
+    });
+    expect(created.data.state.pivot.timeAxis).toEqual({
+      column: 'day',
+      grain: 'week',
+      timeZone: 'Asia/Seoul',
+    });
+    await expect(
+      service.create(
+        {
+          sourceId: 1,
+          name: 'mismatch',
+          sourceRevision: await revision(),
+          measureVersions: { 1: 1 },
+          state: v4(
+            { ...pivot, timeAxis: { column: 'day', grain: 'week', timeZone: 'UTC' } },
+            { timeZone: 'Asia/Seoul', dateRange: range },
+          ),
+        },
+        actor,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(await views().count()).toBe(1);
+  });
+
+  it('rejects malformed or tampered version 4 payloads and unknown fields', async () => {
+    const base = {
+      sourceId: 1,
+      name: 'view',
+      sourceRevision: await revision(),
+      measureVersions: { 1: 1 },
+    };
+    const bucket = (over: any = {}) =>
+      v4(pivotV4({ ...columnsOne, rowSort: { ...cellOne }, ...over }));
+    const cases: any[] = [
+      // A version 4 state still carries the whole version 3 hierarchy, plus its own bucket fields.
+      { ...base, state: { ...state(), version: 4 } },
+      { ...base, state: v4(pivotV4({ rowHierarchy: undefined })) },
+      { ...base, state: v4(pivotV4({ rowSort: undefined })) },
+      { ...base, state: v4(pivotV4({ expandedRows: undefined })) },
+      // Unknown keys, including an injected SQL fragment, are rejected at every new level.
+      { ...base, state: v4(pivotV4({ sql: 'select * from uploaded_data' })) },
+      {
+        ...base,
+        state: v4(
+          pivotV4({
+            ...columnsOne,
+            rowSort: cellOne,
+            timeAxis: { column: 'day', grain: 'month', timeZone: 'UTC', sql: 'select 1' },
+          }),
+        ),
+      },
+      { ...base, state: { ...v4(pivotV4()), rawSql: 'select 1' } },
+      // The bucket axis needs a temporal column already on an axis, in the saved period timezone.
+      {
+        ...base,
+        state: bucket({ timeAxis: { column: 'amount', grain: 'day', timeZone: 'UTC' } }),
+      },
+      {
+        ...base,
+        state: bucket({ timeAxis: { column: 'day', grain: 'year', timeZone: 'UTC' } }),
+      },
+      { ...base, state: bucket({ timeAxis: { column: 'day', grain: 'day' } }) },
+      {
+        ...base,
+        state: bucket({ timeAxis: { column: 'day', grain: 'day', timeZone: 'Nowhere/Zone' } }),
+      },
+      {
+        ...base,
+        state: bucket({ timeAxis: { column: 'region', grain: 'day', timeZone: 'UTC' } }),
+      },
+      {
+        ...base,
+        state: bucket({ timeAxis: { column: 'day', grain: 'day', timeZone: 'Asia/Seoul' } }),
+      },
+      { ...base, state: bucket({ timeAxis: { column: '', grain: 'day', timeZone: 'UTC' } }) },
+      { ...base, state: bucket({ timeAxis: 'day' }) },
+      { ...base, state: bucket({ timeAxis: [] }) },
+      // Row ordering: enum members, measure requirement and the change-period requirement.
+      { ...base, state: v4(pivotV4({ rowSort: { by: 'sideways', direction: 'asc' } })) },
+      {
+        ...base,
+        state: v4(pivotV4({ rowSort: { by: 'value', direction: 'sideways', measureId: 1 } })),
+      },
+      {
+        ...base,
+        state: v4(pivotV4({ rowSort: { by: 'delta', direction: 'desc', measureId: 1 } })),
+      },
+      { ...base, state: v4(pivotV4({ rowSort: { by: 'percentChange', direction: 'desc' } })) },
+      {
+        ...base,
+        state: v4(pivotV4({ rowSort: { by: 'value', direction: 'desc', measureId: 2 } })),
+      },
+      {
+        ...base,
+        state: v4(pivotV4({ rowSort: { by: 'label', direction: 'asc', measureId: 1 } })),
+      },
+      {
+        ...base,
+        state: v4(pivotV4({ rowSort: { by: 'label', direction: 'asc', columnTuple: [] } })),
+      },
+      {
+        ...base,
+        state: v4(
+          pivotV4({
+            ...columnsOne,
+            rowSort: { by: 'value', direction: 'desc', measureId: 1, columnTuple: [] },
+          }),
+        ),
+      },
+      {
+        ...base,
+        state: v4(
+          pivotV4({
+            rowColumns: ['region', 'channel'],
+            columnColumns: ['day', 'event_time'],
+            rowSort: { by: 'value', direction: 'desc', measureId: 1, columnTuple: ['a'] },
+          }),
+        ),
+      },
+      {
+        ...base,
+        state: v4(
+          pivotV4({
+            ...columnsOne,
+            rowSort: { by: 'value', direction: 'desc', measureId: 1, columnTuple: ['a', 'b'] },
+          }),
+        ),
+      },
+      {
+        ...base,
+        state: v4(
+          pivotV4({
+            ...columnsOne,
+            rowSort: { by: 'value', direction: 'desc', measureId: 1, columnTuple: 'day' },
+          }),
+        ),
+      },
+      {
+        ...base,
+        state: v4(
+          pivotV4({
+            ...columnsOne,
+            rowSort: {
+              by: 'value',
+              direction: 'desc',
+              measureId: 1,
+              columnTuple: [Number.POSITIVE_INFINITY],
+            },
+          }),
+        ),
+      },
+      {
+        ...base,
+        state: v4(
+          pivotV4({
+            ...columnsOne,
+            rowSort: {
+              by: 'value',
+              direction: 'desc',
+              measureId: 1,
+              columnTuple: [{ column: 'day' }],
+            },
+          }),
+        ),
+      },
+      {
+        ...base,
+        state: v4(
+          pivotV4({
+            ...columnsOne,
+            rowSort: {
+              by: 'value',
+              direction: 'desc',
+              measureId: 1,
+              columnTuple: ['x'.repeat(257)],
+            },
+          }),
+        ),
+      },
+      {
+        ...base,
+        state: v4(pivotV4({ ...columnsOne, rowSort: { ...cellOne, sql: 'select 1' } })),
+      },
+      { ...base, state: v4(pivotV4({ ...columnsOne, rowSort: cellOne, rowHierarchy: 'yes' })) },
+      { ...base, state: bucket({ rowColumns: ['region', 'channel', 'day'] }) },
+      { ...base, state: bucket({ rowColumns: ['region', 'region'] }) },
+      {
+        ...base,
+        state: bucket({ timeAxis: undefined, expandedRows: [['A']], rowHierarchy: false }),
+      },
+      // Versions 1 through 3 keep rejecting the version 4 keys as unknown.
+      {
+        ...base,
+        state: v3({
+          ...pivotV3(),
+          timeAxis: { column: 'day', grain: 'day', timeZone: 'UTC' },
+        }),
+      },
+      { ...base, state: v2({ ...pivotV3(), ...{ timeAxis: undefined } }) },
+      { ...base, state: { ...state(), version: 5 } },
+    ];
+    for (const body of cases)
+      await expect(service.create(body, actor)).rejects.toBeInstanceOf(BadRequestException);
+    expect(await views().count()).toBe(0);
+  });
+
+  it('still reads legacy version 1, 2 and 3 rows alongside a version 4 row', async () => {
+    const sourceRevision = await revision();
+    const legacy = await views().save(
+      views().create({
+        sourceId: 1,
+        userId: actor,
+        name: 'legacy',
+        sourceRevision,
+        measureVersions: '{"1":1}',
+        state: JSON.stringify(state()),
+      }),
+    );
+    const pivot2 = { enabled: true, rowColumns: ['region'], columnColumns: [] };
+    const second = await views().save(
+      views().create({
+        sourceId: 1,
+        userId: actor,
+        name: 'second',
+        sourceRevision,
+        measureVersions: '{"1":1}',
+        state: JSON.stringify(v2(pivot2)),
+      }),
+    );
+    const third = await views().save(
+      views().create({
+        sourceId: 1,
+        userId: actor,
+        name: 'third',
+        sourceRevision,
+        measureVersions: '{"1":1}',
+        state: JSON.stringify(v3(pivotV3())),
+      }),
+    );
+    const fourth = await service.create(
+      {
+        sourceId: 1,
+        name: 'fourth',
+        sourceRevision,
+        measureVersions: { 1: 1 },
+        state: v4(
+          pivotV4({
+            ...columnsOne,
+            rowSort: cellOne,
+            timeAxis: { column: 'day', grain: 'month', timeZone: 'UTC' },
+          }),
+        ),
+      },
+      actor,
+    );
+    const listed = await service.list({ sourceId: 1 }, actor);
+    expect(listed.data.map((row: any) => row.id).sort()).toEqual(
+      [legacy.id, second.id, third.id, fourth.data.id].sort(),
+    );
+    const entry = (id: number) => listed.data.find((row: any) => row.id === id);
+    expect(entry(legacy.id).state).toEqual(state());
+    expect(entry(second.id).state).toEqual(v2(pivot2));
+    expect(entry(third.id).state).toEqual(v3(pivotV3()));
+    expect(entry(fourth.data.id).state).toEqual(fourth.data.state);
+    for (const id of [legacy.id, second.id, third.id, fourth.data.id])
+      await expect(service.load({ sourceId: 1, viewId: id }, actor)).resolves.toMatchObject({
+        status: 'SUCCESS',
+      });
+  });
+
+  it('treats a tampered version 4 row as unreadable and still allows deleting it', async () => {
+    const sourceRevision = await revision();
+    const created = await service.create(
+      {
+        sourceId: 1,
+        name: 'tampered-v4',
+        sourceRevision,
+        state: v4(
+          pivotV4({
+            ...columnsOne,
+            rowSort: cellOne,
+            timeAxis: { column: 'day', grain: 'month', timeZone: 'UTC' },
+          }),
+        ),
+        measureVersions: { 1: 1 },
+      },
+      actor,
+    );
+    await views().update(
+      { id: created.data.id },
+      {
+        state: JSON.stringify({
+          ...v4(
+            pivotV4({
+              ...columnsOne,
+              rowSort: cellOne,
+              timeAxis: { column: 'day', grain: 'month', timeZone: 'UTC' },
+            }),
+          ),
+          sql: 'select * from uploaded_data',
+        }),
+      },
+    );
+    const listed = await service.list({ sourceId: 1 }, actor);
+    expect(listed.data[0]).toMatchObject({ id: created.data.id, stale: true, unreadable: true });
+    expect(listed.data[0].state).toBeUndefined();
+    await expect(
+      service.load({ sourceId: 1, viewId: created.data.id }, actor),
+    ).rejects.toBeInstanceOf(ConflictException);
+    await expect(service.remove({ sourceId: 1, viewId: created.data.id }, actor)).resolves.toEqual({
+      status: 'SUCCESS',
+      data: { id: created.data.id },
+    });
   });
 });
