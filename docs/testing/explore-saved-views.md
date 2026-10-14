@@ -115,3 +115,18 @@ VanillaMeta는 소스/사용자별 이름을 붙인 조건을 metadata에 저장
 제품변경0/새결함0, 이전단위·타입·lint·빌드재사용·문서diffcheck. helper최초수정에서첫빌더진입까지제거해요소없음실패→초기진입보존/오류후재진입만제거→정확조건재검증PASS. 임시소스·보기API삭제/지표비활성화, cleanup.json임시0/기존보기1보존확인. gpt-6-luna설정유지/호출0·VoiceOverBLOCKED/실기기touch유지.
 
 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/view-schema-inline-retry-20261014/` results.json, schema-denied-390.png, recovered-390.png, cleanup.json. 이후속기록만미커밋. 모든스키마강제변경/MySQL운영/스크린리더조건완료로확대않음.
+
+
+## 2026-10-14 EXP-VIEW-05 지표 삭제 후 오래된 보기 삭제 HTTP
+
+이전 파일 재선택 후속 기록은 `ffe35356`으로 현재 `codex/self-service-next-20261014` 브랜치에 drumcap 계정으로 커밋·push했고 HEAD/원격 일치를 확인했다. 이번 검증은 해당 커밋 + 아래 안내 수정 diff 기준이다. 기존 통과한 파일 갱신·필터·저장 조합은 반복하지 않았다.
+
+**PASS_SELECTED_VARIANTS — EXP-VIEW-05·07**: 임시 CSV 두 행(amount=10+20, units=200+300)과 지표 두 개, 이전 정의의 보기 두 개를 준비했다. 정상 DELETE /metric으로 첫 지표를 비활성화한 뒤 catalog의 viewRevision 변경을 확인하고 남은 지표의 정상 보기를 추가했다. 실제 1440×1000/390×844 headed Chromium에서 오래된 보기 Enter 불러오기 GET409 → 현재 합계500 및 보기 목록 보존 → 삭제 Enter → 취소 기본 초점 → Shift+Tab 삭제 확인/Enter → 실제 DELETE200/목록 제거 → 목록 재조회 버튼으로 초점 복귀 → 정상 보기 GET200/원state/합계500 복원을 확인했다. 문서 가로 넘침0, 오류·대화상자·복구 캡처를 직접 검토했다. 지표 삭제는 API로 픽스처를 준비했으며 지표 삭제 UI 전체를 검증한 것은 아니다.
+
+**발견·수정·재검증**: 409 안내가 같은 원인을 두 번 설명했고, 불러오기 오류가 삭제 확인창에도 남아 삭제 실패처럼 보였다. PersonalSavedViews에서 탐색409 안내를 한 번만 설명하고 화면 새로고침/새 보기 저장을 안내하도록 정리했다. 삭제창을 열 때 이전 요청 오류를 지워 실제 삭제 실패만 해당 창에 표시한다. 기존 탐색409 단위에 오류 잔류 검사를 추가해 수정 전 실패를 재현했고, 수정 후 관련4개 PASS/64skip(409 보존·삭제 초점·실제 삭제 실패 유지 포함). FE 타입/변경 lint/production build 및 diff check PASS. 영향받은 오류→삭제 경로만 재검증했고 전체 저장/E2E는 반복하지 않았다.
+
+초기 삭제창 캡처는 진입 애니메이션 중이어서 안정화 뒤 다시 캡처했다. 이는 제품 렌더링 실패로 집계하지 않았다. Aside 기존 탭의 interactive snapshot에는 조작 요소가 없어, 기존 허용된 headed Playwright 대체로 실제 화면을 검증했다. 최초 단위 명령은 편집 대상 상대 경로를 잘못 지정해 편집 없이 기존 검사를 실행했고, 정확한 경로에서 회귀 검사 실패→수정→통과를 확인했다.
+
+증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/view-stale-delete-20261014/`의 results.json(최초 HTTP), before-conflict-390.png, stale-error-delete-dialog-390.png, final-results.json(수정 후), conflict-1440.png/conflict-390.png, delete-dialog-1440.png/delete-dialog-390.png, recovered-1440.png/recovered-390.png, regression-before.log/regression-after.log, build.log, cleanup.json. 임시 source21/22/23·보기는 삭제, 지표는 정상 soft-delete 처리했다. DB 확인 temporarySources/Views/activeTemporaryMetrics=0, 기존 source3/view1 보존. gpt-6-luna 설정 유지/AI 호출0, VoiceOver BLOCKED 유지.
+
+잔여 범위: 강제 열 스키마 변경 이후 충돌(정상 파일 교체는 스키마 변경을 거부), MySQL·다중 서버 운영 통합, 실제 VoiceOver·실기기 터치/전체 키보드 조합은 완료로 확대하지 않는다. 이번 안내 수정과 이 검증 기록은 미커밋이다.

@@ -1030,4 +1030,8 @@ it('exploration 409 leaves current state and saved row available for deletion', 
   await screen.findByText(/지표·열 정의가 변경되어/);
   expect(api.apply).not.toHaveBeenCalled();
   expect(disabled('보기 1 보기 삭제')).toBe(false);
+  fireEvent.click(button('보기 1 보기 삭제'));
+  const dialog = screen.getByRole('dialog', { name: '개인 저장 보기 삭제' });
+  expect(within(dialog).queryByRole('alert')).toBeNull();
+  expect(api.del).not.toHaveBeenCalled();
 });

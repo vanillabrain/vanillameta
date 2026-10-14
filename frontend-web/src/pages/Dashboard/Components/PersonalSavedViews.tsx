@@ -197,10 +197,10 @@ function errorText(error: unknown, subject: 'dashboard' | 'explore') {
   const body = e?.response?.data;
   const nested = body?.data as { message?: unknown };
   const server = [body?.data, nested?.message, body?.message].find(message => typeof message === 'string' && message.trim());
+  if (e?.response?.status === 409 && subject === 'explore')
+    return '지표·열 정의가 변경되어 이 저장 보기를 적용할 수 없습니다. 보기는 삭제되지 않았습니다. 지표 탐색 화면을 새로고침한 뒤 현재 조건을 새 보기로 저장해 주세요.';
   if (e?.response?.status === 409)
-    return `${
-      subject === 'explore' ? '지표·열 정의가' : '대시보드 정의가'
-    } 변경되어 이 저장 보기를 적용할 수 없습니다. 보기는 삭제되지 않았습니다.${
+    return `대시보드 정의가 변경되어 이 저장 보기를 적용할 수 없습니다. 보기는 삭제되지 않았습니다.${
       typeof server === 'string' ? ` ${server}` : ''
     }`;
   return typeof server === 'string'
@@ -451,6 +451,7 @@ export default function PersonalSavedViews<State extends ViewPeriodState = Saved
                 aria-label={`${view.name} 보기 삭제`}
                 onClick={event => {
                   trigger.current = event.currentTarget;
+                  setError('');
                   setDeleting(view);
                 }}
               >
