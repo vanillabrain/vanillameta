@@ -168,6 +168,13 @@ function ValidDashboardPivot({ item, common, dateRange, paused, onFilter, onRemo
         filters={filters}
         dateRange={range}
         paused={paused || filters.length > 5 || timeUnsupported}
+        pauseReason={
+          filters.length > 5
+            ? 'Pivot 집계를 중지했습니다. 기본·공통 필터를 5개 이하로 줄여 주세요.'
+            : timeUnsupported
+            ? 'Pivot 집계를 중지했습니다. 공통 기간을 날짜 단위로 선택해 주세요.'
+            : undefined
+        }
         onFilter={next => {
           const changed = next.filter(f => !filters.some(old => JSON.stringify(old) === JSON.stringify(f)));
           if (changed.length) onFilter(mergePivotFilters(common, changed));

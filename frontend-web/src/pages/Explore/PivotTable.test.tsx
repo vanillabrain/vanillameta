@@ -272,3 +272,11 @@ it('controlled restored axes notify readiness and block stale exports until the 
   expect((screen.getByRole('button', { name: 'Pivot CSV 내보내기' }) as HTMLButtonElement).disabled).toBe(false);
   expect(ready.mock.calls.at(-1)[0].reason).toBe('');
 });
+
+it('explains paused reason without querying or enabling export', async () => {
+  render(<PivotTable {...props()} paused pauseReason="필터를 5개 이하로 줄여 주세요." />);
+  expect(screen.getByText('필터를 5개 이하로 줄여 주세요.')).toBeTruthy();
+  expect(screen.queryByText('완성한 기간과 지표·행 차원을 선택하세요.')).toBeNull();
+  expect(api.post).not.toHaveBeenCalled();
+  expect((screen.getByRole('button', { name: 'Pivot CSV 내보내기' }) as HTMLButtonElement).disabled).toBe(true);
+});

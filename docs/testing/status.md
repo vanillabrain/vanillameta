@@ -321,3 +321,13 @@ COLD-02~05 선택조건: 같은1391572행으로 실제gpt-6-luna 생성→dashbo
 2026-10-14 PIVOT-DASH-01~04 PASS_SELECTED_VARIANTS: 저장 Pivot 대시보드스냅샷·App공통필터·날짜override·390px키보드/디자인. [상세](dashboard-pivot.md). gpt-6-luna/VoiceOver차단유지.
 
 2026-10-14 PIVOT-DASH-03 정의 불일치 후속: 전체409로 제거 경로가 사라지는 오류 수정→Aside1440/Chromium390·Enter 제거/재조회 PASS. 기존 QA snapshot 원복. 정의 편집·재추가 전체 여정/혼합목록 UI는 NOT_RUN. [상세](dashboard-pivot.md#2026-10-14-정의-변경-복구-후속). gpt-6-luna 및 VoiceOver BLOCKED 유지.
+
+2026-10-14 PIVOT-DASH-03/04 후속: 실제 지표 정의 label fixture 변경→버전 불일치 안내→새 보기 저장·대시보드 재추가·오류/정상 혼합표시·기존 오류카드 Enter 제거·재조회 PASS. 긴 제목390px overflow0/레이블·정렬 PASS. 원 설정 복구/생성보기 정리. [상세](dashboard-pivot.md#2026-10-14-정의-갱신재추가-및-긴-제목-후속). 필터 제한/timestamp 경고 UI NOT_RUN, VoiceOver BLOCKED.
+
+2026-10-14 PIVOT-DASH-02/04 경고 후속: 합성6필터·timestamp 기간 경고/요청0/CSV차단·Enter 초기화복구·390px 디자인 PASS. 잘못된 중지 안내를 원인별로 수정. [상세](dashboard-pivot.md#2026-10-14-합성-필터timestamp-경고-후속). Pivot 연결 명세 잔여 변형 해소; VoiceOver/실기기touch 및 지표편집UI는 제외 범위 유지.
+
+2026-10-14 PIVOT-03/06/07/08 후속: 두 행축 실제저장/재조회·28열 중12열 표시·CSV범위/숨겨진4344800 전체합포함·390px Enter복원/내보내기 PASS. 새결함0/보기정리. [상세](explore-pivot.md#2026-10-14-두-행축-복원12열-초과-후속). 지연소스교체UI·운영부하·실기기touch/VoiceOver 잔여유지.
+
+## 2026-10-14 지연 응답·소스 전환 후속
+
+PIVOT-04 **PASS_SELECTED_VARIANTS**: 실제headed1440/390에서 source3 Pivot 응답을 보류→source4(지표0) 전환→늦은 응답 해제. 기존 요청 취소/늦은 응답 후 source4 표 없음·CSV 차단, source3 복귀 새201/정상표 PASS. 지연 중 저장/CSV차단·Pivot Enter 조작·문서overflow0 및 캡처 디자인 확인 PASS. source4 기존 연결 암호화키가 현재 서버와 달라 같은 Rill source3 설정을 임시 차용했고 원본 정확히 복구/백업삭제. 지표있는 두 소스의 경쟁응답/취소불가transport는 NOT_RUN; 취소 및 빈소스격리 범위만 통과. CSV다운로드·전체Tab·실기기·운영동시부하 재실행안함, VoiceOverBLOCKED/gpt-6-luna유지. 새제품수정0, 이전단위/빌드재사용. 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/pivot-stale-20261014/RESULTS.md`, `ui-results.json`, `pending-*.png`, `source4-*.png`, `recovered-*.png`. 미커밋.

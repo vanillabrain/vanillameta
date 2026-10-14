@@ -39,6 +39,7 @@ type Props = {
   filters: ExploreFilter[];
   dateRange?: ExploreDateRange;
   paused: boolean;
+  pauseReason?: string;
   fixedAxes?: boolean;
   embedded?: boolean;
   axes?: PivotAxes;
@@ -296,7 +297,7 @@ export default function PivotTable(props: Props) {
         {busy
           ? 'Pivot 집계 중…'
           : paused
-          ? '완성한 기간과 지표·행 차원을 선택하세요.'
+          ? props.pauseReason || '완성한 기간과 지표·행 차원을 선택하세요.'
           : result
           ? `Pivot ${result.rows.length}행 · ${result.columns.length}열 그룹 적용됨`
           : ''}

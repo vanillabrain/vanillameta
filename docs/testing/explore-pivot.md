@@ -33,3 +33,15 @@ CSV는 최대50행×12열 표시 그룹만 내보내며 숨겨진 그룹을 포�
 
 
 PIVOT-06~08 PASS_SELECTED_VARIANTS (2026-10-14): Aside 실제 저장·새로고침·복원·Enter 다운로드 확인. headed Chromium390×844에서 복원/Tab 내보내기/Enter 다운로드·overflow0. 실제 다운로드17셀 요청값 exact/비율 independent oracle±1e-9. BE신규1·FE CSV/상태/Pivot/SourceExplore47+신규stale export1 PASS, FE타입·변경lint·BE/FEbuild·diffcheck PASS. 기존Explore shape 회귀 발견→mode는Pivot만직렬화→22회귀재검사PASS. 응답 raw 숫자 문자열을CSV에추가반올림없이저장(집계자체의DOUBLE오차는유지). 원시CSV·XHR·캡처·결과: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/pivot-saved-export-20261014/RESULTS.md`. 기존PIVOT01~05 전체반복안함. 표시제한CSV/큰정수/escaping은단위선택검사, 실제파일모바일·복원은UI.2행축실브라우저저장/실기기/VoiceOverNOT_RUN/BLOCKED유지. AI설정codex/gpt-6-luna 유지·모델호출0. 미커밋.
+
+## 2026-10-14 두 행축 복원·12열 초과 후속
+
+PIVOT-03/06/07/08 잔여 선택 변형: source3 같은1391572행, 전체기간/필터없음. Aside실제 device_type+app_or_site 행2개/device_os 열 설정→새 보기 저장→새로고침→Enter 복원 PASS. 18행/28열 중12열 표시·숨겨진그룹안내 PASS. headed390px 복원·표 내부스크롤·문서overflow0·Enter 실제CSV다운로드 PASS. 캡처직접디자인검토(축/버튼/포커스/제한안내/표).
+
+표시12열 request합630168200 vs 전체634513000으로 숨겨진16열4344800이 전체에 포함. 다운로드파일의 모든 export_scope=displayed_groups_only;totals_include_hidden_groups 및 grand_total정수 일치 PASS. 기존SQL기본정답/Rill비교재사용; 이번새축 전셀독립SQL/RillUI비교는 수행하지 않았다. 새 오류0/제품코드변경0, 생성보기7만정리. 이전단위·빌드반복안함.
+
+증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/pivot-two-axes-20261014/RESULTS.md`, `two-axes-mobile.png`, `two-axes-desktop.png`, `limited.csv`, `response.json`, `csv-results.json`. 두 행축저장/실제12열초과는 이 범위에서해소. 남은 지연응답후소스교체UI·운영동시부하·실기기touch NOT_RUN; VoiceOverBLOCKED 및 gpt-6-luna유지.
+
+## 2026-10-14 지연 응답·소스 전환 후속
+
+PIVOT-04 **PASS_SELECTED_VARIANTS**: 실제headed1440/390에서 source3 Pivot 응답을 보류→source4(지표0) 전환→늦은 응답 해제. 기존 요청 취소/늦은 응답 후 source4 표 없음·CSV 차단, source3 복귀 새201/정상표 PASS. 지연 중 저장/CSV차단·Pivot Enter 조작·문서overflow0 및 캡처 디자인 확인 PASS. source4 기존 연결 암호화키가 현재 서버와 달라 같은 Rill source3 설정을 임시 차용했고 원본 정확히 복구/백업삭제. 지표있는 두 소스의 경쟁응답/취소불가transport는 NOT_RUN; 취소 및 빈소스격리 범위만 통과. CSV다운로드·전체Tab·실기기·운영동시부하 재실행안함, VoiceOverBLOCKED/gpt-6-luna유지. 새제품수정0, 이전단위/빌드재사용. 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/pivot-stale-20261014/RESULTS.md`, `ui-results.json`, `pending-*.png`, `source4-*.png`, `recovered-*.png`. 미커밋.

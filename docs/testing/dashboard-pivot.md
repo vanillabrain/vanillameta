@@ -24,3 +24,21 @@ Aside1440px와 headed Chromium390px 오류 화면·키보드 Enter 제거 DELETE
 증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/dashboard-pivot-recovery-20261014/RESULTS.md`, `definition-before.png`, `recovery-desktop.png`, `recovery-mobile.png`, `ui-results.json`.
 
 남은 NOT_RUN: 정의 변경 후 저장 보기 갱신·재추가 전체 여정, 유효/오류 Pivot 혼합목록 실제 UI, 합성 필터5개 초과·timestamp 경고 UI, 긴 이름 변형·실기기 touch. VoiceOver BLOCKED. gpt-6-luna 설정 유지/AI호출0.
+
+## 2026-10-14 정의 갱신·재추가 및 긴 제목 후속
+
+기준 `0850f0ec`, 제품 코드 변경 없이 PIVOT-DASH-03/04 미검증 변형만 진행했다. 격리 QA 지표1의 definition.label을 DB fixture에서 변경하여 실제 catalog revision이 바뀌는 조건을 만들었다(지표 편집 UI 자체는 NOT_RUN). 기존 보기 불러오기409·안내/원보기 보존→목록 재조회→새 Pivot 설정→긴 이름 새 보기 저장→기존 대시보드 추가→오류/정상 혼합 카드 표시→기존 오류 카드 Enter 제거→새로고침 후 갱신한 Pivot 정상 표시 PASS.
+
+390px 긴 제목 줄바꿈·제거/CSV 레이블·표 내부 스크롤·문서 overflow0 PASS. 제목18px·제거 버튼36px·섹션폭366px. 데스크톱/모바일 캡처 직접 검토. 최초 모바일 캡처는 고정헤더가 제목을 가려 증빙으로 채택하지 않고 위치 조정 후 재캡처했다. 제품 수정 필요 오류는 없었다. 전체 기간 숫자는 관찰만 하며 이전 정확성 검증을 재사용했다. 관련 코드 변경이 없어 빌드/단위를 반복하지 않았다.
+
+종료 후 원 지표 정의·대시보드 Pivot snapshot 정확히 원복하고 이번 생성 보기4만 삭제했다. AI gpt-6-luna 설정·VoiceOver BLOCKED 유지, AI호출0. 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/pivot-readd-20261014/RESULTS.md` 및 `mixed-desktop.png`, `readded-mobile.png`, `ui-results.json`.
+
+잔여 NOT_RUN: 합성 필터5개 초과·timestamp 기간 경고 UI, 실기기touch, 실제 지표 편집 UI를 통한 정의 변경. 재추가/혼합목록/긴 제목 변형은 이 후속 범위에서 해소했다.
+
+## 2026-10-14 합성 필터·timestamp 경고 후속
+
+PIVOT-DASH-02/04 잔여 경고 변형: 기본bid_floor + 공통5컬럼=6개, 저장보기의 ISO UTC timestamp1시간을 실제 UI에서 적용했다. 경고·Pivot 요청0·이전표 제거·CSVdisabled PASS. Enter 적용/필터 초기화 후 집계재개·표복구 PASS. 시간차트 직접클릭은 이 실행 범위가 아니며 timestamp 저장보기 경로로 확인했다.
+
+최초 status가 원인과 다른 기간·지표선택 문구여서 pauseReason으로 원인별 중지 안내를 보완했다. 최종390px overflow0·경고/기간 줄바꿈·제목/버튼/비활성상태 디자인 직접 캡처검토 PASS. Aside desktop 최초화면/헤디드390 최종화면 증빙. FE관련11PASS/타입·린트·build·diffcheck PASS. 테스트fixture시간문자열 및 미등록matcher오류는 검증코드에서 수정했다.
+
+증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/pivot-limits-20261014/RESULTS.md`, `filter-mobile.png`, `time-mobile.png`, `ui-results.json`. 생성 QA보기5/6만 삭제. gpt-6-luna/VoiceOverBLOCKED 유지. 현재 명세의 Pivot 연결 잔여 경고·복구·긴제목 변형은 완료. 실제지표편집UI·실기기touch/VoiceOver는 미검증 범위로 유지한다.
