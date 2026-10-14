@@ -6,6 +6,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { PersonalView } from '../dashboard/entities/personal-view.entity';
 import { ExploreViewController } from './explore-view.controller';
 import { ExploreViewService } from './explore-view.service';
+import { SemanticProposalService } from './semantic-proposal.service';
+import { SemanticProposalController } from './semantic-proposal.controller';
 import { Module } from '@nestjs/common';
 import { AiModule } from '../ai/ai.module';
 import { ConnectionModule } from '../connection/connection.module';
@@ -19,6 +21,7 @@ import { BiService } from './bi.service';
   imports: [AiModule, ConnectionModule, TypeOrmModule.forFeature([PersonalView, Dashboard])],
   controllers: [
     BiController,
+    SemanticProposalController,
     BiExploreController,
     ExploreViewController,
     DashboardPivotController,
@@ -26,6 +29,7 @@ import { BiService } from './bi.service';
   ],
   providers: [
     BiService,
+    SemanticProposalService,
     BiExploreService,
     ExploreViewService,
     DashboardPivotService,

@@ -13,7 +13,7 @@
 
 ## Preconditions
 
-- [UC-012](../use_cases/UC-012-semantic-creation.md)의 A/B/C 구현 후 실행한다. 현재 모두 NOT_RUN이다.
+- [UC-012](../use_cases/UC-012-semantic-creation.md)의 A API만 부분 실행했다. [A 증빙](../testing/semantic-proposal.md)에 단위·실LLM/API·독립 계산 결과를 기록한다. B 저장/C UI 및 운영 DB는 NOT_RUN이다.
 - 공식 Rill source7 fixture를 비공개 테스트 분석에 사용한다. 사용자 원본을 변경하지 않는다.
 
 ## Flow
@@ -48,3 +48,11 @@
 - 정확한 생성 ID만 기록하고 원본 분석·Aside 세션을 삭제하지 않는다.
 - Rill의 이동한 데모 날짜와 VM 원본 UTC를 동일 버킷으로 비교하지 않는다.
 - 단위·API·실LLM·UI·DB migration·운영 DB 검증을 구분한다. 설계 lint/pin 성공을 TC 실행 PASS로 표시하지 않는다.
+
+## A 부분 실행 — 2026-10-15
+
+- TC01: 실제 제안·미리보기·오류 요청 전후 모든 메타데이터 테이블 행 수 동일. 추가 미리보기 전후 SQLite 전체 dump SHA256 동일. provider 문맥의 원본 행/파일 경로 제외는 단위 검사 PASS. 영수증 테이블은 아직 존재하지 않는다.
+- TC02: 실제 지정 LLM/API에서 요청634513000·평균5.571238676523271·OS28개/합계 동일. 독립 Parquet 평균5.571238676526883과 상대 오차1e-9 이내. 숫자별 추세169개 PASS.
+- TC04/05/11: 비활성·다른 소스·손상 정의·단위/계산 identity·안정 차원 ID·원시 SQL/미지 필드/참조/타입 거절·취소 전후 검사는 단위 PASS. 실제 API의 미지 SQL400/stale source409 PASS. 실제 provider 장애·늦은 응답·UI 마지막 결과 유지는 NOT_RUN.
+- TC03: 계획의 동등 재사용·표시 변형·30개 초과 후보 검사는 단위 PASS. 실제 저장 중복·같은 지표 ID는 B NOT_RUN.
+- 표의 전체 시나리오 상태는 A/B/C 전체 수용 기준으로 유지한다. 부분 PASS를 전체 TC PASS로 승격하지 않는다. TC06~10/12는 NOT_RUN이며 UI gate는 기존 auto-review 거절로 BLOCKED다.

@@ -1,6 +1,6 @@
 # P2 — 질문에서 지표·차원·분석을 함께 만드는 설계
 
-상태: Draft / 설계 전용. UC-012·FR-007/008·NFR-004. API·DB·고객 UI는 아직 구현하지 않았다. 현재 동작과 예정 계약을 혼동하지 않는다.
+상태: Draft / A API 구현·검증 완료, B/C 설계 상태. UC-012·FR-007/008·NFR-004. 쓰기 없는 제안·미리보기 API만 구현했으며 원자 저장·DB migration·고객 UI 연결은 미구현이다. [실행 증빙](../testing/semantic-proposal.md)을 확인한다. 현재 동작과 예정 계약을 혼동하지 않는다.
 
 ## 고객 흐름과 첫 범위
 
@@ -108,3 +108,9 @@ P2 저장은 신규 `AnalysisCreationReceipt`의 **actorId+requestId DB unique �
 ## 출하 조건
 
 [TC-012](../test_cases/TC-012-semantic-creation.md)의 제안 DB무쓰기·canonical 계산·중복·rollback·권한/충돌·실LLM·실제UI 저장/새로고침이 필요하다. 현재 문서·설계 검증과 제품 기능 PASS는 별개다. [계획](../plans/UC-012.md)의 A/B/C는 구현 체크포인트이며 A만으로 고객 기능/P2 완료를 선언하지 않는다.
+
+## A 구현 경계 — 2026-10-15
+
+`POST /bi/analysis-proposals`는 `{sourceId,prompt}`를 받아 proposal·생성/재사용 plan·서버 draft·previewDigest·categoryLimit을 반환한다. `POST /bi/analysis-proposals/preview`는 `{proposal}`만 받아 다시 검증·컴파일하고 기존 숫자+추세 미리보기를 반환한다. 두 경로는 JWT 사용자 소스 소유권을 검사하며 저장 경로를 제공하지 않는다. LLM이 요청과 다른 소스나 revision을 반환하면 거절한다.
+
+`semantic-proposal.ts`가 strict validator/identity/catalog를 담당하고 `structured-widget.ts`가 기존 BiService.prepare와 SQL 제작기를 공유한다. AI에는 열 이름·타입/숫자·시간 여부와 유효 카탈로그 최대30개만 제공하며 동등 비교는 전체 유효 카탈로그를 검색한다. 정확히 같은 계산·표시 정의의 임시 key는 합치되 표시 정밀도 등이 다르면 별도 블록 정의를 유지한다. 같은 identity의 여러 create plan 항목은 B 저장 시 하나의 지표 ID로 묶어야 하며 A의 plan 항목 수는 신규 DB row 수가 아니다.

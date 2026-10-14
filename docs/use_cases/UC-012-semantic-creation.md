@@ -14,7 +14,7 @@
 
 - 로그인한 담당자가 소유한 ready DuckDB 파일 소스가 있다.
 - 지정 LLM과 기존 SQL/compiler·미리보기 경계가 준비되어 있다.
-- 이 UC는 설계 상태이며 현재 구현된 API/기능이 아니다.
+- A의 쓰기 없는 제안·미리보기 API는 구현·검증했다. 단계4~6의 원자 저장·재조회·고객 UI는 미구현이며 UC 전체는 Draft다. [A 실행 증빙](../testing/semantic-proposal.md)을 확인한다.
 
 ## Main Success Scenario
 

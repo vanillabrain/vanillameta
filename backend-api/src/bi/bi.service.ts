@@ -7,7 +7,8 @@ import { Dashboard } from '../dashboard/entities/dashboard.entity';
 import { SourceAccessService } from '../ownership/source-access.service';
 import { ConnectionService } from '../connection/connection.service';
 import { AiDashboardService } from '../ai/ai-dashboard.service';
-import { metricFields, metricExpression } from './metric-expression';
+import { compileMetricWidget } from './structured-widget';
+import { metricFields } from './metric-expression';
 import { quoteColumn, sourceQuery, validateDraft } from '../ai/dashboard-draft';
 import {
   validateBlockLayouts,
@@ -191,46 +192,19 @@ export class BiService {
       definition.sourceId !== profile.sourceId
     )
       throw new BadRequestException('지표 정의를 확인해 주세요.');
-    const expr = metricExpression(definition, profile);
-    if (!['number', 'bar', 'line'].includes(body.chart))
-      throw new BadRequestException('차트를 선택해 주세요.');
-    const dimension =
-      body.chart === 'number' ? undefined : profile.columns.find(c => c.name === body.dimension);
-    if (body.chart !== 'number' && !dimension)
-      throw new BadRequestException('분류 컬럼을 선택해 주세요.');
-    if (body.chart === 'line' && !dimension.temporal)
-      throw new BadRequestException('추세 차트에는 날짜 컬럼이 필요합니다.');
-    const group = dimension ? quoteColumn(dimension.name) : undefined;
-    const sql = `SELECT ${group ? `${group} AS dimension, ` : ''}${expr} AS value FROM source${
-      group
-        ? ` GROUP BY ${group} ORDER BY ${
-            body.chart === 'line' ? 'dimension' : 'value DESC'
-          } LIMIT 500`
-        : ''
-    }`;
     const title = this.text(body.title, 300);
+    const { widget, dimension } = compileMetricWidget(
+      definition,
+      profile,
+      body.chart,
+      body.dimension,
+      title,
+    );
     const draft = {
       databaseId: profile.sourceId,
       title,
       explanation: definition.label,
-      widgets: [
-        {
-          title,
-          description: definition.label,
-          type:
-            body.chart === 'number'
-              ? 'BOARD_NUMERIC'
-              : body.chart === 'bar'
-              ? 'CHART_COLUMN'
-              : 'CHART_LINE',
-          sql,
-          valueField: 'value',
-          ...(group ? { categoryField: 'dimension' } : {}),
-          decimalPlaces: definition.decimalPlaces,
-          suffix: definition.unit ? ' ' + definition.unit : '',
-          numberNotation: definition.numberNotation === 'plain' ? 'full' : 'compact',
-        },
-      ],
+      widgets: [widget],
     };
     const snapshot = {
       schemaVersion: 1,
