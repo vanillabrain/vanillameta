@@ -8,6 +8,7 @@ export interface DashboardDraft {
   explanation: string;
   layoutSizes?: Array<{ width: 6 | 12; height: 3 | 5 | 7 }>;
   widgets: Array<{
+    blockId?: string;
     title: string;
     description: string;
     type: string;
@@ -115,6 +116,12 @@ export function validateDraft(input: any): DashboardDraft {
   ) {
     throw new BadRequestException('draft requires 1 to 6 widgets');
   }
+  const ids = input.widgets.map(w => w?.blockId).filter(id => id !== undefined);
+  if (
+    ids.some(id => typeof id !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(id)) ||
+    new Set(ids).size !== ids.length
+  )
+    throw new BadRequestException('invalid block identity');
   if (
     input.layoutSizes !== undefined &&
     (!Array.isArray(input.layoutSizes) ||
@@ -142,6 +149,7 @@ export function validateDraft(input: any): DashboardDraft {
       if (w.numberNotation !== undefined && !['full', 'compact'].includes(w.numberNotation))
         throw new BadRequestException('invalid numberNotation');
       return {
+        ...(w.blockId !== undefined ? { blockId: w.blockId } : {}),
         title: text(w.title, 300),
         description: text(w.description, 1000, true),
         type: w.type,

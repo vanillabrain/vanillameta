@@ -16,7 +16,7 @@
 
 | FR-007 | Prompt lifecycle | As a 운영 담당자, I want 한 대화에서 대시보드 생성·수정·저장·게시하기 so that 제작 업무를 하나의 흐름으로 끝낸다. | High | Open |
 | FR-008 | Semantic creation | As a 운영 담당자, I want 소스에서 지표·차원을 제안받아 만들고 재사용하기 so that SQL 없이 계산 기준을 유지한다. | High | Open |
-| FR-009 | Block editing | As a 운영 담당자, I want 블록 추가·삭제·복제·이동·크기 조절과 AI 수정을 함께 사용하기 so that 원하는 구성을 직접 만든다. | High | Open |
+| FR-009 | Block editing | As a 운영 담당자, I want 블록 추가·삭제·복제·이동·크기 조절과 AI 수정을 함께 사용하기 so that 원하는 구성을 직접 만든다. | High | In Progress |
 | FR-010 | Responsive editing | As a 운영 담당자, I want 모바일과 데스크톱에서 같은 결과물을 편집하기 so that 기기 전환 후 작업을 이어간다. | High | Open |
 | FR-011 | Publish versions | As a 운영 담당자, I want 저장과 게시를 구별하고 링크 공유·재게시·공유 중지를 실행하기 so that 의도한 버전과 범위만 전달한다. | High | Open |
 | FR-012 | Remix with source mapping | As a 공유 수신자, I want 허용된 대시보드를 복제하고 내 데이터로 재사용하기 so that 원본을 바꾸지 않고 새 분석을 만든다. | High | Open |
@@ -29,7 +29,7 @@
 | NFR-002 | Numeric consistency | 동일 조건의 KPI 값과 시계열 버킷은 서버 결과를 사용하며 표시 정밀도를 유지하고 부동소수점 집계의 상대 허용 오차1e-9 안에서 일치한다.                      | Reliability | High     | Verified |
 
 | NFR-003 | Cross viewport state |390/768/1440px 편집·조회에서 가로 넘침0px, 선택·미저장 정의·undo 상태 보존, 비대상 블록 ID/배치 동일을 TC-005로 확인한다. | Usability | High | Open |
-| NFR-004 | Operation integrity | 재시도 시 중복 저장·게시·복제0개, revision 충돌 시 비의도 변경0개, 게시 실패 시 성공한 초안 저장 보존을 TC-005로 확인한다. | Reliability | High | Open |
+| NFR-004 | Operation integrity | 재시도 시 중복 저장·게시·복제0개, revision 충돌 시 비의도 변경0개, 게시 실패 시 성공한 초안 저장 보존을 TC-005로 확인한다. | Reliability | High | In Progress |
 
 ## Constraints
 

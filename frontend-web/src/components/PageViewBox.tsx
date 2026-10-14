@@ -151,10 +151,10 @@ const DesktopViewBox = props => {
           alignItems="center"
           sx={{
             width: '100%',
-            height: responsive ? { xs: 'auto', sm: '57px' } : '57px',
-            flexWrap: responsive ? { xs: 'wrap', sm: 'nowrap' } : 'nowrap',
-            gap: responsive ? { xs: 1, sm: 0 } : 0,
-            py: responsive ? { xs: 1.5, sm: 0 } : 0,
+            height: responsive ? { xs: 'auto', lg: '57px' } : '57px',
+            flexWrap: responsive ? { xs: 'wrap', lg: 'nowrap' } : 'nowrap',
+            gap: responsive ? { xs: 1, lg: 0 } : 0,
+            py: responsive ? { xs: 1.5, lg: 0 } : 0,
             px: '20px',
             backgroundColor: '#ffffff',
             borderRadius: '6px 6px 0px 0px',
@@ -166,7 +166,10 @@ const DesktopViewBox = props => {
             alignItems="center"
             sx={{
               width: '100%',
-              maxWidth: { sm: `calc(100% - ${button ? 390 : 100}px)`, md: `calc(100% - ${button ? 360 : 100}px)` },
+              minWidth: 0,
+              maxWidth: responsive
+                ? { xs: '100%', lg: `calc(100% - ${button ? 360 : 100}px)` }
+                : { sm: `calc(100% - ${button ? 390 : 100}px)`, md: `calc(100% - ${button ? 360 : 100}px)` },
             }}
           >
             {iconName && (
@@ -211,11 +214,11 @@ const DesktopViewBox = props => {
 
           {/* date, button */}
           <Stack
-            direction={responsive ? { xs: 'column', sm: 'row' } : 'row'}
+            direction={responsive ? { xs: 'column', lg: 'row' } : 'row'}
             justifyContent="flex-end"
-            alignItems={responsive ? { xs: 'flex-start', sm: 'center' } : 'center'}
+            alignItems={responsive ? { xs: 'flex-start', lg: 'center' } : 'center'}
             flexShrink="0"
-            sx={{ width: responsive ? { xs: '100%', sm: 'auto' } : 'auto', gap: responsive ? { xs: 1, sm: 0 } : 0 }}
+            sx={{ width: responsive ? { xs: '100%', lg: 'auto' } : 'auto', gap: responsive ? { xs: 1, lg: 0 } : 0 }}
           >
             <Box
               component="span"
@@ -239,7 +242,7 @@ const DesktopViewBox = props => {
               direction="row"
               justifyContent="flex-end"
               alignItems="center"
-              sx={{ width: responsive ? { xs: '100%', sm: 'auto' } : 'auto', flexWrap: 'wrap' }}
+              sx={{ width: responsive ? { xs: '100%', lg: 'auto' } : 'auto', flexWrap: 'wrap' }}
             >
               {button}
             </Stack>

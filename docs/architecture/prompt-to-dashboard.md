@@ -79,3 +79,9 @@ AI와 캔버스는 add/remove/duplicate/update/move/resize 등의 제한된 작�
 ## 확인할 설계 선택
 
 snapshot 기본 게시와 모바일 이동 버튼은 이 문서의 구현 제안이다. 사용자 지정 방식이 있으면 그 지시를 따른다. URL 버전 정책, 텍스트/필터 블록의 구체 형식, 결과 snapshot 용량/만료는 해당 P 단계의 좁은 설계에서 정한다. 미결정을 핑계로 P1을 중단하거나 임의 동작을 완료로 처리하지 않는다.
+
+## P1 첫 구현 반영 — UC-006
+
+blockId를 기존 JSON에 추가하고 레거시 조회는 결정적 ID를 반환한다. 다음 명시 저장에서 기록하며 DB 위젯을 다시 만들어도 ID를 유지한다. 서버는 저장 layout/mapping을 blockId에 연결해 읽기 전용 blockLayouts를 반환하고 조회 Card는 이 geometry를 표시한다. 직접 grid 저장은 분석 위젯 순서를 유지한다. 선택 AI 수정은 대상 하나만 서버에서 합치며 비대상 widgets/제목과 geometry를 보존한다. 기존 SQL compiler/필터 API는 유지한다.
+
+구현 상세와 증빙은 [UC-006](../use_cases/UC-006-preserve-block-layout.md) 및 [검증 기록](../testing/block-layout-continuity.md). 기존1~6차트/숫자·차트 유형 한도는 유지하며 모든 Block kind/통합 undo/mobile editor 완료는 아니다. 일반 AI 저장의 structured metric snapshot 정리는 기존 경로가 유지되며 모든 지표 링크 보존/신규 정의 기록은 P2의 별도 구현 계약이 남았다.

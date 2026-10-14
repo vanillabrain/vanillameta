@@ -1014,7 +1014,11 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
           aria-busy={busy}
           sx={{
             display: 'grid',
-            gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'repeat(2, minmax(0, 1fr))' },
+            gridTemplateColumns: {
+              xs: 'minmax(0, 1fr)',
+              md: draft?.blockLayouts ? 'repeat(12, minmax(0, 1fr))' : 'repeat(2, minmax(0, 1fr))',
+            },
+            gridAutoRows: draft?.blockLayouts ? { md: 'minmax(80px, auto)' } : undefined,
             gap: 2,
             opacity: busy || error ? 0.4 : 1,
             pointerEvents: busy || error ? 'none' : 'auto',
@@ -1022,7 +1026,8 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
         >
           {preview.widgets.map((widget: any, i: number) => (
             <Card
-              key={i}
+              key={draft?.widgets?.[i]?.blockId || i}
+              data-block-id={draft?.widgets?.[i]?.blockId}
               sx={{
                 minHeight: preview.draft?.layoutSizes?.[i]
                   ? preview.draft.layoutSizes[i].height * 80 + 60
@@ -1030,7 +1035,22 @@ function DashboardAnalysisContent({ dashboardId, revision, onSaved, onAssistantO
                   ? 250
                   : 460,
                 height: 'auto',
-                gridColumn: preview.draft?.layoutSizes?.[i]
+                gridRow: draft?.blockLayouts?.[draft?.widgets?.[i]?.blockId]
+                  ? {
+                      xs: 'auto',
+                      md: `${draft.blockLayouts[draft?.widgets?.[i]?.blockId].y + 1} / span ${
+                        draft.blockLayouts[draft?.widgets?.[i]?.blockId].h
+                      }`,
+                    }
+                  : undefined,
+                gridColumn: draft?.blockLayouts?.[draft?.widgets?.[i]?.blockId]
+                  ? {
+                      xs: 'auto',
+                      md: `${draft.blockLayouts[draft?.widgets?.[i]?.blockId].x + 1} / span ${
+                        draft.blockLayouts[draft?.widgets?.[i]?.blockId].w
+                      }`,
+                    }
+                  : preview.draft?.layoutSizes?.[i]
                   ? preview.draft.layoutSizes[i].width === 12
                     ? '1 / -1'
                     : 'auto'

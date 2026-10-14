@@ -288,7 +288,7 @@ export class BiService {
         widget.type === 'BOARD_NUMERIC' ? 'number' : widget.type === 'CHART_LINE' ? 'line' : 'bar';
       const sizes = analysis.layoutSizes?.[index];
       return {
-        key: stored?.key || `existing-${index}`,
+        key: widget.blockId || stored?.key || `existing-${index}`,
         kind: metricAvailable ? 'metric' : 'existing',
         title: widget.title,
         ...(stored?.metricId ? { metricId: stored.metricId, metricAvailable } : {}),
@@ -389,6 +389,13 @@ export class BiService {
       } else throw new BadRequestException('차트 종류를 확인해 주세요.');
       widget = {
         ...widget,
+        ...(state.items.some(original => original.key === item.key)
+          ? {
+              blockId:
+                state.analysis.widgets[state.items.findIndex(original => original.key === item.key)]
+                  .blockId,
+            }
+          : {}),
         decimalPlaces: item.decimalPlaces,
         suffix: item.unit ? ' ' + item.unit : '',
         numberNotation: item.numberNotation === 'plain' ? 'full' : 'compact',

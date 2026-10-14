@@ -148,8 +148,9 @@ export default function MetricCalculationEditor({
             result.updatedAnalyses.some(id => !selectedAnalyses.includes(id)))
         )
           throw new Error('일괄 저장 결과를 확인하지 못했습니다. 최신 화면을 확인해 주세요.');
-        if (impact) onApplied({ ...preview.draft, revision: result.revision }, result.updatedAnalyses?.length);
-        else onApplied({ ...preview.draft, revision: result.revision });
+        if (impact)
+          onApplied({ ...(result.draft || preview.draft), revision: result.revision }, result.updatedAnalyses?.length);
+        else onApplied({ ...(result.draft || preview.draft), revision: result.revision });
         onClose();
       } else {
         if (!validPreview(result) || result.metric?.id !== metric.id) throw new Error('미리보기를 확인하지 못했습니다.');

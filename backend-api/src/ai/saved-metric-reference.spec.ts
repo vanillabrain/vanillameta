@@ -283,3 +283,25 @@ it('UC-003 reuses an updated AVG requests definition without forcing it back to 
   expect(result.data.widgets[0].sql).toContain('AVG("bid_request_cnt")');
   expect(ai.callLlm).toHaveBeenCalledTimes(1);
 });
+
+it('UC-006 isolates an ordinary selected AI edit without a saved metric and preserves block identity', async () => {
+  const { service, ai } = setup();
+  jest.spyOn(service as any, 'previewContext').mockResolvedValue({});
+  const current: any = draft();
+  delete current.widgets[0].metricId;
+  current.widgets[0].blockId = 'block-original';
+  current.widgets.push({ ...current.widgets[0], blockId: 'block-other', title: 'Other' });
+  const candidate: any = draft();
+  delete candidate.widgets[0].metricId;
+  candidate.widgets[0].blockId = 'model-invented';
+  candidate.widgets[0].title = 'Changed';
+  ai.callLlm.mockResolvedValue(JSON.stringify(candidate));
+  const result = await service.generate(
+    { databaseId: 7, prompt: '선택한 차트 제목 수정', currentDraft: current, selectedWidget: 0 },
+    9,
+  );
+  if (!('data' in result)) throw new Error(result.message);
+  expect(result.data.widgets[0]).toMatchObject({ title: 'Changed', blockId: 'block-original' });
+  expect(result.data.widgets[1]).toEqual(current.widgets[1]);
+  expect(result.data.title).toBe(current.title);
+});

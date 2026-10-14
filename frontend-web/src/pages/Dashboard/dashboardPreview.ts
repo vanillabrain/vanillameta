@@ -8,6 +8,12 @@ export const validDraft = (draft: any) =>
   draft.widgets.length > 0 &&
   draft.widgets.every(
     widget =>
+      widget.blockId === undefined || (typeof widget.blockId === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(widget.blockId)),
+  ) &&
+  new Set(draft.widgets.filter(widget => widget.blockId !== undefined).map(widget => widget.blockId)).size ===
+    draft.widgets.filter(widget => widget.blockId !== undefined).length &&
+  draft.widgets.every(
+    widget =>
       widgetTypes.includes(widget.type) &&
       typeof widget.sql === 'string' &&
       widget.sql.trim() &&

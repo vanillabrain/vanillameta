@@ -155,7 +155,7 @@ function DashboardAssistantContent({
         ),
       );
       if (result?.id !== dashboardId) throw new Error('변경을 저장하지 못했습니다.');
-      const persisted = { ...next, ...(result.revision ? { revision: result.revision } : {}) };
+      const persisted = { ...(result.draft || next), ...(result.revision ? { revision: result.revision } : {}) };
       setUndo(revert ? null : { before, after: JSON.stringify(persisted) });
       setProposal(null);
       setSelectedWidget('');

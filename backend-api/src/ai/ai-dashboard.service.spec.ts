@@ -303,12 +303,12 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
   });
   it('validates LLM JSON using actual fields', async () => {
     const generated = await service.generate({ databaseId: 1, prompt: 'Revenue' }, 7);
-    expect('data' in generated && generated.data).toEqual(draft());
+    expect('data' in generated && generated.data).toMatchObject(draft());
     const bad = draft();
     bad.widgets[0].valueField = 'missing';
     ai.callLlm.mockResolvedValueOnce(JSON.stringify(bad));
     const repaired = await service.generate({ databaseId: 1, prompt: 'Revenue' }, 7);
-    expect('data' in repaired && repaired.data).toEqual(draft());
+    expect('data' in repaired && repaired.data).toMatchObject(draft());
     expect(ai.callLlm.mock.calls[ai.callLlm.mock.calls.length - 1][1]).toContain(
       'valueField must be numeric',
     );
@@ -319,7 +319,7 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
     ai.callLlm.mockClear();
     ai.callLlm.mockResolvedValueOnce(JSON.stringify(invalid));
     const repaired = await service.generate({ databaseId: 1, prompt: 'Revenue' }, 7);
-    expect('data' in repaired && repaired.data).toEqual(draft());
+    expect('data' in repaired && repaired.data).toMatchObject(draft());
     expect(ai.callLlm).toHaveBeenCalledTimes(2);
     expect(ai.callLlm.mock.calls[1][1]).toContain('only SELECT from source is allowed');
     ai.callLlm.mockClear();
@@ -342,7 +342,7 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
       connection.queryDuckDB.mockClear();
       ai.callLlm.mockResolvedValueOnce(JSON.stringify(invalid));
       const repaired = await service.generate({ databaseId: 1, prompt: 'Total requests' }, 7);
-      expect('data' in repaired && repaired.data).toEqual(draft());
+      expect('data' in repaired && repaired.data).toMatchObject(draft());
       expect(ai.callLlm).toHaveBeenCalledTimes(2);
       expect(ai.callLlm.mock.calls[1][1]).toContain('SUM(bid_request_cnt)');
       expect(
@@ -388,7 +388,7 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
       [0, 0, 6, 2],
       [0, 2, 12, 5],
     ]);
-    expect((await service.analysis(id, 7)).data).toEqual(draft());
+    expect((await service.analysis(id, 7)).data).toMatchObject(draft());
     const dataset = await db.manager.findOneBy(Dataset, { id: old[0].datasetId });
     expect((await connection.queryDuckDB(1, dataset.query)).datas).toEqual([{ value: 130 }]);
     expect((await service.save({ draft: draft(), dashboardId: id }, 7)).data.id).toBe(id);
@@ -425,7 +425,7 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
       7,
     );
     expect(undo.data.revision).not.toBe(saved.data.revision);
-    expect((await service.analysis(id, 7)).data).toEqual(draft());
+    expect((await service.analysis(id, 7)).data).toMatchObject(draft());
   });
   it('persists custom sizes in order, remaps widget ids and packs unequal rows without overlap', async () => {
     const custom = {
@@ -963,6 +963,41 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
         (await db.manager.findOne(Dashboard, { where: { id: raw.data.id } })).structuredDefinition,
       ).kind,
     ).toBe('metric-linked-analysis');
+  });
+  it('UC-006 preserves stable IDs and custom geometry across reorder, SQL edit and DB widget replacement', async () => {
+    const id = (await service.save({ draft: draft() }, 7)).data.id;
+    const before = (await service.analysis(id, 7, true)).data;
+    const mappings = await db.manager.find(DashboardWidget, {
+      where: { dashboardId: id },
+      order: { id: 'ASC' },
+    });
+    const positions = [
+      { i: String(mappings[0].widgetId), x: 6, y: 9, w: 6, h: 3 },
+      { i: String(mappings[1].widgetId), x: 0, y: 2, w: 12, h: 5 },
+    ];
+    await db.manager.update(Dashboard, { id }, { layout: JSON.stringify(positions) });
+    const current = (await service.analysis(id, 7, true)).data;
+    const changed = {
+      ...current,
+      widgets: [
+        current.widgets[1],
+        { ...current.widgets[0], title: 'Changed', sql: 'SELECT AVG(amount) AS value FROM source' },
+      ],
+    };
+    await service.save({ dashboardId: id, draft: changed, expectedRevision: current.revision }, 7);
+    const after = (await service.analysis(id, 7, true)).data;
+    expect(after.widgets.map(w => w.blockId)).toEqual([
+      before.widgets[1].blockId,
+      before.widgets[0].blockId,
+    ]);
+    const layout = JSON.parse((await db.manager.findOneBy(Dashboard, { id })).layout);
+    expect(layout.map(({ i, ...g }) => g)).toEqual(positions.reverse().map(({ i, ...g }) => g));
+    expect(layout[0].i).not.toBe(positions[0].i);
+    const counts = await Promise.all([Widget, Dataset].map(e => db.manager.count(e)));
+    await expect(
+      service.save({ dashboardId: id, draft: changed, expectedRevision: current.revision }, 7),
+    ).rejects.toThrow('다른 화면');
+    expect(await Promise.all([Widget, Dataset].map(e => db.manager.count(e)))).toEqual(counts);
   });
   it('UC-004 preserves custom chart geometry while remapping newly stored widget IDs', async () => {
     const { body } = await batchFixture();
