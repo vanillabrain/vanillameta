@@ -30,7 +30,7 @@
 
 ## 범위·진행 원칙
 
-T1은 합성 fixture의 선택 디자인/상호작용 범위로 구현·검증했다. [실행 기록](../../testing/dashboard-studio.md)을 참조한다. T2~T10은 PLANNED / NOT_RUN이다. 화면 배치·API는 구현 전에 관련 코드와 좁은 계약 검사를 확인한다. 다수 기능을 한 번에 작성하고 마지막에 검증하지 않는다. 아래 T 하나가 구현·검증·변경 기록·리뷰·커밋의 단위다. 선행 조건이 통과하면 다음 작업으로 진행하며 형식적인 승인 질문을 반복하지 않는다. 사용자 취소/실제 권한·파괴적 경계가 있으면 해당 조건을 따른다.
+T1은 합성 fixture의 선택 디자인/상호작용 범위로 구현·검증했다. [실행 기록](../../testing/dashboard-studio.md)을 참조한다. T2는 순수 계약/변경 이력·adapter 범위로 구현·검증했다. T3~T10은 PLANNED / NOT_RUN이다. 화면 배치·API는 구현 전에 관련 코드와 좁은 계약 검사를 확인한다. 다수 기능을 한 번에 작성하고 마지막에 검증하지 않는다. 아래 T 하나가 구현·검증·변경 기록·리뷰·커밋의 단위다. 선행 조건이 통과하면 다음 작업으로 진행하며 형식적인 승인 질문을 반복하지 않는다. 사용자 취소/실제 권한·파괴적 경계가 있으면 해당 조건을 따른다.
 
 기존 numeric/chart와 단일 소스 분석을 첫 구현에 사용한다. 기존 생성기의 1~6 위젯 한도는 첫 시연에 적용하며 UI에 숨기지 않는다. 모든 블록 종류·다중 소스·대규모 보드 지원을 첫 시연 완료로 주장하지 않는다. 이 한도가 실제 수용 흐름을 막을 때 해당 compiler 계약과 함께 확장한다. 임의 코드 실행·새 chart engine·실시간 공동 편집·커넥터 확대는 제외한다. 텍스트/표/필터 블록은 T6에서 기존 렌더러 지원 범위를 확인하고 미지원 종류는 별도 승인된 구현 단위로 남긴다.
 
@@ -55,7 +55,7 @@ Rill은 계산·필터·데이터 모델 참고, Claude Artifacts는 대화와 �
 - `StudioLayoutItem`: `id,x,y,w,h`; 양의 정수 크기, 음수 좌표/경계 초과/중복 ID/겹침 금지. 읽기와 편집이 같은 변환·검증 함수를 사용한다.
 - `StudioOperation`: `addBlock|removeBlock|duplicateBlock|updateBlock|moveBlock|resizeBlock|renameDashboard`; 위치 변경에는 breakpoint를 포함. `updateBlock`은 layout을 수정하지 않는다. 신규 블록은 `new:<uuid>` 임시 ID, 서버 저장 시 발급 ID map을 반환한다. 기존 ID로 위장한 신규 블록을 받지 않는다.
 - `applyStudioOperation(doc, operation): StudioDocumentV1`: 순수 함수. AI와 직접 UI가 같은 연산 경로를 사용. drag는 drop 시 한 번 history에 기록하고 pointermove마다 네트워크/undo를 만들지 않는다.
-- `StudioState`: `present,past,future,selectedBlockId,activeBreakpoint,panel,saveState`; history는 문서 내용만 보관하고 서버 revision은 별도. 최대100단계, 새 변경은 redo를 비운다. 삭제하면 선택 해제. 서버 ID map을 present/past/future/선택에 적용한다.
+- `StudioState`: `present,past,future,selectedBlockId,activeBreakpoint,panel,saveState,savedBaseline,serverRevision,pendingSave`; history는 문서 내용만 보관하고 서버 revision은 별도. 최대100단계, 새 변경은 redo를 비운다. 삭제하면 선택 해제. 서버 ID map을 present/past/future/선택/baseline/제출 snapshot에 적용한다. `saveStarted`는 requestId·문서·baseRevision을 보관하고 `saved`는 정확한 요청/완전한 제출 ID map을 요구한다. 늦은 응답은 이후 편집을 clean으로 처리하지 않는다.
 - 저장은 명시 실행을 첫 기본값으로 한다. 변경 없는 문서는 dirty가 아니며 새로고침/이탈 시 미저장 경고를 제공한다. 새로고침 이후 미저장 초안 복구는 첫 단계 범위가 아니다. 초안이 서버에 저장됐다고 오인시키지 않는다.
 - 신규 API 경로는 `/v1/studio` 아래에 격리한다. 기존 `/ai`, `/bi`, `/dashboard`, 공유 경로 계약을 임의 교체하지 않는다. legacy adapter는 읽기 시 DB에 쓰지 않는다.
 
@@ -91,13 +91,13 @@ StudioState는 dashboard별 한 행의 JSON 정의와 revision을 저장한다. 
 
 **Files:** 신규 `studioTypes.ts`, `studioReducer.ts`, `studioAdapter.ts`, `studioReducer.test.ts`, BE `studio-document.ts`, `studio-operations.ts`와 대응 spec.
 
-**Interfaces:** 공통 계약의 `applyStudioOperation`; `fromLegacyAnalysis(response):StudioDocumentV1`, `toLegacySave(doc):LegacySaveInput`, `remapStudioIds(state,idMap):StudioState`.
+**Interfaces:** 공통 계약의 `applyStudioOperation`; `fromLegacyAnalysis({dashboardId,analysis,semanticSnapshot?}):StudioImportResult`, `toLegacySave(doc,definitions,expectedRevision?):StudioSaveProjection`, `remapStudioIds(state,idMap):StudioState`.
 
-- [ ] 회귀 테스트 선행: b1 이동은 b2 내용/좌표 불변, duplicate는 새 ID·내용 동일, delete/undo 복구, rename 이후 redo 없음, 101회 변경 시 history100, 임시 ID remap 뒤 undo/redo가 같은 블록을 참조.
-- [ ] `npx vitest run src/pages/Dashboard/Studio/studioReducer.test.ts`와 BE 해당 spec 실패 확인 후 최소 구현. sql/credential을 history·UI 문서의 공개 값에 넣지 않음.
-- [ ] legacy 분석은 기존 blockId 우선 사용, 없는 경우 기존 결정적 adapter 사용. 기존 데이터는 조회만으로 저장/재배치하지 않음. 미지원 혼합 소스/블록은 기존 화면으로 연결하고 변환 불가 이유 표시.
-- [ ] invalid bounds/duplicate ID/누락 metric/unknown kind의 서버 검증과 adapter roundtrip PASS. migration 없음.
-- [ ] 연산 계약·테스트를 커밋. 기존 `storedBlockIds` 정책을 우회해 임의 persisted ID를 허용하지 않음.
+- [x] 회귀 테스트 선행: b1 이동은 b2 내용/좌표 불변, duplicate는 새 ID·내용 동일, delete/undo 복구, rename 이후 redo 없음, 101회 변경 시 history100, 임시 ID remap 뒤 undo/redo가 같은 블록을 참조.
+- [x] `npx vitest run src/pages/Dashboard/Studio/studioReducer.test.ts`와 BE 해당 spec 실패 확인 후 최소 구현. sql/credential을 history·UI 문서의 공개 값에 넣지 않음.
+- [x] legacy 분석은 기존 blockId 우선 사용, 없는 경우 기존 결정적 adapter 사용. 기존 데이터는 조회만으로 저장/재배치하지 않음. 미지원 혼합 소스/블록은 기존 화면으로 연결하고 변환 불가 이유 표시.
+- [x] invalid bounds/duplicate ID/누락 metric/unknown kind의 서버 검증과 adapter roundtrip PASS. migration 없음.
+- [x] 연산 계약·테스트를 커밋. 기존 `storedBlockIds` 정책을 우회해 임의 persisted ID를 허용하지 않음.
 
 ### T3: 실제 블록 편집과 반응형 (P1 / FR-009·010)
 
@@ -203,4 +203,12 @@ StudioState는 dashboard별 한 행의 JSON 정의와 revision을 저장한다. 
 
 - FR-007:T5/T7/T8, FR-008:T6, FR-009:T2/T3/T5, FR-010:T1/T3/T4, FR-011:T8, FR-012:T9. UC-005 A1:T6, A2:T4/T5, A3:T7/T8, A4:T9, A5:T8.
 - 현재 지원 블록 종류/1~6 한도, single-source, live 미지원, 미저장 새로고침 복구 미지원, VoiceOver BLOCKED를 명시했다. 이 제한이 실제 TC-005를 막으면 해당 단계는 부분 완료로 남긴다.
-- T1의 선택 시안·세 폭 검증이 완료됐고 다음 실행은 T2다. 전체 작업량/기간은 T2 adapter 영향 확인 전 확정하지 않는다. 성능·공수 절감 수치를 근거 없이 약속하지 않는다.
+- T1의 선택 시안·세 폭과 T2 순수 계약 검증이 완료됐고 다음 실행은 T3다. 전체 작업량/기간은 T2 adapter 영향 확인 전 확정하지 않는다. 성능·공수 절감 수치를 근거 없이 약속하지 않는다.
+
+## T2 실행 중 확정한 계약 보완
+
+- Ruling: SQL을 history에서 제외하면서 변환을 보존하기 위해 `StudioImportResult`에 `definitions`를 분리했다. 기존 GET은 canonical 저장 버전을 모두 노출하지 않아 `unresolvedReferences`를 명시한다. 이를 추정해 링크를 덮어쓰지 않는다.
+- Ruling: `toLegacySave`는 HTTP body가 아닌 `requiresServerSnapshot:true` projection이다. T4에서 원본 structured snapshot·geometry·지표 링크를 서버가 함께 검증/저장해야 한다. 현재 기존 save 경로로 연결하지 않는다.
+- Ruling: 신뢰 가능한 서버 `assertStudioReferences` context는 sourceId/sourceSchemaVersion, definitionKeys, measureVersions, dimensionKeys다. 구조 검증과 소유권 확인을 동일시하지 않는다.
+- Ruling: 같은 프로토콜을 FE/BE에 독립 구현하고 고정 JSON 예제로 대조했다. 프로젝트 간 runtime import로 backend build root나 번들 경계를 바꾸지 않았다.
+- Ruling: 저장 응답은 제출 snapshot에만 대응한다. save-start/requestId를 이력과 별도로 기록하고 그 이후 편집은 dirty로 유지한다. T4는 이 계약을 실제 요청 수명주기에 연결한다.

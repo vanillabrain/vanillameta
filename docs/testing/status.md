@@ -634,3 +634,7 @@ MySQL·다중 서버/tenant·강제 스키마 변경·실기기/전체 키보드
 ## 2026-10-15 Studio T1 디자인 시안
 
 개발 전용 합성 데이터 시안의 시작·결과·블록 설정·공유 미리보기를 1440/768/390px로 확인했다. 모바일 상태 버튼 간격·패널 기본 열림을 수정하고 키보드 복귀를 검증했다. 기능은 시안 전환/로컬 입력만 PASS_SELECTED이며 실제 AI/저장/게시/복제는 NOT_RUN이다. 상세·캡처·제한: [Studio MD](dashboard-studio.md). gpt-6-luna/VoiceOver BLOCKED 유지.
+
+## 2026-10-15 Studio T2 문서·변경 이력
+
+Studio 순수 문서/연산·history·legacy projection의 FE30/BE99 검사와 FE 타입·변경 린트·BE 빌드를 통과했다. 저장 응답 경합·revision·ID map 검토3건을 수정했다. UI 연결/실제 저장/LLM은 미실행이며 T1 캡처는 관련 코드 변경이 없어 재사용한다. [T2 범위와 제한](dashboard-studio.md#t2-문서변경-이력-기반--2026-10-15).

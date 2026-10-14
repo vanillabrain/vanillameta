@@ -1,0 +1,10 @@
+[
+ {"name":"rename keeps blocks","operation":{"type":"renameDashboard","title":"Updated"},"expected":{"title":"Updated"}},
+ {"name":"move touches lg only","operation":{"type":"moveBlock","blockId":"b1","breakpoint":"lg","x":0,"y":6},"expected":{"layouts":{"lg":[{"id":"b1","x":0,"y":6,"w":6,"h":3},{"id":"b2","x":6,"y":0,"w":6,"h":5}],"md":[{"id":"b1","x":0,"y":0,"w":4,"h":3},{"id":"b2","x":4,"y":0,"w":4,"h":5}]}}},
+ {"name":"duplicate appends per breakpoint","operation":{"type":"duplicateBlock","blockId":"b1","newId":"new:11111111-1111-4111-8111-111111111111"},"expected":{"layouts":{"lg":[{"id":"b1"},{"id":"b2"},{"id":"new:11111111-1111-4111-8111-111111111111","x":0,"y":5,"w":6,"h":3}],"xs":[{"id":"b1"},{"id":"b2"},{"id":"new:11111111-1111-4111-8111-111111111111","x":0,"y":8,"w":1,"h":3}]}}},
+ {"name":"display partial change preserves notation","operation":{"type":"updateBlock","blockId":"b1","patch":{"display":{"prefix":"₩"}}},"expected":{"blocks":[{"id":"b1","display":{"numberNotation":"compact","decimalPlaces":0,"prefix":"₩"}},{"id":"b2"}]}},
+ {"name":"reject collision","operation":{"type":"moveBlock","blockId":"b1","breakpoint":"lg","x":6,"y":0},"invalid":true},
+ {"name":"reject mobile width2","operation":{"type":"resizeBlock","blockId":"b1","breakpoint":"xs","w":2,"h":3},"invalid":true},
+ {"name":"reject null display","operation":{"type":"updateBlock","blockId":"b1","patch":{"display":null}},"invalid":true},
+ {"name":"reject unknown operation data","operation":{"type":"removeBlock","blockId":"b1","extra":"private"},"invalid":true}
+]
