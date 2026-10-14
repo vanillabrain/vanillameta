@@ -263,6 +263,7 @@ describe('BiService dashboard editor boundaries', () => {
     });
     expect(dashboards.preview).toHaveBeenCalledWith(
       {
+        includeTrends: true,
         draft: expect.objectContaining({
           databaseId: 1,
           widgets: [
@@ -306,6 +307,47 @@ describe('BiService dashboard editor boundaries', () => {
       key: 'saved-revenue',
       metricId: 99,
     });
+  });
+
+  it('duplicates an owned SQL block with a new stable ID and ignores client SQL', async () => {
+    analysis.widgets[0].blockId = 'original-block';
+    const original = (await service.editor(dashboardId, actor)).items[0];
+    const copy = {
+      ...original,
+      key: 'copy-block',
+      copyOf: original.key,
+      sql: 'SELECT * FROM secret',
+    };
+    await service.saveEditor(dashboardId, body({ items: [original, copy] }), actor);
+    const widgets = dashboards.save.mock.calls[0][0].draft.widgets;
+    expect(widgets.map(w => w.blockId)).toEqual(['original-block', undefined]);
+    expect(widgets.map(w => w.sql)).toEqual([originalSql, originalSql]);
+    expect(analysis.widgets).toHaveLength(1);
+    expect(analysis.widgets[0].blockId).toBe('original-block');
+  });
+
+  it.each(['foreign-block', 'original-block', 42])(
+    'rejects invalid copy reference %s',
+    async copyOf => {
+      analysis.widgets[0].blockId = 'original-block';
+      const original = (await service.editor(dashboardId, actor)).items[0];
+      const key = copyOf === 'original-block' ? 'original-block' : 'copy-block';
+      await expect(
+        service.saveEditor(
+          dashboardId,
+          body({
+            items: [{ ...original, key, copyOf }],
+          }),
+          actor,
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(dashboards.save).not.toHaveBeenCalled();
+    },
+  );
+
+  it('leaves new metric identity issuance to the existing server save boundary', async () => {
+    await service.saveEditor(dashboardId, body(), actor);
+    expect(dashboards.save.mock.calls[0][0].draft.widgets[0].blockId).toBeUndefined();
   });
 
   it.each(['editor', 'editorPreview', 'saveEditor'] as const)(

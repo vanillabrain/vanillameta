@@ -637,6 +637,44 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
       else process.env.AI_PROVIDER = provider;
     }
   });
+  it('omits repeated UI bucket ranges from generation while retaining exact trend evidence', async () => {
+    const id = (await service.save({ draft: draft() }, 7)).data.id;
+    const current = (await service.analysis(id, 7)).data;
+    const context = jest.spyOn(service as any, 'previewContext').mockResolvedValueOnce({
+      widgets: [
+        {
+          index: 0,
+          datas: [{ value: 30 }],
+          trend: {
+            column: 'event_time',
+            grain: 'hour',
+            points: [{ time: '2026-01-01T00:00:00Z', value: 30 }],
+            timeSelection: {
+              ranges: Array.from({ length: 120 }, () => ({ marker: 'UI_RANGE'.repeat(200) })),
+            },
+          },
+        },
+      ],
+    });
+    ai.callLlm.mockClear();
+    ai.callLlm.mockResolvedValueOnce(JSON.stringify({ ...draft(), widgets: [draft().widgets[0]] }));
+    const result = await service.generate(
+      {
+        dashboardId: id,
+        databaseId: 1,
+        currentDraft: current,
+        selectedWidget: 0,
+        prompt: '제목 유지',
+      },
+      7,
+    );
+    expect(result.status).toBe('SUCCESS');
+    const sent = ai.callLlm.mock.calls[0][1];
+    expect(Buffer.byteLength(sent)).toBeLessThan(64 * 1024);
+    expect(sent).not.toContain('UI_RANGE');
+    expect(sent).toContain('2026-01-01T00:00:00Z');
+    context.mockRestore();
+  });
   it('persists numberNotation in saved definitions and ordinary widget options', async () => {
     const input = draft();
     input.widgets.forEach(widget => Object.assign(widget, { numberNotation: 'compact' }));

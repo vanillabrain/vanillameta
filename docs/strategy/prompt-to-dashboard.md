@@ -28,7 +28,7 @@ Rill은 데이터 의미·계산·탐색의 기준이며, Claude Artifact의 대
 | P5   | 복제·소스 교체·재사용                   | 원본 불변, 소스/열/지표/차원 매핑, 새 소스 정답과 일치                             | Open    |
 | 통합 | TC-005 전체 여정                        | 실LLM·실제UI/API·Rill 계산 비교·모바일/데스크톱 전부 통과                          | not_run |
 
-기존 생성·수정·공유·그리드·지표 API를 재사용한다. 위 단계가 기존 기반을 전부 새로 만드는 작업이라는 뜻은 아니다. P1 첫 단위인 안정적 블록 ID·선택 AI 수정·배치 보존/표시는 [UC-006 검증](../testing/block-layout-continuity.md) 범위로 구현했다. 다음은 P1의 블록 작업 UI·undo와 breakpoint별 편집이며 P1 전체는 Open이다. 신규 기능은 관련 UC/BR/TC와 최소 단위로 나누어 설계한 뒤 구현한다.
+기존 생성·수정·공유·그리드·지표 API를 재사용한다. 위 단계가 기존 기반을 전부 새로 만드는 작업이라는 뜻은 아니다. P1 첫 단위인 안정적 블록 ID·선택 AI 수정·배치 보존/표시는 [UC-006 검증](../testing/block-layout-continuity.md) 범위로 구현했다. 편집기 복제·로컬 undo/redo는 [UC-007](../testing/block-editor-history.md) 단위/API PASS, 실제 UI BLOCKED다. 다음은 화면 회귀·AI/직접 편집 통합·breakpoint별 편집이며 P1 전체는 Open이다. 신규 기능은 관련 UC/BR/TC와 최소 단위로 나누어 설계한 뒤 구현한다.
 
 ## 방향 이탈 방지
 

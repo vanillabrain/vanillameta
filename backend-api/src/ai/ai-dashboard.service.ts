@@ -716,6 +716,18 @@ export class AiDashboardService {
     )
       throw new BadRequestException('selected metric unavailable for this target/source');
     const context = current ? await this.previewContext(body, current, userId) : null;
+    // Generation needs exact evidence, not per-bucket UI interaction metadata.
+    // Repeating time-selection ranges for duplicated KPIs can exceed the CLI prompt limit.
+    const generationContext = context && {
+      ...context,
+      widgets: context.widgets.map(widget => ({
+        ...widget,
+        timeSelection: undefined,
+        trend: widget.trend
+          ? { column: widget.trend.column, grain: widget.trend.grain, points: widget.trend.points }
+          : null,
+      })),
+    };
     if (abortSignal?.aborted) throw new Error('LLM_REQUEST_ABORTED');
     const { schemaText } = await this.ai.getSchemaContext(id);
     const counters = [
@@ -753,7 +765,7 @@ export class AiDashboardService {
       .map(column => `${column}: SUM(${column}), never COUNT(*)`)
       .join('; ')}\nCurrent draft: ${JSON.stringify(
       current || null,
-    )}\nServer preview context: ${JSON.stringify(context)}\nHistory: ${JSON.stringify(
+    )}\nServer preview context: ${JSON.stringify(generationContext)}\nHistory: ${JSON.stringify(
       history,
     )}\nExplicit saved metric: ${JSON.stringify(
       body.selectedMetricId ?? null,
@@ -1720,6 +1732,7 @@ export class AiDashboardService {
     },
     sharedManager?: EntityManager,
     preserveLayout = false,
+    preserveSizeIds: readonly string[] = [],
   ) {
     if (
       body?.expectedRevision !== undefined &&
@@ -1779,7 +1792,13 @@ export class AiDashboardService {
           order: { id: 'ASC' },
         });
         const baseline = oldDraft ?? draft;
-        geometry = blockGeometry(baseline, draft, JSON.parse(previous.layout), mappings);
+        geometry = blockGeometry(
+          baseline,
+          draft,
+          JSON.parse(previous.layout),
+          mappings,
+          preserveSizeIds,
+        );
       }
       const widgets: Widget[] = [];
       for (const definition of draft.widgets) {

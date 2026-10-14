@@ -25,6 +25,8 @@ import { get, post } from '@/helpers/apiHelper';
 import NumericBoard from '@/widget/modules/board/NumericBoard';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
 import { analysisOptions } from '../analysisOptions';
+import { AnalysisUiProvider } from '@/components/analysis/AnalysisUi';
+import MetricTrend, { FormattedMetricTrendData } from '../Components/MetricTrend';
 
 type Column = { name: string; type: string; numeric: boolean; temporal: boolean };
 type Metric = {
@@ -34,6 +36,7 @@ type Metric = {
 };
 type Item = {
   key: string;
+  copyOf?: string;
   kind: 'metric' | 'existing';
   title: string;
   metricId?: number;
@@ -56,6 +59,8 @@ type Editor = {
   items: Item[];
 };
 type PreviewWidget = {
+  trend?: FormattedMetricTrendData;
+  trendUnavailable?: string;
   title: string;
   type: string;
   valueField: string;
@@ -134,12 +139,14 @@ function MetricSelect({
   );
 }
 
-export default function DashboardEdit() {
+function DashboardEditContent() {
   const { dashboardId } = useParams();
   const navigate = useNavigate();
   const [editor, setEditor] = useState<Editor | null>(null);
   const [title, setTitle] = useState('');
   const [items, setItems] = useState<Item[]>([]);
+  const [past, setPast] = useState<Array<{ title: string; items: Item[] }>>([]);
+  const [future, setFuture] = useState<Array<{ title: string; items: Item[] }>>([]);
   const [newMetricId, setNewMetricId] = useState('');
   const [preview, setPreview] = useState<Preview | null>(null);
   const [busy, setBusy] = useState('');
@@ -171,6 +178,8 @@ export default function DashboardEdit() {
     setConflict(false);
     setNewMetricId('');
     setAnnouncement('');
+    setPast([]);
+    setFuture([]);
     void get(`/bi/dashboards/${encodeURIComponent(dashboardId ?? '')}/editor`, undefined, { signal: abort.signal })
       .then(unwrap<Editor>)
       .then(result => {
@@ -216,24 +225,76 @@ export default function DashboardEdit() {
             editor?.metrics.some(metric => metric.id === item.metricId) &&
             (item.chart === 'number' || dimensions(item.chart).some(column => column.name === item.dimension)))),
     );
+  const change = (nextTitle: string, nextItems: Item[]) => {
+    if (pending.current || (nextTitle === title && JSON.stringify(nextItems) === JSON.stringify(items))) return;
+    invalidate();
+    setPast(current => [...current.slice(-49), { title, items }]);
+    setFuture([]);
+    setTitle(nextTitle);
+    setItems(nextItems);
+  };
+  const restore = (redo: boolean) => {
+    if (pending.current) return;
+    const history = redo ? future : past;
+    const previous = history[history.length - 1];
+    if (!previous) return;
+    invalidate();
+    if (redo) {
+      setFuture(history.slice(0, -1));
+      setPast(current => [...current.slice(-49), { title, items }]);
+    } else {
+      setPast(history.slice(0, -1));
+      setFuture(current => [...current, { title, items }]);
+    }
+    setTitle(previous.title);
+    setItems(previous.items);
+    setAnnouncement(
+      redo
+        ? '편집을 다시 실행했습니다. 미리보기를 다시 확인해 주세요.'
+        : '편집을 되돌렸습니다. 미리보기를 다시 확인해 주세요.',
+    );
+  };
+  const duplicate = (index: number) => {
+    if (pending.current || items.length >= 6) return;
+    const original = items[index];
+    if (!original) return;
+    const key = crypto.randomUUID();
+    const copy = {
+      ...original,
+      key,
+      title: original.title.slice(0, 296) + ' 복사',
+      ...(original.kind === 'existing' ? { copyOf: original.copyOf ?? original.key } : {}),
+    };
+    change(title, [...items.slice(0, index + 1), copy, ...items.slice(index + 1)]);
+    setAnnouncement(`${original.title} 차트를 복제했습니다.`);
+    requestAnimationFrame(() => headings.current[key]?.focus());
+  };
   const patch = (key: string, changes: Partial<Item>) => {
     if (pending.current) return;
-    invalidate();
-    setItems(current => current.map(item => (item.key === key ? { ...item, ...changes } : item)));
+    change(
+      title,
+      items.map(item => (item.key === key ? { ...item, ...changes } : item)),
+    );
   };
   const selectMetric = (key: string, metricId: string) => {
     const metric = editor?.metrics.find(value => String(value.id) === metricId);
     if (!metric) return;
-    patch(key, { kind: 'metric', metricId: metric.id, metricAvailable: true, chart: 'number', dimension: undefined });
+    patch(key, {
+      copyOf: undefined,
+      kind: 'metric',
+      metricId: metric.id,
+      metricAvailable: true,
+      chart: 'number',
+      dimension: undefined,
+    });
   };
   const add = () => {
     if (pending.current || items.length >= 6) return;
     const metric = editor?.metrics.find(value => String(value.id) === newMetricId);
     if (!metric) return;
-    invalidate();
     const key = crypto.randomUUID();
-    setItems(current => [
-      ...current,
+    change(title, [
+      ...items,
       {
         key,
         kind: 'metric',
@@ -255,10 +316,9 @@ export default function DashboardEdit() {
     if (pending.current) return;
     const next = index + direction;
     if (next < 0 || next >= items.length) return;
-    invalidate();
     const reordered = [...items];
     [reordered[index], reordered[next]] = [reordered[next], reordered[index]];
-    setItems(reordered);
+    change(title, reordered);
     setAnnouncement(`${items[index].title} 차트를 ${next + 1}번째로 이동했습니다. 전체 ${items.length}개입니다.`);
     requestAnimationFrame(() => headings.current[items[index].key]?.focus());
   };
@@ -267,9 +327,11 @@ export default function DashboardEdit() {
     const removed = items[index];
     if (!removed) return;
     const focusTarget = items[index + 1] ?? items[index - 1];
-    invalidate();
+    change(
+      title,
+      items.filter(item => item.key !== removed.key),
+    );
     const token = sequence.current;
-    setItems(current => current.filter(item => item.key !== removed.key));
     setAnnouncement(`${removed.title} 차트를 삭제했습니다. 전체 ${items.length - 1}개입니다.`);
     requestAnimationFrame(() => {
       if (token === sequence.current) headings.current[focusTarget.key]?.focus();
@@ -290,6 +352,7 @@ export default function DashboardEdit() {
       items: items.map(item => ({
         key: item.key,
         kind: item.kind,
+        ...(item.copyOf ? { copyOf: item.copyOf } : {}),
         title: item.title.trim(),
         ...(item.kind === 'metric' ? { metricId: item.metricId } : {}),
         chart: item.chart,
@@ -356,11 +419,9 @@ export default function DashboardEdit() {
         p: { xs: 2, md: 4 },
         pb: 10,
         minWidth: 0,
-        '& .MuiButton-root': { minHeight: 44 },
-        '& .MuiInputBase-root': { minHeight: 44 },
       }}
     >
-      <Typography component="h1" variant="h4" sx={{ mb: 1 }}>
+      <Typography component="h1" variant="h5" sx={{ mb: 1 }}>
         차트·배치 편집
       </Typography>
       <Typography sx={{ mb: 2 }} color="text.secondary">
@@ -379,6 +440,14 @@ export default function DashboardEdit() {
       </Button>
       {editor && (
         <>
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ my: 2 }}>
+            <Button disabled={!!busy || past.length === 0} onClick={() => restore(false)}>
+              되돌리기
+            </Button>
+            <Button disabled={!!busy || future.length === 0} onClick={() => restore(true)}>
+              다시 실행
+            </Button>
+          </Stack>
           <Alert severity="info" sx={{ my: 2 }}>
             데이터 소스: {editor.profile.name} · 이 대시보드의 데이터 소스는 변경할 수 없습니다.
           </Alert>
@@ -390,8 +459,7 @@ export default function DashboardEdit() {
               fullWidth
               value={title}
               onChange={event => {
-                invalidate();
-                setTitle(event.target.value);
+                change(event.target.value, items);
               }}
               sx={{ mb: 3 }}
             />
@@ -412,146 +480,159 @@ export default function DashboardEdit() {
                     >
                       {label} · {item.title || '제목 없음'}
                     </Typography>
-                    <Stack spacing={2}>
-                      {item.kind === 'existing' && (
-                        <Alert severity="info">
-                          기존 차트의 계산과 SQL은 서버에서 그대로 보존합니다. 제목·숫자 표시·크기·순서는 바꿀 수 있습니다.
-                          저장된 지표를 선택하면 지표 차트로 전환하여 차트 종류도 바꿀 수 있습니다.
-                        </Alert>
-                      )}
-                      {item.kind === 'metric' && item.metricAvailable === false && (
-                        <Alert severity="warning">기존 지표를 사용할 수 없습니다. 다른 저장된 지표를 선택해 주세요.</Alert>
-                      )}
-                      <MetricSelect
-                        disabled={!!busy}
-                        id={`metric-${item.key}`}
-                        label={`${label} 저장된 지표${item.kind === 'existing' ? '로 전환' : ''}`}
-                        value={item.metricId ? String(item.metricId) : ''}
-                        metrics={editor.metrics}
-                        onChange={value => selectMetric(item.key, value)}
-                      />
-                      <TextField
-                        disabled={!!busy}
-                        fullWidth
-                        slotProps={{ htmlInput: { maxLength: 300 } }}
-                        label={`${label} 제목`}
-                        value={item.title}
-                        onChange={event => patch(item.key, { title: event.target.value })}
-                      />
-                      <Choice
-                        id={`chart-${item.key}`}
-                        label={`${label} 종류`}
-                        value={item.chart}
-                        options={[
-                          ['number', '숫자'],
-                          ['bar', '막대'],
-                          ['line', '선'],
-                        ]}
-                        disabled={!!busy || item.kind === 'existing'}
-                        onChange={value => patch(item.key, { chart: value as Item['chart'], dimension: undefined })}
-                      />
-                      {item.kind === 'metric' && item.chart !== 'number' && (
-                        <FormControl fullWidth disabled={!!busy}>
-                          <InputLabel id={`dimension-${item.key}-label`}>
-                            {label} {item.chart === 'line' ? '날짜 열' : '범주 열'}
-                          </InputLabel>
-                          <Select
-                            labelId={`dimension-${item.key}-label`}
-                            label={`${label} ${item.chart === 'line' ? '날짜 열' : '범주 열'}`}
-                            value={item.dimension ?? ''}
-                            onChange={event => patch(item.key, { dimension: event.target.value })}
-                          >
-                            <MenuItem value="">열을 선택하세요</MenuItem>
-                            {choices.map(column => (
-                              <MenuItem key={column.name} value={column.name}>
-                                {column.name}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                      )}
-                      {item.kind === 'metric' && item.chart !== 'number' && choices.length === 0 && (
-                        <Alert severity="warning">
-                          이 종류에 사용할 열이 없습니다.{' '}
-                          {item.chart === 'line' ? 'DATE/TIMESTAMP 날짜 열이 필요합니다.' : '범주 열이 필요합니다.'} 다른
-                          차트 종류를 선택하세요.
-                        </Alert>
-                      )}
-                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                    <Box component="details" sx={{ mb: 2 }}>
+                      <Typography component="summary" sx={{ cursor: 'pointer', fontSize: 13 }}>
+                        {' '}
+                        {label} 설정{' '}
+                      </Typography>
+                      <Stack spacing={2} sx={{ mt: 2 }}>
+                        {item.kind === 'existing' && (
+                          <Alert severity="info">
+                            기존 차트의 계산과 SQL은 서버에서 그대로 보존합니다. 제목·숫자 표시·크기·순서는 바꿀 수 있습니다.
+                            저장된 지표를 선택하면 지표 차트로 전환하여 차트 종류도 바꿀 수 있습니다.
+                          </Alert>
+                        )}
+                        {item.kind === 'metric' && item.metricAvailable === false && (
+                          <Alert severity="warning">기존 지표를 사용할 수 없습니다. 다른 저장된 지표를 선택해 주세요.</Alert>
+                        )}
+                        <MetricSelect
+                          disabled={!!busy}
+                          id={`metric-${item.key}`}
+                          label={`${label} 저장된 지표${item.kind === 'existing' ? '로 전환' : ''}`}
+                          value={item.metricId ? String(item.metricId) : ''}
+                          metrics={editor.metrics}
+                          onChange={value => selectMetric(item.key, value)}
+                        />
                         <TextField
                           disabled={!!busy}
                           fullWidth
-                          slotProps={{ htmlInput: { maxLength: 12 } }}
-                          helperText="최대 12자"
-                          label={`${label} 단위`}
-                          value={item.unit}
-                          onChange={event => patch(item.key, { unit: event.target.value })}
+                          slotProps={{ htmlInput: { maxLength: 300 } }}
+                          label={`${label} 제목`}
+                          value={item.title}
+                          onChange={event => patch(item.key, { title: event.target.value })}
                         />
-                        <FormControl fullWidth disabled={!!busy}>
-                          <InputLabel id={`decimals-${item.key}-label`}>{label} 소수 자릿수</InputLabel>
-                          <Select
-                            labelId={`decimals-${item.key}-label`}
-                            label={`${label} 소수 자릿수`}
-                            value={item.decimalPlaces}
-                            onChange={event => patch(item.key, { decimalPlaces: Number(event.target.value) })}
-                          >
-                            {Array.from({ length: 7 }, (_, number) => (
-                              <MenuItem key={number} value={number}>
-                                {number}자리
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
+                        <Choice
+                          id={`chart-${item.key}`}
+                          label={`${label} 종류`}
+                          value={item.chart}
+                          options={[
+                            ['number', '숫자'],
+                            ['bar', '막대'],
+                            ['line', '선'],
+                          ]}
+                          disabled={!!busy || item.kind === 'existing'}
+                          onChange={value => patch(item.key, { chart: value as Item['chart'], dimension: undefined })}
+                        />
+                        {item.kind === 'metric' && item.chart !== 'number' && (
+                          <FormControl fullWidth disabled={!!busy}>
+                            <InputLabel id={`dimension-${item.key}-label`}>
+                              {label} {item.chart === 'line' ? '날짜 열' : '범주 열'}
+                            </InputLabel>
+                            <Select
+                              labelId={`dimension-${item.key}-label`}
+                              label={`${label} ${item.chart === 'line' ? '날짜 열' : '범주 열'}`}
+                              value={item.dimension ?? ''}
+                              onChange={event => patch(item.key, { dimension: event.target.value })}
+                            >
+                              <MenuItem value="">열을 선택하세요</MenuItem>
+                              {choices.map(column => (
+                                <MenuItem key={column.name} value={column.name}>
+                                  {column.name}
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        )}
+                        {item.kind === 'metric' && item.chart !== 'number' && choices.length === 0 && (
+                          <Alert severity="warning">
+                            이 종류에 사용할 열이 없습니다.{' '}
+                            {item.chart === 'line' ? 'DATE/TIMESTAMP 날짜 열이 필요합니다.' : '범주 열이 필요합니다.'} 다른
+                            차트 종류를 선택하세요.
+                          </Alert>
+                        )}
+                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                          <TextField
+                            disabled={!!busy}
+                            fullWidth
+                            slotProps={{ htmlInput: { maxLength: 12 } }}
+                            helperText="최대 12자"
+                            label={`${label} 단위`}
+                            value={item.unit}
+                            onChange={event => patch(item.key, { unit: event.target.value })}
+                          />
+                          <FormControl fullWidth disabled={!!busy}>
+                            <InputLabel id={`decimals-${item.key}-label`}>{label} 소수 자릿수</InputLabel>
+                            <Select
+                              labelId={`decimals-${item.key}-label`}
+                              label={`${label} 소수 자릿수`}
+                              value={item.decimalPlaces}
+                              onChange={event => patch(item.key, { decimalPlaces: Number(event.target.value) })}
+                            >
+                              {Array.from({ length: 7 }, (_, number) => (
+                                <MenuItem key={number} value={number}>
+                                  {number}자리
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        </Stack>
+                        <Choice
+                          disabled={!!busy}
+                          id={`notation-${item.key}`}
+                          label={`${label} 숫자 표시`}
+                          value={item.numberNotation}
+                          options={[
+                            ['plain', '일반 숫자'],
+                            ['compact', '축약 숫자'],
+                          ]}
+                          onChange={value => patch(item.key, { numberNotation: value as Item['numberNotation'] })}
+                        />
+                        <Choice
+                          disabled={!!busy}
+                          id={`width-${item.key}`}
+                          label={`${label} 너비`}
+                          value={String(item.width)}
+                          options={[
+                            ['6', '절반'],
+                            ['12', '전체'],
+                          ]}
+                          onChange={value => patch(item.key, { width: Number(value) as Item['width'] })}
+                        />
+                        <Choice
+                          disabled={!!busy}
+                          id={`height-${item.key}`}
+                          label={`${label} 높이`}
+                          value={String(item.height)}
+                          options={[
+                            ['3', '작게'],
+                            ['5', '보통'],
+                            ['7', '크게'],
+                          ]}
+                          onChange={value => patch(item.key, { height: Number(value) as Item['height'] })}
+                        />
                       </Stack>
-                      <Choice
-                        disabled={!!busy}
-                        id={`notation-${item.key}`}
-                        label={`${label} 숫자 표시`}
-                        value={item.numberNotation}
-                        options={[
-                          ['plain', '일반 숫자'],
-                          ['compact', '축약 숫자'],
-                        ]}
-                        onChange={value => patch(item.key, { numberNotation: value as Item['numberNotation'] })}
-                      />
-                      <Choice
-                        disabled={!!busy}
-                        id={`width-${item.key}`}
-                        label={`${label} 너비`}
-                        value={String(item.width)}
-                        options={[
-                          ['6', '절반'],
-                          ['12', '전체'],
-                        ]}
-                        onChange={value => patch(item.key, { width: Number(value) as Item['width'] })}
-                      />
-                      <Choice
-                        disabled={!!busy}
-                        id={`height-${item.key}`}
-                        label={`${label} 높이`}
-                        value={String(item.height)}
-                        options={[
-                          ['3', '작게'],
-                          ['5', '보통'],
-                          ['7', '크게'],
-                        ]}
-                        onChange={value => patch(item.key, { height: Number(value) as Item['height'] })}
-                      />
-                      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                        <Button disabled={index === 0} aria-label={`${label} 위로 이동`} onClick={() => move(index, -1)}>
-                          위로 이동
-                        </Button>
-                        <Button
-                          disabled={index === items.length - 1}
-                          aria-label={`${label} 아래로 이동`}
-                          onClick={() => move(index, 1)}
-                        >
-                          아래로 이동
-                        </Button>
-                        <Button disabled={items.length <= 1} aria-label={`${label} 삭제`} onClick={() => remove(index)}>
-                          삭제
-                        </Button>
-                      </Stack>
+                    </Box>
+                    <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                      <Button disabled={index === 0} aria-label={`${label} 위로 이동`} onClick={() => move(index, -1)}>
+                        위로 이동
+                      </Button>
+                      <Button
+                        disabled={index === items.length - 1}
+                        aria-label={`${label} 아래로 이동`}
+                        onClick={() => move(index, 1)}
+                      >
+                        아래로 이동
+                      </Button>
+                      <Button
+                        disabled={!!busy || items.length >= 6}
+                        aria-label={`${label} 복제`}
+                        onClick={() => duplicate(index)}
+                      >
+                        복제
+                      </Button>
+                      <Button disabled={items.length <= 1} aria-label={`${label} 삭제`} onClick={() => remove(index)}>
+                        삭제
+                      </Button>
                     </Stack>
                   </Card>
                 );
@@ -626,6 +707,16 @@ export default function DashboardEdit() {
                         />
                       )}
                     </Box>
+                    {widget.type === 'BOARD_NUMERIC' && (
+                      <MetricTrend
+                        trend={widget.trend}
+                        unavailable={widget.trendUnavailable}
+                        title={widget.title}
+                        prefix={widget.prefix}
+                        suffix={widget.suffix}
+                        decimalPlaces={widget.decimalPlaces ?? 0}
+                      />
+                    )}
                     <Box
                       tabIndex={0}
                       role="region"
@@ -686,5 +777,13 @@ export default function DashboardEdit() {
         </DialogActions>
       </Dialog>
     </Box>
+  );
+}
+
+export default function DashboardEdit() {
+  return (
+    <AnalysisUiProvider>
+      <DashboardEditContent />
+    </AnalysisUiProvider>
   );
 }

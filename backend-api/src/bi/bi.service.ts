@@ -342,15 +342,29 @@ export class BiService {
     const widgets = [];
     const snapshots = [];
     const layoutSizes = [];
+    const preserveSizeIds: string[] = [];
     for (const item of body.items) {
       if (
         !item ||
         typeof item.key !== 'string' ||
-        !/^[a-zA-Z0-9_-]{1,80}$/.test(item.key) ||
+        !/^[a-zA-Z0-9_-]{1,128}$/.test(item.key) ||
         keys.has(item.key)
       )
         throw new BadRequestException('차트 식별자를 확인해 주세요.');
       keys.add(item.key);
+      const originalIndex = state.items.findIndex(original => original.key === item.key);
+      const originalItem = state.items[originalIndex];
+      if (originalItem && item.width === originalItem.width && item.height === originalItem.height)
+        preserveSizeIds.push(state.analysis.widgets[originalIndex].blockId);
+      if (
+        item.copyOf !== undefined &&
+        (item.kind !== 'existing' ||
+          typeof item.copyOf !== 'string' ||
+          item.copyOf === item.key ||
+          state.items.some(original => original.key === item.key) ||
+          !state.items.some(original => original.key === item.copyOf))
+      )
+        throw new BadRequestException('복제할 기존 차트를 확인해 주세요.');
       if (![6, 12].includes(item.width) || ![3, 5, 7].includes(item.height))
         throw new BadRequestException('차트 크기를 확인해 주세요.');
       if (
@@ -378,7 +392,7 @@ export class BiService {
         widget = prepared.draft.widgets[0];
         snapshot = prepared.snapshot;
       } else if (item.kind === 'existing') {
-        const index = state.items.findIndex(original => original.key === item.key);
+        const index = state.items.findIndex(original => original.key === (item.copyOf ?? item.key));
         const original = state.items[index];
         if (!original || item.chart !== original.chart || item.dimension !== original.dimension)
           throw new BadRequestException(
@@ -395,7 +409,7 @@ export class BiService {
                 state.analysis.widgets[state.items.findIndex(original => original.key === item.key)]
                   .blockId,
             }
-          : {}),
+          : { blockId: undefined }),
         decimalPlaces: item.decimalPlaces,
         suffix: item.unit ? ' ' + item.unit : '',
         numberNotation: item.numberNotation === 'plain' ? 'full' : 'compact',
@@ -433,19 +447,26 @@ export class BiService {
       snapshot,
       dashboardId: state.dashboardId,
       expectedRevision: body.expectedRevision,
+      preserveSizeIds,
     };
   }
   async editorPreview(id: unknown, body: any, actor: number) {
     const { draft } = await this.compileEditor(id, body, actor);
-    return (await this.dashboards.preview({ draft }, actor)).data;
+    return (await this.dashboards.preview({ draft, includeTrends: true }, actor)).data;
   }
   async saveEditor(id: unknown, body: any, actor: number) {
-    const { draft, snapshot, dashboardId, expectedRevision } = await this.compileEditor(
-      id,
-      body,
-      actor,
-    );
-    return (await this.dashboards.save({ draft, dashboardId, expectedRevision }, actor, snapshot))
-      .data;
+    const { draft, snapshot, dashboardId, expectedRevision, preserveSizeIds } =
+      await this.compileEditor(id, body, actor);
+    return (
+      await this.dashboards.save(
+        { draft, dashboardId, expectedRevision },
+        actor,
+        snapshot,
+        undefined,
+        undefined,
+        false,
+        preserveSizeIds,
+      )
+    ).data;
   }
 }

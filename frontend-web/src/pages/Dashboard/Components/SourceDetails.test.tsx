@@ -587,7 +587,9 @@ it('limits chart selections to fifty values and five columns while keeping desel
   const widgets = screen.getAllByTestId('widget');
   for (let i = 0; i < 50; i++) {
     fireEvent.click(within(widgets[0]).getByRole('button', { name: `차원 ${i}`, exact: true }));
-    await act(async () => vi.advanceTimersByTimeAsync(250));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
     await idle();
   }
   fireEvent.click(within(widgets[0]).getByRole('button', { name: '차원 50', exact: true }));
@@ -595,7 +597,9 @@ it('limits chart selections to fifty values and five columns while keeping desel
   expect(previewCalls().at(-1)[1].filters[0].values).toHaveLength(50);
   for (let i = 1; i < 5; i++) {
     fireEvent.click(within(widgets[i]).getByRole('button', { name: '차원 0', exact: true }));
-    await act(async () => vi.advanceTimersByTimeAsync(250));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
     await idle();
   }
   const before = previewCalls().length;
@@ -603,7 +607,9 @@ it('limits chart selections to fifty values and five columns while keeping desel
   expect(screen.getByText(/최대 5개 컬럼까지 선택/)).toBeTruthy();
   expect(previewCalls()).toHaveLength(before);
   fireEvent.click(within(widgets[0]).getByRole('button', { name: '차원 0', exact: true }));
-  await act(async () => vi.advanceTimersByTimeAsync(250));
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(250);
+  });
   await idle();
   expect(previewCalls().at(-1)[1].filters[0].values).toHaveLength(49);
 });

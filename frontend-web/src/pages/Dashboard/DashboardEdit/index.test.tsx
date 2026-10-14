@@ -7,6 +7,8 @@ vi.mock('@/helpers/apiHelper', () => ({ get: api.get, post: api.post }));
 vi.mock('react-router-dom', () => ({ useParams: () => ({ dashboardId: api.id }), useNavigate: () => api.navigate }));
 vi.mock('@/widget/modules/board/NumericBoard', () => ({ default: () => <div>숫자 미리보기</div> }));
 vi.mock('@/widget/wrapper/WidgetViewer', () => ({ default: () => <div>차트 미리보기</div> }));
+vi.mock('@/components/analysis/AnalysisUi', () => ({ AnalysisUiProvider: ({ children }: any) => <>{children}</> }));
+vi.mock('../Components/MetricTrend', () => ({ default: () => <div>시계열 미리보기</div> }));
 
 vi.mock('@mui/material', async () => {
   const ReactUI = await import('react');
@@ -135,6 +137,9 @@ afterEach(cleanup);
 const mount = async () => {
   const view = render(<DashboardEdit />);
   await screen.findByLabelText('대시보드 제목');
+  document.querySelectorAll('details').forEach(element => {
+    element.open = true;
+  });
   return view;
 };
 const choose = (label: string, option: string) => {
@@ -164,6 +169,50 @@ it('preserves deleted-metric fallback SQL, sends revision and invalidates previe
   fireEvent.change(screen.getByLabelText('1번 차트 단위'), { target: { value: '달러' } });
   expect((screen.getByRole('button', { name: '변경 내용 저장' }) as HTMLButtonElement).disabled).toBe(true);
   expect(screen.queryByRole('cell', { name: '12345678901234567890.12' })).toBeNull();
+});
+
+it('duplicates a SQL block, restores edits through undo/redo and invalidates preview', async () => {
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: '1번 차트 복제' }));
+  await requestPreview(2);
+  const copied = api.post.mock.calls[0][1].items[1];
+  expect(copied).toMatchObject({ kind: 'existing', copyOf: 'old', title: '기존 계산 복사' });
+  expect(copied.key).not.toBe('old');
+  expect(JSON.stringify(copied)).not.toContain('sql');
+  fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
+  expect(screen.queryByRole('heading', { name: '2번 차트 · 기존 계산 복사' })).toBeNull();
+  expect((screen.getByRole('button', { name: '변경 내용 저장' }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: '다시 실행' }));
+  expect(screen.getByRole('heading', { name: '2번 차트 · 기존 계산 복사' })).not.toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: '2번 차트 삭제' }));
+  fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
+  await requestPreview(2);
+  expect(api.post.mock.calls[1][1].items[1].key).toBe(copied.key);
+});
+
+it('undos title and size, clears redo on new edits and resets history after explicit reload', async () => {
+  await mount();
+  fireEvent.change(screen.getByLabelText('대시보드 제목'), { target: { value: '새 제목' } });
+  fireEvent.click(within(screen.getByRole('radiogroup', { name: '1번 차트 너비' })).getByLabelText('전체'));
+  fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
+  expect(
+    (within(screen.getByRole('radiogroup', { name: '1번 차트 너비' })).getByLabelText('절반') as HTMLInputElement).checked,
+  ).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
+  expect((screen.getByLabelText('대시보드 제목') as HTMLInputElement).value).toBe(editor.title);
+  fireEvent.change(screen.getByLabelText('대시보드 제목'), { target: { value: '다른 변경' } });
+  expect((screen.getByRole('button', { name: '다시 실행' }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: '최신 내용 다시 불러오기' }));
+  fireEvent.click(screen.getByRole('button', { name: '편집 내용 버리고 다시 불러오기' }));
+  await waitFor(() => expect((screen.getByLabelText('대시보드 제목') as HTMLInputElement).value).toBe(editor.title));
+  expect((screen.getByRole('button', { name: '되돌리기' }) as HTMLButtonElement).disabled).toBe(true);
+});
+
+it('starts with optional settings collapsed and keeps block actions visible', async () => {
+  render(<DashboardEdit />);
+  await screen.findByLabelText('대시보드 제목');
+  expect(document.querySelector('details')?.open).toBe(false);
+  expect(screen.getByRole('button', { name: '1번 차트 복제' })).not.toBeNull();
 });
 it('converts through saved metric and restricts line dimensions to native date columns', async () => {
   await mount();
