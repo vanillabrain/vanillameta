@@ -51,7 +51,7 @@ const preview = { draft, widgets: [{ ...widget, fields: [{ name: 'total' }], dat
 const success = (data: any) => ({ data: { status: 'SUCCESS', data } });
 beforeEach(() => {
   vi.clearAllMocks();
-  api.sources.mockResolvedValue(success([{ id: 7, name: 'Sales' }]));
+  api.sources.mockResolvedValue(success([{ id: 7, name: 'Sales', engine: 'duckdb' }]));
 });
 afterEach(cleanup);
 const mount = async (extra: any = {}) => {
@@ -150,4 +150,18 @@ it('reports a save rejection without notifying success or closing, and requires 
   expect(view.onClose).not.toHaveBeenCalled();
   expect(screen.getByTestId('preview')).not.toBeNull();
   expect((screen.getByText('Save') as HTMLButtonElement).disabled).toBe(true);
+});
+
+it('only offers supported DuckDB sources, excluding legacy connections', async () => {
+  api.sources.mockResolvedValue(
+    success([
+      { id: 3, name: 'Legacy', engine: 'sqlite' },
+      { id: 4, name: 'Broken file', engine: 'duckdb', configError: true },
+      { id: 7, name: 'Sales', engine: 'duckdb' },
+    ]),
+  );
+  render(<AiDashboardPanel open onClose={vi.fn()} onSaved={vi.fn()} />);
+  await screen.findByRole('option', { name: 'Sales' });
+  expect(screen.queryByRole('option', { name: 'Legacy' })).toBeNull();
+  expect(screen.queryByRole('option', { name: 'Broken file' })).toBeNull();
 });

@@ -1,3 +1,5 @@
+2026-10-14 Commerce AI 진입·디자인 후속: [existing-ai-edit.md](existing-ai-edit.md#분석-진입컨트롤-디자인-후속). AI 분석 만들기 진입 추가, 실제 Rill KPI/기기 차트 초안 생성·취소 확인, 미지원/복호화 오류 소스 제외, 컨트롤32px·12px·동일 상단 정렬 및 날짜 역전 오류 확인. FE15단위·타입·린트 PASS. 이번 분석 저장·모바일·새 Rill 실화면 비교는 NOT_RUN.
+
 2026-10-14 기존 환경 AI 편집: [설정·실제 화면·증빙](existing-ai-edit.md). 기존3698/4898 및 원래 DB·업로드·인증 유지, `.env.local` 우선 로딩과 Git 추적 제외 적용. Aside 질문201→저장200→새로고침 제목/설명/차트·수치 유지, 실제 LLM API2질문·리포트/게시 digest/version 불변, 독립 CSV5조건, BE36단위·루트빌드·변경린트 통과. 기존 AI 미설정 해소. 모바일/VoiceOver·새 Rill 비교·전체 E2E는 NOT_RUN.
 
 2026-10-14 고객 데모 검증: [8분 대본·질문·실행 결과](../demo/customer-demo.md). 독립 CSV/Decimal 5조건, 실제 gpt-6-luna 질문2개·초안 격리·저장/재조회·데이터/게시 버전/해시 불변, Aside 설명 저장→새로고침·날짜 재적용, core Explore/Pivot E2E1개 통과. Rill 공식 광고 데이터 계층 보기45 저장/복원·합계307763000·CSV 파일/API 일치도 확인. 신규 AI 서버3798/4998 사용; 기존3698 AI 미설정은 보존. 새 Rill 탭 비교·모바일·VoiceOver는 NOT_RUN이며 기존 집계는 유지한다.

@@ -66,7 +66,7 @@ export default function AiDashboardPanel({ open, onClose, dashboardId, currentDr
         if (token !== session.current) return;
         const list = responseData(response);
         if (!Array.isArray(list)) throw new Error('Could not load data sources.');
-        setSources(list);
+        setSources(list.filter(source => source.engine === 'duckdb' && !source.configError));
       })
       .catch(err => {
         if (token === session.current) setError(errorMessage(err));

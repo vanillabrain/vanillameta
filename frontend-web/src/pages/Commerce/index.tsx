@@ -25,9 +25,18 @@ import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
 import ReactECharts from 'echarts-for-react';
 import PageTitleBox from '@/components/PageTitleBox';
 import Seo from '@/seo/Seo';
+import { AnalysisUiProvider, ANALYSIS_UI, analysisFieldSx } from '@/components/analysis/AnalysisUi';
+import AiDashboardPanel from '@/pages/Dashboard/Components/AiDashboardPanel';
 import { get, post, postForm, put } from '@/helpers/apiHelper';
 import type { CommercePresentation, CommerceProject, CommerceReport } from './types';
 import ImportHelp, { parseImportDiagnostic } from './ImportHelp';
+
+const commerceControlSx = {
+  height: ANALYSIS_UI.inputHeight,
+  minHeight: ANALYSIS_UI.inputHeight,
+  fontSize: ANALYSIS_UI.fontSize,
+  '& .MuiButton-startIcon > *': { fontSize: 16 },
+};
 
 const BLUE = '#0f5ab2';
 const CURRENCY = new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
@@ -573,6 +582,7 @@ function Commerce() {
     refunds: '환불 CSV',
     customers: '고객 CSV (선택)',
   };
+  const [analysisAiOpen, setAnalysisAiOpen] = useState(false);
   const presentationTitle = presentation.title || heading;
   const importDiagnostic = importFailure && importFailure.message === pageError ? importFailure.diagnostic : null;
 
@@ -599,8 +609,13 @@ function Commerce() {
               결제 이벤트 기준 매출 · 환불 이벤트 기준 환불
             </Typography>
           </Box>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ width: { xs: '100%', md: 'auto' } }}>
-            <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 240 } }}>
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={1}
+            alignItems="flex-start"
+            sx={{ width: { xs: '100%', md: 'auto' } }}
+          >
+            <FormControl size="small" sx={{ ...analysisFieldSx, width: { xs: '100%', sm: 240 } }}>
               <InputLabel id="commerce-project-label">프로젝트</InputLabel>
               <Select
                 labelId="commerce-project-label"
@@ -625,13 +640,24 @@ function Commerce() {
                 variant="outlined"
                 startIcon={<AutoAwesomeOutlinedIcon />}
                 onClick={openAi}
-                sx={{ minHeight: 40, whiteSpace: 'nowrap' }}
+                sx={{ ...commerceControlSx, whiteSpace: 'nowrap' }}
               >
                 AI로 설명·제목 편집
               </Button>
             )}
+            <Button
+              variant="contained"
+              startIcon={<AutoAwesomeOutlinedIcon />}
+              onClick={() => setAnalysisAiOpen(true)}
+              sx={{ ...commerceControlSx, whiteSpace: 'nowrap' }}
+            >
+              AI 분석 만들기
+            </Button>
           </Stack>
         </Stack>
+        <Typography variant="caption" color="text.secondary">
+          이 보고서는 설명·제목을 편집합니다. AI 분석 만들기에서는 파일 분석 소스를 선택하고 질문으로 지표·차트를 구성합니다.
+        </Typography>
 
         {searchParams.get('sample') === '1' && (
           <Alert severity="info">
@@ -862,7 +888,13 @@ function Commerce() {
                 <Typography variant="subtitle2" fontWeight={700} mb={1}>
                   조회 범위
                 </Typography>
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }}>
+                <Stack
+                  direction={{ xs: 'column', sm: 'row' }}
+                  spacing={1}
+                  alignItems="flex-start"
+                  useFlexGap
+                  sx={{ flexWrap: 'wrap' }}
+                >
                   <TextField
                     id="commerce-start-date"
                     inputRef={startInput}
@@ -875,7 +907,8 @@ function Commerce() {
                       setDateErrors({ start: '', end: '' });
                     }}
                     error={Boolean(dateErrors.start)}
-                    helperText={dateErrors.start || ' '}
+                    helperText={dateErrors.start || undefined}
+                    sx={{ ...analysisFieldSx, width: { xs: '100%', sm: 154 } }}
                     InputLabelProps={{ shrink: true }}
                     inputProps={{ 'aria-label': '시작일 UTC' }}
                   />
@@ -891,11 +924,12 @@ function Commerce() {
                       setDateErrors({ start: '', end: '' });
                     }}
                     error={Boolean(dateErrors.end)}
-                    helperText={dateErrors.end || ' '}
+                    helperText={dateErrors.end || undefined}
+                    sx={{ ...analysisFieldSx, width: { xs: '100%', sm: 154 } }}
                     InputLabelProps={{ shrink: true }}
                     inputProps={{ 'aria-label': '종료일 UTC' }}
                   />
-                  <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 190 } }}>
+                  <FormControl size="small" sx={{ ...analysisFieldSx, width: { xs: '100%', sm: 190 } }}>
                     <InputLabel id="commerce-channel-label">채널</InputLabel>
                     <Select
                       labelId="commerce-channel-label"
@@ -915,7 +949,7 @@ function Commerce() {
                     variant="contained"
                     onClick={applyFilters}
                     aria-disabled={reportBusy}
-                    sx={{ minHeight: 40, opacity: reportBusy ? 0.5 : 1 }}
+                    sx={{ ...commerceControlSx, opacity: reportBusy ? 0.5 : 1 }}
                   >
                     적용
                   </Button>
@@ -923,7 +957,7 @@ function Commerce() {
                     variant="outlined"
                     onClick={resetFilters}
                     aria-disabled={reportBusy}
-                    sx={{ minHeight: 40, opacity: reportBusy ? 0.5 : 1 }}
+                    sx={{ ...commerceControlSx, opacity: reportBusy ? 0.5 : 1 }}
                   >
                     초기화
                   </Button>
@@ -1373,8 +1407,22 @@ function Commerce() {
           </Button>
         </DialogActions>
       </Dialog>
+      <AiDashboardPanel
+        open={analysisAiOpen}
+        onClose={() => setAnalysisAiOpen(false)}
+        onSaved={id => {
+          setAnalysisAiOpen(false);
+          navigate(`/dashboard/${id}`);
+        }}
+      />
     </PageTitleBox>
   );
 }
 
-export default Commerce;
+export default function CommercePage() {
+  return (
+    <AnalysisUiProvider>
+      <Commerce />
+    </AnalysisUiProvider>
+  );
+}
