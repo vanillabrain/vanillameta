@@ -492,3 +492,16 @@ CHART-FILTER-02: 공통 차트 조회 중 재선택 및 늦은 성공/오류. �
 증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/view-stale-delete-20261014/`의 results.json(최초 HTTP), before-conflict-390.png, stale-error-delete-dialog-390.png, final-results.json(수정 후), conflict-1440.png/conflict-390.png, delete-dialog-1440.png/delete-dialog-390.png, recovered-1440.png/recovered-390.png, regression-before.log/regression-after.log, build.log, cleanup.json. 임시 source21/22/23·보기는 삭제, 지표는 정상 soft-delete 처리했다. DB 확인 temporarySources/Views/activeTemporaryMetrics=0, 기존 source3/view1 보존. gpt-6-luna 설정 유지/AI 호출0, VoiceOver BLOCKED 유지.
 
 잔여 범위: 강제 열 스키마 변경 이후 충돌(정상 파일 교체는 스키마 변경을 거부), MySQL·다중 서버 운영 통합, 실제 VoiceOver·실기기 터치/전체 키보드 조합은 완료로 확대하지 않는다. 이번 안내 수정과 이 검증 기록은 미커밋이다.
+
+
+## 2026-10-14 EXP-VIEW-04 저장 보기 20개 한도·삭제 후 저장 복구
+
+오류 안내 수정과 앞선 검증 기록은 `faf5caa4`로 현재 `codex/self-service-next-20261014` 브랜치에 drumcap 계정으로 커밋·push했다. HEAD/원격 일치를 확인한 뒤, 기존 단위에서만 확인했던 20개 한도의 실제 HTTP·화면 연결만 선택 검증했다. 이미 통과한 파일 교체·정의409·일반 저장/복원 케이스는 반복하지 않았다.
+
+**PASS_SELECTED_VARIANTS — EXP-VIEW-04·07**: 별도 source24 CSV 두 행200+300=500과 SUM 지표24를 만들고, 같은 소스/사용자에 보기20개를 API로 준비했다. 21번째 POST400과 목록20개 유지 확인. 실제 headed Chromium 1440×1000/390×844에서 목록20개, 유효한 이름 입력 후에도 저장 버튼 비활성화, 최대20개/기존 보기 삭제 안내를 확인했다. 390px에서 삭제 Enter→취소 기본 초점→Shift+Tab 삭제 확인/Enter→DELETE200/19개→80자 이름 입력→저장 버튼 활성화/Enter POST201→새로고침→목록20개/80자 이름과 저장 state 보존을 확인했다. 목록 한도 재도달로 저장이 다시 비활성화됐다. 같은 소스의 UI 합계500, 두 문서 가로 넘침0. 긴 이름의 줄바꿈·버튼/입력 높이·정렬·초점과 한도 안내 캡처를 직접 검토했다.
+
+제품 결함·수정0. 동일 코드의 앞선 관련4개 단위/타입/lint/build 통과 결과를 재사용하고 문서 diff check만 추가했다. Aside 기존 탭은 로그인 화면이었으며 helper가 실제 접근성 이름 User ID*의 별표를 생략해 로그인 요소 탐색에 실패했다. 이를 제품 오류나 Aside 전체 장애로 보고하지 않는다. 해당 실행은 허용된 headed Playwright의 정상 로그인 및 실제 화면 캡처로 검증했고, Aside에서 검증한 것으로 세지 않았다. 인증정보는 출력·증빙에 남기지 않았다.
+
+증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/view-limit-ui-20261014/`: results.json, fixture.json, limit-1440.png/limit-390.png, restored-20-long-name-390.png, aside-initial.txt, cleanup.json. 임시 소스/보기 API 삭제·지표 soft-delete 후 DB에서 temporarySources/Views/activeTemporaryMetrics=0, 기존 source3/view1 보존을 확인했다. gpt-6-luna 설정/VoiceOver BLOCKED 유지, AI 호출0.
+
+20개 단일 서버 UI 경계와 삭제 후 복구만 완료했다. MySQL·다중 서버 동시성, 실제 VoiceOver·실기기 터치/전체 키보드 조합 및 강제 스키마 변경 조건은 미검증으로 유지한다.
