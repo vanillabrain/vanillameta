@@ -752,3 +752,15 @@ it('pivot mode reuses current period/filters and stops Explore requests until re
   fireEvent.click(screen.getByRole('button', { name: 'Explore', exact: true }));
   await waitFor(() => expect(queries().length).toBe(before + 1));
 });
+
+it('explains forbidden source access without offering an ineffective catalog retry', async () => {
+  api.post.mockRejectedValue(Object.assign(new Error('denied'), { response: { status: 403 } }));
+  render(<SourceExplore />);
+  await screen.findByText(/이 데이터 소스에 접근할 권한이 없습니다/);
+  expect(screen.queryByRole('button', { name: '카탈로그 다시 불러오기' })).toBeNull();
+  expect(screen.queryByRole('region', { name: '탐색 저장 보기' })).toBeNull();
+  const requests = api.post.mock.calls.length;
+  fireEvent.click(screen.getByRole('button', { name: '다른 데이터 소스 선택' }));
+  await waitFor(() => expect(screen.queryByText(/이 데이터 소스에 접근할 권한이 없습니다/)).toBeNull());
+  expect(api.post.mock.calls.length).toBe(requests);
+});

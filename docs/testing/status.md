@@ -398,3 +398,71 @@ CHART-FILTER-02: 공통 차트 조회 중 재선택 및 늦은 성공/오류. �
 결과 PASS_SELECTED_VARIANTS: headed Chromium 1440/390 두 상태 캡처 직접 검토, 문서scrollWidth=viewport, 키보드 선택창 열기/닫기 PASS. Aside 기존 탭에서도 최신 DOM/명칭 확인. Aside 절대경로 캡처는 세션 디렉터리 제한으로 저장되지 않아 Chromium 캡처를 증빙으로 사용. 타입·변경 파일 lint·FE build·diffcheck PASS. 단순 스타일 변경이므로 기존 숫자/SQL/통과 전체 테스트 재실행하지 않음. 실제 VoiceOver/실기기 touch/전체Tab 미검증 또는 차단 유지. gpt-6-luna 유지/호출0.
 
 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/dashboard-design-20261014/`의 updated-1440.png, updated-390.png(펼침), overview-1440.png, overview-390.png(접힘), results.json, build.log. 이전 화면은 chart-inflight-20261014/final-1440.png. 이번 디자인 수정과 MD는 미커밋. 앞선 미커밋 경합 검증 기록/테스트는 그대로 보존.
+
+
+## 2026-10-14 EXP-VIEW-05 실제 파일 갱신·복원 후속
+
+기준 `3537adee`, 제품 변경 없음. 기존 Rill139만행 소스3/저장보기1은 변경하지 않고 별도 CSV 소스/category·amount·ordered_at, SUM(amount) 지표와 저장 보기를 생성했다. 작은 고정 oracle 두 행10+20=30, 같은 스키마 새 파일 세 행40+60+80=180으로 최신 파일 게시와 보기 복원만 선택 검증.
+
+**PASS_SELECTED_VARIANTS**: 실제 multipart file-replacement201 후 data/sourceRevision 변경·viewRevision 불변, 기존 저장보기GET200/설정동일, 최신query201 합계180/3행. 실제 1440×1000·390×844에서 Enter로 저장보기 복원180·새로고침 후 재복원180. 이전 파일 버전 file-restore201 후 같은 보기30/2행 복원. 모바일 문서overflow0·키보드 초점/Enter·숫자/레이블/패널 캡처 확인.
+
+컬럼 amount→revenue 변경 파일은 실제 file-replacement400, 기존 파일 revision/버전·저장설정 유지. 이는 지원되는 교체 정책의 스키마 변경 거부 PASS이며, 스키마가 강제로 변경된 후 view409/stale삭제HTTP까지 검증한 것은 아니다. 현재 스키마 변경은 새 소스로 연결해야 한다. 컬럼 변경 거부의 실제 UI 안내는 이번 실행 NOT_RUN(API만 확인).
+
+임시소스8/9/10·보기8/9/10은 API 삭제 후 DB없음 확인, 신규지표5/6/7은 정상 DELETE의 useYn=N 비활성화 확인. 기존 소스·지표·보기 수정 없음. 첫 브라우저 검사는 버튼 접근성 이름의 '보기' 누락으로 timeout, helper 수정 후 통과; 첫 모바일 캡처는 재조회 중 상태여서 완료 대기·KPI보이는 화면으로 교체했다. 제품 결함/수정0. 기존 단위/빌드 재사용·문서diffcheck만 수행. 전용 API/FE는 기존 격리 환경 설정으로 재기동, gpt-6-luna 유지/AI호출0. VoiceOver BLOCKED·실기기touch/전체Tab은 그대로.
+
+증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/view-file-refresh-20261014/`의 api-results.json, ui-results.json, restored-desktop.png, restored-mobile.png, rollback-mobile.png, verify.cjs. DB 정리확인에서 metric은 soft-delete 의미로 해석한다. 이번 검증 기록은 미커밋. 다음 우선 조건은 EXP-VIEW-04 다른 사용자/공유토큰 실제 HTTP, EXP-VIEW-06 목록503·소스교체 경합이다.
+
+
+## 2026-10-14 EXP-VIEW-04 다른 사용자·공유토큰 HTTP 후속
+
+기준 `3537adee` + 권한 안내 수정. Rill source3의 기존 보기1/지표/파일은 변경하지 않고 임시 개인 보기·다른 사용자 DB fixture·빈 공유 대시보드 생성. 다른 사용자는 서버 사용자 행+정상 해시+실제 signin으로 인증(가입/온보딩 검증 아님). 공유토큰은 소유자가 임시 대시보드에 실제 share-on201→공유조회200을 호출해 활성 토큰 확인, 저장보기/원본 데이터는 공유 대시보드에 포함하지 않음.
+
+**PASS_SELECTED_VARIANTS** 실제 HTTP16조건: 목록GET/보기GET/생성POST/삭제DELETE 각4조건 × 다른사용자Authorization403·유효한Authorization-Url공유토큰403·공유토큰을일반Authorization으로전달401·익명401. 소유자의 보기GET200/원state/이름보존. 403/401 응답만 확인하고 저장 데이터가 실제 유지되는지 소유자GET으로 별도검사. 다른소스ID변형/MySQL다중서버통합은 미실행.
+
+실제1440×900/390×844 다른 사용자 source3 진입→catalog403·KPI/저장보기 노출없음 PASS. 최초 UI는 권한거부에도 일반분석실패/카탈로그재시도를 권해 UX FAIL, SourceExplore가403을 구분하여 '접근할 권한이 없습니다'와 '다른 데이터 소스 선택'을 제공하도록 수정. 수정후 두화면 안내/재시도없음·모바일Enter선택→권한오류해제/본인저장데이터없음 안내·overflow0 PASS. 신규403단위1+기존일반실패재시도1=2PASS/21skip, 타입·변경lint·FEbuild·diffcheckPASS. HTTP16은 UI수정후재실행하지않고 이전 통과 결과 재사용. UI는 캡처 직접검토.
+
+초기helper의 긴임시ID가5~19자로그인규칙을넘어요청이안나옴/고정대시보드이동가정 timeout, 짧은영숫자ID 및 signin201기준으로 수정. 정상빈데이터안내alert를 오류로오인한검사도 권한오류텍스트에한정해 수정. 제품인증코드를 우회한 것은 아니며 실제로그인으로 검증. 임시보기/대시보드/공유행/사용자/해당refresh행 정리, cleanup.json의temporaryUsers/Views/Dashboards=0·기존보기1있음확인. 인증정보/토큰은출력·증빙저장없음.
+
+증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/view-access-20261014/`의 results.json(16조건), before-1440.png/before-390.png, denied-1440.png/denied-390.png(수정후), recovered-390.png, cleanup.json, build.log. 이번 제품수정/기록 미커밋. gpt-6-luna설정유지/호출0·VoiceOverBLOCKED유지. 다음 미검증은 EXP-VIEW-06 목록503·탐색보기지연중소스교체 UI.
+
+
+## 2026-10-14 EXP-VIEW-06 목록503·복원중 소스교체 UI 후속
+
+기준 `3537adee` + 이전 권한안내 미커밋diff, 이번 제품수정0. Rill source3/view1/user2 및 신규 CSV 소스(두 행200+300=500)·SUM지표만 생성. 원파일·지표·보기는 변경하지 않음.
+
+**PASS_SELECTED_VARIANTS** 실제headed1440×1000/390×844: 저장보기목록GET에503 fixture 주입→목록오류/불러오기없음·현재634513000 유지→route해제/Enter목록재시도→실제GET200/원보기목록복구·현재조건불변. 이어 view1실제GET200 응답을 route.fetch후보류→Enter복원중버튼잠금→데이터소스native선택으로새소스전환→합계500/새지표/차원category 표시→이전응답해제후새소스500유지·옛보기노출없음. 브라우저 requestfailed로 이전복원요청취소 관찰. actualtransport취소불가 증명은 아니며 해당단위검증기록과 구분.
+
+두뷰포트 document.scrollWidth=width·오류/복구/소스전환캡처 직접검토, 이름/버튼/폰트/포커스/패널 줄바꿈 PASS. native소스선택은 selectOption으로 조작했으며 OS방향키전체 경로/실기기터치는 미실행, 목록재시도와복원은Enter. 503은실제장애발생이아닌브라우저응답주입이다. 저장/삭제/AI기존통과조건재실행없음. 제품변경없어기존단위/빌드재사용·문서diffcheck. gpt-6-luna설정유지/호출0·VoiceOverBLOCKED유지.
+
+임시소스API삭제/임시지표DELETE useYn=N 확인, cleanup.json temporarySources=0/activeTemporaryMetrics=0/기존보기1유지. 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/view-list-race-20261014/` results.json, list503-1440.png/list503-390.png, list-recovered-1440.png/list-recovered-390.png, source-switched-1440.png/source-switched-390.png, cleanup.json. 기록미커밋. EXP-VIEW-06의목록503·탐색endpoint복원지연중소스교체선택조건해소; 전체조건조합/MySQL운영/VoiceOver등은완료로확대하지않음.
+
+
+## 2026-10-14 EXP-VIEW-03 혼합필터·빈차원 실제 저장 후속
+
+기준 `3537adee` + 이전권한안내diff, 이번제품변경0. source3/user2/Rill1391572행의 device_type=Mobile/Tablet 값필터 + bid_floor1..10 숫자범위, 전체기간·주별·차원[]·지표순서[2,1]·순위지표1/value asc를 임시보기로 준비→실제화면에서복원→새이름으로현재보기POST201저장→전체새로고침후재복원. 첫준비만APIfixture, 최종저장은실제UI Enter 요청/state로 확인.
+
+**PASS_SELECTED_VARIANTS**1440×1000/390×844: POSTstate원본과동일·지표순서[2,1]/빈차원[]/값+범위타입·경계/날짜null/주집계 유지, 실제복원query201 요청[2,1]·leaderboards[]·요청수119028600 exact/평균입찰가2.8735833247140867(독립Parquet±1e-9). 원본SQL은동일필터의 SUM(bid_request_cnt),SUM(bid_floor)/SUM(has_bid_floor_cnt),COUNT(*)로직접계산. 화면표시119M/$2.87과순서확인, 문서overflow0·Enter저장/복원·패널접기·포커스/필터칩줄바꿈 캡처검토. 원본날짜/불완전날짜조건은기존하위검증재사용.
+
+첫helper는reload초기조회중비활성복원버튼에Enter를보내응답timeout. 제품오류로세지않고button enabled를기다린뒤재검증PASS. 기존파일/지표/기본보기1변경없음, 생성보기만DELETE후cleanup temporaryViews=0/primaryViewPresent=1 확인. 제품수정없어기존단위/빌드재사용·문서diffcheck. gpt-6-luna유지/호출0·VoiceOverBLOCKED/실기기터치/전체Tab미검증유지.
+
+증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/view-mixed-empty-20261014/` oracle.json/results.json, saved-1440.png, restored-1440.png/restored-390.png, cleanup.json. 이번기록미커밋. 혼합값+범위·빈차원의실제저장/재조회선택변형해소이며모든상태조합으로확대하지않음.
+
+
+## 2026-10-14 EXP-VIEW-05 컬럼명 교체 거부 실제 화면 후속
+
+기준 `3537adee` + 이전권한안내diff, 이번제품수정0. VERSION-03의이미통과타입/JSON등전체조건은반복하지않고, 컬럼명변경후개인저장보기유지와실제안내를새로연결검증. 별도category/amount/ordered_at CSV2행·SUM(amount)·임시보기의정답30을준비.
+
+**PASS_SELECTED_VARIANTS** 실제1440×1000/390×844지표빌더파일버전화면: hiddenfileinput에amount→revenue파일선택→Enter교체POST400→'컬럼 이름 또는 타입이 기존 파일과 다릅니다. 기존 데이터는 유지됩니다…' 실제안내·같은형식수정/새소스연결지침 표시. file-versions revision 불변, 탐색저장보기Enter복원30유지. 두문서overflow0·안내줄바꿈·파일이름/보존버전표·컨트롤캡처직접검토.
+
+390px에서빌더다시열기→정상same-schema3행40+60+80파일선택→Enter교체201→탐색기존보기복원180/3행 PASS. 이는빌더재진입후정상파일재시도이며, 같은오류컴포넌트세션내재선택전체경로·OS네이티브파일대화상자·실기기터치는미검증. 파일선택은Playwright setInputFiles, 교체/복원은Enter. UI저장기능/이전파일복원전체는재실행않음. 강제로스키마변경후stale뷰409/삭제는별도미검증이고지원정책은스키마변경게시거부.
+
+기존Rill소스/보기/지표변경없음, 이번생성소스/보기를API삭제·지표비활성화. cleanup temporarySources/Views=0·primaryViewPresent=1 확인. 제품변경없어기존단위/빌드재사용·문서diffcheck. gpt-6-luna유지/호출0·VoiceOverBLOCKED유지. 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/view-schema-ui-20261014/` results.json, schema-denied-1440.png/schema-denied-390.png, recovered-390.png, cleanup.json. 기록미커밋.
+
+
+## DESIGN-EXPLORE-01 — 지표 탐색 모바일 룩앤필 (2026-10-14)
+
+사용자제공390px race-destination-qa 화면기준. SourceExplore범위에서보라색알약형Pill을브랜드파랑·옅은선택배경·7px모서리로교체, 버튼데스크톱36/모바일40px·입력40px/13px 통일. 탐색방식·기간/집계·필터·정렬·표시설정을흰색테두리패널에구분, 모바일기간2열/집계3버튼+비교한행·정렬2열, 데스크톱기간버튼은내용폭으로제한. 헤더의빌더버튼정렬·소스명중복제거(행수/연결상태만), KPI/차원결과카드10px반경·숫자34px/tabular·배경#f6f8fb. 접힌설정의중복지표/차원배지는펼침에만표시, 개수레이블유지. 모바일기술정렬설명/빈live영역여백축소. 쿼리/데이터/AI설정변경없음.
+
+**PASS_SELECTED_VARIANTS**: 실제1440×1000/390×844 임시CSV두행200+300=500, 같은source명·지표로사용자이미지와비교. 두뷰포트scrollWidth=width, Enter Explore→Pivot표→Explore500복귀·포커스유지. 최종캡처직접검토(버튼/입력높이·폰트·선택/비활성·패널·KPI·차원카드). 최초시안모바일집계월버튼/비교겹침→최소폭0/분리grid조정, 데스크톱집계폭과헤더버튼여백/중복배지보정→최종재캡처. 복원숫자/전체저장케이스반복않음. 영향받는초기선택단위1PASS/22skip·최종FEtype/lint/build·diffcheckPASS. 실제파일/지표설정조합/VoiceOver/실기기touch전체는확대검증않음.
+
+임시소스API삭제·지표비활성화/cleanup.json0확인. 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/explore-design-20261014/` updated-1440.png/updated-390.png, results.json, build.log. 이전화면 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/view-list-race-20261014/source-switched-390.png`. 앞선권한안내미커밋수정과기록보존, 이번디자인도미커밋. gpt-6-luna/VoiceOverBLOCKED유지·AI호출0.

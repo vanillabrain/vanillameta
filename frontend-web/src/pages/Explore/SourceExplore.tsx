@@ -30,7 +30,7 @@ import MetricTrend, { FormattedMetricTrendData } from '@/pages/Dashboard/Compone
 import { formatMetric, metricNumericText, NumberNotation } from '@/utils/formatMetric';
 import type { MetricComparisonData } from '@/pages/Dashboard/Components/PeriodComparison';
 
-const ACCENT = '#4f46e5';
+const ACCENT = '#0b5cab';
 const PAGE_SIZE = 20;
 const MAX_MEASURES = 6;
 const MAX_DIMENSIONS = 4;
@@ -157,23 +157,26 @@ function Pill({
   return (
     <Button
       type="button"
+      variant="outlined"
       size="small"
       aria-pressed={selected}
       aria-label={ariaLabel}
       disabled={disabled}
       onClick={onClick}
       sx={{
-        minHeight: 32,
+        minHeight: { xs: 40, sm: 36 },
         px: 1.5,
-        borderRadius: 999,
+        borderRadius: '7px',
+        boxShadow: 'none',
         textTransform: 'none',
         fontWeight: 600,
         fontSize: 13,
-        color: selected ? '#ffffff' : '#334155',
-        backgroundColor: selected ? ACCENT : '#ffffff',
+        color: selected ? ACCENT : '#475569',
+        backgroundColor: selected ? '#eaf2fc' : '#ffffff',
         border: '1px solid',
-        borderColor: selected ? ACCENT : '#e2e8f0',
-        '&:hover': { backgroundColor: selected ? '#4338ca' : '#f8fafc' },
+        borderColor: selected ? '#adc8eb' : '#d8e0eb',
+        '&:hover': { backgroundColor: '#f0f5fc', borderColor: ACCENT },
+        '&.Mui-disabled': { bgcolor: '#f5f7fa', borderColor: '#e5eaf0', color: '#8993a2' },
       }}
     >
       {label}
@@ -291,7 +294,7 @@ function LeaderboardCard({
   const rows = board.rows ?? [];
   const max = rows.reduce((best, row) => Math.max(best, toNumber(row.value) ?? 0), 0);
   return (
-    <Card variant="outlined" sx={{ p: 1.5, minWidth: 0 }}>
+    <Card variant="outlined" sx={{ p: 2, minWidth: 0, borderColor: '#e0e6ee', borderRadius: '10px', boxShadow: 'none' }}>
       <Typography component="h3" variant="subtitle2" sx={{ fontWeight: 700, mb: 1, overflowWrap: 'anywhere' }}>
         {board.column}
       </Typography>
@@ -334,7 +337,7 @@ function LeaderboardCard({
                       bottom: 0,
                       left: 0,
                       width: `${width}%`,
-                      backgroundColor: '#e0e7ff',
+                      backgroundColor: '#e2edfc',
                       pointerEvents: 'none',
                     }}
                   />
@@ -403,6 +406,7 @@ export default function SourceExplore() {
   const [catalogReload, setCatalogReload] = useState(0);
   const [catalogBusy, setCatalogBusy] = useState(false);
   const [catalogError, setCatalogError] = useState('');
+  const [catalogForbidden, setCatalogForbidden] = useState(false);
   const [measureIds, setMeasureIds] = useState<number[]>([]);
   const [dimensions, setDimensions] = useState<string[]>([]);
   const [rankingMeasureId, setRankingMeasureId] = useState<number | null>(null);
@@ -492,6 +496,7 @@ export default function SourceExplore() {
     if (!sourceId) {
       setCatalog(null);
       setCatalogError('');
+      setCatalogForbidden(false);
       setCatalogBusy(false);
       resetAllState();
       return undefined;
@@ -501,6 +506,7 @@ export default function SourceExplore() {
     const abort = new AbortController();
     setCatalog(null);
     setCatalogError('');
+    setCatalogForbidden(false);
     setCatalogBusy(true);
     resetAllState();
     post('/bi/explore/catalog', { sourceId: Number(sourceId) }, { signal: abort.signal })
@@ -526,7 +532,13 @@ export default function SourceExplore() {
       })
       .catch(err => {
         if (catalogRevision.current !== token || isAborted(err)) return;
-        setCatalogError('데이터 소스를 분석하지 못했습니다. 카탈로그를 다시 불러와 주세요.');
+        const forbidden = err?.response?.status === 403;
+        setCatalogForbidden(forbidden);
+        setCatalogError(
+          forbidden
+            ? '이 데이터 소스에 접근할 권한이 없습니다. 본인 소유의 데이터 소스를 선택해 주세요.'
+            : '데이터 소스를 분석하지 못했습니다. 카탈로그를 다시 불러와 주세요.',
+        );
       })
       .finally(() => {
         if (catalogRevision.current === token) setCatalogBusy(false);
@@ -809,19 +821,44 @@ export default function SourceExplore() {
         width: '100%',
         mx: 'auto',
         minWidth: 0,
-        backgroundColor: '#ffffff',
-        '& .MuiButton-root': { minHeight: 32 },
-        '& .MuiInputBase-root': { minHeight: 36 },
+        backgroundColor: '#f6f8fb',
+        '& .MuiButton-root': {
+          minHeight: { xs: 40, sm: 36 },
+          textTransform: 'none',
+          fontSize: 13,
+          fontWeight: 500,
+          borderRadius: '7px',
+          boxShadow: 'none',
+        },
+        '& .MuiButton-root:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 2 },
+        '& .MuiInputBase-root': { minHeight: 40, fontSize: 13, borderRadius: '7px', bgcolor: 'background.paper' },
+        '& .MuiInputLabel-root': { fontSize: 13 },
+        '& .MuiOutlinedInput-notchedOutline': { borderColor: '#d8e0eb' },
+        '& .MuiChip-root': {
+          borderRadius: '6px',
+          fontSize: 12,
+          bgcolor: '#edf3fb',
+          color: '#214c80',
+          maxWidth: '100%',
+          height: 'auto',
+          minHeight: 28,
+        },
+        '& .MuiChip-label': { whiteSpace: 'normal', overflowWrap: 'anywhere', py: 0.5 },
       }}
     >
       <Stack
-        direction="row"
-        spacing={2}
-        alignItems="center"
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={1.5}
+        alignItems={{ xs: 'stretch', sm: 'center' }}
         justifyContent="space-between"
-        sx={{ flexWrap: 'wrap', mb: 1.5, minWidth: 0 }}
+        sx={{ flexWrap: 'wrap', mb: 1.5, minWidth: 0, position: 'relative' }}
       >
-        <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flexWrap: 'wrap', minWidth: 0 }}>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={1.5}
+          alignItems={{ xs: 'stretch', sm: 'center' }}
+          sx={{ flexWrap: 'wrap', minWidth: 0 }}
+        >
           <Typography component="h1" variant="h5" sx={{ fontWeight: 700 }}>
             지표 탐색
           </Typography>
@@ -844,13 +881,24 @@ export default function SourceExplore() {
           </TextField>
           {catalog && (
             <Typography color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
-              {catalog.name} · {formatMetric(catalog.rowCount).text}행
+              {formatMetric(catalog.rowCount).text}행 · 연결됨
             </Typography>
           )}
         </Stack>
         <Button
+          variant="outlined"
           onClick={() => navigate(`/explore${sourceId ? `?sourceId=${encodeURIComponent(sourceId)}` : ''}`)}
-          sx={{ textTransform: 'none' }}
+          sx={{
+            textTransform: 'none',
+            alignSelf: { xs: 'flex-end', sm: 'center' },
+            position: { xs: 'absolute', sm: 'static' },
+            margin: { xs: '0 !important', sm: 0 },
+            top: 0,
+            right: 0,
+            borderColor: '#d8e0eb',
+            bgcolor: 'background.paper',
+            color: 'text.primary',
+          }}
         >
           지표 빌더
         </Button>
@@ -903,395 +951,450 @@ export default function SourceExplore() {
         </Box>
       )}
 
-      <Stack direction="row" spacing={1} role="group" aria-label="탐색 방식" sx={{ mt: 1 }}>
-        <Pill label="Explore" selected={mode === 'explore'} onClick={() => setMode('explore')} />
-        <Pill
-          label="Pivot"
-          selected={mode === 'pivot'}
-          onClick={() => {
-            setMode('pivot');
-            setSavedViewsOpen(false);
-          }}
-        />
-      </Stack>
-
-      <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', mt: 1.5 }}>
-        <Pill
-          label="전체 기간"
-          selected={dateMode === 'all'}
-          onClick={() => {
-            setDateMode('all');
-            setComparePrevious(false);
-            setLeaderboardSort(DEFAULT_SORT);
-            setPage(0);
-          }}
-        />
-        <Pill label="사용자 지정" selected={dateMode === 'custom'} onClick={() => setDateMode('custom')} />
-        {dateMode === 'custom' && (
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap' }}>
-            <TextField
-              size="small"
-              type="date"
-              label="시작일"
-              value={startDate}
-              onChange={event => {
-                setStartDate(event.target.value);
-                setPage(0);
-              }}
-              sx={{ width: 160 }}
-            />
-            <TextField
-              size="small"
-              type="date"
-              label="종료일"
-              value={endDate}
-              onChange={event => {
-                setEndDate(event.target.value);
-                setPage(0);
-              }}
-              sx={{ width: 160 }}
-            />
-            <Stack direction="row" spacing={0.5} alignItems="center" role="group" aria-label="표시 시간대">
-              {TIME_ZONES.map(zone => (
-                <Pill
-                  key={zone}
-                  label={zone}
-                  ariaLabel={`표시 시간대 ${zone}`}
-                  selected={timeZone === zone}
-                  onClick={() => {
-                    setTimeZone(zone);
-                    setPage(0);
-                  }}
-                />
-              ))}
-            </Stack>
-          </Stack>
-        )}
-        {mode === 'explore' && (
-          <>
-            <Divider orientation="vertical" flexItem />
-            <Stack direction="row" spacing={0.5} alignItems="center" role="group" aria-label="집계 단위">
-              {GRAINS.map(item => (
-                <Pill
-                  key={item.value}
-                  label={item.label}
-                  ariaLabel={`집계 단위 ${item.label}`}
-                  selected={grain === item.value}
-                  onClick={() => {
-                    setGrain(item.value);
-                    setPage(0);
-                  }}
-                />
-              ))}
-            </Stack>
-            <Pill
-              label="이전 기간 비교"
-              selected={comparePrevious}
-              disabled={!dateRange || rangePaused}
-              onClick={() => {
-                if (comparePrevious) setLeaderboardSort(DEFAULT_SORT);
-                setComparePrevious(value => !value);
-                setPage(0);
-              }}
-            />
-          </>
-        )}
-      </Stack>
-
-      <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', mt: 1.5, minWidth: 0 }}>
-        {filters.length === 0 && <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>필터 없음</Typography>}
-        {filters.map(filter => (
-          <Chip
-            key={filter.column}
-            label={`${filter.column}: ${
-              'range' in filter
-                ? `${filter.range.min ?? '제한 없음'} ~ ${filter.range.max ?? '제한 없음'} (양 끝 포함)`
-                : filter.values.map(categoryText).join(', ')
-            }`}
-            sx={{
-              backgroundColor: '#eef2ff',
-              color: '#312e81',
-              maxWidth: '100%',
-              height: 'auto',
-              '& .MuiChip-label': { whiteSpace: 'normal', overflowWrap: 'anywhere', py: 0.75 },
+      <Box
+        sx={{
+          mt: 1.5,
+          p: { xs: 1.5, sm: 2 },
+          bgcolor: 'background.paper',
+          border: '1px solid #e0e6ee',
+          borderRadius: '10px',
+        }}
+      >
+        <Stack direction="row" spacing={1} role="group" aria-label="탐색 방식" sx={{ mb: 1.5 }}>
+          <Pill label="Explore" selected={mode === 'explore'} onClick={() => setMode('explore')} />
+          <Pill
+            label="Pivot"
+            selected={mode === 'pivot'}
+            onClick={() => {
+              setMode('pivot');
+              setSavedViewsOpen(false);
             }}
-            onDelete={() => applyFilter(filter.column, [])}
           />
-        ))}
-        <Button
-          ref={filterLauncher}
-          aria-label="필터 추가"
-          aria-expanded={filterPanelOpen}
-          aria-controls="explore-filter-panel"
-          onClick={() => {
-            setFilterError('');
-            setFilterPanelOpen(value => !value);
-          }}
-          sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 4, textTransform: 'none', minHeight: 44 }}
-        >
-          필터 추가
-        </Button>
-      </Stack>
+        </Stack>
 
-      {filterPanelOpen && catalog && (
-        <Box
-          id="explore-filter-panel"
-          role="group"
-          aria-label="필터 설정"
-          sx={{ mt: 1, p: 1.5, border: '1px solid #e2e8f0', borderRadius: 2, backgroundColor: '#f8fafc' }}
+        <Stack
+          direction="row"
+          spacing={0}
+          alignItems="center"
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', sm: 'repeat(4, max-content)' },
+            gap: 1,
+          }}
         >
-          <Stack direction="row" spacing={1.5} sx={{ mb: 1, flexWrap: 'wrap' }}>
+          <Pill
+            label="전체 기간"
+            selected={dateMode === 'all'}
+            onClick={() => {
+              setDateMode('all');
+              setComparePrevious(false);
+              setLeaderboardSort(DEFAULT_SORT);
+              setPage(0);
+            }}
+          />
+          <Pill label="사용자 지정" selected={dateMode === 'custom'} onClick={() => setDateMode('custom')} />
+          {dateMode === 'custom' && (
+            <Stack
+              direction="row"
+              spacing={1}
+              alignItems="center"
+              sx={{ flexWrap: 'wrap', gridColumn: '1 / -1', rowGap: 1 }}
+            >
+              <TextField
+                size="small"
+                type="date"
+                label="시작일"
+                value={startDate}
+                onChange={event => {
+                  setStartDate(event.target.value);
+                  setPage(0);
+                }}
+                sx={{ width: 160 }}
+              />
+              <TextField
+                size="small"
+                type="date"
+                label="종료일"
+                value={endDate}
+                onChange={event => {
+                  setEndDate(event.target.value);
+                  setPage(0);
+                }}
+                sx={{ width: 160 }}
+              />
+              <Stack direction="row" spacing={0.5} alignItems="center" role="group" aria-label="표시 시간대">
+                {TIME_ZONES.map(zone => (
+                  <Pill
+                    key={zone}
+                    label={zone}
+                    ariaLabel={`표시 시간대 ${zone}`}
+                    selected={timeZone === zone}
+                    onClick={() => {
+                      setTimeZone(zone);
+                      setPage(0);
+                    }}
+                  />
+                ))}
+              </Stack>
+            </Stack>
+          )}
+          {mode === 'explore' && (
+            <>
+              <Stack
+                direction="row"
+                spacing={0.5}
+                alignItems="center"
+                role="group"
+                aria-label="집계 단위"
+                sx={{
+                  gridColumn: { xs: '1', sm: 'auto' },
+                  minWidth: 0,
+                  '& .MuiButton-root': { flex: 1, minWidth: { xs: 0, sm: 52 } },
+                }}
+              >
+                {GRAINS.map(item => (
+                  <Pill
+                    key={item.value}
+                    label={item.label}
+                    ariaLabel={`집계 단위 ${item.label}`}
+                    selected={grain === item.value}
+                    onClick={() => {
+                      setGrain(item.value);
+                      setPage(0);
+                    }}
+                  />
+                ))}
+              </Stack>
+              <Pill
+                label="이전 기간 비교"
+                selected={comparePrevious}
+                disabled={!dateRange || rangePaused}
+                onClick={() => {
+                  if (comparePrevious) setLeaderboardSort(DEFAULT_SORT);
+                  setComparePrevious(value => !value);
+                  setPage(0);
+                }}
+              />
+            </>
+          )}
+        </Stack>
+
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', mt: 1.5, minWidth: 0 }}>
+          {filters.length === 0 && <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>필터 없음</Typography>}
+          {filters.map(filter => (
+            <Chip
+              key={filter.column}
+              label={`${filter.column}: ${
+                'range' in filter
+                  ? `${filter.range.min ?? '제한 없음'} ~ ${filter.range.max ?? '제한 없음'} (양 끝 포함)`
+                  : filter.values.map(categoryText).join(', ')
+              }`}
+              sx={{
+                backgroundColor: '#edf3fb',
+                color: '#214c80',
+                maxWidth: '100%',
+                height: 'auto',
+                '& .MuiChip-label': { whiteSpace: 'normal', overflowWrap: 'anywhere', py: 0.75 },
+              }}
+              onDelete={() => applyFilter(filter.column, [])}
+            />
+          ))}
+          <Button
+            ref={filterLauncher}
+            aria-label="필터 추가"
+            aria-expanded={filterPanelOpen}
+            aria-controls="explore-filter-panel"
+            onClick={() => {
+              setFilterError('');
+              setFilterPanelOpen(value => !value);
+            }}
+            sx={{ border: '1px solid #d8e0eb', borderRadius: '7px', textTransform: 'none', color: 'text.primary' }}
+          >
+            필터 추가
+          </Button>
+        </Stack>
+
+        {filterPanelOpen && catalog && (
+          <Box
+            id="explore-filter-panel"
+            role="group"
+            aria-label="필터 설정"
+            sx={{ mt: 1, p: 1.5, border: '1px solid #e2e8f0', borderRadius: 2, backgroundColor: '#f8fafc' }}
+          >
+            <Stack direction="row" spacing={1.5} sx={{ mb: 1, flexWrap: 'wrap' }}>
+              <TextField
+                select
+                size="small"
+                label="필터 열"
+                value={filterColumn}
+                onChange={event => {
+                  setFilterColumn(event.target.value);
+                  setFilterSelection([]);
+                  setFilterMode('values');
+                  setRangeMin('');
+                  setRangeMax('');
+                  setFilterError('');
+                }}
+                sx={{ minWidth: 0, width: { xs: '100%', sm: 220 } }}
+                slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
+              >
+                <option value="">열을 선택하세요</option>
+                {catalog.dimensions.map(dimension => (
+                  <option key={dimension.column} value={dimension.column}>
+                    {dimension.column}
+                  </option>
+                ))}
+              </TextField>
+              {filterMode === 'values' && (
+                <TextField
+                  size="small"
+                  label="값 검색"
+                  value={filterSearch}
+                  disabled={!filterColumn}
+                  onChange={event => setFilterSearch(event.target.value)}
+                  sx={{ minWidth: 0, width: { xs: '100%', sm: 220 } }}
+                />
+              )}
+            </Stack>
+            {numericFilter && (
+              <Stack direction="row" spacing={1} role="group" aria-label="숫자 필터 방식" sx={{ mb: 1 }}>
+                <Pill
+                  label="값 선택"
+                  selected={filterMode === 'values'}
+                  onClick={() => {
+                    setFilterMode('values');
+                    setFilterError('');
+                  }}
+                />
+                <Pill
+                  label="숫자 범위"
+                  selected={filterMode === 'range'}
+                  onClick={() => {
+                    setFilterMode('range');
+                    setFilterError('');
+                  }}
+                />
+              </Stack>
+            )}
+            {filterMode === 'range' && numericFilter ? (
+              <>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                  <TextField
+                    label="최솟값 (포함)"
+                    value={rangeMin}
+                    onChange={event => {
+                      setRangeMin(event.target.value);
+                      setFilterError('');
+                    }}
+                    size="small"
+                    slotProps={{
+                      htmlInput: {
+                        inputMode: 'decimal',
+                        'aria-describedby': filterError ? 'range-filter-error' : 'range-filter-help',
+                      },
+                    }}
+                  />
+                  <TextField
+                    label="최댓값 (포함)"
+                    value={rangeMax}
+                    onChange={event => {
+                      setRangeMax(event.target.value);
+                      setFilterError('');
+                    }}
+                    size="small"
+                    slotProps={{
+                      htmlInput: {
+                        inputMode: 'decimal',
+                        'aria-describedby': filterError ? 'range-filter-error' : 'range-filter-help',
+                      },
+                    }}
+                  />
+                </Stack>
+                <Typography id="range-filter-help" variant="caption">
+                  원본 행의 숫자를 필터링합니다. 한쪽을 비우면 제한하지 않습니다. 양 끝값은 포함하고 NULL은 제외합니다.
+                </Typography>
+              </>
+            ) : filterColumn ? (
+              <FilterValueSelect
+                sourceId={catalog.sourceId}
+                sourceRevision={catalog.sourceRevision}
+                column={filterColumn}
+                search={filterSearch}
+                filters={filters}
+                dateRange={dateRange}
+                selected={filterSelection}
+                onToggle={toggleFilterValue}
+                onConflict={handleRevisionConflict}
+              />
+            ) : (
+              <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>필터할 열을 선택하세요.</Typography>
+            )}
+            {filterError && (
+              <Alert severity="error" id="range-filter-error">
+                {filterError}
+              </Alert>
+            )}
+            <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+              <Button
+                disabled={!filterColumn || (filterMode === 'values' && filterSelection.length === 0)}
+                onClick={applyFilterSelection}
+              >
+                필터 적용
+              </Button>
+              <Button onClick={closeFilters}>닫기</Button>
+            </Stack>
+          </Box>
+        )}
+
+        {catalog && mode === 'explore' && (
+          <Stack
+            direction="row"
+            spacing={0}
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', sm: 'repeat(2, minmax(0, 220px))' },
+              gap: 1.5,
+              mt: 2,
+            }}
+          >
             <TextField
               select
               size="small"
-              label="필터 열"
-              value={filterColumn}
+              label="차원 순위 기준"
+              value={leaderboardSort.by}
               onChange={event => {
-                setFilterColumn(event.target.value);
-                setFilterSelection([]);
-                setFilterMode('values');
-                setRangeMin('');
-                setRangeMax('');
-                setFilterError('');
+                setLeaderboardSort(value => ({ ...value, by: event.target.value as LeaderboardSort['by'] }));
+                setPage(0);
               }}
-              sx={{ minWidth: 0, width: { xs: '100%', sm: 220 } }}
               slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
+              sx={{ minWidth: 0 }}
             >
-              <option value="">열을 선택하세요</option>
-              {catalog.dimensions.map(dimension => (
-                <option key={dimension.column} value={dimension.column}>
-                  {dimension.column}
-                </option>
-              ))}
+              <option value="value">현재 값</option>
+              <option value="delta" disabled={!comparePrevious || !dateRange || rangePaused}>
+                변화량
+              </option>
+              <option value="percentChange" disabled={!comparePrevious || !dateRange || rangePaused}>
+                증감률
+              </option>
             </TextField>
-            {filterMode === 'values' && (
-              <TextField
-                size="small"
-                label="값 검색"
-                value={filterSearch}
-                disabled={!filterColumn}
-                onChange={event => setFilterSearch(event.target.value)}
-                sx={{ minWidth: 0, width: { xs: '100%', sm: 220 } }}
-              />
-            )}
-          </Stack>
-          {numericFilter && (
-            <Stack direction="row" spacing={1} role="group" aria-label="숫자 필터 방식" sx={{ mb: 1 }}>
-              <Pill
-                label="값 선택"
-                selected={filterMode === 'values'}
-                onClick={() => {
-                  setFilterMode('values');
-                  setFilterError('');
-                }}
-              />
-              <Pill
-                label="숫자 범위"
-                selected={filterMode === 'range'}
-                onClick={() => {
-                  setFilterMode('range');
-                  setFilterError('');
-                }}
-              />
-            </Stack>
-          )}
-          {filterMode === 'range' && numericFilter ? (
-            <>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                <TextField
-                  label="최솟값 (포함)"
-                  value={rangeMin}
-                  onChange={event => {
-                    setRangeMin(event.target.value);
-                    setFilterError('');
-                  }}
-                  size="small"
-                  slotProps={{
-                    htmlInput: {
-                      inputMode: 'decimal',
-                      'aria-describedby': filterError ? 'range-filter-error' : 'range-filter-help',
-                    },
-                  }}
-                />
-                <TextField
-                  label="최댓값 (포함)"
-                  value={rangeMax}
-                  onChange={event => {
-                    setRangeMax(event.target.value);
-                    setFilterError('');
-                  }}
-                  size="small"
-                  slotProps={{
-                    htmlInput: {
-                      inputMode: 'decimal',
-                      'aria-describedby': filterError ? 'range-filter-error' : 'range-filter-help',
-                    },
-                  }}
-                />
-              </Stack>
-              <Typography id="range-filter-help" variant="caption">
-                원본 행의 숫자를 필터링합니다. 한쪽을 비우면 제한하지 않습니다. 양 끝값은 포함하고 NULL은 제외합니다.
-              </Typography>
-            </>
-          ) : filterColumn ? (
-            <FilterValueSelect
-              sourceId={catalog.sourceId}
-              sourceRevision={catalog.sourceRevision}
-              column={filterColumn}
-              search={filterSearch}
-              filters={filters}
-              dateRange={dateRange}
-              selected={filterSelection}
-              onToggle={toggleFilterValue}
-              onConflict={handleRevisionConflict}
-            />
-          ) : (
-            <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>필터할 열을 선택하세요.</Typography>
-          )}
-          {filterError && (
-            <Alert severity="error" id="range-filter-error">
-              {filterError}
-            </Alert>
-          )}
-          <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-            <Button
-              disabled={!filterColumn || (filterMode === 'values' && filterSelection.length === 0)}
-              onClick={applyFilterSelection}
+            <TextField
+              select
+              size="small"
+              label="차원 순위 방향"
+              value={leaderboardSort.direction}
+              onChange={event => {
+                setLeaderboardSort(value => ({ ...value, direction: event.target.value as LeaderboardSort['direction'] }));
+                setPage(0);
+              }}
+              slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
+              sx={{ minWidth: 0 }}
             >
-              필터 적용
-            </Button>
-            <Button onClick={closeFilters}>닫기</Button>
+              <option value="desc">내림차순</option>
+              <option value="asc">오름차순</option>
+            </TextField>
+            <Typography
+              variant="caption"
+              sx={{ gridColumn: '1 / -1', color: 'text.secondary', lineHeight: 1.5, display: { xs: 'none', sm: 'block' } }}
+            >
+              선택한 지표 기준으로 정렬합니다.
+            </Typography>
           </Stack>
-        </Box>
-      )}
+        )}
+        <Divider sx={{ my: 1.5 }} />
 
-      {catalog && mode === 'explore' && (
-        <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', mt: 1.5 }}>
-          <TextField
-            select
-            size="small"
-            label="차원 순위 기준"
-            value={leaderboardSort.by}
-            onChange={event => {
-              setLeaderboardSort(value => ({ ...value, by: event.target.value as LeaderboardSort['by'] }));
-              setPage(0);
-            }}
-            slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
-            sx={{ minWidth: 160 }}
-          >
-            <option value="value">현재 값</option>
-            <option value="delta" disabled={!comparePrevious || !dateRange || rangePaused}>
-              변화량
-            </option>
-            <option value="percentChange" disabled={!comparePrevious || !dateRange || rangePaused}>
-              증감률
-            </option>
-          </TextField>
-          <TextField
-            select
-            size="small"
-            label="차원 순위 방향"
-            value={leaderboardSort.direction}
-            onChange={event => {
-              setLeaderboardSort(value => ({ ...value, direction: event.target.value as LeaderboardSort['direction'] }));
-              setPage(0);
-            }}
-            slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
-            sx={{ minWidth: 140 }}
-          >
-            <option value="desc">내림차순</option>
-            <option value="asc">오름차순</option>
-          </TextField>
-          <Typography variant="caption" sx={{ alignSelf: 'center' }}>
-            전체 그룹을 서버에서 정렬합니다. 계산할 수 없는 변화량·증감률은 마지막에 표시합니다.
-          </Typography>
-        </Stack>
-      )}
-      <Divider sx={{ my: 1.5 }} />
-
-      {catalog && (
-        <Stack spacing={1} sx={{ minWidth: 0 }}>
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap' }}>
-            <Button
-              type="button"
-              aria-expanded={settingsOpen}
-              aria-controls="display-settings"
-              onClick={() => setSettingsOpen(value => !value)}
-              sx={{ textTransform: 'none' }}
-            >
-              표시 설정 · 지표 {measureIds.length} / {catalog.measures.length} · 차원 {dimensions.length} /{' '}
-              {catalog.dimensions.length}
-            </Button>
-            {catalog.measures
-              .filter(measure => measureIds.includes(measure.id))
-              .map(measure => (
-                <Chip key={measure.id} label={measure.label} sx={{ backgroundColor: '#eef2ff', color: '#312e81' }} />
-              ))}
-            {dimensions.map(column => (
-              <Chip key={column} label={column} sx={{ backgroundColor: '#f1f5f9', color: '#334155' }} />
-            ))}
-          </Stack>
-          {settingsOpen && (
-            <Box
-              id="display-settings"
-              role="group"
-              aria-label="표시 설정"
-              sx={{ p: 1.5, border: '1px solid #e2e8f0', borderRadius: 2, backgroundColor: '#f8fafc' }}
-            >
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', mb: 1 }}>
-                <Typography sx={{ fontSize: 13, fontWeight: 700 }}>지표 (최대 {MAX_MEASURES})</Typography>
-                {catalog.measures.map(measure => (
-                  <Pill
-                    key={measure.id}
-                    label={measure.label}
-                    ariaLabel={`지표 ${measure.label}`}
-                    selected={measureIds.includes(measure.id)}
-                    onClick={() => toggleMeasure(measure.id)}
-                  />
-                ))}
-              </Stack>
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', mb: 1 }}>
-                <Typography sx={{ fontSize: 13, fontWeight: 700 }}>차원 (최대 {MAX_DIMENSIONS})</Typography>
-                {catalog.dimensions.map(dimension => (
-                  <Pill
-                    key={dimension.column}
-                    label={dimension.column}
-                    ariaLabel={`차원 ${dimension.column}`}
-                    selected={dimensions.includes(dimension.column)}
-                    onClick={() => toggleDimension(dimension.column)}
-                  />
-                ))}
-              </Stack>
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap' }}>
-                <Typography sx={{ fontSize: 13, fontWeight: 700 }}>기준 지표</Typography>
-                {catalog.measures
+        {catalog && (
+          <Stack spacing={1} sx={{ minWidth: 0 }}>
+            <Stack direction="row" spacing={0} alignItems="center" sx={{ flexWrap: 'wrap', gap: 0.75 }}>
+              <Button
+                type="button"
+                aria-expanded={settingsOpen}
+                aria-controls="display-settings"
+                onClick={() => setSettingsOpen(value => !value)}
+                sx={{ textTransform: 'none' }}
+              >
+                표시 설정 · 지표 {measureIds.length} / {catalog.measures.length} · 차원 {dimensions.length} /{' '}
+                {catalog.dimensions.length}
+              </Button>
+              {settingsOpen &&
+                catalog.measures
                   .filter(measure => measureIds.includes(measure.id))
                   .map(measure => (
+                    <Chip key={measure.id} label={measure.label} sx={{ backgroundColor: '#edf3fb', color: '#214c80' }} />
+                  ))}
+              {settingsOpen &&
+                dimensions.map(column => (
+                  <Chip key={column} label={column} sx={{ backgroundColor: '#f1f5f9', color: '#334155' }} />
+                ))}
+            </Stack>
+            {settingsOpen && (
+              <Box
+                id="display-settings"
+                role="group"
+                aria-label="표시 설정"
+                sx={{ p: 1.5, border: '1px solid #e2e8f0', borderRadius: 2, backgroundColor: '#f8fafc' }}
+              >
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', mb: 1 }}>
+                  <Typography sx={{ fontSize: 13, fontWeight: 700 }}>지표 (최대 {MAX_MEASURES})</Typography>
+                  {catalog.measures.map(measure => (
                     <Pill
                       key={measure.id}
                       label={measure.label}
-                      ariaLabel={`기준 지표 ${measure.label}`}
-                      selected={rankingMeasureId === measure.id}
-                      onClick={() => {
-                        setRankingMeasureId(measure.id);
-                        setPage(0);
-                      }}
+                      ariaLabel={`지표 ${measure.label}`}
+                      selected={measureIds.includes(measure.id)}
+                      onClick={() => toggleMeasure(measure.id)}
                     />
                   ))}
-              </Stack>
-            </Box>
-          )}
-        </Stack>
-      )}
-
-      <Typography role="status" aria-live="polite" sx={{ mt: 1, minHeight: 20, fontSize: 13, color: 'text.secondary' }}>
+                </Stack>
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', mb: 1 }}>
+                  <Typography sx={{ fontSize: 13, fontWeight: 700 }}>차원 (최대 {MAX_DIMENSIONS})</Typography>
+                  {catalog.dimensions.map(dimension => (
+                    <Pill
+                      key={dimension.column}
+                      label={dimension.column}
+                      ariaLabel={`차원 ${dimension.column}`}
+                      selected={dimensions.includes(dimension.column)}
+                      onClick={() => toggleDimension(dimension.column)}
+                    />
+                  ))}
+                </Stack>
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap' }}>
+                  <Typography sx={{ fontSize: 13, fontWeight: 700 }}>기준 지표</Typography>
+                  {catalog.measures
+                    .filter(measure => measureIds.includes(measure.id))
+                    .map(measure => (
+                      <Pill
+                        key={measure.id}
+                        label={measure.label}
+                        ariaLabel={`기준 지표 ${measure.label}`}
+                        selected={rankingMeasureId === measure.id}
+                        onClick={() => {
+                          setRankingMeasureId(measure.id);
+                          setPage(0);
+                        }}
+                      />
+                    ))}
+                </Stack>
+              </Box>
+            )}
+          </Stack>
+        )}
+      </Box>
+      <Typography
+        role="status"
+        aria-live="polite"
+        sx={{ mt: statusMessage ? 1 : 0, minHeight: statusMessage ? 20 : 0, fontSize: 12, color: 'text.secondary' }}
+      >
         {statusMessage}
       </Typography>
 
       {catalogError && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {catalogError}
-          <Button onClick={reloadCatalog}>카탈로그 다시 불러오기</Button>
+          {catalogForbidden ? (
+            <Button onClick={() => setSourceId('')}>다른 데이터 소스 선택</Button>
+          ) : (
+            <Button onClick={reloadCatalog}>카탈로그 다시 불러오기</Button>
+          )}
         </Alert>
       )}
       {revisionError && (
@@ -1354,7 +1457,9 @@ export default function SourceExplore() {
             {result.applied?.comparePrevious ? '이전 기간 비교' : '비교 없음'} · 필터 {result.applied?.filters?.length ?? 0}
             개 · 기준 {measureLabel(rankingMeasureId)}
           </Typography>
-          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3, alignItems: 'flex-start', mt: 1 }}>
+          <Box
+            sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, alignItems: 'flex-start', mt: 1.5 }}
+          >
             <Box sx={{ flex: { md: '0 0 44%' }, width: { xs: '100%' }, minWidth: 0 }}>
               {(result.kpis ?? []).map(kpi => {
                 const trend = trendFor(kpi);
@@ -1368,13 +1473,31 @@ export default function SourceExplore() {
                   numberNotation,
                 });
                 return (
-                  <Box key={String(kpi.id)} sx={{ mb: 2.5, minWidth: 0 }}>
+                  <Box
+                    key={String(kpi.id)}
+                    sx={{
+                      mb: 2,
+                      p: 2,
+                      minWidth: 0,
+                      bgcolor: 'background.paper',
+                      border: '1px solid #e0e6ee',
+                      borderRadius: '10px',
+                    }}
+                  >
                     <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>{kpi.title}</Typography>
                     <Typography
                       component="p"
                       title={value.exactText}
                       aria-label={value.exactText}
-                      sx={{ fontSize: 30, fontWeight: 700, lineHeight: 1.15, mb: 0.5 }}
+                      sx={{
+                        fontSize: 34,
+                        fontWeight: 700,
+                        lineHeight: 1.2,
+                        mt: 0.75,
+                        mb: 1,
+                        color: '#172b46',
+                        fontVariantNumeric: 'tabular-nums',
+                      }}
                     >
                       {value.text}
                     </Typography>
@@ -1393,7 +1516,7 @@ export default function SourceExplore() {
                 );
               })}
             </Box>
-            <Box sx={{ flex: { md: '0 0 54%' }, width: { xs: '100%' }, minWidth: 0 }}>
+            <Box sx={{ flex: { md: '1 1 0' }, width: { xs: '100%' }, minWidth: 0 }}>
               <Typography sx={{ fontSize: 13, fontWeight: 700, mb: 1 }}>
                 {dimensions.length} / {catalog.dimensions.length} 차원 · {measureLabel(rankingMeasureId)} 기준
               </Typography>
