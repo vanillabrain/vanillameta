@@ -50,3 +50,9 @@
 
 - 로컬 LLM(Ollama 등)은 사용하지 않는다. 로컬 코딩 에이전트(Codex 등)를 호출하며 현재 기본 지정 모델은 ChatGPT `gpt-6-luna`이다. `AI_PROVIDER=codex`는 기존 CLI 로그인 사용. 모델 지원/로그인 오류 시 다른 모델로 자동 대체하거나 성공으로 보고하지 않는다.
 - 이 환경의 검증은 `AI_CODEX_BASE_URL=http://127.0.0.1:10100/v1`, `AI_CODEX_MODEL_CATALOG=/Users/moonklabs/.codex/opencodex-catalog.json`을 함께 지정한다. 전역 설정을 제외한 CLI 호출에도 필요한 연결·카탈로그만 명시적으로 전달한다. 다른 호스트에서는 이 경로를 복사하지 말고 실제 설치 설정을 확인한다. 실행 예와 확인된 증빙은 `docs/testing/ai-dashboard.md` 참조.
+
+## VanillaMeta GitHub 작업 계정
+
+- 사용자 지정(2026-10-14): VanillaMeta의 GitHub 조회·커밋 push·PR 작업은 `drumcap` 계정을 사용한다.
+- GitHub CLI 작업 전 활성 계정을 확인하고 필요하면 `gh auth switch --hostname github.com --user drumcap`으로 전환한다. Git의 인증 계정도 동일한지 확인한다.
+- 커밋 작성자 이름·이메일은 GitHub 인증 계정과 별개이므로 기존 Git author 설정을 임의로 변경하지 않는다.
