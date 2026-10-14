@@ -51,3 +51,11 @@ PIVOT-04 **PASS_SELECTED_VARIANTS**: 실제headed1440/390에서 source3 Pivot �
 PIVOT-04 **PASS_SELECTED_VARIANTS**: bca84b2b 기준, 동일 Rill1391572행 source3/4·각2지표. source3 실제Pivot응답 보류→source4 카탈로그/Pivot201·표 표시→이전응답 해제 후 새표/소스 유지 PASS(1440/390). 기존 요청은 브라우저에서 취소됨; 취소불가transport 검증으로 확대하지 않는다. 지연중 저장/CSV차단·새결과 저장가능·Enter CSV다운로드 PASS. 실제CSV 지표ID3/4만 포함·총요청634513000 exact·비율새응답±1e-9 PASS. 문서overflow0/컨트롤배치·모바일표내스크롤 캡처검토 PASS.
 
 source4 원본연결은 현서버 암호화키와 달라 config백업/동일source3 연결임시차용, 신규검증지표3/4만추가. 실행뒤 정확히삭제·원본config복구/백업삭제. 기존지표·저장보기변경없음. 새제품오류/수정0, 기존단위/빌드/Rill대조재사용. 신규항목만검증; VoiceOverBLOCKED·gpt-6-luna유지/모델호출0. 운영동시부하·실기기touch/취소불가transport NOT_RUN. 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/pivot-race-20261014/RESULTS.md`, `ui-results.json`, `csv-results.json`, `source4-1440.png`, `source4-390.png`.
+
+## PIVOT-09 — 운영 동시 부하의 로컬 선택 검증 (2026-10-14)
+
+- 입력: 같은 Rill1391572행 source3·지표1/2·행device_type/열app_or_site. 4개 필터정답(전체634513000/MobileTablet307763000/PC173308000/ConnectedTV27207600)을 교차 배치해4·8·16·24개 HTTP요청 동시 실행.
+- 기대: 성공응답의 조건/정답/revision 혼선없음,50×12상한유지. 큐포화시 controlled503 busy, 무관한500·client timeout없음, 종료후 정상조회복구. 실제브라우저 오류/재시도도 확인. 운영SLA는 별도정의하며 측정값으로 통과기준을 사후발명하지 않는다.
+- 결과 **PASS_SELECTED_VARIANTS**: 4/8/16은 전부201,24는17성공/7큐busy503. 52요청중45성공·모든성공정답일치,4개후속복구201. p95 351/688/1653/1767ms; 복구93~113ms. API peakRSS302.5MiB(300ms표본, 누수판정아님). 실제32부하중브라우저503→표제거/CSV차단→Enter재시도201/표복구 캡처PASS. 제품변경0·기존빌드/단위/Rill/모바일전체반복없음.
+- 범위: 단일로컬서버/같은QA사용자의 독립요청; 다중tenant·지속부하·실운영하드웨어·혼합import/write·multi-replica·crash복구 NOT_RUN.16은측정지점이며보장사용자한도아님. VoiceOverBLOCKED·gpt-6-luna유지/호출0.
+- 증빙: `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/pivot-load-20261014/RESULTS.md`, `results.json`, `browser-results.json`, `busy-desktop.png`, `recovered-desktop.png`.

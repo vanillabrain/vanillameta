@@ -33,3 +33,7 @@ API 요청이 끝날 때까지 import를 기다리는 동기 endpoint와 워커 
 관리된 uploaded_data 소스는 동일 이름/타입의 CSV/JSON/Parquet 전체 교체와 보관 버전 복원을 제공한다. 현재 포함 최대5개, 동일 원본 hash·형식은 재수입/수정 없이 no-op. 보관 파일은 자동 GC하지 않고 source 삭제 시 함께 삭제한다. 최대5개 이후 추가 교체는 차단되므로 장기 운영 전에 안전한 보존 정리·진행 중 참조/백업 정책을 마련한다. 파일당 한도는 기존 설정이며 버전/소스 전체의 글로벌 디스크 quota는 미구현이다. 메타데이터 DB의 encrypted config 포인터/이력과 upload 전체를 같은 백업에 포함한다. 별도 메타 테이블/마이그레이션/수집 서버는 없다.
 
 실패/스키마 변경/CAS 충돌은 활성 데이터를 보존하고 후보만 제거한다. 교체 진행 중 대시보드 조회는 시작한 파일에 고정하며 이후 조회는 새 활성 파일을 사용한다. 서버 crash 시 등록 전 후보가 남을 수 있어 자동 orphan 복구를 주장하지 않는다. Commerce bundle, 컬럼 자동 매핑/타입 강제 변환, 증분 갱신은 이 경로를 사용하지 않는다. 실제 조건/증빙은 [file-versions.md](../testing/file-versions.md)를 따른다.
+
+## 2026-10-14 단일 서버 Pivot 동시 요청 측정
+
+Rill1391572행·4개필터·4/8/16/24개 HTTP동시요청 선택검증.16까지 전부성공(p95 1.653초),24는17성공/7개의큐busy503 및후속복구확인. 실제브라우저 과부하 안내/재시도복구 확인. API peakRSS표본302.5MiB. 단일로컬서버/같은사용자/짧은burst 결과이며 운영사용자한도·SLA·지속부하·다중tenant/multi-replica보장이아니다. 상세 PIVOT-09: [explore-pivot.md](../testing/explore-pivot.md), 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/pivot-load-20261014/RESULTS.md`.
