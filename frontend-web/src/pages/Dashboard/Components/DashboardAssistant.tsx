@@ -509,12 +509,16 @@ function DashboardAssistantContent({
           dateRange={dateRange}
           trendGrain={trendGrain}
           comparePrevious={comparePrevious}
-          onApplied={next => {
+          onApplied={(next, updatedCount = 1) => {
             setProposal(null);
             setUndo(null);
             setSelectedMetricId('');
             setSelectedWidget('');
-            setNotice('지표와 분석의 계산식을 변경했습니다.');
+            setNotice(
+              updatedCount > 1
+                ? `${updatedCount}개 분석과 지표의 계산식을 변경했습니다.`
+                : '지표와 분석의 계산식을 변경했습니다.',
+            );
             onApplied(next);
           }}
         />

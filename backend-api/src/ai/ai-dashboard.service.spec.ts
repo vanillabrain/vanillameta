@@ -756,4 +756,232 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
     expect(snapshot.items[0].key).toBe('first');
     expect(snapshot.items[1]).toEqual(keep);
   });
+  async function batchFixture() {
+    const definition = {
+      schemaVersion: 1,
+      definitionVersion: 1,
+      sourceId: 1,
+      label: 'Batch revenue',
+      aggregation: 'SUM',
+      column: 'amount',
+      decimalPlaces: 2,
+      numberNotation: 'plain',
+      unit: '',
+    };
+    const metric = await db.manager.save(Metric, {
+      name: 'batch-' + Math.random(),
+      databaseId: 1,
+      tableName: 'uploaded_data',
+      aggregation: 'SUM' as any,
+      expression: 'amount',
+      useYn: 'Y',
+      definition: JSON.stringify(definition),
+    });
+    const snapshot = {
+      schemaVersion: 1,
+      kind: 'structured-bi',
+      sourceId: 1,
+      metricId: metric.id,
+      definitionVersion: 1,
+      definition,
+    };
+    const primary = await service.save(
+      { draft: { ...draft(), title: 'Batch total', widgets: [draft().widgets[0]] } },
+      7,
+      { ...snapshot, chart: 'number' },
+    );
+    const other = await service.save(
+      { draft: { ...draft(), title: 'Batch devices', widgets: [draft().widgets[1]] } },
+      7,
+      { ...snapshot, chart: 'bar', dimension: 'device_type' },
+    );
+    const unlinked = await service.save(
+      { draft: { ...draft(), title: 'Same SQL but no link', widgets: [draft().widgets[0]] } },
+      7,
+    );
+    const body = {
+      dashboardId: primary.data.id,
+      selectedWidget: 0,
+      metricId: metric.id,
+      expectedDefinitionVersion: 1,
+      expectedRevision: primary.data.revision,
+      calculation: { aggregation: 'AVG', column: 'amount' },
+      targets: [
+        { dashboardId: primary.data.id, expectedRevision: primary.data.revision },
+        { dashboardId: other.data.id, expectedRevision: other.data.revision },
+      ],
+    };
+    return { body, metric, primary, other, unlinked };
+  }
+  it('UC-004 discovers owned proven links, previews and atomically updates multiple analyses', async () => {
+    const { body, metric, primary, other, unlinked } = await batchFixture();
+    const impact = await service.metricImpact(body, 7);
+    expect(impact.data.analyses.map(a => a.dashboardId)).toEqual([primary.data.id, other.data.id]);
+    const preview = await service.metricBatchPreview(body, 7);
+    expect(preview.data.analyses).toHaveLength(2);
+    expect(preview.data.analyses[0].preview.widgets[0].datas[0].value).toBeCloseTo(130 / 3);
+    expect(preview.data.analyses[1].preview.widgets[0].datas).toEqual(
+      expect.arrayContaining([
+        { device_type: 'phone', value: 15 },
+        { device_type: 'desktop', value: 100 },
+      ]),
+    );
+    expect((await db.manager.findOne(Metric, { where: { id: metric.id } })).definition).toBe(
+      metric.definition,
+    );
+    const result = await service.metricBatchSave(body, 7);
+    expect(result.data.updatedAnalyses).toEqual([primary.data.id, other.data.id]);
+    expect(
+      JSON.parse((await db.manager.findOne(Metric, { where: { id: metric.id } })).definition)
+        .definitionVersion,
+    ).toBe(2);
+    for (const id of result.data.updatedAnalyses)
+      expect((await service.analysis(id, 7)).data.widgets[0].sql).toContain('AVG("amount")');
+    expect((await service.analysis(unlinked.data.id, 7)).data.widgets[0].sql).toContain(
+      'sum(amount)',
+    );
+  });
+  it('UC-004 excludes deleted/foreign/different source links and rejects unlinked target injection', async () => {
+    const { body, metric, unlinked } = await batchFixture();
+    const original = await db.manager.findOne(Dashboard, { where: { id: body.dashboardId } });
+    for (const variant of ['foreign', 'deleted', 'source']) {
+      const row = await db.manager.save(Dashboard, {
+        title: variant,
+        analysisDefinition:
+          variant === 'source'
+            ? JSON.stringify({ ...JSON.parse(original.analysisDefinition), databaseId: 2 })
+            : original.analysisDefinition,
+        structuredDefinition: original.structuredDefinition,
+        delYn: variant === 'deleted' ? 'Y' : ('N' as any),
+      });
+      await db.manager.save(UserMapping, {
+        dashboardId: row.id,
+        userInfoId: variant === 'foreign' ? 8 : 7,
+      });
+    }
+    expect((await service.metricImpact(body, 7)).data.analyses).toHaveLength(2);
+    await expect(
+      service.metricBatchSave(
+        {
+          ...body,
+          targets: [
+            ...body.targets,
+            { dashboardId: unlinked.data.id, expectedRevision: unlinked.data.revision },
+          ],
+        },
+        7,
+      ),
+    ).rejects.toThrow('연결된 소유 분석');
+    expect((await db.manager.findOne(Metric, { where: { id: metric.id } })).definition).toBe(
+      metric.definition,
+    );
+  });
+  it('UC-004 checks every target revision and the distinct ten-analysis selection bound', async () => {
+    const { body, metric } = await batchFixture();
+    await expect(
+      service.metricBatchSave(
+        {
+          ...body,
+          targets: [body.targets[0], { ...body.targets[1], expectedRevision: '0'.repeat(64) }],
+        },
+        7,
+      ),
+    ).rejects.toThrow('분석이 변경');
+    for (const targets of [
+      [],
+      [body.targets[0], body.targets[0]],
+      [body.targets[1]],
+      Array(11).fill(body.targets[0]),
+    ])
+      await expect(service.metricBatchSave({ ...body, targets }, 7)).rejects.toThrow('1~10개');
+    expect((await db.manager.findOne(Metric, { where: { id: metric.id } })).definition).toBe(
+      metric.definition,
+    );
+  });
+  it('UC-004 rolls back the metric and already saved first analysis on later chart failure', async () => {
+    const { body, metric } = await batchFixture();
+    const before = await Promise.all(body.targets.map(t => service.analysis(t.dashboardId, 7)));
+    const counts = [await db.manager.count(Dataset), await db.manager.count(Widget)];
+    const spy = jest.spyOn(service, 'save');
+    await db.manager.update(Component, { type: 'CHART_COLUMN' }, { useYn: 'N' as any });
+    try {
+      await expect(service.metricBatchSave(body, 7)).rejects.toThrow('component unavailable');
+      expect(spy).toHaveBeenCalledTimes(2);
+    } finally {
+      spy.mockRestore();
+      await db.manager.update(Component, { type: 'CHART_COLUMN' }, { useYn: 'Y' as any });
+    }
+    expect(await Promise.all(body.targets.map(t => service.analysis(t.dashboardId, 7)))).toEqual(
+      before,
+    );
+    expect((await db.manager.findOne(Metric, { where: { id: metric.id } })).definition).toBe(
+      metric.definition,
+    );
+    expect([await db.manager.count(Dataset), await db.manager.count(Widget)]).toEqual(counts);
+  });
+  it('UC-004 updates every matching chart within a composite analysis and records raw explicit links', async () => {
+    const { body, metric } = await batchFixture();
+    const definition = JSON.parse(metric.definition);
+    const item = { sourceId: 1, metricId: metric.id, definitionVersion: 1, definition };
+    const composite = await service.save({ draft: draft() }, 7, {
+      schemaVersion: 2,
+      kind: 'structured-bi-dashboard',
+      sourceId: 1,
+      items: [item, item],
+    });
+    const targets = [
+      ...body.targets,
+      { dashboardId: composite.data.id, expectedRevision: composite.data.revision },
+    ];
+    const preview = await service.metricBatchPreview({ ...body, targets }, 7);
+    expect(
+      preview.data.analyses.find(a => a.dashboardId === composite.data.id).widgetIndices,
+    ).toEqual([0, 1]);
+    await service.metricBatchSave({ ...body, targets }, 7);
+    expect(
+      (await service.analysis(composite.data.id, 7)).data.widgets.every(w =>
+        w.sql.includes('AVG("amount")'),
+      ),
+    ).toBe(true);
+    const raw = await service.save({ draft: draft() }, 7);
+    await service.metricChangeSave(
+      {
+        ...body,
+        dashboardId: raw.data.id,
+        expectedRevision: raw.data.revision,
+        expectedDefinitionVersion: 2,
+      },
+      7,
+    );
+    expect(
+      (await service.metricImpact({ ...body, dashboardId: raw.data.id }, 7)).data.analyses.some(
+        a => a.dashboardId === raw.data.id,
+      ),
+    ).toBe(true);
+    expect(
+      JSON.parse(
+        (await db.manager.findOne(Dashboard, { where: { id: raw.data.id } })).structuredDefinition,
+      ).kind,
+    ).toBe('metric-linked-analysis');
+  });
+  it('UC-004 preserves custom chart geometry while remapping newly stored widget IDs', async () => {
+    const { body } = await batchFixture();
+    const mapping = await db.manager.findOne(DashboardWidget, {
+      where: { dashboardId: body.dashboardId },
+    });
+    const geometry = { i: String(mapping.widgetId), x: 6, y: 7, w: 6, h: 3, minW: 4 };
+    await db.manager.update(
+      Dashboard,
+      { id: body.dashboardId },
+      { layout: JSON.stringify([geometry]) },
+    );
+    body.expectedRevision = (await service.analysis(body.dashboardId, 7, true)).data.revision;
+    body.targets[0].expectedRevision = body.expectedRevision;
+    await service.metricBatchSave(body, 7);
+    const layout = JSON.parse(
+      (await db.manager.findOne(Dashboard, { where: { id: body.dashboardId } })).layout,
+    );
+    expect(layout[0].i).not.toBe(geometry.i);
+    expect({ ...layout[0], i: geometry.i }).toEqual(geometry);
+  });
 });

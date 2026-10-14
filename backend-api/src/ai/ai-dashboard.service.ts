@@ -22,6 +22,7 @@ import { Widget } from '../widget/entities/widget.entity';
 import { Component } from '../component/entities/component.entity';
 import { Database } from '../database/entities/database.entity';
 import { Metric } from '../metric/entities/metric.entity';
+import { linkedMetricIndices, refreshMetricLinks, metricLinkItems } from './metric-analysis-links';
 import { metricExpression, metricFields } from '../bi/metric-expression';
 import {
   applyMetricReferences,
@@ -455,23 +456,13 @@ export class AiDashboardService {
     if (this.revision(savedRow) !== current.revision)
       throw new ConflictException('분석이 변경되었습니다. 다시 불러와 주세요.');
     const stored = savedRow.structuredDefinition ? JSON.parse(savedRow.structuredDefinition) : null;
-    const refreshed = item =>
-      item?.metricId === metric.id
-        ? { ...item, definitionVersion: definition.definitionVersion, definition }
-        : {};
-    const snapshot =
-      stored?.schemaVersion === 1 && stored.kind === 'structured-bi'
-        ? body.selectedWidget === 0 && stored.metricId === metric.id
-          ? refreshed(stored)
-          : null
-        : stored?.schemaVersion === 2 && stored.kind === 'structured-bi-dashboard'
-        ? {
-            ...stored,
-            items: stored.items.map((item, i) =>
-              i === body.selectedWidget ? refreshed(item) : item,
-            ),
-          }
-        : null;
+    const snapshot = refreshMetricLinks(
+      stored,
+      current,
+      [body.selectedWidget],
+      metric.id,
+      definition,
+    );
     return {
       draft,
       metric,
@@ -525,7 +516,184 @@ export class AiDashboardService {
       userId,
       change.snapshot,
       change.mutation,
+      undefined,
+      true,
     );
+  }
+  async metricImpact(body: any, userId: number) {
+    const { data: primary } = await this.analysis(positiveId(body?.dashboardId), userId, true);
+    if (!Number.isInteger(body.selectedWidget) || !primary.widgets[body.selectedWidget])
+      throw new BadRequestException('변경할 차트를 선택해 주세요.');
+    const catalog = await this.savedMetrics(
+      primary.databaseId,
+      userId,
+      await this.schema(primary.databaseId),
+    );
+    const metric = catalog.find(m => m.id === body.metricId);
+    if (!metric) throw new BadRequestException('이 소스의 활성 저장 지표를 선택해 주세요.');
+    const mappings = await this.dashboards.manager.find(UserMapping, {
+      where: { userInfoId: positiveId(userId) },
+      order: { dashboardId: 'ASC' },
+    });
+    const ids = [...new Set([body.dashboardId, ...mappings.map(m => m.dashboardId)])];
+    const analyses = [];
+    let unlinked = 0;
+    for (const id of ids) {
+      const row = await this.dashboards.manager.findOne(Dashboard, {
+        where: { id, delYn: YesNo.NO },
+      });
+      if (!row?.analysisDefinition) continue;
+      let draft, snapshot;
+      try {
+        draft = validateDraft(JSON.parse(row.analysisDefinition));
+        snapshot = row.structuredDefinition ? JSON.parse(row.structuredDefinition) : null;
+      } catch {
+        continue;
+      }
+      if (draft.databaseId !== primary.databaseId) continue;
+      const indices = linkedMetricIndices(snapshot, draft, metric.id);
+      if (id === body.dashboardId && !indices.includes(body.selectedWidget))
+        indices.push(body.selectedWidget);
+      if (!indices.length) {
+        const known = metricLinkItems(snapshot, draft).some(
+          item =>
+            Number.isSafeInteger(item?.metricId) &&
+            item.metricId > 0 &&
+            linkedMetricIndices(snapshot, draft, item.metricId).length > 0,
+        );
+        if (!known) unlinked++;
+        continue;
+      }
+      analyses.push({
+        dashboardId: id,
+        title: draft.title,
+        revision: this.revision(row),
+        widgetIndices: indices.sort((a, b) => a - b),
+        widgetTitles: indices.map(i => draft.widgets[i].title),
+        definitionVersions: [
+          ...new Set(
+            indices
+              .map(i => metricLinkItems(snapshot, draft)[i]?.definitionVersion)
+              .filter(v => Number.isSafeInteger(v) && v > 0),
+          ),
+        ],
+      });
+    }
+    return this.success({
+      analyses,
+      unlinked,
+      limit: 10,
+      definitionVersion: metric.definitionVersion,
+    });
+  }
+  private async metricBatch(body: any, userId: number) {
+    if (
+      !Array.isArray(body.targets) ||
+      body.targets.length < 1 ||
+      body.targets.length > 10 ||
+      new Set(body.targets.map(t => t?.dashboardId)).size !== body.targets.length ||
+      !body.targets.some(
+        t => t?.dashboardId === body.dashboardId && t.expectedRevision === body.expectedRevision,
+      )
+    )
+      throw new BadRequestException('현재 분석을 포함한 서로 다른 분석 1~10개를 선택해 주세요.');
+    const { data: impact } = await this.metricImpact(body, userId);
+    const changes = [];
+    for (const target of body.targets) {
+      const candidate = impact.analyses.find(a => a.dashboardId === target?.dashboardId);
+      if (!candidate) throw new BadRequestException('연결된 소유 분석을 다시 확인해 주세요.');
+      const change = await this.metricChange(
+        {
+          ...body,
+          dashboardId: target.dashboardId,
+          expectedRevision: target.expectedRevision,
+          selectedWidget: candidate.widgetIndices[0],
+        },
+        userId,
+      );
+      let draft = change.draft;
+      for (const index of candidate.widgetIndices)
+        draft = applyCanonicalCalculation(draft, index, change.expression);
+      const row = await this.owner(target.dashboardId, userId);
+      const stored = row.structuredDefinition ? JSON.parse(row.structuredDefinition) : null;
+      change.snapshot = refreshMetricLinks(
+        stored,
+        draft,
+        candidate.widgetIndices,
+        change.metric.id,
+        change.definition,
+      );
+      changes.push({
+        ...change,
+        draft,
+        dashboardId: target.dashboardId,
+        expectedRevision: target.expectedRevision,
+        widgetIndices: candidate.widgetIndices,
+      });
+    }
+    // Primary first makes exactly one metric CAS inside the shared transaction.
+    return changes.sort(
+      (a, b) =>
+        Number(b.dashboardId === body.dashboardId) - Number(a.dashboardId === body.dashboardId),
+    );
+  }
+  async metricBatchPreview(body: any, userId: number) {
+    const changes = await this.metricBatch(body, userId);
+    const analyses = [];
+    for (const change of changes) {
+      const { data: preview } = await this.preview(
+        {
+          draft: change.draft,
+          filters: body.filters,
+          dateRange: body.dateRange,
+          trendGrain: body.trendGrain,
+          comparePrevious: body.comparePrevious,
+          includeTrends: true,
+        },
+        userId,
+      );
+      analyses.push({
+        dashboardId: change.dashboardId,
+        title: change.draft.title,
+        widgetIndices: change.widgetIndices,
+        preview,
+      });
+    }
+    const first = changes[0];
+    return this.success({
+      ...analyses[0].preview,
+      analyses,
+      metric: {
+        id: first.metric.id,
+        definitionVersion: first.metric.definitionVersion,
+        nextVersion: first.definition.definitionVersion,
+        previousExpression: first.previousExpression,
+        expression: first.expression,
+      },
+    });
+  }
+  async metricBatchSave(body: any, userId: number) {
+    const changes = await this.metricBatch(body, userId);
+    const saved = await this.dashboards.manager.transaction(async manager => {
+      const results = [];
+      for (const [index, change] of changes.entries()) {
+        const result = await this.save(
+          {
+            dashboardId: change.dashboardId,
+            expectedRevision: change.expectedRevision,
+            draft: change.draft,
+          },
+          userId,
+          change.snapshot,
+          index === 0 ? change.mutation : undefined,
+          manager,
+          true,
+        );
+        results.push(result.data);
+      }
+      return results;
+    });
+    return this.success({ ...saved[0], updatedAnalyses: saved.map(r => r.id) });
   }
   async generate(body: any, userId: number, abortSignal?: AbortSignal) {
     if (body?.dashboardId !== undefined) await this.owner(body.dashboardId, userId);
@@ -1518,6 +1686,8 @@ export class AiDashboardService {
       aggregation: any;
       column: string;
     },
+    sharedManager?: EntityManager,
+    preserveLayout = false,
   ) {
     if (
       body?.expectedRevision !== undefined &&
@@ -1531,7 +1701,7 @@ export class AiDashboardService {
     const {
       data: { draft },
     } = await this.preview({ draft: body?.draft }, userId);
-    const saved = await this.dashboards.manager.transaction(async (manager: EntityManager) => {
+    const persist = async (manager: EntityManager) => {
       let dashboard =
         body.dashboardId !== undefined
           ? await this.owner(body.dashboardId, userId, manager)
@@ -1558,6 +1728,19 @@ export class AiDashboardService {
         );
         if (update.affected !== 1)
           throw new ConflictException('지표 계산식이 변경되었습니다. 다시 불러와 주세요.');
+      }
+      let geometry;
+      if (preserveLayout && previous?.layout) {
+        const layout = JSON.parse(previous.layout);
+        const mappings = await manager.find(DashboardWidget, {
+          where: { dashboardId: previous.id },
+          order: { id: 'ASC' },
+        });
+        if (!Array.isArray(layout) || mappings.length !== draft.widgets.length)
+          throw new BadRequestException('차트 배치를 다시 불러와 주세요.');
+        geometry = mappings.map(m => layout.find(item => String(item.i) === String(m.widgetId)));
+        if (geometry.some(item => !item))
+          throw new BadRequestException('차트 배치를 다시 불러와 주세요.');
       }
       const widgets: Widget[] = [];
       for (const definition of draft.widgets) {
@@ -1597,6 +1780,7 @@ export class AiDashboardService {
       let rowHeight = 0;
       dashboard.layout = JSON.stringify(
         widgets.map((w, i) => {
+          if (geometry) return { ...geometry[i], i: String(w.id) };
           if (draft.layoutSizes) {
             const { width, height } = draft.layoutSizes[i];
             if (x + width > 12) {
@@ -1672,7 +1856,10 @@ export class AiDashboardService {
         widgets.map(w => ({ dashboardId: dashboard.id, widgetId: w.id })),
       );
       return { id: dashboard.id, revision: this.revision(dashboard) };
-    });
+    };
+    const saved = sharedManager
+      ? await persist(sharedManager)
+      : await this.dashboards.manager.transaction(persist);
     return this.success(saved);
   }
   async analysis(id: number, userId: number, includeRevision = false) {

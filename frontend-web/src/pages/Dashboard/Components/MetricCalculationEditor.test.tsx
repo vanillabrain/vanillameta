@@ -11,6 +11,15 @@ vi.mock('@mui/material/styles', async () => {
 vi.mock('@mui/material', () => {
   const Container = ({ children }: any) => <div>{children}</div>;
   return {
+    Checkbox: ({ checked, disabled, onChange }: any) => (
+      <input type="checkbox" checked={checked} disabled={disabled} onChange={e => onChange(e, e.target.checked)} />
+    ),
+    FormControlLabel: ({ control, label }: any) => (
+      <label>
+        {control}
+        {label}
+      </label>
+    ),
     Box: Container,
     Stack: Container,
     Typography: Container,
@@ -117,4 +126,73 @@ it('does not apply a conflicting save and clears its preview', async () => {
   await screen.findByText('지표 계산식이 변경되었습니다.');
   expect(view.onApplied).not.toHaveBeenCalled();
   expect(screen.getByRole('button', { name: '지표·분석 저장' }).hasAttribute('disabled')).toBe(true);
+});
+
+const impact = {
+  analyses: [
+    { dashboardId: 9, title: 'Analysis', revision: draft.revision, widgetIndices: [0] },
+    { dashboardId: 10, title: 'Other analysis', revision: 'b'.repeat(64), widgetIndices: [0] },
+  ],
+  unlinked: 2,
+  limit: 10,
+};
+const batchPreview = {
+  ...preview,
+  analyses: [
+    { dashboardId: 9, title: 'Analysis', widgetIndices: [0], preview },
+    { dashboardId: 10, title: 'Other analysis', widgetIndices: [0], preview },
+  ],
+};
+it('UC-004 reveals linked analysis scope, previews selected targets and saves the batch', async () => {
+  api.post.mockImplementation(url =>
+    Promise.resolve(
+      success(
+        url.endsWith('/impact')
+          ? impact
+          : url.endsWith('/batch-preview')
+          ? batchPreview
+          : { id: 9, revision: 'c'.repeat(64), updatedAnalyses: [9, 10] },
+      ),
+    ),
+  );
+  const view = mount();
+  fireEvent.click(screen.getByRole('button', { name: '같은 지표를 쓰는 분석 확인' }));
+  await screen.findByText('영향받는 분석 · 2개');
+  expect(screen.getByRole('checkbox', { name: /현재 분석/ }).hasAttribute('disabled')).toBe(true);
+  expect(screen.getByText('선택 2개 · 미연결 분석 2개 제외')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: '계산식 미리보기' }));
+  await screen.findByText('v1 → v2');
+  expect(api.post.mock.calls[1][0]).toBe('/ai/metric-change/batch-preview');
+  expect(api.post.mock.calls[1][1].targets).toEqual([
+    { dashboardId: 9, expectedRevision: draft.revision },
+    { dashboardId: 10, expectedRevision: 'b'.repeat(64) },
+  ]);
+  expect(screen.getByText('분석 미리보기: Other analysis · 1개 차트')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: '지표·분석 일괄 저장' }));
+  await waitFor(() => expect(view.onApplied).toHaveBeenCalledWith({ ...draft, revision: 'c'.repeat(64) }, 2));
+});
+it('UC-004 invalidates a batch preview when the target selection changes', async () => {
+  api.post.mockImplementation(url => Promise.resolve(success(url.endsWith('/impact') ? impact : batchPreview)));
+  mount();
+  fireEvent.click(screen.getByRole('button', { name: '같은 지표를 쓰는 분석 확인' }));
+  await screen.findByText('영향받는 분석 · 2개');
+  fireEvent.click(screen.getByRole('button', { name: '계산식 미리보기' }));
+  await screen.findByText('v1 → v2');
+  fireEvent.click(screen.getByRole('checkbox', { name: /Other analysis/ }));
+  expect(screen.getByRole('button', { name: '지표·분석 일괄 저장' }).hasAttribute('disabled')).toBe(true);
+  expect(screen.getByText('선택 1개 · 미연결 분석 2개 제외')).toBeTruthy();
+});
+
+it('UC-004 refuses an incomplete batch preview rather than exposing a partial save', async () => {
+  api.post.mockImplementation(url =>
+    Promise.resolve(
+      success(url.endsWith('/impact') ? impact : { ...batchPreview, analyses: batchPreview.analyses.slice(0, 1) }),
+    ),
+  );
+  mount();
+  fireEvent.click(screen.getByRole('button', { name: '같은 지표를 쓰는 분석 확인' }));
+  await screen.findByText('영향받는 분석 · 2개');
+  fireEvent.click(screen.getByRole('button', { name: '계산식 미리보기' }));
+  await screen.findByText('일괄 미리보기를 모두 확인하지 못했습니다.');
+  expect(screen.getByRole('button', { name: '지표·분석 일괄 저장' }).hasAttribute('disabled')).toBe(true);
 });

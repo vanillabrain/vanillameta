@@ -2,10 +2,12 @@
 left to right direction
 actor "운영 담당자" as operator
 rectangle "VanillaMeta" {
+ usecase "UC-004\nBatch Metric Update" as UC004
  usecase "UC-001\nReview And Save Analysis" as UC001
  usecase "UC-003\nUpdate Metric Calculation" as UC003
  usecase "UC-002\nReuse Saved Metric" as UC002
 }
+operator --> UC004
 operator --> UC003
 operator --> UC002
 operator --> UC001

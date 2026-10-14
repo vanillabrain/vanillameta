@@ -17,3 +17,5 @@ save는 같은 입력을 재컴파일해 SQL/client provenance 위조를 막는�
 별도 검토 pass(동일 작성자): 공개 API는 클라이언트 SQL이나 내부 mutation을 받지 않고 저장 분석·활성 catalog를 다시 조회한다. 기존 save transaction 안에서 문자열 CAS를 적용하고 실패 시 metric rollback을 실제 SQLite로 검증했다. 선택 차트의 SQL projection만 교체하고 다른 차트·source WHERE·정렬을 보존한다. catalog는 양의 definitionVersion을 허용하며, 갱신된 AVG/비율 지표의 명시 참조는 AI 기본 요청 수 SUM 안내보다 우선한다. 참조 없는 요청 수 합계 검증은 유지한다. 일반 Assistant 수정/Undo는 지표 정의를 수정하지 않는다.
 
 반응형 Drawer의 temporary/persistent 전환과 계산식 dialog 생명주기를 분리한다. 폭 변경으로 열린 편집 상태와 미리보기를 초기화하지 않는다. 이를 실제390↔1440와 전환 회귀로 검증한다.
+
+후속 UC-004는 [명시적 일괄 반영](batch-metric-update.md)을 추가한다. 단일 변경의 기본 계약은 유지하고, 사용자가 영향 목록에서 선택한 연결 분석만 함께 변경한다. 명시 선택한 raw AI 차트는 metric-linked-analysis JSON에 연결을 기록한다. 자동 전체 전파는 수행하지 않는다.
