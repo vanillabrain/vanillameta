@@ -63,3 +63,7 @@ UC-007의 블록 복제는 P5의 전체 분석 복제·소스 매핑과 구별�
 ## 연속 편집 회귀 — 2026-10-15
 
 [TC-011-07 실행](../testing/block-editor-continuity.md)에서 복제·직접 제목·내용 AI·배치 AI가 한 복사본/이력에 연결되고 저장·새로고침 후 원본3블록의 정의/배치·SQL이 유지됨을 확인했다. 추가 모바일 화면 재검증은 auto-review 거절로 BLOCKED다. 포인터·터치·모바일 잔여 gate와 P1 Open은 유지한다. 다음 독립 단위는 P2의 지표·차원 제안/재사용이며 P1 완료를 뜻하지 않는다.
+
+## P2 설계 착수 — UC-012 (2026-10-15)
+
+[설계](../architecture/semantic-creation.md)·[UC](../use_cases/UC-012-semantic-creation.md)·[TC](../test_cases/TC-012-semantic-creation.md)·[구현 계획](../plans/UC-012.md)으로 한 질문의 지표/원본 열 차원/분석 제안과 저장을 구체화했다. 기존 compiler·지표 연결·sharedManager를 재사용하며 새 정의와 분석은 생성 영수증의 unique key와 함께 원자 저장할 계획이다. 이번에는 운영 코드/DB를 변경하지 않았고 P2는 Open, TC-012는 NOT_RUN이다. 다음은 A의 쓰기 없는 제안/컴파일 구현이다. P1 모바일·포인터/터치 미완료는 별도로 남긴다.

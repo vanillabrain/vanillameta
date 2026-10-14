@@ -101,3 +101,7 @@ blockId를 기존 JSON에 추가하고 레거시 조회는 결정적 ID를 반�
 `editor/ai`의 `editMode=layout`은 선택 화면 폭의 선택 블록만 대상으로 한다. 서버가 compile한 좌표와 제목만 기존 LLM 제공자에 전달하고 x/y/w/h 외 필드는 거절한다. 내용 AI 수정은 기존 경로를 유지한다. 자동 의도 분류는 하지 않는다.
 
 제안 후 소유권·버전과 전체 배치를 다시 compile하여 겹침을 거절한다. 선택 item의 layouts만 반환·합치므로 SQL·차트 종류·비대상·다른 폭은 유지된다. 성공 미리보기는 기존 초안 이력과 저장 경로를 사용하며 자동 저장하지 않는다. 신규 엔티티·DB 컬럼·외부 엔진 계약은 없다. 자연어 다중 블록 재배치는 별도 후속이다.
+
+## P2 상세 설계 — UC-012 (Draft)
+
+[지표·차원 생성/재사용 설계](semantic-creation.md)는 질문에서 구조화 제안을 만들고 기존 compiler·preview·shared EntityManager 저장 경계를 재사용한다. 원본 열 차원은 안정적 논리 ID snapshot으로 시작하고, 새 지표·분석의 저장 원자성과 actor/requestId 재시도 키는 생성 영수증의 DB unique 제약으로 보장할 계획이다. 현재 구현/API/DB 변경은 아니며 P1 잔여 gate와 P2 Open을 유지한다.
