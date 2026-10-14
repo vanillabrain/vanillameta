@@ -4,8 +4,8 @@
 
 운영 담당자가 SQL 없이 결제·환불을 확인하고, 숫자가 모순처럼 보이는 상황을 LLM에 질문해 설명을 얻고 저장하는 **8분 데모**다. 시간이 남으면 Rill 공식 광고 경매 데이터의 Explore/Pivot을 3분 추가한다.
 
-- 실제 실행 기준: `develop-v2`, 제품 코드 `ef514cdb`. 이번 추가는 대본과 검증 스크립트이며 제품 코드는 변경하지 않았다.
-- **AI 포함 화면:** <http://127.0.0.1:3798/dashboard>. 별도 API `http://127.0.0.1:4998/v1`, 복사한 `/tmp/vm-customer-demo/metadata.db` 사용. 기존 3698/4898 서버는 보존했다.
+- 실제 실행 기준: `develop-v2`. 기존 API의 로컬 설정 로딩을 수정해 AI 편집을 기존 서버에서 사용할 수 있다.
+- **AI 포함 기존 화면:** <http://127.0.0.1:3698/dashboard>. 기존 API `http://127.0.0.1:4898/v1`(브라우저는 4899 프록시 경유), 기존 `/tmp/vm-rill-views/metadata.db`와 업로드를 유지한다. 별도 데모 서버가 필요하지 않다. 로컬 설정과 최신 검증은 [기존 환경 AI 편집](../testing/existing-ai-edit.md) 참조.
 - **Explore/Pivot:** <http://127.0.0.1:3698/explore/source?sourceId=7>. Rill 공식 `auction_data.parquet`, 1,391,572행. 커머스 리포트와 별도 분석 화면이다.
 - **Rill 참조:** <http://localhost:9009/welcome>. Rill은 날짜를 현재 시점으로 이동하므로 광고 데이터의 전체 기간·같은 차원 필터로 비교한다. UTC 원본 날짜와 이동된 Rill 날짜를 그대로 일치시켰다고 설명하지 않는다.
 - 기존 데모 계정으로 로그인한다. 비밀번호·토큰은 문서/증빙에 저장하지 않는다. API 자동 검증은 별도 테스트 계정을 사용해 시연 계정의 로그인 세션을 무효화하지 않는다.
@@ -65,15 +65,15 @@ E2E_USER_ID=demoverify1014 E2E_EVIDENCE_DIR=/tmp/vm-customer-demo/e2e \
 npm run test:e2e -- e2e/explore-views.spec.ts
 
 # 아래는 저장소 루트. COMMERCE_VERIFY_PASSWORD를 해당 테스트 계정 값으로 설정한다.
-python3 scripts/commerce/verify-report.py --api-url http://127.0.0.1:4998/v1 \
+python3 scripts/commerce/verify-report.py --api-url http://127.0.0.1:4898/v1 \
   --user-id demoverify1014 --output /tmp/vm-customer-demo/oracle-api.json
-python3 scripts/commerce/verify-ai-demo.py --api-url http://127.0.0.1:4998/v1 \
+python3 scripts/commerce/verify-ai-demo.py --api-url http://127.0.0.1:4898/v1 \
   --user-id demoverify1014 --output /tmp/vm-customer-demo/ai-api.json
 ```
 
 AI 테스트는 **실제 LLM을 2회 호출**한다. 전용 로컬 테스트 계정의 샘플 표현만 저장·재조회하고 종료 시 기존 표현을 복구한다. 기본 단위/CI에서는 실행하지 않는다. 기존 표현이 빈 객체라면 빈 문자열 3필드로 복구하며 표시 의미는 동일하다. 원본 데이터·게시 버전·해시·프로젝트는 교체하거나 삭제하지 않는다.
 
-## 이번 실행 결과
+## 최초 격리 데모 실행 결과 (이력)
 
 | 범위                                    | 결과                   | 증거/한계                                                                                                                                                                                                                                                                                                             |
 | --------------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -86,6 +86,6 @@ AI 테스트는 **실제 LLM을 2회 호출**한다. 전용 로컬 테스트 계
 
 Aside 캡처: `/Users/drumcap/.aside/u/0/sessions/2026-10-14_SAhemWIiPzqZ2b0O/artifacts/`의 `demo-ai-first-preview.png`, `demo-cohort-day.png`, `demo-ai-question-answer.png`, `demo-refund-event-day.png`, `demo-ai-saved-reloaded.png`.
 
-처음 3698 서버에서 인증 만료로 로그인 화면 이동, 재로그인 후 AI 미설정 오류를 확인했다(`demo-ai-unconfigured.png`). 기존 서버 설정을 바꾸지 않고 AI 설정이 있는 격리 3798/4998로 복구했다. 따라서 **AI 포함 고객 시연은 3798에서 시작**한다. E2E 최초 고유 계정 실행은 기본 이메일 중복으로 실패했으며 `QA_RUN_ROOT`로 고유 이메일을 사용한 재실행은 통과했다. Rill 참조 탭의 신규 Aside 연결은 CDP `Page.enable` 제한시간에 걸려 재비교 NOT_RUN이며 기존 비교 증거를 재사용했다. VanillaMeta 광고 화면의 마지막 저장/복원/CSV는 별도 Playwright로 마무리했다.
+처음 3698 서버에서 인증 만료로 로그인 화면 이동, 재로그인 후 AI 미설정 오류를 확인했다(`demo-ai-unconfigured.png`). 기존 서버 설정을 바꾸지 않고 AI 설정이 있는 격리 3798/4998로 복구했다. 이후 기존 서버의 `.env.local` 로딩과 AI 연결을 수정·검증했으므로 **현재 AI 포함 시연도 3698에서 시작**한다. E2E 최초 고유 계정 실행은 기본 이메일 중복으로 실패했으며 `QA_RUN_ROOT`로 고유 이메일을 사용한 재실행은 통과했다. Rill 참조 탭의 신규 Aside 연결은 CDP `Page.enable` 제한시간에 걸려 재비교 NOT_RUN이며 기존 비교 증거를 재사용했다. VanillaMeta 광고 화면의 마지막 저장/복원/CSV는 별도 Playwright로 마무리했다.
 
 실제 고객 연결·운영 배포·BigQuery/Athena·범용 커머스 NL SQL 생성·새로운 모든 오류 변형·모바일·VoiceOver·provider 내부 실제 모델의 독립 증명은 이번 데모의 검증 범위 밖이다.

@@ -29,6 +29,7 @@ import { AiModule } from './ai/ai.module';
 import { MetricModule } from './metric/metric.module';
 import { ProgressModule } from './progress/progress.module';
 import { CommerceModule } from './commerce/commerce.module';
+import { apiEnvFiles } from './config-env';
 
 @Module({
   imports: [
@@ -37,7 +38,7 @@ import { CommerceModule } from './commerce/commerce.module';
     SourceOwnershipModule,
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: process.env.NODE_ENV == 'prod' ? '.env' : '.env.dev',
+      envFilePath: apiEnvFiles(),
     }),
 
     ThrottlerModule.forRoot({

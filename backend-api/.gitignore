@@ -2,6 +2,7 @@
 sqlite.db
 config.serverless.yml
 .env.dev
+.env.local
 .env.prod
 .ormconfig.json
 vanillameta
