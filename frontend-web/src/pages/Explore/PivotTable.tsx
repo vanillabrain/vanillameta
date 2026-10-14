@@ -39,6 +39,8 @@ type Props = {
   filters: ExploreFilter[];
   dateRange?: ExploreDateRange;
   paused: boolean;
+  fixedAxes?: boolean;
+  embedded?: boolean;
   axes?: PivotAxes;
   onAxesChange?: (axes: PivotAxes) => void;
   onReady?: (status: { key: string; reason: string }) => void;
@@ -215,57 +217,68 @@ export default function PivotTable(props: Props) {
   };
   return (
     <Box component="section" aria-label="Pivot 탐색" sx={{ mt: 2, minWidth: 0 }}>
-      <Typography component="h2" variant="h6">
-        Pivot
-      </Typography>
+      {!props.embedded && (
+        <Typography component="h2" variant="h6">
+          Pivot
+        </Typography>
+      )}
       <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>
         행·열 차원별 교차 분석 · 현재 기간과 공통 필터 적용
       </Typography>
-      <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} sx={{ mb: 1, alignItems: { md: 'center' } }}>
-        <TextField
-          select
-          label="Pivot 행 차원"
-          size="small"
-          value={row1}
-          onChange={e => changeAxes(e.target.value, row2, column)}
-          slotProps={selectProps}
-          sx={{ minWidth: 0, width: { xs: '100%', md: 220 } }}
-        >
-          {options([row2, column])}
-        </TextField>
-        <TextField
-          select
-          label="Pivot 두 번째 행 차원"
-          size="small"
-          value={row2}
-          onChange={e => changeAxes(row1, e.target.value, column)}
-          slotProps={selectProps}
-          sx={{ minWidth: 0, width: { xs: '100%', md: 220 } }}
-        >
-          <option value="">추가 차원 없음</option>
-          {options([row1, column])}
-        </TextField>
-        <TextField
-          select
-          label="Pivot 열 차원"
-          size="small"
-          value={column}
-          onChange={e => changeAxes(row1, row2, e.target.value)}
-          slotProps={selectProps}
-          sx={{ minWidth: 0, width: { xs: '100%', md: 220 } }}
-        >
-          <option value="">지표만 표시</option>
-          {options([row1, row2])}
-        </TextField>
-        <Button
-          disabled={!column || !!row2}
-          onClick={() => {
-            changeAxes(column, '', row1);
-          }}
-        >
-          행·열 바꾸기
-        </Button>
-      </Stack>
+      {props.embedded ? (
+        <Typography variant="body2" sx={{ mb: 1 }}>
+          행 {rowDimensions.join(' / ')} {column ? `× 열 ${column}` : '· 지표만 표시'}
+        </Typography>
+      ) : (
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} sx={{ mb: 1, alignItems: { md: 'center' } }}>
+          <TextField
+            disabled={props.fixedAxes}
+            select
+            label="Pivot 행 차원"
+            size="small"
+            value={row1}
+            onChange={e => changeAxes(e.target.value, row2, column)}
+            slotProps={selectProps}
+            sx={{ minWidth: 0, width: { xs: '100%', md: 220 } }}
+          >
+            {options([row2, column])}
+          </TextField>
+          <TextField
+            disabled={props.fixedAxes}
+            select
+            label="Pivot 두 번째 행 차원"
+            size="small"
+            value={row2}
+            onChange={e => changeAxes(row1, e.target.value, column)}
+            slotProps={selectProps}
+            sx={{ minWidth: 0, width: { xs: '100%', md: 220 } }}
+          >
+            <option value="">추가 차원 없음</option>
+            {options([row1, column])}
+          </TextField>
+          <TextField
+            disabled={props.fixedAxes}
+            select
+            label="Pivot 열 차원"
+            size="small"
+            value={column}
+            onChange={e => changeAxes(row1, row2, e.target.value)}
+            slotProps={selectProps}
+            sx={{ minWidth: 0, width: { xs: '100%', md: 220 } }}
+          >
+            <option value="">지표만 표시</option>
+            {options([row1, row2])}
+          </TextField>
+          <Button
+            disabled={props.fixedAxes || !column || !!row2}
+            onClick={() => {
+              changeAxes(column, '', row1);
+            }}
+          >
+            행·열 바꾸기
+          </Button>
+        </Stack>
+      )}
       <Button variant="outlined" disabled={!current} onClick={downloadCsv}>
         Pivot CSV 내보내기
       </Button>

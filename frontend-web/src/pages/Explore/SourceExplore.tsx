@@ -24,6 +24,7 @@ import {
   LeaderboardSort,
 } from './exploreViewState';
 import PivotTable from './PivotTable';
+import PivotDashboardAdd from './PivotDashboardAdd';
 import { pivotRequestKey } from './pivotCsv';
 import MetricTrend, { FormattedMetricTrendData } from '@/pages/Dashboard/Components/MetricTrend';
 import { formatMetric, metricNumericText, NumberNotation } from '@/utils/formatMetric';
@@ -892,6 +893,11 @@ export default function SourceExplore() {
                   : queryError || revisionError || (!result ? '정상 탐색 결과를 확인한 뒤 사용할 수 있습니다.' : '')
               }
               onApply={applySavedView}
+              renderViewAction={view =>
+                view.state.mode === 'pivot' ? (
+                  <PivotDashboardAdd sourceId={catalog.sourceId} viewId={view.id} name={view.name} />
+                ) : null
+              }
             />
           )}
         </Box>

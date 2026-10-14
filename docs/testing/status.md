@@ -317,3 +317,5 @@ Assistant 저장 충돌·실행 중단의 ASSISTANT-06~07을 [assistant-reliabil
 COLD-02~05 선택조건: 같은1391572행으로 실제gpt-6-luna 생성→dashboard6저장/새로고침→Assistant제목수정/적용/재조회PASS. 634513000/5.5712386765 및9기기 독립정답일치, 제목외SQL/표현설정불변. EXPLORE-01/02/08 선택조건: 저장지표1 생성·전체→Mobile/Tablet 키보드필터→원본307763000/710193행, 실제XHR·화면PASS. dashboard/explore390px에서scrollWidth390, AI/Assistant/접힘영역/차원·원본선택키보드PASS. 캡처는외부실행폴더. 모바일필터바의긴배치/탐색KPI축약표시 미연결은UX잔여로기록. 기존통과전조건·전체출시QA·Rill전체·실기기터치 반복안함, 실제VoiceOverBLOCKED유지. 수정/기록은미커밋워크트리이며develop-v2병합/푸시로보고하지않는다.
 
 2026-10-14 Pivot 저장·CSV: PIVOT-06~08 PASS_SELECTED_VARIANTS. [명세/범위](explore-pivot.md). 실제 다운로드 정수 exact, 비율1e-9·저장/새로고침복원·390px/Tab/Enter 확인. VoiceOver BLOCKED/gpt-6-luna 유지.
+
+2026-10-14 PIVOT-DASH-01~04 PASS_SELECTED_VARIANTS: 저장 Pivot 대시보드스냅샷·App공통필터·날짜override·390px키보드/디자인. [상세](dashboard-pivot.md). gpt-6-luna/VoiceOver차단유지.

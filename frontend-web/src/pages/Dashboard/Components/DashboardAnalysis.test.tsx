@@ -1,3 +1,4 @@
+vi.mock('./DashboardPivots', () => ({ default: () => null }));
 import React from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';

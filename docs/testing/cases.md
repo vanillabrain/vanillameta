@@ -822,3 +822,5 @@ Additional MD scenarios and fixed Rill oracle: [server-duckdb.md](server-duckdb.
 밀도·숫자표시 신규 선택 조건: [compact-controls-formatting.md](compact-controls-formatting.md)의 DENSITY-01~03/NUMBER-01~02. 기존 카탈로그130개 집계를 늘리지 않고 변경 범위 검증을 별도 기록한다.
 
 - Pivot 저장·CSV 확장: [PIVOT-06~08](explore-pivot.md#pivot-저장csv-확장--2026-10-14).
+
+- 저장한 Pivot 대시보드 추가·공통 조건·디자인: [PIVOT-DASH-01~04](dashboard-pivot.md).

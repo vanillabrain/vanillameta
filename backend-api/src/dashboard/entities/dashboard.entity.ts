@@ -17,6 +17,9 @@ export class Dashboard extends BaseEntity {
   @Column({ type: 'text', nullable: true })
   structuredDefinition: string;
 
+  @Column({ type: 'text', nullable: true })
+  pivotDefinitions: string | null;
+
   @Optional()
   @Column({ nullable: true, comment: '템플릿 ID' })
   templateId: number;

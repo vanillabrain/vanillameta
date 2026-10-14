@@ -52,6 +52,7 @@ type Props<State extends ViewPeriodState> = {
   disabledReason?: string;
   sourceRevision?: string;
   onApply: (state: State, dateRange: DateRange | null) => void;
+  renderViewAction?: (view: SavedView<State>) => React.ReactNode;
 };
 
 export const validDay = (day: string) =>
@@ -219,6 +220,7 @@ export default function PersonalSavedViews<State extends ViewPeriodState = Saved
   disabledReason = '',
   sourceRevision,
   onApply,
+  renderViewAction,
 }: Props<State>) {
   const apiPath = endpoint ?? `/dashboard/${dashboardId}/views`;
   const parseState = customParser ?? (stateData as unknown as (value: unknown) => State);
@@ -443,6 +445,7 @@ export default function PersonalSavedViews<State extends ViewPeriodState = Saved
               >
                 불러오기
               </Button>
+              {renderViewAction?.(view)}
               <Button
                 disabled={!!busy}
                 aria-label={`${view.name} 보기 삭제`}

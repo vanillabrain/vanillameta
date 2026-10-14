@@ -1,3 +1,4 @@
+import DashboardPivots from './DashboardPivots';
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -1249,6 +1250,15 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
       ) : (
         children
       )}
+      <DashboardPivots
+        dashboardId={Number(dashboardId)}
+        filters={active.map(([column, values]) => ({ column, values }))}
+        dateRange={dateRange ?? undefined}
+        paused={analysisLoading || busy || !!error || !!dateError || unappliedDates}
+        onFilter={next =>
+          setFilters(Object.fromEntries(next.filter(f => 'values' in f).map(f => [f.column, 'values' in f ? f.values : []])))
+        }
+      />
       {preview?.sourceRevision && (
         <SourceDetails
           key={`source-details-${dashboardId}`}
