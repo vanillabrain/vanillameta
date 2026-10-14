@@ -9,6 +9,28 @@ vi.mock('react-router-dom', () => ({
   useNavigate: () => api.navigate,
   useSearchParams: () => [new URLSearchParams('sourceId=1')],
 }));
+vi.mock('./FileVersions', async () => {
+  const { useState } = await import('react');
+  return {
+    default: ({ onChanged, disabled }: any) => {
+      const [notice, setNotice] = useState('');
+      return (
+        <div>
+          <button
+            disabled={disabled}
+            onClick={() => {
+              setNotice('파일 복원 완료');
+              onChanged();
+            }}
+          >
+            버전 복원 검증
+          </button>
+          <p>{notice}</p>
+        </div>
+      );
+    },
+  };
+});
 vi.mock('@/widget/modules/board/NumericBoard', () => ({ default: () => <div>숫자 미리보기</div> }));
 vi.mock('@mui/material', () => {
   const Container = ({ children }: any) => <div>{children}</div>;
@@ -262,4 +284,46 @@ it('renders the server rejection as text and falls back for non-string errors', 
   api.post.mockRejectedValueOnce({ response: { data: { data: { message: 'invalid' } } } });
   fireEvent.click(screen.getByRole('button', { name: '지표 저장' }));
   await screen.findByText('지표를 저장하지 못했습니다. 아래 지표 저장 버튼으로 다시 시도해 주세요.');
+});
+
+it('keeps file completion feedback mounted during same-source profile refresh', async () => {
+  let resolveProfile: (value: unknown) => void;
+  const refreshed = new Promise(resolve => {
+    resolveProfile = resolve;
+  });
+  let profileCalls = 0;
+  const duckdbProfile = { ...profile, engine: 'duckdb' };
+  api.get.mockImplementation(async (url: string) => {
+    if (url.endsWith('/profile')) {
+      profileCalls += 1;
+      return profileCalls === 1 ? success(duckdbProfile) : refreshed;
+    }
+    return success(url === '/bi/metrics' ? api.metrics : [{ id: 1, name: '파일', engine: 'duckdb' }]);
+  });
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: '버전 복원 검증' }));
+  await waitFor(() => expect(profileCalls).toBe(2));
+  expect(screen.getByText('파일 복원 완료')).not.toBeNull();
+  await act(async () => resolveProfile(success({ ...duckdbProfile, dataVersion: 'b'.repeat(64) })));
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: '버전 복원 검증' }) as HTMLButtonElement).disabled).toBe(false),
+  );
+  expect(screen.getByText('파일 복원 완료')).not.toBeNull();
+});
+
+it('clears the retained profile when same-source refresh fails', async () => {
+  let profileCalls = 0;
+  api.get.mockImplementation(async (url: string) => {
+    if (url.endsWith('/profile')) {
+      profileCalls += 1;
+      if (profileCalls > 1) throw new Error('profile unavailable');
+      return success({ ...profile, engine: 'duckdb' });
+    }
+    return success(url === '/bi/metrics' ? api.metrics : [{ id: 1, name: '파일', engine: 'duckdb' }]);
+  });
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: '버전 복원 검증' }));
+  await screen.findByText('데이터를 불러오지 못했습니다. 연결 상태를 확인하고 다시 시도해 주세요.');
+  expect(screen.queryByRole('button', { name: '버전 복원 검증' })).toBeNull();
+  expect(screen.queryByLabelText('지표 이름')).toBeNull();
 });

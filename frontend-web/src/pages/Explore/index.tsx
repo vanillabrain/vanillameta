@@ -140,7 +140,7 @@ export default function Explore() {
     pending.current = true;
     setBusy('데이터 불러오는 중…');
     setError('');
-    setProfile(null);
+    setProfile(current => (current?.sourceId === Number(sourceId) ? current : null));
     setMetrics([]);
     setPreview(null);
     const load = async () => {
@@ -163,7 +163,10 @@ export default function Explore() {
           }
         }
       } catch {
-        if (revision.current === token) setError('데이터를 불러오지 못했습니다. 연결 상태를 확인하고 다시 시도해 주세요.');
+        if (revision.current === token) {
+          setProfile(null);
+          setError('데이터를 불러오지 못했습니다. 연결 상태를 확인하고 다시 시도해 주세요.');
+        }
       } finally {
         if (revision.current === token) {
           pending.current = false;

@@ -505,3 +505,18 @@ CHART-FILTER-02: 공통 차트 조회 중 재선택 및 늦은 성공/오류. �
 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/view-limit-ui-20261014/`: results.json, fixture.json, limit-1440.png/limit-390.png, restored-20-long-name-390.png, aside-initial.txt, cleanup.json. 임시 소스/보기 API 삭제·지표 soft-delete 후 DB에서 temporarySources/Views/activeTemporaryMetrics=0, 기존 source3/view1 보존을 확인했다. gpt-6-luna 설정/VoiceOver BLOCKED 유지, AI 호출0.
 
 20개 단일 서버 UI 경계와 삭제 후 복구만 완료했다. MySQL·다중 서버 동시성, 실제 VoiceOver·실기기 터치/전체 키보드 조합 및 강제 스키마 변경 조건은 미검증으로 유지한다.
+
+
+## 2026-10-14 VERSION-06·07 — 5개 한도 실제 화면 후속
+
+기준 `codex/self-service-next-20261014` @ `03b85ecc` + 프로필 재조회 안내 수정. 이전 하위 검사로만 확인했던 최대5버전 조건을 실제 HTTP/화면에 연결했다. 정상 파일 갱신 전체·Rill 숫자·기존 저장 보기/차트/AI 조건은 반복하지 않았다.
+
+**PASS_SELECTED_VARIANTS**: 임시 CSV 두 행100×n+200×n(버전1..5)을 준비해 5개 한도에 도달. 실제1440×1000/390×844에서 여섯째 파일 선택→Enter 교체POST400/최대5개 안내, currentVersionId/revision/이력 불변·합계1500 보존을 확인했다. 390px에서 버전1 복원 선택/Enter 확인→POST201·5개 이력 유지·합계300, 같은 내용 파일을 다른 이름으로 재선택→201 unchanged=true·revision/이력 불변, 새로고침 뒤 버전1/current·합계300 유지. 수치는 실제 explore/query와 고정 CSV 산술로 대조했다. 문서 가로 넘침0·버전표/안내/버튼/줄바꿈·포커스 캡처 직접 검토. 파일 선택은 setInputFiles이며 OS 파일창/실기기 터치로 확대하지 않는다.
+
+**발견·수정·재검증**: 복원201 뒤 프로필 재조회가 profile을 비워 FileVersions를 다시 생성하면서 복원 완료 안내가 사라졌다. Explore는 같은 sourceId를 재조회할 때 준비된 profile과 파일 관리 컴포넌트를 유지하고 busy로 변경 동작을 잠근다. 소스가 바뀌면 이전 profile을 비우며, 재조회 실패 시에도 profile을 제거해 낡은 정보로 제작할 수 없게 한다. 신규 회귀로 수정 전 실패를 재현했다. 수정 후 관련 Explore/FileVersions36개 PASS, 추가 재조회 실패 경계와 안내 유지2개 선택 PASS(고유 검사37개). FE 타입·변경 lint·production build/diff check PASS. 최종 브라우저에서도 완료 안내 지속과 위 한도 경로를 재검증했다.
+
+외부 helper의 Promise.json 호출과 unchanged 응답 envelope 위치 가정은 검사 코드 오류로 수정했다. 제품 오류로 세거나 실제 완료 조건을 생략하지 않았으며 마지막 browser-final.log/results.json은 전 조건 완료다. 최초 lint의 테스트 포맷/증가 연산자는 보정 후 통과했다. Aside 기존 탭의 로그인 화면을 확인했으며 대표 뷰포트/파일 입력은 기존 허용된 별도 headed Chromium에서 검증했다. Aside 통과나 VoiceOver 발화로 집계하지 않았다.
+
+증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/file-version-limit-ui-20261014/`: limit-denied-1440.png/limit-denied-390.png, restore-notice-before-390.png, restored-at-cap-390.png, reloaded-at-cap-390.png, results.json, browser-before.log/browser-after.log/browser-final.log, regression-before.log/regression-after.log, profile-boundary-tests.log, build.log, cleanup.json. 임시 source/metric25~29만 API 삭제/soft-delete했고 DB에서 temporarySources/activeTemporaryMetrics=0·기존 source3/view1 보존을 확인했다. 파일시스템 전체 orphan scan·crash 복구를 수행했다는 뜻은 아니다.
+
+이번 코드/검증 기록은 미커밋. 자동GC·crash 복구·장기 보존 정책·다중 서버/tenant·실기기·VoiceOver는 미검증/BLOCKED 유지. gpt-6-luna 설정 유지/AI 호출0, 기존130개 카탈로그 완료 집계는 확대하지 않았다.
