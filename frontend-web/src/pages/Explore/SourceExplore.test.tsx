@@ -823,6 +823,124 @@ const withPivot = () => {
     url === '/bi/explore/pivot' ? success(pivotResult(body)) : original(url, body, ...options),
   );
 };
+const hierarchyResult = (body: any) => ({
+  sourceRevision: body.sourceRevision,
+  rowColumns: body.rowColumns,
+  columnColumns: body.columnColumns,
+  rows: [
+    [null, 'Android'],
+    ['null', 'iOS'],
+    ['Mobile/Tablet', 'Android'],
+  ],
+  columns: body.columnColumns.length ? [['1'], ['2']] : [[]],
+  cells: [],
+  rowTotals: [
+    [
+      { measureId: 1, value: '20' },
+      { measureId: 2, value: 2 },
+    ],
+    [
+      { measureId: 1, value: '10' },
+      { measureId: 2, value: 3 },
+    ],
+    [
+      { measureId: 1, value: '40' },
+      { measureId: 2, value: 1.1 },
+    ],
+  ],
+  columnTotals: [
+    [
+      { measureId: 1, value: '70' },
+      { measureId: 2, value: 2.4 },
+    ],
+    [],
+  ],
+  grandTotal: [
+    { measureId: 1, value: '70' },
+    { measureId: 2, value: 2.4 },
+  ],
+  rowSubtotals: [
+    {
+      tuple: [null],
+      measures: [
+        { measureId: 1, value: '30' },
+        { measureId: 2, value: 2.75 },
+      ],
+      cells: [
+        {
+          column: 0,
+          measures: [
+            { measureId: 1, value: '20' },
+            { measureId: 2, value: 2.5 },
+          ],
+        },
+        {
+          column: 1,
+          measures: [
+            { measureId: 1, value: '10' },
+            { measureId: 2, value: 3 },
+          ],
+        },
+      ],
+    },
+    {
+      tuple: ['null'],
+      measures: [
+        { measureId: 1, value: '10' },
+        { measureId: 2, value: 1.5 },
+      ],
+      cells: [
+        {
+          column: 0,
+          measures: [
+            { measureId: 1, value: '10' },
+            { measureId: 2, value: 1.5 },
+          ],
+        },
+        {
+          column: 1,
+          measures: [{ measureId: 1, value: '0' }],
+        },
+      ],
+    },
+    {
+      tuple: ['Mobile/Tablet'],
+      measures: [
+        { measureId: 1, value: '40' },
+        { measureId: 2, value: 1.1 },
+      ],
+      cells: [
+        {
+          column: 0,
+          measures: [{ measureId: 1, value: '0' }],
+        },
+        {
+          column: 1,
+          measures: [
+            { measureId: 1, value: '40' },
+            { measureId: 2, value: 1.1 },
+          ],
+        },
+      ],
+    },
+  ],
+});
+const withHierarchy = () => {
+  const original = currentPost();
+  api.post.mockImplementation(async (url: string, body: any, ...options: any[]) =>
+    url === '/bi/explore/pivot' ? success(hierarchyResult(body)) : original(url, body, ...options),
+  );
+};
+const openHierarchy = async () => {
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: 'Pivot', exact: true }));
+  await screen.findByRole('region', { name: 'Pivot 결과' });
+  fireEvent.change(screen.getByLabelText('행 차원 2'), { target: { value: 'device_os' } });
+  await waitFor(() => expect(pivots().at(-1)?.[1].rowColumns).toEqual(['device_type', 'device_os']));
+  fireEvent.click(screen.getByRole('button', { name: '행 계층 꺼짐' }));
+  await waitFor(() => expect(pivots().at(-1)?.[1].rowHierarchy).toBe(true));
+  await screen.findByRole('button', { name: '(값 없음) 펼치기' });
+};
 it('uses Pivot server totals and sparse null cells, preserves large integers, swaps axes and filters from rows', async () => {
   withPivot();
   await mount();
@@ -927,4 +1045,215 @@ it('ignores a delayed Pivot response after source changes', async () => {
     resolvePivot(success(pivotResult({ sourceRevision: 'rev-3', rowColumns: ['device_type'], columnColumns: [] }))),
   );
   expect(screen.queryByRole('region', { name: 'Pivot 결과' })).toBeNull();
+});
+it('separates a null hierarchy parent from a literal string-null parent and starts collapsed', async () => {
+  withHierarchy();
+  await openHierarchy();
+  expect(screen.getByRole('button', { name: '(값 없음) 펼치기' })).not.toBeNull();
+  expect(screen.getByRole('button', { name: 'null 펼치기' })).not.toBeNull();
+  expect(screen.getAllByText('부분합').length).toBe(3);
+  expect(screen.queryByRole('button', { name: 'Android', exact: true })).toBeNull();
+  expect(pivots().at(-1)?.[1].rowHierarchy).toBe(true);
+});
+it('expands and collapses hierarchy groups without issuing another pivot request', async () => {
+  withHierarchy();
+  await openHierarchy();
+  const before = pivots().length;
+  fireEvent.click(screen.getByRole('button', { name: '모두 펼치기' }));
+  await waitFor(() => expect(screen.getAllByRole('button', { name: 'Android', exact: true }).length).toBe(2));
+  expect(screen.getByRole('button', { name: '(값 없음) 접기' })).not.toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: '(값 없음) 접기' }));
+  await waitFor(() => expect(screen.getAllByRole('button', { name: 'Android', exact: true }).length).toBe(1));
+  fireEvent.click(screen.getByRole('button', { name: '모두 접기' }));
+  await waitFor(() => expect(screen.queryByRole('button', { name: 'Android', exact: true })).toBeNull());
+  expect(pivots().length).toBe(before);
+});
+it('uses the server subtotal for a non-additive ratio instead of summing the child cells', async () => {
+  withHierarchy();
+  await openHierarchy();
+  fireEvent.change(screen.getByLabelText('열 차원 1'), { target: { value: 'bid_floor' } });
+  await waitFor(() => expect(pivots().at(-1)?.[1].columnColumns).toEqual(['bid_floor']));
+  await waitFor(() => expect(screen.getByText('$2.75')).not.toBeNull());
+  expect(screen.queryByText('$5.00')).toBeNull();
+  expect(screen.getAllByText('부분합').length).toBe(3);
+});
+it('sends the row sort for the chosen measure and reverts to label sorting', async () => {
+  withPivot();
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: 'Pivot', exact: true }));
+  await screen.findByRole('region', { name: 'Pivot 결과' });
+  expect(pivots().at(-1)?.[1].rowSort).toBeUndefined();
+  const sort = screen.getByLabelText('행 정렬 기준') as HTMLSelectElement;
+  expect(sort.tagName).toBe('SELECT');
+  fireEvent.change(sort, { target: { value: '2' } });
+  await waitFor(() => expect(pivots().at(-1)?.[1].rowSort).toEqual({ by: 'value', direction: 'asc', measureId: 2 }));
+  fireEvent.click(screen.getByRole('button', { name: '행 정렬 방향' }));
+  await waitFor(() => expect(pivots().at(-1)?.[1].rowSort).toEqual({ by: 'value', direction: 'desc', measureId: 2 }));
+  fireEvent.change(screen.getByLabelText('행 정렬 기준'), { target: { value: 'label' } });
+  await waitFor(() => expect(pivots().at(-1)?.[1].rowSort).toEqual({ by: 'label', direction: 'desc' }));
+});
+it('ignores a superseded Pivot response after the row sort changes', async () => {
+  withPivot();
+  const original = currentPost();
+  let settle: (value: unknown) => void = () => undefined;
+  let count = 0;
+  api.post.mockImplementation((url: string, body: any, ...options: any[]) => {
+    if (url === '/bi/explore/pivot') {
+      count += 1;
+      return count === 1
+        ? new Promise(resolve => {
+            settle = resolve;
+          })
+        : original(url, body, ...options);
+    }
+    return original(url, body, ...options);
+  });
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: 'Pivot', exact: true }));
+  await waitFor(() => expect(pivots().length).toBe(1));
+  fireEvent.change(screen.getByLabelText('행 정렬 기준'), { target: { value: '2' } });
+  await waitFor(() => expect(count).toBe(2));
+  await screen.findByRole('region', { name: 'Pivot 결과' });
+  await act(async () =>
+    settle(
+      success({
+        sourceRevision: 'rev-3',
+        rowColumns: ['device_type'],
+        columnColumns: [],
+        rows: [['STALE']],
+        columns: [[]],
+        cells: [],
+        rowTotals: [[]],
+        columnTotals: [[]],
+        grandTotal: [],
+      }),
+    ),
+  );
+  expect(screen.queryByText('STALE')).toBeNull();
+  expect(pivots().at(-1)?.[1].rowSort).toEqual({ by: 'value', direction: 'asc', measureId: 2 });
+});
+it('saves and restores v3 hierarchy sort and expanded rows with period, filters and comparison', async () => {
+  withViews();
+  withHierarchy();
+  const original = currentPost();
+  const v3 = {
+    ...savedState,
+    version: 3,
+    pivot: {
+      enabled: true,
+      rowColumns: ['device_type', 'device_os'],
+      columnColumns: [],
+      rowHierarchy: true,
+      rowSort: { by: 'value', direction: 'desc', measureId: 2 },
+      expandedRows: [[null], ['Mobile/Tablet']],
+    },
+  };
+  api.post.mockImplementation((url: string, ...args: any[]) =>
+    url === '/bi/explore/views/load' ? Promise.resolve(success({ ...savedView, state: v3 })) : original(url, ...args),
+  );
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: '탐색 보기', exact: true }));
+  await screen.findByRole('option', { name: savedView.name });
+  fireEvent.change(screen.getByLabelText('저장한 탐색 보기'), { target: { value: '11' } });
+  fireEvent.click(screen.getByRole('button', { name: '보기 열기' }));
+  await waitFor(() =>
+    expect(pivots().at(-1)?.[1]).toMatchObject({
+      rowColumns: ['device_type', 'device_os'],
+      rowHierarchy: true,
+      rowSort: { by: 'value', direction: 'desc', measureId: 2 },
+      measureIds: [2, 1],
+      dateRange: savedState.dateRange,
+      filters: savedState.filters,
+      comparePrevious: true,
+    }),
+  );
+  await screen.findByRole('region', { name: 'Pivot 결과' });
+  await waitFor(() => expect(screen.getAllByRole('button', { name: 'Android', exact: true }).length).toBe(2));
+  expect(screen.getByRole('button', { name: '(값 없음) 접기' })).not.toBeNull();
+  expect(screen.getByRole('button', { name: 'null 펼치기' })).not.toBeNull();
+  fireEvent.change(screen.getByLabelText('새 보기 이름'), { target: { value: 'Pivot v3' } });
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: '현재 조건 저장' }) as HTMLButtonElement).disabled).toBe(false),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '현재 조건 저장' }));
+  await waitFor(() =>
+    expect(api.post.mock.calls.find(([url]) => url === '/bi/explore/views/create')?.[1].state).toEqual(v3),
+  );
+});
+it('keeps the v2 saved shape when pivot axes carry no hierarchy or custom sort', async () => {
+  withViews();
+  withPivot();
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: 'Pivot', exact: true }));
+  await screen.findByRole('region', { name: 'Pivot 결과' });
+  fireEvent.click(screen.getByRole('button', { name: '탐색 보기', exact: true }));
+  fireEvent.change(screen.getByLabelText('새 보기 이름'), { target: { value: '평면 피벗' } });
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: '현재 조건 저장' }) as HTMLButtonElement).disabled).toBe(false),
+  );
+  fireEvent.click(screen.getByRole('button', { name: '현재 조건 저장' }));
+  await waitFor(() => {
+    const state = api.post.mock.calls.find(([url]) => url === '/bi/explore/views/create')?.[1].state;
+    expect(state.version).toBe(2);
+    expect(state.pivot).toEqual({ enabled: true, rowColumns: ['device_type'], columnColumns: [] });
+  });
+});
+const v3HierarchyState = {
+  ...savedState,
+  version: 3 as const,
+  pivot: {
+    enabled: true,
+    rowColumns: ['device_type', 'device_os'],
+    columnColumns: [],
+    rowHierarchy: true,
+    rowSort: { by: 'value' as const, direction: 'desc' as const, measureId: 2 },
+    expandedRows: [[null], ['Mobile/Tablet']],
+  },
+};
+it('refetches and restores pivot readiness when the same v3 view is restored twice', async () => {
+  withViews();
+  withHierarchy();
+  const original = currentPost();
+  api.post.mockImplementation((url: string, ...args: any[]) =>
+    url === '/bi/explore/views/load'
+      ? Promise.resolve(success({ ...savedView, state: v3HierarchyState }))
+      : original(url, ...args),
+  );
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: '탐색 보기', exact: true }));
+  await screen.findByRole('option', { name: savedView.name });
+  fireEvent.change(screen.getByLabelText('저장한 탐색 보기'), { target: { value: '11' } });
+  fireEvent.click(screen.getByRole('button', { name: '보기 열기' }));
+  await screen.findByRole('region', { name: 'Pivot 결과' });
+  await waitFor(() => expect(pivots().length).toBe(1));
+  fireEvent.click(screen.getByRole('button', { name: /내보내기/ }));
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: 'CSV 다운로드' }) as HTMLButtonElement).disabled).toBe(false),
+  );
+  // Restoring the identical v3 state again keeps the same payload references, so the pivot must still
+  // refetch; otherwise pivotReady stays false and the export action is stuck disabled.
+  expect(pivots().length).toBe(1);
+  fireEvent.click(screen.getByRole('button', { name: '보기 열기' }));
+  await waitFor(() => expect(pivots().length).toBe(2));
+  expect(pivots()[1][1]).toEqual(pivots()[0][1]);
+  await screen.findByRole('region', { name: 'Pivot 결과' });
+  await waitFor(() =>
+    expect((screen.getByRole('button', { name: 'CSV 다운로드' }) as HTMLButtonElement).disabled).toBe(false),
+  );
+});
+it('falls back to flat rows when a hierarchy response omits subtotals', async () => {
+  const original = currentPost();
+  api.post.mockImplementation(async (url: string, body: any, ...options: any[]) =>
+    url === '/bi/explore/pivot' ? success({ ...hierarchyResult(body), rowSubtotals: [] }) : original(url, body, ...options),
+  );
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: 'Pivot', exact: true }));
+  await screen.findByRole('region', { name: 'Pivot 결과' });
+  fireEvent.change(screen.getByLabelText('행 차원 2'), { target: { value: 'device_os' } });
+  await waitFor(() => expect(pivots().at(-1)?.[1].rowColumns).toEqual(['device_type', 'device_os']));
+  fireEvent.click(screen.getByRole('button', { name: '행 계층 꺼짐' }));
+  await waitFor(() => expect(pivots().at(-1)?.[1].rowHierarchy).toBe(true));
+  await waitFor(() => expect(screen.getAllByRole('button', { name: 'Android', exact: true }).length).toBe(2));
+  expect(screen.queryByRole('button', { name: '(값 없음) 펼치기' })).toBeNull();
+  expect(screen.queryByText('부분합')).toBeNull();
 });

@@ -146,6 +146,62 @@ test('탐색·Pivot 조건 저장 → 새로고침 → 복원 → CSV 다운로�
     await page.getByRole('button', { name: '보기 삭제', exact: true }).click();
     expect((await pivotRemoved).ok()).toBe(true);
     viewId = undefined;
+
+    // Version 3 keeps hierarchy expansion and server ordering across a real reload.
+    await page.getByLabel('열 차원 1').selectOption('');
+    await page.getByLabel('행 차원 2').selectOption('channel');
+    await page.getByRole('button', { name: '행 계층 꺼짐', exact: true }).click();
+    await page.getByLabel('행 정렬 기준').selectOption(String(metricId));
+    await page.getByRole('button', { name: '행 정렬 방향', exact: true }).click();
+    await page.getByRole('button', { name: 'A 펼치기', exact: true }).click();
+    await expect(page.getByRole('region', { name: 'Pivot 결과' })).toContainText('부분합');
+    await expect(page.getByRole('button', { name: 'A 접기', exact: true })).toHaveAttribute('aria-expanded', 'true');
+    await page.getByLabel('새 보기 이름').fill(`${name} 계층`);
+    const hierarchySaved = createResponse(page, 'bi/explore/views/create');
+    await page.getByRole('button', { name: '현재 조건 저장', exact: true }).click();
+    const hierarchySaveResponse = await hierarchySaved;
+    viewId = await createdId(hierarchySaveResponse);
+    expect((await hierarchySaveResponse.json()).data.state).toMatchObject({
+      version: 3,
+      pivot: {
+        rowHierarchy: true,
+        rowColumns: ['category', 'channel'],
+        columnColumns: [],
+        expandedRows: [['A']],
+        rowSort: { by: 'value', direction: 'desc', measureId: metricId },
+      },
+    });
+    await page.reload();
+    await page.getByRole('button', { name: '탐색 보기', exact: true }).click();
+    await page.getByLabel('저장한 탐색 보기').selectOption(String(viewId));
+    const hierarchyRestored = page.waitForResponse(
+      response => response.url().endsWith('/bi/explore/pivot') && response.request().postDataJSON()?.rowHierarchy === true,
+    );
+    await page.getByRole('button', { name: '보기 열기', exact: true }).click();
+    const hierarchyResponse = await hierarchyRestored;
+    const hierarchyData = (await hierarchyResponse.json()).data;
+    expect(hierarchyResponse.request().postDataJSON()).toMatchObject({
+      rowSort: { by: 'value', direction: 'desc', measureId: metricId },
+    });
+    expect(hierarchyData.rowSubtotals.map((row: any) => row.tuple)).toEqual([['A'], ['B']]);
+    expect(Number(hierarchyData.rowSubtotals[0].measures[0].value)).toBe(300);
+    expect(Number(hierarchyData.rowSubtotals[1].measures[0].value)).toBe(300);
+    await expect(page.getByRole('button', { name: 'A 접기', exact: true })).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.getByRole('region', { name: 'Pivot 결과' })).toContainText('Site');
+    await page.getByRole('button', { name: '내보내기 ▾', exact: true }).click();
+    const hierarchyExport = createResponse(page, 'bi/explore/export');
+    const hierarchyDownload = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'CSV 다운로드', exact: true }).click();
+    const exportResponse = await hierarchyExport;
+    expect(exportResponse.request().postDataJSON().query).not.toHaveProperty('expandedRows');
+    const csv = (await exportResponse.json()).data.csv;
+    expect(csv).toContain('"subtotal_total"');
+    expect(csv).toContain('"subtotal_cell"');
+    expect(await readFile((await (await hierarchyDownload).path())!, 'utf8')).toBe(csv);
+    const hierarchyRemoved = createResponse(page, 'bi/explore/views/remove');
+    await page.getByRole('button', { name: '보기 삭제', exact: true }).click();
+    expect((await hierarchyRemoved).ok()).toBe(true);
+    viewId = undefined;
   } finally {
     if (viewId && sourceId)
       await page.request.post(`${API}/bi/explore/views/remove`, { headers, data: { sourceId, viewId } });

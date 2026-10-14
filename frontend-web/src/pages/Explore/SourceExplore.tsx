@@ -17,7 +17,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { get, post } from '@/helpers/apiHelper';
 import MetricTrend from '@/pages/Dashboard/Components/MetricTrend';
 import ExploreSavedViews, { ExploreViewState } from './ExploreSavedViews';
-import ExplorePivot, { PivotAxes } from './ExplorePivot';
+import ExplorePivot, { DEFAULT_PIVOT_SORT, PivotAxes } from './ExplorePivot';
 import ExploreExport from './ExploreExport';
 import type { MetricComparisonData } from '@/pages/Dashboard/Components/PeriodComparison';
 import type { MetricTrendData } from '@/pages/Dashboard/Components/trendGeometry';
@@ -777,10 +777,31 @@ export default function SourceExplore() {
     const version = catalog?.measures.find(measure => measure.id === id)?.definitionVersion;
     return Number.isSafeInteger(version) && Number(version) > 0;
   });
+  const pivotSort =
+    pivotAxes.rowSort?.by === 'value' && !measureIds.includes(pivotAxes.rowSort.measureId ?? 0)
+      ? DEFAULT_PIVOT_SORT
+      : pivotAxes.rowSort;
+  const effectivePivotAxes = { ...pivotAxes, ...(pivotAxes.rowSort ? { rowSort: pivotSort } : {}) };
+  const extendedPivot =
+    !!pivotAxes.rowHierarchy || (!!pivotSort && (pivotSort.by !== 'label' || pivotSort.direction !== 'asc'));
   const viewState: ExploreViewState = {
-    version: pivotMode || pivotAxes.rowColumns.length || pivotAxes.columnColumns.length ? 2 : 1,
-    ...(pivotMode || pivotAxes.rowColumns.length || pivotAxes.columnColumns.length
-      ? { pivot: { enabled: pivotMode, ...pivotAxes } }
+    version: extendedPivot ? 3 : pivotMode || pivotAxes.rowColumns.length || pivotAxes.columnColumns.length ? 2 : 1,
+    ...(extendedPivot || pivotMode || pivotAxes.rowColumns.length || pivotAxes.columnColumns.length
+      ? {
+          pivot: {
+            enabled: pivotMode,
+            rowColumns: pivotAxes.rowColumns,
+            columnColumns: pivotAxes.columnColumns,
+            ...(extendedPivot
+              ? {
+                  rowHierarchy: pivotAxes.rowHierarchy ?? false,
+                  rowSort: pivotSort ?? DEFAULT_PIVOT_SORT,
+                  expandedRows:
+                    pivotAxes.rowHierarchy && pivotAxes.rowColumns.length === 2 ? pivotAxes.expandedRows ?? [] : [],
+                }
+              : {}),
+          },
+        }
       : {}),
     measureIds,
     dimensionColumns: dimensions,
@@ -802,7 +823,17 @@ export default function SourceExplore() {
     setPivotMode(state.pivot?.enabled ?? false);
     setPivotAxes(
       state.pivot
-        ? { rowColumns: state.pivot.rowColumns, columnColumns: state.pivot.columnColumns }
+        ? {
+            rowColumns: state.pivot.rowColumns,
+            columnColumns: state.pivot.columnColumns,
+            ...(state.version === 3
+              ? {
+                  rowHierarchy: state.pivot.rowHierarchy,
+                  rowSort: state.pivot.rowSort,
+                  expandedRows: state.pivot.expandedRows,
+                }
+              : {}),
+          }
         : { rowColumns: [], columnColumns: [] },
     );
     setPivotReady(false);
@@ -834,7 +865,12 @@ export default function SourceExplore() {
       ...(dateRange ? { dateRange } : {}),
       comparePrevious,
       ...(pivotMode
-        ? pivotAxes
+        ? {
+            rowColumns: pivotAxes.rowColumns,
+            columnColumns: pivotAxes.columnColumns,
+            ...(pivotAxes.rowHierarchy !== undefined ? { rowHierarchy: pivotAxes.rowHierarchy } : {}),
+            ...(pivotSort ? { rowSort: pivotSort } : {}),
+          }
         : {
             dimensionColumns: dimensions,
             rankingMeasureId: rankingMeasureId ?? measureIds[0],
@@ -1324,9 +1360,16 @@ export default function SourceExplore() {
           measures={catalog.measures}
           dimensions={catalog.dimensions}
           state={viewState}
-          axes={pivotAxes}
+          axes={effectivePivotAxes}
           onAxesChange={axes => {
-            setPivotReady(false);
+            const queryKey = (query: PivotAxes) =>
+              JSON.stringify({
+                rowColumns: query.rowColumns,
+                columnColumns: query.columnColumns,
+                rowHierarchy: query.rowHierarchy,
+                rowSort: query.rowSort,
+              });
+            if (queryKey(axes) !== queryKey(effectivePivotAxes)) setPivotReady(false);
             setPivotAxes(axes);
           }}
           onReady={setPivotReady}
@@ -1334,6 +1377,7 @@ export default function SourceExplore() {
           onFilter={applyFilter}
           onReloadCatalog={reloadCatalog}
           onMeasureToggle={toggleMeasure}
+          refreshKey={queryReload}
           formatValue={value => {
             const units = unitPartsOf(value.measureId);
             return numberText(value.value, decimalsOf(value.measureId), units.prefix, units.suffix);

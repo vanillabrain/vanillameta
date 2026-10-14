@@ -236,9 +236,9 @@ export class ExploreViewService {
     );
     for (const name of state.dimensionColumns)
       if (!columns.has(name)) throw new BadRequestException('unknown dimension column');
-    // Version 2 stores a pivot layout beside the dimension columns; each axis name must exist in
-    // the same catalog the query runs against.
-    if (state.version === 2)
+    // Versions 2 and 3 store a pivot layout beside the dimension columns; each axis name must exist
+    // in the same catalog the query runs against.
+    if (state.version !== 1)
       for (const name of state.pivot.rowColumns.concat(state.pivot.columnColumns))
         if (!columns.has(name)) throw new BadRequestException('unknown pivot column');
     for (const filter of state.filters) {

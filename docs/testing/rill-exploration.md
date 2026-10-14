@@ -140,3 +140,31 @@ Rill `ExportMenu.svelte`와 `pivot-export.ts`는 현재 탐색 기간·필터·�
 - **NOT_RUN**: 전체 핵심8개·확장 QA·모바일 화면·대표 운영 부하/동시성·10초 이상 export 및 XLSX/Parquet/원본 전체 다운로드. 공유 axios의10초 제한은 기존 조회와 같으며 장시간 export용 백그라운드 작업/스트리밍은 구현하지 않았다. 본 실행을 대규모 운영 지원이나 Rill 전체 export parity로 확대하지 않는다.
 
 증빙: `/tmp/vm-rill-export/`의 `rill-pivot-export.csv`, `whole.csv`, `range.csv`, `explore.csv`, `aside-explore.csv`, `aside-pivot.csv`, `api-checks.json`, `browser-xhr.jsonl`, `integration-test.log`, `frontend-build.log`, `e2e/`, `vm-pivot-export-success.png`. Aside 성공/실패 캡처와 스냅샷은 기존 세션 artifacts에 보존한다.
+
+## Pivot 행 계층·부분합·정렬 — 2026-10-14 후속
+
+행 차원 2개에서 `행 계층`을 켜면 첫 차원의 상위 집계와 펼친 두 번째 차원의 하위 행을 표시한다. 개별/전체 펼침·접기는 표시 상태만 변경하고 집계를 다시 요청하지 않는다. 이름 또는 선택 지표의 현재 행 합계로 오름/내림차순을 선택한다. 상위 그룹은 자신의 원본 집계로 정렬하고 하위 행은 같은 그룹 안에서 정렬한다. NULL은 양방향 마지막, 값 동률은 이름 오름차순이며 큰 정수·DECIMAL 문자열을 Number로 반올림해 비교하지 않는다.
+
+`POST /bi/explore/pivot`의 선택 필드는 `rowHierarchy:boolean`과 `rowSort:{by:'label'|'value',direction:'asc'|'desc',measureId?}`다. 생략 시 계층 없이 이름 오름차순이다. 제공한 sort 객체는 by/direction이 필수이며 value는 선택 지표 ID, label은 measureId 없는 형식만 허용한다. `rowSubtotals`의 상위 합계와 상위×열 셀은 현재/이전 기간 원본에서 각각 재집계한다. 비율/가중 평균을 하위 결과의 합으로 계산하지 않는다. 50행/20열/6개 지표 제한은 유지하고 상위 그룹도 6,000개 값 예산에 포함해 초과 시 거절한다.
+
+v3 개인 보기는 계층·정렬·펼친 상위 tuple까지 저장하며 v1/v2 계약을 유지한다. 펼침 키는 NULL과 문자열 "null"을 구별한다. 같은 보기를 연속 복원해도 새 집계와 내보내기 준비 상태를 복구한다. CSV는 펼침 상태와 무관하게 전체 제한된 계층 결과를 포함하고 `subtotal_cell`/`subtotal_total` 및 조건 metadata를 추가한다. 쿼리/export에 `expandedRows`를 보내면 거절한다.
+
+| ID         | 입력/기대 결과                                                                                                                   | 검증                                 |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| EXPLORE-22 | All time, device_type→app_or_site, 두 지표, 요청 내림차순. Mobile/Tablet307763000/$5.66, Site202863400/$5.62, App104899600/$5.73 | 실제 Rill/VM 화면·CSV·독립 원본 대조 |
+| EXPLORE-23 | 기간2023-09-10~11 UTC, bid_floor1~9, 이전 비교, device_os 열. 상위·상위×열·하위 셀·총합은 각각 원본 GROUP BY와 일치              | 실제 API·DuckDB 단위                 |
+| EXPLORE-24 | NULL/큰 정수·비율/가중 평균·정렬/동률·상위 포함 제한, malformed sort/SQL/expandedRows·권한/revision 거절                         | 단위·실제 API                        |
+| EXPLORE-25 | v3 저장→새로고침→복원·동일 보기 재복원, v1/v2 호환, 계층 CSV 실제 파일=자신의 서버 CSV                                           | 실제 화면·핵심 E2E·단위              |
+
+### Rill 비교와 실행 기록
+
+Rill 공식 auction 데모의 실제 Pivot에서 All time, 행 Device Type→App or Site, Total Requests/Avg Bid Floor를 배치했다. Total Requests 헤더 클릭으로 ASC/DESC와 상위/하위 순서를 확인했다. Mobile/Tablet을 펼친 화면의 상위307.8M/$5.66, Site202.9M/$5.62, App104.9M/$5.73과 VM 표시가 일치한다. Rill 실제 CSV `Device Type,App or Site,Total Requests,Avg Bid Floor`의18개 하위 그룹 모두 원본 Parquet와 일치했다. VM18개 하위·9개 상위 및 전체 총합도 같은 독립 정답으로 검증했다. 요청 수는 정확 비교, 비율은 ±1e-9다. 원본 날짜와 Rill의 현재로 이동한 날짜는 다르므로 기간 비교 수치는 원본 직접 SQL로만 판정했다.
+
+Rill 소스 `pivot-expansion.ts`, `pivot-utils.ts`, `pivot-export.ts`, `toProto.ts`도 대조했다. Rill은 다단계 nested subRows와 셀/변화 지표 정렬, 행 한도 선택을 지원한다. 상위 집계 행을 VM에서는 `부분합`으로 표시하며 평균/비율 재집계 의미를 맞췄다. VM의 펼침 상태 저장은 Rill URL/proto가 보존하지 않는 추가 동작이다. Rill 가로형 export와 VM 지표별 행·부분합/metadata CSV는 형식이 다르다.
+
+- **PASS API/숫자**: 격리 API4898, FE3698, 기록 프록시4899, 공식 Parquet1,391,572행의 기존 source7을 재사용했다. 전체/기간·필터·이전 비교의 상위/상위×device_os/하위 셀/총합과 ASC/DESC, malformed sort/추가 SQL/expandedRows400, 소스409·소유권403·50행 초과400, 부분합 CSV를 확인했다.
+- **PASS 실제 화면/파일(선택 범위)**: 앱 내 브라우저에서 Rill 계층·ASC/DESC·CSV와 VM 계층·v3 저장→재로드→펼침 복원을 확인했다. VM 실제 `bi-pivot-7 (1).csv`는 해당 XHR CSV와 byte 단위로 일치하며 부분합 섹션을 포함한다. 초기 Aside CDP 연결 지연 뒤 새 연결로 복구해 저장된 `Rill 행 계층` v3의 두 축·요청 내림차순·Mobile/Tablet 펼침과 같은 수치를 Aside 실제 화면에서도 확인하고 캡처했다. 전체 펼침/접기와 오름차순 전환도 실제 화면으로 확인했다. 기존 사용자 보기와 세션 데이터는 보존했다. 다운로드 도구 응답은 장시간 지연되어 브라우저 검증 세션을 다시 연결했으며 제품 export API의 지연으로 판정하지 않는다.
+- **PASS 통합**: 전체 빠른 단위 BE75 suites/1191개·FE46 files/722개, 루트 build, 변경 BE lint·FE type/lint 통과. 마지막 동일 보기 재복원/부분합 누락 fallback 회귀 추가 뒤 관련 FE39개·type/lint 통과. E2E 초기 실행은 Playwright 브라우저 미설치로 시작하지 못했고 공식 Chromium 설치 후 기존 저장/복원 핵심1개가 v1/v2/v3·실제 CSV 비교까지 통과했다. E2E의 non-null assertion 경고3개와 기존 canvas/act 경고는 실패가 아니다.
+- **NOT_RUN/남은 차이**: 전체 핵심8개·확장 QA·운영 부하·모바일/전체 접근성. 3단계 이상 계층, 시간 grain 축, 셀/변화 지표 정렬, drag/drop, Rill Flat 전환/총합 위치/행 한도·리사이즈와 가로형 CSV/XLSX/Parquet는 후속이다. 이번 결과를 Rill 전체 Pivot 동등성으로 확대하지 않는다.
+
+증빙: `/tmp/vm-rill-hierarchy/`의 `api-oracle.json`, `api-export.json`, `rill-hierarchy.csv`, `rill-expanded.jpg/.txt`, `vm-expanded.jpg/.txt`, `vm-hierarchy.csv`, `browser-xhr.json`, `aside-hierarchy-restored.png/.txt`, `integration-test.log`, `build.log`, `fe-final.log`, `e2e/`와 `e2e.log`. 실제 브라우저 XHR은 `/tmp/vm-rill-views/browser-xhr.jsonl`에 보존한다.

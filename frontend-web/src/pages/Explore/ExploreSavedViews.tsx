@@ -1,10 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Button, Stack, TextField, Typography } from '@mui/material';
 import { post } from '@/helpers/apiHelper';
+import type { PivotRowSort } from './ExplorePivot';
 
 export type ExploreViewState = {
-  version: 1 | 2;
-  pivot?: { enabled: boolean; rowColumns: string[]; columnColumns: string[] };
+  version: 1 | 2 | 3;
+  pivot?: {
+    enabled: boolean;
+    rowColumns: string[];
+    columnColumns: string[];
+    rowHierarchy?: boolean;
+    rowSort?: PivotRowSort;
+    expandedRows?: Array<Array<string | number | boolean | null>>;
+  };
   measureIds: number[];
   dimensionColumns: string[];
   rankingMeasureId: number;
@@ -58,7 +66,7 @@ const restorable = (input: unknown): input is ExploreViewState => {
   if (!input || typeof input !== 'object') return false;
   const value = input as Partial<ExploreViewState>;
   return (
-    (value.version === 1 || value.version === 2) &&
+    (value.version === 1 || value.version === 2 || value.version === 3) &&
     (value.version === 1
       ? value.pivot === undefined
       : !!value.pivot &&
@@ -70,6 +78,31 @@ const restorable = (input: unknown): input is ExploreViewState => {
         [...value.pivot.rowColumns, ...value.pivot.columnColumns].every(column => typeof column === 'string') &&
         new Set([...value.pivot.rowColumns, ...value.pivot.columnColumns]).size ===
           value.pivot.rowColumns.length + value.pivot.columnColumns.length) &&
+    (value.version !== 3 ||
+      (!!value.pivot &&
+        typeof value.pivot.rowHierarchy === 'boolean' &&
+        !!value.pivot.rowSort &&
+        ['label', 'value'].includes(value.pivot.rowSort.by) &&
+        ['asc', 'desc'].includes(value.pivot.rowSort.direction) &&
+        (value.pivot.rowSort.by === 'label'
+          ? value.pivot.rowSort.measureId === undefined
+          : value.measureIds?.includes(value.pivot.rowSort.measureId ?? 0)) &&
+        Array.isArray(value.pivot.expandedRows) &&
+        value.pivot.expandedRows.length <= 50 &&
+        ((value.pivot.rowHierarchy && value.pivot.rowColumns.length === 2) || value.pivot.expandedRows.length === 0) &&
+        new Set(value.pivot.expandedRows.map(tuple => JSON.stringify(tuple))).size === value.pivot.expandedRows.length &&
+        value.pivot.expandedRows.every(
+          tuple =>
+            Array.isArray(tuple) &&
+            tuple.length === 1 &&
+            tuple.every(
+              item =>
+                item === null ||
+                typeof item === 'boolean' ||
+                (typeof item === 'number' && Number.isFinite(item)) ||
+                (typeof item === 'string' && item.length <= 256),
+            ),
+        ))) &&
     Array.isArray(value.measureIds) &&
     value.measureIds.length > 0 &&
     value.measureIds.every(id => Number.isSafeInteger(id) && id > 0) &&

@@ -22,6 +22,23 @@ export type ExplorePivot = {
   rowColumns: string[];
   columnColumns: string[];
 };
+/** Version 3 row ordering. A label order needs no measure; a value order must name a selected one. */
+export type ExploreRowSort = {
+  by: 'label' | 'value';
+  direction: 'asc' | 'desc';
+  measureId?: number;
+};
+/** One expanded hierarchy row: the value of the single row column the view is nested on. */
+export type ExploreExpandedRow = [string | number | boolean | null];
+/**
+ * Version 3 pivot layout: the version 2 axes plus the row hierarchy, its ordering and the row keys
+ * the user expanded. The axes keep the version 2 rules, so a layout toggled off still keeps state.
+ */
+export type ExplorePivotV3 = ExplorePivot & {
+  rowHierarchy: boolean;
+  rowSort: ExploreRowSort;
+  expandedRows: ExploreExpandedRow[];
+};
 /** Fields every state version shares. */
 type ExploreViewStateBase = {
   timeZone: string;
@@ -37,12 +54,14 @@ type ExploreViewStateBase = {
 };
 export type ExploreViewStateV1 = ExploreViewStateBase & { version: 1 };
 export type ExploreViewStateV2 = ExploreViewStateBase & { version: 2; pivot: ExplorePivot };
+export type ExploreViewStateV3 = ExploreViewStateBase & { version: 3; pivot: ExplorePivotV3 };
 /**
  * Versioned saved exploration state. It is a strict whitelist: one unknown key is a client bug.
  * The page offset is intentionally not stored; opening a view always restores page 0.
- * Version 1 is unchanged and rejects a stored pivot; version 2 requires one.
+ * Version 1 is unchanged and rejects a stored pivot; version 2 requires one. Version 3 adds the
+ * nested row hierarchy, its ordering and the expanded rows on top of the same axes.
  */
-export type ExploreViewState = ExploreViewStateV1 | ExploreViewStateV2;
+export type ExploreViewState = ExploreViewStateV1 | ExploreViewStateV2 | ExploreViewStateV3;
 
 const MAX_MEASURES = 6;
 const MAX_DIMENSIONS = 4;
@@ -52,8 +71,12 @@ const MAX_FILTER_STRING = 256;
 const MAX_COLUMN_LENGTH = 128;
 const MAX_PIVOT_AXIS_COLUMNS = 2;
 const MAX_PIVOT_COLUMNS = 4;
+const MAX_EXPANDED_ROWS = 50;
+/** A hierarchy nests exactly the two row columns the axes allow. */
+const HIERARCHY_ROW_COLUMNS = 2;
 const GRAINS = ['day', 'week', 'month'];
 const SORT_FIELDS = ['value', 'delta', 'percentChange'];
+const ROW_SORT_FIELDS = ['label', 'value'];
 const STATE_FIELDS = [
   'version',
   'timeZone',
@@ -68,8 +91,10 @@ const STATE_FIELDS = [
   'includeRows',
 ];
 const PIVOT_FIELDS = ['enabled', 'rowColumns', 'columnColumns'];
-/** Version 2 adds the pivot layout; a version 1 state keeps rejecting the key as unknown. */
-const V2_STATE_FIELDS = [...STATE_FIELDS, 'pivot'];
+/** Version 3 adds the row hierarchy, its ordering and the expanded row keys to the same axes. */
+const PIVOT_V3_FIELDS = [...PIVOT_FIELDS, 'rowHierarchy', 'rowSort', 'expandedRows'];
+/** Versions 2 and 3 both store the pivot layout; a version 1 state rejects the key as unknown. */
+const PIVOT_STATE_FIELDS = [...STATE_FIELDS, 'pivot'];
 
 const invalid = (): never => {
   throw new BadRequestException('저장 탐색 조건의 형식을 확인해 주세요.');
@@ -160,8 +185,9 @@ function pivotAxis(value: any): string[] {
 }
 
 /**
- * Version 2 pivot layout. A layout toggled off keeps its axes, so both axes are always required
- * and validated; a name may not repeat within an axis or across the two axes.
+ * Version 2 pivot layout, reused as the version 3 axis base. A layout toggled off keeps its axes,
+ * so both axes are always required and validated; a name may not repeat within an axis or across
+ * the two axes.
  */
 function pivot(value: any): ExplorePivot {
   object(value, PIVOT_FIELDS);
@@ -171,6 +197,64 @@ function pivot(value: any): ExplorePivot {
   if (rowColumns.length + columnColumns.length > MAX_PIVOT_COLUMNS) invalid();
   for (const name of rowColumns) if (columnColumns.includes(name)) invalid();
   return { enabled: value.enabled, rowColumns, columnColumns };
+}
+
+/**
+ * Version 3 row ordering. A label order carries no measure; a value order must name one of the
+ * view's selected measures so the ordering stays executable.
+ */
+function rowSort(value: any, measureIds: number[]): ExploreRowSort {
+  object(value, ['by', 'direction', 'measureId']);
+  const { by, direction, measureId } = value;
+  if (!ROW_SORT_FIELDS.includes(by) || !['asc', 'desc'].includes(direction)) invalid();
+  if (by === 'label') {
+    if (measureId !== undefined) invalid();
+    return { by, direction };
+  }
+  if (!Number.isSafeInteger(measureId) || !measureIds.includes(measureId)) invalid();
+  return { by, direction, measureId: Number(measureId) };
+}
+
+/** One expanded row key: exactly one value, validated like a filter member. */
+function expandedRow(value: any): ExploreExpandedRow {
+  if (!Array.isArray(value) || value.length !== 1) invalid();
+  return [member(value[0])] as ExploreExpandedRow;
+}
+
+/**
+ * Expanded hierarchy rows. Every key is a single value, so a duplicate is the same JSON tuple; the
+ * list is capped because each entry is one drill path the user opened, not query input.
+ */
+function expandedRows(value: any): ExploreExpandedRow[] {
+  if (!Array.isArray(value) || value.length > MAX_EXPANDED_ROWS) invalid();
+  const seen = new Set<string>();
+  return value.map(candidate => {
+    const tuple = expandedRow(candidate);
+    const key = JSON.stringify(tuple);
+    if (seen.has(key)) invalid();
+    seen.add(key);
+    return tuple;
+  });
+}
+
+/**
+ * Version 3 pivot layout: the version 2 axes plus the row hierarchy, its ordering and the expanded
+ * rows. An expanded list only means something for a hierarchy nested on both row columns, so a
+ * state without that layout is rejected instead of stored as dead keys.
+ */
+function pivotV3(value: any, measureIds: number[]): ExplorePivotV3 {
+  object(value, PIVOT_V3_FIELDS);
+  const base = pivot({
+    enabled: value.enabled,
+    rowColumns: value.rowColumns,
+    columnColumns: value.columnColumns,
+  });
+  if (typeof value.rowHierarchy !== 'boolean') invalid();
+  const sort = rowSort(value.rowSort, measureIds);
+  const rows = expandedRows(value.expandedRows);
+  if (rows.length && (!value.rowHierarchy || base.rowColumns.length !== HIERARCHY_ROW_COLUMNS))
+    invalid();
+  return { ...base, rowHierarchy: value.rowHierarchy, rowSort: sort, expandedRows: rows };
 }
 
 /** Change sorts compare against the previous period, so they require comparePrevious. */
@@ -188,9 +272,9 @@ function rankingSort(value: any, comparePrevious: boolean): ExploreRankingSort {
  */
 export function validateExploreViewState(input: any): ExploreViewState {
   const version = input && input.version;
-  if (version !== 1 && version !== 2) invalid();
-  // Version 1 rejects a stored pivot as an unknown key; version 2 requires one.
-  object(input, version === 2 ? V2_STATE_FIELDS : STATE_FIELDS);
+  if (version !== 1 && version !== 2 && version !== 3) invalid();
+  // Version 1 rejects a stored pivot as an unknown key; versions 2 and 3 require one.
+  object(input, version === 1 ? STATE_FIELDS : PIVOT_STATE_FIELDS);
   if (typeof input.timeZone !== 'string') invalid();
   const timeZone = validateBusinessTimeZone(input.timeZone);
   const ids = measureIds(input.measureIds);
@@ -218,6 +302,7 @@ export function validateExploreViewState(input: any): ExploreViewState {
     includeRows: input.includeRows,
   };
   if (version === 2) state.pivot = pivot(input.pivot);
+  if (version === 3) state.pivot = pivotV3(input.pivot, ids);
   if (input.dateRange !== undefined) {
     const dateRange = validateDateRange(input.dateRange);
     // The exploration picker stores civil YYYY-MM-DD days only; the query API keeps timestamp

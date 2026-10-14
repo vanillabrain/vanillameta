@@ -18,8 +18,21 @@ export type PivotResult = {
   rowTotals: PivotValue[][];
   columnTotals: PivotValue[][];
   grandTotal: PivotValue[];
+  rowSubtotals?: Array<{
+    tuple: unknown[];
+    measures: PivotValue[];
+    cells: Array<{ column: number; measures: PivotValue[] }>;
+  }>;
 };
-export type PivotAxes = { rowColumns: string[]; columnColumns: string[] };
+export type PivotRowSort = { by: 'label' | 'value'; direction: 'asc' | 'desc'; measureId?: number };
+export type PivotAxes = {
+  rowColumns: string[];
+  columnColumns: string[];
+  rowHierarchy?: boolean;
+  rowSort?: PivotRowSort;
+  expandedRows?: Array<Array<string | number | boolean | null>>;
+};
+export const DEFAULT_PIVOT_SORT: PivotRowSort = { by: 'label', direction: 'asc' };
 const category = (value: unknown): string => (value == null ? '(값 없음)' : value === '' ? '(빈 문자열)' : String(value));
 const tuple = (values: unknown[]) => (values.length ? values.map(category).join(' / ') : '전체');
 const errorText = (error: unknown) => {
@@ -52,6 +65,7 @@ export default function ExplorePivot({
   onFilter,
   onReloadCatalog,
   onMeasureToggle,
+  refreshKey,
 }: {
   sourceId: number;
   sourceRevision: string;
@@ -67,6 +81,7 @@ export default function ExplorePivot({
   onFilter: (column: string, values: Array<string | number | boolean | null>) => void;
   onReloadCatalog: () => void;
   onMeasureToggle: (id: number) => void;
+  refreshKey: number;
 }) {
   const [result, setResult] = useState<PivotResult | null>(null);
   const [error, setError] = useState('');
@@ -81,6 +96,8 @@ export default function ExplorePivot({
       measureIds: state.measureIds,
       rowColumns: axes.rowColumns,
       columnColumns: axes.columnColumns,
+      ...(axes.rowHierarchy !== undefined ? { rowHierarchy: axes.rowHierarchy } : {}),
+      ...(axes.rowSort ? { rowSort: axes.rowSort } : {}),
       filters: state.filters,
       ...(state.dateRange ? { dateRange: state.dateRange } : {}),
       comparePrevious: state.comparePrevious,
@@ -91,6 +108,8 @@ export default function ExplorePivot({
       state.measureIds,
       axes.rowColumns,
       axes.columnColumns,
+      axes.rowHierarchy,
+      axes.rowSort,
       state.filters,
       state.dateRange,
       state.comparePrevious,
@@ -128,12 +147,12 @@ export default function ExplorePivot({
       sequence.current += 1;
       abort.abort();
     };
-  }, [payload, sourceRevision, blocked, reload, onReady]);
+  }, [payload, sourceRevision, blocked, reload, refreshKey, onReady]);
 
-  const changeAxis = (axis: keyof PivotAxes, index: number, column: string) => {
+  const changeAxis = (axis: 'rowColumns' | 'columnColumns', index: number, column: string) => {
     const next = axes[axis].filter((_, i) => i !== index);
     if (column) next.splice(index, 0, column);
-    onAxesChange({ ...axes, [axis]: next });
+    onAxesChange({ ...axes, [axis]: next, ...(axis === 'rowColumns' ? { expandedRows: [] } : {}) });
   };
   const selectedMeasures = state.measureIds
     .map(id => measures.find(measure => measure.id === id))
@@ -154,6 +173,53 @@ export default function ExplorePivot({
     );
   };
   const hasColumnSplits = axes.columnColumns.length > 0;
+  const hierarchical = !!axes.rowHierarchy && axes.rowColumns.length === 2;
+  const expanded = new Set((axes.expandedRows ?? []).map(value => JSON.stringify(value)));
+  const sort = axes.rowSort ?? DEFAULT_PIVOT_SORT;
+  const displayRows: Array<{
+    key: string;
+    values: unknown[];
+    total: PivotValue[];
+    columns: Map<number, PivotValue[]>;
+    parent: boolean;
+    child: boolean;
+  }> = [];
+  if (result) {
+    const leaf = (r: number, child: boolean) => ({
+      key: `leaf:${r}`,
+      values: result.rows[r],
+      total: result.rowTotals[r],
+      columns: new Map(result.columns.map((_, c) => [c, cells.get(`${r}:${c}`) ?? []])),
+      parent: false,
+      child,
+    });
+    if (hierarchical && result.rowSubtotals?.length) {
+      for (const parent of result.rowSubtotals ?? []) {
+        const key = JSON.stringify(parent.tuple);
+        displayRows.push({
+          key: `parent:${key}`,
+          values: parent.tuple,
+          total: parent.measures,
+          columns: new Map(parent.cells.map(cell => [cell.column, cell.measures])),
+          parent: true,
+          child: false,
+        });
+        if (expanded.has(key))
+          result.rows.forEach((values, r) => {
+            if (JSON.stringify(values.slice(0, 1)) === key) displayRows.push(leaf(r, true));
+          });
+      }
+    } else result.rows.forEach((_, r) => displayRows.push(leaf(r, false)));
+  }
+  const toggleParent = (values: unknown[]) => {
+    const key = JSON.stringify(values);
+    onAxesChange({
+      ...axes,
+      expandedRows: expanded.has(key)
+        ? (axes.expandedRows ?? []).filter(value => JSON.stringify(value) !== key)
+        : [...(axes.expandedRows ?? []).slice(-49), values as Array<string | number | boolean | null>],
+    });
+  };
   const cellStyle: React.CSSProperties = {
     padding: '10px 12px',
     borderBottom: '1px solid #e2e8f0',
@@ -215,7 +281,7 @@ export default function ExplorePivot({
                 size="small"
                 aria-label={`${d.column} 행에 추가`}
                 disabled={axes.rowColumns.length >= 2 || [...axes.rowColumns, ...axes.columnColumns].includes(d.column)}
-                onClick={() => onAxesChange({ ...axes, rowColumns: [...axes.rowColumns, d.column] })}
+                onClick={() => onAxesChange({ ...axes, rowColumns: [...axes.rowColumns, d.column], expandedRows: [] })}
               >
                 + 행
               </Button>
@@ -265,14 +331,77 @@ export default function ExplorePivot({
               ))}
             </Stack>
           ))}
-          <Button onClick={() => onAxesChange({ rowColumns: axes.columnColumns, columnColumns: axes.rowColumns })}>
+          <Button
+            onClick={() =>
+              onAxesChange({ ...axes, rowColumns: axes.columnColumns, columnColumns: axes.rowColumns, expandedRows: [] })
+            }
+          >
             행·열 바꾸기
           </Button>
           <Button onClick={() => onAxesChange({ rowColumns: [], columnColumns: [] })}>구성 초기화</Button>
         </Stack>
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', gap: 1, mt: 1 }}>
+          <Button
+            aria-pressed={!!axes.rowHierarchy}
+            onClick={() => onAxesChange({ ...axes, rowHierarchy: !axes.rowHierarchy, expandedRows: [] })}
+          >
+            행 계층 {axes.rowHierarchy ? '켜짐' : '꺼짐'}
+          </Button>
+          <TextField
+            select
+            size="small"
+            label="행 정렬 기준"
+            value={sort.by === 'label' ? 'label' : String(sort.measureId)}
+            onChange={event =>
+              onAxesChange({
+                ...axes,
+                rowSort:
+                  event.target.value === 'label'
+                    ? { by: 'label', direction: sort.direction }
+                    : { by: 'value', direction: sort.direction, measureId: Number(event.target.value) },
+              })
+            }
+            slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
+          >
+            <option value="label">차원 이름</option>
+            {selectedMeasures.map(m => (
+              <option key={m.id} value={m.id}>
+                {m.label} · 현재 합계
+              </option>
+            ))}
+          </TextField>
+          <Button
+            aria-label="행 정렬 방향"
+            onClick={() =>
+              onAxesChange({ ...axes, rowSort: { ...sort, direction: sort.direction === 'asc' ? 'desc' : 'asc' } })
+            }
+          >
+            {sort.direction === 'asc' ? '오름차순 ↑' : '내림차순 ↓'}
+          </Button>
+          {hierarchical && (
+            <>
+              <Button
+                disabled={!result}
+                onClick={() =>
+                  onAxesChange({
+                    ...axes,
+                    expandedRows: (result?.rowSubtotals ?? []).map(
+                      parent => parent.tuple as Array<string | number | boolean | null>,
+                    ),
+                  })
+                }
+              >
+                모두 펼치기
+              </Button>
+              <Button disabled={!expanded.size} onClick={() => onAxesChange({ ...axes, expandedRows: [] })}>
+                모두 접기
+              </Button>
+            </>
+          )}
+        </Stack>
         <Typography sx={{ fontSize: 12, color: 'text.secondary', mt: 1 }}>
           지표 {selectedMeasures.map(m => m.label).join(' · ')} · 최대 50행 / 20열 그룹 / 6,000개 값 · 합계는 원본에서 다시
-          집계
+          집계 · 계층은 행 차원 2개에서 상위 그룹 부분합을 표시합니다. 정렬은 같은 계층 안에서 적용합니다.
         </Typography>
         {blocked && <Alert severity="info">유효한 기간과 지표를 선택하세요.</Alert>}
         {busy && (
@@ -345,8 +474,8 @@ export default function ExplorePivot({
                   )}
                 </tr>
                 {axes.rowColumns.length > 0 &&
-                  result.rows.map((values, r) => (
-                    <tr key={r}>
+                  displayRows.map(row => (
+                    <tr key={row.key}>
                       <th
                         scope="row"
                         style={{
@@ -354,36 +483,59 @@ export default function ExplorePivot({
                           textAlign: 'left',
                           position: 'sticky',
                           left: 0,
-                          background: '#fff',
+                          background: row.parent ? '#f8fafc' : '#fff',
+                          paddingLeft: row.child ? 40 : 12,
                           zIndex: 1,
                         }}
                       >
-                        {values.length
-                          ? values.map((value, i) => (
-                              <React.Fragment key={i}>
-                                {i > 0 && ' / '}
-                                <button
-                                  type="button"
-                                  title={`${axes.rowColumns[i]} 필터 적용`}
-                                  onClick={() => onFilter(axes.rowColumns[i], [value as string | number | boolean | null])}
-                                  style={{ border: 0, background: 'none', color: '#334155', padding: 2, cursor: 'pointer' }}
-                                >
-                                  {category(value)}
-                                </button>
-                              </React.Fragment>
-                            ))
+                        {row.parent && (
+                          <button
+                            type="button"
+                            aria-label={`${tuple(row.values)} ${
+                              expanded.has(JSON.stringify(row.values)) ? '접기' : '펼치기'
+                            }`}
+                            aria-expanded={expanded.has(JSON.stringify(row.values))}
+                            onClick={() => toggleParent(row.values)}
+                            style={{ border: 0, background: 'none', cursor: 'pointer', marginRight: 6 }}
+                          >
+                            {expanded.has(JSON.stringify(row.values)) ? '▾' : '▸'}
+                          </button>
+                        )}
+                        {row.values.length
+                          ? row.values.map((value, i) =>
+                              row.child && i === 0 ? null : (
+                                <React.Fragment key={i}>
+                                  {i > 0 && !row.child && ' / '}
+                                  <button
+                                    type="button"
+                                    title={`${axes.rowColumns[i]} 필터 적용`}
+                                    onClick={() => onFilter(axes.rowColumns[i], [value as string | number | boolean | null])}
+                                    style={{
+                                      border: 0,
+                                      background: 'none',
+                                      color: '#334155',
+                                      padding: 2,
+                                      cursor: 'pointer',
+                                    }}
+                                  >
+                                    {category(value)}
+                                  </button>
+                                </React.Fragment>
+                              ),
+                            )
                           : '전체'}
+                        {row.parent && <span style={{ marginLeft: 8, color: '#64748b', fontSize: 11 }}>부분합</span>}
                       </th>
                       {hasColumnSplits &&
                         selectedMeasures.map(m => (
                           <td key={m.id} style={{ ...cellStyle, fontWeight: 600 }}>
-                            {renderValue(result.rowTotals[r], m.id)}
+                            {renderValue(row.total, m.id)}
                           </td>
                         ))}
                       {result.columns.map((_, c) =>
                         selectedMeasures.map(m => (
                           <td key={`${c}:${m.id}`} style={cellStyle}>
-                            {renderValue(cells.get(`${r}:${c}`), m.id)}
+                            {renderValue(row.columns.get(c), m.id)}
                           </td>
                         )),
                       )}

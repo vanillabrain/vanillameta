@@ -13,6 +13,7 @@ import { Database } from '../database/entities/database.entity';
 import { Metric } from '../metric/entities/metric.entity';
 import { SourceAccessService } from '../ownership/source-access.service';
 import { BiExploreService } from './bi-explore.service';
+import { sortPivotRows } from './bi-explore-sort';
 import { BiService } from './bi.service';
 
 describe('BiExploreService pivot over real DuckDB', () => {
@@ -55,6 +56,11 @@ describe('BiExploreService pivot over real DuckDB', () => {
   const wideColumnsSql =
     "CREATE TABLE uploaded_data AS SELECT 'r' AS r, 'c' || lpad(CAST(j AS VARCHAR), 2, '0') AS c, " +
     'CAST(j AS DOUBLE) AS amount FROM range(21) u(j)';
+  // 50 leaf rows under 50 parents and 20 columns: flat fits the cell budget, the hierarchy does not.
+  const hierarchyGridSql =
+    "CREATE TABLE uploaded_data AS SELECT 'r' || lpad(CAST(i AS VARCHAR), 2, '0') AS r, 'g' AS g, " +
+    "'c' || lpad(CAST(j AS VARCHAR), 2, '0') AS col, CAST(i + j AS DOUBLE) AS amount, " +
+    'CAST(j AS DOUBLE) AS weight FROM range(50) t(i), range(20) u(j)';
 
   const metric = (id: number, label: string, fields: any, databaseId = 1) => ({
     id,
@@ -212,7 +218,12 @@ describe('BiExploreService pivot over real DuckDB', () => {
     // Deterministic ascending tuples; a null group keeps its place after every value.
     expect(result.rows).toEqual([['A'], ['B'], ['C'], ['D'], [null]]);
     expect(result.columns).toEqual([['app'], ['bulk'], ['web']]);
-    expect(result.applied).toEqual({ filters: [], comparePrevious: false });
+    expect(result.applied).toEqual({
+      filters: [],
+      comparePrevious: false,
+      rowHierarchy: false,
+      rowSort: { by: 'label', direction: 'asc' },
+    });
     expect(result.limits).toEqual({ rows: 50, columns: 20, cells: 6000 });
     // Every row x column pair is present, so a missing combination is an explicit null.
     expect(result.cells).toHaveLength(15);
@@ -599,5 +610,303 @@ describe('BiExploreService pivot over real DuckDB', () => {
       "CREATE TABLE uploaded_data AS SELECT 'X' AS region, 1::DOUBLE AS amount, 'app' AS channel",
     );
     await expect(pivot(body(sourceRevision))).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('adds hierarchy subtotals reaggregated at the parent and parent x column grain', async () => {
+    const result = await pivot(
+      body(await revision(), {
+        measureIds: [1, 4],
+        rowColumns: ['region', 'channel'],
+        columnColumns: ['day'],
+        rowHierarchy: true,
+      }),
+    );
+    expect(result.rowSubtotals).toHaveLength(5);
+    expect(result.rowSubtotals.map((subtotal: any) => subtotal.tuple)).toEqual([
+      ['A'],
+      ['B'],
+      ['C'],
+      ['D'],
+      [null],
+    ]);
+    const parent = (value: unknown) =>
+      result.rowSubtotals.find((subtotal: any) => subtotal.tuple[0] === value);
+    // Region A totals come from the raw rows: SUM 120 and the ratio 120 / (2 + 4 + 0 + 2).
+    expect(values(parent('A').measures)).toEqual([120, 15]);
+    expect(values(parent(null).measures)).toEqual([36, 6]);
+    expect(values(parent('D').measures)[1]).toBeNull();
+    // Every parent covers every grid column, in the same order as the columns.
+    expect(parent('A').cells.map((cell: any) => cell.column)).toEqual(
+      result.columns.map((_column: any, index: number) => index),
+    );
+    const cellOfDay = (value: unknown, day: string) =>
+      parent(value).cells.find(
+        (cell: any) => JSON.stringify(result.columns[cell.column]) === JSON.stringify([day]),
+      );
+    // A parent x column cell is reaggregated at that grain, so a missing day stays null.
+    expect(cellOfDay('A', '2026-01-01').measures.map((measure: any) => measure.value)).toEqual([
+      30, 5,
+    ]);
+    expect(cellOfDay('A', '2026-01-03').measures.map((measure: any) => measure.value)).toEqual([
+      null,
+      null,
+    ]);
+    expect(cellOfDay('A', '2026-01-04').measures.map((measure: any) => measure.value)).toEqual([
+      70, 35,
+    ]);
+  });
+
+  it('orders parents by their own subtotal and keeps each parent together with its leaves', async () => {
+    const result = await pivot(
+      body(await revision(), {
+        rowColumns: ['region', 'channel'],
+        columnColumns: [],
+        rowHierarchy: true,
+        rowSort: { by: 'value', direction: 'desc', measureId: 1 },
+      }),
+    );
+    // A 120, B 90, C 60, the null parent 36, then D 5; the null label still sorts after D.
+    expect(result.rowSubtotals.map((subtotal: any) => subtotal.tuple[0])).toEqual([
+      'A',
+      'B',
+      'C',
+      null,
+      'D',
+    ]);
+    // Leaves stay under their parent, sorted by their own row total.
+    expect(result.rows).toEqual([
+      ['A', 'app'],
+      ['A', 'web'],
+      ['B', 'app'],
+      ['C', 'app'],
+      [null, 'web'],
+      ['D', 'bulk'],
+    ]);
+    expect(result.rowTotals.map((measures: any[]) => measures[0].value)).toEqual([
+      90, 30, 90, 60, 36, 5,
+    ]);
+  });
+
+  it('sorts flat rows by the current row total, keeping a null value last and a label tie asc', async () => {
+    const tied = await pivot(
+      body(await revision(), {
+        rowColumns: ['region', 'channel'],
+        columnColumns: [],
+        rowSort: { by: 'value', direction: 'desc', measureId: 1 },
+      }),
+    );
+    // A/app and B/app both total 90, so the descending value order still breaks the tie by label.
+    expect(tied.rows).toEqual([
+      ['A', 'app'],
+      ['B', 'app'],
+      ['C', 'app'],
+      [null, 'web'],
+      ['A', 'web'],
+      ['D', 'bulk'],
+    ]);
+    // A row whose value is null sorts last in either direction, even against the ratio measure.
+    const desc = await pivot(
+      body(await revision(), {
+        measureIds: [4],
+        rowSort: { by: 'value', direction: 'desc', measureId: 4 },
+      }),
+    );
+    expect(desc.rows).toEqual([['C'], ['A'], ['B'], [null], ['D']]);
+    const asc = await pivot(
+      body(await revision(), {
+        measureIds: [4],
+        rowSort: { by: 'value', direction: 'asc', measureId: 4 },
+      }),
+    );
+    expect(asc.rows).toEqual([[null], ['B'], ['A'], ['C'], ['D']]);
+    // The cell grid follows the sorted rows, so a row index still names its own tuple.
+    expect(values(at(desc, ['C'], ['app']))).toEqual([60]);
+    expect(values(asc.rowTotals[0])).toEqual([6]);
+  });
+
+  it('keeps the null label last when a label sort is descending', async () => {
+    const result = await pivot(
+      body(await revision(), { rowSort: { by: 'label', direction: 'desc' } }),
+    );
+    expect(result.rows).toEqual([['D'], ['C'], ['B'], ['A'], [null]]);
+    expect(result.rowTotals.map((measures: any[]) => measures[0].value)).toEqual([
+      5, 60, 90, 120, 36,
+    ]);
+  });
+
+  it('reaggregates hierarchy subtotals over both periods and keeps a previous-only parent', async () => {
+    const result = await pivot(
+      body(await revision(), {
+        rowColumns: ['region', 'channel'],
+        columnColumns: [],
+        rowHierarchy: true,
+        dateRange: { column: 'day', start: '2026-01-03', end: '2026-01-04' },
+        comparePrevious: true,
+      }),
+    );
+    expect(result.rowSubtotals.map((subtotal: any) => subtotal.tuple[0])).toEqual([
+      'A',
+      'B',
+      'C',
+      'D',
+      null,
+    ]);
+    const parent = (value: unknown) =>
+      result.rowSubtotals.find((subtotal: any) => subtotal.tuple[0] === value);
+    // Region A holds 70 now against 50 before; the null parent only exists in the previous period.
+    expect(parent('A').measures[0]).toEqual({
+      measureId: 1,
+      value: 70,
+      comparison: { previousValue: 50, delta: 20, percentChange: 40 },
+    });
+    expect(parent(null).measures[0].value).toBeNull();
+    expect(parent(null).measures[0].comparison.previousValue).toBe(36);
+    expect(parent('A').cells).toEqual([
+      {
+        column: 0,
+        measures: [
+          {
+            measureId: 1,
+            value: 70,
+            comparison: { previousValue: 50, delta: 20, percentChange: 40 },
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('sorts large integer values by exact magnitude instead of through Number()', async () => {
+    state.filename = await writeSource(
+      'CREATE TABLE uploaded_data AS SELECT * FROM (VALUES ' +
+        "('a', 9007199254740992::BIGINT), ('b', 9007199254740993::BIGINT), ('c', 100::BIGINT)" +
+        ') t(region, amount)',
+    );
+    metrics = [metric(1, 'Revenue', { aggregation: 'SUM', column: 'amount' })];
+    const desc = await pivot(
+      body(await revision(), {
+        columnColumns: [],
+        rowSort: { by: 'value', direction: 'desc', measureId: 1 },
+      }),
+    );
+    // Number() collapses the first two into the same double, so a coercion sort would answer a, b.
+    expect(desc.rows).toEqual([['b'], ['a'], ['c']]);
+    expect(desc.rowTotals.map((measures: any[]) => measures[0].value)).toEqual([
+      '9007199254740993',
+      '9007199254740992',
+      100,
+    ]);
+  });
+
+  it('counts the added hierarchy parents against the cell cap without truncating', async () => {
+    state.filename = await writeSource(hierarchyGridSql);
+    metrics = [
+      metric(1, 'Revenue', { aggregation: 'SUM', column: 'amount' }),
+      metric(2, 'Orders', { aggregation: 'COUNT', column: '*' }),
+      metric(3, 'Weighted', {
+        aggregation: 'WEIGHTED_AVG',
+        column: 'amount',
+        weightColumn: 'weight',
+      }),
+      metric(4, 'Per weight', {
+        aggregation: 'RATIO_SUM',
+        column: 'amount',
+        denominatorColumn: 'weight',
+        scale: 1,
+      }),
+      metric(6, 'Average', { aggregation: 'AVG', column: 'amount' }),
+      metric(7, 'Largest', { aggregation: 'MAX', column: 'amount' }),
+    ];
+    const sourceRevision = await revision();
+    const request = {
+      sourceId: 1,
+      sourceRevision,
+      measureIds: [1, 2, 3, 4, 6, 7],
+      rowColumns: ['r', 'g'],
+      columnColumns: ['col'],
+    };
+    // 50 leaves x 20 columns x 6 measures is exactly the advertised ceiling without a hierarchy.
+    const flat = await pivot(request);
+    expect(flat.rows).toHaveLength(50);
+    expect(flat.columns).toHaveLength(20);
+    expect(flat.rowSubtotals).toEqual([]);
+    expect(flat.cells).toHaveLength(1000);
+    // The same request with hierarchy adds 50 parent rows: (50 + 50) x 20 x 6 exceeds the budget.
+    await expect(pivot({ ...request, rowHierarchy: true })).rejects.toThrow(
+      /표시할 값이 6000개를 넘습니다/,
+    );
+  });
+
+  it('validates rowHierarchy and rowSort strictly', async () => {
+    const sourceRevision = await revision();
+    const rejects = async (overrides: any) => {
+      await expect(pivot(body(sourceRevision, overrides))).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+    };
+    await rejects({ rowHierarchy: 'yes' });
+    await rejects({ rowSort: 'asc' });
+    await rejects({ rowSort: null });
+    // A supplied object must state both fields; only an omitted object falls back to label asc.
+    await rejects({ rowSort: {} });
+    await rejects({ rowSort: { by: 'label' } });
+    await rejects({ rowSort: { direction: 'desc' } });
+    await rejects({ rowSort: { by: null, direction: 'asc' } });
+    await rejects({ rowSort: { by: 'label', measureId: 1 } });
+    await rejects({ rowSort: { by: 'label', direction: 'up' } });
+    await rejects({ rowSort: { by: 'bogus', direction: 'asc' } });
+    await rejects({ rowSort: { by: 'value', direction: 'desc' } });
+    await rejects({ rowSort: { by: 'value', direction: 'desc', measureId: 99 } });
+    await rejects({ rowSort: { by: 'value', direction: 'desc', measureId: 1, extra: true } });
+    // The expanded presentation is not an API input.
+    await rejects({ expanded: true });
+    await rejects({ expandedRows: ['A'] });
+    // Defaults: an omitted rowSort is the label order and an empty hierarchy is harmless.
+    const defaults = await pivot(body(sourceRevision, { rowHierarchy: true }));
+    expect(defaults.rowSubtotals).toEqual([]);
+    expect(defaults.rows).toEqual([['A'], ['B'], ['C'], ['D'], [null]]);
+    expect(defaults.applied.rowHierarchy).toBe(true);
+    expect(defaults.applied.rowSort).toEqual({ by: 'label', direction: 'asc' });
+    const sorted = await pivot(
+      body(sourceRevision, { rowSort: { by: 'value', direction: 'asc', measureId: 1 } }),
+    );
+    expect(sorted.applied.rowSort).toEqual({ by: 'value', direction: 'asc', measureId: 1 });
+    expect(sorted.applied.rowHierarchy).toBe(false);
+  });
+});
+
+describe('BiExploreService pivot row sort comparators', () => {
+  /** Sort synthetic value tuples with the real comparator and read the values back in order. */
+  const order = (values: Array<number | string | null>, direction: 'asc' | 'desc') => {
+    const tuples = values.map((_value, index) => [String(index)]);
+    const index = new Map(tuples.map((tuple, position) => [JSON.stringify(tuple), position]));
+    const at = (tuple: unknown[]) => values[index.get(JSON.stringify(tuple)) as number];
+    return sortPivotRows({
+      tuples,
+      sort: { by: 'value', direction, measureId: 1 },
+      hierarchy: false,
+      value: at,
+      parentValue: () => null,
+    }).map(at);
+  };
+
+  it('compares integer, decimal and exponent strings by exact magnitude', () => {
+    expect(order(['9007199254740993', '9007199254740992'], 'desc')).toEqual([
+      '9007199254740993',
+      '9007199254740992',
+    ]);
+    // 1.2e+1 and 12 are the same magnitude, so the tie keeps the input order.
+    expect(order([12, '1.2e+1'], 'asc')).toEqual([12, '1.2e+1']);
+    expect(order(['0.010', '1e-2', '0.1'], 'asc')).toEqual(['0.010', '1e-2', '0.1']);
+    expect(order(['-1234.56', '-2', '10', '-0.5'], 'asc')).toEqual([
+      '-1234.56',
+      '-2',
+      '-0.5',
+      '10',
+    ]);
+  });
+
+  it('keeps a null value last and falls back to text for a non-numeric value', () => {
+    expect(order([null, 5, 'abc'], 'asc')).toEqual([5, 'abc', null]);
+    expect(order([null, 5, 'abc'], 'desc')).toEqual(['abc', 5, null]);
   });
 });

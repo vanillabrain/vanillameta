@@ -33,6 +33,16 @@ describe('ExploreViewService saved exploration views', () => {
     ...over,
   });
   const v2 = (pivot: any, over: any = {}) => ({ ...state(over), version: 2, pivot });
+  const v3 = (pivot: any, over: any = {}) => ({ ...state(over), version: 3, pivot });
+  const pivotV3 = (over: any = {}) => ({
+    enabled: true,
+    rowColumns: ['region', 'channel'],
+    columnColumns: [],
+    rowHierarchy: true,
+    rowSort: { by: 'value', direction: 'desc', measureId: 1 },
+    expandedRows: [['A'], ['B'], [12], [true], [null]],
+    ...over,
+  });
   const mainSql =
     'CREATE TABLE uploaded_data AS SELECT ' +
     'CAST("column0" AS VARCHAR) AS region, CAST("column1" AS VARCHAR) AS channel, ' +
@@ -710,11 +720,272 @@ describe('ExploreViewService saved exploration views', () => {
           columnColumns: ['day', 'event_time', 'amount'],
         }),
       },
-      { ...base, state: { ...state(), version: 3 } },
+      { ...base, state: { ...state(), version: 4 } },
       { ...base, state: v2({ enabled: true, rowColumns: ['missing'], columnColumns: [] }) },
     ];
     for (const body of cases)
       await expect(service.create(body, actor)).rejects.toBeInstanceOf(BadRequestException);
     expect(await views().count()).toBe(0);
+  });
+
+  it('round-trips a version 3 hierarchy view through create, load and list', async () => {
+    const sourceRevision = await revision();
+    const hierarchy = pivotV3();
+    const created = await service.create(
+      {
+        sourceId: 1,
+        name: 'hierarchy',
+        sourceRevision,
+        state: v3(hierarchy),
+        measureVersions: { 1: 1 },
+      },
+      actor,
+    );
+    expect(created.data.state).toEqual(v3(hierarchy));
+    expect(created.data.state.version).toBe(3);
+    const rows = await views().find();
+    expect(JSON.parse(rows[0].state)).toEqual(v3(hierarchy));
+    const listed = await service.list({ sourceId: 1 }, actor);
+    expect(listed.data[0]).toMatchObject({ id: created.data.id, stale: false });
+    expect(listed.data[0].state).toEqual(v3(hierarchy));
+    const loaded = await new ExploreViewService(db, access, bi, connection).load(
+      { sourceId: 1, viewId: created.data.id },
+      actor,
+    );
+    expect(loaded.data).toEqual({ ...created.data });
+    // The row stays private to the owning actor of the source.
+    await expect(service.load({ sourceId: 1, viewId: created.data.id }, 20)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+  });
+
+  it('retains the version 3 hierarchy, sort and expanded rows when the layout is off', async () => {
+    const pivot = {
+      enabled: false,
+      rowColumns: ['region', 'channel'],
+      columnColumns: [],
+      rowHierarchy: true,
+      rowSort: { by: 'label', direction: 'asc' },
+      expandedRows: [['A']],
+    };
+    const created = await service.create(
+      {
+        sourceId: 1,
+        name: 'off',
+        sourceRevision: await revision(),
+        state: v3(pivot),
+        measureVersions: { 1: 1 },
+      },
+      actor,
+    );
+    expect(created.data.state.pivot).toEqual(pivot);
+    const loaded = await service.load({ sourceId: 1, viewId: created.data.id }, actor);
+    expect(loaded.data.state).toEqual(v3(pivot));
+    expect(loaded.data.state.version).toBe(3);
+  });
+
+  it('accepts 50 expanded rows and rejects 51', async () => {
+    const sourceRevision = await revision();
+    const boundary = Array.from({ length: 50 }, (_unused, index) => [String(index)]);
+    const created = await service.create(
+      {
+        sourceId: 1,
+        name: 'fifty',
+        sourceRevision,
+        state: v3(pivotV3({ expandedRows: boundary })),
+        measureVersions: { 1: 1 },
+      },
+      actor,
+    );
+    expect(created.data.state.pivot.expandedRows).toHaveLength(50);
+    await expect(
+      service.create(
+        {
+          sourceId: 1,
+          name: 'fifty-one',
+          sourceRevision,
+          state: v3(pivotV3({ expandedRows: [...boundary, ['50']] })),
+          measureVersions: { 1: 1 },
+        },
+        actor,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(await views().count()).toBe(1);
+  });
+
+  it('rejects malformed or tampered version 3 payloads and unknown fields', async () => {
+    const base = {
+      sourceId: 1,
+      name: 'view',
+      sourceRevision: await revision(),
+      measureVersions: { 1: 1 },
+    };
+    const cases: any[] = [
+      // A version 3 state must carry the whole hierarchy, not just the version 2 axes.
+      { ...base, state: { ...state(), version: 3 } },
+      { ...base, state: v3(pivotV3({ rowHierarchy: undefined })) },
+      { ...base, state: v3(pivotV3({ rowSort: undefined })) },
+      { ...base, state: v3(pivotV3({ expandedRows: undefined })) },
+      // Unknown keys, including an injected SQL fragment, are rejected at every level.
+      { ...base, state: v3(pivotV3({ sql: 'select * from uploaded_data' })) },
+      {
+        ...base,
+        state: v3(
+          pivotV3({
+            rowSort: { by: 'value', direction: 'desc', measureId: 1, sql: 'select 1' },
+          }),
+        ),
+      },
+      { ...base, state: { ...v3(pivotV3()), rawSql: 'select 1' } },
+      // Types and enum members.
+      { ...base, state: v3(pivotV3({ rowHierarchy: 'yes' })) },
+      { ...base, state: v3(pivotV3({ rowSort: { by: 'delta', direction: 'desc' } })) },
+      {
+        ...base,
+        state: v3(pivotV3({ rowSort: { by: 'value', direction: 'sideways', measureId: 1 } })),
+      },
+      // A label order carries no measure; a value order must name a selected measure.
+      {
+        ...base,
+        state: v3(pivotV3({ rowSort: { by: 'label', direction: 'asc', measureId: 1 } })),
+      },
+      { ...base, state: v3(pivotV3({ rowSort: { by: 'value', direction: 'desc' } })) },
+      {
+        ...base,
+        state: v3(pivotV3({ rowSort: { by: 'value', direction: 'desc', measureId: 2 } })),
+      },
+      // Expanded rows: one value per tuple, no duplicates, finite numbers, bounded strings.
+      { ...base, state: v3(pivotV3({ expandedRows: 'A' })) },
+      { ...base, state: v3(pivotV3({ expandedRows: [[], ['A']] })) },
+      { ...base, state: v3(pivotV3({ expandedRows: [['A', 'B']] })) },
+      { ...base, state: v3(pivotV3({ expandedRows: [['A'], ['A']] })) },
+      { ...base, state: v3(pivotV3({ expandedRows: [[Number.POSITIVE_INFINITY]] })) },
+      { ...base, state: v3(pivotV3({ expandedRows: [['x'.repeat(257)]] })) },
+      { ...base, state: v3(pivotV3({ expandedRows: [[{ column: 'region' }]] })) },
+      // Expansion requires a hierarchy nested on both row columns.
+      { ...base, state: v3(pivotV3({ rowHierarchy: false })) },
+      { ...base, state: v3(pivotV3({ rowColumns: ['region'] })) },
+      // The axes keep the version 2 rules and catalog membership.
+      { ...base, state: v3(pivotV3({ rowColumns: ['region', 'channel', 'day'] })) },
+      { ...base, state: v3(pivotV3({ rowColumns: ['region', 'region'] })) },
+      { ...base, state: v3(pivotV3({ columnColumns: ['region'] })) },
+      { ...base, state: v3(pivotV3({ rowColumns: ['region', 'missing'] })) },
+      // A version 2 state keeps rejecting the version 3 keys as unknown.
+      { ...base, state: v2({ ...pivotV3() }) },
+    ];
+    for (const body of cases)
+      await expect(service.create(body, actor)).rejects.toBeInstanceOf(BadRequestException);
+    expect(await views().count()).toBe(0);
+  });
+
+  it('still reads legacy version 1 and version 2 rows alongside a version 3 row', async () => {
+    const sourceRevision = await revision();
+    const legacy = await views().save(
+      views().create({
+        sourceId: 1,
+        userId: actor,
+        name: 'legacy',
+        sourceRevision,
+        measureVersions: '{"1":1}',
+        state: JSON.stringify(state()),
+      }),
+    );
+    const pivot2 = { enabled: true, rowColumns: ['region'], columnColumns: [] };
+    const second = await views().save(
+      views().create({
+        sourceId: 1,
+        userId: actor,
+        name: 'second',
+        sourceRevision,
+        measureVersions: '{"1":1}',
+        state: JSON.stringify(v2(pivot2)),
+      }),
+    );
+    const third = await service.create(
+      {
+        sourceId: 1,
+        name: 'third',
+        sourceRevision,
+        state: v3(pivotV3()),
+        measureVersions: { 1: 1 },
+      },
+      actor,
+    );
+    const listed = await service.list({ sourceId: 1 }, actor);
+    expect(listed.data.map((row: any) => row.id).sort()).toEqual(
+      [legacy.id, second.id, third.data.id].sort(),
+    );
+    const entry = (id: number) => listed.data.find((row: any) => row.id === id);
+    expect(entry(legacy.id)).toMatchObject({ stale: false });
+    expect(entry(legacy.id).state).toEqual(state());
+    expect(entry(second.id).state).toEqual(v2(pivot2));
+    expect(entry(third.data.id).state).toEqual(v3(pivotV3()));
+    for (const id of [legacy.id, second.id, third.data.id])
+      await expect(service.load({ sourceId: 1, viewId: id }, actor)).resolves.toMatchObject({
+        status: 'SUCCESS',
+      });
+  });
+
+  it('treats a tampered version 3 row as unreadable and still allows deleting it', async () => {
+    const sourceRevision = await revision();
+    const created = await service.create(
+      {
+        sourceId: 1,
+        name: 'tampered',
+        sourceRevision,
+        state: v3(pivotV3()),
+        measureVersions: { 1: 1 },
+      },
+      actor,
+    );
+    await views().update(
+      { id: created.data.id },
+      { state: JSON.stringify({ ...v3(pivotV3()), sql: 'select * from uploaded_data' }) },
+    );
+    const listed = await service.list({ sourceId: 1 }, actor);
+    expect(listed.data[0]).toMatchObject({ id: created.data.id, stale: true, unreadable: true });
+    expect(listed.data[0].state).toBeUndefined();
+    await expect(
+      service.load({ sourceId: 1, viewId: created.data.id }, actor),
+    ).rejects.toBeInstanceOf(ConflictException);
+    await expect(service.remove({ sourceId: 1, viewId: created.data.id }, actor)).resolves.toEqual({
+      status: 'SUCCESS',
+      data: { id: created.data.id },
+    });
+  });
+
+  it('blocks a stale version 3 view after the metric definition changed and allows a re-sync save', async () => {
+    const sourceRevision = await revision();
+    const created = await service.create(
+      {
+        sourceId: 1,
+        name: 'stale-hierarchy',
+        sourceRevision,
+        state: v3(pivotV3()),
+        measureVersions: { 1: 1 },
+      },
+      actor,
+    );
+    const row = await db.getRepository(Metric).findOne({ where: { id: 1 } });
+    const definition = JSON.parse(row.definition);
+    definition.definitionVersion = 2;
+    await db.getRepository(Metric).update({ id: 1 }, { definition: JSON.stringify(definition) });
+    expect((await service.list({ sourceId: 1 }, actor)).data[0].stale).toBe(true);
+    await expect(
+      service.load({ sourceId: 1, viewId: created.data.id }, actor),
+    ).rejects.toBeInstanceOf(ConflictException);
+    const fresh = await service.create(
+      {
+        sourceId: 1,
+        name: 're-synced',
+        sourceRevision,
+        state: v3(pivotV3()),
+        measureVersions: { 1: 2 },
+      },
+      actor,
+    );
+    await expect(
+      service.load({ sourceId: 1, viewId: fresh.data.id }, actor),
+    ).resolves.toMatchObject({ status: 'SUCCESS' });
   });
 });

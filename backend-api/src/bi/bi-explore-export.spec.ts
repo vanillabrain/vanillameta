@@ -369,6 +369,39 @@ describe('BiExploreService CSV export over real DuckDB', () => {
     pivotSpy.mockRestore();
   });
 
+  it('exports hierarchy subtotals and echoes the applied row ordering', async () => {
+    const result: any = await call(
+      'pivot',
+      pivotBody(await revision(), {
+        rowColumns: ['region', 'channel'],
+        columnColumns: ['day'],
+        rowHierarchy: true,
+        rowSort: { by: 'value', direction: 'desc', measureId: 1 },
+      }),
+    );
+    const lines = dataLines(result.csv);
+    // The parent total is its own grain (120 for region A) and the parent cell is 30 on 01-01.
+    expect(
+      lines.some(line =>
+        line.startsWith('"subtotal_total","{""region"":""A""}",,"1","Revenue","120",number'),
+      ),
+    ).toBe(true);
+    expect(
+      lines.some(line =>
+        line.startsWith(
+          '"subtotal_cell","{""region"":""A""}","{""day"":""2026-01-01""}","1","Revenue","30",number',
+        ),
+      ),
+    ).toBe(true);
+    // The requested ordering is echoed as metadata, never as an expanded presentation.
+    expect(lines.find(line => line.includes('rowHierarchy'))).toBe(
+      '"condition","{""field"":""rowHierarchy""}",,,,"true",string,,,,',
+    );
+    const sortMeta = lines.find(line => line.includes('rowSort')) as string;
+    expect(sortMeta).toContain('"field"":""rowSort""');
+    expect(sortMeta).toContain('""measureId"":1');
+  });
+
   it('rejects raw model rows, an unknown mode or outer field, and a stale revision', async () => {
     const sourceRevision = await revision();
     await expect(

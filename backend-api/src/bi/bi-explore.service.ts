@@ -4,6 +4,7 @@ import { quoteColumn, sourceQuery } from '../ai/dashboard-draft';
 import { comparisonValues, previousDateRange, validatePeriodOptions } from '../ai/dashboard-period';
 import { ConnectionService } from '../connection/connection.service';
 import { EXPORT_LIMITS, EXPORT_MIME, ExportAxis, ExportEntry, toCsv } from './bi-explore-export';
+import { PivotRowSort, compareTuples, sortPivotRows } from './bi-explore-sort';
 import { BiService } from './bi.service';
 
 const MAX_MEASURES = 6;
@@ -28,6 +29,13 @@ type PivotMeasure = { metricId: number; definition: any; expression: string };
 type PivotTuple = unknown[];
 type PivotValues = Array<number | string | null>;
 type PivotGroups = Record<'cells' | 'rows' | 'columns' | 'grand', Map<string, PivotValues>>;
+type PivotValue = { measureId: number; value: number | string | null; comparison?: unknown };
+/** One parent row of a two-column row hierarchy, reaggregated at its own grain. */
+type PivotSubtotal = {
+  tuple: unknown[];
+  measures: PivotValue[];
+  cells: Array<{ column: number; measures: PivotValue[] }>;
+};
 /**
  * sourceQuery validates a deliberately small SELECT grammar that has no parameter token, so the
  * search pattern is written as a sentinel literal during validation and swapped for a bound
@@ -61,6 +69,8 @@ const PIVOT_FIELDS = [
   'filters',
   'dateRange',
   'comparePrevious',
+  'rowHierarchy',
+  'rowSort',
 ];
 const EXPORT_FIELDS = ['mode', 'query'];
 
@@ -188,6 +198,33 @@ export class BiExploreService {
     if (by !== 'value' && !comparePrevious)
       throw new BadRequestException('변화량 정렬에는 이전 기간 비교가 필요합니다.');
     return { by, direction } as RankingSort;
+  }
+
+  /**
+   * Default is the ascending label order, which is the deterministic tuple order already in use.
+   * A supplied object must state both fields; a label order carries no measure and a value order
+   * must name one of the selected measures. The shape mirrors the saved-view version 3 validator.
+   */
+  private rowSortOption(value: unknown, measureIds: number[]): PivotRowSort {
+    if (value === undefined) return { by: 'label', direction: 'asc' };
+    if (!value || typeof value !== 'object' || Array.isArray(value))
+      throw new BadRequestException('invalid rowSort');
+    if (Object.keys(value).some(key => !['by', 'direction', 'measureId'].includes(key)))
+      throw new BadRequestException('unsupported rowSort field');
+    const by = (value as any).by;
+    const direction = (value as any).direction;
+    if (by !== 'label' && by !== 'value') throw new BadRequestException('invalid rowSort by');
+    if (direction !== 'asc' && direction !== 'desc')
+      throw new BadRequestException('invalid rowSort direction');
+    const measureId = (value as any).measureId;
+    if (by === 'label') {
+      if (measureId !== undefined)
+        throw new BadRequestException('label 정렬에는 measureId를 지정할 수 없습니다.');
+      return { by, direction };
+    }
+    if (!Number.isSafeInteger(measureId) || !measureIds.includes(measureId))
+      throw new BadRequestException('value 정렬에는 선택한 measureId가 필요합니다.');
+    return { by, direction, measureId: Number(measureId) };
   }
 
   private page(value: unknown) {
@@ -782,6 +819,20 @@ export class BiExploreService {
     };
     for (const cell of result.cells)
       push('cell', rowAxis(cell.row), columnAxis(cell.column), cell.measures);
+    if (result.rowSubtotals?.length) {
+      // A parent row carries only the first row column, so its axis object keeps that one key.
+      const parentAxis = (index: number) =>
+        this.axisObject(
+          result.rowColumns.slice(0, 1),
+          result.rowSubtotals.map((subtotal: any) => subtotal.tuple),
+          index,
+        );
+      result.rowSubtotals.forEach((subtotal: any, index: number) => {
+        for (const cell of subtotal.cells)
+          push('subtotal_cell', parentAxis(index), columnAxis(cell.column), cell.measures);
+        push('subtotal_total', parentAxis(index), null, subtotal.measures);
+      });
+    }
     result.rowTotals.forEach((measures: any[], index: number) =>
       push('row_total', rowAxis(index), null, measures),
     );
@@ -834,6 +885,18 @@ export class BiExploreService {
       filters: query.filters ?? [],
       dateRange: query.dateRange ?? null,
       comparePrevious: query.comparePrevious ?? false,
+      rowHierarchy: query.rowHierarchy ?? false,
+      // The applied sort is echoed with its defaults filled in, never as an expanded presentation.
+      rowSort:
+        query.rowSort === undefined
+          ? { by: 'label', direction: 'asc' }
+          : {
+              by: query.rowSort.by ?? 'label',
+              direction: query.rowSort.direction ?? 'asc',
+              ...(query.rowSort.measureId !== undefined
+                ? { measureId: query.rowSort.measureId }
+                : {}),
+            },
     };
   }
 
@@ -847,6 +910,8 @@ export class BiExploreService {
     const dateRange = input.dateRange;
     if (comparePrevious && dateRange === undefined)
       throw new BadRequestException('이전 기간 비교에는 적용한 날짜 범위가 필요합니다.');
+    const rowHierarchy = this.flag(input.rowHierarchy, false, 'rowHierarchy');
+    const rowSort = this.rowSortOption(input.rowSort, measureIds);
     return this.connection.withDuckDBSnapshot(input.sourceId, () =>
       this.pivotSnapshot({
         actor,
@@ -858,6 +923,8 @@ export class BiExploreService {
         filters,
         dateRange,
         comparePrevious,
+        rowHierarchy,
+        rowSort,
       }),
     );
   }
@@ -872,6 +939,8 @@ export class BiExploreService {
     filters: ExploreFilter[];
     dateRange: any;
     comparePrevious: boolean;
+    rowHierarchy: boolean;
+    rowSort: PivotRowSort;
   }) {
     const profile = await this.bi.profile(input.sourceId, input.actor);
     if (!profile.supported)
@@ -938,7 +1007,20 @@ export class BiExploreService {
       MAX_PIVOT_COLUMNS,
       '열',
     );
-    if (rows.length * columnTuples.length * measures.length > MAX_PIVOT_CELLS)
+    // A hierarchy adds one subtotal row per parent, and those values share the same cell budget.
+    const hierarchy = input.rowHierarchy && rowColumns.length === 2;
+    const parents: unknown[] = [];
+    if (hierarchy) {
+      const seen = new Set<string>();
+      for (const tuple of rows) {
+        const parent = tuple[0] ?? null;
+        const key = JSON.stringify([parent]);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        parents.push(parent);
+      }
+    }
+    if ((rows.length + parents.length) * columnTuples.length * measures.length > MAX_PIVOT_CELLS)
       throw new BadRequestException(
         `표시할 값이 ${MAX_PIVOT_CELLS}개를 넘습니다. 필터를 좁히거나 행·열 축을 줄여 주세요.`,
       );
@@ -966,6 +1048,30 @@ export class BiExploreService {
             previous,
             temporal,
           );
+    // Parent grain and parent x full-column grain are reaggregated from the raw source too.
+    const parentTotals = hierarchy
+      ? await this.pivotAggregate(
+          profile.sourceId,
+          [rowColumns[0]],
+          measures,
+          columns,
+          input.filters,
+          input.dateRange,
+          temporal,
+        )
+      : undefined;
+    const priorParentTotals =
+      hierarchy && previous !== undefined
+        ? await this.pivotAggregate(
+            profile.sourceId,
+            [rowColumns[0]],
+            measures,
+            columns,
+            input.filters,
+            previous,
+            temporal,
+          )
+        : undefined;
     const empty = measures.map(() => null);
     /**
      * Every cell and total is read from the aggregate of its own grain, so a non-additive measure
@@ -982,8 +1088,75 @@ export class BiExploreService {
           : {}),
       }));
 
+    const pick = (groups: Map<string, PivotValues>, tuple: PivotTuple) =>
+      groups.get(JSON.stringify(tuple)) ?? empty;
+    const measureIndex =
+      input.rowSort.by === 'value'
+        ? input.measureIds.indexOf(input.rowSort.measureId as number)
+        : -1;
+    // The default label order already equals the deterministic tuple order, so a request without
+    // options keeps its earlier row sequence and only an explicit sort or hierarchy reorders it.
+    const orderedRows = sortPivotRows({
+      tuples: rows,
+      sort: input.rowSort,
+      hierarchy,
+      value: tuple => at(current, 'rows', tuple)[measureIndex] ?? null,
+      parentValue: parent =>
+        parentTotals ? pick(parentTotals, [parent])[measureIndex] ?? null : null,
+    });
+    const rowSubtotals: PivotSubtotal[] = [];
+    if (hierarchy && parentTotals) {
+      const parentCells = columnColumns.length
+        ? await this.pivotAggregate(
+            profile.sourceId,
+            [rowColumns[0], ...columnColumns],
+            measures,
+            columns,
+            input.filters,
+            input.dateRange,
+            temporal,
+          )
+        : parentTotals;
+      const priorParentCells =
+        previous === undefined
+          ? undefined
+          : columnColumns.length
+          ? await this.pivotAggregate(
+              profile.sourceId,
+              [rowColumns[0], ...columnColumns],
+              measures,
+              columns,
+              input.filters,
+              previous,
+              temporal,
+            )
+          : priorParentTotals;
+      // Parents keep the sorted presentation order so each subtotal row lines up under the grid.
+      const seen = new Set<string>();
+      for (const tuple of orderedRows) {
+        const parent = tuple[0] ?? null;
+        const key = JSON.stringify([parent]);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        rowSubtotals.push({
+          tuple: [parent],
+          measures: measureValues(
+            pick(parentTotals, [parent]),
+            priorParentTotals ? pick(priorParentTotals, [parent]) : undefined,
+          ),
+          cells: columnTuples.map((columnTuple, column) => ({
+            column,
+            measures: measureValues(
+              pick(parentCells, [parent, ...columnTuple]),
+              priorParentCells ? pick(priorParentCells, [parent, ...columnTuple]) : undefined,
+            ),
+          })),
+        });
+      }
+    }
+
     const cells = [];
-    rows.forEach((rowTuple, row) =>
+    orderedRows.forEach((rowTuple, row) =>
       columnTuples.forEach((columnTuple, column) => {
         const tuple = [...rowTuple, ...columnTuple];
         cells.push({
@@ -1002,10 +1175,11 @@ export class BiExploreService {
       sourceRevision,
       rowColumns,
       columnColumns,
-      rows,
+      rows: orderedRows,
       columns: columnTuples,
       cells,
-      rowTotals: rows.map(tuple =>
+      rowSubtotals,
+      rowTotals: orderedRows.map(tuple =>
         measureValues(at(current, 'rows', tuple), prior ? at(prior, 'rows', tuple) : undefined),
       ),
       columnTotals: columnTuples.map(tuple =>
@@ -1022,6 +1196,13 @@ export class BiExploreService {
         filters: input.filters,
         ...(input.dateRange !== undefined ? { dateRange: input.dateRange } : {}),
         comparePrevious: input.comparePrevious,
+        rowHierarchy: input.rowHierarchy,
+        // Canonical shape: a label order carries no measure key, so nothing reads back as null.
+        rowSort: {
+          by: input.rowSort.by,
+          direction: input.rowSort.direction,
+          ...(input.rowSort.measureId !== undefined ? { measureId: input.rowSort.measureId } : {}),
+        },
       },
       limits: { rows: MAX_PIVOT_ROWS, columns: MAX_PIVOT_COLUMNS, cells: MAX_PIVOT_CELLS },
     };
@@ -1096,29 +1277,12 @@ export class BiExploreService {
         const key = JSON.stringify(tuple);
         if (!unique.has(key)) unique.set(key, tuple);
       }
-    const tuples = [...unique.values()].sort((left, right) => this.compareTuples(left, right));
+    const tuples = [...unique.values()].sort((left, right) => compareTuples(left, right));
     if (tuples.length > max)
       throw new BadRequestException(
         `${label} 조합이 ${max}개를 넘습니다. 필터를 좁히거나 축을 줄여 주세요.`,
       );
     return tuples;
-  }
-
-  /** Deterministic ascending order with null last; numbers compare numerically, everything as text. */
-  private compareTuples(left: PivotTuple, right: PivotTuple) {
-    for (let index = 0; index < Math.max(left.length, right.length); index++) {
-      const one = left[index] ?? null;
-      const other = right[index] ?? null;
-      if (one === other) continue;
-      if (one === null) return 1;
-      if (other === null) return -1;
-      if (typeof one === 'number' && typeof other === 'number') return one < other ? -1 : 1;
-      const oneText = String(one);
-      const otherText = String(other);
-      if (oneText === otherText) continue;
-      return oneText < otherText ? -1 : 1;
-    }
-    return 0;
   }
 
   /** Grouping values stay primitives the client can render; a null group stays an actual null. */
