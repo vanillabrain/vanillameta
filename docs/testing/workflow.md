@@ -84,6 +84,8 @@ CI의 기존 PR/push 빌드·단위 검사는 유지한다. E2E를 저장 훅이
 
 저장소 `skills/vanillameta-verify`가 관리 원본이다. 설치·갱신은 이 폴더를 `~/.codex/skills/vanillameta-verify`로 복사한다. 다음 요청부터 `$vanillameta-verify`로 변경 범위에 맞는 검증과 Aside 증빙을 실행한다. 저장 훅이나 주기 실행은 등록하지 않는다.
 
+UI 컴포넌트 추가·수정은 [스킬의 디자인·레이아웃 회귀 기준](../../skills/vanillameta-verify/SKILL.md#ui-컴포넌트-디자인레이아웃-회귀)을 구현 전·작업 중·완료 시 적용한다. 기능 검증과 디자인 검증을 별도로 기록한다.
+
 ## 서버 DuckDB 파일 저장
 
 파일 저장·분석 워커 변경은 [server-duckdb.md](server-duckdb.md)의 INGEST-01~04와 영향받는 `full-flow.spec.ts`를 선택한다. 서버 기본 저장은 파일 선택 → 데이터셋으로 저장이며 브라우저 분석은 별도 버튼이다. 메타데이터 DB는 그대로 유지하고 신규 파일만 DuckDB에 저장한다. 운영 전제와 제한: [server-duckdb-operations.md](../strategy/server-duckdb-operations.md).
