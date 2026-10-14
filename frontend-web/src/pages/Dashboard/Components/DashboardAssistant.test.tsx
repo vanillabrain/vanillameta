@@ -6,6 +6,10 @@ import DashboardAssistant from './DashboardAssistant';
 // Keep the real useChat/transport pipeline; replace only network and visual surfaces.
 const api = vi.hoisted(() => ({ post: vi.fn() }));
 vi.mock('@/helpers/apiHelper', () => ({ post: api.post }));
+vi.mock('@mui/material/styles', async () => {
+  const { createRequire } = await import('node:module');
+  return createRequire(import.meta.url)('@mui/material/styles');
+});
 vi.mock('@/widget/wrapper/WidgetViewer', () => ({
   default: ({ title, dataSet }: any) => (
     <div data-testid="preview-widget">

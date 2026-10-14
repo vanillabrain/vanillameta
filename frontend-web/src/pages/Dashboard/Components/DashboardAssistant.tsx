@@ -19,6 +19,7 @@ import { errorMessage, responseData } from '../dashboardPreview';
 import WidgetViewer from '@/widget/wrapper/WidgetViewer';
 import { analysisOptions } from '../analysisOptions';
 import { timeRangeLabel } from './timeSelection';
+import { ANALYSIS_UI, analysisFieldSx } from '@/components/analysis/AnalysisUi';
 
 export default function DashboardAssistant({
   open,
@@ -158,6 +159,17 @@ export default function DashboardAssistant({
           borderColor: 'divider',
           boxShadow: 'none',
           backgroundColor: 'background.paper',
+          '& .MuiButton-root': {
+            minWidth: 0,
+            minHeight: ANALYSIS_UI.controlHeight,
+            fontSize: ANALYSIS_UI.fontSize,
+            lineHeight: 1.4,
+            padding: '4px 8px',
+            borderRadius: `${ANALYSIS_UI.radius}px`,
+            textTransform: 'none',
+          },
+          '& .MuiButton-root:not([data-wrap-label])': { height: ANALYSIS_UI.controlHeight },
+          '& .MuiInputBase-root, & .MuiInputLabel-root': { fontSize: ANALYSIS_UI.fontSize },
         },
       }}
     >
@@ -200,7 +212,7 @@ export default function DashboardAssistant({
           label="분석할 차트"
           value={selectedWidget}
           disabled={busy || saving}
-          sx={{ mt: 1.5 }}
+          sx={{ ...analysisFieldSx, mt: 1.5 }}
           onChange={e => setSelectedWidget(e.target.value === '' ? '' : Number(e.target.value))}
         >
           <MenuItem value="">대시보드 전체</MenuItem>
@@ -221,8 +233,9 @@ export default function DashboardAssistant({
             ].map(text => (
               <Button
                 key={text}
+                data-wrap-label
                 variant="outlined"
-                sx={{ justifyContent: 'flex-start', textAlign: 'left', textTransform: 'none' }}
+                sx={{ justifyContent: 'flex-start', textAlign: 'left', whiteSpace: 'normal', height: 'auto' }}
                 onClick={() => {
                   setMode('ask');
                   setInput(text);
@@ -275,7 +288,8 @@ export default function DashboardAssistant({
           <Stack spacing={1} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 1.5 }}>
             <Typography fontWeight={700}>변경 미리보기</Typography>
             <Typography fontSize={12}>
-              아직 저장되지 않았습니다. 기간·필터는 조회에만 적용하며 저장 SQL에 고정하지 않습니다.
+              아직 저장되지 않았습니다. 변경 적용을 누르면 현재 대시보드에 저장합니다. 기간·필터는 조회에만 적용하며 저장
+              SQL에 고정하지 않습니다.
             </Typography>
             {stale && <Alert severity="warning">화면 조건이 바뀌었습니다. 새 미리보기를 요청해 주세요.</Alert>}
             <Typography>{proposal.preview.draft.title}</Typography>
@@ -310,7 +324,7 @@ export default function DashboardAssistant({
                 </Box>
               ))}
             </Box>
-            <Stack direction="row" spacing={1}>
+            <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
               <Button
                 variant="contained"
                 disabled={busy || saving || stale || disabled || saveConflict}
@@ -383,7 +397,7 @@ export default function DashboardAssistant({
           inputProps={{ maxLength: 2000 }}
           onChange={e => setInput(e.target.value)}
         />
-        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 1 }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 1, gap: 1, flexWrap: 'wrap' }}>
           <Typography fontSize={11} color="text.secondary">
             대화는 현재 화면에서만 유지됩니다.
           </Typography>

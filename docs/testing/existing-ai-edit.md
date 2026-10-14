@@ -82,3 +82,15 @@ Commerce에 기존 AnalysisUiProvider를 적용했다. 프로젝트·AI 버튼�
 - `/Users/drumcap/.aside/u/0/sessions/2026-10-14_JQMLIJ6ttJRlnWo1/artifacts/ai-analysis-before-save.png`, `ai-analysis-saved-reloaded.png`, `ai-analysis-reloaded.txt`.
 - `/tmp/vm-ai-full-flow/desktop-requests.json`: 인증 없는 API 요청 메타데이터. 앞부분에는 이전 초안 요청도 포함되며 최종 save201 및 대시보드5 재조회가 이번 저장 검증이다.
 - `/tmp/vm-ai-full-flow/mobile.json`, `mobile-390-filters.png`, `mobile-768-filters.png`, `mobile-390-ai.png`, `mobile-768-ai.png`: 최종 화면·크기 증거. 임시 검증 스크립트 `mobile.cjs`는 설치된 Playwright를 사용했다.
+
+## 저장 분석 재질문·지표·차트 수정 후속
+
+기존3698의 대시보드5에서 **Assistant → 대시보드 수정**을 사용했다. 새 기능을 중복 구현하지 않고 기존 초안·미리보기·revision 조건 저장 경로를 검증했다. 지정 `gpt-6-luna`에 총 요청 수 유지, 평균 Bid Floor 추가, device_type 막대를 device_os별 요청 수 내림차순으로 교체하는 요청을 보냈다.
+
+- **AI-DASH-01 선택 흐름 PASS**: 실제 질문 → 변경 미리보기 → 변경 적용(동일 대시보드5 저장) → 브라우저 새로고침. 제목 `Rill 고객 검증 분석 1014 수정`, KPI634,513,000/5.57, OS28항목 유지. 서버 저장 정의도 일치.
+- **계산·정렬 PASS**: 평균 SQL은 `SUM(bid_floor) / NULLIF(SUM(has_bid_floor_cnt), 0)`이며 소수점2자리. 기존 Rill 평균 기준5.5712386765의 표시5.57과 일치한다. 실제 화면 데이터 표28행의 내림차순과 합계634,513,000을 검사했다. 신규 독립 원본 집계/Rill9009 실화면 비교는 NOT_RUN.
+- **재질문 보정 PASS**: 첫 미리보기 SQL·수치는 맞았지만 설명에 “요청당 평균”, “계산 결과는 제공되지 않았습니다”가 포함됐다. 저장 전에 재질문해 “Bid Floor 유효 건수 기준 평균”과 계산식 설명으로 보정했다. 설명 정확성은 AI 결과 검토가 필요하며 자동 보정된다고 주장하지 않는다.
+- **디자인 PASS_SELECTED_VARIANTS**:1727×1080 실제 캡처의400px Assistant. 버튼28px/12px, 차트 선택32px/12px, 모드·저장/취소 버튼 쌍 동일 상단, 패널 가로 넘침 없음. 긴 질문은 여러 줄 입력과 내부 스크롤, 미리보기는 대화 영역 스크롤을 사용한다. 공통 Analysis UI 토큰을 적용하고 긴 추천 질문은 높이가 늘어날 수 있도록 했다. 변경 적용이 현재 대시보드에 저장한다는 안내를 추가했다. 이번 모바일/VoiceOver 검증은 NOT_RUN.
+- **FE PASS**: DashboardAssistant/assistantTransport31개 단위(미리보기·저장·stale/409·취소·되돌리기 회귀 포함), 타입 검사, 변경2파일 ESLint. MUI styles 테스트 로더를 기존 CJS 로더 패턴과 맞췄다. BE 변경 없음. 전체 E2E·운영 배포는 NOT_RUN.
+
+증빙은 저장소 밖에 남겼다. `/Users/drumcap/.aside/u/0/sessions/2026-10-14_JQMLIJ6ttJRlnWo1/artifacts/`의 `assistant-before.png`, `assistant-edit-first-preview.png`(설명 보정 전), `assistant-edit-preview.png`, `assistant-edit-reloaded.png`, `assistant-edit-reloaded.txt`, `assistant-controls-final.png`, `assistant-layout.json`, `assistant-os-table.json`. `/tmp/vm-ai-edit-flow/persisted.json`은 저장 정의, `requests.json`은 인증 없는 요청 메타데이터다. 새로고침 후 대화 이력은 초기화되지만 저장한 분석 정의는 유지한다.
