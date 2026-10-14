@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Box,
@@ -15,9 +15,19 @@ import {
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { get, post } from '@/helpers/apiHelper';
-import MetricTrend from '@/pages/Dashboard/Components/MetricTrend';
+import PersonalSavedViews from '@/pages/Dashboard/Components/PersonalSavedViews';
+import {
+  parseExploreViewState,
+  ExploreViewState,
+  ExploreFilter,
+  ExploreDateRange,
+  LeaderboardSort,
+} from './exploreViewState';
+import PivotTable from './PivotTable';
+import { pivotRequestKey } from './pivotCsv';
+import MetricTrend, { FormattedMetricTrendData } from '@/pages/Dashboard/Components/MetricTrend';
+import { formatMetric, metricNumericText, NumberNotation } from '@/utils/formatMetric';
 import type { MetricComparisonData } from '@/pages/Dashboard/Components/PeriodComparison';
-import type { MetricTrendData } from '@/pages/Dashboard/Components/trendGeometry';
 
 const ACCENT = '#4f46e5';
 const PAGE_SIZE = 20;
@@ -33,8 +43,7 @@ const GRAINS: Array<{ value: TrendGrain; label: string }> = [
 const CURRENCY_UNITS = ['$', '€', '₩', '£', '¥'];
 
 type FilterValue = string | number | boolean | null;
-type ExploreFilter = { column: string; values: FilterValue[] };
-type ExploreDateRange = { column: string; start: string; end: string; timeZone?: string };
+const DEFAULT_SORT: LeaderboardSort = { by: 'value', direction: 'desc' };
 type TrendGrain = 'day' | 'week' | 'month';
 type Source = { id: number; name: string; engine?: string };
 type Measure = { id: number; label: string; definitionVersion?: number; definition?: unknown };
@@ -44,6 +53,7 @@ type Catalog = {
   sourceId: number;
   name: string;
   sourceRevision: string;
+  viewRevision?: string;
   rowCount: number | string;
   measures: Measure[];
   dimensions: Dimension[];
@@ -94,45 +104,23 @@ const toNumber = (value: unknown): number | null => {
   return null;
 };
 
-/** Group integer digits textually so long counts keep full precision instead of going through Number(). */
-const groupDigits = (digits: string) => digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-const numericText = (value: unknown): string | null => {
-  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : null;
-  if (typeof value === 'string' && /^[+-]?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(value.trim())) return value.trim();
-  return null;
-};
-const numberText = (value: unknown, decimalPlaces = 0, prefix = '', suffix = '') => {
-  const raw = numericText(value);
-  if (raw === null) return '값 없음';
-  if (raw.includes('.') || /[eE]/.test(raw)) {
-    const numeric = Number(raw);
-    if (!Number.isFinite(numeric)) return '값 없음';
-    const formatted = numeric.toLocaleString('ko-KR', {
-      minimumFractionDigits: decimalPlaces,
-      maximumFractionDigits: decimalPlaces,
-    });
-    return `${prefix}${formatted}${suffix}`;
-  }
-  const negative = raw.startsWith('-');
-  return `${prefix}${negative ? '-' : ''}${groupDigits(raw.replace(/^[+-]/, ''))}${suffix}`;
-};
-
-/** Signed magnitude keeps the sign outside a currency prefix so "-$12.00" reads correctly. */
-const signedText = (value: unknown, decimalPlaces: number, prefix: string, suffix: string) => {
-  const numeric = toNumber(value);
-  if (numeric === null) return null;
-  const magnitude = numberText(Math.abs(numeric), decimalPlaces, prefix, suffix);
-  if (numeric > 0) return '+' + magnitude;
-  if (numeric < 0) return '-' + magnitude;
-  return magnitude;
-};
-/** Compact compare line for a leaderboard row; an explicit null previous value stays "no value". */
-const compareText = (row: LeaderboardRow, decimalPlaces: number, prefix: string, suffix: string) => {
-  if (numericText(row.previousValue) === null) return '이전 값 없음';
-  const parts = ['이전 ' + numberText(row.previousValue, decimalPlaces, prefix, suffix)];
-  const delta = signedText(row.delta, decimalPlaces, prefix, suffix);
-  if (delta !== null) parts.push('변화 ' + delta);
-  if (numericText(row.percentChange) !== null) parts.push(numberText(row.percentChange, 1) + '%');
+const compareText = (
+  row: LeaderboardRow,
+  decimalPlaces: number,
+  prefix: string,
+  suffix: string,
+  numberNotation: NumberNotation,
+  exact = false,
+) => {
+  if (metricNumericText(row.previousValue) === null) return '이전 값 없음';
+  const text = (value: unknown, signed = false) => {
+    const formatted = formatMetric(value, { decimalPlaces, prefix, suffix, numberNotation, signed });
+    return exact ? formatted.exactText : formatted.text;
+  };
+  const parts = ['이전 ' + text(row.previousValue)];
+  if (metricNumericText(row.delta) !== null) parts.push('변화 ' + text(row.delta, true));
+  if (metricNumericText(row.percentChange) !== null)
+    parts.push(formatMetric(row.percentChange, { decimalPlaces: 1, suffix: '%' }).text);
   return parts.join(' · ');
 };
 
@@ -289,13 +277,16 @@ function LeaderboardCard({
   decimalPlaces,
   unitPrefix,
   unitSuffix,
+  numberNotation,
 }: {
   board: Leaderboard;
   onSelect: (column: string, values: FilterValue[]) => void;
   decimalPlaces: number;
   unitPrefix: string;
   unitSuffix: string;
+  numberNotation: NumberNotation;
 }) {
+  const id = useId();
   const rows = board.rows ?? [];
   const max = rows.reduce((best, row) => Math.max(best, toNumber(row.value) ?? 0), 0);
   return (
@@ -308,6 +299,7 @@ function LeaderboardCard({
       ) : (
         <Stack component="ul" spacing={0.25} sx={{ listStyle: 'none', m: 0, p: 0 }}>
           {rows.map((row, index) => {
+            const value = formatMetric(row.value, { decimalPlaces, prefix: unitPrefix, suffix: unitSuffix, numberNotation });
             const numeric = toNumber(row.value) ?? 0;
             const width = max > 0 ? Math.max(2, Math.round((numeric / max) * 100)) : 0;
             return (
@@ -315,6 +307,7 @@ function LeaderboardCard({
                 <Button
                   type="button"
                   aria-label={`필터 적용: ${board.column} = ${categoryText(row.category)}`}
+                  aria-describedby={`${id}-${index}-value${'previousValue' in row ? ` ${id}-${index}-comparison` : ''}`}
                   onClick={() => onSelect(board.column, [row.category as FilterValue])}
                   sx={{
                     position: 'relative',
@@ -359,13 +352,22 @@ function LeaderboardCard({
                       <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {categoryText(row.category)}
                       </Box>
-                      <Box component="span" sx={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
-                        {numberText(row.value, decimalPlaces, unitPrefix, unitSuffix)}
+                      <Box
+                        component="span"
+                        title={value.exactText}
+                        id={`${id}-${index}-value`}
+                        aria-label={value.exactText}
+                        sx={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}
+                      >
+                        {value.text}
                       </Box>
                     </Box>
                     {'previousValue' in row && (
                       <Box
                         component="span"
+                        id={`${id}-${index}-comparison`}
+                        title={compareText(row, decimalPlaces, unitPrefix, unitSuffix, numberNotation, true)}
+                        aria-label={compareText(row, decimalPlaces, unitPrefix, unitSuffix, numberNotation, true)}
                         sx={{
                           fontSize: 11,
                           color: 'text.secondary',
@@ -374,7 +376,7 @@ function LeaderboardCard({
                           whiteSpace: 'nowrap',
                         }}
                       >
-                        {compareText(row, decimalPlaces, unitPrefix, unitSuffix)}
+                        {compareText(row, decimalPlaces, unitPrefix, unitSuffix, numberNotation)}
                       </Box>
                     )}
                   </Box>
@@ -404,6 +406,12 @@ export default function SourceExplore() {
   const [dimensions, setDimensions] = useState<string[]>([]);
   const [rankingMeasureId, setRankingMeasureId] = useState<number | null>(null);
   const [filters, setFilters] = useState<ExploreFilter[]>([]);
+  const [leaderboardSort, setLeaderboardSort] = useState<LeaderboardSort>(DEFAULT_SORT);
+  const [filterMode, setFilterMode] = useState<'values' | 'range'>('values');
+  const [rangeMin, setRangeMin] = useState('');
+  const [rangeMax, setRangeMax] = useState('');
+  const [filterError, setFilterError] = useState('');
+  const filterLauncher = useRef<HTMLButtonElement>(null);
   const [grain, setGrain] = useState<TrendGrain>('day');
   const [comparePrevious, setComparePrevious] = useState(false);
   const [dateMode, setDateMode] = useState<'all' | 'custom'>('all');
@@ -411,6 +419,10 @@ export default function SourceExplore() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+  const [pivotAxes, setPivotAxes] = useState({ rowDimensions: [] as string[], columnDimensions: [] as string[] });
+  const [pivotReady, setPivotReady] = useState({ key: '', reason: 'Pivot을 조회한 뒤 저장해 주세요.' });
+  const [mode, setMode] = useState<'explore' | 'pivot'>('explore');
+  const [savedViewsOpen, setSavedViewsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [filterColumn, setFilterColumn] = useState('');
   const [filterSearch, setFilterSearch] = useState('');
@@ -445,10 +457,17 @@ export default function SourceExplore() {
   const rangePaused = rangeIncomplete || rangeBackwards;
 
   const resetAllState = () => {
+    setMode('explore');
+    setPivotAxes({ rowDimensions: [], columnDimensions: [] });
     setMeasureIds([]);
     setDimensions([]);
     setRankingMeasureId(null);
     setFilters([]);
+    setLeaderboardSort(DEFAULT_SORT);
+    setFilterMode('values');
+    setRangeMin('');
+    setRangeMax('');
+    setFilterError('');
     setGrain('day');
     setComparePrevious(false);
     setDateMode('all');
@@ -457,6 +476,7 @@ export default function SourceExplore() {
     setEndDate('');
     setFilterPanelOpen(false);
     setSettingsOpen(false);
+    setSavedViewsOpen(false);
     setFilterColumn('');
     setFilterSearch('');
     setFilterSelection([]);
@@ -487,6 +507,13 @@ export default function SourceExplore() {
       .then(data => {
         if (catalogRevision.current !== token) return;
         setCatalog(data);
+        const pivotFields = data.dimensions.filter(d => !d.temporal);
+        setPivotAxes({
+          rowDimensions: [pivotFields.find(d => d.column === 'device_type')?.column ?? pivotFields[0]?.column].filter(
+            Boolean,
+          ),
+          columnDimensions: [],
+        });
         const categorical = (data.dimensions ?? [])
           .filter(dimension => !dimension.numeric && !dimension.temporal)
           .map(dimension => dimension.column);
@@ -510,7 +537,7 @@ export default function SourceExplore() {
   }, [sourceId, catalogReload]);
 
   useEffect(() => {
-    if (!catalog || !sourceId || measureIds.length === 0 || rangePaused) {
+    if (mode !== 'explore' || !catalog || !sourceId || measureIds.length === 0 || rangePaused) {
       setResult(null);
       setQueryBusy(false);
       setQueryError('');
@@ -533,6 +560,7 @@ export default function SourceExplore() {
       dimensionColumns: dimensions,
       rankingMeasureId: rankingMeasureId ?? measureIds[0],
       filters,
+      ...(leaderboardSort.by !== 'value' || leaderboardSort.direction !== 'desc' ? { leaderboardSort } : {}),
       ...(dateRange ? { dateRange } : {}),
       trendGrain: grain,
       comparePrevious,
@@ -571,6 +599,7 @@ export default function SourceExplore() {
     measureIds,
     dimensions,
     rankingMeasureId,
+    leaderboardSort,
     filters,
     dateRange,
     grain,
@@ -579,9 +608,16 @@ export default function SourceExplore() {
     includeRows,
     queryReload,
     rangePaused,
+    mode,
   ]);
 
   const applyFilter = (column: string, values: FilterValue[]) => {
+    setFilterError('');
+    if (values.length && filters.length >= 5 && !filters.some(item => item.column === column)) {
+      setFilterError('필터는 최대 5개 열까지 적용할 수 있습니다. 기존 필터를 해제하세요.');
+      setFilterPanelOpen(true);
+      return;
+    }
     setFilters(previous => {
       const next = previous.filter(item => item.column !== column);
       if (values.length > 0) next.push({ column, values });
@@ -616,31 +652,71 @@ export default function SourceExplore() {
         ? previous.filter(current => !Object.is(current, value))
         : [...previous, value],
     );
-  const applyFilterSelection = () => {
-    applyFilter(filterColumn, filterSelection);
+  const numericFilter = catalog?.dimensions.find(dimension => dimension.column === filterColumn)?.numeric === true;
+  const closeFilters = () => {
     setFilterPanelOpen(false);
+    filterLauncher.current?.focus();
+  };
+  const applyFilterSelection = () => {
+    if (filters.length >= 5 && !filters.some(item => item.column === filterColumn)) {
+      setFilterError('필터는 최대 5개 열까지 적용할 수 있습니다. 기존 필터를 해제하세요.');
+      setFilterPanelOpen(true);
+      return;
+    }
+    if (filterMode === 'range') {
+      const bound = (text: string) =>
+        text.trim() === '' ? undefined : metricNumericText(text) === null ? NaN : Number(text);
+      const min = bound(rangeMin),
+        max = bound(rangeMax);
+      if (
+        !numericFilter ||
+        (min === undefined && max === undefined) ||
+        [min, max].some(
+          value => value !== undefined && (!Number.isFinite(value) || Math.abs(value) > Number.MAX_SAFE_INTEGER),
+        )
+      ) {
+        setFilterError('최솟값 또는 최댓값에 유효한 숫자를 입력하세요. 안전한 숫자 범위 내에서 입력할 수 있습니다.');
+        return;
+      }
+      if (min !== undefined && max !== undefined && min > max) {
+        setFilterError('최솟값은 최댓값보다 클 수 없습니다.');
+        return;
+      }
+      setFilters(previous => [
+        ...previous.filter(item => item.column !== filterColumn),
+        {
+          column: filterColumn,
+          range: { ...(min !== undefined ? { min } : {}), ...(max !== undefined ? { max } : {}) },
+        },
+      ]);
+      setPage(0);
+    } else applyFilter(filterColumn, filterSelection);
+    setFilterError('');
+    closeFilters();
     setFilterColumn('');
     setFilterSearch('');
     setFilterSelection([]);
+    setRangeMin('');
+    setRangeMax('');
   };
   const handleRevisionConflict = () => {
     setRevisionError('데이터 버전이 변경되었습니다. 카탈로그를 다시 불러온 뒤 다시 시도해 주세요.');
   };
 
-  const trendFor = (kpi: Kpi): MetricTrendData | undefined => {
+  const trendFor = (kpi: Kpi): FormattedMetricTrendData | undefined => {
     const points = (kpi.trend?.points ?? []).filter(point => point && typeof point.time === 'string' && point.time !== '');
     if (points.length === 0) return undefined;
-    const data: MetricTrendData = {
+    const data: FormattedMetricTrendData = {
       column: String(kpi.id),
       grain,
-      points: points.map(point => ({ time: point.time, value: toNumber(point.value) })),
+      points: points.map(point => ({ time: point.time, value: metricNumericText(point.value) })),
     };
     if (kpi.trend?.timeZone) data.timeZone = kpi.trend.timeZone;
     return data;
   };
   const definitionOf = (id: number | string | null) =>
     catalog?.measures.find(measure => String(measure.id) === String(id))?.definition as
-      | { unit?: string; decimalPlaces?: number }
+      | { unit?: string; decimalPlaces?: number; numberNotation?: 'plain' | NumberNotation }
       | undefined;
   /** Currency symbols read as a prefix ($5.57); other units stay a suffix. Falls back to the saved definition unit. */
   const unitPartsOf = (id: number | string | null, overridePrefix?: string, overrideSuffix?: string) => {
@@ -655,13 +731,15 @@ export default function SourceExplore() {
   const decimalsFor = (kpi: Kpi) => decimalsOf(kpi.id, kpi.decimalPlaces);
   /** Leaderboard values follow the selected ranking measure's unit and decimals, not a fixed 0. */
   const rankingUnits = unitPartsOf(rankingMeasureId);
+  const notationOf = (id: number | string | null): NumberNotation =>
+    definitionOf(id)?.numberNotation === 'compact' ? 'compact' : 'full';
   const rankingDecimals = decimalsOf(rankingMeasureId);
   const comparisonFor = (kpi: Kpi): MetricComparisonData | undefined => {
     if (!kpi.comparison) return undefined;
     const data: MetricComparisonData = {
-      previousValue: toNumber(kpi.comparison.previousValue),
-      delta: toNumber(kpi.comparison.delta),
-      percentChange: toNumber(kpi.comparison.percentChange),
+      previousValue: metricNumericText(kpi.comparison.previousValue),
+      delta: metricNumericText(kpi.comparison.delta),
+      percentChange: metricNumericText(kpi.comparison.percentChange),
     };
     if (kpi.comparison.unavailable) data.unavailable = kpi.comparison.unavailable;
     return data;
@@ -681,6 +759,46 @@ export default function SourceExplore() {
     ? '탐색 결과를 불러오는 중…'
     : '';
   const reloadCatalog = () => setCatalogReload(value => value + 1);
+
+  const viewState: ExploreViewState = {
+    version: 1,
+    ...(mode === 'pivot' ? { mode, pivot: pivotAxes } : {}),
+    measureIds,
+    dimensionColumns: dimensions,
+    rankingMeasureId: rankingMeasureId ?? 0,
+    leaderboardSort,
+    filters,
+    dateRange: dateRange ?? null,
+    relativePeriod: null,
+    trendGrain: grain,
+    comparePrevious,
+    includeRows,
+  };
+  const applySavedView = (value: ExploreViewState) => {
+    const next = parseExploreViewState(value, catalog);
+    setMode(next.mode ?? 'explore');
+    if (next.pivot) setPivotAxes(next.pivot);
+    setMeasureIds(next.measureIds);
+    setDimensions(next.dimensionColumns);
+    setRankingMeasureId(next.rankingMeasureId);
+    setFilters(next.filters);
+    setLeaderboardSort(next.leaderboardSort);
+    setGrain(next.trendGrain);
+    setComparePrevious(next.comparePrevious);
+    setIncludeRows(next.includeRows);
+    setDateMode(next.dateRange ? 'custom' : 'all');
+    setStartDate(next.dateRange?.start ?? '');
+    setEndDate(next.dateRange?.end ?? '');
+    setTimeZone(next.dateRange?.timeZone ?? 'UTC');
+    setPage(0);
+    setFilterPanelOpen(false);
+    setFilterColumn('');
+    setFilterSelection([]);
+    setRangeMin('');
+    setRangeMax('');
+    setFilterError('');
+    setSettingsOpen(false);
+  };
 
   return (
     <Box
@@ -713,7 +831,7 @@ export default function SourceExplore() {
             value={sourceId}
             disabled={sources.length === 0}
             onChange={event => setSourceId(event.target.value)}
-            sx={{ minWidth: 220 }}
+            sx={{ minWidth: 0, width: { xs: '100%', sm: 220 } }}
             slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
           >
             <option value="">데이터를 선택하세요</option>
@@ -725,7 +843,7 @@ export default function SourceExplore() {
           </TextField>
           {catalog && (
             <Typography color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
-              {catalog.name} · {numberText(catalog.rowCount)}행
+              {catalog.name} · {formatMetric(catalog.rowCount).text}행
             </Typography>
           )}
         </Stack>
@@ -738,6 +856,58 @@ export default function SourceExplore() {
       </Stack>
 
       <Divider />
+      {catalog && (
+        <Box sx={{ mt: 1 }}>
+          <Button aria-expanded={savedViewsOpen} onClick={() => setSavedViewsOpen(open => !open)}>
+            {savedViewsOpen ? '저장 보기 닫기' : '저장 보기'}
+          </Button>
+          {savedViewsOpen && (
+            <PersonalSavedViews<ExploreViewState>
+              key={`explore-views-${catalog.sourceId}`}
+              endpoint={`/bi/explore/${catalog.sourceId}/views`}
+              subject="explore"
+              parseState={parseExploreViewState}
+              revision={catalog.viewRevision}
+              sourceRevision={catalog.sourceRevision}
+              state={viewState}
+              disabledReason={
+                rangePaused
+                  ? '완성한 기간을 적용한 뒤 저장해 주세요.'
+                  : !measureIds.length
+                  ? '지표를 하나 이상 선택해 주세요.'
+                  : mode === 'pivot'
+                  ? pivotReady.key ===
+                    pivotRequestKey({
+                      sourceId: catalog.sourceId,
+                      sourceRevision: catalog.sourceRevision,
+                      measureIds,
+                      ...pivotAxes,
+                      filters,
+                      dateRange,
+                    })
+                    ? pivotReady.reason
+                    : '현재 Pivot 조건을 조회한 뒤 저장해 주세요.'
+                  : queryBusy
+                  ? '현재 조건 조회가 끝난 뒤 사용할 수 있습니다.'
+                  : queryError || revisionError || (!result ? '정상 탐색 결과를 확인한 뒤 사용할 수 있습니다.' : '')
+              }
+              onApply={applySavedView}
+            />
+          )}
+        </Box>
+      )}
+
+      <Stack direction="row" spacing={1} role="group" aria-label="탐색 방식" sx={{ mt: 1 }}>
+        <Pill label="Explore" selected={mode === 'explore'} onClick={() => setMode('explore')} />
+        <Pill
+          label="Pivot"
+          selected={mode === 'pivot'}
+          onClick={() => {
+            setMode('pivot');
+            setSavedViewsOpen(false);
+          }}
+        />
+      </Stack>
 
       <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', mt: 1.5 }}>
         <Pill
@@ -745,6 +915,8 @@ export default function SourceExplore() {
           selected={dateMode === 'all'}
           onClick={() => {
             setDateMode('all');
+            setComparePrevious(false);
+            setLeaderboardSort(DEFAULT_SORT);
             setPage(0);
           }}
         />
@@ -789,29 +961,35 @@ export default function SourceExplore() {
             </Stack>
           </Stack>
         )}
-        <Divider orientation="vertical" flexItem />
-        <Stack direction="row" spacing={0.5} alignItems="center" role="group" aria-label="집계 단위">
-          {GRAINS.map(item => (
+        {mode === 'explore' && (
+          <>
+            <Divider orientation="vertical" flexItem />
+            <Stack direction="row" spacing={0.5} alignItems="center" role="group" aria-label="집계 단위">
+              {GRAINS.map(item => (
+                <Pill
+                  key={item.value}
+                  label={item.label}
+                  ariaLabel={`집계 단위 ${item.label}`}
+                  selected={grain === item.value}
+                  onClick={() => {
+                    setGrain(item.value);
+                    setPage(0);
+                  }}
+                />
+              ))}
+            </Stack>
             <Pill
-              key={item.value}
-              label={item.label}
-              ariaLabel={`집계 단위 ${item.label}`}
-              selected={grain === item.value}
+              label="이전 기간 비교"
+              selected={comparePrevious}
+              disabled={!dateRange || rangePaused}
               onClick={() => {
-                setGrain(item.value);
+                if (comparePrevious) setLeaderboardSort(DEFAULT_SORT);
+                setComparePrevious(value => !value);
                 setPage(0);
               }}
             />
-          ))}
-        </Stack>
-        <Pill
-          label="이전 기간 비교"
-          selected={comparePrevious}
-          onClick={() => {
-            setComparePrevious(value => !value);
-            setPage(0);
-          }}
-        />
+          </>
+        )}
       </Stack>
 
       <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', mt: 1.5, minWidth: 0 }}>
@@ -819,21 +997,43 @@ export default function SourceExplore() {
         {filters.map(filter => (
           <Chip
             key={filter.column}
-            label={`${filter.column}: ${filter.values.map(categoryText).join(', ')}`}
+            label={`${filter.column}: ${
+              'range' in filter
+                ? `${filter.range.min ?? '제한 없음'} ~ ${filter.range.max ?? '제한 없음'} (양 끝 포함)`
+                : filter.values.map(categoryText).join(', ')
+            }`}
+            sx={{
+              backgroundColor: '#eef2ff',
+              color: '#312e81',
+              maxWidth: '100%',
+              height: 'auto',
+              '& .MuiChip-label': { whiteSpace: 'normal', overflowWrap: 'anywhere', py: 0.75 },
+            }}
             onDelete={() => applyFilter(filter.column, [])}
-            sx={{ backgroundColor: '#eef2ff', color: '#312e81' }}
           />
         ))}
-        <Pill
-          label="필터 추가"
-          ariaLabel="필터 추가"
-          selected={filterPanelOpen}
-          onClick={() => setFilterPanelOpen(value => !value)}
-        />
+        <Button
+          ref={filterLauncher}
+          aria-label="필터 추가"
+          aria-expanded={filterPanelOpen}
+          aria-controls="explore-filter-panel"
+          onClick={() => {
+            setFilterError('');
+            setFilterPanelOpen(value => !value);
+          }}
+          sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 4, textTransform: 'none', minHeight: 44 }}
+        >
+          필터 추가
+        </Button>
       </Stack>
 
       {filterPanelOpen && catalog && (
-        <Box sx={{ mt: 1, p: 1.5, border: '1px solid #e2e8f0', borderRadius: 2, backgroundColor: '#f8fafc' }}>
+        <Box
+          id="explore-filter-panel"
+          role="group"
+          aria-label="필터 설정"
+          sx={{ mt: 1, p: 1.5, border: '1px solid #e2e8f0', borderRadius: 2, backgroundColor: '#f8fafc' }}
+        >
           <Stack direction="row" spacing={1.5} sx={{ mb: 1, flexWrap: 'wrap' }}>
             <TextField
               select
@@ -843,8 +1043,12 @@ export default function SourceExplore() {
               onChange={event => {
                 setFilterColumn(event.target.value);
                 setFilterSelection([]);
+                setFilterMode('values');
+                setRangeMin('');
+                setRangeMax('');
+                setFilterError('');
               }}
-              sx={{ minWidth: 220 }}
+              sx={{ minWidth: 0, width: { xs: '100%', sm: 220 } }}
               slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
             >
               <option value="">열을 선택하세요</option>
@@ -854,16 +1058,76 @@ export default function SourceExplore() {
                 </option>
               ))}
             </TextField>
-            <TextField
-              size="small"
-              label="값 검색"
-              value={filterSearch}
-              disabled={!filterColumn}
-              onChange={event => setFilterSearch(event.target.value)}
-              sx={{ minWidth: 220 }}
-            />
+            {filterMode === 'values' && (
+              <TextField
+                size="small"
+                label="값 검색"
+                value={filterSearch}
+                disabled={!filterColumn}
+                onChange={event => setFilterSearch(event.target.value)}
+                sx={{ minWidth: 0, width: { xs: '100%', sm: 220 } }}
+              />
+            )}
           </Stack>
-          {filterColumn ? (
+          {numericFilter && (
+            <Stack direction="row" spacing={1} role="group" aria-label="숫자 필터 방식" sx={{ mb: 1 }}>
+              <Pill
+                label="값 선택"
+                selected={filterMode === 'values'}
+                onClick={() => {
+                  setFilterMode('values');
+                  setFilterError('');
+                }}
+              />
+              <Pill
+                label="숫자 범위"
+                selected={filterMode === 'range'}
+                onClick={() => {
+                  setFilterMode('range');
+                  setFilterError('');
+                }}
+              />
+            </Stack>
+          )}
+          {filterMode === 'range' && numericFilter ? (
+            <>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                <TextField
+                  label="최솟값 (포함)"
+                  value={rangeMin}
+                  onChange={event => {
+                    setRangeMin(event.target.value);
+                    setFilterError('');
+                  }}
+                  size="small"
+                  slotProps={{
+                    htmlInput: {
+                      inputMode: 'decimal',
+                      'aria-describedby': filterError ? 'range-filter-error' : 'range-filter-help',
+                    },
+                  }}
+                />
+                <TextField
+                  label="최댓값 (포함)"
+                  value={rangeMax}
+                  onChange={event => {
+                    setRangeMax(event.target.value);
+                    setFilterError('');
+                  }}
+                  size="small"
+                  slotProps={{
+                    htmlInput: {
+                      inputMode: 'decimal',
+                      'aria-describedby': filterError ? 'range-filter-error' : 'range-filter-help',
+                    },
+                  }}
+                />
+              </Stack>
+              <Typography id="range-filter-help" variant="caption">
+                원본 행의 숫자를 필터링합니다. 한쪽을 비우면 제한하지 않습니다. 양 끝값은 포함하고 NULL은 제외합니다.
+              </Typography>
+            </>
+          ) : filterColumn ? (
             <FilterValueSelect
               sourceId={catalog.sourceId}
               sourceRevision={catalog.sourceRevision}
@@ -878,15 +1142,65 @@ export default function SourceExplore() {
           ) : (
             <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>필터할 열을 선택하세요.</Typography>
           )}
+          {filterError && (
+            <Alert severity="error" id="range-filter-error">
+              {filterError}
+            </Alert>
+          )}
           <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-            <Button disabled={!filterColumn || filterSelection.length === 0} onClick={applyFilterSelection}>
+            <Button
+              disabled={!filterColumn || (filterMode === 'values' && filterSelection.length === 0)}
+              onClick={applyFilterSelection}
+            >
               필터 적용
             </Button>
-            <Button onClick={() => setFilterPanelOpen(false)}>닫기</Button>
+            <Button onClick={closeFilters}>닫기</Button>
           </Stack>
         </Box>
       )}
 
+      {catalog && mode === 'explore' && (
+        <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', mt: 1.5 }}>
+          <TextField
+            select
+            size="small"
+            label="차원 순위 기준"
+            value={leaderboardSort.by}
+            onChange={event => {
+              setLeaderboardSort(value => ({ ...value, by: event.target.value as LeaderboardSort['by'] }));
+              setPage(0);
+            }}
+            slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
+            sx={{ minWidth: 160 }}
+          >
+            <option value="value">현재 값</option>
+            <option value="delta" disabled={!comparePrevious || !dateRange || rangePaused}>
+              변화량
+            </option>
+            <option value="percentChange" disabled={!comparePrevious || !dateRange || rangePaused}>
+              증감률
+            </option>
+          </TextField>
+          <TextField
+            select
+            size="small"
+            label="차원 순위 방향"
+            value={leaderboardSort.direction}
+            onChange={event => {
+              setLeaderboardSort(value => ({ ...value, direction: event.target.value as LeaderboardSort['direction'] }));
+              setPage(0);
+            }}
+            slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
+            sx={{ minWidth: 140 }}
+          >
+            <option value="desc">내림차순</option>
+            <option value="asc">오름차순</option>
+          </TextField>
+          <Typography variant="caption" sx={{ alignSelf: 'center' }}>
+            전체 그룹을 서버에서 정렬합니다. 계산할 수 없는 변화량·증감률은 마지막에 표시합니다.
+          </Typography>
+        </Stack>
+      )}
       <Divider sx={{ my: 1.5 }} />
 
       {catalog && (
@@ -1006,7 +1320,28 @@ export default function SourceExplore() {
         <Alert severity="info">지표를 하나 이상 선택하세요. 위의 지표 목록에서 선택하면 결과가 표시됩니다.</Alert>
       )}
 
-      {result && measureIds.length > 0 && (
+      {catalog && mode === 'pivot' && (
+        <PivotTable
+          key={catalog.sourceId}
+          sourceId={catalog.sourceId}
+          sourceRevision={catalog.sourceRevision}
+          dimensions={catalog.dimensions}
+          measureIds={measureIds}
+          filters={filters}
+          dateRange={dateRange}
+          axes={pivotAxes}
+          onAxesChange={setPivotAxes}
+          onReady={setPivotReady}
+          paused={rangePaused}
+          onReloadCatalog={reloadCatalog}
+          onFilter={next => {
+            setFilters(next);
+            setPage(0);
+          }}
+        />
+      )}
+
+      {result && mode === 'explore' && measureIds.length > 0 && (
         <>
           <Typography sx={{ mt: 1, fontSize: 12, color: 'text.secondary' }}>
             적용됨 · {result.applied?.trendGrain ?? grain} ·{' '}
@@ -1019,19 +1354,32 @@ export default function SourceExplore() {
                 const trend = trendFor(kpi);
                 const units = unitParts(kpi);
                 const decimals = decimalsFor(kpi);
+                const numberNotation = notationOf(kpi.id);
+                const value = formatMetric(kpi.value, {
+                  decimalPlaces: decimals,
+                  prefix: units.prefix,
+                  suffix: units.suffix,
+                  numberNotation,
+                });
                 return (
                   <Box key={String(kpi.id)} sx={{ mb: 2.5, minWidth: 0 }}>
                     <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>{kpi.title}</Typography>
-                    <Typography component="p" sx={{ fontSize: 30, fontWeight: 700, lineHeight: 1.15, mb: 0.5 }}>
-                      {numberText(kpi.value, decimals, units.prefix, units.suffix)}
+                    <Typography
+                      component="p"
+                      title={value.exactText}
+                      aria-label={value.exactText}
+                      sx={{ fontSize: 30, fontWeight: 700, lineHeight: 1.15, mb: 0.5 }}
+                    >
+                      {value.text}
                     </Typography>
-                    {trend && (
+                    {(trend || kpi.comparison) && (
                       <MetricTrend
                         trend={trend}
                         title={kpi.title}
                         prefix={units.prefix}
                         suffix={units.suffix}
                         decimalPlaces={decimals}
+                        numberNotation={numberNotation}
                         comparison={comparisonFor(kpi)}
                       />
                     )}
@@ -1050,6 +1398,7 @@ export default function SourceExplore() {
                     board={board}
                     onSelect={applyFilter}
                     decimalPlaces={rankingDecimals}
+                    numberNotation={notationOf(rankingMeasureId)}
                     unitPrefix={rankingUnits.prefix}
                     unitSuffix={rankingUnits.suffix}
                   />
@@ -1060,77 +1409,79 @@ export default function SourceExplore() {
         </>
       )}
 
-      <Box sx={{ mt: 3 }}>
-        <Button
-          type="button"
-          aria-expanded={includeRows}
-          aria-controls="model-data"
-          onClick={() => {
-            setIncludeRows(value => !value);
-            setPage(0);
-          }}
-          sx={{ textTransform: 'none' }}
-        >
-          Model Data {includeRows ? '접기' : '펼치기'}
-        </Button>
-        {includeRows && (
-          <Box id="model-data" role="region" aria-label="Model Data" sx={{ mt: 1, overflowX: 'auto' }}>
-            <Typography sx={{ fontSize: 12, color: 'text.secondary', mb: 1 }}>
-              집계 결과 행입니다. 실제 물리 요청 수와 다를 수 있습니다.
-            </Typography>
-            {detailRows.length > 0 && (
-              <>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                  <caption style={{ textAlign: 'left', paddingBottom: 4, color: '#475569' }}>
-                    총 {numberText(details?.totalRows)}행 중 {page * detailsSize + 1}–
-                    {Math.min((page + 1) * detailsSize, totalRows)}행
-                  </caption>
-                  <thead>
-                    <tr>
-                      {detailColumns.map(column => (
-                        <th
-                          key={column}
-                          scope="col"
-                          style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0', padding: '4px 8px' }}
-                        >
-                          {column}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {detailRows.map((row, rowIndex) => (
-                      <tr key={rowIndex}>
+      {mode === 'explore' && (
+        <Box sx={{ mt: 3 }}>
+          <Button
+            type="button"
+            aria-expanded={includeRows}
+            aria-controls="model-data"
+            onClick={() => {
+              setIncludeRows(value => !value);
+              setPage(0);
+            }}
+            sx={{ textTransform: 'none' }}
+          >
+            Model Data {includeRows ? '접기' : '펼치기'}
+          </Button>
+          {includeRows && (
+            <Box id="model-data" role="region" aria-label="Model Data" sx={{ mt: 1, overflowX: 'auto' }}>
+              <Typography sx={{ fontSize: 12, color: 'text.secondary', mb: 1 }}>
+                집계 결과 행입니다. 실제 물리 요청 수와 다를 수 있습니다.
+              </Typography>
+              {detailRows.length > 0 && (
+                <>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                    <caption style={{ textAlign: 'left', paddingBottom: 4, color: '#475569' }}>
+                      총 {formatMetric(details?.totalRows).text}행 중 {page * detailsSize + 1}–
+                      {Math.min((page + 1) * detailsSize, totalRows)}행
+                    </caption>
+                    <thead>
+                      <tr>
                         {detailColumns.map(column => (
-                          <td key={column} style={{ borderBottom: '1px solid #f1f5f9', padding: '4px 8px' }}>
-                            {categoryText(row[column])}
-                          </td>
+                          <th
+                            key={column}
+                            scope="col"
+                            style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0', padding: '4px 8px' }}
+                          >
+                            {column}
+                          </th>
                         ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
-                  <Button disabled={page <= 0} onClick={() => setPage(current => Math.max(0, current - 1))}>
-                    이전
-                  </Button>
-                  <Typography sx={{ fontSize: 13 }}>
-                    {page + 1} / {totalPages} 페이지
-                  </Typography>
-                  <Button disabled={page + 1 >= totalPages} onClick={() => setPage(current => current + 1)}>
-                    다음
-                  </Button>
-                </Stack>
-              </>
-            )}
-            {detailRows.length === 0 && (
-              <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
-                {queryBusy ? '결과를 불러오는 중…' : '표시할 행이 없습니다.'}
-              </Typography>
-            )}
-          </Box>
-        )}
-      </Box>
+                    </thead>
+                    <tbody>
+                      {detailRows.map((row, rowIndex) => (
+                        <tr key={rowIndex}>
+                          {detailColumns.map(column => (
+                            <td key={column} style={{ borderBottom: '1px solid #f1f5f9', padding: '4px 8px' }}>
+                              {categoryText(row[column])}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
+                    <Button disabled={page <= 0} onClick={() => setPage(current => Math.max(0, current - 1))}>
+                      이전
+                    </Button>
+                    <Typography sx={{ fontSize: 13 }}>
+                      {page + 1} / {totalPages} 페이지
+                    </Typography>
+                    <Button disabled={page + 1 >= totalPages} onClick={() => setPage(current => current + 1)}>
+                      다음
+                    </Button>
+                  </Stack>
+                </>
+              )}
+              {detailRows.length === 0 && (
+                <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
+                  {queryBusy ? '결과를 불러오는 중…' : '표시할 행이 없습니다.'}
+                </Typography>
+              )}
+            </Box>
+          )}
+        </Box>
+      )}
     </Box>
   );
 }

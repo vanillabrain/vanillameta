@@ -1,10 +1,12 @@
 import React, { useId } from 'react';
 import { Alert, Box, Button, Typography } from '@mui/material';
+import { bignumber } from 'mathjs';
+import { formatMetric, metricNumericText, NumberNotation } from '@/utils/formatMetric';
 
 export type MetricComparisonData = {
-  previousValue: number | null;
-  delta: number | null;
-  percentChange: number | null;
+  previousValue: number | string | null;
+  delta: number | string | null;
+  percentChange: number | string | null;
   unavailable?: string;
 };
 
@@ -14,28 +16,29 @@ export default function PeriodComparison({
   prefix = '',
   suffix = '',
   decimalPlaces = 0,
+  numberNotation = 'full',
 }: {
   comparison: MetricComparisonData;
   title: string;
   prefix?: string;
   suffix?: string;
   decimalPlaces?: number;
+  numberNotation?: NumberNotation;
 }) {
-  const format = (value: number | null, signed = false) =>
-    value === null || !Number.isFinite(value)
-      ? '값 없음'
-      : `${signed && value > 0 ? '+' : ''}${prefix}${value.toLocaleString('ko-KR', {
-          minimumFractionDigits: decimalPlaces,
-          maximumFractionDigits: decimalPlaces,
-        })}${suffix}`;
-  const percent =
-    comparison.previousValue === 0
-      ? '계산 불가'
-      : comparison.percentChange === null || !Number.isFinite(comparison.percentChange)
-      ? '값 없음'
-      : `${comparison.percentChange > 0 ? '+' : ''}${comparison.percentChange.toLocaleString('ko-KR', {
-          maximumFractionDigits: 2,
-        })}%`;
+  const format = (value: unknown, signed = false) =>
+    formatMetric(value, { prefix, suffix, decimalPlaces, numberNotation, signed });
+  const zeroBaseline =
+    metricNumericText(comparison.previousValue) !== null && bignumber(metricNumericText(comparison.previousValue)).isZero();
+  const percent = zeroBaseline
+    ? '계산 불가'
+    : formatMetric(comparison.percentChange, {
+        decimalPlaces: 2,
+        suffix: '%',
+        signed: true,
+        trimTrailingZeros: true,
+      }).text;
+  const previous = format(comparison.previousValue);
+  const delta = format(comparison.delta, true);
   return (
     <Box component="section" aria-label={`${title} 이전 기간 비교`} sx={{ mb: 1.5, minWidth: 0 }}>
       <Typography component="h3" sx={{ fontSize: 13, fontWeight: 600 }}>
@@ -55,20 +58,22 @@ export default function PeriodComparison({
       >
         <div>
           <dt>이전 기간 값</dt>
-          <dd>{format(comparison.previousValue)}</dd>
+          <dd title={previous.exactText} aria-label={previous.exactText}>
+            {previous.text}
+          </dd>
         </div>
         <div>
           <dt>증감</dt>
-          <dd>{format(comparison.delta, true)}</dd>
+          <dd title={delta.exactText} aria-label={delta.exactText}>
+            {delta.text}
+          </dd>
         </div>
         <div>
           <dt>증감률</dt>
           <dd>{percent}</dd>
         </div>
       </Box>
-      {comparison.previousValue === 0 && (
-        <Typography variant="caption">이전 기간 값이 0이므로 증감률은 계산할 수 없습니다.</Typography>
-      )}
+      {zeroBaseline && <Typography variant="caption">이전 기간 값이 0이므로 증감률은 계산할 수 없습니다.</Typography>}
     </Box>
   );
 }

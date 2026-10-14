@@ -52,3 +52,7 @@ source24/dashboard26의 같은 정상3행을 사용했고 파일 교체/AI/Rill1
 권한과 숫자/영속 상태 증빙은 api-boundaries.json, absolute-save.json, absolute-reload.json, oracle-absolute.json, relative-reload.json, failure-recovery.json, delete-results.json, concurrent-api.json, clear-dates-fix.json, table-layout.json에 남겼다. 최종 화면은 absolute-final-desktop.png/absolute-final-mobile.png. 외부 verification-results.json에 커밋·파일 hash·범위·환경을 기록한다.
 
 현재 SSBI-09 전체는 부분 완료다. 별도 지표 선택/정렬, 팀 저장 보기/링크 공유, 역사 정의·데이터 재현, 실제 MySQL 통합·VoiceOver는 미검증 또는 미구현이다. 다음 제품 우선순위는 비교기간·일/주/월 집계 선택이며, 외부 파일럿 전에는 파일 최대5버전 보존/정리·디스크 quota와 MySQL/백업 복원도 운영 gate로 남는다. 기존 전체130개 집계는 이번 신규 후속과 별개로 유지한다.
+
+## 탐색 화면 저장 보기 확장 — 2026-10-14
+
+별도 `/explore/source`의 지표·차원·순위 기준/방향·숫자 범위·날짜·집계/비교·원본 펼침을 기존 UI와 metadata 테이블로 재사용한다. 기존 dashboard보기는 dashboardId, 탐색보기는 sourceId로 분리하며 SQLite 쓰기 queue를 연결별로 공유한다. [탐색 명세/증빙](explore-saved-views.md)을 참조한다. 이는 위 과거 기록의 탐색 선택/정렬 저장 잔여를 선택 범위에서 보강한 것으로, 일반 대시보드 저장보기의 별도 지표·정렬/팀·공유 조건 전체가 완료됐다는 뜻은 아니다.

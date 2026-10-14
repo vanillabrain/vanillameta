@@ -951,3 +951,82 @@ it('applies a relative view when the resolved range carries the matching timezon
   await screen.findByText('보기 1 보기를 적용했습니다.');
   expect(api.apply).toHaveBeenCalledWith(relative, resolved);
 });
+
+it('exploration endpoint preserves its validated range/sort settings for save and load', async () => {
+  const { parseExploreViewState } = await import('@/pages/Explore/exploreViewState');
+  const exploreState = {
+    version: 1 as const,
+    measureIds: [1],
+    dimensionColumns: ['device'],
+    rankingMeasureId: 1,
+    leaderboardSort: { by: 'delta' as const, direction: 'asc' as const },
+    filters: [{ column: 'amount', range: { min: 0, max: 10 } }],
+    dateRange: { column: 'day', start: '2023-09-10', end: '2023-09-11' },
+    relativePeriod: null,
+    trendGrain: 'day' as const,
+    comparePrevious: true,
+    includeRows: false,
+  };
+  const saved = { ...row(), state: exploreState };
+  api.get.mockResolvedValue(success([saved]));
+  api.post.mockResolvedValue(success(saved));
+  render(
+    <PersonalSavedViews
+      endpoint="/bi/explore/3/views"
+      subject="explore"
+      state={exploreState}
+      revision={revision}
+      parseState={parseExploreViewState}
+      onApply={api.apply}
+    />,
+  );
+  await screen.findByRole('button', { name: '보기 1 보기 불러오기' });
+  nameView();
+  fireEvent.click(button('현재 보기 저장'));
+  await waitFor(() =>
+    expect(api.post).toHaveBeenCalledWith(
+      '/bi/explore/3/views',
+      { name: '내 조건', state: exploreState, revision },
+      expect.anything(),
+    ),
+  );
+  await waitFor(() => expect(disabled('보기 1 보기 불러오기')).toBe(false));
+  api.get.mockResolvedValue(success(saved));
+  fireEvent.click(button('보기 1 보기 불러오기'));
+  await waitFor(() => expect(api.apply).toHaveBeenCalledWith(exploreState, exploreState.dateRange));
+  expect(api.get).toHaveBeenLastCalledWith('/bi/explore/3/views/1', undefined, expect.anything());
+});
+
+it('exploration 409 leaves current state and saved row available for deletion', async () => {
+  const { parseExploreViewState } = await import('@/pages/Explore/exploreViewState');
+  const exploreState = {
+    version: 1 as const,
+    measureIds: [1],
+    dimensionColumns: [],
+    rankingMeasureId: 1,
+    leaderboardSort: { by: 'value' as const, direction: 'desc' as const },
+    filters: [],
+    dateRange: null,
+    relativePeriod: null,
+    trendGrain: 'day' as const,
+    comparePrevious: false,
+    includeRows: false,
+  };
+  api.get.mockResolvedValue(success([{ ...row(), state: exploreState }]));
+  render(
+    <PersonalSavedViews
+      endpoint="/bi/explore/3/views"
+      subject="explore"
+      state={exploreState}
+      revision={revision}
+      parseState={parseExploreViewState}
+      onApply={api.apply}
+    />,
+  );
+  await screen.findByRole('button', { name: '보기 1 보기 불러오기' });
+  api.get.mockRejectedValue({ response: { status: 409 } });
+  fireEvent.click(button('보기 1 보기 불러오기'));
+  await screen.findByText(/지표·열 정의가 변경되어/);
+  expect(api.apply).not.toHaveBeenCalled();
+  expect(disabled('보기 1 보기 삭제')).toBe(false);
+});

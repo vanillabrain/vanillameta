@@ -1,5 +1,11 @@
 # VanillaMeta 검증 명세
 
+Pivot 탐색 PIVOT-01~05의 신규 선택 범위/결과는 [별도 명세](explore-pivot.md)를 사용한다. 기존 카탈로그 통과 케이스를 반복하거나 완료 수를 늘리지 않는다.
+
+탐색 조건 개인 저장·복원의 EXP-VIEW-01~07은 [별도 명세·결과](explore-saved-views.md)를 사용한다. 실행한 하위·화면 범위를 구분하며 기존 카탈로그 완료 수를 늘리지 않는다.
+
+숫자 범위·차원 변화 정렬의 RANGE-01~03/SORT-01~02/RANGE-KEY-01은 [후속 명세·결과](explore-range-sort.md)에 별도로 기록한다. 기존 카탈로그 ID와 완료 수를 늘리지 않는다.
+
 신규 매출·환불 MVP의 COMMERCE-01~08은 [별도 명세·결과](sales-refund-mvp.md)를 사용하며 기존102개 ID와 분리 집계한다.
 
 전체 ID별 완료·부분 완료·미검증과 남은 우선순위는 [검증 현황](status.md)을 참조한다. 아래 후속 실행 기록은 당시 상태이며 최신 증빙을 합산한 현황과 구분한다.
@@ -812,3 +818,7 @@ Additional MD scenarios and fixed Rill oracle: [server-duckdb.md](server-duckdb.
 
 - AI-05 남은조건 PASS: 실제고정provider→backend→UI에서 unknown type/invalidJSON 거절안내·버튼복구→등록CHART_BAR 정상재시도·선택·추천안내, pageerror0. 이전service주입/실Luna추천 반복없음.
 - 증빙 `/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/ai-chart-contract/RESULTS.md`, run2/results.json/오류·복구PNG. 제품오류/수정없음, fixture모델호출0/기존codex gpt-6-luna설정유지. 전체MD완료아님.
+
+밀도·숫자표시 신규 선택 조건: [compact-controls-formatting.md](compact-controls-formatting.md)의 DENSITY-01~03/NUMBER-01~02. 기존 카탈로그130개 집계를 늘리지 않고 변경 범위 검증을 별도 기록한다.
+
+- Pivot 저장·CSV 확장: [PIVOT-06~08](explore-pivot.md#pivot-저장csv-확장--2026-10-14).

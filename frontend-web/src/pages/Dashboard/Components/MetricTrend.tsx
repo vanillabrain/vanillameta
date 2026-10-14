@@ -1,5 +1,6 @@
 import React, { useId, useState } from 'react';
 import { Box, Button, Typography } from '@mui/material';
+import { formatMetric, metricNumericText, NumberNotation } from '@/utils/formatMetric';
 
 import { MetricTrendData, trendBucketLabel, trendGeometry, trendTimeZone } from './trendGeometry';
 import type { DateRange } from './PersonalSavedViews';
@@ -7,11 +8,24 @@ import { validTimeRange, sameTimeRange, timeRangeLabel } from './timeSelection';
 import PeriodComparison, { MetricComparisonData } from './PeriodComparison';
 import { comparisonTrend, TrendPeriods } from './comparisonTrend';
 
+// Display retains server strings; chart coordinates use finite approximate numbers only.
+export type FormattedMetricTrendData = Omit<MetricTrendData, 'points'> & {
+  points: { time: string; value: number | string | null }[];
+};
+const geometryData = (trend: FormattedMetricTrendData): MetricTrendData => ({
+  ...trend,
+  points: trend.points.map(point => ({
+    ...point,
+    value: metricNumericText(point.value) !== null && Number.isFinite(Number(point.value)) ? Number(point.value) : null,
+  })),
+});
+
 export default function MetricTrend({
   trend,
   title,
   prefix = '',
   decimalPlaces = 0,
+  numberNotation = 'full',
   unavailable,
   comparison,
   previousTrend,
@@ -24,13 +38,14 @@ export default function MetricTrend({
   contributionDisabled = false,
   contributionDisabledReason,
 }: {
-  trend?: MetricTrendData;
+  trend?: FormattedMetricTrendData;
   title: string;
   prefix?: string;
   decimalPlaces?: number;
+  numberNotation?: NumberNotation;
   unavailable?: string;
   comparison?: MetricComparisonData;
-  previousTrend?: MetricTrendData;
+  previousTrend?: FormattedMetricTrendData;
   periods?: TrendPeriods;
   suffix?: string;
   onTimeSelect?: (range: DateRange) => void;
@@ -98,33 +113,32 @@ export default function MetricTrend({
       이 시점의 집계 원본 행 보기
     </Button>
   );
-  const numeric = points.filter(point => point.value !== null && Number.isFinite(point.value));
-  const format = (value: number | null) =>
-    value === null || !Number.isFinite(value)
-      ? '값 없음'
-      : `${prefix}${value.toLocaleString('ko-KR', {
-          minimumFractionDigits: decimalPlaces,
-          maximumFractionDigits: decimalPlaces,
-        })}`;
+  const numeric = points.filter(point => metricNumericText(point.value) !== null);
+  const format = (value: unknown) => formatMetric(value, { prefix, suffix, decimalPlaces, numberNotation });
   const day = (time: string) => time.slice(0, 10);
   const zone = trendTimeZone(trend?.timeZone);
   const label = (time: string) => trendBucketLabel(time, trend?.grain, trend?.timeZone);
   // Overlay stays UTC-only: never compare regional (local-midnight) buckets against UTC periods.
-  const overlayUtc = (data?: MetricTrendData) => !data?.timeZone || data.timeZone === 'UTC';
+  const overlayUtc = (data?: FormattedMetricTrendData) => !data?.timeZone || data.timeZone === 'UTC';
   const overlay =
     trend && previousTrend && periods && overlayUtc(trend) && overlayUtc(previousTrend)
-      ? comparisonTrend(trend, previousTrend, periods)
+      ? comparisonTrend(geometryData(trend), geometryData(previousTrend), periods)
       : undefined;
-  const { path, area, dots } = overlay?.current ?? trendGeometry(points);
+  const { path, area, dots } = overlay?.current ?? trendGeometry(geometryData({ ...trend, points }).points);
   const axisStart = overlay?.axes.start ?? Math.min(...points.map(point => Date.parse(point.time)));
   const axisEnd = overlay?.axes.end ?? Math.max(...points.map(point => Date.parse(point.time)));
   const grain =
     trend?.grain === 'hour' ? '시간별' : trend?.grain === 'month' ? '월별' : trend?.grain === 'week' ? '주별' : '일별';
   const summary = numeric.length
     ? `${title} ${grain} 추세, ${zone} ${label(points[0].time)}부터 ${label(points[points.length - 1].time)}까지. ` +
-      `첫 값 ${format(numeric[0].value)}, 마지막 값 ${format(
-        numeric[numeric.length - 1].value,
-      )}. 정확한 값은 시계열 데이터 표에서 확인하세요.`
+      `첫 값 ${format(numeric[0].value).text}, 마지막 값 ${
+        format(numeric[numeric.length - 1].value).text
+      }. 정확한 값은 시계열 데이터 표에서 확인하세요.`
+    : '';
+  const exactSummary = numeric.length
+    ? `첫 정확한 값 ${format(numeric[0].value).exactText}, 마지막 정확한 값 ${
+        format(numeric[numeric.length - 1].value).exactText
+      }`
     : '';
   const pointerTime = (event: React.MouseEvent<SVGSVGElement> | React.PointerEvent<SVGSVGElement>) => {
     if (interactive ? timeSelectionDisabled : !contributionPointer || contributionDisabled) return;
@@ -135,7 +149,7 @@ export default function MetricTrend({
     const start = axisStart,
       span = axisEnd - axisStart;
     const visible = (interactive ? selectable : points).filter(
-      point => point.value !== null && Number.isFinite(point.value),
+      point => metricNumericText(point.value) !== null && Number.isFinite(Number(point.value)),
     );
     const nearest = visible.reduce<typeof active | undefined>((best, point) => {
       const distance = (p: typeof point) => Math.abs((span ? 4 + ((Date.parse(p.time) - start) / span) * 592 : 300) - x);
@@ -152,6 +166,7 @@ export default function MetricTrend({
           prefix={prefix}
           suffix={suffix}
           decimalPlaces={decimalPlaces}
+          numberNotation={numberNotation}
         />
       )}
       {unavailable && (
@@ -175,7 +190,7 @@ export default function MetricTrend({
                 undefined
               }
               aria-labelledby={`${id}-title`}
-              aria-describedby={`${id}-desc${interactive ? ` ${id}-selection` : ''}${
+              aria-describedby={`${id}-desc ${id}-exact${interactive ? ` ${id}-selection` : ''}${
                 contributionInteractive ? ` ${id}-contribution` : ''
               }`}
               style={{
@@ -215,6 +230,7 @@ export default function MetricTrend({
                 {title} {grain} 추세
               </title>
               <desc id={`${id}-desc`}>{summary} 세로축은 0을 포함합니다. 값 없음으로 기록된 구간은 연결하지 않습니다.</desc>
+              <desc id={`${id}-exact`}>{exactSummary}</desc>
               <defs>
                 <linearGradient id={`${id}-fill`} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#1d4ed8" stopOpacity="0.18" />
@@ -293,7 +309,11 @@ export default function MetricTrend({
             aria-live="polite"
             sx={{ fontSize: 12, overflowWrap: 'anywhere', minWidth: 0 }}
           >
-            집계 원본 시점: {pointLabel(active.time)} · {format(active.value)}. ← → / Home / End 이동
+            집계 원본 시점: {pointLabel(active.time)} ·{' '}
+            <span title={format(active.value).exactText} aria-label={format(active.value).exactText}>
+              {format(active.value).text}
+            </span>
+            . ← → / Home / End 이동
           </Typography>
           {contributionButton(active.time)}
         </Box>
@@ -357,7 +377,9 @@ export default function MetricTrend({
                         label(point.time)
                       )}
                     </th>
-                    <td>{format(point.value)}</td>
+                    <td title={format(point.value).exactText} aria-label={format(point.value).exactText}>
+                      {format(point.value).fullText}
+                    </td>
                     {contributionInteractive && <td>{contributionButton(point.time)}</td>}
                   </tr>
                 );

@@ -1,3 +1,11 @@
+2026-10-14 Pivot 탐색: [explore-pivot.md](explore-pivot.md) PIVOT-01~05 PASS_SELECTED_VARIANTS. 같은Rill원본1391572행/9×2/17실제조합·모든합계독립SQL 일치(56663800/3.07170877372671), Rill표시값·UX실화면비교. BE13/PivotFE6·전환1·타입/lint/build,1440/390·Tab/Enter·OSnative방향키·표스크롤·503복구·50행제한선택조건PASS. 실제깨진타소유자500→권한확인먼저수정→403재검증. 전체카탈로그130불변/VoiceOverBLOCKED/AI gpt-6-luna유지호출0. Pivot시간축·계층·이전기간·정렬편집·저장/공유/Export·운영부하는후속. 미커밋워크트리작업. 아래과거Pivot미구현기록은이번첫범위로보강됐다.
+
+2026-10-14 탐색 개인 저장 보기: [explore-saved-views.md](explore-saved-views.md). source/user별 지표·차원·범위·기간·비교·집계·정렬·원본 펼침을 저장하고 최신 정상 데이터로 복원한다. BE55/FE28·타입/lint/build, Aside 저장/reload와 실제1440/390·키보드·새 세션·503 복구·실제 정의409/복구 PASS_SELECTED_VARIANTS. Rill URL reload와 비교했고 원본 요청56663800/이전29059200/126090행이 일치한다. 기존130개 집계 불변. Pivot·팀/URL 공유·실제 파일 게시 복원·MySQL 통합/VoiceOver BLOCKED는 후속, AI호출0/gpt-6-luna 유지. 미커밋 워크트리 작업이다. 아래 이전 기록의 탐색보기 저장 잔여는 이 선택 범위에서 보강됐다.
+
+2026-10-14 숫자 범위·차원 변화 정렬: [explore-range-sort.md](explore-range-sort.md). 같은 원본 Rill139만행에 범위/날짜/비교 집계와 여섯 정렬을 독립SQL·실제UI XHR로 검증했다. BE267/FE19·타입/lint/build, Aside/390px·키보드 선택 조건 PASS_SELECTED_VARIANTS. Pivot·탐색보기 저장·VoiceOver BLOCKED 유지, 기존130개 집계 불변. AI호출0/gpt-6-luna 설정 유지.
+
+2026-10-14 밀도·숫자표시 보강: [compact-controls-formatting.md](compact-controls-formatting.md). 기간/필터 접기·적용칩 유지·저장된K/M을 KPI/차원/비교/추세에 연결하고 정확값 표·unsafe숫자 문자열 보존. FE125개·타입/lint/build, Aside desktop 및 실제390/1440 키보드·XHR PASS_SELECTED_VARIANTS. 모바일 KPI y800→486, overflow0. 기존130개 카탈로그·VoiceOver BLOCKED 유지, AI호출0/gpt-6-luna 설정 유지. Rill 기간팝오버/축·내부스크롤/Pivot·숫자범위·변화정렬·탐색보기저장은 후속.
+
 2026-10-14 필수 컬럼 누락 경합·모델 오류 후속: [error-help-deadline-model.md](error-help-deadline-model.md). Aside 실제 XHR120003ms 종료→Codex SIGKILL→동일 진단201, 실제 모델 거부503→동일 진단 gpt-6-luna201 확인. 기존 게시 버전/해시/요약 불변, 정상파일 재선택 noop·새로고침 수치 유지(PASS_SELECTED_VARIANTS). 제품 변경0·주입 없는API 복원·기존130개 집계 유지. 모바일/VoiceOver·provider 로그인 오류·전체 자손PID는 NOT_RUN.
 
 2026-10-14 Aside 연결 복구 후속: [error-help-deadline-model.md](error-help-deadline-model.md). 실제 브라우저 XHR 샘플60초·날짜CSV120초 종료→Codex SIGKILL→재요청201, 샘플/CSV 실제 미지원 모델503→gpt-6-luna 명시 재요청201, 정상CSV 보고서·새로고침 수치 유지 확인(PASS_SELECTED_VARIANTS). 기존 화면/XHR BLOCKED 해소. 제품 변경0·기존 검사 재사용·130개 집계 유지. 필수 컬럼 경합 변형·모바일/VoiceOver·전체 자손PID는 NOT_RUN.
@@ -307,3 +315,5 @@ Assistant 저장 충돌·실행 중단의 ASSISTANT-06~07을 [assistant-reliabil
 기준 `791ec485`(로컬 origin/develop-v2와 동일) + `codex/self-service-next-20261014` 현재 diff. [실행 결과](/Users/moonklabs/workspace-vanilla/phase2-fix-evidence/develop-v2-reverify-20261014/RESULTS.md). 최신 BE로 검증 API를 재시작했다. BE71suite/1108개·FE45파일/693개, BE/FE빌드·FE타입·lint오류0(기존경고33) PASS. 영향받는 핵심 E2E4개 중 CSV브라우저분석2개는 워크트리 심볼릭링크의WASM MIME오류로 최초FAIL→Vite preserveSymlinks/React dedupe 수정→실패한2개만 재실행PASS. 정식설정에서FE693개/타입/설정lint/build도PASS, 임시설정제거.
 
 COLD-02~05 선택조건: 같은1391572행으로 실제gpt-6-luna 생성→dashboard6저장/새로고침→Assistant제목수정/적용/재조회PASS. 634513000/5.5712386765 및9기기 독립정답일치, 제목외SQL/표현설정불변. EXPLORE-01/02/08 선택조건: 저장지표1 생성·전체→Mobile/Tablet 키보드필터→원본307763000/710193행, 실제XHR·화면PASS. dashboard/explore390px에서scrollWidth390, AI/Assistant/접힘영역/차원·원본선택키보드PASS. 캡처는외부실행폴더. 모바일필터바의긴배치/탐색KPI축약표시 미연결은UX잔여로기록. 기존통과전조건·전체출시QA·Rill전체·실기기터치 반복안함, 실제VoiceOverBLOCKED유지. 수정/기록은미커밋워크트리이며develop-v2병합/푸시로보고하지않는다.
+
+2026-10-14 Pivot 저장·CSV: PIVOT-06~08 PASS_SELECTED_VARIANTS. [명세/범위](explore-pivot.md). 실제 다운로드 정수 exact, 비율1e-9·저장/새로고침복원·390px/Tab/Enter 확인. VoiceOver BLOCKED/gpt-6-luna 유지.

@@ -3,15 +3,43 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import SourceExplore from './SourceExplore';
 
-const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), navigate: vi.fn(), search: 'sourceId=3' }));
+const api = vi.hoisted(() => ({
+  get: vi.fn(),
+  post: vi.fn(),
+  navigate: vi.fn(),
+  search: 'sourceId=3',
+  savedState: null as any,
+  viewProps: null as any,
+}));
 vi.mock('@/helpers/apiHelper', () => ({ get: api.get, post: api.post }));
 vi.mock('react-router-dom', () => ({
   useNavigate: () => api.navigate,
   useSearchParams: () => [new URLSearchParams(api.search)],
 }));
+vi.mock('@/pages/Dashboard/Components/PersonalSavedViews', () => ({
+  default: (props: any) => {
+    api.viewProps = props;
+    return (
+      <section aria-label="탐색 저장 보기">
+        <button onClick={() => props.onApply(api.savedState)}>테스트 보기 복원</button>
+        <span>{props.disabledReason}</span>
+      </section>
+    );
+  },
+}));
 vi.mock('@/pages/Dashboard/Components/MetricTrend', () => ({
-  default: ({ title, trend }: any) => (
-    <div data-testid="trend" data-timezone={trend?.timeZone ?? 'UTC'} data-points={trend?.points?.length ?? 0}>
+  default: ({ title, trend, numberNotation, prefix, suffix, decimalPlaces, comparison }: any) => (
+    <div
+      data-testid="trend"
+      data-timezone={trend?.timeZone ?? 'UTC'}
+      data-points={trend?.points?.length ?? 0}
+      data-notation={numberNotation}
+      data-prefix={prefix}
+      data-suffix={suffix}
+      data-decimals={decimalPlaces}
+      data-values={JSON.stringify(trend?.points)}
+      data-comparison={JSON.stringify(comparison)}
+    >
       {title} 추세
     </div>
   ),
@@ -20,7 +48,7 @@ vi.mock('@mui/material', () => {
   const Container = ({ children }: any) => <div>{children}</div>;
   return {
     Box: ({ component: Tag = 'div', children, ...props }: any) => (
-      <Tag role={props.role} aria-label={props['aria-label']} id={props.id}>
+      <Tag role={props.role} aria-label={props['aria-label']} title={props.title} id={props.id}>
         {children}
       </Tag>
     ),
@@ -28,7 +56,11 @@ vi.mock('@mui/material', () => {
     Card: Container,
     Divider: () => <hr />,
     Alert: ({ children }: any) => <div role="alert">{children}</div>,
-    Typography: ({ component: Tag = 'p', children, role }: any) => <Tag role={role}>{children}</Tag>,
+    Typography: ({ component: Tag = 'p', children, role, title, 'aria-label': label }: any) => (
+      <Tag role={role} title={title} aria-label={label}>
+        {children}
+      </Tag>
+    ),
     Button: ({
       children,
       disabled,
@@ -36,8 +68,16 @@ vi.mock('@mui/material', () => {
       'aria-label': ariaLabel,
       'aria-pressed': pressed,
       'aria-expanded': expanded,
+      'aria-describedby': describedBy,
     }: any) => (
-      <button aria-label={ariaLabel} aria-pressed={pressed} aria-expanded={expanded} disabled={disabled} onClick={onClick}>
+      <button
+        aria-label={ariaLabel}
+        aria-pressed={pressed}
+        aria-expanded={expanded}
+        aria-describedby={describedBy}
+        disabled={disabled}
+        onClick={onClick}
+      >
         {children}
       </button>
     ),
@@ -101,6 +141,7 @@ const catalog = {
   sourceId: 3,
   name: 'rill-auction',
   sourceRevision: 'rev-3',
+  viewRevision: 'a'.repeat(64),
   rowCount: '1391572',
   measures: [
     { id: 1, label: 'Total Requests', definitionVersion: 1, definition: { unit: '', decimalPlaces: 0 } },
@@ -250,14 +291,15 @@ it('serializes grain, compare toggle, custom dateRange and timeZone into the que
   await mount();
   fireEvent.click(screen.getByRole('button', { name: '집계 단위 주' }));
   await waitFor(() => expect(lastQuery().trendGrain).toBe('week'));
-  fireEvent.click(screen.getByRole('button', { name: '이전 기간 비교' }));
-  await waitFor(() => expect(lastQuery().comparePrevious).toBe(true));
+  expect((screen.getByRole('button', { name: '이전 기간 비교' }) as HTMLButtonElement).disabled).toBe(true);
   fireEvent.click(screen.getByRole('button', { name: '사용자 지정' }));
   fireEvent.change(screen.getByLabelText('시작일'), { target: { value: '2023-09-10' } });
   fireEvent.change(screen.getByLabelText('종료일'), { target: { value: '2023-09-11' } });
   await waitFor(() =>
     expect(lastQuery().dateRange).toEqual({ column: '__time', start: '2023-09-10', end: '2023-09-11', timeZone: 'UTC' }),
   );
+  fireEvent.click(screen.getByRole('button', { name: '이전 기간 비교' }));
+  await waitFor(() => expect(lastQuery().comparePrevious).toBe(true));
   fireEvent.click(screen.getByRole('button', { name: '표시 시간대 Asia/Seoul' }));
   await waitFor(() => expect(lastQuery().dateRange.timeZone).toBe('Asia/Seoul'));
   expect(lastQuery().page).toBe(0);
@@ -472,4 +514,241 @@ it('resets details pagination when a filter or the source changes', async () => 
     includeRows: false,
     measureIds: [1, 2, 3],
   });
+});
+
+it('applies saved compact notation to KPI and ranking and passes unrounded strings to trend/comparison without payload changes', async () => {
+  api.post.mockImplementation(async (url: string) => {
+    if (url === '/bi/explore/catalog')
+      return success({
+        ...catalog,
+        measures: catalog.measures.map(measure => ({
+          ...measure,
+          definition: { ...measure.definition, numberNotation: measure.id === 1 ? 'compact' : 'plain' },
+        })),
+      });
+    if (url === '/bi/explore/query')
+      return success(
+        queryResult({
+          kpis: [
+            {
+              id: 1,
+              title: 'Total Requests',
+              value: '9007199254740993',
+              trend: { points: [{ time: '2023-09-10T00:00:00Z', value: '9007199254740993' }] },
+              comparison: { previousValue: '9007199254740991', delta: '2', percentChange: '0.01' },
+            },
+          ],
+          leaderboards: [
+            {
+              column: 'device_type',
+              rows: [
+                {
+                  category: 'Mobile/Tablet',
+                  value: '999999',
+                  previousValue: '9007199254740993',
+                  delta: '-999999',
+                  percentChange: '-10',
+                },
+              ],
+            },
+          ],
+        }),
+      );
+    return success({});
+  });
+  await mount();
+  expect(screen.getByText('9,007T').getAttribute('title')).toBe('9007199254740993');
+  expect(screen.getByText('1M').getAttribute('title')).toBe('999999');
+  expect(
+    screen.getByRole('button', {
+      name: '필터 적용: device_type = Mobile/Tablet',
+      description: /999999.*9007199254740993/,
+    }),
+  ).toBeTruthy();
+  expect(screen.getByText('이전 9,007T · 변화 -1M · -10.0%').getAttribute('aria-label')).toContain('9007199254740993');
+  const trend = screen.getByTestId('trend');
+  expect(trend.getAttribute('data-notation')).toBe('compact');
+  expect(JSON.parse(trend.getAttribute('data-values'))[0].value).toBe('9007199254740993');
+  expect(JSON.parse(trend.getAttribute('data-comparison')).previousValue).toBe('9007199254740991');
+  expect(lastQuery()).not.toHaveProperty('numberNotation');
+  expect(lastQuery().measureIds).toEqual([1, 2, 3]);
+});
+
+it('uses plain notation as full with fixed currency decimals in KPI and ranking', async () => {
+  api.post.mockImplementation(async (url: string) => {
+    if (url === '/bi/explore/catalog')
+      return success({
+        ...catalog,
+        measures: catalog.measures.map(measure => ({
+          ...measure,
+          definition: { ...measure.definition, numberNotation: 'plain' },
+        })),
+      });
+    if (url === '/bi/explore/query')
+      return success(
+        queryResult({
+          kpis: [{ id: 2, title: 'Avg Bid Floor', value: '5', trend: { points: [{ time: '2023-09-10', value: '5' }] } }],
+          leaderboards: [{ column: 'device_type', rows: [{ category: 'Mobile/Tablet', value: '5' }] }],
+        }),
+      );
+    return success({});
+  });
+  await mount();
+  openSettings();
+  fireEvent.click(screen.getByRole('button', { name: '기준 지표 Avg Bid Floor' }));
+  await waitFor(() => expect(lastQuery().rankingMeasureId).toBe(2));
+  await waitFor(() => expect(screen.getAllByText('$5.00')).toHaveLength(2));
+  const trend = screen.getByTestId('trend');
+  expect(trend.getAttribute('data-notation')).toBe('full');
+  expect(trend.getAttribute('data-prefix')).toBe('$');
+  expect(trend.getAttribute('data-decimals')).toBe('2');
+});
+
+const selectNumericRange = () => {
+  fireEvent.click(screen.getByRole('button', { name: '필터 추가' }));
+  fireEvent.change(screen.getByRole('combobox', { name: '필터 열' }), { target: { value: 'bid_floor' } });
+  fireEvent.click(screen.getByRole('button', { name: '숫자 범위' }));
+};
+it('applies inclusive numeric bounds and removes a range without losing other selected conditions', async () => {
+  await mount();
+  fireEvent.click(screen.getByRole('button', { name: '필터 적용: device_type = Mobile/Tablet' }));
+  await waitFor(() => expect(lastQuery().filters).toHaveLength(1));
+  selectNumericRange();
+  const before = api.post.mock.calls.filter(([url]) => url === '/bi/explore/query').length;
+  fireEvent.change(screen.getByLabelText('최솟값 (포함)'), { target: { value: '0' } });
+  fireEvent.change(screen.getByLabelText('최댓값 (포함)'), { target: { value: '10' } });
+  expect(api.post.mock.calls.filter(([url]) => url === '/bi/explore/query')).toHaveLength(before);
+  fireEvent.click(screen.getByRole('button', { name: '필터 적용', exact: true }));
+  await waitFor(() =>
+    expect(lastQuery().filters).toEqual([
+      { column: 'device_type', values: ['Mobile/Tablet'] },
+      { column: 'bid_floor', range: { min: 0, max: 10 } },
+    ]),
+  );
+  expect(lastQuery().page).toBe(0);
+  fireEvent.click(screen.getByRole('button', { name: '삭제 bid_floor: 0 ~ 10 (양 끝 포함)' }));
+  await waitFor(() => expect(lastQuery().filters).toEqual([{ column: 'device_type', values: ['Mobile/Tablet'] }]));
+});
+it('blocks empty, reversed, invalid and unsafe bounds and allows one-sided ranges', async () => {
+  await mount();
+  selectNumericRange();
+  const before = api.post.mock.calls.filter(([url]) => url === '/bi/explore/query').length;
+  for (const [min, max] of [
+    ['', ''],
+    ['10', '0'],
+    ['1e999', ''],
+    ['9007199254740993', ''],
+    ['abc', '1'],
+  ]) {
+    fireEvent.change(screen.getByLabelText('최솟값 (포함)'), { target: { value: min } });
+    fireEvent.change(screen.getByLabelText('최댓값 (포함)'), { target: { value: max } });
+    fireEvent.click(screen.getByRole('button', { name: '필터 적용', exact: true }));
+    expect(screen.getByRole('alert')).toBeTruthy();
+    expect(api.post.mock.calls.filter(([url]) => url === '/bi/explore/query')).toHaveLength(before);
+  }
+  fireEvent.change(screen.getByLabelText('최솟값 (포함)'), { target: { value: '' } });
+  fireEvent.change(screen.getByLabelText('최댓값 (포함)'), { target: { value: '-0.5' } });
+  fireEvent.click(screen.getByRole('button', { name: '필터 적용', exact: true }));
+  await waitFor(() => expect(lastQuery().filters).toEqual([{ column: 'bid_floor', range: { max: -0.5 } }]));
+});
+it('sends server sort criteria and resets comparison-only ordering when comparison is cleared', async () => {
+  await mount();
+  const changeSort = (by: string) =>
+    fireEvent.change(screen.getByRole('combobox', { name: '차원 순위 기준' }), { target: { value: by } });
+  expect((screen.getByRole('option', { name: '변화량' }) as HTMLOptionElement).disabled).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: '사용자 지정' }));
+  fireEvent.change(screen.getByLabelText('시작일'), { target: { value: '2023-09-10' } });
+  fireEvent.change(screen.getByLabelText('종료일'), { target: { value: '2023-09-11' } });
+  fireEvent.click(screen.getByRole('button', { name: '이전 기간 비교' }));
+  changeSort('delta');
+  fireEvent.change(screen.getByRole('combobox', { name: '차원 순위 방향' }), { target: { value: 'asc' } });
+  await waitFor(() => expect(lastQuery().leaderboardSort).toEqual({ by: 'delta', direction: 'asc' }));
+  changeSort('percentChange');
+  await waitFor(() => expect(lastQuery().leaderboardSort).toEqual({ by: 'percentChange', direction: 'asc' }));
+  fireEvent.click(screen.getByRole('button', { name: '이전 기간 비교' }));
+  await waitFor(() => expect(lastQuery().leaderboardSort).toBeUndefined());
+  expect(lastQuery().comparePrevious).toBe(false);
+});
+
+it('saved view restoration applies all selections in one query and resets detail pagination', async () => {
+  render(<SourceExplore />);
+  await waitFor(() => expect(queries().length).toBe(1));
+  api.savedState = {
+    version: 1,
+    measureIds: [2, 1],
+    dimensionColumns: ['device_type'],
+    rankingMeasureId: 2,
+    leaderboardSort: { by: 'percentChange', direction: 'asc' },
+    filters: [{ column: 'bid_floor', range: { min: 0, max: 10 } }],
+    dateRange: { column: '__time', start: '2023-09-10', end: '2023-09-11', timeZone: 'Asia/Seoul' },
+    relativePeriod: null,
+    trendGrain: 'week',
+    comparePrevious: true,
+    includeRows: true,
+  };
+  fireEvent.click(screen.getByRole('button', { name: '저장 보기', exact: true }));
+  expect(api.viewProps.endpoint).toBe('/bi/explore/3/views');
+  expect(api.viewProps.revision).toBe(catalog.viewRevision);
+  const before = queries().length;
+  fireEvent.click(screen.getByRole('button', { name: '테스트 보기 복원' }));
+  await waitFor(() => expect(queries().length).toBe(before + 1));
+  expect(lastQuery()).toMatchObject({
+    sourceId: 3,
+    sourceRevision: 'rev-3',
+    measureIds: [2, 1],
+    dimensionColumns: ['device_type'],
+    rankingMeasureId: 2,
+    leaderboardSort: { by: 'percentChange', direction: 'asc' },
+    filters: api.savedState.filters,
+    dateRange: api.savedState.dateRange,
+    trendGrain: 'week',
+    comparePrevious: true,
+    includeRows: true,
+    page: 0,
+  });
+});
+
+it('saved view controls block saving unapplied/incomplete dates and pass settings without query rows', async () => {
+  render(<SourceExplore />);
+  await waitFor(() => expect(queries().length).toBe(1));
+  fireEvent.click(screen.getByRole('button', { name: '저장 보기', exact: true }));
+  expect(api.viewProps.state).toEqual({
+    version: 1,
+    measureIds: [1, 2, 3],
+    dimensionColumns: ['device_type', 'device_os'],
+    rankingMeasureId: 1,
+    leaderboardSort: { by: 'value', direction: 'desc' },
+    filters: [],
+    dateRange: null,
+    relativePeriod: null,
+    trendGrain: 'day',
+    comparePrevious: false,
+    includeRows: false,
+  });
+  fireEvent.click(screen.getByRole('button', { name: '사용자 지정', exact: true }));
+  expect(api.viewProps.disabledReason).toBe('완성한 기간을 적용한 뒤 저장해 주세요.');
+});
+
+it('pivot mode reuses current period/filters and stops Explore requests until returning', async () => {
+  await mount();
+  const base = api.post.getMockImplementation();
+  api.post.mockImplementation(async (url, body, ...rest) =>
+    url === '/bi/explore/pivot'
+      ? success({
+          sourceRevision: body.sourceRevision,
+          metrics: [],
+          rows: [],
+          columns: [],
+          grandTotals: [],
+          limits: { truncatedRows: false, truncatedColumns: false },
+        })
+      : base(url, body, ...rest),
+  );
+  const before = queries().length;
+  fireEvent.click(screen.getByRole('button', { name: 'Pivot', exact: true }));
+  await waitFor(() => expect(api.post.mock.calls.some(([url]) => url === '/bi/explore/pivot')).toBe(true));
+  expect(queries().length).toBe(before);
+  expect(screen.queryByRole('button', { name: '이전 기간 비교', exact: true })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Explore', exact: true }));
+  await waitFor(() => expect(queries().length).toBe(before + 1));
 });

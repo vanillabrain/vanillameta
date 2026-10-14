@@ -149,6 +149,8 @@ const mount = async (data: any = preview(10)) => {
     </DashboardAnalysis>,
   );
   await screen.findByText(String(data.widgets[0].datas[0].requests));
+  const settings = screen.queryByText('기간·필터 설정');
+  if (settings) fireEvent.click(settings);
   return view;
 };
 const idle = () => waitFor(() => expect(screen.queryByRole('progressbar')).toBeNull());
@@ -672,4 +674,29 @@ it('keeps business timezone when selecting a KPI bucket', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'KPI 기간 0' }));
   await idle();
   expect(api.post.mock.lastCall[1].dateRange).toEqual(range);
+});
+
+it('keeps settings collapsed by default and preserves conditions on disclosure toggle', async () => {
+  await mount();
+  await choose('device_type', 'Mobile/Tablet');
+  const summary = screen.getByText('기간·필터 설정');
+  const disclosure = summary.closest('details');
+  expect(disclosure?.open).toBe(true);
+  const calls = api.post.mock.calls.length;
+  fireEvent.click(summary);
+  expect(disclosure?.open).toBe(false);
+  expect(screen.getByTestId('saved-state').textContent).toContain('Mobile/Tablet');
+  fireEvent.click(summary);
+  expect(disclosure?.open).toBe(true);
+  expect(api.post.mock.calls.length).toBe(calls);
+});
+
+it('starts with only the applied summary visible without changing the query', async () => {
+  api.get.mockResolvedValue(response({ databaseId: 3, widgets: [] }));
+  api.post.mockResolvedValue(response(preview(10)));
+  render(<DashboardAnalysis dashboardId={3}>Fallback</DashboardAnalysis>);
+  await screen.findByText('10');
+  expect(screen.getByText('기간·필터 설정').closest('details')?.open).toBe(false);
+  expect(screen.getByText('개인 저장 보기').closest('details')?.open).toBe(false);
+  expect(api.post.mock.calls[0][1]).toMatchObject({ filters: [], comparePrevious: false });
 });

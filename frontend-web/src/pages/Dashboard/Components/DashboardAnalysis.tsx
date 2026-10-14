@@ -715,34 +715,6 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
           </Select>
         </FormControl>
       </Stack>
-      <FormControl size="small" sx={{ minWidth: 220, mb: 2 }}>
-        <InputLabel id="business-time-zone">업무 시간대</InputLabel>
-        <Select
-          labelId="business-time-zone"
-          label="업무 시간대"
-          value={dateDraft.timeZone ?? dateRange?.timeZone ?? 'UTC'}
-          disabled={busy || analysisLoading || editing || detailsOpen}
-          onChange={event => {
-            const timeZone = String(event.target.value);
-            setPeriodHistory([]);
-            setDateError('');
-            setDateDraft(value => ({ ...value, timeZone }));
-            if (relativePeriod) {
-              const relative = { ...relativePeriod, timeZone };
-              const range = resolveRelativePeriod(relative);
-              setRelativePeriod(relative);
-              setDateRange(range);
-              setDateDraft(range);
-            } else if (dateRange) setDateRange({ ...dateRange, timeZone });
-          }}
-        >
-          <MenuItem value="UTC">UTC</MenuItem>
-          <MenuItem value="Asia/Seoul">한국 (Asia/Seoul)</MenuItem>
-          {dateDraft.timeZone && !['UTC', 'Asia/Seoul'].includes(dateDraft.timeZone) && (
-            <MenuItem value={dateDraft.timeZone}>{dateDraft.timeZone}</MenuItem>
-          )}
-        </Select>
-      </FormControl>
       <Stack direction="row" aria-label="적용된 공통 필터" sx={{ flexWrap: 'wrap', gap: 1, mb: 1 }}>
         {active.flatMap(([column, values]) =>
           values.map(value => (
@@ -764,177 +736,232 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
         {categoryNotice}
         {categoryNotice && (busy ? ' · 조회 중' : error ? ' · 조건 적용 실패' : ' · 조회 완료')}
       </Typography>
-      <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 1.5, mb: 2 }}>
-        {dimensions.slice(0, 5).map((dimension: any) => {
-          const selected = selectedValues(dimension.column);
-          const options: FilterValue[] = Array.from(
-            new Map<string, FilterValue>(
-              [...selected, ...dimension.values.slice(0, 50)].map((value: FilterValue) => [valueKey(value), value]),
-            ).values(),
-          ).slice(0, 50);
-          return (
-            <FormControl
-              key={dimension.column}
-              size="small"
-              sx={{ minWidth: 0, width: '100%', flex: '1 1 150px', maxWidth: { xs: '100%', sm: 250 } }}
+      <Box component="details" sx={{ mb: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+        <Box
+          component="summary"
+          sx={{
+            cursor: 'pointer',
+            minHeight: 44,
+            boxSizing: 'border-box',
+            p: 1.25,
+            fontSize: 13,
+            color: 'text.primary',
+            overflowWrap: 'anywhere',
+            '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 2 },
+          }}
+        >
+          <Box component="span" sx={{ fontWeight: 600 }}>
+            기간·필터 설정
+          </Box>
+          <Box component="span" sx={{ ml: 1, color: 'text.secondary' }}>
+            {dateRange?.timeZone ?? 'UTC'} ·{' '}
+            {({ auto: '자동 집계', day: '일별', week: '주별', month: '월별' } as Record<string, string>)[trendGrain]}
+            {comparePrevious && dateRange ? ' · 이전 기간 비교' : ''}
+            {unappliedDates ? ' · 날짜 입력 미적용' : ''}
+          </Box>
+        </Box>
+        <Box sx={{ p: { xs: 1.25, sm: 2 }, pt: 1 }}>
+          <FormControl size="small" sx={{ minWidth: 0, width: { xs: '100%', sm: 220 }, mb: 2 }}>
+            <InputLabel id="business-time-zone">업무 시간대</InputLabel>
+            <Select
+              labelId="business-time-zone"
+              label="업무 시간대"
+              value={dateDraft.timeZone ?? dateRange?.timeZone ?? 'UTC'}
+              disabled={busy || analysisLoading || editing || detailsOpen}
+              onChange={event => {
+                const timeZone = String(event.target.value);
+                setPeriodHistory([]);
+                setDateError('');
+                setDateDraft(value => ({ ...value, timeZone }));
+                if (relativePeriod) {
+                  const relative = { ...relativePeriod, timeZone };
+                  const range = resolveRelativePeriod(relative);
+                  setRelativePeriod(relative);
+                  setDateRange(range);
+                  setDateDraft(range);
+                } else if (dateRange) setDateRange({ ...dateRange, timeZone });
+              }}
             >
-              <InputLabel shrink id={`filter-${dimension.column}`}>
-                {dimension.column}
-              </InputLabel>
-              <Select
-                multiple
-                labelId={`filter-${dimension.column}`}
-                label={dimension.column}
-                notched
-                value={selected.map(valueKey)}
-                disabled={selectionDisabled}
-                displayEmpty
-                renderValue={() => (
-                  <Box
-                    component="span"
-                    sx={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                  >
-                    {selected.length ? selected.map(String).join(', ') : '전체'}
-                  </Box>
-                )}
-                onChange={e => {
-                  const keys = typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value;
-                  if (keys.length > 50) return;
-                  applyColumnValues(
-                    dimension.column,
-                    keys.map(key => JSON.parse(decodeURIComponent(key)) as FilterValue),
-                    `공통 필터 변경: ${dimension.column}`,
-                  );
-                }}
-              >
-                {options.map(value => (
-                  <MenuItem
-                    key={valueKey(value)}
-                    value={valueKey(value)}
-                    disabled={selected.length >= 50 && !selected.includes(value)}
-                    onKeyUp={event => {
-                      // MUI Select suppresses Space activation on its option elements.
-                      if (event.key === ' ' && event.target === event.currentTarget) event.currentTarget.click();
+              <MenuItem value="UTC">UTC</MenuItem>
+              <MenuItem value="Asia/Seoul">한국 (Asia/Seoul)</MenuItem>
+              {dateDraft.timeZone && !['UTC', 'Asia/Seoul'].includes(dateDraft.timeZone) && (
+                <MenuItem value={dateDraft.timeZone}>{dateDraft.timeZone}</MenuItem>
+              )}
+            </Select>
+          </FormControl>
+          <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 1.5, mb: 2 }}>
+            {dimensions.slice(0, 5).map((dimension: any) => {
+              const selected = selectedValues(dimension.column);
+              const options: FilterValue[] = Array.from(
+                new Map<string, FilterValue>(
+                  [...selected, ...dimension.values.slice(0, 50)].map((value: FilterValue) => [valueKey(value), value]),
+                ).values(),
+              ).slice(0, 50);
+              return (
+                <FormControl
+                  key={dimension.column}
+                  size="small"
+                  sx={{ minWidth: 0, width: '100%', flex: '1 1 150px', maxWidth: { xs: '100%', sm: 250 } }}
+                >
+                  <InputLabel shrink id={`filter-${dimension.column}`}>
+                    {dimension.column}
+                  </InputLabel>
+                  <Select
+                    multiple
+                    labelId={`filter-${dimension.column}`}
+                    label={dimension.column}
+                    notched
+                    value={selected.map(valueKey)}
+                    disabled={selectionDisabled}
+                    displayEmpty
+                    renderValue={() => (
+                      <Box
+                        component="span"
+                        sx={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                      >
+                        {selected.length ? selected.map(String).join(', ') : '전체'}
+                      </Box>
+                    )}
+                    onChange={e => {
+                      const keys = typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value;
+                      if (keys.length > 50) return;
+                      applyColumnValues(
+                        dimension.column,
+                        keys.map(key => JSON.parse(decodeURIComponent(key)) as FilterValue),
+                        `공통 필터 변경: ${dimension.column}`,
+                      );
                     }}
                   >
-                    <Checkbox checked={selected.includes(value)} />
-                    {String(value)}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          );
-        })}
-        {temporalColumns.length > 0 && (
-          <>
-            {temporalColumns.length > 1 ? (
-              <FormControl size="small" sx={{ minWidth: 0, flex: '1 1 150px', maxWidth: '100%' }}>
-                <InputLabel id="date-column">날짜 컬럼 (UTC)</InputLabel>
-                <Select
-                  labelId="date-column"
-                  label="날짜 컬럼 (UTC)"
-                  value={temporalColumn}
+                    {options.map(value => (
+                      <MenuItem
+                        key={valueKey(value)}
+                        value={valueKey(value)}
+                        disabled={selected.length >= 50 && !selected.includes(value)}
+                        onKeyUp={event => {
+                          // MUI Select suppresses Space activation on its option elements.
+                          if (event.key === ' ' && event.target === event.currentTarget) event.currentTarget.click();
+                        }}
+                      >
+                        <Checkbox checked={selected.includes(value)} />
+                        {String(value)}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              );
+            })}
+            {temporalColumns.length > 0 && (
+              <>
+                {temporalColumns.length > 1 ? (
+                  <FormControl size="small" sx={{ minWidth: 0, flex: '1 1 150px', maxWidth: '100%' }}>
+                    <InputLabel id="date-column">날짜 컬럼 (UTC)</InputLabel>
+                    <Select
+                      labelId="date-column"
+                      label="날짜 컬럼 (UTC)"
+                      value={temporalColumn}
+                      disabled={busy}
+                      onChange={e => {
+                        setRelativePeriod(null);
+                        setDateDraft(value => ({ ...value, column: e.target.value }));
+                      }}
+                    >
+                      {temporalColumns.map((column: any) => (
+                        <MenuItem key={column.column} value={column.column}>
+                          {column.column}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                ) : (
+                  <Typography>{temporalColumn} (UTC)</Typography>
+                )}
+                <TextField
+                  label={`시작일 (${dateDraft.timeZone ?? 'UTC'})`}
+                  type="date"
+                  size="small"
+                  value={dateDraft.start}
                   disabled={busy}
+                  InputLabelProps={{ shrink: true }}
+                  sx={{ minWidth: 0, flex: '1 1 150px', maxWidth: '100%' }}
                   onChange={e => {
                     setRelativePeriod(null);
-                    setDateDraft(value => ({ ...value, column: e.target.value }));
+                    setDateDraft(value => ({ ...value, start: e.target.value }));
                   }}
+                />
+                <TextField
+                  label={`종료일 (${dateDraft.timeZone ?? 'UTC'})`}
+                  type="date"
+                  size="small"
+                  value={dateDraft.end}
+                  disabled={busy}
+                  InputLabelProps={{ shrink: true }}
+                  sx={{ minWidth: 0, flex: '1 1 150px', maxWidth: '100%' }}
+                  onChange={e => {
+                    setRelativePeriod(null);
+                    setDateDraft(value => ({ ...value, end: e.target.value }));
+                  }}
+                />
+                <Button onClick={applyDates} disabled={busy}>
+                  적용
+                </Button>
+                <TextField
+                  select
+                  label={`최근 기간 (${dateDraft.timeZone ?? 'UTC'})`}
+                  value={recentDays}
+                  disabled={busy}
+                  size="small"
+                  sx={{ minWidth: 0, flex: '1 1 150px' }}
+                  onChange={event => setRecentDays(Number(event.target.value) as 7 | 30 | 90)}
                 >
-                  {temporalColumns.map((column: any) => (
-                    <MenuItem key={column.column} value={column.column}>
-                      {column.column}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            ) : (
-              <Typography>{temporalColumn} (UTC)</Typography>
+                  <MenuItem value={7}>최근 7일</MenuItem>
+                  <MenuItem value={30}>최근 30일</MenuItem>
+                  <MenuItem value={90}>최근 90일</MenuItem>
+                </TextField>
+                <Button disabled={busy || analysisLoading || !!error} onClick={applyRecent}>
+                  최근 기간 적용
+                </Button>
+              </>
             )}
-            <TextField
-              label={`시작일 (${dateDraft.timeZone ?? 'UTC'})`}
-              type="date"
-              size="small"
-              value={dateDraft.start}
-              disabled={busy}
-              InputLabelProps={{ shrink: true }}
-              sx={{ minWidth: 0, flex: '1 1 150px', maxWidth: '100%' }}
-              onChange={e => {
-                setRelativePeriod(null);
-                setDateDraft(value => ({ ...value, start: e.target.value }));
-              }}
-            />
-            <TextField
-              label={`종료일 (${dateDraft.timeZone ?? 'UTC'})`}
-              type="date"
-              size="small"
-              value={dateDraft.end}
-              disabled={busy}
-              InputLabelProps={{ shrink: true }}
-              sx={{ minWidth: 0, flex: '1 1 150px', maxWidth: '100%' }}
-              onChange={e => {
-                setRelativePeriod(null);
-                setDateDraft(value => ({ ...value, end: e.target.value }));
-              }}
-            />
-            <Button onClick={applyDates} disabled={busy}>
-              적용
-            </Button>
+          </Stack>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mb: 2, alignItems: { sm: 'center' } }}>
             <TextField
               select
-              label={`최근 기간 (${dateDraft.timeZone ?? 'UTC'})`}
-              value={recentDays}
-              disabled={busy}
+              label="시계열 집계 단위"
+              value={trendGrain}
+              disabled={analysisLoading}
               size="small"
-              sx={{ minWidth: 0, flex: '1 1 150px' }}
-              onChange={event => setRecentDays(Number(event.target.value) as 7 | 30 | 90)}
+              sx={{ minWidth: 160, maxWidth: '100%' }}
+              onChange={event => setTrendGrain(event.target.value as TrendGrain)}
             >
-              <MenuItem value={7}>최근 7일</MenuItem>
-              <MenuItem value={30}>최근 30일</MenuItem>
-              <MenuItem value={90}>최근 90일</MenuItem>
+              <MenuItem value="auto">자동</MenuItem>
+              <MenuItem value="day">일별</MenuItem>
+              <MenuItem value="week">주별</MenuItem>
+              <MenuItem value="month">월별</MenuItem>
             </TextField>
-            <Button disabled={busy || analysisLoading || !!error} onClick={applyRecent}>
-              최근 기간 적용
-            </Button>
-          </>
-        )}
-      </Stack>
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mb: 2, alignItems: { sm: 'center' } }}>
-        <TextField
-          select
-          label="시계열 집계 단위"
-          value={trendGrain}
-          disabled={analysisLoading}
-          size="small"
-          sx={{ minWidth: 160, maxWidth: '100%' }}
-          onChange={event => setTrendGrain(event.target.value as TrendGrain)}
-        >
-          <MenuItem value="auto">자동</MenuItem>
-          <MenuItem value="day">일별</MenuItem>
-          <MenuItem value="week">주별</MenuItem>
-          <MenuItem value="month">월별</MenuItem>
-        </TextField>
-        <Box component="label" sx={{ display: 'flex', alignItems: 'center', gap: 1, minHeight: 44 }}>
-          <input
-            type="checkbox"
-            checked={comparePrevious}
-            disabled={analysisLoading || !dateRange || unappliedDates || !!dateError}
-            onChange={event => setComparePrevious(event.target.checked)}
-            style={{ width: 20, height: 20 }}
-          />
-          이전 기간 비교
+            <Box component="label" sx={{ display: 'flex', alignItems: 'center', gap: 1, minHeight: 44 }}>
+              <input
+                type="checkbox"
+                checked={comparePrevious}
+                disabled={analysisLoading || !dateRange || unappliedDates || !!dateError}
+                onChange={event => setComparePrevious(event.target.checked)}
+                style={{ width: 20, height: 20 }}
+              />
+              이전 기간 비교
+            </Box>
+          </Stack>
+          <Box component="details" sx={{ mb: 2 }}>
+            <Typography component="summary" sx={{ cursor: 'pointer', minHeight: 32 }}>
+              집계·기간 비교 안내
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              {dateRange?.timeZone && dateRange.timeZone !== 'UTC'
+                ? '업무 시간대는 KPI·원본 행·기간 비교에 적용됩니다. KPI 추이는 지역 달력의 일·주·월로 집계합니다. 주 시작은 월요일입니다. KPI 추이 시점을 선택해 기간을 좁히거나 해당 집계의 원본 행을 확인할 수 있습니다. 일반 라인 차트 재집계는 아직 지원하지 않습니다. 날짜 비교는 같은 달력 날짜 수를 사용합니다.'
+                : '주별은 UTC 월요일 시작, 월별은 UTC 달력의 월 기준입니다. 선택 범위에 걸친 주·월은 범위 안의 데이터만 집계합니다.'}{' '}
+              이전 기간은 적용된 기간 바로 앞의 같은 길이이며 동일한 필터로 조회합니다.
+              {!dateRange && ' 이전 기간 비교는 날짜를 적용한 뒤 사용할 수 있습니다.'}
+            </Typography>
+          </Box>
         </Box>
-      </Stack>
-      <Box component="details" sx={{ mb: 2 }}>
-        <Typography component="summary" sx={{ cursor: 'pointer', minHeight: 32 }}>
-          집계·기간 비교 안내
-        </Typography>
-        <Typography variant="body2" sx={{ mt: 1 }}>
-          {dateRange?.timeZone && dateRange.timeZone !== 'UTC'
-            ? '업무 시간대는 KPI·원본 행·기간 비교에 적용됩니다. KPI 추이는 지역 달력의 일·주·월로 집계합니다. 주 시작은 월요일입니다. KPI 추이 시점을 선택해 기간을 좁히거나 해당 집계의 원본 행을 확인할 수 있습니다. 일반 라인 차트 재집계는 아직 지원하지 않습니다. 날짜 비교는 같은 달력 날짜 수를 사용합니다.'
-            : '주별은 UTC 월요일 시작, 월별은 UTC 달력의 월 기준입니다. 선택 범위에 걸친 주·월은 범위 안의 데이터만 집계합니다.'}{' '}
-          이전 기간은 적용된 기간 바로 앞의 같은 길이이며 동일한 필터로 조회합니다.
-          {!dateRange && ' 이전 기간 비교는 날짜를 적용한 뒤 사용할 수 있습니다.'}
-        </Typography>
       </Box>
       {preview?.comparison && (
         <Typography role="status" sx={{ mb: 2, overflowWrap: 'anywhere' }}>
@@ -1132,6 +1159,7 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
                   title={widget.title}
                   prefix={widget.prefix}
                   decimalPlaces={widget.decimalPlaces ?? 0}
+                  numberNotation={numberNotation === 'auto' ? widget.numberNotation || 'compact' : numberNotation}
                   comparison={widget.comparison}
                   previousTrend={widget.previousTrend}
                   periods={preview.comparison}
@@ -1174,6 +1202,7 @@ export default function DashboardAnalysis({ dashboardId, revision, onSaved, onAs
                     title={`${widget.title} · 이전 기간`}
                     prefix={widget.prefix}
                     decimalPlaces={widget.decimalPlaces ?? 0}
+                    numberNotation={numberNotation === 'auto' ? widget.numberNotation || 'compact' : numberNotation}
                     suffix={widget.suffix}
                     onContributionSelect={
                       widget.previousTrend?.contribution ? time => openTrendContribution(i, time, 'previous') : undefined

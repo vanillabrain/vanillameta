@@ -1,4 +1,4 @@
-import { sourceQuery } from './dashboard-draft';
+import { sourceQuery, numericSourceColumns } from './dashboard-draft';
 import { DuckDBService } from '../analysis/duckdb.service';
 import * as fs from 'fs';
 import * as os from 'os';
@@ -83,5 +83,70 @@ describe('common UTC date and multiple selection filters', () => {
     { column: 'event_time', start: "2026-10-01' OR true", end: '2026-10-02' },
   ])('rejects invalid dates %j', range => {
     expect(() => sourceQuery(sql, columns, [], range, ['event_time'])).toThrow();
+  });
+  it.each([
+    [{ min: 10, max: 20 }, 30],
+    [{ min: 100 }, 1100],
+    [{ max: 20 }, 30],
+    [{ min: 20, max: 20 }, 20],
+    [{ min: -Number.MAX_SAFE_INTEGER, max: Number.MAX_SAFE_INTEGER }, 1130],
+  ])('applies inclusive numeric bounds %j using real DuckDB', async (range, total) => {
+    const schema = (await worker.query(filename, 'DESCRIBE uploaded_data')).datas as any;
+    const query = sourceQuery(
+      sql,
+      columns,
+      [{ column: 'amount', range }],
+      undefined,
+      [],
+      numericSourceColumns(schema),
+    );
+    expect((await worker.query(filename, query.sql, query.bindings)).datas).toEqual([{ total }]);
+  });
+  it('requires explicit numeric schema authorization and excludes collection types', () => {
+    const filter = [{ column: 'amount', range: { min: 0 } }];
+    expect(() => sourceQuery(sql, columns, filter)).toThrow('numeric');
+    expect(() => sourceQuery(sql, columns, filter, undefined, [], ['device'])).toThrow('numeric');
+    expect(
+      numericSourceColumns([
+        { column_name: 'money', column_type: 'DECIMAL(18,2)' },
+        { column_name: 'huge', column_type: 'UHUGEINT' },
+        { column_name: 'list', column_type: 'INTEGER[]' },
+        { column_name: 'label', column_type: 'VARCHAR' },
+        { column_name: 'time', column_type: 'TIMESTAMP' },
+      ]),
+    ).toEqual(['money', 'huge']);
+  });
+  it.each([
+    {},
+    { min: null },
+    { max: '10' },
+    { min: NaN },
+    { min: Infinity },
+    { max: Number.MAX_SAFE_INTEGER + 1 },
+    { min: -Number.MAX_SAFE_INTEGER - 1 },
+    { min: 2, max: 1 },
+    { min: 0, extra: 1 },
+    { min: undefined },
+    null,
+    [],
+    { min: '0); DROP TABLE uploaded_data --' },
+  ])('rejects malformed range %j', range => {
+    expect(() =>
+      sourceQuery(sql, columns, [{ column: 'amount', range }], undefined, [], ['amount']),
+    ).toThrow();
+  });
+  it.each([
+    [{ column: 'amount', range: { min: 0 }, values: [10] }],
+    [{ column: 'amount', range: { min: 0 }, value: 10 }],
+    [{ column: 'amount', range: { min: 0 }, extra: true }],
+    [{ column: 'device', range: { min: 0 } }],
+    [{ column: 'event_time', range: { min: 0 } }],
+    [
+      { column: 'amount', range: { min: 0 } },
+      { column: 'amount', values: [10] },
+    ],
+    Array.from({ length: 6 }, (_, i) => ({ column: 'c' + i, range: { min: 0 } })),
+  ])('rejects ambiguous, duplicate, nonnumeric or oversized range filters %j', (...filters) => {
+    expect(() => sourceQuery(sql, columns, filters, undefined, [], ['amount'])).toThrow();
   });
 });

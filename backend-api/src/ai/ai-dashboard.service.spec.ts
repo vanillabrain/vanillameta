@@ -190,7 +190,55 @@ describe('AI dashboards: actual DuckDB and transactional metadata', () => {
       ).data.widgets[0].datas,
     ).toEqual([{ value: null }]);
   });
+
+  it('direct preview validates numeric ranges from DESCRIBE and applies them to current/prior widgets and trends', async () => {
+    const filters = [{ column: 'amount', range: { min: 10, max: 20 } }];
+    const result = await service.preview(
+      {
+        draft: draft(),
+        filters,
+        dateRange: { column: 'event_time', start: '2026-01-02', end: '2026-01-02' },
+        comparePrevious: true,
+        includeTrends: true,
+      },
+      7,
+    );
+    expect(result.data.widgets[0].datas).toEqual([{ value: 20 }]);
+    expect(result.data.widgets[0].comparison).toMatchObject({
+      previousValue: 10,
+      delta: 10,
+      percentChange: 100,
+    });
+    expect(result.data.widgets[0].trend.points.map(p => p.value)).toEqual([20]);
+    expect(result.data.widgets[0].previousTrend.points.map(p => p.value)).toEqual([10]);
+    expect(result.data.widgets[1].datas).toEqual([{ device_type: 'phone', value: 20 }]);
+    for (const column of ['device_type', 'event_time']) {
+      const calls = connection.queryDuckDB.mock.calls.length;
+      await expect(
+        service.preview({ draft: draft(), filters: [{ column, range: { min: 0 } }] }, 7),
+      ).rejects.toThrow('numeric');
+      expect(connection.queryDuckDB.mock.calls.slice(calls).map(call => call[1])).toEqual([
+        'DESCRIBE uploaded_data',
+      ]);
+    }
+  });
+
+  it('passes range filters exactly in assistant preview context', async () => {
+    const id = (await service.save({ draft: draft() }, 7)).data.id;
+    const filters = [{ column: 'amount', range: { min: 10, max: 20 } }];
+    ai.callLlm.mockClear();
+    ai.callLlm.mockResolvedValueOnce('Range total is 30');
+    const response = await service.assistant(
+      { dashboardId: id, currentDraft: draft(), prompt: 'Explain range', filters },
+      7,
+    );
+    expect(response.status).toBe('SUCCESS');
+    const sent = JSON.parse(ai.callLlm.mock.calls[0][1]);
+    expect(sent.context.filters).toEqual(filters);
+    expect(sent.context.widgets[0].datas).toEqual([{ value: 30 }]);
+  });
   it('adds opt-in trends with identical bound filters and preserves null aggregate values', async () => {
+    connection.queryDuckDB.mockClear();
     const noTrend = await service.preview({ draft: draft() }, 7);
     expect(noTrend.data.widgets[0]).not.toHaveProperty('trend');
     expect(noTrend.data.widgets[0]).not.toHaveProperty('trendUnavailable');

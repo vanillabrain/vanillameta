@@ -129,3 +129,79 @@ it('distinguishes unsafe comparison precision from NULL and retains a finite pre
   expect(screen.getByText('10')).toBeTruthy();
   expect(screen.getAllByText('값 없음')).toHaveLength(2);
 });
+
+it('compacts signed comparisons and exposes the exact unsafe decimal without changing percent units', () => {
+  const { rerender } = render(
+    <PeriodComparison
+      title="매출"
+      numberNotation="compact"
+      prefix="$"
+      decimalPlaces={2}
+      comparison={{ previousValue: '9007199254740993.125', delta: '-999999', percentChange: '-12.345' }}
+    />,
+  );
+  const previous = screen.getByText('$9,007.2T');
+  expect(previous.getAttribute('title')).toBe('$9007199254740993.125');
+  expect(previous.getAttribute('aria-label')).toBe('$9007199254740993.125');
+  expect(screen.getByText('-$1M')).toBeTruthy();
+  expect(screen.getByText('-12.35%')).toBeTruthy();
+  rerender(
+    <PeriodComparison
+      title="매출"
+      prefix="$"
+      decimalPlaces={2}
+      comparison={{ previousValue: '9007199254740993.125', delta: '5', percentChange: '0' }}
+    />,
+  );
+  expect(screen.getByText('$9,007,199,254,740,993.125')).toBeTruthy();
+  expect(screen.getByText('+$5.00')).toBeTruthy();
+});
+
+it('recognizes decimal-string zero baseline and rejects blank values without fake zeros', () => {
+  const { rerender } = render(
+    <PeriodComparison title="매출" comparison={{ previousValue: '0.00', delta: '5', percentChange: '100' }} />,
+  );
+  expect(screen.getByText('계산 불가')).toBeTruthy();
+  rerender(<PeriodComparison title="매출" comparison={{ previousValue: '', delta: 'NaN', percentChange: null }} />);
+  expect(screen.getAllByText('값 없음')).toHaveLength(3);
+  expect(screen.queryByText('계산 불가')).toBeNull();
+});
+
+it('formats trend strings with units and compact notation while keeping exact accessible table and SVG descriptions', () => {
+  const { rerender } = render(
+    <MetricTrend
+      title="매출"
+      prefix="$"
+      suffix=" USD"
+      decimalPlaces={2}
+      numberNotation="compact"
+      trend={{
+        column: 'day',
+        grain: 'day',
+        points: [
+          { time: '2026-01-05', value: '9007199254740993.125' },
+          { time: '2026-01-06', value: '999999' },
+          { time: '2026-01-07', value: null },
+        ],
+      }}
+      comparison={{ previousValue: '1000000', delta: '999999', percentChange: '100' }}
+    />,
+  );
+  const cell = screen.getByText('$9,007,199,254,740,993.125 USD');
+  expect(cell.getAttribute('title')).toBe('$9007199254740993.125 USD');
+  expect(cell.getAttribute('aria-label')).toBe('$9007199254740993.125 USD');
+  expect(screen.getByRole('img').querySelector('desc').textContent).toContain('$9,007.2T USD');
+  expect(screen.getByRole('img').querySelectorAll('desc')[1].textContent).toContain('$9007199254740993.125 USD');
+  expect(screen.getByText('+$1M USD')).toBeTruthy();
+  expect(screen.getByRole('img').querySelector('path').getAttribute('d')).not.toMatch(/NaN|Infinity/);
+  rerender(
+    <MetricTrend
+      title="매출"
+      prefix="$"
+      suffix=" USD"
+      decimalPlaces={2}
+      trend={{ column: 'day', grain: 'day', points: [{ time: '2026-01-05', value: '5' }] }}
+    />,
+  );
+  expect(screen.getByText('$5.00 USD')).toBeTruthy();
+});

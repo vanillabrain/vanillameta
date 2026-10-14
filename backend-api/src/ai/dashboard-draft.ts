@@ -157,23 +157,52 @@ export function validateDraft(input: any): DashboardDraft {
   };
 }
 export const quoteColumn = (column: string) => `"${column.replace(/"/g, '""')}"`;
-export function sourceQuery(
-  sql: string,
-  columns: string[],
-  filters: any[] = [],
-  dateRange?: any,
-  temporalColumns: string[] = [],
-) {
-  validateSourceSql(sql);
+export type SourceFilter =
+  | { column: string; values: Array<string | number | boolean | null> }
+  | { column: string; range: { min?: number; max?: number } };
+
+/** Schema-independent shape validation; sourceQuery separately authorizes columns and types. */
+export function normalizeSourceFilters(filters: any[] = [], allowLegacy = true): SourceFilter[] {
   if (!Array.isArray(filters) || filters.length > 5)
     throw new BadRequestException('maximum 5 filters');
-  const bindings: any[] = [];
   const seen = new Set<string>();
-  const conditions = filters.map(f => {
-    if (!f || !columns.includes(f.column) || seen.has(f.column))
+  return filters.map(f => {
+    if (
+      !f ||
+      typeof f !== 'object' ||
+      Array.isArray(f) ||
+      typeof f.column !== 'string' ||
+      !f.column.trim() ||
+      f.column.length > 128 ||
+      seen.has(f.column)
+    )
       throw new BadRequestException('invalid filter column');
     seen.add(f.column);
-    if ('values' in f && 'value' in f) throw new BadRequestException('ambiguous filter');
+    const forms = ['values', 'range', ...(allowLegacy ? ['value'] : [])];
+    if (
+      Object.keys(f).some(key => !['column', ...forms].includes(key)) ||
+      forms.filter(key => Object.prototype.hasOwnProperty.call(f, key)).length !== 1
+    )
+      throw new BadRequestException('ambiguous or unsupported filter');
+    if ('range' in f) {
+      const range = f.range;
+      if (
+        !range ||
+        typeof range !== 'object' ||
+        Array.isArray(range) ||
+        !Object.keys(range).length ||
+        Object.keys(range).some(key => !['min', 'max'].includes(key)) ||
+        Object.values(range).some(
+          value =>
+            typeof value !== 'number' ||
+            !Number.isFinite(value) ||
+            Math.abs(value) > Number.MAX_SAFE_INTEGER,
+        ) ||
+        ('min' in range && 'max' in range && range.min > range.max)
+      )
+        throw new BadRequestException('invalid filter range');
+      return { column: f.column, range: { ...range } };
+    }
     const values = 'values' in f ? f.values : [f.value];
     if (
       !Array.isArray(values) ||
@@ -187,7 +216,46 @@ export function sourceQuery(
       )
     )
       throw new BadRequestException('invalid filter values');
-    const unique = [...new Set(values)];
+    return { column: f.column, values: [...new Set(values)] };
+  });
+}
+
+/** Only scalar numeric DESCRIBE types can authorize range predicates. */
+export function numericSourceColumns(schema: Array<{ column_name: string; column_type: string }>) {
+  return schema
+    .filter(c =>
+      /^(?:U?(?:BIGINT|INTEGER|SMALLINT|TINYINT|HUGEINT)|FLOAT|DOUBLE|DECIMAL(?:\(\d+,\s*\d+\))?)$/i.test(
+        c.column_type,
+      ),
+    )
+    .map(c => c.column_name);
+}
+export function sourceQuery(
+  sql: string,
+  columns: string[],
+  filters: any[] = [],
+  dateRange?: any,
+  temporalColumns: string[] = [],
+  numericColumns: string[] = [],
+) {
+  validateSourceSql(sql);
+  const bindings: any[] = [];
+  const conditions = normalizeSourceFilters(filters).map(f => {
+    if (!columns.includes(f.column)) throw new BadRequestException('invalid filter column');
+    if ('range' in f) {
+      if (!numericColumns.includes(f.column))
+        throw new BadRequestException('range requires a numeric source column');
+      const clauses = [];
+      for (const key of ['min', 'max'] as const) {
+        if (f.range[key] !== undefined) {
+          bindings.push(f.range[key]);
+          clauses.push(`${quoteColumn(f.column)} ${key === 'min' ? '>=' : '<='} ?`);
+        }
+      }
+      // SQL comparisons naturally exclude NULL, including one-sided ranges.
+      return `(${clauses.join(' AND ')})`;
+    }
+    const unique = f.values;
     const nonNull = unique.filter(value => value !== null);
     const clauses = [];
     if (nonNull.length) {

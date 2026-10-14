@@ -42,6 +42,8 @@ import { YesNo } from '../common/enum/yn.enum';
 import {
   DASHBOARD_TYPES,
   positiveId,
+  normalizeSourceFilters,
+  numericSourceColumns,
   quoteColumn,
   sourceQuery,
   validateDraft,
@@ -270,10 +272,7 @@ export class AiDashboardService {
             ...(body.dateRange.timeZone !== undefined ? { timeZone: body.dateRange.timeZone } : {}),
           }
         : null,
-      filters: (body.filters || []).map((filter: any) => ({
-        column: filter.column,
-        values: [...new Set('values' in filter ? filter.values : [filter.value])],
-      })),
+      filters: normalizeSourceFilters(body.filters),
       selectedWidget: body.selectedWidget ?? null,
       trendGrain: data.trendGrain,
       comparison: data.comparison || null,
@@ -595,7 +594,14 @@ export class AiDashboardService {
           userId,
         );
       const query = (sql: string) =>
-        sourceQuery(sql, columns, body.filters, body.dateRange, temporal);
+        sourceQuery(
+          sql,
+          columns,
+          body.filters,
+          body.dateRange,
+          temporal,
+          numericSourceColumns(schema),
+        );
       const countQuery = query('SELECT CAST(count(*) AS VARCHAR) AS total FROM source');
       const count = await this.connection.queryDuckDB(
         draft.databaseId,
@@ -701,10 +707,18 @@ export class AiDashboardService {
       .filter(column => /^(DATE|TIMESTAMP)/i.test(column.column_type))
       .map(column => column.column_name);
     // Validate the current range against actual schema before deriving the previous scope.
-    sourceQuery(definition.sql, columns, body.filters, body.dateRange, temporal);
+    sourceQuery(
+      definition.sql,
+      columns,
+      body.filters,
+      body.dateRange,
+      temporal,
+      numericSourceColumns(schema),
+    );
     const dateRange =
       input.period === 'previous' ? previousDateRange(body.dateRange) : body.dateRange;
-    const query = (sql: string) => sourceQuery(sql, columns, body.filters, dateRange, temporal);
+    const query = (sql: string) =>
+      sourceQuery(sql, columns, body.filters, dateRange, temporal, numericSourceColumns(schema));
     const { trendGrain } = validatePeriodOptions({ trendGrain: input.trendGrain });
     const dateColumn = temporal.includes(body.dateRange?.column)
       ? body.dateRange.column
@@ -931,6 +945,7 @@ export class AiDashboardService {
       body.filters,
       body.dateRange,
       temporal.map(c => c.column_name),
+      numericSourceColumns(schema),
     );
     const previous = comparePrevious ? previousDateRange(body.dateRange) : undefined;
     const dateColumn = temporal.some(c => c.column_name === body?.dateRange?.column)
@@ -951,6 +966,7 @@ export class AiDashboardService {
         body.filters,
         body.dateRange,
         temporal.map(c => c.column_name),
+        numericSourceColumns(schema),
       );
       queries.push({ widgetIndex: widgets.length, kind: 'widget', ...query });
       const result = await this.connection.queryDuckDB(draft.databaseId, query.sql, query.bindings);
@@ -1040,6 +1056,7 @@ export class AiDashboardService {
           body.filters,
           previous,
           temporal.map(c => c.column_name),
+          numericSourceColumns(schema),
         );
         queries.push({ widgetIndex: widgets.length, kind: 'previous-widget', ...previousQuery });
         const prior = await this.connection.queryDuckDB(
@@ -1175,6 +1192,7 @@ export class AiDashboardService {
               body.filters,
               period.range,
               temporal.map(c => c.column_name),
+              numericSourceColumns(schema),
             );
             queries.push({ widgetIndex: widgets.indexOf(widget), kind: period.kind, ...query });
             const result = await this.connection.queryDuckDB(

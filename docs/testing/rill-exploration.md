@@ -2,7 +2,7 @@
 
 ## 구현 범위
 
-SQL 없는 제작 화면(`/explore`)에서 저장한 지표를 별도 탐색 화면(`/explore/source?sourceId=...`)에서 선택한다. 서버의 소유권·지표 정의·소스 버전을 사용하며 클라이언트 SQL을 실행하지 않는다. 이번 단위는 Measure/Dimension 선택, 검색 가능한 값 필터, 기간/시간대/비교, KPI·추세·차원 순위·페이지 단위 원본 행이다. Pivot, 숫자 범위 필터, 탐색 상태 저장/내보내기와 운영 규모 부하는 후속 구현 항목이다.
+SQL 없는 제작 화면(`/explore`)에서 저장한 지표를 별도 탐색 화면(`/explore/source?sourceId=...`)에서 선택한다. 서버의 소유권·지표 정의·소스 버전을 사용하며 클라이언트 SQL을 실행하지 않는다. 이번 단위는 Measure/Dimension 선택, 검색 가능한 값 필터, 기간/시간대/비교, KPI·추세·차원 순위·페이지 단위 원본 행이다. 숫자 범위 필터와 현재 값/변화량/증감률 정렬의 추가 구현·검증은 [범위·정렬 후속](explore-range-sort.md)을 참조한다. 탐색 개인 상태 저장·복원의 구현/선택 검증은 [저장 보기 후속](explore-saved-views.md)을 참조한다. Pivot, 내보내기와 운영 규모 부하는 후속 구현 항목이다.
 
 ## 비교 조건
 
@@ -46,3 +46,19 @@ Pivot·숫자범위·전체차원의변화량정렬·탐색상태저장/내보�
 전체 BE 71개 suite/1,108개 테스트와 FE 45개 파일/690개 테스트 PASS. 루트 BE/FE 빌드, FE 타입·전체 src/e2e lint, 변경 BE lint PASS(기존 경고는 유지). 기존 회귀 테스트의 컨트롤러 인자 누락, 공통 프롬프트 때문에 잘못 식별한 중단 요청, 재시도에 남은 10ms 제한시간, preview 기본 집계/비교 인자 기대값을 수정했다.
 
 격리 API4893/FE3693에서 full-flow와 product-flow의 CSV 집계·데이터셋 저장·로그인 오류/복구·위젯/대시보드 공개 공유 E2E 4개 PASS. 첫 실행은 Chromium 바이너리 누락으로 BLOCKED였고 `/tmp/vm-rill-playwright` 설치 후 재검증했다. 로그는 `/tmp/vm-rill-commit-{test,fe-test,build,e2e,lint,be-lint}.log`에 보관했다. 운영 배포·전체 확장 QA는 NOT_RUN이며 위 기능별 남은 조건은 유지한다.
+
+### 숫자 표시 후속 — 2026-10-14
+
+[밀도·숫자표시 검증](compact-controls-formatting.md)에서 저장compact/plain의 KPI·차원순위·추세/비교 연결, exact table·unsafe원문 보존과1440/390 화면을 검증했다. 이번 변경에 영향받는 EXPLORE-01/08 표시 조건만 확인했으며 카탈로그 전체를 새로 완료 처리하지 않는다. 기존 수치 oracle 재사용·API634513000/307763000·Rill635M/308M 표시 유지. 기간메뉴/축/내부스크롤과 후속 기능 차이는 남아있다.
+
+### 숫자 범위·변화 정렬 후속 — 2026-10-14
+
+[explore-range-sort.md](explore-range-sort.md)의 RANGE-01~03/SORT-01~02/RANGE-KEY-01 선택 조건을 검증했다. 같은 원본 날짜의 Rill 파생 범위 모델·독립SQL과 실제 UI XHR 집계/여섯 정렬을 대조했다. BE267/FE19, 타입·lint·build와1440/390·키보드 선택 조건 PASS. Rill 범위 입력 UI·표시 정밀도·시간별 곡선 차이는 구분해 기록했다. 위 과거 기록의 숫자범위/변화정렬 후속 항목은 이번 범위에서 구현되었으며 Pivot/탐색보기 저장·VoiceOver는 남아있다.
+
+### 탐색 개인 저장 보기 후속 — 2026-10-14
+
+[explore-saved-views.md](explore-saved-views.md)에서 EXP-VIEW-01~07의 하위·선택 실제 화면을 기록했다. Aside 이름 저장/새로고침 복원, 새 브라우저 세션·1440/390·키보드 저장/삭제/초점·load503/실제 지표 정의409와 복구를 확인했다. Rill의 동일 기간/비교/증감률 asc URL도 새로고침 후 유지되며 VM 복원 결과는 같은 독립 oracle와 일치했다. BE55/FE28 및 타입/lint/build PASS. 과거 탐색 상태 저장 잔여는 이번 개인·절대기간 범위로 보강됐고 Pivot/내보내기/팀·URL 공유/실제 새 파일 게시 복원/MySQL 실통합/VoiceOver는 남아 있다.
+
+## 2026-10-14 Pivot 첫 범위 보강
+
+[explore-pivot.md](explore-pivot.md) PIVOT-01~05의 선택 조건을 검증했다. 행1~2/열0~1/지표1~6, 공통필터/기간·축교환·행/열필터·전체합계·모바일/키보드를 지원한다. 같은Rill원본9×2/17실제셀·모든합계 독립SQL일치, Rill표시값·실제UI비교. BE13/PivotFE6·전환1·타입/lint/build PASS. 이전Pivot미구현기록은이첫범위로보강됐으며시간축/계층/이전기간/저장/공유/내보내기/운영부하는후속이다. VoiceOverBLOCKED·gpt-6-luna유지/호출0.

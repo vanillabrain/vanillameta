@@ -152,6 +152,23 @@ describe('aggregate inputs: actual DuckDB, stored definitions and snapshots', ()
       },
     };
   };
+
+  it('applies numeric ranges to raw and contribution details and rejects nonnumeric ranges on both paths', async () => {
+    const options = { filters: [{ column: 'amount', range: { min: 9, max: 10 } }] };
+    const body = await request({}, options);
+    expect((await service.details(body, 7)).data.totalRows).toBe('2');
+    expect(ids((await service.details(body, 7)).data)).toEqual([6, 10]);
+    const { contribution, ...raw } = body;
+    expect(contribution.widgetIndex).toBe(0);
+    expect(ids((await service.details(raw, 7)).data)).toEqual([6, 10]);
+    for (const candidate of [body, raw]) {
+      for (const column of ['channel', 'event_time']) {
+        await expect(
+          service.details({ ...candidate, filters: [{ column, range: { min: 0 } }] }, 7),
+        ).rejects.toThrow('numeric');
+      }
+    }
+  });
   it('drills an auto-hour KPI point into its exact input rows without changing common scope', async () => {
     const body = await trendRequest();
     expect(body.contribution.trendPoint.grain).toBe('hour');

@@ -9,13 +9,12 @@ import { EntityManager, Repository } from 'typeorm';
 import { Dashboard } from './entities/dashboard.entity';
 import { dashboardRevision } from './dashboard-revision';
 import { SourceAccessService } from '../ownership/source-access.service';
+import { serializedViewWrite } from './view-write-queue';
 import { PersonalView } from './entities/personal-view.entity';
 import { resolveViewDates, validatePersonalViewState } from './personal-view-state';
 
 @Injectable()
 export class PersonalViewService {
-  // Local SQLite has one connection; do not overlap this service's write transactions.
-  private writeQueue: Promise<unknown> = Promise.resolve();
   constructor(
     @InjectRepository(PersonalView) private readonly views: Repository<PersonalView>,
     private readonly access: SourceAccessService,
@@ -33,14 +32,9 @@ export class PersonalViewService {
     return { status: 'SUCCESS', data };
   }
   private write<T>(operation: () => Promise<T>): Promise<T> {
-    if (this.views.manager.connection.options.type !== 'sqlite') return operation();
-    const result = this.writeQueue.then(operation);
-    this.writeQueue = result.then(
-      () => undefined,
-      () => undefined,
-    );
-    return result;
+    return serializedViewWrite(this.views, operation);
   }
+
   private async assertRevision(
     dashboardId: number,
     revision: string,

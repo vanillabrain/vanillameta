@@ -12,6 +12,7 @@ import { ConnectionService } from '../connection/connection.service';
 import { Database } from '../database/entities/database.entity';
 import { Metric } from '../metric/entities/metric.entity';
 import { SourceAccessService } from '../ownership/source-access.service';
+import { BiExploreController } from './bi-explore.controller';
 import { BiExploreService } from './bi-explore.service';
 import { BiService } from './bi.service';
 
@@ -263,6 +264,7 @@ describe('BiExploreService dynamic exploration over real DuckDB', () => {
     expect(result.details.rows).toHaveLength(3);
     expect(result.applied).toEqual({
       filters: [{ column: 'channel', values: ['web'] }],
+      leaderboardSort: { by: 'value', direction: 'desc' },
       trendGrain: 'auto',
       comparePrevious: false,
     });
@@ -562,6 +564,591 @@ describe('BiExploreService dynamic exploration over real DuckDB', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
     await expect(
       service.values({ sourceId: 1, sourceRevision, column: 'region', filters: [] }, 20),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+  const scopedQuery = async (overrides: any = {}) =>
+    service.query(
+      {
+        sourceId: 1,
+        sourceRevision: await revision(),
+        measureIds: [1],
+        rankingMeasureId: 1,
+        dimensionColumns: ['region'],
+        ...overrides,
+      },
+      actor,
+    );
+
+  it('applies the same range to KPIs, both trends, comparison, leaderboard, details and value search', async () => {
+    const filters = [{ column: 'amount', range: { min: 20, max: 50 } }];
+    const dateRange = { column: 'day', start: '2026-01-03', end: '2026-01-03' };
+    const result = await scopedQuery({
+      filters,
+      dateRange,
+      comparePrevious: true,
+      includeRows: true,
+    });
+    expect(result.kpis[0].value).toBe(50);
+    expect(result.kpis[0].comparison).toMatchObject({ previousValue: 60, delta: -10 });
+    expect(result.kpis[0].trend.points.map(p => p.value)).toEqual([50]);
+    expect(result.kpis[0].previousTrend.points.map(p => p.value)).toEqual([60]);
+    expect(result.leaderboards[0].rows).toEqual([
+      { category: 'B', value: 50, previousValue: 40, delta: 10, percentChange: 25 },
+      { category: 'A', value: null, previousValue: 20, delta: null, percentChange: null },
+    ]);
+    expect(result.details.totalRows).toBe('1');
+    expect(result.details.rows.map(row => row.amount)).toEqual([50]);
+    expect(result.applied.filters).toEqual(filters);
+    const values = await service.values(
+      {
+        sourceId: 1,
+        sourceRevision: await revision(),
+        column: 'region',
+        search: 'b',
+        filters,
+        dateRange,
+      },
+      actor,
+    );
+    expect(values.values).toEqual(['B']);
+  });
+
+  it.each([
+    [{ min: 0 }, ['B', 'C']],
+    [{ max: 0 }, ['A', 'B']],
+  ])('excludes NULL and includes zero in one-sided range %j', async (range, categories) => {
+    state.filename = await writeSource(`CREATE TABLE uploaded_data AS
+      SELECT * FROM (VALUES ('A', -1.5), ('B', 0), ('C', 1.5), ('D', NULL)) t(region, amount)`);
+    const result = await scopedQuery({ filters: [{ column: 'amount', range }], includeRows: true });
+    expect(result.details.rows.map(row => row.region)).toEqual(categories);
+    expect(result.details.totalRows).toBe('2');
+    const values = await service.values(
+      {
+        sourceId: 1,
+        sourceRevision: await revision(),
+        column: 'region',
+        filters: [{ column: 'amount', range }],
+      },
+      actor,
+    );
+    expect(values.values).toEqual(categories);
+  });
+
+  it('binds safe-integer endpoints exactly and excludes the adjacent unsafe source values and NULL', async () => {
+    state.filename = await writeSource(`CREATE TABLE uploaded_data AS SELECT * FROM (VALUES
+      ('below', -9007199254740992::BIGINT), ('min', -9007199254740991::BIGINT),
+      ('max', 9007199254740991::BIGINT), ('above', 9007199254740992::BIGINT), ('missing', NULL)) t(region, amount)`);
+    const result = await scopedQuery({
+      filters: [
+        {
+          column: 'amount',
+          range: { min: -Number.MAX_SAFE_INTEGER, max: Number.MAX_SAFE_INTEGER },
+        },
+      ],
+      includeRows: true,
+    });
+    expect(result.details.rows.map(row => [row.region, row.amount])).toEqual([
+      ['max', Number.MAX_SAFE_INTEGER],
+      ['min', -Number.MAX_SAFE_INTEGER],
+    ]);
+    expect(result.details.totalRows).toBe('2');
+    expect(result.kpis[0].value).toBe(0);
+    const atMax = await scopedQuery({
+      filters: [
+        { column: 'amount', range: { min: Number.MAX_SAFE_INTEGER, max: Number.MAX_SAFE_INTEGER } },
+      ],
+    });
+    expect(atMax.leaderboards[0].rows).toEqual([
+      { category: 'max', value: Number.MAX_SAFE_INTEGER },
+    ]);
+  });
+
+  it('allows five distinct columns with mixed values and ranges before rejecting a sixth', async () => {
+    const filters = [
+      { column: 'region', values: ['A'] },
+      { column: 'channel', values: ['web'] },
+      { column: 'amount', range: { min: 12, max: 18 } },
+      { column: 'weight', range: { min: 2 } },
+      { column: 'day', values: ['2026-01-01'] },
+    ];
+    const result = await scopedQuery({ filters, includeRows: true });
+    expect(result.kpis[0].value).toBe(30);
+    expect(result.details.totalRows).toBe('2');
+    expect(result.applied.filters).toEqual(filters);
+    await expect(
+      scopedQuery({
+        filters: [...filters, { column: 'event_time', values: ['2026-01-01 00:30:00'] }],
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it.each(['delta', 'percentChange'])(
+    'sorts all >20 joined groups by %s before limiting with active range',
+    async by => {
+      state.filename = await writeSource(`CREATE TABLE uploaded_data AS
+      SELECT 'G' || lpad(CAST(i AS VARCHAR), 2, '0') AS region, (1000 + i)::BIGINT AS amount, DATE '2026-01-02' AS day, 1 AS scope FROM range(30) t(i)
+      UNION ALL SELECT 'G' || lpad(CAST(i AS VARCHAR), 2, '0'), 2000 + i, DATE '2026-01-01', 1 FROM range(30) t(i)
+      UNION ALL SELECT 'Winner', 10, DATE '2026-01-02', 1
+      UNION ALL SELECT 'Winner', 1, DATE '2026-01-01', 1
+      UNION ALL SELECT 'Excluded', 999999, DATE '2026-01-02', 2`);
+      const result = await scopedQuery({
+        dateRange: { column: 'day', start: '2026-01-02', end: '2026-01-02' },
+        comparePrevious: true,
+        filters: [{ column: 'scope', range: { min: 1, max: 1 } }],
+        leaderboardSort: { by, direction: 'desc' },
+      });
+      expect(result.leaderboards[0].rows[0]).toMatchObject({
+        category: 'Winner',
+        value: 10,
+        previousValue: 1,
+        delta: 9,
+        percentChange: 900,
+      });
+      expect(result.leaderboards[0].rows).toHaveLength(20);
+      expect(result.leaderboards[0].truncated).toBe(true);
+      expect(result.applied.leaderboardSort).toEqual({ by, direction: 'desc' });
+      if (by === 'delta') expect(result.leaderboards[0].rows[1].category).toBe('G00');
+    },
+  );
+
+  it('sorts exact huge integer values and deltas in SQL, even when comparison response is unavailable', async () => {
+    state.filename = await writeSource(`CREATE TABLE uploaded_data AS
+      SELECT * FROM (VALUES ('A', 9007199254740992::BIGINT, DATE '2026-01-02'), ('Z', 9007199254740993::BIGINT, DATE '2026-01-02'),
+       ('A', 0, DATE '2026-01-01'), ('Z', 0, DATE '2026-01-01')) t(region, amount, day)`);
+    for (const by of ['value', 'delta']) {
+      const result = await scopedQuery({
+        dateRange: { column: 'day', start: '2026-01-02', end: '2026-01-02' },
+        comparePrevious: true,
+        leaderboardSort: { by, direction: 'desc' },
+      });
+      expect(result.leaderboards[0].rows.map(row => row.category)).toEqual(['Z', 'A']);
+      expect(result.leaderboards[0].rows[0].value).toBe('9007199254740993');
+      expect(result.leaderboards[0].rows[0].delta).toBeNull();
+    }
+  });
+
+  it.each(['asc', 'desc'])(
+    'keeps missing percent changes last, distinguishes known zero, and preserves period-only groups (%s)',
+    async direction => {
+      state.filename = await writeSource(`CREATE TABLE uploaded_data AS SELECT * FROM (VALUES
+      ('positive', 10, DATE '2026-01-02'), ('positive', 5, DATE '2026-01-01'),
+      ('zero', 5, DATE '2026-01-02'), ('zero', 5, DATE '2026-01-01'),
+      ('negative', 0, DATE '2026-01-02'), ('negative', 5, DATE '2026-01-01'),
+      ('A-zero-prior', 10, DATE '2026-01-02'), ('A-zero-prior', 0, DATE '2026-01-01'),
+      ('B-current-only', 10, DATE '2026-01-02'), ('C-prior-only', 5, DATE '2026-01-01'),
+      ('D-null-current', NULL, DATE '2026-01-02'), ('D-null-current', 5, DATE '2026-01-01'),
+      ('E-null-prior', 10, DATE '2026-01-02'), ('E-null-prior', NULL, DATE '2026-01-01')) t(region, amount, day)`);
+      const result = await scopedQuery({
+        dateRange: { column: 'day', start: '2026-01-02', end: '2026-01-02' },
+        comparePrevious: true,
+        leaderboardSort: { by: 'percentChange', direction },
+      });
+      const rows = result.leaderboards[0].rows;
+      expect(rows.slice(0, 3).map(row => row.percentChange)).toEqual(
+        direction === 'asc' ? [-100, 0, 100] : [100, 0, -100],
+      );
+      expect(rows.slice(3).map(row => row.category)).toEqual([
+        'A-zero-prior',
+        'B-current-only',
+        'C-prior-only',
+        'D-null-current',
+        'E-null-prior',
+      ]);
+      expect(rows[3]).toMatchObject({ previousValue: 0, delta: 10, percentChange: null });
+      expect(rows[4]).toMatchObject({ previousValue: null, delta: null, percentChange: null });
+      expect(rows[5]).toMatchObject({
+        value: null,
+        previousValue: 5,
+        delta: null,
+        percentChange: null,
+      });
+    },
+  );
+
+  it('supports explicit default and ascending value sort with NULLS LAST', async () => {
+    const implicit = await scopedQuery();
+    const explicit = await scopedQuery({ leaderboardSort: { by: 'value', direction: 'desc' } });
+    expect(explicit).toEqual(implicit);
+    const asc = await scopedQuery({
+      measureIds: [3],
+      rankingMeasureId: 3,
+      leaderboardSort: { by: 'value', direction: 'asc' },
+    });
+    expect(asc.leaderboards[0].rows.map(row => row.category)).toEqual(['A', null, 'B', 'C', 'D']);
+    expect(asc.leaderboards[0].rows[4].value).toBeNull();
+  });
+
+  it.each([
+    { filters: [{ column: 'amount', range: { min: 0 }, values: [1] }] },
+    { filters: [{ column: 'region', range: { min: 0 } }] },
+    { filters: [{ column: 'day', range: { min: 0 } }] },
+    { filters: [{ column: 'amount', range: { min: null } }] },
+    { filters: [{ column: 'amount', range: { min: 2, max: 1 } }] },
+    { filters: [{ column: 'amount', range: { max: Number.MAX_SAFE_INTEGER + 1 } }] },
+    { filters: [{ column: 'amount', range: { min: '0 OR true' } }] },
+    {
+      filters: [
+        { column: 'amount', range: { min: 0 } },
+        { column: 'amount', values: [1] },
+      ],
+    },
+    { leaderboardSort: { by: 'value; DROP TABLE uploaded_data', direction: 'desc' } },
+    { leaderboardSort: { by: 'value', direction: 'desc; DROP TABLE uploaded_data' } },
+    { leaderboardSort: { by: 'delta', direction: 'desc' } },
+    { leaderboardSort: { by: 'percentChange', direction: 'desc' }, comparePrevious: true },
+    { leaderboardSort: { by: 'value', direction: 'desc', extra: true } },
+    { leaderboardSort: null },
+  ])('rejects invalid numeric range/sort %j', async options => {
+    await expect(scopedQuery(options)).rejects.toBeInstanceOf(BadRequestException);
+    if (options.filters)
+      await expect(
+        service.values(
+          {
+            sourceId: 1,
+            sourceRevision: await revision(),
+            column: 'region',
+            filters: options.filters,
+          },
+          actor,
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    expect((await service.catalog({ sourceId: 1 }, actor)).rowCount).toBe('9');
+  });
+
+  const pivot = async (overrides: any = {}, who = actor) =>
+    service.pivot(
+      {
+        sourceId: 1,
+        sourceRevision: await revision(),
+        measureIds: [1, 2, 3, 4],
+        rowDimensions: ['region'],
+        columnDimensions: ['channel'],
+        ...overrides,
+      },
+      who,
+    );
+
+  it('pivot reaggregates SUM, COUNT, ratio and weighted totals with sparse cells', async () => {
+    const result = await pivot();
+    expect(result.sourceRevision).toBe(await revision());
+    expect(result.metrics).toEqual([
+      { id: 1, label: 'Revenue', suffix: ' USD', decimalPlaces: 2, numberNotation: 'full' },
+      { id: 2, label: 'Orders', decimalPlaces: 0, numberNotation: 'full' },
+      { id: 3, label: 'Weighted', decimalPlaces: 2, numberNotation: 'full' },
+      { id: 4, label: 'Per weight', decimalPlaces: 4, numberNotation: 'full' },
+    ]);
+    expect(result.rows.map(row => row.values)).toEqual([['A'], ['B'], ['C'], [null], ['D']]);
+    expect(result.columns.map(column => column.values)).toEqual([['app'], ['web'], ['bulk']]);
+    expect(result.grandTotals).toEqual([311, 9, 862 / 23, 311 / 23]);
+    expect(result.columns[0].totals).toEqual([240, 5, 50, 240 / 11]);
+    expect(result.rows[0]).toEqual({
+      key: '["A"]',
+      values: ['A'],
+      totals: [120, 4, 29.5, 15],
+      cells: [
+        { columnKey: '["app"]', values: [90, 2, 70, 45] },
+        { columnKey: '["web"]', values: [30, 2, 16, 5] },
+      ],
+    });
+    expect(result.rows[3]).toEqual({
+      key: '[null]',
+      values: [null],
+      totals: [36, 1, 36, 6],
+      cells: [{ columnKey: '["web"]', values: [36, 1, 36, 6] }],
+    });
+    expect(result.rows[4].totals).toEqual([5, 1, null, null]);
+    expect(result.rows[4].cells).toEqual([{ columnKey: '["bulk"]', values: [5, 1, null, null] }]);
+    expect(result.limits).toEqual({
+      rowLimit: 50,
+      columnLimit: 12,
+      totalRowGroups: 5,
+      totalColumnGroups: 3,
+      truncatedRows: false,
+      truncatedColumns: false,
+    });
+  });
+
+  it('pivot uses first measure ordering, dimension ties and NULLS LAST on both axes', async () => {
+    state.filename = await writeSource(`CREATE TABLE uploaded_data AS
+      SELECT * FROM (VALUES ('B', 'y', 2, 1), ('A', 'z', 2, 1),
+        ('C', 'x', 9, 0), ('D', 'w', NULL, 1),
+        (NULL, 'v', 2, 1), ('E', NULL, 2, 1)) t(region, channel, amount, weight)`);
+    const result = await pivot({ measureIds: [4, 1] });
+    expect(result.rows.map(row => row.values)).toEqual([['A'], ['B'], ['E'], [null], ['C'], ['D']]);
+    expect(result.columns.map(column => column.values)).toEqual([
+      ['v'],
+      ['y'],
+      ['z'],
+      [null],
+      ['w'],
+      ['x'],
+    ]);
+    expect(result.rows.slice(-2).map(row => row.totals[0])).toEqual([null, null]);
+    expect(result.rows[2].cells).toEqual([{ columnKey: '[null]', values: [2, 2] }]);
+  });
+
+  it('pivot keeps NULL distinct from strings, handles two row dimensions and no column axis', async () => {
+    state.filename = await writeSource(`CREATE TABLE uploaded_data AS
+      SELECT * FROM (VALUES (NULL, 'a', 1), ('null', 'a', 1),
+        ('x', 'a', 1), ('x', 'b', 1), ('[null]', 'a', 1)) t(region, channel, amount)`);
+    const result = await pivot({
+      measureIds: [1, 2],
+      rowDimensions: ['region', 'channel'],
+      columnDimensions: [],
+    });
+    expect(result.rows.map(row => row.values)).toEqual([
+      ['[null]', 'a'],
+      ['null', 'a'],
+      ['x', 'a'],
+      ['x', 'b'],
+      [null, 'a'],
+    ]);
+    expect(new Set(result.rows.map(row => row.key)).size).toBe(5);
+    for (const row of result.rows) {
+      expect(row.key).toBe(JSON.stringify(row.values));
+      expect(row.cells).toEqual([{ columnKey: '[]', values: [1, 1] }]);
+    }
+    expect(result.columns).toEqual([{ key: '[]', values: [], totals: [5, 5] }]);
+    expect(result.limits.totalColumnGroups).toBe(1);
+  });
+
+  it('pivot preserves large integer strings and quotes registered identifiers', async () => {
+    state.filename = await writeSource(`CREATE TABLE uploaded_data AS SELECT
+      9007199254740993::BIGINT AS "r""quoted", 'X' AS channel,
+      9007199254740993::BIGINT AS amount`);
+    const result = await pivot({ measureIds: [1, 2], rowDimensions: ['r"quoted'] });
+    expect(result.grandTotals).toEqual(['9007199254740993', 1]);
+    expect(result.rows[0]).toEqual({
+      key: '["9007199254740993"]',
+      values: ['9007199254740993'],
+      totals: ['9007199254740993', 1],
+      cells: [{ columnKey: '["X"]', values: ['9007199254740993', 1] }],
+    });
+    expect(result.columns[0].totals).toEqual(['9007199254740993', 1]);
+  });
+
+  it('pivot applies canonical numeric, NULL and date filters to every total and cell', async () => {
+    const result = await pivot({
+      filters: [{ column: 'amount', range: { min: 20, max: 50 } }],
+      dateRange: { column: 'day', start: '2026-01-02', end: '2026-01-03' },
+    });
+    expect(result.grandTotals).toEqual([110, 3, 43.75, 13.75]);
+    expect(result.rows.map(row => row.totals)).toEqual([
+      [90, 2, 43.75, 11.25],
+      [20, 1, null, null],
+    ]);
+    expect(result.columns).toEqual([
+      { key: '["app"]', values: ['app'], totals: [110, 3, 43.75, 13.75] },
+    ]);
+    expect(result.rows[1].cells).toEqual([{ columnKey: '["app"]', values: [20, 1, null, null] }]);
+    const nullOnly = await pivot({ filters: [{ column: 'region', values: [null] }] });
+    expect(nullOnly.grandTotals).toEqual([36, 1, 36, 6]);
+    expect(nullOnly.rows.map(row => row.key)).toEqual(['[null]']);
+  });
+
+  it('pivot returns empty axes and canonical empty SUM/COUNT/ratio/weighted totals', async () => {
+    const options = { filters: [{ column: 'channel', values: ['missing'] }] };
+    const result = await pivot(options);
+    expect(result.rows).toEqual([]);
+    expect(result.columns).toEqual([]);
+    expect(result.grandTotals).toEqual([null, 0, null, null]);
+    expect(result.limits).toEqual({
+      rowLimit: 50,
+      columnLimit: 12,
+      totalRowGroups: 0,
+      totalColumnGroups: 0,
+      truncatedRows: false,
+      truncatedColumns: false,
+    });
+    const withoutColumns = await pivot({ ...options, columnDimensions: [] });
+    expect(withoutColumns.rows).toEqual([]);
+    expect(withoutColumns.columns).toEqual([
+      { key: '[]', values: [], totals: [null, 0, null, null] },
+    ]);
+    expect(withoutColumns.grandTotals).toEqual([null, 0, null, null]);
+  });
+
+  it('pivot bounds bulk60 row groups and column groups while retaining complete totals', async () => {
+    state.filename = bulkFile;
+    const result = await pivot({
+      measureIds: [1, 2],
+      rowDimensions: ['sku'],
+      columnDimensions: ['region'],
+    });
+    expect(result.rows).toHaveLength(50);
+    expect(result.rows[0].values).toEqual(['S060']);
+    expect(result.rows[49].values).toEqual(['S011']);
+    expect(result.grandTotals).toEqual([1830, 60]);
+    expect(result.columns.map(column => column.totals)).toEqual([
+      [630, 20],
+      [610, 20],
+      [590, 20],
+    ]);
+    expect(result.rows.every(row => row.cells.length === 1)).toBe(true);
+    expect(result.limits).toMatchObject({
+      totalRowGroups: 60,
+      totalColumnGroups: 3,
+      truncatedRows: true,
+      truncatedColumns: false,
+    });
+    const transposed = await pivot({
+      measureIds: [1, 2],
+      rowDimensions: ['region'],
+      columnDimensions: ['sku'],
+    });
+    expect(transposed.columns).toHaveLength(12);
+    expect(transposed.columns[0].values).toEqual(['S060']);
+    expect(transposed.columns[11].values).toEqual(['S049']);
+    expect(transposed.rows.map(row => row.totals)).toEqual([
+      [630, 20],
+      [610, 20],
+      [590, 20],
+    ]);
+    expect(transposed.rows.every(row => row.cells.length === 4)).toBe(true);
+    expect(transposed.limits).toMatchObject({
+      totalRowGroups: 3,
+      totalColumnGroups: 60,
+      truncatedRows: false,
+      truncatedColumns: true,
+    });
+  });
+
+  it('pivot limits both axes in SQL and reaggregates ratios/weighted totals across hidden axes', async () => {
+    state.filename = await writeSource(`CREATE TABLE uploaded_data AS SELECT
+      r AS region, c AS channel, (r + c)::DOUBLE AS amount, (c + 1)::DOUBLE AS weight
+      FROM range(60) row_axis(r) CROSS JOIN range(15) cols(c)`);
+    const connection = (service as any).connection as ConnectionService;
+    const query = jest.spyOn(connection, 'queryDuckDB');
+    const result = await pivot();
+    expect(result.rows).toHaveLength(50);
+    expect(result.columns).toHaveLength(12);
+    expect(result.rows.every(row => row.cells.length === 12)).toBe(true);
+    expect(result.rows[0].values).toEqual([59]);
+    expect(result.rows[49].values).toEqual([10]);
+    expect(result.columns[0].values).toEqual([14]);
+    expect(result.columns[11].values).toEqual([3]);
+    expect(result.grandTotals).toEqual([32850, 900, 233 / 6, 73 / 16]);
+    expect(result.rows[0].totals).toEqual([990, 15, 205 / 3, 8.25]);
+    expect(result.columns[0].totals).toEqual([2610, 60, 43.5, 2.9]);
+    expect(result.limits).toEqual({
+      rowLimit: 50,
+      columnLimit: 12,
+      totalRowGroups: 60,
+      totalColumnGroups: 15,
+      truncatedRows: true,
+      truncatedColumns: true,
+    });
+    const axisCalls = query.mock.calls.filter(
+      ([, sql]) => sql.includes('COUNT(*) OVER ()') && !sql.includes('EXISTS'),
+    );
+    expect(axisCalls).toHaveLength(2);
+    expect(axisCalls[0][1]).toMatch(/LIMIT 51$/);
+    expect(axisCalls[1][1]).toMatch(/LIMIT 13$/);
+    const cellCall = query.mock.calls.find(([, sql]) => sql.includes('EXISTS'));
+    expect(cellCall[1]).toContain('IS NOT DISTINCT FROM');
+    expect(cellCall[1]).toContain('LIMIT 50');
+    expect(cellCall[1]).toContain('LIMIT 12');
+    expect(cellCall[1]).toMatch(/LIMIT 600$/);
+    query.mockRestore();
+  });
+
+  it('pivot pins the DuckDB source snapshot across all aggregate queries', async () => {
+    const connection = (service as any).connection as ConnectionService;
+    const original = connection.queryDuckDB.bind(connection);
+    const query = jest.spyOn(connection, 'queryDuckDB').mockImplementation(async (...args) => {
+      const result = await original(...args);
+      if (args[1].includes('__vm_pivot_m0')) state.filename = bulkFile;
+      return result;
+    });
+    const result = await pivot();
+    expect(result.grandTotals[0]).toBe(311);
+    expect(result.rows[0].values).toEqual(['A']);
+    expect(result.rows[0].cells).toHaveLength(2);
+    query.mockRestore();
+    expect(result.sourceRevision).not.toBe(await revision());
+  });
+
+  it('pivot authorizes before decrypting broken foreign connection config', async () => {
+    databaseRepo.findOne.mockImplementation(async () => ({
+      id: 1, ownerId: 10, engine: 'duckdb', connectionConfig: 'enc:v1:broken',
+    }));
+    await expect(service.pivot({ sourceId: 1, sourceRevision: 'rev', measureIds: [1],
+      rowDimensions: ['region'], columnDimensions: [] }, 20)).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('pivot rejects unauthorized sources, unsupported engines and stale revisions', async () => {
+    await expect(pivot({}, 20)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(pivot({ sourceId: 3 })).rejects.toBeInstanceOf(BadRequestException);
+    const stale = await revision();
+    state.filename = bulkFile;
+    await expect(pivot({ sourceRevision: stale })).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('pivot rejects unknown fields, SQL, dimensions, measure IDs and invalid filter/date input', async () => {
+    const cases = [
+      { sourceId: '1' },
+      { sourceId: 0 },
+      { sourceId: 1.5 },
+      { sourceRevision: undefined },
+      { sourceRevision: '' },
+      { measureIds: [] },
+      { measureIds: [1, 1] },
+      { measureIds: ['1'] },
+      { measureIds: [0] },
+      { measureIds: [1.5] },
+      { measureIds: [99] },
+      { measureIds: [5] },
+      { measureIds: [1, 2, 3, 4, 5, 6, 7] },
+      { rowDimensions: undefined },
+      { rowDimensions: [] },
+      { rowDimensions: 'region' },
+      { rowDimensions: ['region', 'channel', 'day'] },
+      { rowDimensions: ['region', 'region'] },
+      { rowDimensions: [null] },
+      { rowDimensions: ['unknown'] },
+      { rowDimensions: ['region; DROP TABLE uploaded_data'] },
+      { columnDimensions: undefined },
+      { columnDimensions: null },
+      { columnDimensions: ['region', 'channel'] },
+      { columnDimensions: ['region'] },
+      { columnDimensions: ['unknown'] },
+      { sql: 'SELECT 1' },
+      { extra: true },
+      { filters: null },
+      { filters: [{ column: 'missing', values: [1] }] },
+      { filters: [{ column: 'channel', values: ['app'], sql: 'SELECT 1' }] },
+      { filters: [{ column: 'channel', range: { min: 1 } }] },
+      { filters: [{ column: 'amount', range: { min: '1 OR true' } }] },
+      { dateRange: null },
+      { dateRange: { column: 'channel', start: '2026-01-01', end: '2026-01-02' } },
+      { dateRange: { column: 'day', start: '2026-02-30', end: '2026-03-01' } },
+      { dateRange: { column: 'day', start: '2026-01-03', end: '2026-01-01' } },
+      { dateRange: { column: 'day', start: '2026-01-01', end: '2026-01-02', sql: 'SELECT 1' } },
+    ];
+    for (const candidate of cases)
+      await expect(pivot(candidate)).rejects.toBeInstanceOf(BadRequestException);
+    for (const candidate of [null, [], 'SELECT 1'])
+      await expect(service.pivot(candidate, actor)).rejects.toBeInstanceOf(BadRequestException);
+    expect((await service.catalog({ sourceId: 1 }, actor)).rowCount).toBe('9');
+  });
+
+  it('pivot controller exposes the authenticated POST route with the standard envelope', async () => {
+    expect(Reflect.getMetadata('path', BiExploreController.prototype.pivot)).toBe('pivot');
+    expect(Reflect.getMetadata('method', BiExploreController.prototype.pivot)).toBe(1);
+    const body = {
+      sourceId: 1,
+      sourceRevision: await revision(),
+      measureIds: [1],
+      rowDimensions: ['region'],
+      columnDimensions: [],
+    };
+    const result = await new BiExploreController(service).pivot(body, {
+      user: { accessKeyData: { id: actor } },
+    });
+    expect(result.status).toBe('SUCCESS');
+    expect(result.data.grandTotals).toEqual([311]);
+    await expect(
+      new BiExploreController(service).pivot(body, { user: { accessKeyData: { id: 20 } } }),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 });

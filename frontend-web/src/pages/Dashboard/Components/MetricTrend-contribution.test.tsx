@@ -221,3 +221,46 @@ it('removes stale actions on metadata or callback removal, and resets active sel
   expect(screen.queryByRole('button', { name: /집계 원본 행 보기/ })).toBeNull();
   expect(screen.getByRole('img', { name: '매출 일별 추세' }).hasAttribute('tabindex')).toBe(false);
 });
+
+it('keeps compact active current/previous values and full exact-value tables including unsafe strings', () => {
+  const raw = '9007199254740993.12345678901234567890123456789';
+  render(
+    <>
+      <MetricTrend
+        title="현재 매출"
+        numberNotation="compact"
+        prefix="$"
+        decimalPlaces={2}
+        onContributionSelect={vi.fn()}
+        trend={{ column: 'day', grain: 'day', contribution: { supported: true }, points: [{ time: times[0], value: raw }] }}
+      />
+      <MetricTrend
+        title="이전 매출"
+        numberNotation="compact"
+        prefix="$"
+        decimalPlaces={2}
+        onContributionSelect={vi.fn()}
+        trend={{
+          column: 'day',
+          grain: 'day',
+          contribution: { supported: true },
+          points: [{ time: times[0], value: '999999' }],
+        }}
+      />
+    </>,
+  );
+  const current = screen.getByText('$9,007.2T');
+  expect(current.getAttribute('title')).toBe('$' + raw);
+  expect(current.getAttribute('aria-label')).toBe('$' + raw);
+  expect(screen.getByText('$1M').getAttribute('title')).toBe('$999999');
+  const currentTable = screen.getByRole('region', { name: '현재 매출 날짜별 값', hidden: true });
+  const currentCell = within(currentTable).getByText('$9,007,199,254,740,993.12345678901234567890123456789');
+  expect(currentCell.getAttribute('title')).toBe('$' + raw);
+  expect(currentCell.getAttribute('aria-label')).toBe('$' + raw);
+  const previousTable = screen.getByRole('region', { name: '이전 매출 날짜별 값', hidden: true });
+  expect(within(previousTable).getByText('$999,999.00')).toBeTruthy();
+  const currentChart = screen.getByRole('group', { name: '현재 매출 일별 추세' });
+  expect(currentChart.querySelector('desc').textContent).toContain('$9,007.2T');
+  const exactId = currentChart.getAttribute('aria-describedby').split(' ')[1];
+  expect(document.getElementById(exactId).textContent).toContain('$' + raw);
+});

@@ -1,10 +1,20 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { AiDashboardService } from '../ai/ai-dashboard.service';
-import { quoteColumn, sourceQuery } from '../ai/dashboard-draft';
+import {
+  normalizeSourceFilters,
+  numericSourceColumns,
+  positiveId,
+  quoteColumn,
+  SourceFilter,
+  sourceQuery,
+} from '../ai/dashboard-draft';
 import { comparisonValues, previousDateRange, validatePeriodOptions } from '../ai/dashboard-period';
 import { ConnectionService } from '../connection/connection.service';
+import { exploreViewRevision } from './explore-view-state';
 import { BiService } from './bi.service';
 
+const PIVOT_ROW_LIMIT = 50;
+const PIVOT_COLUMN_LIMIT = 12;
 const MAX_MEASURES = 6;
 const MAX_DIMENSIONS = 4;
 const LEADERBOARD_LIMIT = 20;
@@ -20,6 +30,15 @@ const DETAIL_COLUMNS = 50;
  */
 const SEARCH_PARAMETER = "'__vm_explore_search__'";
 
+const PIVOT_FIELDS = [
+  'sourceId',
+  'sourceRevision',
+  'measureIds',
+  'rowDimensions',
+  'columnDimensions',
+  'filters',
+  'dateRange',
+];
 const CATALOG_FIELDS = ['sourceId'];
 const QUERY_FIELDS = [
   'sourceId',
@@ -27,6 +46,7 @@ const QUERY_FIELDS = [
   'measureIds',
   'dimensionColumns',
   'rankingMeasureId',
+  'leaderboardSort',
   'filters',
   'dateRange',
   'trendGrain',
@@ -91,19 +111,25 @@ export class BiExploreService {
   }
 
   private filters(value: unknown) {
-    if (value === undefined) return [] as Array<{ column: string; values: any[] }>;
-    if (!Array.isArray(value)) throw new BadRequestException('filters must be an array');
-    return value.map(filter => {
-      if (!filter || typeof filter !== 'object' || Array.isArray(filter))
-        throw new BadRequestException('invalid filter');
-      const unknown = Object.keys(filter).find(key => !['column', 'values'].includes(key));
-      if (unknown) throw new BadRequestException('unsupported filter field');
-      if (typeof filter.column !== 'string' || !filter.column.trim())
-        throw new BadRequestException('invalid filter column');
-      if (!Array.isArray(filter.values) || !filter.values.length)
-        throw new BadRequestException('invalid filter values');
-      return { column: filter.column, values: filter.values };
-    });
+    return normalizeSourceFilters(value === undefined ? [] : (value as any[]), false);
+  }
+
+  private leaderboardSort(value: unknown, comparePrevious: boolean) {
+    const sort =
+      value === undefined
+        ? { by: 'value', direction: 'desc' }
+        : this.fields(value, ['by', 'direction']);
+    if (
+      !['value', 'delta', 'percentChange'].includes(sort.by) ||
+      !['asc', 'desc'].includes(sort.direction)
+    )
+      throw new BadRequestException('invalid leaderboardSort');
+    if (sort.by !== 'value' && !comparePrevious)
+      throw new BadRequestException('comparison sort requires comparePrevious and dateRange');
+    return {
+      by: sort.by as 'value' | 'delta' | 'percentChange',
+      direction: sort.direction as 'asc' | 'desc',
+    };
   }
 
   private page(value: unknown) {
@@ -151,7 +177,7 @@ export class BiExploreService {
     if (!profile.supported)
       throw new BadRequestException('서버에 저장한 DuckDB 파일을 선택해 주세요.');
     const measures = await this.bi.metrics(profile.sourceId, actor);
-    return {
+    const catalog = {
       sourceId: profile.sourceId,
       name: profile.name,
       sourceRevision: await this.connection.duckDBVersion(profile.sourceId),
@@ -172,6 +198,183 @@ export class BiExploreService {
         .filter(column => column.temporal)
         .map(column => ({ column: column.name, min: column.min, max: column.max })),
     };
+    return { ...catalog, viewRevision: exploreViewRevision(catalog) };
+  }
+
+  async pivot(body: any, actor: number) {
+    const input = this.fields(body, PIVOT_FIELDS);
+    const sourceId = positiveId(input.sourceId);
+    const expected = this.revision(input.sourceRevision);
+    const measureIds = this.measureIds(input.measureIds);
+    for (const [name, min, max] of [
+      ['rowDimensions', 1, 2],
+      ['columnDimensions', 0, 1],
+    ] as const) {
+      if (!Array.isArray(input[name]) || input[name].length < min || input[name].length > max)
+        throw new BadRequestException(`invalid ${name}`);
+    }
+    const filters = this.filters(input.filters);
+    // Authorize before opening/decrypting a source snapshot, including foreign broken sources.
+    const authorizedMetrics = await this.bi.metrics(sourceId, actor);
+    return this.connection.withDuckDBSnapshot(sourceId, async () => {
+      const profile = await this.bi.profile(sourceId, actor);
+      if (!profile.supported)
+        throw new BadRequestException('서버에 저장한 DuckDB 파일을 선택해 주세요.');
+      const sourceRevision = await this.connection.duckDBVersion(sourceId);
+      if (sourceRevision !== expected)
+        throw new ConflictException(
+          '파일 버전이 변경되었습니다. 소스를 새로고침한 뒤 다시 시도해 주세요.',
+        );
+      const columns = profile.columns.map(column => column.name);
+      const rowDimensions = this.dimensions(input.rowDimensions, columns);
+      const columnDimensions = this.dimensions(input.columnDimensions, columns);
+      if (rowDimensions.some(column => columnDimensions.includes(column)))
+        throw new BadRequestException('overlapping pivot dimensions');
+      const known = new Map(authorizedMetrics.map(m => [m.id, m]));
+      const metrics = [];
+      const expressions: string[] = [];
+      for (const id of measureIds) {
+        if (!known.has(id)) throw new BadRequestException('unknown measure id');
+        const prepared = await this.bi.prepare(
+          { sourceId, metricId: id, chart: 'number', title: known.get(id).label },
+          actor,
+        );
+        const widget: {
+          sql: string;
+          prefix?: string;
+          suffix?: string;
+          decimalPlaces: number;
+          numberNotation: string;
+        } = prepared.draft.widgets[0];
+        expressions.push(this.expression(widget.sql));
+        metrics.push({
+          id,
+          label: known.get(id).label,
+          ...(widget.prefix ? { prefix: widget.prefix } : {}),
+          ...(widget.suffix ? { suffix: widget.suffix } : {}),
+          decimalPlaces: widget.decimalPlaces,
+          numberNotation: widget.numberNotation,
+        });
+      }
+
+      const measureAliases = expressions.map((_expression, i) => `__vm_pivot_m${i}`);
+      const aggregates = expressions
+        .map((expression, i) => `${expression} AS ${quoteColumn(measureAliases[i])}`)
+        .join(', ');
+      const grandSql = `SELECT ${aggregates} FROM source`;
+      // The shared compiler authorizes filters/date types and binds their values. Everything
+      // appended below is server-generated from canonical expressions and registered columns.
+      const filtered = sourceQuery(
+        grandSql,
+        columns,
+        filters,
+        input.dateRange,
+        profile.columns.filter(column => column.temporal).map(column => column.name),
+        numericSourceColumns(
+          profile.columns.map(column => ({ column_name: column.name, column_type: column.type })),
+        ),
+      );
+      const sourceCte = filtered.sql.slice(0, -grandSql.length);
+      const run = async (sql: string): Promise<Array<Record<string, any>>> =>
+        (await this.connection.queryDuckDB(sourceId, sourceCte + sql, filtered.bindings)).datas;
+      const rowAliases = rowDimensions.map((_column, i) => `__vm_pivot_r${i}`);
+      const columnAliases = columnDimensions.map((_column, i) => `__vm_pivot_c${i}`);
+      const selectDimensions = (dimensions: string[], aliases: string[]) =>
+        dimensions.map((column, i) => `${quoteColumn(column)} AS ${quoteColumn(aliases[i])}`);
+      const axisSql = (dimensions: string[], aliases: string[], limit: number) =>
+        `SELECT ${selectDimensions(dimensions, aliases).join(', ')}, ${aggregates},
+           COUNT(*) OVER () AS "__vm_pivot_groups" FROM source
+         GROUP BY ${dimensions.map((_column, i) => i + 1).join(', ')}
+         ORDER BY ${quoteColumn(measureAliases[0])} DESC NULLS LAST,
+           ${aliases.map(alias => `${quoteColumn(alias)} ASC NULLS LAST`).join(', ')}
+         LIMIT ${limit}`;
+      const metricValues = (row: any): unknown[] =>
+        measureAliases.map(alias => this.scalar(row[alias]));
+      const axisValues = (row: any, aliases: string[]): unknown[] =>
+        aliases.map(alias => row[alias] ?? null);
+      const grandTotals = metricValues((await run(grandSql))[0]);
+      const rowGroups = await run(axisSql(rowDimensions, rowAliases, PIVOT_ROW_LIMIT + 1));
+      const columnGroups = columnDimensions.length
+        ? await run(axisSql(columnDimensions, columnAliases, PIVOT_COLUMN_LIMIT + 1))
+        : [];
+      const rows = rowGroups.slice(0, PIVOT_ROW_LIMIT).map(row => {
+        const values = axisValues(row, rowAliases);
+        return {
+          key: JSON.stringify(values),
+          values,
+          totals: metricValues(row),
+          cells: [] as Array<{ columnKey: string; values: unknown[] }>,
+        };
+      });
+      const pivotColumns = columnDimensions.length
+        ? columnGroups.slice(0, PIVOT_COLUMN_LIMIT).map(row => {
+            const values = axisValues(row, columnAliases);
+            return { key: JSON.stringify(values), values, totals: metricValues(row) };
+          })
+        : [{ key: '[]', values: [] as unknown[], totals: grandTotals }];
+      if (rows.length && pivotColumns.length) {
+        const ctes = [
+          `"__vm_pivot_rows" AS (${axisSql(rowDimensions, rowAliases, PIVOT_ROW_LIMIT)})`,
+        ];
+        if (columnDimensions.length)
+          ctes.push(
+            `"__vm_pivot_columns" AS (${axisSql(
+              columnDimensions,
+              columnAliases,
+              PIVOT_COLUMN_LIMIT,
+            )})`,
+          );
+        // Semi-joins restrict original rows BEFORE cell aggregation, including NULL tuples.
+        // No dimension values cross back through bindings or lose BIGINT/date type precision.
+        const selected = (dimensions: string[], aliases: string[], cte: string) =>
+          `EXISTS (SELECT 1 FROM ${quoteColumn(cte)} WHERE ${dimensions
+            .map(
+              (column, i) =>
+                `source.${quoteColumn(column)} IS NOT DISTINCT FROM ${quoteColumn(
+                  cte,
+                )}.${quoteColumn(aliases[i])}`,
+            )
+            .join(' AND ')})`;
+        const predicates = [selected(rowDimensions, rowAliases, '__vm_pivot_rows')];
+        if (columnDimensions.length)
+          predicates.push(selected(columnDimensions, columnAliases, '__vm_pivot_columns'));
+        const dimensions = [
+          ...selectDimensions(rowDimensions, rowAliases),
+          ...selectDimensions(columnDimensions, columnAliases),
+        ];
+        const cells = await run(`, ${ctes.join(', ')}
+          SELECT ${dimensions.join(', ')}, ${aggregates} FROM source
+          WHERE ${predicates.join(' AND ')}
+          GROUP BY ${dimensions.map((_dimension, i) => i + 1).join(', ')}
+          LIMIT ${PIVOT_ROW_LIMIT * PIVOT_COLUMN_LIMIT}`);
+        const byRow = new Map(rows.map(row => [row.key, row]));
+        const columnOrder = new Map(pivotColumns.map((column, i) => [column.key, i]));
+        for (const cell of cells) {
+          const key = JSON.stringify(axisValues(cell, rowAliases));
+          byRow.get(key).cells.push({
+            columnKey: JSON.stringify(axisValues(cell, columnAliases)),
+            values: metricValues(cell),
+          });
+        }
+        for (const row of rows)
+          row.cells.sort((a, b) => columnOrder.get(a.columnKey) - columnOrder.get(b.columnKey));
+      }
+      return {
+        sourceRevision,
+        metrics,
+        rows,
+        columns: pivotColumns,
+        grandTotals,
+        limits: {
+          rowLimit: PIVOT_ROW_LIMIT,
+          columnLimit: PIVOT_COLUMN_LIMIT,
+          totalRowGroups: rowGroups[0]?.__vm_pivot_groups ?? 0,
+          totalColumnGroups: columnDimensions.length ? columnGroups[0]?.__vm_pivot_groups ?? 0 : 1,
+          truncatedRows: rowGroups.length > PIVOT_ROW_LIMIT,
+          truncatedColumns: columnGroups.length > PIVOT_COLUMN_LIMIT,
+        },
+      };
+    });
   }
 
   async query(body: any, actor: number) {
@@ -179,6 +382,7 @@ export class BiExploreService {
     const expected = this.revision(input.sourceRevision);
     const measureIds = this.measureIds(input.measureIds);
     const { trendGrain, comparePrevious } = validatePeriodOptions(input);
+    const leaderboardSort = this.leaderboardSort(input.leaderboardSort, comparePrevious);
     const page = this.page(input.page);
     const pageSize = this.pageSize(input.pageSize);
     const includeRows = this.flag(input.includeRows, false, 'includeRows');
@@ -199,6 +403,7 @@ export class BiExploreService {
         expected,
         measureIds,
         rankingMeasureId,
+        leaderboardSort,
         dimensionColumns: input.dimensionColumns,
         filters,
         dateRange,
@@ -217,8 +422,9 @@ export class BiExploreService {
     expected: string;
     measureIds: number[];
     rankingMeasureId: number;
+    leaderboardSort: { by: 'value' | 'delta' | 'percentChange'; direction: 'asc' | 'desc' };
     dimensionColumns: unknown;
-    filters: Array<{ column: string; values: any[] }>;
+    filters: SourceFilter[];
     dateRange: any;
     trendGrain: 'auto' | 'day' | 'week' | 'month';
     comparePrevious: boolean;
@@ -238,6 +444,9 @@ export class BiExploreService {
     const temporal = profile.columns
       .filter((column: any) => column.temporal)
       .map((column: any) => column.name);
+    const numeric = numericSourceColumns(
+      profile.columns.map(column => ({ column_name: column.name, column_type: column.type })),
+    );
     const dimensionColumns = this.dimensions(input.dimensionColumns, columns);
     const catalog = await this.bi.metrics(profile.sourceId, input.actor);
     const known = new Map(catalog.map((measure: any) => [measure.id, measure]));
@@ -289,8 +498,19 @@ export class BiExploreService {
     if (dimensionColumns.length) {
       const ranking = measures.find(measure => measure.metricId === input.rankingMeasureId);
       for (const column of dimensionColumns) {
-        const sql = this.leaderboardSql(column, ranking.expression);
-        const currentQuery = sourceQuery(sql, columns, input.filters, input.dateRange, temporal);
+        const sql = this.leaderboardSql(
+          column,
+          ranking.expression,
+          input.leaderboardSort.direction,
+        );
+        const currentQuery = sourceQuery(
+          sql,
+          columns,
+          input.filters,
+          input.dateRange,
+          temporal,
+          numeric,
+        );
         if (!previous) {
           const current = await this.connection.queryDuckDB(
             profile.sourceId,
@@ -309,12 +529,25 @@ export class BiExploreService {
             input.filters,
             input.dateRange,
             temporal,
+            numeric,
           );
-          const prior = sourceQuery(groupedSql, columns, input.filters, previous, temporal);
+          const prior = sourceQuery(
+            groupedSql,
+            columns,
+            input.filters,
+            previous,
+            temporal,
+            numeric,
+          );
           const split = (query: string, name: string) =>
             query
               .replace('WITH source AS', `WITH ${name} AS`)
               .replace('FROM source GROUP', `FROM ${name} GROUP`);
+          const value = 'c."__vm_value"';
+          const previousValue = 'p."__vm_value"';
+          const delta = `(${value} - ${previousValue})`;
+          const percent = `CASE WHEN ${previousValue} IS NULL OR ${previousValue} = 0 THEN NULL ELSE ${delta} / abs(${previousValue}) * 100 END`;
+          const order = { value, delta, percentChange: percent }[input.leaderboardSort.by];
           const result = await this.connection.queryDuckDB(
             profile.sourceId,
             `WITH current_groups AS (${split(
@@ -325,9 +558,9 @@ export class BiExploreService {
                c."__vm_value" AS value, p."__vm_value" AS previous
              FROM current_groups c FULL OUTER JOIN prior_groups p
                ON c."__vm_category" IS NOT DISTINCT FROM p."__vm_category"
-             ORDER BY c."__vm_value" DESC NULLS LAST, category ASC NULLS LAST LIMIT ${
-               LEADERBOARD_LIMIT + 1
-             }`,
+             ORDER BY ${order} ${input.leaderboardSort.direction.toUpperCase()} NULLS LAST, category ASC NULLS LAST LIMIT ${
+              LEADERBOARD_LIMIT + 1
+            }`,
             [...current.bindings, ...prior.bindings],
           );
           leaderboards.push({
@@ -357,6 +590,7 @@ export class BiExploreService {
         input.filters,
         input.dateRange,
         temporal,
+        numeric,
       );
       const count = await this.connection.queryDuckDB(
         profile.sourceId,
@@ -374,6 +608,7 @@ export class BiExploreService {
         input.filters,
         input.dateRange,
         temporal,
+        numeric,
       );
       const rows = await this.connection.queryDuckDB(
         profile.sourceId,
@@ -399,6 +634,7 @@ export class BiExploreService {
       ...(details ? { details } : {}),
       applied: {
         filters: input.filters,
+        leaderboardSort: input.leaderboardSort,
         ...(input.dateRange !== undefined ? { dateRange: input.dateRange } : {}),
         trendGrain: input.trendGrain,
         comparePrevious: input.comparePrevious,
@@ -439,10 +675,10 @@ export class BiExploreService {
     };
   }
 
-  private leaderboardSql(column: string, expression: string) {
+  private leaderboardSql(column: string, expression: string, direction: 'asc' | 'desc') {
     return `SELECT ${quoteColumn(
       column,
-    )} AS "__vm_category", ${expression} AS "__vm_value" FROM source GROUP BY 1 ORDER BY "__vm_value" DESC NULLS LAST, "__vm_category" ASC NULLS LAST LIMIT ${
+    )} AS "__vm_category", ${expression} AS "__vm_value" FROM source GROUP BY 1 ORDER BY "__vm_value" ${direction.toUpperCase()} NULLS LAST, "__vm_category" ASC NULLS LAST LIMIT ${
       LEADERBOARD_LIMIT + 1
     }`;
   }
@@ -480,6 +716,9 @@ export class BiExploreService {
       const temporal = profile.columns
         .filter((column: any) => column.temporal)
         .map((column: any) => column.name);
+      const numeric = numericSourceColumns(
+        profile.columns.map(column => ({ column_name: column.name, column_type: column.type })),
+      );
       const query = this.valueQuery(
         input.column,
         search,
@@ -487,6 +726,7 @@ export class BiExploreService {
         filters,
         input.dateRange,
         temporal,
+        numeric,
       );
       const result = await this.connection.queryDuckDB(profile.sourceId, query.sql, query.bindings);
       const values = result.datas.map((row: any) => row.value);
@@ -503,9 +743,10 @@ export class BiExploreService {
     column: string,
     search: string,
     columns: string[],
-    filters: Array<{ column: string; values: any[] }>,
+    filters: SourceFilter[],
     dateRange: any,
     temporal: string[],
+    numeric: string[],
   ) {
     const predicate = search
       ? ` WHERE lower(CAST(${quoteColumn(column)} AS VARCHAR)) LIKE ${SEARCH_PARAMETER} ESCAPE '\\'`
@@ -518,6 +759,7 @@ export class BiExploreService {
       filters,
       dateRange,
       temporal,
+      numeric,
     );
     if (!search) return query;
     const parts = query.sql.split(SEARCH_PARAMETER);

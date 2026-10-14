@@ -33,21 +33,25 @@ export type SavedViewState = {
   trendGrain?: TrendGrain;
   comparePrevious?: boolean;
 };
-type SavedView = {
+export type ViewPeriodState = { dateRange: DateRange | null; relativePeriod: RelativePeriod | null };
+type SavedView<State extends ViewPeriodState = SavedViewState> = {
   id: number | string;
   name: string;
-  state: SavedViewState;
+  state: State;
   revision: string;
   createdAt: string;
   resolvedDateRange?: DateRange | null;
 };
-type Props = {
-  dashboardId: number;
+type Props<State extends ViewPeriodState> = {
+  dashboardId?: number;
+  endpoint?: string;
+  subject?: 'dashboard' | 'explore';
+  parseState?: (value: unknown) => State;
   revision?: string;
-  state: SavedViewState;
+  state: State;
   disabledReason?: string;
   sourceRevision?: string;
-  onApply: (state: SavedViewState, dateRange: DateRange | null) => void;
+  onApply: (state: State, dateRange: DateRange | null) => void;
 };
 
 export const validDay = (day: string) =>
@@ -173,8 +177,8 @@ function responseData(response: { data: { status: string; data?: unknown; messag
   if (response?.data?.status !== 'SUCCESS') throw Object.assign(new Error('저장 보기 요청 실패'), { response });
   return response.data.data;
 }
-function viewData(data: unknown): SavedView {
-  const view = data as SavedView;
+function viewData<State extends ViewPeriodState>(data: unknown, parseState: (value: unknown) => State): SavedView<State> {
+  const view = data as SavedView<State>;
   if (
     !view ||
     !['string', 'number'].includes(typeof view.id) ||
@@ -185,15 +189,17 @@ function viewData(data: unknown): SavedView {
     !view.revision.trim()
   )
     throw new Error('저장 보기 응답을 확인할 수 없습니다.');
-  return { ...view, state: stateData(view.state) };
+  return { ...view, state: parseState(view.state) };
 }
-function errorText(error: unknown) {
+function errorText(error: unknown, subject: 'dashboard' | 'explore') {
   const e = error as { response?: { status?: number; data?: { data?: unknown; message?: unknown } }; message?: unknown };
   const body = e?.response?.data;
   const nested = body?.data as { message?: unknown };
   const server = [body?.data, nested?.message, body?.message].find(message => typeof message === 'string' && message.trim());
   if (e?.response?.status === 409)
-    return `대시보드 정의가 변경되어 이 저장 보기를 적용할 수 없습니다. 보기는 삭제되지 않았습니다.${
+    return `${
+      subject === 'explore' ? '지표·열 정의가' : '대시보드 정의가'
+    } 변경되어 이 저장 보기를 적용할 수 없습니다. 보기는 삭제되지 않았습니다.${
       typeof server === 'string' ? ` ${server}` : ''
     }`;
   return typeof server === 'string'
@@ -203,22 +209,27 @@ function errorText(error: unknown) {
     : '저장 보기 요청에 실패했습니다. 다시 시도해 주세요.';
 }
 
-export default function PersonalSavedViews({
+export default function PersonalSavedViews<State extends ViewPeriodState = SavedViewState>({
   dashboardId,
+  endpoint,
+  subject = 'dashboard',
+  parseState: customParser,
   revision,
   state,
   disabledReason = '',
   sourceRevision,
   onApply,
-}: Props) {
-  const [views, setViews] = useState<SavedView[]>([]);
+}: Props<State>) {
+  const apiPath = endpoint ?? `/dashboard/${dashboardId}/views`;
+  const parseState = customParser ?? (stateData as unknown as (value: unknown) => State);
+  const [views, setViews] = useState<SavedView<State>[]>([]);
   const [name, setName] = useState('');
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [loaded, setLoaded] = useState(false);
   const [reload, setReload] = useState(0);
-  const [deleting, setDeleting] = useState<SavedView | null>(null);
+  const [deleting, setDeleting] = useState<SavedView<State> | null>(null);
   const titleId = useId();
   const descriptionId = useId();
   const trigger = useRef<HTMLElement | null>(null);
@@ -244,15 +255,15 @@ export default function PersonalSavedViews({
     setBusy('저장 보기 불러오는 중…');
     void (async () => {
       try {
-        const data = responseData(await get(`/dashboard/${dashboardId}/views`, undefined, { signal: abort.signal }));
+        const data = responseData(await get(apiPath, undefined, { signal: abort.signal }));
         if (!Array.isArray(data) || data.length > 20) throw new Error('저장 보기 목록을 확인할 수 없습니다.');
-        const list = data.map(viewData);
+        const list = data.map(value => viewData(value, parseState));
         if (token === generation.current && !abort.signal.aborted) {
           setViews(list);
           setLoaded(true);
         }
       } catch (e: unknown) {
-        if (token === generation.current && !abort.signal.aborted) setError(errorText(e));
+        if (token === generation.current && !abort.signal.aborted) setError(errorText(e, subject));
       } finally {
         if (token === generation.current && !abort.signal.aborted) {
           pending.current = false;
@@ -265,9 +276,15 @@ export default function PersonalSavedViews({
       controller.current?.abort();
       pending.current = false;
     };
-  }, [dashboardId, revision, reload]);
+  }, [apiPath, revision, reload]);
 
-  const blocked = disabledReason || (!revision?.trim() ? '대시보드 버전을 확인한 뒤 저장 보기를 사용할 수 있습니다.' : '');
+  const blocked =
+    disabledReason ||
+    (!revision?.trim()
+      ? subject === 'explore'
+        ? '지표 정의를 확인한 뒤 저장 보기를 사용할 수 있습니다.'
+        : '대시보드 버전을 확인한 뒤 저장 보기를 사용할 수 있습니다.'
+      : '');
   const nameValid = !!name.trim() && name.trim().length <= 80;
   const actionLocked = !!busy || !loaded || !!blocked || !!error;
   const restoreFocus = () => {
@@ -275,7 +292,7 @@ export default function PersonalSavedViews({
     if (element?.isConnected && !(element as HTMLButtonElement).disabled) element.focus();
     else fallbackFocus.current?.focus();
   };
-  const run = async (action: 'save' | 'load' | 'delete', view?: SavedView) => {
+  const run = async (action: 'save' | 'load' | 'delete', view?: SavedView<State>) => {
     if (
       pending.current ||
       !loaded ||
@@ -298,12 +315,9 @@ export default function PersonalSavedViews({
       if (action === 'save') {
         const saved = viewData(
           responseData(
-            await post(
-              `/dashboard/${dashboardId}/views`,
-              { name: name.trim(), state: stateData(state), revision },
-              { signal: abort.signal },
-            ),
+            await post(apiPath, { name: name.trim(), state: parseState(state), revision }, { signal: abort.signal }),
           ),
+          parseState,
         );
         if (token !== generation.current || abort.signal.aborted) return;
         setViews(current => [...current.filter(row => row.id !== saved.id), saved]);
@@ -311,9 +325,8 @@ export default function PersonalSavedViews({
         setNotice('현재 조건을 개인 저장 보기로 저장했습니다.');
       } else if (action === 'load') {
         const saved = viewData(
-          responseData(
-            await get(`/dashboard/${dashboardId}/views/${encodeURIComponent(view.id)}`, undefined, { signal: abort.signal }),
-          ),
+          responseData(await get(`${apiPath}/${encodeURIComponent(view.id)}`, undefined, { signal: abort.signal })),
+          parseState,
         );
         if (token !== generation.current || abort.signal.aborted) return;
         const latest = context.current;
@@ -335,14 +348,14 @@ export default function PersonalSavedViews({
         latest.onApply(saved.state, range ?? null);
         setNotice(`${saved.name} 보기를 적용했습니다.`);
       } else {
-        responseData(await del(`/dashboard/${dashboardId}/views/${encodeURIComponent(view.id)}`, { signal: abort.signal }));
+        responseData(await del(`${apiPath}/${encodeURIComponent(view.id)}`, { signal: abort.signal }));
         if (token !== generation.current || abort.signal.aborted) return;
         setViews(current => current.filter(row => row.id !== view.id));
         setDeleting(null);
         setNotice('개인 저장 보기를 삭제했습니다.');
       }
     } catch (e: unknown) {
-      if (token === generation.current && !abort.signal.aborted) setError(errorText(e));
+      if (token === generation.current && !abort.signal.aborted) setError(errorText(e, subject));
     } finally {
       if (token === generation.current && !abort.signal.aborted) {
         pending.current = false;
@@ -354,7 +367,7 @@ export default function PersonalSavedViews({
   return (
     <Box
       component="section"
-      aria-label="개인 저장 보기"
+      aria-label={subject === 'explore' ? '탐색 저장 보기' : '개인 저장 보기'}
       sx={{
         mb: 2,
         p: { xs: 1.5, sm: 2 },
@@ -366,11 +379,12 @@ export default function PersonalSavedViews({
       }}
     >
       <Typography component="h2" variant="h6">
-        개인 저장 보기
+        {subject === 'explore' ? '탐색 저장 보기' : '개인 저장 보기'}
       </Typography>
       <Typography variant="body2" sx={{ mb: 1 }}>
-        현재 적용한 필터·기간·숫자 표시·집계 단위·이전 기간 비교를 개인별로 저장합니다. 대시보드 정의는 바뀌지 않습니다. 최대
-        20개입니다.
+        {subject === 'explore'
+          ? '탐색 방식·Pivot 행과 열·선택한 지표·차원·적용한 필터·기간·집계·비교·정렬을 개인별로 저장합니다. 열 때 최신 정상 데이터로 조회합니다. 소스별 최대 20개입니다.'
+          : '현재 적용한 필터·기간·숫자 표시·집계 단위·이전 기간 비교를 개인별로 저장합니다. 대시보드 정의는 바뀌지 않습니다. 최대 20개입니다.'}
       </Typography>
       {sourceRevision && (
         <Typography variant="caption" sx={{ overflowWrap: 'anywhere' }}>
@@ -458,7 +472,8 @@ export default function PersonalSavedViews({
         <DialogTitle id={titleId}>개인 저장 보기 삭제</DialogTitle>
         <DialogContent>
           <Typography id={descriptionId} sx={{ overflowWrap: 'anywhere' }}>
-            {deleting?.name} 보기를 삭제할까요? 대시보드와 데이터는 유지됩니다.
+            {deleting?.name} 보기를 삭제할까요?{' '}
+            {subject === 'explore' ? '지표와 데이터는 유지됩니다.' : '대시보드와 데이터는 유지됩니다.'}
           </Typography>
           {error && <Alert severity="error">{error}</Alert>}
         </DialogContent>
