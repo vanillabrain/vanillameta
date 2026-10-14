@@ -635,24 +635,26 @@ function Commerce() {
                 ))}
               </Select>
             </FormControl>
-            {report && (
+            <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
+              {report && (
+                <Button
+                  variant="outlined"
+                  startIcon={<AutoAwesomeOutlinedIcon />}
+                  onClick={openAi}
+                  sx={{ ...commerceControlSx, whiteSpace: 'nowrap' }}
+                >
+                  AI로 설명·제목 편집
+                </Button>
+              )}
               <Button
-                variant="outlined"
+                variant="contained"
                 startIcon={<AutoAwesomeOutlinedIcon />}
-                onClick={openAi}
+                onClick={() => setAnalysisAiOpen(true)}
                 sx={{ ...commerceControlSx, whiteSpace: 'nowrap' }}
               >
-                AI로 설명·제목 편집
+                AI 분석 만들기
               </Button>
-            )}
-            <Button
-              variant="contained"
-              startIcon={<AutoAwesomeOutlinedIcon />}
-              onClick={() => setAnalysisAiOpen(true)}
-              sx={{ ...commerceControlSx, whiteSpace: 'nowrap' }}
-            >
-              AI 분석 만들기
-            </Button>
+            </Stack>
           </Stack>
         </Stack>
         <Typography variant="caption" color="text.secondary">
@@ -945,22 +947,24 @@ function Commerce() {
                       ))}
                     </Select>
                   </FormControl>
-                  <Button
-                    variant="contained"
-                    onClick={applyFilters}
-                    aria-disabled={reportBusy}
-                    sx={{ ...commerceControlSx, opacity: reportBusy ? 0.5 : 1 }}
-                  >
-                    적용
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    onClick={resetFilters}
-                    aria-disabled={reportBusy}
-                    sx={{ ...commerceControlSx, opacity: reportBusy ? 0.5 : 1 }}
-                  >
-                    초기화
-                  </Button>
+                  <Stack direction="row" spacing={1}>
+                    <Button
+                      variant="contained"
+                      onClick={applyFilters}
+                      aria-disabled={reportBusy}
+                      sx={{ ...commerceControlSx, opacity: reportBusy ? 0.5 : 1 }}
+                    >
+                      적용
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      onClick={resetFilters}
+                      aria-disabled={reportBusy}
+                      sx={{ ...commerceControlSx, opacity: reportBusy ? 0.5 : 1 }}
+                    >
+                      초기화
+                    </Button>
+                  </Stack>
                 </Stack>
                 <Typography role="status" aria-atomic="true" variant="caption" display="block" mt={1} color="text.secondary">
                   표시 결과 범위: {reportScope || '불러오는 중'}

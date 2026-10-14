@@ -57,3 +57,28 @@ Commerce에 기존 AnalysisUiProvider를 적용했다. 프로젝트·AI 버튼�
 - FE 관련15단위, 타입/변경린트 PASS. 테스트의 MUI styles 로더는 기존 CJS material 테스트 로더와 맞췄다.
 - 증빙: `/Users/drumcap/.aside/u/0/sessions/2026-10-14_YU4NiBChRz3j5nJw/artifacts/`의 `commerce-controls-final.png`, `commerce-date-error.png`, `ai-analysis-preview.png`.
 - 이번 새 분석 저장/새로고침·모바일/VoiceOver·Rill 실화면 재비교는 NOT_RUN. 기존 분석 UI Kit의 Rill 기준 토큰을 재사용했다. Aside에는 setViewportSize가 없어 좁은 폭 확인을 이번 결과에 포함하지 않는다.
+
+## AI 분석 저장·새로고침·모바일 후속
+
+기존3698/4898 실행 환경과 원래 DB·업로드를 유지했다. Aside 시연 계정으로 **AI 분석 만들기**에서 정상 `rill-auction` 소스7을 선택하고 다음 질문을 입력했다.
+
+> 전체 기간 요청 수를 요청 카운터 합계로 표시하고 device_type별 요청 수 막대 차트를 만들어 줘. 제목은 Rill 고객 검증 분석 1014로 설정하고 총 요청 수는 숫자를 생략하지 않고 표시해줘.
+
+| 검증                 | 결과                   | 확인 내용                                                                                                                             |
+| -------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| 실제 질문 → 미리보기 | PASS                   | 지정 `gpt-6-luna` 실제 응답. 총 요청 수634,513,000과 device_type별 막대9항목 생성                                                     |
+| 저장 → 새로고침      | PASS                   | 저장 후 [대시보드5](http://127.0.0.1:3698/dashboard/5) 이동. 브라우저 새로고침 완료 후 제목·KPI·차트 유지                             |
+| API 요청             | PASS                   | draft/preview/save POST201, 저장 대시보드·분석 GET200, 새로고침 후 preview201                                                         |
+| 모바일 컨트롤        | PASS_SELECTED_VARIANTS | Chromium 모바일 에뮬레이션390×844·768×844. 날짜·AI·적용/초기화 높이32px/글꼴12px, 버튼 쌍 동일 상단, 화면 경계 안 배치·가로 넘침 없음 |
+| 모바일 질문 패널     | PASS_SELECTED_VARIANTS | 소스 선택·질문 입력·미리보기 생성 활성 상태·취소 복귀. 390폭 전체 화면, 768폭704px 패널의 경계·정렬·캡처 확인                         |
+| FE 회귀              | PASS                   | Commerce import-error와 AiDashboardPanel의15개 단위, 타입 검사, 변경 파일 ESLint                                                      |
+
+모바일에서 AI 버튼과 적용/초기화가 각각 별도 행을 차지하던 배치를 버튼 쌍마다 한 행으로 묶었다. 좁은 폭의 AI 행은 필요하면 줄바꿈한다. 기존 크기·클릭 동작을 유지했다. 테스트 브라우저 언어를 한국어로 명시하고 패널 닫힘을 기다린 최종 실행이 통과했다.
+
+시연 대시보드5는 남겨 두었다. 모바일은 별도 테스트 계정 프로젝트2에서 질문 입력·취소만 수행해 시연 계정 로그인을 유지했다. 모바일에서 LLM 생성·저장, 물리 모바일 기기·VoiceOver, 새 Rill9009 실화면 비교, 전체 E2E·운영 배포는 NOT_RUN이다. 숫자는 기존 Rill 검증 기준634,513,000과 일치하며 이번 독립 원본 재집계는 수행하지 않았다.
+
+증빙(저장소 밖):
+
+- `/Users/drumcap/.aside/u/0/sessions/2026-10-14_JQMLIJ6ttJRlnWo1/artifacts/ai-analysis-before-save.png`, `ai-analysis-saved-reloaded.png`, `ai-analysis-reloaded.txt`.
+- `/tmp/vm-ai-full-flow/desktop-requests.json`: 인증 없는 API 요청 메타데이터. 앞부분에는 이전 초안 요청도 포함되며 최종 save201 및 대시보드5 재조회가 이번 저장 검증이다.
+- `/tmp/vm-ai-full-flow/mobile.json`, `mobile-390-filters.png`, `mobile-768-filters.png`, `mobile-390-ai.png`, `mobile-768-ai.png`: 최종 화면·크기 증거. 임시 검증 스크립트 `mobile.cjs`는 설치된 Playwright를 사용했다.
