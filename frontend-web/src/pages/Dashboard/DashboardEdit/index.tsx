@@ -27,6 +27,7 @@ import WidgetViewer from '@/widget/wrapper/WidgetViewer';
 import { analysisOptions } from '../analysisOptions';
 import { AnalysisUiProvider } from '@/components/analysis/AnalysisUi';
 import { validDraft } from '../dashboardPreview';
+import BlockLayoutCanvas from './BlockLayoutCanvas';
 import MetricTrend, { FormattedMetricTrendData } from '../Components/MetricTrend';
 
 type Column = { name: string; type: string; numeric: boolean; temporal: boolean };
@@ -172,6 +173,8 @@ function DashboardEditContent() {
     window.matchMedia?.('(max-width: 599px)').matches ? 'mobile' : 'desktop',
   );
   const [preview, setPreview] = useState<Preview | null>(null);
+  const [layoutPreview, setLayoutPreview] = useState<Preview | null>(null);
+  const displayPreview = preview ?? layoutPreview;
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [conflict, setConflict] = useState(false);
@@ -182,10 +185,11 @@ function DashboardEditContent() {
   const pending = useRef(false);
   const request = useRef<AbortController | null>(null);
   const headings = useRef<Record<string, HTMLHeadingElement | null>>({});
-  const invalidate = () => {
+  const invalidate = (layoutOnly = false) => {
     sequence.current += 1;
     request.current?.abort();
     setPreview(null);
+    if (!layoutOnly) setLayoutPreview(null);
     if (!conflict) setError('');
   };
   useEffect(() => {
@@ -197,6 +201,7 @@ function DashboardEditContent() {
     setBusy('대시보드 불러오는 중…');
     setEditor(null);
     setPreview(null);
+    setLayoutPreview(null);
     setError('');
     setConflict(false);
     setNewMetricId('');
@@ -251,9 +256,9 @@ function DashboardEditContent() {
             editor?.metrics.some(metric => metric.id === item.metricId) &&
             (item.chart === 'number' || dimensions(item.chart).some(column => column.name === item.dimension)))),
     );
-  const change = (nextTitle: string, nextItems: Item[]) => {
+  const change = (nextTitle: string, nextItems: Item[], layoutOnly = false) => {
     if (pending.current || (nextTitle === title && JSON.stringify(nextItems) === JSON.stringify(items))) return;
-    invalidate();
+    invalidate(layoutOnly);
     setPast(current => [...current.slice(-49), { title, items }]);
     setFuture([]);
     setTitle(nextTitle);
@@ -264,7 +269,8 @@ function DashboardEditContent() {
     const history = redo ? future : past;
     const previous = history[history.length - 1];
     if (!previous) return;
-    invalidate();
+    const content = (values: Item[]) => JSON.stringify(values.map(item => ({ ...item, layouts: undefined })));
+    invalidate(previous.title === title && content(previous.items) === content(items));
     if (redo) {
       setFuture(history.slice(0, -1));
       setPast(current => [...current.slice(-49), { title, items }]);
@@ -321,6 +327,7 @@ function DashboardEditContent() {
             }
           : item,
       ),
+      Object.keys(changes).length === 1 && changes.layouts !== undefined,
     );
   };
   const selectMetric = (key: string, metricId: string) => {
@@ -449,6 +456,7 @@ function DashboardEditContent() {
         items.map(item => (item.key === selectedKey ? result.item : item)),
       );
       setPreview(result.preview);
+      setLayoutPreview(result.preview);
       setAnnouncement('선택 블록의 AI 변경을 미리보기했습니다. 되돌리거나 저장할 수 있습니다.');
     } catch (failure) {
       if (token !== sequence.current) return;
@@ -500,6 +508,7 @@ function DashboardEditContent() {
         )
           throw new Error('Invalid preview');
         setPreview(result);
+        setLayoutPreview(result);
       }
     } catch (failure) {
       if (token !== sequence.current) return;
@@ -885,36 +894,36 @@ function DashboardEditContent() {
           {!preview && (
             <Typography color="text.secondary">변경 후 미리보기를 성공적으로 확인해야 저장할 수 있습니다.</Typography>
           )}
-          {preview && (
+          {displayPreview && (
             <Box component="section" aria-label="변경 결과 미리보기">
               <Typography component="h2" variant="h5" sx={{ mb: 2 }}>
                 미리보기 · {title}
               </Typography>
-              <Box
-                sx={{
-                  display: 'grid',
-                  gridTemplateColumns: `repeat(${columns[layoutMode]}, minmax(0, 1fr))`,
-                  gridAutoRows: 'minmax(60px, auto)',
-                  gap: 2,
-                }}
+              {!preview && (
+                <Typography color="text.secondary">
+                  배치 변경 후 미리보기를 다시 확인해 주세요. 표시 값은 직전 서버 결과입니다.
+                </Typography>
+              )}
+              <BlockLayoutCanvas
+                items={items}
+                mode={layoutMode}
+                saved={displayPreview.responsiveLayouts}
+                disabled={!!busy || conflict}
+                onCommit={rects =>
+                  change(
+                    title,
+                    items.map(item => ({ ...item, layouts: { ...item.layouts, [layoutMode]: rects[item.key] } })),
+                    true,
+                  )
+                }
               >
-                {preview.widgets.map((widget, index) => (
+                {displayPreview.widgets.map((widget, index) => (
                   <Card
                     key={items[index].key}
                     variant="outlined"
                     sx={{
                       p: 2,
                       minWidth: 0,
-                      gridColumn: preview.responsiveLayouts
-                        ? `${preview.responsiveLayouts[layoutMode][items[index].key].x + 1} / span ${
-                            preview.responsiveLayouts[layoutMode][items[index].key].w
-                          }`
-                        : { xs: '1 / -1', md: `span ${items[index].width}` },
-                      gridRow: preview.responsiveLayouts
-                        ? `${preview.responsiveLayouts[layoutMode][items[index].key].y + 1} / span ${
-                            preview.responsiveLayouts[layoutMode][items[index].key].h
-                          }`
-                        : undefined,
                     }}
                   >
                     <Typography component="h3" variant="h6" sx={{ overflowWrap: 'anywhere' }}>
@@ -979,7 +988,7 @@ function DashboardEditContent() {
                     </Box>
                   </Card>
                 ))}
-              </Box>
+              </BlockLayoutCanvas>
             </Box>
           )}
         </>

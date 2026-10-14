@@ -7,7 +7,14 @@ vi.mock('@/helpers/apiHelper', () => ({ get: api.get, post: api.post }));
 vi.mock('react-router-dom', () => ({ useParams: () => ({ dashboardId: api.id }), useNavigate: () => api.navigate }));
 vi.mock('@/widget/modules/board/NumericBoard', () => ({ default: () => <div>숫자 미리보기</div> }));
 vi.mock('@/widget/wrapper/WidgetViewer', () => ({ default: () => <div>차트 미리보기</div> }));
-vi.mock('@/components/analysis/AnalysisUi', () => ({ AnalysisUiProvider: ({ children }: any) => <>{children}</> }));
+vi.mock('@/components/analysis/AnalysisUi', () => ({
+  AnalysisUiProvider: ({ children }: any) => <>{children}</>,
+  ANALYSIS_UI: { fontSize: 12, controlHeight: 28, radius: 4, border: '#e2e8f0', surface: '#f8fafc' },
+}));
+vi.mock('react-grid-layout', () => ({
+  default: ({ children }: any) => <div>{children}</div>,
+  WidthProvider: (component: any) => component,
+}));
 vi.mock('../Components/MetricTrend', () => ({ default: () => <div>시계열 미리보기</div> }));
 
 vi.mock('@mui/material', async () => {
@@ -454,3 +461,25 @@ it.each([
     await waitFor(() => expect(screen.getByRole('status').textContent).toBe(''));
   },
 );
+
+it('keyboard layout changes preserve results and other breakpoints but require preview again before save', async () => {
+  const layouts = {
+    mobile: { x: 0, y: 0, w: 4, h: 3 },
+    tablet: { x: 0, y: 0, w: 8, h: 3 },
+    desktop: { x: 0, y: 0, w: 6, h: 3 },
+  };
+  api.get.mockResolvedValueOnce(success({ ...editor, items: [{ ...item, layouts }] }));
+  await mount();
+  await requestPreview();
+  fireEvent.keyDown(screen.getByRole('button', { name: '기존 계산 배치 이동' }), { key: 'ArrowDown' });
+  expect(screen.getByRole('cell', { name: '12345678901234567890.12' })).not.toBeNull();
+  expect((screen.getByRole('button', { name: '변경 내용 저장' }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.keyDown(screen.getByRole('button', { name: '기존 계산 배치 이동' }), { key: 'ArrowRight', shiftKey: true });
+  await requestPreview();
+  expect(api.post.mock.calls[1][1].items[0].layouts).toEqual({ ...layouts, desktop: { x: 0, y: 1, w: 7, h: 3 } });
+  fireEvent.click(screen.getByRole('button', { name: '되돌리기' }));
+  await requestPreview();
+  expect(api.post.mock.calls[2][1].items[0].layouts.desktop).toEqual({ x: 0, y: 1, w: 6, h: 3 });
+  fireEvent.change(screen.getByLabelText('1번 차트 단위'), { target: { value: '달러' } });
+  expect(screen.queryByRole('cell', { name: '12345678901234567890.12' })).toBeNull();
+});
